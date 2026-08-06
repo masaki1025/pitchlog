@@ -17,6 +17,8 @@ try:
 except Exception:
     pass
 
+from guard_common import effective_command
+
 PROTECTED = {"main", "develop"}
 
 
@@ -62,9 +64,25 @@ def main() -> int:
     command = str(data.get("tool_input", {}).get("command", ""))
     if "git" not in command:
         return 0
+    # 正規ラッパーへの stdin(プロンプト本文)はデータ — 本文中の git 記述で誤ブロックしない(3周目 P1)
+    command = effective_command(command)
+    if "git" not in command:
+        return 0
 
     if re.search(r"git\b[^\n|;&]*\bpush\b[^\n|;&]*(--force\b|--force-with-lease\b|\s-f\b)", command):
         print("ブロック: force push は禁止です(設計書 8.2/8.3)。", file=sys.stderr)
+        return 2
+
+    # ブランチの強制削除は同義オプションも含めて遮断(3周目 P1 — settings の deny は語順・別名で迂回可能)
+    if re.search(r"\bgit\b[^\n|;&]*\bbranch\b", command) and (
+        re.search(r"\s-D\b", command)
+        or (re.search(r"--delete\b", command) and re.search(r"--force\b", command))
+    ):
+        print(
+            "ブロック: ブランチの強制削除(-D / --delete --force)は禁止です"
+            "(未マージ履歴の喪失防止 — 設計書 8.2)。安全な -d を使うか、人間が実行してください。",
+            file=sys.stderr,
+        )
         return 2
 
     if re.search(r"git\b[^\n|;&]*\bpush\b", command) and push_targets_protected(command):

@@ -47,4 +47,4 @@ EOF
 
 ## fast path(軽微変更 — 設計書 6.1。人間の事前 OK 必須)
 
-非コア(`.claude/core-areas.json` に該当しない)かつ小差分(目安 50 行以下)かつ正本影響なしの変更は、計画書なしで `python .claude/scripts/codex_run.py fast -`(worktree 内で実行、terra medium 固定)。PR は **/pr の fast path 分岐**を使い、本文に短縮計画(目的/変更/確認方法/人間の事前 OK への言及)を書く。
+非コア(`.claude/core-areas.json` に該当しない)かつ小差分(目安 50 行以下)かつ正本影響なしの変更は、**計画書の承認・ステップ表なし**で `python .claude/scripts/codex_run.py fast -`(worktree 内で実行、terra medium 固定)。/task-start が作った計画書雛形は**メタデータとして保持**する(status: active のまま。/pr・/task-done が frontmatter の branch・notion を参照する)。PR は **/pr の fast path 分岐**を使い、本文に短縮計画(目的/変更/確認方法/人間の事前 OK への言及)を書く。

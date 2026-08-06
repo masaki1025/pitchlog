@@ -14,7 +14,7 @@ worklog の締めと計画書の status 更新は **/pr が PR 内で実施済�
 
 ## 手順
 
-1. メインツリーで `git switch develop` → `git pull`(最新化)
+1. メインツリーで `git switch develop` → `git pull --ff-only`(最新化。fast-forward 不可なら**中断**して状況を報告 — 保護ブランチにマージコミットを作らない)
 2. worktree に未コミット変更が残っていないか確認(残っていれば内容を見せてユーザーに確認してから)
 3. `git worktree remove ../pitchlog-worktrees/<worktree名>` → `git worktree prune`
 4. Notion ステータスを `完了` へ・完了日 = マージ日を記録(綴りの正: `.claude/notion-map.json` — 推測しない)。残件があれば新しい Notion タスクとして起票を提案する

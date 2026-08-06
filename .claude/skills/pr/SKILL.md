@@ -20,8 +20,9 @@ disable-model-invocation: true
 2. **正本反映**: 計画書 3 節の宣言と `git -C <worktree> diff origin/develop...HEAD --name-only` を突合。宣言済みで未反映の正本があれば /sync-docs を案内して中断
 3. **品質**: /check が本セッションで未実行または失敗なら中断
 
-## fast path 分岐(計画書なし — 設計書 6.1。人間の事前 OK 済みが前提)
+## fast path 分岐(設計書 6.1。人間の事前 OK 済みが前提)
 
+- 計画書は /task-start の**雛形がメタデータとして残っている**前提(承認・ステップ表・3節の記入は不要)。手順 1-1 の status 更新と frontmatter(branch・notion)の参照は通常どおり行う
 - 突合 2-2(正本反映)は「正本への影響がない」ことの差分確認に置換。2-3(/check)は同じ
 - PR 本文に**短縮計画**を必須記載: 目的 / 変更内容 / 確認方法 / 人間の事前 OK への言及
 - 以降(push・PR 作成・Notion 遷移)は通常経路と同じ

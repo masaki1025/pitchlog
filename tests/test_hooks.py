@@ -114,6 +114,8 @@ def test_codex_guard_allows(command):
     "echo codex_run.py; codex exec 'x'",                        # 文字列混入によるチェーン迂回
     "npx @openai/codex exec 'x'",                               # npm 系ランチャー
     "pnpm dlx @openai/codex e 'x'",
+    "bash -lc 'codex exec x'",                                  # 引用内の生起動(3周目 P0)
+    "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",            # 非ラッパー heredoc は本文も検査(3周目 P0)
 ])
 def test_codex_guard_blocks_bypass_attempts(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 2
@@ -138,9 +140,23 @@ def test_codex_guard_ignores_heredoc_body_and_messages():
     "node -e \"console.log(require('fs').readFileSync('.env','utf8'))\"",
     "uv run python -c \"print(open('.env').read())\"",
     "type .env.local",
+    "cat backend/.env.example.local",   # 例外は exact .env.example のみ(3周目 P0)
+    "cat .env.example.backup",
 ])
 def test_secret_guard_blocks(command):
     assert run_hook("secret_guard.py", bash(command)).returncode == 2
+
+
+def test_guards_treat_wrapper_stdin_as_data():
+    # 正規ラッパーへの heredoc 本文(プロンプト)はデータ — 本文中の .env / force push 記述で
+    # 誤ブロックしない(3周目 P1: /finalize-doc が設計書全文を渡せること)
+    body = (
+        "python .claude/scripts/codex_run.py review adversarial - <<'EOF'\n"
+        "設計書には .env の遮断と git push --force origin main の禁止が書かれている\n"
+        "EOF"
+    )
+    assert run_hook("secret_guard.py", bash(body)).returncode == 0
+    assert run_hook("git_guard.py", bash(body)).returncode == 0
 
 
 @pytest.mark.parametrize("command", [
@@ -186,6 +202,19 @@ def test_git_guard_blocks_cd_git_compound():
 
 def test_git_guard_allows_cd_without_protected_verb():
     assert run_hook("git_guard.py", bash("cd backend && git status")).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "git branch -D feature/x",
+    "git branch --delete --force feature/x",   # -D の同義形も遮断(3周目 P1)
+    "git branch --force --delete feature/x",
+])
+def test_git_guard_blocks_force_branch_delete(command):
+    assert run_hook("git_guard.py", bash(command)).returncode == 2
+
+
+def test_git_guard_allows_safe_branch_delete():
+    assert run_hook("git_guard.py", bash("git branch -d feature/x")).returncode == 0
 
 
 # ---- session_context -------------------------------------------------------
@@ -297,6 +326,48 @@ def test_wrapper_rejects_research_with_env(tmp_path):
     assert "秘密".encode("utf-8") in r.stderr
 
 
+def test_wrapper_rejects_research_with_nested_env(tmp_path):
+    # 直下だけでなく配下も再帰検査する(3周目 P0: backend/.env の見落とし)
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / ".env.local").write_text("SECRET=1", encoding="utf-8")
+    (tmp_path / ".env.example").write_text("KEY=", encoding="utf-8")  # 正本は除外される
+    r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
+    assert r.returncode == 2
+    assert "backend/.env.local".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_empty_step_table(tmp_path):
+    # テンプレの空行(| 1 |  |  |)だけでは通さない — 記入済み行を構造検証(3周目 P1)
+    wt = tmp_path / "pitchlog-worktrees" / "feature-x"
+    wt.mkdir(parents=True)
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        f"worktree: {wt}\nbranch: feature/x\n---\n# 計画\n\n"
+        "### 実装ステップ(コミット単位)\n| # | ステップ | 合格条件 |\n| --- | --- | --- |\n| 1 |  |  |\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "実装ステップ".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_invalid_branch(tmp_path):
+    # branch は feature/* | fix/* を必須とする(3周目 P1 — 空でも検査を省略しない)
+    wt = tmp_path / "pitchlog-worktrees" / "feature-x"
+    wt.mkdir(parents=True)
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        f"worktree: {wt}\n---\n# 計画\n\n"
+        "### 実装ステップ(コミット単位)\n| 1 | worktree照合 | pytest |\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "branch".encode("utf-8") in r.stderr
+
+
 def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     # 安全キーは config 層に依存せず毎回明示上書き。ネット例外は理由の記録が必須
     import importlib.util
@@ -305,15 +376,17 @@ def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     monkeypatch.delenv("PITCHLOG_ALLOW_NET", raising=False)
-    assert mod.security_overrides(may_allow_net=True)[-1].endswith("network_access=false")
+    flags = mod.security_overrides(may_allow_net=True)
+    assert "sandbox_workspace_write.network_access=false" in flags
+    assert "sandbox_workspace_write.writable_roots=[]" in flags  # 書込境界も明示固定(3周目 P0)
     monkeypatch.setenv("PITCHLOG_ALLOW_NET", "1")
     monkeypatch.delenv("PITCHLOG_NET_REASON", raising=False)
     with pytest.raises(SystemExit):
         mod.security_overrides(may_allow_net=True)
     monkeypatch.setenv("PITCHLOG_NET_REASON", "依存追加の検証")
-    assert mod.security_overrides(may_allow_net=True)[-1].endswith("network_access=true")
+    assert "sandbox_workspace_write.network_access=true" in mod.security_overrides(may_allow_net=True)
     # read-only 系(research/review)は ALLOW_NET でも有効化しない
-    assert mod.security_overrides(may_allow_net=False)[-1].endswith("network_access=false")
+    assert "sandbox_workspace_write.network_access=false" in mod.security_overrides(may_allow_net=False)
 
 
 def test_wrapper_rejects_review_base_flag():

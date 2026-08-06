@@ -148,7 +148,14 @@ def security_overrides(*, may_allow_net: bool) -> list[str]:
             die('PITCHLOG_ALLOW_NET=1 には PITCHLOG_NET_REASON="理由" が必須(12.1 の例外運用の記録)')
         print(f"codex_run: 警告: ネットワーク有効(理由: {reason})", file=sys.stderr)
         net = "true"
-    return ["-c", f"sandbox_workspace_write.network_access={net}"]
+    return [
+        "-c", f"sandbox_workspace_write.network_access={net}",
+        # 書込境界も config 層に依存させない(3周目 P0): 追加 writable root を無効化し、
+        # /tmp・$TMPDIR は許容する(ビルドツール前提)ことを明示固定する
+        "-c", "sandbox_workspace_write.writable_roots=[]",
+        "-c", "sandbox_workspace_write.exclude_slash_tmp=false",
+        "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=false",
+    ]
 
 
 def implement_argv(base: list[str], resume_sid: str | None) -> list[str]:
@@ -176,18 +183,25 @@ def cmd_implement(args: list[str]) -> int:
         die(f"計画書が未承認(承認: {approval})。/plan のレビューと人間承認を先に(設計書 6.1)")
     worktree = fm.get("worktree", "")
     wt = (plan.parent / worktree).resolve() if worktree and not Path(worktree).is_absolute() else Path(worktree)
-    if not worktree or not wt.is_dir() or WORKTREES_DIRNAME not in wt.as_posix():
-        die(f"worktree が不正({worktree})。/task-start が設定した {WORKTREES_DIRNAME} 配下のパスが必要(設計書 12.1)")
+    if not worktree or not wt.is_dir() or wt.parent.name != WORKTREES_DIRNAME:
+        die(f"worktree が不正({worktree})。/task-start が設定した {WORKTREES_DIRNAME} **直下**のパスが必要(設計書 12.1 — 部分文字列でなく親ディレクトリ名で判定)")
     weight = fm.get("重さ分類", "通常")
     if weight not in MODEL_MAP:
         die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
-    if "実装ステップ" not in plan.read_text(encoding="utf-8"):
-        die("計画書に「実装ステップ(コミット単位)」が無い(設計書 6.1 段階実装 — plan-template 4 節の表を埋める)")
+    plan_text = plan.read_text(encoding="utf-8")
+    # 見出しの存在だけでなく、記入済みのステップ行(番号+非空の内容セル)を構造的に検証する(3周目 P1)
+    if "実装ステップ" not in plan_text or not re.search(
+        r"^\|\s*\d+\s*\|\s*[^|]*[^|\s][^|]*\|", plan_text, re.M
+    ):
+        die("計画書の「実装ステップ(コミット単位)」に記入済みの行が無い"
+            "(設計書 6.1 段階実装 — 空のテンプレ表のままでは実行できない)")
     branch = fm.get("branch", "")
+    if not re.fullmatch(r"(?:feature|fix)/\S+", branch):
+        die(f"計画書の branch が不正({branch or '未設定'})。feature/* または fix/* が必要(設計書 6.2)")
     registered = worktree_branch(wt)
     if registered is None:
         die(f"worktree が git に登録されていない: {wt}(/task-start で作成する — 設計書 12.1)")
-    if branch and registered != branch:
+    if registered != branch:
         die(f"worktree のブランチ({registered})が計画書の branch({branch})と一致しない")
     model, effort = MODEL_MAP[weight]
     prompt = read_prompt(args)
@@ -216,11 +230,28 @@ def cmd_fast(args: list[str]) -> int:
                       "-c", 'web_search="cached"', *security_overrides(may_allow_net=True)], prompt)
 
 
+SCAN_SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", "dist", "coverage"}
+
+
+def find_env_files(root: Path) -> list[str]:
+    """root 配下の秘密ファイル(.env*)を再帰検出する。exact `.env.example` のみ除外(3周目 P0)。"""
+    found: list[str] = []
+    try:
+        for p in root.rglob(".env*"):
+            if any(part in SCAN_SKIP_DIRS for part in p.parts):
+                continue
+            if p.name != ".env.example":
+                found.append(str(p.relative_to(root)))
+    except Exception:
+        pass
+    return sorted(found)
+
+
 def cmd_research(args: list[str]) -> int:
-    # live search 併用の漏洩経路遮断(2周目 P0 対応): 秘密ファイルのある場所では実行しない
-    envs = sorted(p.name for p in Path.cwd().glob(".env*") if p.name != ".env.example")
+    # live search 併用の漏洩経路遮断(2周目/3周目 P0 対応): 秘密ファイルのある場所では実行しない
+    envs = find_env_files(Path.cwd())
     if envs:
-        die(f"cwd に {', '.join(envs)} が存在します。/research(live search 併用)は"
+        die(f"配下に {', '.join(envs)} が存在します。/research(live search 併用)は"
             "秘密レスの作業コピーで実行してください(設計書 12.1)")
     model, effort = RESEARCH_DEEP if "--deep" in args else RESEARCH
     prompt = read_prompt([a for a in args if a != "--deep"] or ["-"])

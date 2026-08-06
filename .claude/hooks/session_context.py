@@ -4,6 +4,7 @@
 最新 worklog の要点を additionalContext として注入する(設計書 8.3)。失敗時は沈黙。
 """
 import json
+import re
 import subprocess
 import sys
 
@@ -65,6 +66,10 @@ def main() -> int:
     active = []
     worktree_entries = list_worktrees(cwd) or [{"path": str(root)}]
     for wt in worktree_entries:
+        b = wt.get("branch", "")
+        # 保護ブランチ上の worktree はマージ済み plan の複製を含むため除外(3周目 P1)
+        if b in ("main", "develop"):
+            continue
         fdir = Path(wt.get("path", "")) / "docs" / "features"
         if not fdir.is_dir():
             continue
@@ -73,9 +78,13 @@ def main() -> int:
                 head = plan.read_text(encoding="utf-8")[:800]
             except Exception:
                 continue
-            if "status: active" in head or "status: in-review" in head:
-                b = wt.get("branch", "")
-                active.append(f"{plan.parent.name}({b})" if b else plan.parent.name)
+            if "status: active" not in head and "status: in-review" not in head:
+                continue
+            # plan の branch がこの worktree のブランチと一致するものだけを「進行中」とする
+            m = re.search(r"^branch:\s*(\S+)", head, re.M)
+            if b and m and m.group(1) != b:
+                continue
+            active.append(f"{plan.parent.name}({b})" if b else plan.parent.name)
     if active:
         lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(set(active))))
 

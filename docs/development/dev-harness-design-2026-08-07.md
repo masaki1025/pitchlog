@@ -15,7 +15,8 @@
 | 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | in-review |
 | 0.12 | 2026-08-07 | **feature 作業域の規約を明確化**（PO 指示）: **1 feature = 1 ディレクトリ** — `docs/features/<slug>/` 配下に plan.md・research.md・補助資料の複数ファイルを集約し、`docs/features/` 直下に単発ファイルを置かない（4章・6.1・7.2）。あわせて v0.10 P1-4（plan 状態の2値化）への追随漏れを掃除（7.2・7.6・rules/docs.md・docs/README.md に「active → merged」が残存していた） | in-review |
 | 0.13 | 2026-08-07 | **Notion 連動の機構化+段階実装規約**（PO 指示2件）: (1) タスク DB の実ステータス語彙（**11選択肢**）を実 DB から取得し、フロー事象↔ステータス対応を **`.claude/notion-map.json`**（新設・機械可読）へ一元化（11.1 改稿 — 差し戻し・ブロック中を含む遷移表。実施責務をスキル5本へ明記、/setup-dev に語彙突合を追加）。(2) **段階実装・こまめコミット**を規約化（6.1 新設）— 計画書に「実装ステップ（コミット単位）」表を必須化（テンプレ改訂・**ラッパーが機構検査**）、/implement を「1 委任 = 1 ステップ → 検証 → 1 コミット」のループへ改稿、AGENTS.md に「指示されたステップで止まる」を明記。あわせて2周目敵対レビュー指摘の即応分を反映: **`--resume` の引数順バグ修正**（exec オプションを resume の前へ — 実機検証済み）／task-start の遷移順序（Git 成功後に Notion 遷移）・worktree 置き場の事前作成／`fix/*` ブランチの /pr・/task-done 対応／テンプレ worktree 相対パス修正／8.4 の「計画書 merged 化」残存表記修正／**副作用スキル9本に `disable-model-invocation: true`**（自動起動の遮断）／**hooks 起動を `/usr/bin/python3` 絶対パス化**（PATH 汚染 fail-open 対策）／`review --base` の偽装受理を拒否／テスト 47 件へ増強。**残余指摘（P0×6 ほか）は triage 表を worklog に記録し次版で対応** | in-review |
-| 0.14 | 2026-08-07 | **ガード強化パス**（2周目レビュー採用分+PO 方針: 脅威モデル=誤操作+外部入力暴走まで、敵対 AI フル想定はしない）: codex_guard を**起動検出型**へ書き換え（絶対パス・npx/`@openai/codex`・チェーン混入を遮断、ヒアドキュメント本文は除外 — substring 許可全廃）／git_guard の**複合コマンド対応**（セグメント単位 `-C` 解決・`cd`+git は保守的ブロック）／ラッパーの**安全キー明示上書き**（config 層非依存・ネット例外は理由必須）・**/research の秘密レス検査**・**worktree 実在照合**／SessionStart の**全 worktree 列挙**／fast path の /pr 分岐（短縮計画必須）／的絞り deny 3件（`git branch -D`・`docker compose down -v/--volumes`）／9.2 標準経路をラッパーへ一本化・9.3 の sandbox 上書き主張を config 非依存設計へ改稿・Windows 残存記述の掃除（2.1・4章・12.1）／迂回ケースの回帰テスト追加（**59件**）。**不採用の記録**（worklog に理由）: Bash allow 絞り込み・承認トークン化・CODEX_HOME 隔離 | **in-review**（3周目レビューへ） |
+| 0.14 | 2026-08-07 | **ガード強化パス**（2周目レビュー採用分+PO 方針: 脅威モデル=誤操作+外部入力暴走まで、敵対 AI フル想定はしない）: codex_guard を**起動検出型**へ書き換え（絶対パス・npx/`@openai/codex`・チェーン混入を遮断、ヒアドキュメント本文は除外 — substring 許可全廃）／git_guard の**複合コマンド対応**（セグメント単位 `-C` 解決・`cd`+git は保守的ブロック）／ラッパーの**安全キー明示上書き**（config 層非依存・ネット例外は理由必須）・**/research の秘密レス検査**・**worktree 実在照合**／SessionStart の**全 worktree 列挙**／fast path の /pr 分岐（短縮計画必須）／的絞り deny 3件（`git branch -D`・`docker compose down -v/--volumes`）／9.2 標準経路をラッパーへ一本化・9.3 の sandbox 上書き主張を config 非依存設計へ改稿・Windows 残存記述の掃除（2.1・4章・12.1）／迂回ケースの回帰テスト追加（**59件**）。**不採用の記録**（worklog に理由）: Bash allow 絞り込み・承認トークン化・CODEX_HOME 隔離 | in-review |
+| 0.15 | 2026-08-07 | **3周目敵対レビュー（否決 — P0×4/P1×5/P2×2、指摘は 20→11 件に収束）の全件反映**: `guard_common.py` 新設 — ヒアドキュメント本文をデータ扱いできるのは**正規ラッパーへの stdin のみ**（`bash <<EOF` 迂回の遮断と、プロンプト本文による git/secret ガードの誤ブロック解消を同時に解決）／codex_guard が引用内起動（`bash -lc 'codex exec …'`）も検出／**書込境界の明示固定**（`writable_roots=[]`・`/tmp` 許容を明示）／`/research` の秘密検査を**再帰化**（`backend/.env` 等）／secret_guard の例外を **exact `.env.example` のみ**に修正（`.env.example.local` 穴）／実装ステップ表の**構造検証**（空テンプレ不可）／branch 必須化（`feature/*|fix/*`）+ worktree は親ディレクトリ名で判定／SessionStart が保護ブランチ worktree を除外し plan の branch と突合／ブランチ強制削除の**意味ベース遮断**（`-D`・`--delete --force` 同義形）／task-done の pull を `--ff-only` 化／fast path の計画書雛形保持を明文化（6.1・/implement・/pr）／8.2 の permissions 例示を撤去（実ファイルが正）・12.2 の残存プラグイン表記・論点Cの件数表記を掃除／テスト **71 件** | **in-review**（4周目レビューへ） |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
 > 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
@@ -354,41 +355,12 @@ draft（Claude起案）
 
 ### 8.2 settings.json（permissions）
 
-`.claude/settings.json`（Git 管理・チーム共有）。方針: **読み取りと定型開発コマンドは許可 / 公開・破壊系は確認 / シークレットと版固定領域は拒否**。
+`.claude/settings.json`（Git 管理・チーム共有）が**ルールの正**。方針: **読み取りと定型開発コマンドは許可 / 公開・破壊系・依存変更は確認（ask） / シークレット・版固定領域・破壊的 git は拒否（deny）**。
 
-```jsonc
-{
-  "permissions": {
-    "allow": [
-      // 開発定型（CI と同一コマンド）
-      "Bash(uv run:*)", "Bash(uv sync:*)", "Bash(uv add:*)", "Bash(uv lock:*)",
-      "Bash(pnpm install:*)", "Bash(pnpm run:*)", "Bash(pnpm exec:*)",
-      "Bash(docker compose:*)",
-      // git 安全系（commit まで。push は ask）
-      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git branch:*)",
-      "Bash(git switch:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git fetch:*)",
-      // gh 読み取り系
-      "Bash(gh pr view:*)", "Bash(gh pr list:*)", "Bash(gh run view:*)", "Bash(gh run list:*)",
-      // Codex プラグイン runtime
-      "Bash(node:*)"
-    ],
-    "ask": [
-      "Bash(git push:*)", "Bash(git merge:*)",
-      "Bash(gh pr create:*)", "Bash(gh pr merge:*)", "Bash(gh api:*)",
-      "Bash(uv remove:*)"
-    ],
-    "deny": [
-      // NFR-014: シークレット遮断（読み取り自体を禁止）
-      "Read(./.env)", "Read(./.env.*)", "Read(./**/.env)", "Read(./**/.env.*)",
-      // 破壊的 git
-      "Bash(git push --force:*)", "Bash(git reset --hard:*)", "Bash(git clean:*)",
-      // 版固定領域（7.1 原則2）
-      "Write(./docs/legacy/**)", "Edit(./docs/legacy/**)"
-    ]
-  }
-}
-```
-
+- allow: CI と同一の定型開発コマンド（`uv run`・`pnpm run/exec` 等）・git 安全系（commit まで）・gh 読み取り系・ラッパー起動
+- ask: `git push`・`git merge`・PR 操作・`gh api`・依存変更（`uv add/remove`・`pnpm install/add/remove`）・`node`
+- deny: `.env` 系の Read・force push / hard reset / clean・ブランチ強制削除・volume 破棄・`docs/legacy/**` への書き込み
+- **ルール実体を本書に複製しない**（乖離防止 — 3周目 P2。実ファイルが常に正）。Bash パターンは前方一致の文字列照合で引数の同義形に弱いため、意味ベースの拒否は hooks 側（8.3）が担う
 - パターン記法は実装時（Phase 1）に現行版の公式仕様どおりであることを `/permissions` UI で検証する
 - 個人差分（例: 追加の allow）は `settings.local.json`（gitignore）へ
 
@@ -405,7 +377,7 @@ draft（Claude起案）
 | `format_on_save.py` | PostToolUse / `Write\|Edit` | `backend/**/*.py` → `uv run ruff format` + `ruff check --fix`。`frontend/**` → `pnpm exec prettier --write`。ツール未導入時は静かにスキップ（fail-open） |
 | `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**worktree が現存する**進行中 feature（`git worktree list --porcelain` で**全 worktree を列挙** — 2周目 P1）・最新 worklog の要約を additionalContext として注入 |
 
-- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・59ケース — P1-13。迂回ケース・一時リポジトリでの実ブランチ判定を含む。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
+- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・71ケース — P1-13。迂回ケース・一時リポジトリでの実ブランチ判定を含む。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
 
 - hooks は「Claude が誤ってやりかけた時に止まる」ための層。規約の一次的な伝達は CLAUDE.md / AGENTS.md が担う
 - stop-review-gate（Codex プラグイン提供・`/codex:setup` でトグル）: Claude が直接コード変更したターンの停止時に Codex が ALLOW/BLOCK 判定。**例外運用（Claude 直接実装）の保険として有効化を提案**
@@ -683,7 +655,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | 破壊的操作 | force-push・hard reset・clean は permissions 拒否 + hooks ブロック / マージ・push・PR 操作は ask（人間承認） |
 | 版固定領域 | `docs/legacy/**` への書き込みを permissions + hooks の二層で禁止 |
 | ブランチ規律 | hooks（ローカル）+ ブランチ保護（リモート）の二層 — 7.3 継承 |
-| Codex 実行 | プラグイン runtime / exec 契約（9.2）に一本化。sandbox・ネットワーク・実行場所は 12.1 の固定ポリシー。危険フラグは codex_guard がブロック |
+| Codex 実行 | `codex_run.py` ラッパー（9.2）に一本化。sandbox・ネットワーク・実行場所は 12.1 の固定ポリシー（安全キーは呼び出しごとに CLI で明示上書き）。危険フラグ・生実行・チェーン混入は codex_guard がブロック |
 | 最小権限の原則 | サブエージェントは read-only から始める（8.5）。MCP のプロジェクト共有(.mcp.json)は必要が生じるまで置かない |
 
 ## 13. 段階導入計画（各 Phase = 1 PR、この順に develop へ）
@@ -691,7 +663,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | Phase | 内容 | 完了条件 |
 | --- | --- | --- |
 | **0** | 本設計案の確定（敵対レビュー → 承認 → approved 化） | 本書 status: approved |
-| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・59件）全グリーン + 実地確認 |
+| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・71件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
 | **3** | CI 先行分(secrets / docs-lint) + ブランチ保護適用 + github-setup.md | 保護設定が有効・PR で CI が回る |
 | **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（論点A決着後）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で README 手順どおりセットアップ成功（NFR-021） |
@@ -705,7 +677,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | --- | --- | --- |
 | **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 v1.8 改訂（7.1）を実装着手前に確定ゲート経由で実施する |
 | **B** | コードレビュー体制 | **解決（2026-08-07）**: 6.3 の「反対側必須レビュー」案を確定採用。修正1点 — **コア領域 PR は人間の逐行確認を必須**（任意 → 必須に格上げ。`/pr` が必須チェックを自動付与） |
-| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・44 テストで担保）。NFR-021「Windows 11 で完結」は WSL2 を含む解釈とし、セットアップ再現手順は onboarding.md が正 |
+| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・回帰テストで担保）。NFR-021「Windows 11 で完結」は WSL2 を含む解釈とし、セットアップ再現手順は onboarding.md が正 |
 | **D** | 本番アプリ実行環境 | 未定のまま進めて支障がない構え（10.4: イメージビルドまで自動化）。設計フェーズ中に別タスクとして選定（DB は Supabase 前提を維持） |
 | **E** | ty の成熟度リスク | 採用継続。ただし型検査が開発を止めた場合の代替（mypy）切替を ADR 一枚で可能にしておく |
 | **F** | 「ドキュメント製本」の解釈 | **解決（2026-08-07）**: 以後の指示でも「設計書の製本 = docs 内の正本」の用法が確認できたため「正本管理」（7章）で確定。出版（サイト/PDF化）が必要になれば Phase 5 で別途検討 |
