@@ -11,7 +11,8 @@
 | 0.7 | 2026-08-07 | **論点B 解決: レビュー体制（6.3）を確定採用**。修正1点 — コア領域 PR の人間逐行確認を任意 → **必須**に格上げ（`/pr` が必須チェックを自動付与） | **draft**（同上） |
 | 0.8 | 2026-08-07 | モデル対応表（9.4）の effort を PO 指示で改訂: 通常実装/一次レビュー = terra **max**・軽微 = terra medium・コア領域 = sol xhigh・軽作業 = luna xhigh。`/research` 行（terra high）を追加。max の CLI 指定可否を実機検証して反映（ADR-001 も同時改訂） | **draft**（同上） |
 | 0.9 | 2026-08-07 | **Phase 1〜2 相当の基盤ファイル一式を実装**（本ブランチに同梱）: AGENTS.md / CLAUDE.md / settings.json + hooks 5本 / skills **13本**（8.4 改稿 — `/plan`・`/investigate`・`/check`・`/sync-docs` を追加）/ 調査エージェント3本 / `.codex/config.toml`（review_model 含む）/ PR テンプレ / テンプレ4種 / docs 索引 / onboarding | in-review |
-| 0.10 | 2026-08-07 | **敵対レビュー1周目（sol xhigh・判定=否決）の指摘を反映**: P0×4 — `.env` 迂回対策（secret_guard 新設・allow 絞り込み・残余リスク明記 12.1）／codex 生実行の遮断（ラッパー `codex_run.py` に一元化 9.2）／NFR-018 表現修正（4章）／NFR-019 ランナー標準化（**要件書 v1.8 改訂**）。P1×13 — ADR 2本を in-review へ差し戻し／`/pr` のコミット順序・`--head` 明示／plan 状態の 3 値化（merged を Git に置かない）／セッション ID 保存で `resume --last` 廃止／PowerShell matcher 追加／refspec・casefold のガード強化／`--ignore-user-config` 廃止／`uv add`等を ask へ／`core-areas.json` 新設（5領域統一）／**hooks の pytest 38 件追加**。P2×4 — **fast path 新設**（6.1）／worktree 命名統一／README 導線／rules は Phase 4 と明記 | **in-review**（2周目レビューへ） |
+| 0.10 | 2026-08-07 | **敵対レビュー1周目（sol xhigh・判定=否決）の指摘を反映**: P0×4 — `.env` 迂回対策（secret_guard 新設・allow 絞り込み・残余リスク明記 12.1）／codex 生実行の遮断（ラッパー `codex_run.py` に一元化 9.2）／NFR-018 表現修正（4章）／NFR-019 ランナー標準化（**要件書 v1.8 改訂**）。P1×13 — ADR 2本を in-review へ差し戻し／`/pr` のコミット順序・`--head` 明示／plan 状態の 3 値化（merged を Git に置かない）／セッション ID 保存で `resume --last` 廃止／PowerShell matcher 追加／refspec・casefold のガード強化／`--ignore-user-config` 廃止／`uv add`等を ask へ／`core-areas.json` 新設（5領域統一）／**hooks の pytest 38 件追加**。P2×4 — **fast path 新設**（6.1）／worktree 命名統一／README 導線／rules は Phase 4 と明記 | in-review |
+| 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | **in-review**（2周目レビューは WSL 移行後に実施） |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
 > 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
@@ -516,7 +517,7 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 
 - **プロジェクト設定は可能**: リポジトリ内 `.codex/config.toml` を Codex が読む。ただし **trusted 指定されたプロジェクトのみ**（開発者が初回に trust する。`~/.codex/config.toml` の `[projects."<絶対パス>"] trust_level = "trusted"`）。`model_provider`・`notify`・**sandbox 系キー等はプロジェクト側から上書き不可**（設定乗っ取り対策）→ 本プロジェクトの `.codex/config.toml` は `web_search = "cached"`（安全側既定の明示）程度の最小構成とし、sandbox・モデルは呼び出しフラグで都度指定する（9.2）
 - **approval_policy の現行3値**: `untrusted` / `on-request` / `never`。**旧 `on-failure` は廃止済み** — 2025年前半以前の記事の設定例を持ち込まないこと。`codex exec` は非対話で承認プロンプトを出さないため、通常は sandbox 指定のみで足りる
-- **Windows ネイティブは正式サポート**（2026-08 現在）: PowerShell ネイティブ実行時は専用の Windows sandbox（`[windows] sandbox = "elevated"` 推奨 / `"unelevated"` フォールバック）が働く。WSL2 は「Linux ネイティブのツーリングが必要な場合の選択肢」と公式が明記 → **論点C は「ネイティブ継続」を確定案とする**
+- **Windows ネイティブは正式サポート**（2026-08 現在）: PowerShell ネイティブ実行時は専用の Windows sandbox が働き、WSL2 実行時は Linux sandbox（bubblewrap）が働く（WSL1 非対応） → 当初はネイティブ継続案だったが、**実地の Windows 固有障害により WSL2 へ移行**（論点C改訂 — 14章）
 - **レビュー機能**: ローカルは `codex review --uncommitted | --base <branch> | --commit <sha>`（プラグインの `/codex:review` が内包）。クラウドは GitHub 連携の `@codex review` メンション / 新規 PR 自動レビュー（→ 10.3）
 - **認証**: ローカルは既存ログインを共用。CI 等の単発実行は `CODEX_API_KEY` 環境変数（exec 専用）を GitHub Secrets から注入
 
@@ -643,7 +644,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 
 - **禁止（機構ブロック）**: `danger-full-access` / `--dangerously-bypass-approvals-and-sandbox`（`--yolo`）は本プロジェクトで使用しない。hooks の `codex_guard.py`（8.3）が Claude 経由の実行を遮断する
 - **実行経路の一元化（P0-2）**: Codex の起動は `.claude/scripts/codex_run.py` ラッパーのみ（codex_guard が生実行・プラグイン task モードを遮断）。本表の水準は**ラッパーが機械適用**する — sandbox 系キーはプロジェクト `.codex/config.toml` から設定できない（9.3）ため、スキルの自然言語ではなくコードで固定する
-- Windows ネイティブ sandbox は `~/.codex/config.toml` の `[windows] sandbox = "elevated"` を推奨。個人設定のため `docs/development/onboarding.md` に記載して各開発者が適用（Phase 1）
+- 実行環境は **WSL2**（論点C改訂 — 2026-08-07）。Codex sandbox は Linux 実装（bubblewrap）が自動適用される（**WSL1 非対応**のため必ず WSL2）。`[windows] sandbox` 設定は不要。個人設定手順は `docs/development/onboarding.md`
 
 #### worktree 運用規約
 
@@ -685,7 +686,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | --- | --- | --- |
 | **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 v1.8 改訂（7.1）を実装着手前に確定ゲート経由で実施する |
 | **B** | コードレビュー体制 | **解決（2026-08-07）**: 6.3 の「反対側必須レビュー」案を確定採用。修正1点 — **コア領域 PR は人間の逐行確認を必須**（任意 → 必須に格上げ。`/pr` が必須チェックを自動付与） |
-| **C** | WSL 化の要否 | **Windows ネイティブ継続で確定を提案**。根拠: Codex 公式が Windows ネイティブを正式サポート（専用 sandbox あり。WSL2 は「Linux ツーリングが必要な場合の選択肢」と明記 — 9.3）+ NFR-021（Windows 11 完結）+ codex/claude/uv/docker の本機稼働実績 + hooks/scripts の Python 統一で OS 非依存化済み。Linux 固有ツールが必要になった時のみ再考 |
+| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・44 テストで担保）。NFR-021「Windows 11 で完結」は WSL2 を含む解釈とし、セットアップ再現手順は onboarding.md が正 |
 | **D** | 本番アプリ実行環境 | 未定のまま進めて支障がない構え（10.4: イメージビルドまで自動化）。設計フェーズ中に別タスクとして選定（DB は Supabase 前提を維持） |
 | **E** | ty の成熟度リスク | 採用継続。ただし型検査が開発を止めた場合の代替（mypy）切替を ADR 一枚で可能にしておく |
 | **F** | 「ドキュメント製本」の解釈 | **解決（2026-08-07）**: 以後の指示でも「設計書の製本 = docs 内の正本」の用法が確認できたため「正本管理」（7章）で確定。出版（サイト/PDF化）が必要になれば Phase 5 で別途検討 |

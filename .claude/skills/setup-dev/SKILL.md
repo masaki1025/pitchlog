@@ -15,7 +15,7 @@ git / uv / **python**(PATH 必須 — 無いと hooks の保護が fail-open す
 ## 2. Codex 設定確認
 
 - `~/.codex/config.toml` を確認し、このリポジトリの trust 設定(`[projects."<リポジトリ絶対パス>"] trust_level = "trusted"`)があるか確認。なければユーザー承認の上で追記する(プロジェクトの `.codex/config.toml` はこれがないと読み込まれない)
-- Windows の場合 `[windows] sandbox = "elevated"` を推奨として確認・提案する
+- **WSL2 が標準環境**(onboarding.md 0章)。`uname -r` に microsoft が含まれるか等で WSL を確認し、WSL1 なら WSL2 への変換を案内する(Codex の Linux sandbox は WSL1 非対応)。Windows ネイティブで例外的に使う場合のみ `[windows] sandbox = "elevated"` を提案
 
 ## 3. Notion ユーザー紐づけ(必須)
 
