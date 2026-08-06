@@ -47,13 +47,22 @@ def main() -> int:
         active = []
         for plan in features.glob("*/plan.md"):
             try:
-                head = plan.read_text(encoding="utf-8")[:500]
-                if "status: active" in head:
+                head = plan.read_text(encoding="utf-8")[:800]
+                if "status: active" not in head and "status: in-review" not in head:
+                    continue
+                # worktree が現存するものだけを「進行中」とする(完了の正は PR/Notion/worktree — 設計書 6.1)
+                m = None
+                for ln in head.splitlines():
+                    if ln.startswith("worktree:"):
+                        m = ln.split(":", 1)[1].split("#")[0].strip()
+                        break
+                wt = (plan.parent / m).resolve() if m and not Path(m).is_absolute() else (Path(m) if m else None)
+                if wt is None or wt.is_dir():
                     active.append(plan.parent.name)
             except Exception:
                 pass
         if active:
-            lines.append("進行中の feature: " + ", ".join(sorted(active)))
+            lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(active)))
 
     worklog = root / "docs" / "worklog"
     if worklog.is_dir():

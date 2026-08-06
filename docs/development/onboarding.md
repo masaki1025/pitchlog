@@ -14,6 +14,7 @@ pitchlog の開発に参加する開発者の初期設定手順。**Claude Code 
 | Claude Code | 対話・設計・オーケストレーション | — |
 | Codex CLI + openai-codex プラグイン | 実装・レビュー委任 | `codex --version` |
 | uv | Python・依存管理 | `uv --version` |
+| Python 3.12+（PATH 上の `python`） | hooks・codex ラッパーの実行（無いと保護が fail-open する） | `python --version` |
 | Docker Desktop | 開発 DB(PostgreSQL) | `docker --version` |
 | Node.js(実装フェーズからは mise + pnpm) | フロントエンド | `node --version` |
 
@@ -52,7 +53,8 @@ sandbox = "elevated"
 
 1. Claude Code を起動 → SessionStart フックが「現在ブランチ…」を表示すること
 2. `/permissions` で `.claude/settings.json` のルールが有効に見えること(Bash パターン構文が現行仕様か確認)
-3. main ブランチ上で `git commit` を試みるとブロックされること(git_guard)
+3. `uv run pytest tests/` が全グリーンであること(hooks の正負テスト 38 件)
+4. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
 
 ## 6. 開発フロー(要約)
 

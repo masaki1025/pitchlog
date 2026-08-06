@@ -1,23 +1,20 @@
 ---
-description: Web 技術調査を Codex に委任する(read-only + live search)。結論と参照 URL を記録する
+description: Web 技術調査を Codex に委任する(read-only + live search、ラッパー経由)。結論と参照 URL を記録する
 argument-hint: "<調査したいこと>"
 ---
 
 # Web 調査の Codex 委任(設計書 9.2 / ADR-001)
 
-## 実行
-
-モデルは ADR-001: 既定 `gpt-5.6-terra` + high。コア領域に関わる深い技術検証は `gpt-5.6-sol` + xhigh に引き上げる。
+実行はラッパー経由のみ(read-only + `web_search="live"` + terra high をラッパーが固定。コア領域に関わる深い技術検証は `--deep` で sol xhigh)。
 
 ```bash
-codex exec --skip-git-repo-check --ignore-user-config -s read-only \
-  -m gpt-5.6-terra -c model_reasoning_effort=high -c web_search="live" \
-  -o <scratchpad の一時ファイル> "<調査指示>"
+python .claude/scripts/codex_run.py research - <<'EOF'
+<調査指示>
+EOF
 ```
 
-- 調査指示には必ず含める: 「参照した URL を明記」「公式ドキュメント優先」「情報の公表日を確認し新旧仕様の混在に注意」
+- 調査指示に必ず含める: 「参照した URL を明記」「公式ドキュメント優先」「情報の公表日を確認し新旧仕様の混在に注意」
 - 大きい調査はバックグラウンド実行にして他の作業を続ける
-- 危険フラグ(danger-full-access / --yolo)は使わない(codex_guard が機構的にブロックする)
 
 ## 記録
 

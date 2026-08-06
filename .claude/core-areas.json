@@ -1,0 +1,10 @@
+{
+  "description": "コア領域の機械可読定義(設計書 6.3 / ADR-001 / 敵対レビュー P1-11)。paths は Phase 4 のコード骨格確定時に埋め、CI の必須チェック(core-guard)と /pr がこのファイルを正として参照する",
+  "areas": [
+    { "id": "sync-protocol", "name": "同期プロトコル", "paths": [] },
+    { "id": "game-state", "name": "状況計算(クライアント・サーバー)", "paths": [] },
+    { "id": "recording-rights", "name": "記録権", "paths": [] },
+    { "id": "tenant-isolation", "name": "テナント分離", "paths": [] },
+    { "id": "data-migration", "name": "データ移行", "paths": [] }
+  ]
+}

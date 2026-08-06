@@ -1,8 +1,9 @@
 ---
 feature: <slug>
-status: active            # active | merged(/pr が PR 内で merged に更新する)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— /implement は「済」でないと実行しない
-重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルが決まる)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出)
+承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
+worktree: ../../../../pitchlog-worktrees/feature-<slug>   # plan.md からの相対 or 絶対。/task-start が設定
 notion: <タスクURL>
 branch: feature/<slug>
 created: YYYY-MM-DD

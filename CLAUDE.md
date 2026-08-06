@@ -26,7 +26,7 @@
 
 ### コア領域(強化レビュー対象 — 設計書 6.3)
 
-**同期プロトコル / 状況計算(クライアント・サーバー) / 記録権 / テナント分離 / データ移行**
+**同期プロトコル / 状況計算(クライアント・サーバー) / 記録権 / テナント分離 / データ移行**(機械可読定義: `.claude/core-areas.json` — /pr・CI が参照)
 → 実装は sol xhigh・敵対レビュー必須・**人間の逐行確認必須**
 
 ### 調査サブエージェント(設計書 8.5)
@@ -42,4 +42,5 @@ spec-checker(要件突合)/ legacy-analyst(旧システム事実)/ decision-trac
 
 - 正本の変更は必ず変更履歴表に追記し、`docs/README.md`(索引)を現行化する
 - 実装は計画書ゲートを通ってから(いきなりコーディングしない — 設計書 6.1)
-- worktree 運用: 1 タスク = 1 ブランチ = 1 worktree(`../pitchlog-worktrees/<slug>`)。ファイル編集・git 操作は worktree 側で行う(`git -C`)
+- worktree 運用: 1 タスク = 1 ブランチ = 1 worktree(`../pitchlog-worktrees/<ブランチ名のスラッシュを - に置換>`)。ファイル編集・git 操作は worktree 側で行う(`git -C`)
+- **Codex の起動は `.claude/scripts/codex_run.py` ラッパー経由のみ**(生の `codex exec` は codex_guard がブロック — 計画承認・worktree・sandbox・モデル対応表をラッパーが機構検証する)

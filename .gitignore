@@ -2,6 +2,9 @@
 .claude/settings.local.json
 CLAUDE.local.md
 
+# Codex セッション追跡(codex_run.py が feature 単位で保存)
+.codex-session
+
 # シークレット(NFR-014)
 .env
 .env.*

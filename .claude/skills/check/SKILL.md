@@ -7,6 +7,10 @@ argument-hint: "[対象ディレクトリ(省略時はカレント)]"
 
 対象ディレクトリ(worktree)で以下を**存在するものだけ**順に実行し、結果を表で報告する。存在しない層は「スキップ(未導入)」と明記する。
 
+## harness(ルート `pyproject.toml` がある場合、リポジトリルートで)
+
+1. `uv run pytest tests/`(hooks・ラッパーの単体テスト)
+
 ## backend(`backend/pyproject.toml` がある場合、backend/ で)
 
 1. `uv run ruff format --check .`

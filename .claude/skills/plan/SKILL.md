@@ -20,7 +20,9 @@ argument-hint: "<feature slug または plan.md のパス>"
 
 ## レビューと承認
 
-1. 記入後、レビューへ: **通常** → `/codex:review`(未コミットの計画書を対象)/ **コア領域** → `/codex:adversarial-review`
+1. 記入後、レビューへ(ラッパー経由。計画書全文+検証観点をプロンプトで渡す):
+   - **通常**: `python .claude/scripts/codex_run.py review normal -`
+   - **コア領域**: `python .claude/scripts/codex_run.py review adversarial -`
 2. 指摘を反映し、収束したら**人間の承認を明示的に求める**
 3. 承認されたら frontmatter を `承認: 済(YYYY-MM-DD・承認者)` に更新し、計画書をコミットする
 

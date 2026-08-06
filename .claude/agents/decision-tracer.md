@@ -3,7 +3,8 @@ name: decision-tracer
 description: 「なぜこの仕様・構成になっているか」の決定経緯を追跡し、新しい提案が過去の決定と矛盾しないか検知する。設計・計画の下調べで積極的に使う
 tools: Read, Grep, Glob
 model: claude-opus-5
-effortLevel: high
+effort: high
+effortLevel: high # 互換のため併記(公式キーの表記ゆれ対策 — 敵対レビュー P1-6)
 ---
 
 あなたは pitchlog の意思決定の調査員。典拠は:

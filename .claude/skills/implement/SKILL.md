@@ -1,28 +1,32 @@
 ---
-description: 承認済み実装計画書に基づき Codex へ実装を委任し、検証まで一気通貫で行う
+description: 承認済み実装計画書に基づき Codex へ実装を委任し、検証まで一気通貫で行う(ラッパー経由のみ)
 argument-hint: "<plan.md のパス>"
 ---
 
 # 実装の Codex 委任(設計書 6.1 / 9.2 / 9.4 / 12.1)
 
-## 前提チェック(NG なら中断)
+Codex の起動は必ず **`.claude/scripts/codex_run.py`** 経由(生の `codex exec` は codex_guard がブロックする)。ラッパーが計画承認・worktree・sandbox・モデル対応表(ADR-001)を機構検証する。
 
-1. 計画書 frontmatter が `承認: 済` であること(未承認なら /plan のレビュー手順を案内して中断)
-2. タスク worktree(`../pitchlog-worktrees/<slug>`)が存在すること(なければ /task-start を案内)
+## 手順
 
-## 実行
-
-1. **モデル選定**: frontmatter の重さ分類から ADR-001 の対応表で決定する:
-   - 軽微 → `gpt-5.6-terra` medium / 通常 → `gpt-5.6-terra` max / コア領域 → `gpt-5.6-sol` xhigh / 機械的軽作業 → `gpt-5.6-luna` xhigh
-2. **プロンプト構築**: codex:gpt-5-4-prompting の知見に沿って組む。含める: 計画書の該当節(方針・スコープ・DoD)/ 変更してよい範囲(**計画にない範囲へ触れない**ことを明記)/ テスト要求(6 節のテスト計画)/ AGENTS.md は Codex が自動で読む前提で重複させない
-3. **実行**(ネットワークは既定遮断。必要時は 12.1 の例外手順 — 実行前に理由を人間へ報告):
+1. **プロンプト構築**(codex:gpt-5-4-prompting の知見に沿う): 計画書の該当節(方針・スコープ・DoD)/ 変更してよい範囲(**計画にない範囲へ触れない**ことを明記)/ テスト要求(計画書 6 節)。AGENTS.md は Codex が自動で読むため重複させない
+2. **実行**(モデル・effort は計画書 frontmatter の重さ分類からラッパーが自動選択):
 
 ```bash
-codex exec -C <worktreeの絶対パス> --ignore-user-config -s workspace-write \
-  -m <モデル> -c model_reasoning_effort=<effort> "<プロンプト>"
+python .claude/scripts/codex_run.py implement docs/features/<slug>/plan.md - <<'EOF'
+<プロンプト>
+EOF
 ```
 
-4. 継続・差し戻しは `codex exec resume --last "<修正指示>"`(仕切り直すときだけ新規実行)
+3. **差し戻し**(同じ Codex セッションを継続 — セッション ID はラッパーが feature 単位で保存済み):
+
+```bash
+python .claude/scripts/codex_run.py implement docs/features/<slug>/plan.md --resume - <<'EOF'
+<修正指示>
+EOF
+```
+
+- ネットワークが必要な例外(12.1)は、理由を人間へ報告して了承を得てから `PITCHLOG_ALLOW_NET=1` を付けて実行する
 
 ## 検証(合格まで差し戻しを繰り返す)
 
@@ -34,3 +38,7 @@ codex exec -C <worktreeの絶対パス> --ignore-user-config -s workspace-write 
 
 - **Codex はコミットしない**。Claude が `git -C <worktree>` でコミットする(Conventional Commits・日本語要約。1 まとまり 1 コミット)
 - 変更ファイル一覧・テスト結果・DoD 充足状況を報告し、次の導線(/sync-docs → /pr)を案内する
+
+## fast path(軽微変更 — 設計書 6.1。人間の事前 OK 必須)
+
+非コア(`.claude/core-areas.json` に該当しない)かつ小差分(目安 50 行以下)かつ正本影響なしの変更は、計画書なしで `python .claude/scripts/codex_run.py fast -`(worktree 内で実行、terra medium 固定)。PR 本文に短縮計画(目的/変更/確認方法)を書く。

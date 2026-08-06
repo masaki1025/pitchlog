@@ -2,8 +2,10 @@
 
 設計書 8.3: docs/legacy/**(版固定・不可変)と .env 系への書き込みをブロックする。
 permissions の deny と二重化した多層防御。判定不能時は通す(fail-open)。
+敵対レビュー P1-8 対応: 相対パス解決・`..` 正規化・大文字小文字を無視した判定。
 """
 import json
+import os
 import sys
 
 try:
@@ -11,7 +13,13 @@ try:
     sys.stderr.reconfigure(encoding="utf-8")
 except Exception:
     pass
-from pathlib import PurePosixPath
+
+
+def normalize(file_path: str, cwd: str) -> str:
+    raw = file_path
+    if not os.path.isabs(raw) and cwd:
+        raw = os.path.join(cwd, raw)
+    return os.path.normpath(raw).replace("\\", "/").casefold()
 
 
 def main() -> int:
@@ -22,10 +30,10 @@ def main() -> int:
     file_path = str(data.get("tool_input", {}).get("file_path", ""))
     if not file_path:
         return 0
-    p = file_path.replace("\\", "/")
-    name = PurePosixPath(p).name
+    p = normalize(file_path, str(data.get("cwd", "")))
+    name = p.rsplit("/", 1)[-1]
 
-    if "/docs/legacy/" in p or p.rstrip("/").endswith("/docs/legacy"):
+    if "/docs/legacy/" in p or p.endswith("/docs/legacy"):
         print("ブロック: docs/legacy/ は版固定アーカイブです。変更禁止(設計書 7.1)。", file=sys.stderr)
         return 2
     if name.startswith(".env") and name != ".env.example":

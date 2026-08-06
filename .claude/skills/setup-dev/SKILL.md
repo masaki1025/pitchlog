@@ -8,7 +8,9 @@ description: 開発者の初回セットアップ。Notion ユーザー紐づけ
 
 ## 1. ツール疎通
 
-git / uv / docker / codex / gh / node の `--version` を確認。欠けるものは `docs/development/onboarding.md` の導入手順を案内する。
+git / uv / **python**(PATH 必須 — 無いと hooks の保護が fail-open する) / docker / codex / gh / node の `--version` を確認。欠けるものは `docs/development/onboarding.md` の導入手順を案内する。
+
+続けて hooks の正負テストを実行する: `uv run pytest tests/`(全グリーンでなければ保護が機能していない — 修正するまで作業を始めない)。
 
 ## 2. Codex 設定確認
 
