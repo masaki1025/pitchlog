@@ -12,7 +12,8 @@
 | 0.8 | 2026-08-07 | モデル対応表（9.4）の effort を PO 指示で改訂: 通常実装/一次レビュー = terra **max**・軽微 = terra medium・コア領域 = sol xhigh・軽作業 = luna xhigh。`/research` 行（terra high）を追加。max の CLI 指定可否を実機検証して反映（ADR-001 も同時改訂） | **draft**（同上） |
 | 0.9 | 2026-08-07 | **Phase 1〜2 相当の基盤ファイル一式を実装**（本ブランチに同梱）: AGENTS.md / CLAUDE.md / settings.json + hooks 5本 / skills **13本**（8.4 改稿 — `/plan`・`/investigate`・`/check`・`/sync-docs` を追加）/ 調査エージェント3本 / `.codex/config.toml`（review_model 含む）/ PR テンプレ / テンプレ4種 / docs 索引 / onboarding | in-review |
 | 0.10 | 2026-08-07 | **敵対レビュー1周目（sol xhigh・判定=否決）の指摘を反映**: P0×4 — `.env` 迂回対策（secret_guard 新設・allow 絞り込み・残余リスク明記 12.1）／codex 生実行の遮断（ラッパー `codex_run.py` に一元化 9.2）／NFR-018 表現修正（4章）／NFR-019 ランナー標準化（**要件書 v1.8 改訂**）。P1×13 — ADR 2本を in-review へ差し戻し／`/pr` のコミット順序・`--head` 明示／plan 状態の 3 値化（merged を Git に置かない）／セッション ID 保存で `resume --last` 廃止／PowerShell matcher 追加／refspec・casefold のガード強化／`--ignore-user-config` 廃止／`uv add`等を ask へ／`core-areas.json` 新設（5領域統一）／**hooks の pytest 38 件追加**。P2×4 — **fast path 新設**（6.1）／worktree 命名統一／README 導線／rules は Phase 4 と明記 | in-review |
-| 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | **in-review**（2周目レビューは WSL 移行後に実施） |
+| 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | in-review |
+| 0.12 | 2026-08-07 | **feature 作業域の規約を明確化**（PO 指示）: **1 feature = 1 ディレクトリ** — `docs/features/<slug>/` 配下に plan.md・research.md・補助資料の複数ファイルを集約し、`docs/features/` 直下に単発ファイルを置かない（4章・6.1・7.2）。あわせて v0.10 P1-4（plan 状態の2値化）への追随漏れを掃除（7.2・7.6・rules/docs.md・docs/README.md に「active → merged」が残存していた） | **in-review**（2周目レビュー実施中） |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
 > 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
@@ -139,7 +140,7 @@ pitchlog/
     ├── adr/                   # Architecture Decision Records（ADR-NNN-<slug>.md）
     ├── development/           # 開発プロセス文書（本書・コーディング規約・GitHub設定手順）
     ├── ops/                   # 運用文書（要件書8章 DoD ⑦の置き場）
-    ├── features/              # feature 単位の作業文書（実装計画書 — 6.1/7.6。active→merged）
+    ├── features/              # feature 作業ディレクトリ（1 feature = 1 ディレクトリ: plan.md 等複数ファイル — 6.1/7.6）
     ├── worklog/               # 作業ログ（7.5。セッション/タスク単位）
     ├── improvements-from-baseball-scoring.md  # 改善台帳（既存）
     └── legacy/                # 版固定・不可変（hooks で書き込み禁止を機構化）
@@ -227,6 +228,7 @@ flowchart TD
   5. DoD（受け入れ基準 — Notion タスクの DoD と同期）
   6. テスト計画（NFR-019 のどのテスト種別に何を足すか)
   - 下調べには調査サブエージェント（8.5）を使い、結論には典拠を添える
+- **1 feature = 1 ディレクトリ**: feature の作業文書は `docs/features/<slug>/` ディレクトリに集約する（`docs/features/` 直下に単発ファイルを置かない）。標準構成 — `plan.md`（実装計画書・必須）/ `research.md`（/investigate・/research の統合先）/ `.codex-session`（Codex セッション追跡 — gitignore）/ 補助資料（図・検討メモ等。命名自由で任意追加）
 - **計画承認前に `/implement` は実行できない**（`codex_run.py` ラッパーが計画書の承認ステータスを機構検証し、未承認なら実行を拒否する）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
 
 #### fast path（軽微変更の軽量経路 — 敵対レビュー P2-4 対応・2026-08-07 採用）
@@ -290,7 +292,7 @@ flowchart TD
 | `docs/adr/` | 個別の技術判断（ADR-NNN。例: ty継続可否・フロントエンド決着） | 必須（軽量版可） |
 | `docs/development/` | 開発プロセス（本書・コーディング規約・GitHub設定手順） | 必須 |
 | `docs/ops/` | 運用文書（バックアップ・監視・移行手順 = DoD⑦） | 必須 |
-| `docs/features/` | feature 単位の作業文書（実装計画書 `plan.md`・補助資料 — 6.1） | 計画レビュー（6.1）。正本ではない — status: active → merged |
+| `docs/features/` | feature 作業ディレクトリ（**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md・research.md 等の複数ファイル — 6.1） | 計画レビュー（6.1）。正本ではない — plan は active → in-review の2値 |
 | `docs/worklog/` | 作業ログ（7.5） | 不要（記録であり正本ではない） |
 | `docs/README.md` | 全正本の索引: パス・概要・状態・最終更新 | — （常に現行化） |
 
@@ -331,7 +333,7 @@ draft（Claude起案）
 1. **計画時に宣言**: 実装計画書の必須欄「影響する正本」に、この feature が更新・新設すべき正本（設計書の節・ADR・運用文書・README）を列挙する。**「反映なし」も明示的に書く**（黙殺しない — NFR-015 の文書版）
 2. **同一 PR で運ぶ**: 正本の更新は feature ブランチ内で行い、コードと同じ PR に含める（ドキュメントだけ後回しにしない）。`/pr` が計画書の宣言と PR 内容を突合し、未反映があればブロックする
 3. **ゲートの使い分け**: 実装追随の節更新・変更履歴追記は PR レビューで足りる。**版繰り上げを伴う構造的変更**（アーキテクチャ・スキーマの変更、要件改訂等）はその部分だけ 7.3 の確定ゲート（敵対レビュー → 人間承認）を通す
-4. **feature 文書のライフサイクル**: `docs/features/<slug>/` は活動中のみ意味を持つ一時文書（frontmatter で status: active → merged）。恒久的な知見は正本へ、経緯は worklog・PR へ移し、マージ後の計画書は履歴として閉じる（削除しない — 4.0-2 の「物理削除しない」と同じ規律）。`docs/README.md` の索引には **active のみ**を一覧する（鮮度の見える化）
+4. **feature 文書のライフサイクル**: `docs/features/<slug>/` は活動中のみ意味を持つ一時ディレクトリ（plan.md の frontmatter status は active → in-review の2値 — 6.1。完了は「PR merged + Notion 完了 + worktree 除去」から導出）。恒久的な知見は正本へ、経緯は worklog・PR へ移し、マージ後の計画書は履歴として閉じる（削除しない — 4.0-2 の「物理削除しない」と同じ規律）。進行中 feature の一覧は静的に持たず、**worktree の現存**を正とする（`git worktree list`・SessionStart 文脈が表示 — 鮮度の見える化）
 
 ## 8. Claude Code 側ハーネス
 

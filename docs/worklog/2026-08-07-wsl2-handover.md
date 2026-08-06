@@ -17,6 +17,7 @@ branch: feature/dev-harness
 - **ラッパー疎通**: `codex_run.py review normal` で一気通貫確認 — read-only sandbox 適用・`model_reasoning_effort=max` 受理・日本語 stdin 正常・セッション ID 捕捉。bubblewrap はシステム未導入でも codex 同梱版で動作(警告のみ)
 - **文書更新**: onboarding v0.3(python シムの罠・インライン表・bubblewrap)/ docs/README.md 索引の設計書版数を 0.9 → 0.11 に現行化
 - **敵対レビュー2周目を実行**(設計書 v0.11 の宣言事項「WSL 移行後に実施」): `codex_run.py review adversarial`(sol xhigh)— 結果は本ログ末尾・チャット報告参照
+- **PO 追加指示を反映(設計書 v0.12)**: feature 作業域は **1 feature = 1 ディレクトリ**(`docs/features/<slug>/` 配下に plan.md・research.md・補助資料を集約。直下に単発ファイルを置かない)。スキル・テンプレート・session_context は既にディレクトリ前提で実装済みだったため文書側の明確化のみ。確認の過程で v0.10 P1-4(plan 状態2値化)への追随漏れ「active → merged」を4箇所(設計書 7.2/7.6・rules/docs.md・docs/README.md)に発見し掃除
 
 ## 決定
 

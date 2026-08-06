@@ -26,4 +26,4 @@
 
 - `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)
 - `worklog/` — 作業ログ
-- `features/` — feature 単位の一時文書(実装計画書。マージ後 status: merged)
+- `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md・research.md 等。plan の状態は active → in-review の2値)
