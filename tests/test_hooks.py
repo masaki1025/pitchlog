@@ -132,3 +132,55 @@ def test_session_context_emits_json():
     assert r.returncode == 0
     out = json.loads(r.stdout.decode("utf-8"))
     assert out["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+
+
+# ---- codex_run.py(ラッパーの検証ロジック。codex 本体は起動しない経路のみ) ----
+
+WRAPPER = Path(__file__).parent.parent / ".claude" / "scripts" / "codex_run.py"
+
+
+def run_wrapper(args: list[str], stdin: str = "", cwd: str = REPO) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(WRAPPER), *args],
+        input=stdin.encode("utf-8"), capture_output=True, timeout=30, cwd=cwd,
+    )
+
+
+def test_wrapper_rejects_missing_plan():
+    r = run_wrapper(["implement", "docs/features/no-such/plan.md", "-"], "prompt")
+    assert r.returncode == 2
+    assert "見つからない".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_unapproved_plan(tmp_path):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 未\n重さ分類: 通常\n"
+        "worktree: ../wt\nbranch: feature/x\n---\n# 計画\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "未承認".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_approved_plan_without_worktree(tmp_path):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        "worktree: ../no-such-worktree\nbranch: feature/x\n---\n# 計画\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "worktree".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_fast_outside_worktree():
+    r = run_wrapper(["fast", "-"], "prompt", cwd=REPO)  # メインツリーは worktree でない
+    assert r.returncode == 2
+
+
+def test_wrapper_rejects_unknown_mode():
+    r = run_wrapper(["deploy"], "")
+    assert r.returncode == 2

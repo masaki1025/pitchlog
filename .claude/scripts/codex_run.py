@@ -14,6 +14,7 @@
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -68,10 +69,25 @@ def session_file(plan: Path) -> Path:
     return plan.parent / ".codex-session"
 
 
+def resolve_codex() -> list[str]:
+    """codex CLI の起動コマンドを解決する。
+
+    Windows では npm インストールの codex は `.cmd` シムであり、CreateProcess は
+    シムを直接解決できない(WinError 2)。shutil.which で実体を特定し、
+    バッチファイルの場合は cmd /c 経由で起動する。
+    """
+    exe = shutil.which("codex")
+    if exe is None:
+        die("codex CLI が見つからない(PATH を確認。導入は onboarding.md)")
+    if exe.lower().endswith((".cmd", ".bat")):
+        return ["cmd", "/c", exe]
+    return [exe]
+
+
 def run_codex(argv: list[str], prompt: str, capture_session_to: Path | None = None) -> int:
     print(f"codex_run: 実行: codex {' '.join(argv[:8])} ...", file=sys.stderr)
     proc = subprocess.Popen(
-        ["codex", *argv, "-"],
+        [*resolve_codex(), *argv, "-"],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
     )
     assert proc.stdin and proc.stderr
