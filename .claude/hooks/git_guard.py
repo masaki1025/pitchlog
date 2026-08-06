@@ -3,6 +3,8 @@
 設計書 6.2/8.3: 保護ブランチ上での commit/merge/rebase、保護ブランチへの push
 (カレントブランチ経由・refspec 経由の両方)、force push を検知してブロックする(exit 2)。
 判定できない場合は通す(fail-open)。敵対レビュー P1-8 対応: refspec 検査・空白入り -C パス対応。
+2周目 P0 対応: 複合コマンドをセグメント単位で評価(-C を個別解決)し、
+`cd` と git 操作の複合はブランチ判定不能として保守的にブロックする。
 """
 import json
 import re
@@ -76,15 +78,30 @@ def main() -> int:
     if not re.search(r"git\b[^\n|;&]*\b(commit|merge|push|rebase)\b", command):
         return 0
 
-    cwd = extract_c_path(command) or data.get("cwd", "")
-    branch = current_branch(cwd)
-    if branch in PROTECTED:
-        print(
-            f"ブロック: {branch} ブランチへの直接操作は禁止です。"
-            "develop から feature/* を切って PR 経由でマージしてください(/task-start)。",
-            file=sys.stderr,
-        )
-        return 2
+    # 複合コマンド対応(2周目 P0): セグメントごとに実行ディレクトリを解決する
+    cd_seen = False
+    for seg in re.split(r"&&|\|\||\||;|\n", command):
+        if re.match(r"\s*cd\b", seg):
+            cd_seen = True
+            continue
+        if not re.search(r"\bgit\b.*\b(commit|merge|push|rebase)\b", seg):
+            continue
+        if cd_seen:
+            print(
+                "ブロック: `cd` と git 操作の複合コマンドはブランチ判定ができません。"
+                "`git -C <path>` を使うか、コマンドを分けて実行してください(設計書 8.3)。",
+                file=sys.stderr,
+            )
+            return 2
+        cwd = extract_c_path(seg) or data.get("cwd", "")
+        branch = current_branch(cwd)
+        if branch in PROTECTED:
+            print(
+                f"ブロック: {branch} ブランチへの直接操作は禁止です。"
+                "develop から feature/* を切って PR 経由でマージしてください(/task-start)。",
+                file=sys.stderr,
+            )
+            return 2
     return 0
 
 

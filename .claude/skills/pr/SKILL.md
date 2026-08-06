@@ -20,6 +20,12 @@ disable-model-invocation: true
 2. **正本反映**: 計画書 3 節の宣言と `git -C <worktree> diff origin/develop...HEAD --name-only` を突合。宣言済みで未反映の正本があれば /sync-docs を案内して中断
 3. **品質**: /check が本セッションで未実行または失敗なら中断
 
+## fast path 分岐(計画書なし — 設計書 6.1。人間の事前 OK 済みが前提)
+
+- 突合 2-2(正本反映)は「正本への影響がない」ことの差分確認に置換。2-3(/check)は同じ
+- PR 本文に**短縮計画**を必須記載: 目的 / 変更内容 / 確認方法 / 人間の事前 OK への言及
+- 以降(push・PR 作成・Notion 遷移)は通常経路と同じ
+
 ## 3. 作成
 
 1. `git -C <worktree> push -u origin <branch>`(承認付き。branch は計画書 frontmatter の `branch` — `feature/*` と `fix/*` の両方に対応)

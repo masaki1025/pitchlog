@@ -45,6 +45,9 @@
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(git clean:*)",
+      "Bash(git branch -D:*)",
+      "Bash(docker compose down -v:*)",
+      "Bash(docker compose down --volumes:*)",
       "Write(./docs/legacy/**)",
       "Edit(./docs/legacy/**)"
     ]

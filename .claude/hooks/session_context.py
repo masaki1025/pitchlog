@@ -25,6 +25,23 @@ def git(args: list[str], cwd: str) -> str:
         return ""
 
 
+def list_worktrees(cwd: str) -> list[dict]:
+    """全 worktree(メインツリー含む)を path・branch で列挙する(2周目 P1 対応)。"""
+    out = git(["worktree", "list", "--porcelain"], cwd)
+    wts: list[dict] = []
+    cur: dict = {}
+    for ln in out.splitlines():
+        if ln.startswith("worktree "):
+            if cur:
+                wts.append(cur)
+            cur = {"path": ln[len("worktree "):]}
+        elif ln.startswith("branch "):
+            cur["branch"] = ln[len("branch "):].removeprefix("refs/heads/")
+    if cur:
+        wts.append(cur)
+    return wts
+
+
 def main() -> int:
     try:
         # Windows のパイプ stdin は locale エンコーディングで壊れ得るため、バイト列を UTF-8 で読む(fail-open 防止)
@@ -42,28 +59,25 @@ def main() -> int:
         if branch in ("main", "develop"):
             lines.append("注意: 保護ブランチ上にいます。作業は /task-start で feature/* を切ってから。")
 
+    # 進行中 feature の正は「worktree の現存」(設計書 6.1/7.6)。cwd 配下だけでなく
+    # 全 worktree(メインツリー・兄弟 worktree)の plan.md を列挙する(2周目 P1 対応)
     root = Path(cwd)
-    features = root / "docs" / "features"
-    if features.is_dir():
-        active = []
-        for plan in features.glob("*/plan.md"):
+    active = []
+    worktree_entries = list_worktrees(cwd) or [{"path": str(root)}]
+    for wt in worktree_entries:
+        fdir = Path(wt.get("path", "")) / "docs" / "features"
+        if not fdir.is_dir():
+            continue
+        for plan in fdir.glob("*/plan.md"):
             try:
                 head = plan.read_text(encoding="utf-8")[:800]
-                if "status: active" not in head and "status: in-review" not in head:
-                    continue
-                # worktree が現存するものだけを「進行中」とする(完了の正は PR/Notion/worktree — 設計書 6.1)
-                m = None
-                for ln in head.splitlines():
-                    if ln.startswith("worktree:"):
-                        m = ln.split(":", 1)[1].split("#")[0].strip()
-                        break
-                wt = (plan.parent / m).resolve() if m and not Path(m).is_absolute() else (Path(m) if m else None)
-                if wt is None or wt.is_dir():
-                    active.append(plan.parent.name)
             except Exception:
-                pass
-        if active:
-            lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(active)))
+                continue
+            if "status: active" in head or "status: in-review" in head:
+                b = wt.get("branch", "")
+                active.append(f"{plan.parent.name}({b})" if b else plan.parent.name)
+    if active:
+        lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(set(active))))
 
     worklog = root / "docs" / "worklog"
     if worklog.is_dir():

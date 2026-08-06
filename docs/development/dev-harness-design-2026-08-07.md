@@ -14,7 +14,8 @@
 | 0.10 | 2026-08-07 | **敵対レビュー1周目（sol xhigh・判定=否決）の指摘を反映**: P0×4 — `.env` 迂回対策（secret_guard 新設・allow 絞り込み・残余リスク明記 12.1）／codex 生実行の遮断（ラッパー `codex_run.py` に一元化 9.2）／NFR-018 表現修正（4章）／NFR-019 ランナー標準化（**要件書 v1.8 改訂**）。P1×13 — ADR 2本を in-review へ差し戻し／`/pr` のコミット順序・`--head` 明示／plan 状態の 3 値化（merged を Git に置かない）／セッション ID 保存で `resume --last` 廃止／PowerShell matcher 追加／refspec・casefold のガード強化／`--ignore-user-config` 廃止／`uv add`等を ask へ／`core-areas.json` 新設（5領域統一）／**hooks の pytest 38 件追加**。P2×4 — **fast path 新設**（6.1）／worktree 命名統一／README 導線／rules は Phase 4 と明記 | in-review |
 | 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | in-review |
 | 0.12 | 2026-08-07 | **feature 作業域の規約を明確化**（PO 指示）: **1 feature = 1 ディレクトリ** — `docs/features/<slug>/` 配下に plan.md・research.md・補助資料の複数ファイルを集約し、`docs/features/` 直下に単発ファイルを置かない（4章・6.1・7.2）。あわせて v0.10 P1-4（plan 状態の2値化）への追随漏れを掃除（7.2・7.6・rules/docs.md・docs/README.md に「active → merged」が残存していた） | in-review |
-| 0.13 | 2026-08-07 | **Notion 連動の機構化+段階実装規約**（PO 指示2件）: (1) タスク DB の実ステータス語彙（**11選択肢**）を実 DB から取得し、フロー事象↔ステータス対応を **`.claude/notion-map.json`**（新設・機械可読）へ一元化（11.1 改稿 — 差し戻し・ブロック中を含む遷移表。実施責務をスキル5本へ明記、/setup-dev に語彙突合を追加）。(2) **段階実装・こまめコミット**を規約化（6.1 新設）— 計画書に「実装ステップ（コミット単位）」表を必須化（テンプレ改訂・**ラッパーが機構検査**）、/implement を「1 委任 = 1 ステップ → 検証 → 1 コミット」のループへ改稿、AGENTS.md に「指示されたステップで止まる」を明記。あわせて2周目敵対レビュー指摘の即応分を反映: **`--resume` の引数順バグ修正**（exec オプションを resume の前へ — 実機検証済み）／task-start の遷移順序（Git 成功後に Notion 遷移）・worktree 置き場の事前作成／`fix/*` ブランチの /pr・/task-done 対応／テンプレ worktree 相対パス修正／8.4 の「計画書 merged 化」残存表記修正／**副作用スキル9本に `disable-model-invocation: true`**（自動起動の遮断）／**hooks 起動を `/usr/bin/python3` 絶対パス化**（PATH 汚染 fail-open 対策）／`review --base` の偽装受理を拒否／テスト 47 件へ増強。**残余指摘（P0×6 ほか）は triage 表を worklog に記録し次版で対応** | **in-review**（2周目 = 否決。指摘反映を継続中） |
+| 0.13 | 2026-08-07 | **Notion 連動の機構化+段階実装規約**（PO 指示2件）: (1) タスク DB の実ステータス語彙（**11選択肢**）を実 DB から取得し、フロー事象↔ステータス対応を **`.claude/notion-map.json`**（新設・機械可読）へ一元化（11.1 改稿 — 差し戻し・ブロック中を含む遷移表。実施責務をスキル5本へ明記、/setup-dev に語彙突合を追加）。(2) **段階実装・こまめコミット**を規約化（6.1 新設）— 計画書に「実装ステップ（コミット単位）」表を必須化（テンプレ改訂・**ラッパーが機構検査**）、/implement を「1 委任 = 1 ステップ → 検証 → 1 コミット」のループへ改稿、AGENTS.md に「指示されたステップで止まる」を明記。あわせて2周目敵対レビュー指摘の即応分を反映: **`--resume` の引数順バグ修正**（exec オプションを resume の前へ — 実機検証済み）／task-start の遷移順序（Git 成功後に Notion 遷移）・worktree 置き場の事前作成／`fix/*` ブランチの /pr・/task-done 対応／テンプレ worktree 相対パス修正／8.4 の「計画書 merged 化」残存表記修正／**副作用スキル9本に `disable-model-invocation: true`**（自動起動の遮断）／**hooks 起動を `/usr/bin/python3` 絶対パス化**（PATH 汚染 fail-open 対策）／`review --base` の偽装受理を拒否／テスト 47 件へ増強。**残余指摘（P0×6 ほか）は triage 表を worklog に記録し次版で対応** | in-review |
+| 0.14 | 2026-08-07 | **ガード強化パス**（2周目レビュー採用分+PO 方針: 脅威モデル=誤操作+外部入力暴走まで、敵対 AI フル想定はしない）: codex_guard を**起動検出型**へ書き換え（絶対パス・npx/`@openai/codex`・チェーン混入を遮断、ヒアドキュメント本文は除外 — substring 許可全廃）／git_guard の**複合コマンド対応**（セグメント単位 `-C` 解決・`cd`+git は保守的ブロック）／ラッパーの**安全キー明示上書き**（config 層非依存・ネット例外は理由必須）・**/research の秘密レス検査**・**worktree 実在照合**／SessionStart の**全 worktree 列挙**／fast path の /pr 分岐（短縮計画必須）／的絞り deny 3件（`git branch -D`・`docker compose down -v/--volumes`）／9.2 標準経路をラッパーへ一本化・9.3 の sandbox 上書き主張を config 非依存設計へ改稿・Windows 残存記述の掃除（2.1・4章・12.1）／迂回ケースの回帰テスト追加（**59件**）。**不採用の記録**（worklog に理由）: Bash allow 絞り込み・承認トークン化・CODEX_HOME 隔離 | **in-review**（3周目レビューへ） |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
 > 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
@@ -50,7 +51,7 @@
 | コメント規約 | コードコメントは原則日本語、docstring は Google スタイル |
 | ドキュメント | 部分的に Notion 管理も検討（→ 7.4 節で分担案） |
 | 本番環境 | 未定（DB は要件書 7.1 で本番=Supabase の記載あり） |
-| 開発環境 | Windows 11。必要があれば WSL 化も可（→ 論点C。当面ネイティブ継続を提案） |
+| 開発環境 | Windows 11。**WSL2 を標準環境とする**（論点C改訂 — 2026-08-07 PO 決定。手順は onboarding.md） |
 
 ### 2.2 環境実査（2026-08-07 時点）
 
@@ -149,7 +150,7 @@ pitchlog/
 
 - モノレポ1本とする（backend / frontend / contracts / docs の同時変更が1 PR・1レビューで閉じる。1名開発では複数リポの同期コストが純損）
 - `contracts/` は **NFR-019a（一致性テスト）のゴールデンベクタの置き場**（付録Eマトリクス由来の共通正解をクライアント/サーバー双方のテストが読む）。**NFR-018（単一実装）の実現方式そのものではない** — 状況計算の配置・実現方式（共有実装・生成・その他）は要件書 v1.8 の申し送りどおり、**Phase 4 着手前に ADR で確定する**（敵対レビュー P0-3 対応）
-- 実装委任用の worktree はリポジトリの**外**（兄弟ディレクトリ `..\pitchlog-worktrees\`）に置く。リポジトリ内に置くと lint・テスト・エディタの走査対象になるため。運用規約は 12.1
+- 実装委任用の worktree はリポジトリの**外**（兄弟ディレクトリ `../pitchlog-worktrees/`）に置く。リポジトリ内に置くと lint・テスト・エディタの走査対象になるため。運用規約は 12.1
 
 ## 5. ツールチェーン標準
 
@@ -397,14 +398,14 @@ draft（Claude起案）
 
 | Hook | イベント / matcher | 動作 |
 | --- | --- | --- |
-| `git_guard.py` | PreToolUse / `Bash\|PowerShell` | 保護ブランチ（main/develop）上での `commit`・`merge`・`rebase`・`push` と、**refspec 経由の保護ブランチ push**（`HEAD:develop` 等 — P1-8）、force push を**ブロック**（exit 2、理由を stderr へ） |
+| `git_guard.py` | PreToolUse / `Bash\|PowerShell` | 保護ブランチ（main/develop）上での `commit`・`merge`・`rebase`・`push` と、**refspec 経由の保護ブランチ push**（`HEAD:develop` 等 — P1-8）、force push を**ブロック**（exit 2、理由を stderr へ）。複合コマンドは**セグメント単位で `-C` を解決**し、`cd`+git 複合は判定不能として保守的にブロック（2周目 P0） |
 | `protect_paths.py` | PreToolUse / `Write\|Edit` | `docs/legacy/**`・`.env*` への書き込みをブロック（相対パス解決・casefold 判定 — P1-8。permissions deny との多層防御） |
 | `secret_guard.py` | PreToolUse / `Bash\|PowerShell` | コマンド文字列中の `.env` 参照をブロック（`.env.example` は許可）。**Read deny がサブプロセスに効かない穴（P0-1）への対処**。難読化への残余リスクは 12.1 に記録 |
-| `codex_guard.py` | PreToolUse / `Bash\|PowerShell` | **Codex 起動をラッパー `codex_run.py` のみに限定**（生の `codex exec/review/resume`・プラグイン task モードをブロック — P0-2）。危険フラグ（`danger-full-access`・`--yolo` 等）は無条件ブロック。`network_access=true` は systemMessage で顕在化 |
+| `codex_guard.py` | PreToolUse / `Bash\|PowerShell` | **Codex 起動をラッパー `codex_run.py` のみに限定**（生の `codex exec/review/resume`・プラグイン task モードをブロック — P0-2）。**起動検出型**: パス前置・npx/`@openai/codex`・チェーン混入も遮断し、ヒアドキュメント本文はデータとして除外（2周目 P0 — substring 許可の全廃）。危険フラグ（`danger-full-access`・`--yolo` 等）は無条件ブロック。`network_access=true` は systemMessage で顕在化 |
 | `format_on_save.py` | PostToolUse / `Write\|Edit` | `backend/**/*.py` → `uv run ruff format` + `ruff check --fix`。`frontend/**` → `pnpm exec prettier --write`。ツール未導入時は静かにスキップ（fail-open） |
-| `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**worktree が現存する**進行中 feature・最新 worklog の要約を additionalContext として注入 |
+| `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**worktree が現存する**進行中 feature（`git worktree list --porcelain` で**全 worktree を列挙** — 2周目 P1）・最新 worklog の要約を additionalContext として注入 |
 
-- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・47ケース — P1-13。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
+- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・59ケース — P1-13。迂回ケース・一時リポジトリでの実ブランチ判定を含む。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
 
 - hooks は「Claude が誤ってやりかけた時に止まる」ための層。規約の一次的な伝達は CLAUDE.md / AGENTS.md が担う
 - stop-review-gate（Codex プラグイン提供・`/codex:setup` でトグル）: Claude が直接コード変更したターンの停止時に Codex が ALLOW/BLOCK 判定。**例外運用（Claude 直接実装）の保険として有効化を提案**
@@ -498,7 +499,7 @@ Codex は `AGENTS.md` を自動で読む。公式仕様: グローバル（`~/.c
 
 ### 9.2 呼び出し規約（Claude → Codex）
 
-- **標準経路はプラグイン runtime**（`codex-companion.mjs` 経由の `/codex:rescue`・`/codex:review`・`/codex:adversarial-review`）。ハンドロールの `codex exec` 文字列を都度組み立てない（プラグインが承認・サンドボックス・結果回収を面倒見る）
+- **標準経路は `codex_run.py` ラッパー**（Codex 起動の唯一の経路 — P0-2。2周目レビューで「プラグイン標準」との二本立て記述を一本化）。プラグイン（`codex-companion.mjs`）は read-only のレビュー系コマンドの補助として許容するが、task モード（書き込み実行）は codex_guard がブロックする。ハンドロールの `codex exec` 文字列を都度組み立てない
 - `/implement` スキル（8.4）は runtime の `task` コマンドに「設計書パス+受け入れ基準+変更範囲」を整形して渡す。書き込みありの実装は既定（`--write`）、調査・レビューは読み取り専用
 - 継続作業は `--resume`（直前の Codex セッション文脈を維持）、仕切り直しは `--fresh`
 - **Codex 起動の唯一の経路は `.claude/scripts/codex_run.py`**（P0-2 対応。生の `codex exec` 等は codex_guard がブロックし、ラッパーが計画承認・worktree・sandbox・モデル対応表 9.4 を機構検証する）:
@@ -509,7 +510,8 @@ python .claude/scripts/codex_run.py implement <plan.md> --resume -   # 差し戻
 python .claude/scripts/codex_run.py fast -                           # 軽微 fast path（worktree 内・terra medium）
 python .claude/scripts/codex_run.py research [--deep] -              # Web調査（read-only + live search）
 python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュー（read-only）
-# プロンプトは stdin（ヒアドキュメント）で渡す。ネットワーク例外は PITCHLOG_ALLOW_NET=1（要・人間への事前報告）
+# プロンプトは stdin（ヒアドキュメント）で渡す。
+# ネットワーク例外は PITCHLOG_ALLOW_NET=1 + PITCHLOG_NET_REASON="理由"（必須 — 要・人間への事前報告）
 ```
 
 - `codex exec resume --last` は**使わない**（並行タスクの別セッションを拾う — P1-5。ラッパーが feature 単位にセッション ID を保存し `resume <id>` で再開する）
@@ -519,7 +521,7 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 
 ### 9.3 Codex 設定（公式仕様の確認結果と本プロジェクトの設定方針）
 
-- **プロジェクト設定は可能**: リポジトリ内 `.codex/config.toml` を Codex が読む。ただし **trusted 指定されたプロジェクトのみ**（開発者が初回に trust する。`~/.codex/config.toml` の `[projects."<絶対パス>"] trust_level = "trusted"`）。`model_provider`・`notify`・**sandbox 系キー等はプロジェクト側から上書き不可**（設定乗っ取り対策）→ 本プロジェクトの `.codex/config.toml` は `web_search = "cached"`（安全側既定の明示）程度の最小構成とし、sandbox・モデルは呼び出しフラグで都度指定する（9.2）
+- **プロジェクト設定は可能**: リポジトリ内 `.codex/config.toml` を Codex が読む。ただし **trusted 指定されたプロジェクトのみ**（開発者が初回に trust する。`~/.codex/config.toml` の `[projects."<絶対パス>"] trust_level = "trusted"`）。`model_provider`・`notify`・sandbox 系キーの config 層での可変性には版・層による揺れがあるため**依存しない**（2周目 P0 対応: ラッパーが `network_access` 等の安全キーを**呼び出しごとに CLI で明示上書き**する — CLI 指定は config 層に優先）→ 本プロジェクトの `.codex/config.toml` は `web_search = "cached"`（安全側既定の明示）程度の最小構成とし、sandbox・モデルは呼び出しフラグで都度指定する（9.2）
 - **approval_policy の現行3値**: `untrusted` / `on-request` / `never`。**旧 `on-failure` は廃止済み** — 2025年前半以前の記事の設定例を持ち込まないこと。`codex exec` は非対話で承認プロンプトを出さないため、通常は sandbox 指定のみで足りる
 - **Windows ネイティブは正式サポート**（2026-08 現在）: PowerShell ネイティブ実行時は専用の Windows sandbox が働き、WSL2 実行時は Linux sandbox（bubblewrap）が働く（WSL1 非対応） → 当初はネイティブ継続案だったが、**実地の Windows 固有障害により WSL2 へ移行**（論点C改訂 — 14章）
 - **レビュー機能**: ローカルは `codex review --uncommitted | --base <branch> | --commit <sha>`（プラグインの `/codex:review` が内包）。クラウドは GitHub 連携の `@codex review` メンション / 新規 PR 自動レビュー（→ 10.3）
@@ -659,13 +661,14 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | 例外（ネットワークが要る検証等） | `workspace-write` + `-c sandbox_workspace_write.network_access=true` | 明示有効化 | タスク worktree。実行前に理由を人間へ報告 |
 
 - **禁止（機構ブロック）**: `danger-full-access` / `--dangerously-bypass-approvals-and-sandbox`（`--yolo`）は本プロジェクトで使用しない。hooks の `codex_guard.py`（8.3）が Claude 経由の実行を遮断する
-- **実行経路の一元化（P0-2）**: Codex の起動は `.claude/scripts/codex_run.py` ラッパーのみ（codex_guard が生実行・プラグイン task モードを遮断）。本表の水準は**ラッパーが機械適用**する — sandbox 系キーはプロジェクト `.codex/config.toml` から設定できない（9.3）ため、スキルの自然言語ではなくコードで固定する
+- **実行経路の一元化（P0-2）**: Codex の起動は `.claude/scripts/codex_run.py` ラッパーのみ（codex_guard が生実行・プラグイン task モードを遮断）。本表の水準は**ラッパーが機械適用**する — スキルの自然言語ではなくコードで固定する
+- **設定非依存の固定（2周目 P0 対応）**: ラッパーは sandbox 安全キー（`sandbox_workspace_write.network_access` 等）と `web_search` を**呼び出しごとに CLI で明示上書き**し、ユーザー/プロジェクト config の値に依存しない。ネットワーク例外は `PITCHLOG_ALLOW_NET=1` に加えて **`PITCHLOG_NET_REASON`（理由）を必須**とし stderr に記録する。`/research`（live search 併用）は **cwd に `.env*`（`.env.example` 除く）が存在すると実行を拒否**する（漏洩経路の遮断）。`/implement`・`fast` は **`git worktree list` との実在・ブランチ一致照合**を通過しないと起動しない
 - 実行環境は **WSL2**（論点C改訂 — 2026-08-07）。Codex sandbox は Linux 実装（bubblewrap）が自動適用される（**WSL1 非対応**のため必ず WSL2）。`[windows] sandbox` 設定は不要。個人設定手順は `docs/development/onboarding.md`
 
 #### worktree 運用規約
 
-- 置き場: リポジトリの兄弟ディレクトリ **`..\pitchlog-worktrees\<名前>`**（名前 = ブランチ名のスラッシュを `-` に置換。例: `feature/sync-protocol` → `feature-sync-protocol`）
-- ライフサイクル: `/task-start` が作成（`git worktree add -b <branch> ..\pitchlog-worktrees\<名前> develop`）→ `/implement` が `codex exec -C <worktree>` で委任 → Claude が worktree 内でテスト・lint 検証 → コミット・PR は Claude が `git -C <worktree>` で実行（sandbox の外・承認付き）→ マージ後 `/task-done` が `git worktree remove` + `git worktree prune`
+- 置き場: リポジトリの兄弟ディレクトリ **`../pitchlog-worktrees/<名前>`**（名前 = ブランチ名のスラッシュを `-` に置換。例: `feature/sync-protocol` → `feature-sync-protocol`。置き場は `/task-start` が `mkdir -p` で先に確保する）
+- ライフサイクル: `/task-start` が作成（`git worktree add -b <branch> ../pitchlog-worktrees/<名前> origin/develop`）→ `/implement` が `codex exec -C <worktree>` で委任（ラッパーが **`git worktree list` との実在・ブランチ一致を照合** — 2周目 P0 対応）→ Claude が worktree 内でテスト・lint 検証 → コミット・PR は Claude が `git -C <worktree>` で実行（sandbox の外・承認付き）→ マージ後 `/task-done` が `git worktree remove` + `git worktree prune`
 - `.claude/settings.json`（hooks・permissions）と `AGENTS.md` はリポジトリの一部として worktree にもそのまま存在するため、**規律は worktree 内でも同一に効く**
 - 環境の複製: `uv sync` / `pnpm install` を worktree ごとに実行（グローバルキャッシュにより低コスト）。`.env` は自動コピーしない（上表）
 - 並行作業: worktree により複数タスクの並行が安全になるが、開発 DB（docker compose）は共有資源のため、**DB スキーマを変えるタスクの並行は避ける**（運用規律）
@@ -688,7 +691,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | Phase | 内容 | 完了条件 |
 | --- | --- | --- |
 | **0** | 本設計案の確定（敵対レビュー → 承認 → approved 化） | 本書 status: approved |
-| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・47件）全グリーン + 実地確認 |
+| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・59件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
 | **3** | CI 先行分(secrets / docs-lint) + ブランチ保護適用 + github-setup.md | 保護設定が有効・PR で CI が回る |
 | **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（論点A決着後）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で README 手順どおりセットアップ成功（NFR-021） |

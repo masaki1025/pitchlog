@@ -10,7 +10,8 @@
   python .claude/scripts/codex_run.py review <normal|adversarial> [-]      # レビュー(read-only。差分指定はプロンプトに書く)
 
 プロンプトは末尾引数 `-` で stdin から渡す(クォート事故防止)。
-ネットワーク有効化は環境変数 PITCHLOG_ALLOW_NET=1 のみ(理由を人間へ報告済みであること)。
+ネットワーク有効化は PITCHLOG_ALLOW_NET=1 + PITCHLOG_NET_REASON="理由"(必須 — 人間へ報告済みであること)。
+sandbox 安全キーは毎回 CLI で明示上書きし、config 層の値に依存しない(2周目 P0 対応)。
 """
 import os
 import re
@@ -70,6 +71,30 @@ def session_file(plan: Path) -> Path:
     return plan.parent / ".codex-session"
 
 
+def worktree_branch(wt: Path) -> str | None:
+    """wt が git 登録済み worktree ならそのブランチ名を返す(未登録なら None — 2周目 P0 対応)。"""
+    try:
+        r = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, cwd=str(wt), timeout=10,
+        )
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    cur: Path | None = None
+    for line in r.stdout.splitlines():
+        if line.startswith("worktree "):
+            cur = Path(line[len("worktree "):])
+        elif line.startswith("branch ") and cur is not None:
+            try:
+                if cur.resolve() == wt.resolve():
+                    return line[len("branch "):].removeprefix("refs/heads/")
+            except Exception:
+                continue
+    return None
+
+
 def resolve_codex() -> list[str]:
     """codex CLI の起動コマンドを解決する。
 
@@ -109,11 +134,21 @@ def run_codex(argv: list[str], prompt: str, capture_session_to: Path | None = No
     return proc.returncode
 
 
-def network_flags() -> list[str]:
-    if os.environ.get("PITCHLOG_ALLOW_NET") == "1":
-        print("codex_run: 警告: ネットワーク有効(12.1 の例外運用 — 理由の報告が必要)", file=sys.stderr)
-        return ["-c", "sandbox_workspace_write.network_access=true"]
-    return []
+def security_overrides(*, may_allow_net: bool) -> list[str]:
+    """安全キーを CLI で毎回明示上書きする(2周目 P0 対応)。
+
+    ユーザー/プロジェクト config 層の値に依存しない(config で network_access=true が
+    仕込まれていても CLI 指定が優先される)。ネットワーク例外は PITCHLOG_ALLOW_NET=1 に
+    加えて PITCHLOG_NET_REASON(理由の記録 — 12.1 の例外運用)を必須とする。
+    """
+    net = "false"
+    if may_allow_net and os.environ.get("PITCHLOG_ALLOW_NET") == "1":
+        reason = os.environ.get("PITCHLOG_NET_REASON", "").strip()
+        if not reason:
+            die('PITCHLOG_ALLOW_NET=1 には PITCHLOG_NET_REASON="理由" が必須(12.1 の例外運用の記録)')
+        print(f"codex_run: 警告: ネットワーク有効(理由: {reason})", file=sys.stderr)
+        net = "true"
+    return ["-c", f"sandbox_workspace_write.network_access={net}"]
 
 
 def implement_argv(base: list[str], resume_sid: str | None) -> list[str]:
@@ -148,10 +183,17 @@ def cmd_implement(args: list[str]) -> int:
         die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
     if "実装ステップ" not in plan.read_text(encoding="utf-8"):
         die("計画書に「実装ステップ(コミット単位)」が無い(設計書 6.1 段階実装 — plan-template 4 節の表を埋める)")
+    branch = fm.get("branch", "")
+    registered = worktree_branch(wt)
+    if registered is None:
+        die(f"worktree が git に登録されていない: {wt}(/task-start で作成する — 設計書 12.1)")
+    if branch and registered != branch:
+        die(f"worktree のブランチ({registered})が計画書の branch({branch})と一致しない")
     model, effort = MODEL_MAP[weight]
     prompt = read_prompt(args)
     base = ["-C", str(wt), "-s", "workspace-write", "-m", model,
-            "-c", f"model_reasoning_effort={effort}", *network_flags()]
+            "-c", f"model_reasoning_effort={effort}",
+            "-c", 'web_search="cached"', *security_overrides(may_allow_net=True)]
     if resume:
         sid_file = session_file(plan)
         if not sid_file.is_file():
@@ -165,17 +207,26 @@ def cmd_fast(args: list[str]) -> int:
     cwd = Path.cwd().resolve()
     if WORKTREES_DIRNAME not in cwd.as_posix():
         die(f"fast path も worktree 内でのみ実行可({WORKTREES_DIRNAME} 配下で実行する — 設計書 6.1)")
+    if worktree_branch(cwd) is None:
+        die(f"cwd が git 登録済みの worktree でない: {cwd}(/task-start で作成する — 設計書 12.1)")
     model, effort = MODEL_MAP["軽微"]
     prompt = read_prompt(args)
     return run_codex(["exec", "-s", "workspace-write", "-m", model,
-                      "-c", f"model_reasoning_effort={effort}"], prompt)
+                      "-c", f"model_reasoning_effort={effort}",
+                      "-c", 'web_search="cached"', *security_overrides(may_allow_net=True)], prompt)
 
 
 def cmd_research(args: list[str]) -> int:
+    # live search 併用の漏洩経路遮断(2周目 P0 対応): 秘密ファイルのある場所では実行しない
+    envs = sorted(p.name for p in Path.cwd().glob(".env*") if p.name != ".env.example")
+    if envs:
+        die(f"cwd に {', '.join(envs)} が存在します。/research(live search 併用)は"
+            "秘密レスの作業コピーで実行してください(設計書 12.1)")
     model, effort = RESEARCH_DEEP if "--deep" in args else RESEARCH
     prompt = read_prompt([a for a in args if a != "--deep"] or ["-"])
     return run_codex(["exec", "--skip-git-repo-check", "-s", "read-only", "-m", model,
-                      "-c", f"model_reasoning_effort={effort}", "-c", 'web_search="live"'], prompt)
+                      "-c", f"model_reasoning_effort={effort}", "-c", 'web_search="live"',
+                      *security_overrides(may_allow_net=False)], prompt)
 
 
 def cmd_review(args: list[str]) -> int:
@@ -186,7 +237,8 @@ def cmd_review(args: list[str]) -> int:
     model, effort = REVIEW_NORMAL if args[0] == "normal" else REVIEW_ADVERSARIAL
     prompt = read_prompt(args)
     return run_codex(["exec", "-s", "read-only", "-m", model,
-                      "-c", f"model_reasoning_effort={effort}"], prompt)
+                      "-c", f"model_reasoning_effort={effort}",
+                      "-c", 'web_search="cached"', *security_overrides(may_allow_net=False)], prompt)
 
 
 def main() -> int:

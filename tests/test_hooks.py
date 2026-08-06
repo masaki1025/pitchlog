@@ -109,6 +109,28 @@ def test_codex_guard_allows(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 0
 
 
+@pytest.mark.parametrize("command", [
+    "/home/u/.nvm/versions/node/v22.18.0/bin/codex exec 'x'",  # 絶対パス起動(2周目 P0)
+    "echo codex_run.py; codex exec 'x'",                        # 文字列混入によるチェーン迂回
+    "npx @openai/codex exec 'x'",                               # npm 系ランチャー
+    "pnpm dlx @openai/codex e 'x'",
+])
+def test_codex_guard_blocks_bypass_attempts(command):
+    assert run_hook("codex_guard.py", bash(command)).returncode == 2
+
+
+def test_codex_guard_ignores_heredoc_body_and_messages():
+    # ヒアドキュメント本文は「データ」— プロンプト中の `codex exec` 文字列で誤ブロックしない
+    heredoc = (
+        "python .claude/scripts/codex_run.py review normal - <<'EOF'\n"
+        "生の codex exec がブロックされることを確認する(--yolo も禁止)\n"
+        "EOF"
+    )
+    assert run_hook("codex_guard.py", bash(heredoc)).returncode == 0
+    # コミットメッセージ中の言及も誤ブロックしない
+    assert run_hook("codex_guard.py", bash('git commit -m "codex 連携の修正"')).returncode == 0
+
+
 # ---- secret_guard ----------------------------------------------------------
 
 @pytest.mark.parametrize("command", [
@@ -129,6 +151,41 @@ def test_secret_guard_blocks(command):
 ])
 def test_secret_guard_allows(command):
     assert run_hook("secret_guard.py", bash(command)).returncode == 0
+
+
+def make_repo(tmp_path, branch: str):
+    """実ブランチ判定テスト用の一時リポジトリ(2周目 P1: 実リポジトリ非依存化)。"""
+    repo = tmp_path / f"repo-{branch.replace('/', '-')}"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", branch, str(repo)], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.email=t@example.com", "-c", "user.name=t",
+         "commit", "--allow-empty", "-m", "init", "-q"],
+        check=True,
+    )
+    return repo
+
+
+def test_git_guard_blocks_commit_on_protected_repo(tmp_path):
+    repo = make_repo(tmp_path, "main")
+    assert run_hook("git_guard.py", bash("git commit -m x", cwd=str(repo))).returncode == 2
+
+
+def test_git_guard_resolves_dash_c_per_segment(tmp_path):
+    # 後段セグメントの -C(保護ブランチ)も見落とさない(2周目 P0)
+    protected = make_repo(tmp_path, "develop")
+    feature = make_repo(tmp_path, "feature/x")
+    cmd = f'git -C "{feature}" status && git -C "{protected}" commit -m x'
+    assert run_hook("git_guard.py", bash(cmd, cwd=REPO)).returncode == 2
+
+
+def test_git_guard_blocks_cd_git_compound():
+    # cd 後はブランチ判定不能 — 保守的にブロック(git -C を使わせる)
+    assert run_hook("git_guard.py", bash("cd ../somewhere && git commit -m x")).returncode == 2
+
+
+def test_git_guard_allows_cd_without_protected_verb():
+    assert run_hook("git_guard.py", bash("cd backend && git status")).returncode == 0
 
 
 # ---- session_context -------------------------------------------------------
@@ -214,6 +271,49 @@ def test_implement_argv_puts_exec_options_before_resume():
 def test_wrapper_rejects_fast_outside_worktree():
     r = run_wrapper(["fast", "-"], "prompt", cwd=REPO)  # メインツリーは worktree でない
     assert r.returncode == 2
+
+
+def test_wrapper_rejects_unregistered_worktree(tmp_path):
+    # パス文字列の自己申告だけでは通さない — git worktree 登録を照合する(2周目 P0)
+    wt = tmp_path / "pitchlog-worktrees" / "feature-x"
+    wt.mkdir(parents=True)
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        f"worktree: {wt}\nbranch: feature/x\n---\n# 計画\n\n"
+        "### 実装ステップ(コミット単位)\n| 1 | x | y |\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "登録".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_research_with_env(tmp_path):
+    # live search 併用の /research は秘密ファイルのある場所で実行しない(2周目 P0)
+    (tmp_path / ".env").write_text("SECRET=1", encoding="utf-8")
+    r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
+    assert r.returncode == 2
+    assert "秘密".encode("utf-8") in r.stderr
+
+
+def test_security_overrides_pin_network_and_require_reason(monkeypatch):
+    # 安全キーは config 層に依存せず毎回明示上書き。ネット例外は理由の記録が必須
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("codex_run_sec", WRAPPER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.delenv("PITCHLOG_ALLOW_NET", raising=False)
+    assert mod.security_overrides(may_allow_net=True)[-1].endswith("network_access=false")
+    monkeypatch.setenv("PITCHLOG_ALLOW_NET", "1")
+    monkeypatch.delenv("PITCHLOG_NET_REASON", raising=False)
+    with pytest.raises(SystemExit):
+        mod.security_overrides(may_allow_net=True)
+    monkeypatch.setenv("PITCHLOG_NET_REASON", "依存追加の検証")
+    assert mod.security_overrides(may_allow_net=True)[-1].endswith("network_access=true")
+    # read-only 系(research/review)は ALLOW_NET でも有効化しない
+    assert mod.security_overrides(may_allow_net=False)[-1].endswith("network_access=false")
 
 
 def test_wrapper_rejects_review_base_flag():
