@@ -69,14 +69,18 @@ def main() -> int:
     if "git" not in command:
         return 0
 
-    if re.search(r"git\b[^\n|;&]*\bpush\b[^\n|;&]*(--force\b|--force-with-lease\b|\s-f\b)", command):
-        print("ブロック: force push は禁止です(設計書 8.2/8.3)。", file=sys.stderr)
+    if re.search(r"git\b[^\n|;&]*\bpush\b[^\n|;&]*(--force\b|--force-with-lease\b|\s-f\b)", command) or \
+       re.search(r"\bpush\b[^\n|;&]*\s\+\S", command):  # force refspec(+branch)も force push(4周目 P1)
+        print("ブロック: force push(+refspec 含む)は禁止です(設計書 8.2/8.3)。", file=sys.stderr)
         return 2
 
-    # ブランチの強制削除は同義オプションも含めて遮断(3周目 P1 — settings の deny は語順・別名で迂回可能)
+    # ブランチの強制削除は同義形・短縮クラスタも含めて遮断(3/4周目 P1 — deny は語順・別名で迂回可能)
     if re.search(r"\bgit\b[^\n|;&]*\bbranch\b", command) and (
-        re.search(r"\s-D\b", command)
-        or (re.search(r"--delete\b", command) and re.search(r"--force\b", command))
+        re.search(r"\s-[a-zA-Z]*D", command)
+        or (
+            (re.search(r"--delete\b", command) or re.search(r"\s-[a-zA-Z]*d\b", command))
+            and (re.search(r"--force\b", command) or re.search(r"\s-[a-zA-Z]*f", command))
+        )
     ):
         print(
             "ブロック: ブランチの強制削除(-D / --delete --force)は禁止です"

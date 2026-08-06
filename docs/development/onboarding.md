@@ -20,7 +20,7 @@ pitchlog の開発に参加する開発者の初期設定手順。**開発環境
 | --- | --- | --- |
 | Git / GitHub CLI(gh) | コード管理・PR | `gh auth status` |
 | Claude Code | 対話・設計・オーケストレーション | `claude --version` |
-| Codex CLI + openai-codex プラグイン | 実装・レビュー委任 | `codex --version`・ログイン済みであること |
+| Codex CLI | 実装・レビュー委任(`codex_run.py` ラッパー経由。プラグインは不要) | `codex --version`・ログイン済みであること |
 | uv | Python・依存管理 | `uv --version` |
 | Python 3.12+(`python` コマンド) | hooks・codex ラッパーの実行(無いと保護が fail-open する) | `python --version`(Ubuntu は `sudo apt install python-is-python3`。sudo を使わない代替: `ln -s /usr/bin/python3 ~/.local/bin/python`) |
 | Docker | 開発 DB(PostgreSQL) | `docker --version`(Docker Desktop の WSL2 統合、または WSL 内ネイティブ導入) |
@@ -63,7 +63,7 @@ trust_level = "trusted"
 
 1. Claude Code を起動 → SessionStart フックが「現在ブランチ…」を表示すること
 2. `/permissions` で `.claude/settings.json` のルールが有効に見えること(Bash パターン構文が現行仕様か確認)
-3. `uv run pytest tests/` が全グリーンであること(hooks・ラッパーの正負テスト 71 件)
+3. `uv run pytest tests/` が全グリーンであること(hooks・ラッパーの正負テスト 82 件)
 4. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
 5. 生の `codex exec` がブロックされ、ラッパー経由の案内が出ること(codex_guard の実地確認)
 

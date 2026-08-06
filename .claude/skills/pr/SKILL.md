@@ -32,11 +32,12 @@ disable-model-invocation: true
 1. `git -C <worktree> push -u origin <branch>`(承認付き。branch は計画書 frontmatter の `branch` — `feature/*` と `fix/*` の両方に対応)
 2. `gh pr create --head <branch> --base develop`(**--head を明示** — メインツリーのカレントブランチに依存しない)。本文は `.github/pull_request_template.md` に沿って生成:
    - 概要 / Notion タスク URL / 計画書リンク / 正本反映の要約 / テスト結果
-   - **コア領域判定**: 変更ファイルを `.claude/core-areas.json` と突合し、該当する場合はテンプレのコメントアウト部を有効化して「/codex:adversarial-review 済み」「**人間の逐行確認 済み(必須)**」のチェック項目を追加する
+   - **コア領域判定**: 変更ファイルを `.claude/core-areas.json` と突合し、該当する場合はテンプレのコメントアウト部を有効化して「codex_run.py review adversarial 済み」「**人間の逐行確認 済み(必須)**」のチェック項目を追加する
+   - **fast path 判定**: fast の場合はテンプレの fast path コメントアウト部を有効化する
 3. Notion タスクの URL プロパティに PR URL を記録し、ステータスを `確認待ち` へ(綴りの正: `.claude/notion-map.json` — 推測しない)。「確認待ち時の依頼事項」欄にレビュー観点を書く(ポータルの規律)
 
 ## レビュー導線の案内
 
-Claude 一次レビュー(要件適合・規約・NFR-018 — spec-checker 併用可)→ Codex 技術レビュー(`python .claude/scripts/codex_run.py review normal -` に差分レビュー指示を渡す)→ コア領域は敵対レビュー(`review adversarial`)+ 人間逐行確認 → CI 全グリーン → **人間がマージ**。
+反対側レビュー(Codex 実装 → Claude 一次レビュー〔要件適合・規約・NFR-018 — spec-checker 併用可〕/ Claude 直実装 → `python .claude/scripts/codex_run.py review normal -` に差分レビュー指示)→ コア領域は敵対レビュー(`review adversarial`)+ 人間逐行確認 → CI 全グリーン → **人間がマージ**。プラグイン `/codex:*` は使わない(経路はラッパーに一本化)。
 
 - **差し戻しが発生したら**: Notion ステータスを `差し戻し` へ(指摘要約をタスクへコメント — notion-map.json)。修正の再開で `進行中` に戻し、修正は /implement の `--resume` でステップ単位に行う(修正も 1 まとまり 1 コミット)

@@ -54,6 +54,25 @@ def read_prompt(args: list[str]) -> str:
     return ""
 
 
+def has_filled_step_row(plan_text: str) -> bool:
+    """「実装ステップ」見出し**配下の表**に、全セル記入済みの行があるか(4周目 P1)。
+
+    番号・ステップ内容・合格条件の3セルすべて非空を要求する。別の見出し配下の
+    数値表では条件を満たさない(見出し単位で判定範囲を区切る)。
+    """
+    in_section = False
+    for line in plan_text.splitlines():
+        if re.match(r"#{1,6}\s", line):
+            in_section = "実装ステップ" in line
+            continue
+        if not in_section:
+            continue
+        m = re.match(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|", line)
+        if m and m.group(2).strip() and m.group(3).strip():
+            return True
+    return False
+
+
 def parse_frontmatter(path: Path) -> dict[str, str]:
     text = path.read_text(encoding="utf-8")
     m = re.match(r"\A---\s*\n(.*?)\n---", text, re.DOTALL)
@@ -69,6 +88,29 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
 
 def session_file(plan: Path) -> Path:
     return plan.parent / ".codex-session"
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def git_common_dir(path: Path) -> str | None:
+    """path が属するリポジトリの共有 .git ディレクトリ(絶対パス)を返す。"""
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, cwd=str(path), timeout=10,
+        )
+        return str(Path(r.stdout.strip()).resolve()) if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def require_same_repo(wt: Path) -> None:
+    """wt が**本リポジトリの** worktree であることを照合する(4周目 P1 — 同名別リポジトリを排除)。"""
+    ours = git_common_dir(REPO_ROOT)
+    theirs = git_common_dir(wt)
+    if ours is None or theirs is None or ours != theirs:
+        die(f"worktree が本リポジトリの worktree でない: {wt}(git-common-dir 不一致 — 設計書 12.1)")
 
 
 def worktree_branch(wt: Path) -> str | None:
@@ -189,12 +231,9 @@ def cmd_implement(args: list[str]) -> int:
     if weight not in MODEL_MAP:
         die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
     plan_text = plan.read_text(encoding="utf-8")
-    # 見出しの存在だけでなく、記入済みのステップ行(番号+非空の内容セル)を構造的に検証する(3周目 P1)
-    if "実装ステップ" not in plan_text or not re.search(
-        r"^\|\s*\d+\s*\|\s*[^|]*[^|\s][^|]*\|", plan_text, re.M
-    ):
-        die("計画書の「実装ステップ(コミット単位)」に記入済みの行が無い"
-            "(設計書 6.1 段階実装 — 空のテンプレ表のままでは実行できない)")
+    if not has_filled_step_row(plan_text):
+        die("計画書の「実装ステップ(コミット単位)」見出し配下に、番号・ステップ・合格条件が"
+            "すべて埋まった行が無い(設計書 6.1 段階実装 — 空のテンプレ表・無関係な表は不可)")
     branch = fm.get("branch", "")
     if not re.fullmatch(r"(?:feature|fix)/\S+", branch):
         die(f"計画書の branch が不正({branch or '未設定'})。feature/* または fix/* が必要(設計書 6.2)")
@@ -203,6 +242,7 @@ def cmd_implement(args: list[str]) -> int:
         die(f"worktree が git に登録されていない: {wt}(/task-start で作成する — 設計書 12.1)")
     if registered != branch:
         die(f"worktree のブランチ({registered})が計画書の branch({branch})と一致しない")
+    require_same_repo(wt)
     model, effort = MODEL_MAP[weight]
     prompt = read_prompt(args)
     base = ["-C", str(wt), "-s", "workspace-write", "-m", model,
@@ -221,8 +261,12 @@ def cmd_fast(args: list[str]) -> int:
     cwd = Path.cwd().resolve()
     if WORKTREES_DIRNAME not in cwd.as_posix():
         die(f"fast path も worktree 内でのみ実行可({WORKTREES_DIRNAME} 配下で実行する — 設計書 6.1)")
-    if worktree_branch(cwd) is None:
+    wb = worktree_branch(cwd)
+    if wb is None:
         die(f"cwd が git 登録済みの worktree でない: {cwd}(/task-start で作成する — 設計書 12.1)")
+    if not re.fullmatch(r"(?:feature|fix)/\S+", wb):
+        die(f"fast は feature/*・fix/* の worktree でのみ実行可(現在: {wb} — 設計書 6.1/6.2)")
+    require_same_repo(cwd)
     model, effort = MODEL_MAP["軽微"]
     prompt = read_prompt(args)
     return run_codex(["exec", "-s", "workspace-write", "-m", model,
@@ -230,21 +274,19 @@ def cmd_fast(args: list[str]) -> int:
                       "-c", 'web_search="cached"', *security_overrides(may_allow_net=True)], prompt)
 
 
-SCAN_SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", "dist", "coverage"}
-
-
 def find_env_files(root: Path) -> list[str]:
-    """root 配下の秘密ファイル(.env*)を再帰検出する。exact `.env.example` のみ除外(3周目 P0)。"""
-    found: list[str] = []
+    """root 配下の秘密ファイル(.env*)を**除外なしで**再帰検出する(4周目 P0)。
+
+    exact `.env.example` のみ許可。`.venv`・`node_modules` 等もスキップしない
+    (「cwd 配下に存在すれば拒否」が仕様)。走査に失敗したら fail-closed。
+    """
     try:
-        for p in root.rglob(".env*"):
-            if any(part in SCAN_SKIP_DIRS for part in p.parts):
-                continue
-            if p.name != ".env.example":
-                found.append(str(p.relative_to(root)))
+        return sorted(
+            str(p.relative_to(root)) for p in root.rglob(".env*") if p.name != ".env.example"
+        )
     except Exception:
-        pass
-    return sorted(found)
+        die("秘密ファイルの走査に失敗(fail-closed — 12.1)。cwd を確認して再実行する")
+        return []
 
 
 def cmd_research(args: list[str]) -> int:

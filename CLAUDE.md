@@ -4,7 +4,7 @@
 
 ## Claude 固有の導線
 
-**役割分担(設計書 3 章)**: 実装コードは自分で書かず Codex へ委任する(/implement)。例外的に直接書いた場合は /codex:review を必ず通す。Web 調査は Codex(/research)。Git 操作・PR・ドキュメントは Claude の役割。最終判断は常に人間。
+**役割分担(設計書 3 章)**: 実装コードは自分で書かず Codex へ委任する(/implement)。例外的に直接書いた場合は `codex_run.py review normal` を必ず通す。Web 調査は Codex(/research)。Git 操作・PR・ドキュメントは Claude の役割。最終判断は常に人間。**Codex 起動はすべて `codex_run.py` ラッパー経由**(プラグイン `/codex:*` は使わない — 経路の一本化)。
 
 ### スキル導線(迷ったらこれ)
 

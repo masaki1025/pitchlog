@@ -116,6 +116,10 @@ def test_codex_guard_allows(command):
     "pnpm dlx @openai/codex e 'x'",
     "bash -lc 'codex exec x'",                                  # 引用内の生起動(3周目 P0)
     "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",            # 非ラッパー heredoc は本文も検査(3周目 P0)
+    '"codex" exec x',                                           # 引用符付き実行ファイル(4周目 P0)
+    "'/usr/bin/codex' review foo",
+    # 正規ラッパー heredoc の後ろに別 heredoc を連ねる迂回(4周目 P0)
+    "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\nbash <<'RUN'\ncodex exec x\nRUN",
 ])
 def test_codex_guard_blocks_bypass_attempts(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 2
@@ -142,6 +146,9 @@ def test_codex_guard_ignores_heredoc_body_and_messages():
     "type .env.local",
     "cat backend/.env.example.local",   # 例外は exact .env.example のみ(3周目 P0)
     "cat .env.example.backup",
+    "cat .env.example-prod",             # トークン境界での派生(4周目 P0)
+    "cat .env.example~",
+    "cat .env.example/secret",
 ])
 def test_secret_guard_blocks(command):
     assert run_hook("secret_guard.py", bash(command)).returncode == 2
@@ -208,8 +215,18 @@ def test_git_guard_allows_cd_without_protected_verb():
     "git branch -D feature/x",
     "git branch --delete --force feature/x",   # -D の同義形も遮断(3周目 P1)
     "git branch --force --delete feature/x",
+    "git branch -d -f feature/x",              # 分離した短縮形(4周目 P1)
+    "git branch --delete -f feature/x",
 ])
 def test_git_guard_blocks_force_branch_delete(command):
+    assert run_hook("git_guard.py", bash(command)).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "git push origin +feature/x",              # force refspec(4周目 P1)
+    "git push origin +HEAD:develop",
+])
+def test_git_guard_blocks_force_refspec(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
@@ -334,6 +351,14 @@ def test_wrapper_rejects_research_with_nested_env(tmp_path):
     r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
     assert r.returncode == 2
     assert "backend/.env.local".encode("utf-8") in r.stderr
+
+
+def test_wrapper_research_scans_vcs_ignored_dirs(tmp_path):
+    # .venv 等も除外しない(4周目 P0: 「cwd 配下に存在すれば拒否」が仕様)
+    (tmp_path / ".venv").mkdir()
+    (tmp_path / ".venv" / ".env").write_text("SECRET=1", encoding="utf-8")
+    r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
+    assert r.returncode == 2
 
 
 def test_wrapper_rejects_empty_step_table(tmp_path):

@@ -31,9 +31,10 @@ FORBIDDEN = [
     "--dangerously-bypass-approvals-and-sandbox",
     "--yolo",
 ]
-# 生の codex 起動: 区切り文字(行頭・空白・引用符・; | & ( `)+ 任意のパス前置 + codex + サブコマンド
+# 生の codex 起動: 区切り文字(行頭・空白・引用符・; | & ( `)+ 任意のパス前置 + codex
+# (+閉じ引用符 — `"codex" exec` / `'/usr/bin/codex' review` の引用実行も捕捉)+ サブコマンド
 DIRECT_CODEX = re.compile(
-    r"(?:^|[\s;|&(`'\"])(?:[^\s;|&()`'\"]*[/\\])?codex(?:\.exe|\.cmd)?\s+(?:exec|review|resume|e)\b"
+    r"(?:^|[\s;|&(`'\"])(?:[^\s;|&()`'\"]*[/\\])?codex(?:\.exe|\.cmd)?\\?['\"]?\s+(?:exec|review|resume|e)\b"
 )
 # npm 系ランチャー経由(npx / pnpm dlx / yarn dlx — いずれも @openai/codex を指定する)
 NPM_CODEX = re.compile(r"@openai/codex\b")

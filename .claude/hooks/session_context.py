@@ -80,11 +80,12 @@ def main() -> int:
                 continue
             if "status: active" not in head and "status: in-review" not in head:
                 continue
-            # plan の branch がこの worktree のブランチと一致するものだけを「進行中」とする
+            # plan の branch がこの worktree のブランチと**完全一致**するものだけを「進行中」とする
+            # (branch 欠落・不一致・detached HEAD は表示しない — 4周目 P2)
             m = re.search(r"^branch:\s*(\S+)", head, re.M)
-            if b and m and m.group(1) != b:
+            if not b or not m or m.group(1) != b:
                 continue
-            active.append(f"{plan.parent.name}({b})" if b else plan.parent.name)
+            active.append(f"{plan.parent.name}({b})")
     if active:
         lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(set(active))))
 

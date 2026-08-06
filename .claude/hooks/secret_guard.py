@@ -18,8 +18,9 @@ except Exception:
 
 from guard_common import effective_command
 
-# .env / .env.* を遮断。例外は「.env.example の直後にワード・ドットが続かない」場合のみ
-ENV_REF = re.compile(r"\.env\b(?!\.example(?![\w.]))")
+# .env / .env.* を遮断。例外は「.env.example がトークンとしてそこで終わる」場合のみ
+# (直後が行末・空白・引用符・シェル区切りのとき。`-prod`・`~`・`/secret` 等の派生は遮断 — 4周目 P0)
+ENV_REF = re.compile(r"\.env\b(?!\.example(?:$|(?=[\s'\";|&)<>,])))")
 
 
 def main() -> int:

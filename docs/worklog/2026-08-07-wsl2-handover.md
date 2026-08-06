@@ -63,7 +63,15 @@ PO へ推奨方針(脅威モデル=誤操作+外部入力暴走まで。敵対 A
 - P1: 実装ステップ表の構造検証(`\S` が `|` にマッチする regex バグを発見・修正)/ branch 必須化+worktree 親ディレクトリ判定 / SessionStart の branch 突合 / ブランチ強制削除の同義形遮断(settings の deny は語順・別名で迂回可能 — 意味ベースは hooks 側の責務と整理)/ task-done の `pull --ff-only`
 - P2: fast path の計画書雛形保持を明文化 / 8.2 の permissions 例示を撤去(実ファイルが正 — 複製は必ず腐る)
 
-### 採用予定 — 次版のガード強化パスで対応(5件)→ v0.14 で対応済み
+## 敵対レビュー4周目(判定=否決・P0×4/P1×5/P2×2)→ v0.16 で全件反映
+
+- **guard_common を設計反転**: 3周目の「先頭行がラッパーなら全 heredoc 除去」は、ラッパー heredoc の後ろに `bash <<RUN` を連ねる迂回を許した(P0)。**正規形の受理**(ラッパー単独+末尾 stdin heredoc 1つに完全一致する時だけ本文除外)へ変更し、追加コマンド・2つ目の heredoc・終端後残余・解析不能マーカーは全文検査に戻す
+- P0 残り: 引用符付き実行(`"codex" exec`)捕捉 / `.env.example` をトークン終端判定(`-prod`・`~`・`/secret` 派生を遮断)/ `/research` の走査除外ディレクトリ撤廃+fail-closed
+- P1: worktree の **git-common-dir 照合**(同名別リポジトリを排除)/ fast のブランチ種別検証 / ステップ表の見出し配下3セル全記入 / force refspec・分離短縮形の意味遮断 / **Codex 経路をラッパーに完全一本化**(`/codex:*`・stop-review-gate・runtime フラグ・review_model の記述を全廃)/ fast×PR テンプレ整合
+- P2: SessionStart の branch 欠落 plan 除外 / worklog 締め帰属を /pr に統一 / config.toml コメントを 9.3 と整合
+- テスト 71→82 件。**収束傾向**: 20(3周目)→11→…だが4周目も11件。ただし内容は「実装の詰め(regex 境界・照合の厳密化)」に移行し、設計論点の蒸し返しは無し
+
+### (旧)採用予定 — 次版のガード強化パスで対応(5件)→ v0.14 で対応済み
 
 | 指摘 | 方針 |
 | --- | --- |
