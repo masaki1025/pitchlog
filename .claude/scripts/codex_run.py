@@ -7,7 +7,7 @@
   python .claude/scripts/codex_run.py implement <plan.md> [--resume] [-]   # 実装(承認済み計画書必須)
   python .claude/scripts/codex_run.py fast [-]                             # 軽微 fast path(6.1。人間の事前OK前提)
   python .claude/scripts/codex_run.py research [--deep] [-]                # Web調査(read-only + live search)
-  python .claude/scripts/codex_run.py review <normal|adversarial> [--base <ref>] [-]  # レビュー(read-only)
+  python .claude/scripts/codex_run.py review <normal|adversarial> [-]      # レビュー(read-only。差分指定はプロンプトに書く)
 
 プロンプトは末尾引数 `-` で stdin から渡す(クォート事故防止)。
 ネットワーク有効化は環境変数 PITCHLOG_ALLOW_NET=1 のみ(理由を人間へ報告済みであること)。
@@ -116,6 +116,17 @@ def network_flags() -> list[str]:
     return []
 
 
+def implement_argv(base: list[str], resume_sid: str | None) -> list[str]:
+    """exec の引数列を構築する。
+
+    resume はサブコマンドのため、exec レベルのオプション(-C/-s/-m/-c)は
+    `resume` より前に置く(後置は 0.146.1 で unexpected argument — 敵対レビュー2周目 P1)。
+    """
+    if resume_sid:
+        return ["exec", *base, "resume", resume_sid]
+    return ["exec", *base]
+
+
 def cmd_implement(args: list[str]) -> int:
     resume = "--resume" in args
     args = [a for a in args if a != "--resume"]
@@ -135,6 +146,8 @@ def cmd_implement(args: list[str]) -> int:
     weight = fm.get("重さ分類", "通常")
     if weight not in MODEL_MAP:
         die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
+    if "実装ステップ" not in plan.read_text(encoding="utf-8"):
+        die("計画書に「実装ステップ(コミット単位)」が無い(設計書 6.1 段階実装 — plan-template 4 節の表を埋める)")
     model, effort = MODEL_MAP[weight]
     prompt = read_prompt(args)
     base = ["-C", str(wt), "-s", "workspace-write", "-m", model,
@@ -144,8 +157,8 @@ def cmd_implement(args: list[str]) -> int:
         if not sid_file.is_file():
             die("保存されたセッション ID がない(--resume 不可。新規実行する)")
         sid = sid_file.read_text(encoding="utf-8").strip()
-        return run_codex(["exec", "resume", sid, *base], prompt)
-    return run_codex(["exec", *base], prompt, capture_session_to=session_file(plan))
+        return run_codex(implement_argv(base, sid), prompt)
+    return run_codex(implement_argv(base, None), prompt, capture_session_to=session_file(plan))
 
 
 def cmd_fast(args: list[str]) -> int:
@@ -166,6 +179,8 @@ def cmd_research(args: list[str]) -> int:
 
 
 def cmd_review(args: list[str]) -> int:
+    if "--base" in args:
+        die("--base は未対応(差分の指定はプロンプト本文に含める — 受理したふりをしない)")
     if not args or args[0] not in ("normal", "adversarial"):
         die("review <normal|adversarial> が必要")
     model, effort = REVIEW_NORMAL if args[0] == "normal" else REVIEW_ADVERSARIAL

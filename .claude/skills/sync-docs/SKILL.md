@@ -1,6 +1,7 @@
 ---
 description: 実装完了後・マージ前に、計画書の宣言どおり正本ドキュメントを作成・更新する(鮮度保持)
 argument-hint: "<feature slug または plan.md のパス>"
+disable-model-invocation: true
 ---
 
 # 正本への反映(設計書 7.6)

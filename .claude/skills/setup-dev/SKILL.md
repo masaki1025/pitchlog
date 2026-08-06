@@ -1,5 +1,6 @@
 ---
 description: 開発者の初回セットアップ。Notion ユーザー紐づけ・Codex trust/sandbox 設定確認・ツール疎通を行う
+disable-model-invocation: true
 ---
 
 # 初回セットアップ(設計書 11.2 / onboarding.md)
@@ -24,6 +25,7 @@ git / uv / **python**(PATH 必須 — 無いと hooks の保護が fail-open す
 3. 選択結果を `.claude/settings.local.json` の `env` に保存する(ファイルがなければ作成、あれば既存キーを保持してマージ):
    - `PITCHLOG_NOTION_USER_ID` = 選択ユーザーの ID
    - `PITCHLOG_NOTION_USER_NAME` = 表示名
+4. **notion-map.json 突合**: タスク DB(`.claude/notion-map.json` の data_source)のステータス選択肢を取得し、map の `status_options` と突合する。不一致(改名・追加・削除)があれば map の更新を提案する(綴りの正は常に実 DB — 設計書 11.1)
 
 ## 4. permissions 構文検証
 

@@ -13,7 +13,8 @@
 | 0.9 | 2026-08-07 | **Phase 1〜2 相当の基盤ファイル一式を実装**（本ブランチに同梱）: AGENTS.md / CLAUDE.md / settings.json + hooks 5本 / skills **13本**（8.4 改稿 — `/plan`・`/investigate`・`/check`・`/sync-docs` を追加）/ 調査エージェント3本 / `.codex/config.toml`（review_model 含む）/ PR テンプレ / テンプレ4種 / docs 索引 / onboarding | in-review |
 | 0.10 | 2026-08-07 | **敵対レビュー1周目（sol xhigh・判定=否決）の指摘を反映**: P0×4 — `.env` 迂回対策（secret_guard 新設・allow 絞り込み・残余リスク明記 12.1）／codex 生実行の遮断（ラッパー `codex_run.py` に一元化 9.2）／NFR-018 表現修正（4章）／NFR-019 ランナー標準化（**要件書 v1.8 改訂**）。P1×13 — ADR 2本を in-review へ差し戻し／`/pr` のコミット順序・`--head` 明示／plan 状態の 3 値化（merged を Git に置かない）／セッション ID 保存で `resume --last` 廃止／PowerShell matcher 追加／refspec・casefold のガード強化／`--ignore-user-config` 廃止／`uv add`等を ask へ／`core-areas.json` 新設（5領域統一）／**hooks の pytest 38 件追加**。P2×4 — **fast path 新設**（6.1）／worktree 命名統一／README 導線／rules は Phase 4 と明記 | in-review |
 | 0.11 | 2026-08-07 | **開発環境を WSL2 へ移行**（PO 決定 — 論点C改訂）: 実地の Windows 固有障害（npm シムの CreateProcess 非解決・パイプ stdin の cp932・sandbox ヘルパー失敗）を受けた判断。Codex sandbox は Linux 実装（bubblewrap・**WSL1 非対応**）が適用され `[windows] sandbox` 設定は不要に。onboarding を WSL2 前提へ改稿（リポジトリは WSL 側 FS に配置・python-is-python3）。hooks/scripts は OS 非依存設計のため無変更（44 テストで担保）。NFR-021 は「WSL2 を含む Windows 11 上で完結」と解釈 | in-review |
-| 0.12 | 2026-08-07 | **feature 作業域の規約を明確化**（PO 指示）: **1 feature = 1 ディレクトリ** — `docs/features/<slug>/` 配下に plan.md・research.md・補助資料の複数ファイルを集約し、`docs/features/` 直下に単発ファイルを置かない（4章・6.1・7.2）。あわせて v0.10 P1-4（plan 状態の2値化）への追随漏れを掃除（7.2・7.6・rules/docs.md・docs/README.md に「active → merged」が残存していた） | **in-review**（2周目レビュー実施中） |
+| 0.12 | 2026-08-07 | **feature 作業域の規約を明確化**（PO 指示）: **1 feature = 1 ディレクトリ** — `docs/features/<slug>/` 配下に plan.md・research.md・補助資料の複数ファイルを集約し、`docs/features/` 直下に単発ファイルを置かない（4章・6.1・7.2）。あわせて v0.10 P1-4（plan 状態の2値化）への追随漏れを掃除（7.2・7.6・rules/docs.md・docs/README.md に「active → merged」が残存していた） | in-review |
+| 0.13 | 2026-08-07 | **Notion 連動の機構化+段階実装規約**（PO 指示2件）: (1) タスク DB の実ステータス語彙（**11選択肢**）を実 DB から取得し、フロー事象↔ステータス対応を **`.claude/notion-map.json`**（新設・機械可読）へ一元化（11.1 改稿 — 差し戻し・ブロック中を含む遷移表。実施責務をスキル5本へ明記、/setup-dev に語彙突合を追加）。(2) **段階実装・こまめコミット**を規約化（6.1 新設）— 計画書に「実装ステップ（コミット単位）」表を必須化（テンプレ改訂・**ラッパーが機構検査**）、/implement を「1 委任 = 1 ステップ → 検証 → 1 コミット」のループへ改稿、AGENTS.md に「指示されたステップで止まる」を明記。あわせて2周目敵対レビュー指摘の即応分を反映: **`--resume` の引数順バグ修正**（exec オプションを resume の前へ — 実機検証済み）／task-start の遷移順序（Git 成功後に Notion 遷移）・worktree 置き場の事前作成／`fix/*` ブランチの /pr・/task-done 対応／テンプレ worktree 相対パス修正／8.4 の「計画書 merged 化」残存表記修正／**副作用スキル9本に `disable-model-invocation: true`**（自動起動の遮断）／**hooks 起動を `/usr/bin/python3` 絶対パス化**（PATH 汚染 fail-open 対策）／`review --base` の偽装受理を拒否／テスト 47 件へ増強。**残余指摘（P0×6 ほか）は triage 表を worklog に記録し次版で対応** | **in-review**（2周目 = 否決。指摘反映を継続中） |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
 > 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
@@ -224,11 +225,12 @@ flowchart TD
   1. 背景・目的（Notion タスク・要件 FR/NFR へのリンク）
   2. スコープ（やる・やらない）
   3. 影響する正本の列挙（7.6 の反映宣言。「反映なし」も明示）
-  4. 実装方針（モデル対応表 9.4 の重さ分類を含む）
+  4. 実装方針（モデル対応表 9.4 の重さ分類と、**実装ステップ〔コミット単位〕の表**を含む — 本節「段階実装」）
   5. DoD（受け入れ基準 — Notion タスクの DoD と同期）
   6. テスト計画（NFR-019 のどのテスト種別に何を足すか)
   - 下調べには調査サブエージェント（8.5）を使い、結論には典拠を添える
 - **1 feature = 1 ディレクトリ**: feature の作業文書は `docs/features/<slug>/` ディレクトリに集約する（`docs/features/` 直下に単発ファイルを置かない）。標準構成 — `plan.md`（実装計画書・必須）/ `research.md`（/investigate・/research の統合先）/ `.codex-session`（Codex セッション追跡 — gitignore）/ 補助資料（図・検討メモ等。命名自由で任意追加）
+- **段階実装（こまめなコミット — 2026-08-07 PO 指示）**: コーディングは計画書 4 節の「実装ステップ（コミット単位）」表に沿って進める。**1 回の委任 = 1 ステップ**とし、ステップ完了ごとに Claude が検証して **1 コミット**を作る（Conventional Commits）。全ステップの一括委任はしない。ステップはレビュー可能な粒度（1 論理変更）に切る — 差し戻しの巻き戻し幅が 1 ステップに閉じ、PR レビューがコミット単位で追える。機構化: `codex_run.py implement` は実装ステップ表の無い計画書を**拒否**し、Codex 側の規律（指示されたステップで止まる）は AGENTS.md に明記する。2 ステップ目以降は保存済みセッション ID の `--resume` で文脈を維持する（9.2）
 - **計画承認前に `/implement` は実行できない**（`codex_run.py` ラッパーが計画書の承認ステータスを機構検証し、未承認なら実行を拒否する）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
 
 #### fast path（軽微変更の軽量経路 — 敵対レビュー P2-4 対応・2026-08-07 採用）
@@ -402,7 +404,7 @@ draft（Claude起案）
 | `format_on_save.py` | PostToolUse / `Write\|Edit` | `backend/**/*.py` → `uv run ruff format` + `ruff check --fix`。`frontend/**` → `pnpm exec prettier --write`。ツール未導入時は静かにスキップ（fail-open） |
 | `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**worktree が現存する**進行中 feature・最新 worklog の要約を additionalContext として注入 |
 
-- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・38ケース — P1-13。/check と CI が実行）。`python` が PATH にあることを `/setup-dev` が検証する（P1-7）
+- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・47ケース — P1-13。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
 
 - hooks は「Claude が誤ってやりかけた時に止まる」ための層。規約の一次的な伝達は CLAUDE.md / AGENTS.md が担う
 - stop-review-gate（Codex プラグイン提供・`/codex:setup` でトグル）: Claude が直接コード変更したターンの停止時に Codex が ALLOW/BLOCK 判定。**例外運用（Claude 直接実装）の保険として有効化を提案**
@@ -418,10 +420,10 @@ draft（Claude起案）
 | `/investigate <テーマ>` | 計画段階のリポ内調査: 調査サブエージェント3本（8.5）を**既定3並列**で委任し、典拠付き `research.md` に統合 |
 | `/research <テーマ>` | Web 調査の Codex 委任: read-only + `-c web_search="live"`・terra high（ADR-001）。結論と参照 URL を記録 |
 | `/plan <slug>` | 実装計画書を固定フォーマット（6節必須・テンプレ）で作成・記入 → レビュー（通常/コア領域で水準分岐）→ 人間承認で `承認: 済` |
-| `/implement <計画書パス>` | **承認済み計画書**（未承認なら中断）から Codex へ委任: worktree 内・12.1 の固定 sandbox・9.4 のモデル対応表 → /check・差分・DoD 検証まで一気通貫。コミットは Claude |
+| `/implement <計画書パス>` | **承認済み計画書**（未承認なら中断）から Codex へ委任: worktree 内・12.1 の固定 sandbox・9.4 のモデル対応表。**実装ステップ単位の委任ループ**（1 委任 = 1 ステップ → 検証 → 1 コミット。ステップ表の無い計画書はラッパーが拒否 — 6.1 段階実装）→ /check・差分・DoD 検証。コミットは Claude |
 | `/check` | 品質ゲート一括: ruff / ty / pytest / prettier / eslint / vue-tsc（存在するもののみ・結果表で報告） |
 | `/sync-docs <slug>` | 正本への反映（7.6）: 計画書の宣言どおり更新・変更履歴追記・索引現行化。構造的変更は /finalize-doc へ回す |
-| `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 merged 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3） |
+| `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 in-review 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3）→ Notion を確認待ちへ（11.1） |
 | `/task-done` | 完了の唯一の出口: PR マージ確認 → worktree 除去（12.1）→ worklog 締め → Notion 完了 |
 | `/finalize-doc <文書パス>` | 正本確定ゲート（7.3）: 敵対レビュー → 指摘反映ループ → 人間承認 → approved 化・索引更新 |
 | `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → 人間のリリース判定 → develop→main PR → タグ |
@@ -591,7 +593,19 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 | ポータル既存のテンプレ規律 | 「1タスク=1担当・1成果物」「DoD（完了条件）を埋めてから着手」「確認待ちにする前にレビュー観点を書く」 — 本ハーネスの運用（6章）とそのまま整合する |
 
 - `/task-start`・`/task-done`（8.4）はこの構造を操作する: 起票時に プロジェクト リレーション・担当者・DoD 雛形を設定し、ステータスを遷移させる。GitHub 側の対応（ブランチ・PR URL）はタスクの URL プロパティと worklog に記録
-- ステータスの語彙は**ポータルの実選択肢に従う**（実査で「確認待ち」等を確認済み）。全選択肢は Phase 2 の skills 実装時に取得し、6.1 フローとの対応表を skills 内に固定する（綴りのハードコードずれ防止）
+- ステータス語彙は**ポータルの実選択肢に従う**。全 **11 選択肢**を実 DB から取得済み（2026-08-07: 未着手・準備中・保留中・着手可・進行中・作業中・差し戻し・確認待ち・ブロック中・完了・取り下げ）。**フロー事象との対応の正は `.claude/notion-map.json`**（機械可読 — スキルは綴りを推測せず本ファイルを参照する。DB 側の語彙変更は `/setup-dev` の突合検証で検出して map を更新する）:
+
+| フロー事象（6.1） | ステータス | 付随更新 | 実施スキル |
+| --- | --- | --- | --- |
+| 着手（**worktree 作成の成功後**に遷移 — 失敗時に中途状態を残さない） | 進行中 | 担当者・プロジェクトリレーション・DoD 欄・ブランチ名コメント | /task-start |
+| 計画書の人間承認 | （進行中のまま） | 計画書リンク・承認日をコメント | /plan |
+| PR 作成 | 確認待ち | URL プロパティ = PR URL・「確認待ち時の依頼事項」欄 | /pr |
+| レビュー差し戻し | 差し戻し | 指摘要約をコメント（修正再開で 進行中 へ戻す） | /pr・手動 |
+| 外部要因で停止 | ブロック中 | 理由をコメント | 手動 |
+| マージ完了 | 完了 | 完了日 = マージ日 | /task-done |
+| 中止 | 取り下げ | — | 手動（人間判断） |
+
+- 上記以外の選択肢（未着手・準備中・保留中・着手可・作業中）はポータル共通の人間運用に開放する（ハーネスのスキルは遷移に使わない）
 - 操作は原則 Claude 経由。手動操作も自由（スキルは冪等に作る）
 - タスクの粒度目安: 1 PR で閉じる大きさ（ポータルの「1タスク=1成果物」と同義）。設計文書は「起案」「確定ゲート」を別タスクにしない（1タスク内の DoD チェック項目とする）
 
@@ -674,7 +688,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | Phase | 内容 | 完了条件 |
 | --- | --- | --- |
 | **0** | 本設計案の確定（敵対レビュー → 承認 → approved 化） | 本書 status: approved |
-| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・38件）全グリーン + 実地確認 |
+| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・47件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
 | **3** | CI 先行分(secrets / docs-lint) + ブランチ保護適用 + github-setup.md | 保護設定が有効・PR で CI が回る |
 | **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（論点A決着後）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で README 手順どおりセットアップ成功（NFR-021） |

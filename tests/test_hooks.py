@@ -182,9 +182,45 @@ def test_wrapper_rejects_approved_plan_without_worktree(tmp_path):
     assert "worktree".encode("utf-8") in r.stderr
 
 
+def test_wrapper_rejects_plan_without_steps(tmp_path):
+    # 段階実装(設計書 6.1): 実装ステップの表が無い計画書は拒否する
+    wt = tmp_path / "pitchlog-worktrees" / "feature-x"
+    wt.mkdir(parents=True)
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        f"worktree: {wt}\nbranch: feature/x\n---\n# 計画\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "実装ステップ".encode("utf-8") in r.stderr
+
+
+def test_implement_argv_puts_exec_options_before_resume():
+    # resume はサブコマンド — exec レベルオプションの後置は 0.146.1 で引数エラーになる
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("codex_run", WRAPPER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    base = ["-C", "/wt", "-s", "workspace-write"]
+    argv = mod.implement_argv(base, "abc-123")
+    assert argv.index("resume") > argv.index("-s")
+    assert argv[-1] == "abc-123"
+    assert mod.implement_argv(base, None) == ["exec", *base]
+
+
 def test_wrapper_rejects_fast_outside_worktree():
     r = run_wrapper(["fast", "-"], "prompt", cwd=REPO)  # メインツリーは worktree でない
     assert r.returncode == 2
+
+
+def test_wrapper_rejects_review_base_flag():
+    # --base は実装されていない — 受理したふりをして無視しない(敵対レビュー2周目 P1)
+    r = run_wrapper(["review", "normal", "--base", "develop", "-"], "prompt")
+    assert r.returncode == 2
+    assert "--base".encode("utf-8") in r.stderr
 
 
 def test_wrapper_rejects_unknown_mode():

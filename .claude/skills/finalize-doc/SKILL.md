@@ -1,6 +1,7 @@
 ---
 description: 正本の確定ゲート。敵対レビュー → 反映ループ → 人間承認 → approved 化・索引更新
 argument-hint: "<対象ドキュメントのパス>"
+disable-model-invocation: true
 ---
 
 # 正本確定ゲート(設計書 7.3)

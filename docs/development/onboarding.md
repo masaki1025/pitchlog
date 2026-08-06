@@ -63,7 +63,7 @@ trust_level = "trusted"
 
 1. Claude Code を起動 → SessionStart フックが「現在ブランチ…」を表示すること
 2. `/permissions` で `.claude/settings.json` のルールが有効に見えること(Bash パターン構文が現行仕様か確認)
-3. `uv run pytest tests/` が全グリーンであること(hooks・ラッパーの正負テスト 44 件)
+3. `uv run pytest tests/` が全グリーンであること(hooks・ラッパーの正負テスト 47 件)
 4. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
 5. 生の `codex exec` がブロックされ、ラッパー経由の案内が出ること(codex_guard の実地確認)
 

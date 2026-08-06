@@ -3,7 +3,7 @@ feature: <slug>
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出)
 承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
-worktree: ../../../../pitchlog-worktrees/feature-<slug>   # plan.md からの相対 or 絶対。/task-start が設定
+worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: <タスクURL>
 branch: feature/<slug>
 created: YYYY-MM-DD
@@ -31,6 +31,14 @@ created: YYYY-MM-DD
 ## 4. 実装方針
 
 <!-- 重さ分類(frontmatter)の根拠を明記。コア領域(CLAUDE.md の列挙)に触れるかを必ず判定 -->
+
+### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
+
+<!-- 1 ステップ = 1 委任 = 1 コミット(レビュー可能な粒度・1 論理変更)。/implement がこの表を上から実行する。ラッパーはこの見出しが無い計画書を拒否する -->
+
+| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
+| --- | --- | --- |
+| 1 |  |  |
 
 ## 5. DoD(受け入れ基準)
 
