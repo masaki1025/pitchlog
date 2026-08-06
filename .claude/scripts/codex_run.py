@@ -275,18 +275,22 @@ def cmd_fast(args: list[str]) -> int:
 
 
 def find_env_files(root: Path) -> list[str]:
-    """root 配下の秘密ファイル(.env*)を**除外なしで**再帰検出する(4周目 P0)。
+    """root 配下の秘密ファイル(.env*)を**除外なしで**再帰検出する(4/5周目 P0)。
 
-    exact `.env.example` のみ許可。`.venv`・`node_modules` 等もスキップしない
-    (「cwd 配下に存在すれば拒否」が仕様)。走査に失敗したら fail-closed。
+    exact `.env.example` のみ許可。除外ディレクトリを設けない(「cwd 配下に存在すれば
+    拒否」が仕様)。`os.walk(onerror=...)` で走査エラーを**明示伝播**し fail-closed に倒す
+    (rglob は OSError を握り潰すため使わない — 5周目 P0)。ディレクトリ symlink は追跡しない。
     """
-    try:
-        return sorted(
-            str(p.relative_to(root)) for p in root.rglob(".env*") if p.name != ".env.example"
-        )
-    except Exception:
-        die("秘密ファイルの走査に失敗(fail-closed — 12.1)。cwd を確認して再実行する")
-        return []
+    found: list[str] = []
+
+    def on_error(err: OSError) -> None:
+        die(f"秘密ファイルの走査に失敗(fail-closed — 12.1): {err}")
+
+    for dirpath, _dirs, files in os.walk(root, onerror=on_error, followlinks=False):
+        for name in files:
+            if name.startswith(".env") and name != ".env.example":
+                found.append(str(Path(dirpath, name).relative_to(root)))
+    return sorted(found)
 
 
 def cmd_research(args: list[str]) -> int:

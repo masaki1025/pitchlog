@@ -120,6 +120,14 @@ def test_codex_guard_allows(command):
     "'/usr/bin/codex' review foo",
     # 正規ラッパー heredoc の後ろに別 heredoc を連ねる迂回(4周目 P0)
     "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\nbash <<'RUN'\ncodex exec x\nRUN",
+    # 5周目 P0: # コメントで heredoc を無効化して正規形に見せる迂回
+    "python .claude/scripts/codex_run.py bogus - # <<'EOF'\ncodex exec x\nEOF",
+    # 5周目 P0: グローバルオプション前置・対話起動・大文字
+    "codex -s workspace-write 'edit'",
+    "codex --no-alt-screen exec x",
+    "codex -c x=y exec x",
+    "CODEX.CMD exec x",
+    "node companion/codex-companion.mjs task 'do'",
 ])
 def test_codex_guard_blocks_bypass_attempts(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 2
@@ -149,9 +157,45 @@ def test_codex_guard_ignores_heredoc_body_and_messages():
     "cat .env.example-prod",             # トークン境界での派生(4周目 P0)
     "cat .env.example~",
     "cat .env.example/secret",
+    "cat .env.example,prod",             # comma はファイル名文字(5周目 P0)
+    "cat .env.example,secret",
+    "type .ENV",                         # 大小文字差(5周目 P0)
 ])
 def test_secret_guard_blocks(command):
     assert run_hook("secret_guard.py", bash(command)).returncode == 2
+
+
+def _load_guard_common():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "guard_common", Path(__file__).parent.parent / ".claude" / "hooks" / "guard_common.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_effective_command_canonical_vs_bypass():
+    gc = _load_guard_common()
+    # 正規形: 本文はデータ扱い(先頭行だけ返る)
+    ok = "python .claude/scripts/codex_run.py review normal - <<'EOF'\ncodex exec x\nEOF"
+    assert "codex exec" not in gc.effective_command(ok)
+    # # コメントで heredoc を無効化 → 正規形でない → 全文
+    bypass = "python .claude/scripts/codex_run.py bogus - # <<'EOF'\ncodex exec x\nEOF"
+    assert "codex exec" in gc.effective_command(bypass)
+    # 2つ目の heredoc → 全文
+    dbl = ok + "\nbash <<'RUN'\ncodex exec x\nRUN"
+    assert "codex exec" in gc.effective_command(dbl)
+    # 非ラッパー → 全文
+    non = "uv run bash <<'EOF'\ncodex exec x\nEOF"
+    assert "codex exec" in gc.effective_command(non)
+
+
+def test_shell_tokens_strips_quotes_and_comments():
+    gc = _load_guard_common()
+    assert gc.shell_tokens("git push origin 'HEAD:develop'") == ["git", "push", "origin", "HEAD:develop"]
+    assert gc.shell_tokens("cat x # codex exec") == ["cat", "x"]
+    assert gc.shell_tokens("echo 'unbalanced") is None  # 解析不能 → None(安全側判定は各ガード)
 
 
 def test_guards_treat_wrapper_stdin_as_data():
@@ -217,16 +261,33 @@ def test_git_guard_allows_cd_without_protected_verb():
     "git branch --force --delete feature/x",
     "git branch -d -f feature/x",              # 分離した短縮形(4周目 P1)
     "git branch --delete -f feature/x",
+    "git branch -df feature/x",                # 短縮クラスタ(5周目 P1)
+    "git branch -fd feature/x",
 ])
 def test_git_guard_blocks_force_branch_delete(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
+def test_git_guard_allows_safe_branch_delete_d_only():
+    assert run_hook("git_guard.py", bash("git branch -d feature/x")).returncode == 0
+
+
 @pytest.mark.parametrize("command", [
     "git push origin +feature/x",              # force refspec(4周目 P1)
     "git push origin +HEAD:develop",
+    "git push -fu origin feature/x",           # 短縮クラスタ(5周目 P1)
+    "git push -uf origin feature/x",
+    "git push origin '+feature/x'",            # 引用符付き force refspec(5周目 P1)
 ])
 def test_git_guard_blocks_force_refspec(command):
+    assert run_hook("git_guard.py", bash(command)).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "git push origin 'HEAD:develop'",          # 引用符付き保護 refspec(5周目 P1)
+    'git push origin "feature/x:main"',
+])
+def test_git_guard_blocks_quoted_protected_refspec(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
@@ -354,11 +415,27 @@ def test_wrapper_rejects_research_with_nested_env(tmp_path):
 
 
 def test_wrapper_research_scans_vcs_ignored_dirs(tmp_path):
-    # .venv 等も除外しない(4周目 P0: 「cwd 配下に存在すれば拒否」が仕様)
+    # .venv 等も除外しない(4/5周目 P0: 「cwd 配下に存在すれば拒否」が仕様)
     (tmp_path / ".venv").mkdir()
     (tmp_path / ".venv" / ".env").write_text("SECRET=1", encoding="utf-8")
     r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
     assert r.returncode == 2
+
+
+def test_wrapper_research_fail_closed_on_unreadable_dir(tmp_path):
+    # 走査失敗は握り潰さず fail-closed(5周目 P0)。読めないサブディレクトリを作る
+    import os
+    if os.geteuid() == 0:
+        pytest.skip("root では権限エラーを作れない")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "sub").mkdir()
+    os.chmod(locked, 0o000)
+    try:
+        r = run_wrapper(["research", "-"], "p", cwd=str(tmp_path))
+        assert r.returncode == 2  # fail-closed(許可して継続しない)
+    finally:
+        os.chmod(locked, 0o755)
 
 
 def test_wrapper_rejects_empty_step_table(tmp_path):
@@ -375,6 +452,27 @@ def test_wrapper_rejects_empty_step_table(tmp_path):
     r = run_wrapper(["implement", str(plan), "-"], "prompt")
     assert r.returncode == 2
     assert "実装ステップ".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_worktree_in_different_repo(tmp_path):
+    # git-common-dir 照合(4/5周目 P1): 同名 pitchlog-worktrees でも別リポジトリなら拒否
+    other = tmp_path / "pitchlog-worktrees" / "feature-x"
+    other.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "-b", "feature/x", str(other)], check=True)
+    subprocess.run(
+        ["git", "-C", str(other), "-c", "user.email=t@e.co", "-c", "user.name=t",
+         "commit", "--allow-empty", "-m", "i", "-q"], check=True,
+    )
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
+        f"worktree: {other}\nbranch: feature/x\n---\n# 計画\n\n"
+        "### 実装ステップ(コミット単位)\n| 1 | 何か作る | pytest green |\n",
+        encoding="utf-8",
+    )
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+    assert r.returncode == 2
+    assert "リポジトリ".encode("utf-8") in r.stderr
 
 
 def test_wrapper_rejects_invalid_branch(tmp_path):

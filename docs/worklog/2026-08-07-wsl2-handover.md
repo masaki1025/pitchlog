@@ -31,8 +31,8 @@ branch: feature/dev-harness
 - **セッション再起動が必要**: 本セッションは main(settings 無し)で起動したため hooks/permissions が未ロード。次回起動時に SessionStart 注入と /permissions を確認(onboarding §5-1/5-2)
 - **Notion 紐づけ未設定**: `/setup-dev` の対話が必要(PITCHLOG_NOTION_USER_ID)
 - **Docker WSL 統合が無効**: Docker Desktop → Settings → Resources → WSL integration で有効化(Phase 4 の開発 DB まで不要)
-- **openai-codex プラグイン未導入**(WSL 側 Claude Code): レビュー実行はラッパーで完結するため必須ではない。stop-review-gate(Claude 直接実装時の保険)を使う場合のみ導入
-- **敵対レビュー2周目(否決)の残余指摘の対応 → 3周目 → 収束 → 人間承認**(/finalize-doc 手順の続き)。approved 化は PO 承認後のみ。triage は下記
+- **openai-codex プラグインは不使用**(WSL 側 Claude Code に未導入): Codex 経路は `codex_run.py` ラッパーに一本化済み(v0.16)。stop-review-gate も使わない(Claude 直接実装時は `codex_run.py review normal` を通す)
+- **敵対レビューの現況**: 2→3→4→5周目まで実施(いずれも否決だが指摘は実装細部へ収束)。v0.17 で shlex ベースのガード字句解析へ作り替え、5周目 P0/P1 を反映。**次の一歩は PO への状況報告と、承認 or 追加ハードリング続行の判断仰ぎ**(/finalize-doc の人間承認ステップ。approved 化は PO 承認後のみ)
 - 任意: `sudo apt install python-is-python3 bubblewrap`(現状はシムリンク+同梱版で充足)
 
 ## 敵対レビュー2周目の triage(判定=否決・P0×7/P1×11/P2×2)
