@@ -1,0 +1,704 @@
+# pitchlog 開発ハーネス設計案
+
+| 版 | 日付 | 変更内容 | 状態 |
+| --- | --- | --- | --- |
+| 0.1 | 2026-08-07 | 初版起案（Claude）。Claude Code / Codex 公式ドキュメント調査+環境実査に基づく | **draft**（Codex敵対レビュー未実施・人間承認未了） |
+| 0.2 | 2026-08-07 | 実行分離モデル（12.1: git worktree × Codex sandbox）を新設 — 脅威対応表・sandbox 固定ポリシー・worktree 運用規約。hooks に codex_guard 追加、タスクライフサイクル（/task-start〜/task-done）へ worktree を統合、Phase 計画を更新 | **draft**（同上） |
+| 0.3 | 2026-08-07 | Claude 側の調査サブエージェント群を具体化（8.5: spec-checker / legacy-analyst / decision-tracer。read-only 原則・出典必須・Web ツール不付与による役割分担の機構化）。3.1 分担表・Phase 2 を更新 | **draft**（同上） |
+| 0.4 | 2026-08-07 | 調査エージェントの実行既定を確定（Opus 5 固定・effort high・既定3並列、作業の重さで調整）。Notion 実査を反映して11章を改稿 — 社内ポータルの プロジェクト/タスク 2DB 構造（⚾ baseball_scorering = PRJ-12）に接続し、開発者↔Notion ユーザーの初期紐づけ（`/setup-dev`・11.2）を新設 | **draft**（同上） |
+| 0.5 | 2026-08-07 | 開発フローを詳細化: 実装は**計画書ゲート必須**（6.1 改稿 — `docs/features/<slug>/plan.md` → 計画レビュー → coding → テスト → 正本反映 → PR → develop マージ）。正本の鮮度保持機構を新設（7.6）。コーディングモデル対応表を確定し **ADR-001** として記録（9.4）。論点F 解決（製本=正本で確定） | **draft**（同上） |
+| 0.6 | 2026-08-07 | **論点A 解決: フロントエンドは Vue.js + TypeScript 採用**（プロダクトオーナー決定 — ADR-002）。5.2 を Vue 確定に改稿。要件書 v1.8 改訂（7.1）を実装着手前のフォローアップとして明記 | **draft**（同上） |
+| 0.7 | 2026-08-07 | **論点B 解決: レビュー体制（6.3）を確定採用**。修正1点 — コア領域 PR の人間逐行確認を任意 → **必須**に格上げ（`/pr` が必須チェックを自動付与） | **draft**（同上） |
+| 0.8 | 2026-08-07 | モデル対応表（9.4）の effort を PO 指示で改訂: 通常実装/一次レビュー = terra **max**・軽微 = terra medium・コア領域 = sol xhigh・軽作業 = luna xhigh。`/research` 行（terra high）を追加。max の CLI 指定可否を実機検証して反映（ADR-001 も同時改訂） | **draft**（同上） |
+| 0.9 | 2026-08-07 | **Phase 1〜2 相当の基盤ファイル一式を実装**（本ブランチに同梱）: AGENTS.md / CLAUDE.md / settings.json + hooks 5本 / skills **13本**（8.4 改稿 — `/plan`・`/investigate`・`/check`・`/sync-docs` を追加）/ 調査エージェント3本 / `.codex/config.toml`（review_model 含む）/ PR テンプレ / テンプレ4種 / docs 索引 / onboarding | **in-review**（確定ゲート 7.3 実施中 — Codex 敵対レビュー 2026-08-07 開始） |
+
+> **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本となる文書のドラフト。
+> 承認後は本書自体が 7.3 節の正本確定ゲート（Codex敵対レビュー → 人間承認）を通過して `approved` となり、以後のハーネス実装（Phase 1〜）はすべて本書に従う。
+> 要件の正本は [`../requirements/requirements-pitchlog-2026-07-22.md`](../requirements/requirements-pitchlog-2026-07-22.md)（v1.7）であり、本書はそれに矛盾しない範囲でプロセスを定める（発見済みの矛盾1件は 14章 論点A）。
+
+---
+
+## 1. 目的
+
+作業者が Claude Code を対話窓口として開発を行う際に、**次に何をすべきか・どのツールで・どの規約に従って行うかで迷わない導線**を機構として敷く。
+
+- 判断・規約を人の記憶ではなくリポジトリ内の設定とドキュメントに固定する（要件書 R-1「属人性」の直接の緩和策。開発・運用は1名+AI支援）
+- 「規約は守られるべき」ではなく「規約は破れない」に寄せる（hooks・permissions・ブランチ保護・CI 必須化による機構的強制）
+- 要件定義フェーズで実際に機能したプロセス（Claude起案 → Codex敵対レビュー → 人間承認、の反復）を、設計・実装フェーズ向けに常設の仕組みへ昇格させる
+
+## 2. 前提と現状
+
+### 2.1 確定事項（プロダクトオーナー指示・2026-08-06）
+
+| 項目 | 決定内容 |
+| --- | --- |
+| コーディング | **Codex** が実施 |
+| 人との対話・オーケストレーション | **Claude Code** |
+| 設計・ドキュメント作成/更新 | **Claude** |
+| Web検索（技術調査） | **Codex** |
+| コードレビュー | **確定（論点B解決 2026-08-07）**: 反対側必須レビュー + コア領域 PR は人間の逐行確認必須（6.3） |
+| 重要ドキュメントの確定 | Claude の案に対し **Codex が敵対レビュー** |
+| タスク管理 | **Notion** |
+| コード管理 | **GitHub**（CI/CD も GitHub Actions を利用） |
+| バックエンド | Python / FastAPI（uv・ruff・ty を利用） |
+| フロントエンド | **Vue.js + TypeScript で確定**（ADR-002・論点A解決 2026-08-07。要件書 v1.8 改訂を実装着手前に実施）。フォーマッタ・リンタ・バージョン管理ツールは 5.2 |
+| データベース | PostgreSQL 想定（より良い案があれば採用 → 5.3 節で PostgreSQL 継続を提案） |
+| コメント規約 | コードコメントは原則日本語、docstring は Google スタイル |
+| ドキュメント | 部分的に Notion 管理も検討（→ 7.4 節で分担案） |
+| 本番環境 | 未定（DB は要件書 7.1 で本番=Supabase の記載あり） |
+| 開発環境 | Windows 11。必要があれば WSL 化も可（→ 論点C。当面ネイティブ継続を提案） |
+
+### 2.2 環境実査（2026-08-07 時点）
+
+| 対象 | 状態 |
+| --- | --- |
+| Codex CLI | **導入済み** v0.146.1（`~/.codex/config.toml`・グローバル `AGENTS.md` あり、利用実績あり） |
+| Claude Code | 稼働中（本ハーネスの実行主体） |
+| openai-codex プラグイン | **導入済み** v1.0.0 — `/codex:rescue`（実装委任）・`/codex:review`（コードレビュー）・`/codex:adversarial-review`（敵対レビュー）・`/codex:setup`（stop-review-gate トグル）等を提供 |
+| gh CLI | v2.95.0 認証済み |
+| uv | v0.9.13（ruff・ty はプロジェクト依存として導入する方針。グローバル未導入） |
+| Node.js / npm | v20.18.1 / 11.9.0（pnpm・mise・volta 未導入 → 5.2 節） |
+| Docker | v29.3.1（PostgreSQL は Docker で立てる。psql ネイティブ未導入） |
+| Notion / GitHub | Claude 側 MCP コネクタで接続確認済み |
+| リポジトリ | `docs/` と README のみ（コード未着手・設計フェーズ前）。main / develop / feature ブランチ運用 |
+
+### 2.3 要件書 v1.7 から継承する制約（ハーネスに直接効くもの）
+
+| 出所 | 制約 | ハーネスへの反映 |
+| --- | --- | --- |
+| 7.3 | Git Flow（main/develop 直接コミット禁止）・PRベース・CI全グリーン必須 | hooks による機構的ブロック + GitHub ブランチ保護 + CI 必須化（6.2 / 10.2） |
+| NFR-019 | テストは pytest に一本化、PR ごとに CI 強制。一致性テスト・越境テスト・E2E・故障系を含む | CI 設計（10.1）。ゴールデンベクタの配置（4章 `contracts/`） |
+| NFR-021 | 開発環境は Windows 11 で完結（PostgreSQL はネイティブ or Docker） | スクリプト・hooks を OS 非依存（Python 実装）に統一（8.3）。WSL 判断は論点C |
+| NFR-014 | シークレットはリポジトリに含めず環境変数管理 | `.env` 読み取りの permissions 拒否 + gitleaks を CI 常設（12章） |
+| NFR-018 | ドメイン計算の単一実装 | レビュー観点として CLAUDE.md / AGENTS.md に明記（コピー実装の検出はレビュー責務） |
+| 7.1 | 技術スタック変更には承認が必要 | フロントエンド矛盾を論点Aとして承認判断に付す |
+| R-1 | 開発・運用1名の属人性 | 本ハーネス全体 + worklog 運用（7.5） |
+
+### 2.4 フロントエンド技術の矛盾（解決済み）
+
+要件書 7.1 は技術スタックを「Python / FastAPI + **React + TypeScript** / PostgreSQL」と定め「変更には承認を要する」と明記していたが、ハーネス整備指示は「Vue.js」だった。**2026-08-07 にプロダクトオーナーが Vue.js + TypeScript の採用を決定**（[ADR-002](../adr/ADR-002-frontend-vue.md)）。
+
+フォローアップ: 実装着手（Phase 4）前に**要件書 v1.8 として 7.1 を改訂**する（7.3 の確定ゲートの初回適用案件として敵対レビュー → 人間承認を通す）。→ 論点A（解決）
+
+## 3. 役割分担
+
+### 3.1 分担マトリクス
+
+| 工程 | 主担 | 検証・支援 | 人間（プロダクトオーナー） |
+| --- | --- | --- | --- |
+| タスク起票・状態管理 | Claude（Notion MCP 経由） | — | 優先度・着手順の決定 |
+| 要件・設計・ドキュメント起案 | **Claude** | **Codex 敵対レビュー**（確定ゲート 7.3） | 最終承認 |
+| コーディング | **Codex**（`/codex:rescue` 系の委任実行） | Claude が文脈準備・完了検証（テスト/lint/要件突合） | 受け入れ確認 |
+| Web調査・技術検証 | **Codex**（web search 有効で実行） | Claude は公式ドキュメント参照等の軽量補助のみ | — |
+| リポ内調査（要件・旧システム・決定経緯） | **Claude**（調査サブエージェント — 8.5） | 出典明記を義務化 | — |
+| コードレビュー | Claude（一次: 要件適合・規約）+ Codex（技術レビュー） ※提案 | 相互（6.3） | マージ判断 |
+| Git 操作・PR 作成 | Claude（git / gh CLI） | hooks が規律を機構的に強制 | push / merge の承認 |
+| CI/CD | GitHub Actions（自動） | Claude が失敗時の一次対応 | — |
+| リリース | Claude（チェックリスト駆動、要件書8章 DoD 参照） | CI + リハーサル | リリース判定（8章の判定者） |
+
+### 3.2 三原則
+
+1. **作った本人だけでレビューを完結させない** — Claude の成果物は Codex が、Codex の成果物は Claude がレビューに関与する（自己批准の禁止）
+2. **最終判断は常に人間** — マージ・正本承認・リリース判定・破壊的操作は人間の明示的な承認を要する
+3. **正本は Git** — 判断の根拠となる文書はすべて `docs/` にあり、Notion は作業管理面（7.4）
+
+## 4. リポジトリ構成（目標形）
+
+```
+pitchlog/
+├── CLAUDE.md                  # Claude向け入口（@AGENTS.md を取り込み + Claude固有の導線）
+├── AGENTS.md                  # 両AI共通の開発規約の正本（Codexが自動読込）
+├── README.md                  # 人間向け入口（セットアップ・ドキュメントマップ）
+├── .claude/
+│   ├── settings.json          # プロジェクト共有: permissions + hooks 登録（Git管理）
+│   ├── settings.local.json    # 個人上書き（gitignore）
+│   ├── skills/                # プロジェクトスキル（/task-start, /implement, /finalize-doc 等）
+│   ├── agents/                # サブエージェント（spec-checker 等、最小構成から）
+│   ├── hooks/                 # フックスクリプト（Python・OS非依存）
+│   └── rules/                 # パス別規約（backend/frontend/docs、paths frontmatter で適用範囲指定）
+├── .github/
+│   ├── workflows/ci.yml       # PR必須CI（10.1）
+│   ├── workflows/deploy.yml   # 雛形のみ（本番未定のため。10.4）
+│   └── pull_request_template.md
+├── .mcp.json                  # プロジェクト共有MCPが必要になった場合のみ（当面なし）
+├── .codex/
+│   └── config.toml            # Codex プロジェクト設定（trusted 前提。web_search 既定等 — 9.3）
+├── backend/                   # FastAPI。uv 管理（pyproject.toml / uv.lock / .python-version）
+│   ├── src/pitchlog/
+│   └── tests/
+├── frontend/                  # Vue または React（論点A決着後に骨格作成）
+├── contracts/                 # 両側が参照する契約物: OpenAPIスキーマ・付録Eゴールデンベクタ（NFR-019a の共通正解）
+├── scripts/                   # 開発運用スクリプト（Python・OS非依存。ブランチ保護設定等）
+├── docker-compose.yml         # 開発用 PostgreSQL（NFR-021: Docker 許容）
+└── docs/
+    ├── README.md              # ドキュメントマップ（全正本の索引と状態）
+    ├── requirements/          # 要件正本（既存）
+    ├── design/                # 設計書（アーキテクチャ・DBスキーマ・API・同期プロトコル等）
+    ├── adr/                   # Architecture Decision Records（ADR-NNN-<slug>.md）
+    ├── development/           # 開発プロセス文書（本書・コーディング規約・GitHub設定手順）
+    ├── ops/                   # 運用文書（要件書8章 DoD ⑦の置き場）
+    ├── features/              # feature 単位の作業文書（実装計画書 — 6.1/7.6。active→merged）
+    ├── worklog/               # 作業ログ（7.5。セッション/タスク単位）
+    ├── improvements-from-baseball-scoring.md  # 改善台帳（既存）
+    └── legacy/                # 版固定・不可変（hooks で書き込み禁止を機構化）
+```
+
+- モノレポ1本とする（backend / frontend / contracts / docs の同時変更が1 PR・1レビューで閉じる。1名開発では複数リポの同期コストが純損）
+- `contracts/` が NFR-018（単一実装）・NFR-019a（一致性テスト）の物理的な置き場: クライアント/サーバー双方のテストが同一のゴールデンベクタ（付録Eマトリクス由来）を読む
+- 実装委任用の worktree はリポジトリの**外**（兄弟ディレクトリ `..\pitchlog-worktrees\`）に置く。リポジトリ内に置くと lint・テスト・エディタの走査対象になるため。運用規約は 12.1
+
+## 5. ツールチェーン標準
+
+### 5.1 Python / バックエンド
+
+| 役割 | ツール | 備考 |
+| --- | --- | --- |
+| パッケージ・Python版管理 | **uv** | `backend/pyproject.toml` + `uv.lock` + `.python-version` で完全固定。導入済み |
+| リンタ+フォーマッタ | **ruff** | `[tool.ruff.lint.pydocstyle] convention = "google"` で Google docstring を機構検査。日本語コメント許容 |
+| 型検査 | **ty** | ※プレビュー段階のツールのため、安定性に問題が出た場合の代替は mypy（切替は ADR 起票の上）— 論点E |
+| テスト | **pytest**（+ pytest-cov, pytest-asyncio, httpx） | NFR-019「pytest 一本化」に整合 |
+| DBマイグレーション | **Alembic** | SQLAlchemy 前提。設計フェーズで最終確定 |
+
+- 実行はすべて `uv run <cmd>` に統一（グローバル汚染なし・CI と同一コマンド）
+
+### 5.2 フロントエンド（Vue.js + TypeScript — ADR-002 で確定）
+
+| 役割 | ツール |
+| --- | --- |
+| Node 版管理 | **mise**（`mise.toml` でプロジェクト固定。uv と同思想） |
+| パッケージ管理 | **pnpm**（corepack で版固定） |
+| リンタ | **ESLint（flat config）+ eslint-plugin-vue + typescript-eslint** |
+| フォーマッタ | **Prettier** |
+| 型検査 | **vue-tsc** |
+| 単体テスト | **Vitest** + Vue Test Utils |
+| E2E | **Playwright** |
+
+- フロントエンドも **TypeScript** とする（NFR-018 の状況計算クライアント実装を型なしで持つのは R-3「二重計算の乖離」を悪化させる）
+- Playwright は WebKit エンジンを持つため、NFR-020「iPad Safari」の自動テストの近似として有効（実機受け入れは別途、要件書どおり）
+- mise は Node 以外のツール版数も固定できるため、将来のツール追加も `mise.toml` に集約する
+
+### 5.3 データベース
+
+**PostgreSQL を継続採用**（「より良い案があれば」への回答）。理由:
+
+1. 要件書 7.1 が既に PostgreSQL / 本番=Supabase を定めており、変更には承認+改訂コストがかかる
+2. 「標準 PostgreSQL の範囲で使用（ホスティング固有機能に依存しない）」という既存の可搬性規律が、本番未定（論点D）の現状と整合的 — どこにでも持っていける
+3. NFR-005 の集計規律（WHERE/GROUP BY+インデックス）・テナント分離・JSONB など要件群に対して PostgreSQL は過不足がない。乗り換えの積極的理由が存在しない
+
+開発環境は `docker-compose.yml`（NFR-021 の「Docker」許容に整合）。接続情報は `.env`（gitignore・`.env.example` を正とする）。
+
+### 5.4 共通規約（言語横断）
+
+- **コメントは原則日本語**・docstring は Google スタイル（Python は ruff で機構検査、TS は ESLint + レビュー観点）
+- 命名は英語（識別子に日本語を使わない）。ドキュメント・コミットメッセージ・PR は日本語
+- Conventional Commits: `type(scope): 日本語要約`。type = feat / fix / docs / refactor / test / chore / ci / build
+
+## 6. 開発フロー
+
+### 6.1 標準サイクル（実装は計画書ゲート必須 — いきなりコーディングしない）
+
+```mermaid
+flowchart TD
+    A["/task-start<br/>Notionタスク・featureブランチ（develop起点）・worktree・計画書雛形"] --> B{種別}
+    B -- "正本ドキュメント（設計書・ADR・要件改訂）" --> C["Claude 起案（draft）"]
+    C --> D["確定ゲート 7.3<br/>Codex敵対レビュー → 人間承認"]
+    D --> J
+    B -- 実装 --> P["実装計画書の作成（Claude）<br/>docs/features/ブランチslug/plan.md<br/>背景・目的・スコープ・影響正本・実装方針・DoD・テスト計画"]
+    P --> Q{"計画レビュー<br/>通常: Codexレビュー＋人間<br/>コア領域: 敵対レビュー＋人間"}
+    Q -- 指摘反映 --> P
+    Q -- 承認 --> H["コーディング /implement<br/>Codex・worktree＋sandbox（12.1）・モデル対応表（9.4）"]
+    H --> I["テスト・検証（Claude）<br/>ruff / ty / pytest ＋ DoD・要件突合"]
+    I -- 不合格→差し戻し --> H
+    I -- 合格 --> R["正本への反映（7.6）<br/>計画書の宣言どおり設計書・ADR を同ブランチで更新"]
+    R --> J["PR 作成 /pr"]
+    J --> K["CI 全グリーン ＋ コードレビュー（6.3）"]
+    K --> L["人間が develop へマージ（--no-ff）"]
+    L --> M["/task-done<br/>worktree除去・worklog締め・計画書close・Notion完了"]
+```
+
+- 迷子防止の要: **すべての着手は `/task-start`、すべての終了は `/task-done` を通る**。スキルが「ブランチ・worktree・計画書雛形の準備 → Notion 更新」「正本反映の突合 → 索引更新 → Notion 完了」を定型化するので、手順の記憶が不要になる
+- **実装計画書**（`docs/features/<ブランチslug>/plan.md`。例: ブランチ `feature/sync-protocol` → `docs/features/sync-protocol/plan.md`）の必須構成:
+  1. 背景・目的（Notion タスク・要件 FR/NFR へのリンク）
+  2. スコープ（やる・やらない）
+  3. 影響する正本の列挙（7.6 の反映宣言。「反映なし」も明示）
+  4. 実装方針（モデル対応表 9.4 の重さ分類を含む）
+  5. DoD（受け入れ基準 — Notion タスクの DoD と同期）
+  6. テスト計画（NFR-019 のどのテスト種別に何を足すか)
+  - 下調べには調査サブエージェント（8.5）を使い、結論には典拠を添える
+- **計画承認前に `/implement` は実行できない**（スキルが計画書の承認ステータスを確認して未承認なら中断する）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
+
+### 6.2 ブランチ・コミット規約（既存運用の機構化)
+
+- Git Flow 踏襲: `main`（リリース）/ `develop`（統合）/ `feature/*`・`fix/*`（作業）。要件書 7.3 のとおり
+- **三重の強制**: (1) hooks が main/develop 上での commit・push をブロック（8.3）、(2) GitHub ブランチ保護が直 push と CI 未達マージを拒否（10.2）、(3) CLAUDE.md / AGENTS.md に明記（両AIの行動規範）
+- ブランチ名: `feature/<slug>`。Notion タスクに紐づく場合は worklog とタスク側にブランチ名を記録（ブランチ名への ID 埋め込みは強制しない）
+- **1タスク = 1ブランチ = 1 worktree**: 実装委任はメインの作業コピーではなくタスク専用 worktree で行う（12.1。作成・除去は `/task-start`・`/task-done` が担う）
+- マージは `--no-ff`（履歴に統合点を残す。既存の運用実績に整合)
+
+### 6.3 レビュー体制（提案 → 論点B）
+
+「Codex か Claude か」の二者択一ではなく、**書いた側の反対側を必須レビュアにする**:
+
+| 対象 | 作成 | 必須レビュー | 追加（任意/重要時） | 最終 |
+| --- | --- | --- | --- | --- |
+| 実装計画書（6.1） | Claude | 通常: Codex レビュー ／ コア領域: **`/codex:adversarial-review`** | 調査エージェントの裏取り（8.5） | 人間（coding 開始を承認） |
+| コード（通常PR） | Codex | **Claude 一次レビュー**（要件適合・規約・NFR-018コピー実装検査）+ **`/codex:review`**（技術・欠陥検出） | — | 人間 |
+| コード（コア領域: 同期プロトコル・状況計算・テナント分離） | Codex | 上記に加え **`/codex:adversarial-review`**（設計選択への挑戦）+ **人間の逐行確認（必須）** | — | 人間 |
+| 設計書・正本ドキュメント | Claude | **`/codex:adversarial-review`**（確定ゲート 7.3、確定事項） | — | 人間 |
+| Claude が直接書いたコード（例外時） | Claude | **`/codex:review`** + プラグインの stop-review-gate（有効化を提案） | — | 人間 |
+
+- 根拠: 実装主体が Codex である以上、Codex 単独レビューは自己批准になる。逆に Claude 単独では「動くコードとしての穴」の検出力で Codex の専用レビューを併用する価値が大きい。両方をスキル1回ずつで済む運用にする（コスト増は小さい）
+- コア領域の指定は CLAUDE.md に列挙する（R-3・R-5 のリスク領域と一致）
+- **コア領域 PR は人間の逐行確認を必須とする**（2026-08-07 確定 — 論点B）。`/pr` がコア領域パス（CLAUDE.md の列挙に対応するモジュール）への変更を検知した場合、PR テンプレに「人間逐行確認済み」の必須チェックを自動付与し、未チェックのままマージしない
+
+### 6.4 リリースフロー
+
+- `develop → main` のマージ = リリース。要件書 8 章の判定基準（DoD 8項目）をチェックリスト化した `/release` スキルが唯一の入口
+- バージョンタグ `vX.Y.Z` を打ち、CI がコンテナイメージをビルド（デプロイ先確定後に自動デプロイへ拡張 — 10.4）
+
+## 7. ドキュメント体系と正本管理
+
+> 用語注: 指示文中の「ドキュメント製本の管理」は、本リポジトリで確立している **正本**（せいほん = canonical、どの文書が真実の源かの管理）の意と解釈して設計した。もし「製本 = HTML/PDF への出版」の意であれば、MkDocs 等によるドキュメントサイト生成を Phase 5 に追加する（→ 論点F）。
+
+### 7.1 正本の原則（既存慣行の明文化）
+
+1. **1テーマ1正本**: あるテーマの真実の源は `docs/` 配下のただ1ファイル。他文書からは相対リンクで参照し、内容を複製しない
+2. **版固定同梱**: 外部・過去の参照物は `docs/legacy/` にスナップショットとして固定し、**以後変更しない**（hooks で書き込みを機構的に禁止）
+3. **変更履歴表**: 正本は冒頭に版・日付・変更内容の表を持つ（要件書と同形式）
+4. **状態の明示**: 正本候補は `draft → in-review → approved`（+廃止時 `superseded`）のステータスを冒頭表に持つ
+
+### 7.2 ディレクトリ体系
+
+| 置き場 | 内容 | 確定ゲート |
+| --- | --- | --- |
+| `docs/requirements/` | 要件正本（既存） | 必須 |
+| `docs/design/` | 設計書（アーキテクチャ・DB・API・同期プロトコル・UI） | 必須 |
+| `docs/adr/` | 個別の技術判断（ADR-NNN。例: ty継続可否・フロントエンド決着） | 必須（軽量版可） |
+| `docs/development/` | 開発プロセス（本書・コーディング規約・GitHub設定手順） | 必須 |
+| `docs/ops/` | 運用文書（バックアップ・監視・移行手順 = DoD⑦） | 必須 |
+| `docs/features/` | feature 単位の作業文書（実装計画書 `plan.md`・補助資料 — 6.1） | 計画レビュー（6.1）。正本ではない — status: active → merged |
+| `docs/worklog/` | 作業ログ（7.5） | 不要（記録であり正本ではない） |
+| `docs/README.md` | 全正本の索引: パス・概要・状態・最終更新 | — （常に現行化） |
+
+### 7.3 正本確定ゲート（確定事項の機構化）
+
+```
+draft（Claude起案）
+  → in-review（/codex:adversarial-review 実行。指摘を反映し、収束するまで反復）
+  → 人間承認（対話で明示）
+  → approved（版数確定・変更履歴追記・docs/README.md 索引更新）
+```
+
+- このフローは `/finalize-doc` スキル（8.4)が担い、**敵対レビュー未実施の approved 化をスキル手順上不可能にする**
+- approved 済み正本の再変更は新しい版として同じゲートを通す（軽微な誤字等は人間判断で省略可、ただし変更履歴には残す）
+
+### 7.4 Notion との分担（論点E-2 の提案）
+
+| | Git (`docs/`) | Notion |
+| --- | --- | --- |
+| 役割 | **正本**（要件・設計・ADR・運用・規約） | **作業管理面**（タスク・進行メモ・ダッシュボード） |
+| 理由 | 版管理・差分・レビューゲート・コードとの同時変更が必要 | かんばん・期日・モバイル閲覧・非開発関係者との共有に強い |
+| 相互参照 | 正本は Notion を参照しない（Git 単独で完結） | タスクから GitHub の正本・PRへリンク |
+
+- **正本を Notion に置かない・複製しない**（二重管理は必ず腐る）。Notion 側に要約を書きたい場合はリンク+一行概要まで
+
+### 7.5 worklog（作業ログ）
+
+- `docs/worklog/YYYY-MM-DD-<topic>.md`。1タスク（または1セッション）1ファイル: やったこと・決定・未決・次の一歩
+- 目的: (1) セッションを跨ぐ Claude への文脈供給（SessionStart hook が最新 worklog を自動注入 — 8.3）、(2) R-1 属人性対策としての引き継ぎ記録
+- `/task-start` が雛形を作り、`/task-done` が締める。手で書いてもよい（形式より継続を優先）
+
+### 7.6 正本の鮮度保持（feature 作業からの反映）
+
+正本（設計書・要件・運用文書）が実装と乖離して腐るのを防ぐため、**反映を feature フローの必須ステップとして機構化**する:
+
+1. **計画時に宣言**: 実装計画書の必須欄「影響する正本」に、この feature が更新・新設すべき正本（設計書の節・ADR・運用文書・README）を列挙する。**「反映なし」も明示的に書く**（黙殺しない — NFR-015 の文書版）
+2. **同一 PR で運ぶ**: 正本の更新は feature ブランチ内で行い、コードと同じ PR に含める（ドキュメントだけ後回しにしない）。`/pr` が計画書の宣言と PR 内容を突合し、未反映があればブロックする
+3. **ゲートの使い分け**: 実装追随の節更新・変更履歴追記は PR レビューで足りる。**版繰り上げを伴う構造的変更**（アーキテクチャ・スキーマの変更、要件改訂等）はその部分だけ 7.3 の確定ゲート（敵対レビュー → 人間承認）を通す
+4. **feature 文書のライフサイクル**: `docs/features/<slug>/` は活動中のみ意味を持つ一時文書（frontmatter で status: active → merged）。恒久的な知見は正本へ、経緯は worklog・PR へ移し、マージ後の計画書は履歴として閉じる（削除しない — 4.0-2 の「物理削除しない」と同じ規律）。`docs/README.md` の索引には **active のみ**を一覧する（鮮度の見える化）
+
+## 8. Claude Code 側ハーネス
+
+> 本節の設定キー・書式は Claude Code 公式ドキュメント（Settings / Hooks / Skills / Subagents / Memory — 付録リンク集）に基づく。
+
+### 8.1 CLAUDE.md（プロジェクトメモリ）
+
+- ルートに配置。**`@AGENTS.md` をインポート**し（公式 @import 構文）、共通規約を単一ソース化した上で Claude 固有の導線のみを追記する:
+  - 役割分担の要約（3章）と「実装は Codex へ委任する」の明示
+  - スキル導線（「タスク着手は /task-start」「実装委任は /implement」「正本確定は /finalize-doc」）
+  - コア領域の列挙（6.3 の強化レビュー対象)
+  - 調査サブエージェントの運用既定（8.5: Opus 5 固定・high・既定3並列、重さで調整）
+  - ドキュメントマップへのポインタ（`docs/README.md`）
+- 目安 100〜200 行以内（公式推奨）。詳細規約は `.claude/rules/` とリンク先文書に逃がす
+
+### 8.2 settings.json（permissions）
+
+`.claude/settings.json`（Git 管理・チーム共有）。方針: **読み取りと定型開発コマンドは許可 / 公開・破壊系は確認 / シークレットと版固定領域は拒否**。
+
+```jsonc
+{
+  "permissions": {
+    "allow": [
+      // 開発定型（CI と同一コマンド）
+      "Bash(uv run:*)", "Bash(uv sync:*)", "Bash(uv add:*)", "Bash(uv lock:*)",
+      "Bash(pnpm install:*)", "Bash(pnpm run:*)", "Bash(pnpm exec:*)",
+      "Bash(docker compose:*)",
+      // git 安全系（commit まで。push は ask）
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git branch:*)",
+      "Bash(git switch:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git fetch:*)",
+      // gh 読み取り系
+      "Bash(gh pr view:*)", "Bash(gh pr list:*)", "Bash(gh run view:*)", "Bash(gh run list:*)",
+      // Codex プラグイン runtime
+      "Bash(node:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)", "Bash(git merge:*)",
+      "Bash(gh pr create:*)", "Bash(gh pr merge:*)", "Bash(gh api:*)",
+      "Bash(uv remove:*)"
+    ],
+    "deny": [
+      // NFR-014: シークレット遮断（読み取り自体を禁止）
+      "Read(./.env)", "Read(./.env.*)", "Read(./**/.env)", "Read(./**/.env.*)",
+      // 破壊的 git
+      "Bash(git push --force:*)", "Bash(git reset --hard:*)", "Bash(git clean:*)",
+      // 版固定領域（7.1 原則2）
+      "Write(./docs/legacy/**)", "Edit(./docs/legacy/**)"
+    ]
+  }
+}
+```
+
+- パターン記法は実装時（Phase 1）に現行版の公式仕様どおりであることを `/permissions` UI で検証する
+- 個人差分（例: 追加の allow）は `settings.local.json`（gitignore）へ
+
+### 8.3 hooks（規律の機構化）
+
+実装言語は **Python 標準ライブラリのみ**（`python .claude/hooks/<name>.py`）。理由: Windows 11 ネイティブ（NFR-021）と WSL/CI（Linux）の両方で同一に動き、jq・bash 依存を持たないため論点Cの決着に影響されない。公式仕様どおり stdin の JSON を読み、exit 2 + stderr でブロックを表現する。
+
+| Hook | イベント / matcher | 動作 |
+| --- | --- | --- |
+| `git_guard.py` | PreToolUse / `Bash` | コマンドが `git commit`・`git merge`・`git push` で、カレントブランチが main/develop のとき**ブロック**（exit 2、理由を stderr へ）。`--force` push は常時ブロック |
+| `protect_paths.py` | PreToolUse / `Write\|Edit` | `docs/legacy/**`・`.env*` への書き込みをブロック（permissions deny の二重化。多層防御） |
+| `format_on_save.py` | PostToolUse / `Write\|Edit` | `backend/**/*.py` → `uv run ruff format` + `ruff check --fix`。`frontend/**` → `pnpm exec prettier --write`。ツール未導入時は静かにスキップ（fail-open） |
+| `session_context.py` | SessionStart | 現在ブランチ・未コミット差分の有無・最新 worklog の要約を additionalContext として注入（セッション跨ぎの迷子防止） |
+| `codex_guard.py` | PreToolUse / `Bash` | `codex` 実行コマンドに `danger-full-access`・`--dangerously-bypass-approvals-and-sandbox`（`--yolo`）が含まれていたら**ブロック**（12.1 の禁止事項の機構化）。`network_access=true` を含む場合は systemMessage で人間に顕在化 |
+
+- hooks は「Claude が誤ってやりかけた時に止まる」ための層。規約の一次的な伝達は CLAUDE.md / AGENTS.md が担う
+- stop-review-gate（Codex プラグイン提供・`/codex:setup` でトグル）: Claude が直接コード変更したターンの停止時に Codex が ALLOW/BLOCK 判定。**例外運用（Claude 直接実装）の保険として有効化を提案**
+
+### 8.4 skills（導線の定型化）
+
+`.claude/skills/<name>/SKILL.md`。すべて日本語で記述。初期セット13本（**Phase 1〜2 相当として実装済み** — 2026-08-07）:
+
+| スキル | 内容 |
+| --- | --- |
+| `/setup-dev` | 初回セットアップ: 開発者↔Notion ユーザーの紐づけ（11.2）→ Codex の trust・Windows sandbox 推奨設定の確認（onboarding.md 準拠）→ 開発ツールの疎通確認 → permissions 構文検証 |
+| `/task-start <タスク名 or NotionURL>` | 着手の唯一の入口: Notion タスク取得/起票（11.1）→ `feature/*` ブランチ+worktree 作成（12.1）→ 計画書雛形（6.1）→ worklog 雛形 → ステータス着手 |
+| `/investigate <テーマ>` | 計画段階のリポ内調査: 調査サブエージェント3本（8.5）を**既定3並列**で委任し、典拠付き `research.md` に統合 |
+| `/research <テーマ>` | Web 調査の Codex 委任: read-only + `-c web_search="live"`・terra high（ADR-001）。結論と参照 URL を記録 |
+| `/plan <slug>` | 実装計画書を固定フォーマット（6節必須・テンプレ）で作成・記入 → レビュー（通常/コア領域で水準分岐）→ 人間承認で `承認: 済` |
+| `/implement <計画書パス>` | **承認済み計画書**（未承認なら中断）から Codex へ委任: worktree 内・12.1 の固定 sandbox・9.4 のモデル対応表 → /check・差分・DoD 検証まで一気通貫。コミットは Claude |
+| `/check` | 品質ゲート一括: ruff / ty / pytest / prettier / eslint / vue-tsc（存在するもののみ・結果表で報告） |
+| `/sync-docs <slug>` | 正本への反映（7.6）: 計画書の宣言どおり更新・変更履歴追記・索引現行化。構造的変更は /finalize-doc へ回す |
+| `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 merged 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3） |
+| `/task-done` | 完了の唯一の出口: PR マージ確認 → worktree 除去（12.1）→ worklog 締め → Notion 完了 |
+| `/finalize-doc <文書パス>` | 正本確定ゲート（7.3）: 敵対レビュー → 指摘反映ループ → 人間承認 → approved 化・索引更新 |
+| `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → 人間のリリース判定 → develop→main PR → タグ |
+| `/worklog <メモ>` | 進行中 worklog への軽量追記 |
+
+- レビュー系（`/codex:review`・`/codex:adversarial-review`）はプラグイン提供のものをそのまま使う（再実装しない）
+
+### 8.5 agents（サブエージェント — Claude 側の調査部隊）
+
+リポジトリ内の調査は Claude のカスタムサブエージェント群が担う（Web 調査は Codex — 3.1 の分担）。`.claude/agents/<name>.md` に定義し、**全員 read-only**（`tools: Read, Grep, Glob` に限定。Web ツールを持たせないことで「Web調査=Codex」の分担を機構的にも守る）。
+
+本プロジェクトは調査対象ごとに「事実の正本」が明確に分かれているため、**典拠の場所と読み方を焼き込んだ専門エージェント**を切る:
+
+| agent | 担当する調査 | 焼き込む典拠 |
+| --- | --- | --- |
+| `spec-checker` | 変更・設計が要件書のどの FR/NFR に対応し、矛盾がないかの突合レポート。PR 前・設計レビュー時に呼ぶ | 要件書 v1.7（付録A〜F含む）・改善台帳 |
+| `legacy-analyst` | 旧システム（Baseball_Scoring）の実挙動・データ構造の事実確認。移行・機能パリティの根拠調査 | `docs/legacy/research/` 9本（**88列の意味は `data-layer.md` が正** — v1.7 で確定した移行仕様の正本）・旧要件書 v0.2 |
+| `decision-tracer` | 「なぜこの仕様・この構成になっているか」の経緯追跡。新しい提案が過去の決定と矛盾していないかの早期検知 | 決定記録 D-1〜D-41（requirements-draft）・改善台帳 I-1〜I-24・ADR・各正本の変更履歴表 |
+
+共通規則:
+
+- **実行設定の既定**: `model: claude-opus-5`（**Opus 5 に固定** — エイリアスでなく明示 ID で指定）・`effortLevel: high` を frontmatter で指定。並列度は**既定 3 並列**とし、Claude が作業の重さで増減する（軽い単発の事実確認は 1 本、リリース前の広域監査・設計の全面突合などは増やす）。effort も同様に重さに応じて調整してよい（**モデルは固定のまま**）。この運用既定は CLAUDE.md に記載して Claude の既定動作にする（8.1）
+- **出典必須**: 回答には必ず典拠（`ファイルパス:行` または節番号）を付ける。典拠が見つからないことは「不明」と報告する — 推測で埋めない（NFR-015「黙殺しない」の調査版）
+- 汎用のコード探索はビルトインの Explore を使う。カスタム化するのは上表のように「典拠の所在と読み方の知識」が効く領域に限る
+- read-only のため衝突しない — 設計起案の下調べ・敵対レビュー指摘の裏取り・`/implement` 前の影響確認では**複数を並行で**投げてよい
+- 増やすのは「同じ委任を3回書いたら」を目安とする（YAGNI）
+
+定義例（`.claude/agents/legacy-analyst.md`。frontmatter は公式仕様 — 付録リンク集）:
+
+```markdown
+---
+name: legacy-analyst
+description: 旧システム Baseball_Scoring の実挙動・88列データ構造・移行制約の事実確認。移行や機能パリティの疑問が出たら積極的に使う
+tools: Read, Grep, Glob
+model: claude-opus-5
+effortLevel: high
+---
+あなたは旧システム Baseball_Scoring の調査員。事実の正本は docs/legacy/research/（9本・版固定）。
+88列の意味・センチネル値・列名の罠は data-layer.md を正とする（旧DBの構造ではなく
+「旧コードが実際に何を書いたか」が移行の正 — 要件書 v1.7）。継承基準は docs/legacy/requirements-tsukuba-pss-v0.2.md。
+回答には必ず出典（ファイル:行）を付け、典拠が無ければ「不明」と答える。推測と事実を混ぜない。
+```
+
+### 8.6 rules（パス別規約）
+
+`.claude/rules/*.md`（frontmatter の `paths:` で適用範囲を限定できる公式機能）:
+
+- `backend.md`（paths: `backend/**`）: FastAPI 構成規約・Google docstring 例・エラー処理・NFR-005 集計規律（全件読み込み禁止）
+- `frontend.md`（paths: `frontend/**`）: コンポーネント規約・状態管理・型規約
+- `docs.md`（paths: `docs/**`）: 正本原則・変更履歴表・リンク規約（7章の要約）
+- `testing.md`（paths: `**/tests/**` 等）: pytest 規約・ゴールデンベクタの読み方・E2E 命名
+
+## 9. Codex 側ハーネス
+
+> 本節の仕様は Codex 公式ドキュメント（現行の正本は developers.openai.com — 実体は learn.chatgpt.com。github.com/openai/codex の docs/ はスタブ化済み）と、本機 codex-cli v0.146.1 の実機ヘルプによる綴り検証に基づく（付録リンク集）。
+
+### 9.1 AGENTS.md（共通規約の正本）
+
+Codex は `AGENTS.md` を自動で読む。公式仕様: グローバル（`~/.codex/AGENTS.override.md` → `~/.codex/AGENTS.md` の先勝ち1つ）→ Git ルートから cwd へ下りつつ各ディレクトリ最大1ファイルを採用して空行連結（**cwd に近いものほど優先**）。合計 32KiB（`project_doc_max_bytes` 既定）で打ち切り。ユーザーのチャット指示は常に AGENTS.md より優先される。
+
+**本ファイルを「両AI共通の開発規約の正本」とし、CLAUDE.md は @import で同内容を取り込む**（8.1。二重管理の排除）。32KiB 上限があるため要点+正本へのポインタに徹する。記載内容:
+
+1. プロジェクト概要1段落と `docs/README.md` へのポインタ
+2. 絶対規則: main/develop 直接コミット禁止 / `.env`・シークレット不触 / `docs/legacy/` 不可変 / 正本変更は確定ゲート経由
+3. コーディング規約: コメント日本語・Google docstring・命名英語・Conventional Commits
+4. コマンド一覧: `uv run pytest` / `uv run ruff check` / `uv run ty check` / `pnpm run test` 等（CI と同一）
+5. 構成案内: 4章のディレクトリマップ・contracts/ の意味（ゴールデンベクタに従うこと）
+6. 実装時の期待: 設計書に従う / テストを書く / NFR-018 コピー実装禁止 / 変更範囲外に触れない
+7. `## Code Review Rules` セクション: レビュー観点（コア領域 6.3・NFR-005 集計規律・NFR-018 等）。Codex の GitHub 連携レビューが公式に認識する見出しであり、`codex review` CLI とクラウドレビュー共通の規約置き場になる
+
+### 9.2 呼び出し規約（Claude → Codex）
+
+- **標準経路はプラグイン runtime**（`codex-companion.mjs` 経由の `/codex:rescue`・`/codex:review`・`/codex:adversarial-review`）。ハンドロールの `codex exec` 文字列を都度組み立てない（プラグインが承認・サンドボックス・結果回収を面倒見る）
+- `/implement` スキル（8.4）は runtime の `task` コマンドに「設計書パス+受け入れ基準+変更範囲」を整形して渡す。書き込みありの実装は既定（`--write`）、調査・レビューは読み取り専用
+- 継続作業は `--resume`（直前の Codex セッション文脈を維持）、仕切り直しは `--fresh`
+- スキル内部・CI から直接呼ぶ場合の `codex exec` 契約（v0.146.1 実機検証済み）:
+
+```bash
+# 調査（read-only は exec の既定。非対話で承認プロンプトは発生しない）
+codex exec -C <作業Dir> -s read-only -o <結果ファイル> -c web_search="live" "<調査指示>"
+# 実装（ワークスペース内書き込み許可・ネットワークは既定で遮断。--full-auto は非推奨化済みのため使わない）
+codex exec -C <タスクworktree> -s workspace-write "<実装指示>"
+# 継続
+codex exec resume --last "<追加指示>"
+```
+
+- 注意: `codex exec` に `--search` フラグは無い（対話モード専用）。Web 検索は `-c web_search="live"` で単発有効化する（既定の `"cached"` は OpenAI 管理インデックス経由でプロンプトインジェクション面を抑える安全側設定）
+- 実装委任の実行場所（`-C`）はタスク worktree とし、sandbox・network の水準は 12.1 の固定ポリシーに従う（呼び出しフラグとして skills に焼き込む）
+- Codex を MCP サーバーとして呼ぶ経路（`codex mcp-server`）は公式が experimental と明記しているため採用しない（プラグイン runtime で足りる）
+
+### 9.3 Codex 設定（公式仕様の確認結果と本プロジェクトの設定方針）
+
+- **プロジェクト設定は可能**: リポジトリ内 `.codex/config.toml` を Codex が読む。ただし **trusted 指定されたプロジェクトのみ**（開発者が初回に trust する。`~/.codex/config.toml` の `[projects."<絶対パス>"] trust_level = "trusted"`）。`model_provider`・`notify`・**sandbox 系キー等はプロジェクト側から上書き不可**（設定乗っ取り対策）→ 本プロジェクトの `.codex/config.toml` は `web_search = "cached"`（安全側既定の明示）程度の最小構成とし、sandbox・モデルは呼び出しフラグで都度指定する（9.2）
+- **approval_policy の現行3値**: `untrusted` / `on-request` / `never`。**旧 `on-failure` は廃止済み** — 2025年前半以前の記事の設定例を持ち込まないこと。`codex exec` は非対話で承認プロンプトを出さないため、通常は sandbox 指定のみで足りる
+- **Windows ネイティブは正式サポート**（2026-08 現在）: PowerShell ネイティブ実行時は専用の Windows sandbox（`[windows] sandbox = "elevated"` 推奨 / `"unelevated"` フォールバック）が働く。WSL2 は「Linux ネイティブのツーリングが必要な場合の選択肢」と公式が明記 → **論点C は「ネイティブ継続」を確定案とする**
+- **レビュー機能**: ローカルは `codex review --uncommitted | --base <branch> | --commit <sha>`（プラグインの `/codex:review` が内包）。クラウドは GitHub 連携の `@codex review` メンション / 新規 PR 自動レビュー（→ 10.3）
+- **認証**: ローカルは既存ログインを共用。CI 等の単発実行は `CODEX_API_KEY` 環境変数（exec 専用）を GitHub Secrets から注入
+
+### 9.4 モデル選定（ADR-001・2026-08-07 確定）
+
+コーディング委任のモデル・effort は「作業の重さ」で機械的に決まる（判断根拠と経緯は [`ADR-001`](../adr/ADR-001-codex-model-selection.md)）:
+
+| 作業 | モデル（明示 ID 固定） | effort |
+| --- | --- | --- |
+| 通常実装（CRUD・画面・帳票・テスト） | `gpt-5.6-terra` | **max** |
+| 軽微な修正（小さな差分・微調整） | `gpt-5.6-terra` | medium |
+| コア領域の実装（6.3 のリスト） | `gpt-5.6-sol` | **xhigh** |
+| 機械的軽作業（リネーム・ボイラープレート） | `gpt-5.6-luna` | xhigh |
+| 一次コードレビュー（通常 PR） | `gpt-5.6-terra` | **max** |
+| 敵対レビュー・コア領域 PR・正本確定ゲート | `gpt-5.6-sol` | xhigh |
+| Web 調査（/research） | `gpt-5.6-terra` | high（コア領域に関わる深い技術検証は sol へ引き上げ） |
+
+- エイリアス（`gpt-5.6` = sol 行き）を使わず明示 ID で固定する（モデルドリフト防止 — 8.5 の Opus 5 固定と同じ規律）
+- 指定は呼び出しフラグ（`-m <model> -c model_reasoning_effort=<effort>`）で行い、`/implement`・レビュー系スキルに焼き込む（人が都度選ばない）
+- effort の **max は CLI から指定可能**なことを実機検証済み（v0.146.1・2026-08-07: `-c model_reasoning_effort=max` で実行成功。公式 config リファレンスの記載は xhigh までだが実装は受理する）。対話ピッカー限定なのは Ultra のみ
+
+## 10. CI/CD（GitHub Actions）
+
+### 10.1 ci.yml（PR 必須・NFR-019 の実体）
+
+| ジョブ | 内容 | 導入時期 |
+| --- | --- | --- |
+| `backend` | `uv sync` → `ruff check` + `ruff format --check` → `ty check` → `pytest --cov`（paths filter: backend/ contracts/） | Phase 4（骨格と同時） |
+| `frontend` | `pnpm install` → ESLint → `prettier --check` → `vue-tsc` → Vitest（paths filter: frontend/ contracts/） | Phase 4 |
+| `consistency` | ゴールデンベクタ一致性テスト（NFR-019a: 同一入力列 → クライアント/サーバー同一状況） | 実装期 |
+| `e2e` | Playwright（NFR-019c の主要分岐。webkit 含む） | 実装期 |
+| `secrets` | gitleaks（NFR-014 の機構化） | **Phase 3（コード前から常設）** |
+| `docs-lint` | markdown リンク切れ検査・正本 frontmatter 検査（status 必須等） | Phase 3 |
+| `win-setup`（定期） | windows-latest で README のセットアップ手順を再現（NFR-021 の継続検証。週次 cron） | Phase 4 以降 |
+
+- `concurrency` で同一 PR の旧実行をキャンセル。uv / pnpm のキャッシュ有効化
+- **CI 全ジョブ green をマージ条件にする**（10.2）— 要件書 7.3 / NFR-019 の直接要求
+
+### 10.2 ブランチ保護（リポジトリ設定もハーネスの一部）
+
+- main / develop: 直 push 禁止・PR 必須・CI 必須・force-push/削除禁止（管理者含む）
+- 設定手順は `docs/development/github-setup.md` に正本化し、`scripts/setup_branch_protection.py`（gh api 使用）で再現可能にする
+
+### 10.3 PR 自動レビュー（追加の選択肢・Phase 5）
+
+- ローカルレビュー（6.3）を一次とし、PR 上の自動レビューは補助として後日評価:
+  - **Codex cloud code review**（仕様確認済み）: chatgpt.com/codex/settings/code-review で対象リポジトリを有効化。PR コメントの `@codex review` メンション、または Automatic reviews（新規 PR を自動レビュー）。指摘は P0/P1 に絞られ GitHub のインラインコメントで届く。レビュー規約は AGENTS.md の `## Code Review Rules` を公式に読む（9.1）
+  - `anthropics/claude-code-action`（@claude メンション / 自動レビュー。API キーを GitHub Secrets へ）
+- 導入判断は「ローカル二重レビューで漏れた欠陥が実際に出たか」を基準にする（重複投資を避ける）
+
+### 10.4 デプロイ（本番未定への対応）
+
+- 確定している前提のみ実装: タグ push で**コンテナイメージのビルドと GHCR への push まで**を自動化。デプロイジョブは環境確定（論点D）後に追記
+- 本番 DB は要件書どおり Supabase 前提で設計を進める（アプリ実行環境のみ未定）
+
+## 11. タスク管理（Notion）
+
+### 11.1 対象（実査済み・2026-08-07）
+
+テトラトリ社内ポータルの**既存プロジェクト運用に乗る**（pitchlog 専用の DB は新設しない）:
+
+| 対象 | 実体 |
+| --- | --- |
+| プロジェクトページ | ⚾ **baseball_scorering**（プロジェクトID: PRJ-12・メンバー3名登録済み）: https://app.notion.com/p/baseball_scorering-3a293b75e6878047a55cc84307e95788 （社内「📁 プロジェクト」DB 内） |
+| タスク | 社内共通の「✅ タスク」DB にページとして起票し、`プロジェクト` リレーションで上記ページに紐づける |
+| タスクDBの主要プロパティ（実査） | タスクID（TSK-nnn）/ タスク名 / ステータス / 優先度 / **担当者** / プロジェクト（リレーション）/ 期限 / 完了日 / URL |
+| ポータル既存のテンプレ規律 | 「1タスク=1担当・1成果物」「DoD（完了条件）を埋めてから着手」「確認待ちにする前にレビュー観点を書く」 — 本ハーネスの運用（6章）とそのまま整合する |
+
+- `/task-start`・`/task-done`（8.4）はこの構造を操作する: 起票時に プロジェクト リレーション・担当者・DoD 雛形を設定し、ステータスを遷移させる。GitHub 側の対応（ブランチ・PR URL）はタスクの URL プロパティと worklog に記録
+- ステータスの語彙は**ポータルの実選択肢に従う**（実査で「確認待ち」等を確認済み）。全選択肢は Phase 2 の skills 実装時に取得し、6.1 フローとの対応表を skills 内に固定する（綴りのハードコードずれ防止）
+- 操作は原則 Claude 経由。手動操作も自由（スキルは冪等に作る）
+- タスクの粒度目安: 1 PR で閉じる大きさ（ポータルの「1タスク=1成果物」と同義）。設計文書は「起案」「確定ゲート」を別タスクにしない（1タスク内の DoD チェック項目とする）
+
+### 11.2 開発者 ↔ Notion ユーザーの紐づけ（初期設定）
+
+Git・Claude 側の識別子と Notion ユーザーは機械的に対応づかない（会社メールと Notion 登録メールが別、等）ため、**作業開始前の初回セットアップで本人に選ばせて固定する**:
+
+- `/setup-dev`（8.4）が Notion のユーザー一覧（MCP）とプロジェクトページの `メンバー` を突合して候補を提示 → 開発者が自分を選択 → **`.claude/settings.local.json`（個人・gitignore）** の `env` に保存:
+
+```jsonc
+{
+  "env": {
+    "PITCHLOG_NOTION_USER_ID": "<選択した Notion ユーザーの ID>",
+    "PITCHLOG_NOTION_USER_NAME": "<表示名（worklog・ログ用）>"
+  }
+}
+```
+
+- 以後 `/task-start` は `担当者` に自分を設定し、ステータス遷移・完了記録でも同じ ID を使う
+- **未設定ガード**: 紐づけ未設定のまま Notion 操作系スキルを呼んだ場合は、先に `/setup-dev` を案内して中断する（黙って担当者なしのタスクを作らない — NFR-015 の精神）
+- リポジトリに個人の対応表を置かない（開発者が増えても各自のローカル設定で完結。「個人情報・環境依存はリポ外」の規律 — NFR-014 と同じ形）
+
+### 11.3 制約
+
+- Notion MCP は対話セッションの認証に依存するため、CI・ヘッドレス実行からは使わない前提で設計する（同期はセッション内でのみ発生。CI が Notion に依存しない）
+- 正本ドキュメントとの分担は 7.4 のとおり（Notion に正本を置かない・タスクから GitHub の正本へリンク）
+
+## 12. セキュリティ・権限設計
+
+### 12.1 実行分離モデル（git worktree × Codex sandbox）
+
+中核方針: **自律実行（Codex への委任）は「使い捨てできる作業コピー = タスク worktree」の中で「檻 = sandbox」を付けて行い、メインの作業コピー・共有資源・ネットワークには触れさせない**。人間と Claude が作業するメインツリーと、Codex が書く worktree を物理的に分ける。
+
+#### 脅威 → 対策
+
+| 守りたいもの | 脅威 | 対策 |
+| --- | --- | --- |
+| メイン作業コピー（人間+Claude の作業状態） | 委任実行の暴走・誤編集 | 実装委任は**タスク専用 worktree 内**でのみ実行（1タスク=1ブランチ=1worktree）。失敗・脱線は `git worktree remove` で丸ごと破棄でき、メインツリーは無傷 |
+| リポジトリ履歴・リモート | 意図しない commit / push | **Codex はコミットしない**（git 書き込みは Claude の役割 — 3.1。worktree の共有 `.git` は sandbox の書き込み境界の外にあり、機構的にも整合）+ workspace-write の既定ネットワーク遮断で push 不能 + ブランチ保護（10.2）+ hooks（8.3） |
+| シークレット | 読み取り・流出 | `.env` は gitignore のため **worktree には最初から存在しない**（必要時のみ人間判断でコピー）。ネットワーク遮断で外部送信経路なし。Claude 側も permissions で Read 拒否（8.2） |
+| 依存関係（供給網） | 委任中の無断パッケージ追加・取得 | ネットワーク遮断下では取得不能。依存変更は Claude が `uv add` / `pnpm add` を承認付きで実行し、lockfile 差分を人間がレビュー |
+| Web 由来のプロンプトインジェクション | 検索結果経由の誘導 | `web_search` 既定 `"cached"`（OpenAI 管理インデックス — 9.3）。`"live"` は read-only の調査実行（/research）に限定 |
+
+#### sandbox 固定ポリシー（委任種別ごと）
+
+| 委任種別 | sandbox | ネットワーク | 実行場所 |
+| --- | --- | --- | --- |
+| 調査（/research） | `read-only`（exec 既定） | コマンドからは不可。検索は `-c web_search="live"`（モデルの検索ツールのみ） | メインツリー可（読むだけ）。live 検索併用時は `.env` の無い worktree を推奨 |
+| レビュー（/codex:review・敵対レビュー） | `read-only` | 遮断 | メインツリー or 対象 worktree |
+| 実装（/implement） | `workspace-write`（書き込み可能領域 = **タスク worktree のみ**） | **遮断**（workspace-write の既定） | タスク worktree |
+| 例外（ネットワークが要る検証等） | `workspace-write` + `-c sandbox_workspace_write.network_access=true` | 明示有効化 | タスク worktree。実行前に理由を人間へ報告 |
+
+- **禁止（機構ブロック）**: `danger-full-access` / `--dangerously-bypass-approvals-and-sandbox`（`--yolo`）は本プロジェクトで使用しない。hooks の `codex_guard.py`（8.3）が Claude 経由の実行を遮断する
+- sandbox 系キーはプロジェクト `.codex/config.toml` から設定できない（9.3）ため、この表は**呼び出しフラグとして skills に焼き込む**ことで固定する
+- Windows ネイティブ sandbox は `~/.codex/config.toml` の `[windows] sandbox = "elevated"` を推奨。個人設定のため `docs/development/onboarding.md` に記載して各開発者が適用（Phase 1）
+
+#### worktree 運用規約
+
+- 置き場: リポジトリの兄弟ディレクトリ **`..\pitchlog-worktrees\<名前>`**（名前 = ブランチ名のスラッシュを `-` に置換。例: `feature/sync-protocol` → `feature-sync-protocol`）
+- ライフサイクル: `/task-start` が作成（`git worktree add -b <branch> ..\pitchlog-worktrees\<名前> develop`）→ `/implement` が `codex exec -C <worktree>` で委任 → Claude が worktree 内でテスト・lint 検証 → コミット・PR は Claude が `git -C <worktree>` で実行（sandbox の外・承認付き）→ マージ後 `/task-done` が `git worktree remove` + `git worktree prune`
+- `.claude/settings.json`（hooks・permissions）と `AGENTS.md` はリポジトリの一部として worktree にもそのまま存在するため、**規律は worktree 内でも同一に効く**
+- 環境の複製: `uv sync` / `pnpm install` を worktree ごとに実行（グローバルキャッシュにより低コスト）。`.env` は自動コピーしない（上表）
+- 並行作業: worktree により複数タスクの並行が安全になるが、開発 DB（docker compose）は共有資源のため、**DB スキーマを変えるタスクの並行は避ける**（運用規律）
+- Claude Code 内蔵の worktree 分離（サブエージェントの isolation 指定等）は探索・検証系の並行作業に併用してよい。実装タスクの worktree は上記の命名済み worktree を正とする（人間から見える・決定的）
+
+### 12.2 機構の横断まとめ
+
+| 層 | 機構 |
+| --- | --- |
+| 実行分離 | 実装委任は使い捨て可能なタスク worktree 内 + sandbox（12.1）。メイン作業コピーは人間+Claude 専用 |
+| シークレット | `.env`（gitignore）+ `.env.example` 正本 / permissions で Read 拒否（8.2） / gitleaks CI 常設（10.1） / GitHub Secrets（CI 用） — NFR-014 |
+| 破壊的操作 | force-push・hard reset・clean は permissions 拒否 + hooks ブロック / マージ・push・PR 操作は ask（人間承認） |
+| 版固定領域 | `docs/legacy/**` への書き込みを permissions + hooks の二層で禁止 |
+| ブランチ規律 | hooks（ローカル）+ ブランチ保護（リモート）の二層 — 7.3 継承 |
+| Codex 実行 | プラグイン runtime / exec 契約（9.2）に一本化。sandbox・ネットワーク・実行場所は 12.1 の固定ポリシー。危険フラグは codex_guard がブロック |
+| 最小権限の原則 | サブエージェントは read-only から始める（8.5）。MCP のプロジェクト共有(.mcp.json)は必要が生じるまで置かない |
+
+## 13. 段階導入計画（各 Phase = 1 PR、この順に develop へ）
+
+| Phase | 内容 | 完了条件 |
+| --- | --- | --- |
+| **0** | 本設計案の確定（敵対レビュー → 承認 → approved 化） | 本書 status: approved |
+| **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks 5本（8.3） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md`（trust 設定・`[windows] sandbox = "elevated"` 等の推奨個人設定） / `.gitignore` / PR テンプレ / `docs/README.md`（索引） | hooks の動作を実地確認（main でのコミット・危険な codex フラグが実際にブロックされる等） |
+| **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※**Phase 1 と併せて 2026-08-07 実装済み** — 残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
+| **3** | CI 先行分(secrets / docs-lint) + ブランチ保護適用 + github-setup.md | 保護設定が有効・PR で CI が回る |
+| **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（論点A決着後）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で README 手順どおりセットアップ成功（NFR-021） |
+| **5** | 拡張: Notion テンプレ整備 / PR 自動レビュー評価（10.3） / デプロイ確定分 / （論点F次第で）ドキュメントサイト | 個別判断 |
+
+- Phase 1〜3 はコードが無くても成立する（現状の docs 中心リポジトリに即日効く）。Phase 4 は設計フェーズの進行と同期させる
+
+## 14. 論点（要決定・本書の承認とあわせて判断を仰ぐ）
+
+| # | 論点 | 提案 |
+| --- | --- | --- |
+| **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 v1.8 改訂（7.1）を実装着手前に確定ゲート経由で実施する |
+| **B** | コードレビュー体制 | **解決（2026-08-07）**: 6.3 の「反対側必須レビュー」案を確定採用。修正1点 — **コア領域 PR は人間の逐行確認を必須**（任意 → 必須に格上げ。`/pr` が必須チェックを自動付与） |
+| **C** | WSL 化の要否 | **Windows ネイティブ継続で確定を提案**。根拠: Codex 公式が Windows ネイティブを正式サポート（専用 sandbox あり。WSL2 は「Linux ツーリングが必要な場合の選択肢」と明記 — 9.3）+ NFR-021（Windows 11 完結）+ codex/claude/uv/docker の本機稼働実績 + hooks/scripts の Python 統一で OS 非依存化済み。Linux 固有ツールが必要になった時のみ再考 |
+| **D** | 本番アプリ実行環境 | 未定のまま進めて支障がない構え（10.4: イメージビルドまで自動化）。設計フェーズ中に別タスクとして選定（DB は Supabase 前提を維持） |
+| **E** | ty の成熟度リスク | 採用継続。ただし型検査が開発を止めた場合の代替（mypy）切替を ADR 一枚で可能にしておく |
+| **F** | 「ドキュメント製本」の解釈 | **解決（2026-08-07）**: 以後の指示でも「設計書の製本 = docs 内の正本」の用法が確認できたため「正本管理」（7章）で確定。出版（サイト/PDF化）が必要になれば Phase 5 で別途検討 |
+
+## 付録: 参照した公式ドキュメント
+
+### Claude Code（調査日 2026-08-07）
+
+| トピック | URL |
+| --- | --- |
+| Settings（settings.json / permissions） | https://code.claude.com/docs/en/settings.md |
+| Hooks ガイド / リファレンス | https://code.claude.com/docs/en/hooks-guide.md / hooks.md |
+| Skills | https://code.claude.com/docs/en/skills.md |
+| Subagents | https://code.claude.com/docs/en/sub-agents.md |
+| Memory（CLAUDE.md / @import / rules） | https://code.claude.com/docs/en/memory.md |
+| MCP | https://code.claude.com/docs/en/mcp.md |
+| GitHub Actions（claude-code-action） | https://code.claude.com/docs/en/github-actions.md |
+| Plugins | https://code.claude.com/docs/en/plugins.md |
+
+### Codex CLI（調査日 2026-08-07）
+
+現行の正本は developers.openai.com（実体は learn.chatgpt.com へリダイレクト）。github.com/openai/codex の docs/ ディレクトリはスタブ化済み。フラグの綴り・許容値は本機 codex-cli v0.146.1 の `--help` 実出力で検証済み。
+
+| トピック | URL |
+| --- | --- |
+| CLI 概要 / コマンドリファレンス | https://developers.openai.com/codex/cli / https://learn.chatgpt.com/docs/developer-commands |
+| 設定（config.toml・プロジェクト設定 `.codex/`・profiles） | https://learn.chatgpt.com/docs/config-file/config-basic （+ config-reference / config-advanced） |
+| AGENTS.md | https://developers.openai.com/codex/guides/agents-md / 標準仕様 https://agents.md/ |
+| 非対話モード（codex exec） | https://developers.openai.com/codex/noninteractive |
+| sandbox・承認ポリシー | https://learn.chatgpt.com/docs/sandboxing / https://learn.chatgpt.com/docs/agent-approvals-security |
+| Web 検索（web_search 4値） | https://learn.chatgpt.com/docs/web-search |
+| コードレビュー（CLI / GitHub 連携） | https://learn.chatgpt.com/docs/code-review / https://developers.openai.com/codex/cloud/code-review |
+| MCP（クライアント / codex mcp-server） | https://learn.chatgpt.com/docs/extend/mcp / https://learn.chatgpt.com/docs/mcp-server |
+| Windows（ネイティブ sandbox / WSL の位置づけ） | https://learn.chatgpt.com/docs/windows/windows-sandbox / https://learn.chatgpt.com/docs/windows/wsl |
+
+### 本リポジトリ
+
+- 要件正本 v1.7: `docs/requirements/requirements-pitchlog-2026-07-22.md`（特に 7.1/7.3/NFR-014/018/019/021・8章 DoD・9章リスク）
+- 導入済み openai-codex プラグイン v1.0.0（`/codex:*` コマンド群・stop-review-gate・gpt-5-4-prompting）
