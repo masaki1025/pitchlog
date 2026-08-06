@@ -1,0 +1,10 @@
+# pitchlog の Codex プロジェクト設定(trusted なプロジェクトのみ読み込まれる)
+# trust 設定の手順は docs/development/onboarding.md を参照。
+# sandbox・モデルはプロジェクト config から設定できないため、
+# スキルが呼び出しフラグで指定する(設計書 9.2 / 9.4・ADR-001)。
+
+# Web 検索の既定は安全側(OpenAI 管理インデックス)。live は /research が単発で有効化する。
+web_search = "cached"
+
+# ローカル codex review のモデル(ADR-001: 一次コードレビュー = terra)
+review_model = "gpt-5.6-terra"
