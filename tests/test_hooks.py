@@ -54,6 +54,12 @@ def test_git_guard_fail_open_on_broken_json():
     assert run_hook("git_guard.py", "{not json").returncode == 0
 
 
+def test_git_guard_blocks_with_japanese_in_command():
+    # 日本語混在でも stdin の UTF-8 読みが機能し fail-open しないこと(Windows エンコーディング回帰)
+    cmd = 'git commit -m "修正: 状況計算" && git push origin HEAD:develop  # 日本語コメント'
+    assert run_hook("git_guard.py", bash(cmd)).returncode == 2
+
+
 # ---- protect_paths ---------------------------------------------------------
 
 @pytest.mark.parametrize("path", [

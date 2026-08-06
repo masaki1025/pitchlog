@@ -24,7 +24,8 @@ def run(cmd: list[str], cwd: Path) -> None:
 
 def main() -> int:
     try:
-        data = json.load(sys.stdin)
+        # Windows のパイプ stdin は locale エンコーディングで壊れ得るため、バイト列を UTF-8 で読む(fail-open 防止)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
     except Exception:
         return 0
     file_path = str(data.get("tool_input", {}).get("file_path", ""))

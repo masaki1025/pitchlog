@@ -47,7 +47,8 @@ def die(msg: str) -> None:
 
 def read_prompt(args: list[str]) -> str:
     if args and args[-1] == "-":
-        return sys.stdin.read()
+        # Windows のパイプ stdin は locale エンコーディングで壊れ得るため、バイト列を UTF-8 で読む
+        return sys.stdin.buffer.read().decode("utf-8", "replace")
     die("プロンプトは stdin で渡す(末尾引数に `-` を指定)")
     return ""
 
