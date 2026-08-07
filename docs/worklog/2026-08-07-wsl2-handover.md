@@ -32,8 +32,14 @@ branch: feature/dev-harness
 - **Notion 紐づけ未設定**: `/setup-dev` の対話が必要(PITCHLOG_NOTION_USER_ID)
 - **Docker WSL 統合が無効**: Docker Desktop → Settings → Resources → WSL integration で有効化(Phase 4 の開発 DB まで不要)
 - **openai-codex プラグインは不使用**(WSL 側 Claude Code に未導入): Codex 経路は `codex_run.py` ラッパーに一本化済み(v0.16)。stop-review-gate も使わない(Claude 直接実装時は `codex_run.py review normal` を通す)
-- **敵対レビューの現況**: 2→3→4→5周目まで実施(いずれも否決だが指摘は実装細部へ収束)。v0.17 で shlex ベースのガード字句解析へ作り替え、5周目 P0/P1 を反映。**次の一歩は PO への状況報告と、承認 or 追加ハードリング続行の判断仰ぎ**(/finalize-doc の人間承認ステップ。approved 化は PO 承認後のみ)
+- **確定ゲート通過(2026-08-07)**: 敵対レビュー5周(2→3→4→5。各否決を反映、v0.17 で 3 ガードを shlex 字句解析ベースへ設計転換して収束。残余は宣言済み脅威モデル外)→ **PO 承認**。設計書 v1.0 approved・ADR-001/002 も一括 approved・索引現行化。7.3 確定ゲートの初回適用案件
 - 任意: `sudo apt install python-is-python3 bubblewrap`(現状はシムリンク+同梱版で充足)
+
+## 残タスク(承認後)
+
+- **要件書 v1.8**: フロントエンド Vue 化ほか3点の改訂は in-review のまま。実装着手(Phase 4)前に別途 7.3 ゲート(敵対レビュー → 人間承認)を通す — 2.4/論点A
+- **Phase 3 以降**: CI 先行分(secrets/docs-lint/harness)+ ブランチ保護適用 → プロジェクト骨格(backend/frontend/contracts)。設計書13章のとおり
+- 運用時の環境依存: Notion 紐づけ(/setup-dev)・Docker WSL 統合・セッション再起動での hooks ロードは初回に実施
 
 ## 敵対レビュー2周目の triage(判定=否決・P0×7/P1×11/P2×2)
 

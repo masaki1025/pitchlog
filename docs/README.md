@@ -9,9 +9,9 @@
 | [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v1.8 改訂を確定ゲートで検証中) | 1.8 | 2026-08-07 |
 | [改善台帳](improvements-from-baseball-scoring.md) | approved | — | 2026-07-24 |
 | [要件対話の決定記録(D-1〜D-41)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-07-24 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **in-review**(確定ゲート実施中) | 0.17 | 2026-08-07 |
-| [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | in-review(確定ゲートで一括検証) | — | 2026-08-07 |
-| [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | in-review(確定ゲートで一括検証) | — | 2026-08-07 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(敵対レビュー5周 → PO 承認) | 1.0 | 2026-08-07 |
+| [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-07 |
+| [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-07 |
 | [オンボーディング](development/onboarding.md) | draft | — | 2026-08-07 |
 
 ## 進行中の feature
