@@ -1,3 +1,7 @@
+---
+status: approved
+---
+
 # ADR-001: コーディング委任の Codex モデル・effort 選定
 
 | 項目 | 内容 |

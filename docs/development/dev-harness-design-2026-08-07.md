@@ -1,3 +1,7 @@
+---
+status: approved
+---
+
 # pitchlog 開発ハーネス設計案
 
 | 版 | 日付 | 変更内容 | 状態 |
@@ -20,9 +24,12 @@
 | 0.16 | 2026-08-07 | **4周目敵対レビュー（否決 — P0×4/P1×5/P2×2）の全件反映**: guard_common を「悪い形の検出」から**正規形の受理**へ反転（正規ラッパー単独+末尾 stdin heredoc 1つに完全一致する時のみ本文をデータ扱い — ラッパー heredoc の後ろに `bash <<RUN` を連ねる迂回・終端マーカー後の残余・解析不能マーカーを遮断）／codex_guard が引用符付き実行ファイル（`"codex" exec`）も捕捉／secret_guard の `.env.example` 例外を**トークン終端判定**へ（`-prod`・`~`・`/secret` 派生を遮断）／`/research` の秘密走査から**除外ディレクトリを撤廃**し走査失敗を fail-closed 化（`.venv/.env` 等）／実装ステップ表を**見出し配下の3セル全記入**で構造検証／worktree を **git-common-dir でリポジトリ同一性照合**・fast もブランチ種別（`feature/*|fix/*`）検証／force refspec（`push origin +branch`）・分離短縮形（`branch -d -f`）を意味遮断／SessionStart は branch 欠落 plan を除外／**Codex 経路をラッパーに完全一本化**（`/codex:*`・stop-review-gate・`review_model`・runtime `task/--write/--fresh` の記述を全廃 — 3.1/8.3/8.4/9.2/9.3/12.1・PR テンプレ・CLAUDE.md・config.toml）／fast×PR テンプレの整合（fast 用チェック分岐）／worklog 締めの帰属を /pr に統一（6.1 図・8.4）／テスト **82 件** | in-review |
 | 0.17 | 2026-08-07 | **5周目敵対レビュー（否決 — P0×4/P1×5/P2×2）の反映+ガードの設計転換**: 正規表現による生文字列マッチの限界（引用符・コメント・オプション位置・区切りの取りこぼし）が繰り返し露呈したため、**3ガードを `shlex` 字句解析ベースへ作り替え**（`guard_common.shell_tokens`）。codex_guard は**コマンド位置**で codex 実行を判定し（引数中の "codex" 誤検出を排除）shell `-c` を1段再帰／secret_guard は生テキストの `.env` 連なり走査（コード文字列内・`,`・大小文字差）+トークンのパス要素走査を併用し exact `.env.example` のみ許可／git_guard は引用符付き refspec・短縮クラスタ（`-fu`・`-df`）を正規化判定／`/research` の秘密走査を `os.walk(onerror=)` で **fail-closed** 化（rglob の握り潰し解消）／`#` コメントによる正規形誤認を排除／fast×PR テンプレの正本チェック分岐／worklog の未決節を現況へ更新／索引 v0.17。テスト **103 件**。**2段以上の shell ネスト・文字列難読化は脅威モデル外**（12.1）と明記 | in-review |
 | **1.0** | 2026-08-07 | **確定ゲート通過（approved）**。Codex 敵対レビュー**5周**（2→3→4→5周目。各否決を反映し、v0.17 で 3 ガードを `shlex` 字句解析ベースへ設計転換して収束。残余指摘は宣言済み脅威モデル〔誤操作+外部入力暴走。敵対的 AI のフル想定はしない〕の**範囲外**であることを確認）→ **PO 承認（2026-08-07）**。確定ゲート（7.3）の初回適用案件。以後のハーネス実装は本書に従う。ADR-001/002 も本ゲートで一括 approved 化。**残るゲート項目: 要件書 v1.8**（実装着手前に別途 7.3 を通す — 2.4/論点A） | **approved** |
+| 1.0 | 2026-08-10 | 冒頭に frontmatter(status: approved)を追加 — 状態の機械可読化(ci-foundation / docs-lint。本文の内容変更なし。規約自体の 7 章反映は v1.1 の確定ゲートで実施) | approved |
+| 1.1 | 2026-08-10 | **ci-foundation(Phase 3)の実装追随 + 規約変更**: 7.1 に正本 frontmatter の固定文法規約を新設(5 項 — **現在状態の唯一の正は frontmatter**・冒頭表は遷移履歴に位置づけ変更〔7.1-4 改訂〕・ちょうど 3 行の厳格文法)/ 10.1 に Phase 3 の 4 ジョブ実装追随注記(採用ツール・SHA 固定・edited トリガー)/ 10.2 にブランチ保護後送り(個人 Free + private の制約・403 実測・PO 判断)・自動再現要件の承認済み例外・**NFR-019 逸脱のリスク受容記録**を注記 / **2.3・6.2・10.1・12.1・12.2 に保護未適用の縮退状態を伝播**(目標状態と現在の区別)/ 13 章 Phase 3 の内容・完了条件を現実(4 ジョブ・保護後送り・develop マージ)へ改訂。確定ゲート 1 周目(P0×3/P1×2/P2×1)を反映(スコープ拡張は PO 承認済み — plan 改訂 2) | in-review |
+| 1.1 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 2 周(1 周目 P0×3/P1×2/P2×1 全解消 → 2 周目 残 P1×1〔運用規約の同期〕反映)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本。
-> **本書は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
+> **本書の v1.0 は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件。**現在の状態の正は冒頭の frontmatter** — 7.1-5）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
 > 要件の正本は [`../requirements/requirements-pitchlog-2026-07-22.md`](../requirements/requirements-pitchlog-2026-07-22.md)（v1.7）であり、本書はそれに矛盾しない範囲でプロセスを定める（発見済みの矛盾1件は 14章 論点A）。
 
 ---
@@ -75,7 +82,7 @@
 
 | 出所 | 制約 | ハーネスへの反映 |
 | --- | --- | --- |
-| 7.3 | Git Flow（main/develop 直接コミット禁止）・PRベース・CI全グリーン必須 | hooks による機構的ブロック + GitHub ブランチ保護 + CI 必須化（6.2 / 10.2） |
+| 7.3 | Git Flow（main/develop 直接コミット禁止）・PRベース・CI全グリーン必須 | hooks による機構的ブロック + GitHub ブランチ保護 + CI 必須化（6.2 / 10.2）。**保護は現在未適用（縮退中 — 10.2 実装状況・リスク受容記録）** |
 | NFR-019 | テストは pytest に一本化、PR ごとに CI 強制。一致性テスト・越境テスト・E2E・故障系を含む | CI 設計（10.1）。ゴールデンベクタの配置（4章 `contracts/`） |
 | NFR-021 | 開発環境は Windows 11 で完結（PostgreSQL はネイティブ or Docker） | スクリプト・hooks を OS 非依存（Python 実装）に統一（8.3）。WSL 判断は論点C |
 | NFR-014 | シークレットはリポジトリに含めず環境変数管理 | `.env` 読み取りの permissions 拒否 + gitleaks を CI 常設（12章） |
@@ -253,7 +260,7 @@ flowchart TD
 ### 6.2 ブランチ・コミット規約（既存運用の機構化)
 
 - Git Flow 踏襲: `main`（リリース）/ `develop`（統合）/ `feature/*`・`fix/*`（作業）。要件書 7.3 のとおり
-- **三重の強制**: (1) hooks が main/develop 上での commit・push をブロック（8.3）、(2) GitHub ブランチ保護が直 push と CI 未達マージを拒否（10.2）、(3) CLAUDE.md / AGENTS.md に明記（両AIの行動規範）
+- **三重の強制(目標状態)**: (1) hooks が main/develop 上での commit・push をブロック（8.3）、(2) GitHub ブランチ保護が直 push と CI 未達マージを拒否（10.2）、(3) CLAUDE.md / AGENTS.md に明記（両AIの行動規範）。**現在は (2) が未適用の縮退状態**（プラン制約 — 10.2 実装状況）: hooks は Claude Code 経由の操作のみ遮断し（人間の端末・別 clone・GitHub UI には効かない）、マージ阻止は github-setup.md 2 章の管理手続で補償する
 - ブランチ名: `feature/<slug>`。Notion タスクに紐づく場合は worklog とタスク側にブランチ名を記録（ブランチ名への ID 埋め込みは強制しない）
 - **1タスク = 1ブランチ = 1 worktree**: 実装委任はメインの作業コピーではなくタスク専用 worktree で行う（12.1。作成・除去は `/task-start`・`/task-done` が担う）
 - マージは `--no-ff`（履歴に統合点を残す。既存の運用実績に整合)
@@ -288,7 +295,8 @@ flowchart TD
 1. **1テーマ1正本**: あるテーマの真実の源は `docs/` 配下のただ1ファイル。他文書からは相対リンクで参照し、内容を複製しない
 2. **版固定同梱**: 外部・過去の参照物は `docs/legacy/` にスナップショットとして固定し、**以後変更しない**（hooks で書き込みを機構的に禁止）
 3. **変更履歴表**: 正本は冒頭に版・日付・変更内容の表を持つ（要件書と同形式）
-4. **状態の明示**: 正本候補は `draft → in-review → approved`（+廃止時 `superseded`）のステータスを冒頭表に持つ
+4. **状態の明示**: 正本は `draft → in-review → approved`（+廃止時 `superseded`）の状態を持つ。**冒頭の変更履歴表は状態遷移の「履歴」であり、現在状態の正ではない**(現在状態の唯一の正は frontmatter — 5 項)
+5. **frontmatter(状態の機械可読化 — 2026-08-10 導入・ci-foundation)**: 正本は先頭に**固定文法の frontmatter** を持つ — **ちょうど 3 行**: 1 行目 `---`・2 行目 `status: <draft|in-review|approved|superseded>`(追加キー・行末コメント不可)・3 行目 `---`(汎用 YAML は使わない)。**現在状態の唯一の正は frontmatter**。索引 docs/README.md は**派生表示**であり、frontmatter と不一致の場合は docs-lint が失敗する(= CI red。黙ってどちらかが勝つのではなく、修正されるまでマージしない)。索引セルの正規化: 太字 `**` を除去 → **半角 `(`** より前を抽出 → 前後空白 trim(注記は半角括弧で書く)。CI の docs-lint(`scripts/check_docs_status.py`)が全正本を索引から動的取得して検査する。`docs/features/*/plan.md` は複数キーを持つため別規則 — `status: <active|in-review>` 行をちょうど 1 行(7.2)
 
 ### 7.2 ディレクトリ体系
 
@@ -537,12 +545,15 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 | `win-setup`（定期） | windows-latest で README のセットアップ手順を再現（NFR-021 の継続検証。週次 cron） | Phase 4 以降 |
 
 - `concurrency` で同一 PR の旧実行をキャンセル。uv / pnpm のキャッシュ有効化
-- **CI 全ジョブ green をマージ条件にする**（10.2）— 要件書 7.3 / NFR-019 の直接要求
+- **CI 全ジョブ green をマージ条件にする**（10.2）— 要件書 7.3 / NFR-019 の直接要求。**現在このマージ条件のリモート強制は未適用**（縮退中 — 10.2 実装状況。運用は github-setup.md 2 章の管理手続）
+- **Phase 3 実装追随(2026-08-10・ci-foundation)**: `secrets`・`docs-lint`・`core-guard`・`harness` の 4 ジョブを `.github/workflows/ci.yml` として **feature/ci-foundation の PR で実装済み(develop への反映はマージ後)**。採用: gitleaks-action v3.0.0(コメント/artifact/summary 無効)/ lychee-action v2.9.0(`--offline`・`docs/legacy` 除外)+ `scripts/check_docs_status.py`(7.1-5 の固定文法が検査仕様の正)/ `scripts/core_guard.py`(検知対象 = `areas[].paths` ∪ `guard_paths`)/ setup-uv v9.0.0(uv 0.8.13・Python 3.12.3 固定)。**全 Action はコミット SHA ピン留め(値の正は ci.yml)**。トリガー = pull_request(**edited 含む** — PR 本文のチェック編集で core-guard を再評価)+ push(develop/main)+ workflow_dispatch(gitleaks 全履歴)。運用手続は github-setup.md が正
 
 ### 10.2 ブランチ保護（リポジトリ設定もハーネスの一部）
 
 - main / develop: 直 push 禁止・PR 必須・CI 必須・force-push/削除禁止（管理者含む）
 - 設定手順は `docs/development/github-setup.md` に正本化し、`scripts/setup_branch_protection.py`（gh api 使用）で再現可能にする
+- **実装状況(2026-08-10・ci-foundation)**: 個人 Free プラン + private リポジトリでは branch protection / Rulesets とも利用不可(rulesets API 403 を実測)のため、**ブランチ保護は後送り(PO 判断 2026-08-10)**。保護未適用の間の暫定運用(管理手続 — 最新 HEAD の CI 確認・コア領域∪guard_paths の人間逐行確認)・再開手順・Rulesets 設定内容は **github-setup.md(v1.0 approved)が正**。`scripts/setup_branch_protection.py` は保護が利用可能になってからの別タスクとし、**本節の自動再現要件はその時点まで未達(承認済み例外)**
+- **リスク受容記録(2026-08-10)**: **徳光 尋弥が、NFR-019「全グリーンでないとマージ不可」のリモート強制未達を一時例外として承認**。対象要件 = NFR-019・要件書 7.3 / 補償統制 = github-setup.md 2 章の管理手続 + hooks のローカル遮断 / 解除条件 = プラン制約の解消(github-setup.md 1 章)+ 同 3 章の保護適用 / 追跡先 = `docs/features/ci-foundation/plan.md`・Notion タスク TSK-202
 
 ### 10.3 PR 自動レビュー（追加の選択肢・Phase 5）
 
@@ -621,7 +632,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | 守りたいもの | 脅威 | 対策 |
 | --- | --- | --- |
 | メイン作業コピー（人間+Claude の作業状態） | 委任実行の暴走・誤編集 | 実装委任は**タスク専用 worktree 内**でのみ実行（1タスク=1ブランチ=1worktree）。失敗・脱線は `git worktree remove` で丸ごと破棄でき、メインツリーは無傷 |
-| リポジトリ履歴・リモート | 意図しない commit / push | **Codex はコミットしない**（git 書き込みは Claude の役割 — 3.1。worktree の共有 `.git` は sandbox の書き込み境界の外にあり、機構的にも整合）+ workspace-write の既定ネットワーク遮断で push 不能 + ブランチ保護（10.2）+ hooks（8.3） |
+| リポジトリ履歴・リモート | 意図しない commit / push | **Codex はコミットしない**（git 書き込みは Claude の役割 — 3.1。worktree の共有 `.git` は sandbox の書き込み境界の外にあり、機構的にも整合）+ workspace-write の既定ネットワーク遮断で push 不能 + ブランチ保護（10.2 — **現在未適用・縮退中**）+ hooks（8.3） |
 | シークレット | 読み取り・流出 | `.env` は gitignore のため **worktree には最初から存在しない**（必要時のみ人間判断でコピー）。ネットワーク遮断で外部送信経路なし。Claude 側は permissions の Read 拒否 + **secret_guard フック**（コマンド経由の参照を遮断 — P0-1。Read deny はサブプロセスに効かないため）。**残余リスク**: 文字列難読化による迂回は防げない — 実シークレット投入前に専用ランナー方式を再検討（10章未決「セキュリティ詳細」と併せて決着） |
 | 依存関係（供給網） | 委任中の無断パッケージ追加・取得 | ネットワーク遮断下では取得不能。依存変更は Claude が `uv add` / `pnpm add` を承認付きで実行し、lockfile 差分を人間がレビュー |
 | Web 由来のプロンプトインジェクション | 検索結果経由の誘導 | `web_search` 既定 `"cached"`（OpenAI 管理インデックス — 9.3）。`"live"` は read-only の調査実行（/research）に限定 |
@@ -657,7 +668,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | シークレット | `.env`（gitignore）+ `.env.example` 正本 / permissions で Read 拒否（8.2） / gitleaks CI 常設（10.1） / GitHub Secrets（CI 用） — NFR-014 |
 | 破壊的操作 | force-push・hard reset・clean は permissions 拒否 + hooks ブロック / マージ・push・PR 操作は ask（人間承認） |
 | 版固定領域 | `docs/legacy/**` への書き込みを permissions + hooks の二層で禁止 |
-| ブランチ規律 | hooks（ローカル）+ ブランチ保護（リモート）の二層 — 7.3 継承 |
+| ブランチ規律 | hooks（ローカル）+ ブランチ保護（リモート）の二層(**目標**) — 7.3 継承。**リモート層は現在未適用(縮退中 — 10.2 実装状況)。適用まで hooks + 管理手続(github-setup.md 2 章)で補償** |
 | Codex 実行 | `codex_run.py` ラッパー（9.2）に一本化。sandbox・ネットワーク・実行場所は 12.1 の固定ポリシー（安全キーは呼び出しごとに CLI で明示上書き）。危険フラグ・生実行・チェーン混入は codex_guard がブロック |
 | 最小権限の原則 | サブエージェントは read-only から始める（8.5）。MCP のプロジェクト共有(.mcp.json)は必要が生じるまで置かない |
 
@@ -668,7 +679,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | **0** | 本設計案の確定（敵対レビュー → 承認 → approved 化） | 本書 status: approved |
 | **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・103件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
-| **3** | CI 先行分(secrets / docs-lint) + ブランチ保護適用 + github-setup.md | 保護設定が有効・PR で CI が回る |
+| **3** | CI 先行分(secrets / docs-lint / core-guard / harness — **10.1 の表が正**)+ github-setup.md。**ブランチ保護はプラン制約により後送り(PO 判断 2026-08-10 — 10.2)** | 最新 HEAD で CI 4 ジョブ全グリーン + 当該 PR が develop へマージ済み(保護設定の有効化は制約解消後の別タスクへ) |
 | **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（論点A決着後）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で README 手順どおりセットアップ成功（NFR-021） |
 | **5** | 拡張: Notion テンプレ整備 / PR 自動レビュー評価（10.3） / デプロイ確定分 / （論点F次第で）ドキュメントサイト | 個別判断 |
 
