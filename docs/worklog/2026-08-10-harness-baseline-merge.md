@@ -27,7 +27,13 @@ branch: feature/harness-baseline-merge
 - **main 側の固定と終端手続**(敵対レビュー 3 周目 P1×2 採用): main 側アンカー = `f06e2f2dd7fd19e05ad828115bbe6b7fd603f7ba` を固定し、`origin/main`・PR base の変化も即時・不可逆の未使用失効条件に追加(マージ直前に head/base を再照合・使用済み証跡でマージコミットの両親 = main 側アンカー・対象 SHA を検証)。未使用失効の終端 = Notion「取り下げ」維持(「完了」へ上書きしない・/task-done の Notion 遷移なし)+ worktree 除去 + ローカルブランチ安全削除(`git branch -d`・失敗時は強制削除せず停止 — 4 周目 P1)
 - 機構上の狙い: ci.yml が既定ブランチ main に載ることで gitleaks 全履歴スキャン(workflow_dispatch)が Actions から起動可能になる(現在はローカル docker 監査で代替中 — github-setup.md 4 章〔参照節の訂正 = レビュー P2〕)
 
+## 結果サマリ(/pr 締め)
+
+- 正本反映: **開発ハーネス設計書 v1.2** — 6.4 に「ハーネス確定ベースラインマージ(1 回限り)」の例外を新設し、確定ゲート通過(approved)。索引 docs/README.md を approved(v1.2)へ現行化
+- 実装コードなし(docs のみ 4 ファイル)。品質 = check_docs_status.py green(全周)・反対側レビュー 1 周(採用 3)+ 敵対レビュー 5 周収束(採用 11)・不採用 0
+- マージ後の残作業: v1.2 統合マージコミット確認(第一親 = `ce100aa`)→ main へのベースライン PR(本文に対象 SHA・両アンカー)→ 人間マージ → workflow_dispatch 起動確認 → /task-done
+
 ## 未決・次の一歩
 
-- 確定ゲートの収束確認(実質的な新規指摘が出なくなるまで敵対レビューを繰り返す)→ PO 承認(採用/不採用一覧の提示)→ approved 化 → /pr
+- PR(develop 向け)の CI 4 ジョブ全グリーン → 人間マージ
 - develop マージ後: v1.2 統合マージコミットの**第一親 = develop 側アンカー**を確認 → その SHA を head、main 側アンカーを base とする `develop → main` ベースライン PR(本文に対象 SHA・両アンカーを記録)→ CI 確認 → **マージ直前に develop/main・PR の head/base の不変を再照合**(逸脱していれば未使用失効処理: PR クローズ・Notion「取り下げ」維持・実測 SHA 記録・worktree 除去 + ブランチ安全削除)→ 人間マージ → main 側マージコミット SHA(両親 = main 側アンカー・対象 SHA を検証)を PR 本文・Notion に記録 → workflow_dispatch 起動確認 → /task-done
