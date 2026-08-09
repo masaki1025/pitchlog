@@ -13,7 +13,7 @@
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-10 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-10 |
 | [オンボーディング](development/onboarding.md) | draft | — | 2026-08-10 |
-| [GitHub リポジトリ設定手順](development/github-setup.md) | draft | — | 2026-08-10 |
+| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(敵対レビュー2周 → PO 承認) | 1.0 | 2026-08-10 |
 
 ## 進行中の feature
 
