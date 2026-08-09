@@ -1,3 +1,7 @@
+---
+status: draft
+---
+
 # 開発者オンボーディング
 
 | 版 | 日付 | 変更内容 | 状態 |
@@ -5,6 +9,7 @@
 | 0.1 | 2026-08-07 | 初版(ハーネス設計書 Phase 1) | draft |
 | 0.2 | 2026-08-07 | **WSL2 前提に改稿**(設計書 論点C改訂 — PO 決定) | draft |
 | 0.3 | 2026-08-07 | WSL 実地セットアップの知見を反映: python は Windows 側シムの罠に注意(sudo 不要の代替手順を追記)/ trust 設定はインライン表形式への追記に注意 / bubblewrap は同梱版で動作 | draft |
+| 0.4 | 2026-08-10 | 冒頭に frontmatter(status: draft)を追加 — 状態の機械可読化(ci-foundation / docs-lint) | draft |
 
 pitchlog の開発に参加する開発者の初期設定手順。**開発環境は WSL2(Ubuntu 推奨)を標準とする**。Claude Code で `/setup-dev` を実行すると 3〜5 章は対話で完了できる。
 
