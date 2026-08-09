@@ -23,7 +23,7 @@ created: 2026-08-10
 ### やること
 
 - 設計書 6.4 に「ハーネス確定ベースラインマージ(1 回限り・リリース非該当)」の例外を追記 + 変更履歴表に **v1.2 行**を追記し、**確定ゲート(7.3・/finalize-doc)で approved 化**する(反対側レビュー 1 周目 P1-1 を採用 — 当初の「版繰り上げなしの節更新〔7.6-3〕」方針は撤回)
-- 統制(同レビュー P1-2): ベースラインの対象は**本改訂の develop 統合マージコミット SHA 1 点に固定**し、worklog・Notion に記録する。当該 PR 1 件のマージで例外は失効
+- 統制: ハーネス完成アンカー = Phase 3 統合 `ce100aac97a625d6eab3559a522075b8557c041f`。ベースラインの対象は**本改訂の develop 統合マージコミット SHA 1 点**(**第一親 = アンカー**が成立条件・逸脱時は未使用失効)。対象 SHA・アンカーは**ベースライン PR 本文と Notion に記録**(実施証跡の正 — worklog 事後追記は任意の別 feature PR)。当該 PR 1 件のマージで例外は失効し、再実施・対象変更は版繰り上げ + 確定ゲート必須
 - develop へのマージ後(本 PR の後工程・コミットなし): 対象 SHA を head とする `develop → main` ベースライン PR → CI 全グリーン確認 → **人間が GitHub UI でマージ**(merge commit — squash しない)
 - マージ後、main で workflow_dispatch(gitleaks 全履歴)が起動可能なことを確認
 
@@ -52,12 +52,12 @@ created: 2026-08-10
 | 1 | 計画書(本ファイル)+ worklog の起票 | 両ファイルが worktree に存在し、frontmatter が /task-start の規約どおり |
 | 2 | 設計書 6.4 例外追記 + 変更履歴追記 | `scripts/check_docs_status.py` green・diff が 6.4 節と変更履歴表のみ・/check 相当の検査 green |
 | 3 | 反対側レビュー 1 周目(P1×2/P2×1)の反映 — 6.4 統制強化(SHA 固定・失効)・v1.2 起案(frontmatter/索引の in-review 化)・参照節の訂正 | `scripts/check_docs_status.py` green・diff が宣言範囲のみ |
-| 4 | 確定ゲート(/finalize-doc): 敵対レビュー収束 → PO 承認 → approved 化 + 索引現行化 | 指摘の全処理(採用/不採用一覧の提示)・PO 承認の記録・`scripts/check_docs_status.py` green |
+| 4 | 確定ゲート(/finalize-doc): 敵対レビュー収束(周回ごとに指摘反映をコミット)→ PO 承認 → approved 化 + 索引現行化 | 指摘の全処理(採用/不採用一覧の提示)・PO 承認の記録・`scripts/check_docs_status.py` green |
 
 ## 5. DoD(受け入れ基準)
 
 - [ ] 設計書 6.4 の例外追記が確定ゲート(7.3)を通過(approved v1.2)し、PR 経由で develop へマージ済み
-- [ ] `develop → main` ベースライン PR(対象 = 記録した統合マージコミット SHA): CI 全グリーン + 人間マージ + PR URL・SHA の記録(github-setup.md 2 章の管理手続に従う)
+- [ ] `develop → main` ベースライン PR(対象 = v1.2 統合マージコミット SHA・第一親 = アンカー `ce100aa`): CI 全グリーン + 人間マージ + 対象 SHA・アンカー・PR URL・main 側マージコミット SHA を **PR 本文と Notion に記録**(github-setup.md 2 章の管理手続に従う)
 - [ ] マージ後、main(既定ブランチ)で gitleaks 全履歴スキャン(workflow_dispatch)が起動可能なことを確認
 
 ## 6. テスト計画
