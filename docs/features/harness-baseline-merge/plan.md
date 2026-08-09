@@ -23,7 +23,7 @@ created: 2026-08-10
 ### やること
 
 - 設計書 6.4 に「ハーネス確定ベースラインマージ(1 回限り・リリース非該当)」の例外を追記 + 変更履歴表に **v1.2 行**を追記し、**確定ゲート(7.3・/finalize-doc)で approved 化**する(反対側レビュー 1 周目 P1-1 を採用 — 当初の「版繰り上げなしの節更新〔7.6-3〕」方針は撤回)
-- 統制: develop 側アンカー = Phase 3 統合 `ce100aac97a625d6eab3559a522075b8557c041f`・**main 側アンカー = `f06e2f2dd7fd19e05ad828115bbe6b7fd603f7ba`**(起案時点の main HEAD)。ベースラインの対象は**本改訂の develop 統合マージコミット SHA 1 点**(**第一親 = develop 側アンカー**・**PR base = main 側アンカー**が成立条件)。**未使用失効は即時・不可逆**: main マージ完了前に第一親不一致、`origin/develop`・PR head の対象 SHA からの変化、または `origin/main`・PR base の main 側アンカーからの変化 → マージせず PR クローズ・Notion「取り下げ」維持(完了へ上書きしない)・実測 SHA 記録・worktree 除去は /task-done の Git 手順準拠(検証責任者 = PR 作成者とマージ実施者。復活不可)。マージ直前に head/base 双方を再照合する。対象 SHA・両アンカーは**ベースライン PR 本文と Notion に記録**(実施証跡の正 — worklog 事後追記は任意の別 feature PR)。当該 PR 1 件のマージで失効(証跡で main 側マージコミットの両親 = main 側アンカー・対象 SHA を検証)し、再実施・対象変更は版繰り上げ + 確定ゲート必須
+- 統制: develop 側アンカー = Phase 3 統合 `ce100aac97a625d6eab3559a522075b8557c041f`・**main 側アンカー = `f06e2f2dd7fd19e05ad828115bbe6b7fd603f7ba`**(起案時点の main HEAD)。ベースラインの対象は**本改訂の develop 統合マージコミット SHA 1 点**(**第一親 = develop 側アンカー**・**PR base = main 側アンカー**が成立条件)。**未使用失効は即時・不可逆**: main マージ完了前に第一親不一致、`origin/develop`・PR head の対象 SHA からの変化、または `origin/main`・PR base の main 側アンカーからの変化 → マージせず PR クローズ・Notion「取り下げ」維持(完了へ上書きしない)・実測 SHA 記録・worktree 除去 + ローカルブランチ安全削除(6.4 の終端処理どおり)(検証責任者 = PR 作成者とマージ実施者。復活不可)。マージ直前に head/base 双方を再照合する。対象 SHA・両アンカーは**ベースライン PR 本文と Notion に記録**(実施証跡の正 — worklog 事後追記は任意の別 feature PR)。当該 PR 1 件のマージで失効(証跡で main 側マージコミットの両親 = main 側アンカー・対象 SHA を検証)し、再実施・対象変更は版繰り上げ + 確定ゲート必須
 - develop へのマージ後(本 PR の後工程・コミットなし): 対象 SHA を head とする `develop → main` ベースライン PR → CI 全グリーン確認 → **人間が GitHub UI でマージ**(merge commit — squash しない)
 - マージ後、main で workflow_dispatch(gitleaks 全履歴)が起動可能なことを確認
 
@@ -57,10 +57,10 @@ created: 2026-08-10
 ## 5. DoD(受け入れ基準)
 
 - [ ] 設計書 6.4 の例外追記が確定ゲート(7.3)を通過(approved v1.2)し、PR 経由で develop へマージ済み
-- [ ] `develop → main` ベースライン PR(対象 = v1.2 統合マージコミット SHA・第一親 = アンカー `ce100aa`): CI 全グリーン + 人間マージ + 対象 SHA・アンカー・PR URL・main 側マージコミット SHA を **PR 本文と Notion に記録**(github-setup.md 2 章の管理手続に従う)
+- [ ] `develop → main` ベースライン PR(対象 = v1.2 統合マージコミット SHA〔第一親 = develop 側アンカー `ce100aa`〕・PR base = main 側アンカー `f06e2f2`): CI 全グリーン + マージ直前の head/base 再照合 + 人間マージ + 対象 SHA・**両アンカー**・PR URL・main 側マージコミット SHA(**第一親 = main 側アンカー・第二親 = 対象 SHA を検証**)を **PR 本文と Notion に記録**(github-setup.md 2 章の管理手続に従う)
 - [ ] マージ後、main(既定ブランチ)で gitleaks 全履歴スキャン(workflow_dispatch)が起動可能なことを確認
 
-代替終端(未使用失効時): 6.4 の失効条件が成立した場合は、マージせず PR クローズ・実測 SHA の記録(PR 本文・Notion)・**worktree 除去(/task-done の Git 手順に準拠。Notion 遷移は行わず「取り下げ」を終端として維持)**をもって本タスクを終端する(上記 DoD 2〜3 は非適用。再実施は v1.3 以降の版繰り上げ + 確定ゲートの別タスク)
+代替終端(未使用失効時): 6.4 の失効条件が成立した場合は、マージせず PR クローズ・実測 SHA の記録(PR 本文・Notion)・**worktree 除去 + prune(/task-done の Git 手順に準拠)+ ローカルブランチの安全削除(`git branch -d` — 失敗時は強制削除せず停止・記録)**をもって本タスクを終端する(Notion 遷移は行わず「取り下げ」を終端として維持)(上記 DoD 2〜3 は非適用。再実施は v1.3 以降の版繰り上げ + 確定ゲートの別タスク)
 
 ## 6. テスト計画
 
