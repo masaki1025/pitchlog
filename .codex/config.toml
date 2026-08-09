@@ -1,0 +1,8 @@
+# pitchlog の Codex プロジェクト設定(trusted なプロジェクトのみ読み込まれる)
+# trust 設定の手順は docs/development/onboarding.md を参照。
+# sandbox・ネットワーク・モデルは config 層の値に依存しない。codex_run.py ラッパーが
+# 呼び出しごとに CLI で明示上書きする(CLI は config に優先 — 設計書 9.2/9.3/9.4・ADR-001)。
+# 本ファイルは安全側の既定を明示するだけの最小構成。
+
+# Web 検索の既定は安全側(OpenAI 管理インデックス)。live は /research がラッパー経由で単発指定する。
+web_search = "cached"

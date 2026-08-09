@@ -11,7 +11,13 @@ Baseball_Scoring（Tsukuba PSS）を製品版として全面再構築するプ�
 
 ## ステータス
 
-要件定義完了（v1.6 — 深層レビュー2周+旧コード全機能突合済み）。設計フェーズ着手前。
+要件定義完了（v1.8 — 深層レビュー2周+旧コード全機能突合+ハーネス整備に伴う改訂）。設計フェーズ・開発ハーネス整備中。
+
+## 開発を始める
+
+- **ドキュメント索引**: [docs/README.md](docs/README.md)（全正本の状態）
+- **開発者セットアップ**: [docs/development/onboarding.md](docs/development/onboarding.md)（Claude Code で `/setup-dev` を実行）
+- **開発フロー**: [docs/development/dev-harness-design-2026-08-07.md](docs/development/dev-harness-design-2026-08-07.md) 6章（`/task-start` → 計画書ゲート → `/implement` → `/pr` → `/task-done`）
 
 ## ブランチルール
 

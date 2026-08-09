@@ -1,0 +1,13 @@
+# ハーネス自体の開発ツール用プロジェクト(hooks のテスト等)。
+# アプリ本体は backend/pyproject.toml(Phase 4)に別途置く。
+[project]
+name = "pitchlog-harness"
+version = "0.1.0"
+description = "pitchlog 開発ハーネスのツール・テスト"
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

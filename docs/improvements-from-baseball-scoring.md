@@ -1,3 +1,7 @@
+---
+status: approved
+---
+
 # pitchlog 改善台帳 — 現行リポ（Baseball_Scoring / Tsukuba PSS）からの改善点
 
 > **目的**: 製品版 pitchlog が現行リポから「何を・なぜ・どう」改善するかを蓄積する台帳。
