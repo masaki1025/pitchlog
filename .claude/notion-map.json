@@ -1,0 +1,65 @@
+{
+  "description": "開発フロー(設計書 6.1)と Notion タスクカードの対応の機械可読定義(設計書 11.1 が参照)。語彙は 2026-08-07 に実 DB から取得。スキルはステータスの綴りを推測せず本ファイルを参照する。DB 側の語彙変更は /setup-dev の突合検証で検出し、本ファイルを実 DB に合わせて更新する",
+  "task_db": {
+    "name": "✅ タスク",
+    "url": "https://app.notion.com/p/5f9e0363ac2843048bcbf58d6853ddb7",
+    "data_source": "collection://93a06ec8-9a41-4539-a38e-40bb1cbe7aa0"
+  },
+  "project_page": {
+    "name": "⚾ baseball_scorering",
+    "project_id": "PRJ-12",
+    "url": "https://app.notion.com/p/3a293b75e6878047a55cc84307e95788"
+  },
+  "properties": {
+    "title": "タスク名",
+    "status": "ステータス",
+    "assignee": "担当者",
+    "project": "プロジェクト",
+    "due": "期限",
+    "done_date": "完了日",
+    "pr_url": "URL",
+    "priority": "優先度",
+    "estimate": "見積ポイント"
+  },
+  "status_options": [
+    "未着手", "準備中", "保留中", "着手可", "進行中", "作業中",
+    "差し戻し", "確認待ち", "ブロック中", "完了", "取り下げ"
+  ],
+  "transitions": {
+    "task_start": {
+      "status": "進行中",
+      "skill": "/task-start",
+      "note": "担当者・プロジェクトリレーション・DoD 欄・ブランチ名記録と同時に。Git 側(worktree 作成)の成功後に遷移する"
+    },
+    "plan_approved": {
+      "status": "進行中",
+      "skill": "/plan",
+      "note": "遷移なし(進行中のまま)。計画書リンクと承認日をタスクへコメント"
+    },
+    "pr_created": {
+      "status": "確認待ち",
+      "skill": "/pr",
+      "note": "URL プロパティに PR URL、「確認待ち時の依頼事項」にレビュー観点を記入してから遷移"
+    },
+    "review_rejected": {
+      "status": "差し戻し",
+      "skill": "/pr または手動",
+      "note": "指摘要約をタスクへコメント。修正の再開で 進行中 へ戻す"
+    },
+    "blocked": {
+      "status": "ブロック中",
+      "skill": "手動(人間判断)",
+      "note": "外部要因待ち。理由をコメント"
+    },
+    "done": {
+      "status": "完了",
+      "skill": "/task-done",
+      "note": "PR マージ確認後。完了日 = マージ日"
+    },
+    "withdrawn": {
+      "status": "取り下げ",
+      "skill": "手動(人間判断)"
+    }
+  },
+  "unused_by_harness": ["未着手", "準備中", "保留中", "着手可", "作業中"]
+}
