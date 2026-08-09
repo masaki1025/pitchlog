@@ -20,7 +20,8 @@ EXCLUDED_PREFIXES = (
 PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
 STATUS_PREFIX_RE = re.compile(r"^status\s*:")
-STATUS_LINE_RE = re.compile(
+PRIMARY_STATUS_LINE_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
+PLAN_STATUS_LINE_RE = re.compile(
     r"^status:\s*(?P<status>[^\s#]+)(?:\s+#.*)?$"
 )
 MARKDOWN_LINK_RE = re.compile(
@@ -237,25 +238,88 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     return documents, violations
 
 
-def read_frontmatter_status(
+def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
+    """Markdown ファイルを UTF-8 で行単位に読み込む。
+
+    Args:
+        path: 読み込む Markdown ファイルのパス。
+
+    Returns:
+        ``(行配列, None)`` または ``(None, 違反理由)`` の組。
+    """
+    try:
+        return path.read_text(encoding="utf-8").splitlines(), None
+    except OSError as error:
+        return None, f"読み込めない: {error}"
+    except UnicodeDecodeError as error:
+        return None, f"UTF-8 として読み込めない: {error}"
+
+
+def validate_status_value(status: str, allowed_statuses: frozenset[str]) -> str | None:
+    """status が対象文書で許可された語彙かを検証する。
+
+    Args:
+        status: frontmatter から抽出した status。
+        allowed_statuses: 文書種別に許可する status 語彙。
+
+    Returns:
+        許可値なら ``None``、それ以外なら違反理由。
+    """
+    if status in allowed_statuses:
+        return None
+    allowed = " | ".join(sorted(allowed_statuses))
+    return f"status の語彙が不正: {status} (許可値: {allowed})"
+
+
+def read_primary_frontmatter_status(
     path: Path,
     allowed_statuses: frozenset[str],
 ) -> tuple[str | None, str | None]:
-    """固定文法の frontmatter から status を読み取る。
+    """正本の厳格な3行 frontmatter から status を読み取る。
 
     Args:
-        path: 検査対象 Markdown ファイル。
+        path: 検査対象の正本 Markdown ファイル。
         allowed_statuses: このファイル種別で許可する status 語彙。
 
     Returns:
         ``(status, None)`` または ``(None, 違反理由)`` の組。
     """
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError as error:
-        return None, f"読み込めない: {error}"
-    except UnicodeDecodeError as error:
-        return None, f"UTF-8 として読み込めない: {error}"
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return None, read_error
+    assert lines is not None
+
+    if not lines or lines[0] != "---":
+        return None, "先頭行が frontmatter 開始記号 `---` ではない"
+    if len(lines) < 3 or lines[2] != "---":
+        return None, "frontmatter の終端 `---` が 3 行目ではない"
+
+    match = PRIMARY_STATUS_LINE_RE.fullmatch(lines[1])
+    if match is None:
+        return None, "2 行目が status: <語彙> 形式ではない"
+    status = match.group("status")
+    return status, validate_status_value(status, allowed_statuses)
+
+
+def read_plan_frontmatter_status(
+    path: Path,
+    allowed_statuses: frozenset[str],
+) -> tuple[str | None, str | None]:
+    """feature 計画書の frontmatter から status を読み取る。
+
+    他の frontmatter キーは許容し、status 行の行末コメントは ``#`` 以降を無視する。
+
+    Args:
+        path: 検査対象の feature 計画書。
+        allowed_statuses: このファイル種別で許可する status 語彙。
+
+    Returns:
+        ``(status, None)`` または ``(None, 違反理由)`` の組。
+    """
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return None, read_error
+    assert lines is not None
 
     if not lines or lines[0] != "---":
         return None, "先頭行が frontmatter 開始記号 `---` ではない"
@@ -271,14 +335,11 @@ def read_frontmatter_status(
     if len(status_lines) != 1:
         return None, "frontmatter の status 行がちょうど 1 行ではない"
 
-    match = STATUS_LINE_RE.fullmatch(status_lines[0])
+    match = PLAN_STATUS_LINE_RE.fullmatch(status_lines[0])
     if match is None:
         return None, "status 行の形式が不正"
     status = match.group("status")
-    if status not in allowed_statuses:
-        allowed = " | ".join(sorted(allowed_statuses))
-        return None, f"status の語彙が不正: {status} (許可値: {allowed})"
-    return status, None
+    return status, validate_status_value(status, allowed_statuses)
 
 
 def check_document_status(
@@ -286,6 +347,7 @@ def check_document_status(
     root: Path,
     allowed_statuses: frozenset[str],
     index_status: str | None = None,
+    strict_primary: bool = False,
 ) -> list[str]:
     """1 つの Markdown ファイルの frontmatter と索引整合を検査する。
 
@@ -294,11 +356,15 @@ def check_document_status(
         root: リポジトリルート。
         allowed_statuses: このファイル種別で許可する status 語彙。
         index_status: 索引から取得した比較対象の状態。不要なら ``None``。
+        strict_primary: 正本向けの厳格な3行 frontmatter を要求するか。
 
     Returns:
         検出した違反メッセージの配列。
     """
-    status, reason = read_frontmatter_status(path, allowed_statuses)
+    if strict_primary:
+        status, reason = read_primary_frontmatter_status(path, allowed_statuses)
+    else:
+        status, reason = read_plan_frontmatter_status(path, allowed_statuses)
     if reason is not None:
         return [violation(path, root, reason)]
     if index_status is not None and status != index_status:
@@ -332,6 +398,7 @@ def check_repository(root: Path) -> list[str]:
                 root,
                 DOCUMENT_STATUSES,
                 document.index_status,
+                strict_primary=True,
             )
         )
 

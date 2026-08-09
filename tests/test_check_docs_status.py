@@ -113,8 +113,8 @@ def test_accepts_matching_primary_documents_and_feature_plan(tmp_path):
     ("content", "reason"),
     [
         ("# frontmatter なし\n", "先頭行"),
-        ("---\ntitle: 文書\n---\n# status なし\n", "status 行がない"),
-        ("---\nstatus: draft\nstatus: approved\n---\n# 重複\n", "ちょうど 1 行"),
+        ("---\ntitle: 文書\n---\n# status なし\n", "2 行目"),
+        ("---\nstatus: draft\nstatus: approved\n---\n# 重複\n", "終端 `---` が 3 行目"),
         (frontmatter("obsolete"), "語彙が不正"),
     ],
 )
@@ -127,6 +127,25 @@ def test_rejects_invalid_primary_frontmatter(tmp_path, content, reason):
     assert result.returncode == 1
     assert "docs/requirements/spec.md:" in result.stderr
     assert reason in result.stderr
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "---\ntitle: 任意キー\nstatus: draft\n---\n# 追加キー\n",
+        "---\nstatus: draft # コメント\n---\n# 行末コメント\n",
+        "---\nstatus: draft\n\n---\n# 空行\n",
+        "---\nstatus: draft\nupdated: 2026-08-10\n---\n# 終端が4行目\n",
+    ],
+)
+def test_rejects_primary_frontmatter_that_is_not_exactly_three_lines(tmp_path, content):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/requirements/spec.md", content)
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "docs/requirements/spec.md:" in result.stderr
 
 
 def test_rejects_index_status_mismatch_after_normalization(tmp_path):
@@ -161,6 +180,34 @@ def test_rejects_document_status_on_feature_plan(tmp_path):
     assert result.returncode == 1
     assert "docs/features/example/plan.md:" in result.stderr
     assert "語彙が不正: approved" in result.stderr
+
+
+def test_accepts_plan_frontmatter_with_other_keys_and_status_comment(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/features/example/plan.md",
+        "---\nfeature: example\nstatus: active # 作業中\nbranch: feature/example\n---\n# 計画\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_duplicate_status_on_feature_plan(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/features/example/plan.md",
+        "---\nfeature: example\nstatus: active\nstatus: in-review\n---\n# 計画\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "docs/features/example/plan.md:" in result.stderr
+    assert "ちょうど 1 行" in result.stderr
 
 
 def test_excludes_worklog_legacy_and_templates(tmp_path):
