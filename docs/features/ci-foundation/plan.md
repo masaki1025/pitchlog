@@ -66,8 +66,9 @@ created: 2026-08-10
 - **担当**: Codex 委任(/implement)= ステップ 1・3・4・6(コード)。Claude 直接 = ステップ 2・5・7〜11(正本・スキル文書・監査 — 設計書 3.1)。Claude 直接分も PR 前に `review normal` を通す(6.3)
 - スクリプトは Python 標準ライブラリのみ・OS 非依存。bash/jq 依存のステップを CI に書かない(NFR-021 — research.md §1)
 
-**frontmatter 固定文法**(check_docs_status.py はこの文法のみ受理・正規表現検査):
-- ファイル先頭行が `---`、終端行が `---`。その間に `status: <draft|in-review|approved|superseded>` をちょうど 1 行(features/*/plan.md は `active|in-review`)
+**frontmatter 固定文法**(check_docs_status.py はこの文法のみ受理・正規表現検査。設計書 v1.1 ゲート P0-2 で厳格化):
+- 正本: **先頭からちょうど 3 行**(`---` / `status: <draft|in-review|approved|superseded>` / `---`)。追加キー・空行・行末コメント不可
+- `features/*/plan.md`: 複数キーを持つため別規則 — `status: <active|in-review>` 行がちょうど 1 行(行末コメント可)
 - **status の正は frontmatter**。索引 docs/README.md との整合検査の正規化規則: 索引の状態セルから太字マーカー `**` を除去し、最初の `(` より前を語彙として抽出、**前後空白を trim**(例: `**in-review**(v1.8 改訂を…)` → `in-review`、`approved(記録)` → `approved`)。不一致は fail
 - **検査対象の正本一覧は索引の正本表から動的に取得**する(「7 本」を script にハードコードしない — github-setup.md 追加後も検査が自動追随する)
 
