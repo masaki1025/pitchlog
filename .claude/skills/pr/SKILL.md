@@ -32,7 +32,7 @@ disable-model-invocation: true
 1. `git -C <worktree> push -u origin <branch>`(承認付き。branch は計画書 frontmatter の `branch` — `feature/*` と `fix/*` の両方に対応)
 2. `gh pr create --head <branch> --base develop`(**--head を明示** — メインツリーのカレントブランチに依存しない)。本文は `.github/pull_request_template.md` に沿って生成:
    - 概要 / Notion タスク URL / 計画書リンク / 正本反映の要約 / テスト結果
-   - **コア領域判定**: 変更ファイルを `.claude/core-areas.json` と突合し、該当する場合はテンプレのコメントアウト部を有効化して「codex_run.py review adversarial 済み」「**人間の逐行確認 済み(必須)**」のチェック項目を追加する
+   - **コア領域/検査経路判定**: 変更ファイルを `.claude/core-areas.json` の各領域 `paths` と `guard_paths` の**両方**に突合する。コア領域該当 → テンプレのコメントアウト部を有効化(adversarial レビュー + 逐行確認の 2 項目)。guard_paths のみ該当 → 逐行確認チェックのみ有効化。**チェック文言は `scripts/core_guard.py` の `REQUIRED_CHECK_TEXT` と完全一致**させる(CI の core-guard ジョブが `- [x]` を機械検査する — 文言を変えない)
    - **fast path 判定**: fast の場合はテンプレの fast path コメントアウト部を有効化する
 3. Notion タスクの URL プロパティに PR URL を記録し、ステータスを `確認待ち` へ(綴りの正: `.claude/notion-map.json` — 推測しない)。「確認待ち時の依頼事項」欄にレビュー観点を書く(ポータルの規律)
 

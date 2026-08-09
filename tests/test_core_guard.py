@@ -325,3 +325,30 @@ def test_fails_closed_on_invalid_core_areas_json(tmp_path):
 
     assert result.returncode == 1
     assert "core-areas.json の JSON が不正" in result.stderr
+
+
+def _load_required_check_text_from_script() -> str:
+    """scripts/core_guard.py から REQUIRED_CHECK_TEXT の実値を読む(正は script 側)。"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("core_guard_module", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclass がモジュールを解決できるよう登録してから実行する
+    try:
+        spec.loader.exec_module(module)
+        return module.REQUIRED_CHECK_TEXT
+    finally:
+        sys.modules.pop(spec.name, None)
+
+
+def test_check_text_is_consistent_across_script_template_and_skill():
+    """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する(計画ステップ 5)。"""
+    canonical = _load_required_check_text_from_script()
+    assert canonical == REQUIRED_CHECK_TEXT  # テスト側リテラルの腐り検知
+
+    template = (REPO / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+    assert f"- [ ] {canonical}" in template, "PR テンプレに未チェック形の必須文言がない"
+
+    skill = (REPO / ".claude" / "skills" / "pr" / "SKILL.md").read_text(encoding="utf-8")
+    assert "REQUIRED_CHECK_TEXT" in skill, "/pr スキルが文言の正(core_guard.py)を参照していない"
+    assert "guard_paths" in skill, "/pr スキルが guard_paths 判定に言及していない"
