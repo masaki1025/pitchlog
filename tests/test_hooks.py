@@ -4,6 +4,7 @@
 exit 0 = 許可 / exit 2 = ブロック。
 """
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +12,7 @@ from pathlib import Path
 import pytest
 
 HOOKS = Path(__file__).parent.parent / ".claude" / "hooks"
+SETTINGS = Path(__file__).parent.parent / ".claude" / "settings.json"
 REPO = str(Path(__file__).parent.parent)
 
 
@@ -44,10 +46,27 @@ def test_git_guard_blocks_protected_push(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
-def test_git_guard_allows_feature_push_and_commit():
-    # このリポジトリのカレントブランチは feature/*(CI の detached HEAD でも保護名ではない)
-    assert run_hook("git_guard.py", bash("git push -u origin feature/x")).returncode == 0
-    assert run_hook("git_guard.py", bash("git commit -m test")).returncode == 0
+def test_git_guard_allows_feature_push_and_commit(tmp_path):
+    # テスト実行元の HEAD に依存せず、feature ブランチの一時リポジトリで判定する
+    repo = make_repo(tmp_path, "feature/x")
+    assert run_hook("git_guard.py", bash("git push -u origin feature/x", cwd=str(repo))).returncode == 0
+    assert run_hook("git_guard.py", bash("git commit -m test", cwd=str(repo))).returncode == 0
+
+
+def test_settings_json_hook_wiring():
+    """settings.json のフック設定が実在するスクリプトを参照することを確認する。"""
+    settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
+
+    for event_name, entries in settings["hooks"].items():
+        for entry in entries:
+            for hook in entry["hooks"]:
+                command = hook["command"]
+                scripts = re.findall(r"\.claude/hooks/([A-Za-z0-9_-]+\.py)", command)
+                assert scripts, f"{event_name} のフックコマンドにスクリプト参照がない: {command}"
+                for script in scripts:
+                    assert (HOOKS / script).is_file(), (
+                        f"{event_name} のフックコマンドが存在しないスクリプトを参照している: {script}"
+                    )
 
 
 def test_git_guard_fail_open_on_broken_json():
@@ -375,8 +394,9 @@ def test_implement_argv_puts_exec_options_before_resume():
     assert mod.implement_argv(base, None) == ["exec", *base]
 
 
-def test_wrapper_rejects_fast_outside_worktree():
-    r = run_wrapper(["fast", "-"], "prompt", cwd=REPO)  # メインツリーは worktree でない
+def test_wrapper_rejects_fast_outside_worktree(tmp_path):
+    # worktree 名を含まない一時ディレクトリに固定し、実行場所に依存させない
+    r = run_wrapper(["fast", "-"], "prompt", cwd=str(tmp_path))
     assert r.returncode == 2
 
 
