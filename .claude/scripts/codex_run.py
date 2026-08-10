@@ -1,7 +1,7 @@
 """Codex 実行の唯一の許可経路(設計書 12.1 / 敵対レビュー P0-2 対応)。
 
 生の `codex exec` は codex_guard フックが遮断する。本ラッパーが
-計画書の承認状態・実行場所(worktree)・sandbox・モデル対応表(ADR-001)を検証・固定する。
+計画書の plan status(implement のみ・active 必須)と承認状態・実行場所(worktree)・sandbox・モデル対応表(ADR-001)を検証・固定する。
 
 使い方:
   python .claude/scripts/codex_run.py implement <plan.md> [--resume] [-]   # 実装(status: active かつ承認済み計画書必須)
