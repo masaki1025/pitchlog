@@ -41,9 +41,19 @@ branch: feature/feature-status
 
 - /finalize-doc(設計書 v1.3): 敵対レビュー 1 周目 **否決 — P0×0/P1×5/P2×2**(worktree 無言消し・fast 昇格・トークン混在素通り・status 非強制の記録欠如・拡張キー契約の正本化・8.3 固定件数)→ 全件反映(コード = Codex 差し戻し 190 passed・正本 = 契約表移管 + 残余リスク受容記録)。2 周目 **否決 — P1×4**(1 周目 6 件中 5 件「正しく反映」): 期待ディレクトリ検証・**本 plan の確定ゲート周回が 0 のまま(機構自身の誤表示 — ドッグフーディングで検出)**・文書系 allowlist の過広(.claude/*.py 等)・side branch マージ/diff-tree 失敗の素通し → 全件反映(周回キー 2 へ更新・分類契約を正本と実装の両方で厳格化)
 
+- /finalize-doc 続き: 3 周目 **否決 P1×1**(plan 重複時の正常段階同時表示)→ 4 周目 **否決 P1×1**(確定ゲート周回の計上漏れ — 再びドッグフーディングが検出)→ 5 周目 **可決(P0/P1/P2 なし・全 5 観点確認済み)で収束**。全 4 周の指摘 **13 件全件採用・不採用 0 件** → **PO 承認(2026-08-10・徳光 尋弥)→ 設計書 v1.3 approved 化**(frontmatter・変更履歴・索引)
+- 別タスク起票済み: [codex_run.py に plan status の機構強制を追加](https://app.notion.com/p/3b893b75e687819ebaa3ce597b8d97ea)(未着手・着手は本 PR マージ後)
+- /pr クローズ処理: plan を in-review 化・本 worklog を締め
+
+## 結果サマリ(/pr クローズ)
+
+- **実装**: `scripts/feature_status.py`(現在地導出 — 無保存・読み取り専用・縮退顕在化)+ `session_context.py` の委譲一本化 + plan frontmatter 拡張キー 3 個 + A 案 3 ファイル役割分担(テンプレ 2・スキル 6 本)。テスト 194 passed(+61)
+- **正本反映**: 設計書 **v1.2 → v1.3**(6.1 拡張キー契約表・コミット記法・差し戻し往復・fast 昇格・残余リスク受容 / 7.6-4 導出機械化 / 8.3 委譲)— **確定ゲート通過**(敵対レビュー 5 周・PO 承認)。README・rules/docs.md 追随
+- **レビュー総計**: 計画 review normal 11 周 + PR 前反対側 2 周 + 確定ゲート敵対 5 周 = **18 周・P0 は全周ゼロ・全指摘採用**
+- 未マージの残作業: PR 上の CI 4 ジョブ実機確認 → 人間の逐行確認(guard_paths: pr/SKILL.md)→ 人間マージ → /task-done
+
 ## 未決・次の一歩
 
-- /finalize-doc: 設計書 v1.3 の敵対レビュー 3 周目 → 収束 → PO 承認 → approved 化
-- Notion 起票(別タスク): codex_run.py に「status: active 以外は /implement 拒否」の機構強制 + 差し戻し手順への誘導
-- /pr(クローズ処理 → 突合 → push → PR 作成)。**pr/SKILL.md(guard_paths)接触のため PR 本文に人間逐行確認チェックが必要**
+- PR レビュー(CI 全グリーン + 人間逐行確認 + 人間マージ)→ /task-done(worktree 除去・Notion 完了)
+- 別タスク: codex_run.py の status 機構強制(起票済み・上記リンク)
 - 既知の周辺事項(スコープ外・記録のみ): session_context の「最新 worklog」選定はファイル名ソートのため、同日複数 worklog では辞書順の後方が選ばれる(既存挙動)
