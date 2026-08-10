@@ -390,18 +390,19 @@ def read_plan_text(path: Path) -> str | None:
 
 
 def parse_step_table(plan_text: str | None) -> StepTable:
-    """実装ステップ見出し配下の表番号を検証する。
+    """実装ステップ見出し配下の表番号と必須セルを検証する。
 
     Args:
         plan_text: plan 全文。読み取り失敗時は ``None``。
 
     Returns:
-        番号列が ``{1..N}`` かを含む表検証結果。
+        番号列が ``{1..N}`` で、各番号行の必須セルが埋まっているかを含む結果。
     """
     if plan_text is None:
         return StepTable(valid=False, total=0)
 
     numbers: list[int] = []
+    has_empty_required_cell = False
     in_step_section = False
     for line in plan_text.splitlines():
         if HEADING_RE.match(line):
@@ -410,12 +411,14 @@ def parse_step_table(plan_text: str | None) -> StepTable:
         if not in_step_section:
             continue
         match = STEP_ROW_RE.match(line)
-        if match is None or not match.group(2).strip() or not match.group(3).strip():
+        if match is None:
             continue
         numbers.append(int(match.group(1)))
+        if not match.group(2).strip() or not match.group(3).strip():
+            has_empty_required_cell = True
 
     total = max(numbers, default=0)
-    if total < 1 or len(numbers) != total:
+    if has_empty_required_cell or total < 1 or len(numbers) != total:
         return StepTable(valid=False, total=total)
     return StepTable(valid=set(numbers) == set(range(1, total + 1)), total=total)
 

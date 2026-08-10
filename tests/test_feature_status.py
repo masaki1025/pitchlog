@@ -381,6 +381,44 @@ def test_invalid_step_table_wins_over_commit_count(tmp_path: Path, steps: tuple[
     assert "実装状況: 不整合(要確認)" in feature_block(output, "foo")
 
 
+def test_empty_required_cells_in_final_numbered_row_are_inconsistent(
+    tmp_path: Path,
+):
+    """末尾の未記入番号行を無視せず、完了前に表不整合へ縮退する。"""
+    root, worktree, plan = setup_committed_plan(tmp_path)
+    plan.write_text(
+        plan.read_text(encoding="utf-8") + "| 3 | | |\n",
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 未記入ステップ行を追加")
+    commit_implementation(worktree, 1, "feat: ステップ 1 (ステップ 1/2)")
+    commit_implementation(worktree, 2, "feat: ステップ 2 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装状況: 不整合(要確認)" in block
+    assert "実装完了・/pr 前" not in block
+
+
+def test_empty_required_cells_in_duplicate_numbered_row_are_inconsistent(
+    tmp_path: Path,
+):
+    """空セルを持つ重複番号行を無視せず、表不整合にする。"""
+    root, worktree, plan = setup_committed_plan(tmp_path)
+    plan.write_text(
+        plan.read_text(encoding="utf-8") + "| 2 | | |\n",
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 重複した未記入ステップ行を追加")
+    commit_implementation(worktree, 1, "feat: ステップ 1 (ステップ 1/2)")
+    commit_implementation(worktree, 2, "feat: ステップ 2 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装状況: 不整合(要確認)" in block
+    assert "実装完了・/pr 前" not in block
+
+
 @pytest.mark.parametrize(
     "subject",
     [
