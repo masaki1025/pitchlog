@@ -17,14 +17,14 @@
 
 ## 進行中の feature
 
-静的一覧は持たない(腐るため)。**正は worktree の現存**: `git worktree list`、または SessionStart 文脈(session_context フック)が「進行中の feature(worktree 現存)」として表示する。
+静的一覧は持たない(腐るため)。**正は worktree の現存**: `git worktree list`、現在地の導出表示 `uv run python scripts/feature_status.py`(段階・ステップ進捗・PR 状態・Notion 期待 — 無保存の派生表示)、または SessionStart 文脈(session_context フック — feature_status.py へ委譲)が表示する。
 
 ## テンプレート
 
-[実装計画書](development/templates/plan-template.md) / [調査メモ](development/templates/research-template.md) / [worklog](development/templates/worklog-template.md) / [ADR](development/templates/adr-template.md)
+[実装計画書](development/templates/plan-template.md) / [詳細設計](development/templates/design-template.md) / [調査メモ](development/templates/research-template.md) / [worklog](development/templates/worklog-template.md) / [ADR](development/templates/adr-template.md)
 
 ## 参照(正本ではない)
 
 - `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)
 - `worklog/` — 作業ログ
-- `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md・research.md 等。plan の状態は active → in-review の2値)
+- `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値)
