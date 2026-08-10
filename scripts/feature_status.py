@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -19,6 +20,7 @@ STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
 STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
+PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
 
 
 @dataclass(frozen=True)
@@ -143,7 +145,7 @@ class FeatureResult:
         branch: worktree の実ブランチ名。
         stage: 現在地表示。
         progress: ステップ進捗。
-        pr_status: PR 状態。ステップ 1 では常に未取得。
+        pr_status: PR 状態。text モードの PR 段階でのみ gh から取得する。
         degradation: 縮退理由。通常時は ``None``。
         frontmatter: 表示補助に使う frontmatter。解析失敗時は ``None``。
     """
@@ -157,12 +159,17 @@ class FeatureResult:
     frontmatter: Frontmatter | None
 
 
-def run_command(args: Sequence[str], cwd: Path | None = None) -> CommandResult:
+def run_command(
+    args: Sequence[str],
+    cwd: Path | None = None,
+    timeout_seconds: float | None = None,
+) -> CommandResult:
     """タイムアウト付きで読み取りコマンドを実行する。
 
     Args:
         args: シェルを介さずに渡すコマンド引数。
         cwd: 実行ディレクトリ。``None`` なら呼び出し元のカレント。
+        timeout_seconds: タイムアウト秒数。``None`` では規定の 10 秒。
 
     Returns:
         例外・タイムアウト・非 0 終了を失敗として表した結果。
@@ -176,7 +183,9 @@ def run_command(args: Sequence[str], cwd: Path | None = None) -> CommandResult:
             encoding="utf-8",
             errors="replace",
             text=True,
-            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+            timeout=(
+                SUBPROCESS_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+            ),
         )
     except Exception:
         return CommandResult(False, "")
@@ -656,15 +665,67 @@ def append_final_gate(stage: str, frontmatter: Frontmatter) -> str:
 
 
 def pr_status_stub(_: FeaturePlan) -> str:
-    """ステップ 2 の gh 連携まで PR 状態を未取得として返す。
+    """gh を呼ばない経路向けの PR 状態を返す。
 
     Args:
-        _: 将来 gh 連携に必要となる feature 情報。
+        _: 将来の表示拡張に必要となる feature 情報。
 
     Returns:
-        ステップ 1 固定の PR 状態。
+        hook モードなど、PR を取得しない経路の状態。
     """
     return "未取得"
+
+
+def get_pr_status(
+    plan: FeaturePlan,
+    timeout_seconds: float | None = None,
+) -> str:
+    """gh から PR 状態を取得し、失敗時は縮退ラベルを返す。
+
+    Args:
+        plan: PR を調べる feature。
+        timeout_seconds: テスト時だけ差し替えられるタイムアウト秒数。
+
+    Returns:
+        ``OPEN`` / ``MERGED`` / ``CLOSED``、または ``未取得(縮退)``。
+    """
+    branch = plan.worktree.branch
+    if not branch:
+        return "未取得(縮退)"
+    result = run_command(
+        ["gh", "pr", "view", branch, "--json", "state,url"],
+        cwd=plan.worktree.path,
+        timeout_seconds=timeout_seconds,
+    )
+    if not result.succeeded:
+        return "未取得(縮退)"
+    try:
+        payload = json.loads(result.stdout)
+        state = payload.get("state") if isinstance(payload, dict) else None
+    except Exception:
+        return "未取得(縮退)"
+    if not isinstance(state, str) or state not in PR_STATES:
+        return "未取得(縮退)"
+    return state
+
+
+def pr_stage_display(pr_status: str, frontmatter: Frontmatter) -> str:
+    """PR 状態を反映した段階表示を組み立てる。
+
+    Args:
+        pr_status: gh から得た PR 状態、または縮退ラベル。
+        frontmatter: 確定ゲート周回の表示に使う frontmatter。
+
+    Returns:
+        PR 状態と、必要なら /task-done 待ちを併記した段階表示。
+    """
+    if pr_status == "MERGED":
+        stage = "PR 段階(MERGED・/task-done 待ち)"
+    elif pr_status in PR_STATES:
+        stage = f"PR 段階({pr_status})"
+    else:
+        stage = "PR 段階"
+    return append_final_gate(stage, frontmatter)
 
 
 def git_failure_result(plan: FeaturePlan) -> FeatureResult:
@@ -687,11 +748,17 @@ def git_failure_result(plan: FeaturePlan) -> FeatureResult:
     )
 
 
-def derive_feature(plan: FeaturePlan) -> FeatureResult:
+def derive_feature(
+    plan: FeaturePlan,
+    resolve_pr: bool = False,
+    pr_timeout_seconds: float | None = None,
+) -> FeatureResult:
     """stage 判定表の順序で 1 feature の現在地を導出する。
 
     Args:
         plan: 導出対象 feature。
+        resolve_pr: text モードとして gh を呼んで PR 状態を取得するか。
+        pr_timeout_seconds: テスト時だけ差し替えられる gh のタイムアウト秒数。
 
     Returns:
         表示に必要な stage・進捗・縮退情報。
@@ -710,10 +777,12 @@ def derive_feature(plan: FeaturePlan) -> FeatureResult:
             frontmatter=frontmatter,
         )
     if frontmatter.status == "in-review":
+        if resolve_pr:
+            pr_status = get_pr_status(plan, timeout_seconds=pr_timeout_seconds)
         return FeatureResult(
             name=plan.name,
             branch=plan.worktree.branch,
-            stage=append_final_gate("PR 段階", frontmatter),
+            stage=pr_stage_display(pr_status, frontmatter),
             progress=Progress(kind="not_applicable", note="PR 段階"),
             pr_status=pr_status,
             degradation=None,
@@ -808,11 +877,15 @@ def parse_failure_result(name: str, branch: str | None) -> FeatureResult:
     )
 
 
-def collect_features(cwd: Path) -> tuple[list[FeatureResult], bool]:
+def collect_features(
+    cwd: Path,
+    output_format: str = "text",
+) -> tuple[list[FeatureResult], bool]:
     """全 worktree の対象 plan を列挙し、表示結果を導出する。
 
     Args:
         cwd: worktree 列挙の基準ディレクトリ。
+        output_format: ``text`` のときだけ PR 状態を gh から取得する。
 
     Returns:
         feature 結果一覧と、worktree 列挙が成功したかの組。
@@ -846,7 +919,12 @@ def collect_features(cwd: Path) -> tuple[list[FeatureResult], bool]:
                     worktree=worktree,
                     frontmatter=frontmatter,
                 )
-                results.append(derive_feature(feature_plan))
+                results.append(
+                    derive_feature(
+                        feature_plan,
+                        resolve_pr=output_format == "text",
+                    )
+                )
             except Exception:
                 results.append(
                     FeatureResult(
@@ -997,7 +1075,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if parsed is None:
             print("進行中 feature: 未取得(引数不正)")
             return 0
-        results, listed = collect_features(Path(parsed.cwd))
+        results, listed = collect_features(Path(parsed.cwd), parsed.output_format)
         rendered = render(results, listed, parsed.output_format)
         if rendered:
             print(rendered)

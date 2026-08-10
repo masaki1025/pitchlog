@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -126,7 +129,11 @@ def commit_implementation(worktree: Path, number: int, subject: str) -> None:
     commit_all(worktree, subject)
 
 
-def run_status(root: Path, output_format: str = "text") -> subprocess.CompletedProcess[str]:
+def run_status(
+    root: Path,
+    output_format: str = "text",
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     """CLI を実行し、標準出力を返す。"""
     return subprocess.run(
         [
@@ -139,6 +146,7 @@ def run_status(root: Path, output_format: str = "text") -> subprocess.CompletedP
         ],
         capture_output=True,
         encoding="utf-8",
+        env=env,
         text=True,
         timeout=30,
     )
@@ -174,6 +182,51 @@ def setup_committed_plan(
     )
     commit_all(worktree, "docs: 承認・起票")
     return root, worktree, plan
+
+
+def gh_environment(tmp_path: Path, source: str | None) -> dict[str, str]:
+    """git と任意の gh スタブだけを PATH に持つ環境を作る。"""
+    tools = tmp_path / "tools"
+    tools.mkdir(parents=True)
+    git_path = shutil.which("git")
+    assert git_path is not None
+    linked_git = tools / Path(git_path).name
+    try:
+        os.symlink(git_path, linked_git)
+    except OSError:
+        shutil.copy2(git_path, linked_git)
+        linked_git.chmod(0o755)
+
+    if source is not None:
+        if os.name == "nt":
+            script = tools / "gh_stub.py"
+            script.write_text(source, encoding="utf-8")
+            launcher = tools / "gh.cmd"
+            launcher.write_text(
+                f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',
+                encoding="utf-8",
+            )
+        else:
+            launcher = tools / "gh"
+            launcher.write_text(f"#!{sys.executable}\n{source}", encoding="utf-8")
+            launcher.chmod(0o755)
+
+    environment = os.environ.copy()
+    environment["PATH"] = str(tools)
+    return environment
+
+
+def feature_plan_for_direct_call(worktree: Path, plan_path: Path):
+    """gh タイムアウト試験用の FeaturePlan を組み立てる。"""
+    frontmatter = feature_status.read_frontmatter(plan_path)
+    assert frontmatter is not None
+    return feature_status.FeaturePlan(
+        name=plan_path.parent.name,
+        plan_path=plan_path,
+        relative_plan_path=plan_path.relative_to(worktree).as_posix(),
+        worktree=feature_status.Worktree(path=worktree, branch="feature/foo"),
+        frontmatter=frontmatter,
+    )
 
 
 def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: Path):
@@ -561,3 +614,91 @@ def test_worktree_and_feature_git_failures_are_visible_and_exit_zero(tmp_path: P
     feature_failure = run_status(root)
     assert feature_failure.returncode == 0
     assert "未取得(git 失敗)" in feature_block(feature_failure.stdout, "foo")
+
+
+def test_gh_missing_is_reported_as_pr_degradation(tmp_path: Path):
+    """PATH に gh がない場合は PR 行だけを縮退表示する。"""
+    root, _, _ = setup_committed_plan(tmp_path, status="in-review")
+
+    completed = run_status(root, env=gh_environment(tmp_path, None))
+
+    assert completed.returncode == 0
+    block = feature_block(completed.stdout, "foo")
+    assert "段階: PR 段階" in block
+    assert "PR 状態: 未取得(縮退)" in block
+
+
+def test_gh_nonzero_exit_is_reported_as_pr_degradation(tmp_path: Path):
+    """gh の非 0 終了を fail-open で PR 縮退表示へ変換する。"""
+    root, _, _ = setup_committed_plan(tmp_path, status="in-review")
+    environment = gh_environment(tmp_path, "raise SystemExit(2)\n")
+
+    completed = run_status(root, env=environment)
+
+    assert completed.returncode == 0
+    assert "PR 状態: 未取得(縮退)" in feature_block(completed.stdout, "foo")
+
+
+def test_gh_timeout_is_reported_as_pr_degradation_without_waiting_ten_seconds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """gh のタイムアウトは注入値で短く検証して PR 縮退表示にする。"""
+    _, worktree, plan_path = setup_committed_plan(tmp_path, status="in-review")
+    environment = gh_environment(
+        tmp_path,
+        "import time\ntime.sleep(5)\n",
+    )
+    monkeypatch.setenv("PATH", environment["PATH"])
+    started = time.monotonic()
+    result = feature_status.derive_feature(
+        feature_plan_for_direct_call(worktree, plan_path),
+        resolve_pr=True,
+        pr_timeout_seconds=0.05,
+    )
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 1
+    assert "PR 状態: 未取得(縮退)" in feature_status.format_text_result(result)
+
+
+@pytest.mark.parametrize("state", ["OPEN", "MERGED", "CLOSED"])
+def test_gh_state_is_reflected_in_text_stage(
+    tmp_path: Path,
+    state: str,
+):
+    """gh の OPEN/MERGED/CLOSED を text 出力の段階と PR 行へ反映する。"""
+    root, _, _ = setup_committed_plan(tmp_path, status="in-review")
+    source = (
+        "import json\n"
+        "import sys\n"
+        "if sys.argv[1:] != ['pr', 'view', 'feature/foo', '--json', 'state,url']:\n"
+        "    raise SystemExit(8)\n"
+        f"print(json.dumps({{'state': {state!r}, 'url': 'https://example.test/pr/1'}}))\n"
+    )
+    completed = run_status(root, env=gh_environment(tmp_path, source))
+
+    assert completed.returncode == 0
+    block = feature_block(completed.stdout, "foo")
+    assert f"PR 状態: {state}" in block
+    if state == "MERGED":
+        assert "PR 段階(MERGED・/task-done 待ち)" in block
+    else:
+        assert f"PR 段階({state})" in block
+
+
+def test_hook_mode_does_not_start_gh(tmp_path: Path):
+    """hook 形式では gh スタブを PATH に置いても実行しない。"""
+    root, _, _ = setup_committed_plan(tmp_path, status="in-review")
+    marker = tmp_path / "gh-called"
+    source = (
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('called', encoding='utf-8')\n"
+        "print('{\"state\": \"OPEN\", \"url\": \"https://example.test/pr/1\"}')\n"
+    )
+
+    completed = run_status(root, output_format="hook", env=gh_environment(tmp_path, source))
+
+    assert completed.returncode == 0
+    assert not marker.exists()
+    assert "PR 状態: 未取得" in hook_line(completed.stdout, "foo")
