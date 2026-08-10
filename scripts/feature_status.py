@@ -1,0 +1,1010 @@
+"""feature の現在地を正本から読み取り専用で導出して表示する。"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Sequence
+
+
+FRONTMATTER_LIMIT = 8 * 1024
+SUBPROCESS_TIMEOUT_SECONDS = 10
+PROTECTED_BRANCHES = frozenset({"main", "develop"})
+STATUS_CANDIDATE_RE = re.compile(r"^status\s*:")
+STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
+HEADING_RE = re.compile(r"^#{1,6}\s")
+STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
+STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
+
+
+@dataclass(frozen=True)
+class CommandResult:
+    """外部コマンドの成功可否と標準出力を保持する。
+
+    Attributes:
+        succeeded: コマンドが終了コード 0 で完了したか。
+        stdout: UTF-8 として復号した標準出力。
+    """
+
+    succeeded: bool
+    stdout: str
+
+
+@dataclass(frozen=True)
+class Worktree:
+    """Git が報告した worktree を表す。
+
+    Attributes:
+        path: worktree のルートパス。
+        branch: 実ブランチ名。detached HEAD の場合は ``None``。
+    """
+
+    path: Path
+    branch: str | None
+
+
+@dataclass(frozen=True)
+class Frontmatter:
+    """厳密検証済みの plan frontmatter を表す。
+
+    Attributes:
+        status: ``active`` または ``in-review`` の status 値。
+        branch: plan に書かれた branch 値。欠落時は ``None``。
+        approval: 承認値。欠落時は空文字列。
+        plan_review_round: 計画レビュー周回。非整数・負値は ``None``。
+        final_gate_round: 確定ゲート周回。非整数・負値は ``None``。
+        execution_mode: 正規化した実行方式値。欠落時は ``通常``。
+        execution_mode_valid: 実行方式が列挙値に適合するか。
+    """
+
+    status: str
+    branch: str | None
+    approval: str
+    plan_review_round: int | None
+    final_gate_round: int | None
+    execution_mode: str
+    execution_mode_valid: bool
+
+
+@dataclass(frozen=True)
+class FeaturePlan:
+    """導出対象となる plan と worktree の対応を表す。
+
+    Attributes:
+        name: feature ディレクトリ名。
+        plan_path: plan.md の絶対パス。
+        relative_plan_path: worktree 起点の Git パス。
+        worktree: plan を含む worktree。
+        frontmatter: 厳密検証済み frontmatter。
+    """
+
+    name: str
+    plan_path: Path
+    relative_plan_path: str
+    worktree: Worktree
+    frontmatter: Frontmatter
+
+
+@dataclass(frozen=True)
+class StepTable:
+    """実装ステップ表の検証結果を表す。
+
+    Attributes:
+        valid: 番号列が ``{1..N}`` で ``N >= 1`` か。
+        total: 表から得た最大番号。表が空・不正なら 0 の場合がある。
+    """
+
+    valid: bool
+    total: int
+
+
+@dataclass(frozen=True)
+class CommitRecord:
+    """進捗導出に必要なコミット情報を表す。
+
+    Attributes:
+        sha: コミット ID。
+        parent_count: 親コミット数。
+        subject: コミット件名。
+    """
+
+    sha: str
+    parent_count: int
+    subject: str
+
+
+@dataclass(frozen=True)
+class Progress:
+    """ステップ進捗の 3 値と縮退状態を表す。
+
+    Attributes:
+        kind: ``known`` / ``unknown`` / ``inconsistent`` / ``git_error`` / ``not_applicable``。
+        completed: known 時の完了ステップ番号。
+        total: 実装ステップ総数。
+        note: 適用外時の説明。
+    """
+
+    kind: str
+    completed: int | None = None
+    total: int | None = None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class FeatureResult:
+    """1 feature 分の表示用導出結果を表す。
+
+    Attributes:
+        name: feature 名。
+        branch: worktree の実ブランチ名。
+        stage: 現在地表示。
+        progress: ステップ進捗。
+        pr_status: PR 状態。ステップ 1 では常に未取得。
+        degradation: 縮退理由。通常時は ``None``。
+        frontmatter: 表示補助に使う frontmatter。解析失敗時は ``None``。
+    """
+
+    name: str
+    branch: str | None
+    stage: str
+    progress: Progress
+    pr_status: str
+    degradation: str | None
+    frontmatter: Frontmatter | None
+
+
+def run_command(args: Sequence[str], cwd: Path | None = None) -> CommandResult:
+    """タイムアウト付きで読み取りコマンドを実行する。
+
+    Args:
+        args: シェルを介さずに渡すコマンド引数。
+        cwd: 実行ディレクトリ。``None`` なら呼び出し元のカレント。
+
+    Returns:
+        例外・タイムアウト・非 0 終了を失敗として表した結果。
+    """
+    try:
+        completed = subprocess.run(
+            list(args),
+            capture_output=True,
+            check=False,
+            cwd=str(cwd) if cwd is not None else None,
+            encoding="utf-8",
+            errors="replace",
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return CommandResult(False, "")
+    return CommandResult(completed.returncode == 0, completed.stdout)
+
+
+def run_git(worktree: Worktree, args: Sequence[str]) -> CommandResult:
+    """指定 worktree で Git の読み取りコマンドを実行する。
+
+    Args:
+        worktree: 実行対象の worktree。
+        args: ``git`` のサブコマンド以降の引数。
+
+    Returns:
+        Git コマンドの実行結果。
+    """
+    return run_command(["git", "-C", str(worktree.path), *args])
+
+
+def list_worktrees(cwd: Path) -> tuple[list[Worktree], bool]:
+    """Git に登録された全 worktree を porcelain 形式から読み取る。
+
+    Args:
+        cwd: ``git worktree list`` を実行する基準ディレクトリ。
+
+    Returns:
+        worktree 一覧と、列挙が正常に取得できたかの組。
+    """
+    result = run_command(["git", "worktree", "list", "--porcelain"], cwd)
+    if not result.succeeded:
+        return [], False
+
+    entries: list[Worktree] = []
+    path: Path | None = None
+    branch: str | None = None
+    saw_worktree = False
+
+    def append_current() -> None:
+        if path is not None:
+            entries.append(Worktree(path=path, branch=branch))
+
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            append_current()
+            raw_path = line.removeprefix("worktree ").strip()
+            path = Path(raw_path) if raw_path else None
+            branch = None
+            saw_worktree = True
+        elif line.startswith("branch ") and path is not None:
+            raw_branch = line.removeprefix("branch ").strip()
+            branch = raw_branch.removeprefix("refs/heads/") or None
+    append_current()
+
+    if not saw_worktree or not entries:
+        return [], False
+    return entries, True
+
+
+def parse_nonnegative_integer(value: str | None) -> int | None:
+    """半角の非負整数を解析し、不正値を ``None`` で表す。
+
+    Args:
+        value: frontmatter から取得した文字列。キー欠落時は ``None``。
+
+    Returns:
+        解析済み整数。キー欠落時は 0、不正値は ``None``。
+    """
+    if value is None:
+        return 0
+    if not re.fullmatch(r"[0-9]+", value):
+        return None
+    return int(value)
+
+
+def parse_frontmatter_body(body: str) -> Frontmatter | None:
+    """frontmatter 本文を解析し、status の厳密一致を検証する。
+
+    Args:
+        body: 開閉デリミタを除いた frontmatter 本文。
+
+    Returns:
+        有効な frontmatter。status 条件を満たさない場合は ``None``。
+    """
+    lines = body.splitlines()
+    status_lines = [line for line in lines if STATUS_CANDIDATE_RE.match(line)]
+    if len(status_lines) != 1:
+        return None
+    status_match = STATUS_LINE_RE.fullmatch(status_lines[0])
+    if status_match is None:
+        return None
+
+    values: dict[str, str] = {}
+    for line in lines:
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        values[key.strip()] = value.split("#", 1)[0].strip()
+
+    raw_mode = values.get("実行方式")
+    execution_mode = "通常" if raw_mode is None else raw_mode
+    return Frontmatter(
+        status=status_match.group(1),
+        branch=values.get("branch") or None,
+        approval=values.get("承認", ""),
+        plan_review_round=parse_nonnegative_integer(values.get("計画レビュー周回")),
+        final_gate_round=parse_nonnegative_integer(values.get("確定ゲート周回")),
+        execution_mode=execution_mode,
+        execution_mode_valid=execution_mode in {"通常", "fast"},
+    )
+
+
+def parse_frontmatter_bytes(data: bytes) -> Frontmatter | None:
+    """8KiB 上限内の frontmatter ブロックを切り詰めずに解析する。
+
+    Args:
+        data: plan 先頭から読んだバイト列。
+
+    Returns:
+        有効な frontmatter。非閉止・上限超過・UTF-8 不正時は ``None``。
+    """
+    lines = data.splitlines(keepends=True)
+    if not lines:
+        return None
+
+    consumed = len(lines[0])
+    if consumed > FRONTMATTER_LIMIT or lines[0].rstrip(b"\r\n").strip() != b"---":
+        return None
+
+    body: list[bytes] = []
+    for line in lines[1:]:
+        consumed += len(line)
+        if consumed > FRONTMATTER_LIMIT:
+            return None
+        if line.rstrip(b"\r\n").strip() == b"---":
+            try:
+                return parse_frontmatter_body(b"".join(body).decode("utf-8"))
+            except UnicodeDecodeError:
+                return None
+        body.append(line)
+    return None
+
+
+def read_frontmatter(path: Path) -> Frontmatter | None:
+    """plan ファイル先頭の frontmatter だけを安全上限付きで読む。
+
+    Args:
+        path: plan.md のパス。
+
+    Returns:
+        有効な frontmatter。読み取り失敗も ``None`` として縮退する。
+    """
+    try:
+        with path.open("rb") as source:
+            data = source.read(FRONTMATTER_LIMIT + 1)
+    except Exception:
+        return None
+    return parse_frontmatter_bytes(data)
+
+
+def parse_snapshot_frontmatter(snapshot: str) -> Frontmatter | None:
+    """Git スナップショットの frontmatter を同じ厳密規則で解析する。
+
+    Args:
+        snapshot: ``git show`` で取得した plan 内容。
+
+    Returns:
+        有効な frontmatter。8KiB 超過を含む解析失敗時は ``None``。
+    """
+    return parse_frontmatter_bytes(
+        snapshot.encode("utf-8", "replace")[: FRONTMATTER_LIMIT + 1]
+    )
+
+
+def read_plan_text(path: Path) -> str | None:
+    """実装ステップ表の検証に必要な plan 全文を読む。
+
+    Args:
+        path: plan.md のパス。
+
+    Returns:
+        UTF-8 の plan 全文。読み取り不能時は ``None``。
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+
+def parse_step_table(plan_text: str | None) -> StepTable:
+    """実装ステップ見出し配下の表番号を検証する。
+
+    Args:
+        plan_text: plan 全文。読み取り失敗時は ``None``。
+
+    Returns:
+        番号列が ``{1..N}`` かを含む表検証結果。
+    """
+    if plan_text is None:
+        return StepTable(valid=False, total=0)
+
+    numbers: list[int] = []
+    in_step_section = False
+    for line in plan_text.splitlines():
+        if HEADING_RE.match(line):
+            in_step_section = "実装ステップ" in line
+            continue
+        if not in_step_section:
+            continue
+        match = STEP_ROW_RE.match(line)
+        if match is None or not match.group(2).strip() or not match.group(3).strip():
+            continue
+        numbers.append(int(match.group(1)))
+
+    total = max(numbers, default=0)
+    if total < 1 or len(numbers) != total:
+        return StepTable(valid=False, total=total)
+    return StepTable(valid=set(numbers) == set(range(1, total + 1)), total=total)
+
+
+def extract_step_tokens(subject: str, total: int) -> tuple[list[int], bool]:
+    """コミット件名から完全トークンを抽出し、不正形を検出する。
+
+    Args:
+        subject: Git のコミット件名。
+        total: 実装ステップ表の総数。
+
+    Returns:
+        有効トークンのステップ番号一覧と、不正形を見つけたかの組。
+    """
+    tokens: list[int] = []
+    malformed = False
+
+    for match in STEP_TOKEN_START_RE.finditer(subject):
+        opener = match.group(0)[0]
+        closer = ")" if opener == "(" else "）"
+        other_closer = "）" if closer == ")" else ")"
+        step = int(match.group("step"))
+        position = match.end()
+
+        if step <= 0:
+            malformed = True
+            continue
+
+        declared_total: int | None = None
+        if position < len(subject) and subject[position] == "/":
+            total_match = re.match(r"/([0-9]+)", subject[position:])
+            if total_match is None:
+                malformed = True
+                continue
+            declared_total = int(total_match.group(1))
+            position += len(total_match.group(0))
+            if declared_total != total:
+                malformed = True
+                continue
+
+        if position < len(subject) and subject[position] == closer:
+            tokens.append(step)
+            continue
+        if position < len(subject) and subject[position] == other_closer:
+            malformed = True
+            continue
+        if position >= len(subject) or not subject[position].isspace():
+            malformed = True
+            continue
+
+        close_positions = [
+            index
+            for index in (subject.find(closer, position), subject.find(other_closer, position))
+            if index != -1
+        ]
+        if not close_positions:
+            malformed = True
+            continue
+        close_position = min(close_positions)
+        suffix = subject[position:close_position]
+        if subject[close_position] != closer or re.match(r"\s*/", suffix):
+            malformed = True
+            continue
+        tokens.append(step)
+
+    return tokens, malformed
+
+
+def get_merge_base(plan: FeaturePlan) -> str | None:
+    """feature ブランチと origin/develop のマージベースを取得する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        マージベース SHA。Git 取得失敗時は ``None``。
+    """
+    result = run_git(plan.worktree, ["merge-base", "origin/develop", "HEAD"])
+    base = result.stdout.strip()
+    return base if result.succeeded and base else None
+
+
+def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
+    """base..HEAD に in-review の plan スナップショットがあるか調べる。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+
+    Returns:
+        差し戻し修正中なら ``True``、なければ ``False``、Git 失敗時は ``None``。
+    """
+    revisions = run_git(
+        plan.worktree,
+        ["log", "--format=%H", f"{base}..HEAD", "--", plan.relative_plan_path],
+    )
+    if not revisions.succeeded:
+        return None
+
+    for sha in (line.strip() for line in revisions.stdout.splitlines()):
+        if not sha:
+            continue
+        snapshot = run_git(plan.worktree, ["show", f"{sha}:{plan.relative_plan_path}"])
+        if not snapshot.succeeded:
+            return None
+        parsed = parse_snapshot_frontmatter(snapshot.stdout)
+        if parsed is not None and parsed.status == "in-review":
+            return True
+    return False
+
+
+def read_commits(plan: FeaturePlan, base: str) -> list[CommitRecord] | None:
+    """base..HEAD のコミット件名と親数を取得する。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+
+    Returns:
+        コミット一覧。ログ取得または形式解釈に失敗した場合は ``None``。
+    """
+    result = run_git(
+        plan.worktree,
+        ["log", "--format=%H%x1f%P%x1f%s", f"{base}..HEAD"],
+    )
+    if not result.succeeded:
+        return None
+
+    records: list[CommitRecord] = []
+    for line in result.stdout.splitlines():
+        if not line:
+            continue
+        parts = line.split("\x1f", 2)
+        if len(parts) != 3 or not parts[0]:
+            return None
+        records.append(
+            CommitRecord(
+                sha=parts[0],
+                parent_count=len(parts[1].split()),
+                subject=parts[2],
+            )
+        )
+    return records
+
+
+def is_planning_path(path: str, plan: FeaturePlan) -> bool:
+    """変更パスが当該 feature または worklog 配下かを判定する。
+
+    Args:
+        path: Git が返した worktree 相対パス。
+        plan: 導出対象 feature。
+
+    Returns:
+        計画系コミットに許可されるパスなら ``True``。
+    """
+    feature_prefix = str(Path(plan.relative_plan_path).parent).replace("\\", "/") + "/"
+    return path.startswith(feature_prefix) or path.startswith("docs/worklog/")
+
+
+def is_planning_commit(plan: FeaturePlan, commit: CommitRecord) -> bool:
+    """無記法コミットが計画系コミットの条件を満たすか判定する。
+
+    Args:
+        plan: 導出対象 feature。
+        commit: 判定対象コミット。
+
+    Returns:
+        変更パスが 1 件以上かつすべて許可配下なら ``True``。
+    """
+    if commit.parent_count >= 2:
+        return False
+    result = run_git(
+        plan.worktree,
+        ["diff-tree", "--no-commit-id", "--name-only", "-r", commit.sha],
+    )
+    if not result.succeeded:
+        return False
+    paths = [line for line in result.stdout.splitlines() if line]
+    return bool(paths) and all(is_planning_path(path, plan) for path in paths)
+
+
+def derive_progress(plan: FeaturePlan, base: str) -> Progress:
+    """実装ステップ表と base..HEAD のコミットから進捗 3 値を導出する。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+
+    Returns:
+        known / unknown / inconsistent、または Git 失敗を表す進捗。
+    """
+    table = parse_step_table(read_plan_text(plan.plan_path))
+    if not table.valid:
+        return Progress(kind="inconsistent", total=table.total)
+
+    commits = read_commits(plan, base)
+    if commits is None:
+        return Progress(kind="git_error", total=table.total)
+
+    completed: set[int] = set()
+    commits_without_tokens: list[CommitRecord] = []
+    for commit in commits:
+        tokens, malformed = extract_step_tokens(commit.subject, table.total)
+        if malformed or len(tokens) > 1:
+            return Progress(kind="inconsistent", total=table.total)
+        if tokens:
+            step = tokens[0]
+            if step > table.total:
+                return Progress(kind="inconsistent", total=table.total)
+            completed.add(step)
+        else:
+            commits_without_tokens.append(commit)
+
+    if completed:
+        maximum = max(completed)
+        if maximum > table.total or completed != set(range(1, maximum + 1)):
+            return Progress(kind="inconsistent", total=table.total)
+        return Progress(kind="known", completed=maximum, total=table.total)
+
+    if any(not is_planning_commit(plan, commit) for commit in commits_without_tokens):
+        return Progress(kind="unknown", total=table.total)
+    return Progress(kind="known", completed=0, total=table.total)
+
+
+def approved(frontmatter: Frontmatter) -> bool:
+    """承認値が codex_run.py と同じ ``済`` 始まりか判定する。
+
+    Args:
+        frontmatter: 判定対象の frontmatter。
+
+    Returns:
+        承認済みなら ``True``。
+    """
+    return frontmatter.approval.startswith("済")
+
+
+def number_display(value: int | None) -> str:
+    """拡張キーの数値を表示用に整形する。
+
+    Args:
+        value: 検証済み数値、または不正値を示す ``None``。
+
+    Returns:
+        数値文字列または ``不正値``。
+    """
+    return str(value) if value is not None else "不正値"
+
+
+def append_final_gate(stage: str, frontmatter: Frontmatter) -> str:
+    """確定ゲート周回がある段階表示へ補助情報を加える。
+
+    Args:
+        stage: 基本の段階表示。
+        frontmatter: 表示補助に使う frontmatter。
+
+    Returns:
+        確定ゲート周回を必要に応じて併記した表示。
+    """
+    if frontmatter.final_gate_round is not None and frontmatter.final_gate_round > 0:
+        return f"{stage}（確定ゲート {frontmatter.final_gate_round} 周）"
+    return stage
+
+
+def pr_status_stub(_: FeaturePlan) -> str:
+    """ステップ 2 の gh 連携まで PR 状態を未取得として返す。
+
+    Args:
+        _: 将来 gh 連携に必要となる feature 情報。
+
+    Returns:
+        ステップ 1 固定の PR 状態。
+    """
+    return "未取得"
+
+
+def git_failure_result(plan: FeaturePlan) -> FeatureResult:
+    """feature 単位の Git 取得失敗を表示用結果へ変換する。
+
+    Args:
+        plan: 失敗した feature。
+
+    Returns:
+        Git 失敗を明示した feature 結果。
+    """
+    return FeatureResult(
+        name=plan.name,
+        branch=plan.worktree.branch,
+        stage="未取得(git 失敗)",
+        progress=Progress(kind="git_error"),
+        pr_status=pr_status_stub(plan),
+        degradation="git 失敗",
+        frontmatter=plan.frontmatter,
+    )
+
+
+def derive_feature(plan: FeaturePlan) -> FeatureResult:
+    """stage 判定表の順序で 1 feature の現在地を導出する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        表示に必要な stage・進捗・縮退情報。
+    """
+    frontmatter = plan.frontmatter
+    pr_status = pr_status_stub(plan)
+
+    if not frontmatter.execution_mode_valid:
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage="未取得(実行方式不正)",
+            progress=Progress(kind="not_applicable", note="実行方式不正"),
+            pr_status=pr_status,
+            degradation="実行方式不正",
+            frontmatter=frontmatter,
+        )
+    if frontmatter.status == "in-review":
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage=append_final_gate("PR 段階", frontmatter),
+            progress=Progress(kind="not_applicable", note="PR 段階"),
+            pr_status=pr_status,
+            degradation=None,
+            frontmatter=frontmatter,
+        )
+    if frontmatter.execution_mode == "fast":
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage=append_final_gate("fast path 実装中", frontmatter),
+            progress=Progress(kind="not_applicable", note="fast path"),
+            pr_status=pr_status,
+            degradation=None,
+            frontmatter=frontmatter,
+        )
+
+    base = get_merge_base(plan)
+    if base is None:
+        return git_failure_result(plan)
+    rejection = has_unresolved_rejection(plan, base)
+    if rejection is None:
+        return git_failure_result(plan)
+    if rejection:
+        progress = derive_progress(plan, base)
+        if progress.kind == "git_error":
+            return git_failure_result(plan)
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage=append_final_gate("実装中(差し戻し修正)", frontmatter),
+            progress=progress,
+            pr_status=pr_status,
+            degradation=None,
+            frontmatter=frontmatter,
+        )
+    if not approved(frontmatter):
+        review_round = number_display(frontmatter.plan_review_round)
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage=append_final_gate(
+                f"計画段階(計画レビュー周回 {review_round} 周・承認待ち)", frontmatter
+            ),
+            progress=Progress(kind="not_applicable", note="計画段階"),
+            pr_status=pr_status,
+            degradation=None,
+            frontmatter=frontmatter,
+        )
+
+    progress = derive_progress(plan, base)
+    if progress.kind == "git_error":
+        return git_failure_result(plan)
+    if progress.kind == "unknown":
+        stage = "実装状況: 不明"
+    elif progress.kind == "inconsistent":
+        stage = "実装状況: 不整合(要確認)"
+    elif progress.completed == 0:
+        stage = f"実装前(全 {progress.total} ステップ)"
+    elif progress.completed is not None and progress.total is not None and progress.completed < progress.total:
+        stage = f"実装中(ステップ {progress.completed}/{progress.total} 完了)"
+    else:
+        stage = "実装完了・/pr 前"
+    return FeatureResult(
+        name=plan.name,
+        branch=plan.worktree.branch,
+        stage=append_final_gate(stage, frontmatter),
+        progress=progress,
+        pr_status=pr_status,
+        degradation=None,
+        frontmatter=frontmatter,
+    )
+
+
+def parse_failure_result(name: str, branch: str | None) -> FeatureResult:
+    """frontmatter 解析失敗を表示用結果へ変換する。
+
+    Args:
+        name: feature ディレクトリ名。
+        branch: worktree の実ブランチ名。
+
+    Returns:
+        解析失敗を明示した feature 結果。
+    """
+    return FeatureResult(
+        name=name,
+        branch=branch,
+        stage="未取得(frontmatter 解析失敗)",
+        progress=Progress(kind="not_applicable", note="frontmatter 解析失敗"),
+        pr_status="未取得",
+        degradation="frontmatter 解析失敗",
+        frontmatter=None,
+    )
+
+
+def collect_features(cwd: Path) -> tuple[list[FeatureResult], bool]:
+    """全 worktree の対象 plan を列挙し、表示結果を導出する。
+
+    Args:
+        cwd: worktree 列挙の基準ディレクトリ。
+
+    Returns:
+        feature 結果一覧と、worktree 列挙が成功したかの組。
+    """
+    worktrees, listed = list_worktrees(cwd)
+    if not listed:
+        return [], False
+
+    results: list[FeatureResult] = []
+    for worktree in worktrees:
+        if worktree.branch in PROTECTED_BRANCHES:
+            continue
+        feature_root = worktree.path / "docs" / "features"
+        try:
+            plans = sorted(feature_root.glob("*/plan.md"))
+        except Exception:
+            continue
+        for plan_path in plans:
+            frontmatter = read_frontmatter(plan_path)
+            if frontmatter is None:
+                results.append(parse_failure_result(plan_path.parent.name, worktree.branch))
+                continue
+            if worktree.branch is None or frontmatter.branch != worktree.branch:
+                continue
+            try:
+                relative_plan_path = plan_path.relative_to(worktree.path).as_posix()
+                feature_plan = FeaturePlan(
+                    name=plan_path.parent.name,
+                    plan_path=plan_path,
+                    relative_plan_path=relative_plan_path,
+                    worktree=worktree,
+                    frontmatter=frontmatter,
+                )
+                results.append(derive_feature(feature_plan))
+            except Exception:
+                results.append(
+                    FeatureResult(
+                        name=plan_path.parent.name,
+                        branch=worktree.branch,
+                        stage="未取得(導出失敗)",
+                        progress=Progress(kind="not_applicable", note="導出失敗"),
+                        pr_status="未取得",
+                        degradation="導出失敗",
+                        frontmatter=frontmatter,
+                    )
+                )
+    return results, True
+
+
+def format_progress(progress: Progress) -> str:
+    """ステップ進捗を人間向けの短い表示へ変換する。
+
+    Args:
+        progress: 表示対象の進捗。
+
+    Returns:
+        text/hook で共有する進捗表示。
+    """
+    if progress.kind == "known":
+        return f"{progress.completed}/{progress.total}"
+    if progress.kind == "unknown":
+        return "不明"
+    if progress.kind == "inconsistent":
+        return "不整合(要確認)"
+    if progress.kind == "git_error":
+        return "未取得(git 失敗)"
+    return f"未判定({progress.note or '対象外'})"
+
+
+def format_text_result(result: FeatureResult) -> str:
+    """1 feature の text 形式表示を組み立てる。
+
+    Args:
+        result: 表示対象 feature の導出結果。
+
+    Returns:
+        複数行の text 形式表示。
+    """
+    branch = result.branch or "未取得"
+    lines = [
+        f"feature: {result.name} ({branch})",
+        f"  段階: {result.stage}",
+        f"  ステップ進捗: {format_progress(result.progress)}",
+        f"  PR 状態: {result.pr_status}",
+    ]
+    if result.frontmatter is not None:
+        lines.extend(
+            [
+                f"  計画レビュー周回: {number_display(result.frontmatter.plan_review_round)}",
+                f"  確定ゲート周回: {number_display(result.frontmatter.final_gate_round)}",
+                "  実行方式: "
+                + (
+                    result.frontmatter.execution_mode
+                    if result.frontmatter.execution_mode_valid
+                    else "不正値"
+                ),
+            ]
+        )
+    if result.degradation is not None:
+        lines.append(f"  縮退: {result.degradation}")
+    return "\n".join(lines)
+
+
+def format_hook_result(result: FeatureResult) -> str:
+    """1 feature の hook 形式表示を 1 行で組み立てる。
+
+    Args:
+        result: 表示対象 feature の導出結果。
+
+    Returns:
+        SessionStart 注入に使える 1 行要約。
+    """
+    branch = result.branch or "未取得"
+    parts = [
+        f"{result.name}({branch})",
+        result.stage,
+        f"ステップ {format_progress(result.progress)}",
+        f"PR 状態: {result.pr_status}",
+    ]
+    if result.frontmatter is not None:
+        if result.frontmatter.plan_review_round is None:
+            parts.append("計画レビュー周回 不正値")
+        if result.frontmatter.final_gate_round is None:
+            parts.append("確定ゲート周回 不正値")
+    if result.degradation is not None:
+        parts.append(f"縮退: {result.degradation}")
+    return " / ".join(parts)
+
+
+def render(results: list[FeatureResult], listed: bool, output_format: str) -> str:
+    """列挙結果全体を指定形式で表示文字列へ変換する。
+
+    Args:
+        results: feature ごとの導出結果。
+        listed: worktree 列挙が成功したか。
+        output_format: ``text`` または ``hook``。
+
+    Returns:
+        標準出力へ送る文字列。
+    """
+    if not listed:
+        return "進行中 feature: 未取得(worktree 列挙失敗)"
+    if output_format == "hook":
+        return "\n".join(format_hook_result(result) for result in results)
+    if not results:
+        return "進行中 feature: なし"
+    return "\n\n".join(format_text_result(result) for result in results)
+
+
+def parse_args(argv: Sequence[str] | None) -> argparse.Namespace | None:
+    """CLI 引数を fail-open で解析する。
+
+    Args:
+        argv: ``None`` ならプロセス引数、それ以外はテスト用引数列。
+
+    Returns:
+        解析済み引数。不正な引数形式なら ``None``。
+    """
+    parser = argparse.ArgumentParser(description="feature の現在地を導出して表示する")
+    parser.add_argument("--format", dest="output_format", default="text")
+    parser.add_argument("--cwd", default=".")
+    try:
+        parsed = parser.parse_args(argv)
+    except SystemExit:
+        return None
+    if parsed.output_format not in {"text", "hook"}:
+        return None
+    return parsed
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """CLI を実行し、失敗時も常に終了コード 0 を返す。
+
+    Args:
+        argv: ``None`` ならプロセス引数、それ以外はテスト用引数列。
+
+    Returns:
+        常に 0。
+    """
+    try:
+        parsed = parse_args(argv)
+        if parsed is None:
+            print("進行中 feature: 未取得(引数不正)")
+            return 0
+        results, listed = collect_features(Path(parsed.cwd))
+        rendered = render(results, listed, parsed.output_format)
+        if rendered:
+            print(rendered)
+    except Exception:
+        print("進行中 feature: 未取得(導出失敗)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
