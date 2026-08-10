@@ -1,19 +1,23 @@
 """セッション開始時の文脈注入フック(SessionStart)。
 
-現在ブランチ・未コミット差分・進行中 feature(plan.md の status: active)・
-最新 worklog の要点を additionalContext として注入する(設計書 8.3)。失敗時は沈黙。
+現在ブランチ・未コミット差分・feature_status.py が導出した進行中 feature・
+最新 worklog の要点を additionalContext として注入する(設計書 8.3)。
 """
 import json
-import re
 import subprocess
 import sys
+from pathlib import Path
+
+
+FEATURE_STATUS_PYTHON = "/usr/bin/python3"
+FEATURE_STATUS_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "feature_status.py"
+FEATURE_STATUS_TIMEOUT_SECONDS = 10
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 except Exception:
     pass
-from pathlib import Path
 
 
 def git(args: list[str], cwd: str) -> str:
@@ -26,21 +30,37 @@ def git(args: list[str], cwd: str) -> str:
         return ""
 
 
-def list_worktrees(cwd: str) -> list[dict]:
-    """全 worktree(メインツリー含む)を path・branch で列挙する(2周目 P1 対応)。"""
-    out = git(["worktree", "list", "--porcelain"], cwd)
-    wts: list[dict] = []
-    cur: dict = {}
-    for ln in out.splitlines():
-        if ln.startswith("worktree "):
-            if cur:
-                wts.append(cur)
-            cur = {"path": ln[len("worktree "):]}
-        elif ln.startswith("branch "):
-            cur["branch"] = ln[len("branch "):].removeprefix("refs/heads/")
-    if cur:
-        wts.append(cur)
-    return wts
+def feature_status_summary(cwd: str) -> str | None:
+    """feature_status.py の hook 形式出力を取得する。
+
+    Args:
+        cwd: SessionStart 入力で指定された基準ディレクトリ。
+
+    Returns:
+        正常終了時は末尾改行を除いた hook 出力。子プロセスの失敗時は ``None``。
+    """
+    try:
+        result = subprocess.run(
+            [
+                FEATURE_STATUS_PYTHON,
+                str(FEATURE_STATUS_SCRIPT),
+                "--format",
+                "hook",
+                "--cwd",
+                cwd,
+            ],
+            capture_output=True,
+            cwd=cwd or None,
+            encoding="utf-8",
+            errors="replace",
+            text=True,
+            timeout=FEATURE_STATUS_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.rstrip("\r\n")
 
 
 def main() -> int:
@@ -60,34 +80,12 @@ def main() -> int:
         if branch in ("main", "develop"):
             lines.append("注意: 保護ブランチ上にいます。作業は /task-start で feature/* を切ってから。")
 
-    # 進行中 feature の正は「worktree の現存」(設計書 6.1/7.6)。cwd 配下だけでなく
-    # 全 worktree(メインツリー・兄弟 worktree)の plan.md を列挙する(2周目 P1 対応)
     root = Path(cwd)
-    active = []
-    worktree_entries = list_worktrees(cwd) or [{"path": str(root)}]
-    for wt in worktree_entries:
-        b = wt.get("branch", "")
-        # 保護ブランチ上の worktree はマージ済み plan の複製を含むため除外(3周目 P1)
-        if b in ("main", "develop"):
-            continue
-        fdir = Path(wt.get("path", "")) / "docs" / "features"
-        if not fdir.is_dir():
-            continue
-        for plan in fdir.glob("*/plan.md"):
-            try:
-                head = plan.read_text(encoding="utf-8")[:800]
-            except Exception:
-                continue
-            if "status: active" not in head and "status: in-review" not in head:
-                continue
-            # plan の branch がこの worktree のブランチと**完全一致**するものだけを「進行中」とする
-            # (branch 欠落・不一致・detached HEAD は表示しない — 4周目 P2)
-            m = re.search(r"^branch:\s*(\S+)", head, re.M)
-            if not b or not m or m.group(1) != b:
-                continue
-            active.append(f"{plan.parent.name}({b})")
-    if active:
-        lines.append("進行中の feature(worktree 現存): " + ", ".join(sorted(set(active))))
+    summary = feature_status_summary(cwd)
+    if summary is None:
+        lines.append("進行中 feature: 未取得(導出失敗)")
+    elif summary:
+        lines.append(summary)
 
     worklog = root / "docs" / "worklog"
     if worklog.is_dir():
