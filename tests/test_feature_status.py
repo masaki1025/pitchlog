@@ -357,7 +357,7 @@ def test_duplicate_machine_read_frontmatter_keys_are_parse_failures(
 def test_selection_matrix_and_parse_failure_priority(tmp_path: Path):
     """worktree・branch・厳密 status の選別順を検証する。"""
     root, worktree = init_repository(tmp_path)
-    write_plan(worktree, "valid", approval="未")
+    write_plan(worktree, "foo", approval="未")
     comment_worktree = add_feature_worktree(root, tmp_path, "feature/comment")
     write_plan(
         comment_worktree,
@@ -405,7 +405,7 @@ def test_selection_matrix_and_parse_failure_priority(tmp_path: Path):
     completed = run_status(root)
     assert completed.returncode == 0
     output = completed.stdout
-    for name in ("valid", "comment", "body-match"):
+    for name in ("foo", "comment", "body-match"):
         assert f"feature: {name} " in output
     for name in ("branch-mismatch", "branch-missing", "develop-only", "main-only"):
         assert f"feature: {name} " not in output
@@ -444,13 +444,31 @@ def test_worktree_plan_resolution_failures_are_visible_in_text_and_hook(
         assert "未取得(plan 不在)" in block_getter(output, "feature/foo")
         assert "未取得(plan 不在)" in block_getter(output, "fix/no-plan")
         assert "未取得(branch 不整合)" in block_getter(output, "mismatch")
-        assert "未取得(plan 重複)" in block_getter(output, "duplicate")
+        assert "未取得(plan 重複)" in block_getter(output, "another")
+
+
+def test_misplaced_matching_plans_are_not_adopted_in_text_or_hook(tmp_path: Path):
+    """期待パス外の branch 一致 plan を対応 plan として採用しない。"""
+    root, worktree = init_repository(tmp_path)
+    write_plan(worktree, "bar", branch="feature/foo")
+
+    mismatch_worktree = add_feature_worktree(root, tmp_path, "feature/mismatch")
+    write_plan(mismatch_worktree, "mismatch", branch="feature/other")
+    write_plan(mismatch_worktree, "elsewhere", branch="feature/mismatch")
+
+    text_output = run_status(root).stdout
+    hook_output = run_status(root, "hook").stdout
+    for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
+        assert "未取得(plan 不在)" in block_getter(output, "feature/foo")
+        assert "未取得(plan 重複)" in block_getter(output, "bar")
+        assert "未取得(branch 不整合)" in block_getter(output, "mismatch")
+        assert "未取得(plan 重複)" in block_getter(output, "elsewhere")
 
 
 def test_approval_values_select_plan_or_implementation_stage(tmp_path: Path):
     """承認の startswith('済') 判定と欠落時の計画段階を検証する。"""
     root, worktree = init_repository(tmp_path)
-    write_plan(worktree, "approved-short", approval="済")
+    write_plan(worktree, approval="済")
     approved_full = add_feature_worktree(root, tmp_path, "feature/approved-full")
     write_plan(
         approved_full,
@@ -474,7 +492,7 @@ def test_approval_values_select_plan_or_implementation_stage(tmp_path: Path):
     )
 
     output = run_status(root).stdout
-    assert "実装前(全 2 ステップ)" in feature_block(output, "approved-short")
+    assert "実装前(全 2 ステップ)" in feature_block(output, "foo")
     assert "実装前(全 2 ステップ)" in feature_block(output, "approved-full")
     assert "計画段階" in feature_block(output, "not-approved")
     assert "計画段階" in feature_block(output, "approval-missing")
@@ -722,14 +740,14 @@ def test_unmarked_implementation_mixed_with_tokened_steps_is_unknown(
 def test_documentation_only_commits_mixed_with_tokened_steps_keep_known_progress(
     tmp_path: Path,
 ):
-    """docs と .claude だけの無記法コミットは tokened 進捗を妨げない。"""
+    """docs 配下と任意配置の .md は tokened 進捗を妨げない。"""
     root, worktree, _ = setup_committed_plan(tmp_path)
     commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
     docs_note = worktree / "docs" / "notes.md"
     docs_note.parent.mkdir(parents=True, exist_ok=True)
     docs_note.write_text("補足\n", encoding="utf-8")
     commit_all(worktree, "docs: 補足を追加")
-    claude_note = worktree / ".claude" / "notes.md"
+    claude_note = worktree / ".claude" / "skills" / "x" / "SKILL.md"
     claude_note.parent.mkdir(parents=True, exist_ok=True)
     claude_note.write_text("補足\n", encoding="utf-8")
     commit_all(worktree, "chore: Claude 設定の補足")
@@ -741,10 +759,46 @@ def test_documentation_only_commits_mixed_with_tokened_steps_keep_known_progress
     assert "ステップ進捗: 2/2" in block
 
 
-def test_merge_commit_mixed_with_tokened_steps_keeps_known_progress(
+def test_unmarked_claude_python_mixed_with_tokened_steps_is_unknown(
+    tmp_path: Path,
+):
+    """.claude 配下でも Python を含む無記法コミットは実装系にする。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    hook = worktree / ".claude" / "hooks" / "x.py"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("print('hook')\n", encoding="utf-8")
+    commit_all(worktree, "chore: hook を更新")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装状況: 不明" in block
+    assert "ステップ進捗: 不明(無記法の実装コミット混在)" in block
+
+
+def test_develop_merge_mixed_with_tokened_steps_keeps_known_progress(
     tmp_path: Path,
 ):
     """開発ブランチ取り込みマージは tokened 進捗を不明にしない。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    develop_note = root / "docs" / "develop-note.md"
+    develop_note.parent.mkdir(parents=True, exist_ok=True)
+    develop_note.write_text("取り込み対象\n", encoding="utf-8")
+    commit_all(root, "docs: develop 側の補足")
+    git(root, "update-ref", "refs/remotes/origin/develop", "HEAD")
+    git(worktree, "merge", "--no-ff", "develop", "-m", "merge: develop を取り込む")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装完了・/pr 前" in block
+    assert "ステップ進捗: 2/2" in block
+
+
+def test_side_branch_merge_mixed_with_tokened_steps_is_unknown(tmp_path: Path):
+    """origin/develop 系でない 2 親マージは tokened 進捗でも不明にする。"""
     root, worktree, _ = setup_committed_plan(tmp_path)
     commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
     side_worktree = tmp_path / "side"
@@ -758,23 +812,72 @@ def test_merge_commit_mixed_with_tokened_steps_keeps_known_progress(
         str(side_worktree),
         "feature/foo",
     )
-    side_note = side_worktree / "docs" / "side-note.md"
-    side_note.parent.mkdir(parents=True, exist_ok=True)
-    side_note.write_text("取り込み対象\n", encoding="utf-8")
-    commit_all(side_worktree, "docs: 取り込み用の補足")
-    git(worktree, "merge", "--no-ff", "feature/side", "-m", "merge: side を取り込む")
+    side_code = side_worktree / "implementation" / "side.py"
+    side_code.parent.mkdir(parents=True, exist_ok=True)
+    side_code.write_text("SIDE = True\n", encoding="utf-8")
+    commit_all(side_worktree, "feat: side の実装 (ステップ 1/2)")
+    git(
+        worktree,
+        "merge",
+        "--no-ff",
+        "feature/side",
+        "-m",
+        "merge: side を取り込む (ステップ 1/2)",
+    )
     commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
 
     block = feature_block(run_status(root).stdout, "foo")
 
-    assert "実装完了・/pr 前" in block
-    assert "ステップ進捗: 2/2" in block
+    assert "実装状況: 不明" in block
+    assert "ステップ進捗: 不明(許可されないマージコミット混在)" in block
+
+
+def test_diff_tree_failure_mixed_with_tokened_steps_is_unknown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """diff-tree の取得失敗は tokened 進捗でも独立して不明にする。"""
+    _, worktree, plan_path = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    note = worktree / "docs" / "notes.md"
+    note.parent.mkdir(parents=True, exist_ok=True)
+    note.write_text("取得失敗を模擬する対象\n", encoding="utf-8")
+    commit_all(worktree, "docs: パス取得を失敗させる")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    plan = feature_plan_for_direct_call(worktree, plan_path)
+    base = feature_status.get_merge_base(plan)
+    assert base is not None
+    original_read_commit_paths = feature_status.read_commit_paths
+
+    def fail_one_commit(
+        target_plan,
+        commit,
+    ):
+        """指定した無記法コミットだけ diff-tree 取得失敗にする。
+
+        Args:
+            target_plan: read_commit_paths に渡される feature plan。
+            commit: 変更パスを読む対象コミット。
+
+        Returns:
+            対象コミットなら ``None``、それ以外なら元の変更パス一覧。
+        """
+        if commit.subject == "docs: パス取得を失敗させる":
+            return None
+        return original_read_commit_paths(target_plan, commit)
+
+    monkeypatch.setattr(feature_status, "read_commit_paths", fail_one_commit)
+    progress = feature_status.derive_progress(plan, base)
+
+    assert progress.kind == "unknown"
+    assert feature_status.format_progress(progress) == "不明(コミット分類の取得失敗)"
 
 
 def test_execution_modes_and_comments_in_text_and_hook(tmp_path: Path):
     """fast・通常・省略・不正な実行方式を両出力形式で判定する。"""
     root, worktree = init_repository(tmp_path)
-    write_plan(worktree, "fast", execution_mode="fast # コメント")
+    write_plan(worktree, execution_mode="fast # コメント")
     normal_worktree = add_feature_worktree(root, tmp_path, "feature/normal")
     write_plan(
         normal_worktree,
@@ -802,7 +905,7 @@ def test_execution_modes_and_comments_in_text_and_hook(tmp_path: Path):
     text_output = run_status(root, "text").stdout
     hook_output = run_status(root, "hook").stdout
     for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
-        assert "fast path 実装中" in block_getter(output, "fast")
+        assert "fast path 実装中" in block_getter(output, "foo")
         assert "実装前(全 2 ステップ)" in block_getter(output, "normal")
         assert "実装前(全 2 ステップ)" in block_getter(output, "omitted")
         assert "未取得(実行方式不正)" in block_getter(output, "invalid")
@@ -882,7 +985,7 @@ def test_in_review_only_on_base_side_does_not_trigger_rejection(tmp_path: Path):
 def test_parse_failures_are_visible_without_hiding_healthy_feature(tmp_path: Path):
     """非閉止・8KiB 超過 plan は健全 feature と併存しても表示する。"""
     root, worktree = init_repository(tmp_path)
-    write_plan(worktree, "healthy", approval="未")
+    write_plan(worktree, approval="未")
 
     unclosed = worktree / "docs" / "features" / "unclosed" / "plan.md"
     unclosed.parent.mkdir(parents=True)
@@ -901,7 +1004,7 @@ def test_parse_failures_are_visible_without_hiding_healthy_feature(tmp_path: Pat
 
     text_output = run_status(root).stdout
     hook_output = run_status(root, "hook").stdout
-    assert "feature: healthy " in text_output
+    assert "feature: foo " in text_output
     for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
         assert "未取得(frontmatter 解析失敗)" in block_getter(output, "unclosed")
         assert "未取得(frontmatter 解析失敗)" in block_getter(output, "oversized")

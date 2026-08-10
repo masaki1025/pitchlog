@@ -124,11 +124,13 @@ class CommitRecord:
         sha: コミット ID。
         parent_count: 親コミット数。
         subject: コミット件名。
+        second_parent: 2 親マージ時の第 2 親コミット ID。その他では ``None``。
     """
 
     sha: str
     parent_count: int
     subject: str
+    second_parent: str | None = None
 
 
 @dataclass(frozen=True)
@@ -572,11 +574,13 @@ def read_commits(plan: FeaturePlan, base: str) -> list[CommitRecord] | None:
         parts = line.split("\x1f", 2)
         if len(parts) != 3 or not parts[0]:
             return None
+        parents = parts[1].split()
         records.append(
             CommitRecord(
                 sha=parts[0],
-                parent_count=len(parts[1].split()),
+                parent_count=len(parents),
                 subject=parts[2],
+                second_parent=parents[1] if len(parents) == 2 else None,
             )
         )
     return records
@@ -597,39 +601,81 @@ def is_planning_path(path: str, plan: FeaturePlan) -> bool:
 
 
 def is_documentation_path(path: str) -> bool:
-    """変更パスがコードに触れない文書系配下かを判定する。
+    """変更パスがコードに触れない文書系かを判定する。
 
     Args:
         path: Git が返した worktree 相対パス。
 
     Returns:
-        docs、.claude、.github のいずれかの配下なら True。
+        docs 配下、または拡張子が ``.md`` なら ``True``。
     """
-    return path.startswith(("docs/", ".claude/", ".github/"))
+    return path.startswith("docs/") or path.endswith(".md")
+
+
+def read_commit_paths(plan: FeaturePlan, commit: CommitRecord) -> list[str] | None:
+    """コミットの変更パスを読み取り、取得失敗を区別して返す。
+
+    Args:
+        plan: 導出対象 feature。
+        commit: 変更パスを調べるコミット。
+
+    Returns:
+        変更パス一覧。``None`` は diff-tree の取得失敗、空一覧は空 diff。
+    """
+    result = run_git(
+        plan.worktree,
+        ["diff-tree", "--no-commit-id", "--name-only", "-r", commit.sha],
+    )
+    if not result.succeeded:
+        return None
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def is_develop_integration_merge(plan: FeaturePlan, commit: CommitRecord) -> bool:
+    """2 親マージが origin/develop の取り込みかを安全側で判定する。
+
+    Args:
+        plan: 導出対象 feature。
+        commit: 判定対象のマージコミット。
+
+    Returns:
+        第 2 親が origin/develop の祖先なら ``True``。取得失敗を含む
+        その他の状態は ``False``。
+    """
+    if commit.parent_count != 2 or commit.second_parent is None:
+        return False
+    result = run_git(
+        plan.worktree,
+        [
+            "merge-base",
+            "--is-ancestor",
+            commit.second_parent,
+            "origin/develop",
+        ],
+    )
+    return result.succeeded
 
 
 def classify_unmarked_commit(plan: FeaturePlan, commit: CommitRecord) -> str:
-    """無記法コミットを進捗導出用の5分類のいずれかへ分ける。
+    """無記法コミットを進捗導出用の分類へ安全側で分ける。
 
     Args:
         plan: 導出対象 feature。
         commit: 判定対象コミット。
 
     Returns:
-        planning、documentation、conservative、implementation のいずれか。
-        マージ・空 diff・取得不能は保守的な conservative。
+        planning、documentation、empty、merge_allowed、merge_unknown、
+        classification_error、implementation のいずれか。
     """
     if commit.parent_count >= 2:
-        return "conservative"
-    result = run_git(
-        plan.worktree,
-        ["diff-tree", "--no-commit-id", "--name-only", "-r", commit.sha],
-    )
-    if not result.succeeded:
-        return "conservative"
-    paths = [line for line in result.stdout.splitlines() if line]
+        if is_develop_integration_merge(plan, commit):
+            return "merge_allowed"
+        return "merge_unknown"
+    paths = read_commit_paths(plan, commit)
+    if paths is None:
+        return "classification_error"
     if not paths:
-        return "conservative"
+        return "empty"
     if all(is_planning_path(path, plan) for path in paths):
         return "planning"
     if all(is_documentation_path(path) for path in paths):
@@ -661,11 +707,18 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
         tokens, malformed = extract_step_tokens(commit.subject, table.total)
         if malformed or len(tokens) > 1:
             return Progress(kind="inconsistent", total=table.total)
+        merge_kind: str | None = None
+        if commit.parent_count >= 2:
+            merge_kind = classify_unmarked_commit(plan, commit)
         if tokens:
             step = tokens[0]
             if step > table.total:
                 return Progress(kind="inconsistent", total=table.total)
             completed.add(step)
+            if merge_kind == "merge_unknown":
+                unmarked_kinds.append(merge_kind)
+        elif merge_kind is not None:
+            unmarked_kinds.append(merge_kind)
         else:
             unmarked_kinds.append(classify_unmarked_commit(plan, commit))
 
@@ -673,6 +726,18 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
         maximum = max(completed)
         if maximum > table.total or completed != set(range(1, maximum + 1)):
             return Progress(kind="inconsistent", total=table.total)
+        if "classification_error" in unmarked_kinds:
+            return Progress(
+                kind="unknown",
+                total=table.total,
+                note="コミット分類の取得失敗",
+            )
+        if "merge_unknown" in unmarked_kinds:
+            return Progress(
+                kind="unknown",
+                total=table.total,
+                note="許可されないマージコミット混在",
+            )
         if "implementation" in unmarked_kinds:
             return Progress(
                 kind="unknown",
@@ -681,6 +746,24 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
             )
         return Progress(kind="known", completed=maximum, total=table.total)
 
+    if "classification_error" in unmarked_kinds:
+        return Progress(
+            kind="unknown",
+            total=table.total,
+            note="コミット分類の取得失敗",
+        )
+    if "merge_unknown" in unmarked_kinds:
+        return Progress(
+            kind="unknown",
+            total=table.total,
+            note="許可されないマージコミット混在",
+        )
+    if "implementation" in unmarked_kinds:
+        return Progress(
+            kind="unknown",
+            total=table.total,
+            note="無記法の実装コミット",
+        )
     if any(kind not in {"planning", "documentation"} for kind in unmarked_kinds):
         return Progress(kind="unknown", total=table.total)
     return Progress(kind="known", completed=0, total=table.total)
@@ -1105,7 +1188,7 @@ def collect_features(
             plans = sorted(feature_root.glob("*/plan.md"))
         except Exception:
             continue
-        matching_plans: list[tuple[Path, Frontmatter]] = []
+        parsed_plans: dict[Path, Frontmatter] = {}
         parse_failed_paths: set[Path] = set()
         for plan_path in plans:
             frontmatter = read_frontmatter(plan_path)
@@ -1113,44 +1196,54 @@ def collect_features(
                 results.append(parse_failure_result(plan_path.parent.name, worktree.branch))
                 parse_failed_paths.add(plan_path)
                 continue
-            if worktree.branch is not None and frontmatter.branch == worktree.branch:
-                matching_plans.append((plan_path, frontmatter))
+            parsed_plans[plan_path] = frontmatter
 
         expected_slug = expected_feature_slug(worktree.branch)
-        if len(matching_plans) == 0:
-            if expected_slug is None or worktree.branch is None:
-                continue
-            expected_plan_path = feature_root / expected_slug / "plan.md"
-            if expected_plan_path in parse_failed_paths:
-                continue
-            if expected_plan_path.is_file():
-                results.append(
-                    worktree_resolution_failure_result(
-                        expected_slug,
-                        worktree.branch,
-                        "branch 不整合",
-                    )
-                )
-            else:
-                results.append(
-                    worktree_resolution_failure_result(
-                        worktree.branch,
-                        worktree.branch,
-                        "plan 不在",
-                    )
-                )
+        if expected_slug is None or worktree.branch is None:
             continue
-        if len(matching_plans) >= 2:
+
+        expected_plan_path = feature_root / expected_slug / "plan.md"
+        misplaced_matching_plans = [
+            (plan_path, frontmatter)
+            for plan_path, frontmatter in parsed_plans.items()
+            if plan_path != expected_plan_path and frontmatter.branch == worktree.branch
+        ]
+        frontmatter = parsed_plans.get(expected_plan_path)
+        plan_path: Path | None = None
+
+        if expected_plan_path in parse_failed_paths:
+            # 期待 plan 自身の解析失敗は、走査時に既に顕在化している。
+            pass
+        elif frontmatter is None:
             results.append(
                 worktree_resolution_failure_result(
-                    expected_slug or worktree.branch or "未取得",
-                    worktree.branch or "未取得",
+                    worktree.branch,
+                    worktree.branch,
+                    "plan 不在",
+                )
+            )
+        elif frontmatter.branch != worktree.branch:
+            results.append(
+                worktree_resolution_failure_result(
+                    expected_slug,
+                    worktree.branch,
+                    "branch 不整合",
+                )
+            )
+        else:
+            plan_path = expected_plan_path
+
+        for misplaced_path, _ in misplaced_matching_plans:
+            results.append(
+                worktree_resolution_failure_result(
+                    misplaced_path.parent.name,
+                    worktree.branch,
                     "plan 重複",
                 )
             )
-            continue
 
-        plan_path, frontmatter = matching_plans[0]
+        if plan_path is None or frontmatter is None:
+            continue
         try:
             relative_plan_path = plan_path.relative_to(worktree.path).as_posix()
             feature_plan = FeaturePlan(
