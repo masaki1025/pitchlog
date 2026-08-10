@@ -17,3 +17,5 @@ disable-model-invocation: true
 5. 採用/不採用の一覧を提示して**人間の承認を明示的に求める**(曖昧な同意で進めない)
 6. 承認後: 状態を `approved`・版数確定・変更履歴表に追記・`docs/README.md` 索引を現行化する
 7. レビュー往復の要点(重要指摘と対応)を worklog に記録する
+
+- 指摘反映で**コード修正**が必要になり、かつ実行中 feature の plan が `in-review`(PR 段階)の場合は、先に /pr の「差し戻しが発生したら」手順で `status: active` へ戻してから /implement する(`codex_run.py implement` は `active` 以外を拒否する — 設計書 6.1 差し戻しの往復)

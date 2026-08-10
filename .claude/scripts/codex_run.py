@@ -1,10 +1,10 @@
 """Codex 実行の唯一の許可経路(設計書 12.1 / 敵対レビュー P0-2 対応)。
 
 生の `codex exec` は codex_guard フックが遮断する。本ラッパーが
-計画書の承認状態・実行場所(worktree)・sandbox・モデル対応表(ADR-001)を検証・固定する。
+計画書の plan status(implement のみ・active 必須)と承認状態・実行場所(worktree)・sandbox・モデル対応表(ADR-001)を検証・固定する。
 
 使い方:
-  python .claude/scripts/codex_run.py implement <plan.md> [--resume] [-]   # 実装(承認済み計画書必須)
+  python .claude/scripts/codex_run.py implement <plan.md> [--resume] [-]   # 実装(status: active かつ承認済み計画書必須)
   python .claude/scripts/codex_run.py fast [-]                             # 軽微 fast path(6.1。人間の事前OK前提)
   python .claude/scripts/codex_run.py research [--deep] [-]                # Web調査(read-only + live search)
   python .claude/scripts/codex_run.py review <normal|adversarial> [-]      # レビュー(read-only。差分指定はプロンプトに書く)
@@ -40,6 +40,11 @@ REVIEW_ADVERSARIAL = ("gpt-5.6-sol", "xhigh")
 
 WORKTREES_DIRNAME = "pitchlog-worktrees"
 
+# `codex_run.py` ↔ `scripts/feature_status.py:301-307` の相互参照:
+# status 判定は同じ手順・正規表現リテラルを維持する。両スクリプトの独立性のため import は共有しない。
+STATUS_CANDIDATE_RE = re.compile(r"^status\s*:")
+STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
+
 
 def die(msg: str) -> None:
     print(f"codex_run: エラー: {msg}", file=sys.stderr)
@@ -73,17 +78,56 @@ def has_filled_step_row(plan_text: str) -> bool:
     return False
 
 
-def parse_frontmatter(path: Path) -> dict[str, str]:
+def parse_frontmatter(path: Path) -> tuple[dict[str, str], str]:
+    """完全一致デリミタの frontmatter を辞書と本文として返す。
+
+    Args:
+        path: 解析対象の計画書。
+
+    Returns:
+        frontmatter のキー・値辞書と、開閉デリミタを除いた本文。
+    """
     text = path.read_text(encoding="utf-8")
-    m = re.match(r"\A---\s*\n(.*?)\n---", text, re.DOTALL)
-    if not m:
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
         die(f"計画書 {path} に frontmatter がない")
+    try:
+        end = next(index for index, line in enumerate(lines[1:], start=1) if line == "---")
+    except StopIteration:
+        die(f"計画書 {path} に frontmatter がない")
+
+    body = "\n".join(lines[1:end])
     fm: dict[str, str] = {}
-    for line in m.group(1).splitlines():
+    for line in body.splitlines():
         if ":" in line:
             k, v = line.split(":", 1)
             fm[k.strip()] = v.split("#")[0].strip()
-    return fm
+    return fm, body
+
+
+def require_active_plan_status(frontmatter_body: str) -> None:
+    """実装前に計画書の status が active であることを確認する。"""
+    status_lines = [
+        line for line in frontmatter_body.splitlines() if STATUS_CANDIDATE_RE.match(line)
+    ]
+    if len(status_lines) != 1:
+        detail = "欠落" if not status_lines else f"重複: {' / '.join(status_lines)}"
+        die(
+            f"計画書の status 行が不正({detail})。"
+            "status: <active|in-review> をちょうど 1 行にする(設計書 7.1-5)"
+        )
+
+    status_match = STATUS_LINE_RE.fullmatch(status_lines[0])
+    if status_match is None:
+        die(
+            f"計画書の status 行が不正({status_lines[0]})。"
+            "status: <active|in-review> をちょうど 1 行にする(設計書 7.1-5)"
+        )
+    if status_match.group(1) != "active":
+        die(
+            "計画書が in-review(PR 段階)。修正の再開は先に plan frontmatter を "
+            "status: active に戻す — /pr の差し戻し手順(設計書 6.1 差し戻しの往復)"
+        )
 
 
 def session_file(plan: Path) -> Path:
@@ -219,7 +263,8 @@ def cmd_implement(args: list[str]) -> int:
     plan = Path(args[0]).resolve()
     if not plan.is_file():
         die(f"計画書が見つからない: {plan}")
-    fm = parse_frontmatter(plan)
+    fm, frontmatter_body = parse_frontmatter(plan)
+    require_active_plan_status(frontmatter_body)
     approval = fm.get("承認", "未")
     if not approval.startswith("済"):
         die(f"計画書が未承認(承認: {approval})。/plan のレビューと人間承認を先に(設計書 6.1)")

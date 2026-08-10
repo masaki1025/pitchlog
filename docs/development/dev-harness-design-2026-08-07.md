@@ -31,6 +31,7 @@ status: approved
 | 1.2 | 2026-08-10 | **確定ゲート通過(approved)**: 反対側レビュー 1 周(terra max)+ 敵対レビュー 5 周(sol xhigh — 1〜4 周目の否決指摘 **P1×10/P2×4 を全件採用**・5 周目 P0/P1/P2 指摘なしで収束。`git branch -d` の git_guard 通過・両アンカーの origin 一致・ベースライン PR での CI 実行可否まで実測検証)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 | 1.3 | 2026-08-10 | **feature 現在地の導出機構 + 計画書 3 ファイル役割分担の規約化(起案)**: 6.1 — 標準構成へ design.md(詳細設計・任意)と plan = 契約の位置づけを追記・plan frontmatter 拡張キー 3 個(計画レビュー周回・確定ゲート周回・実行方式 — 指摘反映を伴う周のみ数える)・ステップコミット件名の完全トークン記法 `(ステップ <k>[/<N>][ 付記])`(既存慣行の明文化)・差し戻しの往復ライフサイクル(再開 = in-review → active / 修正完了 = active → in-review・OPEN の既存 PR は再レビュー依頼のみ)を新設 / 7.6-4 — 現在地導出の機械化(`scripts/feature_status.py` — 無保存・派生表示・Notion 不一致は顕在化のみ。完了の正は従来の組のまま)を注記 / 8.3 — session_context 行を feature_status.py 委譲(単一実装・失敗時「未取得」注入)へ更新。当初 7.6-3 前段(実装追随の節更新)として起案 → 反対側レビュー P1 の挑戦を受け、**PO 判定(2026-08-10)で構造的規約変更 = 版繰り上げ + 7.3 確定ゲートへ切替**(前例: ci-foundation の 7 章規約新設 v1.1)。実装計画ゲート = review normal 11 周収束 + PO 承認(docs/features/feature-status/plan.md) | in-review |
 | 1.3 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 5 周(sol xhigh — 1 周目 P1×5/P2×2・2 周目 P1×4・3 周目 P1×1・4 周目 P1×1 を**全件採用・不採用 0 件**、5 周目 P0/P1/P2 指摘なしで収束。導出実装の反例再現・smoke・194 passed まで実機検証。周回カウンタの計上漏れを機構自身のドッグフーディングで 2 度検出・是正)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
+| 1.3 | 2026-08-11 | **codex-plan-status-guard の実装追随(7.6-3 前段・節更新)**: 6.1 — 機構検証の列挙へ plan status(implement 限定・`active` 以外は拒否・差し戻し手順へ誘導)を追記し、v1.3 受容の既知残余リスク注記(status 非強制)を予告どおり削除 / 8.4 — /implement 行を「`status: active` かつ承認済み」へ追随 / 9.2 — 検証列挙と implement コマンド注記へ status を追記。あわせてラッパーの frontmatter 抽出を docs-lint と同一の完全一致 `---` のみ受理へ是正(偽終端による status 検証迂回の排除 — 計画レビュー 1 周目 P0)。ゲート = PR レビュー・版繰り上げなし(PO 判定 2026-08-10。計画: docs/features/codex-plan-status-guard/plan.md) | approved |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本。
 > **本書の v1.0 は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件。**現在の状態の正は冒頭の frontmatter** — 7.1-5）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
@@ -247,7 +248,7 @@ flowchart TD
   - 下調べには調査サブエージェント（8.5）を使い、結論には典拠を添える
 - **1 feature = 1 ディレクトリ**: feature の作業文書は `docs/features/<slug>/` ディレクトリに集約する（`docs/features/` 直下に単発ファイルを置かない）。標準構成 — `plan.md`（実装計画書・必須。**契約 — 機構が読む状態〔status・承認・worktree・branch・重さ分類・拡張キー〕と実装ステップ表はこのファイルのみに置く**）/ `research.md`（調査 — /investigate・/research の統合先）/ `design.md`（**詳細設計・検討メモ — 任意**。plan の密度が高くなる場合に /plan が分離し、plan 4 節から相対リンクで参照する〔内容を複製しない — 7.1-1。テンプレ: design-template.md〕）/ `.codex-session`（Codex セッション追跡 — gitignore）/ 補助資料（図・検討メモ等。命名自由で任意追加）
 - **段階実装（こまめなコミット — 2026-08-07 PO 指示）**: コーディングは計画書 4 節の「実装ステップ（コミット単位）」表に沿って進める。**1 回の委任 = 1 ステップ**とし、ステップ完了ごとに Claude が検証して **1 コミット**を作る（Conventional Commits）。全ステップの一括委任はしない。ステップはレビュー可能な粒度（1 論理変更）に切る — 差し戻しの巻き戻し幅が 1 ステップに閉じ、PR レビューがコミット単位で追える。機構化: `codex_run.py implement` は実装ステップ表の無い計画書を**拒否**し、Codex 側の規律（指示されたステップで止まる）は AGENTS.md に明記する。2 ステップ目以降は保存済みセッション ID の `--resume` で文脈を維持する（9.2）。**ステップコミットの件名には完全トークン `(ステップ <k>[/<N>][ 付記])` をちょうど 1 個含める**（`/<N>` と付記は任意・全半角括弧可 — 既存慣行の明文化。承認・起票などステップ外のコミットには付けない）。現在地（計画段階・実装中 k/N・PR 段階等）はどこにも保存せず、plan frontmatter・実装ステップ表 × git log・PR 状態から **`scripts/feature_status.py` が導出して表示**する（SessionStart が要約を注入 — 8.3。導出規則の詳細は同スクリプトと docs/features/feature-status/design.md）。記法を持たないコミットの扱い: **計画系**（feature ディレクトリ + worklog のみ）・**文書系**（`docs/` 配下または拡張子 `.md` のみ — `.claude`/`.github` の実行コード・設定〔`.py`・`.yml`・`.json` 等〕は文書扱いしない）・**develop 取り込みマージ**（第 2 親が origin/develop 系統）は正当（記法不要）。**コードに触れる無記法コミット・side branch マージ・分類の取得失敗**が混在すると進捗表示は「不明」に落ちる（規約逸脱・不確実性の顕在化 — 黙って進捗を確定しない）
-- **計画承認前に `/implement` は実行できない**（`codex_run.py` ラッパーが計画書の承認ステータスを機構検証し、未承認なら実行を拒否する）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
+- **計画承認前に `/implement` は実行できない**（`codex_run.py implement` が計画書の plan status と承認ステータスを機構検証する — `status: active` 以外〔in-review・欠落・重複・不正値〕は拒否し、in-review は /pr の差し戻し手順〔先に active へ戻す — 本節「差し戻しの往復」〕へ誘導。未承認も拒否。frontmatter は完全一致の単独行 `---` 区切りのみ受理〔docs-lint と同一文法 — 偽終端による迂回を排除〕）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
 
 #### fast path（軽微変更の軽量経路 — 敵対レビュー P2-4 対応・2026-08-07 採用）
 
@@ -261,7 +262,6 @@ flowchart TD
 
 - plan の状態は `active → in-review` の2値とし、**merged を Git に置かない**（PR 却下・保留と矛盾するため — P1-4）。完了の正は「PR merged + Notion 完了 + worktree 除去」の組で導出する
 - **差し戻しの往復**（PR の OPEN/CLOSED を問わない）: 修正の再開時は**先に plan を `in-review → active` に戻し**（Notion は 進行中 へ）、修正・検証完了で `active → in-review` に戻す（Notion は 確認待ち へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**・CLOSED は reopen または新 PR）。この状態更新コミットにはステップ記法を付けない（進捗導出に影響させない）。**fast からの昇格**: fast の 3 条件を外れた場合は plan frontmatter を `status: active`・`実行方式: 通常`・`承認: 未` へ**一括で**揃えてから計画書ゲート（/plan）へ切り替える（中途半端な遷移は現在地導出が誤表示する）
-- **既知の残余リスク（v1.3 で受容を記録）**: `codex_run.py implement` は plan の `status` を機構検証しない — `in-review` のまま実装を起動できる（差し戻し往復は手順統制）。補償統制 = /pr の差し戻し手順（先に active へ戻す）+ 現在地導出での顕在化（「PR 段階」表示のまま進む違和感の見える化）。機構強制（`status: active` 以外の拒否）は追跡タスク（[codex_run.py に plan status の機構強制を追加](https://app.notion.com/p/3b893b75e687819ebaa3ce597b8d97ea)）で解消し、解消時に本注記を削除する
 - **plan frontmatter の拡張キー**（feature 作業自身の進行事実のみを置く — 正本 status の複製は置かない〔7.1-1〕。**本表が契約の正** — v1.3）:
 
   | キー | 値文法 | 既定（キー欠落時） | 更新責務 |
@@ -420,7 +420,7 @@ draft（Claude起案）
 | `/investigate <テーマ>` | 計画段階のリポ内調査: 調査サブエージェント3本（8.5）を**既定3並列**で委任し、典拠付き `research.md` に統合 |
 | `/research <テーマ>` | Web 調査の Codex 委任: read-only + `-c web_search="live"`・terra high（ADR-001）。結論と参照 URL を記録 |
 | `/plan <slug>` | 実装計画書を固定フォーマット（6節必須・テンプレ）で作成・記入 → レビュー（通常/コア領域で水準分岐）→ 人間承認で `承認: 済` |
-| `/implement <計画書パス>` | **承認済み計画書**（未承認なら中断）から Codex へ委任: worktree 内・12.1 の固定 sandbox・9.4 のモデル対応表。**実装ステップ単位の委任ループ**（1 委任 = 1 ステップ → 検証 → 1 コミット。ステップ表の無い計画書はラッパーが拒否 — 6.1 段階実装）→ /check・差分・DoD 検証。コミットは Claude |
+| `/implement <計画書パス>` | **`status: active` かつ承認済みの計画書**（in-review・未承認なら中断）から Codex へ委任: worktree 内・12.1 の固定 sandbox・9.4 のモデル対応表。**実装ステップ単位の委任ループ**（1 委任 = 1 ステップ → 検証 → 1 コミット。ステップ表の無い計画書はラッパーが拒否 — 6.1 段階実装）→ /check・差分・DoD 検証。コミットは Claude |
 | `/check` | 品質ゲート一括: ruff / ty / pytest / prettier / eslint / vue-tsc（存在するもののみ・結果表で報告） |
 | `/sync-docs <slug>` | 正本への反映（7.6）: 計画書の宣言どおり更新・変更履歴追記・索引現行化。構造的変更は /finalize-doc へ回す |
 | `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 in-review 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3）→ Notion を確認待ちへ（11.1） |
@@ -501,10 +501,10 @@ Codex は `AGENTS.md` を自動で読む。公式仕様: グローバル（`~/.c
 - **経路は `codex_run.py` ラッパーに一本化**（Codex 起動の唯一の経路 — P0-2）。**プラグイン `/codex:*`（rescue/review/adversarial-review）は本ハーネスでは使わない**（4周目 P1: 二本立て記述を解消。実装委任もレビューもすべてラッパー経由）。プラグインが導入されていても task モード（書き込み実行）は codex_guard がブロックする。ハンドロールの `codex exec` 文字列を都度組み立てない
 - `/implement` スキル（8.4）は計画書パスをラッパーに渡す。実装ステップ単位に「当該ステップ+合格条件+変更範囲」をプロンプト（stdin）で与える。実装は `workspace-write`、調査・レビューは `read-only`
 - 継続作業（2 ステップ目以降・差し戻し）は `--resume`（保存済みセッション ID で直前の文脈を維持）。仕切り直しは `--resume` を付けない新規実行
-- **Codex 起動の唯一の経路は `.claude/scripts/codex_run.py`**（P0-2 対応。生の `codex exec` 等は codex_guard がブロックし、ラッパーが計画承認・worktree・sandbox・モデル対応表 9.4 を機構検証する）:
+- **Codex 起動の唯一の経路は `.claude/scripts/codex_run.py`**（P0-2 対応。生の `codex exec` 等は codex_guard がブロックし、ラッパーが plan status〔implement のみ — `status: active` 以外は拒否〕・計画承認・worktree・sandbox・モデル対応表 9.4 を機構検証する）:
 
 ```bash
-python .claude/scripts/codex_run.py implement <plan.md> -            # 実装（承認・worktree・モデルを検証）
+python .claude/scripts/codex_run.py implement <plan.md> -            # 実装（status・承認・worktree・モデルを検証）
 python .claude/scripts/codex_run.py implement <plan.md> --resume -   # 差し戻し（保存済みセッション ID で再開）
 python .claude/scripts/codex_run.py fast -                           # 軽微 fast path（worktree 内・terra medium）
 python .claude/scripts/codex_run.py research [--deep] -              # Web調査（read-only + live search）

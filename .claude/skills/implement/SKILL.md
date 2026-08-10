@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # 実装の Codex 委任(設計書 6.1 / 9.2 / 9.4 / 12.1)
 
-Codex の起動は必ず **`.claude/scripts/codex_run.py`** 経由(生の `codex exec` は codex_guard がブロックする)。ラッパーが計画承認・worktree・sandbox・モデル対応表(ADR-001)を機構検証する。
+Codex の起動は必ず **`.claude/scripts/codex_run.py`** 経由(生の `codex exec` は codex_guard がブロックする)。ラッパーが plan status(implement のみ — `status: active` 以外は拒否)・計画承認・worktree・sandbox・モデル対応表(ADR-001)を機構検証する。
 
 ## 手順(ステップ実装ループ — 一括実装しない・設計書 6.1 段階実装)
 
