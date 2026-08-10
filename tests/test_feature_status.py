@@ -66,6 +66,22 @@ def init_repository(tmp_path: Path) -> tuple[Path, Path]:
     return root, feature_worktree
 
 
+def add_feature_worktree(root: Path, tmp_path: Path, branch: str) -> Path:
+    """追加の feature/fix worktree をテスト用リポジトリへ作る。
+
+    Args:
+        root: develop をチェックアウトしたメインリポジトリ。
+        tmp_path: pytest が提供する一時ディレクトリ。
+        branch: 新規 worktree に割り当てる実ブランチ名。
+
+    Returns:
+        作成した worktree のルート。
+    """
+    worktree = tmp_path / f"worktree-{branch.replace('/', '-')}"
+    git(root, "worktree", "add", "-q", "-b", branch, str(worktree))
+    return worktree
+
+
 def plan_text(
     *,
     status_lines: list[str] | None = None,
@@ -298,19 +314,63 @@ def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: P
     assert "確定ゲート周回 不正値" in invalid_hook
 
 
+def test_duplicate_machine_read_frontmatter_keys_are_parse_failures(
+    tmp_path: Path,
+):
+    """機構が読む重複キーを後勝ちにせず解析失敗として表示する。"""
+    root, worktree = init_repository(tmp_path)
+    write_plan(worktree, "foo", approval="未")
+    review_duplicate = write_plan(
+        worktree,
+        "review-duplicate",
+        branch="feature/other",
+        review_round=1,
+    )
+    review_duplicate.write_text(
+        review_duplicate.read_text(encoding="utf-8").replace(
+            "計画レビュー周回: 1\n",
+            "計画レビュー周回: 1\n計画レビュー周回: 2\n",
+        ),
+        encoding="utf-8",
+    )
+    branch_duplicate = write_plan(worktree, "branch-duplicate")
+    branch_duplicate.write_text(
+        branch_duplicate.read_text(encoding="utf-8").replace(
+            "branch: feature/foo\n",
+            "branch: feature/foo\nbranch: feature/other\n",
+        ),
+        encoding="utf-8",
+    )
+
+    output = run_status(root).stdout
+
+    assert "未取得(frontmatter 解析失敗)" in feature_block(
+        output,
+        "review-duplicate",
+    )
+    assert "未取得(frontmatter 解析失敗)" in feature_block(
+        output,
+        "branch-duplicate",
+    )
+
+
 def test_selection_matrix_and_parse_failure_priority(tmp_path: Path):
     """worktree・branch・厳密 status の選別順を検証する。"""
     root, worktree = init_repository(tmp_path)
     write_plan(worktree, "valid", approval="未")
+    comment_worktree = add_feature_worktree(root, tmp_path, "feature/comment")
     write_plan(
-        worktree,
+        comment_worktree,
         "comment",
         status_lines=["status: active # 行末コメント"],
+        branch="feature/comment",
         approval="未",
     )
+    body_match_worktree = add_feature_worktree(root, tmp_path, "feature/body-match")
     write_plan(
-        worktree,
+        body_match_worktree,
         "body-match",
+        branch="feature/body-match",
         approval="未",
         body_lines=("status: activeX",),
     )
@@ -354,19 +414,113 @@ def test_selection_matrix_and_parse_failure_priority(tmp_path: Path):
     assert output.count("未取得(frontmatter 解析失敗)") == len(invalid_statuses)
 
 
+def test_worktree_plan_resolution_failures_are_visible_in_text_and_hook(
+    tmp_path: Path,
+):
+    """plan 不在・branch 不整合・plan 重複を worktree 単位で顕在化する。"""
+    root, _ = init_repository(tmp_path)
+    add_feature_worktree(root, tmp_path, "fix/no-plan")
+    mismatch_worktree = add_feature_worktree(root, tmp_path, "feature/mismatch")
+    write_plan(
+        mismatch_worktree,
+        "mismatch",
+        branch="feature/other",
+    )
+    duplicate_worktree = add_feature_worktree(root, tmp_path, "feature/duplicate")
+    write_plan(
+        duplicate_worktree,
+        "duplicate",
+        branch="feature/duplicate",
+    )
+    write_plan(
+        duplicate_worktree,
+        "another",
+        branch="feature/duplicate",
+    )
+
+    text_output = run_status(root).stdout
+    hook_output = run_status(root, "hook").stdout
+    for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
+        assert "未取得(plan 不在)" in block_getter(output, "feature/foo")
+        assert "未取得(plan 不在)" in block_getter(output, "fix/no-plan")
+        assert "未取得(branch 不整合)" in block_getter(output, "mismatch")
+        assert "未取得(plan 重複)" in block_getter(output, "duplicate")
+
+
 def test_approval_values_select_plan_or_implementation_stage(tmp_path: Path):
     """承認の startswith('済') 判定と欠落時の計画段階を検証する。"""
     root, worktree = init_repository(tmp_path)
     write_plan(worktree, "approved-short", approval="済")
-    write_plan(worktree, "approved-full", approval="済(2026-08-10・承認者)")
-    write_plan(worktree, "not-approved", approval="未")
-    write_plan(worktree, "approval-missing", approval=None)
+    approved_full = add_feature_worktree(root, tmp_path, "feature/approved-full")
+    write_plan(
+        approved_full,
+        "approved-full",
+        branch="feature/approved-full",
+        approval="済(2026-08-10・承認者)",
+    )
+    not_approved = add_feature_worktree(root, tmp_path, "feature/not-approved")
+    write_plan(
+        not_approved,
+        "not-approved",
+        branch="feature/not-approved",
+        approval="未",
+    )
+    approval_missing = add_feature_worktree(root, tmp_path, "feature/approval-missing")
+    write_plan(
+        approval_missing,
+        "approval-missing",
+        branch="feature/approval-missing",
+        approval=None,
+    )
 
     output = run_status(root).stdout
     assert "実装前(全 2 ステップ)" in feature_block(output, "approved-short")
     assert "実装前(全 2 ステップ)" in feature_block(output, "approved-full")
     assert "計画段階" in feature_block(output, "not-approved")
     assert "計画段階" in feature_block(output, "approval-missing")
+
+
+def test_fast_to_normal_unapproved_plan_precedes_rejection_history(
+    tmp_path: Path,
+):
+    """fast 解除後は未承認を優先し、承認後に差し戻し修正へ戻す。"""
+    root, worktree = init_repository(tmp_path)
+    plan = write_plan(
+        worktree,
+        status_lines=["status: in-review"],
+        approval="未",
+        execution_mode="fast",
+        steps=(1,),
+    )
+    commit_all(worktree, "docs: fast path のレビュー開始")
+    plan.write_text(
+        plan.read_text(encoding="utf-8").replace(
+            "status: in-review",
+            "status: active",
+        ),
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: fast path の実装開始")
+    assert "fast path 実装中" in feature_block(run_status(root).stdout, "foo")
+
+    plan.write_text(
+        plan.read_text(encoding="utf-8").replace(
+            "実行方式: fast",
+            "実行方式: 通常",
+        ),
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 通常方式へ戻す")
+    unapproved = feature_block(run_status(root).stdout, "foo")
+    assert "計画段階" in unapproved
+    assert "差し戻し修正" not in unapproved
+
+    plan.write_text(
+        plan.read_text(encoding="utf-8").replace("承認: 未", "承認: 済"),
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 通常方式を承認")
+    assert "実装中(差し戻し修正)" in feature_block(run_status(root).stdout, "foo")
 
 
 @pytest.mark.parametrize("steps", [(1, 3), (1, 1), (0,)])
@@ -550,14 +704,100 @@ def test_unmarked_two_parent_merge_is_unknown(tmp_path: Path):
     assert "実装状況: 不明" in feature_block(output, "foo")
 
 
+def test_unmarked_implementation_mixed_with_tokened_steps_is_unknown(
+    tmp_path: Path,
+):
+    """記法付き進捗に無記法コード変更が混ざれば不明へ縮退する。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    commit_implementation(worktree, 99, "feat: 記法なしのコード変更")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装状況: 不明" in block
+    assert "ステップ進捗: 不明(無記法の実装コミット混在)" in block
+
+
+def test_documentation_only_commits_mixed_with_tokened_steps_keep_known_progress(
+    tmp_path: Path,
+):
+    """docs と .claude だけの無記法コミットは tokened 進捗を妨げない。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    docs_note = worktree / "docs" / "notes.md"
+    docs_note.parent.mkdir(parents=True, exist_ok=True)
+    docs_note.write_text("補足\n", encoding="utf-8")
+    commit_all(worktree, "docs: 補足を追加")
+    claude_note = worktree / ".claude" / "notes.md"
+    claude_note.parent.mkdir(parents=True, exist_ok=True)
+    claude_note.write_text("補足\n", encoding="utf-8")
+    commit_all(worktree, "chore: Claude 設定の補足")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装完了・/pr 前" in block
+    assert "ステップ進捗: 2/2" in block
+
+
+def test_merge_commit_mixed_with_tokened_steps_keeps_known_progress(
+    tmp_path: Path,
+):
+    """開発ブランチ取り込みマージは tokened 進捗を不明にしない。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 前半 (ステップ 1/2)")
+    side_worktree = tmp_path / "side"
+    git(
+        root,
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        "feature/side",
+        str(side_worktree),
+        "feature/foo",
+    )
+    side_note = side_worktree / "docs" / "side-note.md"
+    side_note.parent.mkdir(parents=True, exist_ok=True)
+    side_note.write_text("取り込み対象\n", encoding="utf-8")
+    commit_all(side_worktree, "docs: 取り込み用の補足")
+    git(worktree, "merge", "--no-ff", "feature/side", "-m", "merge: side を取り込む")
+    commit_implementation(worktree, 2, "feat: 後半 (ステップ 2/2)")
+
+    block = feature_block(run_status(root).stdout, "foo")
+
+    assert "実装完了・/pr 前" in block
+    assert "ステップ進捗: 2/2" in block
+
+
 def test_execution_modes_and_comments_in_text_and_hook(tmp_path: Path):
     """fast・通常・省略・不正な実行方式を両出力形式で判定する。"""
     root, worktree = init_repository(tmp_path)
     write_plan(worktree, "fast", execution_mode="fast # コメント")
-    write_plan(worktree, "normal", execution_mode="通常")
-    write_plan(worktree, "omitted")
-    write_plan(worktree, "invalid", execution_mode="fastt")
-    write_plan(worktree, "empty", execution_mode="")
+    normal_worktree = add_feature_worktree(root, tmp_path, "feature/normal")
+    write_plan(
+        normal_worktree,
+        "normal",
+        branch="feature/normal",
+        execution_mode="通常",
+    )
+    omitted_worktree = add_feature_worktree(root, tmp_path, "feature/omitted")
+    write_plan(omitted_worktree, "omitted", branch="feature/omitted")
+    invalid_worktree = add_feature_worktree(root, tmp_path, "feature/invalid")
+    write_plan(
+        invalid_worktree,
+        "invalid",
+        branch="feature/invalid",
+        execution_mode="fastt",
+    )
+    empty_worktree = add_feature_worktree(root, tmp_path, "feature/empty")
+    write_plan(
+        empty_worktree,
+        "empty",
+        branch="feature/empty",
+        execution_mode="",
+    )
 
     text_output = run_status(root, "text").stdout
     hook_output = run_status(root, "hook").stdout

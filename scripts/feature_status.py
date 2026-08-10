@@ -21,6 +21,18 @@ HEADING_RE = re.compile(r"^#{1,6}\s")
 STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
 STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
 PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
+MACHINE_READ_FRONTMATTER_KEYS = frozenset(
+    {
+        "status",
+        "承認",
+        "worktree",
+        "branch",
+        "重さ分類",
+        "計画レビュー周回",
+        "確定ゲート周回",
+        "実行方式",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -276,13 +288,13 @@ def parse_nonnegative_integer(value: str | None) -> int | None:
 
 
 def parse_frontmatter_body(body: str) -> Frontmatter | None:
-    """frontmatter 本文を解析し、status の厳密一致を検証する。
+    """frontmatter 本文を解析し、機構読取キーと status を厳密検証する。
 
     Args:
         body: 開閉デリミタを除いた frontmatter 本文。
 
     Returns:
-        有効な frontmatter。status 条件を満たさない場合は ``None``。
+        有効な frontmatter。status 不適合または機構読取キーの重複時は ``None``。
     """
     lines = body.splitlines()
     status_lines = [line for line in lines if STATUS_CANDIDATE_RE.match(line)]
@@ -293,11 +305,17 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
         return None
 
     values: dict[str, str] = {}
+    seen_machine_keys: set[str] = set()
     for line in lines:
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
-        values[key.strip()] = value.split("#", 1)[0].strip()
+        normalized_key = key.strip()
+        if normalized_key in MACHINE_READ_FRONTMATTER_KEYS:
+            if normalized_key in seen_machine_keys:
+                return None
+            seen_machine_keys.add(normalized_key)
+        values[normalized_key] = value.split("#", 1)[0].strip()
 
     raw_mode = values.get("実行方式")
     execution_mode = "通常" if raw_mode is None else raw_mode
@@ -578,26 +596,45 @@ def is_planning_path(path: str, plan: FeaturePlan) -> bool:
     return path.startswith(feature_prefix) or path.startswith("docs/worklog/")
 
 
-def is_planning_commit(plan: FeaturePlan, commit: CommitRecord) -> bool:
-    """無記法コミットが計画系コミットの条件を満たすか判定する。
+def is_documentation_path(path: str) -> bool:
+    """変更パスがコードに触れない文書系配下かを判定する。
+
+    Args:
+        path: Git が返した worktree 相対パス。
+
+    Returns:
+        docs、.claude、.github のいずれかの配下なら True。
+    """
+    return path.startswith(("docs/", ".claude/", ".github/"))
+
+
+def classify_unmarked_commit(plan: FeaturePlan, commit: CommitRecord) -> str:
+    """無記法コミットを進捗導出用の5分類のいずれかへ分ける。
 
     Args:
         plan: 導出対象 feature。
         commit: 判定対象コミット。
 
     Returns:
-        変更パスが 1 件以上かつすべて許可配下なら ``True``。
+        planning、documentation、conservative、implementation のいずれか。
+        マージ・空 diff・取得不能は保守的な conservative。
     """
     if commit.parent_count >= 2:
-        return False
+        return "conservative"
     result = run_git(
         plan.worktree,
         ["diff-tree", "--no-commit-id", "--name-only", "-r", commit.sha],
     )
     if not result.succeeded:
-        return False
+        return "conservative"
     paths = [line for line in result.stdout.splitlines() if line]
-    return bool(paths) and all(is_planning_path(path, plan) for path in paths)
+    if not paths:
+        return "conservative"
+    if all(is_planning_path(path, plan) for path in paths):
+        return "planning"
+    if all(is_documentation_path(path) for path in paths):
+        return "documentation"
+    return "implementation"
 
 
 def derive_progress(plan: FeaturePlan, base: str) -> Progress:
@@ -619,7 +656,7 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
         return Progress(kind="git_error", total=table.total)
 
     completed: set[int] = set()
-    commits_without_tokens: list[CommitRecord] = []
+    unmarked_kinds: list[str] = []
     for commit in commits:
         tokens, malformed = extract_step_tokens(commit.subject, table.total)
         if malformed or len(tokens) > 1:
@@ -630,15 +667,21 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
                 return Progress(kind="inconsistent", total=table.total)
             completed.add(step)
         else:
-            commits_without_tokens.append(commit)
+            unmarked_kinds.append(classify_unmarked_commit(plan, commit))
 
     if completed:
         maximum = max(completed)
         if maximum > table.total or completed != set(range(1, maximum + 1)):
             return Progress(kind="inconsistent", total=table.total)
+        if "implementation" in unmarked_kinds:
+            return Progress(
+                kind="unknown",
+                total=table.total,
+                note="無記法の実装コミット混在",
+            )
         return Progress(kind="known", completed=maximum, total=table.total)
 
-    if any(not is_planning_commit(plan, commit) for commit in commits_without_tokens):
+    if any(kind not in {"planning", "documentation"} for kind in unmarked_kinds):
         return Progress(kind="unknown", total=table.total)
     return Progress(kind="known", completed=0, total=table.total)
 
@@ -914,6 +957,19 @@ def derive_feature(
             degradation=None,
             frontmatter=frontmatter,
         )
+    if not approved(frontmatter):
+        review_round = number_display(frontmatter.plan_review_round)
+        return FeatureResult(
+            name=plan.name,
+            branch=plan.worktree.branch,
+            stage=append_final_gate(
+                f"計画段階(計画レビュー周回 {review_round} 周・承認待ち)", frontmatter
+            ),
+            progress=Progress(kind="not_applicable", note="計画段階"),
+            pr_status=pr_status,
+            degradation=None,
+            frontmatter=frontmatter,
+        )
 
     base = get_merge_base(plan)
     if base is None:
@@ -934,20 +990,6 @@ def derive_feature(
             degradation=None,
             frontmatter=frontmatter,
         )
-    if not approved(frontmatter):
-        review_round = number_display(frontmatter.plan_review_round)
-        return FeatureResult(
-            name=plan.name,
-            branch=plan.worktree.branch,
-            stage=append_final_gate(
-                f"計画段階(計画レビュー周回 {review_round} 周・承認待ち)", frontmatter
-            ),
-            progress=Progress(kind="not_applicable", note="計画段階"),
-            pr_status=pr_status,
-            degradation=None,
-            frontmatter=frontmatter,
-        )
-
     progress = derive_progress(plan, base)
     if progress.kind == "git_error":
         return git_failure_result(plan)
@@ -993,6 +1035,49 @@ def parse_failure_result(name: str, branch: str | None) -> FeatureResult:
     )
 
 
+def expected_feature_slug(branch: str | None) -> str | None:
+    """feature/fix ブランチ名から対応 plan の期待 slug を取り出す。
+
+    Args:
+        branch: worktree の実ブランチ名。
+
+    Returns:
+        feature/<slug> または fix/<slug> の slug。対象外のブランチでは None。
+    """
+    if branch is None:
+        return None
+    prefix, separator, slug = branch.partition("/")
+    if prefix not in {"feature", "fix"} or not separator or not slug or "/" in slug:
+        return None
+    return slug
+
+
+def worktree_resolution_failure_result(
+    name: str,
+    branch: str,
+    reason: str,
+) -> FeatureResult:
+    """worktree と plan の対応を解決できない結果を組み立てる。
+
+    Args:
+        name: 表示用の feature 名またはブランチ名。
+        branch: worktree の実ブランチ名。
+        reason: plan 不在、branch 不整合、plan 重複のいずれかの理由。
+
+    Returns:
+        対応解決失敗を明示した表示用結果。
+    """
+    return FeatureResult(
+        name=name,
+        branch=branch,
+        stage=f"未取得({reason})",
+        progress=Progress(kind="not_applicable", note=reason),
+        pr_status="未取得",
+        degradation=reason,
+        frontmatter=None,
+    )
+
+
 def collect_features(
     cwd: Path,
     output_format: str = "text",
@@ -1020,48 +1105,87 @@ def collect_features(
             plans = sorted(feature_root.glob("*/plan.md"))
         except Exception:
             continue
+        matching_plans: list[tuple[Path, Frontmatter]] = []
+        parse_failed_paths: set[Path] = set()
         for plan_path in plans:
             frontmatter = read_frontmatter(plan_path)
             if frontmatter is None:
                 results.append(parse_failure_result(plan_path.parent.name, worktree.branch))
+                parse_failed_paths.add(plan_path)
                 continue
-            if worktree.branch is None or frontmatter.branch != worktree.branch:
+            if worktree.branch is not None and frontmatter.branch == worktree.branch:
+                matching_plans.append((plan_path, frontmatter))
+
+        expected_slug = expected_feature_slug(worktree.branch)
+        if len(matching_plans) == 0:
+            if expected_slug is None or worktree.branch is None:
                 continue
-            try:
-                relative_plan_path = plan_path.relative_to(worktree.path).as_posix()
-                feature_plan = FeaturePlan(
+            expected_plan_path = feature_root / expected_slug / "plan.md"
+            if expected_plan_path in parse_failed_paths:
+                continue
+            if expected_plan_path.is_file():
+                results.append(
+                    worktree_resolution_failure_result(
+                        expected_slug,
+                        worktree.branch,
+                        "branch 不整合",
+                    )
+                )
+            else:
+                results.append(
+                    worktree_resolution_failure_result(
+                        worktree.branch,
+                        worktree.branch,
+                        "plan 不在",
+                    )
+                )
+            continue
+        if len(matching_plans) >= 2:
+            results.append(
+                worktree_resolution_failure_result(
+                    expected_slug or worktree.branch or "未取得",
+                    worktree.branch or "未取得",
+                    "plan 重複",
+                )
+            )
+            continue
+
+        plan_path, frontmatter = matching_plans[0]
+        try:
+            relative_plan_path = plan_path.relative_to(worktree.path).as_posix()
+            feature_plan = FeaturePlan(
+                name=plan_path.parent.name,
+                plan_path=plan_path,
+                relative_plan_path=relative_plan_path,
+                worktree=worktree,
+                frontmatter=frontmatter,
+            )
+            result = derive_feature(
+                feature_plan,
+                resolve_pr=output_format == "text",
+            )
+            if output_format == "text":
+                result = replace(
+                    result,
+                    notion_expectation=get_notion_expectation(
+                        result,
+                        feature_plan,
+                        notion_cache,
+                    ),
+                )
+            results.append(result)
+        except Exception:
+            results.append(
+                FeatureResult(
                     name=plan_path.parent.name,
-                    plan_path=plan_path,
-                    relative_plan_path=relative_plan_path,
-                    worktree=worktree,
+                    branch=worktree.branch,
+                    stage="未取得(導出失敗)",
+                    progress=Progress(kind="not_applicable", note="導出失敗"),
+                    pr_status="未取得",
+                    degradation="導出失敗",
                     frontmatter=frontmatter,
                 )
-                result = derive_feature(
-                    feature_plan,
-                    resolve_pr=output_format == "text",
-                )
-                if output_format == "text":
-                    result = replace(
-                        result,
-                        notion_expectation=get_notion_expectation(
-                            result,
-                            feature_plan,
-                            notion_cache,
-                        ),
-                    )
-                results.append(result)
-            except Exception:
-                results.append(
-                    FeatureResult(
-                        name=plan_path.parent.name,
-                        branch=worktree.branch,
-                        stage="未取得(導出失敗)",
-                        progress=Progress(kind="not_applicable", note="導出失敗"),
-                        pr_status="未取得",
-                        degradation="導出失敗",
-                        frontmatter=frontmatter,
-                    )
-                )
+            )
     return results, True
 
 
@@ -1077,7 +1201,7 @@ def format_progress(progress: Progress) -> str:
     if progress.kind == "known":
         return f"{progress.completed}/{progress.total}"
     if progress.kind == "unknown":
-        return "不明"
+        return f"不明({progress.note})" if progress.note else "不明"
     if progress.kind == "inconsistent":
         return "不整合(要確認)"
     if progress.kind == "git_error":
