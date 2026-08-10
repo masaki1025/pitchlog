@@ -541,6 +541,16 @@ def run_wrapper(args: list[str], stdin: str = "", cwd: str = REPO) -> subprocess
     )
 
 
+def write_wrapper_plan(tmp_path: Path, frontmatter_lines: list[str]) -> Path:
+    """ラッパーの前段検証用 plan を書き出す。"""
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "\n".join(["---", *frontmatter_lines, "---", "# 計画", ""]),
+        encoding="utf-8",
+    )
+    return plan
+
+
 def test_wrapper_rejects_missing_plan():
     r = run_wrapper(["implement", "docs/features/no-such/plan.md", "-"], "prompt")
     assert r.returncode == 2
@@ -557,6 +567,162 @@ def test_wrapper_rejects_unapproved_plan(tmp_path):
     r = run_wrapper(["implement", str(plan), "-"], "prompt")
     assert r.returncode == 2
     assert "未承認".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_in_review_plan_with_return_instruction(tmp_path: Path):
+    """in-review は承認済みでも /pr の差し戻し手順へ誘導する。"""
+    plan = write_wrapper_plan(
+        tmp_path,
+        [
+            "feature: x",
+            "status: in-review",
+            "承認: 済(2026-08-10・確認者)",
+            "重さ分類: 通常",
+            f"worktree: {REPO}",
+            "branch: feature/codex-plan-status-guard",
+        ],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "差し戻し".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_in_review_before_approval_and_resume(tmp_path: Path):
+    """status は承認・resume の検証より先に拒否する。"""
+    plan = write_wrapper_plan(
+        tmp_path,
+        [
+            "feature: x",
+            "status: in-review",
+            "承認: 未",
+            "重さ分類: 通常",
+            f"worktree: {REPO}",
+            "branch: feature/codex-plan-status-guard",
+        ],
+    )
+
+    r = run_wrapper(["implement", str(plan), "--resume", "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "差し戻し".encode("utf-8") in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
+    assert "セッション".encode("utf-8") not in r.stderr
+
+
+def test_wrapper_rejects_plan_without_status(tmp_path: Path):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+def test_wrapper_rejects_duplicate_status(tmp_path: Path):
+    plan = write_wrapper_plan(
+        tmp_path,
+        ["feature: x", "status: active", "status: in-review", "承認: 未"],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+    assert "重複".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_invalid_status_value(tmp_path: Path):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", "status: merged", "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+@pytest.mark.parametrize("status_line", ["status : active", "status: activeX"])
+def test_wrapper_rejects_malformed_status(tmp_path: Path, status_line: str):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", status_line, "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+def test_wrapper_rejects_duplicate_status_after_false_frontmatter_terminator(tmp_path: Path):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n--- 任意文字列\nstatus: active\n承認: 未\n---\n# 計画\n",
+        encoding="utf-8",
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+    assert "重複".encode("utf-8") in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
+    assert b"worktree" not in r.stderr
+
+
+def test_wrapper_accepts_active_status_with_comment(tmp_path: Path):
+    plan = write_wrapper_plan(
+        tmp_path,
+        ["feature: x", "status: active # 行末コメント", "承認: 未"],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "未承認".encode("utf-8") in r.stderr
+    assert b"status" not in r.stderr
+    assert "差し戻し".encode("utf-8") not in r.stderr
+
+
+def test_wrapper_accepts_active_status_with_crlf_plan(tmp_path: Path):
+    plan = tmp_path / "plan.md"
+    plan.write_bytes(
+        "\r\n".join(["---", "feature: x", "status: active", "承認: 未", "---", "# 計画", ""])
+        .encode("utf-8")
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "未承認".encode("utf-8") in r.stderr
+    assert b"status" not in r.stderr
+    assert "差し戻し".encode("utf-8") not in r.stderr
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("--- ", "---"),
+        ("---\t", "---"),
+        ("---", "--- "),
+        ("---", "---\t"),
+    ],
+    ids=["start-space", "start-tab", "end-space", "end-tab"],
+)
+def test_wrapper_rejects_frontmatter_delimiter_with_trailing_whitespace(
+    tmp_path: Path,
+    start: str,
+    end: str,
+):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "\n".join([start, "feature: x", "status: active", "承認: 未", end, "# 計画", ""]),
+        encoding="utf-8",
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"frontmatter" in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
 
 
 def test_wrapper_rejects_approved_plan_without_worktree(tmp_path):
