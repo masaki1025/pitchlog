@@ -35,7 +35,7 @@ date: 2026-08-10
 - 基準ディレクトリは `--cwd`(既定 = カレント)。そこから `git worktree list --porcelain` で全 worktree を列挙(session_context.py:29-43 と同方式)。保護ブランチ(main/develop)上の worktree は除外(マージ済み plan 複製の排除 — session_context.py:70-72 と同じ理由)
 - 各 worktree の `docs/features/*/plan.md` を走査。frontmatter は先頭 `---` 〜 次の `---` のブロック全体を解析(**安全上限 8KiB・先頭 N 文字の切り詰めをしない** — 800 文字問題の恒久解消。この解析器が唯一の実装〔§4 で hook 側は削除〕)
 - 対象判定は**厳密一致**(2 周目 P1・3 周目 P1 で精密化): status 行の**候補抽出は `^status\s*:`**(check_docs_status.py:22 の STATUS_PREFIX_RE と同一 — `status : active` も候補に数える)。候補が frontmatter ブロック内に**ちょうど 1 行**あり、その行全体が `^status:\s*(active|in-review)(?:\s+#.*)?$` に**完全一致**すること(check_docs_status.py:332-342 と同じ要求水準 — `activeX`・余剰トークン・`status : active`(コロン前空白)・候補行の重複は**解析失敗**。行末 `#` コメントは適合)。かつ `^branch:` が worktree の実ブランチと完全一致すること
-- **評価順**(3 周目 P2 → 確定ゲート 1 周目 P1 で worktree 期待解決へ改訂): ①保護ブランチ worktree を無言除外 → ②frontmatter/status の解析(**失敗は「未取得(frontmatter 解析失敗)」として顕在化**)→ ③**worktree 単位の期待解決** — 対応 plan = 解析可能かつ `branch` が worktree 実ブランチと完全一致するもの。一致 0 件は「**未取得(plan 不在 / branch 不整合)**」(ブランチ由来の期待 slug ディレクトリの有無で区別)・一致 2 件以上は「**未取得(plan 重複)**」と text/hook 双方で顕在化(「worktree の現存を正とする」7.6-4 に整合 — 現存 worktree を無言で消さない)。**歴史的な他 feature の plan**(branch 不一致かつ期待 slug でもない)のみ無言スキップ(全 worktree に全 feature の plan が同梱されるため)。解析失敗と branch 不一致が同時のケース(例: `activeX` + branch 不一致)は**解析が先 = 表示される**
+- **評価順**(3 周目 P2 → 確定ゲート 1 周目 P1 で worktree 期待解決へ改訂): ①保護ブランチ worktree を無言除外 → ②frontmatter/status の解析(**失敗は「未取得(frontmatter 解析失敗)」として顕在化**)→ ③**worktree 単位の期待解決** — 対応 plan = **期待パス `docs/features/<branch の slug>/plan.md`** にあり(6.1 の配置規約 — 確定ゲート 2 周目 P1)、解析可能かつ `branch` が worktree 実ブランチと完全一致するもの。期待パスに無い branch 一致 plan(誤配置)は**正常採用せず顕在化**。該当 0 件は「**未取得(plan 不在 / branch 不整合)**」(期待 slug ディレクトリの有無で区別)・複数該当は「**未取得(plan 重複)**」と text/hook 双方で顕在化(「worktree の現存を正とする」7.6-4 に整合 — 現存 worktree を無言で消さない)。**歴史的な他 feature の plan**(branch 不一致かつ期待 slug でもない)のみ無言スキップ(全 worktree に全 feature の plan が同梱されるため)。解析失敗と branch 不一致が同時のケース(例: `activeX` + branch 不一致)は**解析が先 = 表示される**
 - **除外と顕在化の区分**(2 周目 P1): 無言除外は上記①③のみ。feature ディレクトリに plan.md がありながら**解析不能**なもの(frontmatter ブロックが閉じない・8KiB 超・status 候補行数 ≠ 1・status 値不適合)は「**未取得(frontmatter 解析失敗)**」として text/hook 双方に表示する(無言で消さない — §1。健全な feature が併存しても互いの表示に影響しない)
 - **git 取得失敗の出力契約**(3 周目 P2): `git worktree list` の失敗は「**進行中 feature: 未取得(worktree 列挙失敗)**」を出力(「0 件の正常」と区別する)。feature 単位の git 失敗(merge-base・log)は当該 feature の進捗を「**未取得(git 失敗)**」と表示。いずれも exit code は 0 のまま(fail-open — 表示で顕在化し、呼び出し元を殺さない)
 
@@ -79,9 +79,9 @@ date: 2026-08-10
   - 不正形トークン・複数トークン件名を 1 つでも検出 → **inconsistent**(前 2 項)
   - S = {1..max(S)} を連続で満たし max(S) ≤ N → **known k = max(S)**(同一 k の重複は**異なるコミット間に限り**正常 — 差し戻し再委任等)
   - 欠番・max(S) > N → **inconsistent**(黙って k を採用しない)
-  - **コミット分類**(確定ゲート 1 周目 P1 で拡張): ①トークン付き ②**計画系**(変更パス 1 件以上・全件が当該 feature の `docs/features/<slug>/` + `docs/worklog/` 配下)③**文書系**(変更パス 1 件以上・全件が `docs/`・`.claude/`・`.github/` 配下 — コードに触れない)④**マージ・空 diff**(diff-tree が空 or 取得不能 — 2 親マージでは名前が返らないことがある)⑤**実装系無記法**(それ以外 — コードパスに触れるのにトークンなし)。パス判定は `git diff-tree --no-commit-id --name-only -r`
-  - **S 非空のとき**: ⑤が 1 件でもあれば **unknown**(「不明(無記法の実装コミット混在)」— 有効トークンがあっても規約逸脱を素通りさせない)。①〜④は許容(④は develop 取り込みマージの許容)
-  - **S が空のとき**(4/5 周目 P1 — 承認直後の通常経路を「実装前」と正しく導出する): ②③のみ → **known k = 0**(実装前 — 承認・起票・文書整備のみ)/ ④⑤が 1 件でもある → **unknown**(マージ・空 diff を保守的に扱い、誤 known(0) にしない)。base..HEAD が 0 件の場合も known k = 0
+  - **コミット分類**(確定ゲート 1/2 周目 P1 で拡張): ①トークン付き ②**計画系**(変更パス 1 件以上・全件が当該 feature の `docs/features/<slug>/` + `docs/worklog/` 配下)③**文書系**(変更パス 1 件以上・全件が「`docs/` 配下」または「拡張子 `.md`」— `.claude`/`.github` の実行コード・設定〔`.py`・`.yml`・`.json` 等〕は含まない)④**develop 取り込みマージ**(2 親かつ第 2 親が origin/develop 系統 — `git merge-base --is-ancestor` で検証)⑤**実装系無記法**(コードパスに触れるのにトークンなし)⑥**不確実**(side branch マージ・diff-tree 取得失敗)。パス判定は `git diff-tree --no-commit-id --name-only -r`
+  - **S 非空のとき**: ⑤⑥が 1 件でもあれば **unknown**(「不明(無記法の実装コミット混在 / 分類不能)」— 有効トークンがあっても素通りさせない)。①〜④は許容
+  - **S が空のとき**(4/5 周目 P1 — 承認直後の通常経路を「実装前」と正しく導出する): ②③のみ → **known k = 0**(実装前 — 承認・起票・文書整備のみ)/ ④⑤⑥が 1 件でもある → **unknown**(保守的に誤 known(0) にしない)。base..HEAD が 0 件の場合も known k = 0
 - **承認・起票コミットはステップ表の外**(5 周目 P1): 計画承認後の plan・research・design・worklog の起票コミットは /plan の承認後処理であり、実装ステップに数えない。**ステップ記法を付けない** = 計画系コミットとして進捗導出から除外され、直後の現在地は「実装前(全 N ステップ)」と表示される。最初の実装コミットが `(ステップ 1/N)` を持つ(採番の起点)
 
 ### 3.4 PR 状態(gh)

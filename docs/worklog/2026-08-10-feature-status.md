@@ -39,9 +39,11 @@ branch: feature/feature-status
 - **PO 判断(2026-08-10)**: ①設計書の今回追記は**構造的規約変更 → v1.3 版繰り上げ + /finalize-doc**(当初の節更新扱いを撤回 — 前例 ci-foundation v1.1 に整合)/ ③codex_run.py の status 機構強制は**別タスク起票**(本 PR は導出・表示まで — 承認済み計画の成立条件「codex_run.py 無改修」を維持)
 - 設計書 v1.3 起案(frontmatter in-review 化・変更履歴 1.3 行・索引追随・計画書 3 節のゲート宣言更新)→ /finalize-doc 開始
 
+- /finalize-doc(設計書 v1.3): 敵対レビュー 1 周目 **否決 — P0×0/P1×5/P2×2**(worktree 無言消し・fast 昇格・トークン混在素通り・status 非強制の記録欠如・拡張キー契約の正本化・8.3 固定件数)→ 全件反映(コード = Codex 差し戻し 190 passed・正本 = 契約表移管 + 残余リスク受容記録)。2 周目 **否決 — P1×4**(1 周目 6 件中 5 件「正しく反映」): 期待ディレクトリ検証・**本 plan の確定ゲート周回が 0 のまま(機構自身の誤表示 — ドッグフーディングで検出)**・文書系 allowlist の過広(.claude/*.py 等)・side branch マージ/diff-tree 失敗の素通し → 全件反映(周回キー 2 へ更新・分類契約を正本と実装の両方で厳格化)
+
 ## 未決・次の一歩
 
-- /finalize-doc: 設計書 v1.3 の敵対レビュー(sol xhigh)→ 収束 → PO 承認 → approved 化
+- /finalize-doc: 設計書 v1.3 の敵対レビュー 3 周目 → 収束 → PO 承認 → approved 化
 - Notion 起票(別タスク): codex_run.py に「status: active 以外は /implement 拒否」の機構強制 + 差し戻し手順への誘導
 - /pr(クローズ処理 → 突合 → push → PR 作成)。**pr/SKILL.md(guard_paths)接触のため PR 本文に人間逐行確認チェックが必要**
 - 既知の周辺事項(スコープ外・記録のみ): session_context の「最新 worklog」選定はファイル名ソートのため、同日複数 worklog では辞書順の後方が選ばれる(既存挙動)
