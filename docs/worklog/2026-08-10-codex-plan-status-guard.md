@@ -29,7 +29,10 @@ branch: feature/codex-plan-status-guard
 - **PO 承認(2026-08-10)**: 計画書を承認(承認: 済〔2026-08-10・徳光 尋弥〕に更新・起票コミット)
 - **PO 判定(2026-08-10)**: 設計書更新のゲート = **7.6-3 前段(PR レビュー)で確定**(research.md 未解決①の解消。根拠 = v1.3 :264 が本タスクによる解消と注記削除を予告済み。格上げ条項は不発動)
 
+- /implement ステップ 1(2026-08-11): Codex 委任(terra max)— frontmatter 抽出を完全一致 `---` へ是正 + `require_active_plan_status()` を承認検証の前に挿入 + 回帰テスト追加。検証: diff 宣言 2 ファイルのみ・既存テスト無修正(+166/-0)・**213 passed を独立再実行で確認** → コミット `abb1137`(ステップ 1/2)
+- /implement ステップ 2(2026-08-11): Claude 直(文書のみ)— 設計書 6.1 列挙追記・残余リスク注記削除・8.4/9.2 追随・変更履歴 1 行(v1.3 同版・PR レビューゲート)+ README 最終更新現行化 + 追随 4 件(CLAUDE.md・implement/finalize-doc スキル・plan テンプレ)。検証: check_docs_status.py green・注記 0 件・213 passed → コミット `a0a0165`(ステップ 2/2)
+- 総合検証: 全 diff = 計画宣言範囲のみ・DoD 4 項目充足・feature_status.py 導出「実装完了・/pr 前(2/2)」を実機確認(ドッグフーディング)
+
 ## 未決・次の一歩
 
-- /implement でステップ 1(codex_run.py の抽出是正 + status 検証 + 回帰テスト)を Codex へ委任 → ステップ 2(文書追随)は Claude 直
-- 承認時に Notion DoD へ項目 4(宣言回収)を同期
+- /pr で PR 作成(正本反映はステップ 2 で実施済み — /pr の宣言突合で確認される。Notion DoD 項目 4 は承認時に同期済み)
