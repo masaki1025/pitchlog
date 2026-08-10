@@ -40,4 +40,5 @@ disable-model-invocation: true
 
 反対側レビュー(Codex 実装 → Claude 一次レビュー〔要件適合・規約・NFR-018 — spec-checker 併用可〕/ Claude 直実装 → `python .claude/scripts/codex_run.py review normal -` に差分レビュー指示)→ コア領域は敵対レビュー(`review adversarial`)+ 人間逐行確認 → CI 全グリーン → **人間がマージ**。プラグイン `/codex:*` は使わない(経路はラッパーに一本化)。
 
-- **差し戻しが発生したら**: Notion ステータスを `差し戻し` へ(指摘要約をタスクへコメント — notion-map.json)。修正の再開で `進行中` に戻し、修正は /implement の `--resume` でステップ単位に行う(修正も 1 まとまり 1 コミット)
+- **差し戻しが発生したら**(PR の OPEN/CLOSED を問わない): Notion ステータスを `差し戻し` へ(指摘要約をタスクへコメント — notion-map.json)。**修正の再開時は、先に計画書 frontmatter を `status: in-review → active` に戻してから** Notion を `進行中` に戻す(現在地導出が「実装中(差し戻し修正)」を示す — scripts/feature_status.py。この状態更新コミットにはステップ記法を付けない)。修正は /implement の `--resume` でステップ単位に行う(修正も 1 まとまり 1 コミット)
+- **修正・検証完了(再レビュー依頼)**: 計画書 frontmatter を `active → in-review` に戻し、Notion を `確認待ち` へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**。CLOSED の場合は reopen または新 PR(本スキルの手順 3)による
