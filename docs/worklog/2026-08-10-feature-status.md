@@ -28,7 +28,20 @@ branch: feature/feature-status
   - 縮退の出力契約: worktree 列挙失敗/git 失敗/frontmatter 解析失敗/実行方式不正 — すべて「未取得(理由)」で顕在化・exit 0 維持
   - guard_paths 接触が 1 箇所発生(pr/SKILL.md 差し戻し往復手順)→ PR で core-guard 逐行確認チェックが発火する旨を 4 節に宣言
 
+- 計画承認(2026-08-10・徳光 尋弥)→ 起票コミット 444a497(記法なし = 計画系コミットの初適用)→ Notion へ計画書リンク + 承認日を記録
+- /implement 全 6 ステップ完了(1 委任 = 1 ステップ = 1 コミット。差し戻し 0 件):
+  - Codex 委任(terra max): ステップ 1(feature_status.py コア・8be5c71)/ 2(gh 連携・1e33e31)/ 3(Notion 期待値・f9a7f2a)/ 4(session_context 一本化・64e30db)
+  - Claude 直: ステップ 5(テンプレ 2 + スキル 5 本・4d41f87)/ 6(設計書 6.1/7.6-4/8.3 節更新 + README + rules/docs.md・4bd196f)
+- 総合検証: /check green(harness pytest **182 passed**・backend/frontend 未導入スキップ・変更 md のリンク切れなし)。差分 18 ファイルはすべて計画スコープ内。DoD 5 点充足
+- ドッグフーディング成立: feature_status.py が本 feature 自身を「起票のみ → 実装前(全 6 ステップ)→ 実装中(k/6)→ 実装完了・/pr 前」とリアルタイムに正しく導出(SessionStart 注入も確認)
+
+- /pr 前の反対側レビュー(review normal・terra max)2 周: 1 周目 = fast 差し戻し経路 / 記法文法の食い違い / 「完了導出」過大表現 / 周回キー数え方・欠落時手順 / README 逆遷移欠落 — 全件反映。2 周目 = **P1×3 / P2×1**(1 周目反映は確認済み): ①確定ゲート判定の先送り ②空セル番号行で完了を誤導出(実装バグ)③in-review のまま /implement 可能(機構強制なし)④fast 差し戻し時の 3 条件再確認 — ②④は即修正(②は Codex 差し戻し・184 passed)
+- **PO 判断(2026-08-10)**: ①設計書の今回追記は**構造的規約変更 → v1.3 版繰り上げ + /finalize-doc**(当初の節更新扱いを撤回 — 前例 ci-foundation v1.1 に整合)/ ③codex_run.py の status 機構強制は**別タスク起票**(本 PR は導出・表示まで — 承認済み計画の成立条件「codex_run.py 無改修」を維持)
+- 設計書 v1.3 起案(frontmatter in-review 化・変更履歴 1.3 行・索引追随・計画書 3 節のゲート宣言更新)→ /finalize-doc 開始
+
 ## 未決・次の一歩
 
-- 計画書の**人間承認待ち**(承認後: frontmatter 済化 → 起票コミット → Notion へ計画書リンク + 承認日コメント → /implement ステップ 1 から)
-- 設計書のゲート判定(3 節宣言 = 実装追随の節更新・版繰り上げなし・PR レビュー)は PO が PR レビュー時に最終判断(構造的変更と見なす場合は /finalize-doc + v1.3 へ切替)
+- /finalize-doc: 設計書 v1.3 の敵対レビュー(sol xhigh)→ 収束 → PO 承認 → approved 化
+- Notion 起票(別タスク): codex_run.py に「status: active 以外は /implement 拒否」の機構強制 + 差し戻し手順への誘導
+- /pr(クローズ処理 → 突合 → push → PR 作成)。**pr/SKILL.md(guard_paths)接触のため PR 本文に人間逐行確認チェックが必要**
+- 既知の周辺事項(スコープ外・記録のみ): session_context の「最新 worklog」選定はファイル名ソートのため、同日複数 worklog では辞書順の後方が選ばれる(既存挙動)

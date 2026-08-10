@@ -9,7 +9,7 @@
 | [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v1.8 改訂を確定ゲートで検証中) | 1.8 | 2026-08-10 |
 | [改善台帳](improvements-from-baseball-scoring.md) | approved | — | 2026-08-10 |
 | [要件対話の決定記録(D-1〜D-41)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.2 — 反対側1周+敵対レビュー5周 → PO 承認) | 1.2 | 2026-08-10 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **in-review**(v1.3 — feature-status の規約化を確定ゲートで検証中) | 1.3 | 2026-08-10 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-10 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-10 |
 | [オンボーディング](development/onboarding.md) | draft | — | 2026-08-10 |
@@ -27,4 +27,4 @@
 
 - `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)
 - `worklog/` — 作業ログ
-- `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値)
+- `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値 — 差し戻し再開時は in-review → active に戻す〔設計書 6.1〕)

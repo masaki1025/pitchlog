@@ -25,7 +25,7 @@ disable-model-invocation: true
 1. 記入後、レビューへ(ラッパー経由。計画書全文+検証観点をプロンプトで渡す):
    - **通常**: `python .claude/scripts/codex_run.py review normal -`
    - **コア領域**: `python .claude/scripts/codex_run.py review adversarial -`
-2. 指摘を反映し、収束したら**人間の承認を明示的に求める**。レビュー 1 周(指摘反映まで)ごとに frontmatter の `計画レビュー周回` を +1 する(feature_status.py が現在地表示に使う)
+2. 指摘を反映し、収束したら**人間の承認を明示的に求める**。**指摘反映を伴う**レビュー 1 周ごとに frontmatter の `計画レビュー周回` を +1 する(指摘なしの収束確認周は数えない。キーが無い旧 plan は `0` を追記してから更新する。feature_status.py が現在地表示に使う)
 3. 承認されたら frontmatter を `承認: 済(YYYY-MM-DD・承認者)` に更新し、計画書をコミットする(**起票コミットにはステップ記法「(ステップ k)」を付けない** — 計画系コミットとして進捗導出から除外される)。あわせて Notion タスクへ計画書リンクと承認日をコメントで記録する(ステータスは 進行中 のまま — `.claude/notion-map.json`)
 
 **計画承認前に /implement は実行できない**(implement 側でもチェックされる)。

@@ -44,7 +44,7 @@ created: 2026-08-10
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/development/dev-harness-design-2026-08-07.md`(v1.2) | **実装追随の節更新**: 6.1「1 feature = 1 ディレクトリ」標準構成へ design.md 追記 / 6.1 段階実装へ導出機構(feature_status.py)の言及と**ステップコミット件名の固定記法**(既存慣行の明文化)を追記 / 6.1・7.6-4 へ**差し戻しの往復ライフサイクル**(再開 = in-review → active / 修正完了 = active → in-review — 7/8 周目 P1)と導出の機械化を追記 / 8.3 表 session_context 行の注入内容更新 / frontmatter 拡張キーの記載(6.1) / 変更履歴追記。**版繰り上げなし** — 必須 6 節構成(:238-245)と frontmatter 文法規約(7.1-5)には触れない | **PR レビュー**(7.6-3 前段)。※PO が「構造的変更」と判定した場合は /finalize-doc + v1.3 へ切替(6.4 の判定撤回前例あり — research.md §4) |
+| `docs/development/dev-harness-design-2026-08-07.md`(v1.2 → **v1.3**) | **規約化(版繰り上げ)**: 6.1「1 feature = 1 ディレクトリ」標準構成へ design.md 追記 / 6.1 段階実装へ導出機構(feature_status.py)の言及と**ステップコミット件名の固定記法**(既存慣行の明文化)を追記 / 6.1・7.6-4 へ**差し戻しの往復ライフサイクル**(再開 = in-review → active / 修正完了 = active → in-review — 7/8 周目 P1)と導出の機械化を追記 / 8.3 表 session_context 行の注入内容更新 / frontmatter 拡張キーの記載(6.1) / 変更履歴追記(必須 6 節構成(:238-245)と 7.1-5 の厳格 3 行文法自体には触れない) | **/finalize-doc + v1.3**(PO 判定 2026-08-10 — 当初の 7.6-3 前段〔節更新〕扱いを反対側レビュー P1 を受けて撤回し、構造的規約変更として確定ゲートへ切替。前例: ci-foundation 7 章規約新設 v1.1・6.4 の判定撤回 — research.md §4) |
 | `docs/README.md` | :20 SessionStart 説明・:24 テンプレート一覧へ design-template 追記・:30 features 行(design.md)・索引の最終更新現行化 | PR レビュー(7.1-5 派生表示) |
 | `.claude/rules/docs.md` | :13 の feature ディレクトリ説明へ design.md 追随(設計書と**同一 PR** — 7.6-2) | PR レビュー(7 章の要約) |
 | `docs/development/templates/`(plan-template.md 改・design-template.md 新設) | 拡張キー 3 個(計画レビュー周回・確定ゲート周回・実行方式)+ design.md 導線 + コミット記法 / 新テンプレ | PR レビュー(正本表・docs-lint の対象外 — research.md §4) |
