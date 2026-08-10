@@ -59,6 +59,13 @@ def init_repository(tmp_path: Path) -> tuple[Path, Path]:
     (root / "README.md").write_text("base\n", encoding="utf-8")
     git(root, "add", "README.md")
     git(root, "commit", "-qm", "chore: base")
+    git(
+        root,
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/example-owner/example-repo.git",
+    )
     git(root, "update-ref", "refs/remotes/origin/develop", "HEAD")
 
     feature_worktree = tmp_path / "feature-foo"
@@ -1034,6 +1041,24 @@ def test_worktree_and_feature_git_failures_are_visible_and_exit_zero(tmp_path: P
     assert "未取得(git 失敗)" in feature_block(feature_failure.stdout, "foo")
 
 
+@pytest.mark.parametrize(
+    "origin_url",
+    [
+        "https://github.com/example-owner/example-repo.git",
+        "https://github.com/example-owner/example-repo",
+        "git@github.com:example-owner/example-repo.git",
+    ],
+)
+def test_github_repository_from_origin_url_supports_expected_formats(
+    origin_url: str,
+):
+    """対応する origin URL 3 形式から gh 用の owner/repo を導出する。"""
+    assert (
+        feature_status.github_repository_from_origin_url(origin_url)
+        == "example-owner/example-repo"
+    )
+
+
 def test_gh_missing_is_reported_as_pr_degradation(tmp_path: Path):
     """PATH に gh がない場合は PR 行だけを縮退表示する。"""
     root, _, _ = setup_committed_plan(tmp_path, status="in-review")
@@ -1054,6 +1079,34 @@ def test_gh_nonzero_exit_is_reported_as_pr_degradation(tmp_path: Path):
     completed = run_status(root, env=environment)
 
     assert completed.returncode == 0
+    assert "PR 状態: 未取得(縮退)" in feature_block(completed.stdout, "foo")
+
+
+@pytest.mark.parametrize(
+    "origin_url",
+    [None, "https://gitlab.example.test/example-owner/example-repo.git"],
+)
+def test_missing_or_invalid_origin_does_not_start_gh(
+    tmp_path: Path,
+    origin_url: str | None,
+):
+    """origin 不在・不正 URL では gh を起動せず PR 状態を縮退する。"""
+    root, _, _ = setup_committed_plan(tmp_path, status="in-review")
+    if origin_url is None:
+        git(root, "remote", "remove", "origin")
+    else:
+        git(root, "remote", "set-url", "origin", origin_url)
+
+    marker = tmp_path / "gh-called"
+    source = (
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('called', encoding='utf-8')\n"
+        "print('{\"state\": \"OPEN\", \"url\": \"https://example.test/pr/1\"}')\n"
+    )
+    completed = run_status(root, env=gh_environment(tmp_path, source))
+
+    assert completed.returncode == 0
+    assert not marker.exists()
     assert "PR 状態: 未取得(縮退)" in feature_block(completed.stdout, "foo")
 
 
@@ -1090,7 +1143,10 @@ def test_gh_state_is_reflected_in_text_stage(
     source = (
         "import json\n"
         "import sys\n"
-        "if sys.argv[1:] != ['pr', 'view', 'feature/foo', '--json', 'state,url']:\n"
+        "if sys.argv[1:] != [\n"
+        "    'pr', 'view', 'feature/foo', '--repo',\n"
+        "    'example-owner/example-repo', '--json', 'state,url',\n"
+        "]:\n"
         "    raise SystemExit(8)\n"
         f"print(json.dumps({{'state': {state!r}, 'url': 'https://example.test/pr/1'}}))\n"
     )

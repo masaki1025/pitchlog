@@ -86,7 +86,7 @@ date: 2026-08-10
 
 ### 3.4 PR 状態(gh)
 
-- `gh pr view <branch> --json state,url`(settings.json:21-24 で許可済みの範囲。`gh api` は使わない)
+- `gh pr view <branch> --json state,url --repo <owner>/<repo>`(settings.json:21-24 で許可済みの範囲。`gh api` は使わない)。**`--repo` は `git remote get-url origin` から導出して明示する** — 省略時のリポジトリ自動解決は worktree × 非対話環境でハングする実測があるため(PR #5 実機)。origin 不在・URL 不正時は gh を呼ばず「未取得(縮退)」
 - subprocess timeout 10 秒(session_context.py:19-26 と同値)。gh 不在・非 0・タイムアウト → 「PR 状態: 未取得(縮退)」
 
 ### 3.5 Notion 照合(対話時のみ — スクリプトは API を呼ばない)

@@ -820,6 +820,45 @@ def pr_status_stub(_: FeaturePlan) -> str:
     return "未取得"
 
 
+def github_repository_from_origin_url(remote_url: str) -> str | None:
+    """対応する GitHub origin URL から ``owner/repo`` を導出する。
+
+    Args:
+        remote_url: ``git remote get-url origin`` が返した URL。
+
+    Returns:
+        ``owner/repo``。対応しない URL や空のリポジトリ名は ``None``。
+    """
+    match = re.fullmatch(
+        r"(?:https://github\.com/|git@github\.com:)(?P<owner>[^/\s]+)/"
+        r"(?P<repository>[^/\s]+)",
+        remote_url.strip(),
+    )
+    if match is None:
+        return None
+    repository = match.group("repository")
+    if repository.endswith(".git"):
+        repository = repository.removesuffix(".git")
+    if not repository:
+        return None
+    return f"{match.group('owner')}/{repository}"
+
+
+def get_origin_repository(plan: FeaturePlan) -> str | None:
+    """worktree の origin URL から gh 用のリポジトリ名を取得する。
+
+    Args:
+        plan: origin を調べる feature。
+
+    Returns:
+        ``owner/repo``。origin の不在・取得失敗・URL 不適合時は ``None``。
+    """
+    result = run_git(plan.worktree, ["remote", "get-url", "origin"])
+    if not result.succeeded:
+        return None
+    return github_repository_from_origin_url(result.stdout)
+
+
 def get_pr_status(
     plan: FeaturePlan,
     timeout_seconds: float | None = None,
@@ -836,8 +875,20 @@ def get_pr_status(
     branch = plan.worktree.branch
     if not branch:
         return "未取得(縮退)"
+    repository = get_origin_repository(plan)
+    if repository is None:
+        return "未取得(縮退)"
     result = run_command(
-        ["gh", "pr", "view", branch, "--json", "state,url"],
+        [
+            "gh",
+            "pr",
+            "view",
+            branch,
+            "--repo",
+            repository,
+            "--json",
+            "state,url",
+        ],
         cwd=plan.worktree.path,
         timeout_seconds=timeout_seconds,
     )
