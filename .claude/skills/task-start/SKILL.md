@@ -19,7 +19,7 @@ disable-model-invocation: true
    - 本文にテンプレどおり DoD 欄を用意
 2. **ブランチ + worktree**: slug を決める(英小文字とハイフン)。種別はバグ修正なら `fix/`、それ以外は `feature/`。**worktree 名 = ブランチ名のスラッシュを `-` に置換**(例: `feature/sync-protocol` → `feature-sync-protocol`):
    `mkdir -p ../pitchlog-worktrees`(置き場を先に確保)→ `git fetch origin` → `git worktree add -b <type>/<slug> ../pitchlog-worktrees/<type>-<slug> origin/develop`
-3. **計画書雛形**: worktree 内に `docs/features/<slug>/plan.md` を `docs/development/templates/plan-template.md` から作成し、frontmatter(slug / branch / **worktree 相対パス** / notion URL / created)を埋める(worktree フィールドは /implement ラッパーの検証に使われる — 単一の情報源。値は worktree ルート = plan.md から `../../..`)
+3. **計画書雛形**: worktree 内に `docs/features/<slug>/plan.md` を `docs/development/templates/plan-template.md` から作成し、frontmatter(slug / branch / **worktree 相対パス** / notion URL / created)を埋める(worktree フィールドは /implement ラッパーの検証に使われる — 単一の情報源。値は worktree ルート = plan.md から `../../..`)。design.md(詳細設計)はここでは作らない — **任意ファイルで、作成判断は /plan**(密度が高くなる場合に分離)
 4. **worklog**: worktree 内に `docs/worklog/YYYY-MM-DD-<slug>.md` をテンプレから作成
 5. **Notion 遷移**: worktree 作成まで成功したら、ステータスを `進行中` へ(綴りの正: `.claude/notion-map.json` — 推測しない)+ ブランチ名をタスクへコメントで記録
 6. 以後の作業はすべて worktree 側(`../pitchlog-worktrees/<type>-<slug>`)で行う。ファイル編集はそのパス配下、git 操作は `git -C <worktree>` を使う

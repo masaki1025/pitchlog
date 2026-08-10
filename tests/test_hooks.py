@@ -3,6 +3,8 @@
 各フックをサブプロセスとして起動し、stdin の JSON 入力に対する exit code を検証する。
 exit 0 = 許可 / exit 2 = ブロック。
 """
+import importlib.util
+import io
 import json
 import re
 import subprocess
@@ -316,11 +318,215 @@ def test_git_guard_allows_safe_branch_delete():
 
 # ---- session_context -------------------------------------------------------
 
+def make_feature_status_worktree(
+    tmp_path: Path,
+    frontmatter_prefix: str = "",
+) -> tuple[Path, Path]:
+    """feature_status.py を呼ぶための feature worktree を作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        frontmatter_prefix: status 行より前に置く frontmatter の追加行。
+
+    Returns:
+        develop のメインリポジトリと feature/foo worktree の組。
+    """
+    root = make_repo(tmp_path, "develop")
+    subprocess.run(
+        ["git", "-C", str(root), "update-ref", "refs/remotes/origin/develop", "HEAD"],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+    worktree = tmp_path / "feature-foo"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "feature/foo",
+            str(worktree),
+        ],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+    plan = worktree / "docs" / "features" / "foo" / "plan.md"
+    plan.parent.mkdir(parents=True)
+    plan.write_text(
+        "\n".join(
+            [
+                "---",
+                "feature: foo",
+                frontmatter_prefix,
+                "status: active",
+                "承認: 済",
+                "branch: feature/foo",
+                "---",
+                "# 計画",
+                "### 実装ステップ(コミット単位)",
+                "| # | ステップ | 合格条件 |",
+                "| --- | --- | --- |",
+                "| 1 | 実装 | pytest |",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return root, worktree
+
+
+def session_context_additional_context(completed: subprocess.CompletedProcess) -> str:
+    """SessionStart フックの JSON 出力から additionalContext を取り出す。
+
+    Args:
+        completed: session_context.py を起動した結果。
+
+    Returns:
+        フックが注入した additionalContext。
+    """
+    output = json.loads(completed.stdout.decode("utf-8"))
+    return output["hookSpecificOutput"]["additionalContext"]
+
+
+def load_session_context():
+    """テスト用に session_context.py をモジュールとして読み込む。"""
+    script = HOOKS / "session_context.py"
+    spec = importlib.util.spec_from_file_location("session_context_under_test", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_session_context_directly(module, cwd: Path, monkeypatch, capsys) -> str:
+    """モジュール直接実行で子プロセス故障時の注入内容を取得する。
+
+    Args:
+        module: 読み込み済みの session_context モジュール。
+        cwd: SessionStart 入力へ渡す基準ディレクトリ。
+        monkeypatch: pytest の差し替え機構。
+        capsys: pytest の標準出力捕捉機構。
+
+    Returns:
+        フックが注入した additionalContext。
+    """
+    payload = json.dumps({"cwd": str(cwd)}).encode("utf-8")
+    stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", stdin)
+    assert module.main() == 0
+    output = json.loads(capsys.readouterr().out)
+    return output["hookSpecificOutput"]["additionalContext"]
+
+
 def test_session_context_emits_json():
     r = run_hook("session_context.py", {"cwd": REPO})
     assert r.returncode == 0
     out = json.loads(r.stdout.decode("utf-8"))
     assert out["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+
+
+def test_session_context_injects_feature_status_hook_summary(tmp_path: Path):
+    """feature_status.py の 1 feature 1 行要約を追加文脈へ注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path)
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    feature_lines = [line for line in context.splitlines() if line.startswith("foo(")]
+    assert len(feature_lines) == 1
+    assert "実装前(全 1 ステップ)" in feature_lines[0]
+    assert "PR 状態: 未取得" in feature_lines[0]
+
+
+def test_session_context_detects_frontmatter_longer_than_800_characters(
+    tmp_path: Path,
+):
+    """status 行が 800 文字以降でも feature_status.py の解析結果を注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path, "説明: " + "x" * 900)
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert any(line.startswith("foo(feature/foo)") for line in context.splitlines())
+
+
+def test_session_context_reports_frontmatter_larger_than_8kib(tmp_path: Path):
+    """8KiB を超える frontmatter を解析失敗としてそのまま注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path, "説明: " + "x" * (8 * 1024))
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "foo(feature/foo) / 未取得(frontmatter 解析失敗)" in context
+
+
+def test_session_context_handles_cwd_outside_repository(tmp_path: Path):
+    """リポジトリ外 cwd でも未取得を注入して終了コード 0 を維持する。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    completed = run_hook("session_context.py", {"cwd": str(outside)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "進行中 feature: 未取得(worktree 列挙失敗)" in context
+
+
+def test_session_context_omits_feature_line_when_no_active_feature(tmp_path: Path):
+    """正常に feature が 0 件なら現在地の行を増やさない。"""
+    root = make_repo(tmp_path, "develop")
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "進行中 feature:" not in context
+
+
+def test_session_context_reports_child_nonzero_as_derivation_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """feature_status.py の非 0 終了を導出失敗として明示する。"""
+    module = load_session_context()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setattr(module, "FEATURE_STATUS_SCRIPT", tmp_path / "missing.py")
+
+    context = run_session_context_directly(module, outside, monkeypatch, capsys)
+
+    assert "進行中 feature: 未取得(導出失敗)" in context
+
+
+def test_session_context_reports_child_timeout_as_derivation_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """feature_status.py のタイムアウトを短時間で導出失敗として明示する。"""
+    module = load_session_context()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    slow_script = tmp_path / "slow_feature_status.py"
+    slow_script.write_text("import time\ntime.sleep(5)\n", encoding="utf-8")
+    monkeypatch.setattr(module, "FEATURE_STATUS_SCRIPT", slow_script)
+    monkeypatch.setattr(module, "FEATURE_STATUS_TIMEOUT_SECONDS", 0.05)
+
+    context = run_session_context_directly(module, outside, monkeypatch, capsys)
+
+    assert "進行中 feature: 未取得(導出失敗)" in context
 
 
 # ---- codex_run.py(ラッパーの検証ロジック。codex 本体は起動しない経路のみ) ----

@@ -29,6 +29,8 @@ status: approved
 | 1.1 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 2 周(1 周目 P0×3/P1×2/P2×1 全解消 → 2 周目 残 P1×1〔運用規約の同期〕反映)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 | 1.2 | 2026-08-10 | **6.4 にハーネス確定ベースラインマージ(1 回限り)の例外を起案** — PO 判断(2026-08-10): 「ハーネス完成 = 13 章 Phase 3 完了」と定義し、プロダクト初回リリースに先立つ `develop → main` マージを 1 回実施(リリース非該当 — /release・DoD 8 項目・vX.Y.Z 適用外)。統制: **両アンカー固定**(develop 側 = Phase 3 統合 `ce100aa`・main 側 = `f06e2f2` — v1.2 統合コミットの**第一親一致** + **PR base 一致**を成立条件)・**未使用失効は即時・不可逆**(main マージ前の第一親不一致 or develop/main・PR head/base の変化 → マージ禁止・PR クローズ・Notion「取り下げ」維持〔完了へ上書きしない〕・実測 SHA 記録・worktree 除去 + ブランチ安全削除〔`git branch -d`〕)・PR + CI 全グリーン + マージ直前の head/base 再照合 + 人間マージ・**当該 PR 1 件のマージで失効**(証跡でマージコミット両親を検証)・再実施/対象変更は**版繰り上げ + 7.3 確定ゲート必須**・**タグ付与なし**(vX.Y.Z は /release のみ)・実施証跡の正は **PR 本文 + Notion**(worklog 事後追記は任意の別 PR)。反映経緯: 反対側レビュー 1 周目(P1×2/P2×1 — ゲート区分の是正・SHA 固定・参照節訂正。当初の「版繰り上げなしの節更新〔7.6-3〕」扱いを撤回し **7.3 確定ゲート対象として起案**)+ 確定ゲート敵対レビュー 1 周目(否決 P1×3 — アンカー欠落・PO 判断のみの再発行経路・worklog 記録の実行不能)+ 2 周目(否決 P1×2 — 統合後〜main マージ前の未使用失効が未定義・タグの PO 単独経路)+ 3 周目(否決 P1×2/P2×2 — 未使用失効の終端手続が /task-done と矛盾・main/PR base の未固定・要約と次工程の旧文言)+ 4 周目(否決 P1×1/P2×1 — ブランチ削除手順の実行不能・DoD の両アンカー未追随。全周とも全件採用) | in-review |
 | 1.2 | 2026-08-10 | **確定ゲート通過(approved)**: 反対側レビュー 1 周(terra max)+ 敵対レビュー 5 周(sol xhigh — 1〜4 周目の否決指摘 **P1×10/P2×4 を全件採用**・5 周目 P0/P1/P2 指摘なしで収束。`git branch -d` の git_guard 通過・両アンカーの origin 一致・ベースライン PR での CI 実行可否まで実測検証)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
+| 1.3 | 2026-08-10 | **feature 現在地の導出機構 + 計画書 3 ファイル役割分担の規約化(起案)**: 6.1 — 標準構成へ design.md(詳細設計・任意)と plan = 契約の位置づけを追記・plan frontmatter 拡張キー 3 個(計画レビュー周回・確定ゲート周回・実行方式 — 指摘反映を伴う周のみ数える)・ステップコミット件名の完全トークン記法 `(ステップ <k>[/<N>][ 付記])`(既存慣行の明文化)・差し戻しの往復ライフサイクル(再開 = in-review → active / 修正完了 = active → in-review・OPEN の既存 PR は再レビュー依頼のみ)を新設 / 7.6-4 — 現在地導出の機械化(`scripts/feature_status.py` — 無保存・派生表示・Notion 不一致は顕在化のみ。完了の正は従来の組のまま)を注記 / 8.3 — session_context 行を feature_status.py 委譲(単一実装・失敗時「未取得」注入)へ更新。当初 7.6-3 前段(実装追随の節更新)として起案 → 反対側レビュー P1 の挑戦を受け、**PO 判定(2026-08-10)で構造的規約変更 = 版繰り上げ + 7.3 確定ゲートへ切替**(前例: ci-foundation の 7 章規約新設 v1.1)。実装計画ゲート = review normal 11 周収束 + PO 承認(docs/features/feature-status/plan.md) | in-review |
+| 1.3 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 5 周(sol xhigh — 1 周目 P1×5/P2×2・2 周目 P1×4・3 周目 P1×1・4 周目 P1×1 を**全件採用・不採用 0 件**、5 周目 P0/P1/P2 指摘なしで収束。導出実装の反例再現・smoke・194 passed まで実機検証。周回カウンタの計上漏れを機構自身のドッグフーディングで 2 度検出・是正)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本。
 > **本書の v1.0 は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件。**現在の状態の正は冒頭の frontmatter** — 7.1-5）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
@@ -243,8 +245,8 @@ flowchart TD
   5. DoD（受け入れ基準 — Notion タスクの DoD と同期）
   6. テスト計画（NFR-019 のどのテスト種別に何を足すか)
   - 下調べには調査サブエージェント（8.5）を使い、結論には典拠を添える
-- **1 feature = 1 ディレクトリ**: feature の作業文書は `docs/features/<slug>/` ディレクトリに集約する（`docs/features/` 直下に単発ファイルを置かない）。標準構成 — `plan.md`（実装計画書・必須）/ `research.md`（/investigate・/research の統合先）/ `.codex-session`（Codex セッション追跡 — gitignore）/ 補助資料（図・検討メモ等。命名自由で任意追加）
-- **段階実装（こまめなコミット — 2026-08-07 PO 指示）**: コーディングは計画書 4 節の「実装ステップ（コミット単位）」表に沿って進める。**1 回の委任 = 1 ステップ**とし、ステップ完了ごとに Claude が検証して **1 コミット**を作る（Conventional Commits）。全ステップの一括委任はしない。ステップはレビュー可能な粒度（1 論理変更）に切る — 差し戻しの巻き戻し幅が 1 ステップに閉じ、PR レビューがコミット単位で追える。機構化: `codex_run.py implement` は実装ステップ表の無い計画書を**拒否**し、Codex 側の規律（指示されたステップで止まる）は AGENTS.md に明記する。2 ステップ目以降は保存済みセッション ID の `--resume` で文脈を維持する（9.2）
+- **1 feature = 1 ディレクトリ**: feature の作業文書は `docs/features/<slug>/` ディレクトリに集約する（`docs/features/` 直下に単発ファイルを置かない）。標準構成 — `plan.md`（実装計画書・必須。**契約 — 機構が読む状態〔status・承認・worktree・branch・重さ分類・拡張キー〕と実装ステップ表はこのファイルのみに置く**）/ `research.md`（調査 — /investigate・/research の統合先）/ `design.md`（**詳細設計・検討メモ — 任意**。plan の密度が高くなる場合に /plan が分離し、plan 4 節から相対リンクで参照する〔内容を複製しない — 7.1-1。テンプレ: design-template.md〕）/ `.codex-session`（Codex セッション追跡 — gitignore）/ 補助資料（図・検討メモ等。命名自由で任意追加）
+- **段階実装（こまめなコミット — 2026-08-07 PO 指示）**: コーディングは計画書 4 節の「実装ステップ（コミット単位）」表に沿って進める。**1 回の委任 = 1 ステップ**とし、ステップ完了ごとに Claude が検証して **1 コミット**を作る（Conventional Commits）。全ステップの一括委任はしない。ステップはレビュー可能な粒度（1 論理変更）に切る — 差し戻しの巻き戻し幅が 1 ステップに閉じ、PR レビューがコミット単位で追える。機構化: `codex_run.py implement` は実装ステップ表の無い計画書を**拒否**し、Codex 側の規律（指示されたステップで止まる）は AGENTS.md に明記する。2 ステップ目以降は保存済みセッション ID の `--resume` で文脈を維持する（9.2）。**ステップコミットの件名には完全トークン `(ステップ <k>[/<N>][ 付記])` をちょうど 1 個含める**（`/<N>` と付記は任意・全半角括弧可 — 既存慣行の明文化。承認・起票などステップ外のコミットには付けない）。現在地（計画段階・実装中 k/N・PR 段階等）はどこにも保存せず、plan frontmatter・実装ステップ表 × git log・PR 状態から **`scripts/feature_status.py` が導出して表示**する（SessionStart が要約を注入 — 8.3。導出規則の詳細は同スクリプトと docs/features/feature-status/design.md）。記法を持たないコミットの扱い: **計画系**（feature ディレクトリ + worklog のみ）・**文書系**（`docs/` 配下または拡張子 `.md` のみ — `.claude`/`.github` の実行コード・設定〔`.py`・`.yml`・`.json` 等〕は文書扱いしない）・**develop 取り込みマージ**（第 2 親が origin/develop 系統）は正当（記法不要）。**コードに触れる無記法コミット・side branch マージ・分類の取得失敗**が混在すると進捗表示は「不明」に落ちる（規約逸脱・不確実性の顕在化 — 黙って進捗を確定しない）
 - **計画承認前に `/implement` は実行できない**（`codex_run.py` ラッパーが計画書の承認ステータスを機構検証し、未承認なら実行を拒否する）。計画レビューの水準は 6.3 の表のとおり（通常 feature = Codex レビュー＋人間、コア領域 = 敵対レビュー＋人間）
 
 #### fast path（軽微変更の軽量経路 — 敵対レビュー P2-4 対応・2026-08-07 採用）
@@ -258,6 +260,17 @@ flowchart TD
 手順: /task-start（ブランチ+worktree は維持）→ `codex_run.py fast`（terra medium 固定）または Claude が直接修正 → /check → PR 本文に**短縮計画**（目的/変更/確認方法）→ CI + 反対側レビュー1本（Codex 実装なら Claude、Claude 直なら Codex）→ 人間マージ。
 
 - plan の状態は `active → in-review` の2値とし、**merged を Git に置かない**（PR 却下・保留と矛盾するため — P1-4）。完了の正は「PR merged + Notion 完了 + worktree 除去」の組で導出する
+- **差し戻しの往復**（PR の OPEN/CLOSED を問わない）: 修正の再開時は**先に plan を `in-review → active` に戻し**（Notion は 進行中 へ）、修正・検証完了で `active → in-review` に戻す（Notion は 確認待ち へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**・CLOSED は reopen または新 PR）。この状態更新コミットにはステップ記法を付けない（進捗導出に影響させない）。**fast からの昇格**: fast の 3 条件を外れた場合は plan frontmatter を `status: active`・`実行方式: 通常`・`承認: 未` へ**一括で**揃えてから計画書ゲート（/plan）へ切り替える（中途半端な遷移は現在地導出が誤表示する）
+- **既知の残余リスク（v1.3 で受容を記録）**: `codex_run.py implement` は plan の `status` を機構検証しない — `in-review` のまま実装を起動できる（差し戻し往復は手順統制）。補償統制 = /pr の差し戻し手順（先に active へ戻す）+ 現在地導出での顕在化（「PR 段階」表示のまま進む違和感の見える化）。機構強制（`status: active` 以外の拒否）は追跡タスク（[codex_run.py に plan status の機構強制を追加](https://app.notion.com/p/3b893b75e687819ebaa3ce597b8d97ea)）で解消し、解消時に本注記を削除する
+- **plan frontmatter の拡張キー**（feature 作業自身の進行事実のみを置く — 正本 status の複製は置かない〔7.1-1〕。**本表が契約の正** — v1.3）:
+
+  | キー | 値文法 | 既定（キー欠落時） | 更新責務 |
+  | --- | --- | --- | --- |
+  | `計画レビュー周回` | 半角非負整数 | 0 | /plan — **指摘反映を伴う**レビュー 1 周ごとに +1（指摘なしの収束確認周は数えない。キーが無い旧 plan は 0 を追記してから更新） |
+  | `確定ゲート周回` | 半角非負整数 | 0 | /finalize-doc — 指摘反映を伴う敵対レビュー 1 周ごとに +1（同前。更新先は実行中 feature の plan — 一意に解決できなければ人間に確認） |
+  | `実行方式` | `通常` \| `fast`（これ以外は不正） | 通常 | fast path 適用の人間事前 OK 時に fast へ（/implement fast 節）。導出側が「承認なし・ステップ表なし」を正当な fast と識別する |
+
+  各キーは同一 frontmatter 内に**最大 1 行**（重複・不正値・非整数は導出が「不正値/解析失敗」として表示で顕在化する — 黙って解釈しない）。キーは既存 8 キーの後ろ（frontmatter 末尾）に置く
 
 ### 6.2 ブランチ・コミット規約（既存運用の機構化)
 
@@ -351,7 +364,7 @@ draft（Claude起案）
 1. **計画時に宣言**: 実装計画書の必須欄「影響する正本」に、この feature が更新・新設すべき正本（設計書の節・ADR・運用文書・README）を列挙する。**「反映なし」も明示的に書く**（黙殺しない — NFR-015 の文書版）
 2. **同一 PR で運ぶ**: 正本の更新は feature ブランチ内で行い、コードと同じ PR に含める（ドキュメントだけ後回しにしない）。`/pr` が計画書の宣言と PR 内容を突合し、未反映があればブロックする
 3. **ゲートの使い分け**: 実装追随の節更新・変更履歴追記は PR レビューで足りる。**版繰り上げを伴う構造的変更**（アーキテクチャ・スキーマの変更、要件改訂等）はその部分だけ 7.3 の確定ゲート（敵対レビュー → 人間承認）を通す
-4. **feature 文書のライフサイクル**: `docs/features/<slug>/` は活動中のみ意味を持つ一時ディレクトリ（plan.md の frontmatter status は active → in-review の2値 — 6.1。完了は「PR merged + Notion 完了 + worktree 除去」から導出）。恒久的な知見は正本へ、経緯は worklog・PR へ移し、マージ後の計画書は履歴として閉じる（削除しない — 4.0-2 の「物理削除しない」と同じ規律）。進行中 feature の一覧は静的に持たず、**worktree の現存**を正とする（`git worktree list`・SessionStart 文脈が表示 — 鮮度の見える化）
+4. **feature 文書のライフサイクル**: `docs/features/<slug>/` は活動中のみ意味を持つ一時ディレクトリ（plan.md の frontmatter status は active → in-review の2値 — 6.1。完了は「PR merged + Notion 完了 + worktree 除去」から導出）。恒久的な知見は正本へ、経緯は worklog・PR へ移し、マージ後の計画書は履歴として閉じる（削除しない — 4.0-2 の「物理削除しない」と同じ規律）。進行中 feature の一覧は静的に持たず、**worktree の現存**を正とする（`git worktree list`・SessionStart 文脈が表示 — 鮮度の見える化）。**現在地の導出**は **`scripts/feature_status.py`** が機械化する（plan frontmatter・実装ステップ表 × git log・PR 状態〔gh〕から**導出して表示・無保存**。出力は派生表示であり正本ではない。Notion は期待値表示 + 対話セッションでの実値照合〔11.3〕— 不一致は顕在化のみで書き換えない。縮退は「未取得(理由)」で明示し無言で消さない）。**完了の正は従来どおり「PR merged + Notion 完了 + worktree 除去」の組**であり、/task-done と対話照合で確認する（feature_status.py は完了を判定しない — worktree 除去後は一覧から消えることが完了の表れ）
 
 ## 8. Claude Code 側ハーネス
 
@@ -389,9 +402,9 @@ draft（Claude起案）
 | `secret_guard.py` | PreToolUse / `Bash\|PowerShell` | コマンド文字列中の `.env` 参照をブロック（`.env.example` は許可）。**Read deny がサブプロセスに効かない穴（P0-1）への対処**。難読化への残余リスクは 12.1 に記録 |
 | `codex_guard.py` | PreToolUse / `Bash\|PowerShell` | **Codex 起動をラッパー `codex_run.py` のみに限定**（生の `codex exec/review/resume`・プラグイン task モードをブロック — P0-2）。**起動検出型**: パス前置・npx/`@openai/codex`・チェーン混入も遮断し、ヒアドキュメント本文はデータとして除外（2周目 P0 — substring 許可の全廃）。危険フラグ（`danger-full-access`・`--yolo` 等）は無条件ブロック。`network_access=true` は systemMessage で顕在化 |
 | `format_on_save.py` | PostToolUse / `Write\|Edit` | `backend/**/*.py` → `uv run ruff format` + `ruff check --fix`。`frontend/**` → `pnpm exec prettier --write`。ツール未導入時は静かにスキップ（fail-open） |
-| `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**worktree が現存する**進行中 feature（`git worktree list --porcelain` で**全 worktree を列挙** — 2周目 P1）・最新 worklog の要約を additionalContext として注入 |
+| `session_context.py` | SessionStart | 現在ブランチ・未コミット差分・**進行中 feature の現在地要約**（`scripts/feature_status.py --format hook` へ委譲 — 判定の単一実装。worktree 現存 × plan frontmatter × ステップ進捗。子プロセスの失敗・timeout 時は「進行中 feature: 未取得(導出失敗)」を注入し無言省略しない）・最新 worklog の要約を additionalContext として注入 |
 
-- hooks は **pytest で単体テストする**（`tests/test_hooks.py`・103ケース — P1-13。迂回ケース・一時リポジトリでの実ブランチ判定を含む。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
+- hooks は **pytest で単体テストする**（`tests/` 全件 — P1-13。件数は CI harness ジョブの実行結果を正とする〔固定件数は腐るため書かない — v1.3〕。迂回ケース・一時リポジトリでの実ブランチ判定を含む。/check と CI が実行）。hooks の起動は `/usr/bin/python3` の**絶対パス**（PATH 上の壊れた Windows シムを拾って fail-open する事故の機構的排除 — 2周目 P0 対応）。ラッパー用に `python` が PATH にあることは `/setup-dev` が検証する（P1-7）
 
 - hooks は「Claude が誤ってやりかけた時に止まる」ための層。規約の一次的な伝達は CLAUDE.md / AGENTS.md が担う
 - 例外運用（Claude が直接コードを書いた場合）は、そのコードを `codex_run.py review normal` に必ず通す（Codex を反対側レビュアにする — 6.3）。プラグインの stop-review-gate は使わない（経路一本化の方針）
