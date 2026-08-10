@@ -261,7 +261,8 @@ flowchart TD
 手順: /task-start（ブランチ+worktree は維持）→ `codex_run.py fast`（terra medium 固定）または Claude が直接修正 → /check → PR 本文に**短縮計画**（目的/変更/確認方法）→ CI + 反対側レビュー1本（Codex 実装なら Claude、Claude 直なら Codex）→ 人間マージ。
 
 - plan の状態は `active → in-review` の2値とし、**merged を Git に置かない**（PR 却下・保留と矛盾するため — P1-4）。完了の正は「PR merged + Notion 完了 + worktree 除去」の組で導出する
-- **差し戻しの往復**（PR の OPEN/CLOSED を問わない）: 修正の再開時は**先に plan を `in-review → active` に戻し**（Notion は 進行中 へ）、修正・検証完了で `active → in-review` に戻す（Notion は 確認待ち へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**・CLOSED は reopen または新 PR）。この状態更新コミットにはステップ記法を付けない（進捗導出に影響させない）。**fast からの昇格**: fast の 3 条件を外れた場合は plan frontmatter を `status: active`・`実行方式: 通常`・`承認: 未` へ**一括で**揃えてから計画書ゲート（/plan）へ切り替える（中途半端な遷移は現在地導出が誤表示する）- **plan frontmatter の拡張キー**（feature 作業自身の進行事実のみを置く — 正本 status の複製は置かない〔7.1-1〕。**本表が契約の正** — v1.3）:
+- **差し戻しの往復**（PR の OPEN/CLOSED を問わない）: 修正の再開時は**先に plan を `in-review → active` に戻し**（Notion は 進行中 へ）、修正・検証完了で `active → in-review` に戻す（Notion は 確認待ち へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**・CLOSED は reopen または新 PR）。この状態更新コミットにはステップ記法を付けない（進捗導出に影響させない）。**fast からの昇格**: fast の 3 条件を外れた場合は plan frontmatter を `status: active`・`実行方式: 通常`・`承認: 未` へ**一括で**揃えてから計画書ゲート（/plan）へ切り替える（中途半端な遷移は現在地導出が誤表示する）
+- **plan frontmatter の拡張キー**（feature 作業自身の進行事実のみを置く — 正本 status の複製は置かない〔7.1-1〕。**本表が契約の正** — v1.3）:
 
   | キー | 値文法 | 既定（キー欠落時） | 更新責務 |
   | --- | --- | --- | --- |
