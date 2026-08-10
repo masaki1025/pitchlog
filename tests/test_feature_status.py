@@ -431,6 +431,7 @@ def test_worktree_plan_resolution_failures_are_visible_in_text_and_hook(
         duplicate_worktree,
         "duplicate",
         branch="feature/duplicate",
+        approval="未",
     )
     write_plan(
         duplicate_worktree,
@@ -444,11 +445,16 @@ def test_worktree_plan_resolution_failures_are_visible_in_text_and_hook(
         assert "未取得(plan 不在)" in block_getter(output, "feature/foo")
         assert "未取得(plan 不在)" in block_getter(output, "fix/no-plan")
         assert "未取得(branch 不整合)" in block_getter(output, "mismatch")
-        assert "未取得(plan 重複)" in block_getter(output, "another")
+        duplicate = block_getter(output, "duplicate")
+        assert "未取得(plan 重複)" in duplicate
+        assert "実装前(" not in duplicate
+        assert "計画段階" not in duplicate
+        assert output.count("feature/duplicate") == 1
+        assert "another(feature/duplicate)" not in output
 
 
 def test_misplaced_matching_plans_are_not_adopted_in_text_or_hook(tmp_path: Path):
-    """期待パス外の branch 一致 plan を対応 plan として採用しない。"""
+    """誤配置の branch 一致 plan は worktree 単位で重複として扱う。"""
     root, worktree = init_repository(tmp_path)
     write_plan(worktree, "bar", branch="feature/foo")
 
@@ -459,10 +465,12 @@ def test_misplaced_matching_plans_are_not_adopted_in_text_or_hook(tmp_path: Path
     text_output = run_status(root).stdout
     hook_output = run_status(root, "hook").stdout
     for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
-        assert "未取得(plan 不在)" in block_getter(output, "feature/foo")
-        assert "未取得(plan 重複)" in block_getter(output, "bar")
-        assert "未取得(branch 不整合)" in block_getter(output, "mismatch")
-        assert "未取得(plan 重複)" in block_getter(output, "elsewhere")
+        assert "未取得(plan 重複)" in block_getter(output, "foo")
+        assert "未取得(plan 重複)" in block_getter(output, "mismatch")
+        assert output.count("feature/foo") == 1
+        assert output.count("feature/mismatch") == 1
+        assert "bar(feature/foo)" not in output
+        assert "elsewhere(feature/mismatch)" not in output
 
 
 def test_approval_values_select_plan_or_implementation_stage(tmp_path: Path):

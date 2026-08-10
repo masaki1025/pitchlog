@@ -1208,6 +1208,16 @@ def collect_features(
             for plan_path, frontmatter in parsed_plans.items()
             if plan_path != expected_plan_path and frontmatter.branch == worktree.branch
         ]
+        if misplaced_matching_plans:
+            results.append(
+                worktree_resolution_failure_result(
+                    expected_slug,
+                    worktree.branch,
+                    "plan 重複",
+                )
+            )
+            continue
+
         frontmatter = parsed_plans.get(expected_plan_path)
         plan_path: Path | None = None
 
@@ -1232,15 +1242,6 @@ def collect_features(
             )
         else:
             plan_path = expected_plan_path
-
-        for misplaced_path, _ in misplaced_matching_plans:
-            results.append(
-                worktree_resolution_failure_result(
-                    misplaced_path.parent.name,
-                    worktree.branch,
-                    "plan 重複",
-                )
-            )
 
         if plan_path is None or frontmatter is None:
             continue
