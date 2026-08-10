@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -227,6 +228,30 @@ def feature_plan_for_direct_call(worktree: Path, plan_path: Path):
         worktree=feature_status.Worktree(path=worktree, branch="feature/foo"),
         frontmatter=frontmatter,
     )
+
+
+def write_notion_map(
+    root: Path,
+    *,
+    task_start_status: str = "進行中",
+    pr_created_status: str = "確認待ち",
+) -> Path:
+    """一時メインリポジトリに Notion map fixture を書く。"""
+    path = root / ".claude" / "notion-map.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "transitions": {
+                    "task_start": {"status": task_start_status},
+                    "pr_created": {"status": pr_created_status},
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: Path):
@@ -505,7 +530,9 @@ def test_execution_modes_and_comments_in_text_and_hook(tmp_path: Path):
         assert "未取得(実行方式不正)" in block_getter(output, "invalid")
         assert "未取得(実行方式不正)" in block_getter(output, "empty")
         assert "PR 状態: 未取得" in output
-    assert "Notion" not in text_output
+    assert "Notion 期待: 未取得" in text_output
+    assert "Notion 期待" not in feature_block(text_output, "invalid")
+    assert "Notion 期待" not in feature_block(text_output, "empty")
     assert "Notion" not in hook_output
 
 
@@ -600,6 +627,8 @@ def test_parse_failures_are_visible_without_hiding_healthy_feature(tmp_path: Pat
     for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
         assert "未取得(frontmatter 解析失敗)" in block_getter(output, "unclosed")
         assert "未取得(frontmatter 解析失敗)" in block_getter(output, "oversized")
+    assert "Notion 期待" not in feature_block(text_output, "unclosed")
+    assert "Notion 期待" not in feature_block(text_output, "oversized")
 
 
 def test_worktree_and_feature_git_failures_are_visible_and_exit_zero(tmp_path: Path):
@@ -702,3 +731,88 @@ def test_hook_mode_does_not_start_gh(tmp_path: Path):
     assert completed.returncode == 0
     assert not marker.exists()
     assert "PR 状態: 未取得" in hook_line(completed.stdout, "foo")
+    assert "Notion 期待" not in completed.stdout
+
+
+@pytest.mark.parametrize(
+    ("status", "pr_state", "expected"),
+    [
+        ("active", None, "進行中"),
+        ("in-review", "OPEN", "確認待ち"),
+        ("in-review", "MERGED", "確認待ち(/task-done 待ち)"),
+        ("in-review", "CLOSED", "人間判断(差し戻し or 取り下げ)"),
+        ("in-review", None, "未取得"),
+    ],
+)
+def test_notion_expectation_follows_stage_and_pr_state(
+    tmp_path: Path,
+    status: str,
+    pr_state: str | None,
+    expected: str,
+):
+    """active 系と PR 状態ごとの Notion 期待値を map から導出する。"""
+    root, worktree, _ = setup_committed_plan(tmp_path, status=status)
+    write_notion_map(root)
+    assert not (worktree / ".claude").exists()
+
+    source = None
+    if pr_state is not None:
+        source = (
+            "import json\n"
+            f"print(json.dumps({{'state': {pr_state!r}, 'url': 'https://example.test/pr/1'}}))\n"
+        )
+    completed = run_status(root, env=gh_environment(tmp_path, source))
+
+    assert completed.returncode == 0
+    block = feature_block(completed.stdout, "foo")
+    assert f"Notion 期待: {expected}" in block
+    assert "(実値の照合は対話セッションで)" in block
+
+
+def test_notion_pr_expectation_uses_replaced_map_vocabulary(tmp_path: Path):
+    """pr_created.status を差し替えた fixture の語彙へ表示が追随する。"""
+    root, worktree, _ = setup_committed_plan(tmp_path, status="in-review")
+    write_notion_map(
+        root,
+        task_start_status="開始中(検証語)",
+        pr_created_status="独自レビュー待ち",
+    )
+    assert not (worktree / ".claude").exists()
+    source = (
+        "import json\n"
+        "print(json.dumps({'state': 'OPEN', 'url': 'https://example.test/pr/1'}))\n"
+    )
+
+    completed = run_status(root, env=gh_environment(tmp_path, source))
+
+    assert completed.returncode == 0
+    block = feature_block(completed.stdout, "foo")
+    assert "Notion 期待: 独自レビュー待ち" in block
+    assert "Notion 期待: 確認待ち" not in block
+
+
+@pytest.mark.parametrize("fixture_kind", ["missing", "invalid-json", "missing-key"])
+def test_unavailable_notion_map_is_reported_as_unknown_expectation(
+    tmp_path: Path,
+    fixture_kind: str,
+):
+    """Notion map の欠落・破損・必要キー欠落を未取得へ縮退する。"""
+    root, _, _ = setup_committed_plan(tmp_path)
+    map_path = root / ".claude" / "notion-map.json"
+    if fixture_kind == "invalid-json":
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        map_path.write_text("{invalid", encoding="utf-8")
+    elif fixture_kind == "missing-key":
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        map_path.write_text(
+            json.dumps({"transitions": {"task_start": {"status": "進行中"}}}),
+            encoding="utf-8",
+        )
+
+    completed = run_status(root)
+
+    assert completed.returncode == 0
+    assert "Notion 期待: 未取得(実値の照合は対話セッションで)" in feature_block(
+        completed.stdout,
+        "foo",
+    )

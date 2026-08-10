@@ -7,7 +7,7 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
 
@@ -148,6 +148,7 @@ class FeatureResult:
         pr_status: PR 状態。text モードの PR 段階でのみ gh から取得する。
         degradation: 縮退理由。通常時は ``None``。
         frontmatter: 表示補助に使う frontmatter。解析失敗時は ``None``。
+        notion_expectation: text モードで表示する Notion の期待値。不要時は ``None``。
     """
 
     name: str
@@ -157,6 +158,20 @@ class FeatureResult:
     pr_status: str
     degradation: str | None
     frontmatter: Frontmatter | None
+    notion_expectation: str | None = None
+
+
+@dataclass(frozen=True)
+class NotionTransitions:
+    """Notion map から取得した期待ステータスの語彙を表す。
+
+    Attributes:
+        task_start_status: ``transitions.task_start.status`` の値。
+        pr_created_status: ``transitions.pr_created.status`` の値。
+    """
+
+    task_start_status: str
+    pr_created_status: str
 
 
 def run_command(
@@ -728,6 +743,104 @@ def pr_stage_display(pr_status: str, frontmatter: Frontmatter) -> str:
     return append_final_gate(stage, frontmatter)
 
 
+def get_repository_root(plan: FeaturePlan) -> Path | None:
+    """共有 Git ディレクトリからメインリポジトリのルートを取得する。
+
+    Args:
+        plan: ルートを調べる feature。
+
+    Returns:
+        共有 ``.git`` ディレクトリの親。取得失敗時は ``None``。
+    """
+    result = run_git(
+        plan.worktree,
+        ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    )
+    common_dir = result.stdout.strip()
+    if not result.succeeded or not common_dir:
+        return None
+    return Path(common_dir).parent
+
+
+def read_notion_transitions(repository_root: Path) -> NotionTransitions | None:
+    """notion-map.json から導出に必要な状態語を読み取る。
+
+    Args:
+        repository_root: メインリポジトリのルート。
+
+    Returns:
+        task_start と pr_created の状態語。欠落・破損時は ``None``。
+    """
+    map_path = repository_root / ".claude" / "notion-map.json"
+    try:
+        payload = json.loads(map_path.read_text(encoding="utf-8"))
+        transitions = payload.get("transitions") if isinstance(payload, dict) else None
+        task_start = transitions.get("task_start") if isinstance(transitions, dict) else None
+        pr_created = transitions.get("pr_created") if isinstance(transitions, dict) else None
+        task_start_status = task_start.get("status") if isinstance(task_start, dict) else None
+        pr_created_status = pr_created.get("status") if isinstance(pr_created, dict) else None
+    except Exception:
+        return None
+    if not isinstance(task_start_status, str) or not task_start_status:
+        return None
+    if not isinstance(pr_created_status, str) or not pr_created_status:
+        return None
+    return NotionTransitions(
+        task_start_status=task_start_status,
+        pr_created_status=pr_created_status,
+    )
+
+
+def should_display_notion_expectation(result: FeatureResult) -> bool:
+    """導出済み feature に Notion 期待値を付けられるか判定する。
+
+    Args:
+        result: 判定対象の feature 結果。
+
+    Returns:
+        stage が既知で text 表示の対象なら ``True``。
+    """
+    return result.frontmatter is not None and not result.stage.startswith("未取得(")
+
+
+def get_notion_expectation(
+    result: FeatureResult,
+    plan: FeaturePlan,
+    cache: dict[Path, NotionTransitions | None],
+) -> str | None:
+    """stage と PR 状態から Notion の期待値を導出する。
+
+    Args:
+        result: stage と PR 状態を含む feature 結果。
+        plan: map のリポジトリルート解決に使う feature。
+        cache: リポジトリルートごとの map 読み取り結果。
+
+    Returns:
+        表示する期待値。stage が不明なら ``None``、map 取得失敗時は ``未取得``。
+    """
+    if not should_display_notion_expectation(result):
+        return None
+    repository_root = get_repository_root(plan)
+    if repository_root is None:
+        return "未取得"
+    if repository_root not in cache:
+        cache[repository_root] = read_notion_transitions(repository_root)
+    transitions = cache[repository_root]
+    if transitions is None:
+        return "未取得"
+
+    frontmatter = result.frontmatter
+    if frontmatter is not None and frontmatter.status == "active":
+        return transitions.task_start_status
+    if result.pr_status == "OPEN":
+        return transitions.pr_created_status
+    if result.pr_status == "MERGED":
+        return f"{transitions.pr_created_status}(/task-done 待ち)"
+    if result.pr_status == "CLOSED":
+        return "人間判断(差し戻し or 取り下げ)"
+    return "未取得"
+
+
 def git_failure_result(plan: FeaturePlan) -> FeatureResult:
     """feature 単位の Git 取得失敗を表示用結果へ変換する。
 
@@ -895,6 +1008,7 @@ def collect_features(
         return [], False
 
     results: list[FeatureResult] = []
+    notion_cache: dict[Path, NotionTransitions | None] = {}
     for worktree in worktrees:
         if worktree.branch in PROTECTED_BRANCHES:
             continue
@@ -919,12 +1033,20 @@ def collect_features(
                     worktree=worktree,
                     frontmatter=frontmatter,
                 )
-                results.append(
-                    derive_feature(
-                        feature_plan,
-                        resolve_pr=output_format == "text",
-                    )
+                result = derive_feature(
+                    feature_plan,
+                    resolve_pr=output_format == "text",
                 )
+                if output_format == "text":
+                    result = replace(
+                        result,
+                        notion_expectation=get_notion_expectation(
+                            result,
+                            feature_plan,
+                            notion_cache,
+                        ),
+                    )
+                results.append(result)
             except Exception:
                 results.append(
                     FeatureResult(
@@ -988,6 +1110,11 @@ def format_text_result(result: FeatureResult) -> str:
                     else "不正値"
                 ),
             ]
+        )
+    if result.notion_expectation is not None:
+        lines.append(
+            "  Notion 期待: "
+            f"{result.notion_expectation}(実値の照合は対話セッションで)"
         )
     if result.degradation is not None:
         lines.append(f"  縮退: {result.degradation}")
