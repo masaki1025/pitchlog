@@ -33,6 +33,15 @@ branch: feature/codex-plan-status-guard
 - /implement ステップ 2(2026-08-11): Claude 直(文書のみ)— 設計書 6.1 列挙追記・残余リスク注記削除・8.4/9.2 追随・変更履歴 1 行(v1.3 同版・PR レビューゲート)+ README 最終更新現行化 + 追随 4 件(CLAUDE.md・implement/finalize-doc スキル・plan テンプレ)。検証: check_docs_status.py green・注記 0 件・213 passed → コミット `a0a0165`(ステップ 2/2)
 - 総合検証: 全 diff = 計画宣言範囲のみ・DoD 4 項目充足・feature_status.py 導出「実装完了・/pr 前(2/2)」を実機確認(ドッグフーディング)
 
+- /pr 前の反対側レビュー(review normal・terra max)2 周: 1 周目 = **P0×0 / P1×0 / P2×2 — 要修正**(①設計書 :264 削除時の箇条書き連結〔Markdown 構造崩れ〕②docstring 概要行の追随漏れ)→ 全件採用・修正(`6e89591`・`d2e438a`)。2 周目 = **修正済み確認・新規指摘なし・承認可**(収束)
+- /pr: クローズ処理(plan を in-review 化)→ 突合(porcelain 空・宣言 11 ファイル一致・pytest 213 passed / docs-lint green)→ push → PR 作成 → Notion 確認待ち
+
+## 結果サマリ
+
+- **実装**: `codex_run.py implement` に plan status の機構強制(`active` 必須・in-review は差し戻し手順へ誘導・厳格 1 行判定は feature_status.py と同一リテラル)+ frontmatter 抽出を docs-lint と同一の完全一致 `---` へ是正(偽終端迂回の排除)。回帰テスト 10 ケース群追加(213 passed・既存無修正)
+- **正本反映**: 設計書 6.1(列挙追記・残余リスク注記を予告どおり削除)/ 8.4 / 9.2 + 変更履歴 1 行(v1.3 同版・PR レビューゲート = PO 判定)+ README 現行化 + 追随 4 件(CLAUDE.md・implement/finalize-doc スキル・plan テンプレ)
+- **レビュー**: 計画 = review normal 3 周反映 + 収束 1 周(全 14 件採用)/ 実装 PR = Claude 一次レビュー(ステップ 1)+ review normal 2 周(P2×2 採用・収束)
+
 ## 未決・次の一歩
 
-- /pr で PR 作成(正本反映はステップ 2 で実施済み — /pr の宣言突合で確認される。Notion DoD 項目 4 は承認時に同期済み)
+- PR レビュー(人間)→ CI 全グリーン → 人間マージ → /task-done
