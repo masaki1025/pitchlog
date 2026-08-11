@@ -11,7 +11,7 @@
 | [要件対話の決定記録(D-1〜D-41)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.3 — 敵対レビュー5周 → PO 承認) | 1.3 | 2026-08-11 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-10 |
-| [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-11 |
+| [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | — | 2026-08-12 |
 | [オンボーディング](development/onboarding.md) | draft | — | 2026-08-10 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(敵対レビュー2周 → PO 承認) | 1.0 | 2026-08-10 |
 

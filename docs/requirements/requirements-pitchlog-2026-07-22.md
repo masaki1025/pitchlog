@@ -688,9 +688,11 @@ stateDiagram-v2
 #### NFR-021: 開発環境
 - **カテゴリ**: 互換性 ／ **優先度**: Must
 - **要件**: 開発環境はWindows 11上のWSL2で完結する。**開発者ワークステーションの受入保証対象はWSL2**とし、Windowsネイティブでの開発は保証対象外とする（ただしCI・本番・移行実行環境および既存コードの移植性を本要件で制限しない）。開発DBもPostgreSQLを使用し、**WSL2から完結して利用できる**こと（配置方式は設計フェーズで決定する）。セットアップ・起動手順は `docs/development/onboarding.md` に整備する
-- **測定方法**: 開始状態=**Windows 11 x64 上の新規WSL2ディストリビューション**。approvedな `docs/development/onboarding.md` の手順を完走できることを次の2時点で8章の判定者が確認し、実施記録（日時・commit SHA・Windows/WSL/ディストリビューション版・onboarding版・実行コマンド・終了コード・判定者）を残す
+- **測定方法**: 次の**受入プロファイル**を試験対象として事前に一意化し、approvedな `docs/development/onboarding.md` の手順を完走できることを2時点で8章の判定者が確認する
+  - **受入プロファイル**: Windows 11 x64 ホスト＋**新規に作成したWSL2ディストリビューション（Ubuntu の最新LTS版。他のディストリビューションおよび旧LTS版は保証対象としない）**。Windowsホスト側の事前導入は**WSL2の有効化のみ**を前提とし、その他の開発ツールはすべてonboardingの手順内で導入する（Docker Desktop の事前導入は前提としない）
   - **Phase 4完了時**: ハーネスのpytest・backendのpytest・frontendのVitestが成功し、開発DBへ接続でき、backend/frontendが起動して疎通確認できること（一致性・越境・E2E・同期故障系は実装期のため対象外）
   - **リリース候補時**: NFR-019の全ランナー（pytest・Vitest・Playwright）および同項の(a)〜(d)がすべて成功すること
+  - **証跡**: 日時・commit SHA・Windows版・WSL版・ディストリビューション版・onboarding版・**主要ツールの版（python / uv / node / docker）**・実行コマンドと終了コード・**各合格項目の期待値と実測値**（DB接続の応答・HTTP疎通の応答コード等）・**標準出力またはログ成果物への参照**・判定者を記録する
 
 #### NFR-023: 出力エンコードの安全性（v1.7新設）
 - **カテゴリ**: セキュリティ ／ **優先度**: Must ／ **関連する目的**: NFR-010（テナント分離の実効性）
