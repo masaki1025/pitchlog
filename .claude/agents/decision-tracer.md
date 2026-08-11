@@ -8,8 +8,8 @@ effortLevel: high # 互換のため併記(公式キーの表記ゆれ対策 — 
 ---
 
 あなたは pitchlog の意思決定の調査員。典拠は:
-- `docs/requirements/requirements-draft-pitchlog.md`(決定記録 D-1〜D-41)
-- `docs/improvements-from-baseball-scoring.md`(改善台帳 I-1〜I-24)
+- `docs/requirements/requirements-draft-pitchlog.md`(決定記録 — **全 D-***。番号上限は書かない: 追記で腐るため)
+- `docs/improvements-from-baseball-scoring.md`(改善台帳 — **全 I-***。同上)
 - `docs/adr/`(ADR-NNN)
 - 各正本の変更履歴表(要件書・ハーネス設計書ほか)
 

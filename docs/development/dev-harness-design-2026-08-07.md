@@ -32,11 +32,11 @@ status: in-review
 | 1.3 | 2026-08-10 | **feature 現在地の導出機構 + 計画書 3 ファイル役割分担の規約化(起案)**: 6.1 — 標準構成へ design.md(詳細設計・任意)と plan = 契約の位置づけを追記・plan frontmatter 拡張キー 3 個(計画レビュー周回・確定ゲート周回・実行方式 — 指摘反映を伴う周のみ数える)・ステップコミット件名の完全トークン記法 `(ステップ <k>[/<N>][ 付記])`(既存慣行の明文化)・差し戻しの往復ライフサイクル(再開 = in-review → active / 修正完了 = active → in-review・OPEN の既存 PR は再レビュー依頼のみ)を新設 / 7.6-4 — 現在地導出の機械化(`scripts/feature_status.py` — 無保存・派生表示・Notion 不一致は顕在化のみ。完了の正は従来の組のまま)を注記 / 8.3 — session_context 行を feature_status.py 委譲(単一実装・失敗時「未取得」注入)へ更新。当初 7.6-3 前段(実装追随の節更新)として起案 → 反対側レビュー P1 の挑戦を受け、**PO 判定(2026-08-10)で構造的規約変更 = 版繰り上げ + 7.3 確定ゲートへ切替**(前例: ci-foundation の 7 章規約新設 v1.1)。実装計画ゲート = review normal 11 周収束 + PO 承認(docs/features/feature-status/plan.md) | in-review |
 | 1.3 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 5 周(sol xhigh — 1 周目 P1×5/P2×2・2 周目 P1×4・3 周目 P1×1・4 周目 P1×1 を**全件採用・不採用 0 件**、5 周目 P0/P1/P2 指摘なしで収束。導出実装の反例再現・smoke・194 passed まで実機検証。周回カウンタの計上漏れを機構自身のドッグフーディングで 2 度検出・是正)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 | 1.3 | 2026-08-11 | **codex-plan-status-guard の実装追随(7.6-3 前段・節更新)**: 6.1 — 機構検証の列挙へ plan status(implement 限定・`active` 以外は拒否・差し戻し手順へ誘導)を追記し、v1.3 受容の既知残余リスク注記(status 非強制)を予告どおり削除 / 8.4 — /implement 行を「`status: active` かつ承認済み」へ追随 / 9.2 — 検証列挙と implement コマンド注記へ status を追記。あわせてラッパーの frontmatter 抽出を docs-lint と同一の完全一致 `---` のみ受理へ是正(偽終端による status 検証迂回の排除 — 計画レビュー 1 周目 P0)。ゲート = PR レビュー・版繰り上げなし(PO 判定 2026-08-10。計画: docs/features/codex-plan-status-guard/plan.md) | approved |
-| 1.4 | 2026-08-12 | **要件書 v1.9(開発環境の受入保証対象を WSL2 に限定)への追随(起案)**: 2.2 — 開発環境を「WSL2 を標準環境」→「**WSL2 を唯一の受入保証対象**」へ / 2.3 — 見出しを v1.9 継承へ改め、NFR-021 行を「Windows 11 上の WSL2 で完結・開発 DB も WSL2 から完結・配置方式は設計フェーズで決定(5.3 で docker compose を採用)」へ改訂し「WSL 判断は論点C」(決着済み)を除去 / **4 章 — 目標ツリーの `frontend/` を「Vue または React(論点A決着後)」→「Vue 3 + TypeScript(ADR-002 で確定)」へ**(approved 正本に未決表記が残っていた — 確定ゲート 3 周目 P1-2) / 8.3 — hooks の OS 非依存の理由を「Windows 11 ネイティブと WSL/CI」→「WSL2 と CI」へ / 8.4 — `/setup-dev` の説明から「Windows sandbox 推奨設定の確認」を除去し「trust 設定と WSL2 の確認(`[windows] sandbox` は不要)」へ / 9.3 — `--ignore-user-config` の理由から Windows sandbox 設定への言及を除去 / **10.1 — `win-setup` を「windows-latest で README を再現」→「`onboarding.md` の手順を再現。ランナーは未決 — Phase 4 で選定」へ**(GitHub-hosted の Windows Server ランナーは入れ子仮想化が公式サポート外で NFR-021 の受入プロファイル〔Windows 11 x64〕の証跡にならない) / 13 章 Phase 4 — `frontend` を Vue 3 + TypeScript 確定表記へ、完了条件の参照先を README → `onboarding.md` へ / 2.1・8.5・付録の要件正本参照を v1.9 へ。**過去事実の v1.7 記述は保存**(`:443`・`:466`・変更履歴の既存行)。ゲート = **7.3 の確定ゲート**(計画: `docs/features/req-v1-9-nfr021-wsl2/plan.md`。`:699` は未実装フェーズの受入契約、`:561` は将来 CI 設計の変更にあたるため節更新では足りないと計画レビュー 1 周目 P0-1 で判定) | in-review |
+| 1.4 | 2026-08-12 | **要件書 v1.9(開発環境の受入保証対象を WSL2 に限定)への追随 + NFR-021 受入ゲートの新設(起案)**: **2.1 環境実査表** — 開発環境を「WSL2 を標準環境」→「**WSL2 を唯一の受入保証対象**」へ、フロントエンド行の「要件書 v1.8 改訂を実装着手前に実施」→「v1.9 で通過済み」へ / **2.3 継承表** — 見出しを v1.9 継承へ改め、NFR-021 行を「Windows 11 上の WSL2 で完結・開発 DB も WSL2 から完結・配置方式は設計フェーズで決定」へ、**NFR-019 行を 3 ランナー(pytest/Vitest/Playwright)と (a)〜(d) の要求へ**、7.1 行を「ADR-002・要件書 v1.9 で解決済み」へ / **2.4 フォローアップ** — 「実装着手前に要件書 v1.8 として 7.1 を改訂する」→「完了」 / **4 章 目標ツリー** — `frontend/` を「Vue または React(論点A決着後)」→「**Vue 3 + TypeScript**(ADR-002)」、`scripts/` の「OS非依存」→「WSL2/CI Linux 共通」、`docker-compose.yml` の帰属を「NFR-021: Docker 許容」→「NFR-021 の WSL2 完結要件を満たす配置方式として 5.3 で採用」へ / **5.3** — 配置方式が設計フェーズへ委ねられた構造を明記 / **6.4・8.4 `/release`** — **NFR-021 受入ゲートのリリース候補時証跡確認を追加** / **8.3** — hooks の射程を「OS 非依存」→「**WSL2/CI Linux 共通**」に是正し、`.cmd` 経路を**未保証の互換フォールバック**と明記 / **8.4 `/setup-dev`** — Windows sandbox 設定の言及を除去し、`onboarding.md` を「**draft のため approved 化までは規範ではない**」と明記 / **8.5 decision-tracer** — 典拠範囲の番号上限(D-1〜D-41・I-1〜I-24)を撤去し「**全 D-*／全 I-***」へ(追記で腐るため) / **9.3** — `--ignore-user-config` の理由から Windows sandbox 設定への言及を除去 / **10.1** — `win-setup` を「`onboarding.md` の手順を再現。**ランナーは未決 — Phase 4 で選定**」へ、かつ **NFR-021 受入ゲート(実施時点・実施者・判定者・環境・証跡の保存先と保持期間・CI との関係)を新設** / **13 章 Phase 4** — `frontend` を Vue 3 + TypeScript 確定表記へ、完了条件を**受入ゲートの Phase 4 判定合格 + onboarding.md の v1.0 approved 化**へ / **14 章 論点A・論点C** — 通過済み・改訂済みへ更新 / 2.1 冒頭注記・付録の要件正本参照を v1.9 へ。**過去事実の v1.7 記述は保存**(8.5 legacy-analyst 行・9.1 の移行仕様帰属・変更履歴の既存行)。ゲート = **7.3 の確定ゲート**(`13 章 Phase 4 の受入契約`と`10.1 の将来 CI 設計`の変更を含むため節更新では足りない — 計画レビュー 1 周目 P0-1)。反映経緯: 敵対レビュー 1 周目 P0×2/P1×4/P2×2 を全件採用(計画: `docs/features/req-v1-9-nfr021-wsl2/plan.md`) | in-review |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本。
 > **本書の v1.0 は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件。**現在の状態の正は冒頭の frontmatter** — 7.1-5）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
-> 要件の正本は [`../requirements/requirements-pitchlog-2026-07-22.md`](../requirements/requirements-pitchlog-2026-07-22.md)（v1.9）であり、本書はそれに矛盾しない範囲でプロセスを定める（発見済みの矛盾1件は 14章 論点A）。
+> 要件の正本は [`../requirements/requirements-pitchlog-2026-07-22.md`](../requirements/requirements-pitchlog-2026-07-22.md)（v1.9）であり、本書はそれに矛盾しない範囲でプロセスを定める（v1.7 時点で発見された矛盾1件は ADR-002 と要件書 v1.9 で解決済み — 14章 論点A）。
 
 ---
 
@@ -63,7 +63,7 @@ status: in-review
 | タスク管理 | **Notion** |
 | コード管理 | **GitHub**（CI/CD も GitHub Actions を利用） |
 | バックエンド | Python / FastAPI（uv・ruff・ty を利用） |
-| フロントエンド | **Vue.js + TypeScript で確定**（ADR-002・論点A解決 2026-08-07。要件書 v1.8 改訂を実装着手前に実施）。フォーマッタ・リンタ・バージョン管理ツールは 5.2 |
+| フロントエンド | **Vue.js + TypeScript で確定**（ADR-002・論点A解決 2026-08-07。**要件書 7.1 の改訂は v1.9 として 2026-08-12 に確定ゲートを通過済み** — 実装着手〔Phase 4〕前という条件を満たしている）。フォーマッタ・リンタ・バージョン管理ツールは 5.2 |
 | データベース | PostgreSQL 想定（より良い案があれば採用 → 5.3 節で PostgreSQL 継続を提案） |
 | コメント規約 | コードコメントは原則日本語、docstring は Google スタイル |
 | ドキュメント | 部分的に Notion 管理も検討（→ 7.4 節で分担案） |
@@ -89,18 +89,18 @@ status: in-review
 | 出所 | 制約 | ハーネスへの反映 |
 | --- | --- | --- |
 | 7.3 | Git Flow（main/develop 直接コミット禁止）・PRベース・CI全グリーン必須 | hooks による機構的ブロック + GitHub ブランチ保護 + CI 必須化（6.2 / 10.2）。**保護は現在未適用（縮退中 — 10.2 実装状況・リスク受容記録）** |
-| NFR-019 | テストは pytest に一本化、PR ごとに CI 強制。一致性テスト・越境テスト・E2E・故障系を含む | CI 設計（10.1）。ゴールデンベクタの配置（4章 `contracts/`） |
+| NFR-019 | **テストランナーを標準化**（backend=pytest・frontend=Vitest・E2E=Playwright）、PR ごとに CI 強制。**(a)一致性・(b)越境・(c)E2E 主要分岐・(d)同期故障系**を含む | CI 設計（10.1）。ゴールデンベクタの配置（4章 `contracts/`） |
 | NFR-021 | 開発環境は **Windows 11 上の WSL2 で完結**（受入保証対象は WSL2。開発 DB も WSL2 から完結して利用。配置方式は設計フェーズで決定 → 5.3 で docker compose を採用） | スクリプト・hooks を OS 非依存（Python 実装）に統一（8.3）。**論点C は WSL2 移行で決着済み** |
 | NFR-014 | シークレットはリポジトリに含めず環境変数管理 | `.env` 読み取りの permissions 拒否 + gitleaks を CI 常設（12章） |
 | NFR-018 | ドメイン計算の単一実装 | レビュー観点として CLAUDE.md / AGENTS.md に明記（コピー実装の検出はレビュー責務） |
-| 7.1 | 技術スタック変更には承認が必要 | フロントエンド矛盾を論点Aとして承認判断に付す |
+| 7.1 | 技術スタック変更には承認が必要 | フロントエンドの矛盾は **ADR-002 と要件書 v1.9 で解決済み**（論点A） |
 | R-1 | 開発・運用1名の属人性 | 本ハーネス全体 + worklog 運用（7.5） |
 
 ### 2.4 フロントエンド技術の矛盾（解決済み）
 
 要件書 7.1 は技術スタックを「Python / FastAPI + **React + TypeScript** / PostgreSQL」と定め「変更には承認を要する」と明記していたが、ハーネス整備指示は「Vue.js」だった。**2026-08-07 にプロダクトオーナーが Vue.js + TypeScript の採用を決定**（[ADR-002](../adr/ADR-002-frontend-vue.md)）。
 
-フォローアップ: 実装着手（Phase 4）前に**要件書 v1.8 として 7.1 を改訂**する（7.3 の確定ゲートの初回適用案件として敵対レビュー → 人間承認を通す）。→ 論点A（解決）
+フォローアップ: **完了** — 要件書 7.1 は v1.8 で本文へ反映し、**v1.9 として 2026-08-12 に 7.3 の確定ゲートを通過**した（敵対レビュー5周 → PO 承認。実装着手〔Phase 4〕前という条件を満たしている）。→ 論点A（解決）
 
 ## 3. 役割分担
 
@@ -150,8 +150,8 @@ pitchlog/
 │   └── tests/
 ├── frontend/                  # Vue 3 + TypeScript（ADR-002 で確定。骨格作成は Phase 4）
 ├── contracts/                 # 両側が参照する契約物: OpenAPIスキーマ・付録Eゴールデンベクタ（NFR-019a の共通正解）
-├── scripts/                   # 開発運用スクリプト（Python・OS非依存。ブランチ保護設定等）
-├── docker-compose.yml         # 開発用 PostgreSQL（NFR-021: Docker 許容）
+├── scripts/                   # 開発運用スクリプト（Python 標準ライブラリのみ・WSL2/CI Linux 共通。ブランチ保護設定等）
+├── docker-compose.yml         # 開発用 PostgreSQL（NFR-021 の WSL2 完結要件を満たす配置方式として 5.3 で採用）
 └── docs/
     ├── README.md              # ドキュメントマップ（全正本の索引と状態）
     ├── requirements/          # 要件正本（既存）
@@ -207,7 +207,7 @@ pitchlog/
 2. 「標準 PostgreSQL の範囲で使用（ホスティング固有機能に依存しない）」という既存の可搬性規律が、本番未定（論点D）の現状と整合的 — どこにでも持っていける
 3. NFR-005 の集計規律（WHERE/GROUP BY+インデックス）・テナント分離・JSONB など要件群に対して PostgreSQL は過不足がない。乗り換えの積極的理由が存在しない
 
-開発環境は `docker-compose.yml`（NFR-021 の「Docker」許容に整合）。接続情報は `.env`（gitignore・`.env.example` を正とする）。
+開発環境は `docker-compose.yml`。**要件書 v1.9 は開発 DB の配置方式を設計フェーズへ委ねている**（NFR-021 は「開発 DB も PostgreSQL を使用し WSL2 から完結して利用できること」までを要求）ため、**その要件を満たす配置方式として本設計で Docker Compose を採用する**。接続情報は `.env`（gitignore・`.env.example` を正とする）。
 
 ### 5.4 共通規約（言語横断）
 
@@ -300,6 +300,7 @@ flowchart TD
 ### 6.4 リリースフロー
 
 - `develop → main` のマージ = リリース。要件書 8 章の判定基準（DoD 8項目）をチェックリスト化した `/release` スキルが唯一の入口
+- **`/release` は NFR-021 受入ゲート（10.1）の「リリース候補時」判定の証跡確認を含む**。受入プロファイル上での再受入を経ておらず証跡が `docs/ops/nfr021-acceptance/` に無い場合はリリース不可（v1.4 追加）
 - バージョンタグ `vX.Y.Z` を打ち、CI がコンテナイメージをビルド（デプロイ先確定後に自動デプロイへ拡張 — 10.4）
 - **例外 — ハーネス確定ベースラインマージ(1 回限り・PO 判断 2026-08-10)**: プロダクト初回リリースに先立ち、ハーネス完成(= 13 章 Phase 3 完了)時点の状態を main に反映するため、`develop → main` のベースラインマージを 1 回実施する。**リリースには該当しない**(本節の `/release`・DoD 8 項目・`vX.Y.Z` タグは適用しない)が、次の統制に従う: (1) **対象 SHA の固定** — develop 側アンカー = Phase 3 統合マージコミット `ce100aac97a625d6eab3559a522075b8557c041f`(13 章 Phase 3 完了条件の develop 統合点)、**main 側アンカー = `f06e2f2dd7fd19e05ad828115bbe6b7fd603f7ba`**(本例外起案時点の main HEAD)。対象は本例外を含む改訂(v1.2)を develop へ統合するマージコミット SHA 1 点とし、**その第一親が develop 側アンカーであること**および**ベースライン PR の base が main 側アンカーであること**を成立条件とする(アンカーと v1.2 統合の間に develop への他の統合を挟まない)。(2) **実施手順** — PR 経由(`gh pr create --base main --head develop`)+ PR の head が対象 SHA・base が main 側アンカーであることと CI 全グリーンの確認 + **マージ直前の再照合**(`origin/develop`・`origin/main`・PR の head/base を再取得し、対象 SHA・main 側アンカーとの一致を確認)+ 人間によるマージ(merge commit — squash しない。保護未適用中の管理手続 = github-setup.md 2 章)。**検証責任者は PR 作成者とマージ実施者(人間)**。対象 SHA・両アンカーは**ベースライン PR 本文と Notion タスクに記録**する(= 実施証跡の正。worklog への事後追記は任意とし、行う場合はベースライン対象外の別 feature PR で行う)。(3) **失効と再発行の禁止** — 【未使用失効】main へのマージ完了前に次のいずれかが成立した時点で、本例外は**即時・不可逆に未使用のまま失効**する: (a) v1.2 統合マージコミットの第一親が develop 側アンカーでない、(b) `origin/develop` またはベースライン PR の head が対象 SHA から変化した、(c) `origin/main` またはベースライン PR の base が main 側アンカーから変化した。この場合はマージせず PR をクローズし、実測 SHA を PR 本文と Notion タスクに記録する(develop・main の巻き戻し・PR の作り直しによる復活は不可)。**終端処理** — Notion タスクは「取り下げ」を終端状態として維持し(「完了」へ上書きしない。/task-done の Notion 遷移は実施しない)、worktree の除去・prune は /task-done の Git 手順に準じ、その後ローカルブランチ(計画書の branch)を `git branch -d` で**安全削除**する(削除に失敗した場合は強制削除せず停止し、状態を PR 本文と Notion タスクに記録する)。【使用済み失効】当該 PR 1 件のマージをもって失効し、PR URL・head SHA・main 側マージコミット SHA(**第一親 = main 側アンカー・第二親 = 対象 SHA であることを検証**)を PR 本文と Notion タスクに記録する。【再発行の禁止】失効後(未使用失効を含む)の再実施・対象 SHA の変更は PO 判断のみでは行えず、**v1.3 以降の版繰り上げ + 7.3 の確定ゲートを必須**とする(Notion コメント・口頭・worklog の追記による対象変更は無効)。【タグ】本ベースラインにはタグを付与しない。後日の `vX.Y.Z` 付与は通常どおり `/release` のみとし、別種の標識を設ける場合も版繰り上げ + 7.3 確定ゲートを要する(PO 判断のみでは不可)。以後の `develop → main` は本節のリリースフローのみとする。副次効果: ci.yml が既定ブランチ main に載り、gitleaks 全履歴スキャン(workflow_dispatch)が Actions から起動可能になる(10.1・github-setup.md 4 章)
 
@@ -394,7 +395,7 @@ draft（Claude起案）
 
 ### 8.3 hooks（規律の機構化）
 
-実装言語は **Python 標準ライブラリのみ**（`python .claude/hooks/<name>.py`）。理由: WSL2（NFR-021 の受入保証対象）と CI（Linux）の両方で同一に動き、jq・bash 依存を持たないため論点Cの決着に影響されない。公式仕様どおり stdin の JSON を読み、exit 2 + stderr でブロックを表現する。
+実装言語は **Python 標準ライブラリのみ**（`python .claude/hooks/<name>.py`）。理由: **WSL2（NFR-021 の受入保証対象）と CI（Linux）という 2 つの Linux 実行系で同一に動き**、jq・bash 依存を持たないため。**「OS 非依存」ではなく「WSL2/CI Linux 共通」が正確な射程**である — hooks の起動は `settings.json` で `/usr/bin/python3` の絶対パスに固定しており、Windows ネイティブでは同じ保護を保証できない（`codex_run.py` の `.cmd` を `cmd /c` で起動する経路と `codex_guard` の `codex.cmd` 認識は**未保証の互換フォールバック**であり、受入保証の対象ではない — 12.1）論点Cの決着に影響されない。公式仕様どおり stdin の JSON を読み、exit 2 + stderr でブロックを表現する。
 
 | Hook | イベント / matcher | 動作 |
 | --- | --- | --- |
@@ -416,7 +417,7 @@ draft（Claude起案）
 
 | スキル | 内容 |
 | --- | --- |
-| `/setup-dev` | 初回セットアップ: 開発者↔Notion ユーザーの紐づけ（11.2）→ Codex の trust 設定と WSL2 の確認（onboarding.md 準拠。`[windows] sandbox` の設定は不要 — 12.1）→ 開発ツールの疎通確認 → permissions 構文検証 |
+| `/setup-dev` | 初回セットアップ: 開発者↔Notion ユーザーの紐づけ（11.2）→ Codex の trust 設定と WSL2 の確認（手順の配置先は `onboarding.md`。同書は現在 **draft** であり、**approved 化までは規範ではなく作業手順として扱う** — 7.1-5 / NFR-021。`[windows] sandbox` の設定は案内しない — 12.1）→ 開発ツールの疎通確認 → permissions 構文検証 |
 | `/task-start <タスク名 or NotionURL>` | 着手の唯一の入口: Notion タスク取得/起票（11.1）→ `feature/*` ブランチ+worktree 作成（12.1）→ 計画書雛形（6.1）→ worklog 雛形 → ステータス着手 |
 | `/investigate <テーマ>` | 計画段階のリポ内調査: 調査サブエージェント3本（8.5）を**既定3並列**で委任し、典拠付き `research.md` に統合 |
 | `/research <テーマ>` | Web 調査の Codex 委任: read-only + `-c web_search="live"`・terra high（ADR-001）。結論と参照 URL を記録 |
@@ -427,7 +428,7 @@ draft（Claude起案）
 | `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 in-review 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3）→ Notion を確認待ちへ（11.1） |
 | `/task-done` | 完了の唯一の出口: PR マージ確認 → develop 最新化（`pull --ff-only`）→ worktree 除去（12.1）→ Notion 完了。worklog 締め・計画書 in-review 化は **/pr が PR 内で実施済み**（マージ後の develop を直接編集しない） |
 | `/finalize-doc <文書パス>` | 正本確定ゲート（7.3）: 敵対レビュー → 指摘反映ループ → 人間承認 → approved 化・索引更新 |
-| `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → 人間のリリース判定 → develop→main PR → タグ |
+| `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → **NFR-021 受入ゲートの「リリース候補時」証跡確認**（10.1・`docs/ops/nfr021-acceptance/`）→ 人間のリリース判定 → develop→main PR → タグ |
 | `/worklog <メモ>` | 進行中 worklog への軽量追記 |
 
 - レビューは `codex_run.py review <normal|adversarial>` を使う（経路一本化 — 4周目 P1。プラグイン `/codex:*` は使わない）
@@ -442,7 +443,7 @@ draft（Claude起案）
 | --- | --- | --- |
 | `spec-checker` | 変更・設計が要件書のどの FR/NFR に対応し、矛盾がないかの突合レポート。PR 前・設計レビュー時に呼ぶ | 要件書 v1.9（付録A〜F含む）・改善台帳 |
 | `legacy-analyst` | 旧システム（Baseball_Scoring）の実挙動・データ構造の事実確認。移行・機能パリティの根拠調査 | `docs/legacy/research/` 9本（**88列の意味は `data-layer.md` が正** — v1.7 で確定した移行仕様の正本）・旧要件書 v0.2 |
-| `decision-tracer` | 「なぜこの仕様・この構成になっているか」の経緯追跡。新しい提案が過去の決定と矛盾していないかの早期検知 | 決定記録 D-1〜D-41（requirements-draft）・改善台帳 I-1〜I-24・ADR・各正本の変更履歴表 |
+| `decision-tracer` | 「なぜこの仕様・この構成になっているか」の経緯追跡。新しい提案が過去の決定と矛盾していないかの早期検知 | 決定記録の**全 D-***（requirements-draft）・改善台帳の**全 I-***・ADR・各正本の変更履歴表（番号上限は書かない — 追記で腐るため） |
 
 共通規則:
 
@@ -564,6 +565,23 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 - `concurrency` で同一 PR の旧実行をキャンセル。uv / pnpm のキャッシュ有効化
 - **CI 全ジョブ green をマージ条件にする**（10.2）— 要件書 7.3 / NFR-019 の直接要求。**現在このマージ条件のリモート強制は未適用**（縮退中 — 10.2 実装状況。運用は github-setup.md 2 章の管理手続）
 - **Phase 3 実装追随(2026-08-10・ci-foundation)**: `secrets`・`docs-lint`・`core-guard`・`harness` の 4 ジョブを `.github/workflows/ci.yml` として **feature/ci-foundation の PR で実装済み(develop への反映はマージ後)**。採用: gitleaks-action v3.0.0(コメント/artifact/summary 無効)/ lychee-action v2.9.0(`--offline`・`docs/legacy` 除外)+ `scripts/check_docs_status.py`(7.1-5 の固定文法が検査仕様の正)/ `scripts/core_guard.py`(検知対象 = `areas[].paths` ∪ `guard_paths`)/ setup-uv v9.0.0(uv 0.8.13・Python 3.12.3 固定)。**全 Action はコミット SHA ピン留め(値の正は ci.yml)**。トリガー = pull_request(**edited 含む** — PR 本文のチェック編集で core-guard を再評価)+ push(develop/main)+ workflow_dispatch(gitleaks 全履歴)。運用手続は github-setup.md が正
+
+#### NFR-021 受入ゲート（v1.4 新設 — CI ジョブとは独立した人手の受入手続）
+
+**規範は要件書 NFR-021**（`docs/requirements/requirements-pitchlog-2026-07-22.md` の受入プロファイル・2 時点の合格条件・証跡の必須項目）。本節はその**実施責務と証跡の置き場**だけを定める（要件を複製しない — 7.1-1）。
+
+| 項目 | 内容 |
+| --- | --- |
+| 実施時点 | **Phase 4 完了時**と**リリース候補時**の 2 回（要件書 NFR-021 の測定方法） |
+| 実施者 | 開発担当（Claude は手順の実行と記録の起草まで） |
+| 判定者 | **要件書 8 章のリリース判定者**（システム管理者 = プロダクトオーナー） |
+| 環境 | 要件書 NFR-021 の**受入プロファイル**に一致する環境のみ。プロファイル外の環境での結果は**合格の証跡にしない** |
+| 証跡の保存先 | `docs/ops/nfr021-acceptance/<YYYY-MM-DD>-<phase4\|release-vX.Y.Z>.md`（Phase 4 で `docs/ops/` を新設する） |
+| 証跡の必須項目 | 要件書 NFR-021 の「証跡」箇条書きのとおり（項目を本書に複製せず参照する） |
+| 保持期間 | リリース後も削除しない（論理削除の原則 — 要件書 4.0-2 と同じ扱い） |
+| CI との関係 | `win-setup` は**補助検査**であり本ゲートの代替にならない。ランナー未決の間は本ゲート（人手）のみが受入判定の根拠 |
+
+> **`/release` はこのゲートの証跡確認を含む**（6.4・8.4）。リリース候補時の再受入を経ていない場合はリリース不可。
 
 ### 10.2 ブランチ保護（リポジトリ設定もハーネスの一部）
 
@@ -697,7 +715,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・103件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
 | **3** | CI 先行分(secrets / docs-lint / core-guard / harness — **10.1 の表が正**)+ github-setup.md。**ブランチ保護はプラン制約により後送り(PO 判断 2026-08-10 — 10.2)** | 最新 HEAD で CI 4 ジョブ全グリーン + 当該 PR が develop へマージ済み(保護設定の有効化は制約解消後の別タスクへ) |
-| **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（Vue 3 + TypeScript — ADR-002）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | クリーン環境で `onboarding.md` 手順どおりセットアップ成功（NFR-021） |
+| **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（Vue 3 + TypeScript — ADR-002）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | **NFR-021 受入ゲート(10.1)の Phase 4 完了時判定に合格**: 受入プロファイル上で onboarding 手順を完走し、ハーネス/backend の pytest・frontend の Vitest が成功・開発DB接続・backend/frontend の起動疎通を確認し、**証跡を `docs/ops/nfr021-acceptance/` に記録**して判定者の合格判定を得ていること。あわせて **onboarding.md を完成させ v1.0 として確定ゲートを通す**(approved 化までは規範にならない) |
 | **5** | 拡張: Notion テンプレ整備 / PR 自動レビュー評価（10.3） / デプロイ確定分 / （論点F次第で）ドキュメントサイト | 個別判断 |
 
 - Phase 1〜3 はコードが無くても成立する（現状の docs 中心リポジトリに即日効く）。Phase 4 は設計フェーズの進行と同期させる
@@ -706,9 +724,9 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 
 | # | 論点 | 提案 |
 | --- | --- | --- |
-| **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 v1.8 改訂（7.1）を実装着手前に確定ゲート経由で実施する |
+| **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 7.1 の改訂は v1.8 で本文へ反映し、**v1.9 として 2026-08-12 に確定ゲートを通過済み**（実装着手前という条件を満たしている） |
 | **B** | コードレビュー体制 | **解決（2026-08-07）**: 6.3 の「反対側必須レビュー」案を確定採用。修正1点 — **コア領域 PR は人間の逐行確認を必須**（任意 → 必須に格上げ。`/pr` が必須チェックを自動付与） |
-| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・回帰テストで担保）。NFR-021「Windows 11 で完結」は WSL2 を含む解釈とし、セットアップ再現手順は onboarding.md が正 |
+| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・回帰テストで担保）。NFR-021 は要件書 v1.9 で「Windows 11 上の WSL2 で完結・受入保証対象は WSL2」へ改訂済み。セットアップ再現手順の**配置先**は onboarding.md（同書の approved 化は Phase 4 — approved 化までは規範ではない） |
 | **D** | 本番アプリ実行環境 | 未定のまま進めて支障がない構え（10.4: イメージビルドまで自動化）。設計フェーズ中に別タスクとして選定（DB は Supabase 前提を維持） |
 | **E** | ty の成熟度リスク | 採用継続。ただし型検査が開発を止めた場合の代替（mypy）切替を ADR 一枚で可能にしておく |
 | **F** | 「ドキュメント製本」の解釈 | **解決（2026-08-07）**: 以後の指示でも「設計書の製本 = docs 内の正本」の用法が確認できたため「正本管理」（7章）で確定。出版（サイト/PDF化）が必要になれば Phase 5 で別途検討 |
