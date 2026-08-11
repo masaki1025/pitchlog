@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3b993b75e687814ea6bcde081bd4d611
 branch: feature/req-v1-9-nfr021-wsl2
 created: 2026-08-11
 計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 ---
 
@@ -48,14 +48,18 @@ created: 2026-08-11
 | --- | --- |
 | 要件書 NFR-021(`:687-690`) | 要件文・測定方法・手順の置き場を WSL2 前提へ改訂(**改訂後の確定文は 4 節に固定**) |
 | 要件書 7.1(`:739`) | 技術スタック行の「開発=**Windows ネイティブ** or Docker」→「WSL2 内のネイティブ導入 or Docker」 |
-| 要件書 8 章 DoD ⑦(`:769`) | 「README(Windowsセットアップ)」が NFR-021 の改訂と矛盾するため、`onboarding.md` を含む形へ追随 |
+| 要件書 8 章 DoD ⑦(`:769`) | 「README(Windowsセットアップ)」を「README(概要と導線)」+「**approvedかつ現行化された**開発者セットアップ手順(`onboarding.md`)」へ分離(確定ゲート P0-1 — draft 文書の内容を規範にしないため) |
+| 要件書 9 章 R-1(`:782`) | 属人性対策に **approved なオンボーディング**を追加(確定ゲート P1-4) |
+| 要件書 10 章 未決事項 | 「**NFR-021 の継続検証基盤**(WSL2 再現を CI 自動化するか手動運用にするか)」を登録・期限 = Phase 4 着手時(確定ゲート P2-1) |
+| 改善台帳 I-4(`:42`) | 「UIは単一のWeb UI(**FastAPI + React + TS**)のみ」→ フレームワーク記述を **ADR-002 と要件書 7.1 への参照に置換**。**approved 正本が React のまま残り要件書 7.1・ADR-002 の Vue と直接矛盾していた**(確定ゲート **P0-3** — v1.8 の Vue 化の追随漏れ) |
 | 改善台帳(`:58`) | 「開発は**Windows ネイティブ版** or Docker」→ **要件書 NFR-021 への相対リンク参照に置換**(重複記述の解消。I-6 の改善内容は不変) |
 | 要件書 変更履歴・frontmatter | **v1.8 行(`:18`)は原文のまま保存**し、v1.9 行を追記して訂正内容を記録 → `/finalize-doc` で `approved` 化 |
 | ハーネス設計書 | **v1.4 として確定ゲートを通す**。`:65`・`:102`・`:708` の現在形を通過済みへ / `:92` 継承表の WSL2 名残と「WSL 判断は論点C」/ `:396` の「Windows 11 ネイティブ」/ `:561` win-setup の**ランナー未決化** / `:699` Phase 4 完了条件の参照先 / **`:418`・`:517` の「Windows sandbox 設定」言及の除去**(下記裁定)/ `:38`・`:86`・`:442`・`:748` の現行参照を v1.9 へ |
 | `.claude/skills/setup-dev/SKILL.md:19` | 同行は 1 つの箇条書きに「WSL 判定・WSL1 → WSL2 の案内・ネイティブ例外」を併記している。**WSL 判定と WSL1 是正の案内は保持**し、末尾の「Windows ネイティブで例外的に使う場合のみ `[windows] sandbox = "elevated"` を提案」だけを「**Windows ネイティブは認めない(WSL2 必須)**」へ**置換**する(行ごと削除しない) |
 | ADR-002 | `:9` 状態行の注記と `:27` フォローアップを未来形 → 通過済みへ(**`status: approved` と決定日 2026-08-07 は維持**。決定内容も不変) |
 | `AGENTS.md:5` | 「要件の正本 …(**v1.7**)」→ v1.9 |
-| `.claude/agents/spec-checker.md:10` | 正本の版参照 v1.7 → v1.9 |
+| `.claude/agents/spec-checker.md:10` | 正本の版参照 v1.7 → v1.9。あわせて**改善台帳の範囲「I-1〜I-24」→ 実際の「I-1〜I-27」**へ修正(確定ゲート P1-5) |
+| ハーネス設計書 `:70` | 「WSL2 を標準」止まりの記述を**排他的な受入保証対象**として言い切る形へ(確定ゲート P1-5。用語を「標準」ではなく「受入保証対象」に統一) |
 | `README.md:14` | 「要件定義完了(v1.8)」→ v1.9 |
 | `docs/README.md` | 索引の**要件書行**(版 1.9・状態)・**設計書行**(版 1.4・状態)・**ADR-002 行**(最終更新日)を現行化。注記の括弧は**半角**(`check_docs_status.py:101`) |
 
@@ -68,7 +72,9 @@ created: 2026-08-11
 - **過去事実・履歴として v1.7 / v1.8 を記す記述の書き換え**(詳細は 4 節の「更新しないリスト」)
 - **ブランチ保護の適用**。後送り(`github-setup.md` 1/3 章・設計書 10.2)
 - **ADR-003(状況計算の配置・実現方式)の起案**。Phase 4 のもう一方のゲートだが別タスク
-- **`onboarding.md` の approved 化**。draft のまま(参照先には指定するが状態遷移は別タスク)
+- **`onboarding.md` の approved 化と本文の整備**。draft のまま(参照先には指定するが状態遷移は別タスク)。ただし確定ゲート P0-1 により **DoD ⑦ が「approved かつ現行化」を要求する形になった**ため、**Phase 4 で onboarding.md に実際のセットアップ・起動・確認手順を完成させ、確定ゲートを通して v1.0 approved にすることが NFR-021 の合否条件の前提になった**。あわせて onboarding 本文の「標準」/「必須」の用語混在の統一もそのタスクで行う(確定ゲート P1-5)
+- **`github-setup.md:14` の draft 参照の是正**。approved な同文書が draft の onboarding をローカル環境の正として参照している(確定ゲート P1-5)。本改訂が原因ではない既存の問題であり、onboarding の approved 化タスクで一括して解消する
+- **文書版番号の規則の明文化**(設計書 7.1 への追加提案 — 確定ゲート P2-2)。v1.9 という版付け自体は妥当と判定されたため本タスクでは扱わない
 - **`codex_run.py` の Windows 互換実装の除去**。同ファイル `:185-190` は「npm インストールの codex は `.cmd` シムで CreateProcess が解決できないため `cmd /c` 経由で起動する」という**互換コード**を持つ。WSL2 必須は**方針**の裁定であり、コードの互換フォールバックは別レイヤーとして**残す**(除去は Phase 4 以降にコードを触るタスクで別途判断)
 
 ## 3. 影響する正本
@@ -95,11 +101,13 @@ feature 作業文書(正本ではない): [research.md](research.md) と本 feat
 
 **NFR-021 要件**(要件書本文の表記規則に合わせ**全角括弧・語間スペースなし**で記載する):
 
-> 開発環境はWindows 11上のWSL2で完結する（Windowsネイティブでの開発は対象外。PostgreSQLはWSL2内にネイティブ導入するかDockerで立てる）。セットアップ・起動手順を `docs/development/onboarding.md` に整備する
+> 開発環境はWindows 11上のWSL2で完結する。**開発者ワークステーションの受入保証対象はWSL2**とし、Windowsネイティブでの開発は保証対象外とする（ただしCI・本番・移行実行環境および既存コードの移植性を本要件で制限しない）。開発DBもPostgreSQLを使用し、**WSL2から完結して利用できる**こと（配置方式は設計フェーズで決定する）。セットアップ・起動手順は `docs/development/onboarding.md` に整備する
 
 **NFR-021 測定方法**:
 
-> WSL2クリーン環境でのセットアップ再現
+> 開始状態=**新規のWSL2ディストリビューション**。approvedな `docs/development/onboarding.md` の手順を完走し、**開発DBへの接続・バックエンド/フロントエンドの起動・NFR-019の規定テストの成功**までを確認する。判定は**Phase 4完了時**と**リリース候補時**に8章の判定者が行い、実施記録を残す
+
+> **確定ゲート 1 周目(P0×3/P1×5/P2×2)による改訂**: 当初案から 3 点変わった。(a) **配置方式(WSL2内のネイティブ導入 or Docker)を削除**し「WSL2から完結して利用できる」までに留めた — 要件が実装手段を規定しすぎており、`onboarding.md:32` の「WSL内ネイティブ導入」は Docker Engine の導入方法で PostgreSQL ネイティブ経路は**そもそも存在しない**(P1-1・人間の裁定 2026-08-11)。(b) 「対象外」の射程を**開発者ワークステーションの受入保証**に限定し、CI・本番・移行実行環境・既存コードの移植性を本要件で制限しないと明記(P1-2)。(c) 測定方法に**開始状態・合格条件・判定時期・判定者・証跡**を追加し Must 要件の合否を一意化(P0-2)。
 
 **要件書 7.1(`:739`)の技術スタック行**:
 
@@ -196,7 +204,7 @@ I-6 の改善の核心は「**SQLite/PostgreSQL 二重運用をやめ PostgreSQL
 | 1 | 要件書 v1.9 の起案 — NFR-021 の要件文・測定方法を 4 節の確定文へ / **7.1 技術スタック行の DB 設置場所** / 8 章 DoD ⑦ を追随 / 変更履歴に v1.9 行を追記(**v1.8 行は原文のまま保存**・`status` は `in-review` 維持)/ **索引の要件書行を「in-review・版 1.9」へ同時更新**(版だけ先に進め、状態はゲート後に変える)。あわせて **Notion タスクの DoD 欄を本計画 5 節と同期**する(Notion 側の更新はコミットを生まないため、本ステップのコミットは文書変更分) | NFR-021 の 2 文が 4 節の確定文と**一字一致** / DoD ⑦ に `onboarding.md` が含まれる / `:18` の v1.8 行が原文のまま(`git diff` で確認) / **索引の要件書行が版 1.9・状態 in-review** / `uv run python scripts/check_docs_status.py` exit 0 / Notion の DoD 欄が 5 節と一致(目視) |
 | 2 | 要件書の確定ゲート — `/finalize-doc docs/requirements/requirements-pitchlog-2026-07-22.md`。**指摘反映を伴う周ごとに 1 コミット**し、その都度 `確定ゲート周回` を +1 | 実質的な新規指摘が出なくなるまで収束した記録(採用/不採用の一覧)が worklog にある / `確定ゲート周回` が実際の反映周数と一致 |
 | 3 | 要件書の approved 化 — 人間承認後に frontmatter を `approved`・変更履歴に確定行・`docs/README.md` の要件書行の**状態を `approved` へ・最終更新日を更新**(版 1.9 はステップ 1 で済み)を**同一コミットで** | frontmatter がちょうど 3 行で `status: approved` / 索引の状態セルが frontmatter と一致し `check_docs_status.py` exit 0 / **版 1.9 と最終更新日の一致は目視**(機構は検査しない — 6 節参照) |
-| 4 | 波及の追随(**設計書の確定ゲートより前**)— `ADR-002:9`・`:27` を通過済みへ(`status: approved` 維持・状態行に 2026-08-11 の追随を追記)/ **改善台帳 `:58` を要件書 NFR-021 への参照に置換** / `AGENTS.md:5` / `.claude/agents/spec-checker.md:10` / `README.md:14` / 索引の ADR-002 行・**改善台帳行**の最終更新日 / **`setup-dev/SKILL.md:19` の末尾文を「Windows ネイティブは認めない」へ置換**(WSL 判定と WSL1 是正の案内は保持) | 下記「更新対象の明示リスト」の全行が更新済み / **「更新しないリスト」の各行が未変更**(`git diff` で確認)/ ADR-002 の frontmatter が `approved` のまま・決定日 2026-08-07 が不変 / `setup-dev/SKILL.md` に `[windows] sandbox` の記述が残っていない / `uv run pytest tests/` 全 green(skills を触るため回帰確認)/ `check_docs_status.py` exit 0 |
+| 4 | 波及の追随(**設計書の確定ゲートより前**)— `ADR-002:9`・`:27` を通過済みへ(`status: approved` 維持・状態行に 2026-08-11 の追随を追記)/ **改善台帳 `:58`(I-6)を要件書 NFR-021 への参照に置換** / **改善台帳 `:42`(I-4)の「FastAPI + React + TS」を ADR-002・要件書 7.1 への参照に置換** / `AGENTS.md:5` / `.claude/agents/spec-checker.md:10` / `README.md:14` / 索引の ADR-002 行・**改善台帳行**の最終更新日 / **`setup-dev/SKILL.md:19` の末尾文を「Windows ネイティブは認めない」へ置換**(WSL 判定と WSL1 是正の案内は保持) | 下記「更新対象の明示リスト」の全行が更新済み / **「更新しないリスト」の各行が未変更**(`git diff` で確認)/ ADR-002 の frontmatter が `approved` のまま・決定日 2026-08-07 が不変 / `setup-dev/SKILL.md` に `[windows] sandbox` の記述が残っていない / `uv run pytest tests/` 全 green(skills を触るため回帰確認)/ `check_docs_status.py` exit 0 |
 | 5 | 設計書 v1.4 の起案 — `:65`・`:102`・`:708` の現在形を通過済みへ / `:92`・`:396` の WSL2 名残 / **`:418`・`:517` の「Windows sandbox 設定」言及を除去** / `:561` を「ランナー未決・Phase 4 で選定」へ / `:699` の参照先を `onboarding.md` へ / `:38`・`:86`・`:442`・`:748` を v1.9 へ / 変更履歴に v1.4 行 / frontmatter を `in-review` へ / **索引の設計書行も `in-review`(v1.4)へ** | `:561` に `windows-latest` の固定指定が残っていない / `:699` が `onboarding.md` を指す / 設計書内に「Windows sandbox 設定」を前提とする記述が残っていない(`:668` の「必ず WSL2」と整合)/ frontmatter と索引の状態セルがともに `in-review` で `check_docs_status.py` exit 0 |
 | 6 | 設計書の確定ゲート — `/finalize-doc docs/development/dev-harness-design-2026-08-07.md`。反映周ごとに 1 コミットし `確定ゲート周回` を +1 | ステップ 2 と同じ(収束記録・周回カウンタの一致) |
 | 7 | 設計書の approved 化 — frontmatter を `approved`・変更履歴に確定行・索引の設計書行を `approved`(版 1.4)へ**同一コミットで**戻す | frontmatter が `approved` / 索引の設計書行が版 1.4・approved / `check_docs_status.py` exit 0 / `uv run pytest tests/` 全 green |
@@ -217,7 +225,10 @@ I-6 の改善の核心は「**SQLite/PostgreSQL 二重運用をやめ PostgreSQL
 | ADR-002 `:9` | 状態行「…要件書 v1.8 改訂は別途 7.3 ゲートを通す」 | v1.9 で通過済み(2026-08-11) |
 | ADR-002 `:27` | 「要件書 v1.8 改訂が必要 …(未来形)」 | 通過済みの記述へ |
 | 要件書 `:739`(7.1) | 技術スタック「開発=**Windowsネイティブ** or Docker」 | 「WSL2 内のネイティブ導入 or Docker」 |
-| 改善台帳 `:58` | 「開発は**Windowsネイティブ版** or Docker」 | **要件書 NFR-021 への相対リンク参照に置換**(文言の書き換えではない) |
+| 改善台帳 `:58`(I-6) | 「開発は**Windowsネイティブ版** or Docker」 | **要件書 NFR-021 への相対リンク参照に置換**(文言の書き換えではない) |
+| 改善台帳 `:42`(I-4) | 「UIは単一のWeb UI（**FastAPI + React + TS**）のみ」 | フレームワーク記述を **ADR-002・要件書 7.1 への参照に置換**(改善の核心「単一 Web UI・単一実装」は不変) |
+| `spec-checker.md:10` | 改善台帳の範囲「**I-1〜I-24**」 | 「I-1〜I-27」(実際の最終番号) |
+| 設計書 `:70` | 「WSL2 を**標準**」止まりの記述 | **受入保証対象**として言い切る形へ(用語統一) |
 | 設計書 `:418` | 「Codex の trust・**Windows sandbox 推奨設定**の確認」 | Windows sandbox 設定の言及を除去(WSL2 必須) |
 | 設計書 `:517` | 「onboarding で設定させる trust・**Windows sandbox 設定**」 | 同上 |
 | `setup-dev/SKILL.md:19` | 「Windows ネイティブで例外的に使う場合のみ `[windows] sandbox = "elevated"` を提案」 | **末尾の当該文のみ**を「Windows ネイティブは認めない(WSL2 必須)」へ置換。**同行の WSL 判定(`uname -r` / `wsl -l -v`)と WSL1 → WSL2 案内は保持** |
@@ -242,7 +253,8 @@ I-6 の改善の核心は「**SQLite/PostgreSQL 二重運用をやめ PostgreSQL
 - [ ] **要件書が v1.9 で approved** — NFR-021 の 2 文が 4 節の確定文と一字一致し、8 章 DoD ⑦ が `onboarding.md` を含む。v1.8 行は原文のまま保存されている
 - [ ] **設計書が v1.4 で approved** — `:561` に `windows-latest` の固定指定が残っておらず「ランナー未決・Phase 4 で選定」になっている。`:699` が `onboarding.md` を指す。`:65`・`:102`・`:708` が通過済みを記す
 - [ ] **WSL2 単一経路に統一されている** — 設計書 `:418`・`:517` から「Windows sandbox 設定」の記述が消え、`setup-dev/SKILL.md:19` は**WSL 判定と WSL1 是正の案内を保ったまま**「Windows ネイティブは認めない」に置換されている。設計書 `:668`「必ず WSL2」と `onboarding.md:52` と整合
-- [ ] **DB の設置場所が WSL2 内に統一されている** — 要件書 NFR-021・7.1(`:739`)から「Windows ネイティブ」が消え「WSL2 内のネイティブ導入 or Docker」になっている。**改善台帳 `:58` は要件書 NFR-021 への参照に置換**され(重複記述の解消)、lychee がリンクを解決できる。設計書 5.3 の Docker 選択は**変更されていない**
+- [ ] **開発 DB が WSL2 から完結して利用できる要件になっている** — 要件書 NFR-021・7.1 から「Windows ネイティブ」と**配置方式の二択**が消え、「WSL2 から完結して利用できる(配置方式は設計フェーズで決定)」になっている。**改善台帳 `:58` は要件書 NFR-021 への参照に置換**され(重複記述の解消)、lychee がリンクを解決できる。設計書 5.3 の Docker 選択は**変更されていない**
+- [ ] **approved 正本の Vue/React 矛盾が解消されている** — 改善台帳 **I-4(`:42`)** の「FastAPI + React + TS」が ADR-002 と要件書 7.1 への参照に置換され、approved 正本間でフレームワークの記述が食い違っていない(確定ゲート P0-3)
 - [ ] **WSL2 内の DB 経路が実在することを確認済み** — WSL2 内で `docker compose version` が動作する(2026-08-11 に `docker 29.1.3` + `compose 2.40.3`・`docker run --rm hello-world` の疎通を確認済み)。※`docker-compose.yml` は Phase 4 の成果物のため、**開発 DB 自体の起動確認は Phase 4 で行う**
 - [ ] **波及の追随が完了** — `ADR-002`(status/決定日は不変)・`AGENTS.md:5`・`spec-checker.md:10`・`README.md:14`・`docs/README.md`(要件書行・設計書行・ADR-002 行)が現行化され、**「更新しないリスト」の記述は保存されている**
 - [ ] **CI 4 ジョブが最新 HEAD で全グリーン**(`github-setup.md` 2 章の管理手続 — 保護未適用のため人間が目視で確認する)
