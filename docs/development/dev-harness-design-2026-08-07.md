@@ -90,7 +90,7 @@ status: in-review
 | --- | --- | --- |
 | 7.3 | Git Flow（main/develop 直接コミット禁止）・PRベース・CI全グリーン必須 | hooks による機構的ブロック + GitHub ブランチ保護 + CI 必須化（6.2 / 10.2）。**保護は現在未適用（縮退中 — 10.2 実装状況・リスク受容記録）** |
 | NFR-019 | **テストランナーを標準化**（backend=pytest・frontend=Vitest・E2E=Playwright）、PR ごとに CI 強制。**(a)一致性・(b)越境・(c)E2E 主要分岐・(d)同期故障系**を含む | CI 設計（10.1）。ゴールデンベクタの配置（4章 `contracts/`） |
-| NFR-021 | 開発環境は **Windows 11 上の WSL2 で完結**（受入保証対象は WSL2。開発 DB も WSL2 から完結して利用。配置方式は設計フェーズで決定 → 5.3 で docker compose を採用） | スクリプト・hooks を OS 非依存（Python 実装）に統一（8.3）。**論点C は WSL2 移行で決着済み** |
+| NFR-021 | 開発環境は **Windows 11 上の WSL2 で完結**（受入保証対象は WSL2。開発 DB も WSL2 から完結して利用。配置方式は設計フェーズで決定 → 5.3 で docker compose を採用） | スクリプト・hooks を Python 標準ライブラリのみで実装し WSL2/CI Linux 共通とする（8.3）。**論点C は WSL2 移行で決着済み** |
 | NFR-014 | シークレットはリポジトリに含めず環境変数管理 | `.env` 読み取りの permissions 拒否 + gitleaks を CI 常設（12章） |
 | NFR-018 | ドメイン計算の単一実装 | レビュー観点として CLAUDE.md / AGENTS.md に明記（コピー実装の検出はレビュー責務） |
 | 7.1 | 技術スタック変更には承認が必要 | フロントエンドの矛盾は **ADR-002 と要件書 v1.9 で解決済み**（論点A） |
@@ -136,7 +136,7 @@ pitchlog/
 │   ├── settings.local.json    # 個人上書き（gitignore）
 │   ├── skills/                # プロジェクトスキル（/task-start, /implement, /finalize-doc 等）
 │   ├── agents/                # サブエージェント（spec-checker 等、最小構成から）
-│   ├── hooks/                 # フックスクリプト（Python・OS非依存）
+│   ├── hooks/                 # フックスクリプト（Python 標準ライブラリのみ・WSL2/CI Linux 共通）
 │   └── rules/                 # パス別規約（backend/frontend/docs、paths frontmatter で適用範囲指定）
 ├── .github/
 │   ├── workflows/ci.yml       # PR必須CI（10.1）
@@ -178,7 +178,7 @@ pitchlog/
 | パッケージ・Python版管理 | **uv** | `backend/pyproject.toml` + `uv.lock` + `.python-version` で完全固定。導入済み |
 | リンタ+フォーマッタ | **ruff** | `[tool.ruff.lint.pydocstyle] convention = "google"` で Google docstring を機構検査。日本語コメント許容 |
 | 型検査 | **ty** | ※プレビュー段階のツールのため、安定性に問題が出た場合の代替は mypy（切替は ADR 起票の上）— 論点E |
-| テスト | **pytest**（+ pytest-cov, pytest-asyncio, httpx） | NFR-019「pytest 一本化」に整合 |
+| テスト | **pytest**（+ pytest-cov, pytest-asyncio, httpx） | NFR-019 の**バックエンドランナー = pytest**（他へ分散させない）に整合 |
 | DBマイグレーション | **Alembic** | SQLAlchemy 前提。設計フェーズで最終確定 |
 
 - 実行はすべて `uv run <cmd>` に統一（グローバル汚染なし・CI と同一コマンド）
@@ -300,7 +300,7 @@ flowchart TD
 ### 6.4 リリースフロー
 
 - `develop → main` のマージ = リリース。要件書 8 章の判定基準（DoD 8項目）をチェックリスト化した `/release` スキルが唯一の入口
-- **`/release` は NFR-021 受入ゲート（10.1）の「リリース候補時」判定の証跡確認を含む**。受入プロファイル上での再受入を経ておらず証跡が `docs/ops/nfr021-acceptance/` に無い場合はリリース不可（v1.4 追加）
+- **`/release` は NFR-021 受入ゲート（10.1）の「リリース候補時」判定の証跡確認を含めるべきだが、現在は未実装**。証跡検証ステップと検証器は **Phase 4 の成果物**（13 章）とし、**それまではプロダクトリリースを行わない**（v1.4 追加）
 - バージョンタグ `vX.Y.Z` を打ち、CI がコンテナイメージをビルド（デプロイ先確定後に自動デプロイへ拡張 — 10.4）
 - **例外 — ハーネス確定ベースラインマージ(1 回限り・PO 判断 2026-08-10)**: プロダクト初回リリースに先立ち、ハーネス完成(= 13 章 Phase 3 完了)時点の状態を main に反映するため、`develop → main` のベースラインマージを 1 回実施する。**リリースには該当しない**(本節の `/release`・DoD 8 項目・`vX.Y.Z` タグは適用しない)が、次の統制に従う: (1) **対象 SHA の固定** — develop 側アンカー = Phase 3 統合マージコミット `ce100aac97a625d6eab3559a522075b8557c041f`(13 章 Phase 3 完了条件の develop 統合点)、**main 側アンカー = `f06e2f2dd7fd19e05ad828115bbe6b7fd603f7ba`**(本例外起案時点の main HEAD)。対象は本例外を含む改訂(v1.2)を develop へ統合するマージコミット SHA 1 点とし、**その第一親が develop 側アンカーであること**および**ベースライン PR の base が main 側アンカーであること**を成立条件とする(アンカーと v1.2 統合の間に develop への他の統合を挟まない)。(2) **実施手順** — PR 経由(`gh pr create --base main --head develop`)+ PR の head が対象 SHA・base が main 側アンカーであることと CI 全グリーンの確認 + **マージ直前の再照合**(`origin/develop`・`origin/main`・PR の head/base を再取得し、対象 SHA・main 側アンカーとの一致を確認)+ 人間によるマージ(merge commit — squash しない。保護未適用中の管理手続 = github-setup.md 2 章)。**検証責任者は PR 作成者とマージ実施者(人間)**。対象 SHA・両アンカーは**ベースライン PR 本文と Notion タスクに記録**する(= 実施証跡の正。worklog への事後追記は任意とし、行う場合はベースライン対象外の別 feature PR で行う)。(3) **失効と再発行の禁止** — 【未使用失効】main へのマージ完了前に次のいずれかが成立した時点で、本例外は**即時・不可逆に未使用のまま失効**する: (a) v1.2 統合マージコミットの第一親が develop 側アンカーでない、(b) `origin/develop` またはベースライン PR の head が対象 SHA から変化した、(c) `origin/main` またはベースライン PR の base が main 側アンカーから変化した。この場合はマージせず PR をクローズし、実測 SHA を PR 本文と Notion タスクに記録する(develop・main の巻き戻し・PR の作り直しによる復活は不可)。**終端処理** — Notion タスクは「取り下げ」を終端状態として維持し(「完了」へ上書きしない。/task-done の Notion 遷移は実施しない)、worktree の除去・prune は /task-done の Git 手順に準じ、その後ローカルブランチ(計画書の branch)を `git branch -d` で**安全削除**する(削除に失敗した場合は強制削除せず停止し、状態を PR 本文と Notion タスクに記録する)。【使用済み失効】当該 PR 1 件のマージをもって失効し、PR URL・head SHA・main 側マージコミット SHA(**第一親 = main 側アンカー・第二親 = 対象 SHA であることを検証**)を PR 本文と Notion タスクに記録する。【再発行の禁止】失効後(未使用失効を含む)の再実施・対象 SHA の変更は PO 判断のみでは行えず、**v1.3 以降の版繰り上げ + 7.3 の確定ゲートを必須**とする(Notion コメント・口頭・worklog の追記による対象変更は無効)。【タグ】本ベースラインにはタグを付与しない。後日の `vX.Y.Z` 付与は通常どおり `/release` のみとし、別種の標識を設ける場合も版繰り上げ + 7.3 確定ゲートを要する(PO 判断のみでは不可)。以後の `develop → main` は本節のリリースフローのみとする。副次効果: ci.yml が既定ブランチ main に載り、gitleaks 全履歴スキャン(workflow_dispatch)が Actions から起動可能になる(10.1・github-setup.md 4 章)
 
@@ -428,7 +428,7 @@ draft（Claude起案）
 | `/pr` | PR の唯一の入口: 正本反映突合（未反映ブロック）→ 計画書 in-review 化 → push → PR 作成（コア領域は人間逐行確認の必須チェック付与 — 6.3）→ Notion を確認待ちへ（11.1） |
 | `/task-done` | 完了の唯一の出口: PR マージ確認 → develop 最新化（`pull --ff-only`）→ worktree 除去（12.1）→ Notion 完了。worklog 締め・計画書 in-review 化は **/pr が PR 内で実施済み**（マージ後の develop を直接編集しない） |
 | `/finalize-doc <文書パス>` | 正本確定ゲート（7.3）: 敵対レビュー → 指摘反映ループ → 人間承認 → approved 化・索引更新 |
-| `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → **NFR-021 受入ゲートの「リリース候補時」証跡確認**（10.1・`docs/ops/nfr021-acceptance/`）→ 人間のリリース判定 → develop→main PR → タグ |
+| `/release <vX.Y.Z>` | 要件書8章 DoD 8項目チェック → 人間のリリース判定 → develop→main PR → タグ。**NFR-021 受入ゲートの証跡確認ステップは未実装 — Phase 4 で追加する**（10.1。それまではプロダクトリリースを行わない） |
 | `/worklog <メモ>` | 進行中 worklog への軽量追記 |
 
 - レビューは `codex_run.py review <normal|adversarial>` を使う（経路一本化 — 4周目 P1。プラグイン `/codex:*` は使わない）
@@ -573,15 +573,17 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 | 項目 | 内容 |
 | --- | --- |
 | 実施時点 | **Phase 4 完了時**と**リリース候補時**の 2 回（要件書 NFR-021 の測定方法） |
-| 実施者 | 開発担当（Claude は手順の実行と記録の起草まで） |
-| 判定者 | **要件書 8 章のリリース判定者**（システム管理者 = プロダクトオーナー） |
+| 実施責任者・判定者 | **要件書 8 章の判定者**（システム管理者 = プロダクトオーナー）。要件書 10 章の暫定方針「判定者が実施」に従う。**開発担当・Claude は操作補助と記録の起草のみ**（1 名体制では別ロールを書いても独立性は成立しないため、分離を装わない） |
 | 環境 | 要件書 NFR-021 の**受入プロファイル**に一致する環境のみ。プロファイル外の環境での結果は**合格の証跡にしない** |
-| 証跡の保存先 | `docs/ops/nfr021-acceptance/<YYYY-MM-DD>-<phase4\|release-vX.Y.Z>.md`（Phase 4 で `docs/ops/` を新設する） |
-| 証跡の必須項目 | 要件書 NFR-021 の「証跡」箇条書きのとおり（項目を本書に複製せず参照する） |
-| 保持期間 | リリース後も削除しない（論理削除の原則 — 要件書 4.0-2 と同じ扱い） |
+| 実施順序（必須） | **① `onboarding.md` を v1.0 として確定ゲート（7.3）に通し approved 化 → ② その approved 版の手順を受入プロファイル上の新規環境で完走 → ③ 証跡を作成 → ④ 判定**。要件書 NFR-021 は「**approved な** onboarding の手順を完走」を要求しており、**draft 版で実行した結果は証跡にならない** |
+| 証跡の必須項目 | 要件書 NFR-021 の「証跡」箇条書きのとおり（項目を本書に複製せず参照する）。うち **`tested_commit_sha`・対象版・`result`（passed / failed）・判定者・使用した approved onboarding の版**は機械検証の対象とする |
+| 証跡の失効 | 証跡は**作成時点の commit に紐づく**。以後に**アプリのコードまたは環境構築に関わる設定が変更された場合は当該証跡は失効**し、再受入が必要（文書のみの変更では失効しない） |
+| 保存先・命名 | `docs/ops/nfr021-acceptance/` に **`YYYY-MM-DD-phase4.md`** / **`YYYY-MM-DD-release-vX.Y.Z.md`** の 2 形式で置く（`docs/ops/` は Phase 4 で新設） |
+| 文書分類 | 同ディレクトリの **`README.md` とテンプレートのみを正本**（索引に載せ確定ゲートの対象とする）。**個々の証跡は変更不可の監査記録**であり正本ではない（索引には載せない → docs-lint の検査対象外） |
+| 保持 | 監査記録として**削除・改変しない**（本ハーネスの監査方針。※要件書 4.0-2 の論理削除は**アプリ利用者データ**の規定であり、本項の根拠ではない） |
 | CI との関係 | `win-setup` は**補助検査**であり本ゲートの代替にならない。ランナー未決の間は本ゲート（人手）のみが受入判定の根拠 |
 
-> **`/release` はこのゲートの証跡確認を含む**（6.4・8.4）。リリース候補時の再受入を経ていない場合はリリース不可。
+> **`/release` によるこのゲートの証跡確認は未実装**（`.claude/skills/release/SKILL.md` は現在 DoD 8 項目の確認のみ）。**Phase 4 の成果物として「`/release` への証跡検証ステップ追加・証跡の機械検証器・そのテスト」を実装する**（13 章）。**それまではプロダクトリリースを行わない**（ハーネス確定ベースラインの `develop → main`〔6.4 の例外〕はリリース非該当のため対象外）。
 
 ### 10.2 ブランチ保護（リポジトリ設定もハーネスの一部）
 
@@ -715,7 +717,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | **1** | 基盤ファイル: AGENTS.md / CLAUDE.md / `.claude/settings.json` + hooks **6本**（8.3） / **codex 実行ラッパー**（9.2） / `.codex/config.toml`（9.3） / `docs/development/onboarding.md` / `.gitignore` / PR テンプレ / `docs/README.md`（索引）※**試作として実装済み（2026-08-07）— 発効は本書の確定ゲート通過（P1-1）** | hooks・ラッパーの pytest（tests/・103件）全グリーン + 実地確認 |
 | **2** | skills 一式（8.4 の13本。`/setup-dev` の Notion 紐づけ 11.2 含む）+ 調査サブエージェント3本（8.5）+ worklog 運用開始 + docs/ 体系のディレクトリ・テンプレ整備（実装計画書テンプレ 6.1 含む）※Phase 1 と併せて**試作実装済み**（2026-08-07 — 発効は確定ゲート通過）。残タスクは実運用での検証 | `/setup-dev` で紐づけ完了 → `/task-start` → 計画書ゲート → `/task-done` が Notion 実タスク（11.1）+ worktree の作成〜除去込みで一巡する。調査エージェントが出典付きで回答する |
 | **3** | CI 先行分(secrets / docs-lint / core-guard / harness — **10.1 の表が正**)+ github-setup.md。**ブランチ保護はプラン制約により後送り(PO 判断 2026-08-10 — 10.2)** | 最新 HEAD で CI 4 ジョブ全グリーン + 当該 PR が develop へマージ済み(保護設定の有効化は制約解消後の別タスクへ) |
-| **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（Vue 3 + TypeScript — ADR-002）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) | **NFR-021 受入ゲート(10.1)の Phase 4 完了時判定に合格**: 受入プロファイル上で onboarding 手順を完走し、ハーネス/backend の pytest・frontend の Vitest が成功・開発DB接続・backend/frontend の起動疎通を確認し、**証跡を `docs/ops/nfr021-acceptance/` に記録**して判定者の合格判定を得ていること。あわせて **onboarding.md を完成させ v1.0 として確定ゲートを通す**(approved 化までは規範にならない) |
+| **4** | プロジェクト骨格: backend（uv/ruff/ty/pytest 雛形）/ frontend（Vue 3 + TypeScript — ADR-002）/ docker-compose / contracts/ 雛形 / CI 本体(backend/frontend ジョブ) / **`onboarding.md` の完成と v1.0 approved 化**（実際の依存導入・DB 初期化・起動・疎通確認まで — 受入の前提。10.1 の実施順序 ①）/ **`docs/ops/` の新設**（`nfr021-acceptance/` の `README.md` とテンプレート）/ **`/release` への NFR-021 証跡検証ステップの追加・証跡の機械検証器・そのテスト** | **NFR-021 受入ゲート(10.1)の「Phase 4 完了時」判定に合格していること**（合格項目は要件書 NFR-021 の測定方法を正とし本書では再列挙しない。証跡は `docs/ops/nfr021-acceptance/` に記録し、判定者の合格判定を得る）。あわせて **`/release` の証跡検証が動作すること**（テストで担保）|
 | **5** | 拡張: Notion テンプレ整備 / PR 自動レビュー評価（10.3） / デプロイ確定分 / （論点F次第で）ドキュメントサイト | 個別判断 |
 
 - Phase 1〜3 はコードが無くても成立する（現状の docs 中心リポジトリに即日効く）。Phase 4 は設計フェーズの進行と同期させる
@@ -726,7 +728,7 @@ Git・Claude 側の識別子と Notion ユーザーは機械的に対応づか�
 | --- | --- | --- |
 | **A** | フロントエンド: 要件書 7.1「React+TS」vs 指示「Vue.js」 | **解決（2026-08-07）**: プロダクトオーナー決定により **Vue.js + TypeScript** を採用（ADR-002）。要件書 7.1 の改訂は v1.8 で本文へ反映し、**v1.9 として 2026-08-12 に確定ゲートを通過済み**（実装着手前という条件を満たしている） |
 | **B** | コードレビュー体制 | **解決（2026-08-07）**: 6.3 の「反対側必須レビュー」案を確定採用。修正1点 — **コア領域 PR は人間の逐行確認を必須**（任意 → 必須に格上げ。`/pr` が必須チェックを自動付与） |
-| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python・OS 非依存設計のため移行コストは小（onboarding 改稿のみ・回帰テストで担保）。NFR-021 は要件書 v1.9 で「Windows 11 上の WSL2 で完結・受入保証対象は WSL2」へ改訂済み。セットアップ再現手順の**配置先**は onboarding.md（同書の approved 化は Phase 4 — approved 化までは規範ではない） |
+| **C** | WSL 化の要否 | **改訂（2026-08-07）: WSL2 へ移行**（PO 決定）。当初はネイティブ継続案だったが、実地で Windows 固有の障害が続発（npm シムの CreateProcess 非解決・パイプ stdin の cp932 エンコーディング・セッション終了時の sandbox ヘルパー失敗）し、Linux 実行系の方が堅牢と判断。hooks/scripts は Python 標準ライブラリのみの実装で、移行前後がともに Linux 実行系（WSL2 と CI）だったため既存実装をそのまま継続利用でき、移行コストは小（onboarding 改稿のみ・回帰テストで担保）。NFR-021 は要件書 v1.9 で「Windows 11 上の WSL2 で完結・受入保証対象は WSL2」へ改訂済み。セットアップ再現手順の**配置先**は onboarding.md（同書の approved 化は Phase 4 — approved 化までは規範ではない） |
 | **D** | 本番アプリ実行環境 | 未定のまま進めて支障がない構え（10.4: イメージビルドまで自動化）。設計フェーズ中に別タスクとして選定（DB は Supabase 前提を維持） |
 | **E** | ty の成熟度リスク | 採用継続。ただし型検査が開発を止めた場合の代替（mypy）切替を ADR 一枚で可能にしておく |
 | **F** | 「ドキュメント製本」の解釈 | **解決（2026-08-07）**: 以後の指示でも「設計書の製本 = docs 内の正本」の用法が確認できたため「正本管理」（7章）で確定。出版（サイト/PDF化）が必要になれば Phase 5 で別途検討 |
