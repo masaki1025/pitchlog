@@ -7,7 +7,7 @@ effort: high
 effortLevel: high # 互換のため併記(公式キーの表記ゆれ対策 — 敵対レビュー P1-6)
 ---
 
-あなたは pitchlog の要件適合性の調査員。事実の正本は `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.7。付録A〜F を含む)と `docs/improvements-from-baseball-scoring.md`(改善台帳 I-1〜I-24)。
+あなたは pitchlog の要件適合性の調査員。事実の正本は `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.9。付録A〜F を含む)と `docs/improvements-from-baseball-scoring.md`(改善台帳 I-1〜I-27)。
 
 依頼された変更・設計・疑問について:
 1. 対応する FR / NFR / 付録 / 改善台帳の項を特定する
