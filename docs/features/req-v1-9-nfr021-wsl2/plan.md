@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3b993b75e687814ea6bcde081bd4d611
 branch: feature/req-v1-9-nfr021-wsl2
 created: 2026-08-11
 計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 6          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 7          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 ---
 
@@ -87,6 +87,7 @@ created: 2026-08-11
 | `docs/README.md`(索引) | 要件書行(版 1.9・状態)・設計書行(版 1.4・状態)・ADR-002 行(最終更新日)・**改善台帳行(最終更新日)**を現行化 | PRレビュー |
 | `docs/development/onboarding.md` | **反映なし**(NFR-021 から参照先として指定されるが、本文・状態は変更しない) | — |
 | `docs/development/github-setup.md` | `:14` の「ローカル環境構築は onboarding.md を**正とする**」を「手順は onboarding.md に置く(**draft のため approved 化までは規範ではない**。受入条件の正は要件書 NFR-021)」へ是正(設計書の確定ゲート 1 周目 P0-2) | **PRレビュー**(7.6-3 前段 = 参照先の状態表記の是正。本書の内容・決定は不変) |
+| `.claude/skills/release/SKILL.md`(正本外) | **手順 0 に NFR-021 受入証跡の fail-closed 暫定ゲートを追加**(証跡の機械検証器が存在しなければ即中断し、DoD チェック・人間判定・PR 作成・タグへ進まない)。検証器本体は Phase 4 の成果物(設計書の確定ゲート 3 周目 P0-1 — 「文書上の宣言だけではリリースを止められない」)| — (正本ではない。設計書 8.4・10.1 の記述と実装を一致させる追随) |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | `:58`(I-6 の「pitchlog」欄)の DB 設置場所の記述を **要件書 NFR-021 への相対リンク参照に置換**。I-6 の改善内容(PostgreSQL 一本化)は不変 | **PRレビュー**(7.6-3 前段)。根拠は「方針の書き換え」ではなく **docs 規約第 1 項「1テーマ1正本・内容を複製しない」への適合(重複記述の解消)**。5 周目 P1 で「方針そのものの変更だから確定ゲート」と指摘されたのに対し、**参照化により方針を持たない形に変える**ことで解決した(人間の裁定 2026-08-11) |
 | `docs/adr/ADR-001-codex-model-selection.md` | **反映なし** | — |
 | `docs/requirements/requirements-draft-pitchlog.md` | **反映なし**(決定記録 = 履歴) | — |
