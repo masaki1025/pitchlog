@@ -93,13 +93,13 @@ feature 作業文書(正本ではない): [research.md](research.md) と本 feat
 
 ### 改訂後の確定文(この一文を実装の契約とする)
 
-**NFR-021 要件**:
+**NFR-021 要件**(要件書本文の表記規則に合わせ**全角括弧・語間スペースなし**で記載する):
 
-> 開発環境は **Windows 11 上の WSL2** で完結する(**Windows ネイティブでの開発は対象外**。PostgreSQL は **WSL2 内**にネイティブ導入するか Docker で立てる)。セットアップ・起動手順を **`docs/development/onboarding.md`** に整備する
+> 開発環境はWindows 11上のWSL2で完結する（Windowsネイティブでの開発は対象外。PostgreSQLはWSL2内にネイティブ導入するかDockerで立てる）。セットアップ・起動手順を `docs/development/onboarding.md` に整備する
 
 **NFR-021 測定方法**:
 
-> **WSL2 クリーン環境**でのセットアップ再現
+> WSL2クリーン環境でのセットアップ再現
 
 **要件書 7.1(`:739`)の技術スタック行**:
 
