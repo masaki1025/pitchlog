@@ -1,6 +1,6 @@
 ---
 feature: req-v1-9-nfr021-wsl2
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -92,7 +92,7 @@ created: 2026-08-11
 | `docs/adr/ADR-001-codex-model-selection.md` | **反映なし** | — |
 | `docs/requirements/requirements-draft-pitchlog.md` | **反映なし**(決定記録 = 履歴) | — |
 
-正本体系(索引掲載)外だが同一 PR で更新するもの: `AGENTS.md:5` / `.claude/agents/spec-checker.md:10` / `README.md:14`。
+正本体系(索引掲載)外だが同一 PR で更新するもの: `AGENTS.md:5` / `.claude/agents/spec-checker.md:10` / `.claude/agents/decision-tracer.md:11-12`(**典拠範囲の番号上限 `D-1〜D-41`・`I-1〜I-24` を撤去し「全 D-*／全 I-*」へ** — 設計書 8.5 の同趣旨の是正〔確定ゲート 1 周目 P1〕に実ファイルを合わせる追随。**当初の宣言から漏れていたため /pr の突合で補記**) / `README.md:14` / `.claude/skills/setup-dev/SKILL.md:19`。
 
 feature 作業文書(正本ではない): [research.md](research.md) と本 feature の worklog は、**計画レビュー 2 周目で改訂方針に合わせて訂正済み**(旧方針「win-setup は参照先だけ是正」「設計書は版繰り上げなし」を撤回した記述に更新)。
 
