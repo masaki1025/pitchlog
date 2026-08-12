@@ -11,7 +11,7 @@ status: approved
 | 0.3 | 2026-08-10 | 敵対レビュー 2 周目(P0×1/P1×3)の反映: **`pull_request: edited` を CI トリガーに追加**(本文チェック編集で core-guard を再評価 — 従来はチェックしても再実行されず green にならない構造欠陥)/ push のたびの最新 HEAD 再確認を手続化 / 保護後の管理手続の対象を「コア領域 ∪ guard_paths」に訂正(縮退修正)/ NFR-019 の参照を要件書 5 章に修正 / gh api 全コマンドに API バージョンヘッダ(2026-03-10)を明示 / 適用前提に allow_merge_commit 確認を追加 | draft |
 | 1.0 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 2 周(P0×3/P1×6 → P0×1/P1×3。全件反映)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
 
-> **本書の位置づけ**: GitHub 側の**ブランチ保護設定と CI が要求する Secrets** の再現手順の正本(ハーネス設計書 10.2)。Actions ポリシー全般(Organization ポリシー・許可 Action 方針等)は対象外 — Organization へ移管する場合は移管タスク側で確認する。ローカル環境構築は [onboarding.md](onboarding.md)、CI ジョブの設計根拠は [設計書 10.1](dev-harness-design-2026-08-07.md) を正とする。
+> **本書の位置づけ**: GitHub 側の**ブランチ保護設定と CI が要求する Secrets** の再現手順の正本(ハーネス設計書 10.2)。Actions ポリシー全般(Organization ポリシー・許可 Action 方針等)は対象外 — Organization へ移管する場合は移管タスク側で確認する。ローカル環境構築の手順は [onboarding.md](onboarding.md) に置く(同書は現在 **draft** — approved 化までは規範ではなく作業手順として扱う。受入条件の正は要件書 NFR-021)、CI ジョブの設計根拠は [設計書 10.1](dev-harness-design-2026-08-07.md) を正とする。
 
 ## 1. 現状の制約(2026-08-10 実測)
 

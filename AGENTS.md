@@ -2,7 +2,7 @@
 
 野球の試合を1球単位(Pitch by Pitch)で記録・分析するスコアリングシステム。Baseball_Scoring(Tsukuba PSS)の製品版としての全面再構築。
 
-- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.7)
+- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.9)
 - ドキュメント索引: `docs/README.md`
 - 開発プロセスの正本: `docs/development/dev-harness-design-2026-08-07.md`(ハーネス設計書)
 
