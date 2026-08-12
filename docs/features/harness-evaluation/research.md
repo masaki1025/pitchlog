@@ -15,9 +15,9 @@ date: 2026-08-12
 ## 結論(要約)
 
 - **様式は改善台帳をそのまま流用できる**。frontmatter 3 行 → タイトル → 運用規則の blockquote → `### H-N:` のフラット連番 → 末尾に「候補」節。**`H-*` は既存記号と衝突しない(0 件)**
-- **起票材料は十分ある**。当初 16 件のつもりだったが、調査で**再発の集計**が可能になった — ゲート区分の判定ミス **5 件**・approved 正本間の矛盾/波及追随漏れ **9 件**・レビュー反映が「不十分」で再指摘 **7 件** など。単発事象ではなく**構造的問題**として書ける
-- **「機構の穴」8 件はすべて正しい**(実コードで確認)。加えて**未認識だった穴が 11 件**見つかった。とくに **git_guard の fail-open**(docstring の宣言と実装の不一致)と **コア領域ガードが実質空回り**は台帳の優先度上位になる
-- **要判断が 4 点**残る(下記「未解決・申し送り」)。最大の分岐は**変更履歴表を持たせるか** — 規約(7.1-3)は必須、先行例(改善台帳)は持っていない
+- **起票材料は十分ある**。当初 16 件のつもりだったが、調査で**再発の集計**が可能になった — ゲート区分の判定ミス **5 件**・approved 正本間の矛盾/波及追随漏れ **9 件**・レビュー反映が「不十分」で再指摘 **8 件** など。単発事象ではなく**構造的問題**として書ける
+- **「機構の穴」8 件はすべて正しい**(実コードで確認)。加えて**未認識だった穴が 11 件**見つかった。とくに **git_guard の fail-open**(docstring の宣言と実装の不一致)は台帳の優先度上位になる。※ **コア領域ガードの空回りは調査時点では重要候補と見たが、判定条件の確定後は「意図的な Phase 4 未実装で条件 ② を満たさない」として `通常`**(H-12。確定ゲート 5 周目 P1-3 で時点化)
+- **調査時点では要判断が 4 点**あった(下記「未解決・申し送り」)。最大の分岐は変更履歴表を持たせるか — 規約(7.1-3)は必須、先行例(改善台帳)は持っていない。**→ 4 点すべて 2026-08-12 に PO 裁定済み**(決定内容は `plan.md` 2 節「やらないこと」と 4 節「様式(確定事項)」を正とする)
 - 調査中に**私自身の記述の誤り 2 件を訂正**した(下記 5 節)
 
 ## 詳細と典拠
@@ -69,14 +69,17 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 
 | feature | 計画レビュー | 確定ゲート | 典拠 |
 | --- | --- | --- | --- |
-| dev-harness(08-07) | —(ゲート機構自体を作ったタスク・plan.md なし) | **敵対 5 周** | `docs/worklog/2026-08-07-wsl2-handover.md:35`・設計書 `:25` |
+| dev-harness(08-07) | —(ゲート機構自体を作ったタスク・plan.md なし) | **敵対 5 周** | `docs/worklog/2026-08-07-wsl2-handover.md:35`・設計書 `:26`(v1.0 の確定ゲート通過行) |
 | ci-foundation(08-10) | **normal 3 周** | **敵対 2 周 × 2 件** | `docs/worklog/2026-08-10-ci-foundation.md:22`・`:26` |
 | harness-baseline-merge(08-10) | **反対側 1 周** | **敵対 5 周**(採用 14・不採用 0) | `docs/worklog/2026-08-10-harness-baseline-merge.md:13`・`:18` |
 | feature-status(08-10) | **11 周**(反映 10) | **敵対 5 周**(13 件全件採用) | `docs/features/feature-status/plan.md:10-11`・`docs/worklog/2026-08-10-feature-status.md:23` |
 | codex-plan-status-guard(08-10) | **4 周**(反映 3) | **0**(PO 判定で PR レビュー確定) | `docs/features/codex-plan-status-guard/plan.md:10-11`・`docs/worklog/2026-08-10-codex-plan-status-guard.md:30` |
 | req-v1-9-nfr021-wsl2(08-11) | **6 周**(指摘 27 件) | **14 周**(要件書 5 + 設計書 9・指摘 60 件) | `docs/features/req-v1-9-nfr021-wsl2/plan.md:10-11`・`docs/worklog/2026-08-11-req-v1-9-nfr021-wsl2.md:103` |
+| **harness-evaluation(08-12〜13・本タスク)** | **5 周**(指摘 17 件) | **4 周以上**(進行中) | `docs/features/harness-evaluation/plan.md:10-11`・`docs/worklog/2026-08-12-harness-evaluation.md:23`(**確定ゲート 4 周目 P1-2 で追加 — H-25 の「7 タスク」を典拠つきにする**) |
 
-**全タスクで不採用 0 件**が続いている(`docs/worklog/2026-08-10-harness-baseline-merge.md:19`・`docs/worklog/2026-08-10-feature-status.md:44`・`docs/worklog/2026-08-11-req-v1-9-nfr021-wsl2.md:103`)。
+~~**全タスクで不採用 0 件**が続いている~~(`docs/worklog/2026-08-10-harness-baseline-merge.md:19`・`docs/worklog/2026-08-10-feature-status.md:44`・`docs/worklog/2026-08-11-req-v1-9-nfr021-wsl2.md:103`)。
+
+- **訂正(2026-08-13・台帳の確定ゲート 1 周目 P1-1)**: **これは 3 件の典拠から「全タスク」へ過度に一般化した誤り**。**dev-harness の v0.14(2 周目)には確定不採用が 3 件ある**(Bash allow 絞り込み / 承認・fast トークン化 / `CODEX_HOME` 隔離 — `docs/worklog/2026-08-07-wsl2-handover.md:61`)。`:65` の「不採用なし」は **v0.15 の 11 件だけ**の記述であってタスク全体ではない。正しい範囲は台帳 H-40 を正とする
 
 **周回キーの記録は feature-status 以降のみ** — ci-foundation・harness-baseline-merge の plan.md には拡張キー 3 個が存在しない(`docs/features/ci-foundation/plan.md:1-10`・`docs/features/harness-baseline-merge/plan.md:1-10`)。→ **横断集計が機械化されていない**(台帳材料)。
 
@@ -86,8 +89,8 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 | --- | --- | --- |
 | **ゲート区分(7.6-3)の判定が確定ゲートへ覆る/不適切** | **5 件** | ci-foundation `plan.md:31` / harness-baseline-merge `worklog:25` / feature-status `worklog:39` / req-v1-9 設計書 `worklog:14` / req-v1-9 改善台帳 `worklog:18` |
 | **approved 正本間の矛盾・波及追随漏れ** | **9 件** | `2026-08-11:25`(改善台帳 I-4 が React)・`:41`(設計書 `:150` が「Vue または React」)・`:30`(github-setup が draft を正と参照)・`:59`(番号上限の腐り)・`2026-08-07:21`(v0.10 の追随漏れ 4 箇所) |
-| **レビュー反映が「不十分」で再指摘** | **7 件** | `2026-08-11:15`・`:17`・`:32`・`:63`・`:73`・`:78` / feature-status `worklog:42` / codex-plan-status-guard `worklog:19` |
-| **自分が新設した規定・記述の穴を次周が突く** | **4 件** | `2026-08-11:91`・`:96` / `2026-08-07:69`・`:74` |
+| **レビュー反映が「不十分」で再指摘** | **8 件**(codex-plan-status-guard の反映不足補完を含む — 確定ゲート 2 周目 P1-3) | `2026-08-11:15`・`:17`・`:32`・`:63`・`:73`・`:78` / feature-status `worklog:42` / codex-plan-status-guard `worklog:19` |
+| **自分が新設した規定・記述の穴を次周が突く** | **5 件**(本タスクの計画レビュー 4 周目を追加 — 同前) | `2026-08-11:91`・`:96` / `2026-08-07:69`・`:74` |
 | **worklog / research が古い方針・誤記のまま残る** | **4 件** | `2026-08-11:15`・`:16`・`:69`・`:142`(帰属誤り — 本調査で発見) |
 | 確定ゲートの順序変更 | **3 回** | `2026-08-11:46`・`:126` |
 | 相対リンクのパス誤り | **2 件** | `2026-08-11:19`・`:109` |
@@ -106,7 +109,7 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 
 - **敵対レビューが 6 周の計画レビューが見つけられなかった矛盾を 3 件掘り出した**(P0×3 — `2026-08-11:22`〜`:25`)
 - **敵対レビューが自分の記述バグを捕捉**:「予約と結果が同じ番号を持つため最大値が必ず 2 回現れ、**書いたとおり実装すると受入ゲートが一度も通らない**」(`:105`)
-- **敵対レビューが実行不能な手順を検出**:「記録コミット自体が develop を進めて条件を自壊させる」(harness-baseline-merge `worklog:14`)/「`/task-done` の Git 手順参照では**ローカルブランチが削除されず終端状態に到達できない**」(`:17`)
+- **レビューが実行不能な手順を検出(3 件)**:「記録コミット自体が develop を進めて条件を自壊させる」(harness-baseline-merge `worklog:14`)/「`/task-done` の Git 手順参照では**ローカルブランチが削除されず終端状態に到達できない**」(`:17`)/ **本タスクの計画レビュー 1 周目 — `/task-done` は develop 上で走るため台帳(正本)を編集できない**(`docs/worklog/2026-08-12-harness-evaluation.md:24`。確定ゲート 4 周目 P1-2 で追加)
 - **計画レビュー 1 周目がガード迂回経路を発見**: codex_run.py の frontmatter 偽終端(`--- 任意文字列`)で 2 個目の status 行によるガード迂回が可能だった(codex-plan-status-guard `worklog:15`)
 - **ドッグフーディングで周回カウンタの計上漏れを機構自身が 2 度検出**(feature-status `worklog:42`・`:43`)
 - **`/investigate` の 3 並列が P0 を発見**: session_context が plan.md 先頭 800 文字しか読まないため**進行中 feature が無言消失する経路**(残余 ≒ 350 文字 — feature-status `worklog:16`)
@@ -127,7 +130,7 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 | --- | --- | --- |
 | 1 | `check_docs_status.py` は status しか検査せず版・最終更新日・変更履歴を見ない | `:209-210`(索引表から取るのは「文書」「状態」の 2 列のみ)・`:370`(比較は status のみ)。さらに `normalize_index_status`(`:92-101`)が `split("(",1)[0]` で括弧以降を捨てるため `**approved**(v1.9 — …)` の **v1.9 も比較前に捨てられる** |
 | 2 | `git_guard.py` はカレントが保護ブランチなら `push` を内容に関わらず全ブロック | `:94-98`(`VERBS & set(tokens)` と `current_branch(cwd) in PROTECTED` だけで判定・宛先を見ない)。`VERBS = {"commit","merge","push","rebase"}` = `:23`。上段 `:76-85` は force と保護宛て refspec を**カレントに関係なく**検査するため、`:94-98` は「保護ブランチに触らない push」を過剰遮断する分だけ純粋に広い |
-| 3 | `/task-done` はブランチを削除しない | `.claude/skills/task-done/SKILL.md:15-20` の手順は 4 つのみ。**全 13 スキルに `git branch -d` を持つ手順は無い** |
+| 3 | `/task-done` はブランチを削除しない | **調査時点(ステップ 5 以前)**は `.claude/skills/task-done/SKILL.md` の手順が 4 つのみ(**現在は follow-up 起票の手順 5 が加わり 5 手順。ブランチ削除は依然として無い**)。**全 13 スキルに `git branch -d` を持つ手順は無い** |
 | 4 | 「影響する正本」の宣言と実差分の突合が機構化されていない | 突合の指示はすべて自然言語(`.claude/skills/pr/SKILL.md` の「2. 突合」節 ほか)。機械側で `git diff --name-only` を使うのは `scripts/core_guard.py:181` だけで、突合先は `core-areas.json` であり **plan.md 3 節を読まない** |
 | 5 | plan-template のサンプル行で「空テンプレ拒否」が実質機能しない | 拒否条件は `codex_run.py:279-281` → `has_filled_step_row`(`:62-78`)。「2・3 セルが非空の行が **1 行でもあれば True**」(`:76-77`)で、テンプレ `plan-template.md:49` のサンプル行が成立させる。**他のゲート(承認済・worktree・branch・status)は独立に効く** |
 | 6 | Notion DoD と計画書 5 節の同期は一度きり | 同期の指示は `task-start/SKILL.md:19`(起票時)と `plan/SKILL.md:17`(計画時)のみ。`/pr` の突合 3 項目に DoD は含まれず、`notion-map.json` の `transitions` にも再同期はない。**Notion を読み書きするスクリプトが存在しない** |
@@ -140,9 +143,9 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 - **N-2. `codex_guard` が「`codex` を含む正当な読み取り専用コマンド」を誤遮断する**。`:111-113` は `codex` を含むセグメントが `shlex.split` できないだけで exit 2。bash では正当な二重引用符ネストが shlex で解析不能になるため、**コマンド内容と無関係な「文字列 `codex` の混入 × 引用符の形」で誤遮断が起きる**(調査中に実際に踏んだ)
 - **N-3. `git_guard` の過剰遮断は `push` 以外にも及ぶ**。`:94` の判定は単語トークン単位なので**読み取り専用コマンドまで落ちる** — `git log --grep merge` が遮断される(`--grep=merge` は通る)。`git help push` も遮断される
 - **N-4. コア領域ガードは現状「実質空」**。`.claude/core-areas.json:11-15` の 5 領域すべてが `"paths": []` で、`core_guard.py` はメッセージを出すだけで exit を落とさない。**CI が今検知できるのは `guard_paths` の 5 ファイルへの変更のみ**。`CLAUDE.md:29-30` と設計書 `:299` は「コア領域は人間逐行確認必須」を機構化したと書いているが、**Phase 4 まで機構は空回り**
-- **N-5. ハーネス自身の Python に lint / format / 型検査が一切かかっていない**。CI `harness` は pytest のみ(`ci.yml:81`)、`/check` の harness 節も pytest のみ(`.claude/skills/check/SKILL.md:11`)、`format_on_save.py:50-58` は `backend/`・`frontend/` 配下のみ、ルート `pyproject.toml` に ruff 設定なし(grep 0 件)。一方 `AGENTS.md:19` は「docstring は Google スタイル(ruff の pydocstyle 検査)」を規約として宣言している。**`scripts/`・`.claude/hooks/`・`.claude/scripts/` にこの規約を検査する機構が無い**
+- **N-5. ハーネス自身の Python に lint / format / 型検査が一切かかっていない**。CI `harness` は pytest のみ(`ci.yml:81`)、`/check` の harness 節も pytest のみ(`.claude/skills/check/SKILL.md:12`)、`format_on_save.py:50-58` は `backend/`・`frontend/` 配下のみ、ルート `pyproject.toml` に ruff 設定なし(grep 0 件)。一方 `AGENTS.md:19` は「docstring は Google スタイル(ruff の pydocstyle 検査)」を規約として宣言している。**`scripts/`・`.claude/hooks/`・`.claude/scripts/` にこの規約を検査する機構が無い**
 - **N-6. 「実装ステップ表の連番」を強制するのはゲートでない側だけ**。テンプレ `plan-template.md:44` とスキル `plan/SKILL.md:16` は連番を規約化。**強制する側**の `codex_run.py:62-78` は連番を見ない(1 行あれば `return True`)。**表示するだけ**の `feature_status.py:412-443` が厳格検証する。→ `| 1 |` と `| 3 |` だけの表は codex_run を通り feature_status は「不整合」と表示する
-- **N-7. `check_docs_status.py` は索引駆動なので「索引に載せ忘れた正本」を検出できない**(`:391-403`)。新設正本を索引に追記し忘れると、frontmatter が無くても CI は green(現時点では実害なし — 全 8 文書が索引にある)
+- **N-7. `check_docs_status.py` は索引駆動なので「索引に載せ忘れた正本」を検出できない**(`:391-403`)。新設正本を索引に追記し忘れると、frontmatter が無くても CI は green(実害なし — **調査時点〔2026-08-12〕は 8 文書**が索引にある。**本台帳の新設で 9 文書**)
 - **N-8. 索引ファイル自身は status 検査の対象外**。`docs/README.md` は正本表に自分の行を持たず frontmatter も無い。設計どおり(索引 = 派生表示)だが、**索引の鮮度を検査する機構はゼロ**
 - **N-9. テストの穴 3 件**: `format_on_save.py` のテストが **0 件** / **git_guard の「保護ブランチ上での正当な非保護 push が許可されること」の負例テストが無い**(= 上記 5.1-2 の誤検知はテストで検出されない)/ `session_context` の worklog 注入(15 行切り出し)のテストが無い。`check_docs_status` 側も**版・最終更新・変更履歴に関するテストが 1 件も無い**
 - **N-10. hook のインタープリタが絶対パス固定で、前提が別文書と食い違う**。`settings.json` の 6 箇所が `/usr/bin/python3` 決め打ち・`session_context.py:12` も同様。一方 `setup-dev/SKILL.md:12` は「**python**(PATH 必須 — 無いと hooks の保護が fail-open する)」と PATH 解決を前提に書いている
@@ -165,7 +168,7 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 
 ## 未解決・申し送り
 
-### 要判断(/plan で決める — いずれも「どちらでも成立する」選択)
+### 要判断(**調査時点の記録 — 4 点すべて 2026-08-12 に PO 裁定済み。現在の正は `plan.md` 2・4 節**)
 
 1. **変更履歴表を持たせるか**。7.1-3(`dev-harness-design-2026-08-07.md:316`)と `.claude/rules/docs.md:9` は正本に**必須**と規定するが、**先行例の改善台帳は持たず版も `—`**。持たせれば規約準拠だが、追記のたびに版繰り上げ判定(7.6-3)が発生する。持たせなければ蓄積台帳の前例に沿うが、**7.1-3 の明文違反を新規に 1 件増やす**
 2. **運用導線をどこに書くか**。台帳冒頭の運用規則だけに閉じる(設計書改訂不要)/ 設計書に節を新設する(**v1.5 + 7.3 確定ゲート + `/task-done` 等スキル改訂と 8.4 表の追随**でスコープが 1 本増える)。現行 `/task-done` に台帳追記の手順は**存在しない**
@@ -178,7 +181,7 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 
 ### 本タスクのスコープ外(別タスク候補)
 
-- **`git_guard` の誤検知修正**(5.1-2・N-1・N-3)。修正案は「最終ルールの対象動詞から `push` を外す」(上段で保護宛て・force を個別検査済み)+ ブランチ解決失敗を fail-closed にする。**台帳への起票は本タスク、コード修正は別タスク**
+- **`git_guard` の誤検知修正**(5.1-2・N-1・N-3)。修正案(**確定ゲート 2〜3 周目 P1-4 で更新**)は「**動詞判定をサブコマンド位置(`git` の直後)のトークンのみへ限定する**」(対象動詞から `push` を外すだけでは `git log --grep merge` の `merge` 誤認が残る)+ **ブランチ解決失敗を fail-closed にする**(docstring を弱める案は取り下げ)。**台帳への起票は本タスク、コード修正は別タスク**
 - **`codex_guard` の誤検知**(N-2)
 - **ハーネス Python への ruff/ty 導入**(N-5)
 - **テストの穴の埋め合わせ**(N-9)
