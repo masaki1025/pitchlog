@@ -1,6 +1,6 @@
 ---
 feature: harness-evaluation
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-12・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -55,7 +55,7 @@ created: 2026-08-12
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/development/harness-evaluation.md` | **新設**。様式(`H-*` 連番・記載要素・状態・分類)+ 運用規則 + 起票済み項目 + 変更履歴表(**版 = 様式の版**)。frontmatter は `draft` で起票 → 確定ゲート通過で `approved` | **finalize-doc**(新設 — `AGENTS.md:14`「新設・版繰り上げ = 敵対レビュー+人間承認」+ 設計書 7.2 表「`docs/development/` … 確定ゲート **必須**」`:327`)|
+| `docs/development/harness-evaluation.md` | **新設**。**加えて `/pr` のクローズ処理で `H-42` を追記**(追記導線の初回適用。版は上げず変更履歴に 1 行 = 7.6-3 前段)。様式(`H-*` 連番・記載要素・状態・分類)+ 運用規則 + 起票済み項目 + 変更履歴表(**版 = 様式の版**)。frontmatter は `draft` で起票 → 確定ゲート通過で `approved` | **finalize-doc**(新設 — `AGENTS.md:14`「新設・版繰り上げ = 敵対レビュー+人間承認」+ 設計書 7.2 表「`docs/development/` … 確定ゲート **必須**」`:327`)|
 | `docs/README.md`(索引) | `## 正本` 表に台帳行を 1 行追加。**状態セルはその時点の frontmatter と同じリテラル 1 語**にする — ステップ 1 で `draft` → ステップ 6 で `in-review` → ステップ 7 で `approved`。**矢印表記(`draft→approved`)は書かない**(`check_docs_status.py:92-101` は太字と半角括弧以降しか除去せず**完全一致比較**するため矢印は不一致になる — 計画レビュー 1 周目 P1-1)。注記を付けるなら**半角括弧** | **PRレビュー**(7.6-3 前段 — 索引は派生表示。台帳の状態変更と**同一コミット**で現行化する)|
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**(人間の裁定 2026-08-12 — 改善サイクル節を新設しない。7.2 表の列記述の齟齬も本 PR では直さない)| — |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | **反映なし**(様式の参照元として読むだけ。ハーネス事項は本台帳へ分離するため I-* を増やさない)| — |
