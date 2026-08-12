@@ -118,7 +118,7 @@ feature 作業文書(正本ではない): [research.md](research.md) と本 feat
 
 **改善台帳(`:58`・I-6 の「pitchlog」欄)** — 文言の書き換えではなく**参照への置換**:
 
-> **pitchlog**: 開発・本番ともPostgreSQL(本番はSupabase継承。**開発環境での配置は要件書 [NFR-021](requirements/requirements-pitchlog-2026-07-22.md) を正とする**)
+> **pitchlog**: 開発・本番ともPostgreSQL(本番はSupabase継承。**開発環境での配置は要件書 NFR-021 を正とする**)。※ 台帳本文では NFR-021 に相対リンク `requirements/requirements-pitchlog-2026-07-22.md` を張る(**台帳〔`docs/` 直下〕からの相対パスなので、本計画書に引用する際はリンク記法を外す**)
 
 **相対リンクのパス注意**: 改善台帳は `docs/` 直下にあるため、要件書への相対パスは **`requirements/requirements-pitchlog-2026-07-22.md`**(`../` を付けない)。`../requirements/...` はリポジトリ直下の存在しないディレクトリを指し、CI の `docs-lint`(lychee `--offline`・`ci.yml:48`)が落ちる(計画レビュー 6 周目 P1)。
 
