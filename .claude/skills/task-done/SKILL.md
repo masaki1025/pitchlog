@@ -18,6 +18,7 @@ worklog の締めと計画書の status 更新は **/pr が PR 内で実施済�
 2. worktree に未コミット変更が残っていないか確認(残っていれば内容を見せてユーザーに確認してから)
 3. `git worktree remove ../pitchlog-worktrees/<worktree名>` → `git worktree prune`
 4. Notion ステータスを `完了` へ・完了日 = マージ日を記録(綴りの正: `.claude/notion-map.json` — 推測しない)。残件があれば新しい Notion タスクとして起票を提案する
+5. **マージ後に気づいたハーネス運用上の知見は follow-up タスクとして Notion に起票する**(または既存タスクへリンクする)。**本スキルから評価台帳(`docs/development/harness-evaluation.md`)を編集しない** — 本スキルは develop 上で走るため、正本を直接編集すると絶対規則 1(main/develop へ直接コミットしない)に反する。**台帳への追記は次の `/task-start` で別 feature/PR として行う**(追記の主経路は /pr のクローズ処理 — `pr/SKILL.md` 手順 1)
 
 ## 報告
 

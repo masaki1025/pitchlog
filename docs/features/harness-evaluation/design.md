@@ -32,7 +32,7 @@ date: 2026-08-12
 | 5.1-1 | `check_docs_status.py` が版・最終更新・変更履歴を検査しない | `.claude/rules/docs.md:9`(正本は変更履歴表を持つ)・設計書 7.1-3 `:316` | **(b)** 索引 `docs/README.md:11` の `D-1〜D-41` が実体 D-44 とずれたまま CI green(research 6-4) | **高** |
 | 5.1-2 | カレントが保護ブランチだと `push` を内容に関わらず全ブロック | `git_guard.py:3-4` docstring(射程は「保護ブランチ上の commit/merge/rebase」と「保護ブランチ**への** push」) | **(a)** `git push origin --delete <マージ済み feature>` が実際にブロックされた(`docs/worklog/2026-08-12-harness-evaluation.md:17`) | **高** |
 | 5.1-3 | `/task-done` がブランチを削除しない | 敵対レビューが「終端状態に到達できない」と指摘(`docs/worklog/2026-08-10-harness-baseline-merge.md:17`) | **該当なし** — 手順の欠落であり誤った振る舞いではない。かつ **PO が自動削除の見送りを裁定済み**(2026-08-12) | 通常 |
-| 5.1-4 | 「影響する正本」の宣言と実差分の突合が機構化されていない | 設計書 7.6-1 `:367`・`pr/SKILL.md:20` | **(b)** `decision-tracer.md` の宣言漏れを人手で拾った(`docs/worklog/2026-08-11-req-v1-9-nfr021-wsl2.md:110`) | **高**(※ **本タスクのステップ 5 で双方向化するため状態は `対応中`**。残余は F2 へ) |
+| 5.1-4 | 「影響する正本」の宣言と実差分の突合が機構化されていない | 設計書 7.6-1 `:367`・`pr/SKILL.md` の「2. 突合」節 | **(b)** `decision-tracer.md` の宣言漏れを人手で拾った(`docs/worklog/2026-08-11-req-v1-9-nfr021-wsl2.md:110`) | **高**(※ **本タスクのステップ 5 で双方向化するため状態は `対応中`**。残余は F2 へ) |
 | 5.1-5 | plan-template のサンプル行で「空テンプレ拒否」が無効 | `plan/SKILL.md:16`(ラッパーは表の無い計画書を拒否)・`codex_run.py:43-44` | **(b)** `has_filled_step_row(plan-template.md)` → `True`(実測) | **高** |
 | 5.1-6 | Notion DoD と計画書 5 節の同期が一度きり | `plan/SKILL.md:17`(DoD を同期させる) | **該当なし** — Notion は正本外で機械検査の射程外(Notion を読み書きするスクリプトが存在しない)。**DoD に「人間が目視」と明記済み** | 通常 |
 | 5.1-7 | worklog の SessionStart 注入で古い記述が伝播する | 注入は利点として設計されたもの(`session_context.py:90-99`) | **該当なし** — 設計上のトレードオフ。伝播は副作用であり機構の誤りではない | 通常 |

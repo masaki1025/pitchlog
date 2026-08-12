@@ -128,7 +128,7 @@ CI `docs-lint` はもう 1 つ、**lychee による offline リンク検査**を
 | 1 | `check_docs_status.py` は status しか検査せず版・最終更新日・変更履歴を見ない | `:209-210`(索引表から取るのは「文書」「状態」の 2 列のみ)・`:370`(比較は status のみ)。さらに `normalize_index_status`(`:92-101`)が `split("(",1)[0]` で括弧以降を捨てるため `**approved**(v1.9 — …)` の **v1.9 も比較前に捨てられる** |
 | 2 | `git_guard.py` はカレントが保護ブランチなら `push` を内容に関わらず全ブロック | `:94-98`(`VERBS & set(tokens)` と `current_branch(cwd) in PROTECTED` だけで判定・宛先を見ない)。`VERBS = {"commit","merge","push","rebase"}` = `:23`。上段 `:76-85` は force と保護宛て refspec を**カレントに関係なく**検査するため、`:94-98` は「保護ブランチに触らない push」を過剰遮断する分だけ純粋に広い |
 | 3 | `/task-done` はブランチを削除しない | `.claude/skills/task-done/SKILL.md:15-20` の手順は 4 つのみ。**全 13 スキルに `git branch -d` を持つ手順は無い** |
-| 4 | 「影響する正本」の宣言と実差分の突合が機構化されていない | 突合の指示はすべて自然言語(`.claude/skills/pr/SKILL.md:20` ほか)。機械側で `git diff --name-only` を使うのは `scripts/core_guard.py:181` だけで、突合先は `core-areas.json` であり **plan.md 3 節を読まない** |
+| 4 | 「影響する正本」の宣言と実差分の突合が機構化されていない | 突合の指示はすべて自然言語(`.claude/skills/pr/SKILL.md` の「2. 突合」節 ほか)。機械側で `git diff --name-only` を使うのは `scripts/core_guard.py:181` だけで、突合先は `core-areas.json` であり **plan.md 3 節を読まない** |
 | 5 | plan-template のサンプル行で「空テンプレ拒否」が実質機能しない | 拒否条件は `codex_run.py:279-281` → `has_filled_step_row`(`:62-78`)。「2・3 セルが非空の行が **1 行でもあれば True**」(`:76-77`)で、テンプレ `plan-template.md:49` のサンプル行が成立させる。**他のゲート(承認済・worktree・branch・status)は独立に効く** |
 | 6 | Notion DoD と計画書 5 節の同期は一度きり | 同期の指示は `task-start/SKILL.md:19`(起票時)と `plan/SKILL.md:17`(計画時)のみ。`/pr` の突合 3 項目に DoD は含まれず、`notion-map.json` の `transitions` にも再同期はない。**Notion を読み書きするスクリプトが存在しない** |
 | 7 | worklog の SessionStart 注入で古い記述が伝播する | `session_context.py:90-99` が `docs/worklog/*.md` を `sorted()` して**最後の 1 ファイルの先頭 15 行**を注入。**選択は日付でなくファイル名の辞書順** |
