@@ -138,7 +138,7 @@ branch: feature/req-v2-legacy-parity
 
 | F-ID | 内容 | 出所 |
 | --- | --- | --- |
-| **F1** | **`feature_status.py` のステップ検出書式の文書化と縮退の明示** — ① 件名書式 `（ステップ N）` を `/implement` のスキル本文と計画書テンプレのステップ表に明記 ② plan のステップ表に N 件あるのに base..HEAD で一致 0 件のとき「ステップ記法のコミットなし(書式未一致の可能性)」と表示する(現状は無言で 0/N)③ commit-msg hook での検査は採らない(誤検知になる) | [台帳 H-45](../development/harness-evaluation.md) |
+| **F5** | **`feature_status.py` のステップ検出書式の文書化と縮退の明示** — ① 件名書式 `（ステップ N）` を `/implement` のスキル本文と計画書テンプレのステップ表に明記 ② plan のステップ表に N 件あるのに base..HEAD で一致 0 件のとき「ステップ記法のコミットなし(書式未一致の可能性)」と表示する(現状は無言で 0/N)③ commit-msg hook での検査は採らない(誤検知になる) | [台帳 H-45](../development/harness-evaluation.md) |
 
 **Notion 起票は未実施** — 本 PR のマージ後に `/task-start` で別 feature として起こす(`/task-done` から正本を編集すると絶対規則 1 に反するため — 台帳の追記導線の規定)。
 
