@@ -711,6 +711,42 @@ def test_excludes_worklog_legacy_and_templates(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+def test_rejects_unindexed_markdown_at_docs_root(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/unindexed.md", "# 索引未掲載\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert result.stderr.startswith(
+        "docs/unindexed.md: docs/README.md の正本一覧に載っていない"
+    )
+
+
+def test_rejects_unindexed_markdown_in_subdirectory(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/adr/unindexed.md", "# 索引未掲載\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert result.stderr.startswith(
+        "docs/adr/unindexed.md: docs/README.md の正本一覧に載っていない"
+    )
+
+
+def test_excludes_unindexed_files_and_index_from_index_coverage(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/features/example/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/worklog/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/legacy/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/development/templates/unindexed.md", "# 索引対象外\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_current_repository_passes_integration_check():
     result = run_check(REPO)
 

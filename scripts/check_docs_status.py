@@ -19,6 +19,13 @@ EXCLUDED_PREFIXES = (
     ("docs", "legacy"),
     ("docs", "development", "templates"),
 )
+INDEX_RELATIVE_PATH = ("docs", "README.md")
+
+# docs/ops/nfr021-acceptance/ は、作成後に README.md とテンプレートだけを
+# 正本として索引へ載せ、個々の証跡は索引へ載せない。当該ディレクトリが生まれた
+# 時点で、個々の証跡向けの除外規則を追加すること。現時点では投機的に追加しない。
+INDEX_COVERAGE_EXCLUDED_PREFIXES = EXCLUDED_PREFIXES + (("docs", "features"),)
+
 PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
 CHANGE_HISTORY_SECTION_HEADING_RE = re.compile(r"^#{2,6}\s")
@@ -119,12 +126,17 @@ def violation(path: Path, root: Path, reason: str) -> str:
     return f"{display_path(path, root)}: {reason}"
 
 
-def is_excluded(path: Path, root: Path) -> bool:
+def is_excluded(
+    path: Path,
+    root: Path,
+    prefixes: Sequence[tuple[str, ...]] = EXCLUDED_PREFIXES,
+) -> bool:
     """検査対象から除外するディレクトリ配下かを判定する。
 
     Args:
         path: 判定対象のパス。
         root: リポジトリルート。
+        prefixes: 除外対象の相対パス接頭辞。
 
     Returns:
         除外対象なら ``True``、それ以外なら ``False``。
@@ -133,7 +145,7 @@ def is_excluded(path: Path, root: Path) -> bool:
         relative_parts = path.resolve().relative_to(root.resolve()).parts
     except ValueError:
         return False
-    return any(relative_parts[:len(prefix)] == prefix for prefix in EXCLUDED_PREFIXES)
+    return any(relative_parts[:len(prefix)] == prefix for prefix in prefixes)
 
 
 def normalize_index_cell(cell: str) -> str:
@@ -301,7 +313,7 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     Returns:
         取得できた正本文書の配列と、索引自体の違反メッセージ配列。
     """
-    index_path = root / "docs" / "README.md"
+    index_path = root.joinpath(*INDEX_RELATIVE_PATH)
     try:
         lines = index_path.read_text(encoding="utf-8").splitlines()
     except OSError as error:
@@ -368,6 +380,35 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     if not documents:
         violations.append(violation(index_path, root, "正本一覧に文書行がない"))
     return documents, violations
+
+
+def check_index_coverage(root: Path, documents: Sequence[IndexedDocument]) -> list[str]:
+    """ファイルシステム上の Markdown が正本一覧に掲載されているか検査する。
+
+    Args:
+        root: リポジトリルート。
+        documents: 索引から取得した正本文書の配列。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    indexed_paths = {document.path for document in documents}
+    index_path = root.joinpath(*INDEX_RELATIVE_PATH).resolve()
+    violations: list[str] = []
+    for path in sorted((root / "docs").rglob("*.md")):
+        resolved_path = path.resolve()
+        if is_excluded(
+            resolved_path,
+            root,
+            prefixes=INDEX_COVERAGE_EXCLUDED_PREFIXES,
+        ):
+            continue
+        if resolved_path == index_path or resolved_path in indexed_paths:
+            continue
+        violations.append(
+            violation(path, root, "docs/README.md の正本一覧に載っていない")
+        )
+    return violations
 
 
 def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
@@ -731,6 +772,7 @@ def check_repository(root: Path) -> list[str]:
     """
     root = root.resolve()
     documents, violations = extract_indexed_documents(root)
+    violations.extend(check_index_coverage(root, documents))
     for document in documents:
         if is_excluded(document.path, root):
             continue
