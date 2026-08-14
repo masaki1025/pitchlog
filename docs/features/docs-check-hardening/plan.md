@@ -1,6 +1,6 @@
 ---
 feature: docs-check-hardening
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review        # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-15・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -62,6 +62,7 @@ pitchlog の docs 規約は **28 件の検査を要求している**が、機構
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **記録の是正**(ステップ 1): F-ID の衝突 `F1`→`F5` / **H-46 の誤挿入の修復** / **H-45 の前提の訂正**(§4 の「H-45 の訂正」)/ H-41 の帰属を F5 へ / 句点重複 1 件。**あわせて `## 候補` へ 4 件追記**(変更履歴表の 4 列目の三者不一致 / 番号上限の腐りの機構的検出 / ADR 様式と 7.1-3 の免除区分の未決 / 決定記録の `D-1〜D-37` の未是正)+ 変更履歴表に 1 行。**版は上げない** | **PR レビュー**(**個別項目 `H-*`・`## 候補` の追記と誤挿入の修復のみで、記載要素・運用規則・分類は変えない** = 設計書 7.6-3 前段。台帳 `:18` の版繰り上げ条件に該当しないことを明示的に確認済み — 1 周目 P0) |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md)(**クローズ処理**) | **H-47〜H-49 を追記**(規約と機構の差分を埋めるタスクにおけるゲート違反の誘惑 / 合格条件が実効性を持たない型 / 変異テストによる実効性確認〔機能した点〕)+ 変更履歴表に 1 行。**版は上げない**(個別項目の追記のみ = 7.6-3 前段) | **PR レビュー** |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **番号上限の腐り 2 箇所の是正**(ステップ 2): `D-1〜D-41`→`D-44` / `I-1〜I-24`→`I-27`。変更履歴表に訂正行を 1 行。**版は上げない**(事実の訂正であり仕様変更を伴わない) | **PR レビュー**(設計書 7.6-3 前段) |
 | [docs/README.md(索引)](../../README.md) | 台帳行の最終更新(ステップ 1)/ 決定記録行の表示テキスト `D-1〜D-41`→`D-44`(ステップ 2)/ **オンボーディング行の版 `—`→`0.5`**(ステップ 5)。**決定記録行の最終更新列は変更しない**(同文書を編集しないため) | PR レビュー |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) | **反映なし** — 検査の対象になるが**内容は変更しない**。ADR-001・ADR-002・決定記録は PO 裁定 1 により免除リストへ入れるだけ(**文書自体を一切触らない** — 3 周目 P0)。設計書 7.2 の列構成の記述と実体の齟齬(H-29)は本タスクで直さない | — |
