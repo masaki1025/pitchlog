@@ -22,6 +22,7 @@ disable-model-invocation: true
 
 1. **未コミット確認**: `git -C <worktree> status --porcelain` が空であること(残があれば 1 に戻る)
 2. **正本反映(双方向で突合する)**: 計画書 3 節の宣言と `git -C <worktree> diff origin/develop...HEAD --name-only` を突合し、**次のどちらでも中断**する:
+   - worktree 側で `uv run python scripts/check_plan_docs_sync.py --plan docs/features/<slug>/plan.md --base origin/develop` を実行して機械突合する(`--plan` を省略するとブランチ名から導出)。**exit 1 なら中断**する。**「反映宣言なのに差分にない」は plan status が `in-review` のときだけ違反(`active` では警告のみ)**であり、手順 1-1 で `in-review` へ更新する通常経路では違反として扱われる。
    - **宣言済みで未反映**の正本がある → /sync-docs を案内して中断
    - **差分にあるのに未宣言**の正本がある → 計画書 3 節へ宣言を追記してから再突合(**片方向だと、正本を更新したのに宣言し忘れた場合に素通りする** — 実例: `decision-tracer.md` の宣言漏れを人手で拾った)
    - **突合対象**: `docs/README.md` / **索引に掲載されている正本** / 新設する正本の配置先。**除外**: `docs/features/**`・`docs/worklog/**`・`docs/legacy/**`・`docs/development/templates/**`・`.claude/**`・リポジトリ直下の規約ファイル(`AGENTS.md`・`CLAUDE.md`・`README.md`)。**全 `--name-only` を逆突合してはならない**(正本外だが同一 PR で運ぶファイルで誤って中断する)。正本外のファイルは 3 節の別枠(「正本体系外だが同一 PR で更新するもの」)で宣言する
