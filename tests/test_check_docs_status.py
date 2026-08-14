@@ -61,6 +61,7 @@ def frontmatter(
     history: bool = True,
     version: str = DEFAULT_VERSION,
     updated: str = DEFAULT_UPDATED,
+    history_rows: list[tuple[str, str]] | None = None,
 ) -> str:
     """指定 status を持つ最小の Markdown 文書を作る。
 
@@ -69,16 +70,19 @@ def frontmatter(
         history: 変更履歴表を本文へ含めるか。
         version: 変更履歴表の版セルの値。
         updated: 変更履歴表の日付セルの値。
+        history_rows: 変更履歴表に書く ``(版, 日付)`` の行。省略時は
+            version・updated の 1 行を使う。
 
     Returns:
         最小の Markdown 文書内容。
     """
     content = f"---\nstatus: {status}\n---\n# 文書\n"
     if history:
-        content += (
-            "| 版 | 日付 | 変更内容 | 状態 |\n"
-            "| --- | --- | --- | --- |\n"
-            f"| {version} | {updated} | 初版 | {status} |\n"
+        rows = history_rows if history_rows is not None else [(version, updated)]
+        content += "| 版 | 日付 | 変更内容 | 状態 |\n| --- | --- | --- | --- |\n"
+        content += "".join(
+            f"| {row_version} | {row_updated} | 初版 | {status} |\n"
+            for row_version, row_updated in rows
         )
     return content
 
@@ -202,7 +206,7 @@ def test_rejects_invalid_index_version_or_updated(tmp_path, version, updated):
     assert result.returncode == 1
 
 
-def test_accepts_em_dash_index_version(tmp_path):
+def test_rejects_em_dash_index_version_for_non_exempt_document(tmp_path):
     root = make_minimal_repo(tmp_path)
     write_index(
         root,
@@ -212,7 +216,8 @@ def test_accepts_em_dash_index_version(tmp_path):
 
     result = run_check(root)
 
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1
+    assert "索引の版(—)と変更履歴表の最大版(1.0)が一致しない" in result.stderr
 
 
 def test_rejects_primary_without_change_history_table(tmp_path):
@@ -364,6 +369,152 @@ def test_accepts_change_history_table_with_author_column(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+def test_rejects_index_version_not_matching_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="0.9",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "索引の版(0.9)と変更履歴表の最大版(1.0)が一致しない" in result.stderr
+
+
+def test_rejects_index_updated_older_than_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        updated="2026-08-14",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("1.0", "2026-08-12"),
+                ("1.0", "2026-08-15"),
+                ("1.0", "2026-08-13"),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "索引の最終更新(2026-08-14)が変更履歴表の最大日付(2026-08-15)より古い" in result.stderr
+
+
+def test_rejects_change_history_date_with_invalid_format(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", updated="2026/08/10"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の日付が不正: 2026/08/10" in result.stderr
+
+
+def test_rejects_change_history_date_that_does_not_exist(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", updated="2026-02-31"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の日付が不正: 2026-02-31" in result.stderr
+
+
+def test_accepts_change_history_with_unordered_dates(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="1.1",
+        updated="2026-08-15",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("1.0", "2026-08-12"),
+                ("**1.1**", "2026-08-15"),
+                ("1.0", "2026-08-13"),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_index_updated_after_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        updated="2026-08-11",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_numeric_change_history_version_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="0.11",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("0.9", DEFAULT_UPDATED),
+                ("0.10", DEFAULT_UPDATED),
+                ("0.11", DEFAULT_UPDATED),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_invalid_change_history_version(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", version="v1.0"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の版が不正: v1.0" in result.stderr
+
+
 def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
     root = tmp_path / "repo"
     relative_path = "docs/adr/ADR-001-codex-model-selection.md"
@@ -378,6 +529,22 @@ def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
     result = run_check(root)
 
     assert result.returncode == 0, result.stderr
+
+
+def test_rejects_exempt_document_with_numbered_index_version(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+    )
+    write_bytes(root, relative_path, source_path.read_bytes())
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "免除文書の索引の版は — でなければならない: 1.0" in result.stderr
 
 
 def test_rejects_modified_grandfather_document(tmp_path):

@@ -76,6 +76,19 @@ class IndexedDocument:
     index_updated: str
 
 
+@dataclass(frozen=True)
+class ChangeHistory:
+    """変更履歴表から取得した最新の版と日付を表す。
+
+    Attributes:
+        latest_version: 数値として最大の版。
+        latest_date: 実在する日付として最大の ISO 形式日付。
+    """
+
+    latest_version: str
+    latest_date: str
+
+
 def display_path(path: Path, root: Path) -> str:
     """違反出力に使うリポジトリ相対パスを返す。
 
@@ -168,13 +181,24 @@ def is_valid_index_updated(value: str) -> bool:
     Returns:
         ``YYYY-MM-DD`` 形式かつ実在する日付なら ``True``、それ以外なら ``False``。
     """
+    return parse_iso_date(value) is not None
+
+
+def parse_iso_date(value: str) -> date | None:
+    """実在する ISO 形式の日付を date 型へ変換する。
+
+    Args:
+        value: ``YYYY-MM-DD`` 形式として検証する文字列。
+
+    Returns:
+        実在する日付なら date 型、それ以外なら ``None``。
+    """
     if INDEX_DATE_RE.fullmatch(value) is None:
-        return False
+        return None
     try:
-        date.fromisoformat(value)
+        return date.fromisoformat(value)
     except ValueError:
-        return False
-    return True
+        return None
 
 
 def parse_table_cells(line: str) -> list[str]:
@@ -380,25 +404,128 @@ def change_history_exempt_digest(path: Path, root: Path) -> str | None:
     return CHANGE_HISTORY_EXEMPT_DIGESTS.get(relative_parts)
 
 
-def check_change_history_table(path: Path, root: Path) -> list[str]:
-    """正本の冒頭にある変更履歴表と列見出しを検査する。
+def find_change_history_table(lines: Sequence[str]) -> list[str] | None:
+    """正本の冒頭にある変更履歴表を取得する。
+
+    Args:
+        lines: Markdown ファイルを行単位で分割した配列。
+
+    Returns:
+        変更履歴表の行配列。見つからなければ ``None``。
+    """
+    for index, line in enumerate(lines[3:], start=3):
+        if CHANGE_HISTORY_HEADING_RE.fullmatch(line):
+            continue
+        if CHANGE_HISTORY_SECTION_HEADING_RE.match(line):
+            break
+        if line.lstrip().startswith("|"):
+            return collect_table_lines(lines, index)
+    return None
+
+
+def version_sort_key(version: str) -> tuple[int, ...]:
+    """版文字列を数値比較用のタプルへ変換する。
+
+    Args:
+        version: 数値とドットだけで構成された版文字列。
+
+    Returns:
+        各版要素を整数化した比較用タプル。
+    """
+    return tuple(int(part) for part in version.split("."))
+
+
+def parse_change_history_table(
+    table: Sequence[str],
+    path: Path,
+    root: Path,
+) -> tuple[ChangeHistory | None, list[str]]:
+    """変更履歴表を検証し、最大の版と日付を取得する。
+
+    Args:
+        table: 変更履歴表の行配列。
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        ``(変更履歴, 違反メッセージ)`` の組。違反時の変更履歴は ``None``。
+    """
+    cells = [normalize_index_cell(cell) for cell in parse_table_cells(table[0])]
+    if (
+        cells[:3] != ["版", "日付", "変更内容"]
+        or len(cells) < 4
+        or cells[3] not in {"状態", "変更者"}
+    ):
+        return None, [
+            violation(
+                path,
+                root,
+                "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない",
+            )
+        ]
+
+    versions: list[str] = []
+    dates: list[date] = []
+    violations: list[str] = []
+    for line in table[1:]:
+        row = parse_table_cells(line)
+        if is_table_separator(row):
+            continue
+        if len(row) < 2:
+            violations.append(violation(path, root, "変更履歴表の行に版・日付列がない"))
+            continue
+
+        version = normalize_index_cell(row[0])
+        if INDEX_VERSION_RE.fullmatch(version) is None:
+            violations.append(violation(path, root, f"変更履歴表の版が不正: {version}"))
+        else:
+            versions.append(version)
+
+        parsed_date = parse_iso_date(row[1])
+        if parsed_date is None:
+            violations.append(violation(path, root, f"変更履歴表の日付が不正: {row[1]}"))
+        else:
+            dates.append(parsed_date)
+
+    if violations:
+        return None, violations
+    if not versions:
+        return None, [violation(path, root, "変更履歴表に履歴行がない")]
+
+    return (
+        ChangeHistory(
+            latest_version=max(versions, key=version_sort_key),
+            latest_date=max(dates).isoformat(),
+        ),
+        [],
+    )
+
+
+def read_change_history(
+    path: Path,
+    root: Path,
+) -> tuple[ChangeHistory | None, list[str]]:
+    """正本の変更履歴表を検証し、その最新値を取得する。
 
     Args:
         path: 検査対象の正本 Markdown ファイル。
         root: リポジトリルート。
 
     Returns:
-        検出した違反メッセージの配列。
+        ``(変更履歴, 違反メッセージ)`` の組。ダイジェスト一致の免除文書では
+        変更履歴を ``None`` として返す。
     """
     expected_digest = change_history_exempt_digest(path, root)
     if expected_digest is not None:
         try:
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
         except OSError as error:
-            return [violation(path, root, f"免除用ダイジェストを計算できない: {error}")]
+            return None, [
+                violation(path, root, f"免除用ダイジェストを計算できない: {error}")
+            ]
         if digest == expected_digest:
-            return []
-        return [
+            return None, []
+        return None, [
             violation(
                 path,
                 root,
@@ -409,35 +536,65 @@ def check_change_history_table(path: Path, root: Path) -> list[str]:
 
     lines, read_error = read_markdown_lines(path)
     if read_error is not None:
-        return [violation(path, root, read_error)]
+        return None, [violation(path, root, read_error)]
     assert lines is not None
 
-    table: list[str] | None = None
-    for index, line in enumerate(lines[3:], start=3):
-        if CHANGE_HISTORY_HEADING_RE.fullmatch(line):
-            continue
-        if CHANGE_HISTORY_SECTION_HEADING_RE.match(line):
-            break
-        if line.lstrip().startswith("|"):
-            table = collect_table_lines(lines, index)
-            break
+    table = find_change_history_table(lines)
     if table is None:
-        return [violation(path, root, "冒頭に変更履歴表がない")]
+        return None, [violation(path, root, "冒頭に変更履歴表がない")]
+    return parse_change_history_table(table, path, root)
 
-    cells = [normalize_index_cell(cell) for cell in parse_table_cells(table[0])]
-    if (
-        cells[:3] != ["版", "日付", "変更内容"]
-        or len(cells) < 4
-        or cells[3] not in {"状態", "変更者"}
-    ):
+
+def check_index_change_history(
+    document: IndexedDocument,
+    history: ChangeHistory | None,
+    root: Path,
+) -> list[str]:
+    """索引の版・最終更新と変更履歴表を突合する。
+
+    Args:
+        document: 索引から取得した正本文書の情報。
+        history: 変更履歴表の最新値。``None`` は免除文書を表す。
+        root: リポジトリルート。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    if history is None:
+        if document.index_version == INDEX_VERSION_NONE:
+            return []
         return [
             violation(
-                path,
+                document.path,
                 root,
-                "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない",
+                "免除文書の索引の版は — でなければならない: "
+                f"{document.index_version}",
             )
         ]
-    return []
+
+    violations: list[str] = []
+    if document.index_version != history.latest_version:
+        violations.append(
+            violation(
+                document.path,
+                root,
+                "索引の版"
+                f"({document.index_version})と変更履歴表の最大版"
+                f"({history.latest_version})が一致しない",
+            )
+        )
+    index_date = parse_iso_date(document.index_updated)
+    if index_date is not None and index_date < date.fromisoformat(history.latest_date):
+        violations.append(
+            violation(
+                document.path,
+                root,
+                "索引の最終更新"
+                f"({document.index_updated})が変更履歴表の最大日付"
+                f"({history.latest_date})より古い",
+            )
+        )
+    return violations
 
 
 def validate_status_value(status: str, allowed_statuses: frozenset[str]) -> str | None:
@@ -587,7 +744,11 @@ def check_repository(root: Path) -> list[str]:
         violations.extend(document_violations)
         if document_violations:
             continue
-        violations.extend(check_change_history_table(document.path, root))
+        history, history_violations = read_change_history(document.path, root)
+        violations.extend(history_violations)
+        if history_violations:
+            continue
+        violations.extend(check_index_change_history(document, history, root))
 
     features_dir = root / "docs" / "features"
     if features_dir.is_dir():
