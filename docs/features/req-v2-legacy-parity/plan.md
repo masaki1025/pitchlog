@@ -1,6 +1,6 @@
 ---
 feature: req-v2-legacy-parity
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review        # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-14・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bb93b75e687819485e5f7f2aa79fa64
 branch: feature/req-v2-legacy-parity
 created: 2026-08-13
 計画レビュー周回: 19        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 5          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 ---
 
@@ -96,7 +96,8 @@ Notion タスク: [要件書 v2.0 改訂](https://app.notion.com/p/3bb93b75e6878
 | --- | --- | --- |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **v1.9 → v2.0**。改訂箇所は [design.md](design.md) §1 が正 | **finalize-doc**(版繰り上げ — 設計書 7.6-3 後段) |
 | [改善台帳](../../improvements-from-baseball-scoring.md) | I-2・I-27 の効果文を改訂 + **変更履歴表を新設(初回版 v1.0)**。ステップ 1 で `in-review` へ遷移させ確定ゲートで approved 化 | **finalize-doc**(要件書の確定ゲートで一括検証。v1.9 で改善台帳 I-4 を同時解消した前例) |
-| [docs/README.md(索引)](../../README.md) | 要件書を v2.0 へ。改善台帳の版行を「—」から v1.0 へ | PR レビュー |
+| [docs/README.md(索引)](../../README.md) | 要件書を v2.0 へ。改善台帳の版行を「—」から v1.0 へ。ハーネス運用評価台帳の最終更新日を現行化 | PR レビュー |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-43〜H-46 を追記**(計画レビューと確定ゲートの検出クラスの違い / 承認済み design.md との二重管理 / `feature_status.py` のステップ検出書式 / 典拠保全を DoD に置いた効果)+ 変更履歴表に 1 行。**版は上げない**(様式・運用規則は変えない — 設計書 7.6-3 前段) | PR レビュー |
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) / `.claude/core-areas.json` / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) | **反映なし** — コア領域 5 領域の定義は変わらず、`paths` は Phase 4 の契約。撤回の一次記録は要件書 v2.0 の変更履歴表に置く(決定記録は「以後の要件変更は正本の変更履歴で管理する」と自己規定) | — |
 
 ## 4. 実装方針
