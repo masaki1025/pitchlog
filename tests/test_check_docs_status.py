@@ -747,6 +747,46 @@ def test_excludes_unindexed_files_and_index_from_index_coverage(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+def test_rejects_heading_with_unclosed_backtick(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n## `壊れた見出し\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "見出し行のバックティックが閉じていない" in result.stderr
+
+
+def test_ignores_unclosed_backtick_on_hash_line_in_code_fence(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n```python\n# `コードコメント\n```\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_ignores_unclosed_backtick_on_non_heading_hash_line(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n#hashtag `本文\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_current_repository_passes_integration_check():
     result = run_check(REPO)
 

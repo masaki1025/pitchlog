@@ -30,6 +30,8 @@ PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
 CHANGE_HISTORY_SECTION_HEADING_RE = re.compile(r"^#{2,6}\s")
 CHANGE_HISTORY_HEADING_RE = re.compile(r"^##\s+変更履歴\s*$")
+MARKDOWN_HEADING_RE = re.compile(r"^#{1,6}\s")
+CODE_FENCE_RE = re.compile(r"^(?:```|~~~)")
 STATUS_PREFIX_RE = re.compile(r"^status\s*:")
 PRIMARY_STATUS_LINE_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
 PLAN_STATUS_LINE_RE = re.compile(
@@ -428,6 +430,38 @@ def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
         return None, f"UTF-8 として読み込めない: {error}"
 
 
+def check_heading_backticks(path: Path, root: Path) -> list[str]:
+    """コードフェンス外の見出し行でバックティックが閉じているか検査する。
+
+    Args:
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return [violation(path, root, read_error)]
+    assert lines is not None
+
+    in_code_fence = False
+    violations: list[str] = []
+    for line in lines:
+        if CODE_FENCE_RE.match(line):
+            in_code_fence = not in_code_fence
+            continue
+        if (
+            not in_code_fence
+            and MARKDOWN_HEADING_RE.match(line)
+            and line.count("`") % 2 == 1
+        ):
+            violations.append(
+                violation(path, root, "見出し行のバックティックが閉じていない")
+            )
+    return violations
+
+
 def change_history_exempt_digest(path: Path, root: Path) -> str | None:
     """変更履歴表の grandfather 対象なら固定ダイジェストを返す。
 
@@ -786,6 +820,7 @@ def check_repository(root: Path) -> list[str]:
         violations.extend(document_violations)
         if document_violations:
             continue
+        violations.extend(check_heading_backticks(document.path, root))
         history, history_violations = read_change_history(document.path, root)
         violations.extend(history_violations)
         if history_violations:
