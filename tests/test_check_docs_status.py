@@ -8,6 +8,8 @@ import pytest
 
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "check_docs_status.py"
+DEFAULT_VERSION = "1.0"
+DEFAULT_UPDATED = "2026-08-10"
 
 
 def run_check(root: Path) -> subprocess.CompletedProcess[str]:
@@ -52,23 +54,52 @@ def frontmatter(status: str) -> str:
     return f"---\nstatus: {status}\n---\n# 文書\n"
 
 
-def write_index(root: Path, entries: list[tuple[str, str, str]]) -> None:
+def write_index_lines(
+    root: Path,
+    header_cells: list[str],
+    rows: list[list[str]],
+) -> None:
+    """指定した列と行で最小の正本一覧を作る。
+
+    Args:
+        root: 最小リポジトリのルート。
+        header_cells: 正本一覧のヘッダーセルの配列。
+        rows: 正本一覧の行をセル単位で持つ配列。
+    """
+    lines = [
+        "# ドキュメントマップ",
+        "",
+        "## 正本",
+        "",
+        f"| {' | '.join(header_cells)} |",
+    ]
+    lines.extend(f"| {' | '.join(row)} |" for row in rows)
+    write_text(root, "docs/README.md", "\n".join(lines) + "\n")
+
+
+def write_index(
+    root: Path,
+    entries: list[tuple[str, str, str]],
+    *,
+    version: str = DEFAULT_VERSION,
+    updated: str = DEFAULT_UPDATED,
+) -> None:
     """正本一覧を含む最小の docs/README.md を作る。
 
     Args:
         root: 最小リポジトリのルート。
         entries: ``(表示名, docs/README.md からのリンク先, 状態セル)`` の配列。
+        version: 各行に設定する版セルの値。
+        updated: 各行に設定する最終更新セルの値。
     """
     rows = [
-        "# ドキュメントマップ",
-        "",
-        "## 正本",
-        "",
-        "| 文書 | 状態 |",
-        "| --- | --- |",
+        ["---", "---", "---", "---"],
     ]
-    rows.extend(f"| [{title}]({target}) | {status} |" for title, target, status in entries)
-    write_text(root, "docs/README.md", "\n".join(rows) + "\n")
+    rows.extend(
+        [f"[{title}]({target})", status, version, updated]
+        for title, target, status in entries
+    )
+    write_index_lines(root, ["文書", "状態", "版", "最終更新"], rows)
 
 
 def make_minimal_repo(tmp_path: Path) -> Path:
@@ -84,6 +115,75 @@ def make_minimal_repo(tmp_path: Path) -> Path:
     write_index(root, [("仕様", "requirements/spec.md", "draft")])
     write_text(root, "docs/requirements/spec.md", frontmatter("draft"))
     return root
+
+
+def test_rejects_index_without_version_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index_lines(
+        root,
+        ["文書", "状態", "最終更新"],
+        [
+            ["---", "---", "---"],
+            ["[仕様](requirements/spec.md)", "draft", DEFAULT_UPDATED],
+        ],
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "「文書」「状態」「版」「最終更新」の列が必要" in result.stderr
+
+
+def test_rejects_index_without_updated_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index_lines(
+        root,
+        ["文書", "状態", "版"],
+        [
+            ["---", "---", "---"],
+            ["[仕様](requirements/spec.md)", "draft", DEFAULT_VERSION],
+        ],
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "「文書」「状態」「版」「最終更新」の列が必要" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("version", "updated"),
+    [
+        ("v2.0", DEFAULT_UPDATED),
+        (DEFAULT_VERSION, "2026/08/10"),
+        (DEFAULT_VERSION, "2026-02-31"),
+    ],
+)
+def test_rejects_invalid_index_version_or_updated(tmp_path, version, updated):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version=version,
+        updated=updated,
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+
+
+def test_accepts_em_dash_index_version(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="—",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_accepts_matching_primary_documents_and_feature_plan(tmp_path):

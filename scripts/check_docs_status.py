@@ -6,6 +6,7 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Sequence
 
@@ -27,19 +28,26 @@ PLAN_STATUS_LINE_RE = re.compile(
 MARKDOWN_LINK_RE = re.compile(
     r"\[[^\]]+\]\((?P<target><[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)"
 )
+INDEX_VERSION_NONE = "—"
+INDEX_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*$")
+INDEX_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 @dataclass(frozen=True)
 class IndexedDocument:
-    """索引から取得した正本文書と状態を表す。
+    """索引から取得した正本文書、状態、版、最終更新を表す。
 
     Attributes:
         path: 正本文書の絶対パス。
         index_status: 索引の状態セルを正規化した値。
+        index_version: 索引の版セルを正規化した値。
+        index_updated: 索引の最終更新セルを正規化した値。
     """
 
     path: Path
     index_status: str
+    index_version: str
+    index_updated: str
 
 
 def display_path(path: Path, root: Path) -> str:
@@ -89,6 +97,18 @@ def is_excluded(path: Path, root: Path) -> bool:
     return any(relative_parts[:len(prefix)] == prefix for prefix in EXCLUDED_PREFIXES)
 
 
+def normalize_index_cell(cell: str) -> str:
+    """索引セルから太字マーカーと前後空白を除去する。
+
+    Args:
+        cell: Markdown 表にある索引セルの文字列。
+
+    Returns:
+        太字マーカーと前後空白を除去した値。
+    """
+    return cell.replace("**", "").strip()
+
+
 def normalize_index_status(cell: str) -> str:
     """索引の状態セルを frontmatter と比較できる形に正規化する。
 
@@ -98,7 +118,37 @@ def normalize_index_status(cell: str) -> str:
     Returns:
         太字マーカーと最初の括弧以降を除去した状態語彙。
     """
-    return cell.replace("**", "").split("(", 1)[0].strip()
+    return normalize_index_cell(cell).split("(", 1)[0].strip()
+
+
+def is_valid_index_version(value: str) -> bool:
+    """索引の版セルが許可された書式かを判定する。
+
+    Args:
+        value: 太字マーカーを除去した版セルの値。
+
+    Returns:
+        数値のドット区切り形式または EM DASH なら ``True``、それ以外なら ``False``。
+    """
+    return value == INDEX_VERSION_NONE or INDEX_VERSION_RE.fullmatch(value) is not None
+
+
+def is_valid_index_updated(value: str) -> bool:
+    """索引の最終更新セルが実在する ISO 形式の日付かを判定する。
+
+    Args:
+        value: 太字マーカーを除去した最終更新セルの値。
+
+    Returns:
+        ``YYYY-MM-DD`` 形式かつ実在する日付なら ``True``、それ以外なら ``False``。
+    """
+    if INDEX_DATE_RE.fullmatch(value) is None:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
 
 
 def parse_table_cells(line: str) -> list[str]:
@@ -208,8 +258,12 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     try:
         document_column = header.index("文書")
         status_column = header.index("状態")
+        version_column = header.index("版")
+        updated_column = header.index("最終更新")
     except ValueError:
-        return [], [violation(index_path, root, "正本一覧に「文書」と「状態」の列が必要")]
+        return [], [
+            violation(index_path, root, "正本一覧に「文書」「状態」「版」「最終更新」の列が必要")
+        ]
 
     documents: list[IndexedDocument] = []
     violations: list[str] = []
@@ -217,7 +271,12 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
         cells = parse_table_cells(line)
         if is_table_separator(cells):
             continue
-        if len(cells) <= max(document_column, status_column):
+        if len(cells) <= max(
+            document_column,
+            status_column,
+            version_column,
+            updated_column,
+        ):
             violations.append(violation(index_path, root, "正本一覧の行に必要な列がない"))
             continue
         target = extract_link_target(cells[document_column])
@@ -226,10 +285,22 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
                 violation(index_path, root, "正本一覧の文書列にローカル .md リンクがない")
             )
             continue
+        index_version = normalize_index_cell(cells[version_column])
+        index_updated = normalize_index_cell(cells[updated_column])
+        if not is_valid_index_version(index_version):
+            violations.append(
+                violation(index_path, root, f"正本一覧の版が不正: {index_version}")
+            )
+        if not is_valid_index_updated(index_updated):
+            violations.append(
+                violation(index_path, root, f"正本一覧の最終更新が不正: {index_updated}")
+            )
         documents.append(
             IndexedDocument(
                 path=(index_path.parent / target).resolve(),
                 index_status=normalize_index_status(cells[status_column]),
+                index_version=index_version,
+                index_updated=index_updated,
             )
         )
 
