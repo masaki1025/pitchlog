@@ -25,7 +25,25 @@ Phase 4 着手前の確認として「旧リポジトリが変わっていない
 
 ## 詳細と典拠
 
-パス表記: `LEGACY` = `/tmp/claude-1000/.../scratchpad/legacy-current`(commit `dd03160` の shallow clone)/ `req` = `docs/requirements/requirements-pitchlog-2026-07-22.md`。
+パス表記: `LEGACY` = commit `dd03160` の作業ツリー / `req` = `docs/requirements/requirements-pitchlog-2026-07-22.md`。
+
+### 0. 典拠の保全(2026-08-14 実施)
+
+旧リポは**他者所有の private リポジトリ**(作者 `kouya`)であり、`dd03160` という SHA は**識別子であって保存手段ではない**。削除・履歴書き換え・アクセス権喪失のいずれでも本メモの全典拠が検証不能になるため、**ミラーを確保した**。
+
+| 項目 | 値 |
+| --- | --- |
+| 保全先 | **`masaki1025/Baseball_Scoring-archive`**(private) |
+| 保全方式 | `git clone --mirror` → `git push --mirror`(全ブランチ・全履歴) |
+| 取得日時 | 2026-08-14 |
+| 典拠コミットの固定 | annotated tag **`pitchlog-req-v2.0-evidence`** → `dd03160` |
+| 検証 | 保全先から新規 bare clone して確認 — tag が `dd03160` を指すこと / `dd03160` が commit として到達すること / **`dd03160:config.py` に `COLUMN_NAMES` が実在**(88 列契約 = 調査の中核典拠)/ 総コミット数 140 / branch `develop`・`main`・`ui-renewal` |
+
+**検証の再現手順**: `git clone --bare https://github.com/masaki1025/Baseball_Scoring-archive.git` → `git log -1 pitchlog-req-v2.0-evidence^{commit}` が `dd03160` を返す。
+
+**未決**: 他者所有 private リポジトリの完全複製にあたるため、**作者への確認は未実施**。保全の目的は pitchlog の approved な要件の根拠を検証可能に保つことに限られ、再配布はしない。
+
+**取得時点で判明した事実**: 保全時(2026-08-14)の旧 `develop` は **`33a7799`(2026-08-13)で、`dd03160` から 4 コミット先行**していた。本メモの調査事実は `dd03160` 時点のものであり、**この 4 コミット分は本タスクの調査に含まれない**(内容と送り先は末尾「タスク分割」の追補を参照)。
 
 ### 1. 旧リポの現在位置
 
@@ -221,6 +239,30 @@ Phase 4 着手前の確認として「旧リポジトリが変わっていない
 ### タスク分割(2026-08-14 PO 判断)
 
 計画の敵対レビュー 2 周で未解決 16 件・PO 裁定待ち 8 件と収束しなかったため、要件書の一括改訂を分割した。3 周目の指摘で臨時代走をさらに分離し、**現在は v2.0〜v2.3 の 4 本**。**本調査メモは 4 本共通の典拠として機能する**(スコープと重さ分類は [design.md](design.md) §7 が正)。
+
+### 追補: 保全時に判明した dd03160 以降の 4 コミット(2026-08-14)
+
+典拠の保全(§0)で旧 `develop` を取得したとき、**`dd03160` から 4 コミット先行**していた(`33a7799`・2026-08-13)。**本メモの調査事実は `dd03160` 時点のものであり、この 4 コミットは含まれない。**
+
+| コミット | 件名 |
+| --- | --- |
+| `908abe6` | feat: enhance live game input and team pitch workflows |
+| `bc64eaf` | Merge feature/game-header-readability into develop |
+| `6cb2b46` | test: avoid timestamp-dependent workspace assertion |
+| `33a7799` | Merge feature/fix-workspace-response-assert into develop |
+
+**内容の概略**(変更ファイルから):
+
+| 領域 | 主な追加・変更 | pitchlog 側の既存規定との関係(**要検証** — 突合は未実施) |
+| --- | --- | --- |
+| **チーム別の球種オプション** | 新規 `domain/pitch_types.py` / `db/team_pitch_type_repo.py` / マイグレーション `v0010_team_pitch_type_options.py` / `OtherPitchTypeSheet.tsx` / `PitchTypeChips.tsx` の改修 | **pitchlog は 4.0-3 の語彙 3 層で「チーム追加の球種 + 系統属性」を既に規定済み**(ブロック 4 共通規則・FR-023)。**既存規定で覆えている可能性が高いが、旧の実装範囲との突合は未実施**。2.2 の Won't「チーム別カスタムの**挙動付き**語彙」とは別物(球種はラベル語彙) |
+| ライブ入力の UX | `LiveInputBar.tsx`(+315/-48)・`PickoffSheet.tsx`・`MenuSheet.tsx`・`InputWorkflowModeToggle.tsx` | UI/UX の改善。pitchlog は FR-002 の入力補助を **Could** で持つ |
+| 横向きスコアボード | 新規 `LandscapeBaseballScoreboard.tsx` | 表示形態。pitchlog は FR-020 と NFR-020(端末・画面幅)の射程 |
+| テスト修正 | `test: avoid timestamp-dependent workspace assertion` | 旧側の内部改善。踏襲対象ではない |
+
+**行き先**: **本タスク(v2.0)のスコープには入れない**(承認済み計画の範囲外 — 計画にない変更範囲へ触れない)。**追い調査として v2.1(加算的 FR)で扱う** — v2.1 は既に「旧システム新機能の追加(加算的 FR)」を担当しており、この 4 コミットは性質上そこに属する。**先に確かめるべきは「チーム別球種オプションが pitchlog 4.0-3 の既存規定で覆えているか」**で、覆えているなら新規 FR は不要(踏襲済み)、覆えていないなら v2.1 のスコープに 1 項目追加となる。
+
+**構造的な含意**: 旧リポは調査の翌日にも進んでいる。**「旧に追いつく」を要件のゴールに据えると終端がない**。v2.2 のカットオーバー日の確定(この日以降は旧に記録しない・移行対象の線引き)が、この追いかけを終わらせる唯一の手段である。
 
 ### 未解決
 
