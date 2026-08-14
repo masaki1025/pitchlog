@@ -6,8 +6,8 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.0 改訂中 — 旧システム新機能の全面踏襲。計画は PO 承認済み) | 2.0 | 2026-08-14 |
-| [改善台帳](improvements-from-baseball-scoring.md) | **in-review**(v1.0 — 変更履歴表を新設。要件書 v2.0 と同一ゲートで確定) | 1.0 | 2026-08-14 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.0 — 敵対レビュー5周 → PO 承認) | 2.0 | 2026-08-14 |
+| [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.0 — 要件書 v2.0 と同一ゲートで確定) | 1.0 | 2026-08-14 |
 | [要件対話の決定記録(D-1〜D-41)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved** | 1.4 | 2026-08-12 |
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-13 |
