@@ -42,16 +42,45 @@ def write_text(root: Path, relative_path: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def frontmatter(status: str) -> str:
+def write_bytes(root: Path, relative_path: str, content: bytes) -> None:
+    """最小リポジトリ内へバイト列をそのまま書き出す。
+
+    Args:
+        root: 最小リポジトリのルート。
+        relative_path: root からの相対パス。
+        content: 書き込むバイト列。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def frontmatter(
+    status: str,
+    *,
+    history: bool = True,
+    version: str = DEFAULT_VERSION,
+    updated: str = DEFAULT_UPDATED,
+) -> str:
     """指定 status を持つ最小の Markdown 文書を作る。
 
     Args:
         status: frontmatter に設定する status。
+        history: 変更履歴表を本文へ含めるか。
+        version: 変更履歴表の版セルの値。
+        updated: 変更履歴表の日付セルの値。
 
     Returns:
         最小の Markdown 文書内容。
     """
-    return f"---\nstatus: {status}\n---\n# 文書\n"
+    content = f"---\nstatus: {status}\n---\n# 文書\n"
+    if history:
+        content += (
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            f"| {version} | {updated} | 初版 | {status} |\n"
+        )
+    return content
 
 
 def write_index_lines(
@@ -184,6 +213,190 @@ def test_accepts_em_dash_index_version(tmp_path):
     result = run_check(root)
 
     assert result.returncode == 0, result.stderr
+
+
+def test_rejects_primary_without_change_history_table(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/requirements/spec.md", frontmatter("draft", history=False))
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_metadata_table_as_change_history(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| 項目 | 内容 |\n"
+            "| --- | --- |\n"
+            "| 作成者 | テスト |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない" in result.stderr
+
+
+def test_rejects_three_column_change_history_table(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| 版 | 日付 | 変更内容 |\n"
+            "| --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない" in result.stderr
+
+
+def test_rejects_change_history_table_after_another_section(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n## 本文\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_unexempt_new_adr_without_change_history_table(tmp_path):
+    root = tmp_path / "repo"
+    write_index(root, [("ADR", "adr/ADR-003-example.md", "approved")])
+    write_text(
+        root,
+        "docs/adr/ADR-003-example.md",
+        frontmatter("approved", history=False),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "docs/adr/ADR-003-example.md:" in result.stderr
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_change_history_table_after_h3_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n### 見出し\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_accepts_change_history_table_after_its_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n## 変更履歴\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_change_history_table_without_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_change_history_table_with_author_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| **版** | **日付** | **変更内容** | **変更者** |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | テスト |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+        version="—",
+    )
+    write_bytes(root, relative_path, source_path.read_bytes())
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_modified_grandfather_document(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+        version="—",
+    )
+    source = source_path.read_bytes()
+    write_bytes(root, relative_path, source[:-1] + b" ")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "免除は起票時点の内容に限る。" in result.stderr
+    assert "変更履歴表を持たせたうえで免除エントリを削除すること" in result.stderr
 
 
 def test_accepts_matching_primary_documents_and_feature_plan(tmp_path):

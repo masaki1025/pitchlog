@@ -1,8 +1,9 @@
-"""正本と feature 計画書の frontmatter status を検査する。"""
+"""正本の変更履歴表と feature 計画書の frontmatter status を検査する。"""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ EXCLUDED_PREFIXES = (
 )
 PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
+CHANGE_HISTORY_SECTION_HEADING_RE = re.compile(r"^#{2,6}\s")
+CHANGE_HISTORY_HEADING_RE = re.compile(r"^##\s+変更履歴\s*$")
 STATUS_PREFIX_RE = re.compile(r"^status\s*:")
 PRIMARY_STATUS_LINE_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
 PLAN_STATUS_LINE_RE = re.compile(
@@ -31,6 +34,29 @@ MARKDOWN_LINK_RE = re.compile(
 INDEX_VERSION_NONE = "—"
 INDEX_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*$")
 INDEX_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# 既存 3 件の暫定除外(grandfather)であり、新しい運用規則ではない。
+# 規約は「正本は変更履歴表を持つ」を例外なく要求しており、本表は
+# その規約違反が既に存在する事実を機械検査から外しているだけである。
+#
+# ダイジェスト値の更新は禁止。再計算して差し替えると編集後の内容を
+# 再び grandfather することになり、「履歴を残さず正本を書き換える経路」が復活する。
+# 免除文書を正規化するときは、① 変更履歴表を新設し、② 同じ PR で
+# 免除エントリを削除する。
+#
+# 将来 ADR を標準テンプレート(変更履歴表を持たない)から作ると検査が落ちる。
+# それは意図した挙動である。
+CHANGE_HISTORY_EXEMPT_DIGESTS = {
+    ("docs", "adr", "ADR-001-codex-model-selection.md"): (
+        "310e518d1a9df575877d1f0c19849a689cadf7e1313e4739605cee5d812cb710"
+    ),
+    ("docs", "adr", "ADR-002-frontend-vue.md"): (
+        "b39d5358cf200255018b8a4170b54b5f212e4543f4a949be7ba57c05d64600d5"
+    ),
+    ("docs", "requirements", "requirements-draft-pitchlog.md"): (
+        "523ecfd1db94c0c494b9b722b05cf4b3c7d4562a1a6f2648fd9b76d5074a8e52"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -177,6 +203,24 @@ def is_table_separator(cells: Sequence[str]) -> bool:
     return all(re.fullmatch(r":?-{3,}:?", cell.replace(" ", "")) for cell in cells)
 
 
+def collect_table_lines(lines: Sequence[str], start: int) -> list[str]:
+    """指定位置から ``|`` 始まりの連続した表行を取得する。
+
+    Args:
+        lines: Markdown ファイルを行単位で分割した配列。
+        start: 表の開始行の添字。
+
+    Returns:
+        表の行配列。
+    """
+    table: list[str] = []
+    for line in lines[start:]:
+        if not line.lstrip().startswith("|"):
+            break
+        table.append(line)
+    return table
+
+
 def extract_link_target(cell: str) -> str | None:
     """Markdown リンクセルからローカル Markdown のリンク先を取り出す。
 
@@ -221,14 +265,7 @@ def primary_table_lines(lines: Sequence[str]) -> list[str] | None:
             break
     if table_start is None:
         return None
-
-    table: list[str] = []
-    for index in range(table_start, len(lines)):
-        line = lines[index]
-        if not line.lstrip().startswith("|"):
-            break
-        table.append(line)
-    return table
+    return collect_table_lines(lines, table_start)
 
 
 def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[str]]:
@@ -324,6 +361,83 @@ def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
         return None, f"読み込めない: {error}"
     except UnicodeDecodeError as error:
         return None, f"UTF-8 として読み込めない: {error}"
+
+
+def change_history_exempt_digest(path: Path, root: Path) -> str | None:
+    """変更履歴表の grandfather 対象なら固定ダイジェストを返す。
+
+    Args:
+        path: 判定対象の文書パス。
+        root: リポジトリルート。
+
+    Returns:
+        grandfather 対象の期待ダイジェスト。対象外なら ``None``。
+    """
+    try:
+        relative_parts = path.resolve().relative_to(root.resolve()).parts
+    except ValueError:
+        return None
+    return CHANGE_HISTORY_EXEMPT_DIGESTS.get(relative_parts)
+
+
+def check_change_history_table(path: Path, root: Path) -> list[str]:
+    """正本の冒頭にある変更履歴表と列見出しを検査する。
+
+    Args:
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    expected_digest = change_history_exempt_digest(path, root)
+    if expected_digest is not None:
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            return [violation(path, root, f"免除用ダイジェストを計算できない: {error}")]
+        if digest == expected_digest:
+            return []
+        return [
+            violation(
+                path,
+                root,
+                "免除は起票時点の内容に限る。変更履歴表を持たせたうえで"
+                "免除エントリを削除すること",
+            )
+        ]
+
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return [violation(path, root, read_error)]
+    assert lines is not None
+
+    table: list[str] | None = None
+    for index, line in enumerate(lines[3:], start=3):
+        if CHANGE_HISTORY_HEADING_RE.fullmatch(line):
+            continue
+        if CHANGE_HISTORY_SECTION_HEADING_RE.match(line):
+            break
+        if line.lstrip().startswith("|"):
+            table = collect_table_lines(lines, index)
+            break
+    if table is None:
+        return [violation(path, root, "冒頭に変更履歴表がない")]
+
+    cells = [normalize_index_cell(cell) for cell in parse_table_cells(table[0])]
+    if (
+        cells[:3] != ["版", "日付", "変更内容"]
+        or len(cells) < 4
+        or cells[3] not in {"状態", "変更者"}
+    ):
+        return [
+            violation(
+                path,
+                root,
+                "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない",
+            )
+        ]
+    return []
 
 
 def validate_status_value(status: str, allowed_statuses: frozenset[str]) -> str | None:
@@ -463,15 +577,17 @@ def check_repository(root: Path) -> list[str]:
     for document in documents:
         if is_excluded(document.path, root):
             continue
-        violations.extend(
-            check_document_status(
-                document.path,
-                root,
-                DOCUMENT_STATUSES,
-                document.index_status,
-                strict_primary=True,
-            )
+        document_violations = check_document_status(
+            document.path,
+            root,
+            DOCUMENT_STATUSES,
+            document.index_status,
+            strict_primary=True,
         )
+        violations.extend(document_violations)
+        if document_violations:
+            continue
+        violations.extend(check_change_history_table(document.path, root))
 
     features_dir = root / "docs" / "features"
     if features_dir.is_dir():
