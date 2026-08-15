@@ -34,6 +34,18 @@ def filepath(path: str, cwd: str = REPO) -> dict:
     return {"cwd": cwd, "tool_input": {"file_path": path}}
 
 
+def load_git_guard(monkeypatch: pytest.MonkeyPatch):
+    """テスト用に git_guard.py をモジュールとして読み込む。"""
+    script = HOOKS / "git_guard.py"
+    monkeypatch.syspath_prepend(str(HOOKS))
+    spec = importlib.util.spec_from_file_location("git_guard_under_test", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
+    spec.loader.exec_module(module)
+    return module
+
+
 # ---- git_guard -------------------------------------------------------------
 
 @pytest.mark.parametrize("command", [
@@ -103,6 +115,68 @@ def test_git_guard_blocks_step3_protected_or_unresolved_operation(tmp_path, comm
 def test_git_guard_allows_feature_branch_commit(tmp_path):
     repo = make_repo(tmp_path, "feature/x")
     assert run_hook("git_guard.py", bash("git commit -m test", cwd=str(repo))).returncode == 0
+
+
+def test_git_guard_blocks_branch_resolution_failure_after_successful_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """worktree プローブ成功後のブランチ解決失敗は理由付きで遮断する。"""
+    repo = make_repo(tmp_path, "feature/x")
+    module = load_git_guard(monkeypatch)
+
+    def fail_branch_resolution(args, **kwargs):
+        if args == ["git", "rev-parse", "--is-inside-work-tree"]:
+            return subprocess.CompletedProcess(args, 0, stdout="true\n", stderr="")
+        assert args == ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="解決失敗")
+
+    monkeypatch.setattr(module.subprocess, "run", fail_branch_resolution)
+
+    result = module.check_git_invocation(
+        module.GitInvocation("commit", str(repo), []), cd_seen=False,
+    )
+
+    assert result == 2
+    assert "現在のブランチを解決できませんでした" in capsys.readouterr().err
+
+
+def test_git_guard_allows_existing_non_repository_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Git 管理外を積極確認できる既存 cwd では commit 判定を許可する。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    # 親の共有 tmp が持つ `.git` を拾わないよう、Git 自身の探索境界を fixture に固定する。
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(outside)))
+
+    assert result.returncode == 0
+
+
+def test_git_guard_blocks_broken_git_metadata(tmp_path: Path):
+    """壊れた `.git` は非リポジトリと推定せず、安全側で遮断する。"""
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / ".git").mkdir()
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(broken)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_nonexistent_cwd(tmp_path: Path):
+    """存在しない cwd はブランチ判定不能として安全側で遮断する。"""
+    missing = tmp_path / "missing"
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(missing)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
 
 
 def test_git_guard_blocks_push_when_any_destination_is_protected(tmp_path):

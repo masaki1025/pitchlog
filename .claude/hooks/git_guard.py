@@ -7,6 +7,7 @@ Git のグローバルオプションを解釈して実サブコマンドを特�
 カレントブランチを判定できないため保守的にブロックする。
 """
 from dataclasses import dataclass
+from enum import Enum
 import json
 import os
 import re
@@ -75,6 +76,13 @@ PUSH_PROTECTED = "protected"
 PUSH_UNRESOLVED = "unresolved"
 
 
+class BranchResolution(Enum):
+    """現在ブランチの解決結果で、ブランチ名以外を表す状態。"""
+
+    NON_REPOSITORY = "non_repository"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class GitInvocation:
     """解析済みの Git 呼び出し。
@@ -90,15 +98,95 @@ class GitInvocation:
     args: list[str]
 
 
-def current_branch(cwd: str) -> str | None:
+def has_no_git_metadata(cwd: str) -> bool:
+    """Git の探索範囲で、既存の cwd と祖先にメタデータがないことを積極確認する。
+
+    Args:
+        cwd: Git 呼び出しの有効 cwd。
+
+    Returns:
+        cwd が既存ディレクトリで、Git の探索範囲に `.git` が存在しない場合のみ True。
+        読み取り不能・不存在など、非リポジトリを確認できない場合は False。
+    """
     try:
-        r = subprocess.run(
+        path = os.path.realpath(cwd or os.getcwd())
+        if not os.path.isdir(path):
+            return False
+        device = os.stat(path).st_dev
+        cross_filesystem = os.environ.get(
+            "GIT_DISCOVERY_ACROSS_FILESYSTEM", "",
+        ).casefold() in {"1", "true", "yes", "on"}
+        ceilings = {
+            os.path.realpath(item)
+            for item in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
+            if item and os.path.isabs(item)
+        }
+
+        while True:
+            try:
+                os.lstat(os.path.join(path, ".git"))
+            except FileNotFoundError:
+                pass
+            except OSError:
+                return False
+            else:
+                return False
+
+            parent = os.path.dirname(path)
+            if parent == path:
+                return True
+            if parent in ceilings:
+                return True
+            if not cross_filesystem and os.stat(parent).st_dev != device:
+                return True
+            path = parent
+    except OSError:
+        return False
+
+
+def current_branch(cwd: str) -> str | BranchResolution:
+    """現在ブランチを三値で解決する。
+
+    Args:
+        cwd: Git 呼び出しの有効 cwd。
+
+    Returns:
+        解決できたブランチ名。Git 管理外を積極確認できた場合は
+        BranchResolution.NON_REPOSITORY、それ以外の失敗時は
+        BranchResolution.UNKNOWN。
+    """
+    try:
+        probe = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, cwd=cwd or None, timeout=10,
+        )
+    except Exception:
+        return BranchResolution.UNKNOWN
+
+    if probe.returncode == 0:
+        if probe.stdout.strip() == "false":
+            return BranchResolution.NON_REPOSITORY
+        if probe.stdout.strip() != "true":
+            return BranchResolution.UNKNOWN
+    elif (
+        probe.returncode == 128
+        and "not a git repository" in (probe.stderr or "").casefold()
+        and has_no_git_metadata(cwd)
+    ):
+        # Git の非リポジトリ診断と、cwd 側の Git メタデータ不在を両方確認する。
+        return BranchResolution.NON_REPOSITORY
+    else:
+        return BranchResolution.UNKNOWN
+
+    try:
+        branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True, text=True, cwd=cwd or None, timeout=10,
         )
-        return r.stdout.strip() if r.returncode == 0 else None
+        name = branch.stdout.strip()
+        return name if branch.returncode == 0 and name else BranchResolution.UNKNOWN
     except Exception:
-        return None
+        return BranchResolution.UNKNOWN
 
 
 def command_index(tokens: list[str]) -> int | None:
@@ -379,7 +467,10 @@ def check_git_invocation(invocation: GitInvocation, cd_seen: bool) -> int | None
     if invocation.subcommand in CURRENT_BRANCH_VERBS:
         if cd_seen:
             return block("`cd` と git 操作の複合はブランチ判定ができません。`git -C <path>` を使うか分けて実行してください(8.3)。")
-        if current_branch(invocation.cwd) in PROTECTED:
+        branch = current_branch(invocation.cwd)
+        if branch is BranchResolution.UNKNOWN:
+            return block("現在のブランチを解決できませんでした。保護ブランチか判定できないため安全側で遮断します。")
+        if branch in PROTECTED:
             return block("保護ブランチへの直接操作は禁止です。develop から feature/* を切って PR 経由で(/task-start)。")
     return None
 
