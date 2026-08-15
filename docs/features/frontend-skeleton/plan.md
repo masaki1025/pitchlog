@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
 計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -40,7 +40,7 @@ created: 2026-08-16
 
 Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**書く。
 
-- **分割後の PR 列**(frontend 骨格 / backend 骨格 / docker-compose・contracts / CI 本体 / onboarding v1.0 / docs-ops + 証跡検証器)
+- **分割後の PR 列 6 本**(**4-1** frontend 骨格 + CI の frontend ジョブ / **4-2** backend 骨格 + CI の backend ジョブ / **4-3** docker-compose・contracts / **4-4** 失効対象パスの正本 / **4-5** 証跡検証器・append-only 検査 / **4-6** onboarding v1.0 + `/release` 手順 0 の置き換え + `win-setup` の選定 + Phase 4 完了判定)。**CI 本体は独立 PR にせず 4-1・4-2 へ分散**し、**docs-ops と検証器は分離**する(確定ゲート 1 周目 P1 — 当初案から変更)
 - **各 PR のマージ条件**(NFR-021 受入ゲートは Phase 4 **全体の完了時**に係る。各分割 PR のマージ条件は何か)
 - **最終統合と NFR-021 判定の担当**(どの PR が `gate_kind: phase4` を実行するか)
 
