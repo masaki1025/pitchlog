@@ -20,7 +20,7 @@ try:
 except Exception:
     pass
 
-from guard_common import basename, effective_command, shell_tokens
+from guard_common import basename, effective_command, shell_segments, shell_tokens
 
 FORBIDDEN = ("danger-full-access", "--dangerously-bypass-approvals-and-sandbox", "--yolo")
 CODEX_EXE = {"codex", "codex.exe", "codex.cmd"}
@@ -64,23 +64,21 @@ def is_raw_codex_invocation(tokens: list[str], depth: int = 0) -> bool:
             t = tokens[j]
             if t.startswith("-") and "c" in t[1:]:
                 if j + 1 < len(tokens):
-                    inner = shell_tokens(tokens[j + 1])
-                    if inner is None:
+                    inner_segments = shell_segments(tokens[j + 1])
+                    if inner_segments is None:
                         return True  # ネスト内が解析不能 → 安全側
-                    return any_raw_codex(inner, depth + 1)
+                    return any_raw_codex(inner_segments, depth + 1)
     return False
 
 
-def any_raw_codex(tokens: list[str], depth: int = 0) -> bool:
-    """トークン列を shell 演算子で分割し、各コマンドを検査する。"""
-    seg: list[str] = []
-    for t in tokens + [";"]:
-        if t in (";", "&&", "||", "|", "&"):
-            if seg and is_raw_codex_invocation(seg, depth):
-                return True
-            seg = []
-        else:
-            seg.append(t)
+def any_raw_codex(segments: list[str], depth: int = 0) -> bool:
+    """セグメント列の各コマンドを検査する。"""
+    for segment in segments:
+        tokens = shell_tokens(segment)
+        if tokens is None:
+            return True  # ネスト内が解析不能 → 安全側
+        if is_raw_codex_invocation(tokens, depth):
+            return True
     return False
 
 
@@ -100,7 +98,11 @@ def main() -> int:
         if flag in text:
             return block(f"{flag} は本プロジェクトで使用禁止です(設計書 12.1)。")
 
-    for seg in re.split(r"&&|\|\||\||;|\n|&", text):
+    segments = shell_segments(text)
+    if segments is None:
+        return block("codex を含むコマンドを字句解析できませんでした(引用符を確認)。安全側で遮断します。")
+
+    for seg in segments:
         low = seg.lower()
         if "@openai/codex" in low:
             return block("npm 系ランチャー経由の codex 実行は禁止です。codex_run.py を使ってください。")

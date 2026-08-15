@@ -131,6 +131,29 @@ def test_codex_guard_allows(command):
 
 
 @pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" .claude/hooks/codex_guard.py',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_codex_guard_allows_quoted_separators(command):
+    assert run_hook("codex_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("codex exec 'x'", 2),
+    ("bash -lc 'echo ok; codex exec x'", 2),
+    ("python3 .claude/scripts/codex_run.py review normal -", 0),
+])
+def test_codex_guard_uses_segments_for_shell_c(command, expected):
+    assert run_hook("codex_guard.py", bash(command)).returncode == expected
+
+
+def test_codex_guard_blocks_unparseable_top_level_command():
+    command = 'codex exec ' + chr(34) + 'unclosed'
+    assert run_hook("codex_guard.py", bash(command)).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
     "/home/u/.nvm/versions/node/v22.18.0/bin/codex exec 'x'",  # 絶対パス起動(2周目 P0)
     "echo codex_run.py; codex exec 'x'",                        # 文字列混入によるチェーン迂回
     "npx @openai/codex exec 'x'",                               # npm 系ランチャー
