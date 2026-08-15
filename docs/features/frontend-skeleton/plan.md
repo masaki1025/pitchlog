@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
 計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 5          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -63,7 +63,7 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **13 章の Phase 4 を複数 PR へ分割**。PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当を明記。**版繰り上げ(1.5 → 1.6)** | **finalize-doc**(運用規約の構造変更 — 7.6-3 後段。**PO 裁定 2026-08-16**・計画レビュー 1 周目 P1-4) |
+| [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **13 章の Phase 4 を複数 PR へ分割** + **10.1 の「手順 0 の置換は Phase 4 の PR でのみ」を `P4-後` へ同期**(確定ゲート 5 周目 P1 で範囲拡張)。PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当を明記。**版繰り上げ(1.5 → 1.6)** | **finalize-doc**(運用規約の構造変更 — 7.6-3 後段。**PO 裁定 2026-08-16**・計画レビュー 1 周目 P1-4) |
 | [docs/README.md(索引)](../../README.md) | 設計書を **v1.6** へ・最終更新を現行化 | PR レビュー |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) / [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **反映なし** — 本タスクは ADR-002 と要件書 7.1 の**決定どおりに実装する**ものであり、記述を変えない | — |
 
@@ -76,6 +76,7 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 | `.github/workflows/ci.yml` | frontend ジョブ + **Node / Corepack / pnpm のセットアップ**を追加。**`guard_paths` 該当 → core-guard 発火・逐行確認必須** |
 | `.gitignore` | `node_modules` 等 |
 | `docs/features/frontend-skeleton/porting-rules.md` | **新規**。React → Vue の移植規則 |
+| `.claude/skills/release/SKILL.md` | **手順 0 の置換主体を `P4-後` へ同期**(確定ゲート 5 周目 P1 — 設計書 10.1 と同じ変更。`guard_paths` には**該当しない**) |
 | `docs/worklog/2026-08-16-frontend-skeleton.md` | 本タスクの記録 |
 
 ## 4. 実装方針
