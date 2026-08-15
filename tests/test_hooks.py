@@ -219,6 +219,49 @@ def test_shell_tokens_strips_quotes_and_comments():
     assert gc.shell_tokens("echo 'unbalanced") is None  # 解析不能 → None(安全側判定は各ガード)
 
 
+@pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" file',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_shell_segments_does_not_split_quoted_separators(command):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == [command]
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("a && b", ["a ", " b"]),
+    ("a | b", ["a ", " b"]),
+    ("a; b", ["a", " b"]),
+    ("a\nb", ["a", "b"]),
+    ("a & b", ["a ", " b"]),
+])
+def test_shell_segments_splits_unquoted_separators(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("grep -n a#b file; codex exec x", ["grep -n a#b file", " codex exec x"]),
+    ("curl http://x#frag; codex exec x", ["curl http://x#frag", " codex exec x"]),
+    ("git log a#b; git commit -m x", ["git log a#b", " git commit -m x"]),
+])
+def test_shell_segments_splits_after_embedded_hash(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+def test_shell_segments_treats_word_initial_hash_as_comment():
+    gc = _load_guard_common()
+    command = "echo hi # note; codex exec x"
+    assert gc.shell_segments(command) == [command]
+
+
+def test_shell_segments_returns_none_for_unparseable_command():
+    gc = _load_guard_common()
+    assert gc.shell_segments("echo 'unbalanced") is None
+
+
 def test_guards_treat_wrapper_stdin_as_data():
     # 正規ラッパーへの heredoc 本文(プロンプト)はデータ — 本文中の .env / force push 記述で
     # 誤ブロックしない(3周目 P1: /finalize-doc が設計書全文を渡せること)

@@ -6,6 +6,8 @@
 
 - `shell_tokens`: コメント除去つきトークン化。解析不能(引用符の不整合など)は
   None を返し、呼び出し側は**安全側(ブロック)**に倒す。
+- `shell_segments`: 引用符を考慮してコマンドをセグメントへ分割する。解析不能時は
+  `shell_tokens` と同様に None を返す。
 - `effective_command`: ヒアドキュメント本文をデータ扱いできるのは
   「正規ラッパー単独 + 末尾 stdin ヒアドキュメント1つ」に完全一致する時だけ。
   それ以外は本文を含む全文を検査対象に残す。
@@ -32,6 +34,84 @@ def shell_tokens(command: str) -> list[str] | None:
         return shlex.split(command, comments=True)
     except ValueError:
         return None
+
+
+def shell_segments(command: str) -> list[str] | None:
+    """引用符を考慮してコマンドをセグメントへ分割する。解析不能なら None。"""
+    if shell_tokens(command) is None:
+        return None
+
+    segments: list[str] = []
+    start = 0
+    index = 0
+    quote: str | None = None
+    in_comment = False
+    at_word_start = True
+
+    while index < len(command):
+        char = command[index]
+
+        if in_comment:
+            if char == "\n":
+                segments.append(command[start:index])
+                start = index + 1
+                in_comment = False
+                at_word_start = True
+            index += 1
+            continue
+
+        if quote == "'":
+            if char == "'":
+                quote = None
+            index += 1
+            continue
+
+        if quote == '"':
+            if char == "\\":
+                index += 2
+                continue
+            if char == '"':
+                quote = None
+            index += 1
+            continue
+
+        if char == "\\":
+            at_word_start = False
+            index += 2
+            continue
+        if char in ("'", '"'):
+            quote = char
+            at_word_start = False
+            index += 1
+            continue
+        if char == "#" and at_word_start:
+            in_comment = True
+            index += 1
+            continue
+
+        if char in (" ", "\t"):
+            at_word_start = True
+            index += 1
+            continue
+
+        if command.startswith(("&&", "||"), index):
+            segments.append(command[start:index])
+            index += 2
+            start = index
+            at_word_start = True
+            continue
+        if char in ("|", ";", "\n", "&"):
+            segments.append(command[start:index])
+            index += 1
+            start = index
+            at_word_start = True
+            continue
+
+        at_word_start = False
+        index += 1
+
+    segments.append(command[start:])
+    return segments
 
 
 def basename(token: str) -> str:
