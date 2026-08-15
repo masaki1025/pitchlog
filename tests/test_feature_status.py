@@ -460,6 +460,73 @@ def test_worktree_plan_resolution_failures_are_visible_in_text_and_hook(
         assert "another(feature/duplicate)" not in output
 
 
+def test_unreadable_feature_directory_is_visible_in_text_and_hook(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """docs/features の走査失敗を worktree 単位の縮退として表示する。"""
+    root, worktree = init_repository(tmp_path)
+    feature_root = worktree / "docs" / "features"
+    original_glob = Path.glob
+
+    def fail_feature_glob(path, pattern):
+        if path == feature_root:
+            raise OSError("読み取り不能")
+        return original_glob(path, pattern)
+
+    monkeypatch.setattr(Path, "glob", fail_feature_glob)
+    assert feature_status.main(["--format", "text", "--cwd", str(root)]) == 0
+    text_output = capsys.readouterr().out
+    assert feature_status.main(["--format", "hook", "--cwd", str(root)]) == 0
+    hook_output = capsys.readouterr().out
+    reason = "docs/features を読めない"
+
+    assert text_output.count("feature: feature/foo ") == 1
+    assert (
+        sum(line.startswith("feature/foo(") for line in hook_output.splitlines()) == 1
+    )
+    for output, block_getter in (
+        (text_output, feature_block),
+        (hook_output, hook_line),
+    ):
+        block = block_getter(output, "feature/foo")
+        assert f"未取得({reason})" in block
+        assert f"縮退: {reason}" in block
+
+
+def test_non_feature_branch_worktrees_are_visible_in_text_and_hook(tmp_path: Path):
+    """detached HEAD と不正なブランチ名を worktree 単位で表示する。"""
+    root, _ = init_repository(tmp_path)
+    detached_worktree = tmp_path / "detached"
+    git(root, "worktree", "add", "-q", "--detach", str(detached_worktree), "HEAD")
+    add_feature_worktree(root, tmp_path, "feature/two/levels")
+    add_feature_worktree(root, tmp_path, "topic/foo")
+
+    text_output = run_status(root).stdout
+    hook_output = run_status(root, "hook").stdout
+    reason = "ブランチ名が feature/<slug>・fix/<slug> に一致しない"
+    worktrees = (
+        (detached_worktree.name, "未取得"),
+        ("feature/two/levels", "feature/two/levels"),
+        ("topic/foo", "topic/foo"),
+    )
+
+    for name, branch in worktrees:
+        assert text_output.count(f"feature: {name} ") == 1
+        assert (
+            sum(line.startswith(f"{name}(") for line in hook_output.splitlines()) == 1
+        )
+        for output, block_getter in (
+            (text_output, feature_block),
+            (hook_output, hook_line),
+        ):
+            block = block_getter(output, name)
+            assert f"未取得({reason})" in block
+            assert f"縮退: {reason}" in block
+        assert f"({branch})" in feature_block(text_output, name)
+
+
 def test_misplaced_matching_plans_are_not_adopted_in_text_or_hook(tmp_path: Path):
     """誤配置の branch 一致 plan は worktree 単位で重複として扱う。"""
     root, worktree = init_repository(tmp_path)

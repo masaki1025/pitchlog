@@ -1303,15 +1303,15 @@ def expected_feature_slug(branch: str | None) -> str | None:
 
 def worktree_resolution_failure_result(
     name: str,
-    branch: str,
+    branch: str | None,
     reason: str,
 ) -> FeatureResult:
     """worktree と plan の対応を解決できない結果を組み立てる。
 
     Args:
-        name: 表示用の feature 名またはブランチ名。
-        branch: worktree の実ブランチ名。
-        reason: plan 不在、branch 不整合、plan 重複のいずれかの理由。
+        name: 表示用の feature 名、ブランチ名、または worktree 名。
+        branch: worktree の実ブランチ名。detached HEAD では ``None``。
+        reason: worktree・ブランチ名・plan の解決に失敗した理由。
 
     Returns:
         対応解決失敗を明示した表示用結果。
@@ -1353,6 +1353,13 @@ def collect_features(
         try:
             plans = sorted(feature_root.glob("*/plan.md"))
         except Exception:
+            results.append(
+                worktree_resolution_failure_result(
+                    worktree.branch or worktree.path.name,
+                    worktree.branch,
+                    "docs/features を読めない",
+                )
+            )
             continue
         parsed_plans: dict[Path, Frontmatter] = {}
         parse_failed_paths: set[Path] = set()
@@ -1365,7 +1372,14 @@ def collect_features(
             parsed_plans[plan_path] = frontmatter
 
         expected_slug = expected_feature_slug(worktree.branch)
-        if expected_slug is None or worktree.branch is None:
+        if expected_slug is None:
+            results.append(
+                worktree_resolution_failure_result(
+                    worktree.branch or worktree.path.name,
+                    worktree.branch,
+                    "ブランチ名が feature/<slug>・fix/<slug> に一致しない",
+                )
+            )
             continue
 
         expected_plan_path = feature_root / expected_slug / "plan.md"
