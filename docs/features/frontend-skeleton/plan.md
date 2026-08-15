@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -17,44 +17,176 @@ created: 2026-08-16
 
 ## 1. 背景・目的
 
-<!-- なぜやるか。Notion タスクと要件 FR/NFR へのリンクを必ず含める -->
+**pitchlog のプロダクトコードは 0 行**で、`backend/` `frontend/` `contracts/` はディレクトリごと存在しない。着手時点のリポジトリ約 2 万行はすべてハーネスである。**本タスクが最初のプロダクトコード**になる。
+
+旧リポ(保全先 `masaki1025/Baseball_Scoring-archive`・タグ `pitchlog-req-v2.0-evidence`)に **React 19 + Vite + TypeScript の SPA が実在する**(10,541 行・9 画面)。既存の legacy 調査には載っていなかった。調査の全事実と典拠は [research.md](research.md)。
+
+### PO 裁定(2026-08-16)
+
+1. **Phase 4 を分割し、frontend から着手する**
+2. **Vue へ移植する。ADR-002・要件書 7.1 は改訂しない。** 旧 `frontend/` は ADR-002 が定める**「仕様・挙動の参照資料」**として扱う
+3. **目標は「完全に同じもの」** — 見た目・挙動を旧 UI と一致させ、**Vue と React の差で不可避な違いだけを許容**する
+4. **設計書 13 章の改訂は確定ゲートを先に通す**(計画レビュー 1 周目 P1-4)
+
+**3 が設計方針を決める。** 「似せる」のではなく**機械的な逐語移植**にし、不可避な差分を**あらかじめ規則として固定**する。
+
+**4 により本タスクは 2 段構成**になる — 設計書 13 章の改訂 → **確定ゲート** → 骨格の実装。
 
 ## 2. スコープ
 
 ### やること
 
+**A. 設計書 13 章の改訂(確定ゲート対象)**
+
+Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**書く。
+
+- **分割後の PR 列**(frontend 骨格 / backend 骨格 / docker-compose・contracts / CI 本体 / onboarding v1.0 / docs-ops + 証跡検証器)
+- **各 PR のマージ条件**(NFR-021 受入ゲートは Phase 4 **全体の完了時**に係る。各分割 PR のマージ条件は何か)
+- **最終統合と NFR-021 判定の担当**(どの PR が `gate_kind: phase4` を実行するか)
+
+**B. 骨格の実装**
+
+1. **`frontend/` の骨格**(mise / pnpm / Vite + Vue 3 + TypeScript + **Tailwind v4**)
+2. **品質ツール**(ESLint flat config + eslint-plugin-vue + typescript-eslint / Prettier / vue-tsc / Vitest + Vue Test Utils + **jsdom**)
+3. **移植の受け皿と規則**(旧と 1:1 のディレクトリ + `porting-rules.md`)
+4. **逐語移植の実証**(`lib/format.ts` の `cx` → `StrikeZone.vue` + 比較用 host + Vitest)
+5. **CI の frontend ジョブ**
+
 ### やらないこと
+
+- **9 画面の移植**(`GameScreen.tsx` だけで 1,423 行)
+- **`syncStore.ts` の移植** — 同期は**コア領域**。敵対レビュー + 人間の逐行確認が必須
+- **Playwright(E2E)と visual regression** — **申し送り(時期は「最初の画面移植と同時または直前」)**。骨格段階は対象画面が 1 コンポーネントのみ(1 周目 P2-3 で前倒し)
+- **backend / docker-compose / contracts** — Phase 4 の別タスク
 
 ## 3. 影響する正本
 
-<!-- この feature が更新・新設すべき正本を列挙。「反映なし」の場合も明示する(空欄禁止) -->
-
-| 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
+| 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
+| [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **13 章の Phase 4 を複数 PR へ分割**。PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当を明記。**版繰り上げ(1.5 → 1.6)** | **finalize-doc**(運用規約の構造変更 — 7.6-3 後段。**PO 裁定 2026-08-16**・計画レビュー 1 周目 P1-4) |
+| [docs/README.md(索引)](../../README.md) | 設計書を **v1.6** へ・最終更新を現行化 | PR レビュー |
+| [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) / [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **反映なし** — 本タスクは ADR-002 と要件書 7.1 の**決定どおりに実装する**ものであり、記述を変えない | — |
+
+### 正本体系外だが同一 PR で更新するもの
+
+| ファイル | 変更内容 |
+| --- | --- |
+| `frontend/**` | **新規**。骨格一式 |
+| `mise.toml` | **新規**。Node 版の固定 |
+| `.github/workflows/ci.yml` | frontend ジョブ + **Node / Corepack / pnpm のセットアップ**を追加。**`guard_paths` 該当 → core-guard 発火・逐行確認必須** |
+| `.gitignore` | `node_modules` 等 |
+| `docs/features/frontend-skeleton/porting-rules.md` | **新規**。React → Vue の移植規則 |
+| `docs/worklog/2026-08-16-frontend-skeleton.md` | 本タスクの記録 |
 
 ## 4. 実装方針
 
-<!-- 重さ分類(frontmatter)の根拠を明記。コア領域(CLAUDE.md の列挙)に触れるかを必ず判定。
-     詳細設計・長文の検討は design.md(テンプレ: design-template.md)へ分離し、本節からは相対リンクで参照する
-     (内容を複製しない — 設計書 7.1-1。design.md は任意 — 密度が高くなる場合に /plan が分離) -->
+### 重さ分類 = 通常(根拠)
 
-### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
+`.claude/core-areas.json` の `areas[].paths` に該当 **0 件**(`syncStore` の移植をスコープ外にしたため)。ただし **`guard_paths` の `.github/workflows/ci.yml` に該当**するため、**core-guard が発火し逐行確認チェックが必須**になる。
 
-<!-- 1 ステップ = 1 委任 = 1 コミット(レビュー可能な粒度・1 論理変更)。/implement がこの表を上から実行する。
-     ラッパーは「番号・ステップ・合格条件の3セルすべてが埋まった行」が最低1つ無いと実行を拒否する(空テンプレ不可)。
-     番号列は 1 からの連番(欠番・重複不可)。ステップコミットの件名には完全トークン「(ステップ <k>[/<N>][ 付記])」を
-     ちょうど 1 個含める(/<N> と付記は任意・全半角括弧可 — feature_status.py が進捗導出)。承認・起票コミットには付けない -->
+### A. 「完全に同じ」を成立させる条件
 
-| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
+実測で、**フレームワーク層以外はそのまま運べる**ことを確認した(research.md §1)。
+
+| 資産 | 移植のしかた |
+| --- | --- |
+| `index.css` | **`#root` → `#app` 以外そのまま**。`@import "tailwindcss"`・`@apply`・keyframes・dark utility は**そのまま使える**(1 周目の確認結果) |
+| `vite.config.ts` | **`@vitejs/plugin-react` → `@vitejs/plugin-vue` のみ差し替え**。`@tailwindcss/vite`・`/api` プロキシは同一 |
+| SVG マークアップ | **逐語**。`viewBox="0 0 263 263"` は保存座標系と同一で変換不要 |
+| Tailwind クラス文字列(**1,102 箇所**) | 値を変えない |
+| ディレクトリ・ファイル名・props | **1:1** |
+
+**CSS 以外で置換が必要なもの**(1 周目の確認結果): `index.html` の mount id と entry / `main.tsx` / `tsconfig.json` の `jsx: react-jsx`。
+
+### B. 移植規則 — 必須カバレッジ(1 周目 P1-1)
+
+**当初は「対応表 11 行」としていたが、旧実装の実在パターンを覆えないと判明した。** 行数ではなく**カバレッジ**で規定する。`porting-rules.md` は次の **4 分類すべて**を扱い、**各項目に旧実装の典拠(ファイル:行)を付ける**。
+
+| 分類 | 必ず扱う項目 | 旧実装の実例 |
 | --- | --- | --- |
-| 1 | (例: 投球イベントのモデルとマイグレーション) | (例: pytest の該当ケース green・alembic upgrade 成功) |
+| **props / emits / slots / attrs** | callback prop → `emit` / `className` prop → **ルートへの fallthrough attrs** / `children` → **slots** / `...rest`(DOM 属性の継承) / Context → **provide/inject** | `StrikeZone`(`onTap`・`className`)/ `Button`(`ButtonHTMLAttributes` + spread)/ `Sheet`(`children`)/ `Toast`(Context) |
+| **lifecycle / reactivity** | `useState` → `ref`/`reactive` / `useRef` → template ref / `useCallback` → メソッド / `useEffect` + **cleanup** → `onMounted`/`onUnmounted`/`watchEffect` / `useMemo` → `computed` / `useId` → **`useId()`**(採用 Vue 版を明記) | `Sheet`(フォーカス復帰・window listener の cleanup)/ `BaseDiamond`(`useId`) |
+| **JSX → template 属性** | form / event / `style={{...}}` / **SVG 属性**(ケバブケース) | `BaseDiamond`(`style`・SVG 属性) |
+| **router / query / store** | 認証リダイレクトと全 route / Provider の置き場 / **永続化方式**(キー `bb.auth`)と **hydration** / **`getState()` の命令的参照**の代替 | `App.tsx`(route + Provider)/ `authStore`(永続化)/ `api/client.ts`(`getState()`) |
 
-## 5. DoD(受け入れ基準)
+**ライブラリの対応**: Zustand → **Pinia** / `@tanstack/react-query` → **`@tanstack/vue-query`** / react-router 7 → **vue-router 4** / lucide-react → **lucide-vue-next**。
 
-<!-- Notion タスクの DoD と同期させる。全 ON で完了にできる粒度 -->
+### C. 依存と版固定(1 周目 P1-3)
 
-- [ ]
+**「無指定 install」を禁じる。** 次を**すべて明示 pin** する。
 
-## 6. テスト計画
+- **今すぐ入れるもの**: `vue` / `vite` / `@vitejs/plugin-vue` / `typescript` / `tailwindcss` / `@tailwindcss/vite` / ESLint 一式(`eslint`・`eslint-plugin-vue`・`typescript-eslint`)/ `prettier` / `vue-tsc` / `vitest` / `@vue/test-utils` / **`jsdom`**(**Vitest の既定環境は Node** — コンポーネント mount に必要)
+- **将来入れるもの(バージョンだけ先に決めて `porting-rules.md` に記録)**: `pinia` / **`vue-router@4`**(**無指定だと 4 系が入らない可能性がある** — 明示 pin する)/ `@tanstack/vue-query` / `lucide-vue-next`
 
-<!-- NFR-019 のどのテスト種別(単体・一致性・越境・E2E・故障系)に何を足すか -->
+**セットで固定する**: `mise.toml` の Node 版 / `package.json` の `packageManager`(corepack)/ **`pnpm-lock.yaml` をコミット** / CI は **`pnpm install --frozen-lockfile`**。
+
+**未確認**(実装ステップの最初に `pnpm add` で確かめ、無ければ計画へ差し戻す): `@tanstack/vue-query` / `lucide-vue-next` / `vue-router` の 4 系指定。
+
+### D. 「同じ」を検証する手段(H-48 対策)
+
+**「完全に同じ」を掲げる以上、検証手段がなければ合格条件が実効性を持たない**(台帳 H-48)。
+
+**本タスクは目視比較。ただし比較条件を固定する**(1 周目 P1-2 — 条件を固定しない目視は再現できない):
+
+| 軸 | 固定する値 |
+| --- | --- |
+| `point` | あり / なし |
+| `plateSide` | 右打者 / 左打者 |
+| 状態 | 通常 / `disabled` / `highlight` |
+| カラースキーム | light / dark |
+| viewport | **固定値を決めて worklog に記録** |
+
+旧フロントは **`npm run dev:mock`(バックエンド不要)**で起動できる。**同じ組合せを両方で表示して比較し、結果を worklog に記録する。**
+
+**自動比較(Playwright の visual comparison)は申し送り。時期は「最初の画面移植と同時または直前」**(1 周目 P2-3 — 「Phase 4 完了時」では遅い)。**本タスクでは「目視で確認した」以上を主張しない。**
+
+### 落とし穴
+
+| # | 内容 |
+| --- | --- |
+| 1 | **Tailwind v4 は CSS-first 設定**。`tailwind.config.js` は無く `index.css` の `@import "tailwindcss"` が正。**v3 の設定方法を持ち込まない** |
+| 2 | **`/check` の frontend 層は「存在すれば実行」**。`frontend/package.json` を作った時点で 4 種すべてが対象になる。**1 つでも落ちると /check が赤** |
+| 3 | **`.github/workflows/ci.yml` は `guard_paths`**。触ると core-guard が発火する |
+| 4 | **旧 `frontend/` はリポジトリ外**(scratchpad の clone)。**参照は典拠(リポ + コミット SHA)で記録**し、`docs/legacy/` へは追加しない(**版固定アーカイブで変更禁止** — 絶対規則 3) |
+| 5 | **jsdom はレイアウト計算をしない**。`getBoundingClientRect()` は幅・高さが 0 になるため、**座標テストは固定スタブを置かないと意味を失う**(1 周目 P1-2) |
+| 6 | **既存 CI に Node / Corepack / pnpm の準備が無い**。frontend ジョブはセットアップから書く。**Action は SHA pin**(既存方針) |
+
+## 5. 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
+
+| # | 内容 | 合格条件 |
+| --- | --- | --- |
+| 1 | **設計書 13 章の改訂**: `status` を in-review へ + 変更履歴に **v1.6** 行 + 索引の同時更新。13 章へ **Phase 4 の分割**(PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当)を書く | `check_docs_status.py` exit 0(**版と最終更新を索引と同時に更新しないと落ちる**)/ 13 章に **PR 列・マージ条件・判定担当の 3 点**がある / **NFR-021 受入ゲートの内容自体は変えていない**(係り先を明示するだけ) |
+| — | **← ここで `/finalize-doc`(確定ゲート・敵対レビュー + 人間承認)→ 設計書 v1.6 approved** | 確定ゲート通過 |
+| 2 | **`frontend/` の骨格**: `mise.toml`(Node 固定)/ corepack + pnpm(`packageManager`)/ Vite + Vue 3 + TS / **Tailwind v4**。`index.css`・`vite.config.ts` を移植(`#root`→`#app`・plugin 差し替え)。`index.html`・entry・`tsconfig.json` は Vue scaffold 側へ置換 | `pnpm install --frozen-lockfile` が通る / **`pnpm-lock.yaml` がコミットされている** / `pnpm dev` で開発サーバが起動し**ブラウザに表示される** / `pnpm build` が通る / **C 節の「今すぐ入れるもの」がすべて明示 pin されている** |
+| 3 | **品質ツール**: ESLint(flat config)+ eslint-plugin-vue + typescript-eslint / Prettier / vue-tsc / Vitest + Vue Test Utils + **jsdom** | **`/check` の frontend 層 4 種がすべて通る** / **`pnpm test` は `vitest run`**(watch にしない — `/check`・CI と一致させる)/ **`pnpm build` に `vue-tsc` を含めるかを決めて固定**(1 周目 P2-2)/ Vitest のテストが 1 件以上あり green |
+| 4 | **移植の受け皿と規則**: 旧と 1:1 のディレクトリ(`api` / `components/{analysis,analysis/player,diamond,field,game,pads,scoreboard,ui,zone}` / `lib` / `screens` / `stores`)+ **`porting-rules.md`** | ディレクトリが旧と 1:1(**`components/analysis/player` を含む** — 1 周目 P2-1)/ `porting-rules.md` が **4 節 B の 4 分類すべて**を扱う / **各項目に旧実装の典拠(ファイル:行)がある** / **C 節の「将来入れるもの」のバージョンが記録されている** |
+| 5 | **逐語移植の実証**: `lib/format.ts` の `cx` → `StrikeZone.vue` + **比較用 host** + Vitest | **`cx` が先に移植されている**(`StrikeZone` が import するため — 1 周目 P1-2)/ **SVG マークアップが逐語**(`viewBox`・ゾーン矩形 `Z` の値・3 分割)/ **Tailwind クラス文字列が同一** / **props が 1:1**(`onTap` → `emit`・`className` → fallthrough)/ **比較用 host が D 節の組合せをすべて表示する** / **`getBoundingClientRect()` の固定スタブ**を置いた座標テスト / **旧をモックモードで起動して目視比較し、結果を worklog に記録** |
+| 6 | **CI の frontend ジョブ**: Node / Corepack / pnpm のセットアップ + `pnpm install --frozen-lockfile` → ESLint → `prettier --check` → `vue-tsc` → Vitest | paths filter に **`frontend/**`・`mise.toml`・`pnpm-lock.yaml`・`ci.yml` 自身**を含む(1 周目 P1-3)/ **追加 Action は SHA pin** / 既存 4 ジョブに影響しない / `tests/test_core_guard.py` green(**`REQUIRED_CHECK_TEXT` に触れない**) |
+
+## 6. DoD(受け入れ基準)
+
+- [ ] **設計書 13 章に Phase 4 の分割が正本として書かれ、確定ゲートを通過して approved**(v1.6)
+- [ ] **`frontend/` が存在し、`pnpm install --frozen-lockfile` → `pnpm dev` でブラウザに表示される**
+- [ ] **`/check` の frontend 層 4 種がすべて通る**
+- [ ] **依存が明示 pin されている** — C 節の「今すぐ入れるもの」全件 + `pnpm-lock.yaml` をコミット + `mise.toml` の Node 固定 + `packageManager`
+- [ ] **`porting-rules.md` が 4 分類(props/emits/slots/attrs・lifecycle/reactivity・JSX→template 属性・router/query/store)すべてを扱い、各項目に旧実装の典拠がある**
+- [ ] **逐語移植の実証 1 件**(`StrikeZone.vue`)— SVG・クラス文字列・props が旧と一致
+- [ ] **比較条件を固定した目視比較の結果が worklog にある**(point / plateSide / 状態 / light-dark / viewport)
+- [ ] **CI に frontend ジョブがあり緑**。paths filter が `frontend/**` 以外も拾う
+- [ ] **コア領域に触れていない**(`syncStore` はスコープ外)
+
+## 7. テスト計画
+
+| 対象 | ケース |
+| --- | --- |
+| `StrikeZone.vue`(ステップ 5) | **正例 3**(ゾーン矩形の描画が定数 `Z` どおり / `plateSide` で打者シルエットの左右が入れ替わる / `highlight` でクラスが付く)・**負例 2**(`disabled` のときタップを無視する / **範囲外の座標が `0.1`〜`262.9` に丸められる**)。**すべて `getBoundingClientRect()` の固定スタブ**の上で行う |
+| 骨格(ステップ 2・3) | `pnpm build` が通る(型検査を含む) |
+
+**視覚的な同一性は自動テストしない**(本タスクでは固定条件の目視比較のみ)。
+
+## 8. 本タスクに含めないもの(申し送り)
+
+- **9 画面の移植** — 移植規則が固まってから 1 画面ずつ。`GameScreen`(1,423 行)は単独タスク
+- **`syncStore` の移植** — **コア領域**。敵対レビュー + 人間の逐行確認が必須
+- **Playwright(E2E)と visual regression** — **最初の画面移植と同時または直前**に導入する(1 周目 P2-3)。「完全に同じ」の自動検証はここで入る
+- **旧 `frontend/` が要件書 v2.0(全面踏襲)をどこまで満たしているか** — **未調査**。移植前に画面ごとの差分を取る
