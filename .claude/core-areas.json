@@ -5,7 +5,8 @@
     ".github/workflows/ci.yml",
     "scripts/core_guard.py",
     ".github/pull_request_template.md",
-    ".claude/skills/pr/SKILL.md"
+    ".claude/skills/pr/SKILL.md",
+    ".claude/skills/release/SKILL.md"
   ],
   "areas": [
     { "id": "sync-protocol", "name": "同期プロトコル", "paths": [] },
