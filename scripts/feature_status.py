@@ -20,7 +20,18 @@ STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
 STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
+REFLECTION_ROUND_MARKER_RE = re.compile(r"反映(?P<round>[0-9]+)周目")
 PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
+NO_STEP_TOKEN_NOTE = "ステップ記法のコミットなし(書式未一致の可能性)"
+APPROVAL_HISTORY_ERROR_NOTE = "承認履歴取得失敗"
+STEP_TABLE_READ_ERROR_NOTE = "実装ステップ表を読めない"
+STEP_TABLE_MISSING_NOTE = "実装ステップ表なし"
+STEP_TABLE_NUMBER_SEQUENCE_NOTE = "実装ステップ表の番号が連番でない"
+STEP_TABLE_EMPTY_CELL_NOTE = "実装ステップ表に空セルがある"
+MALFORMED_STEP_TOKEN_NOTE = "ステップ記法が不正"
+MULTIPLE_STEP_TOKENS_NOTE = "1件名に複数のステップ記法"
+STEP_OUT_OF_RANGE_NOTE = "ステップ番号が総数を超えている"
+COMPLETED_STEP_GAP_NOTE = "完了ステップに欠番がある"
 MACHINE_READ_FRONTMATTER_KEYS = frozenset(
     {
         "status",
@@ -31,6 +42,7 @@ MACHINE_READ_FRONTMATTER_KEYS = frozenset(
         "計画レビュー周回",
         "確定ゲート周回",
         "実行方式",
+        "反映周コミット",
     }
 )
 
@@ -70,9 +82,10 @@ class Frontmatter:
         branch: plan に書かれた branch 値。欠落時は ``None``。
         approval: 承認値。欠落時は空文字列。
         plan_review_round: 計画レビュー周回。非整数・負値は ``None``。
-        final_gate_round: 確定ゲート周回。非整数・負値は ``None``。
+        final_gate_round: 確定ゲート周回。非整数・負値・キー重複は ``None``。
         execution_mode: 正規化した実行方式値。欠落時は ``通常``。
         execution_mode_valid: 実行方式が列挙値に適合するか。
+        reflection_commit: 反映周コミットの適用境界。キー欠落時は ``None``。
     """
 
     status: str
@@ -82,6 +95,7 @@ class Frontmatter:
     final_gate_round: int | None
     execution_mode: str
     execution_mode_valid: bool
+    reflection_commit: str | None
 
 
 @dataclass(frozen=True)
@@ -110,10 +124,12 @@ class StepTable:
     Attributes:
         valid: 番号列が ``{1..N}`` で ``N >= 1`` か。
         total: 表から得た最大番号。表が空・不正なら 0 の場合がある。
+        reason: 表が不正な理由。正常時は ``None``。
     """
 
     valid: bool
     total: int
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,6 +179,7 @@ class FeatureResult:
         degradation: 縮退理由。通常時は ``None``。
         frontmatter: 表示補助に使う frontmatter。解析失敗時は ``None``。
         notion_expectation: text モードで表示する Notion の期待値。不要時は ``None``。
+        reflection_commit_reconciliation: 反映周コミットと確定ゲート周回の突合結果。
     """
 
     name: str
@@ -173,6 +190,7 @@ class FeatureResult:
     degradation: str | None
     frontmatter: Frontmatter | None
     notion_expectation: str | None = None
+    reflection_commit_reconciliation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -297,6 +315,7 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
 
     Returns:
         有効な frontmatter。status 不適合または機構読取キーの重複時は ``None``。
+        ただし ``確定ゲート周回`` の重複は不正値として保持する。
     """
     lines = body.splitlines()
     status_lines = [line for line in lines if STATUS_CANDIDATE_RE.match(line)]
@@ -308,6 +327,7 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
 
     values: dict[str, str] = {}
     seen_machine_keys: set[str] = set()
+    final_gate_round_duplicated = False
     for line in lines:
         if ":" not in line:
             continue
@@ -315,6 +335,9 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
         normalized_key = key.strip()
         if normalized_key in MACHINE_READ_FRONTMATTER_KEYS:
             if normalized_key in seen_machine_keys:
+                if normalized_key == "確定ゲート周回":
+                    final_gate_round_duplicated = True
+                    continue
                 return None
             seen_machine_keys.add(normalized_key)
         values[normalized_key] = value.split("#", 1)[0].strip()
@@ -326,9 +349,14 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
         branch=values.get("branch") or None,
         approval=values.get("承認", ""),
         plan_review_round=parse_nonnegative_integer(values.get("計画レビュー周回")),
-        final_gate_round=parse_nonnegative_integer(values.get("確定ゲート周回")),
+        final_gate_round=(
+            None
+            if final_gate_round_duplicated
+            else parse_nonnegative_integer(values.get("確定ゲート周回"))
+        ),
         execution_mode=execution_mode,
         execution_mode_valid=execution_mode in {"通常", "fast"},
+        reflection_commit=values.get("反映周コミット"),
     )
 
 
@@ -419,7 +447,7 @@ def parse_step_table(plan_text: str | None) -> StepTable:
         番号列が ``{1..N}`` で、各番号行の必須セルが埋まっているかを含む結果。
     """
     if plan_text is None:
-        return StepTable(valid=False, total=0)
+        return StepTable(valid=False, total=0, reason=STEP_TABLE_READ_ERROR_NOTE)
 
     numbers: list[int] = []
     has_empty_required_cell = False
@@ -438,9 +466,21 @@ def parse_step_table(plan_text: str | None) -> StepTable:
             has_empty_required_cell = True
 
     total = max(numbers, default=0)
-    if has_empty_required_cell or total < 1 or len(numbers) != total:
-        return StepTable(valid=False, total=total)
-    return StepTable(valid=set(numbers) == set(range(1, total + 1)), total=total)
+    if not numbers:
+        return StepTable(valid=False, total=total, reason=STEP_TABLE_MISSING_NOTE)
+    if has_empty_required_cell:
+        return StepTable(valid=False, total=total, reason=STEP_TABLE_EMPTY_CELL_NOTE)
+    if (
+        total < 1
+        or len(numbers) != total
+        or set(numbers) != set(range(1, total + 1))
+    ):
+        return StepTable(
+            valid=False,
+            total=total,
+            reason=STEP_TABLE_NUMBER_SEQUENCE_NOTE,
+        )
+    return StepTable(valid=True, total=total)
 
 
 def extract_step_tokens(subject: str, total: int) -> tuple[list[int], bool]:
@@ -521,15 +561,133 @@ def get_merge_base(plan: FeaturePlan) -> str | None:
     return base if result.succeeded and base else None
 
 
-def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
-    """base..HEAD に in-review の plan スナップショットがあるか調べる。
+def is_plan_recorded_at_head(plan: FeaturePlan) -> bool | None:
+    """plan.md が現在の HEAD に記録されているかを調べる。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        HEAD に記録済みなら ``True``、未記録なら ``False``。Git 取得失敗時は
+        ``None``。
+    """
+    result = run_git(
+        plan.worktree,
+        ["ls-tree", "-r", "--name-only", "HEAD", "--", plan.relative_plan_path],
+    )
+    if not result.succeeded:
+        return None
+    return plan.relative_plan_path in result.stdout.splitlines()
+
+
+def get_head_revision(plan: FeaturePlan) -> str | None:
+    """現在の HEAD のコミット ID を取得する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        HEAD のコミット ID。Git 取得失敗時は ``None``。
+    """
+    result = run_git(plan.worktree, ["rev-parse", "HEAD"])
+    revision = result.stdout.strip()
+    return revision if result.succeeded and revision else None
+
+
+def format_reflection_reconciliation_warning(reasons: Sequence[str]) -> str:
+    """反映周コミット突合の警告表示を既存の括弧形式で組み立てる。
+
+    Args:
+        reasons: 不一致となった条件の説明。
+
+    Returns:
+        警告表示。
+    """
+    return f"警告({'・'.join(reasons)})"
+
+
+def derive_reflection_commit_reconciliation(plan: FeaturePlan) -> str:
+    """反映周コミットと確定ゲート周回を先勝ちの規定順で突合する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        ``一致``、警告、対象外、または未取得の突合結果。
+    """
+    plan_recorded = is_plan_recorded_at_head(plan)
+    if plan_recorded is None:
+        return "未取得(git 失敗)"
+    if not plan_recorded:
+        return "対象外(計画書 未コミット)"
+
+    base = get_merge_base(plan)
+    head = get_head_revision(plan)
+    if base is None or head is None:
+        return "未取得(git 失敗)"
+    if base == head:
+        return "対象外(develop へマージ済み)"
+
+    reflection_commit = plan.frontmatter.reflection_commit
+    if reflection_commit is None:
+        return "未取得(反映周コミット 未記載)"
+    if reflection_commit == "規約制定前":
+        return "対象外(規約制定前)"
+    if reflection_commit != "適用":
+        return "未取得(反映周コミット 不正値)"
+
+    final_gate_round = plan.frontmatter.final_gate_round
+    if final_gate_round is None:
+        return "未取得(確定ゲート周回 不正値)"
+
+    commits = read_commits(plan, base)
+    if commits is None:
+        return "未取得(git 失敗)"
+
+    actual_rounds: set[int] = set()
+    round_commit_counts: dict[int, int] = {}
+    has_multiple_markers = False
+    for commit in commits:
+        rounds = [
+            int(match.group("round"))
+            for match in REFLECTION_ROUND_MARKER_RE.finditer(commit.subject)
+        ]
+        if not rounds:
+            continue
+        if len(rounds) != 1:
+            has_multiple_markers = True
+        for round_number in set(rounds):
+            actual_rounds.add(round_number)
+            round_commit_counts[round_number] = (
+                round_commit_counts.get(round_number, 0) + 1
+            )
+
+    expected_rounds = set(range(1, final_gate_round + 1))
+    warning_reasons: list[str] = []
+    if actual_rounds != expected_rounds:
+        warning_reasons.append("反映周番号の集合が確定ゲート周回と一致しない")
+    if has_multiple_markers:
+        warning_reasons.append("1件名に複数の反映周マーカー")
+    if any(count != 1 for count in round_commit_counts.values()):
+        warning_reasons.append("同じ反映周が複数コミットにある")
+    if warning_reasons:
+        return format_reflection_reconciliation_warning(warning_reasons)
+    return "一致"
+
+
+def read_plan_history(
+    plan: FeaturePlan,
+    base: str,
+) -> list[tuple[str, Frontmatter | None]] | None:
+    """base..HEAD の plan スナップショットをコミット ID とともに読む。
 
     Args:
         plan: 導出対象 feature。
         base: ``origin/develop`` とのマージベース。
 
     Returns:
-        差し戻し修正中なら ``True``、なければ ``False``、Git 失敗時は ``None``。
+        コミット ID と frontmatter の組。Git 取得失敗時は ``None``。
+        frontmatter 解析失敗は組内の ``None`` として保持する。
     """
     revisions = run_git(
         plan.worktree,
@@ -538,16 +696,67 @@ def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
     if not revisions.succeeded:
         return None
 
+    history: list[tuple[str, Frontmatter | None]] = []
     for sha in (line.strip() for line in revisions.stdout.splitlines()):
         if not sha:
             continue
         snapshot = run_git(plan.worktree, ["show", f"{sha}:{plan.relative_plan_path}"])
         if not snapshot.succeeded:
             return None
-        parsed = parse_snapshot_frontmatter(snapshot.stdout)
-        if parsed is not None and parsed.status == "in-review":
-            return True
-    return False
+        history.append((sha, parse_snapshot_frontmatter(snapshot.stdout)))
+    return history
+
+
+def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
+    """base..HEAD に in-review の plan スナップショットがあるか調べる。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+
+    Returns:
+        差し戻し修正中なら ``True``、なければ ``False``。Git による履歴取得に
+        失敗した場合は ``None``。
+    """
+    history = read_plan_history(plan, base)
+    if history is None:
+        return None
+    return any(
+        frontmatter is not None and frontmatter.status == "in-review"
+        for _, frontmatter in history
+    )
+
+
+def is_immediately_after_first_approval(
+    plan: FeaturePlan,
+    base: str,
+    commits: Sequence[CommitRecord],
+) -> bool | None:
+    """最初の承認コミット直後かを履歴から判定する。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+        commits: ``base..HEAD`` のコミット一覧。先頭は HEAD である。
+
+    Returns:
+        最初に承認済みとなったコミットが HEAD なら ``True``。承認コミットが
+        見つからない、または追加コミットがある場合は ``False``。履歴の取得・
+        解析に失敗した場合は ``None``。
+    """
+    history = read_plan_history(plan, base)
+    if history is None or any(frontmatter is None for _, frontmatter in history):
+        return None
+
+    first_approval_commit = next(
+        (
+            sha
+            for sha, frontmatter in reversed(history)
+            if frontmatter is not None and approved(frontmatter)
+        ),
+        None,
+    )
+    return bool(commits) and first_approval_commit == commits[0].sha
 
 
 def read_commits(plan: FeaturePlan, base: str) -> list[CommitRecord] | None:
@@ -695,7 +904,11 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     """
     table = parse_step_table(read_plan_text(plan.plan_path))
     if not table.valid:
-        return Progress(kind="inconsistent", total=table.total)
+        return Progress(
+            kind="inconsistent",
+            total=table.total,
+            note=table.reason,
+        )
 
     commits = read_commits(plan, base)
     if commits is None:
@@ -706,14 +919,26 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     for commit in commits:
         tokens, malformed = extract_step_tokens(commit.subject, table.total)
         if malformed or len(tokens) > 1:
-            return Progress(kind="inconsistent", total=table.total)
+            return Progress(
+                kind="inconsistent",
+                total=table.total,
+                note=(
+                    MALFORMED_STEP_TOKEN_NOTE
+                    if malformed
+                    else MULTIPLE_STEP_TOKENS_NOTE
+                ),
+            )
         merge_kind: str | None = None
         if commit.parent_count >= 2:
             merge_kind = classify_unmarked_commit(plan, commit)
         if tokens:
             step = tokens[0]
             if step > table.total:
-                return Progress(kind="inconsistent", total=table.total)
+                return Progress(
+                    kind="inconsistent",
+                    total=table.total,
+                    note=STEP_OUT_OF_RANGE_NOTE,
+                )
             completed.add(step)
             if merge_kind == "merge_unknown":
                 unmarked_kinds.append(merge_kind)
@@ -725,7 +950,15 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     if completed:
         maximum = max(completed)
         if maximum > table.total or completed != set(range(1, maximum + 1)):
-            return Progress(kind="inconsistent", total=table.total)
+            return Progress(
+                kind="inconsistent",
+                total=table.total,
+                note=(
+                    STEP_OUT_OF_RANGE_NOTE
+                    if maximum > table.total
+                    else COMPLETED_STEP_GAP_NOTE
+                ),
+            )
         if "classification_error" in unmarked_kinds:
             return Progress(
                 kind="unknown",
@@ -766,6 +999,24 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
         )
     if any(kind not in {"planning", "documentation"} for kind in unmarked_kinds):
         return Progress(kind="unknown", total=table.total)
+    if table.total >= 1:
+        immediately_after_approval = is_immediately_after_first_approval(
+            plan,
+            base,
+            commits,
+        )
+        if immediately_after_approval is None:
+            return Progress(
+                kind="not_applicable",
+                note=APPROVAL_HISTORY_ERROR_NOTE,
+            )
+        if not immediately_after_approval:
+            return Progress(
+                kind="known",
+                completed=0,
+                total=table.total,
+                note=NO_STEP_TOKEN_NOTE,
+            )
     return Progress(kind="known", completed=0, total=table.total)
 
 
@@ -1021,11 +1272,15 @@ def get_notion_expectation(
     return "未取得"
 
 
-def git_failure_result(plan: FeaturePlan) -> FeatureResult:
+def git_failure_result(
+    plan: FeaturePlan,
+    reflection_commit_reconciliation: str | None = None,
+) -> FeatureResult:
     """feature 単位の Git 取得失敗を表示用結果へ変換する。
 
     Args:
         plan: 失敗した feature。
+        reflection_commit_reconciliation: 先に導出済みの反映周コミット突合結果。
 
     Returns:
         Git 失敗を明示した feature 結果。
@@ -1038,6 +1293,44 @@ def git_failure_result(plan: FeaturePlan) -> FeatureResult:
         pr_status=pr_status_stub(plan),
         degradation="git 失敗",
         frontmatter=plan.frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
+    )
+
+
+def approval_history_failure_result(
+    plan: FeaturePlan,
+    frontmatter: Frontmatter,
+    pr_status: str,
+    reflection_commit_reconciliation: str | None = None,
+) -> FeatureResult:
+    """承認履歴の取得・解析失敗を縮退表示用結果へ変換する。
+
+    Args:
+        plan: 失敗した feature。
+        frontmatter: 現在の plan frontmatter。
+        pr_status: 表示用の PR 状態。
+        reflection_commit_reconciliation: 先に導出済みの反映周コミット突合結果。
+
+    Returns:
+        承認履歴取得失敗を明示した feature 結果。
+    """
+    return FeatureResult(
+        name=plan.name,
+        branch=plan.worktree.branch,
+        stage=f"未取得({APPROVAL_HISTORY_ERROR_NOTE})",
+        progress=Progress(kind="not_applicable", note=APPROVAL_HISTORY_ERROR_NOTE),
+        pr_status=pr_status,
+        degradation=APPROVAL_HISTORY_ERROR_NOTE,
+        frontmatter=frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
+    )
+
+
+def is_approval_history_failure(progress: Progress) -> bool:
+    """進捗が承認履歴の取得・解析失敗を表すか判定する。"""
+    return (
+        progress.kind == "not_applicable"
+        and progress.note == APPROVAL_HISTORY_ERROR_NOTE
     )
 
 
@@ -1058,6 +1351,7 @@ def derive_feature(
     """
     frontmatter = plan.frontmatter
     pr_status = pr_status_stub(plan)
+    reflection_commit_reconciliation = derive_reflection_commit_reconciliation(plan)
 
     if not frontmatter.execution_mode_valid:
         return FeatureResult(
@@ -1068,6 +1362,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation="実行方式不正",
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if frontmatter.status == "in-review":
         if resolve_pr:
@@ -1080,6 +1375,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if frontmatter.execution_mode == "fast":
         return FeatureResult(
@@ -1090,6 +1386,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if not approved(frontmatter):
         review_round = number_display(frontmatter.plan_review_round)
@@ -1103,18 +1400,26 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
 
     base = get_merge_base(plan)
     if base is None:
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
     rejection = has_unresolved_rejection(plan, base)
     if rejection is None:
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
     if rejection:
         progress = derive_progress(plan, base)
         if progress.kind == "git_error":
-            return git_failure_result(plan)
+            return git_failure_result(plan, reflection_commit_reconciliation)
+        if is_approval_history_failure(progress):
+            return approval_history_failure_result(
+                plan,
+                frontmatter,
+                pr_status,
+                reflection_commit_reconciliation,
+            )
         return FeatureResult(
             name=plan.name,
             branch=plan.worktree.branch,
@@ -1123,16 +1428,26 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     progress = derive_progress(plan, base)
     if progress.kind == "git_error":
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
+    if is_approval_history_failure(progress):
+        return approval_history_failure_result(
+            plan,
+            frontmatter,
+            pr_status,
+            reflection_commit_reconciliation,
+        )
     if progress.kind == "unknown":
         stage = "実装状況: 不明"
     elif progress.kind == "inconsistent":
-        stage = "実装状況: 不整合(要確認)"
+        stage = f"実装状況: {format_progress(progress)}"
     elif progress.completed == 0:
         stage = f"実装前(全 {progress.total} ステップ)"
+        if progress.note:
+            stage = f"{stage}({progress.note})"
     elif progress.completed is not None and progress.total is not None and progress.completed < progress.total:
         stage = f"実装中(ステップ {progress.completed}/{progress.total} 完了)"
     else:
@@ -1145,6 +1460,7 @@ def derive_feature(
         pr_status=pr_status,
         degradation=None,
         frontmatter=frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
     )
 
 
@@ -1188,15 +1504,15 @@ def expected_feature_slug(branch: str | None) -> str | None:
 
 def worktree_resolution_failure_result(
     name: str,
-    branch: str,
+    branch: str | None,
     reason: str,
 ) -> FeatureResult:
     """worktree と plan の対応を解決できない結果を組み立てる。
 
     Args:
-        name: 表示用の feature 名またはブランチ名。
-        branch: worktree の実ブランチ名。
-        reason: plan 不在、branch 不整合、plan 重複のいずれかの理由。
+        name: 表示用の feature 名、ブランチ名、または worktree 名。
+        branch: worktree の実ブランチ名。detached HEAD では ``None``。
+        reason: worktree・ブランチ名・plan の解決に失敗した理由。
 
     Returns:
         対応解決失敗を明示した表示用結果。
@@ -1238,6 +1554,13 @@ def collect_features(
         try:
             plans = sorted(feature_root.glob("*/plan.md"))
         except Exception:
+            results.append(
+                worktree_resolution_failure_result(
+                    worktree.branch or worktree.path.name,
+                    worktree.branch,
+                    "docs/features を読めない",
+                )
+            )
             continue
         parsed_plans: dict[Path, Frontmatter] = {}
         parse_failed_paths: set[Path] = set()
@@ -1250,7 +1573,14 @@ def collect_features(
             parsed_plans[plan_path] = frontmatter
 
         expected_slug = expected_feature_slug(worktree.branch)
-        if expected_slug is None or worktree.branch is None:
+        if expected_slug is None:
+            results.append(
+                worktree_resolution_failure_result(
+                    worktree.branch or worktree.path.name,
+                    worktree.branch,
+                    "ブランチ名が feature/<slug>・fix/<slug> に一致しない",
+                )
+            )
             continue
 
         expected_plan_path = feature_root / expected_slug / "plan.md"
@@ -1344,13 +1674,19 @@ def format_progress(progress: Progress) -> str:
         text/hook で共有する進捗表示。
     """
     if progress.kind == "known":
-        return f"{progress.completed}/{progress.total}"
+        display = f"{progress.completed}/{progress.total}"
+        return f"{display}({progress.note})" if progress.note else display
     if progress.kind == "unknown":
         return f"不明({progress.note})" if progress.note else "不明"
     if progress.kind == "inconsistent":
-        return "不整合(要確認)"
+        return f"不整合({progress.note})" if progress.note else "不整合"
     if progress.kind == "git_error":
         return "未取得(git 失敗)"
+    if (
+        progress.kind == "not_applicable"
+        and progress.note == APPROVAL_HISTORY_ERROR_NOTE
+    ):
+        return f"未取得({progress.note})"
     return f"未判定({progress.note or '対象外'})"
 
 
@@ -1383,6 +1719,11 @@ def format_text_result(result: FeatureResult) -> str:
                 ),
             ]
         )
+    if result.reflection_commit_reconciliation is not None:
+        lines.append(
+            "  反映周コミット突合: "
+            f"{result.reflection_commit_reconciliation}"
+        )
     if result.notion_expectation is not None:
         lines.append(
             "  Notion 期待: "
@@ -1414,6 +1755,11 @@ def format_hook_result(result: FeatureResult) -> str:
             parts.append("計画レビュー周回 不正値")
         if result.frontmatter.final_gate_round is None:
             parts.append("確定ゲート周回 不正値")
+    if result.reflection_commit_reconciliation is not None:
+        parts.append(
+            "反映周コミット突合: "
+            f"{result.reflection_commit_reconciliation}"
+        )
     if result.degradation is not None:
         parts.append(f"縮退: {result.degradation}")
     return " / ".join(parts)
