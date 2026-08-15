@@ -86,7 +86,7 @@ created: 2026-08-16
 | --- | --- | --- |
 | 1 | 調査記録の保存: research.md(追補込み)・調査 worklog・タスク worklog をコミットし、6.4 ベースライン worklog へ完了追記 1 行(P2-18) | `uv run python scripts/check_docs_status.py` green / 追補が 25 指摘+未解決論点 6 件+N-1 を網羅(目視)/ diff が 2 節「変更ファイル一覧」の該当 4 点のみ |
 | 2 | 設計書 6.3 へ縮退注記を追記(P1-2 — 2 節の限定文言)+ 変更履歴表に節更新行(器)を追加 | 6.3 節内に「リスク受容」(10.2 参照)と「github-setup」への言及が入る(`rg` で確認)/ 注記が判定者・代替手続・FR-041・境界定義に言及しない(目視)/ check_docs_status.py green |
-| 3 | 設計書 13 章 Phase 1 完了条件セルの固定件数を除去し「CI harness ジョブの実行結果を正とする(8.3)」へ置換(P2-12)+ 変更履歴行を拡張 | `rg -n '103[[:space:]]*件'` のヒットが**変更履歴表 v0.17 行(「103 件」表記)の 1 箇所のみ**(Phase 1 セルから消え、歴史記録は保持 — 検証式は実表記に合わせて PR レビュー 1 周目で是正)/ check_docs_status.py green |
+| 3 | 設計書 13 章 Phase 1 完了条件セルの固定件数を除去し「CI harness ジョブの実行結果を正とする(8.3)」へ置換(P2-12)+ 変更履歴行を拡張 | `rg -n '103[[:space:]]*件' docs/development/dev-harness-design-2026-08-07.md` のヒットが**変更履歴表 v0.17 行(「103 件」表記)の 1 箇所のみ**(Phase 1 セルから消え、歴史記録は保持 — 検証式は実表記・対象ファイル指定へ PR レビュー 1〜2 周目で是正)/ check_docs_status.py green |
 | 4 | 設計書 8.5 legacy-analyst 典拠欄へ baseball-scoring-db-structure.md を補助起点として追加(優先規定は新設しない)+ `.claude/agents/legacy-analyst.md` の典拠列挙を同期 + 変更履歴行を拡張 | 8.5 の legacy-analyst 行と agents/legacy-analyst.md の**双方**に `rg 'baseball-scoring-db-structure'` がヒット / agents 側に「88列(の意味)は data-layer.md が正」の記述が**保持**される(`rg`)/ 両者の典拠列挙が一致(目視)/ check_docs_status.py green |
 | 5 | 台帳 H-12 の対応案を補強(充填の承認手続・記入基準〔変換層 2 契約の切り分け〕の未規定と対応方向を追記 — 分類・優先度・既存 8 要素は不変)+ 台帳変更履歴表に行(器)を追加 | H-12 対応案に「承認手続」「記入基準」の語が入る(`rg`)/ 既存 8 要素・分類・優先度が不変(diff 目視)/ check_docs_status.py green |
 | 6 | 台帳へ新規 H 項目 4 件 + 候補 3 件を 4 節の固定表どおり起票 + 変更履歴行を拡張 | 新規 H 4 件が 8 要素完備・候補 3 件が 3 要素完備(台帳冒頭の様式規則と突合)/ 分類・優先度・起票先が 4 節の固定表と一致 / check_docs_status.py green |
@@ -96,7 +96,7 @@ created: 2026-08-16
 <!-- Notion タスクの DoD と同期(承認時にコメントで現行化する) -->
 
 - [ ] research.md(生存突合の追補込み)・調査 worklog・タスク worklog がコミットされ、PR がマージされる。6.4 ベースライン worklog に完了追記が入る(P2-18)
-- [ ] 設計書の節更新 3 件(6.3 限定縮退注記・13 章固定件数・8.5 補助起点追加)が反映され、変更履歴表に追記される。固定件数は Phase 1 セルから消え(`rg '103[[:space:]]*件'` のヒットは変更履歴 v0.17 行の 1 箇所のみ)、歴史記録は保持される
+- [ ] 設計書の節更新 3 件(6.3 限定縮退注記・13 章固定件数・8.5 補助起点追加)が反映され、変更履歴表に追記される。固定件数は Phase 1 セルから消え(`rg '103[[:space:]]*件' docs/development/dev-harness-design-2026-08-07.md` のヒットは変更履歴 v0.17 行の 1 箇所のみ)、歴史記録は保持される
 - [ ] 8.5 典拠欄と `.claude/agents/legacy-analyst.md` の典拠列挙が一致し、優先規定は新設されていない(88 列の正 = data-layer.md の記述が保持)
 - [ ] 評価台帳に H-12 補強 + 新規 H 4 件(8 要素完備)+ 候補 3 件(3 要素完備)が 4 節の固定表どおり起票され、変更履歴表に追記される
 - [ ] `check_docs_status.py` green(全ステップ)・`/pr` で plan を `status: in-review` にした後の `check_plan_docs_sync.py`(宣言突合)が成功する
