@@ -20,6 +20,7 @@ STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
 STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
+REFLECTION_ROUND_MARKER_RE = re.compile(r"反映(?P<round>[0-9]+)周目")
 PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
 NO_STEP_TOKEN_NOTE = "ステップ記法のコミットなし(書式未一致の可能性)"
 APPROVAL_HISTORY_ERROR_NOTE = "承認履歴取得失敗"
@@ -41,6 +42,7 @@ MACHINE_READ_FRONTMATTER_KEYS = frozenset(
         "計画レビュー周回",
         "確定ゲート周回",
         "実行方式",
+        "反映周コミット",
     }
 )
 
@@ -80,9 +82,10 @@ class Frontmatter:
         branch: plan に書かれた branch 値。欠落時は ``None``。
         approval: 承認値。欠落時は空文字列。
         plan_review_round: 計画レビュー周回。非整数・負値は ``None``。
-        final_gate_round: 確定ゲート周回。非整数・負値は ``None``。
+        final_gate_round: 確定ゲート周回。非整数・負値・キー重複は ``None``。
         execution_mode: 正規化した実行方式値。欠落時は ``通常``。
         execution_mode_valid: 実行方式が列挙値に適合するか。
+        reflection_commit: 反映周コミットの適用境界。キー欠落時は ``None``。
     """
 
     status: str
@@ -92,6 +95,7 @@ class Frontmatter:
     final_gate_round: int | None
     execution_mode: str
     execution_mode_valid: bool
+    reflection_commit: str | None
 
 
 @dataclass(frozen=True)
@@ -175,6 +179,7 @@ class FeatureResult:
         degradation: 縮退理由。通常時は ``None``。
         frontmatter: 表示補助に使う frontmatter。解析失敗時は ``None``。
         notion_expectation: text モードで表示する Notion の期待値。不要時は ``None``。
+        reflection_commit_reconciliation: 反映周コミットと確定ゲート周回の突合結果。
     """
 
     name: str
@@ -185,6 +190,7 @@ class FeatureResult:
     degradation: str | None
     frontmatter: Frontmatter | None
     notion_expectation: str | None = None
+    reflection_commit_reconciliation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -309,6 +315,7 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
 
     Returns:
         有効な frontmatter。status 不適合または機構読取キーの重複時は ``None``。
+        ただし ``確定ゲート周回`` の重複は不正値として保持する。
     """
     lines = body.splitlines()
     status_lines = [line for line in lines if STATUS_CANDIDATE_RE.match(line)]
@@ -320,6 +327,7 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
 
     values: dict[str, str] = {}
     seen_machine_keys: set[str] = set()
+    final_gate_round_duplicated = False
     for line in lines:
         if ":" not in line:
             continue
@@ -327,6 +335,9 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
         normalized_key = key.strip()
         if normalized_key in MACHINE_READ_FRONTMATTER_KEYS:
             if normalized_key in seen_machine_keys:
+                if normalized_key == "確定ゲート周回":
+                    final_gate_round_duplicated = True
+                    continue
                 return None
             seen_machine_keys.add(normalized_key)
         values[normalized_key] = value.split("#", 1)[0].strip()
@@ -338,9 +349,14 @@ def parse_frontmatter_body(body: str) -> Frontmatter | None:
         branch=values.get("branch") or None,
         approval=values.get("承認", ""),
         plan_review_round=parse_nonnegative_integer(values.get("計画レビュー周回")),
-        final_gate_round=parse_nonnegative_integer(values.get("確定ゲート周回")),
+        final_gate_round=(
+            None
+            if final_gate_round_duplicated
+            else parse_nonnegative_integer(values.get("確定ゲート周回"))
+        ),
         execution_mode=execution_mode,
         execution_mode_valid=execution_mode in {"通常", "fast"},
+        reflection_commit=values.get("反映周コミット"),
     )
 
 
@@ -543,6 +559,120 @@ def get_merge_base(plan: FeaturePlan) -> str | None:
     result = run_git(plan.worktree, ["merge-base", "origin/develop", "HEAD"])
     base = result.stdout.strip()
     return base if result.succeeded and base else None
+
+
+def is_plan_recorded_at_head(plan: FeaturePlan) -> bool | None:
+    """plan.md が現在の HEAD に記録されているかを調べる。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        HEAD に記録済みなら ``True``、未記録なら ``False``。Git 取得失敗時は
+        ``None``。
+    """
+    result = run_git(
+        plan.worktree,
+        ["ls-tree", "-r", "--name-only", "HEAD", "--", plan.relative_plan_path],
+    )
+    if not result.succeeded:
+        return None
+    return plan.relative_plan_path in result.stdout.splitlines()
+
+
+def get_head_revision(plan: FeaturePlan) -> str | None:
+    """現在の HEAD のコミット ID を取得する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        HEAD のコミット ID。Git 取得失敗時は ``None``。
+    """
+    result = run_git(plan.worktree, ["rev-parse", "HEAD"])
+    revision = result.stdout.strip()
+    return revision if result.succeeded and revision else None
+
+
+def format_reflection_reconciliation_warning(reasons: Sequence[str]) -> str:
+    """反映周コミット突合の警告表示を既存の括弧形式で組み立てる。
+
+    Args:
+        reasons: 不一致となった条件の説明。
+
+    Returns:
+        警告表示。
+    """
+    return f"警告({'・'.join(reasons)})"
+
+
+def derive_reflection_commit_reconciliation(plan: FeaturePlan) -> str:
+    """反映周コミットと確定ゲート周回を先勝ちの規定順で突合する。
+
+    Args:
+        plan: 導出対象 feature。
+
+    Returns:
+        ``一致``、警告、対象外、または未取得の突合結果。
+    """
+    plan_recorded = is_plan_recorded_at_head(plan)
+    if plan_recorded is None:
+        return "未取得(git 失敗)"
+    if not plan_recorded:
+        return "対象外(計画書 未コミット)"
+
+    base = get_merge_base(plan)
+    head = get_head_revision(plan)
+    if base is None or head is None:
+        return "未取得(git 失敗)"
+    if base == head:
+        return "対象外(develop へマージ済み)"
+
+    reflection_commit = plan.frontmatter.reflection_commit
+    if reflection_commit is None:
+        return "未取得(反映周コミット 未記載)"
+    if reflection_commit == "規約制定前":
+        return "対象外(規約制定前)"
+    if reflection_commit != "適用":
+        return "未取得(反映周コミット 不正値)"
+
+    final_gate_round = plan.frontmatter.final_gate_round
+    if final_gate_round is None:
+        return "未取得(確定ゲート周回 不正値)"
+
+    commits = read_commits(plan, base)
+    if commits is None:
+        return "未取得(git 失敗)"
+
+    actual_rounds: set[int] = set()
+    round_commit_counts: dict[int, int] = {}
+    has_multiple_markers = False
+    for commit in commits:
+        rounds = [
+            int(match.group("round"))
+            for match in REFLECTION_ROUND_MARKER_RE.finditer(commit.subject)
+        ]
+        if not rounds:
+            continue
+        if len(rounds) != 1:
+            has_multiple_markers = True
+        for round_number in set(rounds):
+            actual_rounds.add(round_number)
+            round_commit_counts[round_number] = (
+                round_commit_counts.get(round_number, 0) + 1
+            )
+
+    expected_rounds = set(range(1, final_gate_round + 1))
+    warning_reasons: list[str] = []
+    if actual_rounds != expected_rounds:
+        warning_reasons.append("反映周番号の集合が確定ゲート周回と一致しない")
+    if has_multiple_markers:
+        warning_reasons.append("1件名に複数の反映周マーカー")
+    if any(count != 1 for count in round_commit_counts.values()):
+        warning_reasons.append("同じ反映周が複数コミットにある")
+    if warning_reasons:
+        return format_reflection_reconciliation_warning(warning_reasons)
+    return "一致"
 
 
 def read_plan_history(
@@ -1142,11 +1272,15 @@ def get_notion_expectation(
     return "未取得"
 
 
-def git_failure_result(plan: FeaturePlan) -> FeatureResult:
+def git_failure_result(
+    plan: FeaturePlan,
+    reflection_commit_reconciliation: str | None = None,
+) -> FeatureResult:
     """feature 単位の Git 取得失敗を表示用結果へ変換する。
 
     Args:
         plan: 失敗した feature。
+        reflection_commit_reconciliation: 先に導出済みの反映周コミット突合結果。
 
     Returns:
         Git 失敗を明示した feature 結果。
@@ -1159,6 +1293,7 @@ def git_failure_result(plan: FeaturePlan) -> FeatureResult:
         pr_status=pr_status_stub(plan),
         degradation="git 失敗",
         frontmatter=plan.frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
     )
 
 
@@ -1166,6 +1301,7 @@ def approval_history_failure_result(
     plan: FeaturePlan,
     frontmatter: Frontmatter,
     pr_status: str,
+    reflection_commit_reconciliation: str | None = None,
 ) -> FeatureResult:
     """承認履歴の取得・解析失敗を縮退表示用結果へ変換する。
 
@@ -1173,6 +1309,7 @@ def approval_history_failure_result(
         plan: 失敗した feature。
         frontmatter: 現在の plan frontmatter。
         pr_status: 表示用の PR 状態。
+        reflection_commit_reconciliation: 先に導出済みの反映周コミット突合結果。
 
     Returns:
         承認履歴取得失敗を明示した feature 結果。
@@ -1185,6 +1322,7 @@ def approval_history_failure_result(
         pr_status=pr_status,
         degradation=APPROVAL_HISTORY_ERROR_NOTE,
         frontmatter=frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
     )
 
 
@@ -1213,6 +1351,7 @@ def derive_feature(
     """
     frontmatter = plan.frontmatter
     pr_status = pr_status_stub(plan)
+    reflection_commit_reconciliation = derive_reflection_commit_reconciliation(plan)
 
     if not frontmatter.execution_mode_valid:
         return FeatureResult(
@@ -1223,6 +1362,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation="実行方式不正",
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if frontmatter.status == "in-review":
         if resolve_pr:
@@ -1235,6 +1375,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if frontmatter.execution_mode == "fast":
         return FeatureResult(
@@ -1245,6 +1386,7 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     if not approved(frontmatter):
         review_round = number_display(frontmatter.plan_review_round)
@@ -1258,20 +1400,26 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
 
     base = get_merge_base(plan)
     if base is None:
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
     rejection = has_unresolved_rejection(plan, base)
     if rejection is None:
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
     if rejection:
         progress = derive_progress(plan, base)
         if progress.kind == "git_error":
-            return git_failure_result(plan)
+            return git_failure_result(plan, reflection_commit_reconciliation)
         if is_approval_history_failure(progress):
-            return approval_history_failure_result(plan, frontmatter, pr_status)
+            return approval_history_failure_result(
+                plan,
+                frontmatter,
+                pr_status,
+                reflection_commit_reconciliation,
+            )
         return FeatureResult(
             name=plan.name,
             branch=plan.worktree.branch,
@@ -1280,12 +1428,18 @@ def derive_feature(
             pr_status=pr_status,
             degradation=None,
             frontmatter=frontmatter,
+            reflection_commit_reconciliation=reflection_commit_reconciliation,
         )
     progress = derive_progress(plan, base)
     if progress.kind == "git_error":
-        return git_failure_result(plan)
+        return git_failure_result(plan, reflection_commit_reconciliation)
     if is_approval_history_failure(progress):
-        return approval_history_failure_result(plan, frontmatter, pr_status)
+        return approval_history_failure_result(
+            plan,
+            frontmatter,
+            pr_status,
+            reflection_commit_reconciliation,
+        )
     if progress.kind == "unknown":
         stage = "実装状況: 不明"
     elif progress.kind == "inconsistent":
@@ -1306,6 +1460,7 @@ def derive_feature(
         pr_status=pr_status,
         degradation=None,
         frontmatter=frontmatter,
+        reflection_commit_reconciliation=reflection_commit_reconciliation,
     )
 
 
@@ -1564,6 +1719,11 @@ def format_text_result(result: FeatureResult) -> str:
                 ),
             ]
         )
+    if result.reflection_commit_reconciliation is not None:
+        lines.append(
+            "  反映周コミット突合: "
+            f"{result.reflection_commit_reconciliation}"
+        )
     if result.notion_expectation is not None:
         lines.append(
             "  Notion 期待: "
@@ -1595,6 +1755,11 @@ def format_hook_result(result: FeatureResult) -> str:
             parts.append("計画レビュー周回 不正値")
         if result.frontmatter.final_gate_round is None:
             parts.append("確定ゲート周回 不正値")
+    if result.reflection_commit_reconciliation is not None:
+        parts.append(
+            "反映周コミット突合: "
+            f"{result.reflection_commit_reconciliation}"
+        )
     if result.degradation is not None:
         parts.append(f"縮退: {result.degradation}")
     return " / ".join(parts)

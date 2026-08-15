@@ -97,6 +97,7 @@ def plan_text(
     review_round: object = MISSING,
     final_gate_round: object = MISSING,
     execution_mode: object = MISSING,
+    reflection_commit: object = "適用",
     steps: tuple[int, ...] = (1, 2),
     body_lines: tuple[str, ...] = (),
 ) -> str:
@@ -113,6 +114,8 @@ def plan_text(
         lines.append(f"確定ゲート周回: {final_gate_round}")
     if execution_mode is not MISSING:
         lines.append(f"実行方式: {execution_mode}")
+    if reflection_commit is not MISSING:
+        lines.append(f"反映周コミット: {reflection_commit}")
     lines.extend(
         [
             "---",
@@ -153,6 +156,21 @@ def commit_implementation(worktree: Path, number: int, subject: str) -> None:
     commit_all(worktree, subject)
 
 
+def commit_reflection_round(worktree: Path, number: int, subject: str) -> None:
+    """反映周マーカーを持つ文書系コミットを作る。
+
+    Args:
+        worktree: コミット対象の feature worktree。
+        number: 変更対象ファイルを一意にする反映周番号。
+        subject: 作成するコミット件名。
+    """
+    path = worktree / "docs" / "reflections" / f"round-{number}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    previous = path.read_text(encoding="utf-8") if path.exists() else ""
+    path.write_text(f"{previous}反映\n", encoding="utf-8")
+    commit_all(worktree, subject)
+
+
 def run_status(
     root: Path,
     output_format: str = "text",
@@ -187,6 +205,30 @@ def feature_block(output: str, name: str) -> str:
 def hook_line(output: str, name: str) -> str:
     """hook 出力から 1 feature 分の行を取り出す。"""
     return next(line for line in output.splitlines() if line.startswith(f"{name}("))
+
+
+def assert_reflection_reconciliation(
+    root: Path,
+    name: str,
+    expected: str,
+) -> None:
+    """反映周コミット突合を text/hook の両出力で確認する。
+
+    Args:
+        root: テスト対象リポジトリのルート。
+        name: 確認対象 feature 名。
+        expected: 期待する突合結果。
+    """
+    label = f"反映周コミット突合: {expected}"
+    text_completed = run_status(root)
+    hook_completed = run_status(root, "hook")
+    assert text_completed.returncode == 0
+    assert hook_completed.returncode == 0
+    text_block = feature_block(text_completed.stdout, name)
+    hook = hook_line(hook_completed.stdout, name)
+
+    assert f"  {label}" in text_block
+    assert label in hook
 
 
 def assert_inconsistent_reason(root: Path, name: str, reason: str) -> None:
@@ -224,6 +266,41 @@ def setup_committed_plan(
         steps=steps,
     )
     commit_all(worktree, "docs: 承認・起票")
+    return root, worktree, plan
+
+
+def setup_reflection_commit_plan(
+    tmp_path: Path,
+    *,
+    final_gate_round: object = 2,
+    reflection_commit: object = "適用",
+    status: str = "active",
+    approval: str = "済",
+    execution_mode: object = "通常",
+) -> tuple[Path, Path, Path]:
+    """反映周コミット突合用の plan をコミット済み状態で作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        final_gate_round: plan に書く確定ゲート周回。
+        reflection_commit: plan に書く反映周コミットの適用境界。
+        status: plan の status。
+        approval: plan の承認値。
+        execution_mode: plan の実行方式。
+
+    Returns:
+        メインリポジトリ、feature worktree、plan.md の組。
+    """
+    root, worktree = init_repository(tmp_path)
+    plan = write_plan(
+        worktree,
+        status_lines=[f"status: {status}"],
+        approval=approval,
+        final_gate_round=final_gate_round,
+        execution_mode=execution_mode,
+        reflection_commit=reflection_commit,
+    )
+    commit_all(worktree, "docs: 反映周コミット突合の起票")
     return root, worktree, plan
 
 
@@ -307,6 +384,7 @@ def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: P
                 "計画レビュー周回: 3 # コメント",
                 "確定ゲート周回: 2 # コメント",
                 "実行方式: 通常 # コメント",
+                "反映周コミット: 適用 # コメント",
             ]
         )
     )
@@ -314,6 +392,7 @@ def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: P
     assert parsed.plan_review_round == 3
     assert parsed.final_gate_round == 2
     assert parsed.execution_mode == "通常"
+    assert parsed.reflection_commit == "適用"
 
     defaults = feature_status.parse_frontmatter_body(
         "status: active\nbranch: feature/foo\n"
@@ -322,6 +401,7 @@ def test_frontmatter_extensions_defaults_comments_and_invalid_values(tmp_path: P
     assert defaults.plan_review_round == 0
     assert defaults.final_gate_round == 0
     assert defaults.execution_mode == "通常"
+    assert defaults.reflection_commit is None
 
     root, worktree = init_repository(tmp_path / "invalid-values")
     write_plan(
@@ -378,6 +458,258 @@ def test_duplicate_machine_read_frontmatter_keys_are_parse_failures(
         output,
         "branch-duplicate",
     )
+
+
+@pytest.mark.parametrize(
+    ("final_gate_round", "rounds"),
+    [
+        (3, (1, 2)),
+        (3, (1, 2, 3, 4)),
+        (3, (1, 2, 4)),
+    ],
+)
+def test_reflection_reconciliation_warns_when_round_set_is_not_exact(
+    tmp_path: Path,
+    final_gate_round: int,
+    rounds: tuple[int, ...],
+):
+    """不足・余分・同数の誤集合を集合比較で警告する。"""
+    root, worktree, _ = setup_reflection_commit_plan(
+        tmp_path,
+        final_gate_round=final_gate_round,
+    )
+    for index, round_number in enumerate(rounds, start=1):
+        commit_reflection_round(
+            worktree,
+            index,
+            f"docs: 確定ゲート 反映{round_number}周目を反映",
+        )
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "警告(反映周番号の集合が確定ゲート周回と一致しない)",
+    )
+
+
+def test_reflection_reconciliation_ignores_subjects_without_marker(tmp_path: Path):
+    """確定ゲートの語だけを含む件名は反映周コミットに数えない。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path, final_gate_round=1)
+    commit_reflection_round(worktree, 1, "docs: 確定ゲート通過")
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "警告(反映周番号の集合が確定ゲート周回と一致しない)",
+    )
+
+
+def test_reflection_reconciliation_warns_on_multiple_markers_in_subject(
+    tmp_path: Path,
+):
+    """1 件名に複数の反映周マーカーがあると警告する。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path, final_gate_round=2)
+    commit_reflection_round(
+        worktree,
+        1,
+        "docs: 確定ゲート 反映1周目 反映2周目をまとめて反映",
+    )
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "警告(1件名に複数の反映周マーカー)",
+    )
+
+
+def test_reflection_reconciliation_warns_on_duplicate_round_commits(
+    tmp_path: Path,
+):
+    """同じ反映周を複数コミットに分けると警告する。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path, final_gate_round=1)
+    commit_reflection_round(worktree, 1, "docs: 確定ゲート 反映1周目を反映")
+    commit_reflection_round(worktree, 2, "docs: 確定ゲート 反映1周目を追加反映")
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "警告(同じ反映周が複数コミットにある)",
+    )
+
+
+def test_reflection_reconciliation_degrades_when_reflection_commit_is_missing(
+    tmp_path: Path,
+):
+    """必須の反映周コミットキーがない plan は縮退表示する。"""
+    root, _, _ = setup_reflection_commit_plan(
+        tmp_path,
+        reflection_commit=MISSING,
+    )
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "未取得(反映周コミット 未記載)",
+    )
+
+
+def test_reflection_reconciliation_degrades_on_invalid_reflection_commit_value(
+    tmp_path: Path,
+):
+    """反映周コミットが列挙外の値なら縮退表示する。"""
+    root, _, _ = setup_reflection_commit_plan(
+        tmp_path,
+        reflection_commit="旧規約",
+    )
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "未取得(反映周コミット 不正値)",
+    )
+
+
+def test_reflection_reconciliation_checks_zero_round_against_empty_set(
+    tmp_path: Path,
+):
+    """確定ゲート周回が 0 でも反映周マーカーの存在を警告する。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path, final_gate_round=0)
+    commit_reflection_round(worktree, 1, "docs: 確定ゲート 反映1周目を反映")
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "警告(反映周番号の集合が確定ゲート周回と一致しない)",
+    )
+
+
+@pytest.mark.parametrize("final_gate_round", ["abc", "-1"])
+def test_reflection_reconciliation_degrades_on_invalid_final_gate_round(
+    tmp_path: Path,
+    final_gate_round: str,
+):
+    """非整数・負値の確定ゲート周回は縮退表示する。"""
+    root, _, _ = setup_reflection_commit_plan(
+        tmp_path,
+        final_gate_round=final_gate_round,
+    )
+
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "未取得(確定ゲート周回 不正値)",
+    )
+
+
+def test_reflection_reconciliation_degrades_on_duplicate_final_gate_round(
+    tmp_path: Path,
+):
+    """確定ゲート周回の重複は frontmatter 解析失敗と区別する。"""
+    root, worktree, plan = setup_reflection_commit_plan(
+        tmp_path,
+        final_gate_round=1,
+    )
+    plan.write_text(
+        plan.read_text(encoding="utf-8").replace(
+            "確定ゲート周回: 1\n",
+            "確定ゲート周回: 1\n確定ゲート周回: 2\n",
+        ),
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 確定ゲート周回を重複させる")
+
+    completed = run_status(root)
+    assert completed.returncode == 0
+    block = feature_block(completed.stdout, "foo")
+    assert "未取得(frontmatter 解析失敗)" not in block
+    assert "確定ゲート周回: 不正値" in block
+    assert_reflection_reconciliation(
+        root,
+        "foo",
+        "未取得(確定ゲート周回 不正値)",
+    )
+
+
+def test_reflection_reconciliation_is_quiet_when_every_condition_matches(
+    tmp_path: Path,
+):
+    """集合・件名内個数・コミット数が揃うと警告しない。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path, final_gate_round=3)
+    for round_number in range(1, 4):
+        commit_reflection_round(
+            worktree,
+            round_number,
+            f"docs: 確定ゲート 反映{round_number}周目を反映",
+        )
+
+    assert_reflection_reconciliation(root, "foo", "一致")
+    assert "警告" not in feature_block(run_status(root).stdout, "foo")
+
+
+@pytest.mark.parametrize(
+    ("status", "approval", "execution_mode"),
+    [
+        ("in-review", "済", "通常"),
+        ("active", "済", "fast"),
+        ("active", "未", "通常"),
+    ],
+)
+def test_reflection_reconciliation_runs_before_stage_early_returns(
+    tmp_path: Path,
+    status: str,
+    approval: str,
+    execution_mode: str,
+):
+    """in-review・fast・未承認でも独立した突合行を表示する。"""
+    root, worktree, _ = setup_reflection_commit_plan(
+        tmp_path,
+        final_gate_round=1,
+        status=status,
+        approval=approval,
+        execution_mode=execution_mode,
+    )
+    commit_reflection_round(worktree, 1, "docs: 確定ゲート 反映1周目を反映")
+
+    assert_reflection_reconciliation(root, "foo", "一致")
+
+
+def test_reflection_reconciliation_excludes_pre_rule_plan(tmp_path: Path):
+    """明示移行済みの規約制定前 plan は対象外にする。"""
+    root, _, _ = setup_reflection_commit_plan(
+        tmp_path,
+        reflection_commit="規約制定前",
+    )
+
+    assert_reflection_reconciliation(root, "foo", "対象外(規約制定前)")
+
+
+def test_reflection_reconciliation_excludes_merged_feature(tmp_path: Path):
+    """origin/develop にマージ済みの HEAD は対象外にする。"""
+    root, worktree, _ = setup_reflection_commit_plan(tmp_path)
+    feature_head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+    git(root, "update-ref", "refs/remotes/origin/develop", feature_head)
+
+    assert_reflection_reconciliation(root, "foo", "対象外(develop へマージ済み)")
+
+
+def test_reflection_reconciliation_excludes_uncommitted_plan(tmp_path: Path):
+    """HEAD に記録していない plan は対象外にする。"""
+    root, worktree = init_repository(tmp_path)
+    write_plan(worktree, final_gate_round=1)
+
+    assert_reflection_reconciliation(root, "foo", "対象外(計画書 未コミット)")
+
+
+def test_reflection_reconciliation_preserves_first_match_priority(tmp_path: Path):
+    """未コミット plan と不正な適用境界が重なると前者を優先する。"""
+    root, worktree = init_repository(tmp_path)
+    write_plan(
+        worktree,
+        final_gate_round=1,
+        reflection_commit="旧規約",
+    )
+
+    assert_reflection_reconciliation(root, "foo", "対象外(計画書 未コミット)")
 
 
 def test_selection_matrix_and_parse_failure_priority(tmp_path: Path):
@@ -863,6 +1195,8 @@ def test_approval_history_parse_failure_degrades_known_zero(
     assert result.stage == "未取得(承認履歴取得失敗)"
     assert result.progress == progress
     assert result.degradation == feature_status.APPROVAL_HISTORY_ERROR_NOTE
+    assert result.reflection_commit_reconciliation == "一致"
+    assert "反映周コミット突合: 一致" in feature_status.format_text_result(result)
     assert (
         feature_status.format_progress(result.progress)
         == "未取得(承認履歴取得失敗)"
