@@ -1,6 +1,6 @@
 ---
 feature: feature-status-degradation
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-15・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -80,7 +80,7 @@ Notion タスク: [F5](https://app.notion.com/p/3bc93b75e68781f1b2e3f713d762a52c
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **v1.4 → v1.5**。6.1 に ① ステップ検出書式の**厳密文法** ② `確定ゲート周回` の**反映周コミット規定** ③ 「計画系/文書系のみ → known 0」の**例外** を追加。変更履歴表に v1.5 行 | **finalize-doc**(版繰り上げを伴う構造的変更 — 設計書 7.6-3 後段) |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-45・H-41 の `状態` を更新**(対応済みへ)+ **両者の `対応案` を現行方式へ**(**解決方式は別** — H-41 = `A-2` + 突合実装 + `B-4b`・`B-4c`・`B-4d` / H-45 = `A-1` + `A-3` + `B-4`。10 周目 P1)/ **`## 候補` へ 2 件追記**(C-5 / C-6)+ **`H-50` を新設**(`/pr` 突合の機械化・追跡優先度 通常 — 7 周目 P1)+ **H-41 の `対応案` を現行方式へ更新**(同)。**設計書 6.1「段階実装」段落の参照不整合は A-3b で解消するため候補に起票しない**(2 周目 P1 — 解消済み事象を候補へ起票する矛盾があった)+ 変更履歴表に 1 行。**版は上げない**(個別項目の追記のみ = 7.6-3 前段) | PR レビュー |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-45・H-41 の `状態` を更新**(対応済みへ)+ **両者の `対応案` を現行方式へ**(**解決方式は別** — H-41 = `A-2` + 突合実装 + `B-4b`・`B-4c`・`B-4d` / H-45 = `A-1` + `A-3` + `B-4`。10 周目 P1)/ **`## 候補` へ 2 件追記**(C-5 / C-6)+ **`H-50` を新設**(`/pr` 突合の機械化・追跡優先度 通常 — 7 周目 P1)+ **`H-49`(変異テストが機能した)の `再発` と `事象` を更新**(`/pr` のクローズ処理 — 本タスクで 2 件目の実例。**F2 では変異 7 種すべてが落ちたが、本タスクでは初めて「壊しても落ちない」= 実効性のないテストを実検出した**)+ **H-41 の `対応案` を現行方式へ更新**(同)。**設計書 6.1「段階実装」段落の参照不整合は A-3b で解消するため候補に起票しない**(2 周目 P1 — 解消済み事象を候補へ起票する矛盾があった)+ 変更履歴表に 1 行。**版は上げない**(個別項目の追記のみ = 7.6-3 前段) | PR レビュー |
 | [docs/README.md(索引)](../../README.md) | 設計書を **v1.5** へ・最終更新を現行化。台帳の最終更新を現行化 | PR レビュー |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) | **反映なし** — 本タスクはハーネスの現在地導出機構とその規約のみを扱い、プロダクト要件・ADR・オンボーディングには触れない | — |
 
