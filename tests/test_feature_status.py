@@ -703,6 +703,118 @@ def test_planning_commits_are_excluded_then_first_step_is_adopted(tmp_path: Path
     assert "実装中(ステップ 1/6 完了)" in feature_block(progressed, "foo")
 
 
+def test_known_zero_immediately_after_approval_has_no_unmarked_note(tmp_path: Path):
+    """承認コミット直後の known 0 に書式未一致注記を付けない。"""
+    root, _, _ = setup_committed_plan(tmp_path)
+
+    text_output = run_status(root).stdout
+    hook_output = run_status(root, "hook").stdout
+
+    for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
+        block = block_getter(output, "foo")
+        assert "実装前(全 2 ステップ)" in block
+        assert feature_status.NO_STEP_TOKEN_NOTE not in block
+
+
+def test_known_zero_after_documentation_commit_shows_unmarked_note(tmp_path: Path):
+    """承認後の文書系コミットだけなら書式未一致注記を併記する。"""
+    root, worktree, _ = setup_committed_plan(tmp_path)
+    note_path = worktree / "docs" / "notes.md"
+    note_path.write_text("補足\n", encoding="utf-8")
+    commit_all(worktree, "docs: 補足を追加")
+
+    stage = f"実装前(全 2 ステップ)({feature_status.NO_STEP_TOKEN_NOTE})"
+    progress = f"0/2({feature_status.NO_STEP_TOKEN_NOTE})"
+    text_output = run_status(root).stdout
+    hook_output = run_status(root, "hook").stdout
+
+    for output, block_getter in ((text_output, feature_block), (hook_output, hook_line)):
+        block = block_getter(output, "foo")
+        assert stage in block
+        assert progress in block
+
+
+def test_approval_history_parse_failure_degrades_known_zero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """スナップショット解析失敗を進捗導出で承認履歴縮退にする。"""
+    _, worktree, plan_path = setup_committed_plan(tmp_path)
+    plan = feature_plan_for_direct_call(worktree, plan_path)
+    base = feature_status.get_merge_base(plan)
+    assert base is not None
+
+    monkeypatch.setattr(feature_status, "parse_snapshot_frontmatter", lambda _: None)
+
+    history = feature_status.read_plan_history(plan, base)
+    assert history is not None
+    assert len(history) == 1
+    assert history[0][1] is None
+
+    progress = feature_status.derive_progress(plan, base)
+    assert progress == feature_status.Progress(
+        kind="not_applicable",
+        note=feature_status.APPROVAL_HISTORY_ERROR_NOTE,
+    )
+    result = feature_status.derive_feature(plan)
+
+    assert result.stage == "未取得(承認履歴取得失敗)"
+    assert result.progress == progress
+    assert result.degradation == feature_status.APPROVAL_HISTORY_ERROR_NOTE
+    assert (
+        feature_status.format_progress(result.progress)
+        == "未取得(承認履歴取得失敗)"
+    )
+
+
+def test_rejection_history_git_failure_keeps_git_failure_label(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """差し戻し履歴の Git 取得失敗を承認履歴失敗へ誤分類しない。"""
+    _, worktree, plan_path = setup_committed_plan(tmp_path)
+    plan = feature_plan_for_direct_call(worktree, plan_path)
+    original_run_git = feature_status.run_git
+
+    def fail_plan_history_log(worktree_arg, args):
+        if (
+            args[0] == "log"
+            and args[1] == "--format=%H"
+            and args[-2:] == ["--", plan.relative_plan_path]
+        ):
+            return feature_status.CommandResult(False, "")
+        return original_run_git(worktree_arg, args)
+
+    monkeypatch.setattr(feature_status, "run_git", fail_plan_history_log)
+
+    result = feature_status.derive_feature(plan)
+
+    assert result.stage == "未取得(git 失敗)"
+    assert result.progress == feature_status.Progress(kind="git_error")
+    assert result.degradation == "git 失敗"
+    assert feature_status.format_progress(result.progress) == "未取得(git 失敗)"
+
+
+def test_known_progress_with_step_token_has_no_unmarked_note(tmp_path: Path):
+    """有効なステップ記法が 1 件でもあれば書式未一致注記を付けない。"""
+    root, worktree, plan_path = setup_committed_plan(tmp_path)
+    commit_implementation(worktree, 1, "feat: 最初の実装 (ステップ 1/2)")
+    plan = feature_plan_for_direct_call(worktree, plan_path)
+    base = feature_status.get_merge_base(plan)
+    assert base is not None
+
+    progress = feature_status.derive_progress(plan, base)
+
+    assert progress.kind == "known"
+    assert progress.completed == 1
+    assert progress.note is None
+    assert feature_status.format_progress(progress) == "1/2"
+    assert feature_status.NO_STEP_TOKEN_NOTE not in feature_block(
+        run_status(root).stdout,
+        "foo",
+    )
+
+
 def test_unmarked_implementation_and_empty_commit_are_unknown(tmp_path: Path):
     """実装系の無記法コミットと空コミットを保守的に不明にする。"""
     root, worktree, _ = setup_committed_plan(tmp_path / "implementation")

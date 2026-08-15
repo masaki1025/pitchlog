@@ -21,6 +21,8 @@ HEADING_RE = re.compile(r"^#{1,6}\s")
 STEP_ROW_RE = re.compile(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
 STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
 PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
+NO_STEP_TOKEN_NOTE = "ステップ記法のコミットなし(書式未一致の可能性)"
+APPROVAL_HISTORY_ERROR_NOTE = "承認履歴取得失敗"
 MACHINE_READ_FRONTMATTER_KEYS = frozenset(
     {
         "status",
@@ -521,15 +523,19 @@ def get_merge_base(plan: FeaturePlan) -> str | None:
     return base if result.succeeded and base else None
 
 
-def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
-    """base..HEAD に in-review の plan スナップショットがあるか調べる。
+def read_plan_history(
+    plan: FeaturePlan,
+    base: str,
+) -> list[tuple[str, Frontmatter | None]] | None:
+    """base..HEAD の plan スナップショットをコミット ID とともに読む。
 
     Args:
         plan: 導出対象 feature。
         base: ``origin/develop`` とのマージベース。
 
     Returns:
-        差し戻し修正中なら ``True``、なければ ``False``、Git 失敗時は ``None``。
+        コミット ID と frontmatter の組。Git 取得失敗時は ``None``。
+        frontmatter 解析失敗は組内の ``None`` として保持する。
     """
     revisions = run_git(
         plan.worktree,
@@ -538,16 +544,67 @@ def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
     if not revisions.succeeded:
         return None
 
+    history: list[tuple[str, Frontmatter | None]] = []
     for sha in (line.strip() for line in revisions.stdout.splitlines()):
         if not sha:
             continue
         snapshot = run_git(plan.worktree, ["show", f"{sha}:{plan.relative_plan_path}"])
         if not snapshot.succeeded:
             return None
-        parsed = parse_snapshot_frontmatter(snapshot.stdout)
-        if parsed is not None and parsed.status == "in-review":
-            return True
-    return False
+        history.append((sha, parse_snapshot_frontmatter(snapshot.stdout)))
+    return history
+
+
+def has_unresolved_rejection(plan: FeaturePlan, base: str) -> bool | None:
+    """base..HEAD に in-review の plan スナップショットがあるか調べる。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+
+    Returns:
+        差し戻し修正中なら ``True``、なければ ``False``。Git による履歴取得に
+        失敗した場合は ``None``。
+    """
+    history = read_plan_history(plan, base)
+    if history is None:
+        return None
+    return any(
+        frontmatter is not None and frontmatter.status == "in-review"
+        for _, frontmatter in history
+    )
+
+
+def is_immediately_after_first_approval(
+    plan: FeaturePlan,
+    base: str,
+    commits: Sequence[CommitRecord],
+) -> bool | None:
+    """最初の承認コミット直後かを履歴から判定する。
+
+    Args:
+        plan: 導出対象 feature。
+        base: ``origin/develop`` とのマージベース。
+        commits: ``base..HEAD`` のコミット一覧。先頭は HEAD である。
+
+    Returns:
+        最初に承認済みとなったコミットが HEAD なら ``True``。承認コミットが
+        見つからない、または追加コミットがある場合は ``False``。履歴の取得・
+        解析に失敗した場合は ``None``。
+    """
+    history = read_plan_history(plan, base)
+    if history is None or any(frontmatter is None for _, frontmatter in history):
+        return None
+
+    first_approval_commit = next(
+        (
+            sha
+            for sha, frontmatter in reversed(history)
+            if frontmatter is not None and approved(frontmatter)
+        ),
+        None,
+    )
+    return bool(commits) and first_approval_commit == commits[0].sha
 
 
 def read_commits(plan: FeaturePlan, base: str) -> list[CommitRecord] | None:
@@ -766,6 +823,24 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
         )
     if any(kind not in {"planning", "documentation"} for kind in unmarked_kinds):
         return Progress(kind="unknown", total=table.total)
+    if table.total >= 1:
+        immediately_after_approval = is_immediately_after_first_approval(
+            plan,
+            base,
+            commits,
+        )
+        if immediately_after_approval is None:
+            return Progress(
+                kind="not_applicable",
+                note=APPROVAL_HISTORY_ERROR_NOTE,
+            )
+        if not immediately_after_approval:
+            return Progress(
+                kind="known",
+                completed=0,
+                total=table.total,
+                note=NO_STEP_TOKEN_NOTE,
+            )
     return Progress(kind="known", completed=0, total=table.total)
 
 
@@ -1041,6 +1116,40 @@ def git_failure_result(plan: FeaturePlan) -> FeatureResult:
     )
 
 
+def approval_history_failure_result(
+    plan: FeaturePlan,
+    frontmatter: Frontmatter,
+    pr_status: str,
+) -> FeatureResult:
+    """承認履歴の取得・解析失敗を縮退表示用結果へ変換する。
+
+    Args:
+        plan: 失敗した feature。
+        frontmatter: 現在の plan frontmatter。
+        pr_status: 表示用の PR 状態。
+
+    Returns:
+        承認履歴取得失敗を明示した feature 結果。
+    """
+    return FeatureResult(
+        name=plan.name,
+        branch=plan.worktree.branch,
+        stage=f"未取得({APPROVAL_HISTORY_ERROR_NOTE})",
+        progress=Progress(kind="not_applicable", note=APPROVAL_HISTORY_ERROR_NOTE),
+        pr_status=pr_status,
+        degradation=APPROVAL_HISTORY_ERROR_NOTE,
+        frontmatter=frontmatter,
+    )
+
+
+def is_approval_history_failure(progress: Progress) -> bool:
+    """進捗が承認履歴の取得・解析失敗を表すか判定する。"""
+    return (
+        progress.kind == "not_applicable"
+        and progress.note == APPROVAL_HISTORY_ERROR_NOTE
+    )
+
+
 def derive_feature(
     plan: FeaturePlan,
     resolve_pr: bool = False,
@@ -1115,6 +1224,8 @@ def derive_feature(
         progress = derive_progress(plan, base)
         if progress.kind == "git_error":
             return git_failure_result(plan)
+        if is_approval_history_failure(progress):
+            return approval_history_failure_result(plan, frontmatter, pr_status)
         return FeatureResult(
             name=plan.name,
             branch=plan.worktree.branch,
@@ -1127,12 +1238,16 @@ def derive_feature(
     progress = derive_progress(plan, base)
     if progress.kind == "git_error":
         return git_failure_result(plan)
+    if is_approval_history_failure(progress):
+        return approval_history_failure_result(plan, frontmatter, pr_status)
     if progress.kind == "unknown":
         stage = "実装状況: 不明"
     elif progress.kind == "inconsistent":
         stage = "実装状況: 不整合(要確認)"
     elif progress.completed == 0:
         stage = f"実装前(全 {progress.total} ステップ)"
+        if progress.note:
+            stage = f"{stage}({progress.note})"
     elif progress.completed is not None and progress.total is not None and progress.completed < progress.total:
         stage = f"実装中(ステップ {progress.completed}/{progress.total} 完了)"
     else:
@@ -1344,13 +1459,19 @@ def format_progress(progress: Progress) -> str:
         text/hook で共有する進捗表示。
     """
     if progress.kind == "known":
-        return f"{progress.completed}/{progress.total}"
+        display = f"{progress.completed}/{progress.total}"
+        return f"{display}({progress.note})" if progress.note else display
     if progress.kind == "unknown":
         return f"不明({progress.note})" if progress.note else "不明"
     if progress.kind == "inconsistent":
         return "不整合(要確認)"
     if progress.kind == "git_error":
         return "未取得(git 失敗)"
+    if (
+        progress.kind == "not_applicable"
+        and progress.note == APPROVAL_HISTORY_ERROR_NOTE
+    ):
+        return f"未取得({progress.note})"
     return f"未判定({progress.note or '対象外'})"
 
 
