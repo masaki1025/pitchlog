@@ -1,6 +1,6 @@
 ---
 feature: guard-false-positive
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-15・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -51,7 +51,7 @@ created: 2026-08-15
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **`:308`(6.2)と `:431`(8.3 表)の文言を宛先ベースへ是正**。「保護ブランチ**上での** push をブロック」→ 「**保護ブランチ宛ての** push をブロック」。commit・merge・rebase はカレント判定のままで正しいので**区別して書く**。変更履歴表に 1 行(**版は上げない**) | **PR レビュー**(実装追随の節更新 — 7.6-3 前段。**PO 裁定 2026-08-15**) |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-2・H-9・H-10・H-11 の `状態` を対応済みへ**。**H-10 の `事象` を訂正**(真因が「二重引用符ネスト」ではなく「引用符を無視した分割」だった)。**H-17 の `状態` を部分対応へ**(3 種のみ実施)。変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-2・H-9・H-10・H-11 の `状態` を対応済みへ**。**H-10 の `事象` を訂正**(真因が「二重引用符ネスト」ではなく「引用符を無視した分割」だった)。**H-17 の `状態` を部分対応へ**(3 種のみ実施)。**`H-51`・`H-52` を新設**(申し送り 2 件 — ヒアドキュメント本文の誤検知 / 設計書 12.1 の記述欠落)。**`H-42` の再発を 4 件目として記録**(本タスクのステップ 5 で同じ型の破損を自分で起こした)。**`H-53` を新設**(`/pr` のクローズ処理 — 指示に列挙した挙動だけを検証すると指示の盲点がそのまま通る)。変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
 | [docs/README.md(索引)](../../README.md) | 設計書・台帳の最終更新を現行化 | PR レビュー |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) | **反映なし** — 本タスクはハーネスのガード実装とその説明のみを扱う | — |
 
