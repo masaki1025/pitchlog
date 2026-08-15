@@ -23,6 +23,14 @@ STEP_TOKEN_START_RE = re.compile(r"[（(]ステップ[ \t]+(?P<step>[0-9]+)")
 PR_STATES = frozenset({"OPEN", "MERGED", "CLOSED"})
 NO_STEP_TOKEN_NOTE = "ステップ記法のコミットなし(書式未一致の可能性)"
 APPROVAL_HISTORY_ERROR_NOTE = "承認履歴取得失敗"
+STEP_TABLE_READ_ERROR_NOTE = "実装ステップ表を読めない"
+STEP_TABLE_MISSING_NOTE = "実装ステップ表なし"
+STEP_TABLE_NUMBER_SEQUENCE_NOTE = "実装ステップ表の番号が連番でない"
+STEP_TABLE_EMPTY_CELL_NOTE = "実装ステップ表に空セルがある"
+MALFORMED_STEP_TOKEN_NOTE = "ステップ記法が不正"
+MULTIPLE_STEP_TOKENS_NOTE = "1件名に複数のステップ記法"
+STEP_OUT_OF_RANGE_NOTE = "ステップ番号が総数を超えている"
+COMPLETED_STEP_GAP_NOTE = "完了ステップに欠番がある"
 MACHINE_READ_FRONTMATTER_KEYS = frozenset(
     {
         "status",
@@ -112,10 +120,12 @@ class StepTable:
     Attributes:
         valid: 番号列が ``{1..N}`` で ``N >= 1`` か。
         total: 表から得た最大番号。表が空・不正なら 0 の場合がある。
+        reason: 表が不正な理由。正常時は ``None``。
     """
 
     valid: bool
     total: int
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -421,7 +431,7 @@ def parse_step_table(plan_text: str | None) -> StepTable:
         番号列が ``{1..N}`` で、各番号行の必須セルが埋まっているかを含む結果。
     """
     if plan_text is None:
-        return StepTable(valid=False, total=0)
+        return StepTable(valid=False, total=0, reason=STEP_TABLE_READ_ERROR_NOTE)
 
     numbers: list[int] = []
     has_empty_required_cell = False
@@ -440,9 +450,21 @@ def parse_step_table(plan_text: str | None) -> StepTable:
             has_empty_required_cell = True
 
     total = max(numbers, default=0)
-    if has_empty_required_cell or total < 1 or len(numbers) != total:
-        return StepTable(valid=False, total=total)
-    return StepTable(valid=set(numbers) == set(range(1, total + 1)), total=total)
+    if not numbers:
+        return StepTable(valid=False, total=total, reason=STEP_TABLE_MISSING_NOTE)
+    if has_empty_required_cell:
+        return StepTable(valid=False, total=total, reason=STEP_TABLE_EMPTY_CELL_NOTE)
+    if (
+        total < 1
+        or len(numbers) != total
+        or set(numbers) != set(range(1, total + 1))
+    ):
+        return StepTable(
+            valid=False,
+            total=total,
+            reason=STEP_TABLE_NUMBER_SEQUENCE_NOTE,
+        )
+    return StepTable(valid=True, total=total)
 
 
 def extract_step_tokens(subject: str, total: int) -> tuple[list[int], bool]:
@@ -752,7 +774,11 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     """
     table = parse_step_table(read_plan_text(plan.plan_path))
     if not table.valid:
-        return Progress(kind="inconsistent", total=table.total)
+        return Progress(
+            kind="inconsistent",
+            total=table.total,
+            note=table.reason,
+        )
 
     commits = read_commits(plan, base)
     if commits is None:
@@ -763,14 +789,26 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     for commit in commits:
         tokens, malformed = extract_step_tokens(commit.subject, table.total)
         if malformed or len(tokens) > 1:
-            return Progress(kind="inconsistent", total=table.total)
+            return Progress(
+                kind="inconsistent",
+                total=table.total,
+                note=(
+                    MALFORMED_STEP_TOKEN_NOTE
+                    if malformed
+                    else MULTIPLE_STEP_TOKENS_NOTE
+                ),
+            )
         merge_kind: str | None = None
         if commit.parent_count >= 2:
             merge_kind = classify_unmarked_commit(plan, commit)
         if tokens:
             step = tokens[0]
             if step > table.total:
-                return Progress(kind="inconsistent", total=table.total)
+                return Progress(
+                    kind="inconsistent",
+                    total=table.total,
+                    note=STEP_OUT_OF_RANGE_NOTE,
+                )
             completed.add(step)
             if merge_kind == "merge_unknown":
                 unmarked_kinds.append(merge_kind)
@@ -782,7 +820,15 @@ def derive_progress(plan: FeaturePlan, base: str) -> Progress:
     if completed:
         maximum = max(completed)
         if maximum > table.total or completed != set(range(1, maximum + 1)):
-            return Progress(kind="inconsistent", total=table.total)
+            return Progress(
+                kind="inconsistent",
+                total=table.total,
+                note=(
+                    STEP_OUT_OF_RANGE_NOTE
+                    if maximum > table.total
+                    else COMPLETED_STEP_GAP_NOTE
+                ),
+            )
         if "classification_error" in unmarked_kinds:
             return Progress(
                 kind="unknown",
@@ -1243,7 +1289,7 @@ def derive_feature(
     if progress.kind == "unknown":
         stage = "実装状況: 不明"
     elif progress.kind == "inconsistent":
-        stage = "実装状況: 不整合(要確認)"
+        stage = f"実装状況: {format_progress(progress)}"
     elif progress.completed == 0:
         stage = f"実装前(全 {progress.total} ステップ)"
         if progress.note:
@@ -1478,7 +1524,7 @@ def format_progress(progress: Progress) -> str:
     if progress.kind == "unknown":
         return f"不明({progress.note})" if progress.note else "不明"
     if progress.kind == "inconsistent":
-        return "不整合(要確認)"
+        return f"不整合({progress.note})" if progress.note else "不整合"
     if progress.kind == "git_error":
         return "未取得(git 失敗)"
     if (

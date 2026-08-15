@@ -189,6 +189,25 @@ def hook_line(output: str, name: str) -> str:
     return next(line for line in output.splitlines() if line.startswith(f"{name}("))
 
 
+def assert_inconsistent_reason(root: Path, name: str, reason: str) -> None:
+    """不整合理由が text/hook の段階と進捗に出ることを確認する。
+
+    Args:
+        root: テスト対象リポジトリのルート。
+        name: 確認対象 feature 名。
+        reason: 期待する不整合理由。
+    """
+    progress = f"不整合({reason})"
+    stage = f"実装状況: {progress}"
+    text_block = feature_block(run_status(root).stdout, name)
+    hook = hook_line(run_status(root, "hook").stdout, name)
+
+    assert stage in text_block
+    assert f"ステップ進捗: {progress}" in text_block
+    assert stage in hook
+    assert f"ステップ {progress}" in hook
+
+
 def setup_committed_plan(
     tmp_path: Path,
     *,
@@ -631,8 +650,22 @@ def test_invalid_step_table_wins_over_commit_count(tmp_path: Path, steps: tuple[
     commit_all(worktree, "docs: 不正な表を起票")
     commit_implementation(worktree, 1, "feat: 実装 (ステップ 1/3)")
 
-    output = run_status(root).stdout
-    assert "実装状況: 不整合(要確認)" in feature_block(output, "foo")
+    assert_inconsistent_reason(root, "foo", "実装ステップ表の番号が連番でない")
+
+
+def test_missing_step_table_is_inconsistent_with_reason(tmp_path: Path):
+    """実装ステップ表がない場合は理由を添えて不整合にする。"""
+    root, worktree, plan = setup_committed_plan(tmp_path)
+    plan.write_text(
+        plan.read_text(encoding="utf-8").replace(
+            "### 実装ステップ(コミット単位)",
+            "### 作業概要",
+        ),
+        encoding="utf-8",
+    )
+    commit_all(worktree, "docs: 実装ステップ表を削除")
+
+    assert_inconsistent_reason(root, "foo", "実装ステップ表なし")
 
 
 def test_empty_required_cells_in_final_numbered_row_are_inconsistent(
@@ -648,10 +681,8 @@ def test_empty_required_cells_in_final_numbered_row_are_inconsistent(
     commit_implementation(worktree, 1, "feat: ステップ 1 (ステップ 1/2)")
     commit_implementation(worktree, 2, "feat: ステップ 2 (ステップ 2/2)")
 
-    block = feature_block(run_status(root).stdout, "foo")
-
-    assert "実装状況: 不整合(要確認)" in block
-    assert "実装完了・/pr 前" not in block
+    assert_inconsistent_reason(root, "foo", "実装ステップ表に空セルがある")
+    assert "実装完了・/pr 前" not in feature_block(run_status(root).stdout, "foo")
 
 
 def test_empty_required_cells_in_duplicate_numbered_row_are_inconsistent(
@@ -667,10 +698,8 @@ def test_empty_required_cells_in_duplicate_numbered_row_are_inconsistent(
     commit_implementation(worktree, 1, "feat: ステップ 1 (ステップ 1/2)")
     commit_implementation(worktree, 2, "feat: ステップ 2 (ステップ 2/2)")
 
-    block = feature_block(run_status(root).stdout, "foo")
-
-    assert "実装状況: 不整合(要確認)" in block
-    assert "実装完了・/pr 前" not in block
+    assert_inconsistent_reason(root, "foo", "実装ステップ表に空セルがある")
+    assert "実装完了・/pr 前" not in feature_block(run_status(root).stdout, "foo")
 
 
 @pytest.mark.parametrize(
@@ -688,8 +717,7 @@ def test_malformed_step_tokens_are_inconsistent(tmp_path: Path, subject: str):
     root, worktree, _ = setup_committed_plan(tmp_path, steps=(1, 2, 3, 4, 5, 6))
     commit_implementation(worktree, 1, subject)
 
-    output = run_status(root).stdout
-    assert "実装状況: 不整合(要確認)" in feature_block(output, "foo")
+    assert_inconsistent_reason(root, "foo", "ステップ記法が不正")
 
 
 @pytest.mark.parametrize(
@@ -714,8 +742,7 @@ def test_two_tokens_in_one_subject_are_inconsistent(tmp_path: Path):
         "feat: まとめて実装 (ステップ 1/2) (ステップ 2/2)",
     )
 
-    output = run_status(root).stdout
-    assert "実装状況: 不整合(要確認)" in feature_block(output, "foo")
+    assert_inconsistent_reason(root, "foo", "1件名に複数のステップ記法")
 
 
 def test_fullwidth_and_halfwidth_tokens_and_contiguous_progress(tmp_path: Path):
@@ -739,24 +766,32 @@ def test_duplicate_step_in_different_commits_is_normal(tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    ("steps", "subjects"),
+    ("steps", "subjects", "reason"),
     [
-        ((1, 2, 3), ("feat: 1 (ステップ 1/3)", "feat: 3 (ステップ 3/3)")),
-        ((1, 2), ("feat: 範囲外 (ステップ 3)",)),
+        (
+            (1, 2, 3),
+            ("feat: 1 (ステップ 1/3)", "feat: 3 (ステップ 3/3)"),
+            "完了ステップに欠番がある",
+        ),
+        (
+            (1, 2),
+            ("feat: 範囲外 (ステップ 3)",),
+            "ステップ番号が総数を超えている",
+        ),
     ],
 )
 def test_step_gap_and_out_of_range_are_inconsistent(
     tmp_path: Path,
     steps: tuple[int, ...],
     subjects: tuple[str, ...],
+    reason: str,
 ):
     """欠番と表範囲外の k は不整合にする。"""
     root, worktree, _ = setup_committed_plan(tmp_path, steps=steps)
     for number, subject in enumerate(subjects, start=1):
         commit_implementation(worktree, number, subject)
 
-    output = run_status(root).stdout
-    assert "実装状況: 不整合(要確認)" in feature_block(output, "foo")
+    assert_inconsistent_reason(root, "foo", reason)
 
 
 def test_planning_commits_are_excluded_then_first_step_is_adopted(tmp_path: Path):
