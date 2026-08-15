@@ -34,6 +34,18 @@ def filepath(path: str, cwd: str = REPO) -> dict:
     return {"cwd": cwd, "tool_input": {"file_path": path}}
 
 
+def load_git_guard(monkeypatch: pytest.MonkeyPatch):
+    """テスト用に git_guard.py をモジュールとして読み込む。"""
+    script = HOOKS / "git_guard.py"
+    monkeypatch.syspath_prepend(str(HOOKS))
+    spec = importlib.util.spec_from_file_location("git_guard_under_test", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
+    spec.loader.exec_module(module)
+    return module
+
+
 # ---- git_guard -------------------------------------------------------------
 
 @pytest.mark.parametrize("command", [
@@ -48,11 +60,130 @@ def test_git_guard_blocks_protected_push(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
-def test_git_guard_allows_feature_push_and_commit(tmp_path):
-    # テスト実行元の HEAD に依存せず、feature ブランチの一時リポジトリで判定する
+@pytest.mark.parametrize("command", [
+    "git push origin --delete feature/x",
+    "git push origin HEAD:feature/x",
+    "git push origin feature/x:feature/x",
+    "git push -u origin fix/x",
+    "git push origin feature/a",
+    "git push --set-upstream origin feature/x",
+    "git push origin feature/a feature/b",
+])
+def test_git_guard_allows_explicit_nonprotected_push_on_protected_branch(tmp_path, command):
+    # H-2: カレントが develop でも、宛先を非保護と証明できる push は許可する。
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "git log --grep merge",
+    "git help push",
+])
+def test_git_guard_allows_git_verbs_in_argument_position(tmp_path, command):
+    # H-11: merge / push は実サブコマンドではなく引数であり、develop 上でも遮断しない。
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    'echo "git push; ls"',
+    "git log --oneline -5",
+])
+def test_git_guard_allows_quoted_text_and_read_only_command(command):
+    assert run_hook("git_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize(("command", "message"), [
+    ("git commit -m x", "保護ブランチへの直接操作"),
+    ("git push origin HEAD:develop", "保護ブランチ(main/develop)宛て"),
+    ("git push --force origin feature/x", "force push"),
+    ("git push", "宛先を静的に解決できません"),
+    ("git push origin", "宛先を静的に解決できません"),
+    ("git push origin HEAD", "宛先を静的に解決できません"),
+    ("git push --all origin", "宛先を静的に解決できません"),
+    ("git push --mirror origin", "宛先を静的に解決できません"),
+    ("git -c foo=bar commit -m x", "保護ブランチへの直接操作"),
+])
+def test_git_guard_blocks_step3_protected_or_unresolved_operation(tmp_path, command, message):
+    # 計画書 7 節の負例 9 件。push の宛先未解決はカレントに関係なく遮断する。
+    repo = make_repo(tmp_path, "develop")
+    result = run_hook("git_guard.py", bash(command, cwd=str(repo)))
+    assert result.returncode == 2
+    assert message in result.stderr.decode("utf-8")
+
+
+def test_git_guard_allows_feature_branch_commit(tmp_path):
     repo = make_repo(tmp_path, "feature/x")
-    assert run_hook("git_guard.py", bash("git push -u origin feature/x", cwd=str(repo))).returncode == 0
     assert run_hook("git_guard.py", bash("git commit -m test", cwd=str(repo))).returncode == 0
+
+
+def test_git_guard_blocks_branch_resolution_failure_after_successful_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """worktree プローブ成功後のブランチ解決失敗は理由付きで遮断する。"""
+    repo = make_repo(tmp_path, "feature/x")
+    module = load_git_guard(monkeypatch)
+
+    def fail_branch_resolution(args, **kwargs):
+        if args == ["git", "rev-parse", "--is-inside-work-tree"]:
+            return subprocess.CompletedProcess(args, 0, stdout="true\n", stderr="")
+        assert args == ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="解決失敗")
+
+    monkeypatch.setattr(module.subprocess, "run", fail_branch_resolution)
+
+    result = module.check_git_invocation(
+        module.GitInvocation("commit", str(repo), []), cd_seen=False,
+    )
+
+    assert result == 2
+    assert "現在のブランチを解決できませんでした" in capsys.readouterr().err
+
+
+def test_git_guard_allows_existing_non_repository_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Git 管理外を積極確認できる既存 cwd では commit 判定を許可する。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    # 親の共有 tmp が持つ `.git` を拾わないよう、Git 自身の探索境界を fixture に固定する。
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(outside)))
+
+    assert result.returncode == 0
+
+
+def test_git_guard_blocks_broken_git_metadata(tmp_path: Path):
+    """壊れた `.git` は非リポジトリと推定せず、安全側で遮断する。"""
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / ".git").mkdir()
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(broken)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_nonexistent_cwd(tmp_path: Path):
+    """存在しない cwd はブランチ判定不能として安全側で遮断する。"""
+    missing = tmp_path / "missing"
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(missing)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_push_when_any_destination_is_protected(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    result = run_hook("git_guard.py", bash("git push origin feature/a develop", cwd=str(repo)))
+    assert result.returncode == 2
+    assert "保護ブランチ(main/develop)宛て" in result.stderr.decode("utf-8")
 
 
 def test_settings_json_hook_wiring():
@@ -79,6 +210,82 @@ def test_git_guard_blocks_with_japanese_in_command():
     # 日本語混在でも stdin の UTF-8 読みが機能し fail-open しないこと(Windows エンコーディング回帰)
     cmd = 'git commit -m "修正: 状況計算" && git push origin HEAD:develop  # 日本語コメント'
     assert run_hook("git_guard.py", bash(cmd)).returncode == 2
+
+
+def test_git_guard_parses_global_option_before_merge(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash("git --no-pager merge x", cwd=str(repo))).returncode == 2
+
+
+@pytest.mark.parametrize("global_option", [
+    "-c foo=bar",
+    "-C .",
+    "--git-dir /tmp",
+    "--work-tree /tmp",
+    "--namespace team-a",
+    "--exec-path /tmp",
+    "--git-dir=/tmp",
+    "--work-tree=/tmp",
+    "--namespace=team-a",
+    "--exec-path=/tmp",
+])
+def test_git_guard_skips_value_taking_global_options(tmp_path, global_option):
+    # 値を取るグローバルオプションの値をサブコマンドと誤認しない。
+    repo = make_repo(tmp_path, "develop")
+    command = f"git {global_option} log --grep merge"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("global_option", [
+    "--no-pager",
+    "--paginate",
+    "--bare",
+    "--literal-pathspecs",
+])
+def test_git_guard_skips_flag_global_options(tmp_path, global_option):
+    repo = make_repo(tmp_path, "develop")
+    command = f"git {global_option} log --grep merge"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "git commit -m x",
+    "git merge x",
+    "git rebase x",
+])
+def test_git_guard_keeps_current_branch_check_for_mutating_verbs(tmp_path, command):
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 2
+
+
+def test_git_guard_uses_last_dash_c_and_relative_path(tmp_path):
+    # 2 個目の相対 -C は 1 個目の cwd を基準に解決され、develop を見つけなければならない。
+    repo = make_repo(tmp_path, "develop")
+    command = f'git -C "{tmp_path}" -C "{repo.name}" commit -m x'
+    assert run_hook("git_guard.py", bash(command, cwd=REPO)).returncode == 2
+
+
+def test_git_guard_checks_shell_c_body_on_protected_branch(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    command = "bash -lc 'echo ok; git commit -m x'"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "git --unknown-global-option commit -m x",
+    "git -c invalid commit -m x",
+    "git -c alias.p=push p origin HEAD:develop",
+])
+def test_git_guard_blocks_unparseable_git_invocation(command):
+    # 未知のグローバルオプションと alias 経由は解析不能として fail-closed にする。
+    result = run_hook("git_guard.py", bash(command))
+    assert result.returncode == 2
+    assert "解析できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_unparseable_top_level_command():
+    command = 'git commit -m ' + chr(34) + "unclosed"
+    assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
 # ---- protect_paths ---------------------------------------------------------
@@ -128,6 +335,29 @@ def test_codex_guard_blocks(command):
 ])
 def test_codex_guard_allows(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" .claude/hooks/codex_guard.py',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_codex_guard_allows_quoted_separators(command):
+    assert run_hook("codex_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("codex exec 'x'", 2),
+    ("bash -lc 'echo ok; codex exec x'", 2),
+    ("python3 .claude/scripts/codex_run.py review normal -", 0),
+])
+def test_codex_guard_uses_segments_for_shell_c(command, expected):
+    assert run_hook("codex_guard.py", bash(command)).returncode == expected
+
+
+def test_codex_guard_blocks_unparseable_top_level_command():
+    command = 'codex exec ' + chr(34) + 'unclosed'
+    assert run_hook("codex_guard.py", bash(command)).returncode == 2
 
 
 @pytest.mark.parametrize("command", [
@@ -217,6 +447,49 @@ def test_shell_tokens_strips_quotes_and_comments():
     assert gc.shell_tokens("git push origin 'HEAD:develop'") == ["git", "push", "origin", "HEAD:develop"]
     assert gc.shell_tokens("cat x # codex exec") == ["cat", "x"]
     assert gc.shell_tokens("echo 'unbalanced") is None  # 解析不能 → None(安全側判定は各ガード)
+
+
+@pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" file',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_shell_segments_does_not_split_quoted_separators(command):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == [command]
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("a && b", ["a ", " b"]),
+    ("a | b", ["a ", " b"]),
+    ("a; b", ["a", " b"]),
+    ("a\nb", ["a", "b"]),
+    ("a & b", ["a ", " b"]),
+])
+def test_shell_segments_splits_unquoted_separators(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("grep -n a#b file; codex exec x", ["grep -n a#b file", " codex exec x"]),
+    ("curl http://x#frag; codex exec x", ["curl http://x#frag", " codex exec x"]),
+    ("git log a#b; git commit -m x", ["git log a#b", " git commit -m x"]),
+])
+def test_shell_segments_splits_after_embedded_hash(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+def test_shell_segments_treats_word_initial_hash_as_comment():
+    gc = _load_guard_common()
+    command = "echo hi # note; codex exec x"
+    assert gc.shell_segments(command) == [command]
+
+
+def test_shell_segments_returns_none_for_unparseable_command():
+    gc = _load_guard_common()
+    assert gc.shell_segments("echo 'unbalanced") is None
 
 
 def test_guards_treat_wrapper_stdin_as_data():
