@@ -17,8 +17,9 @@ worklog の締めと計画書の status 更新は **/pr が PR 内で実施済�
 1. メインツリーで `git switch develop` → `git pull --ff-only`(最新化。fast-forward 不可なら**中断**して状況を報告 — 保護ブランチにマージコミットを作らない)
 2. worktree に未コミット変更が残っていないか確認(残っていれば内容を見せてユーザーに確認してから)
 3. `git worktree remove ../pitchlog-worktrees/<worktree名>` → `git worktree prune`
-4. Notion ステータスを `完了` へ・完了日 = マージ日を記録(綴りの正: `.claude/notion-map.json` — 推測しない)。残件があれば新しい Notion タスクとして起票を提案する
-5. **マージ後に気づいたハーネス運用上の知見は follow-up タスクとして Notion に起票する**(または既存タスクへリンクする)。**本スキルから評価台帳(`docs/development/harness-evaluation.md`)を編集しない** — 本スキルは develop 上で走るため、正本を直接編集すると絶対規則 1(main/develop へ直接コミットしない)に反する。**台帳への追記は次の `/task-start` で別 feature/PR として行う**(追記の主経路は /pr のクローズ処理 — `pr/SKILL.md` 手順 1)
+4. **【Phase 4 の 4-6 を閉じる場合のみ】必須の後続処理 `P4-後` を先に起票する**(設計書 13 章 — v1.6)。**対象の識別**: 計画書 frontmatter の `feature` が Phase 4 の受入判定を担う feature(= `gate_kind: phase4` を実行した PR)であること。**手順**: ① `P4-後` を Notion へ起票(タスク名に `P4-後` を含める)→ ② **4-6 のタスクと相互にリンク**(URL プロパティまたはコメント)→ ③ 起票 URL を 4-6 のタスクへコメントで記録。**この 3 つが完了するまで手順 5 へ進まない**(中断して人間に報告する)。**`P4-後` のマージ確認をもって「Phase 4 展開」が閉じる** — **`P4-後` のタスクが終端**であり、4-6 のタスクを閉じても Phase 4 展開は閉じない
+5. Notion ステータスを `完了` へ・完了日 = マージ日を記録(綴りの正: `.claude/notion-map.json` — 推測しない)。残件があれば新しい Notion タスクとして起票を提案する
+6. **マージ後に気づいたハーネス運用上の知見は follow-up タスクとして Notion に起票する**(または既存タスクへリンクする)。**本スキルから評価台帳(`docs/development/harness-evaluation.md`)を編集しない** — 本スキルは develop 上で走るため、正本を直接編集すると絶対規則 1(main/develop へ直接コミットしない)に反する。**台帳への追記は次の `/task-start` で別 feature/PR として行う**(追記の主経路は /pr のクローズ処理 — `pr/SKILL.md` 手順 1)
 
 ## 報告
 

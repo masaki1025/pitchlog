@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
 計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 6          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 7          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -76,14 +76,16 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 | `.github/workflows/ci.yml` | frontend ジョブ + **Node / Corepack / pnpm のセットアップ**を追加。**`guard_paths` 該当 → core-guard 発火・逐行確認必須** |
 | `.gitignore` | `node_modules` 等 |
 | `docs/features/frontend-skeleton/porting-rules.md` | **新規**。React → Vue の移植規則 |
-| `.claude/skills/release/SKILL.md` | **手順 0 の置換主体を `P4-後` へ同期**(確定ゲート 5 周目 P1 — 設計書 10.1 と同じ変更。`guard_paths` には**該当しない**) |
+| `.claude/skills/release/SKILL.md` | **手順 0 の置換主体を `P4-後` へ同期** + **報告文の使い分け**(確定ゲート 5・7 周目)。**本タスクで `guard_paths` へ追加した**(同 6 周目 P1) |
+| `.claude/core-areas.json` | **`guard_paths` へ `release/SKILL.md` を追加**(確定ゲート 6 周目 P1)。**同ファイル自身も `guard_paths`** |
+| `.claude/skills/task-done/SKILL.md` | **`P4-後` の起票・相互リンクの手順を追加**(確定ゲート 7 周目 P1 — 設計書に書くだけでは実行経路が無い) |
 | `docs/worklog/2026-08-16-frontend-skeleton.md` | 本タスクの記録 |
 
 ## 4. 実装方針
 
 ### 重さ分類 = 通常(根拠)
 
-`.claude/core-areas.json` の `areas[].paths` に該当 **0 件**(`syncStore` の移植をスコープ外にしたため)。ただし **`guard_paths` の `.github/workflows/ci.yml` に該当**するため、**core-guard が発火し逐行確認チェックが必須**になる。
+`.claude/core-areas.json` の `areas[].paths` に該当 **0 件**(`syncStore` の移植をスコープ外にしたため)。ただし **`guard_paths` に 3 件該当**するため、**core-guard が発火し逐行確認チェックが必須**になる — **`.github/workflows/ci.yml`**(ステップ 6)/ **`.claude/core-areas.json`**(ステップ 1 で `guard_paths` を変更)/ **`.claude/skills/release/SKILL.md`**(同・追加された結果として対象になる)。**逐行確認は検出パスの和集合に対して PR 全体で 1 個**のチェックで足りる(`pr/SKILL.md` の実装 — 確定ゲート 7 周目の確認結果)。
 
 ### A. 「完全に同じ」を成立させる条件
 
