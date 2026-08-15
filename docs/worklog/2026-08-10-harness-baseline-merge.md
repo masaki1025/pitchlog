@@ -37,3 +37,5 @@ branch: feature/harness-baseline-merge
 
 - PR(develop 向け)の CI 4 ジョブ全グリーン → 人間マージ
 - develop マージ後: v1.2 統合マージコミットの**第一親 = develop 側アンカー**を確認 → その SHA を head、main 側アンカーを base とする `develop → main` ベースライン PR(本文に対象 SHA・両アンカーを記録)→ CI 確認 → **マージ直前に develop/main・PR の head/base の不変を再照合**(逸脱していれば未使用失効処理: PR クローズ・Notion「取り下げ」維持・実測 SHA 記録・worktree 除去 + ブランチ安全削除)→ 人間マージ → main 側マージコミット SHA(両親 = main 側アンカー・対象 SHA を検証)を PR 本文・Notion に記録 → workflow_dispatch 起動確認 → /task-done
+
+> **(追記 2026-08-16)** 上記の残作業は 2026-08-10 に完了済み — ベースラインマージは PR #4 として実行され、main 側マージコミット `a4dc517` の両親 = main 側アンカー `f06e2f2` + 対象 SHA `cbe1371` を git で実機検証した(ハーネス設計レビュー調査の裁定 — `docs/features/harness-design-review/research.md` 追補 P2-18)。証跡の正は PR 本文 + Notion(設計書 6.4)であり、本追記は worklog 側の締め漏れの補完。
