@@ -109,3 +109,55 @@ React → Vue の構文変換を含む `.vue` ファイルは逐語ファイル�
   `public/icons/baseball-app.svg` を資産ごと逐語移植し、その後にのみ `index.html` の 2 link を復元する。
 
 このステップでは link も資産も追加しない。
+
+## 8. ステップ 5 の実測でわかったこと
+
+### 逐語移植の依存は計画の列挙より広い
+
+計画書はステップ 5 の前提を「`cx` が先に移植されている」とだけ書いていたが、
+`StrikeZone.tsx` の実際の依存は次のとおりだった。**移植対象を決めるときは、必ず
+旧ファイルの `import` を実物で確認すること。**
+
+| 依存 | 旧の場所 | 逐語性 |
+| --- | --- | --- |
+| `cx` | `frontend/src/lib/format.ts` | 完全一致 |
+| `COURSE_STRIKE_ZONE`・`DISPLAY_COORD_SIZE` | `frontend/src/lib/displayGeometry.ts` | **import パス 1 行のみ変更** |
+| `moveSpatialPoint` | `frontend/src/lib/spatialInput.ts` | 完全一致 |
+| `courseInputViewLabel` ほか | `frontend/src/lib/courseInputView.ts` | 完全一致 |
+| 座標定義 JSON | **`shared/display_geometry_263_v1.json`**（リポジトリ直下） | バイト等価 |
+| 打者シルエット 2 枚 | `frontend/src/assets/*.png` | バイト等価 |
+
+### `display_geometry_263_v1.json` は `contracts/` へ移すこと（NFR-018）
+
+旧では**リポジトリ直下の `shared/` にあり、frontend と backend が共有する意図の唯一のファイル**
+だった。pitchlog での置き場は `contracts/`（ゴールデンベクタ・スキーマ）だが、**その作成は
+Phase 4-3 の担当**で本タスクの範囲外のため、暫定で `frontend/src/lib/` に置いている。
+
+**backend が同じ座標定義を必要とした時点で複製になり、NFR-018（ドメイン計算は単一実装 —
+コピー実装を作らない）に違反する。** Phase 4-3 で `contracts/` を作る際に移すこと。
+
+### Prettier 対象外にしたファイル（7 節の規則の適用結果）
+
+`src/index.css` に加えて、逐語移植した次を `.prettierignore` へ加えた。
+
+- `src/lib/format.ts` / `src/lib/displayGeometry.ts` / `src/lib/spatialInput.ts` /
+  `src/lib/courseInputView.ts` / `src/lib/display_geometry_263_v1.json`
+
+**比較コマンド**（7 節が「対象外にする前に記録する」と定めているもの）:
+
+```bash
+gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<name>?ref=dd03160044aa5932d3b5a025870c9a5a56d979ef" \
+  --jq '.content' | base64 -d | diff -u - frontend/src/lib/<name>
+```
+
+JSON は旧 `shared/display_geometry_263_v1.json`、資産は `sha256sum` で比較する。
+
+### `.vue` の逐語性は何を見て判定するか
+
+`.tsx` → `.vue` は構文変換が入るため機械的な diff が取れない。**次の 4 点で判定する。**
+
+1. **SVG の値** — `viewBox`・ゾーン矩形の座標・分割構造
+2. **Tailwind クラス文字列** — 内容と並び順（静的クラスは集合として過不足なく一致させる）
+3. **props / emits** — 名前・型・必須性が 1:1（`className` は prop を新設せず fallthrough）
+4. **座標変換の結果** — テストで検査する。**jsdom はレイアウト計算をしないので
+   `getBoundingClientRect()` は固定スタブが必須**（無いと 0 が返り検査が無意味になる）
