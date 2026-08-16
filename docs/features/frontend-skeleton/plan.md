@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
 計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 7          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 8          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -36,7 +36,7 @@ created: 2026-08-16
 
 ### やること
 
-**A. 設計書の改訂(確定ゲート対象)** — **13 章 + 10.1 + 8.4**(確定ゲート 5・6 周目で範囲拡張)+ **`.claude/skills/release/SKILL.md` と `.claude/core-areas.json` の同期**
+**A. 設計書の改訂(確定ゲート対象)** — **13 章 + 10.1 + 8.4**(確定ゲート 5・6 周目で範囲拡張)+ **`.claude/skills/release/SKILL.md`・`.claude/skills/task-done/SKILL.md`・`.claude/core-areas.json` の同期**(同 7・8 周目)
 
 Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**書く。
 
@@ -85,7 +85,7 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 
 ### 重さ分類 = 通常(根拠)
 
-`.claude/core-areas.json` の `areas[].paths` に該当 **0 件**(`syncStore` の移植をスコープ外にしたため)。ただし **`guard_paths` に 3 件該当**するため、**core-guard が発火し逐行確認チェックが必須**になる — **`.github/workflows/ci.yml`**(ステップ 6)/ **`.claude/core-areas.json`**(ステップ 1 で `guard_paths` を変更)/ **`.claude/skills/release/SKILL.md`**(同・追加された結果として対象になる)。**逐行確認は検出パスの和集合に対して PR 全体で 1 個**のチェックで足りる(`pr/SKILL.md` の実装 — 確定ゲート 7 周目の確認結果)。
+`.claude/core-areas.json` の `areas[].paths` に該当 **0 件**(`syncStore` の移植をスコープ外にしたため)。ただし **`guard_paths` に 4 件該当**するため、**core-guard が発火し逐行確認チェックが必須**になる — **`.github/workflows/ci.yml`**(ステップ 6)/ **`.claude/core-areas.json`**(ステップ 1 で `guard_paths` を変更)/ **`.claude/skills/release/SKILL.md`**・**`.claude/skills/task-done/SKILL.md`**(同・追加された結果として対象になる)。**逐行確認は検出パスの和集合に対して PR 全体で 1 個**のチェックで足りる(`pr/SKILL.md` の実装 — 確定ゲート 7 周目の確認結果)。
 
 ### A. 「完全に同じ」を成立させる条件
 
@@ -158,7 +158,7 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 
 | # | 内容 | 合格条件 |
 | --- | --- | --- |
-| 1 | **設計書の改訂**: `status` を in-review へ + 変更履歴に **v1.6** 行 + 索引の同時更新。**13 章**へ Phase 4 の分割(PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当)。**10.1・8.4** の「手順 0 の中断条件」を**状態ベース**へ・置換主体を **`P4-後`** へ。**`release/SKILL.md` を同期**し **`core-areas.json` の `guard_paths` へ追加** | `check_docs_status.py` exit 0(**版と最終更新を索引と同時に更新しないと落ちる**)/ 13 章に **PR 列・マージ条件・判定担当の 3 点**がある / **NFR-021 の合格項目は変えていない**(要件書 NFR-021 の測定方法が正)。**変えたのは運用プロトコル** — 中断条件の判定方法(時点 → 状態)・置換の時点と資格・完了の成立時点 |
+| 1 | **設計書の改訂**: `status` を in-review へ + 変更履歴に **v1.6** 行 + 索引の同時更新。**13 章**へ Phase 4 の分割(PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当)。**10.1・8.4** の「手順 0 の中断条件」を**状態ベース**へ・置換主体を **`P4-後`** へ。**`release/SKILL.md` と `task-done/SKILL.md` を同期**し、**`core-areas.json` の `guard_paths` へ両者を追加** | `check_docs_status.py` exit 0(**版と最終更新を索引と同時に更新しないと落ちる**)/ 13 章に **PR 列・マージ条件・判定担当の 3 点**がある / **NFR-021 の合格項目は変えていない**(要件書 NFR-021 の測定方法が正)。**変えたのは運用プロトコル** — 中断条件の判定方法(時点 → 状態)・置換の時点と資格・完了の成立時点 |
 | — | **← ここで `/finalize-doc`(確定ゲート・敵対レビュー + 人間承認)→ 設計書 v1.6 approved** | 確定ゲート通過 |
 | 2 | **`frontend/` の骨格**: `mise.toml`(Node 固定)/ corepack + pnpm(`packageManager`)/ Vite + Vue 3 + TS / **Tailwind v4**。`index.css`・`vite.config.ts` を移植(`#root`→`#app`・plugin 差し替え)。`index.html`・entry・`tsconfig.json` は Vue scaffold 側へ置換 | `pnpm install --frozen-lockfile` が通る / **`pnpm-lock.yaml` がコミットされている** / `pnpm dev` で開発サーバが起動し**ブラウザに表示される** / `pnpm build` が通る / **C 節の「今すぐ入れるもの」がすべて明示 pin されている** |
 | 3 | **品質ツール**: ESLint(flat config)+ eslint-plugin-vue + typescript-eslint / Prettier / vue-tsc / Vitest + Vue Test Utils + **jsdom** | **`/check` の frontend 層 4 種がすべて通る** / **`pnpm test` は `vitest run`**(watch にしない — `/check`・CI と一致させる)/ **`pnpm build` に `vue-tsc` を含めるかを決めて固定**(1 周目 P2-2)/ Vitest のテストが 1 件以上あり green |
