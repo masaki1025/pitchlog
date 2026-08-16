@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3bd93b75e6878175b456cc21de68c3e3
 branch: feature/frontend-skeleton
 created: 2026-08-16
 計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 8          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 9          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -75,9 +75,10 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 | `mise.toml` | **新規**。Node 版の固定 |
 | `.github/workflows/ci.yml` | frontend ジョブ + **Node / Corepack / pnpm のセットアップ**を追加。**`guard_paths` 該当 → core-guard 発火・逐行確認必須** |
 | `.gitignore` | `node_modules` 等 |
+| `docs/development/templates/plan-template.md` | **frontmatter へ任意キー `Phase4スロット` を追加**(確定ゲート 9 周目 P1 — `/task-done` が `P4-後` の起票対象を判定するのに使う) |
 | `docs/features/frontend-skeleton/porting-rules.md` | **新規**。React → Vue の移植規則 |
 | `.claude/skills/release/SKILL.md` | **手順 0 の置換主体を `P4-後` へ同期** + **報告文の使い分け**(確定ゲート 5・7 周目)。**本タスクで `guard_paths` へ追加した**(同 6 周目 P1) |
-| `.claude/core-areas.json` | **`guard_paths` へ `release/SKILL.md` を追加**(確定ゲート 6 周目 P1)。**同ファイル自身も `guard_paths`** |
+| `.claude/core-areas.json` | **`guard_paths` へ `release/SKILL.md`(確定ゲート 6 周目 P1)と `task-done/SKILL.md`(同 8 周目 P1)を追加**。**同ファイル自身も `guard_paths`** |
 | `.claude/skills/task-done/SKILL.md` | **`P4-後` の起票・相互リンクの手順を追加**(確定ゲート 7 周目 P1 — 設計書に書くだけでは実行経路が無い) |
 | `docs/worklog/2026-08-16-frontend-skeleton.md` | 本タスクの記録 |
 
