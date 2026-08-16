@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3be93b75e68781aa9448fe5bba533b6c
 branch: feature/core-area-boundaries
 created: 2026-08-16
 計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 2          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -34,7 +34,7 @@ created: 2026-08-16
   - 残る 2 領域も同じ表で定義する(名称のみ問題を全域で解消): **同期プロトコル** = 断中記録・墓標/改訂・再送・サーバー適用の原子性・複数タブ単一書き手(4.0-4・FR-012・NFR-007・NFR-019(d) の対象)/ **記録権** = 記録権の付与・世代更新とフェンシング・通常/緊急引き継ぎ・退避経路(**FR-013**・NFR-019(c) の対象 — 当初の FR-012 は誤参照で確定ゲート 1 周目に是正)— いずれも既存要件の参照で定義し内容を複製しない
 - **`.claude/core-areas.json` の各領域へ `description`(1 行・6.3 参照)を追加**(paths は空のまま — 充填は Phase 4〔台帳 H-12〕)
 - **正本表現の書き分けを 3 ファイルで同期**: 「定義の正は `.claude/core-areas.json`」系の表現を「**意味範囲の正 = 設計書 6.3 / paths(機械可読)の正 = `.claude/core-areas.json`**」へ置換 — 対象は 6.3 内の既存表現(ステップ 2)・**CLAUDE.md**・**AGENTS.md**(ステップ 3。旧表現のままだと 6.3 正本化と矛盾するため)
-- **台帳更新**: H-54 を対応済みへ(対応案を現行化)+ **H-12 の対応案を全体現行化**(部分追記ではなく書き直し — 既存の「包含判定を paths 充填 PR の計画書で定義する」記述と矛盾させない): 「**境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着** — paths 充填 PR は 6.3 定義への当てはめを行い、**残余は充填の承認手続**のみ」の趣旨へ(文言は検証式の完全固定文字列と一致させる)+ 変更履歴表 1 行(版は上げない)
+- **台帳更新**: H-54 を**対応中**へ(対応案を現行化 — approved 化と同一コミット〔ステップ 5〕で対応済みへ遷移)+ **H-58 を新設**(反映周コミットによる現在地導出の縮退 — 確定ゲート 2 周目で検出・コード修正は別タスク)+ **H-12 の対応案を全体現行化**(部分追記ではなく書き直し — 既存の「包含判定を paths 充填 PR の計画書で定義する」記述と矛盾させない): 「**境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着** — paths 充填 PR は 6.3 定義への当てはめを行い、**残余は充填の承認手続**のみ」の趣旨へ(文言は検証式の完全固定文字列と一致させる)+ 変更履歴表 1 行(版は上げない)
 - **確定ゲート(/finalize-doc)**: v1.6 は版繰り上げのため敵対レビュー → PO 承認を経て approved 化。docs/README.md 索引の現行化(in-review 表示 → approved 表示)
 
 ### やらないこと
@@ -46,14 +46,14 @@ created: 2026-08-16
 
 ### 変更ファイル一覧(正本体系外 — 3 節の突合対象外)
 
-`.claude/core-areas.json`(**guard_paths 該当** — PR 本文に人間逐行確認の必須チェックが要る)/ `CLAUDE.md` / `AGENTS.md` / `docs/features/core-area-boundaries/plan.md` / `docs/worklog/2026-08-16-core-area-boundaries.md`。
+`.claude/core-areas.json`(**guard_paths 該当** — PR 本文に人間逐行確認の必須チェックが要る)/ `CLAUDE.md` / `AGENTS.md` / `.claude/agents/spec-checker.md`(版焼き込みの撤去 — 確定ゲート 2 周目)/ `README.md`(現況記述の v2.0 追随 — 同)/ `docs/features/core-area-boundaries/plan.md` / `docs/worklog/2026-08-16-core-area-boundaries.md`。
 
 ## 3. 影響する正本
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **v1.5 → v1.6**: 6.3 に 5 領域の意味範囲(境界定義)を新設 + 変更履歴表に v1.6 行(起案 in-review 行 → 確定 approved 行の 2 行方式) | **finalize-doc**(版繰り上げを伴う構造的変更 — 7.6-3 後段。強化レビューの適用範囲という開発フローの構造を定めるため) |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | H-54 を対応済みへ・H-12 対応案へ記入基準の部分決着を追記 + 変更履歴表 1 行(**版は上げない**) | **PRレビュー**(既存項目の更新のみ = 7.6-3 前段) |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | H-54 を**対応中**へ(ステップ 4)→ **approved 化と同一コミットで対応済みへ遷移**(ステップ 5)・H-12 対応案の全体現行化・**H-58 の新設**(反映周コミットによる現在地導出の縮退 — 確定ゲート 2 周目で検出)+ 変更履歴表(**版は上げない**) | **PRレビュー**(項目の追記と既存項目の更新のみ = 7.6-3 前段) |
 | [docs/README.md(索引)](../../README.md) | 設計書行の版 1.6・状態・最終更新の現行化(ステップ 1 で in-review 表示 → ステップ 5 で approved 表示)+ 台帳行の最終更新(ステップ 4 の変更履歴新行日付と一致させる — 同日で不変なら差分なし) | **PRレビュー**(派生表示の現行化) |
 | 要件定義書・改善台帳・決定記録・ADR-001/002・github-setup.md・onboarding.md | **反映なし**(論点 1・4 のクローズ裁定により要件書も触らない) | — |
 
@@ -75,8 +75,8 @@ created: 2026-08-16
 | 1 | 設計書を in-review へ + v1.6 変更履歴行(器)+ 索引の現行化(版 1.6・in-review 表示) | 設計書 frontmatter が `status: in-review` / 変更履歴に v1.6 起案行 / `uv run python scripts/check_docs_status.py` green(索引↔frontmatter↔変更履歴の整合) |
 | 2 | 6.3 に 5 領域の意味範囲(境界定義)を起案 — PO 判断 4 点 + 同期プロトコル・記録権(既存要件参照)。「含む/含めない」の両側を明記 + v1.6 行を拡張 | 6.3 の定義が worklog 決定節の PO 判断 4 点と一致(突合)/ 5 領域すべてに「含む」欄があり、状況計算に成績集計前処理の**条件付き除外**(付録A 契約の実装完了までは含む・入出力境界で分離 — H-55 ADR が発効判断)が明記 / 既存の縮退注記・逐行確認規定を壊さない(**正本表現の書き分け〔「定義の正は core-areas.json」→ 意味範囲 = 6.3 / paths = core-areas.json〕による既存行の置換は許容**し、それ以外の 6.3 既存行の削除がないことをコミット前に `git diff HEAD -- docs/development/dev-harness-design-2026-08-07.md` で確認。PR 前の集約確認は `origin/develop...HEAD`)/ check_docs_status.py green |
 | 3 | `.claude/core-areas.json` へ各領域の `description`(6.3 参照の 1 行)を追加 + **CLAUDE.md・AGENTS.md の正本表現を書き分けへ置換**(意味範囲 = 6.3 / paths = core-areas.json) | **Python 検証**: 実ファイルを JSON として読み 5 領域すべてに**非空・1 行**の `description` があること + `scripts/core_guard.py` の `load_core_areas()` が成功することを確認 / 6.3 と矛盾しない(目視突合)/ `paths` は全域 `[]` のまま(コミット前に `git diff HEAD -- .claude/core-areas.json` で確認)/ `uv run pytest tests/` green(回帰)/ `rg -F '意味範囲の正は設計書 6.3' CLAUDE.md AGENTS.md` が**両ファイル**でヒット |
-| 4 | 台帳更新: H-54 を対応済みへ(対応案の現行化)+ **H-12 対応案の全体現行化**(2 節の趣旨どおり書き直し)+ 台帳変更履歴表 1 行 + 索引の台帳行(最終更新)を新行日付へ現行化(同日なら差分なし) | **H-12 節のみを対象に完全固定文字列で検証**: `sed -n '/^### H-12/,/^### H-13/p' docs/development/harness-evaluation.md` の出力に `rg -F '境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着'` と `rg -F '残余は充填の承認手続'` が**両方**ヒットし、旧文言「paths 充填 PR の計画書で定義する」が矛盾なく現行化されている(目視)/ H-54 の `状態` 行が「対応済み(実施日・本タスク)」形式(H-54 節を同様に sed で切り出して `rg -F '対応済み'`)/ 両項目の分類・優先度は不変(コミット前に `git diff HEAD -- docs/development/harness-evaluation.md` で確認)/ check_docs_status.py green(索引↔変更履歴の日付突合を含む) |
-| 5 | /finalize-doc 確定ゲート: 敵対レビュー(review adversarial — 指摘反映は `反映<r>周目` コミット・ステップ記法なし)→ 収束 → PO 承認 → 設計書 approved 化 + 索引 approved 表示 | 最終周が P0/P1/P2 ゼロで収束 / PO 承認の記録(承認者・日付)が変更履歴 v1.6 確定行に入る / 設計書 frontmatter `status: approved` / `scripts/feature_status.py` の反映周コミット突合が「一致」/ check_docs_status.py green |
+| 4 | 台帳更新: H-54 を対応済みへ(対応案の現行化)+ **H-12 対応案の全体現行化**(2 節の趣旨どおり書き直し)+ 台帳変更履歴表 1 行 + 索引の台帳行(最終更新)を新行日付へ現行化(同日なら差分なし) | **H-12 節のみを対象に完全固定文字列で検証**: `sed -n '/^### H-12/,/^### H-13/p' docs/development/harness-evaluation.md` の出力に `rg -F '境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着'` と `rg -F '残余は充填の承認手続'` が**両方**ヒットし、旧文言「paths 充填 PR の計画書で定義する」が矛盾なく現行化されている(目視)/ H-54 の `状態` 行が「**対応中**(実施日・本タスク — approved 化コミットで対応済みへ遷移)」形式(H-54 節を sed で切り出して `rg -F '対応中'` — 対応済みへの遷移はステップ 5。確定ゲート 1 周目の先行表記指摘で修正)/ 両項目の分類・優先度は不変(コミット前に `git diff HEAD -- docs/development/harness-evaluation.md` で確認)/ check_docs_status.py green(索引↔変更履歴の日付突合を含む) |
+| 5 | /finalize-doc 確定ゲート: 敵対レビュー(review adversarial — 指摘反映は `反映<r>周目` コミット・ステップ記法なし)→ 収束 → PO 承認 → 設計書 approved 化 + 索引 approved 表示 + **台帳 H-54 を対応済みへ遷移**(同一コミット・台帳変更履歴の該当行も現行化) | H-54 の `状態` が「対応済み」へ遷移している / 最終周が P0/P1/P2 ゼロで収束 / PO 承認の記録(承認者・日付)が変更履歴 v1.6 確定行に入る / 設計書 frontmatter `status: approved` / `scripts/feature_status.py` の反映周コミット突合が「一致」/ check_docs_status.py green |
 
 ## 5. DoD(受け入れ基準)
 
@@ -84,7 +84,7 @@ created: 2026-08-16
 
 - [ ] 設計書 6.3 の領域定義が PO 判断 4 点どおり明文化され(残る 2 領域も既存要件参照で定義。**判断②は確定ゲートで「付録A 契約実装完了までは含む」条件付き除外へ再構成 — 承認時に PO 確認**)、v1.6 として確定ゲート(/finalize-doc 敵対レビュー → PO 承認)を通過し approved 化される
 - [ ] `.claude/core-areas.json` の各領域 description が 6.3 と同期され、CLAUDE.md・AGENTS.md の正本表現が書き分けへ置換される(paths は空のまま)。guard_paths 該当のため PR 本文に人間逐行確認の必須チェック(`- [x]` 完全一致文言)が入り、CI の core-guard が pass する
-- [ ] 台帳 H-54 の状態・対応案が更新され、**H-12 の対応案が全体現行化**される(部分追記による矛盾を作らない)。論点 1・4 のクローズ裁定は worklog 決定節にあり、**計画承認時の起票コミットに含めて記録として保存**する
+- [ ] 台帳 H-54 が「対応中(ステップ 4)→ approved 化で対応済み(ステップ 5)」と遷移し、**H-12 の対応案が全体現行化**され、**H-58 が新設**される(部分追記による矛盾を作らない)。論点 1・4 のクローズ裁定は worklog 決定節にあり、**計画承認時の起票コミットに含めて記録として保存**する
 - [ ] docs/README.md 索引の現行化(v1.6)・`check_docs_status.py` green(全ステップ)・`/pr` で plan を in-review 化した後の `check_plan_docs_sync.py`(宣言突合)が成功する
 
 ## 6. テスト計画
