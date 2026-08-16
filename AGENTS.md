@@ -2,7 +2,7 @@
 
 野球の試合を1球単位(Pitch by Pitch)で記録・分析するスコアリングシステム。Baseball_Scoring(Tsukuba PSS)の製品版としての全面再構築。
 
-- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.9)
+- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(現行版 — 版の正は同書の変更履歴)
 - ドキュメント索引: `docs/README.md`
 - 開発プロセスの正本: `docs/development/dev-harness-design-2026-08-07.md`(ハーネス設計書)
 
@@ -39,7 +39,7 @@
 
 ## Code Review Rules
 
-- **コア領域**(同期プロトコル・状況計算・記録権・テナント分離・データ移行 — 定義の正は `.claude/core-areas.json`)の変更は最優先で深掘りする
+- **コア領域**(同期プロトコル・状況計算・記録権・テナント分離・データ移行 — 意味範囲の正は設計書 6.3 の境界定義表・paths の正は `.claude/core-areas.json`)の変更は最優先で深掘りする
 - NFR-018 違反: 同一ドメイン計算の重複実装を検出したら **P0**
 - NFR-023 違反: エスケープ欠落・生 HTML 挿入・PDF の外部リソース参照は **P0**
 - シークレットのハードコード・ログ出力は **P0**
