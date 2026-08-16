@@ -1,3 +1,4 @@
+import eslintConfigPrettier from 'eslint-config-prettier/flat'
 import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
@@ -34,4 +35,6 @@ export default [
       },
     },
   },
+  // Prettier と競合する整形規則だけを最後に無効化する。
+  eslintConfigPrettier,
 ]
