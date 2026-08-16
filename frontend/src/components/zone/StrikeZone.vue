@@ -230,7 +230,7 @@ const ariaLabel = computed(
         :x1="Z.left"
         :y1="Z.top + thirdH * i"
         :x2="Z.right"
-        :y2="Z.bottom"
+        :y2="Z.top + thirdH * i"
         :stroke-width="1"
       />
     </g>
