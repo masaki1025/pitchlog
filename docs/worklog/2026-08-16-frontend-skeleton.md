@@ -253,3 +253,24 @@ Chrome のコンソールが `<meta name="apple-mobile-web-app-capable">` を**�
   frontend/src/lib に置いており、backend が必要とした時点で複製になる)
 - **`manifest.webmanifest` と icon 資産**は移植済み。非推奨 meta の扱いは未決
 - 旧 `frontend/` が要件書 v2.0(全面踏襲)をどこまで満たしているか — **未調査**(継続)
+
+## 結果サマリ(PR 作成時)
+
+**実装した**: pitchlog で最初のプロダクトコード。`frontend/` の骨格(Vite + Vue 3 + TypeScript +
+Tailwind v4)/ 品質ツール 4 種 / 旧と 1:1 の受け皿 17 ディレクトリ / `StrikeZone` の逐語移植と
+その実証(比較 host・座標テスト)/ CI の frontend ジョブ。
+
+**正本へ反映した**:
+
+- **開発ハーネス設計書 v1.6 を approved 化**(13 章「Phase 4 の分割」の新設 + 10.1・8.4 の是正)。
+  敵対レビュー 18 周 → PO 承認(2026-08-16・山田正輝)
+- **ハーネス運用評価台帳**へ **H-54・H-55 を新設**、**H-51 の再発を 5 件へ**、**`## 候補` へ 1 件**
+- `docs/README.md`(索引)を現行化
+
+**正本体系外で更新した**: `.claude/skills/release/SKILL.md` / `.claude/skills/task-done/SKILL.md` /
+`.claude/core-areas.json`(`guard_paths` 7 件)/ `docs/development/templates/plan-template.md` は
+スコープ縮小で元へ戻した / `frontend/**` / `mise.toml` / `.gitignore` / `.github/workflows/ci.yml` /
+`docs/features/frontend-skeleton/porting-rules.md`。
+
+**台帳への追記: あり**(上記)。判断は PR 作成者が最終コミットの前に行った。
+

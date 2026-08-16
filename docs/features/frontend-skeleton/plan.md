@@ -1,6 +1,6 @@
 ---
 feature: frontend-skeleton
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-16・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -65,7 +65,8 @@ Phase 4 を複数 PR へ分割するため、13 章へ次を**正本として**�
 | --- | --- | --- |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **13 章の Phase 4 を複数 PR へ分割** + **10.1 の「手順 0 の置換は Phase 4 の PR でのみ」を `P4-後` へ同期**(確定ゲート 5 周目 P1 で範囲拡張)+ **8.4 の /release・/task-done 行の追随**(同 6・7 周目)。PR 列・各 PR のマージ条件・最終統合と NFR-021 判定の担当を明記。**版繰り上げ(1.5 → 1.6)** | **finalize-doc**(運用規約の構造変更 — 7.6-3 後段。**PO 裁定 2026-08-16**・計画レビュー 1 周目 P1-4) |
 | [docs/README.md(索引)](../../README.md) | 設計書を **v1.6** へ・最終更新を現行化 | PR レビュー |
-| [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) / [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **反映なし** — 本タスクは ADR-002 と要件書 7.1 の**決定どおりに実装する**ものであり、記述を変えない | — |
+| [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) / [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [改善台帳](../../improvements-from-baseball-scoring.md) / [決定記録](../../requirements/requirements-draft-pitchlog.md) / [オンボーディング](../../development/onboarding.md) / [GitHub リポジトリ設定手順](../../development/github-setup.md) | **反映なし** — 本タスクは ADR-002 と要件書 7.1 の**決定どおりに実装する**ものであり、記述を変えない | — |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-54・H-55 の新設**(① 逐語移植の検証で照合項目を列挙しないと未照合項目が通る ② ステップ完了後に見つかった欠陥のコミット記法が規約に無い)+ **H-51 の再発を 4 → 5 件へ** + **`## 候補` へ 1 件**(文書ゲートで `.claude/*.json` を触ると進捗導出が「不明」に落ちる)。**版は上げない**(7.6-3 前段 — `H-*` の追記) | PR レビュー |
 
 ### 正本体系外だが同一 PR で更新するもの
 
