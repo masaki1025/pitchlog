@@ -1,0 +1,6 @@
+dist/
+node_modules/
+pnpm-lock.yaml
+
+# 旧実装との逐語移植を維持する CSS
+src/index.css
