@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3be93b75e68781aa9448fe5bba533b6c
 branch: feature/core-area-boundaries
 created: 2026-08-16
 計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -75,7 +75,7 @@ created: 2026-08-16
 | 1 | 設計書を in-review へ + v1.6 変更履歴行(器)+ 索引の現行化(版 1.6・in-review 表示) | 設計書 frontmatter が `status: in-review` / 変更履歴に v1.6 起案行 / `uv run python scripts/check_docs_status.py` green(索引↔frontmatter↔変更履歴の整合) |
 | 2 | 6.3 に 5 領域の意味範囲(境界定義)を起案 — PO 判断 4 点 + 同期プロトコル・記録権(既存要件参照)。「含む/含めない」の両側を明記 + v1.6 行を拡張 | 6.3 の定義が worklog 決定節の PO 判断 4 点と一致(突合)/ 5 領域すべてに「含む」欄があり、状況計算に成績集計前処理の**条件付き除外**(付録A 契約の実装完了までは含む・入出力境界で分離 — H-55 ADR が発効判断)が明記 / 既存の縮退注記・逐行確認規定を壊さない(**正本表現の書き分け〔「定義の正は core-areas.json」→ 意味範囲 = 6.3 / paths = core-areas.json〕による既存行の置換は許容**し、それ以外の 6.3 既存行の削除がないことをコミット前に `git diff HEAD -- docs/development/dev-harness-design-2026-08-07.md` で確認。PR 前の集約確認は `origin/develop...HEAD`)/ check_docs_status.py green |
 | 3 | `.claude/core-areas.json` へ各領域の `description`(6.3 参照の 1 行)を追加 + **CLAUDE.md・AGENTS.md の正本表現を書き分けへ置換**(意味範囲 = 6.3 / paths = core-areas.json) | **Python 検証**: 実ファイルを JSON として読み 5 領域すべてに**非空・1 行**の `description` があること + `scripts/core_guard.py` の `load_core_areas()` が成功することを確認 / 6.3 と矛盾しない(目視突合)/ `paths` は全域 `[]` のまま(コミット前に `git diff HEAD -- .claude/core-areas.json` で確認)/ `uv run pytest tests/` green(回帰)/ `rg -F '意味範囲の正は設計書 6.3' CLAUDE.md AGENTS.md` が**両ファイル**でヒット |
-| 4 | 台帳更新: H-54 を対応済みへ(対応案の現行化)+ **H-12 対応案の全体現行化**(2 節の趣旨どおり書き直し)+ 台帳変更履歴表 1 行 + 索引の台帳行(最終更新)を新行日付へ現行化(同日なら差分なし) | **H-12 節のみを対象に完全固定文字列で検証**: `sed -n '/^### H-12/,/^### H-13/p' docs/development/harness-evaluation.md` の出力に `rg -F '境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着'` と `rg -F '残余は充填の承認手続'` が**両方**ヒットし、旧文言「paths 充填 PR の計画書で定義する」が矛盾なく現行化されている(目視)/ H-54 の `状態` 行が「**対応中**(実施日・本タスク — approved 化コミットで対応済みへ遷移)」形式(H-54 節を sed で切り出して `rg -F '対応中'` — 対応済みへの遷移はステップ 5。確定ゲート 1 周目の先行表記指摘で修正)/ 両項目の分類・優先度は不変(コミット前に `git diff HEAD -- docs/development/harness-evaluation.md` で確認)/ check_docs_status.py green(索引↔変更履歴の日付突合を含む) |
+| 4 | 台帳更新: H-54 を**対応中**へ(対応案の現行化 — 対応済みへの遷移はステップ 5 の approved 化と同一コミット)+ **H-12 対応案の全体現行化**(2 節の趣旨どおり書き直し)+ **H-58 の新設** + 台帳変更履歴表 + 索引の台帳行(最終更新)を新行日付へ現行化(同日なら差分なし) | **H-12 節のみを対象に完全固定文字列で検証**: `sed -n '/^### H-12/,/^### H-13/p' docs/development/harness-evaluation.md` の出力に `rg -F '境界の意味範囲(変換層の包含判定を含む)は設計書 6.3(v1.6)の境界定義で決着'` と `rg -F '残余は充填の承認手続'` が**両方**ヒットし、旧文言「paths 充填 PR の計画書で定義する」が矛盾なく現行化されている(目視)/ H-54 の `状態` 行が「**対応中**(実施日・本タスク — approved 化コミットで対応済みへ遷移)」形式(H-54 節を sed で切り出して `rg -F '対応中'` — 対応済みへの遷移はステップ 5。確定ゲート 1 周目の先行表記指摘で修正)/ 両項目の分類・優先度は不変(コミット前に `git diff HEAD -- docs/development/harness-evaluation.md` で確認)/ check_docs_status.py green(索引↔変更履歴の日付突合を含む) |
 | 5 | /finalize-doc 確定ゲート: 敵対レビュー(review adversarial — 指摘反映は `反映<r>周目` コミット・ステップ記法なし)→ 収束 → PO 承認 → 設計書 approved 化 + 索引 approved 表示 + **台帳 H-54 を対応済みへ遷移**(同一コミット・台帳変更履歴の該当行も現行化) | H-54 の `状態` が「対応済み」へ遷移している / 最終周が P0/P1/P2 ゼロで収束 / PO 承認の記録(承認者・日付)が変更履歴 v1.6 確定行に入る / 設計書 frontmatter `status: approved` / `scripts/feature_status.py` の反映周コミット突合が「一致」/ check_docs_status.py green |
 
 ## 5. DoD(受け入れ基準)
