@@ -1,4 +1,4 @@
-import geometry from './display_geometry_263_v1.json'
+import geometry from '@contracts/display_geometry_263_v1.json'
 
 export type DisplayPoint = { x: number; y: number }
 

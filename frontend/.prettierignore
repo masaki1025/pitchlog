@@ -5,9 +5,8 @@ pnpm-lock.yaml
 # 旧実装との逐語移植を維持する CSS
 src/index.css
 
-# 旧コミット dd03160044aa5932d3b5a025870c9a5a56d979ef との逐語比較を維持する TypeScript と座標定義
+# 旧コミット dd03160044aa5932d3b5a025870c9a5a56d979ef との逐語比較を維持する TypeScript
 src/lib/format.ts
 src/lib/displayGeometry.ts
 src/lib/spatialInput.ts
 src/lib/courseInputView.ts
-src/lib/display_geometry_263_v1.json
