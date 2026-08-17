@@ -1,6 +1,6 @@
 ---
 feature: dev-db-contracts
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-17・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -63,8 +63,8 @@ created: 2026-08-17
 | `docs/development/dev-harness-design-2026-08-07.md`(ハーネス設計書) | **反映なし** — CI の paths filter 追加は設計書 10.1 が既に定めている内容への**実装追随**であり、設計書側は現状のままで正しい。13 章の現況追随は `P4-後` の担当 | — |
 | `docs/adr/`(ADR) | **反映なし** — NFR-018 実現方式 ADR は別タスク(スコープ外) | — |
 | `docs/development/onboarding.md` | **反映なし** — 4-6 の担当 | — |
-| `docs/development/harness-evaluation.md`(評価台帳) | **反映なし** — 本 feature が新設する申し送りはハーネス運用の欠陥ではなく製品側の設計申し送り。台帳項目の追加はクローズ処理(/task-done)で必要性を判断する | — |
-| `docs/README.md`(索引) | **反映なし** — 新設する `contracts/README.md` は `docs/` 配下ではなくコード側の案内であり、正本体系(frontmatter・変更履歴表・索引登録)の対象外 | — |
+| `docs/development/harness-evaluation.md`(評価台帳) | **反映あり**(/pr のクローズ処理で判断・当初は「反映なし」宣言だった) — 実装の総合検証で**逐語移植の受入条件と NFR-018 の P0 規則が同一ファイルで両立しない**事象を検出したため、**H-61 を追記**し変更履歴表に 1 行足す(`H-*` の追記なので**版は上げない** — 7.6-3 前段) | PR レビュー |
+| `docs/README.md`(索引) | **反映なし** — 新設する `contracts/README.md` は `docs/` 配下ではなくコード側の案内であり、正本体系(frontmatter・変更履歴表・索引登録)の対象外。評価台帳へ H-61 を追記するが、**索引の台帳行の最終更新日は既に 2026-08-17 で現行**のため変更不要 | — |
 
 **非正本の更新**(ゲート不要): `docs/features/frontend-skeleton/porting-rules.md`(一時作業域)・`docs/features/dev-db-contracts/*`・`docs/worklog/2026-08-17-dev-db-contracts.md`。
 

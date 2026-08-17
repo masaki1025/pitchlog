@@ -30,6 +30,26 @@ branch: feature/dev-db-contracts
 - **開発 DB は実際に起動して検証した**。Docker はクリーンな状態(volume・コンテナ 0)だったため初回初期化が保証され、`POSTGRES_INITDB_ARGS` が確実に効く条件だった。使い捨てではなく実際の開発 DB として立てている(コンテナ名 `feature-dev-db-contracts-db-1`・ボリューム `feature-dev-db-contracts_postgres_data`)。ポートは `127.0.0.1:5432` のみでループバック限定
 - env 未設定時に `:?required` がエラーで停止することも確認済み
 
+## 結果サマリ(/pr クローズ処理)
+
+**実装したもの**(5 ステップ・全 5 コミット): `contracts/` 新設と README(位置づけのみ・規約は書かない)/ CI の frontend paths filter へ `contracts/**` 追加 / 座標定義 JSON の `contracts/` 移設と alias 配線・契約固定テスト / `docker-compose.yml` と `.env.example` / 非正本ドキュメントの追随。
+
+**正本への反映**: 当初の宣言は全項目「反映なし」で、実装後の差分でも**正本の変更はゼロ**だった(要件書・設計書・ADR・onboarding・索引のいずれも不変)。CI の filter 追加は設計書 10.1 が既に定めた内容への実装追随であり、**設計書が現実に追いついた側**なので設計書の変更は不要。
+
+**ただし評価台帳のみ「反映あり」へ変更した**(下記)。
+
+**検証**: harness pytest 354 passed / frontend は prettier・eslint・vue-tsc・vitest(9 件)・build すべて緑 / 開発 DB は `up -d --wait` で healthy 到達しロケール `C.UTF-8` / `C.UTF-8` / `UTF8` を実測 / 変更 markdown のリンク切れ 0 / `check_docs_status.py` 緑。
+
+## 評価台帳への追記判断(/pr 手順 1-3)
+
+**該当する → H-61 を追記した。**
+
+総合検証の差分レビューで、`frontend/src/lib/courseInputView.ts:4` の `COURSE_COORDINATE_SIZE = 263` が `contracts/` の契約値と二重管理になっていることを検出した。このファイルは逐語移植対象(バイト等価が受入条件)なので直せず、一方 AGENTS.md の Code Review Rules は NFR-018 違反を P0 と定める。**規約がこの衝突に沈黙している**ため、ハーネス側の知見として起票した。分類はプロセス設計(文書・レビュー運用の設計に起因し機構の実体を伴わない)、追跡優先度は通常固定。
+
+**本 PR では当該ファイルを直していない** — 直すと逐語性の受入条件を壊し、かつ計画スコープ外のため。
+
+なお実装中に見つかった「`SHOW lc_collate` が PostgreSQL 17 で使えない」は、計画書の合格条件を訂正して解消済みであり、**台帳には起票していない**(単発の事実誤りで、実装段階の検証が正しく捕捉したため傾向として確定していない)。
+
 ## 未決・次の一歩
 
 調査で出た論点(詳細は research.md):
