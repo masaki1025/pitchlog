@@ -127,21 +127,47 @@ React → Vue の構文変換を含む `.vue` ファイルは逐語ファイル�
 | 座標定義 JSON | **`shared/display_geometry_263_v1.json`**（リポジトリ直下） | バイト等価 |
 | 打者シルエット 2 枚 | `frontend/src/assets/*.png` | バイト等価 |
 
-### `display_geometry_263_v1.json` は `contracts/` へ移すこと（NFR-018）
+### `display_geometry_263_v1.json` は `contracts/` へ移した（NFR-018 — Phase 4-3 で完了）
 
 旧では**リポジトリ直下の `shared/` にあり、frontend と backend が共有する意図の唯一のファイル**
-だった。pitchlog での置き場は `contracts/`（ゴールデンベクタ・スキーマ）だが、**その作成は
-Phase 4-3 の担当**で本タスクの範囲外のため、暫定で `frontend/src/lib/` に置いている。
+だった。Phase 4-1 の時点では `contracts/` がまだ存在しなかったため暫定で `frontend/src/lib/` に
+置いていたが、**Phase 4-3（`feature/dev-db-contracts`）で `contracts/` を新設した際に移設した**。
+`frontend` からは `@contracts/*` の alias 経由で参照する。
 
-**backend が同じ座標定義を必要とした時点で複製になり、NFR-018（ドメイン計算は単一実装 —
-コピー実装を作らない）に違反する。** Phase 4-3 で `contracts/` を作る際に移すこと。
+移設の理由は、**backend が同じ座標定義を必要とした時点で複製になり、NFR-018（ドメイン計算は
+単一実装 — コピー実装を作らない）に違反する**ため。backend 骨格（Phase 4-2）の着手前に解消した。
+
+**照合した項目と結果**（先に何を照合したかを列挙し、そのうえで合否を述べる）:
+
+1. **移設前後のバイト等価** — 移設前の Git blob と移設後のファイルを `cmp` で比較 → 一致
+   （sha256 `e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6`）。
+   Git も rename（内容差分 0）として認識している
+2. **旧リポジトリとのバイト等価** — 保全アーカイブの `dd03160044aa5932d3b5a025870c9a5a56d979ef`
+   における **`shared/display_geometry_263_v1.json`** を取得して `cmp` → 一致（同 sha256）
+3. **複製の不在** — `test ! -e frontend/src/lib/display_geometry_263_v1.json` → 成功
+4. **`displayGeometry.ts` の逐語性** — 変更は `import` パス 1 行のみ（下記の依存表が許した逸脱枠と同形）。
+   他の行に差分なし
+
+**判定: 4 項目すべて合格。**
+
+**移設に伴う配線**（いずれも新規の設定であり逐語移植の対象外）: `tsconfig.app.json` の `paths` /
+`vite.config.ts` の `resolve.alias`（絶対パス）と `server.fs.allow`（`frontend/` と `contracts/` の
+**両方** — `allow` を明示すると Vite の workspace root 自動検出が無効になるため）/
+`vitest.config.ts` の `mergeConfig` 化（alias の二重定義を避ける）。
+dev サーバが `/@fs/` 経由で `contracts/` の JSON を 200 で配信することを実測して確認した。
 
 ### Prettier 対象外にしたファイル（7 節の規則の適用結果）
 
 `src/index.css` に加えて、逐語移植した次を `.prettierignore` へ加えた。
 
 - `src/lib/format.ts` / `src/lib/displayGeometry.ts` / `src/lib/spatialInput.ts` /
-  `src/lib/courseInputView.ts` / `src/lib/display_geometry_263_v1.json`
+  `src/lib/courseInputView.ts`
+
+> **Phase 4-3 の追随**: `src/lib/display_geometry_263_v1.json` の行は削除した。ファイルが
+> `contracts/` へ移り `frontend/` の外に出たため、`frontend/.prettierignore` の射程外になり
+> 空振りするからである。**`contracts/` は現在どの Prettier からも検査されない**
+> （frontend の Prettier は `working-directory: frontend` で動き、リポジトリルートに Prettier は
+> 無い）。将来ルート側に整形ツールを入れる場合は、この JSON を対象外にする手当てが要る。
 
 **比較コマンド**（7 節が「対象外にする前に記録する」と定めているもの）:
 
@@ -150,7 +176,9 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
   --jq '.content' | base64 -d | diff -u - frontend/src/lib/<name>
 ```
 
-JSON は旧 `shared/display_geometry_263_v1.json`、資産は `sha256sum` で比較する。
+**旧側のパスはファイルごとに違う。上のコマンドは `frontend/src/lib/` 配下のものにしか使えない。**
+座標定義 JSON は旧 **`shared/display_geometry_263_v1.json`**（URL の `contents/` 以降を差し替える）、
+資産は `sha256sum` で比較する。
 
 ### `.vue` の逐語性は何を見て判定するか
 

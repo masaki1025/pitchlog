@@ -105,7 +105,7 @@ created: 2026-08-17
 | 1 | `contracts/` を新設し `contracts/README.md` に位置づけを書く(NFR-019(a) のゴールデンベクタ・契約物の置き場であること / NFR-018 の実現方式そのものではなく実現方式は ADR で確定すること / 将来収載するものは要件書の付録が正であること。**形式・命名規約は書かない**) | ファイルが存在する。設計書・要件書への相対リンクが実在ファイルを指す(lychee)。`uv run python scripts/check_docs_status.py` が緑 |
 | 2 | `.github/workflows/ci.yml` の `frontend-changes` フィルタへ `contracts/**` を追加する(設計書 10.1 への実装追随。**目的は「契約ファイル変更時に frontend の型・テスト回帰を検出すること」に限定**する — frontend ジョブは `working-directory: frontend` なので `contracts/` 自体は Prettier/ESLint の対象にならない。backend 側は 4-2 の担当なので触らない) | フィルタに `contracts/**` の行が存在することを**静的に確認**(差分レビュー)。**ローカルの `uv run python scripts/core_guard.py` は合格条件にしない** — `GITHUB_EVENT_NAME != "pull_request"` で skip するため無意味(`scripts/core_guard.py:256-257`)。実効の確認は PR 完了ゲート(下記)の `core-guard` ジョブ成功で行う |
 | 3 | 座標 JSON を `git mv` で `contracts/` へ移し、frontend から alias 経由で参照する(`tsconfig.app.json` の `paths` / `vite.config.ts` の `resolve.alias`(絶対パス)と `server.fs.allow`(frontend と contracts の両方)/ `vitest.config.ts` を `mergeConfig` へ書き換え / `displayGeometry.ts` の import 1 行 / `.prettierignore` の当該行削除)。**あわせて `frontend/src/lib/displayGeometry.spec.ts` を新規追加**(6 節) | ① `pnpm exec vue-tsc --noEmit`・`pnpm test -- --run`・`pnpm exec eslint .`・`pnpm exec prettier --check .`・**`pnpm build`** がすべて緑 ② `pnpm dev` 起動後 `http://localhost:5173/` を開き、ストライクゾーンの枠が描画されること(左端が 80 相当)を目視し**結果を worklog へ記録** ③ **`test ! -e frontend/src/lib/display_geometry_263_v1.json`** が成功(複製が残っていないことの明示検査) ④ 移設後のファイルが旧リポ `dd03160` の **`shared/display_geometry_263_v1.json`** とバイト等価(`gh api` で旧 blob を取得し `cmp` — 旧側パスは `frontend/src/lib/` ではない) |
-| 4 | `docker-compose.yml` と `.env.example` を新規作成する。compose: `postgres:17.11-bookworm` / `version:` キーは書かない(Compose v2 では obsolete)/ 名前付きボリューム / `POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"` / 環境変数は `${POSTGRES_USER:?required}` 形式で**未設定を起動時エラーにする** / ポートは **`127.0.0.1:${POSTGRES_PORT:-5432}:5432`**(全 interface へ公開しない)/ healthcheck は `pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}` / `docker-entrypoint-initdb.d` は使わない / `depends_on` は依存サービスが無いため書かない。`.env.example`: `POSTGRES_USER`・`POSTGRES_PASSWORD`・`POSTGRES_DB`・`POSTGRES_PORT`・`DATABASE_URL`。**`DATABASE_URL` は DB コンテナへ渡さずホスト側 backend 用である旨**と**本番 URL を書かない旨**をコメントで明記 | ① **使い捨てのプロジェクト名・ボリュームで初回起動を検証する**(`POSTGRES_INITDB_ARGS` は空の PGDATA の初回のみ有効なため、既存ボリュームが残っているとロケールが変わらず検証にならない) ② `docker compose up -d --wait` が成功(`up -d` 直後に `ps` を見ると race になる) ③ `docker compose exec` 経由の `psql -c "SHOW lc_collate; SHOW lc_ctype; SHOW server_encoding;"` が `C.UTF-8` / `C.UTF-8` / `UTF8` を返す ④ **`docker compose config --quiet`** が成功(**`--quiet` 必須** — 素の `config` は補間後の `POSTGRES_PASSWORD` を標準出力へ出す) ⑤ gitleaks が緑(PR 完了ゲートで確認) |
+| 4 | `docker-compose.yml` と `.env.example` を新規作成する。compose: `postgres:17.11-bookworm` / `version:` キーは書かない(Compose v2 では obsolete)/ 名前付きボリューム / `POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"` / 環境変数は `${POSTGRES_USER:?required}` 形式で**未設定を起動時エラーにする** / ポートは **`127.0.0.1:${POSTGRES_PORT:-5432}:5432`**(全 interface へ公開しない)/ healthcheck は `pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}` / `docker-entrypoint-initdb.d` は使わない / `depends_on` は依存サービスが無いため書かない。`.env.example`: `POSTGRES_USER`・`POSTGRES_PASSWORD`・`POSTGRES_DB`・`POSTGRES_PORT`・`DATABASE_URL`。**`DATABASE_URL` は DB コンテナへ渡さずホスト側 backend 用である旨**と**本番 URL を書かない旨**をコメントで明記 | ① **使い捨てのプロジェクト名・ボリュームで初回起動を検証する**(`POSTGRES_INITDB_ARGS` は空の PGDATA の初回のみ有効なため、既存ボリュームが残っているとロケールが変わらず検証にならない) ② `docker compose up -d --wait` が成功(`up -d` 直後に `ps` を見ると race になる) ③ `docker compose exec` 経由の psql でロケールとエンコーディングが `C.UTF-8` / `C.UTF-8` / `UTF8` であること。**確認先は `pg_database` の `datcollate` / `datctype` / `encoding`**(実装時の訂正 — `SHOW lc_collate` / `SHOW lc_ctype` は **PostgreSQL 16 で GUC が廃止されており 17 では `unrecognized configuration parameter` エラーになる**) ④ **`docker compose config --quiet`** が成功(**`--quiet` 必須** — 素の `config` は補間後の `POSTGRES_PASSWORD` を標準出力へ出す) ⑤ gitleaks が緑(PR 完了ゲートで確認) |
 | 5 | `docs/features/frontend-skeleton/porting-rules.md` 8 節の「Phase 4-3 で移すこと」という**予定の記述を完了形へ置換**し(追記ではなく置換)、照合した項目を列挙してから合否を述べる(台帳 H-59)。`plan.md` の DoD と worklog を現行化する | 相対リンクが実在(lychee)。`uv run python scripts/check_docs_status.py` が緑。porting-rules.md に「移す予定」の記述が残っていない。`/check` 全グリーン |
 
 ### PR 完了ゲート(ステップ外 — コミットを伴わない)
@@ -114,17 +114,17 @@ created: 2026-08-17
 
 ## 5. DoD(受け入れ基準)
 
-| # | DoD | 達成するステップ |
-| --- | --- | --- |
-| 1 | `docker compose up -d --wait` で開発用 PostgreSQL が起動し、healthcheck が healthy になる | 4 |
-| 2 | 開発 DB のロケールとエンコーディングが実測で `C.UTF-8` / `C.UTF-8` / `UTF8` である | 4 |
-| 3 | `contracts/` の雛形(ディレクトリと位置づけを書いた README)がある | 1 |
-| 4 | `display_geometry_263_v1.json` が `contracts/` にあり、frontend からそこを参照している(**複製が残っていないことを `test ! -e` で明示検査**) | 3 |
-| 5 | 移設した座標 JSON が旧コミット `dd03160` の `shared/` 版と**バイト等価**であることを照合済み | 3 |
-| 6 | `.env.example` が接続情報の正本として存在し、本番 URL を書かない旨が明記されている | 4 |
-| 7 | CI の frontend ジョブの paths filter に `contracts/**` が含まれている | 2 |
-| 8 | `/check` 全グリーン | 5 |
-| 9 | CI 全ジョブ緑(`secrets` = gitleaks・`core-guard` を含む) | **PR 完了ゲート**(ステップ外) |
+| # | DoD | 達成するステップ | 状態 |
+| --- | --- | --- | --- |
+| 1 | `docker compose up -d --wait` で開発用 PostgreSQL が起動し、healthcheck が healthy になる | 4 | ✅ 実測(PostgreSQL 17.11・healthy 到達) |
+| 2 | 開発 DB のロケールとエンコーディングが実測で `C.UTF-8` / `C.UTF-8` / `UTF8` である | 4 | ✅ 実測(`pg_database` で確認) |
+| 3 | `contracts/` の雛形(ディレクトリと位置づけを書いた README)がある | 1 | ✅ |
+| 4 | `display_geometry_263_v1.json` が `contracts/` にあり、frontend からそこを参照している(**複製が残っていないことを `test ! -e` で明示検査**) | 3 | ✅ 実測(dev サーバの `/@fs` 配信 200・複製なし) |
+| 5 | 移設した座標 JSON が旧コミット `dd03160` の `shared/` 版と**バイト等価**であることを照合済み | 3 | ✅ sha256 一致 |
+| 6 | `.env.example` が接続情報の正本として存在し、本番 URL を書かない旨が明記されている | 4 | ✅ |
+| 7 | CI の frontend ジョブの paths filter に `contracts/**` が含まれている | 2 | ✅ |
+| 8 | `/check` 全グリーン | 5 | 総合検証で確認 |
+| 9 | CI 全ジョブ緑(`secrets` = gitleaks・`core-guard` を含む) | **PR 完了ゲート**(ステップ外) | PR 作成後に確認 |
 
 ## 6. テスト計画
 
