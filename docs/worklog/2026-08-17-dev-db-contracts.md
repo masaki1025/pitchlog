@@ -15,6 +15,9 @@ branch: feature/dev-db-contracts
 ## 決定
 
 - slug は `dev-db-contracts`(Phase 4-1 = `frontend-skeleton` に倣い、内容が分かる英小文字ハイフン)
+- **(人間判断 2026-08-17)** 論点 A は **A-1** — 4-3 は「`contracts/` の置き場 + 最小規約(README)+ 座標 JSON の移設」に限定し、ゴールデンベクタの中身(付録E・付録A)と NFR-018 の実現方式は**別タスクの ADR へ送る**。4-3 は通常 PR 要件のまま保つ
+- **(人間判断 2026-08-17)** 論点 B は **/research で Supabase の現行 PostgreSQL 版を確認してから決める** → 実施済み。**Supabase Platform の既定は PostgreSQL 17**(changelog 原文を Claude が確認)、`postgres` 公式イメージの 17 系現行パッチは **17.11**(manifest を直接確認)。**`postgres:17.11-bookworm` を計画書で提案**(alpine は musl でロケール差、`postgres:17` は mutable tag のため再現性で劣る)
+- **(人間判断 2026-08-17)** 4-3 のスコープに含める: **CI の paths filter への `contracts/` 追加**(設計書 `:603-604` への実装追随)/ **`.env.example` の初版作成** / **porting-rules.md への移設の追記**。`core-areas.json` の paths 充填は**含めない**(別タスク H-12 へ)
 
 ## 未決・次の一歩
 

@@ -20,7 +20,7 @@ date: 2026-08-17
 
 - **`contracts/` の位置づけは限定されている**。設計書 4 章は「NFR-019(a) のゴールデンベクタの置き場であって、**NFR-018(単一実装)の実現方式そのものではない**。実現方式は **Phase 4 着手前に ADR で確定する**」と明記するが、**その ADR は未起票**(`docs/adr/` は ADR-001・ADR-002 のみ)。4-3 は `contracts/` の中身を初めて決める PR なので、**この空白をどう扱うかが最大の論点**(→ 論点 A)。
 - **`contracts/` の内部構造・命名・形式・「雛形」の完了条件は、要件書にも設計書にも規定がない**。4-3 の裁量であり、計画書で定義して人間承認を取る必要がある。
-- **PostgreSQL のメジャーバージョンはどの正本にも規定がない**(要件・設計・ADR・onboarding すべて)。開発 DB は本番 Supabase の継承前提なので、**Web 調査(/research)を挟んで版を決めるのが妥当**(→ 論点 B)。
+- **PostgreSQL のメジャーバージョンはどの正本にも規定がない**(要件・設計・ADR・onboarding すべて)。/research で調査し、**Supabase Platform の既定が PostgreSQL 17** であることを一次情報で確認 → 開発 DB は **`postgres:17.11-bookworm`** を推奨(→ 論点 B)。
 - **旧システムから引き継ぐ開発 DB 設定は存在しない**。旧の開発 DB は SQLite ファイルで、docker は本番配信用 Dockerfile にしか使われていなかった。
 - **CI に既知の乖離がある**。設計書 10.1 は backend/frontend ジョブの paths filter に `contracts/` を含めると定めるが、現行 `ci.yml` に無い。座標 JSON を移した後にこれを直さないと、**契約ファイルを変更しても frontend ジョブが起動しない**(→ 論点 C)。
 - **コア領域は「現状の機構上は触れない」が、意味範囲上は触れる**。座標変換は設計書 6.3 の境界定義表で「状況計算」に明示的に含まれる一方、`.claude/core-areas.json` の paths は全領域 `[]` で機構は空回りしている(→ 論点 D)。
@@ -152,6 +152,8 @@ date: 2026-08-17
 
 ## 未解決・申し送り(/plan で扱う論点)
 
+> **人間判断(2026-08-17)**: 論点 A = **A-1**(置き場 + 最小規約に限定し、ベクタの中身と実現方式は ADR へ送る)/ 論点 B = **/research で Supabase の現行版を確認してから決める**(結果は下記 §論点 B に追記)/ 論点 C = **4-3 に含める** / 論点 E = **4-3 に含める** / 論点 F = **porting-rules.md へ追記する** / 論点 D = **4-3 では行わない**(別タスク H-12 へ送る)。
+
 ### 論点 A(最重要): NFR-018 実現方式 ADR が未起票のまま Phase 4 に入っている
 
 設計書 `:177` と要件書 `:856` はともに「**Phase 4 着手前 / 実装着手前に ADR で確定する**」と定めているが、ADR は存在しない。4-3 は `contracts/` の中身を初めて決める PR なので、この空白の上に立っている。台帳 **H-55**(付録A 集計定義の契約化がどの計画にも無い・未対応)は同じ ADR のスコープに紐づいており、さらにこの ADR は**コア領域の広狭を動かす発効判断**を握っている(設計書 `:340` 右欄「付録A 契約の実装完了後に除外を発効する。発効判断は NFR-018 実現方式 ADR〔台帳 H-55〕」)。
@@ -166,9 +168,38 @@ date: 2026-08-17
 
 **人間の判断が要る。** 私の推奨は A-1。
 
-### 論点 B: PostgreSQL のバージョンが未規定 → /research を挟むのが妥当
+### 論点 B: PostgreSQL のバージョン — /research 実施済み(2026-08-17)
 
-どの正本にも記載がなく、旧システムにも典拠がない。本番は Supabase 継承(要件書 `:928`)・「標準 PostgreSQL の範囲で使用」(同 `:930`)なので、**開発版は本番が乗る版に合わせるのが筋**だが、Supabase が現在提供する PostgreSQL のメジャー版は Web でしか確認できない。**/research(Codex 委任)で「Supabase の現行 PostgreSQL メジャー版」「`postgres` 公式イメージの現行サポートタグ」を確認してから決める**ことを推奨する。
+どの正本にも記載がなく、旧システムにも典拠がない。本番は Supabase 継承(要件書 `:928`)・「標準 PostgreSQL の範囲で使用(ホスティング固有機能に依存しない)」(同 `:930`)なので、開発版は本番が乗る版に合わせるのが筋。/research(Codex・read-only + live search)で調査し、**決定に直結する 2 点は Claude が一次情報で再確認した**。
+
+**確認済みの事実**:
+
+| 事実 | 出典 | 検証 |
+| --- | --- | --- |
+| Supabase Platform の**既定は PostgreSQL 17**。原文「Postgres 17 is what we currently default to on the Supabase platform, and aligning the self-hosted default keeps behavior consistent across deployment models」(2026-05-18 公開) | https://supabase.com/changelog/46080-self-hosted-supabase-upgrading-from-pg-15-to-17-breaking-change | **Claude が原文確認済み** |
+| 既存プロジェクトの 15→17 アップグレード経路あり。事前に `plcoffee`・`plls`・`plv8`・`timescaledb`・`pgjwt` の無効化が要る(`pgjwt` は PG17 まで既定有効) | https://supabase.com/docs/guides/platform/upgrading | **Claude が原文確認済み** |
+| `postgres` 公式イメージの現行タグ: 17 → **17.11**、16 → 16.15、15 → 15.19、18 → 18.6(`latest`)、14 → 14.24、ほかに 19beta3。各版に trixie / bookworm / alpine3.24 / alpine3.23 の variant | https://github.com/docker-library/official-images/blob/master/library/postgres | **Claude が manifest を直接確認済み**(Codex の報告と完全一致) |
+| PG 14 は 2026-07-01 に Supabase Platform サポートから撤去済み。現行の Supabase Postgres で併存サポートされる通常メジャーは **15 と 17** | https://supabase.com/changelog/45827-deprecation-notice-support-for-postgres-14-ending-on-1st-july-2026 | Codex 報告(未再確認) |
+| PostgreSQL 本体の EOL は初回リリースから 5 年(17 = 2029-11、15 = 2027-11) | https://www.postgresql.org/support/versioning/ | Codex 報告(未再確認) |
+| Docker Official Images に「タグを落とす日」の固定規則はない。manifest から削除されると以後ビルドされないが、Hub 上の既存タグ自体は取得可能なまま残る | https://github.com/docker-library/official-images | Codex 報告(未再確認) |
+
+**結論(計画書で承認を得る)**: 開発 DB のイメージは **`postgres:17.11-bookworm`** とする。
+
+- **メジャー 17** = 本番 Supabase の既定に一致(I-6「開発と本番で DB が違うと『開発では動くが本番で壊れる』事故が構造的に発生する」— `docs/improvements-from-baseball-scoring.md:64`)。
+- **パッチまで固定** = `postgres:17` は 17 系の最新パッチへ動く mutable tag。再現性を要求する NFR-021 の証跡(「主要ツールの版を記録」— 要件書 `:877`)と相性が悪い。完全な同一性が要るなら `@sha256:` の digest 固定が唯一確実だが、更新運用のコストが増えるため**開発 DB ではパッチ固定までに留める**のを推奨(digest 固定は将来の選択肢として記録)。
+- **bookworm(debian)** = alpine は musl libc でロケール・照合順序が glibc と同一とは限らない。日本語データを扱うため差異要因を持ち込まない。
+- **`supabase/postgres` イメージは使わない** — 要件書 `:930`「標準 PostgreSQL の範囲で使用(ホスティング固有機能に依存しない)」に照らすと、素の `postgres` イメージで動くこと自体が可搬性規律の担保になる。Supabase 固有拡張の検証が要る局面が来たら、その時に別途手当てする。
+
+**ロケールの申し送り(重要)**: `LC_COLLATE` / `LC_CTYPE` は **DB 作成後に変更できない**(https://www.postgresql.org/docs/17/locale.html)。一方で **Supabase Platform の `lc_collate` / `lc_ctype` の実値は公開ドキュメントから確認できなかった**(Codex 報告)。本番プロジェクトは未構築(設計書の論点D)なので現時点では突合不能。
+
+→ 開発 compose では **`POSTGRES_INITDB_ARGS` でエンコーディング UTF8・ロケールを明示**し、その値を計画書に記録する。**本番 Supabase を構築した時点で `SHOW lc_collate; SHOW lc_ctype;` を確認し、開発側と一致しているかを突合する**ことを申し送りとして残す(不一致だと日本語の `ORDER BY` が開発と本番で変わり、I-6 が消したかった「開発では動くが本番で壊れる」と同型の差異が座る)。
+
+**compose 実装時の既知の落とし穴(/research より)**:
+
+- `/docker-entrypoint-initdb.d` の初期化スクリプトは **PGDATA が空の初回起動時のみ**実行される。既存の名前付きボリュームがあると、環境変数の変更も初期化 SQL の変更も反映されない(https://hub.docker.com/_/postgres)。**やり直しにはボリューム削除が要るが、`docker compose down -v` は deny 設定**(`.claude/settings.json:49-50`)なので、手順は人間が実行する前提で書く。
+- healthcheck は **`pg_isready -h 127.0.0.1` と TCP を明示する**。`-h` を省くと、初期化 SQL 実行用に立つ**一時サーバー(Unix socket のみ)**に成功してしまい、**初期化完了前に healthy になる偽陽性**が起きる(https://hub.docker.com/_/postgres・https://www.postgresql.org/docs/17/app-pg-isready.html)。
+- データ領域は **名前付きボリューム**を第一選択にする。`/mnt/c` 配下のバインドマウントは NTFS の権限が Linux 権限へ写らず、`initdb` の 0700 要求で失敗し得る(https://learn.microsoft.com/en-us/windows/wsl/file-permissions)。
+- Docker Desktop の WSL2 統合と WSL 内ネイティブ Docker Engine は**同居させない**(https://docs.docker.com/desktop/features/wsl/)。onboarding.md `:32` は両方を許容しているため、**compose ファイルはどちらでも動く形にする**(名前付きボリューム + TCP healthcheck ならこの条件を満たす)。
 
 ### 論点 C: CI の paths filter の追随(設計書 `:603-604` への実装追随)
 
