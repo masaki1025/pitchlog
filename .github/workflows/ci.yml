@@ -81,6 +81,7 @@ jobs:
       - run: uv run pytest tests/
 
   # 既存ジョブの workflow 発火条件を変えず、frontend ジョブだけを対象パスへ絞る。
+  # contracts/ の契約ファイル変更時に frontend の型検査・テストの回帰を検出するためだけに、対象パスへ含める。
   frontend-changes:
     runs-on: ubuntu-latest
     permissions:
@@ -102,6 +103,7 @@ jobs:
               - 'mise.toml'
               - 'frontend/pnpm-lock.yaml'
               - '.github/workflows/ci.yml'
+              - 'contracts/**'
 
   frontend:
     needs: frontend-changes

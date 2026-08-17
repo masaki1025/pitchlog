@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:17.11-bookworm
+    environment:
+      # :?required で未設定を起動前に検出し、既定値で接続先を曖昧にしない。
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+      # initdb 引数は空の PGDATA の初回だけ有効であり、既存ボリュームには再適用されない。
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+    ports:
+      # 開発 DB を LAN に公開しないため、loopback にだけバインドする。
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # TCP を明示し、一時的な Unix socket による初期化完了前の healthy 判定を防ぐ。
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres_data:
