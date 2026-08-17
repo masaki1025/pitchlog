@@ -1,0 +1,36 @@
+{
+  "version": "display_263_top_left_v1",
+  "size": 263,
+  "origin": "top_left",
+  "x_direction": "right",
+  "y_direction": "down",
+  "course": {
+    "strike_zone": {
+      "left": 80,
+      "right": 183,
+      "top": 68,
+      "bottom": 180
+    },
+    "home_plate": [
+      [106, 226],
+      [157, 226],
+      [157, 238],
+      [131.5, 252],
+      [106, 238]
+    ]
+  },
+  "field": {
+    "home": [123, 224],
+    "first": [170, 171],
+    "second": [123, 118],
+    "third": [76, 171],
+    "home_plate": [
+      [118, 221],
+      [128, 221],
+      [128, 226],
+      [123, 230],
+      [118, 226]
+    ],
+    "fence_radius": 180
+  }
+}

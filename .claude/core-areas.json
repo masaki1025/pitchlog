@@ -5,7 +5,9 @@
     ".github/workflows/ci.yml",
     "scripts/core_guard.py",
     ".github/pull_request_template.md",
-    ".claude/skills/pr/SKILL.md"
+    ".claude/skills/pr/SKILL.md",
+    ".claude/skills/release/SKILL.md",
+    ".claude/skills/task-done/SKILL.md"
   ],
   "areas": [
     { "id": "sync-protocol", "name": "同期プロトコル", "description": "断中記録・墓標/改訂の適用・再送・べき等キー/連番と採番の不可分性・サーバー適用の原子性と再計算・複数タブの単一書き手競合(意味範囲の正 = 設計書 6.3 境界定義表。記録権と重複帰属あり)", "paths": [] },
