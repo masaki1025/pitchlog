@@ -44,7 +44,7 @@ INDEX_VERSION_NONE = "—"
 INDEX_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*$")
 INDEX_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# 既存 3 件の暫定除外(grandfather)であり、新しい運用規則ではない。
+# 変更履歴表を持たずに既存化した正本を、正規化まで暫定除外するための辞書である。
 # 規約は「正本は変更履歴表を持つ」を例外なく要求しており、本表は
 # その規約違反が既に存在する事実を機械検査から外しているだけである。
 #
@@ -52,16 +52,7 @@ INDEX_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # 再び grandfather することになり、「履歴を残さず正本を書き換える経路」が復活する。
 # 免除文書を正規化するときは、① 変更履歴表を新設し、② 同じ PR で
 # 免除エントリを削除する。
-#
-# 将来 ADR を標準テンプレート(変更履歴表を持たない)から作ると検査が落ちる。
-# それは意図した挙動である。
 CHANGE_HISTORY_EXEMPT_DIGESTS = {
-    ("docs", "adr", "ADR-001-codex-model-selection.md"): (
-        "310e518d1a9df575877d1f0c19849a689cadf7e1313e4739605cee5d812cb710"
-    ),
-    ("docs", "adr", "ADR-002-frontend-vue.md"): (
-        "b39d5358cf200255018b8a4170b54b5f212e4543f4a949be7ba57c05d64600d5"
-    ),
     ("docs", "requirements", "requirements-draft-pitchlog.md"): (
         "523ecfd1db94c0c494b9b722b05cf4b3c7d4562a1a6f2648fd9b76d5074a8e52"
     ),

@@ -517,11 +517,11 @@ def test_rejects_invalid_change_history_version(tmp_path):
 
 def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
     root = tmp_path / "repo"
-    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
     source_path = REPO / relative_path
     write_index(
         root,
-        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
         version="—",
     )
     write_bytes(root, relative_path, source_path.read_bytes())
@@ -533,11 +533,11 @@ def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
 
 def test_rejects_exempt_document_with_numbered_index_version(tmp_path):
     root = tmp_path / "repo"
-    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
     source_path = REPO / relative_path
     write_index(
         root,
-        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
     )
     write_bytes(root, relative_path, source_path.read_bytes())
 
@@ -549,11 +549,11 @@ def test_rejects_exempt_document_with_numbered_index_version(tmp_path):
 
 def test_rejects_modified_grandfather_document(tmp_path):
     root = tmp_path / "repo"
-    relative_path = "docs/adr/ADR-001-codex-model-selection.md"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
     source_path = REPO / relative_path
     write_index(
         root,
-        [("ADR", "adr/ADR-001-codex-model-selection.md", "approved")],
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
         version="—",
     )
     source = source_path.read_bytes()
@@ -564,6 +564,30 @@ def test_rejects_modified_grandfather_document(tmp_path):
     assert result.returncode == 1
     assert "免除は起票時点の内容に限る。" in result.stderr
     assert "変更履歴表を持たせたうえで免除エントリを削除すること" in result.stderr
+
+
+def test_accepts_adr_generated_from_template(tmp_path):
+    root = tmp_path / "repo"
+    template_path = REPO / "docs" / "development" / "templates" / "adr-template.md"
+    generated_adr = (
+        template_path.read_text(encoding="utf-8")
+        .replace("ADR-NNN", "ADR-003")
+        .replace("<タイトル>", "テンプレート由来の ADR")
+        .replace("YYYY-MM-DD", DEFAULT_UPDATED)
+    )
+    write_index(
+        root,
+        [("ADR", "adr/ADR-003-template.md", "draft")],
+        version="0.1",
+    )
+    # docs/development/templates/ は EXCLUDED_PREFIXES により検査対象外であるため、
+    # frontmatter と表順序の破損を検出する唯一の防護として、実テンプレートから
+    # 生成して検査する。
+    write_text(root, "docs/adr/ADR-003-template.md", generated_adr)
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_accepts_matching_primary_documents_and_feature_plan(tmp_path):
