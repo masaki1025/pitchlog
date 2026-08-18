@@ -13,7 +13,7 @@
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-18 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
-| [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | draft(起案中 — /finalize-doc で要件書 v2.2 と一括検証) | 0.1 | 2026-08-18 |
+| [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **in-review**(要件書 v2.2 と一括検証中) | 0.1 | 2026-08-18 |
 | [オンボーディング](development/onboarding.md) | draft | 0.5 | 2026-08-10 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(敵対レビュー2周 → PO 承認) | 1.0 | 2026-08-10 |
 
