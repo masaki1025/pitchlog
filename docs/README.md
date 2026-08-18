@@ -6,7 +6,7 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.1 — 敵対レビュー9周 → PO 承認) | 2.1 | 2026-08-18 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.2 起案中 — NFR-018 (b)② の再定義。v2.1 は敵対レビュー9周 → PO 承認) | 2.1 | 2026-08-18 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.7 — 敵対レビュー18周 → PO 承認) | 1.7 | 2026-08-18 |
