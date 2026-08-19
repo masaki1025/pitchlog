@@ -16,6 +16,7 @@
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(要件書 v2.2 と一括検証) | 0.1 | 2026-08-19 |
 | [オンボーディング](development/onboarding.md) | draft | 0.5 | 2026-08-10 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(敵対レビュー2周 → PO 承認) | 1.0 | 2026-08-10 |
+| [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | draft | 1.0 | 2026-08-19 |
 
 ## 進行中の feature
 
