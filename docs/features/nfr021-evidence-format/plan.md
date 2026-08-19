@@ -1,6 +1,6 @@
 ---
 feature: nfr021-evidence-format
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-19・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -85,7 +85,18 @@ created: 2026-08-19
 | `scripts/check_docs_status.py` | **反映なし**(除外規則の実装は予約レコード監査 PR — D-7。本 PR は README で規範のみを定める) | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(NFR-021 の条文・証跡項目・合格項目を変更しない。本タスクはその実施形式を定めるだけ) | — |
 | ADR(`docs/adr/`) | **反映なし**(新規の方式決定を伴わない — 既存 ADR-001〜003 のいずれにも触れない) | — |
-| `docs/development/harness-evaluation.md`(台帳) | **反映なし**(本タスク中に起票する知見があれば `/pr` のクローズ処理で追記する。計画時点では宣言しない) | — |
+| `docs/development/harness-evaluation.md`(台帳) | **反映あり**(`/pr` のクローズ処理で判断・追記): **H-70 を新設**(`check_docs_status.py` が Markdown 表の区切り行の幅を検査しない — 機構の穴・実発生)/ **H-71 を新設**(`git_guard` が未コミットの新規リポジトリで全 git 操作を遮断し、サンドボックス内で git 挙動を検証できない — 機構の穴・実発生)/ **H-69 の再発を 2 → 3 件へ**(uv のキャッシュ退避が Phase 4-4 で再発)/ **`## 候補` (1) を全面更新**(調査エージェント 2 本が独立に誤報した実発生を記録し、昇格条件を「PO が是正方針を裁定した時点」へ変更)。**版は上げない**(7.6-3 前段) | PR レビュー |
+
+### 正本体系外だが同一 PR で更新するもの
+
+正本の突合対象外(`.claude/**`・`tests/**`)だが、本 PR で運ぶファイル。
+
+| ファイル | 内容 |
+| --- | --- |
+| `.claude/nfr021-invalidating-paths.json` | **新設**(上表にも掲載 — 機械可読の正本だが `docs/` 配下ではないため索引の対象外) |
+| `tests/test_nfr021_invalidating_paths.py` | **新設** — JSON の形式規約テスト 7 項目(6 節) |
+| `tests/test_nfr021_evidence_templates.py` | **新設** — テンプレートの書式契約テスト 7 項目 + 負例 4 件(6 節) |
+
 
 ## 4. 実装方針
 
