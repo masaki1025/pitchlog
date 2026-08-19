@@ -771,6 +771,168 @@ def test_excludes_unindexed_files_and_index_from_index_coverage(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md",
+        "2026-08-19T101500Z-phase4-phase4-seq1000-reservation.md",
+    ],
+)
+def test_excludes_canonical_nfr021_acceptance_records_from_index_coverage(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, f"docs/ops/nfr021-acceptance/{filename}", "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "docs/ops/nfr021-acceptance/README.md",
+        "docs/ops/nfr021-acceptance/reservation-template.md",
+        "docs/ops/nfr021-acceptance/evidence-phase4-template.md",
+        "docs/ops/nfr021-acceptance/evidence-release-template.md",
+    ],
+)
+def test_rejects_unindexed_nfr021_acceptance_primary_documents(tmp_path, relative_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, relative_path, "# 正本\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+def test_rejects_unindexed_unknown_nfr021_acceptance_markdown(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    relative_path = "docs/ops/nfr021-acceptance/unexpected.md"
+    write_text(root, relative_path, "# 不明な文書\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq1-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq0001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq000-reservation.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_noncanonical_sequence(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789a.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab0.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789AB.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_noncanonical_short_sha(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-v1.2.3-seq001-reservation.md",
+        "2026-08-19T101500Z-release-phase4-seq001-reservation.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_invalid_gate_pair(tmp_path, filename):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-99-99T246099Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T1015Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md.bak.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_invalid_timestamp_or_partial_filename(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        (
+            "docs/ops/nfr021-acceptance/archive/"
+            "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md"
+        ),
+        (
+            "docs/ops/nfr021-acceptance/archive/"
+            "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md"
+        ),
+    ],
+)
+def test_rejects_canonical_nfr021_acceptance_record_in_subdirectory(
+    tmp_path,
+    relative_path,
+):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
 def test_rejects_heading_with_unclosed_backtick(tmp_path):
     root = make_minimal_repo(tmp_path)
     write_text(
