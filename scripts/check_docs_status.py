@@ -7,7 +7,7 @@ import hashlib
 import re
 import sys
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Sequence
 
@@ -21,10 +21,17 @@ EXCLUDED_PREFIXES = (
 )
 INDEX_RELATIVE_PATH = ("docs", "README.md")
 
-# docs/ops/nfr021-acceptance/ は、作成後に README.md とテンプレートだけを
-# 正本として索引へ載せ、個々の証跡は索引へ載せない。当該ディレクトリが生まれた
-# 時点で、個々の証跡向けの除外規則を追加すること。現時点では投機的に追加しない。
+# NFR-021 受入証跡の個別レコードに対する索引カバレッジ除外を実装済み。
+# 規範は docs/ops/nfr021-acceptance/README.md の
+# 「索引の必須・除外集合と監査 PR の受入条件」を参照する。
 INDEX_COVERAGE_EXCLUDED_PREFIXES = EXCLUDED_PREFIXES + (("docs", "features"),)
+NFR021_ACCEPTANCE_DIRECTORY = ("docs", "ops", "nfr021-acceptance")
+NFR021_ACCEPTANCE_RECORD_RE = re.compile(
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{6}Z)-"
+    r"(?:phase4-phase4|release-v[0-9]+\.[0-9]+\.[0-9]+)-"
+    r"seq(?P<sequence>[0-9]+)-"
+    r"(?:reservation|[0-9a-f]{12})\.md"
+)
 
 PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
@@ -139,6 +146,52 @@ def is_excluded(
     except ValueError:
         return False
     return any(relative_parts[:len(prefix)] == prefix for prefix in prefixes)
+
+
+def is_canonical_nfr021_attempt_sequence(value: str) -> bool:
+    """NFR-021 の ``seq<NNN>`` 数値部が正規形かを判定する。
+
+    Args:
+        value: ``seq`` 接頭辞を除いた数値部。
+
+    Returns:
+        最低 3 桁の 10 進表記で、値が 1 以上かつゼロ埋め規則に一致すれば ``True``。
+    """
+    if len(value) < 3 or not value.isascii() or not value.isdecimal():
+        return False
+    number = int(value)
+    return number >= 1 and str(number).zfill(3) == value
+
+
+def is_nfr021_acceptance_record_for_index_coverage(path: Path, root: Path) -> bool:
+    """索引カバレッジから除外する NFR-021 個別レコードかを判定する。
+
+    Args:
+        path: 判定対象の Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        直下にある予約レコードまたは結果証跡の正規形なら ``True``。
+    """
+    try:
+        relative_parts = path.resolve().relative_to(root.resolve()).parts
+    except ValueError:
+        return False
+    if (
+        len(relative_parts) != len(NFR021_ACCEPTANCE_DIRECTORY) + 1
+        or relative_parts[: len(NFR021_ACCEPTANCE_DIRECTORY)]
+        != NFR021_ACCEPTANCE_DIRECTORY
+    ):
+        return False
+
+    match = NFR021_ACCEPTANCE_RECORD_RE.fullmatch(relative_parts[-1])
+    if match is None:
+        return False
+    try:
+        datetime.strptime(match.group("timestamp"), "%Y-%m-%dT%H%M%SZ")
+    except ValueError:
+        return False
+    return is_canonical_nfr021_attempt_sequence(match.group("sequence"))
 
 
 def normalize_index_cell(cell: str) -> str:
@@ -394,7 +447,7 @@ def check_index_coverage(root: Path, documents: Sequence[IndexedDocument]) -> li
             resolved_path,
             root,
             prefixes=INDEX_COVERAGE_EXCLUDED_PREFIXES,
-        ):
+        ) or is_nfr021_acceptance_record_for_index_coverage(resolved_path, root):
             continue
         if resolved_path == index_path or resolved_path in indexed_paths:
             continue
