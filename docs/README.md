@@ -17,6 +17,9 @@
 | [オンボーディング](development/onboarding.md) | draft | 0.5 | 2026-08-10 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(敵対レビュー2周 → PO 承認) | 1.0 | 2026-08-10 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | draft | 1.0 | 2026-08-19 |
+| [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | draft | 1.0 | 2026-08-19 |
+| [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | draft | 1.0 | 2026-08-19 |
+| [NFR-021 結果証跡のテンプレート(release)](ops/nfr021-acceptance/evidence-release-template.md) | draft | 1.0 | 2026-08-19 |
 
 ## 進行中の feature
 
