@@ -1,9 +1,9 @@
 ---
-status: draft
+status: in-review
 ---
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 1.0 | 2026-08-19 | 新設(Phase 4-4) | draft |
+| 1.0 | 2026-08-19 | 新設(Phase 4-4) | in-review |
 
 # NFR-021 予約レコードのテンプレート
 
@@ -12,8 +12,8 @@ status: draft
 
 ```
 ---
-gate_key: "<phase4 または release-vX.Y.Z>"
-attempt_seq: "<ゲートキー単位の連番>"
+gate_key: "<phase4 または release-vX.Y.Z>"  # ゲートキーの合成形。結果証跡の gate_kind / release_version から導く
+attempt_seq: <ゲートキー単位の連番。引用符なしの 10 進整数(1 以上)>
 attempt_id: "<発行した識別子>"
 started_at: "<YYYY-MM-DDTHHMMSSZ>"
 operator: "<実施者>"
@@ -21,7 +21,6 @@ operator: "<実施者>"
 
 # 予約レコード
 
-| 項目 | 記録 |
-| --- | --- |
-| release_version | `<vX.Y.Z>`（`release` の場合に記載し、`phase4` ではこの行を削除） |
+`release` の版は `gate_key` の合成形が保持するため、本文に別欄を設けない
+（二重記録は不一致の余地を作る）。
 ```

@@ -1,9 +1,9 @@
 ---
-status: draft
+status: in-review
 ---
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 1.0 | 2026-08-19 | 新設(Phase 4-4) | draft |
+| 1.0 | 2026-08-19 | 新設(Phase 4-4) | in-review |
 
 # NFR-021 結果証跡のテンプレート(release)
 
@@ -19,7 +19,7 @@ tested_commit_sha: "<試験した commit SHA>"
 onboarding_blob_sha: "<onboarding の Git blob SHA>"
 result: "<passed または failed>"
 release_version: "<vX.Y.Z>"
-attempt_seq: "<ゲートキー単位の連番>"
+attempt_seq: <ゲートキー単位の連番。引用符なしの 10 進整数(1 以上)>
 attempt_id: "<予約レコードの識別子>"
 ---
 

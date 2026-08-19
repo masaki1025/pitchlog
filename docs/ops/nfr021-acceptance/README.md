@@ -1,9 +1,9 @@
 ---
-status: draft
+status: in-review
 ---
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 1.0 | 2026-08-19 | 新設(Phase 4-4) | draft |
+| 1.0 | 2026-08-19 | 新設(Phase 4-4) | in-review |
 
 # NFR-021 受入証跡の運用
 
@@ -29,15 +29,17 @@ status: draft
 
 ## レコード種別の閉じた命名文法
 
-すべて `docs/ops/nfr021-acceptance/` の直下ファイルに限る。サブディレクトリ配下の
-`.md` は正規形に一致しないため不正である。
+すべて `docs/ops/nfr021-acceptance/` の直下ファイルに限る。**このディレクトリに置いてよいのは
+下表の 3 種だけ**であり、サブディレクトリを作らない。**下表のいずれにも一致しないツリー項目は、
+拡張子の有無・種類を問わずすべて不正**とする(無視ではなく不合格 — 未知の項目を黙って通すと、
+非正規名の証跡が列挙から漏れる)。
 
 | 種別 | 正規形 | 備考 |
 | --- | --- | --- |
 | 正本(除外集合) | `README.md` / `reservation-template.md` / `evidence-phase4-template.md` / `evidence-release-template.md` の 4 件のみ(完全一致) | 索引必須。検証器の列挙対象から除外する。 |
 | 予約レコード | `YYYY-MM-DDTHHMMSSZ-<gate_kind>-<phase4\|vX.Y.Z>-seq<NNN>-reservation.md` | `<NNN>` は `attempt_seq` の最低 3 桁ゼロ詰め。1000 以降は桁が増える。 |
 | 結果証跡 | `YYYY-MM-DDTHHMMSSZ-<gate_kind>-<phase4\|vX.Y.Z>-seq<NNN>-<short_sha>.md` | `<short_sha>` は `tested_commit_sha` の短縮形。`seq<NNN>` により形式として一意にする。 |
-| 上記のいずれにも一致しない `.md`(サブディレクトリ配下を含む) | fail-closed | 検証器は無視せず不合格にする。 |
+| 上記のいずれにも一致しないツリー項目 | fail-closed | **拡張子を問わない**。`.MD` などの大文字違い、`.yaml`・拡張子なし、サブディレクトリとその配下の全項目を含む。検証器は無視せず不合格にする。 |
 
 | 要素 | 規則 |
 | --- | --- |
@@ -45,12 +47,35 @@ status: draft
 | `<gate_kind>` と第 2 要素の組 | `phase4-phase4` または `release-vX.Y.Z` のみ。その他の組合せは不正。 |
 | `vX.Y.Z` | `v` + 数値 3 連のセマンティックバージョン。 |
 | `<short_sha>` | 小文字 16 進の短縮 commit OID。 |
-| `seq<NNN>` | `seq` + 10 進数字 3 桁以上。 |
+| `seq<NNN>` | `seq` + `attempt_seq` の 10 進表記。**3 桁未満なら 3 桁へゼロ詰めし、3 桁以上はそのまま書く**(`zfill(3)` 相当)。したがって `seq001` は正しく、`seq0001`・`seq1` は不正。 |
 
-ファイル名と frontmatter は対応させる。ファイル名の `<gate_kind>` は frontmatter の
-`gate_kind` と一致し、第 2 要素が `phase4` なら `release_version` は不在、`vX.Y.Z` なら
-`release_version` と一致する。`seq<NNN>` は `attempt_seq`、`<short_sha>` は
-`tested_commit_sha` の短縮形に対応する。この突合は Phase 4-5 の検証器が行う。
+### ファイル名と frontmatter の対応
+
+**予約レコードと結果証跡でキーの持ち方が異なる**ため、種別ごとに定める。
+
+**結果証跡**: ファイル名の `<gate_kind>` は frontmatter の `gate_kind` と一致する。第 2 要素が
+`phase4` なら `release_version` は**不在**、`vX.Y.Z` なら `release_version` と一致する。
+`seq<NNN>` は `attempt_seq`、`<short_sha>` は `tested_commit_sha` の短縮形に対応する。
+
+**予約レコード**: 予約は**ゲートキーを合成形の単一キー `gate_key` で持つ**(`phase4` または
+`release-vX.Y.Z`)。ファイル名の `<gate_kind>-<phase4|vX.Y.Z>` は、`gate_key` から次の規則で
+導いた値と一致する — `gate_key` が `phase4` なら `phase4-phase4`、`release-vX.Y.Z` なら
+`release-vX.Y.Z`。`seq<NNN>` は `attempt_seq` に対応する。**予約は `gate_kind` と
+`release_version` をキーとして持たない**(`gate_key` が両者を保持するため。別々に持つと
+不一致の余地を作る)。
+
+### 二重記録の一致
+
+結果証跡は同じ事実を frontmatter と本文の両方に持つ。**機械検証の正は frontmatter とし、
+本文の記載は frontmatter と完全に一致していなければならない**。少なくとも次の 2 組は
+一致を必須とし、食い違えば fail-closed とする。
+
+- 本文「commit SHA」 = frontmatter `tested_commit_sha`
+- 本文「onboarding 版」に対応する blob = frontmatter `onboarding_blob_sha`
+
+これを課さないと、frontmatter を T、本文を別のコミットとした証跡でも機械検査を通ってしまう。
+
+以上の突合は Phase 4-5 の検証器が行う。
 
 ## `attempt_id` の生成規則
 
@@ -85,9 +110,11 @@ status: draft
 かつ予約レコードまたは結果証跡の正規形に一致するものだけを除外する。正本 4 件、未知の
 `.md`、サブディレクトリ配下の `.md` は索引漏れとして fail-closed にする。
 
-この規則を `scripts/check_docs_status.py` へ実装するのは本 PR の責務ではない。予約レコード
-監査 PR が実装し、正規形の予約・結果証跡を索引不要とする正例と、正本 4 件・未知の `.md`・
-サブディレクトリ配下の `.md` を索引漏れとして拒否する負例の両方を受入条件に含める。
+**この除外規則の正本は本書である**(設計書 10.1 は本書を参照するに留める — 7.1-1)。
+
+実装(`scripts/check_docs_status.py` の変更)は Phase 4-4 の責務ではない。**予約レコード監査 PR**
+が実装し、正規形の予約・結果証跡を索引不要とする**正例**と、正本 4 件・未知のツリー項目・
+サブディレクトリ配下の項目を索引漏れとして拒否する**負例**の両方を受入条件に含める。
 
 ## 改変禁止と append-only
 
@@ -96,12 +123,18 @@ append-only の CI 検査は Phase 4-5 で実装する。
 
 ## Phase 4 のブートストラップ手順
 
-Phase 4 の初回受入では、[ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) 10.1「NFR-021 受入ゲート」の
-「Phase 4 のブートストラップ」を参照し、次の順に進める。
+**順序の正は[ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) 13 章「Phase 4 の分割」の「順序」**であり、
+経路の正は同 10.1「NFR-021 受入ゲート」の「Phase 4 のブートストラップ」である。本節は
+それらを実務の並びに写したものであり、**規範として競合した場合は設計書が優先する**。
 
-1. 4-4 の確定ゲートで、この README とテンプレート 3 枚を確定する。
-2. 確定した内容に準拠して、初回の予約レコード監査 PR を `develop` へ統合する。この PR では
+1. **4-4 の確定ゲート**で、この README とテンプレート 3 枚を確定する(受入は行わない)。
+2. 確定した内容に準拠して、**初回の予約レコード監査 PR** を `develop` へ統合する。この PR では
    ディレクトリの新設と、CI 受理に必要な最小限の索引除外規則およびそのテストを扱う。
-3. Phase 4 PR にその統合点を取り込み、予約を含む候補ツリーで受入を実施する。
-4. 結果証跡で予約を閉じ、合格時は Phase 4 PR をマージする。失敗時は、実装を含まない
-   結果証跡だけの監査 PR で予約を閉じてから次の試行を予約する。
+3. **4-4 をマージ**する(予約の統合点を取り込む)。
+4. **4-5** で検証器と append-only の CI 検査を実装する(この時点でも受入は行わない)。
+5. **4-6** で受入を実施する。予約を含む候補ツリーで onboarding の手順を完走し、結果証跡を
+   追加して検証器に掛ける。**受入を行うのは 4-6 だけ**である。
+6. 合格時は 4-6 をマージする。失敗時は、実装を含まない**結果証跡だけの監査 PR**で予約を
+   閉じてから次の試行を予約する。
+
+**「Phase 4 PR」という表現は用いない** — 4-4 と 4-6 のどちらを指すか一意に読めないため。
