@@ -33,7 +33,8 @@ attempt_id: "<予約レコードの識別子>"
 | Windows 版 | `<Windows の版>` |
 | WSL 版 | `<WSL の版>` |
 | ディストリビューション版 | `<ディストリビューションの版>` |
-| onboarding 版 | `<onboarding の版>` |
+| onboarding 版 | `<onboarding の版>`(人間可読の記録。機械照合の対象ではない) |
+| onboarding blob SHA | `<onboarding の Git blob SHA>` |
 | 主要ツールの版（python / uv / node / docker） | `<各ツールの版>` |
 | 実行コマンドと終了コード | `<コマンドと終了コード>` |
 | 各合格項目の期待値と実測値 | 下表に記載 |
