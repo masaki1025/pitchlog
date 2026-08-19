@@ -1,9 +1,9 @@
 ---
-status: in-review
+status: approved
 ---
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 1.0 | 2026-08-19 | 新設(Phase 4-4) | in-review |
+| 1.0 | 2026-08-19 | 新設(Phase 4-4)。敵対レビュー 6 周 → PO 承認 | approved |
 
 # NFR-021 結果証跡のテンプレート(release)
 
