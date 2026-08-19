@@ -28,6 +28,21 @@ branch: feature/backend-skeleton
 - **2 周目 P1: 計画外変更の歯止めが弱かった** — 「差分は worklog へ記録」だけでは AGENTS.md 絶対規則 5 に反し得る。**再承認が要る変更(直接依存・ソースディレクトリ・CI 設定・正本の追加)と、worklog 記録で足りるもの(`uv.lock` の推移的依存差分)を分離**
 - **2 周目 P2: 「未着手の Phase 4 スロットは本タスクのみ」は誤り** — 4-4〜4-6 も未着手(Notion に未起票なだけ)。「現時点で着手可能な次のスロットは 4-2 のみ」へ訂正
 
+## 実装の記録
+
+### ステップ 1(`e437113`)— backend プロジェクトの新設
+
+- 固定した直接依存: `fastapi[standard]==0.141.1` / `anyio==4.14.2` / `httpx==0.28.1` / `pytest==9.1.1` / `pytest-cov==7.1.0` / `ruff==0.16.3` / **`ty==0.0.73`**
+- **未解決事項への回答(実測)**: ルートで `uv run pytest tests/` が **355 passed** — `backend/pyproject.toml` の追加はルートのハーネス用プロジェクトに影響しない(uv workspace を宣言していないため独立プロジェクトになる、という調査結論を実機で確認)
+- **サンドボックスで uv のキャッシュ退避が実際に必要だった**(調査 6-3 の予測どおり。Codex はキャッシュと venv を `/tmp` へ逃がした)
+- **(人間裁定 2026-08-19)`D415` のみ ignore する** — ruff の D415 は**日本語の句点「。」を要約行の終端記号と認識しない**ため、初回実装では docstring が「〜します**.**」と半角ピリオド終端になっていた。AGENTS.md が docstring を日本語と定めている以上この形が backend 全体へ波及するため、**D415 だけを理由コメント付きで除外**し、`select` の `D` と `convention = "google"` は維持した。他の D ルールが生きていることは、docstring の無いファイルで `D100`・`D103` が出ることを実測して確認(検証用ファイルは削除済み)
+
+### ステップ 2 — 最小 FastAPI アプリ
+
+- `src/pitchlog/main.py`(`app` + `GET /health`)・`tests/test_health.py`(AnyIO + `ASGITransport`)・`tests/conftest.py`(`anyio_backend` = asyncio)・`[tool.fastapi] entrypoint = "pitchlog.main:app"`
+- **起動確認(合格条件・手動実施)**: `uv run fastapi dev --port 8123` で起動し、`curl http://127.0.0.1:8123/health` が **`HTTP/1.1 200 OK` + `{"status":"ok"}`**(`server: uvicorn`)を返すことを確認。サーバーログにも `Using import string: pitchlog.main:app` と `GET /health HTTP/1.1 200 OK` を確認。確認後にプロセスは停止した
+- **Codex 側では起動確認ができなかった** — サンドボックスのソケット bind 制限(`PermissionError: [Errno 1] Operation not permitted`)。指示どおり回避策を入れずに止めて報告したため、**起動確認は Claude 側で実施**した
+
 ## 申し送り(本タスクでは扱わない)
 
 - **台帳の候補 (1)「`.env.example` が Read deny の glob に巻き込まれる」の前提が実測と食い違う** — 同項は「**Bash 経由で実務は回る**」ため実害が小さいとするが、**2026-08-19 の実測では Bash の `cat .env.example` も拒否された**。`secret_guard.py` は exact `.env.example` を明示的に許可しており、**フックの設計意図と permissions の実効が食い違っている**。昇格判断は PO・別タスクへ

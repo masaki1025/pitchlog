@@ -41,5 +41,8 @@ python-version = "3.12"
 [tool.ty.src]
 include = ["src", "tests"]
 
+[tool.fastapi]
+entrypoint = "pitchlog.main:app"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
