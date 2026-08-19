@@ -70,7 +70,7 @@ Notion タスク: [TSK-243](https://app.notion.com/p/3c193b75e68781f3be20fbc31e2
 
 | ファイル | 内容 |
 | --- | --- |
-| (ステップ 2 で確定した予約レコードの完全なパスをここへ追記する) | phase4 ゲートの予約レコード seq001 の新設 |
+| `docs/ops/nfr021-acceptance/2026-08-19T142916Z-phase4-phase4-seq001-reservation.md` | phase4 ゲートの予約レコード seq001 の新設(`attempt_id: phase4-001-20260819T142916Z`) |
 
 - **この別枠が必要な理由**(計画レビュー 3 周目 P1): `scripts/check_plan_docs_sync.py` の突合対象は docs 配下の Markdown のうち非除外の**全件**(`filesystem_paths`)であり、除外集合に docs/ops 配下は入っていない。したがって**正本ではない予約レコードが「差分にあるのに未宣言」として検出され、`/pr` が中断する**
 - `/pr` スキル(.claude/skills/pr/SKILL.md)が「正本外のファイルは 3 節の別枠(正本体系外だが同一 PR で更新するもの)で宣言する」と定めているので、その経路で宣言する
