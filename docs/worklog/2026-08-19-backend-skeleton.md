@@ -43,6 +43,29 @@ branch: feature/backend-skeleton
 - **起動確認(合格条件・手動実施)**: `uv run fastapi dev --port 8123` で起動し、`curl http://127.0.0.1:8123/health` が **`HTTP/1.1 200 OK` + `{"status":"ok"}`**(`server: uvicorn`)を返すことを確認。サーバーログにも `Using import string: pitchlog.main:app` と `GET /health HTTP/1.1 200 OK` を確認。確認後にプロセスは停止した
 - **Codex 側では起動確認ができなかった** — サンドボックスのソケット bind 制限(`PermissionError: [Errno 1] Operation not permitted`)。指示どおり回避策を入れずに止めて報告したため、**起動確認は Claude 側で実施**した
 
+## 結果サマリ(/pr クローズ処理)
+
+### 何を作り、何を正本へ反映したか
+
+| 対象 | 結果 |
+| --- | --- |
+| **`backend/`(新設)** | uv で版を完全固定(`pyproject.toml` + `uv.lock` + `.python-version` = 3.12.3)。`src/pitchlog/` + `tests/`。build backend は setuptools。**最小 FastAPI アプリ**(`app` + `GET /health` → `200` / `{"status": "ok"}`)と AnyIO テスト |
+| **CI(`.github/workflows/ci.yml`)** | `backend-changes`(paths filter: `backend/**`・`contracts/**`・`ci.yml` 自身)+ `backend`(`working-directory: backend`・`uv python install` → `uv sync --locked --dev` → ruff 2 種 → `ty check` → `pytest --cov`)の 2 ジョブを追加。**既存 6 ジョブと共通設定は無変更**(YAML の構造比較で確認) |
+| **ハーネス設計書** | **節更新のみ・版は上げない**(7.6-3 前段)— 5.1 のテストツールを pytest-asyncio → **anyio** へ。変更履歴 1 行 |
+| **ハーネス運用評価台帳** | **H-69 を新設**(版は上げない)。変更履歴 1 行 |
+| **docs/README.md** | 索引の設計書行の最終更新日を現行化 |
+
+### 品質ゲート(実測)
+
+- backend: `ruff format --check` / `ruff check` / `ty check` すべて緑、`pytest --cov` が **2 passed・カバレッジ 100%**(22 stmts)
+- harness: `uv run pytest tests/` が **355 passed**
+- docs: `check_docs_status.py` 緑 / `check_plan_docs_sync.py` 緑
+- 起動確認: `uv run fastapi dev` → `curl /health` が `HTTP/1.1 200 OK` + `{"status":"ok"}`
+
+### 台帳へ起票した知見
+
+- **H-69**(プロセス設計・通常)— **sandbox の制限により Codex へ委任できない検証がある**。①キャッシュの書き込み(uv の既定キャッシュが書けず `/tmp` へ退避。**Phase 4-1 の pnpm / corepack と同型で 2 例目**)②ソケット bind(`fastapi dev` の起動確認が `Operation not permitted` で実施不能 → **Claude 側で実施**)。いずれも sandbox 方針の意図どおりの帰結だが、**回避手順も委任限界も規範文書に無く、毎回実行時に発見している**。**4-6 の NFR-021 受入(起動疎通を含む)に直撃する**ため対応案に実施主体の明示を含めた
+
 ## 申し送り(本タスクでは扱わない)
 
 - **台帳の候補 (1)「`.env.example` が Read deny の glob に巻き込まれる」の前提が実測と食い違う** — 同項は「**Bash 経由で実務は回る**」ため実害が小さいとするが、**2026-08-19 の実測では Bash の `cat .env.example` も拒否された**。`secret_guard.py` は exact `.env.example` を明示的に許可しており、**フックの設計意図と permissions の実効が食い違っている**。昇格判断は PO・別タスクへ
