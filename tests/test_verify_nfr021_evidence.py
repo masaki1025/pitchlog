@@ -1,4 +1,4 @@
-"""verify_nfr021_evidence.py の命名・スキーマ検査を単体検証する。"""
+"""verify_nfr021_evidence.py の命名・スキーマ・ゲート検査を単体検証する。"""
 
 from __future__ import annotations
 
@@ -1255,3 +1255,649 @@ def test_real_allowlist_has_expected_three_patterns_and_matches_them() -> None:
         "docs/features/nfr021-evidence-verifier/design.md",
     ):
         assert not verify.classify_invalidation_path(path, settings).invalidating
+
+
+def run_verifier(
+    root: Path,
+    *args: str,
+) -> subprocess.CompletedProcess[str]:
+    """検証器 CLI を一時リポジトリに対して起動する。
+
+    Args:
+        root: 検証対象にする一時 Git リポジトリのルート。
+        *args: --root の後に渡す CLI 引数。
+
+    Returns:
+        標準出力と標準エラーを取得した検証器の実行結果。
+    """
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(root), *args],
+        capture_output=True,
+        encoding="utf-8",
+        timeout=30,
+    )
+
+
+def commit_onboarding(
+    root: Path,
+    *,
+    status: str = "approved",
+    extra_files: tuple[tuple[str, str], ...] = (),
+) -> tuple[str, str]:
+    """指定 status の onboarding を実施時点 T としてコミットする。
+
+    Args:
+        root: 一時 Git リポジトリのルート。
+        status: onboarding frontmatter に書く status。
+        extra_files: T と同じコミットに置く追加の ``(相対パス, 内容)`` 組。
+
+    Returns:
+        ``(tested_commit_sha, onboarding_blob_sha)`` の組。
+    """
+    write_invalidation_file(
+        root,
+        ".claude/nfr021-invalidating-paths.json",
+        INVALIDATING_PATHS_CONFIG.read_text(encoding="utf-8"),
+    )
+    write_invalidation_file(
+        root,
+        "docs/development/onboarding.md",
+        "\n".join(["---", f"status: {status}", "---", "", "# onboarding", ""]),
+    )
+    for relative_path, content in extra_files:
+        write_invalidation_file(root, relative_path, content)
+    commit_invalidation_changes(root, "docs: add onboarding")
+    tested_commit_sha = invalidation_head(root)
+    onboarding_blob_sha = git_for_invalidation(
+        root,
+        "rev-parse",
+        f"{tested_commit_sha}:docs/development/onboarding.md",
+    ).stdout.strip()
+    return tested_commit_sha, onboarding_blob_sha
+
+
+def evidence_filename(
+    gate_kind: str,
+    release_version: str | None,
+    tested_commit_sha: str,
+) -> str:
+    """テスト用の正規形結果証跡ファイル名を作る。
+
+    Args:
+        gate_kind: phase4 または release。
+        release_version: release の場合の版。phase4 では None。
+        tested_commit_sha: ファイル名末尾の short SHA の基になる OID。
+
+    Returns:
+        受入証跡ディレクトリ直下に置ける結果証跡ファイル名。
+    """
+    gate_value = "phase4" if gate_kind == "phase4" else release_version
+    assert gate_value is not None
+    return (
+        f"2026-08-19T101500Z-{gate_kind}-{gate_value}-seq001-"
+        f"{tested_commit_sha[:12]}.md"
+    )
+
+
+def commit_evidence(
+    root: Path,
+    tested_commit_sha: str,
+    onboarding_blob_sha: str,
+    *,
+    gate_kind: str = "phase4",
+    release_version: str | None = None,
+    result: str = "passed",
+    evidence_path: str | None = None,
+) -> tuple[str, str]:
+    """名指し検証に使う結果証跡を候補コミット C へ追加する。
+
+    Args:
+        root: 一時 Git リポジトリのルート。
+        tested_commit_sha: frontmatter と short SHA に書く実施時点 T。
+        onboarding_blob_sha: frontmatter と本文に書く onboarding blob OID。
+        gate_kind: frontmatter とファイル名のゲート種別。
+        release_version: release の場合の版。
+        result: frontmatter の result 値。
+        evidence_path: 置き場所を直接指定する相対パス。省略時は正規直下名。
+
+    Returns:
+        ``(candidate_sha, evidence_path)`` の組。
+    """
+    filename = evidence_filename(gate_kind, release_version, tested_commit_sha)
+    relative_path = evidence_path or f"docs/ops/nfr021-acceptance/{filename}"
+    write_invalidation_file(
+        root,
+        relative_path,
+        evidence_text(
+            gate_kind=gate_kind,
+            release_version=release_version,
+            tested_commit_sha=tested_commit_sha,
+            onboarding_blob_sha=onboarding_blob_sha,
+            result=result,
+        ),
+    )
+    commit_invalidation_changes(root, "docs: add evidence")
+    return invalidation_head(root), relative_path
+
+
+def make_valid_evidence_repository(
+    tmp_path: Path,
+    *,
+    onboarding_status: str = "approved",
+    gate_kind: str = "phase4",
+    release_version: str | None = None,
+    result: str = "passed",
+) -> tuple[Path, str, str, str, str]:
+    """①〜⑥を満たす候補 C と実施時点 T を持つ一時リポジトリを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        onboarding_status: T 時点の onboarding status。
+        gate_kind: 結果証跡に書くゲート種別。
+        release_version: release の場合の証跡版。
+        result: 結果証跡に書く result。
+
+    Returns:
+        ``(root, tested_sha, candidate_sha, evidence_path, onboarding_blob_sha)``。
+    """
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(
+        root,
+        status=onboarding_status,
+    )
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind=gate_kind,
+        release_version=release_version,
+        result=result,
+    )
+    return root, tested_commit_sha, candidate_sha, evidence_path, onboarding_blob_sha
+
+
+def named_evidence_arguments(
+    candidate_sha: str,
+    evidence_path: str,
+    *,
+    gate_kind: str = "phase4",
+    release_version: str | None = None,
+) -> list[str]:
+    """名指し証跡を検証する CLI 引数列を作る。
+
+    Args:
+        candidate_sha: 検証対象として固定した候補 commit OID。
+        evidence_path: 候補ツリーにある結果証跡の相対パス。
+        gate_kind: 要求するゲート種別。
+        release_version: release の場合に要求する版。
+
+    Returns:
+        --root を除く検証器 CLI 引数列。
+    """
+    arguments = [
+        "--gate-kind",
+        gate_kind,
+        "--candidate-sha",
+        candidate_sha,
+        "--evidence-path",
+        evidence_path,
+    ]
+    if release_version is not None:
+        arguments.extend(["--release-version", release_version])
+    return arguments
+
+
+@pytest.mark.parametrize("kind", ("head", "branch", "tag", "short", "uppercase"))
+def test_rejects_mutable_or_noncanonical_candidate_sha(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    """HEAD・参照名・短縮形・大文字を候補 SHA として fail-closed にする。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    git_for_invalidation(root, "tag", "candidate-tag", candidate_sha)
+    candidate_values = {
+        "head": "HEAD",
+        "branch": "develop",
+        "tag": "candidate-tag",
+        "short": candidate_sha[:12],
+        "uppercase": candidate_sha.upper(),
+    }
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_values[kind], evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "candidate_sha が完全な小文字 16 進 40 桁ではない" in result.stderr
+    assert result.stderr.startswith("verify_nfr021_evidence:")
+
+
+def test_rejects_annotated_tag_object_as_candidate_sha(tmp_path: Path) -> None:
+    """40 桁の注釈付きタグ OID を commit OID として受理しない。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    git_for_invalidation(
+        root,
+        "tag",
+        "-a",
+        "candidate-tag",
+        "-m",
+        "annotated candidate",
+        candidate_sha,
+    )
+    tag_object_sha = git_for_invalidation(root, "rev-parse", "candidate-tag").stdout.strip()
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(tag_object_sha, evidence_path),
+    )
+
+    assert git_for_invalidation(root, "cat-file", "-t", tag_object_sha).stdout.strip() == "tag"
+    assert (
+        git_for_invalidation(root, "rev-parse", "candidate-tag^{commit}").stdout.strip()
+        == candidate_sha
+    )
+    assert result.returncode == 1
+    assert "candidate_sha が commit オブジェクトではない" in result.stderr
+
+
+def test_rejects_annotated_tag_object_as_tested_commit_sha(tmp_path: Path) -> None:
+    """結果証跡内の tested_commit_sha にタグ OID を入れる経路を閉じる。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    git_for_invalidation(
+        root,
+        "tag",
+        "-a",
+        "tested-tag",
+        "-m",
+        "annotated tested",
+        tested_commit_sha,
+    )
+    tag_object_sha = git_for_invalidation(root, "rev-parse", "tested-tag").stdout.strip()
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tag_object_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "tested_commit_sha が commit オブジェクトではない" in result.stderr
+
+
+def test_rejects_commit_oid_as_onboarding_blob_sha(tmp_path: Path) -> None:
+    """onboarding_blob_sha に commit OID を入れる型すり替えを拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, _ = commit_onboarding(root)
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        tested_commit_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "onboarding_blob_sha が blob オブジェクトではない" in result.stderr
+
+
+def test_unresolvable_evidence_oid_is_indeterminate(tmp_path: Path) -> None:
+    """字句だけ正しいが未解決の証跡 OID を GuardError として fail-closed にする。"""
+    root = init_invalidation_repository(tmp_path)
+    _, onboarding_blob_sha = commit_onboarding(root)
+    unknown_oid = "0" * 40
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        unknown_oid,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.startswith("verify_nfr021_evidence:")
+    assert "tested_commit_sha の Git オブジェクトを解決できない" in result.stderr
+
+
+def test_rejects_release_version_for_phase4_argument(tmp_path: Path) -> None:
+    """phase4 に --release-version が渡された時点で入力エラーにする。"""
+    root = init_invalidation_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        "--gate-kind",
+        "phase4",
+        "--candidate-sha",
+        COMMIT_SHA,
+        "--evidence-path",
+        "docs/ops/nfr021-acceptance/evidence.md",
+        "--release-version",
+        "v1.2.3",
+    )
+
+    assert result.returncode == 1
+    assert "phase4 では --release-version を指定できない" in result.stderr
+
+
+def test_requires_release_version_for_release_argument(tmp_path: Path) -> None:
+    """release で --release-version を省略した時点で入力エラーにする。"""
+    root = init_invalidation_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        "--gate-kind",
+        "release",
+        "--candidate-sha",
+        COMMIT_SHA,
+        "--evidence-path",
+        "docs/ops/nfr021-acceptance/evidence.md",
+    )
+
+    assert result.returncode == 1
+    assert "release では --release-version が必須である" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("gate_kind", "release_version", "expected_reason"),
+    [
+        ("unknown", None, "コマンドライン引数が不正"),
+        ("release", "invalid", "--release-version が vX.Y.Z 形式ではない"),
+    ],
+)
+def test_rejects_invalid_gate_kind_or_release_version_argument(
+    tmp_path: Path,
+    gate_kind: str,
+    release_version: str | None,
+    expected_reason: str,
+) -> None:
+    """閉じたゲート種別と release 版の字句規則に適合しない入力を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    arguments = [
+        "--gate-kind",
+        gate_kind,
+        "--candidate-sha",
+        COMMIT_SHA,
+        "--evidence-path",
+        "docs/ops/nfr021-acceptance/evidence.md",
+    ]
+    if release_version is not None:
+        arguments.extend(["--release-version", release_version])
+
+    result = run_verifier(root, *arguments)
+
+    assert result.returncode == 1
+    assert expected_reason in result.stderr
+
+
+def test_requires_evidence_path_argument(tmp_path: Path) -> None:
+    """evidence_path を省略した CLI 呼び出しを入力エラーにする。"""
+    root = init_invalidation_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        "--gate-kind",
+        "phase4",
+        "--candidate-sha",
+        COMMIT_SHA,
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.startswith("verify_nfr021_evidence:")
+    assert "コマンドライン引数が不正" in result.stderr
+
+
+@pytest.mark.parametrize("kind", ("outside", "subdirectory", "uncommitted"))
+def test_rejects_evidence_path_outside_candidate_tree(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    """候補ツリー外・サブディレクトリ・未コミットの証跡を受理しない。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    if kind == "outside":
+        target_path = "docs/worklog/evidence.md"
+        expected_reason = "evidence_path が docs/ops/nfr021-acceptance/直下"
+    elif kind == "subdirectory":
+        target_path = f"docs/ops/nfr021-acceptance/nested/{Path(evidence_path).name}"
+        expected_reason = "evidence_path が docs/ops/nfr021-acceptance/直下"
+    else:
+        target_path = "docs/ops/nfr021-acceptance/uncommitted.md"
+        write_invalidation_file(root, target_path, "uncommitted\n")
+        expected_reason = "candidate_sha のツリーに収録されていない"
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, target_path),
+    )
+
+    assert result.returncode == 1
+    assert expected_reason in result.stderr
+
+
+def test_rejects_mismatched_requested_gate_kind(tmp_path: Path) -> None:
+    """合格条件①として証跡の gate_kind と要求ゲート種別を突合する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(
+            candidate_sha,
+            evidence_path,
+            gate_kind="release",
+            release_version="v1.2.3",
+        ),
+    )
+
+    assert result.returncode == 1
+    assert "gate_kind が要求されたゲート種別と一致しない" in result.stderr
+
+
+def test_rejects_failed_result_for_named_evidence(tmp_path: Path) -> None:
+    """合格条件②として result: failed の名指し証跡を拒否する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(
+        tmp_path,
+        result="failed",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "result が passed ではない" in result.stderr
+
+
+def test_rejects_tested_commit_that_is_not_candidate_ancestor(tmp_path: Path) -> None:
+    """合格条件③として祖先でない実施時点 T を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    git_for_invalidation(root, "checkout", "-q", "-b", "feature/tested")
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    git_for_invalidation(root, "checkout", "-q", "develop")
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "tested_commit_sha が candidate_sha の祖先ではない" in result.stderr
+
+
+def test_rejects_mismatched_onboarding_blob_oid(tmp_path: Path) -> None:
+    """合格条件④として T 時点の onboarding blob と異なる blob を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(
+        root,
+        extra_files=(("docs/development/other.md", "other blob\n"),),
+    )
+    other_blob_sha = git_for_invalidation(
+        root,
+        "rev-parse",
+        f"{tested_commit_sha}:docs/development/other.md",
+    ).stdout.strip()
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        other_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert onboarding_blob_sha != other_blob_sha
+    assert result.returncode == 1
+    assert "onboarding.md の blob と一致しない" in result.stderr
+
+
+def test_rejects_draft_onboarding_blob(tmp_path: Path) -> None:
+    """合格条件④として status: draft の onboarding blob を拒否する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(
+        tmp_path,
+        onboarding_status="draft",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "onboarding.md の status が approved ではない" in result.stderr
+
+
+def test_rejects_release_version_mismatch(tmp_path: Path) -> None:
+    """合格条件⑤として release の要求版と証跡版を一致させる。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(
+        tmp_path,
+        gate_kind="release",
+        release_version="v1.2.3",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(
+            candidate_sha,
+            evidence_path,
+            gate_kind="release",
+            release_version="v1.2.4",
+        ),
+    )
+
+    assert result.returncode == 1
+    assert "release_version が要求された版と一致しない" in result.stderr
+
+
+def test_rejects_phase4_evidence_with_release_version(tmp_path: Path) -> None:
+    """phase4 の結果証跡に release_version がある経路を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        release_version="v1.2.3",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "phase4 の結果証跡に release_version がある" in result.stderr
+
+
+def test_phase4_release_version_gate_condition_is_independent() -> None:
+    """合格条件⑤の phase4 側禁止をゲート条件としても検出する。"""
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(release_version="v1.2.3"),
+    )
+
+    reasons = verify.validate_gate_conditions(record, "phase4", None)
+
+    assert reasons == (verify.REASON_PHASE4_RELEASE_VERSION,)
+
+
+def test_rejects_invalidating_change_between_tested_and_candidate(tmp_path: Path) -> None:
+    """合格条件⑥として T→C の失効対象変更を検出する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    write_invalidation_file(root, "backend/changed.py", "changed\n")
+    commit_invalidation_changes(root, "feat: change backend")
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "失効対象の変更がある: backend/changed.py (/backend/**)" in result.stderr
+
+
+def test_accepts_allowlisted_evidence_change_only(tmp_path: Path) -> None:
+    """証跡の allowlist 変更だけなら合格条件⑥を満たす。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_named_evidence_that_satisfies_conditions_one_to_six(
+    tmp_path: Path,
+) -> None:
+    """①〜⑥をすべて満たす名指し結果証跡が exit 0 になる。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+
+
+def test_real_repository_onboarding_draft_is_not_approved() -> None:
+    """実リポジトリの現 onboarding blob が draft で④を満たさないことを確認する。"""
+    candidate_sha = git_for_invalidation(REPO, "rev-parse", "HEAD").stdout.strip()
+    onboarding_blob_sha = git_for_invalidation(
+        REPO,
+        "rev-parse",
+        f"{candidate_sha}:docs/development/onboarding.md",
+    ).stdout.strip()
+
+    reasons = verify.validate_onboarding_blob(
+        REPO,
+        candidate_sha,
+        onboarding_blob_sha,
+    )
+
+    assert verify.REASON_ONBOARDING_STATUS in reasons

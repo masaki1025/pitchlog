@@ -1,15 +1,17 @@
-"""NFR-021 受入証跡の命名とスキーマを検査する。"""
+"""NFR-021 受入証跡の命名・スキーマ・ゲート条件を検査する。"""
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Mapping, Sequence
+from typing import Mapping, NoReturn, Sequence
 
 try:
     from core_guard import GuardError
@@ -185,6 +187,60 @@ REASON_GIT_FAILURE = "{operation} に失敗した: {returncode}"
 REASON_GIT_ANCESTOR_UNRESOLVED = (
     "git merge-base --is-ancestor が解決不能な終了コードを返した: {returncode}"
 )
+SCRIPT_NAME = "verify_nfr021_evidence"
+ACCEPTANCE_DIRECTORY_RELATIVE_PATH = PurePosixPath("docs/ops/nfr021-acceptance")
+ONBOARDING_RELATIVE_PATH = "docs/development/onboarding.md"
+GIT_CAT_FILE_COMMAND = "cat-file"
+GIT_REV_PARSE_COMMAND = "rev-parse"
+GIT_SHOW_COMMAND = "show"
+GIT_LS_TREE_COMMAND = "ls-tree"
+GIT_OBJECT_TYPE_OPTION = "-t"
+GIT_NAME_ONLY_OUTPUT_OPTION = "--name-only"
+GIT_PATHSPEC_SEPARATOR = "--"
+GIT_OBJECT_COMMIT = "commit"
+GIT_OBJECT_BLOB = "blob"
+PASSED_RESULT = "passed"
+APPROVED_STATUS = "approved"
+ONBOARDING_STATUS_VALUES = frozenset(
+    {"draft", "in-review", APPROVED_STATUS, "superseded"}
+)
+ONBOARDING_STATUS_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
+OPERATION_OBJECT_TYPE = "git cat-file -t"
+OPERATION_TREE_PATH = "git ls-tree"
+OPERATION_TREE_OBJECT = "git rev-parse"
+OPERATION_BLOB_CONTENT = "git show"
+REASON_ARGUMENT_ERROR = "コマンドライン引数が不正: {message}"
+REASON_CANDIDATE_SHA_LEXICAL = "candidate_sha が完全な小文字 16 進 40 桁ではない"
+REASON_CANDIDATE_SHA_TYPE = "candidate_sha が commit オブジェクトではない"
+REASON_RELEASE_VERSION_REQUIRED = "release では --release-version が必須である"
+REASON_PHASE4_RELEASE_ARGUMENT = "phase4 では --release-version を指定できない"
+REASON_RELEASE_VERSION_ARGUMENT = "--release-version が vX.Y.Z 形式ではない"
+REASON_GIT_OBJECT_UNRESOLVED = "{label} の Git オブジェクトを解決できない"
+REASON_GIT_OBJECT_TYPE_OUTPUT = "{label} の Git オブジェクト種別を解釈できない"
+REASON_TREE_OBJECT_OUTPUT = "Git ツリー内の {path} の OID を解釈できない"
+REASON_EVIDENCE_PATH_OUTSIDE = (
+    "evidence_path が docs/ops/nfr021-acceptance/直下のパスではない"
+)
+REASON_EVIDENCE_PATH_MISSING = "evidence_path が candidate_sha のツリーに収録されていない"
+REASON_EVIDENCE_NOT_RESULT = "evidence_path が結果証跡ではない"
+REASON_GATE_KIND_MISMATCH = "gate_kind が要求されたゲート種別と一致しない"
+REASON_RESULT_NOT_PASSED = "result が passed ではない"
+REASON_TESTED_OBJECT_TYPE = "tested_commit_sha が commit オブジェクトではない"
+REASON_ONBOARDING_OBJECT_TYPE = "onboarding_blob_sha が blob オブジェクトではない"
+REASON_TESTED_NOT_ANCESTOR = "tested_commit_sha が candidate_sha の祖先ではない"
+REASON_ONBOARDING_TREE_MISSING = (
+    "tested_commit_sha のツリーに docs/development/onboarding.md がない"
+)
+REASON_ONBOARDING_TREE_TYPE = "onboarding.md が blob オブジェクトではない"
+REASON_ONBOARDING_BLOB_MISMATCH = (
+    "onboarding_blob_sha が tested_commit_sha 時点の onboarding.md の blob と一致しない"
+)
+REASON_ONBOARDING_FRONTMATTER = "onboarding.md の先頭 3 行 frontmatter が不正である"
+REASON_ONBOARDING_STATUS = "onboarding.md の status が approved ではない"
+REASON_RELEASE_VERSION_MISMATCH = "release_version が要求された版と一致しない"
+REASON_INELIGIBLE_PATH = "失効対象の変更がある: {path} ({source})"
+REASON_INELIGIBLE_DEFAULT_PATH = "失効対象の変更がある: {path} (default)"
+REASON_EVIDENCE_VALUE_UNAVAILABLE = "証跡の {key} を取得できない"
 
 # 字句規則の正は docs/ops/nfr021-acceptance/README.md である。索引カバレッジ用の
 # 述語は scripts/check_docs_status.py:151-194 にあり、対象範囲が異なる。
@@ -1602,3 +1658,571 @@ def evaluate_invalidation(
         ancestor=True,
         classifications=classifications,
     )
+
+
+class EvidenceArgumentParser(argparse.ArgumentParser):
+    """引数エラーを GuardError として fail-closed にする argparse パーサ。"""
+
+    def error(self, message: str) -> NoReturn:
+        """argparse の引数エラーを GuardError へ変換する。
+
+        Args:
+            message: argparse が生成した引数エラーの説明。
+
+        Returns:
+            このメソッドは戻らない。
+
+        Raises:
+            GuardError: 引数の形式または必須性が不正な場合。
+        """
+        raise GuardError(REASON_ARGUMENT_ERROR.format(message=message))
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """NFR-021 証跡検証器のコマンドライン引数を解釈する。
+
+    Args:
+        argv: テスト時に指定する引数列。省略時は通常のコマンドライン引数を使う。
+
+    Returns:
+        解釈済みのコマンドライン引数。
+
+    Raises:
+        GuardError: 引数の形式、ゲート種別、または release 版の組合せが不正な場合。
+    """
+    parser = EvidenceArgumentParser(description="NFR-021 の名指し証跡を検証する")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path.cwd(),
+        help="リポジトリルート(既定: カレントディレクトリ)",
+    )
+    parser.add_argument(
+        "--gate-kind",
+        choices=tuple(sorted(GATE_KINDS)),
+        required=True,
+        help="検証するゲート種別",
+    )
+    parser.add_argument(
+        "--candidate-sha",
+        required=True,
+        help="検証対象として固定した完全な commit OID",
+    )
+    parser.add_argument(
+        "--evidence-path",
+        type=Path,
+        required=True,
+        help="候補 SHA のツリーにある結果証跡 1 ファイルのパス",
+    )
+    parser.add_argument(
+        "--release-version",
+        help="release ゲートで要求する vX.Y.Z 形式の版",
+    )
+    args = parser.parse_args(argv)
+    validate_cli_gate_arguments(args.gate_kind, args.release_version)
+    return args
+
+
+def validate_cli_gate_arguments(
+    gate_kind: str,
+    release_version: str | None,
+) -> None:
+    """ゲート種別と release 版の判別共用体入力を検証する。
+
+    Args:
+        gate_kind: phase4 または release の要求ゲート種別。
+        release_version: release で要求する版。phase4 では None でなければならない。
+
+    Returns:
+        戻り値はない。
+
+    Raises:
+        GuardError: ゲート種別または release 版の組合せが不正な場合。
+    """
+    if gate_kind not in GATE_KINDS:
+        raise GuardError(REASON_ARGUMENT_ERROR.format(message="--gate-kind が不正"))
+    if gate_kind == "phase4" and release_version is not None:
+        raise GuardError(REASON_PHASE4_RELEASE_ARGUMENT)
+    if gate_kind == "release" and release_version is None:
+        raise GuardError(REASON_RELEASE_VERSION_REQUIRED)
+    if release_version is not None and not is_release_version(release_version):
+        raise GuardError(REASON_RELEASE_VERSION_ARGUMENT)
+
+
+def run_git_command(
+    root: Path,
+    command: Sequence[str],
+    operation: str,
+    failure_reason: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """指定した Git コマンドを fail-closed で実行する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        command: git 実行ファイルから始まるコマンド引数列。
+        operation: タイムアウト・起動失敗時に表示する操作名。
+        failure_reason: 非 0 終了時に返す GuardError の理由。省略時は終了コードを含む。
+
+    Returns:
+        正常終了した Git コマンドの実行結果。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、またはコマンド実行に失敗した場合。
+    """
+    try:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=DIFF_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise GuardError(REASON_GIT_TIMEOUT.format(operation=operation)) from error
+    except OSError as error:
+        raise GuardError(REASON_GIT_START.format(operation=operation, error=error)) from error
+    if result.returncode != 0:
+        raise GuardError(
+            failure_reason
+            or REASON_GIT_FAILURE.format(
+                operation=operation,
+                returncode=result.returncode,
+            )
+        )
+    return result
+
+
+def git_object_type(root: Path, object_id: str, label: str) -> str:
+    """生の Git OID が指すオブジェクト種別を取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        object_id: 完全な小文字 16 進 OID。
+        label: エラー理由に表示する OID の役割名。
+
+    Returns:
+        git cat-file -t が返したオブジェクト種別。
+
+    Raises:
+        GuardError: OID を解決できない、または種別出力が不正な場合。
+    """
+    # 注釈付きタグを剥がさないため、OID をそのまま cat-file -t に渡す。
+    result = run_git_command(
+        root,
+        [GIT_EXECUTABLE, GIT_CAT_FILE_COMMAND, GIT_OBJECT_TYPE_OPTION, object_id],
+        OPERATION_OBJECT_TYPE,
+        REASON_GIT_OBJECT_UNRESOLVED.format(label=label),
+    )
+    object_type = result.stdout.strip()
+    if not object_type or "\n" in object_type:
+        raise GuardError(REASON_GIT_OBJECT_TYPE_OUTPUT.format(label=label))
+    return object_type
+
+
+def validate_candidate_sha(root: Path, candidate_sha: str) -> None:
+    """候補 SHA の字句と生の commit オブジェクト種別を検証する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: 検証対象として固定した候補 SHA。
+
+    Returns:
+        戻り値はない。
+
+    Raises:
+        GuardError: SHA が完全 OID ではない、解決不能、または commit ではない場合。
+    """
+    if FULL_OID_RE.fullmatch(candidate_sha) is None:
+        raise GuardError(REASON_CANDIDATE_SHA_LEXICAL)
+    if git_object_type(root, candidate_sha, "candidate_sha") != GIT_OBJECT_COMMIT:
+        raise GuardError(REASON_CANDIDATE_SHA_TYPE)
+
+
+def evidence_relative_path(evidence_path: Path) -> PurePosixPath | None:
+    """入力パスが受入証跡ディレクトリ直下かを判定する。
+
+    Args:
+        evidence_path: CLI で指定された証跡パス。
+
+    Returns:
+        直下のリポジトリ相対 POSIX パス。範囲外なら None。
+
+    Raises:
+        発生しない。
+    """
+    path = PurePosixPath(evidence_path.as_posix())
+    if path.is_absolute() or path.parent != ACCEPTANCE_DIRECTORY_RELATIVE_PATH:
+        return None
+    if not path.name or any(part in {".", ".."} for part in path.parts):
+        return None
+    return path
+
+
+def git_tree_has_path(root: Path, commit_sha: str, relative_path: str) -> bool:
+    """指定コミットのツリーにリポジトリ相対パスが存在するかを調べる。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        commit_sha: 読み取るコミット OID。
+        relative_path: リポジトリルートからの POSIX 相対パス。
+
+    Returns:
+        パスがコミットのツリーに収録されていれば True。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、またはツリー照会に失敗した場合。
+    """
+    result = run_git_command(
+        root,
+        [
+            GIT_EXECUTABLE,
+            GIT_LS_TREE_COMMAND,
+            GIT_NAME_ONLY_OUTPUT_OPTION,
+            commit_sha,
+            GIT_PATHSPEC_SEPARATOR,
+            relative_path,
+        ],
+        OPERATION_TREE_PATH,
+    )
+    return relative_path in result.stdout.splitlines()
+
+
+def git_tree_object_oid(
+    root: Path,
+    commit_sha: str,
+    relative_path: str,
+) -> str | None:
+    """コミットのツリーにあるパスの OID を完全形で取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        commit_sha: 読み取るコミット OID。
+        relative_path: リポジトリルートからの POSIX 相対パス。
+
+    Returns:
+        対象パスの完全な OID。ツリーに無ければ None。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、または OID 出力の解釈に失敗した場合。
+    """
+    if not git_tree_has_path(root, commit_sha, relative_path):
+        return None
+    result = run_git_command(
+        root,
+        [GIT_EXECUTABLE, GIT_REV_PARSE_COMMAND, f"{commit_sha}:{relative_path}"],
+        OPERATION_TREE_OBJECT,
+    )
+    object_id = result.stdout.strip()
+    if FULL_OID_RE.fullmatch(object_id) is None:
+        raise GuardError(REASON_TREE_OBJECT_OUTPUT.format(path=relative_path))
+    return object_id
+
+
+def git_blob_contents(root: Path, blob_sha: str) -> str:
+    """生の blob OID から UTF-8 として扱う内容を Git で取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        blob_sha: 取得する blob の完全 OID。
+
+    Returns:
+        git show が返した blob 内容。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、または blob 内容の取得に失敗した場合。
+    """
+    result = run_git_command(
+        root,
+        [GIT_EXECUTABLE, GIT_SHOW_COMMAND, blob_sha],
+        OPERATION_BLOB_CONTENT,
+    )
+    return result.stdout
+
+
+def required_evidence_value(record: AcceptanceRecord, key: str) -> str:
+    """スキーマ適合済みの結果証跡から必須文字列キーを取り出す。
+
+    Args:
+        record: スキーマ適合を確認済みの結果証跡。
+        key: 取り出す frontmatter キー。
+
+    Returns:
+        空でない文字列の frontmatter 値。
+
+    Raises:
+        GuardError: スキーマ適合済みという前提に反して値を取得できない場合。
+    """
+    value = record.frontmatter.values.get(key)
+    if not isinstance(value, str) or not value:
+        raise GuardError(REASON_EVIDENCE_VALUE_UNAVAILABLE.format(key=key))
+    return value
+
+
+def validate_gate_conditions(
+    record: AcceptanceRecord,
+    requested_gate_kind: str,
+    requested_release_version: str | None,
+) -> tuple[str, ...]:
+    """名指し結果証跡の合格条件①②⑤を検査する。
+
+    Args:
+        record: frontmatter を解析済みの結果証跡。
+        requested_gate_kind: CLI で要求されたゲート種別。
+        requested_release_version: release で要求された版。phase4 では None。
+
+    Returns:
+        パスを含まない不合格理由。適合していれば空のタプル。
+
+    Raises:
+        GuardError: release の要求版が不在など、CLI の判別共用体前提が崩れた場合。
+    """
+    values = record.frontmatter.values
+    reasons: list[str] = []
+    if values.get("gate_kind") != requested_gate_kind:
+        reasons.append(REASON_GATE_KIND_MISMATCH)
+    if values.get("result") != PASSED_RESULT:
+        reasons.append(REASON_RESULT_NOT_PASSED)
+    if requested_gate_kind == "release":
+        if requested_release_version is None:
+            raise GuardError(REASON_RELEASE_VERSION_REQUIRED)
+        if values.get("release_version") != requested_release_version:
+            reasons.append(REASON_RELEASE_VERSION_MISMATCH)
+    elif requested_gate_kind == "phase4" and "release_version" in values:
+        reasons.append(REASON_PHASE4_RELEASE_VERSION)
+    return tuple(reasons)
+
+
+def parse_onboarding_status(text: str) -> str | None:
+    """正本の厳格な先頭 3 行 frontmatter から onboarding の status を得る。
+
+    Args:
+        text: Git blob から取得した onboarding.md の内容。
+
+    Returns:
+        許可語彙の status。3 行 frontmatter が不正なら None。
+
+    Raises:
+        発生しない。
+    """
+    lines = text.splitlines()
+    if len(lines) < 3 or lines[0] != "---" or lines[2] != "---":
+        return None
+    match = ONBOARDING_STATUS_RE.fullmatch(lines[1])
+    if match is None:
+        return None
+    status = match.group("status")
+    return status if status in ONBOARDING_STATUS_VALUES else None
+
+
+def validate_onboarding_blob(
+    root: Path,
+    tested_commit_sha: str,
+    onboarding_blob_sha: str,
+) -> tuple[str, ...]:
+    """合格条件④の onboarding blob 一致と approved status を検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        tested_commit_sha: 実施時点 T の commit OID。
+        onboarding_blob_sha: 結果証跡に記録された onboarding blob OID。
+
+    Returns:
+        パスを含まない不合格理由。適合していれば空のタプル。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、またはオブジェクト解決に失敗した場合。
+    """
+    tree_blob_sha = git_tree_object_oid(
+        root,
+        tested_commit_sha,
+        ONBOARDING_RELATIVE_PATH,
+    )
+    if tree_blob_sha is None:
+        return (REASON_ONBOARDING_TREE_MISSING,)
+    if git_object_type(root, tree_blob_sha, "onboarding.md") != GIT_OBJECT_BLOB:
+        return (REASON_ONBOARDING_TREE_TYPE,)
+    reasons: list[str] = []
+    if onboarding_blob_sha != tree_blob_sha:
+        reasons.append(REASON_ONBOARDING_BLOB_MISMATCH)
+    status = parse_onboarding_status(git_blob_contents(root, tree_blob_sha))
+    if status is None:
+        reasons.append(REASON_ONBOARDING_FRONTMATTER)
+    elif status != APPROVED_STATUS:
+        reasons.append(REASON_ONBOARDING_STATUS)
+    return tuple(reasons)
+
+
+def validate_evidence_object_types(
+    root: Path,
+    record: AcceptanceRecord,
+) -> tuple[str, ...]:
+    """結果証跡の tested_commit_sha と onboarding_blob_sha の生の種別を検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        record: スキーマ適合を確認済みの結果証跡。
+
+    Returns:
+        パスを含まない不合格理由。種別が適合していれば空のタプル。
+
+    Raises:
+        GuardError: 証跡に記録された完全 OID を解決できない場合。
+    """
+    tested_commit_sha = required_evidence_value(record, "tested_commit_sha")
+    onboarding_blob_sha = required_evidence_value(record, "onboarding_blob_sha")
+    reasons: list[str] = []
+    if git_object_type(root, tested_commit_sha, "tested_commit_sha") != GIT_OBJECT_COMMIT:
+        reasons.append(REASON_TESTED_OBJECT_TYPE)
+    if git_object_type(root, onboarding_blob_sha, "onboarding_blob_sha") != GIT_OBJECT_BLOB:
+        reasons.append(REASON_ONBOARDING_OBJECT_TYPE)
+    return tuple(reasons)
+
+
+def invalidation_reasons(result: InvalidationResult) -> tuple[str, ...]:
+    """失効判定結果から失効対象の変更パスを説明する理由を作る。
+
+    Args:
+        result: ステップ 2 の失効判定結果。
+
+    Returns:
+        失効対象の各パスと一致元を示す理由。失効パスがなければ空のタプル。
+
+    Raises:
+        発生しない。
+    """
+    reasons: list[str] = []
+    for classification in result.classifications:
+        if not classification.invalidating:
+            continue
+        if classification.matched_pattern is None:
+            reasons.append(
+                REASON_INELIGIBLE_DEFAULT_PATH.format(path=classification.path)
+            )
+        else:
+            reasons.append(
+                REASON_INELIGIBLE_PATH.format(
+                    path=classification.path,
+                    source=classification.matched_pattern,
+                )
+            )
+    return tuple(reasons)
+
+
+def verify_named_evidence(
+    root: Path,
+    requested_gate_kind: str,
+    candidate_sha: str,
+    evidence_path: Path,
+    requested_release_version: str | None,
+) -> tuple[str, ...]:
+    """名指しされた候補ツリー内の結果証跡について合格条件①〜⑥を検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        requested_gate_kind: CLI で要求された phase4 または release。
+        candidate_sha: 検証対象として固定した候補 commit OID。
+        evidence_path: 候補ツリーから読む結果証跡のリポジトリ相対パス。
+        requested_release_version: release で要求する版。phase4 では None。
+
+    Returns:
+        display_path を先頭に持つ不合格メッセージ。適合していれば空のタプル。
+
+    Raises:
+        GuardError: 入力 SHA や Git オブジェクトを解決できず判定不能な場合。
+    """
+    validate_cli_gate_arguments(requested_gate_kind, requested_release_version)
+    validate_candidate_sha(root, candidate_sha)
+    display_path = evidence_path.as_posix()
+    relative_path = evidence_relative_path(evidence_path)
+    if relative_path is None:
+        return (format_violation(display_path, REASON_EVIDENCE_PATH_OUTSIDE),)
+    path_text = relative_path.as_posix()
+    if not git_tree_has_path(root, candidate_sha, path_text):
+        return (format_violation(display_path, REASON_EVIDENCE_PATH_MISSING),)
+    evidence_blob_sha = git_tree_object_oid(root, candidate_sha, path_text)
+    if evidence_blob_sha is None:
+        return (format_violation(display_path, REASON_EVIDENCE_PATH_MISSING),)
+    evidence_text = git_blob_contents(root, evidence_blob_sha)
+    try:
+        record = parse_acceptance_record(
+            relative_path.name,
+            evidence_text,
+            display_path,
+        )
+    except GuardError as error:
+        return (format_violation(display_path, str(error)),)
+    if record.path.kind != KIND_EVIDENCE:
+        return (format_violation(display_path, REASON_EVIDENCE_NOT_RESULT),)
+    schema_violations = validate_records((record,))
+    gate_violations = tuple(
+        format_violation(display_path, reason)
+        for reason in validate_gate_conditions(
+            record,
+            requested_gate_kind,
+            requested_release_version,
+        )
+    )
+    violations = tuple(dict.fromkeys((*schema_violations, *gate_violations)))
+    if violations:
+        return violations
+    object_type_violations = tuple(
+        format_violation(display_path, reason)
+        for reason in validate_evidence_object_types(root, record)
+    )
+    if object_type_violations:
+        return object_type_violations
+    tested_commit_sha = required_evidence_value(record, "tested_commit_sha")
+    onboarding_blob_sha = required_evidence_value(record, "onboarding_blob_sha")
+    if not is_ancestor(root, tested_commit_sha, candidate_sha):
+        return (format_violation(display_path, REASON_TESTED_NOT_ANCESTOR),)
+    onboarding_violations = tuple(
+        format_violation(display_path, reason)
+        for reason in validate_onboarding_blob(
+            root,
+            tested_commit_sha,
+            onboarding_blob_sha,
+        )
+    )
+    invalidation = evaluate_invalidation(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+        load_invalidation_settings(root / INVALIDATING_PATHS_CONFIG_PATH),
+    )
+    invalidation_violations = tuple(
+        format_violation(display_path, reason)
+        for reason in invalidation_reasons(invalidation)
+    )
+    return tuple(dict.fromkeys((*onboarding_violations, *invalidation_violations)))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """CLI から名指しされた NFR-021 証跡を検査する。
+
+    Args:
+        argv: テスト時に指定する引数列。省略時は通常のコマンドライン引数を使う。
+
+    Returns:
+        違反なしなら 0、不合格または判定不能なら 1。
+    """
+    try:
+        args = parse_args(argv)
+        violations = verify_named_evidence(
+            args.root.resolve(),
+            args.gate_kind,
+            args.candidate_sha,
+            args.evidence_path,
+            args.release_version,
+        )
+    except GuardError as error:
+        print(f"{SCRIPT_NAME}: {error}", file=sys.stderr)
+        return 1
+    for violation in violations:
+        print(violation, file=sys.stderr)
+    return 1 if violations else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
