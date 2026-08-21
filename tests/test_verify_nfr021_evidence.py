@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+from unittest.mock import patch
 
 import pytest
 
@@ -14,6 +16,7 @@ REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "verify_nfr021_evidence.py"
 CORE_GUARD_SCRIPT = REPO / "scripts" / "core_guard.py"
 DOCS_STATUS_SCRIPT = REPO / "scripts" / "check_docs_status.py"
+INVALIDATING_PATHS_CONFIG = REPO / ".claude" / "nfr021-invalidating-paths.json"
 ACCEPTANCE_DIRECTORY = REPO / "docs" / "ops" / "nfr021-acceptance"
 RESERVATION_FILENAME = "2026-08-19T142916Z-phase4-phase4-seq001-reservation.md"
 COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -771,3 +774,484 @@ def test_lexical_literals_match_the_index_coverage_predicate(tmp_path: Path) -> 
         )
         parsed = verify.parse_acceptance_path(filename)
         assert index_result == (parsed.kind in verify.RECORD_KINDS)
+
+
+def git_for_invalidation(
+    cwd: Path,
+    *args: str,
+) -> subprocess.CompletedProcess[str]:
+    """失効判定用の一時リポジトリに Git コマンドを実行する。
+
+    Args:
+        cwd: Git コマンドを実行する一時リポジトリのルート。
+        *args: git に渡すサブコマンド以降の引数。
+
+    Returns:
+        標準出力と標準エラーを捕捉した Git コマンドの実行結果。
+    """
+    return subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+
+
+def write_invalidation_file(root: Path, relative_path: str, content: str) -> None:
+    """一時リポジトリに UTF-8 テキストファイルを書き出す。
+
+    Args:
+        root: 一時リポジトリのルート。
+        relative_path: root からの相対パス。
+        content: 書き込むテキスト。
+
+    Returns:
+        戻り値はない。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def commit_invalidation_changes(root: Path, subject: str) -> None:
+    """一時リポジトリの変更をすべてコミットする。
+
+    Args:
+        root: 一時リポジトリのルート。
+        subject: コミット件名。
+
+    Returns:
+        戻り値はない。
+    """
+    git_for_invalidation(root, "add", "-A")
+    git_for_invalidation(root, "commit", "-qm", subject)
+
+
+def init_invalidation_repository(tmp_path: Path, branch: str = "develop") -> Path:
+    """失効判定の履歴を組み立てる最小の一時 Git リポジトリを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        branch: 初期コミットを置くブランチ名。
+
+    Returns:
+        初期コミット済みの一時リポジトリのルート。
+    """
+    root = tmp_path / "repository"
+    root.mkdir()
+    subprocess.run(
+        ["git", "init", "-q", "-b", branch, str(root)],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+    git_for_invalidation(root, "config", "user.email", "test@example.com")
+    git_for_invalidation(root, "config", "user.name", "test")
+    write_invalidation_file(root, "README.md", "# test\n")
+    commit_invalidation_changes(root, "chore: base")
+    return root
+
+
+def invalidation_head(root: Path) -> str:
+    """一時リポジトリの現在のコミット OID を得る。
+
+    Args:
+        root: 一時リポジトリのルート。
+
+    Returns:
+        現在の HEAD を表す完全なコミット OID。
+    """
+    return git_for_invalidation(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def load_real_invalidation_settings() -> object:
+    """リポジトリの失効パス設定をテスト用に読み込む。
+
+    Args:
+        なし。
+
+    Returns:
+        検証器が返す実設定オブジェクト。
+    """
+    return verify.load_invalidation_settings(INVALIDATING_PATHS_CONFIG)
+
+
+def make_invalidation_settings(
+    *,
+    invalidating: tuple[str, ...] = ("/backend/**",),
+    allowlist: tuple[str, ...] = (),
+    default: str = "invalidating",
+) -> object:
+    """照合規則を固定したテスト用の失効パス設定を作る。
+
+    Args:
+        invalidating: 失効対象にするルート相対パターン。
+        allowlist: 失効させないルート相対パターン。
+        default: どちらにも一致しないパスの方針。
+
+    Returns:
+        検証器が返す検証済み設定オブジェクト。
+    """
+    return verify.parse_invalidation_settings(
+        {
+            "syntax": "gitignore-root-relative-v1",
+            "default": default,
+            "invalidating": list(invalidating),
+            "allowlist": list(allowlist),
+        }
+    )
+
+
+def test_changed_paths_include_created_then_deleted_path(tmp_path: Path) -> None:
+    """範囲内で作成後に削除された失効対象パスをログの和集合で検出する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha = invalidation_head(root)
+    transient_path = "backend/transient.py"
+    write_invalidation_file(root, transient_path, "before deletion\n")
+    commit_invalidation_changes(root, "feat: add transient path")
+    (root / transient_path).unlink()
+    commit_invalidation_changes(root, "chore: delete transient path")
+    candidate_sha = invalidation_head(root)
+
+    changed_paths = verify.changed_paths_between(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+    )
+    two_point_paths = set(
+        git_for_invalidation(
+            root,
+            "diff",
+            "--name-only",
+            tested_commit_sha,
+            candidate_sha,
+        ).stdout.splitlines()
+    )
+    result = verify.evaluate_invalidation(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+        load_real_invalidation_settings(),
+    )
+
+    assert transient_path in changed_paths
+    assert transient_path not in two_point_paths
+    assert result.invalidated
+    assert any(
+        classification.path == transient_path
+        and classification.matched_pattern == "/backend/**"
+        for classification in result.classifications
+    )
+
+
+def test_changed_paths_include_merge_commit_path(tmp_path: Path) -> None:
+    """-m によりマージコミット経由で入った失効対象パスを検出する。"""
+    root = init_invalidation_repository(tmp_path)
+    write_invalidation_file(root, "backend/shared.py", "base\n")
+    commit_invalidation_changes(root, "feat: add shared path")
+    tested_commit_sha = invalidation_head(root)
+    merged_path = "backend/merge-resolution-only.py"
+    git_for_invalidation(root, "checkout", "-q", "-b", "feature/invalidation")
+    write_invalidation_file(root, "backend/shared.py", "feature\n")
+    commit_invalidation_changes(root, "feat: change shared path")
+    git_for_invalidation(root, "checkout", "-q", "develop")
+    write_invalidation_file(root, "backend/shared.py", "develop\n")
+    commit_invalidation_changes(root, "feat: change shared path on develop")
+    with pytest.raises(subprocess.CalledProcessError):
+        git_for_invalidation(root, "merge", "--no-ff", "feature/invalidation")
+    write_invalidation_file(root, "backend/shared.py", "resolved\n")
+    write_invalidation_file(root, merged_path, "merge-only\n")
+    commit_invalidation_changes(root, "merge: resolve invalidation feature")
+    candidate_sha = invalidation_head(root)
+
+    changed_paths = verify.changed_paths_between(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+    )
+    paths_without_merge_expansion = set(
+        git_for_invalidation(
+            root,
+            "log",
+            "--format=",
+            "--name-only",
+            f"{tested_commit_sha}..{candidate_sha}",
+        ).stdout.splitlines()
+    )
+
+    assert merged_path in changed_paths
+    assert merged_path not in paths_without_merge_expansion
+
+
+def test_changed_paths_preserve_old_path_of_rename(tmp_path: Path) -> None:
+    """--no-renames により失効対象から allowlist への移動で旧パスを保持する。"""
+    root = init_invalidation_repository(tmp_path)
+    old_path = "backend/original.txt"
+    new_path = "docs/features/moved.txt"
+    write_invalidation_file(root, old_path, "same content\n")
+    commit_invalidation_changes(root, "feat: add original")
+    tested_commit_sha = invalidation_head(root)
+    git_for_invalidation(root, "config", "diff.renames", "true")
+    (root / "docs" / "features").mkdir(parents=True)
+    git_for_invalidation(root, "mv", old_path, new_path)
+    commit_invalidation_changes(root, "refactor: move path")
+    candidate_sha = invalidation_head(root)
+
+    changed_paths = verify.changed_paths_between(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+    )
+    result = verify.evaluate_invalidation(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+        load_real_invalidation_settings(),
+    )
+    paths_with_rename_detection = set(
+        git_for_invalidation(
+            root,
+            "log",
+            "--format=",
+            "--name-only",
+            f"{tested_commit_sha}..{candidate_sha}",
+        ).stdout.splitlines()
+    )
+
+    assert old_path in changed_paths
+    assert new_path in changed_paths
+    assert old_path not in paths_with_rename_detection
+    assert result.invalidated
+    assert any(
+        classification.path == old_path
+        and classification.matched_pattern == "/backend/**"
+        for classification in result.classifications
+    )
+
+
+def test_non_ancestor_tested_commit_invalidates_evidence(tmp_path: Path) -> None:
+    """T が C の祖先でない場合を判定不能ではなく失効として扱う。"""
+    root = init_invalidation_repository(tmp_path)
+    git_for_invalidation(root, "checkout", "-q", "-b", "feature/other")
+    write_invalidation_file(root, "docs/features/other.md", "other\n")
+    commit_invalidation_changes(root, "docs: other branch")
+    tested_commit_sha = invalidation_head(root)
+    git_for_invalidation(root, "checkout", "-q", "develop")
+    write_invalidation_file(root, "docs/features/candidate.md", "candidate\n")
+    commit_invalidation_changes(root, "docs: candidate branch")
+    candidate_sha = invalidation_head(root)
+
+    result = verify.evaluate_invalidation(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+        load_real_invalidation_settings(),
+    )
+
+    assert not verify.is_ancestor(root, tested_commit_sha, candidate_sha)
+    assert result.invalidated
+    assert not result.ancestor
+    assert result.classifications == ()
+
+
+def test_unresolvable_ancestor_oid_raises_guard_error(tmp_path: Path) -> None:
+    """存在しない完全 OID を祖先でない場合と混同せず fail-closed にする。"""
+    root = init_invalidation_repository(tmp_path)
+
+    with pytest.raises(verify.GuardError, match="解決不能"):
+        verify.is_ancestor(root, "0" * 40, invalidation_head(root))
+
+
+@pytest.mark.parametrize(
+    ("operation", "side_effect"),
+    [
+        (
+            "ancestor",
+            subprocess.TimeoutExpired(["git", "merge-base"], timeout=1),
+        ),
+        ("changed_paths", OSError("git executable is unavailable")),
+    ],
+)
+def test_git_timeout_and_start_failure_raise_guard_error(
+    tmp_path: Path,
+    operation: str,
+    side_effect: BaseException,
+) -> None:
+    """Git のタイムアウトと起動失敗をいずれも GuardError へ変換する。"""
+    root = tmp_path / "not-a-repository"
+    with patch.object(verify.subprocess, "run", side_effect=side_effect):
+        with pytest.raises(verify.GuardError):
+            if operation == "ancestor":
+                verify.is_ancestor(root, "1" * 40, "2" * 40)
+            else:
+                verify.changed_paths_between(root, "1" * 40, "2" * 40)
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("backend/app.py", True),
+        ("backend/x/y.py", True),
+        ("backend", False),
+        ("backend2/x.py", False),
+    ],
+)
+def test_recursive_pattern_matches_only_descendants(
+    path: str,
+    expected: bool,
+) -> None:
+    """/backend/** が配下だけを一致させ、接頭辞誤一致を起こさない。"""
+    assert verify.path_matches_invalidation_pattern(path, "/backend/**") is expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("backend/app.py", True),
+        ("backend/nested/app.py", False),
+    ],
+)
+def test_single_segment_wildcard_does_not_cross_path_separator(
+    path: str,
+    expected: bool,
+) -> None:
+    """* が 1 セグメントだけに一致し、スラッシュを跨がないことを確認する。"""
+    assert verify.path_matches_invalidation_pattern(path, "/backend/*.py") is expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("docs/development/onboarding.md", True),
+        ("docs/development/onboarding.md.bak", False),
+    ],
+)
+def test_non_recursive_pattern_requires_complete_path_match(
+    path: str,
+    expected: bool,
+) -> None:
+    """末尾 ** を持たないパターンを完全一致として扱う。"""
+    assert (
+        verify.path_matches_invalidation_pattern(
+            path,
+            "/docs/development/onboarding.md",
+        )
+        is expected
+    )
+
+
+def test_allowlisted_docs_features_path_does_not_invalidate() -> None:
+    """/docs/features/** のみの変更は allowlist として失効させない。"""
+    settings = load_real_invalidation_settings()
+
+    classification = verify.classify_invalidation_path(
+        "docs/features/nfr021/plan.md",
+        settings,
+    )
+
+    assert classification.classification == verify.CLASSIFICATION_ALLOWLIST
+    assert classification.matched_pattern == "/docs/features/**"
+    assert not classification.invalidating
+
+
+def test_worklog_and_acceptance_paths_do_not_invalidate() -> None:
+    """worklog と受入証跡ディレクトリだけの変更は allowlist として扱う。"""
+    settings = load_real_invalidation_settings()
+    classifications = tuple(
+        verify.classify_invalidation_path(path, settings)
+        for path in (
+            "docs/worklog/2026-08-21.md",
+            "docs/ops/nfr021-acceptance/result.md",
+        )
+    )
+
+    assert all(
+        classification.classification == verify.CLASSIFICATION_ALLOWLIST
+        for classification in classifications
+    )
+    assert not any(classification.invalidating for classification in classifications)
+
+
+def test_unclassified_path_follows_invalidating_default() -> None:
+    """どちらの設定リストにもないパスを実設定の default に従わせる。"""
+    classification = verify.classify_invalidation_path(
+        "README.md",
+        load_real_invalidation_settings(),
+    )
+
+    assert classification.classification == verify.CLASSIFICATION_DEFAULT
+    assert classification.matched_pattern is None
+    assert classification.invalidating
+
+
+def test_unclassified_path_reads_noninvalidating_default_from_settings() -> None:
+    """実装側で default を invalidating と決め打ちしない。"""
+    classification = verify.classify_invalidation_path(
+        "README.md",
+        make_invalidation_settings(default="allowlist"),
+    )
+
+    assert classification.classification == verify.CLASSIFICATION_DEFAULT
+    assert not classification.invalidating
+
+
+def test_invalidating_pattern_wins_when_path_matches_both_lists() -> None:
+    """両リストに一致するパスは fail-closed で invalidating を優先する。"""
+    settings = make_invalidation_settings(
+        invalidating=("/docs/features/**",),
+        allowlist=("/docs/features/**",),
+    )
+
+    classification = verify.classify_invalidation_path("docs/features/plan.md", settings)
+
+    assert classification.classification == verify.CLASSIFICATION_INVALIDATING
+    assert classification.matched_pattern == "/docs/features/**"
+    assert classification.invalidating
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        {
+            "syntax": "unknown-pattern-v1",
+            "default": "invalidating",
+            "invalidating": ["/backend/**"],
+            "allowlist": [],
+        },
+        {
+            "syntax": "gitignore-root-relative-v1",
+            "default": "invalidating",
+            "invalidating": ["!/backend/**"],
+            "allowlist": [],
+        },
+        {
+            "syntax": "gitignore-root-relative-v1",
+            "default": "invalidating",
+            "invalidating": ["backend/**"],
+            "allowlist": [],
+        },
+    ],
+)
+def test_rejects_unknown_or_unsafe_invalidation_settings(value: dict[str, object]) -> None:
+    """未知文法、否定、非ルート相対のパターンを fail-closed で拒否する。"""
+    with pytest.raises(verify.GuardError):
+        verify.parse_invalidation_settings(value)
+
+
+def test_real_allowlist_has_expected_three_patterns_and_matches_them() -> None:
+    """実設定の閉じた allowlist 3 件を読み、その照合結果を確認する。"""
+    settings = load_real_invalidation_settings()
+
+    assert settings.allowlist_patterns == (
+        "/docs/ops/nfr021-acceptance/**",
+        "/docs/worklog/**",
+        "/docs/features/**",
+    )
+    for path in (
+        "docs/ops/nfr021-acceptance/evidence.md",
+        "docs/worklog/2026-08-21.md",
+        "docs/features/nfr021-evidence-verifier/design.md",
+    ):
+        assert not verify.classify_invalidation_path(path, settings).invalidating
