@@ -18,6 +18,8 @@ CORE_GUARD_SCRIPT = REPO / "scripts" / "core_guard.py"
 DOCS_STATUS_SCRIPT = REPO / "scripts" / "check_docs_status.py"
 INVALIDATING_PATHS_CONFIG = REPO / ".claude" / "nfr021-invalidating-paths.json"
 ACCEPTANCE_DIRECTORY = REPO / "docs" / "ops" / "nfr021-acceptance"
+PHASE4_EVIDENCE_TEMPLATE = ACCEPTANCE_DIRECTORY / "evidence-phase4-template.md"
+RELEASE_EVIDENCE_TEMPLATE = ACCEPTANCE_DIRECTORY / "evidence-release-template.md"
 RESERVATION_FILENAME = "2026-08-19T142916Z-phase4-phase4-seq001-reservation.md"
 COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
 OTHER_COMMIT_SHA = "fedcba9876543210fedcba9876543210fedcba98"
@@ -113,6 +115,109 @@ def evidence_body(commit_sha: str, onboarding_blob_sha: str) -> str:
     )
 
 
+def complete_evidence_body(
+    commit_sha: str,
+    onboarding_blob_sha: str,
+    gate_kind: str = "phase4",
+    *,
+    evidence_rows: tuple[tuple[str, str], ...] | None = None,
+    acceptance_item_count: int | None = None,
+) -> str:
+    """⑩を満たす結果証跡本文を必要に応じて部分的に変えて作る。
+
+    Args:
+        commit_sha: 本文へ書く commit SHA。
+        onboarding_blob_sha: 本文へ書く onboarding blob SHA。
+        gate_kind: phase4 または release。
+        evidence_rows: 証跡表へ置く ``(欄名, 値)`` 行。省略時は全欄を置く。
+        acceptance_item_count: 合格項目表の行数。省略時はゲート別の正規数を置く。
+
+    Returns:
+        本文完全性を検査できる 2 つの Markdown 表を含む本文。
+    """
+    default_evidence_rows = (
+        ("日時", "2026-08-19T101500Z"),
+        ("commit SHA", f"{CODE_DELIMITER}{commit_sha}{CODE_DELIMITER}"),
+        ("Windows 版", "Windows 11 24H2"),
+        ("WSL 版", "WSL 2.6"),
+        ("ディストリビューション版", "Ubuntu 26.04 LTS"),
+        ("onboarding 版", "v1.0"),
+        (
+            "onboarding blob SHA",
+            f"{CODE_DELIMITER}{onboarding_blob_sha}{CODE_DELIMITER}",
+        ),
+        (
+            "主要ツールの版（python / uv / node / docker）",
+            "python 3.12.3 / uv 0.8.13 / node 22 / docker 28",
+        ),
+        ("実行コマンドと終了コード", "uv run pytest (0)"),
+        ("各合格項目の期待値と実測値", "下表に記載"),
+        ("標準出力またはログ成果物への参照", "docs/worklog/test.log"),
+        ("判定者", "判定者が内容を確認した"),
+    )
+    rows = evidence_rows if evidence_rows is not None else default_evidence_rows
+    default_count = 5 if gate_kind == "phase4" else 8
+    item_count = (
+        acceptance_item_count
+        if acceptance_item_count is not None
+        else default_count
+    )
+    evidence_table = [
+        "| 項目 | 記録 |",
+        "| --- | --- |",
+        *(f"| {field} | {value} |" for field, value in rows),
+    ]
+    acceptance_table = [
+        "| # | 合格項目 | 期待値 | 実測値 |",
+        "| --- | --- | --- | --- |",
+        *(
+            f"| {number} | 合格項目 {number} | 期待値 {number} | 実測値 {number} |"
+            for number in range(1, item_count + 1)
+        ),
+    ]
+    return "\n".join(
+        [
+            "# 結果証跡",
+            "",
+            "## 証跡",
+            "",
+            *evidence_table,
+            "",
+            "## 合格項目",
+            "",
+            *acceptance_table,
+        ]
+    )
+
+
+def template_table_rows(template_path: Path, heading: str) -> tuple[tuple[str, ...], ...]:
+    """テンプレートの唯一の複写用ブロックから指定表のデータ行を取り出す。
+
+    Args:
+        template_path: 読み取る結果証跡テンプレートの絶対パス。
+        heading: 取り出す ``##`` 見出しの表示名。
+
+    Returns:
+        指定表のデータ行を前後空白なしのセル列で並べた組。
+    """
+    fenced_parts = template_path.read_text(encoding="utf-8").split("```")
+    assert len(fenced_parts) == 3
+    lines = fenced_parts[1].splitlines()
+    heading_index = lines.index(f"## {heading}")
+    table_index = next(
+        index
+        for index in range(heading_index + 1, len(lines))
+        if lines[index].strip().startswith("|") and lines[index].strip().endswith("|")
+    )
+    rows: list[tuple[str, ...]] = []
+    for line in lines[table_index + 2 :]:
+        stripped_line = line.strip()
+        if not stripped_line.startswith("|") or not stripped_line.endswith("|"):
+            break
+        rows.append(tuple(cell.strip() for cell in stripped_line[1:-1].split("|")))
+    return tuple(rows)
+
+
 def reservation_text(
     gate_key: str = "phase4",
     attempt_seq: int = 1,
@@ -161,6 +266,7 @@ def evidence_text(
     extra_lines: tuple[str, ...] = (),
     body_commit_sha: str | None = None,
     body_onboarding_blob_sha: str | None = None,
+    body: str | None = None,
 ) -> str:
     """結果証跡の最小かつ適合する frontmatter と二重記録本文を作る。
 
@@ -176,6 +282,7 @@ def evidence_text(
         extra_lines: 意図的なスキーマ違反に使う追加キー行。
         body_commit_sha: 本文へ書く commit SHA。省略時は frontmatter と一致させる。
         body_onboarding_blob_sha: 本文へ書く blob SHA。省略時は一致させる。
+        body: frontmatter の後へ置く本文。省略時は二重記録だけの最小本文を使う。
 
     Returns:
         結果証跡の内容。
@@ -200,13 +307,11 @@ def evidence_text(
             *extra_lines,
         ]
     )
-    return build_frontmatter(
-        lines,
-        evidence_body(
-            body_commit_sha or tested_commit_sha,
-            body_onboarding_blob_sha or onboarding_blob_sha,
-        ),
+    default_body = evidence_body(
+        body_commit_sha or tested_commit_sha,
+        body_onboarding_blob_sha or onboarding_blob_sha,
     )
+    return build_frontmatter(lines, body if body is not None else default_body)
 
 
 def parse_record(filename: str, text: str):
@@ -1436,6 +1541,7 @@ def commit_evidence(
     timestamp: str = RECORD_TIMESTAMP,
     attempt_id_value: str | None = None,
     extra_lines: tuple[str, ...] = (),
+    body: str | None = None,
 ) -> tuple[str, str]:
     """名指し検証に使う結果証跡を候補コミット C へ追加する。
 
@@ -1451,6 +1557,7 @@ def commit_evidence(
         timestamp: ファイル名先頭に書くハイフン付き UTC 時刻。
         attempt_id_value: frontmatter へ直接書く attempt_id。省略時は正規形。
         extra_lines: frontmatter へ加えるテスト用の追加行。
+        body: frontmatter の後へ置く本文。省略時は⑩を満たす本文を使う。
 
     Returns:
         ``(candidate_sha, evidence_path)`` の組。
@@ -1475,6 +1582,15 @@ def commit_evidence(
             attempt_seq=attempt_seq,
             attempt_id_value=attempt_id_value,
             extra_lines=extra_lines,
+            body=(
+                body
+                if body is not None
+                else complete_evidence_body(
+                    tested_commit_sha,
+                    onboarding_blob_sha,
+                    gate_kind,
+                )
+            ),
         ),
     )
     commit_invalidation_changes(root, "docs: add evidence")
@@ -1492,6 +1608,7 @@ def commit_closed_attempt(
     attempt_seq: int = 1,
     timestamp: str = RECORD_TIMESTAMP,
     attempt_id_value: str | None = None,
+    body: str | None = None,
 ) -> tuple[str, str]:
     """予約と結果証跡が 1 対 1 で対応する閉塞済み試行を追加する。
 
@@ -1505,6 +1622,7 @@ def commit_closed_attempt(
         attempt_seq: 予約・結果で共通に使う連番。
         timestamp: 予約・結果ファイル名に共通に使う UTC 時刻。
         attempt_id_value: 両レコードに共通に書く attempt_id。省略時は正規形。
+        body: 結果証跡の frontmatter 後に置く本文。省略時は完全な本文を使う。
 
     Returns:
         結果証跡を追加した後の ``(candidate_sha, evidence_path)``。
@@ -1527,6 +1645,7 @@ def commit_closed_attempt(
         attempt_seq=attempt_seq,
         timestamp=timestamp,
         attempt_id_value=attempt_id_value,
+        body=body,
     )
 
 
@@ -1537,8 +1656,9 @@ def make_valid_evidence_repository(
     gate_kind: str = "phase4",
     release_version: str | None = None,
     result: str = "passed",
+    body: str | None = None,
 ) -> tuple[Path, str, str, str, str]:
-    """①〜⑨を満たす候補 C と実施時点 T を持つ一時リポジトリを作る。
+    """①〜⑩を満たす候補 C と実施時点 T を持つ一時リポジトリを作る。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -1546,6 +1666,7 @@ def make_valid_evidence_repository(
         gate_kind: 結果証跡に書くゲート種別。
         release_version: release の場合の証跡版。
         result: 結果証跡に書く result。
+        body: 結果証跡の frontmatter 後に置く本文。省略時は完全な本文を使う。
 
     Returns:
         ``(root, tested_sha, candidate_sha, evidence_path, onboarding_blob_sha)``。
@@ -1562,6 +1683,7 @@ def make_valid_evidence_repository(
         gate_kind=gate_kind,
         release_version=release_version,
         result=result,
+        body=body,
     )
     return root, tested_commit_sha, candidate_sha, evidence_path, onboarding_blob_sha
 
@@ -2020,10 +2142,10 @@ def test_accepts_allowlisted_evidence_change_only(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_accepts_named_evidence_that_satisfies_conditions_one_to_nine(
+def test_accepts_named_evidence_that_satisfies_conditions_one_to_ten(
     tmp_path: Path,
 ) -> None:
-    """①〜⑨をすべて満たす名指し結果証跡が exit 0 になる。"""
+    """①〜⑩をすべて満たす名指し結果証跡が exit 0 になる。"""
     root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
 
     result = run_verifier(
@@ -2437,3 +2559,226 @@ def test_rejects_attempt_sequence_contract_mismatch(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert verify.REASON_CONTRACT_SEQUENCE in result.stderr
+
+
+def test_accepts_complete_phase4_evidence_body(tmp_path: Path) -> None:
+    """11 欄と phase4 の合格項目 5 行が埋まった名指し証跡を受理する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_complete_release_evidence_body(tmp_path: Path) -> None:
+    """release の合格項目 8 行がすべて埋まった名指し証跡を受理する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(
+        tmp_path,
+        gate_kind="release",
+        release_version="v1.2.3",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(
+            candidate_sha,
+            evidence_path,
+            gate_kind="release",
+            release_version="v1.2.3",
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_acceptance_item_table_reference_value() -> None:
+    """「下表に記載」を各合格項目の実値として空欄扱いしない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert "| 各合格項目の期待値と実測値 | 下表に記載 |" in body
+    assert verify.validate_evidence_completeness(record) == ()
+
+
+def test_accepts_regular_body_values_without_angle_brackets() -> None:
+    """山括弧を含まない実値と通常文をプレースホルダとして扱わない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert "Windows 11 24H2" in body
+    assert "python 3.12.3 / uv 0.8.13" in body
+    assert "判定者が内容を確認した" in body
+    assert verify.validate_evidence_completeness(record) == ()
+
+
+def test_checks_completeness_for_named_evidence_only(tmp_path: Path) -> None:
+    """過去の不完全な failed 証跡で名指し passed 証跡を閉塞しない。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        result="failed",
+        attempt_seq=1,
+        body=evidence_body(tested_commit_sha, onboarding_blob_sha),
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_evidence_body_with_a_missing_required_field() -> None:
+    """証跡 11 欄のうち 1 欄がなければ本文完全性を拒否する。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
+        "| 判定者 | 判定者が内容を確認した |\n",
+        "",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    reasons = verify.validate_evidence_completeness(record)
+
+    assert verify.REASON_EVIDENCE_FIELD_MISSING.split(":")[0] in reasons[0]
+    assert "判定者" in reasons[0]
+
+
+def test_rejects_phase4_evidence_body_with_four_acceptance_items() -> None:
+    """phase4 の合格項目が 4 行しかなければ本文完全性を拒否する。"""
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(
+            body=complete_evidence_body(
+                COMMIT_SHA,
+                ONBOARDING_BLOB_SHA,
+                acceptance_item_count=4,
+            )
+        ),
+    )
+
+    reasons = verify.validate_evidence_completeness(record)
+
+    assert any("合格項目表の行数が phase4" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize("table", ("evidence", "acceptance"))
+def test_rejects_empty_body_table_value(table: str) -> None:
+    """証跡表と合格項目表のいずれの空欄も本文完全性で拒否する。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    if table == "evidence":
+        body = body.replace("| Windows 版 | Windows 11 24H2 |", "| Windows 版 |   |", 1)
+        expected_reason = "証跡表の Windows 版 の値が空である"
+    else:
+        body = body.replace("| 1 | 合格項目 1 | 期待値 1 | 実測値 1 |", "| 1 | 合格項目 1 |   | 実測値 1 |", 1)
+        expected_reason = "合格項目表の 1 行目の 期待値 が空である"
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    reasons = verify.validate_evidence_completeness(record)
+
+    assert expected_reason in reasons
+
+
+@pytest.mark.parametrize(
+    ("table", "placeholder"),
+    (
+        ("evidence", "<未記入>"),
+        ("acceptance", "<TBD>"),
+        ("evidence", f"{CODE_DELIMITER}<未記入>{CODE_DELIMITER}"),
+        ("acceptance", f"{CODE_DELIMITER}<TBD>{CODE_DELIMITER}"),
+    ),
+)
+def test_rejects_body_table_placeholder(table: str, placeholder: str) -> None:
+    """バックティックの有無を問わず ``<...>`` を本文完全性で拒否する。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    if table == "evidence":
+        body = body.replace("Windows 11 24H2", placeholder, 1)
+        expected_reason = "証跡表の Windows 版 の値にプレースホルダが残っている"
+    else:
+        body = body.replace("実測値 1", placeholder, 1)
+        expected_reason = "合格項目表の 1 行目の 実測値 にプレースホルダが残っている"
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    reasons = verify.validate_evidence_completeness(record)
+
+    assert expected_reason in reasons
+
+
+def test_rejects_release_evidence_body_with_five_acceptance_items() -> None:
+    """release の合格項目が phase4 と同じ 5 行だけなら拒否する。"""
+    record = parse_record(
+        "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md",
+        evidence_text(
+            gate_kind="release",
+            release_version="v1.2.3",
+            body=complete_evidence_body(
+                COMMIT_SHA,
+                ONBOARDING_BLOB_SHA,
+                "release",
+                acceptance_item_count=5,
+            ),
+        ),
+    )
+
+    reasons = verify.validate_evidence_completeness(record)
+
+    assert any("合格項目表の行数が release" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize(
+    "template_path",
+    (PHASE4_EVIDENCE_TEMPLATE, RELEASE_EVIDENCE_TEMPLATE),
+)
+def test_evidence_field_constants_match_template_field_names(template_path: Path) -> None:
+    """11 欄定数と機械照合用の追加欄を含むテンプレート実物を突き合わせる。"""
+    field_names = {
+        row[0] for row in template_table_rows(template_path, "証跡")
+    }
+
+    assert field_names == set(verify.REQUIRED_EVIDENCE_FIELD_NAMES) | {
+        "onboarding blob SHA"
+    }
+
+
+@pytest.mark.parametrize(
+    ("template_path", "gate_kind"),
+    (
+        (PHASE4_EVIDENCE_TEMPLATE, "phase4"),
+        (RELEASE_EVIDENCE_TEMPLATE, "release"),
+    ),
+)
+def test_acceptance_item_count_constants_match_template_rows(
+    template_path: Path,
+    gate_kind: str,
+) -> None:
+    """ゲート別の合格項目行数定数をテンプレート実物で腐り検知する。"""
+    rows = template_table_rows(template_path, "合格項目")
+
+    assert len(rows) == verify.ACCEPTANCE_ITEM_COUNTS[gate_kind]

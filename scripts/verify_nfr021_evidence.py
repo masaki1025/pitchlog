@@ -96,6 +96,42 @@ BODY_FIELD_KEYS = (
     ("commit SHA", "tested_commit_sha"),
     ("onboarding blob SHA", "onboarding_blob_sha"),
 )
+EVIDENCE_TABLE_HEADING = "証跡"
+ACCEPTANCE_TABLE_HEADING = "合格項目"
+MARKDOWN_LEVEL_TWO_PREFIX = "## "
+EVIDENCE_TABLE_HEADERS = ("項目", "記録")
+ACCEPTANCE_TABLE_HEADERS = ("#", "合格項目", "期待値", "実測値")
+EVIDENCE_TABLE_LABEL_INDEX = 0
+EVIDENCE_TABLE_VALUE_INDEX = 1
+ACCEPTANCE_TABLE_FIRST_VALUE_INDEX = 1
+TABLE_SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
+PLACEHOLDER_RE = re.compile(r"<[^<>\n]+>")
+# 必須項目の一覧の正は要件書 NFR-021、欄の形の正は
+# docs/ops/nfr021-acceptance/ のテンプレート。テンプレートの書式契約テストは
+# tests/test_nfr021_evidence_templates.py。
+REQUIRED_EVIDENCE_FIELD_NAMES = (
+    "日時",
+    "commit SHA",
+    "Windows 版",
+    "WSL 版",
+    "ディストリビューション版",
+    "onboarding 版",
+    "主要ツールの版（python / uv / node / docker）",
+    "実行コマンドと終了コード",
+    "各合格項目の期待値と実測値",
+    "標準出力またはログ成果物への参照",
+    "判定者",
+)
+ACCEPTANCE_ITEM_VALUES_FIELD_NAME = "各合格項目の期待値と実測値"
+ACCEPTANCE_ITEM_VALUES_REFERENCE = "下表に記載"
+PHASE4_ACCEPTANCE_ITEM_COUNT = 5
+RELEASE_ACCEPTANCE_ITEM_COUNT = 8
+ACCEPTANCE_ITEM_COUNTS: Mapping[str, int] = MappingProxyType(
+    {
+        "phase4": PHASE4_ACCEPTANCE_ITEM_COUNT,
+        "release": RELEASE_ACCEPTANCE_ITEM_COUNT,
+    }
+)
 REASON_NOT_DIRECT_CHILD = "受入証跡ディレクトリ直下の項目ではない"
 REASON_INVALID_FILENAME = "閉じた命名文法に一致しない"
 REASON_INVALID_TIMESTAMP = "タイムスタンプが実在時刻ではない"
@@ -134,6 +170,24 @@ REASON_FILENAME_SHORT_SHA = "ファイル名の short SHA が tested_commit_sha 
 REASON_BODY_FIELD_MISSING = "本文に {label} の行がない"
 REASON_BODY_FIELD_DUPLICATE = "本文の {label} の行が一意ではない"
 REASON_BODY_FIELD_MISMATCH = "本文の {label} が frontmatter の {key} と一致しない"
+REASON_EVIDENCE_TABLE_FORMAT = "本文の証跡表の形式が不正である"
+REASON_EVIDENCE_TABLE_HEADER = "証跡表のヘッダーが正本の形式と一致しない"
+REASON_EVIDENCE_FIELD_MISSING = "証跡表に必須欄がない: {fields}"
+REASON_EVIDENCE_VALUE_EMPTY = "証跡表の {field} の値が空である"
+REASON_EVIDENCE_VALUE_PLACEHOLDER = (
+    "証跡表の {field} の値にプレースホルダが残っている"
+)
+REASON_ACCEPTANCE_TABLE_FORMAT = "本文の合格項目表の形式が不正である"
+REASON_ACCEPTANCE_TABLE_HEADER = "合格項目表のヘッダーが正本の形式と一致しない"
+REASON_ACCEPTANCE_ITEM_COUNT = (
+    "合格項目表の行数が {gate_kind} の必要数と一致しない: "
+    "必要 {expected} 行、実際 {actual} 行"
+)
+REASON_ACCEPTANCE_VALUE_EMPTY = "合格項目表の {row_number} 行目の {column} が空である"
+REASON_ACCEPTANCE_VALUE_PLACEHOLDER = (
+    "合格項目表の {row_number} 行目の {column} にプレースホルダが残っている"
+)
+REASON_EVIDENCE_COMPLETENESS_GATE_KIND = "本文完全性を検査する gate_kind を取得できない"
 REASON_CONTRACT_GATE_KEY = "同一 attempt_id の予約と結果でゲートキーが一致しない"
 REASON_CONTRACT_SEQUENCE = "同一 attempt_id の予約と結果で attempt_seq が一致しない"
 REASON_CONTRACT_RELEASE_VERSION = (
@@ -298,6 +352,19 @@ class Frontmatter:
 
     values: Mapping[str, str | int]
     body: str
+
+
+@dataclass(frozen=True)
+class MarkdownTable:
+    """見出しに属する Markdown 表のヘッダーとデータ行を表す。
+
+    Attributes:
+        headers: 表ヘッダーのセル列。
+        rows: 区切り行より後にあるデータ行のセル列。
+    """
+
+    headers: tuple[str, ...]
+    rows: tuple[tuple[str, ...], ...]
 
 
 @dataclass(frozen=True)
@@ -884,6 +951,196 @@ def extract_body_field(body: str, label: str) -> str:
     ):
         value = value[1:-1].strip()
     return value
+
+
+def parse_markdown_table_row(line: str) -> tuple[str, ...] | None:
+    """Markdown 表の 1 行を前後空白なしのセル列へ分解する。
+
+    Args:
+        line: パイプで始まり終わる可能性がある Markdown の 1 行。
+
+    Returns:
+        表の行ならセル列。表の行ではなければ None。
+
+    Raises:
+        発生しない。
+    """
+    stripped_line = line.strip()
+    if not stripped_line.startswith("|") or not stripped_line.endswith("|"):
+        return None
+    return tuple(cell.strip() for cell in stripped_line[1:-1].split("|"))
+
+
+def is_markdown_table_separator(cells: Sequence[str], column_count: int) -> bool:
+    """Markdown 表の区切り行がヘッダー列数と書式に適合するか判定する。
+
+    Args:
+        cells: 区切り行として解釈するセル列。
+        column_count: ヘッダーと一致すべきセル数。
+
+    Returns:
+        すべてのセルが Markdown 表の区切り書式で列数も一致すれば True。
+
+    Raises:
+        発生しない。
+    """
+    return len(cells) == column_count and all(
+        TABLE_SEPARATOR_CELL_RE.fullmatch(cell) is not None for cell in cells
+    )
+
+
+def extract_named_markdown_table(body: str, heading: str) -> MarkdownTable | None:
+    """本文の指定した見出しに属する 1 個の Markdown 表を抽出する。
+
+    Args:
+        body: frontmatter 終端より後の結果証跡本文。
+        heading: ``##`` 見出しの表示名。
+
+    Returns:
+        ヘッダー、区切り行、列数が解釈できる表。見出しや表の形式が不正なら None。
+
+    Raises:
+        発生しない。
+    """
+    lines = body.splitlines()
+    heading_line = f"{MARKDOWN_LEVEL_TWO_PREFIX}{heading}"
+    heading_indexes = [
+        index for index, line in enumerate(lines) if line == heading_line
+    ]
+    if len(heading_indexes) != 1:
+        return None
+
+    table_index: int | None = None
+    for index in range(heading_indexes[0] + 1, len(lines)):
+        line = lines[index]
+        if line.startswith("#"):
+            break
+        if parse_markdown_table_row(line) is not None:
+            table_index = index
+            break
+    if table_index is None:
+        return None
+
+    headers = parse_markdown_table_row(lines[table_index])
+    if headers is None:
+        return None
+    separator_index = table_index + 1
+    if separator_index >= len(lines):
+        return None
+    separator = parse_markdown_table_row(lines[separator_index])
+    if separator is None or not is_markdown_table_separator(separator, len(headers)):
+        return None
+
+    rows: list[tuple[str, ...]] = []
+    for line in lines[separator_index + 1 :]:
+        row = parse_markdown_table_row(line)
+        if row is None:
+            break
+        if len(row) != len(headers):
+            return None
+        rows.append(row)
+    return MarkdownTable(headers=headers, rows=tuple(rows))
+
+
+def validate_evidence_completeness(record: AcceptanceRecord) -> tuple[str, ...]:
+    """名指し結果証跡 1 件の本文完全性を合格条件⑩として検査する。
+
+    Args:
+        record: スキーマ適合済みで、結果証跡である名指しレコード。
+
+    Returns:
+        パスを含まない本文完全性の不合格理由。適合していれば空のタプル。
+
+    Raises:
+        GuardError: 結果証跡である前提に反して gate_kind を取得できない場合。
+    """
+    reasons: list[str] = []
+    evidence_table = extract_named_markdown_table(
+        record.frontmatter.body,
+        EVIDENCE_TABLE_HEADING,
+    )
+    if evidence_table is None:
+        reasons.append(REASON_EVIDENCE_TABLE_FORMAT)
+    elif evidence_table.headers != EVIDENCE_TABLE_HEADERS:
+        reasons.append(REASON_EVIDENCE_TABLE_HEADER)
+    else:
+        field_names = {
+            row[EVIDENCE_TABLE_LABEL_INDEX] for row in evidence_table.rows
+        }
+        missing_fields = [
+            field_name
+            for field_name in REQUIRED_EVIDENCE_FIELD_NAMES
+            if field_name not in field_names
+        ]
+        if missing_fields:
+            reasons.append(
+                REASON_EVIDENCE_FIELD_MISSING.format(
+                    fields=", ".join(missing_fields)
+                )
+            )
+        for row in evidence_table.rows:
+            field_name = row[EVIDENCE_TABLE_LABEL_INDEX]
+            value = row[EVIDENCE_TABLE_VALUE_INDEX].strip()
+            # 現在（<...> 検査へ拡張後も）の空欄・プレースホルダ検査では、
+            # 「下表に記載」はどちらにも当たらないため、この continue は冗長である。
+            # 将来、プレースホルダ規則を広げるか参照値を弾く検査を足す場合には、
+            # この欄を実値として許容する境界になる。
+            if (
+                field_name == ACCEPTANCE_ITEM_VALUES_FIELD_NAME
+                and value == ACCEPTANCE_ITEM_VALUES_REFERENCE
+            ):
+                continue
+            if not value:
+                reasons.append(
+                    REASON_EVIDENCE_VALUE_EMPTY.format(field=field_name)
+                )
+            elif PLACEHOLDER_RE.search(value) is not None:
+                reasons.append(
+                    REASON_EVIDENCE_VALUE_PLACEHOLDER.format(field=field_name)
+                )
+
+    gate_kind = record.path.gate_kind
+    expected_count = ACCEPTANCE_ITEM_COUNTS.get(gate_kind or "")
+    if expected_count is None:
+        raise GuardError(REASON_EVIDENCE_COMPLETENESS_GATE_KIND)
+    acceptance_table = extract_named_markdown_table(
+        record.frontmatter.body,
+        ACCEPTANCE_TABLE_HEADING,
+    )
+    if acceptance_table is None:
+        reasons.append(REASON_ACCEPTANCE_TABLE_FORMAT)
+    elif acceptance_table.headers != ACCEPTANCE_TABLE_HEADERS:
+        reasons.append(REASON_ACCEPTANCE_TABLE_HEADER)
+    else:
+        if len(acceptance_table.rows) != expected_count:
+            reasons.append(
+                REASON_ACCEPTANCE_ITEM_COUNT.format(
+                    gate_kind=gate_kind,
+                    expected=expected_count,
+                    actual=len(acceptance_table.rows),
+                )
+            )
+        for row_number, row in enumerate(acceptance_table.rows, start=1):
+            for column, value in zip(
+                ACCEPTANCE_TABLE_HEADERS[ACCEPTANCE_TABLE_FIRST_VALUE_INDEX:],
+                row[ACCEPTANCE_TABLE_FIRST_VALUE_INDEX:],
+            ):
+                stripped_value = value.strip()
+                if not stripped_value:
+                    reasons.append(
+                        REASON_ACCEPTANCE_VALUE_EMPTY.format(
+                            row_number=row_number,
+                            column=column,
+                        )
+                    )
+                elif PLACEHOLDER_RE.search(stripped_value) is not None:
+                    reasons.append(
+                        REASON_ACCEPTANCE_VALUE_PLACEHOLDER.format(
+                            row_number=row_number,
+                            column=column,
+                        )
+                    )
+    return tuple(dict.fromkeys(reasons))
 
 
 def validate_evidence_body(
@@ -2504,7 +2761,7 @@ def verify_named_evidence(
     evidence_path: Path,
     requested_release_version: str | None,
 ) -> tuple[str, ...]:
-    """名指しされた候補ツリー内の結果証跡について合格条件①〜⑨を検査する。
+    """名指しされた候補ツリー内の結果証跡について合格条件①〜⑩を検査する。
 
     Args:
         root: Git リポジトリのルートディレクトリ。
@@ -2587,7 +2844,13 @@ def verify_named_evidence(
     )
     if prior_violations:
         return prior_violations
-    return validate_attempt_conditions(root, candidate_sha, record)
+    attempt_violations = validate_attempt_conditions(root, candidate_sha, record)
+    if attempt_violations:
+        return attempt_violations
+    return tuple(
+        format_violation(display_path, reason)
+        for reason in validate_evidence_completeness(record)
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
