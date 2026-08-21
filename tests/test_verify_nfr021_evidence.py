@@ -909,6 +909,22 @@ def git_for_invalidation(
     )
 
 
+def write_invalidation_bytes(root: Path, relative_path: str, contents: bytes) -> None:
+    """一時リポジトリに任意のバイト列のファイルを書き出す。
+
+    Args:
+        root: 一時リポジトリのルート。
+        relative_path: root からの相対パス。
+        contents: 書き込む生のバイト列。
+
+    Returns:
+        戻り値はない。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(contents)
+
+
 def write_invalidation_file(root: Path, relative_path: str, content: str) -> None:
     """一時リポジトリに UTF-8 テキストファイルを書き出す。
 
@@ -920,9 +936,7 @@ def write_invalidation_file(root: Path, relative_path: str, content: str) -> Non
     Returns:
         戻り値はない。
     """
-    path = root / relative_path
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    write_invalidation_bytes(root, relative_path, content.encode("utf-8"))
 
 
 def commit_invalidation_changes(root: Path, subject: str) -> None:
@@ -961,6 +975,12 @@ def init_invalidation_repository(tmp_path: Path, branch: str = "develop") -> Pat
     git_for_invalidation(root, "config", "user.email", "test@example.com")
     git_for_invalidation(root, "config", "user.name", "test")
     write_invalidation_file(root, "README.md", "# test\n")
+    write_invalidation_bytes(root, "scripts/verify_nfr021_evidence.py", SCRIPT.read_bytes())
+    write_invalidation_bytes(
+        root,
+        ".claude/nfr021-invalidating-paths.json",
+        INVALIDATING_PATHS_CONFIG.read_bytes(),
+    )
     commit_invalidation_changes(root, "chore: base")
     return root
 
@@ -1405,11 +1425,6 @@ def commit_onboarding(
     Returns:
         ``(tested_commit_sha, onboarding_blob_sha)`` の組。
     """
-    write_invalidation_file(
-        root,
-        ".claude/nfr021-invalidating-paths.json",
-        INVALIDATING_PATHS_CONFIG.read_text(encoding="utf-8"),
-    )
     write_invalidation_file(
         root,
         "docs/development/onboarding.md",
@@ -2782,3 +2797,139 @@ def test_acceptance_item_count_constants_match_template_rows(
     rows = template_table_rows(template_path, "合格項目")
 
     assert len(rows) == verify.ACCEPTANCE_ITEM_COUNTS[gate_kind]
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "contents"),
+    (
+        ("artifacts/empty.bin", b""),
+        ("artifacts/newline.bin", b"\n"),
+        ("artifacts/multibyte.txt", "野球⚾\n".encode("utf-8")),
+        ("artifacts/large.bin", b"0123456789abcdef" * 1024),
+    ),
+    ids=("empty", "newline", "multibyte", "large"),
+)
+def test_git_blob_oid_matches_git_tree_blob(
+    tmp_path: Path,
+    relative_path: str,
+    contents: bytes,
+) -> None:
+    """自前計算した blob OID が内容の異なる Git blob と一致する。"""
+    root = init_invalidation_repository(tmp_path)
+    write_invalidation_bytes(root, relative_path, contents)
+    commit_invalidation_changes(root, "test: add blob")
+    candidate_sha = invalidation_head(root)
+
+    tree_blob_oid = git_for_invalidation(
+        root,
+        "rev-parse",
+        f"{candidate_sha}:{relative_path}",
+    ).stdout.strip()
+
+    assert verify.git_blob_oid(contents) == tree_blob_oid
+
+
+def test_accepts_matching_self_identity(tmp_path: Path) -> None:
+    """検証器と設定の内容が候補ツリーと一致すれば中断しない。"""
+    root = init_invalidation_repository(tmp_path)
+
+    verify.validate_self_identity(root, invalidation_head(root))
+
+
+def test_rejects_verifier_self_identity_mismatch(tmp_path: Path) -> None:
+    """実行中の検証器と候補ツリー内の検証器が違えば中断する。"""
+    root = init_invalidation_repository(tmp_path)
+    write_invalidation_file(
+        root,
+        verify.VERIFIER_RELATIVE_PATH,
+        "# candidate verifier differs\n",
+    )
+    commit_invalidation_changes(root, "test: alter verifier")
+
+    with pytest.raises(core_guard.GuardError) as error_info:
+        verify.validate_self_identity(root, invalidation_head(root))
+
+    assert str(error_info.value) == verify.REASON_SELF_IDENTITY_MISMATCH.format(
+        label=verify.SELF_IDENTITY_VERIFIER_LABEL
+    )
+
+
+def test_rejects_invalidation_config_self_identity_mismatch(tmp_path: Path) -> None:
+    """実行中の失効パス設定と候補ツリー内の設定が違えば中断する。"""
+    root = init_invalidation_repository(tmp_path)
+    candidate_sha = invalidation_head(root)
+    write_invalidation_file(
+        root,
+        verify.INVALIDATING_PATHS_CONFIG_PATH.as_posix(),
+        "{\"syntax\": \"different\"}\n",
+    )
+
+    with pytest.raises(core_guard.GuardError) as error_info:
+        verify.validate_self_identity(root, candidate_sha)
+
+    assert str(error_info.value) == verify.REASON_SELF_IDENTITY_MISMATCH.format(
+        label=verify.SELF_IDENTITY_CONFIG_LABEL
+    )
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "reason"),
+    (
+        (
+            verify.VERIFIER_RELATIVE_PATH,
+            verify.REASON_SELF_IDENTITY_TREE_MISSING.format(
+                path=verify.VERIFIER_RELATIVE_PATH
+            ),
+        ),
+        (
+            verify.INVALIDATING_PATHS_CONFIG_PATH.as_posix(),
+            verify.REASON_SELF_IDENTITY_TREE_MISSING.format(
+                path=verify.INVALIDATING_PATHS_CONFIG_PATH.as_posix()
+            ),
+        ),
+    ),
+)
+def test_rejects_self_identity_target_missing_from_candidate_tree(
+    tmp_path: Path,
+    relative_path: str,
+    reason: str,
+) -> None:
+    """候補ツリーに検証器または設定がなければ自己同一性確認を中断する。"""
+    root = init_invalidation_repository(tmp_path)
+    (root / relative_path).unlink()
+    commit_invalidation_changes(root, "test: remove self identity target")
+
+    with pytest.raises(core_guard.GuardError) as error_info:
+        verify.validate_self_identity(root, invalidation_head(root))
+
+    assert str(error_info.value) == reason
+
+
+def test_interrupts_for_self_identity_before_gate_conditions(tmp_path: Path) -> None:
+    """自己同一性の不一致を名指し証跡のゲート条件より先に中断する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        result="failed",
+    )
+    write_invalidation_file(
+        root,
+        verify.VERIFIER_RELATIVE_PATH,
+        "# candidate verifier differs\n",
+    )
+    commit_invalidation_changes(root, "test: alter verifier")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_SELF_IDENTITY_MISMATCH.format(
+        label=verify.SELF_IDENTITY_VERIFIER_LABEL
+    ) in result.stderr
+    assert verify.REASON_RESULT_NOT_PASSED not in result.stderr

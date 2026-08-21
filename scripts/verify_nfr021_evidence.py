@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -195,6 +196,9 @@ REASON_CONTRACT_RELEASE_VERSION = (
 )
 DIFF_TIMEOUT_SECONDS = 30
 INVALIDATING_PATHS_CONFIG_PATH = Path(".claude/nfr021-invalidating-paths.json")
+VERIFIER_RELATIVE_PATH = "scripts/verify_nfr021_evidence.py"
+SELF_IDENTITY_VERIFIER_LABEL = "実行中の検証器"
+SELF_IDENTITY_CONFIG_LABEL = "失効パス設定"
 INVALIDATING_PATHS_SYNTAX = "gitignore-root-relative-v1"
 CONFIG_KEY_SYNTAX = "syntax"
 CONFIG_KEY_DEFAULT = "default"
@@ -311,6 +315,16 @@ REASON_NAMED_RESERVATION_COUNT = (
 REASON_ORPHAN_EVIDENCE = "結果証跡に対応する予約がない: {attempt_id}"
 REASON_MULTIPLE_RESERVATIONS = "同一 attempt_id の予約が複数ある: {attempt_id}"
 REASON_MULTIPLE_EVIDENCES = "同一 attempt_id の結果証跡が複数ある: {attempt_id}"
+REASON_SELF_IDENTITY_FILE_READ = "自己同一性確認の {label} を読み込めない: {error}"
+REASON_SELF_IDENTITY_TREE_MISSING = (
+    "candidate_sha のツリーに自己同一性確認対象が収録されていない: {path}"
+)
+REASON_SELF_IDENTITY_TREE_TYPE = (
+    "candidate_sha のツリーの自己同一性確認対象が blob オブジェクトではない: {path}"
+)
+REASON_SELF_IDENTITY_MISMATCH = (
+    "実行中の {label} が candidate_sha のツリーに収録された blob と一致しない"
+)
 
 # 字句規則の正は docs/ops/nfr021-acceptance/README.md である。索引カバレッジ用の
 # 述語は scripts/check_docs_status.py:151-194 にあり、対象範囲が異なる。
@@ -2225,6 +2239,84 @@ def git_tree_object_oid(
     return object_id
 
 
+def git_blob_oid(contents: bytes) -> str:
+    """Git の SHA-1 blob OID を内容バイト列から算出する。
+
+    Args:
+        contents: blob としてハッシュ化する生の内容バイト列。
+
+    Returns:
+        ``blob <バイト長>\\0`` を前置した SHA-1 の小文字 16 進 OID。
+
+    Raises:
+        発生しない。
+    """
+    header = f"blob {len(contents)}\0".encode("ascii")
+    return hashlib.sha1(header + contents).hexdigest()
+
+
+def local_file_blob_oid(path: Path, label: str) -> str:
+    """実行環境にあるファイルの実体から Git blob OID を算出する。
+
+    Args:
+        path: 内容を読むファイルのパス。シンボリックリンクは実体へ解決する。
+        label: GuardError の理由に表示する対象名。
+
+    Returns:
+        解決したファイル内容に対応する Git blob OID。
+
+    Raises:
+        GuardError: ファイルの実体を解決または読み込みできない場合。
+    """
+    try:
+        contents = path.resolve(strict=True).read_bytes()
+    except OSError as error:
+        raise GuardError(
+            REASON_SELF_IDENTITY_FILE_READ.format(label=label, error=error)
+        ) from error
+    return git_blob_oid(contents)
+
+
+def validate_self_identity(root: Path, candidate_sha: str) -> None:
+    """実行中の検証器と失効パス設定が候補ツリーの blob と一致するか検査する。
+
+    Args:
+        root: 実行時の設定と候補 Git ツリーを持つリポジトリのルートディレクトリ。
+        candidate_sha: 比較対象として固定した候補 commit OID。
+
+    Returns:
+        戻り値はない。
+
+    Raises:
+        GuardError: 実行中のファイル、設定、候補ツリーの対象を解決できない、または
+            blob OID が一致しない場合。
+    """
+    targets = (
+        (
+            VERIFIER_RELATIVE_PATH,
+            Path(__file__),
+            SELF_IDENTITY_VERIFIER_LABEL,
+        ),
+        (
+            INVALIDATING_PATHS_CONFIG_PATH.as_posix(),
+            root / INVALIDATING_PATHS_CONFIG_PATH,
+            SELF_IDENTITY_CONFIG_LABEL,
+        ),
+    )
+    for relative_path, local_path, label in targets:
+        tree_blob_oid = git_tree_object_oid(root, candidate_sha, relative_path)
+        if tree_blob_oid is None:
+            raise GuardError(
+                REASON_SELF_IDENTITY_TREE_MISSING.format(path=relative_path)
+            )
+        if git_object_type(root, tree_blob_oid, relative_path) != GIT_OBJECT_BLOB:
+            raise GuardError(
+                REASON_SELF_IDENTITY_TREE_TYPE.format(path=relative_path)
+            )
+        if local_file_blob_oid(local_path, label) != tree_blob_oid:
+            raise GuardError(REASON_SELF_IDENTITY_MISMATCH.format(label=label))
+
+
 def git_blob_contents(root: Path, blob_sha: str) -> str:
     """生の blob OID から UTF-8 として扱う内容を Git で取得する。
 
@@ -2778,6 +2870,7 @@ def verify_named_evidence(
     """
     validate_cli_gate_arguments(requested_gate_kind, requested_release_version)
     validate_candidate_sha(root, candidate_sha)
+    validate_self_identity(root, candidate_sha)
     display_path = evidence_path.as_posix()
     relative_path = evidence_relative_path(evidence_path)
     if relative_path is None:
