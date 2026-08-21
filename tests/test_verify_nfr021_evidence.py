@@ -26,6 +26,12 @@ OTHER_ONBOARDING_BLOB_SHA = "76543210fedcba987654321076543210fedcba98"
 RECORD_TIMESTAMP = "2026-08-19T101500Z"
 ATTEMPT_ID_TIMESTAMP = "20260819T101500Z"
 CODE_DELIMITER = chr(96)
+CANONICAL_ACCEPTANCE_FILENAMES = (
+    "README.md",
+    "reservation-template.md",
+    "evidence-phase4-template.md",
+    "evidence-release-template.md",
+)
 
 
 def load_module(script: Path, name: str) -> ModuleType:
@@ -1304,6 +1310,12 @@ def commit_onboarding(
         "docs/development/onboarding.md",
         "\n".join(["---", f"status: {status}", "---", "", "# onboarding", ""]),
     )
+    for filename in CANONICAL_ACCEPTANCE_FILENAMES:
+        write_invalidation_file(
+            root,
+            f"docs/ops/nfr021-acceptance/{filename}",
+            "# 正本\n",
+        )
     for relative_path, content in extra_files:
         write_invalidation_file(root, relative_path, content)
     commit_invalidation_changes(root, "docs: add onboarding")
@@ -1320,6 +1332,9 @@ def evidence_filename(
     gate_kind: str,
     release_version: str | None,
     tested_commit_sha: str,
+    *,
+    attempt_seq: int = 1,
+    timestamp: str = RECORD_TIMESTAMP,
 ) -> str:
     """テスト用の正規形結果証跡ファイル名を作る。
 
@@ -1327,6 +1342,8 @@ def evidence_filename(
         gate_kind: phase4 または release。
         release_version: release の場合の版。phase4 では None。
         tested_commit_sha: ファイル名末尾の short SHA の基になる OID。
+        attempt_seq: ファイル名に書く 1 以上の連番。
+        timestamp: ファイル名先頭に書くハイフン付き UTC 時刻。
 
     Returns:
         受入証跡ディレクトリ直下に置ける結果証跡ファイル名。
@@ -1334,9 +1351,76 @@ def evidence_filename(
     gate_value = "phase4" if gate_kind == "phase4" else release_version
     assert gate_value is not None
     return (
-        f"2026-08-19T101500Z-{gate_kind}-{gate_value}-seq001-"
+        f"{timestamp}-{gate_kind}-{gate_value}-seq{attempt_seq:03d}-"
         f"{tested_commit_sha[:12]}.md"
     )
+
+
+def reservation_filename(
+    gate_key: str,
+    *,
+    attempt_seq: int = 1,
+    timestamp: str = RECORD_TIMESTAMP,
+) -> str:
+    """テスト用の正規形予約レコード名を作る。
+
+    Args:
+        gate_key: phase4 または release-vX.Y.Z の合成ゲートキー。
+        attempt_seq: ファイル名に書く 1 以上の連番。
+        timestamp: ファイル名先頭に書くハイフン付き UTC 時刻。
+
+    Returns:
+        受入証跡ディレクトリ直下に置ける予約レコード名。
+    """
+    if gate_key == "phase4":
+        gate_kind = "phase4"
+        gate_value = "phase4"
+    else:
+        gate_kind = "release"
+        gate_value = gate_key.removeprefix("release-")
+    return f"{timestamp}-{gate_kind}-{gate_value}-seq{attempt_seq:03d}-reservation.md"
+
+
+def commit_reservation(
+    root: Path,
+    *,
+    gate_key: str = "phase4",
+    attempt_seq: int = 1,
+    timestamp: str = RECORD_TIMESTAMP,
+    attempt_id_value: str | None = None,
+    extra_lines: tuple[str, ...] = (),
+) -> str:
+    """候補ツリーへ予約レコードを 1 件追加してコミットする。
+
+    Args:
+        root: 一時 Git リポジトリのルート。
+        gate_key: frontmatter とファイル名に書く合成ゲートキー。
+        attempt_seq: frontmatter とファイル名に書く 1 以上の連番。
+        timestamp: ファイル名先頭に書くハイフン付き UTC 時刻。
+        attempt_id_value: frontmatter へ直接書く attempt_id。省略時は正規形。
+        extra_lines: frontmatter へ加えるテスト用の追加行。
+
+    Returns:
+        追加した予約レコードのリポジトリ相対パス。
+    """
+    filename = reservation_filename(
+        gate_key,
+        attempt_seq=attempt_seq,
+        timestamp=timestamp,
+    )
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_invalidation_file(
+        root,
+        relative_path,
+        reservation_text(
+            gate_key=gate_key,
+            attempt_seq=attempt_seq,
+            attempt_id_value=attempt_id_value,
+            extra_lines=extra_lines,
+        ),
+    )
+    commit_invalidation_changes(root, "docs: add reservation")
+    return relative_path
 
 
 def commit_evidence(
@@ -1348,6 +1432,10 @@ def commit_evidence(
     release_version: str | None = None,
     result: str = "passed",
     evidence_path: str | None = None,
+    attempt_seq: int = 1,
+    timestamp: str = RECORD_TIMESTAMP,
+    attempt_id_value: str | None = None,
+    extra_lines: tuple[str, ...] = (),
 ) -> tuple[str, str]:
     """名指し検証に使う結果証跡を候補コミット C へ追加する。
 
@@ -1359,11 +1447,21 @@ def commit_evidence(
         release_version: release の場合の版。
         result: frontmatter の result 値。
         evidence_path: 置き場所を直接指定する相対パス。省略時は正規直下名。
+        attempt_seq: frontmatter とファイル名に書く 1 以上の連番。
+        timestamp: ファイル名先頭に書くハイフン付き UTC 時刻。
+        attempt_id_value: frontmatter へ直接書く attempt_id。省略時は正規形。
+        extra_lines: frontmatter へ加えるテスト用の追加行。
 
     Returns:
         ``(candidate_sha, evidence_path)`` の組。
     """
-    filename = evidence_filename(gate_kind, release_version, tested_commit_sha)
+    filename = evidence_filename(
+        gate_kind,
+        release_version,
+        tested_commit_sha,
+        attempt_seq=attempt_seq,
+        timestamp=timestamp,
+    )
     relative_path = evidence_path or f"docs/ops/nfr021-acceptance/{filename}"
     write_invalidation_file(
         root,
@@ -1374,10 +1472,62 @@ def commit_evidence(
             tested_commit_sha=tested_commit_sha,
             onboarding_blob_sha=onboarding_blob_sha,
             result=result,
+            attempt_seq=attempt_seq,
+            attempt_id_value=attempt_id_value,
+            extra_lines=extra_lines,
         ),
     )
     commit_invalidation_changes(root, "docs: add evidence")
     return invalidation_head(root), relative_path
+
+
+def commit_closed_attempt(
+    root: Path,
+    tested_commit_sha: str,
+    onboarding_blob_sha: str,
+    *,
+    gate_kind: str = "phase4",
+    release_version: str | None = None,
+    result: str = "passed",
+    attempt_seq: int = 1,
+    timestamp: str = RECORD_TIMESTAMP,
+    attempt_id_value: str | None = None,
+) -> tuple[str, str]:
+    """予約と結果証跡が 1 対 1 で対応する閉塞済み試行を追加する。
+
+    Args:
+        root: 一時 Git リポジトリのルート。
+        tested_commit_sha: 結果証跡に書く実施時点 T。
+        onboarding_blob_sha: 結果証跡に書く onboarding blob OID。
+        gate_kind: phase4 または release。
+        release_version: release の場合の版。
+        result: 結果証跡に書く passed または failed。
+        attempt_seq: 予約・結果で共通に使う連番。
+        timestamp: 予約・結果ファイル名に共通に使う UTC 時刻。
+        attempt_id_value: 両レコードに共通に書く attempt_id。省略時は正規形。
+
+    Returns:
+        結果証跡を追加した後の ``(candidate_sha, evidence_path)``。
+    """
+    gate_key = "phase4" if gate_kind == "phase4" else f"release-{release_version}"
+    commit_reservation(
+        root,
+        gate_key=gate_key,
+        attempt_seq=attempt_seq,
+        timestamp=timestamp,
+        attempt_id_value=attempt_id_value,
+    )
+    return commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind=gate_kind,
+        release_version=release_version,
+        result=result,
+        attempt_seq=attempt_seq,
+        timestamp=timestamp,
+        attempt_id_value=attempt_id_value,
+    )
 
 
 def make_valid_evidence_repository(
@@ -1388,7 +1538,7 @@ def make_valid_evidence_repository(
     release_version: str | None = None,
     result: str = "passed",
 ) -> tuple[Path, str, str, str, str]:
-    """①〜⑥を満たす候補 C と実施時点 T を持つ一時リポジトリを作る。
+    """①〜⑨を満たす候補 C と実施時点 T を持つ一時リポジトリを作る。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -1405,7 +1555,7 @@ def make_valid_evidence_repository(
         root,
         status=onboarding_status,
     )
-    candidate_sha, evidence_path = commit_evidence(
+    candidate_sha, evidence_path = commit_closed_attempt(
         root,
         tested_commit_sha,
         onboarding_blob_sha,
@@ -1870,10 +2020,10 @@ def test_accepts_allowlisted_evidence_change_only(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_accepts_named_evidence_that_satisfies_conditions_one_to_six(
+def test_accepts_named_evidence_that_satisfies_conditions_one_to_nine(
     tmp_path: Path,
 ) -> None:
-    """①〜⑥をすべて満たす名指し結果証跡が exit 0 になる。"""
+    """①〜⑨をすべて満たす名指し結果証跡が exit 0 になる。"""
     root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
 
     result = run_verifier(
@@ -1901,3 +2051,389 @@ def test_real_repository_onboarding_draft_is_not_approved() -> None:
     )
 
     assert verify.REASON_ONBOARDING_STATUS in reasons
+
+
+def test_accepts_single_closed_attempt_and_excludes_canonical_documents(
+    tmp_path: Path,
+) -> None:
+    """予約と結果が 1 対 1 の 1 試行と正本 4 件を正しく扱う。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+    tree_names = {
+        path.name for path in verify.candidate_acceptance_tree_paths(root, candidate_sha)
+    }
+
+    assert set(CANONICAL_ACCEPTANCE_FILENAMES) <= tree_names
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_failed_closed_attempt_before_newest_passed_attempt(
+    tmp_path: Path,
+) -> None:
+    """失敗済み試行が残っても、より大きい passed 試行なら合格する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        result="failed",
+        attempt_seq=1,
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_allows_gap_below_the_unique_maximum_attempt_sequence(tmp_path: Path) -> None:
+    """下位番号の欠番だけでは⑦⑧⑨の不合格理由にしない。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=3,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_allows_duplicate_sequence_below_the_unique_maximum(tmp_path: Path) -> None:
+    """下位番号だけの重複では⑦⑧⑨の不合格理由にしない。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+        timestamp="2026-08-19T101501Z",
+        attempt_id_value=attempt_id("phase4", 2, "20260819T101501Z"),
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=3,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_two_sequences_with_the_same_gate_tested_commit_and_second(
+    tmp_path: Path,
+) -> None:
+    """同一ゲート・同一 T・同秒で seq だけ違う試行が共存できる。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=1,
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_limits_attempt_enumeration_to_the_named_release_gate_key(
+    tmp_path: Path,
+) -> None:
+    """別 release 版の試行を同一ゲートキーの判定対象へ混入させない。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind="release",
+        release_version="v1.0.0",
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind="release",
+        release_version="v1.1.0",
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(
+            candidate_sha,
+            evidence_path,
+            gate_kind="release",
+            release_version="v1.1.0",
+        ),
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_named_evidence_when_a_later_attempt_exists(tmp_path: Path) -> None:
+    """合格条件⑦として、より大きい連番の試行があれば古い証跡を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, old_evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=1,
+    )
+    candidate_sha, _ = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, old_evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_NAMED_ATTEMPT_NOT_MAXIMUM in result.stderr
+
+
+def test_rejects_nonunique_maximum_attempt_sequence(tmp_path: Path) -> None:
+    """合格条件⑦として、最大連番を持つ別試行が 2 件なら拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+    candidate_sha, _ = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+        timestamp="2026-08-19T101501Z",
+        attempt_id_value=attempt_id("phase4", 2, "20260819T101501Z"),
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_ATTEMPT_MAXIMUM_NOT_UNIQUE in result.stderr
+
+
+def test_rejects_unclosed_reservation(tmp_path: Path) -> None:
+    """合格条件⑧として、未閉塞の予約が 1 件でもあれば拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+    commit_reservation(root, attempt_seq=1, timestamp="2026-08-19T101501Z")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_RESERVATION_UNCLOSED.split(":")[0] in result.stderr
+
+
+def test_rejects_named_evidence_without_a_reservation(tmp_path: Path) -> None:
+    """合格条件⑨として、名指し結果証跡の孤児を拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_NAMED_RESERVATION_COUNT in result.stderr
+
+
+def test_rejects_two_reservations_for_the_named_attempt(tmp_path: Path) -> None:
+    """合格条件⑨として、名指し結果証跡に対応する予約が 2 件なら拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    duplicate_attempt_id = attempt_id("phase4", 1)
+    commit_reservation(root, attempt_id_value=duplicate_attempt_id)
+    commit_reservation(
+        root,
+        timestamp="2026-08-19T101501Z",
+        attempt_id_value=duplicate_attempt_id,
+    )
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_id_value=duplicate_attempt_id,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_NAMED_RESERVATION_COUNT in result.stderr
+
+
+def test_rejects_an_orphan_evidence_for_another_attempt(tmp_path: Path) -> None:
+    """合格条件⑨として、別試行の孤児結果証跡も拒否する。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+    )
+    candidate_sha, orphan_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=1,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert orphan_path in result.stderr
+    assert verify.REASON_ORPHAN_EVIDENCE.split(":")[0] in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "reason"),
+    [
+        (
+            "docs/ops/nfr021-acceptance/unexpected.yaml",
+            verify.REASON_INVALID_FILENAME,
+        ),
+        (
+            "docs/ops/nfr021-acceptance/unexpected",
+            verify.REASON_INVALID_FILENAME,
+        ),
+        (
+            "docs/ops/nfr021-acceptance/nested/unexpected.md",
+            verify.REASON_NOT_DIRECT_CHILD,
+        ),
+    ],
+)
+def test_rejects_invalid_tree_item_during_attempt_enumeration(
+    tmp_path: Path,
+    relative_path: str,
+    reason: str,
+) -> None:
+    """候補ツリー内の非正規名・サブディレクトリ項目を fail-closed にする。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    _, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+    write_invalidation_file(root, relative_path, "unexpected\n")
+    commit_invalidation_changes(root, "docs: add invalid acceptance item")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert f"{relative_path}: {reason}" in result.stderr
+
+
+def test_rejects_attempt_sequence_contract_mismatch(tmp_path: Path) -> None:
+    """同一 attempt_id の予約と結果で attempt_seq が違えば fail-closed にする。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    reservation_attempt_id = attempt_id("phase4", 2)
+    commit_reservation(root, attempt_seq=1, attempt_id_value=reservation_attempt_id)
+    candidate_sha, evidence_path = commit_evidence(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        attempt_seq=2,
+        attempt_id_value=reservation_attempt_id,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_CONTRACT_SEQUENCE in result.stderr

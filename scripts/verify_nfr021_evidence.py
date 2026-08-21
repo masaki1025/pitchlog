@@ -196,6 +196,8 @@ GIT_SHOW_COMMAND = "show"
 GIT_LS_TREE_COMMAND = "ls-tree"
 GIT_OBJECT_TYPE_OPTION = "-t"
 GIT_NAME_ONLY_OUTPUT_OPTION = "--name-only"
+GIT_RECURSIVE_OPTION = "-r"
+GIT_NULL_TERMINATE_OPTION = "-z"
 GIT_PATHSPEC_SEPARATOR = "--"
 GIT_OBJECT_COMMIT = "commit"
 GIT_OBJECT_BLOB = "blob"
@@ -209,6 +211,7 @@ OPERATION_OBJECT_TYPE = "git cat-file -t"
 OPERATION_TREE_PATH = "git ls-tree"
 OPERATION_TREE_OBJECT = "git rev-parse"
 OPERATION_BLOB_CONTENT = "git show"
+OPERATION_ACCEPTANCE_TREE = "git ls-tree による受入証跡の列挙"
 REASON_ARGUMENT_ERROR = "コマンドライン引数が不正: {message}"
 REASON_CANDIDATE_SHA_LEXICAL = "candidate_sha が完全な小文字 16 進 40 桁ではない"
 REASON_CANDIDATE_SHA_TYPE = "candidate_sha が commit オブジェクトではない"
@@ -241,6 +244,19 @@ REASON_RELEASE_VERSION_MISMATCH = "release_version が要求された版と一�
 REASON_INELIGIBLE_PATH = "失効対象の変更がある: {path} ({source})"
 REASON_INELIGIBLE_DEFAULT_PATH = "失効対象の変更がある: {path} (default)"
 REASON_EVIDENCE_VALUE_UNAVAILABLE = "証跡の {key} を取得できない"
+REASON_ACCEPTANCE_TREE_PATH = "受入証跡ツリーのパスが不正である: {path}"
+REASON_ACCEPTANCE_TREE_ITEM_TYPE = "受入証跡ツリー項目が blob オブジェクトではない"
+REASON_ATTEMPT_VALUE_UNAVAILABLE = "試行への畳み込みに必要な {key} を取得できない"
+REASON_NAMED_ATTEMPT_MISSING = "名指しされた結果証跡の試行を候補ツリーから取得できない"
+REASON_NAMED_ATTEMPT_NOT_MAXIMUM = "名指しされた証跡の attempt_seq が最大ではない"
+REASON_ATTEMPT_MAXIMUM_NOT_UNIQUE = "最大 attempt_seq を持つ試行が一意ではない"
+REASON_RESERVATION_UNCLOSED = "予約が結果証跡で閉じられていない: {attempt_id}"
+REASON_NAMED_RESERVATION_COUNT = (
+    "名指しされた結果証跡に対応する予約がちょうど 1 件ではない"
+)
+REASON_ORPHAN_EVIDENCE = "結果証跡に対応する予約がない: {attempt_id}"
+REASON_MULTIPLE_RESERVATIONS = "同一 attempt_id の予約が複数ある: {attempt_id}"
+REASON_MULTIPLE_EVIDENCES = "同一 attempt_id の結果証跡が複数ある: {attempt_id}"
 
 # 字句規則の正は docs/ops/nfr021-acceptance/README.md である。索引カバレッジ用の
 # 述語は scripts/check_docs_status.py:151-194 にあり、対象範囲が異なる。
@@ -297,6 +313,38 @@ class AcceptanceRecord:
     path: AcceptancePath
     display_path: str
     frontmatter: Frontmatter
+
+
+@dataclass(frozen=True)
+class CandidateGateRecords:
+    """候補ツリーから列挙した同一ゲートキーのレコードを表す。
+
+    Attributes:
+        records: 正規名であり、対象ゲートキーに属する解析済みレコード。
+        violations: 非正規ツリー項目、解析失敗、スキーマ違反を示すメッセージ。
+    """
+
+    records: tuple[AcceptanceRecord, ...]
+    violations: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AcceptanceAttempt:
+    """同一 attempt_id の予約と結果証跡を畳み込んだ試行を表す。
+
+    Attributes:
+        attempt_id: 予約と結果証跡を対応付ける識別子。
+        attempt_seq: 畳み込んだ試行の連番。
+        reservations: この試行に属する予約レコード。
+        evidences: この試行に属する結果証跡。
+        result: 結果証跡が 1 件だけのときの result。その他では None。
+    """
+
+    attempt_id: str
+    attempt_seq: int
+    reservations: tuple[AcceptanceRecord, ...]
+    evidences: tuple[AcceptanceRecord, ...]
+    result: str | None
 
 
 def invalid_acceptance_path(reason: str) -> AcceptancePath:
@@ -2110,6 +2158,345 @@ def invalidation_reasons(result: InvalidationResult) -> tuple[str, ...]:
     return tuple(reasons)
 
 
+def candidate_acceptance_tree_paths(
+    root: Path,
+    candidate_sha: str,
+) -> tuple[PurePosixPath, ...]:
+    """候補コミットの受入証跡ディレクトリにある全ツリー項目を列挙する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: 読み取る候補 commit OID。
+
+    Returns:
+        リポジトリルートからの正規化済み POSIX パスを辞書順に並べた組。
+
+    Raises:
+        GuardError: Git の起動、ツリー出力、またはツリー項目のパスが不正な場合。
+    """
+    # -r でサブディレクトリ配下も列挙し、-z で任意のファイル名を区切る。
+    result = run_git_command(
+        root,
+        [
+            GIT_EXECUTABLE,
+            GIT_LS_TREE_COMMAND,
+            GIT_RECURSIVE_OPTION,
+            GIT_NAME_ONLY_OUTPUT_OPTION,
+            GIT_NULL_TERMINATE_OPTION,
+            candidate_sha,
+            GIT_PATHSPEC_SEPARATOR,
+            ACCEPTANCE_DIRECTORY_RELATIVE_PATH.as_posix(),
+        ],
+        OPERATION_ACCEPTANCE_TREE,
+    )
+    paths: list[PurePosixPath] = []
+    for path_text in result.stdout.split("\0"):
+        if not path_text:
+            continue
+        path = PurePosixPath(path_text)
+        try:
+            relative_path = path.relative_to(ACCEPTANCE_DIRECTORY_RELATIVE_PATH)
+        except ValueError as error:
+            raise GuardError(
+                REASON_ACCEPTANCE_TREE_PATH.format(path=path_text)
+            ) from error
+        if (
+            path.is_absolute()
+            or not relative_path.parts
+            or any(part in {".", ".."} for part in relative_path.parts)
+        ):
+            raise GuardError(REASON_ACCEPTANCE_TREE_PATH.format(path=path_text))
+        paths.append(path)
+    return tuple(sorted(paths, key=PurePosixPath.as_posix))
+
+
+def acceptance_relative_path(tree_path: PurePosixPath) -> PurePosixPath:
+    """受入証跡ツリー項目をディレクトリからの相対パスへ変換する。
+
+    Args:
+        tree_path: リポジトリルートからの受入証跡ツリー項目の POSIX パス。
+
+    Returns:
+        docs/ops/nfr021-acceptance からの相対 POSIX パス。
+
+    Raises:
+        GuardError: 指定パスが受入証跡ディレクトリ配下の正規形でない場合。
+    """
+    try:
+        relative_path = tree_path.relative_to(ACCEPTANCE_DIRECTORY_RELATIVE_PATH)
+    except ValueError as error:
+        raise GuardError(
+            REASON_ACCEPTANCE_TREE_PATH.format(path=tree_path.as_posix())
+        ) from error
+    if not relative_path.parts or any(part in {".", ".."} for part in relative_path.parts):
+        raise GuardError(REASON_ACCEPTANCE_TREE_PATH.format(path=tree_path.as_posix()))
+    return relative_path
+
+
+def acceptance_path_gate_key(path: AcceptancePath) -> str | None:
+    """命名成分から予約・結果証跡を比較できる合成 gate_key に正規化する。
+
+    Args:
+        path: 閉じた命名文法で分類済みの受入証跡パス。
+
+    Returns:
+        reservation または evidence の合成 gate_key。その他では None。
+
+    Raises:
+        発生しない。
+    """
+    if path.kind == KIND_RESERVATION:
+        return path.gate_key
+    if path.kind == KIND_EVIDENCE:
+        return derive_gate_key(path.gate_kind or "", path.release_version)
+    return None
+
+
+def enumerate_candidate_gate_records(
+    root: Path,
+    candidate_sha: str,
+    gate_key: str,
+) -> CandidateGateRecords:
+    """候補ツリーから同一ゲートキーのレコードを列挙して適合を検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: 読み取る候補 commit OID。
+        gate_key: phase4 または release-vX.Y.Z の対象合成ゲートキー。
+
+    Returns:
+        対象ゲートキーの解析済みレコードと、ツリー・スキーマ違反の組。
+
+    Raises:
+        GuardError: Git の起動、ツリー項目の解決、または対象 gate_key が不正な場合。
+    """
+    if not is_gate_key(gate_key):
+        raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="gate_key"))
+
+    records: list[AcceptanceRecord] = []
+    violations: list[str] = []
+    for tree_path in candidate_acceptance_tree_paths(root, candidate_sha):
+        relative_path = acceptance_relative_path(tree_path)
+        parsed_path = parse_acceptance_path(relative_path)
+        display_path = tree_path.as_posix()
+        if parsed_path.kind == KIND_CANONICAL:
+            continue
+        if parsed_path.kind == KIND_INVALID:
+            violations.append(
+                format_violation(
+                    display_path,
+                    parsed_path.reason or REASON_INVALID_FILENAME,
+                )
+            )
+            continue
+        if parsed_path.kind not in RECORD_KINDS:
+            violations.append(format_violation(display_path, REASON_RECORD_KIND))
+            continue
+        if acceptance_path_gate_key(parsed_path) != gate_key:
+            continue
+
+        object_id = git_tree_object_oid(root, candidate_sha, display_path)
+        if object_id is None:
+            raise GuardError(REASON_ACCEPTANCE_TREE_PATH.format(path=display_path))
+        if git_object_type(root, object_id, display_path) != GIT_OBJECT_BLOB:
+            violations.append(
+                format_violation(display_path, REASON_ACCEPTANCE_TREE_ITEM_TYPE)
+            )
+            continue
+        try:
+            record = parse_acceptance_record(
+                relative_path,
+                git_blob_contents(root, object_id),
+                display_path,
+            )
+        except GuardError as error:
+            violations.append(format_violation(display_path, str(error)))
+            continue
+        records.append(record)
+
+    # 同一ゲートキーに限りスキーマと予約・結果の一致契約を適用する。
+    violations.extend(validate_records(records))
+    return CandidateGateRecords(
+        records=tuple(records),
+        violations=tuple(dict.fromkeys(violations)),
+    )
+
+
+def fold_acceptance_attempts(
+    records: Sequence[AcceptanceRecord],
+) -> tuple[AcceptanceAttempt, ...]:
+    """予約と結果証跡を attempt_id 単位の試行へ畳み込む。
+
+    Args:
+        records: スキーマ・レコード間契約に適合した同一ゲートキーのレコード。
+
+    Returns:
+        attempt_id の辞書順に並べた畳み込み済み試行。
+
+    Raises:
+        GuardError: 畳み込みに必要な attempt_id または attempt_seq を取得できない場合。
+    """
+    records_by_id: dict[str, list[AcceptanceRecord]] = {}
+    for record in records:
+        attempt_id = record_attempt_id(record)
+        attempt_seq = record_attempt_sequence(record)
+        if attempt_id is None:
+            raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="attempt_id"))
+        if attempt_seq is None:
+            raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="attempt_seq"))
+        records_by_id.setdefault(attempt_id, []).append(record)
+
+    attempts: list[AcceptanceAttempt] = []
+    for attempt_id in sorted(records_by_id):
+        attempt_records = records_by_id[attempt_id]
+        attempt_sequences = {
+            record_attempt_sequence(record) for record in attempt_records
+        }
+        if len(attempt_sequences) != 1 or None in attempt_sequences:
+            raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="attempt_seq"))
+        attempt_seq = next(iter(attempt_sequences))
+        if type(attempt_seq) is not int:
+            raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="attempt_seq"))
+        reservations = tuple(
+            record
+            for record in attempt_records
+            if record.path.kind == KIND_RESERVATION
+        )
+        evidences = tuple(
+            record
+            for record in attempt_records
+            if record.path.kind == KIND_EVIDENCE
+        )
+        result: str | None = None
+        if len(evidences) == 1:
+            evidence_result = evidences[0].frontmatter.values.get("result")
+            if not isinstance(evidence_result, str):
+                raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="result"))
+            result = evidence_result
+        attempts.append(
+            AcceptanceAttempt(
+                attempt_id=attempt_id,
+                attempt_seq=attempt_seq,
+                reservations=reservations,
+                evidences=evidences,
+                result=result,
+            )
+        )
+    return tuple(attempts)
+
+
+def validate_folded_attempts(
+    named_record: AcceptanceRecord,
+    attempts: Sequence[AcceptanceAttempt],
+) -> tuple[str, ...]:
+    """畳み込み済み試行集合に合格条件⑦⑧⑨を適用する。
+
+    Args:
+        named_record: evidence_path で名指しされた結果証跡。
+        attempts: attempt_id で畳み込み済みの同一ゲートキー試行集合。
+
+    Returns:
+        パス付きの⑦⑧⑨違反。適合していれば空のタプル。
+
+    Raises:
+        GuardError: 名指しレコードの attempt_id を取得できない場合。
+    """
+    named_attempt_id = record_attempt_id(named_record)
+    if named_attempt_id is None:
+        raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="attempt_id"))
+    named_attempt = next(
+        (attempt for attempt in attempts if attempt.attempt_id == named_attempt_id),
+        None,
+    )
+    if named_attempt is None:
+        return (
+            format_violation(named_record.display_path, REASON_NAMED_ATTEMPT_MISSING),
+        )
+
+    violations: list[str] = []
+    maximum_attempt_seq = max(attempt.attempt_seq for attempt in attempts)
+    if named_attempt.attempt_seq != maximum_attempt_seq:
+        violations.append(
+            format_violation(named_record.display_path, REASON_NAMED_ATTEMPT_NOT_MAXIMUM)
+        )
+    if sum(attempt.attempt_seq == maximum_attempt_seq for attempt in attempts) != 1:
+        violations.append(
+            format_violation(named_record.display_path, REASON_ATTEMPT_MAXIMUM_NOT_UNIQUE)
+        )
+
+    for attempt in attempts:
+        if attempt.reservations and not attempt.evidences:
+            violations.append(
+                format_violation(
+                    attempt.reservations[0].display_path,
+                    REASON_RESERVATION_UNCLOSED.format(attempt_id=attempt.attempt_id),
+                )
+            )
+        if len(attempt.reservations) > 1:
+            for reservation in attempt.reservations:
+                violations.append(
+                    format_violation(
+                        reservation.display_path,
+                        REASON_MULTIPLE_RESERVATIONS.format(
+                            attempt_id=attempt.attempt_id
+                        ),
+                    )
+                )
+        if attempt.evidences and not attempt.reservations:
+            for evidence in attempt.evidences:
+                violations.append(
+                    format_violation(
+                        evidence.display_path,
+                        REASON_ORPHAN_EVIDENCE.format(attempt_id=attempt.attempt_id),
+                    )
+                )
+        if len(attempt.evidences) > 1:
+            for evidence in attempt.evidences:
+                violations.append(
+                    format_violation(
+                        evidence.display_path,
+                        REASON_MULTIPLE_EVIDENCES.format(attempt_id=attempt.attempt_id),
+                    )
+                )
+
+    if len(named_attempt.reservations) != 1:
+        violations.append(
+            format_violation(
+                named_record.display_path,
+                REASON_NAMED_RESERVATION_COUNT,
+            )
+        )
+    return tuple(dict.fromkeys(violations))
+
+
+def validate_attempt_conditions(
+    root: Path,
+    candidate_sha: str,
+    named_record: AcceptanceRecord,
+) -> tuple[str, ...]:
+    """候補ツリーの列挙、畳み込み、合格条件⑦⑧⑨を順に検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: 読み取る候補 commit OID。
+        named_record: evidence_path で名指しされたスキーマ適合済み結果証跡。
+
+    Returns:
+        パス付きの⑦⑧⑨違反。適合していれば空のタプル。
+
+    Raises:
+        GuardError: 対象ゲートキー、Git ツリー、または畳み込み入力を解決できない場合。
+    """
+    gate_key = record_gate_key(named_record)
+    if gate_key is None:
+        raise GuardError(REASON_ATTEMPT_VALUE_UNAVAILABLE.format(key="gate_key"))
+    candidate_records = enumerate_candidate_gate_records(root, candidate_sha, gate_key)
+    if candidate_records.violations:
+        return candidate_records.violations
+    attempts = fold_acceptance_attempts(candidate_records.records)
+    return validate_folded_attempts(named_record, attempts)
+
+
 def verify_named_evidence(
     root: Path,
     requested_gate_kind: str,
@@ -2117,7 +2504,7 @@ def verify_named_evidence(
     evidence_path: Path,
     requested_release_version: str | None,
 ) -> tuple[str, ...]:
-    """名指しされた候補ツリー内の結果証跡について合格条件①〜⑥を検査する。
+    """名指しされた候補ツリー内の結果証跡について合格条件①〜⑨を検査する。
 
     Args:
         root: Git リポジトリのルートディレクトリ。
@@ -2195,7 +2582,12 @@ def verify_named_evidence(
         format_violation(display_path, reason)
         for reason in invalidation_reasons(invalidation)
     )
-    return tuple(dict.fromkeys((*onboarding_violations, *invalidation_violations)))
+    prior_violations = tuple(
+        dict.fromkeys((*onboarding_violations, *invalidation_violations))
+    )
+    if prior_violations:
+        return prior_violations
+    return validate_attempt_conditions(root, candidate_sha, record)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
