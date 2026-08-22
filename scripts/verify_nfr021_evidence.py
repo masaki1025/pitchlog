@@ -107,6 +107,11 @@ EVIDENCE_TABLE_VALUE_INDEX = 1
 ACCEPTANCE_TABLE_FIRST_VALUE_INDEX = 1
 TABLE_SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
 PLACEHOLDER_RE = re.compile(r"<[^<>\n]+>")
+MARKDOWN_FENCE_RE = re.compile(
+    r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})(?P<suffix>[^\r\n]*)$"
+)
+HTML_COMMENT_OPEN = "<!--"
+HTML_COMMENT_CLOSE = "-->"
 # 必須項目の一覧の正は要件書 NFR-021、欄の形の正は
 # docs/ops/nfr021-acceptance/ のテンプレート。テンプレートの書式契約テストは
 # tests/test_nfr021_evidence_templates.py。
@@ -203,7 +208,7 @@ REASON_CONTRACT_RELEASE_VERSION = (
 DIFF_TIMEOUT_SECONDS = 30
 INVALIDATING_PATHS_CONFIG_PATH = Path(".claude/nfr021-invalidating-paths.json")
 VERIFIER_RELATIVE_PATH = "scripts/verify_nfr021_evidence.py"
-SELF_IDENTITY_VERIFIER_LABEL = "実行中の検証器"
+SELF_IDENTITY_VERIFIER_LABEL = "検証器"
 SELF_IDENTITY_CONFIG_LABEL = "失効パス設定"
 INVALIDATING_PATHS_SYNTAX = "gitignore-root-relative-v1"
 CONFIG_KEY_SYNTAX = "syntax"
@@ -220,6 +225,7 @@ NEGATION_PATTERN_PREFIX = "!"
 WILDCARD = "*"
 RECURSIVE_WILDCARD = "**"
 GIT_EXECUTABLE = "git"
+GIT_NO_REPLACE_OBJECTS_OPTION = "--no-replace-objects"
 GIT_MERGE_BASE_COMMAND = "merge-base"
 GIT_LOG_COMMAND = "log"
 GIT_IS_ANCESTOR_OPTION = "--is-ancestor"
@@ -244,6 +250,7 @@ REASON_INVALID_CHANGED_PATH = "変更パスがリポジトリ相対の正規形�
 REASON_GIT_TIMEOUT = "{operation} がタイムアウトした"
 REASON_GIT_START = "{operation} を起動できない: {error}"
 REASON_GIT_FAILURE = "{operation} に失敗した: {returncode}"
+REASON_GIT_COMMAND = "Git コマンドが git 実行ファイルから始まらない"
 REASON_GIT_ANCESTOR_UNRESOLVED = (
     "git merge-base --is-ancestor が解決不能な終了コードを返した: {returncode}"
 )
@@ -251,7 +258,6 @@ SCRIPT_NAME = "verify_nfr021_evidence"
 ACCEPTANCE_DIRECTORY_RELATIVE_PATH = PurePosixPath("docs/ops/nfr021-acceptance")
 ONBOARDING_RELATIVE_PATH = "docs/development/onboarding.md"
 GIT_CAT_FILE_COMMAND = "cat-file"
-GIT_REV_PARSE_COMMAND = "rev-parse"
 GIT_SHOW_COMMAND = "show"
 GIT_LS_TREE_COMMAND = "ls-tree"
 GIT_OBJECT_TYPE_OPTION = "-t"
@@ -259,8 +265,11 @@ GIT_NAME_ONLY_OUTPUT_OPTION = "--name-only"
 GIT_RECURSIVE_OPTION = "-r"
 GIT_NULL_TERMINATE_OPTION = "-z"
 GIT_PATHSPEC_SEPARATOR = "--"
+GIT_TREE_ENTRY_SEPARATOR = "\t"
+GIT_TREE_METADATA_SEPARATOR = " "
 GIT_OBJECT_COMMIT = "commit"
 GIT_OBJECT_BLOB = "blob"
+REGULAR_BLOB_MODES = frozenset({"100644", "100755"})
 PASSED_RESULT = "passed"
 APPROVED_STATUS = "approved"
 ONBOARDING_STATUS_VALUES = frozenset(
@@ -269,7 +278,7 @@ ONBOARDING_STATUS_VALUES = frozenset(
 ONBOARDING_STATUS_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
 OPERATION_OBJECT_TYPE = "git cat-file -t"
 OPERATION_TREE_PATH = "git ls-tree"
-OPERATION_TREE_OBJECT = "git rev-parse"
+OPERATION_TREE_OBJECT = "git ls-tree"
 OPERATION_BLOB_CONTENT = "git show"
 OPERATION_ACCEPTANCE_TREE = "git ls-tree による受入証跡の列挙"
 REASON_ARGUMENT_ERROR = "コマンドライン引数が不正: {message}"
@@ -281,6 +290,7 @@ REASON_RELEASE_VERSION_ARGUMENT = "--release-version が vX.Y.Z 形式ではな�
 REASON_GIT_OBJECT_UNRESOLVED = "{label} の Git オブジェクトを解決できない"
 REASON_GIT_OBJECT_TYPE_OUTPUT = "{label} の Git オブジェクト種別を解釈できない"
 REASON_TREE_OBJECT_OUTPUT = "Git ツリー内の {path} の OID を解釈できない"
+REASON_TREE_OBJECT_MODE = "Git ツリー内の {path} が通常ファイルではない: mode {mode}"
 REASON_EVIDENCE_PATH_OUTSIDE = (
     "evidence_path が docs/ops/nfr021-acceptance/直下のパスではない"
 )
@@ -1005,6 +1015,94 @@ def is_markdown_table_separator(cells: Sequence[str], column_count: int) -> bool
     )
 
 
+def strip_html_comments_from_line(line: str, in_comment: bool) -> tuple[str, bool]:
+    """1 行から HTML コメント部分を除き、コメント状態を次行へ引き継ぐ。
+
+    Args:
+        line: 改行文字を含んでもよい本文の 1 行。
+        in_comment: 行の先頭が未閉鎖 HTML コメント内かどうか。
+
+    Returns:
+        コメントを除いた行と、行末が HTML コメント内かどうかの組。
+
+    Raises:
+        発生しない。
+    """
+    visible_parts: list[str] = []
+    remaining = line
+    while remaining:
+        if in_comment:
+            closing_index = remaining.find(HTML_COMMENT_CLOSE)
+            if closing_index < 0:
+                return "".join(visible_parts), True
+            remaining = remaining[closing_index + len(HTML_COMMENT_CLOSE) :]
+            in_comment = False
+            continue
+        opening_index = remaining.find(HTML_COMMENT_OPEN)
+        if opening_index < 0:
+            visible_parts.append(remaining)
+            break
+        visible_parts.append(remaining[:opening_index])
+        remaining = remaining[opening_index + len(HTML_COMMENT_OPEN) :]
+        in_comment = True
+    return "".join(visible_parts), in_comment
+
+
+def markdown_fence_components(line: str) -> tuple[str, int, str] | None:
+    """Markdown のフェンス行から区切り文字と後続文字列を取り出す。
+
+    Args:
+        line: 行末改行を含まない Markdown の 1 行。
+
+    Returns:
+        フェンス文字、連続数、後続文字列の組。フェンス行でなければ ``None``。
+
+    Raises:
+        発生しない。
+    """
+    match = MARKDOWN_FENCE_RE.fullmatch(line)
+    if match is None:
+        return None
+    marker = match.group("marker")
+    return marker[0], len(marker), match.group("suffix")
+
+
+def visible_markdown_body(body: str) -> str:
+    """HTML コメントとフェンス付きコードを除いた完全性検査用本文を得る。
+
+    Args:
+        body: frontmatter 終端より後の結果証跡本文。
+
+    Returns:
+        レンダリング上の欄として扱える本文だけを連結した文字列。
+
+    Raises:
+        発生しない。
+    """
+    visible_lines: list[str] = []
+    in_comment = False
+    active_fence: tuple[str, int] | None = None
+    for line in body.splitlines(keepends=True):
+        line_without_newline = line.rstrip("\r\n")
+        if active_fence is not None:
+            fence = markdown_fence_components(line_without_newline)
+            if (
+                fence is not None
+                and fence[0] == active_fence[0]
+                and fence[1] >= active_fence[1]
+                and not fence[2].strip()
+            ):
+                active_fence = None
+            continue
+        visible_line, in_comment = strip_html_comments_from_line(line, in_comment)
+        fence = markdown_fence_components(visible_line.rstrip("\r\n"))
+        if fence is not None:
+            active_fence = (fence[0], fence[1])
+            continue
+        visible_lines.append(visible_line)
+    return "".join(visible_lines)
+
+
 def extract_named_markdown_table(body: str, heading: str) -> MarkdownTable | None:
     """本文の指定した見出しに属する 1 個の Markdown 表を抽出する。
 
@@ -1133,8 +1231,11 @@ def validate_evidence_completeness(
             候補ツリーの合格項目テンプレートを解決できない場合。
     """
     reasons: list[str] = []
+    # frontmatter と二重記録の照合は生本文を正とする。ここだけはレンダリング上の欄を
+    # 数えるため、HTML コメントとフェンス付きコード内の擬似表を除外する。
+    completeness_body = visible_markdown_body(record.frontmatter.body)
     evidence_table = extract_named_markdown_table(
-        record.frontmatter.body,
+        completeness_body,
         EVIDENCE_TABLE_HEADING,
     )
     if evidence_table is None:
@@ -1186,7 +1287,7 @@ def validate_evidence_completeness(
         gate_kind,
     )
     acceptance_table = extract_named_markdown_table(
-        record.frontmatter.body,
+        completeness_body,
         ACCEPTANCE_TABLE_HEADING,
     )
     if acceptance_table is None:
@@ -1913,6 +2014,24 @@ def classify_invalidation_path(
     )
 
 
+def build_git_command(command: Sequence[str]) -> tuple[str, ...]:
+    """置換オブジェクトを無効化した Git コマンド列を一元的に組み立てる。
+
+    Args:
+        command: ``git`` 実行ファイルから始まるコマンド引数列。
+
+    Returns:
+        サブコマンドの前に ``--no-replace-objects`` を挿入したコマンド列。
+
+    Raises:
+        GuardError: Git 実行ファイルから始まらないコマンドが渡された場合。
+    """
+    if not command or command[0] != GIT_EXECUTABLE:
+        raise GuardError(REASON_GIT_COMMAND)
+    # 呼出側が環境変数を上書きしても置換を有効化できないよう argv で固定する。
+    return (GIT_EXECUTABLE, GIT_NO_REPLACE_OBJECTS_OPTION, *command[1:])
+
+
 def is_ancestor(root: Path, tested_commit_sha: str, candidate_sha: str) -> bool:
     """tested_commit_sha が candidate_sha の祖先かを Git の三値終了コードで判定する。
 
@@ -1929,13 +2048,15 @@ def is_ancestor(root: Path, tested_commit_sha: str, candidate_sha: str) -> bool:
     """
     try:
         result = subprocess.run(
-            [
-                GIT_EXECUTABLE,
-                GIT_MERGE_BASE_COMMAND,
-                GIT_IS_ANCESTOR_OPTION,
-                tested_commit_sha,
-                candidate_sha,
-            ],
+            build_git_command(
+                [
+                    GIT_EXECUTABLE,
+                    GIT_MERGE_BASE_COMMAND,
+                    GIT_IS_ANCESTOR_OPTION,
+                    tested_commit_sha,
+                    candidate_sha,
+                ]
+            ),
             cwd=root,
             capture_output=True,
             encoding="utf-8",
@@ -1981,15 +2102,17 @@ def changed_paths_between(
     # git diff T C、T...C、--diff-filter は削除済みパスや必要な変更種別を落とすため使わない。
     try:
         result = subprocess.run(
-            [
-                GIT_EXECUTABLE,
-                GIT_LOG_COMMAND,
-                GIT_FORMAT_EMPTY_OPTION,
-                GIT_NAME_ONLY_OPTION,
-                GIT_MERGE_SEPARATE_OPTION,
-                GIT_NO_RENAMES_OPTION,
-                f"{tested_commit_sha}..{candidate_sha}",
-            ],
+            build_git_command(
+                [
+                    GIT_EXECUTABLE,
+                    GIT_LOG_COMMAND,
+                    GIT_FORMAT_EMPTY_OPTION,
+                    GIT_NAME_ONLY_OPTION,
+                    GIT_MERGE_SEPARATE_OPTION,
+                    GIT_NO_RENAMES_OPTION,
+                    f"{tested_commit_sha}..{candidate_sha}",
+                ]
+            ),
             cwd=root,
             capture_output=True,
             encoding="utf-8",
@@ -2163,7 +2286,7 @@ def run_git_command(
     """
     try:
         result = subprocess.run(
-            command,
+            build_git_command(command),
             cwd=root,
             capture_output=True,
             encoding="utf-8",
@@ -2297,18 +2420,41 @@ def git_tree_object_oid(
         対象パスの完全な OID。ツリーに無ければ None。
 
     Raises:
-        GuardError: Git の起動、タイムアウト、または OID 出力の解釈に失敗した場合。
+        GuardError: Git の起動、タイムアウト、ツリー項目の媒体、または OID 出力の
+            解釈に失敗した場合。
     """
     if not git_tree_has_path(root, commit_sha, relative_path):
         return None
     result = run_git_command(
         root,
-        [GIT_EXECUTABLE, GIT_REV_PARSE_COMMAND, f"{commit_sha}:{relative_path}"],
+        [
+            GIT_EXECUTABLE,
+            GIT_LS_TREE_COMMAND,
+            commit_sha,
+            GIT_PATHSPEC_SEPARATOR,
+            relative_path,
+        ],
         OPERATION_TREE_OBJECT,
     )
-    object_id = result.stdout.strip()
-    if FULL_OID_RE.fullmatch(object_id) is None:
+    lines = result.stdout.splitlines()
+    if len(lines) != 1:
         raise GuardError(REASON_TREE_OBJECT_OUTPUT.format(path=relative_path))
+    try:
+        metadata, entry_path = lines[0].split(GIT_TREE_ENTRY_SEPARATOR, maxsplit=1)
+        mode, _object_type, object_id = metadata.split(
+            GIT_TREE_METADATA_SEPARATOR,
+            maxsplit=2,
+        )
+    except ValueError as error:
+        raise GuardError(REASON_TREE_OBJECT_OUTPUT.format(path=relative_path)) from error
+    if entry_path != relative_path or FULL_OID_RE.fullmatch(object_id) is None:
+        raise GuardError(REASON_TREE_OBJECT_OUTPUT.format(path=relative_path))
+    # cat-file -t は通常ファイルと symlink の双方を blob と返すため、媒体契約の
+    # 検査には ls-tree の mode も必須である。
+    if mode not in REGULAR_BLOB_MODES:
+        raise GuardError(
+            REASON_TREE_OBJECT_MODE.format(path=relative_path, mode=mode)
+        )
     return object_id
 
 
@@ -2954,6 +3100,10 @@ def verify_named_evidence(
     evidence_blob_sha = git_tree_object_oid(root, candidate_sha, path_text)
     if evidence_blob_sha is None:
         return (format_violation(display_path, REASON_EVIDENCE_PATH_MISSING),)
+    if git_object_type(root, evidence_blob_sha, display_path) != GIT_OBJECT_BLOB:
+        return (
+            format_violation(display_path, REASON_ACCEPTANCE_TREE_ITEM_TYPE),
+        )
     evidence_text = git_blob_contents(root, evidence_blob_sha)
     try:
         record = parse_acceptance_record(

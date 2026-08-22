@@ -564,6 +564,29 @@ def test_allows_evidence_when_matching_reservation_is_in_base(tmp_path: Path) ->
     assert result.returncode == 0
 
 
+def test_rejects_new_symlink_evidence_even_when_link_text_is_complete(
+    tmp_path: Path,
+) -> None:
+    """新規 evidence が symlink ならリンク先文字列が完全な本文でも拒否する。"""
+    root, _ = init_repository(tmp_path)
+    write_reservation(root)
+    base = commit_all(root, "docs: reserve phase4")
+    evidence_path = write_evidence(root)
+    evidence_file = root / evidence_path
+    evidence_contents = evidence_file.read_text(encoding="utf-8")
+    evidence_file.unlink()
+    evidence_file.symlink_to(evidence_contents)
+    head = commit_all(root, "docs: add symlink evidence")
+
+    result = run_check(root, base, head)
+
+    assert git(root, "ls-tree", head, "--", evidence_path).stdout.startswith(
+        "120000 blob "
+    )
+    assert result.returncode == 1
+    assert f"{evidence_path} が通常ファイルではない: mode 120000" in result.stderr
+
+
 def test_allows_new_reservation_after_base_reservation_is_closed(tmp_path: Path) -> None:
     """base で閉塞済みの seq001 の後に seq002 を追加できる。"""
     root, _ = init_repository(tmp_path)

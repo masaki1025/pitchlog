@@ -24,6 +24,7 @@ try:
         KIND_RESERVATION,
         AcceptanceRecord,
         acceptance_relative_path,
+        build_git_command,
         candidate_acceptance_tree_paths,
         format_violation,
         git_blob_contents,
@@ -50,6 +51,7 @@ except ModuleNotFoundError:  # pragma: no cover - モジュールとして読み
         KIND_RESERVATION,
         AcceptanceRecord,
         acceptance_relative_path,
+        build_git_command,
         candidate_acceptance_tree_paths,
         format_violation,
         git_blob_contents,
@@ -279,14 +281,16 @@ def changed_paths(root: Path, base: str, head: str) -> tuple[ChangedPath, ...]:
     # ここは「この PR が加えた変更」を問うため merge-base 起点の三点差分を使う。
     # 失効判定は「T 以後の全変更」を問うため、作成後削除を落とさない git log の
     # 各コミット和集合を使い、三点差分を使わない。
-    command = (
-        GIT_EXECUTABLE,
-        GIT_DIFF_COMMAND,
-        GIT_NAME_STATUS_OPTION,
-        # -z は core.quotePath による C 形式引用を避け、任意のファイル名を保つ。
-        GIT_NULL_TERMINATE_OPTION,
-        GIT_NO_RENAMES_OPTION,
-        f"{base}...{head}",
+    command = build_git_command(
+        (
+            GIT_EXECUTABLE,
+            GIT_DIFF_COMMAND,
+            GIT_NAME_STATUS_OPTION,
+            # -z は core.quotePath による C 形式引用を避け、任意のファイル名を保つ。
+            GIT_NULL_TERMINATE_OPTION,
+            GIT_NO_RENAMES_OPTION,
+            f"{base}...{head}",
+        )
     )
     try:
         result = subprocess.run(

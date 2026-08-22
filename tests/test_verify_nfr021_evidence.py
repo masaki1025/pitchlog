@@ -983,6 +983,24 @@ def write_invalidation_file(root: Path, relative_path: str, content: str) -> Non
     write_invalidation_bytes(root, relative_path, content.encode("utf-8"))
 
 
+def write_invalidation_symlink(root: Path, relative_path: str, target: str) -> None:
+    """一時リポジトリの指定パスを任意のリンク先文字列を持つ symlink にする。
+
+    Args:
+        root: 一時 Git リポジトリのルート。
+        relative_path: root からの相対パス。
+        target: symlink に記録するリンク先文字列。
+
+    Returns:
+        戻り値はない。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        path.unlink()
+    path.symlink_to(target)
+
+
 def commit_invalidation_changes(root: Path, subject: str) -> None:
     """一時リポジトリの変更をすべてコミットする。
 
@@ -2168,6 +2186,83 @@ def test_rejects_draft_onboarding_blob(tmp_path: Path) -> None:
     assert "onboarding.md の status が approved ではない" in result.stderr
 
 
+def test_rejects_draft_onboarding_blob_despite_blob_replacement(
+    tmp_path: Path,
+) -> None:
+    """blob replacement があっても候補ツリーの draft onboarding を受理しない。"""
+    root, _, candidate_sha, evidence_path, onboarding_blob_sha = (
+        make_valid_evidence_repository(tmp_path, onboarding_status="draft")
+    )
+    approved_contents = "\n".join(
+        ["---", "status: approved", "---", "", "# onboarding", ""]
+    )
+    replacement_path = "docs/development/approved-replacement.md"
+    write_invalidation_file(root, replacement_path, approved_contents)
+    approved_blob_sha = git_for_invalidation(
+        root,
+        "hash-object",
+        "-w",
+        replacement_path,
+    ).stdout.strip()
+    git_for_invalidation(root, "replace", onboarding_blob_sha, approved_blob_sha)
+
+    assert git_for_invalidation(
+        root,
+        "cat-file",
+        "-p",
+        onboarding_blob_sha,
+    ).stdout == approved_contents
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "onboarding.md の status が approved ではない" in result.stderr
+
+
+def test_ignores_commit_replacement_for_candidate_tree_and_ancestry(
+    tmp_path: Path,
+) -> None:
+    """commit replacement が候補ツリー読取と祖先判定を差し替えない。"""
+    root = init_invalidation_repository(tmp_path)
+    initial_sha = invalidation_head(root)
+    tested_commit_sha, _ = commit_onboarding(root)
+    original_path = "candidate-only.txt"
+    write_invalidation_file(root, original_path, "candidate tree\n")
+    commit_invalidation_changes(root, "test: candidate tree")
+    candidate_sha = invalidation_head(root)
+
+    git_for_invalidation(root, "checkout", "-q", "-b", "replacement", initial_sha)
+    replacement_path = "replacement-only.txt"
+    write_invalidation_file(root, replacement_path, "replacement tree\n")
+    commit_invalidation_changes(root, "test: replacement tree")
+    replacement_sha = invalidation_head(root)
+    git_for_invalidation(root, "checkout", "-q", "develop")
+    git_for_invalidation(root, "replace", candidate_sha, replacement_sha)
+
+    assert not git_for_invalidation(
+        root,
+        "ls-tree",
+        "--name-only",
+        candidate_sha,
+        "--",
+        original_path,
+    ).stdout
+    assert git_for_invalidation(
+        root,
+        "ls-tree",
+        "--name-only",
+        candidate_sha,
+        "--",
+        replacement_path,
+    ).stdout.strip() == replacement_path
+    assert verify.git_tree_object_oid(root, candidate_sha, original_path) is not None
+    assert verify.git_tree_object_oid(root, candidate_sha, replacement_path) is None
+    assert verify.is_ancestor(root, tested_commit_sha, candidate_sha)
+
+
 def test_rejects_release_version_mismatch(tmp_path: Path) -> None:
     """合格条件⑤として release の要求版と証跡版を一致させる。"""
     root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(
@@ -2683,6 +2778,13 @@ def test_accepts_complete_phase4_evidence_body(tmp_path: Path) -> None:
         *named_evidence_arguments(candidate_sha, evidence_path),
     )
 
+    assert git_for_invalidation(
+        root,
+        "ls-tree",
+        candidate_sha,
+        "--",
+        evidence_path,
+    ).stdout.startswith("100644 blob ")
     assert result.returncode == 0, result.stderr
 
 
@@ -2846,6 +2948,102 @@ def test_rejects_evidence_when_candidate_tree_lacks_acceptance_template(
     assert verify.REASON_EVIDENCE_TEMPLATE_MISSING.split(":")[0] in result.stderr
 
 
+def test_rejects_symlink_onboarding_from_candidate_tree(tmp_path: Path) -> None:
+    """候補ツリーの onboarding.md が symlink なら blob 内容が正しくても中断する。"""
+    root = init_invalidation_repository(tmp_path)
+    onboarding_contents = "\n".join(
+        ["---", "status: approved", "---", "", "# onboarding", ""]
+    )
+    write_invalidation_symlink(
+        root,
+        "docs/development/onboarding.md",
+        onboarding_contents,
+    )
+    commit_invalidation_changes(root, "test: add symlink onboarding")
+    tested_commit_sha = invalidation_head(root)
+    onboarding_blob_sha = git_for_invalidation(
+        root,
+        "rev-parse",
+        f"{tested_commit_sha}:docs/development/onboarding.md",
+    ).stdout.strip()
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "docs/development/onboarding.md が通常ファイルではない: mode 120000" in result.stderr
+
+
+def test_rejects_symlink_named_evidence_from_candidate_tree(
+    tmp_path: Path,
+) -> None:
+    """名指し証跡が symlink ならリンク先文字列が完全でも中断する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    evidence_contents = (root / evidence_path).read_text(encoding="utf-8")
+    write_invalidation_symlink(root, evidence_path, evidence_contents)
+    commit_invalidation_changes(root, "test: replace named evidence with symlink")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert f"{evidence_path} が通常ファイルではない: mode 120000" in result.stderr
+
+
+def test_rejects_symlink_evidence_template_from_candidate_tree(
+    tmp_path: Path,
+) -> None:
+    """候補ツリーの合格項目テンプレートが symlink なら完全性検査を中断する。"""
+    root, _, candidate_sha, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    template_path = "docs/ops/nfr021-acceptance/evidence-phase4-template.md"
+    template_contents = (root / template_path).read_text(encoding="utf-8")
+    write_invalidation_symlink(root, template_path, template_contents)
+    commit_invalidation_changes(root, "test: replace phase4 template with symlink")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert f"{template_path} が通常ファイルではない: mode 120000" in result.stderr
+
+
+def test_rejects_gitlink_tree_item_as_nonregular_file(tmp_path: Path) -> None:
+    """gitlink mode 160000 を通常 blob の代替として受理しない。"""
+    root = init_invalidation_repository(tmp_path)
+    candidate_sha = invalidation_head(root)
+    gitlink_path = "docs/development/onboarding.md"
+    git_for_invalidation(
+        root,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{candidate_sha},{gitlink_path}",
+    )
+    git_for_invalidation(root, "commit", "-qm", "test: add gitlink onboarding")
+    candidate_sha = invalidation_head(root)
+
+    with pytest.raises(core_guard.GuardError) as error_info:
+        verify.git_tree_object_oid(root, candidate_sha, gitlink_path)
+
+    assert str(error_info.value) == verify.REASON_TREE_OBJECT_MODE.format(
+        path=gitlink_path,
+        mode="160000",
+    )
+
+
 def test_accepts_acceptance_item_table_reference_value(tmp_path: Path) -> None:
     """「下表に記載」を各合格項目の実値として空欄扱いしない。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
@@ -2870,6 +3068,85 @@ def test_accepts_regular_body_values_without_angle_brackets(tmp_path: Path) -> N
     assert "python 3.12.3 / uv 0.8.13" in body
     assert "判定者が内容を確認した" in body
     assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+def test_rejects_complete_body_hidden_in_html_comment(tmp_path: Path) -> None:
+    """HTML コメント内だけの完全な表をレンダリング上の欄として数えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=f"<!--\n{body}\n-->"),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
+
+
+def test_rejects_evidence_table_hidden_in_html_comment(tmp_path: Path) -> None:
+    """証跡表だけをコメントへ隠しても合格項目表では補えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    evidence_part, acceptance_part = body.split("## 合格項目", maxsplit=1)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=f"<!--\n{evidence_part}\n-->\n## 合格項目{acceptance_part}"),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT not in reasons
+
+
+def test_rejects_complete_body_in_unclosed_html_comment(tmp_path: Path) -> None:
+    """閉じられていない HTML コメント以降の表を完全性欄として数えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=f"<!--\n{body}"),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
+
+
+def test_allows_complete_body_with_visible_tables_and_html_comments(
+    tmp_path: Path,
+) -> None:
+    """表の外の複数 HTML コメントは正当な完全な本文を妨げない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    body = body.replace(
+        "# 結果証跡\n",
+        "# 結果証跡\n<!-- 注記 1 -->本文<!-- 注記 2 -->\n",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+@pytest.mark.parametrize("fence", ("```", "~~~"))
+def test_rejects_complete_body_hidden_in_fenced_code_block(
+    tmp_path: Path,
+    fence: str,
+) -> None:
+    """バックティック・チルダ双方のコードフェンス内の表を欄として数えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=f"{fence}\n{body}\n{fence}"),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
 
 
 def test_checks_completeness_for_named_evidence_only(tmp_path: Path) -> None:
