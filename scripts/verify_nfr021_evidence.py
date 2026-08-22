@@ -125,12 +125,10 @@ REQUIRED_EVIDENCE_FIELD_NAMES = (
 )
 ACCEPTANCE_ITEM_VALUES_FIELD_NAME = "各合格項目の期待値と実測値"
 ACCEPTANCE_ITEM_VALUES_REFERENCE = "下表に記載"
-PHASE4_ACCEPTANCE_ITEM_COUNT = 5
-RELEASE_ACCEPTANCE_ITEM_COUNT = 8
-ACCEPTANCE_ITEM_COUNTS: Mapping[str, int] = MappingProxyType(
+EVIDENCE_TEMPLATE_PATHS: Mapping[str, str] = MappingProxyType(
     {
-        "phase4": PHASE4_ACCEPTANCE_ITEM_COUNT,
-        "release": RELEASE_ACCEPTANCE_ITEM_COUNT,
+        "phase4": "docs/ops/nfr021-acceptance/evidence-phase4-template.md",
+        "release": "docs/ops/nfr021-acceptance/evidence-release-template.md",
     }
 )
 REASON_NOT_DIRECT_CHILD = "受入証跡ディレクトリ直下の項目ではない"
@@ -181,14 +179,22 @@ REASON_EVIDENCE_VALUE_PLACEHOLDER = (
 REASON_ACCEPTANCE_TABLE_FORMAT = "本文の合格項目表の形式が不正である"
 REASON_ACCEPTANCE_TABLE_HEADER = "合格項目表のヘッダーが正本の形式と一致しない"
 REASON_ACCEPTANCE_ITEM_COUNT = (
-    "合格項目表の行数が {gate_kind} の必要数と一致しない: "
-    "必要 {expected} 行、実際 {actual} 行"
+    "合格項目表の行数が {gate_kind} テンプレートと一致しない: "
+    "テンプレート {expected} 行、実際 {actual} 行"
+)
+REASON_ACCEPTANCE_ITEM_MISMATCH = (
+    "合格項目表の番号と項目名が {gate_kind} テンプレートと一致しない"
 )
 REASON_ACCEPTANCE_VALUE_EMPTY = "合格項目表の {row_number} 行目の {column} が空である"
 REASON_ACCEPTANCE_VALUE_PLACEHOLDER = (
     "合格項目表の {row_number} 行目の {column} にプレースホルダが残っている"
 )
 REASON_EVIDENCE_COMPLETENESS_GATE_KIND = "本文完全性を検査する gate_kind を取得できない"
+REASON_EVIDENCE_TEMPLATE_MISSING = (
+    "candidate_sha のツリーに合格項目テンプレートが収録されていない: {path}"
+)
+REASON_EVIDENCE_TEMPLATE_TYPE = "合格項目テンプレートが blob オブジェクトではない: {path}"
+REASON_EVIDENCE_TEMPLATE_FORMAT = "合格項目テンプレートの表を抽出できない: {path}"
 REASON_CONTRACT_GATE_KEY = "同一 attempt_id の予約と結果でゲートキーが一致しない"
 REASON_CONTRACT_SEQUENCE = "同一 attempt_id の予約と結果で attempt_seq が一致しない"
 REASON_CONTRACT_RELEASE_VERSION = (
@@ -1052,17 +1058,79 @@ def extract_named_markdown_table(body: str, heading: str) -> MarkdownTable | Non
     return MarkdownTable(headers=headers, rows=tuple(rows))
 
 
-def validate_evidence_completeness(record: AcceptanceRecord) -> tuple[str, ...]:
+def acceptance_item_pairs(table: MarkdownTable) -> tuple[tuple[str, str], ...]:
+    """合格項目表から番号と項目名の対を取り出す。
+
+    Args:
+        table: ヘッダーと列数を検査済みの合格項目表。
+
+    Returns:
+        表の出現順を保った ``(#, 合格項目)`` の対。
+
+    Raises:
+        発生しない。
+    """
+    return tuple((row[0], row[1]) for row in table.rows)
+
+
+def candidate_template_acceptance_items(
+    root: Path,
+    candidate_sha: str,
+    gate_kind: str,
+) -> tuple[tuple[str, str], ...]:
+    """候補ツリーのゲート別テンプレートから合格項目の対を導出する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: テンプレートを読む固定した候補 commit OID。
+        gate_kind: phase4 または release。
+
+    Returns:
+        テンプレートの出現順を保った ``(#, 合格項目)`` の対。
+
+    Raises:
+        GuardError: ゲート種別、候補ツリー内のテンプレート、または表を解決できない場合。
+    """
+    template_path = EVIDENCE_TEMPLATE_PATHS.get(gate_kind)
+    if template_path is None:
+        raise GuardError(REASON_EVIDENCE_COMPLETENESS_GATE_KIND)
+    object_id = git_tree_object_oid(root, candidate_sha, template_path)
+    if object_id is None:
+        raise GuardError(
+            REASON_EVIDENCE_TEMPLATE_MISSING.format(path=template_path)
+        )
+    if git_object_type(root, object_id, template_path) != GIT_OBJECT_BLOB:
+        raise GuardError(REASON_EVIDENCE_TEMPLATE_TYPE.format(path=template_path))
+    table = extract_named_markdown_table(
+        git_blob_contents(root, object_id),
+        ACCEPTANCE_TABLE_HEADING,
+    )
+    if table is None or table.headers != ACCEPTANCE_TABLE_HEADERS:
+        raise GuardError(REASON_EVIDENCE_TEMPLATE_FORMAT.format(path=template_path))
+    pairs = acceptance_item_pairs(table)
+    if any(not number or not item_name for number, item_name in pairs):
+        raise GuardError(REASON_EVIDENCE_TEMPLATE_FORMAT.format(path=template_path))
+    return pairs
+
+
+def validate_evidence_completeness(
+    root: Path,
+    candidate_sha: str,
+    record: AcceptanceRecord,
+) -> tuple[str, ...]:
     """名指し結果証跡 1 件の本文完全性を合格条件⑩として検査する。
 
     Args:
+        root: Git リポジトリのルートディレクトリ。
+        candidate_sha: 合格項目テンプレートを読む固定した候補 commit OID。
         record: スキーマ適合済みで、結果証跡である名指しレコード。
 
     Returns:
         パスを含まない本文完全性の不合格理由。適合していれば空のタプル。
 
     Raises:
-        GuardError: 結果証跡である前提に反して gate_kind を取得できない場合。
+        GuardError: 結果証跡である前提に反して gate_kind を取得できない、または
+            候補ツリーの合格項目テンプレートを解決できない場合。
     """
     reasons: list[str] = []
     evidence_table = extract_named_markdown_table(
@@ -1110,9 +1178,13 @@ def validate_evidence_completeness(record: AcceptanceRecord) -> tuple[str, ...]:
                 )
 
     gate_kind = record.path.gate_kind
-    expected_count = ACCEPTANCE_ITEM_COUNTS.get(gate_kind or "")
-    if expected_count is None:
+    if gate_kind is None:
         raise GuardError(REASON_EVIDENCE_COMPLETENESS_GATE_KIND)
+    expected_items = candidate_template_acceptance_items(
+        root,
+        candidate_sha,
+        gate_kind,
+    )
     acceptance_table = extract_named_markdown_table(
         record.frontmatter.body,
         ACCEPTANCE_TABLE_HEADING,
@@ -1122,13 +1194,18 @@ def validate_evidence_completeness(record: AcceptanceRecord) -> tuple[str, ...]:
     elif acceptance_table.headers != ACCEPTANCE_TABLE_HEADERS:
         reasons.append(REASON_ACCEPTANCE_TABLE_HEADER)
     else:
-        if len(acceptance_table.rows) != expected_count:
+        actual_items = acceptance_item_pairs(acceptance_table)
+        if len(actual_items) != len(expected_items):
             reasons.append(
                 REASON_ACCEPTANCE_ITEM_COUNT.format(
                     gate_kind=gate_kind,
-                    expected=expected_count,
-                    actual=len(acceptance_table.rows),
+                    expected=len(expected_items),
+                    actual=len(actual_items),
                 )
+            )
+        elif actual_items != expected_items:
+            reasons.append(
+                REASON_ACCEPTANCE_ITEM_MISMATCH.format(gate_kind=gate_kind)
             )
         for row_number, row in enumerate(acceptance_table.rows, start=1):
             for column, value in zip(
@@ -2938,7 +3015,7 @@ def verify_named_evidence(
         return attempt_violations
     return tuple(
         format_violation(display_path, reason)
-        for reason in validate_evidence_completeness(record)
+        for reason in validate_evidence_completeness(root, candidate_sha, record)
     )
 
 

@@ -18,6 +18,9 @@ REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "check_nfr021_append_only.py"
 CORE_GUARD_SCRIPT = REPO / "scripts" / "core_guard.py"
 VERIFIER_SCRIPT = REPO / "scripts" / "verify_nfr021_evidence.py"
+ACCEPTANCE_DIRECTORY = REPO / "docs" / "ops" / "nfr021-acceptance"
+PHASE4_EVIDENCE_TEMPLATE = ACCEPTANCE_DIRECTORY / "evidence-phase4-template.md"
+RELEASE_EVIDENCE_TEMPLATE = ACCEPTANCE_DIRECTORY / "evidence-release-template.md"
 COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
 ONBOARDING_BLOB_SHA = "89abcdef0123456789abcdef0123456789abcdef"
 FILE_TIMESTAMP = "2026-08-20T101500Z"
@@ -118,6 +121,16 @@ def init_repository(tmp_path: Path) -> tuple[Path, str]:
     git(root, "config", "user.email", "test@example.com")
     git(root, "config", "user.name", "test")
     write_text(root, "README.md", "# test\n")
+    write_text(
+        root,
+        acceptance_path("evidence-phase4-template.md"),
+        PHASE4_EVIDENCE_TEMPLATE.read_text(encoding="utf-8"),
+    )
+    write_text(
+        root,
+        acceptance_path("evidence-release-template.md"),
+        RELEASE_EVIDENCE_TEMPLATE.read_text(encoding="utf-8"),
+    )
     return root, commit_all(root, "chore: base")
 
 
@@ -242,6 +255,28 @@ def reservation_text(
     return frontmatter(lines, "# 予約レコード")
 
 
+def template_acceptance_items(gate_kind: str) -> tuple[tuple[str, str], ...]:
+    """実物テンプレートからゲート別の合格項目の番号と名前を得る。
+
+    Args:
+        gate_kind: phase4 または release。
+
+    Returns:
+        テンプレートに並ぶ ``(#, 合格項目)`` の対。
+    """
+    template_path = (
+        PHASE4_EVIDENCE_TEMPLATE
+        if gate_kind == "phase4"
+        else RELEASE_EVIDENCE_TEMPLATE
+    )
+    table = verify_nfr021_evidence.extract_named_markdown_table(
+        template_path.read_text(encoding="utf-8"),
+        "合格項目",
+    )
+    assert table is not None
+    return tuple((row[0], row[1]) for row in table.rows)
+
+
 def complete_evidence_body(
     gate_kind: str = "phase4",
     commit_sha: str = COMMIT_SHA,
@@ -282,21 +317,20 @@ def complete_evidence_body(
         ("標準出力またはログ成果物への参照", "docs/worklog/test.log"),
         ("判定者", "test"),
     )
-    item_count = 5 if gate_kind == "phase4" else 8
     evidence_table = [
         "| 項目 | 記録 |",
         "| --- | --- |",
         *(f"| {name} | {value} |" for name, value in evidence_rows),
     ]
     acceptance_rows: list[str] = []
-    for number in range(1, item_count + 1):
+    for number, item_name in template_acceptance_items(gate_kind):
         actual_value = (
             acceptance_placeholder
-            if number == 1 and acceptance_placeholder is not None
+            if number == "1" and acceptance_placeholder is not None
             else f"実測 {number}"
         )
         acceptance_rows.append(
-            f"| {number} | 項目 {number} | 期待 {number} | {actual_value} |"
+            f"| {number} | {item_name} | 期待 {number} | {actual_value} |"
         )
     acceptance_table = [
         "| # | 合格項目 | 期待値 | 実測値 |",
@@ -363,6 +397,7 @@ def write_reservation(
     attempt_seq: int = 1,
     *,
     timestamp: str = FILE_TIMESTAMP,
+    gate_key: str = "phase4",
     record_id: str | None = None,
     content: str | None = None,
 ) -> str:
@@ -372,14 +407,32 @@ def write_reservation(
         root: 一時リポジトリのルート。
         attempt_seq: 予約の連番。
         timestamp: ファイル名に使う UTC 時刻。
+        gate_key: frontmatter とファイル名へ使う合成ゲートキー。
         record_id: frontmatter の attempt_id。
         content: 書く内容。省略時は適合する予約を作る。
 
     Returns:
         書き込んだリポジトリ相対パス。
     """
-    path = acceptance_path(reservation_filename(attempt_seq, timestamp))
-    write_text(root, path, content or reservation_text(attempt_seq, record_id=record_id))
+    if gate_key == "phase4":
+        gate_kind = "phase4"
+        release_version = None
+    else:
+        gate_kind = "release"
+        release_version = gate_key.removeprefix("release-")
+    path = acceptance_path(
+        reservation_filename(
+            attempt_seq,
+            timestamp,
+            gate_kind,
+            release_version,
+        )
+    )
+    write_text(
+        root,
+        path,
+        content or reservation_text(attempt_seq, gate_key, record_id=record_id),
+    )
     return path
 
 
@@ -767,6 +820,40 @@ def test_rejects_invalid_first_or_nonincreasing_reservation_sequence(
     assert result.returncode == 1
     expected = "attempt_seq は 1" if new_sequence == 2 else "厳密に大きくない"
     assert expected in result.stderr
+
+
+@pytest.mark.parametrize("reservation_count", [2, 3])
+def test_rejects_multiple_new_reservations_for_the_same_gate_in_one_pr(
+    tmp_path: Path,
+    reservation_count: int,
+) -> None:
+    """(e-5) により閉塞済み base 後でも同一ゲートの複数予約を拒否する。"""
+    root, _ = init_repository(tmp_path)
+    write_reservation(root, 1)
+    write_evidence(root, 1)
+    base = commit_all(root, "docs: close phase4 seq001")
+    for attempt_seq in range(2, reservation_count + 2):
+        write_reservation(root, attempt_seq)
+    head = commit_all(root, "docs: reserve multiple phase4 attempts")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 1
+    assert "同一 gate_key の新規予約が同一 PR に複数ある: phase4" in result.stderr
+
+
+def test_allows_one_new_reservation_for_each_distinct_gate_in_one_pr(
+    tmp_path: Path,
+) -> None:
+    """(e-5) は phase4 と release の独立した予約を拒否しない。"""
+    root, base = init_repository(tmp_path)
+    write_reservation(root, 1)
+    write_reservation(root, 1, gate_key="release-v1.0.0")
+    head = commit_all(root, "docs: reserve phase4 and release")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize("operation", ["modify", "delete", "rename", "type_change"])

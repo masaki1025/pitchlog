@@ -119,6 +119,9 @@ REASON_FIRST_SEQUENCE = "base ツリーに予約がないゲートキーの atte
 REASON_SEQUENCE_NOT_INCREASING = (
     "新規予約の attempt_seq が base ツリーの全予約より厳密に大きくない"
 )
+REASON_NEW_RESERVATION_GATE_KEY_DUPLICATE = (
+    "同一 gate_key の新規予約が同一 PR に複数ある: {gate_key}"
+)
 SKIP_NON_PR_MESSAGE = "NFR-021 append-only 検査をスキップする: pull_request イベントではない"
 SKIP_NON_DEVELOP_PR_MESSAGE = (
     "NFR-021 append-only 検査をスキップする: base ブランチが develop ではない"
@@ -641,20 +644,40 @@ def validate_reservation_protocol(
     new_records: Sequence[AcceptanceRecord],
     base_records: Sequence[AcceptanceRecord],
 ) -> tuple[str, ...]:
-    """base ツリー基準で予約先行・閉塞・逆順・単調採番を検査する。
+    """base ツリー基準で予約先行・閉塞・逆順・採番・PR 内一意性を検査する。
 
     Args:
         new_records: PR で追加された解析済みレコード。
         base_records: PR base ツリーから解析できたレコード。
 
     Returns:
-        (e-1)〜(e-4) の採番・排他プロトコル違反。
+        (e-1)〜(e-5) の採番・排他プロトコル違反。
     """
     base_reservations = [
         record for record in base_records if record.path.kind == KIND_RESERVATION
     ]
-    base_evidences = [record for record in base_records if record.path.kind == KIND_EVIDENCE]
+    base_evidences = [
+        record for record in base_records if record.path.kind == KIND_EVIDENCE
+    ]
     violations: list[str] = []
+    new_reservations_by_gate_key: dict[str, list[AcceptanceRecord]] = {}
+    for record in new_records:
+        if record.path.kind != KIND_RESERVATION:
+            continue
+        gate_key = record_gate_key(record)
+        if gate_key is not None:
+            new_reservations_by_gate_key.setdefault(gate_key, []).append(record)
+    for gate_key, reservations in new_reservations_by_gate_key.items():
+        if len(reservations) > 1:
+            violations.extend(
+                format_violation(
+                    reservation.display_path,
+                    REASON_NEW_RESERVATION_GATE_KEY_DUPLICATE.format(
+                        gate_key=gate_key
+                    ),
+                )
+                for reservation in reservations
+            )
     for record in new_records:
         identity = record_identity(record)
         if identity is None:
@@ -764,7 +787,7 @@ def check_append_only(root: Path, base: str, head: str) -> tuple[str, ...]:
         if record.path.kind == KIND_EVIDENCE:
             violations.extend(
                 format_violation(record.display_path, reason)
-                for reason in validate_evidence_completeness(record)
+                for reason in validate_evidence_completeness(root, head, record)
             )
 
     head_records = tree_records(root, head)

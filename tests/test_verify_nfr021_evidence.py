@@ -121,6 +121,7 @@ def complete_evidence_body(
     gate_kind: str = "phase4",
     *,
     evidence_rows: tuple[tuple[str, str], ...] | None = None,
+    acceptance_items: tuple[tuple[str, str], ...] | None = None,
     acceptance_item_count: int | None = None,
 ) -> str:
     """⑩を満たす結果証跡本文を必要に応じて部分的に変えて作る。
@@ -130,7 +131,8 @@ def complete_evidence_body(
         onboarding_blob_sha: 本文へ書く onboarding blob SHA。
         gate_kind: phase4 または release。
         evidence_rows: 証跡表へ置く ``(欄名, 値)`` 行。省略時は全欄を置く。
-        acceptance_item_count: 合格項目表の行数。省略時はゲート別の正規数を置く。
+        acceptance_items: 合格項目表へ置く ``(#, 合格項目)`` 行。省略時はテンプレートから得る。
+        acceptance_item_count: 指定時は選んだ合格項目から残す先頭行数。
 
     Returns:
         本文完全性を検査できる 2 つの Markdown 表を含む本文。
@@ -156,12 +158,13 @@ def complete_evidence_body(
         ("判定者", "判定者が内容を確認した"),
     )
     rows = evidence_rows if evidence_rows is not None else default_evidence_rows
-    default_count = 5 if gate_kind == "phase4" else 8
-    item_count = (
-        acceptance_item_count
-        if acceptance_item_count is not None
-        else default_count
+    items = (
+        acceptance_items
+        if acceptance_items is not None
+        else template_acceptance_items(gate_kind)
     )
+    if acceptance_item_count is not None:
+        items = items[:acceptance_item_count]
     evidence_table = [
         "| 項目 | 記録 |",
         "| --- | --- |",
@@ -171,8 +174,8 @@ def complete_evidence_body(
         "| # | 合格項目 | 期待値 | 実測値 |",
         "| --- | --- | --- | --- |",
         *(
-            f"| {number} | 合格項目 {number} | 期待値 {number} | 実測値 {number} |"
-            for number in range(1, item_count + 1)
+            f"| {number} | {item_name} | 期待値 {number} | 実測値 {number} |"
+            for number, item_name in items
         ),
     ]
     return "\n".join(
@@ -216,6 +219,26 @@ def template_table_rows(template_path: Path, heading: str) -> tuple[tuple[str, .
             break
         rows.append(tuple(cell.strip() for cell in stripped_line[1:-1].split("|")))
     return tuple(rows)
+
+
+def template_acceptance_items(gate_kind: str) -> tuple[tuple[str, str], ...]:
+    """実物テンプレートからゲート別の合格項目の番号と名前を得る。
+
+    Args:
+        gate_kind: phase4 または release。
+
+    Returns:
+        テンプレートに並ぶ ``(#, 合格項目)`` の対。
+    """
+    template_path = (
+        PHASE4_EVIDENCE_TEMPLATE
+        if gate_kind == "phase4"
+        else RELEASE_EVIDENCE_TEMPLATE
+    )
+    return tuple(
+        (row[0], row[1])
+        for row in template_table_rows(template_path, "合格項目")
+    )
 
 
 def reservation_text(
@@ -325,6 +348,27 @@ def parse_record(filename: str, text: str):
         verify_nfr021_evidence の解析済みレコード。
     """
     return verify.parse_acceptance_record(filename, text)
+
+
+def validate_evidence_completeness(
+    tmp_path: Path,
+    record: verify.AcceptanceRecord,
+) -> tuple[str, ...]:
+    """候補ツリーのテンプレートを使って本文完全性を検査する。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        record: 検査対象として解析済みの結果証跡。
+
+    Returns:
+        検証器が返す本文完全性の不合格理由。
+    """
+    root = init_invalidation_repository(tmp_path)
+    return verify.validate_evidence_completeness(
+        root,
+        invalidation_head(root),
+        record,
+    )
 
 
 def schema_violations(filename: str, text: str) -> tuple[str, ...]:
@@ -981,6 +1025,16 @@ def init_invalidation_repository(tmp_path: Path, branch: str = "develop") -> Pat
         ".claude/nfr021-invalidating-paths.json",
         INVALIDATING_PATHS_CONFIG.read_bytes(),
     )
+    write_invalidation_bytes(
+        root,
+        "docs/ops/nfr021-acceptance/evidence-phase4-template.md",
+        PHASE4_EVIDENCE_TEMPLATE.read_bytes(),
+    )
+    write_invalidation_bytes(
+        root,
+        "docs/ops/nfr021-acceptance/evidence-release-template.md",
+        RELEASE_EVIDENCE_TEMPLATE.read_bytes(),
+    )
     commit_invalidation_changes(root, "chore: base")
     return root
 
@@ -1437,7 +1491,7 @@ def commit_onboarding(
         "docs/development/onboarding.md",
         "\n".join(["---", f"status: {status}", "---", "", "# onboarding", ""]),
     )
-    for filename in CANONICAL_ACCEPTANCE_FILENAMES:
+    for filename in ("README.md", "reservation-template.md"):
         write_invalidation_file(
             root,
             f"docs/ops/nfr021-acceptance/{filename}",
@@ -1705,6 +1759,43 @@ def make_valid_evidence_repository(
         gate_kind=gate_kind,
         release_version=release_version,
         result=result,
+        body=body,
+    )
+    return root, tested_commit_sha, candidate_sha, evidence_path, onboarding_blob_sha
+
+
+def make_valid_evidence_repository_with_acceptance_items(
+    tmp_path: Path,
+    acceptance_items: tuple[tuple[str, str], ...],
+    *,
+    gate_kind: str = "phase4",
+    release_version: str | None = None,
+) -> tuple[Path, str, str, str, str]:
+    """合格項目だけを差し替えた、それ以外は適合する証跡リポジトリを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        acceptance_items: 証跡本文へ書く ``(#, 合格項目)`` の対。
+        gate_kind: 結果証跡に書くゲート種別。
+        release_version: release の場合の結果証跡版。
+
+    Returns:
+        ``(root, tested_sha, candidate_sha, evidence_path, onboarding_blob_sha)``。
+    """
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha, onboarding_blob_sha = commit_onboarding(root)
+    body = complete_evidence_body(
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind,
+        acceptance_items=acceptance_items,
+    )
+    candidate_sha, evidence_path = commit_closed_attempt(
+        root,
+        tested_commit_sha,
+        onboarding_blob_sha,
+        gate_kind=gate_kind,
+        release_version=release_version,
         body=body,
     )
     return root, tested_commit_sha, candidate_sha, evidence_path, onboarding_blob_sha
@@ -2616,7 +2707,146 @@ def test_accepts_complete_release_evidence_body(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_accepts_acceptance_item_table_reference_value() -> None:
+def test_rejects_generic_acceptance_item_labels(tmp_path: Path) -> None:
+    """項目 1〜の汎用ラベルでは template 由来の合格項目契約を満たさない。"""
+    generic_items = tuple(
+        (number, f"項目 {number}")
+        for number, _ in template_acceptance_items("phase4")
+    )
+    root, _, candidate_sha, evidence_path, _ = (
+        make_valid_evidence_repository_with_acceptance_items(
+            tmp_path,
+            generic_items,
+        )
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_ACCEPTANCE_ITEM_MISMATCH.format(
+        gate_kind="phase4"
+    ) in result.stderr
+
+
+def test_rejects_acceptance_item_with_a_different_name(tmp_path: Path) -> None:
+    """合格項目名が 1 件でもテンプレートと違えば本文完全性で拒否する。"""
+    items = list(template_acceptance_items("phase4"))
+    number, _ = items[2]
+    items[2] = (number, "frontend の別テスト")
+    root, _, candidate_sha, evidence_path, _ = (
+        make_valid_evidence_repository_with_acceptance_items(
+            tmp_path,
+            tuple(items),
+        )
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_ACCEPTANCE_ITEM_MISMATCH.format(
+        gate_kind="phase4"
+    ) in result.stderr
+
+
+def test_rejects_reordered_acceptance_items(tmp_path: Path) -> None:
+    """合格項目の番号と名前が同じでもテンプレート順でなければ拒否する。"""
+    root, _, candidate_sha, evidence_path, _ = (
+        make_valid_evidence_repository_with_acceptance_items(
+            tmp_path,
+            tuple(reversed(template_acceptance_items("phase4"))),
+        )
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_ACCEPTANCE_ITEM_MISMATCH.format(
+        gate_kind="phase4"
+    ) in result.stderr
+
+
+def test_rejects_phase4_evidence_with_too_many_acceptance_items(
+    tmp_path: Path,
+) -> None:
+    """テンプレートより多い合格項目も行数契約違反として拒否する。"""
+    items = (*template_acceptance_items("phase4"), ("6", "追加した項目"))
+    root, _, candidate_sha, evidence_path, _ = (
+        make_valid_evidence_repository_with_acceptance_items(
+            tmp_path,
+            items,
+        )
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert "合格項目表の行数が phase4 テンプレート" in result.stderr
+
+
+def test_rejects_release_acceptance_item_with_a_different_name(
+    tmp_path: Path,
+) -> None:
+    """release の 8 項目もテンプレート由来の番号と名前を照合する。"""
+    items = list(template_acceptance_items("release"))
+    number, _ = items[-1]
+    items[-1] = (number, "NFR-018(b) の別検査")
+    root, _, candidate_sha, evidence_path, _ = (
+        make_valid_evidence_repository_with_acceptance_items(
+            tmp_path,
+            tuple(items),
+            gate_kind="release",
+            release_version="v1.2.3",
+        )
+    )
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(
+            candidate_sha,
+            evidence_path,
+            gate_kind="release",
+            release_version="v1.2.3",
+        ),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_ACCEPTANCE_ITEM_MISMATCH.format(
+        gate_kind="release"
+    ) in result.stderr
+
+
+def test_rejects_evidence_when_candidate_tree_lacks_acceptance_template(
+    tmp_path: Path,
+) -> None:
+    """候補ツリーにゲート別テンプレートが無ければ本文完全性を fail-closed にする。"""
+    root, _, _, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    template_path = "docs/ops/nfr021-acceptance/evidence-phase4-template.md"
+    git_for_invalidation(root, "rm", template_path)
+    commit_invalidation_changes(root, "docs: remove phase4 evidence template")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert verify.REASON_EVIDENCE_TEMPLATE_MISSING.split(":")[0] in result.stderr
+
+
+def test_accepts_acceptance_item_table_reference_value(tmp_path: Path) -> None:
     """「下表に記載」を各合格項目の実値として空欄扱いしない。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
     record = parse_record(
@@ -2625,10 +2855,10 @@ def test_accepts_acceptance_item_table_reference_value() -> None:
     )
 
     assert "| 各合格項目の期待値と実測値 | 下表に記載 |" in body
-    assert verify.validate_evidence_completeness(record) == ()
+    assert validate_evidence_completeness(tmp_path, record) == ()
 
 
-def test_accepts_regular_body_values_without_angle_brackets() -> None:
+def test_accepts_regular_body_values_without_angle_brackets(tmp_path: Path) -> None:
     """山括弧を含まない実値と通常文をプレースホルダとして扱わない。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
     record = parse_record(
@@ -2639,7 +2869,7 @@ def test_accepts_regular_body_values_without_angle_brackets() -> None:
     assert "Windows 11 24H2" in body
     assert "python 3.12.3 / uv 0.8.13" in body
     assert "判定者が内容を確認した" in body
-    assert verify.validate_evidence_completeness(record) == ()
+    assert validate_evidence_completeness(tmp_path, record) == ()
 
 
 def test_checks_completeness_for_named_evidence_only(tmp_path: Path) -> None:
@@ -2669,7 +2899,7 @@ def test_checks_completeness_for_named_evidence_only(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_rejects_evidence_body_with_a_missing_required_field() -> None:
+def test_rejects_evidence_body_with_a_missing_required_field(tmp_path: Path) -> None:
     """証跡 11 欄のうち 1 欄がなければ本文完全性を拒否する。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
         "| 判定者 | 判定者が内容を確認した |\n",
@@ -2681,13 +2911,13 @@ def test_rejects_evidence_body_with_a_missing_required_field() -> None:
         evidence_text(body=body),
     )
 
-    reasons = verify.validate_evidence_completeness(record)
+    reasons = validate_evidence_completeness(tmp_path, record)
 
     assert verify.REASON_EVIDENCE_FIELD_MISSING.split(":")[0] in reasons[0]
     assert "判定者" in reasons[0]
 
 
-def test_rejects_phase4_evidence_body_with_four_acceptance_items() -> None:
+def test_rejects_phase4_evidence_body_with_four_acceptance_items(tmp_path: Path) -> None:
     """phase4 の合格項目が 4 行しかなければ本文完全性を拒否する。"""
     record = parse_record(
         "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
@@ -2700,27 +2930,32 @@ def test_rejects_phase4_evidence_body_with_four_acceptance_items() -> None:
         ),
     )
 
-    reasons = verify.validate_evidence_completeness(record)
+    reasons = validate_evidence_completeness(tmp_path, record)
 
     assert any("合格項目表の行数が phase4" in reason for reason in reasons)
 
 
 @pytest.mark.parametrize("table", ("evidence", "acceptance"))
-def test_rejects_empty_body_table_value(table: str) -> None:
+def test_rejects_empty_body_table_value(tmp_path: Path, table: str) -> None:
     """証跡表と合格項目表のいずれの空欄も本文完全性で拒否する。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
     if table == "evidence":
         body = body.replace("| Windows 版 | Windows 11 24H2 |", "| Windows 版 |   |", 1)
         expected_reason = "証跡表の Windows 版 の値が空である"
     else:
-        body = body.replace("| 1 | 合格項目 1 | 期待値 1 | 実測値 1 |", "| 1 | 合格項目 1 |   | 実測値 1 |", 1)
+        first_item_name = template_acceptance_items("phase4")[0][1]
+        body = body.replace(
+            f"| 1 | {first_item_name} | 期待値 1 | 実測値 1 |",
+            f"| 1 | {first_item_name} |   | 実測値 1 |",
+            1,
+        )
         expected_reason = "合格項目表の 1 行目の 期待値 が空である"
     record = parse_record(
         "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
         evidence_text(body=body),
     )
 
-    reasons = verify.validate_evidence_completeness(record)
+    reasons = validate_evidence_completeness(tmp_path, record)
 
     assert expected_reason in reasons
 
@@ -2734,7 +2969,11 @@ def test_rejects_empty_body_table_value(table: str) -> None:
         ("acceptance", f"{CODE_DELIMITER}<TBD>{CODE_DELIMITER}"),
     ),
 )
-def test_rejects_body_table_placeholder(table: str, placeholder: str) -> None:
+def test_rejects_body_table_placeholder(
+    tmp_path: Path,
+    table: str,
+    placeholder: str,
+) -> None:
     """バックティックの有無を問わず ``<...>`` を本文完全性で拒否する。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
     if table == "evidence":
@@ -2748,12 +2987,14 @@ def test_rejects_body_table_placeholder(table: str, placeholder: str) -> None:
         evidence_text(body=body),
     )
 
-    reasons = verify.validate_evidence_completeness(record)
+    reasons = validate_evidence_completeness(tmp_path, record)
 
     assert expected_reason in reasons
 
 
-def test_rejects_release_evidence_body_with_five_acceptance_items() -> None:
+def test_rejects_release_evidence_body_with_five_acceptance_items(
+    tmp_path: Path,
+) -> None:
     """release の合格項目が phase4 と同じ 5 行だけなら拒否する。"""
     record = parse_record(
         "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md",
@@ -2769,7 +3010,7 @@ def test_rejects_release_evidence_body_with_five_acceptance_items() -> None:
         ),
     )
 
-    reasons = verify.validate_evidence_completeness(record)
+    reasons = validate_evidence_completeness(tmp_path, record)
 
     assert any("合格項目表の行数が release" in reason for reason in reasons)
 
@@ -2796,14 +3037,23 @@ def test_evidence_field_constants_match_template_field_names(template_path: Path
         (RELEASE_EVIDENCE_TEMPLATE, "release"),
     ),
 )
-def test_acceptance_item_count_constants_match_template_rows(
+def test_candidate_template_acceptance_items_match_template_rows(
+    tmp_path: Path,
     template_path: Path,
     gate_kind: str,
 ) -> None:
-    """ゲート別の合格項目行数定数をテンプレート実物で腐り検知する。"""
-    rows = template_table_rows(template_path, "合格項目")
+    """候補ツリーから導出した合格項目がテンプレート実物と一致する。"""
+    root = init_invalidation_repository(tmp_path)
+    expected_items = tuple(
+        (row[0], row[1])
+        for row in template_table_rows(template_path, "合格項目")
+    )
 
-    assert len(rows) == verify.ACCEPTANCE_ITEM_COUNTS[gate_kind]
+    assert verify.candidate_template_acceptance_items(
+        root,
+        invalidation_head(root),
+        gate_kind,
+    ) == expected_items
 
 
 @pytest.mark.parametrize(
