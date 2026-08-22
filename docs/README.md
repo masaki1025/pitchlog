@@ -15,7 +15,7 @@
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(要件書 v2.2 と一括検証) | 0.1 | 2026-08-19 |
 | [オンボーディング](development/onboarding.md) | draft | 0.5 | 2026-08-10 |
-| [GitHub リポジトリ設定手順](development/github-setup.md) | **in-review**(v1.1 — 2 章の手続 5 を確定ゲート中) | 1.1 | 2026-08-22 |
+| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.1 — 敵対レビュー2周 → PO 承認) | 1.1 | 2026-08-22 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
