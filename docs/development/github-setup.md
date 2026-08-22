@@ -10,6 +10,7 @@ status: approved
 | 0.2 | 2026-08-10 | 敵対レビュー(判定=要修正・P0×3/P1×6)の全件反映: 暫定運用を「機械的強制でなく管理手続」として正確化(git_guard の適用範囲・チェック対象 = コア領域∪guard_paths・最新 HEAD 基準)/ core-guard 循環参照は**保護有効化後も未解消**と境界を明記 / gitleaks ローカル監査コマンドを worktree 対応 + `--redact=100` 必須へ修正(NFR-014)/ Ruleset 冪等適用の前提・検証・復旧手順 / context 名の将来変更耐性 / `--no-ff` 整合(allowed_merge_methods)/ 10.2 自動再現要件の未達を明示 / NFR-019 参照修正 | draft |
 | 0.3 | 2026-08-10 | 敵対レビュー 2 周目(P0×1/P1×3)の反映: **`pull_request: edited` を CI トリガーに追加**(本文チェック編集で core-guard を再評価 — 従来はチェックしても再実行されず green にならない構造欠陥)/ push のたびの最新 HEAD 再確認を手続化 / 保護後の管理手続の対象を「コア領域 ∪ guard_paths」に訂正(縮退修正)/ NFR-019 の参照を要件書 5 章に修正 / gh api 全コマンドに API バージョンヘッダ(2026-03-10)を明示 / 適用前提に allow_merge_commit 確認を追加 | draft |
 | 1.0 | 2026-08-10 | **確定ゲート通過(approved)**: 敵対レビュー 2 周(P0×3/P1×6 → P0×1/P1×3。全件反映)→ PO 承認(2026-08-10・徳光 尋弥) | **approved** |
+| 1.0 | 2026-08-22 | **Phase 4-5 の実装追随(版は上げない — 設計書 7.6-3 前段の実装追随の節更新)**: 必須チェックを **4 ジョブ → 5 ジョブ**へ更新(`nfr021-append-only` を追加 — NFR-021 受入証跡の append-only 統合時検査。設計書 10.1 のジョブ表が正)。2 章のマージ手続 2 項・4 項の列挙と 3 章 Ruleset の `required_status_checks` を同時更新した(本書 3 章の「必須ジョブの追加・削除・改名時は本書と Ruleset を 同時更新する」に従う)。**保護の適用状況・暫定運用の内容は変更していない**(縮退は継続中)。計画: `docs/features/nfr021-evidence-verifier/plan.md` | approved |
 
 > **本書の位置づけ**: GitHub 側の**ブランチ保護設定と CI が要求する Secrets** の再現手順の正本(ハーネス設計書 10.2)。Actions ポリシー全般(Organization ポリシー・許可 Action 方針等)は対象外 — Organization へ移管する場合は移管タスク側で確認する。ローカル環境構築の手順は [onboarding.md](onboarding.md) に置く(同書は現在 **draft** — approved 化までは規範ではなく作業手順として扱う。受入条件の正は要件書 NFR-021)、CI ジョブの設計根拠は [設計書 10.1](dev-harness-design-2026-08-07.md) を正とする。
 
@@ -32,9 +33,9 @@ status: approved
 - 以下は**機械的強制ではなく、所有者が遵守する管理手続**である。ローカルの git_guard は Claude Code の PreToolUse フックであり、**人間の端末・別 clone・GitHub UI/API からの操作は遮断しない**(過信しない)
 - マージの手続(すべて必須):
   1. **統合は PR 経由のみ**。main / develop への直接 push・GitHub UI での直接編集・チェック失敗状態でのマージは禁止
-  2. マージ前に、**PR の最新 HEAD SHA に対して** CI 4 ジョブ(`secrets` / `docs-lint` / `core-guard` / `harness`)がすべて green であることを確認する(古い green run で判断しない)。**PR に push が追加されたら、そのたびに本手続をやり直す**(逐行確認・チェックも最新 HEAD に対して再実施)
+  2. マージ前に、**PR の最新 HEAD SHA に対して** CI 5 ジョブ(`secrets` / `docs-lint` / `core-guard` / `harness` / `nfr021-append-only`)がすべて green であることを確認する(古い green run で判断しない)。**PR に push が追加されたら、そのたびに本手続をやり直す**(逐行確認・チェックも最新 HEAD に対して再実施)
   3. 変更ファイルが**コア領域(`.claude/core-areas.json` の `areas[].paths`)または検査経路(`guard_paths`)に該当する場合**、マージ担当者自身が最新 HEAD の差分を逐行確認し、**確認した本人が** PR 本文のチェック `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` を付ける(チェックは人間確認の証拠にならない — AI でも付けられる。**付けた人 = 確認した人**の運用規律で担保する)
-  4. チェックを付ける(= PR 本文を編集する)と CI が再実行される(`pull_request` トリガーに `edited` を含めているため — これがないと本文編集では core-guard が再評価されず、チェック後も red のままになる)。チェック後に core-guard を含む 4 ジョブが最新 HEAD で green になったことを確認してからマージする
+  4. チェックを付ける(= PR 本文を編集する)と CI が再実行される(`pull_request` トリガーに `edited` を含めているため — これがないと本文編集では core-guard が再評価されず、チェック後も red のままになる)。チェック後に core-guard を含む 5 ジョブが最新 HEAD で green になったことを確認してからマージする
 - **core-guard の残余リスク(循環参照)**: `pull_request` は PR 側(head のマージブランチ)の workflow・スクリプトを実行するため、PR 自身が `ci.yml` / `core_guard.py` / `core-areas.json` を書き換えると検査そのものを無効化・形骸化できる(必須チェックは**ジョブ名の存在と結果**を強制するが、**ジョブの意味は固定しない**)。guard_paths は「未改変 PR への検知」であり防止ではない
 
 ## 3. ブランチ保護の再開手順(制約解消後に適用)
@@ -73,7 +74,8 @@ status: approved
           { "context": "secrets" },
           { "context": "docs-lint" },
           { "context": "core-guard" },
-          { "context": "harness" }
+          { "context": "harness" },
+          { "context": "nfr021-append-only" }
         ] } }
   ],
   "bypass_actors": []
