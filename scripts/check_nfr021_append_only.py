@@ -16,6 +16,7 @@ try:
     from core_guard import GuardError
     from verify_nfr021_evidence import (
         ACCEPTANCE_DIRECTORY_RELATIVE_PATH,
+        CANONICAL_FILENAMES,
         GIT_OBJECT_BLOB,
         KIND_CANONICAL,
         KIND_EVIDENCE,
@@ -41,6 +42,7 @@ except ModuleNotFoundError:  # pragma: no cover - モジュールとして読み
     from scripts.core_guard import GuardError
     from scripts.verify_nfr021_evidence import (
         ACCEPTANCE_DIRECTORY_RELATIVE_PATH,
+        CANONICAL_FILENAMES,
         GIT_OBJECT_BLOB,
         KIND_CANONICAL,
         KIND_EVIDENCE,
@@ -68,6 +70,7 @@ SCRIPT_NAME = "check_nfr021_append_only"
 GIT_EXECUTABLE = "git"
 GIT_DIFF_COMMAND = "diff"
 GIT_NAME_STATUS_OPTION = "--name-status"
+GIT_NULL_TERMINATE_OPTION = "-z"
 GIT_NO_RENAMES_OPTION = "--no-renames"
 DIFF_TIMEOUT_SECONDS = 30
 PULL_REQUEST_EVENT_NAME = "pull_request"
@@ -219,7 +222,7 @@ def normalize_git_path(path: str) -> str:
 
 
 def parse_name_status(output: str) -> tuple[ChangedPath, ...]:
-    """``git diff --name-status`` 出力を変更種別つきレコードへ解析する。
+    """``git diff --name-status -z`` 出力を変更種別つきレコードへ解析する。
 
     Args:
         output: Git コマンドの標準出力。
@@ -230,19 +233,28 @@ def parse_name_status(output: str) -> tuple[ChangedPath, ...]:
     Raises:
         GuardError: 変更種別、列数、またはパスが不正な場合。
     """
+    fields = output.split("\0")
+    if fields[-1] != "":
+        raise GuardError(REASON_DIFF_FORMAT)
     changes: list[ChangedPath] = []
-    for line in output.splitlines():
-        if not line:
-            continue
-        fields = line.split("\t")
-        status = fields[0]
+    field_index = 0
+    terminal_index = len(fields) - 1
+    while field_index < terminal_index:
+        status = fields[field_index]
+        field_index += 1
+        if not status:
+            raise GuardError(REASON_DIFF_FORMAT)
         kind = status[:1]
         if kind not in GIT_STATUS_KINDS:
             raise GuardError(REASON_DIFF_STATUS.format(status=status))
         expected_path_count = 2 if kind in GIT_STATUS_TWO_PATH_KINDS else 1
-        if len(fields) != expected_path_count + 1:
+        if field_index + expected_path_count > terminal_index:
             raise GuardError(REASON_DIFF_FORMAT)
-        paths = tuple(normalize_git_path(path) for path in fields[1:])
+        paths = tuple(
+            normalize_git_path(path)
+            for path in fields[field_index : field_index + expected_path_count]
+        )
+        field_index += expected_path_count
         changes.append(ChangedPath(status=kind, paths=paths))
     return tuple(changes)
 
@@ -268,6 +280,8 @@ def changed_paths(root: Path, base: str, head: str) -> tuple[ChangedPath, ...]:
         GIT_EXECUTABLE,
         GIT_DIFF_COMMAND,
         GIT_NAME_STATUS_OPTION,
+        # -z は core.quotePath による C 形式引用を避け、任意のファイル名を保つ。
+        GIT_NULL_TERMINATE_OPTION,
         GIT_NO_RENAMES_OPTION,
         f"{base}...{head}",
     )
@@ -302,6 +316,27 @@ def is_acceptance_path(path: str) -> bool:
     parts = PurePosixPath(path).parts
     prefix = ACCEPTANCE_DIRECTORY_RELATIVE_PATH.parts
     return parts[: len(prefix)] == prefix
+
+
+def is_acceptance_record_path(path: str) -> bool:
+    """パスが append-only の保持対象である予約・結果証跡かを判定する。
+
+    Args:
+        path: リポジトリ相対 POSIX パス。
+
+    Returns:
+        正規形の reservation または evidence なら ``True``、それ以外なら ``False``。
+    """
+    if not is_acceptance_path(path):
+        return False
+    relative_path = acceptance_relative_path(PurePosixPath(path))
+    parsed_path = parse_acceptance_path(relative_path)
+    if (
+        parsed_path.kind == KIND_CANONICAL
+        and relative_path.name in CANONICAL_FILENAMES
+    ):
+        return False
+    return parsed_path.kind in {KIND_RESERVATION, KIND_EVIDENCE}
 
 
 def read_pull_request_event() -> PullRequestEvent:
@@ -705,14 +740,17 @@ def check_append_only(root: Path, base: str, head: str) -> tuple[str, ...]:
         for path in change.paths:
             if not is_acceptance_path(path):
                 continue
-            if change.status != GIT_STATUS_ADDED:
+            if (
+                change.status != GIT_STATUS_ADDED
+                and is_acceptance_record_path(path)
+            ):
                 violations.append(
                     format_violation(
                         path,
                         REASON_NON_ADDED_CHANGE.format(status=change.status),
                     )
                 )
-            else:
+            elif change.status == GIT_STATUS_ADDED:
                 new_paths.append(path)
     if not new_paths:
         return tuple(dict.fromkeys(violations))

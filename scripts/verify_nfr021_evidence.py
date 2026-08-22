@@ -205,10 +205,6 @@ CONFIG_KEY_DEFAULT = "default"
 CONFIG_KEY_INVALIDATING = "invalidating"
 CONFIG_KEY_ALLOWLIST = "allowlist"
 DEFAULT_POLICY_INVALIDATING = "invalidating"
-DEFAULT_POLICY_ALLOWLIST = "allowlist"
-DEFAULT_POLICIES = frozenset(
-    {DEFAULT_POLICY_INVALIDATING, DEFAULT_POLICY_ALLOWLIST}
-)
 CLASSIFICATION_INVALIDATING = "invalidating"
 CLASSIFICATION_ALLOWLIST = "allowlist"
 CLASSIFICATION_DEFAULT = "default"
@@ -1616,7 +1612,7 @@ def parse_invalidation_settings(value: object) -> InvalidationSettings:
     )
     if syntax != INVALIDATING_PATHS_SYNTAX:
         raise GuardError(REASON_INVALIDATING_SYNTAX)
-    if default not in DEFAULT_POLICIES:
+    if default != DEFAULT_POLICY_INVALIDATING:
         raise GuardError(REASON_INVALIDATING_DEFAULT)
     for pattern in (*invalidating_patterns, *allowlist_patterns):
         validate_root_relative_pattern(pattern)

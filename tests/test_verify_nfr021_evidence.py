@@ -1317,15 +1317,10 @@ def test_unclassified_path_follows_invalidating_default() -> None:
     assert classification.invalidating
 
 
-def test_unclassified_path_reads_noninvalidating_default_from_settings() -> None:
-    """実装側で default を invalidating と決め打ちしない。"""
-    classification = verify.classify_invalidation_path(
-        "README.md",
-        make_invalidation_settings(default="allowlist"),
-    )
-
-    assert classification.classification == verify.CLASSIFICATION_DEFAULT
-    assert not classification.invalidating
+def test_rejects_allowlist_as_invalidation_default() -> None:
+    """未分類パスを通す allowlist の default を fail-closed に拒否する。"""
+    with pytest.raises(verify.GuardError):
+        make_invalidation_settings(default="allowlist")
 
 
 def test_invalidating_pattern_wins_when_path_matches_both_lists() -> None:
@@ -1386,6 +1381,18 @@ def test_real_allowlist_has_expected_three_patterns_and_matches_them() -> None:
         "docs/features/nfr021-evidence-verifier/design.md",
     ):
         assert not verify.classify_invalidation_path(path, settings).invalidating
+
+
+def test_real_settings_keeps_closed_allowlist_and_invalidating_default() -> None:
+    """実設定の allowlist 3 件と未分類を失効させる default を固定する。"""
+    settings = load_real_invalidation_settings()
+
+    assert settings.default == verify.DEFAULT_POLICY_INVALIDATING
+    assert settings.allowlist_patterns == (
+        "/docs/ops/nfr021-acceptance/**",
+        "/docs/worklog/**",
+        "/docs/features/**",
+    )
 
 
 def run_verifier(

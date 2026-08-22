@@ -801,9 +801,9 @@ def test_parses_all_nonadded_name_status_kinds(status: str) -> None:
     """C・R・T・U・X を含む非 A 状態を解析し、追加扱いにしない。"""
     path = acceptance_path("2026-08-20T101500Z-phase4-phase4-seq001-reservation.md")
     output = (
-        f"{status}\told.md\t{path}\n"
+        f"{status}\0old.md\0{path}\0"
         if status[0] in {"C", "R"}
-        else f"{status}\t{path}\n"
+        else f"{status}\0{path}\0"
     )
 
     changes = append_only.parse_name_status(output)
@@ -834,6 +834,38 @@ def test_rejects_each_nonadded_copy_unmerged_and_unknown_status(status: str) -> 
     assert violations
     assert all("追加以外の状態" in violation for violation in violations)
     assert all(f"{status}" in violation for violation in violations)
+
+
+def test_rejects_noncanonical_new_item_with_a_non_ascii_filename(tmp_path: Path) -> None:
+    """Git の引用を経由せず、日本語名の未知項目を fail-closed にする。"""
+    root, base = init_repository(tmp_path)
+    invalid_path = acceptance_path("未知の項目.bin")
+    write_text(root, invalid_path, "unknown\n")
+    head = commit_all(root, "docs: add non-ascii unknown item")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 1
+    assert invalid_path in result.stderr
+    assert "閉じた命名文法" in result.stderr
+
+
+@pytest.mark.parametrize("filename", ["README.md", "reservation-template.md"])
+def test_allows_modifying_canonical_acceptance_documents(
+    tmp_path: Path,
+    filename: str,
+) -> None:
+    """README とテンプレートの正当な改訂を append-only 拒否の対象外にする。"""
+    root, _ = init_repository(tmp_path)
+    canonical_path = acceptance_path(filename)
+    write_text(root, canonical_path, "# 初版\n")
+    base = commit_all(root, "docs: add canonical acceptance document")
+    write_text(root, canonical_path, "# 改訂版\n")
+    head = commit_all(root, "docs: revise canonical acceptance document")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0
 
 
 def test_existing_gaps_and_duplicates_do_not_block_new_reservation(tmp_path: Path) -> None:
