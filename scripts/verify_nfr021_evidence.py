@@ -108,6 +108,7 @@ MARKDOWN_FENCE_RE = re.compile(
 HTML_COMMENT_OPEN = "<!--"
 HTML_COMMENT_CLOSE = "-->"
 INDENTED_CODE_MINIMUM_SPACES = 4
+MARKDOWN_TAB_WIDTH = 4
 # 必須項目の一覧の正は要件書 NFR-021、欄の形の正は
 # docs/ops/nfr021-acceptance/ のテンプレート。テンプレートの書式契約テストは
 # tests/test_nfr021_evidence_templates.py。
@@ -1052,28 +1053,28 @@ def is_markdown_table_separator(cells: Sequence[str], column_count: int) -> bool
 def strip_html_comments_from_line(
     line: str,
     in_comment: bool,
-    inline_code_delimiter_length: int | None,
-) -> tuple[str, bool, int | None]:
-    """1 行から HTML コメント部分を除き、コメントとインラインコード状態を引き継ぐ。
+) -> tuple[str, bool]:
+    """1 行から HTML コメント部分を除き、コメント状態を次行へ引き継ぐ。
 
     Args:
         line: 改行文字を含んでもよい本文の 1 行。
         in_comment: 行の先頭が未閉鎖 HTML コメント内かどうか。
-        inline_code_delimiter_length: 開いたままのインラインコード区切りの長さ。
 
     Returns:
-        コメントを除いた行、行末の HTML コメント状態、インラインコード状態の組。
+        コメントを除いた行と、行末が HTML コメント内かどうかの組。
 
     Raises:
         発生しない。
     """
     visible_parts: list[str] = []
     index = 0
+    # CommonMark の未閉鎖インラインコードは通常文字列であり、行をまたぐ状態を持たない。
+    inline_code_delimiter_length: int | None = None
     while index < len(line):
         if in_comment:
             closing_index = line.find(HTML_COMMENT_CLOSE, index)
             if closing_index < 0:
-                return "".join(visible_parts), True, inline_code_delimiter_length
+                return "".join(visible_parts), True
             index = closing_index + len(HTML_COMMENT_CLOSE)
             in_comment = False
             continue
@@ -1087,7 +1088,12 @@ def strip_html_comments_from_line(
             delimiter_length = delimiter_end - index
             visible_parts.append(line[index:delimiter_end])
             if inline_code_delimiter_length is None:
-                inline_code_delimiter_length = delimiter_length
+                if has_same_line_inline_code_closer(
+                    line,
+                    delimiter_end,
+                    delimiter_length,
+                ):
+                    inline_code_delimiter_length = delimiter_length
             elif inline_code_delimiter_length == delimiter_length:
                 inline_code_delimiter_length = None
             index = delimiter_end
@@ -1101,7 +1107,42 @@ def strip_html_comments_from_line(
             continue
         visible_parts.append(line[index])
         index += 1
-    return "".join(visible_parts), in_comment, inline_code_delimiter_length
+    return "".join(visible_parts), in_comment
+
+
+def has_same_line_inline_code_closer(
+    line: str,
+    start_index: int,
+    delimiter_length: int,
+) -> bool:
+    """指定位置より後に同じ長さのインラインコード終端があるか判定する。
+
+    Args:
+        line: 検査する Markdown の 1 行。
+        start_index: 開始記号の直後から探索する位置。
+        delimiter_length: 開始記号と一致すべき連続バッククォート数。
+
+    Returns:
+        同じ長さの連続バッククォートが行内にあれば True。
+
+    Raises:
+        発生しない。
+    """
+    index = start_index
+    while index < len(line):
+        delimiter_start = line.find(MARKDOWN_CODE_DELIMITER, index)
+        if delimiter_start < 0:
+            return False
+        delimiter_end = delimiter_start + 1
+        while (
+            delimiter_end < len(line)
+            and line[delimiter_end] == MARKDOWN_CODE_DELIMITER
+        ):
+            delimiter_end += 1
+        if delimiter_end - delimiter_start == delimiter_length:
+            return True
+        index = delimiter_end
+    return False
 
 
 def markdown_fence_components(line: str) -> tuple[str, int, str] | None:
@@ -1124,19 +1165,41 @@ def markdown_fence_components(line: str) -> tuple[str, int, str] | None:
 
 
 def is_indented_code_line(line: str) -> bool:
-    """行が 4 スペース以上で始まる字下げコード候補かを判定する。
+    """行が Markdown 換算で 4 スペース以上の字下げコード候補かを判定する。
 
     Args:
         line: 行末改行を含んでもよい Markdown の 1 行。
 
     Returns:
-        先頭に 4 スペース以上の字下げがあれば True。
+        先頭に 4 スペース相当以上の字下げがあれば True。
 
     Raises:
         発生しない。
     """
-    leading_spaces = len(line) - len(line.lstrip(" "))
-    return leading_spaces >= INDENTED_CODE_MINIMUM_SPACES
+    return markdown_indentation_width(line) >= INDENTED_CODE_MINIMUM_SPACES
+
+
+def markdown_indentation_width(line: str) -> int:
+    """行頭の Markdown 字下げ幅をタブ 1 個 = 4 スペースとして求める。
+
+    Args:
+        line: 行末改行を含んでもよい Markdown の 1 行。
+
+    Returns:
+        先頭のスペースとタブを換算した字下げ幅。
+
+    Raises:
+        発生しない。
+    """
+    width = 0
+    for character in line:
+        if character == " ":
+            width += 1
+        elif character == "\t":
+            width += MARKDOWN_TAB_WIDTH
+        else:
+            break
+    return width
 
 
 def can_start_indented_code(previous_visible_line: str | None) -> bool:
@@ -1168,7 +1231,6 @@ def visible_markdown_body(body: str) -> str:
     """
     visible_lines: list[str] = []
     in_comment = False
-    inline_code_delimiter_length: int | None = None
     active_fence: tuple[str, int] | None = None
     in_indented_code = False
     previous_visible_line: str | None = None
@@ -1184,18 +1246,10 @@ def visible_markdown_body(body: str) -> str:
             ):
                 active_fence = None
             continue
-        was_in_inline_code = inline_code_delimiter_length is not None
-        visible_line, in_comment, inline_code_delimiter_length = (
-            strip_html_comments_from_line(
-                line,
-                in_comment,
-                inline_code_delimiter_length,
-            )
-        )
+        visible_line, in_comment = strip_html_comments_from_line(line, in_comment)
         fence = markdown_fence_components(visible_line.rstrip("\r\n"))
-        if fence is not None and not was_in_inline_code:
+        if fence is not None:
             active_fence = (fence[0], fence[1])
-            inline_code_delimiter_length = None
             continue
         if in_indented_code:
             if not visible_line.strip() or is_indented_code_line(visible_line):
@@ -1228,7 +1282,9 @@ def extract_named_markdown_table(body: str, heading: str) -> MarkdownTable | Non
     lines = body.splitlines()
     heading_line = f"{MARKDOWN_LEVEL_TWO_PREFIX}{heading}"
     heading_indexes = [
-        index for index, line in enumerate(lines) if line == heading_line
+        index
+        for index, line in enumerate(lines)
+        if line.rstrip(" \t") == heading_line
     ]
     if len(heading_indexes) != 1:
         return None
@@ -1340,8 +1396,8 @@ def validate_evidence_completeness(
             候補ツリーの合格項目テンプレートを解決できない場合。
     """
     reasons: list[str] = []
-    # frontmatter と二重記録の照合は生本文を正とする。ここだけはレンダリング上の欄を
-    # 数えるため、HTML コメントとフェンス付きコード内の擬似表を除外する。
+    # frontmatter は生本文を正とする。一方で完全性と二重記録の表照合は同じ可視本文を
+    # 根拠にし、HTML コメントとコード内の擬似表を欄として数えない。
     completeness_body = visible_markdown_body(record.frontmatter.body)
     evidence_table = extract_named_markdown_table(
         completeness_body,

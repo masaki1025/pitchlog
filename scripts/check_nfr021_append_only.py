@@ -22,6 +22,7 @@ try:
         KIND_EVIDENCE,
         KIND_INVALID,
         KIND_RESERVATION,
+        RESULT_VALUES,
         AcceptanceRecord,
         acceptance_relative_path,
         build_git_command,
@@ -49,6 +50,7 @@ except ModuleNotFoundError:  # pragma: no cover - モジュールとして読み
         KIND_EVIDENCE,
         KIND_INVALID,
         KIND_RESERVATION,
+        RESULT_VALUES,
         AcceptanceRecord,
         acceptance_relative_path,
         build_git_command,
@@ -73,7 +75,6 @@ GIT_EXECUTABLE = "git"
 GIT_DIFF_COMMAND = "diff"
 GIT_LOG_COMMAND = "log"
 GIT_FORMAT_EMPTY_OPTION = "--format="
-GIT_NAME_ONLY_OPTION = "--name-only"
 GIT_MERGE_SEPARATE_OPTION = "-m"
 GIT_NAME_STATUS_OPTION = "--name-status"
 GIT_NULL_TERMINATE_OPTION = "-z"
@@ -320,7 +321,7 @@ def changed_paths(root: Path, base: str, head: str) -> tuple[ChangedPath, ...]:
 
 
 def head_side_touched_paths(root: Path, base: str, head: str) -> frozenset[str]:
-    """head 側固有コミットが触れたパスの重複のない集合を取得する。
+    """head 側固有コミットの非追加変更パスの重複のない集合を取得する。
 
     Args:
         root: Git リポジトリのルートディレクトリ。
@@ -328,19 +329,21 @@ def head_side_touched_paths(root: Path, base: str, head: str) -> frozenset[str]:
         head: PR head の Git revision。
 
     Returns:
-        ``base..head`` の各コミットが変更した正規化済みパスの集合。
+        ``base..head`` の各コミットで追加以外として報告された正規化済みパスの集合。
 
     Raises:
         GuardError: Git の起動、タイムアウト、実行、またはパスの解析に失敗した場合。
     """
     # 三点差分はこの PR の正味の変更を問う。ここでは正味で復元されても既存レコードへ
     # 触れた行為を拒否するため、develop 側を含まない head 固有コミットの二点和集合を使う。
+    # develop 取り込みマージでは base の既存レコードが feature 親に対して A になるだけなので
+    # A は除外する。-m はマージ解決で生じた非 A の改変を親ごとに検出するため残す。
     command = build_git_command(
         (
             GIT_EXECUTABLE,
             GIT_LOG_COMMAND,
             GIT_FORMAT_EMPTY_OPTION,
-            GIT_NAME_ONLY_OPTION,
+            GIT_NAME_STATUS_OPTION,
             GIT_NULL_TERMINATE_OPTION,
             GIT_MERGE_SEPARATE_OPTION,
             GIT_NO_RENAMES_OPTION,
@@ -364,7 +367,10 @@ def head_side_touched_paths(root: Path, base: str, head: str) -> frozenset[str]:
     if result.returncode != 0:
         raise GuardError(REASON_GIT_LOG_FAILURE.format(returncode=result.returncode))
     return frozenset(
-        normalize_git_path(path) for path in result.stdout.split("\0") if path
+        path
+        for change in parse_name_status(result.stdout)
+        if change.status != GIT_STATUS_ADDED
+        for path in change.paths
     )
 
 
@@ -642,6 +648,30 @@ def record_identity(record: AcceptanceRecord) -> tuple[str, str, int] | None:
     return attempt_id, gate_key, attempt_seq
 
 
+def evidence_closes_reservation(
+    evidence: AcceptanceRecord,
+    reservation_identity: tuple[str, str, int],
+) -> bool:
+    """結果証跡が予約を閉塞できる対応関係と result 語彙を持つか判定する。
+
+    Args:
+        evidence: base ツリーから解析した結果証跡。
+        reservation_identity: 閉塞対象予約の ``(attempt_id, gate_key, attempt_seq)``。
+
+    Returns:
+        同一試行で result が passed または failed なら True。
+
+    Raises:
+        発生しない。
+    """
+    result = evidence.frontmatter.values.get("result")
+    return (
+        record_identity(evidence) == reservation_identity
+        and isinstance(result, str)
+        and result in RESULT_VALUES
+    )
+
+
 def validate_new_record_contracts(
     new_records: Sequence[AcceptanceRecord],
     head_records: Sequence[AcceptanceRecord],
@@ -817,7 +847,7 @@ def validate_reservation_protocol(
             if reservation_attempt_id is None or reservation_identity is None:
                 continue
             if not any(
-                record_identity(evidence) == reservation_identity
+                evidence_closes_reservation(evidence, reservation_identity)
                 for evidence in base_evidences
             ):
                 violations.append(

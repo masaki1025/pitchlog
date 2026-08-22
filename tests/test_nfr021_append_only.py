@@ -814,6 +814,51 @@ def test_rejects_new_reservation_while_base_has_an_unclosed_reservation(
     assert "未閉塞の予約" in result.stderr
 
 
+def test_rejects_new_reservation_when_base_result_has_unknown_result_value(
+    tmp_path: Path,
+) -> None:
+    """列挙外 result の既存結果証跡は予約を閉塞したものとして数えない。"""
+    root, _ = init_repository(tmp_path)
+    write_reservation(root)
+    write_evidence(
+        root,
+        content=evidence_text().replace("result: passed", "result: typo", 1),
+    )
+    base = commit_all(root, "docs: add malformed historic closure")
+    write_reservation(root, 2)
+    head = commit_all(root, "docs: attempt next reservation")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 1
+    assert "未閉塞の予約" in result.stderr
+
+
+@pytest.mark.parametrize("result_value", ("passed", "failed"))
+def test_allows_new_reservation_after_base_closed_by_allowed_result_value(
+    tmp_path: Path,
+    result_value: str,
+) -> None:
+    """passed と failed の既存結果証跡はどちらも予約を閉塞する。"""
+    root, _ = init_repository(tmp_path)
+    write_reservation(root)
+    write_evidence(
+        root,
+        content=evidence_text().replace(
+            "result: passed",
+            f"result: {result_value}",
+            1,
+        ),
+    )
+    base = commit_all(root, "docs: add valid historic closure")
+    write_reservation(root, 2)
+    head = commit_all(root, "docs: reserve next attempt")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_rejects_same_pr_closure_and_next_reservation(tmp_path: Path) -> None:
     """(e-2) は同一 PR の閉塞を base の閉塞として扱わない。"""
     root, _ = init_repository(tmp_path)
@@ -1084,6 +1129,52 @@ def test_allows_canonical_document_changed_then_restored_in_head_history(
     result = run_check(root, base, head)
 
     assert result.returncode == 0, result.stderr
+
+
+def test_allows_develop_merge_that_only_adds_a_base_record_to_feature(
+    tmp_path: Path,
+) -> None:
+    """develop 取り込みで feature 親に対して A の既存予約を改変扱いしない。"""
+    root, branch_point = init_repository(tmp_path)
+    git(root, "branch", "feature/develop-merge", branch_point)
+    record_path = write_reservation(root)
+    base = commit_all(root, "docs: add reservation on develop")
+    git(root, "checkout", "-q", "feature/develop-merge")
+    write_text(root, "docs/worklog/note.md", "feature only\n")
+    commit_all(root, "docs: add feature worklog")
+    git(root, "merge", "--no-ff", "-m", "merge: update develop", "develop")
+    head = git(root, "rev-parse", "HEAD").stdout.strip()
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
+    assert record_path not in append_only.head_side_touched_paths(root, base, head)
+
+
+def test_detects_merge_resolution_change_in_existing_record_history(
+    tmp_path: Path,
+) -> None:
+    """-m により add/add 衝突を解決した base 既存予約の非 A 差分を検出する。"""
+    root, branch_point = init_repository(tmp_path)
+    git(root, "checkout", "-q", "-b", "feature/merge-resolution", branch_point)
+    record_path = write_reservation(root, content=reservation_text() + "# feature\n")
+    commit_all(root, "docs: add feature reservation")
+    git(root, "checkout", "-q", "develop")
+    write_reservation(root, content=reservation_text() + "# develop\n")
+    base = commit_all(root, "docs: add develop reservation")
+    git(root, "checkout", "-q", "feature/merge-resolution")
+    with pytest.raises(subprocess.CalledProcessError):
+        git(root, "merge", "--no-ff", "develop")
+    write_text(root, record_path, reservation_text() + "# resolved\n")
+    head = commit_all(root, "merge: resolve reservation conflict")
+
+    result = run_check(root, base, head)
+    with patch.object(append_only, "changed_paths", return_value=()):
+        violations = append_only.check_append_only(root, base, head)
+
+    assert result.returncode == 1
+    assert any("変更または削除した履歴" in violation for violation in violations)
+    assert any(record_path in violation for violation in violations)
 
 
 def test_existing_gaps_and_duplicates_do_not_block_new_reservation(tmp_path: Path) -> None:

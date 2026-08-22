@@ -3262,6 +3262,22 @@ def test_allows_visible_body_with_html_comment_marker_in_inline_code(
     assert validate_evidence_completeness(tmp_path, record) == ()
 
 
+def test_rejects_complete_body_hidden_after_unclosed_inline_code_marker(
+    tmp_path: Path,
+) -> None:
+    """行内で閉じないバッククォートは次行の HTML コメントを無効化しない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=f"{CODE_DELIMITER}\n<!--\n{body}\n-->"),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
+
+
 def test_allows_visible_body_with_fence_marker_in_inline_code(tmp_path: Path) -> None:
     """インラインコード内の ``` をフェンス開始として誤認しない。"""
     inline_delimiter = CODE_DELIMITER * 4
@@ -3318,6 +3334,44 @@ def test_rejects_tables_hidden_in_indented_code_block(tmp_path: Path) -> None:
     assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
 
 
+@pytest.mark.parametrize("indent", ("\t", " \t", "     "))
+def test_rejects_tables_hidden_in_tab_or_wide_indented_code_block(
+    tmp_path: Path,
+    indent: str,
+) -> None:
+    """タブ混在または 5 スペースの字下げ表をレンダリング上の欄として数えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    indented_body = "\n".join(
+        f"{indent}{line}" if line.startswith("|") else line
+        for line in body.splitlines()
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=indented_body),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
+
+
+def test_allows_trailing_whitespace_in_evidence_table_headings(tmp_path: Path) -> None:
+    """証跡表と合格項目表の見出し末尾にある空白・タブを無視する。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    body = body.replace("## 証跡\n", "## 証跡 \t \n", 1).replace(
+        "## 合格項目\n",
+        "## 合格項目\t \n",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
 def test_allows_escaped_pipe_in_visible_evidence_table_value(tmp_path: Path) -> None:
     """表セル内の \\| を区切りにせず、値の | として完全性検査へ渡す。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
@@ -3334,6 +3388,27 @@ def test_allows_escaped_pipe_in_visible_evidence_table_value(tmp_path: Path) -> 
     )
 
     assert cells == ("実行コマンドと終了コード", "uv run pytest | tee pytest.log (0)")
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+def test_allows_multiple_escaped_pipes_in_visible_evidence_table_value(
+    tmp_path: Path,
+) -> None:
+    """複数の \\| を含む表セルも 1 つの可視値として復元する。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
+        "| 実行コマンドと終了コード | uv run pytest (0) |",
+        r"| 実行コマンドと終了コード | a \| b \| c (0) |",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+    cells = verify.parse_markdown_table_row(
+        r"| 実行コマンドと終了コード | a \| b \| c (0) |"
+    )
+
+    assert cells == ("実行コマンドと終了コード", "a | b | c (0)")
     assert validate_evidence_completeness(tmp_path, record) == ()
 
 
