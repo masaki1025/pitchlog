@@ -85,6 +85,22 @@ def write_text(root: Path, relative_path: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def write_bytes(root: Path, relative_path: str, content: bytes) -> None:
+    """一時リポジトリ内へ任意のバイト列を書き出す。
+
+    Args:
+        root: 一時リポジトリのルート。
+        relative_path: root からの相対パス。
+        content: 書き込む生のバイト列。
+
+    Returns:
+        戻り値はない。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
 def commit_all(root: Path, subject: str) -> str:
     """現在の変更をすべてコミットし、その commit OID を返す。
 
@@ -703,6 +719,21 @@ def test_rejects_schema_invalid_new_records(
     assert expected in result.stderr
 
 
+def test_rejects_invalid_utf8_in_a_new_reservation_blob(tmp_path: Path) -> None:
+    """新規予約の blob が UTF-8 でなければ append-only 検査を fail-closed にする。"""
+    root, base = init_repository(tmp_path)
+    invalid_path = acceptance_path(
+        "2026-08-20T101500Z-phase4-phase4-seq001-reservation.md"
+    )
+    write_bytes(root, invalid_path, reservation_text().encode("utf-8") + b"\xff")
+    head = commit_all(root, "docs: add invalid utf8 reservation")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 1
+    assert "UTF-8" in result.stderr
+
+
 def test_rejects_orphan_new_evidence(tmp_path: Path) -> None:
     """統合後ツリーに対応予約がない新規結果証跡を拒否する。"""
     root, base = init_repository(tmp_path)
@@ -845,6 +876,24 @@ def test_rejects_invalid_first_or_nonincreasing_reservation_sequence(
     assert expected in result.stderr
 
 
+def test_allows_sequence_strictly_above_historic_maximum_without_requiring_plus_one(
+    tmp_path: Path,
+) -> None:
+    """欠番を含む base の最大 seq003 後に seq005 を追加できる。"""
+    root, _ = init_repository(tmp_path)
+    write_reservation(root, 1)
+    write_evidence(root, 1)
+    write_reservation(root, 3, timestamp=OTHER_FILE_TIMESTAMP)
+    write_evidence(root, 3, timestamp=OTHER_FILE_TIMESTAMP)
+    base = commit_all(root, "docs: close seq001 and seq003")
+    write_reservation(root, 5, timestamp="2026-08-20T101502Z")
+    head = commit_all(root, "docs: reserve seq005")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
+
+
 @pytest.mark.parametrize("reservation_count", [2, 3])
 def test_rejects_multiple_new_reservations_for_the_same_gate_in_one_pr(
     tmp_path: Path,
@@ -936,6 +985,7 @@ def test_rejects_each_nonadded_copy_unmerged_and_unknown_status(status: str) -> 
 
     with (
         patch.object(append_only, "changed_paths", return_value=(change,)),
+        patch.object(append_only, "validate_existing_record_history", return_value=()),
         patch.object(append_only, "parse_new_records", return_value=((), ())),
         patch.object(append_only, "tree_records", return_value=()),
     ):
@@ -976,6 +1026,64 @@ def test_allows_modifying_canonical_acceptance_documents(
     result = run_check(root, base, head)
 
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize("operation", ["modify", "delete"])
+def test_rejects_existing_record_changed_then_restored_in_head_history(
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    """正味差分がなくても head 側履歴で既存予約へ触れれば拒否する。"""
+    root, _ = init_repository(tmp_path)
+    record_path = write_reservation(root)
+    base = commit_all(root, "docs: add existing reservation")
+    original_contents = (root / record_path).read_bytes()
+    if operation == "modify":
+        write_text(root, record_path, original_contents.decode("utf-8") + "変更\n")
+        commit_all(root, "docs: modify existing reservation")
+    else:
+        (root / record_path).unlink()
+        commit_all(root, "docs: delete existing reservation")
+    write_bytes(root, record_path, original_contents)
+    head = commit_all(root, "docs: restore existing reservation")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 1
+    assert "変更または削除した履歴" in result.stderr
+    assert record_path in result.stderr
+
+
+def test_allows_new_record_without_touching_a_base_record_in_history(
+    tmp_path: Path,
+) -> None:
+    """base にない新規予約だけが履歴和集合へ現れても拒否しない。"""
+    root, base = init_repository(tmp_path)
+    write_reservation(root)
+    head = commit_all(root, "docs: add new reservation")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_allows_canonical_document_changed_then_restored_in_head_history(
+    tmp_path: Path,
+) -> None:
+    """正本 README の改訂と復元は既存の予約・結果証跡変更として扱わない。"""
+    root, _ = init_repository(tmp_path)
+    canonical_path = acceptance_path("README.md")
+    write_text(root, canonical_path, "# 正本\n")
+    base = commit_all(root, "docs: add canonical readme")
+    original_contents = (root / canonical_path).read_bytes()
+    write_text(root, canonical_path, "# 改訂\n")
+    commit_all(root, "docs: revise canonical readme")
+    write_bytes(root, canonical_path, original_contents)
+    head = commit_all(root, "docs: restore canonical readme")
+
+    result = run_check(root, base, head)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_existing_gaps_and_duplicates_do_not_block_new_reservation(tmp_path: Path) -> None:

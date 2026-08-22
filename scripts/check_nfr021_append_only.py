@@ -71,6 +71,10 @@ except ModuleNotFoundError:  # pragma: no cover - モジュールとして読み
 SCRIPT_NAME = "check_nfr021_append_only"
 GIT_EXECUTABLE = "git"
 GIT_DIFF_COMMAND = "diff"
+GIT_LOG_COMMAND = "log"
+GIT_FORMAT_EMPTY_OPTION = "--format="
+GIT_NAME_ONLY_OPTION = "--name-only"
+GIT_MERGE_SEPARATE_OPTION = "-m"
 GIT_NAME_STATUS_OPTION = "--name-status"
 GIT_NULL_TERMINATE_OPTION = "-z"
 GIT_NO_RENAMES_OPTION = "--no-renames"
@@ -96,12 +100,16 @@ REASON_HEAD_MISSING = "PR イベントに head SHA がない"
 REASON_GIT_TIMEOUT = "git diff がタイムアウトした"
 REASON_GIT_START = "git diff を起動できない: {error}"
 REASON_GIT_FAILURE = "git diff に失敗した: {returncode}"
+REASON_GIT_LOG_TIMEOUT = "git log がタイムアウトした"
+REASON_GIT_LOG_START = "git log を起動できない: {error}"
+REASON_GIT_LOG_FAILURE = "git log に失敗した: {returncode}"
 REASON_DIFF_STATUS = "git diff が未対応の変更種別を返した: {status}"
 REASON_DIFF_FORMAT = "git diff の --name-status 出力が不正である"
 REASON_DIFF_PATH = "git diff が不正なリポジトリ相対パスを返した: {path}"
 REASON_TREE_ITEM_MISSING = "統合後ツリーに新規追加項目が収録されていない"
 REASON_TREE_ITEM_TYPE = "受入証跡ツリー項目が blob オブジェクトではない"
 REASON_NON_ADDED_CHANGE = "既存の受入証跡が追加以外の状態で変更されている: {status}"
+REASON_RECORD_HISTORY_CHANGE = "base ツリーに既存の受入証跡を変更または削除した履歴がある"
 REASON_EVIDENCE_RESERVATION_COUNT = (
     "統合後ツリーで結果証跡に対応する予約がちょうど 1 件ではない: {attempt_id}"
 )
@@ -309,6 +317,101 @@ def changed_paths(root: Path, base: str, head: str) -> tuple[ChangedPath, ...]:
     if result.returncode != 0:
         raise GuardError(REASON_GIT_FAILURE.format(returncode=result.returncode))
     return parse_name_status(result.stdout)
+
+
+def head_side_touched_paths(root: Path, base: str, head: str) -> frozenset[str]:
+    """head 側固有コミットが触れたパスの重複のない集合を取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        base: PR base の Git revision。
+        head: PR head の Git revision。
+
+    Returns:
+        ``base..head`` の各コミットが変更した正規化済みパスの集合。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、実行、またはパスの解析に失敗した場合。
+    """
+    # 三点差分はこの PR の正味の変更を問う。ここでは正味で復元されても既存レコードへ
+    # 触れた行為を拒否するため、develop 側を含まない head 固有コミットの二点和集合を使う。
+    command = build_git_command(
+        (
+            GIT_EXECUTABLE,
+            GIT_LOG_COMMAND,
+            GIT_FORMAT_EMPTY_OPTION,
+            GIT_NAME_ONLY_OPTION,
+            GIT_NULL_TERMINATE_OPTION,
+            GIT_MERGE_SEPARATE_OPTION,
+            GIT_NO_RENAMES_OPTION,
+            f"{base}..{head}",
+        )
+    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=DIFF_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise GuardError(REASON_GIT_LOG_TIMEOUT) from error
+    except OSError as error:
+        raise GuardError(REASON_GIT_LOG_START.format(error=error)) from error
+    if result.returncode != 0:
+        raise GuardError(REASON_GIT_LOG_FAILURE.format(returncode=result.returncode))
+    return frozenset(
+        normalize_git_path(path) for path in result.stdout.split("\0") if path
+    )
+
+
+def base_acceptance_record_paths(root: Path, base: str) -> frozenset[str]:
+    """base ツリーに既にある予約・結果証跡のパス集合を取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        base: PR base の Git revision。
+
+    Returns:
+        正本を除いた正規形 reservation・evidence のリポジトリ相対パス集合。
+
+    Raises:
+        GuardError: base ツリーの受入ディレクトリを列挙できない場合。
+    """
+    return frozenset(
+        path.as_posix()
+        for path in candidate_acceptance_tree_paths(root, base)
+        if is_acceptance_record_path(path.as_posix())
+    )
+
+
+def validate_existing_record_history(
+    root: Path,
+    base: str,
+    head: str,
+) -> tuple[str, ...]:
+    """base に存在したレコードを head 側履歴で変更・削除していないか検査する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        base: PR base の Git revision。
+        head: PR head の Git revision。
+
+    Returns:
+        既存レコードに触れた履歴のパス付き違反。なければ空のタプル。
+
+    Raises:
+        GuardError: Git 履歴または base ツリーを解決できない場合。
+    """
+    existing_paths = base_acceptance_record_paths(root, base)
+    touched_paths = head_side_touched_paths(root, base, head)
+    return tuple(
+        format_violation(path, REASON_RECORD_HISTORY_CHANGE)
+        for path in sorted(existing_paths & touched_paths)
+    )
 
 
 def is_acceptance_path(path: str) -> bool:
@@ -760,8 +863,9 @@ def check_append_only(root: Path, base: str, head: str) -> tuple[str, ...]:
     Raises:
         GuardError: Git 比較、ツリー、またはイベント入力の解決に失敗した場合。
     """
+    # 正味の三点差分に加えて、既存レコードへ触れた後に復元する履歴を二点和集合で拒否する。
+    violations = list(validate_existing_record_history(root, base, head))
     changes = changed_paths(root, base, head)
-    violations: list[str] = []
     new_paths: list[str] = []
     for change in changes:
         for path in change.paths:

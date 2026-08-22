@@ -62,11 +62,6 @@ ATTEMPT_ID_RE = re.compile(
 FRONTMATTER_KEY_RE = re.compile(
     r"(?P<key>[a-z][a-z0-9_]*)\s*:\s*(?P<value>.*)"
 )
-BODY_FIELD_ROW_RE = re.compile(
-    r"^[ \t]*\|[ \t]*(?P<label>commit SHA|onboarding blob SHA)[ \t]*\|"
-    r"[ \t]*(?P<value>[^|]*)\|",
-    re.MULTILINE,
-)
 INTEGER_RE = re.compile(ATTEMPT_SEQUENCE_PATTERN)
 QUOTE_CHARACTERS = frozenset({'"', "'"})
 MARKDOWN_CODE_DELIMITER = chr(96)
@@ -112,6 +107,7 @@ MARKDOWN_FENCE_RE = re.compile(
 )
 HTML_COMMENT_OPEN = "<!--"
 HTML_COMMENT_CLOSE = "-->"
+INDENTED_CODE_MINIMUM_SPACES = 4
 # 必須項目の一覧の正は要件書 NFR-021、欄の形の正は
 # docs/ops/nfr021-acceptance/ のテンプレート。テンプレートの書式契約テストは
 # tests/test_nfr021_evidence_templates.py。
@@ -233,6 +229,8 @@ GIT_FORMAT_EMPTY_OPTION = "--format="
 GIT_NAME_ONLY_OPTION = "--name-only"
 GIT_MERGE_SEPARATE_OPTION = "-m"
 GIT_NO_RENAMES_OPTION = "--no-renames"
+GIT_TEXT_ENCODING = "utf-8"
+GIT_DIAGNOSTIC_DECODE_ERRORS = "replace"
 OPERATION_ANCESTOR = "git merge-base --is-ancestor"
 OPERATION_CHANGED_PATHS = "git log による変更パスの取得"
 REASON_INVALIDATING_CONFIG_READ = "失効パス設定を読み込めない: {error}"
@@ -251,6 +249,7 @@ REASON_GIT_TIMEOUT = "{operation} がタイムアウトした"
 REASON_GIT_START = "{operation} を起動できない: {error}"
 REASON_GIT_FAILURE = "{operation} に失敗した: {returncode}"
 REASON_GIT_COMMAND = "Git コマンドが git 実行ファイルから始まらない"
+REASON_GIT_BLOB_ENCODING = "Git blob の内容が UTF-8 ではない"
 REASON_GIT_ANCESTOR_UNRESOLVED = (
     "git merge-base --is-ancestor が解決不能な終了コードを返した: {returncode}"
 )
@@ -960,10 +959,14 @@ def extract_body_field(body: str, label: str) -> str:
     Raises:
         GuardError: 指定ラベルの行がない、または複数ある場合。
     """
+    # 完全性検査と二重記録の照合は同じ「見える本文」だけを根拠にする。コメントや
+    # コード例の表を二重記録として拾うと、完全性検査との判定範囲がずれる。
     values = [
-        match.group("value")
-        for match in BODY_FIELD_ROW_RE.finditer(body)
-        if match.group("label") == label
+        row[EVIDENCE_TABLE_VALUE_INDEX]
+        for line in visible_markdown_body(body).splitlines()
+        if (row := parse_markdown_table_row(line)) is not None
+        and len(row) == len(EVIDENCE_TABLE_HEADERS)
+        and row[EVIDENCE_TABLE_LABEL_INDEX] == label
     ]
     if not values:
         raise GuardError(REASON_BODY_FIELD_MISSING.format(label=label))
@@ -994,7 +997,38 @@ def parse_markdown_table_row(line: str) -> tuple[str, ...] | None:
     stripped_line = line.strip()
     if not stripped_line.startswith("|") or not stripped_line.endswith("|"):
         return None
-    return tuple(cell.strip() for cell in stripped_line[1:-1].split("|"))
+    return split_markdown_table_cells(stripped_line[1:-1])
+
+
+def split_markdown_table_cells(line: str) -> tuple[str, ...]:
+    """Markdown 表のセル列をエスケープ済みパイプを保って分解する。
+
+    Args:
+        line: 先頭と末尾の表区切りパイプを除いた 1 行。
+
+    Returns:
+        前後空白を除き、``\\|`` を値の ``|`` として復元したセル列。
+
+    Raises:
+        発生しない。
+    """
+    cells: list[str] = []
+    characters: list[str] = []
+    index = 0
+    while index < len(line):
+        character = line[index]
+        if character == "\\" and index + 1 < len(line) and line[index + 1] == "|":
+            characters.append("|")
+            index += 2
+            continue
+        if character == "|":
+            cells.append("".join(characters).strip())
+            characters.clear()
+        else:
+            characters.append(character)
+        index += 1
+    cells.append("".join(characters).strip())
+    return tuple(cells)
 
 
 def is_markdown_table_separator(cells: Sequence[str], column_count: int) -> bool:
@@ -1015,37 +1049,59 @@ def is_markdown_table_separator(cells: Sequence[str], column_count: int) -> bool
     )
 
 
-def strip_html_comments_from_line(line: str, in_comment: bool) -> tuple[str, bool]:
-    """1 行から HTML コメント部分を除き、コメント状態を次行へ引き継ぐ。
+def strip_html_comments_from_line(
+    line: str,
+    in_comment: bool,
+    inline_code_delimiter_length: int | None,
+) -> tuple[str, bool, int | None]:
+    """1 行から HTML コメント部分を除き、コメントとインラインコード状態を引き継ぐ。
 
     Args:
         line: 改行文字を含んでもよい本文の 1 行。
         in_comment: 行の先頭が未閉鎖 HTML コメント内かどうか。
+        inline_code_delimiter_length: 開いたままのインラインコード区切りの長さ。
 
     Returns:
-        コメントを除いた行と、行末が HTML コメント内かどうかの組。
+        コメントを除いた行、行末の HTML コメント状態、インラインコード状態の組。
 
     Raises:
         発生しない。
     """
     visible_parts: list[str] = []
-    remaining = line
-    while remaining:
+    index = 0
+    while index < len(line):
         if in_comment:
-            closing_index = remaining.find(HTML_COMMENT_CLOSE)
+            closing_index = line.find(HTML_COMMENT_CLOSE, index)
             if closing_index < 0:
-                return "".join(visible_parts), True
-            remaining = remaining[closing_index + len(HTML_COMMENT_CLOSE) :]
+                return "".join(visible_parts), True, inline_code_delimiter_length
+            index = closing_index + len(HTML_COMMENT_CLOSE)
             in_comment = False
             continue
-        opening_index = remaining.find(HTML_COMMENT_OPEN)
-        if opening_index < 0:
-            visible_parts.append(remaining)
-            break
-        visible_parts.append(remaining[:opening_index])
-        remaining = remaining[opening_index + len(HTML_COMMENT_OPEN) :]
-        in_comment = True
-    return "".join(visible_parts), in_comment
+        if line[index] == MARKDOWN_CODE_DELIMITER:
+            delimiter_end = index + 1
+            while (
+                delimiter_end < len(line)
+                and line[delimiter_end] == MARKDOWN_CODE_DELIMITER
+            ):
+                delimiter_end += 1
+            delimiter_length = delimiter_end - index
+            visible_parts.append(line[index:delimiter_end])
+            if inline_code_delimiter_length is None:
+                inline_code_delimiter_length = delimiter_length
+            elif inline_code_delimiter_length == delimiter_length:
+                inline_code_delimiter_length = None
+            index = delimiter_end
+            continue
+        if (
+            inline_code_delimiter_length is None
+            and line.startswith(HTML_COMMENT_OPEN, index)
+        ):
+            index += len(HTML_COMMENT_OPEN)
+            in_comment = True
+            continue
+        visible_parts.append(line[index])
+        index += 1
+    return "".join(visible_parts), in_comment, inline_code_delimiter_length
 
 
 def markdown_fence_components(line: str) -> tuple[str, int, str] | None:
@@ -1067,8 +1123,39 @@ def markdown_fence_components(line: str) -> tuple[str, int, str] | None:
     return marker[0], len(marker), match.group("suffix")
 
 
+def is_indented_code_line(line: str) -> bool:
+    """行が 4 スペース以上で始まる字下げコード候補かを判定する。
+
+    Args:
+        line: 行末改行を含んでもよい Markdown の 1 行。
+
+    Returns:
+        先頭に 4 スペース以上の字下げがあれば True。
+
+    Raises:
+        発生しない。
+    """
+    leading_spaces = len(line) - len(line.lstrip(" "))
+    return leading_spaces >= INDENTED_CODE_MINIMUM_SPACES
+
+
+def can_start_indented_code(previous_visible_line: str | None) -> bool:
+    """直前の可視行の後で字下げコードブロックを開始できるか判定する。
+
+    Args:
+        previous_visible_line: 直前に残した可視行。先頭なら None。
+
+    Returns:
+        文書先頭または空行の後であれば True。
+
+    Raises:
+        発生しない。
+    """
+    return previous_visible_line is None or not previous_visible_line.strip()
+
+
 def visible_markdown_body(body: str) -> str:
-    """HTML コメントとフェンス付きコードを除いた完全性検査用本文を得る。
+    """Markdown の可視本文だけを抽出して表の検査・照合へ渡す。
 
     Args:
         body: frontmatter 終端より後の結果証跡本文。
@@ -1081,7 +1168,10 @@ def visible_markdown_body(body: str) -> str:
     """
     visible_lines: list[str] = []
     in_comment = False
+    inline_code_delimiter_length: int | None = None
     active_fence: tuple[str, int] | None = None
+    in_indented_code = False
+    previous_visible_line: str | None = None
     for line in body.splitlines(keepends=True):
         line_without_newline = line.rstrip("\r\n")
         if active_fence is not None:
@@ -1094,12 +1184,31 @@ def visible_markdown_body(body: str) -> str:
             ):
                 active_fence = None
             continue
-        visible_line, in_comment = strip_html_comments_from_line(line, in_comment)
+        was_in_inline_code = inline_code_delimiter_length is not None
+        visible_line, in_comment, inline_code_delimiter_length = (
+            strip_html_comments_from_line(
+                line,
+                in_comment,
+                inline_code_delimiter_length,
+            )
+        )
         fence = markdown_fence_components(visible_line.rstrip("\r\n"))
-        if fence is not None:
+        if fence is not None and not was_in_inline_code:
             active_fence = (fence[0], fence[1])
+            inline_code_delimiter_length = None
+            continue
+        if in_indented_code:
+            if not visible_line.strip() or is_indented_code_line(visible_line):
+                continue
+            in_indented_code = False
+        if (
+            is_indented_code_line(visible_line)
+            and can_start_indented_code(previous_visible_line)
+        ):
+            in_indented_code = True
             continue
         visible_lines.append(visible_line)
+        previous_visible_line = visible_line
     return "".join(visible_lines)
 
 
@@ -2099,6 +2208,7 @@ def changed_paths_between(
     """
     # -m はマージコミットを親ごとに展開し、既定時の差分取りこぼしを防ぐ。
     # --no-renames は旧パスも出力させ、失効対象から allowlist への移動を検出する。
+    # -z は core.quotePath の引用を避け、非 ASCII を含む allowlist パスを原形で得る。
     # git diff T C、T...C、--diff-filter は削除済みパスや必要な変更種別を落とすため使わない。
     try:
         result = subprocess.run(
@@ -2110,6 +2220,7 @@ def changed_paths_between(
                     GIT_NAME_ONLY_OPTION,
                     GIT_MERGE_SEPARATE_OPTION,
                     GIT_NO_RENAMES_OPTION,
+                    GIT_NULL_TERMINATE_OPTION,
                     f"{tested_commit_sha}..{candidate_sha}",
                 ]
             ),
@@ -2135,7 +2246,7 @@ def changed_paths_between(
                 returncode=result.returncode,
             )
         )
-    return frozenset(path for path in result.stdout.splitlines() if path)
+    return frozenset(path for path in result.stdout.split("\0") if path)
 
 
 def evaluate_invalidation(
@@ -2264,13 +2375,13 @@ def validate_cli_gate_arguments(
         raise GuardError(REASON_RELEASE_VERSION_ARGUMENT)
 
 
-def run_git_command(
+def run_git_bytes_command(
     root: Path,
     command: Sequence[str],
     operation: str,
     failure_reason: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """指定した Git コマンドを fail-closed で実行する。
+) -> subprocess.CompletedProcess[bytes]:
+    """指定した Git コマンドをバイト列出力のまま fail-closed で実行する。
 
     Args:
         root: Git リポジトリのルートディレクトリ。
@@ -2279,7 +2390,7 @@ def run_git_command(
         failure_reason: 非 0 終了時に返す GuardError の理由。省略時は終了コードを含む。
 
     Returns:
-        正常終了した Git コマンドの実行結果。
+        正常終了した Git コマンドのバイト列出力を持つ実行結果。
 
     Raises:
         GuardError: Git の起動、タイムアウト、またはコマンド実行に失敗した場合。
@@ -2289,8 +2400,6 @@ def run_git_command(
             build_git_command(command),
             cwd=root,
             capture_output=True,
-            encoding="utf-8",
-            errors="replace",
             timeout=DIFF_TIMEOUT_SECONDS,
             check=False,
         )
@@ -2307,6 +2416,42 @@ def run_git_command(
             )
         )
     return result
+
+
+def run_git_command(
+    root: Path,
+    command: Sequence[str],
+    operation: str,
+    failure_reason: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """診断・メタデータ用途の Git 出力を置換復号して取得する。
+
+    Args:
+        root: Git リポジトリのルートディレクトリ。
+        command: git 実行ファイルから始まるコマンド引数列。
+        operation: タイムアウト・起動失敗時に表示する操作名。
+        failure_reason: 非 0 終了時に返す GuardError の理由。省略時は終了コードを含む。
+
+    Returns:
+        診断・パス・メタデータを UTF-8 置換復号した実行結果。
+
+    Raises:
+        GuardError: Git の起動、タイムアウト、またはコマンド実行に失敗した場合。
+    """
+    result = run_git_bytes_command(root, command, operation, failure_reason)
+    # Git の診断・メタデータは復号不能でも元の Git 失敗を隠さず理由として表示する。
+    return subprocess.CompletedProcess(
+        args=result.args,
+        returncode=result.returncode,
+        stdout=result.stdout.decode(
+            GIT_TEXT_ENCODING,
+            errors=GIT_DIAGNOSTIC_DECODE_ERRORS,
+        ),
+        stderr=result.stderr.decode(
+            GIT_TEXT_ENCODING,
+            errors=GIT_DIAGNOSTIC_DECODE_ERRORS,
+        ),
+    )
 
 
 def git_object_type(root: Path, object_id: str, label: str) -> str:
@@ -2547,14 +2692,19 @@ def git_blob_contents(root: Path, blob_sha: str) -> str:
         git show が返した blob 内容。
 
     Raises:
-        GuardError: Git の起動、タイムアウト、または blob 内容の取得に失敗した場合。
+        GuardError: Git の起動、タイムアウト、blob 内容の取得、または UTF-8 復号に失敗した場合。
     """
-    result = run_git_command(
+    result = run_git_bytes_command(
         root,
         [GIT_EXECUTABLE, GIT_SHOW_COMMAND, blob_sha],
         OPERATION_BLOB_CONTENT,
     )
-    return result.stdout
+    try:
+        # レコード、テンプレート、onboarding.md の内容は機械検査の入力なので、壊れた
+        # UTF-8 を置換して解析を続けず fail-closed にする。
+        return result.stdout.decode(GIT_TEXT_ENCODING)
+    except UnicodeDecodeError as error:
+        raise GuardError(REASON_GIT_BLOB_ENCODING) from error
 
 
 def required_evidence_value(record: AcceptanceRecord, key: str) -> str:
@@ -2860,8 +3010,6 @@ def enumerate_candidate_gate_records(
         if parsed_path.kind not in RECORD_KINDS:
             violations.append(format_violation(display_path, REASON_RECORD_KIND))
             continue
-        if acceptance_path_gate_key(parsed_path) != gate_key:
-            continue
 
         object_id = git_tree_object_oid(root, candidate_sha, display_path)
         if object_id is None:
@@ -2879,6 +3027,10 @@ def enumerate_candidate_gate_records(
             )
         except GuardError as error:
             violations.append(format_violation(display_path, str(error)))
+            continue
+        # 機械検証の正は frontmatter である。ファイル名で対象外へ落とすと、命名と
+        # frontmatter の不一致および frontmatter 上の未閉塞予約を見落としてしまう。
+        if record_gate_key(record) != gate_key:
             continue
         records.append(record)
 

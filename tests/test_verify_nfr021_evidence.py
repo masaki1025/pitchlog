@@ -537,6 +537,14 @@ def test_rejects_unknown_extensions_and_subdirectory_items(relative_path: str) -
     assert parsed.reason is not None
 
 
+def test_rejects_uppercase_canonical_filename_as_an_invalid_tree_item() -> None:
+    """README.MD を正本として扱わず閉じた命名文法の外へ置く。"""
+    parsed = verify.parse_acceptance_path("README.MD")
+
+    assert parsed.kind == verify.KIND_INVALID
+    assert parsed.reason is not None
+
+
 @pytest.mark.parametrize("sequence", ["0001", "1", "000"])
 def test_rejects_noncanonical_filename_sequence(sequence: str) -> None:
     """seq0001、seq1、seq000 を正規形ではないとして拒否する。"""
@@ -1147,6 +1155,29 @@ def test_changed_paths_include_created_then_deleted_path(tmp_path: Path) -> None
         and classification.matched_pattern == "/backend/**"
         for classification in result.classifications
     )
+
+
+def test_changed_paths_preserve_non_ascii_allowlist_path_with_null_termination(
+    tmp_path: Path,
+) -> None:
+    """日本語を含む docs/features 配下だけの変更を失効として誤判定しない。"""
+    root = init_invalidation_repository(tmp_path)
+    tested_commit_sha = invalidation_head(root)
+    changed_path = "docs/features/日本語.md"
+    write_invalidation_file(root, changed_path, "allowlisted\n")
+    commit_invalidation_changes(root, "docs: add non-ascii feature note")
+    candidate_sha = invalidation_head(root)
+
+    paths = verify.changed_paths_between(root, tested_commit_sha, candidate_sha)
+    result = verify.evaluate_invalidation(
+        root,
+        tested_commit_sha,
+        candidate_sha,
+        load_real_invalidation_settings(),
+    )
+
+    assert paths == frozenset({changed_path})
+    assert not result.invalidated
 
 
 def test_changed_paths_include_merge_commit_path(tmp_path: Path) -> None:
@@ -2630,6 +2661,55 @@ def test_rejects_unclosed_reservation(tmp_path: Path) -> None:
     assert verify.REASON_RESERVATION_UNCLOSED.split(":")[0] in result.stderr
 
 
+def test_rejects_invalid_utf8_in_candidate_reservation_blob(tmp_path: Path) -> None:
+    """候補ツリーの予約 blob が UTF-8 でなければ検証器を fail-closed にする。"""
+    root, _, _, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    invalid_path = f"docs/ops/nfr021-acceptance/{reservation_filename('phase4')}"
+    write_invalidation_bytes(
+        root,
+        invalid_path,
+        (root / invalid_path).read_bytes() + b"\xff",
+    )
+    commit_invalidation_changes(root, "docs: add invalid utf8 reservation")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert invalid_path in result.stderr
+    assert "UTF-8" in result.stderr
+
+
+def test_rejects_frontmatter_gate_key_hidden_by_a_different_filename_gate(
+    tmp_path: Path,
+) -> None:
+    """ファイル名が release でも frontmatter が phase4 の未閉塞予約を見逃さない。"""
+    root, _, _, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    mismatched_path = (
+        "docs/ops/nfr021-acceptance/"
+        "2026-08-19T101501Z-release-v1.2.3-seq001-reservation.md"
+    )
+    write_invalidation_file(
+        root,
+        mismatched_path,
+        reservation_text(gate_key="phase4", attempt_seq=1),
+    )
+    commit_invalidation_changes(root, "docs: add mismatched reservation gate")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 1
+    assert mismatched_path in result.stderr
+    assert verify.REASON_FILENAME_GATE_KEY in result.stderr
+
+
 def test_rejects_named_evidence_without_a_reservation(tmp_path: Path) -> None:
     """合格条件⑨として、名指し結果証跡の孤児を拒否する。"""
     root = init_invalidation_repository(tmp_path)
@@ -2981,6 +3061,39 @@ def test_rejects_symlink_onboarding_from_candidate_tree(tmp_path: Path) -> None:
     assert "docs/development/onboarding.md が通常ファイルではない: mode 120000" in result.stderr
 
 
+def test_allows_executable_regular_evidence_and_template_files(tmp_path: Path) -> None:
+    """mode 100755 の通常 blob を証跡とテンプレートとして引き続き受理する。"""
+    root, _, _, evidence_path, _ = make_valid_evidence_repository(tmp_path)
+    template_path = "docs/ops/nfr021-acceptance/evidence-phase4-template.md"
+    (root / evidence_path).chmod(0o755)
+    (root / template_path).chmod(0o755)
+    commit_invalidation_changes(root, "test: make evidence and template executable")
+    candidate_sha = invalidation_head(root)
+
+    result = run_verifier(
+        root,
+        *named_evidence_arguments(candidate_sha, evidence_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    evidence_tree = git_for_invalidation(
+        root,
+        "ls-tree",
+        candidate_sha,
+        "--",
+        evidence_path,
+    )
+    template_tree = git_for_invalidation(
+        root,
+        "ls-tree",
+        candidate_sha,
+        "--",
+        template_path,
+    )
+    assert evidence_tree.stdout.startswith("100755 blob ")
+    assert template_tree.stdout.startswith("100755 blob ")
+
+
 def test_rejects_symlink_named_evidence_from_candidate_tree(
     tmp_path: Path,
 ) -> None:
@@ -3128,6 +3241,99 @@ def test_allows_complete_body_with_visible_tables_and_html_comments(
         evidence_text(body=body),
     )
 
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+def test_allows_visible_body_with_html_comment_marker_in_inline_code(
+    tmp_path: Path,
+) -> None:
+    """インラインコード内の <!-- を HTML コメント開始として誤認しない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
+        "# 結果証跡\n",
+        f"# 結果証跡\n注記: {CODE_DELIMITER}<!--{CODE_DELIMITER} は文字列である。\n",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert verify.validate_records((record,)) == ()
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+def test_allows_visible_body_with_fence_marker_in_inline_code(tmp_path: Path) -> None:
+    """インラインコード内の ``` をフェンス開始として誤認しない。"""
+    inline_delimiter = CODE_DELIMITER * 4
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
+        "# 結果証跡\n",
+        f"# 結果証跡\n注記: {inline_delimiter} ``` {inline_delimiter} は文字列である。\n",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+@pytest.mark.parametrize(
+    "hidden_example",
+    [
+        "<!--\n| commit SHA | example-only |\n-->\n",
+        "```\n| commit SHA | example-only |\n```\n",
+        "\n    | commit SHA | example-only |\n\n",
+    ],
+)
+def test_ignores_hidden_code_or_comment_body_field_examples(
+    tmp_path: Path,
+    hidden_example: str,
+) -> None:
+    """可視でない commit SHA の表行を二重記録の重複として数えない。"""
+    body = f"{hidden_example}{complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)}"
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+
+    assert verify.validate_records((record,)) == ()
+    assert validate_evidence_completeness(tmp_path, record) == ()
+
+
+def test_rejects_tables_hidden_in_indented_code_block(tmp_path: Path) -> None:
+    """段落外で 4 スペース字下げされた表をレンダリング上の欄として数えない。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA)
+    indented_body = "\n".join(
+        f"    {line}" if line.startswith("|") else line for line in body.splitlines()
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=indented_body),
+    )
+
+    reasons = validate_evidence_completeness(tmp_path, record)
+
+    assert verify.REASON_EVIDENCE_TABLE_FORMAT in reasons
+    assert verify.REASON_ACCEPTANCE_TABLE_FORMAT in reasons
+
+
+def test_allows_escaped_pipe_in_visible_evidence_table_value(tmp_path: Path) -> None:
+    """表セル内の \\| を区切りにせず、値の | として完全性検査へ渡す。"""
+    body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
+        "| 実行コマンドと終了コード | uv run pytest (0) |",
+        r"| 実行コマンドと終了コード | uv run pytest \| tee pytest.log (0) |",
+        1,
+    )
+    record = parse_record(
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        evidence_text(body=body),
+    )
+    cells = verify.parse_markdown_table_row(
+        r"| 実行コマンドと終了コード | uv run pytest \| tee pytest.log (0) |"
+    )
+
+    assert cells == ("実行コマンドと終了コード", "uv run pytest | tee pytest.log (0)")
     assert validate_evidence_completeness(tmp_path, record) == ()
 
 
