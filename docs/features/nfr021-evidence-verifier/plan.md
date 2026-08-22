@@ -1,6 +1,6 @@
 ---
 feature: nfr021-evidence-verifier
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-21・山田正輝)   # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -63,7 +63,7 @@ Notion タスク: [Phase 4-5: 証跡の機械検証器 verify_nfr021_evidence.py
 | --- | --- | --- |
 | `docs/development/github-setup.md` | 必須チェックの一覧へ `nfr021-append-only` を追加(`:35`・`:37` のジョブ列挙・`:73-76` の Ruleset context)+ **2 章のマージ手続へ 5 項目目を追加**(**敵対レビュー起点** — NFR-021 の予約 PR を同一ゲートキーで並行させない。同検査は PR イベントの `base.sha` を基準に評価するため、同じ base の 2 PR がどちらも green のまま未閉塞予約を 2 件作れる。3 章の Ruleset 適用で解消)+ 変更履歴表に追記 | **必須チェック一覧の追随 = PR レビュー**(7.6-3 前段)/ **2 章の手続 5 の新設 = /finalize-doc**(**v1.0 → v1.1** の版繰り上げ。マージ可否の手続を変える規範追加であり 実装追随ではない — 品質レビュー 3 周目 P1-5 を採用・人間の裁定 2026-08-22)|
 | `docs/README.md`(索引) | **`github-setup.md` と開発ハーネス設計書の 2 行**の最終更新日を現行化(どちらも本 PR で変更履歴を追記するため — レビュー 2 周目 P2)| PR レビュー |
-| `docs/development/harness-evaluation.md`(運用評価台帳) | クローズ処理で記録(H-71 の再発・`release/SKILL.md` の不整合・本タスクで得た教訓) | PR レビュー(/task-done で実施) |
+| `docs/development/harness-evaluation.md`(運用評価台帳) | クローズ処理で **`H-75`〜`H-77` を新設**(**依頼文の書き方で `review adversarial` が判定を返さないことがある** / **レビュー是正コミットで現在地導出が「不明」になる** / **並行ブランチの台帳追記で `H-*` 番号が衝突する**)+ **`## 候補` 2 件**(是正の検証は両方向を測る / 同種の欠陥は全経路を確認してから直す)+ 変更履歴表に 1 行(**`H-*` の追記では版を上げない** — 7.6-3 前段)。**番号は `H-75` から**(`H-74` は別ブランチの PR #23 が使用中) | PR レビュー(クローズ処理で実施) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **10.1 の CI ジョブ表(`:604-616`)へ `nfr021-append-only` の行を追加**(導入時期 = Phase 4)+ 変更履歴表に追記。**規範条件は変えない**(検証器の契約・失効判定・13 章の記録責務はいずれも改訂しない — 13 章の宿題は既存規定の適用で閉じた〔[design.md](design.md) 8 節〕) | **PR レビュー**(実装追随の節更新 — 設計書 7.6-3 前段)|
 | `docs/ops/nfr021-acceptance/README.md` | **反映なし** — 本タスクは同書 `:162` の受入契約を満たす実装であり、規範は変更しない | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** — 要件の改訂を伴わない(要件書 10 章の未決事項「NFR-021 の継続検証基盤」は 4-6 の論点) | — |
