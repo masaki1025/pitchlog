@@ -48,7 +48,7 @@ tests/test_nfr021_append_only.py:1185・1198
 ### やること
 
 1. ルート `pyproject.toml` へ **ruff・ty を backend と同版で固定**して追加し、`[tool.ruff]` / `[tool.ruff.lint]` / `per-file-ignores` / `pydocstyle` / `[tool.ty.*]` を設定する
-2. **`uv.lock` を更新**する(**`uvx uv@0.8.13 lock`** で生成 — 下記リスク)
+2. **`uv.lock` を更新**する(素の `uv lock` で足りることを実測済み — 7 節)
 3. **ruff の残件 27 件を解消**する(自動修正 11・手動 16)
 4. **ty の残件 40 件を解消**する(`scripts/` 8 ・`tests/` 32)。**`# ty: ignore` は使わない**
 5. **CI の `harness` ジョブへ `ruff check` と `ty check` を追加**する
@@ -189,7 +189,7 @@ include = ["scripts", "tests"]
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | ルート `pyproject.toml` へ ruff/ty の dev 依存(**backend と同版ピン** — ruff 0.16.3 / ty 0.0.73)と上記の設定ブロック(**`extend-exclude` と `[tool.ty.src] include` を含む**)を追加し、**`uvx uv@0.8.13 lock`** で `uv.lock` を更新する | **`uvx uv@0.8.13 sync --locked --dev` が成功**(CI と同じ版で検証する)/ **`uv.lock` の `version` と `revision` が不変** / **対象集合の確認**: `uv run ruff check . --statistics` と `uv run ty check` の出力に **`.claude/` と `backend/` のパスが 1 件も現れない** / `uv run ruff check .` が **27 件**(E501 12・I001 11・D301 4)/ `uv run ty check` が **40 件**(scripts 8・tests 32)/ `uv run pytest tests/` **652 件全緑**(件数不変) |
+| 1 | ルート `pyproject.toml` へ ruff/ty の dev 依存(**backend と同版ピン** — ruff 0.16.3 / ty 0.0.73)と上記の設定ブロック(**`extend-exclude` と `[tool.ty.src] include` を含む**)を追加し、**`uv lock`** で `uv.lock` を更新する(**実測で素の `uv lock` が安全と確認済み** — 7 節のリスク表) | **`uvx uv@0.8.13 sync --locked --dev` が成功**(CI と同じ版で検証する)/ **`uv.lock` の `version` と `revision` が不変** / **対象集合の確認**: `uv run ruff check . --statistics` と `uv run ty check` の出力に **`.claude/` と `backend/` のパスが 1 件も現れない** / `uv run ruff check .` が **27 件**(E501 12・I001 11・D301 4)/ `uv run ty check` が **40 件**(scripts 8・tests 32)/ `uv run pytest tests/` **652 件全緑**(件数不変) |
 | 2 | ruff 自動修正の適用(`uv run ruff check --fix .` — I001 11 件) | `git diff --stat` が **11 ファイル・削除 11 行・挿入 0**(空行のみ)/ `uv run ruff check --select I .` が All checks passed / pytest 全緑 |
 | 3 | ruff 手動残件: **E501 12 行の折り返し** + **D301 4 件の `r"""` 化** | `uv run ruff check .` が **All checks passed** / pytest 全緑 / **D301 の 4 箇所は docstring の文字列値が不変**(`\\|`→`\|` 等の脱エスケープを伴うため逐行確認)/ **`test_hooks.py` の heredoc・改行入りリテラルは 1 文字も変えない**(ガードの入力そのもの) |
 | 4 | ty(scripts 8 件): 注釈を `str \| PurePath` へ広げ `PurePath` を import / `feature_status.py:1611` を `worktree.branch or worktree.path.name` へ | `uv run ty check` の **scripts/ 分が 0**(全体 32 件 = tests のみ)/ ruff 緑 / pytest 全緑 / `test_worktree_plan_resolution_failures_are_visible_in_text_and_hook` が緑(**表示値が不変であることの実測**) |
@@ -232,7 +232,7 @@ NFR-019 の対象種別: **該当なし**。本タスクは**検査機構の導�
 
 | 度合い | 内容 |
 | --- | --- |
-| **高** | **`uv.lock` の revision ドリフト** — ローカル uv は 0.11.21、CI の setup-uv は **0.8.13 ピン**、現行 lock は `version = 1 / revision = 3`。素の `uv lock` で revision が上がると **`harness` ジョブが `uv sync --locked` で落ちる**。**ルートの lock を使うのは `harness` だけ**(`ci.yml:80`)で、backend は `working-directory: backend` の別 lock(`ci.yml:181,193`)— 当初「CI 5 ジョブ全部」と書いたのは誤りだった(レビュー P1-3 で是正)。**`uvx uv@0.8.13 lock` を使い、lock ヘッダの不変と 0.8.13 での同期成功を合格条件に含める** |
+| **低**(実測で解消) | **`uv.lock` の revision ドリフト** — 当初は「ローカル uv 0.11.21 で lock すると `revision` が上がり `harness` ジョブの `uv sync --locked` が落ちる」と見ていたが、**scratchpad の複製で実測したところ懸念は成立しなかった**(2026-08-23): ① **ローカル uv 0.11.21 で lock しても `version = 1` / `revision = 3` は不変** ② 差分は **ruff・ty の追加と dev リストの整形だけで既存エントリは書き換わらない** ③ **`uvx uv@0.8.13 sync --locked --dev` が exit 0**(CI と同じ版がこの lock を受け付ける)。したがって**素の `uv lock` で足りる**。ただし**合格条件としてヘッダ不変と 0.8.13 での同期成功は残す**(将来の uv 更新で状況が変わりうるため)。**ルートの lock を使うのは `harness` だけ**(`ci.yml:80`)で、backend は `working-directory: backend` の別 lock(`:181,193`)— 当初「CI 5 ジョブ全部」と書いたのも誤りだった(レビュー P1-3 で是正) |
 | **高** | **`ci.yml` は `guard_paths`** — PR 本文の逐行確認チェックを ON にしないと `core-guard` が落ちる。**実際に人間の逐行確認が必要**であり、チェックを付けた人 = 確認した人の運用規律で担保される |
 | **中** | **ステップ 6 が赤くなる可能性** — 実引数の是正で `check_nfr021_append_only.py` の欠陥が露出しうる。露出したら **NFR-021 の機構修正**となり本タスク(重さ「通常」)を超える。**止めて裁定を仰ぐ** |
 | **低** | **`ruff format` 未導入のドリフト** — フォーマッタを入れないまま lint だけ入れるため、整形は各自の裁量のままになる。`/check` の harness 節に「**`ruff format` を走らせない**」旨を明記して誤用を防ぐ |
