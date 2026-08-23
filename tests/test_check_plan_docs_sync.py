@@ -328,7 +328,10 @@ def test_accepts_markdown_links_and_backtick_paths(tmp_path: Path) -> None:
     result = run_check(root)
 
     assert result.returncode == 0, result.stderr
-    assert "docs/requirements/pending.md: 計画書 3 節で反映すると宣言したが差分にない" in result.stderr
+    assert (
+        "docs/requirements/pending.md: 計画書 3 節で反映すると宣言したが差分にない"
+        in result.stderr
+    )
 
 
 def test_accepts_all_markdown_links_on_one_line(tmp_path: Path) -> None:

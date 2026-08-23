@@ -1447,7 +1447,11 @@ def derive_feature(
         stage = f"実装前(全 {progress.total} ステップ)"
         if progress.note:
             stage = f"{stage}({progress.note})"
-    elif progress.completed is not None and progress.total is not None and progress.completed < progress.total:
+    elif (
+        progress.completed is not None
+        and progress.total is not None
+        and progress.completed < progress.total
+    ):
         stage = f"実装中(ステップ {progress.completed}/{progress.total} 完了)"
     else:
         stage = "実装完了・/pr 前"

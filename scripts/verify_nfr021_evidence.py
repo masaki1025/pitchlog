@@ -1002,13 +1002,13 @@ def parse_markdown_table_row(line: str) -> tuple[str, ...] | None:
 
 
 def split_markdown_table_cells(line: str) -> tuple[str, ...]:
-    """Markdown 表のセル列をエスケープ済みパイプを保って分解する。
+    r"""Markdown 表のセル列をエスケープ済みパイプを保って分解する。
 
     Args:
         line: 先頭と末尾の表区切りパイプを除いた 1 行。
 
     Returns:
-        前後空白を除き、``\\|`` を値の ``|`` として復元したセル列。
+        前後空白を除き、``\|`` を値の ``|`` として復元したセル列。
 
     Raises:
         発生しない。
@@ -2660,13 +2660,13 @@ def git_tree_object_oid(
 
 
 def git_blob_oid(contents: bytes) -> str:
-    """Git の SHA-1 blob OID を内容バイト列から算出する。
+    r"""Git の SHA-1 blob OID を内容バイト列から算出する。
 
     Args:
         contents: blob としてハッシュ化する生の内容バイト列。
 
     Returns:
-        ``blob <バイト長>\\0`` を前置した SHA-1 の小文字 16 進 OID。
+        ``blob <バイト長>\0`` を前置した SHA-1 の小文字 16 進 OID。
 
     Raises:
         発生しない。

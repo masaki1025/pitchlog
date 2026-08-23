@@ -198,7 +198,8 @@ def test_settings_json_hook_wiring():
                 assert scripts, f"{event_name} のフックコマンドにスクリプト参照がない: {command}"
                 for script in scripts:
                     assert (HOOKS / script).is_file(), (
-                        f"{event_name} のフックコマンドが存在しないスクリプトを参照している: {script}"
+                        f"{event_name} のフックコマンドが存在しないスクリプトを参照している: "
+                        f"{script}"
                     )
 
 
@@ -319,7 +320,8 @@ def test_protect_paths_allows(path):
     "codex exec resume 0123abcd 'more'",
     "codex e 'quick'",
     'node "C:/plug/scripts/codex-companion.mjs" task "fix stuff"',
-    "python .claude/scripts/codex_run.py implement plan.md - --yolo",  # ラッパーでも危険フラグは遮断
+    # ラッパーでも危険フラグは遮断
+    "python .claude/scripts/codex_run.py implement plan.md - --yolo",
 ])
 def test_codex_guard_blocks(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 2
@@ -366,11 +368,15 @@ def test_codex_guard_blocks_unparseable_top_level_command():
     "npx @openai/codex exec 'x'",                               # npm 系ランチャー
     "pnpm dlx @openai/codex e 'x'",
     "bash -lc 'codex exec x'",                                  # 引用内の生起動(3周目 P0)
-    "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",            # 非ラッパー heredoc は本文も検査(3周目 P0)
+    # 非ラッパー heredoc は本文も検査(3周目 P0)
+    "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",
     '"codex" exec x',                                           # 引用符付き実行ファイル(4周目 P0)
     "'/usr/bin/codex' review foo",
     # 正規ラッパー heredoc の後ろに別 heredoc を連ねる迂回(4周目 P0)
-    "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\nbash <<'RUN'\ncodex exec x\nRUN",
+    (
+        "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\n"
+        "bash <<'RUN'\ncodex exec x\nRUN"
+    ),
     # 5周目 P0: # コメントで heredoc を無効化して正規形に見せる迂回
     "python .claude/scripts/codex_run.py bogus - # <<'EOF'\ncodex exec x\nEOF",
     # 5周目 P0: グローバルオプション前置・対話起動・大文字
@@ -444,7 +450,9 @@ def test_effective_command_canonical_vs_bypass():
 
 def test_shell_tokens_strips_quotes_and_comments():
     gc = _load_guard_common()
-    assert gc.shell_tokens("git push origin 'HEAD:develop'") == ["git", "push", "origin", "HEAD:develop"]
+    assert gc.shell_tokens(
+        "git push origin 'HEAD:develop'"
+    ) == ["git", "push", "origin", "HEAD:develop"]
     assert gc.shell_tokens("cat x # codex exec") == ["cat", "x"]
     assert gc.shell_tokens("echo 'unbalanced") is None  # 解析不能 → None(安全側判定は各ガード)
 
@@ -1111,7 +1119,10 @@ def test_wrapper_rejects_empty_step_table(tmp_path):
     plan.write_text(
         "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
         f"worktree: {wt}\nbranch: feature/x\n---\n# 計画\n\n"
-        "### 実装ステップ(コミット単位)\n| # | ステップ | 合格条件 |\n| --- | --- | --- |\n| 1 |  |  |\n",
+        "### 実装ステップ(コミット単位)\n"
+        "| # | ステップ | 合格条件 |\n"
+        "| --- | --- | --- |\n"
+        "| 1 |  |  |\n",
         encoding="utf-8",
     )
     r = run_wrapper(["implement", str(plan), "-"], "prompt")
@@ -1172,9 +1183,15 @@ def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     with pytest.raises(SystemExit):
         mod.security_overrides(may_allow_net=True)
     monkeypatch.setenv("PITCHLOG_NET_REASON", "依存追加の検証")
-    assert "sandbox_workspace_write.network_access=true" in mod.security_overrides(may_allow_net=True)
+    assert (
+        "sandbox_workspace_write.network_access=true"
+        in mod.security_overrides(may_allow_net=True)
+    )
     # read-only 系(research/review)は ALLOW_NET でも有効化しない
-    assert "sandbox_workspace_write.network_access=false" in mod.security_overrides(may_allow_net=False)
+    assert (
+        "sandbox_workspace_write.network_access=false"
+        in mod.security_overrides(may_allow_net=False)
+    )
 
 
 def test_wrapper_rejects_review_base_flag():

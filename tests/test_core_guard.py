@@ -341,7 +341,10 @@ def _load_required_check_text_from_script() -> str:
 
 
 def test_check_text_is_consistent_across_script_template_and_skill():
-    """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する(計画ステップ 5)。"""
+    (
+        """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する("""
+        """計画ステップ 5)。"""
+    )
     canonical = _load_required_check_text_from_script()
     assert canonical == REQUIRED_CHECK_TEXT  # テスト側リテラルの腐り検知
 
