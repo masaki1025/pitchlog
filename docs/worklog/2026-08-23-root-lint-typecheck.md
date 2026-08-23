@@ -68,7 +68,7 @@ branch: feature/root-lint-typecheck
 計画書 1 節と PR #24 以降の報告で「このテストは**空転している疑いが強い**」と述べたが、**実測の結果これは誤りだった**。修正前後で base ツリーに列挙されるレコードを比較したところ**完全に同一**(レコード 6 件 / 予約 3 件 / `attempt_seq=[1, 3, 3]`)。理由は 2 つ:
 
 1. `tree_records` は base のレコードへスキーマ検査を掛けない(`validate_records` は「**その PR で新規追加された**」レコードにだけ適用される — 6-0 節の設計どおり)。不正形の `attempt_id` でもレコードは列挙される
-2. ファイル名と frontmatter の `gate_key`・`attempt_seq` は `write_reservation` 自身の引数から作られる。誤った `3` は positional で `attempt_seq` に入るため、「**seq002 欠番 + seq003 重複**」という検査したい状態は**正しく作られていた**
+2. **`attempt_id` の `3` と `write_reservation` / `write_evidence` の `3` は別の引数である**。`attempt_id(3, ...)` の `3` は**第 1 引数 `gate_key`** に入る(`:152`)ので `record_id` が不正形になる。一方 `write_reservation(root, 3, ...)` / `write_evidence(root, 3, ...)` の `3` は**第 2 引数 `attempt_seq`**に入り(`:411`)、ファイル名と frontmatter の `gate_key`・`attempt_seq` はこちらから作られる。したがって「**seq002 欠番 + seq003 重複**」という検査したい状態は**正しく作られていた**(`review normal` の P2-1 で、当初この 2 つを混ぜて書いていたことを指摘され是正した)
 
 **実バグではある**(型が誤り・生成値が誤り)が、**テストの検査内容は損なわれていなかった**。計画レビュー P2-2 を受けて「断定はステップ 6 の実測で確かめる」と書き換えてあった形が正しかったことになる。
 
@@ -108,6 +108,61 @@ branch: feature/root-lint-typecheck
 - `.claude/skills/check/SKILL.md` の harness 節を 3 手順へ(**`ruff format` は走らせない**旨と、検査対象が `scripts/`・`tests/` に限られる旨をコメントで明記)
 - `AGENTS.md` のコマンド節へハーネス行
 
+## レビュー P2 の反映(`review normal` 1 周・可決)
+
+ステップ 7 は `ci.yml` が `guard_paths` のため**私が直接起草した**ので、CLAUDE.md の規定どおり `codex_run.py review normal` を通した。**P0・P1 は 0 件で可決**、**P2 が 2 件**。**どちらも私の記述の正確性に関するもので、2 件とも実測して採用した**。
+
+### P2-1 — `attempt_id` の因果説明が不正確だった
+
+「誤った `3` は positional で `attempt_seq` に入る」と書いていたが、**`attempt_id` の `3` と `write_reservation` / `write_evidence` の `3` は別の引数**である:
+
+| 呼び出し | `3` が入る引数 | 効果 |
+| --- | --- | --- |
+| `attempt_id(3, ...)` | **第 1 引数 `gate_key`**(`:152`) | `record_id` が `'3-001-...'` という不正形になる |
+| `write_reservation(root, 3, ...)` | **第 2 引数 `attempt_seq`**(`:411`) | ファイル名と frontmatter が `seq003` になる — **検査したい状態はこちらが作っていた** |
+
+結論(「検査内容は損なわれていなかった」)は変わらないが、**その理由の説明が間違っていた**。ステップ 6 のコミット本文にも同じ混同がある(履歴改変を避けるため本記録を正とする)。
+
+### P2-2 — `.claude/` の ty 件数が文書内で食い違っていた(17 と 19)
+
+**19 件が正しい**。同一 PR 内で `plan.md:137` と本 worklog が 19、`plan.md:61`・設計書 10.1・台帳 2 箇所・本 worklog の申し送りが 17 になっていた。**5 箇所を 19 へ統一**した。
+
+`[tool.ty.src] include = ["scripts", "tests"]` があるため `uv run ty check .claude` は `No python files found` になる。**`-c 'src.include=[".claude"]'` で上書きして実測**した:
+
+| 内訳 | 件数 |
+| --- | --- |
+| `unresolved-attribute` | 16 |
+| `invalid-return-type` | 2 |
+| `no-matching-overload` | 1 |
+| **計** | **19** |
+
+### 併せて「`codex_run.py` の 5 件は実バグ疑い」を撤回した
+
+件数を数え直したときに `codex_run.py` が **5 件でなく 7 件**だったので中身を読み、**5 件すべてが同一原因**であることが分かった:
+
+```python
+def die(msg: str) -> None:      # ← 実体は sys.exit(2) で戻らない
+    print(f"codex_run: エラー: {msg}", file=sys.stderr)
+    sys.exit(2)
+```
+
+`-> None` だと ty は `die(...)` の**後も処理が続く**と見なすため、`die()` で弾いたはずの `None` が残っていると判断する。`:126` の `Match | None` への `.group`、`:194` の `str | None` への `.lower`、`:195` / `:196` の `invalid-return-type`、`:312` の `no-matching-overload` は**すべてこれ**。
+
+**`-> NoReturn` に変えて実測した**(直後に復元・`git status` クリーンを確認):
+
+| | ty 全体 | `codex_run.py` |
+| --- | --- | --- |
+| 現状(`-> None`) | **19 件** | **7 件** |
+| `-> NoReturn` | **14 件** | **2 件** |
+
+つまり **実バグは 1 件もなく、注釈の欠陥 1 件が 5 件の診断を生んでいた**。残る 14 件はすべて `sys.stdout.reconfigure` で、typeshed が `sys.stdout` を `TextIO` と型付けするための誤検知(`try` / `except Exception` の中なので実害はない)。ただし**コードでは直せない**ため、`# ty: ignore` か設定での扱いは **2026-08-19 の裁定により人間が決める**必要がある。
+
+**この訂正は follow-up の優先度に影響する** — 計画書・台帳・設計書に書いた「**優先度「高」相当**」の根拠は「実バグ疑い 5 件」だった。それが失われたので、**優先度は再判定を要する**(勝手に下げず、そう明記した)。
+
+### 私の報告の誤りが 1 タスクで 2 回とも同じ形だった
+
+ステップ 6 の「空転している疑い」も本件の「実バグ疑い」も、**ty の診断を読んで原因を推定したまま、実測せずに「疑い」として文書へ書いた**ものだった。どちらも実測すると外れていた。**診断の件数と分類は機械が出すが、原因の帰属は仮説にすぎない** — 文書へ書く前に切り分けの実測を 1 回入れるべきだった。
+
 ## 未決・次の一歩
 
 - **本 PR は Phase 4-6 の `T`(`tested_commit_sha`)を採る前に統合する必要がある** — `/pyproject.toml`・`/uv.lock`・`/tests/**`・`/scripts/**`・`/.github/workflows/**` はすべて NFR-021 の失効対象パス。**統合した後は失効対象パスを変更しない**
@@ -116,7 +171,7 @@ branch: feature/root-lint-typecheck
 
 | 項目 | 内容 |
 | --- | --- |
-| **`.claude/` 配下の検査** | hooks 7 本 + `codex_run.py` で **ruff 73 件 / ty 17 件**。とくに **`codex_run.py` の 5 件は実バグ疑い**(`Match \| None` に `.group` / `str \| None` に `.lower` / `list[str \| None]` を `list[str]` として返す 等)。**優先度「高」相当**。台帳 H-13 の残余 ① |
+| **`.claude/` 配下の検査** | hooks 7 本 + `codex_run.py` で **ruff 73 件 / ty 19 件**。**当初「`codex_run.py` の 5 件は実バグ疑い」と報告したが実測で訂正**(下記「レビュー P2 の反映」)。台帳 H-13 の残余 ① |
 | **`ruff format` の導入** | 行長 100 で **17 ファイル中 14 が reformat 対象**(数千行規模)。lint 導入と同一 PR に混ぜると合格条件が読めない。**独立した機械的 PR**。台帳 H-13 の残余 ② |
 | **`onboarding.md:72` の陳腐化** | 「正負テスト **103 件**」とあるが実際は **406 個**。同ファイルは**失効対象パスかつ `onboarding_blob_sha` として証跡に焼き込まれる**ため **4-6 より前に是正が必要**。正本の改訂なので `/finalize-doc` を要し、**`onboarding.md` の approved 化タスクに含めるのが筋**(現在 `status: draft`) |
 | **新規テストの追加** | 本タスクの「テスト」は CI ジョブそのものと変異テスト。テストを増やすと `onboarding.md` の件数記述に波及する |
