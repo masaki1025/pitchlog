@@ -7,7 +7,6 @@
 import json
 from pathlib import Path
 
-
 REPO = Path(__file__).parent.parent
 CONFIG_PATH = REPO / ".claude" / "nfr021-invalidating-paths.json"
 REQUIRED_KEYS = {

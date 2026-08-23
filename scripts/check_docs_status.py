@@ -11,7 +11,6 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Sequence
 
-
 DOCUMENT_STATUSES = frozenset({"draft", "in-review", "approved", "superseded"})
 PLAN_STATUSES = frozenset({"active", "in-review"})
 EXCLUDED_PREFIXES = (

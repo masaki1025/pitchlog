@@ -11,7 +11,6 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
 
-
 FRONTMATTER_LIMIT = 8 * 1024
 SUBPROCESS_TIMEOUT_SECONDS = 10
 PROTECTED_BRANCHES = frozenset({"main", "develop"})

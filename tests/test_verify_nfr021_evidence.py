@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "verify_nfr021_evidence.py"
 CORE_GUARD_SCRIPT = REPO / "scripts" / "core_guard.py"

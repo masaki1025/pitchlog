@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 TEMPLATE_DIRECTORY = REPO / "docs" / "ops" / "nfr021-acceptance"
 RESERVATION_TEMPLATE = "reservation-template.md"

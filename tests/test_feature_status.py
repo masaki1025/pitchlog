@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "feature_status.py"
 MISSING = object()

@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
 NO_CORE_PATHS_MESSAGE = "コア領域 paths 未定義(Phase 4 で定義予定)— コア検査対象なし"

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
