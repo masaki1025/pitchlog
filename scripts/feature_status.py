@@ -1611,7 +1611,7 @@ def collect_features(
         elif frontmatter is None:
             results.append(
                 worktree_resolution_failure_result(
-                    worktree.branch,
+                    worktree.branch or worktree.path.name,
                     worktree.branch,
                     "plan 不在",
                 )

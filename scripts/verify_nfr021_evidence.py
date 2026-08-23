@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from types import MappingProxyType
 from typing import Mapping, NoReturn, Sequence
 
@@ -568,7 +568,7 @@ def derive_gate_key(gate_kind: str, release_version: str | None) -> str | None:
     return None
 
 
-def parse_acceptance_path(relative_path: str | Path) -> AcceptancePath:
+def parse_acceptance_path(relative_path: str | PurePath) -> AcceptancePath:
     """受入証跡ディレクトリからの相対パスを閉じた命名文法で分類する。
 
     Args:
@@ -737,7 +737,7 @@ def parse_frontmatter(text: str) -> Frontmatter:
 
 
 def parse_acceptance_record(
-    relative_path: str | Path,
+    relative_path: str | PurePath,
     text: str,
     display_path: str | None = None,
 ) -> AcceptanceRecord:
