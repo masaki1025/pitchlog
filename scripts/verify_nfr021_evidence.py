@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from types import MappingProxyType
 from typing import Mapping, NoReturn, Sequence
 
@@ -568,7 +568,7 @@ def derive_gate_key(gate_kind: str, release_version: str | None) -> str | None:
     return None
 
 
-def parse_acceptance_path(relative_path: str | Path) -> AcceptancePath:
+def parse_acceptance_path(relative_path: str | PurePath) -> AcceptancePath:
     """受入証跡ディレクトリからの相対パスを閉じた命名文法で分類する。
 
     Args:
@@ -737,7 +737,7 @@ def parse_frontmatter(text: str) -> Frontmatter:
 
 
 def parse_acceptance_record(
-    relative_path: str | Path,
+    relative_path: str | PurePath,
     text: str,
     display_path: str | None = None,
 ) -> AcceptanceRecord:
@@ -1002,13 +1002,13 @@ def parse_markdown_table_row(line: str) -> tuple[str, ...] | None:
 
 
 def split_markdown_table_cells(line: str) -> tuple[str, ...]:
-    """Markdown 表のセル列をエスケープ済みパイプを保って分解する。
+    r"""Markdown 表のセル列をエスケープ済みパイプを保って分解する。
 
     Args:
         line: 先頭と末尾の表区切りパイプを除いた 1 行。
 
     Returns:
-        前後空白を除き、``\\|`` を値の ``|`` として復元したセル列。
+        前後空白を除き、``\|`` を値の ``|`` として復元したセル列。
 
     Raises:
         発生しない。
@@ -2660,13 +2660,13 @@ def git_tree_object_oid(
 
 
 def git_blob_oid(contents: bytes) -> str:
-    """Git の SHA-1 blob OID を内容バイト列から算出する。
+    r"""Git の SHA-1 blob OID を内容バイト列から算出する。
 
     Args:
         contents: blob としてハッシュ化する生の内容バイト列。
 
     Returns:
-        ``blob <バイト長>\\0`` を前置した SHA-1 の小文字 16 進 OID。
+        ``blob <バイト長>\0`` を前置した SHA-1 の小文字 16 進 OID。
 
     Raises:
         発生しない。

@@ -13,7 +13,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "check_nfr021_append_only.py"
 CORE_GUARD_SCRIPT = REPO / "scripts" / "core_guard.py"
@@ -1182,7 +1181,7 @@ def test_existing_gaps_and_duplicates_do_not_block_new_reservation(tmp_path: Pat
     root, _ = init_repository(tmp_path)
     write_reservation(root, 1)
     write_evidence(root, 1)
-    first_duplicate_id = attempt_id(3, timestamp=OTHER_ATTEMPT_TIMESTAMP)
+    first_duplicate_id = attempt_id(attempt_seq=3, timestamp=OTHER_ATTEMPT_TIMESTAMP)
     write_reservation(
         root,
         3,
@@ -1195,7 +1194,7 @@ def test_existing_gaps_and_duplicates_do_not_block_new_reservation(tmp_path: Pat
         timestamp=OTHER_FILE_TIMESTAMP,
         record_id=first_duplicate_id,
     )
-    second_duplicate_id = attempt_id(3, timestamp="20260820T101502Z")
+    second_duplicate_id = attempt_id(attempt_seq=3, timestamp="20260820T101502Z")
     write_reservation(
         root,
         3,

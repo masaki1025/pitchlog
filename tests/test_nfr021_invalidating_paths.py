@@ -6,7 +6,7 @@
 
 import json
 from pathlib import Path
-
+from typing import Any
 
 REPO = Path(__file__).parent.parent
 CONFIG_PATH = REPO / ".claude" / "nfr021-invalidating-paths.json"
@@ -42,12 +42,13 @@ REQUIRED_ALLOWLIST_PATTERNS = {
 }
 
 
-def load_configuration() -> dict[str, object]:
+def load_configuration() -> dict[str, Any]:
     """実リポジトリの失効対象パス設定を読み込む。
 
     Returns:
         JSON を解析した設定オブジェクト。
     """
+    # JSON は静的な型を持たないため Any とする。
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 

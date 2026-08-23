@@ -11,7 +11,6 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
 
-
 FRONTMATTER_LIMIT = 8 * 1024
 SUBPROCESS_TIMEOUT_SECONDS = 10
 PROTECTED_BRANCHES = frozenset({"main", "develop"})
@@ -1448,7 +1447,11 @@ def derive_feature(
         stage = f"実装前(全 {progress.total} ステップ)"
         if progress.note:
             stage = f"{stage}({progress.note})"
-    elif progress.completed is not None and progress.total is not None and progress.completed < progress.total:
+    elif (
+        progress.completed is not None
+        and progress.total is not None
+        and progress.completed < progress.total
+    ):
         stage = f"実装中(ステップ {progress.completed}/{progress.total} 完了)"
     else:
         stage = "実装完了・/pr 前"
@@ -1608,7 +1611,7 @@ def collect_features(
         elif frontmatter is None:
             results.append(
                 worktree_resolution_failure_result(
-                    worktree.branch,
+                    worktree.branch or worktree.path.name,
                     worktree.branch,
                     "plan 不在",
                 )

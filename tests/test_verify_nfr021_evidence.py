@@ -7,10 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-
 
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "verify_nfr021_evidence.py"
@@ -663,7 +663,10 @@ def test_rejects_release_version_on_phase4_evidence() -> None:
         evidence_text(release_version="v1.2.3"),
     )
 
-    assert any("phase4 の結果証跡に release_version がある" in violation for violation in violations)
+    assert any(
+        "phase4 の結果証跡に release_version がある" in violation
+        for violation in violations
+    )
 
 
 @pytest.mark.parametrize(
@@ -1077,7 +1080,8 @@ def invalidation_head(root: Path) -> str:
     return git_for_invalidation(root, "rev-parse", "HEAD").stdout.strip()
 
 
-def load_real_invalidation_settings() -> object:
+# 動的読み込みしたモジュールの値なので静的型が付かない。
+def load_real_invalidation_settings() -> Any:
     """リポジトリの失効パス設定をテスト用に読み込む。
 
     Args:
@@ -1094,7 +1098,7 @@ def make_invalidation_settings(
     invalidating: tuple[str, ...] = ("/backend/**",),
     allowlist: tuple[str, ...] = (),
     default: str = "invalidating",
-) -> object:
+) -> Any:
     """照合規則を固定したテスト用の失効パス設定を作る。
 
     Args:
@@ -3373,7 +3377,7 @@ def test_allows_trailing_whitespace_in_evidence_table_headings(tmp_path: Path) -
 
 
 def test_allows_escaped_pipe_in_visible_evidence_table_value(tmp_path: Path) -> None:
-    """表セル内の \\| を区切りにせず、値の | として完全性検査へ渡す。"""
+    r"""表セル内の \| を区切りにせず、値の | として完全性検査へ渡す。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
         "| 実行コマンドと終了コード | uv run pytest (0) |",
         r"| 実行コマンドと終了コード | uv run pytest \| tee pytest.log (0) |",
@@ -3394,7 +3398,7 @@ def test_allows_escaped_pipe_in_visible_evidence_table_value(tmp_path: Path) -> 
 def test_allows_multiple_escaped_pipes_in_visible_evidence_table_value(
     tmp_path: Path,
 ) -> None:
-    """複数の \\| を含む表セルも 1 つの可視値として復元する。"""
+    r"""複数の \| を含む表セルも 1 つの可視値として復元する。"""
     body = complete_evidence_body(COMMIT_SHA, ONBOARDING_BLOB_SHA).replace(
         "| 実行コマンドと終了コード | uv run pytest (0) |",
         r"| 実行コマンドと終了コード | a \| b \| c (0) |",

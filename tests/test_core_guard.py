@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
@@ -332,6 +331,7 @@ def _load_required_check_text_from_script() -> str:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("core_guard_module", SCRIPT)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # dataclass がモジュールを解決できるよう登録してから実行する
     try:
@@ -342,7 +342,10 @@ def _load_required_check_text_from_script() -> str:
 
 
 def test_check_text_is_consistent_across_script_template_and_skill():
-    """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する(計画ステップ 5)。"""
+    (
+        """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する("""
+        """計画ステップ 5)。"""
+    )
     canonical = _load_required_check_text_from_script()
     assert canonical == REQUIRED_CHECK_TEXT  # テスト側リテラルの腐り検知
 
