@@ -331,6 +331,7 @@ def _load_required_check_text_from_script() -> str:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("core_guard_module", SCRIPT)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # dataclass がモジュールを解決できるよう登録してから実行する
     try:

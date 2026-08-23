@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -132,7 +133,8 @@ def plan_text(
 def write_plan(
     worktree: Path,
     name: str = "foo",
-    **kwargs: object,
+    # plan_text へそのまま展開するため、呼び出し側の型を保つ。
+    **kwargs: Any,
 ) -> Path:
     """worktree 内に指定内容の feature plan を書く。"""
     path = worktree / "docs" / "features" / name / "plan.md"

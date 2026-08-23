@@ -427,6 +427,7 @@ def _load_guard_common():
     spec = importlib.util.spec_from_file_location(
         "guard_common", Path(__file__).parent.parent / ".claude" / "hooks" / "guard_common.py"
     )
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -1038,6 +1039,7 @@ def test_implement_argv_puts_exec_options_before_resume():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("codex_run", WRAPPER)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     base = ["-C", "/wt", "-s", "workspace-write"]
@@ -1172,6 +1174,7 @@ def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("codex_run_sec", WRAPPER)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     monkeypatch.delenv("PITCHLOG_ALLOW_NET", raising=False)

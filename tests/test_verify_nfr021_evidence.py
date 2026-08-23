@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -1079,7 +1080,8 @@ def invalidation_head(root: Path) -> str:
     return git_for_invalidation(root, "rev-parse", "HEAD").stdout.strip()
 
 
-def load_real_invalidation_settings() -> object:
+# 動的読み込みしたモジュールの値なので静的型が付かない。
+def load_real_invalidation_settings() -> Any:
     """リポジトリの失効パス設定をテスト用に読み込む。
 
     Args:
@@ -1096,7 +1098,7 @@ def make_invalidation_settings(
     invalidating: tuple[str, ...] = ("/backend/**",),
     allowlist: tuple[str, ...] = (),
     default: str = "invalidating",
-) -> object:
+) -> Any:
     """照合規則を固定したテスト用の失効パス設定を作る。
 
     Args:
