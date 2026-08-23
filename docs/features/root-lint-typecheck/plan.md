@@ -1,6 +1,6 @@
 ---
 feature: root-lint-typecheck
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review        # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-23・山田正輝)   # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -69,8 +69,8 @@ tests/test_nfr021_append_only.py:1185・1198
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/development/dev-harness-design-2026-08-07.md` | **10.1 の CI ジョブ表の `harness` 行を現行化**(pytest だけでなく ruff・ty を実行することを反映)+ **実装追随の箇条**を追加 + 変更履歴表に追記。**規範は変更しない** | **PR レビュー**(実装追随の節更新 — 設計書 7.6-3 前段) |
-| `docs/README.md`(索引) | 設計書の行の最終更新日を現行化 | PR レビュー |
-| `docs/development/harness-evaluation.md`(運用評価台帳) | クローズ処理で判断する。**H-13 を「部分対応」として更新**(`.claude/**` が残るため「対応済み」にしない)+ **本タスクで得た知見**(型検査の欠落がレビューを通ったテストの実バグを隠していた) | PR レビュー(クローズ処理で実施) |
+| `docs/README.md`(索引) | **設計書の行と台帳の行**の最終更新日を現行化 | PR レビュー |
+| `docs/development/harness-evaluation.md`(運用評価台帳) | **① H-13 を「部分対応」として更新**(`.claude/**` が残るため「対応済み」にしない。残余 2 件を対応案へ明記)**② H-80 を新設** — 検出器の診断から原因を推定したまま、実測せずに「疑い」として正本へ書く(本タスク内で 2 回)**③ H-81 を新設** — 変異テストで「落ちない」を観測しても、変異が無効だった可能性と区別できない(本タスク 1 件 + Phase 4-5 の 2 件)**④ 変更履歴表に 2 行**(H-13 の更新 / H-80・H-81 の新設。**`H-*` の追記・更新では版を上げない**) | PR レビュー(クローズ処理で実施 — 7.6-3 前段) |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** — 要件の改訂を伴わない | — |
 | `docs/ops/nfr021-acceptance/README.md` | **反映なし** — 受入証跡の規範に触れない(失効対象パスを触るが、それは規範の変更ではない) | — |
 
