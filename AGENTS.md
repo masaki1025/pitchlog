@@ -29,6 +29,7 @@
 
 ## コマンド(実装フェーズで有効)
 
+- ハーネス(リポジトリルートで): `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/`(**`ruff format` は未導入 — 走らせない**。検査対象は `scripts/` と `tests/`)
 - バックエンド(backend/ で): `uv run ruff format` / `uv run ruff check --fix` / `uv run ty check` / `uv run pytest`
 - フロントエンド(frontend/ で): `pnpm exec prettier --write .` / `pnpm exec eslint .` / `pnpm exec vue-tsc --noEmit` / `pnpm test`
 - 開発 DB: `docker compose up -d`

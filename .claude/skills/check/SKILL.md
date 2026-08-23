@@ -9,7 +9,13 @@ argument-hint: "[対象ディレクトリ(省略時はカレント)]"
 
 ## harness(ルート `pyproject.toml` がある場合、リポジトリルートで)
 
-1. `uv run pytest tests/`(hooks・ラッパーの単体テスト)
+1. `uv run ruff check .`
+2. `uv run ty check`
+3. `uv run pytest tests/`(hooks・ラッパーの単体テスト)
+
+<!-- ルートには formatter を導入していない。`ruff format` は走らせないこと(別 PR の follow-up)。
+     検査対象は pyproject.toml の extend-exclude と [tool.ty.src] include で scripts/ と tests/ に
+     限定してある。backend/ は backend ジョブ、.claude/ は未導入(H-13 の残余)。 -->
 
 ## backend(`backend/pyproject.toml` がある場合、backend/ で)
 

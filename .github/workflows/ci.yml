@@ -78,6 +78,8 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv sync --locked --dev
+      - run: uv run ruff check .
+      - run: uv run ty check
       - run: uv run pytest tests/
 
   # NFR-021 受入証跡の append-only 統合時検査(設計書 10.1「試行の排他と採番」)。
