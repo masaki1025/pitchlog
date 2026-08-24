@@ -137,6 +137,75 @@ pnpm test -- --run
 
 > リポジトリルートのハーネス(`scripts/`・`tests/`)は検査の構成が違う — **`ruff format` は未導入なので走らせない**(5 章の項目 4 が正)。
 
-## 7. 開発フロー(要約)
+## 7. 開発 DB と起動疎通
+
+### 7-1. 環境変数ファイル
+
+リポジトリ直下の `.env.example` をコピーして `.env` を作る(`.env` は gitignore 済み。**コミットしない・値をログへ出さない** — NFR-014)。
+
+```bash
+cp .env.example .env
+```
+
+`docker-compose.yml` が要求する変数の区分:
+
+| 区分 | 変数 |
+| --- | --- |
+| **必須**(未設定なら起動しない) | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` |
+| 既定値あり | `POSTGRES_PORT`(既定 5432) |
+| **現時点では未使用** | `DATABASE_URL`(backend からまだ参照されていない。将来 backend が使う前提の予約) |
+
+パスワードを変えたときは `DATABASE_URL` も同時に更新し、URL に含める値は percent-encode する。
+
+### 7-2. 開発 DB の起動と接続確認
+
+```bash
+docker compose up -d --wait --wait-timeout 120
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1"'
+```
+
+- `--wait` が healthcheck の healthy を待つ(`docker compose ps` は待機しない)
+- **変数はコンテナ内で展開する**。`.env` は compose の変数展開に使われるだけで**呼び出し元のシェルへは export されない**ため、ホスト側で `$POSTGRES_USER` と書くと空になる
+- 期待値: `psql` の標準出力が **`1`**
+
+> やり直すときは `docker compose down -v` でボリュームごと消す。`POSTGRES_INITDB_ARGS` は**空の PGDATA の初回だけ**有効で、既存ボリュームには再適用されない。
+
+### 7-3. backend・frontend の起動疎通
+
+**backend**(`backend/` で。別のシェルを開く):
+
+```bash
+uv run fastapi dev src/pitchlog/main.py --port 8800
+```
+
+別のシェルから:
+
+```bash
+curl -fsS http://127.0.0.1:8800/health
+```
+
+期待値: **`{"status":"ok"}`**。ポート **8800** は frontend の proxy 先(`frontend/vite.config.ts`)に合わせる。
+
+**frontend**(`frontend/` で。別のシェルを開く):
+
+```bash
+pnpm dev --host 127.0.0.1 --port 5173 --strictPort
+```
+
+別のシェルから:
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5173/
+```
+
+期待値: **`200`**。`--strictPort` を付けないとポートが埋まっているとき Vite が別ポートへ移り、確認先が一意にならない。
+
+> **`--` を挟まない。** `pnpm dev -- --port …` と書くと Vite は `--` 以降を解釈せず、フラグが**黙って無視される**(実測: `--port 5199` を渡しても既定の 5173 で起動した)。`pnpm test -- --run`(6-2)は CI の記述に合わせたもので、あちらは script が既に `vitest run` のため無害。
+
+> **`/api/health` は使わない。** Vite の proxy は `/api` を**接頭辞を残したまま**転送するので、backend 側に `/api/health` は存在せず 404 になる。
+
+**終了**: 各シェルで `Ctrl-C` → `docker compose down`。
+
+## 8. 開発フロー(要約)
 
 `/task-start` → `/investigate`・`/research` → `/plan`(レビュー→人間承認)→ `/implement` → `/check` → `/sync-docs` → `/pr` → 人間マージ → `/task-done`。詳細は[ハーネス設計書](dev-harness-design-2026-08-07.md) 6 章。
