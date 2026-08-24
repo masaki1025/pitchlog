@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3c593b75e6878129a772ea258c4aea3c
 branch: feature/onboarding-approval
 created: 2026-08-24
 計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -36,6 +36,7 @@ created: 2026-08-24
 | 2 | 2026-08-24 | 設計書 13 章への追随 | ~~追随なし(論理スロット解釈)~~ → **計画レビュー 1 周目 P1-1 で撤回**。下記 3 で再裁定 |
 | 3 | 2026-08-24 | 13 章との衝突解消 | **13 章を改訂して先行を明文化する**。「onboarding の完成と approved 化は 4-6 の前提として先行 PR で実施する」を 13 章へ明記し、4-6 には `win-setup` 選定と受入判定を残す。**設計書は v1.9 として確定ゲートを通す**(本タスクの確定ゲートは 2 本になる) |
 | 4 | 2026-08-24 | onboarding 本文での Docker Desktop の扱い | **言及しない**。WSL 内 Docker Engine の一本道にする(要件書 `:919`「Docker Desktop の事前導入は前提としない」に最も単純に従う) |
+| 5 | 2026-08-24 | 確定ゲート 1 周目 P1-2 のスコープ | **スコープを拡張する**。`docs/ops/nfr021-acceptance/README.md` の実務手順へ前提 PR を挿入し、`.claude/skills/release/SKILL.md` の陳腐化表現も是正する。**README は確定ゲート対象**(10.1 `:649`)なので**本タスクの確定ゲートは 3 本**になる。規範(設計書)と実行用手順の不一致を残さないことを優先した |
 
 #### 裁定 2 を撤回した理由(計画レビュー 1 周目 P1-1)
 
@@ -122,7 +123,9 @@ created: 2026-08-24
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**。NFR-021 `:918`・DoD⑦ `:1004`・R-1 `:1016` は「approved な onboarding」を要求する条文であり、approved 化によって**充足側へ動くだけ**で文言変更は不要 | — |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | **反映なし**(I-* に onboarding への要求なし) | — |
 | `docs/adr/ADR-001` / `ADR-002` / `ADR-003` | **反映なし** | — |
-| `docs/ops/nfr021-acceptance/` の正本 4 件 | **反映なし**。`README.md:183` の「4-6 で受入を実施する」は**受入判定が 4-6 に残る**ため変更不要(裁定 1・3) | — |
+| `docs/ops/nfr021-acceptance/README.md` | **スコープ拡張(裁定 5 — 確定ゲート 1 周目 P1-2)**: 「Phase 4 のブートストラップ手順」の番号付き手順へ **Phase 4 の前提 PR を挿入**する(現行は `4-5` → `4-6` で前提 PR を飛ばしている)。**同書は「規範として競合した場合は設計書が優先する」と宣言しているが、実行用手順が旧経路のままでは別経路が残る**(H-79 の同型) | **/finalize-doc**(10.1 `:649` の文書分類が `README.md` とテンプレートを**確定ゲート対象**と定める。**本タスクの確定ゲートは 3 本目**) |
+| `docs/ops/nfr021-acceptance/` のテンプレート 3 件 | **反映なし**(証跡の様式は変わらない) | — |
+| `.claude/skills/release/SKILL.md` | **スコープ拡張(同上)**: 「`gate_kind: phase4` の受入判定は…**Phase 4 PR 上**で」を、**v1.8 で廃止した曖昧表現**のため「**受入を実施する 4-6 の PR 上**」へ是正する | PRレビュー(正本ではない。設計書 v1.8 の既存規範への追随) |
 | `.claude/nfr021-invalidating-paths.json` | **反映なし**(`:9` に既に `onboarding.md` を含む — 確認のみ) | — |
 | `.claude/skills/setup-dev/SKILL.md` / `.claude/scripts/codex_run.py` | **反映なし**(正本ではない。`SKILL.md:12,19`・`codex_run.py:193` の onboarding 参照は「配置先」を指すのみで draft 前提の語がないことを確認する) | — |
 
