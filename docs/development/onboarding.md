@@ -12,13 +12,26 @@ status: draft
 | 0.4 | 2026-08-10 | 冒頭に frontmatter(status: draft)を追加 — 状態の機械可読化(ci-foundation / docs-lint) | draft |
 | 0.5 | 2026-08-10 | 2 章の「ブランチ保護で拒否される」を現実に整合(保護は未適用 — 縮退状態の明記。正は github-setup.md。設計書 v1.1 ゲート P0-3 の伝播) | draft |
 
-pitchlog の開発に参加する開発者の初期設定手順。**開発環境は WSL2(Ubuntu 推奨)を標準とする**。Claude Code で `/setup-dev` を実行すると 3〜5 章は対話で完了できる。
+pitchlog の開発に参加する開発者の初期設定手順。**開発環境は Windows 11 上の WSL2 で完結する。受入保証対象は WSL2 のみ**(Windows ネイティブでの開発は保証対象外 — 受入条件の正は要件書 NFR-021)。Claude Code で `/setup-dev` を実行すると 3〜5 章は対話で完了できる。
 
-## 0. WSL2(必須)
+## 0. WSL2(受入保証対象の環境)
+
+**受入保証対象のディストリビューションは `Ubuntu-26.04`(番号付き x64 WSL イメージ)に固定する。** 既定名 `Ubuntu` は WSL 上で**別の識別子**として扱われ、安定版 LTS を自動追随するため保証対象としない。他ディストリビューション・他版も保証対象外(要件書 NFR-021 の受入プロファイル)。
+
+Windows ホスト側の事前導入は **WSL2 の有効化のみ**を前提とし、その他の開発ツールは**すべて本書の手順内で導入する**。
+
+新規に作成する場合(PowerShell):
+
+```powershell
+wsl --list --online          # 提供中のディストリビューション識別子を確認
+wsl --install Ubuntu-26.04   # 番号付きイメージを指定する(`Ubuntu` ではない)
+```
 
 - **WSL2 であること**: `wsl -l -v` で VERSION=2 を確認(Codex の Linux sandbox〔bubblewrap〕は **WSL1 非対応**)
 - **リポジトリは WSL 側ファイルシステム**(`~/` 配下)に置く。`/mnt/c` 配下は I/O 性能・ファイル監視の面で非推奨
 - worktree 置き場も WSL 側の兄弟ディレクトリ(例: `~/dev/pitchlog-worktrees/`)
+
+> 固定版を新しい Ubuntu LTS へ切り替えるには、(1) WSL 向けの正式提供開始 (2) 本書の更新 (3) 新版での受入再実施 の 3 点が要る(要件書 NFR-021。「最新」を都度判定する運用はとらない)。
 
 ## 1. 前提ツール(WSL 内に導入)
 
@@ -28,9 +41,11 @@ pitchlog の開発に参加する開発者の初期設定手順。**開発環境
 | Claude Code | 対話・設計・オーケストレーション | `claude --version` |
 | Codex CLI | 実装・レビュー委任(`codex_run.py` ラッパー経由。プラグインは不要) | `codex --version`・ログイン済みであること |
 | uv | Python・依存管理 | `uv --version` |
-| Python 3.12+(`python` コマンド) | hooks・codex ラッパーの実行(無いと保護が fail-open する) | `python --version`(Ubuntu は `sudo apt install python-is-python3`。sudo を使わない代替: `ln -s /usr/bin/python3 ~/.local/bin/python`) |
-| Docker | 開発 DB(PostgreSQL) | `docker --version`(Docker Desktop の WSL2 統合、または WSL 内ネイティブ導入) |
-| Node.js 20+(実装フェーズからは mise + pnpm) | フロントエンド | `node --version` |
+| Python 3.12 系(`python` コマンド) | hooks・codex ラッパーの実行(無いと保護が fail-open する) | `python --version`(Ubuntu は `sudo apt install python-is-python3`。sudo を使わない代替: `ln -s /usr/bin/python3 ~/.local/bin/python`)。**backend は `>=3.12,<3.13`**(`backend/pyproject.toml`)なので 3.13 系は使わない |
+| Docker Engine + Compose plugin | 開発 DB(PostgreSQL) | `docker compose version`。**WSL 内に Docker Engine を導入する**(受入プロファイルは Windows ホスト側の事前導入を WSL2 の有効化のみに限る — 要件書 NFR-021)。導入後 `sudo usermod -aG docker $USER` を行い、シェルを開き直して **sudo なしで `docker ps` が通る**ことを確認する |
+| mise | Node の版を `mise.toml` から解決する(版はリポジトリが正) | `mise --version` → リポジトリ直下で `mise install` |
+| Node.js | フロントエンド | `node --version` が `mise.toml` の固定版と一致すること(版を手で指定しない) |
+| pnpm | フロントエンドのパッケージ管理 | `corepack enable` → `pnpm --version` が `frontend/package.json` の `packageManager` の版と一致すること |
 
 > **罠(実例 2026-08-07)**: Windows 側の pyenv 等のシムが WSL の PATH に紛れ、`python` が「見つかるが実行できない」状態になることがある — この場合 **hooks 全体が fail-open する**。`which python` が `/mnt/c/...` を指すなら、上記いずれかの導入で WSL 側解決を先行させ、`python --version` が通ることを必ず確認する。
 
