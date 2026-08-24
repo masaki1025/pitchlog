@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3c593b75e6878129a772ea258c4aea3c
 branch: feature/onboarding-approval
 created: 2026-08-24
 計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 2          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -161,9 +161,11 @@ created: 2026-08-24
 | 6 | **`github-setup.md` の追随** — `:16` の draft 注記を解除 + 変更履歴表に 1 行(**版は上げない**)+ **索引の github-setup 行の最終更新を変更履歴の最新日へ同期**(P1-3)。あわせて `.claude/skills/setup-dev/SKILL.md:12,19` と `.claude/scripts/codex_run.py:193` に draft 前提の語がないことを確認(変更なしの見込み) | 意味限定 grep(ステップ 5 と同じ分類基準)で `github-setup.md` に onboarding を draft と述べる記述が 0 件 / 索引の github-setup 行の版セルが**未変更**・最終更新が変更履歴の最新日と一致 / `check_docs_status.py` exit 0 / `uv run pytest tests/` 全 green(skills を確認するため回帰) |
 | 7 | **設計書の確定ゲート** — `/finalize-doc docs/development/dev-harness-design-2026-08-07.md`。**指摘反映を伴う周ごとに 1 コミット**(件名に `反映<r>周目`・**ステップ記法を付けない**)し、その都度 `確定ゲート周回` を +1 | 収束記録(採用/不採用の一覧)が worklog にある / `反映<r>周目` コミットが `{1..確定ゲート周回}` と**集合として**一致(設計書 `:295`)/ **人間の承認を明示的に取得** |
 | 8 | **設計書の approved 化** — **同一コミットで** frontmatter を `approved` / 変更履歴表に **`1.9` / 状態 `approved` の行**を実承認日で追記(**ステップ 5 の `in-review` 行は原文保存** — 前例: 要件書 `:20`・`:21` の 2 行方式)/ **索引の設計書行を `approved`・版 1.9・承認日へ** | frontmatter がちょうど 3 行で `approved` / 索引 3 セルが frontmatter・変更履歴最新行と一致し `check_docs_status.py` exit 0 / **`1.9` の行が 2 行(in-review / approved)ある**(人手確認)/ **v1.8 以前の変更履歴行が未変更**(`git diff` で確認) |
-| 9 | **onboarding の確定ゲート** — `/finalize-doc docs/development/onboarding.md`。開始時に **①変更履歴表へ `1.0` / 状態 `in-review` の行を追記 ② frontmatter を `in-review` ③ 索引の onboarding 行を `in-review` / 版 `1.0` / 起案日へ**、の 3 点を**同一コミットで**行う(P1-3 — `/finalize-doc` 手順 1 は**変更履歴表も**対象)。以降はステップ 7 と同じ反映ループ | **変更履歴表に `1.0` / `in-review` 行がある**(人手確認 — `check_docs_status.py` は状態・最大版・最大日付しか見ないため検出しない)/ ステップ 7 と同じ(収束記録・周回カウンタの集合一致・人間承認)/ **in-review 中の各コミットで `check_docs_status.py` exit 0** |
-| 10 | **onboarding の approved 化 + テストの正例反転(`/implement` — Codex 委任)** — 下記「ステップ 10 の実行手順」に従い、**単一の未 push コミット**として: ① frontmatter を `status: approved` ② 変更履歴表に **`1.0` / `approved` 行**を実承認日で追記(**0.1〜0.5 と `in-review` 行は原文保存**)③ 索引の onboarding 行を `**approved**(v1.0 …)` / 版 `1.0` / 承認日へ ④ `tests/test_verify_nfr021_evidence.py:2403` の `test_real_repository_onboarding_draft_is_not_approved` を、**実 HEAD が approved であることを assert する正例へ反転**(名称も実態に合わせる。合成負例 `:2208`・`:2225` は変更しない)。**分割しない**(理由は下記) | 下記「ステップ 10 の実行手順」の **4 段すべてを実施**し、**双方向の変異確認がいずれも赤を観測**している(観測できなければ変異が無効なので手順を見直す — H-81)/ frontmatter がちょうど 3 行で `approved`(設計書 7.1-5)/ 索引 3 セルが一致し `check_docs_status.py` exit 0 / **v0.1〜v0.5 と `in-review` 行が未変更**(`git diff`)/ **コミット後の HEAD に対して** `uv run pytest tests/` 全 green / `uv run ruff check .`・`uv run ty check` exit 0 |
-| 11 | **台帳への追記** — `docs/development/harness-evaluation.md` の **H-79 の「事象」へ観測を 1 件追加**(2026-08-16 の `harness-design-review` が設計書 13 章の「103件」を除去した際、**同じ「103件」を持つ `onboarding.md:72` を確認しなかった**)+ 「再発」件数の更新 + 変更履歴表に 1 行(**`H-*` の追記・更新では版を上げない**)+ **索引の台帳行の最終更新を同期**(P1-3) | H-79 の事象・再発が更新されている / 台帳の frontmatter・索引の版セルが**未変更** / 索引の最終更新が変更履歴の最新日と一致し `check_docs_status.py` exit 0 / **新規 `H-*` を起こす場合は、その時点の develop と全 OPEN PR の最大値を確認してから採番する**(台帳 H-77。**番号を本計画に固定しない**) |
+| 9 | **受入証跡 README の確定ゲート** — `/finalize-doc docs/ops/nfr021-acceptance/README.md`(**v1.1**。ステップ 7 の反映で既に `in-review` 行・frontmatter・索引は同期済み)。反映ループはステップ 7 と同じ | 収束記録が worklog にある / `反映<r>周目` コミットが `確定ゲート周回` と**集合として**一致 / **人間の承認** |
+| 10 | **受入証跡 README の approved 化** — **同一コミットで** frontmatter を `approved` / 変更履歴へ **`1.1` / `approved` 行**を実承認日で追記(`in-review` 行は原文保存)/ **索引の当該行を `approved`・版 1.1・承認日へ** | frontmatter がちょうど 3 行で `approved` / 索引 3 セルが一致し `check_docs_status.py` exit 0 / **`1.1` の行が 2 行(in-review / approved)ある**(人手確認) |
+| 11 | **onboarding の確定ゲート** — `/finalize-doc docs/development/onboarding.md`。開始時に **①変更履歴表へ `1.0` / 状態 `in-review` の行を追記 ② frontmatter を `in-review` ③ 索引の onboarding 行を `in-review` / 版 `1.0` / 起案日へ**、の 3 点を**同一コミットで**行う(P1-3 — `/finalize-doc` 手順 1 は**変更履歴表も**対象)。以降はステップ 7 と同じ反映ループ | **変更履歴表に `1.0` / `in-review` 行がある**(人手確認 — `check_docs_status.py` は状態・最大版・最大日付しか見ないため検出しない)/ ステップ 7 と同じ(収束記録・周回カウンタの集合一致・人間承認)/ **in-review 中の各コミットで `check_docs_status.py` exit 0** |
+| 12 | **onboarding の approved 化 + テストの正例反転(`/implement` — Codex 委任)** — 下記「ステップ 10 の実行手順」に従い、**単一の未 push コミット**として: ① frontmatter を `status: approved` ② 変更履歴表に **`1.0` / `approved` 行**を実承認日で追記(**0.1〜0.5 と `in-review` 行は原文保存**)③ 索引の onboarding 行を `**approved**(v1.0 …)` / 版 `1.0` / 承認日へ ④ `tests/test_verify_nfr021_evidence.py:2403` の `test_real_repository_onboarding_draft_is_not_approved` を、**実 HEAD が approved であることを assert する正例へ反転**(名称も実態に合わせる。合成負例 `:2208`・`:2225` は変更しない)。**分割しない**(理由は下記) | 下記「ステップ 10 の実行手順」の **4 段すべてを実施**し、**双方向の変異確認がいずれも赤を観測**している(観測できなければ変異が無効なので手順を見直す — H-81)/ frontmatter がちょうど 3 行で `approved`(設計書 7.1-5)/ 索引 3 セルが一致し `check_docs_status.py` exit 0 / **v0.1〜v0.5 と `in-review` 行が未変更**(`git diff`)/ **コミット後の HEAD に対して** `uv run pytest tests/` 全 green / `uv run ruff check .`・`uv run ty check` exit 0 |
+| 13 | **台帳への追記** — `docs/development/harness-evaluation.md` の **H-79 の「事象」へ観測を 1 件追加**(2026-08-16 の `harness-design-review` が設計書 13 章の「103件」を除去した際、**同じ「103件」を持つ `onboarding.md:72` を確認しなかった**)+ 「再発」件数の更新 + 変更履歴表に 1 行(**`H-*` の追記・更新では版を上げない**)+ **索引の台帳行の最終更新を同期**(P1-3) | H-79 の事象・再発が更新されている / 台帳の frontmatter・索引の版セルが**未変更** / 索引の最終更新が変更履歴の最新日と一致し `check_docs_status.py` exit 0 / **新規 `H-*` を起こす場合は、その時点の develop と全 OPEN PR の最大値を確認してから採番する**(台帳 H-77。**番号を本計画に固定しない**) |
 
 ### 13 章改訂の条文契約(ステップ 5 — P1-1)
 
@@ -176,7 +178,7 @@ created: 2026-08-24
 | 1 | onboarding 先行 PR は **`4-1`〜`4-6` の論理スロットの外**に置く(新しいスロット番号を与えない)。呼称は「**Phase 4 の前提 PR**」 | `:808`・`:812` |
 | 2 | **`:780` の「1 PR」の例外へ第 2 の例外として前提 PR を追加**する。現在の例外は**監査 PR(予約レコード PR・失敗閉塞 PR)だけ**であり、前提 PR を明記しないと `:778`「Phase 4 のみ分割」と衝突する | `:778`・`:780` |
 | 3 | **onboarding を Phase 4 の「成果物」から「前提」へ移す**。`:795` の **8 系統を 7 系統へ**(`onboarding.md` の v1.0 化を除く)、`:788` の成果物欄からも外す | `:788`・`:795` |
-| 4 | 前提 PR は **監査 PR でも `P4-後` でもない**。マージ条件は「**通常 PR 要件 + 本 PR に含まれる 2 本の確定ゲート**」であり、**`gate_kind: phase4` の判定は課さない**(課すのは 4-6 だけ) | `:780`・`:808`・`:812` |
+| 4 | 前提 PR は **監査 PR でも `P4-後` でもない**。マージ条件は「**通常 PR 要件 + 本 PR に含まれる確定ゲート**」— **同 PR に含まれる確定ゲート対象の正本はすべて approved 化してからマージする**(onboarding v1.0 / 設計書 v1.9 / **受入証跡 README v1.1** の **3 本** — 確定ゲート 2 周目 P1)。、**`gate_kind: phase4` の判定は課さない**(課すのは 4-6 だけ) | `:780`・`:808`・`:812` |
 | 5 | 同 PR は **4-6 の受入開始前に `develop` へマージ済み**であること(`onboarding.md` は失効対象パスであり、T を採った後に触れば証跡が失効するため) | `:808`・`:817` |
 | 6 | 順序は **`4-5` → Phase 4 の前提 PR → `4-6`**。**10.1「Phase 4 のブートストラップ」が定める経路(`… → 4-5 → 4-6`)にも同じ挿入を行う**(4 周目 P1-1 — `:817` だけ直すと 10.1 と衝突する) | `:817`・**`:641`** |
 | 7 | 本数は「**監査 PR と `P4-後` を除く、論理スロット + 前提 PR の数**」と定義し、**成功時 7 本**・4-6 の再試行が n 回なら **7+n 本**。**監査 PR はブートストラップと失敗閉塞で可変なので「物理 PR 総数」は固定しない** | `:819` |
@@ -252,7 +254,8 @@ created: 2026-08-24
 - [ ] **NFR-021 の合格項目**と **CI 相当の品質検査**が本文上で書き分けられている
 - [ ] **設計書 v1.9** に「条文契約」の**明記 7 項目**が反映され(**9 条文** = 13 章の `:778`・`:780`・`:788`・`:795`・`:808`・`:812`・`:817`・`:819` + **10.1 の `:641`**)、**維持 2 規則**が改変されておらず、確定ゲートと人間承認を経て `approved`
 - [ ] 13 章の **8 系統が 7 系統**になり、onboarding が「成果物」ではなく「前提」に移っている
-- [ ] 設計書・onboarding とも変更履歴表が **`in-review` 行 → `approved` 行の 2 行**になっている(機構は検出しないため人手確認)
+- [ ] 設計書・onboarding・**受入証跡 README** とも変更履歴表が **`in-review` 行 → `approved` 行の 2 行**になっている(機構は検出しないため人手確認)
+- [ ] **受入証跡 README v1.1** がブートストラップ手順へ前提 PR を含み、確定ゲートと人間承認を経て `approved`(確定ゲート 2 周目 P1 — **同 PR の確定ゲート対象の正本を `in-review` のままマージしない**)
 - [ ] 「draft のため規範ではない」注記 **3 箇所**が解除され、意味限定 grep で同種の記述が残っていない
 - [ ] `/finalize-doc` で onboarding の**敵対レビューが収束**し、**人間の承認**を得て `status: approved` / **v1.0**
 - [ ] `tests/test_verify_nfr021_evidence.py` の実 HEAD テストが**正例へ反転**し、**一時コミットによる双方向の変異確認**でいずれも赤を観測している(作業ツリー編集では変異が効かないため)
