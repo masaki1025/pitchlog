@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in-review
 ---
 
 # 開発者オンボーディング
@@ -11,6 +11,7 @@ status: draft
 | 0.3 | 2026-08-07 | WSL 実地セットアップの知見を反映: python は Windows 側シムの罠に注意(sudo 不要の代替手順を追記)/ trust 設定はインライン表形式への追記に注意 / bubblewrap は同梱版で動作 | draft |
 | 0.4 | 2026-08-10 | 冒頭に frontmatter(status: draft)を追加 — 状態の機械可読化(ci-foundation / docs-lint) | draft |
 | 0.5 | 2026-08-10 | 2 章の「ブランチ保護で拒否される」を現実に整合(保護は未適用 — 縮退状態の明記。正は github-setup.md。設計書 v1.1 ゲート P0-3 の伝播) | draft |
+| 1.0 | 2026-08-25 | **Phase 4 完了時受入の前提として本文を完成させ approved 化へ(起案)**: **① 陳腐化した固定テスト件数を除去**(「正負テスト 103 件」— 実測は 652。設計書 8.3「固定件数は腐るため書かない」への追随。設計書 13 章の同じ「103件」は 2026-08-16 に除去済みで本書が取り残されていた — 台帳 H-79 の実例)+ **射程の是正**(`tests/` のうち hooks は `test_hooks.py` のみで残りは `scripts/` の検査)+ **動作確認章を CI harness ジョブの現行へ追随**(`ruff check`・`ty check` を追加)。**② 受入プロファイル(要件書 NFR-021)との整合**: 受入保証対象を **`Ubuntu-26.04`(番号付き x64 WSL イメージ)に固定**(既定名 `Ubuntu` は別識別子のため対象外)/ **新規ディストリビューションの作成手順**を追加 / **Docker Desktop への言及を除去**し WSL 内 Docker Engine 一本へ(同書は事前導入を前提としない)/ 用語を「標準」「必須」の混在から**「受入保証対象」へ統一** / Node・Python の版表記を `mise.toml`・`backend/pyproject.toml` の実体へ(**版は直書きせずリポジトリを正として参照**)。**③ 本文の完成**(設計書 13 章が approved 化の要件とする「実際の依存導入・DB 初期化・起動・疎通確認まで」): **6 章に依存の導入と検証**(NFR-021 の合格項目と CI 相当の品質検査を**別節に書き分け**)、**7 章に開発 DB と起動疎通**(環境変数の区分・`docker compose up -d --wait`・コンテナ内での接続確認・backend/frontend の起動疎通と終了手順)を新設。これにより **Phase 4 の合格 5 項目すべてに対応する手順**が揃った(従来は 4 項目が完走不可)。計画: `docs/features/onboarding-approval/plan.md` | in-review |
 
 pitchlog の開発に参加する開発者の初期設定手順。**開発環境は Windows 11 上の WSL2 で完結する。受入保証対象は WSL2 のみ**(Windows ネイティブでの開発は保証対象外 — 受入条件の正は要件書 NFR-021)。Claude Code で `/setup-dev` を実行すると 3〜5 章は対話で完了できる。
 
