@@ -43,8 +43,8 @@ wsl --install Ubuntu-26.04   # 番号付きイメージを指定する(`Ubuntu` 
 | uv | Python・依存管理 | `uv --version` |
 | Python 3.12 系(`python` コマンド) | hooks・codex ラッパーの実行(無いと保護が fail-open する) | `python --version`(Ubuntu は `sudo apt install python-is-python3`。sudo を使わない代替: `ln -s /usr/bin/python3 ~/.local/bin/python`)。**backend は `>=3.12,<3.13`**(`backend/pyproject.toml`)なので 3.13 系は使わない |
 | Docker Engine + Compose plugin | 開発 DB(PostgreSQL) | `docker compose version`。**WSL 内に Docker Engine を導入する**(受入プロファイルは Windows ホスト側の事前導入を WSL2 の有効化のみに限る — 要件書 NFR-021)。導入後 `sudo usermod -aG docker $USER` を行い、シェルを開き直して **sudo なしで `docker ps` が通る**ことを確認する |
-| mise | Node の版を `mise.toml` から解決する(版はリポジトリが正) | `mise --version` → リポジトリ直下で `mise install` |
-| Node.js | フロントエンド | `node --version` が `mise.toml` の固定版と一致すること(版を手で指定しない) |
+| mise | Node の版を `mise.toml` から解決する(版はリポジトリが正 — CI も同じ) | 導入: `curl https://mise.run \| sh` → シェル設定へ `eval "$(~/.local/bin/mise activate bash)"` を追加して開き直す → `mise --version` |
+| Node.js | フロントエンド | リポジトリ直下で `mise install` → `node --version` が `mise.toml` の固定版と一致すること(**版を手で指定しない**)。既存環境で nvm 等を使っている場合も、**固定版と一致していることを確認する** |
 | pnpm | フロントエンドのパッケージ管理 | `corepack enable` → `pnpm --version` が `frontend/package.json` の `packageManager` の版と一致すること |
 
 > **罠(実例 2026-08-07)**: Windows 側の pyenv 等のシムが WSL の PATH に紛れ、`python` が「見つかるが実行できない」状態になることがある — この場合 **hooks 全体が fail-open する**。`which python` が `/mnt/c/...` を指すなら、上記いずれかの導入で WSL 側解決を先行させ、`python --version` が通ることを必ず確認する。
@@ -89,6 +89,54 @@ trust_level = "trusted"
 5. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
 6. 生の `codex exec` がブロックされ、ラッパー経由の案内が出ること(codex_guard の実地確認)
 
-## 6. 開発フロー(要約)
+## 6. 依存の導入と検証(backend / frontend)
+
+5 章まででハーネスは動く。ここから pitchlog 本体の依存を入れる。
+
+### 6-1. NFR-021 の合格項目
+
+**受入(NFR-021)で確認するのはこの 3 つだけ**(ハーネスの pytest は 5 章の項目 3)。合格条件の正は要件書 NFR-021 の測定方法。
+
+**backend**(`backend/` で):
+
+```bash
+uv sync --locked --dev
+uv run pytest
+```
+
+**frontend**(まずリポジトリ直下で `mise install`・`corepack enable` を済ませてから `frontend/` で):
+
+```bash
+pnpm install --frozen-lockfile
+pnpm test
+```
+
+いずれも**全グリーン**であること。**件数は書かない** — 実行結果を正とする([ハーネス設計書](dev-harness-design-2026-08-07.md) 8.3)。
+
+### 6-2. CI 相当の品質検査
+
+**受入の合格項目ではない**が、PR を出す前に手元で通しておくと CI の往復が減る。CI(`.github/workflows/ci.yml`)の backend / frontend ジョブと同じコマンド列:
+
+**backend**(`backend/` で):
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check
+uv run pytest --cov
+```
+
+**frontend**(`frontend/` で):
+
+```bash
+pnpm exec eslint .
+pnpm exec prettier --check .
+pnpm exec vue-tsc --noEmit
+pnpm test -- --run
+```
+
+> リポジトリルートのハーネス(`scripts/`・`tests/`)は検査の構成が違う — **`ruff format` は未導入なので走らせない**(5 章の項目 4 が正)。
+
+## 7. 開発フロー(要約)
 
 `/task-start` → `/investigate`・`/research` → `/plan`(レビュー→人間承認)→ `/implement` → `/check` → `/sync-docs` → `/pr` → 人間マージ → `/task-done`。詳細は[ハーネス設計書](dev-harness-design-2026-08-07.md) 6 章。
