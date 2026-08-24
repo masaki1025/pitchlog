@@ -231,3 +231,32 @@ v.parse_onboarding_status(status を approved にした内容) -> 'approved'
 
 - **H-79**: 是正時に「同じ概念を参照する全節を列挙したか」を問う → D-1 の 3 箇所(+ 10.1・13 章の確認)を同時に扱う
 - **H-80**: 実測せずに原因を推定して正本へ書かない → 件数は本メモの実測(652)を典拠にし、除去方針は設計書 8.3 の明文を典拠にする
+
+## 追加調査: Ubuntu 26.04 / WSL2 の導入手順(2026-08-25 — 確定ゲート 1 周目 P0 対応)
+
+`/research`(Codex・live search)+ **重要な事実は WebFetch で自分でも確認**した(CLAUDE.md の規律)。
+
+### 自分で一次情報を確認したもの
+
+| 事実 | 典拠 | 確認方法 |
+| --- | --- | --- |
+| **Ubuntu 26.04(resolute)の `python3` は 3.14.3** | [packages.ubuntu.com/en/resolute/python3](https://packages.ubuntu.com/en/resolute/python3) | WebFetch で直接確認 |
+| **uv は必要な Python を既定で自動ダウンロードする**(`python-downloads` の既定が `automatic`)。`.python-version` を `requires-python` より優先して読む | [docs.astral.sh/uv/concepts/python-versions](https://docs.astral.sh/uv/concepts/python-versions/) | 同上 |
+| `wsl --list --online` / `wsl --install -d <名>` / `wsl --list --verbose` / `wsl --set-default-version <1\|2>` / `wsl --set-version <Distro> <1\|2>` / 初回起動でユーザー作成 | [learn.microsoft.com/windows/wsl/install](https://learn.microsoft.com/en-us/windows/wsl/install)(2026-06-02 更新) | 同上 |
+
+### Codex の調査結果(典拠 URL つき・未再確認)
+
+| 項目 | 結論 | 典拠 |
+| --- | --- | --- |
+| Docker Engine + Compose | 公式 APT 手順。WSL2 では `[boot] systemd=true` + `systemctl` か `service docker start`。`docker` グループ + `newgrp`。**WSL 停止で daemon も止まる** | docs.docker.com/engine/install/ubuntu, /linux-postinstall, learn.microsoft.com/windows/wsl/systemd |
+| gh / uv / mise / Claude Code / Codex CLI | 各公式手順。**mise の activate 追記先は `~/.bashrc`** | cli.github.com, docs.astral.sh/uv, mise.jdx.dev, docs.anthropic.com, learn.chatgpt.com/docs/codex/cli |
+| **bubblewrap** | **同梱 helper に頼らず `apt install bubblewrap` を先に行う**のが公式の案内。同梱 helper は `bwrap` 不在時の fallback で **unprivileged user namespace を作れることが条件**。26.04 の WSL マニフェストには収録済みだが明示導入が安全 | [learn.chatgpt.com/docs/sandboxing](https://learn.chatgpt.com/docs/sandboxing), [Ubuntu 26.04 WSL x64 manifest](https://releases.ubuntu.com/26.04/ubuntu-26.04-wsl-amd64.manifest)(2026-04-20) |
+| **corepack** | 起点から親へ遡り**最も近い `package.json`** の `packageManager` を読む → `pnpm --version` は **`frontend/` で実行**する | nodejs.org の Corepack ドキュメント, corepack の `specUtils.ts` |
+| 基礎パッケージ | 26.04 の WSL マニフェストに `curl`・`ca-certificates`・`git`・`gnupg`・`bubblewrap` を収録。ただし**明示 install を正とする**(将来の point release で変わりうる) | 同マニフェスト |
+| Python 3.12 の入手 | **uv を推奨**。deadsnakes PPA は resolute がサポート一覧に無い。pyenv はソースビルドが要る | 上記 uv ドキュメント |
+
+### 本タスクのスコープ外として申し送る発見
+
+**hooks は 3.12.3 でテストされ、3.14 系で実行される。** CI の harness ジョブは `uv python install` → `uv run pytest tests/` なので `.python-version`(3.12.3)で走るが、hooks の実行時は `.claude/settings.json` が `/usr/bin/python3` を**絶対パス**で起動するため、受入プロファイル(Ubuntu 26.04)では **3.14 系**になる。hooks は標準ライブラリのみ(`json`・`os`・`re`・`shlex`・`subprocess`・`sys`・`dataclasses`・`enum`・`pathlib`)なので動く公算は高いが、**受入プロファイル上の実行版がテストされていない**。
+
+これは onboarding ではなく **CI とフック設計の問題**であり、本計画のスコープ外。**台帳の候補として申し送る**。
