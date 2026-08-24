@@ -9,7 +9,7 @@
 | [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.2 — NFR-018 (b) の再構成・FR-022 の列定義・FR-006 の undo 対象。敵対レビュー25周 → PO 承認) | 2.2 | 2026-08-19 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.8 — 10.1 と 13 章の 8 箇所を改訂。敵対レビュー6周 → PO 承認) | 1.8 | 2026-08-23 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | in-review(v1.9 — `onboarding.md` の approved 化を Phase 4 の前提として明文化。確定ゲート中) | 1.9 | 2026-08-24 |
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-24 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
