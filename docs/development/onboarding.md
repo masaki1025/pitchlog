@@ -69,9 +69,10 @@ trust_level = "trusted"
 
 1. Claude Code を起動 → SessionStart フックが「現在ブランチ…」を表示すること
 2. `/permissions` で `.claude/settings.json` のルールが有効に見えること(Bash パターン構文が現行仕様か確認)
-3. `uv run pytest tests/` が全グリーンであること(hooks・ラッパーの正負テスト 103 件)
-4. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
-5. 生の `codex exec` がブロックされ、ラッパー経由の案内が出ること(codex_guard の実地確認)
+3. `uv run pytest tests/` が全グリーンであること(hooks・codex ラッパー・`scripts/` の検査に対する正負テスト。**件数は CI の harness ジョブの実行結果を正とする** — 固定件数は腐るため書かない〔[ハーネス設計書](dev-harness-design-2026-08-07.md) 8.3〕)
+4. `uv run ruff check .` と `uv run ty check` がいずれもエラーなしであること(CI の harness ジョブと同じ検査。**`ruff format` は未導入 — 走らせない**)
+5. main ブランチ上で `git commit` を試みるとブロックされること(git_guard の実地確認)
+6. 生の `codex exec` がブロックされ、ラッパー経由の案内が出ること(codex_guard の実地確認)
 
 ## 6. 開発フロー(要約)
 
