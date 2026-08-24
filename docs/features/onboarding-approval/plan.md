@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3c593b75e6878129a772ea258c4aea3c
 branch: feature/onboarding-approval
 created: 2026-08-24
 計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -126,7 +126,7 @@ created: 2026-08-24
 | `docs/ops/nfr021-acceptance/README.md` | **スコープ拡張(裁定 5 — 確定ゲート 1 周目 P1-2)**: 「Phase 4 のブートストラップ手順」の番号付き手順へ **Phase 4 完了時受入の前提 PR を挿入**する(現行は `4-5` → `4-6` で前提 PR を飛ばしている)。**同書は「規範として競合した場合は設計書が優先する」と宣言しているが、実行用手順が旧経路のままでは別経路が残る**(H-79 の同型) | **/finalize-doc**(10.1 `:649` の文書分類が `README.md` とテンプレートを**確定ゲート対象**と定める。**本タスクの確定ゲートは 3 本目**) |
 | `docs/ops/nfr021-acceptance/` のテンプレート 3 件 | **反映なし**(証跡の様式は変わらない) | — |
 | `.claude/skills/release/SKILL.md` | **スコープ拡張(同上)**: 「`gate_kind: phase4` の受入判定は…**Phase 4 PR 上**で」を、**v1.8 で廃止した曖昧表現**のため「**受入を実施する 4-6 の PR 上**」へ是正する | PRレビュー(正本ではない。設計書 v1.8 の既存規範への追随) |
-| `.claude/nfr021-invalidating-paths.json` | **反映なし**(`:9` に既に `onboarding.md` を含む — 確認のみ) | — |
+| `.claude/nfr021-invalidating-paths.json` | **`description` のみ更新**(ステップ 7 — 確定ゲート 2 周目 P1-3)。「読み手 = `verify_nfr021_evidence.py`(Phase 4-5 で**実装予定**)」を**実装済み**へ。**規則(`default`・`invalidating`・`allowlist`)は変更しない**(`:9` に既に `onboarding.md` を含む — 確認のみ) | PRレビュー(正本ではない。実装追随) |
 | `.claude/skills/setup-dev/SKILL.md` / `.claude/scripts/codex_run.py` | **反映なし**(正本ではない。`SKILL.md:12,19`・`codex_run.py:193` の onboarding 参照は「配置先」を指すのみで draft 前提の語がないことを確認する) | — |
 
 ## 4. 実装方針
