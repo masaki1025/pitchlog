@@ -1,6 +1,6 @@
 ---
 feature: onboarding-approval
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -118,7 +118,7 @@ created: 2026-08-24
 | `docs/development/onboarding.md` | **全面改訂**(件数除去・射程是正・動作確認追随・受入プロファイル整合・用語統一・依存導入/DB/起動疎通の新章)+ **`draft` 0.5 → `approved` 1.0**・変更履歴に 1.0 行(0.1〜0.5 は原文保存) | **/finalize-doc**(版繰り上げ + 状態遷移 = 7.6-3 後段・設計書 `:638` が名指し) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **v1.9**: ① **13 章へ「onboarding の完成と v1.0 approved 化は 4-6 の前提として先行 PR で実施する」を明記**し、4-6 の定義から当該項目を外す(裁定 3)② `:475`(8.4 `/setup-dev`)・`:839`(14 章 論点C)の「同書は現在 draft — approved 化までは規範ではない」注記を解除 ③ 変更履歴に v1.9 行 | **/finalize-doc**(**4-6 のマージ条件の適用範囲を変える規範追加** = 7.6-3 後段。前例 `github-setup.md:14` v1.1「マージ可否の手続を変える規範追加であるため実装追随ではなく確定ゲートを通す」) |
 | `docs/development/github-setup.md` | `:16` の draft 注記を解除 + 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PRレビュー(参照先の状態表記の是正。本書の内容・決定は不変 — 前例 `docs/features/req-v1-9-nfr021-wsl2/plan.md:90`) |
-| `docs/development/harness-evaluation.md` | **H-79 へ本タスクの観測を 1 件追加**(2026-08-16 の `harness-design-review` が設計書 13 章の固定件数「103件」を除去した際、同じ「103件」を持つ `onboarding.md:72` を確認しなかった)+ 変更履歴表に 1 行(**`H-*` の追記・更新では版を上げない** — 前例 `:33`) | PRレビュー |
+| `docs/development/harness-evaluation.md` | **H-79 へ本タスクの観測を 2 件追加**(1 件目は当初宣言どおり。**2 件目は確定ゲート 7 周目で著者自身が同型の欠陥を踏んだ観測**— 待機の是正を文字列検索で行い `--wait` を取りこぼした。**同一項目の事象欄への追記でありスコープは変えていない**)+ 再発を 2 → 4 件へ更新(2026-08-16 の `harness-design-review` が設計書 13 章の固定件数「103件」を除去した際、同じ「103件」を持つ `onboarding.md:72` を確認しなかった)+ 変更履歴表に 1 行(**`H-*` の追記・更新では版を上げない** — 前例 `:33`) | PRレビュー |
 | `docs/README.md`(索引) | **4 行を更新**(P1-3): ① onboarding 行 → `**approved**(v1.0 …)` / 版 `1.0` / 承認日 ② 設計書行 → 版 `1.9` / 承認日(状態は in-review を経て approved へ)③ github-setup 行 → 最終更新を変更履歴の最新日へ ④ 台帳行 → 同左。**中間状態(in-review)でコミットする際も frontmatter・変更履歴の最新日と同期させる** | PRレビュー(各 /finalize-doc 手順 6 の一部を含む) |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**。NFR-021 `:918`・DoD⑦ `:1004`・R-1 `:1016` は「approved な onboarding」を要求する条文であり、approved 化によって**充足側へ動くだけ**で文言変更は不要 | — |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | **反映なし**(I-* に onboarding への要求なし) | — |
@@ -128,6 +128,13 @@ created: 2026-08-24
 | `.claude/skills/release/SKILL.md` | **スコープ拡張(同上)**: 「`gate_kind: phase4` の受入判定は…**Phase 4 PR 上**で」を、**v1.8 で廃止した曖昧表現**のため「**受入を実施する 4-6 の PR 上**」へ是正する | PRレビュー(正本ではない。設計書 v1.8 の既存規範への追随) |
 | `.claude/nfr021-invalidating-paths.json` | **`description` のみ更新**(ステップ 7 — 確定ゲート 2 周目 P1-3)。「読み手 = `verify_nfr021_evidence.py`(Phase 4-5 で**実装予定**)」を**実装済み**へ。**規則(`default`・`invalidating`・`allowlist`)は変更しない**(`:9` に既に `onboarding.md` を含む — 確認のみ) | PRレビュー(正本ではない。実装追随) |
 | `.claude/skills/setup-dev/SKILL.md` / `.claude/scripts/codex_run.py` | **反映なし**(正本ではない。`SKILL.md:12,19`・`codex_run.py:193` の onboarding 参照は「配置先」を指すのみで draft 前提の語がないことを確認する) | — |
+
+**正本体系外だが同一 PR で更新するもの**(索引に載らないため上表の機械突合の対象外 — `check_plan_docs_sync.py` の除外規則)
+
+| ファイル | 変更内容 | 理由 |
+| --- | --- | --- |
+| `tests/test_verify_nfr021_evidence.py` | `test_real_repository_onboarding_draft_is_not_approved` を **`test_real_repository_onboarding_is_approved` へ反転**(`assert reasons == ()`)| onboarding が approved になると**現 HEAD の blob が draft である前提の負例が成立しなくなり実際に赤くなる**。**合成負例 2 件(`:2208`・`:2225`)は未変更**で、負例側の検査能力はそちらが担保する。ステップ 10 の同一コミットに含める(frontmatter と正例テストは相互依存し、片方だけのコミットは必ず赤) |
+| `.claude/skills/release/SKILL.md` / `.claude/nfr021-invalidating-paths.json` | 上表に記載 | `.claude/**` は正本体系外だが、設計書 v1.9 の改訂に実運用を追随させるため同一 PR で運ぶ |
 
 ## 4. 実装方針
 
