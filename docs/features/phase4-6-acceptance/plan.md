@@ -1,14 +1,14 @@
 ---
 feature: phase4-6-acceptance
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-08-26・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-08-26・山田正輝 — スコープ追加を再承認)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3c793b75e68781cb8aa1d50dc7403237
 branch: feature/phase4-6-acceptance
 created: 2026-08-25
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -32,6 +32,7 @@ created: 2026-08-25
 ### やること
 
 1. **win-setup ランナー選定の確定と、その記録**。**選定結果は (d) = GitHub-hosted ランナーを採用せず、WSL 固有の継続検証は要件書 NFR-021 が定める 2 時点の手動再現に一本化する**(PO 決定 2026-08-25 — research.md G-1)。**設計書の版繰り上げ + 確定ゲート**(`/finalize-doc`)で通す
+1. **`onboarding.md` 2 章の一般化(v1.1)** — 受入判定時に**判定対象の候補コミット**を取得する手順を本文へ組み込む。**確定ゲート 1 周目 P0 の反映**(スコープ追加 — PO 決定 2026-08-26)。設計書 v1.10 と同一ゲートで通す
 2. **台帳への follow-up 登録**(self-hosted runner を将来の選択肢として送る / 本調査で判明した scheduled workflow の制約)
 3. **NFR-021 `gate_kind: phase4` の受入実施**(approved な `onboarding.md` v1.0 の手順を受入プロファイル上の新規環境で完走 — 実施者 = 判定者 = PO)
 4. **結果証跡の作成**と、未閉塞の予約 `attempt_id: phase4-001-20260819T142916Z` の閉塞
@@ -56,11 +57,11 @@ created: 2026-08-25
 | --- | --- | --- |
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **10.1 の CI ジョブ表の `win-setup` 行**(`:621`)を選定結果へ改訂 + **同 10.1「CI との関係」行**(`:652`)の「**ランナー未決の間は**」という条件付き表現を恒常の規定へ改訂 + **「Phase 4-6 実装追随」の箇条**を追加 + 変更履歴表へ追記。**版繰り上げ v1.9 → v1.10** | **/finalize-doc**(確定ゲート = 敵対レビュー → 人間承認)。判定根拠は下記 |
 | [ハーネス運用評価台帳](../../development/harness-evaluation.md) | follow-up を 2 件追記 — ① self-hosted runner を WSL 固有検証の将来の選択肢として登録 ② scheduled workflow は default branch でしか走らず、`main` に検証対象が存在しないという制約(本調査で判明・既存正本に記載なし) | **PR レビュー**(`H-*` の追記では版を上げない — 7.6-3 前段) |
-| [docs/README.md](../../README.md)(索引) | **設計書行を 2 段階で更新** — ① ステップ 1 で **`in-review`・版欄 `1.10`・最終更新日を v1.10 の変更履歴行の日付へ**(3 つとも同一コミット。`check_docs_status.py` は状態・版に加えて**索引日付が変更履歴の最新日付以上**であることも検査するため、日付を据え置くとステップ 1 自身の検査が落ちる)② `/finalize-doc` の承認後に **`approved`・最終日付**へ現行化(同スキル手順 6)。加えて**台帳行の最終更新日**をステップ 2 で現行化 | **①②は /finalize-doc と一体** / 台帳行は **PR レビュー** |
+| [docs/README.md](../../README.md)(索引) | **設計書行を 2 段階で更新** — ① ステップ 1 で **`in-review`・版欄 `1.10`・最終更新日を v1.10 の変更履歴行の日付へ**(3 つとも同一コミット。`check_docs_status.py` は状態・版に加えて**索引日付が変更履歴の最新日付以上**であることも検査するため、日付を据え置くとステップ 1 自身の検査が落ちる)② `/finalize-doc` の承認後に **`approved`・最終日付**へ現行化(同スキル手順 6)。加えて **`onboarding.md` 行も同じ 2 段階で更新**(① ステップ 1 で `in-review`・版 `1.1`・日付 ② 承認後に `approved`)。さらに**台帳行の最終更新日**をステップ 2 で現行化 | **①②は /finalize-doc と一体** / 台帳行は **PR レビュー** |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **反映なし** | — (理由は下記) |
 | [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [ADR-003](../../adr/ADR-003-domain-calc-method.md) | **反映なし** | — |
 | [改善台帳](../../improvements-from-baseball-scoring.md) | **反映なし** | — |
-| [オンボーディング](../../development/onboarding.md) | **反映なし** | — (失効対象パスであり、`T` を採った後に触れば証跡が失効する) |
+| [オンボーディング](../../development/onboarding.md) | **2 章を一般化して v1.1 へ** — 「`develop` へ切り替える」を、**NFR-021 の受入判定を実施する場合は判定対象の候補コミットを取得する**手順へ拡張する。**既存の不整合の解消**であり本タスクが作った問題ではない(現行 2 章は `develop` を要求する一方、受入 README `:191` は「**予約を含む候補ツリー**で完走」と定めており、両者は一般に一致しない)。変更履歴表へ v1.1 を追記 | **/finalize-doc**(設計書 v1.10 と**同一の確定ゲート**で通す。前提 PR が 3 本の正本を 1 ゲートで通した前例に倣う) |
 | [GitHub リポジトリ設定手順](../../development/github-setup.md) | **反映なし** | — |
 | [NFR-021 受入証跡の運用](../../ops/nfr021-acceptance/README.md) および同ディレクトリのテンプレート 3 種 | **反映なし** | — |
 
@@ -148,22 +149,16 @@ created: 2026-08-25
 
 判定者(PO)が受入プロファイル上の新規環境で `onboarding.md` v1.0 の 0〜8 章を完走する。Claude は操作補助と記録の起草のみ(設計書 `:638`)。合格項目 5 は sandbox でソケット bind ができず Codex へ委任できない(台帳 H-69 (c))ため、**委任計画を立てない**。人手必須箇所は research.md B-5(7 系統 17 件)。
 
-**受入対象のツリーの取得方法**(計画レビュー 1 周目 P0・2 周目 P2・**3 周目 P0** の反映)。
+**受入対象のツリーの取得方法**(確定ゲート **1 周目 P0** により全面改訂)。
 
-`onboarding.md` 2 章の develop 切り替えをそのまま行うと、**`develop` には本 PR の変更が入っておらず `T` を試験したことにならない**。同章の注記が排除しているのは `main` のみであり(`onboarding.md:206`)、受入 README `:191` は「**予約を含む候補ツリー**で完走」と定める(research.md F-1 の裁定)。
+**当初案(onboarding 2 章の 2 行を「置換」して実行する)は撤回した。** 要件書 NFR-021 の測定方法は「**approved な** `onboarding.md` の手順を完走」を **Must** として要求しており、**判定者に合否判断権はあっても approved 手順の変更権・Must の免除権は無い**。置換して実行した試行は、証跡へ正直に書いても Must を満たさない。
 
-**ただし detached checkout は採れない**(3 周目 P0)。`onboarding.md` 6 章 項目 5 は **`develop` 上で git_guard が拒否すること**を合格条件とするが(`onboarding.md:300`)、`git_guard.py` の `current_branch` は `git rev-parse --abbrev-ref HEAD` を使うため、**detached HEAD では文字列 `HEAD` が返り、`PROTECTED` にも「解決不能」にも該当せずガードが発火しない**(`git_guard.py:467-473`)。結果として**受入項目そのものが落ちる**。
+**代わりに `onboarding.md` 自体を v1.1 へ一般化し、確定ゲートで approved 化してから逐語どおり実行する。**
 
-**したがって「`T` を指すローカル `develop` ブランチ」で試験する。** 候補ツリーの固定と 6 章の成立を両立させる唯一の形である。
-
-| onboarding 2 章の行 | 受入時に代わりに実行する |
-| --- | --- |
-| clone 直後の切り替え | **`origin` から feature ブランチを明示的に fetch したうえで、ローカル `develop` を `T` の位置へ強制的に作り直して切り替える**(`git fetch origin feature/phase4-6-acceptance` → `git switch -C develop <T>` 相当)。**これはローカル ref だけを変え、`origin/develop` は更新しない** |
-| `develop` であることを確認する行 | **逐語どおり実施**(`git branch --show-current` が `develop` であること)**に加えて、`git rev-parse HEAD` の出力が `T` と完全一致することを確認する** |
-
-これにより **① 現在ブランチ名 = `develop`**(6 章 項目 5 の git_guard 試験が成立する)**② ツリー = `T`**(候補ツリーを試験している)の両方が満たされる。**3 章以降は逐語どおり実施する。**
-
-**この置換は approved な手順の逐語からの逸脱**であり、**判定者の了解事項として本書に記録する**。証跡の「実行コマンドと終了コード」欄にも置換後の実コマンドを、「各合格項目の期待値と実測値」欄に `git rev-parse HEAD` の実測値を記録する。
+- **これは本タスクが作った問題ではなく、既存の不整合の解消である。** 現行 2 章は `develop` への切り替えを要求する一方、受入 README `:191` は「**予約を含む候補ツリー**で完走」と定めており、**両者は一般に一致しない**。放置すればリリース候補時の受入でも同じ衝突が起きる
+- **v1.1 で 2 章に加える内容**: 通常のセットアップでは `develop` へ切り替える(現行どおり)。**NFR-021 の受入判定を実施する場合は、判定対象の候補コミットを取得する** — 具体的には feature ブランチを明示 fetch し、**ローカル `develop` を候補コミットの位置へ作り直して切り替える**。確認は `git branch --show-current` が `develop`、かつ `git rev-parse HEAD` が候補コミットと一致すること
+- **ブランチ名を `develop` に保つ理由も本文へ書く**: 6 章 項目 5 は **`develop` 上で git_guard が拒否すること**を合格条件とするが、`git_guard.py` の `current_branch` は `git rev-parse --abbrev-ref HEAD` を使うため、**detached HEAD では文字列 `HEAD` が返り `PROTECTED` にも「解決不能」にも該当せずガードが発火しない**。detached checkout では**受入項目そのものが落ちる**
+- **`onboarding_blob_sha` は v1.1 の blob になる。** `T` は v1.1 を含むコミットであり、**approved 化は `T` より前**に完了している必要がある(10.1 実施順序 ①)
 
 #### `E` を作った後に不合格になった場合の復帰経路(計画レビュー 2 周目 P1 の反映)
 
@@ -191,7 +186,7 @@ created: 2026-08-25
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | 設計書 10.1 の `win-setup` 行(`:621`)と「CI との関係」行(`:652`)を選定結果へ改訂し、「Phase 4-6 実装追随」の箇条を追加、変更履歴表へ 1 行追記して **v1.10 を起案**する(frontmatter は `in-review`)。**同一コミットで `docs/README.md` の設計書行を `in-review`・版欄 `1.10` へ更新する** | **10.1 の節内に限定した検査**(`awk '/^### 10\.1/,/^### 10\.2/' docs/development/dev-harness-design-2026-08-07.md` の出力)に対し、`ランナーは未決` / `ランナー未決` / `Phase 4 で選定` が **0 件**、かつ **`win-setup`(定期)というジョブ表記が残っていない**(「定期検証は置かない」と矛盾するため)/ 3 節「選定結果の記載内容」の 5 項目がすべて本文に現れる / 変更履歴表の末尾が v1.10 / `uv run python scripts/check_docs_status.py` が終了コード 0 / `uv run pytest tests/`・`uv run ruff check .`・`uv run ty check` がいずれも終了コード 0 |
-| 2 | 台帳 `harness-evaluation.md` へ follow-up を 2 件追記し(① self-hosted runner を WSL 固有検証の将来の選択肢として登録 ② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約)、`docs/README.md` の**台帳行の最終更新日**を現行化する | 台帳の既存記法どおり ID・追跡優先度・典拠が埋まっている / 台帳の変更履歴表に 1 行追記され**版は上がっていない** / `check_docs_status.py` が終了コード 0 / `uv run pytest tests/` が終了コード 0 |
+| 2 | 台帳 `harness-evaluation.md` へ follow-up を 2 件追記し(① **self-hosted runner を WSL 固有検証の将来の選択肢として登録** — **再検討トリガー / 判断者 / 最低限の安全条件 / hosted と self-hosted のどちらを再検討するか の 4 項目を必ず持たせる**〔確定ゲート 1 周目 P2〕② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約)、`docs/README.md` の**台帳行の最終更新日**を現行化する | 台帳の既存記法どおり ID・追跡優先度・典拠が埋まっている / **① の 4 項目(トリガー・判断者・安全条件・対象)がすべて記載されている** / 台帳の変更履歴表に 1 行追記され**版は上がっていない** / `check_docs_status.py` が終了コード 0 / `uv run pytest tests/` が終了コード 0 |
 
 **変更履歴表と 13 章の記述は検査対象にしない。** 「ランナーは未決」「Phase 4 で選定」は**過去の決定を記録した歴史的事実**として変更履歴表(`:35` 等)と 13 章 4-6 行(`:810`)に残る。**歴史は消さない**(7.1-4 — 冒頭表は遷移履歴)。是正対象は 10.1 の**現行規範**だけである。
 
@@ -225,8 +220,9 @@ created: 2026-08-25
 
 - [ ] **win-setup ランナーの選定が確定し、設計書 10.1 に一意化して記録されている**(ランナー / 媒体 / 実施者 / 時点 / self-hosted の扱いの 5 項目)。10.1 に「未決」表現が 1 件も残っていない
 - [ ] **設計書が確定ゲートを通過し v1.10 approved になっている**(`/finalize-doc`)
+- [ ] **`onboarding.md` が同じ確定ゲートを通過し v1.1 approved になっている**(2 章に受入判定時の候補コミット取得手順が含まれる)
 - [ ] 台帳へ follow-up が 2 件登録され、`docs/README.md` の索引が現行化されている
-- [ ] **approved な `onboarding.md` v1.0 の 0〜8 章を、受入プロファイル(Windows 11 x64 + 新規 Ubuntu 26.04 LTS の番号付き x64 WSL イメージ)上で、**`T` を指すローカル `develop` ブランチ**(`git branch --show-current` = `develop` かつ `git rev-parse HEAD` = `T`)で完走した**
+- [ ] **approved な `onboarding.md` v1.1 の 0〜8 章を、受入プロファイル(Windows 11 x64 + 新規 Ubuntu 26.04 LTS の番号付き x64 WSL イメージ)上で、**逐語どおり**完走した**(2 章の受入判定時の手順により `git branch --show-current` = `develop` かつ `git rev-parse HEAD` = `T` となる。**手順の置換・逸脱は行っていない**)
 - [ ] **合格項目 5 つすべてに合格した**(ハーネス pytest / backend pytest / frontend Vitest / 開発 DB 接続 / backend・frontend の起動疎通)
 - [ ] 結果証跡が作成され、**未閉塞の予約 `phase4-001-20260819T142916Z` を閉じている**
 - [ ] **`E` が push され、PR の remote head = `E`** が確認・記録されている
