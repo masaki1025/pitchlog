@@ -11,31 +11,32 @@ status: in-review
 | 0.3 | 2026-08-07 | WSL 実地セットアップの知見を反映: python は Windows 側シムの罠に注意(sudo 不要の代替手順を追記)/ trust 設定はインライン表形式への追記に注意 / bubblewrap は同梱版で動作 | draft |
 | 0.4 | 2026-08-10 | 冒頭に frontmatter(status: draft)を追加 — 状態の機械可読化(ci-foundation / docs-lint) | draft |
 | 0.5 | 2026-08-10 | 2 章の「ブランチ保護で拒否される」を現実に整合(保護は未適用 — 縮退状態の明記。正は github-setup.md。設計書 v1.1 ゲート P0-3 の伝播) | draft |
-| 1.0 | 2026-08-25 | **Phase 4 完了時受入の前提として本文を完成させ approved 化へ(起案)**: **① 陳腐化した固定テスト件数を除去**(「正負テスト 103 件」— 実測は 652。設計書 8.3「固定件数は腐るため書かない」への追随。設計書 13 章の同じ「103件」は 2026-08-16 に除去済みで本書が取り残されていた — 台帳 H-79 の実例)+ **射程の是正**(`tests/` のうち hooks は `test_hooks.py` のみで残りは `scripts/` の検査)+ **動作確認章を CI harness ジョブの現行へ追随**(`ruff check`・`ty check` を追加)。**② 受入プロファイル(要件書 NFR-021)との整合**: 受入保証対象を **`Ubuntu-26.04`(番号付き x64 WSL イメージ)に固定**(既定名 `Ubuntu` は別識別子のため対象外)/ **新規ディストリビューションの作成手順**を追加 / **Docker Desktop への言及を除去**し WSL 内 Docker Engine 一本へ(同書は事前導入を前提としない)/ 用語を「標準」「必須」の混在から**「受入保証対象」へ統一** / Node・Python の版表記を `mise.toml`・`backend/pyproject.toml` の実体へ(**版は直書きせずリポジトリを正として参照**)。**③ 本文の完成**(設計書 13 章が approved 化の要件とする「実際の依存導入・DB 初期化・起動・疎通確認まで」): **6 章に依存の導入と検証**(NFR-021 の合格項目と CI 相当の品質検査を**別節に書き分け**)、**7 章に開発 DB と起動疎通**(環境変数の区分・`docker compose up -d --wait`・コンテナ内での接続確認・backend/frontend の起動疎通と終了手順)を新設。これにより **Phase 4 の合格 5 項目すべてに対応する手順**が揃った(従来は 4 項目が完走不可)。**確定ゲート 1 周目の反映(P0×3・P1×5 を全件採用・不採用 0 件)**: **P0-1 導入手順が一切なかった** — 前提ツール表は確認方法だけで Git・gh・uv・Docker・mise・Claude Code・Codex の導入コマンドが無く、`git clone` すら書かずに「リポジトリ直下で `mise install`」を要求していて**順序が成立していなかった**。**0〜3 章を書き直し**(ホスト側の WSL 準備 → 基礎パッケージと単体ツール → リポジトリ取得 → Node・pnpm・Claude Code)、公式手順を典拠に導入コマンドを明記した。**P0-2 WSL 本体の準備が無かった** — `wsl --version`・`wsl --update`・`--set-default-version`・`VERSION=1` からの変換・初回起動のユーザー作成・`wsl -d` での入り方を追加。**P0-3 Python の版が要求と食い違っていた** — Ubuntu 26.04 の `python3` は **3.14 系**で `python-is-python3` は `/usr/bin/python` の symlink を作るだけなので、従来の案内では backend の `>=3.12,<3.13` を満たせなかった。**hooks(`/usr/bin/python3` 絶対パス)・codex ラッパー(PATH の `python`)・backend(uv が `.python-version` から自動取得)の 3 つの役割を分離**して記述した(**uv が自動でダウンロードするためシステムへ 3.12 を入れる必要はない**)。**P1**: `/setup-dev` の守備範囲を実体へ / ガード確認は **Claude Code のセッション内で行う**ことと合否の見方を明記 / 起動疎通に**待機と上限**を入れ**合否は `curl` の終了コードで判定**(サーバーは `Ctrl-C` で止めるため終了コードを用いない)/ 「この 3 つだけ」を実体の 2 項目へ是正し**合格項目の定義は要件書を正として複製しない** / **固定版の切替 3 条件の複製を除去**(要件書 NFR-021 が正 — 7.1-1)/ **bubblewrap は同梱 helper に頼らず明示導入**(OpenAI 公式が Linux/WSL2 でパッケージ導入を案内)/ **`pnpm --version` は `frontend/` で実行**(corepack は最も近い `package.json` を読む)。**版・件数は本文へ直書きせず**リポジトリの定義を正として参照する。調査の典拠は `docs/features/onboarding-approval/research.md`。**確定ゲート 2 周目の反映(P0×1・P1×7 を全件採用・不採用 0 件)**: **P0 Docker の導入手順が公式へのリンクだけだった** — 公式には apt / 手動 / スクリプトの複数経路があり一意でなく、**外部ページの変更は `onboarding_blob_sha` に含まれないため証跡が手順を固定できない**。**apt リポジトリ方式 1 つに固定して本文へ収めた**(daemon 起動の分岐も検出付きで明記)。**P1**: ① WSL の順序を是正(`wsl --install` はそのまま Linux セッションへ入るため、**ユーザー作成 → `exit` → PowerShell で VERSION 確認 → 最後に `wsl -d`** へ分離)+ **`wsl` は WSL の中からは見えないことがある**旨を追記(実測)/ ② **Notion MCP の前提を明記**(`/setup-dev` は `get-users` を使うため未接続だと完了できない。リポジトリに MCP 設定は置かない)/ ③ **git の author 設定**を追加(`gh auth login` はこれを代替しない)/ ④ 6 章を**実行主体つきの表**へ改め、**ガード確認を決定的にした**(変更が無いと Git 自身の「nothing to commit」で止まり、**ガードが壊れていても合格に見える** — 変更を作り、事前/事後の SHA 一致とガード固有の拒否メッセージを合格条件にした)/ ⑤ Python の説明を「2 つ」→**3 つ**へ是正し、**「PATH の `python` が壊れると hooks 全体が fail-open」という注記の射程を訂正**(hooks は全て `/usr/bin/python3` 絶対起動になっており、現在影響するのは codex ラッパーだけ)/ ⑥ **実装値の複製を除去**(backend の版制約・ディストリの Python 系列・環境変数の一覧と分類 → `backend/pyproject.toml`・`.python-version`・`.env.example`・`docker-compose.yml` を正として参照)/ ⑦ frontend の起動待機を **`&&` で連結**(分けると待機が時間切れでも直後の確認が 0 になり**合格に見える**)。**確定ゲート 3 周目の反映(P0×1・P1×3 を全件採用・不採用 0 件)**: **P0 clone 後に `develop` へ切り替えていなかった** — リモートの既定ブランチは `main` で、**`main` には `mise.toml`・`backend/`・`frontend/`・`docker-compose.yml` がまだ無い**(実測)。切り替えずに進むと次章の `mise install` で止まり、**合格 5 項目のどれにも到達できなかった**。`git switch develop` と確認を 2 章へ追加した。**P1**: ① ガード確認がまだ決定的でなかった — `/tmp` 配下は**ワークツリー外**で `git add` の対象にならず、また **git_guard は Bash 実行の前に現在ブランチを判定する**ためブランチ切替と `commit` を 1 回にまとめると基準がずれる。**ワークツリー内に変更を作り、1 行ずつ別々に実行させる**形へ是正 / ② **Notion MCP の追加コマンドを具体化**(`claude mcp add --transport http notion https://mcp.notion.com/mcp` → `/mcp` で OAuth。公式で確認)/ ③ **章を順に実行したときの cwd 遷移**が成立していなかった(`cd backend` が持続し frontend 側に `cd ../frontend` が無い等)。**すべてのコードブロックを subshell に閉じ、リポジトリ直下からの実行に統一**した。**確定ゲート 4 周目の反映(P0 なし・P1×3 を全件採用・不採用 0 件)**: ① **Ubuntu for WSL の初回導入では Ubuntu Insights の収集可否を尋ねる対話も出る**ため、初回対話の説明へ追記(選択は任意で以降に影響しない)/ ② **4〜6 章の前提を明示** — `claude doctor` は診断だけで認証もセッション開始もしない。**リポジトリ直下で `claude` を起動して初回認証する**こと、**hooks はセッションの起動場所で決まる**(リポジトリ外から起動すると 6 章のガード確認にならない)こと、`claude mcp add` は **WSL のシェル**で実行することを追記。Codex も対話セッションが続くため、サインイン後に終了して次へ進む境界を明記 / ③ **DB 疎通の射程を注記**(承認済み計画 4 節の指定の実装漏れ)— 8-2 の確認は **DB コンテナへ直接つないだもの**で backend 経由ではない。backend は `DATABASE_URL` を参照せず `/health` も DB に依存しないため、**「DB へ接続」と「backend が起動して疎通」は独立した 2 項目**であり、本手順は backend から DB まで疎通した証跡にはならない。**4 周目で 3 周目の指摘 4 件すべてが閉鎖**(develop 切替・git_guard の決定性・Notion MCP・cwd/subshell)。**確定ゲート 5 周目の反映(P0 なし・P1×3 を全件採用・不採用 0 件)**: ① **ガード確認が確定対象ではなく旧版を試していた** — hooks は**ワークツリー上のファイル**を実行するため、`git switch main` した時点で `git_guard.py` も `main` 版に入れ替わる(実測: blob が別物で 469 行追加・68 行削除の差)。拒否されても**確定しようとしている `develop` 版の証跡にならない**。`PROTECTED` は `main` と `develop` の両方なので、**切り替えず `develop` のまま確認する**形へ是正 / ② **Claude Code の初回起動には「リポジトリを信頼する」選択がある**。承認しないとプロジェクト設定と hooks が読み込まれず、4〜6 章の前提が成立しないため追記 / ③ **corepack の初回取得には承認入力がある**(新規環境はキャッシュが無い)。拒否すると 3 章で止まり frontend の Vitest へ到達できないため、承認することと合格条件(終了コード 0・表示版が `packageManager` と一致)を追記。計画: `docs/features/onboarding-approval/plan.md` | in-review |
+| 1.0 | 2026-08-25 | **Phase 4 完了時受入の前提として本文を完成させ approved 化へ(起案)**: **① 陳腐化した固定テスト件数を除去**(「正負テスト 103 件」— 実測は 652。設計書 8.3「固定件数は腐るため書かない」への追随。設計書 13 章の同じ「103件」は 2026-08-16 に除去済みで本書が取り残されていた — 台帳 H-79 の実例)+ **射程の是正**(`tests/` のうち hooks は `test_hooks.py` のみで残りは `scripts/` の検査)+ **動作確認章を CI harness ジョブの現行へ追随**(`ruff check`・`ty check` を追加)。**② 受入プロファイル(要件書 NFR-021)との整合**: 受入保証対象を **`Ubuntu-26.04`(番号付き x64 WSL イメージ)に固定**(既定名 `Ubuntu` は別識別子のため対象外)/ **新規ディストリビューションの作成手順**を追加 / **Docker Desktop への言及を除去**し WSL 内 Docker Engine 一本へ(同書は事前導入を前提としない)/ 用語を「標準」「必須」の混在から**「受入保証対象」へ統一** / Node・Python の版表記を `mise.toml`・`backend/pyproject.toml` の実体へ(**版は直書きせずリポジトリを正として参照**)。**③ 本文の完成**(設計書 13 章が approved 化の要件とする「実際の依存導入・DB 初期化・起動・疎通確認まで」): **6 章に依存の導入と検証**(NFR-021 の合格項目と CI 相当の品質検査を**別節に書き分け**)、**7 章に開発 DB と起動疎通**(環境変数の区分・`docker compose up -d --wait`・コンテナ内での接続確認・backend/frontend の起動疎通と終了手順)を新設。これにより **Phase 4 の合格 5 項目すべてに対応する手順**が揃った(従来は 4 項目が完走不可)。**確定ゲート 1 周目の反映(P0×3・P1×5 を全件採用・不採用 0 件)**: **P0-1 導入手順が一切なかった** — 前提ツール表は確認方法だけで Git・gh・uv・Docker・mise・Claude Code・Codex の導入コマンドが無く、`git clone` すら書かずに「リポジトリ直下で `mise install`」を要求していて**順序が成立していなかった**。**0〜3 章を書き直し**(ホスト側の WSL 準備 → 基礎パッケージと単体ツール → リポジトリ取得 → Node・pnpm・Claude Code)、公式手順を典拠に導入コマンドを明記した。**P0-2 WSL 本体の準備が無かった** — `wsl --version`・`wsl --update`・`--set-default-version`・`VERSION=1` からの変換・初回起動のユーザー作成・`wsl -d` での入り方を追加。**P0-3 Python の版が要求と食い違っていた** — Ubuntu 26.04 の `python3` は **3.14 系**で `python-is-python3` は `/usr/bin/python` の symlink を作るだけなので、従来の案内では backend の `>=3.12,<3.13` を満たせなかった。**hooks(`/usr/bin/python3` 絶対パス)・codex ラッパー(PATH の `python`)・backend(uv が `.python-version` から自動取得)の 3 つの役割を分離**して記述した(**uv が自動でダウンロードするためシステムへ 3.12 を入れる必要はない**)。**P1**: `/setup-dev` の守備範囲を実体へ / ガード確認は **Claude Code のセッション内で行う**ことと合否の見方を明記 / 起動疎通に**待機と上限**を入れ**合否は `curl` の終了コードで判定**(サーバーは `Ctrl-C` で止めるため終了コードを用いない)/ 「この 3 つだけ」を実体の 2 項目へ是正し**合格項目の定義は要件書を正として複製しない** / **固定版の切替 3 条件の複製を除去**(要件書 NFR-021 が正 — 7.1-1)/ **bubblewrap は同梱 helper に頼らず明示導入**(OpenAI 公式が Linux/WSL2 でパッケージ導入を案内)/ **`pnpm --version` は `frontend/` で実行**(corepack は最も近い `package.json` を読む)。**版・件数は本文へ直書きせず**リポジトリの定義を正として参照する。調査の典拠は `docs/features/onboarding-approval/research.md`。**確定ゲート 2 周目の反映(P0×1・P1×7 を全件採用・不採用 0 件)**: **P0 Docker の導入手順が公式へのリンクだけだった** — 公式には apt / 手動 / スクリプトの複数経路があり一意でなく、**外部ページの変更は `onboarding_blob_sha` に含まれないため証跡が手順を固定できない**。**apt リポジトリ方式 1 つに固定して本文へ収めた**(daemon 起動の分岐も検出付きで明記)。**P1**: ① WSL の順序を是正(`wsl --install` はそのまま Linux セッションへ入るため、**ユーザー作成 → `exit` → PowerShell で VERSION 確認 → 最後に `wsl -d`** へ分離)+ **`wsl` は WSL の中からは見えないことがある**旨を追記(実測)/ ② **Notion MCP の前提を明記**(`/setup-dev` は `get-users` を使うため未接続だと完了できない。リポジトリに MCP 設定は置かない)/ ③ **git の author 設定**を追加(`gh auth login` はこれを代替しない)/ ④ 6 章を**実行主体つきの表**へ改め、**ガード確認を決定的にした**(変更が無いと Git 自身の「nothing to commit」で止まり、**ガードが壊れていても合格に見える** — 変更を作り、事前/事後の SHA 一致とガード固有の拒否メッセージを合格条件にした)/ ⑤ Python の説明を「2 つ」→**3 つ**へ是正し、**「PATH の `python` が壊れると hooks 全体が fail-open」という注記の射程を訂正**(hooks は全て `/usr/bin/python3` 絶対起動になっており、現在影響するのは codex ラッパーだけ)/ ⑥ **実装値の複製を除去**(backend の版制約・ディストリの Python 系列・環境変数の一覧と分類 → `backend/pyproject.toml`・`.python-version`・`.env.example`・`docker-compose.yml` を正として参照)/ ⑦ frontend の起動待機を **`&&` で連結**(分けると待機が時間切れでも直後の確認が 0 になり**合格に見える**)。**確定ゲート 3 周目の反映(P0×1・P1×3 を全件採用・不採用 0 件)**: **P0 clone 後に `develop` へ切り替えていなかった** — リモートの既定ブランチは `main` で、**`main` には `mise.toml`・`backend/`・`frontend/`・`docker-compose.yml` がまだ無い**(実測)。切り替えずに進むと次章の `mise install` で止まり、**合格 5 項目のどれにも到達できなかった**。`git switch develop` と確認を 2 章へ追加した。**P1**: ① ガード確認がまだ決定的でなかった — `/tmp` 配下は**ワークツリー外**で `git add` の対象にならず、また **git_guard は Bash 実行の前に現在ブランチを判定する**ためブランチ切替と `commit` を 1 回にまとめると基準がずれる。**ワークツリー内に変更を作り、1 行ずつ別々に実行させる**形へ是正 / ② **Notion MCP の追加コマンドを具体化**(`claude mcp add --transport http notion https://mcp.notion.com/mcp` → `/mcp` で OAuth。公式で確認)/ ③ **章を順に実行したときの cwd 遷移**が成立していなかった(`cd backend` が持続し frontend 側に `cd ../frontend` が無い等)。**すべてのコードブロックを subshell に閉じ、リポジトリ直下からの実行に統一**した。**確定ゲート 4 周目の反映(P0 なし・P1×3 を全件採用・不採用 0 件)**: ① **Ubuntu for WSL の初回導入では Ubuntu Insights の収集可否を尋ねる対話も出る**ため、初回対話の説明へ追記(選択は任意で以降に影響しない)/ ② **4〜6 章の前提を明示** — `claude doctor` は診断だけで認証もセッション開始もしない。**リポジトリ直下で `claude` を起動して初回認証する**こと、**hooks はセッションの起動場所で決まる**(リポジトリ外から起動すると 6 章のガード確認にならない)こと、`claude mcp add` は **WSL のシェル**で実行することを追記。Codex も対話セッションが続くため、サインイン後に終了して次へ進む境界を明記 / ③ **DB 疎通の射程を注記**(承認済み計画 4 節の指定の実装漏れ)— 8-2 の確認は **DB コンテナへ直接つないだもの**で backend 経由ではない。backend は `DATABASE_URL` を参照せず `/health` も DB に依存しないため、**「DB へ接続」と「backend が起動して疎通」は独立した 2 項目**であり、本手順は backend から DB まで疎通した証跡にはならない。**4 周目で 3 周目の指摘 4 件すべてが閉鎖**(develop 切替・git_guard の決定性・Notion MCP・cwd/subshell)。**確定ゲート 5 周目の反映(P0 なし・P1×3 を全件採用・不採用 0 件)**: ① **ガード確認が確定対象ではなく旧版を試していた** — hooks は**ワークツリー上のファイル**を実行するため、`git switch main` した時点で `git_guard.py` も `main` 版に入れ替わる(実測: blob が別物で 469 行追加・68 行削除の差)。拒否されても**確定しようとしている `develop` 版の証跡にならない**。`PROTECTED` は `main` と `develop` の両方なので、**切り替えず `develop` のまま確認する**形へ是正 / ② **Claude Code の初回起動には「リポジトリを信頼する」選択がある**。承認しないとプロジェクト設定と hooks が読み込まれず、4〜6 章の前提が成立しないため追記 / ③ **corepack の初回取得には承認入力がある**(新規環境はキャッシュが無い)。拒否すると 3 章で止まり frontend の Vitest へ到達できないため、承認することと合格条件(終了コード 0・表示版が `packageManager` と一致)を追記。**実機通しの反映(2026-08-25 — 新規 `Ubuntu-26.04` で 0〜8 章を通し、合格 5 項目すべてに到達して完走。差分 15 件)**: **本文の誤り** — `newgrp` は Ubuntu 26.04 の WSL イメージに存在せず(`util-linux-extra` に分離)手順が動かなかったため**シェルの開き直しを唯一の手順**へ / `~/.codex/config.toml` は新規環境に無いので**「追記」ではなく「作成」** / **Ubuntu Insights の同意画面は出なかった**ため「環境によっては出る」へ弱めた / Codex のインストーラが `Start Codex now?` と聞くため**手順の二重を解消** / **`claude mcp add` は不要**だった(claude.ai のコネクタとしてサインインだけで接続済み)ため「未接続の場合のみ」へ / `/setup-dev` は `uv run pytest tests/`・`notion-map.json` の実 DB 突合・WSL 版確認まで行うため**守備範囲を実体へ**。**私が書いた注記の誤り** — `wsl` が WSL 内で見つからないのは `appendWindowsPath` ではなく**実行ファイル名が `wsl.exe` である**ため(`wsl.exe --version` は通る)/ **`wsl --update` は実際には更新していなかった**ため無条件必須から**条件付き**へ。**手順の不足** — `wsl -d` で入ると `/mnt/c/...` に降りるため**入り直すたび `cd ~` が要る**(本文が自ら非推奨とする場所に立つ導線だった)/ `gh auth login` の**対話 4 問**と**ブラウザが開けないのが既定**であること / 8-3 は**シェルを 3 枚**使うこと / backend の `curl` 出力に改行が無いこと。**実測で裏付けられ変更しなかった設計**: uv が `.python-version` を読んで `cpython-3.12.3` を自動取得し(ディストリの python3 は 3.14.4)backend が 3.12.3 で動くこと / `git switch develop` / ガード確認の決定性(`develop` のまま・1 行ずつ・ワークツリー内の変更で、拒否メッセージと SHA 不変を確認)/ corepack の取得確認 / Claude Code の信頼確認 / コンテナ内での変数展開。計画: `docs/features/onboarding-approval/plan.md` | in-review |
 
 pitchlog の開発に参加する開発者の初期設定手順。**開発環境は Windows 11 上の WSL2 で完結する。受入保証対象は WSL2 のみ**(Windows ネイティブでの開発は保証対象外 — 受入条件の正は要件書 NFR-021)。
 
 **本書は「WSL2 を有効化しただけの Windows 11」から出発して 8 章まで到達できる形で書く。** 前提として求めるのは WSL2 の有効化だけで、その他のツールはすべて本書の手順内で導入する(要件書 NFR-021 の受入プロファイル)。
 
-> `/setup-dev` は **4 章(Codex の設定)・5 章(Notion 紐づけ)と、ツールの疎通確認・permissions 構文検証**を対話で進める。**導入そのもの・6 章のガード実地確認・7〜8 章は行わない。**
+> `/setup-dev` は **ツールの疎通確認・4 章(Codex の設定)の確認・5 章(Notion 紐づけ)・`.claude/notion-map.json` と実 DB の突合・permissions 構文検証の案内**を対話で進め、**6 章の項目 3(`uv run pytest tests/`)も実行する**。**ツールの導入そのもの・6 章のガード実地確認・7〜8 章は行わない。**
 
 ## 0. WSL2 環境の用意(Windows ホスト側)
 
 **受入保証対象のディストリビューションは `Ubuntu-26.04`(番号付き x64 WSL イメージ)に固定する。** 既定名 `Ubuntu` は WSL 上で**別の識別子**として扱われ、安定版 LTS を自動追随するため保証対象としない。他ディストリビューション・他版も保証対象外(要件書 NFR-021 の受入プロファイル。**切替規則も同要件が正** — 本書では規定しない)。
 
-**この章は Windows の PowerShell(管理者)で実行する。** `wsl` は Windows 側のコマンドで、**WSL のシェルの中からは見えないことがある**(`appendWindowsPath` の設定による — 実測 2026-08-25)。
+**この章は Windows の PowerShell(管理者)で実行する。** `wsl` は Windows 側のコマンドなので、**WSL のシェルの中から呼ぶときは `wsl.exe` と拡張子まで書く**(拡張子なしの `wsl` は見つからない — 実測 2026-08-25)。
 
 **① WSL 本体を整えて、ディストリを作る**(PowerShell):
 
 ```powershell
-wsl --version                    # 表示されない場合は WSL 本体が古い
-wsl --update                     # 新しい配布形式に対応させる
+wsl --version                    # 版が表示されることを確認
 wsl --set-default-version 2      # 新規ディストリを WSL2 で作る
 wsl --list --online              # `Ubuntu-26.04` が一覧にあることを確認
 wsl --install -d Ubuntu-26.04    # 番号付きイメージを指定する(`Ubuntu` ではない)
 ```
 
-**② 初回起動で Linux のユーザー名とパスワードを対話的に作成する。** `wsl --install` はそのまま Linux セッションへ入る。**Ubuntu for WSL を初めて導入する場合は Ubuntu Insights のデータ収集に同意するかの選択も出る**(任意 — どちらを選んでも以降の手順に影響しない)。初期設定が済んだら **`exit` で PowerShell へ戻る**。作成したアカウントがそのディストリの既定ユーザーになる。
+> **`wsl --update` は条件付き。** `wsl --version` が表示され、`wsl --list --online` に `Ubuntu-26.04` があれば**不要**。表示されない(WSL 本体が古い)か一覧に無い場合のみ実行する。**数分かかることがあり、完了してもプロンプトが戻るだけで版が上がらない場合もある**(実測 2026-08-25)。
+
+**② 初回起動で Linux のユーザー名とパスワードを対話的に作成する。** `wsl --install` はそのまま Linux セッションへ入る。環境によっては Ubuntu Insights のデータ収集に同意するかの選択も出る(任意 — どちらを選んでも以降の手順に影響しない。**2026-08-25 の実測では出なかった**)。初期設定が済んだら **`exit` で PowerShell へ戻る**。作成したアカウントがそのディストリの既定ユーザーになる。
 
 **③ WSL2 であることを確認する**(PowerShell):
 
@@ -56,6 +57,15 @@ wsl --list --verbose             # VERSION=2 になったことを再確認
 ```powershell
 wsl -d Ubuntu-26.04
 ```
+
+```bash
+cd ~
+pwd                              # /home/<ユーザー名> であること
+```
+
+> **必ず `cd ~` する。** PowerShell から入ると `/mnt/c/...` に降りるため、そのまま作業すると下記の「WSL 側ファイルシステムに置く」に反する。**入り直すたびに必要**。
+
+> `wsl: Failed to start the systemd user session for '<ユーザー名>'` という警告が出ることがあるが、**システム側の systemd は動いており以降の手順に影響しない**(`ls -d /run/systemd/system` で確認できる — 実測 2026-08-25)。
 
 - **リポジトリは WSL 側ファイルシステム**(`~/` 配下)に置く。`/mnt/c` 配下は I/O 性能・ファイル監視の面で非推奨
 - worktree 置き場も WSL 側の兄弟ディレクトリ(例: `~/dev/pitchlog-worktrees/`)
@@ -95,9 +105,11 @@ curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo 
 sudo chmod 644 /etc/apt/keyrings/githubcli-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
 sudo apt update && sudo apt install -y gh
-gh auth login          # WSL からブラウザが開けなければデバイスコードで完了できる
+gh auth login
 gh auth status
 ```
+
+> **`gh auth login` は 4 つ質問する。** GitHub.com / **HTTPS** / Git 認証を委ねる **Yes** / **Login with a web browser** を選ぶ。**WSL からブラウザは開けない**(`wslview` 等が無く `Failed opening a web browser` が出る)ので、**表示されたワンタイムコードを控え、Windows 側のブラウザで `https://github.com/login/device` を開いて入力する**。
 
 **コミット作成者の設定**(新規ディストリでは未設定。`gh auth login` はこれを代替しない):
 
@@ -150,7 +162,14 @@ if [ -d /run/systemd/system ]; then sudo systemctl start docker; else sudo servi
 
 ```bash
 sudo usermod -aG docker "$USER"
-newgrp docker                    # または一度シェルを開き直す
+```
+
+**ここでいったんシェルを開き直す**(`exit` して `wsl -d Ubuntu-26.04` で入り直し、`cd ~/dev` 等へ戻る)。**`newgrp` は使わない** — Ubuntu 26.04 の WSL イメージには含まれていない(`util-linux-extra` に分離。実測 2026-08-25)。
+
+入り直したら:
+
+```bash
+id -nG                           # `docker` が含まれること
 docker compose version
 docker run --rm hello-world
 ```
@@ -159,7 +178,11 @@ docker run --rm hello-world
 
 ```bash
 curl -fsSL https://chatgpt.com/codex/install.sh | sh
-codex                            # 初回にサインイン。完了したら終了してシェルへ戻る
+```
+
+インストーラが **`Start Codex now? [y/N]`** と聞くので `y` で起動し、**初回のサインインを完了する**(別途 `codex` を叩く必要はない)。終了後:
+
+```bash
 codex --version
 ```
 
@@ -207,7 +230,7 @@ claude doctor                    # 導入状態の確認
 
 ## 4. Codex の設定(個人・必須)
 
-`~/.codex/config.toml` に追記:
+`~/.codex/config.toml` に書く。**新規環境には同ファイルが無い**ので作成する(実測 2026-08-25)。既にある場合は追記する。
 
 ```toml
 # このリポジトリを信頼する(プロジェクト設定 .codex/config.toml を読み込むため)
@@ -215,7 +238,7 @@ claude doctor                    # 導入状態の確認
 trust_level = "trusted"
 ```
 
-- 既存の config が `projects = { ... }` の**インライン表形式**の場合は、その表の中にエントリを追記する(`[projects."..."]` セクションを併記すると TOML の重複定義でパースエラーになる)
+- **既存の config を持っている人向けの注意**: それが `projects = { ... }` の**インライン表形式**なら、その表の中にエントリを追記する(`[projects."..."]` セクションを併記すると TOML の重複定義でパースエラーになる)
 - WSL2 では Codex sandbox に Linux 実装(bubblewrap)が自動適用される。`[windows]` セクションは不要
 - Codex の起動は `.claude/scripts/codex_run.py` ラッパー経由のみ(生実行は codex_guard がブロック — 設計書 12.1)
 
@@ -223,8 +246,8 @@ trust_level = "trusted"
 
 **前提: Claude Code から Notion MCP が使えること。** `/setup-dev` は Notion のユーザー一覧(`get-users`)を取得して候補を提示するため、未接続だとこの章を完了できない。**リポジトリに MCP 設定は置いていない**(個人のアカウント接続)。
 
-1. Claude Code で `/mcp` を実行し、**Notion が接続済み**であることを確認する
-2. 未接続なら追加する(WSL のシェルで):
+1. Claude Code で `/mcp` を実行し、**Notion が接続済み**であることを確認する。**claude.ai のコネクタとして既に接続済みのことが多い**(サインインだけで使える — 実測 2026-08-25)。その場合は 3 へ進む
+2. **未接続の場合のみ**追加する(WSL のシェルで):
 
    ```bash
    claude mcp add --transport http notion https://mcp.notion.com/mcp
@@ -355,7 +378,7 @@ docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc
 
 ### 8-3. backend・frontend の起動疎通
 
-サーバーは**別のシェルで前景起動**し、確認は元のシェルから行う。**合否はサーバーの終了コードではなく `curl` の終了コードで判定する**(サーバーは `Ctrl-C` で止めるため終了コードが非ゼロになりうる)。
+**シェルを 3 枚使う**(backend 用・frontend 用・確認用)。サーバーは**それぞれ別のシェルで前景起動**し、確認は 3 枚目から行う。新しいシェルは PowerShell から `wsl -d Ubuntu-26.04` で開き、`cd ~/dev/pitchlog` へ移動する。**合否はサーバーの終了コードではなく `curl` の終了コードで判定する**(サーバーは `Ctrl-C` で止めるため終了コードが非ゼロになりうる)。
 
 **backend**(別のシェルを開き、**リポジトリ直下から**):
 
@@ -367,9 +390,10 @@ docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc
 
 ```bash
 timeout 30 sh -c 'until curl -fsS --max-time 3 http://127.0.0.1:8800/health; do sleep 1; done'
+echo
 ```
 
-期待値: **終了コード 0**・出力が **`{"status":"ok"}`**。ポート **8800** は frontend の proxy 先(`frontend/vite.config.ts`)に合わせる。
+期待値: **終了コード 0**・出力が **`{"status":"ok"}`**(**改行が付かない**ので末尾に `echo` を置いている)。ポート **8800** は frontend の proxy 先(`frontend/vite.config.ts`)に合わせる。
 
 **frontend**(別のシェルを開き、**リポジトリ直下から**):
 
