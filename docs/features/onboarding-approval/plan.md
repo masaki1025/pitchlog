@@ -100,7 +100,7 @@ created: 2026-08-24
 - **`github-setup.md:16` の draft 注記の解除**(版は上げない)
 - **`tests/test_verify_nfr021_evidence.py:2403` を正例へ反転**(approved 化コミットと同一コミット)
 - **`/finalize-doc` による onboarding の確定ゲート** → **`status: approved` / v1.0** / 変更履歴追記 / `docs/README.md` 索引の現行化
-- 台帳 `harness-evaluation.md` の **H-79 へ本タスクの観測を 1 件追加**
+- 台帳 `harness-evaluation.md` の **H-79 へ本タスクの観測を 2 件追加**(**当初宣言は 1 件**。2 件目は確定ゲート 7 周目で著者自身が同型の欠陥を踏んだ観測— 待機の是正を文字列検索で行い `--wait` を取りこぼした。同一項目の事象欄への追記でスコープは不変)+ **再発を 2 → 4 件へ更新**
 
 ### やらないこと
 
@@ -119,7 +119,7 @@ created: 2026-08-24
 | `docs/development/dev-harness-design-2026-08-07.md` | **v1.9**: ① **13 章へ「onboarding の完成と v1.0 approved 化は 4-6 の前提として先行 PR で実施する」を明記**し、4-6 の定義から当該項目を外す(裁定 3)② `:475`(8.4 `/setup-dev`)・`:839`(14 章 論点C)の「同書は現在 draft — approved 化までは規範ではない」注記を解除 ③ 変更履歴に v1.9 行 | **/finalize-doc**(**4-6 のマージ条件の適用範囲を変える規範追加** = 7.6-3 後段。前例 `github-setup.md:14` v1.1「マージ可否の手続を変える規範追加であるため実装追随ではなく確定ゲートを通す」) |
 | `docs/development/github-setup.md` | `:16` の draft 注記を解除 + 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PRレビュー(参照先の状態表記の是正。本書の内容・決定は不変 — 前例 `docs/features/req-v1-9-nfr021-wsl2/plan.md:90`) |
 | `docs/development/harness-evaluation.md` | **H-79 へ本タスクの観測を 2 件追加**(1 件目は当初宣言どおり。**2 件目は確定ゲート 7 周目で著者自身が同型の欠陥を踏んだ観測**— 待機の是正を文字列検索で行い `--wait` を取りこぼした。**同一項目の事象欄への追記でありスコープは変えていない**)+ 再発を 2 → 4 件へ更新(2026-08-16 の `harness-design-review` が設計書 13 章の固定件数「103件」を除去した際、同じ「103件」を持つ `onboarding.md:72` を確認しなかった)+ 変更履歴表に 1 行(**`H-*` の追記・更新では版を上げない** — 前例 `:33`) | PRレビュー |
-| `docs/README.md`(索引) | **4 行を更新**(P1-3): ① onboarding 行 → `**approved**(v1.0 …)` / 版 `1.0` / 承認日 ② 設計書行 → 版 `1.9` / 承認日(状態は in-review を経て approved へ)③ github-setup 行 → 最終更新を変更履歴の最新日へ ④ 台帳行 → 同左。**中間状態(in-review)でコミットする際も frontmatter・変更履歴の最新日と同期させる** | PRレビュー(各 /finalize-doc 手順 6 の一部を含む) |
+| `docs/README.md`(索引) | **5 行を更新**(**当初宣言は 4 行**。⑤ 受入証跡 README 行は裁定 5 のスコープ拡張で後から加わった): ① onboarding 行 → `**approved**(v1.0 …)` / 版 `1.0` / 承認日 ② 設計書行 → 版 `1.9` / 承認日(状態は in-review を経て approved へ)③ github-setup 行 → 最終更新を変更履歴の最新日へ ④ 台帳行 → 同左 ⑤ **受入証跡 README 行 → `approved`・版 `1.1`・承認日**。**中間状態(in-review)でコミットする際も frontmatter・変更履歴の最新日と同期させる** | PRレビュー(各 /finalize-doc 手順 6 の一部を含む) |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**。NFR-021 `:918`・DoD⑦ `:1004`・R-1 `:1016` は「approved な onboarding」を要求する条文であり、approved 化によって**充足側へ動くだけ**で文言変更は不要 | — |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | **反映なし**(I-* に onboarding への要求なし) | — |
 | `docs/adr/ADR-001` / `ADR-002` / `ADR-003` | **反映なし** | — |
