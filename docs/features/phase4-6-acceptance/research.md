@@ -301,7 +301,7 @@ YYYY-MM-DDTHHMMSSZ-phase4-phase4-seq001-<tested_commit_sha の先頭 12 文字>.
 | 案 | 成立性・検証できること / できないこと | コスト | 運用負荷 |
 | --- | --- | --- | --- |
 | (a) `ubuntu-latest` を必須 | 成立。アプリ・pytest/Vitest・PostgreSQL・HTTP 疎通は検証できる。**Windows / WSL 固有は検証不可** | 最低 | 低 |
-| (b) `windows-2025` で WSL2・非必須 | **条件付き**。Windows Server 2025 上の WSL2 は動く見込みが高い(イメージが WSLv2 2.7.11.0 を Default と明記)が、**GitHub の保証は無い**。**Windows 11 の再現ではない**。**`Ubuntu-26.04` の導入手段が未確立**(`setup-wsl` は非対応 / native `wsl --install -d Ubuntu-26.04` の runner 上での成否は**不明**) | 週 1 回 30〜60 分で月 131〜261 実行分。2× を保守的に仮定しても 261〜522 分で **2,000 分枠内** | 中 |
+| (b) `windows-2025` で WSL2・非必須 | **条件付き**。Windows Server 2025 上の WSL2 は動く見込みが高い(イメージが WSLv2 2.7.11.0 を Default と明記)が、**GitHub の保証は無い**。**Windows 11 の再現ではない**。**`Ubuntu-26.04` を hosted runner 上でサポート済みとして導入する経路が未確認**(`setup-wsl` は非対応 / native `wsl --install -d Ubuntu-26.04` の runner 上での成否は**不明**) | 週 1 回 30〜60 分で月 131〜261 実行分。2× を保守的に仮定しても 261〜522 分で **2,000 分枠内** | 中 |
 | (c) (a) + (b) の併用 | 必須品質は Linux で安定確保しつつ、Windows/WSL の破綻兆候も拾える。**Windows 11 固有の受入は依然として対象外** | Free 枠内の見込み | 中 |
 | (d) self-hosted / 手動チェックリスト | 実機 self-hosted なら受入プロファイルに最も近い。ただし **private リポジトリでも fork PR 経由で self-hosted 環境・secrets・`GITHUB_TOKEN` が侵害され得る**と GitHub が警告(https://docs.github.com/en/actions/reference/security/secure-use)。専用の低権限 runner・runner group 限定・secret 非付与・ジョブ後の破棄が必要。手動のみなら継続的な早期検知は無い | hosted 分は不要。機材/VM 費 | 手動のみ低 / self-hosted 高 |
 
