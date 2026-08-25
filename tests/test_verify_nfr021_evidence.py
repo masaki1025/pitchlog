@@ -2400,8 +2400,8 @@ def test_accepts_named_evidence_that_satisfies_conditions_one_to_ten(
     assert result.stderr == ""
 
 
-def test_real_repository_onboarding_draft_is_not_approved() -> None:
-    """実リポジトリの現 onboarding blob が draft で④を満たさないことを確認する。"""
+def test_real_repository_onboarding_is_approved() -> None:
+    """実リポジトリの現 onboarding blob が approved で④を満たすことを確認する。"""
     candidate_sha = git_for_invalidation(REPO, "rev-parse", "HEAD").stdout.strip()
     onboarding_blob_sha = git_for_invalidation(
         REPO,
@@ -2415,7 +2415,7 @@ def test_real_repository_onboarding_draft_is_not_approved() -> None:
         onboarding_blob_sha,
     )
 
-    assert verify.REASON_ONBOARDING_STATUS in reasons
+    assert reasons == (), reasons
 
 
 def test_accepts_single_closed_attempt_and_excludes_canonical_documents(
