@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3c793b75e68781cb8aa1d50dc7403237
 branch: feature/phase4-6-acceptance
 created: 2026-08-25
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 2          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -39,7 +39,7 @@ created: 2026-08-25
 2. **13 章へ「Phase 4 完了時受入の前提 PR(第 2 号)」を新設**し、対象・順序・マージ条件・本数(7 本 → 8 本)を確定する
 3. **`onboarding.md` v1.1** — 2 章へ「NFR-021 の受入判定を実施する場合」の節を新設(候補コミットの取得手順)
 4. **受入 README v1.2** — ブートストラップ手順を前提 PR 第 2 号へ対応させ、**onboarding の版の焼き込みを撤去**する
-5. **台帳への follow-up 登録**(self-hosted runner の再検討経路 / scheduled workflow の制約)+ 索引の現行化
+5. **台帳への追記**(**follow-up 2 件** = self-hosted runner の再検討経路 / scheduled workflow の制約、**観測 1 件** = 確定ゲート中に pytest が赤になる制約)+ 索引の現行化
 6. **通常 PR 要件でマージする**(受入判定は課さない)
 7. **4-6 の受入判定タスクを別途起票**し、本タスクと相互リンクする
 
@@ -62,7 +62,7 @@ created: 2026-08-25
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **10.1**: CI ジョブ表の `win-setup` 行を**不採用**へ / 「CI との関係」行を恒常の規定へ / **「NFR-021 の継続検証基盤の選定結果」を新設** / **実施順序 ① の版焼き込みを撤去** / ブートストラップ経路へ第 2 号を追加。**13 章**: 4-6 行の根拠を現況化(+ H-69 (c) の実施主体を明記)/ **「前提 PR(第 2 号)」節を新設** / 順序へ第 2 号を挿入 / 本数を 7 → 8 本。変更履歴表へ追記。**版繰り上げ v1.9 → v1.10** | **/finalize-doc** |
 | [オンボーディング](../../development/onboarding.md) | **2 章へ「NFR-021 の受入判定を実施する場合」の節を新設**(候補コミットの取得手順・ブランチ名を `develop` に保つ必須理由)。**版繰り上げ v1.0 → v1.1** | **/finalize-doc**(設計書と**同一ゲート**) |
 | [NFR-021 受入証跡の運用](../../ops/nfr021-acceptance/README.md) | ブートストラップ手順 5 を**第 1 号 → 第 2 号の順**へ改め、**onboarding の版の焼き込みを撤去**する。**版繰り上げ v1.1 → v1.2** | **/finalize-doc**(同上) |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | follow-up を 2 件追記 — ① self-hosted runner の再検討経路 ② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約 | **PR レビュー**(`H-*` の追記では版を上げない — 7.6-3 前段) |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **follow-up 2 件 + 観測 1 件** — ① self-hosted runner の再検討経路 ② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約 ③〔観測〕確定ゲート中は `test_real_repository_onboarding_is_approved` が必ず失敗する | **PR レビュー**(`H-*` の追記では版を上げない — 7.6-3 前段) |
 | [docs/README.md](../../README.md)(索引) | 上記 3 正本の行を **① 起案時に `in-review`・新版・日付** → **② `/finalize-doc` の承認後に `approved`・最終日付**の 2 段階で更新 + **台帳行の最終更新日**を現行化 | **①②は /finalize-doc と一体** / 台帳行は **PR レビュー** |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **反映なし** | — (理由は下記) |
 | [ADR-001](../../adr/ADR-001-codex-model-selection.md) / [ADR-002](../../adr/ADR-002-frontend-vue.md) / [ADR-003](../../adr/ADR-003-domain-calc-method.md) | **反映なし** | — |
@@ -136,7 +136,7 @@ created: 2026-08-25
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | 設計書 10.1 の `win-setup` 行と「CI との関係」行を選定結果へ改訂し、「NFR-021 の継続検証基盤の選定結果」の箇条を追加、変更履歴表へ 1 行追記して **v1.10 を起案**する(frontmatter は `in-review`)。**同一コミットで `docs/README.md` の設計書行を `in-review`・版欄 `1.10`・日付へ更新する** | **10.1 の節内に限定した検査**(`awk '/^### 10\.1/,/^### 10\.2/'` の出力)に対し `ランナーは未決` / `ランナー未決` / `Phase 4 で選定` が **0 件**、かつ **`win-setup`(定期)というジョブ表記が残っていない** / 3 節「選定結果の記載内容」の 5 項目がすべて本文に現れる / 変更履歴表の末尾が v1.10 / `uv run python scripts/check_docs_status.py`・`uv run pytest tests/`・`uv run ruff check .`・`uv run ty check` がいずれも終了コード 0 |
-| 2 | 台帳 `harness-evaluation.md` へ follow-up を 2 件追記し(① **self-hosted runner の再検討経路** — **再検討トリガー / 判断者 / 最低限の安全条件 / hosted と self-hosted のどちらを再検討するか の 4 項目を必ず持たせる**〔確定ゲート 1 周目 P2〕② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約 ③ **`onboarding.md` の確定ゲート中はハーネスの pytest が赤になる** — `tests/test_verify_nfr021_evidence.py::test_real_repository_onboarding_is_approved` が**リポジトリ HEAD の同書が `approved` であること**を不変条件として検査するため、`in-review` の間は必ず失敗する〔実測〕。`/pr` は `/check` の成功を要求するので、**確定ゲートの承認・approved 化を完了するまで PR を出せない**という順序が機構的に強制される)、`docs/README.md` の**台帳行の最終更新日**を現行化する | 台帳の既存記法どおり ID・追跡優先度・典拠が埋まっている / **① の 4 項目がすべて記載されている** / **③ の観測に実測の典拠(テスト名とエラーメッセージ)が付いている** / 台帳の変更履歴表に 1 行追記され**版は上がっていない** / `check_docs_status.py`・`uv run pytest tests/` が終了コード 0 |
+| 2 | 台帳 `harness-evaluation.md` へ **follow-up 2 件と観測 1 件(計 3 件)**を追記し(① **self-hosted runner の再検討経路** — **再検討トリガー / 判断者 / 最低限の安全条件 / hosted と self-hosted のどちらを再検討するか の 4 項目を必ず持たせる**〔確定ゲート 1 周目 P2〕② scheduled workflow は default branch でしか走らず `main` に検証対象が無いという制約 **観測**: ③ **`onboarding.md` の確定ゲート中はハーネスの pytest が赤になる** — `tests/test_verify_nfr021_evidence.py::test_real_repository_onboarding_is_approved` が**リポジトリ HEAD の同書が `approved` であること**を不変条件として検査するため、`in-review` の間は必ず失敗する〔実測〕。`/pr` は `/check` の成功を要求するので、**確定ゲートの承認・approved 化を完了するまで PR を出せない**という順序が機構的に強制される)、`docs/README.md` の**台帳行の最終更新日**を現行化する | 台帳の既存記法どおり ID・追跡優先度・典拠が埋まっている / **① の 4 項目がすべて記載されている** / **③ の観測に実測の典拠(テスト名とエラーメッセージ)が付いている** / 台帳の変更履歴表に 1 行追記され**版は上がっていない** / `check_docs_status.py`・`uv run pytest tests/` が終了コード 0 |
 
 **変更履歴表と 13 章の歴史記述は検査対象にしない。** 「ランナーは未決」「Phase 4 で選定」は**過去の決定を記録した歴史的事実**として変更履歴表に残る。**歴史は消さない**(7.1-4)。是正対象は現行規範だけである。
 
@@ -149,7 +149,7 @@ created: 2026-08-25
 - [ ] **設計書が確定ゲートを通過し v1.10 approved になっている**
 - [ ] **`onboarding.md` が同じ確定ゲートを通過し v1.1 approved になっている**(2 章に受入判定時の候補コミット取得手順が含まれる)
 - [ ] **受入 README が同じ確定ゲートを通過し v1.2 approved になっている**(前提 PR 第 2 号への対応 + 版焼き込みの撤去)
-- [ ] 台帳へ follow-up が 2 件登録され(① は 4 項目つき)、`docs/README.md` の索引が 4 行とも現行化されている
+- [ ] 台帳へ **follow-up 2 件と観測 1 件**が登録され(① は 4 項目つき)、`docs/README.md` の索引が 4 行とも現行化されている
 - [ ] **通常 PR 要件**(`/check` 全グリーン + CI + 反対側レビュー + 人間マージ)を満たしてマージした。**`gate_kind: phase4` の判定は課していない**
 - [ ] **4-6 の受入判定タスクを別 slug で起票し**、本タスクと相互リンクした(DoD に「本 PR マージ後の `develop` を起点に `T` を確定し、`onboarding.md` v1.1 の 2 章 2-1 節に従って受入を完走する」ことを書く)
 - [ ] **要件書 10 章 未決事項行の決着記録を別タスクとして起票し**、本タスクと相互リンクし、`P4-後` の着手前提として明記した
