@@ -9,7 +9,7 @@
 | [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.3 — NFR-021 受入プロファイルのアーキテクチャ両対応〔x64 / arm64〕・固定版切替規則の判定単位・証跡のアーキテクチャ識別・10 章 未決事項「NFR-021 の継続検証基盤」の決着記録。確定ゲート中) | 2.3 | 2026-08-27 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.10 — NFR-021 の継続検証基盤(`win-setup`)の不採用を確定し手動再現へ一本化 + 13 章へ受入の前提 PR 第 2 号を新設〔対象 3 本・順序・本数 7 → 8〕。敵対レビュー5周 → PO 承認) | 1.10 | 2026-08-26 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **in-review**(v1.11 — 13 章へ受入の前提 PR 第 3 号を新設〔対象 4 本・順序・**本数 8 → 9**・要件書を含める根拠〕+ 10.1 の現況化〔要件書 10 章との併存終了・`win-setup` 不採用理由のアーキテクチャ非依存化〕。確定ゲート中) | 1.11 | 2026-08-27 |
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-26 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
