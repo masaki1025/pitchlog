@@ -60,7 +60,7 @@ date: 2026-08-28
 
 **各述語について、本書で使ってはならない語**を列挙する。**「正規語だけを検索して別名を取りこぼす」型の事故**(H-79)を防ぐため、**検査の入力を人手の記憶ではなく表にする**。
 
-**検査の除外区間**: **2-2 節と 2-3 節は検査対象から外す** — この 2 節は**その語を禁じる理由を述べるために当該語を使う**ため、検査すると必ず引っかかる。**除外を隠れた例外にしないよう、ここに明記する**(検査スクリプトはこの見出しを見て除外区間を決める)。**2-1 と 2-4、および 3 節以降は検査対象**。
+**検査の除外区間**: **2-2 節・2-3 節・12 節は検査対象から外す** — 2-2 と 2-3 は**その語を禁じる理由を述べるために当該語を使い**、12 節は**検査が捕まえた語を記録するために当該語を使う**ため、検査すると必ず引っかかる。**除外を隠れた例外にしないよう、ここに明記する**(検査スクリプトはこの見出しを見て除外区間を決める)。**2-1 と 2-4、および 3 節以降は検査対象**。
 
 **表を 2 つに分ける。** 初版では 1 つの表に混ぜていたが、**残存検査を実際に回したところ「再送」「応答」「空イベント」で誤検出が出た** — これらは**それ自体が正しい概念**であり、無条件に禁止できない。**機械検査にかけられるのは無条件の禁止語だけ**であり、文脈依存の語は**人間の逐行確認の対象**である(計画書 6 節が「意味の支持は人間レビューへ分離する」と定めている)。
 
@@ -106,18 +106,22 @@ date: 2026-08-28
 
 ### 2-4. 適用先(**この定義を使う節**)
 
-| 節 | 使う述語 |
-| --- | --- |
-| **4**(イベント契約の骨格) | **D1・D4・D5**(サイドカー結合キーは D1 + D4 で成立する — REQ:1186)/ **D7**(改訂が新しい D5 を持つこと) |
-| **5**(順序の 2 系統と射程) | **D1・D2**(分離そのもの)/ **D6・D7**(これらが D2 に参加するかの判定) |
-| **6**(prefix と、拒否・再開の決定表) | **D3**(前進の規則)/ **D6・D7**(再開の 2 択)/ **D4**(旧世代の拒否)/ **D8**(記録権起因の拒否の行き先) |
-| **7**(ACK とキュー状態遷移・undo) | **D9**(保証内容)/ **D1**(欠番検知)/ **D5**(重複排除)/ **D3**(どこまで進んだかの通知) |
-| **8**(サーバー適用の原子性・再計算) | **D3・D5**(単一トランザクションの構成要素 — REQ:287)/ **D2**(再計算の起点) |
-| **9**(記録権との境界・退避と取り込み) | **D4**(世代更新とフェンシング)/ **D8**(退避と取り込み)/ **D1**(取り込み時の再採番)/ **D2**(挿入位置の指定) |
-| **10**((B) の受け取り先) | **D3**(物理表現は (B) 論点 23)/ **D5**(生成方式は (B) 論点 17) |
-| **11**(性能・影響差分・申し送り) | **D1・D3・D5・D6・D7・D8**(いずれもデータモデルへの構造上の帰結を持つ) |
+**主題**= その節が**規則を書く**述語 / **参照**= 他節の規則を**引くために触れる**述語。**どちらも定義は 2-1 が唯一**であり、**節の中で定義を書き直さない**。
 
-**適用先に挙げていない節で述語を使わない。** 使う必要が生じた場合は**本表へ追記してから**使う(表と本文の乖離を防ぐ)。
+| 節 | 主題として規則を書く述語 | 参照する述語 |
+| --- | --- | --- |
+| **4**(イベント契約の骨格) | **D1** ・ **D4** ・ **D5** ・ **D7** | D2 ・ D3 ・ D6 ・ D8 ・ D9 |
+| **5**(順序の 2 系統と射程) | **D1** ・ **D2** ・ **D6** ・ **D7** | D3 ・ D4 ・ D5 ・ D8 ・ D9 |
+| **6**(prefix と、拒否・再開の決定表) | **D3** ・ **D4** ・ **D6** ・ **D7** ・ **D8** | D1 ・ D2 ・ D5 ・ D9 |
+| **7**(ACK とキュー状態遷移・undo) | **D1** ・ **D3** ・ **D5** ・ **D9** | D2 ・ D4 ・ D6 ・ D8 |
+| **8**(サーバー適用の原子性・再計算) | **D2** ・ **D3** ・ **D5** | D1 ・ D6 ・ D9 |
+| **9**(記録権との境界・退避と取り込み) | **D1** ・ **D2** ・ **D4** ・ **D8** | D3 ・ D5 ・ D6 ・ D7 |
+| **10**((B) の受け取り先と (c)(d) の観点) | **D3** ・ **D5** | D1 ・ D2 ・ D6 ・ D7 ・ D8 ・ D9 |
+| **11**(性能・影響差分・申し送り) | **D1** ・ **D3** ・ **D5** ・ **D6** ・ **D7** ・ **D8** | D2 ・ D4 ・ D9 |
+
+**本表は実際の出現と一致させる**(12 節の適用先突合が機械で検算する)。**表に無い述語を節で使わない** — 使う必要が生じたら**本表へ追記してから**使う。
+
+> **初版の本表は「主題」だけを挙げており、参照を含めていなかった。** 12 節の突合で **8 節すべてに不一致**が出たため、**参照の列を足して実際の出現と一致させた**。**表と本文が乖離したまま残る**ことこそ台帳 H-78 が記録する型であり、**検査が無ければ気づけなかった**。
 
 ## 3. 論点の一覧と禁止事項照合表
 
@@ -1047,4 +1051,578 @@ NFR-009 は「**復元後の手順**」として、「バックアップから�
 
 ## 12. 検証記録
 
-<!-- ステップ 12 で記入(引用台帳・別名残存検査・禁止事項照合の結果とスクリプト) -->
+**本節は検証の記録だけを持つ。** 新しい主張・新しい決定を含まない。
+
+### 12-1. 検査の結果
+
+| 検査 | 目的 | 結果 |
+| --- | --- | --- |
+| **引用台帳検査** | 全ローカル引用形式の実在と参照先の解決 | **抽出 290 / 解決先不明 0 / 行が実在しない 0** — exit 0 |
+| **別名残存検査** | 2-3 (a) の無条件禁止語が本文に残っていないこと | **別名 30 語(述語 9 件)/ 残存 0 件** — exit 0 |
+| **適用先突合** | 2-4 の表が実際の出現と一致すること | **不一致 0 件** — exit 0 |
+| **要件の全数割り当て** | 抽出 ID 集合 = 割り当て ID 集合・重複 0・未割り当て 0 | **12-3** — exit 0 |
+| **禁止事項照合** | `P-01`〜`P-60` の全件に区分と判定 | **判定 22 件すべて記入済み / 対象外 38 件**(3-2) |
+| `check_docs_status.py` | 正本の状態と索引の整合 | **exit 0** |
+| `check_plan_docs_sync.py` | 計画書 3 節の宣言と差分の突合 | **exit 0** |
+
+### 12-2. 検査が捕まえたもの(**検査を置いた効果の記録**)
+
+| 段階 | 検査 | 捕まえたもの |
+| --- | --- | --- |
+| ステップ 2 | 別名残存 | **別名表が粗すぎた** — 3 語で誤検出。**それ自体が正しい概念**は無条件に禁止できないため、表を (a) 機械検査 / (b) 人間の確認 に分けた |
+| ステップ 2 | 引用台帳 | **抽出規則にバッククォートのない `REQ:<行>` が漏れていた**。修正後、[research.md](research.md) の引用が 141 → 173 件になり、**未分類の歴史的表記 3 件**が顕在化した |
+| ステップ 5 | 別名残存 | **本文に無条件の禁止語が 2 件残っていた**(D8 と D1 のもの)。意味は正しかったが、**禁止語が残ると次の是正で検索に掛からない** |
+| ステップ 12 | 適用先突合 | **2-4 の表が過少申告**で、**8 節すべてに不一致**。参照の列を足して実際の出現と一致させた |
+| ステップ 12 | 別名残存 | **本節(12-2)自身**が引っかかった — **捕まえた語を記録するために当該語を書く**ため。**12 節を除外区間に加え、除外を 2-3 節へ明記した**(隠れた例外にしない) |
+
+**いずれも人手の読み直しでは見落としていた。** 台帳 **H-78**(定義を集約しただけでは伝播漏れは直らず、残存を検出する検査が別に要る)の実測にあたる。
+
+### 12-3. 全数割り当ての検算
+
+```
+FR/NFR 条: 65
+見出し外の抽出単位: 375
+  表の行: 153
+  箇条書き: 77
+  見出し: 56
+  段落: 53
+  番号付き: 32
+  入れ子項目: 4
+
+区分ごとの件数: {'境界': 23, '対象外': 313, '同期': 27, '非規範': 77}
+抽出 440 / 割り当て 440 / 重複 0
+集合一致: True
+未割り当て: 0 件
+```
+
+### 12-4. 適用先突合の出力
+
+```
+節	述語	宣言	出現
+4	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']
+5	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']
+6	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']
+7	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D8', 'D9']
+8	使用 ['D1', 'D2', 'D3', 'D5', 'D6', 'D9']	宣言 ['D1', 'D2', 'D3', 'D5', 'D6', 'D9']
+9	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8']
+10	使用 ['D1', 'D2', 'D3', 'D5', 'D6', 'D7', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D5', 'D6', 'D7', 'D8', 'D9']
+11	使用 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']	宣言 ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']
+
+
+適用先の不一致 0 件
+```
+
+### 12-5. 検査スクリプト(**全文 — 版管理下には置かない**)
+
+計画書 3 節のとおり、**これらは使い捨てのスクリプト**である。`scripts/` へ置くと **NFR-019 のテストを伴う実装変更**になり本タスクのスコープを超えるため、**本節へ全文を記録して再現可能にする**。
+
+#### `units.py` — 抽出単位に安定 ID を付ける
+
+```python
+"""要件書の全抽出単位に安定 ID を付ける(design.md 1 節の抽出規則の実装)。
+
+FR/NFR 節の内側は「条」単位(FR-001 等)で数え、外側は Markdown 要素
+(見出し / 通常段落 / 箇条書き項目 / 番号付き項目 / 表のデータ行 / 入れ子項目)を
+1 単位として、規範かどうかを判断せずに全件抽出する。
+
+ID は R<行番号> 形式(行番号は一意なので安定 ID として使える)。
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path("/home/ymdms/projects/pitchlog-worktrees/feature-sync-protocol-design")
+REQ = ROOT / "docs/requirements/requirements-pitchlog-2026-07-22.md"
+
+
+def scan():
+    lines = REQ.read_text(encoding="utf-8").splitlines()
+    heads = [(i, len(m.group(1)), m.group(2))
+             for i, l in enumerate(lines)
+             if (m := re.match(r"^(#{1,6})\s+(.*)", l))]
+    # FR/NFR 節の範囲(次の同格以上の見出しで打ち切る)
+    inside = set()
+    reqs = []
+    for i, lv, t in heads:
+        if lv == 4 and re.match(r"^(FR|NFR)-\d+", t):
+            nxt = next((j for j, l2, _ in heads if j > i and l2 <= 4), len(lines))
+            inside |= set(range(i, nxt))
+            reqs.append((t.split(":")[0].strip(), i + 1))
+
+    units, in_fence = [], False
+    for i, l in enumerate(lines):
+        if l.strip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or i in inside or not l.strip():
+            continue
+        kind = None
+        if re.match(r"^#{1,6}\s", l):
+            kind = "見出し"
+        elif re.match(r"^\s*[-*]\s", l):
+            kind = "箇条書き" if not l.startswith(" ") else "入れ子項目"
+        elif re.match(r"^\s*\d+\.\s", l):
+            kind = "番号付き"
+        elif l.lstrip().startswith("|"):
+            if re.match(r"^\s*\|[\s:|-]+\|\s*$", l):
+                continue  # 区切り行は単位にしない
+            kind = "表の行"
+        else:
+            kind = "段落"
+        units.append((f"R{i+1}", kind, l.strip()[:60]))
+    return reqs, units
+
+
+if __name__ == "__main__":
+    reqs, units = scan()
+    print(f"FR/NFR 条: {len(reqs)}")
+    print(f"見出し外の抽出単位: {len(units)}")
+    from collections import Counter
+    for k, v in Counter(k for _, k, _ in units).most_common():
+        print(f"  {k}: {v}")
+    if len(sys.argv) > 1 and sys.argv[1] == "--list":
+        for uid, kind, txt in units:
+            print(f"{uid}\t{kind}\t{txt}")
+```
+
+#### `assign.py` — 全抽出単位への区分割り当てと検算
+
+```python
+"""全抽出単位への区分割り当て(design.md 11-3 節の裏付け)。
+
+規則:
+  1. FR/NFR 節の外側の見出し単体・変更履歴表の行 → 非規範
+  2. 同期語彙を含まない単位 → 対象外
+  3. 同期語彙を含む単位 → 下の手動割り当て表に従う(同期側で決める / 境界として参照 / 対象外)
+  4. FR/NFR 65 条 → design.md 1 節の 3 群(同期側 17 / 境界参照 / 対象外)
+
+検算: 抽出 ID 集合 == 割り当て ID 集合 / 重複 0 / 未割り当て 0
+"""
+
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from units import scan, REQ  # noqa: E402
+
+# 同期語彙を含む 47 件の手動割り当て(design.md 11-3 の表と一致させる)
+MANUAL = {
+    # 同期側で決める
+    "R119": "同期", "R166": "同期", "R149": "同期", "R952": "同期", "R955": "同期",
+    "R957": "同期", "R1019": "同期", "R1175": "同期", "R1176": "同期", "R1186": "同期",
+    # 境界として参照
+    "R118": "境界", "R120": "境界", "R147": "境界", "R956": "境界", "R979": "境界",
+    "R1027": "境界", "R82": "境界", "R83": "境界", "R401": "境界", "R1022": "境界",
+    "R167": "境界", "R1001": "境界", "R1002": "境界", "R1165": "境界",
+    # 対象外
+    "R59": "対象外", "R71": "対象外", "R107": "対象外", "R947": "対象外",
+    "R962": "対象外", "R1047": "対象外", "R1117": "対象外", "R1173": "対象外",
+    "R1184": "対象外", "R1195": "対象外",
+}
+
+KEY = ["同期", "キュー", "記録権", "断中", "通信断", "連番", "べき等", "墓標", "改訂",
+       "退避", "世代", "prefix", "再送", "オフライン", "未送信", "ACK", "フェンス",
+       "順序", "再計算", "原子", "トランザクション", "タブ"]
+
+# FR/NFR 65 条(design.md 1 節が正)
+REQ_SYNC = ["FR-006", "FR-007", "FR-008", "FR-009", "FR-010", "FR-011", "FR-012",
+            "FR-013", "FR-015", "FR-040", "NFR-001", "NFR-002", "NFR-006", "NFR-007",
+            "NFR-009", "NFR-015", "NFR-019"]
+REQ_BOUND = ["FR-001", "FR-005", "FR-014", "NFR-005", "NFR-010", "NFR-011",
+             "FR-034", "FR-035", "NFR-018"]
+
+
+def main():
+    lines = REQ.read_text(encoding="utf-8").splitlines()
+    reqs, units = scan()
+    assign, dup = {}, []
+
+    for name, _ in reqs:
+        k = "同期" if name in REQ_SYNC else ("境界" if name in REQ_BOUND else "対象外")
+        if name in assign:
+            dup.append(name)
+        assign[name] = k
+
+    for uid, kind, _ in units:
+        n = int(uid[1:])
+        body = lines[n - 1]
+        if kind == "見出し" or re.match(r"^\|\s*\*?\*?\d\.\d\*?\*?\s*\|\s*2026-", body):
+            k = "非規範"
+        elif uid in MANUAL:
+            k = MANUAL[uid]
+        elif any(x in body for x in KEY):
+            k = "未割り当て"          # 手動表に漏れがあればここで顕在化する
+        else:
+            k = "対象外"
+        if uid in assign:
+            dup.append(uid)
+        assign[uid] = k
+
+    ids_extracted = {n for n, _ in reqs} | {u for u, _, _ in units}
+    from collections import Counter
+    c = Counter(assign.values())
+    print("区分ごとの件数:", dict(c))
+    print(f"抽出 {len(ids_extracted)} / 割り当て {len(assign)} / 重複 {len(dup)}")
+    print("集合一致:", ids_extracted == set(assign))
+    print("未割り当て:", [k for k, v in assign.items() if v == "未割り当て"] or "0 件")
+    return 0 if (ids_extracted == set(assign) and not dup
+                 and "未割り当て" not in c) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+#### `cite_tool.py` — 引用台帳の抽出・現況化・検査
+
+```python
+"""引用台帳の抽出・現況化・検査(計画書 6 節「引用台帳検査」の実装)。
+
+抽出形式(計画書 6 節が定める 5 形式):
+  `<パス>.md:<行>[-<行>]` / `同 :<行>[-<行>]` / `:<行>[-<行>]` /
+  `REQ:<行>[-<行>]` / `<ファイル名>.md:<行>`
+
+参照先の解決:
+  1. 引用自身がパスを持つならそれ
+  2. 直前に現れた「呼称アンカー」(要件書・設計書・台帳・候補案・ADR-003 等)
+  3. 直前に現れたバッククォート付きファイルパス
+
+現況化(remap):
+  research.md は 701bf5f 時点のツリーに対して書かれている。b931e67 で変更された
+  正本については、701bf5f 時点の当該行の**内容**を取り出し、現行ファイル内で
+  完全一致する行を探す。一意に定まらないものは是正せず報告する(推測しない)。
+
+使い方:
+  python cite_tool.py report <対象.md> [...]   台帳を出力し実在検査する
+  python cite_tool.py rewrite <対象.md>        行番号を現況化して書き戻す
+"""
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path("/home/ymdms/projects/pitchlog-worktrees/feature-sync-protocol-design")
+BASE = "701bf5f"
+
+REQ = "docs/requirements/requirements-pitchlog-2026-07-22.md"
+HARNESS = "docs/development/dev-harness-design-2026-08-07.md"
+LEDGER = "docs/development/harness-evaluation.md"
+PDM_DESIGN = "docs/features/product-data-model-design/design.md"
+PDM_RESEARCH = "docs/features/product-data-model-design/research.md"
+ADR3 = "docs/adr/ADR-003-domain-calc-method.md"
+
+# 701bf5f → b931e67 で変更された正本(= 行番号の現況化が要るファイル)
+CHANGED = {REQ, HARNESS, LEDGER}
+
+# 呼称アンカー(日本語の呼び名で参照先を示す書き方に対応する)
+ANCHORS = [
+    ("要件書", REQ),
+    ("ハーネス設計書", HARNESS),
+    ("設計書", HARNESS),
+    ("運用評価台帳", LEDGER),
+    ("台帳", LEDGER),
+    ("候補案", PDM_DESIGN),
+    ("ADR-003", ADR3),
+]
+ANCHOR_RE = re.compile("|".join(re.escape(a) for a, _ in ANCHORS))
+ANCHOR_MAP = dict(ANCHORS)
+
+BARE_NAMES = {
+    "research.md": PDM_RESEARCH,
+    "design.md": PDM_DESIGN,
+    "plan.md": "docs/features/product-data-model-design/plan.md",
+}
+
+CITE = re.compile(
+    r"`(?:(REQ)|同\s*|((?:[\w./-]+/)?[\w.-]+\.md))?\s*:(\d+)(?:-(\d+))?`"
+    r"|(?<![\w`])(REQ):(\d+)(?:-(\d+))?(?![\w`])"
+)
+
+
+def cite_parts(m):
+    """バッククォート形式と裸の REQ:NNN 形式のどちらでも (種別, パス, 開始, 終了) を返す。"""
+    if m.group(5):  # 裸の REQ:NNN
+        return "REQ", None, int(m.group(6)), (int(m.group(7)) if m.group(7) else None)
+    return m.group(1), m.group(2), int(m.group(3)), (int(m.group(4)) if m.group(4) else None)
+FILEREF = re.compile(r"`((?:[\w./-]+/)?[\w.-]+\.md)(?::\d+(?:-\d+)?)?`")
+
+
+def resolve_name(p):
+    return BARE_NAMES.get(p, p)
+
+
+def scan(line, carry):
+    """行内を左から走査し (位置, 種別, 値) を返す。carry は直前行から継いだ参照先。"""
+    events = []
+    for m in ANCHOR_RE.finditer(line):
+        events.append((m.start(), "anchor", ANCHOR_MAP[m.group(0)]))
+    for m in FILEREF.finditer(line):
+        events.append((m.start(), "anchor", resolve_name(m.group(1))))
+    for m in CITE.finditer(line):
+        events.append((m.start(), "cite", m))
+    events.sort(key=lambda e: e[0])
+    return events
+
+
+def citations(target):
+    text = (ROOT / target).read_text(encoding="utf-8")
+    carry = None
+    for lineno, line in enumerate(text.splitlines(), 1):
+        cur = carry
+        for _, kind, val in scan(line, carry):
+            if kind == "anchor":
+                cur = val
+                continue
+            m = val
+            kind_, path_, s, e = cite_parts(m)
+            f = REQ if kind_ == "REQ" else (resolve_name(path_) if path_ else cur)
+            yield lineno, m, f, s, e
+        carry = cur
+
+
+def old_text(path):
+    r = subprocess.run(["git", "-C", str(ROOT), "show", f"{BASE}:{path}"],
+                       capture_output=True, text=True, check=True)
+    return r.stdout.splitlines()
+
+
+def build_map(path, nums):
+    old = old_text(path)
+    cur = (ROOT / path).read_text(encoding="utf-8").splitlines()
+    index = {}
+    for i, l in enumerate(cur, 1):
+        index.setdefault(l, []).append(i)
+    out, unresolved = {}, []
+    for n in sorted(nums):
+        if n > len(old) or not old[n - 1].strip():
+            unresolved.append((n, "旧ファイルで空行または範囲外"))
+            continue
+        hits = index.get(old[n - 1], [])
+        if len(hits) == 1:
+            out[n] = hits[0]
+        else:
+            unresolved.append((n, "現行に一意な同一行なし" if not hits else f"複数一致 {hits[:5]}"))
+    return out, unresolved
+
+
+def cmd_report(targets):
+    total = miss = unres = 0
+    for t in targets:
+        for lineno, m, f, s, e in citations(t):
+            total += 1
+            if not f:
+                unres += 1
+                print(f"{t}:{lineno}\t{m.group(0)}\t解決先不明")
+                continue
+            p = ROOT / f
+            lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+            last = e or s
+            if last > len(lines):
+                miss += 1
+                print(f"{t}:{lineno}\t{m.group(0)}\t{f}\t行なし")
+            else:
+                print(f"{t}:{lineno}\t{m.group(0)}\t{f}\t{lines[s-1].strip()[:60]}")
+    print(f"\n抽出 {total} / 解決先不明 {unres} / 行が実在しない {miss}", file=sys.stderr)
+    return unres + miss
+
+
+def cmd_rewrite(target):
+    wanted = {}
+    for _, _, f, s, e in citations(target):
+        if f in CHANGED:
+            wanted.setdefault(f, set()).update({s} | ({e} if e else set()))
+    maps, problems = {}, []
+    for f, nums in wanted.items():
+        maps[f], un = build_map(f, nums)
+        problems += [(f, n, why) for n, why in un]
+
+    path = ROOT / target
+    lines = path.read_text(encoding="utf-8").splitlines()
+    carry, changed = None, 0
+    for i, line in enumerate(lines):
+        cur = carry
+        repl = []
+        for _, kind, val in scan(line, carry):
+            if kind == "anchor":
+                cur = val
+                continue
+            m = val
+            kind_, path_, s, e = cite_parts(m)
+            f = REQ if kind_ == "REQ" else (resolve_name(path_) if path_ else cur)
+            if f not in CHANGED:
+                continue
+            t = maps.get(f, {})
+            if s not in t or (e and e not in t):
+                continue
+            new = f"`{m.group(0)[1:-1].replace(f':{s}', f':{t[s]}', 1)}`"
+            if e:
+                new = new[:-1].rsplit(f"-{e}", 1)
+                new = f"-{t[e]}".join(new) + "`" if len(new) == 2 else new[0] + "`"
+            repl.append((m.start(), m.end(), new))
+            changed += 1
+        carry = cur
+        for a, b, new in sorted(repl, reverse=True):
+            line = line[:a] + new + line[b:]
+        lines[i] = line
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"是正 {changed} 件", file=sys.stderr)
+    for f, n, why in problems:
+        print(f"!! 手動確認: {f}:{n} — {why}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "report":
+        sys.exit(1 if cmd_report(sys.argv[2:]) else 0)
+    cmd_rewrite(sys.argv[2])
+```
+
+#### `alias_check.py` — 禁じる別名の残存検査
+
+```python
+"""禁じる別名の残存検査(design.md 2-3 節を入力とする)。
+
+2-3 節の表そのものが定義であり検査対象外。それ以外の本文に別名が現れたら報告する。
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path("/home/ymdms/projects/pitchlog-worktrees/feature-sync-protocol-design")
+DESIGN = ROOT / "docs/features/sync-protocol-design/design.md"
+
+# 2-3 節の表から別名を機械抽出する(表を書き換えれば検査も変わる = 二重管理を避ける)
+def load_aliases():
+    lines = DESIGN.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, l in enumerate(lines) if l.startswith("#### (a) 無条件の禁止語"))
+    end = next(i for i, l in enumerate(lines[start + 1:], start + 1) if l.startswith("#### (b)"))
+    out = {}
+    for l in lines[start:end]:
+        m = re.match(r"\|\s*\*\*(D\d)\s*([^*]+)\*\*\s*\|([^|]*)\|", l)
+        if not m:
+            continue
+        names = [re.sub(r"\(.*?\)", "", x).strip() for x in m.group(3).split("/")]
+        out[m.group(1)] = [n for n in names if n and n not in ("—",)]
+    return out, (start, end)
+
+
+def main():
+    aliases, (astart, aend) = load_aliases()
+    lines = DESIGN.read_text(encoding="utf-8").splitlines()
+    # 除外区間: 規則を述べる 2-2・2-3 節と、検査結果を記録する 12 節。
+    # いずれも「その語を禁じる理由」や「捕まえた語」を書くために当該語を使う。
+    # 除外は design.md 2-3 節の前書きに明記してある(隠れた例外にしない)。
+    def section_range(prefix):
+        s0 = next((i for i, l in enumerate(lines) if l.startswith(prefix)), None)
+        if s0 is None:
+            return set()
+        nxt = "## " if prefix.startswith("## ") else ("### ", "## ")
+        s1 = next((i for i, l in enumerate(lines[s0 + 1:], s0 + 1)
+                   if (l.startswith(nxt) if isinstance(nxt, str)
+                       else (l.startswith(nxt[0]) or l.startswith(nxt[1])))), len(lines))
+        return set(range(s0, s1))
+
+    skip = (section_range("### 2-2.") | section_range("### 2-3.")
+            | section_range("## 12."))
+    hits = []
+    for i, l in enumerate(lines):
+        if i in skip:
+            continue
+        for d, names in aliases.items():
+            for n in names:
+                if n in l:
+                    hits.append((i + 1, d, n, l.strip()[:70]))
+    total = sum(len(v) for v in aliases.values())
+    for ln, d, n, txt in hits:
+        print(f"{ln}\t{d}\t{n}\t{txt}")
+    print(f"\n別名 {total} 語(述語 {len(aliases)} 件)/ 残存 {len(hits)} 件", file=sys.stderr)
+    return 1 if hits else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+#### `scope_check.py` — 適用先の突合
+
+```python
+"""適用先の突合(design.md 2-4 節 対 本文)。
+
+「適用先に挙げていない節で述語を使わない」を機械で確かめる。概念名(D1〜D9 の
+正規語と述語 ID)が現れる節を列挙し、2-4 節が宣言した適用先と比較する。
+
+台帳 H-79 の対応案「文書なら概念名で全節を列挙する」の実装。
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path("/home/ymdms/projects/pitchlog-worktrees/feature-sync-protocol-design")
+DESIGN = ROOT / "docs/features/sync-protocol-design/design.md"
+
+CANON = {
+    "D1": "同期連番", "D2": "論理順序", "D3": "prefix 水位", "D4": "記録権世代",
+    "D5": "べき等キー", "D6": "墓標", "D7": "改訂", "D8": "退避", "D9": "ACK",
+}
+# 2 節は定義節、3 節は論点・禁止事項の枠、12 節は検証記録。いずれも適用先の対象外。
+EXEMPT = {"1", "2", "3", "12"}
+
+
+def sections():
+    """(節番号, 開始行, 終了行) を返す。節は '## N.' で切る。"""
+    lines = DESIGN.read_text(encoding="utf-8").splitlines()
+    marks = [(i, m.group(1)) for i, l in enumerate(lines)
+             if (m := re.match(r"^## (\d+)\.", l))]
+    out = []
+    for k, (i, num) in enumerate(marks):
+        end = marks[k + 1][0] if k + 1 < len(marks) else len(lines)
+        out.append((num, i, end, lines[i:end]))
+    return out
+
+
+def declared():
+    """2-4 節の適用先表から {節番号: {述語 ID}} を読む。"""
+    lines = DESIGN.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, l in enumerate(lines) if l.startswith("### 2-4."))
+    end = next(i for i, l in enumerate(lines[start + 1:], start + 1)
+               if l.startswith("## "))
+    out = {}
+    for l in lines[start:end]:
+        m = re.match(r"\|\s*\*\*(\d+)\*\*[^|]*\|(.*)\|", l)
+        if m:
+            out[m.group(1)] = set(re.findall(r"\bD[1-9]\b", m.group(2)))
+    return out
+
+
+def main():
+    decl = declared()
+    problems = []
+    print("節\t述語\t宣言\t出現")
+    for num, _, _, body in sections():
+        if num in EXEMPT:
+            continue
+        text = "\n".join(body)
+        used = {d for d, name in CANON.items()
+                if re.search(rf"\b{d}\b", text) or name in text}
+        dec = decl.get(num, set())
+        extra = used - dec
+        missing = dec - used
+        print(f"{num}\t使用 {sorted(used)}\t宣言 {sorted(dec)}")
+        if extra:
+            problems.append((num, "宣言にないのに使用", sorted(extra)))
+        if missing:
+            problems.append((num, "宣言したのに未使用", sorted(missing)))
+    print()
+    for num, kind, items in problems:
+        print(f"!! {num} 節: {kind} {items}")
+    print(f"\n適用先の不一致 {len(problems)} 件", file=sys.stderr)
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
