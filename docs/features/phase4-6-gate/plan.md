@@ -1,6 +1,6 @@
 ---
 feature: phase4-6-gate
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-27・山田正輝)   # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -84,7 +84,8 @@ created: 2026-08-26
 
 `scripts/check_plan_docs_sync.py` の突合対象は `docs/ops/nfr021-acceptance/` を除外しないため、**結果証跡を宣言しないと `/pr` が「差分にあるのに未宣言」で中断する**(台帳 H-72)。
 
-- `docs/ops/nfr021-acceptance/<YYYY-MM-DDTHHMMSSZ>-phase4-phase4-seq001-<short_sha>.md`(**新規の結果証跡**。`<short_sha>` = `T` の先頭 12 文字)
+- `docs/ops/nfr021-acceptance/2026-08-27T141516Z-phase4-phase4-seq001-3873ce8586a5.md`(**新規の結果証跡** — 実パス確定 2026-08-27。`short_sha` = `T` の先頭 12 文字)
+- `docs/features/phase4-6-gate/acceptance-runbook.md`(**新規** — 判定者へ渡した受入ランブック)
 - `docs/features/phase4-6-gate/plan.md`
 - `docs/features/phase4-6-gate/research.md`
 - `docs/worklog/2026-08-26-phase4-6-gate.md`
