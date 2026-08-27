@@ -6,17 +6,17 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.3 — NFR-021 受入プロファイルのアーキテクチャ両対応〔x64 / arm64〕・固定版切替規則の判定単位・証跡のアーキテクチャ識別・10 章 未決事項「NFR-021 の継続検証基盤」の決着記録。確定ゲート中) | 2.3 | 2026-08-27 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.3 — NFR-021 受入プロファイルのアーキテクチャ両対応〔x64 / arm64〕・保証は「固定版 × arch × 受入事象」の組・切替事前検証・証跡へのアーキテクチャ識別・10 章 未決事項「NFR-021 の継続検証基盤」の決着記録。敵対レビュー9周 → PO 承認) | 2.3 | 2026-08-27 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **in-review**(v1.11 — 13 章へ受入の前提 PR 第 3 号を新設〔対象 4 本・順序・**本数 8 → 9**・要件書を含める根拠〕+ 10.1 の現況化〔要件書 10 章との併存終了・`win-setup` 不採用理由のアーキテクチャ非依存化〕。確定ゲート中) | 1.11 | 2026-08-27 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.11 — 13 章へ受入の前提 PR 第 3 号を新設〔対象 4 本・順序・**本数 8 → 9**〕+ 10.1 へ「正式受入」「4-6 マージ前条件」の単一定義と実施順序のゲート別分岐。敵対レビュー9周 → PO 承認) | 1.11 | 2026-08-27 |
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-27 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(要件書 v2.2 と一括検証) | 0.1 | 2026-08-19 |
-| [オンボーディング](development/onboarding.md) | **in-review**(v1.2 — 受入プロファイルの x64 複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定〕。確定ゲート中) | 1.2 | 2026-08-27 |
+| [オンボーディング](development/onboarding.md) | **approved**(v1.2 — 受入プロファイルの複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定・arm64 実機で実測〕。敵対レビュー9周 → PO 承認) | 1.2 | 2026-08-27 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.1 — 敵対レビュー2周 → PO 承認) | 1.1 | 2026-08-24 |
-| [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **in-review**(v1.3 — ブートストラップ手順 5 を前提 PR 第 3 号へ対応〔第 1 号 → 第 2 号 → 第 3 号〕。確定ゲート中) | 1.3 | 2026-08-27 |
+| [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(v1.3 — ブートストラップ手順を前提 PR 第 3 号へ対応し、手順 6・7 へ 10.1 の共通順序とマージ後検査を伝播。敵対レビュー9周 → PO 承認) | 1.3 | 2026-08-27 |
 | [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(release)](ops/nfr021-acceptance/evidence-release-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
