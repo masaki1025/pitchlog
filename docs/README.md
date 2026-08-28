@@ -6,7 +6,7 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.3 — NFR-021 受入プロファイルのアーキテクチャ両対応〔x64 / arm64〕・保証は「固定版 × arch × 受入事象」の組・切替事前検証・証跡へのアーキテクチャ識別・10 章 未決事項「NFR-021 の継続検証基盤」の決着記録。敵対レビュー9周 → PO 承認) | 2.3 | 2026-08-27 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | draft(v2.4 — U-2 の決着・E0〜E5・同期プロトコル設計 v0.1 と一括検証) | 2.4 | 2026-08-29 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | draft(v0.1 — 要件書 v2.4 と一括検証) | 0.1 | 2026-08-29 |
