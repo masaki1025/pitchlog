@@ -17,6 +17,37 @@ SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 FIXTURE = REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-source.txt"
 DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 
+STEP31_O3_LEASE_ELEMENTS = (
+    "OL1:リース識別=(試合,D4,V12)+期限",
+    "OL2:未凍結から凍結要求中=サーバーが凍結要求",
+    "OL3:凍結要求中から凍結ACK済み=新規入力停止+現書き手の凍結ACK",
+    "OL4:凍結ACK済みから空キュー確認済み=未送信0+要操作0+未突合ACK0",
+    "OL5:空キュー確認済みから取込P2実行中=リース再検証+O3取込P2だけ許可",
+    "OL6:凍結中の通常要求=新規入力非受理+P1・P2はB7+P3はB10",
+    "OL7:引き継ぎとの排他=取得競合時は片方だけ成立+引き継ぎ成立で旧O3失効",
+    "OL8:解除=取込成功+失敗・明示中止+応答消失・クラッシュ時の期限切れ",
+)
+STEP31_P3_RESULTS = (
+    "変更受理",
+    "B8:期待版不一致",
+    "B9:記録権不保持",
+    "B10:一時障害",
+    "B11:認証失効",
+    "B12:認可・テナント不一致",
+    "B13:D5衝突",
+    "B14:変更内容拒否",
+)
+STEP31_P3_ORDER_ELEMENTS = (
+    "I1:P3のD5照合位置=③認可後+V12前+V11前",
+    "I2:P3の既存D5・同一内容=保存済み結果を再掲+再適用しない",
+    "I3:P3の既存D5・異なる内容=B13",
+    "I4:P3の未使用D5=V12・V11照合対象",
+)
+STEP31_B3_BRANCH_ELEMENTS = (
+    "B3a:未使用D5の内容拒否=P5+T9",
+    "B3b:既存D5との衝突=先着原本との比較+B3+T9開始なし",
+)
+
 
 def _load_checker() -> Any:
     """テスト対象をsys.pathの変更なしでモジュールとして読む。"""
@@ -728,11 +759,16 @@ def test_current_manifest_all_relations_have_element_coverage() -> None:
         ),
         (
             "R-ORDER-ASSIGN",
-            ("O1", "O2", "O3", "O4"),
+            ("O1", "O2", "O3", "O4") + STEP31_O3_LEASE_ELEMENTS,
             {
                 "5-3 の隙間・再採番": ("O1", "O2", "O3"),
-                "8-1 の T5・経路 P2": ("O1", "O2", "O3", "O4"),
-                "11-2 のデータモデル影響差分": ("O1", "O2", "O3", "O4"),
+                "7-2 の O3リース状態遷移": ("O3",)
+                + STEP31_O3_LEASE_ELEMENTS,
+                "8-1 の T5・経路 P2": ("O1", "O2", "O3", "O4")
+                + STEP31_O3_LEASE_ELEMENTS,
+                "9-4 の取り込み手順": ("O3",) + STEP31_O3_LEASE_ELEMENTS,
+                "11-2 のデータモデル影響差分": ("O1", "O2", "O3", "O4")
+                + STEP31_O3_LEASE_ELEMENTS,
             },
         ),
     ),
@@ -766,60 +802,23 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         ),
         (
             "R-P3-BOUNDARY",
-            (
-                "変更受理",
-                "B8:期待版不一致",
-                "B9:記録権不保持",
-                "B10:一時障害",
-                "B11:認証失効",
-                "B12:認可・テナント不一致",
-                "B13:D5衝突",
-                "B14:変更内容拒否",
-            ),
+            STEP31_P3_RESULTS + STEP31_P3_ORDER_ELEMENTS,
             {
-                "7-1 の P3 応答契約": (
-                    "変更受理",
-                    "B8:期待版不一致",
-                    "B9:記録権不保持",
-                    "B10:一時障害",
-                    "B11:認証失効",
-                    "B12:認可・テナント不一致",
-                    "B13:D5衝突",
-                    "B14:変更内容拒否",
-                ),
+                "6-2 の P3 処理段階": STEP31_P3_ORDER_ELEMENTS,
+                "7-1 の P3 応答契約": STEP31_P3_RESULTS
+                + STEP31_P3_ORDER_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
                 ),
                 "8-3 の補正通知": (
-                    "B8:期待版不一致",
-                    "B9:記録権不保持",
-                    "B10:一時障害",
-                    "B11:認証失効",
-                    "B12:認可・テナント不一致",
-                    "B13:D5衝突",
-                    "B14:変更内容拒否",
+                    STEP31_P3_RESULTS[1:]
+                    + STEP31_P3_ORDER_ELEMENTS
                 ),
-                "9-2 の境界表": (
-                    "変更受理",
-                    "B8:期待版不一致",
-                    "B9:記録権不保持",
-                    "B10:一時障害",
-                    "B11:認証失効",
-                    "B12:認可・テナント不一致",
-                    "B13:D5衝突",
-                    "B14:変更内容拒否",
-                ),
-                "10-2 の故障系観点": (
-                    "変更受理",
-                    "B8:期待版不一致",
-                    "B9:記録権不保持",
-                    "B10:一時障害",
-                    "B11:認証失効",
-                    "B12:認可・テナント不一致",
-                    "B13:D5衝突",
-                    "B14:変更内容拒否",
-                ),
+                "9-2 の境界表": STEP31_P3_RESULTS
+                + STEP31_P3_ORDER_ELEMENTS,
+                "10-2 の故障系観点": STEP31_P3_RESULTS
+                + STEP31_P3_ORDER_ELEMENTS,
             },
         ),
     ),
@@ -866,8 +865,8 @@ def test_step29_manifest_keeps_new_routes_and_required_target_subsets(
 ) -> None:
     """ステップ29で追加・拡張した期待部分集合を弱められないように固定する。"""
     transaction = manifest["R-TXN-ROUTE"]
-    rejection_route = "P5:B3拒否専用=T9"
-    rejection_atomic = "T9:拒否原本・D5・拒否結果・理由の保存"
+    rejection_route = "P5:未使用D5の内容拒否=T9"
+    rejection_atomic = "T9:未使用D5の内容拒否原本・D5・拒否結果・理由の保存"
     assert rejection_route in transaction.source_elements
     assert rejection_atomic in transaction.source_elements
     assert all(
@@ -946,13 +945,36 @@ def test_step27_tombstone_rule_propagates_to_generation_and_queue() -> None:
     assert "改訂版は群 A のまま、ローカル生成を許す" in participation
 
 
-def test_step27_active_p3_authorizes_tenant_before_recording_right() -> None:
-    """P3が記録権の成否より先に他テナントの存在を漏らさないことを守る。"""
+def test_step31_active_p3_checks_d5_after_authorization_before_versions() -> None:
+    """P3が認可後、記録権・期待版より先にD5を照合することを守る。"""
     document = DESIGN.read_text(encoding="utf-8")
     section = checker._reference_section(document, "6-2 の処理段階")
     active_p3 = section[section.index("P3 は D1・D3") :]
 
-    assert active_p3.index("③ 認可(テナント)") < active_p3.index(
-        "④ 記録権証明"
-    )
+    authorization = active_p3.index("③ 認可(テナント)")
+    idempotency = active_p3.index("④ D5 の照合")
+    recording_right = active_p3.index("⑤ 記録権証明")
+    expected_version = active_p3.index("⑦ V11 の期待版照合")
+    assert authorization < idempotency < recording_right < expected_version
     assert "B9 記録権不保持" in active_p3
+
+
+def test_step31_b3_branches_and_o3_release_are_fixed(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """D5衝突でT9を増やさず、O3が期限切れで解除されることを守る。"""
+    boundary = manifest["R-BOUNDARY"]
+    assert boundary.source_elements[-2:] == STEP31_B3_BRANCH_ELEMENTS
+    boundary_targets = dict(boundary.expected_elements)
+    for target in (
+        "4-5 の D5衝突分岐",
+        "7-1 の A5",
+        "8-1 の P5・T9",
+        "10-2 の故障系観点",
+        "11-2 のデータモデル影響差分",
+    ):
+        assert boundary_targets[target] == STEP31_B3_BRANCH_ELEMENTS
+
+    import_section = checker._reference_section(DESIGN.read_text(), "9-4 の取り込み手順")
+    assert "応答消失・クラッシュ時の期限切れ" in import_section
+    assert "凍結を永久化しない" in import_section
