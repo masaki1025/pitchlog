@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in-review
 ---
 # 詳細設計: 同期プロトコル(イベント順序・断中記録・記録権の境界)
 

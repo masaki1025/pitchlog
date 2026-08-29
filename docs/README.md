@@ -6,10 +6,10 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | draft(v2.4 — U-2 の決着・E0〜E5・同期プロトコル設計 v0.1 と一括検証) | 2.4 | 2026-08-29 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.4 — U-2 の決着・E0〜E5・同期プロトコル設計 v0.1 と一括検証) | 2.4 | 2026-08-30 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
-| [同期プロトコル設計](design/sync-protocol.md) | draft(v0.1 — 要件書 v2.4 と一括検証) | 0.1 | 2026-08-29 |
+| [同期プロトコル設計](design/sync-protocol.md) | **in-review**(v0.1 — 要件書 v2.4 と一括検証) | 0.1 | 2026-08-30 |
 | [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.11 — 13 章へ受入の前提 PR 第 3 号を新設〔対象 4 本・順序・**本数 8 → 9**〕+ 10.1 へ「正式受入」「4-6 マージ前条件」の単一定義と実施順序のゲート別分岐。敵対レビュー9周 → PO 承認) | 1.11 | 2026-08-30 |
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認) | 1.0 | 2026-08-30 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |

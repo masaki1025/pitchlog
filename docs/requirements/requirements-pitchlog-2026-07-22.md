@@ -1,5 +1,5 @@
 ---
-status: draft
+status: in-review
 ---
 
 # pitchlog 要件定義書
