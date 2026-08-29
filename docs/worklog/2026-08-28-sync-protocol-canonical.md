@@ -171,6 +171,23 @@ P0 は **4 → 4 → 5 → 5 → 2 → 3 → 3 → 2 → 3 → 2 → 2 → 2 →
 
 `pyyaml` を dev 依存へ追加した(`ci.yml` の解析に要る)。索引 `docs/README.md` の設計書行の更新日を現行化した。テストは 712 → **714 件**。
 
+### ステップ 22(core-areas.json への登録)
+
+**4 領域**(`sync-protocol` / `game-state` / `recording-rights` / `tenant-isolation`)の `paths` へ**本正本と要件書**を登録した(設計書 6.3 規則①・③の重複帰属)。**`data-migration` には登録していない** — 本正本は移行の規範を持たず、移行への申し送りは `LG-05` で「未裁定の矛盾」として渡しただけだからである。
+
+**`guard_paths` へ検査資産 11 ファイルを完全列挙で追加した**(既存 7 件 + 11 = **18**)。**`guard_paths` は完全一致の集合で glob が効かない**ため、1 つでも書き漏らすとその資産は**人間の逐行確認なしで変更できてしまう**。検査資産は「黙って書き換えられると検査そのものが意味を失う」ものなので、漏れは致命的である。
+
+| 種別 | ファイル |
+| --- | --- |
+| oracle 4 | `defects.json` / `sync-protocol.json` / `req-universe.json` / `fixture-sha256.txt` |
+| 検出器 2 | `check_design_propagation.py` / `check_doc_coverage.py` |
+| fixture 1 | `tests/fixtures/sync-protocol-source.txt` |
+| テスト 4 | `test_check_design_propagation.py` / `test_check_doc_coverage.py` / `test_ci_wiring.py` / `test_core_guard.py` |
+
+**回帰テストは架空の設定ではなく実リポジトリの `.claude/core-areas.json` を読む。** 書き漏らしは **CI が green のまま**起きるため、設定を実際に読む以外に検出手段がない。**11 ファイルと 4 領域はそれぞれ個別にパラメータ化**した(まとめて 1 件にすると、1 つ漏れても他が緑で通ってしまう)。あわせて **`guard_paths` が期待集合と完全一致**であることを見るテスト(漏れだけでなく**意図しない追加**も捕まる)と、**`data-migration` に 2 本が登録されていない**ことの明示テストを置いた。テストは 714 → **731 件**。
+
+**`.claude/` は 7.2 の確定ゲート対象(`docs/` 配下)に含まれないため `/finalize-doc` の対象にしない。** 6.3 規則⑤が求める「敵対レビュー + 人間承認」は本タスクのゲートが満たす。
+
 ## 未決・次の一歩
 
 - **N-5(短縮案の採否)・N-6(`H-*` の新規採番)は人間の判断事項**。計画確定前に決着が要る
