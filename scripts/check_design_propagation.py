@@ -780,15 +780,25 @@ def _identifier_set(value: str) -> tuple[str, frozenset[str]] | None:
     return prefix, identifiers
 
 
+def _data_table_rows(section: str) -> tuple[str, ...]:
+    """節からMarkdown表の区切り行を除く候補行を返す。"""
+    return tuple(
+        row
+        for row in section.splitlines()
+        if _table_cells(row)
+        and not all(re.fullmatch(r"\s*[-:]+\s*", cell) for cell in _table_cells(row))
+    )
+
+
 def _element_table_row_occurs(section: str, element: str) -> bool:
     """``=`` を持つ要素の識別子側と右辺が同じ表行にあるかを返す。
 
-    ``ID:意味名=右辺`` のうち、英数字IDを持つ要素はID、番号だけの要素は
-    意味名で候補行を構造的に特定する。右辺が ``T1,T2,...`` のようなID集合
+    ``ID:意味名=右辺`` のIDで候補行を構造的に特定する。IDは英字を含むものだけで
+    なく、参加区分表の番号IDも必須とする。右辺が ``T1,T2,...`` のようなID集合
     なら候補行の同じ接頭辞の集合と完全一致させ、1要素の欠落・余分・別行への
     移動を検出する。それ以外は ``+`` で分けた意味句ごとに、Markdown装飾・
     空白・区切りを除いた部分文字列として同じ行に存在することを求める。この粒度は
-    表記差を許しつつ、意味句の置換と区分の入れ替えを検出するためである。
+    表記差を許しつつ、IDの欠落・交換・置換と意味句の置換を検出するためである。
 
     Args:
         section: 参照先の節本文。
@@ -802,33 +812,27 @@ def _element_table_row_occurs(section: str, element: str) -> bool:
     if not separator or not equals or not left or not right:
         return False
 
-    rows = [
-        row
-        for row in section.splitlines()
-        if _table_cells(row)
-        and not all(re.fullmatch(r"\s*[-:]+\s*", cell) for cell in _table_cells(row))
-    ]
+    rows = _data_table_rows(section)
     normalized_left = _semantic_text(left)
     candidate_rows = [
-        row
-        for row in rows
-        if (
-            not identifier.isdecimal()
-            and _identifier_occurs(row, identifier)
-            or normalized_left in _semantic_text(row)
-        )
+        row for row in rows if _identifier_occurs(row, identifier)
     ]
 
     identifier_set = _identifier_set(right)
     if identifier_set is not None:
         prefix, expected = identifier_set
-        return any(_numbered_ids(row, prefix) == expected for row in candidate_rows)
+        return any(
+            normalized_left in _semantic_text(row)
+            and _numbered_ids(row, prefix) == expected
+            for row in candidate_rows
+        )
 
     expected_parts = tuple(
         _semantic_text(part) for part in right.split("+") if _semantic_text(part)
     )
     return bool(expected_parts) and any(
-        all(part in _semantic_text(row) for part in expected_parts)
+        normalized_left in _semantic_text(row)
+        and all(part in _semantic_text(row) for part in expected_parts)
         for row in candidate_rows
     )
 
@@ -866,11 +870,17 @@ def _identifier_occurs(text: str, identifier: str) -> bool:
 def _element_occurs(section: str, element: str) -> bool:
     """宣言要素が節本文に出現するかを返す。
 
-    ``=`` を持つ対応要素は表行単位で識別子側と右辺を照合する。単独IDや
-    列挙語は右辺を持たないため、従来どおり節内のID・語の出現を照合する。
+    ``=`` を持つ対応要素は表行単位でID・左辺・右辺を照合する。``ID:意味句``
+    は意味句だけで代替させず、IDの節内出現を必須にする。単独IDやIDを持たない
+    列挙語は、従来どおり節内のID・語の出現を照合する。
     """
     if "=" in element:
         return _element_table_row_occurs(section, element)
+    identifier, separator, _ = element.partition(":")
+    if separator and re.fullmatch(
+        r"(?:[A-Z]+\d+(?:-[a-z])?|\d+)", identifier
+    ) is not None:
+        return _identifier_occurs(section, identifier)
     return any(
         _identifier_occurs(section, marker)
         if re.fullmatch(r"[A-Z]+\d+(?:-[a-z])?", marker)

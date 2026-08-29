@@ -334,15 +334,15 @@ def test_element_coverage_detects_replaced_right_hand_meaning() -> None:
 | --- | --- | --- |
 | 1 | 毎球入力 | 論理位置を持つ |
 ### 3-1. 経路
-| 種別 | 区分 |
-| --- | --- |
-| 毎球入力 | 論理位置を持つ |
+| # | 種別 | 区分 |
+| --- | --- | --- |
+| 1 | 毎球入力 | 論理位置を持つ |
 """
     mutated = valid.replace(
-        "### 3-1. 経路\n| 種別 | 区分 |\n| --- | --- |\n"
-        "| 毎球入力 | 論理位置を持つ |",
-        "### 3-1. 経路\n| 種別 | 区分 |\n| --- | --- |\n"
-        "| 毎球入力 | 同期順のみ |",
+        "### 3-1. 経路\n| # | 種別 | 区分 |\n| --- | --- | --- |\n"
+        "| 1 | 毎球入力 | 論理位置を持つ |",
+        "### 3-1. 経路\n| # | 種別 | 区分 |\n| --- | --- | --- |\n"
+        "| 1 | 毎球入力 | 同期順のみ |",
     )
 
     assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
@@ -368,14 +368,16 @@ def test_element_coverage_detects_swapped_right_hand_categories() -> None:
 | 1 | 毎球入力 | 論理位置を持つ |
 | 2 | undo | 従属 |
 ### 3-1. 経路
-| 種別 | 区分 |
-| --- | --- |
-| 毎球入力 | 論理位置を持つ |
-| undo | 従属 |
+| # | 種別 | 区分 |
+| --- | --- | --- |
+| 1 | 毎球入力 | 論理位置を持つ |
+| 2 | undo | 従属 |
 """
     mutated = valid.replace(
-        "| 毎球入力 | 論理位置を持つ |\n| undo | 従属 |",
-        "| 毎球入力 | 従属 |\n| undo | 論理位置を持つ |",
+        "### 3-1. 経路\n| # | 種別 | 区分 |\n| --- | --- | --- |\n"
+        "| 1 | 毎球入力 | 論理位置を持つ |\n| 2 | undo | 従属 |",
+        "### 3-1. 経路\n| # | 種別 | 区分 |\n| --- | --- | --- |\n"
+        "| 1 | 毎球入力 | 従属 |\n| 2 | undo | 論理位置を持つ |",
     )
 
     assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
@@ -426,6 +428,107 @@ def test_element_coverage_detects_missing_or_moved_set_member(
     assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
     assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
         f"R-ONE: 3-1 の経路表 にない要素: {element}",
+    )
+
+
+def _v12_identifier_case(target_rows: str) -> tuple[checker.ManifestRelation, str]:
+    """V12境界の行ID変異に使う関係と文書を作る。"""
+    elements = (
+        "VF1:P1・P2・P4=V12必須",
+        "VF4:P1・P2・P4のV12不成立=B4",
+    )
+    relation = _manifest_relation(
+        source_table="2-1 の V12 条件・結果写像",
+        targets=("3-1 の境界表",),
+        source_elements=elements,
+    )
+    source = """### 2-1. V12 条件・結果写像
+| 条件 ID | 条件 | 結果 |
+| --- | --- | --- |
+| VF1 | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |
+"""
+    target = f"""### 3-1. 境界
+| 条件 ID | 条件 | 結果 |
+| --- | --- | --- |
+{target_rows}
+"""
+    return relation, source + target
+
+
+def test_element_coverage_detects_deleted_identifier_with_meanings_preserved() -> None:
+    """左辺・右辺を残して行IDだけを削除しても検出する。"""
+    valid_rows = """| VF1 | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |"""
+    relation, valid = _v12_identifier_case(valid_rows)
+    mutated_rows = """|  | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |"""
+    _, mutated = _v12_identifier_case(mutated_rows)
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        "R-ONE: 3-1 の境界表 にない要素: VF1:P1・P2・P4=V12必須",
+    )
+
+
+def test_element_coverage_detects_swapped_identifiers_with_meanings_preserved() -> None:
+    """文書内のID集合を保った行IDの交換でも対応違反を検出する。"""
+    valid_rows = """| VF1 | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |"""
+    relation, valid = _v12_identifier_case(valid_rows)
+    mutated_rows = """| VF4 | P1・P2・P4 | V12 必須 |
+| VF1 | P1・P2・P4 の V12 不成立 | B4 |"""
+    _, mutated = _v12_identifier_case(mutated_rows)
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        "R-ONE: 3-1 の境界表 にない要素: "
+        "VF1:P1・P2・P4=V12必須,VF4:P1・P2・P4のV12不成立=B4",
+    )
+
+
+def test_element_coverage_detects_unknown_identifier_with_meanings_preserved() -> None:
+    """左辺・右辺を残した未知IDへの置換でも検出する。"""
+    valid_rows = """| VF1 | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |"""
+    relation, valid = _v12_identifier_case(valid_rows)
+    mutated_rows = """| VFX | P1・P2・P4 | V12 必須 |
+| VF4 | P1・P2・P4 の V12 不成立 | B4 |"""
+    _, mutated = _v12_identifier_case(mutated_rows)
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        "R-ONE: 3-1 の境界表 にない要素: VF1:P1・P2・P4=V12必須",
+    )
+
+
+def test_element_coverage_requires_identifier_for_named_element() -> None:
+    """``ID:意味句`` も意味句だけではIDの出現を代替できない。"""
+    element = "B10:一時障害"
+    relation = _manifest_relation(
+        source_table="2-1 の境界結果表",
+        targets=("3-1 の通知表",),
+        source_elements=(element,),
+    )
+    source = """### 2-1. 境界結果
+| ID | 結果 |
+| --- | --- |
+| B10 | 一時障害 |
+"""
+    valid = source + """### 3-1. 通知
+| ID | 結果 |
+| --- | --- |
+| B10 | 一時障害 |
+"""
+    mutated = source + """### 3-1. 通知
+| ID | 結果 |
+| --- | --- |
+|  | 一時障害 |
+"""
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        f"R-ONE: 3-1 の通知表 にない要素: {element}",
     )
 
 
