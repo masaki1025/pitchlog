@@ -131,8 +131,11 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assert len(assignments) == 211
     assert Counter(assignment.kind for assignment in assignments) == {
         "同期側で決める": 37,
-        "境界として参照": 84,
-        "対象外": 90,
+        # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
+        # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
+        # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
+        "境界として参照": 86,
+        "対象外": 88,
     }
 
 
