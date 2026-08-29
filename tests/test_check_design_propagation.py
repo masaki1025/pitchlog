@@ -501,3 +501,41 @@ def test_current_manifest_declaration_is_green() -> None:
 def test_current_manifest_all_relations_have_element_coverage() -> None:
     result = _run_cli("--document", str(DESIGN), "--checks", "element-coverage")
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("relation_id", "source_elements", "expected_elements"),
+    (
+        (
+            "R-TEMP-ID-MAPPING",
+            ("C1", "C2", "C3", "C4"),
+            {
+                "7-1 の A4・A5": ("C1", "C3", "C4"),
+                "7-2 の写像確定": ("C1", "C4"),
+                "8-1 の T6": ("C1", "C2", "C3", "C4"),
+                "11-2 のデータモデル影響差分": ("C1", "C2", "C3", "C4"),
+            },
+        ),
+        (
+            "R-ORDER-ASSIGN",
+            ("O1", "O2", "O3", "O4"),
+            {
+                "5-3 の隙間・再採番": ("O1", "O2", "O3"),
+                "8-1 の T5・経路 P2": ("O1", "O2", "O3", "O4"),
+                "11-2 のデータモデル影響差分": ("O1", "O2", "O3", "O4"),
+            },
+        ),
+    ),
+)
+def test_step26_relations_keep_complete_source_and_target_subsets(
+    manifest: dict[str, checker.ManifestRelation],
+    relation_id: str,
+    source_elements: tuple[str, ...],
+    expected_elements: dict[str, tuple[str, ...]],
+) -> None:
+    """追加関係の正本全集合と伝播先別部分集合を固定する。"""
+    relation = manifest[relation_id]
+
+    assert relation.source_elements == source_elements
+    assert dict(relation.expected_elements) == expected_elements
+    assert relation.targets == tuple(expected_elements)
