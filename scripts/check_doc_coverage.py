@@ -63,6 +63,7 @@ PATH_LINE_REFERENCE_RE = re.compile(
 SHORTHAND_LINE_REFERENCE_RE = re.compile(r"(?:同\s+`?)?(?<![\w.]):(?P<line>\d+)\b")
 STABLE_ID_RE = re.compile(
     r"^(?:(?:FR|NFR)-\d{3}(?:\([a-z]\))?(?:/[A-Z]\d+)?"
+    r"|付録[A-F]"
     r"|(?:付録[A-F]/)?[A-Z]-\d+[a-z]?"
     r"|[A-Z]+-\d+(?:-[A-Za-z0-9]+)?"
     r"|\d+(?:\.\d+)*(?:-\d+)?"

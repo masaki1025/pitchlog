@@ -186,6 +186,22 @@ def test_universe_is_not_derived_from_extractor() -> None:
     assert raw["total"] == 211
 
 
+def test_appendix_c_is_stable_id_in_link_label_and_fragment(tmp_path: Path) -> None:
+    root = tmp_path / "repository"
+    document_path = Path("docs/design/test.md")
+    document = (
+        "# 合成設計書\n\n"
+        "## 1. 主張\n\n"
+        "[付録C](docs/requirements/requirements.md) と "
+        "[設定値表](docs/requirements/requirements.md#付録C)を参照する。\n"
+    )
+    _write_text(root, document_path, document)
+
+    citations = checker.extract_citations(document, root, document_path)
+
+    assert [citation.stable_id for citation in citations] == ["付録C", "付録C"]
+
+
 def _ledger_row(
     claim_id: str,
     ordinal: int,

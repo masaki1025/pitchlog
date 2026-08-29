@@ -252,8 +252,11 @@ def test_manifest_consistency_rejects_each_changed_field(
     ("text", "is_valid"),
     (
         ("要件書 FR-012/E0 を参照する。", True),
+        ("docs/legacy/research/data-layer.md:287 を参照する。", True),
+        ("docs/legacy/research/data-layer.md:287・同 :288 を参照する。", True),
         ("REQ:287 を参照する。", False),
         ("docs/requirements/a.md:287 を参照する。", False),
+        ("docs/requirements/a.md:287・同 :288 を参照する。", False),
         ("要件書:287 を参照する。", False),
     ),
 )
@@ -261,6 +264,31 @@ def test_citation_format_has_normal_and_abnormal_cases(
     text: str, is_valid: bool
 ) -> None:
     assert (checker.check_citation_format(text) == ()) is is_valid
+
+
+def test_citation_format_bare_line_inherits_immediately_preceding_path() -> None:
+    legacy = "[原典](../legacy/research/data-layer.md)・同 :287"
+    mutable = "[要件](../requirements/requirements.md)・同 :287"
+    unknown = "直前の参照先なし :287"
+
+    assert checker.check_citation_format(legacy) == ()
+    assert checker.check_citation_format(mutable) == ("裸の行番号",)
+    assert checker.check_citation_format(unknown) == ("裸の行番号",)
+
+
+def test_citation_format_reports_mutable_path_and_inherited_bare_line() -> None:
+    text = "docs/requirements/a.md:287・同 :288"
+
+    assert checker.check_citation_format(text) == (
+        "<パス>.md:<行番号>",
+        "裸の行番号",
+    )
+
+
+def test_citation_format_requirement_line_is_always_invalid() -> None:
+    text = "docs/legacy/research/data-layer.md:287・REQ:288"
+
+    assert checker.check_citation_format(text) == ("REQ:<行番号>",)
 
 
 def test_noncanonical_reference_has_normal_and_abnormal_cases() -> None:

@@ -640,7 +640,11 @@ def check_manifest_consistency(
 
 
 def check_citation_format(text: str) -> tuple[str, ...]:
-    """正本で禁止する3形式の行番号引用を検出する。
+    """可変文書で禁止する3形式の行番号引用を検出する。
+
+    版固定アーカイブ ``docs/legacy/`` への行番号引用は逐語証拠として許容する。
+    裸の行番号は同じ主張行で直前に現れた参照先を引き継ぎ、参照先が
+    不明な場合は違反として扱う。
 
     Args:
         text: 検査対象のMarkdown本文。
@@ -648,14 +652,64 @@ def check_citation_format(text: str) -> tuple[str, ...]:
     Returns:
         残存した引用形式の識別子。
     """
-    found: list[str] = []
-    if REQ_LINE_CITATION_RE.search(text):
-        found.append("REQ:<行番号>")
-    if PATH_LINE_CITATION_RE.search(text):
-        found.append("<パス>.md:<行番号>")
-    if BARE_LINE_CITATION_RE.search(text):
-        found.append("裸の行番号")
-    return tuple(found)
+    found: set[str] = set()
+    for line in text.splitlines():
+        events: list[tuple[int, int, int, str, re.Match[str]]] = []
+        patterns = (
+            (0, "markdown", MARKDOWN_LINK_RE),
+            (1, "requirement-line", REQ_LINE_CITATION_RE),
+            (2, "path-line", PATH_LINE_CITATION_RE),
+            (3, "bare-line", BARE_LINE_CITATION_RE),
+        )
+        for priority, event_kind, pattern in patterns:
+            events.extend(
+                (match.start(), match.end(), priority, event_kind, match)
+                for match in pattern.finditer(line)
+            )
+        events.sort(key=lambda event: (event[0], event[2], -(event[1] - event[0])))
+
+        occupied: list[tuple[int, int]] = []
+        last_path: str | None = None
+        for start, end, _, event_kind, match in events:
+            if any(start < right and left < end for left, right in occupied):
+                continue
+            occupied.append((start, end))
+            if event_kind == "markdown":
+                last_path = match.group("target").strip("<>").split("#", 1)[0]
+                continue
+            if event_kind == "requirement-line":
+                found.add("REQ:<行番号>")
+                last_path = "docs/requirements/requirements-pitchlog-2026-07-22.md"
+                continue
+            if event_kind == "path-line":
+                last_path = match.group(0).rsplit(":", 1)[0]
+                if not _is_legacy_citation_path(last_path):
+                    found.add("<パス>.md:<行番号>")
+                continue
+            if last_path is None or not _is_legacy_citation_path(last_path):
+                found.add("裸の行番号")
+    return tuple(
+        identifier
+        for identifier in ("REQ:<行番号>", "<パス>.md:<行番号>", "裸の行番号")
+        if identifier in found
+    )
+
+
+def _is_legacy_citation_path(path: str) -> bool:
+    """引用先が版固定のlegacyアーカイブかを返す。
+
+    Args:
+        path: リポジトリ相対または文書相対のMarkdownパス。
+
+    Returns:
+        ``docs/legacy/`` 配下を指す場合は ``True``。
+    """
+    normalized = path.replace("\\", "/")
+    return (
+        normalized.startswith("docs/legacy/")
+        or normalized.startswith("../legacy/")
+        or "/docs/legacy/" in normalized
+    )
 
 
 def check_noncanonical_reference(text: str) -> tuple[int, ...]:
