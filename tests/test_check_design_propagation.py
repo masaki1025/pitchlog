@@ -539,3 +539,112 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
     assert relation.source_elements == source_elements
     assert dict(relation.expected_elements) == expected_elements
     assert relation.targets == tuple(expected_elements)
+
+
+@pytest.mark.parametrize(
+    ("relation_id", "source_elements", "expected_elements"),
+    (
+        (
+            "R-EVENT-FIELD",
+            tuple(f"V{index}" for index in range(1, 13)),
+            {
+                "4-3-A の W3": tuple(f"V{index}" for index in range(1, 13)),
+                "11-2 のデータモデル影響差分": tuple(
+                    f"V{index}" for index in range(1, 13)
+                ),
+            },
+        ),
+        (
+            "R-P3-BOUNDARY",
+            ("B8:期待版不一致", "B9:記録権不保持"),
+            {
+                "7-1 の P3 応答契約": (
+                    "B8:期待版不一致",
+                    "B9:記録権不保持",
+                ),
+                "8-1 の経路表": ("B9:記録権不保持",),
+                "8-3 の補正通知": (
+                    "B8:期待版不一致",
+                    "B9:記録権不保持",
+                ),
+                "9-2 の境界表": (
+                    "B8:期待版不一致",
+                    "B9:記録権不保持",
+                ),
+                "10-2 の故障系観点": ("B9:記録権不保持",),
+            },
+        ),
+    ),
+)
+def test_step27_relations_keep_complete_source_and_target_subsets(
+    manifest: dict[str, checker.ManifestRelation],
+    relation_id: str,
+    source_elements: tuple[str, ...],
+    expected_elements: dict[str, tuple[str, ...]],
+) -> None:
+    """記録権証明とP3拒否結果の伝播集合を固定する。"""
+    relation = manifest[relation_id]
+
+    assert relation.source_elements == source_elements
+    assert dict(relation.expected_elements) == expected_elements
+    assert relation.targets == tuple(expected_elements)
+
+
+def test_step27_tombstone_generation_stays_in_queued_participation_group(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """墓標の事前確認条件がD1付きキュー経路から脱落しないことを守る。"""
+    relation = manifest["R-PARTICIPATION"]
+    tombstone_rule = "K5:墓標生成=オンライン記録権確認後+D1付きキュー"
+
+    assert tombstone_rule in relation.source_elements
+    assert dict(relation.expected_elements)["6-4 の再開2択"] == (
+        tombstone_rule,
+    )
+    assert dict(relation.expected_elements)["7-2 のキュー状態遷移"] == (
+        tombstone_rule,
+    )
+    assert all(tombstone_rule in elements for _, elements in relation.expected_elements)
+
+
+def test_step27_recording_right_proof_keeps_semantic_physical_boundary() -> None:
+    """記録権証明が個人IDや未決の物理方式へ置き換わらないことを守る。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    contract = checker._reference_section(document, "4-3 の V1〜V12")
+    boundary = checker._reference_section(document, "9-2 の境界表")
+
+    assert "V12 は個人利用者 ID ではない" in contract
+    assert all(
+        undecided in contract
+        for undecided in ("物理形式", "寿命", "端末内の格納先", "更新方法")
+    )
+    assert "同一テナント・現 D4 でも" in boundary
+    assert "V12 が保持端末を証明しない要求を拒否する" in boundary
+
+
+def test_step27_tombstone_rule_propagates_to_generation_and_queue() -> None:
+    """墓標の事前確認とD1付きキュー経路が三つの規範節で一致することを守る。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    for reference in (
+        "5-5 の参加区分表",
+        "6-4 の再開2択",
+        "7-2 のキュー状態遷移",
+    ):
+        section = checker._reference_section(document, reference)
+        assert "K5" in section
+        assert "V12" in section
+    participation = checker._reference_section(document, "5-5 の参加区分表")
+    assert "群 A: D1 付きで端末内キューに載る種別" in participation
+    assert "改訂版は群 A のまま、ローカル生成を許す" in participation
+
+
+def test_step27_active_p3_authorizes_tenant_before_recording_right() -> None:
+    """P3が記録権の成否より先に他テナントの存在を漏らさないことを守る。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, "6-2 の処理段階")
+    active_p3 = section[section.index("P3 は D1・D3") :]
+
+    assert active_p3.index("③ 認可(テナント)") < active_p3.index(
+        "④ 記録権証明"
+    )
+    assert "B9 記録権不保持" in active_p3
