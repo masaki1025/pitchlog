@@ -59,9 +59,9 @@ def _make_repository(
     return root
 
 
-def _run_cli(root: Path) -> subprocess.CompletedProcess[str]:
+def _run_cli(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(SCRIPT), "--root", str(root)],
+        [sys.executable, str(SCRIPT), "--root", str(root), *arguments],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -159,21 +159,21 @@ def test_cli_rejects_each_coverage_failure_path(
         document_mutator=document_mutator,
     )
 
-    result = _run_cli(root)
+    result = _run_cli(root, "--checks", "attribution")
 
     assert result.returncode == 1
     assert f"{expected_check}:" in result.stderr
 
 
 def test_cli_accepts_complete_temporary_repository(tmp_path: Path) -> None:
-    result = _run_cli(_make_repository(tmp_path))
+    result = _run_cli(_make_repository(tmp_path), "--checks", "attribution")
 
     assert result.returncode == 0
     assert result.stderr == ""
 
 
 def test_cli_accepts_real_document() -> None:
-    result = _run_cli(REPOSITORY_ROOT)
+    result = _run_cli(REPOSITORY_ROOT, "--checks", "attribution")
 
     assert result.returncode == 0
     assert result.stderr == ""
@@ -184,3 +184,173 @@ def test_universe_is_not_derived_from_extractor() -> None:
 
     assert "抽出器より先に固定した期待値" in raw["_note"]
     assert raw["total"] == 211
+
+
+def _ledger_row(
+    claim_id: str,
+    ordinal: int,
+    target_path: str,
+    target_kind: str,
+    stable_id: str,
+    verdict: str = "支持",
+    correction: str = "",
+) -> str:
+    return (
+        f"| {claim_id} | {ordinal} | {target_path} | {target_kind} | "
+        f"{stable_id} | {verdict} | {correction} |"
+    )
+
+
+def _ledger_document(claim: str, rows: list[str]) -> str:
+    return "\n".join(
+        (
+            "# 合成設計書",
+            "",
+            "## 1. 主張",
+            "",
+            claim,
+            "",
+            "### 11-5. 意味照合台帳",
+            "",
+            "| 主張 ID | 主張内 ordinal | 参照先パス | 参照先の種別 | "
+            "参照先の安定 ID | 判定 | 是正内容 |",
+            "| --- | ---: | --- | --- | --- | --- | --- |",
+            *rows,
+            "",
+        )
+    )
+
+
+def _run_ledger_cli(tmp_path: Path, document: str) -> subprocess.CompletedProcess[str]:
+    root = tmp_path / "ledger-repository"
+    _write_text(root, checker.DEFAULT_DOCUMENT, document)
+    return _run_cli(root, "--checks", "ledger")
+
+
+def test_ledger_accepts_matching_keys_with_repeated_and_same_named_references(
+    tmp_path: Path,
+) -> None:
+    claim = (
+        "根拠 [E-1](docs/requirements/a.md) と [E-1](docs/requirements/a.md)、"
+        "別文書 [E-1](docs/design/b.md)。"
+    )
+    rows = [
+        _ledger_row("1/p1", 1, "docs/requirements/a.md", "要件", "E-1"),
+        _ledger_row("1/p1", 2, "docs/requirements/a.md", "要件", "E-1"),
+        _ledger_row("1/p1", 1, "docs/design/b.md", "正本", "E-1"),
+    ]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+
+
+@pytest.mark.parametrize(
+    "rows",
+    (
+        [],
+        [
+            _ledger_row("1/p1", 1, "docs/requirements/a.md", "要件", "FR-012"),
+            _ledger_row("1/p1", 1, "docs/requirements/a.md", "要件", "NFR-001"),
+        ],
+    ),
+    ids=("ledger-missing", "ledger-extra"),
+)
+def test_ledger_rejects_key_set_shortage_and_excess(
+    tmp_path: Path,
+    rows: list[str],
+) -> None:
+    claim = "根拠 [FR-012](docs/requirements/a.md)。"
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-key-mismatch:" in result.stderr
+
+
+def test_ledger_rejects_missing_correction_for_unsupported_entry(tmp_path: Path) -> None:
+    claim = "根拠 [FR-012](docs/requirements/a.md)。"
+    rows = [
+        _ledger_row(
+            "1/p1",
+            1,
+            "docs/requirements/a.md",
+            "要件",
+            "FR-012",
+            verdict="不支持",
+        )
+    ]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-correction:" in result.stderr
+
+
+def test_ledger_distinguishes_same_stable_id_in_different_documents(tmp_path: Path) -> None:
+    claim = "根拠 [E-1](docs/requirements/a.md)。"
+    rows = [_ledger_row("1/p1", 1, "docs/design/a.md", "正本", "E-1")]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-target-pair:" in result.stderr
+
+
+def test_ledger_detects_repeated_reference_collapsing_from_two_to_one(tmp_path: Path) -> None:
+    claim = (
+        "根拠 [FR-012](docs/requirements/a.md) と "
+        "[FR-012](docs/requirements/a.md)。"
+    )
+    rows = [_ledger_row("1/p1", 1, "docs/requirements/a.md", "要件", "FR-012")]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-key-mismatch:" in result.stderr
+
+
+def test_ledger_detects_repeated_reference_growing_from_one_to_two(tmp_path: Path) -> None:
+    claim = "根拠 [FR-012](docs/requirements/a.md)。"
+    rows = [
+        _ledger_row("1/p1", 1, "docs/requirements/a.md", "要件", "FR-012"),
+        _ledger_row("1/p1", 2, "docs/requirements/a.md", "要件", "FR-012"),
+    ]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-key-mismatch:" in result.stderr
+
+
+@pytest.mark.parametrize("ordinals", ((1, 1), (1, 3)), ids=("duplicate", "gap"))
+def test_ledger_rejects_duplicate_or_missing_ordinal(
+    tmp_path: Path,
+    ordinals: tuple[int, int],
+) -> None:
+    claim = (
+        "根拠 [FR-012](docs/requirements/a.md) と "
+        "[FR-012](docs/requirements/a.md)。"
+    )
+    rows = [
+        _ledger_row("1/p1", ordinal, "docs/requirements/a.md", "要件", "FR-012")
+        for ordinal in ordinals
+    ]
+
+    result = _run_ledger_cli(tmp_path, _ledger_document(claim, rows))
+
+    assert result.returncode == 1
+    assert "ledger-ordinal:" in result.stderr
+
+
+def test_real_empty_ledger_fails_only_ledger_check() -> None:
+    attribution = _run_cli(REPOSITORY_ROOT, "--checks", "attribution")
+    ledger = _run_cli(REPOSITORY_ROOT, "--checks", "ledger")
+    combined = _run_cli(REPOSITORY_ROOT)
+
+    assert attribution.returncode == 0
+    assert ledger.returncode == 1
+    assert combined.returncode == 1
+    assert "ledger-key-mismatch:" in ledger.stderr
+    assert "ledger-key-mismatch:" in combined.stderr

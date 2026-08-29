@@ -15,6 +15,8 @@ DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.
 DEFAULT_DOCUMENT = Path("docs/design/sync-protocol.md")
 DEFAULT_UNIVERSE = Path("scripts/design_relations/req-universe.json")
 
+COVERAGE_CHECK_IDS = ("attribution", "ledger")
+COVERAGE_CHECK_ID_SET = frozenset(COVERAGE_CHECK_IDS)
 CATEGORY_IDS = (
     "requirements",
     "sections",
@@ -27,8 +29,21 @@ CATEGORY_IDS = (
 )
 ASSIGNMENT_KINDS = frozenset({"同期側で決める", "境界として参照", "対象外"})
 ASSIGNMENT_HEADER = ("ID", "区分", "本書の対応箇所または対象外の理由")
+LEDGER_HEADER = (
+    "主張 ID",
+    "主張内 ordinal",
+    "参照先パス",
+    "参照先の種別",
+    "参照先の安定 ID",
+    "判定",
+    "是正内容",
+)
+REFERENCE_KINDS = frozenset({"要件", "正本", "legacy"})
+LEDGER_VERDICTS = frozenset({"支持", "不支持", "射程過大", "誤典拠"})
+REQUIREMENTS_PATH = "docs/requirements/requirements-pitchlog-2026-07-22.md"
+LEDGER_SECTION_ID = "11-5"
 
-HEADING_RE = re.compile(r"^(?P<marks>#{2,6})\s+(?P<title>.+)$")
+HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+)$")
 REQUIREMENT_RE = re.compile(r"^####\s+((?:FR|NFR)-\d{3}):")
 NUMBERED_SECTION_RE = re.compile(
     r"^#{2,4}\s+(\d+(?:\.\d+)*(?:-\d+)?)(?:\.|\s|$)"
@@ -38,6 +53,22 @@ APPENDIX_RE = re.compile(r"^##\s+付録([A-F]):")
 APPENDIX_HEADING_ITEM_RE = re.compile(r"^###\s+([AEF]-\d+[a-z]?)\b")
 ORDERED_ITEM_RE = re.compile(r"^(\d+)\.\s+")
 IDENTIFIED_ROW_RE = re.compile(r"^\|\s*((?:G|R)-\d+)\s*\|")
+MARKDOWN_REFERENCE_RE = re.compile(
+    r"\[(?P<label>[^\]]+)\]\((?P<target>[^)\s]+\.md(?:#[^)\s]+)?)\)"
+)
+REQ_LINE_REFERENCE_RE = re.compile(r"\bREQ:(?P<line>\d+)\b")
+PATH_LINE_REFERENCE_RE = re.compile(
+    r"(?P<path>(?:docs/|\.\.?/)[^`\s()\[\]]+\.md):(?P<line>\d+)"
+)
+SHORTHAND_LINE_REFERENCE_RE = re.compile(r"(?:同\s+`?)?(?<![\w.]):(?P<line>\d+)\b")
+STABLE_ID_RE = re.compile(
+    r"^(?:(?:FR|NFR)-\d{3}(?:\([a-z]\))?(?:/[A-Z]\d+)?"
+    r"|(?:付録[A-F]/)?[A-Z]-\d+[a-z]?"
+    r"|[A-Z]+-\d+(?:-[A-Za-z0-9]+)?"
+    r"|\d+(?:\.\d+)*(?:-\d+)?"
+    r"|\d+-\d+(?:-[A-Za-z0-9]+)?"
+    r"|NFR-018/\([αβa-d]\)(?:[①-⑧])?)$"
+)
 
 
 class CoverageError(Exception):
@@ -83,6 +114,58 @@ class Finding:
 
     check: str
     reason: str
+
+
+@dataclass(frozen=True)
+class Citation:
+    """本文から抽出した引用 1 件を表す。
+
+    Attributes:
+        claim_id: 見出し ID と段落・表行連番からなる主張 ID。
+        ordinal: 同一主張・同一参照先での 1 始まりの出現順。
+        target_path: リポジトリ相対の参照先パス。
+        target_kind: ``要件``、``正本``、``legacy`` のいずれか。
+        stable_id: 参照先文書内の安定 ID。
+    """
+
+    claim_id: str
+    ordinal: int
+    target_path: str
+    target_kind: str
+    stable_id: str
+
+    @property
+    def key(self) -> tuple[str, int, str, str]:
+        """台帳と突合する 4 要素キーを返す。"""
+        return (self.claim_id, self.ordinal, self.target_path, self.stable_id)
+
+
+@dataclass(frozen=True)
+class LedgerEntry:
+    """意味照合台帳の 1 行を表す。
+
+    Attributes:
+        claim_id: 本書の主張 ID。
+        ordinal: 同一主張・同一参照先での出現順。
+        target_path: リポジトリ相対の参照先パス。
+        target_kind: 参照先の種別。
+        stable_id: 参照先文書内の安定 ID。
+        verdict: 意味照合の判定。
+        correction: ``支持`` 以外のときの是正内容。
+    """
+
+    claim_id: str
+    ordinal: int
+    target_path: str
+    target_kind: str
+    stable_id: str
+    verdict: str
+    correction: str
+
+    @property
+    def key(self) -> tuple[str, int, str, str]:
+        """本文の引用と突合する 4 要素キーを返す。"""
+        return (self.claim_id, self.ordinal, self.target_path, self.stable_id)
 
 
 def _read_text(path: Path, label: str) -> str:
@@ -418,6 +501,435 @@ def check_coverage(
     return tuple(findings)
 
 
+def _heading_identifier(
+    title: str,
+    level: int,
+    parents: dict[int, str],
+) -> str:
+    if level == 1:
+        return "document"
+    token = re.match(
+        r"^(?P<id>(?:\d+(?:\.\d+)*(?:-\d+(?:-[A-Za-z0-9]+)?)?|[A-Z]+-\d+))"
+        r"(?:[.:\s]|$)",
+        title,
+    )
+    if token is not None:
+        return token.group("id")
+    parent = next(
+        (
+            parents[parent_level]
+            for parent_level in range(level - 1, 0, -1)
+            if parent_level in parents
+        ),
+        "document",
+    )
+    label = re.sub(r"\s+", "-", title.strip())
+    return f"{parent}/{label}"
+
+
+def _is_table_separator(line: str) -> bool:
+    cells = _table_cells(line)
+    return cells is not None and bool(cells) and all(
+        re.fullmatch(r":?-{3,}:?", cell) is not None for cell in cells
+    )
+
+
+def _claim_lines(text: str) -> tuple[tuple[str, str], ...]:
+    lines = text.splitlines()
+    parents: dict[int, str] = {}
+    current_heading = "document"
+    counters: dict[str, dict[str, int]] = {}
+    claims: list[tuple[str, str]] = []
+    in_fence = False
+    excluded_level: int | None = None
+    for index, line in enumerate(lines):
+        if line.strip().startswith(("```", "~~~")):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        heading = HEADING_RE.match(line)
+        if heading is not None:
+            level = len(heading.group("marks"))
+            heading_id = _heading_identifier(heading.group("title"), level, parents)
+            parents = {
+                parent_level: value
+                for parent_level, value in parents.items()
+                if parent_level < level
+            }
+            parents[level] = heading_id
+            current_heading = heading_id
+            if heading_id == LEDGER_SECTION_ID:
+                excluded_level = level
+            elif excluded_level is not None and level <= excluded_level:
+                excluded_level = None
+            continue
+        if excluded_level is not None or not line.strip() or line.strip() == "---":
+            continue
+        cells = _table_cells(line)
+        if cells is not None:
+            if _is_table_separator(line):
+                continue
+            next_line = lines[index + 1] if index + 1 < len(lines) else ""
+            if _is_table_separator(next_line):
+                continue
+            kind = "r"
+        else:
+            kind = "p"
+        heading_counters = counters.setdefault(current_heading, {"p": 0, "r": 0})
+        heading_counters[kind] += 1
+        claims.append((f"{current_heading}/{kind}{heading_counters[kind]}", line))
+    return tuple(claims)
+
+
+def _normalize_target_path(root: Path, document_path: Path, target: str) -> tuple[str, str | None]:
+    path_text, separator, fragment = target.partition("#")
+    if path_text.startswith("docs/"):
+        resolved = root / path_text
+    else:
+        resolved = document_path.parent / path_text
+    try:
+        relative = resolved.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError as error:
+        raise CoverageError(f"引用先がリポジトリ外を指す: {target}") from error
+    return relative, fragment if separator else None
+
+
+def _reference_kind(path: str) -> str:
+    if path.startswith("docs/legacy/"):
+        return "legacy"
+    if path.startswith("docs/requirements/"):
+        return "要件"
+    return "正本"
+
+
+def _stable_id_from_label(label: str, fragment: str | None) -> str | None:
+    candidates = []
+    if fragment is not None:
+        candidates.append(fragment)
+    candidates.append(label.replace("**", "").replace("`", "").strip())
+    for candidate in candidates:
+        if STABLE_ID_RE.fullmatch(candidate) is not None:
+            return candidate
+    return None
+
+
+def _stable_row_id(line: str) -> str | None:
+    cells = _table_cells(line)
+    if cells is None or not cells:
+        return None
+    candidate = cells[0].replace("**", "").replace("`", "").strip()
+    return candidate if STABLE_ID_RE.fullmatch(candidate) is not None else None
+
+
+def _stable_id_at_line(path: Path, line_number: int, cache: dict[Path, list[str]]) -> str:
+    if path not in cache:
+        try:
+            cache[path] = path.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            raise CoverageError(f"行番号引用の参照先を読めない: {path}: {error}") from error
+    lines = cache[path]
+    if line_number < 1 or line_number > len(lines):
+        raise CoverageError(f"行番号引用が参照先の範囲外: {path}:{line_number}")
+
+    current = "document"
+    appendix: str | None = None
+    for index, line in enumerate(lines[:line_number], start=1):
+        appendix_heading = APPENDIX_RE.match(line)
+        if appendix_heading is not None:
+            appendix = appendix_heading.group(1)
+            current = f"付録{appendix}"
+            continue
+        requirement = REQUIREMENT_RE.match(line)
+        if requirement is not None:
+            current = requirement.group(1)
+            appendix = None
+            continue
+        numbered = NUMBERED_SECTION_RE.match(line)
+        if numbered is not None:
+            current = numbered.group(1)
+            appendix = None
+            continue
+        appendix_item = APPENDIX_HEADING_ITEM_RE.match(line)
+        if appendix is not None and appendix_item is not None:
+            current = f"付録{appendix}/{appendix_item.group(1)}"
+            continue
+        ordered_item = ORDERED_ITEM_RE.match(line)
+        if appendix in {"B", "D"} and ordered_item is not None:
+            current = f"付録{appendix}/{appendix}-{ordered_item.group(1)}"
+            continue
+        heading = HEADING_RE.match(line)
+        if heading is not None:
+            stable_heading = re.match(
+                r"^(?P<id>[A-Z]+-\d+(?:-[A-Za-z0-9]+)?)(?:[.:\s]|$)",
+                heading.group("title"),
+            )
+            if stable_heading is not None:
+                current = stable_heading.group("id")
+        if index == line_number:
+            row_id = _stable_row_id(line)
+            if row_id is not None:
+                return row_id
+    return current
+
+
+def _spans_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
+    return left[0] < right[1] and right[0] < left[1]
+
+
+def _claim_references(
+    claim: str,
+    root: Path,
+    document_path: Path,
+    cache: dict[Path, list[str]],
+) -> tuple[tuple[int, str, str], ...]:
+    events: list[tuple[int, int, int, str, re.Match[str]]] = []
+    patterns = (
+        (0, "markdown", MARKDOWN_REFERENCE_RE),
+        (1, "requirement-line", REQ_LINE_REFERENCE_RE),
+        (2, "path-line", PATH_LINE_REFERENCE_RE),
+        (3, "shorthand-line", SHORTHAND_LINE_REFERENCE_RE),
+    )
+    for priority, event_kind, pattern in patterns:
+        events.extend(
+            (match.start(), match.end(), priority, event_kind, match)
+            for match in pattern.finditer(claim)
+        )
+    events.sort(key=lambda event: (event[0], event[2], -(event[1] - event[0])))
+
+    occupied: list[tuple[int, int]] = []
+    references: list[tuple[int, str, str]] = []
+    last_path: str | None = None
+    for start, end, _, event_kind, match in events:
+        span = (start, end)
+        if any(_spans_overlap(span, existing) for existing in occupied):
+            continue
+        occupied.append(span)
+        if event_kind == "markdown":
+            target_path, fragment = _normalize_target_path(
+                root, document_path, match.group("target")
+            )
+            last_path = target_path
+            stable_id = _stable_id_from_label(match.group("label"), fragment)
+            if stable_id is not None:
+                references.append((start, target_path, stable_id))
+            continue
+        if event_kind == "requirement-line":
+            target_path = REQUIREMENTS_PATH
+            last_path = target_path
+        elif event_kind == "path-line":
+            target_path, _ = _normalize_target_path(root, document_path, match.group("path"))
+            last_path = target_path
+        else:
+            if last_path is None:
+                continue
+            target_path = last_path
+        stable_id = _stable_id_at_line(root / target_path, int(match.group("line")), cache)
+        references.append((start, target_path, stable_id))
+    return tuple(sorted(references))
+
+
+def extract_citations(text: str, root: Path, document_path: Path) -> tuple[Citation, ...]:
+    """本文から主張 ID と 4 要素キーを持つ引用列を抽出する。
+
+    現行の行番号引用は参照先文書の当該行を包含する安定 ID へ解決する。
+    識別子参照は、安定 ID をラベルまたはフラグメントに持つ Markdown リンクを読む。
+    意味照合台帳の節自体は自己参照を避けるため抽出しない。
+
+    Args:
+        text: 検査対象文書の Markdown 全文。
+        root: リポジトリルート。
+        document_path: 検査対象文書のパス。
+
+    Returns:
+        本文での出現順に並ぶ引用。ordinal は同一主張・同一参照先ごとに振る。
+    """
+    cache: dict[Path, list[str]] = {}
+    citations: list[Citation] = []
+    for claim_id, claim in _claim_lines(text):
+        ordinals: Counter[tuple[str, str]] = Counter()
+        for _, target_path, stable_id in _claim_references(claim, root, document_path, cache):
+            pair = (target_path, stable_id)
+            ordinals[pair] += 1
+            citations.append(
+                Citation(
+                    claim_id=claim_id,
+                    ordinal=ordinals[pair],
+                    target_path=target_path,
+                    target_kind=_reference_kind(target_path),
+                    stable_id=stable_id,
+                )
+            )
+    return tuple(citations)
+
+
+def parse_ledger(text: str) -> tuple[LedgerEntry, ...]:
+    """11-5 の意味照合台帳を読み取る。
+
+    Args:
+        text: 同期プロトコル設計の Markdown 全文。
+
+    Returns:
+        台帳に記載された順の行。空表は空タプルになる。
+
+    Raises:
+        CoverageError: 台帳節、列、列挙値または ordinal が不正な場合。
+    """
+    section = _section_text(text, re.compile(rf"^{LEDGER_SECTION_ID}\."))
+    if not section:
+        raise CoverageError(f"本書に {LEDGER_SECTION_ID} 節がない")
+    lines = section.splitlines()
+    header_index: int | None = None
+    for index, line in enumerate(lines):
+        cells = _table_cells(line)
+        if cells is not None and tuple(cells) == LEDGER_HEADER:
+            header_index = index
+            break
+    if header_index is None:
+        raise CoverageError("意味照合台帳に所定の 7 列がない")
+
+    entries: list[LedgerEntry] = []
+    for line in lines[header_index + 2 :]:
+        cells = _table_cells(line)
+        if cells is None:
+            break
+        if len(cells) != len(LEDGER_HEADER):
+            raise CoverageError(f"意味照合台帳の列数が 7 でない: {line}")
+        claim_id, ordinal_text, target_path, target_kind, stable_id, verdict, correction = (
+            _without_emphasis(cell) for cell in cells
+        )
+        try:
+            ordinal = int(ordinal_text)
+        except ValueError as error:
+            raise CoverageError(f"台帳の ordinal が整数でない: {ordinal_text}") from error
+        if ordinal < 1:
+            raise CoverageError(f"台帳の ordinal が 1 未満: {ordinal}")
+        if not claim_id or not target_path or not stable_id:
+            raise CoverageError(f"意味照合台帳のキーに空セルがある: {line}")
+        if target_kind not in REFERENCE_KINDS:
+            raise CoverageError(f"参照先の種別が不正: {target_kind}")
+        if verdict not in LEDGER_VERDICTS:
+            raise CoverageError(f"台帳の判定が不正: {verdict}")
+        entries.append(
+            LedgerEntry(
+                claim_id=claim_id,
+                ordinal=ordinal,
+                target_path=target_path,
+                target_kind=target_kind,
+                stable_id=stable_id,
+                verdict=verdict,
+                correction=correction,
+            )
+        )
+    return tuple(entries)
+
+
+def check_ledger(
+    citations: Sequence[Citation],
+    entries: Sequence[LedgerEntry],
+) -> tuple[Finding, ...]:
+    """本文の引用集合と意味照合台帳を突合する。
+
+    Args:
+        citations: 本文から抽出した引用。
+        entries: 11-5 の台帳行。
+
+    Returns:
+        キー集合、是正内容、参照先の対、ordinal に関する違反列。
+    """
+    findings: list[Finding] = []
+    citation_keys = {citation.key for citation in citations}
+    entry_keys = {entry.key for entry in entries}
+    missing = sorted(citation_keys - entry_keys)
+    unknown = sorted(entry_keys - citation_keys)
+    if missing or unknown:
+        findings.append(
+            Finding(
+                "ledger-key-mismatch",
+                f"台帳不足={missing}, 本文にない台帳キー={unknown}",
+            )
+        )
+
+    for entry in entries:
+        if entry.verdict != "支持" and entry.correction.strip() in {"", "—"}:
+            findings.append(
+                Finding(
+                    "ledger-correction",
+                    f"非支持行の是正内容が空: {entry.key}",
+                )
+            )
+
+    citation_paths: dict[tuple[str, int, str], set[str]] = {}
+    entry_paths: dict[tuple[str, int, str], set[str]] = {}
+    for citation in citations:
+        signature = (citation.claim_id, citation.ordinal, citation.stable_id)
+        citation_paths.setdefault(signature, set()).add(citation.target_path)
+    for entry in entries:
+        signature = (entry.claim_id, entry.ordinal, entry.stable_id)
+        entry_paths.setdefault(signature, set()).add(entry.target_path)
+    for signature in sorted(set(citation_paths) & set(entry_paths)):
+        if citation_paths[signature] != entry_paths[signature]:
+            findings.append(
+                Finding(
+                    "ledger-target-pair",
+                    f"参照先パスと安定 ID の対が不一致: {signature}: "
+                    f"本文={sorted(citation_paths[signature])}, "
+                    f"台帳={sorted(entry_paths[signature])}",
+                )
+            )
+
+    citation_by_key = {citation.key: citation for citation in citations}
+    for entry in entries:
+        citation = citation_by_key.get(entry.key)
+        if citation is not None and entry.target_kind != citation.target_kind:
+            findings.append(
+                Finding(
+                    "ledger-target-kind",
+                    f"参照先の種別が不一致: {entry.key}: "
+                    f"本文={citation.target_kind}, 台帳={entry.target_kind}",
+                )
+            )
+
+    ordinal_groups: dict[tuple[str, str, str], list[int]] = {}
+    for entry in entries:
+        group = (entry.claim_id, entry.target_path, entry.stable_id)
+        ordinal_groups.setdefault(group, []).append(entry.ordinal)
+    for group, ordinals in sorted(ordinal_groups.items()):
+        actual = sorted(ordinals)
+        expected = list(range(1, len(ordinals) + 1))
+        if actual != expected:
+            findings.append(
+                Finding(
+                    "ledger-ordinal",
+                    f"ordinal が 1 始まりの連番でない: {group}: {actual}",
+                )
+            )
+    return tuple(findings)
+
+
+def select_coverage_checks(check_csv: str | None) -> tuple[str, ...]:
+    """実行対象の帰属検査・台帳検査を選ぶ。
+
+    Args:
+        check_csv: ``--checks`` のカンマ区切り値。省略時は両検査を選ぶ。
+
+    Returns:
+        宣言順に並べた検査 ID。
+
+    Raises:
+        CoverageError: 空要素または未知の検査 ID がある場合。
+    """
+    if check_csv is None:
+        return COVERAGE_CHECK_IDS
+    requested = check_csv.split(",")
+    if not requested or any(not item for item in requested):
+        raise CoverageError("--checks に空の検査 ID がある")
+    unknown = sorted(set(requested) - COVERAGE_CHECK_ID_SET)
+    if unknown:
+        raise CoverageError(f"未知の検査 ID: {unknown}")
+    return tuple(check_id for check_id in COVERAGE_CHECK_IDS if check_id in requested)
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """コマンドライン引数を解釈する。
 
@@ -427,7 +939,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     Returns:
         解釈済み引数。
     """
-    parser = argparse.ArgumentParser(description="要件の安定 ID 抽出結果と帰属表を全数検査する")
+    parser = argparse.ArgumentParser(description="要件帰属と意味照合台帳を検査する")
     parser.add_argument(
         "--root",
         type=Path,
@@ -443,6 +955,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--universe", type=Path, default=DEFAULT_UNIVERSE, help="要件母集合の JSON"
     )
+    parser.add_argument(
+        "--checks",
+        help="実行する検査 ID のカンマ区切り(attribution,ledger。既定: 両方)",
+    )
     return parser.parse_args(argv)
 
 
@@ -451,7 +967,7 @@ def _resolve(root: Path, path: Path) -> Path:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """帰属検査を実行し、結果に応じた終了コードを返す。
+    """要件帰属・意味照合台帳検査を実行し、結果に応じた終了コードを返す。
 
     Args:
         argv: テスト時に指定する引数列。省略時はコマンドライン引数を使う。
@@ -462,12 +978,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
-        requirements = _read_text(_resolve(root, args.requirements), "要件書")
-        document = _read_text(_resolve(root, args.document), "設計書")
-        universe = load_universe(_resolve(root, args.universe))
-        extracted = extract_requirement_ids(requirements)
-        assignments = parse_assignments(document)
-        findings = check_coverage(extracted, universe, assignments)
+        checks = select_coverage_checks(args.checks)
+        document_path = _resolve(root, args.document)
+        document = _read_text(document_path, "設計書")
+        findings: list[Finding] = []
+        if "attribution" in checks:
+            requirements = _read_text(_resolve(root, args.requirements), "要件書")
+            universe = load_universe(_resolve(root, args.universe))
+            extracted = extract_requirement_ids(requirements)
+            assignments = parse_assignments(document)
+            findings.extend(check_coverage(extracted, universe, assignments))
+        if "ledger" in checks:
+            citations = extract_citations(document, root, document_path)
+            entries = parse_ledger(document)
+            findings.extend(check_ledger(citations, entries))
     except CoverageError as error:
         print(f"check_doc_coverage.py: {error}", file=sys.stderr)
         return 2
