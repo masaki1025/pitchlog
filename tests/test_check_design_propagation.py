@@ -663,22 +663,60 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         ),
         (
             "R-P3-BOUNDARY",
-            ("B8:期待版不一致", "B9:記録権不保持"),
+            (
+                "変更受理",
+                "B8:期待版不一致",
+                "B9:記録権不保持",
+                "B10:一時障害",
+                "B11:認証失効",
+                "B12:認可・テナント不一致",
+                "B13:D5衝突",
+                "B14:変更内容拒否",
+            ),
             {
                 "7-1 の P3 応答契約": (
+                    "変更受理",
+                    "B8:期待版不一致",
+                    "B9:記録権不保持",
+                    "B10:一時障害",
+                    "B11:認証失効",
+                    "B12:認可・テナント不一致",
+                    "B13:D5衝突",
+                    "B14:変更内容拒否",
+                ),
+                "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
                 ),
-                "8-1 の経路表": ("B9:記録権不保持",),
                 "8-3 の補正通知": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
+                    "B10:一時障害",
+                    "B11:認証失効",
+                    "B12:認可・テナント不一致",
+                    "B13:D5衝突",
+                    "B14:変更内容拒否",
                 ),
                 "9-2 の境界表": (
+                    "変更受理",
                     "B8:期待版不一致",
                     "B9:記録権不保持",
+                    "B10:一時障害",
+                    "B11:認証失効",
+                    "B12:認可・テナント不一致",
+                    "B13:D5衝突",
+                    "B14:変更内容拒否",
                 ),
-                "10-2 の故障系観点": ("B9:記録権不保持",),
+                "10-2 の故障系観点": (
+                    "変更受理",
+                    "B8:期待版不一致",
+                    "B9:記録権不保持",
+                    "B10:一時障害",
+                    "B11:認証失効",
+                    "B12:認可・テナント不一致",
+                    "B13:D5衝突",
+                    "B14:変更内容拒否",
+                ),
             },
         ),
     ),
@@ -703,15 +741,75 @@ def test_step27_tombstone_generation_stays_in_queued_participation_group(
     """墓標の事前確認条件がD1付きキュー経路から脱落しないことを守る。"""
     relation = manifest["R-PARTICIPATION"]
     tombstone_rule = "K5:墓標生成=オンライン記録権確認後+D1付きキュー"
+    tombstone_participation = "8:墓標=同期順のみ"
+    revision_participation = "9:改訂版=元イベントの参加区分を継承"
 
     assert tombstone_rule in relation.source_elements
     assert dict(relation.expected_elements)["6-4 の再開2択"] == (
+        tombstone_participation,
+        revision_participation,
         tombstone_rule,
     )
     assert dict(relation.expected_elements)["7-2 のキュー状態遷移"] == (
+        tombstone_participation,
+        revision_participation,
         tombstone_rule,
     )
     assert all(tombstone_rule in elements for _, elements in relation.expected_elements)
+
+
+def test_step29_manifest_keeps_new_routes_and_required_target_subsets(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """ステップ29で追加・拡張した期待部分集合を弱められないように固定する。"""
+    transaction = manifest["R-TXN-ROUTE"]
+    rejection_route = "P5:B3拒否専用=T9"
+    rejection_atomic = "T9:拒否原本・D5・拒否結果・理由の保存"
+    assert rejection_route in transaction.source_elements
+    assert rejection_atomic in transaction.source_elements
+    assert all(
+        rejection_route in elements and rejection_atomic in elements
+        for _, elements in transaction.expected_elements
+    )
+
+    change = dict(manifest["R-CHANGE-RULE"].expected_elements)
+    for target in (
+        "6-2 の P3 処理段階",
+        "6-3 の境界結果表",
+        "7-1 の P3 応答契約",
+        "8-1 の経路表",
+        "10-2 の故障系観点",
+        "11-2 のデータモデル影響差分",
+    ):
+        assert "W4" in change[target]
+    assert "W3-c" in change["6-3 の境界結果表"]
+
+    v12 = manifest["R-V12-BOUNDARY"]
+    v12_elements = (
+        "VF1:P1・P2・P4=V12必須",
+        "VF2:進行中P3=V12必須",
+        "VF3:終了後P3=V12不要",
+        "VF4:P1・P2・P4のV12不成立=B4",
+        "VF5:進行中P3のV12不成立=B9",
+    )
+    assert v12.source_elements == v12_elements
+    v12_expected = dict(v12.expected_elements)
+    assert v12_expected["7-7 のローカル取り込み"] == (
+        v12_elements[0],
+        v12_elements[3],
+    )
+    assert all(
+        elements == v12_elements
+        for target, elements in v12.expected_elements
+        if target != "7-7 のローカル取り込み"
+    )
+
+    participation = manifest["R-PARTICIPATION"]
+    participation_expected = dict(participation.expected_elements)
+    assert (
+        participation_expected["11-2 のデータモデル影響差分"]
+        == participation.source_elements
+    )
 
 
 def test_step27_recording_right_proof_keeps_semantic_physical_boundary() -> None:

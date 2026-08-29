@@ -130,11 +130,13 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assert checker.check_coverage(extracted, universe, assignments) == ()
     assert len(assignments) == 211
     assert Counter(assignment.kind for assignment in assignments) == {
-        "同期側で決める": 37,
+        "同期側で決める": 36,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
         # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
-        "境界として参照": 86,
+        # P1-5(確定ゲート 2 周目)で、配信方式を同期の境界外とする 10-1 に合わせ、
+        # NFR-006 を「同期側で決める」から「境界として参照」へ移した。
+        "境界として参照": 87,
         "対象外": 88,
     }
 
