@@ -207,20 +207,45 @@ def test_defect_backed_checks_have_normal_and_abnormal_cases(
 
 def _manifest_document(relation: checker.ManifestRelation) -> str:
     targets = json.dumps(relation.targets, ensure_ascii=False, separators=(",", ":"))
-    elements = json.dumps(
-        relation.expected_elements, ensure_ascii=False, separators=(",", ":")
+    source_elements = json.dumps(
+        relation.source_elements, ensure_ascii=False, separators=(",", ":")
+    )
+    expected_elements = json.dumps(
+        dict(relation.expected_elements), ensure_ascii=False, separators=(",", ":")
     )
     return (
         "### 2-5. 表間参照宣言\n"
-        "| 関係 ID | 正本の表 | 伝播先の表 | 比較キー | 要素 ID の期待全集合 |\n"
-        "| --- | --- | --- | --- | --- |\n"
+        "| 関係 ID | 正本の表 | 伝播先の表 | 比較キー | 正本の要素全集合 | "
+        "伝播先ごとの期待部分集合 |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
         f"| **{relation.id}** | `{relation.source_table}` | `{targets}` | "
-        f"`{relation.compare_key}` | `{elements}` |\n"
+        f"`{relation.compare_key}` | `{source_elements}` | `{expected_elements}` |\n"
     )
 
 
-def test_manifest_consistency_accepts_all_five_fields() -> None:
-    relation = checker.ManifestRelation("R-ONE", "2-1", ("4-1",), "ID", ("E1",))
+def _manifest_relation(
+    relation_id: str = "R-ONE",
+    source_table: str = "2-1",
+    targets: tuple[str, ...] = ("4-1",),
+    compare_key: str = "ID",
+    source_elements: tuple[str, ...] = ("E1",),
+    expected_elements: tuple[tuple[str, tuple[str, ...]], ...] | None = None,
+) -> checker.ManifestRelation:
+    """6フィールドを持つ最小の関係宣言を作る。"""
+    if expected_elements is None:
+        expected_elements = tuple((target, source_elements) for target in targets)
+    return checker.ManifestRelation(
+        relation_id,
+        source_table,
+        targets,
+        compare_key,
+        source_elements,
+        expected_elements,
+    )
+
+
+def test_manifest_consistency_accepts_all_six_fields() -> None:
+    relation = _manifest_relation()
     assert checker.check_manifest_consistency(
         _manifest_document(relation), {relation.id: relation}
     ) == ()
@@ -229,23 +254,95 @@ def test_manifest_consistency_accepts_all_five_fields() -> None:
 @pytest.mark.parametrize(
     "changed",
     (
-        checker.ManifestRelation("R-TWO", "2-1", ("4-1",), "ID", ("E1",)),
-        checker.ManifestRelation("R-ONE", "2-2", ("4-1",), "ID", ("E1",)),
-        checker.ManifestRelation("R-ONE", "2-1", ("4-2",), "ID", ("E1",)),
-        checker.ManifestRelation("R-ONE", "2-1", ("4-1",), "name", ("E1",)),
-        checker.ManifestRelation("R-ONE", "2-1", ("4-1",), "ID", ("E2",)),
+        _manifest_relation(relation_id="R-TWO"),
+        _manifest_relation(source_table="2-2"),
+        _manifest_relation(targets=("4-2",)),
+        _manifest_relation(compare_key="name"),
+        _manifest_relation(source_elements=("E2",)),
+        _manifest_relation(
+            expected_elements=(("4-1", ("E1", "E2")),),
+        ),
     ),
-    ids=("id", "source-table", "targets", "compare-key", "expected-elements"),
+    ids=(
+        "id",
+        "source-table",
+        "targets",
+        "compare-key",
+        "source-elements",
+        "expected-elements",
+    ),
 )
 def test_manifest_consistency_rejects_each_changed_field(
     changed: checker.ManifestRelation,
 ) -> None:
-    expected = checker.ManifestRelation("R-ONE", "2-1", ("4-1",), "ID", ("E1",))
+    expected = _manifest_relation()
     declared = replace(changed, id="R-ONE") if changed.id == "R-TWO" else changed
     document = _manifest_document(declared)
     if changed.id == "R-TWO":
         document = document.replace("R-ONE", "R-TWO")
     assert checker.check_manifest_consistency(document, {expected.id: expected})
+
+
+def test_element_coverage_is_manifest_driven_and_accepts_target_subsets() -> None:
+    relation = _manifest_relation(
+        relation_id="R-NEW",
+        source_table="2-1 の正本表",
+        targets=("3-1 の表", "4-1 の表"),
+        source_elements=("E1", "E2"),
+        expected_elements=(("3-1 の表", ("E1",)), ("4-1 の表", ("E2",))),
+    )
+    document = """### 2-1. 正本
+| E1 | 一つ目 |
+| E2 | 二つ目 |
+### 3-1. 伝播先A
+| E1 | 一つ目 |
+### 4-1. 伝播先B
+| E2 | 二つ目 |
+"""
+
+    assert checker.check_element_coverage(document, {relation.id: relation}) == ()
+
+
+def test_element_coverage_detects_missing_element_for_new_relation() -> None:
+    relation = _manifest_relation(
+        relation_id="R-NEW",
+        source_table="2-1 の正本表",
+        targets=("3-1 の表",),
+        source_elements=("E1", "E2"),
+    )
+    document = """### 2-1. 正本
+| E1 | 一つ目 |
+| E2 | 二つ目 |
+### 3-1. 伝播先
+| E1 | 一つ目 |
+"""
+
+    reasons = checker.check_element_coverage(document, {relation.id: relation})
+
+    assert reasons == ("R-NEW: 3-1 の表 にない要素: E2",)
+
+
+def test_manifest_rejects_source_element_without_any_target(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "R-NEW": {
+                    "id": "R-NEW",
+                    "source_table": "2-1 の正本表",
+                    "targets": ["3-1 の表"],
+                    "compare_key": "ID",
+                    "source_elements": ["E1", "E2"],
+                    "expected_elements": {"3-1 の表": ["E1"]},
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(checker.CheckError, match="どこへも伝播しない要素ID.*E2"):
+        checker.load_manifest(manifest_path)
 
 
 @pytest.mark.parametrize(
@@ -322,12 +419,13 @@ def test_fixture_reports_exact_machine_defect_set(
     assert _finding_ids(result) == expected
 
 
-def test_fixture_default_adds_three_global_findings(
+def test_fixture_default_adds_global_findings(
     defects: dict[str, checker.Defect],
 ) -> None:
     machine = {key for key, defect in defects.items() if defect.detection == "machine"}
     expected = machine | {
         "citation-format",
+        "element-coverage",
         "manifest-consistency",
         "noncanonical-reference",
     }
@@ -397,4 +495,9 @@ def test_current_manifest_declaration_is_green() -> None:
     result = _run_cli(
         "--document", str(DESIGN), "--checks", "manifest-consistency"
     )
+    assert result.returncode == 0, result.stderr
+
+
+def test_current_manifest_all_relations_have_element_coverage() -> None:
+    result = _run_cli("--document", str(DESIGN), "--checks", "element-coverage")
     assert result.returncode == 0, result.stderr

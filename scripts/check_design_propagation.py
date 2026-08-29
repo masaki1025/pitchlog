@@ -60,14 +60,16 @@ class ManifestRelation:
         source_table: 正本となる表の識別子。
         targets: 伝播先となる表の完全集合。
         compare_key: 表間で比較する構造。
-        expected_elements: 要素IDの期待全集合。
+        source_elements: 正本の表に存在する要素IDの全集合。
+        expected_elements: 伝播先ごとの要素IDの期待部分集合。
     """
 
     id: str
     source_table: str
     targets: tuple[str, ...]
     compare_key: str
-    expected_elements: tuple[str, ...]
+    source_elements: tuple[str, ...]
+    expected_elements: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 @dataclass(frozen=True)
@@ -140,8 +142,57 @@ def _as_string_tuple(value: object, field: str) -> tuple[str, ...]:
     return tuple(value)
 
 
+def _as_expected_elements(
+    value: object,
+    targets: tuple[str, ...],
+    source_elements: tuple[str, ...],
+    field: str,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """伝播先ごとの期待部分集合を検証する。
+
+    Args:
+        value: JSONから読んだ値。
+        targets: 宣言済みの伝播先。
+        source_elements: 正本の要素全集合。
+        field: エラー表示用のフィールド名。
+
+    Returns:
+        ``targets`` と同じ順序に正規化した期待部分集合。
+
+    Raises:
+        CheckError: 伝播先、要素、または孤立要素が不正な場合。
+    """
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        raise CheckError(f"{field} は伝播先をキーとするオブジェクトでなければならない")
+    missing_targets = sorted(set(targets) - set(value))
+    unknown_targets = sorted(set(value) - set(targets))
+    if missing_targets or unknown_targets:
+        raise CheckError(
+            f"{field} の伝播先がtargetsと一致しない"
+            f" (不足={missing_targets}, 未知={unknown_targets})"
+        )
+    source_set = set(source_elements)
+    expected: list[tuple[str, tuple[str, ...]]] = []
+    propagated: set[str] = set()
+    for target in targets:
+        elements = _as_string_tuple(value[target], f"{field}.{target}")
+        if len(elements) != len(set(elements)):
+            raise CheckError(f"{field}.{target} に要素IDの重複がある")
+        unknown_elements = sorted(set(elements) - source_set)
+        if unknown_elements:
+            raise CheckError(
+                f"{field}.{target} に正本外の要素IDがある: {','.join(unknown_elements)}"
+            )
+        expected.append((target, elements))
+        propagated.update(elements)
+    orphaned = sorted(source_set - propagated)
+    if orphaned:
+        raise CheckError(f"{field} にどこへも伝播しない要素IDがある: {','.join(orphaned)}")
+    return tuple(expected)
+
+
 def load_manifest(path: Path) -> dict[str, ManifestRelation]:
-    """関係マニフェストを読み、5フィールドを検証する。
+    """関係マニフェストを読み、6フィールドを検証する。
 
     Args:
         path: ``sync-protocol.json`` のパス。
@@ -162,13 +213,23 @@ def load_manifest(path: Path) -> dict[str, ManifestRelation]:
         relation_id = _as_string(value.get("id"), f"{key}.id")
         if relation_id != key:
             raise CheckError(f"関係キーとidが一致しない: {key}")
+        targets = _as_string_tuple(value.get("targets"), f"{key}.targets")
+        source_elements = _as_string_tuple(
+            value.get("source_elements"), f"{key}.source_elements"
+        )
+        if len(source_elements) != len(set(source_elements)):
+            raise CheckError(f"{key}.source_elements に要素IDの重複がある")
         relations[key] = ManifestRelation(
             id=relation_id,
             source_table=_as_string(value.get("source_table"), f"{key}.source_table"),
-            targets=_as_string_tuple(value.get("targets"), f"{key}.targets"),
+            targets=targets,
             compare_key=_as_string(value.get("compare_key"), f"{key}.compare_key"),
-            expected_elements=_as_string_tuple(
-                value.get("expected_elements"), f"{key}.expected_elements"
+            source_elements=source_elements,
+            expected_elements=_as_expected_elements(
+                value.get("expected_elements"),
+                targets,
+                source_elements,
+                f"{key}.expected_elements",
             ),
         )
     return relations
@@ -329,7 +390,7 @@ def _expected_route_elements(
     manifest: dict[str, ManifestRelation],
 ) -> dict[str, frozenset[str]]:
     routes: dict[str, frozenset[str]] = {}
-    for element in manifest["R-TXN-ROUTE"].expected_elements:
+    for element in manifest["R-TXN-ROUTE"].source_elements:
         match = re.match(r"(?P<route>P\d+):[^=]+=(?P<elements>.+)", element)
         if match is not None:
             routes[match.group("route")] = _numbered_ids(match.group("elements"), "T")
@@ -381,7 +442,7 @@ def _structural_reason(
         ):
             return "退避済みへの遷移条件がA5の退避でない"
     elif defect_id == "SP-02":
-        elements = manifest["R-ACK-STATE"].expected_elements
+        elements = manifest["R-ACK-STATE"].source_elements
         source = _identified_row(_heading_section(text, "7-1"), "A5")
         if source is None or any(element not in source for element in elements):
             return "A5の正本行に結果集合5状態がない"
@@ -390,7 +451,7 @@ def _structural_reason(
             if any(not _element_has_row(section, element) for element in elements):
                 return f"A5の結果集合が{label}へ全件伝播していない"
     elif defect_id == "SP-03":
-        states = manifest["R-QUEUE-LIFE"].expected_elements
+        states = manifest["R-QUEUE-LIFE"].source_elements
         for label in ("6-3", "7-2", "9-5"):
             section = _heading_section(text, label)
             if any(not _element_has_row(section, state) for state in states):
@@ -419,7 +480,7 @@ def _structural_reason(
     elif defect_id == "SP-08":
         expected = next(
             element
-            for element in manifest["R-TXN-ROUTE"].expected_elements
+            for element in manifest["R-TXN-ROUTE"].source_elements
             if element.startswith("T6:")
         )
         semantic = expected.split(":", 1)[1]
@@ -479,7 +540,7 @@ def _structural_reason(
             if row is None or not _has_exclusion(row, "D5"):
                 return f"D5衝突の再開2択除外が{label}にない"
     elif defect_id == "SP-13":
-        elements = manifest["R-EVENT-FIELD"].expected_elements
+        elements = manifest["R-EVENT-FIELD"].source_elements
         source = _heading_section(text, "4-3")
         if any(_identified_row(source, element) is None for element in elements):
             return "V1〜V11の正本集合が4-3にない"
@@ -568,7 +629,7 @@ def _strip_code_span(value: str) -> str:
 def parse_manifest_declaration(
     text: str,
 ) -> tuple[dict[str, ManifestRelation], tuple[str, ...]]:
-    """2-5の表間参照宣言表を5フィールドで解析する。
+    """2-5の表間参照宣言表を6フィールドで解析する。
 
     Args:
         text: 検査対象のMarkdown本文。
@@ -585,8 +646,8 @@ def parse_manifest_declaration(
         if not line.startswith("| **R-"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 5:
-            errors.append("宣言表の列数が5でない")
+        if len(cells) != 6:
+            errors.append("宣言表の列数が6でない")
             continue
         relation_id = cells[0].removeprefix("**").removesuffix("**")
         if relation_id in relations:
@@ -594,18 +655,28 @@ def parse_manifest_declaration(
             continue
         try:
             targets_raw = json.loads(_strip_code_span(cells[2]))
-            elements_raw = json.loads(_strip_code_span(cells[4]))
+            source_elements_raw = json.loads(_strip_code_span(cells[4]))
+            expected_elements_raw = json.loads(_strip_code_span(cells[5]))
             targets = _as_string_tuple(targets_raw, f"{relation_id}.targets")
-            elements = _as_string_tuple(elements_raw, f"{relation_id}.expected_elements")
+            source_elements = _as_string_tuple(
+                source_elements_raw, f"{relation_id}.source_elements"
+            )
+            expected_elements = _as_expected_elements(
+                expected_elements_raw,
+                targets,
+                source_elements,
+                f"{relation_id}.expected_elements",
+            )
         except (json.JSONDecodeError, CheckError) as error:
-            errors.append(f"{relation_id}の配列セルが不正: {error}")
+            errors.append(f"{relation_id}のJSONセルが不正: {error}")
             continue
         relations[relation_id] = ManifestRelation(
             id=relation_id,
             source_table=_strip_code_span(cells[1]),
             targets=targets,
             compare_key=_strip_code_span(cells[3]),
-            expected_elements=elements,
+            source_elements=source_elements,
+            expected_elements=expected_elements,
         )
     if not relations and not errors:
         errors.append("表間参照宣言表に関係行がない")
@@ -616,7 +687,7 @@ def check_manifest_consistency(
     text: str,
     manifest: dict[str, ManifestRelation],
 ) -> tuple[str, ...]:
-    """本文宣言表とJSONを5フィールドすべてで双方向突合する。
+    """本文宣言表とJSONを6フィールドすべてで双方向突合する。
 
     Args:
         text: 検査対象のMarkdown本文。
@@ -635,7 +706,130 @@ def check_manifest_consistency(
         reasons.append(f"JSONにない関係ID: {','.join(unknown)}")
     for relation_id in sorted(set(manifest) & set(declared)):
         if manifest[relation_id] != declared[relation_id]:
-            reasons.append(f"5フィールドが不一致: {relation_id}")
+            reasons.append(f"6フィールドが不一致: {relation_id}")
+    return tuple(reasons)
+
+
+def _reference_section(text: str, reference: str) -> str:
+    """表参照の先頭にある節IDから本文を切り出す。
+
+    Args:
+        text: 検査対象のMarkdown本文。
+        reference: ``6-3 の境界結果表`` のような表参照。
+
+    Returns:
+        対応する節。節IDを読めない場合は空文字列。
+    """
+    match = re.match(r"(?P<label>\d+(?:-\d+(?:-[A-Z])?)?)(?:\s|$)", reference)
+    return _heading_section(text, match.group("label")) if match is not None else ""
+
+
+def _element_markers(element: str) -> tuple[str, ...]:
+    """要素宣言から本文で照合できる安定IDと意味語を取り出す。
+
+    Args:
+        element: ``B5:認証失効`` などの要素宣言。
+
+    Returns:
+        いずれかが本文にあれば要素が現れたとみなせるマーカー。
+    """
+    identifier, separator, description = element.partition(":")
+    markers: list[str] = []
+    if identifier and not identifier.isdecimal():
+        markers.append(identifier)
+    if separator:
+        semantic = description.split("=", 1)[0].strip()
+        if semantic:
+            markers.append(semantic)
+    elif element:
+        markers.append(element)
+    return tuple(dict.fromkeys(markers))
+
+
+def _identifier_occurs(text: str, identifier: str) -> bool:
+    """英数字IDが単独または範囲表記で本文に現れるかを返す。
+
+    Args:
+        text: 調べる節本文。
+        identifier: ``B5`` や ``W3-a`` のようなID。
+
+    Returns:
+        IDを識別子として確認できた場合は ``True``。
+    """
+    exact = re.compile(
+        rf"(?<![A-Za-z0-9]){re.escape(identifier)}(?![A-Za-z0-9-])"
+    )
+    if exact.search(text) is not None:
+        return True
+    match = re.fullmatch(r"(?P<prefix>[A-Z]+)(?P<number>\d+)", identifier)
+    if match is None:
+        return False
+    number = int(match.group("number"))
+    prefix = re.escape(match.group("prefix"))
+    for range_match in re.finditer(
+        rf"(?<![A-Za-z0-9]){prefix}(\d+)\s*[〜～-]\s*(?:{prefix})?(\d+)",
+        text,
+    ):
+        start, end = (int(value) for value in range_match.groups())
+        if start <= number <= end:
+            return True
+    return False
+
+
+def _element_occurs(section: str, element: str) -> bool:
+    """宣言要素が節本文に出現するかを返す。"""
+    return any(
+        _identifier_occurs(section, marker)
+        if re.fullmatch(r"[A-Z]+\d+(?:-[a-z])?", marker)
+        else marker in section
+        for marker in _element_markers(element)
+    )
+
+
+def check_element_coverage(
+    text: str,
+    manifest: dict[str, ManifestRelation],
+) -> tuple[str, ...]:
+    """全関係の正本要素と伝播先ごとの期待部分集合を照合する。
+
+    関係IDには依存せず、マニフェストへ関係を追加すれば自動的に検査する。
+
+    Args:
+        text: 検査対象のMarkdown本文。
+        manifest: 関係マニフェスト。
+
+    Returns:
+        欠落した正本要素または伝播要素の理由。適合時は空タプル。
+    """
+    reasons: list[str] = []
+    for relation in manifest.values():
+        source = _reference_section(text, relation.source_table)
+        if not source:
+            reasons.append(f"{relation.id}: 正本の節を解決できない: {relation.source_table}")
+        else:
+            missing_source = [
+                element
+                for element in relation.source_elements
+                if not _element_occurs(source, element)
+            ]
+            if missing_source:
+                reasons.append(
+                    f"{relation.id}: 正本にない要素: {','.join(missing_source)}"
+                )
+        for target, elements in relation.expected_elements:
+            target_section = _reference_section(text, target)
+            if not target_section:
+                reasons.append(f"{relation.id}: 伝播先の節を解決できない: {target}")
+                continue
+            missing_target = [
+                element
+                for element in elements
+                if not _element_occurs(target_section, element)
+            ]
+            if missing_target:
+                reasons.append(
+                    f"{relation.id}: {target} にない要素: {','.join(missing_target)}"
+                )
     return tuple(reasons)
 
 
@@ -770,6 +964,12 @@ def _global_findings(
     checks: frozenset[str],
 ) -> list[Finding]:
     findings: list[Finding] = []
+    if "element-coverage" in checks:
+        reasons = check_element_coverage(text, manifest)
+        if reasons:
+            findings.append(
+                Finding("element-coverage", "element-coverage", "; ".join(reasons))
+            )
     if "manifest-consistency" in checks:
         reasons = check_manifest_consistency(text, manifest)
         if reasons:
