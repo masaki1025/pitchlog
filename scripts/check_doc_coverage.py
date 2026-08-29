@@ -507,6 +507,7 @@ def _heading_identifier(
     level: int,
     parents: dict[int, str],
 ) -> str:
+    title = _without_emphasis(title)
     if level == 1:
         return "document"
     token = re.match(

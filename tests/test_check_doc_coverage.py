@@ -262,6 +262,52 @@ def test_ledger_accepts_matching_keys_with_repeated_and_same_named_references(
     assert result.stderr == ""
 
 
+def test_heading_identifier_ignores_emphasis() -> None:
+    parents = {2: "1"}
+
+    emphasized = checker._heading_identifier(  # noqa: SLF001
+        "同位置を作らない(**tie-break に D1・D4 を使わない**)",
+        4,
+        parents,
+    )
+    plain = checker._heading_identifier(  # noqa: SLF001
+        "同位置を作らない(tie-break に D1・D4 を使わない)",
+        4,
+        parents,
+    )
+
+    assert emphasized == plain
+    assert emphasized == "1/同位置を作らない(tie-break-に-D1・D4-を使わない)"
+
+
+@pytest.mark.parametrize(
+    "heading",
+    (
+        "#### 同位置を作らない(**tie-break に D1・D4 を使わない**)",
+        "#### 同位置を作らない(tie-break に D1・D4 を使わない)",
+    ),
+    ids=("emphasized", "plain"),
+)
+def test_ledger_key_matches_heading_with_or_without_emphasis(
+    tmp_path: Path,
+    heading: str,
+) -> None:
+    claim = "根拠 [FR-012](docs/requirements/a.md)。"
+    row = _ledger_row(
+        "1/同位置を作らない(tie-break-に-D1・D4-を使わない)/p1",
+        1,
+        "docs/requirements/a.md",
+        "要件",
+        "FR-012",
+    )
+    document = _ledger_document(f"{heading}\n\n{claim}", [row])
+
+    result = _run_ledger_cli(tmp_path, document)
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+
+
 @pytest.mark.parametrize(
     "rows",
     (
@@ -360,13 +406,14 @@ def test_ledger_rejects_duplicate_or_missing_ordinal(
     assert "ledger-ordinal:" in result.stderr
 
 
-def test_real_empty_ledger_fails_only_ledger_check() -> None:
+def test_real_document_passes_all_coverage_checks() -> None:
     attribution = _run_cli(REPOSITORY_ROOT, "--checks", "attribution")
     ledger = _run_cli(REPOSITORY_ROOT, "--checks", "ledger")
     combined = _run_cli(REPOSITORY_ROOT)
 
     assert attribution.returncode == 0
-    assert ledger.returncode == 1
-    assert combined.returncode == 1
-    assert "ledger-key-mismatch:" in ledger.stderr
-    assert "ledger-key-mismatch:" in combined.stderr
+    assert ledger.returncode == 0
+    assert combined.returncode == 0
+    assert attribution.stderr == ""
+    assert ledger.stderr == ""
+    assert combined.stderr == ""
