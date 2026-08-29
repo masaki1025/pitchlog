@@ -322,6 +322,113 @@ def test_element_coverage_detects_missing_element_for_new_relation() -> None:
     assert reasons == ("R-NEW: 3-1 の表 にない要素: E2",)
 
 
+def test_element_coverage_detects_replaced_right_hand_meaning() -> None:
+    """識別子を残した意味反転でも右辺の不一致を検出する。"""
+    relation = _manifest_relation(
+        source_table="2-1 の参加区分表",
+        targets=("3-1 の経路表",),
+        source_elements=("1:毎球入力=論理位置を持つ",),
+    )
+    valid = """### 2-1. 参加区分
+| # | 種別 | 区分 |
+| --- | --- | --- |
+| 1 | 毎球入力 | 論理位置を持つ |
+### 3-1. 経路
+| 種別 | 区分 |
+| --- | --- |
+| 毎球入力 | 論理位置を持つ |
+"""
+    mutated = valid.replace(
+        "### 3-1. 経路\n| 種別 | 区分 |\n| --- | --- |\n"
+        "| 毎球入力 | 論理位置を持つ |",
+        "### 3-1. 経路\n| 種別 | 区分 |\n| --- | --- |\n"
+        "| 毎球入力 | 同期順のみ |",
+    )
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        "R-ONE: 3-1 の経路表 にない要素: 1:毎球入力=論理位置を持つ",
+    )
+
+
+def test_element_coverage_detects_swapped_right_hand_categories() -> None:
+    """両識別子と両区分が節内に残る入れ替えを行対応で検出する。"""
+    elements = (
+        "1:毎球入力=論理位置を持つ",
+        "2:undo=従属",
+    )
+    relation = _manifest_relation(
+        source_table="2-1 の参加区分表",
+        targets=("3-1 の経路表",),
+        source_elements=elements,
+    )
+    valid = """### 2-1. 参加区分
+| # | 種別 | 区分 |
+| --- | --- | --- |
+| 1 | 毎球入力 | 論理位置を持つ |
+| 2 | undo | 従属 |
+### 3-1. 経路
+| 種別 | 区分 |
+| --- | --- |
+| 毎球入力 | 論理位置を持つ |
+| undo | 従属 |
+"""
+    mutated = valid.replace(
+        "| 毎球入力 | 論理位置を持つ |\n| undo | 従属 |",
+        "| 毎球入力 | 従属 |\n| undo | 論理位置を持つ |",
+    )
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    reasons = checker.check_element_coverage(mutated, {relation.id: relation})
+    assert reasons == (
+        "R-ONE: 3-1 の経路表 にない要素: "
+        "1:毎球入力=論理位置を持つ,2:undo=従属",
+    )
+
+
+@pytest.mark.parametrize(
+    "mutated_target",
+    (
+        "| P1 | D1付きイベント | T1・T2・T3・T4 |",
+        "| P1 | D1付きイベント | T1・T2・T3・T4 |\n"
+        "\n"
+        "| 別表の要素 | 内容 |\n"
+        "| --- | --- |\n"
+        "| T6 | 確定結果 |",
+    ),
+    ids=("missing", "moved-to-another-row"),
+)
+def test_element_coverage_detects_missing_or_moved_set_member(
+    mutated_target: str,
+) -> None:
+    """右辺のT要素を欠落させても別行へ移しても検出する。"""
+    element = "P1:D1付きイベント=T1,T2,T3,T4,T6"
+    relation = _manifest_relation(
+        source_table="2-1 の経路表",
+        targets=("3-1 の経路表",),
+        source_elements=(element,),
+    )
+    source = """### 2-1. 経路
+| 経路 ID | 経路 | T 要素 |
+| --- | --- | --- |
+| P1 | D1付きイベント | T1・T2・T3・T4・T6 |
+"""
+    valid = source + """### 3-1. 経路
+| 経路 ID | 経路 | T 要素 |
+| --- | --- | --- |
+| P1 | D1付きイベント | T1・T2・T3・T4・T6 |
+"""
+    mutated = source + """### 3-1. 経路
+| 経路 ID | 経路 | T 要素 |
+| --- | --- | --- |
+""" + mutated_target + "\n"
+
+    assert checker.check_element_coverage(valid, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        f"R-ONE: 3-1 の経路表 にない要素: {element}",
+    )
+
+
 def test_manifest_rejects_source_element_without_any_target(tmp_path: Path) -> None:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(
