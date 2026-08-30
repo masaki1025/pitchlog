@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "catalog_path": "requirement-claims.json",
+  "classification_rules_digest": "64bde46166c0fe36bf3c4bbd043a59fe2068bf7ace4d543410dd225395df3fe2",
+  "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
+  "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
+  "decision_count": 9,
+  "aggregate_decision_digest": "00c5e98817ce85ea2b8d6ff781011d950813fd9fadad94e74eb92e90e0f001bc",
+  "decisions": [
+    {
+      "source_id": "DOC/heading-001/heading-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "9820844090a920536bd0940356f5516c9295e6507df6af2eb2927329d1c2a06b",
+      "decision_digest": "88af648110516f09726e11fa49002f760a91384eeb88d5453824b2d94a27ed44"
+    },
+    {
+      "source_id": "SECTION-1/heading-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "bbf41f3ca08f515091907aa0fad79567794bf0e6e88b6c3ea59c5da38147604c",
+      "decision_digest": "4a9b6e00c34200b9c9d8067aadf877a48c66e890e289ed53700b35cbf6316a94"
+    },
+    {
+      "source_id": "FR-900/heading-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "77838ba1a0b15e015c2e65f31de4e7850ee029ac3affc04b4bcab372661bffef",
+      "decision_digest": "32304e21588c99fbcc18555670abd8ef987c583fb1196539ce2883beeef4a75f"
+    },
+    {
+      "source_id": "FR-900/list_item-001",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+      "source_text_digest": "962268e8899ce4a16b6f32486605b3f474f2013b247f87319e2d6b12a1653545",
+      "layer": "operation_authorization",
+      "decidable_at": [
+        {
+          "location": "db",
+          "basis_rule_id": "DB_MUTATION_GUARD",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/list_item-001.db",
+            "status": "planned"
+          }
+        },
+        {
+          "location": "http",
+          "basis_rule_id": "HTTP_OPERATION_GATE",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/list_item-001.http",
+            "status": "planned"
+          }
+        }
+      ],
+      "decision_digest": "3fa303844d6d3166f35ad5e3255e16f3c4898ae00c3e40d8f8143ae7a78820f8"
+    },
+    {
+      "source_id": "FR-900/table_header-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "582bf75562b2a1347c42dd5730f6123a7f05117f668c3be15a0754fd48e3b5ad",
+      "decision_digest": "ce31755997f0c9d3a2b6903d24763c2aaccc6cea56f987b0f5c5a18d47e05852"
+    },
+    {
+      "source_id": "FR-900/table_delimiter-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "831f11e7d7026bc2402e464ae6714a93218f622321805bfb5339d48bd550dfde",
+      "decision_digest": "81f1c9bfa7e1040556940bd8b26d19371d51fc507d4d1a5e358600e1f344dbf3"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_ACCESS_SCOPE",
+      "source_text_digest": "9cb22b135a2cb3317f2b59223f9edca164018f8e7b4b4ef5968ff7b0eb174ecc",
+      "layer": "access_control",
+      "decidable_at": [
+        {
+          "location": "db",
+          "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.db",
+            "status": "planned"
+          }
+        },
+        {
+          "location": "http",
+          "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.http",
+            "status": "planned"
+          }
+        }
+      ],
+      "decision_digest": "ebb6dbc65065790525ee5183d66a6d58893198afd450b10e5b81ec0622eec454"
+    },
+    {
+      "source_id": "SECTION-2/heading-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "source_text_digest": "f00081cde6e4adfdf28c65c417e6ffc990a392cd3070447ac2d58abe31c423ed",
+      "decision_digest": "79ec4a88ea7687e3fd64ab2dcb63b8ce314a398449b467aec555f06de6ef3aea"
+    },
+    {
+      "source_id": "SECTION-2/list_item-001",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "5fed488dbc96a6dda0b72d686daa4e53c275e4e9943501da8a55880b6a7334ea",
+      "decision_digest": "f11384d7b1a0b43544652e305bc970e3b6b6f9180252a517461bb9cb608ea3ed"
+    }
+  ]
+}

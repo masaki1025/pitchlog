@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "input_manifest": {
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_path": "requirements.md",
+    "scan_start_heading_id": "DOC/heading-001",
+    "scan_end_heading_id": "SECTION-2",
+    "source_blob_digest": "f88237b1db51806194b2a42919d17461561f41ea",
+    "heading_ids": [
+      "DOC/heading-001",
+      "SECTION-1",
+      "FR-900",
+      "SECTION-2"
+    ],
+    "item_counts_by_kind": {
+      "blockquote": 0,
+      "code_fence": 0,
+      "code_line": 0,
+      "frontmatter": 0,
+      "heading": 4,
+      "list_item": 2,
+      "paragraph": 0,
+      "table_delimiter": 1,
+      "table_header": 1,
+      "table_row": 1,
+      "thematic_break": 0
+    }
+  },
+  "classification_rules": {
+    "AUTH_ACCESS_SCOPE": {
+      "classification": "auth_claim",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    },
+    "AUTH_OPERATION_PERMISSION": {
+      "classification": "auth_claim",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    },
+    "AUTH_PRINCIPAL_STATE": {
+      "classification": "auth_claim",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    },
+    "AUTH_REVOCATION_CACHE": {
+      "classification": "auth_claim",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    },
+    "AUTH_VERIFICATION": {
+      "classification": "auth_claim",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    },
+    "OUT_AUTHZ_CONTEXT_ONLY": {
+      "classification": "out_of_scope",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [
+        "APPENDIX-D",
+        "APPENDIX-ITEM-A-2",
+        "APPENDIX-ITEM-A-2b",
+        "APPENDIX-ITEM-A-4",
+        "APPENDIX-ITEM-A-5",
+        "BLOCK-4",
+        "FR-003",
+        "FR-012",
+        "FR-018",
+        "FR-019",
+        "FR-020",
+        "FR-025",
+        "FR-026",
+        "FR-028",
+        "FR-029",
+        "FR-034/heading-001",
+        "FR-034/heading-003",
+        "FR-034/heading-004",
+        "FR-038",
+        "FR-040",
+        "FR-041",
+        "FR-042",
+        "NFR-003",
+        "NFR-005",
+        "NFR-015",
+        "NFR-018",
+        "SECTION-1.1",
+        "SECTION-10",
+        "SECTION-2.1",
+        "SECTION-4.0-2",
+        "SECTION-4.0-3",
+        "SECTION-6.1",
+        "SECTION-6.4",
+        "SECTION-7.3",
+        "SECTION-8",
+        "SECTION-9"
+      ],
+      "forbidden_source_text_patterns": []
+    },
+    "OUT_DOCUMENT_METADATA": {
+      "classification": "out_of_scope",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [
+        "CHANGELOG",
+        "PREAMBLE"
+      ],
+      "forbidden_source_text_patterns": []
+    },
+    "OUT_NON_AUTH_REQUIREMENT": {
+      "classification": "out_of_scope",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": [
+        "(?:管理者|一般利用者|member|admin|テナント|記録権).{0,100}(?:のみ|だけ).{0,50}(?:アクセス|閲覧|参照|操作|実行|読め)|付与によらず|既定(?:は|で).*非共有|理由コードを返さない|404|403"
+      ]
+    },
+    "OUT_SECURITY_NON_AUTHZ": {
+      "classification": "out_of_scope",
+      "allowed_source_kinds": [],
+      "allowed_heading_ids": [
+        "NFR-014",
+        "NFR-023"
+      ],
+      "forbidden_source_text_patterns": []
+    },
+    "OUT_STRUCTURAL": {
+      "classification": "out_of_scope",
+      "allowed_source_kinds": [
+        "code_fence",
+        "heading",
+        "table_delimiter",
+        "table_header",
+        "thematic_break"
+      ],
+      "allowed_heading_ids": [],
+      "forbidden_source_text_patterns": []
+    }
+  },
+  "basis_rules": {
+    "CACHE_PRINCIPAL_STATE_ENTRY": {
+      "location": "cache",
+      "allowed_classification_rule_ids": [
+        "AUTH_PRINCIPAL_STATE"
+      ]
+    },
+    "CACHE_REVOCATION_INVALIDATION": {
+      "location": "cache",
+      "allowed_classification_rule_ids": [
+        "AUTH_REVOCATION_CACHE"
+      ]
+    },
+    "CACHE_VERIFICATION_OBSERVATION": {
+      "location": "cache",
+      "allowed_classification_rule_ids": [
+        "AUTH_VERIFICATION"
+      ]
+    },
+    "DB_MUTATION_GUARD": {
+      "location": "db",
+      "allowed_classification_rule_ids": [
+        "AUTH_OPERATION_PERMISSION"
+      ]
+    },
+    "DB_PRINCIPAL_STATE_PERSISTENCE": {
+      "location": "db",
+      "allowed_classification_rule_ids": [
+        "AUTH_PRINCIPAL_STATE"
+      ]
+    },
+    "DB_REVOCATION_PERSISTENCE": {
+      "location": "db",
+      "allowed_classification_rule_ids": [
+        "AUTH_REVOCATION_CACHE"
+      ]
+    },
+    "DB_ROW_VISIBILITY_PREDICATE": {
+      "location": "db",
+      "allowed_classification_rule_ids": [
+        "AUTH_ACCESS_SCOPE"
+      ]
+    },
+    "DB_VERIFICATION_QUERY": {
+      "location": "db",
+      "allowed_classification_rule_ids": [
+        "AUTH_VERIFICATION"
+      ]
+    },
+    "HTTP_OPERATION_GATE": {
+      "location": "http",
+      "allowed_classification_rule_ids": [
+        "AUTH_OPERATION_PERMISSION"
+      ]
+    },
+    "HTTP_PRINCIPAL_STATE_GATE": {
+      "location": "http",
+      "allowed_classification_rule_ids": [
+        "AUTH_PRINCIPAL_STATE"
+      ]
+    },
+    "HTTP_RESPONSE_VISIBILITY": {
+      "location": "http",
+      "allowed_classification_rule_ids": [
+        "AUTH_ACCESS_SCOPE"
+      ]
+    },
+    "HTTP_REVOCATION_GATE": {
+      "location": "http",
+      "allowed_classification_rule_ids": [
+        "AUTH_REVOCATION_CACHE"
+      ]
+    },
+    "HTTP_VERIFICATION_ENDPOINT": {
+      "location": "http",
+      "allowed_classification_rule_ids": [
+        "AUTH_VERIFICATION"
+      ]
+    }
+  },
+  "layer_ids": [
+    "access_control",
+    "authentication_boundary",
+    "cache_authorization",
+    "operation_authorization",
+    "verification_contract"
+  ],
+  "claims": [
+    {
+      "source_id": "DOC/heading-001/heading-001",
+      "source_kind": "heading",
+      "source_heading_id": "DOC/heading-001",
+      "source_text": "# 合成認可要件",
+      "source_text_digest": "9820844090a920536bd0940356f5516c9295e6507df6af2eb2927329d1c2a06b",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "88af648110516f09726e11fa49002f760a91384eeb88d5453824b2d94a27ed44"
+    },
+    {
+      "source_id": "SECTION-1/heading-001",
+      "source_kind": "heading",
+      "source_heading_id": "SECTION-1",
+      "source_text": "## 1. 認可",
+      "source_text_digest": "bbf41f3ca08f515091907aa0fad79567794bf0e6e88b6c3ea59c5da38147604c",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "4a9b6e00c34200b9c9d8067aadf877a48c66e890e289ed53700b35cbf6316a94"
+    },
+    {
+      "source_id": "FR-900/heading-001",
+      "source_kind": "heading",
+      "source_heading_id": "FR-900",
+      "source_text": "#### FR-900: 管理画面",
+      "source_text_digest": "77838ba1a0b15e015c2e65f31de4e7850ee029ac3affc04b4bcab372661bffef",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "32304e21588c99fbcc18555670abd8ef987c583fb1196539ce2883beeef4a75f"
+    },
+    {
+      "source_id": "FR-900/list_item-001",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-900",
+      "source_text": "- Given 一般利用者 / When 管理画面を開く / Then 管理者のみが閲覧できる",
+      "source_text_digest": "962268e8899ce4a16b6f32486605b3f474f2013b247f87319e2d6b12a1653545",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+      "layer": "operation_authorization",
+      "decidable_at": [
+        {
+          "location": "db",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/list_item-001.db",
+            "status": "planned"
+          },
+          "basis_rule_id": "DB_MUTATION_GUARD"
+        },
+        {
+          "location": "http",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/list_item-001.http",
+            "status": "planned"
+          },
+          "basis_rule_id": "HTTP_OPERATION_GATE"
+        }
+      ],
+      "decision_digest": "3fa303844d6d3166f35ad5e3255e16f3c4898ae00c3e40d8f8143ae7a78820f8"
+    },
+    {
+      "source_id": "FR-900/table_header-001",
+      "source_kind": "table_header",
+      "source_heading_id": "FR-900",
+      "source_text": "| 資源 | 読める者 |",
+      "source_text_digest": "582bf75562b2a1347c42dd5730f6123a7f05117f668c3be15a0754fd48e3b5ad",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "ce31755997f0c9d3a2b6903d24763c2aaccc6cea56f987b0f5c5a18d47e05852"
+    },
+    {
+      "source_id": "FR-900/table_delimiter-001",
+      "source_kind": "table_delimiter",
+      "source_heading_id": "FR-900",
+      "source_text": "| --- | --- |",
+      "source_text_digest": "831f11e7d7026bc2402e464ae6714a93218f622321805bfb5339d48bd550dfde",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "81f1c9bfa7e1040556940bd8b26d19371d51fc507d4d1a5e358600e1f344dbf3"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "source_kind": "table_row",
+      "source_heading_id": "FR-900",
+      "source_text": "| 監査ログ | 管理者 |",
+      "source_text_digest": "9cb22b135a2cb3317f2b59223f9edca164018f8e7b4b4ef5968ff7b0eb174ecc",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_ACCESS_SCOPE",
+      "layer": "access_control",
+      "decidable_at": [
+        {
+          "location": "db",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.db",
+            "status": "planned"
+          },
+          "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE"
+        },
+        {
+          "location": "http",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.http",
+            "status": "planned"
+          },
+          "basis_rule_id": "HTTP_RESPONSE_VISIBILITY"
+        }
+      ],
+      "decision_digest": "ebb6dbc65065790525ee5183d66a6d58893198afd450b10e5b81ec0622eec454"
+    },
+    {
+      "source_id": "SECTION-2/heading-001",
+      "source_kind": "heading",
+      "source_heading_id": "SECTION-2",
+      "source_text": "## 2. 一般機能",
+      "source_text_digest": "f00081cde6e4adfdf28c65c417e6ffc990a392cd3070447ac2d58abe31c423ed",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "79ec4a88ea7687e3fd64ab2dcb63b8ce314a398449b467aec555f06de6ef3aea"
+    },
+    {
+      "source_id": "SECTION-2/list_item-001",
+      "source_kind": "list_item",
+      "source_heading_id": "SECTION-2",
+      "source_text": "- 一覧にはページングを適用する",
+      "source_text_digest": "5fed488dbc96a6dda0b72d686daa4e53c275e4e9943501da8a55880b6a7334ea",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "f11384d7b1a0b43544652e305bc970e3b6b6f9180252a517461bb9cb608ea3ed"
+    }
+  ]
+}
