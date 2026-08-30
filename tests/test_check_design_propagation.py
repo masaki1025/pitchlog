@@ -30,24 +30,27 @@ P3_RESULTS = (
     "B13:D5衝突",
     "B14:変更内容拒否",
 )
-STEP32_P3_ORDER_ELEMENTS = (
-    "I1:P3のD5照合位置=③認可後+V12前+V11前",
+STEP38_P3_ORDER_ELEMENTS = (
+    "I1:P3のD5照合位置=③認可後+RG1後+復旧世代照合後+V12前+V11前",
     "I2:P3の既存D5・同一内容=保存済み結果を再掲+再適用しない",
     "I3:P3の既存D5・異なる内容=B13",
-    "I4:P3の未使用D5=V12・V11照合対象",
+    "I4:P3の未使用D5=現復旧世代+V12・V11照合対象",
 )
 STEP37_P3_INVALIDATION_ELEMENTS = (
     "I5:P3の無効化発火=未使用D5の変更受理でT7に無効化意図を永続化+"
     "配信完了まで冪等再試行+保存済み結果再掲では意図を重複作成しない",
 )
-STEP37_P3_RETENTION_ELEMENTS = (
-    "I6:P3受理結果の端末保持=対象参照+V11の版+D5+確定内容+"
-    "同期済みと同じ24時間保持+退避・閲覧・書き出し対象+復元規則なし",
+STEP38_P3_RETENTION_ELEMENTS = (
+    "I6:P3受理結果の端末保持=端末永続化まで成立した対象参照+V11の版+D5+"
+    "確定内容+同期済みと同じ24時間保持+サーバー確定から端末永続化まで保護なし+"
+    "RG1中は自動破棄停止+退避・閲覧・書き出し対象+復元規則なし",
 )
 STEP37_P3_RETENTION_ID = ("I6",)
-STEP37_RECOVERY_GATE_ELEMENTS = (
-    "RG1:復元調整中の共通前段ゲート=③認可後+D5照合前+"
-    "P1・P2・P4はB7相当+P3はB10相当+D5消費なし+記録権遷移停止",
+STEP38_RECOVERY_GATE_ELEMENTS = (
+    "RG1:復元調整中のfail-closed共通ゲート=③認可後+D5照合前+"
+    "全通常書き込み・内部ジョブ停止+P1・P2・P4・通常/緊急引き継ぎはB7+"
+    "P3はB10+D5消費なし+コミット直前再検証+サービス再開fail-closed+"
+    "解除・新D4開始不可分+復旧制御面だけ許可",
 )
 STEP37_V12_RECOVERY_ELEMENT = (
     "VF6:V12の復旧世代結合=現D4+現復旧世代+保持端末"
@@ -821,43 +824,43 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         (
             "R-P3-BOUNDARY",
             P3_RESULTS
-            + STEP32_P3_ORDER_ELEMENTS
+            + STEP38_P3_ORDER_ELEMENTS
             + STEP37_P3_INVALIDATION_ELEMENTS
-            + STEP37_P3_RETENTION_ELEMENTS
-            + STEP37_RECOVERY_GATE_ELEMENTS,
+            + STEP38_P3_RETENTION_ELEMENTS
+            + STEP38_RECOVERY_GATE_ELEMENTS,
             {
-                "6-2 の P3 処理段階": STEP32_P3_ORDER_ELEMENTS
-                + STEP37_RECOVERY_GATE_ELEMENTS,
+                "6-2 の P3 処理段階": STEP38_P3_ORDER_ELEMENTS
+                + STEP38_RECOVERY_GATE_ELEMENTS,
                 "7-1 の P3 応答契約": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS
+                + STEP38_P3_ORDER_ELEMENTS
                 + STEP37_P3_INVALIDATION_ELEMENTS
-                + STEP37_P3_RETENTION_ELEMENTS,
+                + STEP38_P3_RETENTION_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
                 ),
                 "8-3 の補正通知": (
                     P3_RESULTS[1:]
-                    + STEP32_P3_ORDER_ELEMENTS
+                    + STEP38_P3_ORDER_ELEMENTS
                 ),
                 "8-5 の無効化発火": STEP37_P3_INVALIDATION_ELEMENTS,
                 "9-2 の境界表": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS
+                + STEP38_P3_ORDER_ELEMENTS
                 + STEP37_P3_INVALIDATION_ELEMENTS
-                + STEP37_P3_RETENTION_ELEMENTS
-                + STEP37_RECOVERY_GATE_ELEMENTS,
+                + STEP38_P3_RETENTION_ELEMENTS
+                + STEP38_RECOVERY_GATE_ELEMENTS,
                 "9-5 の復元時保持・共通前段ゲート": (
-                    STEP37_P3_RETENTION_ELEMENTS + STEP37_RECOVERY_GATE_ELEMENTS
+                    STEP38_P3_RETENTION_ELEMENTS + STEP38_RECOVERY_GATE_ELEMENTS
                 ),
                 "10-2 の故障系観点": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS
+                + STEP38_P3_ORDER_ELEMENTS
                 + STEP37_P3_INVALIDATION_ELEMENTS
-                + STEP37_P3_RETENTION_ELEMENTS
-                + STEP37_RECOVERY_GATE_ELEMENTS,
+                + STEP38_P3_RETENTION_ELEMENTS
+                + STEP38_RECOVERY_GATE_ELEMENTS,
                 "11-2 のデータモデル影響差分": (
                     STEP37_P3_INVALIDATION_ELEMENTS
-                    + STEP37_P3_RETENTION_ELEMENTS
-                    + STEP37_RECOVERY_GATE_ELEMENTS
+                    + STEP38_P3_RETENTION_ELEMENTS
+                    + STEP38_RECOVERY_GATE_ELEMENTS
                 ),
             },
         ),
@@ -1093,10 +1096,10 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     p3_boundary = manifest["R-P3-BOUNDARY"]
     assert p3_boundary.source_elements == (
         P3_RESULTS
-        + STEP32_P3_ORDER_ELEMENTS
+        + STEP38_P3_ORDER_ELEMENTS
         + STEP37_P3_INVALIDATION_ELEMENTS
-        + STEP37_P3_RETENTION_ELEMENTS
-        + STEP37_RECOVERY_GATE_ELEMENTS
+        + STEP38_P3_RETENTION_ELEMENTS
+        + STEP38_RECOVERY_GATE_ELEMENTS
     )
 
 
@@ -1180,10 +1183,10 @@ def test_step37_p3_invalidation_intent_is_atomic_and_eventually_delivered(
     assert "保存済み結果再掲後の意図件数" in fixture_contract
 
 
-def test_step37_p3_acceptance_result_is_retained_then_escrowed(
+def test_step38_p3_retention_starts_after_device_persistence(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
-    """P3受理結果の保持内容・期間・退避先と、復元規則の不在を固定する。"""
+    """I6の開始点、未保護窓、保持期間、退避先を固定する。"""
     document = DESIGN.read_text(encoding="utf-8")
     response = checker._reference_section(document, "7-1 の P3 応答契約")
     queue = checker._reference_section(document, "7-2 のキュー状態遷移")
@@ -1197,14 +1200,18 @@ def test_step37_p3_acceptance_result_is_retained_then_escrowed(
             field in section for field in ("対象参照", "V11 の版", "D5", "確定内容")
         )
     assert "初回の変更受理から 24 時間" in response
+    assert "端末永続化まで成立した P3 受理結果だけ" in response
+    assert "窓は保護しない" in response
     assert "同期済み(P3 受理結果) → 退避済み" in queue
+    assert "RG1 中でないことを確認済み" in queue
+    assert "期限清掃より先に RG1 を確認" in queue
     assert "P3 として再送せず退避資料として保存" in restore
     assert "管理コンソールで閲覧・書き出し" in restore
     assert "復元規則なし" in restore
-    assert STEP37_P3_RETENTION_ELEMENTS[0] in p3_relation.source_elements
+    assert STEP38_P3_RETENTION_ELEMENTS[0] in p3_relation.source_elements
     assert dict(p3_relation.expected_elements)[
         "9-5 の復元時保持・共通前段ゲート"
-    ][0] == STEP37_P3_RETENTION_ELEMENTS[0]
+    ][0] == STEP38_P3_RETENTION_ELEMENTS[0]
     assert STEP37_P3_RETENTION_ID[0] in queue_relation.source_elements
 
 
@@ -1229,16 +1236,16 @@ def test_step37_d4_is_never_reused_after_rollback(
     assert STEP37_V12_RECOVERY_ELEMENT in v12.source_elements
 
 
-def test_step37_recovery_adjustment_gate_precedes_d5_on_every_write(
+def test_step38_recovery_adjustment_gate_is_fail_closed_for_every_write(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
-    """終了後P3を含む全変更と記録権遷移をD5消費前に止める。"""
+    """全変更を事前・コミット直前で止め、全数表の空セルを許さない。"""
     document = DESIGN.read_text(encoding="utf-8")
     processing = checker._reference_section(document, "6-2 の処理段階")
     restore = checker._reference_section(document, "9-5")
     boundary = manifest["R-BOUNDARY"]
     p3_boundary = manifest["R-P3-BOUNDARY"]
-    gate = STEP37_RECOVERY_GATE_ELEMENTS[0]
+    gate = STEP38_RECOVERY_GATE_ELEMENTS[0]
 
     d1 = processing[processing.index("P1・P2・P4 の境界結果") :]
     d1 = d1[: d1.index("P3 は D1・D3")]
@@ -1249,6 +1256,29 @@ def test_step37_recovery_adjustment_gate_precedes_d5_on_every_write(
     assert "進行中・終了後 P3" in restore
     assert "D5 を消費せず" in restore
     assert "通常・緊急の記録権遷移" in restore
+    assert "コミット直前にも同じ状態を検証" in restore
+    assert "復元調整解除と、過去に発行した値を再利用しない新しい D4" in restore
+
+    table = restore[restore.index("| 変更経路群 | 含む操作 | RG1 中の結果") :]
+    table = table[: table.index("\n\n")]
+    rows = [
+        tuple(cell.strip() for cell in line.strip("|").split("|"))
+        for line in table.splitlines()[2:]
+    ]
+    assert [row[0].strip("*") for row in rows] == [
+        "D1 付き同期",
+        "変更イベント",
+        "試合作成",
+        "選手・スタメン・試合設定の変更",
+        "通常の管理変更",
+        "状態変更を伴う内部ジョブ",
+        "通常引き継ぎ",
+        "緊急引き継ぎ",
+        "復旧制御面の退避",
+        "復旧制御面のログ・通知",
+        "復旧制御面の閲覧・書き出し",
+    ]
+    assert all(len(row) == 4 and all(row) for row in rows)
     assert gate in boundary.source_elements
     assert gate in p3_boundary.source_elements
     for target in (
@@ -1258,6 +1288,24 @@ def test_step37_recovery_adjustment_gate_precedes_d5_on_every_write(
         "11-2 のデータモデル影響差分",
     ):
         assert gate in dict(boundary.expected_elements)[target]
+
+
+def test_step38_all_p3_requests_are_bound_to_the_existing_recovery_generation(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """進行中・終了後P3を既存の復旧世代へ結合し、旧要求を適用しない。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    change_rule = checker._reference_section(document, "4-3-A")
+    processing = checker._reference_section(document, "6-2 の処理段階")
+    restore = checker._reference_section(document, "9-5")
+    relation = manifest["R-P3-BOUNDARY"]
+
+    assert "全 P3 要求は既存の復旧世代へ結合" in change_rule
+    assert "復旧世代は V1〜V12 に追加する新しいイベント値ではない" in change_rule
+    assert "③-b 復旧世代の照合" in processing
+    assert "旧復旧世代なら、終了後を含め B9" in processing
+    assert "復元調整解除後も、復元前の復旧世代を伴う P3" in restore
+    assert all(element in relation.source_elements for element in STEP38_P3_ORDER_ELEMENTS)
 
 
 def test_step37_fr013_must_is_limited_to_escrow_and_admin_access() -> None:
