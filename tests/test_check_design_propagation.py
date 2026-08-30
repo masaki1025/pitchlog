@@ -17,17 +17,22 @@ SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 FIXTURE = REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-source.txt"
 DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 
-STEP31_O3_LEASE_ELEMENTS = (
+STEP32_O3_LEASE_ELEMENTS = (
     "OL1:リース識別=(試合,D4,V12)+期限",
     "OL2:未凍結から凍結要求中=サーバーが凍結要求",
-    "OL3:凍結要求中から凍結ACK済み=新規入力停止+現書き手の凍結ACK",
-    "OL4:凍結ACK済みから空キュー確認済み=未送信0+要操作0+未突合ACK0",
-    "OL5:空キュー確認済みから取込P2実行中=リース再検証+O3取込P2だけ許可",
-    "OL6:凍結中の通常要求=新規入力非受理+P1・P2はB7+P3はB10",
+    "OL3:凍結要求中からdrain中=新規入力停止+既受理分のP1・P2だけ許可",
+    "OL4:drain中から凍結ACK済み=未送信0+要操作0+未突合ACK0+現書き手の凍結ACK",
+    "OL5:凍結ACK済みから取込P2実行中=リース再検証+O3取込P2だけ許可",
+    "OL6:凍結ACK後の未使用D5要求=新規入力非受理+P1・P2・P3はB15",
     "OL7:引き継ぎとの排他=取得競合時は片方だけ成立+引き継ぎ成立で旧O3失効",
-    "OL8:解除=取込成功+失敗・明示中止+応答消失・クラッシュ時の期限切れ",
+    "OL8:解除=同じD5結果回収を先行+確定D3・投影結果取得+次D1・ローカル状態不可分更新後に未凍結",
+    "OL9:再同期待ちへの移行=取込成功・失敗・明示中止+応答消失・クラッシュ・期限切れ+サーバーリース解放",
 )
-STEP31_P3_RESULTS = (
+STEP32_B15 = (
+    "B15:凍結中確定非受理="
+    "自動再試行なし+解除後に新D5で再入力+凍結理由通知"
+)
+STEP32_P3_RESULTS = (
     "変更受理",
     "B8:期待版不一致",
     "B9:記録権不保持",
@@ -36,16 +41,24 @@ STEP31_P3_RESULTS = (
     "B12:認可・テナント不一致",
     "B13:D5衝突",
     "B14:変更内容拒否",
+    STEP32_B15,
 )
-STEP31_P3_ORDER_ELEMENTS = (
+STEP32_P3_ORDER_ELEMENTS = (
     "I1:P3のD5照合位置=③認可後+V12前+V11前",
     "I2:P3の既存D5・同一内容=保存済み結果を再掲+再適用しない",
     "I3:P3の既存D5・異なる内容=B13",
     "I4:P3の未使用D5=V12・V11照合対象",
 )
-STEP31_B3_BRANCH_ELEMENTS = (
+STEP32_B3_BRANCH_ELEMENTS = (
     "B3a:未使用D5の内容拒否=P5+T9",
     "B3b:既存D5との衝突=先着原本との比較+B3+T9開始なし",
+)
+STEP32_D1_D5_ELEMENTS = (
+    "DI1:D1付き経路のD5照合位置=③認可後+V12前",
+    "DI2:D1付き経路の既存D5・同一内容=保存済み結果を再掲+再適用しない",
+    "DI3:D1付き経路の既存D5・異なる内容=B3b",
+    "DI4:D1付き経路の未使用D5=V12・prefix・内容検査対象",
+    "DI5:混在バッチのA5=既存同一D5は保存済み結果+既存異内容D5はB3b+未使用D5だけ後段検査",
 )
 
 
@@ -759,16 +772,17 @@ def test_current_manifest_all_relations_have_element_coverage() -> None:
         ),
         (
             "R-ORDER-ASSIGN",
-            ("O1", "O2", "O3", "O4") + STEP31_O3_LEASE_ELEMENTS,
+            ("O1", "O2", "O3", "O4") + STEP32_O3_LEASE_ELEMENTS,
             {
                 "5-3 の隙間・再採番": ("O1", "O2", "O3"),
                 "7-2 の O3リース状態遷移": ("O3",)
-                + STEP31_O3_LEASE_ELEMENTS,
+                + STEP32_O3_LEASE_ELEMENTS,
                 "8-1 の T5・経路 P2": ("O1", "O2", "O3", "O4")
-                + STEP31_O3_LEASE_ELEMENTS,
-                "9-4 の取り込み手順": ("O3",) + STEP31_O3_LEASE_ELEMENTS,
+                + STEP32_O3_LEASE_ELEMENTS,
+                "9-4 の取り込み手順": ("O3",) + STEP32_O3_LEASE_ELEMENTS,
+                "10-2 の故障系観点": ("O3",) + STEP32_O3_LEASE_ELEMENTS,
                 "11-2 のデータモデル影響差分": ("O1", "O2", "O3", "O4")
-                + STEP31_O3_LEASE_ELEMENTS,
+                + STEP32_O3_LEASE_ELEMENTS,
             },
         ),
     ),
@@ -802,23 +816,25 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         ),
         (
             "R-P3-BOUNDARY",
-            STEP31_P3_RESULTS + STEP31_P3_ORDER_ELEMENTS,
+            STEP32_P3_RESULTS + STEP32_P3_ORDER_ELEMENTS,
             {
-                "6-2 の P3 処理段階": STEP31_P3_ORDER_ELEMENTS,
-                "7-1 の P3 応答契約": STEP31_P3_RESULTS
-                + STEP31_P3_ORDER_ELEMENTS,
+                "6-2 の P3 処理段階": (STEP32_B15,)
+                + STEP32_P3_ORDER_ELEMENTS,
+                "7-1 の P3 応答契約": STEP32_P3_RESULTS
+                + STEP32_P3_ORDER_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
+                    STEP32_B15,
                 ),
                 "8-3 の補正通知": (
-                    STEP31_P3_RESULTS[1:]
-                    + STEP31_P3_ORDER_ELEMENTS
+                    STEP32_P3_RESULTS[1:]
+                    + STEP32_P3_ORDER_ELEMENTS
                 ),
-                "9-2 の境界表": STEP31_P3_RESULTS
-                + STEP31_P3_ORDER_ELEMENTS,
-                "10-2 の故障系観点": STEP31_P3_RESULTS
-                + STEP31_P3_ORDER_ELEMENTS,
+                "9-2 の境界表": STEP32_P3_RESULTS
+                + STEP32_P3_ORDER_ELEMENTS,
+                "10-2 の故障系観点": STEP32_P3_RESULTS
+                + STEP32_P3_ORDER_ELEMENTS,
             },
         ),
     ),
@@ -945,7 +961,25 @@ def test_step27_tombstone_rule_propagates_to_generation_and_queue() -> None:
     assert "改訂版は群 A のまま、ローカル生成を許す" in participation
 
 
-def test_step31_active_p3_checks_d5_after_authorization_before_versions() -> None:
+def test_step32_all_routes_check_d5_after_authorization_before_versions() -> None:
+    """全経路が認可後、凍結・記録権・版より先にD5を照合することを守る。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, "6-2 の処理段階")
+    d1_routes = section[section.index("P1・P2・P4 の境界結果") :]
+    d1_routes = d1_routes[: d1_routes.index("P3 は D1・D3")]
+
+    authorization = d1_routes.index("③ 認可(テナント)")
+    idempotency = d1_routes.index("④ D5 の照合")
+    freeze = d1_routes.index("⑤ O3 凍結")
+    recording_right = d1_routes.index("⑥ 記録権(D4・V12)")
+    prefix = d1_routes.index("⑦ 連番(D1)の連続性")
+    content = d1_routes.index("⑧ 内容の検証")
+    assert authorization < idempotency < freeze < recording_right < prefix < content
+    assert "P1・P2・P4" in d1_routes
+    assert "既存 D5・同一内容なら保存済み結果を再掲" in d1_routes
+
+
+def test_step32_active_p3_checks_d5_after_authorization_before_versions() -> None:
     """P3が認可後、記録権・期待版より先にD5を照合することを守る。"""
     document = DESIGN.read_text(encoding="utf-8")
     section = checker._reference_section(document, "6-2 の処理段階")
@@ -953,18 +987,21 @@ def test_step31_active_p3_checks_d5_after_authorization_before_versions() -> Non
 
     authorization = active_p3.index("③ 認可(テナント)")
     idempotency = active_p3.index("④ D5 の照合")
-    recording_right = active_p3.index("⑤ 記録権証明")
-    expected_version = active_p3.index("⑦ V11 の期待版照合")
-    assert authorization < idempotency < recording_right < expected_version
+    freeze = active_p3.index("⑤ O3 凍結")
+    recording_right = active_p3.index("⑥ 記録権証明")
+    expected_version = active_p3.index("⑧ V11 の期待版照合")
+    assert authorization < idempotency < freeze < recording_right < expected_version
     assert "B9 記録権不保持" in active_p3
 
 
-def test_step31_b3_branches_and_o3_release_are_fixed(
+def test_step32_boundary_branches_d5_rules_and_o3_thaw_are_fixed(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
-    """D5衝突でT9を増やさず、O3が期限切れで解除されることを守る。"""
+    """D5全経路規則と、drain・再同期後だけのO3解凍を固定する。"""
     boundary = manifest["R-BOUNDARY"]
-    assert boundary.source_elements[-2:] == STEP31_B3_BRANCH_ELEMENTS
+    assert boundary.source_elements[-7:] == (
+        STEP32_B3_BRANCH_ELEMENTS + STEP32_D1_D5_ELEMENTS
+    )
     boundary_targets = dict(boundary.expected_elements)
     for target in (
         "4-5 の D5衝突分岐",
@@ -973,8 +1010,21 @@ def test_step31_b3_branches_and_o3_release_are_fixed(
         "10-2 の故障系観点",
         "11-2 のデータモデル影響差分",
     ):
-        assert boundary_targets[target] == STEP31_B3_BRANCH_ELEMENTS
+        assert boundary_targets[target][:2] == STEP32_B3_BRANCH_ELEMENTS
+        assert boundary_targets[target][-5:] == STEP32_D1_D5_ELEMENTS
+
+    assert boundary_targets["6-2 の D1付き処理段階"] == (
+        (STEP32_B15,) + STEP32_D1_D5_ELEMENTS
+    )
+    assert boundary_targets["7-3 の ACK消失後の再送"] == STEP32_D1_D5_ELEMENTS
 
     import_section = checker._reference_section(DESIGN.read_text(), "9-4 の取り込み手順")
-    assert "応答消失・クラッシュ時の期限切れ" in import_section
+    drain = import_section.index("既受理の P1・P2 だけを送り切り")
+    freeze_ack = import_section.index("凍結 ACK")
+    result_recovery = import_section.index("同じ D5 で保存済みの D1 と結果を先に回収")
+    projection_sync = import_section.index("確定 D3 と投影結果を取得")
+    thaw = import_section.index("更新の完了後だけ未凍結へ戻す")
+    assert drain < freeze_ack < result_recovery < projection_sync < thaw
+    assert "サーバーはリースを解放" in import_section
+    assert "再同期待ちに留まる" in import_section
     assert "凍結を永久化しない" in import_section

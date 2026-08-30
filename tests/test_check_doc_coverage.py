@@ -136,9 +136,25 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
         # P1-5(確定ゲート 2 周目)で、配信方式を同期の境界外とする 10-1 に合わせ、
         # NFR-006 を「同期側で決める」から「境界として参照」へ移した。
-        "境界として参照": 87,
-        "対象外": 88,
+        # P1-4(確定ゲート 4 周目)で、FR-024 のプリフェッチ契約を同期対象外へ移した。
+        "境界として参照": 86,
+        "対象外": 89,
     }
+
+
+def test_step32_assignment_corrections_are_fixed() -> None:
+    """FR-024と一致性テスト要件を誤った同期節へ戻さない。"""
+    assignments = {
+        assignment.id: assignment
+        for assignment in checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
+    }
+
+    assert assignments["FR-021"].destination == "8-2"
+    assert assignments["FR-022"].destination == "8-2"
+    assert assignments["FR-023"].destination == "8-2"
+    assert assignments["FR-024"].kind == "対象外"
+    assert "プリフェッチ" in assignments["FR-024"].destination
+    assert assignments["NFR-019/(a)"].destination == "8-2・10-3"
 
 
 @pytest.mark.parametrize(
