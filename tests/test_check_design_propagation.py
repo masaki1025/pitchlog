@@ -17,22 +17,32 @@ SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 FIXTURE = REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-source.txt"
 DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 
-STEP32_O3_LEASE_ELEMENTS = (
-    "OL1:リース識別=(試合,D4,V12)+期限",
-    "OL2:未凍結から凍結要求中=サーバーが凍結要求",
-    "OL3:凍結要求中からdrain中=新規入力停止+既受理分のP1・P2だけ許可",
-    "OL4:drain中から凍結ACK済み=未送信0+要操作0+未突合ACK0+現書き手の凍結ACK",
-    "OL5:凍結ACK済みから取込P2実行中=リース再検証+O3取込P2だけ許可",
-    "OL6:凍結ACK後の未使用D5要求=新規入力非受理+P1・P2・P3はB15",
-    "OL7:引き継ぎとの排他=取得競合時は片方だけ成立+引き継ぎ成立で旧O3失効",
-    "OL8:解除=同じD5結果回収を先行+確定D3・投影結果取得+次D1・ローカル状態不可分更新後に未凍結",
-    "OL9:再同期待ちへの移行=取込成功・失敗・明示中止+応答消失・クラッシュ・期限切れ+サーバーリース解放",
+STEP33_FREEZE_ELEMENTS = (
+    "FS0:凍結識別=(試合,D4,V12)+期限",
+    "FS1:稼働中=凍結リースなし+通常入力可",
+    "FS2:drain中=取込D5なし+新規入力停止+既受理P1・P2だけ送信",
+    "FS3:凍結済み=取込D5なし+空キュー+凍結ACK済み",
+    "FS4:取込結果確定待ち=取込D5あり+取込P2送信開始後",
+    "FS5:再同期中=取込D5なしまたは取込結果確定済み+通常入力停止",
+    "FS6:入力停止終端=引き継ぎ成立+旧V12で入力再開なし",
+    "FT1:凍結開始=FS1からFS2",
+    "FT2:drain完了=FS2からFS3",
+    "FT3:D5なし中断=FS2・FS3からFS5+結果回収不要",
+    "FT4:取込開始=FS3からFS4+取込D5生成",
+    "FT5:D5あり中断=FS4に留まり同じD5で保存結果または未登録を確定",
+    "FT6:取込結果確定=FS4からFS5",
+    "FT7:再同期完了=V12有効ならFS1+無効ならFS6",
+    "FT8:全故障出口=期限切れ+応答消失+サーバークラッシュ+通常・緊急引き継ぎ+明示中止",
 )
-STEP32_B15 = (
-    "B15:凍結中確定非受理="
-    "自動再試行なし+解除後に新D5で再入力+凍結理由通知"
+STEP33_B15 = (
+    "B15:凍結中イベント確定非受理="
+    "(D4,D1,D5)+A5凍結非受理+同一D1スロットを新D5へ置換"
 )
-STEP32_P3_RESULTS = (
+STEP33_B16 = (
+    "B16:P3凍結中確定非受理="
+    "保存済みD5結果+解除後に新D5で再入力+理由通知"
+)
+STEP33_P3_RESULTS = (
     "変更受理",
     "B8:期待版不一致",
     "B9:記録権不保持",
@@ -41,7 +51,7 @@ STEP32_P3_RESULTS = (
     "B12:認可・テナント不一致",
     "B13:D5衝突",
     "B14:変更内容拒否",
-    STEP32_B15,
+    STEP33_B16,
 )
 STEP32_P3_ORDER_ELEMENTS = (
     "I1:P3のD5照合位置=③認可後+V12前+V11前",
@@ -58,7 +68,7 @@ STEP32_D1_D5_ELEMENTS = (
     "DI2:D1付き経路の既存D5・同一内容=保存済み結果を再掲+再適用しない",
     "DI3:D1付き経路の既存D5・異なる内容=B3b",
     "DI4:D1付き経路の未使用D5=V12・prefix・内容検査対象",
-    "DI5:混在バッチのA5=既存同一D5は保存済み結果+既存異内容D5はB3b+未使用D5だけ後段検査",
+    "DI5:混在バッチのA5=既存同一D5は保存済み結果+既存異内容D5はB3b+未使用D5はB15を含む後段結果+同一ACK",
 )
 
 
@@ -128,25 +138,29 @@ DEFECT_CHECK_CASES = (
 | B2 | 未処理 |
 | B3 | 拒否 |
 | B4 | 退避 |
+| B15 | 凍結非受理 |
 ### 7-1. ACK
-| A5 | 受理・重複・拒否・退避・未処理 |
+| A5 | 受理・重複・拒否・退避・未処理・凍結非受理 |
 ### 7-2. キュー遷移
 | 未送信 → 同期済み | 受理・重複 |
 | 未送信 → 要操作 | 拒否 |
 | 未送信 → 退避済み | 退避 |
 | 未送信 → 未送信 | 未処理 |
+| 未送信 → 凍結非受理待ち | 凍結非受理 |
 """,
         """### 6-3. 境界結果
 | B1 | 受理・重複 |
 | B2 | 未処理 |
 | B3 | 拒否 |
 | B4 | 退避 |
+| B15 | 凍結非受理 |
 ### 7-1. ACK
-| A5 | 受理・重複・拒否・退避・未処理 |
+| A5 | 受理・重複・拒否・退避・未処理・凍結非受理 |
 ### 7-2. キュー遷移
 | 未送信 → 同期済み | 受理・重複 |
 | 未送信 → 要操作 | 拒否 |
 | 未送信 → 退避済み | 退避 |
+| 未送信 → 凍結非受理待ち | 凍結非受理 |
 """,
     ),
     (
@@ -772,17 +786,17 @@ def test_current_manifest_all_relations_have_element_coverage() -> None:
         ),
         (
             "R-ORDER-ASSIGN",
-            ("O1", "O2", "O3", "O4") + STEP32_O3_LEASE_ELEMENTS,
+            ("O1", "O2", "O3", "O4") + STEP33_FREEZE_ELEMENTS,
             {
                 "5-3 の隙間・再採番": ("O1", "O2", "O3"),
                 "7-2 の O3リース状態遷移": ("O3",)
-                + STEP32_O3_LEASE_ELEMENTS,
+                + STEP33_FREEZE_ELEMENTS,
                 "8-1 の T5・経路 P2": ("O1", "O2", "O3", "O4")
-                + STEP32_O3_LEASE_ELEMENTS,
-                "9-4 の取り込み手順": ("O3",) + STEP32_O3_LEASE_ELEMENTS,
-                "10-2 の故障系観点": ("O3",) + STEP32_O3_LEASE_ELEMENTS,
+                + STEP33_FREEZE_ELEMENTS,
+                "9-4 の取り込み手順": ("O3",) + STEP33_FREEZE_ELEMENTS,
+                "10-2 の故障系観点": ("O3",) + STEP33_FREEZE_ELEMENTS,
                 "11-2 のデータモデル影響差分": ("O1", "O2", "O3", "O4")
-                + STEP32_O3_LEASE_ELEMENTS,
+                + STEP33_FREEZE_ELEMENTS,
             },
         ),
     ),
@@ -816,24 +830,24 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         ),
         (
             "R-P3-BOUNDARY",
-            STEP32_P3_RESULTS + STEP32_P3_ORDER_ELEMENTS,
+            STEP33_P3_RESULTS + STEP32_P3_ORDER_ELEMENTS,
             {
-                "6-2 の P3 処理段階": (STEP32_B15,)
+                "6-2 の P3 処理段階": (STEP33_B16,)
                 + STEP32_P3_ORDER_ELEMENTS,
-                "7-1 の P3 応答契約": STEP32_P3_RESULTS
+                "7-1 の P3 応答契約": STEP33_P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
-                    STEP32_B15,
+                    STEP33_B16,
                 ),
                 "8-3 の補正通知": (
-                    STEP32_P3_RESULTS[1:]
+                    STEP33_P3_RESULTS[1:]
                     + STEP32_P3_ORDER_ELEMENTS
                 ),
-                "9-2 の境界表": STEP32_P3_RESULTS
+                "9-2 の境界表": STEP33_P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS,
-                "10-2 の故障系観点": STEP32_P3_RESULTS
+                "10-2 の故障系観点": STEP33_P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS,
             },
         ),
@@ -994,10 +1008,10 @@ def test_step32_active_p3_checks_d5_after_authorization_before_versions() -> Non
     assert "B9 記録権不保持" in active_p3
 
 
-def test_step32_boundary_branches_d5_rules_and_o3_thaw_are_fixed(
+def test_step33_boundary_branches_and_rederived_freeze_machine_are_fixed(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
-    """D5全経路規則と、drain・再同期後だけのO3解凍を固定する。"""
+    """D5全経路規則と、D5の有無で出口を分ける凍結機械を固定する。"""
     boundary = manifest["R-BOUNDARY"]
     assert boundary.source_elements[-7:] == (
         STEP32_B3_BRANCH_ELEMENTS + STEP32_D1_D5_ELEMENTS
@@ -1014,17 +1028,108 @@ def test_step32_boundary_branches_d5_rules_and_o3_thaw_are_fixed(
         assert boundary_targets[target][-5:] == STEP32_D1_D5_ELEMENTS
 
     assert boundary_targets["6-2 の D1付き処理段階"] == (
-        (STEP32_B15,) + STEP32_D1_D5_ELEMENTS
+        (STEP33_B15,) + STEP32_D1_D5_ELEMENTS
     )
     assert boundary_targets["7-3 の ACK消失後の再送"] == STEP32_D1_D5_ELEMENTS
+    assert boundary_targets["7-5 の終了時同期"] == (STEP33_B15,)
 
     import_section = checker._reference_section(DESIGN.read_text(), "9-4 の取り込み手順")
-    drain = import_section.index("既受理の P1・P2 だけを送り切り")
-    freeze_ack = import_section.index("凍結 ACK")
-    result_recovery = import_section.index("同じ D5 で保存済みの D1 と結果を先に回収")
-    projection_sync = import_section.index("確定 D3 と投影結果を取得")
-    thaw = import_section.index("更新の完了後だけ未凍結へ戻す")
-    assert drain < freeze_ack < result_recovery < projection_sync < thaw
-    assert "サーバーはリースを解放" in import_section
-    assert "再同期待ちに留まる" in import_section
-    assert "凍結を永久化しない" in import_section
+    assert "FS2" in import_section
+    assert "FT3" in import_section
+    assert "結果回収不要" in import_section
+    assert "FT5" in import_section
+    assert "保存結果または未登録" in import_section
+    assert "FT7" in import_section
+    assert "FS1" in import_section
+    assert "FS6" in import_section
+    assert "OL1" not in import_section
+    assert "B7" not in import_section
+    assert "B10" not in import_section
+
+
+def _table_rows(section: str, header: str) -> list[list[str]]:
+    """指定したMarkdown表のデータセルを返す。"""
+    lines = section[section.index(header) :].splitlines()
+    rows: list[list[str]] = []
+    for line in lines[2:]:
+        if not line.startswith("|"):
+            break
+        rows.append([cell.strip() for cell in line.strip("|").split("|")])
+    return rows
+
+
+def test_step33_state_request_matrix_is_total() -> None:
+    """6状態×6要求種別の全セルが定義済みであることを固定する。"""
+    section = checker._reference_section(DESIGN.read_text(), "5-5 の参加区分表")
+    header = (
+        "| 状態 | 既受理の P1/P2 の送信 | 未使用 D5 の新規 P1/P2 | "
+        "P3 | P4 | 取込 P2 | 保存済み D5 の再送 |"
+    )
+    rows = _table_rows(section, header)
+
+    assert len(rows) == 6
+    assert [f"FS{index}" in row[0] for index, row in enumerate(rows, start=1)] == [
+        True
+    ] * 6
+    assert all(len(row) == 7 and all(cell for cell in row) for row in rows)
+
+
+def test_step33_all_states_have_every_fault_exit() -> None:
+    """各状態が6故障様態のどれでも終端へ進めることを固定する。"""
+    section = checker._reference_section(DESIGN.read_text(), "5-5 の参加区分表")
+    header = (
+        "| 状態 | 期限切れ | 応答消失 | サーバークラッシュ | 通常引き継ぎ | "
+        "緊急引き継ぎ | 明示中止 |"
+    )
+    rows = _table_rows(section, header)
+
+    assert len(rows) == 6
+    assert all(len(row) == 7 and all(cell for cell in row) for row in rows)
+    assert "FT3" in rows[1][1]
+    assert "FT3" in rows[2][1]
+    assert "FT5" in rows[3][1]
+    assert "結果回収" not in rows[1][1]
+
+
+def test_step33_b15_restart_and_queue_state_are_single_valued(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """B15の照合単位・キュー状態・唯一の再開方法を固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    boundary = checker._reference_section(document, "6-3 の境界結果表")
+    queue = checker._reference_section(document, "7-2 のキュー状態遷移")
+
+    assert "`(D4, D1, D5)` ごとの「凍結非受理」" in boundary
+    assert "同じ D5 の再送には同じ B15 を再掲" in boundary
+    assert "凍結非受理待ち" in queue
+    assert "同じ D1 スロット" in queue
+    assert "新 D5・未送信" in queue
+    assert "新しい D1 は採番せず" in queue
+    assert "同じ D5 で再送して受理へ変える" not in queue
+
+    ack = manifest["R-ACK-STATE"]
+    queue_life = manifest["R-QUEUE-LIFE"]
+    assert ack.source_elements[-1] == "凍結非受理"
+    assert all(
+        elements[-1] == "凍結非受理"
+        for elements in dict(ack.expected_elements).values()
+    )
+    assert queue_life.source_elements[-1] == "凍結非受理待ち"
+    assert all(
+        elements[-1] == "凍結非受理待ち"
+        for elements in dict(queue_life.expected_elements).values()
+    )
+
+
+def test_step33_old_freeze_rejections_are_absent() -> None:
+    """旧OL機械とB7/B10による凍結拒否が復活しないことを守る。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    import_section = checker._reference_section(document, "9-4 の取り込み手順")
+    ending_section = checker._reference_section(document, "7-5 の終了時同期")
+
+    assert all(f"OL{index}" not in document for index in range(1, 10))
+    assert "B7" not in import_section
+    assert "B10" not in import_section
+    assert "B15" in ending_section
+    assert "件数" in ending_section
+    assert "導線" in ending_section
