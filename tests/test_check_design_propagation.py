@@ -33,6 +33,10 @@ STEP32_P3_ORDER_ELEMENTS = (
     "I3:P3の既存D5・異なる内容=B13",
     "I4:P3の未使用D5=V12・V11照合対象",
 )
+STEP36_P3_INVALIDATION_ELEMENTS = (
+    "I5:P3の無効化発火=未使用D5の変更受理でT7まで確定したときだけ発火+"
+    "保存済み結果の再掲では再発火しない",
+)
 STEP32_B3_BRANCH_ELEMENTS = (
     "B3a:未使用D5の内容拒否=P5+T9",
     "B3b:既存D5との衝突=先着原本との比較+B3+T9開始なし",
@@ -761,7 +765,11 @@ def test_current_manifest_all_relations_have_element_coverage() -> None:
             ("O1", "O2", "O4"),
             {
                 "5-3 の隙間・再採番": ("O1", "O2"),
+                "6-3 の O4境界結果": ("O4",),
+                "7-1 の A5": ("O4",),
+                "7-2 のキュー状態遷移": ("O4",),
                 "8-1 の T5・経路 P2": ("O1", "O2", "O4"),
+                "10-2 の故障系観点": ("O4",),
                 "11-2 のデータモデル影響差分": ("O1", "O2", "O4"),
             },
         ),
@@ -796,11 +804,14 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
         ),
         (
             "R-P3-BOUNDARY",
-            P3_RESULTS + STEP32_P3_ORDER_ELEMENTS,
+            P3_RESULTS
+            + STEP32_P3_ORDER_ELEMENTS
+            + STEP36_P3_INVALIDATION_ELEMENTS,
             {
                 "6-2 の P3 処理段階": STEP32_P3_ORDER_ELEMENTS,
                 "7-1 の P3 応答契約": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS,
+                + STEP32_P3_ORDER_ELEMENTS
+                + STEP36_P3_INVALIDATION_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
@@ -809,10 +820,16 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
                     P3_RESULTS[1:]
                     + STEP32_P3_ORDER_ELEMENTS
                 ),
+                "8-5 の無効化発火": STEP36_P3_INVALIDATION_ELEMENTS,
                 "9-2 の境界表": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS,
+                + STEP32_P3_ORDER_ELEMENTS
+                + STEP36_P3_INVALIDATION_ELEMENTS,
                 "10-2 の故障系観点": P3_RESULTS
-                + STEP32_P3_ORDER_ELEMENTS,
+                + STEP32_P3_ORDER_ELEMENTS
+                + STEP36_P3_INVALIDATION_ELEMENTS,
+                "11-2 のデータモデル影響差分": (
+                    STEP36_P3_INVALIDATION_ELEMENTS
+                ),
             },
         ),
     ),
@@ -1010,7 +1027,11 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     assert order.source_elements == ("O1", "O2", "O4")
     assert dict(order.expected_elements) == {
         "5-3 の隙間・再採番": ("O1", "O2"),
+        "6-3 の O4境界結果": ("O4",),
+        "7-1 の A5": ("O4",),
+        "7-2 のキュー状態遷移": ("O4",),
         "8-1 の T5・経路 P2": ("O1", "O2", "O4"),
+        "10-2 の故障系観点": ("O4",),
         "11-2 のデータモデル影響差分": ("O1", "O2", "O4"),
     }
 
@@ -1025,7 +1046,11 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
         "B7:一時障害",
     )
     p3_boundary = manifest["R-P3-BOUNDARY"]
-    assert p3_boundary.source_elements == P3_RESULTS + STEP32_P3_ORDER_ELEMENTS
+    assert p3_boundary.source_elements == (
+        P3_RESULTS
+        + STEP32_P3_ORDER_ELEMENTS
+        + STEP36_P3_INVALIDATION_ELEMENTS
+    )
 
 
 def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
@@ -1051,6 +1076,88 @@ def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
     assert all(element in document for element in ("D8", "B4", "P4", "T8"))
     assert all(element in document for element in ("O1", "O2", "O4"))
     assert "P3" in document
+
+
+def test_step36_restore_has_a_closed_sync_terminal_and_ops_handoff() -> None:
+    """復元専用の再構成と運用手順への境界を固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    restore = checker._reference_section(document, "9-5")
+    attribution = checker._reference_section(document, "11-3")
+    handoff = checker._reference_section(document, "11-4")
+
+    for phrase in (
+        "通常同期をフェンス",
+        "同期済みだが復元 DB に存在しないイベント",
+        "元の確定位置",
+        "正史照合",
+        "新しい D4 とその D3 = 0 を開く",
+        "同期側の終端条件",
+        "世界線ズレは未解消",
+    ):
+        assert phrase in restore
+    assert "通常同期の P1〜P4 を使わない" in restore
+    assert "NFR-009 の復旧手順へ渡す" in restore
+    assert "| NFR-009 | 同期側で決める | 9-5・11-4 |" in attribution
+    assert "**U-4**" in handoff
+    assert "同期側の終端条件" in handoff
+    assert "起動時刻、担当者、端末回収順、再実行、エスカレーション" in handoff
+    assert "**NFR-009 の復旧手順**(運用ドキュメント)" in handoff
+
+
+def test_step36_p3_invalidation_fires_only_on_the_initial_commit(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """P3初回確定だけが無効化を発火することを固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    invalidation = checker._reference_section(document, "8-5")
+    failures = checker._reference_section(document, "10-2")
+    attribution = checker._reference_section(document, "11-3")
+    relation = manifest["R-P3-BOUNDARY"]
+
+    assert STEP36_P3_INVALIDATION_ELEMENTS[0] in relation.source_elements
+    assert dict(relation.expected_elements)["8-5 の無効化発火"] == (
+        STEP36_P3_INVALIDATION_ELEMENTS
+    )
+    assert "未使用 D5 の変更受理で T7 まで確定したときだけ発火" in invalidation
+    assert "保存済み結果の再掲では再発火しない" in invalidation
+    assert "初回だけ無効化を発火" in failures
+    assert "保存済み変更受理の再掲では再発火しない" in failures
+    assert "| FR-007 | 同期側で決める | 4-3-A・5-3・5-5・8-5・10-2 |" in attribution
+    assert "| FR-011 | 同期側で決める | 4-3-A・5-5・8-5・10-2 |" in attribution
+    assert "| 6 | 境界として参照 | 7-2・8-5・10-2・11-2 |" in attribution
+    assert "| 6.2 | 同期側で決める | 8-5・10-2 |" in attribution
+
+
+def test_step36_o4_reuses_the_existing_rejection_and_action_state(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """O4が既存の結果値とキュー状態で閉じることを固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    order = checker._reference_section(document, "5-5 の O1・O2・O4")
+    boundary = checker._reference_section(document, "6-3 の O4境界結果")
+    ack = checker._reference_section(document, "7-1 の A5")
+    queue = checker._reference_section(document, "7-2 のキュー状態遷移")
+
+    assert "O4: B3 + A5「拒否」" in order
+    assert "要操作(管理者対応待ち)" in order
+    assert "O4 の外部結果は B3 と A5「拒否」" in boundary
+    assert "理由コード O4" in ack
+    assert "O4 では管理者による D2 一意性の是正確認" in queue
+    assert "同じ D1 スロットの内容を変えず" in order
+    assert "新しい D1 は採番しない" in order
+
+    ack_relation = manifest["R-ACK-STATE"]
+    queue_relation = manifest["R-QUEUE-LIFE"]
+    order_relation = manifest["R-ORDER-ASSIGN"]
+    assert ack_relation.source_elements == ("受理", "重複", "拒否", "退避", "未処理")
+    assert queue_relation.source_elements == ("未送信", "要操作", "同期済み", "退避済み")
+    for target in (
+        "6-3 の O4境界結果",
+        "7-1 の A5",
+        "7-2 のキュー状態遷移",
+        "10-2 の故障系観点",
+    ):
+        assert dict(order_relation.expected_elements)[target] == ("O4",)
 
 
 def test_step34_d1_order_uniquely_decides_the_external_stop_boundary(
