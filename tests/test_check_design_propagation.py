@@ -16,6 +16,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 FIXTURE = REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-source.txt"
 DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
+REQUIREMENTS = (
+    REPOSITORY_ROOT / "docs" / "requirements" / "requirements-pitchlog-2026-07-22.md"
+)
 
 P3_RESULTS = (
     "変更受理",
@@ -33,10 +36,23 @@ STEP32_P3_ORDER_ELEMENTS = (
     "I3:P3の既存D5・異なる内容=B13",
     "I4:P3の未使用D5=V12・V11照合対象",
 )
-STEP36_P3_INVALIDATION_ELEMENTS = (
-    "I5:P3の無効化発火=未使用D5の変更受理でT7まで確定したときだけ発火+"
-    "保存済み結果の再掲では再発火しない",
+STEP37_P3_INVALIDATION_ELEMENTS = (
+    "I5:P3の無効化発火=未使用D5の変更受理でT7に無効化意図を永続化+"
+    "配信完了まで冪等再試行+保存済み結果再掲では意図を重複作成しない",
 )
+STEP37_P3_RETENTION_ELEMENTS = (
+    "I6:P3受理結果の端末保持=対象参照+V11の版+D5+確定内容+"
+    "同期済みと同じ24時間保持+退避・閲覧・書き出し対象+復元規則なし",
+)
+STEP37_P3_RETENTION_ID = ("I6",)
+STEP37_RECOVERY_GATE_ELEMENTS = (
+    "RG1:復元調整中の共通前段ゲート=③認可後+D5照合前+"
+    "P1・P2・P4はB7相当+P3はB10相当+D5消費なし+記録権遷移停止",
+)
+STEP37_V12_RECOVERY_ELEMENT = (
+    "VF6:V12の復旧世代結合=現D4+現復旧世代+保持端末"
+)
+STEP37_T7_ELEMENT = "T7:V11照合・対象確定版更新・無効化意図保存"
 STEP32_B3_BRANCH_ELEMENTS = (
     "B3a:未使用D5の内容拒否=P5+T9",
     "B3b:既存D5との衝突=先着原本との比較+B3+T9開始なし",
@@ -806,12 +822,16 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
             "R-P3-BOUNDARY",
             P3_RESULTS
             + STEP32_P3_ORDER_ELEMENTS
-            + STEP36_P3_INVALIDATION_ELEMENTS,
+            + STEP37_P3_INVALIDATION_ELEMENTS
+            + STEP37_P3_RETENTION_ELEMENTS
+            + STEP37_RECOVERY_GATE_ELEMENTS,
             {
-                "6-2 の P3 処理段階": STEP32_P3_ORDER_ELEMENTS,
+                "6-2 の P3 処理段階": STEP32_P3_ORDER_ELEMENTS
+                + STEP37_RECOVERY_GATE_ELEMENTS,
                 "7-1 の P3 応答契約": P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS
-                + STEP36_P3_INVALIDATION_ELEMENTS,
+                + STEP37_P3_INVALIDATION_ELEMENTS
+                + STEP37_P3_RETENTION_ELEMENTS,
                 "8-1 の経路表": (
                     "B8:期待版不一致",
                     "B9:記録権不保持",
@@ -820,15 +840,24 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
                     P3_RESULTS[1:]
                     + STEP32_P3_ORDER_ELEMENTS
                 ),
-                "8-5 の無効化発火": STEP36_P3_INVALIDATION_ELEMENTS,
+                "8-5 の無効化発火": STEP37_P3_INVALIDATION_ELEMENTS,
                 "9-2 の境界表": P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS
-                + STEP36_P3_INVALIDATION_ELEMENTS,
+                + STEP37_P3_INVALIDATION_ELEMENTS
+                + STEP37_P3_RETENTION_ELEMENTS
+                + STEP37_RECOVERY_GATE_ELEMENTS,
+                "9-5 の復元時保持・共通前段ゲート": (
+                    STEP37_P3_RETENTION_ELEMENTS + STEP37_RECOVERY_GATE_ELEMENTS
+                ),
                 "10-2 の故障系観点": P3_RESULTS
                 + STEP32_P3_ORDER_ELEMENTS
-                + STEP36_P3_INVALIDATION_ELEMENTS,
+                + STEP37_P3_INVALIDATION_ELEMENTS
+                + STEP37_P3_RETENTION_ELEMENTS
+                + STEP37_RECOVERY_GATE_ELEMENTS,
                 "11-2 のデータモデル影響差分": (
-                    STEP36_P3_INVALIDATION_ELEMENTS
+                    STEP37_P3_INVALIDATION_ELEMENTS
+                    + STEP37_P3_RETENTION_ELEMENTS
+                    + STEP37_RECOVERY_GATE_ELEMENTS
                 ),
             },
         ),
@@ -882,7 +911,8 @@ def test_step29_manifest_keeps_new_routes_and_required_target_subsets(
     assert rejection_atomic in transaction.source_elements
     assert all(
         rejection_route in elements and rejection_atomic in elements
-        for _, elements in transaction.expected_elements
+        for target, elements in transaction.expected_elements
+        if target != "10-3 の故障系資産契約"
     )
 
     change = dict(manifest["R-CHANGE-RULE"].expected_elements)
@@ -905,16 +935,24 @@ def test_step29_manifest_keeps_new_routes_and_required_target_subsets(
         "VF4:P1・P2・P4のV12不成立=B4",
         "VF5:進行中P3のV12不成立=B9",
     )
-    assert v12.source_elements == v12_elements
+    assert v12.source_elements == v12_elements + (STEP37_V12_RECOVERY_ELEMENT,)
     v12_expected = dict(v12.expected_elements)
     assert v12_expected["7-7 のローカル取り込み"] == (
         v12_elements[0],
         v12_elements[3],
     )
-    assert all(
-        elements == v12_elements
-        for target, elements in v12.expected_elements
-        if target != "7-7 のローカル取り込み"
+    for target in (
+        "6-2 の P3 処理段階",
+        "6-3 の境界結果表",
+        "7-1 の P3 応答契約",
+    ):
+        assert v12_expected[target] == v12_elements
+    for target in ("8-1 の経路表", "9-2 の境界表", "10-2 の故障系観点"):
+        assert v12_expected[target] == v12_elements + (
+            STEP37_V12_RECOVERY_ELEMENT,
+        )
+    assert v12_expected["11-2 のデータモデル影響差分"] == (
+        STEP37_V12_RECOVERY_ELEMENT,
     )
 
     participation = manifest["R-PARTICIPATION"]
@@ -1017,10 +1055,17 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     )
 
     queue = manifest["R-QUEUE-LIFE"]
-    assert queue.source_elements == ("未送信", "要操作", "同期済み", "退避済み")
-    assert all(
-        elements == queue.source_elements
-        for elements in dict(queue.expected_elements).values()
+    assert queue.source_elements == (
+        "未送信",
+        "要操作",
+        "同期済み",
+        "退避済み",
+    ) + STEP37_P3_RETENTION_ID
+    queue_expected = dict(queue.expected_elements)
+    for target in ("7-2 の遷移表", "6-3 の保持の記述", "9-5 の回収対象"):
+        assert queue_expected[target] == queue.source_elements
+    assert queue_expected["11-2 のデータモデル影響差分"] == (
+        STEP37_P3_RETENTION_ID
     )
 
     order = manifest["R-ORDER-ASSIGN"]
@@ -1049,7 +1094,9 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     assert p3_boundary.source_elements == (
         P3_RESULTS
         + STEP32_P3_ORDER_ELEMENTS
-        + STEP36_P3_INVALIDATION_ELEMENTS
+        + STEP37_P3_INVALIDATION_ELEMENTS
+        + STEP37_P3_RETENTION_ELEMENTS
+        + STEP37_RECOVERY_GATE_ELEMENTS
     )
 
 
@@ -1078,54 +1125,160 @@ def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
     assert "P3" in document
 
 
-def test_step36_restore_has_a_closed_sync_terminal_and_ops_handoff() -> None:
-    """復元専用の再構成と運用手順への境界を固定する。"""
+def test_step37_restore_scope_stops_at_fence_and_escrow() -> None:
+    """復元時に端末資料から正史へ戻す規則を再導入させない。"""
     document = DESIGN.read_text(encoding="utf-8")
     restore = checker._reference_section(document, "9-5")
     attribution = checker._reference_section(document, "11-3")
     handoff = checker._reference_section(document, "11-4")
 
-    for phrase in (
-        "通常同期をフェンス",
-        "同期済みだが復元 DB に存在しないイベント",
-        "元の確定位置",
-        "正史照合",
-        "新しい D4 とその D3 = 0 を開く",
-        "同期側の終端条件",
-        "世界線ズレは未解消",
-    ):
-        assert phrase in restore
-    assert "通常同期の P1〜P4 を使わない" in restore
-    assert "NFR-009 の復旧手順へ渡す" in restore
+    assert "再構成" not in restore
+    assert "正史照合" not in restore
+    assert "全試合の既存 D4 を失効" in restore
+    assert "B4/P4" in restore
+    assert "破棄せず退避" in restore
+    assert "管理コンソールで閲覧・書き出し" in restore
+    assert "復元前に受理済みだったイベントを正史へ戻す規則は v0.1 では決めない" in restore
+    assert "端末ストレージは書き換え得る" in restore
     assert "| NFR-009 | 同期側で決める | 9-5・11-4 |" in attribution
     assert "**U-4**" in handoff
-    assert "同期側の終端条件" in handoff
-    assert "起動時刻、担当者、端末回収順、再実行、エスカレーション" in handoff
+    assert "**RR-2**" in handoff
+    assert "復元前に受理済みだったイベントを正史へ戻す規則が未定義" in handoff
+    assert "起動時刻、担当者、端末回収順、復元調整の解除判断" in handoff
     assert "**NFR-009 の復旧手順**(運用ドキュメント)" in handoff
 
 
-def test_step36_p3_invalidation_fires_only_on_the_initial_commit(
+def test_step37_p3_invalidation_intent_is_atomic_and_eventually_delivered(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
-    """P3初回確定だけが無効化を発火することを固定する。"""
+    """P3確定と無効化意図を分離せず、未配信分を完了まで再試行する。"""
     document = DESIGN.read_text(encoding="utf-8")
+    transaction = checker._reference_section(document, "8-1")
     invalidation = checker._reference_section(document, "8-5")
     failures = checker._reference_section(document, "10-2")
-    attribution = checker._reference_section(document, "11-3")
+    fixture_contract = checker._reference_section(document, "10-3")
     relation = manifest["R-P3-BOUNDARY"]
+    transaction_relation = manifest["R-TXN-ROUTE"]
 
-    assert STEP36_P3_INVALIDATION_ELEMENTS[0] in relation.source_elements
+    assert STEP37_P3_INVALIDATION_ELEMENTS[0] in relation.source_elements
     assert dict(relation.expected_elements)["8-5 の無効化発火"] == (
-        STEP36_P3_INVALIDATION_ELEMENTS
+        STEP37_P3_INVALIDATION_ELEMENTS
     )
-    assert "未使用 D5 の変更受理で T7 まで確定したときだけ発火" in invalidation
-    assert "保存済み結果の再掲では再発火しない" in invalidation
-    assert "初回だけ無効化を発火" in failures
-    assert "保存済み変更受理の再掲では再発火しない" in failures
-    assert "| FR-007 | 同期側で決める | 4-3-A・5-3・5-5・8-5・10-2 |" in attribution
-    assert "| FR-011 | 同期側で決める | 4-3-A・5-5・8-5・10-2 |" in attribution
-    assert "| 6 | 境界として参照 | 7-2・8-5・10-2・11-2 |" in attribution
-    assert "| 6.2 | 同期側で決める | 8-5・10-2 |" in attribution
+    assert STEP37_T7_ELEMENT in transaction_relation.source_elements
+    assert dict(transaction_relation.expected_elements)[
+        "10-3 の故障系資産契約"
+    ] == (STEP37_T7_ELEMENT,)
+    assert (
+        "T7 の無効化意図は P3 の変更イベント・対象確定版更新と同じトランザクション"
+        in transaction
+    )
+    assert "配信完了まで冪等に再試行" in invalidation
+    assert "保存済み結果再掲では意図を重複作成しない" in invalidation
+    assert "T7 の確定後・無効化配信前" in failures
+    assert "未配信分を配信完了まで冪等に再試行" in failures
+    assert "故障注入には **T7 確定後・無効化配信前**" in fixture_contract
+    assert "保存済み結果再掲後の意図件数" in fixture_contract
+
+
+def test_step37_p3_acceptance_result_is_retained_then_escrowed(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """P3受理結果の保持内容・期間・退避先と、復元規則の不在を固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    response = checker._reference_section(document, "7-1 の P3 応答契約")
+    queue = checker._reference_section(document, "7-2 のキュー状態遷移")
+    restore = checker._reference_section(document, "9-5")
+    model = checker._reference_section(document, "11-2")
+    p3_relation = manifest["R-P3-BOUNDARY"]
+    queue_relation = manifest["R-QUEUE-LIFE"]
+
+    for section in (response, queue, restore, model):
+        assert all(
+            field in section for field in ("対象参照", "V11 の版", "D5", "確定内容")
+        )
+    assert "初回の変更受理から 24 時間" in response
+    assert "同期済み(P3 受理結果) → 退避済み" in queue
+    assert "P3 として再送せず退避資料として保存" in restore
+    assert "管理コンソールで閲覧・書き出し" in restore
+    assert "復元規則なし" in restore
+    assert STEP37_P3_RETENTION_ELEMENTS[0] in p3_relation.source_elements
+    assert dict(p3_relation.expected_elements)[
+        "9-5 の復元時保持・共通前段ゲート"
+    ][0] == STEP37_P3_RETENTION_ELEMENTS[0]
+    assert STEP37_P3_RETENTION_ID[0] in queue_relation.source_elements
+
+
+def test_step37_d4_is_never_reused_after_rollback(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """D4非再利用とV12の復旧世代結合を、物理方式を固定せず保証する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    definitions = checker._reference_section(document, "2-1")
+    boundary = checker._reference_section(document, "9-2")
+    implementation = checker._reference_section(document, "10-1")
+    failures = checker._reference_section(document, "10-2")
+    v12 = manifest["R-V12-BOUNDARY"]
+
+    assert "ロールバック後も再利用しない識別子" in definitions
+    assert "nonce・UUID・バックアップ対象外の単調カウンタ" in definitions
+    assert "物理形式は本書で決めず" in definitions
+    assert "D4 の非再利用" in boundary
+    assert "現 D4・現復旧世代・保持端末" in boundary
+    assert "生成アルゴリズム・物理形式" in implementation
+    assert "どれを使ったかは期待値に固定しない" in failures
+    assert STEP37_V12_RECOVERY_ELEMENT in v12.source_elements
+
+
+def test_step37_recovery_adjustment_gate_precedes_d5_on_every_write(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """終了後P3を含む全変更と記録権遷移をD5消費前に止める。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    processing = checker._reference_section(document, "6-2 の処理段階")
+    restore = checker._reference_section(document, "9-5")
+    boundary = manifest["R-BOUNDARY"]
+    p3_boundary = manifest["R-P3-BOUNDARY"]
+    gate = STEP37_RECOVERY_GATE_ELEMENTS[0]
+
+    d1 = processing[processing.index("P1・P2・P4 の境界結果") :]
+    d1 = d1[: d1.index("P3 は D1・D3")]
+    p3 = processing[processing.index("P3 は D1・D3") :]
+    for route in (d1, p3):
+        assert route.index("③ 認可(テナント)") < route.index("③-a 復元調整ゲート")
+        assert route.index("③-a 復元調整ゲート") < route.index("④ D5 の照合")
+    assert "進行中・終了後 P3" in restore
+    assert "D5 を消費せず" in restore
+    assert "通常・緊急の記録権遷移" in restore
+    assert gate in boundary.source_elements
+    assert gate in p3_boundary.source_elements
+    for target in (
+        "6-2 の D1付き処理段階",
+        "9-2 の境界表",
+        "10-2 の故障系観点",
+        "11-2 のデータモデル影響差分",
+    ):
+        assert gate in dict(boundary.expected_elements)[target]
+
+
+def test_step37_fr013_must_is_limited_to_escrow_and_admin_access() -> None:
+    """FR-013のMustが二つのShouldを無条件に昇格させないことを固定する。"""
+    requirements = REQUIREMENTS.read_text(encoding="utf-8")
+    fr013 = requirements[requirements.index("#### FR-013:") :]
+    fr013 = fr013[: fr013.index("#### FR-014:")]
+    history = requirements[: requirements.index("## 1.")]
+
+    must_line = next(
+        line
+        for line in fr013.splitlines()
+        if "旧世代の記録権を持つ元端末" in line
+    )
+    assert "適用されず、破棄されず退避され" in must_line
+    assert "管理コンソールで内容を閲覧・書き出しできる" in must_line
+    assert "ローカル書き出しは FR-012 の補足 **Should** を採用した場合" in must_line
+    assert "退避イベントの取り込みは本条の後段 **Should** を採用した場合" in must_line
+    assert "どちらも無条件には要求しない" in must_line
+    assert "FR-013 の無注記 Must 基準を優先度どおりに分離" in history
+    assert "| 2.4 | 2026-08-30 |" in history
 
 
 def test_step36_o4_reuses_the_existing_rejection_and_action_state(
@@ -1150,7 +1303,12 @@ def test_step36_o4_reuses_the_existing_rejection_and_action_state(
     queue_relation = manifest["R-QUEUE-LIFE"]
     order_relation = manifest["R-ORDER-ASSIGN"]
     assert ack_relation.source_elements == ("受理", "重複", "拒否", "退避", "未処理")
-    assert queue_relation.source_elements == ("未送信", "要操作", "同期済み", "退避済み")
+    assert queue_relation.source_elements[:4] == (
+        "未送信",
+        "要操作",
+        "同期済み",
+        "退避済み",
+    )
     for target in (
         "6-3 の O4境界結果",
         "7-1 の A5",
@@ -1167,16 +1325,20 @@ def test_step34_d1_order_uniquely_decides_the_external_stop_boundary(
     document = DESIGN.read_text(encoding="utf-8")
     boundary = manifest["R-BOUNDARY"]
 
-    assert boundary.source_elements[-5:] == STEP32_D1_D5_ELEMENTS
+    assert tuple(
+        element for element in boundary.source_elements if element.startswith("DI")
+    ) == STEP32_D1_D5_ELEMENTS
     for target in (
         "4-5 の D5衝突分岐",
         "6-2 の D1付き処理段階",
         "7-1 の A5",
         "10-2 の故障系観点",
     ):
-        assert dict(boundary.expected_elements)[target][-5:] == (
-            STEP32_D1_D5_ELEMENTS
-        )
+        assert tuple(
+            element
+            for element in dict(boundary.expected_elements)[target]
+            if element.startswith("DI")
+        ) == STEP32_D1_D5_ELEMENTS
 
     decision = checker._reference_section(document, "6-3 の境界結果表")
     ack = checker._reference_section(document, "7-1 の A5")
