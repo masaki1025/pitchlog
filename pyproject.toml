@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 [dependency-groups]
 # ruff・ty の版は backend/pyproject.toml と同一に固定する。層ごとに版が割れると
 # 同じコードへの CI の判定が層で食い違い、どちらが正か決められなくなる。
-dev = ["pytest>=8", "ruff==0.16.3", "ty==0.0.73"]
+dev = ["pytest>=8", "pyyaml>=6", "ruff==0.16.3", "ty==0.0.73"]
 
 [tool.ruff]
 # 行長だけ backend(88)と違え 100 にする。

@@ -49,6 +49,8 @@ jobs:
         with:
           args: --offline --root-dir "$(pwd)" --no-progress --exclude-path docs/legacy './**/*.md'
       - run: uv run python scripts/check_docs_status.py
+      - run: uv run python scripts/check_design_propagation.py
+      - run: uv run python scripts/check_doc_coverage.py
 
   core-guard:
     runs-on: ubuntu-latest
