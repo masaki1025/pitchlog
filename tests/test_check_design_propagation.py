@@ -68,7 +68,9 @@ STEP32_D1_D5_ELEMENTS = (
     "DI2:D1付き経路の既存D5・同一内容=保存済み結果を再掲+再適用しない",
     "DI3:D1付き経路の既存D5・異なる内容=B3b",
     "DI4:D1付き経路の未使用D5=V12・prefix・内容検査対象",
-    "DI5:混在バッチのA5=既存同一D5は保存済み結果+既存異内容D5はB3b+未使用D5はB15を含む後段結果+同一ACK",
+    "DI5:混在バッチのA5=D5内部先行分類+既存同一D5は保存済み結果候補+"
+    "既存異内容D5はB3b候補+未使用D5はB15を含む後段結果候補+"
+    "外部はD1昇順の最初のB2・B3+以降は事前分類済みB3bを含め未処理+同一ACK",
 )
 
 
@@ -1133,3 +1135,46 @@ def test_step33_old_freeze_rejections_are_absent() -> None:
     assert "B15" in ending_section
     assert "件数" in ending_section
     assert "導線" in ending_section
+
+
+def test_step34_d1_order_uniquely_decides_the_external_stop_boundary(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """D5先行分類がgap後のB3bを外部結果へ漏らさないことを固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    boundary = manifest["R-BOUNDARY"]
+
+    assert boundary.source_elements[-5:] == STEP32_D1_D5_ELEMENTS
+    for target in (
+        "4-5 の D5衝突分岐",
+        "6-2 の D1付き処理段階",
+        "7-1 の A5",
+        "10-2 の故障系観点",
+    ):
+        assert dict(boundary.expected_elements)[target][-5:] == (
+            STEP32_D1_D5_ELEMENTS
+        )
+
+    decision = checker._reference_section(document, "6-3 の境界結果表")
+    ack = checker._reference_section(document, "7-1 の A5")
+    failures = checker._reference_section(document, "10-2 の故障系観点")
+    assert "D5 の全件先行照合は内部候補の分類" in decision
+    assert "外部の A5 と停止境界を先取りしない" in decision
+    assert "最初に現れる B2 または B3" in decision
+    assert "既に B3b と分かっているイベントもすべて「未処理」" in decision
+    assert "最初の B2 または B3 で停止" in ack
+    assert "gap より後ろの B3b" in failures
+    assert "D3 = 4" in failures
+    assert "D1 = 6 と D1 = 7 をともに「未処理」" in failures
+    assert "B3b を返さず T9 も開始しない" in failures
+
+
+def test_step34_failure_fixture_contract_can_express_both_p5_branches() -> None:
+    """NFR-019(d)のJSON契約でP5・B3a・B3bを明示できることを守る。"""
+    section = checker._reference_section(DESIGN.read_text(), "10-3")
+
+    assert "`適用経路`(**P1〜P5**)" in section
+    assert "`P5分岐` に **B3a または B3b** を必須" in section
+    assert "B3a では未使用 D5 と内容拒否になる原本" in section
+    assert "B3b では先着の不変な原本" in section
+    assert "同じ D5・異なる内容の後着入力" in section

@@ -137,8 +137,10 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # P1-5(確定ゲート 2 周目)で、配信方式を同期の境界外とする 10-1 に合わせ、
         # NFR-006 を「同期側で決める」から「境界として参照」へ移した。
         # P1-4(確定ゲート 4 周目)で、FR-024 のプリフェッチ契約を同期対象外へ移した。
-        "境界として参照": 86,
-        "対象外": 89,
+        # P1-3(確定ゲート 5 周目)で、RTO値を同期規則の入力に使わない NFR-008 を
+        # 「境界として参照」から「対象外」へ移した。
+        "境界として参照": 85,
+        "対象外": 90,
     }
 
 
@@ -155,6 +157,20 @@ def test_step32_assignment_corrections_are_fixed() -> None:
     assert assignments["FR-024"].kind == "対象外"
     assert "プリフェッチ" in assignments["FR-024"].destination
     assert assignments["NFR-019/(a)"].destination == "8-2・10-3"
+
+
+def test_step34_nfr_008_is_outside_the_sync_protocol() -> None:
+    """同期規則の入力に使わないRTOを境界参照へ戻さない。"""
+    assignments = {
+        assignment.id: assignment
+        for assignment in checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
+    }
+
+    assert assignments["NFR-008"].kind == "対象外"
+    assert "RTO 値" in assignments["NFR-008"].destination
+    assert "同期プロトコルの決定または入力に用いない" in assignments[
+        "NFR-008"
+    ].destination
 
 
 @pytest.mark.parametrize(
