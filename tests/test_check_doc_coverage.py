@@ -112,7 +112,7 @@ def test_extractor_matches_all_oracle_categories() -> None:
         "blocks": 8,
         "appendix_items": 23,
         "identified_table_rows": 16,
-        "keyed_table_rows": 39,
+        "keyed_table_rows": 40,
         "release_dod": 8,
         "clause_subitems": 24,
     }
@@ -128,9 +128,9 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assignments = checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
 
     assert checker.check_coverage(extracted, universe, assignments) == ()
-    assert len(assignments) == 211
+    assert len(assignments) == 212
     assert Counter(assignment.kind for assignment in assignments) == {
-        "同期側で決める": 37,
+        "同期側で決める": 38,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
         # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
@@ -141,9 +141,46 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # 「境界として参照」から「対象外」へ移した。
         # P1-6(確定ゲート 9 周目)で、DoD ⑥を復元ライフサイクルの同期側の
         # 完走条件として「境界として参照」から「同期側で決める」へ移した。
+        # ステップ41で6.1のP3受理結果保持を母集合と同期側の帰属へ1件追加した。
         "境界として参照": 84,
         "対象外": 90,
     }
+
+
+def test_step41_p3_retention_row_extends_only_the_keyed_requirement_universe() -> None:
+    """6.1のP3保持行と母集合・帰属の1件追加を固定する。"""
+    requirement_id = "6.1/P3受理結果の端末保持"
+    requirements = REQUIREMENTS.read_text(encoding="utf-8")
+    row = next(
+        line
+        for line in requirements.splitlines()
+        if line.startswith("| P3受理結果の端末保持 |")
+    )
+    universe = checker.load_universe(UNIVERSE)
+    assignments = {
+        assignment.id: assignment
+        for assignment in checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
+    }
+
+    assert all(
+        term in row
+        for term in (
+            "対象参照",
+            "期待版（V11）",
+            "べき等キー（D5）",
+            "確定内容",
+            "`accepted_at`",
+            "24時間",
+            "未同期キューとは別",
+            "通常の再送対象ではない",
+            "退避資料としてのみ",
+            "正史へ戻す規則は持たない",
+        )
+    )
+    assert universe.categories["keyed_table_rows"].count(requirement_id) == 1
+    assert len(universe.categories["keyed_table_rows"]) == 40
+    assert assignments[requirement_id].kind == "同期側で決める"
+    assert assignments[requirement_id].destination == "7-1・7-2・9-5"
 
 
 def test_step32_assignment_corrections_are_fixed() -> None:
@@ -222,7 +259,7 @@ def test_universe_is_not_derived_from_extractor() -> None:
     raw = json.loads(UNIVERSE.read_text(encoding="utf-8"))
 
     assert "抽出器より先に固定した期待値" in raw["_note"]
-    assert raw["total"] == 211
+    assert raw["total"] == 212
 
 
 def test_appendix_c_is_stable_id_in_link_label_and_fragment(tmp_path: Path) -> None:
