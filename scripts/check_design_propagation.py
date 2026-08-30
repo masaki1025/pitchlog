@@ -454,7 +454,7 @@ def _structural_reason(
         states = manifest["R-QUEUE-LIFE"].source_elements
         for label in ("6-3", "7-2", "9-5"):
             section = _heading_section(text, label)
-            if any(not _element_has_row(section, state) for state in states):
+            if any(not _element_occurs(section, state) for state in states):
                 return f"キュー状態の保持・破棄契機が{label}へ全件伝播していない"
     elif defect_id == "SP-06":
         routes = _expected_route_elements(manifest)
@@ -763,6 +763,26 @@ def _semantic_text(value: str) -> str:
     return re.sub(r"[\s`*_「」『』（）()、，,。．・:：/／—→]+", "", value)
 
 
+def _semantic_part_occurs(row: str, expected: str) -> bool:
+    """意味句が直後の否定接尾辞で反転されずに行へ現れるかを返す。
+
+    Args:
+        row: 正規化済みの候補行。
+        expected: 正規化済みの期待意味句。
+
+    Returns:
+        期待意味句の直後が ``外`` ではない出現があれば ``True``。
+
+    Notes:
+        ``対象`` が ``対象外`` の部分文字列として一致する穴を閉じる。一般的な
+        自然言語推論は行わず、伝播要素で用いる明示的な接尾否定だけを区別する。
+    """
+    return any(
+        not row[match.end() :].startswith("外")
+        for match in re.finditer(re.escape(expected), row)
+    )
+
+
 def _identifier_set(value: str) -> tuple[str, frozenset[str]] | None:
     """右辺が同一接頭辞のID集合なら接頭辞と全集合を返す。"""
     compact = re.sub(r"\s+", "", value)
@@ -831,8 +851,10 @@ def _element_table_row_occurs(section: str, element: str) -> bool:
         _semantic_text(part) for part in right.split("+") if _semantic_text(part)
     )
     return bool(expected_parts) and any(
-        normalized_left in _semantic_text(row)
-        and all(part in _semantic_text(row) for part in expected_parts)
+        normalized_left in (normalized_row := _semantic_text(row))
+        and all(
+            _semantic_part_occurs(normalized_row, part) for part in expected_parts
+        )
         for row in candidate_rows
     )
 

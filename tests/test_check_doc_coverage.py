@@ -130,7 +130,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assert checker.check_coverage(extracted, universe, assignments) == ()
     assert len(assignments) == 211
     assert Counter(assignment.kind for assignment in assignments) == {
-        "同期側で決める": 36,
+        "同期側で決める": 37,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
         # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
@@ -139,7 +139,9 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # P1-4(確定ゲート 4 周目)で、FR-024 のプリフェッチ契約を同期対象外へ移した。
         # P1-3(確定ゲート 5 周目)で、RTO値を同期規則の入力に使わない NFR-008 を
         # 「境界として参照」から「対象外」へ移した。
-        "境界として参照": 85,
+        # P1-6(確定ゲート 9 周目)で、DoD ⑥を復元ライフサイクルの同期側の
+        # 完走条件として「境界として参照」から「同期側で決める」へ移した。
+        "境界として参照": 84,
         "対象外": 90,
     }
 

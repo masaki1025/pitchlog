@@ -45,7 +45,6 @@ STEP38_P3_RETENTION_ELEMENTS = (
     "確定内容+同期済みと同じ24時間保持+サーバー確定から端末永続化まで保護なし+"
     "RG1中は自動破棄停止+退避・閲覧・書き出し対象+復元規則なし",
 )
-STEP37_P3_RETENTION_ID = ("I6",)
 STEP38_RECOVERY_GATE_ELEMENTS = (
     "RG1:復元調整中のfail-closed共通ゲート=③認可後+D5照合前+"
     "全通常書き込み・内部ジョブ停止+P1・P2・P4・通常/緊急引き継ぎはB7+"
@@ -1063,12 +1062,12 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
         "要操作",
         "同期済み",
         "退避済み",
-    ) + STEP37_P3_RETENTION_ID
+    ) + STEP38_P3_RETENTION_ELEMENTS
     queue_expected = dict(queue.expected_elements)
     for target in ("7-2 の遷移表", "6-3 の保持の記述", "9-5 の回収対象"):
         assert queue_expected[target] == queue.source_elements
     assert queue_expected["11-2 のデータモデル影響差分"] == (
-        STEP37_P3_RETENTION_ID
+        STEP38_P3_RETENTION_ELEMENTS
     )
 
     order = manifest["R-ORDER-ASSIGN"]
@@ -1100,6 +1099,33 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
         + STEP37_P3_INVALIDATION_ELEMENTS
         + STEP38_P3_RETENTION_ELEMENTS
         + STEP38_RECOVERY_GATE_ELEMENTS
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    (
+        ("同期済みと同じ 24 時間保持", "同期済みと同じ 48 時間保持"),
+        ("退避・閲覧・書き出し対象", "退避・閲覧・書き出し対象外"),
+        ("復元規則なし", "復元規則あり"),
+    ),
+    ids=("retention-period", "escrow-scope", "restore-rule"),
+)
+def test_step39_queue_life_detects_reversed_i6_contract(
+    manifest: dict[str, checker.ManifestRelation], before: str, after: str
+) -> None:
+    """I6の保持時間・退避・復元規則の反転を完全要素照合で検出する。"""
+    relation = manifest["R-QUEUE-LIFE"]
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, "6-3 の保持の記述")
+    assert before in section
+    mutated_section = section.replace(before, after, 1)
+    mutated = document.replace(section, mutated_section, 1)
+
+    assert checker.check_element_coverage(document, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        "R-QUEUE-LIFE: 6-3 の保持の記述 にない要素: "
+        f"{STEP38_P3_RETENTION_ELEMENTS[0]}",
     )
 
 
@@ -1178,9 +1204,15 @@ def test_step37_p3_invalidation_intent_is_atomic_and_eventually_delivered(
     assert "配信完了まで冪等に再試行" in invalidation
     assert "保存済み結果再掲では意図を重複作成しない" in invalidation
     assert "T7 の確定後・無効化配信前" in failures
-    assert "未配信分を配信完了まで冪等に再試行" in failures
+    assert "消費側反映後・配信完了記録前" in failures
+    assert "安定した意図 ID" in failures
+    assert "同じ論理無効化" in failures
     assert "故障注入には **T7 確定後・無効化配信前**" in fixture_contract
     assert "保存済み結果再掲後の意図件数" in fixture_contract
+    assert "消費側反映状態・配信完了記録状態" in fixture_contract
+    assert "同じ安定した意図 ID" in fixture_contract
+    assert "p3-invalidation-consumed-before-complete" in fixture_contract
+    assert "新しいフィールド・永続化の器・経路を追加しない" in fixture_contract
 
 
 def test_step38_p3_retention_starts_after_device_persistence(
@@ -1212,7 +1244,7 @@ def test_step38_p3_retention_starts_after_device_persistence(
     assert dict(p3_relation.expected_elements)[
         "9-5 の復元時保持・共通前段ゲート"
     ][0] == STEP38_P3_RETENTION_ELEMENTS[0]
-    assert STEP37_P3_RETENTION_ID[0] in queue_relation.source_elements
+    assert STEP38_P3_RETENTION_ELEMENTS[0] in queue_relation.source_elements
 
 
 def test_step37_d4_is_never_reused_after_rollback(
@@ -1224,6 +1256,7 @@ def test_step37_d4_is_never_reused_after_rollback(
     boundary = checker._reference_section(document, "9-2")
     implementation = checker._reference_section(document, "10-1")
     failures = checker._reference_section(document, "10-2")
+    fixture_contract = checker._reference_section(document, "10-3")
     v12 = manifest["R-V12-BOUNDARY"]
 
     assert "ロールバック後も再利用しない識別子" in definitions
@@ -1233,7 +1266,30 @@ def test_step37_d4_is_never_reused_after_rollback(
     assert "現 D4・現復旧世代・保持端末" in boundary
     assert "生成アルゴリズム・物理形式" in implementation
     assert "どれを使ったかは期待値に固定しない" in failures
+    assert "D4 = 2・4・7" in failures
+    assert "過去発行 D4 集合のどの値にも属さない" in failures
+    assert "連続した 2 回目の復元" in failures
+    assert "過去発行 D4 集合" in fixture_contract
+    assert "restore-d4-issued-set" in fixture_contract
+    assert "restore-d4-consecutive-rollbacks" in fixture_contract
     assert STEP37_V12_RECOVERY_ELEMENT in v12.source_elements
+
+
+def test_step39_attribution_follows_restore_contracts() -> None:
+    """8周目の追加箇所とDoD ⑥の決定主体を帰属表へ追随させる。"""
+    attribution = checker._reference_section(
+        DESIGN.read_text(encoding="utf-8"), "11-3"
+    )
+
+    assert "| 同期側で決める | 37 |" in attribution
+    assert "| 境界として参照 | 84 |" in attribution
+    assert "| 対象外 | 90 |" in attribution
+    assert "| FR-035 | 境界として参照 | 4-4・9-4・9-5 |" in attribution
+    assert (
+        "| NFR-015 | 同期側で決める | 6-3・7-1・7-4・8-3・9-2・9-5 |"
+        in attribution
+    )
+    assert "| 8章DoD/6 | 同期側で決める | 9-5・11-4 |" in attribution
 
 
 def test_step38_recovery_adjustment_gate_is_fail_closed_for_every_write(
