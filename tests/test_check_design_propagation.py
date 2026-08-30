@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from dataclasses import replace
@@ -67,6 +68,41 @@ STEP32_D1_D5_ELEMENTS = (
     "DI5:混在バッチのA5=D5内部先行分類+既存同一D5は保存済み結果候補+"
     "既存異内容D5はB3b候補+未使用D5は後段結果候補+"
     "外部はD1昇順の最初のB2・B3+以降は事前分類済みB3bを含め未処理+同一ACK",
+)
+STEP40_TEMP_ID_ELEMENTS = (
+    "C1:選手登録イベント+一時ID+正式ID+写像を返す",
+    "C2:後続イベントの参照+同じ正式ID+決定的に解決",
+    "C3:ACK消失後の再送+別の正式ID+重複生成しない",
+    "C4:写像が確定するまで+同期済みとして扱わない",
+)
+STEP40_ORDER_ELEMENTS = (
+    "O1:D2の採番・再採番+原子的な操作+直列化",
+    "O2:隙間が尽きたとき+同じ原子的操作+局所再採番",
+    "O4:永続化済みの同値+B3+A5の拒否+要操作+自動再送を止める",
+)
+STEP40_CHANGE_ELEMENTS = (
+    "W1:確定済みイベントの修正・削除+新しい変更イベントとして追記+"
+    "既存イベントを書き換えない",
+    "W2:D6墓標・D7改訂+確定済みイベントの修正・削除に流用しない",
+    "W3:P3+D1+持たない",
+    "W3-a:V11+対象の期待版+一致するときだけ受理+対象の確定版を進める",
+    "W3-b:変更版順+D1+D2+別の順序+論理再生順に使わない",
+    "W3-c:P3+prefixコミットの対象外+欠番検知が要らない",
+    "W4:進行中の変更操作+V12を照合+終了後の変更操作+V12を前提にしない",
+)
+STEP40_EVENT_FIELD_ELEMENTS = (
+    "V1:べき等キーD5+全イベントで無条件",
+    "V2:イベント連番D1+P1・P2・P4に必須+P3は持たない",
+    "V3:記録権世代D4+P1・P2・P4に必須+P3は持たず",
+    "V4:試合の識別+全イベントで無条件",
+    "V5:イベント種別+全イベントで無条件",
+    "V6:論理位置を定める値D2+種別条件付き+P3自身は持たず",
+    "V7:ペイロード+全イベントで無条件",
+    "V8:状態差分+取消可能な操作に限る+P3は持たない",
+    "V9:置換・墓標の状態+墓標・改訂に限る+P3は持たない",
+    "V10:対象イベントの参照+種別条件付き+P3は必須",
+    "V11:対象の期待版+P3に必須",
+    "V12:記録権証明+要求レベル+P1・P2・P4+進行中のP3+終了後のP3には不要",
 )
 
 
@@ -770,25 +806,32 @@ def test_current_manifest_all_relations_have_element_coverage() -> None:
     (
         (
             "R-TEMP-ID-MAPPING",
-            ("C1", "C2", "C3", "C4"),
+            STEP40_TEMP_ID_ELEMENTS,
             {
-                "7-1 の A4・A5": ("C1", "C3", "C4"),
-                "7-2 の写像確定": ("C1", "C4"),
-                "8-1 の T6": ("C1", "C2", "C3", "C4"),
-                "11-2 のデータモデル影響差分": ("C1", "C2", "C3", "C4"),
+                "7-1 の A4・A5": (
+                    STEP40_TEMP_ID_ELEMENTS[0],
+                    STEP40_TEMP_ID_ELEMENTS[2],
+                    STEP40_TEMP_ID_ELEMENTS[3],
+                ),
+                "7-2 の写像確定": (
+                    STEP40_TEMP_ID_ELEMENTS[0],
+                    STEP40_TEMP_ID_ELEMENTS[3],
+                ),
+                "8-1 の T6": STEP40_TEMP_ID_ELEMENTS,
+                "11-2 のデータモデル影響差分": STEP40_TEMP_ID_ELEMENTS,
             },
         ),
         (
             "R-ORDER-ASSIGN",
-            ("O1", "O2", "O4"),
+            STEP40_ORDER_ELEMENTS,
             {
-                "5-3 の隙間・再採番": ("O1", "O2"),
-                "6-3 の O4境界結果": ("O4",),
-                "7-1 の A5": ("O4",),
-                "7-2 のキュー状態遷移": ("O4",),
-                "8-1 の T5・経路 P2": ("O1", "O2", "O4"),
-                "10-2 の故障系観点": ("O4",),
-                "11-2 のデータモデル影響差分": ("O1", "O2", "O4"),
+                "5-3 の隙間・再採番": STEP40_ORDER_ELEMENTS[:2],
+                "6-3 の O4境界結果": (STEP40_ORDER_ELEMENTS[2],),
+                "7-1 の A5": (STEP40_ORDER_ELEMENTS[2],),
+                "7-2 のキュー状態遷移": (STEP40_ORDER_ELEMENTS[2],),
+                "8-1 の T5・経路 P2": STEP40_ORDER_ELEMENTS,
+                "10-2 の故障系観点": (STEP40_ORDER_ELEMENTS[2],),
+                "11-2 のデータモデル影響差分": STEP40_ORDER_ELEMENTS,
             },
         ),
     ),
@@ -812,12 +855,10 @@ def test_step26_relations_keep_complete_source_and_target_subsets(
     (
         (
             "R-EVENT-FIELD",
-            tuple(f"V{index}" for index in range(1, 13)),
+            STEP40_EVENT_FIELD_ELEMENTS,
             {
-                "4-3-A の W3": tuple(f"V{index}" for index in range(1, 13)),
-                "11-2 のデータモデル影響差分": tuple(
-                    f"V{index}" for index in range(1, 13)
-                ),
+                "4-3-A の W3": STEP40_EVENT_FIELD_ELEMENTS,
+                "11-2 のデータモデル影響差分": STEP40_EVENT_FIELD_ELEMENTS,
             },
         ),
         (
@@ -926,8 +967,8 @@ def test_step29_manifest_keeps_new_routes_and_required_target_subsets(
         "10-2 の故障系観点",
         "11-2 のデータモデル影響差分",
     ):
-        assert "W4" in change[target]
-    assert "W3-c" in change["6-3 の境界結果表"]
+        assert STEP40_CHANGE_ELEMENTS[6] in change[target]
+    assert STEP40_CHANGE_ELEMENTS[5] in change["6-3 の境界結果表"]
 
     v12 = manifest["R-V12-BOUNDARY"]
     v12_elements = (
@@ -1071,15 +1112,15 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     )
 
     order = manifest["R-ORDER-ASSIGN"]
-    assert order.source_elements == ("O1", "O2", "O4")
+    assert order.source_elements == STEP40_ORDER_ELEMENTS
     assert dict(order.expected_elements) == {
-        "5-3 の隙間・再採番": ("O1", "O2"),
-        "6-3 の O4境界結果": ("O4",),
-        "7-1 の A5": ("O4",),
-        "7-2 のキュー状態遷移": ("O4",),
-        "8-1 の T5・経路 P2": ("O1", "O2", "O4"),
-        "10-2 の故障系観点": ("O4",),
-        "11-2 のデータモデル影響差分": ("O1", "O2", "O4"),
+        "5-3 の隙間・再採番": STEP40_ORDER_ELEMENTS[:2],
+        "6-3 の O4境界結果": (STEP40_ORDER_ELEMENTS[2],),
+        "7-1 の A5": (STEP40_ORDER_ELEMENTS[2],),
+        "7-2 のキュー状態遷移": (STEP40_ORDER_ELEMENTS[2],),
+        "8-1 の T5・経路 P2": STEP40_ORDER_ELEMENTS,
+        "10-2 の故障系観点": (STEP40_ORDER_ELEMENTS[2],),
+        "11-2 のデータモデル影響差分": STEP40_ORDER_ELEMENTS,
     }
 
     boundary = manifest["R-BOUNDARY"]
@@ -1126,6 +1167,118 @@ def test_step39_queue_life_detects_reversed_i6_contract(
     assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
         "R-QUEUE-LIFE: 6-3 の保持の記述 にない要素: "
         f"{STEP38_P3_RETENTION_ELEMENTS[0]}",
+    )
+
+
+def test_step40_manifest_has_no_standalone_identifier_elements(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """単独ID宣言を全関係から排除した状態を固定する。"""
+    identifier = re.compile(r"(?:[A-Z]+\d+(?:-[a-z])?|#\d+)")
+    standalone = [
+        (relation.id, element)
+        for relation in manifest.values()
+        for element in relation.source_elements
+        if identifier.fullmatch(element)
+    ]
+
+    assert standalone == []
+
+
+def test_step40_change_rule_keeps_complete_meaning_elements(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """W1〜W4の定義意味と伝播先別部分集合を完全要素で固定する。"""
+    relation = manifest["R-CHANGE-RULE"]
+
+    assert relation.source_elements == STEP40_CHANGE_ELEMENTS
+    assert dict(relation.expected_elements) == {
+        "5-3 の実行前提": (STEP40_CHANGE_ELEMENTS[6],),
+        "5-5 の参加区分表": (
+            STEP40_CHANGE_ELEMENTS[0],
+            STEP40_CHANGE_ELEMENTS[2],
+            STEP40_CHANGE_ELEMENTS[3],
+            STEP40_CHANGE_ELEMENTS[4],
+        ),
+        "6-2 の P3 処理段階": (STEP40_CHANGE_ELEMENTS[6],),
+        "6-3 の境界結果表": (
+            STEP40_CHANGE_ELEMENTS[3],
+            STEP40_CHANGE_ELEMENTS[5],
+            STEP40_CHANGE_ELEMENTS[6],
+        ),
+        "6-4 の再開2択": (STEP40_CHANGE_ELEMENTS[1],),
+        "7-1 の P3 応答契約": (STEP40_CHANGE_ELEMENTS[6],),
+        "8-1 の経路表": (
+            STEP40_CHANGE_ELEMENTS[2],
+            STEP40_CHANGE_ELEMENTS[3],
+            STEP40_CHANGE_ELEMENTS[5],
+            STEP40_CHANGE_ELEMENTS[6],
+        ),
+        "10-2 の故障系観点": (STEP40_CHANGE_ELEMENTS[6],),
+        "11-2 のデータモデル影響差分": (
+            STEP40_CHANGE_ELEMENTS[0],
+            STEP40_CHANGE_ELEMENTS[2],
+            STEP40_CHANGE_ELEMENTS[3],
+            STEP40_CHANGE_ELEMENTS[4],
+            STEP40_CHANGE_ELEMENTS[5],
+            STEP40_CHANGE_ELEMENTS[6],
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ("relation_id", "target", "before", "after", "element"),
+    (
+        (
+            "R-TEMP-ID-MAPPING",
+            "7-1 の A4・A5",
+            "- **C3**: **ACK 消失後の再送**でも**別の正式 ID**を**重複生成しない**",
+            "- **C3**: **ACK 消失後の再送**でも**別の正式 ID**を**重複生成する**",
+            STEP40_TEMP_ID_ELEMENTS[2],
+        ),
+        (
+            "R-ORDER-ASSIGN",
+            "5-3 の隙間・再採番",
+            "局所再採番",
+            "末尾採番",
+            STEP40_ORDER_ELEMENTS[1],
+        ),
+        (
+            "R-CHANGE-RULE",
+            "5-3 の実行前提",
+            "**終了後の変更操作**では **V12 を前提にしない**規則",
+            "**終了後の変更操作**では **V12 を前提にする**規則",
+            STEP40_CHANGE_ELEMENTS[6],
+        ),
+        (
+            "R-EVENT-FIELD",
+            "4-3-A の W3",
+            "- **V5**: **イベント種別**。**全イベントで無条件**",
+            "- **V5**: **イベント種別**。**種別条件付き**",
+            STEP40_EVENT_FIELD_ELEMENTS[4],
+        ),
+    ),
+    ids=("temporary-id", "order-assignment", "change-rule", "event-field"),
+)
+def test_step40_meaning_reversal_is_detected_for_every_relation(
+    manifest: dict[str, checker.ManifestRelation],
+    relation_id: str,
+    target: str,
+    before: str,
+    after: str,
+    element: str,
+) -> None:
+    """IDを残した意味反転を4関係すべてで検出する。"""
+    relation = manifest[relation_id]
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, target)
+    assert before in section
+    mutated_section = section.replace(before, after)
+    mutated = document.replace(section, mutated_section, 1)
+
+    assert checker.check_element_coverage(document, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        f"{relation.id}: {target} にない要素: {element}",
     )
 
 
@@ -1419,7 +1572,9 @@ def test_step36_o4_reuses_the_existing_rejection_and_action_state(
         "7-2 のキュー状態遷移",
         "10-2 の故障系観点",
     ):
-        assert dict(order_relation.expected_elements)[target] == ("O4",)
+        assert dict(order_relation.expected_elements)[target] == (
+            STEP40_ORDER_ELEMENTS[2],
+        )
 
 
 def test_step34_d1_order_uniquely_decides_the_external_stop_boundary(

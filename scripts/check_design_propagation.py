@@ -542,11 +542,14 @@ def _structural_reason(
     elif defect_id == "SP-13":
         elements = manifest["R-EVENT-FIELD"].source_elements
         source = _heading_section(text, "4-3")
-        if any(_identified_row(source, element) is None for element in elements):
+        if any(
+            _identified_row(source, element.partition(":")[0]) is None
+            for element in elements
+        ):
             return "V1〜V11の正本集合が4-3にない"
         for label in ("4-3-A", "11-2"):
             section = _heading_section(text, label)
-            if any(not _element_has_row(section, element) for element in elements):
+            if any(not _element_occurs(section, element) for element in elements):
                 return f"V1〜V11の必須区分が{label}にない"
     elif defect_id == "SP-14":
         source = _heading_section(text, "4-3-A")
@@ -892,17 +895,33 @@ def _identifier_occurs(text: str, identifier: str) -> bool:
 def _element_occurs(section: str, element: str) -> bool:
     """宣言要素が節本文に出現するかを返す。
 
-    ``=`` を持つ対応要素は表行単位でID・左辺・右辺を照合する。``ID:意味句``
-    は意味句だけで代替させず、IDの節内出現を必須にする。単独IDやIDを持たない
-    列挙語は、従来どおり節内のID・語の出現を照合する。
+    ``=`` を持つ対応要素は表行単位でID・左辺・右辺を照合する。
+    ``ID:意味句1+意味句2`` は同じ行にIDと全意味句があることを求める。
+    ``+`` を持たない既存の名前付きID、単独ID、IDを持たない列挙語は、従来どおり
+    節内のID・語の出現を照合する。
     """
     if "=" in element:
         return _element_table_row_occurs(section, element)
-    identifier, separator, _ = element.partition(":")
+    identifier, separator, description = element.partition(":")
     if separator and re.fullmatch(
         r"(?:[A-Z]+\d+(?:-[a-z])?|\d+)", identifier
     ) is not None:
-        return _identifier_occurs(section, identifier)
+        if "+" not in description:
+            return _identifier_occurs(section, identifier)
+        expected_parts = tuple(
+            _semantic_text(part)
+            for part in description.split("+")
+            if _semantic_text(part)
+        )
+        return bool(expected_parts) and any(
+            _identifier_occurs(line, identifier)
+            and all(
+                _semantic_part_occurs(normalized_line, part)
+                for part in expected_parts
+            )
+            for line in section.splitlines()
+            if (normalized_line := _semantic_text(line))
+        )
     return any(
         _identifier_occurs(section, marker)
         if re.fullmatch(r"[A-Z]+\d+(?:-[a-z])?", marker)
