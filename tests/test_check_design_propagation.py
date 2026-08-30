@@ -43,7 +43,8 @@ STEP37_P3_INVALIDATION_ELEMENTS = (
 )
 STEP38_P3_RETENTION_ELEMENTS = (
     "I6:P3受理結果の端末保持=端末永続化まで成立した対象参照+V11の版+D5+"
-    "確定内容+同期済みと同じ24時間保持+サーバー確定から端末永続化まで保護なし+"
+    "確定内容+accepted_atを起点+同期済みと同じ24時間保持+"
+    "保存済み結果の再掲で延長しない+サーバー確定から端末永続化まで保護なし+"
     "RG1中は自動破棄停止+退避・閲覧・書き出し対象+復元規則なし",
 )
 STEP38_RECOVERY_GATE_ELEMENTS = (
@@ -88,7 +89,7 @@ STEP40_CHANGE_ELEMENTS = (
     "W3-a:V11+対象の期待版+一致するときだけ受理+対象の確定版を進める",
     "W3-b:変更版順+D1+D2+別の順序+論理再生順に使わない",
     "W3-c:P3+prefixコミットの対象外+欠番検知が要らない",
-    "W4:進行中の変更操作+V12を照合+終了後の変更操作+V12を前提にしない",
+    "W4:進行中の変更操作ではV12を照合+終了後の変更操作ではV12を前提にしない",
 )
 STEP40_EVENT_FIELD_ELEMENTS = (
     "V1:べき等キーD5+全イベントで無条件",
@@ -1282,6 +1283,89 @@ def test_step40_meaning_reversal_is_detected_for_every_relation(
     )
 
 
+def test_step42_change_rule_detects_swapped_w4_subjects(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """W4の進行中・終了後とV12述語の入れ替えを検出する。"""
+    relation = manifest["R-CHANGE-RULE"]
+    target = "5-3 の実行前提"
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, target)
+    before = (
+        "**W4** は、**進行中の変更操作**では **V12 を照合**し、"
+        "**終了後の変更操作**では **V12 を前提にしない**規則"
+    )
+    after = (
+        "**W4** は、**進行中の変更操作**では **V12 を前提にせず**、"
+        "**終了後の変更操作**では **V12 を照合**する規則"
+    )
+    assert before in section
+    mutated_section = section.replace(before, after, 1)
+    mutated = document.replace(section, mutated_section, 1)
+
+    assert checker.check_element_coverage(document, {relation.id: relation}) == ()
+    assert checker.check_element_coverage(mutated, {relation.id: relation}) == (
+        f"{relation.id}: {target} にない要素: {STEP40_CHANGE_ELEMENTS[6]}",
+    )
+
+
+@pytest.mark.parametrize(
+    ("relation_id", "target", "replacement"),
+    (
+        ("R-QUEUE-LIFE", "7-2 の遷移表", "端末保存時刻を起点"),
+        (
+            "R-P3-BOUNDARY",
+            "7-1 の P3 応答契約",
+            "保存済み結果の再掲時刻を起点",
+        ),
+    ),
+    ids=("terminal-persisted-at", "saved-result-replay-at"),
+)
+def test_step42_i6_detects_changed_retention_origin(
+    manifest: dict[str, checker.ManifestRelation],
+    relation_id: str,
+    target: str,
+    replacement: str,
+) -> None:
+    """I6の保持起点を端末時刻・再掲時刻へ変える変異を検出する。"""
+    relation = manifest[relation_id]
+    document = DESIGN.read_text(encoding="utf-8")
+    section = checker._reference_section(document, target)
+    before = "サーバー確定時刻(応答が返す `accepted_at`)を起点"
+    assert before in section
+    mutated_section = section.replace(before, replacement, 1)
+    mutated = document.replace(section, mutated_section, 1)
+
+    assert checker.check_element_coverage(document, {relation.id: relation}) == ()
+    errors = checker.check_element_coverage(mutated, {relation.id: relation})
+    assert (
+        f"{relation.id}: {target} にない要素: {STEP38_P3_RETENTION_ELEMENTS[0]}"
+        in errors
+    )
+
+
+def test_step42_recovery_control_plane_includes_atomic_completion() -> None:
+    """RG1中に完了遷移だけが条件付きで通る第4群を固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    recovery = checker._reference_section(document, "9-5 の回収対象")
+    fault = checker._reference_section(document, "10-2 の故障系観点")
+
+    assert "復旧制御面の **4 群" in recovery
+    assert "復旧制御面の完了遷移" in recovery
+    assert "未回収 0・期限切れによる欠落なし・退避と閲覧・書き出しの確認完了" in recovery
+    assert "RG1 の解除と新しい D4 の開始を不可分に確定" in recovery
+    assert "復旧制御面4群" in fault
+
+
+def test_step42_admin_operation_log_attribution_points_to_real_contract() -> None:
+    """管理者操作ログの帰属先を実在する6-5の契約へ固定する。"""
+    document = DESIGN.read_text(encoding="utf-8")
+    attribution = checker._reference_section(document, "11-3")
+
+    assert "| 6.1/管理者操作ログ（Should） | 境界として参照 | 6-5 |" in attribution
+    assert "| 6.1/管理者操作ログ（Should） | 境界として参照 | 4-3-A・9-4 |" not in attribution
+
+
 def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
     """退避のMustと現行世代への投入を分離して固定する。"""
     document = DESIGN.read_text(encoding="utf-8")
@@ -1486,6 +1570,7 @@ def test_step38_recovery_adjustment_gate_is_fail_closed_for_every_write(
         "復旧制御面の退避",
         "復旧制御面のログ・通知",
         "復旧制御面の閲覧・書き出し",
+        "復旧制御面の完了遷移",
     ]
     assert all(len(row) == 4 and all(row) for row in rows)
     assert gate in boundary.source_elements
