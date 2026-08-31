@@ -1,0 +1,809 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_route_registry",
+  "asset_path": "contracts/authz/route-registry.json",
+  "asset_digest": "2f32ac46723ce08034c18db0b36f2f135125663cc8621227cae304a8271fcfe5",
+  "entry_count": 45,
+  "aggregate_decision_digest": "a32754cc0ee86d7bae80a0d994aee3d51f13cf741d6ffbb0fbd6a0644748fddf",
+  "entries": [
+    {
+      "entry_id": "route:ROUTE:FR-020",
+      "decision": {
+        "route_id": "ROUTE:FR-020",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "656af4dba86bbc8372d588b9e099d5d857dca7a581eff3014f5deba4a33b12b2"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-021",
+      "decision": {
+        "route_id": "ROUTE:FR-021",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "27af59783c3ec6867956c1a61ed2a2d71e471ee0e499c08bd6fa09205e2ec61e"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-022",
+      "decision": {
+        "route_id": "ROUTE:FR-022",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "33b8c7ad72df8d69996a7b2d7c21b0949d14d40697bf96a03266d69805bd26f1"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-023",
+      "decision": {
+        "route_id": "ROUTE:FR-023",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "e3446672e8ea8c5770a42717b104a2debc8596e0b8571f0cbccec8e342c6ab6e"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-024",
+      "decision": {
+        "route_id": "ROUTE:FR-024",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "7ba3cce23785d82cd468afab04a7b46cafdf3f9b891416a00e4e09807db29153"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-025",
+      "decision": {
+        "route_id": "ROUTE:FR-025",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "ad3eb85b44f2a96407d8d7913416b0d2044fcdbad9bbcfc043b12f9030cbb29e"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-026",
+      "decision": {
+        "route_id": "ROUTE:FR-026",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "27b9be344e1f9b287aa53e126b199c87b63ae9f0919c55403b82c8a9b5c10410"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-027",
+      "decision": {
+        "route_id": "ROUTE:FR-027",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "50a4214dc18624bc9489f88d7c29191305ee7eee764e96b2623f574c0a5d52a6"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-028",
+      "decision": {
+        "route_id": "ROUTE:FR-028",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "64e0e4a16670516e7ea4714fe077bc13357b6117239320312e275db20d64ac2c"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-029",
+      "decision": {
+        "route_id": "ROUTE:FR-029",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_aggregate_export",
+        "channel": "export",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "726a4669ae98ae95ab6c405c7e6c5129032b80139f11e054e64609921740b8bd"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-030",
+      "decision": {
+        "route_id": "ROUTE:FR-030",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_aggregate_export",
+        "channel": "export",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "cf20a896a8ac4c71b5f423930ecaed2c3a4734371673e1d2fc93d3c5500a1753"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-031",
+      "decision": {
+        "route_id": "ROUTE:FR-031",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_aggregate_export",
+        "channel": "export",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "ac5e41a95704c90d9591eab991642117a6810be1c8da1ee5c7d44afdb8078aec"
+    },
+    {
+      "entry_id": "route:ROUTE:FR-032",
+      "decision": {
+        "route_id": "ROUTE:FR-032",
+        "route_kind": "legacy_route",
+        "origin": "design",
+        "source_claim_ids": [],
+        "route_class": "shared_aggregate_export",
+        "channel": "export",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "PLAN-STEP4-LEGACY-DENY"
+        ]
+      },
+      "decision_digest": "316eb12770547a862325191dc7abf13a23d4074b76ca31467dc09f8993872f23"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "482b1c1768103b96a6f8ca5c3d6cc8919260fb5c179421f7999fd9bc8f58290c"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "738750e736c5e0a547280d70469be0963b5fed701087c6cb5cb6f3f1ae6b467a"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_summary:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "screen"
+      },
+      "decision_digest": "bc440c51b718d27f29957e951ee24acb5dec87398b26e12070e028aa7790629e"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_summary:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "export"
+      },
+      "decision_digest": "ffeb8127e4159e5c9c1266058ef76b54ba43d202d8e42b04a7be32397d9fec73"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "898a605dd678c886256b51d7b8212e209d0797675d3d865bc4fe19deb0395061"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:player_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "e6304b63225d8413c49f1a756789d2c91233a98fcb4d7f81fbf547c62febca5b"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "ec13c4368140c3c2a3e6653960b727bb678bcaffd985cc2cfa3e4f1c4519d7a3"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "c95d44e574647868ecfc11fd640a927c75185a553d9ef21ee1bb7805915ff9b6"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "screen"
+      },
+      "decision_digest": "64d61901d3a83010f762736d01dc5c919234d366f3a3980904c02fc7c1ae6708"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "export"
+      },
+      "decision_digest": "4fed2680923006296c88b9ec22ef6121b9664cf72e011391424833e562ef0ebc"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "1cb350bf550eb27f1e956bea565422156d7f2183edfd67087ea762de45b0d9e2"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/paragraph-001",
+          "FR-041/list_item-009"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "339f9b8bc9122da3c597d5b2e65c609900a5bdb233ebd7cb774a050d94ed2a1c"
+    },
+    {
+      "entry_id": "route:ROUTE:CONTROL:GROUP_LIST",
+      "decision": {
+        "route_id": "ROUTE:CONTROL:GROUP_LIST",
+        "route_kind": "control_read",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-003",
+          "FR-034/heading-002/table_row-001",
+          "NFR-010/list_item-003"
+        ],
+        "control_read_id": "group_list",
+        "access_requirement": "participant"
+      },
+      "decision_digest": "2450e638af0c793fd802bd0e4538bc9bc0aff8ad0f89bb4b14bc4928494f7446"
+    },
+    {
+      "entry_id": "route:ROUTE:CONTROL:MEMBER_LIST",
+      "decision": {
+        "route_id": "ROUTE:CONTROL:MEMBER_LIST",
+        "route_kind": "control_read",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-003",
+          "FR-034/heading-002/table_row-002",
+          "NFR-010/list_item-003"
+        ],
+        "control_read_id": "member_list",
+        "access_requirement": "participant"
+      },
+      "decision_digest": "3612e014943f151847e7aa0b018f72145e65e0133674d1b8be8ca337c6388d90"
+    },
+    {
+      "entry_id": "route:ROUTE:CONTROL:GRANT_STATE",
+      "decision": {
+        "route_id": "ROUTE:CONTROL:GRANT_STATE",
+        "route_kind": "control_read",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-003",
+          "FR-034/heading-002/table_row-003",
+          "NFR-010/list_item-003"
+        ],
+        "control_read_id": "grant_state",
+        "access_requirement": "participant"
+      },
+      "decision_digest": "699def3a9c3591e3b0113705cb1c6f52556da6a9e44d0d9174bd3b83f91883ec"
+    },
+    {
+      "entry_id": "route:ROUTE:CONTROL:INVITATION_LIST",
+      "decision": {
+        "route_id": "ROUTE:CONTROL:INVITATION_LIST",
+        "route_kind": "control_read",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-003",
+          "FR-034/heading-002/table_row-004",
+          "NFR-010/list_item-003"
+        ],
+        "control_read_id": "invitation_list",
+        "access_requirement": "admin"
+      },
+      "decision_digest": "988f6cf9838b6f573b6f2865a876d89a1ad496fb3dfb0b565ecbd499d35bb91f"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:CREATE_GROUP",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:CREATE_GROUP",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-005",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "create_group"
+      },
+      "decision_digest": "3b20448c2ba3d6adddf2ff48ec765af81f8eef249c906c8aabc66c623850b207"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-006",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "issue_invitation"
+      },
+      "decision_digest": "ab649ef9d92634f21f1e38824a33149ee3cf733c0b812167816376c2010b27c4"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-006",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "revoke_invitation"
+      },
+      "decision_digest": "901c79218887127e7426d58235b093ae2c31ebd0cf5a7941227314da6d2d1fe0"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-007",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "accept_invitation"
+      },
+      "decision_digest": "0df57f3bb4ff6f260fe73faa909affefe5c27fbed9ee8bc61f59a49c376d943a"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:LEAVE_GROUP",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:LEAVE_GROUP",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-015",
+          "FR-041/list_item-016",
+          "FR-041/list_item-017"
+        ],
+        "operation_id": "leave_group"
+      },
+      "decision_digest": "7db9b4b57682208288f5ceb6bd3ba7105089c7fa0f9281fab1997d7609191b6d"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:UPDATE_GRANTS",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-008",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "update_grants"
+      },
+      "decision_digest": "1b057b77a8ed98162de2d4f370a1e2b0a7fe7127a7af39d84e041a4dcff47542"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:CHANGE_ROLE",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:CHANGE_ROLE",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-016",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "change_role"
+      },
+      "decision_digest": "8e8807bc3d1f1b15b5eed4bafb2bf9dfc8087956cdd952b7dbd1fc8e7d46ae5e"
+    },
+    {
+      "entry_id": "route:ROUTE:MANAGEMENT:CLOSE_GROUP",
+      "decision": {
+        "route_id": "ROUTE:MANAGEMENT:CLOSE_GROUP",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-041/list_item-016",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "operation_id": "close_group"
+      },
+      "decision_digest": "869c3fe5d6769422199da8bc7cd23b0f77da65997f52b37738d07752d410e3e9"
+    },
+    {
+      "entry_id": "operation:create_group",
+      "decision": {
+        "operation_id": "create_group",
+        "route_id": "ROUTE:MANAGEMENT:CREATE_GROUP",
+        "precondition_ids": [
+          "tenant_active"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "none",
+        "source_claim_ids": [
+          "FR-041/list_item-005",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.create_group",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "cea6ef3507d0dae75e8aaad71eed44f6257bf4f9d86e09cd5221b00fb05f6f9d"
+    },
+    {
+      "entry_id": "operation:issue_invitation",
+      "decision": {
+        "operation_id": "issue_invitation",
+        "route_id": "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership",
+          "participant_capacity"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "admin",
+        "source_claim_ids": [
+          "FR-041/list_item-006",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.issue_invitation",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "10992668964851e9601bcc09ef80887aafdd391203056cedaa5be2c97fddc230"
+    },
+    {
+      "entry_id": "operation:revoke_invitation",
+      "decision": {
+        "operation_id": "revoke_invitation",
+        "route_id": "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership",
+          "invitation_active"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "admin",
+        "source_claim_ids": [
+          "FR-041/list_item-006",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.revoke_invitation",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "09d6415ab5f934038ff4a5c4077edd11f01c2a2a8ee22b4e69d52576ab48353c"
+    },
+    {
+      "entry_id": "operation:accept_invitation",
+      "decision": {
+        "operation_id": "accept_invitation",
+        "route_id": "ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "invitation_active",
+          "participant_capacity"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "none",
+        "source_claim_ids": [
+          "FR-041/list_item-007",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.accept_invitation",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "80222aec562489b4d57b3b06f2de9c253282e064133c120757121b777692816e"
+    },
+    {
+      "entry_id": "operation:leave_group",
+      "decision": {
+        "operation_id": "leave_group",
+        "route_id": "ROUTE:MANAGEMENT:LEAVE_GROUP",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership",
+          "preserve_active_admin"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "none",
+        "source_claim_ids": [
+          "FR-041/list_item-015",
+          "FR-041/list_item-016",
+          "FR-041/list_item-017"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.leave_group",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "ec6e8b4034882ff5ea5fb44880869ee25a4a3701b4874e1dbc956ef2e61f3b80"
+    },
+    {
+      "entry_id": "operation:update_grants",
+      "decision": {
+        "operation_id": "update_grants",
+        "route_id": "ROUTE:MANAGEMENT:UPDATE_GRANTS",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "none",
+        "source_claim_ids": [
+          "FR-041/list_item-008",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.update_grants",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "8c898319ec2b340f9caf3f29c4d1328d9a4cdf4232ae29ca63b4694ef76535bb"
+    },
+    {
+      "entry_id": "operation:change_role",
+      "decision": {
+        "operation_id": "change_role",
+        "route_id": "ROUTE:MANAGEMENT:CHANGE_ROLE",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership",
+          "preserve_active_admin"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "admin",
+        "source_claim_ids": [
+          "FR-041/list_item-016",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.change_role",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "651c0cd0a490fb347766bc827c661b43d9873335c304d342b596902b2c341e6a"
+    },
+    {
+      "entry_id": "operation:close_group",
+      "decision": {
+        "operation_id": "close_group",
+        "route_id": "ROUTE:MANAGEMENT:CLOSE_GROUP",
+        "precondition_ids": [
+          "tenant_active",
+          "group_active",
+          "active_membership"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "admin",
+        "source_claim_ids": [
+          "FR-041/list_item-016",
+          "FR-041/list_item-017",
+          "FR-035/list_item-014"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "TSK-250.management.close_group",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "45787beb9514c7dfc4a9eb741e723f7d00ee041a877b4d872376969ec8f73977"
+    }
+  ]
+}

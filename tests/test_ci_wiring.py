@@ -1,9 +1,14 @@
-"""docs-lint が文書検査を選択実行せず、全件実行する配線を検証する。
+"""CI が文書検査と DB 必須テストを欠落なく実行する配線を検証する。
 
 検査を CI に載せても選択用引数が付いていると、一部だけの実行で green になり得る。
 そのため、YAML の構造とコマンドの禁止オプションを同時に検査する。
 """
 
+import copy
+import json
+import re
+import shlex
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +17,17 @@ import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
+COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
+EXPECTATIONS_PATH = (
+    REPOSITORY_ROOT / "backend" / "tests" / "db" / "environment-expectations.json"
+)
+BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
+BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
+DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
+PathSegment = str | int
+NodePath = tuple[PathSegment, ...]
 
 
 def _load_workflow(text: str) -> dict[str, Any]:
@@ -37,6 +51,865 @@ def _docs_lint_commands(workflow: dict[str, Any]) -> list[str]:
         if isinstance(step, dict)
         and isinstance((command := step.get("run")), str)
     ]
+
+
+def _load_yaml_mapping(path: Path) -> dict[str, Any]:
+    """YAML ファイルをマッピングとして読み込む。
+
+    Args:
+        path: 読み込む YAML ファイル。
+
+    Returns:
+        YAML ルートのマッピング。
+    """
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict), f"{path}: YAML ルートはマッピングが必要"
+    return loaded
+
+
+def _load_expectations() -> dict[str, Any]:
+    """凍結済み DB 環境期待値資産を読み込む。
+
+    Returns:
+        JSON ルートのオブジェクト。
+    """
+    loaded = json.loads(EXPECTATIONS_PATH.read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def _backend_job(workflow: dict[str, Any]) -> dict[str, Any]:
+    """workflow から既存 backend ジョブを取得する。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        backend ジョブのマッピング。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    backend = jobs.get("backend")
+    assert isinstance(backend, dict), "既存 backend ジョブが必要"
+    return backend
+
+
+def _mapping_at(node: object, path: NodePath) -> Any:
+    """マッピングまたは配列の指定パスをたどる。
+
+    Args:
+        node: 起点となる JSON 互換値。
+        path: キーまたは配列 index の並び。
+
+    Returns:
+        パス終端の値。欠落時は ``None``。
+    """
+    current: Any = node
+    for segment in path:
+        if isinstance(segment, str):
+            if not isinstance(current, dict) or segment not in current:
+                return None
+            current = current[segment]
+        else:
+            if not isinstance(current, list) or not 0 <= segment < len(current):
+                return None
+            current = current[segment]
+    return current
+
+
+def _leaf_paths(node: object, path: NodePath = ()) -> list[NodePath]:
+    """JSON 互換ツリーの全葉パスを内容で選ばず列挙する。
+
+    Args:
+        node: 走査対象の JSON 互換値。
+        path: 現在位置のパス。
+
+    Returns:
+        深さ優先順の全葉パス。
+    """
+    if isinstance(node, dict):
+        return [
+            leaf
+            for key, value in node.items()
+            for leaf in _leaf_paths(value, (*path, key))
+        ]
+    if isinstance(node, list):
+        return [
+            leaf
+            for index, value in enumerate(node)
+            for leaf in _leaf_paths(value, (*path, index))
+        ]
+    return [path]
+
+
+def _format_path(path: NodePath) -> str:
+    """葉パスを失敗報告用文字列へ変換する。
+
+    Args:
+        path: キーまたは配列 index の並び。
+
+    Returns:
+        人間が追跡できるパス文字列。
+    """
+    rendered = "$"
+    for segment in path:
+        rendered += f"[{segment}]" if isinstance(segment, int) else f".{segment}"
+    return rendered
+
+
+def _backend_commands(backend: dict[str, Any]) -> list[str]:
+    """backend ジョブの run コマンドを順序どおり返す。
+
+    Args:
+        backend: backend ジョブの構造。
+
+    Returns:
+        ``run`` を持つ step のコマンド。
+    """
+    steps = backend.get("steps")
+    if not isinstance(steps, list):
+        return []
+    return [
+        command
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+    ]
+
+
+def _compose_database(compose: dict[str, Any]) -> dict[str, Any]:
+    """開発用 Compose の db サービスを取得する。
+
+    Args:
+        compose: docker-compose.yml の構造。
+
+    Returns:
+        db サービスのマッピング。
+    """
+    services = compose.get("services")
+    assert isinstance(services, dict), "Compose に services が必要"
+    database = services.get("db")
+    assert isinstance(database, dict), "Compose に db サービスが必要"
+    return database
+
+
+def _service_options(options: object) -> dict[str, object]:
+    """GitHub service options を option 単位の木へ展開する。
+
+    Args:
+        options: ``services.postgres.options`` の値。
+
+    Returns:
+        option 名をキーとする木。health command はさらに全 token へ展開する。
+    """
+    if not isinstance(options, str):
+        return {}
+    try:
+        tokens = shlex.split(options)
+    except ValueError:
+        return {}
+
+    parsed: dict[str, object] = {}
+    index = 0
+    while index < len(tokens):
+        option = tokens[index]
+        if not option.startswith("--") or index + 1 >= len(tokens):
+            return {}
+        value: object = tokens[index + 1]
+        if option == "--health-cmd":
+            try:
+                value = shlex.split(str(value))
+            except ValueError:
+                return {}
+        if option in parsed:
+            return {}
+        parsed[option] = value
+        index += 2
+    return parsed
+
+
+def _health_command(options: object) -> list[str]:
+    """GitHub service options から health command の全 token を得る。
+
+    Args:
+        options: ``services.postgres.options`` の値。
+
+    Returns:
+        health command の token 配列。構文不正なら空配列。
+    """
+    command = _service_options(options).get("--health-cmd")
+    if not isinstance(command, list) or not all(
+        isinstance(token, str) for token in command
+    ):
+        return []
+    return command
+
+
+def _backend_ci_contract_tree(backend: dict[str, Any]) -> dict[str, Any]:
+    """backend ジョブの services から defaults 手前までを全数採取する。
+
+    ``options`` は folded scalar のままでは内部の option が葉にならないため、
+    shell 構文を機械的に option と command token の木へ展開する。
+
+    Args:
+        backend: backend ジョブの構造。
+
+    Returns:
+        全数変異の母集合となる JSON 互換ツリー。
+    """
+    tree: dict[str, Any] = {}
+    collecting = False
+    for key, value in backend.items():
+        if key == "services":
+            collecting = True
+        if key == "defaults":
+            break
+        if collecting:
+            tree[key] = copy.deepcopy(value)
+    if not tree or "services" not in tree:
+        raise AssertionError("backend の services〜defaults ブロックがない")
+
+    options_path = ("services", "postgres", "options")
+    options = _mapping_at(tree, options_path)
+    parsed_options = _service_options(options)
+    if not parsed_options:
+        raise AssertionError("postgres service options を構造化できない")
+    _set_node_at(tree, options_path, parsed_options)
+    return tree
+
+
+def _render_service_options(options: object) -> str:
+    """構造化した service options を GitHub Actions の文字列へ戻す。
+
+    Args:
+        options: option 名と値の木。
+
+    Returns:
+        ``shlex`` で再解析可能な options 文字列。
+    """
+    if not isinstance(options, dict):
+        return ""
+    tokens: list[str] = []
+    for option, value in options.items():
+        if not isinstance(option, str):
+            continue
+        tokens.append(option)
+        if option == "--health-cmd" and isinstance(value, list):
+            tokens.append(shlex.join(str(token) for token in value))
+        else:
+            tokens.append(str(value))
+    return shlex.join(tokens)
+
+
+def _workflow_from_ci_contract_tree(
+    workflow: dict[str, Any], tree: dict[str, Any]
+) -> dict[str, Any]:
+    """変異した CI 契約木を workflow 構造へ戻す。
+
+    Args:
+        workflow: 変異前の workflow。
+        tree: services から defaults 手前までの変異済み木。
+
+    Returns:
+        検査器へ渡せる workflow のコピー。
+    """
+    mutated = copy.deepcopy(workflow)
+    original_backend = _backend_job(mutated)
+    rebuilt_backend: dict[str, Any] = {}
+    skipping_contract_block = False
+    inserted = False
+    for key, value in original_backend.items():
+        if key == "services":
+            skipping_contract_block = True
+            if not inserted:
+                rebuilt_backend.update(copy.deepcopy(tree))
+                inserted = True
+        if key == "defaults":
+            skipping_contract_block = False
+        if not skipping_contract_block:
+            rebuilt_backend[key] = value
+
+    jobs = mutated["jobs"]
+    assert isinstance(jobs, dict)
+    jobs["backend"] = rebuilt_backend
+
+    options_path = ("services", "postgres", "options")
+    options = _mapping_at(rebuilt_backend, options_path)
+    _set_node_at(
+        rebuilt_backend,
+        options_path,
+        _render_service_options(options),
+    )
+    return mutated
+
+
+def _dsn_template_parts(value: object) -> tuple[str, str, str, str] | None:
+    """CI の DSN template からユーザー・password・host・DB 名を得る。
+
+    Args:
+        value: job env の値。
+
+    Returns:
+        構文が限定した PostgreSQL DSN なら 4 要素。その他は ``None``。
+    """
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(
+        r"postgresql://([^:/]+):([^@]+)@([^:/]+):5432/([^/?#]+)", value
+    )
+    if match is None:
+        return None
+    return match[1], match[2], match[3], match[4]
+
+
+def _ci_wiring_errors(
+    workflow: dict[str, Any],
+    expectations: dict[str, Any],
+    compose: dict[str, Any],
+) -> list[str]:
+    """backend の DB 配線と期待値資産の差分を列挙する。
+
+    Args:
+        workflow: 検査対象 workflow。
+        expectations: 凍結済み期待値。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        構造上の不一致。完全一致なら空配列。
+    """
+    backend = _backend_job(workflow)
+    compose_database = _compose_database(compose)
+    database = expectations["database_environment"]
+    health = expectations["healthcheck"]
+    execution = expectations["test_execution"]
+    variables = expectations["dsn_environment_variables"]
+    errors: list[str] = []
+
+    service = _mapping_at(backend, ("services", "postgres"))
+    if not isinstance(service, dict):
+        return ["backend.services.postgres がない"]
+    image = service.get("image")
+    if image != database["image"]["expected"] or image != compose_database.get(
+        "image"
+    ):
+        errors.append("postgres image が期待値・開発 DB と一致しない")
+
+    service_environment = service.get("env")
+    compose_environment = compose_database.get("environment")
+    if not isinstance(service_environment, dict) or not isinstance(
+        compose_environment, dict
+    ):
+        errors.append("postgres service env がない")
+    else:
+        initdb_args = service_environment.get("POSTGRES_INITDB_ARGS")
+        if initdb_args != database["initdb_args"]["expected"] or initdb_args != (
+            compose_environment.get("POSTGRES_INITDB_ARGS")
+        ):
+            errors.append("POSTGRES_INITDB_ARGS が期待値・開発 DB と一致しない")
+
+    ports = service.get("ports")
+    if not isinstance(ports, list) or not any(
+        isinstance(port, str) and port.rsplit(":", maxsplit=1)[-1] == "5432"
+        for port in ports
+    ):
+        errors.append("PostgreSQL の TCP port 5432 が公開されていない")
+
+    service_options = _service_options(service.get("options"))
+    health_tokens = _health_command(service.get("options"))
+    required_tokens = health["host"]["required_command_tokens"]
+    if not all(token in health_tokens for token in required_tokens):
+        errors.append("health command が期待値の TCP host を明示していない")
+    compose_health = compose_database.get("healthcheck")
+    compose_test = compose_health.get("test") if isinstance(compose_health, dict) else []
+    compose_command = " ".join(compose_test) if isinstance(compose_test, list) else ""
+    if not all(token in compose_command for token in required_tokens):
+        errors.append("health command が開発 DB の TCP 性質と一致しない")
+
+    service_user = (
+        service_environment.get("POSTGRES_USER")
+        if isinstance(service_environment, dict)
+        else None
+    )
+    service_password = (
+        service_environment.get("POSTGRES_PASSWORD")
+        if isinstance(service_environment, dict)
+        else None
+    )
+    service_database = (
+        service_environment.get("POSTGRES_DB")
+        if isinstance(service_environment, dict)
+        else None
+    )
+    expected_health_command = [
+        "pg_isready",
+        "-h",
+        health["host"]["expected"],
+        "-U",
+        service_user,
+        "-d",
+        service_database,
+    ]
+    if health_tokens != expected_health_command:
+        errors.append("health command が service のユーザー・DB と一致しない")
+
+    health_option_contract = {
+        "--health-interval": ("interval", "interval"),
+        "--health-timeout": ("timeout", "timeout"),
+        "--health-retries": ("retries", "retries"),
+        "--health-start-period": ("start_period", "start_period"),
+    }
+    expected_option_names = {"--health-cmd", *health_option_contract}
+    if set(service_options) != expected_option_names:
+        errors.append("health options の集合が期待値と一致しない")
+    for option, (expectation_key, compose_key) in health_option_contract.items():
+        expected = health[expectation_key]["expected"]
+        ci_value: object = service_options.get(option)
+        if isinstance(expected, int) and isinstance(ci_value, str) and ci_value.isdigit():
+            ci_value = int(ci_value)
+        compose_value = (
+            compose_health.get(compose_key)
+            if isinstance(compose_health, dict)
+            else None
+        )
+        if ci_value != expected or compose_value != expected:
+            errors.append(f"{option} が期待値・開発 DB と一致しない")
+
+    job_environment = backend.get("env")
+    if not isinstance(job_environment, dict):
+        errors.append("backend job env がない")
+    else:
+        admin_name = variables["admin_connection"]["expected_name"]
+        role_name = variables["tested_role_connection"]["expected_name"]
+        admin_dsn = job_environment.get(admin_name)
+        role_dsn = job_environment.get(role_name)
+        admin_parts = _dsn_template_parts(admin_dsn)
+        role_parts = _dsn_template_parts(role_dsn)
+        if admin_parts is None:
+            errors.append("管理接続 DSN の job env がない")
+        if role_parts is None:
+            errors.append("被検査ロール DSN の job env がない")
+        if admin_parts is not None and role_parts is not None:
+            expected_admin_parts = (
+                service_user,
+                service_password,
+                "127.0.0.1",
+                service_database,
+            )
+            if admin_parts != expected_admin_parts:
+                errors.append("管理接続 DSN が service の資格情報・DB と一致しない")
+            if role_parts[0] == admin_parts[0] or role_parts[2:] != admin_parts[2:]:
+                errors.append("被検査ロール DSN の認証ユーザー分離が不正")
+        if admin_name == role_name or admin_dsn == role_dsn:
+            errors.append("管理接続と被検査ロール接続が分離されていない")
+        for value in (admin_dsn, role_dsn):
+            if isinstance(value, str) and (":-" in value or ":+" in value):
+                errors.append("DSN 変数間の fallback がある")
+
+    defaults = _mapping_at(backend, ("defaults", "run", "working-directory"))
+    if defaults != "backend":
+        errors.append("backend working-directory が維持されていない")
+    if backend.get("needs") != "backend-changes":
+        errors.append("backend-changes の発火制御が維持されていない")
+
+    jobs = workflow.get("jobs")
+    backend_changes = jobs.get("backend-changes") if isinstance(jobs, dict) else None
+    filter_steps = backend_changes.get("steps") if isinstance(backend_changes, dict) else []
+    filter_definition: object = None
+    if isinstance(filter_steps, list):
+        for step in filter_steps:
+            if isinstance(step, dict) and step.get("id") == "filter":
+                step_with = step.get("with")
+                if isinstance(step_with, dict):
+                    filter_definition = step_with.get("filters")
+    if not isinstance(filter_definition, str):
+        errors.append("backend-changes の paths-filter がない")
+    else:
+        parsed_filter = yaml.safe_load(filter_definition)
+        backend_paths = (
+            parsed_filter.get("backend") if isinstance(parsed_filter, dict) else None
+        )
+        if backend_paths != [
+            "backend/**",
+            "contracts/**",
+            ".github/workflows/ci.yml",
+        ]:
+            errors.append("backend-changes の既存 paths-filter が変わっている")
+
+    commands = _backend_commands(backend)
+    required_existing_commands = [
+        "uv python install",
+        "uv sync --locked --dev",
+        "uv run ruff check .",
+        "uv run ruff format --check .",
+        "uv run ty check",
+        execution["single_command"]["expected"],
+    ]
+    if commands != required_existing_commands:
+        errors.append("backend の既存検査 step が維持されていない")
+    pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
+    single_command = execution["single_command"]
+    if pytest_commands != [single_command["expected"]]:
+        errors.append("pytest の単一実行コマンドが期待値と一致しない")
+    if any("-m" in shlex.split(command) for command in pytest_commands):
+        errors.append("DB テストを marker 選択で別実行している")
+    if len(pytest_commands) != single_command["expected_backend_pytest_invocation_count"]:
+        errors.append("pytest の実行回数が期待値と一致しない")
+    return errors
+
+
+def _derive_asset_actuals(
+    workflow: dict[str, Any], compose: dict[str, Any]
+) -> dict[NodePath, object]:
+    """期待値属性に対応する実装・開発 DB 側の値を構造から導出する。
+
+    Args:
+        workflow: CI workflow の構造。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        期待値資産内の属性パスと、実装側から導出した値。
+    """
+    backend = _backend_job(workflow)
+    service = _mapping_at(backend, ("services", "postgres"))
+    assert isinstance(service, dict)
+    compose_database = _compose_database(compose)
+    compose_environment = compose_database["environment"]
+    assert isinstance(compose_environment, dict)
+    initdb_args = compose_environment["POSTGRES_INITDB_ARGS"]
+    assert isinstance(initdb_args, str)
+    image = compose_database["image"]
+    assert isinstance(image, str)
+    version_match = re.fullmatch(r"postgres:(\d+)\.(\d+)-bookworm", image)
+    assert version_match is not None
+    server_version_num = int(version_match[1]) * 10000 + int(version_match[2])
+    image_version = f"{version_match[1]}.{version_match[2]}"
+
+    init_tokens = shlex.split(initdb_args)
+    init_values = dict(token[2:].split("=", maxsplit=1) for token in init_tokens)
+    health_tokens = _health_command(service["options"])
+    health_host = health_tokens[health_tokens.index("-h") + 1]
+    compose_health = compose_database["healthcheck"]
+    assert isinstance(compose_health, dict)
+    commands = _backend_commands(backend)
+    pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
+    marker_config = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
+    marker_entries = marker_config["tool"]["pytest"]["ini_options"]["markers"]
+    marker_name = str(marker_entries[0]).split(":", maxsplit=1)[0]
+    conftest_text = DB_CONFTEST_PATH.read_text(encoding="utf-8")
+    job_environment = backend["env"]
+    assert isinstance(job_environment, dict)
+    admin_names = [name for name in job_environment if "ADMIN" in name]
+    role_names = [name for name in job_environment if "ROLE" in name]
+    assert len(admin_names) == 1 and len(role_names) == 1
+    admin_name = admin_names[0]
+    role_name = role_names[0]
+    admin_value = job_environment[admin_name]
+    role_value = job_environment[role_name]
+    assert isinstance(admin_value, str) and isinstance(role_value, str)
+
+    exact = "exact"
+    actuals: dict[NodePath, object] = {
+        ("oracle_policy", "expectations_must_precede_observation_code"): True,
+        ("oracle_policy", "observed_values_must_not_reseal_this_asset"): True,
+        ("database_environment", "image", "expected"): image,
+        ("database_environment", "image", "comparison"): exact,
+        ("database_environment", "initdb_args", "expected"): initdb_args,
+        ("database_environment", "initdb_args", "comparison"): exact,
+        (
+            "database_environment",
+            "server_version_num",
+            "expected",
+        ): server_version_num,
+        ("database_environment", "server_version_num", "comparison"): exact,
+        (
+            "database_environment",
+            "server_version_num",
+            "observed_type",
+        ): "integer",
+        (
+            "database_environment",
+            "server_version_num",
+            "derivation",
+            "image_version",
+        ): image_version,
+        (
+            "database_environment",
+            "server_version_num",
+            "derivation",
+            "rule",
+        ): "PostgreSQL 10以降の server_version_num = major * 10000 + minor",
+        (
+            "database_environment",
+            "server_version_num",
+            "derivation",
+            "calculation",
+        ): f"{version_match[1]} * 10000 + {version_match[2]} = {server_version_num}",
+        (
+            "database_environment",
+            "server_version_num",
+            "derivation",
+            "exact_match_reason",
+        ): f"イメージタグがメジャー版だけでなく {image_version} まで固定されているため",
+        (
+            "database_environment",
+            "locale_provider",
+            "expected",
+        ): init_values["locale-provider"],
+        ("database_environment", "locale_provider", "comparison"): exact,
+        ("database_environment", "collate", "expected"): init_values["locale"],
+        ("database_environment", "collate", "comparison"): exact,
+        ("database_environment", "ctype", "expected"): init_values["locale"],
+        ("database_environment", "ctype", "comparison"): exact,
+        ("database_environment", "encoding", "expected"): init_values["encoding"],
+        ("database_environment", "encoding", "comparison"): exact,
+        ("healthcheck", "transport", "expected"): "tcp",
+        ("healthcheck", "transport", "comparison"): exact,
+        ("healthcheck", "host", "expected"): health_host,
+        ("healthcheck", "host", "comparison"): exact,
+        ("healthcheck", "host", "required_command_tokens"): ["-h", health_host],
+        ("healthcheck", "implicit_unix_socket_allowed", "expected"): False,
+        ("healthcheck", "implicit_unix_socket_allowed", "comparison"): exact,
+        ("healthcheck", "interval", "expected"): compose_health["interval"],
+        ("healthcheck", "interval", "comparison"): exact,
+        ("healthcheck", "timeout", "expected"): compose_health["timeout"],
+        ("healthcheck", "timeout", "comparison"): exact,
+        ("healthcheck", "retries", "expected"): compose_health["retries"],
+        ("healthcheck", "retries", "comparison"): exact,
+        ("healthcheck", "start_period", "expected"): compose_health[
+            "start_period"
+        ],
+        ("healthcheck", "start_period", "comparison"): exact,
+        ("test_execution", "required_marker", "expected"): marker_name,
+        ("test_execution", "required_marker", "comparison"): exact,
+        (
+            "test_execution",
+            "required_path",
+            "expected_repository_prefix",
+        ): "backend/tests/db/",
+        ("test_execution", "required_path", "comparison"): "path_prefix",
+        ("test_execution", "single_command", "expected"): pytest_commands[0],
+        ("test_execution", "single_command", "comparison"): exact,
+        (
+            "test_execution",
+            "single_command",
+            "db_tests_included_in_existing_invocation",
+        ): len(pytest_commands) == 1 and "-m" not in shlex.split(pytest_commands[0]),
+        (
+            "test_execution",
+            "single_command",
+            "marker_selection_argument_allowed",
+        ): any("-m" in shlex.split(command) for command in pytest_commands),
+        (
+            "test_execution",
+            "single_command",
+            "additional_db_test_invocation_allowed",
+        ): len(pytest_commands) > 1,
+        (
+            "test_execution",
+            "single_command",
+            "expected_backend_pytest_invocation_count",
+        ): len(pytest_commands),
+        ("test_execution", "missing_dsn_policy", "expected"): "fail",
+        ("test_execution", "missing_dsn_policy", "skip_allowed"): (
+            "pytest.skip" in conftest_text
+        ),
+        ("test_execution", "missing_dsn_policy", "comparison"): exact,
+        ("dsn_environment_variables", "admin_connection", "expected_name"): (
+            admin_name
+        ),
+        (
+            "dsn_environment_variables",
+            "admin_connection",
+            "value_must_not_be_stored_in_repository",
+        ): "${{" in admin_value,
+        (
+            "dsn_environment_variables",
+            "tested_role_connection",
+            "expected_name",
+        ): role_name,
+        (
+            "dsn_environment_variables",
+            "tested_role_connection",
+            "value_must_not_be_stored_in_repository",
+        ): "${{" in role_value,
+        (
+            "dsn_environment_variables",
+            "separation",
+            "distinct_variable_names_required",
+        ): admin_name != role_name,
+        (
+            "dsn_environment_variables",
+            "separation",
+            "fallback_between_variables_allowed",
+        ): any(":-" in value or ":+" in value for value in (admin_value, role_value)),
+        (
+            "dsn_environment_variables",
+            "separation",
+            "role_identity_check_required",
+        ): all(token in conftest_text for token in ("session_user", "current_user")),
+    }
+    return actuals
+
+
+def _asset_contract_errors(
+    expectations: dict[str, Any], actuals: dict[NodePath, object]
+) -> list[str]:
+    """期待値資産と実装値・典拠の差分を列挙する。
+
+    Args:
+        expectations: 検査対象の期待値資産。
+        actuals: 構造から導出した実装側の値。
+
+    Returns:
+        属性単位の差分。完全一致なら空配列。
+    """
+    errors: list[str] = []
+    for path, actual in actuals.items():
+        expected = _mapping_at(expectations, path)
+        if expected != actual:
+            errors.append(
+                f"{_format_path(path)}: expected={expected!r}, actual={actual!r}"
+            )
+
+    if expectations.get("schema_version") != 1:
+        errors.append("schema_version は 1 が必要")
+    if expectations.get("asset_kind") != "db_environment_expectations":
+        errors.append("asset_kind が不正")
+    source_revision = expectations.get("source_revision")
+    if not isinstance(source_revision, str) or re.fullmatch(
+        r"[0-9a-f]{40}", source_revision
+    ) is None:
+        errors.append("source_revision は 40 桁の commit ID が必要")
+
+    errors.extend(_provenance_errors(expectations))
+    return errors
+
+
+def _provenance_errors(node: object) -> list[str]:
+    """資産内の全 provenance を再帰走査して逐語一致を検査する。
+
+    Args:
+        node: 検査対象の JSON 互換値。
+
+    Returns:
+        path 実在性・逐語一致・構造の違反。
+    """
+    errors: list[str] = []
+    if isinstance(node, list):
+        for value in node:
+            errors.extend(_provenance_errors(value))
+        return errors
+    if not isinstance(node, dict):
+        return errors
+
+    if "provenance" in node:
+        raw_entries = node["provenance"]
+        if isinstance(raw_entries, dict):
+            entries = [raw_entries]
+        elif isinstance(raw_entries, list) and raw_entries:
+            entries = raw_entries
+        else:
+            entries = []
+            errors.append("provenance は空でないオブジェクトまたは配列が必要")
+        for entry in entries:
+            if not isinstance(entry, dict):
+                errors.append("provenance の要素はオブジェクトが必要")
+                continue
+            path_text = entry.get("path")
+            extracted_text = entry.get("extracted_text")
+            if not isinstance(path_text, str) or not path_text:
+                errors.append("provenance.path は空でない文字列が必要")
+                continue
+            source_path = (REPOSITORY_ROOT / path_text).resolve()
+            try:
+                source_path.relative_to(REPOSITORY_ROOT)
+            except ValueError:
+                errors.append(f"provenance.path がリポジトリ外: {path_text}")
+                continue
+            if not source_path.is_file():
+                errors.append(f"provenance.path が実在しない: {path_text}")
+                continue
+            if not isinstance(extracted_text, str) or not extracted_text:
+                errors.append("provenance.extracted_text は空でない文字列が必要")
+                continue
+            normalized_source = "".join(
+                source_path.read_text(encoding="utf-8").split()
+            )
+            if "".join(extracted_text.split()) not in normalized_source:
+                errors.append(f"provenance が逐語一致しない: {path_text}")
+
+    for value in node.values():
+        errors.extend(_provenance_errors(value))
+    return errors
+
+
+def _mutate_contract_value(value: object) -> object:
+    """型を保った機械的な 1 属性変異を作る。
+
+    Args:
+        value: 変異する属性値。
+
+    Returns:
+        元値と異なる値。
+    """
+    if isinstance(value, bool):
+        return not value
+    if isinstance(value, int):
+        return value + 1
+    if isinstance(value, str):
+        return f"{value}-mutated"
+    if isinstance(value, list):
+        return [*value, "mutated"]
+    raise AssertionError(f"未対応の変異型: {type(value).__name__}")
+
+
+def _set_node_at(node: object, path: NodePath, value: object) -> None:
+    """JSON 互換ツリーの既存パス終端を書き換える。
+
+    Args:
+        node: 書き換える JSON 互換値。
+        path: 既存キーまたは配列 index の並び。
+        value: 新しい値。
+    """
+    current: Any = node
+    for segment in path[:-1]:
+        if isinstance(segment, str):
+            assert isinstance(current, dict) and segment in current
+            current = current[segment]
+        else:
+            assert isinstance(current, list) and 0 <= segment < len(current)
+            current = current[segment]
+    final = path[-1]
+    if isinstance(final, str):
+        assert isinstance(current, dict) and final in current
+        current[final] = value
+    else:
+        assert isinstance(current, list) and 0 <= final < len(current)
+        current[final] = value
+
+
+def _delete_node_at(node: object, path: NodePath) -> None:
+    """JSON 互換ツリーの既存葉をキーまたは要素ごと削除する。
+
+    Args:
+        node: 書き換える JSON 互換値。
+        path: 削除対象の葉パス。
+    """
+    current: Any = node
+    for segment in path[:-1]:
+        if isinstance(segment, str):
+            assert isinstance(current, dict) and segment in current
+            current = current[segment]
+        else:
+            assert isinstance(current, list) and 0 <= segment < len(current)
+            current = current[segment]
+    final = path[-1]
+    if isinstance(final, str):
+        assert isinstance(current, dict) and final in current
+        del current[final]
+    else:
+        assert isinstance(current, list) and 0 <= final < len(current)
+        current.pop(final)
 
 
 def _assert_full_docs_lint_wiring(text: str) -> None:
@@ -79,3 +952,137 @@ def test_docs_lint_rejects_selective_check_option() -> None:
 
     with pytest.raises(AssertionError, match="選択実行"):
         _assert_full_docs_lint_wiring(selective)
+
+
+def test_backend_postgres_wiring_matches_asset_and_development_database() -> None:
+    """backend ジョブの PostgreSQL 配線が期待値と開発 DB に一致する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    assert _ci_wiring_errors(
+        workflow,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    ) == []
+
+
+def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
+    """CI 契約ブロックの全葉を機械列挙し、値改変・削除を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    expectations = _load_expectations()
+    compose = _load_yaml_mapping(COMPOSE_PATH)
+    contract_tree = _backend_ci_contract_tree(_backend_job(workflow))
+    leaf_paths = _leaf_paths(contract_tree)
+    escaped: list[str] = []
+
+    for path in leaf_paths:
+        for operation in ("value", "deletion"):
+            mutated_tree = copy.deepcopy(contract_tree)
+            if operation == "value":
+                current = _mapping_at(mutated_tree, path)
+                _set_node_at(
+                    mutated_tree,
+                    path,
+                    _mutate_contract_value(current),
+                )
+            else:
+                _delete_node_at(mutated_tree, path)
+            mutated_workflow = _workflow_from_ci_contract_tree(
+                workflow,
+                mutated_tree,
+            )
+            if not _ci_wiring_errors(mutated_workflow, expectations, compose):
+                escaped.append(f"{operation}:{_format_path(path)}")
+
+    assert leaf_paths, "CI 契約ブロックの葉が 1 件もない"
+    assert escaped == [], f"CI 配線変異がすり抜けた: {escaped}"
+
+
+def test_every_expectation_leaf_value_and_deletion_mutation_is_red() -> None:
+    """期待値資産の全葉を機械列挙し、値改変・削除を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    compose = _load_yaml_mapping(COMPOSE_PATH)
+    expectations = _load_expectations()
+    actuals = _derive_asset_actuals(workflow, compose)
+    assert _asset_contract_errors(expectations, actuals) == []
+    leaf_paths = _leaf_paths(expectations)
+    escaped: list[str] = []
+
+    for path in leaf_paths:
+        for operation in ("value", "deletion"):
+            mutated = copy.deepcopy(expectations)
+            if operation == "value":
+                current = _mapping_at(mutated, path)
+                _set_node_at(mutated, path, _mutate_contract_value(current))
+            else:
+                _delete_node_at(mutated, path)
+            if not _asset_contract_errors(mutated, actuals):
+                escaped.append(f"{operation}:{_format_path(path)}")
+
+    assert leaf_paths, "期待値資産の葉が 1 件もない"
+    assert escaped == [], f"期待値属性変異がすり抜けた: {escaped}"
+
+
+def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> None:
+    """専用 marker・0 件失敗・単一 pytest 実行を構造で確認する。"""
+    expectations = _load_expectations()
+    marker = expectations["test_execution"]["required_marker"]["expected"]
+    project = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
+    marker_entries = project["tool"]["pytest"]["ini_options"]["markers"]
+    assert any(str(entry).split(":", maxsplit=1)[0] == marker for entry in marker_entries)
+
+    db_test_files = sorted(
+        path
+        for path in (REPOSITORY_ROOT / "backend" / "tests" / "db").glob(
+            "test_*.py"
+        )
+        if path.name != "test_environment_expectations.py"
+    )
+    assert db_test_files, "DB 必須テストが 1 件もない"
+    for path in db_test_files:
+        text = path.read_text(encoding="utf-8")
+        assert f"pytestmark = pytest.mark.{marker}" in text, (
+            f"{path}: DB 必須 marker がない"
+        )
+
+    conftest = DB_CONFTEST_PATH.read_text(encoding="utf-8")
+    assert "def pytest_sessionfinish(" in conftest
+    assert "_required_db_execution_error(" in conftest
+    assert "_COLLECTED_DB_TESTS," in conftest
+    assert "_EXECUTED_DB_TESTS," in conftest
+    assert "if not executed:" in conftest
+    assert "pytest.ExitCode.TESTS_FAILED" in conftest
+    assert "SET ROLE" not in conftest
+
+    backend = _backend_job(_load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8")))
+    pytest_commands = [
+        command
+        for command in _backend_commands(backend)
+        if "pytest" in shlex.split(command)
+    ]
+    assert pytest_commands == [
+        expectations["test_execution"]["single_command"]["expected"]
+    ]
+
+
+def test_psycopg_is_exact_product_dependency_without_orm_packages() -> None:
+    """psycopg の厳密製品依存と ORM 非導入を lock まで確認する。"""
+    project = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
+    direct_dependencies = project["project"]["dependencies"]
+    psycopg_dependencies = [
+        dependency
+        for dependency in direct_dependencies
+        if str(dependency).startswith("psycopg[")
+    ]
+    assert len(psycopg_dependencies) == 1
+    match = re.fullmatch(r"psycopg\[binary\]==(\d+\.\d+\.\d+)", psycopg_dependencies[0])
+    assert match is not None, "psycopg[binary] は製品依存で厳密固定する"
+
+    lock = tomllib.loads(BACKEND_LOCK_PATH.read_text(encoding="utf-8"))
+    packages = lock["package"]
+    locked_versions = {
+        package["name"]: package.get("version")
+        for package in packages
+        if isinstance(package, dict) and isinstance(package.get("name"), str)
+    }
+    assert locked_versions.get("psycopg") == match[1]
+    assert locked_versions.get("psycopg-binary") == match[1]
+    assert {"sqlalchemy", "alembic"}.isdisjoint(locked_versions)

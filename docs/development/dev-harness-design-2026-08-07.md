@@ -56,6 +56,7 @@ status: approved
 | **1.11** | 2026-08-27 | **確定ゲート通過(approved)**: 敵対レビュー **9 周**(sol xhigh — 1 周目 P0×1/P1×5/P2×2・2 周目 P0×1/P1×4/P2×1・3 周目 P0×1/P1×3/P2×1・4 周目 P1×4/P2×2・5 周目 P0×2/P1×1/P2×2・6 周目 P0×1/P1×1・7 周目 P0×1/P1×1・8 周目 P0×1/P1×1/P2×1・9 周目 P0×1/P1×1/P2×1 を**全件採用・不採用 0 件**)。**5〜9 周目の P0 はいずれも「判定」と「正式受入の成立」の混同が根**で、9 周目に別名を含む一括同期で収束させた(経緯は台帳 H-79 の 5 件目)。**PO 判断 2026-08-27 で 9 周をもって確定ゲートを閉じた**。計画: `docs/features/nfr021-profile-arm64/plan.md`(計画レビュー 4 周 → 承認 2026-08-27・山田正輝) | **approved** |
 | 1.11 | 2026-08-27 | **実装追随の節更新(版は上げない)**: 10.1 の実施経路・13 章 Phase 4 行・同 4-6 行に残っていた「**合格した場合にのみ…マージ**」を **10.1「4-6 マージ前条件」への参照**へ置換した(`nfr021-profile-arm64` の確定ゲート 9 周目で同節に単一定義を置いたが、`合格した場合` の別名 3 箇所は走査から漏れていた — 台帳 H-79 の型)。**「マージ後検査に合格した場合」の用法は別概念なので保持**。規範条件は変えていない | **approved** |
 | 1.11 | 2026-08-30 | **実装追随の節更新(版は上げない)**: 10.1 の `docs-lint` 行へ、同期プロトコル設計の伝播突合 12 検査(`scripts/check_design_propagation.py`)と要件帰属・意味照合台帳の全数検査(`scripts/check_doc_coverage.py`)を、いずれも選択用引数なしで常時実行する配線を追記した。あわせて `ci.yml` の YAML 構造と選択用引数の不在を検査する回帰テストを追加した。規範条件は変えていない | **approved** |
+| 1.11 | 2026-08-31 | **実装追随(版は上げない — 7.6-3 前段の実装追随の節更新)**: 10.1 の CI ジョブ表の **`backend` 行を現行化**(**`services: postgres` 付き**で DB 必須テストを同じ pytest 実行に含める。**新しいジョブは起こさない** — 同じランナー・同じ発火集合・DB 障害時も backend 全体を fail させるという責務の一致による。**ゲート回避を理由にしない**)+ **実装追随の箇条を追加**(期待値を実装より先のコミットで固定した理由・典拠の逐語引用と全数検査・psycopg 3 を製品依存にして ORM を入れない判断・**`SET ROLE` の模擬を使わず実接続を張り替える理由**・**ロール変異を使い捨てクラスタで行う理由**)。**規範・受入条件は変更していない**。計画: `../features/pg-authz-verification/plan.md` | approved |
 
 > **本書の位置づけ**: 作業者（人間）・Claude Code・Codex の三者で pitchlog を開発するための**開発ハーネス**（開発フロー・規約・権限・自動化・ドキュメント管理・タスク管理の総体）の設計正本。
 > **本書の v1.0 は 7.3 節の正本確定ゲート（Codex敵対レビュー5周 → 人間承認 2026-08-07）を通過して `approved` となった**（確定ゲートの初回適用案件。**現在の状態の正は冒頭の frontmatter** — 7.1-5）。以後のハーネス実装（Phase 1〜）はすべて本書に従い、再変更は新しい版として同じゲートを通す。
@@ -615,7 +616,7 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 
 | ジョブ | 内容 | 導入時期 |
 | --- | --- | --- |
-| `backend` | `uv sync` → `ruff check` + `ruff format --check` → `ty check` → `pytest --cov`（paths filter: backend/ contracts/） | Phase 4（骨格と同時） |
+| `backend` | `uv sync` → `ruff check` + `ruff format --check` → `ty check` → `pytest --cov`（paths filter: backend/ contracts/）。**`services: postgres` 付き**(`postgres:17.11-bookworm`・initdb 引数とロケールは開発 DB と一致・healthcheck は TCP 明示)で、**DB 必須テストを同じ pytest 実行に含める**(marker で分けた二重実行はしない)。**DSN 未設定・DB テスト 0 件収集・0 件実行はいずれも fail** | Phase 4（骨格と同時）。**postgres サービスは TSK-270** |
 | `frontend` | `pnpm install` → ESLint → `prettier --check` → `vue-tsc` → Vitest（paths filter: frontend/ contracts/） | Phase 4 |
 | `consistency` | ゴールデンベクタ一致性テスト（NFR-019a: 同一入力列 → クライアント/サーバー同一状況） | 実装期 |
 | `e2e` | Playwright（NFR-019c の主要分岐。webkit 含む） | 実装期 |
@@ -639,6 +640,8 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
   - **選定を「実装」と分けた理由**: 13 章 4-6 が求めるのは**選定**であり、上表の導入時期は元々「Phase 4 以降」だった。**不採用と決めた以上 `ci.yml` へ追加するジョブは存在しない**ため、実装は発生しない。**これは選定の後送りではない**
   - **付随して判明した実装時制約(恒久の不採用理由ではない — 将来 CI 化を再検討する際の入力)**: **scheduled workflow は default branch でしか実行されない**。本リポジトリの default branch は `main` であり、**2026-08-26 時点の `main` には `backend/`・`frontend/`・`docker-compose.yml`・`mise.toml` が存在しない**(実測)。かつ `main` が進むのはリリース時だけであるため、**この時点で定期ジョブを置いても初回リリースまで実際には発火しない**。**ただしこれは初回リリースまでの一時的な状態であり、解消後は消える。不採用の恒久的な根拠は上記のランナーの 3 点である**
 - **実装追随(2026-08-23・root-lint-typecheck)**: **ルートの Python プロジェクトへ ruff・ty を導入**し、`harness` ジョブで実行するようにした(**別ジョブにしない** — 責務が「hooks・ラッパーの検査」で一致するため)。**版は backend と同一に固定**(ruff 0.16.3 / ty 0.0.73)。**backend と違える設定は 3 つだけ** — 行長 100(ruff の `E501` は表示幅で測り日本語は全角 1 文字 = 2 桁。実測で幅 88 超 160 行 / 100 超 12 行)/ `D403` の除外(`D415` と同じ日本語 docstring への誤検知)/ `tests/**` の `D103` 除外。**検査対象は `scripts/` と `tests/` に限定**(`backend/` は自前の設定と backend ジョブで検査済み。**`.claude/**` は venv を使わず `/usr/bin/python3` で起動される別系統で未導入** — 残件 **ruff 73 件・ty 19 件**。うち `codex_run.py` の 5 件は **`die()` の注釈が `-> None`** であることに起因し(実体は `sys.exit`)、**`-> NoReturn` へ直すと 19 → 14 件になる**(**実バグではない** — 当初「実バグ疑い」と報告したのを実測で訂正)。残る 14 件は `sys.stdout.reconfigure` への誤検知で、**コードでは直せないため扱いに人間の裁定を要する**。follow-up)。**`ruff format` は未導入**(行長 100 で 17 ファイル中 14 が reformat 対象になるため独立した PR へ)。**導入により、型検査を一度も掛けていなかったことで残っていた注釈の欠陥 8 件を検出・是正**した
+
+- **実装追随(2026-08-31・pg-authz-verification / TSK-270)**: 上表の **`backend` 行へ `services: postgres` を追加**した。**新しいジョブは起こさない** — 責務が「同じ pytest ランナー・同じ発火集合・**DB 障害時も backend 全体を fail させる**」で一致するため(**ゲート回避を理由にしない**)。**期待値を実装より先に固定した** — イメージ版・initdb 引数・locale provider・collate / ctype / encoding・healthcheck の性質と待機パラメータ・marker 名・path 規則・単一実行コマンド・DSN 変数名を `backend/tests/db/environment-expectations.json` へ**先行するコミットで**置き、**接続後に SQL で読んだ値がその資産と一致することを検査**する(**観測値を後から期待値にできない**ようにするため)。**典拠は `docker-compose.yml` からの逐語引用**で、実在を全数検査するテストを同梱した。**psycopg 3 は製品依存**(`[project] dependencies`)とし、**ORM は入れない**(`sqlalchemy` / `alembic` が lock に無いことを検査)。**ロールごとに実接続を張り替える**(`SET ROLE` による模擬は使わない — **`SET ROLE` の可否はセッションの認証ユーザーで判定される**ため模擬では検証にならない)。**ロール属性・所属・default ACL を変える変異は使い捨てクラスタで実行する**(**ロールはクラスタ全域に存在し、別 DB では他の変異へ漏れる**)。**規範・受入条件は変更していない**。計画: `../features/pg-authz-verification/plan.md`
 
 #### NFR-021 受入ゲート（v1.4 新設 — CI ジョブとは独立した人手の受入手続）
 

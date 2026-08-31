@@ -1,0 +1,703 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_candidate_ddl_manifest",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "scope": {
+    "status": "candidate_probe_only",
+    "product_schema": false,
+    "contains_sql_body": false,
+    "second_group_approval_required": true
+  },
+  "enums": {
+    "table_privilege_ids": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "TRUNCATE",
+      "REFERENCES",
+      "TRIGGER",
+      "MAINTAIN"
+    ],
+    "role_kinds": [
+      "external_provisioner",
+      "object_owner",
+      "tested_caller",
+      "function_owner",
+      "negative_test_caller",
+      "management_caller"
+    ],
+    "security_modes": [
+      "definer"
+    ]
+  },
+  "roles": [
+    {
+      "role_id": "provisioner",
+      "role_kind": "external_provisioner",
+      "login": true,
+      "bypass_rls": true,
+      "superuser": false,
+      "create_role": true,
+      "inherit": true
+    },
+    {
+      "role_id": "table_owner",
+      "role_kind": "object_owner",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "app_role",
+      "role_kind": "tested_caller",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "shared_fn_owner",
+      "role_kind": "function_owner",
+      "login": false,
+      "bypass_rls": true,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "management_fn_owner",
+      "role_kind": "function_owner",
+      "login": false,
+      "bypass_rls": true,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "outsider_role",
+      "role_kind": "negative_test_caller",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "management_caller",
+      "role_kind": "management_caller",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    }
+  ],
+  "schemas": [
+    {
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "usage_role_ids": [
+        "app_role",
+        "shared_fn_owner",
+        "management_fn_owner"
+      ],
+      "create_role_ids": []
+    },
+    {
+      "schema_id": "authz_private",
+      "owner_role_id": "shared_fn_owner",
+      "usage_role_ids": [
+        "app_role"
+      ],
+      "create_role_ids": []
+    },
+    {
+      "schema_id": "management_private",
+      "owner_role_id": "management_fn_owner",
+      "usage_role_ids": [],
+      "create_role_ids": []
+    }
+  ],
+  "tables": [
+    {
+      "table_id": "probe_business_rows",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "tenant_id",
+        "resource_kind",
+        "ownership_kind",
+        "payload"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_business_rows:tenant_boundary"
+      ]
+    },
+    {
+      "table_id": "probe_groups",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "group_id",
+        "status"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_groups:tenant_boundary"
+      ]
+    },
+    {
+      "table_id": "probe_memberships",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "group_id",
+        "tenant_id",
+        "status",
+        "group_role"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_memberships:tenant_boundary"
+      ]
+    },
+    {
+      "table_id": "probe_grants",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "group_id",
+        "tenant_id",
+        "grant_kind",
+        "enabled"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_grants:tenant_boundary"
+      ]
+    },
+    {
+      "table_id": "probe_invitations",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "group_id",
+        "invited_tenant_id",
+        "status"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_invitations:tenant_boundary"
+      ]
+    },
+    {
+      "table_id": "probe_management_effects",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [
+        "group_id",
+        "tenant_id",
+        "effect_kind"
+      ],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_management_effects:tenant_boundary"
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "POLICY:probe_business_rows:tenant_boundary",
+      "table_id": "probe_business_rows",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "policy_id": "POLICY:probe_groups:tenant_boundary",
+      "table_id": "probe_groups",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "policy_id": "POLICY:probe_memberships:tenant_boundary",
+      "table_id": "probe_memberships",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "policy_id": "POLICY:probe_grants:tenant_boundary",
+      "table_id": "probe_grants",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "policy_id": "POLICY:probe_invitations:tenant_boundary",
+      "table_id": "probe_invitations",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "policy_id": "POLICY:probe_management_effects:tenant_boundary",
+      "table_id": "probe_management_effects",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "app_role"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "authorized_shared_rows",
+      "function_class": "shared_read",
+      "schema_id": "authz_private",
+      "owner_role_id": "shared_fn_owner",
+      "security_mode": "definer",
+      "search_path": [
+        "pg_catalog",
+        "authz_private",
+        "pg_temp"
+      ],
+      "return_contract": "typed_authorized_business_rows",
+      "aggregation_contract": "none",
+      "dependency_table_ids": [
+        "probe_business_rows",
+        "probe_groups",
+        "probe_memberships",
+        "probe_grants"
+      ],
+      "execute_role_ids": [
+        "app_role"
+      ],
+      "public_execute": false
+    },
+    {
+      "function_id": "read_control_resources",
+      "function_class": "control_read",
+      "schema_id": "authz_private",
+      "owner_role_id": "shared_fn_owner",
+      "security_mode": "definer",
+      "search_path": [
+        "pg_catalog",
+        "authz_private",
+        "pg_temp"
+      ],
+      "return_contract": "paged_control_rows",
+      "aggregation_contract": "none",
+      "dependency_table_ids": [
+        "probe_groups",
+        "probe_memberships",
+        "probe_grants",
+        "probe_invitations"
+      ],
+      "execute_role_ids": [
+        "app_role"
+      ],
+      "public_execute": false
+    },
+    {
+      "function_id": "apply_representative_grant_change",
+      "function_class": "representative_management_operation",
+      "schema_id": "management_private",
+      "owner_role_id": "management_fn_owner",
+      "security_mode": "definer",
+      "search_path": [
+        "pg_catalog",
+        "management_private",
+        "pg_temp"
+      ],
+      "return_contract": "operation_result",
+      "aggregation_contract": "none",
+      "dependency_table_ids": [
+        "probe_memberships",
+        "probe_grants",
+        "probe_management_effects"
+      ],
+      "execute_role_ids": [
+        "management_caller"
+      ],
+      "public_execute": false
+    }
+  ],
+  "acl_expectations": [
+    {
+      "acl_id": "ACL:probe_business_rows:app_role",
+      "object_kind": "table",
+      "object_id": "probe_business_rows",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_groups:app_role",
+      "object_kind": "table",
+      "object_id": "probe_groups",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_memberships:app_role",
+      "object_kind": "table",
+      "object_id": "probe_memberships",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_grants:app_role",
+      "object_kind": "table",
+      "object_id": "probe_grants",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_invitations:app_role",
+      "object_kind": "table",
+      "object_id": "probe_invitations",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_management_effects:app_role",
+      "object_kind": "table",
+      "object_id": "probe_management_effects",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:authorized_shared_rows:app_role",
+      "object_kind": "function",
+      "object_id": "authorized_shared_rows",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:read_control_resources:app_role",
+      "object_kind": "function",
+      "object_id": "read_control_resources",
+      "grantee_role_id": "app_role",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:apply_representative_grant_change:management_caller",
+      "object_kind": "function",
+      "object_id": "apply_representative_grant_change",
+      "grantee_role_id": "management_caller",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
+    }
+  ],
+  "transaction_boundaries": [
+    {
+      "boundary_id": "TX:PROVISIONING",
+      "boundary_kind": "ordered_application",
+      "step_ids": [
+        "PROVISION-01-CREATE-OWNER",
+        "PROVISION-02-OPEN-SET-PATH",
+        "PROVISION-03-ASSIGN-OBJECTS",
+        "PROVISION-04-CLOSE-FUNCTION-ACL",
+        "PROVISION-05-CLOSE-SET-PATH"
+      ],
+      "atomic": false
+    },
+    {
+      "boundary_id": "TX:REPRESENTATIVE_MANAGEMENT",
+      "boundary_kind": "authorization_and_side_effect",
+      "step_ids": [
+        "authorize",
+        "apply_effect",
+        "record_effect"
+      ],
+      "atomic": true
+    },
+    {
+      "boundary_id": "TX:GLOBAL_MUTATION_ISOLATION",
+      "boundary_kind": "disposable_cluster",
+      "step_ids": [
+        "start_cluster",
+        "apply_mutation",
+        "run_test",
+        "destroy_cluster"
+      ],
+      "atomic": false
+    }
+  ],
+  "provisioning_claim": {
+    "claim_id": "ORACLE:PROVISIONING:ORDERED-5-STEPS",
+    "ordered_steps": [
+      {
+        "step_id": "PROVISION-01-CREATE-OWNER",
+        "sequence": 1,
+        "operation_kind": "create_no_login_bypass_owner"
+      },
+      {
+        "step_id": "PROVISION-02-OPEN-SET-PATH",
+        "sequence": 2,
+        "operation_kind": "temporarily_grant_set_membership"
+      },
+      {
+        "step_id": "PROVISION-03-ASSIGN-OBJECTS",
+        "sequence": 3,
+        "operation_kind": "create_and_assign_owned_objects"
+      },
+      {
+        "step_id": "PROVISION-04-CLOSE-FUNCTION-ACL",
+        "sequence": 4,
+        "operation_kind": "revoke_public_and_grant_named_execute"
+      },
+      {
+        "step_id": "PROVISION-05-CLOSE-SET-PATH",
+        "sequence": 5,
+        "operation_kind": "revoke_temporary_membership"
+      }
+    ],
+    "completion_catalog_expectations": [
+      {
+        "catalog_check_id": "CATALOG:PROVISIONER-CANNOT-SET-OWNER",
+        "inspection_predicate": "pg_has_role(<provisioner>, <fn_owner>, 'SET') = false"
+      },
+      {
+        "catalog_check_id": "CATALOG:PROVISIONER-CANNOT-USE-OWNER",
+        "inspection_predicate": "pg_has_role(<provisioner>, <fn_owner>, 'USAGE') = false"
+      }
+    ]
+  },
+  "provenance": [
+    {
+      "provenance_id": "PLAN-CATALOG-EXACT-SET",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "`BYPASSRLS` ロールが所有する全 object"
+    },
+    {
+      "provenance_id": "PLAN-TABLE-PRIVILEGES",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "表権限は PostgreSQL 17 の 8 種"
+    },
+    {
+      "provenance_id": "PLAN-PG-TEMP-LAST",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "`pg_temp` が明示され、かつ最後にある"
+    },
+    {
+      "provenance_id": "PLAN-PROVISIONING-CLOSE",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "一時的に経路を開き、使い終わったら閉じる"
+    },
+    {
+      "provenance_id": "PLAN-MANAGEMENT-PROBE",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "**代表 probe 操作 1 件**で「**呼び出しロールに基表 DML が無い**」「**関数内で認可と副作用が原子的**」を実証する。**それ以上の操作は実装しない**"
+    },
+    {
+      "provenance_id": "PLAN-R6-TABLE-PRIVILEGES",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "**表権限は PostgreSQL 17 の 8 種**(`SELECT`/`INSERT`/`UPDATE`/`DELETE`/`TRUNCATE`/`REFERENCES`/**`TRIGGER`**/**`MAINTAIN`**)を**単一の機械可読集合から**カタログ検査・実行行列・mutation へ生成する。"
+    }
+  ],
+  "column_acl_expectations": [
+    {
+      "expectation_id": "COLUMN-ACL:ALL-PROBE-TABLES:NO-EXPLICIT-GRANTS",
+      "table_ids": [
+        "probe_business_rows",
+        "probe_groups",
+        "probe_memberships",
+        "probe_grants",
+        "probe_invitations",
+        "probe_management_effects"
+      ],
+      "grantee_role_ids": [
+        "provisioner",
+        "table_owner",
+        "app_role",
+        "shared_fn_owner",
+        "management_fn_owner",
+        "outsider_role",
+        "management_caller"
+      ],
+      "expected_entries": []
+    }
+  ],
+  "table_privilege_probe_matrix": [
+    {
+      "privilege_id": "SELECT",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.select",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "INSERT",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.insert",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "UPDATE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.update",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "DELETE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.delete",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "TRUNCATE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.truncate",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "REFERENCES",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.references",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "TRIGGER",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.trigger",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "MAINTAIN",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "TSK-270.group2.table-privilege.maintain",
+        "status": "planned"
+      }
+    }
+  ],
+  "representative_management_probe": {
+    "claim_ids": [
+      "ORACLE:MANAGEMENT-PROBE:NO-BASE-TABLE-DML",
+      "ORACLE:MANAGEMENT-PROBE:ATOMIC-AUTHORIZATION-SIDE-EFFECT"
+    ],
+    "function_id": "apply_representative_grant_change",
+    "calling_role_id": "management_caller",
+    "base_table_ids": [
+      "probe_memberships",
+      "probe_grants",
+      "probe_management_effects"
+    ],
+    "caller_table_privilege_ids": [],
+    "caller_column_privilege_entries": [],
+    "authorization_and_side_effect_same_function": true,
+    "authorization_and_side_effect_same_transaction": true,
+    "transaction_boundary_id": "TX:REPRESENTATIVE_MANAGEMENT"
+  }
+}
