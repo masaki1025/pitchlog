@@ -20,8 +20,20 @@ DERIVED_ASSET_FILES = {
     "auth_catalog": "auth-catalog.json",
     "http_matrix": "http-route-matrix.json",
 }
+ORACLE_ASSET_FILES = {
+    "ddl_elements": "ddl-elements.json",
+    "rejected_configs": "rejected-configs.json",
+    "claim_mutant_map": "claim-mutant-map.json",
+    "attack_tree": "attack-tree.json",
+    "boundary_proposal": "boundary-proposal.json",
+    "verification_evidence": "verification-evidence.json",
+}
+ORACLE_SEAL_FILE = "oracle-seal.lock.json"
 IMPLEMENTED_CATALOG_TEST_ID = (
     "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid"
+)
+IMPLEMENTED_ORACLE_TEST_ID = (
+    "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid"
 )
 
 
@@ -106,6 +118,7 @@ def _run_cli(root: Path, *, reseal: bool = False) -> subprocess.CompletedProcess
         "--lock",
         "requirement-claims.lock.json",
         "--skip-derived",
+        "--skip-oracle",
     ]
     if reseal:
         command.append("--reseal")
@@ -139,6 +152,20 @@ def _repository_derived_assets() -> tuple[
         locks[name] = _read_repository_json(lock_path)
         paths[name] = path
     return assets, locks, paths
+
+
+def _repository_oracle_assets() -> tuple[
+    dict[str, dict[str, Any]], dict[str, Any], dict[str, str]
+]:
+    """ステップ5の6資産・oracle seal・相対パスを読む。"""
+    assets: dict[str, dict[str, Any]] = {}
+    paths: dict[str, str] = {}
+    for name, filename in ORACLE_ASSET_FILES.items():
+        path = f"contracts/authz/{filename}"
+        assets[name] = _read_repository_json(path)
+        paths[name] = path
+    seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    return assets, seal, paths
 
 
 def _iter_leaf_paths(
@@ -279,6 +306,8 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
             "contracts/authz/http-route-matrix.lock.json",
         )
     }
+    oracle_seal_path = "contracts/authz/oracle-seal.lock.json"
+    oracle_seal_before = (REPOSITORY_ROOT / oracle_seal_path).read_bytes()
     result = subprocess.run(
         [sys.executable, str(SCRIPT)],
         cwd=REPOSITORY_ROOT,
@@ -292,6 +321,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
+    assert (REPOSITORY_ROOT / oracle_seal_path).read_bytes() == oracle_seal_before
 
 
 def test_fixture_has_a_valid_multi_layer_claim(tmp_path: Path) -> None:
@@ -1202,3 +1232,445 @@ def test_forbidden_import_and_nonshareable_resources_are_absent() -> None:
     assert sum(serialized.count(term) for term in forbidden_terms) == 0
     assert checker.FORBIDDEN_RESOURCE_KINDS.isdisjoint(registry_resources)
     assert checker.FORBIDDEN_RESOURCE_KINDS.isdisjoint(matrix_resources)
+
+
+def _validate_repository_oracle(
+    assets: dict[str, dict[str, Any]],
+    seal: dict[str, Any],
+    paths: dict[str, str],
+) -> dict[str, dict[str, Any]]:
+    """ステップ1・4の正本を入力に oracle 資産を統合検査する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    result = checker.validate_oracle_assets(
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["auth_catalog"],
+        derived_assets["http_matrix"],
+        assets,
+        seal,
+        paths,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+    assert isinstance(result, dict)
+    return result
+
+
+def _validate_mutant_map(mutated: dict[str, Any]) -> None:
+    """変異した対応表を、資産から導出した入力集合に対して意味検査する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    oracle_assets, _seal, _paths = _repository_oracle_assets()
+    ddl_result = checker.validate_ddl_elements(
+        oracle_assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    checker.validate_claim_mutant_map(
+        mutated,
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+
+
+def test_repository_oracle_assets_are_valid() -> None:
+    """全claim・mutant・cut set・境界・証跡と封印を統合検査する。"""
+    assets, seal, paths = _repository_oracle_assets()
+
+    result = _validate_repository_oracle(assets, seal, paths)
+    mutant_result = result["mutants"]
+
+    assert mutant_result["execution_counts"] == Counter(
+        {"probe_executable": 172, "contract_only": 15}
+    )
+    assert mutant_result["axis_counts"] == Counter(
+        {"authorization_predicate": 194, "configuration": 20, "r8_provisioning": 2}
+    )
+    assert mutant_result["positive_case_count"] == 6
+    assert len(mutant_result["positive_kill_mutant_ids"]) == 2
+    assert result["attack"]["cut_set_count"] == 20
+    assert result["attack"]["multi_factor_cut_set_count"] == 3
+    assert result["rejected"]["rejection_count"] == 3
+    assert result["boundary"]["all_logical_count"] == 29
+
+
+def test_oracle_reseal_is_only_enabled_by_the_dedicated_flag() -> None:
+    """通常引数は再封印せず、専用フラグだけが明示更新を有効にする。"""
+    normal = checker.parse_args([])
+    explicit = checker.parse_args(["--reseal-oracle"])
+
+    assert normal.reseal_oracle is False
+    assert explicit.reseal_oracle is True
+    assert explicit.reseal is False
+    assert explicit.reseal_derived is False
+
+
+def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:
+    """6資産とsealから全葉を再帰列挙し、値改変・削除を全数 red にする。"""
+    assets, seal, paths = _repository_oracle_assets()
+    leaf_counts = {name: len(_iter_leaf_paths(asset)) for name, asset in assets.items()}
+    leaf_counts["oracle_seal"] = len(_iter_leaf_paths(seal))
+    escaped: list[tuple[str, tuple[str | int, ...], str]] = []
+    attempts = 0
+
+    for name, asset in assets.items():
+        for leaf_path in _iter_leaf_paths(asset):
+            for mutation in ("change", "delete"):
+                mutated = _mutate_leaf(asset, leaf_path, delete=mutation == "delete")
+                try:
+                    checker.validate_oracle_asset_seal(mutated, paths[name], seal)
+                except checker.CatalogError:
+                    pass
+                else:
+                    escaped.append((name, leaf_path, mutation))
+                attempts += 1
+    for leaf_path in _iter_leaf_paths(seal):
+        for mutation in ("change", "delete"):
+            mutated_seal = _mutate_leaf(seal, leaf_path, delete=mutation == "delete")
+            try:
+                checker.validate_oracle_seal(
+                    mutated_seal, assets, paths, REPOSITORY_ROOT
+                )
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append(("oracle_seal", leaf_path, mutation))
+            attempts += 1
+
+    assert all(count > 0 for count in leaf_counts.values())
+    assert attempts == sum(leaf_counts.values()) * 2
+    assert escaped == []
+
+
+def test_all_claim_execution_classes_reject_the_opposite_class() -> None:
+    """対応表自身の全claimを列挙し、probe/contract 反転を全数 red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    claims = assets["claim_mutant_map"]["claims"]
+    escaped: list[str] = []
+
+    for index, claim in enumerate(claims):
+        mutated = copy.deepcopy(assets["claim_mutant_map"])
+        mutated_claim = mutated["claims"][index]
+        if claim["execution_class"] == "probe_executable":
+            mutated_claim.update(
+                {
+                    "execution_class": "contract_only",
+                    "classification_rule_id": "CONTRACT_ONLY_NO_DB_DECISION_POINT",
+                    "runtime_kill_required": False,
+                    "runtime_evidence_kind": "handoff_runtime_test",
+                    "receiving_task_id": "TSK-217",
+                }
+            )
+        else:
+            mutated_claim.update(
+                {
+                    "execution_class": "probe_executable",
+                    "classification_rule_id": "PROBE_EXECUTABLE_DB_DECISION_POINT",
+                    "runtime_kill_required": True,
+                    "runtime_evidence_kind": "runtime_cross_tenant_assertion",
+                    "receiving_task_id": "TSK-270-GROUP-2",
+                }
+            )
+        try:
+            _validate_mutant_map(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(claim["claim_id"])
+
+    assert len(claims) == sum(
+        1 for _claim in assets["claim_mutant_map"]["claims"]
+    )
+    assert escaped == []
+
+
+def test_all_mutant_rows_reject_one_row_removal() -> None:
+    """対応表から全mutant行を列挙し、1行ずつの削除を全数 red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mutants = assets["claim_mutant_map"]["mutants"]
+    escaped: list[str] = []
+
+    for index, mutant in enumerate(mutants):
+        mutated = copy.deepcopy(assets["claim_mutant_map"])
+        mutated["mutants"].pop(index)
+        try:
+            _validate_mutant_map(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(mutant["mutant_id"])
+
+    assert len(mutants) > 0
+    assert escaped == []
+
+
+def _expected_test_id_paths(value: object) -> list[tuple[str | int, ...]]:
+    """資産自身から期待テストIDの全葉パスを機械抽出する。"""
+    paths: list[tuple[str | int, ...]] = []
+    for path in _iter_leaf_paths(value):
+        key = path[-1]
+        if key in {"schema_drift_test_id", "runtime_test_id"}:
+            paths.append(path)
+            continue
+        if key != "id" or len(path) < 2:
+            continue
+        parent = _value_at_path(value, path[:-1])
+        if isinstance(parent, dict) and set(parent) == {"id", "status"}:
+            paths.append(path)
+    return paths
+
+
+def test_all_expected_test_ids_reject_replacement() -> None:
+    """対応表から期待テストIDを全数抽出し、差し替えをsealで全数 red にする。"""
+    assets, seal, paths = _repository_oracle_assets()
+    asset = assets["claim_mutant_map"]
+    test_id_paths = _expected_test_id_paths(asset)
+    escaped: list[tuple[str | int, ...]] = []
+
+    for path in test_id_paths:
+        mutated = copy.deepcopy(asset)
+        parent, key = _parent_and_key(mutated, path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        parent[key] = "tests/receiving_task.py::test_replaced_expectation"
+        try:
+            checker.validate_oracle_asset_seal(
+                mutated, paths["claim_mutant_map"], seal
+            )
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(path)
+
+    assert len(test_id_paths) > 0
+    assert escaped == []
+
+
+def test_all_cut_set_elements_reject_one_element_removal() -> None:
+    """attack treeから全cut set要素を列挙し、1要素ずつ削除して red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    attack_tree = assets["attack_tree"]
+    mutant_map = assets["claim_mutant_map"]
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    mutant_result = checker.validate_claim_mutant_map(
+        mutant_map,
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+    escaped: list[tuple[str, str]] = []
+    attempts = 0
+
+    for cut_index, cut_set in enumerate(attack_tree["minimal_cut_sets"]):
+        for mutant_index, mutant_id in enumerate(cut_set["mutant_ids"]):
+            mutated = copy.deepcopy(attack_tree)
+            mutated["minimal_cut_sets"][cut_index]["mutant_ids"].pop(mutant_index)
+            try:
+                checker.validate_attack_tree(mutated, mutant_result, REPOSITORY_ROOT)
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((cut_set["cut_set_id"], mutant_id))
+            attempts += 1
+
+    assert attempts == sum(
+        len(cut_set["mutant_ids"])
+        for cut_set in attack_tree["minimal_cut_sets"]
+    )
+    assert escaped == []
+
+
+def test_all_initial_rejections_reject_one_row_removal() -> None:
+    """不採用構成表から初期行を全数列挙し、1行ずつ削除して red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    rejected = assets["rejected_configs"]
+    escaped: list[str] = []
+
+    for index, row in enumerate(rejected["rejections"]):
+        mutated = copy.deepcopy(rejected)
+        mutated["rejections"].pop(index)
+        try:
+            checker.validate_rejected_configs(mutated, REPOSITORY_ROOT)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(row["rejection_id"])
+
+    assert len(rejected["rejections"]) == len(
+        rejected["required_initial_rejection_ids"]
+    )
+    assert escaped == []
+
+
+def test_all_contract_only_claims_reject_runtime_kill_requirement() -> None:
+    """全contract_onlyへruntime killを要求するR-7違反を全数 red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    claims = assets["claim_mutant_map"]["claims"]
+    contract_indexes = [
+        index
+        for index, claim in enumerate(claims)
+        if claim["execution_class"] == "contract_only"
+    ]
+    escaped: list[str] = []
+
+    for index in contract_indexes:
+        mutated = copy.deepcopy(assets["claim_mutant_map"])
+        mutated["claims"][index]["runtime_kill_required"] = True
+        try:
+            _validate_mutant_map(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(claims[index]["claim_id"])
+
+    assert len(contract_indexes) > 0
+    assert escaped == []
+
+
+def test_all_allow_cells_have_one_positive_case_test_id() -> None:
+    """HTTP行列から許可セルを全数導出し、正例テストIDとone-to-one照合する。"""
+    derived_assets, _locks, _paths = _repository_derived_assets()
+    oracle_assets, _seal, _oracle_paths = _repository_oracle_assets()
+    allow_cell_ids = {
+        cell["cell_id"]
+        for cell in derived_assets["http_matrix"]["cells"]
+        if cell["expected_result"] == "allow"
+    }
+    positive_cases = oracle_assets["claim_mutant_map"]["positive_cases"]["cases"]
+    positive_by_cell = {row["cell_id"]: row["test_owner"]["id"] for row in positive_cases}
+
+    assert len(allow_cell_ids) == 6
+    assert set(positive_by_cell) == allow_cell_ids
+    assert len(set(positive_by_cell.values())) == len(allow_cell_ids)
+    assert all(positive_by_cell.values())
+
+
+def test_table_privilege_matrix_and_mutants_derive_from_one_asset_set() -> None:
+    """DDL資産の単一8権限集合から実行行列とmutationをexact-set導出する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    ddl = assets["ddl_elements"]
+    mapping = assets["claim_mutant_map"]
+    privilege_ids = set(ddl["enums"]["table_privilege_ids"])
+    matrix_ids = {
+        row["privilege_id"] for row in ddl["table_privilege_probe_matrix"]
+    }
+    prefix = checker.TABLE_PRIVILEGE_MUTANT_PREFIX
+    mutant_ids = {
+        mutant["mutant_id"]
+        for mutant in mapping["mutants"]
+        if mutant["mutant_id"].startswith(prefix)
+    }
+
+    assert "TABLE_PRIVILEGE_IDS" not in SCRIPT.read_text(encoding="utf-8")
+    assert len(privilege_ids) == 8
+    assert matrix_ids == privilege_ids
+    assert mutant_ids == {f"{prefix}{privilege_id}" for privilege_id in privilege_ids}
+    assert ddl["column_acl_expectations"][0]["expected_entries"] == []
+
+
+def test_management_probe_claims_have_acl_and_atomicity_kills() -> None:
+    """代表管理probeの2 claimへ表権限8件と原子性1件を対応させる。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    ddl = assets["ddl_elements"]
+    mapping = assets["claim_mutant_map"]
+    expected_claim_ids = set(ddl["representative_management_probe"]["claim_ids"])
+    claim_by_id = {claim["claim_id"]: claim for claim in mapping["claims"]}
+    prefix = checker.TABLE_PRIVILEGE_MUTANT_PREFIX
+    privilege_mutants = [
+        mutant
+        for mutant in mapping["mutants"]
+        if mutant["mutant_id"].startswith(prefix)
+    ]
+    atomic_mutant = next(
+        mutant
+        for mutant in mapping["mutants"]
+        if mutant["mutant_id"]
+        == "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+    )
+
+    assert expected_claim_ids == checker.MANAGEMENT_PROBE_CLAIM_IDS
+    assert all(
+        claim_by_id[claim_id]["execution_class"] == "probe_executable"
+        and claim_by_id[claim_id]["runtime_kill_required"] is True
+        for claim_id in expected_claim_ids
+    )
+    assert len(privilege_mutants) == len(ddl["enums"]["table_privilege_ids"])
+    assert all(
+        set(mutant["claim_ids"]) == expected_claim_ids
+        and mutant["runtime_kill_required"] is True
+        for mutant in privilege_mutants
+    )
+    assert atomic_mutant["claim_ids"] == [
+        "ORACLE:MANAGEMENT-PROBE:ATOMIC-AUTHORIZATION-SIDE-EFFECT"
+    ]
+    assert atomic_mutant["runtime_kill_required"] is True
+
+
+def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None:
+    """runtime kill不要の全mutantを資産から抽出し、閉じた根拠で被覆する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mutants = assets["claim_mutant_map"]["mutants"]
+    waived = [mutant for mutant in mutants if not mutant["runtime_kill_required"]]
+    reasons = Counter(mutant["runtime_kill_waiver_reason"] for mutant in waived)
+
+    assert reasons == Counter(
+        {
+            "contract_only_handoff": 17,
+            "covered_by_two_factor_cut_set": 3,
+            "positive_case_kill_only": 2,
+            "application_expected_to_fail": 1,
+        }
+    )
+    assert {
+        mutant["mutant_id"]
+        for mutant in waived
+        if mutant["runtime_kill_waiver_reason"] == "positive_case_kill_only"
+    } == checker.POSITIVE_KILL_MUTANT_IDS
+
+
+def test_all_positive_cases_and_positive_kill_flags_reject_removal() -> None:
+    """正例6件と正例kill全件を資産から列挙し、削除・解除を全数 red にする。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = assets["claim_mutant_map"]
+    positive_cases = mapping["positive_cases"]["cases"]
+    positive_mutant_indexes = [
+        index
+        for index, mutant in enumerate(mapping["mutants"])
+        if mutant["positive_kill_required"]
+    ]
+    escaped: list[str] = []
+
+    for index, positive_case in enumerate(positive_cases):
+        mutated = copy.deepcopy(mapping)
+        mutated["positive_cases"]["cases"].pop(index)
+        try:
+            _validate_mutant_map(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(positive_case["cell_id"])
+    for index in positive_mutant_indexes:
+        mutated = copy.deepcopy(mapping)
+        mutant = mutated["mutants"][index]
+        mutant["positive_kill_required"] = False
+        mutant["expected_positive_outcome"] = "pass"
+        mutant["runtime_kill_waiver_reason"] = "covered_by_two_factor_cut_set"
+        try:
+            _validate_mutant_map(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(mutant["mutant_id"])
+
+    assert len(positive_cases) == 6
+    assert len(positive_mutant_indexes) > 0
+    assert escaped == []

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_rejected_configurations",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "required_initial_rejection_ids": [
+    "REJ-001",
+    "REJ-002",
+    "REJ-003"
+  ],
+  "rejections": [
+    {
+      "rejection_id": "REJ-001",
+      "configuration_id": "SECURITY_DEFINER_WITHOUT_BYPASSRLS_OWNER",
+      "verification_environment": "postgresql_17_11_real_instance",
+      "observed_result": "owner_remained_subject_to_rls",
+      "rejection_reason_id": "SECURITY_DEFINER_DOES_NOT_IMPLY_RLS_BYPASS",
+      "provenance_ids": [
+        "RESEARCH-1-2-BYPASSRLS"
+      ]
+    },
+    {
+      "rejection_id": "REJ-002",
+      "configuration_id": "FUNCTION_WITH_PUBLIC_EXECUTE_DEFAULT",
+      "verification_environment": "postgresql_17_11_real_instance",
+      "observed_result": "unaffiliated_role_read_all_tenant_rows",
+      "rejection_reason_id": "NULL_PROACL_STILL_ALLOWS_PUBLIC_EXECUTE",
+      "provenance_ids": [
+        "RESEARCH-1-3-PUBLIC-EXECUTE"
+      ]
+    },
+    {
+      "rejection_id": "REJ-003",
+      "configuration_id": "SEARCH_PATH_WITHOUT_EXPLICIT_TRAILING_PG_TEMP",
+      "verification_environment": "postgresql_17_11_real_instance",
+      "observed_result": "temporary_relation_hijack_returned_attacker_rows",
+      "rejection_reason_id": "IMPLICIT_PG_TEMP_PRECEDES_LISTED_SCHEMAS",
+      "candidate_statement_status": "incorrect",
+      "candidate_statement": "remove_temporary_schema_from_search_path",
+      "corrected_expectation": "place_pg_temp_explicitly_last",
+      "provenance_ids": [
+        "RESEARCH-1-4A-PG-TEMP"
+      ]
+    }
+  ],
+  "supabase_verification": {
+    "rejected_configuration_count": 0,
+    "interpretation": "supabase_had_zero_rejections_not_global_zero",
+    "additional_rejection_ids": [],
+    "provenance_ids": [
+      "PLAN-SUPABASE-ZERO"
+    ]
+  },
+  "provenance": [
+    {
+      "provenance_id": "RESEARCH-1-2-BYPASSRLS",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "`SECURITY DEFINER` は RLS をバイパスしない。バイパスするのは所有ロールの `BYPASSRLS` 属性である。"
+    },
+    {
+      "provenance_id": "RESEARCH-1-3-PUBLIC-EXECUTE",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "無所属ロールから越境関数を実行"
+    },
+    {
+      "provenance_id": "RESEARCH-1-4A-PG-TEMP",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "正しくは「`pg_temp` を最後に明示する」。"
+    },
+    {
+      "provenance_id": "PLAN-SUPABASE-ZERO",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "不成立項目は 0 件"
+    }
+  ]
+}

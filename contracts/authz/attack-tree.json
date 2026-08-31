@@ -1,0 +1,2460 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_attack_tree",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "attack_goals": [
+    {
+      "attack_goal_id": "ATTACK:OUTSIDER-CALLS-SHARED-FUNCTION",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:APP-REACHES-BYPASS-OWNER",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:TEMPORARY-RELATION-HIJACK",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:OWNER-BYPASSES-RLS",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:APP-CALLS-MANAGEMENT-FUNCTION",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:CROSS-TENANT-WRITE",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:CROSS-TENANT-READ",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:NAMED-SCHEMA-HIJACK",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:RLS-EXEMPT-TRUNCATE",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:RLS-EXEMPT-REFERENCES",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:PROVISIONER-RETAINS-SET-PATH",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:MANAGEMENT-AUTHORIZATION-SIDE-EFFECT-SPLIT",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    }
+  ],
+  "minimal_cut_sets": [
+    {
+      "cut_set_id": "CUT-001-PUBLIC-EXECUTE",
+      "attack_goal_id": "ATTACK:OUTSIDER-CALLS-SHARED-FUNCTION",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-002-ROLE-REACHABILITY",
+      "attack_goal_id": "ATTACK:APP-REACHES-BYPASS-OWNER",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-003-PG-TEMP-HIJACK",
+      "attack_goal_id": "ATTACK:TEMPORARY-RELATION-HIJACK",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": false
+    },
+    {
+      "cut_set_id": "CUT-004-OWNER-RLS-BYPASS",
+      "attack_goal_id": "ATTACK:OWNER-BYPASSES-RLS",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": false
+    },
+    {
+      "cut_set_id": "CUT-005-MANAGEMENT-EXECUTE",
+      "attack_goal_id": "ATTACK:APP-CALLS-MANAGEMENT-FUNCTION",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-006-CROSS-WRITE",
+      "attack_goal_id": "ATTACK:CROSS-TENANT-WRITE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-007-PERMISSIVE-OR",
+      "attack_goal_id": "ATTACK:CROSS-TENANT-READ",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-008-WRITABLE-SCHEMA-OWNER",
+      "attack_goal_id": "ATTACK:NAMED-SCHEMA-HIJACK",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": false
+    },
+    {
+      "cut_set_id": "CUT-009-TRUNCATE",
+      "attack_goal_id": "ATTACK:RLS-EXEMPT-TRUNCATE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-010-REFERENCES",
+      "attack_goal_id": "ATTACK:RLS-EXEMPT-REFERENCES",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-011-PROVISIONING-LEFT-OPEN",
+      "attack_goal_id": "ATTACK:PROVISIONER-RETAINS-SET-PATH",
+      "mutant_ids": [
+        "MUT:R8:OMIT-PROVISION-STEP-5-REVOKE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-SELECT",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-INSERT",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-UPDATE",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-DELETE",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-TRUNCATE",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-REFERENCES",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-TRIGGER",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+      "attack_goal_id": "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+      "attack_goal_id": "ATTACK:MANAGEMENT-AUTHORIZATION-SIDE-EFFECT-SPLIT",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    }
+  ],
+  "two_factor_scope": {
+    "population_rule": "all_unordered_pairs_of_configuration_axis_mutants",
+    "factor_count": 2
+  },
+  "two_factor_interactions": [
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-004-OWNER-RLS-BYPASS"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-003-PG-TEMP-HIJACK"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-008-WRITABLE-SCHEMA-OWNER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-SELECT",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [],
+      "expected_attack_established": false
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_WITH_CHECK+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_REMOVE_WITH_CHECK+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    }
+  ],
+  "provenance": [
+    {
+      "provenance_id": "PLAN-ATTACK-TREE",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "構成を攻撃木(fault tree)にし、攻撃成立に必要な最小 cut set を列挙する"
+    },
+    {
+      "provenance_id": "PLAN-TWO-FACTOR",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "単独変異に加え、全 2 因子の相互作用と既知の cut set を実行する"
+    }
+  ]
+}
