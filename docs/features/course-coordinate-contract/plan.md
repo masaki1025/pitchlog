@@ -1,6 +1,6 @@
 ---
 feature: course-coordinate-contract
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-01・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -115,7 +115,7 @@ Notion タスク: [TSK-233](https://app.notion.com/p/3bf93b75e68781a6b1c2c1e0921
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** — **例外表の 2 セル更新は本タスクの射程から外し、TSK-270 の母集合修正へ合流させた**(人間の判断 2026-09-01・条件「ユーザーのふるまいに変化がないこと」を実測で確認)。**要件書を 1 文字変えると母集合と派生 6 資産 + ハーネステストの更新が連鎖する**ため(4 節「射程から外した理由」) | 後続タスク |
-| **`docs/development/harness-evaluation.md`** | **`H-61` の現況説明の更新**(状態 `対応済み(要件側で決着 — 要件書 v2.1)` は**維持**し、残余を「TSK-233 で解消」と記録)+ 変更履歴に 1 行。**`H-*` の新規採番はしない**。**版は上げない**(7.6-3 前段) | PR レビュー |
+| **`docs/development/harness-evaluation.md`** | ① **`H-61` の現況更新**(状態語 `対応済み(要件側で決着 — 要件書 v2.1)` は**維持**し、残余を「TSK-233 で解消」と記録)② **`H-85` を新設** — **oracle の入力凍結が、正本の 1 文字の変更を 8 資産 + ハーネステストの更新へ拡大する**(`/pr` のクローズ処理で判断)③ **`H-22` へ実測**(計画レビュー 4 周・3 周目でレビュー自身が閉じた輪を判定して打ち切りを提案)④ **`H-42` へ実測**(**本追記で偽の見出しを作って踏んだ 3 例目**)⑤ **`## 候補` へ 1 件**(Notion MCP の起票がタスク DB の行にならない)+ 変更履歴に 1 行。**版は上げない**(7.6-3 前段) | PR レビュー |
 | **`docs/README.md`**(索引) | 要件書行・台帳行の最終更新日を現行化 | PR レビュー |
 | **`docs/adr/ADR-003-domain-calc-method.md`** | **後続表の「例外表の卒業」欄を現行化**(計画レビュー 2 周目 P1-4)。同欄は現在「`COURSE_COORDINATE_SIZE` の**検証テスト整備**(別タスクで起票済み)→ 逐語性の受入条件を解く時点で例外を失効させる」と書いており、**検証テスト整備(= 有効化)を卒業と混同している**。**「有効化 = TSK-233 / 卒業 = 新 ID」へ書き分ける**。変更履歴に 1 行。**判断内容を変えない追随更新なので版は上げない**(7.6-3 前段) | PR レビュー |
 | `docs/design/**` / `docs/ops/**` / `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
