@@ -7,6 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3b793b75e68781b49d01f2ff7ff26ff9
 branch: feature/harness-baseline-merge
 created: 2026-08-10
+反映周コミット: 規約制定前   # 設計書 v1.5 より前に作られた計画書(突合の対象外)
 ---
 
 # 実装計画書: ハーネス確定ベースラインを main へ反映(設計書 6.4 例外追記)

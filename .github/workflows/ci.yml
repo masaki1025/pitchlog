@@ -49,6 +49,8 @@ jobs:
         with:
           args: --offline --root-dir "$(pwd)" --no-progress --exclude-path docs/legacy './**/*.md'
       - run: uv run python scripts/check_docs_status.py
+      - run: uv run python scripts/check_design_propagation.py
+      - run: uv run python scripts/check_doc_coverage.py
 
   core-guard:
     runs-on: ubuntu-latest
@@ -78,4 +80,141 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv sync --locked --dev
+      - run: uv run ruff check .
+      - run: uv run ty check
       - run: uv run pytest tests/
+
+  # NFR-021 受入証跡の append-only 統合時検査(設計書 10.1「試行の排他と採番」)。
+  # paths filter は付けない: フィルタ自体が誤ると検査が黙って通り fail-closed に反するため。
+  # 新規レコードが 0 件なら exit 0 になるので、常時実行でも実害はない(標準ライブラリのみで軽い)。
+  # 三点差分の merge-base を解決するため fetch-depth: 0 が必須(既定の 1 では base に到達できない)。
+  # develop を base とする pull_request 以外(main 宛 PR・push・workflow_dispatch)は
+  # スクリプト側が理由を stdout へ出して exit 0 とする。
+  nfr021-append-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv run python scripts/check_nfr021_append_only.py
+
+  # 既存ジョブの workflow 発火条件を変えず、frontend ジョブだけを対象パスへ絞る。
+  # contracts/ の契約ファイル変更時に frontend の型検査・テストの回帰を検出するためだけに、対象パスへ含める。
+  frontend-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'mise.toml'
+              - 'frontend/pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+              - 'contracts/**'
+
+  frontend:
+    needs: frontend-changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      needs.frontend-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Node 版は mise.toml を正本として mise に解決させ、別の版指定を持たない。
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          version: "2026.8.6"
+          install: true
+          cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec eslint .
+      - run: pnpm exec prettier --check .
+      - run: pnpm exec vue-tsc --noEmit
+      - run: pnpm test -- --run
+
+  backend-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'contracts/**'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    needs: backend-changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      needs.backend-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: pitchlog_ci_admin
+          POSTGRES_PASSWORD: pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: pitchlog_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U pitchlog_ci_admin -d pitchlog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+    env:
+      PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+          cache-dependency-glob: |
+            backend/pyproject.toml
+            backend/uv.lock
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run ty check
+      - run: uv run pytest --cov

@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", Meiryo, sans-serif;
+  @apply bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  overscroll-behavior: none;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 赤枠ハイライト（必須不足） */
+.missing-highlight {
+  @apply ring-2 ring-red-500 rounded-lg;
+  animation: missing-pulse 1s ease-in-out infinite;
+}
+
+@keyframes missing-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(239 68 68 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(239 68 68 / 0);
+  }
+}
+
+@page {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  html,
+  body,
+  #app {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: #0f172a !important;
+  }
+
+  .scorecard-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    background: white !important;
+    color: #0f172a !important;
+    font-size: 9pt !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .scorecard-summary,
+  .scorecard-section {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  .scorecard-section {
+    margin-top: 4mm !important;
+    border-color: #cbd5e1 !important;
+    background: white !important;
+  }
+
+  .scorecard-scroll {
+    max-width: none !important;
+    overflow: visible !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .scorecard-scroll table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 7pt !important;
+  }
+
+  .scorecard-scroll th,
+  .scorecard-scroll td {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 1.2mm 0.8mm !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    color: #0f172a;
+    background: white !important;
+    border: 0.2mm solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  .scorecard-scroll th {
+    background: #e2e8f0 !important;
+    font-weight: 800 !important;
+  }
+
+  .analysis-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    background: white !important;
+    color: #0f172a !important;
+    color-scheme: light;
+    font-size: 9pt !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .analysis-page section {
+    break-inside: avoid;
+    border-color: #cbd5e1 !important;
+    background-color: white !important;
+    box-shadow: none !important;
+  }
+
+  .analysis-page table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  .analysis-page thead {
+    display: table-header-group;
+  }
+
+  .analysis-page tr {
+    break-inside: avoid;
+  }
+
+  .analysis-page th,
+  .analysis-page td {
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+}

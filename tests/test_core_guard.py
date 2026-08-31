@@ -1,15 +1,20 @@
-"""core_guard.py の単体・統合テスト。"""
+"""core_guard.py の単体・統合テスト。
+
+検査資産は黙って書き換えられると検査自体が意味を失い、guard_paths の漏れは CI が
+green のまま起きる。そのため架空設定の単体テストに加え、実設定を直接読む回帰テストを持つ。
+"""
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
+CORE_AREAS_PATH = REPO / ".claude" / "core-areas.json"
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 GUARD_PATHS = [
     ".claude/core-areas.json",
@@ -18,6 +23,33 @@ GUARD_PATHS = [
     ".github/pull_request_template.md",
     ".claude/skills/pr/SKILL.md",
 ]
+CORE_AREA_IDS = ("sync-protocol", "game-state", "recording-rights", "tenant-isolation")
+CORE_DOCUMENT_PATHS = (
+    "docs/design/sync-protocol.md",
+    "docs/requirements/requirements-pitchlog-2026-07-22.md",
+)
+EXISTING_REAL_GUARD_PATHS = (
+    ".claude/core-areas.json",
+    ".github/workflows/ci.yml",
+    "scripts/core_guard.py",
+    ".github/pull_request_template.md",
+    ".claude/skills/pr/SKILL.md",
+    ".claude/skills/release/SKILL.md",
+    ".claude/skills/task-done/SKILL.md",
+)
+NEW_GUARD_PATHS = (
+    "scripts/design_relations/defects.json",
+    "scripts/design_relations/sync-protocol.json",
+    "scripts/design_relations/req-universe.json",
+    "scripts/design_relations/fixture-sha256.txt",
+    "scripts/check_design_propagation.py",
+    "scripts/check_doc_coverage.py",
+    "tests/fixtures/sync-protocol-source.txt",
+    "tests/test_check_design_propagation.py",
+    "tests/test_check_doc_coverage.py",
+    "tests/test_ci_wiring.py",
+    "tests/test_core_guard.py",
+)
 
 
 def write_text(root: Path, relative_path: str, content: str) -> None:
@@ -107,19 +139,86 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
     return root
 
 
-def commit_change(root: Path, relative_path: str) -> tuple[str, str]:
+def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
+    """実リポジトリの core-areas.json を持つ一時 git リポジトリを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+
+    Returns:
+        実設定を初期コミットに含む一時リポジトリルート。
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    run_git(root, "init", "-q", "-b", "feature/test")
+    write_text(
+        root,
+        ".claude/core-areas.json",
+        CORE_AREAS_PATH.read_text(encoding="utf-8"),
+    )
+    write_text(root, "README.md", "base\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "base",
+    )
+    return root
+
+
+def commit_change(
+    root: Path,
+    relative_path: str,
+    content: str = "changed\n",
+) -> tuple[str, str]:
     """ファイル変更をコミットし、比較用の base/head SHA を返す。
 
     Args:
         root: 一時リポジトリのルート。
         relative_path: 追加・更新するファイルの相対パス。
+        content: 変更後のファイル内容。
 
     Returns:
         変更前の base SHA と変更後の head SHA。
     """
     base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
-    write_text(root, relative_path, "changed\n")
+    write_text(root, relative_path, content)
     run_git(root, "add", relative_path)
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "change",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    return base_sha, head_sha
+
+
+def commit_changes(root: Path, relative_paths: tuple[str, ...]) -> tuple[str, str]:
+    """複数ファイルの変更を1コミットにまとめ、比較用SHAを返す。
+
+    Args:
+        root: 一時リポジトリのルート。
+        relative_paths: 追加・更新するファイルの相対パス。
+
+    Returns:
+        変更前の base SHA と変更後の head SHA。
+    """
+    base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    for relative_path in relative_paths:
+        write_text(root, relative_path, "changed\n")
+    run_git(root, "add", *relative_paths)
     run_git(
         root,
         "-c",
@@ -195,6 +294,68 @@ def run_guard(
         encoding="utf-8",
         timeout=30,
     )
+
+
+def load_actual_core_areas() -> dict[str, Any]:
+    """書き漏らしを CI 自身で検出するため、実際のコア領域設定を読む。
+
+    Returns:
+        JSON オブジェクトとして読み込んだ実設定。
+    """
+    value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+@pytest.mark.parametrize("area_id", CORE_AREA_IDS)
+def test_actual_core_area_document_changes_trigger_guard(tmp_path, area_id):
+    configuration = load_actual_core_areas()
+    areas = configuration["areas"]
+    assert isinstance(areas, list)
+    area = next(item for item in areas if item["id"] == area_id)
+    assert area["paths"] == list(CORE_DOCUMENT_PATHS)
+
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_changes(root, CORE_DOCUMENT_PATHS)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert all(path in result.stderr for path in CORE_DOCUMENT_PATHS)
+
+
+def test_actual_config_does_not_register_documents_for_data_migration():
+    configuration = load_actual_core_areas()
+    areas = configuration["areas"]
+    assert isinstance(areas, list)
+    area = next(item for item in areas if item["id"] == "data-migration")
+
+    assert all(path not in area["paths"] for path in CORE_DOCUMENT_PATHS)
+
+
+def test_actual_guard_paths_are_exact_expected_set():
+    configuration = load_actual_core_areas()
+
+    assert configuration["guard_paths"] == list(EXISTING_REAL_GUARD_PATHS + NEW_GUARD_PATHS)
+
+
+@pytest.mark.parametrize("guard_path", NEW_GUARD_PATHS, ids=NEW_GUARD_PATHS)
+def test_each_actual_guard_path_change_triggers_guard(tmp_path, guard_path):
+    configuration = load_actual_core_areas()
+    assert guard_path in configuration["guard_paths"]
+
+    root = make_repo_with_actual_core_areas(tmp_path)
+    content = "changed\n"
+    if guard_path == ".claude/core-areas.json":
+        content = (root / guard_path).read_text(encoding="utf-8") + "\n"
+    base_sha, head_sha = commit_change(root, guard_path, content)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert guard_path in result.stderr
 
 
 def test_skips_non_pull_request_event_without_event_path(tmp_path):
@@ -332,6 +493,7 @@ def _load_required_check_text_from_script() -> str:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("core_guard_module", SCRIPT)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # dataclass がモジュールを解決できるよう登録してから実行する
     try:
@@ -342,7 +504,10 @@ def _load_required_check_text_from_script() -> str:
 
 
 def test_check_text_is_consistent_across_script_template_and_skill():
-    """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する(計画ステップ 5)。"""
+    (
+        """チェック文言が core_guard.py・PR テンプレ・/pr スキルで一致することを検証する("""
+        """計画ステップ 5)。"""
+    )
     canonical = _load_required_check_text_from_script()
     assert canonical == REQUIRED_CHECK_TEXT  # テスト側リテラルの腐り検知
 

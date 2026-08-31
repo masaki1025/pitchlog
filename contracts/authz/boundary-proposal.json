@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_boundary_proposal",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "proposal_status": "pending_tsk_235_confirmation",
+  "boundaries": [
+    {
+      "boundary_id": "BOUNDARY:SHARED-AUTHORIZED-ROWS",
+      "responsibility": "return_typed_authorized_business_rows",
+      "aggregation_location": "generated_sql_expression",
+      "aggregation_owner_task_id": "TSK-235",
+      "returns_tenant_ids_only": false,
+      "product_entry_contract": "single_query_combines_authorized_rows_and_generated_aggregation"
+    },
+    {
+      "boundary_id": "BOUNDARY:CONTROL-READS",
+      "responsibility": "return_paged_authorized_control_rows",
+      "aggregation_location": "none",
+      "aggregation_owner_task_id": "TSK-235",
+      "returns_tenant_ids_only": false,
+      "product_entry_contract": "paged_rows_only"
+    },
+    {
+      "boundary_id": "BOUNDARY:REPRESENTATIVE-MANAGEMENT",
+      "responsibility": "authorize_and_apply_representative_grant_change_atomically",
+      "aggregation_location": "none",
+      "aggregation_owner_task_id": "TSK-250",
+      "returns_tenant_ids_only": false,
+      "product_entry_contract": "probe_only_not_product_side_effect",
+      "claim_ids": [
+        "ORACLE:MANAGEMENT-PROBE:NO-BASE-TABLE-DML",
+        "ORACLE:MANAGEMENT-PROBE:ATOMIC-AUTHORIZATION-SIDE-EFFECT"
+      ]
+    }
+  ],
+  "deferred_equivalence_contract": {
+    "owner_task_id": "TSK-235",
+    "status": "deferred",
+    "comparison": "product_entry_equals_direct_authorized_rows_plus_generated_aggregation"
+  },
+  "trust_boundary": {
+    "app_tenant_context": "trusted_input_set_only_by_authenticated_api",
+    "db_connection_to_attacker": false,
+    "verification_owner_task_id": "TSK-217"
+  },
+  "pending_human_reviews": [
+    {
+      "review_id": "PENDING-MANAGEMENT-COMMAND-COUNT",
+      "status": "pending_human_decision",
+      "frozen_value": 8,
+      "alternative_value": 7,
+      "affected_ids_if_changed": [
+        "issue_invitation",
+        "revoke_invitation",
+        "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "FR-041/list_item-006"
+      ],
+      "oracle_change_action": "return_to_step_5_and_re_review"
+    },
+    {
+      "review_id": "PENDING-ALL-LOGICAL-SCOPE",
+      "status": "pending_human_review",
+      "frozen_value": 29,
+      "alternative_value": null,
+      "affected_claim_ids": [
+        "APPENDIX-C/table_row-004",
+        "APPENDIX-C/table_row-006",
+        "APPENDIX-C/table_row-009",
+        "APPENDIX-C/table_row-010",
+        "FR-012/list_item-018",
+        "FR-019/list_item-009",
+        "FR-033/list_item-002",
+        "FR-034/heading-004/list_item-001",
+        "FR-034/heading-004/table_row-006",
+        "FR-034/heading-004/table_row-007",
+        "FR-034/heading-004/table_row-008",
+        "FR-035/list_item-005",
+        "FR-035/list_item-006",
+        "FR-035/list_item-010",
+        "FR-041/list_item-006",
+        "FR-041/list_item-007",
+        "FR-041/list_item-014",
+        "FR-041/list_item-015",
+        "FR-041/list_item-021",
+        "NFR-009/list_item-004",
+        "NFR-010/list_item-004",
+        "NFR-011/list_item-002",
+        "NFR-011/list_item-003",
+        "NFR-012/list_item-003",
+        "NFR-019/paragraph-001",
+        "SECTION-2.2/list_item-001",
+        "SECTION-3/heading-001/list_item-003",
+        "SECTION-8/list_item-002",
+        "SECTION-8/list_item-006"
+      ],
+      "oracle_change_action": "return_to_step_5_and_re_review"
+    }
+  ],
+  "provenance": [
+    {
+      "provenance_id": "PLAN-AUTHORIZED-BUSINESS-ROWS",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "越境関数は「許可された業務行」を返す"
+    },
+    {
+      "provenance_id": "PLAN-NO-HANDWRITTEN-AGGREGATION",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "集計は関数に書かない"
+    },
+    {
+      "provenance_id": "PLAN-BOUNDARY-PROPOSAL-ONLY",
+      "path": "docs/features/pg-authz-verification/plan.md",
+      "extracted_text": "本タスクは「境界案」を機械可読資産として記録するに留める"
+    }
+  ]
+}

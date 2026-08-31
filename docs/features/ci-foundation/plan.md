@@ -7,6 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3b793b75e68781babd88d6afa1de8ab1
 branch: feature/ci-foundation
 created: 2026-08-10
+反映周コミット: 規約制定前   # 設計書 v1.5 より前に作られた計画書(突合の対象外)
 ---
 
 # 実装計画書: Phase 3 — CI 先行分(secrets・docs-lint・core-guard・harness)

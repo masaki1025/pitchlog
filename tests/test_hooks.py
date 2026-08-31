@@ -3,6 +3,8 @@
 各フックをサブプロセスとして起動し、stdin の JSON 入力に対する exit code を検証する。
 exit 0 = 許可 / exit 2 = ブロック。
 """
+import importlib.util
+import io
 import json
 import re
 import subprocess
@@ -32,6 +34,18 @@ def filepath(path: str, cwd: str = REPO) -> dict:
     return {"cwd": cwd, "tool_input": {"file_path": path}}
 
 
+def load_git_guard(monkeypatch: pytest.MonkeyPatch):
+    """テスト用に git_guard.py をモジュールとして読み込む。"""
+    script = HOOKS / "git_guard.py"
+    monkeypatch.syspath_prepend(str(HOOKS))
+    spec = importlib.util.spec_from_file_location("git_guard_under_test", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
+    spec.loader.exec_module(module)
+    return module
+
+
 # ---- git_guard -------------------------------------------------------------
 
 @pytest.mark.parametrize("command", [
@@ -46,11 +60,130 @@ def test_git_guard_blocks_protected_push(command):
     assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
-def test_git_guard_allows_feature_push_and_commit(tmp_path):
-    # テスト実行元の HEAD に依存せず、feature ブランチの一時リポジトリで判定する
+@pytest.mark.parametrize("command", [
+    "git push origin --delete feature/x",
+    "git push origin HEAD:feature/x",
+    "git push origin feature/x:feature/x",
+    "git push -u origin fix/x",
+    "git push origin feature/a",
+    "git push --set-upstream origin feature/x",
+    "git push origin feature/a feature/b",
+])
+def test_git_guard_allows_explicit_nonprotected_push_on_protected_branch(tmp_path, command):
+    # H-2: カレントが develop でも、宛先を非保護と証明できる push は許可する。
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "git log --grep merge",
+    "git help push",
+])
+def test_git_guard_allows_git_verbs_in_argument_position(tmp_path, command):
+    # H-11: merge / push は実サブコマンドではなく引数であり、develop 上でも遮断しない。
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    'echo "git push; ls"',
+    "git log --oneline -5",
+])
+def test_git_guard_allows_quoted_text_and_read_only_command(command):
+    assert run_hook("git_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize(("command", "message"), [
+    ("git commit -m x", "保護ブランチへの直接操作"),
+    ("git push origin HEAD:develop", "保護ブランチ(main/develop)宛て"),
+    ("git push --force origin feature/x", "force push"),
+    ("git push", "宛先を静的に解決できません"),
+    ("git push origin", "宛先を静的に解決できません"),
+    ("git push origin HEAD", "宛先を静的に解決できません"),
+    ("git push --all origin", "宛先を静的に解決できません"),
+    ("git push --mirror origin", "宛先を静的に解決できません"),
+    ("git -c foo=bar commit -m x", "保護ブランチへの直接操作"),
+])
+def test_git_guard_blocks_step3_protected_or_unresolved_operation(tmp_path, command, message):
+    # 計画書 7 節の負例 9 件。push の宛先未解決はカレントに関係なく遮断する。
+    repo = make_repo(tmp_path, "develop")
+    result = run_hook("git_guard.py", bash(command, cwd=str(repo)))
+    assert result.returncode == 2
+    assert message in result.stderr.decode("utf-8")
+
+
+def test_git_guard_allows_feature_branch_commit(tmp_path):
     repo = make_repo(tmp_path, "feature/x")
-    assert run_hook("git_guard.py", bash("git push -u origin feature/x", cwd=str(repo))).returncode == 0
     assert run_hook("git_guard.py", bash("git commit -m test", cwd=str(repo))).returncode == 0
+
+
+def test_git_guard_blocks_branch_resolution_failure_after_successful_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """worktree プローブ成功後のブランチ解決失敗は理由付きで遮断する。"""
+    repo = make_repo(tmp_path, "feature/x")
+    module = load_git_guard(monkeypatch)
+
+    def fail_branch_resolution(args, **kwargs):
+        if args == ["git", "rev-parse", "--is-inside-work-tree"]:
+            return subprocess.CompletedProcess(args, 0, stdout="true\n", stderr="")
+        assert args == ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="解決失敗")
+
+    monkeypatch.setattr(module.subprocess, "run", fail_branch_resolution)
+
+    result = module.check_git_invocation(
+        module.GitInvocation("commit", str(repo), []), cd_seen=False,
+    )
+
+    assert result == 2
+    assert "現在のブランチを解決できませんでした" in capsys.readouterr().err
+
+
+def test_git_guard_allows_existing_non_repository_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Git 管理外を積極確認できる既存 cwd では commit 判定を許可する。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    # 親の共有 tmp が持つ `.git` を拾わないよう、Git 自身の探索境界を fixture に固定する。
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(outside)))
+
+    assert result.returncode == 0
+
+
+def test_git_guard_blocks_broken_git_metadata(tmp_path: Path):
+    """壊れた `.git` は非リポジトリと推定せず、安全側で遮断する。"""
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / ".git").mkdir()
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(broken)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_nonexistent_cwd(tmp_path: Path):
+    """存在しない cwd はブランチ判定不能として安全側で遮断する。"""
+    missing = tmp_path / "missing"
+
+    result = run_hook("git_guard.py", bash("git commit -m x", cwd=str(missing)))
+
+    assert result.returncode == 2
+    assert "現在のブランチを解決できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_push_when_any_destination_is_protected(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    result = run_hook("git_guard.py", bash("git push origin feature/a develop", cwd=str(repo)))
+    assert result.returncode == 2
+    assert "保護ブランチ(main/develop)宛て" in result.stderr.decode("utf-8")
 
 
 def test_settings_json_hook_wiring():
@@ -65,7 +198,8 @@ def test_settings_json_hook_wiring():
                 assert scripts, f"{event_name} のフックコマンドにスクリプト参照がない: {command}"
                 for script in scripts:
                     assert (HOOKS / script).is_file(), (
-                        f"{event_name} のフックコマンドが存在しないスクリプトを参照している: {script}"
+                        f"{event_name} のフックコマンドが存在しないスクリプトを参照している: "
+                        f"{script}"
                     )
 
 
@@ -77,6 +211,82 @@ def test_git_guard_blocks_with_japanese_in_command():
     # 日本語混在でも stdin の UTF-8 読みが機能し fail-open しないこと(Windows エンコーディング回帰)
     cmd = 'git commit -m "修正: 状況計算" && git push origin HEAD:develop  # 日本語コメント'
     assert run_hook("git_guard.py", bash(cmd)).returncode == 2
+
+
+def test_git_guard_parses_global_option_before_merge(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash("git --no-pager merge x", cwd=str(repo))).returncode == 2
+
+
+@pytest.mark.parametrize("global_option", [
+    "-c foo=bar",
+    "-C .",
+    "--git-dir /tmp",
+    "--work-tree /tmp",
+    "--namespace team-a",
+    "--exec-path /tmp",
+    "--git-dir=/tmp",
+    "--work-tree=/tmp",
+    "--namespace=team-a",
+    "--exec-path=/tmp",
+])
+def test_git_guard_skips_value_taking_global_options(tmp_path, global_option):
+    # 値を取るグローバルオプションの値をサブコマンドと誤認しない。
+    repo = make_repo(tmp_path, "develop")
+    command = f"git {global_option} log --grep merge"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("global_option", [
+    "--no-pager",
+    "--paginate",
+    "--bare",
+    "--literal-pathspecs",
+])
+def test_git_guard_skips_flag_global_options(tmp_path, global_option):
+    repo = make_repo(tmp_path, "develop")
+    command = f"git {global_option} log --grep merge"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "git commit -m x",
+    "git merge x",
+    "git rebase x",
+])
+def test_git_guard_keeps_current_branch_check_for_mutating_verbs(tmp_path, command):
+    repo = make_repo(tmp_path, "develop")
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 2
+
+
+def test_git_guard_uses_last_dash_c_and_relative_path(tmp_path):
+    # 2 個目の相対 -C は 1 個目の cwd を基準に解決され、develop を見つけなければならない。
+    repo = make_repo(tmp_path, "develop")
+    command = f'git -C "{tmp_path}" -C "{repo.name}" commit -m x'
+    assert run_hook("git_guard.py", bash(command, cwd=REPO)).returncode == 2
+
+
+def test_git_guard_checks_shell_c_body_on_protected_branch(tmp_path):
+    repo = make_repo(tmp_path, "develop")
+    command = "bash -lc 'echo ok; git commit -m x'"
+    assert run_hook("git_guard.py", bash(command, cwd=str(repo))).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "git --unknown-global-option commit -m x",
+    "git -c invalid commit -m x",
+    "git -c alias.p=push p origin HEAD:develop",
+])
+def test_git_guard_blocks_unparseable_git_invocation(command):
+    # 未知のグローバルオプションと alias 経由は解析不能として fail-closed にする。
+    result = run_hook("git_guard.py", bash(command))
+    assert result.returncode == 2
+    assert "解析できませんでした" in result.stderr.decode("utf-8")
+
+
+def test_git_guard_blocks_unparseable_top_level_command():
+    command = 'git commit -m ' + chr(34) + "unclosed"
+    assert run_hook("git_guard.py", bash(command)).returncode == 2
 
 
 # ---- protect_paths ---------------------------------------------------------
@@ -110,7 +320,8 @@ def test_protect_paths_allows(path):
     "codex exec resume 0123abcd 'more'",
     "codex e 'quick'",
     'node "C:/plug/scripts/codex-companion.mjs" task "fix stuff"',
-    "python .claude/scripts/codex_run.py implement plan.md - --yolo",  # ラッパーでも危険フラグは遮断
+    # ラッパーでも危険フラグは遮断
+    "python .claude/scripts/codex_run.py implement plan.md - --yolo",
 ])
 def test_codex_guard_blocks(command):
     assert run_hook("codex_guard.py", bash(command)).returncode == 2
@@ -129,16 +340,43 @@ def test_codex_guard_allows(command):
 
 
 @pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" .claude/hooks/codex_guard.py',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_codex_guard_allows_quoted_separators(command):
+    assert run_hook("codex_guard.py", bash(command)).returncode == 0
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("codex exec 'x'", 2),
+    ("bash -lc 'echo ok; codex exec x'", 2),
+    ("python3 .claude/scripts/codex_run.py review normal -", 0),
+])
+def test_codex_guard_uses_segments_for_shell_c(command, expected):
+    assert run_hook("codex_guard.py", bash(command)).returncode == expected
+
+
+def test_codex_guard_blocks_unparseable_top_level_command():
+    command = 'codex exec ' + chr(34) + 'unclosed'
+    assert run_hook("codex_guard.py", bash(command)).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
     "/home/u/.nvm/versions/node/v22.18.0/bin/codex exec 'x'",  # 絶対パス起動(2周目 P0)
     "echo codex_run.py; codex exec 'x'",                        # 文字列混入によるチェーン迂回
     "npx @openai/codex exec 'x'",                               # npm 系ランチャー
     "pnpm dlx @openai/codex e 'x'",
     "bash -lc 'codex exec x'",                                  # 引用内の生起動(3周目 P0)
-    "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",            # 非ラッパー heredoc は本文も検査(3周目 P0)
+    # 非ラッパー heredoc は本文も検査(3周目 P0)
+    "uv run bash <<'EOF'\ncodex exec --yolo x\nEOF",
     '"codex" exec x',                                           # 引用符付き実行ファイル(4周目 P0)
     "'/usr/bin/codex' review foo",
     # 正規ラッパー heredoc の後ろに別 heredoc を連ねる迂回(4周目 P0)
-    "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\nbash <<'RUN'\ncodex exec x\nRUN",
+    (
+        "python .claude/scripts/codex_run.py review normal - <<'EOF'\nok\nEOF\n"
+        "bash <<'RUN'\ncodex exec x\nRUN"
+    ),
     # 5周目 P0: # コメントで heredoc を無効化して正規形に見せる迂回
     "python .claude/scripts/codex_run.py bogus - # <<'EOF'\ncodex exec x\nEOF",
     # 5周目 P0: グローバルオプション前置・対話起動・大文字
@@ -189,6 +427,7 @@ def _load_guard_common():
     spec = importlib.util.spec_from_file_location(
         "guard_common", Path(__file__).parent.parent / ".claude" / "hooks" / "guard_common.py"
     )
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -212,9 +451,54 @@ def test_effective_command_canonical_vs_bypass():
 
 def test_shell_tokens_strips_quotes_and_comments():
     gc = _load_guard_common()
-    assert gc.shell_tokens("git push origin 'HEAD:develop'") == ["git", "push", "origin", "HEAD:develop"]
+    assert gc.shell_tokens(
+        "git push origin 'HEAD:develop'"
+    ) == ["git", "push", "origin", "HEAD:develop"]
     assert gc.shell_tokens("cat x # codex exec") == ["cat", "x"]
     assert gc.shell_tokens("echo 'unbalanced") is None  # 解析不能 → None(安全側判定は各ガード)
+
+
+@pytest.mark.parametrize("command", [
+    'grep -nE "codex|claude" file',
+    "grep -n 'codex; ls' README.md",
+    'echo "codex & background" > /tmp/x',
+])
+def test_shell_segments_does_not_split_quoted_separators(command):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == [command]
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("a && b", ["a ", " b"]),
+    ("a | b", ["a ", " b"]),
+    ("a; b", ["a", " b"]),
+    ("a\nb", ["a", "b"]),
+    ("a & b", ["a ", " b"]),
+])
+def test_shell_segments_splits_unquoted_separators(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+@pytest.mark.parametrize(("command", "expected"), [
+    ("grep -n a#b file; codex exec x", ["grep -n a#b file", " codex exec x"]),
+    ("curl http://x#frag; codex exec x", ["curl http://x#frag", " codex exec x"]),
+    ("git log a#b; git commit -m x", ["git log a#b", " git commit -m x"]),
+])
+def test_shell_segments_splits_after_embedded_hash(command, expected):
+    gc = _load_guard_common()
+    assert gc.shell_segments(command) == expected
+
+
+def test_shell_segments_treats_word_initial_hash_as_comment():
+    gc = _load_guard_common()
+    command = "echo hi # note; codex exec x"
+    assert gc.shell_segments(command) == [command]
+
+
+def test_shell_segments_returns_none_for_unparseable_command():
+    gc = _load_guard_common()
+    assert gc.shell_segments("echo 'unbalanced") is None
 
 
 def test_guards_treat_wrapper_stdin_as_data():
@@ -316,11 +600,215 @@ def test_git_guard_allows_safe_branch_delete():
 
 # ---- session_context -------------------------------------------------------
 
+def make_feature_status_worktree(
+    tmp_path: Path,
+    frontmatter_prefix: str = "",
+) -> tuple[Path, Path]:
+    """feature_status.py を呼ぶための feature worktree を作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+        frontmatter_prefix: status 行より前に置く frontmatter の追加行。
+
+    Returns:
+        develop のメインリポジトリと feature/foo worktree の組。
+    """
+    root = make_repo(tmp_path, "develop")
+    subprocess.run(
+        ["git", "-C", str(root), "update-ref", "refs/remotes/origin/develop", "HEAD"],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+    worktree = tmp_path / "feature-foo"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "feature/foo",
+            str(worktree),
+        ],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        text=True,
+    )
+    plan = worktree / "docs" / "features" / "foo" / "plan.md"
+    plan.parent.mkdir(parents=True)
+    plan.write_text(
+        "\n".join(
+            [
+                "---",
+                "feature: foo",
+                frontmatter_prefix,
+                "status: active",
+                "承認: 済",
+                "branch: feature/foo",
+                "---",
+                "# 計画",
+                "### 実装ステップ(コミット単位)",
+                "| # | ステップ | 合格条件 |",
+                "| --- | --- | --- |",
+                "| 1 | 実装 | pytest |",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return root, worktree
+
+
+def session_context_additional_context(completed: subprocess.CompletedProcess) -> str:
+    """SessionStart フックの JSON 出力から additionalContext を取り出す。
+
+    Args:
+        completed: session_context.py を起動した結果。
+
+    Returns:
+        フックが注入した additionalContext。
+    """
+    output = json.loads(completed.stdout.decode("utf-8"))
+    return output["hookSpecificOutput"]["additionalContext"]
+
+
+def load_session_context():
+    """テスト用に session_context.py をモジュールとして読み込む。"""
+    script = HOOKS / "session_context.py"
+    spec = importlib.util.spec_from_file_location("session_context_under_test", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_session_context_directly(module, cwd: Path, monkeypatch, capsys) -> str:
+    """モジュール直接実行で子プロセス故障時の注入内容を取得する。
+
+    Args:
+        module: 読み込み済みの session_context モジュール。
+        cwd: SessionStart 入力へ渡す基準ディレクトリ。
+        monkeypatch: pytest の差し替え機構。
+        capsys: pytest の標準出力捕捉機構。
+
+    Returns:
+        フックが注入した additionalContext。
+    """
+    payload = json.dumps({"cwd": str(cwd)}).encode("utf-8")
+    stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", stdin)
+    assert module.main() == 0
+    output = json.loads(capsys.readouterr().out)
+    return output["hookSpecificOutput"]["additionalContext"]
+
+
 def test_session_context_emits_json():
     r = run_hook("session_context.py", {"cwd": REPO})
     assert r.returncode == 0
     out = json.loads(r.stdout.decode("utf-8"))
     assert out["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+
+
+def test_session_context_injects_feature_status_hook_summary(tmp_path: Path):
+    """feature_status.py の 1 feature 1 行要約を追加文脈へ注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path)
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    feature_lines = [line for line in context.splitlines() if line.startswith("foo(")]
+    assert len(feature_lines) == 1
+    assert "実装前(全 1 ステップ)" in feature_lines[0]
+    assert "PR 状態: 未取得" in feature_lines[0]
+
+
+def test_session_context_detects_frontmatter_longer_than_800_characters(
+    tmp_path: Path,
+):
+    """status 行が 800 文字以降でも feature_status.py の解析結果を注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path, "説明: " + "x" * 900)
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert any(line.startswith("foo(feature/foo)") for line in context.splitlines())
+
+
+def test_session_context_reports_frontmatter_larger_than_8kib(tmp_path: Path):
+    """8KiB を超える frontmatter を解析失敗としてそのまま注入する。"""
+    root, _ = make_feature_status_worktree(tmp_path, "説明: " + "x" * (8 * 1024))
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "foo(feature/foo) / 未取得(frontmatter 解析失敗)" in context
+
+
+def test_session_context_handles_cwd_outside_repository(tmp_path: Path):
+    """リポジトリ外 cwd でも未取得を注入して終了コード 0 を維持する。"""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    completed = run_hook("session_context.py", {"cwd": str(outside)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "進行中 feature: 未取得(worktree 列挙失敗)" in context
+
+
+def test_session_context_omits_feature_line_when_no_active_feature(tmp_path: Path):
+    """正常に feature が 0 件なら現在地の行を増やさない。"""
+    root = make_repo(tmp_path, "develop")
+
+    completed = run_hook("session_context.py", {"cwd": str(root)})
+
+    assert completed.returncode == 0
+    context = session_context_additional_context(completed)
+    assert "進行中 feature:" not in context
+
+
+def test_session_context_reports_child_nonzero_as_derivation_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """feature_status.py の非 0 終了を導出失敗として明示する。"""
+    module = load_session_context()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setattr(module, "FEATURE_STATUS_SCRIPT", tmp_path / "missing.py")
+
+    context = run_session_context_directly(module, outside, monkeypatch, capsys)
+
+    assert "進行中 feature: 未取得(導出失敗)" in context
+
+
+def test_session_context_reports_child_timeout_as_derivation_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """feature_status.py のタイムアウトを短時間で導出失敗として明示する。"""
+    module = load_session_context()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    slow_script = tmp_path / "slow_feature_status.py"
+    slow_script.write_text("import time\ntime.sleep(5)\n", encoding="utf-8")
+    monkeypatch.setattr(module, "FEATURE_STATUS_SCRIPT", slow_script)
+    monkeypatch.setattr(module, "FEATURE_STATUS_TIMEOUT_SECONDS", 0.05)
+
+    context = run_session_context_directly(module, outside, monkeypatch, capsys)
+
+    assert "進行中 feature: 未取得(導出失敗)" in context
 
 
 # ---- codex_run.py(ラッパーの検証ロジック。codex 本体は起動しない経路のみ) ----
@@ -333,6 +821,16 @@ def run_wrapper(args: list[str], stdin: str = "", cwd: str = REPO) -> subprocess
         [sys.executable, str(WRAPPER), *args],
         input=stdin.encode("utf-8"), capture_output=True, timeout=30, cwd=cwd,
     )
+
+
+def write_wrapper_plan(tmp_path: Path, frontmatter_lines: list[str]) -> Path:
+    """ラッパーの前段検証用 plan を書き出す。"""
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "\n".join(["---", *frontmatter_lines, "---", "# 計画", ""]),
+        encoding="utf-8",
+    )
+    return plan
 
 
 def test_wrapper_rejects_missing_plan():
@@ -351,6 +849,162 @@ def test_wrapper_rejects_unapproved_plan(tmp_path):
     r = run_wrapper(["implement", str(plan), "-"], "prompt")
     assert r.returncode == 2
     assert "未承認".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_in_review_plan_with_return_instruction(tmp_path: Path):
+    """in-review は承認済みでも /pr の差し戻し手順へ誘導する。"""
+    plan = write_wrapper_plan(
+        tmp_path,
+        [
+            "feature: x",
+            "status: in-review",
+            "承認: 済(2026-08-10・確認者)",
+            "重さ分類: 通常",
+            f"worktree: {REPO}",
+            "branch: feature/codex-plan-status-guard",
+        ],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "差し戻し".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_in_review_before_approval_and_resume(tmp_path: Path):
+    """status は承認・resume の検証より先に拒否する。"""
+    plan = write_wrapper_plan(
+        tmp_path,
+        [
+            "feature: x",
+            "status: in-review",
+            "承認: 未",
+            "重さ分類: 通常",
+            f"worktree: {REPO}",
+            "branch: feature/codex-plan-status-guard",
+        ],
+    )
+
+    r = run_wrapper(["implement", str(plan), "--resume", "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "差し戻し".encode("utf-8") in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
+    assert "セッション".encode("utf-8") not in r.stderr
+
+
+def test_wrapper_rejects_plan_without_status(tmp_path: Path):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+def test_wrapper_rejects_duplicate_status(tmp_path: Path):
+    plan = write_wrapper_plan(
+        tmp_path,
+        ["feature: x", "status: active", "status: in-review", "承認: 未"],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+    assert "重複".encode("utf-8") in r.stderr
+
+
+def test_wrapper_rejects_invalid_status_value(tmp_path: Path):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", "status: merged", "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+@pytest.mark.parametrize("status_line", ["status : active", "status: activeX"])
+def test_wrapper_rejects_malformed_status(tmp_path: Path, status_line: str):
+    plan = write_wrapper_plan(tmp_path, ["feature: x", status_line, "承認: 未"])
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+
+
+def test_wrapper_rejects_duplicate_status_after_false_frontmatter_terminator(tmp_path: Path):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "---\nfeature: x\nstatus: active\n--- 任意文字列\nstatus: active\n承認: 未\n---\n# 計画\n",
+        encoding="utf-8",
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"status" in r.stderr
+    assert "重複".encode("utf-8") in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
+    assert b"worktree" not in r.stderr
+
+
+def test_wrapper_accepts_active_status_with_comment(tmp_path: Path):
+    plan = write_wrapper_plan(
+        tmp_path,
+        ["feature: x", "status: active # 行末コメント", "承認: 未"],
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "未承認".encode("utf-8") in r.stderr
+    assert b"status" not in r.stderr
+    assert "差し戻し".encode("utf-8") not in r.stderr
+
+
+def test_wrapper_accepts_active_status_with_crlf_plan(tmp_path: Path):
+    plan = tmp_path / "plan.md"
+    plan.write_bytes(
+        "\r\n".join(["---", "feature: x", "status: active", "承認: 未", "---", "# 計画", ""])
+        .encode("utf-8")
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert "未承認".encode("utf-8") in r.stderr
+    assert b"status" not in r.stderr
+    assert "差し戻し".encode("utf-8") not in r.stderr
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("--- ", "---"),
+        ("---\t", "---"),
+        ("---", "--- "),
+        ("---", "---\t"),
+    ],
+    ids=["start-space", "start-tab", "end-space", "end-tab"],
+)
+def test_wrapper_rejects_frontmatter_delimiter_with_trailing_whitespace(
+    tmp_path: Path,
+    start: str,
+    end: str,
+):
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        "\n".join([start, "feature: x", "status: active", "承認: 未", end, "# 計画", ""]),
+        encoding="utf-8",
+    )
+
+    r = run_wrapper(["implement", str(plan), "-"], "prompt")
+
+    assert r.returncode == 2
+    assert b"frontmatter" in r.stderr
+    assert "未承認".encode("utf-8") not in r.stderr
 
 
 def test_wrapper_rejects_approved_plan_without_worktree(tmp_path):
@@ -385,6 +1039,7 @@ def test_implement_argv_puts_exec_options_before_resume():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("codex_run", WRAPPER)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     base = ["-C", "/wt", "-s", "workspace-write"]
@@ -466,7 +1121,10 @@ def test_wrapper_rejects_empty_step_table(tmp_path):
     plan.write_text(
         "---\nfeature: x\nstatus: active\n承認: 済(2026-08-07)\n重さ分類: 通常\n"
         f"worktree: {wt}\nbranch: feature/x\n---\n# 計画\n\n"
-        "### 実装ステップ(コミット単位)\n| # | ステップ | 合格条件 |\n| --- | --- | --- |\n| 1 |  |  |\n",
+        "### 実装ステップ(コミット単位)\n"
+        "| # | ステップ | 合格条件 |\n"
+        "| --- | --- | --- |\n"
+        "| 1 |  |  |\n",
         encoding="utf-8",
     )
     r = run_wrapper(["implement", str(plan), "-"], "prompt")
@@ -516,6 +1174,7 @@ def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("codex_run_sec", WRAPPER)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     monkeypatch.delenv("PITCHLOG_ALLOW_NET", raising=False)
@@ -527,9 +1186,15 @@ def test_security_overrides_pin_network_and_require_reason(monkeypatch):
     with pytest.raises(SystemExit):
         mod.security_overrides(may_allow_net=True)
     monkeypatch.setenv("PITCHLOG_NET_REASON", "依存追加の検証")
-    assert "sandbox_workspace_write.network_access=true" in mod.security_overrides(may_allow_net=True)
+    assert (
+        "sandbox_workspace_write.network_access=true"
+        in mod.security_overrides(may_allow_net=True)
+    )
     # read-only 系(research/review)は ALLOW_NET でも有効化しない
-    assert "sandbox_workspace_write.network_access=false" in mod.security_overrides(may_allow_net=False)
+    assert (
+        "sandbox_workspace_write.network_access=false"
+        in mod.security_overrides(may_allow_net=False)
+    )
 
 
 def test_wrapper_rejects_review_base_flag():

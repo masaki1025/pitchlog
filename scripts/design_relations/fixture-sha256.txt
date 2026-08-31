@@ -1,0 +1,1 @@
+2e38de6bace54603425e386ad029af202667060aae274220baf05d09f49c8fe3  tests/fixtures/sync-protocol-source.txt

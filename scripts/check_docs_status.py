@@ -1,14 +1,15 @@
-"""正本と feature 計画書の frontmatter status を検査する。"""
+"""正本の変更履歴表と feature 計画書の frontmatter status を検査する。"""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Sequence
-
 
 DOCUMENT_STATUSES = frozenset({"draft", "in-review", "approved", "superseded"})
 PLAN_STATUSES = frozenset({"active", "in-review"})
@@ -17,8 +18,26 @@ EXCLUDED_PREFIXES = (
     ("docs", "legacy"),
     ("docs", "development", "templates"),
 )
+INDEX_RELATIVE_PATH = ("docs", "README.md")
+
+# NFR-021 受入証跡の個別レコードに対する索引カバレッジ除外を実装済み。
+# 規範は docs/ops/nfr021-acceptance/README.md の
+# 「索引の必須・除外集合と監査 PR の受入条件」を参照する。
+INDEX_COVERAGE_EXCLUDED_PREFIXES = EXCLUDED_PREFIXES + (("docs", "features"),)
+NFR021_ACCEPTANCE_DIRECTORY = ("docs", "ops", "nfr021-acceptance")
+NFR021_ACCEPTANCE_RECORD_RE = re.compile(
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{6}Z)-"
+    r"(?:phase4-phase4|release-v[0-9]+\.[0-9]+\.[0-9]+)-"
+    r"seq(?P<sequence>[0-9]+)-"
+    r"(?:reservation|[0-9a-f]{12})\.md"
+)
+
 PRIMARY_HEADING_RE = re.compile(r"^##\s+正本\s*$")
 SECTION_HEADING_RE = re.compile(r"^##\s+")
+CHANGE_HISTORY_SECTION_HEADING_RE = re.compile(r"^#{2,6}\s")
+CHANGE_HISTORY_HEADING_RE = re.compile(r"^##\s+変更履歴\s*$")
+MARKDOWN_HEADING_RE = re.compile(r"^#{1,6}\s")
+CODE_FENCE_RE = re.compile(r"^(?:```|~~~)")
 STATUS_PREFIX_RE = re.compile(r"^status\s*:")
 PRIMARY_STATUS_LINE_RE = re.compile(r"^status: (?P<status>[^\s#]+)$")
 PLAN_STATUS_LINE_RE = re.compile(
@@ -27,19 +46,53 @@ PLAN_STATUS_LINE_RE = re.compile(
 MARKDOWN_LINK_RE = re.compile(
     r"\[[^\]]+\]\((?P<target><[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)"
 )
+INDEX_VERSION_NONE = "—"
+INDEX_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*$")
+INDEX_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# 変更履歴表を持たずに既存化した正本を、正規化まで暫定除外するための辞書である。
+# 規約は「正本は変更履歴表を持つ」を例外なく要求しており、本表は
+# その規約違反が既に存在する事実を機械検査から外しているだけである。
+#
+# ダイジェスト値の更新は禁止。再計算して差し替えると編集後の内容を
+# 再び grandfather することになり、「履歴を残さず正本を書き換える経路」が復活する。
+# 免除文書を正規化するときは、① 変更履歴表を新設し、② 同じ PR で
+# 免除エントリを削除する。
+CHANGE_HISTORY_EXEMPT_DIGESTS = {
+    ("docs", "requirements", "requirements-draft-pitchlog.md"): (
+        "523ecfd1db94c0c494b9b722b05cf4b3c7d4562a1a6f2648fd9b76d5074a8e52"
+    ),
+}
 
 
 @dataclass(frozen=True)
 class IndexedDocument:
-    """索引から取得した正本文書と状態を表す。
+    """索引から取得した正本文書、状態、版、最終更新を表す。
 
     Attributes:
         path: 正本文書の絶対パス。
         index_status: 索引の状態セルを正規化した値。
+        index_version: 索引の版セルを正規化した値。
+        index_updated: 索引の最終更新セルを正規化した値。
     """
 
     path: Path
     index_status: str
+    index_version: str
+    index_updated: str
+
+
+@dataclass(frozen=True)
+class ChangeHistory:
+    """変更履歴表から取得した最新の版と日付を表す。
+
+    Attributes:
+        latest_version: 数値として最大の版。
+        latest_date: 実在する日付として最大の ISO 形式日付。
+    """
+
+    latest_version: str
+    latest_date: str
 
 
 def display_path(path: Path, root: Path) -> str:
@@ -72,12 +125,17 @@ def violation(path: Path, root: Path, reason: str) -> str:
     return f"{display_path(path, root)}: {reason}"
 
 
-def is_excluded(path: Path, root: Path) -> bool:
+def is_excluded(
+    path: Path,
+    root: Path,
+    prefixes: Sequence[tuple[str, ...]] = EXCLUDED_PREFIXES,
+) -> bool:
     """検査対象から除外するディレクトリ配下かを判定する。
 
     Args:
         path: 判定対象のパス。
         root: リポジトリルート。
+        prefixes: 除外対象の相対パス接頭辞。
 
     Returns:
         除外対象なら ``True``、それ以外なら ``False``。
@@ -86,7 +144,65 @@ def is_excluded(path: Path, root: Path) -> bool:
         relative_parts = path.resolve().relative_to(root.resolve()).parts
     except ValueError:
         return False
-    return any(relative_parts[:len(prefix)] == prefix for prefix in EXCLUDED_PREFIXES)
+    return any(relative_parts[:len(prefix)] == prefix for prefix in prefixes)
+
+
+def is_canonical_nfr021_attempt_sequence(value: str) -> bool:
+    """NFR-021 の ``seq<NNN>`` 数値部が正規形かを判定する。
+
+    Args:
+        value: ``seq`` 接頭辞を除いた数値部。
+
+    Returns:
+        最低 3 桁の 10 進表記で、値が 1 以上かつゼロ埋め規則に一致すれば ``True``。
+    """
+    if len(value) < 3 or not value.isascii() or not value.isdecimal():
+        return False
+    number = int(value)
+    return number >= 1 and str(number).zfill(3) == value
+
+
+def is_nfr021_acceptance_record_for_index_coverage(path: Path, root: Path) -> bool:
+    """索引カバレッジから除外する NFR-021 個別レコードかを判定する。
+
+    Args:
+        path: 判定対象の Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        直下にある予約レコードまたは結果証跡の正規形なら ``True``。
+    """
+    try:
+        relative_parts = path.resolve().relative_to(root.resolve()).parts
+    except ValueError:
+        return False
+    if (
+        len(relative_parts) != len(NFR021_ACCEPTANCE_DIRECTORY) + 1
+        or relative_parts[: len(NFR021_ACCEPTANCE_DIRECTORY)]
+        != NFR021_ACCEPTANCE_DIRECTORY
+    ):
+        return False
+
+    match = NFR021_ACCEPTANCE_RECORD_RE.fullmatch(relative_parts[-1])
+    if match is None:
+        return False
+    try:
+        datetime.strptime(match.group("timestamp"), "%Y-%m-%dT%H%M%SZ")
+    except ValueError:
+        return False
+    return is_canonical_nfr021_attempt_sequence(match.group("sequence"))
+
+
+def normalize_index_cell(cell: str) -> str:
+    """索引セルから太字マーカーと前後空白を除去する。
+
+    Args:
+        cell: Markdown 表にある索引セルの文字列。
+
+    Returns:
+        太字マーカーと前後空白を除去した値。
+    """
+    return cell.replace("**", "").strip()
 
 
 def normalize_index_status(cell: str) -> str:
@@ -98,7 +214,48 @@ def normalize_index_status(cell: str) -> str:
     Returns:
         太字マーカーと最初の括弧以降を除去した状態語彙。
     """
-    return cell.replace("**", "").split("(", 1)[0].strip()
+    return normalize_index_cell(cell).split("(", 1)[0].strip()
+
+
+def is_valid_index_version(value: str) -> bool:
+    """索引の版セルが許可された書式かを判定する。
+
+    Args:
+        value: 太字マーカーを除去した版セルの値。
+
+    Returns:
+        数値のドット区切り形式または EM DASH なら ``True``、それ以外なら ``False``。
+    """
+    return value == INDEX_VERSION_NONE or INDEX_VERSION_RE.fullmatch(value) is not None
+
+
+def is_valid_index_updated(value: str) -> bool:
+    """索引の最終更新セルが実在する ISO 形式の日付かを判定する。
+
+    Args:
+        value: 太字マーカーを除去した最終更新セルの値。
+
+    Returns:
+        ``YYYY-MM-DD`` 形式かつ実在する日付なら ``True``、それ以外なら ``False``。
+    """
+    return parse_iso_date(value) is not None
+
+
+def parse_iso_date(value: str) -> date | None:
+    """実在する ISO 形式の日付を date 型へ変換する。
+
+    Args:
+        value: ``YYYY-MM-DD`` 形式として検証する文字列。
+
+    Returns:
+        実在する日付なら date 型、それ以外なら ``None``。
+    """
+    if INDEX_DATE_RE.fullmatch(value) is None:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def parse_table_cells(line: str) -> list[str]:
@@ -125,6 +282,24 @@ def is_table_separator(cells: Sequence[str]) -> bool:
     if not cells:
         return False
     return all(re.fullmatch(r":?-{3,}:?", cell.replace(" ", "")) for cell in cells)
+
+
+def collect_table_lines(lines: Sequence[str], start: int) -> list[str]:
+    """指定位置から ``|`` 始まりの連続した表行を取得する。
+
+    Args:
+        lines: Markdown ファイルを行単位で分割した配列。
+        start: 表の開始行の添字。
+
+    Returns:
+        表の行配列。
+    """
+    table: list[str] = []
+    for line in lines[start:]:
+        if not line.lstrip().startswith("|"):
+            break
+        table.append(line)
+    return table
 
 
 def extract_link_target(cell: str) -> str | None:
@@ -171,14 +346,7 @@ def primary_table_lines(lines: Sequence[str]) -> list[str] | None:
             break
     if table_start is None:
         return None
-
-    table: list[str] = []
-    for index in range(table_start, len(lines)):
-        line = lines[index]
-        if not line.lstrip().startswith("|"):
-            break
-        table.append(line)
-    return table
+    return collect_table_lines(lines, table_start)
 
 
 def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[str]]:
@@ -190,7 +358,7 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     Returns:
         取得できた正本文書の配列と、索引自体の違反メッセージ配列。
     """
-    index_path = root / "docs" / "README.md"
+    index_path = root.joinpath(*INDEX_RELATIVE_PATH)
     try:
         lines = index_path.read_text(encoding="utf-8").splitlines()
     except OSError as error:
@@ -208,8 +376,12 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
     try:
         document_column = header.index("文書")
         status_column = header.index("状態")
+        version_column = header.index("版")
+        updated_column = header.index("最終更新")
     except ValueError:
-        return [], [violation(index_path, root, "正本一覧に「文書」と「状態」の列が必要")]
+        return [], [
+            violation(index_path, root, "正本一覧に「文書」「状態」「版」「最終更新」の列が必要")
+        ]
 
     documents: list[IndexedDocument] = []
     violations: list[str] = []
@@ -217,7 +389,12 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
         cells = parse_table_cells(line)
         if is_table_separator(cells):
             continue
-        if len(cells) <= max(document_column, status_column):
+        if len(cells) <= max(
+            document_column,
+            status_column,
+            version_column,
+            updated_column,
+        ):
             violations.append(violation(index_path, root, "正本一覧の行に必要な列がない"))
             continue
         target = extract_link_target(cells[document_column])
@@ -226,16 +403,57 @@ def extract_indexed_documents(root: Path) -> tuple[list[IndexedDocument], list[s
                 violation(index_path, root, "正本一覧の文書列にローカル .md リンクがない")
             )
             continue
+        index_version = normalize_index_cell(cells[version_column])
+        index_updated = normalize_index_cell(cells[updated_column])
+        if not is_valid_index_version(index_version):
+            violations.append(
+                violation(index_path, root, f"正本一覧の版が不正: {index_version}")
+            )
+        if not is_valid_index_updated(index_updated):
+            violations.append(
+                violation(index_path, root, f"正本一覧の最終更新が不正: {index_updated}")
+            )
         documents.append(
             IndexedDocument(
                 path=(index_path.parent / target).resolve(),
                 index_status=normalize_index_status(cells[status_column]),
+                index_version=index_version,
+                index_updated=index_updated,
             )
         )
 
     if not documents:
         violations.append(violation(index_path, root, "正本一覧に文書行がない"))
     return documents, violations
+
+
+def check_index_coverage(root: Path, documents: Sequence[IndexedDocument]) -> list[str]:
+    """ファイルシステム上の Markdown が正本一覧に掲載されているか検査する。
+
+    Args:
+        root: リポジトリルート。
+        documents: 索引から取得した正本文書の配列。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    indexed_paths = {document.path for document in documents}
+    index_path = root.joinpath(*INDEX_RELATIVE_PATH).resolve()
+    violations: list[str] = []
+    for path in sorted((root / "docs").rglob("*.md")):
+        resolved_path = path.resolve()
+        if is_excluded(
+            resolved_path,
+            root,
+            prefixes=INDEX_COVERAGE_EXCLUDED_PREFIXES,
+        ) or is_nfr021_acceptance_record_for_index_coverage(resolved_path, root):
+            continue
+        if resolved_path == index_path or resolved_path in indexed_paths:
+            continue
+        violations.append(
+            violation(path, root, "docs/README.md の正本一覧に載っていない")
+        )
+    return violations
 
 
 def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
@@ -253,6 +471,248 @@ def read_markdown_lines(path: Path) -> tuple[list[str] | None, str | None]:
         return None, f"読み込めない: {error}"
     except UnicodeDecodeError as error:
         return None, f"UTF-8 として読み込めない: {error}"
+
+
+def check_heading_backticks(path: Path, root: Path) -> list[str]:
+    """コードフェンス外の見出し行でバックティックが閉じているか検査する。
+
+    Args:
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return [violation(path, root, read_error)]
+    assert lines is not None
+
+    in_code_fence = False
+    violations: list[str] = []
+    for line in lines:
+        if CODE_FENCE_RE.match(line):
+            in_code_fence = not in_code_fence
+            continue
+        if (
+            not in_code_fence
+            and MARKDOWN_HEADING_RE.match(line)
+            and line.count("`") % 2 == 1
+        ):
+            violations.append(
+                violation(path, root, "見出し行のバックティックが閉じていない")
+            )
+    return violations
+
+
+def change_history_exempt_digest(path: Path, root: Path) -> str | None:
+    """変更履歴表の grandfather 対象なら固定ダイジェストを返す。
+
+    Args:
+        path: 判定対象の文書パス。
+        root: リポジトリルート。
+
+    Returns:
+        grandfather 対象の期待ダイジェスト。対象外なら ``None``。
+    """
+    try:
+        relative_parts = path.resolve().relative_to(root.resolve()).parts
+    except ValueError:
+        return None
+    return CHANGE_HISTORY_EXEMPT_DIGESTS.get(relative_parts)
+
+
+def find_change_history_table(lines: Sequence[str]) -> list[str] | None:
+    """正本の冒頭にある変更履歴表を取得する。
+
+    Args:
+        lines: Markdown ファイルを行単位で分割した配列。
+
+    Returns:
+        変更履歴表の行配列。見つからなければ ``None``。
+    """
+    for index, line in enumerate(lines[3:], start=3):
+        if CHANGE_HISTORY_HEADING_RE.fullmatch(line):
+            continue
+        if CHANGE_HISTORY_SECTION_HEADING_RE.match(line):
+            break
+        if line.lstrip().startswith("|"):
+            return collect_table_lines(lines, index)
+    return None
+
+
+def version_sort_key(version: str) -> tuple[int, ...]:
+    """版文字列を数値比較用のタプルへ変換する。
+
+    Args:
+        version: 数値とドットだけで構成された版文字列。
+
+    Returns:
+        各版要素を整数化した比較用タプル。
+    """
+    return tuple(int(part) for part in version.split("."))
+
+
+def parse_change_history_table(
+    table: Sequence[str],
+    path: Path,
+    root: Path,
+) -> tuple[ChangeHistory | None, list[str]]:
+    """変更履歴表を検証し、最大の版と日付を取得する。
+
+    Args:
+        table: 変更履歴表の行配列。
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        ``(変更履歴, 違反メッセージ)`` の組。違反時の変更履歴は ``None``。
+    """
+    cells = [normalize_index_cell(cell) for cell in parse_table_cells(table[0])]
+    if (
+        cells[:3] != ["版", "日付", "変更内容"]
+        or len(cells) < 4
+        or cells[3] not in {"状態", "変更者"}
+    ):
+        return None, [
+            violation(
+                path,
+                root,
+                "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない",
+            )
+        ]
+
+    versions: list[str] = []
+    dates: list[date] = []
+    violations: list[str] = []
+    for line in table[1:]:
+        row = parse_table_cells(line)
+        if is_table_separator(row):
+            continue
+        if len(row) < 2:
+            violations.append(violation(path, root, "変更履歴表の行に版・日付列がない"))
+            continue
+
+        version = normalize_index_cell(row[0])
+        if INDEX_VERSION_RE.fullmatch(version) is None:
+            violations.append(violation(path, root, f"変更履歴表の版が不正: {version}"))
+        else:
+            versions.append(version)
+
+        parsed_date = parse_iso_date(row[1])
+        if parsed_date is None:
+            violations.append(violation(path, root, f"変更履歴表の日付が不正: {row[1]}"))
+        else:
+            dates.append(parsed_date)
+
+    if violations:
+        return None, violations
+    if not versions:
+        return None, [violation(path, root, "変更履歴表に履歴行がない")]
+
+    return (
+        ChangeHistory(
+            latest_version=max(versions, key=version_sort_key),
+            latest_date=max(dates).isoformat(),
+        ),
+        [],
+    )
+
+
+def read_change_history(
+    path: Path,
+    root: Path,
+) -> tuple[ChangeHistory | None, list[str]]:
+    """正本の変更履歴表を検証し、その最新値を取得する。
+
+    Args:
+        path: 検査対象の正本 Markdown ファイル。
+        root: リポジトリルート。
+
+    Returns:
+        ``(変更履歴, 違反メッセージ)`` の組。ダイジェスト一致の免除文書では
+        変更履歴を ``None`` として返す。
+    """
+    expected_digest = change_history_exempt_digest(path, root)
+    if expected_digest is not None:
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            return None, [
+                violation(path, root, f"免除用ダイジェストを計算できない: {error}")
+            ]
+        if digest == expected_digest:
+            return None, []
+        return None, [
+            violation(
+                path,
+                root,
+                "免除は起票時点の内容に限る。変更履歴表を持たせたうえで"
+                "免除エントリを削除すること",
+            )
+        ]
+
+    lines, read_error = read_markdown_lines(path)
+    if read_error is not None:
+        return None, [violation(path, root, read_error)]
+    assert lines is not None
+
+    table = find_change_history_table(lines)
+    if table is None:
+        return None, [violation(path, root, "冒頭に変更履歴表がない")]
+    return parse_change_history_table(table, path, root)
+
+
+def check_index_change_history(
+    document: IndexedDocument,
+    history: ChangeHistory | None,
+    root: Path,
+) -> list[str]:
+    """索引の版・最終更新と変更履歴表を突合する。
+
+    Args:
+        document: 索引から取得した正本文書の情報。
+        history: 変更履歴表の最新値。``None`` は免除文書を表す。
+        root: リポジトリルート。
+
+    Returns:
+        検出した違反メッセージの配列。
+    """
+    if history is None:
+        if document.index_version == INDEX_VERSION_NONE:
+            return []
+        return [
+            violation(
+                document.path,
+                root,
+                "免除文書の索引の版は — でなければならない: "
+                f"{document.index_version}",
+            )
+        ]
+
+    violations: list[str] = []
+    if document.index_version != history.latest_version:
+        violations.append(
+            violation(
+                document.path,
+                root,
+                "索引の版"
+                f"({document.index_version})と変更履歴表の最大版"
+                f"({history.latest_version})が一致しない",
+            )
+        )
+    index_date = parse_iso_date(document.index_updated)
+    if index_date is not None and index_date < date.fromisoformat(history.latest_date):
+        violations.append(
+            violation(
+                document.path,
+                root,
+                "索引の最終更新"
+                f"({document.index_updated})が変更履歴表の最大日付"
+                f"({history.latest_date})より古い",
+            )
+        )
+    return violations
 
 
 def validate_status_value(status: str, allowed_statuses: frozenset[str]) -> str | None:
@@ -389,18 +849,26 @@ def check_repository(root: Path) -> list[str]:
     """
     root = root.resolve()
     documents, violations = extract_indexed_documents(root)
+    violations.extend(check_index_coverage(root, documents))
     for document in documents:
         if is_excluded(document.path, root):
             continue
-        violations.extend(
-            check_document_status(
-                document.path,
-                root,
-                DOCUMENT_STATUSES,
-                document.index_status,
-                strict_primary=True,
-            )
+        document_violations = check_document_status(
+            document.path,
+            root,
+            DOCUMENT_STATUSES,
+            document.index_status,
+            strict_primary=True,
         )
+        violations.extend(document_violations)
+        if document_violations:
+            continue
+        violations.extend(check_heading_backticks(document.path, root))
+        history, history_violations = read_change_history(document.path, root)
+        violations.extend(history_violations)
+        if history_violations:
+            continue
+        violations.extend(check_index_change_history(document, history, root))
 
     features_dir = root / "docs" / "features"
     if features_dir.is_dir():

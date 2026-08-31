@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_verification_evidence",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "supabase_verification": {
+    "environment": "disposable_supabase_project",
+    "rejected_configuration_count": 0,
+    "result": "candidate_authorization_configuration_established",
+    "interpretation": "zero_supabase_rejections_does_not_remove_known_local_rejections",
+    "provenance_ids": [
+      "RESEARCH-SUPABASE-ESTABLISHED"
+    ]
+  },
+  "residual_risks": [
+    {
+      "risk_id": "RES-01",
+      "db_layer_verifiability": "not_verifiable",
+      "catalog_capability": "can_only_assert_closed_at_application_completion",
+      "handoff_destination": "operations_control",
+      "handoff_owner": "production_credentials_procedure",
+      "provenance_ids": [
+        "RESEARCH-RES-01"
+      ]
+    },
+    {
+      "risk_id": "RES-03",
+      "db_layer_verifiability": "not_verifiable",
+      "catalog_capability": "not_visible_in_pg_catalog",
+      "handoff_destination": "production_project_creation_procedure",
+      "handoff_owner": "supabase_project_settings",
+      "provenance_ids": [
+        "RESEARCH-RES-03"
+      ]
+    }
+  ],
+  "provenance": [
+    {
+      "provenance_id": "RESEARCH-SUPABASE-ESTABLISHED",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "候補案の認可構成は Supabase 上でも成立する。"
+    },
+    {
+      "provenance_id": "RESEARCH-RES-01",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "DB 層では塞げない"
+    },
+    {
+      "provenance_id": "RESEARCH-RES-03",
+      "path": "docs/features/pg-authz-verification/research.md",
+      "extracted_text": "DB 層のカタログ検査では検出できない"
+    }
+  ]
+}

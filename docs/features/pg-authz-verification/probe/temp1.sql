@@ -1,0 +1,16 @@
+CREATE ROLE tbl_owner LOGIN PASSWORD 'x';
+CREATE ROLE app_role  LOGIN PASSWORD 'x';
+CREATE ROLE fn_owner  NOLOGIN BYPASSRLS;
+GRANT USAGE ON SCHEMA public TO app_role, fn_owner;
+GRANT CREATE ON SCHEMA public TO tbl_owner;
+SET ROLE tbl_owner;
+CREATE TABLE play (tenant_id text NOT NULL, note text NOT NULL);
+INSERT INTO play VALUES ('A','本物A'), ('B','本物B');
+ALTER TABLE play ENABLE ROW LEVEL SECURITY;
+ALTER TABLE play FORCE ROW LEVEL SECURITY;
+CREATE POLICY p ON play USING (tenant_id = current_setting('app.tenant_id', true));
+GRANT SELECT ON play TO app_role, fn_owner;
+RESET ROLE;
+CREATE FUNCTION unsafe_fn() RETURNS bigint LANGUAGE sql SECURITY DEFINER AS 'SELECT count(*) FROM play';
+ALTER FUNCTION unsafe_fn() OWNER TO fn_owner;
+GRANT EXECUTE ON FUNCTION unsafe_fn() TO app_role;

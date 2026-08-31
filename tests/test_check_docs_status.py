@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "check_docs_status.py"
+DEFAULT_VERSION = "1.0"
+DEFAULT_UPDATED = "2026-08-10"
 
 
 def run_check(root: Path) -> subprocess.CompletedProcess[str]:
@@ -40,35 +41,97 @@ def write_text(root: Path, relative_path: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def frontmatter(status: str) -> str:
+def write_bytes(root: Path, relative_path: str, content: bytes) -> None:
+    """最小リポジトリ内へバイト列をそのまま書き出す。
+
+    Args:
+        root: 最小リポジトリのルート。
+        relative_path: root からの相対パス。
+        content: 書き込むバイト列。
+    """
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def frontmatter(
+    status: str,
+    *,
+    history: bool = True,
+    version: str = DEFAULT_VERSION,
+    updated: str = DEFAULT_UPDATED,
+    history_rows: list[tuple[str, str]] | None = None,
+) -> str:
     """指定 status を持つ最小の Markdown 文書を作る。
 
     Args:
         status: frontmatter に設定する status。
+        history: 変更履歴表を本文へ含めるか。
+        version: 変更履歴表の版セルの値。
+        updated: 変更履歴表の日付セルの値。
+        history_rows: 変更履歴表に書く ``(版, 日付)`` の行。省略時は
+            version・updated の 1 行を使う。
 
     Returns:
         最小の Markdown 文書内容。
     """
-    return f"---\nstatus: {status}\n---\n# 文書\n"
+    content = f"---\nstatus: {status}\n---\n# 文書\n"
+    if history:
+        rows = history_rows if history_rows is not None else [(version, updated)]
+        content += "| 版 | 日付 | 変更内容 | 状態 |\n| --- | --- | --- | --- |\n"
+        content += "".join(
+            f"| {row_version} | {row_updated} | 初版 | {status} |\n"
+            for row_version, row_updated in rows
+        )
+    return content
 
 
-def write_index(root: Path, entries: list[tuple[str, str, str]]) -> None:
+def write_index_lines(
+    root: Path,
+    header_cells: list[str],
+    rows: list[list[str]],
+) -> None:
+    """指定した列と行で最小の正本一覧を作る。
+
+    Args:
+        root: 最小リポジトリのルート。
+        header_cells: 正本一覧のヘッダーセルの配列。
+        rows: 正本一覧の行をセル単位で持つ配列。
+    """
+    lines = [
+        "# ドキュメントマップ",
+        "",
+        "## 正本",
+        "",
+        f"| {' | '.join(header_cells)} |",
+    ]
+    lines.extend(f"| {' | '.join(row)} |" for row in rows)
+    write_text(root, "docs/README.md", "\n".join(lines) + "\n")
+
+
+def write_index(
+    root: Path,
+    entries: list[tuple[str, str, str]],
+    *,
+    version: str = DEFAULT_VERSION,
+    updated: str = DEFAULT_UPDATED,
+) -> None:
     """正本一覧を含む最小の docs/README.md を作る。
 
     Args:
         root: 最小リポジトリのルート。
         entries: ``(表示名, docs/README.md からのリンク先, 状態セル)`` の配列。
+        version: 各行に設定する版セルの値。
+        updated: 各行に設定する最終更新セルの値。
     """
     rows = [
-        "# ドキュメントマップ",
-        "",
-        "## 正本",
-        "",
-        "| 文書 | 状態 |",
-        "| --- | --- |",
+        ["---", "---", "---", "---"],
     ]
-    rows.extend(f"| [{title}]({target}) | {status} |" for title, target, status in entries)
-    write_text(root, "docs/README.md", "\n".join(rows) + "\n")
+    rows.extend(
+        [f"[{title}]({target})", status, version, updated]
+        for title, target, status in entries
+    )
+    write_index_lines(root, ["文書", "状態", "版", "最終更新"], rows)
 
 
 def make_minimal_repo(tmp_path: Path) -> Path:
@@ -84,6 +147,446 @@ def make_minimal_repo(tmp_path: Path) -> Path:
     write_index(root, [("仕様", "requirements/spec.md", "draft")])
     write_text(root, "docs/requirements/spec.md", frontmatter("draft"))
     return root
+
+
+def test_rejects_index_without_version_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index_lines(
+        root,
+        ["文書", "状態", "最終更新"],
+        [
+            ["---", "---", "---"],
+            ["[仕様](requirements/spec.md)", "draft", DEFAULT_UPDATED],
+        ],
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "「文書」「状態」「版」「最終更新」の列が必要" in result.stderr
+
+
+def test_rejects_index_without_updated_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index_lines(
+        root,
+        ["文書", "状態", "版"],
+        [
+            ["---", "---", "---"],
+            ["[仕様](requirements/spec.md)", "draft", DEFAULT_VERSION],
+        ],
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "「文書」「状態」「版」「最終更新」の列が必要" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("version", "updated"),
+    [
+        ("v2.0", DEFAULT_UPDATED),
+        (DEFAULT_VERSION, "2026/08/10"),
+        (DEFAULT_VERSION, "2026-02-31"),
+    ],
+)
+def test_rejects_invalid_index_version_or_updated(tmp_path, version, updated):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version=version,
+        updated=updated,
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+
+
+def test_rejects_em_dash_index_version_for_non_exempt_document(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="—",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "索引の版(—)と変更履歴表の最大版(1.0)が一致しない" in result.stderr
+
+
+def test_rejects_primary_without_change_history_table(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/requirements/spec.md", frontmatter("draft", history=False))
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_metadata_table_as_change_history(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| 項目 | 内容 |\n"
+            "| --- | --- |\n"
+            "| 作成者 | テスト |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない" in result.stderr
+
+
+def test_rejects_three_column_change_history_table(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| 版 | 日付 | 変更内容 |\n"
+            "| --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の列が(版・日付・変更内容・状態|変更者)でない" in result.stderr
+
+
+def test_rejects_change_history_table_after_another_section(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n## 本文\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_unexempt_new_adr_without_change_history_table(tmp_path):
+    root = tmp_path / "repo"
+    write_index(root, [("ADR", "adr/ADR-003-example.md", "approved")])
+    write_text(
+        root,
+        "docs/adr/ADR-003-example.md",
+        frontmatter("approved", history=False),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "docs/adr/ADR-003-example.md:" in result.stderr
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_rejects_change_history_table_after_h3_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n### 見出し\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "冒頭に変更履歴表がない" in result.stderr
+
+
+def test_accepts_change_history_table_after_its_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n## 変更履歴\n\n"
+            "| 版 | 日付 | 変更内容 | 状態 |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | draft |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_change_history_table_without_heading(tmp_path):
+    root = make_minimal_repo(tmp_path)
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_change_history_table_with_author_column(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        (
+            frontmatter("draft", history=False)
+            + "\n| **版** | **日付** | **変更内容** | **変更者** |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 1.0 | 2026-08-10 | 初版 | テスト |\n"
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_index_version_not_matching_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="0.9",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "索引の版(0.9)と変更履歴表の最大版(1.0)が一致しない" in result.stderr
+
+
+def test_rejects_index_updated_older_than_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        updated="2026-08-14",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("1.0", "2026-08-12"),
+                ("1.0", "2026-08-15"),
+                ("1.0", "2026-08-13"),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "索引の最終更新(2026-08-14)が変更履歴表の最大日付(2026-08-15)より古い" in result.stderr
+
+
+def test_rejects_change_history_date_with_invalid_format(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", updated="2026/08/10"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の日付が不正: 2026/08/10" in result.stderr
+
+
+def test_rejects_change_history_date_that_does_not_exist(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", updated="2026-02-31"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の日付が不正: 2026-02-31" in result.stderr
+
+
+def test_accepts_change_history_with_unordered_dates(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="1.1",
+        updated="2026-08-15",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("1.0", "2026-08-12"),
+                ("**1.1**", "2026-08-15"),
+                ("1.0", "2026-08-13"),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_index_updated_after_change_history_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        updated="2026-08-11",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_accepts_numeric_change_history_version_maximum(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_index(
+        root,
+        [("仕様", "requirements/spec.md", "draft")],
+        version="0.11",
+    )
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter(
+            "draft",
+            history_rows=[
+                ("0.9", DEFAULT_UPDATED),
+                ("0.10", DEFAULT_UPDATED),
+                ("0.11", DEFAULT_UPDATED),
+            ],
+        ),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_invalid_change_history_version(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft", version="v1.0"),
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "変更履歴表の版が不正: v1.0" in result.stderr
+
+
+def test_skips_change_history_table_for_matching_grandfather_digest(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
+        version="—",
+    )
+    write_bytes(root, relative_path, source_path.read_bytes())
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_exempt_document_with_numbered_index_version(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
+    )
+    write_bytes(root, relative_path, source_path.read_bytes())
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "免除文書の索引の版は — でなければならない: 1.0" in result.stderr
+
+
+def test_rejects_modified_grandfather_document(tmp_path):
+    root = tmp_path / "repo"
+    relative_path = "docs/requirements/requirements-draft-pitchlog.md"
+    source_path = REPO / relative_path
+    write_index(
+        root,
+        [("要件対話の決定記録", "requirements/requirements-draft-pitchlog.md", "approved")],
+        version="—",
+    )
+    source = source_path.read_bytes()
+    write_bytes(root, relative_path, source[:-1] + b" ")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "免除は起票時点の内容に限る。" in result.stderr
+    assert "変更履歴表を持たせたうえで免除エントリを削除すること" in result.stderr
+
+
+def test_accepts_adr_generated_from_template(tmp_path):
+    root = tmp_path / "repo"
+    template_path = REPO / "docs" / "development" / "templates" / "adr-template.md"
+    generated_adr = (
+        template_path.read_text(encoding="utf-8")
+        .replace("ADR-NNN", "ADR-003")
+        .replace("<タイトル>", "テンプレート由来の ADR")
+        .replace("YYYY-MM-DD", DEFAULT_UPDATED)
+    )
+    write_index(
+        root,
+        [("ADR", "adr/ADR-003-template.md", "draft")],
+        version="0.1",
+    )
+    # docs/development/templates/ は EXCLUDED_PREFIXES により検査対象外であるため、
+    # frontmatter と表順序の破損を検出する唯一の防護として、実テンプレートから
+    # 生成して検査する。
+    write_text(root, "docs/adr/ADR-003-template.md", generated_adr)
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_accepts_matching_primary_documents_and_feature_plan(tmp_path):
@@ -225,6 +728,244 @@ def test_excludes_worklog_legacy_and_templates(tmp_path):
     write_text(root, "docs/worklog/bad.md", "# frontmatter なし\n")
     write_text(root, "docs/legacy/bad.md", "# frontmatter なし\n")
     write_text(root, "docs/development/templates/bad.md", "# frontmatter なし\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_rejects_unindexed_markdown_at_docs_root(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/unindexed.md", "# 索引未掲載\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert result.stderr.startswith(
+        "docs/unindexed.md: docs/README.md の正本一覧に載っていない"
+    )
+
+
+def test_rejects_unindexed_markdown_in_subdirectory(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/adr/unindexed.md", "# 索引未掲載\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert result.stderr.startswith(
+        "docs/adr/unindexed.md: docs/README.md の正本一覧に載っていない"
+    )
+
+
+def test_excludes_unindexed_files_and_index_from_index_coverage(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, "docs/features/example/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/worklog/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/legacy/unindexed.md", "# 索引対象外\n")
+    write_text(root, "docs/development/templates/unindexed.md", "# 索引対象外\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab.md",
+        "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md",
+        "2026-08-19T101500Z-phase4-phase4-seq1000-reservation.md",
+    ],
+)
+def test_excludes_canonical_nfr021_acceptance_records_from_index_coverage(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, f"docs/ops/nfr021-acceptance/{filename}", "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "docs/ops/nfr021-acceptance/README.md",
+        "docs/ops/nfr021-acceptance/reservation-template.md",
+        "docs/ops/nfr021-acceptance/evidence-phase4-template.md",
+        "docs/ops/nfr021-acceptance/evidence-release-template.md",
+    ],
+)
+def test_rejects_unindexed_nfr021_acceptance_primary_documents(tmp_path, relative_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, relative_path, "# 正本\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+def test_rejects_unindexed_unknown_nfr021_acceptance_markdown(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    relative_path = "docs/ops/nfr021-acceptance/unexpected.md"
+    write_text(root, relative_path, "# 不明な文書\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq1-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq0001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq000-reservation.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_noncanonical_sequence(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789a.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789ab0.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-0123456789AB.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_noncanonical_short_sha(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-08-19T101500Z-phase4-v1.2.3-seq001-reservation.md",
+        "2026-08-19T101500Z-release-phase4-seq001-reservation.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_invalid_gate_pair(tmp_path, filename):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "2026-99-99T246099Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T1015Z-phase4-phase4-seq001-reservation.md",
+        "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md.bak.md",
+    ],
+)
+def test_rejects_nfr021_acceptance_record_with_invalid_timestamp_or_partial_filename(
+    tmp_path,
+    filename,
+):
+    root = make_minimal_repo(tmp_path)
+    relative_path = f"docs/ops/nfr021-acceptance/{filename}"
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        (
+            "docs/ops/nfr021-acceptance/archive/"
+            "2026-08-19T101500Z-phase4-phase4-seq001-reservation.md"
+        ),
+        (
+            "docs/ops/nfr021-acceptance/archive/"
+            "2026-08-19T101500Z-release-v1.2.3-seq001-0123456789ab.md"
+        ),
+    ],
+)
+def test_rejects_canonical_nfr021_acceptance_record_in_subdirectory(
+    tmp_path,
+    relative_path,
+):
+    root = make_minimal_repo(tmp_path)
+    write_text(root, relative_path, "# 証跡\n")
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert f"{relative_path}: docs/README.md の正本一覧に載っていない" in result.stderr
+
+
+def test_rejects_heading_with_unclosed_backtick(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n## `壊れた見出し\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 1
+    assert "見出し行のバックティックが閉じていない" in result.stderr
+
+
+def test_ignores_unclosed_backtick_on_hash_line_in_code_fence(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n```python\n# `コードコメント\n```\n",
+    )
+
+    result = run_check(root)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_ignores_unclosed_backtick_on_non_heading_hash_line(tmp_path):
+    root = make_minimal_repo(tmp_path)
+    write_text(
+        root,
+        "docs/requirements/spec.md",
+        frontmatter("draft") + "\n#hashtag `本文\n",
+    )
 
     result = run_check(root)
 

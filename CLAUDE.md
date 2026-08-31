@@ -26,7 +26,7 @@
 
 ### コア領域(強化レビュー対象 — 設計書 6.3)
 
-**同期プロトコル / 状況計算(クライアント・サーバー) / 記録権 / テナント分離 / データ移行**(機械可読定義: `.claude/core-areas.json` — /pr・CI が参照)
+**同期プロトコル / 状況計算(クライアント・サーバー) / 記録権 / テナント分離 / データ移行**(意味範囲の正は設計書 6.3 の境界定義表 / paths〔機械可読〕の正: `.claude/core-areas.json` — /pr・CI が参照)
 → 実装は sol xhigh・敵対レビュー必須・**人間の逐行確認必須**
 
 ### 調査サブエージェント(設計書 8.5)
@@ -45,4 +45,4 @@ spec-checker(要件突合)/ legacy-analyst(旧システム事実)/ decision-trac
 - 実装委任は**ステップ単位**(1 委任 = 1 ステップ = 1 コミット)。一括実装させない(設計書 6.1 段階実装)
 - Notion タスクの状態遷移・綴りは `.claude/notion-map.json` を参照する(推測しない — 設計書 11.1)
 - worktree 運用: 1 タスク = 1 ブランチ = 1 worktree(`../pitchlog-worktrees/<ブランチ名のスラッシュを - に置換>`)。ファイル編集・git 操作は worktree 側で行う(`git -C`)
-- **Codex の起動は `.claude/scripts/codex_run.py` ラッパー経由のみ**(生の `codex exec` は codex_guard がブロック — 計画承認・worktree・sandbox・モデル対応表をラッパーが機構検証する)
+- **Codex の起動は `.claude/scripts/codex_run.py` ラッパー経由のみ**(生の `codex exec` は codex_guard がブロック — plan status〔implement のみ・`active` 必須〕・計画承認・worktree・sandbox・モデル対応表をラッパーが機構検証する)

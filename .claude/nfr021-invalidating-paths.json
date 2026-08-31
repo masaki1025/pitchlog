@@ -1,0 +1,28 @@
+{
+  "description": "NFR-021 受入証跡の失効対象パスの機械可読な正本。失効判定の意味の正 = 設計書 10.1『証跡の失効』/ パス列挙(機械可読)の正 = 本ファイル。読み手 = scripts/verify_nfr021_evidence.py(Phase 4-5 で実装済み)。失効対象の追加は本ファイルの更新で足りる(10.1 は「少なくとも」= 下限)。allowlist の増補は設計書 10.1 の改訂(7.3 の確定ゲート)を要する。JSON なのでコメントは書けず、説明は description フィールドへ寄せる慣行に従う。",
+  "syntax": "gitignore-root-relative-v1",
+  "default": "invalidating",
+  "invalidating": [
+    "/backend/**",
+    "/frontend/**",
+    "/contracts/**",
+    "/docs/development/onboarding.md",
+    "/.env.example",
+    "/docker-compose.yml",
+    "/pyproject.toml",
+    "/uv.lock",
+    "/package.json",
+    "/pnpm-lock.yaml",
+    "/.python-version",
+    "/mise.toml",
+    "/tests/**",
+    "/.claude/**",
+    "/scripts/**",
+    "/.github/workflows/**"
+  ],
+  "allowlist": [
+    "/docs/ops/nfr021-acceptance/**",
+    "/docs/worklog/**",
+    "/docs/features/**"
+  ]
+}

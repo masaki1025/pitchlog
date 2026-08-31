@@ -7,7 +7,43 @@ description = "pitchlog 開発ハーネスのツール・テスト"
 requires-python = ">=3.12"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+# ruff・ty の版は backend/pyproject.toml と同一に固定する。層ごとに版が割れると
+# 同じコードへの CI の判定が層で食い違い、どちらが正か決められなくなる。
+dev = ["pytest>=8", "pyyaml>=6", "ruff==0.16.3", "ty==0.0.73"]
+
+[tool.ruff]
+# 行長だけ backend(88)と違え 100 にする。
+# 理由: ruff の E501 は文字数ではなく表示幅で測り、日本語は全角 1 文字 = 2 桁で数える。
+# scripts/ と tests/ はコメント・docstring・アサーション文言が日本語主体のため、
+# 88 では 1 行に入る日本語の情報量が英語の半分になり不自然な折り返しを強いる。
+# 実測(2026-08-23): 幅 88 超 = 160 行 / 幅 100 超 = 12 行。
+line-length = 100
+target-version = "py312"
+# backend/ は自前の pyproject.toml と CI の backend ジョブで検査済み(二重検査を避ける)。
+# .claude/ の hooks・ラッパーは venv を使わず /usr/bin/python3 で起動される別系統で、
+# 未検査の残件が 73 件あるため本タスクの対象外とする(H-13 の残余 — follow-up)。
+extend-exclude = ["backend", ".claude"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "D"]
+# D415 は日本語の句点「。」を要約行の終端記号として認識しないため除外する。
+# D403 も同じ理由(日本語の要約行の先頭語に英語の大文字化規則を当てる)。
+ignore = ["D403", "D415"]
+
+[tool.ruff.lint.per-file-ignores]
+# テストは関数名そのものが仕様の記述であり、docstring の重複強制は情報を増やさない。
+# scripts/ 側は D103 を効かせたままにする(公開関数の契約を docstring で持つため)。
+"tests/**" = ["D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# 検査対象を scripts/ と tests/ に限る(backend・.claude は上と同じ理由で対象外)。
+include = ["scripts", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

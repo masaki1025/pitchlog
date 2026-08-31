@@ -1,0 +1,475 @@
+{
+  "_note": "既知欠陥の oracle。計画書ステップ3で是正・検出器実装より先に固定し、ステップ4以降は変更しない。",
+  "_source_commit": "1ad6ffa",
+  "_expected": {
+    "total": 40,
+    "detection": {
+      "machine": 17,
+      "human": 23
+    },
+    "owner_steps": {
+      "4": 5,
+      "5": 1,
+      "10": 6,
+      "11": 5,
+      "12": 6,
+      "13": 4,
+      "14": 2,
+      "15": 1,
+      "16": 2,
+      "18": 8
+    }
+  },
+  "SP-01": {
+    "id": "SP-01",
+    "source": "docs/features/sync-protocol-canonical/research.md D-1 ①",
+    "location": "候補案 commit 1ad6ffa: 7-2 キュー遷移表 design.md:657・:660、6-3 B4 design.md:558、7-1 A5 design.md:628",
+    "detection": "machine",
+    "check": "condition-key",
+    "owner_step": 10,
+    "invariant": {
+      "positive": "7-2 の遷移条件列は直後の宣言どおり A5 の結果だけをキーとし、未送信から退避済みへの遷移は A5 の「退避」で条件づけられる。",
+      "forbidden": [
+        "ACK の境界結果が **B4** であること"
+      ],
+      "scope": "6-3、7-1、7-2",
+      "mapping": "A5 の「退避」が 6-3 の退避経路と 7-2 の未送信→退避済み遷移の双方に対応する。"
+    }
+  },
+  "SP-02": {
+    "id": "SP-02",
+    "source": "docs/features/sync-protocol-canonical/research.md D-1 ②",
+    "location": "候補案 commit 1ad6ffa: 7-2 キュー遷移表 design.md:651-658、6-3 design.md:556-557、7-1 A5 design.md:628",
+    "detection": "machine",
+    "check": "enum-propagation",
+    "owner_step": 10,
+    "invariant": {
+      "positive": "A5 の結果集合5状態すべてについて、7-2 に対応する遷移行または状態維持行が存在し、「未処理」は未送信のままと明示される。",
+      "forbidden": [],
+      "scope": "6-3、7-1、7-2",
+      "mapping": "A5 の受理・重複・拒否・退避・未処理の各要素が、6-3 と 7-2 の双方に行として存在する。"
+    }
+  },
+  "SP-03": {
+    "id": "SP-03",
+    "source": "docs/features/sync-protocol-canonical/research.md D-1 ③",
+    "location": "候補案 commit 1ad6ffa: 6-3 B4 design.md:558、7-2 状態定義・遷移表 design.md:646-658、9-5 design.md:964",
+    "detection": "machine",
+    "check": "enum-propagation",
+    "owner_step": 10,
+    "invariant": {
+      "positive": "退避済みを含む各キュー状態の保持・破棄契機が、状態定義、遷移表、境界結果、回収の4か所で同じ射程を持つ。保持期間そのものは固定しない。",
+      "forbidden": [],
+      "scope": "6-3、7-2、9-5",
+      "mapping": "7-2 の各状態について、7-2 の遷移行、6-3 の保持記述、9-5 の回収対象が一対一に対応する。"
+    }
+  },
+  "SP-04": {
+    "id": "SP-04",
+    "source": "docs/features/sync-protocol-canonical/research.md D-1 ④",
+    "location": "候補案 commit 1ad6ffa: 7-1 A1 design.md:625 と A5 design.md:628",
+    "detection": "human",
+    "owner_step": 10,
+    "note": "7-1 の A1 の肯定・否定の射程を原典である A5 の5状態と照合し、「重複」だけが未分類になっていないか確認する。"
+  },
+  "SP-05": {
+    "id": "SP-05",
+    "source": "docs/features/sync-protocol-canonical/research.md D-1 ⑤",
+    "location": "候補案 commit 1ad6ffa: 7-1 ACK 表 design.md:625-631（A5 が A4 より前）",
+    "detection": "human",
+    "owner_step": 10,
+    "note": "7-1 の ACK 要素表の A1〜A5 の行順を research.md D-1 ⑤の指摘と照合し、A4 と A5 の構造上の順序を確認する。"
+  },
+  "SP-06": {
+    "id": "SP-06",
+    "source": "docs/features/sync-protocol-canonical/research.md D-2 ⑥",
+    "location": "候補案 commit 1ad6ffa: 10-2 クラッシュ注入 design.md:1022、8-1 経路表 design.md:791・:793-797",
+    "detection": "machine",
+    "check": "route-matrix",
+    "owner_step": 11,
+    "invariant": {
+      "positive": "10-2 のクラッシュ注入は 8-1 の P1・P2・P3 の全経路を列挙し、各経路に実在する T 要素の集合だけについて全確定または全非確定を検証する。",
+      "forbidden": [
+        "T1〜T5 が全部確定しているか全部確定していないか"
+      ],
+      "scope": "8-1、10-2、11-2",
+      "mapping": "8-1 の P1・P2・P3 それぞれの T 要素集合が、10-2 のクラッシュ注入観点と 11-2 の影響差分に対応する。"
+    }
+  },
+  "SP-07": {
+    "id": "SP-07",
+    "source": "docs/features/sync-protocol-canonical/research.md D-2 ⑦",
+    "location": "候補案 commit 1ad6ffa: 9-2 design.md:892・:903、10-2 design.md:1025、欠落先の8-1 design.md:771-797",
+    "detection": "machine",
+    "check": "route-matrix",
+    "owner_step": 11,
+    "invariant": {
+      "positive": "8-1 の経路表に、旧世代検出から退避の永続化を経て B4 応答へ至る独立経路があり、その原子性が 9-2、10-2、11-2 に伝播する。",
+      "forbidden": [],
+      "scope": "8-1、9-2、10-2、11-2",
+      "mapping": "旧世代→退避永続化→B4応答の経路行が、8-1 の経路表、9-2 の原子性行、10-2 の注入シナリオ、11-2 の影響差分に存在する。"
+    }
+  },
+  "SP-08": {
+    "id": "SP-08",
+    "source": "docs/features/sync-protocol-canonical/research.md D-2 ⑧",
+    "location": "候補案 commit 1ad6ffa: 7-1 design.md:631、4-4 C3、8-1 T 要素表 design.md:771-777・経路表 :793-797",
+    "detection": "machine",
+    "check": "element-coverage",
+    "owner_step": 11,
+    "invariant": {
+      "positive": "T 要素の期待全集合に、べき等キーごとの確定結果と一時 ID 写像を同じトランザクションで保存する要素が含まれる。",
+      "forbidden": [],
+      "scope": "4-4、7-1、8-1",
+      "mapping": "7-1 の D5 ごとの確定結果保存と 4-4 の一時 ID 写像保存が、8-1 の T 要素表および該当する全経路の要素集合に対応する。"
+    }
+  },
+  "SP-09": {
+    "id": "SP-09",
+    "source": "docs/features/sync-protocol-canonical/research.md D-2 ⑨",
+    "location": "候補案 commit 1ad6ffa: 8-1 P3 design.md:797・T5 定義 :777、5-5 design.md:464-466・:481、4-3-A W3 design.md:277",
+    "detection": "machine",
+    "check": "route-matrix",
+    "owner_step": 11,
+    "invariant": {
+      "positive": "自身の D2 を持たない P3 の変更イベントには局所再採番 T5 を割り当てず、V11 の照合と確定版更新を別要素として割り当てる。",
+      "forbidden": [
+        "D1 を持たない変更イベント**(4-3-A の #10〜#12) | **T1・T2・T4 + T5"
+      ],
+      "scope": "4-3-A、5-5、8-1",
+      "mapping": "5-5 の従属区分と 4-3-A の W3 が示す D2 非保持が、8-1 の P3 の T 要素集合に対応する。"
+    }
+  },
+  "SP-10": {
+    "id": "SP-10",
+    "source": "docs/features/sync-protocol-canonical/research.md D-2 ⑩",
+    "location": "候補案 commit 1ad6ffa: 8-1 design.md:799、7-1 A1 design.md:625・A3 :627、4-3-A W3-c design.md:280",
+    "detection": "machine",
+    "check": "route-matrix",
+    "owner_step": 11,
+    "invariant": {
+      "positive": "ACK の各保証は適用対象の経路を明示し、prefix に入らない P3 へ A1 を無条件に適用せず、P3 の応答契約を独立に定める。",
+      "forbidden": [
+        "ACK の A1 が保証するのは「当該経路で適用されるすべての T 要素の確定」"
+      ],
+      "scope": "4-3-A、6-3、7-1、8-1",
+      "mapping": "8-1 の各経路行が、その経路に適用される ACK または応答保証の行へ対応する。"
+    }
+  },
+  "SP-11": {
+    "id": "SP-11",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑪",
+    "location": "候補案 commit 1ad6ffa: 4-3-A W3-a design.md:278、6-2 design.md:535-547、6-3 境界結果表",
+    "detection": "machine",
+    "check": "enum-propagation",
+    "owner_step": 12,
+    "invariant": {
+      "positive": "W3-a の期待版照合を処理段階として列挙し、期待版不一致に対応する境界結果と利用者への帰結を 6-3 に持つ。",
+      "forbidden": [],
+      "scope": "4-3-A、6-2、6-3、8-3",
+      "mapping": "W3-a の期待版一致・不一致の各結果が、6-2 の処理段階、6-3 の境界結果、8-3 の通知に対応する。"
+    }
+  },
+  "SP-12": {
+    "id": "SP-12",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑫",
+    "location": "候補案 commit 1ad6ffa: 経路別 D5 衝突 design.md:322、6-3 B3 design.md:557、6-4 design.md:571-582",
+    "detection": "machine",
+    "check": "scope-declaration",
+    "owner_step": 12,
+    "invariant": {
+      "positive": "6-4 の除外リストに、記録権起因の拒否（B4）に加えて、D1 を持たない変更イベントの経路別 D5 衝突が B3 の改訂・墓標による再開2択の対象外であることを示す行が存在し、6-3 の B3 行も同じ除外を宣言する。",
+      "forbidden": [],
+      "scope": "4-4、6-3、6-4",
+      "mapping": "4-4 の経路別 D5 衝突に対して、6-4 の除外リストに記録権起因の拒否（B4）とは別の除外行が存在し、その行が6-3のB3行の除外宣言に対応する。"
+    }
+  },
+  "SP-13": {
+    "id": "SP-13",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑬",
+    "location": "候補案 commit 1ad6ffa: 4-3 V1〜V11 design.md:237-249、4-3-A W3 :277、11-2 :1105",
+    "detection": "machine",
+    "check": "enum-propagation",
+    "owner_step": 12,
+    "invariant": {
+      "positive": "V1〜V11 の無条件必須値と種別条件付き必須値の区別が、4-3 の定義表、4-3-A の W3、11-2 の影響差分で一致し、V3 と V4 の扱いも明示される。",
+      "forbidden": [],
+      "scope": "4-3、4-3-A、6-2、7-1、11-2",
+      "mapping": "V1〜V11 の各 ID について、4-3、W3、11-2 の必須・条件付き・非適用の分類が一対一に一致する。"
+    }
+  },
+  "SP-14": {
+    "id": "SP-14",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑭",
+    "location": "候補案 commit 1ad6ffa: 5-5 区分定義 design.md:449・締め括り :490、4-3-A W3-a・W3-b :278-279、11-2",
+    "detection": "machine",
+    "check": "enum-propagation",
+    "owner_step": 13,
+    "invariant": {
+      "positive": "5-5 の参加区分定義は D1・D2 とは別の変更版順を持つ変更イベントを表現し、その順序を論理再生順に使わないことを示す。",
+      "forbidden": [],
+      "scope": "4-3-A、5-5、11-2",
+      "mapping": "W3-a・W3-b の変更版順が、5-5 の種別と区分の対応および 11-2 の影響差分に対応する。"
+    }
+  },
+  "SP-15": {
+    "id": "SP-15",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑮",
+    "location": "候補案 commit 1ad6ffa: 4-3-A W4 design.md:281、5-3 実行前提 design.md:406-419",
+    "detection": "human",
+    "owner_step": 12,
+    "note": "W4 が参照する5-3の実行前提3行を原典の各前提と逐行照合し、D1を持たず終了後は記録権外である変更イベントへ実際に適用できるか確認する。"
+  },
+  "SP-16": {
+    "id": "SP-16",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑯",
+    "location": "候補案 commit 1ad6ffa: 2-4 design.md:115、6-1 design.md:509-515、6-2、4-3-A :280、8-1 :791",
+    "detection": "machine",
+    "check": "scope-declaration",
+    "owner_step": 14,
+    "invariant": {
+      "positive": "prefix の主題節である6章自身が、prefix の射程を D1 付きイベントに限定し、D1 を持たない変更イベントを対象外と宣言する。",
+      "forbidden": [],
+      "scope": "2-4、4-3-A、6-1、6-2、8-1",
+      "mapping": "4-3-A と 8-1 の prefix 対象外宣言が、主題節である6-1・6-2の同じ射程宣言に対応する。"
+    }
+  },
+  "SP-17": {
+    "id": "SP-17",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑰",
+    "location": "候補案 commit 1ad6ffa: 5-5 design.md:451・:453-466、8-1 :795、7-2 :656",
+    "detection": "human",
+    "owner_step": 13,
+    "note": "5-5 の2群宣言と実際の表構造を原典の7-2・8-1の参加区分に照合し、墓標・改訂版をオンライン専用群へ入れていないか確認する。"
+  },
+  "SP-18": {
+    "id": "SP-18",
+    "source": "docs/features/sync-protocol-canonical/research.md D-3 ⑱",
+    "location": "候補案 commit 1ad6ffa: 4-3-A W3 セル design.md:277",
+    "detection": "machine",
+    "check": "emphasis",
+    "owner_step": 12,
+    "invariant": {
+      "positive": "4-3-A の W3 セル内の Markdown 強調記号が対になって閉じ、意図した文節だけが強調される。",
+      "forbidden": [
+        "持つ。**論理位置(V6)は対象の D2 に従う**(従属 — 5-5)。**D1(V2)を持たない**"
+      ],
+      "scope": "4-3-A の W3 表セル",
+      "mapping": null
+    }
+  },
+  "SP-19": {
+    "id": "SP-19",
+    "source": "docs/features/sync-protocol-canonical/research.md D-4 ⑲",
+    "location": "候補案 commit 1ad6ffa: 10-2 墓標シナリオ design.md:1020、5-5 #8 :462・区分定義 :449、design.md:490・:810",
+    "detection": "machine",
+    "check": "order-use",
+    "owner_step": 14,
+    "invariant": {
+      "positive": "D1 は同期順・prefix・undo の用途に限り、D2 を持たない墓標について D1 の値をプレイ列上の位置として表現しない。",
+      "forbidden": [
+        "`D1=5` の位置には"
+      ],
+      "scope": "2-1、5-5、8-2、10-2",
+      "mapping": "10-2 の D1 用例が、2-1 の許可用途または明示的な非投影の説明に分類され、D2 の位置用途へ対応しない。"
+    }
+  },
+  "SP-20": {
+    "id": "SP-20",
+    "source": "docs/features/sync-protocol-canonical/research.md D-4 ⑳・E の裁定",
+    "location": "候補案 commit 1ad6ffa: 4-2 D1 役割 design.md:222、2-1 D1 定義 design.md:41",
+    "detection": "machine",
+    "check": "order-use",
+    "owner_step": 4,
+    "invariant": {
+      "positive": "2-1 と4-2の D1 用途が、順序と欠落の判定（prefix コミット）および undo の逆順で一致し、再送の重複排除は D5 の用途として分離される。",
+      "forbidden": [
+        "用途は**欠番検知・再送の重複排除・undo の逆順**に限る"
+      ],
+      "scope": "2-1、4-2",
+      "mapping": "2-1 の D1 定義にある許可用途集合と、4-2 の識別子表の D1 役割集合が一致する。"
+    }
+  },
+  "CI-01": {
+    "id": "CI-01",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #1）",
+    "location": "9-1 の境界表の列定義(NFR-019 の種別取り違え — 越境は (b))",
+    "detection": "human",
+    "owner_step": 15,
+    "note": "候補案9-1の境界表の「テスト責務」列全行を要件書NFR-019(a)〜(d)の原文と照合し、越境を(b)、主要分岐を(c)、同期故障系を(d)としているか確認する。"
+  },
+  "CI-02": {
+    "id": "CI-02",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #2）",
+    "location": "6-3 の B4 行(退避イベントの 24 時間保持の射程)",
+    "detection": "human",
+    "owner_step": 10,
+    "note": "候補案6-3のB4行を要件書FR-012の「同期完了済みイベント」の保持規定とFR-013の退避規定に照合し、保持対象の射程を広げていないか確認する。"
+  },
+  "CI-03": {
+    "id": "CI-03",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #3）",
+    "location": "2-1 の D1 の用途(「再送の重複排除」の混入)",
+    "detection": "human",
+    "owner_step": 4,
+    "note": "候補案2-1のD1用途を要件書FR-012の連番とべき等キーの役割分離に照合し、再送の重複排除をD1へ混入させていないか確認する。"
+  },
+  "CI-04": {
+    "id": "CI-04",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #4）",
+    "location": "6-3 の B2 行 / 8-3 の通知表(顕在化規範の引用)",
+    "detection": "human",
+    "owner_step": 12,
+    "note": "候補案6-3のB2行と8-3の通知表を、内容起因拒否に限定されたFR-012と一般の顕在化規範である4.0-2・NFR-015の原文に照合する。"
+  },
+  "CI-05": {
+    "id": "CI-05",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #5）",
+    "location": "2-1 の D6 の墓標定義(「内容起因で」の脱落)",
+    "detection": "human",
+    "owner_step": 4,
+    "note": "候補案2-1のD6墓標定義を要件書FR-012の内容起因拒否への限定と記録権拒否の除外に照合し、射程を拡大していないか確認する。"
+  },
+  "CI-06": {
+    "id": "CI-06",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 意味ズレ #6）",
+    "location": "5-5 の参加区分表 #2 undo(下流再計算の典拠)",
+    "detection": "human",
+    "owner_step": 13,
+    "note": "候補案5-5のundo行にある下流再計算の主張を、引用先FR-006と実際に根拠を持つFR-007の原文に照合する。"
+  },
+  "CI-07": {
+    "id": "CI-07",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 射程過大 #7）",
+    "location": "7-4 の Q2-b(NFR-015 の対象に UI の入力可否表示は含まれない)",
+    "detection": "human",
+    "owner_step": 4,
+    "note": "候補案7-4のQ2-bを要件書NFR-015とFR-012/E3の原文に照合し、入力可否表示と記録中タブ終了導線の根拠を正しく分離する。"
+  },
+  "CI-08": {
+    "id": "CI-08",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 射程過大 #8）",
+    "location": "5-5 の O4 の扱い表(要件にない fail-closed の停止)",
+    "detection": "human",
+    "owner_step": 13,
+    "note": "候補案5-5のO4行を引用先要件の原文と照合し、顕在化の要求から要件にないfail-closed停止まで導いていないか確認する。"
+  },
+  "CI-09": {
+    "id": "CI-09",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 射程過大 #9）",
+    "location": "2-3 の禁じる別名表(トークンの条名と行番号の不対応)",
+    "detection": "human",
+    "owner_step": 5,
+    "note": "候補案2-3の「トークン」行を参照先要件の条名と本文に照合し、認証トークンの典拠を別の受入基準へ誤対応させていないか確認する。"
+  },
+  "CI-10": {
+    "id": "CI-10",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-4 射程過大 #10）",
+    "location": "10-1 の論点 19(「永続ストレージ API のみ」の過少)",
+    "detection": "human",
+    "owner_step": 16,
+    "note": "候補案10-1の論点19を要件書FR-012の永続ストレージに関する全受入基準に照合し、APIだけに対象を狭めていないか確認する。"
+  },
+  "CI-11": {
+    "id": "CI-11",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 CI-*対応表（原典: research.md B-2）",
+    "location": "10-3(ADR-003 契約表は①②のいずれにも (d) の行が無い)",
+    "detection": "human",
+    "owner_step": 16,
+    "note": "候補案10-3をADR-003 D-6契約表の①対象計算ベクタ契約と②参照データ契約の全行に照合し、どちらにもNFR-019(d)の行がないことを確認する。"
+  },
+  "LG-01": {
+    "id": "LG-01",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 #1",
+    "location": "候補案 commit 1ad6ffa: design.md:935",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "退避取り込み手順の「プレイ番号」を候補案2-3の別名規律と旧88列の原典data-layer.md:161に照合し、D2の意味で使っていないか確認する。"
+  },
+  "LG-02": {
+    "id": "LG-02",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 #2",
+    "location": "候補案 commit 1ad6ffa: design.md:275（W1）",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "W1の旧システムに関する主張をservices-shell.md:151・:153の差分プレビューと下流再計算に照合し、欠けていたものを永続履歴に限定する。"
+  },
+  "LG-03": {
+    "id": "LG-03",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 #3",
+    "location": "候補案 commit 1ad6ffa: design.md:92",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "「上書き／スキップ」の典拠をservices-shell.md:150と旧調査9本に照合し、原典に存在しない語を旧システムの事実としていないか確認する。"
+  },
+  "LG-04": {
+    "id": "LG-04",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 #4",
+    "location": "候補案 commit 1ad6ffa: design.md:258",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "旧システムが時刻列を順序決定に使わないという主張をdata-layer.md:222-224・:285-286とdb-structure.md:243に照合し、列の存在だけを根拠にしていないか確認する。"
+  },
+  "LG-05": {
+    "id": "LG-05",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 #5",
+    "location": "候補案 commit 1ad6ffa: design.md:1171",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "申し送りをlegacy research README・data-layer.md・db-structure.mdに逐語照合し、テーブル数とCASCADEを未裁定の矛盾として扱い、接続プールの第3の食い違いを含める。"
+  },
+  "LG-06": {
+    "id": "LG-06",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 末尾の典拠不一致 #1",
+    "location": "候補案 commit 1ad6ffa: docs/features/sync-protocol-design/research.md:101",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "前タスクresearch.md:101の主張をinput-screen.md:276と、正しい候補であるservices-shell.md:156-157・data-layer.md:283-284に照合する。"
+  },
+  "LG-07": {
+    "id": "LG-07",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 末尾の典拠不一致 #2",
+    "location": "候補案 commit 1ad6ffa: docs/features/sync-protocol-design/research.md:102",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "前タスクresearch.md:102の主張をservices-shell.md:153の差分プレビュー記述に照合し、主張と逆方向の典拠を使っていないか確認する。"
+  },
+  "LG-08": {
+    "id": "LG-08",
+    "source": "docs/features/sync-protocol-canonical/research.md C-3 末尾の典拠不一致 #3",
+    "location": "候補案 commit 1ad6ffa: docs/features/sync-protocol-design/research.md:116",
+    "detection": "human",
+    "owner_step": 18,
+    "note": "前タスクresearch.md:116の「欠番があり得る」という主張をdata-layer.md:402に照合し、支持典拠がないため結論を「不明」として扱う。"
+  },
+  "MT-01": {
+    "id": "MT-01",
+    "source": "docs/features/sync-protocol-canonical/plan.md 4節 MT-01 の13箇所表",
+    "location": "候補案 commit 1ad6ffa: 冒頭、1節、2-2、3-1・3-2、6-4、7-3、7-4、10-1、10-3、11-1、11-3、11-4 の13アンカー",
+    "detection": "machine",
+    "check": "draft-metadata",
+    "owner_step": 4,
+    "invariant": {
+      "positive": "正本自身の状態・作成経緯・所属タスクに言及する自己メタ記述が、計画書4節で固定した13アンカーすべてから除去される。",
+      "forbidden": [
+        "本書は「候補案」であり「決定」ではない",
+        "本書の構成と、どのステップが何を書くか",
+        "契約(機構が読む状態・実装ステップ表・論点の (A)/(B) 分類)は [plan.md](../features/sync-protocol-design/plan.md) が正",
+        "本タスクの中核",
+        "分類と扱いの正は [plan.md](../features/sync-protocol-design/plan.md) 4 節",
+        "正本化の前提",
+        "この判断は正本化の前に完了させる必要がある。",
+        "ステップ 5 から移設",
+        "本候補案では決めない",
+        "**(A)/(B) の分類の正は [plan.md](../features/sync-protocol-design/plan.md) 4 節**",
+        "本タスクはテスト資産を作らず",
+        "本候補案が推奨",
+        "採用された場合",
+        "**抽出規則は [plan.md](../features/sync-protocol-design/plan.md) 1 節が正**",
+        "本タスクの DoD で起票"
+      ],
+      "scope": "冒頭、1節、2-2、3-1、3-2、6-4、7-3、7-4、10-1、10-3、11-1、11-3、11-4",
+      "mapping": "計画書4節の除去対象アンカー #1〜#13 の各位置が、正本では自己メタ記述0件になる。"
+    }
+  }
+}

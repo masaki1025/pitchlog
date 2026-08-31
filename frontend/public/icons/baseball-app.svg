@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="野球スコア">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <path d="M256 96 416 256 256 416 96 256Z" fill="#e0f2fe" stroke="#38bdf8" stroke-width="22"/>
+  <path d="M256 326 186 256l70-70 70 70Z" fill="#fff" stroke="#64748b" stroke-width="14" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="44" fill="#fff" stroke="#ef4444" stroke-width="12"/>
+  <path d="M226 233c19 7 41 7 60 0M226 279c19-7 41-7 60 0" fill="none" stroke="#ef4444" stroke-width="8" stroke-linecap="round"/>
+</svg>

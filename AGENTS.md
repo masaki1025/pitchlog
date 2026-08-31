@@ -2,7 +2,7 @@
 
 野球の試合を1球単位(Pitch by Pitch)で記録・分析するスコアリングシステム。Baseball_Scoring(Tsukuba PSS)の製品版としての全面再構築。
 
-- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(v1.7)
+- 要件の正本: `docs/requirements/requirements-pitchlog-2026-07-22.md`(現行版 — 版の正は同書の変更履歴)
 - ドキュメント索引: `docs/README.md`
 - 開発プロセスの正本: `docs/development/dev-harness-design-2026-08-07.md`(ハーネス設計書)
 
@@ -19,6 +19,7 @@
 - コメント・docstring は**原則日本語**。docstring は **Google スタイル**(ruff の pydocstyle 検査 = google)
 - 識別子・ファイル名は英語。ドキュメント・コミットメッセージ・PR は日本語
 - コミット: Conventional Commits(`feat` / `fix` / `docs` / `refactor` / `test` / `chore` / `ci` / `build`)+ 日本語要約
+- 実装ステップのコミットは件名に完全トークン **`(ステップ <k>[/<N>][ 付記])`** を**ちょうど 1 個**含める(現在地導出が読む — `scripts/feature_status.py`)。**厳密文法(同種括弧の一致 / `k=0` は不正 / `/<N>` は表の総数と一致 / 数値直後に許す文字 / 括弧のない文言は不算入 / 1 件名に 2 トークン以上は不整合)はハーネス設計書 6.1 が正**。**確定ゲートの反映周コミットにはステップ記法を付けず** `反映<r>周目` だけを含める(同 6.1)
 - ドメイン計算は単一実装(NFR-018)— コピー実装を作らない。クライアント/サーバー一致の正解は `contracts/` のゴールデンベクタ
 - 集計は DB 側絞り込み(WHERE / GROUP BY + インデックス)。**全件読み込み型の集計を書かない**(NFR-005)。一覧はページングする
 - 利用者入力は全出力経路で自動エスケープ。生 HTML 挿入禁止。PDF レンダラは外部リソース無効(NFR-023)
@@ -28,6 +29,7 @@
 
 ## コマンド(実装フェーズで有効)
 
+- ハーネス(リポジトリルートで): `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/`(**`ruff format` は未導入 — 走らせない**。検査対象は `scripts/` と `tests/`)
 - バックエンド(backend/ で): `uv run ruff format` / `uv run ruff check --fix` / `uv run ty check` / `uv run pytest`
 - フロントエンド(frontend/ で): `pnpm exec prettier --write .` / `pnpm exec eslint .` / `pnpm exec vue-tsc --noEmit` / `pnpm test`
 - 開発 DB: `docker compose up -d`
@@ -38,7 +40,7 @@
 
 ## Code Review Rules
 
-- **コア領域**(同期プロトコル・状況計算・記録権・テナント分離・データ移行 — 定義の正は `.claude/core-areas.json`)の変更は最優先で深掘りする
+- **コア領域**(同期プロトコル・状況計算・記録権・テナント分離・データ移行 — 意味範囲の正は設計書 6.3 の境界定義表・paths の正は `.claude/core-areas.json`)の変更は最優先で深掘りする
 - NFR-018 違反: 同一ドメイン計算の重複実装を検出したら **P0**
 - NFR-023 違反: エスケープ欠落・生 HTML 挿入・PDF の外部リソース参照は **P0**
 - シークレットのハードコード・ログ出力は **P0**

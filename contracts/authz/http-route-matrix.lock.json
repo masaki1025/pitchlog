@@ -1,0 +1,724 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_http_route_matrix",
+  "asset_path": "contracts/authz/http-route-matrix.json",
+  "asset_digest": "a01cbffde7a483847cda02921291a8862eb0c6b15a78bb5e667928e70256b7e3",
+  "entry_count": 49,
+  "aggregate_decision_digest": "cca8dc15a488e999f28397c84af0a72fab121247a10b55169b16d80d5425653a",
+  "entries": [
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-020",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-020",
+        "route_id": "ROUTE:FR-020",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-020",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "cc4e8db321937b4fb297ed4a71270348737ec7f82eade4e9e21d884f72a956c6"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-021",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-021",
+        "route_id": "ROUTE:FR-021",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-021",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "d8bfc26f510c4ae71c9c5a315e90e86617fe9066d42976eeec05e007c93cbc50"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-022",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-022",
+        "route_id": "ROUTE:FR-022",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-022",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "78ca00f8c620142410c3d78254c2c8680e4b4e0a93dad6ab47bcfec5eed3b1bb"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-023",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-023",
+        "route_id": "ROUTE:FR-023",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-023",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "6b7eda0b66db465a493469b59d55575a8f9e35e361da7642b762a680b18b23e1"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-024",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-024",
+        "route_id": "ROUTE:FR-024",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-024",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "c27388794b01f632c91427035aa00625bc1c23d352d1b1c1260c0c0acb97a502"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-025",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-025",
+        "route_id": "ROUTE:FR-025",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-025",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "a832d2492a6b305d9f80ba7001b246d659008a735ffa160433c885ca8e808526"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-026",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-026",
+        "route_id": "ROUTE:FR-026",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-026",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "e4be31d909a1aebf97bc74dd5b83b55ac77c8ebf16bcff21e5712c904dc6750d"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-027",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-027",
+        "route_id": "ROUTE:FR-027",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-027",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "fc662d161f94eeeb775a3c9354c6076d191a19e13e1f0771b26d811241f95415"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-028",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-028",
+        "route_id": "ROUTE:FR-028",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-028",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "f7c2dbe0f611a2ffd5a3e35fbf03061b20376b05d90519538223baee4059a8d6"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-029",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-029",
+        "route_id": "ROUTE:FR-029",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-029",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "c11c27916a079ef685c14d3f23505906e1351fc684ca4bbcad24a901e820a09d"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-030",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-030",
+        "route_id": "ROUTE:FR-030",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-030",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "94b10a17c27d6e410ef6fd4208ff7538b04a86486411fa1e68319babec8a7fcd"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-031",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-031",
+        "route_id": "ROUTE:FR-031",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-031",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "eaef96010d2f852c3bc926e37a9486f3ffda24d11b110cd4c1913ef62c4ecef0"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:FR-032",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:FR-032",
+        "route_id": "ROUTE:FR-032",
+        "disposition": "deny_404",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:FR-032",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "d125d389865d4f57d423f992d4de398b0de3ce940be975c7c8069780e38de9f8"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "dfe5ffd6119aaa56cf9f2d357071d2efe54d971783eaa70c268d8a417c1304e4"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:team_metrics:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "c4de62721043e795f5e94a7dc027291a114cae5c602440a3f199c05357ad4ab4"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:team_summary:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_summary:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_summary:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "b8a09e1e4a717e52531ee9ecbc98dba6df9effcc0be81332a1b836a645483ec7"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:team_summary:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_summary:export",
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_summary:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "4845118ff03e10baae93a39d38e75011a53d6c096c3515d8c775b99baa1ef8c3"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:player_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "3ac74244025ad02e44529dccb6317d8b52f1aaa189627f89364eb90c780d6c58"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_screen:player_metrics:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:player_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:player_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "3a23a12e54f3751b29546bd90dc1751a74a46c506526efd216bec2c3d0f93ef5"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "7288233b9e3eb6d427429266b403964d1ba3a9cb6d0688b197952a0f345dd7d4"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "5463b9e97b26980958d33bcf98cac34ebf660c400250b47f9670b2f878e50801"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "41f666624fc5fbf9c5b6bcec41b4d18cab3e75ad0b1d2c228b72178b575d6f50"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "0f3ffc343b8f2bc9e6ffe7636f7a3c888d7e8f0211c28be531b0d10e0500df80"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "26ae85f017513696fc8d3bb57a98bee984a0cd22010836e1e0e330fc27a02a4b"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "disposition": "product_cell",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "2464070c02072ae225d7b17fc256b953e8163ec0b45c67b68ca607e4f1d87419"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:CONTROL:GROUP_LIST",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:CONTROL:GROUP_LIST",
+        "route_id": "ROUTE:CONTROL:GROUP_LIST",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:GROUP_LIST",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "ff602ac924898835a97f6bc8692acfd4fbfedd6aab9482cc775749b0935185e2"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:CONTROL:MEMBER_LIST",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:CONTROL:MEMBER_LIST",
+        "route_id": "ROUTE:CONTROL:MEMBER_LIST",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:MEMBER_LIST",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "951f45eb7eb1d4a7ba95d9f842c411b2941017dba6859ae8cdf0d5c71d29a96d"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:CONTROL:GRANT_STATE",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:CONTROL:GRANT_STATE",
+        "route_id": "ROUTE:CONTROL:GRANT_STATE",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:GRANT_STATE",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "77af756b4bdcb3b1e44d14d2d7efc1918d1a77f533cd86a2f713f79201f4c798"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:CONTROL:INVITATION_LIST",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:CONTROL:INVITATION_LIST",
+        "route_id": "ROUTE:CONTROL:INVITATION_LIST",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:INVITATION_LIST",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "a588dcaf511e1a4d189e622953414690b685644e460c7d583bb46b54a0ba8cc5"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:CREATE_GROUP",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CREATE_GROUP",
+        "route_id": "ROUTE:MANAGEMENT:CREATE_GROUP",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CREATE_GROUP",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "26805b53749d0f4479c4769d798880eae4943a51820db9538295c003758c7832"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "route_id": "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "3293ffff7a375430e2033939df9b6e66c77f4c4dcd2bcb857fd8c4fb2e89640a"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "route_id": "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "a67566e90034ca350fcf33f6ed42ecb6f464c488c7cdbbbd4be975b79ee23740"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+        "route_id": "ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "7cfa7005ba71964b76aa828e77d1d72e2f8edaff5eaaceb17e7870c371716658"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:LEAVE_GROUP",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:LEAVE_GROUP",
+        "route_id": "ROUTE:MANAGEMENT:LEAVE_GROUP",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:LEAVE_GROUP",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "f0d7006e0593b98bc77d8fcec6c8ebce0734cefd1a1909755b0bb47de9ca61da"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+        "route_id": "ROUTE:MANAGEMENT:UPDATE_GRANTS",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "8bb5f853b64787aad95d288c52614570610b9737e73dec4f9146f78d2d2aab71"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:CHANGE_ROLE",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CHANGE_ROLE",
+        "route_id": "ROUTE:MANAGEMENT:CHANGE_ROLE",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CHANGE_ROLE",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "77765394b3b045f6f075e99f2c49f98b376228611639b10f40ec7308557e9c6e"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
+        "route_id": "ROUTE:MANAGEMENT:CLOSE_GROUP",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "d64d0b37645c1689881a1c8ea4787c28653e5d9f728b1bba6d2ef0f3429d1e57"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:team_metrics:screen",
+      "decision": {
+        "cell_id": "CELL:shared_screen:team_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "screen",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:team_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "1095f1aff6f722887c86f5257794666ae0a88c640f4588ad6e57007d77036097"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:team_metrics:export",
+      "decision": {
+        "cell_id": "CELL:shared_screen:team_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "export",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:team_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "7228015a3b2eb14f8d19846bd14af1315ff20afcf30679fe039ecb55ad9325de"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:team_summary:screen",
+      "decision": {
+        "cell_id": "CELL:shared_screen:team_summary:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "screen",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:team_summary:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "9a6216ea788f6df4f7b99bb714de7f5900c13e043040cccb83857ad45015857e"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:team_summary:export",
+      "decision": {
+        "cell_id": "CELL:shared_screen:team_summary:export",
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "export",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:team_summary:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "f12c5507184653115ed632b3d49846a806131741829fda58d85245c847751482"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:player_metrics:screen",
+      "decision": {
+        "cell_id": "CELL:shared_screen:player_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "screen",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics",
+          "player"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:player_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "2f176e7ffb73e9e00b75b67b74070824c2f72825fa5c433bc842e1643b5f4897"
+    },
+    {
+      "entry_id": "cell:CELL:shared_screen:player_metrics:export",
+      "decision": {
+        "cell_id": "CELL:shared_screen:player_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "export",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_screen:player_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "732b4016965f9247d270908c7c1a4257ad736bccc07b8bd7a6104d85600e89d9"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:team_metrics:screen",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:team_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "screen",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "d9526c977dc32b058b891e3ce0b015b88998a0fc40a4261f179bbed209dd07aa"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:team_metrics:export",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:team_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "export",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics",
+          "export"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "a81cb693e911a8b3300b269c38369f6e16b4fc8569b2bbfc9db7e87740f7511b"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:team_summary:screen",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:team_summary:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "screen",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_summary:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "cbce1769edbd1aa5e8ab9ac3739ae36694494b73d24d5eca54cf5bad5dcfd444"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:team_summary:export",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:team_summary:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "export",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics",
+          "export"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_summary:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "d82517fc91e5e06ad0523861c2c8ed14e348a3fcb9e5346ecb70b0b33ad60c35"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:player_metrics:screen",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:player_metrics:screen",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "screen",
+        "expected_result": "deny",
+        "required_grant_ids": [],
+        "expected_http_status": 404,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:player_metrics:screen",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "595f4217235b21ee35970170b6a6222396b3842ef34a113963f9d3135f20f059"
+    },
+    {
+      "entry_id": "cell:CELL:shared_aggregate_export:player_metrics:export",
+      "decision": {
+        "cell_id": "CELL:shared_aggregate_export:player_metrics:export",
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "export",
+        "expected_result": "allow",
+        "required_grant_ids": [
+          "metrics",
+          "player",
+          "export"
+        ],
+        "expected_http_status": 200,
+        "test_owner": {
+          "id": "TSK-217.http-cell.CELL:shared_aggregate_export:player_metrics:export",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "03a93725a035e81e0ee8fb48077716a88fb8fc6bf754965f7cb9f6f16420cb8f"
+    }
+  ]
+}
