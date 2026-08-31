@@ -6,7 +6,7 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.4 — 同期プロトコル設計 v0.1 と同一の確定ゲートで一括検証。敵対レビュー10周 → PO 承認) | 2.4 | 2026-08-30 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.4 — 同期プロトコル設計 v0.1 と同一の確定ゲートで一括検証。敵対レビュー10周 → PO 承認) | 2.4 | 2026-09-01 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(v0.1 — 要件書 v2.4 と一括検証。敵対レビュー10周・射程縮小2回 → PO 承認) | 0.1 | 2026-08-30 |

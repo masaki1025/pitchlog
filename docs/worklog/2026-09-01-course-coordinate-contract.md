@@ -223,3 +223,113 @@ if rg -n '\b263\b' frontend/src/lib/courseCoordinateContract.spec.ts; then exit 
 | `pnpm test -- --run` | **PASS** — 4 ファイル・11 テスト |
 
 **ステップ 2・3 には進んでいない。コミットも作成していない。**
+
+## /implement — ステップ 2: 要件書 NFR-018 例外表の更新
+
+### 更新内容
+
+- `docs/requirements/requirements-pitchlog-2026-07-22.md` の NFR-018 (c) 例外表について、
+  「検証テスト」を `frontend/src/lib/courseCoordinateContract.spec.ts`、「状態」を `有効` へ更新した
+- 同要件書の変更履歴末尾へ、版を `2.4` のまま維持した 2026-09-01 の実装追随行を 1 行追加した
+- `docs/README.md` の要件定義書行は、版・状態説明を変えず最終更新日だけを
+  `2026-08-30` から `2026-09-01` へ更新した
+
+### HEAD 版との構造比較
+
+次の使い捨て Python をリポジトリへ残さず実行した。`uv` の既定キャッシュは sandbox 外で
+read-only だったため、`UV_CACHE_DIR` だけ `/tmp` へ向けた。
+
+```bash
+UV_CACHE_DIR=/tmp/codex-uv-cache uv run python - <<'PY'
+from pathlib import Path
+import subprocess
+
+REQ = 'docs/requirements/requirements-pitchlog-2026-07-22.md'
+README = 'docs/README.md'
+TARGET = '`frontend/src/lib/courseInputView.ts` の `COURSE_COORDINATE_SIZE`'
+COLS = ['対象シンボル', '対応する契約値', '検証テスト', '終了証跡', '失効判定者', '状態']
+
+def head(path):
+    return subprocess.run(
+        ['git', 'show', f'HEAD:{path}'], check=True, stdout=subprocess.PIPE, text=True
+    ).stdout
+
+def one(lines, needle):
+    found = [line for line in lines if needle in line]
+    assert len(found) == 1
+    return found[0]
+
+def cells(line):
+    first, last = line.index('|'), line.rindex('|')
+    assert not line[last + 1:].strip()
+    return line[first + 1:last].split('|')
+
+def history(lines):
+    heading = lines.index('## 変更履歴\n')
+    header = next(i for i in range(heading + 1, len(lines)) if lines[i].startswith('| 版 |'))
+    i, rows = header + 2, []
+    while i < len(lines) and lines[i].startswith('|'):
+        rows.append(lines[i])
+        i += 1
+    return rows
+
+h, w = head(REQ), Path(REQ).read_text()
+hl, wl = h.splitlines(keepends=True), w.splitlines(keepends=True)
+old, new = one(hl, TARGET), one(wl, TARGET)
+oc, nc = cells(old), cells(new)
+assert len(oc) == len(nc) == 6
+changed = {COLS[i] for i, pair in enumerate(zip(oc, nc, strict=True)) if pair[0] != pair[1]}
+assert changed == {'検証テスト', '状態'}
+assert all(oc[i] == nc[i] for i in (0, 1, 3, 4))
+assert nc[2].strip() == '`frontend/src/lib/courseCoordinateContract.spec.ts`'
+assert nc[5].strip() == '有効'
+oh, nh = history(hl), history(wl)
+assert nh[:-1] == oh and len(nh) == len(oh) + 1
+expected = h.replace(old, new, 1).replace(oh[-1], oh[-1] + nh[-1], 1)
+assert w == expected
+test_path = nc[2].strip().strip('`')
+assert Path(test_path).is_file()
+
+hr, wr = head(README), Path(README).read_text()
+old_index = one(hr.splitlines(keepends=True), '| [要件定義書]')
+new_index = one(wr.splitlines(keepends=True), '| [要件定義書]')
+oic, nic = cells(old_index), cells(new_index)
+assert {i for i, pair in enumerate(zip(oic, nic, strict=True)) if pair[0] != pair[1]} == {3}
+assert nic[2].strip() == '2.4' and nic[3].strip() == '2026-09-01'
+assert wr == hr.replace(old_index, new_index, 1)
+print('検査1〜4・索引検査 PASS')
+PY
+```
+
+実測結果:
+
+| # | 検査 | 結果 |
+| --- | --- | --- |
+| 1 | 対象行の変更列集合 | **PASS** — `{検証テスト, 状態}` と完全一致 |
+| 2 | 残り 4 セル | **PASS** — 対象シンボル・契約値・終了証跡・失効判定者がバイト一致 |
+| 3 | 要件書の許可差分限定 | **PASS** — 対象行の置換と変更履歴末尾への 1 行追加以外は HEAD と一致。既存変更履歴行も全件一致 |
+| 4 | 検証テストの実在 | **PASS** — `frontend/src/lib/courseCoordinateContract.spec.ts` は通常ファイルとして実在 |
+| 索引 | 要件定義書行 | **PASS** — 最終更新日だけが変わり、版 `2.4` は不変 |
+
+### 文書検査と品質ゲート
+
+| コマンド | 結果 |
+| --- | --- |
+| `UV_CACHE_DIR=/tmp/codex-uv-docs-status uv run python scripts/check_docs_status.py` | **PASS** |
+| `UV_CACHE_DIR=/tmp/codex-uv-doc-coverage uv run python scripts/check_doc_coverage.py` | **PASS** |
+| `UV_CACHE_DIR=/tmp/codex-uv-design-propagation uv run python scripts/check_design_propagation.py` | **PASS** |
+| `UV_CACHE_DIR=/tmp/codex-uv-ruff uv run ruff check .` | **PASS** |
+| `UV_CACHE_DIR=/tmp/codex-uv-ty uv run ty check` | **PASS** |
+| `UV_CACHE_DIR=/tmp/codex-uv-pytest-full uv run pytest tests/` | **FAIL** — 842 passed / 1 failed |
+
+pytest の失敗は
+`tests/test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_requirements_file` の 1 件だけ。
+`contracts/authz/requirement-claims.json` の `source_blob_digest` が HEAD の要件書 blob
+`38a9bc678360e059fd72d4721cad5d3aa89dc115` を封印しているため、今回の要件書差分の blob
+`6b9a1d396acbd679e6e4c737eb60bb7963dff26a` を意図どおり不一致として検出した。
+
+green 化には `contracts/authz/requirement-claims.json` と関連 seal の再封印が必要だが、
+`contracts/**` は本ステップの明示的な変更禁止範囲であり、`--reseal-oracle` は人間レビューを要求する。
+したがってスコープを越えて更新せず、品質ゲート未達としてそのまま記録する。
+
+**ステップ 3 には進んでいない。frontend / contracts / scripts / tests は変更していない。コミットも作成していない。**
