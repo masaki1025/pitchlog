@@ -16,6 +16,12 @@ from typing import Pattern, Sequence
 DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 DEFAULT_CLAIMS = Path("contracts/authz/requirement-claims.json")
 DEFAULT_LOCK = Path("contracts/authz/requirement-claims.lock.json")
+DEFAULT_ROUTE_REGISTRY = Path("contracts/authz/route-registry.json")
+DEFAULT_ROUTE_REGISTRY_LOCK = Path("contracts/authz/route-registry.lock.json")
+DEFAULT_AUTH_CATALOG = Path("contracts/authz/auth-catalog.json")
+DEFAULT_AUTH_CATALOG_LOCK = Path("contracts/authz/auth-catalog.lock.json")
+DEFAULT_HTTP_ROUTE_MATRIX = Path("contracts/authz/http-route-matrix.json")
+DEFAULT_HTTP_ROUTE_MATRIX_LOCK = Path("contracts/authz/http-route-matrix.lock.json")
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -47,6 +53,26 @@ REQ_LINE_ID_RE = re.compile(r"(?:^|/)REQ:\d+(?:$|/)")
 TEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]*$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+ROUTE_CLASSES = frozenset({"shared_screen", "shared_aggregate_export"})
+RESOURCE_KINDS = frozenset({"team_metrics", "team_summary", "player_metrics"})
+CHANNELS = frozenset({"screen", "export"})
+ROUTE_KINDS = frozenset(
+    {"legacy_route", "shared_data", "control_read", "management_operation"}
+)
+ORIGINS = frozenset({"requirement", "design"})
+FORBIDDEN_RESOURCE_KINDS = frozenset(
+    {
+        "raw_pitch_events",
+        "medical_notes",
+        "third_party_data",
+        "body_profile_distribution",
+    }
+)
+FORBIDDEN_EVACUATED_IMPORT_TERMS = (
+    "退避イベントの取り込み",
+    "挿入位置を指定して取り込",
+    "IMPORT_EVACUATED_EVENT",
+)
 
 
 @dataclass(frozen=True)
@@ -977,6 +1003,923 @@ def reseal_catalog(catalog: dict[str, object], catalog_path: str) -> dict[str, o
     return build_decision_lock(catalog, catalog_path)
 
 
+def _expect_bool(value: object, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise CatalogError(f"{label}は boolean でなければならない")
+    return value
+
+
+def _expect_closed_value(
+    value: object, allowed: frozenset[str], label: str
+) -> str:
+    text = _expect_string(value, label)
+    if text not in allowed:
+        raise CatalogError(f"{label}が閉じた値域にない: {text}")
+    return text
+
+
+def _auth_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:
+    claims = catalog["claims"]
+    assert isinstance(claims, list)
+    return {
+        str(claim["source_id"]): claim
+        for claim in claims
+        if isinstance(claim, dict) and claim.get("classification") == "auth_claim"
+    }
+
+
+def _db_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:
+    auth_claims = _auth_claims_by_id(catalog)
+    db_claims: dict[str, dict[str, object]] = {}
+    for source_id, claim in auth_claims.items():
+        decisions = claim.get("decidable_at")
+        if isinstance(decisions, list) and any(
+            isinstance(decision, dict) and decision.get("location") == "db"
+            for decision in decisions
+        ):
+            db_claims[source_id] = claim
+    return db_claims
+
+
+def _validate_derived_input_manifest(raw: object, root: Path) -> None:
+    if not isinstance(raw, dict):
+        raise CatalogError("derived input_manifest はオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "requirement_claims_path",
+            "requirement_claims_blob_digest",
+            "requirement_claims_lock_path",
+            "requirement_claims_lock_blob_digest",
+        },
+        "derived input_manifest",
+    )
+    path_pairs = (
+        ("requirement_claims_path", "requirement_claims_blob_digest"),
+        ("requirement_claims_lock_path", "requirement_claims_lock_blob_digest"),
+    )
+    for path_key, digest_key in path_pairs:
+        relative = _expect_string(raw[path_key], f"input_manifest.{path_key}")
+        path = (root / relative).resolve()
+        try:
+            path.relative_to(root.resolve())
+        except ValueError as error:
+            raise CatalogError(f"{path_key}がリポジトリ外を指している") from error
+        digest = _expect_string(raw[digest_key], f"input_manifest.{digest_key}")
+        if not path.is_file() or git_blob_digest(_read_bytes(path, path_key)) != digest:
+            raise CatalogError(f"{digest_key}が入力資産と一致しない")
+
+
+def _validate_test_owner(
+    raw: object,
+    label: str,
+    implemented_test_ids: frozenset[str],
+) -> None:
+    if not isinstance(raw, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(raw, {"id", "status"}, label)
+    test_id = _expect_string(raw["id"], f"{label}.id")
+    if not TEST_ID_RE.fullmatch(test_id):
+        raise CatalogError(f"{label}.id の形式が不正: {test_id}")
+    status = _expect_closed_value(
+        raw["status"], TEST_STATUSES, f"{label}.status"
+    )
+    if status == "implemented" and test_id not in implemented_test_ids:
+        raise CatalogError(f"{label}: implemented test ID が pytest 収集結果にない: {test_id}")
+
+
+def _validate_source_claim_ids(
+    raw: object,
+    label: str,
+    auth_claims: dict[str, dict[str, object]],
+    *,
+    required: bool,
+) -> list[str]:
+    identifiers = _expect_string_list(raw, label)
+    if required and not identifiers:
+        raise CatalogError(f"{label}は1件以上必要")
+    unknown = sorted(set(identifiers) - set(auth_claims))
+    if unknown:
+        raise CatalogError(f"{label}が母集合の AUTH 主張に存在しない: {unknown}")
+    return identifiers
+
+
+def _validate_design_provenance(raw: object, root: Path) -> frozenset[str]:
+    if not isinstance(raw, list) or not raw:
+        raise CatalogError("design_provenance は空でない配列でなければならない")
+    provenance_ids: list[str] = []
+    for index, entry in enumerate(raw):
+        label = f"design_provenance[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(entry, {"provenance_id", "path", "extracted_text"}, label)
+        provenance_id = _expect_string(entry["provenance_id"], f"{label}.provenance_id")
+        path_text = _expect_string(entry["path"], f"{label}.path")
+        extracted = _expect_string(entry["extracted_text"], f"{label}.extracted_text")
+        source_path = (root / path_text).resolve()
+        try:
+            source_path.relative_to(root.resolve())
+        except ValueError as error:
+            raise CatalogError(f"{label}.path がリポジトリ外を指している") from error
+        source = _read_text(source_path, f"{label}.path")
+        if "".join(extracted.split()) not in "".join(source.split()):
+            raise CatalogError(f"{label}.extracted_text が原文に逐語一致しない")
+        provenance_ids.append(provenance_id)
+    if len(provenance_ids) != len(set(provenance_ids)):
+        raise CatalogError("design_provenance.provenance_id が重複している")
+    return frozenset(provenance_ids)
+
+
+def validate_route_registry(
+    raw: object,
+    requirement_catalog: dict[str, object],
+    root: Path,
+    implemented_test_ids: frozenset[str],
+) -> dict[str, object]:
+    """閉じた論理経路と管理操作契約を検査する。
+
+    Args:
+        raw: route registry の JSON 値。
+        requirement_catalog: 検査済み要件主張母集合。
+        root: リポジトリルート。
+        implemented_test_ids: pytest が実際に収集した node ID。
+
+    Returns:
+        route ID、route kind、origin 件数などの検査結果。
+
+    Raises:
+        CatalogError: スキーマ、閉集合、典拠、不変条件に違反した場合。
+    """
+    if not isinstance(raw, dict):
+        raise CatalogError("route registry のルートはオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "schema_version",
+            "asset_kind",
+            "input_manifest",
+            "enums",
+            "design_provenance",
+            "routes",
+            "management_operations",
+        },
+        "route registry",
+    )
+    if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_route_registry":
+        raise CatalogError("route registry の schema_version または asset_kind が不正")
+    _validate_derived_input_manifest(raw["input_manifest"], root)
+    provenance_ids = _validate_design_provenance(raw["design_provenance"], root)
+    auth_claims = _auth_claims_by_id(requirement_catalog)
+
+    enums = raw["enums"]
+    if not isinstance(enums, dict):
+        raise CatalogError("route registry.enums はオブジェクトでなければならない")
+    _expect_keys(
+        enums,
+        {
+            "origins",
+            "route_kinds",
+            "route_classes",
+            "resource_kinds",
+            "channels",
+            "control_read_ids",
+            "operation_ids",
+            "precondition_ids",
+            "group_role_requirements",
+            "legacy_route_ids",
+        },
+        "route registry.enums",
+    )
+    enum_expectations = {
+        "origins": ORIGINS,
+        "route_kinds": ROUTE_KINDS,
+        "route_classes": ROUTE_CLASSES,
+        "resource_kinds": RESOURCE_KINDS,
+        "channels": CHANNELS,
+        "group_role_requirements": frozenset({"none", "admin"}),
+    }
+    for key, expected in enum_expectations.items():
+        values = _expect_string_list(enums[key], f"enums.{key}")
+        if frozenset(values) != expected:
+            raise CatalogError(f"enums.{key} が閉じた値域と不一致")
+    if FORBIDDEN_RESOURCE_KINDS & set(enums["resource_kinds"]):
+        raise CatalogError("常に404の資源が resource_kind の値域に存在する")
+    control_read_ids = frozenset(
+        _expect_string_list(enums["control_read_ids"], "enums.control_read_ids")
+    )
+    operation_ids = frozenset(
+        _expect_string_list(enums["operation_ids"], "enums.operation_ids")
+    )
+    precondition_ids = frozenset(
+        _expect_string_list(enums["precondition_ids"], "enums.precondition_ids")
+    )
+    legacy_route_ids = frozenset(
+        _expect_string_list(enums["legacy_route_ids"], "enums.legacy_route_ids")
+    )
+    if (
+        not control_read_ids
+        or not operation_ids
+        or not precondition_ids
+        or not legacy_route_ids
+    ):
+        raise CatalogError("経路・制御読取・管理操作・前提条件の enum は空にできない")
+
+    operations = raw["management_operations"]
+    if not isinstance(operations, list):
+        raise CatalogError("management_operations は配列でなければならない")
+    operation_by_id: dict[str, dict[str, object]] = {}
+    for index, operation in enumerate(operations):
+        label = f"management_operations[{index}]"
+        if not isinstance(operation, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            operation,
+            {
+                "operation_id",
+                "route_id",
+                "precondition_ids",
+                "tenant_permission_required",
+                "group_role_requirement",
+                "source_claim_ids",
+                "side_effect_status",
+                "test_owner",
+            },
+            label,
+        )
+        operation_id = _expect_string(operation["operation_id"], f"{label}.operation_id")
+        prerequisites = frozenset(
+            _expect_string_list(operation["precondition_ids"], f"{label}.precondition_ids")
+        )
+        if not prerequisites or not prerequisites <= precondition_ids:
+            raise CatalogError(f"{label}.precondition_ids が閉じた値域にない")
+        tenant_permission_required = _expect_bool(
+            operation["tenant_permission_required"],
+            f"{label}.tenant_permission_required",
+        )
+        if not tenant_permission_required:
+            raise CatalogError(f"{label}はテナント側権限を必須としなければならない")
+        _expect_closed_value(
+            operation["group_role_requirement"],
+            frozenset({"none", "admin"}),
+            f"{label}.group_role_requirement",
+        )
+        _validate_source_claim_ids(
+            operation["source_claim_ids"],
+            f"{label}.source_claim_ids",
+            auth_claims,
+            required=True,
+        )
+        if operation["side_effect_status"] != "deferred_tsk_250":
+            raise CatalogError(f"{label}.side_effect_status が契約範囲外")
+        _validate_test_owner(
+            operation["test_owner"], f"{label}.test_owner", implemented_test_ids
+        )
+        if operation_id in operation_by_id:
+            raise CatalogError(f"operation_id が重複している: {operation_id}")
+        operation_by_id[operation_id] = operation
+    if frozenset(operation_by_id) != operation_ids:
+        raise CatalogError("operation_ids と management_operations が exact-set 不一致")
+
+    routes = raw["routes"]
+    if not isinstance(routes, list):
+        raise CatalogError("routes は配列でなければならない")
+    route_by_id: dict[str, dict[str, object]] = {}
+    origin_counts: Counter[str] = Counter()
+    for index, route in enumerate(routes):
+        label = f"routes[{index}]"
+        if not isinstance(route, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        common_keys = {"route_id", "route_kind", "origin", "source_claim_ids"}
+        route_kind = _expect_closed_value(
+            route.get("route_kind"), ROUTE_KINDS, f"{label}.route_kind"
+        )
+        expected_keys_by_kind = {
+            "legacy_route": common_keys
+            | {"route_class", "channel", "expected_default", "provenance_ids"},
+            "shared_data": common_keys
+            | {"route_class", "resource_kind", "channel"},
+            "control_read": common_keys | {"control_read_id", "access_requirement"},
+            "management_operation": common_keys | {"operation_id"},
+        }
+        _expect_keys(route, expected_keys_by_kind[route_kind], label)
+        route_id = _expect_string(route["route_id"], f"{label}.route_id")
+        origin = _expect_closed_value(route["origin"], ORIGINS, f"{label}.origin")
+        source_claim_ids = _validate_source_claim_ids(
+            route["source_claim_ids"],
+            f"{label}.source_claim_ids",
+            auth_claims,
+            required=origin == "requirement",
+        )
+        if origin == "design":
+            if source_claim_ids:
+                raise CatalogError(f"{route_id}: design origin は要件主張を名乗れない")
+            route_provenance = frozenset(
+                _expect_string_list(route["provenance_ids"], f"{label}.provenance_ids")
+            )
+            if not route_provenance or not route_provenance <= provenance_ids:
+                raise CatalogError(f"{route_id}: design provenance が閉じていない")
+        origin_counts[origin] += 1
+        if "route_class" in route:
+            _expect_closed_value(route["route_class"], ROUTE_CLASSES, f"{label}.route_class")
+        if "resource_kind" in route:
+            _expect_closed_value(
+                route["resource_kind"], RESOURCE_KINDS, f"{label}.resource_kind"
+            )
+        if "channel" in route:
+            _expect_closed_value(route["channel"], CHANNELS, f"{label}.channel")
+        if route_kind == "legacy_route" and route["expected_default"] != "deny_404":
+            raise CatalogError(f"{route_id}: 既存経路は明示的 deny_404 が必要")
+        if route_kind == "control_read":
+            if route["control_read_id"] not in control_read_ids:
+                raise CatalogError(f"{route_id}: control_read_id が閉じた値域にない")
+            _expect_closed_value(
+                route["access_requirement"],
+                frozenset({"participant", "admin"}),
+                f"{label}.access_requirement",
+            )
+        if route_kind == "management_operation":
+            operation_id = route["operation_id"]
+            if operation_id not in operation_by_id:
+                raise CatalogError(f"{route_id}: operation_id が management contract にない")
+            if operation_by_id[str(operation_id)]["route_id"] != route_id:
+                raise CatalogError(f"{route_id}: operation の route_id が不一致")
+        if route_id in route_by_id:
+            raise CatalogError(f"route_id が重複している: {route_id}")
+        route_by_id[route_id] = route
+
+    actual_legacy_ids = {
+        route_id
+        for route_id, route in route_by_id.items()
+        if route["route_kind"] == "legacy_route"
+    }
+    if actual_legacy_ids != legacy_route_ids:
+        raise CatalogError("legacy_route_ids と既存経路が exact-set 不一致")
+    for route_id in legacy_route_ids:
+        route = route_by_id[route_id]
+        if route["origin"] != "design":
+            raise CatalogError(f"{route_id}: legacy route は design origin が必要")
+        heading_id = route_id.removeprefix("ROUTE:")
+        if any(
+            claim.get("source_heading_id") == heading_id
+            for claim in auth_claims.values()
+        ):
+            raise CatalogError(f"{route_id}: AUTH 主張0件という入力事実と不一致")
+
+    expected_shared_axes = {
+        (route_class, resource_kind, channel)
+        for route_class in ROUTE_CLASSES
+        for resource_kind in RESOURCE_KINDS
+        for channel in CHANNELS
+    }
+    shared_routes = [
+        route
+        for route in route_by_id.values()
+        if route["route_kind"] == "shared_data"
+    ]
+    actual_shared_axes = {
+        (route["route_class"], route["resource_kind"], route["channel"])
+        for route in shared_routes
+    }
+    if (
+        actual_shared_axes != expected_shared_axes
+        or len(shared_routes) != len(expected_shared_axes)
+    ):
+        raise CatalogError("shared_data route が3軸直積と exact-set 不一致")
+    for route in shared_routes:
+        expected_route_id = (
+            f"ROUTE:SHARED:{route['route_class']}:"
+            f"{route['resource_kind']}:{route['channel']}"
+        )
+        if route["route_id"] != expected_route_id:
+            raise CatalogError(f"{route['route_id']}: 3軸から導出した route_id と不一致")
+
+    control_routes = [
+        str(route["control_read_id"])
+        for route in route_by_id.values()
+        if route["route_kind"] == "control_read"
+    ]
+    if frozenset(control_routes) != control_read_ids or len(control_routes) != len(
+        control_read_ids
+    ):
+        raise CatalogError("control_read_ids と制御資源 route が exact-set 不一致")
+    operation_routes = [
+        str(route["operation_id"])
+        for route in route_by_id.values()
+        if route["route_kind"] == "management_operation"
+    ]
+    if frozenset(operation_routes) != operation_ids or len(operation_routes) != len(
+        operation_ids
+    ):
+        raise CatalogError("operation_ids と管理 route が exact-set 不一致")
+    return {
+        "route_by_id": route_by_id,
+        "operation_by_id": operation_by_id,
+        "origin_counts": origin_counts,
+    }
+
+
+def validate_auth_catalog(
+    raw: object,
+    requirement_catalog: dict[str, object],
+    registry_result: dict[str, object],
+    root: Path,
+    implemented_test_ids: frozenset[str],
+) -> dict[str, object]:
+    """DB 判定可能な母集合と AUTH catalog を exact-set で検査する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("AUTH catalog のルートはオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "schema_version",
+            "asset_kind",
+            "input_manifest",
+            "origins",
+            "route_scopes",
+            "entries",
+        },
+        "AUTH catalog",
+    )
+    if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_catalog":
+        raise CatalogError("AUTH catalog の schema_version または asset_kind が不正")
+    _validate_derived_input_manifest(raw["input_manifest"], root)
+    if frozenset(_expect_string_list(raw["origins"], "AUTH catalog.origins")) != ORIGINS:
+        raise CatalogError("AUTH catalog.origins が閉じた値域と不一致")
+
+    route_scopes = raw["route_scopes"]
+    if not isinstance(route_scopes, list) or not route_scopes:
+        raise CatalogError("route_scopes は空でない配列でなければならない")
+    scope_ids: list[str] = []
+    for index, scope in enumerate(route_scopes):
+        label = f"route_scopes[{index}]"
+        if not isinstance(scope, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(scope, {"route_scope_id", "route_kinds"}, label)
+        scope_id = _expect_string(scope["route_scope_id"], f"{label}.route_scope_id")
+        kinds = frozenset(_expect_string_list(scope["route_kinds"], f"{label}.route_kinds"))
+        if not kinds or not kinds <= ROUTE_KINDS:
+            raise CatalogError(f"{label}.route_kinds が閉じた値域にない")
+        scope_ids.append(scope_id)
+    if len(scope_ids) != len(set(scope_ids)):
+        raise CatalogError("route_scope_id が重複している")
+
+    db_claims = _db_claims_by_id(requirement_catalog)
+    entries = raw["entries"]
+    if not isinstance(entries, list):
+        raise CatalogError("AUTH catalog.entries は配列でなければならない")
+    by_requirement: dict[str, dict[str, object]] = {}
+    catalog_ids: list[str] = []
+    for index, entry in enumerate(entries):
+        label = f"AUTH catalog.entries[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            entry,
+            {
+                "catalog_entry_id",
+                "requirement_claim_id",
+                "origin",
+                "layer",
+                "db_basis_rule_id",
+                "source_text_digest",
+                "route_scope_id",
+                "catalog_test_owner",
+                "enforcement_test_owner",
+            },
+            label,
+        )
+        catalog_id = _expect_string(entry["catalog_entry_id"], f"{label}.catalog_entry_id")
+        requirement_id = _expect_string(
+            entry["requirement_claim_id"], f"{label}.requirement_claim_id"
+        )
+        if entry["origin"] != "requirement":
+            raise CatalogError(f"{catalog_id}: 母集合対応 entry は requirement origin が必要")
+        claim = db_claims.get(requirement_id)
+        if claim is None:
+            raise CatalogError(f"{catalog_id}: requirement_claim_id が DB 主張に存在しない")
+        decisions = claim["decidable_at"]
+        assert isinstance(decisions, list)
+        db_decisions = [
+            decision
+            for decision in decisions
+            if isinstance(decision, dict) and decision.get("location") == "db"
+        ]
+        if len(db_decisions) != 1:
+            raise CatalogError(f"{requirement_id}: DB decision が一意でない")
+        expected_fields = {
+            "layer": claim["layer"],
+            "db_basis_rule_id": db_decisions[0]["basis_rule_id"],
+            "source_text_digest": claim["source_text_digest"],
+        }
+        for key, expected in expected_fields.items():
+            if entry[key] != expected:
+                raise CatalogError(f"{catalog_id}: {key} が母集合と一致しない")
+        if entry["route_scope_id"] not in scope_ids:
+            raise CatalogError(f"{catalog_id}: route_scope_id が閉じた値域にない")
+        _validate_test_owner(
+            entry["catalog_test_owner"],
+            f"{label}.catalog_test_owner",
+            implemented_test_ids,
+        )
+        _validate_test_owner(
+            entry["enforcement_test_owner"],
+            f"{label}.enforcement_test_owner",
+            implemented_test_ids,
+        )
+        if requirement_id in by_requirement:
+            raise CatalogError(f"requirement_claim_id が重複している: {requirement_id}")
+        by_requirement[requirement_id] = entry
+        catalog_ids.append(catalog_id)
+    if len(catalog_ids) != len(set(catalog_ids)):
+        raise CatalogError("catalog_entry_id が重複している")
+    missing = sorted(set(db_claims) - set(by_requirement))
+    unknown = sorted(set(by_requirement) - set(db_claims))
+    if missing or unknown:
+        raise CatalogError(
+            f"DB 主張との exact-set 不一致: 未対応={missing}, 未登録={unknown}"
+        )
+    route_by_id = registry_result["route_by_id"]
+    assert isinstance(route_by_id, dict)
+    if not route_by_id:
+        raise CatalogError("AUTH catalog が参照する route registry が空")
+    return {"entry_by_requirement": by_requirement, "db_claim_count": len(db_claims)}
+
+
+def _expected_cell_decision(
+    route_class: str, resource_kind: str, channel: str
+) -> tuple[str, list[str]]:
+    matched_channel = (
+        route_class == "shared_screen" and channel == "screen"
+    ) or (
+        route_class == "shared_aggregate_export" and channel == "export"
+    )
+    if not matched_channel:
+        return "deny", []
+    grants = ["metrics"]
+    if resource_kind == "player_metrics":
+        grants.append("player")
+    if channel == "export":
+        grants.append("export")
+    return "allow", grants
+
+
+def validate_http_route_matrix(
+    raw: object,
+    registry_result: dict[str, object],
+    root: Path,
+    implemented_test_ids: frozenset[str],
+) -> dict[str, object]:
+    """HTTP route と3軸直積を閉集合として検査する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("HTTP route matrix のルートはオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "schema_version",
+            "asset_kind",
+            "input_manifest",
+            "route_classes",
+            "resource_kinds",
+            "channels",
+            "grant_ids",
+            "expected_results",
+            "route_dispositions",
+            "routes",
+            "cells",
+        },
+        "HTTP route matrix",
+    )
+    if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_http_route_matrix":
+        raise CatalogError("HTTP matrix の schema_version または asset_kind が不正")
+    _validate_derived_input_manifest(raw["input_manifest"], root)
+    closed_tables = {
+        "route_classes": ROUTE_CLASSES,
+        "resource_kinds": RESOURCE_KINDS,
+        "channels": CHANNELS,
+        "grant_ids": frozenset({"metrics", "player", "export"}),
+        "expected_results": frozenset({"allow", "deny"}),
+        "route_dispositions": frozenset({"product_cell", "conditional", "deny_404"}),
+    }
+    for key, expected in closed_tables.items():
+        values = frozenset(_expect_string_list(raw[key], f"HTTP matrix.{key}"))
+        if values != expected:
+            raise CatalogError(f"HTTP matrix.{key} が閉じた値域と不一致")
+    if FORBIDDEN_RESOURCE_KINDS & set(raw["resource_kinds"]):
+        raise CatalogError("常に404の資源が HTTP resource_kind に存在する")
+
+    route_by_id = registry_result["route_by_id"]
+    assert isinstance(route_by_id, dict)
+    matrix_routes = raw["routes"]
+    if not isinstance(matrix_routes, list):
+        raise CatalogError("HTTP matrix.routes は配列でなければならない")
+    matrix_by_route: dict[str, dict[str, object]] = {}
+    matrix_ids: list[str] = []
+    disposition_by_kind = {
+        "legacy_route": "deny_404",
+        "shared_data": "product_cell",
+        "control_read": "conditional",
+        "management_operation": "conditional",
+    }
+    for index, entry in enumerate(matrix_routes):
+        label = f"HTTP matrix.routes[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(entry, {"matrix_route_id", "route_id", "disposition", "test_owner"}, label)
+        matrix_id = _expect_string(entry["matrix_route_id"], f"{label}.matrix_route_id")
+        route_id = _expect_string(entry["route_id"], f"{label}.route_id")
+        registry_route = route_by_id.get(route_id)
+        if not isinstance(registry_route, dict):
+            raise CatalogError(f"{matrix_id}: route_id が registry に存在しない")
+        expected_disposition = disposition_by_kind[str(registry_route["route_kind"])]
+        if entry["disposition"] != expected_disposition:
+            raise CatalogError(f"{matrix_id}: disposition が route kind と不一致")
+        _validate_test_owner(entry["test_owner"], f"{label}.test_owner", implemented_test_ids)
+        if route_id in matrix_by_route:
+            raise CatalogError(f"HTTP matrix の route_id が重複している: {route_id}")
+        matrix_by_route[route_id] = entry
+        matrix_ids.append(matrix_id)
+    if len(matrix_ids) != len(set(matrix_ids)):
+        raise CatalogError("matrix_route_id が重複している")
+    missing = sorted(set(route_by_id) - set(matrix_by_route))
+    unknown = sorted(set(matrix_by_route) - set(route_by_id))
+    if missing or unknown:
+        raise CatalogError(
+            f"route registry と HTTP matrix の exact-set 不一致: 不足={missing}, 未登録={unknown}"
+        )
+
+    cells = raw["cells"]
+    if not isinstance(cells, list):
+        raise CatalogError("HTTP matrix.cells は配列でなければならない")
+    expected_axes = {
+        (route_class, resource_kind, channel)
+        for route_class in ROUTE_CLASSES
+        for resource_kind in RESOURCE_KINDS
+        for channel in CHANNELS
+    }
+    actual_axes: dict[tuple[str, str, str], dict[str, object]] = {}
+    cell_ids: list[str] = []
+    result_counts: Counter[str] = Counter()
+    for index, cell in enumerate(cells):
+        label = f"HTTP matrix.cells[{index}]"
+        if not isinstance(cell, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            cell,
+            {
+                "cell_id",
+                "route_id",
+                "route_class",
+                "resource_kind",
+                "channel",
+                "expected_result",
+                "required_grant_ids",
+                "expected_http_status",
+                "test_owner",
+            },
+            label,
+        )
+        cell_id = _expect_string(cell["cell_id"], f"{label}.cell_id")
+        route_class = _expect_closed_value(
+            cell["route_class"], ROUTE_CLASSES, f"{label}.route_class"
+        )
+        resource_kind = _expect_closed_value(
+            cell["resource_kind"], RESOURCE_KINDS, f"{label}.resource_kind"
+        )
+        channel = _expect_closed_value(cell["channel"], CHANNELS, f"{label}.channel")
+        axes = (route_class, resource_kind, channel)
+        expected_result, expected_grants = _expected_cell_decision(*axes)
+        if cell["expected_result"] != expected_result:
+            raise CatalogError(f"{cell_id}: 許可・拒否の決定が3軸規則と不一致")
+        grants = _expect_string_list(cell["required_grant_ids"], f"{label}.required_grant_ids")
+        if grants != expected_grants:
+            raise CatalogError(f"{cell_id}: required_grant_ids が3軸規則と不一致")
+        expected_status = 404 if expected_result == "deny" else 200
+        if cell["expected_http_status"] != expected_status:
+            raise CatalogError(f"{cell_id}: HTTP status が許可・拒否と不一致")
+        route = route_by_id.get(str(cell["route_id"]))
+        if not isinstance(route, dict) or route.get("route_kind") != "shared_data":
+            raise CatalogError(f"{cell_id}: route_id が shared_data route でない")
+        axis_keys = ("route_class", "resource_kind", "channel")
+        if any(
+            route.get(key) != value
+            for key, value in zip(axis_keys, axes, strict=True)
+        ):
+            raise CatalogError(f"{cell_id}: route_id の3軸が cell と不一致")
+        _validate_test_owner(cell["test_owner"], f"{label}.test_owner", implemented_test_ids)
+        if axes in actual_axes:
+            raise CatalogError(f"3軸 cell が重複している: {axes}")
+        actual_axes[axes] = cell
+        cell_ids.append(cell_id)
+        result_counts[expected_result] += 1
+    if len(cell_ids) != len(set(cell_ids)):
+        raise CatalogError("cell_id が重複している")
+    missing_axes = sorted(expected_axes - set(actual_axes))
+    unknown_axes = sorted(set(actual_axes) - expected_axes)
+    if missing_axes or unknown_axes:
+        raise CatalogError(f"3軸直積が不完全: 不足={missing_axes}, 未登録={unknown_axes}")
+    return {
+        "matrix_by_route": matrix_by_route,
+        "cell_count": len(cells),
+        "result_counts": result_counts,
+    }
+
+
+def _derived_lock_entries(
+    asset_kind: str, asset: dict[str, object]
+) -> list[dict[str, object]]:
+    table_specs = {
+        "authz_route_registry": (
+            ("routes", "route_id", "route"),
+            ("management_operations", "operation_id", "operation"),
+        ),
+        "authz_catalog": (("entries", "catalog_entry_id", "catalog"),),
+        "authz_http_route_matrix": (
+            ("routes", "matrix_route_id", "route"),
+            ("cells", "cell_id", "cell"),
+        ),
+    }
+    entries: list[dict[str, object]] = []
+    for table_name, id_key, prefix in table_specs[asset_kind]:
+        table = asset[table_name]
+        assert isinstance(table, list)
+        for row in table:
+            assert isinstance(row, dict)
+            entry_id = f"{prefix}:{row[id_key]}"
+            entries.append(
+                {
+                    "entry_id": entry_id,
+                    "decision": row,
+                    "decision_digest": _table_digest(row),
+                }
+            )
+    return entries
+
+
+def build_derived_lock(asset: dict[str, object], asset_path: str) -> dict[str, object]:
+    """導出資産全体と安定行を別ファイル用の決定 lock にする。"""
+    asset_kind = str(asset["asset_kind"])
+    entries = _derived_lock_entries(asset_kind, asset)
+    return {
+        "schema_version": 1,
+        "asset_kind": asset_kind,
+        "asset_path": asset_path,
+        "asset_digest": _table_digest(asset),
+        "entry_count": len(entries),
+        "aggregate_decision_digest": _table_digest(entries),
+        "entries": entries,
+    }
+
+
+def validate_derived_lock(
+    asset: dict[str, object], raw_lock: object, asset_path: str
+) -> None:
+    """導出資産と別ファイルの決定 lock を完全一致で検査する。"""
+    if not isinstance(raw_lock, dict):
+        raise CatalogError("derived decision lock はオブジェクトでなければならない")
+    _expect_keys(
+        raw_lock,
+        {
+            "schema_version",
+            "asset_kind",
+            "asset_path",
+            "asset_digest",
+            "entry_count",
+            "aggregate_decision_digest",
+            "entries",
+        },
+        "derived decision lock",
+    )
+    if raw_lock["schema_version"] != 1:
+        raise CatalogError("derived decision lock.schema_version が不正")
+    entries = raw_lock["entries"]
+    if not isinstance(entries, list):
+        raise CatalogError("derived decision lock.entries は配列でなければならない")
+    lock_entries_by_id: dict[str, dict[str, object]] = {}
+    for index, entry in enumerate(entries):
+        label = f"derived decision lock.entries[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(entry, {"entry_id", "decision", "decision_digest"}, label)
+        entry_id = _expect_string(entry["entry_id"], f"{label}.entry_id")
+        decision_digest = _expect_string(
+            entry["decision_digest"], f"{label}.decision_digest"
+        )
+        if (
+            not SHA256_RE.fullmatch(decision_digest)
+            or decision_digest != _table_digest(entry["decision"])
+        ):
+            raise CatalogError(f"{entry_id}: lock 内の decision_digest が決定と不一致")
+        if entry_id in lock_entries_by_id:
+            raise CatalogError(f"derived decision lock.entry_id が重複: {entry_id}")
+        lock_entries_by_id[entry_id] = entry
+    for key in ("asset_digest", "aggregate_decision_digest"):
+        value = _expect_string(raw_lock[key], f"derived decision lock.{key}")
+        if not SHA256_RE.fullmatch(value):
+            raise CatalogError(f"derived decision lock.{key} が SHA-256 でない")
+    actual_asset_digest = _table_digest(asset)
+    if raw_lock["asset_digest"] != actual_asset_digest:
+        try:
+            asset_kind = str(asset["asset_kind"])
+            actual_entries_by_id = {
+                str(entry["entry_id"]): entry
+                for entry in _derived_lock_entries(asset_kind, asset)
+            }
+        except (AssertionError, KeyError, TypeError):
+            actual_entries_by_id = {}
+        differences: list[str] = []
+        for entry_id in sorted(set(lock_entries_by_id) | set(actual_entries_by_id)):
+            expected_entry = lock_entries_by_id.get(entry_id)
+            actual_entry = actual_entries_by_id.get(entry_id)
+            if expected_entry is None:
+                differences.append(f"{entry_id}: lock にない行が追加")
+                continue
+            if actual_entry is None:
+                differences.append(f"{entry_id}: 資産から行が消失")
+                continue
+            expected_decision = expected_entry["decision"]
+            actual_decision = actual_entry["decision"]
+            if isinstance(expected_decision, dict) and isinstance(actual_decision, dict):
+                changed_fields = sorted(
+                    key
+                    for key in set(expected_decision) | set(actual_decision)
+                    if expected_decision.get(key) != actual_decision.get(key)
+                )
+                if changed_fields:
+                    differences.append(
+                        f"{entry_id}: 変更フィールド={changed_fields}"
+                    )
+        detail = differences or ["top-level decision が変更"]
+        raise CatalogError(
+            f"{asset_path}: decision lock と不一致:\n" + "\n".join(detail)
+        )
+    expected = build_derived_lock(asset, asset_path)
+    for key in ("asset_kind", "asset_path", "entry_count"):
+        if raw_lock[key] != expected[key]:
+            raise CatalogError(f"derived decision lock.{key} が不一致")
+    if entries != expected["entries"] or raw_lock["aggregate_decision_digest"] != expected[
+        "aggregate_decision_digest"
+    ]:
+        raise CatalogError(f"{asset_path}: lock entries または集約 digest が不一致")
+
+
+def collect_pytest_node_ids(root: Path) -> frozenset[str]:
+    """pytest の実収集結果から node ID を取得する。"""
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise CatalogError(f"pytest のテスト ID を収集できない: {result.stderr}")
+    return frozenset(line.strip() for line in result.stdout.splitlines() if "::" in line)
+
+
+def validate_derived_assets(
+    requirement_catalog: dict[str, object],
+    route_registry: object,
+    auth_catalog: object,
+    http_matrix: object,
+    locks: dict[str, object],
+    paths: dict[str, str],
+    root: Path,
+    implemented_test_ids: frozenset[str],
+) -> dict[str, object]:
+    """ステップ4の3資産を相互参照・decision lock 込みで検査する。"""
+    registry_result = validate_route_registry(
+        route_registry, requirement_catalog, root, implemented_test_ids
+    )
+    assert isinstance(route_registry, dict)
+    catalog_result = validate_auth_catalog(
+        auth_catalog,
+        requirement_catalog,
+        registry_result,
+        root,
+        implemented_test_ids,
+    )
+    assert isinstance(auth_catalog, dict)
+    matrix_result = validate_http_route_matrix(
+        http_matrix, registry_result, root, implemented_test_ids
+    )
+    assert isinstance(http_matrix, dict)
+    assets = {
+        "route_registry": route_registry,
+        "auth_catalog": auth_catalog,
+        "http_matrix": http_matrix,
+    }
+    serialized = "\n".join(_canonical_json(asset) for asset in assets.values())
+    if any(term in serialized for term in FORBIDDEN_EVACUATED_IMPORT_TERMS):
+        raise CatalogError("退避イベントの取り込みがステップ4資産に存在する")
+    for name, asset in assets.items():
+        validate_derived_lock(asset, locks[name], paths[name])
+    return {
+        "registry": registry_result,
+        "catalog": catalog_result,
+        "matrix": matrix_result,
+    }
+
+
 def _resolve(root: Path, path: Path) -> Path:
     return path if path.is_absolute() else root / path
 
@@ -995,10 +1938,36 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--requirements", type=Path, default=DEFAULT_REQUIREMENTS)
     parser.add_argument("--claims", type=Path, default=DEFAULT_CLAIMS)
     parser.add_argument("--lock", type=Path, default=DEFAULT_LOCK)
+    parser.add_argument("--route-registry", type=Path, default=DEFAULT_ROUTE_REGISTRY)
+    parser.add_argument(
+        "--route-registry-lock", type=Path, default=DEFAULT_ROUTE_REGISTRY_LOCK
+    )
+    parser.add_argument("--auth-catalog", type=Path, default=DEFAULT_AUTH_CATALOG)
+    parser.add_argument(
+        "--auth-catalog-lock", type=Path, default=DEFAULT_AUTH_CATALOG_LOCK
+    )
+    parser.add_argument(
+        "--http-route-matrix", type=Path, default=DEFAULT_HTTP_ROUTE_MATRIX
+    )
+    parser.add_argument(
+        "--http-route-matrix-lock",
+        type=Path,
+        default=DEFAULT_HTTP_ROUTE_MATRIX_LOCK,
+    )
     parser.add_argument(
         "--reseal",
         action="store_true",
         help="分類決定の査読後に限り、母集合と lock の digest を明示更新する",
+    )
+    parser.add_argument(
+        "--reseal-derived",
+        action="store_true",
+        help="ステップ4の3資産を査読後に限り、各 decision lock を明示更新する",
+    )
+    parser.add_argument(
+        "--skip-derived",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     return parser.parse_args(argv)
 
@@ -1068,6 +2037,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     try:
         args = parse_args(argv)
+        if args.reseal and args.reseal_derived:
+            raise CatalogError("--reseal と --reseal-derived は同時に使えない")
+        if args.skip_derived and args.reseal_derived:
+            raise CatalogError("--skip-derived と --reseal-derived は同時に使えない")
         root = args.root.resolve()
         requirements_path = _resolve(root, args.requirements)
         claims_path = _resolve(root, args.claims)
@@ -1098,15 +2071,71 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             raw_lock = _read_json(lock_path, "decision lock")
             validate_decision_lock(raw, raw_lock, catalog_relative_path)
+        derived_result: dict[str, object] | None = None
+        if not args.skip_derived:
+            derived_path_args = {
+                "route_registry": (args.route_registry, args.route_registry_lock),
+                "auth_catalog": (args.auth_catalog, args.auth_catalog_lock),
+                "http_matrix": (args.http_route_matrix, args.http_route_matrix_lock),
+            }
+            assets: dict[str, dict[str, object]] = {}
+            locks: dict[str, object] = {}
+            relative_paths: dict[str, str] = {}
+            lock_paths: dict[str, Path] = {}
+            for name, (asset_argument, lock_argument) in derived_path_args.items():
+                asset_path = _resolve(root, asset_argument)
+                derived_lock_path = _resolve(root, lock_argument)
+                asset = _read_json(asset_path, name)
+                if not isinstance(asset, dict):
+                    raise CatalogError(f"{name}のルートはオブジェクトでなければならない")
+                assets[name] = asset
+                relative_paths[name] = _relative_path(root, asset_path, name)
+                lock_paths[name] = derived_lock_path
+                locks[name] = (
+                    build_derived_lock(asset, relative_paths[name])
+                    if args.reseal_derived
+                    else _read_json(derived_lock_path, f"{name} decision lock")
+                )
+            implemented_test_ids = collect_pytest_node_ids(root)
+            derived_result = validate_derived_assets(
+                raw,
+                assets["route_registry"],
+                assets["auth_catalog"],
+                assets["http_matrix"],
+                locks,
+                relative_paths,
+                root,
+                implemented_test_ids,
+            )
+            if args.reseal_derived:
+                for name, lock in locks.items():
+                    _write_json(lock_paths[name], lock, f"{name} decision lock")
     except CatalogError as error:
         print(f"check_authz_catalog.py: {error}", file=sys.stderr)
         return 1
-    print(
+    summary = (
         "check_authz_catalog.py: "
         f"ok total={sum(counts.values())} "
         f"auth_claim={counts['auth_claim']} out_of_scope={counts['out_of_scope']}"
-        + (" resealed" if args.reseal else "")
     )
+    if derived_result is not None:
+        registry_result = derived_result["registry"]
+        catalog_result = derived_result["catalog"]
+        matrix_result = derived_result["matrix"]
+        assert isinstance(registry_result, dict)
+        assert isinstance(catalog_result, dict)
+        assert isinstance(matrix_result, dict)
+        route_by_id = registry_result["route_by_id"]
+        assert isinstance(route_by_id, dict)
+        summary += (
+            f" db_claims={catalog_result['db_claim_count']}"
+            f" routes={len(route_by_id)} cells={matrix_result['cell_count']}"
+        )
+    if args.reseal:
+        summary += " resealed"
+    if args.reseal_derived:
+        summary += " derived-resealed"
+    print(summary)
     return 0
 
 

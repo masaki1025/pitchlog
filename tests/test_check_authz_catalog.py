@@ -15,6 +15,14 @@ from typing import Any
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "authz_claims"
+DERIVED_ASSET_FILES = {
+    "route_registry": "route-registry.json",
+    "auth_catalog": "auth-catalog.json",
+    "http_matrix": "http-route-matrix.json",
+}
+IMPLEMENTED_CATALOG_TEST_ID = (
+    "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid"
+)
 
 
 def _load_checker() -> Any:
@@ -97,6 +105,7 @@ def _run_cli(root: Path, *, reseal: bool = False) -> subprocess.CompletedProcess
         "requirement-claims.json",
         "--lock",
         "requirement-claims.lock.json",
+        "--skip-derived",
     ]
     if reseal:
         command.append("--reseal")
@@ -107,6 +116,121 @@ def _run_cli(root: Path, *, reseal: bool = False) -> subprocess.CompletedProcess
         text=True,
         check=False,
     )
+
+
+def _read_repository_json(relative_path: str) -> dict[str, Any]:
+    """リポジトリの JSON オブジェクトを読む。"""
+    raw = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    return raw
+
+
+def _repository_derived_assets() -> tuple[
+    dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, str]
+]:
+    """ステップ4の3資産・3 lock・相対パスを読む。"""
+    assets: dict[str, dict[str, Any]] = {}
+    locks: dict[str, dict[str, Any]] = {}
+    paths: dict[str, str] = {}
+    for name, filename in DERIVED_ASSET_FILES.items():
+        path = f"contracts/authz/{filename}"
+        lock_path = f"contracts/authz/{filename.removesuffix('.json')}.lock.json"
+        assets[name] = _read_repository_json(path)
+        locks[name] = _read_repository_json(lock_path)
+        paths[name] = path
+    return assets, locks, paths
+
+
+def _iter_leaf_paths(
+    value: object, path: tuple[str | int, ...] = ()
+) -> list[tuple[str | int, ...]]:
+    """JSON を再帰走査し、空コンテナを含む全葉のパスを返す。"""
+    if isinstance(value, dict):
+        if not value:
+            return [path]
+        paths: list[tuple[str | int, ...]] = []
+        for key, child in value.items():
+            paths.extend(_iter_leaf_paths(child, (*path, key)))
+        return paths
+    if isinstance(value, list):
+        if not value:
+            return [path]
+        paths = []
+        for index, child in enumerate(value):
+            paths.extend(_iter_leaf_paths(child, (*path, index)))
+        return paths
+    return [path]
+
+
+def _parent_and_key(
+    value: object, path: tuple[str | int, ...]
+) -> tuple[dict[str, Any] | list[Any], str | int]:
+    """葉の親コンテナとキーを返す。"""
+    assert path
+    current: object = value
+    for part in path[:-1]:
+        if isinstance(current, dict):
+            assert isinstance(part, str)
+            current = current[part]
+        else:
+            assert isinstance(current, list) and isinstance(part, int)
+            current = current[part]
+    assert isinstance(current, dict | list)
+    return current, path[-1]
+
+
+def _value_at_path(value: object, path: tuple[str | int, ...]) -> object:
+    """JSON パスが指す値を型安全に返す。"""
+    current = value
+    for part in path:
+        if isinstance(current, dict):
+            assert isinstance(part, str)
+            current = current[part]
+        else:
+            assert isinstance(current, list) and isinstance(part, int)
+            current = current[part]
+    return current
+
+
+def _changed_leaf_value(value: object) -> object:
+    """JSON の型を可能な限り保って葉値を壊す。"""
+    if isinstance(value, bool):
+        return not value
+    if isinstance(value, int):
+        return value + 1
+    if isinstance(value, str):
+        return value + ":MUTATED"
+    if isinstance(value, list):
+        assert not value
+        return ["MUTATED"]
+    if isinstance(value, dict):
+        assert not value
+        return {"MUTATED": True}
+    assert value is None
+    return "MUTATED"
+
+
+def _mutate_leaf(
+    value: dict[str, Any], path: tuple[str | int, ...], *, delete: bool
+) -> dict[str, Any]:
+    """指定葉を値改変または削除した深いコピーを返す。"""
+    mutated = copy.deepcopy(value)
+    parent, key = _parent_and_key(mutated, path)
+    if delete:
+        if isinstance(parent, dict):
+            assert isinstance(key, str)
+            del parent[key]
+        else:
+            assert isinstance(key, int)
+            parent.pop(key)
+    else:
+        if isinstance(parent, dict):
+            assert isinstance(key, str)
+            parent[key] = _changed_leaf_value(parent[key])
+        else:
+            assert isinstance(key, int)
+            parent[key] = _changed_leaf_value(parent[key])
+    return mutated
 
 
 def _auth_claim(catalog: dict[str, Any]) -> dict[str, Any]:
@@ -147,6 +271,14 @@ def _assert_lock_rejects(
 
 
 def test_repository_catalog_covers_the_entire_requirements_file() -> None:
+    derived_locks_before = {
+        path: (REPOSITORY_ROOT / path).read_bytes()
+        for path in (
+            "contracts/authz/route-registry.lock.json",
+            "contracts/authz/auth-catalog.lock.json",
+            "contracts/authz/http-route-matrix.lock.json",
+        )
+    }
     result = subprocess.run(
         [sys.executable, str(SCRIPT)],
         cwd=REPOSITORY_ROOT,
@@ -157,6 +289,9 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "total=1062 auth_claim=184 out_of_scope=878" in result.stdout
+    assert {
+        path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
+    } == derived_locks_before
 
 
 def test_fixture_has_a_valid_multi_layer_claim(tmp_path: Path) -> None:
@@ -657,3 +792,413 @@ def test_document_specific_traps_live_in_catalog_data() -> None:
         "allowed_heading_ids"
     ]
     assert out_rule["forbidden_source_text_patterns"]
+
+
+def _validate_one_derived_asset(
+    name: str,
+    mutated: dict[str, Any],
+    assets: dict[str, dict[str, Any]],
+    requirement_catalog: dict[str, Any],
+    implemented_test_ids: frozenset[str],
+) -> None:
+    """対象資産だけを意味検査し、他資産は正しい参照先として使う。"""
+    if name == "route_registry":
+        checker.validate_route_registry(
+            mutated,
+            requirement_catalog,
+            REPOSITORY_ROOT,
+            implemented_test_ids,
+        )
+        return
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented_test_ids,
+    )
+    if name == "auth_catalog":
+        checker.validate_auth_catalog(
+            mutated,
+            requirement_catalog,
+            registry_result,
+            REPOSITORY_ROOT,
+            implemented_test_ids,
+        )
+        return
+    assert name == "http_matrix"
+    checker.validate_http_route_matrix(
+        mutated,
+        registry_result,
+        REPOSITORY_ROOT,
+        implemented_test_ids,
+    )
+
+
+def _implemented_owner_paths(value: object) -> list[tuple[str | int, ...]]:
+    """資産自身から implemented test owner のパスを全数列挙する。"""
+    paths: list[tuple[str | int, ...]] = []
+
+    def visit(current: object, path: tuple[str | int, ...]) -> None:
+        if isinstance(current, dict):
+            if set(current) == {"id", "status"} and current["status"] == "implemented":
+                paths.append(path)
+            for key, child in current.items():
+                visit(child, (*path, key))
+        elif isinstance(current, list):
+            for index, child in enumerate(current):
+                visit(child, (*path, index))
+
+    visit(value, ())
+    return paths
+
+
+def test_repository_derived_assets_are_valid() -> None:
+    """177主張・全route・12セルと実収集テストIDを統合検査する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, locks, paths = _repository_derived_assets()
+    implemented_test_ids = checker.collect_pytest_node_ids(REPOSITORY_ROOT)
+
+    result = checker.validate_derived_assets(
+        requirement_catalog,
+        assets["route_registry"],
+        assets["auth_catalog"],
+        assets["http_matrix"],
+        locks,
+        paths,
+        REPOSITORY_ROOT,
+        implemented_test_ids,
+    )
+
+    assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
+    assert result["catalog"]["db_claim_count"] == 177
+    assert len(result["registry"]["route_by_id"]) == len(
+        assets["route_registry"]["routes"]
+    )
+    assert result["matrix"]["cell_count"] == 12
+    assert result["matrix"]["result_counts"] == Counter({"allow": 6, "deny": 6})
+
+
+def test_all_recursively_enumerated_asset_leaves_reject_change_and_deletion() -> None:
+    """3資産自身から得た全葉で、値改変と削除を1件ずつ必ず red にする。"""
+    assets, locks, paths = _repository_derived_assets()
+    leaf_counts = {name: len(_iter_leaf_paths(asset)) for name, asset in assets.items()}
+    escaped: list[tuple[str, tuple[str | int, ...], str]] = []
+    attempts = 0
+
+    for name, asset in assets.items():
+        for leaf_path in _iter_leaf_paths(asset):
+            for mutation in ("change", "delete"):
+                mutated = _mutate_leaf(asset, leaf_path, delete=mutation == "delete")
+                try:
+                    checker.validate_derived_lock(mutated, locks[name], paths[name])
+                except checker.CatalogError:
+                    pass
+                else:
+                    escaped.append((name, leaf_path, mutation))
+                attempts += 1
+
+    assert all(count > 0 for count in leaf_counts.values())
+    assert attempts == sum(leaf_counts.values()) * 2
+    assert escaped == []
+
+
+def test_derived_lock_reports_stable_id_and_changed_field() -> None:
+    """lock 差分は変更行の安定 ID と変更フィールドを名指しする。"""
+    assets, locks, paths = _repository_derived_assets()
+    mutated = copy.deepcopy(assets["auth_catalog"])
+    entry = mutated["entries"][0]
+    entry["origin"] = "design"
+
+    try:
+        checker.validate_derived_lock(
+            mutated,
+            locks["auth_catalog"],
+            paths["auth_catalog"],
+        )
+    except checker.CatalogError as error:
+        message = str(error)
+    else:
+        raise AssertionError("decision lock の差分を検出しなかった")
+
+    assert entry["catalog_entry_id"] in message
+    assert "変更フィールド=['origin']" in message
+
+
+def test_all_origin_assignments_reject_the_opposite_origin() -> None:
+    """資産から列挙した全 origin 決定を1件ずつ反転して red にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    escaped: list[tuple[str, tuple[str | int, ...]]] = []
+    attempts = 0
+
+    for name in ("route_registry", "auth_catalog"):
+        asset = assets[name]
+        origin_paths = [
+            path for path in _iter_leaf_paths(asset) if path[-1] == "origin"
+        ]
+        for path in origin_paths:
+            mutated = copy.deepcopy(asset)
+            parent, key = _parent_and_key(mutated, path)
+            assert isinstance(parent, dict) and isinstance(key, str)
+            parent[key] = "design" if parent[key] == "requirement" else "requirement"
+            try:
+                _validate_one_derived_asset(
+                    name, mutated, assets, requirement_catalog, implemented
+                )
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((name, path))
+            attempts += 1
+
+    expected_attempts = sum(
+        1
+        for name in ("route_registry", "auth_catalog")
+        for path in _iter_leaf_paths(assets[name])
+        if path[-1] == "origin"
+    )
+    assert attempts == expected_attempts
+    assert escaped == []
+
+
+def test_all_route_class_values_reject_an_unregistered_value() -> None:
+    """資産から列挙した全 route_class を許可外値へ変えて red にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    escaped: list[tuple[str, tuple[str | int, ...]]] = []
+    attempts = 0
+
+    for name in ("route_registry", "http_matrix"):
+        asset = assets[name]
+        class_paths = [
+            path
+            for path in _iter_leaf_paths(asset)
+            if path[-1] == "route_class"
+            or (len(path) >= 2 and path[-2] == "route_classes")
+        ]
+        for path in class_paths:
+            mutated = copy.deepcopy(asset)
+            parent, key = _parent_and_key(mutated, path)
+            if isinstance(parent, dict):
+                assert isinstance(key, str)
+                parent[key] = "unregistered_route_class"
+            else:
+                assert isinstance(key, int)
+                parent[key] = "unregistered_route_class"
+            try:
+                _validate_one_derived_asset(
+                    name, mutated, assets, requirement_catalog, implemented
+                )
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((name, path))
+            attempts += 1
+
+    assert attempts == sum(
+        1
+        for name in ("route_registry", "http_matrix")
+        for path in _iter_leaf_paths(assets[name])
+        if path[-1] == "route_class"
+        or (len(path) >= 2 and path[-2] == "route_classes")
+    )
+    assert escaped == []
+
+
+def test_all_product_cells_reject_allow_deny_reversal() -> None:
+    """直積から列挙した全セルで allow と deny を反転して red にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    cells = assets["http_matrix"]["cells"]
+    escaped: list[str] = []
+
+    for index, cell in enumerate(cells):
+        mutated = copy.deepcopy(assets["http_matrix"])
+        mutated_cell = mutated["cells"][index]
+        mutated_cell["expected_result"] = (
+            "deny" if cell["expected_result"] == "allow" else "allow"
+        )
+        try:
+            _validate_one_derived_asset(
+                "http_matrix", mutated, assets, requirement_catalog, implemented
+            )
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(cell["cell_id"])
+
+    assert len(cells) == len(
+        {
+            (cell["route_class"], cell["resource_kind"], cell["channel"])
+            for cell in cells
+        }
+    )
+    assert escaped == []
+
+
+def test_all_implemented_test_owners_reject_planned_status() -> None:
+    """全 implemented 所有決定を planned へ移しても lock が必ず red にする。"""
+    assets, locks, paths = _repository_derived_assets()
+    escaped: list[tuple[str, tuple[str | int, ...]]] = []
+    attempts = 0
+
+    for name, asset in assets.items():
+        owner_paths = _implemented_owner_paths(asset)
+        for owner_path in owner_paths:
+            mutated = copy.deepcopy(asset)
+            owner = _value_at_path(mutated, owner_path)
+            assert isinstance(owner, dict)
+            owner["status"] = "planned"
+            try:
+                checker.validate_derived_lock(mutated, locks[name], paths[name])
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((name, owner_path))
+            attempts += 1
+
+    assert attempts == sum(
+        len(_implemented_owner_paths(asset)) for asset in assets.values()
+    )
+    assert attempts > 0
+    assert escaped == []
+
+
+def test_all_implemented_test_ids_must_exist_in_collection() -> None:
+    """資産内の全 implemented owner を未収集IDへ変えて red にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    escaped: list[tuple[str, tuple[str | int, ...]]] = []
+    attempts = 0
+
+    for name, asset in assets.items():
+        for owner_path in _implemented_owner_paths(asset):
+            mutated = copy.deepcopy(asset)
+            owner = _value_at_path(mutated, owner_path)
+            assert isinstance(owner, dict)
+            owner["id"] = "tests/missing.py::test_not_collected"
+            try:
+                _validate_one_derived_asset(
+                    name, mutated, assets, requirement_catalog, implemented
+                )
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((name, owner_path))
+            attempts += 1
+
+    assert attempts == sum(
+        len(_implemented_owner_paths(asset)) for asset in assets.values()
+    )
+    assert attempts > 0
+    assert escaped == []
+
+
+def test_all_db_claim_correspondences_reject_one_entry_removal() -> None:
+    """母集合から機械抽出した全DB主張を1件ずつ未対応にして red にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented,
+    )
+    entries = assets["auth_catalog"]["entries"]
+    db_claim_ids = set(checker._db_claims_by_id(requirement_catalog))
+    escaped: list[str] = []
+
+    for index, entry in enumerate(entries):
+        mutated = copy.deepcopy(assets["auth_catalog"])
+        mutated["entries"].pop(index)
+        try:
+            checker.validate_auth_catalog(
+                mutated,
+                requirement_catalog,
+                registry_result,
+                REPOSITORY_ROOT,
+                implemented,
+            )
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(entry["requirement_claim_id"])
+
+    assert {entry["requirement_claim_id"] for entry in entries} == db_claim_ids
+    assert len(entries) == len(db_claim_ids)
+    assert escaped == []
+
+
+def test_all_registry_matrix_links_reject_either_side_removal() -> None:
+    """ファイルから列挙した全 route を両側で1件ずつ外して exact-set を守る。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    registry_routes = assets["route_registry"]["routes"]
+    matrix_routes = assets["http_matrix"]["routes"]
+    escaped: list[tuple[str, str]] = []
+
+    for index, route in enumerate(registry_routes):
+        mutated_registry = copy.deepcopy(assets["route_registry"])
+        mutated_registry["routes"].pop(index)
+        try:
+            registry_result = checker.validate_route_registry(
+                mutated_registry,
+                requirement_catalog,
+                REPOSITORY_ROOT,
+                implemented,
+            )
+            checker.validate_http_route_matrix(
+                assets["http_matrix"],
+                registry_result,
+                REPOSITORY_ROOT,
+                implemented,
+            )
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(("registry", route["route_id"]))
+
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented,
+    )
+    for index, route in enumerate(matrix_routes):
+        mutated_matrix = copy.deepcopy(assets["http_matrix"])
+        mutated_matrix["routes"].pop(index)
+        try:
+            checker.validate_http_route_matrix(
+                mutated_matrix,
+                registry_result,
+                REPOSITORY_ROOT,
+                implemented,
+            )
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(("matrix", route["route_id"]))
+
+    assert {route["route_id"] for route in registry_routes} == {
+        route["route_id"] for route in matrix_routes
+    }
+    assert escaped == []
+
+
+def test_forbidden_import_and_nonshareable_resources_are_absent() -> None:
+    """射程外取り込みと常時404資源が3資産の値域に0件であることを確認する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    serialized = json.dumps(assets, ensure_ascii=False)
+    forbidden_terms = checker.FORBIDDEN_EVACUATED_IMPORT_TERMS
+    registry_resources = set(assets["route_registry"]["enums"]["resource_kinds"])
+    matrix_resources = set(assets["http_matrix"]["resource_kinds"])
+
+    assert sum(serialized.count(term) for term in forbidden_terms) == 0
+    assert checker.FORBIDDEN_RESOURCE_KINDS.isdisjoint(registry_resources)
+    assert checker.FORBIDDEN_RESOURCE_KINDS.isdisjoint(matrix_resources)

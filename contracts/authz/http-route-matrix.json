@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_http_route_matrix",
+  "input_manifest": {
+    "requirement_claims_path": "contracts/authz/requirement-claims.json",
+    "requirement_claims_blob_digest": "b87581491b47cd5f2537007482e98923d3ec441b",
+    "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
+    "requirement_claims_lock_blob_digest": "f328f9d31a74f6a36ee410d60deeaa9b0ea8ff70"
+  },
+  "route_classes": [
+    "shared_screen",
+    "shared_aggregate_export"
+  ],
+  "resource_kinds": [
+    "team_metrics",
+    "team_summary",
+    "player_metrics"
+  ],
+  "channels": [
+    "screen",
+    "export"
+  ],
+  "grant_ids": [
+    "metrics",
+    "player",
+    "export"
+  ],
+  "expected_results": [
+    "allow",
+    "deny"
+  ],
+  "route_dispositions": [
+    "product_cell",
+    "conditional",
+    "deny_404"
+  ],
+  "routes": [
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-020",
+      "route_id": "ROUTE:FR-020",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-020",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-021",
+      "route_id": "ROUTE:FR-021",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-021",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-022",
+      "route_id": "ROUTE:FR-022",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-022",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-023",
+      "route_id": "ROUTE:FR-023",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-023",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-024",
+      "route_id": "ROUTE:FR-024",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-024",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-025",
+      "route_id": "ROUTE:FR-025",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-025",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-026",
+      "route_id": "ROUTE:FR-026",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-026",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-027",
+      "route_id": "ROUTE:FR-027",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-027",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-028",
+      "route_id": "ROUTE:FR-028",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-028",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-029",
+      "route_id": "ROUTE:FR-029",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-029",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-030",
+      "route_id": "ROUTE:FR-030",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-030",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-031",
+      "route_id": "ROUTE:FR-031",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-031",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:FR-032",
+      "route_id": "ROUTE:FR-032",
+      "disposition": "deny_404",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:FR-032",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_summary:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_summary:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:team_summary:export",
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:team_summary:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_screen:player_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_screen:player_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "disposition": "product_cell",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:CONTROL:GROUP_LIST",
+      "route_id": "ROUTE:CONTROL:GROUP_LIST",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:GROUP_LIST",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:CONTROL:MEMBER_LIST",
+      "route_id": "ROUTE:CONTROL:MEMBER_LIST",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:MEMBER_LIST",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:CONTROL:GRANT_STATE",
+      "route_id": "ROUTE:CONTROL:GRANT_STATE",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:GRANT_STATE",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:CONTROL:INVITATION_LIST",
+      "route_id": "ROUTE:CONTROL:INVITATION_LIST",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:CONTROL:INVITATION_LIST",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CREATE_GROUP",
+      "route_id": "ROUTE:MANAGEMENT:CREATE_GROUP",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CREATE_GROUP",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+      "route_id": "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+      "route_id": "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+      "route_id": "ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:LEAVE_GROUP",
+      "route_id": "ROUTE:MANAGEMENT:LEAVE_GROUP",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:LEAVE_GROUP",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+      "route_id": "ROUTE:MANAGEMENT:UPDATE_GRANTS",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:UPDATE_GRANTS",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CHANGE_ROLE",
+      "route_id": "ROUTE:MANAGEMENT:CHANGE_ROLE",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CHANGE_ROLE",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
+      "route_id": "ROUTE:MANAGEMENT:CLOSE_GROUP",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
+        "status": "planned"
+      }
+    }
+  ],
+  "cells": [
+    {
+      "cell_id": "CELL:shared_screen:team_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "route_class": "shared_screen",
+      "resource_kind": "team_metrics",
+      "channel": "screen",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:team_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_screen:team_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+      "route_class": "shared_screen",
+      "resource_kind": "team_metrics",
+      "channel": "export",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:team_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_screen:team_summary:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+      "route_class": "shared_screen",
+      "resource_kind": "team_summary",
+      "channel": "screen",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:team_summary:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_screen:team_summary:export",
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+      "route_class": "shared_screen",
+      "resource_kind": "team_summary",
+      "channel": "export",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:team_summary:export",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_screen:player_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "route_class": "shared_screen",
+      "resource_kind": "player_metrics",
+      "channel": "screen",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics",
+        "player"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:player_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_screen:player_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+      "route_class": "shared_screen",
+      "resource_kind": "player_metrics",
+      "channel": "export",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_screen:player_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:team_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_metrics",
+      "channel": "screen",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:team_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_metrics",
+      "channel": "export",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics",
+        "export"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_metrics:export",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:team_summary:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_summary",
+      "channel": "screen",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_summary:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:team_summary:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_summary",
+      "channel": "export",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics",
+        "export"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:team_summary:export",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:player_metrics:screen",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "player_metrics",
+      "channel": "screen",
+      "expected_result": "deny",
+      "required_grant_ids": [],
+      "expected_http_status": 404,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:player_metrics:screen",
+        "status": "planned"
+      }
+    },
+    {
+      "cell_id": "CELL:shared_aggregate_export:player_metrics:export",
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "player_metrics",
+      "channel": "export",
+      "expected_result": "allow",
+      "required_grant_ids": [
+        "metrics",
+        "player",
+        "export"
+      ],
+      "expected_http_status": 200,
+      "test_owner": {
+        "id": "TSK-217.http-cell.CELL:shared_aggregate_export:player_metrics:export",
+        "status": "planned"
+      }
+    }
+  ]
+}

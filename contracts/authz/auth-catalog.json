@@ -1,0 +1,3051 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_catalog",
+  "input_manifest": {
+    "requirement_claims_path": "contracts/authz/requirement-claims.json",
+    "requirement_claims_blob_digest": "b87581491b47cd5f2537007482e98923d3ec441b",
+    "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
+    "requirement_claims_lock_blob_digest": "f328f9d31a74f6a36ee410d60deeaa9b0ea8ff70"
+  },
+  "origins": [
+    "requirement",
+    "design"
+  ],
+  "route_scopes": [
+    {
+      "route_scope_id": "SCOPE:DATA_READ",
+      "route_kinds": [
+        "legacy_route",
+        "shared_data",
+        "control_read"
+      ]
+    },
+    {
+      "route_scope_id": "SCOPE:CONTROL",
+      "route_kinds": [
+        "control_read",
+        "management_operation"
+      ]
+    },
+    {
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "route_kinds": [
+        "legacy_route",
+        "shared_data",
+        "control_read",
+        "management_operation"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "catalog_entry_id": "CATALOG:SECTION-1.1/paragraph-002",
+      "requirement_claim_id": "SECTION-1.1/paragraph-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "82ba380bed1458e8c37225e9c4f7ae855a08256d7080fe8e668085be8f315234",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-1.1/paragraph-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-1.1/paragraph-003",
+      "requirement_claim_id": "SECTION-1.1/paragraph-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "3e7ab4f5db81aeb110f76a842bce80feaf06fa6bdbd7e9d750821e80588e8e5d",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-1.1/paragraph-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-2.2/list_item-001",
+      "requirement_claim_id": "SECTION-2.2/list_item-001",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "2968c0c7e7b69545f34421f5a09e0b28d8165ba909ad3be6dc1c6ef5dd49ffb2",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-2.2/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-2.2/list_item-002",
+      "requirement_claim_id": "SECTION-2.2/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "46910f971cc32e10a10eb7ac030a01182bdd9b349f4f3548c790109f89a8ea83",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-2.2/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-2.2/list_item-008",
+      "requirement_claim_id": "SECTION-2.2/list_item-008",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "dba85df6bd559cce5082ac8414114a5318ca5add7bfc6af7ebb153f52d36a867",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-2.2/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-2.2/list_item-012",
+      "requirement_claim_id": "SECTION-2.2/list_item-012",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "b270183574a48e58679913a3da001687c8e379b033458707e6f125358d9cca3d",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-2.2/list_item-012.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/table_row-001",
+      "requirement_claim_id": "SECTION-3/table_row-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "7653ad4a01931ddc0803c602be1a4e8d4c5ac3f25465cbf384208c4df959320a",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/table_row-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/table_row-002",
+      "requirement_claim_id": "SECTION-3/table_row-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "33837759abf2e6ee7139e45b0e68d0bba9bb02adc8522b378abebc633c560642",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/table_row-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/table_row-003",
+      "requirement_claim_id": "SECTION-3/table_row-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "d3ca1980351b9fefe17d1656114e5b925cc8cc026281b93882b8e924fa72bab5",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/table_row-004",
+      "requirement_claim_id": "SECTION-3/table_row-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "257216affce2ae5621bffe835dd6fc7dfdc6af9efcc8567d9a4b30bdee446746",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/table_row-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-001",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "a58062530299d59886935f662031f2b8b14b5749798fd23c40465be92355161e",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-002",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "6281f113d6a5b1f628e512030307bb66e996106254b3ec3acf39774914ab1b0f",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-003",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-003",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "49304f4cb8fad5cc8defb6a73917acad9ff4e39e1f218ca0a682b3661e450947",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-004",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f5237be4679296627acba092bb3fd82ec3597d099220071ede11434c1743ca0d",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-005",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "b4d4df886a1f3968d779d7eea098a51f6d8fda45ce3db46f083dea287c60c3fa",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-3/heading-001/list_item-006",
+      "requirement_claim_id": "SECTION-3/heading-001/list_item-006",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "57f3203bfb52277c80e99ebf35287d404f12a836d371aca01ac7267debf363db",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-3/heading-001/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-4.0-1/code_line-003",
+      "requirement_claim_id": "SECTION-4.0-1/code_line-003",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "a2e82bf8a3a96dfdfe6056d5eee326e142f21429b7c8f21b9bc98679807f4272",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-4.0-1/code_line-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-4.0-1/code_line-011",
+      "requirement_claim_id": "SECTION-4.0-1/code_line-011",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "ec2138cc1be050290c78ac487536ce938296b0dcf2679918cc028747b46aa14f",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-4.0-1/code_line-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-4.0-2/list_item-001",
+      "requirement_claim_id": "SECTION-4.0-2/list_item-001",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "443664e7da0cc4158ccf9495edf6bd0d24cea3a0d0a20faa2ba59e11675027e7",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-4.0-2/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-4.0-3/table_row-002",
+      "requirement_claim_id": "SECTION-4.0-3/table_row-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "14cafbd523af7cdf3f835bec1736745eb55146a5c8355aa68a1d3930fb1129e2",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-4.0-3/table_row-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-4.0-3/table_row-003",
+      "requirement_claim_id": "SECTION-4.0-3/table_row-003",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "bdf336ece3afc5c4353c6104128ca345d8daf7a8b7579bbc5178998399fa1a8c",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-4.0-3/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-007/list_item-009",
+      "requirement_claim_id": "FR-007/list_item-009",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "861eb49bd4865764f5054cb4b04364ebe40272430d1f329165d7d455e799a41b",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-007/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-007/list_item-011",
+      "requirement_claim_id": "FR-007/list_item-011",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "5d769e9c49c12c1c399570935fe88d0eb35717ec91cdf535ce9cfdd7b492fdf5",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-007/list_item-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-012/list_item-010",
+      "requirement_claim_id": "FR-012/list_item-010",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "299716a77d608bc74837a8072a0c7e1b691708828816360b66888c76f2536aef",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-012/list_item-010.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-012/list_item-013",
+      "requirement_claim_id": "FR-012/list_item-013",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "d7cfb1257bea6923f305deeb7c525b37e91f610a1e3c5b925090d57a5011b907",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-012/list_item-013.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-012/list_item-015",
+      "requirement_claim_id": "FR-012/list_item-015",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "ef5816dccc3a2c9822dd653527dc2a633055eedb8df36bd41992894ef2b0f5ba",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-012/list_item-015.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-012/list_item-018",
+      "requirement_claim_id": "FR-012/list_item-018",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "86667093c2f7fbf351bccf4255bb62344d177b0eba68860d902bb2871e325094",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-012/list_item-018.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-002",
+      "requirement_claim_id": "FR-013/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "070dba61ce5b2ef6dedd3e52731a5afc8536823f069785733659326f97c51580",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-004",
+      "requirement_claim_id": "FR-013/list_item-004",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "fd4d2eadcaf8bad10fba9b7d6294ad0aec6ac91e426789fbb2f0d1450d2f65a7",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-005",
+      "requirement_claim_id": "FR-013/list_item-005",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "86b9e6c80e760a5c7bba043e08e6b6aa700027a02b6d3c205126adbd5f464eae",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-006",
+      "requirement_claim_id": "FR-013/list_item-006",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "6c49d0efd9a1c4bc9bd5833533487af14ae1deb8f4d0c69e47852c85b03dfbc0",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-007",
+      "requirement_claim_id": "FR-013/list_item-007",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "563c6534e80cd561aa8b56648ceea0329812da102a552cbf46fb3d98f61c1da0",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-008",
+      "requirement_claim_id": "FR-013/list_item-008",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "dcc5bac6592e140a1bda2ad0f44f9ee9cbf2f4213d735a6f898096c227acdfbc",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-009",
+      "requirement_claim_id": "FR-013/list_item-009",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "3aa76aa744e842c95caa0adaf1ac5613551515b8c5ab0e95ea8648fcf6175493",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-010",
+      "requirement_claim_id": "FR-013/list_item-010",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "e732f8c1d22fc8f061cbb4731d484d7b7a6b14a0d715d7e6ac8c77a9aba5d0e2",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-010.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-013/list_item-011",
+      "requirement_claim_id": "FR-013/list_item-011",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "f304739ca99c3bef733fcda89904204c807cf2368e2a84bfabf60b8e1f66e1b7",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-013/list_item-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-014/list_item-009",
+      "requirement_claim_id": "FR-014/list_item-009",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "7f98e40d9ce8c98d6b1c8bbfe9374da88a1ebbc36aaa62b9c831cadd294e79c7",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-014/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-017/list_item-009",
+      "requirement_claim_id": "FR-017/list_item-009",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "d6ce49eff70dd884be9301a3622955b67c3b2cd7adc219a2cbfbc9e8d1d60bbc",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-017/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-019/list_item-006",
+      "requirement_claim_id": "FR-019/list_item-006",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "a861dd0a866b4389c4cca6db6fc38143fd6059fc6a91e5d69abda7f4c65e7125",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-019/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-019/list_item-009",
+      "requirement_claim_id": "FR-019/list_item-009",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "2ec0833e858fcecdc7c51e0c03542114000c840a70214da921fe7957bbd9b4bc",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-019/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-039/list_item-004",
+      "requirement_claim_id": "FR-039/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "33995066b9926b4a4af28a6bef97ced186d536cece4c141e45dfd8c6643d6e78",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-039/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-039/list_item-008",
+      "requirement_claim_id": "FR-039/list_item-008",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "57b16e2719845e99432f4fdda6f7c0f798e3a2e256e3e46779c4766b2dfbe7c9",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-039/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-039/list_item-009",
+      "requirement_claim_id": "FR-039/list_item-009",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "9c966088df681eb9274d1af74650c2a49b58df68de3eca34938003ad4e2fdeeb",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-039/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-002",
+      "requirement_claim_id": "FR-041/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "ff23094ea42739333b60fed02b4843f461b3df7da2f7342be79a495a87cdfa2c",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-005",
+      "requirement_claim_id": "FR-041/list_item-005",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "9010b4daf67040924552a85ce8910cfa4a569c6121548a7e23e19ca535385d5b",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-006",
+      "requirement_claim_id": "FR-041/list_item-006",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "29b1b168c24a8c4b2b1d2d71916ee7cb7a436660bebe52a65bb664bfe3a80bd9",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-007",
+      "requirement_claim_id": "FR-041/list_item-007",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-008",
+      "requirement_claim_id": "FR-041/list_item-008",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "195aaeb838c313959662e790be34eec22d0998870914c9da60fe2ad20341e32b",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-009",
+      "requirement_claim_id": "FR-041/list_item-009",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "9d7af8d155e575b71674254bcbae66752429379af93e641e351613c1e0d1ccd9",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-010",
+      "requirement_claim_id": "FR-041/list_item-010",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "128bee5db70a0ba6ecb2bb1584dc51688d56e323e72c41aaa866dbfab6b1f611",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-010.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-011",
+      "requirement_claim_id": "FR-041/list_item-011",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "006829fb1fd9746110ed8d6d8454b15bf5721e56da76af2c04cab647d621f56f",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-012",
+      "requirement_claim_id": "FR-041/list_item-012",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "dc42aab6f2e0fa66ee63bbee9c0da2111964a993eb3ed4a612b086a3bcf258d8",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-012.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-013",
+      "requirement_claim_id": "FR-041/list_item-013",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "fd899e7049a5cd75bdb86023df363c65b2d43cea177c411619e2c0059f6ee255",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-013.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-014",
+      "requirement_claim_id": "FR-041/list_item-014",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "0f05e7488516796778b7164aedd652934b12791050a6252ba3aecaf30b95ca14",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-014.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-015",
+      "requirement_claim_id": "FR-041/list_item-015",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "51a3286a9c3955bc51b65942b84a388d0ade8e32d09588d2aa669ae0067c7e70",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-015.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-016",
+      "requirement_claim_id": "FR-041/list_item-016",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "f09f1c9e3660067feca7d05e5312a0e4692396cfa7a92686871e7a2d7f471a17",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-016.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-017",
+      "requirement_claim_id": "FR-041/list_item-017",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "c93e7dffc105305bc54b9d21c8981ab09261888ed056b876040b218a4ce8afe9",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-017.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-018",
+      "requirement_claim_id": "FR-041/list_item-018",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "bc1d91ecae1725c628657d4b9ad1d952a7f33d41d1a3940f1f411a5dbb3cbbdb",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-018.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-019",
+      "requirement_claim_id": "FR-041/list_item-019",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f267701add8b025b9a7df4ae0dfa12156c68066a5873d322164b359f42b6103c",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-019.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-020",
+      "requirement_claim_id": "FR-041/list_item-020",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "64bbbeaa00c7cc1a3d191b63c974755d557454bb89ab643e6b54e01f95b77b08",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-020.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-041/list_item-021",
+      "requirement_claim_id": "FR-041/list_item-021",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "4afa20b75ca28a12683649d048ed8ceb95eba7badc43b7580adf1a7796dc8cbb",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-041/list_item-021.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-033/list_item-002",
+      "requirement_claim_id": "FR-033/list_item-002",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "9f367e399ae5d00d5e77b079bf6839f15224f7a114b76df772ce59e1d07ecba9",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-033/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-033/list_item-004",
+      "requirement_claim_id": "FR-033/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "43012bdead5a0b7676957f77ce36d524f86dc45d2029c5b371a21da55047065a",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-033/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/list_item-002",
+      "requirement_claim_id": "FR-034/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "029406a3202a449264c69f51b2ffae01931ff56f868bde21c64a114cfda00584",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/list_item-004",
+      "requirement_claim_id": "FR-034/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "5668c2440d61367c94f025529b52540a47c26f23caf1b6569b85aefac8ac82fd",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/list_item-005",
+      "requirement_claim_id": "FR-034/list_item-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "347a02dff5f4c3ce62cbb292fb67cc56a24dd1cca0c42988a02f89c056f395d6",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-001",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "ccf07c01ea2016dc411c33c13a5a1a7e05252187788c24f4987063effeaec9b6",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-001",
+      "requirement_claim_id": "FR-034/heading-001/table_row-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f4b254f6e58960afb6f1cb1b57c1d5a2fde1fab610cd8eeb67e0278ca55c16c8",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-002",
+      "requirement_claim_id": "FR-034/heading-001/table_row-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "6898517b8d137c41ee7e987c2b91a71d53bc81cc76188fbe3392294a8e5a476d",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-003",
+      "requirement_claim_id": "FR-034/heading-001/table_row-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "b6cb84882de85faf4b3b92b40239bf5a7af0764f5e278faf389d1cb9f2cf824c",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-004",
+      "requirement_claim_id": "FR-034/heading-001/table_row-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "717ea7d799c301a80eeafa6d49a0eed4cc909791ef5d92b18c09504ee67a2320",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-003",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "936105d90bff88e36b7f138e4eecbd663bef258bdd4cf1423edbb9edcc61fb05",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-001",
+      "requirement_claim_id": "FR-034/heading-001/list_item-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "440b039f9e62e67afa6f52099fa8ea560b7e30fdb5c2cdbe0c3be358a297aed7",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-002",
+      "requirement_claim_id": "FR-034/heading-001/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "22642a5ac86ef08107963353587d53bf77fea77acb9133334a9048f2d7a07b9d",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-003",
+      "requirement_claim_id": "FR-034/heading-001/list_item-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "e12a871646fd9bb14c36e8d55f7233e16e00811bdb1ab2539d99aa61fad9477a",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-004",
+      "requirement_claim_id": "FR-034/heading-001/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "a08845d69fd70af3d9997a4299ec963bf5dbc702ba704a5e28f094080ac91933",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-005",
+      "requirement_claim_id": "FR-034/heading-001/list_item-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "cebc52eaef3ecfc01d57932ec5ce59005644e61675da25aaa29d343c51f4b65e",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/list_item-006",
+      "requirement_claim_id": "FR-034/heading-001/list_item-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "342eb106b556b186991922b40135292d5596271ce3a1faecf68966ff48341466",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-005",
+      "requirement_claim_id": "FR-034/heading-001/table_row-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "5927538f38d1faf3aca57b0afb8c6e944df5b1578af4c47dbafebf6c4867eb1c",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-006",
+      "requirement_claim_id": "FR-034/heading-001/table_row-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "baa893bf2d308046a2f8d3198c7f69f9d4585457eb478eea8869d444683db9ab",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-007",
+      "requirement_claim_id": "FR-034/heading-001/table_row-007",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f0e4dc6658fa7c4ab3750fdb9d0a3a81681f63e034037dcca3569551b1658df3",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-008",
+      "requirement_claim_id": "FR-034/heading-001/table_row-008",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "82e795b5250fb8df0543fa391b8580fcbb22c52b63c0f75f02f9ea838e4466f4",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-009",
+      "requirement_claim_id": "FR-034/heading-001/table_row-009",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "de3cbdb998bd5d49e7d72e9696af2edce3a3e6ce4bbdd221bca873b165571a3d",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-010",
+      "requirement_claim_id": "FR-034/heading-001/table_row-010",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "aee92b1e15c43a88b3834b3f3c4f569e1389f077b3edb3923ff84954d8d301d0",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-010.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-011",
+      "requirement_claim_id": "FR-034/heading-001/table_row-011",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "c53c2c98c76eb029ce100f64ce8d763118d41e10dda8f8420be2294d7bd94cb1",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-012",
+      "requirement_claim_id": "FR-034/heading-001/table_row-012",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "6f8f7fc62dc193f6de6a5e261a541568910e9eb873129f266e964f393beabf0e",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-012.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-013",
+      "requirement_claim_id": "FR-034/heading-001/table_row-013",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "2e314928bcd7c573fdd2e4e8c94305521264798a8971c51ce53f38528e6fc85b",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-013.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-014",
+      "requirement_claim_id": "FR-034/heading-001/table_row-014",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "0d0cda99d0db5f310e397e21ecc44209c660f8f3b8904dcc40448fce13712849",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-014.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-006",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "83145075d6eef0b2c2fb473dc5b1c2761b965c313f018e6fe276df5ace0f070b",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-007",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-007",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "83c4fee146e61a5446658b311ad9ecf473648a4ba77e5a86fe46e235ecc16920",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-015",
+      "requirement_claim_id": "FR-034/heading-001/table_row-015",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f6db7e12a7cb504f3f0527232518e79bb72689ff5c69b8c84ca40c9ee1543d37",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-015.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-016",
+      "requirement_claim_id": "FR-034/heading-001/table_row-016",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "e543ce47b29041b3c7ae4646fcefd97b95dc91865023c9a9f50bb0dcee9155cc",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-016.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-017",
+      "requirement_claim_id": "FR-034/heading-001/table_row-017",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "9ecdc658f662ef310bc7bc7304f32eff472446879388c7c9a7ce13e5c76a8e55",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-017.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-018",
+      "requirement_claim_id": "FR-034/heading-001/table_row-018",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "85522be486e37d82ada33d3b0a57f0998d2b5365038be84c891792230c37e0c6",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-018.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-019",
+      "requirement_claim_id": "FR-034/heading-001/table_row-019",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "ba2523166da32b85cc21c6ac4a3ed183ba753efe183a01595d8f52df2e0f919a",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-019.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-020",
+      "requirement_claim_id": "FR-034/heading-001/table_row-020",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "be1f556cf2f768f56c2e8327843038deef8a4ea98265b26a3fe2901cace7200f",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-020.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-021",
+      "requirement_claim_id": "FR-034/heading-001/table_row-021",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "b041e411f0367047f37eead6f8d839ff9462ed5eab51b705c00c74110b2787ad",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-021.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-022",
+      "requirement_claim_id": "FR-034/heading-001/table_row-022",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "634298e568f0004b237d073bdd763ca7b9e9641645c3c4f0b64ead4941847ca1",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-022.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/table_row-023",
+      "requirement_claim_id": "FR-034/heading-001/table_row-023",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "4629a3b01283067238957278c56a415e06156bc83a85b749220e15565ecd0489",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/table_row-023.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-008",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-008",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "7b10e31fc4bb5a921a9a737259827200b77e70d49239efccbbe818a02b6d89d9",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-001/paragraph-009",
+      "requirement_claim_id": "FR-034/heading-001/paragraph-009",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "c27b64f351f22bf33b5b5a5d47533da444869f8b31b830126de49fb031f42a44",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-001/paragraph-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/table_row-001",
+      "requirement_claim_id": "FR-034/heading-002/table_row-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "3ebf8c15fd829bf9bcb2b53220e8127fb061696f4b53e36aafd0faa098c027de",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/table_row-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/table_row-002",
+      "requirement_claim_id": "FR-034/heading-002/table_row-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "34aa97c40d918f7ef5664296006113d68c104c30387717e592d4502a0d1ddd16",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/table_row-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/table_row-003",
+      "requirement_claim_id": "FR-034/heading-002/table_row-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "b43a2d3d9dab2b521fe394ce0ac22f3e0674a9c40c4a33b8148f40c790347dfd",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/table_row-004",
+      "requirement_claim_id": "FR-034/heading-002/table_row-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "0ee559fc3d1899eb0f5da86dad953bb08754cfcb56e274f896075c0c4f09f6c2",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/table_row-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/table_row-005",
+      "requirement_claim_id": "FR-034/heading-002/table_row-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "d2d81cd11f01f4b61e5cddbad88709ef4b3d77fb6b4f9aa72e02695b0532a287",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/table_row-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-001",
+      "requirement_claim_id": "FR-034/heading-002/list_item-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "fdea590652f54f538dc77577c629894dd0cd4e952501a6cc68d49cad138e2bd7",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-002",
+      "requirement_claim_id": "FR-034/heading-002/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f22593845e69017b669f81f7dc66b2c9a511b7da150dc6e85f8b9e91b3816028",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-003",
+      "requirement_claim_id": "FR-034/heading-002/list_item-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "3b96e0fdac05295508963c8f35d87ed84bd74ae682bd1ba90871a57066d46c27",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/paragraph-002",
+      "requirement_claim_id": "FR-034/heading-002/paragraph-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "2ca32ed89a2c875e24454540930c6c4e67825ba4164d93ff28bea90d13abd973",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/paragraph-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-004",
+      "requirement_claim_id": "FR-034/heading-002/list_item-004",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "cbbfcc2ca5858704034a243e9e5d429a1707523dcb91286cf94c7be9e9f15d52",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-005",
+      "requirement_claim_id": "FR-034/heading-002/list_item-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "1f9eabedb96fc1433d9d739f635bc101df843476fdaa5cdc8536b2275b838bd6",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-006",
+      "requirement_claim_id": "FR-034/heading-002/list_item-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "7157c2b8bc9f65b4f24e3bc04282202c164bc03a615e728eb29cbbcbf5ec59d8",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-002/paragraph-003",
+      "requirement_claim_id": "FR-034/heading-002/paragraph-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "9d8e3d4ea7e093149b980d45c80dda8c6ebe609d6266b7e305b706e6884a1c4e",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-002/paragraph-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-003/paragraph-001",
+      "requirement_claim_id": "FR-034/heading-003/paragraph-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "55f15d9c6b25672cff4008e6c0679092d8364a41d295cb06641e6a48868e7f90",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-003/paragraph-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-003/table_row-003",
+      "requirement_claim_id": "FR-034/heading-003/table_row-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "21b36067b17edbc07e3f9f9ecc5a5ae4926fb224c48fddc6eab09dd5f846b412",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-003/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-003/table_row-006",
+      "requirement_claim_id": "FR-034/heading-003/table_row-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "f4558f7df5b2ba8a0d5218f32060027af99d34d0d1df914417baa1791ce91517",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-003/table_row-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/paragraph-001",
+      "requirement_claim_id": "FR-034/heading-004/paragraph-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "76121093e3777678a90439619eff15ebfd6c3c9893a1220c7900a742c04d0320",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/paragraph-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-001",
+      "requirement_claim_id": "FR-034/heading-004/table_row-001",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "9a4059469a3089e45ab0a72d338a0cb811fb8da22992459e27214373c1b396fd",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-002",
+      "requirement_claim_id": "FR-034/heading-004/table_row-002",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "6529be11dcc5f6645e817d832f5122c6e7a667bd36a679b8994523e477bb945b",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-003",
+      "requirement_claim_id": "FR-034/heading-004/table_row-003",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "baa868be9f86973d03b4e46c3874d9d24d677f784384ca05771900c7b67a3cad",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-004",
+      "requirement_claim_id": "FR-034/heading-004/table_row-004",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "552cdb3a5f9aa58bb26ec4b7d24175583b880b2dfa99fd039ce8c19e9272e975",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-005",
+      "requirement_claim_id": "FR-034/heading-004/table_row-005",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "e1c58c05dc01dd4e5728cc1d8288b000a51c9e85a324b31869bfc778da6186a1",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/paragraph-002",
+      "requirement_claim_id": "FR-034/heading-004/paragraph-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "bbf15278fb6d3cd721ef729c10656baf2792a5c80b07fcf8c233576e1ea5c889",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/paragraph-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-006",
+      "requirement_claim_id": "FR-034/heading-004/table_row-006",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "3f0bb97eb79f5e03b5f3ba17c902a49f6e8e3dca72cc665db81d5a8fe67586c1",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-007",
+      "requirement_claim_id": "FR-034/heading-004/table_row-007",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "cceb50e78b43d33aa7ef3e79b51545768aaaafecb8afe940546c4226fc1c48cb",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-008",
+      "requirement_claim_id": "FR-034/heading-004/table_row-008",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "a4f6a491049d0a38b6951eed2ec0296e880a13eac9f16b43e3d6208e9ecc1eac",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/table_row-009",
+      "requirement_claim_id": "FR-034/heading-004/table_row-009",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "0916b67268d2468d72ccf1826fd54f414b99d2bf0a62b7688cd14b0214aaa469",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/table_row-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-034/heading-004/list_item-001",
+      "requirement_claim_id": "FR-034/heading-004/list_item-001",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "32588a632876bb6f33f8e4928e71af437f9cd721db0a636faca9b5342cd755bb",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-034/heading-004/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-002",
+      "requirement_claim_id": "FR-035/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "3d5e4915ef8f5ac99c230634a752cd41fb4f944c8f644213526bc7320b9096f6",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-004",
+      "requirement_claim_id": "FR-035/list_item-004",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "72515865da96fbeebfc1cbee51157e916f49d2333cc1154769b709bdefb8cb60",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-005",
+      "requirement_claim_id": "FR-035/list_item-005",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "328de0ad2f1231181e1baa500c03d2f2bfdaf716fcf0a271fa97f879d504e19e",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-006",
+      "requirement_claim_id": "FR-035/list_item-006",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "df2c116a0b51f588afd5fcd15ca943e8678b9a73c88babdc8197452dffdea59a",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-007",
+      "requirement_claim_id": "FR-035/list_item-007",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "291ea3e1f646d02ec887ca37deb7c9fbe4c429c89a9d2111840bce0ff39d1dc9",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-008",
+      "requirement_claim_id": "FR-035/list_item-008",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "b3456fd2365ce991d288fe4afa8644e78037dd2c258525d9e0136ec1174c8a8c",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-009",
+      "requirement_claim_id": "FR-035/list_item-009",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "68ec9ce6ca63c5823d5325ba87cfda63000501d78ae277277421be21fc67574c",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-010",
+      "requirement_claim_id": "FR-035/list_item-010",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "7e3ace17f28e2843b6b2323634c60fd339cc2664196a324d29b5c8b91522c4bb",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-010.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-011",
+      "requirement_claim_id": "FR-035/list_item-011",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "9fef02e2e2e756445c04b380f3a284d34c57dff2536b33c56e3641cfcb8db925",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-012",
+      "requirement_claim_id": "FR-035/list_item-012",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "bfb19680ddddd6b1edaab4d832b25a03ffdcec7a894d6c2e8fd826de37e8f373",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-012.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-013",
+      "requirement_claim_id": "FR-035/list_item-013",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "59365d907048bcd07465793162c17eccde8abfc8dde6624fedd744c993218d98",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-013.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-014",
+      "requirement_claim_id": "FR-035/list_item-014",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "38348e2e8e1dcd4e972fe779759f3f4cdbcb6e1955324906dc707d11cd126e2a",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-014.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-035/list_item-015",
+      "requirement_claim_id": "FR-035/list_item-015",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "311c9c8ccb5fa243435c8adcf3ae9e7dc3ecdccbf2a19e14fb61b16ea33db15d",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-035/list_item-015.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-036/list_item-002",
+      "requirement_claim_id": "FR-036/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "7a6ad8221770047382282902d65c3cb53a45d95b81b7a5bf025d0ee8dd381573",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-036/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-036/list_item-004",
+      "requirement_claim_id": "FR-036/list_item-004",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "2002eaeb30fdd8c1a23d22bf6bf0c79a5ab45b5a26510c0e84cdbcfd662e3791",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-036/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-002",
+      "requirement_claim_id": "FR-037/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "9b7d90292631506773e8dec7a7d641c9f998c2684db0b075d5eefdb182968e3e",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-004",
+      "requirement_claim_id": "FR-037/list_item-004",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "c27b40def5b9d61b86a13e42cee784fbeb14d18aed69f715df00df97ed712f16",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-005",
+      "requirement_claim_id": "FR-037/list_item-005",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "e9c6726472b50eeef6561038b0e2caa9546b2831e4a3f04d5fec39cc2999d130",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-005.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-006",
+      "requirement_claim_id": "FR-037/list_item-006",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "02f454c98ab236ed59d5574c9fb4ef6cd603ebef6a4c8d63f6effed53f410282",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-007",
+      "requirement_claim_id": "FR-037/list_item-007",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "b5f153bc63609fd1fcbfddde73fc2bf0f189c0db430e1feea0c359269a06b4d1",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-008",
+      "requirement_claim_id": "FR-037/list_item-008",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "fcc34d1c5ead8f9361d08de7d311d27af34aadbf70e4322ff94f1dfd9528a872",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-008.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-009",
+      "requirement_claim_id": "FR-037/list_item-009",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "2d62e7cb7c5900055ba49ea01e3d14cec07b0546e29e5b13789e001951272057",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-009/list_item-004",
+      "requirement_claim_id": "NFR-009/list_item-004",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "43f9cfab0cbac184e7c610a2570fa099668f95e1f3689a57568b10fb76f76ae7",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-009/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-010/list_item-002",
+      "requirement_claim_id": "NFR-010/list_item-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "a7ab2dd3535ac1b61a61abe6e0d54e6e7136b054e2e47c9b4ce3b6321c1cfb38",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-010/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-010/list_item-003",
+      "requirement_claim_id": "NFR-010/list_item-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "6b3deecc7eb57df82ef2588296d12286099b323bc2adfb1731c73221e2b56a86",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-010/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-010/list_item-004",
+      "requirement_claim_id": "NFR-010/list_item-004",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "eec2081f6bfd39ad0ecf3c5c648ee92e9630249e756fa71954a5d023d592cc66",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-010/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-011/list_item-002",
+      "requirement_claim_id": "NFR-011/list_item-002",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "f32cda771375e00afdd0e4d373d33a3da68d5c7b83bf3fe6b58a3a172376beea",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-011/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-011/list_item-003",
+      "requirement_claim_id": "NFR-011/list_item-003",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "0bfd669feeed11d379e3c87b7043ebdd56250186d983abeaf0adac2909e18ea8",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-011/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-012/list_item-002",
+      "requirement_claim_id": "NFR-012/list_item-002",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "3fb4e070b37917e4cee98ee4ae9db5955c47d7a35b73e588134df20e4c3bb26a",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-012/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-012/list_item-003",
+      "requirement_claim_id": "NFR-012/list_item-003",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "71cb558f6e481a01e9b1c5ad3ab14074d416485c5b089b0aa72128bfc3d42175",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-012/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:NFR-019/paragraph-001",
+      "requirement_claim_id": "NFR-019/paragraph-001",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "89aca663e1bfa6d2ed4731b9d7cbc420a197bd7cbfcbb048bae6f3ad5d8007e4",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.NFR-019/paragraph-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-6.2/list_item-003",
+      "requirement_claim_id": "SECTION-6.2/list_item-003",
+      "origin": "requirement",
+      "layer": "cache_authorization",
+      "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+      "source_text_digest": "90b642c93d41dc948c64ac57eb727f7120ffd8a561dc270b8f05d66cf64f4f19",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-6.2/list_item-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-6.4/list_item-001",
+      "requirement_claim_id": "SECTION-6.4/list_item-001",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "3a108f97ba55e1877b9d1556af6e4c965a133b0ac6e0c9fa235ef60e2397dd13",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-6.4/list_item-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-7.1/list_item-004",
+      "requirement_claim_id": "SECTION-7.1/list_item-004",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "7b81c9a5e903198d134f2f030cc6380a3bd7ea46935e8d72d8c4c2866483ae0a",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-7.1/list_item-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-8/list_item-002",
+      "requirement_claim_id": "SECTION-8/list_item-002",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "eefa79ad85ac313f91a0f27ddf64390429fb5ca574222b6ddc7d6e1934e96526",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-8/list_item-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-8/list_item-006",
+      "requirement_claim_id": "SECTION-8/list_item-006",
+      "origin": "requirement",
+      "layer": "verification_contract",
+      "db_basis_rule_id": "DB_VERIFICATION_QUERY",
+      "source_text_digest": "c05dd2339f0a55b8dd0368baf575c5336d699c5cff7cf2dca2a05f50b347ef30",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-8/list_item-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-9/table_row-007",
+      "requirement_claim_id": "SECTION-9/table_row-007",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "879d4c34429f96586afd81e4256af766b3907a15622f6b7206a4905abb6f4be9",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-9/table_row-007.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-9/table_row-011",
+      "requirement_claim_id": "SECTION-9/table_row-011",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "26f49267b31a8624b71e0525bfa4195f317a1946812e0112dfba75c4dbb423f0",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-9/table_row-011.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-9/table_row-012",
+      "requirement_claim_id": "SECTION-9/table_row-012",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "783a457108f10896fb95bb59487cfda05166975ecb339d42b82e31be5a5cbb5e",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-9/table_row-012.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:SECTION-9/table_row-013",
+      "requirement_claim_id": "SECTION-9/table_row-013",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "3570db50ad5f1864142f84f09d251413bd5b351b9fe91a097f77a994e3fcf942",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.SECTION-9/table_row-013.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-ITEM-A-5/paragraph-003",
+      "requirement_claim_id": "APPENDIX-ITEM-A-5/paragraph-003",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "4376dcb396bedc16fc300a6f728ea5bce54c06d9d0ea696f0aa332519466db36",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-ITEM-A-5/paragraph-003.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-ITEM-A-5/blockquote-002",
+      "requirement_claim_id": "APPENDIX-ITEM-A-5/blockquote-002",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "54145f18fadf4871b99b607b6c86c8e8acad0455f3199fce1b69610a9fe5193f",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-ITEM-A-5/blockquote-002.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-ITEM-A-5/blockquote-006",
+      "requirement_claim_id": "APPENDIX-ITEM-A-5/blockquote-006",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "96bf6ac04a0250eb4480d3b1f4814ffd41fb8ecb9b3ab4177df7504f8db61d42",
+      "route_scope_id": "SCOPE:DATA_READ",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-ITEM-A-5/blockquote-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-C/blockquote-001",
+      "requirement_claim_id": "APPENDIX-C/blockquote-001",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "7601f831fee7b6c17b5ae53068e1c84ce5d13f3f268eedf18990e53ff034bb74",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-C/blockquote-001.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-C/table_row-004",
+      "requirement_claim_id": "APPENDIX-C/table_row-004",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "f66ddd51b96dedaeea9fd81aa3483ae45fd613a78fe20959fddf853e071cb928",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-C/table_row-004.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-C/table_row-006",
+      "requirement_claim_id": "APPENDIX-C/table_row-006",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "9ab543ad9b43b0305955d2bb7a5304c3264ba45693e2835424c8695888a7da6d",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-C/table_row-006.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-C/table_row-009",
+      "requirement_claim_id": "APPENDIX-C/table_row-009",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "ae8f38a440d812248e67221cdb0ebee792df611d309cf549dd85db32be741c87",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-C/table_row-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:APPENDIX-C/table_row-010",
+      "requirement_claim_id": "APPENDIX-C/table_row-010",
+      "origin": "requirement",
+      "layer": "authentication_boundary",
+      "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+      "source_text_digest": "6de96c9069e5d7b2352be1204c0968385da584aeee3ac8a313c8c704f9235121",
+      "route_scope_id": "SCOPE:ALL_LOGICAL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.APPENDIX-C/table_row-010.db",
+        "status": "planned"
+      }
+    }
+  ]
+}
