@@ -196,3 +196,24 @@ D: AUTH 主張の妥当性 146 / E: AUTH ゼロ節 475)。
 不整合にならない**(検査対象は 記法不正 / 1 件名に複数 / 総数超過 / 欠番)。
 → **ステップ 3 は 2 コミットに分ける**: ① 期待値資産の固定 ② CI 配線とフィクスチャ。
 `AGENTS.md` の「1 ステップ = 1 コミット」からは外れるが、**承認済み計画の合格条件が要求する順序証明**を優先する。
+
+## ステップ 2 の証跡索引(Supabase 実機確認)
+
+ステップ 2 は**人間が実行**し、証跡は計画承認前のコミット `da80a44` に入っている
+(記法が付いていないため、現在地導出が「完了ステップに欠番がある」と判定した)。
+**ステップ 2 の成果物は証跡そのもの**なので、ここに索引を置いて記法付きで確定する。
+
+| 主張 | 証跡 | 実測値 |
+| --- | --- | --- |
+| マネージド環境で `BYPASSRLS` ロールを作れる | `research.md` 1-7-a / `probe/supabase-managed.sql` Run 0 | `postgres` は `rolsuper=false` / `rolbypassrls=true`、`CREATE ROLE ... NOLOGIN BYPASSRLS` 成功 |
+| 恒久的な到達経路は存在しない | 同 1-7-b / Run 1・Run E | 自動所属は `admin=true` / `inherit=false` / `set=false`。`REVOKE` 後は `SET`・`USAGE` とも false |
+| 所有させる操作は `SET ROLE` 可能性を要求する | 同 1-7-c / Run A・B・D | `CREATE SCHEMA ... AUTHORIZATION` と `ALTER FUNCTION ... OWNER TO` が `42501` で失敗 |
+| ACL を PUBLIC から剥がせる | 同 1-7-d / Run D | `public_exec=false` / `app_exec=true` |
+| 関数だけが越境できる | 同 1-7-d / Run F | 同一トランザクション・同一ロールで 関数経由 `2` / 直読み `1` |
+
+- 検証スクリプト: `docs/features/pg-authz-verification/probe/supabase-managed.sql`
+  (git blob `9ca8cc26470154d704b527d15ba7b85a0d2a03cd`)
+- **秘密・DSN・project ref を含まない**。Claude は接続情報を受け取っていない(NFR-014)
+- **使い捨てプロジェクトは削除済み**(人間が実施)
+- **不成立項目 0 件**のため、不採用構成表への追加はない
+- 派生した残余リスク `RES-01`・`RES-02`・`RES-03` は `research.md` 5-1-R 節
