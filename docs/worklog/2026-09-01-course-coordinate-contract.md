@@ -102,3 +102,124 @@ branch: feature/course-coordinate-contract
 **2026-09-01・山田正輝が承認。** `承認: 済(2026-09-01・山田正輝)` / 計画レビュー周回 **4 周**。
 
 **次の一歩**: `/implement`(コア領域なので ADR-001 により **sol xhigh** が自動適用される)。
+
+## /implement — ステップ 1: 契約一致テストの追加 + 変異による帰属確認
+
+### 追加したテスト
+
+- `frontend/src/lib/courseCoordinateContract.spec.ts` を追加した
+- 契約 JSON を直接 import し、`COURSE_COORDINATE_SIZE` と `DISPLAY_COORD_SIZE` を
+  `geometry.size` へ別々に照合する 2 テストとした
+- `describe` / `expect` / `it` は `vitest` から明示 import した
+- 新規 spec の変異前 SHA-256 は
+  `267770319818f550fc5f33767299687705ea3e151e3cb46dbebba236b0590adc`
+
+### テスト実行コマンド
+
+新規 spec 単体の帰属確認には、リポジトリルートから次を実行した。
+
+```bash
+(cd frontend && NO_COLOR=1 pnpm exec vitest run src/lib/courseCoordinateContract.spec.ts --reporter=verbose)
+```
+
+変異 3 の全体実行には次を実行した。
+
+```bash
+(cd frontend && NO_COLOR=1 pnpm exec vitest run --reporter=verbose)
+```
+
+品質ゲートの全体実行には、`frontend/` で指定どおり次を実行した。
+
+```bash
+pnpm test -- --run
+```
+
+`pnpm test -- --run src/lib/courseCoordinateContract.spec.ts` はこの package script では
+`vitest run -- --run ...` となりファイルを絞らず 4 ファイル全部を実行したため、単体の帰属証跡には採用せず、
+上記の `pnpm exec vitest run <spec>` で実行対象が 1 ファイル・2 テストであることを確認した。
+
+### 4 変異の期待と実測
+
+| 変異 | 期待 | 実測で失敗した完全テスト名 | 判定 |
+| --- | --- | --- | --- |
+| 1. 契約 JSON の `size` だけを `264` | `T-COURSE` だけ | `courseCoordinateContract > COURSE_COORDINATE_SIZE が契約の size と一致する` | **一致**。`T-DISPLAY` は green |
+| 2. `COURSE_COORDINATE_SIZE` だけを `264` | `T-COURSE` だけ | `courseCoordinateContract > COURSE_COORDINATE_SIZE が契約の size と一致する` | **一致**。`T-DISPLAY` は green |
+| 3. 契約 JSON と `COURSE_COORDINATE_SIZE` を `264` | 新規 spec 単体は green。全体で少なくとも `T-EXISTING` が失敗 | 新規 spec 単体は**失敗なし**。全体は下記 5 件 | **一致**。`T-EXISTING` 以外の失敗も許容する期待どおり |
+| 4. `DISPLAY_COORD_SIZE = 263` とし、契約 JSON だけを `264` | 少なくとも `T-DISPLAY` | `courseCoordinateContract > COURSE_COORDINATE_SIZE が契約の size と一致する` / `courseCoordinateContract > DISPLAY_COORD_SIZE が契約の size と一致する` | **一致**。必須の `T-DISPLAY` に加えて `T-COURSE` も失敗。JSON が `264`、`COURSE_COORDINATE_SIZE` が `263` のため |
+
+変異 3 の全体実行で失敗した完全テスト名は次の 5 件だった。
+
+1. `displayGeometry > 座標定義の契約を固定する` (`T-EXISTING`)
+2. `StrikeZone > 右打者・捕手側 はタップ座標を捕手側保存座標へ変換する`
+3. `StrikeZone > 左打者・捕手側 はタップ座標を捕手側保存座標へ変換する`
+4. `StrikeZone > 右打者・投手後方 はタップ座標を捕手側保存座標へ変換する`
+5. `StrikeZone > 左打者・投手後方 はタップ座標を捕手側保存座標へ変換する`
+
+### 各変異の実行直前差分検査
+
+各実行の直前に次を機械検査した。
+
+- `git diff --name-only HEAD -- <変異可能対象 3 ファイル>` の集合が期待パスと完全一致すること
+- 変更対象の内容が、`git show HEAD:<path>` へ意図した 1 置換だけを行った期待内容と
+  `cmp -s` で一致すること
+- その変異で変更しない対象が `git diff --exit-code HEAD -- <paths>` で一致すること
+- `git diff --cached --exit-code HEAD -- <対象 4 ファイル>` が空であること
+- 新規 spec の SHA-256 が変異前の
+  `267770319818f550fc5f33767299687705ea3e151e3cb46dbebba236b0590adc` と一致すること
+
+結果は次のとおり。
+
+| 変異 | 実測した差分 | 結果 |
+| --- | --- | --- |
+| 1 | `contracts/display_geometry_263_v1.json` の `"size": 263` → `264` だけ | **PASS** |
+| 2 | `frontend/src/lib/courseInputView.ts` の `COURSE_COORDINATE_SIZE = 263` → `264` だけ | **PASS** |
+| 3 | 上記 2 箇所だけ | **PASS** |
+| 4 | JSON の `size` と `frontend/src/lib/displayGeometry.ts` の `geometry.size` → `263` だけ | **PASS** |
+
+全変異で新規 spec のハッシュは変異前と一致し、index 差分も空だった。
+
+### 全変異後の復元検査
+
+証跡追記前の変異前状態と、全変異を復元した直後を比較した。
+
+| # | 検査 | 実測 |
+| --- | --- | --- |
+| 1 | working tree 差分 | **PASS** — `git diff --exit-code -- <対象 4 ファイル>` が空。未追跡の新規 spec は検査 3・4 で別途照合 |
+| 2 | index 差分 | **PASS** — `git diff --cached --exit-code HEAD -- <対象 4 ファイル>` と repo 全体の双方が空 |
+| 3 | path 付きハッシュ manifest | **PASS** — 下記の種別・mode・SHA-256 が変異前と完全一致 |
+| 4 | porcelain v2 | **PASS** — 前後とも `? frontend/src/lib/courseCoordinateContract.spec.ts` の 1 行だけ |
+
+復元後の manifest:
+
+```text
+contracts/display_geometry_263_v1.json|type=regular file|mode=644|raw_mode=81a4|sha256=e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6
+frontend/src/lib/courseInputView.ts|type=regular file|mode=644|raw_mode=81a4|sha256=f0f0d1e8b3b2d2944f138e813536e40f8cd0ea7f55268d8c75d711d46f06fdad
+frontend/src/lib/displayGeometry.ts|type=regular file|mode=644|raw_mode=81a4|sha256=559430c5d0ebf838c9c9bbf2b5cab4887707ae00ebb976b22ad75494e484ce5a
+frontend/src/lib/courseCoordinateContract.spec.ts|type=regular file|mode=644|raw_mode=81a4|sha256=267770319818f550fc5f33767299687705ea3e151e3cb46dbebba236b0590adc
+```
+
+逐語移植対象 4 ファイルと既存 `frontend/src/lib/displayGeometry.spec.ts` は、復元後に
+working tree / index とも HEAD 比の差分が空であることを確認した。
+
+### 静的検査と品質ゲート
+
+新規 spec の数値リテラルは次で確認した。契約ファイル名の `_263_` は識別子構成文字の `_` に挟まれて
+いるため一致せず、独立した数値トークン `263` があれば検出する。
+
+```bash
+if rg -n '\b263\b' frontend/src/lib/courseCoordinateContract.spec.ts; then exit 1; fi
+```
+
+加えて、契約 JSON の直接 import、`vitest` からの明示 import、2 つの完全テスト名を `rg -F` で各 1 件と
+確認し、新規 spec が `frontend/.prettierignore` にないことも確認した。
+
+`frontend/` の品質ゲート結果:
+
+| コマンド | 結果 |
+| --- | --- |
+| `pnpm exec prettier --check .` | **PASS** |
+| `pnpm exec eslint .` | **PASS** |
+| `pnpm exec vue-tsc --noEmit` | **PASS** |
+| `pnpm test -- --run` | **PASS** — 4 ファイル・11 テスト |
+
+**ステップ 2・3 には進んでいない。コミットも作成していない。**
