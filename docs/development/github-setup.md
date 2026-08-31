@@ -85,6 +85,8 @@ status: in-review
           { "context": "core-guard" },
           { "context": "harness" },
           { "context": "nfr021-append-only" },
+          { "context": "frontend-changes" },
+          { "context": "backend-changes" },
           { "context": "frontend" },
           { "context": "backend" }
         ] } }
@@ -96,7 +98,7 @@ status: in-review
 - `allowed_merge_methods: ["merge"]` = マージコミットのみ許可(squash/rebase を遮断 — 設計書 6.2 の `--no-ff` 整合)
 - `bypass_actors: []` = 管理者にも適用(ただし**所有者は設定自体を変更できる**ため、所有者からも逃れられない保護にはならない — 残余リスクとして記録)
 - `required_approving_review_count: 0` の理由: 現状 1 人開発のため(レビューの実体は設計書 6.3 の反対側 AI レビュー + 人間確認)。チーム化したら引き上げる
-- **必須チェックの `context` は「status check context 名」**であり、現状は ci.yml の job id と一致する(`name:` 未指定・matrix なしのため)。**適用前に実 PR の Checks 表示で実際の context 名を再確認**すること。必須ジョブの**追加・削除・改名時は本書と Ruleset を同時更新**する(v1.2 で `frontend` / `backend` を追加 — 実装済みジョブが必須一覧から脱落していた欠落の是正。両ジョブは paths filter により**スキップされ得る** — GitHub は skipped の check run を required の充足として扱う仕様だが、**適用時に docs-only PR で skipped が実際にマージ可能となることを実測確認**してから運用する)。可能なら各 context に GitHub Actions の `integration_id` を指定する(未指定だと任意ソースの同名 status を受け入れる)
+- **必須チェックの `context` は「status check context 名」**であり、現状は ci.yml の job id と一致する(`name:` 未指定・matrix なしのため)。**適用前に実 PR の Checks 表示で実際の context 名を再確認**すること。必須ジョブの**追加・削除・改名時は本書と Ruleset を同時更新**する(v1.2 で `frontend` / `backend` に加え**変更検知ジョブ `frontend-changes` / `backend-changes` も追加** — GitHub は skipped の check run を required の充足として扱うため、**上流の変更検知ジョブが失敗すると下流が skipped になりマージを阻止しない**〔[GitHub Docs: Troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)〕。常時実行の変更検知ジョブを required に含めることでこの経路を塞ぐ。**適用時に docs-only PR で下流 skipped がマージ可能となること・変更検知失敗時にマージがブロックされることの両方を実測確認**してから運用する)。可能なら各 context に GitHub Actions の `integration_id` を指定する(未指定だと任意ソースの同名 status を受け入れる)
 
 適用手順(冪等):
 
