@@ -16,7 +16,7 @@
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(要件書 v2.2 と一括検証) | 0.1 | 2026-08-19 |
 | [オンボーディング](development/onboarding.md) | **approved**(v1.2 — 受入プロファイルの複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定・arm64 実機で実測〕。敵対レビュー9周 → PO 承認) | 1.2 | 2026-08-27 |
-| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.1 — 敵対レビュー2周 → PO 承認) | 1.1 | 2026-08-24 |
+| [GitHub リポジトリ設定手順](development/github-setup.md) | **in-review**(v1.2 起案 — 2 章マージ手続へ逐行確認の実施記録の確認を追加。設計書 v1.12 と同一の確定ゲートで一括検証) | 1.2 | 2026-09-01 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(v1.3 — ブートストラップ手順を前提 PR 第 3 号へ対応し、手順 6・7 へ 10.1 の共通順序とマージ後検査を伝播。敵対レビュー9周 → PO 承認) | 1.3 | 2026-08-27 |
 | [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |

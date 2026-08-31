@@ -18,7 +18,8 @@
     "tests/test_check_design_propagation.py",
     "tests/test_check_doc_coverage.py",
     "tests/test_ci_wiring.py",
-    "tests/test_core_guard.py"
+    "tests/test_core_guard.py",
+    ".claude/skills/finalize-doc/SKILL.md"
   ],
   "areas": [
     { "id": "sync-protocol", "name": "同期プロトコル", "description": "断中記録・墓標/改訂の適用・再送・べき等キー/連番と採番の不可分性・サーバー適用の原子性と再計算・複数タブの単一書き手競合(意味範囲の正 = 設計書 6.3 境界定義表。記録権と重複帰属あり)", "paths": ["docs/design/sync-protocol.md", "docs/requirements/requirements-pitchlog-2026-07-22.md"] },
