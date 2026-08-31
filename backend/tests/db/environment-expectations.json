@@ -109,6 +109,38 @@
         "path": "docker-compose.yml",
         "extracted_text": "TCP を明示し、一時的な Unix socket による初期化完了前の healthy 判定を防ぐ。"
       }
+    },
+    "interval": {
+      "expected": "5s",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "interval: 5s"
+      }
+    },
+    "timeout": {
+      "expected": "5s",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "timeout: 5s"
+      }
+    },
+    "retries": {
+      "expected": 12,
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "retries: 12"
+      }
+    },
+    "start_period": {
+      "expected": "10s",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "start_period: 10s"
+      }
     }
   },
   "test_execution": {

@@ -180,6 +180,25 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       needs.backend-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: pitchlog_ci_admin
+          POSTGRES_PASSWORD: pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: pitchlog_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U pitchlog_ci_admin -d pitchlog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+    env:
+      PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
     defaults:
       run:
         working-directory: backend

@@ -9,6 +9,8 @@ from typing import Any
 
 import pytest
 
+from .conftest import _required_db_execution_error, _required_dsn
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ASSET_PATH = Path(__file__).with_name("environment-expectations.json")
 EXPECTATION_ROOT_KEYS = (
@@ -18,8 +20,8 @@ EXPECTATION_ROOT_KEYS = (
     "test_execution",
     "dsn_environment_variables",
 )
-EXPECTED_EXPECTATION_COUNT = 18
-EXPECTED_PROVENANCE_COUNT = 20
+EXPECTED_EXPECTATION_COUNT = 22
+EXPECTED_PROVENANCE_COUNT = 24
 
 
 def _load_asset() -> dict[str, Any]:
@@ -169,7 +171,7 @@ def _remove_all_provenance(node: object) -> None:
 
 
 def test_all_expectations_have_existing_verbatim_provenance() -> None:
-    """全18期待値・全20典拠を選択せず検査する。"""
+    """全22期待値・全24典拠を選択せず検査する。"""
     assert _validate_provenance(_load_asset()) == (
         EXPECTED_EXPECTATION_COUNT,
         EXPECTED_PROVENANCE_COUNT,
@@ -214,3 +216,31 @@ def test_nonexistent_provenance_path_is_red() -> None:
 
     with pytest.raises(AssertionError, match="path が実在しない"):
         _validate_provenance(asset)
+
+
+def test_missing_dsn_is_fail_not_skip(monkeypatch: pytest.MonkeyPatch) -> None:
+    """必須 DSN が未設定なら skip せず即座に失敗する。"""
+    variable_name = "PITCHLOG_TEST_MISSING_DSN"
+    monkeypatch.delenv(variable_name, raising=False)
+
+    with pytest.raises(pytest.fail.Exception, match="必須 DSN"):
+        _required_dsn(variable_name)
+
+
+@pytest.mark.parametrize(
+    ("collected", "executed", "message"),
+    [
+        (set(), set(), "収集"),
+        ({"db-test"}, set(), "実行"),
+    ],
+)
+def test_zero_required_db_tests_is_red(
+    collected: set[str], executed: set[str], message: str
+) -> None:
+    """0 件収集と 0 件実行の両方を失敗と判定する。"""
+    assert message in (_required_db_execution_error(collected, executed) or "")
+
+
+def test_at_least_one_executed_db_test_is_green() -> None:
+    """DB 必須テストが call まで到達した状態だけを受理する。"""
+    assert _required_db_execution_error({"db-test"}, {"db-test"}) is None

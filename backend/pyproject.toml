@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi[standard]==0.141.1",
+    "psycopg[binary]==3.3.4",
 ]
 
 [dependency-groups]
@@ -46,3 +47,6 @@ entrypoint = "pitchlog.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "requires_db: PostgreSQL 17.11 への実接続を必須とするテスト",
+]
