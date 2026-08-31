@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3cd93b75e68781eb9083f725b5a16bdc
 branch: feature/gate-convergence-rules
 created: 2026-08-31
 計画レビュー周回: 8        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 9          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 10          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -62,13 +62,13 @@ created: 2026-08-31
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| docs/development/dev-harness-design-2026-08-07.md | 7.3 改訂 + 6.3 追記 + 変更履歴 v1.12(版繰り上げ) | **finalize-doc**(敵対レビュー + 人間承認) |
-| docs/development/github-setup.md | 2 章の人間マージ手続へ B2 実施記録の確認・base 前進確認を追加 + 必須 CI 一覧(手続 2・4/3 章 Ruleset)の欠落是正(v1.2 版繰り上げ。**CI 一覧はゲート中のスコープ追加 — 要 PO 再承認**) | **finalize-doc**(設計書 v1.12 と同一ゲートに同梱 — 一括検証の先例: docs/README.md:9-23) |
-| docs/README.md | 設計書・github-setup の状態・版の追随(in-review → approved) | PR レビュー |
-| docs/development/harness-evaluation.md | 2 節の台帳更新表のとおり(H-* 追記は版を上げない — 7.6-3 前段) | PR レビュー |
-| docs/requirements/requirements-pitchlog-2026-07-22.md | **反映なし** | — |
-| docs/design/sync-protocol.md | **反映なし** | — |
-| docs/adr/* | **反映なし** | — |
+| `docs/development/dev-harness-design-2026-08-07.md` | 7.3 改訂 + 6.3 追記 + 変更履歴 v1.12(版繰り上げ) | **finalize-doc**(敵対レビュー + 人間承認) |
+| `docs/development/github-setup.md` | 2 章の人間マージ手続へ B2 実施記録の確認・base 前進確認(SHA 記録つき)を追加 + 必須 CI 一覧(手続 2・4/3 章 Ruleset)の欠落是正(v1.2 版繰り上げ。**CI 一覧・base 前進確認はゲート中のスコープ追加 — PO 再承認済 2026-09-01**) | **finalize-doc**(設計書 v1.12 と同一ゲートに同梱 — 一括検証の先例: docs/README.md:9-23) |
+| `docs/README.md` | 設計書・github-setup の状態・版の追随(in-review → approved) | PR レビュー |
+| `docs/development/harness-evaluation.md` | 2 節の台帳更新表のとおり(H-* 追記は版を上げない — 7.6-3 前段) | PR レビュー |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
+| `docs/design/sync-protocol.md` | **反映なし** | — |
+| `docs/adr/ADR-001-codex-model-selection.md`・`docs/adr/ADR-002-frontend-vue.md`・`docs/adr/ADR-003-domain-calc-method.md` | **反映なし** | — |
 
 正本以外の変更ファイル(宣言): `.claude/skills/finalize-doc/SKILL.md`(guard_paths へ**本タスクで追加** — 以後は検査経路扱い)/ `.claude/core-areas.json`・`tests/test_core_guard.py`・`.github/pull_request_template.md`・`.claude/skills/pr/SKILL.md`(**guard_paths 内** — 本 PR は core-guard の逐行確認チェック対象。確認範囲は当該ファイルの差分のみで数十行規模。B2 の実施記録行の最初の適用例として本 PR 自身に記録を書く)。
 
