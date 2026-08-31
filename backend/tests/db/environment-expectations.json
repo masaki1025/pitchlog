@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "asset_kind": "db_environment_expectations",
+  "source_revision": "34c6f60e8ee225dc0e999ae4e86e184e8cca8f38",
+  "oracle_policy": {
+    "expectations_must_precede_observation_code": true,
+    "observed_values_must_not_reseal_this_asset": true,
+    "provenance": [
+      {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "期待値を機械可読資産へ先に固定してから CI を組む"
+      },
+      {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "観測値を後から期待値にできない"
+      }
+    ]
+  },
+  "database_environment": {
+    "image": {
+      "expected": "postgres:17.11-bookworm",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "image: postgres:17.11-bookworm"
+      }
+    },
+    "initdb_args": {
+      "expected": "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "POSTGRES_INITDB_ARGS: \"--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8\""
+      }
+    },
+    "server_version_num": {
+      "expected": 170011,
+      "comparison": "exact",
+      "observed_type": "integer",
+      "derivation": {
+        "image_version": "17.11",
+        "rule": "PostgreSQL 10以降の server_version_num = major * 10000 + minor",
+        "calculation": "17 * 10000 + 11 = 170011",
+        "exact_match_reason": "イメージタグがメジャー版だけでなく 17.11 まで固定されているため"
+      },
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "image: postgres:17.11-bookworm"
+      }
+    },
+    "locale_provider": {
+      "expected": "libc",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "--locale-provider=libc"
+      }
+    },
+    "collate": {
+      "expected": "C.UTF-8",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "--locale=C.UTF-8"
+      }
+    },
+    "ctype": {
+      "expected": "C.UTF-8",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "--locale=C.UTF-8"
+      }
+    },
+    "encoding": {
+      "expected": "UTF8",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "--encoding=UTF8"
+      }
+    }
+  },
+  "healthcheck": {
+    "transport": {
+      "expected": "tcp",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "TCP を明示し、一時的な Unix socket による初期化完了前の healthy 判定を防ぐ。"
+      }
+    },
+    "host": {
+      "expected": "127.0.0.1",
+      "comparison": "exact",
+      "required_command_tokens": [
+        "-h",
+        "127.0.0.1"
+      ],
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+      }
+    },
+    "implicit_unix_socket_allowed": {
+      "expected": false,
+      "comparison": "exact",
+      "provenance": {
+        "path": "docker-compose.yml",
+        "extracted_text": "TCP を明示し、一時的な Unix socket による初期化完了前の healthy 判定を防ぐ。"
+      }
+    }
+  },
+  "test_execution": {
+    "required_marker": {
+      "expected": "requires_db",
+      "comparison": "exact",
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "pytest の単一実行コマンドと marker・path 規則"
+      }
+    },
+    "required_path": {
+      "expected_repository_prefix": "backend/tests/db/",
+      "comparison": "path_prefix",
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "backend/tests/db/**"
+      }
+    },
+    "single_command": {
+      "expected": "uv run pytest --cov",
+      "comparison": "exact",
+      "db_tests_included_in_existing_invocation": true,
+      "marker_selection_argument_allowed": false,
+      "additional_db_test_invocation_allowed": false,
+      "expected_backend_pytest_invocation_count": 1,
+      "provenance": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "extracted_text": "- run: uv run pytest --cov"
+        },
+        {
+          "path": "docs/features/pg-authz-verification/plan.md",
+          "extracted_text": "pytest の単一実行コマンドと marker・path 規則"
+        }
+      ]
+    },
+    "missing_dsn_policy": {
+      "expected": "fail",
+      "skip_allowed": false,
+      "comparison": "exact",
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "DSN 未設定で fail"
+      }
+    }
+  },
+  "dsn_environment_variables": {
+    "admin_connection": {
+      "expected_name": "PITCHLOG_TEST_ADMIN_DSN",
+      "value_must_not_be_stored_in_repository": true,
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "job env の DSN"
+      }
+    },
+    "tested_role_connection": {
+      "expected_name": "PITCHLOG_TEST_ROLE_DSN",
+      "value_must_not_be_stored_in_repository": true,
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/research.md",
+        "extracted_text": "テストハーネスがロールごとに接続を張り替える形にする"
+      }
+    },
+    "separation": {
+      "distinct_variable_names_required": true,
+      "fallback_between_variables_allowed": false,
+      "role_identity_check_required": true,
+      "provenance": {
+        "path": "docs/features/pg-authz-verification/plan.md",
+        "extracted_text": "各テストの冒頭で `session_user` / `current_user` を照合する"
+      }
+    }
+  }
+}
