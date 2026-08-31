@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3cd93b75e68781eb9083f725b5a16bdc
 branch: feature/gate-convergence-rules
 created: 2026-08-31
 計画レビュー周回: 8        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -29,7 +29,7 @@ created: 2026-08-31
 
 - 設計書 **7.3 の改訂**(版繰り上げ v1.11 → v1.12): 収束条件と終端遷移表・エスカレーション算式・差分再レビュー原則・射程宣言/射程縮小手続き・文書ゲート限定の重大度定義(裁定は 4 節の表、詳細規則の起草入力は [design.md](design.md) D-1〜D-7。**確定ゲート開始時点で正は 7.3 条文と github-setup.md へ移り、design.md は経緯資料に降格する** — H-44 の二重管理防止。以後の照合先は常に正本の条文)
 - 設計書 **6.3 への追記**(同一版繰り上げに同梱): 逐行確認の実施記録様式(B2 — [design.md](design.md) D-6。**運用規律であり機械検証は導入しない** — 残余リスクは 4 節)
-- **`docs/development/github-setup.md` 2 章(人間マージ手続)の改訂**(v1.2 版繰り上げ・同一確定ゲートに同梱): 実施記録行の存在確認と最新 HEAD への追随確認を手続へ追加(レビュー 2 周目 P1 — CI が B2 を検証しない以上、人間マージ手続が唯一の確認点)
+- **`docs/development/github-setup.md` 2 章(人間マージ手続)+ 3 章 Ruleset の改訂**(v1.2 版繰り上げ・同一確定ゲートに同梱): ① 実施記録行の存在確認と最新 HEAD への追随確認を手続へ追加(計画レビュー 2 周目 P1 — CI が B2 を検証しない以上、人間マージ手続が唯一の確認点)② **〔確定ゲート中のスコープ追加 — 要 PO 再承認〕** 必須 CI 一覧の欠落是正: 手続 2・4 と Ruleset へ `frontend` / `backend` / `frontend-changes` / `backend-changes` を追加(確定ゲート 2〜3 周目 P1 — 実装済みジョブの脱落と「上流失敗 → 下流 skipped = マージ可」経路。NFR-019「全グリーンでないとマージ不可」の実効性回復)③ 手続 2 へマージ直前の base 前進確認を追加(確定ゲート 4 周目 P1)
 - **`.claude/core-areas.json` の guard_paths へ `.claude/skills/finalize-doc/SKILL.md` を追加** + `tests/test_core_guard.py` の追随(**一覧固定 :337 に加え、実動作を検証する `NEW_GUARD_PATHS` 側 :343 へ追加**)。根拠と手続は [design.md](design.md) D-7(確定ゲートを直接変えるスキルが補償統制の外にある欠落の是正 — レビュー 1 周目 P1。6.3 追記と同一ゲートで確定)
 - **`.claude/skills/finalize-doc/SKILL.md`** の手順改訂: 依頼文規約(D-3)・終端遷移(D-1)・エスカレーションと 6 周警告(D-2)・射程宣言の確認と射程縮小の記録手順・重大度定義のプロンプト適用(D-4)・**適用版の原則(D-5a — 7.3 条文への参照として置く。スキル自身に例外や本タスク限りの記述は書かない)**
 - **`.github/pull_request_template.md`** と **`.claude/skills/pr/SKILL.md`** への実施記録行の追加(B2 の運用面 — 様式は D-6)
@@ -62,7 +62,7 @@ created: 2026-08-31
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | docs/development/dev-harness-design-2026-08-07.md | 7.3 改訂 + 6.3 追記 + 変更履歴 v1.12(版繰り上げ) | **finalize-doc**(敵対レビュー + 人間承認) |
-| docs/development/github-setup.md | 2 章の人間マージ手続へ B2 実施記録の確認を追加(v1.2 版繰り上げ) | **finalize-doc**(設計書 v1.12 と同一ゲートに同梱 — 一括検証の先例: docs/README.md:9-23) |
+| docs/development/github-setup.md | 2 章の人間マージ手続へ B2 実施記録の確認・base 前進確認を追加 + 必須 CI 一覧(手続 2・4/3 章 Ruleset)の欠落是正(v1.2 版繰り上げ。**CI 一覧はゲート中のスコープ追加 — 要 PO 再承認**) | **finalize-doc**(設計書 v1.12 と同一ゲートに同梱 — 一括検証の先例: docs/README.md:9-23) |
 | docs/README.md | 設計書・github-setup の状態・版の追随(in-review → approved) | PR レビュー |
 | docs/development/harness-evaluation.md | 2 節の台帳更新表のとおり(H-* 追記は版を上げない — 7.6-3 前段) | PR レビュー |
 | docs/requirements/requirements-pitchlog-2026-07-22.md | **反映なし** | — |
