@@ -1,6 +1,6 @@
 ---
 feature: pg-authz-verification
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-08-31・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -121,11 +121,11 @@ DB への `TEMPORARY` 権限も同様。したがって
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| **`.claude/core-areas.json`** | `tenant-isolation.paths` へ**パターンで**成果物を登録(新規ファイルでも発火するため)+ **`guard_paths` へ検査経路そのもの**(カタログ schema・検査器・CI 配線)を個別ファイルで追加。**両者の役割を分ける**(レビュー P1-21) | PR レビュー(6.3 規則⑤は本ゲートで充足) |
-| **`docs/development/dev-harness-design-2026-08-07.md`** | **10.1 の CI ジョブ表の `backend` 行を現行化**(postgres サービスと DB テスト)。**実装追随・版は上げない**。**既存ジョブへ統合する根拠は「同じ pytest ランナー・同じ発火集合・DB 障害時も backend 全体を fail させる」という責務**であり、**ゲート回避を理由にしない**(レビュー P2-20) | PR レビュー |
+| `.claude/core-areas.json` | **本 PR では反映なし** — `tenant-isolation.paths` と `guard_paths` への登録は**第 2 群(計画改訂 2)の射程**(2 節の引き渡し)。**第 1 群の成果物は `contracts/authz/**` と検査器であり、登録対象のパス集合が改訂 2 で確定するまで登録しない**(先に登録すると改訂 2 で必ず書き換わる)。**登録内容の設計は P1-21 のとおり両者の役割を分ける** | 改訂 2 で PR レビュー(6.3 規則⑤) |
+| **`docs/development/dev-harness-design-2026-08-07.md`** | **10.1 の CI ジョブ表の `backend` 行を現行化**(postgres サービスと DB テスト)+ **実装追随の箇条を追加** + 変更履歴に 1 行。**実装追随・版は上げない**(**`ci.yml` が本 PR で変わるため追随は本 PR で行う** — 放置すると H-79 の伝播漏れになる)。**既存ジョブへ統合する根拠は「同じ pytest ランナー・同じ発火集合・DB 障害時も backend 全体を fail させる」という責務**であり、**ゲート回避を理由にしない**(レビュー P2-20) | PR レビュー |
 | **`docs/README.md`**(索引) | 設計書の最終更新日を現行化 | PR レビュー |
 | `docs/design/**` / `docs/requirements/**` / `docs/adr/**` | **反映なし** | — |
-| `docs/development/harness-evaluation.md` | **反映なし**(`H-*` の新規採番はしない) | — |
+| **`docs/development/harness-evaluation.md`** | **H-53・H-81 の実測を追記**(`/pr` クローズ処理で判断 — 委任の指示を強めても閉じない条件 / kill の判定契約と判定チャネルの 3 分離)+ 変更履歴に 1 行 + 索引の最終更新日を現行化。**`H-*` の新規採番はしない**(同種の欠陥は既存項目へ集約 — H-79 の教訓)。**版は上げない** | PR レビュー(7.6-3 前段) |
 
 **新設・変更するコード資産**:
 
