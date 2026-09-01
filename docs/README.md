@@ -11,7 +11,7 @@
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(v0.1 — 要件書 v2.4 と一括検証。敵対レビュー10周・射程縮小2回 → PO 承認) | 0.1 | 2026-08-30 |
 | [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.12 — **7.3 収束規則の再設計**: 適用版の原則・終端遷移表・重大度定義・差分再レビュー・依頼文規約・エスカレーションと 6 周警告・射程宣言 + 6.3 実施記録様式。敵対レビュー反映 12 周・54 件全採用 → PO 判断で 12 周クローズ・PO 承認) | 1.12 | 2026-09-01 |
-| [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認。H-20・H-78・H-79・**H-53・H-81** の実測を記入) | 1.0 | 2026-08-31 |
+| [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認。**H-68 対応済み・H-75 部分対応**〔7.3 v1.12 の条文化〕+ H-42/H-39/H-12/H-8 補記・候補 1 件) | 1.0 | 2026-09-01 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(要件書 v2.2 と一括検証) | 0.1 | 2026-08-19 |
