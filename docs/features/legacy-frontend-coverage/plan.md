@@ -1,6 +1,6 @@
 ---
 feature: legacy-frontend-coverage
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-02・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -71,9 +71,9 @@ Notion タスク: [TSK-226](https://app.notion.com/p/3bf93b75e68781488a07cb73a55
 | `docs/adr/ADR-002-frontend-vue.md` | 反映なし | 反映なし |
 | `docs/adr/ADR-003-domain-calc-method.md` | 反映なし | 反映なし |
 | `docs/improvements-from-baseball-scoring.md`(改善台帳) | 反映なし | 反映なし |
-| `docs/development/harness-evaluation.md`(運用評価台帳) | 反映なし | 反映なし |
+| `docs/development/harness-evaluation.md`(運用評価台帳) | H-12 へ再発補記(再発 1→2 件・文書調査タスクでの非発火事例と代替統制の運用実例)+ 変更履歴 1 行(版上げなし) | PRレビュー(7.6-3 前段) |
 | `docs/ops/` 配下 | 反映なし | 反映なし |
-| `docs/README.md`(索引) | 反映なし | 反映なし |
+| `docs/README.md`(索引) | 台帳行の現行化(H-12 補記の反映) | PRレビュー |
 | `.claude/core-areas.json` | 反映なし | 反映なし |
 | `contracts/` | 反映なし | 反映なし |
 | `scripts/` | 反映なし | 反映なし |
@@ -85,7 +85,7 @@ Notion タスク: [TSK-226](https://app.notion.com/p/3bf93b75e68781488a07cb73a55
 - doc-coverage 検査(scripts 配下・14-16 行)の対象は要件書と同期設計正本の 2 者のみで、本タスクの成果物は射程外
 - 要件書 10 章への反映は設計書 7.6-3 後段に当たり確定ゲートが要るため、本タスクでは行わず後続タスク B へ送る(2 節)
 - **PO 判断シートの裁定結果の正本化は後続タスク D へ、確定した突合表・画面 × FR 対応表の正本化(または恒久化不要の裁定)は後続タスク E へ送る**(一時 feature 文書で閉じる残余に正本化の後続タスクを与える — 設計書 7.6-4・運用評価台帳 H-86/H-74 の同型)
-- **運用評価台帳(H-xx)は PR 作成のクローズ処理で追記要否を再判定する**: 本タスクは「コア領域に触れるのに core-guard が発火しない」型であり、**H-12 の再発事例**(台帳 460 行に PR #33 の同型実例)に当たるかをクローズ時に判定する。**追記する場合は本節を更新してから同一 PR で運ぶ(7.6-2)。追記しない場合も理由を worklog に残す**(台帳の追記導線 — 台帳 72 行)
+- **運用評価台帳(H-xx)の追記要否の再判定(クローズ処理で実施済み — 2026-09-02)**: 本タスクは「コア領域に触れるのに core-guard が発火しない」型で、**H-12 の再発事例に当たると判定し、H-12 へ補記を追記した**(上表の宣言のとおり同一 PR で運ぶ — 7.6-2。新事象は「文書のみの調査タスクでも起こる = paths 機構では原理的に検出できない」ことと、計画側の代替統制〔必須チェック行の手動付与ほか 4 点〕の運用実例)
 - Notion の URL は正本へ書かない(設計書 7.4)。起票結果の URL は worklog に置く
 
 ### 正本体系外だが本 PR で更新するもの
