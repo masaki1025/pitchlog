@@ -172,18 +172,30 @@ date: 2026-09-02
 
 ## 3. 突合 — FR × 旧 SPA 充足度
 
-判定: **○** = 移植で足りる(形態差は許容範囲) / **△** = あるが要件を満たさず改修が要る / **×** = 旧 SPA に対応物なし(新規実装)
+### 3-0. 判定基準(2026-09-02 確定 — 本節の全行に適用)
+
+**部品の有無ではなくユーザーストーリー(受入基準)の充足で判定する。**
+
+| 判定 | 定義 |
+| --- | --- |
+| **○** | 当該 FR の受入基準の**全条項**が旧実装で照合できた |
+| **△** | 対応する実装は在るが、**照合できない条項**または**要件と食い違う挙動**が残る |
+| **×** | FR が要求する能力に対応する実装が無い、**または**旧実装が要件と正反対で流用の起点にならない(例: FR-019 の物理削除) |
+
+- 優先度 **Should** の FR(FR-018・032・040 等)は**その Should の受入基準**で照合する(Must 条項を持たない FR に Must 充足を求めない)
+- 受入基準内の **(Could)** 条項は照合結果を記録するが**降格の根拠にしない**
+- ○ 判定行の条項単位の照合記録は **§3-2**(台帳 H-59 の照合規律 — 照合した条項を列挙してから合否を述べる)
 
 | FR | 旧 SPA の対応物 | 判定 | 差分の要点 |
 | --- | --- | --- | --- |
 | FR-001 試合の開始 | `LineupScreen` mode=new | △ | スタメン・試合情報入力は在る。**オフライン専用の挙動は無い**: オフライン検知は frontend 全体でヒット 0 件(検索式: `grep -rn 'navigator.onLine\|offline' frontend/src` = 0)。作成失敗は汎用トースト「試合作成に失敗しました」のみ(`LEGACY:frontend/src/screens/LineupScreen.tsx:274-275`)。作成はキュー対象外(キュー投入は確定 POST の失敗時のみ — `LEGACY:frontend/src/lib/syncPolicy.ts:64-72`)で SW も /api/* は network-only のため、**結果としてオフラインでは作成できないが「オンライン必須」の明示は無い** |
 | FR-002 毎球の投球情報入力 | `StrikeZone`(263)・`StanceGrid`・`PitchTypeChips`・`SpeedPad` | △ | 入力面は充実。ただし**必須未入力の明示がサーバー 422 依存**で、要件の「不足項目を明示して確定不可」はクライアント事前検証を要求。**球速の妥当範囲(60〜170)警告は無い**: クライアントは補完のみで範囲検証なし(検索式: `grep -n '170\|範囲' frontend/src/lib/speedInput.ts frontend/src/components/pads/SpeedPad.tsx` = 0)、サーバーは `pitch_speed: Field(0, ge=0, le=999)` の 0〜999 のみ(`LEGACY:api/schemas/models.py:653,748`)。警告+確認で確定可のフローは存在しない |
-| FR-003 打撃結果と状況の自動更新 | `ResultPad` + `BaseDiamond` の進塁サジェスト・手動上書き | ○ | 付録 E との一致検証は別途(NFR-019) |
-| FR-004 走者・特殊プレイ | `PickoffSheet`・`StrategySheet`・`FieldDiagram`・プレス | ○ | 捕球選手の座標自動推定 + 修正まで実装済み |
+| FR-003 打撃結果と状況の自動更新 | `ResultPad` + `BaseDiamond` の進塁サジェスト・手動上書き | △ | 手動値優先は照合済み。**「付録 E どおり」とゴールデンケース全一致は照合不能**(ベクタ未整備 — `REQ:910`)→ △(§3-2) |
+| FR-004 走者・特殊プレイ | `PickoffSheet`・`StrategySheet`・`FieldDiagram`・プレス | △ | 捕球選手の座標自動推定 + 修正まで実装済み。**特殊プレイの状態効果の付録 E 検証は照合不能**(同上)→ △(§3-2) |
 | FR-005 スコア・アウト・イニング自動計算 | `MiniScoreboard`・`CountDisplay` | △ | **断中のクライアント計算による画面更新は不可**(§2-4)。**「X」表記は無い**(検索式: `grep -rn '"X"' frontend/src api services reports domain/scoreboard.py` のスコア文脈ヒット 0)。**終了時の入力ロックは在る**(client: `LEGACY:frontend/src/screens/GameScreen.tsx:944` / server: 400「試合終了後に新しいプレイは追加できません。訂正する場合は1球戻してください」`LEGACY:api/routers/plays.py:298`)。**終了宣言の促しも在る**(バナー「試合終了 — 入力は無効です(メニュー→入力終了 で回収・終了)」`LEGACY:frontend/src/screens/GameScreen.tsx:2332-2334` + トースト `:1255`)。ただし**終了条件成立で game_status は自動的に「試合終了」へ遷移する**(`LEGACY:domain/game_end_rules.py:4-20` の `should_finish_game` → `LEGACY:api/routers/plays.py:283`)— 宣言(`finish_game` = `LEGACY:api/routers/games.py:643`)はライフサイクル終了として別に存在する |
 | FR-006 undo | `DELETE /plays/last`(1 段) | △ | **未同期があると undo 不可**。要件の「常に取消イベントがキューに積まれる」(`REQ:226`)と設計が逆。**空履歴時の提示は在る**: サーバーが `no_plays`「取り消すプレイがありません」を返し(`LEGACY:api/routers/plays.py:406,418`)、クライアントは detail.message をトースト表示・状態は変えない(`LEGACY:frontend/src/screens/GameScreen.tsx:1367-1371`) |
-| FR-007 記録済みプレイの修正 | 直前修正 + 過去修正 + `PlayEditImpactSheet` | ○ | **要件より実装が先行**。差分プレビューの中身は要件 G-7 が未定義な部分まで具体化。ただし「進行中の修正は記録権保持端末のみ」は記録権が無いため成立しない |
-| FR-008 試合の再開 | `resumeGame` | ○ | |
+| FR-007 記録済みプレイの修正 | 直前修正 + 過去修正 + `PlayEditImpactSheet` | △ | 差分プレビューの中身は要件 G-7 が未定義な部分まで具体化(実装先行)。**しかし 7 条項中 4 条項が不成立**: 任意位置への挿入なし・任意行の削除なし・記録権前提が成立しない・「進行中に戻す」操作なし(§3-2)→ △ |
+| FR-008 試合の再開 | `resumeGame` | ○ | スコア・走者・打順・カウントの 4 項目とも state で復元される(§3-2 で条項照合済み) |
 | FR-009 タイブレークの開始 | `TiebreakSheet`(10〜15 回・走者配置・先頭打者・開始アウト) | △ | **断中の操作(キューに積む)は不可** |
 | FR-010 試合の終了 | `finishGame`(未同期回収を伴う) | △ | **断中の終了宣言・指定文言の警告・試合一覧の未送信バッジは無い** |
 | FR-011 選手交代 | `LineupScreen` change + `SubstitutionSheet`(臨時代走) + `HistoricalSubstitutionSheet` | △ | 遡及修正まで実装済み。**9 ポジション検証は在るが要件と逆方向**: 試合作成時はサーバーが 422 `invalid_lineup_positions`「守備2〜9とDHまたは投手を重複なく1人ずつ設定してください」で**ブロック**(`LEGACY:api/routers/games.py:131-158`。全欄空なら素通し `:134-136`)。交代時はクライアントが**重複のみ**検出して確定ボタンを無効化(`LEGACY:frontend/src/screens/LineupScreen.tsx:927-934,1430`)— **不足の検出は無い**。要件の「警告(ブロックしない)」形はどちらにも無い。**未登録選手のその場登録も無い**: 「名簿にない背番号は氏名なしで保存されます」の警告で登録せず素通し(`LEGACY:frontend/src/screens/LineupScreen.tsx:1481-1486`) |
@@ -197,25 +209,25 @@ date: 2026-09-02
 | **FR-018 誤登録選手のセルフ削除** | 無し | **×** | SPA に導線も API も無い |
 | **FR-019 試合の削除とゴミ箱** | 物理削除のみ | **×** | **絶対規則「物理削除しない」に正面から違反**。ゴミ箱・30 日復元・期限日付の明示は全て新規 |
 | FR-039 対戦相手チームレコード | `TeamScreen` 対戦相手タブ + `team_catalog` | △ | 登録・編集は在る。**試合作成中のその場登録は形を変えて在る**: 作成画面の「手入力」トグルで自由入力チーム名を許し(`LEGACY:frontend/src/screens/LineupScreen.tsx:1883-1893`)、サーバーが `ensure_team` で名前一意のチームを作成/再利用する(`LEGACY:api/schemas/play_row.py:131`・`LEGACY:db/player_repo.py` の `ensure_team` = INSERT OR IGNORE。コメントに「one-off free-text opponent flow」`LEGACY:api/routers/games.py:252-254`)。**ただし team_catalog への相手登録は伴わない**(catalog 紐付けは POST /teams/opponents のみ)ため次回の「登録済みの相手」には出ない。**類似名警告は無い**(検索式: `grep -n '類似\|similar' api/routers/teams.py` = 0。duplicate 検出は背番号のみ `:136,199`)。**リネーム誘導も無い**(チーム削除 API 自体が SPA/API に存在せず、「削除不可→リネームへ誘導」の UI は無い。検索式: `grep -rn 'リネーム\|rename' frontend/src api` の該当 0) |
-| FR-020 スコアボード表示 | `MiniScoreboard`(イニング別 + R/H/E) | △ | **要件は H/E/K/B**。旧は R/H/E で **K/B が無い**(ただし要件側も H/E/K/B の定義を持たない — G-15)。最終反映時刻・断中の追従表示は無い |
+| FR-020 スコアボード表示 | `MiniScoreboard`(イニング別 + R/H/E) | △ | **要件は H/E/K/B**。旧の**画面表示**は R/H/E で K/B が無いが、**state は H/E/K/BB を持つ**(score リストの 12〜15 番目 — `LEGACY:api/schemas/play_row.py:379-390`。三振 = `STRIKEOUT_RESULTS`・四死球 = `WALK_RESULTS` — `LEGACY:domain/scoreboard.py:7-8`)。**要件書に無い H/E/K/B の定義(G-15)の事実上の正が旧実装に存在する** — 後続タスク B の材料。最終反映時刻・断中の追従表示は無い |
 | FR-021 投手成績のリアルタイム表示 | `LiveInputBar` 投手カード | △ | 当日成績・被打率・対左右・直球平均・球種割合は在る。**WHIP・FIP が無い**(旧 SPA / API に実装ゼロ)。FIP 注記・期間ラベル・断中注記も無い |
 | FR-022 打者成績のリアルタイム表示 | `LiveInputBar` 打者カード(現打者・次打者) | △ | **当日打席結果は表示名の羅列のみ**: サーバーは `results: string[]`(打席結果の表示名。0/空を除外した一次元配列)しか返さず(`LEGACY:api/routers/stats.py:947-955`)、UI も `today.results.join('・')` の 1 行テキスト(`LEGACY:frontend/src/components/game/LiveInputBar.tsx:90`)。**v2.2 が確定した 7 列構造(打席番号 / イニング / 結果表示名 / 打数算入 / 安打種別 / 打点 / 出塁の別)は存在しない** |
-| FR-023 球種分布の表示 | `LiveInputBar` の今季球種割合ドーナツ | ○ | 「割合+球数の併記」形式は要確認 |
+| FR-023 球種分布の表示 | `LiveInputBar` の今季球種割合ドーナツ | △ | **割合のみで球数併記なし**(凡例は `{label} {percentage}%` — `LEGACY:frontend/src/components/game/LiveInputBar.tsx:182,192`)。**断中のクライアント追従も不可**(§2-4)→ △(§3-2) |
 | **FR-024 試合開始時のプリフェッチ** | 無し(react-query のキャッシュのみ) | **×** | 断中参照を前提とした先読みは無い |
 | FR-025 投手分析 | `AnalysisScreen` 投手タブ + カルテ | △ | 5 図表すべて相当物あり。ただし**形態が違う**(コース分布は 3×3 と 37×37 密度で、旧 Streamlit の等高線でも要件の二択でもない)。**母数併記は在る**(各カードに n= バッジ `LEGACY:frontend/src/components/analysis/player/PlayerAnalysisPanels.tsx:63,71,80` / 球種別・カウント別・球速帯別も対象数併記 `:153,162,191`)。**集計範囲ラベルも在る**(表示区分バー: シーズン・対戦相手・期間〔既定「全期間」〕 `LEGACY:frontend/src/screens/KarteScreen.tsx:299,309`) |
 | FR-026 打者分析 | `ZoneHeatmap`(3×3)+ `BattedBallSpray` | △ | **打率マップは 3×3 のみ**(Streamlit の 13 分割は SPA に無い)。**打球方向は散布のみで、要件の「等角 5 分割」集計が無い** |
-| FR-027 作戦分析 | `StrategyDashboard`(状況別 / 盗塁 / バント) | ○ | 母数併記あり。**内部集計の裏取り**: `analyse_R1/R2_strategy` は 11 分類のイベント**件数のみ**を返し(`LEGACY:charts/batting/analyse_strategy.py:47-112,132-159`)、率・構成比はクライアント側の表示派生。画面は件数一覧を常に併記する形(母数 = 件数の合算として表示される) |
+| FR-027 作戦分析 | `StrategyDashboard`(状況別 / 盗塁 / バント) | △ | 母数(件数一覧)併記あり。内部集計は 11 分類のイベント件数のみ(`LEGACY:charts/batting/analyse_strategy.py:47-112,132-159`)。**しかしカテゴリが frozenset で固定**(`LEGACY:api/strategy_service.py:24-27`)のため**チーム追加の作戦は集計対象にならず**、成否の付録 A-4 定義との一致も照合不能(§3-2)→ △ |
 | FR-041 共同分析グループ | `ComparisonWorkspaces` + `LEGACY:api/analysis_workspace_service.py` | △ | 骨格は在る(招待コード 160bit・ハッシュ保存・72h・1 回消費、既定すべて非共有、最後の admin は退出不可、TOCTOU 対策、非参加は 404)。**ただし粒度が 4 フラグ**(`share_profile` / `share_performance` / `share_identified` / `allow_export`)で要件は 3 粒度。**同時比較上限・比較対象の選択・共有集計エクスポートが無い**(`allow_export` はフラグだけで未行使)。共有分析は**全期間固定でフィルタを持たない** |
 | FR-042 チーム単位の分析 | `performance_summary`(W/L/D・得失点・打撃・投球) | △ | **イニング別得点・失点が無い**。**付録 A-5 の 7 項目との照合結果**: 自チーム分析の overview が持つのは 試合数・得点・失点・得失点差 の 4 項目のみ(`LEGACY:api/analysis_summary.py:506-512`)。**勝・敗・分の通算値は無く**、試合別の 勝/敗/分 ラベル(`:447`)が直近 12 件の trends に付くだけ。通算 W/L/D の集計は共有側 `_performance_summary` にのみ存在する(`LEGACY:api/analysis_workspace_service.py:419-434`) |
-| FR-028 カルテの閲覧・所見編集 | `KarteScreen` + `NotesEditor`(楽観ロック) | ○ | 競合検出の見せ方まで実装済み。集計範囲ラベル・A-3b 指標セットとの突合は要確認 |
+| FR-028 カルテの閲覧・所見編集 | `KarteScreen` + `NotesEditor`(楽観ロック) | △ | 競合検出・母数・範囲ラベル・既定全期間は照合済み。**A-3b の指標セットを満たさない**(打者カルテ必須の**打球方向〔等角 5 分割〕が旧に無い** — FR-026 行)→ △(§3-2) |
 | FR-029 カルテ PDF の出力 | `/stats/karte-reports/{kind}`(headless Chrome) | △ | 一括出力は在る。**進捗表示は無い**: 一括生成は同期 1 リクエスト(GET → Response — `LEGACY:api/routers/stats.py:303-350`)でクライアントは fetch 待ちのみ(検索式: `grep -n '進捗\|progress\|スキップ\|skip' frontend/src/components/analysis/AnalysisExportSheet.tsx` = 0)。**「◯名はデータなしのためスキップ」通知も無い**: `min_pa` 未満は黙って対象外になるだけ(`LEGACY:api/karte_service.py:1308,1386`)。**在籍区分オプションも無い**: 対象は名簿の在籍区分ではなく**プレイ記録行から役割別に抽出**(`LEGACY:api/karte_service.py:158` の `_role_rows`。UI に現役/全区分の選択なし)。**NFR-023 の限定条項(PDF レンダラの外部リソース・ローカル参照の無効化)**: 生成 HTML は自己完結で外部参照 0(検索式: `grep -n 'http\|cdn\|<link\|<script' reports/pitcher_karte_html_pdf.py` の外部 URL 0 件)、入力は file:// のローカル一時ファイル(`LEGACY:reports/pitcher_karte_html_pdf.py:1354,1366-1369,1390`)。Chrome 起動フラグは `--disable-background-networking` 等(`:1357-1403`)だが**ページ自身の外部取得やローカルファイル参照を遮断する明示的フラグは無く**、無害性は生成 HTML が外部参照を含まないことに依存する |
-| FR-030 スコアカード | `ScoreCardScreen` + `/scorecard.pdf` | ○ | 交代経過・着色まで実装済み |
-| FR-031 毎球データの CSV 出力 | `/exports/plays-csv`・`/games/{id}/plays.csv` | ○ | 88 列・BOM 付き UTF-8・数式インジェクション対策済み |
-| FR-032 分析資料の PDF 出力 | `/stats/analysis-reports/*` | ○ | **集計は画面と同一のサービス層を共用**: 打者分析 PDF は `api.karte_service.build_karte_detail` を、投手分析 PDF も `api.karte_service` を経由してデータを得る(`LEGACY:api/batter_analysis_report_service.py:10`・`LEGACY:api/analysis_report_service.py:10`)。**描画は reportlab の別実装**(`LEGACY:reports/batter_analysis_pdf.py:9-11`)であり、「同一定義」は集計層の共用で担保され描画層では担保されない |
+| FR-030 スコアカード | `ScoreCardScreen` + `/scorecard.pdf` | △ | 表示・PDF・着色は在る。**選手交代の経過は出力されない**(検索式: `grep -n '交代\|substitution' api/scorecard_service.py` = 0)、**「X」表記も無い**(ステップ 1)→ △(§3-2)。一次調査の「交代経過まで実装済み」は誤りだったため訂正 |
+| FR-031 毎球データの CSV 出力 | `/exports/plays-csv`・`/games/{id}/plays.csv` | △ | 88 列・BOM 付き UTF-8 は照合済み。**88 列 CSV に数式インジェクション無害化は無い**(serialize は正規化+BOM のみ — `LEGACY:api/play_csv_export_service.py:52-89`。一次調査の「対策済み」は**フロント生成の分析 CSV**〔`LEGACY:frontend/src/lib/analysisCsv.ts:103-115`〕との取り違えで誤り)。**交代履歴等の別ファイル方式も無い** → △(§3-2) |
+| FR-032 分析資料の PDF 出力 | `/stats/analysis-reports/*` | △ | **集計は画面と同一のサービス層を共用**: 打者分析 PDF は `api.karte_service.build_karte_detail` を、投手分析 PDF も `api.karte_service` を経由してデータを得る(`LEGACY:api/batter_analysis_report_service.py:10`・`LEGACY:api/analysis_report_service.py:10`)。**描画は reportlab の別実装**(`LEGACY:reports/batter_analysis_pdf.py:9-11`)であり、「同一定義」は集計層の共用で担保され描画層では担保されない。**チャート単位の母数併記の全数照合は未実施のため Should 基準でも照合不能条項が残る**(§3-2)→ △ |
 | FR-033 チームログイン | `LoginScreen` | △ | **レート制限は無い**(検索式: `grep -rn 'rate\|attempt\|lockout\|試行\|連続' api/routers/auth.py` = 0・`grep -rn 'slowapi\|limiter\|RateLimit' api/main.py api/deps.py` = 0)。要件側も閾値・ロック時間は 10 章の未決 |
 | FR-034 データ所有権制御 | 404 / 403 の使い分け | △ | **要件違反**。試合は一律 404(存在秘匿のコメントあり)だが、**チーム/選手系は 404 `team_not_found` と 403 `forbidden_team` を使い分けており、チーム ID の存在有無が外部から判別できる**。要件は「404・理由コードなし」で統一(`REQ:636`) |
 | **FR-035 システム管理者機能** | SPA に無し(Streamlit のみ) | **×** | Streamlit 版は所有者スコープ無し。選手統合・分割・操作ログ・退避イベントは概念ごと無い |
-| FR-036 チームパスワードの変更 | `SettingsSheet` アカウントタブ | ○ | 現行 PW 必須・楽観ロック・変更後の再ログイン強制まで実装済み |
+| FR-036 チームパスワードの変更 | `SettingsSheet` アカウントタブ | △ | 現行 PW 必須・トークン全経路失効は照合済み。**変更日時の記録なし**(検索式: `grep -n 'changed_at\|日時' api/routers/auth.py` = 0)、**ポリシーは長さのみで「英字と数字を必ず含む」が無い**(`LEGACY:api/schemas/models.py:127-134`)、**管理者リセットの復旧経路なし**(管理者機能自体が無い — §2-6)→ △(§3-2) |
 | **FR-037 管理コンソール** | SPA に無し | **×** | |
 | FR-038 既存データの一括移行 | `CsvImportScreen`(88 列契約) | △ | 取り込み機構は堅牢。ただし要件の移行は**旧 DB 全件移行**で、CSV 取り込みは範囲が違う。名寄せの人手介入 UI は要件側も未定義(§1-3) |
 
@@ -227,7 +239,91 @@ date: 2026-09-02
 | △ 改修を伴う移植 | **23** | FR-001・002・005・006・009・010・011・015・016・017・020・021・022・025・026・029・033・034・038・039・040・041・042 |
 | × 旧 SPA に対応物なし | **8** | FR-012・013・014・018・019・024・035・037 |
 
-> 判定基準: 「旧の実装をそのまま Vue へ写して要件を満たすか」で引いた。要件書側が受入条件を持たない項目(§1-3 の 20 件)は判定を確定できないため △ に寄せている。
+> 集計は §3-0 の基準による再判定後の値(確定はステップ 4)。要件書側が受入条件を持たない項目(§1-3 の 20 件)は判定を確定できないため △ に寄せている。
+
+### 3-2. ○ 判定行の条項単位照合(2026-09-02・台帳 H-59 の照合規律)
+
+一次判定 ○ の 11 行について、受入基準を条項単位で照合した(ステップ 1〜2 の実査で ○ 候補へ昇格した行は無い)。**合** = 旧実装で照合できた / **否** = 不成立 / **照合不能** = 検証手段が無い・本調査で突合未実施。
+
+**FR-003(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 付録 E どおりの自動設定 | 照合不能 | 実装は在る(サーバー状況計算 + 進塁サジェスト `LEGACY:frontend/src/components/diamond/BaseDiamond.tsx:57-83`)が、付録 E ゴールデンベクタが未整備(`REQ:910`)で本調査でも全数突合未実施 |
+| 手動値優先 | 合 | 走者ポップオーバーの上書き +「自動提案に戻す」(`LEGACY:frontend/src/components/diamond/BaseDiamond.tsx:238-289`) |
+| ゴールデンケース全一致 | 照合不能 | 同上(ベクタ未整備) |
+
+**FR-004(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 盗塁成功 → 塁更新・集計対象 | 合 | `LEGACY:frontend/src/components/game/StrategySheet.tsx:50-181`・集計 `LEGACY:api/strategy_service.py:61-65` |
+| 打球位置座標 + 捕球選手の自動推定・修正可 | 合 | `LEGACY:frontend/src/lib/fielder.ts:1-34`・`LEGACY:frontend/src/components/field/FieldDiagram.tsx:43-49,156-178` |
+| 特殊プレイの状態効果 = 付録 E 対象・テーブル駆動検証 | 照合不能 | ベクタ未整備(`REQ:910`) |
+
+**FR-007(Must)→ △ 降格(7 条項中 4 条項が不成立)**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 幻の得点/アウトを生まない | 照合不能 | 下流再計算 + `blocking_issues` は在る(`LEGACY:frontend/src/components/game/PlayEditImpactSheet.tsx:181-194`)が保証の検証手段なし |
+| 交代イベント時点の保持 | 照合不能 | 本調査で個別検証未実施 |
+| 終了済み試合の修正 + 自動再集計 | 部分合 | 終了後も過去修正可(`LEGACY:frontend/src/lib/gameInputLock.ts:16-29` の historicalEditActive)。事前集計テーブル相当は旧に無い |
+| **任意位置への挿入** | **否** | 挿入ルート無し(検索式: `grep -n '@router\.' api/routers/plays.py` に insert 系 0。DELETE は `/plays/last` のみ) |
+| **プレイ行の削除(論理削除)** | **否** | 任意行の削除ルート無し。undo は末尾 1 行の物理 DELETE(`LEGACY:db/game_repo.py:2646-2650`) |
+| **記録権保持端末のみ + キュー空前提** | **否** | 記録権が存在しない(§2-4)。キュー空前提のみ実装(未同期時の全ブロック)されているが要件の形ではない |
+| **再開が終了ロックを解除** | **否** | resume はセッション復元のみ(`LEGACY:api/routers/games.py:513-522`)。「進行中に戻す」操作は無い(検索式: `grep -rn '進行中に戻す\|reopen' frontend/src api` = 0) |
+
+**FR-008(Must)→ ○ 維持**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 試合一覧から再開 → スコア・走者・打順・カウントが最終プレイの状態で復元 | 合 | `POST /games/{id}/resume` → `row_to_game_state` が score(イニング別 + H/E/K/BB 含む)・outs/strikes/balls・inning/half・batter.order・走者を返す(`LEGACY:api/routers/games.py:513-522`・`LEGACY:api/schemas/play_row.py:366-395`)。生きたセッションを DB スナップショットで巻き戻さない規律つき |
+
+**FR-023(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 割合 + 球数の併記 | **否** | 凡例は `{label} {percentage}%` のみ(`LEGACY:frontend/src/components/game/LiveInputBar.tsx:182,192`) |
+| 断中のクライアント計算で追従 | **否** | 未送信 1 件で入力・表示更新の前提が崩れる(§2-4)。当日集計はサーバー取得 |
+
+**FR-027(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 走者状況別の傾向と結果(成否は付録 A-4)を母数併記で集計 | 部分合 | 件数一覧の常時併記は在る。**成否の付録 A-4 定義との一致は照合不能**(旧の判定表 `LEGACY:charts/batting/analyse_strategy.py:47-112` と A-4 の突合未実施) |
+| チーム追加の作戦が傾向集計の対象になる | **否** | カテゴリが frozenset で固定(`LEGACY:api/strategy_service.py:24-27`・`LEGACY:charts/batting/analyse_strategy.py:20-26`)。追加語彙は集計に現れない |
+
+**FR-028(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 統計サマリー = 付録 A-3b・母数併記・集計範囲ラベル必須・既定全期間・同一フィルタ | **否** | 母数(n=)・範囲ラベル・既定「全期間」・同一フィルタは合(`LEGACY:frontend/src/screens/KarteScreen.tsx:299,309`)。**A-3b が打者カルテに必須とする打球方向(等角 5 分割)が旧に無い**(`REQ:1129-1130`・§3 FR-026 行)ため指標セット不一致 |
+| 楽観ロック(先発の内容が黙って消えない) | 合 | 409 `karte_note_conflict` + 下書き保持(`LEGACY:frontend/src/screens/KarteScreen.tsx:129-219`) |
+| (Could)所見履歴 10 世代 | 照合不能 | 旧に履歴機構の確認未実施(Could のため降格根拠にしない) |
+
+**FR-030(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| イニング別経過・打席結果・投手成績 + **選手交代の経過** | **否** | 前 3 者は在る(`LEGACY:api/scorecard_service.py:150-195`)が**交代の経過は出力されない**(検索式: `grep -n '交代\|substitution' api/scorecard_service.py` = 0) |
+| 終了の形の表記(裏なしは「X」) | **否** | X 表記なし(ステップ 1 の検索式) |
+| 紅白戦の出力 | 照合不能 | 未実施 |
+| 移行試合の交代「不明」許容 | 対象外 | 旧に移行概念なし |
+| (Could)勝敗投手・セーブの手動指定 | 否(Could) | 該当 UI なし |
+
+**FR-031(Must)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 88 列互換の全プレイ行 | 合 | `LEGACY:api/play_csv_export_service.py:81-89` |
+| 数式インジェクション無害化 | **否** | serialize は列正規化 + BOM のみ(`:52-89`)。無害化実装は**フロント生成の分析 CSV**(`LEGACY:frontend/src/lib/analysisCsv.ts:103-115`)にしか無い |
+| BOM 付き UTF-8 | 合 | `utf-8-sig`(`:89`) |
+| (補足=本質要件)交代履歴等の別ファイル方式 | **否** | サイドカー出力なし |
+
+**FR-032(Should)→ △ 降格**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 分析画面と同一定義のチャート(範囲ラベル・母数入り)の PDF | 部分合 | 集計はサービス層共用(`LEGACY:api/batter_analysis_report_service.py:10`)・「全期間」ラベルあり(`LEGACY:reports/batter_analysis_pdf.py:185`)。**チャート単位の母数併記の全数照合は未実施** |
+
+**FR-036(Must)→ △ 降格(4 条項中 2.5 条項が不成立)**
+| 条項 | 合否 | 根拠 |
+| --- | --- | --- |
+| 現行 PW 必須 + **変更日時の記録** | 部分否 | 現行 PW 必須は合(`LEGACY:api/routers/auth.py:122-159`)。**変更日時の記録は無い**(検索式: `grep -n 'changed_at\|日時' api/routers/auth.py` = 0) |
+| 旧トークンの全経路失効 | 合 | `password_version`(`LEGACY:auth.py:34-36`・`LEGACY:api/deps.py:131-159`) |
+| ポリシー = 8 文字以上 + **英字と数字を必ず含む** | **否** | 長さ(8 以上・72 バイト)のみで文字種要件なし(`LEGACY:api/schemas/models.py:127-134`) |
+| 管理者リセットの復旧経路 | **否** | SPA/API に管理者機能自体が無い(§2-6) |
+
 
 ---
 
