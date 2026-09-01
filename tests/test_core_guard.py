@@ -235,6 +235,48 @@ def commit_changes(root: Path, relative_paths: tuple[str, ...]) -> tuple[str, st
     return base_sha, head_sha
 
 
+def commit_rename(root: Path, old_path: str, new_path: str) -> tuple[str, str]:
+    """同一内容のファイルを git mv し、比較用の base/head SHA を返す。
+
+    Args:
+        root: 一時リポジトリのルート。
+        old_path: rename 前のファイルの相対パス。
+        new_path: rename 後のファイルの相対パス。
+
+    Returns:
+        rename 前の base SHA と rename 後の head SHA。
+    """
+    _, base_sha = commit_change(root, old_path, "unchanged\n")
+    (root / new_path).parent.mkdir(parents=True, exist_ok=True)
+    run_git(root, "mv", old_path, new_path)
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "rename",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    return base_sha, head_sha
+
+
+def assert_exact_rename(
+    root: Path,
+    base_sha: str,
+    head_sha: str,
+    old_path: str,
+    new_path: str,
+) -> None:
+    """git が変更を類似度 100% の rename と認識したことを確認する。"""
+    result = run_git(root, "diff", "--name-status", f"{base_sha}...{head_sha}")
+
+    assert result.stdout.splitlines() == [f"R100\t{old_path}\t{new_path}"]
+
+
 def write_event(tmp_path: Path, base_sha: str, head_sha: str, body: object) -> Path:
     """pull_request イベント JSON を作る。
 
@@ -374,7 +416,10 @@ def test_allows_non_matching_change_when_core_paths_are_empty(tmp_path):
     result = run_guard(root, event_name="pull_request", event_path=event_path)
 
     assert result.returncode == 0, result.stderr
-    assert "コア領域 paths 未定義(Phase 4 で定義予定)— コア検査対象なし" in result.stdout
+    assert (
+        "コア領域の paths が未定義。設計書 6.3 の落とし込み規則に従い実装追随で登録する"
+        " — コア検査対象なし"
+    ) in result.stdout
 
 
 def test_allows_guard_path_change_with_completed_check(tmp_path):
@@ -417,6 +462,47 @@ def test_rejects_matching_core_glob_without_completed_check(tmp_path):
 
     assert result.returncode == 1
     assert "backend/core/service.py" in result.stderr
+
+
+def test_rejects_rename_from_protected_path_to_unprotected_path(tmp_path):
+    old_path = "backend/core/service.py"
+    new_path = "backend/public/service.py"
+    root = make_repo(tmp_path, core_paths=["backend/core/*.py"])
+    base_sha, head_sha = commit_rename(root, old_path, new_path)
+    assert_exact_rename(root, base_sha, head_sha, old_path, new_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert old_path in result.stderr
+
+
+def test_rejects_rename_from_unprotected_path_to_protected_path(tmp_path):
+    old_path = "backend/public/service.py"
+    new_path = "backend/core/service.py"
+    root = make_repo(tmp_path, core_paths=["backend/core/*.py"])
+    base_sha, head_sha = commit_rename(root, old_path, new_path)
+    assert_exact_rename(root, base_sha, head_sha, old_path, new_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert new_path in result.stderr
+
+
+def test_allows_rename_between_unprotected_paths(tmp_path):
+    old_path = "backend/public/old_service.py"
+    new_path = "backend/public/new_service.py"
+    root = make_repo(tmp_path, core_paths=["backend/core/*.py"])
+    base_sha, head_sha = commit_rename(root, old_path, new_path)
+    assert_exact_rename(root, base_sha, head_sha, old_path, new_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_fails_closed_on_invalid_event_json(tmp_path):
