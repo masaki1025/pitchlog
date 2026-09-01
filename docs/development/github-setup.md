@@ -13,6 +13,7 @@ status: approved
 | 1.0 | 2026-08-22 | **Phase 4-5 の実装追随(版は上げない — 設計書 7.6-3 前段の実装追随の節更新)**: 必須チェックを **4 ジョブ → 5 ジョブ**へ更新(`nfr021-append-only` を追加 — NFR-021 受入証跡の append-only 統合時検査。設計書 10.1 のジョブ表が正)。2 章のマージ手続 2 項・4 項の列挙と 3 章 Ruleset の `required_status_checks` を同時更新した(本書 3 章の「必須ジョブの追加・削除・改名時は本書と Ruleset を 同時更新する」に従う)。**保護の適用状況・暫定運用の内容は変更していない**(縮退は継続中)。計画: `docs/features/nfr021-evidence-verifier/plan.md` | approved |
 | 1.1 | 2026-08-22 | **2 章のマージ手続へ 5 項目目を新設(版繰り上げ — 7.3 の確定ゲート)**: **NFR-021 の受入証跡 PR を競合単位で並行させない**。`nfr021-append-only` は PR イベントの `base.sha` を基準に評価するため、**同じ base から作った 2 PR は互いを見ておらずどちらも green になる**(品質レビュー起点・実測で確認)。競合単位は**予約 = 同一 `gate_key`** / **結果証跡 = 同一 `attempt_id`** / 混在 PR は各レコードへ適用(**確定ゲート 1 周目で結果証跡を追加** — 同一 `attempt_id` の結果証跡が 2 件統合されると 10.1 の統合時検査 (d) に反し、append-only のため**恒久的に不合格**になる。予約の競合より重い)。**ゲートキーが異なる予約は並行してよい**。取り込み後の再実行が red なら**先行試行を閉じて後続を再採番**する(同 1 周目で追加)。**3 章の継続範囲も限定**(手続 3・4 の逐行確認は継続 / 手続 5 は strict policy 適用で終了 — 同 1 周目)。**マージ可否の手続を変える規範追加であるため実装追随ではなく確定ゲートを通す**(品質レビュー 3 周目 P1-5 の指摘を採用)。**確定ゲート通過(approved)**: 敵対レビュー **2 周**(1 周目 P1×1/P2×2 を**全件採用・不採用 0 件** → 2 周目 P0/P1/P2 いずれも 0 件で収束)→ **人間承認(2026-08-22・山田正輝)**。計画: `docs/features/nfr021-evidence-verifier/plan.md` | **approved** |
 | 1.1 | 2026-08-24 | **参照先の状態表記の是正(版は上げない — 7.6-3 前段)**: 位置づけ注記の `onboarding.md` への参照を「**draft のため approved 化までは規範ではない**」から「**正とする**」へ。同書が Phase 4 の前提 PR で approved v1.0 になることへの追随であり、**本書の内容・決定は変えていない**。計画: `docs/features/onboarding-approval/plan.md` | approved |
+| 1.2 | 2026-09-01 | **2 章マージ手続 3 へ「逐行確認の実施記録」の確認を追加(版繰り上げ — 7.3 確定ゲート・設計書 v1.12 と同一ゲートで一括検証)**: チェック行(PR 単位 1 ビット)と実確認範囲の乖離を記録で埋める設計書 6.3 の様式新設への追随。記録行の様式の正は設計書 6.3。**CI は記録行を検証しない**(設計書 7.3-8 の残余リスク)ため、本手続がマージ前の唯一の確認点。**あわせて手続 2・4 と 3 章 Ruleset の必須チェック一覧へ `frontend` / `backend` / `frontend-changes` / `backend-changes` を追加**(実装済みジョブが必須一覧から脱落し「5 ジョブ green でマージ可」になっていた欠落と、変更検知ジョブ失敗 → 下流 skipped = required 充足でマージ可能になる GitHub 仕様経路の是正 — 本ゲート敵対レビュー 2〜3 周目 P1。skipped の required 充足は適用時に実測確認)。**手続 2 へマージ直前の base 前進確認も追加**(同 4 周目 P1 — test merge commit の古い統合結果でのマージを防ぐ)。**射程宣言(設計書 7.3-7)**: 本改訂で確定する範囲 = 手続 2〜4 の確認内容と Ruleset 一覧 / 実装時に確定する範囲 = skipped 挙動の実測(保護適用時)。**確定ゲート通過(approved)**: 設計書 v1.12 と一括検証(敵対レビュー反映 12 周・指摘全採用・**PO 判断 2026-09-01 で 12 周をもってクローズ** → PO 承認 2026-09-01・徳光尋弥)。計画: `../features/gate-convergence-rules/plan.md` | **approved** |
 
 > **本書の位置づけ**: GitHub 側の**ブランチ保護設定と CI が要求する Secrets** の再現手順の正本(ハーネス設計書 10.2)。Actions ポリシー全般(Organization ポリシー・許可 Action 方針等)は対象外 — Organization へ移管する場合は移管タスク側で確認する。ローカル環境構築の手順は [onboarding.md](onboarding.md) を**正**とする(受入条件の正は要件書 NFR-021)、CI ジョブの設計根拠は [設計書 10.1](dev-harness-design-2026-08-07.md) を正とする。
 
@@ -35,9 +36,9 @@ status: approved
 - 以下は**機械的強制ではなく、所有者が遵守する管理手続**である。ローカルの git_guard は Claude Code の PreToolUse フックであり、**人間の端末・別 clone・GitHub UI/API からの操作は遮断しない**(過信しない)
 - マージの手続(すべて必須):
   1. **統合は PR 経由のみ**。main / develop への直接 push・GitHub UI での直接編集・チェック失敗状態でのマージは禁止
-  2. マージ前に、**PR の最新 HEAD SHA に対して** CI 5 ジョブ(`secrets` / `docs-lint` / `core-guard` / `harness` / `nfr021-append-only`)がすべて green であることを確認する(古い green run で判断しない)。**PR に push が追加されたら、そのたびに本手続をやり直す**(逐行確認・チェックも最新 HEAD に対して再実施)
-  3. 変更ファイルが**コア領域(`.claude/core-areas.json` の `areas[].paths`)または検査経路(`guard_paths`)に該当する場合**、マージ担当者自身が最新 HEAD の差分を逐行確認し、**確認した本人が** PR 本文のチェック `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` を付ける(チェックは人間確認の証拠にならない — AI でも付けられる。**付けた人 = 確認した人**の運用規律で担保する)
-  4. チェックを付ける(= PR 本文を編集する)と CI が再実行される(`pull_request` トリガーに `edited` を含めているため — これがないと本文編集では core-guard が再評価されず、チェック後も red のままになる)。チェック後に core-guard を含む 5 ジョブが最新 HEAD で green になったことを確認してからマージする
+  2. マージ前に、**PR の最新 HEAD SHA に対して CI の全ジョブが green** であることを確認する(古い green run で判断しない): 常時実行 5 ジョブ(`secrets` / `docs-lint` / `core-guard` / `harness` / `nfr021-append-only`)+ 変更検知 2 ジョブ(`frontend-changes` / `backend-changes`)+ **paths filter により発火した場合の `frontend` / `backend`**(スキップが許されるのは filter 非該当のときのみ — 発火して red なら NFR-019「全グリーンでないとマージ不可」に反する)。**PR に push が追加されたら、そのたびに本手続をやり直す**(逐行確認・チェックも最新 HEAD に対して再実施)。**base SHA の 3 点一致と head の拘束を確認する**(取得元を固定 — ローカルの stale な `origin/<base>` や `potentialMergeCommit` で代用しない): ① 最新 HEAD で green の workflow run が検査した **test merge commit SHA を run から取得**(`gh run view <run-id> --json headSha` — pull_request run の headSha は merge commit)し、`git fetch origin <SHA>` の上 `git rev-parse <SHA>^1` で**第一親 = CI 検査時 base** を得る ② `gh pr view --json baseRefOid` で **GitHub 上の現在の base 先端**を取得し ① と一致することを確かめ、head SHA(`headRefOid`)とともに PR コメントへ記録する ③ **マージ操作の直前に ② を再取得して同一 SHA である**ことを照合し、**head は `gh pr merge --match-head-commit <記録した head SHA>` で原子的に拘束する**(UI マージの場合は直前に `headRefOid` の一致を再確認する)。①〜③のいずれかが不一致なら、develop 宛は base 取り込み・main 宛は中断(10.1 の OID 固定)で CI からやり直す。同一 base への複数 PR のマージは 1 件ずつ直列に行う(排他区間)。進んでいた場合の扱い: **develop 宛 PR** は base を取り込んで(head を更新して)CI を再実行し、本手続をやり直す(`pull_request` の CI は head 単体でなく test merge commit を検査するため、確認後に base が進むと合格対象が古い統合結果になる。Ruleset 適用後は `strict_required_status_checks_policy` がこれを機械強制する)。**main 宛(リリース・受入)PR は設計書 10.1 の head/base 完全 OID 固定が優先** — base が進んだら取り込みではなく**中断し、新しい SHA から受入をやり直す**(受入対象とマージ対象のずれを許さない)
+  3. 変更ファイルが**コア領域(`.claude/core-areas.json` の `areas[].paths`)または検査経路(`guard_paths`)に該当する場合**(該当判定は **base ブランチ側の `core-areas.json` を正**として行う — CI の core-guard は PR 側 HEAD の定義を読むため、PR 自身が対象パスを削除・縮小すると機械判定から外れる〔2 章末尾の循環参照リスク〕。本手続がその補償であり、paths の削除・縮小を含む PR は削除前の一覧で判定する)、マージ担当者自身が最新 HEAD の差分を逐行確認し、**確認した本人が** PR 本文のチェック `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` を付ける(チェックは人間確認の証拠にならない — AI でも付けられる。**付けた人 = 確認した人**の運用規律で担保する)。あわせて、チェック行の直後の**実施記録行**(`- 実施記録: 対象= 範囲= 方法=` — 様式の正は設計書 6.3)に**確認した本人が値を記入済みであること**、および**最新 HEAD への追随**(記録後に対象ファイルへ push が追加されたら記録も更新されていること)を確認する。**記録が未記入ならマージしない**(CI は記録行を検証しない — 運用規律)
+  4. チェックを付ける(= PR 本文を編集する)と CI が再実行される(`pull_request` トリガーに `edited` を含めているため — これがないと本文編集では core-guard が再評価されず、チェック後も red のままになる)。チェック後に core-guard を含む**手続 2 の全ジョブ**が最新 HEAD で green になったことを確認してからマージする
   5. **NFR-021 の受入証跡 PR を競合単位で並行させない**(`nfr021-append-only` の残余リスク)。同検査は **PR イベントの `base.sha`(= PR 作成・更新時点の develop)** を基準に評価するため、**同じ base から作った 2 つの PR は互いを見ておらず、どちらも個別には green になる**。先の PR をマージしても後の PR の head SHA は変わらないので、古い green のままマージできてしまう。**競合単位**は次のとおり:
      - **予約レコードを追加する PR**: 同一 **`gate_key`**。並行させると同一ゲートキーに未閉塞の予約が 2 件並ぶ(設計書 10.1「ゲートキー単位で同時に進行できる受入試行は 1 件だけ」に反する)
      - **結果証跡を追加する PR**: 同一 **`attempt_id`**。並行させると同一 `attempt_id` の結果証跡が 2 件統合され、設計書 10.1 の統合時検査 **(d)**「同一の `attempt_id` に対する結果証跡が 2 件目にならない」に反する。**証跡は append-only で削除も訂正もできないため、このゲートキーは恒久的に不合格になる**(予約の競合より重い)
@@ -83,7 +84,11 @@ status: approved
           { "context": "docs-lint" },
           { "context": "core-guard" },
           { "context": "harness" },
-          { "context": "nfr021-append-only" }
+          { "context": "nfr021-append-only" },
+          { "context": "frontend-changes" },
+          { "context": "backend-changes" },
+          { "context": "frontend" },
+          { "context": "backend" }
         ] } }
   ],
   "bypass_actors": []
@@ -93,7 +98,7 @@ status: approved
 - `allowed_merge_methods: ["merge"]` = マージコミットのみ許可(squash/rebase を遮断 — 設計書 6.2 の `--no-ff` 整合)
 - `bypass_actors: []` = 管理者にも適用(ただし**所有者は設定自体を変更できる**ため、所有者からも逃れられない保護にはならない — 残余リスクとして記録)
 - `required_approving_review_count: 0` の理由: 現状 1 人開発のため(レビューの実体は設計書 6.3 の反対側 AI レビュー + 人間確認)。チーム化したら引き上げる
-- **必須チェックの `context` は「status check context 名」**であり、現状は ci.yml の job id と一致する(`name:` 未指定・matrix なしのため)。**適用前に実 PR の Checks 表示で実際の context 名を再確認**すること。必須ジョブの**追加・削除・改名時は本書と Ruleset を同時更新**する(将来 Phase 4 で backend / frontend が加わる — 設計書 10.1)。可能なら各 context に GitHub Actions の `integration_id` を指定する(未指定だと任意ソースの同名 status を受け入れる)
+- **必須チェックの `context` は「status check context 名」**であり、現状は ci.yml の job id と一致する(`name:` 未指定・matrix なしのため)。**適用前に実 PR の Checks 表示で実際の context 名を再確認**すること。必須ジョブの**追加・削除・改名時は本書と Ruleset を同時更新**する(v1.2 で `frontend` / `backend` に加え**変更検知ジョブ `frontend-changes` / `backend-changes` も追加** — GitHub は skipped の check run を required の充足として扱うため、**上流の変更検知ジョブが失敗すると下流が skipped になりマージを阻止しない**〔[GitHub Docs: Troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)〕。常時実行の変更検知ジョブを required に含めることでこの経路を塞ぐ。**適用時に docs-only PR で下流 skipped がマージ可能となること・変更検知失敗時にマージがブロックされることの両方を実測確認**してから運用する)。可能なら各 context に GitHub Actions の `integration_id` を指定する(未指定だと任意ソースの同名 status を受け入れる)
 
 適用手順(冪等):
 
