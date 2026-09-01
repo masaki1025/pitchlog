@@ -199,20 +199,20 @@ date: 2026-09-02
 | FR-039 対戦相手チームレコード | `TeamScreen` 対戦相手タブ + `team_catalog` | △ | 登録・編集は在る。**試合作成中のその場登録は形を変えて在る**: 作成画面の「手入力」トグルで自由入力チーム名を許し(`LEGACY:frontend/src/screens/LineupScreen.tsx:1883-1893`)、サーバーが `ensure_team` で名前一意のチームを作成/再利用する(`LEGACY:api/schemas/play_row.py:131`・`LEGACY:db/player_repo.py` の `ensure_team` = INSERT OR IGNORE。コメントに「one-off free-text opponent flow」`LEGACY:api/routers/games.py:252-254`)。**ただし team_catalog への相手登録は伴わない**(catalog 紐付けは POST /teams/opponents のみ)ため次回の「登録済みの相手」には出ない。**類似名警告は無い**(検索式: `grep -n '類似\|similar' api/routers/teams.py` = 0。duplicate 検出は背番号のみ `:136,199`)。**リネーム誘導も無い**(チーム削除 API 自体が SPA/API に存在せず、「削除不可→リネームへ誘導」の UI は無い。検索式: `grep -rn 'リネーム\|rename' frontend/src api` の該当 0) |
 | FR-020 スコアボード表示 | `MiniScoreboard`(イニング別 + R/H/E) | △ | **要件は H/E/K/B**。旧は R/H/E で **K/B が無い**(ただし要件側も H/E/K/B の定義を持たない — G-15)。最終反映時刻・断中の追従表示は無い |
 | FR-021 投手成績のリアルタイム表示 | `LiveInputBar` 投手カード | △ | 当日成績・被打率・対左右・直球平均・球種割合は在る。**WHIP・FIP が無い**(旧 SPA / API に実装ゼロ)。FIP 注記・期間ラベル・断中注記も無い |
-| FR-022 打者成績のリアルタイム表示 | `LiveInputBar` 打者カード(現打者・次打者) | △ | **当日打席結果の 7 列**(打席番号 / イニング / 結果表示名 / 打数算入 / 安打種別 / 打点 / 出塁の別)の構造は未確認 |
+| FR-022 打者成績のリアルタイム表示 | `LiveInputBar` 打者カード(現打者・次打者) | △ | **当日打席結果は表示名の羅列のみ**: サーバーは `results: string[]`(打席結果の表示名。0/空を除外した一次元配列)しか返さず(`LEGACY:api/routers/stats.py:947-955`)、UI も `today.results.join('・')` の 1 行テキスト(`LEGACY:frontend/src/components/game/LiveInputBar.tsx:90`)。**v2.2 が確定した 7 列構造(打席番号 / イニング / 結果表示名 / 打数算入 / 安打種別 / 打点 / 出塁の別)は存在しない** |
 | FR-023 球種分布の表示 | `LiveInputBar` の今季球種割合ドーナツ | ○ | 「割合+球数の併記」形式は要確認 |
 | **FR-024 試合開始時のプリフェッチ** | 無し(react-query のキャッシュのみ) | **×** | 断中参照を前提とした先読みは無い |
-| FR-025 投手分析 | `AnalysisScreen` 投手タブ + カルテ | △ | 5 図表すべて相当物あり。ただし**形態が違う**(コース分布は 3×3 と 37×37 密度で、旧 Streamlit の等高線でも要件の二択でもない)。母数併記・集計範囲ラベルは要確認 |
+| FR-025 投手分析 | `AnalysisScreen` 投手タブ + カルテ | △ | 5 図表すべて相当物あり。ただし**形態が違う**(コース分布は 3×3 と 37×37 密度で、旧 Streamlit の等高線でも要件の二択でもない)。**母数併記は在る**(各カードに n= バッジ `LEGACY:frontend/src/components/analysis/player/PlayerAnalysisPanels.tsx:63,71,80` / 球種別・カウント別・球速帯別も対象数併記 `:153,162,191`)。**集計範囲ラベルも在る**(表示区分バー: シーズン・対戦相手・期間〔既定「全期間」〕 `LEGACY:frontend/src/screens/KarteScreen.tsx:299,309`) |
 | FR-026 打者分析 | `ZoneHeatmap`(3×3)+ `BattedBallSpray` | △ | **打率マップは 3×3 のみ**(Streamlit の 13 分割は SPA に無い)。**打球方向は散布のみで、要件の「等角 5 分割」集計が無い** |
-| FR-027 作戦分析 | `StrategyDashboard`(状況別 / 盗塁 / バント) | ○ | 母数併記あり |
+| FR-027 作戦分析 | `StrategyDashboard`(状況別 / 盗塁 / バント) | ○ | 母数併記あり。**内部集計の裏取り**: `analyse_R1/R2_strategy` は 11 分類のイベント**件数のみ**を返し(`LEGACY:charts/batting/analyse_strategy.py:47-112,132-159`)、率・構成比はクライアント側の表示派生。画面は件数一覧を常に併記する形(母数 = 件数の合算として表示される) |
 | FR-041 共同分析グループ | `ComparisonWorkspaces` + `LEGACY:api/analysis_workspace_service.py` | △ | 骨格は在る(招待コード 160bit・ハッシュ保存・72h・1 回消費、既定すべて非共有、最後の admin は退出不可、TOCTOU 対策、非参加は 404)。**ただし粒度が 4 フラグ**(`share_profile` / `share_performance` / `share_identified` / `allow_export`)で要件は 3 粒度。**同時比較上限・比較対象の選択・共有集計エクスポートが無い**(`allow_export` はフラグだけで未行使)。共有分析は**全期間固定でフィルタを持たない** |
-| FR-042 チーム単位の分析 | `performance_summary`(W/L/D・得失点・打撃・投球) | △ | **イニング別得点・失点が無い**。付録 A-5 の 7 項目との突合が要る |
+| FR-042 チーム単位の分析 | `performance_summary`(W/L/D・得失点・打撃・投球) | △ | **イニング別得点・失点が無い**。**付録 A-5 の 7 項目との照合結果**: 自チーム分析の overview が持つのは 試合数・得点・失点・得失点差 の 4 項目のみ(`LEGACY:api/analysis_summary.py:506-512`)。**勝・敗・分の通算値は無く**、試合別の 勝/敗/分 ラベル(`:447`)が直近 12 件の trends に付くだけ。通算 W/L/D の集計は共有側 `_performance_summary` にのみ存在する(`LEGACY:api/analysis_workspace_service.py:419-434`) |
 | FR-028 カルテの閲覧・所見編集 | `KarteScreen` + `NotesEditor`(楽観ロック) | ○ | 競合検出の見せ方まで実装済み。集計範囲ラベル・A-3b 指標セットとの突合は要確認 |
-| FR-029 カルテ PDF の出力 | `/stats/karte-reports/{kind}`(headless Chrome) | △ | 一括出力は在る。**在籍区分「現役」のみ既定・進捗表示・「◯名スキップ」通知**は未確認。NFR-023 の外部リソース無効は要検証 |
+| FR-029 カルテ PDF の出力 | `/stats/karte-reports/{kind}`(headless Chrome) | △ | 一括出力は在る。**進捗表示は無い**: 一括生成は同期 1 リクエスト(GET → Response — `LEGACY:api/routers/stats.py:303-350`)でクライアントは fetch 待ちのみ(検索式: `grep -n '進捗\|progress\|スキップ\|skip' frontend/src/components/analysis/AnalysisExportSheet.tsx` = 0)。**「◯名はデータなしのためスキップ」通知も無い**: `min_pa` 未満は黙って対象外になるだけ(`LEGACY:api/karte_service.py:1308,1386`)。**在籍区分オプションも無い**: 対象は名簿の在籍区分ではなく**プレイ記録行から役割別に抽出**(`LEGACY:api/karte_service.py:158` の `_role_rows`。UI に現役/全区分の選択なし)。**NFR-023 の限定条項(PDF レンダラの外部リソース・ローカル参照の無効化)**: 生成 HTML は自己完結で外部参照 0(検索式: `grep -n 'http\|cdn\|<link\|<script' reports/pitcher_karte_html_pdf.py` の外部 URL 0 件)、入力は file:// のローカル一時ファイル(`LEGACY:reports/pitcher_karte_html_pdf.py:1354,1366-1369,1390`)。Chrome 起動フラグは `--disable-background-networking` 等(`:1357-1403`)だが**ページ自身の外部取得やローカルファイル参照を遮断する明示的フラグは無く**、無害性は生成 HTML が外部参照を含まないことに依存する |
 | FR-030 スコアカード | `ScoreCardScreen` + `/scorecard.pdf` | ○ | 交代経過・着色まで実装済み |
 | FR-031 毎球データの CSV 出力 | `/exports/plays-csv`・`/games/{id}/plays.csv` | ○ | 88 列・BOM 付き UTF-8・数式インジェクション対策済み |
-| FR-032 分析資料の PDF 出力 | `/stats/analysis-reports/*` | ○ | |
-| FR-033 チームログイン | `LoginScreen` | △ | **レート制限は未確認**(要件側も 10 章で未決) |
+| FR-032 分析資料の PDF 出力 | `/stats/analysis-reports/*` | ○ | **集計は画面と同一のサービス層を共用**: 打者分析 PDF は `api.karte_service.build_karte_detail` を、投手分析 PDF も `api.karte_service` を経由してデータを得る(`LEGACY:api/batter_analysis_report_service.py:10`・`LEGACY:api/analysis_report_service.py:10`)。**描画は reportlab の別実装**(`LEGACY:reports/batter_analysis_pdf.py:9-11`)であり、「同一定義」は集計層の共用で担保され描画層では担保されない |
+| FR-033 チームログイン | `LoginScreen` | △ | **レート制限は無い**(検索式: `grep -rn 'rate\|attempt\|lockout\|試行\|連続' api/routers/auth.py` = 0・`grep -rn 'slowapi\|limiter\|RateLimit' api/main.py api/deps.py` = 0)。要件側も閾値・ロック時間は 10 章の未決 |
 | FR-034 データ所有権制御 | 404 / 403 の使い分け | △ | **要件違反**。試合は一律 404(存在秘匿のコメントあり)だが、**チーム/選手系は 404 `team_not_found` と 403 `forbidden_team` を使い分けており、チーム ID の存在有無が外部から判別できる**。要件は「404・理由コードなし」で統一(`REQ:636`) |
 | **FR-035 システム管理者機能** | SPA に無し(Streamlit のみ) | **×** | Streamlit 版は所有者スコープ無し。選手統合・分割・操作ログ・退避イベントは概念ごと無い |
 | FR-036 チームパスワードの変更 | `SettingsSheet` アカウントタブ | ○ | 現行 PW 必須・楽観ロック・変更後の再ログイン強制まで実装済み |
@@ -364,6 +364,5 @@ TSK-226 はこの 2 系統の交点にあり、**その交点が「未調査」�
 
 ### 未確認(追加調査が要る)
 
-- FR-022 の当日打席結果 7 列の構造 / FR-029 の進捗表示とスキップ通知 / FR-033 のレート制限。いずれも「旧に在るか無いか」の確認が済んでいない項目(記録・試合運営系の 6 項目 + FR-005 追加分 + FR-006・FR-039 は 2026-09-02 のステップ 1 実査で消化済み — §3 の該当行に事実を追記した)。
-- `LEGACY:charts/batting/analyse_strategy.py` の内部集計ロジック(API から呼ばれていることのみ確認)。
-- 各 PDF 生成器のページ内訳(import 関係と呼び出し契約のみ確認)。
+- (消化済み)2026-09-02 のステップ 1〜2 実査で、本節に挙がっていた全項目(記録・試合運営系 8 FR / 表示・分析・出力・認証系 7 FR + NFR-023 限定条項 + `analyse_strategy.py` 内部集計 + PDF 生成器のデータ経路)を §3 の該当行へ事実として反映した。
+
