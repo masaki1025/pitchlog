@@ -23,10 +23,51 @@ GUARD_PATHS = [
     ".github/pull_request_template.md",
     ".claude/skills/pr/SKILL.md",
 ]
-CORE_AREA_IDS = ("sync-protocol", "game-state", "recording-rights", "tenant-isolation")
 CORE_DOCUMENT_PATHS = (
     "docs/design/sync-protocol.md",
     "docs/requirements/requirements-pitchlog-2026-07-22.md",
+)
+EXPECTED_AREA_PATHS = {
+    "sync-protocol": [*CORE_DOCUMENT_PATHS],
+    "game-state": [
+        *CORE_DOCUMENT_PATHS,
+        "frontend/src/lib/courseInputView.ts",
+        "frontend/src/lib/displayGeometry.ts",
+        "frontend/src/lib/spatialInput.ts",
+        "frontend/src/components/zone/StrikeZone.vue",
+        "frontend/src/lib/courseCoordinateContract.spec.ts",
+        "frontend/src/lib/displayGeometry.spec.ts",
+        "frontend/src/components/zone/StrikeZone.spec.ts",
+        "contracts/display_geometry_263_v1.json",
+        "frontend/vite.config.ts",
+        "frontend/vitest.config.ts",
+        "frontend/package.json",
+        "frontend/tsconfig.app.json",
+        "frontend/tsconfig.json",
+        "frontend/pnpm-lock.yaml",
+        "mise.toml",
+    ],
+    "recording-rights": [*CORE_DOCUMENT_PATHS],
+    "tenant-isolation": [
+        *CORE_DOCUMENT_PATHS,
+        "contracts/authz/*",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py",
+        "tests/fixtures/authz_claims/*",
+        "backend/tests/db/*",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/*conftest.py",
+        "backend/.python-version",
+        "docker-compose.yml",
+    ],
+    "data-migration": ["frontend/src/lib/format.ts"],
+}
+NEW_CORE_PATH_CHANGES = (
+    "contracts/authz/auth-catalog.json",
+    "frontend/src/lib/courseInputView.ts",
+    "frontend/src/lib/format.ts",
+    "backend/conftest.py",
 )
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
@@ -50,6 +91,11 @@ NEW_GUARD_PATHS = (
     "tests/test_ci_wiring.py",
     "tests/test_core_guard.py",
     ".claude/skills/finalize-doc/SKILL.md",
+    "pyproject.toml",
+    "uv.lock",
+    ".python-version",
+    "conftest.py",
+    "tests/conftest.py",
 )
 
 
@@ -350,14 +396,17 @@ def load_actual_core_areas() -> dict[str, Any]:
     return value
 
 
-@pytest.mark.parametrize("area_id", CORE_AREA_IDS)
-def test_actual_core_area_document_changes_trigger_guard(tmp_path, area_id):
+def test_actual_core_area_paths_are_exact_expected_set():
     configuration = load_actual_core_areas()
     areas = configuration["areas"]
     assert isinstance(areas, list)
-    area = next(item for item in areas if item["id"] == area_id)
-    assert area["paths"] == list(CORE_DOCUMENT_PATHS)
+    actual_by_id = {area["id"]: area["paths"] for area in areas}
 
+    assert len(actual_by_id) == len(areas), "コア領域 ID が重複している"
+    assert actual_by_id == EXPECTED_AREA_PATHS
+
+
+def test_actual_core_area_document_changes_trigger_guard(tmp_path):
     root = make_repo_with_actual_core_areas(tmp_path)
     base_sha, head_sha = commit_changes(root, CORE_DOCUMENT_PATHS)
     event_path = write_event(tmp_path, base_sha, head_sha, "")
@@ -399,6 +448,41 @@ def test_each_actual_guard_path_change_triggers_guard(tmp_path, guard_path):
 
     assert result.returncode == 1
     assert guard_path in result.stderr
+
+
+@pytest.mark.parametrize("core_path", NEW_CORE_PATH_CHANGES, ids=NEW_CORE_PATH_CHANGES)
+def test_each_new_actual_core_path_change_triggers_guard(tmp_path, core_path):
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, core_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert core_path in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
+
+
+def test_nested_path_matching_actual_core_glob_triggers_guard(tmp_path):
+    core_path = "contracts/authz/nested/example.json"
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, core_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert core_path in result.stderr
+
+
+def test_adjacent_path_not_matching_actual_core_glob_does_not_trigger_guard(tmp_path):
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, "contracts/authz-other/example.json")
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_skips_non_pull_request_event_without_event_path(tmp_path):
