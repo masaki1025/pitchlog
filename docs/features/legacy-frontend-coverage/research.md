@@ -176,27 +176,27 @@ date: 2026-09-02
 
 | FR | 旧 SPA の対応物 | 判定 | 差分の要点 |
 | --- | --- | --- | --- |
-| FR-001 試合の開始 | `LineupScreen` mode=new | △ | スタメン・試合情報入力は在る。**オフライン時に「オンライン必須」を示して作成させない**挙動は未確認 |
-| FR-002 毎球の投球情報入力 | `StrikeZone`(263)・`StanceGrid`・`PitchTypeChips`・`SpeedPad` | △ | 入力面は充実。ただし**必須未入力の明示がサーバー 422 依存**で、要件の「不足項目を明示して確定不可」はクライアント事前検証を要求。球速範囲(60〜170)警告は未確認 |
+| FR-001 試合の開始 | `LineupScreen` mode=new | △ | スタメン・試合情報入力は在る。**オフライン専用の挙動は無い**: オフライン検知は frontend 全体でヒット 0 件(検索式: `grep -rn 'navigator.onLine\|offline' frontend/src` = 0)。作成失敗は汎用トースト「試合作成に失敗しました」のみ(`LEGACY:frontend/src/screens/LineupScreen.tsx:274-275`)。作成はキュー対象外(キュー投入は確定 POST の失敗時のみ — `LEGACY:frontend/src/lib/syncPolicy.ts:64-72`)で SW も /api/* は network-only のため、**結果としてオフラインでは作成できないが「オンライン必須」の明示は無い** |
+| FR-002 毎球の投球情報入力 | `StrikeZone`(263)・`StanceGrid`・`PitchTypeChips`・`SpeedPad` | △ | 入力面は充実。ただし**必須未入力の明示がサーバー 422 依存**で、要件の「不足項目を明示して確定不可」はクライアント事前検証を要求。**球速の妥当範囲(60〜170)警告は無い**: クライアントは補完のみで範囲検証なし(検索式: `grep -n '170\|範囲' frontend/src/lib/speedInput.ts frontend/src/components/pads/SpeedPad.tsx` = 0)、サーバーは `pitch_speed: Field(0, ge=0, le=999)` の 0〜999 のみ(`LEGACY:api/schemas/models.py:653,748`)。警告+確認で確定可のフローは存在しない |
 | FR-003 打撃結果と状況の自動更新 | `ResultPad` + `BaseDiamond` の進塁サジェスト・手動上書き | ○ | 付録 E との一致検証は別途(NFR-019) |
 | FR-004 走者・特殊プレイ | `PickoffSheet`・`StrategySheet`・`FieldDiagram`・プレス | ○ | 捕球選手の座標自動推定 + 修正まで実装済み |
-| FR-005 スコア・アウト・イニング自動計算 | `MiniScoreboard`・`CountDisplay` | △ | **断中のクライアント計算による画面更新は不可**(§2-4)。「X」表記・終了時の入力ロックと終了宣言の促しは未確認 |
-| FR-006 undo | `DELETE /plays/last`(1 段) | △ | **未同期があると undo 不可**。要件の「常に取消イベントがキューに積まれる」(`REQ:226`)と設計が逆。空履歴時の提示は未確認 |
+| FR-005 スコア・アウト・イニング自動計算 | `MiniScoreboard`・`CountDisplay` | △ | **断中のクライアント計算による画面更新は不可**(§2-4)。**「X」表記は無い**(検索式: `grep -rn '"X"' frontend/src api services reports domain/scoreboard.py` のスコア文脈ヒット 0)。**終了時の入力ロックは在る**(client: `LEGACY:frontend/src/screens/GameScreen.tsx:944` / server: 400「試合終了後に新しいプレイは追加できません。訂正する場合は1球戻してください」`LEGACY:api/routers/plays.py:298`)。**終了宣言の促しも在る**(バナー「試合終了 — 入力は無効です(メニュー→入力終了 で回収・終了)」`LEGACY:frontend/src/screens/GameScreen.tsx:2332-2334` + トースト `:1255`)。ただし**終了条件成立で game_status は自動的に「試合終了」へ遷移する**(`LEGACY:domain/game_end_rules.py:4-20` の `should_finish_game` → `LEGACY:api/routers/plays.py:283`)— 宣言(`finish_game` = `LEGACY:api/routers/games.py:643`)はライフサイクル終了として別に存在する |
+| FR-006 undo | `DELETE /plays/last`(1 段) | △ | **未同期があると undo 不可**。要件の「常に取消イベントがキューに積まれる」(`REQ:226`)と設計が逆。**空履歴時の提示は在る**: サーバーが `no_plays`「取り消すプレイがありません」を返し(`LEGACY:api/routers/plays.py:406,418`)、クライアントは detail.message をトースト表示・状態は変えない(`LEGACY:frontend/src/screens/GameScreen.tsx:1367-1371`) |
 | FR-007 記録済みプレイの修正 | 直前修正 + 過去修正 + `PlayEditImpactSheet` | ○ | **要件より実装が先行**。差分プレビューの中身は要件 G-7 が未定義な部分まで具体化。ただし「進行中の修正は記録権保持端末のみ」は記録権が無いため成立しない |
 | FR-008 試合の再開 | `resumeGame` | ○ | |
 | FR-009 タイブレークの開始 | `TiebreakSheet`(10〜15 回・走者配置・先頭打者・開始アウト) | △ | **断中の操作(キューに積む)は不可** |
 | FR-010 試合の終了 | `finishGame`(未同期回収を伴う) | △ | **断中の終了宣言・指定文言の警告・試合一覧の未送信バッジは無い** |
-| FR-011 選手交代 | `LineupScreen` change + `SubstitutionSheet`(臨時代走) + `HistoricalSubstitutionSheet` | △ | 遡及修正まで実装済み。9 ポジション過不足の警告・その場登録は未確認 |
+| FR-011 選手交代 | `LineupScreen` change + `SubstitutionSheet`(臨時代走) + `HistoricalSubstitutionSheet` | △ | 遡及修正まで実装済み。**9 ポジション検証は在るが要件と逆方向**: 試合作成時はサーバーが 422 `invalid_lineup_positions`「守備2〜9とDHまたは投手を重複なく1人ずつ設定してください」で**ブロック**(`LEGACY:api/routers/games.py:131-158`。全欄空なら素通し `:134-136`)。交代時はクライアントが**重複のみ**検出して確定ボタンを無効化(`LEGACY:frontend/src/screens/LineupScreen.tsx:927-934,1430`)— **不足の検出は無い**。要件の「警告(ブロックしない)」形はどちらにも無い。**未登録選手のその場登録も無い**: 「名簿にない背番号は氏名なしで保存されます」の警告で登録せず素通し(`LEGACY:frontend/src/screens/LineupScreen.tsx:1481-1486`) |
 | **FR-012 通信断中の記録継続と自動同期** | 部品(SW・IndexedDB・キュー・べき等キー)はあるが用途が違う | **×** | **オフライン記録継続そのものが無い**。未送信 1 件で全入力ブロック。未送信件数の常時表示・送信内容の通知・(a)編集して再送/(b)破棄の 2 択・閾値 350 の警告・E3(非所有タブ)・永続ストレージ拒否の警告 — **いずれも無い** |
 | **FR-013 記録権(入力ロック)** | 無し | **×** | 概念ごと存在しない(痕跡 0 件)。通常引き継ぎ・緊急引き継ぎ・退避イベントの取り込み — 全て新規 |
 | **FR-014 試合規則の設定と適用** | `GameKindSettingsContent`(localStorage の候補名のみ) | **×** | **規定イニング数・コールド条件・延長上限・タイブレーク・DH 制の規則セットは無い**。適用規則のスナップショット保存も無い |
 | FR-040 状態補正イベント | `StateOverrideSheet` | △ | 上書き UI は在るが、要件は**現行の「履歴に残らない直接上書き」を改善**すると明記(`REQ:337`)。イベント化・差分履歴・undo 対象化は新規 |
-| FR-015 選手の登録 | `TeamScreen`(1 名 / 一括 / 編集 / プロフィール / 測定履歴) | △ | 充実。**試合画面を離れないその場登録**は未確認。断中の一時 ID 生成は同期機構が無いため成立しない |
-| FR-016 スタメンの記憶・復元 | `getStamem` による自動復元(保存はサーバー側の暗黙処理) | △ | 復元は在る。**非現役枠を自動採用せず差し替えを促す**挙動は未確認 |
+| FR-015 選手の登録 | `TeamScreen`(1 名 / 一括 / 編集 / プロフィール / 測定履歴) | △ | 充実。**試合中のその場登録は無い**: GameScreen・交代シート・LineupScreen に選手登録の導線 0(検索式: `grep -rn 'addPlayer\|選手を登録\|選手を追加' frontend/src/screens/GameScreen.tsx frontend/src/components/game/ frontend/src/screens/LineupScreen.tsx` = 0。`addPlayer` の呼び出し元は TeamScreen のみ = 登録フォームの実体は `LEGACY:frontend/src/screens/TeamScreen.tsx:1280-1368` にしか無い)。断中の一時 ID 生成は同期機構が無いため成立しない |
+| FR-016 スタメンの記憶・復元 | `getStamem` による自動復元(保存はサーバー側の暗黙処理) | △ | 復元は在るが**背番号ベース**: stamem の実体は poses/names/nums/lrs の配列(`LEGACY:api/schemas/models.py:463-467`・`LEGACY:db/game_repo.py:916-934`)で、要件の**選手 ID ベースではない**(改名・背番号変更に追従しない)。**非現役枠の提示も無い**: 名簿一覧 API は active のみ返す(`LEGACY:db/player_repo.py:1196` 以下が active 条件)ため非現役の背番号は「未登録」と同じ見え方になり、**「差し替えが必要」という専用の提示は存在しない**(復元処理に区分チェック無し — `LEGACY:frontend/src/screens/LineupScreen.tsx:1633-1662`) |
 | FR-017 在籍ステータス管理 | `bulk-deactivate`(プレビュー→確定)/ `bulk-reactivate` | △ | プレビュー→確認→実行は実装済み。ただし**旧は active/inactive の 2 値**で、要件の 3 区分(現役/その他/OB)ではない |
 | **FR-018 誤登録選手のセルフ削除** | 無し | **×** | SPA に導線も API も無い |
 | **FR-019 試合の削除とゴミ箱** | 物理削除のみ | **×** | **絶対規則「物理削除しない」に正面から違反**。ゴミ箱・30 日復元・期限日付の明示は全て新規 |
-| FR-039 対戦相手チームレコード | `TeamScreen` 対戦相手タブ + `team_catalog` | △ | 登録・編集は在る。**試合作成中のその場登録**・類似名警告・紐づきありのリネーム誘導は未確認 |
+| FR-039 対戦相手チームレコード | `TeamScreen` 対戦相手タブ + `team_catalog` | △ | 登録・編集は在る。**試合作成中のその場登録は形を変えて在る**: 作成画面の「手入力」トグルで自由入力チーム名を許し(`LEGACY:frontend/src/screens/LineupScreen.tsx:1883-1893`)、サーバーが `ensure_team` で名前一意のチームを作成/再利用する(`LEGACY:api/schemas/play_row.py:131`・`LEGACY:db/player_repo.py` の `ensure_team` = INSERT OR IGNORE。コメントに「one-off free-text opponent flow」`LEGACY:api/routers/games.py:252-254`)。**ただし team_catalog への相手登録は伴わない**(catalog 紐付けは POST /teams/opponents のみ)ため次回の「登録済みの相手」には出ない。**類似名警告は無い**(検索式: `grep -n '類似\|similar' api/routers/teams.py` = 0。duplicate 検出は背番号のみ `:136,199`)。**リネーム誘導も無い**(チーム削除 API 自体が SPA/API に存在せず、「削除不可→リネームへ誘導」の UI は無い。検索式: `grep -rn 'リネーム\|rename' frontend/src api` の該当 0) |
 | FR-020 スコアボード表示 | `MiniScoreboard`(イニング別 + R/H/E) | △ | **要件は H/E/K/B**。旧は R/H/E で **K/B が無い**(ただし要件側も H/E/K/B の定義を持たない — G-15)。最終反映時刻・断中の追従表示は無い |
 | FR-021 投手成績のリアルタイム表示 | `LiveInputBar` 投手カード | △ | 当日成績・被打率・対左右・直球平均・球種割合は在る。**WHIP・FIP が無い**(旧 SPA / API に実装ゼロ)。FIP 注記・期間ラベル・断中注記も無い |
 | FR-022 打者成績のリアルタイム表示 | `LiveInputBar` 打者カード(現打者・次打者) | △ | **当日打席結果の 7 列**(打席番号 / イニング / 結果表示名 / 打数算入 / 安打種別 / 打点 / 出塁の別)の構造は未確認 |
@@ -364,6 +364,6 @@ TSK-226 はこの 2 系統の交点にあり、**その交点が「未調査」�
 
 ### 未確認(追加調査が要る)
 
-- FR-001 のオフライン時挙動 / FR-002 の球速範囲警告 / FR-005 の「X」表記と終了時ロック / FR-011 の 9 ポジション検証とその場登録 / FR-015 の試合中その場登録 / FR-016 の非現役枠の提示 / FR-022 の当日打席結果 7 列の構造 / FR-029 の進捗表示とスキップ通知 / FR-033 のレート制限。いずれも「旧に在るか無いか」の確認が済んでいない項目。
+- FR-022 の当日打席結果 7 列の構造 / FR-029 の進捗表示とスキップ通知 / FR-033 のレート制限。いずれも「旧に在るか無いか」の確認が済んでいない項目(記録・試合運営系の 6 項目 + FR-005 追加分 + FR-006・FR-039 は 2026-09-02 のステップ 1 実査で消化済み — §3 の該当行に事実を追記した)。
 - `LEGACY:charts/batting/analyse_strategy.py` の内部集計ロジック(API から呼ばれていることのみ確認)。
 - 各 PDF 生成器のページ内訳(import 関係と呼び出し契約のみ確認)。
