@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "db_environment_expectations",
-  "source_revision": "34c6f60e8ee225dc0e999ae4e86e184e8cca8f38",
+  "source_revision": "da96515268edaef5c24bd43f696de941371852b1",
   "oracle_policy": {
     "expectations_must_precede_observation_code": true,
     "observed_values_must_not_reseal_this_asset": true,
@@ -161,7 +161,7 @@
       }
     },
     "single_command": {
-      "expected": "uv run pytest --cov",
+      "expected": "uv run pytest -c pyproject.toml --cov",
       "comparison": "exact",
       "db_tests_included_in_existing_invocation": true,
       "marker_selection_argument_allowed": false,
@@ -170,7 +170,11 @@
       "provenance": [
         {
           "path": ".github/workflows/ci.yml",
-          "extracted_text": "- run: uv run pytest --cov"
+          "extracted_text": "- run: uv run pytest -c pyproject.toml --cov"
+        },
+        {
+          "path": "docs/features/core-area-paths/plan.md",
+          "extracted_text": "本計画 4 節の確定コマンドを先行オラクルとする"
         },
         {
           "path": "docs/features/pg-authz-verification/plan.md",
