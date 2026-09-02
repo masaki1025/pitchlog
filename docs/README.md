@@ -32,6 +32,6 @@
 
 ## 参照(正本ではない)
 
-- `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)。**旧 SPA(React)の参照資料はリポジトリへ追加しない** — 正はハーネス設計書 7.2 の注記(PO 裁定 2026-09-02・TSK-308 A-1)
+- `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)。旧 SPA(React)の参照資料の置き場は PO 裁定済み(2026-09-02・リポへ追加せず dd03160 典拠記録に留める — TSK-308 A-1)で、**規範化は設計書 7.2 の改訂タスク(TSK-311)で確定する**(それまでの経緯の正: `worklog/2026-09-02-decision-sheet-ruling.md`)
 - `worklog/` — 作業ログ
 - `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値 — 差し戻し再開時は in-review → active に戻す〔設計書 6.1〕)
