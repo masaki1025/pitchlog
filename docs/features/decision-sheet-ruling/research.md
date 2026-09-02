@@ -103,6 +103,18 @@ date: 2026-09-02
 
 git 履歴で確定: シートは `1d75c19`(ステップ 5 新設)→ `caa017f`(ステップ 6 起票)→ `93bbe29`(レビュー 1 周目・**群再構成**)→ `3fc1895`(2 周目)。**起票時点(caa017f)は群 A = 12 / B = 9 / C = 3** で、Notion TSK-308 の DoD「群 A(未決 12 件)」はこの時点の値。再構成での移動: 旧 A-1 WHIP・FIP → C-2 / 旧 A-3 臨時代走 → C-3 / 旧 A-12 AI 分析タブ → B-9 / 旧 C-2・C-3(PPTX 2 行)→ A-4 へ統合 / 旧 B-9 ツーシーム誤分類 → C-4。新規追加: B-3(物理削除)・B-4(403/404)・A-3(一括レポート PDF)。総数 24 は不変。**シート現物・research.md(`legacy-frontend-coverage/research.md:495` は 11 件)・worklog は一致しており、齟齬は Notion DoD の 1 箇所のみ**。
 
+### §8 dd03160 実物照合 3 点(ステップ 1 — 2026-09-02)
+
+**方法の記録**: 計画は /research(Codex・gh 経由)としていたが、Codex サンドボックスから api.github.com への接続が遮断され 3 点とも確認不能の応答となった(試行 URL は Codex 応答に記録)。**ローカル保全クローン `~/projects/Baseball_Scoring` に対象コミット `dd03160044aa5932d3b5a025870c9a5a56d979ef` が存在する**ことを確認し、`git show <SHA>:<path>` による固定コミットの直接照合へ切り替えた(コミット SHA は内容アドレスのため、外部アーカイブと同一内容であることは SHA 一致で保証される)。以下の `旧:` = dd03160 時点の `ファイル:行`。
+
+1. **B-8(frozenset の対象)= 判定: (a) 作戦語彙側で確定**。`旧:api/strategy_service.py:24-27` の 4 定数:
+   `_STEAL_OPS = {"盗塁", "エンドラン"}` / `_ADVANCE_TO_SECOND = {"二進", "三進", "本進"}` / `_ADVANCE_TO_THIRD = {"三進", "本進"}` / `_SAC_BUNT_STRATEGIES = {"バント", "打からバント構え", "バスター"}`。
+   使用箇所: `:65` `rows["作戦"].isin(_STEAL_OPS)`・`:74` 進塁判定・`:316` `rows["作戦2"].isin(_SAC_BUNT_STRATEGIES)` — **作戦名(+進塁結果語彙)の固定フィルタ**であり、チーム追加作戦はこのセットに載らず集計から漏れる。§6 で懸念した「集計の結果カテゴリ 11 分類」説は否定(11 分類は import 元 `charts/batting/analyse_strategy.py` の COUNT_KEYS 側)。**シート B-8 の記載「作戦語彙のハードコード」は正しく、裁定事項は不変**(要件優先の推奨を裏付け)。
+2. **A-7(球速補完の境界)= 判定: 境界 69/70・`00` は 100 で確定**。`旧:frontend/src/lib/speedInput.ts:18`(仕様コメント「00-69 を 100-169、70-99 をそのまま」)・`:46-50`(`twoDigitValue >= 70 ? そのまま : 100 + 値` — `"00"` → 0 → **100**)。1 桁入力中は保留表示(`:79`・`:82-89` — 7 以上は `d_`、6 以下は `1d_` のプレビュー)。モードは `quick-two-digit`(既定)/`standard-three-digit` の 2 値(`:1-3` — ed6a20f の「100 台チェックボックス」はモード切替に置換)。**本ライブラリ内に妥当範囲(60〜170)の検証なし**。§6 で報告した ed6a20f(境界 64/65・`00`=未入力)とは**別仕様であり、要件化の正は dd03160 の 69/70**。
+3. **B-1(role 列)= 判定: DB に role 列は存在しないで確定**。`user_account` は 5 列のまま(`旧:db/schema.py:386-393`〔PostgreSQL〕・`:395-403`〔SQLite〕— id/username/password_hash/team_id/created_at。`旧:db/migrations/versions/v0009_team_scoped_usernames.py` は一意制約を `(team_id, username)` へ変えるのみで列は増えない)。**`role="scorer"` は member ログイン成功時にトークンとレスポンスへ入る固定ラベル**(`旧:api/routers/auth.py:96,104` — ハードコード。チーム PW ログインでは role なし)。`admin` はシステム管理者認証の別経路で発行(`旧:api/deps.py:164`)。フロントの管理ガードは `旧:frontend/src/App.tsx:32-33`(`role !== 'admin'` で Navigate)。**裁定への影響**: 「旧は個人アカウント実装済み(role=scorer)」は「**個人ログインは実装済み。ただし role は DB 属性ではなくログイン経路で決まる固定ラベルで、役割の付与・変更モデルは存在しない**」に精緻化 — B-1 で (b) 要件化を選ぶ場合、役割モデルは新規設計になる。
+
+3 点とも確定(確認不能なし)— 条件付き裁定の条件案は不要。
+
 ## 未解決・申し送り
 
 1. **Notion TSK-308 の DoD「群 A(未決 12 件)」→ 11 件への現行化**(§7。TSK-306 で同型の据え置き→更新の先例あり — `docs/worklog/2026-09-02-legacy-frontend-coverage.md:113,129`)。
