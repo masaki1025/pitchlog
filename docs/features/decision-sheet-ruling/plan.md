@@ -1,6 +1,6 @@
 ---
 feature: decision-sheet-ruling
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-02・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -54,7 +54,7 @@ TSK-226 の成果物 [decision-sheet.md](../legacy-frontend-coverage/decision-sh
 | ハーネス設計書 `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**(計画改訂 — 成果物レビュー 2 周目で「A-1 の追記は新規範であり 7.6-3 後段」と判定され、**PO 裁定 2026-09-02 で本タスク内の節更新を撤回し TSK-311〔設計書 7.2 改訂・7.3 確定ゲート〕へ起票**。本タスクは起票まで) | — |
 | `docs/README.md`(参照節) | legacy/ 行に A-1 の裁定済み事実と TSK-311 参照の 1 行(規範の再定義はしない) | PR レビュー |
 | 要件書 `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(明文化裁定分は TSK-306 / TSK-215 / 新規タスクへ割り当て・起票のみ — 実改訂は各タスクの確定ゲートで) | — |
-| ハーネス運用評価台帳 `docs/development/harness-evaluation.md` | **反映なし**(コア領域該当の代替統制運用で追記が必要になった場合のみ H-12 へ補記 — 版は上げない) | (発生時のみ PR レビュー) |
+| ハーネス運用評価台帳 `docs/development/harness-evaluation.md` | **H-12 へ再発補記(2→3 件: 文書のみタスクのコア領域該当)・H-19 へ⑥追記(5→6 件: A-1 の「節更新」起案が確定ゲートへ覆った)・候補 1 件(codex research のネット遮断)+ 変更履歴 1 行 — /pr クローズ処理で追記(版は上げない) | PR レビュー(7.6-3 前段) |
 
 ## 4. 実装方針
 
