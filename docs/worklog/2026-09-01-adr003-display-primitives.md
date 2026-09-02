@@ -160,3 +160,9 @@ branch: feature/adr003-display-primitives
 - target matrix: **(β)①〜⑤ = SQL 式 + 型付き受け口 + 生成 formatter(Python)の複合 target** / (β)⑦ = 現行のままへ分割。生成前検査へ表示 primitive のパラメータ指定漏れ・`NumericValue` 直接差し込みの検査を追加。D-11 の `generated[]`(formatter を含む)・`mutation`(formatter も変異対象)を追記
 - **機械条件の確認記録**: 差分 = :99-100・:241 の 2 hunk のみ(target matrix・生成前検査・generated[]・mutation の各行)
 - **[手動] 合格判定: 合格(2026-09-03・山田正輝)** — (β) の生成先が複合 target として一意
+
+### ステップ 6 — D-6/D-7/D-8/D-10/D-11 の追随(2026-09-03)
+
+- 10 置換: D-6 (β) ベクタ expected へ完成表示値(非対称解消)/ D-6・D-8 の X 表記 = 構造化 enum + 写像①(帰属確定)/ D-7 等価性を (β)①〜⑤ で最終表示文字列まで延長((β)⑦ 現行)/ D-8 前処理へ完成表示値・母数併記 = 2 構造化値 + template・完全一致比較 / D-10 3-b へ表示書式列の固定 / D-11 入力範囲へ第 3 の軸(表示 primitive 同値分割 7 軸)・directTargets[] 複合 target スキーマ(kind: composite・components 順序固定・directTargetId 直積不変)・propertyCatalog トップレベル明記 / null 帰属参照を③ primitive へ(D-7・D-10)
+- **機械条件の確認記録**: 差分 = :202/:215/:241/:267/:272/:319/:322/:355 の 8 hunk(すべて該当行のみ)
+- **[手動] 合格判定: 合格(2026-09-03・山田正輝)** — D-1/D-6/D-7/D-8/D-10/D-11 の整合を通し読みで確認
