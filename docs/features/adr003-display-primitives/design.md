@@ -85,14 +85,16 @@ ADR で規定するのは**軸**まで(具体ケース値・証跡形式は TSK-
 | #10 母数併記の形 | **2 つの構造化値(率・母数)+ 既存テンプレート②の合成**で固定(完成表示値 = template 出力)。併記のための新 primitive は作らない |
 | #1(2 種限定の理由の不在)・#4(版規則)・#8(生成先) | #8 は §3 で確定 / #1 は §6 の回答で代置 / #4 は承認時裁定(計画 §6 手動確認 #7) |
 
-## 8. witness(ステップ 3 で検証 — 判定者: 山田正輝)
+## 8. witness(ステップ 3 で検証済み — binding 確定値・判定者: 山田正輝)
 
-binding 確定後、次の 2 例が §1 の宣言だけで生成できることを机上 witness で示す:
+binding(2026-09-03 PO 裁定: 率 = 3 桁先頭 0 なし四捨五入 / 投球回 = 剰余 0 省略・`n/3` / WHIP・FIP 2 桁 / 平均球速 1 桁 / 百分率整数 / `%()` 半角 / 負号半角 / null 代替 = 全角「−」/ 期間ラベル = JST 年度導出):
 
-- `REQ:1095`: `NumericValue(rational 17/3 相当: 整数部 5・剰余 2)` → P3(denominator=3, integerSuffix=回, fractionStyle=n/d) → **「5回2/3」**(剰余 0 の形は binding の値で)
-- `REQ:443`: 率 `12/30` → P2(scale=0, rounding=binding 値, symbol=binding 値) → 「40%」、母数 `12` → P1(scale=0) → 「12」、template `{率}({母数}球)` → **「40%(12球)」**
+- `REQ:1095` 投球回: アウト数 17 → `NumericValue(整数部 5・剰余 2/3)` → **P3**(denominator=3, integerSuffix=「回」, zeroRemainderForm=省略, fractionStyle=`n/3`) → **「5回2/3」**。アウト数 15 → 整数部 5・剰余 0 → **「5回」**(省略形)
+- `REQ:443` 球種割合: 率 `12/30` → **P2**(scale=0, rounding=四捨五入, symbol=半角`%`) → 「40%」、母数 `12` → **P1**(scale=0) → 「12」、template `{割合}({球数}球)`(括弧半角) → **「40%(12球)」**
+- 追試(binding 表の代表値): 打率 `1/3` → P1(scale=3, 四捨五入, leadingZero=false) → 「.333」/ 得失点差 `-3` → P1(scale=0, negativeSign=`-`) → 「-3」/ 0 除算 → P4(substitute=「−」) → 「−」
+
+**P4 の最終判定(binding 確定後)**: 独立 primitive として維持する(**4 種で確定**)。既存規則①(enum→表示名写像)の拡張は不採用 — `null` は enum 値ではなく型機能であり、写像テーブルの定義域に混ぜると「安定した enum に限る」という①の制約を壊すため。
 
 ## 未解決・検討メモ
 
-- P4 を独立 primitive にするか既存規則①の拡張(enum に nullable ケースを許す)にするかは、binding の全対象を並べた時点(ステップ 3)で決めて ADR に書く
 - `(β)` の formatter 生成物の言語(Python 受け口内の関数か独立モジュールか)は TSK-235 の検査基盤実装で確定(ADR は「同一宣言モデルから生成」までを規定)
