@@ -134,3 +134,10 @@ branch: feature/adr003-display-primitives
 
 - **適用版(7.3-1 暫定記録)**: ハーネス設計書 **v1.13**(approved)の 7.3。**条文コミット = `8a3f3fb`**(in-review 化コミットの第一親 — approved 状態の v1.13 条文を収録する最新コミット)。初回敵対レビュー実行時点で異なっていれば更新してから開始する
 - ADR-003・要件書の frontmatter を `approved → in-review` へ。変更履歴へ in-review 行(射程宣言 7.3-7 込み)を追加 — **版セルは暫定**(ADR = 0.2 仮〔0.2/1.0 は承認時裁定〕/ 要件書 = 2.6 仮〔TSK-267 の v2.5 先約との先行関係を承認時に裁定〕)。docs/README.md 索引を in-review 表記へ現行化(単一ゲート・一括検証 — 記録はゲート単位で 1 件)
+- **機械条件の確認記録**(6 節の判定方法): frontmatter = `head -3` で両正本とも `status: in-review` を確認 / 適用版の同一コミット = `git show 7df1f98 -- docs/worklog/...` の差分本体に「適用版(7.3-1 暫定記録)」の追加行 1 件を確認 / `check_docs_status.py` exit 0(索引と frontmatter の一致)
+
+### ステップ 2 — design.md の骨子(2026-09-03)
+
+- `docs/features/adr003-display-primitives/design.md` を新設: primitive 候補 4 種(P1 fixed-decimal〔scale=0 整数・負号込み〕/ P2 percentage / P3 mixed-fraction / P4 null-substitute〔既存拡張で足りれば 3 種〕)・`NumericValue → DisplayAtom`・(β)①〜⑤ の複合 target 証跡スキーマ(kind: composite・components 順序固定・各 hash・directTargetId 直積不変・最終表示文字列の完全一致比較・参照実装も表示まで生成)・同値分割 7 軸・D-2 不採用 3 理由・16 周目への回答・決定の空白 8 件の埋め方(research §6 対応表)・witness 2 例の机上手順
+- plan.md 4 節から design.md への参照を追加(機械条件: 存在 + 参照 = 充足)
+- **[手動] 合格判定: 合格(2026-09-03・山田正輝)** — 骨子が計画 §4-(3)〜(8) の規定を満たすことを確認(witness の検証はステップ 3 で実施)
