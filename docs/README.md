@@ -33,5 +33,6 @@
 ## 参照(正本ではない)
 
 - `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)
+  - **旧 SPA(React)の参照資料はリポジトリへ追加しない**(PO 裁定 2026-09-02・TSK-308 A-1): 典拠は外部 private アーカイブ `masaki1025/Baseball_Scoring-archive` の固定コミット `dd03160044aa5932d3b5a025870c9a5a56d979ef`(annotated tag `pitchlog-req-v2.0-evidence`)を `旧:<path>:<line>` 形式で記録する(移植規則の適用範囲・照合手順は各 feature の porting-rules 等に従う)。**照合には当該アーカイブへのアクセスが要る**(保全・許諾・再検証の記録: `worklog/2026-08-13-req-v2-legacy-parity.md`・`worklog/2026-09-02-decision-sheet-ruling.md`)
 - `worklog/` — 作業ログ
 - `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値 — 差し戻し再開時は in-review → active に戻す〔設計書 6.1〕)
