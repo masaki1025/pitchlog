@@ -173,3 +173,11 @@ branch: feature/adr003-display-primitives
 - **設計書 6.3(境界定義表)= 波及なし**。根拠: 状況計算行(`:356`)の意味範囲は「4.0-4 の列挙 + 付録E + 座標変換・捕球選手推定 + 後段集計(条件成立まで)」で定義されており、表示 primitive は**その出力(表示値)の実現方式** — 意味範囲・paths とも変更を要しない
 - **結論: 波及なし**(設計書に差分なし・別タスク起票なし・規範変更の逸脱条件に非該当)
 - **[手動] 合格判定: 合格・波及なしを承認(2026-09-03・山田正輝)**
+
+### ステップ 8 — 参照全ファイルの追随(2026-09-03)
+
+- **母集合の計測(開始時)**: `grep -rl "ADR-003" docs/ scripts/ tests/ backend/ frontend/ contracts/ .claude/ AGENTS.md CLAUDE.md | grep -v docs/legacy/` → **48 ファイル**(内訳: worklog 9〔歴史〕/ features 29〔一時 — うち本 feature 3〕/ 正本系 5 / 機械資産 5)
+- **行番号参照の検査**: 検索式 `ADR-003[^:）)。、\s]*:[0-9]+|ADR-003-domain-calc-method\.md:[0-9]+`(worklog・legacy 除外)→ ヒット 5 件・**すべて feature 文書**。**活動中文書(本 feature の research.md)の 3 件を決定 ID / 節名参照へ置換**(`:97`→D-1〔正本の射程〕・`:359`→「理由」節・`:1-3`→frontmatter)→ **活動中文書で 0 件**。クローズ済み feature(2 件)・worklog・fixture(`sync-protocol-source.txt` — SHA 固定スナップショット)は**歴史記録として据え置き**(H-67 の裁定: 記録の行番号引用は変遷追跡目的で可・規範条文の典拠は本文が正)
+- **意味依存参照の確認**: sync-protocol.md(D-6 の状態補正条項への決定 ID 参照 13 件 — 本改訂の射程外・本文に行番号引用 0 件・追随不要)/ contracts/README(「正は D-6/D-12」の参照のみ・複製なし)/ requirement-claims.json(確定事実への言及 — 実追随はステップ 10・甲-1)/ defects.json(D-6 契約表の行構成は不変)/ harness-evaluation.md(歴史記録)→ **追随変更なし**
+- 機械検証: 置換後の活動中文書で検索式ヒット 0・`check_docs_status.py` exit 0
+- **[手動] 合格判定: 合格(2026-09-03・山田正輝)** — 意味に依存する参照の確認を承認
