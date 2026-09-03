@@ -943,6 +943,63 @@ def test_fixture_route_registry_closes_http_and_cache_claims() -> None:
     checker.validate_derived_lock(registry, lock, "route-registry.json")
 
 
+def _ddl_elements_semantics_fixture() -> dict[str, Any]:
+    """ステップ7の最小 DDL fixture を返す。"""
+    return json.loads(
+        (FIXTURE_ROOT / "ddl-elements.json").read_text(encoding="utf-8")
+    )
+
+
+def test_invalid_ddl_elements_semantics_are_red() -> None:
+    """policy・owner ACL・caller schema USAGE の既知負例を全て拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-ddl-elements.json").read_text(encoding="utf-8")
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = _ddl_elements_semantics_fixture()
+        if case["operation"] == "replace":
+            parent, key = _parent_and_key(mutated, tuple(case["path"]))
+            assert isinstance(parent, dict) and isinstance(key, str)
+            parent[key] = case["value"]
+        elif case["operation"] == "remove_acl":
+            mutated["acl_expectations"] = [
+                acl
+                for acl in mutated["acl_expectations"]
+                if acl["acl_id"] != case["acl_id"]
+            ]
+        else:
+            schema = next(
+                schema
+                for schema in mutated["schemas"]
+                if schema["schema_id"] == case["schema_id"]
+            )
+            schema["usage_role_ids"].remove(case["role_id"])
+
+        try:
+            checker.validate_ddl_elements(mutated, REPOSITORY_ROOT)
+        except checker.CatalogError as error:
+            message = str(error)
+            if case["expected_error"] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_fixture_ddl_elements_semantics_are_valid() -> None:
+    """policy 対応表と関数 ACL/schema 依存の最小正例を受理する。"""
+    result = checker.validate_ddl_elements(
+        _ddl_elements_semantics_fixture(), REPOSITORY_ROOT
+    )
+
+    assert result["predicate_ids"] == frozenset(
+        {"PREDICATE:CURRENT_TENANT_OWNS_ROW"}
+    )
+
+
 def _validate_one_derived_asset(
     name: str,
     mutated: dict[str, Any],

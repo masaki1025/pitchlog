@@ -1,0 +1,45 @@
+{
+  "unknown_policy_command": {
+    "operation": "replace",
+    "path": [
+      "policies",
+      0,
+      "command"
+    ],
+    "value": "MERGE",
+    "expected_error": "policy.command が閉じた値域にない"
+  },
+  "unknown_policy_role": {
+    "operation": "replace",
+    "path": [
+      "policies",
+      0,
+      "role_ids"
+    ],
+    "value": [
+      "unknown_role"
+    ],
+    "expected_error": "policy.role_ids が未知ロールを参照する"
+  },
+  "undefined_predicate": {
+    "operation": "replace",
+    "path": [
+      "policies",
+      0,
+      "using_predicate_id"
+    ],
+    "value": "TRUE",
+    "expected_error": "policy predicate が閉じた対応表にない"
+  },
+  "missing_owner_dependency_acl": {
+    "operation": "remove_acl",
+    "acl_id": "ACL:probe_management_effects:management_fn_owner",
+    "expected_error": "関数ownerの依存基表ACLが宣言と exact-set 不一致"
+  },
+  "missing_caller_schema_usage": {
+    "operation": "remove_schema_usage",
+    "schema_id": "management_private",
+    "role_id": "management_caller",
+    "expected_error": "関数callerのschema USAGEが宣言と exact-set 不一致"
+  }
+}

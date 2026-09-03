@@ -146,3 +146,9 @@ branch: fix/authz-claims-corpus
 - スキーマ確定: route-registry へ `claim_dispositions[]`(source_id・location〔http|cache〕・disposition〔routed|out_of_registry〕・reason_code〔design_pending_task|cache_matrix_pending〕)。逆向き閉包 = HTTP 主張は結線か disposition の**ちょうど一方**・cache 主張は必ず明示 disposition・二重登録と未知 ID を拒否
 - テスト先行: 負例 3 種 red → 実装 → green。正例(routed/http disposition/cache disposition)追加・route lock へ disposition を独立 entry 化
 - **期待失敗集合の更新(完全列挙)**: 既知 1 本 + 新規 3 本(`test_repository_derived_assets_are_valid`・`test_all_db_claim_correspondences_reject_one_entry_removal`・`test_all_registry_matrix_links_reject_either_side_removal`)= 計 4 本 — いずれも実資産の claim_dispositions 未追随由来で想定内(ステップ 10 で解消)。除外回帰 55 passed・ruff/ty green
+
+### ステップ 7 — 意味論(iv) DDL 意味検査(F14・codex 委任)
+
+- policy の command を閉じた値域(SELECT/INSERT/UPDATE/DELETE/ALL)・role_ids を roles 実在参照・predicate を資産内 `predicates` 定義への参照(恒真を宣言できない形)で検査。関数 owner の依存基表 ACL・caller の schema USAGE を exact-set 化
+- テスト先行: 負例 5 種 red → 実装 → green(実出力つき)。フィクスチャへ ddl-elements 最小正例を新設
+- **期待失敗集合の更新(完全列挙・計 6 本)**: 既知 4 本 + 新規 2 本(`test_repository_oracle_assets_are_valid`・`test_all_cut_set_elements_reject_one_element_removal` — 実資産 ddl-elements の predicates 未追随由来・ステップ 11 で解消)。全スイート 6 failed / 845 passed・ruff/ty green

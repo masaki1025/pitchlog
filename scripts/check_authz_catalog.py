@@ -2317,6 +2317,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             "roles",
             "schemas",
             "tables",
+            "predicates",
             "policies",
             "functions",
             "acl_expectations",
@@ -2477,6 +2478,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"table_id が重複している: {table_id}")
         table_by_id[table_id] = table
 
+    predicate_rows = _expect_object_list(
+        raw["predicates"], "DDL manifest.predicates"
+    )
+    predicate_kind_by_id: dict[str, str] = {}
+    for index, predicate in enumerate(predicate_rows):
+        label = f"DDL manifest.predicates[{index}]"
+        _expect_keys(predicate, {"predicate_id", "predicate_kind"}, label)
+        predicate_id = _expect_string(
+            predicate["predicate_id"], f"{label}.predicate_id"
+        )
+        predicate_kind = _expect_string(
+            predicate["predicate_kind"], f"{label}.predicate_kind"
+        )
+        if predicate_id in predicate_kind_by_id:
+            raise CatalogError(f"predicate_id が重複している: {predicate_id}")
+        predicate_kind_by_id[predicate_id] = predicate_kind
+    if predicate_kind_by_id != {
+        "PREDICATE:CURRENT_TENANT_OWNS_ROW": "current_tenant_owns_row"
+    }:
+        raise CatalogError("policy predicate 定義が閉じた対応表と不一致")
+
     policies = _expect_object_list(raw["policies"], "DDL manifest.policies")
     policy_by_id: dict[str, dict[str, object]] = {}
     for index, policy in enumerate(policies):
@@ -2497,12 +2519,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         policy_id = _expect_string(policy["policy_id"], f"{label}.policy_id")
         if policy["table_id"] not in table_by_id:
             raise CatalogError(f"{policy_id}: 未知 table を参照する")
+        command = _expect_string(policy["command"], f"{label}.command")
+        if command not in {"SELECT", "INSERT", "UPDATE", "DELETE", "ALL"}:
+            raise CatalogError(f"{policy_id}: policy.command が閉じた値域にない")
         if policy["policy_mode"] != "permissive":
             raise CatalogError(f"{policy_id}: policy mode が候補と不一致")
-        if not _expect_string(policy["using_predicate_id"], f"{label}.using") or not _expect_string(
+        role_ids = frozenset(
+            _expect_string_list(policy["role_ids"], f"{label}.role_ids")
+        )
+        if not role_ids or not role_ids <= set(role_by_id):
+            raise CatalogError(f"{policy_id}: policy.role_ids が未知ロールを参照する")
+        using_predicate_id = _expect_string(
+            policy["using_predicate_id"], f"{label}.using"
+        )
+        with_check_predicate_id = _expect_string(
             policy["with_check_predicate_id"], f"{label}.with_check"
-        ):
-            raise CatalogError(f"{policy_id}: USING / WITH CHECK が必要")
+        )
+        if {
+            using_predicate_id,
+            with_check_predicate_id,
+        } - predicate_kind_by_id.keys():
+            raise CatalogError(f"{policy_id}: policy predicate が閉じた対応表にない")
         if policy_id in policy_by_id:
             raise CatalogError(f"policy_id が重複している: {policy_id}")
         policy_by_id[policy_id] = policy
@@ -2511,6 +2548,8 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
 
     functions = _expect_object_list(raw["functions"], "DDL manifest.functions")
     function_by_id: dict[str, dict[str, object]] = {}
+    required_owner_acl: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    required_callers_by_schema: defaultdict[str, set[str]] = defaultdict(set)
     for index, function in enumerate(functions):
         label = f"DDL manifest.functions[{index}]"
         _expect_keys(
@@ -2525,7 +2564,9 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
                 "return_contract",
                 "aggregation_contract",
                 "dependency_table_ids",
+                "owner_dependency_acl",
                 "execute_role_ids",
+                "caller_schema_usage_role_ids",
                 "public_execute",
             },
             label,
@@ -2551,12 +2592,51 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"{function_id}: function 参照が閉じていない")
         if function["aggregation_contract"] != "none":
             raise CatalogError(f"{function_id}: 手書き集計を候補関数に含めない")
+        owner_acl_rows = _expect_object_list(
+            function["owner_dependency_acl"], f"{label}.owner_dependency_acl"
+        )
+        declared_dependency_ids: set[str] = set()
+        for acl_index, owner_acl in enumerate(owner_acl_rows):
+            acl_label = f"{label}.owner_dependency_acl[{acl_index}]"
+            _expect_keys(owner_acl, {"table_id", "privilege_ids"}, acl_label)
+            table_id = _expect_string(owner_acl["table_id"], f"{acl_label}.table_id")
+            privilege_ids = frozenset(
+                _expect_string_list(
+                    owner_acl["privilege_ids"], f"{acl_label}.privilege_ids"
+                )
+            )
+            if (
+                table_id in declared_dependency_ids
+                or not privilege_ids
+                or not privilege_ids <= declared_privileges
+            ):
+                raise CatalogError(f"{function_id}: owner依存ACL宣言が閉じていない")
+            declared_dependency_ids.add(table_id)
+            required_owner_acl[(str(function["owner_role_id"]), table_id)].update(
+                privilege_ids
+            )
+        if declared_dependency_ids != dependency_ids:
+            raise CatalogError(f"{function_id}: owner依存表と依存基表が exact-set 不一致")
+        caller_usage_ids = frozenset(
+            _expect_string_list(
+                function["caller_schema_usage_role_ids"],
+                f"{label}.caller_schema_usage_role_ids",
+            )
+        )
+        if caller_usage_ids != execute_ids:
+            raise CatalogError(
+                f"{function_id}: caller schema USAGE宣言とEXECUTE対象が exact-set 不一致"
+            )
+        required_callers_by_schema[str(function["schema_id"])].update(
+            caller_usage_ids
+        )
         if function_id in function_by_id:
             raise CatalogError(f"function_id が重複している: {function_id}")
         function_by_id[function_id] = function
 
     acl_rows = _expect_object_list(raw["acl_expectations"], "DDL manifest.acl_expectations")
     acl_ids: set[str] = set()
+    acl_by_object_grantee: dict[tuple[str, str, str], frozenset[str]] = {}
     for index, acl in enumerate(acl_rows):
         label = f"DDL manifest.acl_expectations[{index}]"
         _expect_keys(
@@ -2585,9 +2665,58 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"{acl_id}: 未知 object_kind")
         if acl["grantee_role_id"] not in role_by_id or acl["grant_option"] is not False:
             raise CatalogError(f"{acl_id}: ACL grantee または grant option が不正")
+        acl_key = (
+            str(acl["object_kind"]),
+            str(acl["object_id"]),
+            str(acl["grantee_role_id"]),
+        )
+        if acl_key in acl_by_object_grantee:
+            raise CatalogError(f"{acl_id}: object・grantee の ACL が重複している")
+        acl_by_object_grantee[acl_key] = frozenset(privileges)
         if acl_id in acl_ids:
             raise CatalogError(f"acl_id が重複している: {acl_id}")
         acl_ids.add(acl_id)
+
+    actual_owner_acl = {
+        (grantee_role_id, object_id): privileges
+        for (object_kind, object_id, grantee_role_id), privileges in (
+            acl_by_object_grantee.items()
+        )
+        if object_kind == "table"
+        and role_by_id[grantee_role_id]["role_kind"] == "function_owner"
+    }
+    expected_owner_acl = {
+        key: frozenset(privileges) for key, privileges in required_owner_acl.items()
+    }
+    if actual_owner_acl != expected_owner_acl:
+        raise CatalogError("関数ownerの依存基表ACLが宣言と exact-set 不一致")
+
+    actual_function_acl = {
+        (object_id, grantee_role_id)
+        for (object_kind, object_id, grantee_role_id) in acl_by_object_grantee
+        if object_kind == "function"
+    }
+    expected_function_acl = {
+        (function_id, role_id)
+        for function_id, function in function_by_id.items()
+        for role_id in _expect_string_list(
+            function["execute_role_ids"], f"{function_id}.execute_role_ids"
+        )
+    }
+    if actual_function_acl != expected_function_acl:
+        raise CatalogError("関数EXECUTE ACLが宣言と exact-set 不一致")
+
+    for schema_id, required_caller_ids in required_callers_by_schema.items():
+        actual_caller_ids = set(
+            _expect_string_list(
+                schema_by_id[schema_id]["usage_role_ids"],
+                f"{schema_id}.usage_role_ids",
+            )
+        )
+        if actual_caller_ids != required_caller_ids:
+            raise CatalogError(
+                "関数callerのschema USAGEが宣言と exact-set 不一致"
+            )
 
     column_acl_rows = _expect_object_list(
         raw["column_acl_expectations"], "DDL manifest.column_acl_expectations"
@@ -2753,6 +2882,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         "role_ids": frozenset(role_by_id),
         "table_ids": frozenset(table_by_id),
         "function_ids": frozenset(function_by_id),
+        "predicate_ids": frozenset(predicate_kind_by_id),
         "provisioning_claim_id": provisioning["claim_id"],
         "management_probe_claim_ids": management_claim_ids,
         "table_privilege_ids": declared_privileges,
