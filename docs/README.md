@@ -6,7 +6,7 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **in-review**(v2.6 仮起案 — TSK-278: 付録A の書式 binding。ADR-003 と単一ゲートで一括検証・版番号は承認時に TSK-267 との先行関係を裁定。直前の approved は v2.4) | 2.6 | 2026-09-03 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.6 — TSK-278: 付録A の書式 binding・A-1 共通規定・被安打/本塁打行ほか。**v2.5 は TSK-267 の先約** — 確定ゲート 27 周・PO 承認 2026-09-03) | 2.6 | 2026-09-03 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(v0.1 — 要件書 v2.4 と一括検証。敵対レビュー10周・射程縮小2回 → PO 承認) | 0.1 | 2026-08-30 |
@@ -14,7 +14,7 @@
 | [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認。H-20・H-78・H-79・H-53・H-81・**H-22・H-42・H-61** の実測を記入。**H-85 を新設**) | 1.0 | 2026-09-01 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
-| [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **in-review**(v0.2 仮起案 — TSK-278: D-1 へ数値表示 primitive。要件書と単一ゲートで一括検証・版は承認時に 0.2 か 1.0 を裁定。直前の approved は v0.1) | 0.2 | 2026-09-03 |
+| [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(v0.2 — TSK-278: D-1 へ数値表示 primitive 4 種・composite target・表示系変異演算子 — 確定ゲート 27 周・PO 承認 2026-09-03) | 0.2 | 2026-09-03 |
 | [オンボーディング](development/onboarding.md) | **approved**(v1.2 — 受入プロファイルの複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定・arm64 実機で実測〕。敵対レビュー9周 → PO 承認) | 1.2 | 2026-08-27 |
 | [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.1 — 敵対レビュー2周 → PO 承認) | 1.1 | 2026-08-24 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(v1.3 — ブートストラップ手順を前提 PR 第 3 号へ対応し、手順 6・7 へ 10.1 の共通順序とマージ後検査を伝播。敵対レビュー9周 → PO 承認) | 1.3 | 2026-08-27 |
