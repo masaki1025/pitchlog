@@ -21,7 +21,7 @@ EXPECTATION_ROOT_KEYS = (
     "dsn_environment_variables",
 )
 EXPECTED_EXPECTATION_COUNT = 22
-EXPECTED_PROVENANCE_COUNT = 24
+EXPECTED_PROVENANCE_COUNT = 25
 
 
 def _load_asset() -> dict[str, Any]:

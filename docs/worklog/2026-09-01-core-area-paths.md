@@ -27,6 +27,8 @@ branch: feature/core-area-paths
 
 - 2026-09-04: **PR #40 の取り込み(2 回目の develop 同期)**: 山田さん側の提案どおり #40(TSK-278 — ADR-003 v0.2・要件書 v2.6・authz 資産 reseal・台帳 H-88 新設/H-85 補記)を先行マージしてもらい、merge 87d8ccd で取り込み(変更ファイルの重なりゼロ・競合なし)。取り込み後 ruff・ty・pytest **875 passed**・push 済み。②遡及要点確認はこの状態(= #40 後の develop 相当)で実施できる
 
+- 2026-09-04: ステップ 1〜4 実装完了(コミット 676f503 / 1e2a7f0 / d4373ec / 1bf690c — 各ステップの合格条件は委任先報告を再現検証)。総合検証: 差分スコープ = 計画 3 節と完全一致(13 ファイル)・check_plan_docs_sync exit 0・harness ゲート(ruff/ty/pytest 875)green。**検出 1 件**: backend 側 `test_environment_expectations.py` の凍結カウント(provenance 総数 24)が出典注記 +1 で red — H-85 型の件数オラクル連鎖。24→25 へ追随し計画 3 節別枠へ宣言追加(ステップ 2 追補)。backend 静的テスト 9 passed・ruff/ty green
+
 ## 決定
 
 - **本タスクは移譲せず自分(徳光)で実施する**(2026-09-01・PO 判断)— 理由: 緊急性が高い(H-12 顕在化 — PR #33 が core-guard 非発火でマージ)+ 責任者が自分であるため。もう一人の開発者への役割は、PR #33 コードの帰属判定ヒアリングと PR 段階の逐行確認・承認候補として検討を残す

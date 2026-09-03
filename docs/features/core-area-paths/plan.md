@@ -66,6 +66,7 @@ created: 2026-09-01
 | `.github/workflows/ci.yml` | pytest 2 呼び出しへ `-c pyproject.toml`(各 1 行)。**guard_paths 該当** |
 | `tests/test_ci_wiring.py` | 期待コマンド追随 + **harness ジョブの exact オラクル新設**。**guard_paths 該当** |
 | `backend/tests/db/environment-expectations.json` | 期待コマンド値(`single_command.expected`)と CI 参照の `provenance.extracted_text` の追随 + `source_revision` を本計画の承認(起票)コミットへ更新(出典 = 本計画 4 節の注記つき) |
+| `backend/tests/db/test_environment_expectations.py` | 凍結カウント `EXPECTED_PROVENANCE_COUNT` の 24→25 追随(出典注記 1 件の追加分 — 総合検証で検出・ステップ 2 追補) |
 | `docs/worklog/2026-09-01-core-area-paths.md` | 経緯・裁定の記録(遡及処置の完遂記録を含む) |
 | `docs/features/core-area-paths/plan.md`・`research.md` | 本計画・調査メモ(起票コミットで追加) |
 
