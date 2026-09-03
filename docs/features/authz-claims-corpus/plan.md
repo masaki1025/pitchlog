@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d093b75e68781d894cac8a869bea666
 branch: fix/authz-claims-corpus
 created: 2026-09-03
-計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -30,7 +30,7 @@ created: 2026-09-03
 1. 母集合(1,062 件の分類・`decidable_at`・closed-world 表現・経路結線)と**派生 3 資産・oracle 6 資産・seal**への**敵対レビューの再実施**と、指摘の全数列挙・PO 裁定 — 変更対象: `docs/worklog/2026-09-03-authz-claims-corpus.md`・`docs/features/authz-claims-corpus/**`
 2. 裁定に基づく**母集合・検査器・スキーマの是正** — 変更対象: `contracts/authz/**`・`scripts/check_authz_catalog.py`・`tests/test_check_authz_catalog.py`・`tests/fixtures/authz_claims/**`
 3. **採取器の是正**: `_table_cells` のインデント非対応(`scripts/check_authz_catalog.py:229-232`)の修正 + インデント表のフィクスチャ負例追加
-4. **TSK-233 申し送りの反映**: 要件書 NFR-018 例外表の 2 セル更新(検証テスト = `frontend/src/lib/courseCoordinateContract.spec.ts` / 状態 = `有効`。**終了証跡・失効判定者・対象シンボル・対応する契約値はバイト単位で無変更**)+ 変更履歴 1 行追記 + `docs/README.md` 現行化。**ゲート区分 = 7.6-3 前段・版 2.4 のまま(PO 裁定 2026-09-03)**。**変更履歴の追記行自体も全数採取の対象になる**(母集合 total 1062 → **1063**・`CHANGELOG` 配下の `table_row` +1。**分類の既定 = 既存の変更履歴行と同じ規則による `out_of_scope`** — ステップ 1 のレビュー観点にも含め、裁定で覆る場合は裁定に従う)
+4. **TSK-233 申し送りの反映**: 要件書 NFR-018 例外表の 2 セル更新(検証テスト = `frontend/src/lib/courseCoordinateContract.spec.ts` / 状態 = `有効`。**終了証跡・失効判定者・対象シンボル・対応する契約値はバイト単位で無変更**)+ 変更履歴 1 行追記 + `docs/README.md` 現行化。**ゲート区分 = 7.6-3 前段・版 2.4 のまま(PO 裁定 2026-09-03)**。**変更履歴の追記行自体も全数採取の対象になる**(母集合 total 1062 → **1063**・`CHANGELOG` 配下の `table_row` +1。**分類の既定 = 既存の変更履歴行と同じ規則による `out_of_scope`** — 新規行はステップ 1 時点で未存在のため母集団・観点には含めず〔§4-(3)〕、ステップ 5 の合格条件で Claude が規則適用の妥当性を検査し、PR の総合敵対レビューの対象に含める)
 5. 派生 3 資産 + 各 lock + oracle 6 資産 + `oracle-seal.lock.json` + `tests/test_check_authz_catalog.py` の期待件数の追随(**H-85 の 2 段制約に従う** — §4-(2))
 
 ### やらないこと
@@ -74,7 +74,7 @@ created: 2026-09-03
 - **対象 = `contracts/authz/` 全 15 資産**(母集合 + 決定 lock + 派生 3 資産 + 各 lock + oracle 6 資産 + seal)+ 検査器 + 要件書 v2.4。結線情報(`source_claim_ids`)は経路レジストリ側にしかないため、母集合だけを対象にすると結線の指摘が構造的に不可能になる(計画レビュー 1 周目 P0-1)
 - **観点の下限**: ①分類・`decidable_at` の誤り ②closed-world 文(全域性宣言)の扱い ③経路レジストリと要件行の結線(http 判定可能 184 件中 166 件未結線・cache 17 件下流ゼロ・db のみ exact-set)④分類規則の罠の無力(`allowed_source_kinds: []` = 制約なし)⑤インデント表の採取欠陥(既知)⑥oracle 資産(claim-mutant-map 等)と母集合の整合(**ステップ 2 で加わる変更履歴行はステップ 1 時点で未存在のため母集団・観点に含めない** — 分類は §2-4 の既定で固定し、ステップ 5 の合格条件で Claude が規則適用の妥当性を検査、PR の総合敵対レビューの対象に含める〔計画レビュー 3 周目 P0-4〕)
 - **H-53 の統制の具体形(2 種類の集合を区別する — 計画レビュー 2 周目 P0-2・P0-3)**:
-  1. **走査の全数性**: レビュアーに「**走査した母集団の全エントリ ID**」を **`<資産ファイル名>:<エントリ主キー>` の名前空間付き**で 1 行 1 ID の機械可読リストとして出力させる(母集合と決定 lock は同じ `source_id` を持つため名前空間なしでは lock の未走査を検出できない)。**主キーを持たない部分(`input_manifest`・`scope`・`classification_rules`・`basis_rules`・review/reseal policy・列挙表等)は `<資産ファイル名>:<JSON トップレベルキー>` 単位で列挙対象に含める**。**Claude は全 15 資産から python で直接同じ名前空間付き集合を機械列挙し、exact-set(差集合 0)で突合**する(計画レビュー 3 周目 P0-5) — これが「全数を走査した」ことの証明
+  1. **走査の全数性**: レビュアーに「**走査した母集団の全エントリ ID**」を **`<資産ファイル名>:<エントリ主キー>` の名前空間付き**で 1 行 1 ID の機械可読リストとして出力させる(母集合と決定 lock は同じ `source_id` を持つため名前空間なしでは lock の未走査を検出できない)。**主キーを持たない部分(`input_manifest`・`scope`・`classification_rules`・`basis_rules`・review/reseal policy・列挙表等)は `<資産ファイル名>:<JSON トップレベルキー>` 単位で列挙対象に含める**。**レビュー対象は 15 資産に加えて検査器と要件書を含むため、母集団リストには `check_authz_catalog.py:<トップレベル関数・クラス名>` と `requirements-pitchlog-2026-07-22.md:<heading_id>`(125 件)も含める**(計画レビュー 4 周目 P0-1)。**Claude は全対象から python で直接同じ名前空間付き集合を機械列挙し、exact-set(差集合 0)で突合**する(計画レビュー 3 周目 P0-5) — これが「全数を走査した」ことの証明
   2. **指摘の帰属**: 指摘対象 ID リストは**上記母集団リストの部分集合**であることを検査する(母集団外の ID の混入 = fail)
   - 両リストと突合結果は `docs/features/authz-claims-corpus/` 配下へ機械可読で保存し、コミットに含める。件数照合だけにしない(脱落と混入の相殺を許さない)。checker の標準出力に依存しない
 - 当時の「7 件」との件数一致は要求しない — **再列挙の結果が新しい正**(worklog に旧要約 3 カテゴリとの対応を記録する)
@@ -92,7 +92,7 @@ created: 2026-09-03
 
 ### (6) oracle 資産の追随手続(ステップ 6 — 計画レビュー 2 周目 P1-8・P1-9)
 
-- **追随対象の判定は checker に委譲する(依存閉包の正 = 検査器)**: ステップ 5 完了後に `check_authz_catalog.py`(引数なし)を実行し、**oracle 検査(`validate_claim_mutant_map` :2587・`validate_attack_tree` :3093 ほか)で fail した資産 = 追随対象の正**とする(claim ID の直接交差だけでは HTTP matrix の allow セル・route registry・DDL・mutant 集合経由の間接依存を見落とす — 計画レビュー 3 周目 P1-6)。fail 0 の資産は `oracle_context.oracle_commit` の更新のみ。追随は **checker が強制する整合を green にする最小追随**に限る(参照フィールドの機械抽出は写像表の補助資料として worklog に残す)。**内容の新規判断(新しい変異・攻撃目標の設計等)は委任先に行わせない** — 判断が要る場合は差し戻して PO へ(写像表は worklog に記録)
+- **追随対象の判定は checker に委譲する(依存閉包の正 = 検査器)**: ステップ 5 完了後に `check_authz_catalog.py`(引数なし)を実行し、**oracle 検査(`validate_claim_mutant_map` :2587・`validate_attack_tree` :3093 ほか)で fail した資産 = 追随対象**とする。**検査器は最初の `CatalogError` で停止するため、fail 集合は一括では得られない — 「fail → 当該資産の最小追随 → 再実行」を fail が oracle seal 検査(未 reseal 由来)だけになるまで反復する**(計画レビュー 4 周目 P1-3)(claim ID の直接交差だけでは HTTP matrix の allow セル・route registry・DDL・mutant 集合経由の間接依存を見落とす — 計画レビュー 3 周目 P1-6)。fail 0 の資産は `oracle_context.oracle_commit` の更新のみ。追随は **checker が強制する整合を green にする最小追随**に限る(参照フィールドの機械抽出は写像表の補助資料として worklog に残す)。**内容の新規判断(新しい変異・攻撃目標の設計等)は委任先に行わせない** — 判断が要る場合は差し戻して PO へ(写像表は worklog に記録)
 - **seal の review_policy への適合(順序 — 計画レビュー 3 周目 P1-7)**: ①内容追随 → ②6 資産の `oracle_context.oracle_commit` と seal の `oracle_commit` をステップ 5 コミット SHA へ差し替え(**最終バイト列を確定**)→ ③**最終形に対して差分敵対レビュー + 人間の確認**(実施記録を worklog へ)→ ④`--reseal-oracle`(seal の digest のみ更新 — canonical digest は `oracle_context` を含む資産全体から生成されるため、レビュー後にバイト列を変えない)→ ⑤コミット(既存契約 — `contracts/authz/oracle-seal.lock.json` の review_policy)
 
 ### 実装ステップ(コミット単位)
@@ -103,9 +103,9 @@ created: 2026-09-03
 | 2 | **要件書 NFR-018 例外表の 2 セル更新**(Claude)— 検証テスト・状態の 2 セルのみ + 変更履歴 1 行 + `docs/README.md` 最終更新日 | 差分が 2 セル + 変更履歴 1 行 + README に限られる / 他セル・他行はバイト単位で無変更 / 版セルが 2.4 のまま / 実測 red 集合が §4-(2) の固定列挙と一致 |
 | 3 | **採取器の是正 + 負例**(codex 委任・既知分のみ)— `_table_cells` のインデント対応 + インデント表のフィクスチャ負例 | フィクスチャ単体テストで**負例が是正前 red → 是正後 green** の記録(実行コマンドと出力を worklog へ)/ 実測 red 集合が固定列挙と一致 / 既知分以外の変更なし |
 | 4 | **裁定由来の検査器・スキーマ是正**(codex 委任)— 裁定リストのうち検査意味論に属する是正。**複数の意味論にまたがる場合は §4-(5) の計画改訂(整数連番の振り直し)で分割してから** | 裁定リスト外の変更なし / 各変更が裁定項目へ帰属 / **導入する検査ごとに負例フィクスチャを追加し、是正前 red → 是正後 green を記録**(計画レビュー 2 周目 P1-10)/ 実測 red 集合が固定列挙と一致。0 件時は「実施なし」の worklog 記録コミット |
-| 5 | **母集合・lock・派生 3 資産の追随**(codex 委任)— 裁定リストの分類・`decidable_at` 是正 + 採取追随(kind/source_id 変更 3 件)+ 例外表セルの source_text 追随 + **変更履歴の新規行(total 1063・table_row +1・分類は §2-4 の既定)** + `input_manifest.commit` = ステップ 2 コミット SHA + **§4-(2) の reseal 実行順(①`--reseal --skip-derived --skip-oracle` ②派生更新 ③`--reseal-derived --skip-oracle`)** + `tests/` 期待件数の更新 | **`check_authz_catalog.py --skip-oracle` green** / **Claude が python で直接計数した分布(classification・kind・location・layer)と全 ID 集合の照合が一致**(checker 出力に依存しない)/ **帰属表(§4-(4))で帰属のない変更 0** / 実測 red 集合が固定列挙(2 本)と一致 |
+| 5 | **母集合・lock・派生 3 資産の追随**(codex 委任)— 裁定リストの分類・`decidable_at` 是正 + 採取追随(kind/source_id 変更 3 件)+ 例外表セルの source_text 追随 + **変更履歴の新規行(total 1063・table_row +1・分類は §2-4 の既定)** + `input_manifest.commit` = ステップ 2 コミット SHA + **§4-(2) の reseal 実行順(①`--reseal --skip-derived --skip-oracle` ②派生更新 ③`--reseal-derived --skip-oracle`)** + `tests/` 期待件数の更新 | **`check_authz_catalog.py --skip-oracle` green** / **Claude が python で直接計数した分布(classification・kind・location・layer)と全 ID 集合の照合が一致**(checker 出力に依存しない)/ **帰属表(§4-(4))で帰属のない変更 0** / 失敗集合が**期待失敗集合(§4-(2) の方式で委任前に固定 — 裁定による分類・DB 判定点の変化で 2 本の見込みを超え得るため、正は期待集合)**と一致 |
 | 6 | **oracle 6 資産の追随 + seal の 2 段目**(codex 委任)— §4-(6) の手続を**同節の順序どおり**実施(checker fail による追随対象判定 → 内容追随 → `oracle_context.oracle_commit`/seal の `oracle_commit` をステップ 5 コミット SHA へ差し替え → **最終形への差分敵対レビュー + 人間確認** → `--reseal-oracle`) | `uv run pytest tests/` **全 green**(lock 4 本 bytes 不変検査を含む)/ seal の `input_assets` 8 件が現物 blob と一致 / oracle 変更が裁定項目へ帰属(新規判断 0)/ **差分敵対レビューと人間確認の実施記録が worklog にある** |
-| 7 | **総合検証と後片付け**(Claude)— /check 一式・**帰属表から人間の逐行確認用の突合シートを機械生成**・H-85 案②③の別起票(Notion)・worklog 締め | /check green / 突合シートが attribution.json の全エントリを覆う / 起票 URL が worklog にある |
+| 7 | **総合検証と後片付け**(Claude)— /check 一式・**最終成果物 diff(基準 `41884a9`・§4-(4) の対象)と attribution.json の全件再照合**(ステップ 6 で加わった oracle・seal 差分を含む最終状態で「帰属なし 0」を機械検査 — 計画レビュー 4 周目 P1-5)・**帰属表から人間の逐行確認用の突合シートを機械生成**・H-85 案②③の別起票(Notion)・worklog 締め | /check green / **最終 diff と帰属表の再照合で帰属なし 0** / 突合シートが attribution.json の全エントリを覆う / 起票 URL が worklog にある |
 
 ## 5. DoD(Notion TSK-312 と同期 — **承認時に Notion 本文の DoD を本節と同一内容へ更新し、worklog に同期実施を記録する**〔計画レビュー 2 周目 P2-12〕)
 
