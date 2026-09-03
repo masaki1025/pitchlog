@@ -140,3 +140,9 @@ branch: fix/authz-claims-corpus
 - スキーマ確定: claims の任意フィールド `closed_world = { universe_kind(resource|route|operation の閉集合), member_source_ids(実在主張 ID との exact-set・空不可), default_disposition(deny) }`。decision digest・lock に含める(決定の一部)
 - テスト先行: 負例 3 種(member 不一致・空 universe・列挙外 kind)red → 実装 → green を実出力つきで確認。正例フィクスチャ追加。回帰 56 passed・ruff/ty green
 - 実資産への宣言付与はステップ 10(本ステップは任意フィールドのため実資産の失敗理由は増えない)
+
+### ステップ 6 — 意味論(iii) 結線の閉包(F7 + F9 採用分・codex 委任)
+
+- スキーマ確定: route-registry へ `claim_dispositions[]`(source_id・location〔http|cache〕・disposition〔routed|out_of_registry〕・reason_code〔design_pending_task|cache_matrix_pending〕)。逆向き閉包 = HTTP 主張は結線か disposition の**ちょうど一方**・cache 主張は必ず明示 disposition・二重登録と未知 ID を拒否
+- テスト先行: 負例 3 種 red → 実装 → green。正例(routed/http disposition/cache disposition)追加・route lock へ disposition を独立 entry 化
+- **期待失敗集合の更新(完全列挙)**: 既知 1 本 + 新規 3 本(`test_repository_derived_assets_are_valid`・`test_all_db_claim_correspondences_reject_one_entry_removal`・`test_all_registry_matrix_links_reject_either_side_removal`)= 計 4 本 — いずれも実資産の claim_dispositions 未追随由来で想定内(ステップ 10 で解消)。除外回帰 55 passed・ruff/ty green

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "catalog_path": "requirement-claims.json",
   "classification_rules_digest": "c4cc25cf97d2242c7feee440033cb34be4cd8c88807d3bb0b87e32bfce185ea7",
-  "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
+  "basis_rules_digest": "1dc31a10aa45a804229b63b2904fb7d99cadcf91655e04a37cff7a199bdd446d",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
   "decision_count": 9,
-  "aggregate_decision_digest": "6b8daaf5db58e653c35e0c35f51c56797e7195d7cfc333e1a121b84e08ad806e",
+  "aggregate_decision_digest": "6234656ffb9d290bfb6773f9157e3fd4ac4a27b6319f45c6e30ae0bcd47da1ed",
   "decisions": [
     {
       "source_id": "DOC/heading-001/heading-001",
@@ -83,6 +83,14 @@
       "layer": "access_control",
       "decidable_at": [
         {
+          "location": "cache",
+          "basis_rule_id": "CACHE_ACCESS_SCOPE",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.cache",
+            "status": "planned"
+          }
+        },
+        {
           "location": "db",
           "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
           "test_owner": {
@@ -99,7 +107,7 @@
           }
         }
       ],
-      "decision_digest": "ebb6dbc65065790525ee5183d66a6d58893198afd450b10e5b81ec0622eec454"
+      "decision_digest": "1658539911c2a85dcdc1d30b16ffe0754a732ae154f5f6c04047f64368f5356d"
     },
     {
       "source_id": "SECTION-2/heading-001",

@@ -150,6 +150,12 @@
     }
   },
   "basis_rules": {
+    "CACHE_ACCESS_SCOPE": {
+      "location": "cache",
+      "allowed_classification_rule_ids": [
+        "AUTH_ACCESS_SCOPE"
+      ]
+    },
     "CACHE_PRINCIPAL_STATE_ENTRY": {
       "location": "cache",
       "allowed_classification_rule_ids": [
@@ -348,9 +354,17 @@
             "status": "planned"
           },
           "basis_rule_id": "HTTP_RESPONSE_VISIBILITY"
+        },
+        {
+          "location": "cache",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.cache",
+            "status": "planned"
+          },
+          "basis_rule_id": "CACHE_ACCESS_SCOPE"
         }
       ],
-      "decision_digest": "ebb6dbc65065790525ee5183d66a6d58893198afd450b10e5b81ec0622eec454"
+      "decision_digest": "1658539911c2a85dcdc1d30b16ffe0754a732ae154f5f6c04047f64368f5356d"
     },
     {
       "source_id": "SECTION-2/heading-001",

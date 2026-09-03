@@ -884,6 +884,65 @@ def test_document_specific_traps_live_in_catalog_data() -> None:
     assert out_rule["forbidden_source_text_patterns"]
 
 
+def test_invalid_claim_dispositions_are_red() -> None:
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-claim-dispositions.json").read_text(encoding="utf-8")
+    )
+    expected_errors = {
+        "missing_http": "HTTP/cache 主張の逆向き exact-set 不一致",
+        "double_registered": "HTTP/cache 主張の逆向き exact-set 不一致",
+        "unknown_reason": "reason_codeが閉じた値域にない",
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, claim_dispositions in cases.items():
+        mutated = copy.deepcopy(registry)
+        mutated["claim_dispositions"] = claim_dispositions
+        try:
+            checker.validate_route_registry(
+                mutated,
+                catalog,
+                FIXTURE_ROOT,
+                frozenset(),
+            )
+        except checker.CatalogError as error:
+            message = str(error)
+            if expected_errors[case_name] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_fixture_route_registry_closes_http_and_cache_claims() -> None:
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+
+    result = checker.validate_route_registry(
+        registry,
+        catalog,
+        FIXTURE_ROOT,
+        frozenset(),
+    )
+
+    assert set(result["routed_http_claim_ids"]) == {"FR-900/list_item-001"}
+    assert set(result["claim_dispositions_by_key"]) == {
+        ("FR-900/table_row-001", "http"),
+        ("FR-900/table_row-001", "cache"),
+    }
+    lock = json.loads(
+        (FIXTURE_ROOT / "route-registry.lock.json").read_text(encoding="utf-8")
+    )
+    checker.validate_derived_lock(registry, lock, "route-registry.json")
+
+
 def _validate_one_derived_asset(
     name: str,
     mutated: dict[str, Any],

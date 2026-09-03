@@ -68,6 +68,15 @@ CHANNELS = frozenset({"screen", "export"})
 ROUTE_KINDS = frozenset(
     {"legacy_route", "shared_data", "control_read", "management_operation"}
 )
+CLAIM_DISPOSITION_LOCATIONS = frozenset({"cache", "http"})
+CLAIM_DISPOSITIONS = frozenset({"out_of_registry", "routed"})
+CLAIM_DISPOSITION_REASON_CODES = frozenset(
+    {"cache_matrix_pending", "design_pending_task"}
+)
+CLAIM_DISPOSITION_REASON_BY_LOCATION = {
+    "cache": "cache_matrix_pending",
+    "http": "design_pending_task",
+}
 ORIGINS = frozenset({"requirement", "design"})
 FORBIDDEN_RESOURCE_KINDS = frozenset(
     {
@@ -1213,6 +1222,21 @@ def _db_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]
     return db_claims
 
 
+def _claim_ids_by_location(
+    auth_claims: dict[str, dict[str, object]], location: str
+) -> frozenset[str]:
+    """指定判定層を持つ AUTH 主張 ID を返す。"""
+    identifiers: set[str] = set()
+    for source_id, claim in auth_claims.items():
+        decisions = claim.get("decidable_at")
+        if isinstance(decisions, list) and any(
+            isinstance(decision, dict) and decision.get("location") == location
+            for decision in decisions
+        ):
+            identifiers.add(source_id)
+    return frozenset(identifiers)
+
+
 def _validate_derived_input_manifest(raw: object, root: Path) -> None:
     if not isinstance(raw, dict):
         raise CatalogError("derived input_manifest はオブジェクトでなければならない")
@@ -1302,6 +1326,90 @@ def _validate_design_provenance(raw: object, root: Path) -> frozenset[str]:
     return frozenset(provenance_ids)
 
 
+def _validate_claim_dispositions(
+    raw: object,
+    auth_claims: dict[str, dict[str, object]],
+    route_by_id: dict[str, dict[str, object]],
+    routed_route_ids_by_claim: dict[str, set[str]],
+) -> dict[tuple[str, str], dict[str, object]]:
+    """HTTP/cache 主張の経路結線または明示的対象外を全数検査する。"""
+    if not isinstance(raw, list):
+        raise CatalogError("claim_dispositions は配列でなければならない")
+    claims_by_location = {
+        location: _claim_ids_by_location(auth_claims, location)
+        for location in CLAIM_DISPOSITION_LOCATIONS
+    }
+    dispositions_by_key: dict[tuple[str, str], dict[str, object]] = {}
+    for index, entry in enumerate(raw):
+        label = f"claim_dispositions[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        disposition = _expect_closed_value(
+            entry.get("disposition"), CLAIM_DISPOSITIONS, f"{label}.disposition"
+        )
+        expected_keys = {"source_id", "location", "disposition"}
+        expected_keys.add("route_ids" if disposition == "routed" else "reason_code")
+        _expect_keys(entry, expected_keys, label)
+        source_id = _expect_string(entry["source_id"], f"{label}.source_id")
+        location = _expect_closed_value(
+            entry["location"], CLAIM_DISPOSITION_LOCATIONS, f"{label}.location"
+        )
+        if source_id not in claims_by_location[location]:
+            raise CatalogError(
+                f"{label}.source_id が location={location} の AUTH 主張に存在しない: "
+                f"{source_id}"
+            )
+        key = (source_id, location)
+        if key in dispositions_by_key:
+            raise CatalogError(f"claim_dispositions の主張・location が重複している: {key}")
+        if disposition == "routed":
+            if location != "http":
+                raise CatalogError(f"{label}: routed disposition は http 専用")
+            route_ids = _expect_string_list(entry["route_ids"], f"{label}.route_ids")
+            if not route_ids:
+                raise CatalogError(f"{label}.route_ids は1件以上必要")
+            unknown_route_ids = sorted(set(route_ids) - set(route_by_id))
+            if unknown_route_ids:
+                raise CatalogError(
+                    f"{label}.route_ids が route registry に存在しない: "
+                    f"{unknown_route_ids}"
+                )
+        else:
+            reason_code = _expect_closed_value(
+                entry["reason_code"],
+                CLAIM_DISPOSITION_REASON_CODES,
+                f"{label}.reason_code",
+            )
+            if reason_code != CLAIM_DISPOSITION_REASON_BY_LOCATION[location]:
+                raise CatalogError(
+                    f"{label}.reason_code が location={location} と不一致: {reason_code}"
+                )
+        dispositions_by_key[key] = entry
+
+    http_claim_ids = claims_by_location["http"]
+    routed_http_claim_ids = set(routed_route_ids_by_claim)
+    unexpected_routed = sorted(routed_http_claim_ids - set(http_claim_ids))
+    missing: list[str] = []
+    double_registered: list[str] = []
+    for source_id in sorted(http_claim_ids):
+        routed = source_id in routed_http_claim_ids
+        disposed = (source_id, "http") in dispositions_by_key
+        if not routed and not disposed:
+            missing.append(f"{source_id}@http")
+        elif routed and disposed:
+            double_registered.append(f"{source_id}@http")
+    for source_id in sorted(claims_by_location["cache"]):
+        if (source_id, "cache") not in dispositions_by_key:
+            missing.append(f"{source_id}@cache")
+    if missing or double_registered or unexpected_routed:
+        raise CatalogError(
+            "HTTP/cache 主張の逆向き exact-set 不一致: "
+            f"未結線={missing}, 二重登録={double_registered}, "
+            f"HTTP判定なし経路参照={unexpected_routed}"
+        )
+    return dispositions_by_key
+
+
 def validate_route_registry(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -1334,6 +1442,7 @@ def validate_route_registry(
             "design_provenance",
             "routes",
             "management_operations",
+            "claim_dispositions",
         },
         "route registry",
     )
@@ -1583,10 +1692,32 @@ def validate_route_registry(
         operation_ids
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
+    routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
+    for route_id, route in route_by_id.items():
+        source_claim_ids = route["source_claim_ids"]
+        assert isinstance(source_claim_ids, list)
+        for source_id in source_claim_ids:
+            assert isinstance(source_id, str)
+            routed_route_ids_by_claim[source_id].add(route_id)
+    for operation in operation_by_id.values():
+        route_id = operation["route_id"]
+        source_claim_ids = operation["source_claim_ids"]
+        assert isinstance(route_id, str) and isinstance(source_claim_ids, list)
+        for source_id in source_claim_ids:
+            assert isinstance(source_id, str)
+            routed_route_ids_by_claim[source_id].add(route_id)
+    claim_dispositions_by_key = _validate_claim_dispositions(
+        raw["claim_dispositions"],
+        auth_claims,
+        route_by_id,
+        routed_route_ids_by_claim,
+    )
     return {
         "route_by_id": route_by_id,
         "operation_by_id": operation_by_id,
         "origin_counts": origin_counts,
+        "routed_http_claim_ids": frozenset(routed_route_ids_by_claim),
+        "claim_dispositions_by_key": claim_dispositions_by_key,
     }
 
 
@@ -1917,6 +2048,21 @@ def _derived_lock_entries(
         for row in table:
             assert isinstance(row, dict)
             entry_id = f"{prefix}:{row[id_key]}"
+            entries.append(
+                {
+                    "entry_id": entry_id,
+                    "decision": row,
+                    "decision_digest": _table_digest(row),
+                }
+            )
+    if asset_kind == "authz_route_registry":
+        dispositions = asset.get("claim_dispositions", [])
+        assert isinstance(dispositions, list)
+        for row in dispositions:
+            assert isinstance(row, dict)
+            entry_id = (
+                f"claim_disposition:{row['source_id']}:{row['location']}"
+            )
             entries.append(
                 {
                     "entry_id": entry_id,
