@@ -1,6 +1,6 @@
 ---
 feature: core-area-paths
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-02・徳光尋弥) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -50,7 +50,7 @@ created: 2026-09-01
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-12 を部分対応へ**(①コード側 paths の充填と rename-safe 化の実施 ②承認手続の決着〔PO 判断 2026-09-01: 逐行確認 = PR 作成者以外。有効確認者 = 既定 山田・不在時は PO 指名の代替者(それまでマージ保留)〕③PR #33 遡及裁定の結果 ④残余 =「13 章 Phase 4 完了条件への組み込み」**1 件**へ絞り込み)+ 変更履歴 1 行。**版は上げない・`H-*` 新規採番なし**(7.6-3 前段) | PRレビュー |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **H-12 を部分対応へ**(①コード側 paths の充填と rename-safe 化の実施 ②承認手続の決着〔PO 判断 2026-09-01: 逐行確認 = PR 作成者以外。有効確認者 = 既定 山田・不在時は PO 指名の代替者(それまでマージ保留)〕③PR #33 遡及裁定の結果 ④残余 =「13 章 Phase 4 完了条件への組み込み」**1 件**へ絞り込み)+ **H-85 へ実測補記**(件数オラクル連鎖の実測 — クローズ処理で判断)+ 変更履歴 1 行。**版は上げない・`H-*` 新規採番なし**(7.6-3 前段) | PRレビュー |
 | [開発ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **10.1 の実装追随のみ**: CI ジョブ表の harness・backend 行の pytest 呼び出しへ `-c pyproject.toml` を追随(`:667` ほか該当行)+ 変更履歴 1 行。**節更新・版は上げない**(実装追随 — 7.6-3 前段) | PRレビュー |
 | [docs/README.md](../../README.md)(索引) | 台帳行と設計書行の**最終更新日**、台帳行の**状態要約**(H-12 補記 → 部分対応)を現行化 | PRレビュー |
 | 要件書・ADR・`docs/design/**`・CLAUDE.md・AGENTS.md | **反映なし**(理由は 2 節「やらないこと」— 確認済み) | — |

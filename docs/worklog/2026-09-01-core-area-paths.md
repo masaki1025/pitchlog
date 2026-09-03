@@ -43,6 +43,13 @@ branch: feature/core-area-paths
 - **遡及要点確認の完遂(2026-09-04)**: 対象 = `scripts/check_authz_catalog.py`・`contracts/authz/oracle-seal.lock.json`(develop `6b9e087` = PR #40 反映後)/ 確認者 = 山田正輝・徳光尋弥 / 実施日 = 2026-09-04 / **所見 = 問題なし**。内訳: ①既定資産 = 要件書 1 + authz 15 で実ファイルと過不足なし ②exact-set は両方向(母集合不足・未登録入力)+ 構造順一致まで検査(`check_authz_catalog.py:1200-1208`)③要件書 blob digest は v2.6(固定元 = dc9d114)と一致・検査器単体 green(ok total=1073)④oracle_commit = dfd523a(#40 reseal)・入力資産 8 本の digest 全一致・封印対象 6 本 ⑤変異実証 = auth-catalog.json への 1 行追記で「oracle input blob 不一致」red → 復元 green(作業ツリー不変)
 - **PO 判断(2026-09-04・徳光尋弥)**: 検査器の CI 強制経路は ci.yml の単独ステップではなく **harness ジョブの `uv run pytest tests/` 経由で足りる**と承認(実リポ資産を検査する 2 テストを含み経路は閉じている。本 PR で検査器・テストとも tenant-isolation paths に登録され変更は逐行確認対象になる補完つき)
 
+## 結果サマリ
+
+- **何を実装したか**: ① core-guard の rename-safe 化(`--no-renames` + 故障系 3 種 + /pr 手順追随)② CI pytest の `-c pyproject.toml` 固定(harness exact オラクル新設 + 変異確認)③ **コア領域 paths のコード側充填** — tenant-isolation +10 / game-state +15 / data-migration +1(area 計 +26)+ guard_paths +5。オラクルは領域別辞書完全一致 + ID 重複拒否 + 変更検知 4 系 + glob 境界 2 種 ④ backend 件数オラクル追随(H-85 型連鎖の実測)
+- **正本への反映**: 台帳 H-12 を**部分対応**へ(承認手続の決着・遡及完遂・残余 1 件 + 継続論点)+ **H-85 実測補記** / 設計書 10.1 実装追随(版不変)/ 索引現行化
+- **統制の実施記録**: 計画 = 敵対レビュー 6 周(指摘 28 件全採用・最終 P0/P1/P2 ゼロ)→ PO 承認 2026-09-02 / 遡及要点確認 = 2026-09-04 完遂・所見 問題なし / PR = 有効確認者(山田)による逐行確認・実施記録行・approve・`--match-head-commit` マージ待ち
+- **台帳への追記判断(クローズ処理)**: **該当** — H-12 部分対応(ステップ 4)+ **H-85 へ実測補記**(出典注記 1 件で backend 凍結カウント red — 対応案③の裏付け)。**新規 `H-*` は起票しない**(今回の知見はいずれも既存項目への追記で足りる — 同種の欠陥は既存項目へ集約)
+
 ## 未決・次の一歩
 
 - **follow-up 申し送り**: 恒久規則「paths 変更 PR の逐行確認は PR 作成者以外(有効確認者)」の **6.3 への条文化** — 規範の新設 = 確定ゲート事項のため本タスクでは行わず、**次回設計書改訂に合流**する(H-12 残余には含めない — 計画レビュー 3 周目 P2-1 の裁定)
