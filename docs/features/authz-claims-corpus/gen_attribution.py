@@ -50,6 +50,10 @@ CHECKER_PATTERNS = [
     (r"atomic", ["F1", "F2", "F3", "F4", "F15"]),
     (r"execution_support|probe_executable|contract_only", ["F10"]),
     (r"decision_projection|compute_decision_digest|decision_lock", ["mechanical:digest"]),
+    (r"(?i)REQUIRED_TABLE_PRIVILEGE|table_privilege|target_pairs", ["F13"]),
+    (r"attack_goal|cut_set|singleton|two_factor", ["F13"]),
+    (r"owner_dependency|schema_usage|USAGE", ["F12"]),
+    (r"oracle_commit|oracle_context|seal", ["mechanical:reseal"]),
 ]
 
 TEST_ATTR = ["mechanical:step-tests"]  # 負例・期待件数・走査一般化(各ステップの従属)
@@ -84,10 +88,20 @@ def _entries(path: str, rev: str | None) -> dict:
     data = json.loads(text)
     name = Path(path).name
     id_fields = {
-        "claims": "source_id", "decisions": "source_id", "routes": None,
+        "claims": "source_id" if "requirement" in name else "claim_id",
+        "decisions": "source_id", "routes": None,
         "management_operations": "operation_id", "entries": None,
         "claim_dispositions": None, "cells": "cell_id",
         "route_scopes": "route_scope_id", "design_provenance": "provenance_id",
+        "mutants": "mutant_id", "attack_goals": "attack_goal_id",
+        "minimal_cut_sets": "cut_set_id", "two_factor_interactions": "interaction_id",
+        "provenance": "provenance_id", "roles": "role_id", "schemas": "schema_id",
+        "tables": "table_id", "policies": "policy_id", "functions": "function_id",
+        "acl_expectations": "acl_id", "transaction_boundaries": "boundary_id",
+        "column_acl_expectations": "expectation_id", "boundaries": "boundary_id",
+        "pending_human_reviews": "review_id", "rejections": "rejection_id",
+        "residual_risks": "risk_id", "predicates": "predicate_id",
+        "input_assets": "path", "sealed_assets": "path",
     }
     out: dict[str, str] = {}
     for key, value in data.items():
@@ -164,6 +178,42 @@ def attribute_asset_change(unit: str, new_val: str | None) -> list[str]:
             attrs.append("mechanical:atomic-follow")
     elif asset.startswith("http-route-matrix"):
         attrs.append("mechanical:reseal")
+    elif asset == "oracle-seal.lock.json":
+        attrs.append("mechanical:reseal")
+    elif asset in ("ddl-elements.json", "rejected-configs.json",
+                   "verification-evidence.json", "boundary-proposal.json",
+                   "claim-mutant-map.json", "attack-tree.json"):
+        # oracle 資産(ステップ 11): 裁定・従属・機械追随へ帰属
+        if "APP-ROLE" in eid or "app_role" in eid or "app_role" in (new_val or ""):
+            attrs.append("F13")
+        if asset == "ddl-elements.json" and (
+            key in ("predicates", "policies", "functions", "acl_expectations",
+                    "schemas", "column_acl_expectations", "enums",
+                    "table_privilege_probe_matrix", "representative_management_probe")
+        ):
+            attrs += ["F12", "F14"]
+        if asset == "claim-mutant-map.json":
+            base_id = eid.split("#")[0]
+            if base_id in SPLIT_ATTR:
+                attrs += SPLIT_ATTR[base_id]
+            if key in ("claims", "mutants", "two_factor_interactions"):
+                attrs.append("mechanical:atomic-follow")
+            if key in ("classification_rules", "execution_classes", "kill_contract",
+                       "positive_cases", "table_privilege_mutation_rule",
+                       "mutant_axes", "mcdc_decision_forms"):
+                attrs += ["F10", "F13"]
+        if asset == "attack-tree.json" and key in (
+            "attack_goals", "minimal_cut_sets", "two_factor_interactions",
+            "two_factor_scope",
+        ):
+            attrs.append("F13")
+        if asset == "boundary-proposal.json":
+            attrs.append("mechanical:atomic-follow")
+        if key in ("oracle_context", "provenance", "supabase_verification",
+                   "required_initial_rejection_ids"):
+            attrs.append("mechanical:reseal")
+        if not attrs:
+            attrs.append("mechanical:atomic-follow")
     return attrs
 
 

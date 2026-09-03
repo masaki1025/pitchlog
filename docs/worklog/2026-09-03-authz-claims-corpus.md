@@ -184,3 +184,14 @@ branch: fix/authz-claims-corpus
 - **R4 P0×4 は PO 裁定(2026-09-03)で範囲確定・不採用(残余リスク記録)**: 4 件はすべて「資産・宣言(・checker)を協調改変し reseal し直せば通過できる」型 = **ADR-003 v0.1 (b)②・v0.2 D-11 で 2 度確定済みの「恣意的迂回の完全排除は保証範囲外」と同型**。本ゲートの保証範囲 = 単独資産の非協調な改変が red になること(R1〜R3 の是正で充足)。**残余 4 件の最終吸収先 = TSK-250 の実機検証**(DDL を実際に適用し正例・拒否例・mutation を実行)。内訳: ①必須権限の対応・kill outcome の細部未固定 ②別 goal への追加結線 + 二因子再導出 ③F12 期待値の資産内自己参照 ④oracle_commit の rev-parse 失敗 skip(shallow CI の意図的逃げ道の副作用)。/pr のクローズ処理で H-81 への実測追記を判断する
 - **人間確認**: PO が差分サマリと打ち切り裁定を確認(2026-09-03・選択肢 1)。逐行確認はステップ 12 の突合シートで実施(H-12)
 - `--reseal-oracle` 実行 → checker 全 green・**全スイート 862 passed(lock 4 本 bytes 不変検査含む)**・ruff/ty green
+
+### ステップ 12 — 総合検証と後片付け
+
+- **/check 全層**: harness = ruff/ty green・pytest **862 passed** / backend = format/ruff/ty green・pytest 11 passed + 3 errors(**実 DB 必須テスト — develop 基準と同一・backend diff 0 = 非回帰**)/ frontend = prettier/eslint/vue-tsc green・vitest 11 passed / docs = 変更 md のリンク切れなし
+- **最終再照合(双方向)**: gen_attribution.py を oracle 資産対応へ拡張し最終 diff(基準 41884a9)で再生成 — **1,193 変更単位・帰属なし 0**(再生成方式のため帰属表→diff の失効エントリも 0)
+- **突合シート生成**: `verification-sheet.md`(645 行・20 群 — A 群 = 裁定 F 項目を優先確認・B 群 = 既知 3 件・C 群 = 機械的追随)。人間の逐行確認は本シートで実施(H-12)
+- **別起票(6 項目 → 3 タスク・URL 対応)**:
+  - F1(client 判定点)→ https://app.notion.com/p/3d093b75e68781f091f5e0f0f2cf655b(ブロッカにしない — PO 裁定)
+  - F9(cache 失効行列)・F10(管理経路 universe)・F11(NFR-019(b) シナリオ行列)→ https://app.notion.com/p/3d093b75e6878185b409ce467385c47d(**TSK-250 の開始条件へ紐付け — TSK-250 へコメント済み**)
+  - H-85 案②・案③ → https://app.notion.com/p/3d093b75e687811880b5fdf323111e71
+- DoD 充足: 再列挙 + 全裁定 ✓ / 採用是正の全件反映・未反映 0(帰属表 + 突合シート)✓ / 例外表 2 セル + 母集合追随が同一 PR ✓ / 採取欠陥是正 + 負例(検査ごと red→green)✓ / 追随 + pytest green ✓ / 敵対レビュー(計画 6 周・oracle 差分 4 周)+ 逐行確認はシート準備済み(実施は PR 時)
