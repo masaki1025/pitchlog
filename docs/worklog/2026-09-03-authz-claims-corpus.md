@@ -123,3 +123,9 @@ branch: fix/authz-claims-corpus
 - 開始状態: `uv run pytest tests/` **844 passed(全 green)**を実測
 - 変更: 検証テストセル(未整備 → `courseCoordinateContract.spec.ts`)/ 状態セル(有効化待ち → 有効)/ 変更履歴 1 行(版 2.4 のまま・7.6-3 前段の根拠を記載)/ README 最終更新日。他セル・他行はバイト単位で無変更
 - **期待失敗集合(委任前固定)**: `test_repository_catalog_covers_the_entire_requirements_file` の 1 本(source_blob_digest 不一致)— **実測一致**(derived/oracle への推移なし・53 passed / 1 failed)
+
+### ステップ 3 — 採取器のインデント表対応 + 負例(codex 委任)
+
+- テスト先行: 負例フィクスチャ `indented-tables.md`(1 スペース・4 スペース・タブ × ヘッダ/区切り/データの機械列挙)+ `test_indented_table_rows_are_extracted_by_kind` — **是正前 red(paragraph に落ちる実出力)→ `_table_cells` の lstrip 対応(kind 判定のみ・source_text は原文保持)→ green** を実出力つきで確認
+- 回帰: `tests/test_check_authz_catalog.py` 54 passed(意図的 red の統合テスト 1 本のみ除外)・ruff green
+- 期待失敗集合: 変わらず catalog 統合テスト 1 本(想定どおり)

@@ -227,9 +227,10 @@ def git_blob_digest(data: bytes) -> str:
 
 
 def _table_cells(line: str) -> tuple[str, ...] | None:
-    if not line.startswith("|") or not line.endswith("|"):
+    table_line = line.lstrip()
+    if not table_line.startswith("|") or not table_line.endswith("|"):
         return None
-    return tuple(cell.strip() for cell in line[1:-1].split("|"))
+    return tuple(cell.strip() for cell in table_line[1:-1].split("|"))
 
 
 def _is_table_delimiter(line: str) -> bool:

@@ -334,6 +334,25 @@ def test_fixture_has_a_valid_multi_layer_claim(tmp_path: Path) -> None:
     assert _run_cli(root).returncode == 0
 
 
+def test_indented_table_rows_are_extracted_by_kind() -> None:
+    path = FIXTURE_ROOT / "indented-tables.md"
+    source_text = path.read_text(encoding="utf-8")
+    source_lines = [line for line in source_text.splitlines() if line]
+    indents = (" ", "    ", "\t")
+    expected_kinds = ("table_header", "table_delimiter", "table_row")
+
+    assert [line[: line.index("|")] for line in source_lines] == [
+        indent for indent in indents for _ in expected_kinds
+    ]
+
+    items = checker.extract_source(source_text).items
+
+    assert [item.kind for item in items] == [
+        kind for _ in indents for kind in expected_kinds
+    ]
+    assert [item.text for item in items] == source_lines
+
+
 def test_mutation_1_deleted_known_clause_is_red(tmp_path: Path) -> None:
     root = _make_repository(tmp_path)
     text = (root / "requirements.md").read_text(encoding="utf-8")
