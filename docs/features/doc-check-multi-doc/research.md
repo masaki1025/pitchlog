@@ -2,6 +2,7 @@
 feature: doc-check-multi-doc
 type: research
 date: 2026-08-31
+updated: 2026-09-04
 ---
 
 # 調査メモ: 文書検査機構の多文書対応(プロファイル化 + 不変条件 DSL)
@@ -107,6 +108,10 @@ TSK-269 は、同期プロトコル正本専用に書かれた文書検査機構
 誤設定が報告されないため、**「検査を載せたつもりで何も見ていない」状態が CI green のまま起きる**。
 
 #### 1-5. **同じ型の欠陥が `codex_run.py` にもある — 見出しスコープの取り違え**(◆ 2026-08-31 に TSK-270 で実地に踏んだ)
+
+> **訂正(2026-09-04・◎)**: 本節で `has_step_table` と書いた関数の実名は **`has_filled_step_row`**
+> (`.claude/scripts/codex_run.py:62`)。2026-08-31 時点から同名で、本メモ側の誤記。行範囲は `:62-78`、
+> 問題の行は `:71`。以下の本文は原文のまま残す(是正案・射程判断は有効)。
 
 1-4 節の「静かに検査を無効化する経路」と**同型の欠陥が、文書検査機構の外(`codex_run.py`)にも存在する**。
 **TSK-270 の実装委任が実際にこれで拒否され**、原因の特定に手戻りが出た。
@@ -296,3 +301,150 @@ core-guard が発火**し、PR 本文の逐行確認チェックが必須にな�
 
 - 「ハーネスの検査機構の変更をコア領域とするか」の一般規則(4-5 節)
 - 4-3 節のプロファイル列挙案が `test_ci_wiring.py` の全アサーションを実際に通るか(**未検証**)
+
+---
+
+## 6. 再検証(2026-09-04 — 保留解除時。develop 24adeb2 → f92b5f8 の 184 コミットを対象)
+
+**方法**: 調査サブエージェント 3 本(コード差分監査 / 決定経緯 / 受け渡し契約の突合)+ Claude の原典確認(◎)+
+基準線の再測定(◎)。**1〜5 節の本文は原文のまま残し、現行と食い違う箇所だけ本節で上書きする**。
+略記追加: `TSK250PLAN` = `../pitchlog-worktrees/feature-data-model-canonical/docs/features/data-model-canonical/plan.md`
+(**develop には存在しない — 未マージ。worktree 版が唯一の正**。◎ develop の `docs/features/` に `data-model-canonical` なし)/
+`CAPLAN` = `docs/features/core-area-paths/plan.md`(PR #41・TSK-281)。
+
+### 6-1. 結論(要約)
+
+1. **検査機構の本体は 1 バイトも変わっていない**(◎ md5 一致: `PROP` d396d0d9 / `COV` 2d06d3b9 / `codex_run.py` 6714f49b、
+   `scripts/design_relations/` 4 資産も blob 一致)。**1〜2 節の行番号・内容はすべて現行でも有効**。
+2. 変わったのは**周辺の固定**: `core-areas.json`(guard_paths 18→**24**・area paths 8→**34**)、`test_core_guard.py`
+   (辞書完全一致オラクル新設)、`test_ci_wiring.py`(81→1,148 行・harness ジョブの pytest コマンド exact オラクル新設)、
+   `ci.yml`(pytest に `-c pyproject.toml`)。**docs-lint の 3 step は無変更**(◎ `ci.yml:52-53` — 引数なし)。
+3. **計画レビュー P0「MT-01」は事実として確認できた**(◎): `defects.json:471` の scope に `1節` があるが、
+   `docs/design/sync-protocol.md` に `## 1.` は無い(◎ 見出しは `## 変更履歴`(:6)→ `## 2.`(:15))。
+   さらに実測で `冒頭` は 61 文字しか切り出していない。**1-4 節が「二文書目で起きる」と予測した故障が、
+   一文書目で既に部分発生している**。
+4. **第 3 の検査機構が develop に入った**(◎): `scripts/check_authz_catalog.py`(5,019 行)+
+   `tests/test_check_authz_catalog.py`(2,699 行)。**CI の docs-lint には配線されていない**(◎ `ci.yml` に `authz` なし —
+   pytest 経由のみ)。research 執筆時には存在せず、「多文書対応」の対象範囲・前例として計画で扱う必要がある。
+5. **TSK-250 側の受け渡し契約は未改訂**(◎ `TSK250PLAN` frontmatter: `承認: 済(2026-08-31)`・`計画レビュー周回: 4`・
+   全 26 ステップ)。**ステップ 22 は「明示引数で」のまま**(◎ `:233`)で、本計画の「引数なし列挙」と正面衝突が続いている。
+   決着は「A のマージ時に TSK-250 を再レビュー」枠(`TSK250PLAN:201-203`)へ予定済み。
+6. **4 検査の入力契約は TSK-250 側でも未定義**(6-4 節)。P0「入力契約がプロファイルに無い」は「TSK-250 の定義を写す」では潰せない。
+7. **基準線が動いた**(◎ 再測定 — 6-6 節): pytest **875 passed**(784 → +91。増分は他タスクの追加分で、本タスク対象のテスト
+   ファイルは無変更)。3 検査 green・ruff・ty クリーンは維持。
+
+### 6-2. 典拠の現行化(1〜3 節・5 節)
+
+| research の典拠 | 現行 | 判定 |
+| --- | --- | --- |
+| `PROP:*` / `COV:*` の全引用(1-1〜1-4・2 節) | **同一行**(ファイル無変更) | 有効 |
+| `tests/test_check_design_propagation.py:707-718` / `:721-735`(安全網 2 本)・`:125-134`・`:1515-1529` | **同一行**(ファイル無変更) | 有効。安全網の期待集合は `detection == "machine"` から**動的導出**(件数ハードコードではない) |
+| `tests/test_check_doc_coverage.py:131-147`(38/84/90) | 同一行 | 有効 |
+| `tests/test_ci_wiring.py:55`(step ちょうど 1 件) | **`:964`** | 内容同一・行ずれ |
+| 同 `:57`(禁止セレクタ `--defects` / `--checks`) | **`:966-968`**(定数 `:28`) | 内容同一 |
+| 同 — **新設**: harness ジョブの pytest コマンド完全一致 `["uv run pytest -c pyproject.toml tests/"]` | **`:1002`**(`:1004-1011` で単一 step・working-directory なしも固定) | **【差分】** 4-3 節の列挙案はこれとも共存させる |
+| `tests/test_core_guard.py:337-340`(guard_paths 順序込み完全一致) | **`:429-432`**(期待 18 → **24 件**) | 内容同一・期待値変更 |
+| 同 `:316`(4 領域 paths が 2 要素) | **消滅** → `:399-406` の **`EXPECTED_AREA_PATHS` 辞書完全一致 + 領域 ID 重複拒否**へ | **【差分】** 二文書目を `areas[].paths` へ足すなら辞書も同時更新 |
+| `codex_run.py:63-78`(`has_step_table`) | **`:62-78`・実名 `has_filled_step_row`**(◎)。問題行は `:71`(◎) | **【訂正】** 関数名。是正射程はこの 17 行に閉じる(計画書本文の構造を解釈する関数は他に無い。他は frontmatter の `k: v` 解釈のみ) |
+| `HARNESS:623`(docs-lint 引数なし) | **`:675`** | 文言一致 |
+| `LEDGER:577` / `:583`(H-78) | **`:624` / `:630`** | 文言一致。H-78・H-79 は **`状態: 未対応`** のまま(`:633`・`:654`) |
+| `docs/design/sync-protocol.md:2426` | `:2426`(文書無変更) | 文言一致 — 4-2 ③ の矛盾リスクは未解消 |
+| 5 節 規模(2,331 / 2,204 行) | 一致 | 有効。pytest 件数のみ更新(6-6) |
+
+### 6-3. MT-01 の事実(◎ 計画レビュー 1 周目 P0 の根拠)
+
+- `scripts/design_relations/defects.json:471`: `"scope": "冒頭、1節、2-2、3-1、3-2、6-4、7-3、7-4、10-1、10-3、11-1、11-3、11-4"`(13 トークン)
+- `docs/design/sync-protocol.md` の第 2 レベル見出し: `:6 ## 変更履歴` → `:15 ## 2. 述語の単一定義` → … **`## 1.` は存在しない**(◎ grep)
+- `_heading_section`(`PROP:297-317`)は `label="1"` で `10.`/`11.`/`12.` に当たらず **`""` を返す**(`:309-310`)。
+  `extract_scope`(`PROP:320-339`)は `冒頭` を `text.split("\n## ", 1)[0]` で切る(`:334`)ため **frontmatter + タイトル行のみ**
+- 実測(サブエージェントが現行 develop で実行): `冒頭` = 61 文字 / `1節` = **0 文字** / 他 11 トークンは実在 / scope 合計 35,039 文字(全文 201,273)
+- **現状 green の理由は scope 欠落ではない**: MT-01 の forbidden 15 literal は全文検索でも 0 件。**実害はまだ無いが、
+  「検査したつもりで見ていない」枠が本番資産に既に 2 つ(`1節`・実質空の `冒頭`)ある**
+- **含意**: fail-closed 化(計画 2 節の 3・ステップ 3)を入れると **MT-01 が fail する**。同期本文・oracle を不変とする方針と
+  両立しないため、**着手前に裁定が要る**(選択肢: (a) `1節` を oracle から外す独立承認ステップ / (b) 「存在してはならない節」を
+  別の意味型にする / (c) 「存在しない節の scope」を warning 扱いにする — (c) は fail-closed の趣旨を弱める)。
+  `defects.json` は `guard_paths` 該当(◎ `core-areas.json:11`)のため、(a) は人間の逐行確認を伴う
+
+### 6-4. 受け渡し契約と 4 検査の入力(TSK-250 との突合)
+
+**契約 5 項目 + 補足**は `TSK250PLAN:63-85` に現存し、Notion 本文と一致(CLI 6 名・スキーマ版・fail-closed 3 条件・ランナー・4 検査)。
+**不一致 3 件**:
+
+| # | 内容 | 典拠 |
+| --- | --- | --- |
+| ① | fail-closed の条件数: 契約 3 条件(`TSK250PLAN:73`)/ 本計画 DoD は 4 条件(「解決できない節」を追加 — `plan.md:204`)。安全側の上乗せだが契約側に未反映 | — |
+| ② | `verify_handoff_digest.py` を「A の汎用コンフォーマンスランナーに載せる(載らなければ TSK-250 ステップ 4 で専用スクリプト)」(`TSK250PLAN:195-199`)— **契約外の事実上 6 項目目**。本計画のランナー(`check_doc_profiles.py`)は外部資産の blob digest 再照合器ではない → **載せない旨を明示宣言する必要** | — |
+| ③ | 契約 2「使用する不変条件種別」欄がプロファイル項目列挙(`plan.md:50-51`・ステップ 1)に**無い** | — |
+
+**4 検査の入力 — TSK-250 側も未定義**(P0 の答え):
+
+| 検査 | TSK-250 が挙げる入力資産 | 未定義 |
+| --- | --- | --- |
+| (a) FORB 構造判定 | `scripts/design_relations/forbidden-data-model.json`(新設・`TSK250PLAN:132`) | JSON キー名・別名/暗黙関係の表現・「参照方向」の値域 |
+| (b) 直接要件の「対象外」禁止 | `req-universe.json`(既存)+ 帰属表(ステップ 19 `:230`) | **「データモデル直接要件」の集合**(列挙・資産・理由コード語彙) |
+| (c) ベースライン digest | `defects-data-model.json` + `baseline-digest-data-model.txt`(`:130`・`:133`) | 「不変部分」のフィールド集合・アルゴリズム・正規化 |
+| (d) WAIT/AUTH/FORB 交差 | `waiting-data-model.json`(`:131`)/ `forbidden-data-model.json` / `data-model.json`(`:129`)/ **AUTH は資産の指定なし** | **共通正規化 ID の文法**(リポ全体で定義文なし — `docs/features/pg-authz-verification/plan.md:136` に語のみ) |
+
+**ID 体系の不一致(重大)**: TSK-250 は `AUTH-*` / `WAIT-*` / `FORB-*` を前提にするが、**`AUTH-` で始まる ID はリポ全体に 0 件**。
+TSK-270 の実資産は `catalog_entry_id: "CATALOG:SECTION-1.1/..."`(`contracts/authz/auth-catalog.json:42-43`)・
+`policy_ids: "POLICY:probe_business_rows:..."`(`ddl-elements.json:230`)で、かつ **`scope.product_schema: false`**
+(`ddl-elements.json:8-13` — probe スキーマ限定)。字義どおり「AUTH の DDL 要素が関係マニフェストに存在する」を実装すると
+probe 表 ID を製品データモデルに要求してしまう。TSK-270 計画は `status: in-review`・資産は `second_group_approval_required: true`
+で**形はまだ動きうる**。
+→ **含意**: 交差検査を ID 前置きに依存させず、**プロファイルが `auth` 資産のパス・ID を取り出す JSON パス・正規化規則を宣言する**形にする。
+サンプルプロファイルには `contracts/authz/` の実形式を模した合成データを置く。`requirement-claims.json`(TSK-270)と
+`claims-data-model.json`(TSK-250 新設予定 `:128`)は別物で名称が酷似 — キー名設計で取り違え注意。
+
+**TSK-250 は `scripts/check_*.py` を変更しない**(`TSK250PLAN:141`「反映なし」・ステップ 6 合格条件 `:217`「差分に含まれていたら停止し A へ戻す」)。
+したがって **4 検査の入力契約は本タスクのマージ時点で確定していなければならない**。「A へ戻す」経路(`:85`・`:217`)の受け口も本計画に無い。
+
+### 6-5. 決定経緯の更新(4 節への上書き)
+
+| 論点 | 現行 | 典拠 |
+| --- | --- | --- |
+| 6.3 境界定義表 | **v1.6 のまま不変**。v1.12 は逐行確認の実施記録様式を追記、v1.13 は見出し表記の現況化のみ | `HARNESS:355`・`:357-368`・`:61`・`:63` |
+| PR #41(TSK-281)の射程 | 6.3・13 章の規範改訂は**明示的に射程外**。paths 充填は 6.3 への当てはめ | `CAPLAN:42`・`:54` |
+| 「検査機構の変更はコア領域か」の一般規則 | **依然として該当決定なし**。ただし個別前例が 3 つ増えた: (a) **検知機構そのものを変えるタスク = コア領域**(`CAPLAN:75-77`)/ (b) 領域固有の検査器は **area paths**、ハーネス横断の実行制御点だけ **guard_paths**(`:163-165`・`:138`)/ (c) H-12 が「部分対応」へ(`LEDGER:465`) | 4-5 節の「不明」は残るが、本計画の「コア領域に倒す」裁定は (a) と整合 |
+| `guard_paths` の照合 | **完全一致(glob 不可)は現行でも正**(◎ `core_guard.py:225-226`)。`areas[].paths` は `fnmatchcase`(glob 可・`*` は `/` を跨ぐ)。差分取得は **`--no-renames`**(`:183`) | — |
+| `codex_run.py` の位置づけ | **`core-areas.json` のどちらの集合にも無い**(◎)。1-5 節の是正を射程に含めても core-guard は発火しない。`check_docs_status.py` も同様 | — |
+| H-78 / H-79 の追記責務 | **TSK-250 ステップ 25 が自分の射程に置いている**(◎ `TSK250PLAN:236`)。申し送り 7 と重複 → どちらが書くか決める | — |
+| `has_filled_step_row` 欠陥の起票 | **台帳・Notion のいずれにも未起票**。記録は worklog(`docs/worklog/2026-08-31-pg-authz-verification.md:185-190`)と TSK-270 計画の注記(`docs/features/pg-authz-verification/plan.md:378-381`)のみ。台帳の類似候補 `LEDGER:91`(`feature_status.py` の `in_step_section` が任意見出しで解除 — 候補扱い)は**同型の別実装** | 申し送り 5 の条件「含めないなら起票」は未履行 |
+| CI「引数なし」の規範 | `HARNESS:675`・`sync-protocol.md:2426` とも**現存**。TSK-250 ステップ 22「明示引数」(◎ `:233`)と衝突継続。加えて TSK-250 ステップ 22 と本計画ステップ 23 が**設計書 10.1 の同一行**を、ステップ 21 / 22 が **`test_ci_wiring.py`** を二重に更新対象にしている | 決着枠 = `TSK250PLAN:201-203` |
+| 新たに効く手続 | **7.3-1〜7.3-8**(v1.12 approved 以後のゲートに適用・`HARNESS:62`・`:414-457`)/ **6.1 反映周コミット規約**(`:301-327`、本計画は `反映周コミット: 適用`)/ **6.3 実施記録行**(`:355`・PR テンプレ `.github/pull_request_template.md:23-24`・`github-setup.md:40` 記録未記入ならマージしない)/ fast path 不可(guard_paths 該当・大規模 — `:286-292`)/ TSK-281 が確立した**有効確認者 4 役同一人・approve の head 拘束・`--match-head-commit` マージ**(`CAPLAN:82-86`) | — |
+| 新たに効く台帳項目 | **H-87**(指摘の一次記録を耐久ファイルへ全数転記 — 本タスクは 1 周目 P0/P1 を worklog に転記済み)/ **H-88**(checker の出力〔exit code・要約行〕の worklog 転記を要件化)/ **H-85**(対応案③「`tests/` の期待件数ハードコードを資産から読む」— 3 節の件数固定テストと**方向が逆**。安全網 2 本は動的導出なので抵触しない) | `LEDGER:795-815`・`:724-781` |
+| PO 判断シート(TSK-308)・TSK-310/311 | 文書検査機構に関わる決定なし。間接: **H-19 ⑥**「規範条件を変えない節更新」が成果物レビューで「新規範 = 確定ゲート」へ覆った前例(`LEDGER:132`)→ 10.1 の `docs-lint` 行を触るときの 7.6-3 前段/後段の判定は保守側に倒す根拠 | — |
+
+### 6-6. 基準線の再測定(◎ Claude が自分で実行 — 2026-09-04・develop f92b5f8 に rebase 済みの worktree)
+
+| 項目 | 2026-08-31 | **2026-09-04** |
+| --- | --- | --- |
+| `uv run pytest tests/` | 784 passed | **875 passed**(267.75s) |
+| `check_docs_status.py` / `check_design_propagation.py` / `check_doc_coverage.py`(引数なし) | green | **green** |
+| `uv run ruff check .` / `uv run ty check` | All checks passed | **All checks passed** |
+| 規模 | `PROP` 1,325 / `COV` 1,006 / `test_check_design_propagation.py` 1,709 | **同一**(+ `test_check_doc_coverage.py` 495 / `codex_run.py` 383) |
+
+**pytest node ID 集合**(計画レビュー P1「784 件以上は既存テストを削除しても達成できる」への対応資産):
+`baseline-node-ids-f92b5f8.txt`(本ディレクトリ・875 行・SHA-256 先頭 `a07454fcc3e3bc9c`)。ファイル別の内訳:
+`test_verify_nfr021_evidence` 195 / `test_hooks` 194 / `test_feature_status` 87 / `test_check_design_propagation` **86** /
+`test_check_docs_status` 72 / `test_check_authz_catalog` 72 / `test_nfr021_append_only` 61 / `test_core_guard` 43 /
+`test_check_doc_coverage` **27** / `test_check_plan_docs_sync` 12 / `test_nfr021_evidence_templates` 11 / `test_ci_wiring` 8。
+**「既存 node ID が全件残る」検査の正はこのファイル**(/plan で置き場・更新規律を決める)。
+
+### 6-7. /plan への申し送り(1 周目 P0 6 / P1 7 との対応)
+
+| 指摘 | 本節で得た事実 | 計画で決めること |
+| --- | --- | --- |
+| P0 MT-01 | 6-3 で事実確認。scope 欠落 2 件が現存 | **裁定(a)/(b)/(c)** — ステップ 3 より前 |
+| P0 検出集合一致では移行を証明しない | 安全網 2 本は動的導出だが、fixture が 17 欠陥同時含有なのは変わらず | 欠陥別 corpus + shadow 実行の差分比較ステップ |
+| P0 移行後の宣言を保存する資産が無い | `defects.json` は不変・guard_paths 該当 | 文書固有ルール資産(例 `invariants-sync-protocol.json`)を 3 節へ |
+| P0 `profile-*.json` と `profile-schema.json` の衝突 | — | 専用ディレクトリ or 明示レジストリ |
+| P0 `--manifest` / `--defects-file` のステップ無し | 契約 1 は 6 名固定(`TSK250PLAN:70`) | ステップ 2 に追加 |
+| P0 4 検査の入力契約 | **TSK-250 側も未定義**(6-4)。ID 体系は TSK-270 実資産と不一致 | プロファイルに `claims/waiting/forbidden/auth/baseline-digest` の資産パス欄 + ID 抽出・正規化規則欄。サンプルは `contracts/authz/` 実形式を模す |
+| P1 「発明しない」の非抵触主張 | H-78 の実測は台帳本文にも収録(`LEDGER:632`) | 主張を削除し 2026-08-31 裁定を明示的な例外として記録 |
+| P1 1 PR に確定単位 3 つ / ステップ 13 は別リファクタ | — | 分割 or 削除 |
+| P1 TSK-250 ステップ 22 との衝突 | 衝突継続(◎)。10.1 同一行・`test_ci_wiring.py` の二重更新も | 「引数なし列挙」を維持し、PR 本文で TSK-250 再レビュー枠へ申し送り |
+| P1 「784 件以上」 | node ID 集合を固定済み(6-6) | 「既存 node ID 全件残存」検査へ改める |
+| 新規 | 第 3 の検査機構 `check_authz_catalog.py`(CI 未配線) | 多文書対応の対象に含めるか・前例として何を借りるか |
+| 新規 | `guard_paths` 新資産の登録責務が TSK-250 ステップ 24 と重複(`TSK250PLAN:235`)/ H-78・H-79 追記が同ステップ 25 と重複 | A 側 / B 側の分担を明記 |
+| 新規 | `verify_handoff_digest` を載せる/載せない | 「載せない」を明示 |
+| 新規 | `has_filled_step_row` 欠陥の起票未履行 | 射程に含める(17 行・core-guard 非発火)か、Notion 起票 |
