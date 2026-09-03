@@ -117,3 +117,9 @@ branch: fix/authz-claims-corpus
 
 1. P1 F12・F13(oracle 資産 = ddl-elements・attack-tree)の是正がステップ 10 に誤配置・攻撃木が 10/11 へ重複 → F12・F13 をステップ 11 へ一意に配置(ステップ 10 から除去)
 - 計画レビュー周回 = 6。改訂 1 はこれで確定 — 実装をステップ 2 から再開
+
+### ステップ 2 — 要件書 NFR-018 例外表の 2 セル更新
+
+- 開始状態: `uv run pytest tests/` **844 passed(全 green)**を実測
+- 変更: 検証テストセル(未整備 → `courseCoordinateContract.spec.ts`)/ 状態セル(有効化待ち → 有効)/ 変更履歴 1 行(版 2.4 のまま・7.6-3 前段の根拠を記載)/ README 最終更新日。他セル・他行はバイト単位で無変更
+- **期待失敗集合(委任前固定)**: `test_repository_catalog_covers_the_entire_requirements_file` の 1 本(source_blob_digest 不一致)— **実測一致**(derived/oracle への推移なし・53 passed / 1 failed)

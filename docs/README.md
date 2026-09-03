@@ -6,7 +6,7 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.4 — 同期プロトコル設計 v0.1 と同一の確定ゲートで一括検証。敵対レビュー10周 → PO 承認) | 2.4 | 2026-08-30 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.4 — 同期プロトコル設計 v0.1 と同一の確定ゲートで一括検証。敵対レビュー10周 → PO 承認。NFR-018 例外表 2 セルは TSK-312 で有効化〔7.6-3 前段〕) | 2.4 | 2026-09-03 |
 | [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.2 — TSK-308 裁定の明文化: I-28 新設〔「完全に同じもの」裁定の限定つき再確認〕+ I-2/I-8/I-10/I-14/I-26 裁定追記 + I-8/I-21/I-24 要件追随。敵対レビュー 8 周 → PO 承認) | 1.2 | 2026-09-02 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(v0.1 — 要件書 v2.4 と一括検証。敵対レビュー10周・射程縮小2回 → PO 承認) | 0.1 | 2026-08-30 |
