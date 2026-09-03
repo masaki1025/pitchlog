@@ -169,3 +169,10 @@ branch: fix/authz-claims-corpus
 
 - 検査器 `check_authz_catalog.py:1879` の「legacy route は design origin 必須」強制が F8 の帰属訂正と矛盾(--skip-oracle でも必ず到達)。Codex は資産を変更せず停止(green を無理に作らない — 正しい挙動)
 - **この強制自体が F8 が指摘した誤帰属の焼き込み**であり、是正は F8 採用裁定の従属変更(新しい独立意味論ではない・checker は §2 の変更対象集合に含まれる)。**計画改訂 2(軽微)**: ステップ 10 の記述へ従属変更を明記(「要件由来 origin + 既定拒否主張への結線必須」へ・負例 red→green つき)。PR の総合敵対レビューで最終確認する
+
+### ステップ 10 — 実資産の一括追随(codex 委任・従属許可 3 件を経て完了)
+
+- 委任は 4 往復: ①F8 と検査器の legacy-origin 強制の矛盾で正しく停止(→計画改訂 2)②変異回帰 4 本の走査一般化の許可 ③execution-support helper の ID 整合の許可 ④完了
+- **資産追随の内訳**: 分割適用(F1〜F4・F15 — atomic 11 件・判定単位 184 行 → 195)/ F8 帰属訂正(13 routes = requirement origin + FR-034 既定拒否行へ結線・検査器の誤強制を「要件由来 + 結線必須」へ是正〔負例 red→green〕)/ F6 closed-world 宣言 3 件(route/resource/operation universe・deny)/ claim_dispositions 185 件(http design_pending_task 165・cache cache_matrix_pending 20)/ F5 規則値 = 使用実績から機械導出 / 採取追随(NFR-018 3 行 → table 系 ID)/ 変更履歴行の採取(total 1063)/ manifest.commit = d485abc / reseal 実行順どおり(--reseal → --reseal-derived・各 --skip 付き)/ 期待件数更新(変異母集合は判定単位 195 の機械列挙へ一般化)
+- **Claude 独立検証(全合格)**: `--skip-oracle` green を自ら実行 / python 直接計数(total 1063・auth 184・out 879・kind 分布が research 予測と一致・判定単位 195・db 187/http 195/cache 20)/ 変更履歴行 `CHANGELOG/table_row-028` = OUT_DOCUMENT_METADATA(既存 29 行と同一規則 — 個別照合合格)/ **帰属表 `attribution.json` = 568 変更単位・帰属なし 0**(生成器 `gen_attribution.py`・基準 41884a9)
+- 期待失敗集合: oracle 起因 3 本のみ(catalog 統合〔oracle 到達〕・oracle 統合・cut_set 変異 — いずれも ddl-elements の predicates 未追随由来。ステップ 11 で解消)— 全スイート 3 failed / 853 passed・ruff/ty green

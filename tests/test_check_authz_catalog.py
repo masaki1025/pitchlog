@@ -284,6 +284,36 @@ def _repository_catalog_and_lock() -> tuple[dict[str, Any], dict[str, Any]]:
     return catalog, lock
 
 
+def _auth_decision_units(
+    catalog: dict[str, Any],
+) -> list[tuple[dict[str, Any], dict[str, Any], str]]:
+    """非分割行と全 atomic claim を認可判定単位として列挙する。"""
+    units: list[tuple[dict[str, Any], dict[str, Any], str]] = []
+    for claim in catalog["claims"]:
+        if claim["classification"] != "auth_claim":
+            continue
+        atomic_claims = claim.get("atomic_claims")
+        if isinstance(atomic_claims, list):
+            units.extend(
+                (claim, atomic_claim, atomic_claim["atomic_id"])
+                for atomic_claim in atomic_claims
+            )
+        else:
+            units.append((claim, claim, claim["source_id"]))
+    return units
+
+
+def _decision_unit(claim: dict[str, Any], unit_id: str) -> dict[str, Any]:
+    """親行を復元した後の認可判定単位を ID で再取得する。"""
+    if claim["source_id"] == unit_id:
+        return claim
+    return next(
+        atomic_claim
+        for atomic_claim in claim["atomic_claims"]
+        if atomic_claim["atomic_id"] == unit_id
+    )
+
+
 def _refresh_decision_digest(claim: dict[str, Any]) -> None:
     """変異側も行 digest を更新し、別 lock だけを防御線にする。"""
     claim["decision_digest"] = checker.compute_decision_digest(claim)
@@ -317,7 +347,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1062 auth_claim=184 out_of_scope=878" in result.stdout
+    assert "total=1063 auth_claim=184 out_of_scope=879" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -592,11 +622,9 @@ def test_manifest_start_and_end_must_match_closed_heading_set(tmp_path: Path) ->
 
 
 def test_all_auth_claims_moved_to_each_out_rule_are_red() -> None:
-    """184主張と5規則の全920通りで分類決定を守る。"""
+    """全認可判定単位と全 OUT 規則の直積で分類決定を守る。"""
     catalog, lock = _repository_catalog_and_lock()
-    auth_claims = [
-        claim for claim in catalog["claims"] if claim["classification"] == "auth_claim"
-    ]
+    decision_units = _auth_decision_units(catalog)
     out_rule_ids = sorted(
         rule_id
         for rule_id, rule in catalog["classification_rules"].items()
@@ -604,47 +632,55 @@ def test_all_auth_claims_moved_to_each_out_rule_are_red() -> None:
     )
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in auth_claims:
+    for claim, _unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
         for out_rule_id in out_rule_ids:
             claim.clear()
             claim.update(copy.deepcopy(original))
-            claim["classification"] = "out_of_scope"
-            claim["classification_rule_id"] = out_rule_id
-            del claim["layer"]
-            del claim["decidable_at"]
+            unit = _decision_unit(claim, unit_id)
+            unit["classification"] = "out_of_scope"
+            unit["classification_rule_id"] = out_rule_id
+            if unit is claim:
+                del unit["layer"]
+                del unit["decidable_at"]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], out_rule_id))
+                escaped.append((unit_id, out_rule_id))
             attempts += 1
         claim.clear()
         claim.update(original)
 
-    assert len(auth_claims) == 184
-    assert len(out_rule_ids) == 5
-    assert attempts == 184 * 5 == 920
+    assert attempts == len(decision_units) * len(out_rule_ids)
     assert escaped == []
 
 
 def test_all_decidable_locations_removed_one_at_a_time_are_red() -> None:
-    """db/http/cache を含む全主張の全378ロケーションを守る。"""
+    """全認可判定単位の db/http/cache ロケーションを守る。"""
     catalog, lock = _repository_catalog_and_lock()
+    decision_units = _auth_decision_units(catalog)
+    expected_attempts = Counter(
+        decision["location"]
+        for _claim, unit, _unit_id in decision_units
+        for decision in unit["decidable_at"]
+    )
     escaped: list[tuple[str, str]] = []
     attempts = Counter[str]()
-    for claim in catalog["claims"]:
-        if claim["classification"] != "auth_claim":
-            continue
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
-        for decision in original["decidable_at"]:
+        original_unit = _decision_unit(original, unit_id)
+        for decision in original_unit["decidable_at"]:
             location = decision["location"]
             claim.clear()
             claim.update(copy.deepcopy(original))
-            claim["decidable_at"] = [
-                item for item in claim["decidable_at"] if item["location"] != location
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["decidable_at"] = [
+                item
+                for item in mutated_unit["decidable_at"]
+                if item["location"] != location
             ]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
@@ -652,45 +688,43 @@ def test_all_decidable_locations_removed_one_at_a_time_are_red() -> None:
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], location))
+                escaped.append((unit_id, location))
             attempts[location] += 1
         claim.clear()
         claim.update(original)
 
-    assert attempts == Counter({"http": 184, "db": 177, "cache": 17})
-    assert sum(attempts.values()) == 378
+    assert attempts == expected_attempts
+    assert sum(attempts.values()) == sum(expected_attempts.values())
     assert escaped == []
 
 
 def test_all_auth_claim_layers_changed_to_every_other_layer_are_red() -> None:
-    """184主張の layer を他の4値へ変える全736通りを守る。"""
+    """全認可判定単位の layer を他の全値へ変えて守る。"""
     catalog, lock = _repository_catalog_and_lock()
     layer_ids = catalog["layer_ids"]
-    auth_claims = [
-        claim for claim in catalog["claims"] if claim["classification"] == "auth_claim"
-    ]
+    decision_units = _auth_decision_units(catalog)
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in auth_claims:
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
+        original_layer = unit["layer"]
         for layer_id in layer_ids:
-            if layer_id == original["layer"]:
+            if layer_id == original_layer:
                 continue
-            claim["layer"] = layer_id
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["layer"] = layer_id
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], layer_id))
+                escaped.append((unit_id, layer_id))
             claim.clear()
             claim.update(copy.deepcopy(original))
             attempts += 1
 
-    assert len(auth_claims) == 184
-    assert len(layer_ids) == 5
-    assert attempts == 184 * 4 == 736
+    assert attempts == len(decision_units) * (len(layer_ids) - 1)
     assert escaped == []
 
 
@@ -735,13 +769,13 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 878
-    assert attempts == 878
+    assert len(out_claims) == 879
+    assert attempts == 879
     assert escaped == []
 
 
 def test_all_basis_rules_changed_one_at_a_time_are_red() -> None:
-    """全378 location の basis_rule_id も決定の一部として守る。"""
+    """全認可判定単位の basis_rule_id も決定の一部として守る。"""
     catalog, lock = _repository_catalog_and_lock()
     basis_rules = catalog["basis_rules"]
     basis_by_location: dict[str, list[str]] = {
@@ -752,32 +786,36 @@ def test_all_basis_rules_changed_one_at_a_time_are_red() -> None:
         )
         for location in checker.DECIDABLE_LOCATIONS
     }
+    decision_units = _auth_decision_units(catalog)
+    expected_attempts = sum(
+        len(unit["decidable_at"]) for _claim, unit, _unit_id in decision_units
+    )
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in catalog["claims"]:
-        if claim["classification"] != "auth_claim":
-            continue
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
-        for index, decision in enumerate(original["decidable_at"]):
+        original_unit = _decision_unit(original, unit_id)
+        for index, decision in enumerate(original_unit["decidable_at"]):
             alternatives = [
                 basis_id
                 for basis_id in basis_by_location[decision["location"]]
                 if basis_id != decision["basis_rule_id"]
             ]
             assert alternatives
-            claim["decidable_at"][index]["basis_rule_id"] = alternatives[0]
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["decidable_at"][index]["basis_rule_id"] = alternatives[0]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], decision["location"]))
+                escaped.append((unit_id, decision["location"]))
             claim.clear()
             claim.update(copy.deepcopy(original))
             attempts += 1
 
-    assert attempts == 177 + 184 + 17 == 378
+    assert attempts == expected_attempts
     assert escaped == []
 
 
@@ -941,6 +979,53 @@ def test_fixture_route_registry_closes_http_and_cache_claims() -> None:
         (FIXTURE_ROOT / "route-registry.lock.json").read_text(encoding="utf-8")
     )
     checker.validate_derived_lock(registry, lock, "route-registry.json")
+
+
+def test_legacy_routes_require_requirement_origin_and_source_claims() -> None:
+    """legacy route の design 帰属と要件主張の無結線を拒否する。"""
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    cases = {
+        "design_origin": {
+            "origin": "design",
+            "source_claim_ids": [],
+            "expected_error": "legacy route は requirement origin が必要",
+        },
+        "unlinked_requirement": {
+            "origin": "requirement",
+            "source_claim_ids": [],
+            "expected_error": "source_claim_idsは1件以上必要",
+        },
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        legacy_route = next(
+            route
+            for route in mutated["routes"]
+            if route["route_kind"] == "legacy_route"
+        )
+        legacy_route["origin"] = case["origin"]
+        legacy_route["source_claim_ids"] = case["source_claim_ids"]
+        try:
+            checker.validate_route_registry(
+                mutated,
+                catalog,
+                FIXTURE_ROOT,
+                frozenset(),
+            )
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
 
 
 def _ddl_elements_semantics_fixture() -> dict[str, Any]:
@@ -1187,6 +1272,81 @@ def _claim_mutant_map_with_execution_support() -> tuple[
         "management_claim": False,
     }
 
+    requirement_catalog = _repository_catalog_and_lock()[0]
+    atomic_claims_by_parent = {
+        claim["source_id"]: claim["atomic_claims"]
+        for claim in requirement_catalog["claims"]
+        if "atomic_claims" in claim
+    }
+    mutant_by_id = {
+        mutant["mutant_id"]: mutant for mutant in mapping["mutants"]
+    }
+    mutant_replacements: dict[str, list[tuple[str, str, bool]]] = {}
+    expanded_claims: list[dict[str, Any]] = []
+    for claim in mapping["claims"]:
+        parent_id = claim["claim_id"]
+        atomic_claims = atomic_claims_by_parent.get(parent_id)
+        if atomic_claims is None:
+            expanded_claims.append(claim)
+            continue
+        parent_mutant_id = claim["mutant_ids"][0]
+        assert parent_mutant_id in mutant_by_id
+        mutant_prefix, mutant_operator = parent_mutant_id.rsplit(":", maxsplit=1)
+        replacements: list[tuple[str, str, bool]] = []
+        for atomic_claim in atomic_claims:
+            atomic_id = atomic_claim["atomic_id"]
+            atomic_suffix = atomic_id.split("#", maxsplit=1)[1]
+            atomic_mutant_id = f"{mutant_prefix}:{atomic_suffix}:{mutant_operator}"
+            has_db_decision = checker._has_db_decision(atomic_claim)
+            atomic_mapping = copy.deepcopy(claim)
+            atomic_mapping["claim_id"] = atomic_id
+            atomic_mapping["mutant_ids"] = [atomic_mutant_id]
+            if not has_db_decision:
+                atomic_mapping.update(
+                    {
+                        "execution_class": "contract_only",
+                        "classification_rule_id": (
+                            "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                        ),
+                        "runtime_kill_required": False,
+                        "runtime_evidence_kind": "handoff_runtime_test",
+                        "contract_only_reason_code": "no_db_decision_point",
+                    }
+                )
+            expanded_claims.append(atomic_mapping)
+            replacements.append((atomic_id, atomic_mutant_id, has_db_decision))
+        mutant_replacements[parent_mutant_id] = replacements
+    mapping["claims"] = expanded_claims
+
+    expanded_mutants: list[dict[str, Any]] = []
+    for mutant in mapping["mutants"]:
+        mutant_atomic_replacements = mutant_replacements.get(mutant["mutant_id"])
+        if mutant_atomic_replacements is None:
+            expanded_mutants.append(mutant)
+            continue
+        parent_id = mutant["claim_ids"][0]
+        for atomic_id, atomic_mutant_id, has_db_decision in mutant_atomic_replacements:
+            atomic_mutant = copy.deepcopy(mutant)
+            atomic_mutant["mutant_id"] = atomic_mutant_id
+            atomic_mutant["claim_ids"] = [atomic_id]
+            atomic_mutant["target_element_ids"] = [
+                atomic_id if target_id == parent_id else target_id
+                for target_id in atomic_mutant["target_element_ids"]
+            ]
+            if not has_db_decision:
+                atomic_mutant.update(
+                    {
+                        "runtime_kill_required": False,
+                        "runtime_kill_waiver_reason": "contract_only_handoff",
+                        "expected_runtime_outcome": "handoff",
+                        "expected_positive_outcome": "handoff",
+                        "positive_kill_required": False,
+                        "positive_case_scope_id": None,
+                    }
+                )
+            expanded_mutants.append(atomic_mutant)
+    mapping["mutants"] = expanded_mutants
+
     ddl = oracle_assets["ddl_elements"]
     provisioning_claim_id = ddl["provisioning_claim"]["claim_id"]
     management_probe_claim_ids = set(
@@ -1340,7 +1500,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"probe_executable": 171, "contract_only": 16}
+        {"probe_executable": 176, "contract_only": 22}
     )
 
 
@@ -1420,7 +1580,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 177
+    assert result["catalog"]["db_claim_count"] == 187
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )

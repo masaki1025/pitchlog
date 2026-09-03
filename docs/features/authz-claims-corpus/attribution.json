@@ -1,0 +1,4252 @@
+{
+ "meta": {
+  "base": "41884a9",
+  "date": "2026-09-03",
+  "rulings": "step1-rulings.json",
+  "known": [
+   "indent-extraction(採取欠陥)",
+   "exception-cells(例外表 2 セル)",
+   "changelog-row(変更履歴行)"
+  ]
+ },
+ "records": [
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-005",
+   "change": "removed",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-005#operation-permission",
+   "change": "added",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-005#read-access",
+   "change": "added",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-006",
+   "change": "removed",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-006#operation-permission",
+   "change": "added",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-034/heading-002/list_item-006#read-access",
+   "change": "added",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-005",
+   "change": "removed",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-005#principal-state",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-005#revocation",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-010",
+   "change": "removed",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-010#password-state",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-035/list_item-010#revocation",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-006",
+   "change": "removed",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-006#capacity-constraint",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-006#invitation-state",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-006#issue-permission",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-007",
+   "change": "removed",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-007#accept-permission",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-007#acceptance-serialization",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-007#capacity-constraint",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-007#invitation-state",
+   "change": "added",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-014",
+   "change": "removed",
+   "attribution": [
+    "F15"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:FR-041/list_item-014#participant-authorization",
+   "change": "added",
+   "attribution": [
+    "F15"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:NFR-011/list_item-002",
+   "change": "removed",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:NFR-011/list_item-002#credential-state",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:entries:CATALOG:NFR-011/list_item-002#revocation",
+   "change": "added",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "auth-catalog.json:input_manifest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:aggregate_decision_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:asset_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-005",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-005#operation-permission",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-005#read-access",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-006",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-006#operation-permission",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-034/heading-002/list_item-006#read-access",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-005",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-005#principal-state",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-005#revocation",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-010",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-010#password-state",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-035/list_item-010#revocation",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-006",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-006#capacity-constraint",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-006#invitation-state",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-006#issue-permission",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-007",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-007#accept-permission",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-007#acceptance-serialization",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-007#capacity-constraint",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-007#invitation-state",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-014",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:FR-041/list_item-014#participant-authorization",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:NFR-011/list_item-002",
+   "change": "removed",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:NFR-011/list_item-002#credential-state",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entries:catalog:CATALOG:NFR-011/list_item-002#revocation",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "auth-catalog.lock.json:entry_count",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "http-route-matrix.json:input_manifest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "http-route-matrix.lock.json:asset_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:CHANGELOG/table_row-028",
+   "change": "modified",
+   "attribution": [
+    "known:changelog-row"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:CHANGELOG/table_row-029",
+   "change": "added",
+   "attribution": [
+    "known:changelog-row"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-034/heading-001/paragraph-002",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-034/heading-002/list_item-005",
+   "change": "modified",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-034/heading-002/list_item-006",
+   "change": "modified",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-034/heading-002/paragraph-001",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-034/heading-002/paragraph-003",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-035/list_item-005",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-035/list_item-010",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-041/list_item-006",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-041/list_item-007",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:FR-041/list_item-014",
+   "change": "modified",
+   "attribution": [
+    "F15"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-011/list_item-002",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/paragraph-001",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/paragraph-002",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/paragraph-003",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/table_delimiter-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/table_header-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:claims:NFR-018/table_row-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction",
+    "known:exception-cells"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:classification_rules",
+   "change": "modified",
+   "attribution": [
+    "F5"
+   ]
+  },
+  {
+   "unit": "requirement-claims.json:input_manifest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:aggregate_decision_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:classification_rules_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decision_count",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:CHANGELOG/table_row-028",
+   "change": "modified",
+   "attribution": [
+    "known:changelog-row"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:CHANGELOG/table_row-029",
+   "change": "added",
+   "attribution": [
+    "known:changelog-row"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-034/heading-001/paragraph-002",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-034/heading-002/list_item-005",
+   "change": "modified",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-034/heading-002/list_item-006",
+   "change": "modified",
+   "attribution": [
+    "F2"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-034/heading-002/paragraph-001",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-034/heading-002/paragraph-003",
+   "change": "modified",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-035/list_item-005",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-035/list_item-010",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-041/list_item-006",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-041/list_item-007",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:FR-041/list_item-014",
+   "change": "modified",
+   "attribution": [
+    "F15"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-011/list_item-002",
+   "change": "modified",
+   "attribution": [
+    "F4"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/paragraph-001",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/paragraph-002",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/paragraph-003",
+   "change": "removed",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/table_delimiter-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/table_header-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction"
+   ]
+  },
+  {
+   "unit": "requirement-claims.lock.json:decisions:NFR-018/table_row-001",
+   "change": "added",
+   "attribution": [
+    "known:indent-extraction",
+    "known:exception-cells"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-C/blockquote-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-C/table_row-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-C/table_row-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-C/table_row-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-C/table_row-010@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-ITEM-A-5/blockquote-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-ITEM-A-5/blockquote-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:APPENDIX-ITEM-A-5/paragraph-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-007/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-007/list_item-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-012/list_item-010@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-012/list_item-013@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-012/list_item-015@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-012/list_item-018@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-010@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-013/list_item-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-014/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-017/list_item-009@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-017/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-019/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-019/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-006@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-033/list_item-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/paragraph-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/paragraph-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/paragraph-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/paragraph-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/paragraph-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-010@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-012@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-013@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-014@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-022@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-001/table_row-023@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-005#operation-permission@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-005#read-access@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-006#operation-permission@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/list_item-006#read-access@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/paragraph-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/paragraph-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-002/table_row-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-003/paragraph-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-003/table_row-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-003/table_row-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/list_item-001@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/paragraph-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/paragraph-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-001@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-002@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-003@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-004@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-009@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/heading-004/table_row-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-034/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-005#principal-state@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-005#revocation@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-005#revocation@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-010#password-state@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-010#revocation@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-010#revocation@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-012@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-013@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-015@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-016@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-035/list_item-016@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-005@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-036/list_item-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-037/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-039/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-039/list_item-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-039/list_item-009@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-010@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-012@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-013@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-014#participant-authorization@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-014#request-validation@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-018@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-019@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-020@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:FR-041/list_item-021@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-009/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-010/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-010/list_item-004@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-010/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-011/list_item-002#credential-state@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-011/list_item-002#revocation@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-011/list_item-002#revocation@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-011/list_item-003@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-011/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-012/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-012/list_item-003@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-012/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-019/paragraph-001@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:NFR-019/paragraph-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-1.1/paragraph-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-1.1/paragraph-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-2.2/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-2.2/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-2.2/list_item-008@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-2.2/list_item-012@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-005@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/heading-001/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/table_row-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/table_row-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/table_row-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-3/table_row-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-4.0-1/code_line-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-4.0-1/code_line-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-4.0-2/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-4.0-3/table_row-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-4.0-3/table_row-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-6.2/list_item-003@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-6.2/list_item-003@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-6.4/list_item-001@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-7.1/list_item-004@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-8/list_item-002@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-8/list_item-002@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-8/list_item-006@cache",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-8/list_item-006@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-9/table_row-007@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-9/table_row-011@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-9/table_row-012@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:claim_dispositions:SECTION-9/table_row-013@http",
+   "change": "added",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "route-registry.json:input_manifest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.json:management_operations:accept_invitation",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "route-registry.json:management_operations:issue_invitation",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "route-registry.json:management_operations:revoke_invitation",
+   "change": "modified",
+   "attribution": [
+    "F3"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-020",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-021",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-022",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-023",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-024",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-025",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-026",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-027",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-028",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-029",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-030",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-031",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:FR-032",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.json:routes:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:aggregate_decision_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:asset_digest",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-C/blockquote-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-C/table_row-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-C/table_row-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-C/table_row-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-C/table_row-010:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-ITEM-A-5/blockquote-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-ITEM-A-5/blockquote-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:APPENDIX-ITEM-A-5/paragraph-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-007/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-007/list_item-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-012/list_item-010:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-012/list_item-013:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-012/list_item-015:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-012/list_item-018:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-010:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-013/list_item-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-014/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-017/list_item-009:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-017/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-019/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-019/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-006:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-033/list_item-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/paragraph-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/paragraph-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/paragraph-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/paragraph-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/paragraph-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-010:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-012:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-013:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-014:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-022:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-001/table_row-023:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-005#operation-permission:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-005#read-access:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-006#operation-permission:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/list_item-006#read-access:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/paragraph-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/paragraph-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-002/table_row-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-003/paragraph-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-003/table_row-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-003/table_row-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/list_item-001:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/paragraph-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/paragraph-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-001:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-002:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-003:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-004:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-009:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/heading-004/table_row-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-034/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-005#principal-state:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-005#revocation:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-005#revocation:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-010#password-state:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-010#revocation:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-010#revocation:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-012:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-013:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-015:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-016:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-035/list_item-016:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-005:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-036/list_item-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-037/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-039/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-039/list_item-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-039/list_item-009:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-010:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-012:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-013:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-014#participant-authorization:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-014#request-validation:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-018:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-019:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-020:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:FR-041/list_item-021:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-009/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-010/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-010/list_item-004:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-010/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-011/list_item-002#credential-state:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-011/list_item-002#revocation:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-011/list_item-002#revocation:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-011/list_item-003:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-011/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-012/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-012/list_item-003:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-012/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-019/paragraph-001:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:NFR-019/paragraph-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-1.1/paragraph-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-1.1/paragraph-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-2.2/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-2.2/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-2.2/list_item-008:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-2.2/list_item-012:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-005:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/heading-001/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/table_row-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/table_row-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/table_row-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-3/table_row-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-4.0-1/code_line-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-4.0-1/code_line-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-4.0-2/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-4.0-3/table_row-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-4.0-3/table_row-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-6.2/list_item-003:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-6.2/list_item-003:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-6.4/list_item-001:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-7.1/list_item-004:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-8/list_item-002:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-8/list_item-002:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-8/list_item-006:cache",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-8/list_item-006:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-9/table_row-007:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-9/table_row-011:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-9/table_row-012:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:claim_disposition:SECTION-9/table_row-013:http",
+   "change": "added",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:operation:accept_invitation",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:operation:issue_invitation",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:operation:revoke_invitation",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-020",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-021",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-022",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-023",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-024",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-025",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-026",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-027",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-028",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-029",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-030",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-031",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:FR-032",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entries:route:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "route-registry.lock.json:entry_count",
+   "change": "modified",
+   "attribution": [
+    "mechanical:reseal"
+   ]
+  },
+  {
+   "unit": "docs/README.md",
+   "change": "file",
+   "attribution": [
+    "known:exception-cells"
+   ]
+  },
+  {
+   "unit": "requirements-pitchlog-2026-07-22.md:NFR-018 例外表 2 セル",
+   "change": "hunk",
+   "attribution": [
+    "known:exception-cells"
+   ]
+  },
+  {
+   "unit": "requirements-pitchlog-2026-07-22.md:変更履歴 1 行",
+   "change": "hunk",
+   "attribution": [
+    "known:changelog-row"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -49,6 +49,7 @@ SOURCE_KINDS = frozenset(",
+   "change": "hunk",
+   "attribution": [
+    "F6"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -67,6 +68,15 @@ CHANNELS = frozenset({\"screen\", \"export\"})",
+   "change": "hunk",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -83,6 +93,18 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (",
+   "change": "hunk",
+   "attribution": [
+    "F10"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -227,9 +249,10 @@ def git_blob_digest(data: bytes) -> str:",
+   "change": "hunk",
+   "attribution": [
+    "F16"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -518,6 +541,10 @@ def _parse_classification_rules(raw: object) -> dict[str, Cla",
+   "change": "hunk",
+   "attribution": [
+    "F5"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -642,6 +669,128 @@ def _validate_rule_applicability(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6",
+    "mechanical:digest"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -657,7 +806,54 @@ def decision_projection(claim: dict[str, object]) -> dict[str",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6",
+    "mechanical:digest"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -696,7 +892,16 @@ def _validate_claim(",
+   "change": "hunk",
+   "attribution": [
+    "mechanical:schema-follow"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -712,9 +917,23 @@ def _validate_claim(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6",
+    "mechanical:schema-follow"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -732,6 +951,11 @@ def _validate_claim(",
+   "change": "hunk",
+   "attribution": [
+    "F6",
+    "mechanical:schema-follow"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -745,7 +969,23 @@ def _validate_claim(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "mechanical:schema-follow"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -757,7 +997,16 @@ def _validate_claim(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6",
+    "mechanical:schema-follow"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -834,6 +1083,30 @@ def validate_catalog(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -846,7 +1119,16 @@ def validate_catalog(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -947,6 +1229,9 @@ def _validate_lock_structure(raw: object, catalog_path: str) ",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -959,16 +1244,75 @@ def _validate_lock_structure(raw: object, catalog_path: str",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4",
+    "F6"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1089,11 +1433,21 @@ def _expect_closed_value(",
+   "change": "hunk",
+   "attribution": [
+    "F1",
+    "F15",
+    "F2",
+    "F3",
+    "F4"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1109,6 +1463,21 @@ def _db_claims_by_id(catalog: dict[str, object]) -> dict[st",
+   "change": "hunk",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1198,6 +1567,90 @@ def _validate_design_provenance(raw: object, root: Path) ->",
+   "change": "hunk",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1230,6 +1683,7 @@ def validate_route_registry(",
+   "change": "hunk",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1424,8 +1878,8 @@ def validate_route_registry(",
+   "change": "hunk",
+   "attribution": [
+    "F8"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1479,10 +1933,32 @@ def validate_route_registry(",
+   "change": "hunk",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -1820,6 +2296,21 @@ def _derived_lock_entries(",
+   "change": "hunk",
+   "attribution": [
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2067,6 +2558,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[s",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2227,6 +2719,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2247,12 +2760,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2261,6 +2789,8 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[s",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2275,7 +2805,9 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[s",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2301,12 +2833,51 @@ def validate_ddl_elements(raw: object, root: Path) -> dict",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2335,10 +2906,59 @@ def validate_ddl_elements(raw: object, root: Path) -> dict",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2503,6 +3123,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[s",
+   "change": "hunk",
+   "attribution": [
+    "F12",
+    "F14"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2584,6 +3205,66 @@ def _has_db_decision(claim: dict[str, object]) -> bool:",
+   "change": "hunk",
+   "attribution": [
+    "F10"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2705,26 +3386,52 @@ def validate_claim_mutant_map(",
+   "change": "hunk",
+   "attribution": [
+    "F10",
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2735,10 +3442,17 @@ def validate_claim_mutant_map(",
+   "change": "hunk",
+   "attribution": [
+    "F10"
+   ]
+  },
+  {
+   "unit": "check_authz_catalog.py:@@ -2746,13 +3460,27 @@ def validate_claim_mutant_map(",
+   "change": "hunk",
+   "attribution": [
+    "F10",
+    "F7",
+    "F9"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/atomic-claim.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/atomic-route-references.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/auth-catalog-atomic.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/claim-execution-support.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/ddl-elements.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/empty-auth-rule.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/indented-tables.md",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/invalid-atomic-claims.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/invalid-claim-dispositions.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/invalid-claim-execution-support.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/invalid-closed-world.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/invalid-ddl-elements.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/requirement-claims.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/requirement-claims.lock.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/route-registry.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/fixtures/authz_claims/route-registry.lock.json",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  },
+  {
+   "unit": "tests/test_check_authz_catalog.py",
+   "change": "file",
+   "attribution": [
+    "mechanical:step-tests"
+   ]
+  }
+ ],
+ "summary": {
+  "total_units": 568,
+  "unattributed": 0
+ }
+}

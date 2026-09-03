@@ -2,17 +2,19 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "route-registry.json",
-  "asset_digest": "f8b1bc2ef73eb832c86f7a52d17b632292b185f64a21f9c5c3bd6b02b398db4c",
+  "asset_digest": "9ab3479c73d67c75d5256592f9f80bb81ed7a28999ce8012fdeb4ea193cb17ab",
   "entry_count": 18,
-  "aggregate_decision_digest": "dcd0c5928089fd3dabf350415fcdf93cf48c7a58b4d522e4fccdc56ca9eadf86",
+  "aggregate_decision_digest": "2371880e1d8c21c844d64b4345ee59a135e40cea6a5a2988d92aba5a1d69f7f6",
   "entries": [
     {
       "entry_id": "route:ROUTE:FIXTURE:LEGACY",
       "decision": {
         "route_id": "ROUTE:FIXTURE:LEGACY",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -20,7 +22,7 @@
           "FIXTURE-REQUIREMENTS"
         ]
       },
-      "decision_digest": "99f1d220137e88f1ae6be95b3e836b246f9f411613becacd9d8e86b057d66152"
+      "decision_digest": "179f8d41f19101804e88bdc6165506332ee3468480390062743d3655b7f67117"
     },
     {
       "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:screen",

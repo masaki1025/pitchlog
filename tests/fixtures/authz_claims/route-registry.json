@@ -59,8 +59,10 @@
     {
       "route_id": "ROUTE:FIXTURE:LEGACY",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",

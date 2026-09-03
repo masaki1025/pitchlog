@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "1dee69c46a117316d0ff97ca2887d6b6a6dd03f3a52b6ca8b8b0325cd29b3d68",
-  "entry_count": 177,
-  "aggregate_decision_digest": "a507813619d9f2dac93d317898fc29abc0b61dcb1c7ffffef2a516db8197e86d",
+  "asset_digest": "604cabf6a1fae67ffa72aaaa62a9f6df2a0425b8ed315de5a05ee5389c275bcf",
+  "entry_count": 187,
+  "aggregate_decision_digest": "ce86a275efb535b5dc7f9696ed59b381330d28e647dd4338c570371c012796e3",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",
@@ -952,46 +952,151 @@
       "decision_digest": "8c69740aa36773f2f3a8d7fce7975318cd34464d29e3713c095fcc9f76c8dede"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-041/list_item-006",
+      "entry_id": "catalog:CATALOG:FR-041/list_item-006#issue-permission",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-041/list_item-006",
-        "requirement_claim_id": "FR-041/list_item-006",
+        "catalog_entry_id": "CATALOG:FR-041/list_item-006#issue-permission",
+        "requirement_claim_id": "FR-041/list_item-006#issue-permission",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "29b1b168c24a8c4b2b1d2d71916ee7cb7a436660bebe52a65bb664bfe3a80bd9",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-041/list_item-006.issue-permission.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "04d89821c97fbab1599704f80584665f741d733d442199758d3c55f0001bb1be"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-041/list_item-006#invitation-state",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-041/list_item-006#invitation-state",
+        "requirement_claim_id": "FR-041/list_item-006#invitation-state",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
         "source_text_digest": "29b1b168c24a8c4b2b1d2d71916ee7cb7a436660bebe52a65bb664bfe3a80bd9",
-        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-041/list_item-006.db",
+          "id": "TSK-312.step10.FR-041/list_item-006.invitation-state.db",
           "status": "planned"
         }
       },
-      "decision_digest": "765faf09ca6cd1c050fc7674c1e9a44acc6675000bc28eb2da02e88b31626312"
+      "decision_digest": "80546fdd86e7af2a3651961eb7626c89eb8dd8b44ee594fc9f25b7b94765c8f1"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-041/list_item-007",
+      "entry_id": "catalog:CATALOG:FR-041/list_item-006#capacity-constraint",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-041/list_item-007",
-        "requirement_claim_id": "FR-041/list_item-007",
+        "catalog_entry_id": "CATALOG:FR-041/list_item-006#capacity-constraint",
+        "requirement_claim_id": "FR-041/list_item-006#capacity-constraint",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "29b1b168c24a8c4b2b1d2d71916ee7cb7a436660bebe52a65bb664bfe3a80bd9",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-041/list_item-006.capacity-constraint.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "6ea5c53319bd3c84752c3175f3599920c93da2d79fa125091037652a453e9778"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-041/list_item-007#accept-permission",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-041/list_item-007#accept-permission",
+        "requirement_claim_id": "FR-041/list_item-007#accept-permission",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-041/list_item-007.accept-permission.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "c12965ec70a1182e7e1f2d8d4591f2e8ac62480a82cc0c67267cac3c176e3635"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-041/list_item-007#invitation-state",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-041/list_item-007#invitation-state",
+        "requirement_claim_id": "FR-041/list_item-007#invitation-state",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
         "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
-        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-041/list_item-007.db",
+          "id": "TSK-312.step10.FR-041/list_item-007.invitation-state.db",
           "status": "planned"
         }
       },
-      "decision_digest": "42590ace26c988dcb85d08b4243ce12c5b983ba8faf476b858ec26b2a7fe1331"
+      "decision_digest": "f8a28ab97a0228fe0a67f5100790d4afcd42932e3288ae0f5216c3731f84df20"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-041/list_item-007#capacity-constraint",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-041/list_item-007#capacity-constraint",
+        "requirement_claim_id": "FR-041/list_item-007#capacity-constraint",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-041/list_item-007.capacity-constraint.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "89f24b120f9f65b130814126f3ec16a49bdaaa0e098247f8eac0babcafd04853"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-041/list_item-007#acceptance-serialization",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-041/list_item-007#acceptance-serialization",
+        "requirement_claim_id": "FR-041/list_item-007#acceptance-serialization",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-041/list_item-007.acceptance-serialization.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "19c6c40808aee3d895e9ee337265f26aa77069b8cf1495b944af4ffa4de74f22"
     },
     {
       "entry_id": "catalog:CATALOG:FR-041/list_item-008",
@@ -1120,25 +1225,25 @@
       "decision_digest": "73611ce79fbc183521cc1af06dbb59eaad11f4359f1bd38853b90ddf1259fece"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-041/list_item-014",
+      "entry_id": "catalog:CATALOG:FR-041/list_item-014#participant-authorization",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-041/list_item-014",
-        "requirement_claim_id": "FR-041/list_item-014",
+        "catalog_entry_id": "CATALOG:FR-041/list_item-014#participant-authorization",
+        "requirement_claim_id": "FR-041/list_item-014#participant-authorization",
         "origin": "requirement",
-        "layer": "authentication_boundary",
-        "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+        "layer": "access_control",
+        "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
         "source_text_digest": "0f05e7488516796778b7164aedd652934b12791050a6252ba3aecaf30b95ca14",
-        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "route_scope_id": "SCOPE:DATA_READ",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-041/list_item-014.db",
+          "id": "TSK-312.step10.FR-041/list_item-014.participant-authorization.db",
           "status": "planned"
         }
       },
-      "decision_digest": "4ce0eb26353c46587638120a9ec38c67d4035fe202db981f8c1a8ef6e2ee4514"
+      "decision_digest": "2b7362b3b15d23f380d630782a915443b516d8f6956894023816a9dd750f7ca4"
     },
     {
       "entry_id": "catalog:CATALOG:FR-041/list_item-015",
@@ -2338,10 +2443,10 @@
       "decision_digest": "cfd9ca05d32ab7621f4d3a5fd6372b5a1efceed6c754cfb7216d76d41518194c"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-005",
+      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-005#read-access",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-005",
-        "requirement_claim_id": "FR-034/heading-002/list_item-005",
+        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-005#read-access",
+        "requirement_claim_id": "FR-034/heading-002/list_item-005#read-access",
         "origin": "requirement",
         "layer": "access_control",
         "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
@@ -2352,17 +2457,38 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-034/heading-002/list_item-005.db",
+          "id": "TSK-312.step10.FR-034/heading-002/list_item-005.read-access.db",
           "status": "planned"
         }
       },
-      "decision_digest": "cfa7f63d66d37f1c907182f28e7ae0c15f5a3cfb892954176456d30e4ea746c7"
+      "decision_digest": "7d69aff4afcfd9fdcd76465ad7a45fc2678bcf05444c08e40930be42f734b192"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-006",
+      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-005#operation-permission",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-006",
-        "requirement_claim_id": "FR-034/heading-002/list_item-006",
+        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-005#operation-permission",
+        "requirement_claim_id": "FR-034/heading-002/list_item-005#operation-permission",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "1f9eabedb96fc1433d9d739f635bc101df843476fdaa5cdc8536b2275b838bd6",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-034/heading-002/list_item-005.operation-permission.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "99b03f8403b6ed07bebb703fc4a9c85f1dbcba66a5bca7e1594e6bc0111bc626"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-006#read-access",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-006#read-access",
+        "requirement_claim_id": "FR-034/heading-002/list_item-006#read-access",
         "origin": "requirement",
         "layer": "access_control",
         "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
@@ -2373,11 +2499,32 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-034/heading-002/list_item-006.db",
+          "id": "TSK-312.step10.FR-034/heading-002/list_item-006.read-access.db",
           "status": "planned"
         }
       },
-      "decision_digest": "d8fb2b3a166e4299a08579e7790f80ff84f10d27dcb4b65f02553280c515e4d1"
+      "decision_digest": "ea91bb274bb895b0ff0ed100878de5d7387328f0bd976fc8a7459bc10039ac9b"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-034/heading-002/list_item-006#operation-permission",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-034/heading-002/list_item-006#operation-permission",
+        "requirement_claim_id": "FR-034/heading-002/list_item-006#operation-permission",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "7157c2b8bc9f65b4f24e3bc04282202c164bc03a615e728eb29cbbcbf5ec59d8",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-034/heading-002/list_item-006.operation-permission.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "46a862459b312849ba2b3ac05da111c931e9fa2fba023742428626d6affea7b2"
     },
     {
       "entry_id": "catalog:CATALOG:FR-034/heading-002/paragraph-003",
@@ -2758,10 +2905,10 @@
       "decision_digest": "647584a2c1b3aede5e1b474959f9abad302018321b448fb407d174758032d1d2"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-035/list_item-005",
+      "entry_id": "catalog:CATALOG:FR-035/list_item-005#principal-state",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-035/list_item-005",
-        "requirement_claim_id": "FR-035/list_item-005",
+        "catalog_entry_id": "CATALOG:FR-035/list_item-005#principal-state",
+        "requirement_claim_id": "FR-035/list_item-005#principal-state",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
@@ -2772,11 +2919,32 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-035/list_item-005.db",
+          "id": "TSK-312.step10.FR-035/list_item-005.principal-state.db",
           "status": "planned"
         }
       },
-      "decision_digest": "0ee7910394db218ed777fb7a024bbe63dff1374c8b00874227b6b91faf9ad2b3"
+      "decision_digest": "623b21b56406e8a1f4a5ce49f9fb62ac2c731d87af3e610f9ac5319a52a7f9dc"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-035/list_item-005#revocation",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-035/list_item-005#revocation",
+        "requirement_claim_id": "FR-035/list_item-005#revocation",
+        "origin": "requirement",
+        "layer": "cache_authorization",
+        "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+        "source_text_digest": "328de0ad2f1231181e1baa500c03d2f2bfdaf716fcf0a271fa97f879d504e19e",
+        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-035/list_item-005.revocation.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "adcc21ae10e0bcccd0d68a459e40deaa53db12677a0fd24307f1710c1b9ba445"
     },
     {
       "entry_id": "catalog:CATALOG:FR-035/list_item-006",
@@ -2863,10 +3031,10 @@
       "decision_digest": "3cd47417c7d67a29178f6a9d1db4b3dd363344fe347945c99badc3e4c0ae4626"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-035/list_item-010",
+      "entry_id": "catalog:CATALOG:FR-035/list_item-010#password-state",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-035/list_item-010",
-        "requirement_claim_id": "FR-035/list_item-010",
+        "catalog_entry_id": "CATALOG:FR-035/list_item-010#password-state",
+        "requirement_claim_id": "FR-035/list_item-010#password-state",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
@@ -2877,11 +3045,32 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-035/list_item-010.db",
+          "id": "TSK-312.step10.FR-035/list_item-010.password-state.db",
           "status": "planned"
         }
       },
-      "decision_digest": "a577f10719a7327a3520a1b5cc5138a32f5a74bd108a9860a9b9d10b6ffe04a7"
+      "decision_digest": "5c7c9d807725e917a3d0ff3383c977672016cae34c812dd5dafcf0569d75400a"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-035/list_item-010#revocation",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-035/list_item-010#revocation",
+        "requirement_claim_id": "FR-035/list_item-010#revocation",
+        "origin": "requirement",
+        "layer": "cache_authorization",
+        "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+        "source_text_digest": "7e3ace17f28e2843b6b2323634c60fd339cc2664196a324d29b5c8b91522c4bb",
+        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.FR-035/list_item-010.revocation.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "3762daa37c332f1180ad2de25bc6033991847bc684e6f67ff5f969c8755f1b7b"
     },
     {
       "entry_id": "catalog:CATALOG:FR-035/list_item-011",
@@ -3262,10 +3451,10 @@
       "decision_digest": "b4de9cc83daa394e9ab1b8cf8130b404ad65f9763d666b7bc9cb98841c8c297e"
     },
     {
-      "entry_id": "catalog:CATALOG:NFR-011/list_item-002",
+      "entry_id": "catalog:CATALOG:NFR-011/list_item-002#credential-state",
       "decision": {
-        "catalog_entry_id": "CATALOG:NFR-011/list_item-002",
-        "requirement_claim_id": "NFR-011/list_item-002",
+        "catalog_entry_id": "CATALOG:NFR-011/list_item-002#credential-state",
+        "requirement_claim_id": "NFR-011/list_item-002#credential-state",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
@@ -3276,11 +3465,32 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.NFR-011/list_item-002.db",
+          "id": "TSK-312.step10.NFR-011/list_item-002.credential-state.db",
           "status": "planned"
         }
       },
-      "decision_digest": "dae2f8e1f5492ccb1a233e8fa946242228ff145ec44426c44a82c675e791fa9c"
+      "decision_digest": "05a1faff3ceddb559f31410b01bdb6d9bf1e68fb5b0d4336cb8b97b9a7ca8ab4"
+    },
+    {
+      "entry_id": "catalog:CATALOG:NFR-011/list_item-002#revocation",
+      "decision": {
+        "catalog_entry_id": "CATALOG:NFR-011/list_item-002#revocation",
+        "requirement_claim_id": "NFR-011/list_item-002#revocation",
+        "origin": "requirement",
+        "layer": "cache_authorization",
+        "db_basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+        "source_text_digest": "f32cda771375e00afdd0e4d373d33a3da68d5c7b83bf3fe6b58a3a172376beea",
+        "route_scope_id": "SCOPE:ALL_LOGICAL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-312.step10.NFR-011/list_item-002.revocation.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "4908a24c6974b207efa939a501f4e075dc659fdad2634bb0ee7c983340caaedf"
     },
     {
       "entry_id": "catalog:CATALOG:NFR-011/list_item-003",

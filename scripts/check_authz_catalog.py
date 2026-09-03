@@ -1878,8 +1878,8 @@ def validate_route_registry(
         raise CatalogError("legacy_route_ids と既存経路が exact-set 不一致")
     for route_id in legacy_route_ids:
         route = route_by_id[route_id]
-        if route["origin"] != "design":
-            raise CatalogError(f"{route_id}: legacy route は design origin が必要")
+        if route["origin"] != "requirement":
+            raise CatalogError(f"{route_id}: legacy route は requirement origin が必要")
         heading_id = route_id.removeprefix("ROUTE:")
         if any(
             claim.get("source_heading_id") == heading_id
