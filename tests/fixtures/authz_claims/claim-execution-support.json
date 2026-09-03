@@ -1,10 +1,10 @@
 {
   "supported_probe": {
-    "claim_id": "FR-034/list_item-002",
+    "claim_id": "FR-034/heading-001/paragraph-001",
     "runtime_target": {
       "target_kind": "route",
       "target_ids": [
-        "ROUTE:RUNTIME:FR-034/list_item-002"
+        "ROUTE:RUNTIME:FR-034/heading-001/paragraph-001"
       ]
     }
   },

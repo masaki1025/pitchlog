@@ -14,6 +14,18 @@ from itertools import combinations
 from pathlib import Path
 from typing import Pattern, Sequence
 
+
+@dataclass(frozen=True)
+class RequiredTablePrivilegeTarget:
+    """F13/H-81 が固定する表権限 mutant と攻撃木の対応を表す。"""
+
+    grant_privilege_ids: frozenset[str]
+    mutation_privilege_ids: frozenset[str]
+    mutant_id_template: str
+    attack_goal_id: str
+    cut_set_id_template: str
+
+
 DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 DEFAULT_CLAIMS = Path("contracts/authz/requirement-claims.json")
 DEFAULT_LOCK = Path("contracts/authz/requirement-claims.lock.json")
@@ -157,6 +169,83 @@ MANAGEMENT_PROBE_CLAIM_IDS = frozenset(
 )
 POSITIVE_CASE_SCOPE_ID = "POSITIVE-CASE-SCOPE:ALL-ALLOW-CELLS"
 TABLE_PRIVILEGE_MUTANT_PREFIX = "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_"
+# step1-rulings.json F13 / H-81: 制御表DMLと管理caller 8権限を外部固定する。
+REQUIRED_TABLE_PRIVILEGE_TARGETS = {
+    (
+        "management_caller",
+        "probe_management_effects",
+    ): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset(
+            {
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "TRUNCATE",
+                "REFERENCES",
+                "TRIGGER",
+                "MAINTAIN",
+            }
+        ),
+        mutation_privilege_ids=frozenset(
+            {
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "TRUNCATE",
+                "REFERENCES",
+                "TRIGGER",
+                "MAINTAIN",
+            }
+        ),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+        cut_set_id_template="CUT-MANAGEMENT-DIRECT-{privilege_id}",
+    ),
+    ("app_role", "probe_groups"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template="MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_{privilege_id}",
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_memberships"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_grants"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template="MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_{privilege_id}",
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_invitations"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+}
 POSITIVE_KILL_MUTANT_IDS = frozenset(
     {
         "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
@@ -3124,6 +3213,13 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         "table_ids": frozenset(table_by_id),
         "function_ids": frozenset(function_by_id),
         "predicate_ids": frozenset(predicate_kind_by_id),
+        "table_acl_by_object_grantee": {
+            (object_id, grantee_role_id): privileges
+            for (object_kind, object_id, grantee_role_id), privileges in (
+                acl_by_object_grantee.items()
+            )
+            if object_kind == "table"
+        },
         "provisioning_claim_id": provisioning["claim_id"],
         "management_probe_claim_ids": management_claim_ids,
         "table_privilege_ids": declared_privileges,
@@ -3263,6 +3359,207 @@ def _validate_runtime_target(
             f"{label} が claim に対応する実在実行対象でない: {unsupported}"
         )
     return target_kind, target_ids
+
+
+def _table_privilege_mutation_targets(
+    raw: object,
+    ddl_result: dict[str, object],
+    claim_ids: frozenset[str],
+) -> list[dict[str, object]]:
+    """表権限 mutant の単一・複数 target 宣言を閉じた形へ正規化する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("table_privilege_mutation_rule はオブジェクトでない")
+    source_keys = {"source_asset_path", "source_json_pointer"}
+    if raw.get("source_asset_path") != "contracts/authz/ddl-elements.json" or raw.get(
+        "source_json_pointer"
+    ) != "/enums/table_privilege_ids":
+        raise CatalogError("表権限mutantの派生元が不正")
+
+    declared_privileges = ddl_result["table_privilege_ids"]
+    role_ids = ddl_result["role_ids"]
+    table_ids = ddl_result["table_ids"]
+    assert isinstance(declared_privileges, frozenset)
+    assert isinstance(role_ids, frozenset)
+    assert isinstance(table_ids, frozenset)
+
+    legacy_keys = source_keys | {
+        "mutant_id_template",
+        "target_role_id",
+        "target_table_id",
+        "claim_ids",
+    }
+    if "target_pairs" not in raw:
+        _expect_keys(raw, legacy_keys, "table_privilege_mutation_rule")
+        legacy_claim_ids = frozenset(
+            _expect_string_list(raw["claim_ids"], "privilege mutation claims")
+        )
+        if (
+            raw["mutant_id_template"]
+            != f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
+            or raw["target_role_id"] != "management_caller"
+            or raw["target_table_id"] != "probe_management_effects"
+            or legacy_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+        ):
+            raise CatalogError("表権限mutantの単一集合からの導出規則が不正")
+        return [
+            {
+                "target_role_id": raw["target_role_id"],
+                "target_table_id": raw["target_table_id"],
+                "operator_id": "grant_management_caller_table_privilege",
+                "mutant_id_template": raw["mutant_id_template"],
+                "claim_ids": legacy_claim_ids,
+                "privilege_groups": [
+                    {
+                        "privilege_id": privilege_id,
+                        "grant_privilege_ids": (privilege_id,),
+                    }
+                    for privilege_id in sorted(declared_privileges)
+                ],
+            }
+        ]
+
+    _expect_keys(
+        raw,
+        source_keys | {"target_pairs"},
+        "table_privilege_mutation_rule",
+    )
+    pair_rows = _expect_object_list(
+        raw["target_pairs"], "table_privilege_mutation_rule.target_pairs"
+    )
+    if not pair_rows:
+        raise CatalogError("表権限 mutant の target pair は1件以上必要")
+    targets: list[dict[str, object]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    for index, pair in enumerate(pair_rows):
+        label = f"table_privilege_mutation_rule.target_pairs[{index}]"
+        _expect_keys(
+            pair,
+            {
+                "target_role_id",
+                "target_table_id",
+                "operator_id",
+                "mutant_id_template",
+                "claim_ids",
+                "privilege_groups",
+            },
+            label,
+        )
+        role_id = _expect_string(pair["target_role_id"], f"{label}.target_role_id")
+        table_id = _expect_string(pair["target_table_id"], f"{label}.target_table_id")
+        target_pair = (role_id, table_id)
+        if target_pair in seen_pairs:
+            raise CatalogError("表権限 mutant の target pair が重複")
+        seen_pairs.add(target_pair)
+        if role_id not in role_ids or table_id not in table_ids:
+            raise CatalogError(f"{label}: 表権限 mutant の target pair が未知")
+        operator_id = _expect_string(pair["operator_id"], f"{label}.operator_id")
+        template = _expect_string(
+            pair["mutant_id_template"], f"{label}.mutant_id_template"
+        )
+        if template.count("{privilege_id}") != 1:
+            raise CatalogError(f"{label}: mutant ID template が不正")
+        target_claim_ids = frozenset(
+            _expect_string_list(pair["claim_ids"], f"{label}.claim_ids")
+        )
+        if not target_claim_ids or not target_claim_ids <= claim_ids:
+            raise CatalogError(f"{label}: claim 参照が閉じていない")
+        group_rows = _expect_object_list(
+            pair["privilege_groups"], f"{label}.privilege_groups"
+        )
+        if not group_rows:
+            raise CatalogError(f"{label}: privilege group は1件以上必要")
+        groups: list[dict[str, object]] = []
+        seen_group_ids: set[str] = set()
+        for group_index, group in enumerate(group_rows):
+            group_label = f"{label}.privilege_groups[{group_index}]"
+            _expect_keys(
+                group,
+                {"privilege_id", "grant_privilege_ids"},
+                group_label,
+            )
+            privilege_id = _expect_string(
+                group["privilege_id"], f"{group_label}.privilege_id"
+            )
+            granted_list = _expect_string_list(
+                group["grant_privilege_ids"],
+                f"{group_label}.grant_privilege_ids",
+            )
+            granted = frozenset(granted_list)
+            if (
+                privilege_id in seen_group_ids
+                or not re.fullmatch(r"[A-Z_]+", privilege_id)
+                or not granted
+                or len(granted_list) != len(granted)
+                or not granted <= declared_privileges
+            ):
+                raise CatalogError(f"{group_label}: privilege group が閉じていない")
+            seen_group_ids.add(privilege_id)
+            groups.append(
+                {
+                    "privilege_id": privilege_id,
+                    "grant_privilege_ids": tuple(granted_list),
+                }
+            )
+        targets.append(
+            {
+                "target_role_id": role_id,
+                "target_table_id": table_id,
+                "operator_id": operator_id,
+                "mutant_id_template": template,
+                "claim_ids": target_claim_ids,
+                "privilege_groups": groups,
+            }
+        )
+    return targets
+
+
+def _validate_required_table_privilege_targets(
+    targets: list[dict[str, object]],
+) -> None:
+    """F13/H-81 の必須 target・権限が宣言に全て含まれることを検査する。"""
+    declared_grants: set[tuple[str, str, str]] = set()
+    targets_by_pair: dict[tuple[str, str], dict[str, object]] = {}
+    for target in targets:
+        role_id = str(target["target_role_id"])
+        table_id = str(target["target_table_id"])
+        pair = (role_id, table_id)
+        targets_by_pair[pair] = target
+        groups = target["privilege_groups"]
+        assert isinstance(groups, list)
+        for group in groups:
+            assert isinstance(group, dict)
+            grant_privilege_ids = group["grant_privilege_ids"]
+            assert isinstance(grant_privilege_ids, tuple)
+            declared_grants.update(
+                (role_id, table_id, str(privilege_id))
+                for privilege_id in grant_privilege_ids
+            )
+
+    required_grants = {
+        (role_id, table_id, privilege_id)
+        for (role_id, table_id), requirement in (
+            REQUIRED_TABLE_PRIVILEGE_TARGETS.items()
+        )
+        for privilege_id in requirement.grant_privilege_ids
+    }
+    missing_grants = sorted(required_grants - declared_grants)
+    if missing_grants:
+        raise CatalogError(f"F13/H-81 の必須表権限 target が不足: {missing_grants}")
+
+    for pair, requirement in REQUIRED_TABLE_PRIVILEGE_TARGETS.items():
+        target = targets_by_pair[pair]
+        groups = target["privilege_groups"]
+        assert isinstance(groups, list)
+        group_ids = {
+            str(group["privilege_id"])
+            for group in groups
+            if isinstance(group, dict)
+        }
+        if (
+            target["mutant_id_template"] != requirement.mutant_id_template
+            or not requirement.mutation_privilege_ids <= group_ids
+        ):
+            raise CatalogError(f"{pair}: F13/H-81 の必須 mutant 宣言が不足")
 
 
 def validate_claim_mutant_map(
@@ -3657,46 +3954,73 @@ def validate_claim_mutant_map(
         for mutant_id, mutant in mutant_by_id.items()
         if mutant["axis"] == "r8_provisioning"
     }
-    privilege_ids = ddl_result["table_privilege_ids"]
-    assert isinstance(privilege_ids, frozenset)
-    privilege_rule = raw["table_privilege_mutation_rule"]
-    if not isinstance(privilege_rule, dict):
-        raise CatalogError("table_privilege_mutation_rule はオブジェクトでない")
-    _expect_keys(
-        privilege_rule,
-        {
-            "source_asset_path",
-            "source_json_pointer",
-            "mutant_id_template",
-            "target_role_id",
-            "target_table_id",
-            "claim_ids",
-        },
-        "table_privilege_mutation_rule",
+    privilege_targets = _table_privilege_mutation_targets(
+        raw["table_privilege_mutation_rule"],
+        ddl_result,
+        frozenset(claim_by_id),
     )
-    rule_claim_ids = set(
-        _expect_string_list(privilege_rule["claim_ids"], "privilege mutation claims")
-    )
-    if (
-        privilege_rule["source_asset_path"]
-        != "contracts/authz/ddl-elements.json"
-        or privilege_rule["source_json_pointer"] != "/enums/table_privilege_ids"
-        or privilege_rule["mutant_id_template"]
-        != f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
-        or privilege_rule["target_role_id"] != "management_caller"
-        or privilege_rule["target_table_id"] != "probe_management_effects"
-        or rule_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+    _validate_required_table_privilege_targets(privilege_targets)
+    table_acl_by_object_grantee = ddl_result["table_acl_by_object_grantee"]
+    assert isinstance(table_acl_by_object_grantee, dict)
+    privilege_mutant_expectations: dict[str, dict[str, object]] = {}
+    privilege_attack_contracts: set[tuple[str, str, str]] = set()
+    role_attack_contracts: dict[str, tuple[str, str]] = {}
+    for (required_role_id, _table_id), requirement in (
+        REQUIRED_TABLE_PRIVILEGE_TARGETS.items()
     ):
-        raise CatalogError("表権限mutantの単一集合からの導出規則が不正")
-    privilege_mutant_ids = {
-        f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{privilege_id}"
-        for privilege_id in privilege_ids
-    }
+        contract = (requirement.attack_goal_id, requirement.cut_set_id_template)
+        existing_contract = role_attack_contracts.setdefault(required_role_id, contract)
+        assert existing_contract == contract
+    for target in privilege_targets:
+        role_id = str(target["target_role_id"])
+        table_id = str(target["target_table_id"])
+        role_attack_contract = role_attack_contracts.get(role_id)
+        if role_attack_contract is None:
+            raise CatalogError(f"{role_id}: 表権限 mutant の attack goal 対応がない")
+        template = str(target["mutant_id_template"])
+        privilege_groups = target["privilege_groups"]
+        assert isinstance(privilege_groups, list)
+        baseline_privileges = table_acl_by_object_grantee.get(
+            (table_id, role_id), frozenset()
+        )
+        assert isinstance(baseline_privileges, frozenset)
+        for group in privilege_groups:
+            assert isinstance(group, dict)
+            privilege_id = str(group["privilege_id"])
+            granted_privileges = group["grant_privilege_ids"]
+            assert isinstance(granted_privileges, tuple)
+            if baseline_privileges & set(granted_privileges):
+                raise CatalogError(
+                    f"{role_id}/{table_id}/{privilege_id}: "
+                    "表権限 mutant の再付与対象が基準ACLですでに許可されている"
+                )
+            mutant_id = template.replace("{privilege_id}", privilege_id)
+            if mutant_id in privilege_mutant_expectations:
+                raise CatalogError("表権限 mutant ID の派生結果が重複")
+            privilege_mutant_expectations[mutant_id] = {
+                "operator_id": target["operator_id"],
+                "claim_ids": target["claim_ids"],
+                "target_element_ids": [
+                    f"TABLE-PRIVILEGE:{table_id}:{role_id}:{granted_privilege_id}"
+                    for granted_privilege_id in granted_privileges
+                ],
+            }
+            attack_goal_id, cut_set_id_template = role_attack_contract
+            table_label = table_id.removeprefix("probe_").upper().replace("_", "-")
+            privilege_attack_contracts.add(
+                (
+                    mutant_id,
+                    attack_goal_id,
+                    cut_set_id_template.replace("{table_label}", table_label).replace(
+                        "{privilege_id}", privilege_id
+                    ),
+                )
+            )
+    privilege_mutant_ids = set(privilege_mutant_expectations)
     expected_config_ids = REQUIRED_BASE_CONFIGURATION_MUTANT_IDS | privilege_mutant_ids
     if config_ids != expected_config_ids:
         raise CatalogError("構成軸 mutant が基礎集合+表権限派生集合と exact-set 不一致")
-    for privilege_id in privilege_ids:
-        mutant_id = f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{privilege_id}"
+    for mutant_id, expectation in privilege_mutant_expectations.items():
         privilege_mutant = mutant_by_id[mutant_id]
         privilege_claim_ids = set(
             _expect_string_list(
@@ -3704,14 +4028,10 @@ def validate_claim_mutant_map(
             )
         )
         if (
-            privilege_mutant["operator_id"]
-            != "grant_management_caller_table_privilege"
-            or privilege_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+            privilege_mutant["operator_id"] != expectation["operator_id"]
+            or privilege_claim_ids != expectation["claim_ids"]
             or privilege_mutant["target_element_ids"]
-            != [
-                "TABLE-PRIVILEGE:probe_management_effects:"
-                f"management_caller:{privilege_id}"
-            ]
+            != expectation["target_element_ids"]
             or privilege_mutant["runtime_kill_required"] is not True
         ):
             raise CatalogError(f"{mutant_id}: 表権限から派生したkill契約が不正")
@@ -3813,6 +4133,8 @@ def validate_claim_mutant_map(
         "execution_counts": execution_counts,
         "axis_counts": axis_counts,
         "config_pairs": expected_pairs,
+        "table_privilege_mutant_ids": frozenset(privilege_mutant_ids),
+        "table_privilege_attack_contracts": frozenset(privilege_attack_contracts),
         "positive_case_count": len(positive_rows),
         "positive_kill_mutant_ids": positive_kill_mutant_ids,
     }
@@ -3904,11 +4226,8 @@ def validate_attack_tree(
     }
     if not layered_mutant_ids or not layered_mutant_ids <= covered_by_multi_factor:
         raise CatalogError("runtime kill免除mutantが多因子cut setで被覆されていない")
-    privilege_mutant_ids = {
-        mutant_id
-        for mutant_id in mutant_by_id
-        if str(mutant_id).startswith(TABLE_PRIVILEGE_MUTANT_PREFIX)
-    }
+    privilege_mutant_ids = mutant_result["table_privilege_mutant_ids"]
+    assert isinstance(privilege_mutant_ids, frozenset)
     atomicity_mutant_id = (
         "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
     )
@@ -3923,7 +4242,21 @@ def validate_attack_tree(
         or not privilege_mutant_ids <= singleton_cut_mutants
         or atomicity_mutant_id not in singleton_cut_mutants
     ):
-        raise CatalogError("管理callerの表権限または原子性mutantに単独cut setがない")
+        raise CatalogError("表権限または原子性mutantに単独cut setがない")
+    privilege_attack_contracts = mutant_result[
+        "table_privilege_attack_contracts"
+    ]
+    assert isinstance(privilege_attack_contracts, frozenset)
+    for mutant_id, attack_goal_id, cut_set_id in privilege_attack_contracts:
+        cut = cut_by_id.get(cut_set_id)
+        if (
+            cut is None
+            or cut["attack_goal_id"] != attack_goal_id
+            or cut["mutant_ids"] != [mutant_id]
+        ):
+            raise CatalogError(
+                f"{mutant_id}: F13/H-81 の attack goal・cut set 対応が不一致"
+            )
 
     scope = raw["two_factor_scope"]
     if not isinstance(scope, dict) or scope != {

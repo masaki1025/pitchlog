@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_attack_tree",
   "oracle_context": {
-    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_commit": "e10f2b130116b454a2ab52bffa3297b11c1de907",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "attack_goals": [
@@ -56,6 +56,10 @@
     },
     {
       "attack_goal_id": "ATTACK:MANAGEMENT-AUTHORIZATION-SIDE-EFFECT-SPLIT",
+      "logic": "OR_OF_MINIMAL_CUT_SETS"
+    },
+    {
+      "attack_goal_id": "ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
       "logic": "OR_OF_MINIMAL_CUT_SETS"
     }
   ],
@@ -239,6 +243,42 @@
       "attack_goal_id": "ATTACK:MANAGEMENT-AUTHORIZATION-SIDE-EFFECT-SPLIT",
       "mutant_ids": [
         "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+      "attack_goal_id": "ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+      "attack_goal_id": "ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+      "attack_goal_id": "ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML"
+      ],
+      "minimal": true,
+      "single_mutation_sufficient": true
+    },
+    {
+      "cut_set_id": "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+      "attack_goal_id": "ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+      "mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
       ],
       "minimal": true,
       "single_mutation_sufficient": true
@@ -2441,6 +2481,1022 @@
       ],
       "activated_cut_set_ids": [
         "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_ADD_PERMISSIVE_USING_TRUE",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-007-PERMISSIVE-OR",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_DISABLE_FORCE_RLS+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_DISABLE_FORCE_RLS",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_DATABASE_TEMPORARY",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_DML",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GRANTS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-INVITATIONS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_APP_SCHEMA_CREATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_DELETE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-DELETE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_INSERT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-INSERT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_MAINTAIN"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-MAINTAIN"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_REFERENCES"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-010-REFERENCES",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-REFERENCES"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_SELECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-SELECT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRIGGER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRIGGER"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_TRUNCATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-009-TRUNCATE",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-TRUNCATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_UPDATE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-DIRECT-UPDATE"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-005-MANAGEMENT-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_GRANT_ROLE_MEMBERSHIP"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-002-ROLE-REACHABILITY",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_OMIT_PUBLIC_REVOKE"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-001-PUBLIC-EXECUTE",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_PG_TEMP_FROM_SEARCH_PATH"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_REMOVE_WITH_CHECK",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_REMOVE_WITH_CHECK"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-006-CROSS-WRITE",
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML",
+        "CUT-MANAGEMENT-ATOMICITY-SPLIT"
+      ],
+      "expected_attack_established": true
+    },
+    {
+      "interaction_id": "PAIR:MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML+MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER",
+      "factor_mutant_ids": [
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_DML",
+        "MUT:CONFIG:CFG_SWAP_FUNCTION_OWNER"
+      ],
+      "activated_cut_set_ids": [
+        "CUT-APP-ROLE-DIRECT-MEMBERSHIPS-DML"
       ],
       "expected_attack_established": true
     }

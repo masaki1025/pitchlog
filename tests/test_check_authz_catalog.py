@@ -1415,14 +1415,7 @@ def _claim_mutant_map_with_execution_support() -> tuple[
             "positive_case_scope_id": None,
         }
     )
-    ddl_result = {
-        "provisioning_claim_id": provisioning_claim_id,
-        "management_probe_claim_ids": frozenset(management_probe_claim_ids),
-        "function_ids": frozenset(
-            function["function_id"] for function in ddl["functions"]
-        ),
-        "table_privilege_ids": frozenset(ddl["enums"]["table_privilege_ids"]),
-    }
+    ddl_result = checker.validate_ddl_elements(ddl, REPOSITORY_ROOT)
     return mapping, route_registry, ddl_result
 
 
@@ -1500,7 +1493,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"probe_executable": 176, "contract_only": 22}
+        {"contract_only": 165, "probe_executable": 33}
     )
 
 
@@ -1956,6 +1949,232 @@ def _validate_mutant_map(mutated: dict[str, Any]) -> None:
     )
 
 
+def _generalized_table_privilege_mapping() -> dict[str, Any]:
+    """複数 target 対を宣言した実資産の独立 copy を返す。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    assert "target_pairs" in mapping["table_privilege_mutation_rule"]
+    return mapping
+
+
+def test_table_privilege_mutation_targets_are_closed_and_unique() -> None:
+    """宣言外 target の mutant と target 対の重複を拒否する。"""
+    undeclared = _generalized_table_privilege_mapping()
+    template = next(
+        mutant
+        for mutant in undeclared["mutants"]
+        if mutant["mutant_id"]
+        == "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+    )
+    unexpected = copy.deepcopy(template)
+    unexpected["mutant_id"] = (
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_BUSINESS_ROWS_DML"
+    )
+    unexpected["operator_id"] = "grant_app_role_control_table_dml"
+    unexpected["target_element_ids"] = [
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:INSERT",
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:UPDATE",
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:DELETE",
+    ]
+    undeclared["mutants"].append(unexpected)
+    for claim_id in unexpected["claim_ids"]:
+        claim = next(
+            claim for claim in undeclared["claims"] if claim["claim_id"] == claim_id
+        )
+        claim["mutant_ids"].append(unexpected["mutant_id"])
+
+    duplicate = _generalized_table_privilege_mapping()
+    target_pairs = duplicate["table_privilege_mutation_rule"]["target_pairs"]
+    target_pairs.append(copy.deepcopy(target_pairs[0]))
+
+    failures: list[tuple[str, str]] = []
+    for case_name, mapping, expected_error in (
+        (
+            "undeclared_target",
+            undeclared,
+            "構成軸 mutant が基礎集合+表権限派生集合と exact-set 不一致",
+        ),
+        ("duplicate_target", duplicate, "表権限 mutant の target pair が重複"),
+    ):
+        try:
+            _validate_mutant_map(mapping)
+        except checker.CatalogError as error:
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_required_table_privilege_targets_reject_self_consistent_shrinkage() -> None:
+    """必須 target の権限縮小と pair 削除を外部固定集合で拒否する。"""
+    shrink = _generalized_table_privilege_mapping()
+    groups_target = next(
+        target
+        for target in shrink["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        and target["target_table_id"] == "probe_groups"
+    )
+    groups_target["privilege_groups"][0]["grant_privilege_ids"] = ["INSERT"]
+    groups_mutant = next(
+        mutant
+        for mutant in shrink["mutants"]
+        if mutant["mutant_id"]
+        == "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+    )
+    groups_mutant["target_element_ids"] = [
+        "TABLE-PRIVILEGE:probe_groups:app_role:INSERT"
+    ]
+
+    missing_pair = _generalized_table_privilege_mapping()
+    missing_target = next(
+        target
+        for target in missing_pair["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        and target["target_table_id"] == "probe_invitations"
+    )
+    missing_pair["table_privilege_mutation_rule"]["target_pairs"].remove(
+        missing_target
+    )
+    missing_mutant_id = "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+    missing_pair["mutants"] = [
+        mutant
+        for mutant in missing_pair["mutants"]
+        if mutant["mutant_id"] != missing_mutant_id
+    ]
+    for claim in missing_pair["claims"]:
+        if missing_mutant_id in claim["mutant_ids"]:
+            claim["mutant_ids"].remove(missing_mutant_id)
+    missing_pair["two_factor_interactions"] = [
+        interaction
+        for interaction in missing_pair["two_factor_interactions"]
+        if missing_mutant_id not in interaction["factor_mutant_ids"]
+    ]
+
+    escaped: list[str] = []
+    for case_name, mapping in (
+        ("shrunken_grants", shrink),
+        ("missing_target_pair", missing_pair),
+    ):
+        try:
+            _validate_mutant_map(mapping)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(case_name)
+
+    assert escaped == []
+
+
+def test_legacy_table_privilege_mutation_rule_remains_compatible() -> None:
+    """従来の management target 1対から同じ8 mutant を導出する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    legacy_rule = {
+        "source_asset_path": "contracts/authz/ddl-elements.json",
+        "source_json_pointer": "/enums/table_privilege_ids",
+        "mutant_id_template": (
+            f"{checker.TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
+        ),
+        "target_role_id": "management_caller",
+        "target_table_id": "probe_management_effects",
+        "claim_ids": sorted(checker.MANAGEMENT_PROBE_CLAIM_IDS),
+    }
+
+    targets = checker._table_privilege_mutation_targets(
+        legacy_rule,
+        ddl_result,
+        frozenset(checker.MANAGEMENT_PROBE_CLAIM_IDS),
+    )
+
+    assert len(targets) == 1
+    target = targets[0]
+    assert target["target_role_id"] == "management_caller"
+    assert target["target_table_id"] == "probe_management_effects"
+    assert target["claim_ids"] == checker.MANAGEMENT_PROBE_CLAIM_IDS
+    assert {
+        group["privilege_id"] for group in target["privilege_groups"]
+    } == ddl_result["table_privilege_ids"]
+    assert all(
+        group["grant_privilege_ids"] == (group["privilege_id"],)
+        for group in target["privilege_groups"]
+    )
+
+
+def test_app_role_control_dml_regrant_mutants_are_red() -> None:
+    """制御4表の app_role DML 再付与を既存の kill 契約で拒否する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    oracle_assets, _seal, _paths = _repository_oracle_assets()
+    mapping = oracle_assets["claim_mutant_map"]
+    targets = [
+        target
+        for target in mapping["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+    ]
+    mutant_by_id = {
+        mutant["mutant_id"]: mutant for mutant in mapping["mutants"]
+    }
+    failures: list[tuple[str, str]] = []
+
+    for target in targets:
+        table_id = target["target_table_id"]
+        group = target["privilege_groups"][0]
+        mutant_id = target["mutant_id_template"].replace(
+            "{privilege_id}", group["privilege_id"]
+        )
+        mutant = mutant_by_id[mutant_id]
+        if (
+            mutant["axis"] != "configuration"
+            or mutant["expected_drift_outcome"] != "red"
+            or mutant["runtime_kill_required"] is not True
+            or mutant["expected_runtime_outcome"] != "kill"
+            or mutant["runtime_kill_waiver_reason"] is not None
+        ):
+            failures.append((mutant_id, "kill 契約が不正"))
+            continue
+
+        mutated_ddl = copy.deepcopy(oracle_assets["ddl_elements"])
+        acl = next(
+            acl
+            for acl in mutated_ddl["acl_expectations"]
+            if acl["object_kind"] == "table"
+            and acl["object_id"] == table_id
+            and acl["grantee_role_id"] == "app_role"
+        )
+        acl["privilege_ids"] = sorted(
+            set(acl["privilege_ids"]) | set(group["grant_privilege_ids"])
+        )
+        try:
+            ddl_result = checker.validate_ddl_elements(mutated_ddl, REPOSITORY_ROOT)
+            checker.validate_claim_mutant_map(
+                mapping,
+                requirement_catalog,
+                derived_assets["route_registry"],
+                derived_assets["http_matrix"],
+                ddl_result,
+                REPOSITORY_ROOT,
+                frozenset(
+                    {IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}
+                ),
+            )
+        except checker.CatalogError as error:
+            expected_error = (
+                f"app_role/{table_id}/DML: "
+                "表権限 mutant の再付与対象が基準ACLですでに許可されている"
+            )
+            if expected_error not in str(error):
+                failures.append((mutant_id, str(error)))
+        else:
+            failures.append((mutant_id, "検査が成功した"))
+
+    assert len(targets) == 4
+    assert failures == []
+
+
 def test_repository_oracle_assets_are_valid() -> None:
     """全claim・mutant・cut set・境界・証跡と封印を統合検査する。"""
     assets, seal, paths = _repository_oracle_assets()
@@ -1964,14 +2183,14 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"probe_executable": 172, "contract_only": 15}
+        {"contract_only": 165, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 194, "configuration": 20, "r8_provisioning": 2}
+        {"authorization_predicate": 205, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
-    assert result["attack"]["cut_set_count"] == 20
+    assert result["attack"]["cut_set_count"] == 24
     assert result["attack"]["multi_factor_cut_set_count"] == 3
     assert result["rejected"]["rejection_count"] == 3
     assert result["boundary"]["all_logical_count"] == 29
@@ -2169,6 +2388,130 @@ def test_all_cut_set_elements_reject_one_element_removal() -> None:
     assert escaped == []
 
 
+def test_all_table_privilege_mutants_require_singleton_cut_sets() -> None:
+    """app_role 表権限 mutant の単独 cut set 結線欠落を拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    attack_tree = assets["attack_tree"]
+    mutant_map = assets["claim_mutant_map"]
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    mutant_result = checker.validate_claim_mutant_map(
+        mutant_map,
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+    app_role_mutant_ids = {
+        target["mutant_id_template"].replace(
+            "{privilege_id}", group["privilege_id"]
+        )
+        for target in mutant_map["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        for group in target["privilege_groups"]
+    }
+    escaped: list[str] = []
+
+    for mutant_id in sorted(app_role_mutant_ids):
+        mutated = copy.deepcopy(attack_tree)
+        removed_cut = next(
+            cut
+            for cut in mutated["minimal_cut_sets"]
+            if cut["mutant_ids"] == [mutant_id]
+        )
+        mutated["minimal_cut_sets"].remove(removed_cut)
+        for interaction in mutated["two_factor_interactions"]:
+            if removed_cut["cut_set_id"] in interaction["activated_cut_set_ids"]:
+                interaction["activated_cut_set_ids"].remove(removed_cut["cut_set_id"])
+                interaction["expected_attack_established"] = bool(
+                    interaction["activated_cut_set_ids"]
+                )
+        try:
+            checker.validate_attack_tree(mutated, mutant_result, REPOSITORY_ROOT)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(mutant_id)
+
+    assert len(app_role_mutant_ids) == 4
+    assert escaped == []
+
+
+def test_table_privilege_cut_contracts_reject_swap_and_goal_reassignment() -> None:
+    """表権限 mutant の期待 cut ID・goal からの付け替えを拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    attack_tree = assets["attack_tree"]
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    mutant_result = checker.validate_claim_mutant_map(
+        assets["claim_mutant_map"],
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+
+    swapped = copy.deepcopy(attack_tree)
+    app_cut = next(
+        cut
+        for cut in swapped["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+    )
+    management_cut = next(
+        cut
+        for cut in swapped["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-MANAGEMENT-DIRECT-SELECT"
+    )
+    app_cut["mutant_ids"], management_cut["mutant_ids"] = (
+        management_cut["mutant_ids"],
+        app_cut["mutant_ids"],
+    )
+    for interaction in swapped["two_factor_interactions"]:
+        factor_set = set(interaction["factor_mutant_ids"])
+        interaction["activated_cut_set_ids"] = sorted(
+            cut["cut_set_id"]
+            for cut in swapped["minimal_cut_sets"]
+            if set(cut["mutant_ids"]) <= factor_set
+        )
+        interaction["expected_attack_established"] = bool(
+            interaction["activated_cut_set_ids"]
+        )
+
+    reassigned = copy.deepcopy(attack_tree)
+    reassigned_cut = next(
+        cut
+        for cut in reassigned["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+    )
+    reassigned_cut["attack_goal_id"] = (
+        "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE"
+    )
+
+    escaped: list[str] = []
+    for case_name, mutated in (
+        ("mutant_swap", swapped),
+        ("goal_reassignment", reassigned),
+    ):
+        try:
+            checker.validate_attack_tree(mutated, mutant_result, REPOSITORY_ROOT)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(case_name)
+
+    assert escaped == []
+
+
 def test_all_initial_rejections_reject_one_row_removal() -> None:
     """不採用構成表から初期行を全数列挙し、1行ずつ削除して red にする。"""
     assets, _seal, _paths = _repository_oracle_assets()
@@ -2303,9 +2646,9 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
     reasons = Counter(mutant["runtime_kill_waiver_reason"] for mutant in waived)
 
     assert reasons == Counter(
-        {
-            "contract_only_handoff": 17,
-            "covered_by_two_factor_cut_set": 3,
+            {
+                "contract_only_handoff": 173,
+                "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,
         }

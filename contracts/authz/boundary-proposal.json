@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_boundary_proposal",
   "oracle_context": {
-    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_commit": "e10f2b130116b454a2ab52bffa3297b11c1de907",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "proposal_status": "pending_tsk_235_confirmation",
@@ -59,7 +59,9 @@
         "ROUTE:MANAGEMENT:REVOKE_INVITATION",
         "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
         "HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
-        "FR-041/list_item-006"
+        "FR-041/list_item-006#issue-permission",
+        "FR-041/list_item-006#invitation-state",
+        "FR-041/list_item-006#capacity-constraint"
       ],
       "oracle_change_action": "return_to_step_5_and_re_review"
     },
@@ -80,17 +82,17 @@
         "FR-034/heading-004/table_row-006",
         "FR-034/heading-004/table_row-007",
         "FR-034/heading-004/table_row-008",
-        "FR-035/list_item-005",
+        "FR-035/list_item-005#principal-state",
+        "FR-035/list_item-005#revocation",
         "FR-035/list_item-006",
-        "FR-035/list_item-010",
-        "FR-041/list_item-006",
-        "FR-041/list_item-007",
-        "FR-041/list_item-014",
+        "FR-035/list_item-010#password-state",
+        "FR-035/list_item-010#revocation",
         "FR-041/list_item-015",
         "FR-041/list_item-021",
         "NFR-009/list_item-004",
         "NFR-010/list_item-004",
-        "NFR-011/list_item-002",
+        "NFR-011/list_item-002#credential-state",
+        "NFR-011/list_item-002#revocation",
         "NFR-011/list_item-003",
         "NFR-012/list_item-003",
         "NFR-019/paragraph-001",

@@ -1,6 +1,6 @@
 {
   "unsupported_probe_executable": {
-    "claim_id": "FR-034/list_item-002",
+    "claim_id": "FR-034/heading-001/paragraph-001",
     "operation": "remove_runtime_target",
     "expected_error": "probe_executable に runtime_target が必要"
   },
