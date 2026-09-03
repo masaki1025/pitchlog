@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d093b75e68781d894cac8a869bea666
 branch: fix/authz-claims-corpus
 created: 2026-09-03
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -66,15 +66,15 @@ created: 2026-09-03
 - `_verify_manifest_commit` は「`input_manifest.commit` の指すコミットの要件書 blob = `source_blob_digest`」を要求 → **要件書の変更と母集合追随は同一コミットにできない**(先に要件書のみのコミット = **ステップ 2** を作り、**ステップ 5** で `input_manifest.commit` をステップ 2 のコミット SHA へ更新する)
 - `oracle-seal.lock.json` は同制約を `oracle_commit`(8 入力資産の git blob)にも課し、`--reseal-oracle` は `oracle_commit` を自動更新しない → **8 入力資産を確定するコミット(= ステップ 5)を先に作り、ステップ 6 で `oracle_commit` をその SHA へ差し替えてから `--reseal-oracle`**(2 段)
 - **ステップ 5 内の reseal 実行順(一意化 — 計画レビュー 2 周目 P1-6)**: ①母集合 + 決定 lock の更新 → `--reseal --skip-derived --skip-oracle` ②派生 3 資産の `input_manifest`(母集合の新 blob digest)更新 → `--reseal-derived --skip-oracle` ③`tests/` 期待件数更新 → 判定 = `check_authz_catalog.py --skip-oracle` green(`--skip-derived` は単独使用不可 — :3792)
-- **想定 red の固定方法**: 各ステップの委任前に **Claude が現状態で `uv run pytest tests/ -x --no-header -q` 相当を実測し、失敗テスト ID の完全列挙を worklog に固定**する。委任後の失敗集合がこの列挙と一致しない場合のみ回帰として差し戻す。**現時点の見込み**(実測で確定): ステップ 2〜4 の後 = `test_repository_catalog_covers_the_entire_requirements_file`(source_blob_digest 不一致。**同一原因で `test_repository_derived_assets_are_valid`・`test_repository_oracle_assets_are_valid` が推移的に red になる場合はそれも列挙に含める**)/ ステップ 5 の後 = **`test_repository_catalog_covers_the_entire_requirements_file`(引数なし実行が未追随の oracle seal 検査へ到達 — :3865)と `test_repository_oracle_assets_are_valid` の 2 本**(計画レビュー 2 周目 P1-7)/ ステップ 6 の後 = **なし(全 green)**。**フィクスチャ単体テストは全ステップで green を維持**
+- **想定 red の固定方法**: 各ステップの委任前に **Claude が「当該ステップ完了後の期待失敗集合」(下記見込みを現物で検算したもの)を worklog に固定**し、委任後に **`uv run pytest tests/ -q --no-header`(全件実行 — `-x` は初回失敗で停止するため使わない)**で失敗テスト ID を完全列挙して**期待集合との一致**で判定する(委任前の実測は開始状態の確認であり比較基準ではない — 正しい実装でも前後で集合は遷移する。計画レビュー 3 周目 P0-2・P0-3)。**現時点の見込み**(実測で確定): ステップ 2〜4 の後 = `test_repository_catalog_covers_the_entire_requirements_file`(source_blob_digest 不一致。**同一原因で `test_repository_derived_assets_are_valid`・`test_repository_oracle_assets_are_valid` が推移的に red になる場合はそれも列挙に含める**)/ ステップ 5 の後 = **`test_repository_catalog_covers_the_entire_requirements_file`(引数なし実行が未追随の oracle seal 検査へ到達 — :3865)と `test_repository_oracle_assets_are_valid` の 2 本**(計画レビュー 2 周目 P1-7)/ ステップ 6 の後 = **なし(全 green)**。**フィクスチャ単体テストは全ステップで green を維持**
 - 例外表セル・変更履歴行(ステップ 2)と採取器是正(ステップ 3)は同じ NFR-018 周辺レコードを触るため、母集合追随(ステップ 5)で一括して 1 回で追随する
 
 ### (3) 再列挙の設計(ステップ 1 — 一次記録の消失への対処)
 
 - **対象 = `contracts/authz/` 全 15 資産**(母集合 + 決定 lock + 派生 3 資産 + 各 lock + oracle 6 資産 + seal)+ 検査器 + 要件書 v2.4。結線情報(`source_claim_ids`)は経路レジストリ側にしかないため、母集合だけを対象にすると結線の指摘が構造的に不可能になる(計画レビュー 1 周目 P0-1)
-- **観点の下限**: ①分類・`decidable_at` の誤り ②closed-world 文(全域性宣言)の扱い ③経路レジストリと要件行の結線(http 判定可能 184 件中 166 件未結線・cache 17 件下流ゼロ・db のみ exact-set)④分類規則の罠の無力(`allowed_source_kinds: []` = 制約なし)⑤インデント表の採取欠陥(既知)⑥oracle 資産(claim-mutant-map 等)と母集合の整合 ⑦ステップ 2 で加わる変更履歴行の分類
+- **観点の下限**: ①分類・`decidable_at` の誤り ②closed-world 文(全域性宣言)の扱い ③経路レジストリと要件行の結線(http 判定可能 184 件中 166 件未結線・cache 17 件下流ゼロ・db のみ exact-set)④分類規則の罠の無力(`allowed_source_kinds: []` = 制約なし)⑤インデント表の採取欠陥(既知)⑥oracle 資産(claim-mutant-map 等)と母集合の整合(**ステップ 2 で加わる変更履歴行はステップ 1 時点で未存在のため母集団・観点に含めない** — 分類は §2-4 の既定で固定し、ステップ 5 の合格条件で Claude が規則適用の妥当性を検査、PR の総合敵対レビューの対象に含める〔計画レビュー 3 周目 P0-4〕)
 - **H-53 の統制の具体形(2 種類の集合を区別する — 計画レビュー 2 周目 P0-2・P0-3)**:
-  1. **走査の全数性**: レビュアーに「**走査した母集団の全エントリ ID**」(資産ごとの主キー: 母集合 = `source_id` / lock = 決定 ID / route-registry = route・operation ID / auth-catalog = entry ID / http-route-matrix = route・cell ID / oracle 6 資産 = 各エントリ主キー / seal = input・sealed 資産名)を 1 行 1 ID の機械可読リストで出力させる。**Claude は全 15 資産から python で直接同じ主キー集合を機械列挙し、exact-set(差集合 0)で突合**する — これが「全数を走査した」ことの証明
+  1. **走査の全数性**: レビュアーに「**走査した母集団の全エントリ ID**」を **`<資産ファイル名>:<エントリ主キー>` の名前空間付き**で 1 行 1 ID の機械可読リストとして出力させる(母集合と決定 lock は同じ `source_id` を持つため名前空間なしでは lock の未走査を検出できない)。**主キーを持たない部分(`input_manifest`・`scope`・`classification_rules`・`basis_rules`・review/reseal policy・列挙表等)は `<資産ファイル名>:<JSON トップレベルキー>` 単位で列挙対象に含める**。**Claude は全 15 資産から python で直接同じ名前空間付き集合を機械列挙し、exact-set(差集合 0)で突合**する(計画レビュー 3 周目 P0-5) — これが「全数を走査した」ことの証明
   2. **指摘の帰属**: 指摘対象 ID リストは**上記母集団リストの部分集合**であることを検査する(母集団外の ID の混入 = fail)
   - 両リストと突合結果は `docs/features/authz-claims-corpus/` 配下へ機械可読で保存し、コミットに含める。件数照合だけにしない(脱落と混入の相殺を許さない)。checker の標準出力に依存しない
 - 当時の「7 件」との件数一致は要求しない — **再列挙の結果が新しい正**(worklog に旧要約 3 カテゴリとの対応を記録する)
@@ -84,16 +84,16 @@ created: 2026-09-03
 
 - コード(採取器・検査器・テスト)と母集合 JSON の機械的追随 = **`codex_run.py implement` 委任**(ステップ単位)。要件書・変更履歴・README・worklog = **Claude 直編集**
 - 是正の**分類判断そのものは PO 裁定リストで固定**してから委任する(委任先に判断させない — H-53)
-- **帰属表の定義(H-12 典拠照合の中核 — 計画レビュー 2 周目 P1-11)**: 保存先 = `docs/features/authz-claims-corpus/attribution.json`(機械可読・コミットに含める)。**比較基準 = 分岐点コミット `41884a9`(origin/develop)との git diff**。抽出単位 = **JSON 資産はエントリ単位**(母集合 = `source_id` / lock = 決定 ID / 派生・oracle = 各エントリ主キー / manifest・seal のメタフィールドは「フィールド名」単位)/ **コード・テスト・文書は hunk 単位**。各エントリの帰属先 = 「裁定リストの項目 ID」「既知 3 件(採取欠陥・例外表セル・変更履歴行)」「機械的追随(digest・件数・oracle_commit — 帰属元の変更に従属)」のいずれか。**帰属のない変更 0** を機械検査し、人間の逐行確認用の突合シートは attribution.json から生成する(1 指摘対複数エントリ・1 エントリ対複数根拠を許す)
+- **帰属表の定義(H-12 典拠照合の中核 — 計画レビュー 2 周目 P1-11)**: 保存先 = `docs/features/authz-claims-corpus/attribution.json`(機械可読・コミットに含める)。**比較基準 = 分岐点コミット `41884a9`(origin/develop)との git diff のうち、成果物(`contracts/authz/**`・`scripts/check_authz_catalog.py`・`tests/**`・要件書・`docs/README.md`)に限る** — feature 文書(plan/research/worklog/母集団リスト/突合シート/`attribution.json` 自身)は記録であり帰属対象に含めない(自己再帰の排除 — 計画レビュー 3 周目 P0-1)。抽出単位 = **JSON 資産はエントリ単位**(母集合 = `source_id` / lock = 決定 ID / 派生・oracle = 各エントリ主キー / manifest・seal のメタフィールドは「フィールド名」単位)/ **コード・テスト・文書は hunk 単位**。各エントリの帰属先 = 「裁定リストの項目 ID」「既知 3 件(採取欠陥・例外表セル・変更履歴行)」「機械的追随(digest・件数・oracle_commit — 帰属元の変更に従属)」のいずれか。**帰属のない変更 0** を機械検査し、人間の逐行確認用の突合シートは attribution.json から生成する(1 指摘対複数エントリ・1 エントリ対複数根拠を許す)
 
 ### (5) ステップ 4 の粒度規定(裁定前に確定できない部分の扱い)
 
-裁定リストのうち**検査器・スキーマの意味論に触れる是正**はステップ 4 に置く。裁定確定後、変更単位が**複数の独立した検査意味論**にまたがる場合は、**ステップ表を整数連番のまま振り直す計画改訂**(該当ステップを複数の整数ステップへ分割し、後続番号を繰り下げる — `feature_status.py` は整数連番のみ認識するため 4a・4b 等の枝番は使わない〔計画レビュー 2 周目 P1-4〕。改訂は表の分割のみ・レビューは差分周 1 回)を経てから実行する。裁定リストに該当項目が 0 件の場合、ステップ 4 は「実施なし(裁定リストに検査意味論の変更なし)」を worklog に記録するコミットで閉じる。
+裁定リストのうち**検査器・スキーマの意味論に触れる是正**はステップ 4 に置く。裁定確定後、変更単位が**複数の独立した検査意味論**にまたがる場合は、**ステップ表を整数連番のまま振り直す計画改訂**(該当ステップを複数の整数ステップへ分割し、後続番号を繰り下げる — `feature_status.py` は整数連番のみ認識するため 4a・4b 等の枝番は使わない〔計画レビュー 2 周目 P1-4〕。**分割時は本文中のステップ番号参照(§4-(2) の red 規定・§2・§4-(6) を含む)を一括で更新**し、レビューは差分周 1 回。**総数が変わり得るため、本タスクのステップコミット件名には総数接尾辞 `/N` を付けず `(ステップ k)` のみを使う**〔計画レビュー 3 周目 P1-8〕)を経てから実行する。裁定リストに該当項目が 0 件の場合、ステップ 4 は「実施なし(裁定リストに検査意味論の変更なし)」を worklog に記録するコミットで閉じる。
 
 ### (6) oracle 資産の追随手続(ステップ 6 — 計画レビュー 2 周目 P1-8・P1-9)
 
-- **写像の手続**: ステップ 6 の冒頭で、oracle 6 資産それぞれの「母集合・AUTH カタログへの参照フィールド」(claim ID 参照・`oracle_context` 等)を機械抽出し、**裁定で変化した claim ID との交差を列挙**する。交差 0 の資産 = `oracle_context.oracle_commit` の更新のみ / 交差ありの資産 = checker(`validate_claim_mutant_map` :2587・`validate_attack_tree` :3093 ほか)が強制する整合を green にする**最小追随**に限る。**内容の新規判断(新しい変異・攻撃目標の設計等)は委任先に行わせない** — 判断が要る場合は差し戻して PO へ(写像表は worklog に記録)
-- **seal の review_policy への適合**: oracle 資産を変更するため、**reseal 前に「変更後 oracle 資産への差分敵対レビュー + 人間の確認」を実施**し、実施記録(worklog)を残してから `oracle_commit` 差し替え + `--reseal-oracle` を行う(既存契約 — `contracts/authz/oracle-seal.lock.json` の review_policy)
+- **追随対象の判定は checker に委譲する(依存閉包の正 = 検査器)**: ステップ 5 完了後に `check_authz_catalog.py`(引数なし)を実行し、**oracle 検査(`validate_claim_mutant_map` :2587・`validate_attack_tree` :3093 ほか)で fail した資産 = 追随対象の正**とする(claim ID の直接交差だけでは HTTP matrix の allow セル・route registry・DDL・mutant 集合経由の間接依存を見落とす — 計画レビュー 3 周目 P1-6)。fail 0 の資産は `oracle_context.oracle_commit` の更新のみ。追随は **checker が強制する整合を green にする最小追随**に限る(参照フィールドの機械抽出は写像表の補助資料として worklog に残す)。**内容の新規判断(新しい変異・攻撃目標の設計等)は委任先に行わせない** — 判断が要る場合は差し戻して PO へ(写像表は worklog に記録)
+- **seal の review_policy への適合(順序 — 計画レビュー 3 周目 P1-7)**: ①内容追随 → ②6 資産の `oracle_context.oracle_commit` と seal の `oracle_commit` をステップ 5 コミット SHA へ差し替え(**最終バイト列を確定**)→ ③**最終形に対して差分敵対レビュー + 人間の確認**(実施記録を worklog へ)→ ④`--reseal-oracle`(seal の digest のみ更新 — canonical digest は `oracle_context` を含む資産全体から生成されるため、レビュー後にバイト列を変えない)→ ⑤コミット(既存契約 — `contracts/authz/oracle-seal.lock.json` の review_policy)
 
 ### 実装ステップ(コミット単位)
 
@@ -104,7 +104,7 @@ created: 2026-09-03
 | 3 | **採取器の是正 + 負例**(codex 委任・既知分のみ)— `_table_cells` のインデント対応 + インデント表のフィクスチャ負例 | フィクスチャ単体テストで**負例が是正前 red → 是正後 green** の記録(実行コマンドと出力を worklog へ)/ 実測 red 集合が固定列挙と一致 / 既知分以外の変更なし |
 | 4 | **裁定由来の検査器・スキーマ是正**(codex 委任)— 裁定リストのうち検査意味論に属する是正。**複数の意味論にまたがる場合は §4-(5) の計画改訂(整数連番の振り直し)で分割してから** | 裁定リスト外の変更なし / 各変更が裁定項目へ帰属 / **導入する検査ごとに負例フィクスチャを追加し、是正前 red → 是正後 green を記録**(計画レビュー 2 周目 P1-10)/ 実測 red 集合が固定列挙と一致。0 件時は「実施なし」の worklog 記録コミット |
 | 5 | **母集合・lock・派生 3 資産の追随**(codex 委任)— 裁定リストの分類・`decidable_at` 是正 + 採取追随(kind/source_id 変更 3 件)+ 例外表セルの source_text 追随 + **変更履歴の新規行(total 1063・table_row +1・分類は §2-4 の既定)** + `input_manifest.commit` = ステップ 2 コミット SHA + **§4-(2) の reseal 実行順(①`--reseal --skip-derived --skip-oracle` ②派生更新 ③`--reseal-derived --skip-oracle`)** + `tests/` 期待件数の更新 | **`check_authz_catalog.py --skip-oracle` green** / **Claude が python で直接計数した分布(classification・kind・location・layer)と全 ID 集合の照合が一致**(checker 出力に依存しない)/ **帰属表(§4-(4))で帰属のない変更 0** / 実測 red 集合が固定列挙(2 本)と一致 |
-| 6 | **oracle 6 資産の追随 + seal の 2 段目**(codex 委任)— §4-(6) の写像手続(交差列挙 → checker が強制する整合への最小追随)+ 6 資産の `oracle_context.oracle_commit` と seal の `oracle_commit` を**ステップ 5 コミット SHA**へ差し替え + **変更後 oracle 資産への差分敵対レビュー + 人間確認(seal の review_policy)** + `--reseal-oracle` | `uv run pytest tests/` **全 green**(lock 4 本 bytes 不変検査を含む)/ seal の `input_assets` 8 件が現物 blob と一致 / oracle 変更が裁定項目へ帰属(新規判断 0)/ **差分敵対レビューと人間確認の実施記録が worklog にある** |
+| 6 | **oracle 6 資産の追随 + seal の 2 段目**(codex 委任)— §4-(6) の手続を**同節の順序どおり**実施(checker fail による追随対象判定 → 内容追随 → `oracle_context.oracle_commit`/seal の `oracle_commit` をステップ 5 コミット SHA へ差し替え → **最終形への差分敵対レビュー + 人間確認** → `--reseal-oracle`) | `uv run pytest tests/` **全 green**(lock 4 本 bytes 不変検査を含む)/ seal の `input_assets` 8 件が現物 blob と一致 / oracle 変更が裁定項目へ帰属(新規判断 0)/ **差分敵対レビューと人間確認の実施記録が worklog にある** |
 | 7 | **総合検証と後片付け**(Claude)— /check 一式・**帰属表から人間の逐行確認用の突合シートを機械生成**・H-85 案②③の別起票(Notion)・worklog 締め | /check green / 突合シートが attribution.json の全エントリを覆う / 起票 URL が worklog にある |
 
 ## 5. DoD(Notion TSK-312 と同期 — **承認時に Notion 本文の DoD を本節と同一内容へ更新し、worklog に同期実施を記録する**〔計画レビュー 2 周目 P2-12〕)
