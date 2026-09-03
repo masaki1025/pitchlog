@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3cc93b75e6878194b72bcc12219d6cdb
 branch: feature/doc-check-multi-doc
 created: 2026-08-31
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -17,216 +17,213 @@ created: 2026-08-31
 
 ## 1. 背景・目的
 
-**下調べ**: [research.md](research.md)(2026-08-31 — 調査サブエージェント 3 本 + 原典の直接確認)。
-本計画の前提事実・矛盾リスク・基準線はすべて同メモが正で、**本書へ内容を複製しない**(設計書 7.1-1)。
+**下調べ**: [research.md](research.md)(1〜5 節 = 2026-08-31 / **6 節 = 2026-09-04 の再検証**)。**詳細設計**: [design.md](design.md)(2026-09-04)。
+前提事実・基準線は research.md が、設計判断の根拠は design.md が正で、**本書へ内容を複製しない**(設計書 7.1-1)。本書は契約(機構が読む状態と実装ステップ表)のみを持つ。
+計画レビューの指摘(`R1-*`〜`R5-*`)の一次記録と採否は worklog 2026-09-04 が正。
 
 - Notion タスク: [TSK-269](https://app.notion.com/p/3cc93b75e6878194b72bcc12219d6cdb)
-- **受け渡し先**: [TSK-250](https://app.notion.com/p/3c593b75e6878152b3edd6cf4f26b30b)(計画承認済み 2026-08-31)。
-  **本タスクのマージが TSK-250 の開始条件**であり、TSK-250 の計画書 1 節に**受け渡し契約 5 項目**がある
+- **受け渡し先**: [TSK-250](https://app.notion.com/p/3c593b75e6878152b3edd6cf4f26b30b)(計画承認済み 2026-08-31・develop 未マージ)。
+  **本タスクのマージが TSK-250 の開始条件**であり、TSK-250 の計画書 1 節に**受け渡し契約 5 項目**がある(research 6-4 節)。
+  **TSK-250 は本タスクのマージ後・着手前に再レビューが必要**(design 11 節の申し送り 18 項目)
 
-現在の検査機構は `docs/design/sync-protocol.md` 専用に書かれている。二文書目(データモデル正本)を
-同じ強度で検査するには一般化が要る。**TSK-250 の計画レビューで、この一般化が同一 PR に収まらないと
-判定されたため独立タスクとして切り出された**(人間の裁定 2026-08-31)。
+現在の検査機構は `docs/design/sync-protocol.md` 専用に書かれている。二文書目(データモデル正本)を同じ強度で検査するには一般化が要る。
+**TSK-250 の計画レビューで、この一般化が同一 PR に収まらないと判定されたため独立タスクとして切り出された**(人間の裁定 2026-08-31)。
+2026-08-31 に計画レビュー 1 周目(否決)まで進んだのち TSK-270 先行のため保留し、2026-09-04 に再開した(TSK-270 完了・PR #33)。
 
-**本タスクの性格は「既存コードの一般化」であり、機能追加ではない。**
-[research.md](research.md) 5 節の基準線(**784 passed** / 3 検査 green / ruff・ty クリーン)を
-**最後まで維持すること**が成功条件の中心にある。
+**本タスクの性格は「既存コードの一般化」であり、機能追加ではない。** research.md 6-6 節の基準線(3 検査 green / ruff・ty クリーン /
+**既存 node ID 875 件の固定集合を包含** — design 14-1 節)を**最後まで維持すること**が成功条件の中心にある。
 
-**主な要件**: NFR-019(テストを伴う実装)。本タスクは要件の実装ではなくハーネスの機構であるため、
-FR への直接の対応はない(**該当なし**)。規範の正は設計書 7 章(正本の規律)と 10.1(CI ジョブ表)。
+**主な要件**: NFR-019(テストを伴う実装)。本タスクは要件の実装ではなくハーネスの機構であるため、FR への直接の対応はない(**該当なし** — research 6-4 節)。
+規範の正は設計書 7 章(正本の規律)と 10.1(CI ジョブ表)。
 
-### 人間の裁定(2026-08-31)
+### 人間の裁定
 
-| 論点 | 裁定 |
-| --- | --- |
-| 不変条件の機械判定をどこまで作るか | **既存 16 分岐を宣言へ移行する**(型を発明せず、動いているコードから抽出する) |
-| CI 配線 | **プロファイル列挙**(CI の引数を増やさない) |
-| 重さ分類 | **コア領域**(sol xhigh・敵対レビュー必須・人間の逐行確認必須) |
+| 日付 | 論点 | 裁定 |
+| --- | --- | --- |
+| 2026-08-31 | 不変条件の機械判定をどこまで作るか | **既存の構造分岐を宣言へ移行する**(型は動いているコードから抽出)。**前決定「新規機構を発明しない」(`docs/features/sync-protocol-canonical/plan.md:294`)に対する明示的な例外・上書き**(design 0 節) |
+| 2026-08-31 | CI 配線 | **プロファイル列挙**(CI の引数を増やさない) |
+| 2026-08-31 | 重さ分類 | **コア領域**(sol xhigh・敵対レビュー必須・人間の逐行確認必須) |
+| 2026-09-04 | MT-01(R1-P0-1・R2-P0-3・R3-P0-5・R4-P0-1) | **(a′) oracle の正当な改訂 + `absent-section` 型**。MT-01 の宣言は `required_declarations` で必須(有効化フラグを設けない — design 4 節) |
+| 2026-09-04 | `codex_run.py` の `has_filled_step_row` | **本タスクに含める**(design 10 節) |
+| 2026-09-04 | 第 3 の検査機構 `scripts/check_authz_catalog.py` | **対象外**。資産書式の前例として借りる(design 12 節) |
+| 2026-09-04 | `guard_paths` への新資産登録・台帳 H-78/H-79 の実績追記 | **すべて TSK-250 に委ねる**。統制の空白は**受容**(design 14-2 節) |
+| 2026-09-04 | 計画レビューの進め方(3 周目否決後) | **全件反映 → 以降も通常の敵対レビュー** |
 
 ## 2. スコープ
 
 ### やること
 
-1. **プロファイルの導入** — (対象文書, マニフェスト, 欠陥台帳, リンク解決の基準ディレクトリ,
-   節 ID の文法, 除外語彙, 引用の継承先, 宣言表・帰属表・台帳の節 ID, 帰属区分の語彙, 欠陥 ID の名前空間)を
-   **1 つの束**として外部化する
-2. **不変条件 DSL** — **既存 16 分岐を宣言へ移行**し、`_structural_reason` の直書き分岐を無くす。
-   **型は既存コードから抽出**する(発明しない)
-3. **fail-closed の徹底** — 現在**黙って空を返す**経路(解決できない節 ID・マッチしない scope トークン)を
-   **エラーにする**([research.md](research.md) 1-4 節)
-4. **CI 配線の一般化** — **プロファイル列挙**により、引数なしのまま全文書を検査する
-5. **TSK-250 が要求する 4 検査**の実装 — `FORB` の構造判定 / 直接要件の「対象外」禁止 /
-   ベースライン digest 拘束 / `WAIT`・`AUTH`・`FORB` の交差検査
-6. **汎用コンフォーマンスランナーとサンプルプロファイル**(TSK-250 の受け渡し契約 4)
-7. **参照の分類**(`normative` / `evidence` / `informative`)と、規範参照を approved 正本に限る検査
-8. `.claude/core-areas.json` の `guard_paths` への新資産追加と、設計書 10.1・台帳の追随
+1. **プロファイル・レジストリ(`--registry` で staging も指定可)・共通ローダー** — 全 21 check ID の**完全分割**と `must_require`(レジストリ entry)を強制。スキーマ版を持つ(design 1 節)
+2. **不変条件 DSL(13 種 — 旧分岐の述語に一対一 + 契約種別 `cross-reference`・alias `required-element`)** — 構造分岐 15 ID を宣言へ移行し `_structural_reason` の直書き分岐を無くす
+   (SP-19 は到達不能な死コードのため forbidden-only)。結合規則は汎用の集合制約(常時強制)+ 同期専用のコンフォーマンステスト(design 2-2 節)。
+   移行の正しさは構造 corpus 15 + MT-01・期待構造化 reason fixture・shadow 三者一致(design 2-3 節)
+3. **fail-closed の徹底**(design 3 節)/ 4. **MT-01 の oracle 改訂 + `absent-section`**(design 4 節)
+5. **CLI 名の固定** — `--document` / `--profile` / `--manifest` / `--defects-file` / `--checks` / `--defects`(+ `--registry`)。上書き・選択引数単独は既定プロファイルに束縛(design 5 節)
+6. **TSK-250 が要求する 4 検査** + `unique-owner`(check ID)。入力は `assets` で現物の項目名どおりに宣言(`auth_ddl_map` は構造タプル `structures` を持つ。`direct_requirements` / `expected_ids` は独立資産・非空)(design 6 節)
+7. **コンフォーマンスランナー**(design 13 節)と**サンプル一式**(`profiles/` `doc/` `assets/` に分離・全 21 ID を自己完結で実行できるデータモデル型最小プロファイル)
+8. **参照の分類** `reference-class`(design 7 節)/ 9. **帰属検査の強化**(混合式を含む destination 文法 — design 8 節)/ 10. **CI 配線の一般化**(design 9 節)/
+11. **`codex_run.py` の `has_filled_step_row`**(design 10 節)/ 12. **TSK-250 への申し送り 18 項目**(design 11 節)
 
 ### やらないこと
 
 | 対象外 | 受け取り先 | 理由 |
 | --- | --- | --- |
-| **データモデル用プロファイルの作成** | **TSK-250**(ステップ 2) | **本タスクのマージ時点では二文書目がまだ存在しない**。本タスクは**汎用ランナーとサンプルプロファイル**までを持つ(受け渡し契約 4) |
-| **同期側 oracle の内容変更**(`defects.json` / `req-universe.json` / `tests/fixtures/sync-protocol-source.txt` と SHA-256) | — | **触らない**。「検査が正本を検証するのではなく検査が正本に合わせられる」型の事故を避ける([research.md](research.md) 4-4 節)。**やむを得ず必要になったら停止し、独立した承認済みステップとして切り出す** |
-| **同期正本の本文変更** | — | **反映なし**。プロファイル列挙により `docs/design/sync-protocol.md:2426`「引数なしで強制される」は**事実のまま**保たれる |
-| 意味の判断の機械化(人間照合欠陥 23 件の自動判定) | — | 前タスクが 9 周目に断念した領域 — 「**意味の判断は機械化できず、機械化すると第二の正本になる**」 |
-| 台帳 `H-*` の新規採番 | — | `H-77` が未対応のため現在も禁止 |
+| **データモデル用の実プロファイル・実資産(`auth_ddl_map` / `direct_requirements` / `expected_ids` を含む)の作成** | **TSK-250** | 二文書目がまだ存在しない。本タスクはランナー・サンプル・データモデル型最小プロファイル(合成)まで |
+| **`.claude/core-areas.json` の `guard_paths` への新資産登録** | **TSK-250**(最初の独立コミット) | 人間の裁定 2026-09-04。登録対象は 3 節 B 集合(最終確定はステップ 37) |
+| **台帳 H-78・H-79 の実績追記** | **TSK-250**(ステップ 25) | 人間の裁定 2026-09-04。`H-*` 新規採番も禁止のまま |
+| **設計書 10.1 `docs-lint` 行・`docs/README.md` の現行化** | **TSK-250**(ステップ 22) | 同期に走る検査は既存 14 のまま(新 7 ID は `not_applicable`)なので現行文言は事実のまま(design 5-1 節)。H-19 ⑥ の前例 |
+| **同期側 oracle の内容変更**(`req-universe.json` / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt`) | — | 触らない。`defects.json` は **MT-01 エントリの範囲だけ**を独立ステップで改訂。SP-19 の oracle も無変更 |
+| **同期プロファイルでの新 7 ID の有効化** / **同期正本の本文変更** | (TSK-250 以後)/ — | 既存の振る舞いを変えない / 反映なし |
+| **`scripts/check_authz_catalog.py` のプロファイル化** / **`verify_handoff_digest.py` をランナーに載せる** | (TSK-270 系)/ **TSK-250**(ステップ 4) | 人間の裁定 / ランナーは単一プロファイルの検証器 |
+| `GLOBAL_CHECK_IDS` の整理 / 意味の判断の機械化 / TSK-270 計画書の暫定回避の注記 | — | R1-P1-2 / 前タスクが断念した領域 / 他タスクの文書 |
 
 ## 3. 影響する正本
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| **`docs/development/dev-harness-design-2026-08-07.md`** | **10.1 の `docs-lint` 行の現行化** — 「同期プロトコル設計の伝播突合 12 検査(引数なし)」を「**登録された全プロファイルの伝播突合 12 検査(引数なし)**」へ。**「引数なし」という規範条件は変えない**(実装追随の節更新。**版は上げない**) | PR レビュー |
-| **`docs/development/harness-evaluation.md`**(台帳) | **H-78・H-79 に本タスクの実績を追記**(対応案の実装に当たるため)。**`H-*` の新規採番はしない**。状態欄の更新可否は実績に基づいて判断する | PR レビュー |
-| **`docs/README.md`**(索引) | 設計書・台帳の**最終更新日を現行化** | PR レビュー |
-| **`.claude/core-areas.json`** | **`guard_paths` へ新設資産を完全列挙で追加**(**完全一致集合で glob が効かない**)。`areas[].paths` は**変更しない**(二文書目の登録は TSK-250 の射程) | PR レビュー |
-| **`docs/design/sync-protocol.md`** | **反映なし** — プロファイル列挙により本文の記述が事実のまま保たれる(2 節) | — |
-| **`docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `frontend/`** | **反映なし** | — |
-| `scripts/design_relations/{defects,req-universe,sync-protocol}.json` / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt` | **反映なし**(同期側 oracle は不変 — 2 節) | — |
+| **`docs/development/dev-harness-design-2026-08-07.md`** | **反映なし**(10.1 の「12 検査(引数なし)」は同期に走る検査が既存のままなので事実のまま) | — |
+| **`docs/development/harness-evaluation.md`** / **`docs/README.md`** / **`.claude/core-areas.json`** / **`docs/design/sync-protocol.md`** / `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `frontend/` | **反映なし** | — |
+| `scripts/design_relations/req-universe.json` / `sync-protocol.json` / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt` | **反映なし**(同期側 oracle) | — |
+| **`scripts/design_relations/defects.json`**(oracle・`guard_paths` 該当) | **MT-01 エントリの範囲のみ**(ステップ 3・design 4 節) | PR レビュー + 人間の逐行確認 |
+| `docs/features/doc-check-multi-doc/baseline-node-ids-f92b5f8.txt` | **無変更 oracle**(SHA-256 `a07454fcc3e3bc9c365a28f1dc66cec2330bfb08ecede80d8c52725169369046`) | — |
 
-**新設・変更するコード資産**(正本ではないが `guard_paths` の対象):
+### PR のファイル集合(ステップ 37 で実 diff と突合する 3 つの exact-set)
 
-| 資産 | 内容 |
-| --- | --- |
-| `scripts/design_relations/profile-sync-protocol.json`(新設) | 同期正本のプロファイル。**既定の挙動を変えないための移送先** |
-| `scripts/design_relations/profile-schema.json`(新設) | プロファイルのスキーマ(**スキーマ版**を持つ) |
-| `scripts/design_relations/invariant-schema.json`(新設) | 不変条件 DSL のスキーマ。**未対応の種別は fail-closed** |
-| `scripts/check_design_propagation.py`(変更) | プロファイル駆動化 + 宣言評価器。**`_structural_reason` の ID 別分岐を撤去** |
-| `scripts/check_doc_coverage.py`(変更) | プロファイル駆動化 + 帰属検査の強化 |
-| `scripts/check_doc_profiles.py`(新設) | **汎用コンフォーマンスランナー**(プロファイルを与えて検査が動くことを確認する) |
-| `tests/fixtures/profile-sample/`(新設) | **サンプルプロファイルと合成文書**(実プロファイルに依存しない契約テストの入力) |
-| `tests/test_*.py`(変更・新設) | 既存 4 本の更新 + 宣言評価器・帰属強化・交差検査の単体テスト |
+**A = PR の全追加・変更ファイル = B ∪ C ∪ 文書**。文書 = `docs/features/doc-check-multi-doc/{plan,design,research}.md`・`baseline-node-ids-f92b5f8.txt`・
+`docs/worklog/2026-08-31-doc-check-multi-doc.md`・`docs/worklog/2026-09-04-doc-check-multi-doc.md`。
+
+**B = core-guard 対象の実行資産**(未登録分を TSK-250 が完全列挙で `guard_paths` へ登録。右列は既存の登録状況):
+
+| 資産 | 内容 | 既存 |
+| --- | --- | --- |
+| `scripts/design_relations/defects.json`(変更 — MT-01 のみ) | oracle | **登録済み** |
+| `scripts/design_relations/profiles/registry.json` / `sync-protocol.json`(新設) | 本番レジストリ・同期プロファイル | 未登録 |
+| `scripts/design_relations/schemas/profile.schema.json` / `registry.schema.json` / `invariant.schema.json` / `assets.schema.json`(新設) | スキーマ(版付き) | 未登録 |
+| `scripts/design_relations/invariants/sync-protocol.json`(新設) | `structural_required` 15 / `legacy_structural` / `required_declarations` / `declarations` | 未登録 |
+| `scripts/doc_check_profile.py`(新設) | 共通ローダー | 未登録 |
+| `scripts/check_design_propagation.py`(変更) | プロファイル駆動 + 宣言評価器 + 新 5 ID。ID 別分岐を撤去 | **登録済み** |
+| `scripts/check_doc_coverage.py`(変更) | プロファイル駆動 + destination 文法 + 新 2 ID | **登録済み** |
+| `scripts/check_doc_profiles.py`(新設) | コンフォーマンスランナー | 未登録 |
+| `tests/fixtures/profile-sample/profiles/registry.json` / `profile.json` / `data-model-like.json` | サンプル用レジストリ + プロファイル 2 本(**このディレクトリにはこれ以外を置かない**) | 未登録 |
+| `tests/fixtures/profile-sample/doc/document.md` / `manifest.json` / `defects.json` / `invariants.json` / `requirements.md` / `req-universe.json` | 合成文書(宣言表・帰属表・台帳)と付随資産 | 未登録 |
+| `tests/fixtures/profile-sample/assets/requirement-claims.json` / `auth-catalog.json` / `ddl-elements.json` / `auth-ddl-map.json` / `waiting.json` / `forbidden.json` / `direct-requirements.json` / `expected-ids.json` / `baseline-digest.txt` | 合成資産(`contracts/authz/` と同形) | 未登録 |
+| `tests/fixtures/structural-reasons-expected.json`(新設) | 旧 15 ID の期待構造化 reason(`(case_id, defect_id)` キー) | 未登録 |
+| `tests/test_check_design_propagation.py` / `tests/test_check_doc_coverage.py` / `tests/test_ci_wiring.py`(変更) | corpus・shadow・プロファイル・fail-closed・新検査(`test_ci_wiring.py` は CI 契約ブロックに触れない) | **登録済み** |
+| `tests/test_doc_check_profile.py` / `tests/test_check_doc_profiles.py`(新設) | ローダー / ランナー | 未登録 |
+
+**C = 実行資産だが core-guard 対象外**(登録しない): `.claude/scripts/codex_run.py`(変更)/ `tests/test_codex_run.py`(新設)/ `tests/test_hooks.py`(変更の可能性 — wrapper ケースの期待文言追随のみ)。
 
 ## 4. 実装方針
 
 ### 重さ分類の根拠 — **コア領域**(人間の裁定 2026-08-31)
 
-前例上は「通常」で通せる余地があった(`guard_paths` 該当は引き上げの根拠にならない —
-`docs/features/backend-skeleton/plan.md:69`)。**それでもコア領域に倒す**理由は、
-**本タスクの成果物がコア領域文書を検証する機構そのもの**であり、設計書 6.3 の
-「**判定に迷うコードは含む側に倒す**(fail-closed)」に従うため。
-→ **sol xhigh・敵対レビュー必須・人間の逐行確認必須**。
+前例上は「通常」で通せる余地があった(`docs/features/backend-skeleton/plan.md:69`)。それでも**コア領域に倒す**理由は、本タスクの成果物がコア領域文書を検証する機構そのもので、
+設計書 6.3「判定に迷うコードは含む側に倒す」に従うため。TSK-281 の前例(`docs/features/core-area-paths/plan.md:75-77`)と整合。→ sol xhigh・敵対レビュー必須・人間の逐行確認必須。
+**コア領域(CLAUDE.md の列挙)に触れるか**: 5 領域の本文・実装には触れない。触れるのは `guard_paths` 該当の検査機構で、core-guard が発火する。
 
-### 中核の制約 — **既存の振る舞いを変えない**
+### 中核の制約 — **既存の振る舞いを変えない**(design 14-1 節)
 
-[research.md](research.md) 5 節の基準線を**全ステップで維持する**。とくに次の 2 本は
-**一般化の安全網**であり、**すべてのステップの合格条件に入れる**:
+すべてのステップの合格条件: `test_fixture_reports_exact_machine_defect_set`(機械 17 件の検出集合の完全一致)/ `test_fixture_default_adds_global_findings` /
+**既存 node ID 875 件の固定集合を包含**(基準ファイルは無変更 oracle)/ **passed ≥ 875** / **skipped・xfailed・xpassed・deselected = 0**。
+fixture・`fixture-sha256.txt`・`req-universe.json` は不変。`defects.json` はステップ 3 の MT-01 エントリ以外で不変。
 
-- `test_fixture_reports_exact_machine_defect_set` — fixture に対する**機械 17 件の検出集合の完全一致**
-  (件数一致では通らない)
-- `test_fixture_default_adds_global_findings` — 引数なし実行での全体検査の検出集合
+### 不変条件 DSL — 既存の構造分岐を宣言へ移行する(前決定の明示的な例外)
 
-**fixture(`tests/fixtures/sync-protocol-source.txt`)と `fixture-sha256.txt` は本タスクを通じて不変**。
-これにより「**内部を作り替えても検出集合が同一**」を機械で示せる。
+種別 13(旧分岐の述語に一対一 + 契約種別)・15 + MT-01 → 宣言の完全対応表・結合規則(汎用 1〜6・常時強制)・同期専用コンフォーマンステストは design 2 節が正。
+**受け入れ条件**: `_structural_reason` の ID 別分岐 0 件 / `legacy_structural` 空 / 同期の `D = structural_required(15) ∪ {MT-01}`(exact)/ 機械 17 件の検出集合が移行前と完全一致 /
+構造 corpus 16 件が新評価器単独で判定 / 期待構造化 reason fixture への一致 / 旧述語と同値な変異(行スコープ = 別行移動、節スコープ = 別節移動・意味部欠落・ID 交換)が全 ID で red。
 
-### 不変条件 DSL — **型は発明せず、既存コードから抽出する**
+### fail-closed / CLI / 4 検査 / 参照分類 / 帰属 / CI / `codex_run.py` / ランナー契約
 
-「**新規機構を発明しない**」(`docs/features/sync-protocol-canonical/plan.md:294`)という前タスクの
-確定事項に抵触しないよう、**DSL の型は既存 16 分岐が実際に行っている判定から抽出**する。
-[research.md](research.md) 1-2 節が挙げた**必要な型**:
-
-| 種別 | 由来する既存分岐 |
-| --- | --- |
-| `required-element`(節リスト × literal 連言) | SP-02・SP-03・SP-11・SP-14 |
-| `row-selector`(needle 包含 / 第 1 セル一致 / 識別子として出現 の 3 種) | SP-01・SP-13 |
-| `exact-set`(行の ID 集合の完全一致) | SP-06・SP-07・SP-09 |
-| `cross-reference`(2 節の対応) | SP-07・SP-10 |
-| `element-lookup`(要素の接頭辞検索 + 条件付き exact-set) | SP-08 |
-| `row-scoped-forbidden` / `any-of` | SP-09 |
-| `required-exclusion`(除外宣言の存在要求。語彙はプロファイル) | SP-12・SP-16 |
-| `conditional-forbidden`(含意 — 禁止だが明示的な否定文脈なら可) | SP-20 |
-| `well-formedness`(表行の強調記号の対) | SP-18 |
-| `forbidden-element`(既存の禁止 literal 走査) | 全欠陥の `forbidden` |
-
-**`unique-owner` は既存に該当がない**(TSK-250 が欠陥台帳の所有ステップ検査で使う型)。
-**既存から抽出できない唯一の型**なので、**サンプルプロファイル上の合成データで受け入れテストを書く**。
-
-**受け入れ条件**: 移行後に **`_structural_reason` の ID 別分岐が 0 件**になり、
-**機械 17 件の検出集合が移行前と完全一致**すること。**これが DSL の表現力の証明を兼ねる。**
-
-### fail-closed(現在の誤緑経路を塞ぐ)
-
-現在 `extract_scope` は節 ID の文法にマッチしないトークンを**黙って捨て**、`_heading_section` は
-見つからなければ**空文字列を返す**([research.md](research.md) 1-4 節)。
-**解決できない節・脱落したトークン・未対応の不変条件種別・未知の ID・プロファイル欠落は
-すべて fail** にする。これは**二文書目で「載せたつもりで何も見ていない」状態を防ぐための中核**。
-
-### CI 配線 — プロファイル列挙(引数なしを保つ)
-
-CI の呼び出しは**引数なしのまま**とし、スクリプトが `scripts/design_relations/profile-*.json` を
-列挙して**登録された全文書を検査する**。これにより次の 3 つを同時に保つ:
-
-- 設計書 10.1 の「引数なし」という配線の規範
-- `docs/design/sync-protocol.md:2426`(**approved 正本**)の記述が**事実のまま**であること
-- `tests/test_ci_wiring.py` の意図(**選択実行の禁止**)と `assert len(matches) == 1`(step を増やさない)
+design.md 3・5・6・7・8・9・10・13 節が正。本書には複製しない。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-**全ステップ共通の合格条件**(表では省略): `uv run ruff check .` / `uv run ty check` /
-`uv run pytest tests/` **green** / **3 検査が引数なしで green** /
-**fixture と `fixture-sha256.txt` が無変更** / **同期側 oracle 3 点が無変更**。
+**全ステップ共通の合格条件**(表では省略): `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/ -rA` **green かつ skipped/xfailed/xpassed/deselected = 0** /
+**3 検査が引数なしで green** / **安全網 2 本 green** / **既存 node ID 875 件の包含・基準ファイルの digest 一致** /
+**fixture・`fixture-sha256.txt`・`req-universe.json` 無変更**(`defects.json` はステップ 3 以外で無変更)/
+**checker 実行結果(コマンド・終了コード・要約行)を worklog へ転記**(H-88)。表の「実装差分が〜のみ」は **worklog を除く**範囲。
+`legacy_structural` の残数は各移行ステップの合格条件に明記(15 → 0)。【】は群。**見出しで群を分けない**。
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **プロファイルのスキーマと同期プロファイルの作成** — `profile-schema.json`(**スキーマ版**を持つ)と `profile-sync-protocol.json` を作り、**現在の定数値をそのまま移送**する。コードはまだ読まない(データのみ) | **プロファイルの全フィールドが現行の定数値と一致**(値ごとに突合)/ **スキーマ検査が green** / **本ステップでスクリプトを変更していない**(差分が JSON とテストのみ) |
-| 2 | **パスのプロファイル駆動化** — `PROP` の `DEFAULT_DOCUMENT` / `DEFAULT_DEFECTS` / `DEFAULT_MANIFEST` とリンク解決の基準ディレクトリをプロファイルから取る。`--profile` を追加(**既定は同期プロファイル**) | **`--profile` 未指定時の挙動が変更前と同一**(検出集合の完全一致)/ **プロファイル欠落・スキーマ不一致が fail**(fail-closed の負例)/ 安全網 2 本 green |
-| 3 | **文法と語彙のプロファイル化 + fail-closed** — 節 ID の文法・除外語彙・引用の継承先・非正本走査の開始見出し・宣言表の節と列形式をプロファイルへ。**解決できない節と脱落トークンをエラーにする** | **未解決の節・脱落トークン・未知の種別で fail する負例がある**(現在は黙って green になる)/ **同期プロファイルでの検出集合が完全一致** / 安全網 2 本 green |
-| 4 | **不変条件 DSL のスキーマ定義**(実装はまだ)— `invariant-schema.json` に 4 節の全種別を定義し、**未対応種別は fail-closed**。`defects.json` は**変更しない**(同期側 oracle は不変) | **スキーマが 4 節の種別を全数含む** / **未対応種別を与えると fail** / **本ステップで判定ロジックを変更していない** |
-| 5 | **宣言評価器の骨格 + `forbidden-element` / `required-element` の移行**(SP-02・SP-03・SP-11・SP-14) | **移行した 4 件が宣言だけで判定される**(該当分岐が削除されている)/ **機械 17 件の検出集合が完全一致** / **各件に意味反転の変異テスト** |
-| 6 | **行セレクタの移行**(SP-01・SP-13)— needle 包含 / 第 1 セル一致 / 識別子として出現 の 3 種 | 同上(**3 種のセレクタそれぞれに正常系と変異テスト**)/ 検出集合の完全一致 |
-| 7 | **`exact-set` と `cross-reference` の移行**(SP-06・SP-07・SP-10) | 同上 / **ID 交換の変異で red になる** |
-| 8 | **`element-lookup` と条件付き exact-set の移行**(SP-08) | 同上 / **要素の接頭辞検索が宣言で表現されている**(コード内の `startswith` 直書きが無い) |
-| 9 | **`row-scoped-forbidden` と `any-of` の移行**(SP-09) | 同上 / **行スコープの禁止と選言がそれぞれ単独でテストされている** |
-| 10 | **`required-exclusion` の移行**(SP-12・SP-16)+ **除外語彙のプロファイル化** | 同上 / **除外語彙をプロファイルから変えると判定が変わる**ことをテストで示す |
-| 11 | **`conditional-forbidden` の移行**(SP-20)+ **冗長分岐 SP-19 の整理** | 同上 / **含意の両側(禁止・解除)にテストがある** / **SP-19 が禁止 literal で引き続き検出される** |
-| 12 | **`well-formedness` の移行**(SP-18)+ **移行の完了確認** | **`_structural_reason` の ID 別分岐が 0 件**(機械検査)/ **機械 17 件の検出集合が移行前と完全一致** / **DSL だけで 17 件すべてが閉じている** |
-| 13 | **`GLOBAL_CHECK_IDS` の名前と実態の整理** — 実際は「機械欠陥が bind してはいけない ID の集合」であり `element-coverage` がその外にいる非対称を解消する | **名前と実態が一致している**(実態を変えるなら検出集合の完全一致を維持)/ 安全網 2 本 green |
-| 14 | **`COV` のプロファイル駆動化** — 対象文書・帰属区分の語彙・帰属表の節・台帳の節をプロファイルへ(**`^11-3\.` のリテラル直書きを含む**) | **同期プロファイルでの判定が変更前と同一** / **語彙・節をプロファイルから変えると判定が変わる**ことをテストで示す |
-| 15 | **帰属検査の強化** — **帰属先の節が実在すること**・**根拠文が存在すること**・**直接要件の「対象外」禁止**(禁止集合はプロファイル) | **全件を「対象外」にした負例で red になる**(現在は green)/ **実在しない節を指す帰属で red** / **同期正本の現行帰属表は green のまま** |
-| 16 | **`FORB`(禁止構造)の構造判定** — 表間関係・列の意味・状態遷移・参照方向で判定する検査。**別名・暗黙関係を含む** | **別名で同じ構造を作った負例で red**(語句一致では通ってしまうことを対比で示す)/ サンプルプロファイル上の合成データでテスト |
-| 17 | **交差検査**(`WAIT` → 存在 / `AUTH` → 存在 / `WAIT`・`AUTH` ∩ `FORB` = ∅) | **3 条件それぞれに正常系と衝突負例** / **共通の正規化 ID で照合していることをテストで示す** |
-| 18 | **ベースライン digest 拘束** — 不変部分の digest を検査する仕組み(`unique-owner` を含む) | **digest 改変の負例で red** / **`unique-owner` の正常系と重複・欠落の負例**(既存に由来がない型のため合成データで) |
-| 19 | **参照の分類**(`normative` / `evidence` / `informative`)と規範参照の制限 | **feature・worklog・legacy を `normative` として参照する負例で red** / **`evidence` としてなら通る** / 同期正本は green のまま |
-| 20 | **汎用コンフォーマンスランナーとサンプルプロファイル** — `check_doc_profiles.py` + `tests/fixtures/profile-sample/` | **サンプルプロファイルで全検査が動く** / **実プロファイルに依存しない**(同期側の資産を読まないことをテストで示す)/ **未対応種別・欠落フィールドで fail** |
-| 21 | **CI 配線(プロファイル列挙)** — スクリプトが `profile-*.json` を列挙して全文書を検査する。CI の呼び出しは**引数なしのまま**。`test_ci_wiring.py` を更新 | **CI の run 文字列が変更前と同一**(引数を足していない)/ **`test_ci_wiring.py` の既存 4 アサーションが通る** / **プロファイルを 1 つ足すと検査対象が増えることをテストで示す** / **プロファイル 0 件は fail** |
-| 22 | **`core-areas.json` の `guard_paths` 追加** — 新資産を完全列挙し、`tests/test_core_guard.py` の期待集合を更新 | **3 節が列挙する新資産の全パスが `guard_paths` にある**(**個別ファイル名で**。ディレクトリ登録では発火しない)/ **各ファイルの変更で発火することを実設定から確認するテスト** / **`areas[].paths` を変更していない** |
-| 23 | **設計書 10.1 の追随と台帳の追記** — 10.1 の `docs-lint` 行を現行化(**「引数なし」は残す**・版は上げない)+ H-78・H-79 に実績を追記 + 索引の最終更新日 | `check_docs_status.py` green / **10.1 に「引数なし」が残っている** / **`H-*` の新規採番が 0 件** / 変更履歴表に行がある |
-| 24 | **検証記録** — 本タスクの検証コマンド列と結果を worklog へ記録する | **基準線の 4 項目がすべて green**(784 件以上 passed / 3 検査 green / ruff / ty)/ **機械 17 件の検出集合が着手前と完全一致** |
+| 1 | 【基盤】**`codex_run.py` の `has_filled_step_row` を是正** — 見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)/ 3 種の報告。`tests/test_codex_run.py` 新設(design 10 節) | **`####` 配下の表を認識** / **同レベル以上の見出しで抜ける** / **別見出し配下の数値表を拾わない** / **fenced code 内の疑似見出し・疑似表を無視** / **否定形見出しは負例** / **3 メッセージが区別される** / **`tests/test_hooks.py` の wrapper ケースが green** / 実装差分が C 集合のみ |
+| 2 | 【基盤】**構造 corpus 15 件 + forbidden corpus** — `DEFECT_CHECK_CASES` を旧分岐 15 ID の正常・異常対へ拡充(**異常例に forbidden literal を含めない・各 ID の scope の全節見出しを実在させる**)。SP-19・MT-01 の literal 対は forbidden corpus へ。**旧述語と同値な変異**(行スコープ = 別行移動 / 節スコープ = 別節移動・意味部欠落・ID 交換)を ID ごとに用意。検査本体は変更しない | **15 ID すべてに構造専用の正常・異常対と同値変異** / **各異常例が forbidden literal を含まない**(機械検査)/ **各 corpus 文書に当該 ID の scope 全節の見出しがある**(機械検査)/ **異常例・変異が終了 1、正常例が終了 0(入力不正 0 件)** / 全対が現行コードで green / 実装差分がテストのみ |
+| 3 | 【oracle】**MT-01 エントリの一貫改訂**(裁定 (a′) 前半 — design 4 節)— `scope` から `1節` を除き、`location` / `positive` / `mapping` を「12 アンカー + 節 1 の不在」へ。forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ | **`defects.json` の差分が MT-01 エントリの範囲に閉じる**(他エントリ無変更を機械検査)/ **fixture の検出集合が完全一致(MT-01 を含む)** / **approved 正本 green** / `fixture-sha256.txt` 無変更 |
+| 4 | 【基盤】**`profile.schema.json`・`registry.schema.json`・本番レジストリ・同期プロファイル**(データのみ)— `profiles/registry.json`(同期 1 件・`must_require` = 既存 14)、`profiles/sync-protocol.json`(現行定数の移送・`required_checks` = 既存 14・`not_applicable` = 新 7 の理由付き・`assets` 空・`reference_policy` 現行同値・`invariant_kinds`) | **全フィールドが現行の定数値と一致**(値ごとの突合テスト)/ **全 21 check ID が `required_checks ∪ not_applicable` に現れ、理由が非空**(データ検査)/ **本ステップでスクリプトを変更していない** |
+| 5 | 【基盤】**共通ローダー `scripts/doc_check_profile.py`** — 最小スキーマ検証器・レジストリ照合(完全一致・一意性・`--registry`)・完全分割と `must_require`・理由非空と未知 ID 拒否・パス解決。`tests/test_doc_check_profile.py` 新設。検査スクリプトはまだ呼ばない | **必須欠落・版不一致・未知フィールド・完全分割違反・`must_require` 違反・空理由・未知 ID・レジストリ不一致(脱落/未登録/重複)・0 件が例外(終了 2 相当)** / **別ディレクトリの staging レジストリで同じ検証が動く** / **現行 `defects.json` の全 40 ID が名前空間検査を通る** / 実装差分がローダーとテストのみ |
+| 6 | 【基盤】**`PROP` のパスと CLI のプロファイル駆動化** — `DEFAULT_*` とリンク基準をローダー経由に。`--profile` / `--registry` / `--manifest` / `--defects-file` 追加。上書き・選択引数単独は既定プロファイルに束縛(design 5 節) | **引数なし・`--document` 単独・`--checks`/`--defects` 単独・`--profile` 指定の 4 経路で検出集合が変更前と同一** / **安全網 2 本と selector 単独テスト(`:773-785`)が本文無変更で green** / **プロファイル欠落・スキーマ不一致・未知 ID が終了コード 2** |
+| 7 | 【基盤】**文法と語彙のプロファイル化 + fail-closed** — 節 ID 文法・`preamble`・除外語彙・引用継承先・非正本走査の開始見出し・宣言表をプロファイルへ。**解決できない節と脱落トークンを終了コード 2** | **未解決の節・脱落トークンで fail する負例** / **corpus 30 文書(15 × 2)が終了 1/0 のまま(終了 2 が 0 件)** / **同期プロファイルでの検出集合が完全一致** / `preamble` の意味がプロファイルに明記 |
+| 8 | 【DSL】**`invariant.schema.json`(13 種・kind 別必須引数・alias `required-element`)・宣言資産の骨格・汎用結合規則 1〜5・同期コンフォーマンステスト・期待構造化 reason fixture・shadow 基盤** — `invariants/sync-protocol.json`(`structural_required` 15・`legacy_structural` 15・**`required_declarations` = []**・`declarations` = 空)、`tests/fixtures/structural-reasons-expected.json`(`(case_id, defect_id)` キー・旧 15 ID)、三者一致テスト、`forbidden-element`(宣言版)の評価器。判定ロジックは移行しない | **汎用規則 1〜5 の各違反で終了 2 相当**(宣言必須 ID の宣言欠落 / legacy と宣言の重複 / legacy の ID に旧分岐が無い / **余分な宣言(SP-19・人間欠陥)** / forbidden-only でない機械欠陥)/ **同期コンフォーマンステスト(15 ID の exact)が green** / **kind 別の必須引数欠落・未知 kind で終了 2・alias が `section-contains(text)` に写る** / **旧分岐の結果が期待 fixture と全件一致** / **有効化フラグ・xfail が無い** / 検出集合の完全一致 |
+| 9 | 【DSL】**`absent-section` 型 + MT-01 の宣言 + `required_declarations = ["MT-01"]`**(裁定 (a′) 後半・原子的)— 事前検査からの除外を含む。構造 corpus の 16 件目 | **fixture(節 1 あり)で MT-01 が宣言でも違反・approved で適合** / **16 件目の対が新評価器で判定** / **`absent-section` の `section` が節不在の事前検査を通る** / **規則 2 が MT-01 を含めて成立** / 検出集合の完全一致 |
+| 10 | 【DSL】**`row-selector`(needle / identifier)の評価器 + SP-10・SP-11 の移行**。allowlist から除去。旧分岐は残す | **該当 2 ID の三者一致(期待 fixture・旧分岐・新評価器)** / **新評価器単独で正常・異常対・同値変異を判定** / **`legacy_structural` = 13** |
+| 11 | 【DSL】**`row-contains` の評価器 + SP-01 の移行** | 同上 / **別行移動の変異で red** / **`legacy_structural` = 12** |
+| 12 | 【DSL】**`section-contains`(4 モード)の評価器 + SP-02・SP-03・SP-13・SP-14 の移行** | 同上 / **4 モードそれぞれの単独負例** / **別節移動・意味部欠落の変異で red** / **`legacy_structural` = 8** |
+| 13 | 【DSL】**`exact-set`(`sections` / `row`・manifest-route)の評価器 + SP-06・SP-07 の移行** | 同上 / **ID 交換の変異で red** / **3 節すべてで判定されている(1 節だけ壊す負例)** / **`legacy_structural` = 6** |
+| 14 | 【DSL】**`element-lookup` の評価器 + SP-08 の移行** | 同上 / **接頭辞検索が宣言で表現されている** / **`legacy_structural` = 5** |
+| 15 | 【DSL】**`row-scoped-forbidden` の評価器**(移行 ID なし — SP-09 は `any-of` を待つ) | **評価器の正常系・別行移動変異** / 三者一致(変化なし)/ **`legacy_structural` = 5** |
+| 16 | 【DSL】**`any-of` の評価器 + SP-09 の移行**(4 宣言) | 同上 / **4 宣言それぞれの単独負例** / **`legacy_structural` = 4** |
+| 17 | 【DSL】**`required-exclusion`(row / sections)の評価器 + SP-12・SP-16 の移行** | 同上 / **除外語彙をプロファイルから変えると判定が変わる** / **`legacy_structural` = 2** |
+| 18 | 【DSL】**`conditional-forbidden` の評価器 + SP-20 の移行** | 同上 / **含意の両側にテスト** / **`legacy_structural` = 1** |
+| 19 | 【DSL】**`well-formedness` の評価器 + SP-18 の移行** | 同上 / **`legacy_structural` = 0** |
+| 20 | 【DSL】**`cross-reference` の評価器**(契約種別・旧分岐に由来なし)— 合成 corpus で受け入れ。同期の宣言には使わない | **正常系・異常系・別行移動変異が合成データで green/red** / **同期 `D` に変化なし(規則 4 の exact を維持)** |
+| 21 | 【DSL】**規則 6 の前提検証**(テストのみ)— `legacy_structural` 空・同期 `D = structural_required ∪ {MT-01}`(exact)・構造 corpus 16 件が新評価器単独で green・期待 fixture への一致が **shadow を経由せず**成立 | **4 条件がテストとして固定** / 実装差分がテストのみ |
+| 22 | 【DSL】**旧分岐(SP-19 の死コードを含む)と shadow 基盤の撤去** — 規則 6 を同時に検査。テストは期待 fixture を oracle として残る | **`_structural_reason` の ID 別分岐が 0 件**(機械検査)/ **規則 6 が成立** / **機械 17 件の検出集合が移行前と完全一致(SP-19 は forbidden で検出)** / ステップ 21 のテストが green |
+| 23 | 【COV】**`COV` のプロファイル駆動化 + `kind` 別 destination 文法** — ローダー経由・`--profile` / `--registry`・上書き・選択引数単独は既定に束縛。destination(対象外 = 理由文 / 他 = `節式(。説明文)?`、`節式 := segment (・ segment)*`、`segment := section_atom \| chapter〜chapter`、`section_atom := chapter \| section`)の解析器・未解析は終了 2 | **同期プロファイルでの判定が変更前と同一**(212 件・38/84/90)/ **現行 212 件の destination が全件解析できる**(`2-1・4〜9`・`2-1・6・9`・`10-1・11-1。配信は…`・理由文を回帰例に)/ **未解析トークンの負例で fail** / selector 単独テスト(`:238-252`)が本文無変更で green |
+| 24 | 【COV】**`attribution-destination`** — 展開した各節の実在・根拠文の存在(同期では `not_applicable`) | **実在しない節を指す帰属で red** / **根拠文の欠落で red** / **既存 `attribution` の結果が無変更** |
+| 25 | 【資産】**`assets.schema.json` + 資産ローダー + JSON パス最小部分集合 + 正規化名前空間** — immutable / mutable exact-set(`baseline` を含む)を版で固定、`identity`、複数 collection、配列値 id、`refs` / `structures`、`namespace`(design 6-1 節) | **`contracts/authz/` の現行 3 ファイルに対して宣言例で ID が取り出せる**(`source_id` / `catalog_entry_id` / `table_id` / `policy_id` / `policy_ids[*]`)/ **`identity` 不一致・資産欠落・パス不正・未知キー・重複 JSON キーで終了 2** / 同期プロファイルの検出集合が完全一致 |
+| 26 | 【資産】**`join`・`normalize`(名前空間内の単射性)・必須検査との連動** — 異名キーの `join`、`normalize`(`strip_prefixes` / `case` / `separator` / 名前空間別 `aliases`)、**同一名前空間内の衝突は終了 2(alias 同値類は許容)**、**`required_checks` に含む検査の資産が無ければ終了 2** | **異名キーの join が成立** / **前置きの違う同一要素が一致** / **同一名前空間の衝突で終了 2・別名前空間の同名は衝突扱いしない・明示 alias なら通る** / **`required_checks` に新 ID を含むのに `assets` が空で終了 2** |
+| 27 | 【資産】**サンプル一式** — `profiles/`(レジストリ・`profile.json`・`data-model-like.json`〔`must_require` = 全 21〕)、`doc/`(合成文書・manifest・defects・invariants・requirements・req-universe)、`assets/`(合成資産 9 ファイル・`contracts/authz/` と同形・`auth-ddl-map.json` は `structures` を持つ) | **合成資産のトップレベル構造と ID 位置が現行 JSON と同形**(キー集合の比較テスト)/ **`data-model-like.json` がサンプル用レジストリでローダーを通る(`profiles/` の実ファイル完全一致を含む)** / **B 集合のサンプルファイルが全部存在し過不足がない** / 実装差分が fixture とテストのみ |
+| 28 | 【COV】**`attribution-direct`** — `direct_requirements`(独立資産・必須時は非空・母集合 ⊆)の ID が「対象外」なら red(同期では `not_applicable`) | **全件「対象外」の負例で red** / **`required_checks` に含むのに資産が無い・空・母集合外の ID で終了 2** / **`not_applicable` のときだけ資産不要** / 既存結果無変更 |
+| 29 | 【新検査】**`forbidden-structure`**(構造タプル + 別名表 + 方向 — design 6-2 節) | **別名で同じ構造を作った負例で red**(語句一致では通ることを対比で示す)/ **方向の違う同一辺を区別** / 合成データで正常系 / 同期では `not_applicable` を理由付きで出力 |
+| 30 | 【新検査】**`cross-consistency`**(`auth_ddl_map` の exact-set・refs 非空・`auth_target` 切替・**`structures` と `forbidden` の構造タプル照合**) | **3 条件それぞれに正常系と衝突負例** / **空 map・脱落・過剰・refs 空の負例** / **禁止方向で red・逆方向で green の対** / **`auth_target` の両値で ② の対象が切り替わる** / 同期では `not_applicable` |
+| 31 | 【新検査】**`baseline-digest`**(自前 canonical・envelope・版固定の immutable exact-set) | **immutable 各フィールド(`baseline` の反転を含む)1 件ずつの改変で red・mutable 各フィールドの改変で green** / **キー順・空白を変えても digest 一致** / **重複キーで終了 2** / **`immutable_fields` をプロファイルから変えられない**(スキーマ検査) |
+| 32 | 【新検査】**`unique-owner`**(check ID・`expected_ids` 独立資産必須・`owner_steps_allowed` 必須) | **重複・欠落・過剰・許可外 step の負例** / **`expected_ids` 省略・空で終了 2** / 同期では `not_applicable` |
+| 33 | 【新検査】**`reference-class`**(順序付き規則 `source_section + target_pattern + fragment`・first-match・未一致 2・`normative` は approved 限定) | **feature・worklog・legacy を `normative` として参照する負例で red** / **同一節内の 2 リンクを `fragment` で別 role にできる** / **未一致の参照で終了 2** / **既存 `noncanonical-reference` の結果が無変更** |
+| 34 | 【ランナー】**`scripts/check_doc_profiles.py`** — design 13 節の契約(`--profile` 必須・`--registry`・終了 0/1/2・全終了コードで JSON envelope・`partial` は `--checks` 時のみ) | **終了 0/1/2 の各経路で JSON がスキーマに適合** / **`errors` が終了 2 でのみ非空** / **`--checks` で `partial: true`・無しで `false`** / **staging レジストリを `--registry` で使える** / 実装差分がスクリプトと `tests/test_check_doc_profiles.py` のみ |
+| 35 | 【ランナー】**サンプル 2 本で全検査を実行** — `profile.json` と `data-model-like.json` に対し全 21 ID | **`data-model-like.json` で新 7 ID すべてが `pass` または `fail`(`not_applicable` 0)** / **同期側パスを一度も開かない**(open をモックで固定)/ **未対応種別・欠落フィールドで終了 2** |
+| 36 | 【配線】**レジストリ列挙** — 両スクリプトが選択・上書き引数なしのとき `--registry`(既定 = 本番)を読み、登録集合 = 実ファイル集合を検証して全文書を検査。**`ci.yml` は無変更**。`test_ci_wiring.py` にはスクリプト側テストのみ追加 | **`ci.yml` 無変更** / **`test_ci_wiring.py` の既存アサーション(step 1 件・禁止セレクタ・harness exact)が無変更で通る** / **レジストリに 1 件足すと検査対象が増える** / **未登録ファイル・脱落・重複 name/document・0 件で終了 2** |
+| 37 | 【記録】**検証記録・A/B/C の exact-set・統合表・申し送り** — 全ステップの検証結果を worklog へ整理。A/B/C を実 diff から確定。**各負例 fixture → 期待 check ID で fail する統合表**。新規 node ID 一覧。design 11 節の申し送り 18 項目 | **基準線 green(passed ≥ 875・既存 875 node ID 包含・digest 一致・skipped/xfailed/xpassed/deselected = 0 / 3 検査 / ruff / ty)** / **機械 17 件の検出集合が着手前と完全一致** / **A = `git diff --name-status origin/develop` の全件、A = B ∪ C ∪ 文書、B ∩ C = ∅** / **統合表の全行が実行で確認済み** / **申し送り 18 項目が worklog にある** |
 
 ## 5. DoD(受け入れ基準)
 
-Notion タスク TSK-269 の DoD(受け渡し契約を含む)と同期させている。
+Notion タスク TSK-269 の DoD(受け渡し契約を含む)と同期させている(承認時に Notion 側へ本節を転記する)。
 
-- [ ] **文書プロファイル**を導入する(対象文書・マニフェスト・欠陥台帳・リンク基準・節 ID 文法・除外語彙・
-      引用継承先・宣言表/帰属表/台帳の節 ID・帰属区分の語彙・欠陥 ID の名前空間)。**スキーマ版を持つ**
-- [ ] **不変条件 DSL** を実装し、**既存 16 分岐を宣言へ移行**する。
-      **`_structural_reason` の ID 別分岐が 0 件**になり、**機械 17 件の検出集合が移行前と完全一致**する
-- [ ] **CLI 名を固定**する — `--document` / `--profile` / `--manifest` / `--defects-file` / `--checks` / `--defects`
-- [ ] **fail-closed**: 未対応の不変条件種別・未知の ID・プロファイル欠落・**解決できない節**はすべて fail
-- [ ] **次の 4 つを機械で保証する**(TSK-250 の受け渡し契約 5):
-      **`FORB` の構造判定**(別名・暗黙関係を含む)/ **直接要件の「対象外」禁止** /
-      **ベースラインの不変部分と可変状態の分離**(digest 拘束)/ **`WAIT`・`AUTH`・`FORB` の交差検査**
-- [ ] **汎用コンフォーマンスランナーとサンプルプロファイル**を持つ(**実プロファイルに依存しない**)
-- [ ] **参照の分類**(`normative` / `evidence` / `informative`)と、規範参照を approved 正本に限る検査
-- [ ] **既存の振る舞いが変わらない** — 基準線(**784 passed** / 3 検査 green / ruff・ty クリーン)を維持し、
-      **同期側 oracle 3 点と fixture が無変更**である
-- [ ] **CI は引数なしのまま**で、**登録された全プロファイルを検査する**
-- [ ] **設計書 10.1 の追随**(「引数なし」は残す・版は上げない)と**台帳 H-78・H-79 への実績追記**
+- [ ] **プロファイル・レジストリ(`--registry` で staging 指定可)・共通ローダー**。スキーマ版を持つ。全 21 check ID の完全分割と `must_require`(レジストリ entry)・理由非空を強制
+- [ ] **不変条件 DSL(13 種・旧分岐の述語に一対一 + 契約種別)**。構造分岐 15 ID を宣言へ移行し `_structural_reason` の ID 別分岐 0 件・`legacy_structural` 空・同期 `D = 15 ∪ {MT-01}`(exact)・
+      機械 17 件の検出集合が移行前と完全一致・構造 corpus 16 件と期待構造化 reason fixture で移行の各段が一致・旧述語と同値な変異が全 ID で red
+- [ ] **MT-01 の oracle 改訂**(差分は MT-01 エントリの範囲・検出集合不変)と **`absent-section` の必須宣言**(有効化フラグなし)
+- [ ] **CLI 名を固定** — `--document` / `--profile` / `--manifest` / `--defects-file` / `--checks` / `--defects`(+ `--registry`)。上書き・選択引数単独は既定プロファイルに束縛
+- [ ] **fail-closed**: 未対応 kind・必須引数欠落・未知 ID・余分な宣言・プロファイル欠落・解決できない節・脱落トークン・レジストリ不一致・完全分割違反・必須検査の資産欠落・正規化衝突・重複 JSON キー・未解析の帰属先・未分類の参照は終了コード 2
+- [ ] **4 検査を機械で保証**(`forbidden-structure` / `attribution-direct` / `baseline-digest` / `cross-consistency`)+ `unique-owner`(check ID)。
+      入力は `assets` で現物の項目名どおり(`contracts/authz/` 3 ファイルから宣言例で ID が取れる)。`auth_ddl_map`(`structures` 付き)/ `direct_requirements` / `expected_ids` は独立資産・非空・exact-set。AUTH–FORB は方向込みで照合
+- [ ] **コンフォーマンスランナー**(契約: synopsis・`--registry`・終了コード・全終了コードで JSON envelope)と**サンプル一式**(`profiles/` `doc/` `assets/`。データモデル型最小プロファイルで全 21 ID が同期側パスを開かずに動く)
+- [ ] **参照の分類** `reference-class`(順序付き規則・`fragment` で同一節内を区別・未一致 fail・`normative` は approved 限定)
+- [ ] **帰属検査の強化**(混合式を含む destination 文法で現行 212 件が全件解析・節の実在・根拠文・直接要件の「対象外」禁止)。既存結果は無変更
+- [ ] **`codex_run.py` の `has_filled_step_row`** が入れ子見出し・fenced code・否定形を扱い、3 種の報告を区別する
+- [ ] **既存の振る舞いが変わらない** — 3 検査 green / ruff・ty クリーン / 既存 node ID 875 件の包含(digest 一致)/ passed ≥ 875 / skipped・xfailed・xpassed・deselected = 0 /
+      fixture・`fixture-sha256.txt`・`req-universe.json` 無変更 / 同期で走る検査は既存 14 のまま
+- [ ] **CI は引数なしのまま**(`ci.yml` 無変更)で、本番レジストリに登録された全プロファイルを検査する
+- [ ] **A/B/C の exact-set・負例 → check ID の統合表・申し送り 18 項目**が worklog と PR 本文にある
+- [ ] **正本・`core-areas.json`・台帳は変更していない**(3 節の「反映なし」宣言と PR 差分が一致)
 
 ## 6. テスト計画
 
 | 種別 | 足すもの | 置き場 |
 | --- | --- | --- |
-| **単体**(a) | **宣言評価器の全種別**(4 節の 10 種)について正常系・異常系・**変異テスト**(意味反転・ID 交換・主述交換)。**既存に由来がない `unique-owner` は合成データで** | `tests/` |
-| **単体**(a) | **fail-closed の負例**: 未解決の節 / 脱落トークン / 未対応種別 / 未知 ID / プロファイル欠落 / スキーマ不一致 / プロファイル 0 件 | `tests/` |
-| **単体**(a) | **帰属検査の強化**: 全件「対象外」/ 実在しない節を指す帰属 / 根拠文の欠落 / 直接要件の「対象外」 | `tests/` |
-| **単体**(a) | **`FORB` 構造判定**(別名・暗黙関係)・**交差検査 3 条件**(衝突負例つき)・**digest 拘束**(改変負例) | `tests/` |
-| **単体**(a) | **参照分類**: `normative` に feature・worklog・legacy を置く負例 / `evidence` なら通る正常系 | `tests/` |
-| **単体**(a) | **コンフォーマンスランナー**: サンプルプロファイルで全検査が動く / 実プロファイルを読まない | `tests/` |
-| **退行**(a) | **安全網 2 本を全ステップで維持** — 機械 17 件の検出集合の完全一致 / 引数なし実行の全体検査集合 | `tests/`(既存) |
-| **退行**(a) | `test_ci_wiring.py`(引数なしの維持・プロファイル追加で対象が増える)/ `test_core_guard.py`(新資産の個別発火) | `tests/`(既存) |
-| **一致性**(c)・**越境**(b)・**E2E**・**故障系**(d) | **本タスクでは足さない**(プロダクトの実装ではなくハーネスの機構であるため) | — |
+| **単体**(a) | `has_filled_step_row`: 入れ子見出し / 同レベル脱出 / 別見出し配下の表 / fenced code / 否定形 / 3 メッセージ | `tests/test_codex_run.py`(新設)+ `tests/test_hooks.py`(既存維持) |
+| **単体**(a) | **構造 corpus 15 + MT-01**(禁止語なし・scope 全節実在・終了 1/0・同値変異)/ **forbidden corpus**(SP-19・MT-01)/ **期待構造化 reason fixture への一致**(`(case_id, defect_id)`)/ **三者一致** / **汎用規則 1〜6 と同期コンフォーマンス(15 ID exact・D exact)** | `tests/test_check_design_propagation.py`・`tests/fixtures/structural-reasons-expected.json` |
+| **単体**(a) | **宣言評価器 13 種**の正常系・異常系・**同値変異**(行スコープ = 別行移動 / 節スコープ = 別節移動・意味部欠落・ID 交換)。`cross-reference`・`absent-section` は合成データで | 同上 |
+| **単体**(a) | **ローダー**: 必須欠落 / 版不一致 / 未知フィールド / 完全分割違反 / `must_require` 違反 / 空理由 / 未知 ID / レジストリ不一致(脱落・未登録・重複)/ 0 件 / `--registry` 切替 / 名前空間 40 ID / パス解決 | `tests/test_doc_check_profile.py`(新設) |
+| **単体**(a) | **fail-closed の負例**: 未解決の節 / 脱落トークン / 未対応 kind・必須引数欠落 / 未知 ID / 余分な宣言 / 必須検査の資産欠落 / `identity` 不一致 / 名前空間内の正規化衝突 / 重複 JSON キー / 未解析 destination / 未分類参照 | 同上・`tests/test_check_doc_coverage.py`・`tests/test_ci_wiring.py`(スクリプト側) |
+| **単体**(a) | **プロファイル値の突合**(同期の全フィールド = 現行定数)/ **`assets` 契約**(現物 3 ファイルからの ID 抽出・配列値 id・`join` 異名キー・`normalize`・名前空間)/ **合成資産の同形性** | 同上 |
+| **単体**(a) | **帰属**: destination の 3 kind(理由文・節式 + 説明文・列挙・範囲・章単独・混合式)/ 212 件全件解析 / 節の実在 / 根拠文 / 直接要件の「対象外」(非空・母集合 ⊆) | `tests/test_check_doc_coverage.py` |
+| **単体**(a) | **`forbidden-structure`**(別名・方向)・**`cross-consistency`**(3 条件・空 map・脱落・過剰・refs 空・禁止方向 red / 逆方向 green・`auth_target` 両値)・**`baseline-digest`**(immutable/mutable 各フィールド・`baseline` 反転・キー順/空白不変・重複キー・版固定)・**`unique-owner`**(重複・欠落・過剰・許可外 step・`expected_ids` 必須) | `tests/test_check_design_propagation.py` |
+| **単体**(a) | **`reference-class`**: 負例 3 種 / `fragment` で同一節内を区別 / 未一致 2 / 既存 `noncanonical-reference` 無変更 | 同上 |
+| **単体**(a) | **ランナー契約**: `--profile` 必須 / `--registry` / 終了 0・1・2 の JSON envelope / `partial` の条件 / サンプル 2 本で全 21 ID / 同期側パスを開かない(モック) | `tests/test_check_doc_profiles.py`(新設) |
+| **退行**(a) | 安全網 2 本・selector 単独テスト(本文無変更)/ 既存 node ID 875 件の包含と digest / skipped・xfailed・xpassed・deselected = 0 / `test_ci_wiring.py` 既存アサーション・`ci.yml` 無変更 | `tests/`(既存)+ ステップ合格条件 |
+| **統合**(a) | **負例 fixture → 期待 check ID で fail する統合表**(ステップ 37) | worklog(記録)+ 実行 |
+| **一致性**(c)・**越境**(b)・**E2E**・**故障系**(d) | **本タスクでは足さない**(ハーネスの機構) | — |
 
-**変異テストの方針**([research.md](research.md) 4-1 節の教訓): 前タスクは
-「**自分で考えた変異は自分の設計の盲点をなぞる**」ため検査器の穴を 4 回見逃した。
-本タスクでは **① 意味反転 ② ID 交換 ③ 主述交換** の 3 方向を**型ごとに機械的に適用**し、
-**個別に思いついた変異に頼らない**。
+**変異テストの方針**(research 4-1 節・台帳 H-79・design 2-1 節): **旧述語と同値な変異だけ**を型ごとに機械的に適用する — 行スコープ = 別行移動、節スコープ = 別節移動・意味部欠落・ID 交換、
+共通 = 意味反転・主述交換。個別に思いついた変異に頼らない。
