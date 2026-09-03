@@ -519,6 +519,10 @@ def _parse_classification_rules(raw: object) -> dict[str, ClassificationRule]:
             value["forbidden_source_text_patterns"],
             f"{label}.forbidden_source_text_patterns",
         )
+        if classification == "auth_claim" and not (kinds or headings or pattern_texts):
+            raise CatalogError(
+                f"{label}: AUTH 分類規則は適用条件を少なくとも1つ持たねばならない"
+            )
         try:
             patterns = tuple(re.compile(pattern) for pattern in pattern_texts)
         except re.error as error:

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog_path": "requirement-claims.json",
-  "classification_rules_digest": "64bde46166c0fe36bf3c4bbd043a59fe2068bf7ace4d543410dd225395df3fe2",
+  "classification_rules_digest": "c4cc25cf97d2242c7feee440033cb34be4cd8c88807d3bb0b87e32bfce185ea7",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
   "decision_count": 9,

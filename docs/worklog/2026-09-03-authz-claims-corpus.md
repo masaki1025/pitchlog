@@ -129,3 +129,8 @@ branch: fix/authz-claims-corpus
 - テスト先行: 負例フィクスチャ `indented-tables.md`(1 スペース・4 スペース・タブ × ヘッダ/区切り/データの機械列挙)+ `test_indented_table_rows_are_extracted_by_kind` — **是正前 red(paragraph に落ちる実出力)→ `_table_cells` の lstrip 対応(kind 判定のみ・source_text は原文保持)→ green** を実出力つきで確認
 - 回帰: `tests/test_check_authz_catalog.py` 54 passed(意図的 red の統合テスト 1 本のみ除外)・ruff green
 - 期待失敗集合: 変わらず catalog 統合テスト 1 本(想定どおり)
+
+### ステップ 4 — 意味論(i) 分類規則の罠の実効化(F5・codex 委任)
+
+- テスト先行: 負例 `empty-auth-rule.json`(適用条件全空の AUTH 規則)→ **是正前 red(returncode 0 で素通り)→ `_parse_classification_rules` へ「AUTH 規則は適用条件を最低 1 つ」検査を追加 → green** を実出力つきで確認
+- フィクスチャの AUTH 規則へ適用条件を最小追加(lock digest 追随含む — tests/fixtures 範囲内)。回帰 55 passed(意図的 red 1 本除外)・ruff green

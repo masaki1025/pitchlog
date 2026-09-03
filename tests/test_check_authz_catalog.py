@@ -479,6 +479,21 @@ def test_free_form_classification_reason_is_red(tmp_path: Path) -> None:
     assert "未知の classification_rule_id" in result.stderr
 
 
+def test_empty_auth_rule_applicability_is_red(tmp_path: Path) -> None:
+    root = _make_repository(tmp_path)
+    catalog = _read_catalog(root)
+    invalid_rule = json.loads(
+        (FIXTURE_ROOT / "empty-auth-rule.json").read_text(encoding="utf-8")
+    )
+    catalog["classification_rules"]["AUTH_ACCESS_SCOPE"] = invalid_rule
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "AUTH 分類規則は適用条件を少なくとも1つ持たねばならない" in result.stderr
+
+
 def test_scalar_decidable_at_is_red(tmp_path: Path) -> None:
     root = _make_repository(tmp_path)
     catalog = _read_catalog(root)

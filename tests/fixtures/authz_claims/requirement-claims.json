@@ -30,31 +30,41 @@
     "AUTH_ACCESS_SCOPE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_OPERATION_PERMISSION": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_PRINCIPAL_STATE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_REVOCATION_CACHE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_VERIFICATION": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "OUT_AUTHZ_CONTEXT_ONLY": {
