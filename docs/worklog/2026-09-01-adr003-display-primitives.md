@@ -397,3 +397,11 @@ branch: feature/adr003-display-primitives
   - 判定 `--skip-oracle` → exit 0(green)
 - **Claude の独立計数(HEAD 比・python 直接計数)**: total 1063→1073 / auth_claim 184→184 / out_of_scope 879→889 / 追加 10(OUT_NON_AUTH_REQUIREMENT 6・OUT_STRUCTURAL 2・OUT_DOCUMENT_METADATA 2 — A-1 list_item・A-2/A-3/A-4 table_row・A-4 の指標表化に伴う blockquote/paragraph/table_header/delimiter・CHANGELOG table_row-030/031)/ 削除 0 / 変更 46(**auth_claim に関わる変更 0** — 分類・decidable_at の変更なし)。codex 報告の「更新 47」との 1 件差は frontmatter 是正の時系列差(codex 基線は是正前)
 - **AUTH 分類の増減 0・oracle 内容への波及なし** — oracle 資産の内容変更は不要(次段は oracle_commit 差し替えと reseal のみ)
+
+#### 後段 — oracle_commit 差し替えと reseal(2026-09-03)
+
+- **入力確定コミット = dfd523a**(ステップ 10/10 — 母集合・派生資産・tests の追随)。総合 pytest: 2 failed(oracle seal の input blob 不一致のみ)/ 860 passed — 期待失敗集合と一致
+- **② oracle_commit 差し替え**: 6 oracle 資産の `oracle_context.oracle_commit` と seal の `oracle_commit` を `e10f2b1` → `dfd523a` へ。差分は **7 ファイル × 各 1 行のみ**(`git diff -U1` で機械確認 — oracle 内容の変更ゼロ。母集合の AUTH 分類増減 0 のため攻撃木・変異集合への波及なし = review_policy の「oracle 内容変更 → ステップ 5 再レビュー」に非該当)
+- **③ 人間確認(2026-09-03・山田正輝)**: 差し替え diff(7 行)と前段の分布(total 1073・auth 184 不変)を提示し、reseal 実行を承認
+- **④ `--reseal-oracle`**: `ok total=1073 auth_claim=184 out_of_scope=889 db_claims=187 routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231 cut_sets=24 oracle-resealed`
+- **判定(引数なし checker)**: exit 0 — `ok total=1073 ... cut_sets=24`(全 green)
