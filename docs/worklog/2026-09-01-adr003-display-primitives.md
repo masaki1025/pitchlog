@@ -405,3 +405,13 @@ branch: feature/adr003-display-primitives
 - **③ 人間確認(2026-09-03・山田正輝)**: 差し替え diff(7 行)と前段の分布(total 1073・auth 184 不変)を提示し、reseal 実行を承認
 - **④ `--reseal-oracle`**: `ok total=1073 auth_claim=184 out_of_scope=889 db_claims=187 routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231 cut_sets=24 oracle-resealed`
 - **判定(引数なし checker)**: exit 0 — `ok total=1073 ... cut_sets=24`(全 green)
+
+#### ステップ 10 完了 — 総合検証(/check・2026-09-03)
+
+- **harness**: `ruff check` / `ty check` green・`pytest tests/` **862 passed / 0 failed**(oracle seal 検査含む全 green — 甲-1 の合格条件充足)
+- **backend**: format/lint/型 green・pytest 11 passed(errors 3 件は `PITCHLOG_TEST_ADMIN_DSN` 未設定の環境起因 — 本変更と無関係の既存事象)
+- **frontend**: prettier/eslint/vue-tsc green・11 passed
+- **docs**: `check_docs_status.py` / `check_doc_coverage.py` / `check_design_propagation.py` 全て exit 0・変更 markdown のリンク実在確認 OK
+- **差分レビュー**: ステップ 10 の変更は contracts/authz(8+7 ファイル)・tests 期待件数・正本 frontmatter 是正・索引競合解消・worklog のみ — 計画スコープ外の変更なし・NFR-018 のコピー実装なし
+- **ステップ 10 のコミット構成**: 8b654a3(develop merge)→ dc9d114(ステップ 9 是正)→ **dfd523a(ステップ 10/10 — 入力確定)** → **027d0ac(ステップ 10/10 reseal)**
+- 全 10 ステップ完了。残: /sync-docs 突合 → /pr(コア領域チェック行 + 逐行確認の実施記録)→ TSK-235 完全再開の記録
