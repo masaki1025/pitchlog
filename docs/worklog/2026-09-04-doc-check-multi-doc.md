@@ -218,7 +218,31 @@ R5 閉塞判定(レビュアー): 閉じた 12 / 形だけ 3(R5-P0-4・P1-2・P2
 `unique-owner` alias・5-1 **22 ID**(新 8: + `collection-consistency`)・6-1 `product_ddl_map`・WAIT/AUTH 構造の導出と exact-set・6-2 契約どおりの存在検査・13 `not_run`。
 plan は 37 → **38**(`collection-consistency` のステップを追加)、C を必須 / 条件付きに分離。`計画レビュー周回: 5 → 6`。**7 周目(敵対)を起動**。
 
-**現行値(最新・2026-09-04 R6 反映後)**: 種別 **13**(+ 受理する契約 alias: `required-element` → `section-contains(text)`・`unique-owner` → global check)/ 構造宣言必須 **15**(同期・SP-19 は forbidden-only)/
+### 計画レビュー 7 周目(敵対・sol xhigh)= **否決** / P0 4・P1 2・P2 4(一次記録 — H-87)
+
+R6 閉塞判定(レビュアー): 閉じた 7 / 形だけ 3(R6-P0-2/5・P1-2)/ 新たな矛盾 2(R6-P0-3/4・P1-3)。**P0 は 10 → 8 → 6 → 5 → 4**。
+残る P0 は一つの型に収斂: **プロファイル側の自己申告(抽出器・集合宣言・直接要件・DDL 構造 collection)だけで必須の宣言を落とせる** → レジストリ entry で「必須の宣言集合」を固定する一般規則(`must_*`)で潰す。
+
+| ID | 指摘(要旨) | 根拠 | 採否 |
+| --- | --- | --- | --- |
+| R7-P0-1 | 構造抽出の完全性が自己申告(抽出器 1 本だけ・DDL 構造 collection の一部脱落で FORB 構造が未検査のまま終了 0) | design 6-1/6-3 | 採用: レジストリ entry に **`must_extract`**(抽出器 ID・source・kind・節/表 or collection の exact-set)と **`must_derive_structures`**(構造を導出する DDL collection の exact-set)。1 本脱落の負例 |
+| R7-P0-2 | `product_ddl_map` が AUTH 構造タプルに適用されず、probe-only DDL では FORB 衝突を検出できない(raw ID と製品 ID の比較段階が矛盾) | `ddl-elements.json:8-11` | 採用: **二段階**を契約化 — ① raw DDL ID で `auth_ddl_map` と DDL 導出構造を exact 照合 ② `product_ddl_map` を `source`/`target`/`participants` の全 ID に適用して製品構造へ射影し manifest / FORB と比較。写像 domain = 全参照 ID の exact・未写像/余分/曖昧は終了 2 |
+| R7-P0-3 | `collection-consistency` 必須でも claims–manifest の exact 宣言を省略できる(無関係な宣言 1 件で有効化) | design 6-4 | 採用: レジストリ entry に **`must_collection_sets`**(宣言 ID と左右の asset/collection/filter/key/relation の exact) |
+| R7-P0-4 | `direct_requirements` は任意の非空部分集合で通る(直接要件の脱落を検出しない) | `TSK250PLAN:215,230` | 採用: claims 母集合に **独立した `direct_requirement` 分類**を要求し、`direct_requirements` 資産と `collection_sets` の exact で拘束(`must_collection_sets` に含める)。1 件脱落・母集合と資産の同時縮小の負例 |
+| R7-P1-1 | `well-formedness` を「各データ行」に狭めたためヘッダ行を落とす(現行 `check_emphasis` は `\|` で始まる全行) | `PROP:405-418` | 採用: 適合条件を「`\|` で始まる**全 Markdown 表行**(ヘッダ・区切りを含む)」に戻す。ヘッダのみ奇数の変異 |
+| R7-P1-2 | DDL 構造宣言例の `target: "role"` が現物(`role_ids[*]` 配列)に無い | `ddl-elements.json:232-240` | 採用: `target: "role_ids[*]"`・配列展開時のタプル生成規則を明記。現物 3 資産から代表構造を抽出する試験をステップ 25 に |
+| R7-P2-1 | `as: identifier` が旧 `_element_occurs` の意味部検査(`=` は行単位・`+` は ID と全意味句の同一行)を表現していない | `PROP:895-924` | 採用: `as: identifier` の意味を「`_element_occurs` と同値(3 分岐)」と明記 |
+| R7-P2-2 | `unique-owner` alias の宣言場所と global check の結合条件が無い | design 2-1/2-2 | 採用: `invariants/<name>.json` に **`global_invariants`** 領域を設け、`unique-owner` 宣言・`required_checks`・`baseline_digest` の 3 者を同時必須に |
+| R7-P2-3 | alias の供給源が 2 つ(`forbidden[*].aliases` / `normalize.aliases`)で統合規則が無い | design 6-1 | 採用: **名前空間付きの単一 alias 表**(`normalize.aliases`)に統一。競合・循環・canonical の再 alias は終了 2 |
+| R7-P2-4 | 変異集合がステップ表とテスト計画で不一致 | plan | 採用: 変異集合の exact-set を design 2-1 に一箇所で固定し、ステップ 2・DoD・テスト計画から参照 |
+
+**7 周目の反映**: design 1-1/1-2 レジストリ entry の **`must_*` 一般規則**(`must_require` / `must_extract` / `must_derive_structures` / `must_collection_sets`)、2-1 `as: identifier` の意味・
+`well-formedness` 全表行・変異集合の一箇所固定・`global_invariants`、6-1 `role_ids[*]`・単一 alias 表、6-2 二段階射影、6-4 直接要件の exact、11 申し送り 21〜23。plan は 38 ステップのまま
+(ステップ 19/25/27/28/29/31 の合格条件を更新)。`計画レビュー周回: 6 → 7`。**8 周目(敵対)を起動**。
+
+**現行値(最新・2026-09-04 R7 反映後)**: 種別 **13**(+ 契約 alias 2)/ 構造宣言必須 **15**(同期)/ check ID **22** / 申し送り **23** / ステップ **38** / MT-01 = **(a′)** / 計画レビュー周回 **7**。
+
+**現行値(履歴・2026-09-04 R6 反映後)**: 種別 **13**(+ 受理する契約 alias: `required-element` → `section-contains(text)`・`unique-owner` → global check)/ 構造宣言必須 **15**(同期・SP-19 は forbidden-only)/
 check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(最終一覧の確定はステップ 38)/ MT-01 = **(a′)** / 計画レビュー周回 **6**。
 
 ## 決定

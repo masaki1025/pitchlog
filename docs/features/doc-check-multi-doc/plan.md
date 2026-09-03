@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3cc93b75e6878194b72bcc12219d6cdb
 branch: feature/doc-check-multi-doc
 created: 2026-08-31
-計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 7        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -19,12 +19,12 @@ created: 2026-08-31
 
 **下調べ**: [research.md](research.md)(1〜5 節 = 2026-08-31 / **6 節 = 2026-09-04 の再検証**)。**詳細設計**: [design.md](design.md)(2026-09-04)。
 前提事実・基準線は research.md が、設計判断の根拠は design.md が正で、**本書へ内容を複製しない**(設計書 7.1-1)。本書は契約(機構が読む状態と実装ステップ表)のみを持つ。
-計画レビューの指摘(`R1-*`〜`R6-*`)の一次記録と採否は worklog 2026-09-04 が正。
+計画レビューの指摘(`R1-*`〜`R7-*`)の一次記録と採否は worklog 2026-09-04 が正。
 
 - Notion タスク: [TSK-269](https://app.notion.com/p/3cc93b75e6878194b72bcc12219d6cdb)
 - **受け渡し先**: [TSK-250](https://app.notion.com/p/3c593b75e6878152b3edd6cf4f26b30b)(計画承認済み 2026-08-31・develop 未マージ)。
   **本タスクのマージが TSK-250 の開始条件**であり、TSK-250 の計画書 1 節に**受け渡し契約 5 項目**がある(research 6-4 節)。
-  **TSK-250 は本タスクのマージ後・着手前に再レビューが必要**(design 11 節の申し送り 20 項目)
+  **TSK-250 は本タスクのマージ後・着手前に再レビューが必要**(design 11 節の申し送り 23 項目)
 
 現在の検査機構は `docs/design/sync-protocol.md` 専用に書かれている。二文書目(データモデル正本)を同じ強度で検査するには一般化が要る。
 **TSK-250 の計画レビューで、この一般化が同一 PR に収まらないと判定されたため独立タスクとして切り出された**(人間の裁定 2026-08-31)。
@@ -54,7 +54,7 @@ created: 2026-08-31
 
 ### やること
 
-1. **プロファイル・レジストリ(`--registry` で staging も指定可)・共通ローダー** — 全 22 check ID の**完全分割**と `must_require`(レジストリ entry)を強制。スキーマ版を持つ(design 1 節)
+1. **プロファイル・レジストリ(`--registry` で staging も指定可)・共通ローダー** — 全 22 check ID の**完全分割**と、レジストリ entry の **`must_*`**(`must_require` / `must_extract` / `must_derive_structures` / `must_collection_sets`)による**必須宣言の固定**を強制(プロファイルの自己申告だけでは必須検査を有効化できない)。スキーマ版を持つ(design 1 節)
 2. **不変条件 DSL(13 種 — 旧分岐の述語に一対一 + 契約 5 種別名の受理)** — 構造分岐 15 ID を宣言へ移行し `_structural_reason` の直書き分岐を無くす(SP-19 は死コード → forbidden-only)。
    結合規則は汎用の集合制約(常時強制)+ 同期専用のコンフォーマンステスト。移行の正しさは構造 corpus 15 + MT-01・期待構造化 reason fixture・shadow 三者一致(design 2 節)
 3. **fail-closed の徹底**(design 3 節)/ 4. **MT-01 の oracle 改訂 + `absent-section`**(design 4 節)
@@ -63,7 +63,7 @@ created: 2026-08-31
    **`structure_extractors`**(文書・マニフェストから構造タプルを導出する宣言)、**`collection_sets`**(集合一致の宣言)で、checker に文書固有の構造をハードコードしない(design 6 節)
 7. **コンフォーマンスランナー**(design 13 節)と**サンプル一式**(`profiles/` `doc/` `assets/`・全 22 ID を自己完結で実行できるデータモデル型最小プロファイル)
 8. **参照の分類** `reference-class`(design 7 節)/ 9. **帰属検査の強化**(design 8 節)/ 10. **CI 配線の一般化**(design 9 節)/
-11. **`codex_run.py` の `has_filled_step_row`**(design 10 節)/ 12. **TSK-250 への申し送り 20 項目**(design 11 節)
+11. **`codex_run.py` の `has_filled_step_row`**(design 10 節)/ 12. **TSK-250 への申し送り 23 項目**(design 11 節)
 
 ### やらないこと
 
@@ -150,7 +150,7 @@ design.md 3・5・6・7・8・9・10・13 節が正。本書には複製しな�
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | 【基盤】**`codex_run.py` の `has_filled_step_row` を是正** — 見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)/ 3 種の報告。`tests/test_codex_run.py` 新設。**`tests/test_hooks.py` の変更要否を確定**(design 10 節) | **`####` 配下の表を認識** / **同レベル以上の見出しで抜ける** / **別見出し配下の数値表を拾わない** / **fenced code 内の疑似見出し・疑似表を無視** / **否定形見出しは負例** / **3 メッセージが区別される** / **`tests/test_hooks.py` の wrapper ケースが green** / 実装差分が C 集合のみ(条件付き要素の要否を worklog に確定) |
-| 2 | 【基盤】**構造 corpus 15 件 + forbidden corpus** — `DEFECT_CHECK_CASES` を旧分岐 15 ID の正常・異常対へ拡充(**異常例に forbidden literal を含めない・各 ID の scope の全節見出しを実在させる**)。SP-19・MT-01 の literal 対は forbidden corpus へ。**旧述語と同値な変異**(行スコープ = 別行移動 / 節スコープ = 別節移動・意味部欠落・ID 交換)を ID ごとに用意。検査本体は変更しない | **15 ID すべてに構造専用の正常・異常対と同値変異** / **各異常例が forbidden literal を含まない**(機械検査)/ **各 corpus 文書に当該 ID の scope 全節の見出しがある**(機械検査)/ **異常例・変異が終了 1、正常例が終了 0(入力不正 0 件)** / 全対が現行コードで green / 実装差分がテストのみ |
+| 2 | 【基盤】**構造 corpus 15 件 + forbidden corpus** — `DEFECT_CHECK_CASES` を旧分岐 15 ID の正常・異常対へ拡充(**異常例に forbidden literal を含めない・各 ID の scope の全節見出しを実在させる**)。SP-19・MT-01 の literal 対は forbidden corpus へ。**design 2-1 節の変異集合(唯一の正)**を ID ごとに用意。検査本体は変更しない | **15 ID すべてに構造専用の正常・異常対と design 2-1 の変異集合** / **各異常例が forbidden literal を含まない**(機械検査)/ **各 corpus 文書に当該 ID の scope 全節の見出しがある**(機械検査)/ **異常例・変異が終了 1、正常例が終了 0(入力不正 0 件)** / 全対が現行コードで green / 実装差分がテストのみ |
 | 3 | 【oracle】**MT-01 エントリの一貫改訂**(裁定 (a′) 前半 — design 4 節)— `scope` から `1節` を除き、`location` / `positive` / `mapping` を「12 アンカー + 節 1 の不在」へ。forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ | **`defects.json` の差分が MT-01 エントリの範囲に閉じる**(他エントリ無変更を機械検査)/ **fixture の検出集合が完全一致(MT-01 を含む)** / **approved 正本 green** / `fixture-sha256.txt` 無変更 |
 | 4 | 【基盤】**`profile.schema.json`・`registry.schema.json`・本番レジストリ・同期プロファイル**(データのみ)— `profiles/registry.json`(同期 1 件・**entry の `must_require` = 既存 14**)、`profiles/sync-protocol.json`(現行定数の移送・`required_checks` = 既存 14・`not_applicable` = 新 8 の理由付き・`assets` 空・`reference_policy` 現行同値・`invariant_kinds`) | **全フィールドが現行の定数値と一致**(値ごとの突合テスト)/ **全 22 check ID が `required_checks ∪ not_applicable` に現れ、理由が非空**(データ検査)/ **本ステップでスクリプトを変更していない** |
 | 5 | 【基盤】**共通ローダー `scripts/doc_check_profile.py`(プロファイル・レジストリ部)** — 最小スキーマ検証器・レジストリ照合(完全一致・一意性・`--registry`)・完全分割と `must_require`・理由非空と未知 ID 拒否・パス解決。`tests/test_doc_check_profile.py` 新設。検査スクリプトはまだ呼ばない | **必須欠落・版不一致・未知フィールド・完全分割違反・`must_require` 違反・空理由・未知 ID・レジストリ不一致(脱落/未登録/重複)・0 件が例外(終了 2 相当)** / **別ディレクトリの staging レジストリ(`profiles/` にレジストリとプロファイル以外が無い木)で同じ検証が動く** / **現行 `defects.json` の全 40 ID が名前空間検査を通る** / 実装差分がローダーとテストのみ |
@@ -167,26 +167,26 @@ design.md 3・5・6・7・8・9・10・13 節が正。本書には複製しな�
 | 16 | 【DSL】**`any-of` の評価器 + SP-09 の移行**(4 宣言) | 同上 / **4 宣言それぞれの単独負例** / **`legacy_structural` = 4** |
 | 17 | 【DSL】**`required-exclusion`(row / sections・`terms`)の評価器 + SP-12・SP-16 の移行** | 同上 / **除外語彙をプロファイルから変えると判定が変わる** / **`terms` 1 個・2 個の両形** / **`legacy_structural` = 2** |
 | 18 | 【DSL】**`conditional-forbidden` の評価器 + SP-20 の移行** | 同上 / **含意の両側にテスト** / **`legacy_structural` = 1** |
-| 19 | 【DSL】**`well-formedness`(表の各データ行)の評価器 + SP-18 の移行** | 同上 / **奇数行 2 行(合計偶数)で red・表外の奇数個で green** / **`legacy_structural` = 0** |
+| 19 | 【DSL】**`well-formedness`(`\|` で始まる全表行 — ヘッダ・区切りを含む)の評価器 + SP-18 の移行** | 同上 / **奇数行 2 行(合計偶数)で red・ヘッダ行のみ奇数で red・表外の奇数個で green** / **`legacy_structural` = 0** |
 | 20 | 【DSL】**`cross-reference` の評価器**(契約種別・合成 corpus) | **正常系・異常系・別行移動変異が合成データで green/red** / **同期 `D` に変化なし(規則 4 exact を維持)** |
 | 21 | 【DSL】**規則 6 の前提検証**(テストのみ)— `legacy_structural` 空・同期 `D` exact・構造 corpus 16 件が新評価器単独で green・期待 fixture への一致が **shadow を経由せず**成立 | **4 条件がテストとして固定** / 実装差分がテストのみ |
 | 22 | 【DSL】**旧分岐(SP-19 の死コードを含む)と shadow 基盤の撤去** — 規則 6 を同時に検査 | **`_structural_reason` の ID 別分岐が 0 件**(機械検査)/ **規則 6 が成立** / **機械 17 件の検出集合が移行前と完全一致(SP-19 は forbidden で検出)** / ステップ 21 のテストが green |
 | 23 | 【COV】**`COV` のプロファイル駆動化 + `kind` 別 destination 文法**(`節式 := segment (・ segment)*`、`segment := section_atom \| chapter〜chapter`、`section_atom := chapter \| section`)— ローダー経由・`--profile` / `--registry`・上書き・選択引数単独は既定に束縛。未解析は終了 2 | **同期プロファイルでの判定が変更前と同一**(212 件・38/84/90)/ **現行 212 件の destination が全件解析できる**(`2-1・4〜9`・`2-1・6・9`・`10-1・11-1。配信は…`・理由文を回帰例に)/ **未解析トークンの負例で fail** / selector 単独テスト(`:238-252`)が本文無変更で green |
 | 24 | 【COV】**`attribution-destination`** — 展開した各節の実在・根拠文の存在(同期では `not_applicable`) | **実在しない節を指す帰属で red** / **根拠文の欠落で red** / **既存 `attribution` の結果が無変更** |
-| 25 | 【資産】**`assets.schema.json` + 資産ローダー + JSON パス最小部分集合 + 正規化名前空間** — immutable / mutable exact-set(`baseline` を含む)を版で固定、`identity`、複数 collection、配列値 id、`refs` / `structures` / `fields`、`namespace`、collection の `structure`(design 6-1 節) | **`contracts/authz/` の現行 3 ファイルに対して宣言例で ID が取り出せる**(`source_id` / `catalog_entry_id` / `table_id` / `policy_id` / `policy_ids[*]`)/ **`identity` 不一致・資産欠落・パス不正・未知キー・重複 JSON キーで終了 2** / 同期プロファイルの検出集合が完全一致 |
-| 26 | 【資産】**`join`・`normalize`(名前空間内の単射性)・必須検査との連動** — 異名キーの `join`、`normalize`(名前空間別 `aliases`)、**同一名前空間内の衝突は終了 2**、**`required_checks` に含む検査の資産・抽出器・集合宣言が無ければ終了 2** | **異名キーの join が成立** / **前置きの違う同一要素が一致** / **同一名前空間の衝突で終了 2・別名前空間の同名は衝突扱いしない・明示 alias なら通る** / **`required_checks` に新 ID を含むのに `assets` / `structure_extractors` / `collection_sets` が空で終了 2** |
-| 27 | 【資産】**`structure_extractors` と `collection_sets` のスキーマとローダー**(design 6-3・6-4 節)— `source: manifest \| document \| derived`、表の識別と列 → タプル写像、`derived` の規則、`normalize` 適用、**抽出 0 件は終了 2**。`collection_sets` の `exact \| subset \| disjoint` | **合成文書の遷移表・列役割表・マニフェストから 4 kind のタプルが導出される** / **表見出し不一致・列ずれ・別名未登録・抽出 0 件の負例で終了 2** / **`derived`(transitive-closure・inverse)の正常系** / **`collection_sets` の 3 関係それぞれの正常系** / 同期の検出集合が完全一致 |
-| 28 | 【資産】**サンプル一式** — `profiles/`(レジストリ〔**entry の `must_require` = 全 22**〕・`profile.json`・`data-model-like.json`)、`doc/`(合成文書〔宣言表・帰属表・台帳・遷移表・列役割表〕・manifest・defects・invariants・requirements・req-universe)、`assets/`(合成資産 10 ファイル・`contracts/authz/` と同形・`auth-ddl-map.json` は `structures` を持つ・`product-ddl-map.json`) | **合成資産のトップレベル構造と ID 位置が現行 JSON と同形**(キー集合の比較テスト)/ **`data-model-like.json` がサンプル用レジストリでローダーを通る(`profiles/` の実ファイル完全一致を含む)** / **B 集合のサンプルファイルが全部存在し過不足がない** / 実装差分が fixture とテストのみ |
-| 29 | 【COV】**`attribution-direct`** — `direct_requirements`(独立資産・必須時は非空・母集合 ⊆)の ID が「対象外」なら red(同期では `not_applicable`) | **全件「対象外」の負例で red** / **`required_checks` に含むのに資産が無い・空・母集合外の ID で終了 2** / **`not_applicable` のときだけ資産不要** / 既存結果無変更 |
+| 25 | 【資産】**`assets.schema.json` + 資産ローダー + JSON パス最小部分集合 + 正規化名前空間** — immutable / mutable exact-set(`baseline` を含む)を版で固定、`identity`、複数 collection、配列値 id、`refs` / `structures` / `fields`、`namespace`、collection の `structure`(配列パスは要素ごとに 1 タプル)(design 6-1 節) | **`contracts/authz/` の現行 3 ファイルに対して宣言例で ID が取り出せる**(`source_id` / `catalog_entry_id` / `table_id` / `policy_id` / `policy_ids[*]` / `role_ids[*]`)/ **現物 `ddl-elements.json` から `table → role_ids[*]` の代表構造タプルを導出し期待 exact-set と一致** / **`identity` 不一致・資産欠落・パス不正・未知キー・重複 JSON キーで終了 2** / 同期プロファイルの検出集合が完全一致 |
+| 26 | 【資産】**`join`・`normalize`(単一 alias 表・名前空間内の単射性)・必須検査との連動** — 異名キーの `join`、`normalize`(名前空間別 `aliases` — 供給源はこれのみ)、**同一名前空間内の衝突・canonical の再 alias・循環は終了 2**、**`required_checks` に含む検査の資産・抽出器・集合宣言が無ければ終了 2** | **異名キーの join が成立** / **前置きの違う同一要素が一致** / **同一名前空間の衝突で終了 2・別名前空間の同名は衝突扱いしない・明示 alias なら通る・alias の競合/循環で終了 2** / **`required_checks` に新 ID を含むのに `assets` / `structure_extractors` / `collection_sets` が空で終了 2** |
+| 27 | 【資産】**`structure_extractors` と `collection_sets` のスキーマとローダー + レジストリ `must_extract` / `must_derive_structures` / `must_collection_sets`**(design 1-2・6-3・6-4 節)— `source: manifest \| document \| derived`、表の識別と列 → タプル写像、`derived` の規則、`normalize` 適用、**抽出 0 件は終了 2**。`collection_sets` の `exact \| subset \| disjoint`。**`must_*` とプロファイル宣言の exact-set 照合(`forbidden` の全 kind を覆う抽出器が無ければ終了 2)** | **合成文書の遷移表・列役割表・マニフェストから 4 kind のタプルが導出される** / **表見出し不一致・列ずれ・別名未登録・抽出 0 件の負例で終了 2** / **`derived`(transitive-closure・inverse)の正常系** / **`collection_sets` の 3 関係それぞれの正常系** / **抽出器 1 本脱落・DDL 構造 collection 1 本脱落・必須集合宣言の脱落/差し替えで終了 2** / 同期の検出集合が完全一致 |
+| 28 | 【資産】**サンプル一式** — `profiles/`(レジストリ〔**データモデル型 entry: `must_require` = 全 22・`must_extract` = `forbidden` の全 kind を覆う抽出器・`must_derive_structures`・`must_collection_sets` = `claims-relations-vs-manifest` + `direct-requirements-vs-claims`**〕・`profile.json`・`data-model-like.json`)、`doc/`(合成文書〔宣言表・帰属表・台帳・遷移表・列役割表〕・manifest・defects・invariants・requirements・req-universe)、`assets/`(合成資産 10 ファイル・`contracts/authz/` と同形・`requirement-claims.json` に `direct_requirement` 分類・`auth-ddl-map.json` は `structures` を持つ・`product-ddl-map.json` の domain = 全参照 ID) | **合成資産のトップレベル構造と ID 位置が現行 JSON と同形**(キー集合の比較テスト)/ **`data-model-like.json` がサンプル用レジストリでローダーを通る(`profiles/` の実ファイル完全一致・`must_*` の exact を含む)** / **B 集合のサンプルファイルが全部存在し過不足がない** / 実装差分が fixture とテストのみ |
+| 29 | 【COV】**`attribution-direct`** — `direct_requirements`(独立資産・必須時は非空・母集合 ⊆・**`claims` の `direct_requirement` 分類と exact**)の ID が「対象外」なら red(同期では `not_applicable`) | **全件「対象外」の負例で red** / **`required_checks` に含むのに資産が無い・空・母集合外の ID で終了 2** / **直接要件 1 件脱落(資産と claims 分類の不一致)で red・資産と母集合を同時に縮めても claims 分類との exact で red** / **`not_applicable` のときだけ資産不要** / 既存結果無変更 |
 | 30 | 【新検査】**`forbidden-structure`**(抽出器が導出した構造集合との照合・別名・方向 — design 6-2 節) | **別名で同じ構造を作った負例で red**(語句一致では通ることを対比で示す)/ **方向の違う同一辺を区別** / **抽出器 0 件で終了 2** / 合成データで正常系 / 同期では `not_applicable` を理由付きで出力 |
-| 31 | 【新検査】**`cross-consistency`**(WAIT = manifest ∩ 本文 / AUTH = `ddl_elements` ∩ manifest(`product_ddl_map` 経由)/ map の exact-set・refs・`structures` 非空と DDL 導出構造との exact / 構造タプル全項目照合) | **3 条件それぞれに正常系と衝突負例** / **空 map・脱落・過剰・refs 空・`structures` 空・1 件脱落・participants 相違の負例** / **WAIT が本文に無い / AUTH がマニフェストに無い負例** / **禁止方向で red・逆方向で green** / **probe-only DDL で `product_ddl_map` 欠落なら終了 2** / 同期では `not_applicable` |
+| 31 | 【新検査】**`cross-consistency`**(WAIT = manifest ∩ 本文 / AUTH = **二段階**: 段階 A raw DDL ID で map・refs・`structures` を DDL 導出構造と exact 照合 → 段階 B `product_ddl_map` を全参照 ID に適用して製品構造へ射影し manifest / FORB と比較 / 構造タプル全項目照合) | **3 条件それぞれに正常系と衝突負例** / **空 map・脱落・過剰・refs 空・`structures` 空・1 件脱落・participants 相違の負例** / **WAIT が本文に無い / AUTH がマニフェストに無い負例** / **禁止方向で red・逆方向で green(射影後の製品 ID で)** / **probe-only DDL で `product_ddl_map` 欠落・未写像・余分・曖昧写像なら終了 2** / 同期では `not_applicable` |
 | 32 | 【新検査】**`collection-consistency`**(`collection_sets` の `exact` / `subset` / `disjoint`・差集合を reason に) | **claims の relation 行と manifest の脱落・過剰で red** / **`forbidden` 混入(`disjoint`)で red** / **`subset` の正常系と違反** / 同期では `not_applicable` |
 | 33 | 【新検査】**`baseline-digest`**(自前 canonical・envelope・版固定の immutable exact-set) | **immutable 各フィールド(`baseline` 反転を含む)1 件ずつの改変で red・mutable 各フィールドの改変で green** / **キー順・空白を変えても digest 一致** / **重複キーで終了 2** / **`immutable_fields` をプロファイルから変えられない** |
-| 34 | 【新検査】**`unique-owner`**(global check・alias 宣言からの写像・`expected_ids` 独立資産必須・`owner_steps_allowed` 必須) | **重複・欠落・過剰・許可外 step の負例** / **`expected_ids` 省略・空で終了 2** / **`invariant_kinds` に `unique-owner` を書いた宣言が global check へ写る** / 同期では `not_applicable` |
+| 34 | 【新検査】**`unique-owner`**(global check・`invariants/<name>.json` の `global_invariants` 宣言からの写像・`expected_ids` 独立資産必須・`owner_steps_allowed` 必須) | **重複・欠落・過剰・許可外 step の負例** / **`expected_ids` 省略・空で終了 2** / **`global_invariants` の `unique-owner` 宣言・`required_checks`・`baseline_digest` の 3 者が揃わないと終了 2** / 同期では `not_applicable` |
 | 35 | 【新検査】**`reference-class`**(順序付き規則・first-match・未一致 2・`normative` は approved 限定) | **feature・worklog・legacy を `normative` として参照する負例で red** / **同一節内の 2 リンクを `fragment` で別 role にできる** / **未一致の参照で終了 2** / **既存 `noncanonical-reference` の結果が無変更** |
 | 36 | 【ランナー】**`scripts/check_doc_profiles.py` + サンプル 2 本で全検査を実行** — design 13 節の契約(`--profile` 必須・`--registry`・終了 0/1/2・全終了コードで JSON envelope・`checks` は常に 22 件・`not_run`・`partial` は `--checks` 時のみ) | **終了 0/1/2 の各経路で JSON がスキーマに適合** / **`errors` が終了 2 でのみ非空** / **`--checks` で未選択 ID が `not_run`・`partial: true`、無しで `false`** / **`data-model-like.json` で新 8 ID すべてが `pass` または `fail`(`not_applicable` 0)** / **同期側パスを一度も開かない**(open をモックで固定)/ **staging レジストリを `--registry` で使える** / 実装差分がスクリプトと `tests/test_check_doc_profiles.py` のみ |
 | 37 | 【配線】**レジストリ列挙** — 両スクリプトが選択・上書き引数なしのとき `--registry`(既定 = 本番)を読み、登録集合 = 実ファイル集合を検証して全文書を検査。**`ci.yml` は無変更**。`test_ci_wiring.py` にはスクリプト側テストのみ追加 | **`ci.yml` 無変更** / **`test_ci_wiring.py` の既存アサーション(step 1 件・禁止セレクタ・harness exact)が無変更で通る** / **レジストリに 1 件足すと検査対象が増える** / **未登録ファイル・脱落・重複 name/document・0 件で終了 2** |
-| 38 | 【記録】**検証記録・A/B/C の exact-set・統合表・申し送り** — 全ステップの検証結果を worklog へ整理。A/B/C(C の条件付き要素はステップ 1 の確定値)を実 diff から確定。**各負例 fixture → 期待 check ID で fail する統合表**。新規 node ID 一覧。design 11 節の申し送り 20 項目 | **基準線 green(passed ≥ 875・既存 875 node ID 包含・digest 一致・skipped/xfailed/xpassed/deselected = 0 / 3 検査 / ruff / ty)** / **機械 17 件の検出集合が着手前と完全一致** / **A = `git diff --name-status origin/develop` の全件、A = B ∪ C ∪ 文書、B ∩ C = ∅** / **統合表の全行が実行で確認済み** / **申し送り 20 項目が worklog にある** |
+| 38 | 【記録】**検証記録・A/B/C の exact-set・統合表・申し送り** — 全ステップの検証結果を worklog へ整理。A/B/C(C の条件付き要素はステップ 1 の確定値)を実 diff から確定。**各負例 fixture → 期待 check ID で fail する統合表**。新規 node ID 一覧。design 11 節の申し送り 23 項目 | **基準線 green(passed ≥ 875・既存 875 node ID 包含・digest 一致・skipped/xfailed/xpassed/deselected = 0 / 3 検査 / ruff / ty)** / **機械 17 件の検出集合が着手前と完全一致** / **A = `git diff --name-status origin/develop` の全件、A = B ∪ C ∪ 文書、B ∩ C = ∅** / **統合表の全行が実行で確認済み** / **申し送り 23 項目が worklog にある** |
 
 ## 5. DoD(受け入れ基準)
 
@@ -194,19 +194,20 @@ Notion タスク TSK-269 の DoD(受け渡し契約を含む)と同期させて�
 
 - [ ] **プロファイル・レジストリ(`--registry` で staging 指定可)・共通ローダー**。スキーマ版を持つ。全 22 check ID の完全分割と `must_require`(レジストリ entry)・理由非空を強制
 - [ ] **不変条件 DSL(13 種・旧分岐の述語に一対一 + 契約 5 種別名の受理)**。構造分岐 15 ID を宣言へ移行し `_structural_reason` の ID 別分岐 0 件・`legacy_structural` 空・同期 `D = 15 ∪ {MT-01}`(exact)・
-      機械 17 件の検出集合が移行前と完全一致・構造 corpus 16 件と期待構造化 reason fixture で移行の各段が一致・旧述語と同値な変異が全 ID で red
+      機械 17 件の検出集合が移行前と完全一致・構造 corpus 16 件と期待構造化 reason fixture で移行の各段が一致・design 2-1 節の変異集合が全 ID で red
 - [ ] **MT-01 の oracle 改訂**(差分は MT-01 エントリの範囲・検出集合不変)と **`absent-section` の必須宣言**(有効化フラグなし)
 - [ ] **CLI 名を固定** — `--document` / `--profile` / `--manifest` / `--defects-file` / `--checks` / `--defects`(+ `--registry`)。上書き・選択引数単独は既定プロファイルに束縛
 - [ ] **fail-closed**: 未対応 kind・必須引数欠落・未知 ID・余分な宣言・プロファイル欠落・解決できない節・脱落トークン・レジストリ不一致・完全分割違反・必須検査の資産/抽出器/集合宣言の欠落・抽出 0 件・正規化衝突・重複 JSON キー・未解析の帰属先・未分類の参照は終了コード 2
 - [ ] **4 検査を機械で保証**(`forbidden-structure` / `attribution-direct` / `baseline-digest` / `cross-consistency`)+ `collection-consistency` + `unique-owner`。
-      入力は `assets`(現物の項目名・`auth_ddl_map` の `structures`・`product_ddl_map`・独立資産)・`structure_extractors`・`collection_sets` の宣言で、**checker に文書固有の構造をハードコードしない**。WAIT は manifest ∩ 本文、AUTH は manifest、AUTH/WAIT–FORB は方向込みで照合
+      入力は `assets`(現物の項目名・`auth_ddl_map` の `structures`・`product_ddl_map` の二段階射影・独立資産)・`structure_extractors`・`collection_sets` の宣言で、**checker に文書固有の構造をハードコードしない**。
+      **必須の宣言集合はレジストリ entry の `must_*` で固定**(自己申告で落とせない)。WAIT は manifest ∩ 本文、AUTH は manifest、AUTH/WAIT–FORB は方向込みで照合。`direct_requirements` は claims の `direct_requirement` 分類と exact
 - [ ] **コンフォーマンスランナー**(契約: synopsis・`--registry`・終了コード・全終了コードで JSON envelope・`not_run`)と**サンプル一式**(データモデル型最小プロファイルで全 22 ID が同期側パスを開かずに動く)
 - [ ] **参照の分類** `reference-class` / **帰属検査の強化**(混合式を含む destination 文法で現行 212 件が全件解析)。既存結果は無変更
 - [ ] **`codex_run.py` の `has_filled_step_row`** が入れ子見出し・fenced code・否定形を扱い、3 種の報告を区別する
 - [ ] **既存の振る舞いが変わらない** — 3 検査 green / ruff・ty クリーン / 既存 node ID 875 件の包含(digest 一致)/ passed ≥ 875 / skipped・xfailed・xpassed・deselected = 0 /
       fixture・`fixture-sha256.txt`・`req-universe.json` 無変更 / 同期で走る検査は既存 14 のまま
 - [ ] **CI は引数なしのまま**(`ci.yml` 無変更)で、本番レジストリに登録された全プロファイルを検査する
-- [ ] **A/B/C の exact-set・負例 → check ID の統合表・申し送り 20 項目**が worklog と PR 本文にある
+- [ ] **A/B/C の exact-set・負例 → check ID の統合表・申し送り 23 項目**が worklog と PR 本文にある
 - [ ] **正本・`core-areas.json`・台帳は変更していない**(3 節の「反映なし」宣言と PR 差分が一致)
 
 ## 6. テスト計画
@@ -227,4 +228,4 @@ Notion タスク TSK-269 の DoD(受け渡し契約を含む)と同期させて�
 | **統合**(a) | **負例 fixture → 期待 check ID で fail する統合表**(ステップ 38) | worklog(記録)+ 実行 |
 | **一致性**(c)・**越境**(b)・**E2E**・**故障系**(d) | **本タスクでは足さない**(ハーネスの機構) | — |
 
-**変異テストの方針**(research 4-1 節・台帳 H-79・design 2-1 節): **旧述語と同値な変異だけ**を型ごとに機械的に適用する — 行スコープ = 別行移動、節スコープ = 別節移動・意味部欠落・ID 交換、共通 = 意味反転・主述交換。個別に思いついた変異に頼らない。
+**変異テストの方針**(research 4-1 節・台帳 H-79): 変異集合の**唯一の正は design 2-1 節の表**(共通・行スコープ・節スコープ・`exact-set`・`well-formedness`)。ステップ 2・DoD・本節はそれを参照し、個別に思いついた変異に頼らない。
