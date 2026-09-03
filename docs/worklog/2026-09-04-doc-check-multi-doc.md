@@ -194,13 +194,39 @@ R4 閉塞判定(レビュアー): 閉じた 9(R4-P0-1/4/6・P1-1/2/3・P2-2/3/4)
 2-2 を集合制約 + 同期コンフォーマンステスト、6-1/6-2 に構造タプル・`baseline`、8 に混合式文法、11 に申し送り 17・18。plan は 36 → **37**(`cross-reference` の評価器ステップを追加・
 `attribution-direct` を資産群の後へ・スキーマ責務を整理)。`計画レビュー周回: 4 → 5`。**6 周目(敵対)を起動**。
 
-**現行値(最新・2026-09-04 R5 反映後)**: 種別 **13**(構成は上記・`unique-owner` は check ID)/ 構造宣言必須 **15**(同期・SP-19 は forbidden-only)/ check ID **21** / 申し送り **18** / ステップ **37**(最終一覧の確定はステップ 37)/ MT-01 = **(a′)** / 計画レビュー周回 **5**。
+### 計画レビュー 6 周目(敵対・sol xhigh)= **否決** / P0 5・P1 3・P2 4(一次記録 — H-87)
+
+R5 閉塞判定(レビュアー): 閉じた 12 / 形だけ 3(R5-P0-4・P1-2・P2-7)/ 新たな矛盾 1(R5-P1-1)/ 未対応 0。**P0 は 10 → 8 → 6 → 5**。
+新規 P0 は「TSK-250 が checker を変更せずに 4 検査を使えるか」(構造抽出の宣言・`exact-set` の relation・claims と manifest の集合一致)に集中。
+
+| ID | 指摘(要旨) | 根拠 | 採否 |
+| --- | --- | --- | --- |
+| R6-P0-1 | `exact-set` が期待集合を取る manifest relation を宣言できない(旧述語は `R-TXN-ROUTE` 固定) | `PROP:389` | 採用: `relation`(必須)・`field` を引数に。別 relation を同一 manifest に置く負例 |
+| R6-P0-2 | `forbidden-structure` に文書から構造タプルを抽出する**宣言**が無い(TSK-250 は checker 変更不可) | design 1-2/6-2・`TSK250PLAN:217` | 採用: プロファイルに **`structure_extractors`**(対象節・表識別・列 → タプル項目の写像・暗黙辺の導出・方向・participants の正規化)をスキーマ化。kind 別の抽出負例 |
+| R6-P0-3 | `cross-consistency` が契約より弱い(WAIT は manifest **と本文**、AUTH は manifest 必須。`auth_target` で弱めていた) | `TSK250PLAN:175` | 採用: `auth_target` を**廃止**。WAIT = manifest ∩ 本文、AUTH = `ddl_elements` ∩ manifest を常に要求。probe-only DDL は **`product_ddl_map`**(TSK-250 が作る写像)で製品要素へ写してから照合 |
+| R6-P0-4 | WAIT/AUTH–FORB の構造照合に省略可能経路(`structures` 空・脱落・WAIT 側に方向なし・participants を比較キーから落とした) | design 6-1/6-2 | 採用: `structures` は entry ごとに非空・`participants ⊆ refs`・**DDL 資産から導出した構造との exact-set**。WAIT 側は抽出器で manifest/本文から導出。比較キーは両側 `{kind, source, target, direction, participants}`。空・1 件脱落・participants 相違の負例 |
+| R6-P0-5 | claims の relation 行と manifest の exact-set を検査する機構が無い(TSK-250 ステップ 5 の要求) | `TSK250PLAN:215` | 採用: 新 check ID **`collection-consistency`**(プロファイルの `collection_sets` で資産 collection 間 / 資産と manifest の exact / subset を宣言)。check ID は **22**(新 8) |
+| R6-P1-1 | staging 骨格と `must_require` の配置が自己矛盾(文書が無い時点の終了 2・プロファイル側の `must_require`・staging の木構造未定) | design 1-1・plan 27 | 採用: staging の完全な木(`profiles/` = レジストリ + プロファイルのみ / `doc/` / `assets/`)を固定。原子ステップは**文書の骨格が存在した直後**。`must_require` は常にレジストリ entry(plan 27 の文言修正) |
+| R6-P1-2 | `unique-owner` を check ID にしたのは契約(DSL 種別として列挙)の一方的変更 | `TSK250PLAN:42,70` | 採用: **kind 名 `unique-owner` を受理**し、宣言は global check `unique-owner` へ写す(alias 方式)。契約の 5 種別名を全部受理 |
+| R6-P1-3 | `well-formedness` が旧 SP-18 の**表の各行**単位の判定を再現していない | `PROP:405,567` | 採用: rule を「Markdown 表の各データ行について `**` が偶数」と明文化。奇数行 2 行・表外奇数の同値テスト |
+| R6-P2-1 | C 集合に任意要素(`test_hooks.py` 変更の可能性) | plan 3 節 | 採用: C を必須 / 条件付き(ステップ 1 で確定)に分離 |
+| R6-P2-2 | worklog 決定欄の MT-01 が (a) のまま | worklog | 採用: 決定欄に (a′) への上書き注記 |
+| R6-P2-3 | partial 実行時の未選択 check の envelope 表現が未定義 | design 13 | 採用: status に `not_run` を追加(`not_applicable` への偽装禁止) |
+| R6-P2-4 | SP-12 の第 2 `required-exclusion` が必須引数を満たさない | design 2-1・`PROP:536` | 採用: 引数を `terms: [1..2]`(subject 任意)に変更し、第 2 宣言を `terms: ["D5"]` と明記 |
+
+**6 周目の反映**: design 1-1 staging の木・1-2 `structure_extractors` / `collection_sets`・2-1 `exact-set(relation)`・`required-exclusion(terms)`・`well-formedness`(行単位)・
+`unique-owner` alias・5-1 **22 ID**(新 8: + `collection-consistency`)・6-1 `product_ddl_map`・WAIT/AUTH 構造の導出と exact-set・6-2 契約どおりの存在検査・13 `not_run`。
+plan は 37 → **38**(`collection-consistency` のステップを追加)、C を必須 / 条件付きに分離。`計画レビュー周回: 5 → 6`。**7 周目(敵対)を起動**。
+
+**現行値(最新・2026-09-04 R6 反映後)**: 種別 **13**(+ 受理する契約 alias: `required-element` → `section-contains(text)`・`unique-owner` → global check)/ 構造宣言必須 **15**(同期・SP-19 は forbidden-only)/
+check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(最終一覧の確定はステップ 38)/ MT-01 = **(a′)** / 計画レビュー周回 **6**。
 
 ## 決定
 
 - 新規ブランチ・worktree は切らない(前回保留時の裁定「worktree とブランチは残す」に従う)
 - **人間の裁定 2026-09-04(/plan 冒頭)**:
   1. MT-01 → **(a) oracle の正当な改訂**(独立ステップで `1節` を scope から外す)
+     → **R2-P0-3 を受けて同日 (a′) へ上書き**(oracle 改訂 + `absent-section` 型・R6-P2-2 で注記。現行値は末尾の「現行値(最新)」)
   2. `codex_run.py` の `has_filled_step_row` → **本タスクに含める**
   3. `scripts/check_authz_catalog.py` → **対象外・前例として資産書式を借りる**
   4. `guard_paths` への新資産登録・台帳 H-78/H-79 追記 → **すべて TSK-250 に委ねる**(本タスクは `core-areas.json` と台帳を触らない)
