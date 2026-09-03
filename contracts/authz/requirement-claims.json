@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "d485abc2cebad265a31a75be1cdc31e2a3b021a9",
+    "commit": "dc9d1143e876e51ad38cefc1983949a9970e6b41",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "7e0ad9dcf4e76b2b8a4ecab87f5446606c0f326c",
+    "source_blob_digest": "3f400c2249500a9a2af94b959685322335bb1cb8",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -134,16 +134,16 @@
       "APPENDIX-ITEM-F-2"
     ],
     "item_counts_by_kind": {
-      "blockquote": 23,
+      "blockquote": 24,
       "code_fence": 2,
       "code_line": 11,
       "frontmatter": 3,
       "heading": 125,
-      "list_item": 599,
-      "paragraph": 29,
-      "table_delimiter": 25,
-      "table_header": 25,
-      "table_row": 194,
+      "list_item": 600,
+      "paragraph": 30,
+      "table_delimiter": 26,
+      "table_header": 26,
+      "table_row": 199,
       "thematic_break": 27
     }
   },
@@ -770,6 +770,26 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "decision_digest": "0ccb681c58a38986d3f7f3ac5abed7bc398209904e85bb17857e5398ab9ea0ca"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-030",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| 2.6 | 2026-09-03 | **付録A へ数値表示の書式 binding を追加する改訂を起案(TSK-278・状態: in-review)** — ADR-003 の D-1 改訂と**単一の確定ゲートで一括検証**する。**版は 2.6 で確定**(人間承認 2026-09-03 — v2.5 は TSK-267〔同期 v0.2 と同一ゲート〕の先約のまま維持・同一版番号を別内容で確定しない)。**射程宣言(7.3-7)**: **本改訂で確定する範囲** = ① 付録A の対象出力ごとの**書式 binding 列**(scale・丸め・先頭 0・文字種・剰余 0・**符号〔負値の文字と適用対象 — 正値 `+` は導入しない〕**)② **期間ラベルの正**(JST 日付からの年度導出か、管理者管理のシーズン語彙〔4.0-3〕か。**語彙側を選ぶ場合はシーズン通算の定義本文も本改訂の差分に含める**)/ ③ **FR-023 の受入例の文字種統一(全角括弧 → 半角)と A-4 の状況別割合の表示 binding**(**確定ゲート 1 周目の PO スコープ裁定 2026-09-03 で射程へ追加** — 7.3-6)④ **NFR-019(a) の前処理行の例示補完(FR-023 の球種表示名 — 確定ゲート 3 周目の PO スコープ裁定 2026-09-03 で射程へ追加)**⑤ **A-3 への「本塁打」行の新設(FR-022/FR-038 が参照する打者側本塁打数の欠落の是正 — 最終全文確認周の PO スコープ裁定 2026-09-03 で射程へ追加)**⑥ **A-2 への「被安打」行の新設(FR-021/FR-038 が参照し被打率・WHIP の入力となる定義の欠落の是正 — 確定ゲート 24 周目の PO スコープ裁定 2026-09-03 で射程へ追加)**/ **実装時に確定する範囲** = なし(書式は本改訂で閉じる)。計画: `../features/adr003-display-primitives/plan.md` | in-review |",
+      "source_text_digest": "c52de15d397bbeeffdceccdf94cb2fe954fa0c9a6288e63187d435cec8d5008a",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "3d3ee825689755dbabb8fc941a3a4bdbd22a21a1c1c4c127ecdfd151a59885e5"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-031",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.6** | 2026-09-03 | **確定ゲート通過(approved)**: ADR-003 v0.2 と単一ゲートで一括検証 — 敵対レビュー **27 周**・指摘累計 **88 件を全件採用・不採用 0 件・P0 全周ゼロ**(周別内訳・採否記録は worklog `2026-09-01-adr003-display-primitives.md` が正)。**PO 承認(2026-09-03・山田正輝)・版は 2.6 で確定**(**v2.5 は TSK-267〔同期 v0.2〕の先約のまま** — 本版が先に確定するため確定日順と版番号順は一致しない。同一版番号を別内容で確定しない) | **approved** |",
+      "source_text_digest": "2cb5a284101cdf2251d4815278550245b9a99f3afa675835de557895ec55a383",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "935fee1e085183cfbe028609bff2255f2817c62e66a006e338d6abb3c6a24879"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -5050,11 +5070,11 @@
       "source_id": "FR-023/list_item-004",
       "source_kind": "list_item",
       "source_heading_id": "FR-023",
-      "source_text": "  - Given 当日投球あり / When 表示 / Then 球種割合が**割合+球数の併記**で表示される（「スライダー 40%（12球）」）",
-      "source_text_digest": "3e08745e098dbb30d235cfc0363c57632ae0693092393f078b7897f0ac77897d",
+      "source_text": "  - Given 当日投球あり / When 表示 / Then 球種割合が**割合+球数の併記**で表示される（「スライダー 40%(12球)」）",
+      "source_text_digest": "5f64f166e7b41ab3ed6a2a772bedabc670b4ee1c94c7f21852b00f7264f8a66d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4573bf8fe763eb2b1d0fdaa02ac91f32f766bb47cf4bbb9e996846d3a550604a"
+      "decision_digest": "f075c6c5324df25639198af83f90f53708537bb1034f537523cecdd7d7c9cab8"
     },
     {
       "source_id": "FR-023/list_item-005",
@@ -11392,21 +11412,21 @@
       "source_id": "NFR-018/list_item-006",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "  - **(α) クライアント・サーバーの双方で実行するもの**: 状況判定・**入力と表示のための座標変換**（画面座標⇄保存座標の相互変換、および**投球コースの内外角の導出**〔保存座標と打席左右から。付録B-3〕**に限る**（付録B-3 が定義するのは内外角のみ。高低等の別の導出を対象に加えるには本書の改訂を要する） — **打球方向の導出**〔等角5分割・引っ張り/流し。付録A-3・付録B〕**は含めない。これは分析集計の一部として(β)に属する**）・捕球選手推定・終了判定、および**断中にクライアントで実行する成績集計の前処理**（FR-020のスコアボード・FR-021の当日成績・FR-022の打者の当日打席結果・FR-023の球種割合）。**NFR-019(a)の一致性テストの対象**",
-      "source_text_digest": "bacb98cc26a5d57a6e96f6d8a06f3e5deba2afcc37c6b4e0a9e1b07274d507ec",
+      "source_text": "  - **(α) クライアント・サーバーの双方で実行するもの**: 状況判定・**入力と表示のための座標変換**（画面座標⇄保存座標の相互変換、および**投球コースの内外角の導出**〔保存座標と打席左右から。付録B-3〕**に限る**（付録B-3 が定義するのは内外角のみ。高低等の別の導出を対象に加えるには本書の改訂を要する） — **打球方向の導出**〔等角5分割・引っ張り/流し。付録A-3・付録B〕**は含めない。これは**分析集計の入力となる行単位の分類として(β)に属する**(集計 reducer ではない — ADR-003 D-1-d)**）・捕球選手推定・終了判定、および**断中にクライアントで実行する成績集計の前処理**（FR-020のスコアボード・FR-021の当日成績・FR-022の打者の当日打席結果・FR-023の球種割合）。**NFR-019(a)の一致性テストの対象**",
+      "source_text_digest": "cb9833c9fb247275371eb0fd3e924a717ccfeb6142fa98393bd870a2f3f44963",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "be8bd3e887a9ca33711e2b11f833ecd78336ecbbbc8f70fc4e15ccaab8a489ca"
+      "decision_digest": "5446ba53bcae5a894dc8dab787d8ff17cfd4a9939b1623c4d33c8296dd6a8a8a"
     },
     {
       "source_id": "NFR-018/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "  - **(β) サーバーでのみ実行するもの**（**判定規則**: 対象の計算のうち、**クライアントでの実行を要求する条項が存在しないもの**。ブロック4の共通規則とNFR-005によりDB側集計が必須の後段集計はここに属する）。**現時点の列挙**（**追加・削除には本書の改訂を要する**）: ①投手分析・打者分析・作戦分析の集計（**FR-025・FR-026・FR-027** — 球速分布／球速推移／被打球分布／コース・球種の分布／作戦の傾向と成否 ほか各条項が定める全項目） ②カルテ掲載指標の集計（FR-028・FR-029、付録A-3b・A-5） ③シーズン通算成績の集計（FR-021・FR-022 の「シーズン通算」欄） ④共同分析グループの共有集計（FR-041） ⑤チーム単位の分析の集計（FR-042） ⑥**移行時の座標変換**（FR-038・付録B-5 — 旧263px座標の正規化・Y反転・センチネル除外・クランプ。移行実行時にのみ動作し、クライアントでは実行しない） ⑦**打球方向の導出**（付録A-3・付録B — 等角5分割および打者相対の引っ張り/流し。分析集計の一部） ⑧**移行時の責任投手・成績帰属の導出**（FR-038 — 走者の責任投手の導出規則。移行実行時にのみ動作する）。**いずれも一致性テストの対象としない**（FR-042補足の限定を維持）。**担保は次のとおり分ける**: **①〜⑤は付録Aの集計定義に対する固定ベクタ**／**⑦は打球方向導出の専用ベクタ**（付録A-3の打者相対区分を打席左右との組み合わせで導出するため入力面が付録A固定ベクタと異なる — [ADR-003](../adr/ADR-003-domain-calc-method.md) D-6）＋バックエンドの単体テスト／**⑥は付録B-5の変換式に対する変換ベクタ**＋FR-038の移行突合／**⑧はFR-038の導出規則に対する単体テスト**＋同条の移行突合（いずれも付録Aでは判定できない）",
-      "source_text_digest": "b735625bc4e284c5eb4c5da747485507f5b2b493a8b8608579184965d4a80d0e",
+      "source_text": "  - **(β) サーバーでのみ実行するもの**（**判定規則**: 対象の計算のうち、**クライアントでの実行を要求する条項が存在しないもの**。ブロック4の共通規則とNFR-005によりDB側集計が必須の後段集計はここに属する）。**現時点の列挙**（**追加・削除には本書の改訂を要する**）: ①投手分析・打者分析・作戦分析の集計（**FR-025・FR-026・FR-027** — 球速分布／球速推移／被打球分布／コース・球種の分布／作戦の傾向と成否 ほか各条項が定める全項目） ②カルテ掲載指標の集計（FR-028・FR-029、付録A-3b・A-5） ③シーズン通算成績の集計（FR-021・FR-022 の「シーズン通算」欄） ④共同分析グループの共有集計（FR-041） ⑤チーム単位の分析の集計（FR-042） ⑥**移行時の座標変換**（FR-038・付録B-5 — 旧263px座標の正規化・Y反転・センチネル除外・クランプ。移行実行時にのみ動作し、クライアントでは実行しない） ⑦**打球方向の導出**（付録A-3・付録B — 等角5分割および打者相対の引っ張り/流し。**分析集計の入力となる行単位の分類 — 集計 reducer ではない**〔ADR-003 D-1-d〕） ⑧**移行時の責任投手・成績帰属の導出**（FR-038 — 走者の責任投手の導出規則。移行実行時にのみ動作する）。**いずれも一致性テストの対象としない**（FR-042補足の限定を維持）。**担保は次のとおり分ける**: **①〜⑤は付録Aの集計定義に対する固定ベクタ**／**⑦は打球方向導出の専用ベクタ**（付録A-3の打者相対区分を打席左右との組み合わせで導出するため入力面が付録A固定ベクタと異なる — [ADR-003](../adr/ADR-003-domain-calc-method.md) D-6）＋バックエンドの単体テスト／**⑥は付録B-5の変換式に対する変換ベクタ**＋FR-038の移行突合／**⑧はFR-038の導出規則に対する単体テスト**＋同条の移行突合（いずれも付録Aでは判定できない）",
+      "source_text_digest": "2e6127783e70ca75ca192205b130e9a139088353cd190e0335bf1692dbce00b5",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
-      "decision_digest": "63e27591ccfcd6737949eb06b0f0c8596c1e234d272fef3e8aa52219808263bc"
+      "decision_digest": "bf395be3695993f55bdcfd458991c37c37533172c602aef302918add0052d9d4"
     },
     {
       "source_id": "NFR-018/list_item-008",
@@ -11672,11 +11692,11 @@
       "source_id": "NFR-019/list_item-002",
       "source_kind": "list_item",
       "source_heading_id": "NFR-019",
-      "source_text": "- **要件**: テストランナーを標準化する（バックエンド=pytest・フロントエンド=Vitest・E2E=Playwright。v1.8で明確化 — バックエンドのテストは pytest 以外に分散させない）。PRごとにCIで自動実行、全グリーンでないとマージ不可とする。CIには (a) クライアント/サーバーの一致性テスト（**対象は NFR-018 の区分(α)**＝クライアント・サーバーの双方で実行するドメイン計算とし、**列挙は NFR-018 を正とする**〔本項では繰り返さない〕。**NFR-018 の区分(β)〔サーバーでのみ実行するもの〕は本テストの対象としない** — 担保は **NFR-018 の「対象」欄が区分ごとに定める**（①〜⑤=付録A固定ベクタ／⑦=打球方向導出の専用ベクタ／⑥=付録B-5変換ベクタとFR-038移行突合／⑧=FR-038導出規則の単体テストと移行突合。FR-042 補足の別建て方針を維持）。**対象ごとに〈入力・出力・比較単位〉を定義してテストを構成する**。**比較する出力は、当該計算の結果を利用者へ見せる条項が定める全項目**（受入基準に加え、**ユーザーストーリー等で定める表示項目を含む**）とし、**一部だけを比較面に採ることはできない**（項目を除外するには本書の改訂を要する）。現時点の対応:",
-      "source_text_digest": "4f9e2a98cd1911dc8cd5677b3d567c08f5fac9356e05f790069f72760d913d90",
+      "source_text": "- **要件**: テストランナーを標準化する（バックエンド=pytest・フロントエンド=Vitest・E2E=Playwright。v1.8で明確化 — バックエンドのテストは pytest 以外に分散させない）。PRごとにCIで自動実行、全グリーンでないとマージ不可とする。CIには (a) クライアント/サーバーの一致性テスト（**対象は NFR-018 の区分(α)**＝クライアント・サーバーの双方で実行するドメイン計算とし、**列挙は NFR-018 を正とする**〔本項では繰り返さない〕。**NFR-018 の区分(β)〔サーバーでのみ実行するもの〕は本テストの対象としない** — 担保は **NFR-018 の「対象」欄が区分ごとに定める**（①〜⑤=付録A固定ベクタ／⑦=打球方向導出の専用ベクタ／⑥=付録B-5変換ベクタとFR-038移行突合／⑧=FR-038導出規則の単体テストと移行突合。FR-042 補足の別建て方針を維持）。**対象ごとに〈入力・出力・比較単位〉を定義してテストを構成する**。**比較する出力は、当該計算の結果を利用者へ見せる条項が定める全項目**（受入基準に加え、**ユーザーストーリー等で定める表示項目を含む**）とし、**一部だけを比較面に採ることはできない**（項目を除外するには本書の改訂を要する。**例外(v2.6 改訂・PO 裁定 2026-09-03)**: **付録A-1 の表外既定の数値〔スコアボードの得点・カウント・打席番号等〕の表示値はベクタ比較面に載せない** — 状況判定の出力・比較面は構造化状態のままとし、表示は同一の生成 formatter の構成検査・変異検査で担保する〔付録A-1・ADR-003 D-8〕）。現時点の対応:",
+      "source_text_digest": "6f51ba59421f9440f342495a6d1fdb274695f3a15f7d946b5a8a786d01517671",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "164a566e4790f7c69b86d33f7ab0489cb36d6a75c0cbaff29ab6758c790aabc9"
+      "decision_digest": "48a0ee583d9592f00774413526a3b19b5370e2fb11c5258ca1b41302e1f938b0"
     },
     {
       "source_id": "NFR-019/list_item-003",
@@ -11722,11 +11742,11 @@
       "source_id": "NFR-019/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "NFR-019",
-      "source_text": "  - **断中の成績集計の前処理**＝**プレイ入力列＋語彙スナップショット**（ID→表示名。FR-022の結果表示名を完成した表示値として比較するため — [ADR-003](../adr/ADR-003-domain-calc-method.md) D-1）→**FR-021の当日成績の全指標**・**FR-022の当日打席結果の全列**（**列の定義はFR-022が正** — v2.2で確定済み。打席ごとの7列と、そこから導出する当日の集計）・**FR-023の球種割合と併記する球数**",
-      "source_text_digest": "3ac4fe87db1abb26984ab436396f1ed117c9d441a0026b4a191d01bae4b713d3",
+      "source_text": "  - **断中の成績集計の前処理**＝**プレイ入力列＋語彙スナップショット**（ID→表示名。FR-022の結果表示名と**FR-023の球種表示名**を完成した表示値として比較するため — [ADR-003](../adr/ADR-003-domain-calc-method.md) D-1）→**FR-021の当日成績の全指標**・**FR-022の当日打席結果の全列**（**列の定義はFR-022が正** — v2.2で確定済み。打席ごとの7列と、そこから導出する当日の集計）・**FR-023の球種の表示名(語彙スナップショット経由)・球種割合と併記する球数**",
+      "source_text_digest": "6e8e192039196f7fa08d30742c15daec4dbcc37c5ad7e0fb49bbf9ea99fa30a4",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "680116af2b75e3fd5052a482b7dd94234ba82feba8b386a11a6da7e75db20810"
+      "decision_digest": "d51e2ecd094b5bf0bde6c3012d6ff7f6de470e7ba8e8a3525a57b7c7816e9a96"
     },
     {
       "source_id": "NFR-019/paragraph-001",
@@ -13254,21 +13274,21 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-002",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- 0除算となる指標は「−」を表示する（エラー・0.00にしない）",
-      "source_text_digest": "3f449247f7c21102ccd50a3ac5cd8017d1f90d4f19585ddb316460bfdfc554a0",
+      "source_text": "- 0除算となる指標は「−」を表示する（エラー・0.00にしない）。**集計対象が 0 件のため値が定まらない場合(例: 全球速が欠損したときの最速・平均球速)も同じ規則を適用する**(構造化値 `null` → 値の位置に「−」。**併記の有無は当該書式の通常規定に従う** — 併記を持つ率・割合は `−(0打数)`・`−(0球)` のように実件数 0 で併記を維持し、**併記を持たない書式〔球速等〕は「−」単独**。null 時専用の分岐・別テンプレートを作らないため、通常時と同じ合成で成立する)。**「−」は MINUS SIGN(U+2212)1 文字**とし、**率・割合とも値の位置に「−」を置き併記はそのまま行う**(完成表示値の例: 率 = `−(0打数)`・割合 = `−(0球)`・`−(0回)` — `0%` とはしない。併記は「常に」の規定どおり。v2.6 追補: 文字種と併記の関係の確定)",
+      "source_text_digest": "7342635ee5df466928c82bdfa9fb946acb072592a6e6ec1abf8642f465f9143b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "91424827360fae4599a642b1944c1e62bed13516f7dbaeef5867cafa722bb27a"
+      "decision_digest": "3d19f30f2fc9f668e73f686095d26d04fe4c5ca838c1177f67c7444f79506356"
     },
     {
       "source_id": "APPENDIX-ITEM-A-1/list_item-003",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- 割合・率の表示には常に母数（球数・打数・回数）を併記する",
-      "source_text_digest": "f558f3d84f2c62ec3b0b19ef22a68f3618c19d37108925e5d82deb60dac1027d",
+      "source_text": "- 割合・率の表示には常に母数（球数・打数・回数）を併記する。**併記値の定義(v2.6 追補)**: **率(小数表示)= 分母値**を併記(例 `.333(30打数)`)/ **割合(百分率表示)= 分子の件数**を併記(例 `40%(12球)` — 12 球は当該球種の球数。本行の「母数」の語はこの併記値を指す)",
+      "source_text_digest": "aeb1bb5bf9c6eeefe3b92043bf444f861fb8205db5a399eb1b3b88732dee6162",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "34e9bdd75727f24232a5e5cdf378f661ebc9ae2d6bfadb8eac4db005dae284c1"
+      "decision_digest": "92311cb6e6f43b6270878e5353a0dd3cef009ca8b0c7e7816b037424980db7d5"
     },
     {
       "source_id": "APPENDIX-ITEM-A-1/list_item-004",
@@ -13304,11 +13324,11 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- シーズン通算の既定 = 当該年度（4/1〜翌3/31、試合日をJSTで判定）・全試合区分",
-      "source_text_digest": "7dfd3627301797f8a7d3088870f43eef00c058303ed11ab156bcaa84e4136133",
+      "source_text": "- シーズン通算の既定 = 当該年度（4/1〜翌3/31、試合日をJSTで判定）・全試合区分。**期間ラベル(FR-021 の「2026年度通算」等)の正 = この JST 年度導出**とし、ラベルは「{年度}年度通算」の合成で作る(年度 = 試合日から導出する構造化値。**`{年度}` の表示は fixed-decimal〔scale=0・先頭 0 あり・負号は共通既定〕を通してテンプレートへ差し込む** — `NumericValue` の直接差し込みは生成前検査で fail するため binding をここで与える。管理者管理の語彙にはしない — v2.6 追補・PO 裁定 2026-09-03)",
+      "source_text_digest": "e28b159120bca52b508a90c68d6f4bcee25154493735598d633b4932cfe25ff8",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "488ac7383cd175ec1cf54df8b2cac0b01ccc910b3c05a2e807812622be17a56d"
+      "decision_digest": "194c5c6b27fb229b7584416691788292ee78c9e3a10d9c75753d967b65e5bb9f"
     },
     {
       "source_id": "APPENDIX-ITEM-A-1/list_item-008",
@@ -13319,6 +13339,16 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "decision_digest": "c3e4ae3958d9f3270b60b7e6c98168321f4d799490ae7504098f84140a7aa00f"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-1/list_item-009",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-ITEM-A-1",
+      "source_text": "- **表示書式の共通規定**(v2.6 追補 — 各指標表の「表示書式」列が対象出力ごとの binding の正): **丸めは全対象で四捨五入**(round half up。**負値のちょうど中間値は絶対値で丸めて符号を戻す** — 例 scale=0 の `-1.5` → `-2`〔away from zero・日本語の「四捨五入」の通例と Python decimal の `ROUND_HALF_UP` に一致 — v2.6 追補〕。別方式を使う場合は当該行に明記する — 現時点で該当なし)/ **数字・小数点・`%`・括弧は半角**、単位・助数詞(「回」「球」等)は日本語 / **負値の符号は全対象で半角 `-`・正値に符号を付けない(既定 binding — 個別行での再指定は不要。fixed-decimal の負値符号はこの既定を継承する)**。負値が計算上発生し得る表示対象は**得失点差と FIP**。加えて **FR-002 の範囲外確認確定を経た入力値(球速等)由来の負値も排除されない**(妥当範囲はシステム設定値 — 付録C)。**いずれの対象でも表示は本既定に従い分岐せず、負値の表示検証は fixed-decimal の全対象を軸に取る**(ADR-003 D-11 の同値分割軸「正・負・0」と一致 — 対象の列挙で負値の発生可能性を制限しない・v2.6 追補)/ **先頭 0 の既定 = あり**(表示書式列に「先頭0なし」等の明記がある行はそれに従う。scale=0 の整数・百分率表示では出力に現れないが、宣言は常に値を持つ — 必須パラメータを表内で欠落させない・v2.6 追補)/ 0 除算の「−」(MINUS SIGN U+2212)は上記のとおり / **本規定と書式列は ADR-003 D-1 の宣言的表示規則(数値表示 primitive)で実装され、ベクタ比較面に完成表示値が載るのは、書式列を持つ指標(本付録の各表)と FR-022/023 の表示列**(NFR-019(a)・NFR-018)。**表外既定の数値(下記)は、書式列を持つ指標と同一の生成 formatter(fixed-decimal scale=0)を通すことを**生成前検査(言語既定の文字列化の禁止)・構成検査(ADR-003 (b)③ の表示対応の突合 — 迂回・非経由経路の検出を担う)・変異検査(formatter 自体の実効性)の 3 機構の分担で担保**し、状況判定ベクタの比較面は構造化状態のまま**(表示値を加えない — v2.6 追補・PO 裁定 2026-09-03)/ **本付録の表に書式列を持たない利用者可視の数値のうち、NFR-018 の対象計算の出力に現れるもの**(スコアボードの得点・カウント・打席番号・イニング等 — 状況判定・断中の前処理の出力。**対象集合の正 = 宣言モデルの schema が定める両計算の出力のうち利用者可視の数値フィールドの閉包**であり、本括弧の「等」の開いた列挙を正としない — ADR-003 D-8)**は整数の既定表示(固定小数 scale=0・負値の符号は共通既定〔半角 `-`〕に従う)とする** — これも ADR-003 ③の fixed-decimal を通し、言語既定の文字列化は用いない。**対象計算の出力でない数値(管理コンソールの設定値表示等)は本規定と ADR-003 の射程外**(NFR-018 の対象列挙を広げない — v2.6 追補)",
+      "source_text_digest": "0fac3880e9e06b4a7e4794c9ccf2309dae84afe63cccf42d755fe1f65711be8e",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "ea4942a5c536775fd330021005742618758b12d54bda74aac02113aac28e3408"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/heading-001",
@@ -13334,131 +13364,141 @@
       "source_id": "APPENDIX-ITEM-A-2/table_header-001",
       "source_kind": "table_header",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 指標 | 定義 |",
-      "source_text_digest": "c19c1957055f2c9b9f44f8b50bcfd8ca98e551f5d719f36faf6b9b7b5a78d560",
+      "source_text": "| 指標 | 定義 | 表示書式 |",
+      "source_text_digest": "0c0e0ffc305b1e44236765f03202d69d2a8c784a12d7af700c3e2a489e95e10b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "dcf39b8e16ebacc6dc32fe31624ce416688015078bdf247352a92edb7f1c70bd"
+      "decision_digest": "b95713545ba5642ee3c88230880426ed15b7f5c81f2ca53e26b95c38661cbc1b"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_delimiter-001",
       "source_kind": "table_delimiter",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "|------|------|",
-      "source_text_digest": "435518d5ceb86b23f723ee465acf1fff3d6c3d4d879f25309b8303ef457a2f05",
+      "source_text": "|------|------|------|",
+      "source_text_digest": "189b34a27696b74a83143de4f174791acaf17e7e5c56c0bbfc8cba944a6e4ec7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "8b28a7247a01987a5a9b7ea9c94641f1a4acdcef5c7af628df1320cc52ad4088"
+      "decision_digest": "b1c4818132369c5cd1f6c76d4e0953fec71a153c127b98a36a34627dce633df1"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-001",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 投球回 | アウト数÷3。1/3回単位で保持し「5回2/3」形式で表示。**振り逃げは結果で分かれる**——打者が生きた場合はアウトが増えず投球回に加算されない／一塁送球等でアウトになれば通常どおりアウト・投球回に加算（いずれも奪三振は計上 — 奪三振とアウトは独立に数える） |",
-      "source_text_digest": "621b3271fe15bb0c3da0640fda84c326cbd306ba2e21df78768abb910617de8d",
+      "source_text": "| 投球回 | アウト数÷3。1/3回単位で保持し「5回2/3」形式で表示。**振り逃げは結果で分かれる**——打者が生きた場合はアウトが増えず投球回に加算されない／一塁送球等でアウトになれば通常どおりアウト・投球回に加算（いずれも奪三振は計上 — 奪三振とアウトは独立に数える） | 混合分数(分母3・整数部に「回」・剰余0は分数を省略〔例 `5回`〕・分数は半角 `n/3`〔例 `5回2/3`〕) |",
+      "source_text_digest": "dd5a1b8ee78a459df8cf43e9aaaf0c46606c6a5917ad7e6882c6e0f123ccb34a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "73cf369208b590d42d4cf27bb2b4afb3e5af2d225b6fb24c8838c050def02179"
+      "decision_digest": "52af0067ba13650b2a191c84cba2a355951e1083757cfa7882fb351e30830e0b"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-002",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 投球数 | 記録された投球イベント数 |",
-      "source_text_digest": "1b1de2375371f9fc5adaec44abdc0613a7938198242833558b36345dc09077df",
+      "source_text": "| 投球数 | 記録された投球イベント数 | 整数 |",
+      "source_text_digest": "1227bbd773fb3cadf0c0521650c830405126d6823d90a9e3d0e9ed50b90f1f8b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "53890902c47a412c7d2713837fa58ca661ef1a808837466e792ad386d9092de1"
+      "decision_digest": "a70a39f5985e420d921436493705b4467881797f51de64c1a87aac231f2c4d04"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-003",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 奪三振 | 打撃結果が三振系のすべてを計上する: 見逃し三振・空振り三振・**振り逃げ（打者が出塁しても投手に奪三振1）**・スリーバント失敗・三振ゲッツー |",
-      "source_text_digest": "06bb8ad61591d8a24fe4ccbb6862968e66819d0087cfd5dc1cda6aa3990c9b20",
+      "source_text": "| 奪三振 | 打撃結果が三振系のすべてを計上する: 見逃し三振・空振り三振・**振り逃げ（打者が出塁しても投手に奪三振1）**・スリーバント失敗・三振ゲッツー | 整数 |",
+      "source_text_digest": "a3c7d7fa04152ffb66ebf412d52319489c66153333a99add1275d0dfc2343cd3",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "8f69c20e93a805d602685a61c9823fc3247d4095a285008322b1f606e94dfb18"
+      "decision_digest": "8ccf4134c7531cfb3c1fd34f35a1a13eb97a44ab3f20f6f558d9df755de9647c"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-004",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 与四球 | 四球（**申告敬遠を含む**）。与死球は別掲 |",
-      "source_text_digest": "5bdd572c9b7668a61c0c2a2bb11b9cd4c8c77b69d46e9d12f6c90267da6df914",
+      "source_text": "| 与四球 | 四球（**申告敬遠を含む**）。与死球は別掲 | 整数 |",
+      "source_text_digest": "3243bc8ef1d0631d8dd2341f36ba45b111719af1ae6213bbe872f3a6481312ed",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "02e4c54bf710b4ecc6ee51d71b4a0f591e3329c20c70c16b95ac88ff75a0d482"
+      "decision_digest": "2ab363edf7d4f18facda4c588b48bca49f4b1168080d0c5ac41a2f682bfdc0e8"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-005",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 与死球 | 死球 |",
-      "source_text_digest": "5eff6c58cf30c6bd96b45e4410f4b8f851ee5ba6e36b58f527429ec86354f817",
+      "source_text": "| 与死球 | 死球 | 整数 |",
+      "source_text_digest": "6cd2ea7e82a8bb5cde3f0d60705b700bf22afe6135821c00e7990b4514bf4c2d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3e0a47a998d26ead2ce684a69116b6996001a8ed318c28b09360916d9592f441"
+      "decision_digest": "69af75ec23be835aae305afdcc495d5d9e7500b653a788a385436d01ac515cd4"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-006",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 被本塁打 | 打撃結果=本塁打 |",
-      "source_text_digest": "b0a41640bbae848e8d08232b25f3d412d5fd9e7a52e407a0ddb4fa3fd13849dd",
+      "source_text": "| 被安打 | 当該投手の投球中に相手打者へ記録された安打の合計。**安打 = 打撃結果が単打・二塁打・三塁打・本塁打のいずれか(FR-022 の「安打種別」)**(v2.6 追補 — FR-021/FR-038 が参照し被打率・WHIP の入力となる定義の欠落の是正・PO スコープ裁定 2026-09-03) | 整数 |",
+      "source_text_digest": "238ad48817d0f10a713a45f509fbfed7e12e7e2e50497c377e55f5369d4c3124",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "1902e4d051fc6e7e6d74b187549e90bd87664029174539d9c8c154dccd97412e"
+      "decision_digest": "583fbc26d2fbe8d2d1d3b3e3b95e911678545b71cf6a008a92f29aa67df07116"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-007",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 被打率 | 被安打 ÷ 被打数（打数の定義はA-3打者と同一） |",
-      "source_text_digest": "b19df973cb77e70a87b3b0f2d46517c6d9e985d20e021824e2bd761ab2ba1409",
+      "source_text": "| 被本塁打 | 打撃結果=本塁打 | 整数 |",
+      "source_text_digest": "68b8b35ff19f3fb7441fc27280c1cca711cf312c37ecbecd64deb7dd904324c2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "7ade41c43c53ae47676633c57e1463a93696fcec2fd31474574e844e7a49559c"
+      "decision_digest": "4b2191672ee6212b63135c3327dc4cbf6c204ae636bef6a72313ae2ab8e20a55"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-008",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| WHIP | (被安打 + 与四球) ÷ 投球回（与死球は含めない） |",
-      "source_text_digest": "9f8197e76e1034215a26577ccdf52c8d764c7cb534322d8e4be2eb3786a980e5",
+      "source_text": "| 被打率 | 被安打 ÷ 被打数（打数の定義はA-3打者と同一） | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({被打数}打数)` |",
+      "source_text_digest": "ecd0a9dd276e604adba0a00a4cadfb664cec790d9691ed40dced58de9ff822e7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4dd66941a620605a85844dd51c9fd5d1d0c3b3fe5833b0b34d05af02d6d929a6"
+      "decision_digest": "dc6e64d102a278c276bcf8a3c2bcef62ee461b2f30154775c7de324b46f334b1"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-009",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| FIP | (13×被本塁打 + 3×(与四球+与死球) − 2×奪三振) ÷ 投球回 + 定数（既定3.10・システム設定値）。**本システム内での相対比較用**であり、プロの防御率水準と直接比較できない旨を画面に注記する（v2.0: FR-041 の共同分析グループでチーム合算FIPを共有するため、比較の射程は自チーム内に限らない。定数が同一で計算式が本付録に固定されている範囲での相対比較という位置づけは変わらない） |",
-      "source_text_digest": "b269323df60de02c2df8bcc55d3d3380fc8e85669035497ae212f82f2c919022",
+      "source_text": "| WHIP | (被安打 + 与四球) ÷ 投球回（与死球は含めない） | 小数2桁・四捨五入・**先頭0あり**(例 `1.25`・`0.98`)+ 母数併記 `({投球回})`(投球回は混合分数形式 — 例 `(45回1/3)`) |",
+      "source_text_digest": "29768150f2be010ede5fea52ef2640e7c6e9f1d91717bbbd0609e49717b4e794",
       "classification": "out_of_scope",
-      "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
-      "decision_digest": "31e7995266ee1e9c6ff2da0c37a180e60aa43764e29c16d7de5acebc6911fdf2"
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "b32194c946665ee3d3dbfebd8420fa15046dca9ac032dde0408a5cec9d5e0bf6"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-010",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 失点 | **その走者を出塁させた投手（責任投手）に帰属**する（公認規則準拠。「得点時に登板していた投手」ではない——継投時、先発が残した走者を救援が返した場合は先発の失点）。自責点は算出しない=防御率はWon't |",
-      "source_text_digest": "d0e9ceac4ee15bd65e7c95a2f5471c2edd6642acfa6ecf81aaefae92a6089a37",
+      "source_text": "| FIP | (13×被本塁打 + 3×(与四球+与死球) − 2×奪三振) ÷ 投球回 + 定数（既定3.10・システム設定値）。**本システム内での相対比較用**であり、プロの防御率水準と直接比較できない旨を画面に注記する（v2.0: FR-041 の共同分析グループでチーム合算FIPを共有するため、比較の射程は自チーム内に限らない。定数が同一で計算式が本付録に固定されている範囲での相対比較という位置づけは変わらない） | 小数2桁・四捨五入・**先頭0あり**(例 `3.10`)・**負値は半角 `-`**(FIP は定義上負値を取り得る)+ 母数併記 `({投球回})`(混合分数形式) |",
+      "source_text_digest": "f4819d59e3494f8f4196a16f7a40ef692f2ff6bc628d21270856f033502e0da1",
       "classification": "out_of_scope",
-      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4c67190bf509460e049b490577dccc0891f4f198e0d8756abd1be69e4cbcd1ce"
+      "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
+      "decision_digest": "0642530b2cde48c3b4362e675a1ca4e09ebc69a44a9770e1a3cdce182cff81de"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/table_row-011",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2",
-      "source_text": "| 最速・平均球速 | 記録された入力値の最大・平均。**範囲外警告に対し確認の上確定された値も含める**（確認＝操作者が「本物」と宣言した値を集計が信じないのは操作の意味の裏切りになるため）。未入力（欠損）のみ除外 |",
-      "source_text_digest": "f3ca9bef8e755aef4bfac4f5895d30aafb4e9492068bd9d7e346666c53aed933",
+      "source_text": "| 失点 | **その走者を出塁させた投手（責任投手）に帰属**する（公認規則準拠。「得点時に登板していた投手」ではない——継投時、先発が残した走者を救援が返した場合は先発の失点）。自責点は算出しない=防御率はWon't | 整数 |",
+      "source_text_digest": "5be9d18282b817ebc9f41ecacbee47d38702e850c41f6ab9a24d66edb724c623",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "bf3fcf7abe7f1e4d5f014e2b3d0d54e6dd5cbdfbb6597d2de960298ebaa46424"
+      "decision_digest": "f0bc941cc1b97945cfb7971a4b0ccc3ff652ff3fc22647475909c514d9c12931"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-2/table_row-012",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-A-2",
+      "source_text": "| 最速・平均球速 | 記録された入力値の最大・平均。**範囲外警告に対し確認の上確定された値も含める**（確認＝操作者が「本物」と宣言した値を集計が信じないのは操作の意味の裏切りになるため）。未入力（欠損）のみ除外 | 最速 = 整数 / 平均 = 小数1桁・四捨五入・先頭0あり。**単位 km/h は完成表示値に含めない**(画面側の見出し・軸ラベルの担当 — v2.6 追補・PO 裁定 2026-09-03。球速分布のビンラベルのみ template `{下端}km/h` が明示的に単位を含む) |",
+      "source_text_digest": "fb60917265b065156157b623cd62b15b623f3287e0553305b63a3921ead9683f",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "f8d2906226d2903ac198af704f03be98093c0ee2e3a5dfa5d7f33735cbed1c9c"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/paragraph-001",
@@ -13484,71 +13524,71 @@
       "source_id": "APPENDIX-ITEM-A-2b/table_header-001",
       "source_kind": "table_header",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| チャート | 定義 |",
-      "source_text_digest": "fbe26d375f0f4c9356153a16c8c82ef5cd770ae0e87e7f164fab4c494dce95bd",
+      "source_text": "| チャート | 定義 | 表示書式 |",
+      "source_text_digest": "7f0fd69990f0bcbfa4e53d161a46a4664915ea6198951fffdf186e8551166d63",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "061e13eb46bf406ddbb3c06ec91b759d3093076f573177e3ec6c185c927b93cf"
+      "decision_digest": "bca51b32f9b8c80c204b86257eecbabf01bca5813749795b11a7087e2047235d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_delimiter-001",
       "source_kind": "table_delimiter",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "|---------|------|",
-      "source_text_digest": "12c6daad56d326ff08b3191d04dabf2623c40fe359a568e3c223cf287ac527ec",
+      "source_text": "|---------|------|------|",
+      "source_text_digest": "041afa195644941163ebe2070bbf01e9d90f3cfef02a5dd88c3733e5aae1d62d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "8ee2ff301b01672f3e6d2df14c84fad5ca5f256681265c622f1934f903a00873"
+      "decision_digest": "c646ee7d0aefe73173163f1e88c702aadd589840a308695ef142711dea634d1d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_row-001",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| コース分布 | 全投球の付録B座標を対象（結果球に限らない）。密度表示またはゾーン区画別カウント。母数（球数）併記 |",
-      "source_text_digest": "1b538d2b662a4a594debfd7830ec3bee970d7c4a6a6d132686c5176118fda841",
+      "source_text": "| コース分布 | 全投球の付録B座標を対象（結果球に限らない）。密度表示またはゾーン区画別カウント。母数（球数）併記 | ゾーン区画別カウント = 整数(度数)/ 母数(球数)= 整数(v2.6 追補 — 密度表示の色階調は UI 層で binding の対象外) |",
+      "source_text_digest": "0a0eeb8063720125cdb66be76debf57637ccdf08ec66cafaa09f01fbb93db18f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "424cd6370d543c4fc88261941cf3403f6f4ed6a6888d10ed2775a3d3e0252e4f"
+      "decision_digest": "b1411195d1859ffe3cdb95f89b74e88545e9e1069c4d12015c407bc8606bdbe3"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_row-002",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| 球種割合 | 球種別の投球数と割合。系統属性（4.0-3）でのグループ表示可。割合+球数併記 |",
-      "source_text_digest": "b6552b8f6a62aab9915f3f43dcbb57ecb022e8388a0e24636b04cd9a3d2b4394",
+      "source_text": "| 球種割合 | 球種別の投球数と割合。系統属性（4.0-3）でのグループ表示可。割合+球数併記 | 割合 = 百分率・整数・四捨五入(例 `40%`)+ 母数併記の合成 `{割合}({球数}球)`(例 `40%(12球)`)。`%`・括弧は半角 |",
+      "source_text_digest": "a55f2d902250f3f2a8f488ca73afa3dc51eb6edcb40f662b1b0c4a0ecef33c9c",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
-      "decision_digest": "d2d075c1ddb88c48924ffef7a79af8ed599553656f104ab59b0f178e95ee4c6e"
+      "decision_digest": "8d97f8b6e3c77ef5961e6ddfd67b9174464f29931eb573fa5fdcf0b23969926d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_row-003",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| 球速分布 | 球速入力のある投球を対象。ビン幅は**1km/h**（2026-07-22確定）。球種・系統での絞り込み可 |",
-      "source_text_digest": "61869fce869aac2086e4cf5a0e4447e4207aca25421f09f21ee12b7b09e6d382",
+      "source_text": "| 球速分布 | 球速入力のある投球を対象。ビン幅は**1km/h**（2026-07-22確定）。球種・系統での絞り込み可 | 度数 = 整数。**ビンラベルはビン下端の構造化整数値(km/h)+ テンプレート合成 `{下端}km/h`**(enum 写像は用いない — 1km/h ビンは有限 enum で閉じないため) |",
+      "source_text_digest": "e9ba141984c310396ddaa2d1f1e895527b9cd8bc5b8bfdce8186e8e7cb1a2514",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "416d9054a1eec7d805cd49f9ad526039cd33e9eb0d901ab195feb11cfab99f5c"
+      "decision_digest": "28e383da00d28da965674d2cd60311e75017659d6d37662d0ef8ce3d87a0c714"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_row-004",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| 球速推移 | 試合日別の平均球速・最速の時系列（FR-025の「球速推移」の定義） |",
-      "source_text_digest": "550635fbd187e4de8858d27cdaa359f62cae89f5f3c140134521245dc81abb7c",
+      "source_text": "| 球速推移 | 試合日別の平均球速・最速の時系列（FR-025の「球速推移」の定義） | 平均 = 小数1桁・四捨五入・先頭0あり / 最速 = 整数。単位 km/h は完成表示値に含めない(A-2 の最速・平均球速と同じ) |",
+      "source_text_digest": "62db832e8e747c0792049f01bf23447bd030ee5b1627abb644d4cf5af8f9be30",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "89cbddff9d9d4e8a60dc9beb9407c6d4ce39379f7689a514aadb286a32937173"
+      "decision_digest": "bb47ab2734e84e740036b496d10ba9f34b0d28daf9c935d94732b53b9275d51d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2b/table_row-005",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-2b",
-      "source_text": "| 被打球分布 | 被打球（インプレー打球）の付録B座標の散布。打球タイプ・強度での絞り込み可 |",
-      "source_text_digest": "6f26a3836efab58a9588749a9d9bf05918f291216669e33ae3fb8f8bb5460a39",
+      "source_text": "| 被打球分布 | 被打球（インプレー打球）の付録B座標の散布。打球タイプ・強度での絞り込み可 | —(座標散布 — 数値の表示書式なし) |",
+      "source_text_digest": "523cf5188058106f78811f220c94e5cc3e0712b4f745641a2415f9c32cb872f1",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "21df9486fed1e2efd6d9814010a34d06cc871bb2c57065da65026d02467c7388"
+      "decision_digest": "8fb819a979d99d1a0d19ec1ff36688461419ba2c5f7c2288492c37f9646c2d8d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/heading-001",
@@ -13564,81 +13604,91 @@
       "source_id": "APPENDIX-ITEM-A-3/table_header-001",
       "source_kind": "table_header",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 指標 | 定義 |",
-      "source_text_digest": "c19c1957055f2c9b9f44f8b50bcfd8ca98e551f5d719f36faf6b9b7b5a78d560",
+      "source_text": "| 指標 | 定義 | 表示書式 |",
+      "source_text_digest": "0c0e0ffc305b1e44236765f03202d69d2a8c784a12d7af700c3e2a489e95e10b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "77d2788bc7785e166cb55b0cd1e90a23708ea753b1bce54b8344eeb02966c5c2"
+      "decision_digest": "9fd4013c29057cc92b0329c43e591af052921712df839c2651a06cf9b7b72efc"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_delimiter-001",
       "source_kind": "table_delimiter",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "|------|------|",
-      "source_text_digest": "435518d5ceb86b23f723ee465acf1fff3d6c3d4d879f25309b8303ef457a2f05",
+      "source_text": "|------|------|------|",
+      "source_text_digest": "189b34a27696b74a83143de4f174791acaf17e7e5c56c0bbfc8cba944a6e4ec7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "9f8b2aaffde1f608d9bab6f48249bb0d213c9e24ee84031ddf9ae61abf6cbb2e"
+      "decision_digest": "9016c32c92c83f532e08daa32abf9be944b7c02d1255950eb5bd47c4e3614b81"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-001",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 打数 | 打席 −（四球+死球+犠打+犠飛+打撃妨害・走塁妨害による出塁） |",
-      "source_text_digest": "850b46ef5363e932cd2e0c090236347cf069cddfa2ecbb226dc5f5fdd7b08df4",
+      "source_text": "| 打数 | 打席 −（四球+死球+犠打+犠飛+打撃妨害・走塁妨害による出塁） | 整数 |",
+      "source_text_digest": "504b9d388b4571277fe1f1e334f16947f29bfdf62a247f368c46498a8ab7014f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a0cfedf5bd3cad85385e222caa214621129603399831a7a058185d4e3c861207"
+      "decision_digest": "d41cb099c6859a40fdbadb1eb52c088bd616284cfe8848d5fb4636010acfad09"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-002",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 打率 | 安打 ÷ 打数 |",
-      "source_text_digest": "0e57bd2796becbee94784556acfa2f7cbac78bd70801411ec4e2328cf939ddfa",
+      "source_text": "| 本塁打 | 打撃結果=本塁打（v2.6 追補 — FR-022 のシーズン通算・FR-038 の移行検証が参照する打者側本塁打数の行が本表に無かった穴の是正。被本塁打〔A-2〕の対称） | 整数 |",
+      "source_text_digest": "0dd97b25dd323b288a719c5a28a8f4b500bed700bc5a4995f0c59031e66687aa",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "911ffb0b966dbcc1f6dfe3736a00f790215bb1abcd8a7e84f9dbd11a03d76172"
+      "decision_digest": "8bd863f0687fb2d47e2238de5a58b064d9cf2c6426625ab2bfef796d57452261"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-003",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 出塁率 | (安打+四球+死球) ÷ (打数+四球+死球+犠飛) |",
-      "source_text_digest": "3e09969d417838132d719dfff63b21cc8c30de55f7d8a2f5c614aca707a46283",
+      "source_text": "| 打率 | 安打 ÷ 打数 | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({打数}打数)`(A-1・template 合成) |",
+      "source_text_digest": "afd67ef018792372f2d07306b9edd36097900031ee4303f6a3f95b4663baa5e7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "f92083a9740b2d67e3a6cf6e331ec0db4a899d5ae3c2aef1be4c822580edc9bc"
+      "decision_digest": "f9d8b87a910fda51e16f22c2e2a3196c949bc28a13e007695dbc4020d472c773"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-004",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 長打率 | 塁打 ÷ 打数 |",
-      "source_text_digest": "d7c0756acc342fbea150e800e6cb7e84a6c647dbfd658a547df048017f547508",
+      "source_text": "| 出塁率 | (安打+四球+死球) ÷ (打数+四球+死球+犠飛) | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({定義分母値}打席)`(分母は定義どおり・単位語は「打席」) |",
+      "source_text_digest": "aaef10012875c9db82ee44c922c692872238085d082eddedcf94d9e80b31a302",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d384291747d8218da33972640148c41c43e492d675ea49e4b73adb5c75a09e50"
+      "decision_digest": "a50c17141756a7411769b33e59e5faebfc86f59ab8be0cb103574f2062870eb7"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-005",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| コース別打率マップ | ゾーン区画ごとに結果球ベースで打数・安打を集計（各ゾーンに打数併記） |",
-      "source_text_digest": "8bc8ffa560064bfd4071b8cb9a5fe09274a42bfb9cbdf6af06296afea8b2d92c",
+      "source_text": "| 長打率 | 塁打 ÷ 打数 | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({打数}打数)` |",
+      "source_text_digest": "d013899cd144eb874a584a7bc5b6243e0778966069b1c44c3c26ce8dcf116a69",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "e64b514ae258fb70d38c851e57199262445f62a1941a46b5dd21910da02015c5"
+      "decision_digest": "d44e39e040b2b8bdd214232213f6c8e179a3f08d7de4e495eb3c8819dcd62b8a"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3/table_row-006",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-3",
-      "source_text": "| 打球方向 | インプレー打球の付録B座標から、左翼線〜右翼線を**等角5分割（レフト／左中間／センター／右中間／ライト）**に分類（2026-07-22確定。物理方向で保存し、打者相対の「引っ張り/流し」は打席左右との組み合わせで導出。区分角はB-6の領域シードで定義）。散布図表示は座標そのまま |",
-      "source_text_digest": "3d8dee1ee8209a0e01317382dcc02fe1d1db04f17b2220b2a1918a4e4e53136d",
+      "source_text": "| コース別打率マップ | ゾーン区画ごとに結果球ベースで打数・安打を集計（各ゾーンに打数併記） | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 各ゾーンに母数併記 `({打数}打数)` |",
+      "source_text_digest": "9a3ac18fd8ed99ea53baa812a4c503aedc1ce61869592e45b108bfe87f498203",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ef11c92d34c5586b9c791624423c17c207d8770b253c4b56f000599df6cdb2b9"
+      "decision_digest": "789bc4638751834450a099cac4ba16569d826e38cd965eb29ad96986c30be505"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-3/table_row-007",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-A-3",
+      "source_text": "| 打球方向 | インプレー打球の付録B座標から、左翼線〜右翼線を**等角5分割（レフト／左中間／センター／右中間／ライト）**に分類（2026-07-22確定。物理方向で保存し、打者相対の「引っ張り/流し」は打席左右との組み合わせで導出。区分角はB-6の領域シードで定義）。散布図表示は座標そのまま | —(区分は enum 写像・散布は座標のまま) |",
+      "source_text_digest": "5d54d690d4055970dcea55e545df661358fdafb1612302370eca0f181807e87f",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "4ecccea3f9907df44b25454751e6356806f402933e91c17c2724e91386a4683d"
     },
     {
       "source_id": "APPENDIX-ITEM-A-3b/heading-001",
@@ -13781,6 +13831,56 @@
       "decision_digest": "0ec08e09c2f20344974231cb6cb696cb70ff3f09660d2b454b2d92e84967e818"
     },
     {
+      "source_id": "APPENDIX-ITEM-A-4/blockquote-002",
+      "source_kind": "blockquote",
+      "source_heading_id": "APPENDIX-ITEM-A-4",
+      "source_text": ">",
+      "source_text_digest": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "3ea11ce3f0ca95b560f8ba8040f8d74c413968e8469f16316479069ced193410"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-4/paragraph-001",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-A-4",
+      "source_text": "**A-4 の指標(v2.6 追補 — PO 裁定 2026-09-03 で射程に追加。本表の「表示書式」列が binding の正 — A-1 の共通規定・D-10 の被覆対象)**:",
+      "source_text_digest": "6050537ab2b90318a7de32b1c24b4ecf13caf52b42c802854b392f5591388033",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "e62eeac630a69766bf6c6abcd462086370123e5721905d2b98653a0ff2e696d2"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-4/table_header-002",
+      "source_kind": "table_header",
+      "source_heading_id": "APPENDIX-ITEM-A-4",
+      "source_text": "| 指標 | 定義 | 表示書式 |",
+      "source_text_digest": "0c0e0ffc305b1e44236765f03202d69d2a8c784a12d7af700c3e2a489e95e10b",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "3cc3deb35ce8b1c2a11ebe549a712bcd0e23d27d3ecabd60410c8319160dc309"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-4/table_delimiter-002",
+      "source_kind": "table_delimiter",
+      "source_heading_id": "APPENDIX-ITEM-A-4",
+      "source_text": "|------|------|----------|",
+      "source_text_digest": "19131278db2360715f0705f384d905187b3f99460894b7e69da4ad8e315bdcc4",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "9336a10d14134ec4d3c10ef53d7dcea1406789aac8675dab078b02d807185770"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-4/table_row-007",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-A-4",
+      "source_text": "| 状況別割合 | FR-027 の**状況別割合 = 当該走者状況における当該作戦の実施回数 ÷ 当該状況の作戦実施総数** | **百分率・整数・四捨五入 + 実施回数併記 `({当該作戦の実施回数}回)`**(A-2b 球種割合「40%(12球)」と同型 — 併記値は分子) |",
+      "source_text_digest": "0dd467b544e447707a8af2e8a41a8e9bd4a6a52c57d912f35ec584947f62b077",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "bd3c9e5ad7f968ff7c0e51a5bb77c3db5fa5974f0b6764e45929e73c069c4452"
+    },
+    {
       "source_id": "APPENDIX-ITEM-A-4/thematic_break-001",
       "source_kind": "thematic_break",
       "source_heading_id": "APPENDIX-ITEM-A-4",
@@ -13863,101 +13963,101 @@
       "source_id": "APPENDIX-ITEM-A-5/table_header-001",
       "source_kind": "table_header",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| 指標 | 定義 |",
-      "source_text_digest": "c19c1957055f2c9b9f44f8b50bcfd8ca98e551f5d719f36faf6b9b7b5a78d560",
+      "source_text": "| 指標 | 定義 | 表示書式 |",
+      "source_text_digest": "0c0e0ffc305b1e44236765f03202d69d2a8c784a12d7af700c3e2a489e95e10b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "58abeedcaf837158d17c58206d4fd1156130876b592e01133ca6678437748068"
+      "decision_digest": "5c86e0b88d7675b5ac95f40a93f3a6c755e9d3a47172cdb199e565191036b4cc"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_delimiter-001",
       "source_kind": "table_delimiter",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "|------|------|",
-      "source_text_digest": "435518d5ceb86b23f723ee465acf1fff3d6c3d4d879f25309b8303ef457a2f05",
+      "source_text": "|------|------|------|",
+      "source_text_digest": "189b34a27696b74a83143de4f174791acaf17e7e5c56c0bbfc8cba944a6e4ec7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
-      "decision_digest": "9c41f42457fdb33a337d840d335fde720c84cde26eb861e3508068acf902b66b"
+      "decision_digest": "24beaf01a61e352ad326a52f019fb28c7d90ffed804b4e00ea3408939ced3a47"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-001",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| 試合数 | 対象期間の終了済み試合数 |",
-      "source_text_digest": "9e5430f832d517cebf2ab38e1758b5df1cae404c55b6b1520157c8d99d5315a4",
+      "source_text": "| 試合数 | 対象期間の終了済み試合数 | 整数 |",
+      "source_text_digest": "24b7d51854ad99ea4ea5fb2ebde3d92d27085ea8779d78ec0029e6c3f007621f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "84d6a861160011c6b5ac696401bbc8bed7af585d4a643f09153d3249b50991fc"
+      "decision_digest": "9d8164878044f5188aebc61b1314fd8650a64d12f6c7aa751075af7d0992a467"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-002",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| 勝 / 敗 / 分 | 最終スコアの比較による。**引き分けは分**。コールド・タイブレークで終了した試合も最終スコアで判定する |",
-      "source_text_digest": "10f10a41c7b807c7b4a21299a50c19b87a673c383a34e3c32b58c7fa17737ad2",
+      "source_text": "| 勝 / 敗 / 分 | 最終スコアの比較による。**引き分けは分**。コールド・タイブレークで終了した試合も最終スコアで判定する | 整数 |",
+      "source_text_digest": "077c518ffd454fa48b25eb8afd8af1b50bb46cad6a4fe614e45778fa6f279fda",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "8729314db3d4c2eef70601cebba4c1e6182eb76e45d2faf1169a40aa818817f2"
+      "decision_digest": "e9c170fe739f8ce3bbe3deefe616ad89b6bcf31f349b4293a3065929aed15e69"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-003",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| 得点 / 失点 | 対象試合の合計 |",
-      "source_text_digest": "ca3273e00c103616a219cb84a58fe746979217ae27129a688b4ef56aba8ef6f5",
+      "source_text": "| 得点 / 失点 | 対象試合の合計 | 整数 |",
+      "source_text_digest": "aece14494e7145d2064af05d6c59d5199864ed61045d67e6588d9a615435d8f3",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "5d1dc4d24b2a7f52037b6dde17905657031d49cad51533bceed9d2427dfb2dcd"
+      "decision_digest": "afba05562ca1ea571c231d93476c98e8c5d74f9efcf6e465bea880376fd1fbb8"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-004",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| 得失点差 | 得点 − 失点 |",
-      "source_text_digest": "836a86b607b33705d6351db578ab96caaa85026fc1f364b7fe6decca10921dcd",
+      "source_text": "| 得失点差 | 得点 − 失点 | 整数・負値は半角 `-`(例 `-3`)・正値に符号を付けない |",
+      "source_text_digest": "efc4b5852a58af4586f95332381a9cc2be3bfe1733e2a188dff898d466fb88c2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "5eb93c3e543f59770a91f9d5d9b21d219c869bb50cf81cd5a37d49aa4db4bf8d"
+      "decision_digest": "0a5a617fb7c6eb45f0d6fdaee991e5fefeffa16f8992e34c8e4c64e42cb902d7"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-005",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| チーム打率 | **通算の分子分母で算出**する（試合ごとの打率を平均しない）。安打合計 ÷ 打数合計。打数の定義は A-3 と同一 |",
-      "source_text_digest": "421fb7dc13aa28b7f3186137f50d7f0dde30b4f1f5bd4c228f89c56d8dd0e770",
+      "source_text": "| チーム打率 | **通算の分子分母で算出**する（試合ごとの打率を平均しない）。安打合計 ÷ 打数合計。打数の定義は A-3 と同一 | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({打数合計}打数)` |",
+      "source_text_digest": "44098a45ddbc4d63a2d05be607ead51586f8ab5750b88441d42ef9ba03d8e58a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "59bfbde47eaae6be63b01b6202b60fec9bd6a94d857685dabc334cbd67565d37"
+      "decision_digest": "fbd2e6e17f2a5b465335aeeacf0b9280b641ccc844cb03a4b0777adeb4274dda"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-006",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| チーム出塁率 | 同上。定義は A-3 と同一 |",
-      "source_text_digest": "cce62bf0b8808ba086469ece7fe35338a5eb6d050bdee7fc7094cc8194d644b5",
+      "source_text": "| チーム出塁率 | 同上。定義は A-3 と同一 | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({定義分母値}打席)` |",
+      "source_text_digest": "3327c73aff3bc5c65e700212bb11bcdf5f35de42a2dc32438c1aeb0a60375130",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "c6ef80ade09002f1af21ba3f79ac14280555fd61bdeae88f48cf1c9542fa9570"
+      "decision_digest": "9aad9bee1bb7358846c91d881da4d6f186ee2bd812081b40109d08d1fae03cd6"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-007",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| チーム長打率 | 同上。定義は A-3 と同一 |",
-      "source_text_digest": "e901bfca88a7576e73207c46ba894ffdfaa886ed7b44c431e771cdac7f74ddc3",
+      "source_text": "| チーム長打率 | 同上。定義は A-3 と同一 | 小数3桁・四捨五入・先頭0なし(例 `.333`) + 母数併記 `({打数合計}打数)` |",
+      "source_text_digest": "90b5008e8865c207fdfc46594dea6d0340aa79af7d07d61a613ccf59c2682464",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b7d17d708731b57eb65796ffad05ddcb9236d93638fd586babb7decd6029836f"
+      "decision_digest": "5edf9fd72e872be5d179c37bf8586b7633d9763c0c27b148946cfc4398f49e86"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/table_row-008",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-A-5",
-      "source_text": "| イニング別得点・失点 | イニングごとの**合計得点・失点と、そのイニングを戦った試合数**を併記する（平均ではなく合計+母数）。**延長回は「10回以降」として1つにまとめる**（タイブレークの有無で回の意味が変わるため、回ごとに分けない） |",
-      "source_text_digest": "edb0346645126fcb044b3ebe3a00bd71d079fe52c157c1c8bf762736e0eb3281",
+      "source_text": "| イニング別得点・失点 | イニングごとの**合計得点・失点と、そのイニングを戦った試合数**を併記する（平均ではなく合計+母数）。**延長回は「10回以降」として1つにまとめる**（タイブレークの有無で回の意味が変わるため、回ごとに分けない） | 得点・失点・試合数 = 整数。「10回以降」の区分は構造化値(ラベルは写像) |",
+      "source_text_digest": "00db6df7491420c82bc1ffbc97dcfe21a17ee39d045273bc3de20065656b67c6",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "00dc4667e2b9be3e5bfc2bf21b77330c0810c3a1bf4e3cf598e53bf2dff1624a"
+      "decision_digest": "4549069685043b92cfa58b13a0675098816990c93d25277d6cc1ef2519c9fb16"
     },
     {
       "source_id": "APPENDIX-ITEM-A-5/blockquote-002",
