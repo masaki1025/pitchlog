@@ -30,31 +30,41 @@
     "AUTH_ACCESS_SCOPE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_OPERATION_PERMISSION": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_PRINCIPAL_STATE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_REVOCATION_CACHE": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "AUTH_VERIFICATION": {
       "classification": "auth_claim",
       "allowed_source_kinds": [],
-      "allowed_heading_ids": [],
+      "allowed_heading_ids": [
+        "FR-900"
+      ],
       "forbidden_source_text_patterns": []
     },
     "OUT_AUTHZ_CONTEXT_ONLY": {
@@ -140,6 +150,12 @@
     }
   },
   "basis_rules": {
+    "CACHE_ACCESS_SCOPE": {
+      "location": "cache",
+      "allowed_classification_rule_ids": [
+        "AUTH_ACCESS_SCOPE"
+      ]
+    },
     "CACHE_PRINCIPAL_STATE_ENTRY": {
       "location": "cache",
       "allowed_classification_rule_ids": [
@@ -265,6 +281,13 @@
       "source_text_digest": "962268e8899ce4a16b6f32486605b3f474f2013b247f87319e2d6b12a1653545",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+      "closed_world": {
+        "universe_kind": "operation",
+        "member_source_ids": [
+          "FR-900/list_item-001"
+        ],
+        "default_disposition": "deny"
+      },
       "layer": "operation_authorization",
       "decidable_at": [
         {
@@ -284,7 +307,7 @@
           "basis_rule_id": "HTTP_OPERATION_GATE"
         }
       ],
-      "decision_digest": "3fa303844d6d3166f35ad5e3255e16f3c4898ae00c3e40d8f8143ae7a78820f8"
+      "decision_digest": "83826a4c94ecaf11b676db1e4a4d481f3226da7f6dc4d4ffae4735bda3c77895"
     },
     {
       "source_id": "FR-900/table_header-001",
@@ -331,9 +354,17 @@
             "status": "planned"
           },
           "basis_rule_id": "HTTP_RESPONSE_VISIBILITY"
+        },
+        {
+          "location": "cache",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.cache",
+            "status": "planned"
+          },
+          "basis_rule_id": "CACHE_ACCESS_SCOPE"
         }
       ],
-      "decision_digest": "ebb6dbc65065790525ee5183d66a6d58893198afd450b10e5b81ec0622eec454"
+      "decision_digest": "1658539911c2a85dcdc1d30b16ffe0754a732ae154f5f6c04047f64368f5356d"
     },
     {
       "source_id": "SECTION-2/heading-001",

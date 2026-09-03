@@ -1,0 +1,51 @@
+{
+  "source_id": "FR-900/table_row-001",
+  "source_kind": "table_row",
+  "source_heading_id": "FR-900",
+  "source_text": "| 監査ログ | 管理者 |",
+  "source_text_digest": "9cb22b135a2cb3317f2b59223f9edca164018f8e7b4b4ef5968ff7b0eb174ecc",
+  "classification": "auth_claim",
+  "classification_rule_id": "AUTH_ACCESS_SCOPE",
+  "atomic_claims": [
+    {
+      "atomic_id": "FR-900/table_row-001#row-policy",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_ACCESS_SCOPE",
+      "layer": "access_control",
+      "decidable_at": [
+        {
+          "location": "db",
+          "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.row-policy.db",
+            "status": "planned"
+          }
+        }
+      ]
+    },
+    {
+      "atomic_id": "FR-900/table_row-001#delivery-policy",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_ACCESS_SCOPE",
+      "layer": "cache_authorization",
+      "decidable_at": [
+        {
+          "location": "http",
+          "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.delivery-policy.http",
+            "status": "planned"
+          }
+        },
+        {
+          "location": "cache",
+          "basis_rule_id": "CACHE_ACCESS_SCOPE",
+          "test_owner": {
+            "id": "FIXTURE.FR-900/table_row-001.delivery-policy.cache",
+            "status": "planned"
+          }
+        }
+      ]
+    }
+  ]
+}

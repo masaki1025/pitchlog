@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_route_registry",
+  "asset_path": "route-registry.json",
+  "asset_digest": "9ab3479c73d67c75d5256592f9f80bb81ed7a28999ce8012fdeb4ea193cb17ab",
+  "entry_count": 18,
+  "aggregate_decision_digest": "2371880e1d8c21c844d64b4345ee59a135e40cea6a5a2988d92aba5a1d69f7f6",
+  "entries": [
+    {
+      "entry_id": "route:ROUTE:FIXTURE:LEGACY",
+      "decision": {
+        "route_id": "ROUTE:FIXTURE:LEGACY",
+        "route_kind": "legacy_route",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "channel": "screen",
+        "expected_default": "deny_404",
+        "provenance_ids": [
+          "FIXTURE-REQUIREMENTS"
+        ]
+      },
+      "decision_digest": "179f8d41f19101804e88bdc6165506332ee3468480390062743d3655b7f67117"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "7e9b206f9ba8d445cf519aad315cd907c34d605cb1a544cf2186e4567d258a86"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "dff7bc6b0f9a6b4607238c6362c9fb70c9691d7360f4f58967592737b25da741"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_summary:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "screen"
+      },
+      "decision_digest": "a5b67d19550327fff648a1818caed0898c6f52f95084ba0f2ede7761e96bd5c7"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:team_summary:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "team_summary",
+        "channel": "export"
+      },
+      "decision_digest": "c94c97cc791a48e74c0b3c1eb0b30ca15dc65741f38789488aa9f74441f59b62"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "241f7c6f89836d89c9ca99e06541aaeeea3ec846ab01cfd8525b69df10601b3f"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_screen:player_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_screen",
+        "resource_kind": "player_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "b17b45fe0e93643e6e90e8ef12024a0bb45060641495bffe6cf8c3f1fe69ade2"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "3e06928a6957442c3039f75f25dcdfbf4233a9574438da904bc83a70c8eb2fbe"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "4c18ccb20580765e7757d0bfbcdf057ffe8c052a248eba9924fbb71538453c1b"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "screen"
+      },
+      "decision_digest": "a2df05b1b1f8f5fd25315febf5950ef69902e9157ddc2997d1c2843f83180f63"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "team_summary",
+        "channel": "export"
+      },
+      "decision_digest": "8f920c1723ec8da4dc4c0860cb9fb9821cc2587ae22a169e2e8da445245ed3a4"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "screen"
+      },
+      "decision_digest": "41aaccaad2ef57f2154e1fdee92f6263bc66f7aac493aa5fca8cfd2069f49577"
+    },
+    {
+      "entry_id": "route:ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "decision": {
+        "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+        "route_kind": "shared_data",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "route_class": "shared_aggregate_export",
+        "resource_kind": "player_metrics",
+        "channel": "export"
+      },
+      "decision_digest": "7134603408d80b0a7316ff71d475ee937d650ccfadd33718e092c3e00ea5aacc"
+    },
+    {
+      "entry_id": "route:ROUTE:FIXTURE:CONTROL",
+      "decision": {
+        "route_id": "ROUTE:FIXTURE:CONTROL",
+        "route_kind": "control_read",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "control_read_id": "fixture_control",
+        "access_requirement": "participant"
+      },
+      "decision_digest": "1c9d0d57f1bff354079358ae6e5ed0b483b9023c104e0426e287a7c4d7ee04fe"
+    },
+    {
+      "entry_id": "route:ROUTE:FIXTURE:MANAGEMENT",
+      "decision": {
+        "route_id": "ROUTE:FIXTURE:MANAGEMENT",
+        "route_kind": "management_operation",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "operation_id": "fixture_operation"
+      },
+      "decision_digest": "9d69b48d9a37de06311005a7be6cab924b0138b2d7a9bb5836dbe47d0c653990"
+    },
+    {
+      "entry_id": "operation:fixture_operation",
+      "decision": {
+        "operation_id": "fixture_operation",
+        "route_id": "ROUTE:FIXTURE:MANAGEMENT",
+        "precondition_ids": [
+          "fixture_precondition"
+        ],
+        "tenant_permission_required": true,
+        "group_role_requirement": "none",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "side_effect_status": "deferred_tsk_250",
+        "test_owner": {
+          "id": "FIXTURE.route.fixture_operation",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "977447c63fe09fa8659faae2203034980af920b0155577dec6b35c8b8d28b15c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-900/table_row-001:http",
+      "decision": {
+        "source_id": "FR-900/table_row-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "249b8a7e078bca5466ebaeb55a2ff3db5b5e7c1a37850a70d67a128d0c4de1c7"
+    },
+    {
+      "entry_id": "claim_disposition:FR-900/table_row-001:cache",
+      "decision": {
+        "source_id": "FR-900/table_row-001",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "9b7cdd32a730b9e1dac905d11a546e1ecd0e9b6a0732d697ea7651331856b3d3"
+    }
+  ]
+}

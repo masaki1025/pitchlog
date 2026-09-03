@@ -1,0 +1,16 @@
+{
+  "route_reference": {
+    "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+    "source_claim_ids": [
+      "FR-900/table_row-001#delivery-policy"
+    ]
+  },
+  "claim_dispositions": [
+    {
+      "source_id": "FR-900/table_row-001#delivery-policy",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    }
+  ]
+}

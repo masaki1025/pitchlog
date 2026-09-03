@@ -1,0 +1,17 @@
+{
+  "supported_probe": {
+    "claim_id": "FR-034/heading-001/paragraph-001",
+    "runtime_target": {
+      "target_kind": "route",
+      "target_ids": [
+        "ROUTE:RUNTIME:FR-034/heading-001/paragraph-001"
+      ]
+    }
+  },
+  "unsupported_contract": {
+    "claim_id": "FR-035/list_item-002",
+    "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+    "contract_only_reason_code": "route_universe_pending",
+    "receiving_task_id": "TSK-312-RUNTIME-TARGET"
+  }
+}

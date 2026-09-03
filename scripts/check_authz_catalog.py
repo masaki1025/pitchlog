@@ -14,6 +14,18 @@ from itertools import combinations
 from pathlib import Path
 from typing import Pattern, Sequence
 
+
+@dataclass(frozen=True)
+class RequiredTablePrivilegeTarget:
+    """F13/H-81 が固定する表権限 mutant と攻撃木の対応を表す。"""
+
+    grant_privilege_ids: frozenset[str]
+    mutation_privilege_ids: frozenset[str]
+    mutant_id_template: str
+    attack_goal_id: str
+    cut_set_id_template: str
+
+
 DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 DEFAULT_CLAIMS = Path("contracts/authz/requirement-claims.json")
 DEFAULT_LOCK = Path("contracts/authz/requirement-claims.lock.json")
@@ -49,6 +61,7 @@ SOURCE_KINDS = frozenset(
         "thematic_break",
     }
 )
+CLOSED_WORLD_UNIVERSE_KINDS = frozenset({"operation", "resource", "route"})
 HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")
 FR_HEADING_RE = re.compile(r"^(?P<id>(?:FR|NFR)-\d{3}):")
 NUMBERED_HEADING_RE = re.compile(r"^(?P<id>\d+(?:\.\d+)*(?:-\d+)?)\b")
@@ -67,6 +80,15 @@ CHANNELS = frozenset({"screen", "export"})
 ROUTE_KINDS = frozenset(
     {"legacy_route", "shared_data", "control_read", "management_operation"}
 )
+CLAIM_DISPOSITION_LOCATIONS = frozenset({"cache", "http"})
+CLAIM_DISPOSITIONS = frozenset({"out_of_registry", "routed"})
+CLAIM_DISPOSITION_REASON_CODES = frozenset(
+    {"cache_matrix_pending", "design_pending_task"}
+)
+CLAIM_DISPOSITION_REASON_BY_LOCATION = {
+    "cache": "cache_matrix_pending",
+    "http": "design_pending_task",
+}
 ORIGINS = frozenset({"requirement", "design"})
 FORBIDDEN_RESOURCE_KINDS = frozenset(
     {
@@ -83,6 +105,18 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
+RUNTIME_TARGET_KINDS = frozenset(
+    {
+        "route",
+        "management_operation",
+        "ddl_function",
+        "ddl_table_privilege_probe",
+        "ddl_provisioning",
+    }
+)
+CONTRACT_ONLY_REASON_CODES = frozenset(
+    {"no_db_decision_point", "route_universe_pending", "ddl_target_pending"}
+)
 ORACLE_MUTANT_AXES = frozenset(
     {"configuration", "authorization_predicate", "r8_provisioning"}
 )
@@ -135,6 +169,83 @@ MANAGEMENT_PROBE_CLAIM_IDS = frozenset(
 )
 POSITIVE_CASE_SCOPE_ID = "POSITIVE-CASE-SCOPE:ALL-ALLOW-CELLS"
 TABLE_PRIVILEGE_MUTANT_PREFIX = "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_"
+# step1-rulings.json F13 / H-81: 制御表DMLと管理caller 8権限を外部固定する。
+REQUIRED_TABLE_PRIVILEGE_TARGETS = {
+    (
+        "management_caller",
+        "probe_management_effects",
+    ): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset(
+            {
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "TRUNCATE",
+                "REFERENCES",
+                "TRIGGER",
+                "MAINTAIN",
+            }
+        ),
+        mutation_privilege_ids=frozenset(
+            {
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "TRUNCATE",
+                "REFERENCES",
+                "TRIGGER",
+                "MAINTAIN",
+            }
+        ),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_MANAGEMENT_CALLER_TABLE_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE",
+        cut_set_id_template="CUT-MANAGEMENT-DIRECT-{privilege_id}",
+    ),
+    ("app_role", "probe_groups"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template="MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_{privilege_id}",
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_memberships"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_MEMBERSHIPS_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_grants"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template="MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GRANTS_{privilege_id}",
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+    ("app_role", "probe_invitations"): RequiredTablePrivilegeTarget(
+        grant_privilege_ids=frozenset({"INSERT", "UPDATE", "DELETE"}),
+        mutation_privilege_ids=frozenset({"DML"}),
+        mutant_id_template=(
+            "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_{privilege_id}"
+        ),
+        attack_goal_id="ATTACK:APP-ROLE-DIRECT-CONTROL-DML",
+        cut_set_id_template=(
+            "CUT-APP-ROLE-DIRECT-{table_label}-{privilege_id}"
+        ),
+    ),
+}
 POSITIVE_KILL_MUTANT_IDS = frozenset(
     {
         "MUT:CONFIG:CFG_REMOVE_OWNER_BYPASSRLS",
@@ -227,9 +338,10 @@ def git_blob_digest(data: bytes) -> str:
 
 
 def _table_cells(line: str) -> tuple[str, ...] | None:
-    if not line.startswith("|") or not line.endswith("|"):
+    table_line = line.lstrip()
+    if not table_line.startswith("|") or not table_line.endswith("|"):
         return None
-    return tuple(cell.strip() for cell in line[1:-1].split("|"))
+    return tuple(cell.strip() for cell in table_line[1:-1].split("|"))
 
 
 def _is_table_delimiter(line: str) -> bool:
@@ -518,6 +630,10 @@ def _parse_classification_rules(raw: object) -> dict[str, ClassificationRule]:
             value["forbidden_source_text_patterns"],
             f"{label}.forbidden_source_text_patterns",
         )
+        if classification == "auth_claim" and not (kinds or headings or pattern_texts):
+            raise CatalogError(
+                f"{label}: AUTH 分類規則は適用条件を少なくとも1つ持たねばならない"
+            )
         try:
             patterns = tuple(re.compile(pattern) for pattern in pattern_texts)
         except re.error as error:
@@ -642,6 +758,128 @@ def _validate_rule_applicability(
         raise CatalogError(f"{source_id}: 宣言された認可規範罠により {rule_id} を適用できない")
 
 
+def _validate_atomic_claims(
+    raw: object,
+    source_id: str,
+    source_kind: str,
+    heading_id: str,
+    source_text: str,
+    classification_rules: dict[str, ClassificationRule],
+    basis_rules: dict[str, BasisRule],
+    layer_ids: frozenset[str],
+) -> tuple[tuple[str, ...], frozenset[str]]:
+    """採取行に属する原子的な AUTH 主張を検査する。"""
+    if not isinstance(raw, list) or len(raw) < 2:
+        raise CatalogError(f"{source_id}: atomic_claims は2件以上必要")
+    atomic_ids: list[str] = []
+    rule_ids: set[str] = set()
+    for index, atomic_claim in enumerate(raw):
+        label = f"{source_id}.atomic_claims[{index}]"
+        if not isinstance(atomic_claim, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            atomic_claim,
+            {
+                "atomic_id",
+                "classification",
+                "classification_rule_id",
+                "layer",
+                "decidable_at",
+            },
+            label,
+        )
+        atomic_id = _expect_string(atomic_claim["atomic_id"], f"{label}.atomic_id")
+        prefix = f"{source_id}#"
+        suffix = atomic_id.removeprefix(prefix)
+        if (
+            not atomic_id.startswith(prefix)
+            or not suffix
+            or not TEST_ID_RE.fullmatch(suffix)
+        ):
+            raise CatalogError(
+                f"{label}.atomic_id は {source_id}#<識別子> 形式でなければならない"
+            )
+        if atomic_claim["classification"] != "auth_claim":
+            raise CatalogError(f"{atomic_id}: classification は auth_claim でなければならない")
+        rule_id = _expect_string(
+            atomic_claim["classification_rule_id"],
+            f"{label}.classification_rule_id",
+        )
+        rule = classification_rules.get(rule_id)
+        if rule is None or rule.classification != "auth_claim":
+            raise CatalogError(f"{atomic_id}: 未知の AUTH classification_rule_id: {rule_id}")
+        _validate_rule_applicability(
+            rule, rule_id, atomic_id, source_kind, heading_id, source_text
+        )
+        layer = _expect_string(atomic_claim["layer"], f"{label}.layer")
+        if layer not in layer_ids:
+            raise CatalogError(f"{atomic_id}: layer が閉じた値域にない: {layer}")
+        _validate_decidable_at(
+            atomic_claim["decidable_at"], atomic_id, rule_id, basis_rules
+        )
+        atomic_ids.append(atomic_id)
+        rule_ids.add(rule_id)
+    if len(atomic_ids) != len(set(atomic_ids)):
+        raise CatalogError(f"{source_id}: atomic_id が行内で重複している")
+    return tuple(atomic_ids), frozenset(rule_ids)
+
+
+def _validate_closed_world(raw: object, source_id: str) -> tuple[str, ...]:
+    """closed-world 宣言の閉じた構造を検査する。
+
+    Args:
+        raw: ``closed_world`` の宣言値。
+        source_id: 宣言を所有する主張 ID。
+
+    Returns:
+        universe を構成する主張 ID の集合。
+
+    Raises:
+        CatalogError: 宣言の構造または値域が不正な場合。
+    """
+    label = f"{source_id}.closed_world"
+    if not isinstance(raw, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {"universe_kind", "member_source_ids", "default_disposition"},
+        label,
+    )
+    universe_kind = _expect_string(raw["universe_kind"], f"{label}.universe_kind")
+    if universe_kind not in CLOSED_WORLD_UNIVERSE_KINDS:
+        raise CatalogError(
+            f"{label}.universe_kind が閉じた値域にない: {universe_kind}"
+        )
+    member_source_ids = _expect_string_list(
+        raw["member_source_ids"], f"{label}.member_source_ids"
+    )
+    if not member_source_ids:
+        raise CatalogError(f"{label}.member_source_ids は空にできない")
+    for index, member_source_id in enumerate(member_source_ids):
+        _expect_string(member_source_id, f"{label}.member_source_ids[{index}]")
+    default_disposition = _expect_string(
+        raw["default_disposition"], f"{label}.default_disposition"
+    )
+    if default_disposition != "deny":
+        raise CatalogError(f"{label}.default_disposition は deny でなければならない")
+    return tuple(member_source_ids)
+
+
+def _validate_closed_world_exact_sets(
+    declarations: Sequence[tuple[str, Sequence[str]]],
+    known_source_ids: Sequence[str],
+) -> None:
+    """closed-world の全メンバーが実在する主張の exact-set か検査する。"""
+    known = set(known_source_ids)
+    for source_id, member_source_ids in declarations:
+        unknown = sorted(set(member_source_ids) - known)
+        if unknown:
+            raise CatalogError(
+                f"{source_id}: closed_world.member_source_ids と claims の "
+                f"exact-set 不一致: 未登録={unknown}"
+            )
+
+
 def decision_projection(claim: dict[str, object]) -> dict[str, object]:
     """分類決定を順序非依存の表現へ正規化する。
 
@@ -657,7 +895,54 @@ def decision_projection(claim: dict[str, object]) -> dict[str, object]:
         "classification_rule_id": claim["classification_rule_id"],
         "source_text_digest": claim["source_text_digest"],
     }
-    if claim["classification"] == "auth_claim":
+    closed_world = claim.get("closed_world")
+    if isinstance(closed_world, dict):
+        member_source_ids = closed_world.get("member_source_ids")
+        projection["closed_world"] = {
+            "universe_kind": closed_world.get("universe_kind"),
+            "member_source_ids": (
+                sorted(member_source_ids)
+                if isinstance(member_source_ids, list)
+                else member_source_ids
+            ),
+            "default_disposition": closed_world.get("default_disposition"),
+        }
+    atomic_claims = claim.get("atomic_claims")
+    if isinstance(atomic_claims, list):
+        normalized_atomic_claims: list[dict[str, object]] = []
+        for atomic_claim in atomic_claims:
+            if not isinstance(atomic_claim, dict):
+                continue
+            decisions = atomic_claim.get("decidable_at")
+            decision_rows = decisions if isinstance(decisions, list) else []
+            normalized_decisions = sorted(
+                (
+                    {
+                        "location": decision["location"],
+                        "basis_rule_id": decision["basis_rule_id"],
+                        "test_owner": decision["test_owner"],
+                    }
+                    for decision in decision_rows
+                    if isinstance(decision, dict)
+                ),
+                key=lambda decision: str(decision["location"]),
+            )
+            normalized_atomic_claims.append(
+                {
+                    "atomic_id": atomic_claim.get("atomic_id"),
+                    "classification": atomic_claim.get("classification"),
+                    "classification_rule_id": atomic_claim.get(
+                        "classification_rule_id"
+                    ),
+                    "layer": atomic_claim.get("layer"),
+                    "decidable_at": normalized_decisions,
+                }
+            )
+        projection["atomic_claims"] = sorted(
+            normalized_atomic_claims,
+            key=lambda atomic_claim: str(atomic_claim["atomic_id"]),
+        )
+    elif claim["classification"] == "auth_claim":
         decisions = claim["decidable_at"]
         assert isinstance(decisions, list)
         normalized = sorted(
@@ -696,7 +981,16 @@ def _validate_claim(
     layer_ids: frozenset[str],
     *,
     verify_decision_digest: bool,
-) -> tuple[str, str, str, str, str, str]:
+) -> tuple[
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    tuple[str, ...] | None,
+    tuple[str, ...],
+]:
     if not isinstance(raw, dict):
         raise CatalogError("claims の各要素はオブジェクトでなければならない")
     common = {
@@ -712,9 +1006,23 @@ def _validate_claim(
         common.add("decision_digest")
     elif "decision_digest" in raw:
         common.add("decision_digest")
+    if "closed_world" in raw:
+        common.add("closed_world")
+    has_atomic_claims = "atomic_claims" in raw
+    if has_atomic_claims:
+        common.add("atomic_claims")
     classification = raw.get("classification")
-    if classification == "auth_claim":
+    if has_atomic_claims and classification != "auth_claim":
+        raise CatalogError("atomic_claims を持つ行本体は auth_claim でなければならない")
+    if has_atomic_claims and ({"layer", "decidable_at"} & set(raw)):
+        raise CatalogError(
+            f"{raw.get('source_id')}: atomic_claims を持つ行本体に "
+            "layer/decidable_at を置けない"
+        )
+    if classification == "auth_claim" and not has_atomic_claims:
         expected = common | {"layer", "decidable_at"}
+    elif classification == "auth_claim":
+        expected = common
     elif classification == "out_of_scope":
         expected = common
     else:
@@ -732,6 +1040,11 @@ def _validate_claim(
     digest = _expect_string(raw["source_text_digest"], f"{source_id}.source_text_digest")
     if not SHA256_RE.fullmatch(digest) or digest != _sha256(source_text):
         raise CatalogError(f"{source_id}: source_text_digest が原文と一致しない")
+    closed_world_member_ids = (
+        _validate_closed_world(raw["closed_world"], source_id)
+        if "closed_world" in raw
+        else None
+    )
 
     rule_id = _expect_string(raw["classification_rule_id"], f"{source_id}.classification_rule_id")
     rule = classification_rules.get(rule_id)
@@ -745,7 +1058,23 @@ def _validate_claim(
         rule, rule_id, source_id, source_kind, heading_id, source_text
     )
 
-    if classification == "auth_claim":
+    atomic_ids: tuple[str, ...] = ()
+    if has_atomic_claims:
+        atomic_ids, atomic_rule_ids = _validate_atomic_claims(
+            raw["atomic_claims"],
+            source_id,
+            source_kind,
+            heading_id,
+            source_text,
+            classification_rules,
+            basis_rules,
+            layer_ids,
+        )
+        if rule_id not in atomic_rule_ids:
+            raise CatalogError(
+                f"{source_id}: 行本体の classification_rule_id が atomic_claims の代表値でない"
+            )
+    elif classification == "auth_claim":
         layer = _expect_string(raw["layer"], f"{source_id}.layer")
         if layer not in layer_ids:
             raise CatalogError(f"{source_id}: layer が閉じた値域にない: {layer}")
@@ -757,7 +1086,16 @@ def _validate_claim(
             raise CatalogError(
                 f"{source_id}: decision_digest が現在の分類決定と一致しない"
             )
-    return source_id, source_kind, heading_id, source_text, digest, classification
+    return (
+        source_id,
+        source_kind,
+        heading_id,
+        source_text,
+        digest,
+        classification,
+        closed_world_member_ids,
+        atomic_ids,
+    )
 
 
 def _catalog_tables(
@@ -834,6 +1172,30 @@ def validate_catalog(
             identifier for identifier, count in Counter(claim_ids).items() if count > 1
         )
         raise CatalogError(f"source_id が重複している: {duplicates}")
+    atomic_ids = [atomic_id for claim in validated for atomic_id in claim[7]]
+    duplicate_atomic_ids = sorted(
+        identifier
+        for identifier, count in Counter(atomic_ids).items()
+        if count > 1
+    )
+    if duplicate_atomic_ids:
+        raise CatalogError(f"atomic_id が全体で重複している: {duplicate_atomic_ids}")
+    collisions = sorted(set(atomic_ids) & set(claim_ids))
+    if collisions:
+        raise CatalogError(f"atomic_id が source_id と衝突している: {collisions}")
+    semantic_claim_ids = [
+        semantic_id
+        for claim in validated
+        for semantic_id in (claim[7] if claim[7] else (claim[0],))
+    ]
+    _validate_closed_world_exact_sets(
+        [
+            (claim[0], claim[6])
+            for claim in validated
+            if claim[6] is not None
+        ],
+        semantic_claim_ids,
+    )
 
     expected_by_id = {item.source_id: item for item in extraction.items}
     actual_by_id = {claim[0]: claim for claim in validated}
@@ -846,7 +1208,16 @@ def validate_catalog(
     if claim_ids != [item.source_id for item in extraction.items]:
         raise CatalogError("claims は要件書の構造順と一致しなければならない")
 
-    for source_id, kind, heading_id, text, digest, _classification in validated:
+    for (
+        source_id,
+        kind,
+        heading_id,
+        text,
+        digest,
+        _classification,
+        _closed_world,
+        _atomic_ids,
+    ) in validated:
         expected = expected_by_id[source_id]
         actual = (kind, heading_id, text, digest)
         wanted = (expected.kind, expected.heading_id, expected.text, expected.digest)
@@ -947,6 +1318,9 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
     ):
         raise CatalogError("decision lock.decision_count が decisions の件数と一致しない")
     source_ids: list[str] = []
+    atomic_ids: list[str] = []
+    semantic_claim_ids: list[str] = []
+    closed_world_declarations: list[tuple[str, tuple[str, ...]]] = []
     for index, entry in enumerate(decisions):
         label = f"decision lock.decisions[{index}]"
         if not isinstance(entry, dict):
@@ -959,16 +1333,75 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
             "source_text_digest",
             "decision_digest",
         }
-        expected = common | {"layer", "decidable_at"} if classification == "auth_claim" else common
+        if "closed_world" in entry:
+            common.add("closed_world")
+        has_atomic_claims = "atomic_claims" in entry
+        if has_atomic_claims:
+            common.add("atomic_claims")
+        if has_atomic_claims and classification != "auth_claim":
+            raise CatalogError(
+                f"{label}: atomic_claims を持つ決定は auth_claim でなければならない"
+            )
+        if has_atomic_claims and ({"layer", "decidable_at"} & set(entry)):
+            raise CatalogError(
+                f"{label}: atomic_claims と layer/decidable_at を併記できない"
+            )
+        expected = (
+            common | {"layer", "decidable_at"}
+            if classification == "auth_claim" and not has_atomic_claims
+            else common
+        )
         _expect_keys(entry, expected, label)
         source_id = _expect_string(entry["source_id"], f"{label}.source_id")
         source_ids.append(source_id)
+        entry_atomic_ids: list[str] = []
+        if has_atomic_claims:
+            atomic_claims = _expect_object_list(
+                entry["atomic_claims"], f"{label}.atomic_claims"
+            )
+            if len(atomic_claims) < 2:
+                raise CatalogError(f"{label}.atomic_claims は2件以上必要")
+            for atomic_index, atomic_claim in enumerate(atomic_claims):
+                atomic_label = f"{label}.atomic_claims[{atomic_index}]"
+                _expect_keys(
+                    atomic_claim,
+                    {
+                        "atomic_id",
+                        "classification",
+                        "classification_rule_id",
+                        "layer",
+                        "decidable_at",
+                    },
+                    atomic_label,
+                )
+                atomic_id = _expect_string(
+                    atomic_claim["atomic_id"], f"{atomic_label}.atomic_id"
+                )
+                if not atomic_id.startswith(f"{source_id}#"):
+                    raise CatalogError(f"{atomic_label}.atomic_id が行 ID に属さない")
+                if atomic_claim["classification"] != "auth_claim":
+                    raise CatalogError(f"{atomic_label}.classification が不正")
+                entry_atomic_ids.append(atomic_id)
+            if len(entry_atomic_ids) != len(set(entry_atomic_ids)):
+                raise CatalogError(f"{label}: atomic_id が行内で重複している")
+            atomic_ids.extend(entry_atomic_ids)
+            semantic_claim_ids.extend(entry_atomic_ids)
+        else:
+            semantic_claim_ids.append(source_id)
+        if "closed_world" in entry:
+            member_source_ids = _validate_closed_world(entry["closed_world"], source_id)
+            closed_world_declarations.append((source_id, member_source_ids))
         digest = _expect_string(entry["decision_digest"], f"{label}.decision_digest")
         projection = {key: value for key, value in entry.items() if key != "decision_digest"}
         if not SHA256_RE.fullmatch(digest) or digest != _table_digest(projection):
             raise CatalogError(f"{source_id}: lock 内の decision_digest が決定と一致しない")
     if len(source_ids) != len(set(source_ids)):
         raise CatalogError("decision lock の source_id が重複している")
+    if len(atomic_ids) != len(set(atomic_ids)):
+        raise CatalogError("decision lock の atomic_id が全体で重複している")
+    if set(atomic_ids) & set(source_ids):
+        raise CatalogError("decision lock の atomic_id が source_id と衝突している")
+    _validate_closed_world_exact_sets(closed_world_declarations, semantic_claim_ids)
     if raw["aggregate_decision_digest"] != _aggregate_decision_digest(decisions):
         raise CatalogError("decision lock の全行集約 digest が decisions と一致しない")
     return raw
@@ -1089,11 +1522,21 @@ def _expect_closed_value(
 def _auth_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:
     claims = catalog["claims"]
     assert isinstance(claims, list)
-    return {
-        str(claim["source_id"]): claim
-        for claim in claims
-        if isinstance(claim, dict) and claim.get("classification") == "auth_claim"
-    }
+    auth_claims: dict[str, dict[str, object]] = {}
+    for claim in claims:
+        if not isinstance(claim, dict) or claim.get("classification") != "auth_claim":
+            continue
+        atomic_claims = claim.get("atomic_claims")
+        if not isinstance(atomic_claims, list):
+            auth_claims[str(claim["source_id"])] = claim
+            continue
+        for atomic_claim in atomic_claims:
+            assert isinstance(atomic_claim, dict)
+            atomic_id = str(atomic_claim["atomic_id"])
+            semantic_claim = {**claim, **atomic_claim, "source_id": atomic_id}
+            semantic_claim.pop("atomic_claims", None)
+            auth_claims[atomic_id] = semantic_claim
+    return auth_claims
 
 
 def _db_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:
@@ -1107,6 +1550,21 @@ def _db_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]
         ):
             db_claims[source_id] = claim
     return db_claims
+
+
+def _claim_ids_by_location(
+    auth_claims: dict[str, dict[str, object]], location: str
+) -> frozenset[str]:
+    """指定判定層を持つ AUTH 主張 ID を返す。"""
+    identifiers: set[str] = set()
+    for source_id, claim in auth_claims.items():
+        decisions = claim.get("decidable_at")
+        if isinstance(decisions, list) and any(
+            isinstance(decision, dict) and decision.get("location") == location
+            for decision in decisions
+        ):
+            identifiers.add(source_id)
+    return frozenset(identifiers)
 
 
 def _validate_derived_input_manifest(raw: object, root: Path) -> None:
@@ -1198,6 +1656,90 @@ def _validate_design_provenance(raw: object, root: Path) -> frozenset[str]:
     return frozenset(provenance_ids)
 
 
+def _validate_claim_dispositions(
+    raw: object,
+    auth_claims: dict[str, dict[str, object]],
+    route_by_id: dict[str, dict[str, object]],
+    routed_route_ids_by_claim: dict[str, set[str]],
+) -> dict[tuple[str, str], dict[str, object]]:
+    """HTTP/cache 主張の経路結線または明示的対象外を全数検査する。"""
+    if not isinstance(raw, list):
+        raise CatalogError("claim_dispositions は配列でなければならない")
+    claims_by_location = {
+        location: _claim_ids_by_location(auth_claims, location)
+        for location in CLAIM_DISPOSITION_LOCATIONS
+    }
+    dispositions_by_key: dict[tuple[str, str], dict[str, object]] = {}
+    for index, entry in enumerate(raw):
+        label = f"claim_dispositions[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        disposition = _expect_closed_value(
+            entry.get("disposition"), CLAIM_DISPOSITIONS, f"{label}.disposition"
+        )
+        expected_keys = {"source_id", "location", "disposition"}
+        expected_keys.add("route_ids" if disposition == "routed" else "reason_code")
+        _expect_keys(entry, expected_keys, label)
+        source_id = _expect_string(entry["source_id"], f"{label}.source_id")
+        location = _expect_closed_value(
+            entry["location"], CLAIM_DISPOSITION_LOCATIONS, f"{label}.location"
+        )
+        if source_id not in claims_by_location[location]:
+            raise CatalogError(
+                f"{label}.source_id が location={location} の AUTH 主張に存在しない: "
+                f"{source_id}"
+            )
+        key = (source_id, location)
+        if key in dispositions_by_key:
+            raise CatalogError(f"claim_dispositions の主張・location が重複している: {key}")
+        if disposition == "routed":
+            if location != "http":
+                raise CatalogError(f"{label}: routed disposition は http 専用")
+            route_ids = _expect_string_list(entry["route_ids"], f"{label}.route_ids")
+            if not route_ids:
+                raise CatalogError(f"{label}.route_ids は1件以上必要")
+            unknown_route_ids = sorted(set(route_ids) - set(route_by_id))
+            if unknown_route_ids:
+                raise CatalogError(
+                    f"{label}.route_ids が route registry に存在しない: "
+                    f"{unknown_route_ids}"
+                )
+        else:
+            reason_code = _expect_closed_value(
+                entry["reason_code"],
+                CLAIM_DISPOSITION_REASON_CODES,
+                f"{label}.reason_code",
+            )
+            if reason_code != CLAIM_DISPOSITION_REASON_BY_LOCATION[location]:
+                raise CatalogError(
+                    f"{label}.reason_code が location={location} と不一致: {reason_code}"
+                )
+        dispositions_by_key[key] = entry
+
+    http_claim_ids = claims_by_location["http"]
+    routed_http_claim_ids = set(routed_route_ids_by_claim)
+    unexpected_routed = sorted(routed_http_claim_ids - set(http_claim_ids))
+    missing: list[str] = []
+    double_registered: list[str] = []
+    for source_id in sorted(http_claim_ids):
+        routed = source_id in routed_http_claim_ids
+        disposed = (source_id, "http") in dispositions_by_key
+        if not routed and not disposed:
+            missing.append(f"{source_id}@http")
+        elif routed and disposed:
+            double_registered.append(f"{source_id}@http")
+    for source_id in sorted(claims_by_location["cache"]):
+        if (source_id, "cache") not in dispositions_by_key:
+            missing.append(f"{source_id}@cache")
+    if missing or double_registered or unexpected_routed:
+        raise CatalogError(
+            "HTTP/cache 主張の逆向き exact-set 不一致: "
+            f"未結線={missing}, 二重登録={double_registered}, "
+            f"HTTP判定なし経路参照={unexpected_routed}"
+        )
+    return dispositions_by_key
+
+
 def validate_route_registry(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -1230,6 +1772,7 @@ def validate_route_registry(
             "design_provenance",
             "routes",
             "management_operations",
+            "claim_dispositions",
         },
         "route registry",
     )
@@ -1424,8 +1967,8 @@ def validate_route_registry(
         raise CatalogError("legacy_route_ids と既存経路が exact-set 不一致")
     for route_id in legacy_route_ids:
         route = route_by_id[route_id]
-        if route["origin"] != "design":
-            raise CatalogError(f"{route_id}: legacy route は design origin が必要")
+        if route["origin"] != "requirement":
+            raise CatalogError(f"{route_id}: legacy route は requirement origin が必要")
         heading_id = route_id.removeprefix("ROUTE:")
         if any(
             claim.get("source_heading_id") == heading_id
@@ -1479,10 +2022,32 @@ def validate_route_registry(
         operation_ids
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
+    routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
+    for route_id, route in route_by_id.items():
+        source_claim_ids = route["source_claim_ids"]
+        assert isinstance(source_claim_ids, list)
+        for source_id in source_claim_ids:
+            assert isinstance(source_id, str)
+            routed_route_ids_by_claim[source_id].add(route_id)
+    for operation in operation_by_id.values():
+        route_id = operation["route_id"]
+        source_claim_ids = operation["source_claim_ids"]
+        assert isinstance(route_id, str) and isinstance(source_claim_ids, list)
+        for source_id in source_claim_ids:
+            assert isinstance(source_id, str)
+            routed_route_ids_by_claim[source_id].add(route_id)
+    claim_dispositions_by_key = _validate_claim_dispositions(
+        raw["claim_dispositions"],
+        auth_claims,
+        route_by_id,
+        routed_route_ids_by_claim,
+    )
     return {
         "route_by_id": route_by_id,
         "operation_by_id": operation_by_id,
         "origin_counts": origin_counts,
+        "routed_http_claim_ids": frozenset(routed_route_ids_by_claim),
+        "claim_dispositions_by_key": claim_dispositions_by_key,
     }
 
 
@@ -1820,6 +2385,21 @@ def _derived_lock_entries(
                     "decision_digest": _table_digest(row),
                 }
             )
+    if asset_kind == "authz_route_registry":
+        dispositions = asset.get("claim_dispositions", [])
+        assert isinstance(dispositions, list)
+        for row in dispositions:
+            assert isinstance(row, dict)
+            entry_id = (
+                f"claim_disposition:{row['source_id']}:{row['location']}"
+            )
+            entries.append(
+                {
+                    "entry_id": entry_id,
+                    "decision": row,
+                    "decision_digest": _table_digest(row),
+                }
+            )
     return entries
 
 
@@ -2067,6 +2647,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             "roles",
             "schemas",
             "tables",
+            "predicates",
             "policies",
             "functions",
             "acl_expectations",
@@ -2227,6 +2808,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"table_id が重複している: {table_id}")
         table_by_id[table_id] = table
 
+    predicate_rows = _expect_object_list(
+        raw["predicates"], "DDL manifest.predicates"
+    )
+    predicate_kind_by_id: dict[str, str] = {}
+    for index, predicate in enumerate(predicate_rows):
+        label = f"DDL manifest.predicates[{index}]"
+        _expect_keys(predicate, {"predicate_id", "predicate_kind"}, label)
+        predicate_id = _expect_string(
+            predicate["predicate_id"], f"{label}.predicate_id"
+        )
+        predicate_kind = _expect_string(
+            predicate["predicate_kind"], f"{label}.predicate_kind"
+        )
+        if predicate_id in predicate_kind_by_id:
+            raise CatalogError(f"predicate_id が重複している: {predicate_id}")
+        predicate_kind_by_id[predicate_id] = predicate_kind
+    if predicate_kind_by_id != {
+        "PREDICATE:CURRENT_TENANT_OWNS_ROW": "current_tenant_owns_row"
+    }:
+        raise CatalogError("policy predicate 定義が閉じた対応表と不一致")
+
     policies = _expect_object_list(raw["policies"], "DDL manifest.policies")
     policy_by_id: dict[str, dict[str, object]] = {}
     for index, policy in enumerate(policies):
@@ -2247,12 +2849,27 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         policy_id = _expect_string(policy["policy_id"], f"{label}.policy_id")
         if policy["table_id"] not in table_by_id:
             raise CatalogError(f"{policy_id}: 未知 table を参照する")
+        command = _expect_string(policy["command"], f"{label}.command")
+        if command not in {"SELECT", "INSERT", "UPDATE", "DELETE", "ALL"}:
+            raise CatalogError(f"{policy_id}: policy.command が閉じた値域にない")
         if policy["policy_mode"] != "permissive":
             raise CatalogError(f"{policy_id}: policy mode が候補と不一致")
-        if not _expect_string(policy["using_predicate_id"], f"{label}.using") or not _expect_string(
+        role_ids = frozenset(
+            _expect_string_list(policy["role_ids"], f"{label}.role_ids")
+        )
+        if not role_ids or not role_ids <= set(role_by_id):
+            raise CatalogError(f"{policy_id}: policy.role_ids が未知ロールを参照する")
+        using_predicate_id = _expect_string(
+            policy["using_predicate_id"], f"{label}.using"
+        )
+        with_check_predicate_id = _expect_string(
             policy["with_check_predicate_id"], f"{label}.with_check"
-        ):
-            raise CatalogError(f"{policy_id}: USING / WITH CHECK が必要")
+        )
+        if {
+            using_predicate_id,
+            with_check_predicate_id,
+        } - predicate_kind_by_id.keys():
+            raise CatalogError(f"{policy_id}: policy predicate が閉じた対応表にない")
         if policy_id in policy_by_id:
             raise CatalogError(f"policy_id が重複している: {policy_id}")
         policy_by_id[policy_id] = policy
@@ -2261,6 +2878,8 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
 
     functions = _expect_object_list(raw["functions"], "DDL manifest.functions")
     function_by_id: dict[str, dict[str, object]] = {}
+    required_owner_acl: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    required_callers_by_schema: defaultdict[str, set[str]] = defaultdict(set)
     for index, function in enumerate(functions):
         label = f"DDL manifest.functions[{index}]"
         _expect_keys(
@@ -2275,7 +2894,9 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
                 "return_contract",
                 "aggregation_contract",
                 "dependency_table_ids",
+                "owner_dependency_acl",
                 "execute_role_ids",
+                "caller_schema_usage_role_ids",
                 "public_execute",
             },
             label,
@@ -2301,12 +2922,51 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"{function_id}: function 参照が閉じていない")
         if function["aggregation_contract"] != "none":
             raise CatalogError(f"{function_id}: 手書き集計を候補関数に含めない")
+        owner_acl_rows = _expect_object_list(
+            function["owner_dependency_acl"], f"{label}.owner_dependency_acl"
+        )
+        declared_dependency_ids: set[str] = set()
+        for acl_index, owner_acl in enumerate(owner_acl_rows):
+            acl_label = f"{label}.owner_dependency_acl[{acl_index}]"
+            _expect_keys(owner_acl, {"table_id", "privilege_ids"}, acl_label)
+            table_id = _expect_string(owner_acl["table_id"], f"{acl_label}.table_id")
+            privilege_ids = frozenset(
+                _expect_string_list(
+                    owner_acl["privilege_ids"], f"{acl_label}.privilege_ids"
+                )
+            )
+            if (
+                table_id in declared_dependency_ids
+                or not privilege_ids
+                or not privilege_ids <= declared_privileges
+            ):
+                raise CatalogError(f"{function_id}: owner依存ACL宣言が閉じていない")
+            declared_dependency_ids.add(table_id)
+            required_owner_acl[(str(function["owner_role_id"]), table_id)].update(
+                privilege_ids
+            )
+        if declared_dependency_ids != dependency_ids:
+            raise CatalogError(f"{function_id}: owner依存表と依存基表が exact-set 不一致")
+        caller_usage_ids = frozenset(
+            _expect_string_list(
+                function["caller_schema_usage_role_ids"],
+                f"{label}.caller_schema_usage_role_ids",
+            )
+        )
+        if caller_usage_ids != execute_ids:
+            raise CatalogError(
+                f"{function_id}: caller schema USAGE宣言とEXECUTE対象が exact-set 不一致"
+            )
+        required_callers_by_schema[str(function["schema_id"])].update(
+            caller_usage_ids
+        )
         if function_id in function_by_id:
             raise CatalogError(f"function_id が重複している: {function_id}")
         function_by_id[function_id] = function
 
     acl_rows = _expect_object_list(raw["acl_expectations"], "DDL manifest.acl_expectations")
     acl_ids: set[str] = set()
+    acl_by_object_grantee: dict[tuple[str, str, str], frozenset[str]] = {}
     for index, acl in enumerate(acl_rows):
         label = f"DDL manifest.acl_expectations[{index}]"
         _expect_keys(
@@ -2335,9 +2995,58 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
             raise CatalogError(f"{acl_id}: 未知 object_kind")
         if acl["grantee_role_id"] not in role_by_id or acl["grant_option"] is not False:
             raise CatalogError(f"{acl_id}: ACL grantee または grant option が不正")
+        acl_key = (
+            str(acl["object_kind"]),
+            str(acl["object_id"]),
+            str(acl["grantee_role_id"]),
+        )
+        if acl_key in acl_by_object_grantee:
+            raise CatalogError(f"{acl_id}: object・grantee の ACL が重複している")
+        acl_by_object_grantee[acl_key] = frozenset(privileges)
         if acl_id in acl_ids:
             raise CatalogError(f"acl_id が重複している: {acl_id}")
         acl_ids.add(acl_id)
+
+    actual_owner_acl = {
+        (grantee_role_id, object_id): privileges
+        for (object_kind, object_id, grantee_role_id), privileges in (
+            acl_by_object_grantee.items()
+        )
+        if object_kind == "table"
+        and role_by_id[grantee_role_id]["role_kind"] == "function_owner"
+    }
+    expected_owner_acl = {
+        key: frozenset(privileges) for key, privileges in required_owner_acl.items()
+    }
+    if actual_owner_acl != expected_owner_acl:
+        raise CatalogError("関数ownerの依存基表ACLが宣言と exact-set 不一致")
+
+    actual_function_acl = {
+        (object_id, grantee_role_id)
+        for (object_kind, object_id, grantee_role_id) in acl_by_object_grantee
+        if object_kind == "function"
+    }
+    expected_function_acl = {
+        (function_id, role_id)
+        for function_id, function in function_by_id.items()
+        for role_id in _expect_string_list(
+            function["execute_role_ids"], f"{function_id}.execute_role_ids"
+        )
+    }
+    if actual_function_acl != expected_function_acl:
+        raise CatalogError("関数EXECUTE ACLが宣言と exact-set 不一致")
+
+    for schema_id, required_caller_ids in required_callers_by_schema.items():
+        actual_caller_ids = set(
+            _expect_string_list(
+                schema_by_id[schema_id]["usage_role_ids"],
+                f"{schema_id}.usage_role_ids",
+            )
+        )
+        if actual_caller_ids != required_caller_ids:
+            raise CatalogError(
+                "関数callerのschema USAGEが宣言と exact-set 不一致"
+            )
 
     column_acl_rows = _expect_object_list(
         raw["column_acl_expectations"], "DDL manifest.column_acl_expectations"
@@ -2503,6 +3212,14 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         "role_ids": frozenset(role_by_id),
         "table_ids": frozenset(table_by_id),
         "function_ids": frozenset(function_by_id),
+        "predicate_ids": frozenset(predicate_kind_by_id),
+        "table_acl_by_object_grantee": {
+            (object_id, grantee_role_id): privileges
+            for (object_kind, object_id, grantee_role_id), privileges in (
+                acl_by_object_grantee.items()
+            )
+            if object_kind == "table"
+        },
         "provisioning_claim_id": provisioning["claim_id"],
         "management_probe_claim_ids": management_claim_ids,
         "table_privilege_ids": declared_privileges,
@@ -2582,6 +3299,267 @@ def _has_db_decision(claim: dict[str, object]) -> bool:
         isinstance(decision, dict) and decision.get("location") == "db"
         for decision in decisions
     )
+
+
+def _validate_runtime_target(
+    raw: object,
+    claim_id: str,
+    route_registry: dict[str, object],
+    ddl_result: dict[str, object],
+) -> tuple[str, frozenset[str]]:
+    """probe executable の宣言対象が実行資産に存在することを検査する。"""
+    label = f"{claim_id}.runtime_target"
+    if not isinstance(raw, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(raw, {"target_kind", "target_ids"}, label)
+    target_kind = _expect_closed_value(
+        raw["target_kind"], RUNTIME_TARGET_KINDS, f"{label}.target_kind"
+    )
+    target_ids = frozenset(_expect_string_list(raw["target_ids"], f"{label}.target_ids"))
+    if not target_ids:
+        raise CatalogError(f"{label}.target_ids は1件以上必要")
+
+    if target_kind in {"route", "management_operation"}:
+        collection_name = (
+            "routes" if target_kind == "route" else "management_operations"
+        )
+        identifier_key = "route_id" if target_kind == "route" else "operation_id"
+        rows = route_registry.get(collection_name)
+        if not isinstance(rows, list):
+            raise CatalogError(f"route registry.{collection_name} が不正")
+        target_by_id = {
+            str(row.get(identifier_key)): row for row in rows if isinstance(row, dict)
+        }
+        unsupported = sorted(
+            target_id
+            for target_id in target_ids
+            if target_id not in target_by_id
+            or claim_id not in target_by_id[target_id].get("source_claim_ids", [])
+        )
+    else:
+        function_ids = ddl_result.get("function_ids")
+        privilege_ids = ddl_result.get("table_privilege_ids")
+        provisioning_claim_id = str(ddl_result.get("provisioning_claim_id"))
+        if not isinstance(function_ids, frozenset) or not isinstance(
+            privilege_ids, frozenset
+        ):
+            raise CatalogError("DDL runtime target の導出集合が不正")
+        ddl_target_ids = {
+            "ddl_function": set(function_ids),
+            "ddl_table_privilege_probe": {
+                "TABLE-PRIVILEGE:probe_management_effects:"
+                f"management_caller:{privilege_id}"
+                for privilege_id in privilege_ids
+            },
+            "ddl_provisioning": {provisioning_claim_id},
+        }
+        unsupported = sorted(target_ids - ddl_target_ids[target_kind])
+    if unsupported:
+        raise CatalogError(
+            f"{label} が claim に対応する実在実行対象でない: {unsupported}"
+        )
+    return target_kind, target_ids
+
+
+def _table_privilege_mutation_targets(
+    raw: object,
+    ddl_result: dict[str, object],
+    claim_ids: frozenset[str],
+) -> list[dict[str, object]]:
+    """表権限 mutant の単一・複数 target 宣言を閉じた形へ正規化する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("table_privilege_mutation_rule はオブジェクトでない")
+    source_keys = {"source_asset_path", "source_json_pointer"}
+    if raw.get("source_asset_path") != "contracts/authz/ddl-elements.json" or raw.get(
+        "source_json_pointer"
+    ) != "/enums/table_privilege_ids":
+        raise CatalogError("表権限mutantの派生元が不正")
+
+    declared_privileges = ddl_result["table_privilege_ids"]
+    role_ids = ddl_result["role_ids"]
+    table_ids = ddl_result["table_ids"]
+    assert isinstance(declared_privileges, frozenset)
+    assert isinstance(role_ids, frozenset)
+    assert isinstance(table_ids, frozenset)
+
+    legacy_keys = source_keys | {
+        "mutant_id_template",
+        "target_role_id",
+        "target_table_id",
+        "claim_ids",
+    }
+    if "target_pairs" not in raw:
+        _expect_keys(raw, legacy_keys, "table_privilege_mutation_rule")
+        legacy_claim_ids = frozenset(
+            _expect_string_list(raw["claim_ids"], "privilege mutation claims")
+        )
+        if (
+            raw["mutant_id_template"]
+            != f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
+            or raw["target_role_id"] != "management_caller"
+            or raw["target_table_id"] != "probe_management_effects"
+            or legacy_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+        ):
+            raise CatalogError("表権限mutantの単一集合からの導出規則が不正")
+        return [
+            {
+                "target_role_id": raw["target_role_id"],
+                "target_table_id": raw["target_table_id"],
+                "operator_id": "grant_management_caller_table_privilege",
+                "mutant_id_template": raw["mutant_id_template"],
+                "claim_ids": legacy_claim_ids,
+                "privilege_groups": [
+                    {
+                        "privilege_id": privilege_id,
+                        "grant_privilege_ids": (privilege_id,),
+                    }
+                    for privilege_id in sorted(declared_privileges)
+                ],
+            }
+        ]
+
+    _expect_keys(
+        raw,
+        source_keys | {"target_pairs"},
+        "table_privilege_mutation_rule",
+    )
+    pair_rows = _expect_object_list(
+        raw["target_pairs"], "table_privilege_mutation_rule.target_pairs"
+    )
+    if not pair_rows:
+        raise CatalogError("表権限 mutant の target pair は1件以上必要")
+    targets: list[dict[str, object]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    for index, pair in enumerate(pair_rows):
+        label = f"table_privilege_mutation_rule.target_pairs[{index}]"
+        _expect_keys(
+            pair,
+            {
+                "target_role_id",
+                "target_table_id",
+                "operator_id",
+                "mutant_id_template",
+                "claim_ids",
+                "privilege_groups",
+            },
+            label,
+        )
+        role_id = _expect_string(pair["target_role_id"], f"{label}.target_role_id")
+        table_id = _expect_string(pair["target_table_id"], f"{label}.target_table_id")
+        target_pair = (role_id, table_id)
+        if target_pair in seen_pairs:
+            raise CatalogError("表権限 mutant の target pair が重複")
+        seen_pairs.add(target_pair)
+        if role_id not in role_ids or table_id not in table_ids:
+            raise CatalogError(f"{label}: 表権限 mutant の target pair が未知")
+        operator_id = _expect_string(pair["operator_id"], f"{label}.operator_id")
+        template = _expect_string(
+            pair["mutant_id_template"], f"{label}.mutant_id_template"
+        )
+        if template.count("{privilege_id}") != 1:
+            raise CatalogError(f"{label}: mutant ID template が不正")
+        target_claim_ids = frozenset(
+            _expect_string_list(pair["claim_ids"], f"{label}.claim_ids")
+        )
+        if not target_claim_ids or not target_claim_ids <= claim_ids:
+            raise CatalogError(f"{label}: claim 参照が閉じていない")
+        group_rows = _expect_object_list(
+            pair["privilege_groups"], f"{label}.privilege_groups"
+        )
+        if not group_rows:
+            raise CatalogError(f"{label}: privilege group は1件以上必要")
+        groups: list[dict[str, object]] = []
+        seen_group_ids: set[str] = set()
+        for group_index, group in enumerate(group_rows):
+            group_label = f"{label}.privilege_groups[{group_index}]"
+            _expect_keys(
+                group,
+                {"privilege_id", "grant_privilege_ids"},
+                group_label,
+            )
+            privilege_id = _expect_string(
+                group["privilege_id"], f"{group_label}.privilege_id"
+            )
+            granted_list = _expect_string_list(
+                group["grant_privilege_ids"],
+                f"{group_label}.grant_privilege_ids",
+            )
+            granted = frozenset(granted_list)
+            if (
+                privilege_id in seen_group_ids
+                or not re.fullmatch(r"[A-Z_]+", privilege_id)
+                or not granted
+                or len(granted_list) != len(granted)
+                or not granted <= declared_privileges
+            ):
+                raise CatalogError(f"{group_label}: privilege group が閉じていない")
+            seen_group_ids.add(privilege_id)
+            groups.append(
+                {
+                    "privilege_id": privilege_id,
+                    "grant_privilege_ids": tuple(granted_list),
+                }
+            )
+        targets.append(
+            {
+                "target_role_id": role_id,
+                "target_table_id": table_id,
+                "operator_id": operator_id,
+                "mutant_id_template": template,
+                "claim_ids": target_claim_ids,
+                "privilege_groups": groups,
+            }
+        )
+    return targets
+
+
+def _validate_required_table_privilege_targets(
+    targets: list[dict[str, object]],
+) -> None:
+    """F13/H-81 の必須 target・権限が宣言に全て含まれることを検査する。"""
+    declared_grants: set[tuple[str, str, str]] = set()
+    targets_by_pair: dict[tuple[str, str], dict[str, object]] = {}
+    for target in targets:
+        role_id = str(target["target_role_id"])
+        table_id = str(target["target_table_id"])
+        pair = (role_id, table_id)
+        targets_by_pair[pair] = target
+        groups = target["privilege_groups"]
+        assert isinstance(groups, list)
+        for group in groups:
+            assert isinstance(group, dict)
+            grant_privilege_ids = group["grant_privilege_ids"]
+            assert isinstance(grant_privilege_ids, tuple)
+            declared_grants.update(
+                (role_id, table_id, str(privilege_id))
+                for privilege_id in grant_privilege_ids
+            )
+
+    required_grants = {
+        (role_id, table_id, privilege_id)
+        for (role_id, table_id), requirement in (
+            REQUIRED_TABLE_PRIVILEGE_TARGETS.items()
+        )
+        for privilege_id in requirement.grant_privilege_ids
+    }
+    missing_grants = sorted(required_grants - declared_grants)
+    if missing_grants:
+        raise CatalogError(f"F13/H-81 の必須表権限 target が不足: {missing_grants}")
+
+    for pair, requirement in REQUIRED_TABLE_PRIVILEGE_TARGETS.items():
+        target = targets_by_pair[pair]
+        groups = target["privilege_groups"]
+        assert isinstance(groups, list)
+        group_ids = {
+            str(group["privilege_id"])
+            for group in groups
+            if isinstance(group, dict)
+        }
+        if (
+            target["mutant_id_template"] != requirement.mutant_id_template
+            or not requirement.mutation_privilege_ids <= group_ids
+        ):
+            raise CatalogError(f"{pair}: F13/H-81 の必須 mutant 宣言が不足")
 
 
 def validate_claim_mutant_map(
@@ -2705,26 +3683,52 @@ def validate_claim_mutant_map(
     execution_counts: Counter[str] = Counter()
     for index, claim_row in enumerate(claim_rows):
         label = f"claim mutant map.claims[{index}]"
+        common_claim_keys = {
+            "claim_id",
+            "claim_origin",
+            "execution_class",
+            "classification_rule_id",
+            "mutant_ids",
+            "schema_drift_test_owner",
+            "runtime_test_owner",
+            "runtime_kill_required",
+            "runtime_evidence_kind",
+            "receiving_task_id",
+        }
+        execution_class = _expect_closed_value(
+            claim_row.get("execution_class"),
+            ORACLE_EXECUTION_CLASSES,
+            f"{label}.execution_class",
+        )
+        if execution_class == "probe_executable":
+            if "runtime_target" not in claim_row:
+                raise CatalogError(f"{label}: probe_executable に runtime_target が必要")
+            expected_claim_keys = common_claim_keys | {"runtime_target"}
+        else:
+            if "contract_only_reason_code" not in claim_row:
+                raise CatalogError(
+                    f"{label}: contract_only に contract_only_reason_code が必要"
+                )
+            expected_claim_keys = common_claim_keys | {"contract_only_reason_code"}
         _expect_keys(
             claim_row,
-            {
-                "claim_id",
-                "claim_origin",
-                "execution_class",
-                "classification_rule_id",
-                "mutant_ids",
-                "schema_drift_test_owner",
-                "runtime_test_owner",
-                "runtime_kill_required",
-                "runtime_evidence_kind",
-                "receiving_task_id",
-            },
+            expected_claim_keys,
             label,
         )
         claim_id = _expect_string(claim_row["claim_id"], f"{label}.claim_id")
-        execution_class = _expect_closed_value(
-            claim_row["execution_class"], ORACLE_EXECUTION_CLASSES, f"{label}.execution_class"
-        )
+        runtime_target_kind: str | None = None
+        runtime_target_ids: frozenset[str] = frozenset()
+        contract_reason: str | None = None
+        if execution_class == "probe_executable":
+            runtime_target_kind, runtime_target_ids = _validate_runtime_target(
+                claim_row["runtime_target"], claim_id, route_registry, ddl_result
+            )
+        else:
+            contract_reason = _expect_closed_value(
+                claim_row["contract_only_reason_code"],
+                CONTRACT_ONLY_REASON_CODES,
+                f"{label}.contract_only_reason_code",
+            )
         rule_id = _expect_string(
             claim_row["classification_rule_id"], f"{label}.classification_rule_id"
         )
@@ -2735,10 +3739,17 @@ def validate_claim_mutant_map(
             expected_class = "probe_executable"
             expected_rule = "PROBE_EXECUTABLE_PROVISIONING_SEQUENCE"
             expected_origin = "design"
+            if (
+                runtime_target_kind != "ddl_provisioning"
+                or runtime_target_ids != {provisioning_claim_id}
+            ):
+                raise CatalogError(f"{claim_id}: provisioning の runtime target が不正")
         elif claim_id in management_probe_claim_ids:
             expected_class = "probe_executable"
             expected_rule = "PROBE_EXECUTABLE_MANAGEMENT_PROBE"
             expected_origin = "design"
+            if runtime_target_kind != "ddl_function":
+                raise CatalogError(f"{claim_id}: management probe の runtime target が不正")
         else:
             source_claim = auth_claims.get(claim_id)
             if source_claim is None:
@@ -2746,13 +3757,27 @@ def validate_claim_mutant_map(
             if not _has_db_decision(source_claim):
                 expected_class = "contract_only"
                 expected_rule = "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                expected_reasons = {"no_db_decision_point"}
+            elif runtime_target_kind is not None:
+                expected_class = "probe_executable"
+                expected_rule = "PROBE_EXECUTABLE_DB_DECISION_POINT"
+                expected_reasons = set()
             elif claim_id in management_claim_ids:
                 expected_class = "contract_only"
                 expected_rule = "CONTRACT_ONLY_UNIMPLEMENTED_MANAGEMENT"
+                expected_reasons = {"route_universe_pending"}
             else:
-                expected_class = "probe_executable"
-                expected_rule = "PROBE_EXECUTABLE_DB_DECISION_POINT"
+                expected_class = "contract_only"
+                expected_rule = "CONTRACT_ONLY_RUNTIME_TARGET_PENDING"
+                expected_reasons = {
+                    "route_universe_pending",
+                    "ddl_target_pending",
+                }
             expected_origin = "requirement"
+            if expected_class == "contract_only" and contract_reason not in expected_reasons:
+                raise CatalogError(
+                    f"{claim_id}: contract_only_reason_code が導出理由と不一致"
+                )
         if (
             execution_class != expected_class
             or rule_id != expected_rule
@@ -2929,46 +3954,73 @@ def validate_claim_mutant_map(
         for mutant_id, mutant in mutant_by_id.items()
         if mutant["axis"] == "r8_provisioning"
     }
-    privilege_ids = ddl_result["table_privilege_ids"]
-    assert isinstance(privilege_ids, frozenset)
-    privilege_rule = raw["table_privilege_mutation_rule"]
-    if not isinstance(privilege_rule, dict):
-        raise CatalogError("table_privilege_mutation_rule はオブジェクトでない")
-    _expect_keys(
-        privilege_rule,
-        {
-            "source_asset_path",
-            "source_json_pointer",
-            "mutant_id_template",
-            "target_role_id",
-            "target_table_id",
-            "claim_ids",
-        },
-        "table_privilege_mutation_rule",
+    privilege_targets = _table_privilege_mutation_targets(
+        raw["table_privilege_mutation_rule"],
+        ddl_result,
+        frozenset(claim_by_id),
     )
-    rule_claim_ids = set(
-        _expect_string_list(privilege_rule["claim_ids"], "privilege mutation claims")
-    )
-    if (
-        privilege_rule["source_asset_path"]
-        != "contracts/authz/ddl-elements.json"
-        or privilege_rule["source_json_pointer"] != "/enums/table_privilege_ids"
-        or privilege_rule["mutant_id_template"]
-        != f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
-        or privilege_rule["target_role_id"] != "management_caller"
-        or privilege_rule["target_table_id"] != "probe_management_effects"
-        or rule_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+    _validate_required_table_privilege_targets(privilege_targets)
+    table_acl_by_object_grantee = ddl_result["table_acl_by_object_grantee"]
+    assert isinstance(table_acl_by_object_grantee, dict)
+    privilege_mutant_expectations: dict[str, dict[str, object]] = {}
+    privilege_attack_contracts: set[tuple[str, str, str]] = set()
+    role_attack_contracts: dict[str, tuple[str, str]] = {}
+    for (required_role_id, _table_id), requirement in (
+        REQUIRED_TABLE_PRIVILEGE_TARGETS.items()
     ):
-        raise CatalogError("表権限mutantの単一集合からの導出規則が不正")
-    privilege_mutant_ids = {
-        f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{privilege_id}"
-        for privilege_id in privilege_ids
-    }
+        contract = (requirement.attack_goal_id, requirement.cut_set_id_template)
+        existing_contract = role_attack_contracts.setdefault(required_role_id, contract)
+        assert existing_contract == contract
+    for target in privilege_targets:
+        role_id = str(target["target_role_id"])
+        table_id = str(target["target_table_id"])
+        role_attack_contract = role_attack_contracts.get(role_id)
+        if role_attack_contract is None:
+            raise CatalogError(f"{role_id}: 表権限 mutant の attack goal 対応がない")
+        template = str(target["mutant_id_template"])
+        privilege_groups = target["privilege_groups"]
+        assert isinstance(privilege_groups, list)
+        baseline_privileges = table_acl_by_object_grantee.get(
+            (table_id, role_id), frozenset()
+        )
+        assert isinstance(baseline_privileges, frozenset)
+        for group in privilege_groups:
+            assert isinstance(group, dict)
+            privilege_id = str(group["privilege_id"])
+            granted_privileges = group["grant_privilege_ids"]
+            assert isinstance(granted_privileges, tuple)
+            if baseline_privileges & set(granted_privileges):
+                raise CatalogError(
+                    f"{role_id}/{table_id}/{privilege_id}: "
+                    "表権限 mutant の再付与対象が基準ACLですでに許可されている"
+                )
+            mutant_id = template.replace("{privilege_id}", privilege_id)
+            if mutant_id in privilege_mutant_expectations:
+                raise CatalogError("表権限 mutant ID の派生結果が重複")
+            privilege_mutant_expectations[mutant_id] = {
+                "operator_id": target["operator_id"],
+                "claim_ids": target["claim_ids"],
+                "target_element_ids": [
+                    f"TABLE-PRIVILEGE:{table_id}:{role_id}:{granted_privilege_id}"
+                    for granted_privilege_id in granted_privileges
+                ],
+            }
+            attack_goal_id, cut_set_id_template = role_attack_contract
+            table_label = table_id.removeprefix("probe_").upper().replace("_", "-")
+            privilege_attack_contracts.add(
+                (
+                    mutant_id,
+                    attack_goal_id,
+                    cut_set_id_template.replace("{table_label}", table_label).replace(
+                        "{privilege_id}", privilege_id
+                    ),
+                )
+            )
+    privilege_mutant_ids = set(privilege_mutant_expectations)
     expected_config_ids = REQUIRED_BASE_CONFIGURATION_MUTANT_IDS | privilege_mutant_ids
     if config_ids != expected_config_ids:
         raise CatalogError("構成軸 mutant が基礎集合+表権限派生集合と exact-set 不一致")
-    for privilege_id in privilege_ids:
-        mutant_id = f"{TABLE_PRIVILEGE_MUTANT_PREFIX}{privilege_id}"
+    for mutant_id, expectation in privilege_mutant_expectations.items():
         privilege_mutant = mutant_by_id[mutant_id]
         privilege_claim_ids = set(
             _expect_string_list(
@@ -2976,14 +4028,10 @@ def validate_claim_mutant_map(
             )
         )
         if (
-            privilege_mutant["operator_id"]
-            != "grant_management_caller_table_privilege"
-            or privilege_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS
+            privilege_mutant["operator_id"] != expectation["operator_id"]
+            or privilege_claim_ids != expectation["claim_ids"]
             or privilege_mutant["target_element_ids"]
-            != [
-                "TABLE-PRIVILEGE:probe_management_effects:"
-                f"management_caller:{privilege_id}"
-            ]
+            != expectation["target_element_ids"]
             or privilege_mutant["runtime_kill_required"] is not True
         ):
             raise CatalogError(f"{mutant_id}: 表権限から派生したkill契約が不正")
@@ -3085,6 +4133,8 @@ def validate_claim_mutant_map(
         "execution_counts": execution_counts,
         "axis_counts": axis_counts,
         "config_pairs": expected_pairs,
+        "table_privilege_mutant_ids": frozenset(privilege_mutant_ids),
+        "table_privilege_attack_contracts": frozenset(privilege_attack_contracts),
         "positive_case_count": len(positive_rows),
         "positive_kill_mutant_ids": positive_kill_mutant_ids,
     }
@@ -3176,11 +4226,8 @@ def validate_attack_tree(
     }
     if not layered_mutant_ids or not layered_mutant_ids <= covered_by_multi_factor:
         raise CatalogError("runtime kill免除mutantが多因子cut setで被覆されていない")
-    privilege_mutant_ids = {
-        mutant_id
-        for mutant_id in mutant_by_id
-        if str(mutant_id).startswith(TABLE_PRIVILEGE_MUTANT_PREFIX)
-    }
+    privilege_mutant_ids = mutant_result["table_privilege_mutant_ids"]
+    assert isinstance(privilege_mutant_ids, frozenset)
     atomicity_mutant_id = (
         "MUT:CONFIG:CFG_SPLIT_MANAGEMENT_AUTHORIZATION_AND_SIDE_EFFECT"
     )
@@ -3195,7 +4242,21 @@ def validate_attack_tree(
         or not privilege_mutant_ids <= singleton_cut_mutants
         or atomicity_mutant_id not in singleton_cut_mutants
     ):
-        raise CatalogError("管理callerの表権限または原子性mutantに単独cut setがない")
+        raise CatalogError("表権限または原子性mutantに単独cut setがない")
+    privilege_attack_contracts = mutant_result[
+        "table_privilege_attack_contracts"
+    ]
+    assert isinstance(privilege_attack_contracts, frozenset)
+    for mutant_id, attack_goal_id, cut_set_id in privilege_attack_contracts:
+        cut = cut_by_id.get(cut_set_id)
+        if (
+            cut is None
+            or cut["attack_goal_id"] != attack_goal_id
+            or cut["mutant_ids"] != [mutant_id]
+        ):
+            raise CatalogError(
+                f"{mutant_id}: F13/H-81 の attack goal・cut set 対応が不一致"
+            )
 
     scope = raw["two_factor_scope"]
     if not isinstance(scope, dict) or scope != {

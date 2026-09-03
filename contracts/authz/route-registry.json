@@ -3,9 +3,9 @@
   "asset_kind": "authz_route_registry",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "b87581491b47cd5f2537007482e98923d3ec441b",
+    "requirement_claims_blob_digest": "b06afe0bcfb3f22cfaaaa577981eeba2f56af018",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "f328f9d31a74f6a36ee410d60deeaa9b0ea8ff70"
+    "requirement_claims_lock_blob_digest": "091d17a9121cdc7304dea1b0bfb24b22073361ed"
   },
   "enums": {
     "origins": [
@@ -86,8 +86,10 @@
     {
       "route_id": "ROUTE:FR-020",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-015"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -98,8 +100,10 @@
     {
       "route_id": "ROUTE:FR-021",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-015"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -110,8 +114,10 @@
     {
       "route_id": "ROUTE:FR-022",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-015"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -122,8 +128,10 @@
     {
       "route_id": "ROUTE:FR-023",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-015"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -134,8 +142,10 @@
     {
       "route_id": "ROUTE:FR-024",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-015"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -146,8 +156,10 @@
     {
       "route_id": "ROUTE:FR-025",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-016"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -158,8 +170,10 @@
     {
       "route_id": "ROUTE:FR-026",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-016"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -170,8 +184,10 @@
     {
       "route_id": "ROUTE:FR-027",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-016"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -182,8 +198,10 @@
     {
       "route_id": "ROUTE:FR-028",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-017"
+      ],
       "route_class": "shared_screen",
       "channel": "screen",
       "expected_default": "deny_404",
@@ -194,8 +212,10 @@
     {
       "route_id": "ROUTE:FR-029",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-018"
+      ],
       "route_class": "shared_aggregate_export",
       "channel": "export",
       "expected_default": "deny_404",
@@ -206,8 +226,10 @@
     {
       "route_id": "ROUTE:FR-030",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-019"
+      ],
       "route_class": "shared_aggregate_export",
       "channel": "export",
       "expected_default": "deny_404",
@@ -218,8 +240,10 @@
     {
       "route_id": "ROUTE:FR-031",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-020"
+      ],
       "route_class": "shared_aggregate_export",
       "channel": "export",
       "expected_default": "deny_404",
@@ -230,8 +254,10 @@
     {
       "route_id": "ROUTE:FR-032",
       "route_kind": "legacy_route",
-      "origin": "design",
-      "source_claim_ids": [],
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-034/heading-001/table_row-021"
+      ],
       "route_class": "shared_aggregate_export",
       "channel": "export",
       "expected_default": "deny_404",
@@ -459,7 +485,9 @@
       "route_kind": "management_operation",
       "origin": "requirement",
       "source_claim_ids": [
-        "FR-041/list_item-006",
+        "FR-041/list_item-006#issue-permission",
+        "FR-041/list_item-006#invitation-state",
+        "FR-041/list_item-006#capacity-constraint",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -470,7 +498,7 @@
       "route_kind": "management_operation",
       "origin": "requirement",
       "source_claim_ids": [
-        "FR-041/list_item-006",
+        "FR-041/list_item-006#invitation-state",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -481,7 +509,10 @@
       "route_kind": "management_operation",
       "origin": "requirement",
       "source_claim_ids": [
-        "FR-041/list_item-007",
+        "FR-041/list_item-007#accept-permission",
+        "FR-041/list_item-007#invitation-state",
+        "FR-041/list_item-007#capacity-constraint",
+        "FR-041/list_item-007#acceptance-serialization",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -564,7 +595,9 @@
       "tenant_permission_required": true,
       "group_role_requirement": "admin",
       "source_claim_ids": [
-        "FR-041/list_item-006",
+        "FR-041/list_item-006#issue-permission",
+        "FR-041/list_item-006#invitation-state",
+        "FR-041/list_item-006#capacity-constraint",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -586,7 +619,7 @@
       "tenant_permission_required": true,
       "group_role_requirement": "admin",
       "source_claim_ids": [
-        "FR-041/list_item-006",
+        "FR-041/list_item-006#invitation-state",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -608,7 +641,10 @@
       "tenant_permission_required": true,
       "group_role_requirement": "none",
       "source_claim_ids": [
-        "FR-041/list_item-007",
+        "FR-041/list_item-007#accept-permission",
+        "FR-041/list_item-007#invitation-state",
+        "FR-041/list_item-007#capacity-constraint",
+        "FR-041/list_item-007#acceptance-serialization",
         "FR-041/list_item-017",
         "FR-035/list_item-014"
       ],
@@ -703,6 +739,1118 @@
         "id": "TSK-250.management.close_group",
         "status": "planned"
       }
+    }
+  ],
+  "claim_dispositions": [
+    {
+      "source_id": "APPENDIX-C/blockquote-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-C/table_row-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-C/table_row-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-C/table_row-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-C/table_row-010",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-5/blockquote-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-5/blockquote-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-A-5/paragraph-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-007/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-007/list_item-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-012/list_item-010",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-012/list_item-013",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-012/list_item-015",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-012/list_item-018",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-010",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-013/list_item-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-014/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-017/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-019/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-019/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-033/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-033/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-033/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-033/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-033/list_item-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/paragraph-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/paragraph-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/paragraph-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/paragraph-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/paragraph-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-010",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-012",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-013",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-014",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-022",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-001/table_row-023",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-005#operation-permission",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-005#read-access",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-006#operation-permission",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/list_item-006#read-access",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/paragraph-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/paragraph-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-002/table_row-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-003/paragraph-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-003/table_row-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-003/table_row-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/paragraph-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/paragraph-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-034/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-005#principal-state",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-005#revocation",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-010#password-state",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-010#revocation",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-012",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-013",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-015",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-035/list_item-016",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-036/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-036/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-036/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-036/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-036/list_item-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-037/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-039/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-039/list_item-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-039/list_item-009",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-010",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-012",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-013",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-014#participant-authorization",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-014#request-validation",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-018",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-019",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-020",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-041/list_item-021",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-009/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-010/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-010/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-011/list_item-002#credential-state",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-011/list_item-002#revocation",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-011/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-012/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-012/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "NFR-019/paragraph-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-1.1/paragraph-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-1.1/paragraph-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-2.2/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-2.2/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-2.2/list_item-008",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-2.2/list_item-012",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/heading-001/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/table_row-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/table_row-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/table_row-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-3/table_row-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-4.0-1/code_line-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-4.0-1/code_line-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-4.0-2/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-4.0-3/table_row-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-4.0-3/table_row-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-6.2/list_item-003",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-6.4/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-7.1/list_item-004",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-8/list_item-002",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-8/list_item-006",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-9/table_row-007",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-9/table_row-011",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-9/table_row-012",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "SECTION-9/table_row-013",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-017/list_item-009",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-033/list_item-006",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/list_item-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-002",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-003",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-004",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-034/heading-004/table_row-009",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-035/list_item-005#revocation",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-035/list_item-010#revocation",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-035/list_item-016",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "FR-036/list_item-005",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "NFR-010/list_item-004",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "NFR-011/list_item-002#revocation",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "NFR-011/list_item-003",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "NFR-012/list_item-003",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "NFR-019/paragraph-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "SECTION-6.2/list_item-003",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "SECTION-8/list_item-002",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    },
+    {
+      "source_id": "SECTION-8/list_item-006",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
     }
   ]
 }

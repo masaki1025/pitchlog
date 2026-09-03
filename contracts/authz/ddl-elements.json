@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_candidate_ddl_manifest",
   "oracle_context": {
-    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_commit": "e10f2b130116b454a2ab52bffa3297b11c1de907",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "scope": {
@@ -121,7 +121,9 @@
     {
       "schema_id": "management_private",
       "owner_role_id": "management_fn_owner",
-      "usage_role_ids": [],
+      "usage_role_ids": [
+        "management_caller"
+      ],
       "create_role_ids": []
     }
   ],
@@ -219,6 +221,12 @@
       ]
     }
   ],
+  "predicates": [
+    {
+      "predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "predicate_kind": "current_tenant_owns_row"
+    }
+  ],
   "policies": [
     {
       "policy_id": "POLICY:probe_business_rows:tenant_boundary",
@@ -307,7 +315,36 @@
         "probe_memberships",
         "probe_grants"
       ],
+      "owner_dependency_acl": [
+        {
+          "table_id": "probe_business_rows",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_groups",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_memberships",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_grants",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        }
+      ],
       "execute_role_ids": [
+        "app_role"
+      ],
+      "caller_schema_usage_role_ids": [
         "app_role"
       ],
       "public_execute": false
@@ -331,7 +368,36 @@
         "probe_grants",
         "probe_invitations"
       ],
+      "owner_dependency_acl": [
+        {
+          "table_id": "probe_groups",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_memberships",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_grants",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_invitations",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        }
+      ],
       "execute_role_ids": [
+        "app_role"
+      ],
+      "caller_schema_usage_role_ids": [
         "app_role"
       ],
       "public_execute": false
@@ -354,7 +420,30 @@
         "probe_grants",
         "probe_management_effects"
       ],
+      "owner_dependency_acl": [
+        {
+          "table_id": "probe_memberships",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_grants",
+          "privilege_ids": [
+            "SELECT"
+          ]
+        },
+        {
+          "table_id": "probe_management_effects",
+          "privilege_ids": [
+            "INSERT"
+          ]
+        }
+      ],
       "execute_role_ids": [
+        "management_caller"
+      ],
+      "caller_schema_usage_role_ids": [
         "management_caller"
       ],
       "public_execute": false
@@ -380,10 +469,7 @@
       "object_id": "probe_groups",
       "grantee_role_id": "app_role",
       "privilege_ids": [
-        "SELECT",
-        "INSERT",
-        "UPDATE",
-        "DELETE"
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -393,10 +479,7 @@
       "object_id": "probe_memberships",
       "grantee_role_id": "app_role",
       "privilege_ids": [
-        "SELECT",
-        "INSERT",
-        "UPDATE",
-        "DELETE"
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -406,10 +489,7 @@
       "object_id": "probe_grants",
       "grantee_role_id": "app_role",
       "privilege_ids": [
-        "SELECT",
-        "INSERT",
-        "UPDATE",
-        "DELETE"
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -419,10 +499,7 @@
       "object_id": "probe_invitations",
       "grantee_role_id": "app_role",
       "privilege_ids": [
-        "SELECT",
-        "INSERT",
-        "UPDATE",
-        "DELETE"
+        "SELECT"
       ],
       "grant_option": false
     },
@@ -436,6 +513,86 @@
         "INSERT",
         "UPDATE",
         "DELETE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_business_rows:shared_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_business_rows",
+      "grantee_role_id": "shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_groups:shared_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_groups",
+      "grantee_role_id": "shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_memberships:shared_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_memberships",
+      "grantee_role_id": "shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_grants:shared_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_grants",
+      "grantee_role_id": "shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_invitations:shared_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_invitations",
+      "grantee_role_id": "shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_memberships:management_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_memberships",
+      "grantee_role_id": "management_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_grants:management_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_grants",
+      "grantee_role_id": "management_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:probe_management_effects:management_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_management_effects",
+      "grantee_role_id": "management_fn_owner",
+      "privilege_ids": [
+        "INSERT"
       ],
       "grant_option": false
     },
