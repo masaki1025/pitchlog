@@ -171,7 +171,7 @@ def _remove_all_provenance(node: object) -> None:
 
 
 def test_all_expectations_have_existing_verbatim_provenance() -> None:
-    """全22期待値・全24典拠を選択せず検査する。"""
+    """全22期待値・全25典拠を選択せず検査する。"""
     assert _validate_provenance(_load_asset()) == (
         EXPECTED_EXPECTATION_COUNT,
         EXPECTED_PROVENANCE_COUNT,
