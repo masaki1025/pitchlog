@@ -385,3 +385,15 @@ branch: feature/adr003-display-primitives
 
 - 前段委任の総合テストで `test_check_docs_status.py` が fail し、**ステップ 9 の approved 化コミット(1827294)が両正本の frontmatter を `in-review` のまま残していた**ことが判明(変更履歴・索引は approved 化済み — 索引との不一致。ステップ 9 の機械条件 `check_docs_status.py` OK は実際には未充足だった)
 - 是正: 要件書・ADR-003 の frontmatter `status: in-review → approved`(承認済みの状態への機械的追随のみ — 本文無変更)。`uv run python scripts/check_docs_status.py` → exit 0 を確認
+
+#### 前段(codex 委任)の実施結果(2026-09-03)
+
+- **委任**: `codex_run.py implement`(新規セッション・コア領域 → ADR-001 の自動選択)。範囲 = 母集合 2 + 派生 3 資産と lock(計 8)+ `tests/test_check_authz_catalog.py` 期待件数のみ。oracle 6 資産・seal・checker・docs は変更禁止と明示
+- **codex の変更**: 母集合の manifest(blob・commit・構造件数)を v2.6 へ / source_text・位置・digest の追随 / 新規行の採取(既存規則で分類・規則変更なし)/ 派生 3 資産は `input_manifest` のみ更新(内容件数 `db_claims=187 routes=37 cells=12` 不変)/ tests の期待件数 `1063/879 → 1073/889`(実測)
+- **frontmatter 是正への再追随(Claude)**: 是正コミット dc9d114 で要件書 blob が再度変わったため、母集合 manifest(commit=dc9d114・blob=3f400c2249500a9a2af94b959685322335bb1cb8)と `PREAMBLE/frontmatter-002`(source_text `status: in-review → approved`・digest は checker の `_sha256`/`compute_decision_digest` で機械再計算)を追随し、reseal ①②を再実行
+- **reseal 実行記録(§4-(2) の順序)**:
+  - ① `check_authz_catalog.py --reseal --skip-derived --skip-oracle` → `ok total=1073 auth_claim=184 out_of_scope=889 resealed`
+  - ② 派生 3 資産の input_manifest 更新 → `--reseal-derived --skip-oracle` → `ok ... db_claims=187 routes=37 cells=12 derived-resealed`
+  - 判定 `--skip-oracle` → exit 0(green)
+- **Claude の独立計数(HEAD 比・python 直接計数)**: total 1063→1073 / auth_claim 184→184 / out_of_scope 879→889 / 追加 10(OUT_NON_AUTH_REQUIREMENT 6・OUT_STRUCTURAL 2・OUT_DOCUMENT_METADATA 2 — A-1 list_item・A-2/A-3/A-4 table_row・A-4 の指標表化に伴う blockquote/paragraph/table_header/delimiter・CHANGELOG table_row-030/031)/ 削除 0 / 変更 46(**auth_claim に関わる変更 0** — 分類・decidable_at の変更なし)。codex 報告の「更新 47」との 1 件差は frontmatter 是正の時系列差(codex 基線は是正前)
+- **AUTH 分類の増減 0・oracle 内容への波及なし** — oracle 資産の内容変更は不要(次段は oracle_commit 差し替えと reseal のみ)
