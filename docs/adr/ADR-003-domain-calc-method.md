@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 
 # ADR-003: ドメイン計算の実現方式と契約化

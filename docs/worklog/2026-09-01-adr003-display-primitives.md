@@ -361,3 +361,27 @@ branch: feature/adr003-display-primitives
 - 変更履歴へ確定ゲート通過行を追加(両文書・approved)・暫定注記を確定化・「仮追補/仮改訂」表記 30 件を確定表記へ・docs/README.md 索引を approved へ現行化・計画書 3 節の版裁定注記を確定結果へ
 - ゲート最終集計: **27 周・指摘 88 件・全件採用・不採用 0・P0 全周ゼロ**。PO 裁定: 射程拡大①〜⑥ / 範囲確定 2 件 / 乙(保証書き分け)/ 球速単位 / (β)⑦ 2 段 / 期間ラベル JST / 6 周続行 / 27 周目最終周(確認は人間承認・逐行確認で代替)
 - 残: ステップ 10(母集合追随 — TSK-270 の P0 修正完了が前提)→ /check → /sync-docs 突合 → /pr(コア領域チェック行 + 逐行確認の実施記録)
+
+### ステップ 10 — 母集合の追随(甲-1・2026-09-03)
+
+#### 前提確認と develop の取り込み
+
+- **前提充足**: TSK-312(TSK-270 母集合のマージ後レビュー P0 7 件の是正)が完了(PR #39 マージ済み・Notion「完了」)— §1 裁定(甲-1)の実施前提が成立
+- **develop の取り込み(merge コミット `8b654a3`)**: 是正済み母集合(TSK-312 の成果)は develop 側にしかないため、`origin/develop`(517d4bf)を本ブランチへ merge。競合は `docs/README.md` の 1 ハンクのみ — 要件定義書行はブランチ側 v2.6 を保持し develop 側の TSK-312 有効化注記を合流、改善台帳行は develop 側 v1.2 を採用。要件書本体は自動マージ(TSK-312 の変更履歴行 + NFR-018 例外表行と v2.6 内容が両立 — `grep -n "courseCoordinateContract.spec.ts"` で :37/:909 の取り込みを確認)
+- **追随対象 blob の確定**: merge により「ステップ 9 の最終コミット(1827294)の要件書 blob」は develop 側の変更(NFR-018 例外表 2 セル)を合流した **merge 後 blob へ更新**される。digest が古くならないという §1 順序制約の趣旨(= develop へ着地する最終バイト列に対して封印する)に従い、**追随対象 = merge 後 blob `8adb94ebcdc8d35a8ce1c1ff862856a9f19c8e45`** とする(旧: TSK-312 時点の `7e0ad9dcf4e76b2b8a4ecab87f5446606c0f326c`)
+
+#### H-85 発火の実測(委任前の失敗テスト固定)
+
+- `uv run pytest tests/test_check_authz_catalog.py -q` → **1 failed, 71 passed**
+- fail = `test_repository_catalog_covers_the_entire_requirements_file` のみ: `check_authz_catalog.py: source blob digest が不一致: 期待=7e0ad9dcf4e76b2b8a4ecab87f5446606c0f326c, 実際=8adb94ebcdc8d35a8ce1c1ff862856a9f19c8e45`
+
+#### 実施構成 — seal 機構による 2 段化(計画からの機構的逸脱の記録)
+
+- 計画書ステップ 10 は「本ステップのコミットを 1 つ作る」とするが、TSK-312 が外部固定した oracle seal 機構(`oracle-seal.lock.json`)は **`oracle_commit` = 8 入力資産を確定した既存コミットの SHA** を要求し(checker :4547 が `git rev-parse <oracle_commit>:<path>` で blob 照合)、母集合が変わる本ステップでは**入力確定コミットを先に作らないと seal を張れない**。TSK-312 §4-(2)/§4-(6) と同型の 2 段で実施する:
+  1. **前段(codex 委任)**: 母集合 + 決定 lock + 派生 3 資産(+lock)+ tests 期待件数の追随 → `check_authz_catalog.py --skip-oracle` green → **入力確定コミット(ステップ 10 本体)**
+  2. **後段**: oracle 6 資産の `oracle_context.oracle_commit` と seal の `oracle_commit` を前段コミット SHA へ差し替え → **最終形への差分レビュー + 人間確認(reseal_policy.human_review_required = true — 機構が要求)** → `--reseal-oracle` → コミット
+
+#### ステップ 9 の取りこぼし是正(2026-09-03 — ステップ 10 前段で発見)
+
+- 前段委任の総合テストで `test_check_docs_status.py` が fail し、**ステップ 9 の approved 化コミット(1827294)が両正本の frontmatter を `in-review` のまま残していた**ことが判明(変更履歴・索引は approved 化済み — 索引との不一致。ステップ 9 の機械条件 `check_docs_status.py` OK は実際には未充足だった)
+- 是正: 要件書・ADR-003 の frontmatter `status: in-review → approved`(承認済みの状態への機械的追随のみ — 本文無変更)。`uv run python scripts/check_docs_status.py` → exit 0 を確認

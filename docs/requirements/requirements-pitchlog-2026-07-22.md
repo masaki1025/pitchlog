@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 
 # pitchlog 要件定義書
