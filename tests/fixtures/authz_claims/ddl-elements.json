@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_candidate_ddl_manifest",
+  "oracle_context": {
+    "oracle_commit": "38a37ce4ebc3321cdaab50bbc1d54fc38cb31a05",
+    "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
+  },
+  "scope": {
+    "status": "candidate_probe_only",
+    "product_schema": false,
+    "contains_sql_body": false,
+    "second_group_approval_required": true
+  },
+  "enums": {
+    "table_privilege_ids": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "TRUNCATE",
+      "REFERENCES",
+      "TRIGGER",
+      "MAINTAIN"
+    ],
+    "role_kinds": [
+      "object_owner",
+      "function_owner",
+      "management_caller"
+    ],
+    "security_modes": [
+      "definer"
+    ]
+  },
+  "roles": [
+    {
+      "role_id": "table_owner",
+      "role_kind": "object_owner",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "management_fn_owner",
+      "role_kind": "function_owner",
+      "login": false,
+      "bypass_rls": true,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    },
+    {
+      "role_id": "management_caller",
+      "role_kind": "management_caller",
+      "login": true,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": false
+    }
+  ],
+  "schemas": [
+    {
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "usage_role_ids": [
+        "management_fn_owner"
+      ],
+      "create_role_ids": []
+    },
+    {
+      "schema_id": "management_private",
+      "owner_role_id": "management_fn_owner",
+      "usage_role_ids": [
+        "management_caller"
+      ],
+      "create_role_ids": []
+    }
+  ],
+  "tables": [
+    {
+      "table_id": "probe_management_effects",
+      "schema_id": "probe_data",
+      "owner_role_id": "table_owner",
+      "row_shape_ids": [],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": [
+        "POLICY:probe_management_effects:tenant_boundary"
+      ]
+    }
+  ],
+  "predicates": [
+    {
+      "predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "predicate_kind": "current_tenant_owns_row"
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "POLICY:probe_management_effects:tenant_boundary",
+      "table_id": "probe_management_effects",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "management_caller"
+      ],
+      "using_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW",
+      "with_check_predicate_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "apply_representative_grant_change",
+      "function_class": "representative_management_operation",
+      "schema_id": "management_private",
+      "owner_role_id": "management_fn_owner",
+      "security_mode": "definer",
+      "search_path": [
+        "pg_catalog",
+        "management_private",
+        "pg_temp"
+      ],
+      "return_contract": "operation_result",
+      "aggregation_contract": "none",
+      "dependency_table_ids": [
+        "probe_management_effects"
+      ],
+      "owner_dependency_acl": [
+        {
+          "table_id": "probe_management_effects",
+          "privilege_ids": [
+            "INSERT"
+          ]
+        }
+      ],
+      "execute_role_ids": [
+        "management_caller"
+      ],
+      "caller_schema_usage_role_ids": [
+        "management_caller"
+      ],
+      "public_execute": false
+    }
+  ],
+  "acl_expectations": [
+    {
+      "acl_id": "ACL:probe_management_effects:management_fn_owner",
+      "object_kind": "table",
+      "object_id": "probe_management_effects",
+      "grantee_role_id": "management_fn_owner",
+      "privilege_ids": [
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:apply_representative_grant_change:management_caller",
+      "object_kind": "function",
+      "object_id": "apply_representative_grant_change",
+      "grantee_role_id": "management_caller",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
+    }
+  ],
+  "column_acl_expectations": [
+    {
+      "expectation_id": "COLUMN-ACL:ALL-PROBE-TABLES:NO-EXPLICIT-GRANTS",
+      "table_ids": [
+        "probe_management_effects"
+      ],
+      "grantee_role_ids": [
+        "table_owner",
+        "management_fn_owner",
+        "management_caller"
+      ],
+      "expected_entries": []
+    }
+  ],
+  "table_privilege_probe_matrix": [
+    {
+      "privilege_id": "SELECT",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.select",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "INSERT",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.insert",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "UPDATE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.update",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "DELETE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.delete",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "TRUNCATE",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.truncate",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "REFERENCES",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.references",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "TRIGGER",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.trigger",
+        "status": "planned"
+      }
+    },
+    {
+      "privilege_id": "MAINTAIN",
+      "calling_role_id": "management_caller",
+      "target_table_id": "probe_management_effects",
+      "expected_direct_access": "deny",
+      "test_owner": {
+        "id": "fixture.table-privilege.maintain",
+        "status": "planned"
+      }
+    }
+  ],
+  "representative_management_probe": {
+    "claim_ids": [
+      "ORACLE:MANAGEMENT-PROBE:NO-BASE-TABLE-DML",
+      "ORACLE:MANAGEMENT-PROBE:ATOMIC-AUTHORIZATION-SIDE-EFFECT"
+    ],
+    "function_id": "apply_representative_grant_change",
+    "calling_role_id": "management_caller",
+    "base_table_ids": [
+      "probe_management_effects"
+    ],
+    "caller_table_privilege_ids": [],
+    "caller_column_privilege_entries": [],
+    "authorization_and_side_effect_same_function": true,
+    "authorization_and_side_effect_same_transaction": true,
+    "transaction_boundary_id": "TX:REPRESENTATIVE_MANAGEMENT"
+  },
+  "transaction_boundaries": [
+    {
+      "boundary_id": "TX:PROVISIONING"
+    },
+    {
+      "boundary_id": "TX:REPRESENTATIVE_MANAGEMENT",
+      "boundary_kind": "authorization_and_side_effect",
+      "atomic": true
+    },
+    {
+      "boundary_id": "TX:GLOBAL_MUTATION_ISOLATION"
+    }
+  ],
+  "provisioning_claim": {
+    "claim_id": "ORACLE:PROVISIONING:ORDERED-5-STEPS",
+    "ordered_steps": [
+      {
+        "sequence": 1
+      },
+      {
+        "sequence": 2
+      },
+      {
+        "sequence": 3
+      },
+      {
+        "sequence": 4
+      },
+      {
+        "sequence": 5
+      }
+    ],
+    "completion_catalog_expectations": [
+      {
+        "inspection_predicate": "pg_has_role(<provisioner>, <fn_owner>, 'SET') = false"
+      },
+      {
+        "inspection_predicate": "pg_has_role(<provisioner>, <fn_owner>, 'USAGE') = false"
+      }
+    ]
+  },
+  "provenance": [
+    {
+      "provenance_id": "FIXTURE-AUTHZ-REQUIREMENTS",
+      "path": "tests/fixtures/authz_claims/requirements.md",
+      "extracted_text": "合成認可要件"
+    }
+  ]
+}

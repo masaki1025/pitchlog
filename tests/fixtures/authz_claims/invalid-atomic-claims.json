@@ -1,0 +1,32 @@
+{
+  "duplicate_atomic_id": {
+    "operation": "replace",
+    "path": [
+      "atomic_claims",
+      1,
+      "atomic_id"
+    ],
+    "value": "FR-900/table_row-001#row-policy",
+    "expected_error": "atomic_id が行内で重複している"
+  },
+  "unknown_layer": {
+    "operation": "replace",
+    "path": [
+      "atomic_claims",
+      0,
+      "layer"
+    ],
+    "value": "client_only",
+    "expected_error": "layer が閉じた値域にない"
+  },
+  "ambiguous_parent_decision": {
+    "operation": "add_parent_layer",
+    "value": "access_control",
+    "expected_error": "atomic_claims を持つ行本体に layer/decidable_at を置けない"
+  },
+  "unknown_atomic_reference": {
+    "operation": "replace_registry_reference",
+    "value": "FR-900/table_row-001#unknown",
+    "expected_error": "source_claim_idsが母集合の AUTH 主張に存在しない"
+  }
+}

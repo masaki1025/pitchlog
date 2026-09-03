@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "date": "2026-09-03",
+    "adjudicator": "山田正輝",
+    "review": "TSK-312 ステップ 1 — 全対象敵対レビュー(P0×14・P1×2)",
+    "machine_checks": {
+      "universe_exact_set": {
+        "result": "一致",
+        "sha256": "6aa7908fff1a8efee946c788de364fb02dceb9f80e116b9327d0fc637f41415c",
+        "count": 3920,
+        "note": "レビュアー側は read-only sandbox のためファイル保存不可 — per-asset 件数 + sha256 の申告を Claude 側リスト(review-universe-claude.txt)と突合し完全一致"
+      },
+      "findings_subset": {
+        "result": "合格",
+        "target_ids": 48,
+        "outside_universe": 0
+      }
+    }
+  },
+  "rulings": [
+    {
+      "id": "F1",
+      "severity": "P0",
+      "topic": "端末内の認可判定点(FR-012 E3)",
+      "decision": "partial",
+      "adopt": "FR-012 の主張分割(UI 結果とサーバー防御の分離)",
+      "defer": "client/端末内 location の schema 新設 → 別起票(TSK-267 射程と交差)。TSK-278 ブロッカにしない・/task-done 前提にしない"
+    },
+    {
+      "id": "F2",
+      "severity": "P0",
+      "topic": "FR-034 7 操作の読み取り可視性への誤分類",
+      "decision": "adopt",
+      "assign": "意味論(v)主張分割 + 資産是正"
+    },
+    {
+      "id": "F3",
+      "severity": "P0",
+      "topic": "FR-041 招待の操作認可の principal state 固定",
+      "decision": "adopt",
+      "assign": "意味論(v) + 資産是正"
+    },
+    {
+      "id": "F4",
+      "severity": "P0",
+      "topic": "即時トークン失効の cache 判定点欠落",
+      "decision": "adopt",
+      "assign": "意味論(v)失効分離 + 資産是正"
+    },
+    {
+      "id": "F5",
+      "severity": "P0",
+      "topic": "分類規則の罠が全件無効",
+      "decision": "adopt",
+      "assign": "意味論(i)罠の実効化"
+    },
+    {
+      "id": "F6",
+      "severity": "P0",
+      "topic": "closed-world 宣言の機械的閉包なし",
+      "decision": "adopt",
+      "assign": "意味論(ii)専用構造 + exact-set 検査"
+    },
+    {
+      "id": "F7",
+      "severity": "P0",
+      "topic": "HTTP 逆向き閉包なし(166 件無結線)",
+      "decision": "adopt",
+      "assign": "意味論(iii)逆向き閉包 + 資産結線/disposition"
+    },
+    {
+      "id": "F8",
+      "severity": "P0",
+      "topic": "FR-020〜032 の design-origin・無出典",
+      "decision": "adopt",
+      "note": "PO 裁定: 帰属訂正(origin + source_claim_ids)であり design-origin 再設計(TSK-250)と衝突しない",
+      "assign": "資産是正"
+    },
+    {
+      "id": "F9",
+      "severity": "P0",
+      "topic": "cache 17 件の全下流脱落",
+      "decision": "partial",
+      "adopt": "未結線の明示的 disposition 記録(意味論(iii)に含む)",
+      "defer": "cache invalidation matrix の新設 → 別起票・TSK-250 の開始条件へ紐付け"
+    },
+    {
+      "id": "F10",
+      "severity": "P0",
+      "topic": "FR-035/037 管理経路の universe 不在と probe_executable 誤認",
+      "decision": "partial",
+      "adopt": "経路のない主張の contract_only 化(意味論(vi)判定規則是正)",
+      "defer": "管理経路の universe 登録 → 別起票・TSK-250 の開始条件へ紐付け"
+    },
+    {
+      "id": "F11",
+      "severity": "P0",
+      "topic": "conditional 12 経路のシナリオ行列なし(NFR-019(b))",
+      "decision": "defer",
+      "defer": "全体を別起票 — NFR-019(b) 行列は TSK-270 が Phase 4 へ送った宣言済み射程。TSK-250 の開始条件へ紐付け"
+    },
+    {
+      "id": "F12",
+      "severity": "P0",
+      "topic": "SECURITY DEFINER 関数が宣言 ACL で実行不能",
+      "decision": "adopt",
+      "assign": "資産是正(ddl-elements)"
+    },
+    {
+      "id": "F13",
+      "severity": "P0",
+      "topic": "app_role の制御表直接 DML による迂回",
+      "decision": "adopt",
+      "assign": "資産是正(DML 剥奪 + 攻撃木・負例追加 — candidate 資産の範囲)"
+    },
+    {
+      "id": "F14",
+      "severity": "P0",
+      "topic": "DDL 検査器が policy/ACL の意味を未検証",
+      "decision": "adopt",
+      "assign": "意味論(iv)DDL 意味検査"
+    },
+    {
+      "id": "F15",
+      "severity": "P1",
+      "topic": "FR-041 比較パラメータの誤分類",
+      "decision": "adopt",
+      "assign": "資産是正"
+    },
+    {
+      "id": "F16",
+      "severity": "P1",
+      "topic": "インデント表の採取欠陥(既知)",
+      "decision": "adopt",
+      "assign": "ステップ 3(計画済み)"
+    }
+  ],
+  "semantics_units": {
+    "note": "§4-(5) 発動 — 検査意味論 6 単位。ステップ 4 を整数 6 ステップへ分割する計画改訂(差分レビュー 1 周)を実施する",
+    "units": [
+      "(i) 分類規則の罠の実効化(F5)",
+      "(ii) closed-world 専用構造(F6)",
+      "(iii) 結線の閉包 — HTTP 逆向き + cache disposition(F7・F9 採用分)",
+      "(iv) DDL 意味検査(F14)",
+      "(v) 主張分割の schema(F1 採用分・F2・F3・F4)",
+      "(vi) probe_executable 判定規則(F10 採用分)"
+    ]
+  },
+  "old_summary_mapping": {
+    "分類": [
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "F15"
+    ],
+    "closed-world": [
+      "F6",
+      "F11"
+    ],
+    "結線": [
+      "F7",
+      "F8",
+      "F9",
+      "F10"
+    ],
+    "新規": [
+      "F12",
+      "F13",
+      "F14",
+      "F16"
+    ]
+  }
+}

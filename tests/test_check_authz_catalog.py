@@ -284,6 +284,36 @@ def _repository_catalog_and_lock() -> tuple[dict[str, Any], dict[str, Any]]:
     return catalog, lock
 
 
+def _auth_decision_units(
+    catalog: dict[str, Any],
+) -> list[tuple[dict[str, Any], dict[str, Any], str]]:
+    """非分割行と全 atomic claim を認可判定単位として列挙する。"""
+    units: list[tuple[dict[str, Any], dict[str, Any], str]] = []
+    for claim in catalog["claims"]:
+        if claim["classification"] != "auth_claim":
+            continue
+        atomic_claims = claim.get("atomic_claims")
+        if isinstance(atomic_claims, list):
+            units.extend(
+                (claim, atomic_claim, atomic_claim["atomic_id"])
+                for atomic_claim in atomic_claims
+            )
+        else:
+            units.append((claim, claim, claim["source_id"]))
+    return units
+
+
+def _decision_unit(claim: dict[str, Any], unit_id: str) -> dict[str, Any]:
+    """親行を復元した後の認可判定単位を ID で再取得する。"""
+    if claim["source_id"] == unit_id:
+        return claim
+    return next(
+        atomic_claim
+        for atomic_claim in claim["atomic_claims"]
+        if atomic_claim["atomic_id"] == unit_id
+    )
+
+
 def _refresh_decision_digest(claim: dict[str, Any]) -> None:
     """変異側も行 digest を更新し、別 lock だけを防御線にする。"""
     claim["decision_digest"] = checker.compute_decision_digest(claim)
@@ -317,7 +347,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1062 auth_claim=184 out_of_scope=878" in result.stdout
+    assert "total=1063 auth_claim=184 out_of_scope=879" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -332,6 +362,25 @@ def test_fixture_has_a_valid_multi_layer_claim(tmp_path: Path) -> None:
     assert [decision["location"] for decision in claim["decidable_at"]] == ["db", "http"]
     assert all(decision["test_owner"]["status"] == "planned" for decision in claim["decidable_at"])
     assert _run_cli(root).returncode == 0
+
+
+def test_indented_table_rows_are_extracted_by_kind() -> None:
+    path = FIXTURE_ROOT / "indented-tables.md"
+    source_text = path.read_text(encoding="utf-8")
+    source_lines = [line for line in source_text.splitlines() if line]
+    indents = (" ", "    ", "\t")
+    expected_kinds = ("table_header", "table_delimiter", "table_row")
+
+    assert [line[: line.index("|")] for line in source_lines] == [
+        indent for indent in indents for _ in expected_kinds
+    ]
+
+    items = checker.extract_source(source_text).items
+
+    assert [item.kind for item in items] == [
+        kind for _ in indents for kind in expected_kinds
+    ]
+    assert [item.text for item in items] == source_lines
 
 
 def test_mutation_1_deleted_known_clause_is_red(tmp_path: Path) -> None:
@@ -460,6 +509,47 @@ def test_free_form_classification_reason_is_red(tmp_path: Path) -> None:
     assert "未知の classification_rule_id" in result.stderr
 
 
+def test_empty_auth_rule_applicability_is_red(tmp_path: Path) -> None:
+    root = _make_repository(tmp_path)
+    catalog = _read_catalog(root)
+    invalid_rule = json.loads(
+        (FIXTURE_ROOT / "empty-auth-rule.json").read_text(encoding="utf-8")
+    )
+    catalog["classification_rules"]["AUTH_ACCESS_SCOPE"] = invalid_rule
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "AUTH 分類規則は適用条件を少なくとも1つ持たねばならない" in result.stderr
+
+
+def test_invalid_closed_world_declarations_are_red(tmp_path: Path) -> None:
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-closed-world.json").read_text(encoding="utf-8")
+    )
+    expected_errors = {
+        "missing_member": "closed_world.member_source_ids と claims の exact-set 不一致",
+        "empty_universe": "closed_world.member_source_ids は空にできない",
+        "unknown_universe_kind": "closed_world.universe_kind が閉じた値域にない",
+    }
+    failures: list[tuple[str, int, str]] = []
+
+    for case_name, closed_world in cases.items():
+        root = _make_repository(tmp_path / case_name)
+        catalog = _read_catalog(root)
+        claim = _auth_claim(catalog)
+        claim["closed_world"] = closed_world
+        claim["decision_digest"] = checker.compute_decision_digest(claim)
+        _write_catalog(root, catalog)
+
+        result = _run_cli(root)
+        if result.returncode != 1 or expected_errors[case_name] not in result.stderr:
+            failures.append((case_name, result.returncode, result.stderr))
+
+    assert failures == []
+
+
 def test_scalar_decidable_at_is_red(tmp_path: Path) -> None:
     root = _make_repository(tmp_path)
     catalog = _read_catalog(root)
@@ -532,11 +622,9 @@ def test_manifest_start_and_end_must_match_closed_heading_set(tmp_path: Path) ->
 
 
 def test_all_auth_claims_moved_to_each_out_rule_are_red() -> None:
-    """184主張と5規則の全920通りで分類決定を守る。"""
+    """全認可判定単位と全 OUT 規則の直積で分類決定を守る。"""
     catalog, lock = _repository_catalog_and_lock()
-    auth_claims = [
-        claim for claim in catalog["claims"] if claim["classification"] == "auth_claim"
-    ]
+    decision_units = _auth_decision_units(catalog)
     out_rule_ids = sorted(
         rule_id
         for rule_id, rule in catalog["classification_rules"].items()
@@ -544,47 +632,55 @@ def test_all_auth_claims_moved_to_each_out_rule_are_red() -> None:
     )
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in auth_claims:
+    for claim, _unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
         for out_rule_id in out_rule_ids:
             claim.clear()
             claim.update(copy.deepcopy(original))
-            claim["classification"] = "out_of_scope"
-            claim["classification_rule_id"] = out_rule_id
-            del claim["layer"]
-            del claim["decidable_at"]
+            unit = _decision_unit(claim, unit_id)
+            unit["classification"] = "out_of_scope"
+            unit["classification_rule_id"] = out_rule_id
+            if unit is claim:
+                del unit["layer"]
+                del unit["decidable_at"]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], out_rule_id))
+                escaped.append((unit_id, out_rule_id))
             attempts += 1
         claim.clear()
         claim.update(original)
 
-    assert len(auth_claims) == 184
-    assert len(out_rule_ids) == 5
-    assert attempts == 184 * 5 == 920
+    assert attempts == len(decision_units) * len(out_rule_ids)
     assert escaped == []
 
 
 def test_all_decidable_locations_removed_one_at_a_time_are_red() -> None:
-    """db/http/cache を含む全主張の全378ロケーションを守る。"""
+    """全認可判定単位の db/http/cache ロケーションを守る。"""
     catalog, lock = _repository_catalog_and_lock()
+    decision_units = _auth_decision_units(catalog)
+    expected_attempts = Counter(
+        decision["location"]
+        for _claim, unit, _unit_id in decision_units
+        for decision in unit["decidable_at"]
+    )
     escaped: list[tuple[str, str]] = []
     attempts = Counter[str]()
-    for claim in catalog["claims"]:
-        if claim["classification"] != "auth_claim":
-            continue
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
-        for decision in original["decidable_at"]:
+        original_unit = _decision_unit(original, unit_id)
+        for decision in original_unit["decidable_at"]:
             location = decision["location"]
             claim.clear()
             claim.update(copy.deepcopy(original))
-            claim["decidable_at"] = [
-                item for item in claim["decidable_at"] if item["location"] != location
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["decidable_at"] = [
+                item
+                for item in mutated_unit["decidable_at"]
+                if item["location"] != location
             ]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
@@ -592,45 +688,43 @@ def test_all_decidable_locations_removed_one_at_a_time_are_red() -> None:
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], location))
+                escaped.append((unit_id, location))
             attempts[location] += 1
         claim.clear()
         claim.update(original)
 
-    assert attempts == Counter({"http": 184, "db": 177, "cache": 17})
-    assert sum(attempts.values()) == 378
+    assert attempts == expected_attempts
+    assert sum(attempts.values()) == sum(expected_attempts.values())
     assert escaped == []
 
 
 def test_all_auth_claim_layers_changed_to_every_other_layer_are_red() -> None:
-    """184主張の layer を他の4値へ変える全736通りを守る。"""
+    """全認可判定単位の layer を他の全値へ変えて守る。"""
     catalog, lock = _repository_catalog_and_lock()
     layer_ids = catalog["layer_ids"]
-    auth_claims = [
-        claim for claim in catalog["claims"] if claim["classification"] == "auth_claim"
-    ]
+    decision_units = _auth_decision_units(catalog)
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in auth_claims:
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
+        original_layer = unit["layer"]
         for layer_id in layer_ids:
-            if layer_id == original["layer"]:
+            if layer_id == original_layer:
                 continue
-            claim["layer"] = layer_id
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["layer"] = layer_id
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], layer_id))
+                escaped.append((unit_id, layer_id))
             claim.clear()
             claim.update(copy.deepcopy(original))
             attempts += 1
 
-    assert len(auth_claims) == 184
-    assert len(layer_ids) == 5
-    assert attempts == 184 * 4 == 736
+    assert attempts == len(decision_units) * (len(layer_ids) - 1)
     assert escaped == []
 
 
@@ -675,13 +769,13 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 878
-    assert attempts == 878
+    assert len(out_claims) == 879
+    assert attempts == 879
     assert escaped == []
 
 
 def test_all_basis_rules_changed_one_at_a_time_are_red() -> None:
-    """全378 location の basis_rule_id も決定の一部として守る。"""
+    """全認可判定単位の basis_rule_id も決定の一部として守る。"""
     catalog, lock = _repository_catalog_and_lock()
     basis_rules = catalog["basis_rules"]
     basis_by_location: dict[str, list[str]] = {
@@ -692,32 +786,36 @@ def test_all_basis_rules_changed_one_at_a_time_are_red() -> None:
         )
         for location in checker.DECIDABLE_LOCATIONS
     }
+    decision_units = _auth_decision_units(catalog)
+    expected_attempts = sum(
+        len(unit["decidable_at"]) for _claim, unit, _unit_id in decision_units
+    )
     escaped: list[tuple[str, str]] = []
     attempts = 0
-    for claim in catalog["claims"]:
-        if claim["classification"] != "auth_claim":
-            continue
+    for claim, unit, unit_id in decision_units:
         original = copy.deepcopy(claim)
-        for index, decision in enumerate(original["decidable_at"]):
+        original_unit = _decision_unit(original, unit_id)
+        for index, decision in enumerate(original_unit["decidable_at"]):
             alternatives = [
                 basis_id
                 for basis_id in basis_by_location[decision["location"]]
                 if basis_id != decision["basis_rule_id"]
             ]
             assert alternatives
-            claim["decidable_at"][index]["basis_rule_id"] = alternatives[0]
+            mutated_unit = _decision_unit(claim, unit_id)
+            mutated_unit["decidable_at"][index]["basis_rule_id"] = alternatives[0]
             _refresh_decision_digest(claim)
             differences = checker.decision_lock_differences(catalog, lock)
             if not any(
                 difference.startswith(f"{claim['source_id']}:")
                 for difference in differences
             ):
-                escaped.append((claim["source_id"], decision["location"]))
+                escaped.append((unit_id, decision["location"]))
             claim.clear()
             claim.update(copy.deepcopy(original))
             attempts += 1
 
-    assert attempts == 177 + 184 + 17 == 378
+    assert attempts == expected_attempts
     assert escaped == []
 
 
@@ -824,6 +922,581 @@ def test_document_specific_traps_live_in_catalog_data() -> None:
     assert out_rule["forbidden_source_text_patterns"]
 
 
+def test_invalid_claim_dispositions_are_red() -> None:
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-claim-dispositions.json").read_text(encoding="utf-8")
+    )
+    expected_errors = {
+        "missing_http": "HTTP/cache 主張の逆向き exact-set 不一致",
+        "double_registered": "HTTP/cache 主張の逆向き exact-set 不一致",
+        "unknown_reason": "reason_codeが閉じた値域にない",
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, claim_dispositions in cases.items():
+        mutated = copy.deepcopy(registry)
+        mutated["claim_dispositions"] = claim_dispositions
+        try:
+            checker.validate_route_registry(
+                mutated,
+                catalog,
+                FIXTURE_ROOT,
+                frozenset(),
+            )
+        except checker.CatalogError as error:
+            message = str(error)
+            if expected_errors[case_name] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_fixture_route_registry_closes_http_and_cache_claims() -> None:
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+
+    result = checker.validate_route_registry(
+        registry,
+        catalog,
+        FIXTURE_ROOT,
+        frozenset(),
+    )
+
+    assert set(result["routed_http_claim_ids"]) == {"FR-900/list_item-001"}
+    assert set(result["claim_dispositions_by_key"]) == {
+        ("FR-900/table_row-001", "http"),
+        ("FR-900/table_row-001", "cache"),
+    }
+    lock = json.loads(
+        (FIXTURE_ROOT / "route-registry.lock.json").read_text(encoding="utf-8")
+    )
+    checker.validate_derived_lock(registry, lock, "route-registry.json")
+
+
+def test_legacy_routes_require_requirement_origin_and_source_claims() -> None:
+    """legacy route の design 帰属と要件主張の無結線を拒否する。"""
+    catalog = _read_catalog(FIXTURE_ROOT)
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    cases = {
+        "design_origin": {
+            "origin": "design",
+            "source_claim_ids": [],
+            "expected_error": "legacy route は requirement origin が必要",
+        },
+        "unlinked_requirement": {
+            "origin": "requirement",
+            "source_claim_ids": [],
+            "expected_error": "source_claim_idsは1件以上必要",
+        },
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        legacy_route = next(
+            route
+            for route in mutated["routes"]
+            if route["route_kind"] == "legacy_route"
+        )
+        legacy_route["origin"] = case["origin"]
+        legacy_route["source_claim_ids"] = case["source_claim_ids"]
+        try:
+            checker.validate_route_registry(
+                mutated,
+                catalog,
+                FIXTURE_ROOT,
+                frozenset(),
+            )
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def _ddl_elements_semantics_fixture() -> dict[str, Any]:
+    """ステップ7の最小 DDL fixture を返す。"""
+    return json.loads(
+        (FIXTURE_ROOT / "ddl-elements.json").read_text(encoding="utf-8")
+    )
+
+
+def test_invalid_ddl_elements_semantics_are_red() -> None:
+    """policy・owner ACL・caller schema USAGE の既知負例を全て拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-ddl-elements.json").read_text(encoding="utf-8")
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = _ddl_elements_semantics_fixture()
+        if case["operation"] == "replace":
+            parent, key = _parent_and_key(mutated, tuple(case["path"]))
+            assert isinstance(parent, dict) and isinstance(key, str)
+            parent[key] = case["value"]
+        elif case["operation"] == "remove_acl":
+            mutated["acl_expectations"] = [
+                acl
+                for acl in mutated["acl_expectations"]
+                if acl["acl_id"] != case["acl_id"]
+            ]
+        else:
+            schema = next(
+                schema
+                for schema in mutated["schemas"]
+                if schema["schema_id"] == case["schema_id"]
+            )
+            schema["usage_role_ids"].remove(case["role_id"])
+
+        try:
+            checker.validate_ddl_elements(mutated, REPOSITORY_ROOT)
+        except checker.CatalogError as error:
+            message = str(error)
+            if case["expected_error"] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_fixture_ddl_elements_semantics_are_valid() -> None:
+    """policy 対応表と関数 ACL/schema 依存の最小正例を受理する。"""
+    result = checker.validate_ddl_elements(
+        _ddl_elements_semantics_fixture(), REPOSITORY_ROOT
+    )
+
+    assert result["predicate_ids"] == frozenset(
+        {"PREDICATE:CURRENT_TENANT_OWNS_ROW"}
+    )
+
+
+def _atomic_claim_catalog() -> dict[str, Any]:
+    """表行1件を2件の atomic claim に置換した母集合を返す。"""
+    catalog = _read_catalog(FIXTURE_ROOT)
+    atomic_claim = json.loads(
+        (FIXTURE_ROOT / "atomic-claim.json").read_text(encoding="utf-8")
+    )
+    index = next(
+        index
+        for index, claim in enumerate(catalog["claims"])
+        if claim["source_id"] == atomic_claim["source_id"]
+    )
+    catalog["claims"][index] = atomic_claim
+    return catalog
+
+
+def _validate_atomic_claim_catalog(
+    catalog: dict[str, Any], *, verify_decision_digests: bool = False
+) -> None:
+    """fixture 母集合を検証する。"""
+    requirements_path = FIXTURE_ROOT / "requirements.md"
+    source_bytes = requirements_path.read_bytes()
+    checker.validate_catalog(
+        catalog,
+        checker.extract_source(source_bytes.decode("utf-8")),
+        source_bytes,
+        requirements_path,
+        FIXTURE_ROOT,
+        verify_decision_digests=verify_decision_digests,
+    )
+
+
+def _atomic_route_registry() -> dict[str, Any]:
+    """atomic claim を route と disposition から参照する registry を返す。"""
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    references = json.loads(
+        (FIXTURE_ROOT / "atomic-route-references.json").read_text(encoding="utf-8")
+    )
+    route_reference = references["route_reference"]
+    route = next(
+        route
+        for route in registry["routes"]
+        if route["route_id"] == route_reference["route_id"]
+    )
+    route["source_claim_ids"] = route_reference["source_claim_ids"]
+    registry["claim_dispositions"] = references["claim_dispositions"]
+    return registry
+
+
+def _point_derived_asset_at_catalog(asset: dict[str, Any], root: Path) -> None:
+    """derived fixture の入力 digest を一時 atomic 母集合へ合わせる。"""
+    manifest = asset["input_manifest"]
+    manifest["requirement_claims_blob_digest"] = checker.git_blob_digest(
+        (root / "requirement-claims.json").read_bytes()
+    )
+    manifest["requirement_claims_lock_blob_digest"] = checker.git_blob_digest(
+        (root / "requirement-claims.lock.json").read_bytes()
+    )
+
+
+def test_invalid_atomic_claims_are_red() -> None:
+    """atomic ID・layer・親決定・下流参照の既知負例を全て拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-atomic-claims.json").read_text(encoding="utf-8")
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        catalog = _atomic_claim_catalog()
+        atomic_claim = next(
+            claim
+            for claim in catalog["claims"]
+            if claim["source_id"] == "FR-900/table_row-001"
+        )
+        try:
+            if case["operation"] == "replace":
+                parent, key = _parent_and_key(atomic_claim, tuple(case["path"]))
+                assert isinstance(parent, dict) and isinstance(key, str)
+                parent[key] = case["value"]
+                _validate_atomic_claim_catalog(catalog)
+            elif case["operation"] == "add_parent_layer":
+                atomic_claim["layer"] = case["value"]
+                _validate_atomic_claim_catalog(catalog)
+            else:
+                _validate_atomic_claim_catalog(catalog)
+                registry = _atomic_route_registry()
+                route = next(
+                    route
+                    for route in registry["routes"]
+                    if route["route_id"]
+                    == "ROUTE:SHARED:shared_screen:team_metrics:screen"
+                )
+                route["source_claim_ids"] = [case["value"]]
+                checker.validate_route_registry(
+                    registry, catalog, FIXTURE_ROOT, frozenset()
+                )
+        except checker.CatalogError as error:
+            message = str(error)
+            if case["expected_error"] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
+    tmp_path: Path,
+) -> None:
+    """2 atomic の決定投影・lock・registry・catalog 参照を検証する。"""
+    catalog = _atomic_claim_catalog()
+    atomic_claim = next(
+        claim
+        for claim in catalog["claims"]
+        if claim["source_id"] == "FR-900/table_row-001"
+    )
+    atomic_claim["decision_digest"] = checker.compute_decision_digest(atomic_claim)
+    _validate_atomic_claim_catalog(catalog, verify_decision_digests=True)
+    changed_atomic_claim = copy.deepcopy(atomic_claim)
+    changed_atomic_claim["atomic_claims"][1]["layer"] = "access_control"
+    assert checker.compute_decision_digest(changed_atomic_claim) != atomic_claim[
+        "decision_digest"
+    ]
+
+    lock = checker.build_decision_lock(catalog, "requirement-claims.json")
+    checker.validate_decision_lock(catalog, lock, "requirement-claims.json")
+    locked = next(
+        entry
+        for entry in lock["decisions"]
+        if entry["source_id"] == "FR-900/table_row-001"
+    )
+    assert "atomic_claims" in locked
+    assert "layer" not in locked and "decidable_at" not in locked
+
+    root = _make_repository(tmp_path)
+    _write_catalog(root, catalog)
+    _write_lock(root, lock)
+    registry = _atomic_route_registry()
+    _point_derived_asset_at_catalog(registry, root)
+    registry_result = checker.validate_route_registry(
+        registry, catalog, root, frozenset()
+    )
+    auth_catalog = json.loads(
+        (FIXTURE_ROOT / "auth-catalog-atomic.json").read_text(encoding="utf-8")
+    )
+    _point_derived_asset_at_catalog(auth_catalog, root)
+    auth_result = checker.validate_auth_catalog(
+        auth_catalog,
+        catalog,
+        registry_result,
+        root,
+        frozenset(),
+    )
+
+    assert set(registry_result["claim_dispositions_by_key"]) == {
+        ("FR-900/table_row-001#delivery-policy", "cache"),
+    }
+    assert "FR-900/table_row-001#delivery-policy" in registry_result[
+        "routed_http_claim_ids"
+    ]
+    assert set(auth_result["entry_by_requirement"]) == {
+        "FR-900/list_item-001",
+        "FR-900/table_row-001#row-policy",
+    }
+
+
+def _claim_mutant_map_with_execution_support() -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    """全 probe/contract に実行対象または理由を宣言した入力を返す。"""
+    oracle_assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(oracle_assets["claim_mutant_map"])
+    route_registry = copy.deepcopy(_repository_derived_assets()[0]["route_registry"])
+    fixture = json.loads(
+        (FIXTURE_ROOT / "claim-execution-support.json").read_text(encoding="utf-8")
+    )
+    unsupported = fixture["unsupported_contract"]
+    unsupported_claim_id = unsupported["claim_id"]
+    mapping["classification_rules"]["CONTRACT_ONLY_RUNTIME_TARGET_PENDING"] = {
+        "execution_class": "contract_only",
+        "requires_db_decision": True,
+        "management_claim": False,
+    }
+
+    requirement_catalog = _repository_catalog_and_lock()[0]
+    atomic_claims_by_parent = {
+        claim["source_id"]: claim["atomic_claims"]
+        for claim in requirement_catalog["claims"]
+        if "atomic_claims" in claim
+    }
+    mutant_by_id = {
+        mutant["mutant_id"]: mutant for mutant in mapping["mutants"]
+    }
+    mutant_replacements: dict[str, list[tuple[str, str, bool]]] = {}
+    expanded_claims: list[dict[str, Any]] = []
+    for claim in mapping["claims"]:
+        parent_id = claim["claim_id"]
+        atomic_claims = atomic_claims_by_parent.get(parent_id)
+        if atomic_claims is None:
+            expanded_claims.append(claim)
+            continue
+        parent_mutant_id = claim["mutant_ids"][0]
+        assert parent_mutant_id in mutant_by_id
+        mutant_prefix, mutant_operator = parent_mutant_id.rsplit(":", maxsplit=1)
+        replacements: list[tuple[str, str, bool]] = []
+        for atomic_claim in atomic_claims:
+            atomic_id = atomic_claim["atomic_id"]
+            atomic_suffix = atomic_id.split("#", maxsplit=1)[1]
+            atomic_mutant_id = f"{mutant_prefix}:{atomic_suffix}:{mutant_operator}"
+            has_db_decision = checker._has_db_decision(atomic_claim)
+            atomic_mapping = copy.deepcopy(claim)
+            atomic_mapping["claim_id"] = atomic_id
+            atomic_mapping["mutant_ids"] = [atomic_mutant_id]
+            if not has_db_decision:
+                atomic_mapping.update(
+                    {
+                        "execution_class": "contract_only",
+                        "classification_rule_id": (
+                            "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                        ),
+                        "runtime_kill_required": False,
+                        "runtime_evidence_kind": "handoff_runtime_test",
+                        "contract_only_reason_code": "no_db_decision_point",
+                    }
+                )
+            expanded_claims.append(atomic_mapping)
+            replacements.append((atomic_id, atomic_mutant_id, has_db_decision))
+        mutant_replacements[parent_mutant_id] = replacements
+    mapping["claims"] = expanded_claims
+
+    expanded_mutants: list[dict[str, Any]] = []
+    for mutant in mapping["mutants"]:
+        mutant_atomic_replacements = mutant_replacements.get(mutant["mutant_id"])
+        if mutant_atomic_replacements is None:
+            expanded_mutants.append(mutant)
+            continue
+        parent_id = mutant["claim_ids"][0]
+        for atomic_id, atomic_mutant_id, has_db_decision in mutant_atomic_replacements:
+            atomic_mutant = copy.deepcopy(mutant)
+            atomic_mutant["mutant_id"] = atomic_mutant_id
+            atomic_mutant["claim_ids"] = [atomic_id]
+            atomic_mutant["target_element_ids"] = [
+                atomic_id if target_id == parent_id else target_id
+                for target_id in atomic_mutant["target_element_ids"]
+            ]
+            if not has_db_decision:
+                atomic_mutant.update(
+                    {
+                        "runtime_kill_required": False,
+                        "runtime_kill_waiver_reason": "contract_only_handoff",
+                        "expected_runtime_outcome": "handoff",
+                        "expected_positive_outcome": "handoff",
+                        "positive_kill_required": False,
+                        "positive_case_scope_id": None,
+                    }
+                )
+            expanded_mutants.append(atomic_mutant)
+    mapping["mutants"] = expanded_mutants
+
+    ddl = oracle_assets["ddl_elements"]
+    provisioning_claim_id = ddl["provisioning_claim"]["claim_id"]
+    management_probe_claim_ids = set(
+        ddl["representative_management_probe"]["claim_ids"]
+    )
+    management_function_id = ddl["representative_management_probe"]["function_id"]
+    for claim in mapping["claims"]:
+        claim_id = claim["claim_id"]
+        if claim_id == unsupported_claim_id:
+            claim.update(
+                {
+                    "execution_class": "contract_only",
+                    "classification_rule_id": unsupported["classification_rule_id"],
+                    "runtime_kill_required": False,
+                    "runtime_evidence_kind": "handoff_runtime_test",
+                    "receiving_task_id": unsupported["receiving_task_id"],
+                    "contract_only_reason_code": unsupported[
+                        "contract_only_reason_code"
+                    ],
+                }
+            )
+        elif claim["execution_class"] == "contract_only":
+            claim["contract_only_reason_code"] = (
+                "no_db_decision_point"
+                if claim["classification_rule_id"]
+                == "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                else "route_universe_pending"
+            )
+        elif claim_id == provisioning_claim_id:
+            claim["runtime_target"] = {
+                "target_kind": "ddl_provisioning",
+                "target_ids": [provisioning_claim_id],
+            }
+        elif claim_id in management_probe_claim_ids:
+            claim["runtime_target"] = {
+                "target_kind": "ddl_function",
+                "target_ids": [management_function_id],
+            }
+        else:
+            route_id = f"ROUTE:RUNTIME:{claim_id}"
+            claim["runtime_target"] = {
+                "target_kind": "route",
+                "target_ids": [route_id],
+            }
+            route_registry["routes"].append(
+                {"route_id": route_id, "source_claim_ids": [claim_id]}
+            )
+
+    unsupported_mutant_id = next(
+        claim["mutant_ids"][0]
+        for claim in mapping["claims"]
+        if claim["claim_id"] == unsupported_claim_id
+    )
+    unsupported_mutant = next(
+        mutant
+        for mutant in mapping["mutants"]
+        if mutant["mutant_id"] == unsupported_mutant_id
+    )
+    unsupported_mutant.update(
+        {
+            "runtime_kill_required": False,
+            "runtime_kill_waiver_reason": "contract_only_handoff",
+            "expected_runtime_outcome": "handoff",
+            "expected_positive_outcome": "handoff",
+            "positive_kill_required": False,
+            "positive_case_scope_id": None,
+        }
+    )
+    ddl_result = checker.validate_ddl_elements(ddl, REPOSITORY_ROOT)
+    return mapping, route_registry, ddl_result
+
+
+def _validate_claim_mutant_map_with_execution_support(
+    mapping: dict[str, Any],
+    route_registry: dict[str, Any],
+    ddl_result: dict[str, Any],
+) -> dict[str, Any]:
+    """実資産を読み取り専用の参照集合として mutant map を検査する。"""
+    derived_assets, _locks, _paths = _repository_derived_assets()
+    return checker.validate_claim_mutant_map(
+        mapping,
+        _repository_catalog_and_lock()[0],
+        route_registry,
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+
+
+def test_invalid_claim_execution_support_is_red() -> None:
+    """裏付けなし probe と理由不備 contract の既知負例を拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-claim-execution-support.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mapping, route_registry, ddl_result = (
+            _claim_mutant_map_with_execution_support()
+        )
+        claim = next(
+            claim
+            for claim in mapping["claims"]
+            if claim["claim_id"] == case["claim_id"]
+        )
+        if case["operation"] == "remove_runtime_target":
+            del claim["runtime_target"]
+        elif case["operation"] == "remove_contract_reason":
+            del claim["contract_only_reason_code"]
+        else:
+            claim["contract_only_reason_code"] = case["value"]
+        try:
+            _validate_claim_mutant_map_with_execution_support(
+                mapping, route_registry, ddl_result
+            )
+        except checker.CatalogError as error:
+            if case["expected_error"] not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_claim_execution_support_fixture_is_valid() -> None:
+    """route 裏付け probe と理由つき contract の正例を受理する。"""
+    mapping, route_registry, ddl_result = _claim_mutant_map_with_execution_support()
+
+    result = _validate_claim_mutant_map_with_execution_support(
+        mapping, route_registry, ddl_result
+    )
+    fixture = json.loads(
+        (FIXTURE_ROOT / "claim-execution-support.json").read_text(encoding="utf-8")
+    )
+    claim_by_id = {claim["claim_id"]: claim for claim in mapping["claims"]}
+
+    assert claim_by_id[fixture["supported_probe"]["claim_id"]][
+        "runtime_target"
+    ] == fixture["supported_probe"]["runtime_target"]
+    assert claim_by_id[fixture["unsupported_contract"]["claim_id"]][
+        "contract_only_reason_code"
+    ] == "route_universe_pending"
+    assert result["execution_counts"] == Counter(
+        {"contract_only": 165, "probe_executable": 33}
+    )
+
+
 def _validate_one_derived_asset(
     name: str,
     mutated: dict[str, Any],
@@ -900,7 +1573,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 177
+    assert result["catalog"]["db_claim_count"] == 187
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )
@@ -1276,6 +1949,232 @@ def _validate_mutant_map(mutated: dict[str, Any]) -> None:
     )
 
 
+def _generalized_table_privilege_mapping() -> dict[str, Any]:
+    """複数 target 対を宣言した実資産の独立 copy を返す。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    assert "target_pairs" in mapping["table_privilege_mutation_rule"]
+    return mapping
+
+
+def test_table_privilege_mutation_targets_are_closed_and_unique() -> None:
+    """宣言外 target の mutant と target 対の重複を拒否する。"""
+    undeclared = _generalized_table_privilege_mapping()
+    template = next(
+        mutant
+        for mutant in undeclared["mutants"]
+        if mutant["mutant_id"]
+        == "MUT:CONFIG:CFG_GRANT_MANAGEMENT_EXECUTE_TO_APP"
+    )
+    unexpected = copy.deepcopy(template)
+    unexpected["mutant_id"] = (
+        "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_BUSINESS_ROWS_DML"
+    )
+    unexpected["operator_id"] = "grant_app_role_control_table_dml"
+    unexpected["target_element_ids"] = [
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:INSERT",
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:UPDATE",
+        "TABLE-PRIVILEGE:probe_business_rows:app_role:DELETE",
+    ]
+    undeclared["mutants"].append(unexpected)
+    for claim_id in unexpected["claim_ids"]:
+        claim = next(
+            claim for claim in undeclared["claims"] if claim["claim_id"] == claim_id
+        )
+        claim["mutant_ids"].append(unexpected["mutant_id"])
+
+    duplicate = _generalized_table_privilege_mapping()
+    target_pairs = duplicate["table_privilege_mutation_rule"]["target_pairs"]
+    target_pairs.append(copy.deepcopy(target_pairs[0]))
+
+    failures: list[tuple[str, str]] = []
+    for case_name, mapping, expected_error in (
+        (
+            "undeclared_target",
+            undeclared,
+            "構成軸 mutant が基礎集合+表権限派生集合と exact-set 不一致",
+        ),
+        ("duplicate_target", duplicate, "表権限 mutant の target pair が重複"),
+    ):
+        try:
+            _validate_mutant_map(mapping)
+        except checker.CatalogError as error:
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_required_table_privilege_targets_reject_self_consistent_shrinkage() -> None:
+    """必須 target の権限縮小と pair 削除を外部固定集合で拒否する。"""
+    shrink = _generalized_table_privilege_mapping()
+    groups_target = next(
+        target
+        for target in shrink["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        and target["target_table_id"] == "probe_groups"
+    )
+    groups_target["privilege_groups"][0]["grant_privilege_ids"] = ["INSERT"]
+    groups_mutant = next(
+        mutant
+        for mutant in shrink["mutants"]
+        if mutant["mutant_id"]
+        == "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_GROUPS_DML"
+    )
+    groups_mutant["target_element_ids"] = [
+        "TABLE-PRIVILEGE:probe_groups:app_role:INSERT"
+    ]
+
+    missing_pair = _generalized_table_privilege_mapping()
+    missing_target = next(
+        target
+        for target in missing_pair["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        and target["target_table_id"] == "probe_invitations"
+    )
+    missing_pair["table_privilege_mutation_rule"]["target_pairs"].remove(
+        missing_target
+    )
+    missing_mutant_id = "MUT:CONFIG:CFG_GRANT_APP_ROLE_PROBE_INVITATIONS_DML"
+    missing_pair["mutants"] = [
+        mutant
+        for mutant in missing_pair["mutants"]
+        if mutant["mutant_id"] != missing_mutant_id
+    ]
+    for claim in missing_pair["claims"]:
+        if missing_mutant_id in claim["mutant_ids"]:
+            claim["mutant_ids"].remove(missing_mutant_id)
+    missing_pair["two_factor_interactions"] = [
+        interaction
+        for interaction in missing_pair["two_factor_interactions"]
+        if missing_mutant_id not in interaction["factor_mutant_ids"]
+    ]
+
+    escaped: list[str] = []
+    for case_name, mapping in (
+        ("shrunken_grants", shrink),
+        ("missing_target_pair", missing_pair),
+    ):
+        try:
+            _validate_mutant_map(mapping)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(case_name)
+
+    assert escaped == []
+
+
+def test_legacy_table_privilege_mutation_rule_remains_compatible() -> None:
+    """従来の management target 1対から同じ8 mutant を導出する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    legacy_rule = {
+        "source_asset_path": "contracts/authz/ddl-elements.json",
+        "source_json_pointer": "/enums/table_privilege_ids",
+        "mutant_id_template": (
+            f"{checker.TABLE_PRIVILEGE_MUTANT_PREFIX}{{privilege_id}}"
+        ),
+        "target_role_id": "management_caller",
+        "target_table_id": "probe_management_effects",
+        "claim_ids": sorted(checker.MANAGEMENT_PROBE_CLAIM_IDS),
+    }
+
+    targets = checker._table_privilege_mutation_targets(
+        legacy_rule,
+        ddl_result,
+        frozenset(checker.MANAGEMENT_PROBE_CLAIM_IDS),
+    )
+
+    assert len(targets) == 1
+    target = targets[0]
+    assert target["target_role_id"] == "management_caller"
+    assert target["target_table_id"] == "probe_management_effects"
+    assert target["claim_ids"] == checker.MANAGEMENT_PROBE_CLAIM_IDS
+    assert {
+        group["privilege_id"] for group in target["privilege_groups"]
+    } == ddl_result["table_privilege_ids"]
+    assert all(
+        group["grant_privilege_ids"] == (group["privilege_id"],)
+        for group in target["privilege_groups"]
+    )
+
+
+def test_app_role_control_dml_regrant_mutants_are_red() -> None:
+    """制御4表の app_role DML 再付与を既存の kill 契約で拒否する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    oracle_assets, _seal, _paths = _repository_oracle_assets()
+    mapping = oracle_assets["claim_mutant_map"]
+    targets = [
+        target
+        for target in mapping["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+    ]
+    mutant_by_id = {
+        mutant["mutant_id"]: mutant for mutant in mapping["mutants"]
+    }
+    failures: list[tuple[str, str]] = []
+
+    for target in targets:
+        table_id = target["target_table_id"]
+        group = target["privilege_groups"][0]
+        mutant_id = target["mutant_id_template"].replace(
+            "{privilege_id}", group["privilege_id"]
+        )
+        mutant = mutant_by_id[mutant_id]
+        if (
+            mutant["axis"] != "configuration"
+            or mutant["expected_drift_outcome"] != "red"
+            or mutant["runtime_kill_required"] is not True
+            or mutant["expected_runtime_outcome"] != "kill"
+            or mutant["runtime_kill_waiver_reason"] is not None
+        ):
+            failures.append((mutant_id, "kill 契約が不正"))
+            continue
+
+        mutated_ddl = copy.deepcopy(oracle_assets["ddl_elements"])
+        acl = next(
+            acl
+            for acl in mutated_ddl["acl_expectations"]
+            if acl["object_kind"] == "table"
+            and acl["object_id"] == table_id
+            and acl["grantee_role_id"] == "app_role"
+        )
+        acl["privilege_ids"] = sorted(
+            set(acl["privilege_ids"]) | set(group["grant_privilege_ids"])
+        )
+        try:
+            ddl_result = checker.validate_ddl_elements(mutated_ddl, REPOSITORY_ROOT)
+            checker.validate_claim_mutant_map(
+                mapping,
+                requirement_catalog,
+                derived_assets["route_registry"],
+                derived_assets["http_matrix"],
+                ddl_result,
+                REPOSITORY_ROOT,
+                frozenset(
+                    {IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}
+                ),
+            )
+        except checker.CatalogError as error:
+            expected_error = (
+                f"app_role/{table_id}/DML: "
+                "表権限 mutant の再付与対象が基準ACLですでに許可されている"
+            )
+            if expected_error not in str(error):
+                failures.append((mutant_id, str(error)))
+        else:
+            failures.append((mutant_id, "検査が成功した"))
+
+    assert len(targets) == 4
+    assert failures == []
+
+
 def test_repository_oracle_assets_are_valid() -> None:
     """全claim・mutant・cut set・境界・証跡と封印を統合検査する。"""
     assets, seal, paths = _repository_oracle_assets()
@@ -1284,14 +2183,14 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"probe_executable": 172, "contract_only": 15}
+        {"contract_only": 165, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 194, "configuration": 20, "r8_provisioning": 2}
+        {"authorization_predicate": 205, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
-    assert result["attack"]["cut_set_count"] == 20
+    assert result["attack"]["cut_set_count"] == 24
     assert result["attack"]["multi_factor_cut_set_count"] == 3
     assert result["rejected"]["rejection_count"] == 3
     assert result["boundary"]["all_logical_count"] == 29
@@ -1489,6 +2388,130 @@ def test_all_cut_set_elements_reject_one_element_removal() -> None:
     assert escaped == []
 
 
+def test_all_table_privilege_mutants_require_singleton_cut_sets() -> None:
+    """app_role 表権限 mutant の単独 cut set 結線欠落を拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    attack_tree = assets["attack_tree"]
+    mutant_map = assets["claim_mutant_map"]
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    mutant_result = checker.validate_claim_mutant_map(
+        mutant_map,
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+    app_role_mutant_ids = {
+        target["mutant_id_template"].replace(
+            "{privilege_id}", group["privilege_id"]
+        )
+        for target in mutant_map["table_privilege_mutation_rule"]["target_pairs"]
+        if target["target_role_id"] == "app_role"
+        for group in target["privilege_groups"]
+    }
+    escaped: list[str] = []
+
+    for mutant_id in sorted(app_role_mutant_ids):
+        mutated = copy.deepcopy(attack_tree)
+        removed_cut = next(
+            cut
+            for cut in mutated["minimal_cut_sets"]
+            if cut["mutant_ids"] == [mutant_id]
+        )
+        mutated["minimal_cut_sets"].remove(removed_cut)
+        for interaction in mutated["two_factor_interactions"]:
+            if removed_cut["cut_set_id"] in interaction["activated_cut_set_ids"]:
+                interaction["activated_cut_set_ids"].remove(removed_cut["cut_set_id"])
+                interaction["expected_attack_established"] = bool(
+                    interaction["activated_cut_set_ids"]
+                )
+        try:
+            checker.validate_attack_tree(mutated, mutant_result, REPOSITORY_ROOT)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(mutant_id)
+
+    assert len(app_role_mutant_ids) == 4
+    assert escaped == []
+
+
+def test_table_privilege_cut_contracts_reject_swap_and_goal_reassignment() -> None:
+    """表権限 mutant の期待 cut ID・goal からの付け替えを拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    attack_tree = assets["attack_tree"]
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    derived_assets, _derived_locks, _derived_paths = _repository_derived_assets()
+    ddl_result = checker.validate_ddl_elements(
+        assets["ddl_elements"], REPOSITORY_ROOT
+    )
+    mutant_result = checker.validate_claim_mutant_map(
+        assets["claim_mutant_map"],
+        requirement_catalog,
+        derived_assets["route_registry"],
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+
+    swapped = copy.deepcopy(attack_tree)
+    app_cut = next(
+        cut
+        for cut in swapped["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+    )
+    management_cut = next(
+        cut
+        for cut in swapped["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-MANAGEMENT-DIRECT-SELECT"
+    )
+    app_cut["mutant_ids"], management_cut["mutant_ids"] = (
+        management_cut["mutant_ids"],
+        app_cut["mutant_ids"],
+    )
+    for interaction in swapped["two_factor_interactions"]:
+        factor_set = set(interaction["factor_mutant_ids"])
+        interaction["activated_cut_set_ids"] = sorted(
+            cut["cut_set_id"]
+            for cut in swapped["minimal_cut_sets"]
+            if set(cut["mutant_ids"]) <= factor_set
+        )
+        interaction["expected_attack_established"] = bool(
+            interaction["activated_cut_set_ids"]
+        )
+
+    reassigned = copy.deepcopy(attack_tree)
+    reassigned_cut = next(
+        cut
+        for cut in reassigned["minimal_cut_sets"]
+        if cut["cut_set_id"] == "CUT-APP-ROLE-DIRECT-GROUPS-DML"
+    )
+    reassigned_cut["attack_goal_id"] = (
+        "ATTACK:MANAGEMENT-CALLER-DIRECT-TABLE-PRIVILEGE"
+    )
+
+    escaped: list[str] = []
+    for case_name, mutated in (
+        ("mutant_swap", swapped),
+        ("goal_reassignment", reassigned),
+    ):
+        try:
+            checker.validate_attack_tree(mutated, mutant_result, REPOSITORY_ROOT)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(case_name)
+
+    assert escaped == []
+
+
 def test_all_initial_rejections_reject_one_row_removal() -> None:
     """不採用構成表から初期行を全数列挙し、1行ずつ削除して red にする。"""
     assets, _seal, _paths = _repository_oracle_assets()
@@ -1623,9 +2646,9 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
     reasons = Counter(mutant["runtime_kill_waiver_reason"] for mutant in waived)
 
     assert reasons == Counter(
-        {
-            "contract_only_handoff": 17,
-            "covered_by_two_factor_cut_set": 3,
+            {
+                "contract_only_handoff": 173,
+                "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,
         }

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "catalog_path": "contracts/authz/requirement-claims.json",
-  "classification_rules_digest": "64bde46166c0fe36bf3c4bbd043a59fe2068bf7ace4d543410dd225395df3fe2",
+  "classification_rules_digest": "18082bd7f79416179c2cce3071bfebdb1e6eca5644b646d114b338f6545ce480",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1062,
-  "aggregate_decision_digest": "b77aa89abc19473c15ff02a5135d5d26b02e9175054abce98b324fdb9ebe84b6",
+  "decision_count": 1063,
+  "aggregate_decision_digest": "08ba59ac2dde0946b339b0acf85fdd6633d2f8f8f4dfbfe73a4f583fc4b7599e",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -249,8 +249,15 @@
       "source_id": "CHANGELOG/table_row-028",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "9a5a5227d40996f41f9bc83f4964d030deeaad7712ef55c878df5c964cdf49dd",
+      "decision_digest": "61a38a0cd696ecc816faada14e2c82b077797284e821db6f6492bfb2e0fa6e46"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-029",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "f6ec61def9d139998fa1b5598bf77bda815a3cee9e6c7a114037d75cba8edbae",
-      "decision_digest": "297c1a5a26c19b0bd307f804cd4fb45dd3e23d87bfd2f0d9567342c92ea6817d"
+      "decision_digest": "0ccb681c58a38986d3f7f3ac5abed7bc398209904e85bb17857e5398ab9ea0ca"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -3808,52 +3815,186 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "source_text_digest": "29b1b168c24a8c4b2b1d2d71916ee7cb7a436660bebe52a65bb664bfe3a80bd9",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-006.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-006#capacity-constraint",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.capacity-constraint.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.capacity-constraint.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-006.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-006#invitation-state",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+          "layer": "authentication_boundary",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.invitation-state.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.invitation-state.http",
+                "status": "planned"
+              }
+            }
+          ]
+        },
+        {
+          "atomic_id": "FR-041/list_item-006#issue-permission",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.issue-permission.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-006.issue-permission.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "affc7dca7880fec230f999a40041279d1a79ef2fd2f5634a6a4974924e0148fc"
+      "decision_digest": "ddb5dc37030ba3fd2a2cb7c45f83c2d976aa5f482120db216a7d7626899640d4"
     },
     {
       "source_id": "FR-041/list_item-007",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "source_text_digest": "47aefcd171c38ec4b4312d2ea54c1e772f4f090dd3924094f909c24d926ad9fa",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-007.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-007#accept-permission",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.accept-permission.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.accept-permission.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-007.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-007#acceptance-serialization",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.acceptance-serialization.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.acceptance-serialization.http",
+                "status": "planned"
+              }
+            }
+          ]
+        },
+        {
+          "atomic_id": "FR-041/list_item-007#capacity-constraint",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.capacity-constraint.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.capacity-constraint.http",
+                "status": "planned"
+              }
+            }
+          ]
+        },
+        {
+          "atomic_id": "FR-041/list_item-007#invitation-state",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+          "layer": "authentication_boundary",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.invitation-state.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-007.invitation-state.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "e1b34f16b02684f23c631d7f07d39f75c71adfb489a0deec094dca2ed4a5049a"
+      "decision_digest": "ade47d525aaefe16a28c22b8c2f3bca644de38d062669cbb85db04b8d0815b3f"
     },
     {
       "source_id": "FR-041/list_item-008",
@@ -4014,28 +4155,51 @@
     {
       "source_id": "FR-041/list_item-014",
       "classification": "auth_claim",
-      "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+      "classification_rule_id": "AUTH_OPERATION_PERMISSION",
       "source_text_digest": "0f05e7488516796778b7164aedd652934b12791050a6252ba3aecaf30b95ca14",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-014.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-014#participant-authorization",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_ACCESS_SCOPE",
+          "layer": "access_control",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-014.participant-authorization.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-014.participant-authorization.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-041/list_item-014.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-041/list_item-014#request-validation",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-041/list_item-014.request-validation.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "eefd177e8bf47e6a7087ac162e42abb27e2715d5b68368e83bf443d2269854ac"
+      "decision_digest": "b366840f4e697231987e3e6713ffca20173a2eecc696b222b9963165159a8fe9"
     },
     {
       "source_id": "FR-041/list_item-015",
@@ -4911,7 +5075,17 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "source_text_digest": "d521b59cac825f61f5b999b0582c9bcb23d48f6beb566e3479485df20b1ec0cd",
-      "decision_digest": "a344854dc66f94b595215e3932fa7e108d2ad3d729d1ab6c3f1b8d3547a7c150"
+      "closed_world": {
+        "universe_kind": "route",
+        "member_source_ids": [
+          "FR-034/heading-001/table_row-001",
+          "FR-034/heading-001/table_row-002",
+          "FR-034/heading-001/table_row-003",
+          "FR-034/heading-001/table_row-004"
+        ],
+        "default_disposition": "deny"
+      },
+      "decision_digest": "71a647402c4fa3d0ee155efaa00bc8b49d459fbb34f41dc7fb793b32526e2d2f"
     },
     {
       "source_id": "FR-034/heading-001/table_header-001",
@@ -6009,7 +6183,16 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "source_text_digest": "09f0147eac91f4db881002d33ccc891d3b7d806f1d5f94dadafb975d56c04446",
-      "decision_digest": "ce7afea7bdeee5b80e350257de7b5d0861c66a65b6276e1233a675821824ace6"
+      "closed_world": {
+        "universe_kind": "resource",
+        "member_source_ids": [
+          "FR-034/heading-002/list_item-001",
+          "FR-034/heading-002/list_item-002",
+          "FR-034/heading-002/list_item-003"
+        ],
+        "default_disposition": "deny"
+      },
+      "decision_digest": "80276f1f6c2d772d1ca22147d39e84817d6dadfd6603ba26f387aff231e85830"
     },
     {
       "source_id": "FR-034/heading-002/list_item-001",
@@ -6146,58 +6329,130 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_ACCESS_SCOPE",
       "source_text_digest": "1f9eabedb96fc1433d9d739f635bc101df843476fdaa5cdc8536b2275b838bd6",
-      "layer": "access_control",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-034/heading-002/list_item-005.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-034/heading-002/list_item-005#operation-permission",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-005.operation-permission.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-005.operation-permission.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-034/heading-002/list_item-005.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-034/heading-002/list_item-005#read-access",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_ACCESS_SCOPE",
+          "layer": "access_control",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-005.read-access.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-005.read-access.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "61e7a66230e3170e3b9b07c10390090bae9bf476669b7cde0bfb28c3e35c90cf"
+      "decision_digest": "0fb376859b0a89a96bc3c2f0be6f520317ddfaf4bddeef6c7d4e90364ca4491d"
     },
     {
       "source_id": "FR-034/heading-002/list_item-006",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_ACCESS_SCOPE",
       "source_text_digest": "7157c2b8bc9f65b4f24e3bc04282202c164bc03a615e728eb29cbbcbf5ec59d8",
-      "layer": "access_control",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-034/heading-002/list_item-006.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-034/heading-002/list_item-006#operation-permission",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-006.operation-permission.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-006.operation-permission.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-034/heading-002/list_item-006.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-034/heading-002/list_item-006#read-access",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_ACCESS_SCOPE",
+          "layer": "access_control",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-006.read-access.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-034/heading-002/list_item-006.read-access.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "74b920bcc5dc6e377fbe9142b4cf7c7f9a54cf316cb32b20835eeaa89660dddc"
+      "decision_digest": "0a7a4bcb6c012007afbc00a2ba487bc71816cb9880774220de633fb9176215c1"
     },
     {
       "source_id": "FR-034/heading-002/paragraph-003",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_ACCESS_SCOPE",
       "source_text_digest": "9d8e3d4ea7e093149b980d45c80dda8c6ebe609d6266b7e305b706e6884a1c4e",
+      "closed_world": {
+        "universe_kind": "operation",
+        "member_source_ids": [
+          "FR-034/heading-002/list_item-004",
+          "FR-034/heading-002/list_item-005#operation-permission",
+          "FR-034/heading-002/list_item-006#operation-permission",
+          "FR-034/heading-002/list_item-006#read-access"
+        ],
+        "default_disposition": "deny"
+      },
       "layer": "access_control",
       "decidable_at": [
         {
@@ -6217,7 +6472,7 @@
           }
         }
       ],
-      "decision_digest": "92a3aba9af21b54cea258e94fa0c4f79e0b48dd744cf8a8b29a9701f2dbb6e60"
+      "decision_digest": "6bff44aa1604a4123efc619c0ff91313ce47246372f862bd1684e2dec781d463"
     },
     {
       "source_id": "FR-034/heading-003/heading-001",
@@ -6861,26 +7116,65 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "source_text_digest": "328de0ad2f1231181e1baa500c03d2f2bfdaf716fcf0a271fa97f879d504e19e",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-035/list_item-005.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-035/list_item-005#principal-state",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+          "layer": "authentication_boundary",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-005.principal-state.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-005.principal-state.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-035/list_item-005.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-035/list_item-005#revocation",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_REVOCATION_CACHE",
+          "layer": "cache_authorization",
+          "decidable_at": [
+            {
+              "location": "cache",
+              "basis_rule_id": "CACHE_REVOCATION_INVALIDATION",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-005.revocation.cache",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "db",
+              "basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-005.revocation.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_REVOCATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-005.revocation.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "9f0da2a0ba8d5018a0012907035eb0799d44d24bf228beee554a2a845b3e0af6"
+      "decision_digest": "03a9de59867ab6f219482c552f7218c099452fe31271d8c81445bf7397e870f0"
     },
     {
       "source_id": "FR-035/list_item-006",
@@ -6991,26 +7285,65 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "source_text_digest": "7e3ace17f28e2843b6b2323634c60fd339cc2664196a324d29b5c8b91522c4bb",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-035/list_item-010.db",
-            "status": "planned"
-          }
+          "atomic_id": "FR-035/list_item-010#password-state",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+          "layer": "authentication_boundary",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-010.password-state.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-010.password-state.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.FR-035/list_item-010.http",
-            "status": "planned"
-          }
+          "atomic_id": "FR-035/list_item-010#revocation",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_REVOCATION_CACHE",
+          "layer": "cache_authorization",
+          "decidable_at": [
+            {
+              "location": "cache",
+              "basis_rule_id": "CACHE_REVOCATION_INVALIDATION",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-010.revocation.cache",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "db",
+              "basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-010.revocation.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_REVOCATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.FR-035/list_item-010.revocation.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "e4c72ea0becbf2292f69570a402ed6a1d07740052b5d1aec42790e36671b72ff"
+      "decision_digest": "de8c70bcfce08c1d02fedafcd2d709e41e00230c013d80ed7ff0ad730ca581ec"
     },
     {
       "source_id": "FR-035/list_item-011",
@@ -8078,26 +8411,65 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "source_text_digest": "f32cda771375e00afdd0e4d373d33a3da68d5c7b83bf3fe6b58a3a172376beea",
-      "layer": "authentication_boundary",
-      "decidable_at": [
+      "atomic_claims": [
         {
-          "location": "db",
-          "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
-          "test_owner": {
-            "id": "TSK-270.step4.NFR-011/list_item-002.db",
-            "status": "planned"
-          }
+          "atomic_id": "NFR-011/list_item-002#credential-state",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_PRINCIPAL_STATE",
+          "layer": "authentication_boundary",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.NFR-011/list_item-002.credential-state.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.NFR-011/list_item-002.credential-state.http",
+                "status": "planned"
+              }
+            }
+          ]
         },
         {
-          "location": "http",
-          "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE",
-          "test_owner": {
-            "id": "TSK-270.step4.NFR-011/list_item-002.http",
-            "status": "planned"
-          }
+          "atomic_id": "NFR-011/list_item-002#revocation",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_REVOCATION_CACHE",
+          "layer": "cache_authorization",
+          "decidable_at": [
+            {
+              "location": "cache",
+              "basis_rule_id": "CACHE_REVOCATION_INVALIDATION",
+              "test_owner": {
+                "id": "TSK-312.step10.NFR-011/list_item-002.revocation.cache",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "db",
+              "basis_rule_id": "DB_REVOCATION_PERSISTENCE",
+              "test_owner": {
+                "id": "TSK-312.step10.NFR-011/list_item-002.revocation.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_REVOCATION_GATE",
+              "test_owner": {
+                "id": "TSK-312.step10.NFR-011/list_item-002.revocation.http",
+                "status": "planned"
+              }
+            }
+          ]
         }
       ],
-      "decision_digest": "535463bba63511b4c555ec84dfc1a8674333b540129b04583ea3a2348bbc24c0"
+      "decision_digest": "c888301658da3506265d5c087c91f803ea2e739188cbb1716e99b6a6553ed153"
     },
     {
       "source_id": "NFR-011/list_item-003",
@@ -8523,25 +8895,25 @@
       "decision_digest": "b55bcafbd5a1e3fc0d0bfa275b56e14810c296c065ba5c87face25515bb9d7bb"
     },
     {
-      "source_id": "NFR-018/paragraph-001",
+      "source_id": "NFR-018/table_header-001",
       "classification": "out_of_scope",
-      "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
+      "classification_rule_id": "OUT_STRUCTURAL",
       "source_text_digest": "1caf0ef25775ee5b7fbb1023bf17f1b1074904ee4e187e0e7d8c48c5af63e441",
-      "decision_digest": "74f3c08529efbbc9ad213d23c6e20f30fd31579b459f257c2e3616729c504b0c"
+      "decision_digest": "da1076b2dc9945ae648ccada209e5020544aa03e104798d55c3430267a5759c5"
     },
     {
-      "source_id": "NFR-018/paragraph-002",
+      "source_id": "NFR-018/table_delimiter-001",
       "classification": "out_of_scope",
-      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "classification_rule_id": "OUT_STRUCTURAL",
       "source_text_digest": "86a50617f42c6fa700f24365ee02e372711949d3d6b0c0ae1ad9aa6429522ea1",
-      "decision_digest": "4ca4dcb7d8d2c7197a5899e7a9fc0810c9ce01691e3f2bc2e7a88e5b5285aeae"
+      "decision_digest": "d6fdef6c3ca715be9f9647d7171edd9907806aecae16cd5c2313c7ae9d90f83c"
     },
     {
-      "source_id": "NFR-018/paragraph-003",
+      "source_id": "NFR-018/table_row-001",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
-      "source_text_digest": "ec0f6416673e3de2833d18af5383a5119b44571c3f4decfd65b2618cbc7abfc3",
-      "decision_digest": "1aaf26d4032a302e4b9b092f1510ade661d51306fbe158f92001cacbc17251ef"
+      "source_text_digest": "0643df54877980ecf5ed92970b6d15bece6f13a36c3579567b84ac3189fd69c9",
+      "decision_digest": "7d4de649b4f2eab88fa89ab22caa558c9f0d5afae92312d6b115246b289d2875"
     },
     {
       "source_id": "NFR-018/list_item-025",
