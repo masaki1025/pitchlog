@@ -52,7 +52,7 @@ date: 2026-09-03
 - 原因: `_table_cells`(`scripts/check_authz_catalog.py:229-232`)が `line.startswith("|")` で判定し行頭空白を strip しない → `_source_kind`(:278-300)の table 系判定をすべて外れて :300 の `paragraph` フォールバックに落ちる
 - 対象: リポ全体でインデントされた表行は**要件書 :904-906 の NFR-018 例外表 3 行のみ**(`grep -c '^[[:space:]]\+|'` = 3。3 行とも半角 4 スペース)
 - 現在の採取結果: `NFR-018/paragraph-001`(ヘッダ)/ `paragraph-002`(区切り — `OUT_NON_AUTH_REQUIREMENT`)/ `paragraph-003`(データ行 — `OUT_AUTHZ_CONTEXT_ONLY`)
-- 修正の連鎖: kind が変わると `source_id` が変わる(`extract_source` :344)→ 母集合 3 レコード + lock 3 決定 + aggregate digest → 派生 3 資産の `input_manifest`(blob digest 2 件)→ 派生 3 lock → oracle-seal の `input_assets` 8 件。`item_counts_by_kind` は paragraph 32→29 / table_header 24→25 / table_delimiter 24→25 / table_row 192→193
+- 修正の連鎖: kind が変わると `source_id` が変わる(`extract_source` :344)→ 母集合 3 レコード + lock 3 決定 + aggregate digest → 派生 3 資産の `input_manifest`(blob digest 2 件)→ 派生 3 lock → oracle-seal の `input_assets` 8 件。`item_counts_by_kind` は paragraph 32→29 / table_header 24→25 / table_delimiter 24→25 / table_row 192→193(**さらに本タスクの変更履歴 1 行追記で table_row +1・total 1062→1063** — 計画 §2-4)
 - 一次記録: `docs/worklog/2026-09-01-course-coordinate-contract.md:282-292` / `docs/features/course-coordinate-contract/plan.md:184-189`
 
 ### 4. NFR-018 例外表 2 セルの申し送り(TSK-233)
