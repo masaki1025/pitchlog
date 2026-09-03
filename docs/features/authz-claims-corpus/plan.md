@@ -1,6 +1,6 @@
 ---
 feature: authz-claims-corpus
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-03・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -52,6 +52,7 @@ created: 2026-09-03
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | NFR-018 例外表の 2 セル(検証テスト・状態)+ 変更履歴 1 行追記。**版は 2.4 のまま** | **PR レビュー**(7.6-3 前段 — PO 裁定 2026-09-03) |
 | `docs/README.md` | 要件書行の最終更新日の現行化 | PR レビュー(常に現行化) |
 | `contracts/authz/**`(母集合・lock・派生 3 資産 + lock・oracle 6 資産・seal) | P0 是正・採取追随・例外表セル/変更履歴行の追随・reseal | PR レビュー(コア領域 — 敵対レビュー + 逐行確認は H-12 代替統制で担保。**oracle 資産の変更は seal の review_policy に従い差分敵対レビュー + 人間確認を経る** — ステップ 11) |
+| `docs/development/harness-evaluation.md` | **H-87 新設**(一次記録の scratchpad 終着による消失)+ **H-53・H-81 へ実測追記** + 変更履歴 1 行(**版は上げない** — 7.6-3 前段。/pr クローズ処理 2026-09-03) | PR レビュー |
 
 **正本体系外だが同一 PR で更新するもの**: `scripts/check_authz_catalog.py`(採取器是正 + 裁定による検査強化)/ `tests/test_check_authz_catalog.py`(期待件数・負例)/ `tests/fixtures/authz_claims/**`(負例フィクスチャ)/ `docs/features/authz-claims-corpus/**`(帰属表 `attribution.json`・レビュー母集団リストを含む)・`docs/worklog/2026-09-03-authz-claims-corpus.md`(feature 文書)
 
