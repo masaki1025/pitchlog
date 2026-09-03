@@ -2,17 +2,19 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "2f32ac46723ce08034c18db0b36f2f135125663cc8621227cae304a8271fcfe5",
-  "entry_count": 45,
-  "aggregate_decision_digest": "a32754cc0ee86d7bae80a0d994aee3d51f13cf741d6ffbb0fbd6a0644748fddf",
+  "asset_digest": "ddaf781d47dd27db73f1672f9eb46cbfad9ade2833051e831345968dbaf4b7b0",
+  "entry_count": 230,
+  "aggregate_decision_digest": "a21419b93ecae5c27bd88a0312f325259256c4eca4b8d1b625c32bdda79647c1",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
       "decision": {
         "route_id": "ROUTE:FR-020",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-015"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -20,15 +22,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "656af4dba86bbc8372d588b9e099d5d857dca7a581eff3014f5deba4a33b12b2"
+      "decision_digest": "b5867906923c8f319bd335c4cf0d4ee6895a2374ebd92d54d0d0f4488d37f6c9"
     },
     {
       "entry_id": "route:ROUTE:FR-021",
       "decision": {
         "route_id": "ROUTE:FR-021",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-015"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -36,15 +40,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "27af59783c3ec6867956c1a61ed2a2d71e471ee0e499c08bd6fa09205e2ec61e"
+      "decision_digest": "ffb85ba95ed987ac626fd891fcbbad34650ae6bf7e5e6b911233ef7e648fda77"
     },
     {
       "entry_id": "route:ROUTE:FR-022",
       "decision": {
         "route_id": "ROUTE:FR-022",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-015"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -52,15 +58,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "33b8c7ad72df8d69996a7b2d7c21b0949d14d40697bf96a03266d69805bd26f1"
+      "decision_digest": "3970824d49ef2e2b5618d250d7ab1aca1774f1a04f2764999601a7f385220a15"
     },
     {
       "entry_id": "route:ROUTE:FR-023",
       "decision": {
         "route_id": "ROUTE:FR-023",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-015"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -68,15 +76,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "e3446672e8ea8c5770a42717b104a2debc8596e0b8571f0cbccec8e342c6ab6e"
+      "decision_digest": "dd0815d6555cf8a57605b50bad500382a7d35c49589705b1cd51ceac0cadd485"
     },
     {
       "entry_id": "route:ROUTE:FR-024",
       "decision": {
         "route_id": "ROUTE:FR-024",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-015"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -84,15 +94,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "7ba3cce23785d82cd468afab04a7b46cafdf3f9b891416a00e4e09807db29153"
+      "decision_digest": "d0283d42d0c1260a5132337cc68eeb1d1611af0f05f8195a0dc1c025f77bb241"
     },
     {
       "entry_id": "route:ROUTE:FR-025",
       "decision": {
         "route_id": "ROUTE:FR-025",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-016"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -100,15 +112,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "ad3eb85b44f2a96407d8d7913416b0d2044fcdbad9bbcfc043b12f9030cbb29e"
+      "decision_digest": "f89039984667b06f06e6cd3aa7a5539413037aec3ef1d9fd86aaf3c6f1ab651d"
     },
     {
       "entry_id": "route:ROUTE:FR-026",
       "decision": {
         "route_id": "ROUTE:FR-026",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-016"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -116,15 +130,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "27b9be344e1f9b287aa53e126b199c87b63ae9f0919c55403b82c8a9b5c10410"
+      "decision_digest": "070dc7c6900b2df9233fc578cdd3379dcb1a5c5fcd4ba19286384721d61ec230"
     },
     {
       "entry_id": "route:ROUTE:FR-027",
       "decision": {
         "route_id": "ROUTE:FR-027",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-016"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -132,15 +148,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "50a4214dc18624bc9489f88d7c29191305ee7eee764e96b2623f574c0a5d52a6"
+      "decision_digest": "673abafc8d4481e53c48edddf145e3019e5722665f6caec7b4f9e708b329d6e4"
     },
     {
       "entry_id": "route:ROUTE:FR-028",
       "decision": {
         "route_id": "ROUTE:FR-028",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-017"
+        ],
         "route_class": "shared_screen",
         "channel": "screen",
         "expected_default": "deny_404",
@@ -148,15 +166,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "64e0e4a16670516e7ea4714fe077bc13357b6117239320312e275db20d64ac2c"
+      "decision_digest": "c6411dab1df40c2b9eb674ade85ffaa4225349c573b6ecb3b86dbb4fd1ec4237"
     },
     {
       "entry_id": "route:ROUTE:FR-029",
       "decision": {
         "route_id": "ROUTE:FR-029",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-018"
+        ],
         "route_class": "shared_aggregate_export",
         "channel": "export",
         "expected_default": "deny_404",
@@ -164,15 +184,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "726a4669ae98ae95ab6c405c7e6c5129032b80139f11e054e64609921740b8bd"
+      "decision_digest": "5e19c31ac561cb8c3e05627a6780d8bfa1cf6a3f84d5705239c74d8907690cf3"
     },
     {
       "entry_id": "route:ROUTE:FR-030",
       "decision": {
         "route_id": "ROUTE:FR-030",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-019"
+        ],
         "route_class": "shared_aggregate_export",
         "channel": "export",
         "expected_default": "deny_404",
@@ -180,15 +202,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "cf20a896a8ac4c71b5f423930ecaed2c3a4734371673e1d2fc93d3c5500a1753"
+      "decision_digest": "066724f683fb8a1979b2e211b5a0e0fef509c9c39f8c009a8ddc8bd24bbda3ad"
     },
     {
       "entry_id": "route:ROUTE:FR-031",
       "decision": {
         "route_id": "ROUTE:FR-031",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-020"
+        ],
         "route_class": "shared_aggregate_export",
         "channel": "export",
         "expected_default": "deny_404",
@@ -196,15 +220,17 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "ac5e41a95704c90d9591eab991642117a6810be1c8da1ee5c7d44afdb8078aec"
+      "decision_digest": "22f6176d9113b186b800ca53eafa8f994f52377343146be19854d83221434c15"
     },
     {
       "entry_id": "route:ROUTE:FR-032",
       "decision": {
         "route_id": "ROUTE:FR-032",
         "route_kind": "legacy_route",
-        "origin": "design",
-        "source_claim_ids": [],
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-034/heading-001/table_row-021"
+        ],
         "route_class": "shared_aggregate_export",
         "channel": "export",
         "expected_default": "deny_404",
@@ -212,7 +238,7 @@
           "PLAN-STEP4-LEGACY-DENY"
         ]
       },
-      "decision_digest": "316eb12770547a862325191dc7abf13a23d4074b76ca31467dc09f8993872f23"
+      "decision_digest": "dd9422d5d3ca1b38b2128f6fa057c1e3ca402aff462529a6b2d4e6450e388755"
     },
     {
       "entry_id": "route:ROUTE:SHARED:shared_screen:team_metrics:screen",
@@ -504,13 +530,15 @@
         "route_kind": "management_operation",
         "origin": "requirement",
         "source_claim_ids": [
-          "FR-041/list_item-006",
+          "FR-041/list_item-006#issue-permission",
+          "FR-041/list_item-006#invitation-state",
+          "FR-041/list_item-006#capacity-constraint",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
         "operation_id": "issue_invitation"
       },
-      "decision_digest": "ab649ef9d92634f21f1e38824a33149ee3cf733c0b812167816376c2010b27c4"
+      "decision_digest": "3be1d52c1993338b7071c7a5da9b79f64ebfa1f00d51ffb50913e3e44ccc37e0"
     },
     {
       "entry_id": "route:ROUTE:MANAGEMENT:REVOKE_INVITATION",
@@ -519,13 +547,13 @@
         "route_kind": "management_operation",
         "origin": "requirement",
         "source_claim_ids": [
-          "FR-041/list_item-006",
+          "FR-041/list_item-006#invitation-state",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
         "operation_id": "revoke_invitation"
       },
-      "decision_digest": "901c79218887127e7426d58235b093ae2c31ebd0cf5a7941227314da6d2d1fe0"
+      "decision_digest": "577a9a79173dc15499fbda9c9ce79976cd5698250ec4765bdbe931723358ea5c"
     },
     {
       "entry_id": "route:ROUTE:MANAGEMENT:ACCEPT_INVITATION",
@@ -534,13 +562,16 @@
         "route_kind": "management_operation",
         "origin": "requirement",
         "source_claim_ids": [
-          "FR-041/list_item-007",
+          "FR-041/list_item-007#accept-permission",
+          "FR-041/list_item-007#invitation-state",
+          "FR-041/list_item-007#capacity-constraint",
+          "FR-041/list_item-007#acceptance-serialization",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
         "operation_id": "accept_invitation"
       },
-      "decision_digest": "0df57f3bb4ff6f260fe73faa909affefe5c27fbed9ee8bc61f59a49c376d943a"
+      "decision_digest": "a8c78566ad525fb4fd433ae53be4c7d0546d7046287d5297db0018a91b59a214"
     },
     {
       "entry_id": "route:ROUTE:MANAGEMENT:LEAVE_GROUP",
@@ -639,7 +670,9 @@
         "tenant_permission_required": true,
         "group_role_requirement": "admin",
         "source_claim_ids": [
-          "FR-041/list_item-006",
+          "FR-041/list_item-006#issue-permission",
+          "FR-041/list_item-006#invitation-state",
+          "FR-041/list_item-006#capacity-constraint",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
@@ -649,7 +682,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "10992668964851e9601bcc09ef80887aafdd391203056cedaa5be2c97fddc230"
+      "decision_digest": "c1305c25dcaca7d469d77d685bdb4f83027595f7477fa8ea3512c964667639ac"
     },
     {
       "entry_id": "operation:revoke_invitation",
@@ -665,7 +698,7 @@
         "tenant_permission_required": true,
         "group_role_requirement": "admin",
         "source_claim_ids": [
-          "FR-041/list_item-006",
+          "FR-041/list_item-006#invitation-state",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
@@ -675,7 +708,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "09d6415ab5f934038ff4a5c4077edd11f01c2a2a8ee22b4e69d52576ab48353c"
+      "decision_digest": "8f3c194bafec3f86d243492efb03911920d47d507f47f97d881b8846790e331a"
     },
     {
       "entry_id": "operation:accept_invitation",
@@ -691,7 +724,10 @@
         "tenant_permission_required": true,
         "group_role_requirement": "none",
         "source_claim_ids": [
-          "FR-041/list_item-007",
+          "FR-041/list_item-007#accept-permission",
+          "FR-041/list_item-007#invitation-state",
+          "FR-041/list_item-007#capacity-constraint",
+          "FR-041/list_item-007#acceptance-serialization",
           "FR-041/list_item-017",
           "FR-035/list_item-014"
         ],
@@ -701,7 +737,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "80222aec562489b4d57b3b06f2de9c253282e064133c120757121b777692816e"
+      "decision_digest": "7edf67514187bcbe41143e4216e6c7177fa7dd3469b438b80c76f29cea639f72"
     },
     {
       "entry_id": "operation:leave_group",
@@ -804,6 +840,1856 @@
         }
       },
       "decision_digest": "45787beb9514c7dfc4a9eb741e723f7d00ee041a877b4d872376969ec8f73977"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-C/blockquote-001:http",
+      "decision": {
+        "source_id": "APPENDIX-C/blockquote-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c61af58cb6b03b9f795f774dffe0ba3adaf0872ee14ca36d984dc4312f7b2697"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-C/table_row-004:http",
+      "decision": {
+        "source_id": "APPENDIX-C/table_row-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "e32dee119beab2ab0463390cc9029c666c311b4421cc616cbe8acf3975916a57"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-C/table_row-006:http",
+      "decision": {
+        "source_id": "APPENDIX-C/table_row-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "a6547e7c1fabbd1e6f8272a0144a73cadb7d0e42d0e0ec0f60f09e1b6a561f49"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-C/table_row-009:http",
+      "decision": {
+        "source_id": "APPENDIX-C/table_row-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "dbfddca6ebb1192cc6794a2baa780d926ba92de8b0df2ac3f909f0162da972cd"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-C/table_row-010:http",
+      "decision": {
+        "source_id": "APPENDIX-C/table_row-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "73632c646e0bba271f4325146a575d04766fd60751634e0efaac4ec415891cc0"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-ITEM-A-5/blockquote-002:http",
+      "decision": {
+        "source_id": "APPENDIX-ITEM-A-5/blockquote-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "0de9772a3e3029c1c5f8b475f2a2616005d51dae3828eb8d1e71404ef40b236f"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-ITEM-A-5/blockquote-006:http",
+      "decision": {
+        "source_id": "APPENDIX-ITEM-A-5/blockquote-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "40cdca991495157eb334f51c75400a6e9ed8baad58c717c6b1a8667f00636d15"
+    },
+    {
+      "entry_id": "claim_disposition:APPENDIX-ITEM-A-5/paragraph-003:http",
+      "decision": {
+        "source_id": "APPENDIX-ITEM-A-5/paragraph-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "bacb75cf971e3dc0a53d39057d174dacc25d3a97baa492b14a5ebc53fbfcbe34"
+    },
+    {
+      "entry_id": "claim_disposition:FR-007/list_item-009:http",
+      "decision": {
+        "source_id": "FR-007/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "fede1ef52526f10da98a3efd987f8588814e0f1b329dd4dffbfabab462b6d595"
+    },
+    {
+      "entry_id": "claim_disposition:FR-007/list_item-011:http",
+      "decision": {
+        "source_id": "FR-007/list_item-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "b128e1b019b2470c2c7c56d9eaf5ee56201a89047420fd6379f3ef43da2ad4df"
+    },
+    {
+      "entry_id": "claim_disposition:FR-012/list_item-010:http",
+      "decision": {
+        "source_id": "FR-012/list_item-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "ff1ac23e891f57e099140e7e4f7cca1a0f9703e47a6365c7e69ede5d632780d1"
+    },
+    {
+      "entry_id": "claim_disposition:FR-012/list_item-013:http",
+      "decision": {
+        "source_id": "FR-012/list_item-013",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8d24ded6988dc9ffa1c8e7a471a95c68208cb77287fc235885badb63bfeb414d"
+    },
+    {
+      "entry_id": "claim_disposition:FR-012/list_item-015:http",
+      "decision": {
+        "source_id": "FR-012/list_item-015",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "e1f5bccee74b39c93b91c8b9264efef2b6af76d52661debf0772903ad577f2fa"
+    },
+    {
+      "entry_id": "claim_disposition:FR-012/list_item-018:http",
+      "decision": {
+        "source_id": "FR-012/list_item-018",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "47d175273f06b383208b895ad927e944033efe0de42287baf90734ef0bf5f6ea"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-002:http",
+      "decision": {
+        "source_id": "FR-013/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "eca3e2331afc7f876ed20c5f92d02df5f67b76e33b6fd16f340b9c1064b44011"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-004:http",
+      "decision": {
+        "source_id": "FR-013/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "26d3b189775101040634a12429ffccffecb6cea49e5369185eefd781da2829e3"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-005:http",
+      "decision": {
+        "source_id": "FR-013/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c038c4a71c3e44a96de04653a4b92247921ace83d63ec718b01a8c6f07b2072f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-006:http",
+      "decision": {
+        "source_id": "FR-013/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "e096ec4fafe879b13f51b15d2686057949d51bb32fd0ee6ac1ef1d37a933e74f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-007:http",
+      "decision": {
+        "source_id": "FR-013/list_item-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "d9dcc71917ec1720d820fc4a8f8ec40fcdac27605de6648a5ff402fb89eb4478"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-008:http",
+      "decision": {
+        "source_id": "FR-013/list_item-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "fcc67dc033137dd407086f16472f60e46aff23d371cf115404434e4f14d459f7"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-009:http",
+      "decision": {
+        "source_id": "FR-013/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "706cca6ba9f6051975ed3cf87608356a3940ce23e24255f3a5e858a96ae5d94b"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-010:http",
+      "decision": {
+        "source_id": "FR-013/list_item-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "00f3ca3bdbc3684f45f2146b5869a02ef890ddb97e9d514375f907b8b654b77e"
+    },
+    {
+      "entry_id": "claim_disposition:FR-013/list_item-011:http",
+      "decision": {
+        "source_id": "FR-013/list_item-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4b3a5ebbc2ea802de247ceacf508c39fbe1a008ec9a1908efb2e92e9baacc65f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-014/list_item-009:http",
+      "decision": {
+        "source_id": "FR-014/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "637175d713b56ad93bd74cb3e747b5c41beed888814ac99c6ecf6259b4693002"
+    },
+    {
+      "entry_id": "claim_disposition:FR-017/list_item-009:http",
+      "decision": {
+        "source_id": "FR-017/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "81b32b2a559cbf64e20790e8fd2dc3a0e351fffe5b58a8162684294b03435567"
+    },
+    {
+      "entry_id": "claim_disposition:FR-019/list_item-006:http",
+      "decision": {
+        "source_id": "FR-019/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "67711d924dbdc1518be15b5a316a7c4a3b78770f642c205450e272a29417895f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-019/list_item-009:http",
+      "decision": {
+        "source_id": "FR-019/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "be40db15a8d73d22dd5ca6b2294cae4b3cdf34e054a48088633d02c7b28d3ea5"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-002:http",
+      "decision": {
+        "source_id": "FR-033/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "fee61b14fe7de55ce0c02ff736015ae37f5bbbc856981f789a03a8e9bce75583"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-004:http",
+      "decision": {
+        "source_id": "FR-033/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "333bb1a31b72925ded160a6c3fbc1a9df5578d348bf5349739ba1b6a64c84045"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-005:http",
+      "decision": {
+        "source_id": "FR-033/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "2f78d7d12279a9edefd9b62d60e4caae7c5ae85ee3e2b12e5b97f0f93c7e9b5e"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-006:http",
+      "decision": {
+        "source_id": "FR-033/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "ffba6c9a0245c9fb81ddef04905802850bc32a910fbc22d2683a68e140866bb6"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-007:http",
+      "decision": {
+        "source_id": "FR-033/list_item-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "952f9cd7d86a23188fd990ecc015aa3f5f213751e938a3fecfb830703a9ac3be"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "b5d5e93ed30a0f7261b3c3bc8696b26bb9fe5195b0faf5d23c54d6cebd5b3ab4"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-002:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "110b2c1a60170ccb7a098c228274c9c2dbff631695a1d9117045f4e9af4a63af"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "352671760281b78c76841d1afa4d5d33702937b4dabfa7899a872b89f08c944c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-004:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "9ea2b7064a673554156c8756d8fa3edbe13c82372fdf71b81547c2293584a5d0"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-005:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "623f795d770f609ab9fa4f13b5cf747937defd70f16ac0f46bcb32f7fb3a5652"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/list_item-006:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "54678dd19e4bbe0b578d2de1810a396e63426b060ef29c34992fa24646bdb33d"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/paragraph-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/paragraph-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8c7bd427526da2019e29bb5b3f00f7f37c6e6fafcd35ec1e782c1aa92a196f5c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/paragraph-006:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/paragraph-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "6858928614eb2d40917f2f893eafff3c812e7068023ba0fca07897ad4e70c635"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/paragraph-007:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/paragraph-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8dc23f20ad7f5f35ad268c0d241b66d4a340e3a2a9157a9910e3d4309b2134f8"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/paragraph-008:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/paragraph-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "323a324b8cbe6770e6614741918321c26608e4d072b194ee6ceb7209722b674e"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/paragraph-009:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/paragraph-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "ea2c94387332a9b433873509cf04c10f765e32cfcdb69a8e41a31c4fc860b156"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-004:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "a6483a529b303472808b4eef5cb2debfaae43163a2fa96829beb62e74d282f48"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-005:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "02ba9d38259472bc5836b8f3a83cfc12a3cf05041a90826967b3c801f5a29c89"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-006:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "f1845ebcbabc75a5c458f6af4df20d6ea08abdf8f76ff03e462ab1af5649fd17"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-007:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "9c96e9b2f925f711de46d8494777ade40cb29a453b2e11bb65d4e27115780d5c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-008:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "5ed83f330d5e2ff259289be7b5af7781053efe5e679deadc832e5628041d160a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-009:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c3520a36270ea8194c5ae9f27a11004ee832e1dec57ce161253efa03cbac7749"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-010:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "3ed4fd72bf93d34cfcb2c008702d4e603b90d20dad180a3e9e36e7119be47f1a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-011:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "377287cf3d503a2ef09c7cc8a0a00755c2633d2db80a3e1ae5e6db194d63e3ae"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-012:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-012",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4f5271076a65de7b00186c329879438ca8e28a7dbb194f4da5add591979cfb51"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-013:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-013",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "70e284345d620750d79ee104e01880be296564f48de0a7d57a781c4ed9170b19"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-014:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-014",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "742e8cd07f43c51a3599f390c31e66dce661d87b45685f86f1ac71f4cd49f612"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-022:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-022",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "413c6216aca4aa29113d2557ab77adc3b1f2856f3f36f6ff5665a184083719a1"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-001/table_row-023:http",
+      "decision": {
+        "source_id": "FR-034/heading-001/table_row-023",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "a6ceb5b06cc8f6166788618625ab4260636d8a3768b36ac9d296429078a88b27"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "41049d29b186b6daf1f8fe5815778c9b909d4ef417ae7c1101c3926879f48639"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-002:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "b2950ca7253aa7823b9c6b06ac98296f1596b8ac81166567c06d9db1f0d8a0f2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "dc9d9e016290639488065f57aeda40590aeeaca91aa74eca60566c3cf30e8bdb"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-004:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "6d4102b37080df8533c98a3a6120a20cfc213efc8c052ea8b7d638cb62dbc30a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-005#operation-permission:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-005#operation-permission",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "9c8a7e0a13ba3a5be590a9cbe5d1e1e248b7f5aab70ec145c42f24591cbc554a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-005#read-access:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-005#read-access",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "71be4a9ea60057a4284aa5c25cbaeae22f825c874d2b63c423bef70f7fbc4d19"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-006#operation-permission:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-006#operation-permission",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4b51132bcda543b259acdd2812c70209d7122d59d71a2b31bcbd3c8348b9fa6a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/list_item-006#read-access:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/list_item-006#read-access",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "08c393311125c4d6509023bd15363acbb079d2da12cbc4acfbc0874ae5f8dab7"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/paragraph-002:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/paragraph-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "51e0bde2bb816bba4999e706b13c36d4f78e2837cac697c1677fe4486d5f40ea"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/paragraph-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/paragraph-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4da3d597d756bbc734d5df1a7de90bb15f89be1006b27547f9edda4358dc4fc6"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-002/table_row-005:http",
+      "decision": {
+        "source_id": "FR-034/heading-002/table_row-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "90a91dc19989b758e6e277ec2c17bd6ad4fabb9396b17c7c1361c4840df036f5"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-003/paragraph-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-003/paragraph-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "196e1db28dc15e90f85a3d1b6e12a8c6e7ea43d181728e93cd0da81827d75156"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-003/table_row-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-003/table_row-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "73dbc0894572cf0e8eaccabab4422d91456000f39e7d72102922cd5649b4abc1"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-003/table_row-006:http",
+      "decision": {
+        "source_id": "FR-034/heading-003/table_row-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "79e82d013093e2df0ab75040d67dcefe49b3acb5fe09a7ecb391e59cd8092a02"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/list_item-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "146fab79e4817aabd564ad66a8313c05657e865b5b1d33c8b6811c7342dba6da"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/paragraph-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/paragraph-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8281aba2d6d492e0fc21b517a71dede981e331f4fbc0b62499a6628e36b3d771"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/paragraph-002:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/paragraph-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "78b7fd35fe91a351a5f312255f95fd771c984fcffcaa0458e3caf08ec25ecaa9"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-001:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "1baef952fb9208cbe3f002982316e14ca6c2b619b509b140c2bc8a2c199c5543"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-002:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "792cba8d46d773f3ee8011933e701a8e2cc0bb7df9d09452e92b2d99bbc5f581"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-003:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "ae05fc3e13b2467b7ad887d7d59d555acbaaa5aa251453c96c081050f30d54fb"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-004:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "2da16b7595dc5701ca3fe456f19a89af1f738bb496a8c8db4d46a7c83c062b03"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-005:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "d93d55c5be4e3e6829b62209287073490dcb4c8a78481ab7e67216cab0461fc0"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-006:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "da7a2c94588d1c3817693d19035bf1f1dfe5fadfcc09e421254e4cc8f81d27ac"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-007:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "84e8ff4355cbcf6b1ceee6ae3d637576a56821c1cc7909e1476fde01fce4ffe4"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-008:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "93c29ea3bbed8bd33598de7841da7b513ad9d27110ba5e6bf345c90bb38f8a2b"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-009:http",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "06a7e742a16e204096448fec7d5c1f4de0980198e265023119298757614bb2e5"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/list_item-002:http",
+      "decision": {
+        "source_id": "FR-034/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "15d8a5340eed47abb8b286df2cc01ff2c6a71f12aaaeadab539a1b0a6bf86621"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/list_item-004:http",
+      "decision": {
+        "source_id": "FR-034/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "bf49e0fc532244fd8df0dfc9786d835de3b08f9e8d50b486ffad4b8aee4c42e5"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/list_item-005:http",
+      "decision": {
+        "source_id": "FR-034/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "5e16fc70c463e2e331969cbbe23dee5ac5ca84221cc3a52b3aced3b95d3d8c55"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-002:http",
+      "decision": {
+        "source_id": "FR-035/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4d34f0e8bb6eea99be4b45db38e87ce14c1306c4b5b0566b3f28ddc2e699a0b2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-004:http",
+      "decision": {
+        "source_id": "FR-035/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "51f72d3b9ec2155688f34574fe4868165d3a17b1b6f0e3cca66f6736974fb860"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-005#principal-state:http",
+      "decision": {
+        "source_id": "FR-035/list_item-005#principal-state",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "e6c36149366b651e26a0e459bfda407565ad5641d5b2a64786eff77f76d101a4"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-005#revocation:http",
+      "decision": {
+        "source_id": "FR-035/list_item-005#revocation",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "eab2bc58e8a67a58836ffd7e8c4edc9d4fbc023d48e8cc435a91333e9b7cf525"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-006:http",
+      "decision": {
+        "source_id": "FR-035/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "3d00fcfd52bafcb523b0942c609ae2ec29c5b20fa8ece722c1895975bdd86465"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-007:http",
+      "decision": {
+        "source_id": "FR-035/list_item-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "024554e7c4bb3b3ac82f653c58d408d5918f1ce439c8381706afb8d2f475a450"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-008:http",
+      "decision": {
+        "source_id": "FR-035/list_item-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "aad01f3f145c39164ea3ae78a448afcebf662ed669f3f1e1efbb81dcae1ae1a1"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-009:http",
+      "decision": {
+        "source_id": "FR-035/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "017ecade04dedfcdcdf8399ffa65f1f74a70d32d754dc44453b8a13bda5f094a"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-010#password-state:http",
+      "decision": {
+        "source_id": "FR-035/list_item-010#password-state",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "76cf8dccea9da10c59afc532d82080b51e2ba11ab359c7bd18beccfc27e6b45e"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-010#revocation:http",
+      "decision": {
+        "source_id": "FR-035/list_item-010#revocation",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "81ea3c4bfe08200627d961187f404793275eae99a629904e672b6ae4aef67062"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-011:http",
+      "decision": {
+        "source_id": "FR-035/list_item-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "b307e70c48f7552bb903022c70dd69ded97b9ca723c679b4f3432d5114d9a5a2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-012:http",
+      "decision": {
+        "source_id": "FR-035/list_item-012",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "7118c16010bd149ad99a614d4a0f47cf5a151422a59b9d02e4b1c1182ce73019"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-013:http",
+      "decision": {
+        "source_id": "FR-035/list_item-013",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "705a001e70a46c3b22e7955545e4f95d43850b136cff4260c841e5bb4b30fc19"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-015:http",
+      "decision": {
+        "source_id": "FR-035/list_item-015",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "5c656616205c7cb899a57c2aa9c7b94068103bd6dbe6b3a026aaf832f34810ad"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-016:http",
+      "decision": {
+        "source_id": "FR-035/list_item-016",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "2a8f1d79f10c813ce00f3d85f2b4aa857810a9ca497459cdf2e3ee4460a646d9"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-002:http",
+      "decision": {
+        "source_id": "FR-036/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "cde86c49839f4ef1d98044528b90b5cbeef5d55e5e44d4e7ed1bb8a163b7a23b"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-004:http",
+      "decision": {
+        "source_id": "FR-036/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "71c73b539d4f72b928049fafc1bb37d99796dd2cbaddda65c6da37a904dd256f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-005:http",
+      "decision": {
+        "source_id": "FR-036/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "71ddf10a1297a2db358d28fd48040f9e0c66569b8fd8b79122eaf41c6e947233"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-006:http",
+      "decision": {
+        "source_id": "FR-036/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "f933e069f04a3dbfb51375abad1dffebeec9071edcc0d4f8812b4ddeae8c93ec"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-007:http",
+      "decision": {
+        "source_id": "FR-036/list_item-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "0e5da76a54e4048ee8b142ded3386e50f157ff78eda4477d068224a17691e32b"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-002:http",
+      "decision": {
+        "source_id": "FR-037/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8d170ad472ddcb081cf0f18dc487d4b6669bae2afb9bb2868a305c21d808e69f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-004:http",
+      "decision": {
+        "source_id": "FR-037/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "586b73493a8d98b94ad29345bdd6b938ace7ff31a2fae1c35afe8436f94dbd8d"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-005:http",
+      "decision": {
+        "source_id": "FR-037/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "01f647a1762fb7cdac703aa6171ee71126712df9e6d72881f75fdb22275eb786"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-006:http",
+      "decision": {
+        "source_id": "FR-037/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "f75a217e6443d19c6a5ced48577b2a22e262a5f800f7c633761ab3106999db33"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-007:http",
+      "decision": {
+        "source_id": "FR-037/list_item-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "3580259bc92cb80bb2cf6d8b267a9f808722c791efca6afec484a3fcce8aa58c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-008:http",
+      "decision": {
+        "source_id": "FR-037/list_item-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "89131606f8846e718a964eefbdd5e199bb99551ca121c9d407d31807059b0e50"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-009:http",
+      "decision": {
+        "source_id": "FR-037/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "11de8969e4943b5785f849e3f3f7c74fb41430fe99772b06908e4762fbbdbdf2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-039/list_item-004:http",
+      "decision": {
+        "source_id": "FR-039/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8e7f2dfdb398e1420a644c4772dbcccd113deff145128bc2a320efad14a03db5"
+    },
+    {
+      "entry_id": "claim_disposition:FR-039/list_item-008:http",
+      "decision": {
+        "source_id": "FR-039/list_item-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "1f2d39d0240259905395c80b292abcb1ea4d84728d0baf291ec56ee13c5ee397"
+    },
+    {
+      "entry_id": "claim_disposition:FR-039/list_item-009:http",
+      "decision": {
+        "source_id": "FR-039/list_item-009",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4600644222dbe4de3e2a140bbe5e0a2457c8327536df218e2d882f69c6d33790"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-002:http",
+      "decision": {
+        "source_id": "FR-041/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "15aab97f325a8acae28d419965ef44249faf447d9d5c822da195952b8eda0e34"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-010:http",
+      "decision": {
+        "source_id": "FR-041/list_item-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4215983b5d8a723486249fdcbf87651108cf7ea9e86fdd06ab3056f8bb45673b"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-011:http",
+      "decision": {
+        "source_id": "FR-041/list_item-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "96e90b779f2054820f87bacc69adcf46b3e2b61ed8418c6abb3221252887df16"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-012:http",
+      "decision": {
+        "source_id": "FR-041/list_item-012",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "0f6571c952f9541c59d05524658dbbcb4974a9cde8650b6db01ce8540f5a9782"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-013:http",
+      "decision": {
+        "source_id": "FR-041/list_item-013",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "d9defb6630511b0b147a9c83292106f18934c40edf620924aae30118f620eaa2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-014#participant-authorization:http",
+      "decision": {
+        "source_id": "FR-041/list_item-014#participant-authorization",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "1fe6288de111c56014831a1214d5a1cea0acd03c77829e3e6b6c36f43a805c97"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-014#request-validation:http",
+      "decision": {
+        "source_id": "FR-041/list_item-014#request-validation",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "dcbc765ff9bf250cc7ade08c75a8a74b3a1771427dba456544ea57a65a3520f4"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-018:http",
+      "decision": {
+        "source_id": "FR-041/list_item-018",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "a75e4e9a8bf3c90bfc5cbd30039fa256168f72639d5bfd4edd089e63bce1024f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-019:http",
+      "decision": {
+        "source_id": "FR-041/list_item-019",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "89f970d4b3b618af64d3108894a7772ef6f81c9f2b4e82d8b28665af601991d2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-020:http",
+      "decision": {
+        "source_id": "FR-041/list_item-020",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "6d546442a244db1858ea3870c6389cbf92b8ac4a0084c748c9e8936da00f783f"
+    },
+    {
+      "entry_id": "claim_disposition:FR-041/list_item-021:http",
+      "decision": {
+        "source_id": "FR-041/list_item-021",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "aab0e245f6e4d261260ac39b7981f4b44916b98ab000e5779247323d7e2cd228"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-009/list_item-004:http",
+      "decision": {
+        "source_id": "NFR-009/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "5e8f9f3b0a2e58dabaa52b8f3142f5b2efd73458324f6ee1b799dbbe4aa57466"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-010/list_item-002:http",
+      "decision": {
+        "source_id": "NFR-010/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c85fe80e7218beb33a0aa4a545ff92ff3f2165e410240ece9889379113363c48"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-010/list_item-004:http",
+      "decision": {
+        "source_id": "NFR-010/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "79452f8f3d28aee9c42c384bfa8cfb4b292a1a51cba48dda90e7203b6055872f"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-011/list_item-002#credential-state:http",
+      "decision": {
+        "source_id": "NFR-011/list_item-002#credential-state",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "664e84789258aba016ab95a54f56f5120c09f3390d030682850f8bf8a0da8e53"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-011/list_item-002#revocation:http",
+      "decision": {
+        "source_id": "NFR-011/list_item-002#revocation",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "41ee247607b0a72488cf8283ed1d94d74f9711f376fd408df6b9fcea3dd6ebbb"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-011/list_item-003:http",
+      "decision": {
+        "source_id": "NFR-011/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "eb071b2ba054f205d357a90fff1eb00b0f90505db3e51f06c40a72f8277b87e7"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-012/list_item-002:http",
+      "decision": {
+        "source_id": "NFR-012/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "6315c916292821eca37b55f41b6964aa74b8c02c087c0b9b7d0fee6288290b49"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-012/list_item-003:http",
+      "decision": {
+        "source_id": "NFR-012/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "7f3ad9120bdb1636f3342b7a6e41e50b6420cc1c28214a0371263caeead7fd47"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-019/paragraph-001:http",
+      "decision": {
+        "source_id": "NFR-019/paragraph-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "73475527d338cfacaa2bb35c85a1e1cec7fa118eb54cb3cc86436fe9930aa8c4"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-1.1/paragraph-002:http",
+      "decision": {
+        "source_id": "SECTION-1.1/paragraph-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "a09d959485a28b3af676e50e5e4818c5daeb54f4c61527d95765f4728ad9e49d"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-1.1/paragraph-003:http",
+      "decision": {
+        "source_id": "SECTION-1.1/paragraph-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "caee5583930203d91e39fdcedd1fa72c30a31aa3b3ba599ca01467ad32671c27"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-2.2/list_item-001:http",
+      "decision": {
+        "source_id": "SECTION-2.2/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4e1d78bb7a0bd3baf90f369666bfcf71c1145b761c85ad7c1be194e7d7b69fb3"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-2.2/list_item-002:http",
+      "decision": {
+        "source_id": "SECTION-2.2/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c168e33793ae078d23a57102ccaf2a4dbdbcf8aa796565d6b25aed492ab12bf9"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-2.2/list_item-008:http",
+      "decision": {
+        "source_id": "SECTION-2.2/list_item-008",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "5279d8497639f6bda4f3d3939900ef3a0f29ab4498336b1706826feb045a6358"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-2.2/list_item-012:http",
+      "decision": {
+        "source_id": "SECTION-2.2/list_item-012",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "73e080da7103cf41cfeb1fd39994a1f1bb99c16ebe02962342f7e554e9f9ba4b"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-001:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c1b7afe653e583ce7feb31bbe8d0a4cfaabb9a7a51d1d6c59dfeea3eb84bd0c3"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-002:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "346ac9a02a6c80cb7b100ba52de62947272b4e503c6577860fe631a23e9f305d"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-003:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4b8300045ad23b1b1485dbe5624b9f21e26d558fcc78a99662602f3160ccf0bf"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-004:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "37a9c1b9a158b32d3b3eb9ee71b0f964d709279e1f1bcf795c75767fb15478e8"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-005:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-005",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "2ea128128347a1e57683e10673e783da9f5e9c570acc1082409262fb25423a7f"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/heading-001/list_item-006:http",
+      "decision": {
+        "source_id": "SECTION-3/heading-001/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "218fb5e7990e047a81a9541cdee4b8ff6eb3c670b8bb451a9bf237d6833b7bf2"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/table_row-001:http",
+      "decision": {
+        "source_id": "SECTION-3/table_row-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8428291418b2e64403e1e32bb19b469655cae3d6c36502224519b3f95219f264"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/table_row-002:http",
+      "decision": {
+        "source_id": "SECTION-3/table_row-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "32e56c9896f5943d8b531b4ef40f8244dc559578c62b8a02797354c06fd4a78e"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/table_row-003:http",
+      "decision": {
+        "source_id": "SECTION-3/table_row-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "d2f68d168ebdf460ce3e17d34e39fab7bbc8541bcaf7b5dfc14a181127bbfb2f"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-3/table_row-004:http",
+      "decision": {
+        "source_id": "SECTION-3/table_row-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "8fed401dec10d8e3ab51a21196ba39fca64bf345da92677cfa2e57f9264d8a26"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-4.0-1/code_line-003:http",
+      "decision": {
+        "source_id": "SECTION-4.0-1/code_line-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "28adbf1235912f638ea2300da160046713faf5ab2a492a12874655b99ad92903"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-4.0-1/code_line-011:http",
+      "decision": {
+        "source_id": "SECTION-4.0-1/code_line-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "f00c4999375e9ad352ad8c551c94a0a79d846e9d3c7389e8d968cfa90c2a981e"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-4.0-2/list_item-001:http",
+      "decision": {
+        "source_id": "SECTION-4.0-2/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "738ce15a1793573ecb55b16be17213f0d6defdadb7e71bd5ea5391a530b35cd8"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-4.0-3/table_row-002:http",
+      "decision": {
+        "source_id": "SECTION-4.0-3/table_row-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "b30d1cb1fe71866252392bbc48482e493f94f9ebccd5ce3a695bf91fefefdc3a"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-4.0-3/table_row-003:http",
+      "decision": {
+        "source_id": "SECTION-4.0-3/table_row-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "578ba456f0e15417e1963678d704f71c5b0389118b24d3946c79b5384f107eab"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-6.2/list_item-003:http",
+      "decision": {
+        "source_id": "SECTION-6.2/list_item-003",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "d2b6447f4d1b9ec1eeb70e87903bcaf73fd565d8105d756df8e2a46be67d8a38"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-6.4/list_item-001:http",
+      "decision": {
+        "source_id": "SECTION-6.4/list_item-001",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "cb74f6f8e2c1dbccbfcbd62ac5d04289f60aacc4d6f8ec32019d0073990e6d8f"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-7.1/list_item-004:http",
+      "decision": {
+        "source_id": "SECTION-7.1/list_item-004",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "37952f4af683cd711bc6b61551052e60a17ff694024353e1106309e40a87dc50"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-8/list_item-002:http",
+      "decision": {
+        "source_id": "SECTION-8/list_item-002",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "43f2fa2aca4c7498d1e834ca12da1cc02e286b8590bb53646383e6b227d0dccb"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-8/list_item-006:http",
+      "decision": {
+        "source_id": "SECTION-8/list_item-006",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "cf814eab19560b41e00898d1b6dfbdfdc81210b43b22997b8ddf4ecec8fde073"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-9/table_row-007:http",
+      "decision": {
+        "source_id": "SECTION-9/table_row-007",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "7e19a7b419e51c10968af0fd2c28d5c5235232b8a9d11b4892d56dfe06fda1f0"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-9/table_row-011:http",
+      "decision": {
+        "source_id": "SECTION-9/table_row-011",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "36df6a52e02511bfa445906d318a32de2c736124c28f72be6bf946a6fdf13a2c"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-9/table_row-012:http",
+      "decision": {
+        "source_id": "SECTION-9/table_row-012",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "84e4308c3bf5e4edc440bc3892adff5439159878296bbe3c72ea3b0bad8476e9"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-9/table_row-013:http",
+      "decision": {
+        "source_id": "SECTION-9/table_row-013",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "70242255c6473a6688c1b269dd75bd926e13c5ebe77de6ff2d14d2a956e904fc"
+    },
+    {
+      "entry_id": "claim_disposition:FR-017/list_item-009:cache",
+      "decision": {
+        "source_id": "FR-017/list_item-009",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "6f0380f48fa5308aaa94a0f0a4367d7e2c718d3be60d3eb7ecea8630db150904"
+    },
+    {
+      "entry_id": "claim_disposition:FR-033/list_item-006:cache",
+      "decision": {
+        "source_id": "FR-033/list_item-006",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "f3b4fdcbff004a5319defe89e499d19b68d3f95a5fd8294f87fc872f62f8c0c7"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/list_item-001:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/list_item-001",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "9727c69fa45f9a1c3ee199e980a3b4a3ec4048e60a7f7868412ed24846e8b5c7"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-001:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-001",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "0ff1cc38465e33999efac648a24606fc6b4ec72aadf5ee284536ba615d055e83"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-002:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-002",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "4c5ec18b08024c25f37759dfab894a34647c73e91d9ea49ae37282dfb5494983"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-003:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-003",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "295098306318250a3d6fca629acf2d993cd81f03cb015d6180f89db60e9f2f4c"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-004:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-004",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "d949720763e53c17e65a02d3873c81cb77ef83769f8c3a7790b3ccda0e249051"
+    },
+    {
+      "entry_id": "claim_disposition:FR-034/heading-004/table_row-009:cache",
+      "decision": {
+        "source_id": "FR-034/heading-004/table_row-009",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "55a700976ce1f4c8ea0d253651b77069735665ece0f37a3c91f5abb8397bcde3"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-005#revocation:cache",
+      "decision": {
+        "source_id": "FR-035/list_item-005#revocation",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "4615f9cf0ae630a978fa66dcfda635aea04bac345ebaf43a91cfebd9b6669853"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-010#revocation:cache",
+      "decision": {
+        "source_id": "FR-035/list_item-010#revocation",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "41f1bac40fbedd3a6a01ecdc50d2a2899a6f3c285d16205049c2ec959e922740"
+    },
+    {
+      "entry_id": "claim_disposition:FR-035/list_item-016:cache",
+      "decision": {
+        "source_id": "FR-035/list_item-016",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "fc307ace56ffdee0d8ec59dfea5bf45b0a561c9d5aeadd9a76e32cf5d439314d"
+    },
+    {
+      "entry_id": "claim_disposition:FR-036/list_item-005:cache",
+      "decision": {
+        "source_id": "FR-036/list_item-005",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "02bbcc92ad0f0aada5b0d47b43acaf9095498d1944a344a2db8fe58b051c0e5c"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-010/list_item-004:cache",
+      "decision": {
+        "source_id": "NFR-010/list_item-004",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "d42ea134cbfbba0ed51d26c0265f5f7aa20b83de98d6caa1c699c5a1b352a9b8"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-011/list_item-002#revocation:cache",
+      "decision": {
+        "source_id": "NFR-011/list_item-002#revocation",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "e943055f4137f1e4a6fcd1fcac136bcc739966ab4deb3546b48db5de1f91327a"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-011/list_item-003:cache",
+      "decision": {
+        "source_id": "NFR-011/list_item-003",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "e55fd5e01c4ea07ef65e578fe148f0d5fa986fd843d3c744124ce1f0afc06e63"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-012/list_item-003:cache",
+      "decision": {
+        "source_id": "NFR-012/list_item-003",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "43dd2b3df4a5ad65ee6ab98f94a34b04932f17c4535168571adc5823814fe9f3"
+    },
+    {
+      "entry_id": "claim_disposition:NFR-019/paragraph-001:cache",
+      "decision": {
+        "source_id": "NFR-019/paragraph-001",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "b359ac71dbe6a3fe2da90d3a35fce7766e934c4404c1f420407b495a1a5a4915"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-6.2/list_item-003:cache",
+      "decision": {
+        "source_id": "SECTION-6.2/list_item-003",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "6e29f2fa1a8ee0daca11b806f9378cedd16c58a5109c60ac3272d65809e11889"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-8/list_item-002:cache",
+      "decision": {
+        "source_id": "SECTION-8/list_item-002",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "57232e7dff7c90c69a57578fd2ed10e009f6971adf5a7cb8641d0e9591c5e2cd"
+    },
+    {
+      "entry_id": "claim_disposition:SECTION-8/list_item-006:cache",
+      "decision": {
+        "source_id": "SECTION-8/list_item-006",
+        "location": "cache",
+        "disposition": "out_of_registry",
+        "reason_code": "cache_matrix_pending"
+      },
+      "decision_digest": "2463bff8f194244730fff8eb4ed4108d0e5e988703e1fabd3d3892f9a3cbe43b"
     }
   ]
 }

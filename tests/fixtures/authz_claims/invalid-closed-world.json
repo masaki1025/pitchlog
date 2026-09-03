@@ -1,0 +1,21 @@
+{
+  "missing_member": {
+    "universe_kind": "resource",
+    "member_source_ids": [
+      "FR-900/table_row-999"
+    ],
+    "default_disposition": "deny"
+  },
+  "empty_universe": {
+    "universe_kind": "resource",
+    "member_source_ids": [],
+    "default_disposition": "deny"
+  },
+  "unknown_universe_kind": {
+    "universe_kind": "tenant",
+    "member_source_ids": [
+      "FR-900/table_row-001"
+    ],
+    "default_disposition": "deny"
+  }
+}

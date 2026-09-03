@@ -1,0 +1,18 @@
+{
+  "unsupported_probe_executable": {
+    "claim_id": "FR-034/heading-001/paragraph-001",
+    "operation": "remove_runtime_target",
+    "expected_error": "probe_executable に runtime_target が必要"
+  },
+  "contract_only_without_reason": {
+    "claim_id": "FR-035/list_item-002",
+    "operation": "remove_contract_reason",
+    "expected_error": "contract_only に contract_only_reason_code が必要"
+  },
+  "unknown_contract_reason": {
+    "claim_id": "FR-035/list_item-002",
+    "operation": "replace_contract_reason",
+    "value": "自由記述の保留理由",
+    "expected_error": "contract_only_reason_codeが閉じた値域にない"
+  }
+}

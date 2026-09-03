@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_catalog",
+  "input_manifest": {
+    "requirement_claims_path": "requirement-claims.json",
+    "requirement_claims_blob_digest": "6dae14b6b1e943e3b4653ea74283e3df235b8388",
+    "requirement_claims_lock_path": "requirement-claims.lock.json",
+    "requirement_claims_lock_blob_digest": "c6b3cf094bbae608122b7a3f323e569600088c25"
+  },
+  "origins": [
+    "requirement",
+    "design"
+  ],
+  "route_scopes": [
+    {
+      "route_scope_id": "SCOPE:FIXTURE",
+      "route_kinds": [
+        "shared_data",
+        "control_read",
+        "management_operation"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "catalog_entry_id": "CATALOG:FIXTURE:OPERATION",
+      "requirement_claim_id": "FR-900/list_item-001",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "962268e8899ce4a16b6f32486605b3f474f2013b247f87319e2d6b12a1653545",
+      "route_scope_id": "SCOPE:FIXTURE",
+      "catalog_test_owner": {
+        "id": "FIXTURE.catalog.operation",
+        "status": "planned"
+      },
+      "enforcement_test_owner": {
+        "id": "FIXTURE.enforcement.operation",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FIXTURE:ROW-POLICY",
+      "requirement_claim_id": "FR-900/table_row-001#row-policy",
+      "origin": "requirement",
+      "layer": "access_control",
+      "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+      "source_text_digest": "9cb22b135a2cb3317f2b59223f9edca164018f8e7b4b4ef5968ff7b0eb174ecc",
+      "route_scope_id": "SCOPE:FIXTURE",
+      "catalog_test_owner": {
+        "id": "FIXTURE.catalog.row-policy",
+        "status": "planned"
+      },
+      "enforcement_test_owner": {
+        "id": "FIXTURE.enforcement.row-policy",
+        "status": "planned"
+      }
+    }
+  ]
+}

@@ -6,17 +6,17 @@
 
 | 文書 | 状態 | 版 | 最終更新 |
 | --- | --- | --- | --- |
-| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.6 — TSK-278: 付録A の書式 binding・A-1 共通規定・被安打/本塁打行ほか。**v2.5 は TSK-267 の先約** — 確定ゲート 27 周・PO 承認 2026-09-03) | 2.6 | 2026-09-03 |
-| [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.1 — 要件書 v2.1 と同一ゲートで確定) | 1.1 | 2026-08-18 |
+| [要件定義書](requirements/requirements-pitchlog-2026-07-22.md) | **approved**(v2.6 — TSK-278: 付録A の書式 binding・A-1 共通規定・被安打/本塁打行ほか。**v2.5 は TSK-267 の先約** — 確定ゲート 27 周・PO 承認 2026-09-03。NFR-018 例外表 2 セルは TSK-312 で有効化〔7.6-3 前段〕) | 2.6 | 2026-09-03 |
+| [改善台帳](improvements-from-baseball-scoring.md) | **approved**(v1.2 — TSK-308 裁定の明文化: I-28 新設〔「完全に同じもの」裁定の限定つき再確認〕+ I-2/I-8/I-10/I-14/I-26 裁定追記 + I-8/I-21/I-24 要件追随。敵対レビュー 8 周 → PO 承認) | 1.2 | 2026-09-02 |
 | [要件対話の決定記録(D-1〜D-44)](requirements/requirements-draft-pitchlog.md) | approved(記録) | — | 2026-08-10 |
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(v0.1 — 要件書 v2.4 と一括検証。敵対レビュー10周・射程縮小2回 → PO 承認) | 0.1 | 2026-08-30 |
-| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.11 — 13 章へ受入の前提 PR 第 3 号を新設〔対象 4 本・順序・**本数 8 → 9**〕+ 10.1 へ「正式受入」「4-6 マージ前条件」の単一定義と実施順序のゲート別分岐。敵対レビュー9周 → PO 承認。**10.1 の `backend` 行へ postgres サービスを現行化**) | 1.11 | 2026-08-31 |
-| [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認。H-20・H-78・H-79・H-53・H-81・**H-22・H-42・H-61** の実測を記入。**H-85 を新設**) | 1.0 | 2026-09-01 |
+| [開発ハーネス設計書](development/dev-harness-design-2026-08-07.md) | **approved**(v1.13 — **13 章へ「製品機能の実装」を新設**: 製品機能の実装は Phase の対象外であり 6.1 の実装計画書ゲートに従う。**本章は開始条件を定めず**着手可否は 6.1 の計画書ゲート(人間承認)で判断 / `NFR-018` の対象計算は ADR-003 の導入順序に従う / 順序・群・段階は定めない。**Phase は追加していない**。あわせて 3.1 分担表と 6.3 見出しの「提案」表記を現況化(規範不変)。敵対レビュー反映 7 周・指摘 30 件・P0 全周ゼロ・2 周目に射程縮小の PO 裁定 → PO 承認) | 1.13 | 2026-09-02 |
+| [ハーネス運用評価台帳](development/harness-evaluation.md) | **approved**(v1.0 — 敵対レビュー9周 → PO 承認。H-20・H-78・H-79・H-53・H-81・**H-22・H-42・H-61**・**H-86/H-21/H-68** の実測・**H-85 新設**〔PR #34〕/ **H-68 対応済み・H-75 部分対応**〔7.3 v1.12 の条文化〕+ H-42/H-39/H-12/H-8 補記・候補 1 件〔PR #35〕/ **H-12 再発補記**〔TSK-226〕/ **H-12 3 件目・H-19 ⑥・候補 1 件**〔TSK-308〕/ **H-87 新設・H-53/H-81 実測**〔TSK-312〕) | 1.0 | 2026-09-03 |
 | [ADR-001: Codex モデル選定](adr/ADR-001-codex-model-selection.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-002: フロントエンド = Vue.js](adr/ADR-002-frontend-vue.md) | approved(ハーネス確定ゲートで一括) | 1.0 | 2026-08-17 |
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(v0.2 — TSK-278: D-1 へ数値表示 primitive 4 種・composite target・表示系変異演算子 — 確定ゲート 27 周・PO 承認 2026-09-03) | 0.2 | 2026-09-03 |
 | [オンボーディング](development/onboarding.md) | **approved**(v1.2 — 受入プロファイルの複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定・arm64 実機で実測〕。敵対レビュー9周 → PO 承認) | 1.2 | 2026-08-27 |
-| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.1 — 敵対レビュー2周 → PO 承認) | 1.1 | 2026-08-24 |
+| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.2 — 2 章マージ手続へ実施記録の確認・base/head SHA の拘束を追加、必須 CI 一覧を 9 context へ是正。設計書 v1.12 と一括検証・PO 承認) | 1.2 | 2026-09-01 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(v1.3 — ブートストラップ手順を前提 PR 第 3 号へ対応し、手順 6・7 へ 10.1 の共通順序とマージ後検査を伝播。敵対レビュー9周 → PO 承認) | 1.3 | 2026-08-27 |
 | [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
@@ -32,6 +32,6 @@
 
 ## 参照(正本ではない)
 
-- `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)
+- `legacy/` — 旧システム資料(**版固定・変更禁止**。88列の正は `legacy/research/data-layer.md`)。旧 SPA(React)の参照資料の置き場は PO 裁定済み(2026-09-02・リポへ追加せず dd03160 典拠記録に留める — TSK-308 A-1)で、**規範化は設計書 7.2 の改訂タスク(TSK-311)で確定する**(それまでの経緯の正: `worklog/2026-09-02-decision-sheet-ruling.md`)
 - `worklog/` — 作業ログ
 - `features/` — feature 作業ディレクトリ(**1 feature = 1 ディレクトリ**: `<slug>/` 配下に plan.md〔契約〕・research.md〔調査〕・design.md〔詳細設計・任意〕等。plan の状態は active → in-review の2値 — 差し戻し再開時は in-review → active に戻す〔設計書 6.1〕)

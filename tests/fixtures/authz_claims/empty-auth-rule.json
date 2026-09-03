@@ -1,0 +1,6 @@
+{
+  "classification": "auth_claim",
+  "allowed_source_kinds": [],
+  "allowed_heading_ids": [],
+  "forbidden_source_text_patterns": []
+}

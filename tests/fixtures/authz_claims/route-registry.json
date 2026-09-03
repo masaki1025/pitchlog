@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_route_registry",
+  "input_manifest": {
+    "requirement_claims_path": "requirement-claims.json",
+    "requirement_claims_blob_digest": "6dae14b6b1e943e3b4653ea74283e3df235b8388",
+    "requirement_claims_lock_path": "requirement-claims.lock.json",
+    "requirement_claims_lock_blob_digest": "c6b3cf094bbae608122b7a3f323e569600088c25"
+  },
+  "enums": {
+    "origins": [
+      "requirement",
+      "design"
+    ],
+    "route_kinds": [
+      "legacy_route",
+      "shared_data",
+      "control_read",
+      "management_operation"
+    ],
+    "route_classes": [
+      "shared_screen",
+      "shared_aggregate_export"
+    ],
+    "resource_kinds": [
+      "team_metrics",
+      "team_summary",
+      "player_metrics"
+    ],
+    "channels": [
+      "screen",
+      "export"
+    ],
+    "control_read_ids": [
+      "fixture_control"
+    ],
+    "operation_ids": [
+      "fixture_operation"
+    ],
+    "precondition_ids": [
+      "fixture_precondition"
+    ],
+    "group_role_requirements": [
+      "none",
+      "admin"
+    ],
+    "legacy_route_ids": [
+      "ROUTE:FIXTURE:LEGACY"
+    ]
+  },
+  "design_provenance": [
+    {
+      "provenance_id": "FIXTURE-REQUIREMENTS",
+      "path": "requirements.md",
+      "extracted_text": "合成認可要件"
+    }
+  ],
+  "routes": [
+    {
+      "route_id": "ROUTE:FIXTURE:LEGACY",
+      "route_kind": "legacy_route",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "channel": "screen",
+      "expected_default": "deny_404",
+      "provenance_ids": [
+        "FIXTURE-REQUIREMENTS"
+      ]
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "team_metrics",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:team_metrics:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "team_metrics",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "team_summary",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:team_summary:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "team_summary",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "player_metrics",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_screen:player_metrics:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_screen",
+      "resource_kind": "player_metrics",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_metrics",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_metrics:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_metrics",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_summary",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:team_summary:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "team_summary",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:screen",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "player_metrics",
+      "channel": "screen"
+    },
+    {
+      "route_id": "ROUTE:SHARED:shared_aggregate_export:player_metrics:export",
+      "route_kind": "shared_data",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "route_class": "shared_aggregate_export",
+      "resource_kind": "player_metrics",
+      "channel": "export"
+    },
+    {
+      "route_id": "ROUTE:FIXTURE:CONTROL",
+      "route_kind": "control_read",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "control_read_id": "fixture_control",
+      "access_requirement": "participant"
+    },
+    {
+      "route_id": "ROUTE:FIXTURE:MANAGEMENT",
+      "route_kind": "management_operation",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "operation_id": "fixture_operation"
+    }
+  ],
+  "management_operations": [
+    {
+      "operation_id": "fixture_operation",
+      "route_id": "ROUTE:FIXTURE:MANAGEMENT",
+      "precondition_ids": [
+        "fixture_precondition"
+      ],
+      "tenant_permission_required": true,
+      "group_role_requirement": "none",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "side_effect_status": "deferred_tsk_250",
+      "test_owner": {
+        "id": "FIXTURE.route.fixture_operation",
+        "status": "planned"
+      }
+    }
+  ],
+  "claim_dispositions": [
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    }
+  ]
+}

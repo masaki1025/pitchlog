@@ -1,0 +1,44 @@
+{
+  "missing_http": [
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    }
+  ],
+  "double_registered": [
+    {
+      "source_id": "FR-900/list_item-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    }
+  ],
+  "unknown_reason": [
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "free_form_reason"
+    },
+    {
+      "source_id": "FR-900/table_row-001",
+      "location": "cache",
+      "disposition": "out_of_registry",
+      "reason_code": "cache_matrix_pending"
+    }
+  ]
+}

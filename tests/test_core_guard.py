@@ -49,6 +49,7 @@ NEW_GUARD_PATHS = (
     "tests/test_check_doc_coverage.py",
     "tests/test_ci_wiring.py",
     "tests/test_core_guard.py",
+    ".claude/skills/finalize-doc/SKILL.md",
 )
 
 
