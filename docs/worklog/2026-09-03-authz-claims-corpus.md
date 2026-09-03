@@ -152,3 +152,9 @@ branch: fix/authz-claims-corpus
 - policy の command を閉じた値域(SELECT/INSERT/UPDATE/DELETE/ALL)・role_ids を roles 実在参照・predicate を資産内 `predicates` 定義への参照(恒真を宣言できない形)で検査。関数 owner の依存基表 ACL・caller の schema USAGE を exact-set 化
 - テスト先行: 負例 5 種 red → 実装 → green(実出力つき)。フィクスチャへ ddl-elements 最小正例を新設
 - **期待失敗集合の更新(完全列挙・計 6 本)**: 既知 4 本 + 新規 2 本(`test_repository_oracle_assets_are_valid`・`test_all_cut_set_elements_reject_one_element_removal` — 実資産 ddl-elements の predicates 未追随由来・ステップ 11 で解消)。全スイート 6 failed / 845 passed・ruff/ty green
+
+### ステップ 8 — 意味論(v) 主張分割の schema(F1 採用分・F2・F3・F4・codex 委任)
+
+- スキーマ確定: claims の任意フィールド `atomic_claims[]`(`atomic_id = <source_id>#<識別子>`・行内/全体で一意・source_id と衝突不可)。分割行の layer/decidable_at は **atomic 側が正**(行本体は classification: auth_claim の代表値のみ・rule_id は atomic 側に実在する代表値)。**分割行は下流で行 ID を参照できず atomic_id 参照が必須**(曖昧さの排除)。決定投影・lock に包含。client 系 location は新設せず(F1 裁定どおり)
+- テスト先行: 負例(重複 atomic_id・値域外・行本体矛盾・未知参照)red → 実装 → green(実出力つき)。下流参照つき正例フィクスチャ追加
+- 全スイート 6 failed / 847 passed — **red の増減なし**(期待どおり)・ruff/ty green

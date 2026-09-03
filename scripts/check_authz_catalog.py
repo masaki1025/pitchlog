@@ -657,6 +657,72 @@ def _validate_rule_applicability(
         raise CatalogError(f"{source_id}: 宣言された認可規範罠により {rule_id} を適用できない")
 
 
+def _validate_atomic_claims(
+    raw: object,
+    source_id: str,
+    source_kind: str,
+    heading_id: str,
+    source_text: str,
+    classification_rules: dict[str, ClassificationRule],
+    basis_rules: dict[str, BasisRule],
+    layer_ids: frozenset[str],
+) -> tuple[tuple[str, ...], frozenset[str]]:
+    """採取行に属する原子的な AUTH 主張を検査する。"""
+    if not isinstance(raw, list) or len(raw) < 2:
+        raise CatalogError(f"{source_id}: atomic_claims は2件以上必要")
+    atomic_ids: list[str] = []
+    rule_ids: set[str] = set()
+    for index, atomic_claim in enumerate(raw):
+        label = f"{source_id}.atomic_claims[{index}]"
+        if not isinstance(atomic_claim, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            atomic_claim,
+            {
+                "atomic_id",
+                "classification",
+                "classification_rule_id",
+                "layer",
+                "decidable_at",
+            },
+            label,
+        )
+        atomic_id = _expect_string(atomic_claim["atomic_id"], f"{label}.atomic_id")
+        prefix = f"{source_id}#"
+        suffix = atomic_id.removeprefix(prefix)
+        if (
+            not atomic_id.startswith(prefix)
+            or not suffix
+            or not TEST_ID_RE.fullmatch(suffix)
+        ):
+            raise CatalogError(
+                f"{label}.atomic_id は {source_id}#<識別子> 形式でなければならない"
+            )
+        if atomic_claim["classification"] != "auth_claim":
+            raise CatalogError(f"{atomic_id}: classification は auth_claim でなければならない")
+        rule_id = _expect_string(
+            atomic_claim["classification_rule_id"],
+            f"{label}.classification_rule_id",
+        )
+        rule = classification_rules.get(rule_id)
+        if rule is None or rule.classification != "auth_claim":
+            raise CatalogError(f"{atomic_id}: 未知の AUTH classification_rule_id: {rule_id}")
+        _validate_rule_applicability(
+            rule, rule_id, atomic_id, source_kind, heading_id, source_text
+        )
+        layer = _expect_string(atomic_claim["layer"], f"{label}.layer")
+        if layer not in layer_ids:
+            raise CatalogError(f"{atomic_id}: layer が閉じた値域にない: {layer}")
+        _validate_decidable_at(
+            atomic_claim["decidable_at"], atomic_id, rule_id, basis_rules
+        )
+        atomic_ids.append(atomic_id)
+        rule_ids.add(rule_id)
+    if len(atomic_ids) != len(set(atomic_ids)):
+        raise CatalogError(f"{source_id}: atomic_id が行内で重複している")
+    return tuple(atomic_ids), frozenset(rule_ids)
+
+
 def _validate_closed_world(raw: object, source_id: str) -> tuple[str, ...]:
     """closed-world 宣言の閉じた構造を検査する。
 
@@ -740,7 +806,42 @@ def decision_projection(claim: dict[str, object]) -> dict[str, object]:
             ),
             "default_disposition": closed_world.get("default_disposition"),
         }
-    if claim["classification"] == "auth_claim":
+    atomic_claims = claim.get("atomic_claims")
+    if isinstance(atomic_claims, list):
+        normalized_atomic_claims: list[dict[str, object]] = []
+        for atomic_claim in atomic_claims:
+            if not isinstance(atomic_claim, dict):
+                continue
+            decisions = atomic_claim.get("decidable_at")
+            decision_rows = decisions if isinstance(decisions, list) else []
+            normalized_decisions = sorted(
+                (
+                    {
+                        "location": decision["location"],
+                        "basis_rule_id": decision["basis_rule_id"],
+                        "test_owner": decision["test_owner"],
+                    }
+                    for decision in decision_rows
+                    if isinstance(decision, dict)
+                ),
+                key=lambda decision: str(decision["location"]),
+            )
+            normalized_atomic_claims.append(
+                {
+                    "atomic_id": atomic_claim.get("atomic_id"),
+                    "classification": atomic_claim.get("classification"),
+                    "classification_rule_id": atomic_claim.get(
+                        "classification_rule_id"
+                    ),
+                    "layer": atomic_claim.get("layer"),
+                    "decidable_at": normalized_decisions,
+                }
+            )
+        projection["atomic_claims"] = sorted(
+            normalized_atomic_claims,
+            key=lambda atomic_claim: str(atomic_claim["atomic_id"]),
+        )
+    elif claim["classification"] == "auth_claim":
         decisions = claim["decidable_at"]
         assert isinstance(decisions, list)
         normalized = sorted(
@@ -779,7 +880,16 @@ def _validate_claim(
     layer_ids: frozenset[str],
     *,
     verify_decision_digest: bool,
-) -> tuple[str, str, str, str, str, str, tuple[str, ...] | None]:
+) -> tuple[
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    tuple[str, ...] | None,
+    tuple[str, ...],
+]:
     if not isinstance(raw, dict):
         raise CatalogError("claims の各要素はオブジェクトでなければならない")
     common = {
@@ -797,9 +907,21 @@ def _validate_claim(
         common.add("decision_digest")
     if "closed_world" in raw:
         common.add("closed_world")
+    has_atomic_claims = "atomic_claims" in raw
+    if has_atomic_claims:
+        common.add("atomic_claims")
     classification = raw.get("classification")
-    if classification == "auth_claim":
+    if has_atomic_claims and classification != "auth_claim":
+        raise CatalogError("atomic_claims を持つ行本体は auth_claim でなければならない")
+    if has_atomic_claims and ({"layer", "decidable_at"} & set(raw)):
+        raise CatalogError(
+            f"{raw.get('source_id')}: atomic_claims を持つ行本体に "
+            "layer/decidable_at を置けない"
+        )
+    if classification == "auth_claim" and not has_atomic_claims:
         expected = common | {"layer", "decidable_at"}
+    elif classification == "auth_claim":
+        expected = common
     elif classification == "out_of_scope":
         expected = common
     else:
@@ -835,7 +957,23 @@ def _validate_claim(
         rule, rule_id, source_id, source_kind, heading_id, source_text
     )
 
-    if classification == "auth_claim":
+    atomic_ids: tuple[str, ...] = ()
+    if has_atomic_claims:
+        atomic_ids, atomic_rule_ids = _validate_atomic_claims(
+            raw["atomic_claims"],
+            source_id,
+            source_kind,
+            heading_id,
+            source_text,
+            classification_rules,
+            basis_rules,
+            layer_ids,
+        )
+        if rule_id not in atomic_rule_ids:
+            raise CatalogError(
+                f"{source_id}: 行本体の classification_rule_id が atomic_claims の代表値でない"
+            )
+    elif classification == "auth_claim":
         layer = _expect_string(raw["layer"], f"{source_id}.layer")
         if layer not in layer_ids:
             raise CatalogError(f"{source_id}: layer が閉じた値域にない: {layer}")
@@ -855,6 +993,7 @@ def _validate_claim(
         digest,
         classification,
         closed_world_member_ids,
+        atomic_ids,
     )
 
 
@@ -932,13 +1071,29 @@ def validate_catalog(
             identifier for identifier, count in Counter(claim_ids).items() if count > 1
         )
         raise CatalogError(f"source_id が重複している: {duplicates}")
+    atomic_ids = [atomic_id for claim in validated for atomic_id in claim[7]]
+    duplicate_atomic_ids = sorted(
+        identifier
+        for identifier, count in Counter(atomic_ids).items()
+        if count > 1
+    )
+    if duplicate_atomic_ids:
+        raise CatalogError(f"atomic_id が全体で重複している: {duplicate_atomic_ids}")
+    collisions = sorted(set(atomic_ids) & set(claim_ids))
+    if collisions:
+        raise CatalogError(f"atomic_id が source_id と衝突している: {collisions}")
+    semantic_claim_ids = [
+        semantic_id
+        for claim in validated
+        for semantic_id in (claim[7] if claim[7] else (claim[0],))
+    ]
     _validate_closed_world_exact_sets(
         [
             (claim[0], claim[6])
             for claim in validated
             if claim[6] is not None
         ],
-        claim_ids,
+        semantic_claim_ids,
     )
 
     expected_by_id = {item.source_id: item for item in extraction.items}
@@ -952,7 +1107,16 @@ def validate_catalog(
     if claim_ids != [item.source_id for item in extraction.items]:
         raise CatalogError("claims は要件書の構造順と一致しなければならない")
 
-    for source_id, kind, heading_id, text, digest, _classification, _closed_world in validated:
+    for (
+        source_id,
+        kind,
+        heading_id,
+        text,
+        digest,
+        _classification,
+        _closed_world,
+        _atomic_ids,
+    ) in validated:
         expected = expected_by_id[source_id]
         actual = (kind, heading_id, text, digest)
         wanted = (expected.kind, expected.heading_id, expected.text, expected.digest)
@@ -1053,6 +1217,8 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
     ):
         raise CatalogError("decision lock.decision_count が decisions の件数と一致しない")
     source_ids: list[str] = []
+    atomic_ids: list[str] = []
+    semantic_claim_ids: list[str] = []
     closed_world_declarations: list[tuple[str, tuple[str, ...]]] = []
     for index, entry in enumerate(decisions):
         label = f"decision lock.decisions[{index}]"
@@ -1068,10 +1234,59 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
         }
         if "closed_world" in entry:
             common.add("closed_world")
-        expected = common | {"layer", "decidable_at"} if classification == "auth_claim" else common
+        has_atomic_claims = "atomic_claims" in entry
+        if has_atomic_claims:
+            common.add("atomic_claims")
+        if has_atomic_claims and classification != "auth_claim":
+            raise CatalogError(
+                f"{label}: atomic_claims を持つ決定は auth_claim でなければならない"
+            )
+        if has_atomic_claims and ({"layer", "decidable_at"} & set(entry)):
+            raise CatalogError(
+                f"{label}: atomic_claims と layer/decidable_at を併記できない"
+            )
+        expected = (
+            common | {"layer", "decidable_at"}
+            if classification == "auth_claim" and not has_atomic_claims
+            else common
+        )
         _expect_keys(entry, expected, label)
         source_id = _expect_string(entry["source_id"], f"{label}.source_id")
         source_ids.append(source_id)
+        entry_atomic_ids: list[str] = []
+        if has_atomic_claims:
+            atomic_claims = _expect_object_list(
+                entry["atomic_claims"], f"{label}.atomic_claims"
+            )
+            if len(atomic_claims) < 2:
+                raise CatalogError(f"{label}.atomic_claims は2件以上必要")
+            for atomic_index, atomic_claim in enumerate(atomic_claims):
+                atomic_label = f"{label}.atomic_claims[{atomic_index}]"
+                _expect_keys(
+                    atomic_claim,
+                    {
+                        "atomic_id",
+                        "classification",
+                        "classification_rule_id",
+                        "layer",
+                        "decidable_at",
+                    },
+                    atomic_label,
+                )
+                atomic_id = _expect_string(
+                    atomic_claim["atomic_id"], f"{atomic_label}.atomic_id"
+                )
+                if not atomic_id.startswith(f"{source_id}#"):
+                    raise CatalogError(f"{atomic_label}.atomic_id が行 ID に属さない")
+                if atomic_claim["classification"] != "auth_claim":
+                    raise CatalogError(f"{atomic_label}.classification が不正")
+                entry_atomic_ids.append(atomic_id)
+            if len(entry_atomic_ids) != len(set(entry_atomic_ids)):
+                raise CatalogError(f"{label}: atomic_id が行内で重複している")
+            atomic_ids.extend(entry_atomic_ids)
+            semantic_claim_ids.extend(entry_atomic_ids)
+        else:
+            semantic_claim_ids.append(source_id)
         if "closed_world" in entry:
             member_source_ids = _validate_closed_world(entry["closed_world"], source_id)
             closed_world_declarations.append((source_id, member_source_ids))
@@ -1081,7 +1296,11 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
             raise CatalogError(f"{source_id}: lock 内の decision_digest が決定と一致しない")
     if len(source_ids) != len(set(source_ids)):
         raise CatalogError("decision lock の source_id が重複している")
-    _validate_closed_world_exact_sets(closed_world_declarations, source_ids)
+    if len(atomic_ids) != len(set(atomic_ids)):
+        raise CatalogError("decision lock の atomic_id が全体で重複している")
+    if set(atomic_ids) & set(source_ids):
+        raise CatalogError("decision lock の atomic_id が source_id と衝突している")
+    _validate_closed_world_exact_sets(closed_world_declarations, semantic_claim_ids)
     if raw["aggregate_decision_digest"] != _aggregate_decision_digest(decisions):
         raise CatalogError("decision lock の全行集約 digest が decisions と一致しない")
     return raw
@@ -1202,11 +1421,21 @@ def _expect_closed_value(
 def _auth_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:
     claims = catalog["claims"]
     assert isinstance(claims, list)
-    return {
-        str(claim["source_id"]): claim
-        for claim in claims
-        if isinstance(claim, dict) and claim.get("classification") == "auth_claim"
-    }
+    auth_claims: dict[str, dict[str, object]] = {}
+    for claim in claims:
+        if not isinstance(claim, dict) or claim.get("classification") != "auth_claim":
+            continue
+        atomic_claims = claim.get("atomic_claims")
+        if not isinstance(atomic_claims, list):
+            auth_claims[str(claim["source_id"])] = claim
+            continue
+        for atomic_claim in atomic_claims:
+            assert isinstance(atomic_claim, dict)
+            atomic_id = str(atomic_claim["atomic_id"])
+            semantic_claim = {**claim, **atomic_claim, "source_id": atomic_id}
+            semantic_claim.pop("atomic_claims", None)
+            auth_claims[atomic_id] = semantic_claim
+    return auth_claims
 
 
 def _db_claims_by_id(catalog: dict[str, object]) -> dict[str, dict[str, object]]:

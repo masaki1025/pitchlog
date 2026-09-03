@@ -1000,6 +1000,173 @@ def test_fixture_ddl_elements_semantics_are_valid() -> None:
     )
 
 
+def _atomic_claim_catalog() -> dict[str, Any]:
+    """表行1件を2件の atomic claim に置換した母集合を返す。"""
+    catalog = _read_catalog(FIXTURE_ROOT)
+    atomic_claim = json.loads(
+        (FIXTURE_ROOT / "atomic-claim.json").read_text(encoding="utf-8")
+    )
+    index = next(
+        index
+        for index, claim in enumerate(catalog["claims"])
+        if claim["source_id"] == atomic_claim["source_id"]
+    )
+    catalog["claims"][index] = atomic_claim
+    return catalog
+
+
+def _validate_atomic_claim_catalog(
+    catalog: dict[str, Any], *, verify_decision_digests: bool = False
+) -> None:
+    """fixture 母集合を検証する。"""
+    requirements_path = FIXTURE_ROOT / "requirements.md"
+    source_bytes = requirements_path.read_bytes()
+    checker.validate_catalog(
+        catalog,
+        checker.extract_source(source_bytes.decode("utf-8")),
+        source_bytes,
+        requirements_path,
+        FIXTURE_ROOT,
+        verify_decision_digests=verify_decision_digests,
+    )
+
+
+def _atomic_route_registry() -> dict[str, Any]:
+    """atomic claim を route と disposition から参照する registry を返す。"""
+    registry = json.loads(
+        (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
+    )
+    references = json.loads(
+        (FIXTURE_ROOT / "atomic-route-references.json").read_text(encoding="utf-8")
+    )
+    route_reference = references["route_reference"]
+    route = next(
+        route
+        for route in registry["routes"]
+        if route["route_id"] == route_reference["route_id"]
+    )
+    route["source_claim_ids"] = route_reference["source_claim_ids"]
+    registry["claim_dispositions"] = references["claim_dispositions"]
+    return registry
+
+
+def _point_derived_asset_at_catalog(asset: dict[str, Any], root: Path) -> None:
+    """derived fixture の入力 digest を一時 atomic 母集合へ合わせる。"""
+    manifest = asset["input_manifest"]
+    manifest["requirement_claims_blob_digest"] = checker.git_blob_digest(
+        (root / "requirement-claims.json").read_bytes()
+    )
+    manifest["requirement_claims_lock_blob_digest"] = checker.git_blob_digest(
+        (root / "requirement-claims.lock.json").read_bytes()
+    )
+
+
+def test_invalid_atomic_claims_are_red() -> None:
+    """atomic ID・layer・親決定・下流参照の既知負例を全て拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-atomic-claims.json").read_text(encoding="utf-8")
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        catalog = _atomic_claim_catalog()
+        atomic_claim = next(
+            claim
+            for claim in catalog["claims"]
+            if claim["source_id"] == "FR-900/table_row-001"
+        )
+        try:
+            if case["operation"] == "replace":
+                parent, key = _parent_and_key(atomic_claim, tuple(case["path"]))
+                assert isinstance(parent, dict) and isinstance(key, str)
+                parent[key] = case["value"]
+                _validate_atomic_claim_catalog(catalog)
+            elif case["operation"] == "add_parent_layer":
+                atomic_claim["layer"] = case["value"]
+                _validate_atomic_claim_catalog(catalog)
+            else:
+                _validate_atomic_claim_catalog(catalog)
+                registry = _atomic_route_registry()
+                route = next(
+                    route
+                    for route in registry["routes"]
+                    if route["route_id"]
+                    == "ROUTE:SHARED:shared_screen:team_metrics:screen"
+                )
+                route["source_claim_ids"] = [case["value"]]
+                checker.validate_route_registry(
+                    registry, catalog, FIXTURE_ROOT, frozenset()
+                )
+        except checker.CatalogError as error:
+            message = str(error)
+            if case["expected_error"] not in message:
+                failures.append((case_name, message))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
+    tmp_path: Path,
+) -> None:
+    """2 atomic の決定投影・lock・registry・catalog 参照を検証する。"""
+    catalog = _atomic_claim_catalog()
+    atomic_claim = next(
+        claim
+        for claim in catalog["claims"]
+        if claim["source_id"] == "FR-900/table_row-001"
+    )
+    atomic_claim["decision_digest"] = checker.compute_decision_digest(atomic_claim)
+    _validate_atomic_claim_catalog(catalog, verify_decision_digests=True)
+    changed_atomic_claim = copy.deepcopy(atomic_claim)
+    changed_atomic_claim["atomic_claims"][1]["layer"] = "access_control"
+    assert checker.compute_decision_digest(changed_atomic_claim) != atomic_claim[
+        "decision_digest"
+    ]
+
+    lock = checker.build_decision_lock(catalog, "requirement-claims.json")
+    checker.validate_decision_lock(catalog, lock, "requirement-claims.json")
+    locked = next(
+        entry
+        for entry in lock["decisions"]
+        if entry["source_id"] == "FR-900/table_row-001"
+    )
+    assert "atomic_claims" in locked
+    assert "layer" not in locked and "decidable_at" not in locked
+
+    root = _make_repository(tmp_path)
+    _write_catalog(root, catalog)
+    _write_lock(root, lock)
+    registry = _atomic_route_registry()
+    _point_derived_asset_at_catalog(registry, root)
+    registry_result = checker.validate_route_registry(
+        registry, catalog, root, frozenset()
+    )
+    auth_catalog = json.loads(
+        (FIXTURE_ROOT / "auth-catalog-atomic.json").read_text(encoding="utf-8")
+    )
+    _point_derived_asset_at_catalog(auth_catalog, root)
+    auth_result = checker.validate_auth_catalog(
+        auth_catalog,
+        catalog,
+        registry_result,
+        root,
+        frozenset(),
+    )
+
+    assert set(registry_result["claim_dispositions_by_key"]) == {
+        ("FR-900/table_row-001#delivery-policy", "cache"),
+    }
+    assert "FR-900/table_row-001#delivery-policy" in registry_result[
+        "routed_http_claim_ids"
+    ]
+    assert set(auth_result["entry_by_requirement"]) == {
+        "FR-900/list_item-001",
+        "FR-900/table_row-001#row-policy",
+    }
+
+
 def _validate_one_derived_asset(
     name: str,
     mutated: dict[str, Any],
