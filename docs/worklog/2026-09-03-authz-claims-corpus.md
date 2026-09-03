@@ -96,3 +96,13 @@ branch: fix/authz-claims-corpus
 ## 未決・次の一歩
 
 - /implement ステップ 1(P0 の再列挙 — 敵対レビュー再実施)から実行
+
+## 実装(2026-09-03〜)
+
+### ステップ 1 — 全対象の敵対レビュー再実施(P0 の再列挙)
+
+- 敵対レビュー(sol xhigh)実施 — **P0×14・P1×2(16 件)**。旧要約 3 カテゴリとの対応: 分類 6 / closed-world 2 / 結線 4 / 新規 4(当時の「7 件 + ほか」と整合する規模)
+- **H-53 統制の機械検査(両方合格)**: ①走査の全数性 = レビュアーの母集団 3,920 件(per-asset 件数 + sorted リスト sha256 `6aa7908f…`)が Claude 独立列挙 `review-universe-claude.txt` と**完全一致**(レビュアー側の保存は read-only sandbox で不可 — sha256 申告で代替)②指摘 ⊆ 母集団 = 対象 ID 48 件すべて帰属・混入 0
+- **PO 裁定(2026-09-03・全指摘に裁定・未裁定 0 — 正は `step1-rulings.json`)**: 採用 12(F2〜F8・F12〜F16)+ 部分採用 3(F1 分割のみ / F9 disposition のみ / F10 contract_only 化のみ)+ 別起票 1(F11 全体)。衝突規則 (a) 該当 4 件の後続の扱い: F1 の client location = 通常起票(ブロッカにしない)/ F9・F10・F11 の新設系 = **TSK-250 の開始条件へ紐付け**(ステップ 7 で起票)。F8 は「帰属訂正であり design-origin 再設計と衝突しない」と裁定し採用
+- **§4-(5) 発動**: 採用項目が検査意味論 6 単位((i)罠実効化 (ii)closed-world 構造 (iii)結線閉包 (iv)DDL 意味検査 (v)主張分割 schema (vi)probe_executable 判定)にまたがる → ステップ 4 を整数 6 ステップへ分割する計画改訂(差分レビュー 1 周)を次に実施
+- 成果物: `step1-findings.md`(指摘全文)/ `step1-rulings.json`(裁定リスト = ステップ 2 以降の確定範囲)/ `review-universe-claude.txt`(母集団 3,920 件)/ `enumerate_universe.py`(列挙規則の正)
