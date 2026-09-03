@@ -22,6 +22,11 @@ branch: feature/core-area-paths
 
 - 2026-09-02: 敵対レビュー 6 周目(最終収束確認): **P0×0 / P1×0 / P2×0 — 収束(承認可)**(5 周目 P1-1 の反映は充足判定・反映起因の新規欠陥なし)。周回は増やさない(収束確認周)。計画レビュー合計 = 指摘反映 5 周 + 収束確認 1 周・指摘 28 件全採用。PO 承認待ちへ。レビュー全文: scratchpad(plan-review-round6.md)
 
+- 2026-09-04: **develop の取り込みと push**: ステップ 1〜3 実装中に develop が 4 PR 進行(#36 設計書 v1.13〔13 章に製品実装節〕/ #37 legacy-frontend-coverage〔台帳 H-12 再発補記〕/ #38 decision-sheet-ruling〔改善台帳 v1.2・H-12 3 件目補記〕/ #39 authz-claims-corpus = TSK-312〔contracts/authz 15 本の改訂・reseal・check_authz_catalog.py 改修・要件書 NFR-018 例外表 2 セル有効化 d485abc〕)。**変更ファイルの重なりゼロ**を確認し、SHA 参照(source_revision・worklog 記録)保全のため rebase でなく **merge で取り込み**(f130f14 — gate-convergence 時の前例方式)。取り込み後 ruff・ty・pytest **875 passed**。山田さん側の準備(②要点確認の事前読解)のためブランチを origin へ push 済み
+- 2026-09-04: ステップ 4 への影響メモ: ①台帳 H-12 は補記 2 件が増えた**現行文言を起点に**部分対応化を書く ②遡及要点確認の対象は「現行 develop(#39 反映後)の `check_authz_catalog.py`・`oracle-seal.lock.json`」— #39 の作者も山田さんのため確認は速い見込み ③#36〜#39 も core-guard 非発火のままマージされており(paths 未登録のため構造的に当然)、本 PR の緊急性の裏付けが増えた
+
+- 2026-09-04: **PR #40 の取り込み(2 回目の develop 同期)**: 山田さん側の提案どおり #40(TSK-278 — ADR-003 v0.2・要件書 v2.6・authz 資産 reseal・台帳 H-88 新設/H-85 補記)を先行マージしてもらい、merge 87d8ccd で取り込み(変更ファイルの重なりゼロ・競合なし)。取り込み後 ruff・ty・pytest **875 passed**・push 済み。②遡及要点確認はこの状態(= #40 後の develop 相当)で実施できる
+
 ## 決定
 
 - **本タスクは移譲せず自分(徳光)で実施する**(2026-09-01・PO 判断)— 理由: 緊急性が高い(H-12 顕在化 — PR #33 が core-guard 非発火でマージ)+ 責任者が自分であるため。もう一人の開発者への役割は、PR #33 コードの帰属判定ヒアリングと PR 段階の逐行確認・承認候補として検討を残す
@@ -33,8 +38,13 @@ branch: feature/core-area-paths
 - **計画承認(2026-09-02・PO 徳光尋弥)**: 計画レビュー収束(指摘反映 5 周 + 収束確認 1 周・28 件全採用・最終 P0/P1/P2 ゼロ)を受け、実装計画書 v6 を承認。frontmatter を `済(2026-09-02・徳光尋弥)` へ
 - **遡及逐行確認の裁定(2026-09-02・PO 徳光尋弥)**: PR #33 マージ済み分への全量遡及は**しない**。**要点確認で代替** — 検査器(`scripts/check_authz_catalog.py`)と `oracle-seal.lock.json` の封印を山田 + 徳光で確認する(authz 15 本は digest 封印済みのため)。**ステップ 4 開始前に完遂**し、対象・確認者・実施日・結果を本 worklog と台帳 H-12 へ記録する
 
+- **遡及要点確認の完遂(2026-09-04)**: 対象 = `scripts/check_authz_catalog.py`・`contracts/authz/oracle-seal.lock.json`(develop `6b9e087` = PR #40 反映後)/ 確認者 = 山田正輝・徳光尋弥 / 実施日 = 2026-09-04 / **所見 = 問題なし**。内訳: ①既定資産 = 要件書 1 + authz 15 で実ファイルと過不足なし ②exact-set は両方向(母集合不足・未登録入力)+ 構造順一致まで検査(`check_authz_catalog.py:1200-1208`)③要件書 blob digest は v2.6(固定元 = dc9d114)と一致・検査器単体 green(ok total=1073)④oracle_commit = dfd523a(#40 reseal)・入力資産 8 本の digest 全一致・封印対象 6 本 ⑤変異実証 = auth-catalog.json への 1 行追記で「oracle input blob 不一致」red → 復元 green(作業ツリー不変)
+- **PO 判断(2026-09-04・徳光尋弥)**: 検査器の CI 強制経路は ci.yml の単独ステップではなく **harness ジョブの `uv run pytest tests/` 経由で足りる**と承認(実リポ資産を検査する 2 テストを含み経路は閉じている。本 PR で検査器・テストとも tenant-isolation paths に登録され変更は逐行確認対象になる補完つき)
+
 ## 未決・次の一歩
 
-- /investigate で下調べ(6.3 境界定義表への当てはめ対象 = PR #33 認可構成・contracts/ 等の棚卸し)→ /plan で計画書
-- 上記 PO 判断(承認手続)を /plan で計画書(承認手続・DoD)へ転記し、PR 時に山田さんへ逐行確認を依頼する
-- TSK-228 / TSK-254 との統合・取り下げ裁定(TSK-281 コメントに記録済み)
+- **follow-up 申し送り**: 恒久規則「paths 変更 PR の逐行確認は PR 作成者以外(有効確認者)」の **6.3 への条文化** — 規範の新設 = 確定ゲート事項のため本タスクでは行わず、**次回設計書改訂に合流**する(H-12 残余には含めない — 計画レビュー 3 周目 P2-1 の裁定)
+- 総合検証(/check)→ /pr(PR 本文: 逐行確認チェック + 実施記録行〔有効確認者 = 山田さんが記入〕・base/head SHA の PR コメント記録・approve の head 拘束・`gh pr merge --merge --match-head-commit`)→ ③山田さんへ依頼
+- TSK-228 / TSK-254 との統合・取り下げ裁定(TSK-281 コメントに記録済み・PO 裁定待ち)
+- 文書のみタスクで paths が原理的に非発火の件の運用規則化の要否 — 台帳 H-12 の継続論点(本タスク外)
+- `contracts/README.md` の authz 系未記載(索引未追随)— 申し送り(research.md 5 節)
