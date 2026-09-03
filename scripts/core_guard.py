@@ -15,7 +15,10 @@ from typing import Any, Sequence
 
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
-NO_CORE_PATHS_MESSAGE = "コア領域 paths 未定義(Phase 4 で定義予定)— コア検査対象なし"
+NO_CORE_PATHS_MESSAGE = (
+    "コア領域の paths が未定義。設計書 6.3 の落とし込み規則に従い実装追随で登録する"
+    " — コア検査対象なし"
+)
 DIFF_TIMEOUT_SECONDS = 30
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
@@ -177,7 +180,7 @@ def changed_paths(root: Path, base_sha: str, head_sha: str) -> list[str]:
     """
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", f"{base_sha}...{head_sha}"],
+            ["git", "diff", "--no-renames", "--name-only", f"{base_sha}...{head_sha}"],
             cwd=root,
             capture_output=True,
             encoding="utf-8",

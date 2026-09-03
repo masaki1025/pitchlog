@@ -82,7 +82,7 @@ jobs:
       - run: uv sync --locked --dev
       - run: uv run ruff check .
       - run: uv run ty check
-      - run: uv run pytest tests/
+      - run: uv run pytest -c pyproject.toml tests/
 
   # NFR-021 受入証跡の append-only 統合時検査(設計書 10.1「試行の排他と採番」)。
   # paths filter は付けない: フィルタ自体が誤ると検査が黙って通り fail-closed に反するため。
@@ -217,4 +217,4 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check
-      - run: uv run pytest --cov
+      - run: uv run pytest -c pyproject.toml --cov

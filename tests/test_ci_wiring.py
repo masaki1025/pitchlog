@@ -94,6 +94,22 @@ def _backend_job(workflow: dict[str, Any]) -> dict[str, Any]:
     return backend
 
 
+def _harness_job(workflow: dict[str, Any]) -> dict[str, Any]:
+    """workflow から harness ジョブを取得する。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        harness ジョブのマッピング。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    harness = jobs.get("harness")
+    assert isinstance(harness, dict), "harness ジョブが必要"
+    return harness
+
+
 def _mapping_at(node: object, path: NodePath) -> Any:
     """マッピングまたは配列の指定パスをたどる。
 
@@ -167,6 +183,26 @@ def _backend_commands(backend: dict[str, Any]) -> list[str]:
         ``run`` を持つ step のコマンド。
     """
     steps = backend.get("steps")
+    if not isinstance(steps, list):
+        return []
+    return [
+        command
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+    ]
+
+
+def _harness_commands(harness: dict[str, Any]) -> list[str]:
+    """harness ジョブの run コマンドを順序どおり返す。
+
+    Args:
+        harness: harness ジョブの構造。
+
+    Returns:
+        ``run`` を持つ step のコマンド。
+    """
+    steps = harness.get("steps")
     if not isinstance(steps, list):
         return []
     return [
@@ -952,6 +988,30 @@ def test_docs_lint_rejects_selective_check_option() -> None:
 
     with pytest.raises(AssertionError, match="選択実行"):
         _assert_full_docs_lint_wiring(selective)
+
+
+def test_pytest_commands_and_working_directories_are_exact() -> None:
+    """pytest コマンドと harness/backend の実行ディレクトリを固定する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    harness = _harness_job(workflow)
+    harness_pytest_commands = [
+        command
+        for command in _harness_commands(harness)
+        if "pytest" in shlex.split(command)
+    ]
+    assert harness_pytest_commands == ["uv run pytest -c pyproject.toml tests/"]
+
+    assert _mapping_at(harness, ("defaults", "run", "working-directory")) is None
+    harness_steps = harness.get("steps")
+    assert isinstance(harness_steps, list), "harness.steps は配列でなければならない"
+    assert all(
+        "working-directory" not in step
+        for step in harness_steps
+        if isinstance(step, dict)
+    ), "harness の各 step はリポジトリルートで実行しなければならない"
+
+    backend = _backend_job(workflow)
+    assert _mapping_at(backend, ("defaults", "run", "working-directory")) == "backend"
 
 
 def test_backend_postgres_wiring_matches_asset_and_development_database() -> None:
