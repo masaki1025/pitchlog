@@ -164,3 +164,8 @@ branch: fix/authz-claims-corpus
 - probe_executable の宣言に実行面の裏付け(route/management_operation 結線 or DDL 実行対象への対応)を必須化。裏付けのない主張は `contract_only` + 閉じた理由コードの宣言を強制(無宣言・裏付けなしは fail)
 - テスト先行: 負例 red → 実装 → green(実出力つき)。回帰 59 passed(既知 red 6 本除外)・全スイート 6 failed / 849 passed — **新規 red なし**(claim-mutant-map への新エラーは DDL 検査が先に停止するため未表面化 — ステップ 11 の追随対象)・ruff/ty green
 - 意味論ステップ(4〜9)完了 — 検査器の強化は全 6 単位が負例 red→green つきで導入済み
+
+### ステップ 10(1 回目委任)— Codex がブロッカーとして正しく停止・計画改訂 2
+
+- 検査器 `check_authz_catalog.py:1879` の「legacy route は design origin 必須」強制が F8 の帰属訂正と矛盾(--skip-oracle でも必ず到達)。Codex は資産を変更せず停止(green を無理に作らない — 正しい挙動)
+- **この強制自体が F8 が指摘した誤帰属の焼き込み**であり、是正は F8 採用裁定の従属変更(新しい独立意味論ではない・checker は §2 の変更対象集合に含まれる)。**計画改訂 2(軽微)**: ステップ 10 の記述へ従属変更を明記(「要件由来 origin + 既定拒否主張への結線必須」へ・負例 red→green つき)。PR の総合敵対レビューで最終確認する
