@@ -49,6 +49,7 @@ SOURCE_KINDS = frozenset(
         "thematic_break",
     }
 )
+CLOSED_WORLD_UNIVERSE_KINDS = frozenset({"operation", "resource", "route"})
 HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")
 FR_HEADING_RE = re.compile(r"^(?P<id>(?:FR|NFR)-\d{3}):")
 NUMBERED_HEADING_RE = re.compile(r"^(?P<id>\d+(?:\.\d+)*(?:-\d+)?)\b")
@@ -647,6 +648,62 @@ def _validate_rule_applicability(
         raise CatalogError(f"{source_id}: 宣言された認可規範罠により {rule_id} を適用できない")
 
 
+def _validate_closed_world(raw: object, source_id: str) -> tuple[str, ...]:
+    """closed-world 宣言の閉じた構造を検査する。
+
+    Args:
+        raw: ``closed_world`` の宣言値。
+        source_id: 宣言を所有する主張 ID。
+
+    Returns:
+        universe を構成する主張 ID の集合。
+
+    Raises:
+        CatalogError: 宣言の構造または値域が不正な場合。
+    """
+    label = f"{source_id}.closed_world"
+    if not isinstance(raw, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {"universe_kind", "member_source_ids", "default_disposition"},
+        label,
+    )
+    universe_kind = _expect_string(raw["universe_kind"], f"{label}.universe_kind")
+    if universe_kind not in CLOSED_WORLD_UNIVERSE_KINDS:
+        raise CatalogError(
+            f"{label}.universe_kind が閉じた値域にない: {universe_kind}"
+        )
+    member_source_ids = _expect_string_list(
+        raw["member_source_ids"], f"{label}.member_source_ids"
+    )
+    if not member_source_ids:
+        raise CatalogError(f"{label}.member_source_ids は空にできない")
+    for index, member_source_id in enumerate(member_source_ids):
+        _expect_string(member_source_id, f"{label}.member_source_ids[{index}]")
+    default_disposition = _expect_string(
+        raw["default_disposition"], f"{label}.default_disposition"
+    )
+    if default_disposition != "deny":
+        raise CatalogError(f"{label}.default_disposition は deny でなければならない")
+    return tuple(member_source_ids)
+
+
+def _validate_closed_world_exact_sets(
+    declarations: Sequence[tuple[str, Sequence[str]]],
+    known_source_ids: Sequence[str],
+) -> None:
+    """closed-world の全メンバーが実在する主張の exact-set か検査する。"""
+    known = set(known_source_ids)
+    for source_id, member_source_ids in declarations:
+        unknown = sorted(set(member_source_ids) - known)
+        if unknown:
+            raise CatalogError(
+                f"{source_id}: closed_world.member_source_ids と claims の "
+                f"exact-set 不一致: 未登録={unknown}"
+            )
+
+
 def decision_projection(claim: dict[str, object]) -> dict[str, object]:
     """分類決定を順序非依存の表現へ正規化する。
 
@@ -662,6 +719,18 @@ def decision_projection(claim: dict[str, object]) -> dict[str, object]:
         "classification_rule_id": claim["classification_rule_id"],
         "source_text_digest": claim["source_text_digest"],
     }
+    closed_world = claim.get("closed_world")
+    if isinstance(closed_world, dict):
+        member_source_ids = closed_world.get("member_source_ids")
+        projection["closed_world"] = {
+            "universe_kind": closed_world.get("universe_kind"),
+            "member_source_ids": (
+                sorted(member_source_ids)
+                if isinstance(member_source_ids, list)
+                else member_source_ids
+            ),
+            "default_disposition": closed_world.get("default_disposition"),
+        }
     if claim["classification"] == "auth_claim":
         decisions = claim["decidable_at"]
         assert isinstance(decisions, list)
@@ -701,7 +770,7 @@ def _validate_claim(
     layer_ids: frozenset[str],
     *,
     verify_decision_digest: bool,
-) -> tuple[str, str, str, str, str, str]:
+) -> tuple[str, str, str, str, str, str, tuple[str, ...] | None]:
     if not isinstance(raw, dict):
         raise CatalogError("claims の各要素はオブジェクトでなければならない")
     common = {
@@ -717,6 +786,8 @@ def _validate_claim(
         common.add("decision_digest")
     elif "decision_digest" in raw:
         common.add("decision_digest")
+    if "closed_world" in raw:
+        common.add("closed_world")
     classification = raw.get("classification")
     if classification == "auth_claim":
         expected = common | {"layer", "decidable_at"}
@@ -737,6 +808,11 @@ def _validate_claim(
     digest = _expect_string(raw["source_text_digest"], f"{source_id}.source_text_digest")
     if not SHA256_RE.fullmatch(digest) or digest != _sha256(source_text):
         raise CatalogError(f"{source_id}: source_text_digest が原文と一致しない")
+    closed_world_member_ids = (
+        _validate_closed_world(raw["closed_world"], source_id)
+        if "closed_world" in raw
+        else None
+    )
 
     rule_id = _expect_string(raw["classification_rule_id"], f"{source_id}.classification_rule_id")
     rule = classification_rules.get(rule_id)
@@ -762,7 +838,15 @@ def _validate_claim(
             raise CatalogError(
                 f"{source_id}: decision_digest が現在の分類決定と一致しない"
             )
-    return source_id, source_kind, heading_id, source_text, digest, classification
+    return (
+        source_id,
+        source_kind,
+        heading_id,
+        source_text,
+        digest,
+        classification,
+        closed_world_member_ids,
+    )
 
 
 def _catalog_tables(
@@ -839,6 +923,14 @@ def validate_catalog(
             identifier for identifier, count in Counter(claim_ids).items() if count > 1
         )
         raise CatalogError(f"source_id が重複している: {duplicates}")
+    _validate_closed_world_exact_sets(
+        [
+            (claim[0], claim[6])
+            for claim in validated
+            if claim[6] is not None
+        ],
+        claim_ids,
+    )
 
     expected_by_id = {item.source_id: item for item in extraction.items}
     actual_by_id = {claim[0]: claim for claim in validated}
@@ -851,7 +943,7 @@ def validate_catalog(
     if claim_ids != [item.source_id for item in extraction.items]:
         raise CatalogError("claims は要件書の構造順と一致しなければならない")
 
-    for source_id, kind, heading_id, text, digest, _classification in validated:
+    for source_id, kind, heading_id, text, digest, _classification, _closed_world in validated:
         expected = expected_by_id[source_id]
         actual = (kind, heading_id, text, digest)
         wanted = (expected.kind, expected.heading_id, expected.text, expected.digest)
@@ -952,6 +1044,7 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
     ):
         raise CatalogError("decision lock.decision_count が decisions の件数と一致しない")
     source_ids: list[str] = []
+    closed_world_declarations: list[tuple[str, tuple[str, ...]]] = []
     for index, entry in enumerate(decisions):
         label = f"decision lock.decisions[{index}]"
         if not isinstance(entry, dict):
@@ -964,16 +1057,22 @@ def _validate_lock_structure(raw: object, catalog_path: str) -> dict[str, object
             "source_text_digest",
             "decision_digest",
         }
+        if "closed_world" in entry:
+            common.add("closed_world")
         expected = common | {"layer", "decidable_at"} if classification == "auth_claim" else common
         _expect_keys(entry, expected, label)
         source_id = _expect_string(entry["source_id"], f"{label}.source_id")
         source_ids.append(source_id)
+        if "closed_world" in entry:
+            member_source_ids = _validate_closed_world(entry["closed_world"], source_id)
+            closed_world_declarations.append((source_id, member_source_ids))
         digest = _expect_string(entry["decision_digest"], f"{label}.decision_digest")
         projection = {key: value for key, value in entry.items() if key != "decision_digest"}
         if not SHA256_RE.fullmatch(digest) or digest != _table_digest(projection):
             raise CatalogError(f"{source_id}: lock 内の decision_digest が決定と一致しない")
     if len(source_ids) != len(set(source_ids)):
         raise CatalogError("decision lock の source_id が重複している")
+    _validate_closed_world_exact_sets(closed_world_declarations, source_ids)
     if raw["aggregate_decision_digest"] != _aggregate_decision_digest(decisions):
         raise CatalogError("decision lock の全行集約 digest が decisions と一致しない")
     return raw

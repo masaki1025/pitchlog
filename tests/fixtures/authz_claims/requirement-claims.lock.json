@@ -5,7 +5,7 @@
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
   "decision_count": 9,
-  "aggregate_decision_digest": "00c5e98817ce85ea2b8d6ff781011d950813fd9fadad94e74eb92e90e0f001bc",
+  "aggregate_decision_digest": "6b8daaf5db58e653c35e0c35f51c56797e7195d7cfc333e1a121b84e08ad806e",
   "decisions": [
     {
       "source_id": "DOC/heading-001/heading-001",
@@ -33,6 +33,13 @@
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_OPERATION_PERMISSION",
       "source_text_digest": "962268e8899ce4a16b6f32486605b3f474f2013b247f87319e2d6b12a1653545",
+      "closed_world": {
+        "universe_kind": "operation",
+        "member_source_ids": [
+          "FR-900/list_item-001"
+        ],
+        "default_disposition": "deny"
+      },
       "layer": "operation_authorization",
       "decidable_at": [
         {
@@ -52,7 +59,7 @@
           }
         }
       ],
-      "decision_digest": "3fa303844d6d3166f35ad5e3255e16f3c4898ae00c3e40d8f8143ae7a78820f8"
+      "decision_digest": "83826a4c94ecaf11b676db1e4a4d481f3226da7f6dc4d4ffae4735bda3c77895"
     },
     {
       "source_id": "FR-900/table_header-001",

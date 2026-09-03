@@ -494,6 +494,32 @@ def test_empty_auth_rule_applicability_is_red(tmp_path: Path) -> None:
     assert "AUTH 分類規則は適用条件を少なくとも1つ持たねばならない" in result.stderr
 
 
+def test_invalid_closed_world_declarations_are_red(tmp_path: Path) -> None:
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-closed-world.json").read_text(encoding="utf-8")
+    )
+    expected_errors = {
+        "missing_member": "closed_world.member_source_ids と claims の exact-set 不一致",
+        "empty_universe": "closed_world.member_source_ids は空にできない",
+        "unknown_universe_kind": "closed_world.universe_kind が閉じた値域にない",
+    }
+    failures: list[tuple[str, int, str]] = []
+
+    for case_name, closed_world in cases.items():
+        root = _make_repository(tmp_path / case_name)
+        catalog = _read_catalog(root)
+        claim = _auth_claim(catalog)
+        claim["closed_world"] = closed_world
+        claim["decision_digest"] = checker.compute_decision_digest(claim)
+        _write_catalog(root, catalog)
+
+        result = _run_cli(root)
+        if result.returncode != 1 or expected_errors[case_name] not in result.stderr:
+            failures.append((case_name, result.returncode, result.stderr))
+
+    assert failures == []
+
+
 def test_scalar_decidable_at_is_red(tmp_path: Path) -> None:
     root = _make_repository(tmp_path)
     catalog = _read_catalog(root)

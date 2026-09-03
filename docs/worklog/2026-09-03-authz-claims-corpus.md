@@ -134,3 +134,9 @@ branch: fix/authz-claims-corpus
 
 - テスト先行: 負例 `empty-auth-rule.json`(適用条件全空の AUTH 規則)→ **是正前 red(returncode 0 で素通り)→ `_parse_classification_rules` へ「AUTH 規則は適用条件を最低 1 つ」検査を追加 → green** を実出力つきで確認
 - フィクスチャの AUTH 規則へ適用条件を最小追加(lock digest 追随含む — tests/fixtures 範囲内)。回帰 55 passed(意図的 red 1 本除外)・ruff green
+
+### ステップ 5 — 意味論(ii) closed-world 専用構造(F6・codex 委任)
+
+- スキーマ確定: claims の任意フィールド `closed_world = { universe_kind(resource|route|operation の閉集合), member_source_ids(実在主張 ID との exact-set・空不可), default_disposition(deny) }`。decision digest・lock に含める(決定の一部)
+- テスト先行: 負例 3 種(member 不一致・空 universe・列挙外 kind)red → 実装 → green を実出力つきで確認。正例フィクスチャ追加。回帰 56 passed・ruff/ty green
+- 実資産への宣言付与はステップ 10(本ステップは任意フィールドのため実資産の失敗理由は増えない)
