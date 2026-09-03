@@ -17,11 +17,11 @@ date: 2026-09-03
 | # | primitive | パラメータ(すべて必須) | 賄う要件 | 備考 |
 | --- | --- | --- | --- | --- |
 | P1 | **fixed-decimal(固定小数)** | `scale`(0..3 — **0 で整数表示を含む**)/ `rounding`(D-6 の数値の扱いに列挙された丸め 4 種から選択)/ `leadingZero`(bool — `.333` か `0.333` か)/ `negativeSign`(負値の文字 — binding の符号列から) | 打率・出塁率・長打率・被打率・WHIP・FIP・平均球速・得失点差(整数 + 負号) | 独立の「整数」「符号付き整数」primitive は作らない(scale=0 と negativeSign に統一 — 計画 §4-(4)(5)) |
-| P2 | **percentage(百分率)** | `scale` / `rounding` / `symbol`(`%` の文字種 — binding から) | 球種割合「40%(12球)」(`REQ:443`・`:1113`)の率側 | ×100 と `%` 付与まで。**母数併記は本 primitive の仕事ではない**(§7-e) |
-| P3 | **mixed-fraction(混合分数)** | `denominator`(投球回 = 3)/ `integerSuffix`(「回」)/ `zeroRemainderForm`(剰余 0 の表記 — **binding で確定**: 「5回」か「5回0/3」)/ `fractionStyle`(`n/d` — ASCII スラッシュ。`⅔` 等の合字は使わない) | 投球回「5回2/3」(`REQ:1095`) | 旧の `⅓`・`1.1`・`1.333` の 3 表現は移植しない(新書式の正は binding) |
-| P4 | **null-substitute(null 代替)** | `substitute`(既定 `−`) | 0 除算「−」(`REQ:1084`) | **既存の破れの是正**(research §0-5 — 現行 ADR は 2 種のどちらにも収まらない参照を既に持つ)。**既存規則の拡張で表現し切れる場合は独立 primitive にしない**(その場合は上限 3 種 — 計画ステップ 4) |
+| P2 | **percentage(百分率)** | `scale`(**0..2**)/ `rounding` / `leadingZero`(scale ≥ 1 の 1% 未満で `0.5%` / `.5%` を一意化)/ `symbol`(`%` の文字種 — binding から) | 球種割合「40%(12球)」の率側 | ×100 と `%` 付与まで。**母数併記は本 primitive の仕事ではない**(§7-e)。値域・先頭 0 はゲート 13〜14 周目で確定 |
+| P3 | **mixed-fraction(混合分数)** | `denominator`(投球回 = 3)/ `integerSuffix`(「回」)/ `zeroRemainderForm`(剰余 0 の表記 — **binding で確定**: 「5回」か「5回0/3」)/ `fractionStyle`(`n/d` — ASCII スラッシュ。`⅔` 等の合字は使わない) | 投球回「5回2/3」(A-2 投球回行) | 旧の `⅓`・`1.1`・`1.333` の 3 表現は移植しない(新書式の正は binding) |
+| P4 | **null-substitute(null 代替)** | `substitute`(既定 `−`) | 0 除算「−」(A-1 の 0 除算規則) | **既存の破れの是正**(research §0-5 — 現行 ADR は 2 種のどちらにも収まらない参照を既に持つ)。**既存規則の拡張で表現し切れる場合は独立 primitive にしない**(その場合は上限 3 種 — 計画ステップ 4) |
 
-**作らないもの**(計画 2 節と一致): interval-label(区間ラベルは構造化 bucket enum + 既存写像)/ 正値 `+` / 色・装飾属性 / ロケール可変。
+**作らないもの**(計画 2 節と一致): interval-label(**球速ビンはビン下端の構造化整数 + テンプレート `{下端}km/h`**〔enum 写像は不採用 — ゲート確定〕・「10回以降」は有限 bucket enum + 写像①)/ 正値 `+` / 色・装飾属性 / ロケール可変。
 
 ## 2. `NumericValue → DisplayAtom` の型付き変換
 
@@ -89,8 +89,8 @@ ADR で規定するのは**軸**まで(具体ケース値・証跡形式は TSK-
 
 binding(2026-09-03 PO 裁定: 率 = 3 桁先頭 0 なし四捨五入 / 投球回 = 剰余 0 省略・`n/3` / WHIP・FIP 2 桁 / 平均球速 1 桁 / 百分率整数 / `%()` 半角 / 負号半角 / null 代替 = 全角「−」/ 期間ラベル = JST 年度導出):
 
-- `REQ:1095` 投球回: アウト数 17 → `NumericValue(整数部 5・剰余 2/3)` → **P3**(denominator=3, integerSuffix=「回」, zeroRemainderForm=省略, fractionStyle=`n/3`) → **「5回2/3」**。アウト数 15 → 整数部 5・剰余 0 → **「5回」**(省略形)
-- `REQ:443` 球種割合: 率 `12/30` → **P2**(scale=0, rounding=四捨五入, symbol=半角`%`) → 「40%」、母数 `12` → **P1**(scale=0) → 「12」、template `{割合}({球数}球)`(括弧半角) → **「40%(12球)」**
+- A-2 投球回: アウト数 17 → `NumericValue(整数部 5・剰余 2/3)` → **P3**(denominator=3, integerSuffix=「回」, zeroRemainderForm=省略, fractionStyle=`n/3`) → **「5回2/3」**。アウト数 15 → 整数部 5・剰余 0 → **「5回」**(省略形)
+- FR-023 球種割合: 率 `12/30` → **P2**(scale=0, rounding=四捨五入, symbol=半角`%`) → 「40%」、母数 `12` → **P1**(scale=0) → 「12」、template `{割合}({球数}球)`(括弧半角) → **「40%(12球)」**
 - 追試(binding 表の代表値): 打率 `1/3` → P1(scale=3, 四捨五入, leadingZero=false) → 「.333」/ 得失点差 `-3` → P1(scale=0, negativeSign=`-`) → 「-3」/ 0 除算 → P4(substitute=「−」) → 「−」
 
 **P4 の最終判定(binding 確定後)**: 独立 primitive として維持する(**4 種で確定**)。既存規則①(enum→表示名写像)の拡張は不採用 — `null` は enum 値ではなく型機能であり、写像テーブルの定義域に混ぜると「安定した enum に限る」という①の制約を壊すため。
