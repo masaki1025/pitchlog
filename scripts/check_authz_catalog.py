@@ -93,6 +93,18 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
+RUNTIME_TARGET_KINDS = frozenset(
+    {
+        "route",
+        "management_operation",
+        "ddl_function",
+        "ddl_table_privilege_probe",
+        "ddl_provisioning",
+    }
+)
+CONTRACT_ONLY_REASON_CODES = frozenset(
+    {"no_db_decision_point", "route_universe_pending", "ddl_target_pending"}
+)
 ORACLE_MUTANT_AXES = frozenset(
     {"configuration", "authorization_predicate", "r8_provisioning"}
 )
@@ -3193,6 +3205,66 @@ def _has_db_decision(claim: dict[str, object]) -> bool:
     )
 
 
+def _validate_runtime_target(
+    raw: object,
+    claim_id: str,
+    route_registry: dict[str, object],
+    ddl_result: dict[str, object],
+) -> tuple[str, frozenset[str]]:
+    """probe executable の宣言対象が実行資産に存在することを検査する。"""
+    label = f"{claim_id}.runtime_target"
+    if not isinstance(raw, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(raw, {"target_kind", "target_ids"}, label)
+    target_kind = _expect_closed_value(
+        raw["target_kind"], RUNTIME_TARGET_KINDS, f"{label}.target_kind"
+    )
+    target_ids = frozenset(_expect_string_list(raw["target_ids"], f"{label}.target_ids"))
+    if not target_ids:
+        raise CatalogError(f"{label}.target_ids は1件以上必要")
+
+    if target_kind in {"route", "management_operation"}:
+        collection_name = (
+            "routes" if target_kind == "route" else "management_operations"
+        )
+        identifier_key = "route_id" if target_kind == "route" else "operation_id"
+        rows = route_registry.get(collection_name)
+        if not isinstance(rows, list):
+            raise CatalogError(f"route registry.{collection_name} が不正")
+        target_by_id = {
+            str(row.get(identifier_key)): row for row in rows if isinstance(row, dict)
+        }
+        unsupported = sorted(
+            target_id
+            for target_id in target_ids
+            if target_id not in target_by_id
+            or claim_id not in target_by_id[target_id].get("source_claim_ids", [])
+        )
+    else:
+        function_ids = ddl_result.get("function_ids")
+        privilege_ids = ddl_result.get("table_privilege_ids")
+        provisioning_claim_id = str(ddl_result.get("provisioning_claim_id"))
+        if not isinstance(function_ids, frozenset) or not isinstance(
+            privilege_ids, frozenset
+        ):
+            raise CatalogError("DDL runtime target の導出集合が不正")
+        ddl_target_ids = {
+            "ddl_function": set(function_ids),
+            "ddl_table_privilege_probe": {
+                "TABLE-PRIVILEGE:probe_management_effects:"
+                f"management_caller:{privilege_id}"
+                for privilege_id in privilege_ids
+            },
+            "ddl_provisioning": {provisioning_claim_id},
+        }
+        unsupported = sorted(target_ids - ddl_target_ids[target_kind])
+    if unsupported:
+        raise CatalogError(
+            f"{label} が claim に対応する実在実行対象でない: {unsupported}"
+        )
+    return target_kind, target_ids
+
+
 def validate_claim_mutant_map(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -3314,26 +3386,52 @@ def validate_claim_mutant_map(
     execution_counts: Counter[str] = Counter()
     for index, claim_row in enumerate(claim_rows):
         label = f"claim mutant map.claims[{index}]"
+        common_claim_keys = {
+            "claim_id",
+            "claim_origin",
+            "execution_class",
+            "classification_rule_id",
+            "mutant_ids",
+            "schema_drift_test_owner",
+            "runtime_test_owner",
+            "runtime_kill_required",
+            "runtime_evidence_kind",
+            "receiving_task_id",
+        }
+        execution_class = _expect_closed_value(
+            claim_row.get("execution_class"),
+            ORACLE_EXECUTION_CLASSES,
+            f"{label}.execution_class",
+        )
+        if execution_class == "probe_executable":
+            if "runtime_target" not in claim_row:
+                raise CatalogError(f"{label}: probe_executable に runtime_target が必要")
+            expected_claim_keys = common_claim_keys | {"runtime_target"}
+        else:
+            if "contract_only_reason_code" not in claim_row:
+                raise CatalogError(
+                    f"{label}: contract_only に contract_only_reason_code が必要"
+                )
+            expected_claim_keys = common_claim_keys | {"contract_only_reason_code"}
         _expect_keys(
             claim_row,
-            {
-                "claim_id",
-                "claim_origin",
-                "execution_class",
-                "classification_rule_id",
-                "mutant_ids",
-                "schema_drift_test_owner",
-                "runtime_test_owner",
-                "runtime_kill_required",
-                "runtime_evidence_kind",
-                "receiving_task_id",
-            },
+            expected_claim_keys,
             label,
         )
         claim_id = _expect_string(claim_row["claim_id"], f"{label}.claim_id")
-        execution_class = _expect_closed_value(
-            claim_row["execution_class"], ORACLE_EXECUTION_CLASSES, f"{label}.execution_class"
-        )
+        runtime_target_kind: str | None = None
+        runtime_target_ids: frozenset[str] = frozenset()
+        contract_reason: str | None = None
+        if execution_class == "probe_executable":
+            runtime_target_kind, runtime_target_ids = _validate_runtime_target(
+                claim_row["runtime_target"], claim_id, route_registry, ddl_result
+            )
+        else:
+            contract_reason = _expect_closed_value(
+                claim_row["contract_only_reason_code"],
+                CONTRACT_ONLY_REASON_CODES,
+                f"{label}.contract_only_reason_code",
+            )
         rule_id = _expect_string(
             claim_row["classification_rule_id"], f"{label}.classification_rule_id"
         )
@@ -3344,10 +3442,17 @@ def validate_claim_mutant_map(
             expected_class = "probe_executable"
             expected_rule = "PROBE_EXECUTABLE_PROVISIONING_SEQUENCE"
             expected_origin = "design"
+            if (
+                runtime_target_kind != "ddl_provisioning"
+                or runtime_target_ids != {provisioning_claim_id}
+            ):
+                raise CatalogError(f"{claim_id}: provisioning の runtime target が不正")
         elif claim_id in management_probe_claim_ids:
             expected_class = "probe_executable"
             expected_rule = "PROBE_EXECUTABLE_MANAGEMENT_PROBE"
             expected_origin = "design"
+            if runtime_target_kind != "ddl_function":
+                raise CatalogError(f"{claim_id}: management probe の runtime target が不正")
         else:
             source_claim = auth_claims.get(claim_id)
             if source_claim is None:
@@ -3355,13 +3460,27 @@ def validate_claim_mutant_map(
             if not _has_db_decision(source_claim):
                 expected_class = "contract_only"
                 expected_rule = "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                expected_reasons = {"no_db_decision_point"}
+            elif runtime_target_kind is not None:
+                expected_class = "probe_executable"
+                expected_rule = "PROBE_EXECUTABLE_DB_DECISION_POINT"
+                expected_reasons = set()
             elif claim_id in management_claim_ids:
                 expected_class = "contract_only"
                 expected_rule = "CONTRACT_ONLY_UNIMPLEMENTED_MANAGEMENT"
+                expected_reasons = {"route_universe_pending"}
             else:
-                expected_class = "probe_executable"
-                expected_rule = "PROBE_EXECUTABLE_DB_DECISION_POINT"
+                expected_class = "contract_only"
+                expected_rule = "CONTRACT_ONLY_RUNTIME_TARGET_PENDING"
+                expected_reasons = {
+                    "route_universe_pending",
+                    "ddl_target_pending",
+                }
             expected_origin = "requirement"
+            if expected_class == "contract_only" and contract_reason not in expected_reasons:
+                raise CatalogError(
+                    f"{claim_id}: contract_only_reason_code が導出理由と不一致"
+                )
         if (
             execution_class != expected_class
             or rule_id != expected_rule

@@ -158,3 +158,9 @@ branch: fix/authz-claims-corpus
 - スキーマ確定: claims の任意フィールド `atomic_claims[]`(`atomic_id = <source_id>#<識別子>`・行内/全体で一意・source_id と衝突不可)。分割行の layer/decidable_at は **atomic 側が正**(行本体は classification: auth_claim の代表値のみ・rule_id は atomic 側に実在する代表値)。**分割行は下流で行 ID を参照できず atomic_id 参照が必須**(曖昧さの排除)。決定投影・lock に包含。client 系 location は新設せず(F1 裁定どおり)
 - テスト先行: 負例(重複 atomic_id・値域外・行本体矛盾・未知参照)red → 実装 → green(実出力つき)。下流参照つき正例フィクスチャ追加
 - 全スイート 6 failed / 847 passed — **red の増減なし**(期待どおり)・ruff/ty green
+
+### ステップ 9 — 意味論(vi) probe_executable 判定規則(F10 採用分・codex 委任)
+
+- probe_executable の宣言に実行面の裏付け(route/management_operation 結線 or DDL 実行対象への対応)を必須化。裏付けのない主張は `contract_only` + 閉じた理由コードの宣言を強制(無宣言・裏付けなしは fail)
+- テスト先行: 負例 red → 実装 → green(実出力つき)。回帰 59 passed(既知 red 6 本除外)・全スイート 6 failed / 849 passed — **新規 red なし**(claim-mutant-map への新エラーは DDL 検査が先に停止するため未表面化 — ステップ 11 の追随対象)・ruff/ty green
+- 意味論ステップ(4〜9)完了 — 検査器の強化は全 6 単位が負例 red→green つきで導入済み

@@ -1167,6 +1167,183 @@ def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     }
 
 
+def _claim_mutant_map_with_execution_support() -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    """全 probe/contract に実行対象または理由を宣言した入力を返す。"""
+    oracle_assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(oracle_assets["claim_mutant_map"])
+    route_registry = copy.deepcopy(_repository_derived_assets()[0]["route_registry"])
+    fixture = json.loads(
+        (FIXTURE_ROOT / "claim-execution-support.json").read_text(encoding="utf-8")
+    )
+    unsupported = fixture["unsupported_contract"]
+    unsupported_claim_id = unsupported["claim_id"]
+    mapping["classification_rules"]["CONTRACT_ONLY_RUNTIME_TARGET_PENDING"] = {
+        "execution_class": "contract_only",
+        "requires_db_decision": True,
+        "management_claim": False,
+    }
+
+    ddl = oracle_assets["ddl_elements"]
+    provisioning_claim_id = ddl["provisioning_claim"]["claim_id"]
+    management_probe_claim_ids = set(
+        ddl["representative_management_probe"]["claim_ids"]
+    )
+    management_function_id = ddl["representative_management_probe"]["function_id"]
+    for claim in mapping["claims"]:
+        claim_id = claim["claim_id"]
+        if claim_id == unsupported_claim_id:
+            claim.update(
+                {
+                    "execution_class": "contract_only",
+                    "classification_rule_id": unsupported["classification_rule_id"],
+                    "runtime_kill_required": False,
+                    "runtime_evidence_kind": "handoff_runtime_test",
+                    "receiving_task_id": unsupported["receiving_task_id"],
+                    "contract_only_reason_code": unsupported[
+                        "contract_only_reason_code"
+                    ],
+                }
+            )
+        elif claim["execution_class"] == "contract_only":
+            claim["contract_only_reason_code"] = (
+                "no_db_decision_point"
+                if claim["classification_rule_id"]
+                == "CONTRACT_ONLY_NO_DB_DECISION_POINT"
+                else "route_universe_pending"
+            )
+        elif claim_id == provisioning_claim_id:
+            claim["runtime_target"] = {
+                "target_kind": "ddl_provisioning",
+                "target_ids": [provisioning_claim_id],
+            }
+        elif claim_id in management_probe_claim_ids:
+            claim["runtime_target"] = {
+                "target_kind": "ddl_function",
+                "target_ids": [management_function_id],
+            }
+        else:
+            route_id = f"ROUTE:RUNTIME:{claim_id}"
+            claim["runtime_target"] = {
+                "target_kind": "route",
+                "target_ids": [route_id],
+            }
+            route_registry["routes"].append(
+                {"route_id": route_id, "source_claim_ids": [claim_id]}
+            )
+
+    unsupported_mutant_id = next(
+        claim["mutant_ids"][0]
+        for claim in mapping["claims"]
+        if claim["claim_id"] == unsupported_claim_id
+    )
+    unsupported_mutant = next(
+        mutant
+        for mutant in mapping["mutants"]
+        if mutant["mutant_id"] == unsupported_mutant_id
+    )
+    unsupported_mutant.update(
+        {
+            "runtime_kill_required": False,
+            "runtime_kill_waiver_reason": "contract_only_handoff",
+            "expected_runtime_outcome": "handoff",
+            "expected_positive_outcome": "handoff",
+            "positive_kill_required": False,
+            "positive_case_scope_id": None,
+        }
+    )
+    ddl_result = {
+        "provisioning_claim_id": provisioning_claim_id,
+        "management_probe_claim_ids": frozenset(management_probe_claim_ids),
+        "function_ids": frozenset(
+            function["function_id"] for function in ddl["functions"]
+        ),
+        "table_privilege_ids": frozenset(ddl["enums"]["table_privilege_ids"]),
+    }
+    return mapping, route_registry, ddl_result
+
+
+def _validate_claim_mutant_map_with_execution_support(
+    mapping: dict[str, Any],
+    route_registry: dict[str, Any],
+    ddl_result: dict[str, Any],
+) -> dict[str, Any]:
+    """実資産を読み取り専用の参照集合として mutant map を検査する。"""
+    derived_assets, _locks, _paths = _repository_derived_assets()
+    return checker.validate_claim_mutant_map(
+        mapping,
+        _repository_catalog_and_lock()[0],
+        route_registry,
+        derived_assets["http_matrix"],
+        ddl_result,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+    )
+
+
+def test_invalid_claim_execution_support_is_red() -> None:
+    """裏付けなし probe と理由不備 contract の既知負例を拒否する。"""
+    cases = json.loads(
+        (FIXTURE_ROOT / "invalid-claim-execution-support.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mapping, route_registry, ddl_result = (
+            _claim_mutant_map_with_execution_support()
+        )
+        claim = next(
+            claim
+            for claim in mapping["claims"]
+            if claim["claim_id"] == case["claim_id"]
+        )
+        if case["operation"] == "remove_runtime_target":
+            del claim["runtime_target"]
+        elif case["operation"] == "remove_contract_reason":
+            del claim["contract_only_reason_code"]
+        else:
+            claim["contract_only_reason_code"] = case["value"]
+        try:
+            _validate_claim_mutant_map_with_execution_support(
+                mapping, route_registry, ddl_result
+            )
+        except checker.CatalogError as error:
+            if case["expected_error"] not in str(error):
+                failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_claim_execution_support_fixture_is_valid() -> None:
+    """route 裏付け probe と理由つき contract の正例を受理する。"""
+    mapping, route_registry, ddl_result = _claim_mutant_map_with_execution_support()
+
+    result = _validate_claim_mutant_map_with_execution_support(
+        mapping, route_registry, ddl_result
+    )
+    fixture = json.loads(
+        (FIXTURE_ROOT / "claim-execution-support.json").read_text(encoding="utf-8")
+    )
+    claim_by_id = {claim["claim_id"]: claim for claim in mapping["claims"]}
+
+    assert claim_by_id[fixture["supported_probe"]["claim_id"]][
+        "runtime_target"
+    ] == fixture["supported_probe"]["runtime_target"]
+    assert claim_by_id[fixture["unsupported_contract"]["claim_id"]][
+        "contract_only_reason_code"
+    ] == "route_universe_pending"
+    assert result["execution_counts"] == Counter(
+        {"probe_executable": 171, "contract_only": 16}
+    )
+
+
 def _validate_one_derived_asset(
     name: str,
     mutated: dict[str, Any],
