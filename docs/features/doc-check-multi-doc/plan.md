@@ -1,6 +1,6 @@
 ---
 feature: doc-check-multi-doc
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-04・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -75,8 +75,8 @@ created: 2026-08-31
 | **データモデル用の実プロファイル・実資産(`auth_ddl_map` / `product_ddl_map` / `direct_requirements` / `expected_ids`)・実抽出器・実集合宣言・実 pins の作成** | **TSK-250** | 二文書目がまだ存在しない。本タスクはランナー・サンプル・データモデル型最小プロファイル(合成)まで |
 | **契約 5 の実入力契約の確定**(データモデル正本に対して、どの資産をどの形で置き、どの抽出器・集合宣言を必須にし、何を pin するか) | **TSK-250 の再レビュー**(申し送り 24) | **PO 裁定 (b)・2026-09-04**。本タスクは機構と合成サンプルまで。契約 5 の文言は TSK-250 側で改める |
 | **`.claude/core-areas.json` の `guard_paths` への新資産登録** | **TSK-250**(最初の独立コミット) | 人間の裁定 2026-09-04。登録対象は 3 節 B 集合(最終確定はステップ 38) |
-| **台帳 H-78・H-79 の実績追記** | **TSK-250**(ステップ 25) | 人間の裁定 2026-09-04。`H-*` 新規採番も禁止のまま |
-| **設計書 10.1 `docs-lint` 行・`docs/README.md` の現行化** | **TSK-250**(ステップ 22) | 同期に走る検査は既存 14 のまま(新 8 ID は `not_applicable`)なので現行文言は事実のまま(design 5-1 節)。H-19 ⑥ の前例 |
+| **台帳 H-78・H-79 の実績追記** | **TSK-250**(ステップ 25) | 人間の裁定 2026-09-04。`H-*` 新規採番も禁止のまま(本 PR の台帳追記は `## 候補` 2 件のみ — 3 節) |
+| **設計書 10.1 `docs-lint` 行の現行化** | **TSK-250**(ステップ 22) | 同期に走る検査は既存 14 のまま(新 8 ID は `not_applicable`)なので現行文言は事実のまま(design 5-1 節)。H-19 ⑥ の前例。**`docs/README.md` は台帳追記に伴う索引の現行化のみ行う**(3 節) |
 | **同期側 oracle の内容変更**(`req-universe.json` / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt`) | — | 触らない。`defects.json` は **MT-01 エントリの範囲だけ**を独立ステップで改訂。SP-19 の oracle も無変更 |
 | **同期プロファイルでの新 8 ID の有効化** / **同期正本の本文変更** | (TSK-250 以後)/ — | 既存の振る舞いを変えない / 反映なし |
 | **`scripts/check_authz_catalog.py` のプロファイル化** / **`verify_handoff_digest.py` をランナーに載せる** | (TSK-270 系)/ **TSK-250**(ステップ 4) | 人間の裁定 / ランナーは単一プロファイルの検証器 |
@@ -87,7 +87,9 @@ created: 2026-08-31
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | **`docs/development/dev-harness-design-2026-08-07.md`** | **反映なし**(10.1 の「12 検査(引数なし)」は同期に走る検査が既存のままなので事実のまま) | — |
-| **`docs/development/harness-evaluation.md`** / **`docs/README.md`** / **`.claude/core-areas.json`** / **`docs/design/sync-protocol.md`** / `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `frontend/` | **反映なし** | — |
+| **`docs/development/harness-evaluation.md`**(台帳) | **`## 候補` へ 2 件追記**(委任粒度と現在地導出の衝突 / 計画レビューの終端条件)+ 変更履歴表に 1 行。**`H-*` の新規採番はしない**(H-77 未解決)。**H-78・H-79 の実績追記は TSK-250 ステップ 25**(裁定 2026-09-04) | PR レビュー(7.6-3 前段・版は上げない) |
+| **`docs/README.md`**(索引) | **台帳行の最終更新日と要約を現行化** | PR レビュー |
+| **`.claude/core-areas.json`** / **`docs/design/sync-protocol.md`** / `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `frontend/` | **反映なし** | — |
 | `scripts/design_relations/req-universe.json` / `sync-protocol.json` / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt` | **反映なし**(同期側 oracle) | — |
 | **`scripts/design_relations/defects.json`**(oracle・`guard_paths` 該当) | **MT-01 エントリの範囲のみ**(ステップ 3・design 4 節) | PR レビュー + 人間の逐行確認 |
 | `docs/features/doc-check-multi-doc/baseline-node-ids-f92b5f8.txt` | **無変更 oracle**(SHA-256 `a07454fcc3e3bc9c365a28f1dc66cec2330bfb08ecede80d8c52725169369046`) | — |

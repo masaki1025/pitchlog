@@ -597,3 +597,37 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 
 PR 本文へ全 24 項目を転記する。とくに: ① CI は引数なし列挙(TSK-250 ステップ 22 の「明示引数」は不成立)② `guard_paths` 登録は TSK-250 の**最初の独立コミット**(B 集合 38 件)③ 台帳 H-78・H-79 の追記は TSK-250 ステップ 25
 ④ **契約 5 の文言変更**(PO 裁定 (b) — 機構と実入力契約の責務分離)⑤ staging の木と作成順 ⑥ `auth_ddl_map` / `product_ddl_map` / `direct_requirements` / `expected_ids` は TSK-250 が作る ⑦ レジストリ entry の `must_require` + `pins`。
+
+## /pr — クローズ処理(2026-09-04)
+
+### 結果サマリ
+
+**実装したもの**(38 ステップ・コミット 30 本・47 ファイル): 文書検査機構をプロファイル駆動へ一般化した。
+① プロファイル・レジストリ・共通ローダー(全 22 check ID の完全分割・`must_require` + `pins` によるゲート宣言の digest 固定)
+② 不変条件 DSL(13 種)へ**既存の構造分岐 15 ID + MT-01 を移行し、旧分岐 16 件を撤去**(検査ロジックは宣言駆動のみ)
+③ fail-closed(解決できない節・脱落トークン・未対応 kind・レジストリ不一致・pins 不一致などを終了コード 2)
+④ MT-01 の oracle を一貫改訂し `absent-section` で「節 1 の不在」を機械保証へ復帰(裁定 (a′))
+⑤ TSK-250 が要求する 4 検査 + `collection-consistency` + `unique-owner` + `reference-class` を**機構として実装**し、合成サンプルで全 22 ID が動くことを確認
+⑥ コンフォーマンスランナー(`check_doc_profiles.py`・全終了コードで JSON envelope)とレジストリ列挙(`ci.yml` 無変更)
+⑦ `codex_run.py` の `has_filled_step_row` を見出しレベル・fenced code・否定形に対応させ 4 状態で報告(TSK-270 が踏んだ欠陥の是正)
+
+**正本への反映**: 台帳(`harness-evaluation.md`)へ **`## 候補` 2 件 + 変更履歴 1 行**、索引(`docs/README.md`)の台帳行を現行化。
+**それ以外の正本は反映なし**(設計書・`core-areas.json`・`ci.yml`・同期正本・要件書・ADR・`contracts/`)。同期側 oracle は `defects.json` の MT-01 の 4 欄のみ(+4/−4)。
+
+### 台帳への追記判断(/pr 手順 1-3)
+
+**該当あり → `## 候補` 2 件を追記**(`H-*` は**新規採番しない** — H-77 の番号衝突が未解決):
+1. **委任粒度を粗くすると「1 ステップ = 1 コミット」が崩れ、現在地導出が欠番で不整合になる**(実測 4 回・非ブロッキング)
+2. **計画レビューに終端条件が無く敵対レビューが 9 周続いた**(5 周目以降の P0 が同一の型。H-78 と同型の「存在しない対象への先取り設計」で、PO 裁定 (b) の射程縮小により解消)
+
+**H-78・H-79 の実績追記は行わない** — 人間の裁定 2026-09-04 により**受け渡し先 TSK-250 ステップ 25 の責務**(重複記入を避ける)。
+
+### /check の結果(2026-09-04)
+
+| 層 | 結果 |
+| --- | --- |
+| harness: ruff / ty / pytest | All checks passed / All checks passed / **1128 passed(失敗 0・skip 系 0)** |
+| backend: ruff format / ruff / ty | 10 files already formatted / All checks passed / All checks passed |
+| backend: pytest | 11 passed / **3 errors** — `PITCHLOG_TEST_ADMIN_DSN` 未設定の環境要因。**develop でも同一の 3 errors を再現**し、本 PR は `backend/` を 1 ファイルも変更していない。CI の backend ジョブは `services: postgres` と DSN を渡すため実行される |
+| frontend: prettier / eslint / vue-tsc / vitest | All matched files / 指摘なし / 指摘なし / 4 files 11 tests passed |
+| docs: 変更 md の相対リンク | 破損 0 件 |
