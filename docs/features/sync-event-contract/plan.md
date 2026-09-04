@@ -175,6 +175,18 @@ created: 2026-09-04
 - **`K4` は変更版順の定義行**であり #10〜#12 の属性として取り込む。**`K5`(墓標生成条件)はキュー遷移に属する射程外定義**として理由つきで除外する(ステップ 2)
 - `buildSyncEventKindSet` 内の `id !== '7'` は**集合の要素の有無を表す membership 規則**であって種別ごとの振る舞い分岐ではないため、**ステップ 7 の単一 locus 検査ではこれを許容する**(4-6)
 
+**使えるオラクル関係は 2 本ではなく 4 本だった**(ステップ 4・5 の実測 — 計画時の見落とし):
+
+| 関係 | 内容 | 使うステップ | 照合の仕方 |
+| --- | --- | --- | --- |
+| `R-EVENT-FIELD` | 4-3 の V1〜V12(12 要素) | 1 | **関係全体の exact-set** |
+| `R-PARTICIPATION` | 5-5 の参加区分表(14 要素) | 2 | **関係全体の exact-set**(`K5` は理由つき allow-list) |
+| **`R-V12-BOUNDARY`** | 4-3 の V12 条件・結果写像(**VF1〜VF6** の 6 要素) | **4** | **関係全体の exact-set** |
+| **`R-BOUNDARY` / `R-P3-BOUNDARY`** | 6-3 の境界結果(15 要素ずつ)。本タスクが実装するのは **`DI2`・`DI3`・`I2`・`I3`** の 4 要素のみ | **5** | **実装する 4 要素の右辺の逐語一致**。関係全体の exact-set はしない。射程外要素は理由つき allow-list に列挙し、**allow-list にも実装にも無い未知 ID は throw** |
+| **`R-TEMP-ID-MAPPING`** | 4-4 の **`C1`〜`C4`**(4 要素) | **6** | **`C2`・`C3` を実装**。**`C1`・`C4` は 7 章依存の射程外**として理由つき allow-list |
+
+**期待集合を TS 側にリテラルで持たない**という裁定 3 は、この 4 本すべてに適用する(台帳 H-61)。
+
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **オラクル読み出し経路の敷設 + V1〜V12 の規則表 + `R-EVENT-FIELD` 照合** — `vite.config.ts` に `@design-relations` alias と `fs.allow`、`tsconfig.app.json` に `paths` を追加。`eventFieldRules.ts` に V1〜V12 の ID・必須区分・**`conditions`(オラクルの条件トークンを逐語・順序保持 — 例 V2 なら `['P1・P2・P4に必須','P3は持たない']`)**・`shape` と **`EventSlotId`(V1〜V11)/ `RequestOnlyId`(V12)の導出**を置く。`canonOracle.ts` に fail-closed パーサ。**この段階では条件の意味づけを行わない**(逐語の保持まで) | `[機械]` **`vue-tsc --noEmit` green(= alias/paths 配線の実証)** / ID 集合が **JSON 解析結果と完全一致**(順序非依存)/ 必須区分が構造一致 / **`EventSlotId` に V12 が含まれない**ことを型と実行時の双方で assert / **変異 M1〜M4**(読み込み後オブジェクトから V9 を削る・V6 を無条件へ・V12 をイベント値へ・未知条件語を注入 → **`canonOracle.spec.ts` だけが red**)/ **`git diff --exit-code -- scripts/design_relations/ docs/design/` が 0** |
