@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_candidate_ddl_manifest",
+  "oracle_context": {},
+  "scope": {"product_schema": true},
+  "enums": {},
+  "roles": [
+    {
+      "role_id": "app_role",
+      "role_kind": "application",
+      "login": false,
+      "bypass_rls": false,
+      "superuser": false,
+      "create_role": false,
+      "inherit": true
+    }
+  ],
+  "schemas": [],
+  "tables": [
+    {
+      "table_id": "orders",
+      "schema_id": "app",
+      "owner_role_id": "app_role",
+      "row_shape_ids": ["tenant_id"],
+      "rls_enabled": true,
+      "force_rls": true,
+      "policy_ids": ["orders_tenant"]
+    }
+  ],
+  "predicates": [],
+  "policies": [
+    {
+      "policy_id": "orders_tenant",
+      "table_id": "orders",
+      "command": "ALL",
+      "policy_mode": "permissive",
+      "role_ids": ["app_role"],
+      "using_predicate_id": "tenant_match",
+      "with_check_predicate_id": "tenant_match"
+    }
+  ],
+  "functions": [],
+  "acl_expectations": [],
+  "transaction_boundaries": [],
+  "provisioning_claim": {},
+  "provenance": [],
+  "column_acl_expectations": [],
+  "table_privilege_probe_matrix": [],
+  "representative_management_probe": {}
+}

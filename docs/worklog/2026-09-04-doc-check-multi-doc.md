@@ -491,3 +491,18 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   **現行 212 件を全件解析**(回帰例に `2-1・4〜9` / `2-1・6・9` / `10-1・11-1。配信は…` / 理由文)。既存 `attribution` の区分分布 38/84/90 は不変
 - **24**: `attribution-destination`(新 check ID・同期では `not_applicable`)— ① 展開した各節の実在 ② **根拠 = 展開した節のいずれかに当該要件の安定 ID(`FR-xxx`/`NFR-xxx`)が明示出現する行が 1 行以上**。負例: 実在しない節 / 根拠行の欠落
 - 検証(Claude): ruff/ty passed / 3 テストファイル **94 passed**(skip 系 0)/ 3 検査 rc 0 / `COV --checks attribution` 単独 rc 0 / `COV --profile` rc 0 / 収集 **1030**・基準欠落 0 / 対象外パスの差分 0。Codex 報告: 全体 1030 passed
+
+### ステップ 25〜28/38 — 資産ローダー・join/normalize・抽出器/集合宣言・サンプル一式(**1 委任・1 コミット**)
+
+**中断と再開の記録**: 最初の委任は**ネットワーク切断で中断**(Codex ログに DNS 解決失敗と再接続 5 回)。作業ツリーに未完の変更が残り `test_contract_authz_assets_expand_ids_and_ddl_structures` が 1 件失敗。
+**コミット済みの 24 ステップは無傷**(3 検査 rc 0・基準 node ID 全件維持・本番プロファイルも無汚染)。復帰後に**同一 Codex セッションを `--resume`** して失敗の修正と 26〜28 の仕上げを継続し、完了。
+
+- **25**: `schemas/assets.schema.json`(immutable / mutable の exact-set をスキーマ版で固定)+ 資産ローダー(JSON パス最小部分集合・`identity` は `asset_kind` または `required_top_keys`・配列値 id・collection の `structure`)。
+  **`contracts/authz/` の現物から実際に抽出**: `claims.source_id` / `entries[*].catalog_entry_id` / `tables[*].table_id` / `policies[*].policy_id` / `policy_ids[*]` / `role_ids[*]`。
+  構造タプルの実例 = `{kind: reference, source: {namespace: table, id: probe_business_rows}, target: {namespace: role, id: app_role}, direction: source->target}`(**端点は `{namespace, id}`**)
+- **26**: `join`(異名キー)/ `normalize`(単一 alias 表・名前空間内の単射性・競合と循環は `ProfileError`)/ 必須検査と宣言の連動
+- **27**: `structure_extractors`(manifest / document / derived・端点ごとに `namespace` 必須・抽出 0 件は終了 2・`forbidden` の全 kind を覆わなければ終了 2)/ `collection_sets`(exact / subset / disjoint・差集合を reason に)/ `pins.asset_digests`(必須検査に対応する pin 欠落は終了 2)
+- **28**: サンプル一式 19 ファイル(`profiles/` 3・`doc/` 6・`assets/` 10)。レジストリは 2 entry: `sample-minimal`(`must_require` 14)と **`data-model-like`(`must_require` 22・`asset_digests` 10 資産)**。
+  **合成資産は `contracts/authz/` とトップレベルキー集合・ID 位置が同形**であることをテストで固定
+- **本番プロファイルは無変更**(`assets` / `structure_extractors` / `collection_sets` は空・`profile_gating_digest` 不変)
+- 検証(Claude): ruff/ty passed / 4 テストファイル **275 passed・失敗 0**(skip 系 0)/ 3 検査 rc 0 / 収集 **1051**・基準 875 の欠落 0 / 対象外パス(`.github`・`.claude`・fixture・oracle・`contracts/`)の差分 0

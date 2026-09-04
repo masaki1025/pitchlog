@@ -1,0 +1,2 @@
+envelope schema_version=1 algo=sha256 fields=id,baseline,source,location,detection,check,owner_step,invariant.scope,invariant.forbidden,invariant.positive,invariant.mapping
+DEFECT-001 0000000000000000000000000000000000000000000000000000000000000000

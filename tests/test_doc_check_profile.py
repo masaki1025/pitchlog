@@ -23,6 +23,9 @@ PROFILE_PATH = PROFILES_DIR / "sync-protocol.json"
 REGISTRY_PATH = PROFILES_DIR / "registry.json"
 INVARIANTS_PATH = INVARIANTS_DIR / "sync-protocol.json"
 DEFECTS_PATH = RELATIONS_DIR / "defects.json"
+CONTRACT_AUTHZ_DIR = REPOSITORY_ROOT / "contracts" / "authz"
+PROFILE_SAMPLE_DIR = REPOSITORY_ROOT / "tests" / "fixtures" / "profile-sample"
+SAMPLE_REGISTRY_PATH = PROFILE_SAMPLE_DIR / "profiles" / "registry.json"
 PROPAGATION_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 COVERAGE_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_doc_coverage.py"
 PROFILE_LOADER_SCRIPT = REPOSITORY_ROOT / "scripts" / "doc_check_profile.py"
@@ -1189,3 +1192,698 @@ def test_load_invariants_rejects_invalid_declarations(
 
     with pytest.raises(profile_loader.ProfileError, match=message):
         profile_loader.load_invariants(path)
+
+
+def _profile_with_assets(
+    tmp_path: Path,
+    assets: dict[str, Any],
+    *,
+    structure_extractors: list[dict[str, Any]] | None = None,
+    collection_sets: list[dict[str, Any]] | None = None,
+    required_checks: tuple[str, ...] = (),
+) -> Any:
+    """本番プロファイルに合成資産宣言を差し込んで読む。"""
+    value = _load_json(PROFILE_PATH)
+    value["assets"] = assets
+    value["structure_extractors"] = structure_extractors or []
+    value["collection_sets"] = collection_sets or []
+    for check_id in required_checks:
+        value["required_checks"].append(check_id)
+        del value["not_applicable"][check_id]
+    profile_path = tmp_path / "asset-profile.json"
+    _write_json(profile_path, value)
+    return profile_loader.load_profile(
+        profile_path,
+        root=REPOSITORY_ROOT,
+        schema_dir=SCHEMAS_DIR,
+    )
+
+
+def _contract_asset_declarations() -> dict[str, Any]:
+    """contracts/authzの3資産を現物のID位置で宣言する。"""
+    return {
+        "claims": {
+            "path": str(CONTRACT_AUTHZ_DIR / "requirement-claims.json"),
+            "identity": {
+                "schema_version": 1,
+                "required_top_keys": ["input_manifest", "claims"],
+            },
+            "collections": [
+                {
+                    "items": "$.claims[*]",
+                    "id": "source_id",
+                    "namespace": "claim",
+                    "fields": {"classification": "classification"},
+                }
+            ],
+        },
+        "auth_catalog": {
+            "path": str(CONTRACT_AUTHZ_DIR / "auth-catalog.json"),
+            "identity": {"schema_version": 1, "asset_kind": "authz_catalog"},
+            "collections": [
+                {
+                    "items": "$.entries[*]",
+                    "id": "catalog_entry_id",
+                    "namespace": "auth",
+                    "refs": "requirement_claim_id",
+                }
+            ],
+        },
+        "ddl_elements": {
+            "path": str(CONTRACT_AUTHZ_DIR / "ddl-elements.json"),
+            "identity": {
+                "schema_version": 1,
+                "asset_kind": "authz_candidate_ddl_manifest",
+            },
+            "collections": [
+                {
+                    "items": "$.tables[*]",
+                    "id": "table_id",
+                    "namespace": "table",
+                    "refs": "policy_ids[*]",
+                },
+                {
+                    "items": "$.tables[*]",
+                    "id": "policy_ids[*]",
+                    "namespace": "policy",
+                    "role": "reference",
+                },
+                {
+                    "items": "$.policies[*]",
+                    "id": "policy_id",
+                    "namespace": "policy",
+                    "structure": {
+                        "kind": "reference",
+                        "source": "table_id",
+                        "target": "role_ids[*]",
+                        "direction": "source->target",
+                        "participants": ["table_id", "role_ids[*]"],
+                    },
+                },
+                {
+                    "items": "$.policies[*]",
+                    "id": "role_ids[*]",
+                    "namespace": "role",
+                    "role": "reference",
+                },
+                {
+                    "items": "$.roles[*]",
+                    "id": "role_id",
+                    "namespace": "role",
+                },
+            ],
+        },
+    }
+
+
+def test_assets_schema_fixes_immutable_and_mutable_field_sets() -> None:
+    """版1のbaseline対象・可変フィールドをexact-setで固定する。"""
+    schema = _load_json(SCHEMAS_DIR / "assets.schema.json")
+
+    assert schema["schema_version"] == 1
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["immutable_fields"]["enum"] == [
+        list(profile_loader.ASSET_IMMUTABLE_FIELDS)
+    ]
+    assert schema["properties"]["mutable_fields"]["enum"] == [
+        list(profile_loader.ASSET_MUTABLE_FIELDS)
+    ]
+
+
+def test_contract_authz_assets_expand_ids_and_ddl_structures(
+    tmp_path: Path,
+) -> None:
+    """現行3資産のIDとtable→role構造を宣言だけで得る。"""
+    profile = _profile_with_assets(tmp_path, _contract_asset_declarations())
+    loaded = profile_loader.load_assets(profile)
+    claims = loaded.assets["claims"].collections[0]
+    auth = loaded.assets["auth_catalog"].collections[0]
+    ddl = loaded.assets["ddl_elements"].collections
+    raw_claims = _load_json(CONTRACT_AUTHZ_DIR / "requirement-claims.json")
+    raw_auth = _load_json(CONTRACT_AUTHZ_DIR / "auth-catalog.json")
+    raw_ddl = _load_json(CONTRACT_AUTHZ_DIR / "ddl-elements.json")
+
+    assert {
+        identifier.id
+        for record in claims.records
+        for identifier in record.identifiers
+    } == {claim["source_id"] for claim in raw_claims["claims"]}
+    assert {
+        identifier.id
+        for record in auth.records
+        for identifier in record.identifiers
+    } == {entry["catalog_entry_id"] for entry in raw_auth["entries"]}
+    assert {reference.id for record in auth.records for reference in record.refs} == {
+        entry["requirement_claim_id"] for entry in raw_auth["entries"]
+    }
+    assert {collection.namespace for collection in ddl} == {"table", "policy", "role"}
+    assert {
+        reference.id
+        for record in ddl[0].records
+        for reference in record.refs
+    } == {
+        policy_id
+        for table in raw_ddl["tables"]
+        for policy_id in table["policy_ids"]
+    }
+    assert {
+        identifier.id
+        for record in ddl[0].records
+        for identifier in record.identifiers
+    } == {table["table_id"] for table in raw_ddl["tables"]}
+    assert {
+        identifier.id
+        for record in ddl[1].records
+        for identifier in record.identifiers
+    } == {
+        policy_id
+        for table in raw_ddl["tables"]
+        for policy_id in table["policy_ids"]
+    }
+    assert {
+        identifier.id
+        for record in ddl[2].records
+        for identifier in record.identifiers
+    } == {policy["policy_id"] for policy in raw_ddl["policies"]}
+    assert {
+        identifier.id
+        for record in ddl[3].records
+        for identifier in record.identifiers
+    } == {
+        role_id
+        for policy in raw_ddl["policies"]
+        for role_id in policy["role_ids"]
+    }
+
+    expected = {
+        profile_loader.StructureTuple(
+            kind="reference",
+            source=profile_loader.NamespacedId("table", policy["table_id"]),
+            target=profile_loader.NamespacedId("role", role_id),
+            direction="source->target",
+            participants=(
+                profile_loader.NamespacedId("table", policy["table_id"]),
+                profile_loader.NamespacedId("role", role_id),
+            ),
+        )
+        for policy in raw_ddl["policies"]
+        for role_id in policy["role_ids"]
+    }
+    actual = {
+        structure
+        for structure in loaded.structures
+        if structure.kind == "reference"
+    }
+    assert actual == expected
+
+
+def test_asset_loader_rejects_identity_mismatch_and_missing_file(tmp_path: Path) -> None:
+    """identity不一致と資産ファイル欠落をfail-closedにする。"""
+    declarations = _contract_asset_declarations()
+    declarations["auth_catalog"]["identity"]["asset_kind"] = "wrong"
+    profile = _profile_with_assets(tmp_path, declarations)
+    with pytest.raises(profile_loader.ProfileError, match="asset_kind 不一致"):
+        profile_loader.load_assets(profile)
+
+    declarations = _contract_asset_declarations()
+    declarations["claims"]["path"] = str(tmp_path / "missing.json")
+    profile = _profile_with_assets(tmp_path, declarations)
+    with pytest.raises(profile_loader.ProfileError, match="JSONファイルを読めません"):
+        profile_loader.load_assets(profile)
+
+
+def test_asset_loader_rejects_bad_path_unknown_field_and_duplicate_key(
+    tmp_path: Path,
+) -> None:
+    """パス文法、宣言の未知キー、資産JSONの重複キーを拒否する。"""
+    declarations = _contract_asset_declarations()
+    declarations["claims"]["collections"][0]["id"] = "nested.id"
+    with pytest.raises(profile_loader.ProfileError, match="限定文法"):
+        _profile_with_assets(tmp_path, declarations)
+
+    declarations = _contract_asset_declarations()
+    declarations["claims"]["unknown"] = True
+    with pytest.raises(profile_loader.ProfileError, match="未知フィールド"):
+        _profile_with_assets(tmp_path, declarations)
+
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text(
+        '{"schema_version":1,"claims":[],"claims":[]}',
+        encoding="utf-8",
+    )
+    declarations = {
+        "claims": {
+            "path": str(duplicate),
+            "identity": {"schema_version": 1, "required_top_keys": ["claims"]},
+            "collections": [{"items": "$.claims[*]", "id": "id", "namespace": "claim"}],
+        }
+    }
+    profile = _profile_with_assets(tmp_path, declarations)
+    with pytest.raises(profile_loader.ProfileError, match="JSONキー.*重複"):
+        profile_loader.load_assets(profile)
+
+
+def _id_asset_declaration(
+    path: Path,
+    ids: list[str],
+    *,
+    namespace: str,
+    normalize: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """合成ID資産を書き、collection宣言を返す。"""
+    _write_json(path, {"schema_version": 1, "items": [{"id": value} for value in ids]})
+    declaration: dict[str, Any] = {
+        "path": str(path),
+        "identity": {"schema_version": 1, "required_top_keys": ["items"]},
+        "collections": [
+            {"items": "$.items[*]", "id": "id", "namespace": namespace}
+        ],
+    }
+    if normalize is not None:
+        declaration["normalize"] = normalize
+    return declaration
+
+
+def _normalizer(
+    *,
+    strip_prefixes: list[str] | None = None,
+    separator: str = "-",
+    aliases: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    """テスト用の単一正規化宣言を返す。"""
+    return {
+        "strip_prefixes": strip_prefixes or [],
+        "case": "preserve",
+        "separator": separator,
+        "aliases": aliases or {},
+    }
+
+
+def test_normalization_supports_prefix_alias_and_cross_namespace_names(
+    tmp_path: Path,
+) -> None:
+    """明示prefix/alias統合を許容し、別名前空間は衝突させない。"""
+    declarations = {
+        "claims": _id_asset_declaration(
+            tmp_path / "claims.json",
+            ["DDL:orders", "orders", "legacy_orders"],
+            namespace="table",
+            normalize=_normalizer(
+                strip_prefixes=["DDL:"],
+                aliases={"table": {"legacy_orders": "orders"}},
+            ),
+        ),
+        "auth_catalog": _id_asset_declaration(
+            tmp_path / "auth.json",
+            ["orders"],
+            namespace="auth",
+        ),
+    }
+    profile = _profile_with_assets(tmp_path, declarations)
+    loaded = profile_loader.load_assets(profile)
+
+    table_ids = {
+        identifier
+        for record in loaded.assets["claims"].collections[0].records
+        for identifier in record.identifiers
+    }
+    auth_ids = {
+        identifier
+        for record in loaded.assets["auth_catalog"].collections[0].records
+        for identifier in record.identifiers
+    }
+    assert table_ids == {profile_loader.NamespacedId("table", "orders")}
+    assert auth_ids == {profile_loader.NamespacedId("auth", "orders")}
+
+
+def test_normalization_rejects_namespace_collision_alias_conflict_and_cycle(
+    tmp_path: Path,
+) -> None:
+    """暗黙衝突、alias競合、canonical再aliasの循環を拒否する。"""
+    collision = {
+        "claims": _id_asset_declaration(
+            tmp_path / "collision.json",
+            ["a_b", "a-b"],
+            namespace="item",
+            normalize=_normalizer(),
+        )
+    }
+    with pytest.raises(profile_loader.ProfileError, match="異なる元ID.*衝突"):
+        profile_loader.load_assets(_profile_with_assets(tmp_path, collision))
+
+    conflict = {
+        "claims": _id_asset_declaration(
+            tmp_path / "conflict.json",
+            ["a_b"],
+            namespace="item",
+            normalize=_normalizer(
+                aliases={"item": {"a_b": "one", "a-b": "two"}}
+            ),
+        )
+    }
+    with pytest.raises(profile_loader.ProfileError, match="2つのcanonical"):
+        _profile_with_assets(tmp_path, conflict)
+
+    cycle = {
+        "claims": _id_asset_declaration(
+            tmp_path / "cycle.json",
+            ["a"],
+            namespace="item",
+            normalize=_normalizer(aliases={"item": {"a": "b", "b": "a"}}),
+        )
+    }
+    with pytest.raises(profile_loader.ProfileError, match="再aliasまたは循環"):
+        _profile_with_assets(tmp_path, cycle)
+
+
+@pytest.mark.parametrize(
+    ("check_id", "assets", "extractors", "collection_sets", "message"),
+    (
+        ("forbidden-structure", {}, [], [], "必要なassets"),
+        (
+            "cross-consistency",
+            _load_json(PROFILE_SAMPLE_DIR / "profiles/data-model-like.json")["assets"],
+            [],
+            [],
+            "structure_extractorsが必要",
+        ),
+        ("collection-consistency", {}, [], [], "collection_setsが必要"),
+    ),
+    ids=("assets", "structure-extractors", "collection-sets"),
+)
+def test_required_checks_reject_missing_asset_declarations(
+    tmp_path: Path,
+    check_id: str,
+    assets: dict[str, Any],
+    extractors: list[dict[str, Any]],
+    collection_sets: list[dict[str, Any]],
+    message: str,
+) -> None:
+    """新必須検査と資産・抽出器・集合宣言を連動させる。"""
+    with pytest.raises(profile_loader.ProfileError, match=message):
+        _profile_with_assets(
+            tmp_path,
+            assets,
+            structure_extractors=extractors,
+            collection_sets=collection_sets,
+            required_checks=(check_id,),
+        )
+
+
+def _sample_profiles() -> tuple[Any, ...]:
+    """検証済みサンプルプロファイル列を返す。"""
+    registry = profile_loader.load_registry(
+        SAMPLE_REGISTRY_PATH,
+        root=REPOSITORY_ROOT,
+        schema_dir=SCHEMAS_DIR,
+    )
+    return profile_loader.resolve_profiles(registry, root=REPOSITORY_ROOT)
+
+
+def _copy_sample_repository(tmp_path: Path) -> Path:
+    """サンプル木とスキーマを一時リポジトリへ複製する。"""
+    root = tmp_path / "sample-repository"
+    shutil.copytree(
+        PROFILE_SAMPLE_DIR,
+        root / "tests/fixtures/profile-sample",
+    )
+    shutil.copytree(SCHEMAS_DIR, root / "scripts/design_relations/schemas")
+    return root
+
+
+def test_sample_extractors_derive_four_kinds_and_two_derived_rules() -> None:
+    """サンプルの4 kindとinverse/closureの導出を固定する。"""
+    profile = _sample_profiles()[1]
+    assets = profile_loader.load_assets(profile)
+    assert len(assets.joins) == 1
+    assert assets.joins[0].target.id == "FR-001"
+    text = profile.document.read_text(encoding="utf-8")
+    manifest = _load_json(profile.manifest)
+    actual = profile_loader.extract_structures(
+        profile,
+        assets,
+        text=text,
+        manifest=manifest,
+    )
+
+    assert {structures[0].kind for structures in actual.values()} == {
+        "relation",
+        "transition",
+        "column-role",
+        "reference",
+    }
+    inverse = actual["implicit-refs"][0]
+    relation = actual["relations"][0]
+    assert (inverse.source, inverse.target) == (relation.target, relation.source)
+
+    raw = dict(profile.raw)
+    raw["structure_extractors"] = [
+        {
+            "id": "edges",
+            "source": "manifest",
+                "kind": "edge",
+                "map": {
+                    "source": "node_id",
+                    "target": "node_ids[*]",
+                    "direction": "source->target",
+                    "participants": ["node_id", "node_ids[*]"],
+            },
+        },
+        {
+            "id": "closure",
+            "source": "derived",
+            "kind": "closure",
+            "from": "edges",
+            "rule": "transitive-closure",
+        },
+    ]
+    closure_profile = replace(profile, raw=raw)
+    closure_manifest = {
+        "relations": [
+            {"node_id": "a", "node_ids": ["b"]},
+            {"node_id": "b", "node_ids": ["c"]},
+        ]
+    }
+    without_forbidden = replace(
+        assets,
+        assets={
+            name: asset for name, asset in assets.assets.items() if name != "forbidden"
+        },
+    )
+    derived = profile_loader.extract_structures(
+        closure_profile,
+        without_forbidden,
+        text=text,
+        manifest=closure_manifest,
+    )
+    assert {
+        (structure.source.id, structure.target.id)
+        for structure in derived["closure"]
+    } == {("a", "b"), ("a", "c"), ("b", "c")}
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        ("header", "表ヘッダーが見つかりません"),
+        ("column", "column=9.*範囲外"),
+        ("alias", "未登録の別名またはID"),
+        ("zero", "構造を1件も得られません"),
+    ),
+    ids=("header-mismatch", "column-offset", "unregistered-alias", "zero-result"),
+)
+def test_structure_extractors_fail_closed(
+    mutation: str,
+    message: str,
+) -> None:
+    """表不一致、列ずれ、未登録別名、抽出0件を拒否する。"""
+    profile = _sample_profiles()[1]
+    assets = profile_loader.load_assets(profile)
+    text = profile.document.read_text(encoding="utf-8")
+    manifest = _load_json(profile.manifest)
+    raw = json.loads(json.dumps(profile.raw))
+    if mutation == "header":
+        text = text.replace("| 遷移 | 条件 |", "| 別の列 | 条件 |")
+    elif mutation == "column":
+        raw["structure_extractors"][1]["map"]["source"]["column"] = 9
+    elif mutation == "alias":
+        text = text.replace("| tenant_id | app_role |", "| tenant_id | unknown_role |")
+    else:
+        manifest["relations"] = []
+    mutated = replace(profile, raw=raw)
+
+    with pytest.raises(profile_loader.ProfileError, match=message):
+        profile_loader.extract_structures(
+            mutated,
+            assets,
+            text=text,
+            manifest=manifest,
+        )
+
+
+def test_structure_extractors_must_cover_every_forbidden_kind() -> None:
+    """forbiddenに現れるkindを抽出器の完全集合で覆う。"""
+    profile = _sample_profiles()[1]
+    assets = profile_loader.load_assets(profile)
+    raw = json.loads(json.dumps(profile.raw))
+    raw["structure_extractors"] = raw["structure_extractors"][:-1]
+
+    with pytest.raises(profile_loader.ProfileError, match="reference"):
+        profile_loader.extract_structures(
+            replace(profile, raw=raw),
+            assets,
+            text=profile.document.read_text(encoding="utf-8"),
+            manifest=_load_json(profile.manifest),
+        )
+
+
+def test_sample_collection_sets_cover_all_three_relations_and_report_differences() -> None:
+    """exact/subset/disjointを評価し、違反時は差集合を示す。"""
+    profile = _sample_profiles()[1]
+    assets = profile_loader.load_assets(profile)
+    manifest = _load_json(profile.manifest)
+    results = profile_loader.evaluate_collection_sets(
+        profile,
+        assets,
+        manifest=manifest,
+    )
+
+    assert {result.relation for result in results} == {"exact", "subset", "disjoint"}
+    assert all(result.satisfied for result in results)
+
+    raw = json.loads(json.dumps(profile.raw))
+    raw["collection_sets"][0]["right"] = {
+        "asset": "claims",
+        "collection": 0,
+        "key": "source_id",
+    }
+    mismatched = profile_loader.evaluate_collection_sets(
+        replace(profile, raw=raw),
+        assets,
+        manifest=manifest,
+    )[0]
+    assert not mismatched.satisfied
+    assert mismatched.right_only == frozenset({"R-SAMPLE"})
+    assert "right-only=['R-SAMPLE']" in str(mismatched.reason)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("extractor", "ddl-structure-collection", "map"),
+)
+def test_registry_gating_pin_detects_structural_declaration_changes(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """抽出器・DDL構造collection・map改変をゲートpinで検出する。"""
+    root = _copy_sample_repository(tmp_path)
+    profile_path = root / "tests/fixtures/profile-sample/profiles/data-model-like.json"
+    value = _load_json(profile_path)
+    if mutation == "extractor":
+        value["structure_extractors"].pop()
+    elif mutation == "ddl-structure-collection":
+        value["assets"]["ddl_elements"]["collections"].pop(2)
+    else:
+        value["structure_extractors"][0]["map"]["direction"] = "target->source"
+    _write_json(profile_path, value)
+    registry_path = root / "tests/fixtures/profile-sample/profiles/registry.json"
+    registry = profile_loader.load_registry(registry_path, root=root)
+
+    with pytest.raises(profile_loader.ProfileError, match="profile_gating_digest"):
+        profile_loader.resolve_profiles(registry, root=root)
+
+
+def test_registry_asset_pins_reject_missing_pin_and_one_byte_change(
+    tmp_path: Path,
+) -> None:
+    """必須資産pinの欠落とファイル1バイト改変を検出する。"""
+    root = _copy_sample_repository(tmp_path)
+    registry_path = root / "tests/fixtures/profile-sample/profiles/registry.json"
+    registry_value = _load_json(registry_path)
+    del registry_value["profiles"][1]["pins"]["asset_digests"]["direct_requirements"]
+    _write_json(registry_path, registry_value)
+    registry = profile_loader.load_registry(registry_path, root=root)
+    with pytest.raises(profile_loader.ProfileError, match="pins.asset_digests"):
+        profile_loader.resolve_profiles(registry, root=root)
+
+    root = _copy_sample_repository(tmp_path / "byte-change")
+    target = root / "tests/fixtures/profile-sample/assets/direct-requirements.json"
+    target.write_bytes(target.read_bytes() + b" ")
+    registry_path = root / "tests/fixtures/profile-sample/profiles/registry.json"
+    registry = profile_loader.load_registry(registry_path, root=root)
+    with pytest.raises(profile_loader.ProfileError, match="asset_digests.*不一致"):
+        profile_loader.resolve_profiles(registry, root=root)
+
+
+def test_profile_sample_layout_shapes_and_data_model_registry() -> None:
+    """合成木の完全性、現行3資産との同形性、pin一致を固定する。"""
+    expected = {
+        "profiles/registry.json",
+        "profiles/profile.json",
+        "profiles/data-model-like.json",
+        "doc/document.md",
+        "doc/manifest.json",
+        "doc/defects.json",
+        "doc/invariants.json",
+        "doc/requirements.md",
+        "doc/req-universe.json",
+        "assets/requirement-claims.json",
+        "assets/auth-catalog.json",
+        "assets/ddl-elements.json",
+        "assets/auth-ddl-map.json",
+        "assets/product-ddl-map.json",
+        "assets/waiting.json",
+        "assets/forbidden.json",
+        "assets/direct-requirements.json",
+        "assets/expected-ids.json",
+        "assets/baseline-digest.txt",
+    }
+    assert {
+        str(path.relative_to(PROFILE_SAMPLE_DIR))
+        for path in PROFILE_SAMPLE_DIR.rglob("*")
+        if path.is_file()
+    } == expected
+    assert {
+        path.name for path in (PROFILE_SAMPLE_DIR / "profiles").glob("*.json")
+    } == {"registry.json", "profile.json", "data-model-like.json"}
+
+    for filename, collection in (
+        ("requirement-claims.json", "claims"),
+        ("auth-catalog.json", "entries"),
+        ("ddl-elements.json", "tables"),
+    ):
+        actual = _load_json(CONTRACT_AUTHZ_DIR / filename)
+        sample = _load_json(PROFILE_SAMPLE_DIR / "assets" / filename)
+        assert set(sample) == set(actual)
+        assert set(sample[collection][0]) == set(actual[collection][0])
+
+    profiles = _sample_profiles()
+    assert [profile.name for profile in profiles] == [
+        "sample-minimal",
+        "data-model-like",
+    ]
+    assert profiles[1].required_checks == set(profile_loader.CHECK_IDS_ALL)
+
+    claims = _load_json(PROFILE_SAMPLE_DIR / "assets/requirement-claims.json")
+    assert any(
+        claim["classification"] == "direct_requirement"
+        for claim in claims["claims"]
+    )
+    auth_map = _load_json(PROFILE_SAMPLE_DIR / "assets/auth-ddl-map.json")
+    assert all(entry["ddl_ids"] and entry["structures"] for entry in auth_map["entries"])
+    referenced_ids = {
+        ddl_id
+        for entry in auth_map["entries"]
+        for ddl_id in entry["ddl_ids"]
+    } | {
+        endpoint["id"]
+        for entry in auth_map["entries"]
+        for structure in entry["structures"]
+        for endpoint in (
+            structure["source"],
+            structure["target"],
+            *structure["participants"],
+        )
+    }
+    product_map = _load_json(PROFILE_SAMPLE_DIR / "assets/product-ddl-map.json")
+    assert referenced_ids <= {entry["ddl_id"] for entry in product_map["entries"]}

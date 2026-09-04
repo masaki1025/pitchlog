@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "input_manifest": {},
+  "classification_rules": {},
+  "basis_rules": {},
+  "layer_ids": [],
+  "claims": [
+    {
+      "source_id": "FR-001",
+      "source_kind": "requirement",
+      "source_heading_id": "FR-001",
+      "source_text": "合成直接要件",
+      "source_text_digest": "sample",
+      "classification": "direct_requirement",
+      "classification_rule_id": "sample",
+      "decision_digest": "sample"
+    },
+    {
+      "source_id": "R-SAMPLE",
+      "source_kind": "relation",
+      "source_heading_id": "R-SAMPLE",
+      "source_text": "合成関係",
+      "source_text_digest": "sample-relation",
+      "classification": "relation",
+      "classification_rule_id": "sample",
+      "decision_digest": "sample-relation"
+    }
+  ]
+}

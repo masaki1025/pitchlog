@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "name": "sample-minimal",
+      "file": "tests/fixtures/profile-sample/profiles/profile.json",
+      "document": "tests/fixtures/profile-sample/doc/requirements.md",
+      "must_require": ["manifest-consistency", "element-coverage", "enum-propagation", "condition-key", "route-matrix", "scope-declaration", "order-use", "citation-format", "noncanonical-reference", "link-target", "emphasis", "draft-metadata", "attribution", "ledger"],
+      "pins": {
+        "profile_gating_digest": "0d02640047c82ab19ec87f59f2ea56524a520a4aa971d495f99c87c8560d8e4d",
+        "invariants_digest": "efda656f6cac6098d0815ad8059a6c49fb56d9a90b8760419f32ab321c22eef6",
+        "asset_digests": {}
+      }
+    },
+    {
+      "name": "data-model-like",
+      "file": "tests/fixtures/profile-sample/profiles/data-model-like.json",
+      "document": "tests/fixtures/profile-sample/doc/document.md",
+      "must_require": ["manifest-consistency", "element-coverage", "enum-propagation", "condition-key", "route-matrix", "scope-declaration", "order-use", "citation-format", "noncanonical-reference", "link-target", "emphasis", "draft-metadata", "attribution", "ledger", "forbidden-structure", "cross-consistency", "collection-consistency", "baseline-digest", "unique-owner", "reference-class", "attribution-destination", "attribution-direct"],
+      "pins": {
+        "profile_gating_digest": "557fcaed5a06a985f5b191907731590c46a2c703dc11e0c26257ce5d75b95909",
+        "invariants_digest": "efda656f6cac6098d0815ad8059a6c49fb56d9a90b8760419f32ab321c22eef6",
+        "asset_digests": {
+          "claims": "70729535f07cf0497248555e2f890d34adf29e884a6fc5b43693225a56b00f1d",
+          "auth_catalog": "9f124365408312ef6ae12435e8f1a6638ceb43829c044e413aee7c84d00608ae",
+          "ddl_elements": "cb1c698e3a39f22717f26c02bbe95c09b5ed968c2d72fb118a4fcb3ca65948e2",
+          "auth_ddl_map": "25072f4bdc160cce8276f63ba12243454fdcd41d05d0fd91e64f3762e5ea5124",
+          "product_ddl_map": "4e0d02eb1f9f3f0c86fa9c7090e2c491ffeddcd6b8e449f3698992f00f9f8efa",
+          "waiting": "ba365727b91cfed4f10c2a9f427295cdb92908846ef6aa92c2e10a2d2b9ee024",
+          "forbidden": "47c4d991b9d09a41fefbce1818e9fd920bd9cb0532a9052274c9f1708aaf24e4",
+          "direct_requirements": "36a067bd78473b48a4b2e9674be725ae0ce393b88a6fcfa1e742864f28de425e",
+          "expected_ids": "c0af4afeee0d4d15e95529c0d2e68bd31ea37e3d6d2e4efede25163bcc1d256e",
+          "baseline_digest": "e6170b3628a872cd51d9dd4030ea2d983fa4798570cf9195adb87c105b5138f3"
+        }
+      }
+    }
+  ]
+}

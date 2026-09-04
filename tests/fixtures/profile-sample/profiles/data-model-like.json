@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "name": "data-model-like",
+  "document": "tests/fixtures/profile-sample/doc/document.md",
+  "manifest": "tests/fixtures/profile-sample/doc/manifest.json",
+  "defects": "tests/fixtures/profile-sample/doc/defects.json",
+  "invariants": "tests/fixtures/profile-sample/doc/invariants.json",
+  "requirements": "tests/fixtures/profile-sample/doc/requirements.md",
+  "universe": "tests/fixtures/profile-sample/doc/req-universe.json",
+  "direct_requirements": "tests/fixtures/profile-sample/assets/direct-requirements.json",
+  "section_id_grammar": "\\d+(?:-\\d+(?:-[A-Z])?)?",
+  "preamble": "first-h2",
+  "link_base_dir": "tests/fixtures/profile-sample/doc",
+  "noncanonical_scan_start": "^##\\s+2(?:[.\\s]|$)",
+  "noncanonical_path_pattern": "(?:docs/features/|\\.\\./features/)",
+  "declaration_table": {
+    "section": "2-5",
+    "row_prefix": "| **R-",
+    "column_count": 6,
+    "columns": ["関係 ID", "正本の表", "伝播先の表", "比較キー", "正本の要素全集合", "伝播先ごとの期待部分集合"]
+  },
+  "exclusion_vocabulary": ["対象外", "対象にならない", "含めない"],
+  "citation": {"legacy_prefixes": ["docs/legacy/", "../legacy/"], "legacy_infix": "/docs/legacy/", "inherit_bare_line_from_same_line": true},
+  "attribution": {
+    "section_re": "^11-3\\.",
+    "ledger_section": "11-5",
+    "kinds": ["同期側で決める", "境界として参照", "対象外"],
+    "assignment_header": ["ID", "区分", "本書の対応箇所または対象外の理由"],
+    "ledger_header": ["主張 ID", "主張内 ordinal", "参照先パス", "参照先の種別", "参照先の安定 ID", "判定", "是正内容"],
+    "reference_kinds": ["要件", "正本", "legacy"],
+    "ledger_verdicts": ["支持", "不支持", "射程過大", "誤典拠"],
+    "destination_grammar": "sync-v1"
+  },
+  "defect_id_namespaces": {"all": ["SP", "MT", "CI", "LG"], "machine": ["SP", "MT"]},
+  "invariant_kinds": ["forbidden-element", "row-selector", "row-contains", "section-contains", "exact-set", "cross-reference", "element-lookup", "row-scoped-forbidden", "any-of", "required-exclusion", "conditional-forbidden", "well-formedness", "absent-section"],
+  "required_checks": ["manifest-consistency", "element-coverage", "enum-propagation", "condition-key", "route-matrix", "scope-declaration", "order-use", "citation-format", "noncanonical-reference", "link-target", "emphasis", "draft-metadata", "attribution", "ledger", "forbidden-structure", "cross-consistency", "collection-consistency", "baseline-digest", "unique-owner", "reference-class", "attribution-destination", "attribution-direct"],
+  "not_applicable": {},
+  "assets": {
+    "claims": {
+      "path": "tests/fixtures/profile-sample/assets/requirement-claims.json",
+      "identity": {"schema_version": 1, "required_top_keys": ["input_manifest", "claims"]},
+      "collections": [{"items": "$.claims[*]", "id": "source_id", "namespace": "claim", "fields": {"classification": "classification"}}],
+      "normalize": {"strip_prefixes": ["DDL:"], "case": "preserve", "separator": "-", "aliases": {"table": {"legacy_orders": "orders"}}}
+    },
+    "auth_catalog": {
+      "path": "tests/fixtures/profile-sample/assets/auth-catalog.json",
+      "identity": {"schema_version": 1, "asset_kind": "authz_catalog"},
+      "collections": [{"items": "$.entries[*]", "id": "catalog_entry_id", "namespace": "auth"}],
+      "join": {"from_key": "requirement_claim_id", "to": "claims", "to_key": "source_id"}
+    },
+    "ddl_elements": {
+      "path": "tests/fixtures/profile-sample/assets/ddl-elements.json",
+      "identity": {"schema_version": 1, "asset_kind": "authz_candidate_ddl_manifest"},
+      "collections": [
+        {"items": "$.tables[*]", "id": "table_id", "namespace": "table"},
+        {"items": "$.tables[*]", "id": "policy_ids[*]", "namespace": "policy", "role": "reference"},
+        {"items": "$.policies[*]", "id": "policy_id", "namespace": "policy", "structure": {"kind": "reference", "source": "table_id", "target": "role_ids[*]", "direction": "source->target", "participants": ["table_id", "role_ids[*]"]}},
+        {"items": "$.policies[*]", "id": "role_ids[*]", "namespace": "role", "role": "reference"},
+        {"items": "$.roles[*]", "id": "role_id", "namespace": "role"}
+      ]
+    },
+    "auth_ddl_map": {
+      "path": "tests/fixtures/profile-sample/assets/auth-ddl-map.json",
+      "identity": {"schema_version": 1, "asset_kind": "auth_ddl_map"},
+      "collections": [{"items": "$.entries[*]", "id": "catalog_entry_id", "namespace": "auth", "refs": "ddl_ids[*]", "structures": "structures[*]"}]
+    },
+    "product_ddl_map": {
+      "path": "tests/fixtures/profile-sample/assets/product-ddl-map.json",
+      "identity": {"schema_version": 1, "asset_kind": "product_ddl_map"},
+      "collections": [{"items": "$.entries[*]", "id": "ddl_id", "namespace": "ddl", "fields": {"product_id": "product_id"}}]
+    },
+    "waiting": {
+      "path": "tests/fixtures/profile-sample/assets/waiting.json",
+      "identity": {"schema_version": 1, "asset_kind": "waiting_data_model"},
+      "collections": [{"items": "$.entries[*]", "id": "id", "namespace": "waiting", "fields": {"status": "status", "physical": "physical", "decision_section": "decision_section", "source_id": "source_id"}}]
+    },
+    "forbidden": {
+      "path": "tests/fixtures/profile-sample/assets/forbidden.json",
+      "identity": {"schema_version": 1, "asset_kind": "forbidden_data_model"},
+      "collections": [{"items": "$.entries[*]", "id": "id", "namespace": "forbidden", "fields": {"kind": "kind"}}]
+    },
+    "direct_requirements": {
+      "path": "tests/fixtures/profile-sample/assets/direct-requirements.json",
+      "identity": {"schema_version": 1, "asset_kind": "direct_requirements"},
+      "collections": [{"items": "$.ids[*]", "id": "value", "namespace": "claim"}]
+    },
+    "expected_ids": {
+      "path": "tests/fixtures/profile-sample/assets/expected-ids.json",
+      "identity": {"schema_version": 1, "asset_kind": "expected_ids"},
+      "collections": [{"items": "$.ids[*]", "id": "value", "namespace": "defect"}]
+    },
+    "baseline_digest": {
+      "path": "tests/fixtures/profile-sample/assets/baseline-digest.txt",
+      "identity": {"required_top_keys": []},
+      "collections": []
+    }
+  },
+  "structure_extractors": [
+    {"id": "relations", "source": "manifest", "kind": "relation", "map": {"source": "source_id", "target": "target_ids[*]", "direction": "source->target", "participants": ["source_id", "target_ids[*]"]}},
+    {"id": "transitions", "source": "document", "section": "7-2", "table": {"header_match": ["遷移", "条件"]}, "kind": "transition", "map": {"source": {"column": 0, "regex": "^(.+?) →", "namespace": "state"}, "target": {"column": 0, "regex": "→ (.+)$", "namespace": "state"}, "direction": "source->target", "participants": ["source", "target"]}},
+    {"id": "column-roles", "source": "document", "section": "4-2", "table": {"header_match": ["要素", "役割"]}, "kind": "column-role", "map": {"source": {"column": 0, "namespace": "column"}, "target": {"column": 1, "namespace": "role"}, "direction": "both", "participants": ["source", "target"]}},
+    {"id": "implicit-refs", "source": "derived", "from": "relations", "rule": "inverse", "kind": "reference"}
+  ],
+  "collection_sets": [
+    {"id": "direct-requirements-vs-claims", "relation": "exact", "left": {"asset": "claims", "collection": 0, "filter": {"field": "classification", "equals": "direct_requirement"}, "key": "source_id"}, "right": {"asset": "direct_requirements", "collection": 0, "key": "value"}},
+    {"id": "direct-requirements-subset-claims", "relation": "subset", "left": {"asset": "direct_requirements", "collection": 0, "key": "value"}, "right": {"asset": "claims", "collection": 0, "key": "source_id"}},
+    {"id": "forbidden-disjoint-manifest", "relation": "disjoint", "left": {"asset": "forbidden", "collection": 0, "key": "id"}, "right": {"manifest": "relations", "key": "id"}}
+  ],
+  "reference_policy": {"rules": [{"target_pattern": "**", "role": "normative"}]}
+}

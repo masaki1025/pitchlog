@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_catalog",
+  "input_manifest": {},
+  "origins": ["requirement"],
+  "route_scopes": [],
+  "entries": [
+    {
+      "catalog_entry_id": "AUTH-001",
+      "requirement_claim_id": "FR-001",
+      "origin": "requirement",
+      "layer": "database",
+      "db_basis_rule_id": "sample",
+      "source_text_digest": "sample",
+      "route_scope_id": "sample",
+      "catalog_test_owner": "sample",
+      "enforcement_test_owner": "sample"
+    }
+  ]
+}

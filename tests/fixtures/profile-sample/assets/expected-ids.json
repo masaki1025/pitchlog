@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "asset_kind": "expected_ids",
+  "oracle_context": {},
+  "ids": ["DEFECT-001"]
+}
