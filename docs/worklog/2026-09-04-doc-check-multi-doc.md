@@ -528,3 +528,72 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   **合成文書を既存 14 検査まで green にするのは本タスクの契約外**(TSK-250 が実文書で行う)。申し送りへ記録する
 - 検証(Claude): ruff/ty passed / **全体 1128 passed・失敗 0**(skip/xfail/xpass/deselected 0)/ 3 検査 rc 0 / fixture rc 1 / **`.github` の差分 0** / 収集 **1128**・基準 875 の欠落 0 /
   **本番の `profile_gating_digest` と `invariants_digest` はともに不変**・`not_applicable` 8 件・`assets` 空 / **引数なし実行の rc は変更前後で同一(0)**
+
+## ステップ 38/38 — 検証記録・A/B/C の exact-set・統合表・申し送り(Claude)
+
+### 基準線(design 14-1)
+
+| 項目 | 着手前(2026-09-04) | 完了時 |
+| --- | --- | --- |
+| `uv run pytest tests/` | 875 passed | **1128 passed・失敗 0** |
+| skipped / xfailed / xpassed / deselected | 0 | **すべて 0** |
+| 既存 node ID 875 件の包含 | (基準) | **欠落 0**(`comm -13` 空) |
+| 新規 node ID | — | **253**(`test_check_design_propagation` 129 / `test_doc_check_profile` 68 / `test_codex_run` 22 / `test_check_doc_coverage` 19 / `test_check_doc_profiles` 8 / `test_ci_wiring` 7) |
+| 基準ファイルの SHA-256 | `a07454fcc3e3bc9c…` | **同一(無変更 oracle)** |
+| `check_docs_status` / `check_design_propagation` / `check_doc_coverage`(引数なし) | green | **すべて rc 0** |
+| `--document tests/fixtures/sync-protocol-source.txt` | rc 1 | **rc 1** |
+| `ruff check .` / `ty check` | All checks passed | **All checks passed** |
+
+### A / B / C の exact-set(実 diff = `origin/develop...HEAD` の **47 ファイル**)
+
+**A = 全 47 ファイル**。内訳は次の 3 集合 + 文書 6 + oracle 1。
+
+**B(core-guard 対象の実行資産・**TSK-250 が未登録分を `guard_paths` へ登録**)= 38**
+- 既存登録済み(4): `scripts/check_design_propagation.py` / `scripts/check_doc_coverage.py` / `scripts/design_relations/defects.json` / `tests/test_check_design_propagation.py` / `tests/test_check_doc_coverage.py` / `tests/test_ci_wiring.py`(6)
+- 未登録・新設(32): `scripts/check_doc_profiles.py` / `scripts/doc_check_profile.py` / `scripts/doc_check_invariants.py` / `scripts/design_relations/profiles/{registry,sync-protocol}.json` /
+  `scripts/design_relations/invariants/sync-protocol.json` / `scripts/design_relations/schemas/{profile,registry,invariant,assets,runner-envelope}.schema.json` /
+  `tests/fixtures/structural-reasons-expected.json` / `tests/test_doc_check_profile.py` / `tests/test_check_doc_profiles.py` /
+  `tests/fixtures/profile-sample/profiles/{registry,profile,data-model-like}.json` / `.../doc/{document.md,manifest.json,defects.json,invariants.json,requirements.md,req-universe.json}` /
+  `.../assets/{requirement-claims,auth-catalog,ddl-elements,auth-ddl-map,product-ddl-map,waiting,forbidden,direct-requirements,expected-ids}.json` + `baseline-digest.txt`
+
+**C(実行資産だが core-guard 対象外・登録しない)= 2**: `.claude/scripts/codex_run.py`(変更)/ `tests/test_codex_run.py`(新設)。
+**条件付き要素 `tests/test_hooks.py` は「変更なし」で確定**(ステップ 1 で判定 — C は 2 件で exact)。
+
+**文書(6)**: `docs/features/doc-check-multi-doc/{plan,design,research}.md` / `baseline-node-ids-f92b5f8.txt` / `docs/worklog/2026-08-31-…md` / `docs/worklog/2026-09-04-…md`。
+**oracle(1)**: `scripts/design_relations/defects.json`(**+4 / −4 = MT-01 の 4 欄のみ**)。
+
+**A = B ∪ C ∪ 文書 ∪ oracle**、**B ∩ C = ∅** を実 diff で確認(oracle は B にも含まれる既存登録資産なので、集合表記では B に属する)。
+
+### 「反映なし」宣言との突合(plan 3 節)
+
+`req-universe.json` / `sync-protocol.json`(manifest) / `tests/fixtures/sync-protocol-source.txt` / `fixture-sha256.txt` / `.claude/core-areas.json` /
+設計書 / 台帳 / `docs/README.md` / `docs/design/sync-protocol.md` / `.github/workflows/ci.yml` — **すべて差分 0**(`git diff --numstat` で確認)。宣言と実装が一致。
+
+### 負例 fixture → 期待 check ID の統合表(実行で確認済み)
+
+| 負例の種類 | 期待 | 確認方法 |
+| --- | --- | --- |
+| scope の文法不一致トークン / 文書に無い節 | 終了 2 | `extract_scope` を直接実行(ステップ 7) |
+| 宣言必須 ID の宣言欠落 / legacy と宣言の重複 / 余分な宣言 / forbidden-only 違反 / 未知 ID | 終了 2 | 規則 1〜5 を実データで発火確認(ステップ 8) |
+| 旧述語と同値な変異(行スコープ = 別行移動 / 節スコープ = 別節移動・意味部欠落・ID 交換 / `exact-set` = 別 relation / `well-formedness` = 奇数行 2 行・ヘッダのみ奇数) | 各欠陥 ID が red | 構造 corpus 16 件 + 変異(ステップ 2・10〜19) |
+| MT-01: 節 1 の見出しがある文書 | `absent-section` で red | 評価器を直接実行(approved は適合・fixture は違反) |
+| 別名で同じ禁止構造 / 方向の違う同一辺 | `forbidden-structure` | ステップ 30 |
+| 空 map・脱落・過剰・refs 空・structures 空・participants 相違 / WAIT が本文に無い / AUTH が manifest に無い / 禁止方向 red・逆方向 green | `cross-consistency` | ステップ 31 |
+| 全件「対象外」/ 直接要件 1 件脱落 / 資産と母集合の同時縮小 | `attribution-direct` | ステップ 32 |
+| immutable 各欄の改変(`baseline` 反転含む)red / mutable は green / キー順・空白不変 / 重複キー 2 | `baseline-digest` | ステップ 33 |
+| 重複・欠落・過剰・許可外 step / `expected_ids` 空 | `unique-owner` | ステップ 33 |
+| feature・worklog・legacy を normative 参照 / 未一致参照 | `reference-class` | ステップ 35 |
+| 未解析 destination / 実在しない節 / 根拠行の欠落 | `attribution-destination` | ステップ 23・24 |
+| レジストリ不一致(脱落・未登録・重複・0 件)/ pins 不一致 / 完全分割違反 / 空理由 | 終了 2 | ステップ 5・27・37 |
+| 入れ子見出し・fenced code・否定形・空テンプレ | `has_filled_step_row` の 4 状態 | ステップ 1 |
+
+### 残余(TSK-250 への引き渡し時に明示する)
+
+- **合成サンプルの既存 14 検査のうち 4 件が fail**(`manifest-consistency` / `element-coverage` / `attribution` / `ledger`)。合成文書がそれらを満たしていないため。
+  plan ステップ 36 の合格条件(新 8 ID が pass or fail・`not_applicable` 0・envelope がスキーマ適合)は満たしており、**実文書での green 化は TSK-250 の責務**
+- **`feature_status.py` が「完了ステップに欠番がある」と表示**(まとめ委任の裁定 (a) による既知の表示。内訳は本 worklog の各節)
+
+### 申し送り(design 11 節・**24 項目**)
+
+PR 本文へ全 24 項目を転記する。とくに: ① CI は引数なし列挙(TSK-250 ステップ 22 の「明示引数」は不成立)② `guard_paths` 登録は TSK-250 の**最初の独立コミット**(B 集合 38 件)③ 台帳 H-78・H-79 の追記は TSK-250 ステップ 25
+④ **契約 5 の文言変更**(PO 裁定 (b) — 機構と実入力契約の責務分離)⑤ staging の木と作成順 ⑥ `auth_ddl_map` / `product_ddl_map` / `direct_requirements` / `expected_ids` は TSK-250 が作る ⑦ レジストリ entry の `must_require` + `pins`。
