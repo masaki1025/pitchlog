@@ -5,6 +5,7 @@ import {
   type SyncEventPath,
 } from './eventFieldRules'
 import {
+  buildSyncEventKindSet,
   EVENT_KIND_GROUP,
   EVENT_KIND_RULES,
   EVENT_PARTICIPATION,
@@ -26,6 +27,10 @@ import {
 } from './validateSyncEvent'
 
 type EventFields = SyncEvent['fields']
+
+const ADOPTED_EVENT_KINDS = buildSyncEventKindSet({
+  stateCorrectionAdopted: true,
+})
 
 function d1Fields(kind: EventKindId): EventFields {
   return {
@@ -93,7 +98,7 @@ const syncOrderSource: SourceEventContextResolver = () => ({
 })
 
 function eventFor(kind: EventKindId): SyncEvent {
-  return { kind, fields: structuredClone(VALID_FIELDS_BY_KIND[kind]) }
+  return { fields: structuredClone(VALID_FIELDS_BY_KIND[kind]) }
 }
 
 function pathFor(kind: EventKindId): SyncEventPath {
@@ -112,6 +117,7 @@ function contextFor(
 ): SyncEventValidationContext {
   return {
     path: pathFor(kind),
+    eventKinds: ADOPTED_EVENT_KINDS,
     sourceEventContextResolver: logicalCancellableSource,
     ...overrides,
   }
@@ -142,6 +148,19 @@ function expectRejected(
 }
 
 describe('validateSyncEvent', () => {
+  it('V5 をイベント種別の唯一の担い手とする', () => {
+    const hasOuterKind: 'kind' extends keyof SyncEvent ? true : false = false
+    const event = eventFor('1')
+    const eventWithContradictoryOuterValue = { kind: '12', ...event }
+
+    expect(hasOuterKind).toBe(false)
+    expect(Object.keys(event)).toEqual(['fields'])
+    expect(event.fields.V5).toBe('1')
+    expect(
+      checkSyncEvent(eventWithContradictoryOuterValue, contextFor('1')),
+    ).toEqual({ ok: true })
+  })
+
   it.each(EVENT_KIND_RULES)(
     '正例: 種別 $id の必須値を受理する',
     (eventKind) => {
@@ -188,6 +207,54 @@ describe('validateSyncEvent', () => {
       SYNC_EVENT_VIOLATION.MISSING_SLOT,
       'V1',
     )
+  })
+
+  it('V5 欠落を既存の必須スロット違反として拒否する', () => {
+    const event = eventFor('1')
+    delete event.fields.V5
+
+    expectRejected(
+      event,
+      contextFor('1'),
+      SYNC_EVENT_VIOLATION.MISSING_SLOT,
+      'V5',
+    )
+  })
+
+  it('V5 の未知の種別 ID を拒否する', () => {
+    const event = eventFor('1')
+    event.fields.V5 = 'unknown-kind'
+
+    expectRejected(
+      event,
+      contextFor('1'),
+      SYNC_EVENT_VIOLATION.UNKNOWN_KIND,
+      'unknown-kind',
+    )
+  })
+
+  it('FR-040 不採用集合では状態補正を未知の種別として拒否する', () => {
+    const event = eventFor('7')
+
+    expectRejected(
+      event,
+      contextFor('7', {
+        eventKinds: buildSyncEventKindSet({ stateCorrectionAdopted: false }),
+      }),
+      SYNC_EVENT_VIOLATION.UNKNOWN_KIND,
+      '7',
+    )
+  })
+
+  it('採用済み種別集合の未注入を fail-closed で拒否する', () => {
+    const event = eventFor('1')
+    // @ts-expect-error 採用済み種別集合の注入を型でも必須にする。
+    const context: SyncEventValidationContext = {
+      path: SYNC_EVENT_PATH.P1,
+      sourceEventContextResolver: logicalCancellableSource,
+    }
+
+    expectRejected(event, context, SYNC_EVENT_VIOLATION.UNKNOWN_KIND, '1')
   })
 
   it('N-2: 群 A の V2 欠落を拒否する', () => {
@@ -279,7 +346,10 @@ describe('validateSyncEvent', () => {
 
   it('N-7: 改訂版の resolver 未注入を fail-closed で拒否する', () => {
     const event = eventFor('9')
-    const context: SyncEventValidationContext = { path: SYNC_EVENT_PATH.P1 }
+    const context: SyncEventValidationContext = {
+      path: SYNC_EVENT_PATH.P1,
+      eventKinds: ADOPTED_EVENT_KINDS,
+    }
 
     expectRejected(
       event,
@@ -374,6 +444,28 @@ describe('validateSyncEvent', () => {
     )
   })
 
+  it.each(['余分な文字列キー', 'symbol キー'] as const)(
+    'N-10: V10 の%sを拒否する',
+    (extraKeyKind) => {
+      const reference = targetReference('2') as TargetEventReference &
+        Record<PropertyKey, unknown>
+      if (extraKeyKind === '余分な文字列キー') {
+        reference.extra = 'value'
+      } else {
+        reference[Symbol('extra')] = 'value'
+      }
+      const event = eventFor('2')
+      event.fields.V10 = reference
+
+      expectRejected(
+        event,
+        contextFor('2'),
+        SYNC_EVENT_VIOLATION.INVALID_COMPOSITE,
+        'V10',
+      )
+    },
+  )
+
   it('N-11: P3 の V11 欠落を拒否する', () => {
     const event = eventFor('10')
     delete event.fields.V11
@@ -400,7 +492,6 @@ describe('validateSyncEvent', () => {
 
   it('N-12: V12 と復旧世代を型と実行時の双方で拒否する', () => {
     const requestOnlyEvent: SyncEvent = {
-      kind: '1',
       fields: {
         ...VALID_FIELDS_BY_KIND['1'],
         // @ts-expect-error V12 は要求レベルでありイベントスロットではない。
@@ -408,7 +499,6 @@ describe('validateSyncEvent', () => {
       },
     }
     const recoveryGenerationEvent: SyncEvent = {
-      kind: '1',
       fields: {
         ...VALID_FIELDS_BY_KIND['1'],
         // @ts-expect-error 復旧世代はイベント値ではなく要求境界に属する。
@@ -430,20 +520,13 @@ describe('validateSyncEvent', () => {
     )
   })
 
-  it.each([
-    ['V1', 'V2', 'V2'],
-    ['V1', 'V3', 'V3'],
-    ['V2', 'V3', 'V3'],
-  ] as const)('識別子 %s と %s の同値を拒否する', (left, right, target) => {
+  it('V1・V2・V3 の生値が同じでも役割別スロットとして受理する', () => {
     const event = eventFor('1')
-    event.fields[right] = event.fields[left]
+    event.fields.V1 = 1
+    event.fields.V2 = 1
+    event.fields.V3 = 1
 
-    expectRejected(
-      event,
-      contextFor('1'),
-      SYNC_EVENT_VIOLATION.IDENTIFIER_COLLISION,
-      target,
-    )
+    expect(() => validateSyncEvent(event, contextFor('1'))).not.toThrow()
   })
 
   it('群 B に D1 付き経路、群 A に P3 を渡した場合を拒否する', () => {
@@ -482,6 +565,7 @@ describe('validateSyncEvent', () => {
     event.fields.V1 = undefined
     event.fields.V2 = null
     event.fields.V3 = false
+    event.fields.V5 = '3'
 
     expect(() => validateSyncEvent(event, contextFor('3'))).not.toThrow()
   })

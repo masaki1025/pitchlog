@@ -5,10 +5,8 @@ import {
   type EventFieldRule,
   type EventSlotId,
 } from './eventFieldRules'
-import type { EventKindId } from './eventKinds'
 
 export type SyncEvent = {
-  kind: EventKindId
   fields: Partial<Record<EventSlotId, unknown>>
 }
 
@@ -38,12 +36,19 @@ export const TARGET_EVENT_REFERENCE_ELEMENTS =
 export function isTargetEventReference(
   value: unknown,
 ): value is TargetEventReference {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false
+  }
+
+  const ownKeys = Reflect.ownKeys(value)
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    TARGET_EVENT_REFERENCE_ELEMENTS.every((element) =>
-      Object.prototype.hasOwnProperty.call(value, element),
+    ownKeys.length === TARGET_EVENT_REFERENCE_ELEMENTS.length &&
+    ownKeys.every(
+      (key) =>
+        typeof key === 'string' &&
+        TARGET_EVENT_REFERENCE_ELEMENTS.includes(
+          key as TargetEventReferenceElement,
+        ),
     )
   )
 }

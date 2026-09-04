@@ -3,7 +3,7 @@
 import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_RULES,
-  EVENT_IDENTIFIER_SLOT_IDS,
+  EVENT_KIND_SLOT_ID,
   EVENT_SLOT_IDS,
   isCancellableEventKind,
   resolveEventFieldPresence,
@@ -14,10 +14,8 @@ import {
 } from './eventFieldRules'
 import {
   EVENT_KIND_GROUP,
-  EVENT_KIND_RULES,
   EVENT_PARTICIPATION,
   type EventKind,
-  type EventKindId,
   type EventParticipation,
 } from './eventKinds'
 import { isTargetEventReference, type SyncEvent } from './syncEvent'
@@ -31,7 +29,6 @@ export const SYNC_EVENT_VIOLATION = {
   MISSING_SLOT: 'missing-slot',
   FORBIDDEN_SLOT: 'forbidden-slot',
   INVALID_COMPOSITE: 'invalid-composite',
-  IDENTIFIER_COLLISION: 'identifier-collision',
   INVALID_FIELD_CONDITION: 'invalid-field-condition',
 } as const
 
@@ -57,6 +54,7 @@ export type SourceEventContextResolver = (
 
 export type SyncEventValidationContext = {
   path: SyncEventPath
+  eventKinds: readonly EventKind[]
   sourceEventContextResolver?: SourceEventContextResolver
 }
 
@@ -110,8 +108,11 @@ function isSourceEventContext(value: unknown): value is SourceEventContext {
   )
 }
 
-function findEventKind(kind: EventKindId): EventKind | undefined {
-  return EVENT_KIND_RULES.find((candidate) => candidate.id === kind)
+function findEventKind(
+  kind: unknown,
+  eventKinds: readonly EventKind[],
+): EventKind | undefined {
+  return eventKinds.find((candidate) => candidate.id === kind)
 }
 
 function routeMatchesGroup(eventKind: EventKind, path: SyncEventPath): boolean {
@@ -160,25 +161,33 @@ export function checkSyncEvent(
   event: SyncEvent,
   context: SyncEventValidationContext,
 ): SyncEventValidationResult {
-  if (!SYNC_EVENT_PATH_SET.has(context.path)) {
-    return failure(SYNC_EVENT_VIOLATION.ROUTE_KIND_MISMATCH, event.kind)
-  }
-  const eventKind = findEventKind(event.kind)
-  if (!eventKind) {
-    return failure(SYNC_EVENT_VIOLATION.UNKNOWN_KIND, event.kind)
-  }
-  if (!routeMatchesGroup(eventKind, context.path)) {
-    return failure(SYNC_EVENT_VIOLATION.ROUTE_KIND_MISMATCH, eventKind.id)
-  }
-
   const fields: unknown = event.fields
   if (!isFieldRecord(fields)) {
-    return failure(SYNC_EVENT_VIOLATION.INVALID_FIELDS, eventKind.id)
+    return failure(SYNC_EVENT_VIOLATION.INVALID_FIELDS, EVENT_KIND_SLOT_ID)
   }
   for (const fieldKey of Reflect.ownKeys(fields)) {
     if (typeof fieldKey !== 'string' || !EVENT_SLOT_ID_SET.has(fieldKey)) {
       return failure(SYNC_EVENT_VIOLATION.UNKNOWN_SLOT, fieldKey)
     }
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(fields, EVENT_KIND_SLOT_ID)) {
+    return failure(SYNC_EVENT_VIOLATION.MISSING_SLOT, EVENT_KIND_SLOT_ID)
+  }
+  const kind = fields[EVENT_KIND_SLOT_ID]
+  if (!SYNC_EVENT_PATH_SET.has(context.path)) {
+    return failure(SYNC_EVENT_VIOLATION.ROUTE_KIND_MISMATCH, kind)
+  }
+  const eventKinds: unknown = context.eventKinds
+  if (!Array.isArray(eventKinds)) {
+    return failure(SYNC_EVENT_VIOLATION.UNKNOWN_KIND, kind)
+  }
+  const eventKind = findEventKind(kind, eventKinds as readonly EventKind[])
+  if (!eventKind) {
+    return failure(SYNC_EVENT_VIOLATION.UNKNOWN_KIND, kind)
+  }
+  if (!routeMatchesGroup(eventKind, context.path)) {
+    return failure(SYNC_EVENT_VIOLATION.ROUTE_KIND_MISMATCH, eventKind.id)
   }
 
   const kindContext = resolveKindContext(event, eventKind, context)
@@ -216,30 +225,6 @@ export function checkSyncEvent(
       !isTargetEventReference(fields[slotId])
     ) {
       return failure(SYNC_EVENT_VIOLATION.INVALID_COMPOSITE, slotId)
-    }
-  }
-
-  for (
-    let leftIndex = 0;
-    leftIndex < EVENT_IDENTIFIER_SLOT_IDS.length;
-    leftIndex += 1
-  ) {
-    const leftSlot = EVENT_IDENTIFIER_SLOT_IDS[leftIndex]!
-    if (!Object.prototype.hasOwnProperty.call(fields, leftSlot)) {
-      continue
-    }
-    for (
-      let rightIndex = leftIndex + 1;
-      rightIndex < EVENT_IDENTIFIER_SLOT_IDS.length;
-      rightIndex += 1
-    ) {
-      const rightSlot = EVENT_IDENTIFIER_SLOT_IDS[rightIndex]!
-      if (
-        Object.prototype.hasOwnProperty.call(fields, rightSlot) &&
-        Object.is(fields[leftSlot], fields[rightSlot])
-      ) {
-        return failure(SYNC_EVENT_VIOLATION.IDENTIFIER_COLLISION, rightSlot)
-      }
     }
   }
 

@@ -419,6 +419,26 @@ describe('canonOracle', () => {
     },
   )
 
+  it.each([
+    ['R-BOUNDARY', 'B1'],
+    ['R-P3-BOUNDARY', 'B8'],
+  ] as const)(
+    '%s の射程外行 %s の欠落を fail-closed で拒否する',
+    (relationId, removedId) => {
+      const mutatedRelations = structuredClone(syncProtocolRelations)
+      const sourceElements = mutatedRelations[relationId].source_elements
+      const targetIndex = sourceElements.findIndex((element) =>
+        element.startsWith(`${removedId}:`),
+      )
+
+      expect(targetIndex).toBeGreaterThanOrEqual(0)
+      sourceElements.splice(targetIndex, 1)
+      expect(() =>
+        readCanonIdempotencyCollisionRules(mutatedRelations),
+      ).toThrowError(/既知 ID 集合/)
+    },
+  )
+
   it('実装対象の右辺変更を逐語照合で検出する', () => {
     const mutatedRelations = structuredClone(syncProtocolRelations)
     const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
@@ -464,6 +484,20 @@ describe('canonOracle', () => {
     expect(() =>
       readCanonTemporaryIdMappingRules(mutatedRelations),
     ).toThrowError(/未知の ID/)
+  })
+
+  it('R-TEMP-ID-MAPPING の射程外行 C1 の欠落を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TEMP-ID-MAPPING'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('C1:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements.splice(targetIndex, 1)
+    expect(() =>
+      readCanonTemporaryIdMappingRules(mutatedRelations),
+    ).toThrowError(/既知 ID 集合/)
   })
 
   it('C2・C3 の右辺変更を逐語照合で検出する', () => {

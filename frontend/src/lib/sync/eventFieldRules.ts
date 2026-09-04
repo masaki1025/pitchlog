@@ -143,6 +143,8 @@ export const EVENT_IDENTIFIER_SLOT_IDS = [
   'V3',
 ] as const satisfies readonly EventSlotId[]
 
+export const EVENT_KIND_SLOT_ID = 'V5' as const satisfies EventSlotId
+
 export const SYNC_EVENT_PATH = {
   P1: 'P1',
   P2: 'P2',

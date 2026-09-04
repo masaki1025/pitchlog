@@ -436,6 +436,7 @@ type OutOfScopeId = Readonly<{
   reason: string
 }>
 
+// 射程外行は ID の存在だけを照合し、右辺を読まないため、右辺だけの変更は検出しない。
 export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
   [D1_BOUNDARY_RELATION_ID]: [
     { id: 'B1', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
@@ -489,11 +490,36 @@ const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {
   ),
 } as const
 
+const EXPECTED_IDEMPOTENCY_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>([
+    ...IMPLEMENTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
+    ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
+  ]),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>([
+    ...IMPLEMENTED_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
+    ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
+  ]),
+} as const
+
 export type CanonIdempotencyCollisionRule = Readonly<{
   relationId: IdempotencyRelationId
   id: string
   rightHandSide: string
 }>
+
+function assertExactKnownIds(
+  relationId: string,
+  seenIds: ReadonlySet<string>,
+  expectedIds: ReadonlySet<string>,
+): void {
+  const missingIds = [...expectedIds].filter((id) => !seenIds.has(id))
+  const unexpectedIds = [...seenIds].filter((id) => !expectedIds.has(id))
+  if (missingIds.length > 0 || unexpectedIds.length > 0) {
+    throw new Error(
+      `${relationId} の既知 ID 集合が一致しません: 不足=${missingIds.join(',')} 超過=${unexpectedIds.join(',')}`,
+    )
+  }
+}
 
 function parseIdempotencyRelation(
   relationId: IdempotencyRelationId,
@@ -539,13 +565,7 @@ function parseIdempotencyRelation(
     }
   }
 
-  for (const implementedId of IMPLEMENTED_IDEMPOTENCY_IDS[relationId]) {
-    if (!seenIds.has(implementedId)) {
-      throw new Error(
-        `${relationId} の実装対象 ID が不足しています: ${implementedId}`,
-      )
-    }
-  }
+  assertExactKnownIds(relationId, seenIds, EXPECTED_IDEMPOTENCY_IDS[relationId])
   return Object.freeze(rules)
 }
 
@@ -581,6 +601,7 @@ export function readCanonIdempotencyCollisionRules(
   )
 }
 
+// 射程外行は ID の存在だけを照合し、右辺を読まないため、右辺だけの変更は検出しない。
 export const CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE = [
   { id: 'C1', reason: '応答で写像を返す7章の契約に依存するため' },
   { id: 'C4', reason: '写像確定後の状態遷移を定める7章の契約に依存するため' },
@@ -590,6 +611,10 @@ const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3'])
 const OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS = new Set<string>(
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
 )
+const EXPECTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>([
+  ...IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS,
+  ...OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS,
+])
 
 export type CanonTemporaryIdMappingRule = Readonly<{
   id: string
@@ -634,13 +659,11 @@ export function parseCanonTemporaryIdMappingRules(
     }
   }
 
-  for (const implementedId of IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS) {
-    if (!seenIds.has(implementedId)) {
-      throw new Error(
-        `R-TEMP-ID-MAPPING の実装対象 ID が不足しています: ${implementedId}`,
-      )
-    }
-  }
+  assertExactKnownIds(
+    TEMPORARY_ID_MAPPING_RELATION_ID,
+    seenIds,
+    EXPECTED_TEMPORARY_ID_MAPPING_IDS,
+  )
   return Object.freeze(rules)
 }
 

@@ -146,6 +146,16 @@ export type V12BindingVerifier = (input: {
   readonly request: RequestBoundaryEnvelope
 }) => boolean
 
+export type RecoveryGenerationVerifier = (input: {
+  readonly recoveryGenerationAtCreation: unknown
+  readonly request: RequestBoundaryEnvelope
+}) => boolean
+
+export type RequestBoundaryVerifiers = Readonly<{
+  v12Binding?: V12BindingVerifier
+  recoveryGeneration?: RecoveryGenerationVerifier
+}>
+
 export type RequestBoundaryCheckResult =
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; result: RequestBoundaryResult }>
@@ -187,7 +197,7 @@ function ruleMatches(
 
 export function checkRequestBoundary(
   request: RequestBoundaryEnvelope,
-  verifier?: V12BindingVerifier,
+  verifiers: RequestBoundaryVerifiers = {},
 ): RequestBoundaryCheckResult {
   let required: boolean | undefined
   let failureResult: RequestBoundaryResult | undefined
@@ -211,6 +221,25 @@ export function checkRequestBoundary(
     }
   }
 
+  if (request.path === SYNC_EVENT_PATH.P3) {
+    const verifier = verifiers.recoveryGeneration
+    if (verifier === undefined) {
+      return { ok: false, result: REQUEST_BOUNDARY_RESULT.B9 }
+    }
+    try {
+      if (
+        !verifier({
+          recoveryGenerationAtCreation: request.recoveryGenerationAtCreation,
+          request,
+        })
+      ) {
+        return { ok: false, result: REQUEST_BOUNDARY_RESULT.B9 }
+      }
+    } catch {
+      return { ok: false, result: REQUEST_BOUNDARY_RESULT.B9 }
+    }
+  }
+
   if (required === false) {
     return { ok: true }
   }
@@ -229,6 +258,7 @@ export function checkRequestBoundary(
     requestOnlyId,
   )
 
+  const verifier = verifiers.v12Binding
   if (!hasValue || verifier === undefined) {
     return { ok: false, result: failureResult }
   }
@@ -249,9 +279,9 @@ export function checkRequestBoundary(
 
 export function validateRequestBoundary(
   request: RequestBoundaryEnvelope,
-  verifier?: V12BindingVerifier,
+  verifiers: RequestBoundaryVerifiers = {},
 ): void {
-  const result = checkRequestBoundary(request, verifier)
+  const result = checkRequestBoundary(request, verifiers)
 
   if (!result.ok) {
     throw new RequestBoundaryError(result.result)

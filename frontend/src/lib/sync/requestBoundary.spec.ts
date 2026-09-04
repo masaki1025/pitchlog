@@ -6,6 +6,7 @@ import {
   type EventSlotId,
   type RequestOnlyId,
 } from './eventFieldRules'
+import { buildSyncEventKindSet } from './eventKinds'
 import type { SyncEvent } from './syncEvent'
 import { checkSyncEvent, SYNC_EVENT_VIOLATION } from './validateSyncEvent'
 import {
@@ -17,6 +18,7 @@ import {
   V12_BINDING_COMPONENTS,
   V12_BOUNDARY_RULES,
   validateRequestBoundary,
+  type RecoveryGenerationVerifier,
   type RequestBoundaryEnvelope,
   type V12BindingVerifier,
 } from './requestBoundary'
@@ -71,16 +73,21 @@ function inProgressP3Request(
 
 function endedP3Request(
   requestOnlyValues: Partial<Record<RequestOnlyId, unknown>> = {},
+  recoveryGenerationAtCreation: unknown = {},
 ): RequestBoundaryEnvelope {
   return {
     path: SYNC_EVENT_PATH.P3,
     p3State: P3_REQUEST_STATE.ENDED,
     requestValues: requestOnlyValues,
-    recoveryGenerationAtCreation: {},
+    recoveryGenerationAtCreation,
   }
 }
 
 const acceptsBinding: V12BindingVerifier = () => true
+const acceptsRecoveryGeneration: RecoveryGenerationVerifier = () => true
+const adoptedEventKinds = buildSyncEventKindSet({
+  stateCorrectionAdopted: true,
+})
 
 describe('requestBoundary', () => {
   it.each(EXPECTED_VF_ROWS)(
@@ -104,14 +111,20 @@ describe('requestBoundary', () => {
         requestValues: {},
       } as RequestBoundaryEnvelope
 
-      expect(checkRequestBoundary(request, acceptsBinding)).toEqual({
+      expect(
+        checkRequestBoundary(request, { v12Binding: acceptsBinding }),
+      ).toEqual({
         ok: true,
       })
-      expect(checkRequestBoundary(request, () => false)).toEqual({
+      expect(
+        checkRequestBoundary(request, { v12Binding: () => false }),
+      ).toEqual({
         ok: false,
         result: REQUEST_BOUNDARY_RESULT.B4,
       })
-      expect(checkRequestBoundary(missingValue, acceptsBinding)).toEqual({
+      expect(
+        checkRequestBoundary(missingValue, { v12Binding: acceptsBinding }),
+      ).toEqual({
         ok: false,
         result: REQUEST_BOUNDARY_RESULT.B4,
       })
@@ -125,25 +138,139 @@ describe('requestBoundary', () => {
       requestValues: {},
     } as RequestBoundaryEnvelope
 
-    expect(checkRequestBoundary(request, acceptsBinding)).toEqual({ ok: true })
-    expect(checkRequestBoundary(request, () => false)).toEqual({
+    const recoveryGeneration = acceptsRecoveryGeneration
+
+    expect(
+      checkRequestBoundary(request, {
+        recoveryGeneration,
+        v12Binding: acceptsBinding,
+      }),
+    ).toEqual({ ok: true })
+    expect(
+      checkRequestBoundary(request, {
+        recoveryGeneration,
+        v12Binding: () => false,
+      }),
+    ).toEqual({
       ok: false,
       result: REQUEST_BOUNDARY_RESULT.B9,
     })
-    expect(checkRequestBoundary(missingValue, acceptsBinding)).toEqual({
+    expect(
+      checkRequestBoundary(missingValue, {
+        recoveryGeneration,
+        v12Binding: acceptsBinding,
+      }),
+    ).toEqual({
       ok: false,
       result: REQUEST_BOUNDARY_RESULT.B9,
     })
   })
 
-  it('VF3: 終了後 P3 は V12 と verifier を不要とする', () => {
+  it('VF3: 終了後 P3 は V12 不要でも復旧世代照合を必要とする', () => {
     const verifier = vi.fn<V12BindingVerifier>(() => false)
+    const recoveryGeneration = vi.fn<RecoveryGenerationVerifier>(() => true)
 
-    expect(checkRequestBoundary(endedP3Request())).toEqual({ ok: true })
+    // VF3 が不要とするのは V12 だけであり、復旧世代照合は終了後にも行う。
     expect(
-      checkRequestBoundary(endedP3Request(requestValues({})), verifier),
+      checkRequestBoundary(endedP3Request(), {
+        recoveryGeneration,
+        v12Binding: verifier,
+      }),
     ).toEqual({ ok: true })
+    expect(
+      checkRequestBoundary(endedP3Request(requestValues({})), {
+        recoveryGeneration,
+        v12Binding: verifier,
+      }),
+    ).toEqual({ ok: true })
+    expect(recoveryGeneration).toHaveBeenCalledTimes(2)
     expect(verifier).not.toHaveBeenCalled()
+  })
+
+  it('終了後 P3 の旧復旧世代を B9 へ写す', () => {
+    const recoveryGenerationAtCreation = { 世代: '復元前' }
+    const request = endedP3Request({}, recoveryGenerationAtCreation)
+    const recoveryGeneration = vi.fn<RecoveryGenerationVerifier>(() => false)
+
+    expect(checkRequestBoundary(request, { recoveryGeneration })).toEqual({
+      ok: false,
+      result: REQUEST_BOUNDARY_RESULT.B9,
+    })
+    expect(recoveryGeneration).toHaveBeenCalledWith({
+      recoveryGenerationAtCreation,
+      request,
+    })
+  })
+
+  it('進行中 P3 の旧復旧世代を B9 へ写し、V12 を照合しない', () => {
+    const v12Binding = vi.fn<V12BindingVerifier>(() => true)
+
+    expect(
+      checkRequestBoundary(inProgressP3Request(), {
+        recoveryGeneration: () => false,
+        v12Binding,
+      }),
+    ).toEqual({
+      ok: false,
+      result: REQUEST_BOUNDARY_RESULT.B9,
+    })
+    expect(v12Binding).not.toHaveBeenCalled()
+  })
+
+  it('P3 の復旧世代 verifier 未注入を fail-closed で拒否する', () => {
+    expect(
+      checkRequestBoundary(inProgressP3Request(), {
+        v12Binding: acceptsBinding,
+      }),
+    ).toEqual({
+      ok: false,
+      result: REQUEST_BOUNDARY_RESULT.B9,
+    })
+    expect(checkRequestBoundary(endedP3Request())).toEqual({
+      ok: false,
+      result: REQUEST_BOUNDARY_RESULT.B9,
+    })
+    expect(() => validateRequestBoundary(endedP3Request())).toThrowError(
+      RequestBoundaryError,
+    )
+  })
+
+  it.each([
+    ['進行中', inProgressP3Request()],
+    ['終了後', endedP3Request()],
+  ] as const)(
+    '%s P3 で復旧世代 verifier の例外を fail-closed で拒否する',
+    (_, request) => {
+      const v12Binding = vi.fn<V12BindingVerifier>(() => true)
+      const recoveryGeneration: RecoveryGenerationVerifier = () => {
+        throw new Error('recovery generation verifier failure')
+      }
+
+      expect(
+        checkRequestBoundary(request, { recoveryGeneration, v12Binding }),
+      ).toEqual({
+        ok: false,
+        result: REQUEST_BOUNDARY_RESULT.B9,
+      })
+      expect(v12Binding).not.toHaveBeenCalled()
+    },
+  )
+
+  it('進行中 P3 では復旧世代照合を V12 照合より先に行う', () => {
+    const recoveryGeneration = vi.fn<RecoveryGenerationVerifier>(() => true)
+    const v12Binding = vi.fn<V12BindingVerifier>(() => true)
+
+    expect(
+      checkRequestBoundary(inProgressP3Request(), {
+        recoveryGeneration,
+        v12Binding,
+      }),
+    ).toEqual({ ok: true })
+    expect(recoveryGeneration).toHaveBeenCalledOnce()
+    expect(v12Binding).toHaveBeenCalledOnce()
+    expect(recoveryGeneration.mock.invocationCallOrder[0]).toBeLessThan(
+      v12Binding.mock.invocationCallOrder[0]!,
+    )
   })
 
   it('VF6: verifier に現 D4・現復旧世代・保持端末の結合を委ねる', () => {
@@ -156,7 +283,9 @@ describe('requestBoundary', () => {
     )
     const verifier = vi.fn<V12BindingVerifier>(() => true)
 
-    expect(checkRequestBoundary(request, verifier)).toEqual({ ok: true })
+    expect(checkRequestBoundary(request, { v12Binding: verifier })).toEqual({
+      ok: true,
+    })
     expect(verifier).toHaveBeenCalledOnce()
     expect(verifier).toHaveBeenCalledWith({
       value,
@@ -170,10 +299,9 @@ describe('requestBoundary', () => {
     'V12 の物理形式を検査しない',
     (value) => {
       expect(
-        checkRequestBoundary(
-          d1Request(SYNC_EVENT_PATH.P1, value),
-          acceptsBinding,
-        ),
+        checkRequestBoundary(d1Request(SYNC_EVENT_PATH.P1, value), {
+          v12Binding: acceptsBinding,
+        }),
       ).toEqual({
         ok: true,
       })
@@ -183,12 +311,17 @@ describe('requestBoundary', () => {
   it('verifier 未注入を fail-closed で拒否する', () => {
     const d1Result = checkRequestBoundary(d1Request())
     const p3Result = checkRequestBoundary(inProgressP3Request())
+    const endedP3Result = checkRequestBoundary(endedP3Request())
 
     expect(d1Result).toEqual({
       ok: false,
       result: REQUEST_BOUNDARY_RESULT.B4,
     })
     expect(p3Result).toEqual({
+      ok: false,
+      result: REQUEST_BOUNDARY_RESULT.B9,
+    })
+    expect(endedP3Result).toEqual({
       ok: false,
       result: REQUEST_BOUNDARY_RESULT.B9,
     })
@@ -202,17 +335,18 @@ describe('requestBoundary', () => {
       throw new Error('verifier failure')
     }
 
-    expect(checkRequestBoundary(inProgressP3Request(), verifier)).toEqual({
-      ok: false,
-      result: REQUEST_BOUNDARY_RESULT.B9,
-    })
+    expect(
+      checkRequestBoundary(inProgressP3Request(), {
+        recoveryGeneration: acceptsRecoveryGeneration,
+        v12Binding: verifier,
+      }),
+    ).toEqual({ ok: false, result: REQUEST_BOUNDARY_RESULT.B9 })
   })
 
   it('V12 を EventSlotId に置けず、実行時にも未知スロットとして拒否する', () => {
     // @ts-expect-error V12 は要求レベルであり、イベントスロットではない。
     const invalidEventSlot: EventSlotId = 'V12'
     const event: SyncEvent = {
-      kind: '6',
       fields: {
         V1: 'd5',
         V2: 'd1',
@@ -225,7 +359,12 @@ describe('requestBoundary', () => {
     ;(event.fields as Record<string, unknown>)[invalidEventSlot] = {}
 
     expect(EVENT_SLOT_IDS).not.toContain(invalidEventSlot)
-    expect(checkSyncEvent(event, { path: SYNC_EVENT_PATH.P1 })).toEqual({
+    expect(
+      checkSyncEvent(event, {
+        path: SYNC_EVENT_PATH.P1,
+        eventKinds: adoptedEventKinds,
+      }),
+    ).toEqual({
       ok: false,
       reason: {
         violation: SYNC_EVENT_VIOLATION.UNKNOWN_SLOT,

@@ -3,6 +3,7 @@
 // DI1・DI5・I1・B3a は6章の処理段階に依存するため実装しない。
 
 import { SYNC_EVENT_PATH, type SyncEventPath } from './eventFieldRules'
+import type { SyncEvent } from './syncEvent'
 
 export const CONTENT_IDENTITY = {
   SAME: 'same',
@@ -13,9 +14,20 @@ export const CONTENT_IDENTITY = {
 export type ContentIdentity =
   (typeof CONTENT_IDENTITY)[keyof typeof CONTENT_IDENTITY]
 
-export type ContentIdentityComparator<Content> = (
-  firstOriginal: Readonly<Content>,
-  laterOriginal: Readonly<Content>,
+export type IdempotencyEventOriginal = Readonly<{
+  fields: Readonly<SyncEvent['fields']>
+}>
+
+export type IdempotencyOriginal = Readonly<{
+  game: unknown
+  recordingRightsGeneration: unknown
+  path: SyncEventPath
+  event: IdempotencyEventOriginal
+}>
+
+export type IdempotencyOriginalComparator = (
+  firstOriginal: IdempotencyOriginal,
+  laterOriginal: IdempotencyOriginal,
 ) => ContentIdentity
 
 export const IDEMPOTENCY_DECISION = {
@@ -30,7 +42,7 @@ export type IdempotencyBoundaryResult =
   | typeof IDEMPOTENCY_DECISION.D1_COLLISION
   | typeof IDEMPOTENCY_DECISION.P3_COLLISION
 
-export type IdempotencyKeyPart = 'tenant' | 'd5' | 'game' | 'generation'
+export type IdempotencyKeyPart = 'tenant' | 'd5'
 
 export type IdempotencyScopeRule = Readonly<{
   keyParts: readonly IdempotencyKeyPart[]
@@ -95,25 +107,19 @@ export const IDEMPOTENCY_COLLISION_RULES = [
   },
 ] as const satisfies readonly CollisionRuleDefinition[]
 
-export type IdempotencyOperation<Content> = Readonly<{
+export type IdempotencyOperation = Readonly<{
   tenant: unknown
   d5: unknown
-  game: unknown
-  generation: unknown
-  path: SyncEventPath
-  content: Content
+  original: IdempotencyOriginal
 }>
 
-export type StoredIdempotencyOperation<Content, SavedResult> = Readonly<{
-  operation: IdempotencyOperation<Content>
+export type StoredIdempotencyOperation<SavedResult> = Readonly<{
+  operation: IdempotencyOperation
   savedResult: SavedResult
 }>
 
-export type IdempotencyDecisionResult<AppliedResult, SavedResult> =
-  | Readonly<{
-      decision: typeof IDEMPOTENCY_DECISION.NOT_DUPLICATE
-      appliedResult: AppliedResult
-    }>
+export type IdempotencyDecisionResult<SavedResult> =
+  | Readonly<{ decision: typeof IDEMPOTENCY_DECISION.NOT_DUPLICATE }>
   | Readonly<{
       decision: typeof IDEMPOTENCY_DECISION.REPLAY_SAVED_RESULT
       savedResult: SavedResult
@@ -125,9 +131,9 @@ export type IdempotencyDecisionResult<AppliedResult, SavedResult> =
       decision: typeof IDEMPOTENCY_DECISION.REJECT_LATER
     }>
 
-function isSameIdempotencyKey<Content>(
-  first: IdempotencyOperation<Content>,
-  later: IdempotencyOperation<Content>,
+function isSameIdempotencyKey(
+  first: IdempotencyOperation,
+  later: IdempotencyOperation,
 ): boolean {
   const sameTenant = Object.is(first.tenant, later.tenant)
   if (!sameTenant && !IDEMPOTENCY_SCOPE_RULE.differentTenantIsDuplicate) {
@@ -147,28 +153,21 @@ function pathGroup(path: SyncEventPath): CollisionPathGroup {
   return path === SYNC_EVENT_PATH.P3 ? 'P3' : 'D1付き経路'
 }
 
-function rejectLater<AppliedResult, SavedResult>(): IdempotencyDecisionResult<
-  AppliedResult,
-  SavedResult
-> {
+function rejectLater<SavedResult>(): IdempotencyDecisionResult<SavedResult> {
   return { decision: IDEMPOTENCY_DECISION.REJECT_LATER }
 }
 
-export function decideIdempotencyCollision<Content, AppliedResult, SavedResult>(
-  later: IdempotencyOperation<Content>,
-  storedOperations: readonly StoredIdempotencyOperation<Content, SavedResult>[],
-  compareContent: ContentIdentityComparator<Content>,
-  apply: (operation: IdempotencyOperation<Content>) => AppliedResult,
-): IdempotencyDecisionResult<AppliedResult, SavedResult> {
+export function decideIdempotencyCollision<SavedResult>(
+  later: IdempotencyOperation,
+  storedOperations: readonly StoredIdempotencyOperation<SavedResult>[],
+  compareOriginal: IdempotencyOriginalComparator,
+): IdempotencyDecisionResult<SavedResult> {
   const matches = storedOperations.filter((stored) =>
     isSameIdempotencyKey(stored.operation, later),
   )
 
   if (matches.length === 0) {
-    return {
-      decision: IDEMPOTENCY_DECISION.NOT_DUPLICATE,
-      appliedResult: apply(later),
-    }
+    return { decision: IDEMPOTENCY_DECISION.NOT_DUPLICATE }
   }
   if (matches.length !== 1) {
     return rejectLater()
@@ -177,7 +176,7 @@ export function decideIdempotencyCollision<Content, AppliedResult, SavedResult>(
   const first = matches[0]!
   let contentIdentity: ContentIdentity
   try {
-    contentIdentity = compareContent(first.operation.content, later.content)
+    contentIdentity = compareOriginal(first.operation.original, later.original)
   } catch {
     return rejectLater()
   }
@@ -188,7 +187,7 @@ export function decideIdempotencyCollision<Content, AppliedResult, SavedResult>(
 
   const rule = IDEMPOTENCY_COLLISION_RULES.find(
     (candidate) =>
-      candidate.pathGroup === pathGroup(later.path) &&
+      candidate.pathGroup === pathGroup(later.original.path) &&
       candidate.contentIdentity === contentIdentity,
   )
   if (!rule) {
