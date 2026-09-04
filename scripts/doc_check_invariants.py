@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -13,6 +14,14 @@ from typing import Any
 def _load_profile_module() -> Any:
     """隣接する共通プロファイルローダーをファイルパスから読む。"""
     path = Path(__file__).resolve().parent / "doc_check_profile.py"
+    loaded = sys.modules.get("check_design_propagation_doc_check_profile")
+    loaded_file = getattr(loaded, "__file__", None)
+    if (
+        loaded is not None
+        and loaded_file is not None
+        and Path(loaded_file).resolve() == path
+    ):
+        return loaded
     spec = importlib.util.spec_from_file_location(
         "doc_check_invariants_doc_check_profile",
         path,
@@ -26,6 +35,8 @@ def _load_profile_module() -> Any:
 
 
 doc_check_profile = _load_profile_module()
+
+_HEADING_RE = re.compile(r"^(?P<marks>#{2,6})\s+(?P<title>.+)$")
 
 
 @dataclass(frozen=True)
@@ -47,6 +58,16 @@ class StructuredReason:
     expected: str | None
     actual: str | None
     token: str | None
+
+
+def _heading_exists(text: str, section_id: str) -> bool:
+    """既存検査器と同じ規則で節見出しの存在を判定する。"""
+    title_re = re.compile(rf"^{re.escape(section_id)}(?:[.\s(]|$)")
+    return any(
+        match is not None and title_re.match(match.group("title")) is not None
+        for line in text.splitlines()
+        if (match := _HEADING_RE.match(line)) is not None
+    )
 
 
 def evaluate_declaration(
@@ -73,9 +94,22 @@ def evaluate_declaration(
         ProfileError: kindが未実装か、宣言または節指定が不正な場合。
     """
     kind = declaration.get("kind")
-    if kind != "forbidden-element":
+    if kind not in {"forbidden-element", "absent-section"}:
         raise doc_check_profile.ProfileError(f"未実装の kind です: {kind!r}")
     doc_check_profile.validate_declaration(declaration)
+
+    if kind == "absent-section":
+        section_id = declaration["section"]
+        if not _heading_exists(text, section_id):
+            return None
+        return StructuredReason(
+            violated=True,
+            kind=kind,
+            section=section_id,
+            expected="節が存在しない",
+            actual="節が存在する",
+            token=None,
+        )
     del manifest, profile
 
     requested_sections = declaration.get("sections")

@@ -1104,5 +1104,47 @@
     "input_kind": "approved",
     "expected_exit": 0,
     "reason": null
+  },
+  {
+    "case_id": "MT-01:corpus-valid",
+    "defect_id": "MT-01",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "MT-01:corpus-invalid",
+    "defect_id": "MT-01",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "absent-section",
+      "section": "1",
+      "expected": "節が存在しない",
+      "actual": "節が存在する",
+      "token": null
+    }
+  },
+  {
+    "case_id": "MT-01:fixture",
+    "defect_id": "MT-01",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: 本タスクの中核",
+      "token": "本タスクの中核"
+    }
+  },
+  {
+    "case_id": "MT-01:approved",
+    "defect_id": "MT-01",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
   }
 ]

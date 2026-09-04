@@ -27,7 +27,23 @@ def _load_profile_module() -> Any:
     return module
 
 
+def _load_invariant_module() -> Any:
+    """隣接する宣言評価器をファイルパスから読む。"""
+    path = Path(__file__).resolve().parent / "doc_check_invariants.py"
+    spec = importlib.util.spec_from_file_location(
+        "check_design_propagation_doc_check_invariants",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"宣言評価器を読み込めない: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 doc_check_profile = _load_profile_module()
+doc_check_invariants = _load_invariant_module()
 
 CHECK_IDS = (
     "manifest-consistency",
@@ -705,6 +721,8 @@ def defect_violation_reason(
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
     exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
+    invariants: Any | None = None,
+    profile: Any | None = None,
 ) -> str | None:
     """1件の機械欠陥についてliteralと構造的不変条件を評価する。
 
@@ -718,6 +736,8 @@ def defect_violation_reason(
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
         exclusion_vocabulary: 除外宣言として認識する語彙。
+        invariants: 検証済みの不変条件宣言資産。
+        profile: 宣言評価に使う検証済みプロファイル。
 
     Returns:
         違反理由。適合していれば ``None``。
@@ -736,6 +756,25 @@ def defect_violation_reason(
     for forbidden in defect.invariant.forbidden:
         if forbidden in scoped:
             return f"禁止literalが残存: {forbidden}"
+    if invariants is not None:
+        declarations = (
+            declaration
+            for declaration in invariants.declarations
+            if declaration["defect_id"] == defect.id
+        )
+        for declaration in declarations:
+            sections = _resolve_declaration_sections(text, declaration)
+            reason = doc_check_invariants.evaluate_declaration(
+                declaration,
+                text=text,
+                manifest=manifest,
+                profile=profile,
+                sections=sections,
+            )
+            if reason is not None:
+                return reason.actual or f"{reason.kind} に違反"
+        if defect.id not in invariants.legacy_structural:
+            return None
     return _structural_reason(
         defect.id,
         text,
@@ -744,6 +783,29 @@ def defect_violation_reason(
         preamble=preamble,
         exclusion_vocabulary=exclusion_vocabulary,
     )
+
+
+def _resolve_declaration_sections(
+    text: str,
+    declaration: dict[str, Any],
+) -> dict[str, str]:
+    """宣言の節指定を解決し、節不在を入力不正にする。"""
+    if declaration.get("kind") == "absent-section":
+        return {}
+    section_ids: list[str] = []
+    section = declaration.get("section")
+    if isinstance(section, str):
+        section_ids.append(section)
+    sections = declaration.get("sections")
+    if isinstance(sections, list):
+        section_ids.extend(item for item in sections if isinstance(item, str))
+    resolved: dict[str, str] = {}
+    for section_id in section_ids:
+        section_text = _heading_section(text, section_id)
+        if not section_text:
+            raise CheckError(f"宣言の節『{section_id}』が文書に無い")
+        resolved[section_id] = section_text
+    return resolved
 
 
 def _strip_code_span(value: str) -> str:
@@ -1433,6 +1495,7 @@ def run_checks(
     check_csv: str | None = None,
     link_base_dir: Path | None = None,
     invariants: Any | None = None,
+    profile: Any | None = None,
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
@@ -1456,6 +1519,7 @@ def run_checks(
         check_csv: ``--checks`` 相当のカンマ区切りID。
         link_base_dir: 相対Markdownリンクの解決基準。
         invariants: 検証済みの不変条件宣言資産。未指定なら結合検査を省く。
+        profile: 宣言評価に使う検証済みプロファイル。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
         exclusion_vocabulary: 除外宣言として認識する語彙。
@@ -1499,6 +1563,8 @@ def run_checks(
             section_id_grammar=section_id_grammar,
             preamble=preamble,
             exclusion_vocabulary=exclusion_vocabulary,
+            invariants=invariants,
+            profile=profile,
         )
         if reason is not None:
             assert defect.check is not None
@@ -1632,6 +1698,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             check_csv=args.checks,
             link_base_dir=profile.link_base_dir,
             invariants=invariants,
+            profile=profile,
             section_id_grammar=profile.raw["section_id_grammar"],
             preamble=profile.raw["preamble"],
             exclusion_vocabulary=profile.raw["exclusion_vocabulary"],
@@ -1643,7 +1710,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             declaration_row_prefix=declaration_table["row_prefix"],
             declaration_column_count=declaration_table["column_count"],
         )
-    except (CheckError, doc_check_profile.ProfileError) as error:
+    except (
+        CheckError,
+        doc_check_profile.ProfileError,
+        doc_check_invariants.doc_check_profile.ProfileError,
+    ) as error:
         print(f"check_design_propagation.py: {error}", file=sys.stderr)
         return 2
     for finding in findings:

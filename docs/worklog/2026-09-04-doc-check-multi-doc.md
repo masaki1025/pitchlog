@@ -401,3 +401,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - **判定ロジックは 1 件も移行していない**(`_structural_reason` 無変更)。有効化フラグ・xfail なし(grep 0 件)
 - 検証(Claude): ruff/ty passed / 3 テストファイル **173 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **976**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 /
   **規則 1〜5 を実データで直接発火確認**(規則 1 未知 ID・規則 2 宣言欠落・規則 3 legacy∩D・規則 4 余分な宣言・規則 5 forbidden-only 違反 — すべて `ProfileError`、baseline は通過)
+
+### ステップ 9/38 — `absent-section` 型 + MT-01 宣言 + `required_declarations`(裁定 (a′) 後半・原子的・Codex `--resume`)
+
+- 変更 7 ファイル: `doc_check_invariants.py`(`absent-section` の評価器)/ `invariants/sync-protocol.json`(`declarations` に `{MT-01, absent-section, section: "1"}`・`required_declarations: ["MT-01"]`)/
+  `registry.json`(`invariants_digest` → `afdc129a…`)/ `check_design_propagation.py`(宣言経路: forbidden → 宣言〔first-failure〕→ legacy は旧分岐。MT-01 は**旧分岐を使わない**)/
+  `doc_check_profile.py`(`absent-section` の必須引数・節不在の事前検査から除外)/ 期待 fixture / テスト
+- 検証(Claude): ruff/ty passed / 3 テストファイル **176 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture --defects MT-01` rc 1 / 収集 **979**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 /
+  **評価器を直接実行**: approved → `None`(適合)、fixture(`## 1.` あり)→ `StructuredReason(violated=True, kind='absent-section', section='1', expected='節が存在しない', actual='節が存在する')`。**裁定 (a′) の「節 1 の不在」が機械保証に復帰**

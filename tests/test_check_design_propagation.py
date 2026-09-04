@@ -786,6 +786,14 @@ FORBIDDEN_CHECK_CASES = (
     ),
 )
 
+ABSENT_SECTION_CHECK_CASE = (
+    "MT-01",
+    _mt01_corpus_document("同期プロトコルの設計を定める。"),
+    "## 1. corpus\n" + _mt01_corpus_document("同期プロトコルの設計を定める。"),
+    (),
+)
+STRUCTURAL_CORPUS_CASES = (*STRUCTURAL_CHECK_CASES, ABSENT_SECTION_CHECK_CASE)
+
 _STRUCTURAL_CASE_BY_ID = {case[0]: case for case in STRUCTURAL_CHECK_CASES}
 _FORBIDDEN_CASE_BY_ID = {case[0]: case for case in FORBIDDEN_CHECK_CASES}
 _LEGACY_CASE_ORDER = ("SP-01", "SP-02", "SP-07", "SP-08", "SP-16", "SP-20", "SP-18")
@@ -875,10 +883,18 @@ def test_structural_corpus_covers_all_15_ids() -> None:
     assert frozenset(corpus_ids) == STRUCTURAL_DEFECT_IDS
 
 
+def test_structural_corpus_has_mt01_as_sixteenth_case() -> None:
+    """旧15件にabsent-sectionのMT-01を加えたcorpus総体を固定する。"""
+    corpus_ids = [case[0] for case in STRUCTURAL_CORPUS_CASES]
+
+    assert len(corpus_ids) == 16
+    assert frozenset(corpus_ids) == STRUCTURAL_DEFECT_IDS | {"MT-01"}
+
+
 def test_structural_abnormal_texts_contain_no_forbidden_literal(
     defects: dict[str, checker.Defect],
 ) -> None:
-    for defect_id, _, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+    for defect_id, _, invalid_text, mutations in STRUCTURAL_CORPUS_CASES:
         invariant = defects[defect_id].invariant
         assert invariant is not None
         for text in (invalid_text, *mutations):
@@ -889,7 +905,7 @@ def test_structural_abnormal_texts_contain_no_forbidden_literal(
 def test_structural_texts_contain_all_scope_headings(
     defects: dict[str, checker.Defect],
 ) -> None:
-    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CORPUS_CASES:
         invariant = defects[defect_id].invariant
         assert invariant is not None
         for text in (valid_text, invalid_text, *mutations):
@@ -902,12 +918,32 @@ def test_structural_cases_do_not_raise(
     manifest: dict[str, checker.ManifestRelation],
     defects: dict[str, checker.Defect],
 ) -> None:
-    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CORPUS_CASES:
         for text in (valid_text, invalid_text, *mutations):
-            checker.defect_violation_reason(defects[defect_id], text, manifest)
+            checker.defect_violation_reason(
+                defects[defect_id],
+                text,
+                manifest,
+                invariants=invariants,
+                profile=profile,
+            )
     for defect_id, valid_text, invalid_text in FORBIDDEN_CHECK_CASES:
         for text in (valid_text, invalid_text):
-            checker.defect_violation_reason(defects[defect_id], text, manifest)
+            checker.defect_violation_reason(
+                defects[defect_id],
+                text,
+                manifest,
+                invariants=invariants,
+                profile=profile,
+            )
 
 
 def test_scope_with_invalid_token_is_rejected(
@@ -999,8 +1035,10 @@ def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
 
     assert invariants.structural_required == STRUCTURAL_DEFECT_IDS
     assert invariants.legacy_structural == STRUCTURAL_DEFECT_IDS
-    assert invariants.required_declarations == frozenset()
-    assert invariants.declarations == ()
+    assert invariants.required_declarations == {"MT-01"}
+    assert invariants.declarations == (
+        {"defect_id": "MT-01", "kind": "absent-section", "section": "1"},
+    )
 
 
 def _shadow_case_texts() -> dict[str, str]:
@@ -1015,6 +1053,11 @@ def _shadow_case_texts() -> dict[str, str]:
             texts[f"{defect_id}:corpus-mutation:{index}"] = mutation
         texts[f"{defect_id}:fixture"] = fixture_text
         texts[f"{defect_id}:approved"] = approved_text
+    defect_id, valid_text, invalid_text, _ = ABSENT_SECTION_CHECK_CASE
+    texts[f"{defect_id}:corpus-valid"] = valid_text
+    texts[f"{defect_id}:corpus-invalid"] = invalid_text
+    texts[f"{defect_id}:fixture"] = fixture_text
+    texts[f"{defect_id}:approved"] = approved_text
     return texts
 
 
@@ -1050,7 +1093,7 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
     for declaration in invariants.declarations:
         declarations_by_id.setdefault(declaration["defect_id"], []).append(declaration)
 
-    assert len(expected_rows) == len(case_texts) == 94
+    assert len(expected_rows) == len(case_texts) == 98
     assert {row["case_id"] for row in expected_rows} == set(case_texts)
     for row in expected_rows:
         text = case_texts[row["case_id"]]
@@ -1058,6 +1101,8 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
             defects[row["defect_id"]],
             text,
             manifest,
+            invariants=invariants,
+            profile=profile,
         )
         assert (1 if actual is not None else 0) == row["expected_exit"]
         assert (None if row["reason"] is None else row["reason"]["actual"]) == actual
@@ -1080,6 +1125,60 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
             assert (
                 None if shadow_reason is None else asdict(shadow_reason)
             ) == row["reason"]
+
+
+def test_mt01_absent_section_uses_declaration_path(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """MT-01を節不在時は適合、節1存在時は宣言違反にする。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declaration = invariants.declarations[0]
+    _, valid_text, invalid_text, _ = ABSENT_SECTION_CHECK_CASE
+
+    assert invariant_evaluator.evaluate_declaration(
+        declaration,
+        text=valid_text,
+        manifest=manifest,
+        profile=profile,
+        sections={},
+    ) is None
+    reason = invariant_evaluator.evaluate_declaration(
+        declaration,
+        text=invalid_text,
+        manifest=manifest,
+        profile=profile,
+        sections={},
+    )
+    assert reason == invariant_evaluator.StructuredReason(
+        violated=True,
+        kind="absent-section",
+        section="1",
+        expected="節が存在しない",
+        actual="節が存在する",
+        token=None,
+    )
+    assert checker.defect_violation_reason(
+        defects["MT-01"],
+        valid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    ) is None
+    assert checker.defect_violation_reason(
+        defects["MT-01"],
+        invalid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    ) == "節が存在する"
 
 
 def test_forbidden_element_declaration_evaluator_is_fail_closed(

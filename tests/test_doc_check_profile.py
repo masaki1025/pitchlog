@@ -750,7 +750,10 @@ def test_production_invariants_load_and_satisfy_binding_rules() -> None:
     machine, forbidden, legacy_branches = _binding_inputs()
 
     assert invariants.path == INVARIANTS_PATH.resolve()
-    assert invariants.declarations == ()
+    assert invariants.required_declarations == {"MT-01"}
+    assert invariants.declarations == (
+        {"defect_id": "MT-01", "kind": "absent-section", "section": "1"},
+    )
     assert invariants.global_invariants == ()
     profile_loader.validate_binding_rules(
         invariants,
@@ -793,7 +796,8 @@ def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
     elif mutation == "extra-declaration":
         invariants = replace(
             invariants,
-            declarations=(
+            declarations=invariants.declarations
+            + (
                 {
                     "defect_id": "SP-19",
                     "kind": "forbidden-element",
@@ -802,7 +806,7 @@ def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
             ),
         )
     else:
-        forbidden.remove("MT-01")
+        forbidden.remove("SP-19")
 
     with pytest.raises(profile_loader.ProfileError, match=rf"結合規則{rule}.*"):
         profile_loader.validate_binding_rules(
@@ -838,8 +842,12 @@ def test_binding_rule_three_rejects_legacy_branch_mismatch() -> None:
             {"defect_id": "SP-01", "kind": "unknown-kind"},
             "enum|未対応",
         ),
+        (
+            {"defect_id": "MT-01", "kind": "absent-section"},
+            "必須引数",
+        ),
     ),
-    ids=("missing-kind-arguments", "unknown-kind"),
+    ids=("missing-kind-arguments", "unknown-kind", "missing-absent-section"),
 )
 def test_load_invariants_rejects_invalid_declarations(
     tmp_path: Path,

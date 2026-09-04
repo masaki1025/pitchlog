@@ -34,7 +34,15 @@
     "SP-18",
     "SP-20"
   ],
-  "required_declarations": [],
-  "declarations": [],
+  "required_declarations": [
+    "MT-01"
+  ],
+  "declarations": [
+    {
+      "defect_id": "MT-01",
+      "kind": "absent-section",
+      "section": "1"
+    }
+  ],
   "global_invariants": []
 }
