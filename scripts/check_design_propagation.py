@@ -3,12 +3,31 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
+
+
+def _load_profile_module() -> Any:
+    """隣接する共通プロファイルローダーをファイルパスから読む。"""
+    path = Path(__file__).resolve().parent / "doc_check_profile.py"
+    spec = importlib.util.spec_from_file_location(
+        "check_design_propagation_doc_check_profile",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"プロファイルローダーを読み込めない: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+doc_check_profile = _load_profile_module()
 
 CHECK_IDS = (
     "manifest-consistency",
@@ -1073,21 +1092,30 @@ def check_noncanonical_reference(text: str) -> tuple[int, ...]:
     )
 
 
-def check_link_targets(text: str, root: Path) -> tuple[str, ...]:
+def check_link_targets(
+    text: str,
+    root: Path,
+    base_dir: Path | None = None,
+) -> tuple[str, ...]:
     """本文の相対Markdownリンクがリポジトリ内に実在するか検査する。
 
-    fixtureも正本文書のコピーとして扱うため、解決基準は常に
-    ``docs/design`` とする。
+    ``base_dir`` が無い場合は、fixtureも正本文書のコピーとして扱う
+    従来どおり ``docs/design`` を解決基準とする。
 
     Args:
         text: 検査対象のMarkdown本文。
         root: リポジトリルート。
+        base_dir: 相対リンクの解決基準。省略時は ``root/docs/design``。
 
     Returns:
         不正または実在しないリンク先。
     """
-    base = (root / "docs" / "design").resolve()
     root = root.resolve()
+    if base_dir is None:
+        base = (root / "docs" / "design").resolve()
+    else:
+        base = base_dir if base_dir.is_absolute() else root / base_dir
+        base = base.resolve()
     missing: list[str] = []
     for match in MARKDOWN_LINK_RE.finditer(text):
         target = match.group("target").strip("<>")
@@ -1106,6 +1134,7 @@ def _global_findings(
     root: Path,
     manifest: dict[str, ManifestRelation],
     checks: frozenset[str],
+    link_base_dir: Path | None,
 ) -> list[Finding]:
     findings: list[Finding] = []
     if "element-coverage" in checks:
@@ -1138,7 +1167,7 @@ def _global_findings(
                 )
             )
     if "link-target" in checks:
-        targets = check_link_targets(text, root)
+        targets = check_link_targets(text, root, link_base_dir)
         if targets:
             findings.append(
                 Finding("link-target", "link-target", "実在しないリンク: " + ",".join(targets))
@@ -1227,6 +1256,7 @@ def run_checks(
     defects: dict[str, Defect],
     defect_csv: str | None = None,
     check_csv: str | None = None,
+    link_base_dir: Path | None = None,
 ) -> tuple[Finding, ...]:
     """選択条件に従って設計伝播検査を実行する。
 
@@ -1237,6 +1267,7 @@ def run_checks(
         defects: 欠陥oracle。
         defect_csv: ``--defects`` 相当のカンマ区切りID。
         check_csv: ``--checks`` 相当のカンマ区切りID。
+        link_base_dir: 相対Markdownリンクの解決基準。
 
     Returns:
         欠陥IDまたは全体検査ID単位の違反。
@@ -1251,7 +1282,9 @@ def run_checks(
             assert defect.check is not None
             findings.append(Finding(defect.id, defect.check, reason))
     if allow_global:
-        findings.extend(_global_findings(text, root, manifest, checks))
+        findings.extend(
+            _global_findings(text, root, manifest, checks, link_base_dir)
+        )
     return tuple(sorted(findings, key=lambda finding: finding.identifier))
 
 
@@ -1274,8 +1307,27 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--document",
         type=Path,
-        default=DEFAULT_DOCUMENT,
-        help="検査対象文書(既定: docs/design/sync-protocol.md)",
+        help="検査対象文書(未指定時はプロファイルのdocument)",
+    )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        help="使用するプロファイル(未指定時はレジストリ先頭のプロファイル)",
+    )
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        help="プロファイルレジストリ(既定: 本番レジストリ)",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="関係マニフェスト(未指定時はプロファイルのmanifest)",
+    )
+    parser.add_argument(
+        "--defects-file",
+        type=Path,
+        help="欠陥oracle(未指定時はプロファイルのdefects)",
     )
     parser.add_argument("--defects", help="実行する機械欠陥IDのカンマ区切り")
     parser.add_argument("--checks", help="実行する検査IDのカンマ区切り")
@@ -1298,13 +1350,37 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
-        document = _resolve(root, args.document)
+        if args.profile is not None:
+            profile = doc_check_profile.load_profile(args.profile, root=root)
+        else:
+            registry_path = args.registry
+            if registry_path is None:
+                registry_path = doc_check_profile.default_registry_path(root)
+            registry = doc_check_profile.load_registry(registry_path, root=root)
+            profiles = doc_check_profile.resolve_profiles(registry, root=root)
+            profile = profiles[0]
+
+        document = (
+            _resolve(root, args.document)
+            if args.document is not None
+            else profile.document
+        )
+        manifest_path = (
+            _resolve(root, args.manifest)
+            if args.manifest is not None
+            else profile.manifest
+        )
+        defects_path = (
+            _resolve(root, args.defects_file)
+            if args.defects_file is not None
+            else profile.defects
+        )
         try:
             text = document.read_text(encoding="utf-8")
         except OSError as error:
             raise CheckError(f"検査対象を読めない: {document}: {error}") from error
-        manifest = load_manifest(root / DEFAULT_MANIFEST)
-        defects = load_defects(root / DEFAULT_DEFECTS)
+        manifest = load_manifest(manifest_path)
+        defects = load_defects(defects_path)
         findings = run_checks(
             text,
             root,
@@ -1312,8 +1388,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             defects,
             defect_csv=args.defects,
             check_csv=args.checks,
+            link_base_dir=profile.link_base_dir,
         )
-    except CheckError as error:
+    except (CheckError, doc_check_profile.ProfileError) as error:
         print(f"check_design_propagation.py: {error}", file=sys.stderr)
         return 2
     for finding in findings:

@@ -374,3 +374,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   `resolve_profiles`(document 一致・`must_require` 包含・pins 照合・`invariants` pin 欠落)/ `validate_defect_id_namespaces`。両検査スクリプトはまだ呼ばない(無変更)
 - テスト: `tests/test_doc_check_profile.py` 9 → **35 件**(正常系 + 負例 20 種以上 + staging の木)
 - 検証(Claude): ruff/ty passed / 35 passed(skip 系 0)/ 3 検査 green / 収集 **946**・基準欠落 0 / 両検査スクリプトと `.claude/` の差分 0。Codex 報告: `pytest tests/ -q -rA` 946 passed
+
+### ステップ 6/38 — `check_design_propagation.py` のパスと CLI のプロファイル駆動化(Codex `--resume`)
+
+- 変更: `scripts/check_design_propagation.py`(+103/−15 — `doc_check_profile.py` を隣接パスから importlib で読込・`--profile` / `--registry` / `--manifest` / `--defects-file` 追加・`main` は `--profile` 無しならレジストリ先頭 entry を**既定プロファイル**として上書き/選択引数を束縛・document/manifest/defects/`link_base_dir` はプロファイル値・`ProfileError` → 終了 2。`DEFAULT_*` 定数は残すが `main` は参照しない)/
+  `tests/test_check_design_propagation.py`(+178 — 4 経路同値・staging レジストリで fixture の集合が返る・上書きの効果・終了 2 負例)/ `tests/test_doc_check_profile.py`(3 行 — 無変更確認の対象を COV と `.claude/` へ)
+- **順序上の判断**: 「既定プロファイル = レジストリ `profiles[]` の先頭」。複数登録時の列挙はステップ 37
+- 検証(Claude): ruff/ty passed / `pytest test_check_design_propagation + test_doc_check_profile + test_ci_wiring` → **150 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture` rc 1 / **引数なし と `--profile sync` の stderr が完全同一** / `--profile /nonexistent` rc 2 /
+  収集 **953**・基準欠落 0 / COV・`.github`・`.claude`・oracle・fixture の差分 0。Codex 報告: `pytest tests/ -q -rA` 953 passed

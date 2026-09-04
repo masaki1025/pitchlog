@@ -326,7 +326,7 @@ def test_schemas_are_versioned_closed_and_list_required_keys() -> None:
 
 
 def test_no_checker_or_claude_file_changed() -> None:
-    """本ステップの差分に検査スクリプトとClaude設定を含めない。"""
+    """本ステップで対象外のCOV検査とClaude設定が無変更であることを確認する。"""
     result = subprocess.run(
         [
             "git",
@@ -334,7 +334,6 @@ def test_no_checker_or_claude_file_changed() -> None:
             "--name-only",
             "HEAD",
             "--",
-            "scripts/check_design_propagation.py",
             "scripts/check_doc_coverage.py",
             ".claude/",
         ],

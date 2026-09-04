@@ -20,6 +20,13 @@ DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 REQUIREMENTS = (
     REPOSITORY_ROOT / "docs" / "requirements" / "requirements-pitchlog-2026-07-22.md"
 )
+PROFILE = (
+    REPOSITORY_ROOT
+    / "scripts"
+    / "design_relations"
+    / "profiles"
+    / "sync-protocol.json"
+)
 
 P3_RESULTS = (
     "変更受理",
@@ -150,6 +157,51 @@ def _finding_ids(result: subprocess.CompletedProcess[str]) -> set[str]:
         for line in result.stderr.splitlines()
         if ": [" in line
     }
+
+
+def _write_json(path: Path, value: Any) -> None:
+    """CLI負例用のJSONをUTF-8で書く。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _make_staging_registry(tmp_path: Path, document: Path) -> Path:
+    """文書だけを差し替えた外部stagingレジストリを作る。"""
+    profiles_dir = tmp_path / "profiles"
+    profile_path = profiles_dir / "x.json"
+    profile_value = json.loads(PROFILE.read_text(encoding="utf-8"))
+    profile_value["name"] = "x"
+    profile_value["document"] = str(document.resolve())
+    _write_json(profile_path, profile_value)
+
+    gating = {
+        key: profile_value[key]
+        for key in checker.doc_check_profile.GATING_KEYS
+        if key in profile_value
+    }
+    registry = {
+        "schema_version": 1,
+        "profiles": [
+            {
+                "name": "x",
+                "file": str(profile_path.resolve()),
+                "document": str(document.resolve()),
+                "must_require": profile_value["required_checks"],
+                "pins": {
+                    "profile_gating_digest": (
+                        checker.doc_check_profile.canonical_digest(gating)
+                    ),
+                    "asset_digests": {},
+                },
+            }
+        ],
+    }
+    registry_path = profiles_dir / "registry.json"
+    _write_json(registry_path, registry)
+    return registry_path
 
 
 def _corpus_document(sections: dict[str, tuple[str, ...]]) -> str:
@@ -1309,6 +1361,132 @@ def test_invalid_selectors_fail(arguments: tuple[str, ...], message: str) -> Non
     result = _run_cli(*arguments)
     assert result.returncode == 2
     assert message in result.stderr
+
+
+def test_profile_and_default_cli_routes_have_identical_findings() -> None:
+    """既定・文書上書き・selector単独を明示profile経路と突合する。"""
+    profile_argument = str(PROFILE.relative_to(REPOSITORY_ROOT))
+    fixture_argument = str(FIXTURE.relative_to(REPOSITORY_ROOT))
+
+    default_result = _run_cli()
+    explicit_profile_result = _run_cli("--profile", profile_argument)
+    assert default_result.returncode == explicit_profile_result.returncode == 0
+    assert _finding_ids(default_result) == _finding_ids(explicit_profile_result) == set()
+
+    document_result = _run_cli("--document", fixture_argument)
+    profile_document_result = _run_cli(
+        "--profile",
+        profile_argument,
+        "--document",
+        fixture_argument,
+    )
+    assert document_result.returncode == profile_document_result.returncode == 1
+    assert _finding_ids(document_result) == _finding_ids(profile_document_result)
+    assert len(_finding_ids(document_result)) == 21
+
+    checks_result = _run_cli("--checks", "manifest-consistency")
+    profile_checks_result = _run_cli(
+        "--profile",
+        profile_argument,
+        "--checks",
+        "manifest-consistency",
+    )
+    assert checks_result.returncode == profile_checks_result.returncode == 0
+    assert _finding_ids(checks_result) == _finding_ids(profile_checks_result) == set()
+
+
+def test_staging_registry_uses_its_profile_document(
+    tmp_path: Path,
+    defects: dict[str, checker.Defect],
+) -> None:
+    """外部レジストリが指定したfixtureを実際の検査対象にする。"""
+    registry_path = _make_staging_registry(tmp_path, FIXTURE)
+    result = _run_cli("--registry", str(registry_path))
+    default_result = _run_cli()
+    machine = {key for key, defect in defects.items() if defect.detection == "machine"}
+
+    assert result.returncode == 1
+    assert default_result.returncode == 0
+    assert machine <= _finding_ids(result)
+    assert len(machine) == 17
+    assert _finding_ids(result) != _finding_ids(default_result)
+
+
+def test_staging_profile_supplies_link_base_directory(tmp_path: Path) -> None:
+    """run_checks経由のリンク検査がprofileのlink_base_dirを使う。"""
+    document = tmp_path / "document.md"
+    document.write_text("[target](sync-protocol-source.txt)\n", encoding="utf-8")
+    link_base_dir = FIXTURE.parent
+    registry_path = _make_staging_registry(tmp_path / "staging", document)
+    profile_path = registry_path.parent / "x.json"
+    profile_value = json.loads(profile_path.read_text(encoding="utf-8"))
+    profile_value["link_base_dir"] = str(link_base_dir.resolve())
+    _write_json(profile_path, profile_value)
+
+    result = _run_cli(
+        "--registry",
+        str(registry_path),
+        "--checks",
+        "link-target",
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("option", "default_path"),
+    (
+        ("--manifest", checker.DEFAULT_MANIFEST),
+        ("--defects-file", checker.DEFAULT_DEFECTS),
+    ),
+    ids=("manifest", "defects-file"),
+)
+def test_oracle_path_overrides_accept_defaults_and_reject_broken_json(
+    tmp_path: Path,
+    option: str,
+    default_path: Path,
+) -> None:
+    """manifestとdefects-fileの上書きパスを読み込む。"""
+    fixture_argument = str(FIXTURE.relative_to(REPOSITORY_ROOT))
+    expected = _run_cli("--document", fixture_argument)
+    same = _run_cli(
+        "--document",
+        fixture_argument,
+        option,
+        str(default_path),
+    )
+    assert same.returncode == expected.returncode == 1
+    assert _finding_ids(same) == _finding_ids(expected)
+
+    broken = tmp_path / f"broken-{option.removeprefix('--')}.json"
+    broken.write_text("{\n", encoding="utf-8")
+    invalid = _run_cli(option, str(broken))
+    assert invalid.returncode == 2
+    assert "check_design_propagation.py:" in invalid.stderr
+
+
+def test_missing_and_schema_invalid_profiles_fail(tmp_path: Path) -> None:
+    """欠落profileと未知フィールドを持つprofileを終了2にする。"""
+    missing = _run_cli("--profile", str(tmp_path / "missing.json"))
+    assert missing.returncode == 2
+    assert "check_design_propagation.py:" in missing.stderr
+
+    profile_value = json.loads(PROFILE.read_text(encoding="utf-8"))
+    profile_value["unknown_field"] = True
+    invalid_profile = tmp_path / "invalid-profile.json"
+    _write_json(invalid_profile, profile_value)
+    invalid = _run_cli("--profile", str(invalid_profile))
+    assert invalid.returncode == 2
+    assert "未知フィールド" in invalid.stderr
+
+
+def test_registry_with_unregistered_json_fails(tmp_path: Path) -> None:
+    """staging profiles内の未登録JSONを終了2にする。"""
+    registry_path = _make_staging_registry(tmp_path, DESIGN)
+    _write_json(registry_path.parent / "unregistered.json", {})
+
+    result = _run_cli("--registry", str(registry_path))
+    assert result.returncode == 2
+    assert "未登録" in result.stderr
 
 
 def test_corrected_document_is_green_for_step_four_defects() -> None:
