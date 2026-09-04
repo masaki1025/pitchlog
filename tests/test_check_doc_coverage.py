@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,6 +23,10 @@ DOCUMENT = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 UNIVERSE = REPOSITORY_ROOT / "scripts" / "design_relations" / "req-universe.json"
 RELATIONS_DIR = REPOSITORY_ROOT / "scripts" / "design_relations"
 PROFILE = RELATIONS_DIR / "profiles" / "sync-protocol.json"
+SAMPLE_PROFILE = (
+    REPOSITORY_ROOT
+    / "tests/fixtures/profile-sample/profiles/data-model-like.json"
+)
 
 
 def _load_checker() -> Any:
@@ -77,6 +82,41 @@ def _run_cli(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
+
+
+def _load_sample_profile() -> Any:
+    """データモデル型サンプルプロファイルを読む。"""
+    return checker.doc_check_profile.load_profile(
+        SAMPLE_PROFILE,
+        root=REPOSITORY_ROOT,
+        schema_dir=RELATIONS_DIR / "schemas",
+    )
+
+
+def _write_json(path: Path, value: Any) -> None:
+    """合成資産JSONをUTF-8で書く。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _replace_sample_asset(
+    profile: Any,
+    tmp_path: Path,
+    asset_name: str,
+    value: Any,
+) -> Any:
+    """サンプル資産1本を合成JSONへ差し替える。"""
+    path = tmp_path / f"{asset_name}.json"
+    _write_json(path, value)
+    raw = json.loads(json.dumps(profile.raw))
+    raw["assets"][asset_name]["path"] = str(path)
+    changes = {"raw": raw}
+    if asset_name == "direct_requirements":
+        changes["direct_requirements"] = path
+    return replace(profile, **changes)
 
 
 def _remove_requirement_heading(text: str) -> str:
@@ -739,3 +779,133 @@ def test_real_document_passes_all_coverage_checks() -> None:
     assert attribution.stderr == ""
     assert ledger.stderr == ""
     assert combined.stderr == ""
+
+
+def test_attribution_direct_sample_is_green_and_all_excluded_is_red() -> None:
+    """直接要件が帰属していればgreen、対象外ならredにする。"""
+    profile = _load_sample_profile()
+    document = profile.document.read_text(encoding="utf-8")
+    attribution = profile.raw["attribution"]
+    options = {
+        "section_re": attribution["section_re"],
+        "assignment_kinds": frozenset(attribution["kinds"]),
+        "assignment_header": tuple(attribution["assignment_header"]),
+        "destination_grammar": attribution["destination_grammar"],
+    }
+    assignments = checker.parse_assignments(document, **options)
+    assert not checker.check_attribution_direct(profile, assignments)
+
+    excluded = tuple(
+        replace(assignment, kind="対象外", destination="対象外の合成理由", sections=())
+        for assignment in assignments
+    )
+    findings = checker.check_attribution_direct(profile, excluded)
+    assert any("直接要件が対象外" in finding.reason for finding in findings)
+
+
+def test_attribution_direct_rejects_missing_empty_and_outside_assets(
+    tmp_path: Path,
+) -> None:
+    """必須資産の欠落・空・母集合外IDを入力不正にする。"""
+    profile = _load_sample_profile()
+    assignment = checker.Assignment("FR-001", "同期側で決める", "4-2", ("4-2",))
+    raw = json.loads(json.dumps(profile.raw))
+    del raw["assets"]["direct_requirements"]
+    missing = replace(profile, raw=raw, direct_requirements=None)
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="direct_requirements"):
+        checker.check_attribution_direct(missing, (assignment,))
+
+    empty_value = {
+        "schema_version": 1,
+        "asset_kind": "direct_requirements",
+        "oracle_context": {},
+        "ids": [],
+    }
+    empty = _replace_sample_asset(
+        profile,
+        tmp_path / "empty",
+        "direct_requirements",
+        empty_value,
+    )
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="空"):
+        checker.check_attribution_direct(empty, (assignment,))
+
+    outside_value = {**empty_value, "ids": ["FR-999"]}
+    outside = _replace_sample_asset(
+        profile,
+        tmp_path / "outside",
+        "direct_requirements",
+        outside_value,
+    )
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="母集合外"):
+        checker.check_attribution_direct(outside, (assignment,))
+
+
+def test_attribution_direct_detects_claim_classification_drift(
+    tmp_path: Path,
+) -> None:
+    """direct_requirementsとclaims分類のexact違反をredにする。"""
+    profile = _load_sample_profile()
+    claims_path = REPOSITORY_ROOT / profile.raw["assets"]["claims"]["path"]
+    claims = checker.doc_check_profile.load_json(claims_path)
+    claims["claims"][0]["classification"] = "relation"
+    changed = _replace_sample_asset(profile, tmp_path, "claims", claims)
+    assignments = (
+        checker.Assignment("FR-001", "同期側で決める", "4-2", ("4-2",)),
+    )
+    findings = checker.check_attribution_direct(changed, assignments)
+    assert any("direct-requirements-vs-claims" in finding.reason for finding in findings)
+
+
+def test_attribution_direct_resists_simultaneous_expected_and_universe_shrink(
+    tmp_path: Path,
+) -> None:
+    """期待資産と母集合の同時縮小をclaimsのexactでredにする。"""
+    profile = _load_sample_profile()
+    claims_path = REPOSITORY_ROOT / profile.raw["assets"]["claims"]["path"]
+    claims = checker.doc_check_profile.load_json(claims_path)
+    second = json.loads(json.dumps(claims["claims"][0]))
+    second["source_id"] = "FR-002"
+    claims["claims"].append(second)
+    profile = _replace_sample_asset(profile, tmp_path, "claims", claims)
+    direct = {
+        "schema_version": 1,
+        "asset_kind": "direct_requirements",
+        "oracle_context": {},
+        "ids": ["FR-002"],
+    }
+    profile = _replace_sample_asset(
+        profile,
+        tmp_path,
+        "direct_requirements",
+        direct,
+    )
+    universe_path = tmp_path / "universe.json"
+    _write_json(universe_path, {"schema_version": 1, "ids": ["FR-002"]})
+    profile = replace(profile, universe=universe_path)
+    assignments = (
+        checker.Assignment("FR-002", "同期側で決める", "4-2", ("4-2",)),
+    )
+    findings = checker.check_attribution_direct(profile, assignments)
+    assert any("left-only=['FR-001']" in finding.reason for finding in findings)
+
+
+def test_attribution_direct_sync_is_not_applicable_and_sample_cli_runs() -> None:
+    """同期では資産不要の対象外、サンプルでは実行する。"""
+    sync_result = _run_cli(
+        REPOSITORY_ROOT,
+        "--checks",
+        "attribution-direct",
+    )
+    assert sync_result.returncode == 0
+    assert "attribution-direct: 対象なし:" in sync_result.stdout
+
+    sample_result = _run_cli(
+        REPOSITORY_ROOT,
+        "--profile",
+        str(SAMPLE_PROFILE),
+        "--checks",
+        "attribution-direct",
+    )
+    assert sample_result.returncode == 0
+    assert sample_result.stderr == ""

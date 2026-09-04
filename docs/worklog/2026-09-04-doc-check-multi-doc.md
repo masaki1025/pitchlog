@@ -506,3 +506,13 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   **合成資産は `contracts/authz/` とトップレベルキー集合・ID 位置が同形**であることをテストで固定
 - **本番プロファイルは無変更**(`assets` / `structure_extractors` / `collection_sets` は空・`profile_gating_digest` 不変)
 - 検証(Claude): ruff/ty passed / 4 テストファイル **275 passed・失敗 0**(skip 系 0)/ 3 検査 rc 0 / 収集 **1051**・基準 875 の欠落 0 / 対象外パス(`.github`・`.claude`・fixture・oracle・`contracts/`)の差分 0
+
+### ステップ 29〜33/38 — 新検査 5 本(`collection-consistency` / `forbidden-structure` / `cross-consistency` / `attribution-direct` / `baseline-digest` + `unique-owner`)(**1 委任・1 コミット**)
+
+- **29 `collection-consistency`**: `collection_sets` の `exact` / `subset` / `disjoint` を評価し**差集合を reason に列挙**。claims の relation 行と manifest の脱落・過剰、`forbidden` 混入(disjoint)で red
+- **30 `forbidden-structure`**: `forbidden` の各構造を**抽出器が導出した構造集合**と `{kind, source, target, direction, participants}` で照合。**別名で同じ構造を作った負例で red**(語句一致では通ることを対比)/ 方向の違う同一辺を区別 / 抽出器 0 件は終了 2
+- **31 `cross-consistency`**: ① WAIT resolved → manifest ∩ 本文に存在 ② **二段階射影**(段階 A = raw DDL ID で map・refs・structures と DDL 導出構造の exact / 段階 B = `product_ddl_map` で全参照 ID を製品 ID へ射影して manifest 照合)③ (射影後 AUTH structures ∪ WAIT 由来構造)∩ `forbidden` の全項目一致で red。**禁止方向 red・逆方向 green** / probe-only で写像欠落・未写像・余分・曖昧は終了 2
+- **32 `attribution-direct`**: 帰属表の「対象外」が `direct_requirements` に含まれれば red。資産は必須・非空・**claims の `direct_requirement` 分類と exact**(`collection_sets` の必須宣言で拘束)。**1 件脱落や資産と母集合の同時縮小も claims 分類との exact で red**
+- **33 `baseline-digest` + `unique-owner`**: immutable 11 欄を canonical 化して SHA-256 envelope を逐語照合(**各 immutable フィールドの改変で red・mutable は green・キー順/空白不変・重複キーは終了 2・`immutable_fields` はプロファイルから変更不可**)/ `unique-owner` は `expected_ids` との完全一致・重複・許可外 `owner_step` を検出し、**宣言・required・資産の 3 者が揃わないと終了 2**
+- **`data-model-like` プロファイルで新 8 ID のうち 7 件が実行され終了 0**(残る `reference-class` は次の委任)
+- 検証(Claude): ruff/ty passed / 4 テストファイル **330 passed・失敗 0**(skip 系 0)/ 3 検査 rc 0 / 収集 **1106**・基準 875 の欠落 0 / 対象外パスの差分 0 / **本番プロファイルの pins 不変・`not_applicable` 8 件のまま**

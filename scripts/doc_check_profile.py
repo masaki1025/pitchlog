@@ -1072,6 +1072,35 @@ def load_assets(profile: Profile) -> LoadedAssets:
     )
 
 
+def asset_structures(assets: LoadedAssets, asset_name: str) -> tuple[StructureTuple, ...]:
+    """資産の全構造タプルを宣言順で返す。
+
+    collectionの ``structures`` で抽出した構造に加え、
+    ``forbidden`` 資産のように項目自体が構造形の場合も扱う。
+
+    Args:
+        assets: 検証済み資産集合。
+        asset_name: 構造を取り出す資産名。
+
+    Returns:
+        名前空間と正規化を保存した構造タプル列。
+
+    Raises:
+        ProfileError: 資産が未宣言か、構造項目の形が不正な場合。
+    """
+    asset = assets.assets.get(asset_name)
+    if asset is None:
+        raise ProfileError(f"資産がありません: {asset_name}")
+    structures: list[StructureTuple] = []
+    for collection in asset.collections:
+        for record in collection.records:
+            structures.extend(record.structures)
+            if _STRUCTURE_FIELDS <= set(record.raw):
+                value = {key: record.raw[key] for key in _STRUCTURE_FIELDS}
+                structures.append(_structure_from_raw(value, assets.normalize))
+    return tuple(structures)
+
+
 def _load_asset_value(path: Path, asset_name: str) -> Any:
     """JSON資産とbaselineテキストを読む。"""
     if asset_name == "baseline_digest" and path.suffix != ".json":
@@ -2330,6 +2359,25 @@ def resolve_profiles(
                 raise ProfileError(
                     f"{entry.file}: pins.invariants_digest が不一致です"
                     f"(期待={invariants_digest}, 実際={actual_invariants_digest})"
+                )
+        if "unique-owner" in profile.required_checks:
+            if profile.invariants is None:
+                raise ProfileError(
+                    f"{entry.file}: required_checks=unique-owner に invariants が必要です"
+                )
+            invariant_set = load_invariants(
+                profile.invariants,
+                schema_dir=registry.schema_dir,
+            )
+            unique_owner = tuple(
+                declaration
+                for declaration in invariant_set.global_invariants
+                if declaration.get("kind") == "unique-owner"
+            )
+            if len(unique_owner) != 1:
+                raise ProfileError(
+                    f"{entry.file}: required_checks=unique-owner に "
+                    "global_invariants.unique-owner 1件が必要です"
                 )
         assets = validate_profile_assets(profile)
         _validate_asset_pins(entry, profile, assets)

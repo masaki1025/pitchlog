@@ -7,6 +7,8 @@ import importlib.util
 import json
 import re
 import sys
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -58,8 +60,23 @@ CHECK_IDS = (
     "link-target",
     "emphasis",
     "draft-metadata",
+    "collection-consistency",
+    "forbidden-structure",
+    "cross-consistency",
+    "baseline-digest",
+    "unique-owner",
 )
 CHECK_ID_SET = frozenset(CHECK_IDS)
+LEGACY_PROP_CHECK_IDS = frozenset(CHECK_IDS[:12])
+PROFILE_ASSET_CHECK_IDS = frozenset(
+    {
+        "collection-consistency",
+        "forbidden-structure",
+        "cross-consistency",
+        "baseline-digest",
+        "unique-owner",
+    }
+)
 GLOBAL_CHECK_IDS = frozenset(
     {
         "manifest-consistency",
@@ -843,12 +860,545 @@ def check_link_targets(
     return tuple(dict.fromkeys(missing))
 
 
+def check_collection_consistency(
+    profile: Any,
+    assets: Any,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """collection_setsの集合関係違反をFindingにする。"""
+    results = doc_check_profile.evaluate_collection_sets(
+        profile,
+        assets,
+        manifest=raw_manifest,
+    )
+    return tuple(
+        Finding("collection-consistency", "collection-consistency", result.reason)
+        for result in results
+        if result.reason is not None
+    )
+
+
+def _structure_matches(left: Any, right: Any) -> bool:
+    """構造の全項目を照合し、bothだけを両方向として扱う。"""
+    return (
+        left.kind == right.kind
+        and left.source == right.source
+        and left.target == right.target
+        and left.participants == right.participants
+        and (
+            left.direction == right.direction
+            or left.direction == "both"
+            or right.direction == "both"
+        )
+    )
+
+
+def check_forbidden_structures(
+    profile: Any,
+    assets: Any,
+    *,
+    text: str,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """抽出済み構造と禁止構造を名前空間付きで照合する。"""
+    extracted = doc_check_profile.extract_structures(
+        profile,
+        assets,
+        text=text,
+        manifest=raw_manifest,
+    )
+    observed = tuple(
+        structure
+        for structures in extracted.values()
+        for structure in structures
+    )
+    forbidden = doc_check_profile.asset_structures(assets, "forbidden")
+    findings: list[Finding] = []
+    for structure in forbidden:
+        if any(_structure_matches(structure, candidate) for candidate in observed):
+            findings.append(
+                Finding(
+                    "forbidden-structure",
+                    "forbidden-structure",
+                    "禁止構造が実在: " + _format_structure(structure),
+                )
+            )
+    return tuple(findings)
+
+
+def _format_structure(structure: Any) -> str:
+    """構造タプルを診断用の安定文字列にする。"""
+    participants = ",".join(
+        f"{participant.namespace}:{participant.id}"
+        for participant in structure.participants
+    )
+    return (
+        f"kind={structure.kind},"
+        f"source={structure.source.namespace}:{structure.source.id},"
+        f"target={structure.target.namespace}:{structure.target.id},"
+        f"direction={structure.direction},participants=[{participants}]"
+    )
+
+
+def _asset_records(assets: Any, name: str) -> tuple[Any, ...]:
+    """指定資産の全collection項目を返す。"""
+    asset = assets.assets.get(name)
+    if asset is None:
+        raise doc_check_profile.ProfileError(f"資産がありません: {name}")
+    return tuple(
+        record
+        for collection in asset.collections
+        for record in collection.records
+    )
+
+
+def _project_structure(structure: Any, project: Any) -> Any:
+    """構造の全端点を製品IDに射影する。"""
+
+    def endpoint(value: Any) -> Any:
+        return doc_check_profile.NamespacedId(value.namespace, project(value.id))
+
+    return doc_check_profile.StructureTuple(
+        kind=structure.kind,
+        source=endpoint(structure.source),
+        target=endpoint(structure.target),
+        direction=structure.direction,
+        participants=tuple(endpoint(value) for value in structure.participants),
+    )
+
+
+def _product_projector(assets: Any, referenced_ids: set[str]) -> Any:
+    """product_schemaの有無に応じたDDL ID射影関数を返す。"""
+    ddl_asset = assets.assets["ddl_elements"]
+    raw_ddl = ddl_asset.raw
+    product_schema = (
+        isinstance(raw_ddl, Mapping)
+        and isinstance(raw_ddl.get("scope"), Mapping)
+        and raw_ddl["scope"].get("product_schema") is True
+    )
+    if product_schema:
+        return lambda value: value
+
+    records = _asset_records(assets, "product_ddl_map")
+    mappings: dict[str, set[str]] = {}
+    for record in records:
+        raw_id = record.raw.get("ddl_id")
+        product_id = record.raw.get("product_id")
+        if not isinstance(raw_id, str) or not isinstance(product_id, str):
+            raise doc_check_profile.ProfileError(
+                "product_ddl_map のddl_id/product_idが不正です"
+            )
+        normalized_raw = doc_check_profile.normalize_identifier(
+            raw_id,
+            "ddl",
+            assets.normalize,
+        ).id
+        normalized_product = doc_check_profile.normalize_identifier(
+            product_id,
+            "product",
+            assets.normalize,
+        ).id
+        mappings.setdefault(normalized_raw, set()).add(normalized_product)
+    ambiguous = {key: values for key, values in mappings.items() if len(values) != 1}
+    if ambiguous:
+        raise doc_check_profile.ProfileError(
+            f"product_ddl_map に曖昧な写像があります: {ambiguous}"
+        )
+    domain = set(mappings)
+    if domain != referenced_ids:
+        raise doc_check_profile.ProfileError(
+            "product_ddl_map のdomainが参照IDと一致しません"
+            f"(未写像={sorted(referenced_ids - domain)}, "
+            f"余分={sorted(domain - referenced_ids)})"
+        )
+    flattened = {key: next(iter(values)) for key, values in mappings.items()}
+    return lambda value: flattened[value]
+
+
+def check_cross_consistency(
+    profile: Any,
+    assets: Any,
+    *,
+    text: str,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """WAITとAUTHの二段階射影およびFORB衝突を検査する。"""
+    findings: list[Finding] = []
+    extracted = doc_check_profile.extract_structures(
+        profile,
+        assets,
+        text=text,
+        manifest=raw_manifest,
+    )
+    manifest_extractor_ids = {
+        declaration["id"]
+        for declaration in profile.raw["structure_extractors"]
+        if declaration["source"] == "manifest"
+    }
+    manifest_ids = {
+        endpoint.id
+        for extractor_id, structures in extracted.items()
+        if extractor_id in manifest_extractor_ids
+        for structure in structures
+        for endpoint in (
+            structure.source,
+            structure.target,
+            *structure.participants,
+        )
+    }
+    extracted_structures = tuple(
+        structure
+        for values in extracted.values()
+        for structure in values
+    )
+
+    waiting_structures: list[Any] = []
+    for record in _asset_records(assets, "waiting"):
+        if record.raw.get("status") != "resolved":
+            continue
+        physical = record.raw.get("physical")
+        if not isinstance(physical, str) or not physical:
+            raise doc_check_profile.ProfileError("resolved WAIT の physical が不正です")
+        normalized = doc_check_profile.normalize_identifier(
+            physical,
+            "table",
+            assets.normalize,
+        ).id
+        if normalized not in manifest_ids:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"resolved WAIT の physical がmanifestにない: {normalized}",
+                )
+            )
+        if normalized not in text:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"resolved WAIT の physical が本文にない: {normalized}",
+                )
+            )
+        waiting_structures.extend(
+            structure
+            for structure in extracted_structures
+            if any(value.id == normalized for value in structure.participants)
+        )
+
+    auth_records = _asset_records(assets, "auth_catalog")
+    map_records = _asset_records(assets, "auth_ddl_map")
+    auth_ids = {
+        identifier.id for record in auth_records for identifier in record.identifiers
+    }
+    map_ids = {
+        identifier.id for record in map_records for identifier in record.identifiers
+    }
+    if auth_ids != map_ids:
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                "auth_ddl_map ID集合がauth_catalogと不一致"
+                f"(脱落={sorted(auth_ids - map_ids)}, 過剰={sorted(map_ids - auth_ids)})",
+            )
+        )
+
+    ddl_ids = {
+        identifier.id
+        for record in _asset_records(assets, "ddl_elements")
+        for identifier in record.identifiers
+    }
+    map_refs: set[str] = set()
+    auth_structures: list[Any] = []
+    for record in map_records:
+        refs = {reference.id for reference in record.refs}
+        if not refs:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"auth_ddl_map entry のrefsが空: {record.raw.get('catalog_entry_id')}",
+                )
+            )
+        if not record.structures:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "auth_ddl_map entry のstructuresが空: "
+                    f"{record.raw.get('catalog_entry_id')}",
+                )
+            )
+        map_refs.update(refs)
+        auth_structures.extend(record.structures)
+        if not refs <= ddl_ids:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"auth_ddl_map refがDDLにない: {sorted(refs - ddl_ids)}",
+                )
+            )
+        participant_ids = {
+            participant.id
+            for structure in record.structures
+            for participant in structure.participants
+        }
+        if not participant_ids <= refs:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "auth_ddl_map structures.participantsがrefs外: "
+                    f"{sorted(participant_ids - refs)}",
+                )
+            )
+
+    ddl_structures = doc_check_profile.asset_structures(assets, "ddl_elements")
+    if set(auth_structures) != set(ddl_structures):
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                "auth_ddl_map structuresがDDL導出構造と不一致"
+                f"(脱落={len(set(ddl_structures) - set(auth_structures))}, "
+                f"過剰={len(set(auth_structures) - set(ddl_structures))})",
+            )
+        )
+
+    referenced_ids = set(map_refs)
+    for structure in auth_structures:
+        referenced_ids.update(
+            value.id
+            for value in (structure.source, structure.target, *structure.participants)
+        )
+    project = _product_projector(assets, referenced_ids)
+    projected_refs = {project(value) for value in map_refs}
+    if not projected_refs <= manifest_ids:
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                f"射影後AUTH refがmanifestにない: "
+                f"{sorted(projected_refs - manifest_ids)}",
+            )
+        )
+    projected_structures = tuple(
+        _project_structure(structure, project) for structure in auth_structures
+    )
+    forbidden = doc_check_profile.asset_structures(assets, "forbidden")
+    for forbidden_structure in forbidden:
+        if any(
+            _structure_matches(forbidden_structure, candidate)
+            for candidate in (*projected_structures, *waiting_structures)
+        ):
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "射影後構造が禁止構造と衝突: "
+                    + _format_structure(forbidden_structure),
+                )
+            )
+    return tuple(findings)
+
+
+def _ledger_entries(value: Any) -> tuple[dict[str, Any], ...]:
+    """欠陥台帳のmapping/list形を項目列へ正規化する。"""
+    if isinstance(value, Mapping):
+        entries: list[dict[str, Any]] = []
+        for key, item in value.items():
+            if not isinstance(item, Mapping):
+                raise doc_check_profile.ProfileError(f"台帳項目 {key} がobjectではありません")
+            entry = dict(item)
+            if entry.get("id") != key:
+                raise doc_check_profile.ProfileError(
+                    f"台帳キー {key} と id が一致しません"
+                )
+            entries.append(entry)
+        return tuple(entries)
+    if isinstance(value, list) and all(isinstance(item, Mapping) for item in value):
+        return tuple(dict(item) for item in value)
+    raise doc_check_profile.ProfileError("欠陥台帳はobjectまたはobject arrayが必要です")
+
+
+def _immutable_ledger_entry(entry: Mapping[str, Any]) -> dict[str, Any]:
+    """台帳項目から版1のimmutable exact-setを取り出す。"""
+    result: dict[str, Any] = {}
+    for field in doc_check_profile.ASSET_IMMUTABLE_FIELDS:
+        if field.startswith("invariant."):
+            invariant = entry.get("invariant")
+            nested = field.split(".", 1)[1]
+            if not isinstance(invariant, Mapping) or nested not in invariant:
+                raise doc_check_profile.ProfileError(
+                    f"台帳 {entry.get('id')} の {field} がありません"
+                )
+            result[field] = invariant[nested]
+        else:
+            if field not in entry:
+                raise doc_check_profile.ProfileError(
+                    f"台帳 {entry.get('id')} の {field} がありません"
+                )
+            result[field] = entry[field]
+    return result
+
+
+def render_baseline_digest(entries: Sequence[Mapping[str, Any]]) -> str:
+    """台帳のimmutable項目を版1のbaseline digestにする。"""
+    rendered: list[tuple[str, str]] = []
+    for entry in entries:
+        immutable = _immutable_ledger_entry(entry)
+        identifier = immutable["id"]
+        if not isinstance(identifier, str) or not identifier:
+            raise doc_check_profile.ProfileError("台帳 id が空または文字列外です")
+        rendered.append((identifier, doc_check_profile.canonical_digest(immutable)))
+    rendered.sort(key=lambda value: value[0].encode("utf-8"))
+    fields = ",".join(doc_check_profile.ASSET_IMMUTABLE_FIELDS)
+    lines = [f"envelope schema_version=1 algo=sha256 fields={fields}"]
+    lines.extend(f"{identifier} {digest}" for identifier, digest in rendered)
+    return "\n".join(lines) + "\n"
+
+
+def _load_global_ledger(
+    profile: Any,
+    invariants: Any | None,
+) -> tuple[Any, tuple[dict[str, Any], ...]]:
+    """unique-owner宣言と台帳項目を読む。"""
+    declarations = (
+        tuple(
+            value
+            for value in invariants.global_invariants
+            if value.get("kind") == "unique-owner"
+        )
+        if invariants is not None
+        else ()
+    )
+    if len(declarations) != 1:
+        raise doc_check_profile.ProfileError(
+            "required_checks=unique-owner にglobal_invariantsのunique-owner 1件が必要です"
+        )
+    declaration = declarations[0]
+    ledger_path = _resolve(profile.root, Path(declaration["ledger"]))
+    return declaration, _ledger_entries(doc_check_profile.load_json(ledger_path))
+
+
+def check_baseline_digest(
+    profile: Any,
+    assets: Any,
+    invariants: Any | None,
+) -> tuple[Finding, ...]:
+    """欠陥台帳のbaseline digestと固定ファイルを逐語照合する。"""
+    if invariants is not None and any(
+        value.get("kind") == "unique-owner" for value in invariants.global_invariants
+    ):
+        declaration, entries = _load_global_ledger(profile, invariants)
+        digest_path = _resolve(profile.root, Path(declaration["digest_file"]))
+    else:
+        entries = _ledger_entries(doc_check_profile.load_json(profile.defects))
+        digest_path = assets.assets["baseline_digest"].path
+    expected = render_baseline_digest(entries)
+    try:
+        actual = digest_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise doc_check_profile.ProfileError(
+            f"baseline digestを読めません: {digest_path}: {error}"
+        ) from error
+    if actual == expected:
+        return ()
+    return (
+        Finding(
+            "baseline-digest",
+            "baseline-digest",
+            "baseline digestが台帳のimmutable項目と一致しません",
+        ),
+    )
+
+
+def check_unique_owner(
+    profile: Any,
+    assets: Any,
+    invariants: Any | None,
+) -> tuple[Finding, ...]:
+    """台帳IDの独立期待集合とowner_stepの一意性を検査する。"""
+    declaration, entries = _load_global_ledger(profile, invariants)
+    expected_asset = assets.assets.get("expected_ids")
+    digest_asset = assets.assets.get("baseline_digest")
+    if expected_asset is None or digest_asset is None:
+        raise doc_check_profile.ProfileError(
+            "required_checks=unique-owner に expected_ids と baseline_digest が必要です"
+        )
+    expected_path = _resolve(profile.root, Path(declaration["expected_ids"]))
+    digest_path = _resolve(profile.root, Path(declaration["digest_file"]))
+    if expected_path != expected_asset.path or digest_path != digest_asset.path:
+        raise doc_check_profile.ProfileError(
+            "unique-owner宣言のexpected_ids/digest_fileがプロファイル資産と不一致です"
+        )
+    expected_ids = {
+        identifier.id
+        for record in _asset_records(assets, "expected_ids")
+        for identifier in record.identifiers
+    }
+    if not expected_ids:
+        raise doc_check_profile.ProfileError("unique-owner のexpected_ids資産が空です")
+    actual_values = [entry.get("id") for entry in entries]
+    invalid_ids = [
+        value for value in actual_values if not isinstance(value, str) or not value
+    ]
+    if invalid_ids:
+        raise doc_check_profile.ProfileError(f"台帳のidが不正です: {invalid_ids}")
+    actual_ids = [str(value) for value in actual_values]
+    findings: list[Finding] = []
+    duplicates = sorted(
+        identifier
+        for identifier, count in Counter(actual_ids).items()
+        if count > 1
+    )
+    if duplicates:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                f"台帳idが重複: {duplicates}",
+            )
+        )
+    actual_set = set(actual_ids)
+    if actual_set != expected_ids:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                "台帳IDがexpected_idsと不一致"
+                f"(欠落={sorted(expected_ids - actual_set)}, "
+                f"過剰={sorted(actual_set - expected_ids)})",
+            )
+        )
+    allowed = set(declaration["owner_steps_allowed"])
+    invalid_owners = sorted(
+        f"{entry.get('id')}={entry.get('owner_step')!r}"
+        for entry in entries
+        if entry.get("owner_step") not in allowed
+    )
+    if invalid_owners:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                f"owner_stepが許可集合外: {invalid_owners}",
+            )
+        )
+    return tuple(findings)
+
+
 def _global_findings(
     text: str,
     root: Path,
     manifest: dict[str, ManifestRelation],
     checks: frozenset[str],
     link_base_dir: Path | None,
+    profile: Any | None,
+    invariants: Any | None,
+    raw_manifest: Mapping[str, Any] | None,
     *,
     legacy_prefixes: Sequence[str],
     legacy_infix: str,
@@ -908,6 +1458,41 @@ def _global_findings(
             findings.append(
                 Finding("link-target", "link-target", "実在しないリンク: " + ",".join(targets))
             )
+    profile_checks = (
+        checks & profile.required_checks & PROFILE_ASSET_CHECK_IDS
+        if profile is not None
+        else frozenset()
+    )
+    if profile_checks:
+        if raw_manifest is None:
+            raise CheckError("プロファイル資産検査にraw manifestが必要")
+        assets = doc_check_profile.load_assets(profile)
+        if "collection-consistency" in profile_checks:
+            findings.extend(
+                check_collection_consistency(profile, assets, raw_manifest)
+            )
+        if "forbidden-structure" in profile_checks:
+            findings.extend(
+                check_forbidden_structures(
+                    profile,
+                    assets,
+                    text=text,
+                    raw_manifest=raw_manifest,
+                )
+            )
+        if "cross-consistency" in profile_checks:
+            findings.extend(
+                check_cross_consistency(
+                    profile,
+                    assets,
+                    text=text,
+                    raw_manifest=raw_manifest,
+                )
+            )
+        if "baseline-digest" in profile_checks:
+            findings.extend(check_baseline_digest(profile, assets, invariants))
+        if "unique-owner" in profile_checks:
+            findings.extend(check_unique_owner(profile, assets, invariants))
     return findings
 
 
@@ -995,6 +1580,7 @@ def run_checks(
     link_base_dir: Path | None = None,
     invariants: Any | None = None,
     profile: Any | None = None,
+    raw_manifest: Mapping[str, Any] | None = None,
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
@@ -1018,6 +1604,7 @@ def run_checks(
         link_base_dir: 相対Markdownリンクの解決基準。
         invariants: 検証済みの不変条件宣言資産。未指定なら結合検査を省く。
         profile: 宣言評価に使う検証済みプロファイル。
+        raw_manifest: 資産・構造検査で使うマニフェスト原値。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
         legacy_prefixes: legacy引用と認識するパス接頭辞。
@@ -1073,6 +1660,9 @@ def run_checks(
                 manifest,
                 checks,
                 link_base_dir,
+                profile,
+                invariants,
+                raw_manifest,
                 legacy_prefixes=legacy_prefixes,
                 legacy_infix=legacy_infix,
                 noncanonical_scan_start=noncanonical_scan_start,
@@ -1176,10 +1766,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             text = document.read_text(encoding="utf-8")
         except OSError as error:
             raise CheckError(f"検査対象を読めない: {document}: {error}") from error
-        manifest = load_manifest(manifest_path)
+        raw_manifest_value = doc_check_profile.load_json(manifest_path)
+        if not isinstance(raw_manifest_value, Mapping):
+            raise CheckError(f"関係マニフェストがobjectでない: {manifest_path}")
+        requested_checks = _parse_csv(args.checks, "--checks")
+        manifest = (
+            load_manifest(manifest_path)
+            if requested_checks is None
+            or bool(requested_checks & LEGACY_PROP_CHECK_IDS)
+            else {}
+        )
         defects = load_defects(defects_path)
         invariants = (
-            doc_check_profile.load_invariants(profile.invariants)
+            doc_check_profile.load_invariants(
+                profile.invariants,
+                schema_dir=profile.schema_dir,
+            )
             if profile.invariants is not None
             else None
         )
@@ -1195,6 +1797,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             link_base_dir=profile.link_base_dir,
             invariants=invariants,
             profile=profile,
+            raw_manifest=raw_manifest_value,
             section_id_grammar=profile.raw["section_id_grammar"],
             preamble=profile.raw["preamble"],
             legacy_prefixes=citation["legacy_prefixes"],
@@ -1212,6 +1815,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as error:
         print(f"check_design_propagation.py: {error}", file=sys.stderr)
         return 2
+    if requested_checks is not None:
+        for check_id in CHECK_IDS:
+            if check_id in requested_checks and check_id in profile.not_applicable:
+                print(f"{check_id}: 対象なし: {profile.not_applicable[check_id]}")
     for finding in findings:
         print(f"{finding.identifier}: [{finding.check}] {finding.reason}", file=sys.stderr)
     return 1 if findings else 0

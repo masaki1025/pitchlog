@@ -31,6 +31,14 @@ PROFILE = (
     / "profiles"
     / "sync-protocol.json"
 )
+SAMPLE_PROFILE = (
+    REPOSITORY_ROOT
+    / "tests"
+    / "fixtures"
+    / "profile-sample"
+    / "profiles"
+    / "data-model-like.json"
+)
 
 P3_RESULTS = (
     "変更受理",
@@ -186,6 +194,42 @@ def _write_json(path: Path, value: Any) -> None:
         json.dumps(value, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _load_sample_profile() -> Any:
+    """データモデル型サンプルプロファイルを読む。"""
+    return checker.doc_check_profile.load_profile(
+        SAMPLE_PROFILE,
+        root=REPOSITORY_ROOT,
+        schema_dir=REPOSITORY_ROOT / "scripts/design_relations/schemas",
+    )
+
+
+def _sample_check_inputs() -> tuple[Any, Any, str, dict[str, Any], Any]:
+    """新検査の適合サンプル入力一式を返す。"""
+    profile = _load_sample_profile()
+    assets = checker.doc_check_profile.load_assets(profile)
+    text = profile.document.read_text(encoding="utf-8")
+    raw_manifest = checker.doc_check_profile.load_json(profile.manifest)
+    invariants = checker.doc_check_profile.load_invariants(
+        profile.invariants,
+        schema_dir=profile.schema_dir,
+    )
+    return profile, assets, text, raw_manifest, invariants
+
+
+def _replace_sample_asset(
+    profile: Any,
+    tmp_path: Path,
+    asset_name: str,
+    value: Any,
+) -> Any:
+    """合成資産1本を一時JSONに差し替えたProfileを返す。"""
+    asset_path = tmp_path / f"{asset_name}.json"
+    _write_json(asset_path, value)
+    raw = json.loads(json.dumps(profile.raw))
+    raw["assets"][asset_name]["path"] = str(asset_path)
+    return replace(profile, raw=raw)
 
 
 def _make_staging_registry(tmp_path: Path, document: Path) -> Path:
@@ -4034,3 +4078,490 @@ def test_step34_failure_fixture_contract_can_express_both_p5_branches() -> None:
     assert "B3a では未使用 D5 と内容拒否になる原本" in section
     assert "B3b では先着の不変な原本" in section
     assert "同じ D5・異なる内容の後着入力" in section
+
+
+@pytest.mark.parametrize(
+    ("mutation", "reason_part"),
+    (
+        ("manifest-missing", "left-only=['R-SAMPLE']"),
+        ("manifest-extra", "right-only=['R-EXTRA']"),
+        ("forbidden-mixed", "forbidden-disjoint-manifest"),
+        ("subset", "direct-requirements-subset-claims"),
+    ),
+)
+def test_collection_consistency_reports_exact_subset_and_disjoint_differences(
+    tmp_path: Path,
+    mutation: str,
+    reason_part: str,
+) -> None:
+    """collection-consistencyの3関係と差集合reasonを固定する。"""
+    profile, assets, _, manifest_value, _ = _sample_check_inputs()
+    raw_manifest = json.loads(json.dumps(manifest_value))
+    if mutation == "manifest-missing":
+        raw_manifest["relations"] = []
+    elif mutation == "manifest-extra":
+        raw_manifest["relations"].append(
+            {"id": "R-EXTRA", "source_id": "orders", "target_ids": ["app_role"]}
+        )
+    elif mutation == "forbidden-mixed":
+        raw_manifest["relations"].append(
+            {"id": "FORB-REL", "source_id": "orders", "target_ids": ["app_role"]}
+        )
+    else:
+        direct = {
+            "schema_version": 1,
+            "asset_kind": "direct_requirements",
+            "oracle_context": {},
+            "ids": ["FR-MISSING"],
+        }
+        profile = _replace_sample_asset(
+            profile,
+            tmp_path,
+            "direct_requirements",
+            direct,
+        )
+        assets = checker.doc_check_profile.load_assets(profile)
+
+    findings = checker.check_collection_consistency(
+        profile,
+        assets,
+        raw_manifest,
+    )
+    assert findings
+    assert reason_part in "\n".join(finding.reason for finding in findings)
+
+
+def test_collection_consistency_sample_is_green_and_sync_is_not_applicable() -> None:
+    """適合サンプルはgreen、同期は理由付き対象外にする。"""
+    profile, assets, _, raw_manifest, _ = _sample_check_inputs()
+    assert not checker.check_collection_consistency(profile, assets, raw_manifest)
+
+    result = _run_cli("--checks", "collection-consistency")
+    assert result.returncode == 0
+    assert "collection-consistency: 対象なし:" in result.stdout
+
+
+def _forbidden_relation(
+    *,
+    direction: str,
+) -> dict[str, Any]:
+    """別名を使った合成禁止関係を返す。"""
+    return {
+        "id": "FORB-REL",
+        "kind": "relation",
+        "source": {"namespace": "source", "id": "legacy_orders"},
+        "target": {"namespace": "target", "id": "legacy_role"},
+        "direction": direction,
+        "participants": [
+            {"namespace": "source", "id": "legacy_orders"},
+            {"namespace": "target", "id": "legacy_role"},
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("direction", "violated"),
+    (("source->target", True), ("target->source", False), ("both", True)),
+)
+def test_forbidden_structure_normalizes_aliases_and_distinguishes_direction(
+    tmp_path: Path,
+    direction: str,
+    violated: bool,
+) -> None:
+    """別名で同一の構造を検出し、方向反転だけは区別する。"""
+    profile, _, text, raw_manifest, _ = _sample_check_inputs()
+    raw = json.loads(json.dumps(profile.raw))
+    aliases = raw["assets"]["claims"]["normalize"]["aliases"]
+    aliases["source"] = {"legacy_orders": "orders"}
+    aliases["target"] = {"legacy_role": "app_role"}
+    profile = replace(profile, raw=raw)
+    forbidden = checker.doc_check_profile.load_json(
+        profile.root / "tests/fixtures/profile-sample/assets/forbidden.json"
+    )
+    forbidden["entries"][0] = _forbidden_relation(direction=direction)
+    profile = _replace_sample_asset(profile, tmp_path, "forbidden", forbidden)
+    assets = checker.doc_check_profile.load_assets(profile)
+
+    findings = checker.check_forbidden_structures(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=raw_manifest,
+    )
+    assert bool(findings) is violated
+    assert "legacy_orders" not in text
+    assert "legacy_role" not in text
+
+
+def test_forbidden_structure_rejects_zero_extractor_and_sync_is_not_applicable() -> None:
+    """抽出0件は入力不正、同期は理由付き対象外にする。"""
+    profile, assets, text, raw_manifest, _ = _sample_check_inputs()
+    raw_manifest["relations"] = []
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="1件も得られません"):
+        checker.check_forbidden_structures(
+            profile,
+            assets,
+            text=text,
+            raw_manifest=raw_manifest,
+        )
+
+    result = _run_cli("--checks", "forbidden-structure")
+    assert result.returncode == 0
+    assert "forbidden-structure: 対象なし:" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "empty-map",
+        "map-id-missing",
+        "map-id-extra",
+        "refs-empty",
+        "structures-empty",
+        "structure-missing",
+        "participants-different",
+    ),
+)
+def test_cross_consistency_rejects_auth_map_shape_drift(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """AUTH mapの空、ID脱落過剰、refs/structures差分をredにする。"""
+    profile, _, text, raw_manifest, _ = _sample_check_inputs()
+    auth_map = checker.doc_check_profile.load_json(
+        profile.root / "tests/fixtures/profile-sample/assets/auth-ddl-map.json"
+    )
+    entry = auth_map["entries"][0]
+    if mutation == "empty-map":
+        auth_map["entries"] = []
+    elif mutation == "map-id-missing":
+        entry["catalog_entry_id"] = "AUTH-MISSING"
+    elif mutation == "map-id-extra":
+        auth_map["entries"].append(
+            {**json.loads(json.dumps(entry)), "catalog_entry_id": "AUTH-EXTRA"}
+        )
+    elif mutation == "refs-empty":
+        entry["ddl_ids"] = []
+    elif mutation in {"structures-empty", "structure-missing"}:
+        entry["structures"] = []
+    else:
+        entry["structures"][0]["participants"] = [
+            {"namespace": "table", "id": "orders"}
+        ]
+    profile = _replace_sample_asset(profile, tmp_path, "auth_ddl_map", auth_map)
+    assets = checker.doc_check_profile.load_assets(profile)
+
+    assert checker.check_cross_consistency(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=raw_manifest,
+    )
+
+
+def test_cross_consistency_checks_wait_text_auth_manifest_and_normal_case() -> None:
+    """WAITの本文実在とAUTHのmanifest実在を独立に検査する。"""
+    profile, assets, text, raw_manifest, _ = _sample_check_inputs()
+    assert not checker.check_cross_consistency(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=raw_manifest,
+    )
+
+    without_wait = text.replace("orders", "missing")
+    wait_findings = checker.check_cross_consistency(
+        profile,
+        assets,
+        text=without_wait,
+        raw_manifest=raw_manifest,
+    )
+    assert any("本文にない" in finding.reason for finding in wait_findings)
+
+    changed_manifest = json.loads(json.dumps(raw_manifest))
+    changed_manifest["relations"][0]["target_ids"] = ["other_role"]
+    auth_findings = checker.check_cross_consistency(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=changed_manifest,
+    )
+    assert any("射影後AUTH refがmanifestにない" in finding.reason for finding in auth_findings)
+
+    sync_result = _run_cli("--checks", "cross-consistency")
+    assert sync_result.returncode == 0
+    assert "cross-consistency: 対象なし:" in sync_result.stdout
+
+
+@pytest.mark.parametrize(
+    ("direction", "violated"),
+    (("source->target", True), ("target->source", False)),
+)
+def test_cross_consistency_compares_projected_forbidden_direction(
+    tmp_path: Path,
+    direction: str,
+    violated: bool,
+) -> None:
+    """製品IDへ射影後の禁止方向だけをredにする。"""
+    profile, _, text, raw_manifest, _ = _sample_check_inputs()
+    forbidden = checker.doc_check_profile.load_json(
+        profile.root / "tests/fixtures/profile-sample/assets/forbidden.json"
+    )
+    forbidden["entries"][0] = {
+        "id": "FORB-REL",
+        "kind": "reference",
+        "source": {"namespace": "table", "id": "orders"},
+        "target": {"namespace": "role", "id": "app_role"},
+        "direction": direction,
+        "participants": [
+            {"namespace": "table", "id": "orders"},
+            {"namespace": "role", "id": "app_role"},
+        ],
+    }
+    profile = _replace_sample_asset(profile, tmp_path, "forbidden", forbidden)
+    assets = checker.doc_check_profile.load_assets(profile)
+    findings = checker.check_cross_consistency(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=raw_manifest,
+    )
+    collided = any("禁止構造と衝突" in finding.reason for finding in findings)
+    assert collided is violated
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing-asset", "unmapped", "extra", "ambiguous"),
+)
+def test_cross_consistency_probe_projection_is_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """probe-only DDLのproduct写像欠落・過剰・曖昧さを入力不正にする。"""
+    profile, _, text, raw_manifest, _ = _sample_check_inputs()
+    ddl = checker.doc_check_profile.load_json(
+        profile.root / "tests/fixtures/profile-sample/assets/ddl-elements.json"
+    )
+    ddl["scope"]["product_schema"] = False
+    profile = _replace_sample_asset(profile, tmp_path, "ddl_elements", ddl)
+    if mutation == "missing-asset":
+        raw = json.loads(json.dumps(profile.raw))
+        del raw["assets"]["product_ddl_map"]
+        profile = replace(profile, raw=raw)
+    else:
+        product_map = checker.doc_check_profile.load_json(
+            profile.root / "tests/fixtures/profile-sample/assets/product-ddl-map.json"
+        )
+        if mutation == "unmapped":
+            product_map["entries"].pop()
+        elif mutation == "extra":
+            product_map["entries"].append(
+                {"ddl_id": "extra", "product_id": "extra"}
+            )
+        else:
+            product_map["entries"].append(
+                {"ddl_id": "orders", "product_id": "other_orders"}
+            )
+        profile = _replace_sample_asset(
+            profile,
+            tmp_path,
+            "product_ddl_map",
+            product_map,
+        )
+    assets = checker.doc_check_profile.load_assets(profile)
+    with pytest.raises(checker.doc_check_profile.ProfileError):
+        checker.check_cross_consistency(
+            profile,
+            assets,
+            text=text,
+            raw_manifest=raw_manifest,
+        )
+
+
+def test_cross_consistency_probe_projection_normal_case(tmp_path: Path) -> None:
+    """probe-only DDLで完全なproduct写像を通す。"""
+    profile, _, text, raw_manifest, _ = _sample_check_inputs()
+    ddl = checker.doc_check_profile.load_json(
+        profile.root / "tests/fixtures/profile-sample/assets/ddl-elements.json"
+    )
+    ddl["scope"]["product_schema"] = False
+    profile = _replace_sample_asset(profile, tmp_path, "ddl_elements", ddl)
+    assets = checker.doc_check_profile.load_assets(profile)
+    assert not checker.check_cross_consistency(
+        profile,
+        assets,
+        text=text,
+        raw_manifest=raw_manifest,
+    )
+
+
+def _with_ledger(
+    profile: Any,
+    invariants: Any,
+    tmp_path: Path,
+    entries: Any,
+) -> Any:
+    """global invariantのledgerパスを合成台帳へ差し替える。"""
+    path = tmp_path / "ledger.json"
+    _write_json(path, entries)
+    declaration = dict(invariants.global_invariants[0])
+    declaration["ledger"] = str(path)
+    return replace(invariants, global_invariants=(declaration,))
+
+
+@pytest.mark.parametrize("field", checker.doc_check_profile.ASSET_IMMUTABLE_FIELDS)
+def test_baseline_digest_detects_every_immutable_field(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    """immutable exact-setの各フィールド改変をredにする。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    entry = next(iter(checker.doc_check_profile.load_json(profile.defects).values()))
+    entry = json.loads(json.dumps(entry))
+    if field.startswith("invariant."):
+        key = field.split(".", 1)[1]
+        entry["invariant"][key] = f"changed-{key}"
+    elif field == "baseline":
+        entry[field] = not entry[field]
+    else:
+        entry[field] = f"changed-{field}"
+    changed = _with_ledger(profile, invariants, tmp_path, [entry])
+    assert checker.check_baseline_digest(profile, assets, changed)
+
+
+@pytest.mark.parametrize("field", checker.doc_check_profile.ASSET_MUTABLE_FIELDS)
+def test_baseline_digest_ignores_mutable_fields(tmp_path: Path, field: str) -> None:
+    """mutableフィールドの改変はbaseline digestを変えない。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    entry = next(iter(checker.doc_check_profile.load_json(profile.defects).values()))
+    entry = json.loads(json.dumps(entry))
+    entry[field] = f"changed-{field}"
+    changed = _with_ledger(profile, invariants, tmp_path, [entry])
+    assert not checker.check_baseline_digest(profile, assets, changed)
+
+
+def test_baseline_digest_is_independent_of_json_order_and_rejects_duplicate_key(
+    tmp_path: Path,
+) -> None:
+    """JSONのキー順・空白を無視し、重複キーは入力不正にする。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    entry = next(iter(checker.doc_check_profile.load_json(profile.defects).values()))
+    changed = _with_ledger(profile, invariants, tmp_path, [dict(reversed(entry.items()))])
+    assert not checker.check_baseline_digest(profile, assets, changed)
+
+    duplicate = tmp_path / "duplicate-ledger.json"
+    duplicate.write_text(
+        '{"DEFECT-001":{"id":"DEFECT-001"},'
+        '"DEFECT-001":{"id":"DEFECT-001"}}',
+        encoding="utf-8",
+    )
+    declaration = dict(invariants.global_invariants[0])
+    declaration["ledger"] = str(duplicate)
+    changed = replace(invariants, global_invariants=(declaration,))
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="重複"):
+        checker.check_baseline_digest(profile, assets, changed)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "reason"),
+    (
+        ("duplicate", "重複"),
+        ("missing", "expected_idsと不一致"),
+        ("extra", "expected_idsと不一致"),
+        ("owner", "owner_stepが許可集合外"),
+    ),
+)
+def test_unique_owner_rejects_duplicate_missing_extra_and_invalid_owner(
+    tmp_path: Path,
+    mutation: str,
+    reason: str,
+) -> None:
+    """unique-ownerのID集合・重複・owner_step制約を検査する。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    entry = next(iter(checker.doc_check_profile.load_json(profile.defects).values()))
+    entry = json.loads(json.dumps(entry))
+    if mutation == "duplicate":
+        entries = [entry, json.loads(json.dumps(entry))]
+    elif mutation == "missing":
+        entries = []
+    elif mutation == "extra":
+        extra = json.loads(json.dumps(entry))
+        extra["id"] = "DEFECT-EXTRA"
+        entries = [entry, extra]
+    else:
+        entry["owner_step"] = "forbidden-step"
+        entries = [entry]
+    changed = _with_ledger(profile, invariants, tmp_path, entries)
+    findings = checker.check_unique_owner(profile, assets, changed)
+    assert reason in "\n".join(finding.reason for finding in findings)
+
+
+def test_unique_owner_requires_global_declaration_expected_ids_and_baseline() -> None:
+    """required・global宣言・独立資産の3者不足を入力不正にする。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    without_global = replace(invariants, global_invariants=())
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="global_invariants"):
+        checker.check_unique_owner(profile, assets, without_global)
+
+    for missing in ("expected_ids", "baseline_digest"):
+        reduced = replace(
+            assets,
+            assets={name: asset for name, asset in assets.assets.items() if name != missing},
+        )
+        with pytest.raises(checker.doc_check_profile.ProfileError, match=missing):
+            checker.check_unique_owner(profile, reduced, invariants)
+
+
+def test_unique_owner_rejects_empty_expected_ids_and_sample_is_green(
+    tmp_path: Path,
+) -> None:
+    """空の独立期待集合を拒否し、サンプル適合を固定する。"""
+    profile, assets, _, _, invariants = _sample_check_inputs()
+    assert not checker.check_unique_owner(profile, assets, invariants)
+    empty = {
+        "schema_version": 1,
+        "asset_kind": "expected_ids",
+        "oracle_context": {},
+        "ids": [],
+    }
+    changed_profile = _replace_sample_asset(
+        profile,
+        tmp_path,
+        "expected_ids",
+        empty,
+    )
+    changed_assets = checker.doc_check_profile.load_assets(changed_profile)
+    declaration = dict(invariants.global_invariants[0])
+    declaration["expected_ids"] = changed_profile.raw["assets"]["expected_ids"]["path"]
+    changed_invariants = replace(invariants, global_invariants=(declaration,))
+    with pytest.raises(checker.doc_check_profile.ProfileError, match="空"):
+        checker.check_unique_owner(
+            changed_profile,
+            changed_assets,
+            changed_invariants,
+        )
+
+
+def test_sample_profile_runs_all_five_new_propagation_checks() -> None:
+    """今回実装したデータモデル型のPROP新5検査が適合する。"""
+    for check_id in (
+        "collection-consistency",
+        "forbidden-structure",
+        "cross-consistency",
+        "baseline-digest",
+        "unique-owner",
+    ):
+        result = _run_cli("--profile", str(SAMPLE_PROFILE), "--checks", check_id)
+        assert result.returncode == 0, (check_id, result.stderr)
+
+
+@pytest.mark.parametrize(
+    "check_id",
+    ("baseline-digest", "unique-owner"),
+)
+def test_sync_baseline_and_owner_checks_are_not_applicable(check_id: str) -> None:
+    """同期プロファイルは台帳資産なしで理由付き対象外にする。"""
+    result = _run_cli("--checks", check_id)
+    assert result.returncode == 0
+    assert f"{check_id}: 対象なし:" in result.stdout

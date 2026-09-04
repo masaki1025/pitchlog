@@ -102,6 +102,7 @@
     {"id": "implicit-refs", "source": "derived", "from": "relations", "rule": "inverse", "kind": "reference"}
   ],
   "collection_sets": [
+    {"id": "claims-relations-vs-manifest", "relation": "exact", "left": {"asset": "claims", "collection": 0, "filter": {"field": "classification", "equals": "relation"}, "key": "source_id"}, "right": {"manifest": "relations", "key": "id"}},
     {"id": "direct-requirements-vs-claims", "relation": "exact", "left": {"asset": "claims", "collection": 0, "filter": {"field": "classification", "equals": "direct_requirement"}, "key": "source_id"}, "right": {"asset": "direct_requirements", "collection": 0, "key": "value"}},
     {"id": "direct-requirements-subset-claims", "relation": "subset", "left": {"asset": "direct_requirements", "collection": 0, "key": "value"}, "right": {"asset": "claims", "collection": 0, "key": "source_id"}},
     {"id": "forbidden-disjoint-manifest", "relation": "disjoint", "left": {"asset": "forbidden", "collection": 0, "key": "id"}, "right": {"manifest": "relations", "key": "id"}}

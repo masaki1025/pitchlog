@@ -37,7 +37,12 @@ DEFAULT_UNIVERSE = Path("scripts/design_relations/req-universe.json")
 COVERAGE_CHECK_IDS = ("attribution", "ledger")
 COVERAGE_CHECK_ID_SET = frozenset(COVERAGE_CHECK_IDS)
 ATTRIBUTION_DESTINATION_CHECK_ID = "attribution-destination"
-COVERAGE_SELECTABLE_CHECK_IDS = (*COVERAGE_CHECK_IDS, ATTRIBUTION_DESTINATION_CHECK_ID)
+ATTRIBUTION_DIRECT_CHECK_ID = "attribution-direct"
+COVERAGE_SELECTABLE_CHECK_IDS = (
+    *COVERAGE_CHECK_IDS,
+    ATTRIBUTION_DESTINATION_CHECK_ID,
+    ATTRIBUTION_DIRECT_CHECK_ID,
+)
 COVERAGE_SELECTABLE_CHECK_ID_SET = frozenset(COVERAGE_SELECTABLE_CHECK_IDS)
 CATEGORY_IDS = (
     "requirements",
@@ -1094,6 +1099,91 @@ def check_ledger(
     return tuple(findings)
 
 
+def _direct_universe_ids(value: Any) -> frozenset[str]:
+    """直接要件照合用に要件母集合のIDを平坦化する。"""
+    if not isinstance(value, dict):
+        raise CoverageError("要件母集合がobjectでない")
+    if isinstance(value.get("ids"), list):
+        values = value["ids"]
+    elif isinstance(value.get("categories"), dict):
+        values = [
+            identifier
+            for category in value["categories"].values()
+            if isinstance(category, dict)
+            for identifier in category.get("ids", [])
+        ]
+    else:
+        raise CoverageError("要件母集合に ids/categories がない")
+    if not all(isinstance(identifier, str) and identifier for identifier in values):
+        raise CoverageError("要件母集合のIDが不正")
+    return frozenset(values)
+
+
+def check_attribution_direct(
+    profile: Any,
+    assignments: Sequence[Assignment],
+) -> tuple[Finding, ...]:
+    """直接要件集合とclaims分類および帰属表を照合する。"""
+    assets = doc_check_profile.load_assets(profile)
+    direct_asset = assets.assets.get("direct_requirements")
+    if direct_asset is None or profile.direct_requirements is None:
+        raise doc_check_profile.ProfileError(
+            "required_checks=attribution-direct に direct_requirements が必要です"
+        )
+    if direct_asset.path != profile.direct_requirements:
+        raise doc_check_profile.ProfileError(
+            "profile.direct_requirements と assets.direct_requirements.path が不一致です"
+        )
+    direct_ids = {
+        identifier.id
+        for collection in direct_asset.collections
+        for record in collection.records
+        for identifier in record.identifiers
+    }
+    if not direct_ids:
+        raise doc_check_profile.ProfileError("direct_requirements 資産が空です")
+    universe = _direct_universe_ids(doc_check_profile.load_json(profile.universe))
+    outside = direct_ids - universe
+    if outside:
+        raise doc_check_profile.ProfileError(
+            f"direct_requirements に母集合外IDがあります: {sorted(outside)}"
+        )
+
+    collection_results = doc_check_profile.evaluate_collection_sets(
+        profile,
+        assets,
+        manifest={"relations": []},
+    )
+    direct_results = tuple(
+        result
+        for result in collection_results
+        if result.id == "direct-requirements-vs-claims"
+    )
+    if len(direct_results) != 1:
+        raise doc_check_profile.ProfileError(
+            "attribution-direct に collection_sets "
+            "direct-requirements-vs-claims 1件が必要です"
+        )
+    findings: list[Finding] = []
+    if direct_results[0].reason is not None:
+        findings.append(
+            Finding(ATTRIBUTION_DIRECT_CHECK_ID, direct_results[0].reason)
+        )
+    excluded = sorted(
+        assignment.id
+        for assignment in assignments
+        if assignment.kind == "対象外" and assignment.id in direct_ids
+    )
+    if excluded:
+        findings.append(
+            Finding(
+                ATTRIBUTION_DIRECT_CHECK_ID,
+                f"直接要件が対象外に分類されている: {excluded}",
+            )
+        )
+    return tuple(findings)
+
+
 def select_coverage_checks(
     check_csv: str | None,
     *,
@@ -1175,7 +1265,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--checks",
         help=(
             "実行する検査IDのカンマ区切り"
-            "(attribution,ledger,attribution-destination)"
+            "(attribution,ledger,attribution-destination,attribution-direct)"
         ),
     )
     return parser.parse_args(argv)
@@ -1271,6 +1361,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                         destination_grammar=attribution["destination_grammar"],
                     )
                 )
+        if ATTRIBUTION_DIRECT_CHECK_ID in checks:
+            reason = profile.not_applicable.get(ATTRIBUTION_DIRECT_CHECK_ID)
+            if reason is not None:
+                print(f"{ATTRIBUTION_DIRECT_CHECK_ID}: 対象なし: {reason}")
+            else:
+                assignments = parse_assignments(document, **assignment_options)
+                findings.extend(check_attribution_direct(profile, assignments))
     except (CoverageError, doc_check_profile.ProfileError) as error:
         print(f"check_doc_coverage.py: {error}", file=sys.stderr)
         return 2

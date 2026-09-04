@@ -213,7 +213,9 @@ def test_profile_attribution_matches_current_module_constants() -> None:
 
 def test_required_checks_match_current_module_constants() -> None:
     """同期プロファイルの必須検査が現行14検査と一致する。"""
-    expected = set(propagation.CHECK_IDS) | set(coverage.COVERAGE_CHECK_IDS)
+    expected = set(propagation.LEGACY_PROP_CHECK_IDS) | set(
+        coverage.COVERAGE_CHECK_IDS
+    )
     assert set(profile["required_checks"]) == expected
     assert len(profile["required_checks"]) == 14
 
@@ -349,7 +351,7 @@ def test_schemas_are_versioned_closed_and_list_required_keys() -> None:
 
 
 def test_propagation_checker_and_claude_files_are_unchanged() -> None:
-    """本ステップで対象外のPROP検査とClaude設定が無変更である。"""
+    """Claude設定が無変更である。"""
     result = subprocess.run(
         [
             "git",
@@ -357,7 +359,6 @@ def test_propagation_checker_and_claude_files_are_unchanged() -> None:
             "--name-only",
             "HEAD",
             "--",
-            "scripts/check_design_propagation.py",
             ".claude/",
         ],
         cwd=REPOSITORY_ROOT,
@@ -1308,6 +1309,19 @@ def test_assets_schema_fixes_immutable_and_mutable_field_sets() -> None:
     assert schema["properties"]["mutable_fields"]["enum"] == [
         list(profile_loader.ASSET_MUTABLE_FIELDS)
     ]
+    instance = {
+        "schema_version": 1,
+        "immutable_fields": list(profile_loader.ASSET_IMMUTABLE_FIELDS),
+        "mutable_fields": list(profile_loader.ASSET_MUTABLE_FIELDS),
+        "assets": {},
+        "structure_extractors": [],
+        "collection_sets": [],
+    }
+    instance["immutable_fields"] = [
+        field for field in instance["immutable_fields"] if field != "baseline"
+    ]
+    with pytest.raises(profile_loader.ProfileError, match="enum"):
+        profile_loader.validate_against_schema(instance, schema)
 
 
 def test_contract_authz_assets_expand_ids_and_ddl_structures(
@@ -1752,16 +1766,25 @@ def test_sample_collection_sets_cover_all_three_relations_and_report_differences
     assert all(result.satisfied for result in results)
 
     raw = json.loads(json.dumps(profile.raw))
-    raw["collection_sets"][0]["right"] = {
+    target = next(
+        declaration
+        for declaration in raw["collection_sets"]
+        if declaration["id"] == "direct-requirements-vs-claims"
+    )
+    target["right"] = {
         "asset": "claims",
         "collection": 0,
         "key": "source_id",
     }
-    mismatched = profile_loader.evaluate_collection_sets(
-        replace(profile, raw=raw),
-        assets,
-        manifest=manifest,
-    )[0]
+    mismatched = next(
+        result
+        for result in profile_loader.evaluate_collection_sets(
+            replace(profile, raw=raw),
+            assets,
+            manifest=manifest,
+        )
+        if result.id == "direct-requirements-vs-claims"
+    )
     assert not mismatched.satisfied
     assert mismatched.right_only == frozenset({"R-SAMPLE"})
     assert "right-only=['R-SAMPLE']" in str(mismatched.reason)
@@ -1887,3 +1910,42 @@ def test_profile_sample_layout_shapes_and_data_model_registry() -> None:
     }
     product_map = _load_json(PROFILE_SAMPLE_DIR / "assets/product-ddl-map.json")
     assert referenced_ids <= {entry["ddl_id"] for entry in product_map["entries"]}
+
+
+def test_unique_owner_required_profile_rejects_missing_expected_ids(
+    tmp_path: Path,
+) -> None:
+    """unique-owner必須時のexpected_ids資産省略を拒否する。"""
+    value = _load_json(PROFILE_SAMPLE_DIR / "profiles/data-model-like.json")
+    del value["assets"]["expected_ids"]
+    path = tmp_path / "missing-expected-ids.json"
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="expected_ids"):
+        profile_loader.load_profile(
+            path,
+            root=REPOSITORY_ROOT,
+            schema_dir=SCHEMAS_DIR,
+        )
+
+
+def test_unique_owner_required_registry_rejects_missing_global_declaration(
+    tmp_path: Path,
+) -> None:
+    """unique-owner必須時のglobal invariant欠落を拒否する。"""
+    root = _copy_sample_repository(tmp_path)
+    invariant_path = root / "tests/fixtures/profile-sample/doc/invariants.json"
+    invariant_value = _load_json(invariant_path)
+    invariant_value["global_invariants"] = []
+    _write_json(invariant_path, invariant_value)
+    digest = profile_loader.canonical_digest(invariant_value)
+
+    registry_path = root / "tests/fixtures/profile-sample/profiles/registry.json"
+    registry_value = _load_json(registry_path)
+    for entry in registry_value["profiles"]:
+        entry["pins"]["invariants_digest"] = digest
+    _write_json(registry_path, registry_value)
+    registry = profile_loader.load_registry(registry_path, root=root)
+
+    with pytest.raises(profile_loader.ProfileError, match="global_invariants"):
+        profile_loader.resolve_profiles(registry, root=root)
