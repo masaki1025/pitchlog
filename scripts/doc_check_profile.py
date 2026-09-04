@@ -367,6 +367,32 @@ def validate_declaration(declaration: Mapping[str, Any]) -> None:
             raise ProfileError(
                 f"宣言 {defect_id} ({kind}): terms は1〜2件である必要があります"
             )
+    if kind == "cross-reference":
+        for endpoint_name in ("from", "to"):
+            endpoint = declaration[endpoint_name]
+            if (
+                not isinstance(endpoint, Mapping)
+                or set(endpoint) != {"row"}
+                or not isinstance(endpoint.get("row"), str)
+                or not endpoint["row"]
+            ):
+                raise ProfileError(
+                    f"宣言 {defect_id} ({kind}): {endpoint_name} は"
+                    "非空の row だけを持つ必要があります"
+                )
+        extract = declaration["extract"]
+        try:
+            pattern = re.compile(extract)
+        except re.error as error:
+            raise ProfileError(
+                f"宣言 {defect_id} ({kind}): extract の正規表現が不正です: "
+                f"{error}"
+            ) from error
+        if pattern.groups != 1:
+            raise ProfileError(
+                f"宣言 {defect_id} ({kind}): extract は捕捉グループを"
+                f"1個だけ持つ必要があります: {pattern.groups}個"
+            )
 
 
 def load_invariants(

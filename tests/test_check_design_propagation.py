@@ -1089,7 +1089,7 @@ def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
     ) == {"MT-01", *MIGRATED_STRUCTURAL_IDS}
 
 
-def _shadow_case_texts() -> dict[str, str]:
+def _reason_fixture_case_texts() -> dict[str, str]:
     """静的reason fixtureのcase_idを実入力本文へ対応付ける。"""
     texts: dict[str, str] = {}
     fixture_text = FIXTURE.read_text(encoding="utf-8")
@@ -1107,6 +1107,11 @@ def _shadow_case_texts() -> dict[str, str]:
     texts[f"{defect_id}:fixture"] = fixture_text
     texts[f"{defect_id}:approved"] = approved_text
     return texts
+
+
+def _shadow_case_texts() -> dict[str, str]:
+    """既存shadow比較へ静的reason fixtureの入力本文を渡す。"""
+    return _reason_fixture_case_texts()
 
 
 def _document_sections(text: str) -> dict[str, str]:
@@ -1191,20 +1196,17 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
             ) == row["reason"]
 
 
-def _evaluate_declared_defect(
-    defect_id: str,
+def _evaluate_declarations(
+    declarations: tuple[dict[str, Any], ...],
     text: str,
     *,
     manifest: dict[str, checker.ManifestRelation],
-    invariants: Any,
     profile: Any,
 ) -> tuple[Any, Any]:
-    """指定欠陥の宣言列をfirst-failureで評価する。"""
+    """指定された宣言列を新評価器だけでfirst-failure評価する。"""
     context = invariant_evaluator.EvaluationContext()
     reason = None
-    for declaration in invariants.declarations:
-        if declaration["defect_id"] != defect_id:
-            continue
+    for declaration in declarations:
         reason = invariant_evaluator.evaluate_declaration(
             declaration,
             text=text,
@@ -1216,6 +1218,329 @@ def _evaluate_declared_defect(
         if reason is not None:
             break
     return reason, context
+
+
+def _evaluate_declared_defect(
+    defect_id: str,
+    text: str,
+    *,
+    manifest: dict[str, checker.ManifestRelation],
+    invariants: Any,
+    profile: Any,
+) -> tuple[Any, Any]:
+    """指定欠陥の宣言列を新評価器だけでfirst-failure評価する。"""
+    declarations = tuple(
+        declaration
+        for declaration in invariants.declarations
+        if declaration["defect_id"] == defect_id
+    )
+    return _evaluate_declarations(
+        declarations,
+        text,
+        manifest=manifest,
+        profile=profile,
+    )
+
+
+def _write_cross_reference_case(
+    tmp_path: Path,
+    *,
+    from_section: str = "| source | version=7 |",
+    to_section: str = "| target | version=7 |",
+    extract: str = r"version=(\d+)",
+) -> tuple[str, tuple[dict[str, Any], ...]]:
+    """合成文書とcross-reference宣言列を一時ファイルへ書いて読む。"""
+    text = (
+        f"### 2-1. source\n{from_section}\n"
+        f"### 2-2. target\n{to_section}\n"
+    )
+    declarations = (
+        {
+            "defect_id": "SP-X",
+            "kind": "row-selector",
+            "id": "source-row",
+            "section": "2-1",
+            "mode": "needle",
+            "keys": ["source"],
+        },
+        {
+            "defect_id": "SP-X",
+            "kind": "row-selector",
+            "id": "target-row",
+            "section": "2-2",
+            "mode": "needle",
+            "keys": ["target"],
+        },
+        {
+            "defect_id": "SP-X",
+            "kind": "cross-reference",
+            "from": {"row": "source-row"},
+            "to": {"row": "target-row"},
+            "extract": extract,
+        },
+    )
+    document_path = tmp_path / "document.md"
+    declarations_path = tmp_path / "declarations.json"
+    document_path.write_text(text, encoding="utf-8")
+    declarations_path.write_text(
+        json.dumps(declarations, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return (
+        document_path.read_text(encoding="utf-8"),
+        tuple(json.loads(declarations_path.read_text(encoding="utf-8"))),
+    )
+
+
+def test_cross_reference_accepts_equal_extracted_values(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """両方の選択行から抽出した値が同じなら適合させる。"""
+    text, declarations = _write_cross_reference_case(tmp_path)
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+
+    reason, _ = _evaluate_declarations(
+        declarations,
+        text,
+        manifest=manifest,
+        profile=profile,
+    )
+
+    assert reason is None
+
+
+def test_cross_reference_rejects_different_extracted_values(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """fromとtoで抽出値が異なる場合に構造化違反を返す。"""
+    text, declarations = _write_cross_reference_case(
+        tmp_path,
+        to_section="| target | version=8 |",
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+
+    reason, _ = _evaluate_declarations(
+        declarations,
+        text,
+        manifest=manifest,
+        profile=profile,
+    )
+
+    assert reason == invariant_evaluator.StructuredReason(
+        violated=True,
+        kind="cross-reference",
+        section="2-1",
+        expected="7",
+        actual="8",
+        token=None,
+    )
+
+
+def test_cross_reference_rejects_extraction_failure(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """どちらかの行から値を抽出できなければ違反にする。"""
+    text, declarations = _write_cross_reference_case(
+        tmp_path,
+        from_section="| source | version missing |",
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+
+    reason, _ = _evaluate_declarations(
+        declarations,
+        text,
+        manifest=manifest,
+        profile=profile,
+    )
+
+    assert reason is not None
+    assert reason.kind == "cross-reference"
+    assert reason.expected is None
+    assert reason.actual == "7"
+
+
+def test_cross_reference_rejects_undefined_row_reference(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """先行selectorが定義していないrow参照をfail-closedにする。"""
+    text, declarations = _write_cross_reference_case(tmp_path)
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declarations = (declarations[0], declarations[2])
+
+    with pytest.raises(
+        invariant_evaluator.doc_check_profile.ProfileError,
+        match="to 参照先 row が未定義.*target-row",
+    ):
+        _evaluate_declarations(
+            declarations,
+            text,
+            manifest=manifest,
+            profile=profile,
+        )
+
+
+@pytest.mark.parametrize(
+    ("extract", "message"),
+    (("(", "正規表現が不正"), (r"version=\d+", "捕捉グループを1個")),
+    ids=("invalid-regex", "no-capture-group"),
+)
+def test_cross_reference_rejects_invalid_extract_pattern(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+    extract: str,
+    message: str,
+) -> None:
+    """不正または捕捉グループ数が1でない正規表現を拒否する。"""
+    text, declarations = _write_cross_reference_case(tmp_path, extract=extract)
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+
+    with pytest.raises(
+        invariant_evaluator.doc_check_profile.ProfileError,
+        match=message,
+    ):
+        _evaluate_declarations(
+            declarations,
+            text,
+            manifest=manifest,
+            profile=profile,
+        )
+
+
+def test_cross_reference_rejects_value_moved_to_another_row(
+    tmp_path: Path,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """from値の同節別行移動でselectorを不成立にし、違反にする。"""
+    valid_text, declarations = _write_cross_reference_case(tmp_path)
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declarations[0]["keys"] = ["source", "version="]
+    moved_text = valid_text.replace(
+        "| source | version=7 |",
+        "| source | value moved |\n| note | version=7 |",
+    )
+
+    valid_reason, _ = _evaluate_declarations(
+        declarations,
+        valid_text,
+        manifest=manifest,
+        profile=profile,
+    )
+    moved_reason, _ = _evaluate_declarations(
+        declarations,
+        moved_text,
+        manifest=manifest,
+        profile=profile,
+    )
+
+    assert valid_reason is None
+    assert moved_reason is not None
+    assert moved_reason.kind == "row-selector"
+
+
+def test_rule_six_prerequisite_legacy_structural_is_empty() -> None:
+    """規則6前段として同期宣言資産のlegacy集合が空であることを固定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+
+    assert not invariants.legacy_structural
+
+
+def test_rule_six_prerequisite_declaration_ids_exactly_cover_required_ids() -> None:
+    """宣言ID集合を構造必須15件とrequired MT-01の和集合へexactにする。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    declaration_ids = {
+        declaration["defect_id"] for declaration in invariants.declarations
+    }
+    expected_ids = set(invariants.structural_required) | set(
+        invariants.required_declarations
+    )
+
+    assert declaration_ids == expected_ids
+    assert len(declaration_ids) == 16
+
+
+def test_rule_six_prerequisite_structural_corpus_uses_new_evaluator_only(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """構造corpus 16件を旧分岐なしの宣言評価器だけで判定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CORPUS_CASES:
+        valid_reason, _ = _evaluate_declared_defect(
+            defect_id,
+            valid_text,
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert valid_reason is None, defect_id
+        for abnormal_text in (invalid_text, *mutations):
+            reason, _ = _evaluate_declared_defect(
+                defect_id,
+                abnormal_text,
+                manifest=manifest,
+                invariants=invariants,
+                profile=profile,
+            )
+            assert reason is not None, defect_id
+            assert reason.violated, defect_id
+
+
+def test_rule_six_prerequisite_expected_fixture_matches_new_evaluator_only(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """期待fixture全行を旧分岐・shadowなしで宣言評価器へ突合する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    expected_rows = json.loads(
+        STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8")
+    )
+    case_texts = _reason_fixture_case_texts()
+
+    for expected in expected_rows:
+        reason, _ = _evaluate_declared_defect(
+            expected["defect_id"],
+            case_texts[expected["case_id"]],
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        actual_exit = 0 if reason is None else 1
+        actual_violated = False if reason is None else reason.violated
+        expected_reason = expected["reason"]
+        expected_violated = (
+            False if expected_reason is None else expected_reason["violated"]
+        )
+        assert actual_exit == expected["expected_exit"], expected["case_id"]
+        assert actual_violated is expected_violated, expected["case_id"]
 
 
 @pytest.mark.parametrize("defect_id", sorted(ROW_SELECTOR_MIGRATED_IDS))
@@ -2389,7 +2714,12 @@ def test_forbidden_element_declaration_evaluator_is_fail_closed(
         match="未実装の kind",
     ):
         invariant_evaluator.evaluate_declaration(
-            {"defect_id": "SP-09", "kind": "cross-reference"},
+            {
+                "defect_id": "SP-09",
+                "kind": "required-element",
+                "sections": ["2-1"],
+                "literals": ["必須語"],
+            },
             text="",
             manifest=manifest,
             profile=profile,

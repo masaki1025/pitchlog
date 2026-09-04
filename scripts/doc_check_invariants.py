@@ -418,6 +418,7 @@ def evaluate_declaration(
         "row-contains",
         "section-contains",
         "exact-set",
+        "cross-reference",
         "element-lookup",
         "row-scoped-forbidden",
         "any-of",
@@ -541,6 +542,52 @@ def evaluate_declaration(
             section=section_id,
             expected=expected,
             actual=row,
+            token=None,
+        )
+    if kind == "cross-reference":
+        if context is None:
+            raise doc_check_profile.ProfileError(
+                "cross-reference の評価文脈がありません"
+            )
+        row_ids = {
+            endpoint: declaration[endpoint]["row"]
+            for endpoint in ("from", "to")
+        }
+        for endpoint, row_id in row_ids.items():
+            if row_id not in context.selected_rows:
+                raise doc_check_profile.ProfileError(
+                    f"cross-reference の {endpoint} 参照先 row が未定義です: "
+                    f"{row_id}"
+                )
+            if row_id not in context.selected_sections:
+                raise doc_check_profile.ProfileError(
+                    f"cross-reference の {endpoint} 参照先 row の節が"
+                    f"未定義です: {row_id}"
+                )
+        pattern = re.compile(declaration["extract"])
+        matches = {
+            endpoint: pattern.search(context.selected_rows[row_id])
+            for endpoint, row_id in row_ids.items()
+        }
+        values = {
+            endpoint: None if match is None else match.group(1)
+            for endpoint, match in matches.items()
+        }
+        if (
+            matches["from"] is not None
+            and matches["to"] is not None
+            and values["from"] is not None
+            and values["to"] is not None
+            and values["from"] == values["to"]
+        ):
+            return None
+        from_row_id = row_ids["from"]
+        return StructuredReason(
+            violated=True,
+            kind=kind,
+            section=context.selected_sections[from_row_id],
+            expected=values["from"],
+            actual=values["to"],
             token=None,
         )
     if kind == "required-exclusion":

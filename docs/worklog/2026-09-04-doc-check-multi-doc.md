@@ -465,3 +465,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 語彙駆動の証明: `test_required_exclusion_uses_profile_exclusion_vocabulary`(プロファイルの除外語彙を変えると判定が変わる)
 - `well-formedness` の 3 変異: 奇数行 2 行 → red / ヘッダ行のみ奇数 → red / 表外の `**` が奇数 → green
 - 検証(Claude): ruff/ty passed / 3 テストファイル **221 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **1024**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致
+
+### ステップ 20〜21/38 — `cross-reference` の機構提供 + 規則 6 の前提検証(**1 委任・1 コミット**)
+
+- **20**: `cross-reference`(`from`/`to` の選択行から `extract` の 1 グループを取り出して一致を見る)を機構として実装。**同期プロファイルの `invariant_kinds` には追加せず**、`declarations` も 16 ID のまま
+  → `profile_gating_digest` / `invariants_digest` はともに不変(規則 4 の exact を維持)。負例: 値不一致 / 抽出失敗 / 参照先未定義 / 不正な正規表現 / 別行移動
+- **21**(テストのみ・実装コード無変更): ① `legacy_structural` が空 ② 宣言集合 `D` == `structural_required ∪ required_declarations`(**16 ID exact**)③ 構造 corpus 16 件を**旧分岐を経由せず**宣言評価器だけで判定 ④ 期待 fixture 99 行への一致が **shadow を経由せず**成立
+- **旧分岐は残置**(`grep -c 'defect_id == '` = **16**)。規則 6 の後段(分岐 0 件)はステップ 22 の撤去と同時に検査する
+- 検証(Claude): ruff/ty passed / 3 テストファイル **232 passed**(skip 系 0)/ 3 検査 rc 0 / 収集 **1035**・基準欠落 0 / 対象外パスの差分 0 / 両 digest 再計算一致
