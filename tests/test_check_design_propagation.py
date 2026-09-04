@@ -152,110 +152,530 @@ def _finding_ids(result: subprocess.CompletedProcess[str]) -> set[str]:
     }
 
 
-DEFECT_CHECK_CASES = (
-    (
-        "SP-01",
-        """### 6-3. 境界結果
-| B4 | A5 が退避を返す |
-### 7-2. キュー遷移
-| 遷移 | 条件 |
-| 未送信 → 退避済み | ACK の A5 が「退避」を返す |
-""",
-        """### 7-2. キュー遷移
-| 遷移 | 条件 |
-| 未送信 → 退避済み | ACK の境界結果が **B4** であること |
-""",
-    ),
-    (
-        "SP-02",
-        """### 6-3. 境界結果
-| B1 | 受理・重複 |
-| B2 | 未処理 |
-| B3 | 拒否 |
-| B4 | 退避 |
-### 7-1. ACK
-| A5 | 受理・重複・拒否・退避・未処理 |
-### 7-2. キュー遷移
-| 未送信 → 同期済み | 受理・重複 |
-| 未送信 → 要操作 | 拒否 |
-| 未送信 → 退避済み | 退避 |
-| 未送信 → 未送信 | 未処理 |
-""",
-        """### 6-3. 境界結果
-| B1 | 受理・重複 |
-| B2 | 未処理 |
-| B3 | 拒否 |
-| B4 | 退避 |
-### 7-1. ACK
-| A5 | 受理・重複・拒否・退避・未処理 |
-### 7-2. キュー遷移
-| 未送信 → 同期済み | 受理・重複 |
-| 未送信 → 要操作 | 拒否 |
-| 未送信 → 退避済み | 退避 |
-""",
-    ),
-    (
-        "SP-07",
-        """### 8-1. 経路表
-| P4 | 旧世代検出 → 退避の永続化 → B4 応答 | T8 |
-### 9-2. 境界表
-| 旧世代 | 退避の永続化と B4 応答の原子性 |
-### 10-2. 故障系
-| 退避 | B4 応答との原子性 |
-### 11-2. 影響差分
-| P4 | 退避の永続化と B4 応答 |
-""",
-        """### 8-1. 経路表
-| P1 | 通常経路 |
-""",
-    ),
-    (
-        "SP-08",
-        """### 4-4. 写像
-一時 ID の写像を保存する。
-### 7-1. ACK
-D5 ごとの確定結果を保存する。
-### 8-1. 経路表
-| T6 | べき等キーごとの確定結果と一時 ID 写像の保存 |
-| P1 | T1・T2・T3・T4・T6 |
-| P2 | T1・T2・T3・T4・T5・T6 |
-| P3 | T1・T2・T4・T6・T7 |
-""",
-        """### 8-1. 経路表
-| T1 | べき等キーの記録 |
-""",
-    ),
-    (
-        "SP-16",
-        """### 6-1. prefix
-D1 を持たない変更イベントは prefix の対象外である。
-### 6-2. 決定表
-D1 を持たない変更イベントは prefix の対象外である。
-""",
-        """### 6-1. prefix
-prefix の算出手順を定める。
-""",
-    ),
-    (
-        "SP-20",
-        "### 2-1. 識別子\n"
+def _corpus_document(sections: dict[str, tuple[str, ...]]) -> str:
+    """節IDと本文行から構造corpus用Markdownを組み立てる。"""
+    return "".join(
+        f"### {section_id}. corpus\n" + "".join(f"{line}\n" for line in lines)
+        for section_id, lines in sections.items()
+    )
+
+
+def _replace_in_section(text: str, section_id: str, old: str, new: str) -> str:
+    """指定節に最初に現れる文字列だけを置換する。"""
+    section = checker._heading_section(text, section_id)
+    assert old in section, f"{section_id} に置換対象がない: {old}"
+    changed_section = section.replace(old, new, 1)
+    return text.replace(section, changed_section, 1)
+
+
+def _element_row(element: str) -> str:
+    """manifest要素を同じ行にIDと意味部がある表行へ変換する。"""
+    identifier, separator, description = element.partition(":")
+    if separator:
+        return f"| {identifier} | {description} |"
+    return f"| 要素 | {element} |"
+
+
+def _route_row(route: str, elements: frozenset[str]) -> str:
+    """経路IDとmanifest由来のT要素集合から表行を作る。"""
+    ordered = sorted(elements, key=lambda element: int(element.removeprefix("T")))
+    return f"| {route} | {'・'.join(ordered)} |"
+
+
+def _build_structural_check_cases(
+    manifest: dict[str, checker.ManifestRelation],
+) -> tuple[tuple[str, str, str, tuple[str, ...]], ...]:
+    """実manifestから旧構造分岐15件の正常・異常・変異corpusを作る。"""
+    routes = checker._expected_route_elements(manifest)
+
+    sp01_valid = _corpus_document(
+        {
+            "6-3": ("| B4 | A5 が退避を返す |",),
+            "7-1": (),
+            "7-2": ("| 未送信 → 退避済み | ACK の A5 が退避を返す |",),
+        }
+    )
+    sp01_invalid = _replace_in_section(
+        sp01_valid, "6-3", "| B4 | A5 が退避を返す |", "| B4 | 退避を返す |"
+    )
+    sp01_selector_mutation = _replace_in_section(
+        sp01_valid,
+        "7-2",
+        "| 未送信 → 退避済み | ACK の A5 が退避を返す |",
+        "| 未送信 | ACK の A5 が退避を返す |\n| 別状態 | 退避済み |",
+    )
+    sp01_row_mutation = _replace_in_section(
+        sp01_valid,
+        "7-2",
+        "| 未送信 → 退避済み | ACK の A5 が退避を返す |",
+        "| 未送信 → 退避済み | ACK が退避を返す |\n| 補足 | A5 |",
+    )
+
+    ack_elements = manifest["R-ACK-STATE"].source_elements
+    ack_source_row = f"| A5 | {'・'.join(ack_elements)} |"
+    sp02_valid = _corpus_document(
+        {
+            "6-3": tuple(
+                f"| 境界-{index} | {element} |"
+                for index, element in enumerate(ack_elements, start=1)
+            ),
+            "7-1": (ack_source_row,),
+            "7-2": tuple(
+                f"| 遷移-{index} | {element} |"
+                for index, element in enumerate(ack_elements, start=1)
+            ),
+        }
+    )
+    sp02_invalid = _replace_in_section(
+        sp02_valid, "7-2", f"| 遷移-1 | {ack_elements[0]} |", "| 遷移-1 | 欠落 |"
+    )
+    sp02_selector_mutation = _replace_in_section(
+        sp02_valid,
+        "7-1",
+        ack_source_row,
+        f"| ACK | A5 |\n| 結果集合 | {'・'.join(ack_elements)} |",
+    )
+    sp02_row_mutation = _replace_in_section(
+        sp02_valid,
+        "7-1",
+        ack_source_row,
+        f"| A5 | {'・'.join(ack_elements[:-1])} |\n| 補足 | {ack_elements[-1]} |",
+    )
+    sp02_section_mutation = _replace_in_section(
+        sp02_valid,
+        "6-3",
+        f"| 境界-{len(ack_elements)} | {ack_elements[-1]} |",
+        "| 境界外へ移動 | 欠落 |",
+    )
+
+    queue_elements = manifest["R-QUEUE-LIFE"].source_elements
+    queue_rows = tuple(_element_row(element) for element in queue_elements)
+    queue_semantic = next(element for element in queue_elements if element.startswith("I6:"))
+    sp03_valid = _corpus_document(
+        {"6-3": queue_rows, "7-2": queue_rows, "9-5": queue_rows}
+    )
+    sp03_invalid = _replace_in_section(
+        sp03_valid, "6-3", _element_row(queue_elements[0]), "| 状態 | 欠落 |"
+    )
+    sp03_section_mutation = _replace_in_section(
+        sp03_valid, "6-3", _element_row(queue_elements[1]), "| 状態 | 別節へ移動 |"
+    )
+    sp03_meaning_mutation = _replace_in_section(
+        sp03_valid, "6-3", _element_row(queue_semantic), "| I6 | 意味部欠落 |"
+    )
+
+    route_rows = tuple(_route_row(route, routes[route]) for route in ("P1", "P2", "P3"))
+    sp06_valid = _corpus_document(
+        {"8-1": route_rows, "10-2": route_rows, "11-2": route_rows}
+    )
+    sp06_invalid = _replace_in_section(
+        sp06_valid, "8-1", _route_row("P3", routes["P3"]), "| P3 | T1・T2 |"
+    )
+    sp06_id_mutation = _replace_in_section(
+        sp06_valid,
+        "10-2",
+        _route_row("P1", routes["P1"]),
+        _route_row("P1", routes["P1"]).replace("T6", "T8"),
+    )
+
+    p4_route_row = _route_row("P4", routes["P4"])
+    sp07_valid = _corpus_document(
+        {
+            "8-1": (p4_route_row,),
+            "9-2": ("| P4 | 旧世代・退避・B4・原子性 |",),
+            "10-2": ("| P4 | 退避・B4・原子性 |",),
+            "11-2": ("| P4 | 退避・B4 |",),
+        }
+    )
+    sp07_invalid = _replace_in_section(
+        sp07_valid, "10-2", "| P4 | 退避・B4・原子性 |", "| P4 | 退避・B4 |"
+    )
+    sp07_selector_mutation = _replace_in_section(
+        sp07_valid, "8-1", p4_route_row, "| 経路 | P4 |\n| 処理 | T8 |"
+    )
+    sp07_id_mutation = _replace_in_section(
+        sp07_valid, "8-1", p4_route_row, p4_route_row.replace("T8", "T9")
+    )
+
+    t6_element = next(
+        element
+        for element in manifest["R-TXN-ROUTE"].source_elements
+        if element.startswith("T6:")
+    )
+    t6_row = _element_row(t6_element)
+    t6_semantic = t6_element.split(":", 1)[1]
+    sp08_valid = _corpus_document(
+        {
+            "4-4": ("一時 ID の写像を保存する。",),
+            "7-1": ("D5 ごとの確定結果を保存する。",),
+            "8-1": (t6_row, *route_rows),
+        }
+    )
+    sp08_invalid = _replace_in_section(
+        sp08_valid,
+        "7-1",
+        "D5 ごとの確定結果を保存する。",
+        "D5 ごとの結果を保存する。",
+    )
+    sp08_lookup_mutation = _replace_in_section(
+        sp08_valid,
+        "8-1",
+        t6_row,
+        f"| T6 | 保存要素 |\n| 補足 | {t6_semantic} |",
+    )
+    sp08_id_mutation = _replace_in_section(
+        sp08_valid,
+        "8-1",
+        _route_row("P1", routes["P1"]),
+        _route_row("P1", routes["P1"]).replace("T6", "T8"),
+    )
+    sp08_section_mutation = _replace_in_section(
+        sp08_valid, "4-4", "一時 ID の写像を保存する。", "一時 ID を保存する。"
+    )
+    sp08_section_mutation = _replace_in_section(
+        sp08_section_mutation,
+        "7-1",
+        "D5 ごとの確定結果を保存する。",
+        "D5 ごとの確定結果を保存する。\n写像の説明はこの節へ移す。",
+    )
+
+    p3_route_row = _route_row("P3", routes["P3"])
+    sp09_valid = _corpus_document(
+        {
+            "4-3-A": ("W3 は D1 を持たない変更イベントを定める。",),
+            "5-5": ("P3 は従属区分である。",),
+            "8-1": ("| T5 | 局所再採番 |", p3_route_row),
+        }
+    )
+    sp09_invalid = _replace_in_section(
+        sp09_valid, "8-1", p3_route_row, p3_route_row.replace("T7", "T5")
+    )
+    sp09_selector_mutation = _replace_in_section(
+        sp09_valid, "8-1", p3_route_row, p3_route_row.replace("| P3 |", "| 経路 | **P3** |")
+    )
+    sp09_t5_mutation = _replace_in_section(
+        sp09_valid, "8-1", "| T5 | 局所再採番 |\n", ""
+    )
+    sp09_t5_mutation = _replace_in_section(
+        sp09_t5_mutation,
+        "8-1",
+        p3_route_row,
+        p3_route_row.replace("T7", "T5"),
+    )
+    sp09_any_of_mutation = _replace_in_section(
+        sp09_valid,
+        "8-1",
+        p3_route_row,
+        f"{p3_route_row.replace('T7', '')}\n| T7 | 別の行へ移動 |",
+    )
+    sp09_id_mutation = _replace_in_section(
+        sp09_valid, "8-1", p3_route_row, p3_route_row.replace("T7", "T8")
+    )
+
+    sp10_valid = _corpus_document(
+        {
+            "4-3-A": (),
+            "6-3": (),
+            "7-1": ("| P3 | 独立した応答契約 |",),
+            "8-1": ("| P3 | 変更イベント経路 |",),
+        }
+    )
+    sp10_invalid = _replace_in_section(
+        sp10_valid, "7-1", "| P3 | 独立した応答契約 |", "| P3 | 独立した通知契約 |"
+    )
+    sp10_route_selector_mutation = _replace_in_section(
+        sp10_valid, "8-1", "| P3 | 変更イベント経路 |", "| 経路 | **P3** | 変更イベント |"
+    )
+    sp10_response_selector_mutation = _replace_in_section(
+        sp10_valid,
+        "7-1",
+        "| P3 | 独立した応答契約 |",
+        "| P3 | 独立契約 |\n| 補足 | 応答 |",
+    )
+
+    sp11_valid = _corpus_document(
+        {
+            "4-3-A": (),
+            "6-2": ("| 結果 | 期待版不一致 |",),
+            "6-3": ("| 結果 | 期待版不一致 |",),
+            "8-3": ("| 結果 | 期待版不一致 |",),
+        }
+    )
+    sp11_invalid = _replace_in_section(
+        sp11_valid, "8-3", "| 結果 | 期待版不一致 |", "| 結果 | 通知なし |"
+    )
+    sp11_selector_mutation = _replace_in_section(
+        sp11_valid, "6-2", "| 結果 | 期待版不一致 |", "期待版不一致は表外の別行へ移す。"
+    )
+
+    exclusion = "D1 を持たない変更イベントの D5 衝突は対象外"
+    sp12_valid = _corpus_document(
+        {
+            "4-4": ("経路別 D5 衝突を定める。",),
+            "6-3": (f"| B3 | {exclusion} |",),
+            "6-4": (f"| 再開2択 | {exclusion} |",),
+        }
+    )
+    sp12_invalid = _replace_in_section(
+        sp12_valid,
+        "6-3",
+        f"| B3 | {exclusion} |",
+        "| B3 | D1 を持たない変更イベントの D5 衝突 |",
+    )
+    sp12_boundary_selector_mutation = _replace_in_section(
+        sp12_valid,
+        "6-3",
+        f"| B3 | {exclusion} |",
+        f"| 境界 | B3 | {exclusion} |",
+    )
+    sp12_exclusion_mutation = _replace_in_section(
+        sp12_valid,
+        "6-3",
+        f"| B3 | {exclusion} |",
+        "| B3 | D1 を持たない変更イベントの D5 衝突 |\n| 補足 | 対象外 |",
+    )
+    sp12_row_selector_mutation = _replace_in_section(
+        sp12_valid,
+        "6-4",
+        f"| 再開2択 | {exclusion} |",
+        "| 再開2択 | D1 を持たない変更イベント |\n| 補足 | D5 衝突は対象外 |",
+    )
+
+    event_elements = manifest["R-EVENT-FIELD"].source_elements
+    event_rows = tuple(_element_row(element) for element in event_elements)
+    sp13_valid = _corpus_document(
+        {
+            "4-3": event_rows,
+            "4-3-A": event_rows,
+            "6-2": (),
+            "7-1": (),
+            "11-2": event_rows,
+        }
+    )
+    sp13_invalid = _replace_in_section(
+        sp13_valid, "4-3", _element_row(event_elements[-1]), "| V12-欠落 | 定義なし |"
+    )
+    sp13_section_mutation = _replace_in_section(
+        sp13_valid, "4-3-A", _element_row(event_elements[1]), "| V2-移動 | 別節にのみ存在 |"
+    )
+    sp13_meaning_mutation = _replace_in_section(
+        sp13_valid,
+        "11-2",
+        _element_row(event_elements[2]),
+        "| V3 | 記録権世代 D4 の意味部が欠落 |",
+    )
+
+    sp14_valid = _corpus_document(
+        {
+            "4-3-A": ("| W3-a | 期待版一致 |", "| W3-b | 変更版順 |"),
+            "5-5": ("| 変更版順 | D1・D2 とは別で論理再生順に使わない |",),
+            "11-2": ("| 変更版順 | D1・D2 とは別で論理再生順に使わない |",),
+        }
+    )
+    sp14_invalid = _replace_in_section(
+        sp14_valid, "4-3-A", "| W3-b | 変更版順 |", "| 規則 | 変更版順 |"
+    )
+    sp14_section_mutation = _replace_in_section(
+        sp14_valid,
+        "5-5",
+        "| 変更版順 | D1・D2 とは別で論理再生順に使わない |",
+        "| 処理順 | D1・D2 とは別で論理再生順に使わない |",
+    )
+    sp14_meaning_mutation = _replace_in_section(
+        sp14_valid,
+        "11-2",
+        "| 変更版順 | D1・D2 とは別で論理再生順に使わない |",
+        "| 変更版順 | D1・D2 とは別である |",
+    )
+
+    prefix_exclusion = "D1 を持たない変更イベントは prefix の対象外である。"
+    sp16_valid = _corpus_document(
+        {
+            "2-4": (),
+            "4-3-A": ("変更イベント規則。",),
+            "6-1": (prefix_exclusion,),
+            "6-2": (prefix_exclusion,),
+            "8-1": (),
+        }
+    )
+    sp16_invalid = _replace_in_section(
+        sp16_valid,
+        "6-2",
+        prefix_exclusion,
+        "D1 を持たない変更イベントの prefix を説明する。",
+    )
+    sp16_section_mutation = _replace_in_section(
+        sp16_valid, "6-1", prefix_exclusion, "prefix の算出手順を定める。"
+    )
+    sp16_section_mutation = _replace_in_section(
+        sp16_section_mutation,
+        "4-3-A",
+        "変更イベント規則。",
+        f"変更イベント規則。\n{prefix_exclusion}",
+    )
+
+    sp18_valid = _corpus_document(
+        {
+            "4-3-A": (
+                "説明文の ** は表外なので検査対象にしない。",
+                "| W3 | **対象の D2 に従う** |",
+            )
+        }
+    )
+    sp18_invalid = _replace_in_section(
+        sp18_valid, "4-3-A", "| W3 | **対象の D2 に従う** |", "| W3 | **対象の D2 に従う |"
+    )
+    sp18_two_odd_rows_mutation = _corpus_document(
+        {"4-3-A": ("| W3 | **対象の D2 に従う |", "| W4 | **記録権を照合する |")}
+    )
+    sp18_header_mutation = _corpus_document(
+        {"4-3-A": ("| **規則 | 内容 |", "| --- | --- |", "| W3 | **対象** |")}
+    )
+
+    d1_definition = (
         "| D1 | 同期連番 | 用途は順序と欠落の判定・undo の逆順。"
-        "再送の重複排除は D5 の用途であり、D1 の用途ではない。 |\n"
-        "### 4-2. 役割\n"
-        "| べき等キー | D5 | 再送の二重適用を防ぐ |\n"
-        "| イベント連番 | D1 | 順序と欠落の判定 |\n",
-        """### 2-1. 識別子
-| D1 | 同期連番 | 用途は**欠番検知・再送の重複排除・undo の逆順**に限る |
-""",
-    ),
+        "再送の重複排除は D5 の用途であり、D1 の用途ではない。 |"
+    )
+    d1_role = "| イベント連番 | D1 | 順序と欠落の判定 |"
+    d5_role = "| べき等キー | D5 | 再送の二重適用を防ぐ |"
+    sp20_valid = _corpus_document(
+        {"2-1": (d1_definition,), "4-2": (d5_role, d1_role)}
+    )
+    sp20_invalid = _replace_in_section(
+        sp20_valid,
+        "2-1",
+        d1_definition,
+        "| D1 | 同期連番 | 用途は欠落の判定と undo の逆順に限る。 |",
+    )
+    sp20_definition_selector_mutation = _replace_in_section(
+        sp20_valid,
+        "2-1",
+        d1_definition,
+        d1_definition.replace("| D1 |", "| 識別子 | **D1** |"),
+    )
+    sp20_role_selector_mutation = _replace_in_section(
+        sp20_valid,
+        "4-2",
+        d1_role,
+        "| イベント連番 | D1 | 順序の判定 |\n| 補足 | 欠落の判定 |",
+    )
+    sp20_row_mutation = _replace_in_section(
+        sp20_valid,
+        "2-1",
+        d1_definition,
+        d1_definition.replace("・undo の逆順", "") + "\n| 補足 | undo の逆順 |",
+    )
+    sp20_conditional_mutation = _replace_in_section(
+        sp20_valid,
+        "2-1",
+        d1_definition,
+        d1_definition.replace("D5 の用途であり、", "") + "\n| D5 | D5 の用途 |",
+    )
+
+    return (
+        ("SP-01", sp01_valid, sp01_invalid, (sp01_selector_mutation, sp01_row_mutation)),
+        (
+            "SP-02",
+            sp02_valid,
+            sp02_invalid,
+            (sp02_selector_mutation, sp02_row_mutation, sp02_section_mutation),
+        ),
+        (
+            "SP-03",
+            sp03_valid,
+            sp03_invalid,
+            (sp03_section_mutation, sp03_meaning_mutation),
+        ),
+        ("SP-06", sp06_valid, sp06_invalid, (sp06_id_mutation,)),
+        (
+            "SP-07",
+            sp07_valid,
+            sp07_invalid,
+            (sp07_selector_mutation, sp07_id_mutation),
+        ),
+        (
+            "SP-08",
+            sp08_valid,
+            sp08_invalid,
+            (sp08_lookup_mutation, sp08_id_mutation, sp08_section_mutation),
+        ),
+        (
+            "SP-09",
+            sp09_valid,
+            sp09_invalid,
+            (
+                sp09_selector_mutation,
+                sp09_t5_mutation,
+                sp09_any_of_mutation,
+                sp09_id_mutation,
+            ),
+        ),
+        (
+            "SP-10",
+            sp10_valid,
+            sp10_invalid,
+            (sp10_route_selector_mutation, sp10_response_selector_mutation),
+        ),
+        ("SP-11", sp11_valid, sp11_invalid, (sp11_selector_mutation,)),
+        (
+            "SP-12",
+            sp12_valid,
+            sp12_invalid,
+            (
+                sp12_boundary_selector_mutation,
+                sp12_exclusion_mutation,
+                sp12_row_selector_mutation,
+            ),
+        ),
+        (
+            "SP-13",
+            sp13_valid,
+            sp13_invalid,
+            (sp13_section_mutation, sp13_meaning_mutation),
+        ),
+        (
+            "SP-14",
+            sp14_valid,
+            sp14_invalid,
+            (sp14_section_mutation, sp14_meaning_mutation),
+        ),
+        ("SP-16", sp16_valid, sp16_invalid, (sp16_section_mutation,)),
+        (
+            "SP-18",
+            sp18_valid,
+            sp18_invalid,
+            (sp18_two_odd_rows_mutation, sp18_header_mutation),
+        ),
+        (
+            "SP-20",
+            sp20_valid,
+            sp20_invalid,
+            (
+                sp20_definition_selector_mutation,
+                sp20_role_selector_mutation,
+                sp20_row_mutation,
+                sp20_conditional_mutation,
+            ),
+        ),
+    )
+
+
+STRUCTURAL_CHECK_CASES = _build_structural_check_cases(
+    checker.load_manifest(REPOSITORY_ROOT / checker.DEFAULT_MANIFEST)
+)
+
+FORBIDDEN_CHECK_CASES = (
     (
-        "SP-18",
-        """### 4-3-A. 変更規則
-| W3 | **対象の D2 に従う** |
-""",
-        """### 4-3-A. 変更規則
-| W3 | 持つ。**論理位置(V6)は対象の D2 に従う**(従属 — 5-5)。**D1(V2)を持たない** |
-""",
+        "SP-19",
+        _corpus_document({"2-1": (), "5-5": (), "8-2": (), "10-2": ("D1 は同期順に使う。",)}),
+        _corpus_document(
+            {
+                "2-1": (),
+                "5-5": (),
+                "8-2": (),
+                "10-2": ("墓標を `D1=5` の位置には配置しない。",),
+            }
+        ),
     ),
     (
         "MT-01",
@@ -268,20 +688,42 @@ prefix の算出手順を定める。
     ),
 )
 
+_STRUCTURAL_CASE_BY_ID = {case[0]: case for case in STRUCTURAL_CHECK_CASES}
+_FORBIDDEN_CASE_BY_ID = {case[0]: case for case in FORBIDDEN_CHECK_CASES}
+_LEGACY_CASE_ORDER = ("SP-01", "SP-02", "SP-07", "SP-08", "SP-16", "SP-20", "SP-18")
+
+DEFECT_CHECK_CASES = (
+    tuple(_STRUCTURAL_CASE_BY_ID[defect_id][:3] for defect_id in _LEGACY_CASE_ORDER)
+    + (_FORBIDDEN_CASE_BY_ID["MT-01"],)
+    + tuple(case[:3] for case in STRUCTURAL_CHECK_CASES if case[0] not in _LEGACY_CASE_ORDER)
+    + (_FORBIDDEN_CASE_BY_ID["SP-19"],)
+)
+
+DEFECT_CHECK_CASE_IDS = (
+    "condition-key",
+    "enum-propagation",
+    "route-matrix",
+    "element-coverage",
+    "scope-declaration",
+    "order-use",
+    "emphasis",
+    "draft-metadata",
+    "enum-propagation-SP-03",
+    "route-matrix-SP-06",
+    "route-matrix-SP-09",
+    "route-matrix-SP-10",
+    "enum-propagation-SP-11",
+    "scope-declaration-SP-12",
+    "enum-propagation-SP-13",
+    "enum-propagation-SP-14",
+    "order-use-SP-19",
+)
+
 
 @pytest.mark.parametrize(
     ("defect_id", "valid_text", "invalid_text"),
     DEFECT_CHECK_CASES,
-    ids=(
-        "condition-key",
-        "enum-propagation",
-        "route-matrix",
-        "element-coverage",
-        "scope-declaration",
-        "order-use",
-        "emphasis",
-        "draft-metadata",
-    ),
+    ids=DEFECT_CHECK_CASE_IDS,
 )
 def test_defect_backed_checks_have_normal_and_abnormal_cases(
     defect_id: str,
@@ -292,6 +734,90 @@ def test_defect_backed_checks_have_normal_and_abnormal_cases(
 ) -> None:
     assert checker.defect_violation_reason(defects[defect_id], valid_text, manifest) is None
     assert checker.defect_violation_reason(defects[defect_id], invalid_text, manifest)
+
+
+STRUCTURAL_DEFECT_IDS = frozenset(
+    {
+        "SP-01",
+        "SP-02",
+        "SP-03",
+        "SP-06",
+        "SP-07",
+        "SP-08",
+        "SP-09",
+        "SP-10",
+        "SP-11",
+        "SP-12",
+        "SP-13",
+        "SP-14",
+        "SP-16",
+        "SP-18",
+        "SP-20",
+    }
+)
+
+
+def _scope_section_ids(scope: str) -> tuple[str, ...]:
+    """checker.extract_scopeと同じ規則でscopeから節IDを得る。"""
+    section_ids: list[str] = []
+    for raw_token in scope.split("、"):
+        token = raw_token.strip()
+        if token == "冒頭":
+            continue
+        token = token.split(" の", 1)[0].removesuffix("節").strip()
+        if re.fullmatch(r"\d+(?:-\d+(?:-[A-Z])?)?", token) is not None:
+            section_ids.append(token)
+    return tuple(section_ids)
+
+
+def test_structural_corpus_covers_all_15_ids() -> None:
+    corpus_ids = [case[0] for case in STRUCTURAL_CHECK_CASES]
+
+    assert len(corpus_ids) == 15
+    assert frozenset(corpus_ids) == STRUCTURAL_DEFECT_IDS
+
+
+def test_structural_abnormal_texts_contain_no_forbidden_literal(
+    defects: dict[str, checker.Defect],
+) -> None:
+    for defect_id, _, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+        invariant = defects[defect_id].invariant
+        assert invariant is not None
+        for text in (invalid_text, *mutations):
+            for forbidden in invariant.forbidden:
+                assert forbidden not in text, f"{defect_id}: {forbidden}"
+
+
+def test_structural_texts_contain_all_scope_headings(
+    defects: dict[str, checker.Defect],
+) -> None:
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+        invariant = defects[defect_id].invariant
+        assert invariant is not None
+        for text in (valid_text, invalid_text, *mutations):
+            for section_id in _scope_section_ids(invariant.scope):
+                heading = rf"^#{{1,6}}\s+{re.escape(section_id)}[.\s(]"
+                assert re.search(heading, text, re.MULTILINE), f"{defect_id}: {section_id}"
+
+
+def test_structural_cases_do_not_raise(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+        for text in (valid_text, invalid_text, *mutations):
+            checker.defect_violation_reason(defects[defect_id], text, manifest)
+
+
+def test_structural_mutations_fail(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    for defect_id, _, _, mutations in STRUCTURAL_CHECK_CASES:
+        assert mutations, defect_id
+        for mutation in mutations:
+            reason = checker.defect_violation_reason(defects[defect_id], mutation, manifest)
+            assert reason, defect_id
 
 
 def _manifest_document(relation: checker.ManifestRelation) -> str:

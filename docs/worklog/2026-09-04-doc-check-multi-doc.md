@@ -341,3 +341,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   3 検査(引数なし)→ すべて green(0)/ 基準ファイル SHA-256 先頭 `a07454fcc3e3bc9c` 不変。Codex 報告: `pytest tests/ -q -rA` → **897 passed**・skipped/xfailed/xpassed/deselected = 0・基準 875 node ID を包含(`comm -13` 空)
 - 実地確認: 本計画書・TSK-281 計画書・TSK-270 計画書はいずれも `OK`。**TSK-270 計画書から暫定回避(小見出しの語「実装ステップ」)を外しても `OK`** — 1-5 節の欠陥が是正された
 - 差分範囲: `git diff --stat -- scripts/ docs/ tests/test_hooks.py .claude/core-areas.json` = 空(C 集合のみ)
+
+### ステップ 2/38 — 構造 corpus 15 件 + forbidden corpus + 同値変異(Codex `--resume`)
+
+- 変更: `tests/test_check_design_propagation.py` のみ(+638 / −112)。`STRUCTURAL_CHECK_CASES`(15 ID・各 `(id, valid, invalid, mutations)`・変異 1〜4 件/ID・合計 34)/ `FORBIDDEN_CHECK_CASES`(SP-19・MT-01)/
+  `DEFECT_CHECK_CASES` は 17 件へ委譲(既存 8 node ID を保持)/ 機械検査 5 本(15 ID exact・異常例と変異に forbidden literal なし・scope 全節の見出し・CheckError なし・全変異 fail)
+- 検証(Claude が再実行): ruff → All checks passed(0)/ ty → All checks passed(0)/ `pytest tests/test_check_design_propagation.py -q -rA` → **100 passed**・skip/xfail/xpass/deselected 0 /
+  3 検査 green / 収集 node ID **911**・基準 875 の欠落 **0**(`comm -13` 空)。Codex 報告: `pytest tests/ -q -rA` → 911 passed
+- 差分範囲: `git status --short` = `M tests/test_check_design_propagation.py` のみ(scripts / oracle / fixtures 無変更)
