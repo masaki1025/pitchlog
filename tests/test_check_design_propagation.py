@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import re
 import subprocess
 import sys
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,11 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
+INVARIANT_EVALUATOR_SCRIPT = REPOSITORY_ROOT / "scripts" / "doc_check_invariants.py"
 FIXTURE = REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-source.txt"
+STRUCTURAL_REASON_FIXTURE = (
+    REPOSITORY_ROOT / "tests" / "fixtures" / "structural-reasons-expected.json"
+)
 DESIGN = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 REQUIREMENTS = (
     REPOSITORY_ROOT / "docs" / "requirements" / "requirements-pitchlog-2026-07-22.md"
@@ -129,6 +134,22 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def _load_invariant_evaluator() -> Any:
+    """宣言評価器をsys.pathの変更なしでモジュールとして読む。"""
+    spec = importlib.util.spec_from_file_location(
+        "doc_check_invariants_under_test",
+        INVARIANT_EVALUATOR_SCRIPT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+invariant_evaluator = _load_invariant_evaluator()
+
+
 @pytest.fixture(scope="module")
 def manifest() -> dict[str, checker.ManifestRelation]:
     """検査用に実マニフェストを読む。"""
@@ -193,6 +214,11 @@ def _make_staging_registry(tmp_path: Path, document: Path) -> Path:
                 "pins": {
                     "profile_gating_digest": (
                         checker.doc_check_profile.canonical_digest(gating)
+                    ),
+                    "invariants_digest": checker.doc_check_profile.canonical_digest(
+                        checker.doc_check_profile.load_json(
+                            REPOSITORY_ROOT / profile_value["invariants"]
+                        )
                     ),
                     "asset_digests": {},
                 },
@@ -949,6 +975,160 @@ def test_structural_mutations_fail(
             assert reason, defect_id
 
 
+def test_legacy_structural_branch_ids_match_source_branches() -> None:
+    """旧分岐ID定数を_structural_reasonの実分岐と一致させる。"""
+    source = inspect.getsource(checker._structural_reason)
+    branch_ids = frozenset(
+        re.findall(r'(?:if|elif) defect_id == "([A-Z]+-\d+)"', source)
+    )
+
+    assert checker.LEGACY_STRUCTURAL_BRANCH_IDS == branch_ids
+    assert branch_ids == STRUCTURAL_DEFECT_IDS | {"SP-19"}
+
+
+def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
+    """同期宣言資産の構造必須集合と骨格状態をexactに固定する。"""
+    invariants_path = (
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    invariants = checker.doc_check_profile.load_invariants(invariants_path)
+
+    assert invariants.structural_required == STRUCTURAL_DEFECT_IDS
+    assert invariants.legacy_structural == STRUCTURAL_DEFECT_IDS
+    assert invariants.required_declarations == frozenset()
+    assert invariants.declarations == ()
+
+
+def _shadow_case_texts() -> dict[str, str]:
+    """静的reason fixtureのcase_idを実入力本文へ対応付ける。"""
+    texts: dict[str, str] = {}
+    fixture_text = FIXTURE.read_text(encoding="utf-8")
+    approved_text = DESIGN.read_text(encoding="utf-8")
+    for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
+        texts[f"{defect_id}:corpus-valid"] = valid_text
+        texts[f"{defect_id}:corpus-invalid"] = invalid_text
+        for index, mutation in enumerate(mutations, start=1):
+            texts[f"{defect_id}:corpus-mutation:{index}"] = mutation
+        texts[f"{defect_id}:fixture"] = fixture_text
+        texts[f"{defect_id}:approved"] = approved_text
+    return texts
+
+
+def _document_sections(text: str) -> dict[str, str]:
+    """shadow評価用に文書中の節IDを既存抽出器で解決する。"""
+    section_ids = {
+        match.group(1)
+        for line in text.splitlines()
+        if (match := re.match(r"^#{2,6}\s+(\d+(?:-\d+(?:-[A-Z])?)?)[.\s(]", line))
+    }
+    return {
+        section_id: checker._heading_section(text, section_id)
+        for section_id in section_ids
+    }
+
+
+def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """静的期待値・旧分岐・宣言済み評価器をcase_id単位で突合する。"""
+    expected_rows = json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
+    case_texts = _shadow_case_texts()
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declarations_by_id: dict[str, list[dict[str, Any]]] = {}
+    for declaration in invariants.declarations:
+        declarations_by_id.setdefault(declaration["defect_id"], []).append(declaration)
+
+    assert len(expected_rows) == len(case_texts) == 94
+    assert {row["case_id"] for row in expected_rows} == set(case_texts)
+    for row in expected_rows:
+        text = case_texts[row["case_id"]]
+        actual = checker.defect_violation_reason(
+            defects[row["defect_id"]],
+            text,
+            manifest,
+        )
+        assert (1 if actual is not None else 0) == row["expected_exit"]
+        assert (None if row["reason"] is None else row["reason"]["actual"]) == actual
+
+        declarations = declarations_by_id.get(row["defect_id"], [])
+        if not declarations:
+            continue
+        shadow_reason = None
+        for declaration in declarations:
+            shadow_reason = invariant_evaluator.evaluate_declaration(
+                declaration,
+                text=text,
+                manifest=manifest,
+                profile=profile,
+                sections=_document_sections(text),
+            )
+            if shadow_reason is not None:
+                break
+        if row["reason"] is None or row["reason"]["kind"] != "forbidden-element":
+            assert (
+                None if shadow_reason is None else asdict(shadow_reason)
+            ) == row["reason"]
+
+
+def test_forbidden_element_declaration_evaluator_is_fail_closed(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """実装済みkindを評価し、それ以外のkindを黙って通さない。"""
+    declaration = {
+        "defect_id": "SP-01",
+        "kind": "forbidden-element",
+        "literals": ["禁止語"],
+        "sections": ["2-1"],
+    }
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    reason = invariant_evaluator.evaluate_declaration(
+        declaration,
+        text="### 2-1. corpus\n禁止語\n",
+        manifest=manifest,
+        profile=profile,
+        sections={"2-1": "### 2-1. corpus\n禁止語"},
+    )
+
+    assert reason == invariant_evaluator.StructuredReason(
+        violated=True,
+        kind="forbidden-element",
+        section="2-1",
+        expected="literal が対象範囲に無い",
+        actual="禁止literalが残存: 禁止語",
+        token="禁止語",
+    )
+    assert invariant_evaluator.evaluate_declaration(
+        declaration,
+        text="### 2-1. corpus\n適合\n",
+        manifest=manifest,
+        profile=profile,
+        sections={"2-1": "### 2-1. corpus\n適合"},
+    ) is None
+    with pytest.raises(
+        invariant_evaluator.doc_check_profile.ProfileError,
+        match="未実装の kind",
+    ):
+        invariant_evaluator.evaluate_declaration(
+            {"defect_id": "SP-01", "kind": "row-selector"},
+            text="",
+            manifest=manifest,
+            profile=profile,
+            sections={},
+        )
+
+
 def _manifest_document(relation: checker.ManifestRelation) -> str:
     targets = json.dumps(relation.targets, ensure_ascii=False, separators=(",", ":"))
     source_elements = json.dumps(
@@ -1642,6 +1822,48 @@ def test_registry_with_unregistered_json_fails(tmp_path: Path) -> None:
     result = _run_cli("--registry", str(registry_path))
     assert result.returncode == 2
     assert "未登録" in result.stderr
+
+
+def test_cli_always_enforces_invariant_binding_rules(tmp_path: Path) -> None:
+    """pinが一致していても宣言結合違反なら終了2にする。"""
+    registry_path = _make_staging_registry(tmp_path / "staging", DESIGN)
+    profile_path = registry_path.parent / "x.json"
+    profile_value = json.loads(profile_path.read_text(encoding="utf-8"))
+    relation_tree = tmp_path / "relations"
+    invariants_path = relation_tree / "invariants" / "x.json"
+    schema_path = relation_tree / "schemas" / "invariant.schema.json"
+    invariants = checker.doc_check_profile.load_json(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    invariants["structural_required"].remove("SP-01")
+    _write_json(invariants_path, invariants)
+    schema_path.parent.mkdir(parents=True, exist_ok=True)
+    schema_path.write_text(
+        (
+            REPOSITORY_ROOT
+            / "scripts"
+            / "design_relations"
+            / "schemas"
+            / "invariant.schema.json"
+        ).read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    profile_value["invariants"] = str(invariants_path.resolve())
+    _write_json(profile_path, profile_value)
+    registry_value = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry_value["profiles"][0]["pins"]["invariants_digest"] = (
+        checker.doc_check_profile.canonical_digest(invariants)
+    )
+    _write_json(registry_path, registry_value)
+
+    result = _run_cli("--registry", str(registry_path))
+    assert result.returncode == 2
+    assert "結合規則3" in result.stderr
+    assert "SP-01" in result.stderr
 
 
 def test_profile_with_unsupported_preamble_fails(tmp_path: Path) -> None:

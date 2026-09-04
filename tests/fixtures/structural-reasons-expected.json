@@ -1,0 +1,1108 @@
+[
+  {
+    "case_id": "SP-01:corpus-valid",
+    "defect_id": "SP-01",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-01:corpus-invalid",
+    "defect_id": "SP-01",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-contains",
+      "section": null,
+      "expected": null,
+      "actual": "退避済みへの遷移条件がA5の退避でない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-01:corpus-mutation:1",
+    "defect_id": "SP-01",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "退避済みへの遷移条件がA5の退避でない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-01:corpus-mutation:2",
+    "defect_id": "SP-01",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-contains",
+      "section": null,
+      "expected": null,
+      "actual": "退避済みへの遷移条件がA5の退避でない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-01:fixture",
+    "defect_id": "SP-01",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: ACK の境界結果が **B4** であること",
+      "token": "ACK の境界結果が **B4** であること"
+    }
+  },
+  {
+    "case_id": "SP-01:approved",
+    "defect_id": "SP-01",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-02:corpus-valid",
+    "defect_id": "SP-02",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-02:corpus-invalid",
+    "defect_id": "SP-02",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "A5の結果集合が7-2へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-02:corpus-mutation:1",
+    "defect_id": "SP-02",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "A5の正本行に結果集合5状態がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-02:corpus-mutation:2",
+    "defect_id": "SP-02",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-contains",
+      "section": null,
+      "expected": null,
+      "actual": "A5の正本行に結果集合5状態がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-02:corpus-mutation:3",
+    "defect_id": "SP-02",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "A5の結果集合が6-3へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-02:fixture",
+    "defect_id": "SP-02",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "A5の結果集合が7-2へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-02:approved",
+    "defect_id": "SP-02",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-03:corpus-valid",
+    "defect_id": "SP-03",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-03:corpus-invalid",
+    "defect_id": "SP-03",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-03:corpus-mutation:1",
+    "defect_id": "SP-03",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-03:corpus-mutation:2",
+    "defect_id": "SP-03",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-03:fixture",
+    "defect_id": "SP-03",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-03:approved",
+    "defect_id": "SP-03",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-06:corpus-valid",
+    "defect_id": "SP-06",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-06:corpus-invalid",
+    "defect_id": "SP-06",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "P1〜P3の経路別T要素集合が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-06:corpus-mutation:1",
+    "defect_id": "SP-06",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "P1〜P3の経路別T要素集合が10-2にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-06:fixture",
+    "defect_id": "SP-06",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: T1〜T5 が全部確定しているか全部確定していないか",
+      "token": "T1〜T5 が全部確定しているか全部確定していないか"
+    }
+  },
+  {
+    "case_id": "SP-06:approved",
+    "defect_id": "SP-06",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-07:corpus-valid",
+    "defect_id": "SP-07",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-07:corpus-invalid",
+    "defect_id": "SP-07",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "P4の原子性が10-2へ伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-07:corpus-mutation:1",
+    "defect_id": "SP-07",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-07:corpus-mutation:2",
+    "defect_id": "SP-07",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-07:fixture",
+    "defect_id": "SP-07",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-07:approved",
+    "defect_id": "SP-07",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-08:corpus-valid",
+    "defect_id": "SP-08",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-08:corpus-invalid",
+    "defect_id": "SP-08",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-08:corpus-mutation:1",
+    "defect_id": "SP-08",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "element-lookup",
+      "section": null,
+      "expected": null,
+      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-08:corpus-mutation:2",
+    "defect_id": "SP-08",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-08:corpus-mutation:3",
+    "defect_id": "SP-08",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-08:fixture",
+    "defect_id": "SP-08",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "element-lookup",
+      "section": null,
+      "expected": null,
+      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-08:approved",
+    "defect_id": "SP-08",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-09:corpus-valid",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-09:corpus-invalid",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "D1を持たない変更イベントのT要素集合が不正",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-09:corpus-mutation:1",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "D1を持たない変更イベントのT要素集合が不正",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-09:corpus-mutation:2",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "D1を持たない変更イベントのT要素集合が不正",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-09:corpus-mutation:3",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "D1を持たない変更イベントのT要素集合が不正",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-09:corpus-mutation:4",
+    "defect_id": "SP-09",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "exact-set",
+      "section": null,
+      "expected": null,
+      "actual": "D1を持たない変更イベントのT要素集合が不正",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-09:fixture",
+    "defect_id": "SP-09",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: D1 を持たない変更イベント**(4-3-A の #10〜#12) | **T1・T2・T4 + T5",
+      "token": "D1 を持たない変更イベント**(4-3-A の #10〜#12) | **T1・T2・T4 + T5"
+    }
+  },
+  {
+    "case_id": "SP-09:approved",
+    "defect_id": "SP-09",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-10:corpus-valid",
+    "defect_id": "SP-10",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-10:corpus-invalid",
+    "defect_id": "SP-10",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-10:corpus-mutation:1",
+    "defect_id": "SP-10",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-10:corpus-mutation:2",
+    "defect_id": "SP-10",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-10:fixture",
+    "defect_id": "SP-10",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: ACK の A1 が保証するのは「当該経路で適用されるすべての T 要素の確定」",
+      "token": "ACK の A1 が保証するのは「当該経路で適用されるすべての T 要素の確定」"
+    }
+  },
+  {
+    "case_id": "SP-10:approved",
+    "defect_id": "SP-10",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-11:corpus-valid",
+    "defect_id": "SP-11",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-11:corpus-invalid",
+    "defect_id": "SP-11",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "期待版不一致が8-3へ伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-11:corpus-mutation:1",
+    "defect_id": "SP-11",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "期待版不一致が6-2へ伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-11:fixture",
+    "defect_id": "SP-11",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "期待版不一致が6-2へ伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-11:approved",
+    "defect_id": "SP-11",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-12:corpus-valid",
+    "defect_id": "SP-12",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-12:corpus-invalid",
+    "defect_id": "SP-12",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "D5衝突の再開2択除外が6-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-12:corpus-mutation:1",
+    "defect_id": "SP-12",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "D5衝突の再開2択除外が6-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-12:corpus-mutation:2",
+    "defect_id": "SP-12",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "D5衝突の再開2択除外が6-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-12:corpus-mutation:3",
+    "defect_id": "SP-12",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "D5衝突の再開2択除外が6-4にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-12:fixture",
+    "defect_id": "SP-12",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "D5衝突の再開2択除外が6-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-12:approved",
+    "defect_id": "SP-12",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-13:corpus-valid",
+    "defect_id": "SP-13",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-13:corpus-invalid",
+    "defect_id": "SP-13",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "V1〜V11の正本集合が4-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-13:corpus-mutation:1",
+    "defect_id": "SP-13",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "V1〜V11の必須区分が4-3-Aにない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-13:corpus-mutation:2",
+    "defect_id": "SP-13",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "V1〜V11の必須区分が11-2にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-13:fixture",
+    "defect_id": "SP-13",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "V1〜V11の正本集合が4-3にない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-13:approved",
+    "defect_id": "SP-13",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-14:corpus-valid",
+    "defect_id": "SP-14",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-14:corpus-invalid",
+    "defect_id": "SP-14",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "変更版順の正本規則が4-3-Aにない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-14:corpus-mutation:1",
+    "defect_id": "SP-14",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "変更版順が5-5に伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-14:corpus-mutation:2",
+    "defect_id": "SP-14",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "変更版順が11-2に伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-14:fixture",
+    "defect_id": "SP-14",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "section-contains",
+      "section": null,
+      "expected": null,
+      "actual": "変更版順が5-5に伝播していない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-14:approved",
+    "defect_id": "SP-14",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-16:corpus-valid",
+    "defect_id": "SP-16",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-16:corpus-invalid",
+    "defect_id": "SP-16",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "6-2にD1なし変更イベントのprefix射程除外がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-16:corpus-mutation:1",
+    "defect_id": "SP-16",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "6-1にD1なし変更イベントのprefix射程除外がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-16:fixture",
+    "defect_id": "SP-16",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "required-exclusion",
+      "section": null,
+      "expected": null,
+      "actual": "6-1にD1なし変更イベントのprefix射程除外がない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-16:approved",
+    "defect_id": "SP-16",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-18:corpus-valid",
+    "defect_id": "SP-18",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-18:corpus-invalid",
+    "defect_id": "SP-18",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "well-formedness",
+      "section": null,
+      "expected": null,
+      "actual": "W3表セルの強調記号が閉じていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-18:corpus-mutation:1",
+    "defect_id": "SP-18",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "well-formedness",
+      "section": null,
+      "expected": null,
+      "actual": "W3表セルの強調記号が閉じていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-18:corpus-mutation:2",
+    "defect_id": "SP-18",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "well-formedness",
+      "section": null,
+      "expected": null,
+      "actual": "W3表セルの強調記号が閉じていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-18:fixture",
+    "defect_id": "SP-18",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: 持つ。**論理位置(V6)は対象の D2 に従う**(従属 — 5-5)。**D1(V2)を持たない**",
+      "token": "持つ。**論理位置(V6)は対象の D2 に従う**(従属 — 5-5)。**D1(V2)を持たない**"
+    }
+  },
+  {
+    "case_id": "SP-18:approved",
+    "defect_id": "SP-18",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-20:corpus-valid",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-valid",
+    "expected_exit": 0,
+    "reason": null
+  },
+  {
+    "case_id": "SP-20:corpus-invalid",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-invalid",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-contains",
+      "section": null,
+      "expected": null,
+      "actual": "D1の用途が順序・欠落に限定されていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-20:corpus-mutation:1",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "D1の用途が順序・欠落に限定されていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-20:corpus-mutation:2",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": null,
+      "expected": null,
+      "actual": "D1の用途が順序・欠落に限定されていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-20:corpus-mutation:3",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-contains",
+      "section": null,
+      "expected": null,
+      "actual": "D1の用途が順序・欠落に限定されていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-20:corpus-mutation:4",
+    "defect_id": "SP-20",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "conditional-forbidden",
+      "section": null,
+      "expected": null,
+      "actual": "D1の用途が順序・欠落に限定されていない",
+      "token": null
+    }
+  },
+  {
+    "case_id": "SP-20:fixture",
+    "defect_id": "SP-20",
+    "input_kind": "fixture",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "forbidden-element",
+      "section": null,
+      "expected": "literal が対象範囲に無い",
+      "actual": "禁止literalが残存: 用途は**欠番検知・再送の重複排除・undo の逆順**に限る",
+      "token": "用途は**欠番検知・再送の重複排除・undo の逆順**に限る"
+    }
+  },
+  {
+    "case_id": "SP-20:approved",
+    "defect_id": "SP-20",
+    "input_kind": "approved",
+    "expected_exit": 0,
+    "reason": null
+  }
+]

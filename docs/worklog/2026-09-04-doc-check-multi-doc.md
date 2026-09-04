@@ -391,3 +391,13 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - corpus 追随: MT-01 の forbidden 対に scope 11 節の見出しを追加(禁止語は `2-2` 配下のまま)。構造 corpus は変更不要
 - 検証(Claude): ruff/ty passed / 3 テストファイル **159 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture` rc 1 / 収集 **962**・基準欠落 0 / 対象外パス(COV・`.github`・`.claude`・oracle・fixture)の差分 0 /
   fail-closed 2 経路を直接実行して確認 / 除外語彙をプロファイル値で変えると `_has_exclusion` の判定が True → False に変わることを確認。Codex 報告: `pytest tests/ -q -rA` 962 passed
+
+### ステップ 8/38 — 不変条件スキーマ・宣言資産の骨格・結合規則 1〜5・期待 reason fixture・shadow 基盤(Codex `--resume`)
+
+- 新設: `schemas/invariant.schema.json` / `invariants/sync-protocol.json`(`structural_required` 15・`legacy_structural` 15・`required_declarations` []・`declarations` [])/
+  `scripts/doc_check_invariants.py`(評価器の骨格 + `forbidden-element` のみ実装・未実装 kind は `ProfileError`)/ `tests/fixtures/structural-reasons-expected.json`(**94 行**)
+- 変更: `doc_check_profile.py`(+239 — `load_invariants` / `validate_declaration`(kind 別必須引数)/ `validate_binding_rules`(規則 1〜5))/ `check_design_propagation.py`(+45 — `LEGACY_STRUCTURAL_BRANCH_IDS` 新設・`main` で規則検査)/
+  プロファイルに `invariants`、レジストリに `pins.invariants_digest`(`1523a5fc…`)。`profile_gating_digest` は不変(`invariants` はゲート節外)
+- **判定ロジックは 1 件も移行していない**(`_structural_reason` 無変更)。有効化フラグ・xfail なし(grep 0 件)
+- 検証(Claude): ruff/ty passed / 3 テストファイル **173 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **976**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 /
+  **規則 1〜5 を実データで直接発火確認**(規則 1 未知 ID・規則 2 宣言欠落・規則 3 legacy∩D・規則 4 余分な宣言・規則 5 forbidden-only 違反 — すべて `ProfileError`、baseline は通過)

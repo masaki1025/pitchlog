@@ -73,6 +73,26 @@ DEFAULT_NONCANONICAL_SCAN_START = r"^##\s+2(?:[.\s]|$)"
 DEFAULT_DECLARATION_SECTION = "2-5"
 DEFAULT_DECLARATION_ROW_PREFIX = "| **R-"
 DEFAULT_DECLARATION_COLUMN_COUNT = 6
+LEGACY_STRUCTURAL_BRANCH_IDS = frozenset(
+    {
+        "SP-01",
+        "SP-02",
+        "SP-03",
+        "SP-06",
+        "SP-07",
+        "SP-08",
+        "SP-09",
+        "SP-10",
+        "SP-11",
+        "SP-12",
+        "SP-13",
+        "SP-14",
+        "SP-16",
+        "SP-18",
+        "SP-19",
+        "SP-20",
+    }
+)
 
 
 class CheckError(Exception):
@@ -1412,6 +1432,7 @@ def run_checks(
     defect_csv: str | None = None,
     check_csv: str | None = None,
     link_base_dir: Path | None = None,
+    invariants: Any | None = None,
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
@@ -1434,6 +1455,7 @@ def run_checks(
         defect_csv: ``--defects`` 相当のカンマ区切りID。
         check_csv: ``--checks`` 相当のカンマ区切りID。
         link_base_dir: 相対Markdownリンクの解決基準。
+        invariants: 検証済みの不変条件宣言資産。未指定なら結合検査を省く。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
         exclusion_vocabulary: 除外宣言として認識する語彙。
@@ -1448,6 +1470,23 @@ def run_checks(
     Returns:
         欠陥IDまたは全体検査ID単位の違反。
     """
+    if invariants is not None:
+        machine_defect_ids = {
+            defect.id for defect in defects.values() if defect.detection == "machine"
+        }
+        forbidden_defect_ids = {
+            defect.id
+            for defect in defects.values()
+            if defect.detection == "machine"
+            and defect.invariant is not None
+            and defect.invariant.forbidden
+        }
+        doc_check_profile.validate_binding_rules(
+            invariants,
+            machine_defect_ids=machine_defect_ids,
+            forbidden_defect_ids=forbidden_defect_ids,
+            legacy_branch_ids=LEGACY_STRUCTURAL_BRANCH_IDS,
+        )
     checks, selected_defects, allow_global = select_checks_and_defects(
         defects, defect_csv, check_csv
     )
@@ -1577,6 +1616,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise CheckError(f"検査対象を読めない: {document}: {error}") from error
         manifest = load_manifest(manifest_path)
         defects = load_defects(defects_path)
+        invariants = (
+            doc_check_profile.load_invariants(profile.invariants)
+            if profile.invariants is not None
+            else None
+        )
         citation = profile.raw["citation"]
         declaration_table = profile.raw["declaration_table"]
         findings = run_checks(
@@ -1587,6 +1631,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             defect_csv=args.defects,
             check_csv=args.checks,
             link_base_dir=profile.link_base_dir,
+            invariants=invariants,
             section_id_grammar=profile.raw["section_id_grammar"],
             preamble=profile.raw["preamble"],
             exclusion_vocabulary=profile.raw["exclusion_vocabulary"],

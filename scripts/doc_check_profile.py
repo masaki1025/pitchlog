@@ -47,6 +47,7 @@ GATING_KEYS: tuple[str, ...] = (
 
 _PROFILE_SCHEMA = "profile.schema.json"
 _REGISTRY_SCHEMA = "registry.schema.json"
+_INVARIANT_SCHEMA = "invariant.schema.json"
 _SCHEMA_VERSION = 1
 _SUPPORTED_SCHEMA_KEYWORDS = frozenset(
     {
@@ -82,6 +83,37 @@ _INVARIANT_KINDS = frozenset(
         "unique-owner",
     }
 )
+_DECLARATION_KINDS = _INVARIANT_KINDS - {"unique-owner"}
+_DECLARATION_REQUIRED_FIELDS: dict[str, frozenset[str]] = {
+    "forbidden-element": frozenset({"defect_id", "kind", "literals"}),
+    "row-selector": frozenset(
+        {"defect_id", "kind", "id", "section", "mode", "keys"}
+    ),
+    "row-contains": frozenset({"defect_id", "kind", "row"}),
+    "section-contains": frozenset(
+        {"defect_id", "kind", "sections", "as"}
+    ),
+    "required-element": frozenset({"defect_id", "kind", "sections"}),
+    "exact-set": frozenset(
+        {"defect_id", "kind", "relation", "routes", "prefix"}
+    ),
+    "cross-reference": frozenset(
+        {"defect_id", "kind", "from", "to", "extract"}
+    ),
+    "element-lookup": frozenset(
+        {"defect_id", "kind", "relation", "prefix", "section", "row_identifier"}
+    ),
+    "row-scoped-forbidden": frozenset(
+        {"defect_id", "kind", "row", "literals"}
+    ),
+    "any-of": frozenset({"defect_id", "kind", "row", "literals"}),
+    "required-exclusion": frozenset({"defect_id", "kind", "terms"}),
+    "conditional-forbidden": frozenset(
+        {"defect_id", "kind", "row", "literal", "unless"}
+    ),
+    "well-formedness": frozenset({"defect_id", "kind", "scope", "rule"}),
+    "absent-section": frozenset({"defect_id", "kind", "section"}),
+}
 
 
 class ProfileError(Exception):
@@ -159,6 +191,29 @@ class Registry:
     path: Path
     entries: tuple[RegistryEntry, ...]
     schema_dir: Path
+
+
+@dataclass(frozen=True)
+class Invariants:
+    """検証済みの不変条件宣言資産。
+
+    Attributes:
+        path: 宣言資産自身の絶対パス。
+        structural_required: 構造判定を必須とする機械欠陥ID集合。
+        legacy_structural: 旧構造分岐で暫定評価する欠陥ID集合。
+        required_declarations: 構造判定外でも宣言を必須とする欠陥ID集合。
+        declarations: 欠陥IDを持つ宣言列。
+        global_invariants: 欠陥IDを持たない大域宣言列。
+        raw: digest計算に用いる検証済みJSONオブジェクト。
+    """
+
+    path: Path
+    structural_required: frozenset[str]
+    legacy_structural: frozenset[str]
+    required_declarations: frozenset[str]
+    declarations: tuple[dict[str, Any], ...]
+    global_invariants: tuple[dict[str, Any], ...]
+    raw: dict[str, Any]
 
 
 def validate_against_schema(
@@ -266,6 +321,174 @@ def default_schema_dir(root: str | Path) -> Path:
         ``scripts/design_relations/schemas`` の絶対パス。
     """
     return Path(root).resolve() / "scripts/design_relations/schemas"
+
+
+def validate_declaration(declaration: Mapping[str, Any]) -> None:
+    """kind別の宣言引数が設計契約を満たすか検査する。
+
+    Args:
+        declaration: ``declarations[]`` の1宣言。
+
+    Raises:
+        ProfileError: kindが未対応か、必須引数・排他的引数が不正な場合。
+    """
+    kind = declaration.get("kind")
+    defect_id = declaration.get("defect_id", "<不明>")
+    if not isinstance(kind, str) or kind not in _DECLARATION_KINDS:
+        raise ProfileError(f"宣言 {defect_id}: 未対応の kind です: {kind!r}")
+    missing = _DECLARATION_REQUIRED_FIELDS[kind] - set(declaration)
+    if missing:
+        raise ProfileError(
+            f"宣言 {defect_id} ({kind}): 必須引数がありません: "
+            f"{_format_values(missing)}"
+        )
+
+    if kind in {"row-contains", "section-contains", "required-element"}:
+        _require_one_declaration_field(
+            declaration,
+            kind=kind,
+            defect_id=str(defect_id),
+            fields=("literals", "elements"),
+        )
+    if kind == "required-element" and declaration.get("as", "text") != "text":
+        raise ProfileError(
+            f"宣言 {defect_id} ({kind}): alias の as は 'text' である必要があります"
+        )
+    if kind in {"exact-set", "required-exclusion"}:
+        _require_one_declaration_field(
+            declaration,
+            kind=kind,
+            defect_id=str(defect_id),
+            fields=("row", "sections"),
+        )
+    if kind == "required-exclusion":
+        terms = declaration["terms"]
+        if not isinstance(terms, list) or not 1 <= len(terms) <= 2:
+            raise ProfileError(
+                f"宣言 {defect_id} ({kind}): terms は1〜2件である必要があります"
+            )
+
+
+def load_invariants(
+    path: str | Path,
+    *,
+    schema_dir: str | Path | None = None,
+) -> Invariants:
+    """不変条件宣言資産をスキーマ検証して読む。
+
+    Args:
+        path: 宣言資産のパス。
+        schema_dir: スキーマディレクトリ。省略時は資産の兄弟 ``schemas``。
+
+    Returns:
+        検証済みの不変条件宣言資産。
+
+    Raises:
+        ProfileError: スキーマ違反、版不一致、kind別引数違反がある場合。
+    """
+    invariant_path = Path(path).resolve()
+    resolved_schema_dir = (
+        invariant_path.parent.parent / "schemas"
+        if schema_dir is None
+        else Path(schema_dir).resolve()
+    )
+    raw = _load_object(invariant_path, label="不変条件宣言資産")
+    schema = _load_schema(resolved_schema_dir / _INVARIANT_SCHEMA)
+    try:
+        validate_against_schema(raw, schema)
+    except ProfileError as error:
+        raise ProfileError(f"{invariant_path}: {error}") from error
+    if raw["schema_version"] != _SCHEMA_VERSION:
+        raise ProfileError(
+            f"{invariant_path}: $.schema_version は "
+            f"{_SCHEMA_VERSION} である必要があります"
+        )
+    declarations = tuple(dict(value) for value in raw["declarations"])
+    for declaration in declarations:
+        validate_declaration(declaration)
+    return Invariants(
+        path=invariant_path,
+        structural_required=frozenset(raw["structural_required"]),
+        legacy_structural=frozenset(raw["legacy_structural"]),
+        required_declarations=frozenset(raw["required_declarations"]),
+        declarations=declarations,
+        global_invariants=tuple(
+            dict(value) for value in raw.get("global_invariants", [])
+        ),
+        raw=raw,
+    )
+
+
+def validate_binding_rules(
+    invariants: Invariants,
+    *,
+    machine_defect_ids: Iterable[str],
+    forbidden_defect_ids: Iterable[str],
+    legacy_branch_ids: Iterable[str],
+) -> None:
+    """不変条件宣言と欠陥oracleの汎用結合規則1〜5を検査する。
+
+    Args:
+        invariants: 検証済みの不変条件宣言資産。
+        machine_defect_ids: 機械欠陥ID集合 ``M``。
+        forbidden_defect_ids: forbiddenを持つ欠陥ID集合 ``F``。
+        legacy_branch_ids: 旧構造分岐を持つ欠陥ID集合。
+
+    Raises:
+        ProfileError: 結合規則1〜5のいずれかに違反した場合。
+    """
+    machine = frozenset(machine_defect_ids)
+    forbidden = frozenset(forbidden_defect_ids)
+    legacy_branches = frozenset(legacy_branch_ids)
+    structural = invariants.structural_required
+    required = invariants.required_declarations
+    legacy = invariants.legacy_structural
+    declared = frozenset(
+        declaration["defect_id"] for declaration in invariants.declarations
+    )
+
+    outside_machine = (structural | required) - machine
+    overlap = structural & required
+    if outside_machine or overlap:
+        raise ProfileError(
+            "結合規則1: structural_required / required_declarations が不正です"
+            f"(機械欠陥外={_format_values(outside_machine)}, "
+            f"重複={_format_values(overlap)})"
+        )
+
+    missing_declarations = ((structural - legacy) | required) - declared
+    if missing_declarations:
+        raise ProfileError(
+            "結合規則2: 必須宣言が declarations にありません: "
+            f"{_format_values(missing_declarations)}"
+        )
+
+    legacy_outside_structural = legacy - structural
+    legacy_declared = legacy & declared
+    legacy_without_branch = legacy - legacy_branches
+    if legacy_outside_structural or legacy_declared or legacy_without_branch:
+        raise ProfileError(
+            "結合規則3: legacy_structural が不正です"
+            f"(structural_required外={_format_values(legacy_outside_structural)}, "
+            f"宣言と重複={_format_values(legacy_declared)}, "
+            f"旧分岐なし={_format_values(legacy_without_branch)})"
+        )
+
+    declarations_outside_machine = declared - machine
+    declarations_outside_binding = declared - (structural | required)
+    if declarations_outside_machine or declarations_outside_binding:
+        raise ProfileError(
+            "結合規則4: declarations に余分な欠陥IDがあります"
+            f"(機械欠陥外={_format_values(declarations_outside_machine)}, "
+            f"結合集合外={_format_values(declarations_outside_binding)})"
+        )
+
+    forbidden_only_missing = machine - structural - required - forbidden
+    if forbidden_only_missing:
+        raise ProfileError(
+            "結合規則5: 構造宣言対象外の機械欠陥に forbidden がありません: "
+            f"{_format_values(forbidden_only_missing)}"
+        )
 
 
 def load_profile(
@@ -739,6 +962,22 @@ def _optional_path(root: Path, value: Any) -> Path | None:
     if not isinstance(value, str):
         raise ProfileError(f"パス値はstringである必要があります: {value!r}")
     return _resolve_path(root, value)
+
+
+def _require_one_declaration_field(
+    declaration: Mapping[str, Any],
+    *,
+    kind: str,
+    defect_id: str,
+    fields: tuple[str, str],
+) -> None:
+    """宣言が選択肢のフィールドをちょうど1つ持つことを要求する。"""
+    present = [field for field in fields if field in declaration]
+    if len(present) != 1:
+        raise ProfileError(
+            f"宣言 {defect_id} ({kind}): "
+            f"{fields[0]} / {fields[1]} はどちらか一方だけ必要です"
+        )
 
 
 def _require_unique(path: Path, field: str, values: Sequence[Any]) -> None:

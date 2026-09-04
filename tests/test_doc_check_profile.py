@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +18,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 RELATIONS_DIR = REPOSITORY_ROOT / "scripts" / "design_relations"
 PROFILES_DIR = RELATIONS_DIR / "profiles"
 SCHEMAS_DIR = RELATIONS_DIR / "schemas"
+INVARIANTS_DIR = RELATIONS_DIR / "invariants"
 PROFILE_PATH = PROFILES_DIR / "sync-protocol.json"
 REGISTRY_PATH = PROFILES_DIR / "registry.json"
+INVARIANTS_PATH = INVARIANTS_DIR / "sync-protocol.json"
 DEFECTS_PATH = RELATIONS_DIR / "defects.json"
 PROPAGATION_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 COVERAGE_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_doc_coverage.py"
@@ -159,6 +162,7 @@ def _copy_profile_tree(tmp_path: Path) -> Path:
     relations_dir = root / "scripts" / "design_relations"
     shutil.copytree(SCHEMAS_DIR, relations_dir / "schemas")
     shutil.copytree(PROFILES_DIR, relations_dir / "profiles")
+    shutil.copytree(INVARIANTS_DIR, relations_dir / "invariants")
     return root
 
 
@@ -309,24 +313,36 @@ def test_registry_matches_profile_directory_and_gating_digest() -> None:
     assert entry["must_require"] == profile["required_checks"]
     assert entry["pins"]["profile_gating_digest"] == _gating_digest(profile)
     assert entry["pins"]["asset_digests"] == {}
-    assert "invariants_digest" not in entry["pins"]
+    assert entry["pins"]["invariants_digest"] == profile_loader.canonical_digest(
+        _load_json(INVARIANTS_PATH)
+    )
 
 
 def test_schemas_are_versioned_closed_and_list_required_keys() -> None:
-    """両スキーマの版・閉包・トップレベル必須キーを固定する。"""
+    """全スキーマの版・閉包・トップレベル必須キーを固定する。"""
     profile_schema = _load_json(SCHEMAS_DIR / "profile.schema.json")
     registry_schema = _load_json(SCHEMAS_DIR / "registry.schema.json")
+    invariant_schema = _load_json(SCHEMAS_DIR / "invariant.schema.json")
 
     assert profile_schema["schema_version"] == 1
     assert registry_schema["schema_version"] == 1
+    assert invariant_schema["schema_version"] == 1
     assert set(profile_schema["required"]) == PROFILE_REQUIRED_KEYS
-    assert set(profile) == PROFILE_REQUIRED_KEYS
+    assert set(profile) == PROFILE_REQUIRED_KEYS | {"invariants"}
     assert set(registry_schema["required"]) == {"schema_version", "profiles"}
+    assert set(invariant_schema["required"]) == {
+        "schema_version",
+        "structural_required",
+        "legacy_structural",
+        "required_declarations",
+        "declarations",
+    }
     assert {"invariants", "direct_requirements"} <= set(
         profile_schema["properties"]
     )
     _assert_schema_subset(profile_schema, root=True)
     _assert_schema_subset(registry_schema, root=True)
+    _assert_schema_subset(invariant_schema, root=True)
 
 
 def test_no_checker_or_claude_file_changed() -> None:
@@ -612,12 +628,12 @@ def test_schema_validator_rejects_unsupported_keyword() -> None:
 def test_resolve_profiles_requires_invariants_digest(tmp_path: Path) -> None:
     """invariants指定時にinvariants_digestが無ければ拒否する。"""
     root = _copy_profile_tree(tmp_path)
-    profile_path = _temporary_profile_path(root)
-    value = _load_json(profile_path)
-    value["invariants"] = "scripts/design_relations/invariants/sync-protocol.json"
-    _write_json(profile_path, value)
+    registry_path = _temporary_registry_path(root)
+    value = _load_json(registry_path)
+    del value["profiles"][0]["pins"]["invariants_digest"]
+    _write_json(registry_path, value)
     loaded_registry = profile_loader.load_registry(
-        _temporary_registry_path(root),
+        registry_path,
         root=root,
     )
 
@@ -628,15 +644,12 @@ def test_resolve_profiles_requires_invariants_digest(tmp_path: Path) -> None:
 def test_resolve_profiles_accepts_matching_invariants_digest(tmp_path: Path) -> None:
     """invariants本体と一致するinvariants_digestを受理する。"""
     root = _copy_profile_tree(tmp_path)
-    profile_path = _temporary_profile_path(root)
     registry_path = _temporary_registry_path(root)
     invariants_path = root / "scripts/design_relations/invariants/sync-protocol.json"
-    invariants = {"schema_version": 1, "invariants": {}}
+    invariants = _load_json(invariants_path)
+    invariants["legacy_structural"] = list(reversed(invariants["legacy_structural"]))
     _write_json(invariants_path, invariants)
 
-    profile_value = _load_json(profile_path)
-    profile_value["invariants"] = invariants_path.relative_to(root).as_posix()
-    _write_json(profile_path, profile_value)
     registry_value = _load_json(registry_path)
     registry_value["profiles"][0]["pins"]["invariants_digest"] = (
         profile_loader.canonical_digest(invariants)
@@ -677,6 +690,8 @@ def test_staging_tree_resolves_and_rejects_unrelated_json(tmp_path: Path) -> Non
     profile_value = json.loads(json.dumps(profile))
     profile_value["name"] = "x"
     _write_json(profile_path, profile_value)
+    staging_invariants = root / "scripts/design_relations/invariants"
+    shutil.copytree(INVARIANTS_DIR, staging_invariants)
 
     entry = json.loads(json.dumps(registry["profiles"][0]))
     entry["name"] = "x"
@@ -706,3 +721,137 @@ def test_staging_tree_resolves_and_rejects_unrelated_json(tmp_path: Path) -> Non
             root=root,
             schema_dir=SCHEMAS_DIR,
         )
+
+
+def _binding_inputs() -> tuple[set[str], set[str], frozenset[str]]:
+    """本番欠陥oracleから結合規則のM・F・旧分岐集合を返す。"""
+    entries = {
+        identifier: value
+        for identifier, value in _load_json(DEFECTS_PATH).items()
+        if not identifier.startswith("_")
+    }
+    machine = {
+        identifier
+        for identifier, value in entries.items()
+        if value["detection"] == "machine"
+    }
+    forbidden = {
+        identifier
+        for identifier, value in entries.items()
+        if value["detection"] == "machine"
+        and value["invariant"]["forbidden"]
+    }
+    return machine, forbidden, propagation.LEGACY_STRUCTURAL_BRANCH_IDS
+
+
+def test_production_invariants_load_and_satisfy_binding_rules() -> None:
+    """同期宣言資産を読み、結合規則1〜5が成立することを確認する。"""
+    invariants = profile_loader.load_invariants(INVARIANTS_PATH)
+    machine, forbidden, legacy_branches = _binding_inputs()
+
+    assert invariants.path == INVARIANTS_PATH.resolve()
+    assert invariants.declarations == ()
+    assert invariants.global_invariants == ()
+    profile_loader.validate_binding_rules(
+        invariants,
+        machine_defect_ids=machine,
+        forbidden_defect_ids=forbidden,
+        legacy_branch_ids=legacy_branches,
+    )
+
+
+@pytest.mark.parametrize(
+    ("rule", "mutation"),
+    (
+        (1, "outside-machine"),
+        (2, "missing-declaration"),
+        (3, "legacy-outside-structural"),
+        (4, "extra-declaration"),
+        (5, "forbidden-gap"),
+    ),
+    ids=("rule-1", "rule-2", "rule-3", "rule-4", "rule-5"),
+)
+def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
+    """結合規則1〜5の各違反を常時ProfileErrorにする。"""
+    invariants = profile_loader.load_invariants(INVARIANTS_PATH)
+    machine, forbidden, legacy_branches = _binding_inputs()
+    if mutation == "outside-machine":
+        invariants = replace(
+            invariants,
+            structural_required=invariants.structural_required | {"SP-99"},
+        )
+    elif mutation == "missing-declaration":
+        invariants = replace(
+            invariants,
+            legacy_structural=invariants.legacy_structural - {"SP-01"},
+        )
+    elif mutation == "legacy-outside-structural":
+        invariants = replace(
+            invariants,
+            structural_required=invariants.structural_required - {"SP-01"},
+        )
+    elif mutation == "extra-declaration":
+        invariants = replace(
+            invariants,
+            declarations=(
+                {
+                    "defect_id": "SP-19",
+                    "kind": "forbidden-element",
+                    "literals": ["禁止語"],
+                },
+            ),
+        )
+    else:
+        forbidden.remove("MT-01")
+
+    with pytest.raises(profile_loader.ProfileError, match=rf"結合規則{rule}.*"):
+        profile_loader.validate_binding_rules(
+            invariants,
+            machine_defect_ids=machine,
+            forbidden_defect_ids=forbidden,
+            legacy_branch_ids=legacy_branches,
+        )
+
+
+def test_binding_rule_three_rejects_legacy_branch_mismatch() -> None:
+    """legacy IDに対応する旧分岐が無ければ規則3で拒否する。"""
+    invariants = profile_loader.load_invariants(INVARIANTS_PATH)
+    machine, forbidden, legacy_branches = _binding_inputs()
+
+    with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-01"):
+        profile_loader.validate_binding_rules(
+            invariants,
+            machine_defect_ids=machine,
+            forbidden_defect_ids=forbidden,
+            legacy_branch_ids=legacy_branches - {"SP-01"},
+        )
+
+
+@pytest.mark.parametrize(
+    ("declaration", "message"),
+    (
+        (
+            {"defect_id": "SP-01", "kind": "row-selector"},
+            "必須引数",
+        ),
+        (
+            {"defect_id": "SP-01", "kind": "unknown-kind"},
+            "enum|未対応",
+        ),
+    ),
+    ids=("missing-kind-arguments", "unknown-kind"),
+)
+def test_load_invariants_rejects_invalid_declarations(
+    tmp_path: Path,
+    declaration: dict[str, Any],
+    message: str,
+) -> None:
+    """kind別必須引数の欠落と未知kindを宣言資産の読み込みで拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = root / "scripts/design_relations/invariants/sync-protocol.json"
+    value = _load_json(path)
+    value["declarations"] = [declaration]
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match=message):
+        profile_loader.load_invariants(path)

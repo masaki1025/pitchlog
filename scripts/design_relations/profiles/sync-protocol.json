@@ -4,6 +4,7 @@
   "document": "docs/design/sync-protocol.md",
   "manifest": "scripts/design_relations/sync-protocol.json",
   "defects": "scripts/design_relations/defects.json",
+  "invariants": "scripts/design_relations/invariants/sync-protocol.json",
   "requirements": "docs/requirements/requirements-pitchlog-2026-07-22.md",
   "universe": "scripts/design_relations/req-universe.json",
   "section_id_grammar": "\\d+(?:-\\d+(?:-[A-Z])?)?",
