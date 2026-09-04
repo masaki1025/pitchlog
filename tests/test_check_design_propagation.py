@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import json
 import re
 import subprocess
 import sys
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -263,8 +262,10 @@ def _route_row(route: str, elements: frozenset[str]) -> str:
 def _build_structural_check_cases(
     manifest: dict[str, checker.ManifestRelation],
 ) -> tuple[tuple[str, str, str, tuple[str, ...]], ...]:
-    """実manifestから旧構造分岐15件の正常・異常・変異corpusを作る。"""
-    routes = checker._expected_route_elements(manifest)
+    """実manifestから構造宣言15件の正常・異常・変異corpusを作る。"""
+    routes = invariant_evaluator.expected_route_elements(
+        manifest, "R-TXN-ROUTE", prefix="T"
+    )
 
     sp01_valid = _corpus_document(
         {
@@ -853,8 +854,63 @@ def test_defect_backed_checks_have_normal_and_abnormal_cases(
     manifest: dict[str, checker.ManifestRelation],
     defects: dict[str, checker.Defect],
 ) -> None:
-    assert checker.defect_violation_reason(defects[defect_id], valid_text, manifest) is None
-    assert checker.defect_violation_reason(defects[defect_id], invalid_text, manifest)
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    assert checker.defect_violation_reason(
+        defects[defect_id],
+        valid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    ) is None
+    assert checker.defect_violation_reason(
+        defects[defect_id],
+        invalid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+
+
+def test_sp19_remains_detected_by_forbidden_literal_without_declaration(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """SP-19を宣言や旧分岐でなくforbidden literalだけで検出する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, invalid_text = _FORBIDDEN_CASE_BY_ID["SP-19"]
+
+    assert not any(
+        declaration["defect_id"] == "SP-19"
+        for declaration in invariants.declarations
+    )
+    assert checker.defect_violation_reason(
+        defects["SP-19"],
+        valid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    ) is None
+    assert checker.defect_violation_reason(
+        defects["SP-19"],
+        invalid_text,
+        manifest,
+        invariants=invariants,
+        profile=profile,
+    ) == "禁止literalが残存: `D1=5` の位置には"
 
 
 STRUCTURAL_DEFECT_IDS = frozenset(
@@ -879,22 +935,7 @@ STRUCTURAL_DEFECT_IDS = frozenset(
 ROW_SELECTOR_MIGRATED_IDS = frozenset({"SP-10", "SP-11"})
 SECTION_CONTAINS_MIGRATED_IDS = frozenset({"SP-02", "SP-03", "SP-13", "SP-14"})
 EXACT_SET_MIGRATED_IDS = frozenset({"SP-06", "SP-07"})
-ELEMENT_LOOKUP_MIGRATED_IDS = frozenset({"SP-08"})
-ANY_OF_MIGRATED_IDS = frozenset({"SP-09"})
 REQUIRED_EXCLUSION_MIGRATED_IDS = frozenset({"SP-12", "SP-16"})
-CONDITIONAL_FORBIDDEN_MIGRATED_IDS = frozenset({"SP-20"})
-WELL_FORMEDNESS_MIGRATED_IDS = frozenset({"SP-18"})
-MIGRATED_STRUCTURAL_IDS = (
-    ROW_SELECTOR_MIGRATED_IDS
-    | SECTION_CONTAINS_MIGRATED_IDS
-    | EXACT_SET_MIGRATED_IDS
-    | ELEMENT_LOOKUP_MIGRATED_IDS
-    | ANY_OF_MIGRATED_IDS
-    | REQUIRED_EXCLUSION_MIGRATED_IDS
-    | CONDITIONAL_FORBIDDEN_MIGRATED_IDS
-    | WELL_FORMEDNESS_MIGRATED_IDS
-    | {"SP-01"}
-)
 
 
 def _scope_section_ids(scope: str) -> tuple[str, ...]:
@@ -1036,35 +1077,43 @@ def test_scope_with_missing_section_is_rejected_but_preamble_is_not(
 
 def test_structural_mutations_fail(
     manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
 ) -> None:
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
     for defect_id, _, _, mutations in STRUCTURAL_CHECK_CASES:
         assert mutations, defect_id
         for mutation in mutations:
-            reason = checker.defect_violation_reason(defects[defect_id], mutation, manifest)
+            reason, _ = _evaluate_declared_defect(
+                defect_id,
+                mutation,
+                manifest=manifest,
+                invariants=invariants,
+                profile=profile,
+            )
             assert reason, defect_id
 
 
-def test_legacy_structural_branch_ids_match_source_branches() -> None:
-    """旧分岐ID定数を_structural_reasonの実分岐と一致させる。"""
-    source = inspect.getsource(checker._structural_reason)
-    branch_ids = frozenset(
-        re.findall(r'(?:if|elif) defect_id == "([A-Z]+-\d+)"', source)
+def test_binding_rule_six_has_no_legacy_ids_or_source_branches() -> None:
+    """規則6としてlegacy空と旧ID別分岐0件を同時に固定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
     )
+    source = SCRIPT.read_text(encoding="utf-8")
 
-    assert checker.LEGACY_STRUCTURAL_BRANCH_IDS == branch_ids
-    assert branch_ids == STRUCTURAL_DEFECT_IDS | {"SP-19"}
-
-
-def test_row_selection_helpers_have_one_shared_implementation() -> None:
-    """旧分岐と宣言評価器が同じ表行選択述語を参照する。"""
-    assert checker._table_row is checker.doc_check_invariants.table_row
-    assert checker._identified_row is checker.doc_check_invariants.identified_row
-
-
-def test_emphasis_helper_has_one_shared_implementation() -> None:
-    """旧分岐と宣言評価器が同じ表行強調検査を参照する。"""
-    assert checker.check_emphasis is checker.doc_check_invariants.check_emphasis
+    assert not invariants.legacy_structural
+    assert not checker.LEGACY_STRUCTURAL_BRANCH_IDS
+    assert "defect_id == " not in source
+    assert not hasattr(checker, "_structural_reason")
 
 
 def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
@@ -1079,14 +1128,11 @@ def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
     invariants = checker.doc_check_profile.load_invariants(invariants_path)
 
     assert invariants.structural_required == STRUCTURAL_DEFECT_IDS
-    assert invariants.legacy_structural == (
-        STRUCTURAL_DEFECT_IDS - MIGRATED_STRUCTURAL_IDS
-    )
     assert not invariants.legacy_structural
     assert invariants.required_declarations == {"MT-01"}
     assert frozenset(
         declaration["defect_id"] for declaration in invariants.declarations
-    ) == {"MT-01", *MIGRATED_STRUCTURAL_IDS}
+    ) == STRUCTURAL_DEFECT_IDS | {"MT-01"}
 
 
 def _reason_fixture_case_texts() -> dict[str, str]:
@@ -1109,13 +1155,8 @@ def _reason_fixture_case_texts() -> dict[str, str]:
     return texts
 
 
-def _shadow_case_texts() -> dict[str, str]:
-    """既存shadow比較へ静的reason fixtureの入力本文を渡す。"""
-    return _reason_fixture_case_texts()
-
-
 def _document_sections(text: str) -> dict[str, str]:
-    """shadow評価用に文書中の節IDを既存抽出器で解決する。"""
+    """宣言評価用に文書中の節IDを既存抽出器で解決する。"""
     section_ids = {
         match.group(1)
         for line in text.splitlines()
@@ -1125,75 +1166,6 @@ def _document_sections(text: str) -> dict[str, str]:
         section_id: checker._heading_section(text, section_id)
         for section_id in section_ids
     }
-
-
-def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """静的期待値・旧分岐・宣言済み評価器をcase_id単位で突合する。"""
-    expected_rows = json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-    case_texts = _shadow_case_texts()
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    declarations_by_id: dict[str, list[dict[str, Any]]] = {}
-    for declaration in invariants.declarations:
-        declarations_by_id.setdefault(declaration["defect_id"], []).append(declaration)
-
-    assert len(expected_rows) == len(case_texts) == 99
-    assert {row["case_id"] for row in expected_rows} == set(case_texts)
-    for row in expected_rows:
-        text = case_texts[row["case_id"]]
-        legacy_actual = checker.defect_violation_reason(
-            defects[row["defect_id"]],
-            text,
-            manifest,
-        )
-        actual = checker.defect_violation_reason(
-            defects[row["defect_id"]],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (1 if actual is not None else 0) == row["expected_exit"]
-        if row["defect_id"] in MIGRATED_STRUCTURAL_IDS:
-            assert (1 if legacy_actual is not None else 0) == row["expected_exit"]
-        if (
-            row["defect_id"] not in MIGRATED_STRUCTURAL_IDS
-            or row["reason"] is None
-            or row["reason"]["kind"] == "forbidden-element"
-        ):
-            assert (
-                None if row["reason"] is None else row["reason"]["actual"]
-            ) == actual
-
-        declarations = declarations_by_id.get(row["defect_id"], [])
-        if not declarations:
-            continue
-        shadow_reason = None
-        context = invariant_evaluator.EvaluationContext()
-        for declaration in declarations:
-            shadow_reason = invariant_evaluator.evaluate_declaration(
-                declaration,
-                text=text,
-                manifest=manifest,
-                profile=profile,
-                sections=_document_sections(text),
-                context=context,
-            )
-            if shadow_reason is not None:
-                break
-        if row["reason"] is None or row["reason"]["kind"] != "forbidden-element":
-            assert (
-                None if shadow_reason is None else asdict(shadow_reason)
-            ) == row["reason"]
 
 
 def _evaluate_declarations(
@@ -1544,44 +1516,6 @@ def test_rule_six_prerequisite_expected_fixture_matches_new_evaluator_only(
 
 
 @pytest.mark.parametrize("defect_id", sorted(ROW_SELECTOR_MIGRATED_IDS))
-def test_row_selector_migration_matches_expected_legacy_and_new_paths(
-    defect_id: str,
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """期待fixture・旧分岐・新宣言経路の違反有無を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == defect_id
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects[defect_id], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects[defect_id],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
-
-
-@pytest.mark.parametrize("defect_id", sorted(ROW_SELECTOR_MIGRATED_IDS))
 def test_row_selector_evaluator_handles_corpus_and_mutations(
     defect_id: str,
     manifest: dict[str, checker.ManifestRelation],
@@ -1631,42 +1565,6 @@ def test_row_selector_evaluator_handles_corpus_and_mutations(
         )
         assert mutation_reason is not None
         assert mutation_reason.kind == "row-selector"
-
-
-def test_sp01_migration_matches_expected_legacy_and_new_paths(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """SP-01の期待fixture・旧分岐・新宣言経路の違反有無を一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == "SP-01"
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects["SP-01"], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects["SP-01"],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
 
 
 def test_row_contains_evaluator_handles_sp01_corpus_and_mutations(
@@ -1745,44 +1643,6 @@ def test_row_contains_rejects_undefined_row_reference(
             sections={},
             context=invariant_evaluator.EvaluationContext(),
         )
-
-
-@pytest.mark.parametrize("defect_id", sorted(SECTION_CONTAINS_MIGRATED_IDS))
-def test_section_contains_migration_matches_expected_legacy_and_new_paths(
-    defect_id: str,
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """section-contains移行4件の期待・旧分岐・新宣言を一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == defect_id
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects[defect_id], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects[defect_id],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
 
 
 @pytest.mark.parametrize("defect_id", sorted(SECTION_CONTAINS_MIGRATED_IDS))
@@ -1866,44 +1726,6 @@ def test_manifest_element_reference_is_fail_closed(
 
 
 @pytest.mark.parametrize("defect_id", sorted(EXACT_SET_MIGRATED_IDS))
-def test_exact_set_migration_matches_expected_legacy_and_new_paths(
-    defect_id: str,
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """exact-set移行2件の期待・旧分岐・新宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == defect_id
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects[defect_id], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects[defect_id],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
-
-
-@pytest.mark.parametrize("defect_id", sorted(EXACT_SET_MIGRATED_IDS))
 def test_exact_set_evaluator_handles_corpus_and_mutations(
     defect_id: str,
     manifest: dict[str, checker.ManifestRelation],
@@ -1953,7 +1775,9 @@ def test_exact_set_checks_each_declared_section(
     )
     profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
     _, valid_text, _, _ = _STRUCTURAL_CASE_BY_ID["SP-06"]
-    routes = checker._expected_route_elements(manifest)
+    routes = invariant_evaluator.expected_route_elements(
+        manifest, "R-TXN-ROUTE", prefix="T"
+    )
     changed = _replace_in_section(
         valid_text,
         section_id,
@@ -1992,7 +1816,10 @@ def test_exact_set_uses_only_the_declared_relation(
         "routes": ["P1"],
     }
     original_row = _route_row(
-        "P1", checker._expected_route_elements(manifest)["P1"]
+        "P1",
+        invariant_evaluator.expected_route_elements(
+            manifest, "R-TXN-ROUTE", prefix="T"
+        )["P1"],
     )
 
     reason = invariant_evaluator.evaluate_declaration(
@@ -2012,7 +1839,12 @@ def test_exact_set_can_evaluate_a_selected_row(
 ) -> None:
     """row形式では先行selectorが保存した1行の集合を比較する。"""
     profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    row = _route_row("P1", checker._expected_route_elements(manifest)["P1"])
+    row = _route_row(
+        "P1",
+        invariant_evaluator.expected_route_elements(
+            manifest, "R-TXN-ROUTE", prefix="T"
+        )["P1"],
+    )
     context = invariant_evaluator.EvaluationContext(
         selected_rows={"route": row},
         selected_sections={"route": "8-1"},
@@ -2034,42 +1866,6 @@ def test_exact_set_can_evaluate_a_selected_row(
         context=context,
     )
     assert reason is None
-
-
-def test_element_lookup_migration_matches_expected_legacy_and_new_paths(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """SP-08の期待fixture・旧分岐・新宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == "SP-08"
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects["SP-08"], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects["SP-08"],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
 
 
 def test_element_lookup_evaluator_handles_corpus_and_mutations(
@@ -2176,42 +1972,6 @@ def test_row_scoped_forbidden_evaluator_and_separate_row_mutation(
     )
 
 
-def test_any_of_migration_matches_expected_legacy_and_new_paths(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """SP-09の期待fixture・旧分岐・4宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == "SP-09"
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects["SP-09"], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects["SP-09"],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
-
-
 def test_sp09_declaration_chain_handles_corpus_and_mutations(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
@@ -2281,7 +2041,9 @@ def test_sp09_each_declaration_has_an_independent_negative_case(
         ("any-of", mutations[2]),
     )
     for kind, text in expected_kinds:
-        row = checker._identified_row(checker._heading_section(text, "8-1"), "P3")
+        row = invariant_evaluator.identified_row(
+            checker._heading_section(text, "8-1"), "P3"
+        )
         assert row is not None
         context = invariant_evaluator.EvaluationContext(
             selected_rows={"sp09-route": row},
@@ -2297,44 +2059,6 @@ def test_sp09_each_declaration_has_an_independent_negative_case(
         )
         assert reason is not None
         assert reason.kind == kind
-
-
-@pytest.mark.parametrize("defect_id", sorted(REQUIRED_EXCLUSION_MIGRATED_IDS))
-def test_required_exclusion_migration_matches_legacy_and_new_paths(
-    defect_id: str,
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """除外宣言2件の期待fixture・旧分岐・新宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == defect_id
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects[defect_id], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects[defect_id],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
 
 
 @pytest.mark.parametrize("defect_id", sorted(REQUIRED_EXCLUSION_MIGRATED_IDS))
@@ -2427,42 +2151,6 @@ def test_required_exclusion_uses_profile_exclusion_vocabulary(
     assert changed_reason.kind == "required-exclusion"
 
 
-def test_conditional_forbidden_migration_matches_legacy_and_new_paths(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """SP-20の期待fixture・旧分岐・新宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == "SP-20"
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects["SP-20"], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects["SP-20"],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
-
-
 def test_sp20_declaration_chain_handles_corpus_and_mutations(
     manifest: dict[str, checker.ManifestRelation],
 ) -> None:
@@ -2531,42 +2219,6 @@ def test_conditional_forbidden_covers_both_sides_of_implication(
         is None
     )
     assert evaluate("| D1 | 再送の重複排除はD5 の用途 |") is not None
-
-
-def test_well_formedness_migration_matches_legacy_and_new_paths(
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    """SP-18の期待fixture・旧分岐・新宣言を全入力で一致させる。"""
-    expected_rows = {
-        row["case_id"]: row
-        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
-        if row["defect_id"] == "SP-18"
-    }
-    invariants = checker.doc_check_profile.load_invariants(
-        REPOSITORY_ROOT
-        / "scripts"
-        / "design_relations"
-        / "invariants"
-        / "sync-protocol.json"
-    )
-    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
-    case_texts = _shadow_case_texts()
-
-    for case_id, expected in expected_rows.items():
-        text = case_texts[case_id]
-        legacy_reason = checker.defect_violation_reason(
-            defects["SP-18"], text, manifest
-        )
-        declared_reason = checker.defect_violation_reason(
-            defects["SP-18"],
-            text,
-            manifest,
-            invariants=invariants,
-            profile=profile,
-        )
-        assert (legacy_reason is not None) == bool(expected["expected_exit"])
-        assert (declared_reason is not None) == bool(expected["expected_exit"])
 
 
 def test_well_formedness_handles_three_equivalent_mutations(
@@ -3125,23 +2777,6 @@ def test_noncanonical_reference_has_normal_and_abnormal_cases() -> None:
     invalid = "## 2. 本文\n[plan](../features/example/plan.md) を正とする。\n"
     assert checker.check_noncanonical_reference(valid) == ()
     assert checker.check_noncanonical_reference(invalid) == (2,)
-
-
-@pytest.mark.parametrize("defect_id", ("SP-12", "SP-16"))
-def test_exclusion_vocabulary_changes_structural_judgment(
-    defect_id: str,
-    manifest: dict[str, checker.ManifestRelation],
-    defects: dict[str, checker.Defect],
-) -> None:
-    valid_text = _STRUCTURAL_CASE_BY_ID[defect_id][1]
-
-    assert checker.defect_violation_reason(defects[defect_id], valid_text, manifest) is None
-    assert checker.defect_violation_reason(
-        defects[defect_id],
-        valid_text,
-        manifest,
-        exclusion_vocabulary=("除外済み",),
-    )
 
 
 def test_citation_vocabulary_changes_legacy_path_judgment() -> None:

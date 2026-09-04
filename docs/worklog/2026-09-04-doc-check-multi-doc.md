@@ -473,3 +473,13 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - **21**(テストのみ・実装コード無変更): ① `legacy_structural` が空 ② 宣言集合 `D` == `structural_required ∪ required_declarations`(**16 ID exact**)③ 構造 corpus 16 件を**旧分岐を経由せず**宣言評価器だけで判定 ④ 期待 fixture 99 行への一致が **shadow を経由せず**成立
 - **旧分岐は残置**(`grep -c 'defect_id == '` = **16**)。規則 6 の後段(分岐 0 件)はステップ 22 の撤去と同時に検査する
 - 検証(Claude): ruff/ty passed / 3 テストファイル **232 passed**(skip 系 0)/ 3 検査 rc 0 / 収集 **1035**・基準欠落 0 / 対象外パスの差分 0 / 両 digest 再計算一致
+
+### ステップ 22/38 — **旧分岐と shadow 基盤の撤去**(単独委任・不可逆)
+
+- 削除: `_structural_reason`(ID 別分岐 16 件)/ **SP-19 の死コード**(forbidden literal と同一文字列で到達不能だった分岐)/ 分岐専用の補助関数 / shadow 比較テスト。
+  `LEGACY_STRUCTURAL_BRANCH_IDS` は**空 frozenset として残置**(汎用結合規則の引数契約を保つため — TSK-250 が使う)
+- 差分: checker **−276 行** / テスト **−473 行**(合計 +130 / −749)
+- **規則 6 の完全な検査を有効化**: `legacy_structural` 空 **かつ** `defect_id == ` の出現 0 件(ソース走査で機械検査)
+- 検証(Claude): ruff/ty passed / 3 テストファイル **213 passed**(skip 系 0)/ 3 検査 rc 0 / **`grep -c 'defect_id == '` = 0**・`_structural_reason` = 0 /
+  **SP-19 が forbidden で検出**(`--document fixture --defects SP-19` rc 1)/ **安全網 2 本が本文無変更で green** / 収集 **1016**・基準 875 の欠落 **0** / 対象外パス(COV・`.github`・`.claude`・fixture・oracle)の差分 0
+- **DSL 移行の完了**: 旧分岐 15 ID + MT-01 が宣言(kind 11 種)で判定され、機械 17 件の検出集合は着手前と完全一致

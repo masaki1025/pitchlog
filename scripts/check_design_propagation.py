@@ -89,26 +89,7 @@ DEFAULT_NONCANONICAL_SCAN_START = r"^##\s+2(?:[.\s]|$)"
 DEFAULT_DECLARATION_SECTION = "2-5"
 DEFAULT_DECLARATION_ROW_PREFIX = "| **R-"
 DEFAULT_DECLARATION_COLUMN_COUNT = 6
-LEGACY_STRUCTURAL_BRANCH_IDS = frozenset(
-    {
-        "SP-01",
-        "SP-02",
-        "SP-03",
-        "SP-06",
-        "SP-07",
-        "SP-08",
-        "SP-09",
-        "SP-10",
-        "SP-11",
-        "SP-12",
-        "SP-13",
-        "SP-14",
-        "SP-16",
-        "SP-18",
-        "SP-19",
-        "SP-20",
-    }
-)
+LEGACY_STRUCTURAL_BRANCH_IDS: frozenset[str] = frozenset()
 
 
 class CheckError(Exception):
@@ -429,226 +410,6 @@ def extract_scope(
     return "\n".join(sections)
 
 
-_table_row = doc_check_invariants.table_row
-_table_cells = doc_check_invariants.table_cells
-_plain_cell = doc_check_invariants.plain_cell
-_identified_row = doc_check_invariants.identified_row
-_element_has_row = doc_check_invariants.element_has_row
-_numbered_ids = doc_check_invariants.numbered_ids
-
-
-def _expected_route_elements(
-    manifest: dict[str, ManifestRelation],
-) -> dict[str, frozenset[str]]:
-    return doc_check_invariants.expected_route_elements(
-        manifest, "R-TXN-ROUTE", prefix="T"
-    )
-
-
-_route_row_matches = doc_check_invariants.route_row_matches
-
-
-check_emphasis = doc_check_invariants.check_emphasis
-
-
-_has_exclusion = doc_check_invariants.has_exclusion
-
-
-def _structural_reason(
-    defect_id: str,
-    text: str,
-    manifest: dict[str, ManifestRelation],
-    *,
-    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
-    preamble: str = DEFAULT_PREAMBLE,
-    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
-) -> str | None:
-    if defect_id == "SP-01":
-        row = _table_row(_heading_section(text, "7-2"), "未送信", "退避済み")
-        boundary = _identified_row(_heading_section(text, "6-3"), "B4")
-        if (
-            row is None
-            or "A5" not in row
-            or "退避" not in row
-            or boundary is None
-            or "A5" not in boundary
-            or "退避" not in boundary
-        ):
-            return "退避済みへの遷移条件がA5の退避でない"
-    elif defect_id == "SP-02":
-        elements = manifest["R-ACK-STATE"].source_elements
-        source = _identified_row(_heading_section(text, "7-1"), "A5")
-        if source is None or any(element not in source for element in elements):
-            return "A5の正本行に結果集合5状態がない"
-        for label in ("6-3", "7-2"):
-            section = _heading_section(text, label)
-            if any(not _element_has_row(section, element) for element in elements):
-                return f"A5の結果集合が{label}へ全件伝播していない"
-    elif defect_id == "SP-03":
-        states = manifest["R-QUEUE-LIFE"].source_elements
-        for label in ("6-3", "7-2", "9-5"):
-            section = _heading_section(text, label)
-            if any(not _element_occurs(section, state) for state in states):
-                return f"キュー状態の保持・破棄契機が{label}へ全件伝播していない"
-    elif defect_id == "SP-06":
-        routes = _expected_route_elements(manifest)
-        for label in ("8-1", "10-2", "11-2"):
-            section = _heading_section(text, label)
-            if any(
-                not _route_row_matches(section, route, routes[route])
-                for route in ("P1", "P2", "P3")
-            ):
-                return f"P1〜P3の経路別T要素集合が{label}にない"
-    elif defect_id == "SP-07":
-        routes = _expected_route_elements(manifest)
-        if not _route_row_matches(_heading_section(text, "8-1"), "P4", routes["P4"]):
-            return "8-1に旧世代からB4応答へ至るP4経路がない"
-        required = {
-            "9-2": ("旧世代", "退避", "B4", "原子"),
-            "10-2": ("退避", "B4", "原子"),
-            "11-2": ("P4", "退避", "B4"),
-        }
-        for label, terms in required.items():
-            if _table_row(_heading_section(text, label), *terms) is None:
-                return f"P4の原子性が{label}へ伝播していない"
-    elif defect_id == "SP-08":
-        expected = next(
-            element
-            for element in manifest["R-TXN-ROUTE"].source_elements
-            if element.startswith("T6:")
-        )
-        semantic = expected.split(":", 1)[1]
-        section = _heading_section(text, "8-1")
-        element_row = _identified_row(section, "T6")
-        routes = _expected_route_elements(manifest)
-        source_mapping = all(
-            terms[0] in _heading_section(text, label)
-            and terms[1] in _heading_section(text, label)
-            for label, terms in {
-                "4-4": ("一時 ID", "写像"),
-                "7-1": ("D5", "確定結果"),
-            }.items()
-        )
-        route_mapping = all(
-            _route_row_matches(section, route, elements)
-            for route, elements in routes.items()
-            if "T6" in elements
-        )
-        if (
-            element_row is None
-            or semantic not in element_row
-            or not source_mapping
-            or not route_mapping
-        ):
-            return "T6の確定結果・一時ID写像保存が8-1にない"
-    elif defect_id == "SP-09":
-        routes = _expected_route_elements(manifest)
-        row = _identified_row(_heading_section(text, "8-1"), "P3")
-        if (
-            row is None
-            or _numbered_ids(row, "T") != routes["P3"]
-            or "T5" in row
-            or not ("T7" in row or "V11" in row)
-        ):
-            return "D1を持たない変更イベントのT要素集合が不正"
-    elif defect_id == "SP-10":
-        section = _heading_section(text, "7-1")
-        route = _identified_row(_heading_section(text, "8-1"), "P3")
-        response = _table_row(section, "P3", "応答")
-        if route is None or response is None:
-            return "P3に適用する独立した応答保証が7-1にない"
-    elif defect_id == "SP-11":
-        for label in ("6-2", "6-3", "8-3"):
-            if _table_row(_heading_section(text, label), "期待版不一致") is None:
-                return f"期待版不一致が{label}へ伝播していない"
-    elif defect_id == "SP-12":
-        boundary = _identified_row(_heading_section(text, "6-3"), "B3")
-        if boundary is None or not _has_exclusion(
-            boundary,
-            "D1 を持たない変更イベント",
-            "D5",
-            vocabulary=exclusion_vocabulary,
-        ):
-            return "D5衝突の再開2択除外が6-3にない"
-        for label in ("6-4",):
-            row = _table_row(
-                _heading_section(text, label), "D1 を持たない変更イベント", "D5"
-            )
-            if row is None or not _has_exclusion(
-                row, "D5", vocabulary=exclusion_vocabulary
-            ):
-                return f"D5衝突の再開2択除外が{label}にない"
-    elif defect_id == "SP-13":
-        elements = manifest["R-EVENT-FIELD"].source_elements
-        source = _heading_section(text, "4-3")
-        if any(
-            _identified_row(source, element.partition(":")[0]) is None
-            for element in elements
-        ):
-            return "V1〜V11の正本集合が4-3にない"
-        for label in ("4-3-A", "11-2"):
-            section = _heading_section(text, label)
-            if any(not _element_occurs(section, element) for element in elements):
-                return f"V1〜V11の必須区分が{label}にない"
-    elif defect_id == "SP-14":
-        source = _heading_section(text, "4-3-A")
-        if not all(term in source for term in ("W3-a", "W3-b", "変更版順")):
-            return "変更版順の正本規則が4-3-Aにない"
-        for label in ("5-5", "11-2"):
-            section = _heading_section(text, label)
-            if not all(term in section for term in ("変更版順", "D1・D2", "論理再生順")):
-                return f"変更版順が{label}に伝播していない"
-    elif defect_id == "SP-16":
-        for label in ("6-1", "6-2"):
-            section = _heading_section(text, label)
-            if not _has_exclusion(
-                section,
-                "D1 を持たない変更イベント",
-                "prefix",
-                vocabulary=exclusion_vocabulary,
-            ):
-                return f"{label}にD1なし変更イベントのprefix射程除外がない"
-    elif defect_id == "SP-18":
-        if check_emphasis(
-            extract_scope(
-                text,
-                "4-3-A",
-                section_id_grammar=section_id_grammar,
-                preamble=preamble,
-            )
-        ):
-            return "W3表セルの強調記号が閉じていない"
-    elif defect_id == "SP-19":
-        if "`D1=5` の位置には" in extract_scope(
-            text,
-            "10-2",
-            section_id_grammar=section_id_grammar,
-            preamble=preamble,
-        ):
-            return "D1をプレイ列の位置として使っている"
-    elif defect_id == "SP-20":
-        row = _table_row(_heading_section(text, "2-1"), "| D1 |")
-        roles = _heading_section(text, "4-2")
-        role_row = _table_row(roles, "D1", "順序", "欠落")
-        idempotency_row = _table_row(roles, "D5", "再送", "二重適用")
-        dedup_is_explicitly_excluded = (
-            row is not None
-            and "再送の重複排除" in row
-            and "D5 の用途" in row
-            and "D1 の用途ではない" in row
-        )
-        if (
-            row is None
-            or "順序と欠落" not in row
-            or "undo の逆順" not in row
-            or role_row is None
-            or idempotency_row is None
-            or ("再送の重複排除" in row and not dedup_is_explicitly_excluded)
-        ):
-            return "D1の用途が順序・欠落に限定されていない"
-    return None
-
-
 def defect_violation_reason(
     defect: Defect,
     text: str,
@@ -656,14 +417,12 @@ def defect_violation_reason(
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
-    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
     invariants: Any | None = None,
     profile: Any | None = None,
 ) -> str | None:
     """1件の機械欠陥についてliteralと構造的不変条件を評価する。
 
-    ``positive`` と ``mapping`` は散文のまま評価せず、本関数から呼ぶID別の
-    構造ロジックの仕様として実装している。
+    forbidden literalを先に確認し、続いて宣言列をfirst-failureで評価する。
 
     Args:
         defect: 評価する機械欠陥。
@@ -671,7 +430,6 @@ def defect_violation_reason(
         manifest: 関係マニフェスト。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
-        exclusion_vocabulary: 除外宣言として認識する語彙。
         invariants: 検証済みの不変条件宣言資産。
         profile: 宣言評価に使う検証済みプロファイル。
 
@@ -692,35 +450,27 @@ def defect_violation_reason(
     for forbidden in defect.invariant.forbidden:
         if forbidden in scoped:
             return f"禁止literalが残存: {forbidden}"
-    if invariants is not None:
-        context = doc_check_invariants.EvaluationContext()
-        declarations = (
-            declaration
-            for declaration in invariants.declarations
-            if declaration["defect_id"] == defect.id
-        )
-        for declaration in declarations:
-            sections = _resolve_declaration_sections(text, declaration)
-            reason = doc_check_invariants.evaluate_declaration(
-                declaration,
-                text=text,
-                manifest=manifest,
-                profile=profile,
-                sections=sections,
-                context=context,
-            )
-            if reason is not None:
-                return reason.actual or f"{reason.kind} に違反"
-        if defect.id not in invariants.legacy_structural:
-            return None
-    return _structural_reason(
-        defect.id,
-        text,
-        manifest,
-        section_id_grammar=section_id_grammar,
-        preamble=preamble,
-        exclusion_vocabulary=exclusion_vocabulary,
+    if invariants is None:
+        return None
+    context = doc_check_invariants.EvaluationContext()
+    declarations = (
+        declaration
+        for declaration in invariants.declarations
+        if declaration["defect_id"] == defect.id
     )
+    for declaration in declarations:
+        sections = _resolve_declaration_sections(text, declaration)
+        reason = doc_check_invariants.evaluate_declaration(
+            declaration,
+            text=text,
+            manifest=manifest,
+            profile=profile,
+            sections=sections,
+            context=context,
+        )
+        if reason is not None:
+            return reason.actual or f"{reason.kind} に違反"
+    return None
 
 
 def _resolve_declaration_sections(
@@ -1248,7 +998,6 @@ def run_checks(
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
-    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
     legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
     legacy_infix: str = DEFAULT_LEGACY_INFIX,
     noncanonical_scan_start: str = DEFAULT_NONCANONICAL_SCAN_START,
@@ -1271,7 +1020,6 @@ def run_checks(
         profile: 宣言評価に使う検証済みプロファイル。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
-        exclusion_vocabulary: 除外宣言として認識する語彙。
         legacy_prefixes: legacy引用と認識するパス接頭辞。
         legacy_infix: legacy引用と認識するパス中間文字列。
         noncanonical_scan_start: 非正本参照の走査開始見出し。
@@ -1311,7 +1059,6 @@ def run_checks(
             manifest,
             section_id_grammar=section_id_grammar,
             preamble=preamble,
-            exclusion_vocabulary=exclusion_vocabulary,
             invariants=invariants,
             profile=profile,
         )
@@ -1450,7 +1197,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             profile=profile,
             section_id_grammar=profile.raw["section_id_grammar"],
             preamble=profile.raw["preamble"],
-            exclusion_vocabulary=profile.raw["exclusion_vocabulary"],
             legacy_prefixes=citation["legacy_prefixes"],
             legacy_infix=citation["legacy_infix"],
             noncanonical_scan_start=profile.raw["noncanonical_scan_start"],
