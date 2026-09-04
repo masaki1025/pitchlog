@@ -8,7 +8,7 @@ date: 2026-09-04
 
 [plan.md](plan.md) 4 節から参照される詳細設計。事実の典拠は [research.md](research.md)(1〜5 節 = 2026-08-31、6 節 = 2026-09-04 再検証)にあり、
 本書は**設計判断とその根拠**だけを書く(設計書 7.1-1)。略記は research.md と同じ(`PROP` / `COV` / `TSK250PLAN` 等)。
-計画レビューの指摘 ID(`R1-*`〜`R7-*`)は worklog 2026-09-04 の一次記録表が正。
+計画レビューの指摘 ID(`R1-*`〜`R8-*`)は worklog 2026-09-04 の一次記録表が正。
 
 ## 0. 前提となる裁定
 
@@ -22,6 +22,11 @@ date: 2026-09-04
 | 2026-09-04 | `check_authz_catalog.py` | **対象外・前例として資産書式を借りる** | 12 節 |
 | 2026-09-04 | `guard_paths` 登録・台帳 H-78/H-79 追記 | **すべて TSK-250 に委ねる**(統制の空白は受容 — 14-2 節) | 11 節 |
 | 2026-09-04 | 計画レビューの進め方 | R3 全件反映 → 4 周目以降も通常の敵対レビュー | — |
+| **2026-09-04(R8 否決後・PO)** | **射程の縮小 (b)** | **本タスク = 契約 1〜4 + 既存 15 分岐の DSL 移行 + 検査の機構(枠)+ サンプル。契約 5 の実入力契約(データモデル正本の資産形状・必須抽出器・直接要件の分類・pins の実値)は TSK-250 の再レビューで確定**。TSK-250 契約 5 の文言変更を伴う | 6 節・11 節 24 |
+
+**射程縮小の含意**(裁定 (b)): 6 節の 4 検査 + `collection-consistency` + `unique-owner` は**機構(評価器・抽出器・集合一致・資産ローダー・pins)として実装し、サンプルプロファイル(合成)で全 22 ID が動くことまで**を本タスクが保証する。
+**実在するデータモデル正本に対してどの宣言・資産・pins が必須か**は本タスクでは決めない(二文書目が存在しないため決められない — 5〜8 周目の P0 が再生産された原因)。
+6-1〜6-4 の「TSK-250 が作る」と書いた資産・宣言は**形式の例**であり、実契約は TSK-250 側で固定する。
 
 **「新規機構を発明しない」(`docs/features/sync-protocol-canonical/plan.md:294`)との関係**: 本タスクが作る型体系・スキーマ・評価器・レジストリ・ランナー・抽出器は
 **いずれも新規機構である**。「発明していない」とは主張しない(R1-P1-1)。2026-08-31 の裁定は**前決定に対する明示的な例外・上書き**として記録する。
@@ -34,7 +39,7 @@ date: 2026-09-04
 
 | 資産 | パス | 役割 |
 | --- | --- | --- |
-| **レジストリ** | `scripts/design_relations/profiles/registry.json` | `schema_version` / `profiles: [{name, file, document, must_require, must_extract, must_derive_structures, must_collection_sets}]`。**必須の宣言集合(`must_*`)はすべてレジストリ entry のフィールド**(プロファイル側には置かない — R7-P0-1/3/4 の一般規則: **必須検査を有効にする宣言はプロファイルの自己申告だけで成立させない**) |
+| **レジストリ** | `scripts/design_relations/profiles/registry.json` | `schema_version` / `profiles: [{name, file, document, must_require, pins}]`。**`must_require`(必須 check ID)と `pins`(ゲート宣言の canonical digest)はレジストリ entry のフィールド**(プロファイル側には置かない)。一般規則: **必須検査を有効にする宣言はプロファイルの自己申告だけで成立させない — ゲート宣言の変更はレジストリの差分(レビュー対象)を伴う**(R7/R8 の P0 型を欄ごとではなく digest で閉じる。前例: `fixture-sha256.txt` — research 4-1 節) |
 | プロファイル | `scripts/design_relations/profiles/<name>.json` | 文書 1 本につき 1 ファイル。**このディレクトリにはレジストリとプロファイル以外を置かない** |
 | スキーマ | `scripts/design_relations/schemas/{profile,registry,invariant,assets}.schema.json` | `schema_version` を持つ |
 | 宣言資産 | `scripts/design_relations/invariants/<name>.json` | 欠陥 ID → 構造宣言(2-2 節) |
@@ -78,15 +83,18 @@ date: 2026-09-04
 **完全分割**: `required_checks ∪ not_applicable` = 5-1 節の全 22 ID、積は空、`required_checks ⊇ registry.must_require`。未知 ID・空理由は終了 2。
 `--checks` は部分診断(`partial: true`)。
 
-**レジストリ entry による必須宣言の固定(`must_*` — R7-P0-1/3/4)**: entry は次を **exact-set** で持ち、プロファイル側の宣言と一致しなければ終了 2:
-- `must_require`: check ID の集合(上記)
-- `must_extract`: `structure_extractors` の必須集合 `[{id, source, kind, section|table|collection}]`(6-3)— プロファイルの抽出器はこの集合を**包含**し、id の重複・source/kind の相違は終了 2
-- `must_derive_structures`: 構造を導出する DDL collection(`asset, collection index, structure.kind`)の集合(6-1)
-- `must_collection_sets`: `collection_sets` の必須集合 `[{id, left, right, relation}]`(6-4)— 宣言 ID だけでなく左右の asset/collection/filter/key/relation も exact
-同期 entry はこれらが空(新検査を `not_applicable` にしているため)。データモデル型 entry は少なくとも `forbidden` の全 kind を覆う抽出器・DDL 参照に接続する全構造源・
-`claims-relations-vs-manifest`・`direct-requirements-vs-claims` を持つ(11 節 21)。
+**レジストリ entry による固定(`must_require` + `pins` — R7-P0-1/3/4・R8-P0-1〜3・R8-P2-1)**:
+- `must_require`: 必須 check ID の集合。`required_checks ⊇ must_require` でなければ終了 2
+- **`pins`**: ゲート宣言の **canonical digest**(6-2 節 `baseline-digest` と同じ canonical 形・SHA-256)。対象と算出は次で固定する:
+  - `profile_gating_digest`: プロファイルの **ゲート節**(`required_checks` / `not_applicable` / `invariant_kinds` / `structure_extractors` / `collection_sets` / `assets`(各 asset の `identity`・`collections`・`structure`・`join`・`normalize`)/ `direct_requirements` / `reference_policy`)を canonical 化した digest
+  - `invariants_digest`: `invariants/<name>.json` 全体の digest(宣言本体・`structural_required`・`required_declarations`・`global_invariants` を含む)
+  - `asset_digests`: `{asset 名: digest}` — **入力側の oracle になる資産**(`forbidden` / `direct_requirements` / `expected_ids` / `auth_ddl_map` / `product_ddl_map` 等)のファイル digest
+  いずれか不一致なら終了 2。**プロファイル・宣言資産・oracle 資産を変えるには必ずレジストリの pins を更新する = レビューで見える差分になる**。
+  「何を pin するか(`asset_digests` のキー集合)」は entry ごとに宣言し、**必須検査に対応する資産の pin 欠落は終了 2**(`required_checks` に `attribution-direct` があるなら `asset_digests.direct_requirements` が必須、等の対応表は 6-2 節)
+- 同期 entry: `must_require` = 既存 14、`pins` = 実値(同期プロファイル・`invariants/sync-protocol.json`・`defects.json`)。サンプル entry: 実値。
+  **データモデル用 entry の実値と pin 対象は TSK-250 が確定**(裁定 (b) — 11 節 21・24)
 
-**fail-closed**: 必須欠落・版不一致・未知フィールド・`invariant_kinds` 外の宣言・完全分割違反・`must_*` 違反・必須検査の資産 / 抽出器 / 集合宣言の欠落・レジストリ不一致 — 終了コード 2。
+**fail-closed**: 必須欠落・版不一致・未知フィールド・`invariant_kinds` 外の宣言・完全分割違反・`must_require` 違反・**pins 不一致・必須 pin の欠落**・必須検査の資産 / 抽出器 / 集合宣言の欠落・レジストリ不一致 — 終了コード 2。
 
 ## 2. 不変条件 DSL
 
@@ -142,7 +150,7 @@ date: 2026-09-04
 
 | 適用範囲 | 変異(exact-set) |
 | --- | --- |
-| 全 kind 共通 | 意味反転(literal の否定形化)/ 主述交換 |
+| (全 kind 共通の変異は**置かない** — 意味反転・主述交換は現行の needle 判定と同値でなく、旧述語では検出できない。R8-P1-1 で撤回) | — |
 | 行スコープ kind(`row-contains` / `row-scoped-forbidden` / `any-of` / `conditional-forbidden` / `required-exclusion(row)` / `element-lookup` / `cross-reference`) | 別行移動 |
 | 節スコープ kind(`section-contains` / `required-exclusion(sections)` / `exact-set`) | 別節移動 / 意味部欠落 / ID 交換 |
 | `exact-set` | 別 relation を同一 manifest に置き、指定 relation だけが使われる |
@@ -203,7 +211,11 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
 | `PROP` | 12(`PROP:13-27`) | `forbidden-structure` / `cross-consistency` / **`collection-consistency`** / `baseline-digest` / `unique-owner` / `reference-class` |
 | `COV` | 2(`attribution` `ledger`) | `attribution-destination` / `attribution-direct` |
 
-## 6. TSK-250 が要求する 4 検査
+## 6. TSK-250 が要求する 4 検査 — **機構(枠)+ サンプルまで**(裁定 (b))
+
+本節の検査・資産・抽出器・集合宣言は、**汎用の機構として実装し、サンプルプロファイル(合成)で動くことを本タスクが保証する**。
+「実在するデータモデル正本に対して、どの資産をどの形で置き、どの抽出器・集合宣言を必須にし、何を pin するか」は **TSK-250 の再レビューで確定する**(本節の「TSK-250 が作る」は形式の例)。
+構造タプルの端点はすべて **`{namespace, id}`**(R8-P0-4 — 抽出器 map・DDL structure・FORB・`auth_ddl_map`・`product_ddl_map` の全経路で名前空間を保存し、名前空間別 alias 表を一意に適用できる)。
 
 ### 6-1. `assets`(現物の項目名が正)
 
@@ -211,13 +223,13 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
 | --- | --- | --- |
 | `claims` | `requirement-claims.json`: `asset_kind` 無し、`claims[*].source_id`・`classification` | `{path, identity: {schema_version: 1, required_top_keys: ["input_manifest","claims"]}, collections: [{items: "$.claims[*]", id: "source_id", namespace: "claim", fields: {classification: "classification"}}]}` |
 | `auth_catalog` | `auth-catalog.json`: `entries[*].catalog_entry_id` / `requirement_claim_id` | `{…, collections: [{items: "$.entries[*]", id: "catalog_entry_id", namespace: "auth"}], join: {from_key: "requirement_claim_id", to: "claims", to_key: "source_id"}}` |
-| `ddl_elements` | `ddl-elements.json`: `tables[*].table_id`・`tables[*].policy_ids[*]`・`policies[*].policy_id`・**`policies[*].role_ids[*]`(配列 ◎ `:232-240`)**・`roles[*]`・`functions[*]`・`scope.product_schema` | `collections: [{items: "$.tables[*]", id: "table_id", namespace: "table"}, {items: "$.policies[*]", id: "policy_id", namespace: "policy", structure: {kind: "reference", source: "table_id", target: "role_ids[*]", direction: "source->target", participants: ["table_id", "role_ids[*]"]}}, {items: "$.tables[*]", id: "policy_ids[*]", namespace: "policy", role: "reference"}, …]`。**`structure` の `source` / `target` が配列パスなら要素ごとに 1 タプルを生成**(R7-P1-2)。構造を導出する collection の集合はレジストリ `must_derive_structures` と exact(R7-P0-1) |
+| `ddl_elements` | `ddl-elements.json`: `tables[*].table_id`・`tables[*].policy_ids[*]`・`policies[*].policy_id`・**`policies[*].role_ids[*]`(配列 ◎ `:232-240`)**・`roles[*]`・`functions[*]`・`scope.product_schema` | `collections: [{items: "$.tables[*]", id: "table_id", namespace: "table"}, {items: "$.policies[*]", id: "policy_id", namespace: "policy", structure: {kind: "reference", source: "table_id", target: "role_ids[*]", direction: "source->target", participants: ["table_id", "role_ids[*]"]}}, {items: "$.tables[*]", id: "policy_ids[*]", namespace: "policy", role: "reference"}, …]`。**`structure` の `source` / `target` が配列パスなら要素ごとに 1 タプルを生成**(R7-P1-2)。構造を導出する collection の集合と `structure` の全欄は `pins.profile_gating_digest` に含まれる(R7-P0-1・R8-P0-2) |
 | **`auth_ddl_map`** | TSK-250 が作る | `collections: [{items: "$.entries[*]", id: "catalog_entry_id", refs: "ddl_ids[*]", structures: "structures[*]"}]`。制約: ID 集合 = `auth_catalog` と exact-set / `ddl_ids` 非空 / **`structures` は entry ごとに非空・各 `participants ⊆ ddl_ids`・全 entry の `structures` の和 = `ddl_elements` から導出した(refs に対応する)構造の集合(exact-set・raw DDL ID で照合)** |
 | **`product_ddl_map`**(probe-only DDL のとき必須 — R6-P0-3・R7-P0-2) | TSK-250 が作る | `ddl_elements.scope.product_schema == false` のとき必須: probe 要素 ID → 製品要素 ID(マニフェスト要素)の写像。**domain = `auth_ddl_map` が参照する全 ID(refs ∪ structures の source/target/participants)と exact-set**。未写像・余分・曖昧(1 対多)は終了 2。**射影は二段階**(6-2 節 `cross-consistency`) |
 | `waiting` | `waiting-data-model.json` | `collections` + `fields: {status, physical, decision_section, source_id}`。WAIT 側の構造は **抽出器(6-3)が manifest / 本文から導出した構造のうち `physical` を participant に含むもの** |
 | `forbidden` | `forbidden-data-model.json` | 構造宣言の列 `{id, kind: relation|column-role|transition|reference, source, target, direction: source->target|target->source|both, participants}`(**alias はここには置かない** — 単一 alias 表へ・R7-P2-3) |
 | `baseline_digest` | 台帳 + digest | `{ledger, digest_file, expected_ids(必須・独立資産), owner_steps_allowed(必須)}`。`immutable_fields` はスキーマ版で固定 |
-| `direct_requirements` | `direct-requirements.json` | 非空・全 ID が `universe` の要件 ID に含まれる。**さらに `claims` の `classification == direct_requirement` の集合と exact-set**(`collection_sets` の必須宣言 `direct-requirements-vs-claims`・レジストリ `must_collection_sets` で固定 — R7-P0-4。TSK-250 の claims 分類規則に `direct_requirement` を追加する — 11 節 22) |
+| `direct_requirements` | `direct-requirements.json` | 非空・全 ID が `universe` の要件 ID に含まれる。**さらに `claims` の `classification == direct_requirement` の集合と exact-set**(`collection_sets` の宣言 `direct-requirements-vs-claims`・資産自体は `pins.asset_digests.direct_requirements` で固定 — R7-P0-4・R8-P0-3。TSK-250 の claims 分類規則に `direct_requirement` を追加する — 11 節 22) |
 | `normalize` | — | `{strip_prefixes, case, separator, aliases: {namespace: {alias: canonical}}}`。**alias の供給源はこの単一表のみ**。canonical を再 alias する・同一 alias が 2 つの canonical を持つ・循環 — いずれも終了 2。単射性は名前空間内(alias 同値類内の一致は許容) |
 
 ### 6-2. 各検査
@@ -252,8 +264,8 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
 - `source: manifest | document | derived`。`document` は `section` + `table.header_match`(表の識別)+ 列 → タプル項目の写像(`column` / `regex`)。`derived` は既存抽出結果からの導出(`transitive-closure` / `inverse`)で**暗黙関係**を表す
 - すべてのタプルは `normalize`(別名表を含む)を通す。**抽出器が 1 件も構造を得られない**(節・表が見つからない)場合は終了 2(黙って空にしない)
 - `forbidden-structure` / `cross-consistency` を `required_checks` に含むプロファイルは `structure_extractors` が必須(欠落は終了 2)
-- **完全性はレジストリ `must_extract` で固定**(R7-P0-1): プロファイルの抽出器は `must_extract` を包含し、**`forbidden` に現れる全 kind を覆う抽出器が無ければ終了 2**。
-  抽出器 1 本の脱落・DDL 構造 collection 1 本の脱落(`must_derive_structures` 違反)を統合負例に置く
+- **完全性はレジストリ `pins.profile_gating_digest` で固定**(R7-P0-1・R8-P0-2): 抽出器の追加・削除・`map` / `direction` / `participants` / `from/rule` の変更はいずれも digest を変える。
+  機構側の検査として **`forbidden` に現れる全 kind を覆う抽出器が無ければ終了 2**。抽出器 1 本の脱落・DDL 構造 collection 1 本の脱落・`map` 1 欄の変更で pins 不一致になる統合負例をサンプルに置く
 - サンプルには relation / column-role / transition / reference の各 kind の抽出負例(表見出し不一致・列ずれ・別名未登録)を置く
 
 ### 6-4. 集合一致 `collection_sets`(R6-P0-5)
@@ -268,8 +280,9 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
 ]
 ```
 `relation ∈ {exact, subset, disjoint}`。両辺は資産 collection(`filter` 可)またはマニフェストの集合。差集合を reason に含める。TSK-250 ステップ 5 の「claims の relation 行 = manifest」はこの宣言で満たす。
-**必須の宣言はレジストリ `must_collection_sets` で固定**(R7-P0-3)— データモデル型 entry は少なくとも `claims-relations-vs-manifest`(exact)と
-`direct-requirements-vs-claims`(exact: `direct_requirements` 資産 ↔ `claims` の `classification == direct_requirement`)を持つ。無関係な宣言 1 件では有効化できない。
+**必須の宣言はレジストリ `pins.profile_gating_digest` で固定**(R7-P0-3)— 宣言の追加・削除・左右の変更は digest を変える。サンプル entry は `claims-relations-vs-manifest`(exact)と
+`direct-requirements-vs-claims`(exact)を持つ。**直接要件の期待集合**(R8-P0-3)は `pins.asset_digests.direct_requirements` で資産自体を固定する(claims 分類との exact は整合検査、
+期待集合の正は pin された資産 — 資産を変えるにはレジストリ差分が要る)。データモデル型 entry の実値は TSK-250。
 
 ## 7. 参照の分類(`reference-class`)
 
@@ -278,7 +291,7 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
 ## 8. 帰属検査の強化(`COV`)
 
 destination 文法は `kind` ごとの判別共用体: `対象外` → 理由文(非空)/ 他 → `節式(。説明文)?`、`節式 := segment (・ segment)*`、`segment := section_atom | chapter 〜 chapter`、`section_atom := chapter | section`。
-未解析は終了 2。現行 212 件の全件解析と `2-1・4〜9` / `2-1・6・9` / `10-1・11-1。配信は…` / 理由文を回帰例に固定。`attribution-destination`(節の実在・根拠文)/ `attribution-direct`(6-2)。既存 `attribution` / `ledger` は変えない。
+未解析は終了 2。現行 212 件の全件解析と `2-1・4〜9` / `2-1・6・9` / `10-1・11-1。配信は…` / 理由文を回帰例に固定。`attribution-destination`(節の実在 / **根拠 = 展開した節のいずれかに当該要件の安定 ID〔`FR-xxx` / `NFR-xxx`〕が明示出現する行が 1 行以上** — R8-P2-3。無関係な文章しかない節は負例)/ `attribution-direct`(6-2)。既存 `attribution` / `ledger` は変えない。
 
 ## 9. CI 配線
 
@@ -286,9 +299,11 @@ destination 文法は `kind` ごとの判別共用体: `対象外` → 理由文
 
 ## 10. `codex_run.py` の `has_filled_step_row`
 
-見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)/ 3 種の報告。`tests/test_codex_run.py` 新設。`tests/test_hooks.py` の wrapper ケース(`:814`・`:1022`・`:1116`)は green を保つ(期待文言の追随が必要かはステップ 1 で確定 — C 集合の条件付き要素)。
+見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)。**報告は 3 状態**(R8-P2-2 — 関数は `bool` から `StepTableStatus` 列挙 + 従来互換の真偽ラッパへ):
+`no-table`(表が無い — 現行文言を維持)/ `table-outside-scope`(記入済み行はあるが「実装ステップ」見出しのスコープ外 — 文言「ステップ表は見出し『…』の配下にあります。『実装ステップ』見出しの配下へ移すか、その見出し名を含めてください」)/
+`table-in-fenced-code`(記入済み行が fenced code 内にしか無い — 文言「ステップ表がコードブロック内にあります」)。`cmd_implement` は状態別の文言で `die` する。`tests/test_codex_run.py` 新設。`tests/test_hooks.py` の wrapper ケース(`:814`・`:1022`・`:1116`)は green を保つ(期待文言の追随が必要かはステップ 1 で確定 — C 集合の条件付き要素)。
 
-## 11. TSK-250 への申し送り(PR 本文に転記。**TSK-250 は着手前に再レビューが必要**。23 項目)
+## 11. TSK-250 への申し送り(PR 本文に転記。**TSK-250 は着手前に再レビューが必要**。24 項目)
 
 | # | 項目 | 本タスクの立場 |
 | --- | --- | --- |
@@ -312,9 +327,10 @@ destination 文法は `kind` ごとの判別共用体: `対象外` → 理由文
 | 18 | 変異テストの方針 | 行スコープ = 別行移動、節スコープ = 別節移動・意味部欠落・ID 交換 |
 | 19 | **`structure_extractors`**(6-3) | 二文書目の表構造(遷移表・列役割表・暗黙関係)を抽出する規則は TSK-250 がプロファイルで宣言する(checker は変更しない) |
 | 20 | **`collection_sets`**(6-4) | claims の relation 行 = manifest の exact-set はこの宣言で満たす(`collection-consistency`) |
-| 21 | **レジストリ entry の `must_*`**(1-2) | データモデル型 entry は `must_require`(22)/ `must_extract`(`forbidden` の全 kind を覆う)/ `must_derive_structures` / `must_collection_sets`(`claims-relations-vs-manifest`・`direct-requirements-vs-claims`)を持つ。プロファイルの自己申告では必須検査を有効化できない |
-| 22 | **claims の分類 `direct_requirement`** | TSK-250 の claims 分類規則(ステップ 4)に `direct_requirement` を追加し、`direct_requirements` 資産と exact-set で拘束する |
-| 23 | **`product_ddl_map` の二段階射影** | 段階 A = raw DDL ID で map と DDL 導出構造を exact 照合、段階 B = 全参照 ID を製品 ID へ射影して manifest / FORB と比較。写像 domain は全参照 ID と exact |
+| 21 | **レジストリ entry の `must_require` + `pins`**(1-2) | データモデル型 entry は `must_require` = 22 と、`pins`(`profile_gating_digest` / `invariants_digest` / `asset_digests`)の実値を持つ。**何を pin するか(`asset_digests` のキー集合)と実値は TSK-250 が確定**。プロファイルの自己申告では必須検査を有効化・空洞化できない |
+| 22 | **claims の分類 `direct_requirement`**(形式の例) | TSK-250 の claims 分類規則(ステップ 4)に `direct_requirement` を追加するかは TSK-250 の設計。採るなら `direct_requirements` 資産と exact-set で拘束し、資産を pin する |
+| 23 | **`product_ddl_map` の二段階射影**(機構) | 段階 A = raw DDL ID で map と DDL 導出構造を exact 照合、段階 B = 全参照 ID を製品 ID へ射影して manifest / FORB と比較。写像 domain は全参照 ID と exact。**probe-only DDL を使うかどうか自体が TSK-250 の判断** |
+| **24** | **契約 5 の文言変更(PO 裁定 (b)・2026-09-04)** | TSK-250 計画書 1 節の契約 5「次の 4 つを機械で保証する」は、**「A は 4 検査 + 集合一致 + `unique-owner` の機構(評価器・抽出器・集合一致・資産ローダー・pins)を提供し、合成サンプルで全 22 ID が動くことを保証する。データモデル正本に対する実入力契約(資産形状・必須抽出器・集合宣言・pin 対象と実値)は TSK-250 が自分の計画で固定し、機械保証の主張は TSK-250 側の受け入れ条件に置く」へ改める**。「人間確認へ回して契約を満たす」逃げ道の禁止は維持(機械保証の**実装場所**が A から B のプロファイル宣言 + A の機構へ移るだけ) |
 
 ## 12. 前例として借りるもの(`scripts/check_authz_catalog.py` — 対象外)
 
@@ -342,6 +358,7 @@ destination 文法は `kind` ごとの判別共用体: `対象外` → 理由文
 | 1 周目 P1 3 件の一次記録欠落 | 2026-08-31 の転記漏れ(H-87) |
 | ステップ 3〜9 の間、節 1 の不在が機械保証されない | 同一 PR 内 |
 | `preamble` の意味と oracle 作成時の意図のずれ | プロファイルに明記して現状維持 |
+| **契約 5 の実入力契約(データモデル正本に対する資産形状・必須宣言・pin 実値)は本タスクで検証しない** | **PO 裁定 (b)・2026-09-04**。二文書目が存在しないため本タスクで決められない。TSK-250 の再レビューで固定し、機構(6 節)と pins で空洞化を防ぐ |
 
 ## 未解決・検討メモ
 
