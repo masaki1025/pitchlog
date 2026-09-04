@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
+import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
 import {
   readCanonEventFieldRules,
+  readCanonParticipationRules,
   type CanonEventFieldRule,
+  type CanonEventKindRule,
 } from './canonOracle'
 
 type ComparableRule = {
@@ -11,6 +14,13 @@ type ComparableRule = {
   requiredness: string
   conditions: readonly string[]
   shape: unknown
+}
+
+type ComparableEventKind = {
+  id: string
+  name: string
+  participation: string
+  hasRevisionOrder: boolean
 }
 
 function expectRulesToMatchCanon(
@@ -41,6 +51,38 @@ function expectRulesToMatchCanon(
     )
     .map((rule) => rule.id)
   expect(new Set(eventSlotIds)).toEqual(new Set(canonEventSlotIds))
+}
+
+function expectEventKindsToMatchCanon(
+  eventKinds: readonly ComparableEventKind[],
+  canonEventKinds: readonly CanonEventKindRule[],
+): void {
+  expect(new Set(eventKinds.map((eventKind) => eventKind.id))).toEqual(
+    new Set(canonEventKinds.map((eventKind) => eventKind.id)),
+  )
+  expect(
+    new Map(
+      eventKinds.map((eventKind) => [
+        eventKind.id,
+        {
+          name: eventKind.name,
+          participation: eventKind.participation,
+          hasRevisionOrder: eventKind.hasRevisionOrder,
+        },
+      ]),
+    ),
+  ).toEqual(
+    new Map(
+      canonEventKinds.map((eventKind) => [
+        eventKind.id,
+        {
+          name: eventKind.name,
+          participation: eventKind.participation,
+          hasRevisionOrder: eventKind.hasRevisionOrder,
+        },
+      ]),
+    ),
+  )
 }
 
 describe('canonOracle', () => {
@@ -109,5 +151,88 @@ describe('canonOracle', () => {
     expect(() =>
       expectRulesToMatchCanon(mutatedRules, readCanonEventFieldRules()),
     ).toThrow()
+  })
+
+  it('種別表を R-PARTICIPATION と順序非依存の exact-set で照合する', () => {
+    const reversedCanonEventKinds = [...readCanonParticipationRules()].reverse()
+
+    expectEventKindsToMatchCanon(EVENT_KIND_RULES, reversedCanonEventKinds)
+  })
+
+  it('変異 M5: 墓標の参加区分を従属へ変えたことを検出する', () => {
+    const mutatedEventKinds = EVENT_KIND_RULES.map((eventKind) =>
+      eventKind.id === '8'
+        ? { ...eventKind, participation: EVENT_PARTICIPATION.DEPENDENT }
+        : eventKind,
+    )
+
+    expect(() =>
+      expectEventKindsToMatchCanon(
+        mutatedEventKinds,
+        readCanonParticipationRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('変異 M6: 改訂版の参加区分を一律従属へ変えたことを検出する', () => {
+    const mutatedEventKinds = EVENT_KIND_RULES.map((eventKind) =>
+      eventKind.id === '9'
+        ? { ...eventKind, participation: EVENT_PARTICIPATION.DEPENDENT }
+        : eventKind,
+    )
+
+    expect(() =>
+      expectEventKindsToMatchCanon(
+        mutatedEventKinds,
+        readCanonParticipationRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('変異 M7: undo の参加区分を論理位置ありへ変えたことを検出する', () => {
+    const mutatedEventKinds = EVENT_KIND_RULES.map((eventKind) =>
+      eventKind.id === '2'
+        ? { ...eventKind, participation: EVENT_PARTICIPATION.LOGICAL_POSITION }
+        : eventKind,
+    )
+
+    expect(() =>
+      expectEventKindsToMatchCanon(
+        mutatedEventKinds,
+        readCanonParticipationRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('変異 M8: 種別の追加と欠落を検出する', () => {
+    const addedEventKinds: ComparableEventKind[] = [
+      ...EVENT_KIND_RULES,
+      { ...EVENT_KIND_RULES[0], id: '13', name: '追加種別' },
+    ]
+    const removedEventKinds = EVENT_KIND_RULES.filter(
+      (eventKind) => eventKind.id !== '1',
+    )
+
+    expect(() =>
+      expectEventKindsToMatchCanon(
+        addedEventKinds,
+        readCanonParticipationRules(),
+      ),
+    ).toThrow()
+    expect(() =>
+      expectEventKindsToMatchCanon(
+        removedEventKinds,
+        readCanonParticipationRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('R-PARTICIPATION の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-PARTICIPATION'].source_elements.push('13:追加種別=従属')
+
+    expect(() => readCanonParticipationRules(mutatedRelations)).toThrowError(
+      /未知の R-PARTICIPATION ID/,
+    )
   })
 })
