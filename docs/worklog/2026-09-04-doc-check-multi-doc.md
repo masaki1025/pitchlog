@@ -516,3 +516,15 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - **33 `baseline-digest` + `unique-owner`**: immutable 11 欄を canonical 化して SHA-256 envelope を逐語照合(**各 immutable フィールドの改変で red・mutable は green・キー順/空白不変・重複キーは終了 2・`immutable_fields` はプロファイルから変更不可**)/ `unique-owner` は `expected_ids` との完全一致・重複・許可外 `owner_step` を検出し、**宣言・required・資産の 3 者が揃わないと終了 2**
 - **`data-model-like` プロファイルで新 8 ID のうち 7 件が実行され終了 0**(残る `reference-class` は次の委任)
 - 検証(Claude): ruff/ty passed / 4 テストファイル **330 passed・失敗 0**(skip 系 0)/ 3 検査 rc 0 / 収集 **1106**・基準 875 の欠落 0 / 対象外パスの差分 0 / **本番プロファイルの pins 不変・`not_applicable` 8 件のまま**
+
+### ステップ 34〜37/38 — `unique-owner` の充足確認・`reference-class`・ランナー・レジストリ列挙(**1 委任・1 コミット**)
+
+- **34**: `unique-owner` はステップ 33 で実装済み。plan の合格条件(重複・欠落・過剰・許可外 step / `expected_ids` 省略・空で終了 2 / 宣言・required・資産の 3 者必須)をテストで確認し**充足**(重複実装は作らない)
+- **35 `reference-class`**: 順序付き規則(`source_section` 任意 / `target_pattern` 必須の glob / `fragment` 任意)・**first-match**・未一致は終了 2・`normative` は approved 限定。既存 `noncanonical-reference` は無変更。同期では `not_applicable`
+- **36 ランナー `scripts/check_doc_profiles.py`**(新設)+ `schemas/runner-envelope.schema.json`(新設): `--profile` 必須・`--registry`・終了 0/1/2 の**全経路で 1 つの JSON envelope**・**`checks` は常に 22 件(design 5-1 順)**・`--checks` 時は未選択を `not_run` かつ `partial: true`・終了 2 でのみ `errors` 非空・**同期側パスを開かない**(モックで固定)
+- **37 レジストリ列挙**: 両検査が選択・上書き引数なしのとき登録全プロファイルを順に検査(出力に `[profile-name]`)。**終了コードは 2 > 1 > 0 で合成**。`ci.yml` は**無変更**。`test_ci_wiring.py` はスクリプト側テストのみ追加(既存アサーションは無変更で green)
+- **サンプルの実行結果**(記録): `profile.json` → 22 件評価・入力エラー 0(既存 3 件が fail)/ `data-model-like.json` → 22 件評価・**新 8 ID は全件 pass**・`not_applicable` 0・入力エラー 0。
+  **既存 14 検査のうち 4 件(`manifest-consistency` / `element-coverage` / `attribution` / `ledger`)は合成文書が満たしていないため fail** — plan ステップ 36 の合格条件(新 8 ID が pass or fail・`not_applicable` 0・スキーマ適合)は満たしている。
+  **合成文書を既存 14 検査まで green にするのは本タスクの契約外**(TSK-250 が実文書で行う)。申し送りへ記録する
+- 検証(Claude): ruff/ty passed / **全体 1128 passed・失敗 0**(skip/xfail/xpass/deselected 0)/ 3 検査 rc 0 / fixture rc 1 / **`.github` の差分 0** / 収集 **1128**・基準 875 の欠落 0 /
+  **本番の `profile_gating_digest` と `invariants_digest` はともに不変**・`not_applicable` 8 件・`assets` 空 / **引数なし実行の rc は変更前後で同一(0)**

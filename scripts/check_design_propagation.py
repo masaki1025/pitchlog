@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fnmatch
 import importlib.util
+import io
 import json
 import re
 import sys
@@ -65,6 +68,7 @@ CHECK_IDS = (
     "cross-consistency",
     "baseline-digest",
     "unique-owner",
+    "reference-class",
 )
 CHECK_ID_SET = frozenset(CHECK_IDS)
 LEGACY_PROP_CHECK_IDS = frozenset(CHECK_IDS[:12])
@@ -268,8 +272,22 @@ def load_manifest(path: Path) -> dict[str, ManifestRelation]:
     raw = _read_json(path)
     if not isinstance(raw, dict):
         raise CheckError("関係マニフェストのルートはオブジェクトでなければならない")
+    raw_relations: object
+    if set(raw) == {"schema_version", "relations"} and isinstance(
+        raw.get("relations"), list
+    ):
+        raw_relations = {
+            value.get("id"): value
+            for value in raw["relations"]
+            if isinstance(value, dict) and isinstance(value.get("id"), str)
+        }
+        if len(raw_relations) != len(raw["relations"]):
+            raise CheckError("関係マニフェストのrelationsに不正または重複IDがあります")
+    else:
+        raw_relations = raw
+    assert isinstance(raw_relations, dict)
     relations: dict[str, ManifestRelation] = {}
-    for key, value in raw.items():
+    for key, value in raw_relations.items():
         if not isinstance(key, str) or not isinstance(value, dict):
             raise CheckError("関係マニフェストの各関係が不正")
         relation_id = _as_string(value.get("id"), f"{key}.id")
@@ -860,6 +878,126 @@ def check_link_targets(
     return tuple(dict.fromkeys(missing))
 
 
+def _reference_target(
+    target: str,
+    *,
+    document_path: Path,
+    root: Path,
+) -> tuple[str, str | None, Path | None]:
+    """Markdownリンクを規則照合用の正規化パスへ変換する。"""
+    raw_target = target.strip("<>")
+    path_text, separator, fragment = raw_target.partition("#")
+    fragment_value = fragment if separator else None
+    if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", path_text) or path_text.startswith("//"):
+        return path_text, fragment_value, None
+    if not path_text:
+        resolved = document_path.resolve()
+    elif path_text.startswith("/"):
+        resolved = (root / path_text.lstrip("/")).resolve()
+    else:
+        resolved = (document_path.parent / path_text).resolve()
+    root_path = root.resolve()
+    if not resolved.is_relative_to(root_path):
+        raise CheckError(f"参照先がリポジトリ外です: {raw_target}")
+    return resolved.relative_to(root_path).as_posix(), fragment_value, resolved
+
+
+def _frontmatter_status(path: Path) -> str | None:
+    """Markdown先頭のfrontmatterからstatusを取得する。"""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    if not lines or lines[0] != "---":
+        return None
+    statuses: list[str] = []
+    for line in lines[1:]:
+        if line == "---":
+            return statuses[0] if len(statuses) == 1 else None
+        match = re.match(r"^status:\s*(.*?)\s*$", line)
+        if match is not None:
+            statuses.append(match.group(1).strip("\"'"))
+    return None
+
+
+def check_reference_classes(
+    text: str,
+    *,
+    profile: Any,
+    document_path: Path,
+    root: Path,
+) -> tuple[Finding, ...]:
+    """順序付き規則で参照を分類し、normative先の承認状態を検査する。"""
+    rules = profile.raw["reference_policy"]["rules"]
+    section_pattern = re.compile(
+        rf"^(?P<section>{profile.raw['section_id_grammar']})(?:[.\s(]|$)"
+    )
+    current_section: str | None = None
+    findings: list[Finding] = []
+    fence: str | None = None
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        fence_match = re.match(r"^\s*(`{3,}|~{3,})", line)
+        if fence_match is not None:
+            marker = fence_match.group(1)[0]
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+            continue
+        if fence is not None:
+            continue
+        heading = HEADING_RE.match(line)
+        if heading is not None:
+            title = heading.group("title")
+            section_match = section_pattern.match(title)
+            current_section = (
+                section_match.group("section")
+                if section_match is not None
+                else None
+            )
+        for link in MARKDOWN_LINK_RE.finditer(line):
+            target = link.group("target")
+            normalized, fragment, resolved = _reference_target(
+                target,
+                document_path=document_path,
+                root=root,
+            )
+            matched_rule: Mapping[str, Any] | None = None
+            for rule in rules:
+                if (
+                    "source_section" in rule
+                    and rule["source_section"] != current_section
+                ):
+                    continue
+                if not fnmatch.fnmatchcase(normalized, rule["target_pattern"]):
+                    continue
+                if "fragment" in rule and (
+                    fragment is None
+                    or not fnmatch.fnmatchcase(fragment, rule["fragment"])
+                ):
+                    continue
+                matched_rule = rule
+                break
+            if matched_rule is None:
+                raise CheckError(
+                    "reference_policyに一致する規則がありません: "
+                    f"行{line_number}: {target}"
+                )
+            if matched_rule["role"] != "normative":
+                continue
+            actual_status = _frontmatter_status(resolved) if resolved is not None else None
+            if actual_status != "approved":
+                findings.append(
+                    Finding(
+                        "reference-class",
+                        "reference-class",
+                        f"normative参照先がapprovedでない: {normalized}"
+                        f"(status={actual_status})",
+                    )
+                )
+    return tuple(findings)
+
+
 def check_collection_consistency(
     profile: Any,
     assets: Any,
@@ -1393,6 +1531,7 @@ def check_unique_owner(
 def _global_findings(
     text: str,
     root: Path,
+    document_path: Path,
     manifest: dict[str, ManifestRelation],
     checks: frozenset[str],
     link_base_dir: Path | None,
@@ -1458,6 +1597,19 @@ def _global_findings(
             findings.append(
                 Finding("link-target", "link-target", "実在しないリンク: " + ",".join(targets))
             )
+    if (
+        "reference-class" in checks
+        and profile is not None
+        and "reference-class" in profile.required_checks
+    ):
+        findings.extend(
+            check_reference_classes(
+                text,
+                profile=profile,
+                document_path=document_path,
+                root=root,
+            )
+        )
     profile_checks = (
         checks & profile.required_checks & PROFILE_ASSET_CHECK_IDS
         if profile is not None
@@ -1581,6 +1733,7 @@ def run_checks(
     invariants: Any | None = None,
     profile: Any | None = None,
     raw_manifest: Mapping[str, Any] | None = None,
+    document_path: Path | None = None,
     *,
     section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
     preamble: str = DEFAULT_PREAMBLE,
@@ -1605,6 +1758,7 @@ def run_checks(
         invariants: 検証済みの不変条件宣言資産。未指定なら結合検査を省く。
         profile: 宣言評価に使う検証済みプロファイル。
         raw_manifest: 資産・構造検査で使うマニフェスト原値。
+        document_path: 参照分類で使う検査対象文書の実パス。
         section_id_grammar: scopeの節IDを判定する正規表現。
         preamble: 冒頭スコープの切り出し方式。
         legacy_prefixes: legacy引用と認識するパス接頭辞。
@@ -1638,6 +1792,13 @@ def run_checks(
     checks, selected_defects, allow_global = select_checks_and_defects(
         defects, defect_csv, check_csv
     )
+    if profile is not None and defect_csv is None and check_csv is None:
+        checks = checks & profile.required_checks
+        selected_defects = tuple(
+            defect
+            for defect in selected_defects
+            if defect.check in profile.required_checks
+        )
     findings: list[Finding] = []
     for defect in selected_defects:
         reason = defect_violation_reason(
@@ -1657,6 +1818,7 @@ def run_checks(
             _global_findings(
                 text,
                 root,
+                document_path or (profile.document if profile is not None else root),
                 manifest,
                 checks,
                 link_base_dir,
@@ -1725,6 +1887,29 @@ def _resolve(root: Path, path: Path) -> Path:
     return path if path.is_absolute() else root / path
 
 
+def _run_registered_profiles(profiles: Sequence[Any], root: Path) -> int:
+    """登録順に全プロファイルを実行し、2優先で終了コードを合成する。"""
+    exit_codes: list[int] = []
+    for profile in profiles:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = main(
+                ["--root", str(root), "--profile", str(profile.path)]
+            )
+        exit_codes.append(exit_code)
+        prefix = f"[{profile.name}]"
+        output_lines = stdout.getvalue().splitlines()
+        error_lines = stderr.getvalue().splitlines()
+        for line in output_lines:
+            print(f"{prefix} {line}")
+        for line in error_lines:
+            print(f"{prefix} {line}", file=sys.stderr)
+        if not output_lines and not error_lines:
+            print(f"{prefix} document={profile.document} rc={exit_code}")
+    return max(exit_codes, default=2)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """検査を実行し、違反の有無に応じた終了コードを返す。
 
@@ -1737,6 +1922,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
+        enumerate_registry = (
+            args.profile is None
+            and args.document is None
+            and args.manifest is None
+            and args.defects_file is None
+            and args.checks is None
+            and args.defects is None
+        )
         if args.profile is not None:
             profile = doc_check_profile.load_profile(args.profile, root=root)
         else:
@@ -1745,6 +1938,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 registry_path = doc_check_profile.default_registry_path(root)
             registry = doc_check_profile.load_registry(registry_path, root=root)
             profiles = doc_check_profile.resolve_profiles(registry, root=root)
+            if enumerate_registry and len(profiles) > 1:
+                return _run_registered_profiles(profiles, root)
             profile = profiles[0]
 
         document = (
@@ -1798,6 +1993,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             invariants=invariants,
             profile=profile,
             raw_manifest=raw_manifest_value,
+            document_path=document,
             section_id_grammar=profile.raw["section_id_grammar"],
             preamble=profile.raw["preamble"],
             legacy_prefixes=citation["legacy_prefixes"],

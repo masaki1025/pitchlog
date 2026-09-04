@@ -18,7 +18,7 @@
       "document": "tests/fixtures/profile-sample/doc/document.md",
       "must_require": ["manifest-consistency", "element-coverage", "enum-propagation", "condition-key", "route-matrix", "scope-declaration", "order-use", "citation-format", "noncanonical-reference", "link-target", "emphasis", "draft-metadata", "attribution", "ledger", "forbidden-structure", "cross-consistency", "collection-consistency", "baseline-digest", "unique-owner", "reference-class", "attribution-destination", "attribution-direct"],
       "pins": {
-        "profile_gating_digest": "986025184ff6aa9ecba18f8b3cd3795bb9123b31744d252243a57d05431406f1",
+        "profile_gating_digest": "c3b543742ba39ebaf20eda2bac460bf600c3aa22fdbed928c4e420dce68727ba",
         "invariants_digest": "847bae5d244ce11ada606214ec239b07876c5f877984b037700024076cd4753a",
         "asset_digests": {
           "claims": "70729535f07cf0497248555e2f890d34adf29e884a6fc5b43693225a56b00f1d",

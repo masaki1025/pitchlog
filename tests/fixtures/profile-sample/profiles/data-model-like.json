@@ -107,5 +107,15 @@
     {"id": "direct-requirements-subset-claims", "relation": "subset", "left": {"asset": "direct_requirements", "collection": 0, "key": "value"}, "right": {"asset": "claims", "collection": 0, "key": "source_id"}},
     {"id": "forbidden-disjoint-manifest", "relation": "disjoint", "left": {"asset": "forbidden", "collection": 0, "key": "id"}, "right": {"manifest": "relations", "key": "id"}}
   ],
-  "reference_policy": {"rules": [{"target_pattern": "**", "role": "normative"}]}
+  "reference_policy": {
+    "rules": [
+      {
+        "source_section": "4-2",
+        "target_pattern": "tests/fixtures/profile-sample/doc/requirements.md",
+        "fragment": "FR-*",
+        "role": "normative"
+      },
+      {"target_pattern": "**", "role": "informative"}
+    ]
+  }
 }

@@ -16,6 +16,8 @@ physical table: orders
 
 FR-001: orders の列役割を定義する。
 
+根拠は [FR-001](requirements.md#FR-001) を参照する。
+
 | 要素 | 役割 |
 | --- | --- |
 | tenant_id | app_role |

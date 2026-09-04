@@ -4565,3 +4565,127 @@ def test_sync_baseline_and_owner_checks_are_not_applicable(check_id: str) -> Non
     result = _run_cli("--checks", check_id)
     assert result.returncode == 0
     assert f"{check_id}: 対象なし:" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "docs/features/example.md",
+        "docs/worklog/example.md",
+        "docs/legacy/example.md",
+    ),
+    ids=("feature", "worklog", "legacy"),
+)
+def test_reference_class_rejects_unapproved_normative_targets(
+    tmp_path: Path,
+    target: str,
+) -> None:
+    """feature・worklog・legacyをnormativeにすると未承認先として拒否する。"""
+    profile = checker.doc_check_profile.load_profile(
+        SAMPLE_PROFILE,
+        root=REPOSITORY_ROOT,
+    )
+    destination = tmp_path / target
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text("---\nstatus: draft\n---\n", encoding="utf-8")
+    document = tmp_path / "document.md"
+    raw = json.loads(json.dumps(profile.raw))
+    raw["reference_policy"] = {
+        "rules": [{"target_pattern": "**", "role": "normative"}]
+    }
+    changed = replace(profile, root=tmp_path, document=document, raw=raw)
+
+    findings = checker.check_reference_classes(
+        f"## 2. test\n\n[参照]({target})\n",
+        profile=changed,
+        document_path=document,
+        root=tmp_path,
+    )
+
+    assert len(findings) == 1
+    assert "approvedでない" in findings[0].reason
+
+
+def test_reference_class_uses_first_matching_fragment_rule_in_same_section(
+    tmp_path: Path,
+) -> None:
+    """同一節のリンクをfragmentで分け、最初の一致規則だけを採用する。"""
+    profile = checker.doc_check_profile.load_profile(
+        SAMPLE_PROFILE,
+        root=REPOSITORY_ROOT,
+    )
+    target = tmp_path / "target.md"
+    target.write_text("---\nstatus: draft\n---\n", encoding="utf-8")
+    document = tmp_path / "document.md"
+    raw = json.loads(json.dumps(profile.raw))
+    raw["reference_policy"] = {
+        "rules": [
+            {
+                "source_section": "4-2",
+                "target_pattern": "target.md",
+                "fragment": "norm-*",
+                "role": "normative",
+            },
+            {
+                "source_section": "4-2",
+                "target_pattern": "target.md",
+                "fragment": "info-*",
+                "role": "informative",
+            },
+            {"target_pattern": "**", "role": "evidence"},
+        ]
+    }
+    changed = replace(profile, root=tmp_path, document=document, raw=raw)
+    text = (
+        "### 4-2. test\n\n"
+        "[規範](target.md#norm-rule) / [情報](target.md#info-rule)\n"
+    )
+
+    findings = checker.check_reference_classes(
+        text,
+        profile=changed,
+        document_path=document,
+        root=tmp_path,
+    )
+
+    assert len(findings) == 1
+    assert findings[0].check == "reference-class"
+
+
+def test_reference_class_rejects_unmatched_external_reference(
+    tmp_path: Path,
+) -> None:
+    """外部URLを含む未分類参照を入力不正にする。"""
+    profile = checker.doc_check_profile.load_profile(
+        SAMPLE_PROFILE,
+        root=REPOSITORY_ROOT,
+    )
+    raw = json.loads(json.dumps(profile.raw))
+    raw["reference_policy"] = {
+        "rules": [{"target_pattern": "docs/**", "role": "evidence"}]
+    }
+    changed = replace(profile, root=tmp_path, raw=raw)
+
+    with pytest.raises(checker.CheckError, match="一致する規則がありません"):
+        checker.check_reference_classes(
+            "## 2. test\n\n[外部](https://example.com/spec)\n",
+            profile=changed,
+            document_path=tmp_path / "document.md",
+            root=tmp_path,
+        )
+
+
+def test_reference_class_keeps_noncanonical_reference_result_unchanged() -> None:
+    """新分類を追加しても既存の非正本参照検査を変更しない。"""
+    text = "## 2. test\n\n[候補](docs/features/example.md)\n"
+    assert checker.check_noncanonical_reference(text) == (3,)
+
+
+def test_reference_class_sample_is_green_and_sync_is_not_applicable() -> None:
+    """データモデル型では実行し、同期では理由付き対象外にする。"""
+    sample = _run_cli("--profile", str(SAMPLE_PROFILE), "--checks", "reference-class")
+    sync = _run_cli("--checks", "reference-class")
+
+    assert sample.returncode == 0, sample.stderr
+    assert sync.returncode == 0
+    assert "reference-class: 対象なし:" in sync.stdout

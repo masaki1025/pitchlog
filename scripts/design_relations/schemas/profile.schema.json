@@ -389,6 +389,14 @@
                 "type": "string",
                 "minLength": 1
               },
+              "source_section": {
+                "type": "string",
+                "minLength": 1
+              },
+              "fragment": {
+                "type": "string",
+                "minLength": 1
+              },
               "role": {
                 "type": "string",
                 "enum": [

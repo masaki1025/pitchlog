@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
+import io
 import json
 import re
 import sys
@@ -1275,6 +1277,29 @@ def _resolve(root: Path, path: Path) -> Path:
     return path if path.is_absolute() else root / path
 
 
+def _run_registered_profiles(profiles: Sequence[Any], root: Path) -> int:
+    """登録順に全プロファイルを実行し、2優先で終了コードを合成する。"""
+    exit_codes: list[int] = []
+    for profile in profiles:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = main(
+                ["--root", str(root), "--profile", str(profile.path)]
+            )
+        exit_codes.append(exit_code)
+        prefix = f"[{profile.name}]"
+        output_lines = stdout.getvalue().splitlines()
+        error_lines = stderr.getvalue().splitlines()
+        for line in output_lines:
+            print(f"{prefix} {line}")
+        for line in error_lines:
+            print(f"{prefix} {line}", file=sys.stderr)
+        if not output_lines and not error_lines:
+            print(f"{prefix} document={profile.document} rc={exit_code}")
+    return max(exit_codes, default=2)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """要件帰属・意味照合台帳検査を実行し、結果に応じた終了コードを返す。
 
@@ -1287,6 +1312,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
+        enumerate_registry = (
+            args.profile is None
+            and args.requirements is None
+            and args.document is None
+            and args.universe is None
+            and args.checks is None
+        )
         if args.profile is not None:
             profile = doc_check_profile.load_profile(args.profile, root=root)
         else:
@@ -1295,6 +1327,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 registry_path = doc_check_profile.default_registry_path(root)
             registry = doc_check_profile.load_registry(registry_path, root=root)
             profiles = doc_check_profile.resolve_profiles(registry, root=root)
+            if enumerate_registry and len(profiles) > 1:
+                return _run_registered_profiles(profiles, root)
             profile = profiles[0]
 
         checks = select_coverage_checks(
