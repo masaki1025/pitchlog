@@ -98,10 +98,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "A5の結果集合が7-2へ全件伝播していない",
-      "token": null
+      "section": "7-2",
+      "expected": "受理",
+      "actual": "受理 が節 7-2 に無い",
+      "token": "受理"
     }
   },
   {
@@ -112,9 +112,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "A5の正本行に結果集合5状態がない",
+      "section": "7-1",
+      "expected": "第1セルが A5 の表行",
+      "actual": null,
       "token": null
     }
   },
@@ -126,10 +126,10 @@
     "reason": {
       "violated": true,
       "kind": "row-contains",
-      "section": null,
-      "expected": null,
-      "actual": "A5の正本行に結果集合5状態がない",
-      "token": null
+      "section": "7-1",
+      "expected": "未処理",
+      "actual": "| A5 | 受理・重複・拒否・退避 |",
+      "token": "未処理"
     }
   },
   {
@@ -140,10 +140,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "A5の結果集合が6-3へ全件伝播していない",
-      "token": null
+      "section": "6-3",
+      "expected": "未処理",
+      "actual": "未処理 が節 6-3 に無い",
+      "token": "未処理"
     }
   },
   {
@@ -154,10 +154,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "A5の結果集合が7-2へ全件伝播していない",
-      "token": null
+      "section": "7-2",
+      "expected": "未処理",
+      "actual": "未処理 が節 7-2 に無い",
+      "token": "未処理"
     }
   },
   {
@@ -182,10 +182,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
-      "token": null
+      "section": "6-3",
+      "expected": "未送信",
+      "actual": "未送信 が節 6-3 に無い",
+      "token": "未送信"
     }
   },
   {
@@ -196,10 +196,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
-      "token": null
+      "section": "6-3",
+      "expected": "要操作",
+      "actual": "要操作 が節 6-3 に無い",
+      "token": "要操作"
     }
   },
   {
@@ -210,10 +210,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
-      "token": null
+      "section": "6-3",
+      "expected": "I6",
+      "actual": "I6 が節 6-3 に無い",
+      "token": "I6"
     }
   },
   {
@@ -224,10 +224,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "キュー状態の保持・破棄契機が6-3へ全件伝播していない",
-      "token": null
+      "section": "6-3",
+      "expected": "I6",
+      "actual": "I6 が節 6-3 に無い",
+      "token": "I6"
     }
   },
   {
@@ -252,10 +252,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "P1〜P3の経路別T要素集合が8-1にない",
-      "token": null
+      "section": "8-1",
+      "expected": "P3: T1,T2,T4,T6,T7",
+      "actual": "| P3 | T1・T2 |",
+      "token": "P3"
     }
   },
   {
@@ -266,10 +266,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "P1〜P3の経路別T要素集合が10-2にない",
-      "token": null
+      "section": "10-2",
+      "expected": "P1: T1,T2,T3,T4,T6",
+      "actual": "| P1 | T1・T2・T3・T4・T8 |",
+      "token": "P1"
     }
   },
   {
@@ -308,9 +308,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "P4の原子性が10-2へ伝播していない",
+      "section": "10-2",
+      "expected": "退避・B4・原子 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -322,10 +322,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
-      "token": null
+      "section": "8-1",
+      "expected": "P4: T8",
+      "actual": null,
+      "token": "P4"
     }
   },
   {
@@ -336,10 +336,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
-      "token": null
+      "section": "8-1",
+      "expected": "P4: T8",
+      "actual": "| P4 | T9 |",
+      "token": "P4"
     }
   },
   {
@@ -350,10 +350,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "8-1に旧世代からB4応答へ至るP4経路がない",
-      "token": null
+      "section": "8-1",
+      "expected": "P4: T8",
+      "actual": null,
+      "token": "P4"
     }
   },
   {
@@ -378,10 +378,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
-      "token": null
+      "section": "7-1",
+      "expected": "確定結果",
+      "actual": "確定結果 が節 7-1 に無い",
+      "token": "確定結果"
     }
   },
   {
@@ -392,10 +392,10 @@
     "reason": {
       "violated": true,
       "kind": "element-lookup",
-      "section": null,
-      "expected": null,
-      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
-      "token": null
+      "section": "8-1",
+      "expected": "べき等キーごとの確定結果と一時 ID 写像の保存",
+      "actual": "| T6 | 保存要素 |",
+      "token": "T6:"
     }
   },
   {
@@ -406,10 +406,10 @@
     "reason": {
       "violated": true,
       "kind": "exact-set",
-      "section": null,
-      "expected": null,
-      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
-      "token": null
+      "section": "8-1",
+      "expected": "P1: T1,T2,T3,T4,T6",
+      "actual": "| P1 | T1・T2・T3・T4・T8 |",
+      "token": "P1"
     }
   },
   {
@@ -420,10 +420,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
-      "token": null
+      "section": "4-4",
+      "expected": "写像",
+      "actual": "写像 が節 4-4 に無い",
+      "token": "写像"
     }
   },
   {
@@ -434,10 +434,10 @@
     "reason": {
       "violated": true,
       "kind": "element-lookup",
-      "section": null,
-      "expected": null,
-      "actual": "T6の確定結果・一時ID写像保存が8-1にない",
-      "token": null
+      "section": "8-1",
+      "expected": "べき等キーごとの確定結果と一時 ID 写像の保存",
+      "actual": null,
+      "token": "T6:"
     }
   },
   {
@@ -770,10 +770,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "V1〜V11の正本集合が4-3にない",
-      "token": null
+      "section": "4-3",
+      "expected": "V12",
+      "actual": "V12 が節 4-3 に無い",
+      "token": "V12"
     }
   },
   {
@@ -784,10 +784,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "V1〜V11の必須区分が4-3-Aにない",
-      "token": null
+      "section": "4-3-A",
+      "expected": "V2",
+      "actual": "V2 が節 4-3-A に無い",
+      "token": "V2"
     }
   },
   {
@@ -798,10 +798,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "V1〜V11の必須区分が11-2にない",
-      "token": null
+      "section": "11-2",
+      "expected": "V3",
+      "actual": "V3 が節 11-2 に無い",
+      "token": "V3"
     }
   },
   {
@@ -812,10 +812,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "V1〜V11の正本集合が4-3にない",
-      "token": null
+      "section": "4-3",
+      "expected": "V12",
+      "actual": "V12 が節 4-3 に無い",
+      "token": "V12"
     }
   },
   {
@@ -840,10 +840,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "変更版順の正本規則が4-3-Aにない",
-      "token": null
+      "section": "4-3-A",
+      "expected": "W3-b",
+      "actual": "W3-b が節 4-3-A に無い",
+      "token": "W3-b"
     }
   },
   {
@@ -854,10 +854,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "変更版順が5-5に伝播していない",
-      "token": null
+      "section": "5-5",
+      "expected": "変更版順",
+      "actual": "変更版順 が節 5-5 に無い",
+      "token": "変更版順"
     }
   },
   {
@@ -868,10 +868,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "変更版順が11-2に伝播していない",
-      "token": null
+      "section": "11-2",
+      "expected": "論理再生順",
+      "actual": "論理再生順 が節 11-2 に無い",
+      "token": "論理再生順"
     }
   },
   {
@@ -882,10 +882,10 @@
     "reason": {
       "violated": true,
       "kind": "section-contains",
-      "section": null,
-      "expected": null,
-      "actual": "変更版順が5-5に伝播していない",
-      "token": null
+      "section": "5-5",
+      "expected": "変更版順",
+      "actual": "変更版順 が節 5-5 に無い",
+      "token": "変更版順"
     }
   },
   {

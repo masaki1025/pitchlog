@@ -433,44 +433,19 @@ _table_row = doc_check_invariants.table_row
 _table_cells = doc_check_invariants.table_cells
 _plain_cell = doc_check_invariants.plain_cell
 _identified_row = doc_check_invariants.identified_row
-
-
-def _element_has_row(section: str, element: str) -> bool:
-    return any(
-        element in line
-        for line in section.splitlines()
-        if _table_cells(line) and not re.match(r"^\s*[-:]+\s*$", _table_cells(line)[0])
-    )
-
-
-def _numbered_ids(value: str, prefix: str) -> frozenset[str]:
-    identifiers = {
-        f"{prefix}{number}"
-        for number in re.findall(rf"(?<![A-Za-z0-9]){re.escape(prefix)}(\d+)", value)
-    }
-    for match in re.finditer(
-        rf"{re.escape(prefix)}(\d+)\s*[〜～-]\s*(?:{re.escape(prefix)})?(\d+)",
-        value,
-    ):
-        start, end = (int(number) for number in match.groups())
-        identifiers.update(f"{prefix}{number}" for number in range(start, end + 1))
-    return frozenset(identifiers)
+_element_has_row = doc_check_invariants.element_has_row
+_numbered_ids = doc_check_invariants.numbered_ids
 
 
 def _expected_route_elements(
     manifest: dict[str, ManifestRelation],
 ) -> dict[str, frozenset[str]]:
-    routes: dict[str, frozenset[str]] = {}
-    for element in manifest["R-TXN-ROUTE"].source_elements:
-        match = re.match(r"(?P<route>P\d+):[^=]+=(?P<elements>.+)", element)
-        if match is not None:
-            routes[match.group("route")] = _numbered_ids(match.group("elements"), "T")
-    return routes
+    return doc_check_invariants.expected_route_elements(
+        manifest, "R-TXN-ROUTE", prefix="T"
+    )
 
 
-def _route_row_matches(section: str, route: str, expected: frozenset[str]) -> bool:
-    row = _identified_row(section, route)
-    return row is not None and _numbered_ids(row, "T") == expected
+_route_row_matches = doc_check_invariants.route_row_matches
 
 
 def check_emphasis(text: str) -> tuple[int, ...]:
@@ -914,207 +889,14 @@ def _reference_section(text: str, reference: str) -> str:
     return _heading_section(text, match.group("label")) if match is not None else ""
 
 
-def _element_markers(element: str) -> tuple[str, ...]:
-    """要素宣言から本文で照合できる安定IDと意味語を取り出す。
-
-    Args:
-        element: ``B5:認証失効`` などの要素宣言。
-
-    Returns:
-        いずれかが本文にあれば要素が現れたとみなせるマーカー。
-    """
-    identifier, separator, description = element.partition(":")
-    markers: list[str] = []
-    if identifier and not identifier.isdecimal():
-        markers.append(identifier)
-    if separator:
-        semantic = description.split("=", 1)[0].strip()
-        if semantic:
-            markers.append(semantic)
-    elif element:
-        markers.append(element)
-    return tuple(dict.fromkeys(markers))
-
-
-def _semantic_text(value: str) -> str:
-    """意味句の照合用にMarkdown装飾・空白・区切り記号を除く。
-
-    Args:
-        value: 要素宣言の意味句、またはMarkdown表の1行。
-
-    Returns:
-        語順と文字列を保った正規化文字列。
-
-    Notes:
-        逐語一致ではMarkdown装飾や和文の空白差まで伝播漏れにしてしまうため、
-        意味を担わない装飾・空白・区切りだけを除く。一方、語の置換や語順は
-        正規化しないので、右辺を別の値へ変えた場合は一致しない。
-    """
-    return re.sub(r"[\s`*_「」『』（）()、，,。．・:：/／—→]+", "", value)
-
-
-def _semantic_part_occurs(row: str, expected: str) -> bool:
-    """意味句が直後の否定接尾辞で反転されずに行へ現れるかを返す。
-
-    Args:
-        row: 正規化済みの候補行。
-        expected: 正規化済みの期待意味句。
-
-    Returns:
-        期待意味句の直後が ``外`` ではない出現があれば ``True``。
-
-    Notes:
-        ``対象`` が ``対象外`` の部分文字列として一致する穴を閉じる。一般的な
-        自然言語推論は行わず、伝播要素で用いる明示的な接尾否定だけを区別する。
-    """
-    return any(
-        not row[match.end() :].startswith("外")
-        for match in re.finditer(re.escape(expected), row)
-    )
-
-
-def _identifier_set(value: str) -> tuple[str, frozenset[str]] | None:
-    """右辺が同一接頭辞のID集合なら接頭辞と全集合を返す。"""
-    compact = re.sub(r"\s+", "", value)
-    parts = re.split(r"[,、・]", compact)
-    matches = [re.fullmatch(r"(?P<prefix>[A-Z]+)(?P<number>\d+)", part) for part in parts]
-    if not parts or any(match is None for match in matches):
-        return None
-    prefixes = {match.group("prefix") for match in matches if match is not None}
-    if len(prefixes) != 1:
-        return None
-    prefix = prefixes.pop()
-    identifiers = frozenset(
-        f"{prefix}{match.group('number')}" for match in matches if match is not None
-    )
-    return prefix, identifiers
-
-
-def _data_table_rows(section: str) -> tuple[str, ...]:
-    """節からMarkdown表の区切り行を除く候補行を返す。"""
-    return tuple(
-        row
-        for row in section.splitlines()
-        if _table_cells(row)
-        and not all(re.fullmatch(r"\s*[-:]+\s*", cell) for cell in _table_cells(row))
-    )
-
-
-def _element_table_row_occurs(section: str, element: str) -> bool:
-    """``=`` を持つ要素の識別子側と右辺が同じ表行にあるかを返す。
-
-    ``ID:意味名=右辺`` のIDで候補行を構造的に特定する。IDは英字を含むものだけで
-    なく、参加区分表の番号IDも必須とする。右辺が ``T1,T2,...`` のようなID集合
-    なら候補行の同じ接頭辞の集合と完全一致させ、1要素の欠落・余分・別行への
-    移動を検出する。それ以外は ``+`` で分けた意味句ごとに、Markdown装飾・
-    空白・区切りを除いた部分文字列として同じ行に存在することを求める。この粒度は
-    表記差を許しつつ、IDの欠落・交換・置換と意味句の置換を検出するためである。
-
-    Args:
-        section: 参照先の節本文。
-        element: ``1:毎球入力=論理位置を持つ`` などの要素宣言。
-
-    Returns:
-        識別子側と右辺の対応全体が1つのMarkdown表行にあれば ``True``。
-    """
-    identifier, separator, description = element.partition(":")
-    left, equals, right = description.partition("=")
-    if not separator or not equals or not left or not right:
-        return False
-
-    rows = _data_table_rows(section)
-    normalized_left = _semantic_text(left)
-    candidate_rows = [
-        row for row in rows if _identifier_occurs(row, identifier)
-    ]
-
-    identifier_set = _identifier_set(right)
-    if identifier_set is not None:
-        prefix, expected = identifier_set
-        return any(
-            normalized_left in _semantic_text(row)
-            and _numbered_ids(row, prefix) == expected
-            for row in candidate_rows
-        )
-
-    expected_parts = tuple(
-        _semantic_text(part) for part in right.split("+") if _semantic_text(part)
-    )
-    return bool(expected_parts) and any(
-        normalized_left in (normalized_row := _semantic_text(row))
-        and all(
-            _semantic_part_occurs(normalized_row, part) for part in expected_parts
-        )
-        for row in candidate_rows
-    )
-
-
-def _identifier_occurs(text: str, identifier: str) -> bool:
-    """英数字IDが単独または範囲表記で本文に現れるかを返す。
-
-    Args:
-        text: 調べる節本文。
-        identifier: ``B5`` や ``W3-a`` のようなID。
-
-    Returns:
-        IDを識別子として確認できた場合は ``True``。
-    """
-    exact = re.compile(
-        rf"(?<![A-Za-z0-9]){re.escape(identifier)}(?![A-Za-z0-9-])"
-    )
-    if exact.search(text) is not None:
-        return True
-    match = re.fullmatch(r"(?P<prefix>[A-Z]+)(?P<number>\d+)", identifier)
-    if match is None:
-        return False
-    number = int(match.group("number"))
-    prefix = re.escape(match.group("prefix"))
-    for range_match in re.finditer(
-        rf"(?<![A-Za-z0-9]){prefix}(\d+)\s*[〜～-]\s*(?:{prefix})?(\d+)",
-        text,
-    ):
-        start, end = (int(value) for value in range_match.groups())
-        if start <= number <= end:
-            return True
-    return False
-
-
-def _element_occurs(section: str, element: str) -> bool:
-    """宣言要素が節本文に出現するかを返す。
-
-    ``=`` を持つ対応要素は表行単位でID・左辺・右辺を照合する。
-    ``ID:意味句1+意味句2`` は同じ行にIDと全意味句があることを求める。
-    ``+`` を持たない既存の名前付きID、単独ID、IDを持たない列挙語は、従来どおり
-    節内のID・語の出現を照合する。
-    """
-    if "=" in element:
-        return _element_table_row_occurs(section, element)
-    identifier, separator, description = element.partition(":")
-    if separator and re.fullmatch(
-        r"(?:[A-Z]+\d+(?:-[a-z])?|\d+)", identifier
-    ) is not None:
-        if "+" not in description:
-            return _identifier_occurs(section, identifier)
-        expected_parts = tuple(
-            _semantic_text(part)
-            for part in description.split("+")
-            if _semantic_text(part)
-        )
-        return bool(expected_parts) and any(
-            _identifier_occurs(line, identifier)
-            and all(
-                _semantic_part_occurs(normalized_line, part)
-                for part in expected_parts
-            )
-            for line in section.splitlines()
-            if (normalized_line := _semantic_text(line))
-        )
-    return any(
-        _identifier_occurs(section, marker)
-        if re.fullmatch(r"[A-Z]+\d+(?:-[a-z])?", marker)
-        else marker in section
-        for marker in _element_markers(element)
-    )
+_element_markers = doc_check_invariants.element_markers
+_semantic_text = doc_check_invariants.semantic_text
+_semantic_part_occurs = doc_check_invariants.semantic_part_occurs
+_identifier_set = doc_check_invariants.identifier_set
+_data_table_rows = doc_check_invariants.data_table_rows
+_element_table_row_occurs = doc_check_invariants.element_table_row_occurs
+_identifier_occurs = doc_check_invariants.identifier_occurs
+_element_occurs = doc_check_invariants.element_occurs
 
 
 def check_element_coverage(

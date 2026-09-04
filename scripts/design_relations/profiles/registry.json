@@ -23,7 +23,7 @@
       ],
       "pins": {
         "profile_gating_digest": "782ffaed829211ae7be0aeca1a3b80b98441d1c37509f6aa952a18123199e9ef",
-        "invariants_digest": "67731d74ae689e30eef65cfd061ddf17b1baa76704be28c1cf58af4cdd771314",
+        "invariants_digest": "d502e9fdf47ccac30c065b6586d083b24fcc8bb020b9244257c49e200f7ad16b",
         "asset_digests": {}
       }
     }

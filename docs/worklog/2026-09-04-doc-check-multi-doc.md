@@ -434,3 +434,20 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 宣言: SP-01 の 4 宣言(`row-selector`(7-2 needle)→ `row-contains`(A5・退避)→ `row-selector`(6-3 identifier B4)→ `row-contains`)。**`legacy_structural` 13 → 12**、宣言 ID = MT-01 / SP-01 / SP-10 / SP-11
 - 評価文脈: `row-selector` の選択行を `id` で参照。参照先未定義は `ProfileError`、先行 selector が違反なら後続は評価しない(first-failure = 旧分岐と同値)
 - 検証(Claude): ruff/ty passed / 3 テストファイル **184 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **987**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致
+
+### ステップ 12〜15/38 — `section-contains` / `exact-set` / `element-lookup` / `row-scoped-forbidden`(**1 委任・1 コミット** — 人間の裁定 2026-09-04(a))
+
+**コミット粒度の例外(記録)**: まとめ委任では Codex が 4 ステップ分を 1 つの作業ツリーとして仕上げるため、同一ファイル内で変更が入り組み**ステップ単位のコミットに機械的に割れない**。
+人間の裁定 (a) により **1 コミット**(件名トークンは `(ステップ 15/38 12〜15 まとめ)`)とし、`feature_status.py` の**完了ステップ欠番の警告**(12〜14)を受け入れる。
+警告は `/pr` の突合出力に出る非ブロッキングの表示で、**PR 本文と本 worklog に内訳を明記**して追跡可能にする。以後のまとめ委任も同じ扱い。
+
+| ステップ | 実装した kind | 移行した ID | `legacy_structural` | 中間 `invariants_digest` |
+| --- | --- | --- | --- | --- |
+| 12 | `section-contains`(4 モード: text / identifier〔`_element_occurs` 同値の 3 分岐〕/ identified-row / row)+ `row-contains(elements)` | SP-02・SP-03・SP-13・SP-14 | 12 → **8** | `19e2294…ad7c8b7` |
+| 13 | `exact-set`(`sections` / `row`・**`relation` 必須**) | SP-06・SP-07 | 8 → **6** | `e569ab4…093632d2` |
+| 14 | `element-lookup`(接頭辞検索 + 意味部の識別行拘束) | SP-08 | 6 → **5** | `d502e9f…0f7ad16b` |
+| 15 | `row-scoped-forbidden`(評価器のみ) | (移行なし) | **5** のまま | 同上 |
+
+- 変異の確認: 節スコープ = 別節移動 / 意味部欠落 / ID 交換、`exact-set` = **3 節を 1 節ずつ壊す負例・別 relation を同一 manifest に置いて指定 relation だけが使われる負例**、`element-lookup` = 意味部の別行移動、`row-scoped-forbidden` = 選択行のみ検査(同節の別行なら適合)
+- 期待 fixture 99 行の `violated` / `expected_exit` は**全件変更前と同一**
+- 検証(Claude): ruff/ty passed / 3 テストファイル **206 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **1009**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 / 宣言 11 ID が design 2-1 の対応表どおり

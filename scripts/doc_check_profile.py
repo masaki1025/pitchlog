@@ -95,7 +95,7 @@ _DECLARATION_REQUIRED_FIELDS: dict[str, frozenset[str]] = {
     ),
     "required-element": frozenset({"defect_id", "kind", "sections"}),
     "exact-set": frozenset(
-        {"defect_id", "kind", "relation", "routes", "prefix"}
+        {"defect_id", "kind", "relation", "routes"}
     ),
     "cross-reference": frozenset(
         {"defect_id", "kind", "from", "to", "extract"}

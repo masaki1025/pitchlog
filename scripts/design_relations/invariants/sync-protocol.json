@@ -18,15 +18,8 @@
     "SP-20"
   ],
   "legacy_structural": [
-    "SP-02",
-    "SP-03",
-    "SP-06",
-    "SP-07",
-    "SP-08",
     "SP-09",
     "SP-12",
-    "SP-13",
-    "SP-14",
     "SP-16",
     "SP-18",
     "SP-20"
@@ -129,6 +122,211 @@
         "A5",
         "退避"
       ]
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "row-selector",
+      "id": "sp02-source",
+      "section": "7-1",
+      "mode": "identifier",
+      "keys": [
+        "A5"
+      ]
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "row-contains",
+      "row": "sp02-source",
+      "elements": {
+        "relation": "R-ACK-STATE",
+        "field": "source_elements"
+      }
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "section-contains",
+      "sections": [
+        "6-3",
+        "7-2"
+      ],
+      "elements": {
+        "relation": "R-ACK-STATE",
+        "field": "source_elements"
+      },
+      "as": "row"
+    },
+    {
+      "defect_id": "SP-03",
+      "kind": "section-contains",
+      "sections": [
+        "6-3",
+        "7-2",
+        "9-5"
+      ],
+      "elements": {
+        "relation": "R-QUEUE-LIFE",
+        "field": "source_elements"
+      },
+      "as": "identifier"
+    },
+    {
+      "defect_id": "SP-13",
+      "kind": "section-contains",
+      "sections": [
+        "4-3"
+      ],
+      "elements": {
+        "relation": "R-EVENT-FIELD",
+        "field": "source_elements"
+      },
+      "as": "identified-row",
+      "key": "id-part"
+    },
+    {
+      "defect_id": "SP-13",
+      "kind": "section-contains",
+      "sections": [
+        "4-3-A",
+        "11-2"
+      ],
+      "elements": {
+        "relation": "R-EVENT-FIELD",
+        "field": "source_elements"
+      },
+      "as": "identifier"
+    },
+    {
+      "defect_id": "SP-14",
+      "kind": "section-contains",
+      "sections": [
+        "4-3-A"
+      ],
+      "literals": [
+        "W3-a",
+        "W3-b",
+        "変更版順"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-14",
+      "kind": "section-contains",
+      "sections": [
+        "5-5",
+        "11-2"
+      ],
+      "literals": [
+        "変更版順",
+        "D1・D2",
+        "論理再生順"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-06",
+      "kind": "exact-set",
+      "sections": [
+        "8-1",
+        "10-2",
+        "11-2"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": [
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "exact-set",
+      "sections": [
+        "8-1"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": [
+        "P4"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-9-2",
+      "section": "9-2",
+      "mode": "needle",
+      "keys": [
+        "旧世代",
+        "退避",
+        "B4",
+        "原子"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-10-2",
+      "section": "10-2",
+      "mode": "needle",
+      "keys": [
+        "退避",
+        "B4",
+        "原子"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-11-2",
+      "section": "11-2",
+      "mode": "needle",
+      "keys": [
+        "P4",
+        "退避",
+        "B4"
+      ]
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "element-lookup",
+      "relation": "R-TXN-ROUTE",
+      "prefix": "T6:",
+      "section": "8-1",
+      "row_identifier": "T6"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "section-contains",
+      "sections": [
+        "4-4"
+      ],
+      "literals": [
+        "一時 ID",
+        "写像"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "section-contains",
+      "sections": [
+        "7-1"
+      ],
+      "literals": [
+        "D5",
+        "確定結果"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "exact-set",
+      "sections": [
+        "8-1"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": {
+        "containing": "T6"
+      }
     }
   ],
   "global_invariants": []

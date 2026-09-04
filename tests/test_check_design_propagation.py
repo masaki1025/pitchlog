@@ -877,7 +877,16 @@ STRUCTURAL_DEFECT_IDS = frozenset(
     }
 )
 ROW_SELECTOR_MIGRATED_IDS = frozenset({"SP-10", "SP-11"})
-MIGRATED_STRUCTURAL_IDS = ROW_SELECTOR_MIGRATED_IDS | {"SP-01"}
+SECTION_CONTAINS_MIGRATED_IDS = frozenset({"SP-02", "SP-03", "SP-13", "SP-14"})
+EXACT_SET_MIGRATED_IDS = frozenset({"SP-06", "SP-07"})
+ELEMENT_LOOKUP_MIGRATED_IDS = frozenset({"SP-08"})
+MIGRATED_STRUCTURAL_IDS = (
+    ROW_SELECTOR_MIGRATED_IDS
+    | SECTION_CONTAINS_MIGRATED_IDS
+    | EXACT_SET_MIGRATED_IDS
+    | ELEMENT_LOOKUP_MIGRATED_IDS
+    | {"SP-01"}
+)
 
 
 def _scope_section_ids(scope: str) -> tuple[str, ...]:
@@ -1060,7 +1069,7 @@ def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
     assert invariants.legacy_structural == (
         STRUCTURAL_DEFECT_IDS - MIGRATED_STRUCTURAL_IDS
     )
-    assert len(invariants.legacy_structural) == 12
+    assert len(invariants.legacy_structural) == 5
     assert invariants.required_declarations == {"MT-01"}
     assert frozenset(
         declaration["defect_id"] for declaration in invariants.declarations
@@ -1400,6 +1409,435 @@ def test_row_contains_rejects_undefined_row_reference(
         )
 
 
+@pytest.mark.parametrize("defect_id", sorted(SECTION_CONTAINS_MIGRATED_IDS))
+def test_section_contains_migration_matches_expected_legacy_and_new_paths(
+    defect_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """section-contains移行4件の期待・旧分岐・新宣言を一致させる。"""
+    expected_rows = {
+        row["case_id"]: row
+        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
+        if row["defect_id"] == defect_id
+    }
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    case_texts = _shadow_case_texts()
+
+    for case_id, expected in expected_rows.items():
+        text = case_texts[case_id]
+        legacy_reason = checker.defect_violation_reason(
+            defects[defect_id], text, manifest
+        )
+        declared_reason = checker.defect_violation_reason(
+            defects[defect_id],
+            text,
+            manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert (legacy_reason is not None) == bool(expected["expected_exit"])
+        assert (declared_reason is not None) == bool(expected["expected_exit"])
+
+
+@pytest.mark.parametrize("defect_id", sorted(SECTION_CONTAINS_MIGRATED_IDS))
+def test_section_contains_evaluator_handles_corpus_and_mutations(
+    defect_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """4モードとrow要素参照で正常・異常・同値変異を直接判定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, invalid_text, mutations = _STRUCTURAL_CASE_BY_ID[defect_id]
+
+    valid_reason, _ = _evaluate_declared_defect(
+        defect_id,
+        valid_text,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert valid_reason is None
+    for abnormal_text in (invalid_text, *mutations):
+        reason, _ = _evaluate_declared_defect(
+            defect_id,
+            abnormal_text,
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert reason is not None
+
+
+def test_section_contains_declarations_cover_all_four_modes() -> None:
+    """移行宣言がtext・identifier・identified-row・rowを全て使用する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    modes = {
+        declaration["as"]
+        for declaration in invariants.declarations
+        if declaration["defect_id"] in SECTION_CONTAINS_MIGRATED_IDS
+        and declaration["kind"] == "section-contains"
+    }
+    assert modes == {"text", "identifier", "identified-row", "row"}
+
+
+def test_manifest_element_reference_is_fail_closed(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """存在しないrelationを参照する要素宣言をProfileErrorにする。"""
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declaration = {
+        "defect_id": "SP-03",
+        "kind": "section-contains",
+        "sections": ["6-3"],
+        "elements": {"relation": "R-NOT-FOUND", "field": "source_elements"},
+        "as": "identifier",
+    }
+
+    with pytest.raises(
+        invariant_evaluator.doc_check_profile.ProfileError,
+        match="relation がマニフェストにありません",
+    ):
+        invariant_evaluator.evaluate_declaration(
+            declaration,
+            text="",
+            manifest=manifest,
+            profile=profile,
+            sections={"6-3": "### 6-3. test\n"},
+            context=invariant_evaluator.EvaluationContext(),
+        )
+
+
+@pytest.mark.parametrize("defect_id", sorted(EXACT_SET_MIGRATED_IDS))
+def test_exact_set_migration_matches_expected_legacy_and_new_paths(
+    defect_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """exact-set移行2件の期待・旧分岐・新宣言を全入力で一致させる。"""
+    expected_rows = {
+        row["case_id"]: row
+        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
+        if row["defect_id"] == defect_id
+    }
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    case_texts = _shadow_case_texts()
+
+    for case_id, expected in expected_rows.items():
+        text = case_texts[case_id]
+        legacy_reason = checker.defect_violation_reason(
+            defects[defect_id], text, manifest
+        )
+        declared_reason = checker.defect_violation_reason(
+            defects[defect_id],
+            text,
+            manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert (legacy_reason is not None) == bool(expected["expected_exit"])
+        assert (declared_reason is not None) == bool(expected["expected_exit"])
+
+
+@pytest.mark.parametrize("defect_id", sorted(EXACT_SET_MIGRATED_IDS))
+def test_exact_set_evaluator_handles_corpus_and_mutations(
+    defect_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """exact-set宣言単独で正常・異常・ID交換変異を判定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, invalid_text, mutations = _STRUCTURAL_CASE_BY_ID[defect_id]
+
+    valid_reason, _ = _evaluate_declared_defect(
+        defect_id,
+        valid_text,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert valid_reason is None
+    for abnormal_text in (invalid_text, *mutations):
+        reason, _ = _evaluate_declared_defect(
+            defect_id,
+            abnormal_text,
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert reason is not None
+
+
+@pytest.mark.parametrize("section_id", ("8-1", "10-2", "11-2"))
+def test_exact_set_checks_each_declared_section(
+    section_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """SP-06の3節はどの1節だけを壊してもexact-set違反になる。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, _, _ = _STRUCTURAL_CASE_BY_ID["SP-06"]
+    routes = checker._expected_route_elements(manifest)
+    changed = _replace_in_section(
+        valid_text,
+        section_id,
+        _route_row("P2", routes["P2"]),
+        _route_row("P2", routes["P2"]).replace("T5", "T9"),
+    )
+
+    reason, _ = _evaluate_declared_defect(
+        "SP-06",
+        changed,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert reason is not None
+    assert reason.kind == "exact-set"
+    assert reason.section == section_id
+
+
+def test_exact_set_uses_only_the_declared_relation(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """同一manifestの別関係でなく宣言したrelationから期待集合を導く。"""
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    alternate = replace(
+        manifest["R-TXN-ROUTE"],
+        id="R-ALTERNATE-ROUTE",
+        source_elements=("P1:別経路=T9",),
+    )
+    synthetic_manifest = {**manifest, alternate.id: alternate}
+    declaration = {
+        "defect_id": "SP-06",
+        "kind": "exact-set",
+        "sections": ["8-1"],
+        "relation": alternate.id,
+        "routes": ["P1"],
+    }
+    original_row = _route_row(
+        "P1", checker._expected_route_elements(manifest)["P1"]
+    )
+
+    reason = invariant_evaluator.evaluate_declaration(
+        declaration,
+        text="",
+        manifest=synthetic_manifest,
+        profile=profile,
+        sections={"8-1": original_row},
+        context=invariant_evaluator.EvaluationContext(),
+    )
+    assert reason is not None
+    assert reason.expected == "P1: T9"
+
+
+def test_exact_set_can_evaluate_a_selected_row(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """row形式では先行selectorが保存した1行の集合を比較する。"""
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    row = _route_row("P1", checker._expected_route_elements(manifest)["P1"])
+    context = invariant_evaluator.EvaluationContext(
+        selected_rows={"route": row},
+        selected_sections={"route": "8-1"},
+    )
+    declaration = {
+        "defect_id": "SP-06",
+        "kind": "exact-set",
+        "row": "route",
+        "relation": "R-TXN-ROUTE",
+        "routes": ["P1"],
+    }
+
+    reason = invariant_evaluator.evaluate_declaration(
+        declaration,
+        text="",
+        manifest=manifest,
+        profile=profile,
+        sections={},
+        context=context,
+    )
+    assert reason is None
+
+
+def test_element_lookup_migration_matches_expected_legacy_and_new_paths(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """SP-08の期待fixture・旧分岐・新宣言を全入力で一致させる。"""
+    expected_rows = {
+        row["case_id"]: row
+        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
+        if row["defect_id"] == "SP-08"
+    }
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    case_texts = _shadow_case_texts()
+
+    for case_id, expected in expected_rows.items():
+        text = case_texts[case_id]
+        legacy_reason = checker.defect_violation_reason(
+            defects["SP-08"], text, manifest
+        )
+        declared_reason = checker.defect_violation_reason(
+            defects["SP-08"],
+            text,
+            manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert (legacy_reason is not None) == bool(expected["expected_exit"])
+        assert (declared_reason is not None) == bool(expected["expected_exit"])
+
+
+def test_element_lookup_evaluator_handles_corpus_and_mutations(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """SP-08宣言単独で正常・異常・意味部別行移動を判定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, invalid_text, mutations = _STRUCTURAL_CASE_BY_ID["SP-08"]
+
+    valid_reason, _ = _evaluate_declared_defect(
+        "SP-08",
+        valid_text,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert valid_reason is None
+    reasons = []
+    for abnormal_text in (invalid_text, *mutations):
+        reason, _ = _evaluate_declared_defect(
+            "SP-08",
+            abnormal_text,
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert reason is not None
+        reasons.append(reason)
+    lookup_reason = reasons[1]
+    assert lookup_reason.kind == "element-lookup"
+    assert lookup_reason.token == "T6:"
+    assert lookup_reason.actual == "| T6 | 保存要素 |"
+
+    declarations = [
+        declaration
+        for declaration in invariants.declarations
+        if declaration["defect_id"] == "SP-08"
+    ]
+    assert declarations[0] == {
+        "defect_id": "SP-08",
+        "kind": "element-lookup",
+        "relation": "R-TXN-ROUTE",
+        "prefix": "T6:",
+        "section": "8-1",
+        "row_identifier": "T6",
+    }
+
+
+def test_row_scoped_forbidden_evaluator_and_separate_row_mutation(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """禁止語を選択行だけで拒否し、同じ節の別行なら適合させる。"""
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    selector = {
+        "defect_id": "SP-09",
+        "kind": "row-selector",
+        "id": "sp09-route",
+        "section": "8-1",
+        "mode": "identifier",
+        "keys": ["P3"],
+    }
+    declaration = {
+        "defect_id": "SP-09",
+        "kind": "row-scoped-forbidden",
+        "row": "sp09-route",
+        "literals": ["T5"],
+    }
+
+    def evaluate(section: str) -> Any:
+        context = invariant_evaluator.EvaluationContext()
+        selector_reason = invariant_evaluator.evaluate_declaration(
+            selector,
+            text="",
+            manifest=manifest,
+            profile=profile,
+            sections={"8-1": section},
+            context=context,
+        )
+        assert selector_reason is None
+        return invariant_evaluator.evaluate_declaration(
+            declaration,
+            text="",
+            manifest=manifest,
+            profile=profile,
+            sections={"8-1": section},
+            context=context,
+        )
+
+    assert evaluate("| P3 | T1・T2・T4・T6・T7 |") is None
+    violation = evaluate("| P3 | T1・T2・T4・T5・T6・T7 |")
+    assert violation is not None
+    assert violation.kind == "row-scoped-forbidden"
+    assert violation.token == "T5"
+    assert (
+        evaluate("| P3 | T1・T2・T4・T6・T7 |\n| 補足 | T5 は別行 |")
+        is None
+    )
+
+
 def test_mt01_absent_section_uses_declaration_path(
     manifest: dict[str, checker.ManifestRelation],
     defects: dict[str, checker.Defect],
@@ -1493,7 +1931,7 @@ def test_forbidden_element_declaration_evaluator_is_fail_closed(
         match="未実装の kind",
     ):
         invariant_evaluator.evaluate_declaration(
-            {"defect_id": "SP-01", "kind": "section-contains"},
+            {"defect_id": "SP-09", "kind": "any-of"},
             text="",
             manifest=manifest,
             profile=profile,
@@ -2211,7 +2649,7 @@ def test_cli_always_enforces_invariant_binding_rules(tmp_path: Path) -> None:
         / "invariants"
         / "sync-protocol.json"
     )
-    invariants["structural_required"].remove("SP-02")
+    invariants["structural_required"].remove("SP-09")
     _write_json(invariants_path, invariants)
     schema_path.parent.mkdir(parents=True, exist_ok=True)
     schema_path.write_text(
@@ -2235,7 +2673,7 @@ def test_cli_always_enforces_invariant_binding_rules(tmp_path: Path) -> None:
     result = _run_cli("--registry", str(registry_path))
     assert result.returncode == 2
     assert "結合規則3" in result.stderr
-    assert "SP-02" in result.stderr
+    assert "SP-09" in result.stderr
 
 
 def test_profile_with_unsupported_preamble_fails(tmp_path: Path) -> None:

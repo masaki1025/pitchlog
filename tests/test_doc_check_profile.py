@@ -821,8 +821,147 @@ def test_production_invariants_load_and_satisfy_binding_rules() -> None:
             "row": "sp01-boundary",
             "literals": ["A5", "退避"],
         },
+        {
+            "defect_id": "SP-02",
+            "kind": "row-selector",
+            "id": "sp02-source",
+            "section": "7-1",
+            "mode": "identifier",
+            "keys": ["A5"],
+        },
+        {
+            "defect_id": "SP-02",
+            "kind": "row-contains",
+            "row": "sp02-source",
+            "elements": {
+                "relation": "R-ACK-STATE",
+                "field": "source_elements",
+            },
+        },
+        {
+            "defect_id": "SP-02",
+            "kind": "section-contains",
+            "sections": ["6-3", "7-2"],
+            "elements": {
+                "relation": "R-ACK-STATE",
+                "field": "source_elements",
+            },
+            "as": "row",
+        },
+        {
+            "defect_id": "SP-03",
+            "kind": "section-contains",
+            "sections": ["6-3", "7-2", "9-5"],
+            "elements": {
+                "relation": "R-QUEUE-LIFE",
+                "field": "source_elements",
+            },
+            "as": "identifier",
+        },
+        {
+            "defect_id": "SP-13",
+            "kind": "section-contains",
+            "sections": ["4-3"],
+            "elements": {
+                "relation": "R-EVENT-FIELD",
+                "field": "source_elements",
+            },
+            "as": "identified-row",
+            "key": "id-part",
+        },
+        {
+            "defect_id": "SP-13",
+            "kind": "section-contains",
+            "sections": ["4-3-A", "11-2"],
+            "elements": {
+                "relation": "R-EVENT-FIELD",
+                "field": "source_elements",
+            },
+            "as": "identifier",
+        },
+        {
+            "defect_id": "SP-14",
+            "kind": "section-contains",
+            "sections": ["4-3-A"],
+            "literals": ["W3-a", "W3-b", "変更版順"],
+            "as": "text",
+        },
+        {
+            "defect_id": "SP-14",
+            "kind": "section-contains",
+            "sections": ["5-5", "11-2"],
+            "literals": ["変更版順", "D1・D2", "論理再生順"],
+            "as": "text",
+        },
+        {
+            "defect_id": "SP-06",
+            "kind": "exact-set",
+            "sections": ["8-1", "10-2", "11-2"],
+            "relation": "R-TXN-ROUTE",
+            "routes": ["P1", "P2", "P3"],
+        },
+        {
+            "defect_id": "SP-07",
+            "kind": "exact-set",
+            "sections": ["8-1"],
+            "relation": "R-TXN-ROUTE",
+            "routes": ["P4"],
+        },
+        {
+            "defect_id": "SP-07",
+            "kind": "row-selector",
+            "id": "sp07-atomic-9-2",
+            "section": "9-2",
+            "mode": "needle",
+            "keys": ["旧世代", "退避", "B4", "原子"],
+        },
+        {
+            "defect_id": "SP-07",
+            "kind": "row-selector",
+            "id": "sp07-atomic-10-2",
+            "section": "10-2",
+            "mode": "needle",
+            "keys": ["退避", "B4", "原子"],
+        },
+        {
+            "defect_id": "SP-07",
+            "kind": "row-selector",
+            "id": "sp07-atomic-11-2",
+            "section": "11-2",
+            "mode": "needle",
+            "keys": ["P4", "退避", "B4"],
+        },
+        {
+            "defect_id": "SP-08",
+            "kind": "element-lookup",
+            "relation": "R-TXN-ROUTE",
+            "prefix": "T6:",
+            "section": "8-1",
+            "row_identifier": "T6",
+        },
+        {
+            "defect_id": "SP-08",
+            "kind": "section-contains",
+            "sections": ["4-4"],
+            "literals": ["一時 ID", "写像"],
+            "as": "text",
+        },
+        {
+            "defect_id": "SP-08",
+            "kind": "section-contains",
+            "sections": ["7-1"],
+            "literals": ["D5", "確定結果"],
+            "as": "text",
+        },
+        {
+            "defect_id": "SP-08",
+            "kind": "exact-set",
+            "sections": ["8-1"],
+            "relation": "R-TXN-ROUTE",
+            "routes": {"containing": "T6"},
+        },
     )
-    assert len(invariants.legacy_structural) == 12
+    assert len(invariants.legacy_structural) == 5
     assert invariants.global_invariants == ()
     profile_loader.validate_binding_rules(
         invariants,
@@ -855,12 +994,12 @@ def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
     elif mutation == "missing-declaration":
         invariants = replace(
             invariants,
-            legacy_structural=invariants.legacy_structural - {"SP-02"},
+            legacy_structural=invariants.legacy_structural - {"SP-09"},
         )
     elif mutation == "legacy-outside-structural":
         invariants = replace(
             invariants,
-            structural_required=invariants.structural_required - {"SP-02"},
+            structural_required=invariants.structural_required - {"SP-09"},
         )
     elif mutation == "extra-declaration":
         invariants = replace(
@@ -891,12 +1030,12 @@ def test_binding_rule_three_rejects_legacy_branch_mismatch() -> None:
     invariants = profile_loader.load_invariants(INVARIANTS_PATH)
     machine, forbidden, legacy_branches = _binding_inputs()
 
-    with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-02"):
+    with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-09"):
         profile_loader.validate_binding_rules(
             invariants,
             machine_defect_ids=machine,
             forbidden_defect_ids=forbidden,
-            legacy_branch_ids=legacy_branches - {"SP-02"},
+            legacy_branch_ids=legacy_branches - {"SP-09"},
         )
 
 
