@@ -753,7 +753,48 @@ def test_production_invariants_load_and_satisfy_binding_rules() -> None:
     assert invariants.required_declarations == {"MT-01"}
     assert invariants.declarations == (
         {"defect_id": "MT-01", "kind": "absent-section", "section": "1"},
+        {
+            "defect_id": "SP-10",
+            "kind": "row-selector",
+            "id": "sp10-route",
+            "section": "8-1",
+            "mode": "identifier",
+            "keys": ["P3"],
+        },
+        {
+            "defect_id": "SP-10",
+            "kind": "row-selector",
+            "id": "sp10-response",
+            "section": "7-1",
+            "mode": "needle",
+            "keys": ["P3", "応答"],
+        },
+        {
+            "defect_id": "SP-11",
+            "kind": "row-selector",
+            "id": "sp11-6-2",
+            "section": "6-2",
+            "mode": "needle",
+            "keys": ["期待版不一致"],
+        },
+        {
+            "defect_id": "SP-11",
+            "kind": "row-selector",
+            "id": "sp11-6-3",
+            "section": "6-3",
+            "mode": "needle",
+            "keys": ["期待版不一致"],
+        },
+        {
+            "defect_id": "SP-11",
+            "kind": "row-selector",
+            "id": "sp11-8-3",
+            "section": "8-3",
+            "mode": "needle",
+            "keys": ["期待版不一致"],
+        },
     )
+    assert len(invariants.legacy_structural) == 13
     assert invariants.global_invariants == ()
     profile_loader.validate_binding_rules(
         invariants,

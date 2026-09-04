@@ -429,29 +429,10 @@ def extract_scope(
     return "\n".join(sections)
 
 
-def _table_row(section: str, *needles: str) -> str | None:
-    for line in section.splitlines():
-        if line.lstrip().startswith("|") and all(needle in line for needle in needles):
-            return line
-    return None
-
-
-def _table_cells(line: str) -> tuple[str, ...]:
-    if not line.lstrip().startswith("|"):
-        return ()
-    return tuple(cell.strip() for cell in line.strip().strip("|").split("|"))
-
-
-def _plain_cell(cell: str) -> str:
-    return cell.replace("**", "").replace("`", "").strip()
-
-
-def _identified_row(section: str, identifier: str) -> str | None:
-    for line in section.splitlines():
-        cells = _table_cells(line)
-        if cells and _plain_cell(cells[0]) == identifier:
-            return line
-    return None
+_table_row = doc_check_invariants.table_row
+_table_cells = doc_check_invariants.table_cells
+_plain_cell = doc_check_invariants.plain_cell
+_identified_row = doc_check_invariants.identified_row
 
 
 def _element_has_row(section: str, element: str) -> bool:
@@ -757,6 +738,7 @@ def defect_violation_reason(
         if forbidden in scoped:
             return f"禁止literalが残存: {forbidden}"
     if invariants is not None:
+        context = doc_check_invariants.EvaluationContext()
         declarations = (
             declaration
             for declaration in invariants.declarations
@@ -770,6 +752,7 @@ def defect_violation_reason(
                 manifest=manifest,
                 profile=profile,
                 sections=sections,
+                context=context,
             )
             if reason is not None:
                 return reason.actual or f"{reason.kind} に違反"

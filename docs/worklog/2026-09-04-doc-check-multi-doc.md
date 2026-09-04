@@ -409,3 +409,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   `doc_check_profile.py`(`absent-section` の必須引数・節不在の事前検査から除外)/ 期待 fixture / テスト
 - 検証(Claude): ruff/ty passed / 3 テストファイル **176 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture --defects MT-01` rc 1 / 収集 **979**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 /
   **評価器を直接実行**: approved → `None`(適合)、fixture(`## 1.` あり)→ `StructuredReason(violated=True, kind='absent-section', section='1', expected='節が存在しない', actual='節が存在する')`。**裁定 (a′) の「節 1 の不在」が機械保証に復帰**
+
+### ステップ 10/38 — `row-selector`(needle / identifier)の評価器 + SP-10・SP-11 の移行(Codex `--resume`)
+
+- 変更 7 ファイル。**補助述語を `doc_check_invariants.py` へ一本化**(`table_row` / `identified_row` / `table_cells` / `plain_cell`)し、`check_design_propagation.py` は
+  `_table_row = doc_check_invariants.table_row` のエイリアス束縛で参照(**コピー実装なし** — NFR-018 の趣旨)。旧分岐は残置(撤去はステップ 22)
+- 宣言: SP-10(8-1 identifier P3 → 7-1 needle P3・応答)/ SP-11(6-2・6-3・8-3 の needle 期待版不一致)。**`legacy_structural` 15 → 13**、`declarations` の ID = MT-01 / SP-10 / SP-11
+- `invariants_digest` → `3190f7f7…`(再計算一致)
+- 検証(Claude): ruff/ty passed / 3 テストファイル **181 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **984**・基準欠落 0 / 対象外パスの差分 0 / 述語の重複定義なし(grep で単一実装を確認)

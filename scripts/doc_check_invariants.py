@@ -6,7 +6,7 @@ import importlib.util
 import re
 import sys
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +60,46 @@ class StructuredReason:
     token: str | None
 
 
+@dataclass
+class EvaluationContext:
+    """同じ欠陥内の宣言間で共有する評価文脈。
+
+    Attributes:
+        selected_rows: ``row-selector`` のIDから選択行への対応。
+    """
+
+    selected_rows: dict[str, str] = field(default_factory=dict)
+
+
+def table_row(section: str, *needles: str) -> str | None:
+    """全needleを含む最初のMarkdown表行を返す。"""
+    for line in section.splitlines():
+        if line.lstrip().startswith("|") and all(needle in line for needle in needles):
+            return line
+    return None
+
+
+def table_cells(line: str) -> tuple[str, ...]:
+    """Markdown表行を前後空白除去済みのセルへ分割する。"""
+    if not line.lstrip().startswith("|"):
+        return ()
+    return tuple(cell.strip() for cell in line.strip().strip("|").split("|"))
+
+
+def plain_cell(cell: str) -> str:
+    """識別子比較のためセルから既存の装飾記号を除く。"""
+    return cell.replace("**", "").replace("`", "").strip()
+
+
+def identified_row(section: str, identifier: str) -> str | None:
+    """第1セルが識別子に一致する最初のMarkdown表行を返す。"""
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if cells and plain_cell(cells[0]) == identifier:
+            return line
+    return None
+
+
 def _heading_exists(text: str, section_id: str) -> bool:
     """既存検査器と同じ規則で節見出しの存在を判定する。"""
     title_re = re.compile(rf"^{re.escape(section_id)}(?:[.\s(]|$)")
@@ -77,6 +117,7 @@ def evaluate_declaration(
     manifest: Mapping[str, Any],
     profile: Any,
     sections: Mapping[str, str],
+    context: EvaluationContext | None = None,
 ) -> StructuredReason | None:
     """1件の宣言を評価する。
 
@@ -86,6 +127,7 @@ def evaluate_declaration(
         manifest: 関係マニフェスト。
         profile: 検証済みプロファイル。
         sections: 事前に解決した節IDと本文の対応。
+        context: 同じ欠陥内の宣言間で共有する評価文脈。
 
     Returns:
         違反時の構造化理由。適合時は ``None``。
@@ -94,7 +136,7 @@ def evaluate_declaration(
         ProfileError: kindが未実装か、宣言または節指定が不正な場合。
     """
     kind = declaration.get("kind")
-    if kind not in {"forbidden-element", "absent-section"}:
+    if kind not in {"forbidden-element", "row-selector", "absent-section"}:
         raise doc_check_profile.ProfileError(f"未実装の kind です: {kind!r}")
     doc_check_profile.validate_declaration(declaration)
 
@@ -110,6 +152,37 @@ def evaluate_declaration(
             actual="節が存在する",
             token=None,
         )
+    if kind == "row-selector":
+        section_id = declaration["section"]
+        section_text = sections.get(section_id)
+        if section_text is None:
+            raise doc_check_profile.ProfileError(
+                f"row-selector の節を解決できません: {section_id}"
+            )
+        keys = declaration["keys"]
+        mode = declaration["mode"]
+        row = (
+            table_row(section_text, *keys)
+            if mode == "needle"
+            else identified_row(section_text, keys[0])
+        )
+        if row is None:
+            expected = (
+                f"{'・'.join(keys)} をすべて含む表行"
+                if mode == "needle"
+                else f"第1セルが {keys[0]} の表行"
+            )
+            return StructuredReason(
+                violated=True,
+                kind=kind,
+                section=section_id,
+                expected=expected,
+                actual=None,
+                token=None,
+            )
+        if context is not None:
+            context.selected_rows[declaration["id"]] = row
+        return None
     del manifest, profile
 
     requested_sections = declaration.get("sections")

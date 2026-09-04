@@ -546,9 +546,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "section": "7-1",
+      "expected": "P3・応答 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -560,9 +560,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "section": "8-1",
+      "expected": "第1セルが P3 の表行",
+      "actual": null,
       "token": null
     }
   },
@@ -574,9 +574,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "P3に適用する独立した応答保証が7-1にない",
+      "section": "7-1",
+      "expected": "P3・応答 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -616,9 +616,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "期待版不一致が8-3へ伝播していない",
+      "section": "8-3",
+      "expected": "期待版不一致 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -630,9 +630,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "期待版不一致が6-2へ伝播していない",
+      "section": "6-2",
+      "expected": "期待版不一致 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -644,9 +644,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "期待版不一致が6-2へ伝播していない",
+      "section": "6-2",
+      "expected": "期待版不一致 をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },

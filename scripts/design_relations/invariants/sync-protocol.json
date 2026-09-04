@@ -25,8 +25,6 @@
     "SP-07",
     "SP-08",
     "SP-09",
-    "SP-10",
-    "SP-11",
     "SP-12",
     "SP-13",
     "SP-14",
@@ -42,6 +40,57 @@
       "defect_id": "MT-01",
       "kind": "absent-section",
       "section": "1"
+    },
+    {
+      "defect_id": "SP-10",
+      "kind": "row-selector",
+      "id": "sp10-route",
+      "section": "8-1",
+      "mode": "identifier",
+      "keys": [
+        "P3"
+      ]
+    },
+    {
+      "defect_id": "SP-10",
+      "kind": "row-selector",
+      "id": "sp10-response",
+      "section": "7-1",
+      "mode": "needle",
+      "keys": [
+        "P3",
+        "応答"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-6-2",
+      "section": "6-2",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-6-3",
+      "section": "6-3",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-8-3",
+      "section": "8-3",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
     }
   ],
   "global_invariants": []
