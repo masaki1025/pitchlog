@@ -1,4 +1,4 @@
-// このパーサは docs/design/sync-protocol.md 4-3・4-5 と 5-5 の対象規則の写しである。
+// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5 と 5-5 の対象規則の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
 // テストからのみ使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
@@ -10,6 +10,7 @@ const PARTICIPATION_RELATION_ID = 'R-PARTICIPATION'
 const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
+const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -578,4 +579,80 @@ export function readCanonIdempotencyCollisionRules(
     d1Relation.source_elements,
     p3Relation.source_elements,
   )
+}
+
+export const CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE = [
+  { id: 'C1', reason: '応答で写像を返す7章の契約に依存するため' },
+  { id: 'C4', reason: '写像確定後の状態遷移を定める7章の契約に依存するため' },
+] as const
+
+const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3'])
+const OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS = new Set<string>(
+  CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
+)
+
+export type CanonTemporaryIdMappingRule = Readonly<{
+  id: string
+  rightHandSide: string
+}>
+
+export function parseCanonTemporaryIdMappingRules(
+  sourceElements: readonly unknown[],
+): readonly CanonTemporaryIdMappingRule[] {
+  const seenIds = new Set<string>()
+  const rules: CanonTemporaryIdMappingRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-TEMP-ID-MAPPING の要素は文字列でなければなりません')
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    if (
+      separatorIndex <= 0 ||
+      separatorIndex === sourceElement.length - 1 ||
+      sourceElement.indexOf(':', separatorIndex + 1) >= 0
+    ) {
+      throw new Error(`R-TEMP-ID-MAPPING の形式が不正です: ${sourceElement}`)
+    }
+
+    const id = sourceElement.slice(0, separatorIndex)
+    if (seenIds.has(id)) {
+      throw new Error(`R-TEMP-ID-MAPPING の ID が重複しています: ${id}`)
+    }
+    seenIds.add(id)
+
+    if (IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS.has(id)) {
+      rules.push(
+        Object.freeze({
+          id,
+          rightHandSide: sourceElement.slice(separatorIndex + 1),
+        }),
+      )
+    } else if (!OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS.has(id)) {
+      throw new Error(`R-TEMP-ID-MAPPING に未知の ID があります: ${id}`)
+    }
+  }
+
+  for (const implementedId of IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS) {
+    if (!seenIds.has(implementedId)) {
+      throw new Error(
+        `R-TEMP-ID-MAPPING の実装対象 ID が不足しています: ${implementedId}`,
+      )
+    }
+  }
+  return Object.freeze(rules)
+}
+
+export function readCanonTemporaryIdMappingRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonTemporaryIdMappingRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[TEMPORARY_ID_MAPPING_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-TEMP-ID-MAPPING.source_elements がありません')
+  }
+  return parseCanonTemporaryIdMappingRules(relation.source_elements)
 }

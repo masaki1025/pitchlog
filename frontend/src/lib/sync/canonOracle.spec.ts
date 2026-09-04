@@ -4,15 +4,19 @@ import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
 import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
 import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
+import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import {
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
+  CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
+  readCanonTemporaryIdMappingRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
+  type CanonTemporaryIdMappingRule,
   type CanonV12BoundaryRule,
 } from './canonOracle'
 
@@ -139,6 +143,18 @@ function expectV12BoundaryRulesToMatchCanon(
 function expectIdempotencyRulesToMatchCanon(
   rules: readonly ComparableIdempotencyCollisionRule[],
   canonRules: readonly CanonIdempotencyCollisionRule[],
+): void {
+  expect(new Set(rules.map((rule) => rule.id))).toEqual(
+    new Set(canonRules.map((rule) => rule.id)),
+  )
+  expect(new Map(rules.map((rule) => [rule.id, rule.rightHandSide]))).toEqual(
+    new Map(canonRules.map((rule) => [rule.id, rule.rightHandSide])),
+  )
+}
+
+function expectTemporaryIdMappingRulesToMatchCanon(
+  rules: readonly ComparableIdempotencyCollisionRule[],
+  canonRules: readonly CanonTemporaryIdMappingRule[],
 ): void {
   expect(new Set(rules.map((rule) => rule.id))).toEqual(
     new Set(canonRules.map((rule) => rule.id)),
@@ -417,6 +433,52 @@ describe('canonOracle', () => {
       expectIdempotencyRulesToMatchCanon(
         IDEMPOTENCY_COLLISION_RULES,
         readCanonIdempotencyCollisionRules(mutatedRelations),
+      ),
+    ).toThrow()
+  })
+
+  it('C2・C3 の右辺を R-TEMP-ID-MAPPING と逐語照合する', () => {
+    const reversedCanonRules = [...readCanonTemporaryIdMappingRules()].reverse()
+
+    expectTemporaryIdMappingRulesToMatchCanon(
+      TEMPORARY_ID_MAPPING_RULES,
+      reversedCanonRules,
+    )
+  })
+
+  it('C1・C4 を理由つきの射程外 allow-list に置く', () => {
+    expect(
+      CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
+    ).toEqual(['C1', 'C4'])
+    for (const element of CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE) {
+      expect(element.reason.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('R-TEMP-ID-MAPPING の allow-list にない未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-TEMP-ID-MAPPING'].source_elements.push(
+      'C5:未知の写像契約',
+    )
+
+    expect(() =>
+      readCanonTemporaryIdMappingRules(mutatedRelations),
+    ).toThrowError(/未知の ID/)
+  })
+
+  it('C2・C3 の右辺変更を逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TEMP-ID-MAPPING'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('C2:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = 'C2:後続イベントの参照+決定的に解決'
+    expect(() =>
+      expectTemporaryIdMappingRulesToMatchCanon(
+        TEMPORARY_ID_MAPPING_RULES,
+        readCanonTemporaryIdMappingRules(mutatedRelations),
       ),
     ).toThrow()
   })
