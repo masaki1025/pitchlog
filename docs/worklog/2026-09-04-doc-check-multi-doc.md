@@ -349,3 +349,12 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 検証(Claude が再実行): ruff → All checks passed(0)/ ty → All checks passed(0)/ `pytest tests/test_check_design_propagation.py -q -rA` → **100 passed**・skip/xfail/xpass/deselected 0 /
   3 検査 green / 収集 node ID **911**・基準 875 の欠落 **0**(`comm -13` 空)。Codex 報告: `pytest tests/ -q -rA` → 911 passed
 - 差分範囲: `git status --short` = `M tests/test_check_design_propagation.py` のみ(scripts / oracle / fixtures 無変更)
+
+### ステップ 3/38 — MT-01 エントリの一貫改訂(oracle の正当な改訂・裁定 (a′) 前半・Codex `--resume`)
+
+- 変更: `scripts/design_relations/defects.json`(**MT-01 の 4 欄のみ** — `scope` から `1節` を除去〔12 トークン〕・`location` / `invariant.positive` / `invariant.mapping` を「12 アンカー + 節 1 の不在」へ。`forbidden` 15 件・`source`・`check`・`owner_step` は不変)/
+  `tests/test_check_design_propagation.py`(forbidden corpus の MT-01 対を `### 2-2.` 配下へ・`## 1.` を除去)
+- 機械検査(Claude): `git show HEAD:…defects.json` と作業ツリーを JSON 比較 → **変更エントリ = ['MT-01'] のみ**、MT-01 の変更欄 = location / invariant.{positive, scope, mapping}、forbidden 同一
+- 検証(Claude): ruff/ty → passed(0)/ `pytest tests/test_check_design_propagation.py` → 100 passed(安全網 2 本を含む — 機械 17 件の検出集合が完全一致)/ `check_design_propagation.py`(引数なし・approved)→ **rc 0** /
+  `--document tests/fixtures/sync-protocol-source.txt --defects MT-01` → **rc 1**(引き続き検出)/ `check_docs_status` `check_doc_coverage` green / fixture SHA-256 `2e38de6b…` = `fixture-sha256.txt` **一致**
+- 差分範囲: 2 ファイル(+6 / −6)。人間の逐行確認対象(`defects.json` は guard_paths 該当)— PR で実施記録行を付ける
