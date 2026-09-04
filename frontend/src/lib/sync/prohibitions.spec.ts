@@ -3,16 +3,22 @@ import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_REQUIREDNESS,
   EVENT_FIELD_RULES,
+  EVENT_SLOT_IDS,
   resolveEventFieldPresence,
   SYNC_EVENT_PATH,
+  type EventSlotId,
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
+import { readCanonEventFieldRules } from './canonOracle'
 import {
   buildSidecarJoinKey,
   TARGET_EVENT_REFERENCE_ELEMENTS,
+  type SyncEvent,
 } from './syncEvent'
+import { checkSyncEvent } from './validateSyncEvent'
 
 type RawModule = { default: string }
+type ProductModule = Record<string, unknown>
 type ProductSource = Readonly<{
   fileName: string
   source: string
@@ -22,60 +28,122 @@ type ForbiddenCandidate = Readonly<{
   pattern: RegExp
 }>
 
-const rawModules = import.meta.glob<RawModule>('./*.ts', {
+const EXPECTED_PRODUCT_FILE_NAMES = [
+  'canonOracle.ts',
+  'eventFieldRules.ts',
+  'eventKinds.ts',
+  'idempotencyCollision.ts',
+  'requestBoundary.ts',
+  'syncEvent.ts',
+  'temporaryIdMapping.ts',
+  'validateSyncEvent.ts',
+] as const
+
+const EXPECTED_VALUE_EXPORTS = {
+  'canonOracle.ts': [
+    'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
+    'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
+    'parseCanonEventFieldRules',
+    'parseCanonIdempotencyCollisionRules',
+    'parseCanonParticipationRules',
+    'parseCanonTemporaryIdMappingRules',
+    'parseCanonV12BoundaryRules',
+    'readCanonEventFieldRules',
+    'readCanonIdempotencyCollisionRules',
+    'readCanonParticipationRules',
+    'readCanonTemporaryIdMappingRules',
+    'readCanonV12BoundaryRules',
+  ],
+  'eventFieldRules.ts': [
+    'EVENT_FIELD_PRESENCE',
+    'EVENT_FIELD_REQUIREDNESS',
+    'EVENT_FIELD_RULES',
+    'EVENT_IDENTIFIER_SLOT_IDS',
+    'EVENT_KIND_SLOT_ID',
+    'EVENT_SLOT_IDS',
+    'REQUEST_ONLY_IDS',
+    'SYNC_EVENT_PATH',
+    'SYNC_EVENT_PATHS',
+    'isCancellableEventKind',
+    'resolveEventFieldPresence',
+  ],
+  'eventKinds.ts': [
+    'EVENT_KIND_GROUP',
+    'EVENT_KIND_RULES',
+    'EVENT_PARTICIPATION',
+    'buildSyncEventKindSet',
+  ],
+  'idempotencyCollision.ts': [
+    'CONTENT_IDENTITY',
+    'IDEMPOTENCY_COLLISION_RULES',
+    'IDEMPOTENCY_DECISION',
+    'IDEMPOTENCY_SCOPE_RULE',
+    'decideIdempotencyCollision',
+  ],
+  'requestBoundary.ts': [
+    'P3_REQUEST_STATE',
+    'REQUEST_BOUNDARY_RESULT',
+    'RequestBoundaryError',
+    'V12_BINDING_COMPONENTS',
+    'V12_BOUNDARY_RULES',
+    'checkRequestBoundary',
+    'retryRequestBoundary',
+    'validateRequestBoundary',
+  ],
+  'syncEvent.ts': [
+    'TARGET_EVENT_REFERENCE_ELEMENTS',
+    'buildSidecarJoinKey',
+    'isTargetEventReference',
+  ],
+  'temporaryIdMapping.ts': [
+    'TEMPORARY_ID_MAPPING_RULES',
+    'TemporaryIdMapping',
+    'assertD5IsNotTemporary',
+  ],
+  'validateSyncEvent.ts': [
+    'SYNC_EVENT_VIOLATION',
+    'SyncEventValidationError',
+    'checkSyncEvent',
+    'validateSyncEvent',
+  ],
+} as const satisfies Readonly<Record<string, readonly string[]>>
+
+const rawModules = import.meta.glob<RawModule>('./**/*.ts', {
   query: '?raw',
   eager: true,
 })
+const productModules = import.meta.glob<ProductModule>(
+  ['./**/*.ts', '!./**/*.spec.ts'],
+  { eager: true },
+)
 
-const PRODUCT_SOURCES: readonly ProductSource[] = Object.entries(rawModules)
+const productSources: readonly ProductSource[] = Object.entries(rawModules)
   .filter(([path]) => !path.endsWith('.spec.ts'))
   .map(([path, module]) => ({
     fileName: path.slice(2),
     source: module.default,
   }))
 
-const USER_IDENTITY_CANDIDATES: readonly ForbiddenCandidate[] = [
-  { name: 'userId', pattern: /\buserId\b/i },
-  { name: 'user_id', pattern: /\buser_id\b/i },
-  { name: 'operator', pattern: /\boperator\b/i },
-  { name: 'operatorId', pattern: /\boperatorId\b/i },
-  { name: 'operator_id', pattern: /\boperator_id\b/i },
-  { name: 'inputBy', pattern: /\binputBy\b/i },
-  { name: 'input_by', pattern: /\binput_by\b/i },
-  { name: 'inputterId', pattern: /\binputterId\b/i },
-  { name: 'inputter_id', pattern: /\binputter_id\b/i },
-  { name: '利用者', pattern: /利用者/ },
-  { name: '入力者', pattern: /入力者/ },
-]
-
-const PITCH_DETAIL_CANDIDATES: readonly ForbiddenCandidate[] = [
-  { name: 'velocity', pattern: /\bvelocity\b/i },
-  { name: 'pitchVelocity', pattern: /\bpitchVelocity\b/i },
-  { name: 'pitch_velocity', pattern: /\bpitch_velocity\b/i },
-  { name: '球速', pattern: /球速/ },
-  { name: 'course', pattern: /\bcourse\b/i },
-  { name: 'pitchCourse', pattern: /\bpitchCourse\b/i },
-  { name: 'pitch_course', pattern: /\bpitch_course\b/i },
-  { name: 'コース', pattern: /コース/ },
-  { name: 'pitchType', pattern: /\bpitchType\b/i },
-  { name: 'pitch_type', pattern: /\bpitch_type\b/i },
-  { name: '球種', pattern: /球種/ },
-]
-
-const DIRECT_STATE_OVERWRITE_EXPORT_CANDIDATES: readonly RegExp[] = [
-  /^(?:overwrite|replace|set|update|mutate|apply).*State/i,
-  /^(?:overwrite|replace|set|update|mutate|apply)_state/i,
-]
+const actualProductFileNames = productSources
+  .map((entry) => entry.fileName)
+  .sort()
+const expectedProductFileNames = [...EXPECTED_PRODUCT_FILE_NAMES].sort()
+if (
+  actualProductFileNames.length !== expectedProductFileNames.length ||
+  actualProductFileNames.some(
+    (fileName, index) => fileName !== expectedProductFileNames[index],
+  )
+) {
+  throw new Error(
+    `走査対象の製品ファイル集合が一致しません: ${actualProductFileNames.join(',')}`,
+  )
+}
+const PRODUCT_SOURCES = Object.freeze(productSources)
 
 const OUT_OF_SCOPE_CANDIDATES = {
   U1: [
     { name: '対象連番', pattern: /対象連番/ },
     { name: '欠落範囲', pattern: /欠落範囲/ },
-    { name: 'targetSequence', pattern: /\btargetSequence\b/i },
-    { name: 'targetEventSequence', pattern: /\btargetEventSequence\b/i },
-    { name: 'missingRange', pattern: /\bmissingRange\b/i },
-    { name: 'missingSequenceRange', pattern: /\bmissingSequenceRange\b/i },
-    { name: 'gapRange', pattern: /\bgapRange\b/i },
   ],
   U2: [
     { name: '退避イベント', pattern: /退避イベント/ },
@@ -83,28 +151,9 @@ const OUT_OF_SCOPE_CANDIDATES = {
     { name: '挿入位置', pattern: /挿入位置/ },
     { name: '採番', pattern: /採番/ },
     { name: '凍結', pattern: /凍結/ },
-    { name: 'quarantineImport', pattern: /\bquarantineImport\b/i },
-    { name: 'insertionPosition', pattern: /\binsertionPosition\b/i },
-    { name: 'frozenSequence', pattern: /\bfrozenSequence\b/i },
   ],
-  U3: [
-    { name: '保持期限', pattern: /保持期限/ },
-    { name: 'retentionDeadline', pattern: /\bretentionDeadline\b/i },
-    { name: 'retentionPeriod', pattern: /\bretentionPeriod\b/i },
-    { name: 'retentionDays', pattern: /\bretentionDays\b/i },
-    { name: 'retentionExpiresAt', pattern: /\bretentionExpiresAt\b/i },
-    { name: 'expiresAt', pattern: /\bexpiresAt\b/i },
-    { name: 'expires_at', pattern: /\bexpires_at\b/i },
-  ],
-  U4: [
-    { name: '正史復元', pattern: /正史復元/ },
-    { name: 'canonicalRestore', pattern: /\bcanonicalRestore\b/i },
-    { name: 'restoreCanonical', pattern: /\brestoreCanonical\w*\b/i },
-    {
-      name: 'restoreCanonicalHistory',
-      pattern: /\brestoreCanonicalHistory\b/i,
-    },
-  ],
+  U3: [{ name: '保持期限', pattern: /保持期限/ }],
+  U4: [{ name: '正史復元', pattern: /正史復元/ }],
 } as const satisfies Readonly<Record<string, readonly ForbiddenCandidate[]>>
 
 const V_IDS = [
@@ -174,6 +223,14 @@ function sourceFor(fileName: string): string {
   return productSource.source
 }
 
+function moduleFor(fileName: string): ProductModule {
+  const productModule = productModules[`./${fileName}`]
+  if (!productModule) {
+    throw new Error(`検査対象の製品 module がありません: ${fileName}`)
+  }
+  return productModule
+}
+
 function expectCandidatesAbsent(
   candidates: readonly ForbiddenCandidate[],
 ): void {
@@ -187,10 +244,20 @@ function expectCandidatesAbsent(
   }
 }
 
-function exportedValueIdentifiers(source: string): readonly string[] {
-  return [...source.matchAll(/\bexport\s+(?:const|function|class)\s+([\w$]+)/g)]
-    .map((match) => match[1])
-    .filter((identifier): identifier is string => identifier !== undefined)
+function expectEventSlotsToMatchCanon(): void {
+  const canonRules = readCanonEventFieldRules()
+  const implementationIds = EVENT_FIELD_RULES.map((rule) => rule.id)
+  const canonIds = canonRules.map((rule) => rule.id)
+  const canonEventSlotIds = canonRules
+    .filter(
+      (rule) => rule.requiredness !== EVENT_FIELD_REQUIREDNESS.REQUEST_LEVEL,
+    )
+    .map((rule) => rule.id)
+
+  expect(implementationIds).toHaveLength(canonIds.length)
+  expect(new Set(implementationIds)).toEqual(new Set(canonIds))
+  expect(EVENT_SLOT_IDS).toHaveLength(canonEventSlotIds.length)
+  expect(new Set(EVENT_SLOT_IDS)).toEqual(new Set(canonEventSlotIds))
 }
 
 function exactStringLiterals(source: string, valuePattern: string): string[] {
@@ -201,8 +268,17 @@ function exactStringLiterals(source: string, valuePattern: string): string[] {
 }
 
 describe('prohibitions', () => {
-  it('raw 走査対象が空でなく、spec を含まない', () => {
+  it('raw 走査対象を再帰取得し、製品ファイルの完全集合と一致させる', () => {
+    expect(EXPECTED_PRODUCT_FILE_NAMES.length).toBeGreaterThan(0)
     expect(PRODUCT_SOURCES.length).toBeGreaterThan(0)
+    expect(PRODUCT_SOURCES.map((entry) => entry.fileName).sort()).toEqual(
+      [...EXPECTED_PRODUCT_FILE_NAMES].sort(),
+    )
+    expect(
+      Object.keys(productModules)
+        .map((path) => path.slice(2))
+        .sort(),
+    ).toEqual([...EXPECTED_PRODUCT_FILE_NAMES].sort())
     expect(PRODUCT_SOURCES.every((entry) => entry.source.length > 0)).toBe(true)
     expect(
       PRODUCT_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
@@ -231,17 +307,22 @@ describe('prohibitions', () => {
     expect(key[2]).toBe(eventSequence)
   })
 
-  it('P-20: 利用者・入力者を識別する候補語を持たない', () => {
-    expect(USER_IDENTITY_CANDIDATES.length).toBeGreaterThan(0)
-    expectCandidatesAbsent(USER_IDENTITY_CANDIDATES)
+  it('P-20: 利用者・入力者の追加を許さず、イベント封筒を正本の完全なスロット集合に閉じる', () => {
+    type EnvelopeSlotId = keyof SyncEvent['fields']
+    const exactSlotType: EnvelopeSlotId extends EventSlotId
+      ? EventSlotId extends EnvelopeSlotId
+        ? true
+        : false
+      : false = true
+
+    // 機械検査は追加スロットの不在までとし、不透明値内部の意味は H-59 の人間逐行確認へ送る。
+    expect(exactSlotType).toBe(true)
+    expectEventSlotsToMatchCanon()
   })
 
-  it('P-28: 状態補正を種別集合の要素とし、状態を直接上書きする export を持たない', () => {
+  it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {
     const stateCorrection = EVENT_KIND_RULES.find(
       (eventKind) => eventKind.name === '状態補正',
-    )
-    const exportedIdentifiers = PRODUCT_SOURCES.flatMap((entry) =>
-      exportedValueIdentifiers(entry.source),
     )
 
     expect(stateCorrection).toBeDefined()
@@ -251,18 +332,59 @@ describe('prohibitions', () => {
     expect(
       buildSyncEventKindSet({ stateCorrectionAdopted: false }),
     ).not.toContain(stateCorrection)
-    expect(DIRECT_STATE_OVERWRITE_EXPORT_CANDIDATES.length).toBeGreaterThan(0)
-    expect(exportedIdentifiers.length).toBeGreaterThan(0)
-    for (const identifier of exportedIdentifiers) {
-      for (const candidate of DIRECT_STATE_OVERWRITE_EXPORT_CANDIDATES) {
-        expect(identifier).not.toMatch(candidate)
-      }
+    expect(Object.keys(EXPECTED_VALUE_EXPORTS).sort()).toEqual(
+      [...EXPECTED_PRODUCT_FILE_NAMES].sort(),
+    )
+    for (const productSource of PRODUCT_SOURCES) {
+      const expectedExports =
+        EXPECTED_VALUE_EXPORTS[
+          productSource.fileName as keyof typeof EXPECTED_VALUE_EXPORTS
+        ]
+      const actualExports = Object.keys(moduleFor(productSource.fileName))
+
+      expect(expectedExports).toBeDefined()
+      expect(actualExports).toHaveLength(expectedExports.length)
+      expect(new Set(actualExports)).toEqual(new Set(expectedExports))
     }
   })
 
-  it('P-32: 投球項目を表す候補語を持たない', () => {
-    expect(PITCH_DETAIL_CANDIDATES.length).toBeGreaterThan(0)
-    expectCandidatesAbsent(PITCH_DETAIL_CANDIDATES)
+  it('P-32: 投球項目の追加を許さず、V7 の不透明値内部を検査しない', () => {
+    const opaquePayload = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('V7 の内部を読みました')
+        },
+        getOwnPropertyDescriptor() {
+          throw new Error('V7 の内部構造を読みました')
+        },
+        ownKeys() {
+          throw new Error('V7 の内部キーを読みました')
+        },
+      },
+    )
+    const event: SyncEvent = {
+      fields: {
+        V1: {},
+        V2: {},
+        V3: {},
+        V4: {},
+        V5: '6',
+        V7: opaquePayload,
+      },
+    }
+
+    // 機械検査はスロット集合と非参照動作までとし、ペイロードの意味は H-59 の人間逐行確認へ送る。
+    expectEventSlotsToMatchCanon()
+    expect(
+      exactStringLiterals(sourceFor('validateSyncEvent.ts'), 'V7'),
+    ).toEqual([])
+    expect(
+      checkSyncEvent(event, {
+        path: SYNC_EVENT_PATH.P1,
+        eventKinds: buildSyncEventKindSet({ stateCorrectionAdopted: true }),
+      }),
+    ).toEqual({ ok: true })
   })
 
   it('P-57: V8 を取消可能な操作に限る必須規則として持つ', () => {
@@ -290,31 +412,6 @@ describe('prohibitions', () => {
     ).toBe(EVENT_FIELD_PRESENCE.REQUIRED)
   })
 
-  it('P-58: 種別 ID を比較・switchする分岐を持たない', () => {
-    const eventKindDiscriminant =
-      /\b(?:eventKind(?:\.id)?|event\.kind|kindId|eventKindId)\b/
-    const eventKindComparison =
-      /\b(?:eventKind(?:\.id)?|event\.kind|kindId|eventKindId)\b\s*(?:===|!==)|(?:===|!==)\s*\b(?:eventKind(?:\.id)?|event\.kind|kindId|eventKindId)\b/
-
-    for (const productSource of PRODUCT_SOURCES) {
-      const sourceWithoutAllowedMembership =
-        productSource.fileName === 'eventKinds.ts'
-          ? productSource.source.replace(/eventKind\.id\s*!==\s*'7'/g, '')
-          : productSource.source
-      expect(sourceWithoutAllowedMembership).not.toMatch(eventKindComparison)
-
-      for (const match of sourceWithoutAllowedMembership.matchAll(
-        /\bswitch\s*\(([^)]*)\)/g,
-      )) {
-        expect(match[1] ?? '').not.toMatch(eventKindDiscriminant)
-      }
-    }
-
-    expect(
-      sourceFor('eventKinds.ts').match(/eventKind\.id\s*!==\s*'7'/g),
-    ).toHaveLength(1)
-  })
-
   it('V-ID リテラルを eventFieldRules.ts の単一 locus に閉じる', () => {
     const valuePattern = 'V(?:[1-9]|1[0-2])'
 
@@ -333,7 +430,7 @@ describe('prohibitions', () => {
     }
   })
 
-  it('種別 ID リテラルを eventKinds.ts の定義と許可済み membership 規則に閉じる', () => {
+  it('P-58: 種別 ID リテラルを eventKinds.ts の単一 locus に閉じる', () => {
     const valuePattern = '(?:[1-9]|1[0-2])'
     const eventKindLiterals = exactStringLiterals(
       sourceFor('eventKinds.ts'),

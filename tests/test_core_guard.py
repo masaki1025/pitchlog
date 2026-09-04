@@ -46,6 +46,8 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/temporaryIdMapping.spec.ts",
         "frontend/src/lib/sync/validateSyncEvent.ts",
         "frontend/src/lib/sync/validateSyncEvent.spec.ts",
+        "frontend/vite.config.ts",
+        "frontend/tsconfig.app.json",
     ],
     "game-state": [
         *CORE_DOCUMENT_PATHS,
@@ -64,11 +66,22 @@ EXPECTED_AREA_PATHS = {
         "frontend/tsconfig.json",
         "frontend/pnpm-lock.yaml",
         "mise.toml",
+        "frontend/src/lib/sync/eventKinds.ts",
+        "frontend/src/lib/sync/eventKinds.spec.ts",
+        "frontend/src/lib/sync/eventFieldRules.ts",
+        "frontend/src/lib/sync/eventFieldRules.spec.ts",
+        "frontend/src/lib/sync/validateSyncEvent.ts",
+        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
     ],
     "recording-rights": [
         *CORE_DOCUMENT_PATHS,
         "frontend/src/lib/sync/requestBoundary.ts",
         "frontend/src/lib/sync/requestBoundary.spec.ts",
+        "frontend/src/lib/sync/eventFieldRules.ts",
+        "frontend/src/lib/sync/eventFieldRules.spec.ts",
+        "frontend/src/lib/sync/validateSyncEvent.ts",
+        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
+        "frontend/src/lib/sync/syncEvent.ts",
     ],
     "tenant-isolation": [
         *CORE_DOCUMENT_PATHS,
@@ -82,8 +95,13 @@ EXPECTED_AREA_PATHS = {
         "backend/*conftest.py",
         "backend/.python-version",
         "docker-compose.yml",
+        "frontend/src/lib/sync/idempotencyCollision.ts",
+        "frontend/src/lib/sync/idempotencyCollision.spec.ts",
     ],
-    "data-migration": ["frontend/src/lib/format.ts"],
+    "data-migration": [
+        "frontend/src/lib/format.ts",
+        "frontend/src/lib/sync/syncEvent.ts",
+    ],
 }
 NEW_CORE_PATH_CHANGES = (
     "contracts/authz/auth-catalog.json",
