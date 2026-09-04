@@ -28,7 +28,25 @@ CORE_DOCUMENT_PATHS = (
     "docs/requirements/requirements-pitchlog-2026-07-22.md",
 )
 EXPECTED_AREA_PATHS = {
-    "sync-protocol": [*CORE_DOCUMENT_PATHS],
+    "sync-protocol": [
+        *CORE_DOCUMENT_PATHS,
+        "frontend/src/lib/sync/canonOracle.ts",
+        "frontend/src/lib/sync/canonOracle.spec.ts",
+        "frontend/src/lib/sync/eventFieldRules.ts",
+        "frontend/src/lib/sync/eventFieldRules.spec.ts",
+        "frontend/src/lib/sync/eventKinds.ts",
+        "frontend/src/lib/sync/eventKinds.spec.ts",
+        "frontend/src/lib/sync/idempotencyCollision.ts",
+        "frontend/src/lib/sync/idempotencyCollision.spec.ts",
+        "frontend/src/lib/sync/prohibitions.spec.ts",
+        "frontend/src/lib/sync/requestBoundary.ts",
+        "frontend/src/lib/sync/requestBoundary.spec.ts",
+        "frontend/src/lib/sync/syncEvent.ts",
+        "frontend/src/lib/sync/temporaryIdMapping.ts",
+        "frontend/src/lib/sync/temporaryIdMapping.spec.ts",
+        "frontend/src/lib/sync/validateSyncEvent.ts",
+        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
+    ],
     "game-state": [
         *CORE_DOCUMENT_PATHS,
         "frontend/src/lib/courseInputView.ts",
@@ -47,7 +65,11 @@ EXPECTED_AREA_PATHS = {
         "frontend/pnpm-lock.yaml",
         "mise.toml",
     ],
-    "recording-rights": [*CORE_DOCUMENT_PATHS],
+    "recording-rights": [
+        *CORE_DOCUMENT_PATHS,
+        "frontend/src/lib/sync/requestBoundary.ts",
+        "frontend/src/lib/sync/requestBoundary.spec.ts",
+    ],
     "tenant-isolation": [
         *CORE_DOCUMENT_PATHS,
         "contracts/authz/*",

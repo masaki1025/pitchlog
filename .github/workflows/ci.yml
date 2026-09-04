@@ -128,6 +128,7 @@ jobs:
               - 'frontend/pnpm-lock.yaml'
               - '.github/workflows/ci.yml'
               - 'contracts/**'
+              - 'scripts/design_relations/sync-protocol.json'
 
   frontend:
     needs: frontend-changes
