@@ -1,4 +1,4 @@
-// このパーサは docs/design/sync-protocol.md 4-3（V1〜V12）と 5-5 の写しである。
+// このパーサは docs/design/sync-protocol.md 4-3（V1〜V12 と V12 条件・結果写像）と 5-5 の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
 // テストからのみ使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
@@ -7,6 +7,7 @@ import { EVENT_KIND_RULES } from './eventKinds'
 const EVENT_FIELD_RELATION_ID = 'R-EVENT-FIELD'
 const EVENT_FIELD_ID_PATTERN = /^V\d+$/
 const PARTICIPATION_RELATION_ID = 'R-PARTICIPATION'
+const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -295,4 +296,131 @@ export function readCanonParticipationRules(
     throw new Error('R-PARTICIPATION.source_elements がありません')
   }
   return parseCanonParticipationRules(relation.source_elements)
+}
+
+const V12_BOUNDARY_IDS = new Set(['VF1', 'VF2', 'VF3', 'VF4', 'VF5', 'VF6'])
+
+const V12_BOUNDARY_CONDITIONS = new Set([
+  'P1・P2・P4',
+  '進行中P3',
+  '終了後P3',
+  'P1・P2・P4のV12不成立',
+  '進行中P3のV12不成立',
+  'V12の復旧世代結合',
+])
+
+const V12_BOUNDARY_OUTCOMES = new Set([
+  'V12必須',
+  'V12不要',
+  'B4',
+  'B9',
+  '現D4',
+  '現復旧世代',
+  '保持端末',
+])
+
+export type CanonV12BoundaryRule = Readonly<{
+  id: string
+  condition: string
+  outcomes: readonly string[]
+  effect: CanonV12BoundaryEffect
+}>
+
+type CanonV12BoundaryEffect =
+  | Readonly<{ kind: 'presence'; required: boolean }>
+  | Readonly<{ kind: 'failure'; result: 'B4' | 'B9' }>
+  | Readonly<{
+      kind: 'binding'
+      components: readonly ['現D4', '現復旧世代', '保持端末']
+    }>
+
+function parseV12BoundaryEffect(
+  sourceElement: string,
+  outcomes: readonly string[],
+): CanonV12BoundaryEffect {
+  if (hasExactTokens(outcomes, ['V12必須'])) {
+    return { kind: 'presence', required: true }
+  }
+  if (hasExactTokens(outcomes, ['V12不要'])) {
+    return { kind: 'presence', required: false }
+  }
+  if (hasExactTokens(outcomes, ['B4']) || hasExactTokens(outcomes, ['B9'])) {
+    return { kind: 'failure', result: outcomes[0] as 'B4' | 'B9' }
+  }
+  if (hasExactTokens(outcomes, ['現D4', '現復旧世代', '保持端末'])) {
+    return {
+      kind: 'binding',
+      components: ['現D4', '現復旧世代', '保持端末'],
+    }
+  }
+  throw new Error(`R-V12-BOUNDARY の帰結が不正です: ${sourceElement}`)
+}
+
+export function parseCanonV12BoundaryRules(
+  sourceElements: readonly unknown[],
+): readonly CanonV12BoundaryRule[] {
+  const seenIds = new Set<string>()
+
+  return sourceElements.map((sourceElement) => {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-V12-BOUNDARY の要素は文字列でなければなりません')
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    if (
+      separatorIndex <= 0 ||
+      sourceElement.indexOf(':', separatorIndex + 1) >= 0
+    ) {
+      throw new Error(`R-V12-BOUNDARY の形式が不正です: ${sourceElement}`)
+    }
+
+    const id = sourceElement.slice(0, separatorIndex)
+    const body = sourceElement.slice(separatorIndex + 1)
+    const equalsIndex = body.indexOf('=')
+    if (equalsIndex <= 0 || body.indexOf('=', equalsIndex + 1) >= 0) {
+      throw new Error(`R-V12-BOUNDARY の形式が不正です: ${sourceElement}`)
+    }
+
+    const condition = body.slice(0, equalsIndex)
+    const outcomes = body.slice(equalsIndex + 1).split('+')
+
+    if (!V12_BOUNDARY_IDS.has(id) || seenIds.has(id)) {
+      throw new Error(`R-V12-BOUNDARY の ID が不正です: ${id}`)
+    }
+    if (!V12_BOUNDARY_CONDITIONS.has(condition)) {
+      throw new Error(`R-V12-BOUNDARY の条件が不正です: ${condition}`)
+    }
+    if (
+      outcomes.length === 0 ||
+      outcomes.some(
+        (outcome) =>
+          outcome.length === 0 || !V12_BOUNDARY_OUTCOMES.has(outcome),
+      )
+    ) {
+      throw new Error(`R-V12-BOUNDARY の帰結が不正です: ${sourceElement}`)
+    }
+
+    const effect = parseV12BoundaryEffect(sourceElement, outcomes)
+
+    seenIds.add(id)
+    return Object.freeze({
+      id,
+      condition,
+      outcomes: Object.freeze(outcomes),
+      effect: Object.freeze(effect),
+    })
+  })
+}
+
+export function readCanonV12BoundaryRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonV12BoundaryRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[V12_BOUNDARY_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-V12-BOUNDARY.source_elements がありません')
+  }
+  return parseCanonV12BoundaryRules(relation.source_elements)
 }

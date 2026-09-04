@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
 import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
+import { V12_BOUNDARY_RULES } from './requestBoundary'
 import {
   readCanonEventFieldRules,
   readCanonParticipationRules,
+  readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonEventKindRule,
+  type CanonV12BoundaryRule,
 } from './canonOracle'
 
 type ComparableRule = {
@@ -21,6 +24,13 @@ type ComparableEventKind = {
   name: string
   participation: string
   hasRevisionOrder: boolean
+}
+
+type ComparableV12BoundaryRule = {
+  id: string
+  condition: string
+  outcomes: readonly string[]
+  effect: unknown
 }
 
 function expectRulesToMatchCanon(
@@ -79,6 +89,38 @@ function expectEventKindsToMatchCanon(
           name: eventKind.name,
           participation: eventKind.participation,
           hasRevisionOrder: eventKind.hasRevisionOrder,
+        },
+      ]),
+    ),
+  )
+}
+
+function expectV12BoundaryRulesToMatchCanon(
+  rules: readonly ComparableV12BoundaryRule[],
+  canonRules: readonly CanonV12BoundaryRule[],
+): void {
+  expect(new Set(rules.map((rule) => rule.id))).toEqual(
+    new Set(canonRules.map((rule) => rule.id)),
+  )
+  expect(
+    new Map(
+      rules.map((rule) => [
+        rule.id,
+        {
+          condition: rule.condition,
+          outcomes: rule.outcomes,
+          effect: rule.effect,
+        },
+      ]),
+    ),
+  ).toEqual(
+    new Map(
+      canonRules.map((rule) => [
+        rule.id,
+        {
+          condition: rule.condition,
+          outcomes: rule.outcomes,
+          effect: rule.effect,
         },
       ]),
     ),
@@ -233,6 +275,76 @@ describe('canonOracle', () => {
 
     expect(() => readCanonParticipationRules(mutatedRelations)).toThrowError(
       /未知の R-PARTICIPATION ID/,
+    )
+  })
+
+  it('V12 境界表を R-V12-BOUNDARY と順序非依存の exact-set で照合する', () => {
+    const reversedCanonRules = [...readCanonV12BoundaryRules()].reverse()
+
+    expectV12BoundaryRulesToMatchCanon(V12_BOUNDARY_RULES, reversedCanonRules)
+  })
+
+  it('変異 M10: 終了後 P3 の V12 必須化を検出する', () => {
+    const mutatedRules = structuredClone(V12_BOUNDARY_RULES)
+    const target = mutatedRules.find((rule) => rule.id === 'VF3')
+
+    expect(target).toBeDefined()
+    if (!target) {
+      throw new Error('VF3 がありません')
+    }
+    if (target.effect.kind !== 'presence') {
+      throw new Error('VF3 の写像が不正です')
+    }
+    ;(target.effect as { required: boolean }).required = true
+
+    expect(() =>
+      expectV12BoundaryRulesToMatchCanon(
+        mutatedRules,
+        readCanonV12BoundaryRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('変異 M11: 進行中 P3 の不成立を B4 に変えたことを検出する', () => {
+    const mutatedRules = structuredClone(V12_BOUNDARY_RULES)
+    const target = mutatedRules.find((rule) => rule.id === 'VF5')
+
+    expect(target).toBeDefined()
+    if (!target) {
+      throw new Error('VF5 がありません')
+    }
+    if (target.effect.kind !== 'failure') {
+      throw new Error('VF5 の写像が不正です')
+    }
+    ;(target.effect as { result: string }).result = 'B4'
+
+    expect(() =>
+      expectV12BoundaryRulesToMatchCanon(
+        mutatedRules,
+        readCanonV12BoundaryRules(),
+      ),
+    ).toThrow()
+  })
+
+  it('R-V12-BOUNDARY の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-V12-BOUNDARY'].source_elements
+    sourceElements[0] = sourceElements[0]!.replace('VF1:', 'VF7:')
+
+    expect(() => readCanonV12BoundaryRules(mutatedRelations)).toThrowError(
+      /R-V12-BOUNDARY の ID/,
+    )
+  })
+
+  it.each([
+    ['条件', 'VF1:未知の条件=V12必須'],
+    ['帰結', 'VF1:P1・P2・P4=未知の帰結'],
+  ])('R-V12-BOUNDARY の未知%s語を fail-closed で拒否する', (_, mutation) => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-V12-BOUNDARY'].source_elements[0] = mutation
+
+    expect(() => readCanonV12BoundaryRules(mutatedRelations)).toThrowError(
+      /R-V12-BOUNDARY の(?:条件|帰結)/,
     )
   })
 })
