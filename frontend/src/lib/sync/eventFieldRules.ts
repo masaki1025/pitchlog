@@ -1,5 +1,11 @@
-// この表は docs/design/sync-protocol.md 4-3（V1〜V12）の写しである。
+// この表と条件写像は docs/design/sync-protocol.md 4-3（V1〜V12）と 4-3-A の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
+import {
+  EVENT_PARTICIPATION,
+  type EventKind,
+  type EventParticipation,
+} from './eventKinds'
+
 export const EVENT_FIELD_REQUIREDNESS = {
   UNCONDITIONAL: '全イベントで無条件',
   EVENT_KIND_CONDITIONAL: '種別条件付き',
@@ -130,3 +136,157 @@ export const REQUEST_ONLY_IDS: readonly RequestOnlyId[] = Object.freeze(
 export const EVENT_SLOT_IDS: readonly EventSlotId[] = Object.freeze(
   EVENT_FIELD_RULES.filter(isEventSlotRule).map((rule) => rule.id),
 )
+
+export const EVENT_IDENTIFIER_SLOT_IDS = [
+  'V1',
+  'V2',
+  'V3',
+] as const satisfies readonly EventSlotId[]
+
+export const SYNC_EVENT_PATH = {
+  P1: 'P1',
+  P2: 'P2',
+  P3: 'P3',
+  P4: 'P4',
+} as const
+
+export type SyncEventPath =
+  (typeof SYNC_EVENT_PATH)[keyof typeof SYNC_EVENT_PATH]
+
+export const SYNC_EVENT_PATHS: readonly SyncEventPath[] = Object.freeze(
+  Object.values(SYNC_EVENT_PATH),
+)
+
+export const EVENT_FIELD_PRESENCE = {
+  REQUIRED: 'required',
+  FORBIDDEN: 'forbidden',
+  OPTIONAL: 'optional',
+} as const
+
+export type EventFieldPresence =
+  (typeof EVENT_FIELD_PRESENCE)[keyof typeof EVENT_FIELD_PRESENCE]
+
+export type EventFieldConditionContext = {
+  path: SyncEventPath
+  eventKind: EventKind
+  participation: EventParticipation
+  cancellable: boolean
+}
+
+type ConditionRule = {
+  readonly conditions: readonly string[]
+  readonly shape: EventFieldShape
+}
+type ConditionEffect = Exclude<
+  EventFieldPresence,
+  typeof EVENT_FIELD_PRESENCE.OPTIONAL
+>
+type ConditionHandler = (
+  rule: ConditionRule,
+  context: EventFieldConditionContext,
+) => ConditionEffect | undefined
+
+const D1_EVENT_PATHS = new Set<SyncEventPath>([
+  SYNC_EVENT_PATH.P1,
+  SYNC_EVENT_PATH.P2,
+  SYNC_EVENT_PATH.P4,
+])
+const CANCELLABLE_EVENT_KIND_NAMES = new Set(['毎球入力', '状態補正'])
+const TOMBSTONE_EVENT_KIND_NAME = '墓標'
+
+const required: ConditionHandler = () => EVENT_FIELD_PRESENCE.REQUIRED
+const forbiddenOnP3: ConditionHandler = (_rule, context) =>
+  context.path === SYNC_EVENT_PATH.P3
+    ? EVENT_FIELD_PRESENCE.FORBIDDEN
+    : undefined
+const requiredOnD1Path: ConditionHandler = (_rule, context) =>
+  D1_EVENT_PATHS.has(context.path) ? EVENT_FIELD_PRESENCE.REQUIRED : undefined
+const requiredOnP3: ConditionHandler = (_rule, context) =>
+  context.path === SYNC_EVENT_PATH.P3
+    ? EVENT_FIELD_PRESENCE.REQUIRED
+    : undefined
+const requiredOnlyOnP3: ConditionHandler = (_rule, context) =>
+  context.path === SYNC_EVENT_PATH.P3
+    ? EVENT_FIELD_PRESENCE.REQUIRED
+    : EVENT_FIELD_PRESENCE.FORBIDDEN
+const forbiddenAsRequestValue: ConditionHandler = () =>
+  EVENT_FIELD_PRESENCE.FORBIDDEN
+
+function isReplacementOrTombstone(
+  context: EventFieldConditionContext,
+): boolean {
+  return (
+    context.eventKind.name === TOMBSTONE_EVENT_KIND_NAME ||
+    context.eventKind.participation === EVENT_PARTICIPATION.INHERIT_SOURCE
+  )
+}
+
+function requiresTargetReference(context: EventFieldConditionContext): boolean {
+  return (
+    context.path === SYNC_EVENT_PATH.P3 ||
+    context.participation === EVENT_PARTICIPATION.DEPENDENT ||
+    isReplacementOrTombstone(context)
+  )
+}
+
+const requiredByEventKind: ConditionHandler = (rule, context) => {
+  const applies =
+    rule.shape.kind === 'composite'
+      ? requiresTargetReference(context)
+      : context.participation === EVENT_PARTICIPATION.LOGICAL_POSITION
+  return applies
+    ? EVENT_FIELD_PRESENCE.REQUIRED
+    : EVENT_FIELD_PRESENCE.FORBIDDEN
+}
+
+const requiredWhenCancellable: ConditionHandler = (_rule, context) =>
+  context.cancellable
+    ? EVENT_FIELD_PRESENCE.REQUIRED
+    : EVENT_FIELD_PRESENCE.FORBIDDEN
+
+const requiredForReplacementOrTombstone: ConditionHandler = (_rule, context) =>
+  isReplacementOrTombstone(context)
+    ? EVENT_FIELD_PRESENCE.REQUIRED
+    : EVENT_FIELD_PRESENCE.FORBIDDEN
+
+const CONDITION_HANDLERS = new Map<string, ConditionHandler>([
+  ['全イベントで無条件', required],
+  ['P1・P2・P4に必須', requiredOnD1Path],
+  ['P3は持たない', forbiddenOnP3],
+  ['P3は持たず', forbiddenOnP3],
+  ['種別条件付き', requiredByEventKind],
+  ['P3自身は持たず', forbiddenOnP3],
+  ['取消可能な操作に限る', requiredWhenCancellable],
+  ['墓標・改訂に限る', requiredForReplacementOrTombstone],
+  ['P3は必須', requiredOnP3],
+  ['P3に必須', requiredOnlyOnP3],
+  ['要求レベル', forbiddenAsRequestValue],
+  ['P1・P2・P4', forbiddenAsRequestValue],
+  ['進行中のP3', forbiddenAsRequestValue],
+  ['終了後のP3には不要', forbiddenAsRequestValue],
+])
+
+export function isCancellableEventKind(eventKind: EventKind): boolean {
+  return CANCELLABLE_EVENT_KIND_NAMES.has(eventKind.name)
+}
+
+export function resolveEventFieldPresence(
+  rule: ConditionRule,
+  context: EventFieldConditionContext,
+): EventFieldPresence {
+  const effects = new Set<ConditionEffect>()
+  for (const condition of rule.conditions) {
+    const handler = CONDITION_HANDLERS.get(condition)
+    if (!handler) {
+      throw new Error(`未知のイベントフィールド条件です: ${condition}`)
+    }
+    const effect = handler(rule, context)
+    if (effect) {
+      effects.add(effect)
+    }
+  }
+  if (effects.size > 1) {
+    throw new Error('イベントフィールド条件の評価結果が競合しています')
+  }
+  return [...effects][0] ?? EVENT_FIELD_PRESENCE.OPTIONAL
+}
