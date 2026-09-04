@@ -8,6 +8,8 @@ import copy
 import json
 import re
 import shlex
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -988,6 +990,99 @@ def test_docs_lint_rejects_selective_check_option() -> None:
 
     with pytest.raises(AssertionError, match="選択実行"):
         _assert_full_docs_lint_wiring(selective)
+
+
+def _staging_profile_registry(tmp_path: Path, *, include_second: bool) -> Path:
+    """サンプルプロファイル1〜2件のstagingレジストリを作る。"""
+    source = REPOSITORY_ROOT / "tests" / "fixtures" / "profile-sample" / "profiles"
+    destination = tmp_path / "profiles"
+    destination.mkdir(parents=True, exist_ok=True)
+    source_registry = json.loads(
+        (source / "registry.json").read_text(encoding="utf-8")
+    )
+    entries = source_registry["profiles"][: 2 if include_second else 1]
+    filenames = ("profile.json", "data-model-like.json")[: len(entries)]
+    for entry, filename in zip(entries, filenames, strict=True):
+        profile_path = destination / filename
+        profile_path.write_text(
+            (source / filename).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        entry["file"] = str(profile_path)
+    registry = {"schema_version": 1, "profiles": entries}
+    registry_path = destination / "registry.json"
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return registry_path
+
+
+def _run_document_checker(script: str, registry: Path) -> subprocess.CompletedProcess[str]:
+    """文書検査をstagingレジストリ指定で実行する。"""
+    return subprocess.run(
+        [sys.executable, str(REPOSITORY_ROOT / "scripts" / script), "--registry", str(registry)],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    "script",
+    ("check_design_propagation.py", "check_doc_coverage.py"),
+)
+def test_registry_addition_makes_both_document_checkers_enumerate_all_profiles(
+    tmp_path: Path,
+    script: str,
+) -> None:
+    """レジストリへ1件足すと両検査が2プロファイルを識別して検査する。"""
+    single = _staging_profile_registry(tmp_path / "single", include_second=False)
+    assert _run_document_checker(script, single).returncode in {0, 1}
+
+    doubled = _staging_profile_registry(tmp_path / "doubled", include_second=True)
+    result = _run_document_checker(script, doubled)
+
+    assert result.returncode == 1
+    assert "[sample-minimal]" in result.stderr
+    assert "[data-model-like]" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("unregistered", "missing", "duplicate-name", "duplicate-document", "zero"),
+)
+def test_document_checker_registry_enumeration_is_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """列挙集合不一致・重複・0件を両スクリプトで終了2にする。"""
+    registry_path = _staging_profile_registry(tmp_path, include_second=True)
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    profile_dir = registry_path.parent
+    if mutation == "unregistered":
+        (profile_dir / "orphan.json").write_text(
+            (profile_dir / "profile.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+    elif mutation == "missing":
+        (profile_dir / "data-model-like.json").unlink()
+    elif mutation == "duplicate-name":
+        registry["profiles"][1]["name"] = registry["profiles"][0]["name"]
+        registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    elif mutation == "duplicate-document":
+        registry["profiles"][1]["document"] = registry["profiles"][0]["document"]
+        registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    else:
+        registry["profiles"] = []
+        (profile_dir / "profile.json").unlink()
+        (profile_dir / "data-model-like.json").unlink()
+        registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    for script in ("check_design_propagation.py", "check_doc_coverage.py"):
+        result = _run_document_checker(script, registry_path)
+        assert result.returncode == 2, (script, mutation, result.stderr)
 
 
 def test_pytest_commands_and_working_directories_are_exact() -> None:

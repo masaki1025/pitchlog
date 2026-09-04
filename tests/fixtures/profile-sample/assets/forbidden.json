@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "asset_kind": "forbidden_data_model",
+  "oracle_context": {},
+  "entries": [
+    {
+      "id": "FORB-REL",
+      "kind": "relation",
+      "source": {"namespace": "source", "id": "forbidden_source"},
+      "target": {"namespace": "target", "id": "forbidden_target"},
+      "direction": "source->target",
+      "participants": []
+    },
+    {
+      "id": "FORB-COL",
+      "kind": "column-role",
+      "source": {"namespace": "column", "id": "forbidden_column"},
+      "target": {"namespace": "role", "id": "forbidden_role"},
+      "direction": "both",
+      "participants": []
+    },
+    {
+      "id": "FORB-TRN",
+      "kind": "transition",
+      "source": {"namespace": "state", "id": "forbidden_from"},
+      "target": {"namespace": "state", "id": "forbidden_to"},
+      "direction": "source->target",
+      "participants": []
+    },
+    {
+      "id": "FORB-REF",
+      "kind": "reference",
+      "source": {"namespace": "source", "id": "forbidden_reference"},
+      "target": {"namespace": "target", "id": "forbidden_reference_target"},
+      "direction": "target->source",
+      "participants": []
+    }
+  ]
+}

@@ -13,6 +13,7 @@
 ネットワーク有効化は PITCHLOG_ALLOW_NET=1 + PITCHLOG_NET_REASON="理由"(必須 — 人間へ報告済みであること)。
 sandbox 安全キーは毎回 CLI で明示上書きし、config 層の値に依存しない(2周目 P0 対応)。
 """
+import enum
 import os
 import re
 import shutil
@@ -44,6 +45,24 @@ WORKTREES_DIRNAME = "pitchlog-worktrees"
 # status 判定は同じ手順・正規表現リテラルを維持する。両スクリプトの独立性のため import は共有しない。
 STATUS_CANDIDATE_RE = re.compile(r"^status\s*:")
 STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
+HEADING_RE = re.compile(r"^[ \t]{0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$")
+HEADING_NUMBER_RE = re.compile(
+    r"^(?:(?:\(\s*\d+(?:[-.]\d+)*\s*\)|（\s*\d+(?:[-.]\d+)*\s*）)"
+    r"|(?:\d+(?:[-.]\d+)*[.)．、]))\s*"
+)
+TRAILING_PARENTHETICAL_RE = re.compile(r"\s*(?:\([^()]*\)|（[^（）]*）)\s*$")
+STEP_ROW_RE = re.compile(r"^\s*\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|")
+FENCE_OPEN_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+
+
+class StepTableStatus(enum.Enum):
+    """計画書の実装ステップ表の検出状態。"""
+
+    OK = "ok"
+    NO_TABLE = "no-table"
+    NO_FILLED_ROW = "no-filled-row"
+    TABLE_OUTSIDE_SCOPE = "table-outside-scope"
+    TABLE_IN_FENCED_CODE = "table-in-fenced-code"
 
 
 def die(msg: str) -> None:
@@ -59,23 +78,116 @@ def read_prompt(args: list[str]) -> str:
     return ""
 
 
-def has_filled_step_row(plan_text: str) -> bool:
-    """「実装ステップ」見出し**配下の表**に、全セル記入済みの行があるか(4周目 P1)。
+def _is_step_heading(heading_text: str) -> bool:
+    """正規化した見出しが実装ステップ見出しかを返す。"""
+    normalized = re.sub(r"[*_]+", "", heading_text).strip()
+    normalized = HEADING_NUMBER_RE.sub("", normalized, count=1)
+    normalized = TRAILING_PARENTHETICAL_RE.sub("", normalized, count=1).strip()
+    prefix = "実装ステップ"
+    if not normalized.startswith(prefix):
+        return False
+    suffix = normalized[len(prefix) :].lstrip()
+    return re.match(r"^(?:では(?:ない|ありません)|でない|じゃない)", suffix) is None
 
-    番号・ステップ内容・合格条件の3セルすべて非空を要求する。別の見出し配下の
-    数値表では条件を満たさない(見出し単位で判定範囲を区切る)。
+
+def _step_table_analysis(plan_text: str) -> tuple[StepTableStatus, str | None]:
+    """ステップ表の状態とスコープ外の表を含む見出しを返す。
+
+    Args:
+        plan_text: 検査対象の計画書本文。
+
+    Returns:
+        ステップ表の状態と、スコープ外の記入済み行を含む見出し。該当する
+        見出しがない場合、または状態がスコープ外でない場合は ``None``。
     """
-    in_section = False
+    heading_stack: list[tuple[int, str, bool]] = []
+    fence_character: str | None = None
+    fence_length = 0
+    has_table = False
+    has_filled_in_scope = False
+    has_filled_outside_scope = False
+    has_filled_in_fence = False
+    outside_heading: str | None = None
+
     for line in plan_text.splitlines():
-        if re.match(r"#{1,6}\s", line):
-            in_section = "実装ステップ" in line
+        if fence_character is not None:
+            stripped = line.lstrip(" \t")
+            if re.fullmatch(
+                rf"{re.escape(fence_character)}{{{fence_length},}}[ \t]*", stripped
+            ):
+                fence_character = None
+                fence_length = 0
+                continue
+            row_match = STEP_ROW_RE.match(line)
+            if row_match and row_match.group(2).strip() and row_match.group(3).strip():
+                has_filled_in_fence = True
             continue
-        if not in_section:
+
+        fence_match = FENCE_OPEN_RE.match(line)
+        if fence_match:
+            fence = fence_match.group(1)
+            fence_character = fence[0]
+            fence_length = len(fence)
             continue
-        m = re.match(r"\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|", line)
-        if m and m.group(2).strip() and m.group(3).strip():
-            return True
-    return False
+
+        heading_match = HEADING_RE.match(line)
+        if heading_match:
+            level = len(heading_match.group(1))
+            heading_text = re.sub(
+                r"[ \t]+#+[ \t]*$", "", heading_match.group(2) or ""
+            ).strip()
+            while heading_stack and heading_stack[-1][0] >= level:
+                heading_stack.pop()
+            heading_stack.append((level, heading_text, _is_step_heading(heading_text)))
+            continue
+
+        row_match = STEP_ROW_RE.match(line)
+        if row_match is None:
+            continue
+        has_table = True
+        if not row_match.group(2).strip() or not row_match.group(3).strip():
+            continue
+        if any(is_step_heading for _, _, is_step_heading in heading_stack):
+            has_filled_in_scope = True
+        else:
+            has_filled_outside_scope = True
+            if outside_heading is None and heading_stack:
+                outside_heading = heading_stack[-1][1]
+
+    if has_filled_in_scope:
+        return StepTableStatus.OK, None
+    if has_filled_in_fence and not has_filled_outside_scope:
+        return StepTableStatus.TABLE_IN_FENCED_CODE, None
+    if has_filled_outside_scope:
+        return StepTableStatus.TABLE_OUTSIDE_SCOPE, outside_heading
+    if has_table:
+        return StepTableStatus.NO_FILLED_ROW, None
+    return StepTableStatus.NO_TABLE, None
+
+
+def step_table_status(plan_text: str) -> StepTableStatus:
+    """計画書の実装ステップ表の検出状態を返す。
+
+    Args:
+        plan_text: 検査対象の計画書本文。
+
+    Returns:
+        見出しスコープ、記入状況、fenced code を考慮した検出状態。
+    """
+    return _step_table_analysis(plan_text)[0]
+
+
+def has_filled_step_row(plan_text: str) -> bool:
+    """実装ステップ見出し配下に全セル記入済みの行があるかを返す。
+
+    Args:
+        plan_text: 検査対象の計画書本文。
+
+    Returns:
+        番号・ステップ内容・合格条件の3セルがすべて非空なら ``True``。
+        別の見出し配下や fenced code 内の数値表では ``False``。
+    """
+    return step_table_status(plan_text) is StepTableStatus.OK
 
 
 def parse_frontmatter(path: Path) -> tuple[dict[str, str], str]:
@@ -276,9 +388,23 @@ def cmd_implement(args: list[str]) -> int:
     if weight not in MODEL_MAP:
         die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
     plan_text = plan.read_text(encoding="utf-8")
-    if not has_filled_step_row(plan_text):
+    table_status = step_table_status(plan_text)
+    if table_status in {StepTableStatus.NO_TABLE, StepTableStatus.NO_FILLED_ROW}:
         die("計画書の「実装ステップ(コミット単位)」見出し配下に、番号・ステップ・合格条件が"
             "すべて埋まった行が無い(設計書 6.1 段階実装 — 空のテンプレ表・無関係な表は不可)")
+    if table_status is StepTableStatus.TABLE_OUTSIDE_SCOPE:
+        _, outside_heading = _step_table_analysis(plan_text)
+        heading = outside_heading or "文書先頭"
+        die(
+            f"ステップ表は見出し『{heading}』の配下にあります。"
+            "『実装ステップ』見出しの配下へ移すか、その見出し名に"
+            "『実装ステップ』を含めてください(設計書 6.1)"
+        )
+    if table_status is StepTableStatus.TABLE_IN_FENCED_CODE:
+        die(
+            "実装ステップ表がコードブロック内にあります。"
+            "コードブロックの外に置いてください(設計書 6.1)"
+        )
     branch = fm.get("branch", "")
     if not re.fullmatch(r"(?:feature|fix)/\S+", branch):
         die(f"計画書の branch が不正({branch or '未設定'})。feature/* または fix/* が必要(設計書 6.2)")

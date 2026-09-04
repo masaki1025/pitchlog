@@ -1,0 +1,20 @@
+{
+  "DEFECT-001": {
+    "id": "DEFECT-001",
+    "baseline": true,
+    "source": "sample",
+    "location": "4-2",
+    "detection": "machine",
+    "check": "cross-consistency",
+    "owner_step": "sample-step",
+    "invariant": {
+      "scope": "4-2",
+      "forbidden": ["__sample_never__"],
+      "positive": "合成台帳の肯定条件",
+      "mapping": "合成対応"
+    },
+    "status": "open",
+    "discovered_at": "2026-09-04",
+    "closure_evidence": null
+  }
+}

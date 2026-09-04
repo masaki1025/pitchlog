@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "type": "object",
+  "properties": {
+    "schema_version": {"type": "integer", "enum": [1]},
+    "profile": {"type": "string", "minLength": 1},
+    "registry": {"type": "string"},
+    "exit_code": {"type": "integer", "enum": [0, 1, 2]},
+    "partial": {"type": "boolean"},
+    "checks": {
+      "type": "array",
+      "minItems": 22,
+      "items": {
+        "type": "object",
+        "properties": {
+          "check_id": {"type": "string", "minLength": 1},
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "not_applicable", "not_run"]
+          },
+          "reason": {"type": "string", "minLength": 1},
+          "findings": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["check_id", "status", "findings"],
+        "additionalProperties": false
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1}
+        },
+        "required": ["code", "message"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile",
+    "registry",
+    "exit_code",
+    "partial",
+    "checks",
+    "errors"
+  ],
+  "additionalProperties": false
+}

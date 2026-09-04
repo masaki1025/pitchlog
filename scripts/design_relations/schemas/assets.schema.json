@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1]
+    },
+    "immutable_fields": {
+      "type": "array",
+      "enum": [[
+        "id",
+        "baseline",
+        "source",
+        "location",
+        "detection",
+        "check",
+        "owner_step",
+        "invariant.scope",
+        "invariant.forbidden",
+        "invariant.positive",
+        "invariant.mapping"
+      ]]
+    },
+    "mutable_fields": {
+      "type": "array",
+      "enum": [["status", "discovered_at", "closure_evidence"]]
+    },
+    "assets": {
+      "type": "object",
+      "properties": {
+        "claims": {"type": "object"},
+        "auth_catalog": {"type": "object"},
+        "ddl_elements": {"type": "object"},
+        "auth_ddl_map": {"type": "object"},
+        "product_ddl_map": {"type": "object"},
+        "waiting": {"type": "object"},
+        "forbidden": {"type": "object"},
+        "direct_requirements": {"type": "object"},
+        "expected_ids": {"type": "object"},
+        "baseline_digest": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "structure_extractors": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "collection_sets": {
+      "type": "array",
+      "items": {"type": "object"}
+    }
+  },
+  "required": [
+    "schema_version",
+    "immutable_fields",
+    "mutable_fields",
+    "assets",
+    "structure_extractors",
+    "collection_sets"
+  ],
+  "additionalProperties": false
+}

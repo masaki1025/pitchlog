@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "asset_kind": "auth_ddl_map",
+  "oracle_context": {},
+  "entries": [
+    {
+      "catalog_entry_id": "AUTH-001",
+      "ddl_ids": ["orders", "app_role"],
+      "structures": [
+        {
+          "kind": "reference",
+          "source": {"namespace": "table", "id": "orders"},
+          "target": {"namespace": "role", "id": "app_role"},
+          "direction": "source->target",
+          "participants": [
+            {"namespace": "table", "id": "orders"},
+            {"namespace": "role", "id": "app_role"}
+          ]
+        }
+      ]
+    }
+  ]
+}

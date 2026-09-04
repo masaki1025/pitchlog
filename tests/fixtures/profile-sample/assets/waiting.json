@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "asset_kind": "waiting_data_model",
+  "oracle_context": {},
+  "entries": [
+    {
+      "id": "WAIT-001",
+      "status": "resolved",
+      "physical": "orders",
+      "decision_section": "4-2",
+      "source_id": "FR-001"
+    }
+  ]
+}

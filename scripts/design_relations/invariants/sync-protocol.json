@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "structural_required": [
+    "SP-01",
+    "SP-02",
+    "SP-03",
+    "SP-06",
+    "SP-07",
+    "SP-08",
+    "SP-09",
+    "SP-10",
+    "SP-11",
+    "SP-12",
+    "SP-13",
+    "SP-14",
+    "SP-16",
+    "SP-18",
+    "SP-20"
+  ],
+  "legacy_structural": [],
+  "required_declarations": [
+    "MT-01"
+  ],
+  "declarations": [
+    {
+      "defect_id": "MT-01",
+      "kind": "absent-section",
+      "section": "1"
+    },
+    {
+      "defect_id": "SP-10",
+      "kind": "row-selector",
+      "id": "sp10-route",
+      "section": "8-1",
+      "mode": "identifier",
+      "keys": [
+        "P3"
+      ]
+    },
+    {
+      "defect_id": "SP-10",
+      "kind": "row-selector",
+      "id": "sp10-response",
+      "section": "7-1",
+      "mode": "needle",
+      "keys": [
+        "P3",
+        "応答"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-6-2",
+      "section": "6-2",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-6-3",
+      "section": "6-3",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-11",
+      "kind": "row-selector",
+      "id": "sp11-8-3",
+      "section": "8-3",
+      "mode": "needle",
+      "keys": [
+        "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-selector",
+      "id": "sp01-transition",
+      "section": "7-2",
+      "mode": "needle",
+      "keys": [
+        "未送信",
+        "退避済み"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-contains",
+      "row": "sp01-transition",
+      "literals": [
+        "A5",
+        "退避"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-selector",
+      "id": "sp01-boundary",
+      "section": "6-3",
+      "mode": "identifier",
+      "keys": [
+        "B4"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-contains",
+      "row": "sp01-boundary",
+      "literals": [
+        "A5",
+        "退避"
+      ]
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "row-selector",
+      "id": "sp02-source",
+      "section": "7-1",
+      "mode": "identifier",
+      "keys": [
+        "A5"
+      ]
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "row-contains",
+      "row": "sp02-source",
+      "elements": {
+        "relation": "R-ACK-STATE",
+        "field": "source_elements"
+      }
+    },
+    {
+      "defect_id": "SP-02",
+      "kind": "section-contains",
+      "sections": [
+        "6-3",
+        "7-2"
+      ],
+      "elements": {
+        "relation": "R-ACK-STATE",
+        "field": "source_elements"
+      },
+      "as": "row"
+    },
+    {
+      "defect_id": "SP-03",
+      "kind": "section-contains",
+      "sections": [
+        "6-3",
+        "7-2",
+        "9-5"
+      ],
+      "elements": {
+        "relation": "R-QUEUE-LIFE",
+        "field": "source_elements"
+      },
+      "as": "identifier"
+    },
+    {
+      "defect_id": "SP-13",
+      "kind": "section-contains",
+      "sections": [
+        "4-3"
+      ],
+      "elements": {
+        "relation": "R-EVENT-FIELD",
+        "field": "source_elements"
+      },
+      "as": "identified-row",
+      "key": "id-part"
+    },
+    {
+      "defect_id": "SP-13",
+      "kind": "section-contains",
+      "sections": [
+        "4-3-A",
+        "11-2"
+      ],
+      "elements": {
+        "relation": "R-EVENT-FIELD",
+        "field": "source_elements"
+      },
+      "as": "identifier"
+    },
+    {
+      "defect_id": "SP-14",
+      "kind": "section-contains",
+      "sections": [
+        "4-3-A"
+      ],
+      "literals": [
+        "W3-a",
+        "W3-b",
+        "変更版順"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-14",
+      "kind": "section-contains",
+      "sections": [
+        "5-5",
+        "11-2"
+      ],
+      "literals": [
+        "変更版順",
+        "D1・D2",
+        "論理再生順"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-06",
+      "kind": "exact-set",
+      "sections": [
+        "8-1",
+        "10-2",
+        "11-2"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": [
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "exact-set",
+      "sections": [
+        "8-1"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": [
+        "P4"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-9-2",
+      "section": "9-2",
+      "mode": "needle",
+      "keys": [
+        "旧世代",
+        "退避",
+        "B4",
+        "原子"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-10-2",
+      "section": "10-2",
+      "mode": "needle",
+      "keys": [
+        "退避",
+        "B4",
+        "原子"
+      ]
+    },
+    {
+      "defect_id": "SP-07",
+      "kind": "row-selector",
+      "id": "sp07-atomic-11-2",
+      "section": "11-2",
+      "mode": "needle",
+      "keys": [
+        "P4",
+        "退避",
+        "B4"
+      ]
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "element-lookup",
+      "relation": "R-TXN-ROUTE",
+      "prefix": "T6:",
+      "section": "8-1",
+      "row_identifier": "T6"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "section-contains",
+      "sections": [
+        "4-4"
+      ],
+      "literals": [
+        "一時 ID",
+        "写像"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "section-contains",
+      "sections": [
+        "7-1"
+      ],
+      "literals": [
+        "D5",
+        "確定結果"
+      ],
+      "as": "text"
+    },
+    {
+      "defect_id": "SP-08",
+      "kind": "exact-set",
+      "sections": [
+        "8-1"
+      ],
+      "relation": "R-TXN-ROUTE",
+      "routes": {
+        "containing": "T6"
+      }
+    },
+    {
+      "defect_id": "SP-09",
+      "kind": "row-selector",
+      "id": "sp09-route",
+      "section": "8-1",
+      "mode": "identifier",
+      "keys": [
+        "P3"
+      ]
+    },
+    {
+      "defect_id": "SP-09",
+      "kind": "exact-set",
+      "row": "sp09-route",
+      "relation": "R-TXN-ROUTE",
+      "routes": [
+        "P3"
+      ],
+      "prefix": "T"
+    },
+    {
+      "defect_id": "SP-09",
+      "kind": "row-scoped-forbidden",
+      "row": "sp09-route",
+      "literals": [
+        "T5"
+      ]
+    },
+    {
+      "defect_id": "SP-09",
+      "kind": "any-of",
+      "row": "sp09-route",
+      "literals": [
+        "T7",
+        "V11"
+      ]
+    },
+    {
+      "defect_id": "SP-12",
+      "kind": "row-selector",
+      "id": "sp12-boundary",
+      "section": "6-3",
+      "mode": "identifier",
+      "keys": [
+        "B3"
+      ]
+    },
+    {
+      "defect_id": "SP-12",
+      "kind": "required-exclusion",
+      "row": "sp12-boundary",
+      "terms": [
+        "D1 を持たない変更イベント",
+        "D5"
+      ]
+    },
+    {
+      "defect_id": "SP-12",
+      "kind": "row-selector",
+      "id": "sp12-resume",
+      "section": "6-4",
+      "mode": "needle",
+      "keys": [
+        "D1 を持たない変更イベント",
+        "D5"
+      ]
+    },
+    {
+      "defect_id": "SP-12",
+      "kind": "required-exclusion",
+      "row": "sp12-resume",
+      "terms": [
+        "D5"
+      ]
+    },
+    {
+      "defect_id": "SP-16",
+      "kind": "required-exclusion",
+      "sections": [
+        "6-1",
+        "6-2"
+      ],
+      "terms": [
+        "D1 を持たない変更イベント",
+        "prefix"
+      ]
+    },
+    {
+      "defect_id": "SP-20",
+      "kind": "row-selector",
+      "id": "sp20-definition",
+      "section": "2-1",
+      "mode": "needle",
+      "keys": [
+        "| D1 |"
+      ]
+    },
+    {
+      "defect_id": "SP-20",
+      "kind": "row-contains",
+      "row": "sp20-definition",
+      "literals": [
+        "順序と欠落",
+        "undo の逆順"
+      ]
+    },
+    {
+      "defect_id": "SP-20",
+      "kind": "row-selector",
+      "id": "sp20-order-role",
+      "section": "4-2",
+      "mode": "needle",
+      "keys": [
+        "D1",
+        "順序",
+        "欠落"
+      ]
+    },
+    {
+      "defect_id": "SP-20",
+      "kind": "row-selector",
+      "id": "sp20-idempotency-role",
+      "section": "4-2",
+      "mode": "needle",
+      "keys": [
+        "D5",
+        "再送",
+        "二重適用"
+      ]
+    },
+    {
+      "defect_id": "SP-20",
+      "kind": "conditional-forbidden",
+      "row": "sp20-definition",
+      "literal": "再送の重複排除",
+      "unless": [
+        "D5 の用途",
+        "D1 の用途ではない"
+      ]
+    },
+    {
+      "defect_id": "SP-18",
+      "kind": "well-formedness",
+      "scope": "4-3-A",
+      "rule": "balanced-emphasis-per-table-row"
+    }
+  ],
+  "global_invariants": []
+}

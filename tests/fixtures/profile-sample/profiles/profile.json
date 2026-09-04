@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "name": "sample-minimal",
+  "document": "tests/fixtures/profile-sample/doc/requirements.md",
+  "manifest": "tests/fixtures/profile-sample/doc/manifest.json",
+  "defects": "tests/fixtures/profile-sample/doc/defects.json",
+  "invariants": "tests/fixtures/profile-sample/doc/invariants.json",
+  "requirements": "tests/fixtures/profile-sample/doc/requirements.md",
+  "universe": "tests/fixtures/profile-sample/doc/req-universe.json",
+  "section_id_grammar": "\\d+(?:-\\d+(?:-[A-Z])?)?",
+  "preamble": "first-h2",
+  "link_base_dir": "tests/fixtures/profile-sample/doc",
+  "noncanonical_scan_start": "^##\\s+2(?:[.\\s]|$)",
+  "noncanonical_path_pattern": "(?:docs/features/|\\.\\./features/)",
+  "declaration_table": {
+    "section": "2-5",
+    "row_prefix": "| **R-",
+    "column_count": 6,
+    "columns": ["関係 ID", "正本の表", "伝播先の表", "比較キー", "正本の要素全集合", "伝播先ごとの期待部分集合"]
+  },
+  "exclusion_vocabulary": ["対象外", "対象にならない", "含めない"],
+  "citation": {
+    "legacy_prefixes": ["docs/legacy/", "../legacy/"],
+    "legacy_infix": "/docs/legacy/",
+    "inherit_bare_line_from_same_line": true
+  },
+  "attribution": {
+    "section_re": "^11-3\\.",
+    "ledger_section": "11-5",
+    "kinds": ["同期側で決める", "境界として参照", "対象外"],
+    "assignment_header": ["ID", "区分", "本書の対応箇所または対象外の理由"],
+    "ledger_header": ["主張 ID", "主張内 ordinal", "参照先パス", "参照先の種別", "参照先の安定 ID", "判定", "是正内容"],
+    "reference_kinds": ["要件", "正本", "legacy"],
+    "ledger_verdicts": ["支持", "不支持", "射程過大", "誤典拠"],
+    "destination_grammar": "sync-v1"
+  },
+  "defect_id_namespaces": {"all": ["SP", "MT", "CI", "LG"], "machine": ["SP", "MT"]},
+  "invariant_kinds": ["forbidden-element", "row-selector", "row-contains", "section-contains", "exact-set", "element-lookup", "row-scoped-forbidden", "any-of", "required-exclusion", "conditional-forbidden", "well-formedness", "absent-section"],
+  "required_checks": ["manifest-consistency", "element-coverage", "enum-propagation", "condition-key", "route-matrix", "scope-declaration", "order-use", "citation-format", "noncanonical-reference", "link-target", "emphasis", "draft-metadata", "attribution", "ledger"],
+  "not_applicable": {
+    "forbidden-structure": "合成最小プロファイルでは対象外",
+    "cross-consistency": "合成最小プロファイルでは対象外",
+    "collection-consistency": "合成最小プロファイルでは対象外",
+    "baseline-digest": "合成最小プロファイルでは対象外",
+    "unique-owner": "合成最小プロファイルでは対象外",
+    "reference-class": "合成最小プロファイルでは対象外",
+    "attribution-destination": "合成最小プロファイルでは対象外",
+    "attribution-direct": "合成最小プロファイルでは対象外"
+  },
+  "assets": {},
+  "structure_extractors": [],
+  "collection_sets": [],
+  "reference_policy": {"rules": [{"target_pattern": "**", "role": "normative"}]}
+}

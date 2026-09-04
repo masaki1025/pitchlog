@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "structural_required": [],
+  "legacy_structural": [],
+  "required_declarations": [],
+  "declarations": [],
+  "global_invariants": [
+    {
+      "kind": "unique-owner",
+      "ledger": "tests/fixtures/profile-sample/doc/defects.json",
+      "digest_file": "tests/fixtures/profile-sample/assets/baseline-digest.txt",
+      "expected_ids": "tests/fixtures/profile-sample/assets/expected-ids.json",
+      "owner_steps_allowed": ["sample-step"]
+    }
+  ]
+}

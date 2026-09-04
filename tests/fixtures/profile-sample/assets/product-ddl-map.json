@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "asset_kind": "product_ddl_map",
+  "oracle_context": {},
+  "entries": [
+    {"ddl_id": "orders", "product_id": "orders"},
+    {"ddl_id": "app_role", "product_id": "app_role"}
+  ]
+}

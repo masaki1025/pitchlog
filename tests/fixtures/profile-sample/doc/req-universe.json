@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "categories": {
+    "requirements": {"count": 1, "ids": ["FR-001"]},
+    "sections": {"count": 5, "ids": ["2", "2-5", "11", "11-3", "11-5"]},
+    "blocks": {"count": 0, "ids": []},
+    "appendix_items": {"count": 0, "ids": []},
+    "identified_table_rows": {"count": 0, "ids": []},
+    "keyed_table_rows": {"count": 0, "ids": []},
+    "release_dod": {"count": 0, "ids": []},
+    "clause_subitems": {"count": 0, "ids": []}
+  },
+  "total": 6
+}

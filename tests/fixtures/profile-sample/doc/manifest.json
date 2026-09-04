@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "relations": [
+    {
+      "id": "R-SAMPLE",
+      "source_id": "orders",
+      "target_ids": ["app_role"],
+      "source_table": "source",
+      "targets": ["target"],
+      "compare_key": "ID",
+      "source_elements": ["S1"],
+      "expected_elements": {"target": ["S1"]}
+    }
+  ]
+}

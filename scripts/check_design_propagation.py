@@ -3,12 +3,52 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fnmatch
+import importlib.util
+import io
 import json
 import re
 import sys
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
+
+
+def _load_profile_module() -> Any:
+    """隣接する共通プロファイルローダーをファイルパスから読む。"""
+    path = Path(__file__).resolve().parent / "doc_check_profile.py"
+    spec = importlib.util.spec_from_file_location(
+        "check_design_propagation_doc_check_profile",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"プロファイルローダーを読み込めない: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_invariant_module() -> Any:
+    """隣接する宣言評価器をファイルパスから読む。"""
+    path = Path(__file__).resolve().parent / "doc_check_invariants.py"
+    spec = importlib.util.spec_from_file_location(
+        "check_design_propagation_doc_check_invariants",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"宣言評価器を読み込めない: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+doc_check_profile = _load_profile_module()
+doc_check_invariants = _load_invariant_module()
 
 CHECK_IDS = (
     "manifest-consistency",
@@ -23,8 +63,24 @@ CHECK_IDS = (
     "link-target",
     "emphasis",
     "draft-metadata",
+    "collection-consistency",
+    "forbidden-structure",
+    "cross-consistency",
+    "baseline-digest",
+    "unique-owner",
+    "reference-class",
 )
 CHECK_ID_SET = frozenset(CHECK_IDS)
+LEGACY_PROP_CHECK_IDS = frozenset(CHECK_IDS[:12])
+PROFILE_ASSET_CHECK_IDS = frozenset(
+    {
+        "collection-consistency",
+        "forbidden-structure",
+        "cross-consistency",
+        "baseline-digest",
+        "unique-owner",
+    }
+)
 GLOBAL_CHECK_IDS = frozenset(
     {
         "manifest-consistency",
@@ -45,6 +101,16 @@ REQ_LINE_CITATION_RE = re.compile(r"\bREQ:\d+\b")
 PATH_LINE_CITATION_RE = re.compile(r"[^\s`\[\]()]+\.md:\d+\b")
 BARE_LINE_CITATION_RE = re.compile(r"(?<![A-Za-z0-9_]):\d+\b")
 NONCANONICAL_PATH_RE = re.compile(r"(?:docs/features/|\.\./features/)")
+DEFAULT_SECTION_ID_GRAMMAR = r"\d+(?:-\d+(?:-[A-Z])?)?"
+DEFAULT_PREAMBLE = "first-h2"
+DEFAULT_EXCLUSION_VOCABULARY = ("対象外", "対象にならない", "含めない")
+DEFAULT_LEGACY_PREFIXES = ("docs/legacy/", "../legacy/")
+DEFAULT_LEGACY_INFIX = "/docs/legacy/"
+DEFAULT_NONCANONICAL_SCAN_START = r"^##\s+2(?:[.\s]|$)"
+DEFAULT_DECLARATION_SECTION = "2-5"
+DEFAULT_DECLARATION_ROW_PREFIX = "| **R-"
+DEFAULT_DECLARATION_COLUMN_COUNT = 6
+LEGACY_STRUCTURAL_BRANCH_IDS: frozenset[str] = frozenset()
 
 
 class CheckError(Exception):
@@ -206,8 +272,22 @@ def load_manifest(path: Path) -> dict[str, ManifestRelation]:
     raw = _read_json(path)
     if not isinstance(raw, dict):
         raise CheckError("関係マニフェストのルートはオブジェクトでなければならない")
+    raw_relations: object
+    if set(raw) == {"schema_version", "relations"} and isinstance(
+        raw.get("relations"), list
+    ):
+        raw_relations = {
+            value.get("id"): value
+            for value in raw["relations"]
+            if isinstance(value, dict) and isinstance(value.get("id"), str)
+        }
+        if len(raw_relations) != len(raw["relations"]):
+            raise CheckError("関係マニフェストのrelationsに不正または重複IDがあります")
+    else:
+        raw_relations = raw
+    assert isinstance(raw_relations, dict)
     relations: dict[str, ManifestRelation] = {}
-    for key, value in raw.items():
+    for key, value in raw_relations.items():
         if not isinstance(key, str) or not isinstance(value, dict):
             raise CheckError("関係マニフェストの各関係が不正")
         relation_id = _as_string(value.get("id"), f"{key}.id")
@@ -317,16 +397,36 @@ def _heading_section(text: str, label: str) -> str:
     return "\n".join(lines[start:end])
 
 
-def extract_scope(text: str, scope: str) -> str:
+def extract_scope(
+    text: str,
+    scope: str,
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+) -> str:
     """不変条件のscopeに列挙された節だけを本文から切り出す。
 
     Args:
         text: 検査対象のMarkdown本文。
         scope: ``2-1、4-2`` や ``冒頭、1節`` 形式の節指定。
+        section_id_grammar: 節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
 
     Returns:
-        指定された節を出現順に連結した文字列。存在しない節は空として扱う。
+        指定された節を出現順に連結した文字列。
+
+    Raises:
+        CheckError: scopeトークンが不正か、対象の節が文書に無い場合。
+        ProfileError: 冒頭の切り出し方式が未対応の場合。
     """
+    if preamble != DEFAULT_PREAMBLE:
+        raise doc_check_profile.ProfileError(
+            f"preamble は {DEFAULT_PREAMBLE!r} でなければならない: {preamble!r}"
+        )
+    try:
+        section_id_re = re.compile(section_id_grammar)
+    except re.error as error:
+        raise CheckError(f"section_id_grammar が不正: {error}") from error
     sections: list[str] = []
     for raw_token in scope.split("、"):
         token = raw_token.strip()
@@ -334,279 +434,39 @@ def extract_scope(text: str, scope: str) -> str:
             sections.append(text.split("\n## ", 1)[0])
             continue
         token = token.split(" の", 1)[0].removesuffix("節").strip()
-        if re.fullmatch(r"\d+(?:-\d+(?:-[A-Z])?)?", token) is not None:
-            sections.append(_heading_section(text, token))
-    return "\n".join(sections)
-
-
-def _table_row(section: str, *needles: str) -> str | None:
-    for line in section.splitlines():
-        if line.lstrip().startswith("|") and all(needle in line for needle in needles):
-            return line
-    return None
-
-
-def _table_cells(line: str) -> tuple[str, ...]:
-    if not line.lstrip().startswith("|"):
-        return ()
-    return tuple(cell.strip() for cell in line.strip().strip("|").split("|"))
-
-
-def _plain_cell(cell: str) -> str:
-    return cell.replace("**", "").replace("`", "").strip()
-
-
-def _identified_row(section: str, identifier: str) -> str | None:
-    for line in section.splitlines():
-        cells = _table_cells(line)
-        if cells and _plain_cell(cells[0]) == identifier:
-            return line
-    return None
-
-
-def _element_has_row(section: str, element: str) -> bool:
-    return any(
-        element in line
-        for line in section.splitlines()
-        if _table_cells(line) and not re.match(r"^\s*[-:]+\s*$", _table_cells(line)[0])
-    )
-
-
-def _numbered_ids(value: str, prefix: str) -> frozenset[str]:
-    identifiers = {
-        f"{prefix}{number}"
-        for number in re.findall(rf"(?<![A-Za-z0-9]){re.escape(prefix)}(\d+)", value)
-    }
-    for match in re.finditer(
-        rf"{re.escape(prefix)}(\d+)\s*[〜～-]\s*(?:{re.escape(prefix)})?(\d+)",
-        value,
-    ):
-        start, end = (int(number) for number in match.groups())
-        identifiers.update(f"{prefix}{number}" for number in range(start, end + 1))
-    return frozenset(identifiers)
-
-
-def _expected_route_elements(
-    manifest: dict[str, ManifestRelation],
-) -> dict[str, frozenset[str]]:
-    routes: dict[str, frozenset[str]] = {}
-    for element in manifest["R-TXN-ROUTE"].source_elements:
-        match = re.match(r"(?P<route>P\d+):[^=]+=(?P<elements>.+)", element)
-        if match is not None:
-            routes[match.group("route")] = _numbered_ids(match.group("elements"), "T")
-    return routes
-
-
-def _route_row_matches(section: str, route: str, expected: frozenset[str]) -> bool:
-    row = _identified_row(section, route)
-    return row is not None and _numbered_ids(row, "T") == expected
-
-
-def check_emphasis(text: str) -> tuple[int, ...]:
-    """Markdown表セルで対になっていない強調記号の行番号を返す。
-
-    Args:
-        text: 検査対象のMarkdown本文。
-
-    Returns:
-        ``**`` の個数が奇数である表行の1始まり行番号。
-    """
-    return tuple(
-        index
-        for index, line in enumerate(text.splitlines(), start=1)
-        if line.lstrip().startswith("|") and line.count("**") % 2 == 1
-    )
-
-
-def _has_exclusion(section: str, *terms: str) -> bool:
-    return all(term in section for term in terms) and any(
-        word in section for word in ("対象外", "対象にならない", "含めない")
-    )
-
-
-def _structural_reason(
-    defect_id: str,
-    text: str,
-    manifest: dict[str, ManifestRelation],
-) -> str | None:
-    if defect_id == "SP-01":
-        row = _table_row(_heading_section(text, "7-2"), "未送信", "退避済み")
-        boundary = _identified_row(_heading_section(text, "6-3"), "B4")
-        if (
-            row is None
-            or "A5" not in row
-            or "退避" not in row
-            or boundary is None
-            or "A5" not in boundary
-            or "退避" not in boundary
-        ):
-            return "退避済みへの遷移条件がA5の退避でない"
-    elif defect_id == "SP-02":
-        elements = manifest["R-ACK-STATE"].source_elements
-        source = _identified_row(_heading_section(text, "7-1"), "A5")
-        if source is None or any(element not in source for element in elements):
-            return "A5の正本行に結果集合5状態がない"
-        for label in ("6-3", "7-2"):
-            section = _heading_section(text, label)
-            if any(not _element_has_row(section, element) for element in elements):
-                return f"A5の結果集合が{label}へ全件伝播していない"
-    elif defect_id == "SP-03":
-        states = manifest["R-QUEUE-LIFE"].source_elements
-        for label in ("6-3", "7-2", "9-5"):
-            section = _heading_section(text, label)
-            if any(not _element_occurs(section, state) for state in states):
-                return f"キュー状態の保持・破棄契機が{label}へ全件伝播していない"
-    elif defect_id == "SP-06":
-        routes = _expected_route_elements(manifest)
-        for label in ("8-1", "10-2", "11-2"):
-            section = _heading_section(text, label)
-            if any(
-                not _route_row_matches(section, route, routes[route])
-                for route in ("P1", "P2", "P3")
-            ):
-                return f"P1〜P3の経路別T要素集合が{label}にない"
-    elif defect_id == "SP-07":
-        routes = _expected_route_elements(manifest)
-        if not _route_row_matches(_heading_section(text, "8-1"), "P4", routes["P4"]):
-            return "8-1に旧世代からB4応答へ至るP4経路がない"
-        required = {
-            "9-2": ("旧世代", "退避", "B4", "原子"),
-            "10-2": ("退避", "B4", "原子"),
-            "11-2": ("P4", "退避", "B4"),
-        }
-        for label, terms in required.items():
-            if _table_row(_heading_section(text, label), *terms) is None:
-                return f"P4の原子性が{label}へ伝播していない"
-    elif defect_id == "SP-08":
-        expected = next(
-            element
-            for element in manifest["R-TXN-ROUTE"].source_elements
-            if element.startswith("T6:")
-        )
-        semantic = expected.split(":", 1)[1]
-        section = _heading_section(text, "8-1")
-        element_row = _identified_row(section, "T6")
-        routes = _expected_route_elements(manifest)
-        source_mapping = all(
-            terms[0] in _heading_section(text, label)
-            and terms[1] in _heading_section(text, label)
-            for label, terms in {
-                "4-4": ("一時 ID", "写像"),
-                "7-1": ("D5", "確定結果"),
-            }.items()
-        )
-        route_mapping = all(
-            _route_row_matches(section, route, elements)
-            for route, elements in routes.items()
-            if "T6" in elements
-        )
-        if (
-            element_row is None
-            or semantic not in element_row
-            or not source_mapping
-            or not route_mapping
-        ):
-            return "T6の確定結果・一時ID写像保存が8-1にない"
-    elif defect_id == "SP-09":
-        routes = _expected_route_elements(manifest)
-        row = _identified_row(_heading_section(text, "8-1"), "P3")
-        if (
-            row is None
-            or _numbered_ids(row, "T") != routes["P3"]
-            or "T5" in row
-            or not ("T7" in row or "V11" in row)
-        ):
-            return "D1を持たない変更イベントのT要素集合が不正"
-    elif defect_id == "SP-10":
-        section = _heading_section(text, "7-1")
-        route = _identified_row(_heading_section(text, "8-1"), "P3")
-        response = _table_row(section, "P3", "応答")
-        if route is None or response is None:
-            return "P3に適用する独立した応答保証が7-1にない"
-    elif defect_id == "SP-11":
-        for label in ("6-2", "6-3", "8-3"):
-            if _table_row(_heading_section(text, label), "期待版不一致") is None:
-                return f"期待版不一致が{label}へ伝播していない"
-    elif defect_id == "SP-12":
-        boundary = _identified_row(_heading_section(text, "6-3"), "B3")
-        if boundary is None or not _has_exclusion(
-            boundary, "D1 を持たない変更イベント", "D5"
-        ):
-            return "D5衝突の再開2択除外が6-3にない"
-        for label in ("6-4",):
-            row = _table_row(
-                _heading_section(text, label), "D1 を持たない変更イベント", "D5"
+        if section_id_re.fullmatch(token) is None:
+            raise CheckError(
+                f"scope のトークン『{token}』が節 ID の文法に一致しない"
             )
-            if row is None or not _has_exclusion(row, "D5"):
-                return f"D5衝突の再開2択除外が{label}にない"
-    elif defect_id == "SP-13":
-        elements = manifest["R-EVENT-FIELD"].source_elements
-        source = _heading_section(text, "4-3")
-        if any(
-            _identified_row(source, element.partition(":")[0]) is None
-            for element in elements
-        ):
-            return "V1〜V11の正本集合が4-3にない"
-        for label in ("4-3-A", "11-2"):
-            section = _heading_section(text, label)
-            if any(not _element_occurs(section, element) for element in elements):
-                return f"V1〜V11の必須区分が{label}にない"
-    elif defect_id == "SP-14":
-        source = _heading_section(text, "4-3-A")
-        if not all(term in source for term in ("W3-a", "W3-b", "変更版順")):
-            return "変更版順の正本規則が4-3-Aにない"
-        for label in ("5-5", "11-2"):
-            section = _heading_section(text, label)
-            if not all(term in section for term in ("変更版順", "D1・D2", "論理再生順")):
-                return f"変更版順が{label}に伝播していない"
-    elif defect_id == "SP-16":
-        for label in ("6-1", "6-2"):
-            section = _heading_section(text, label)
-            if not _has_exclusion(section, "D1 を持たない変更イベント", "prefix"):
-                return f"{label}にD1なし変更イベントのprefix射程除外がない"
-    elif defect_id == "SP-18":
-        if check_emphasis(extract_scope(text, "4-3-A")):
-            return "W3表セルの強調記号が閉じていない"
-    elif defect_id == "SP-19":
-        if "`D1=5` の位置には" in extract_scope(text, "10-2"):
-            return "D1をプレイ列の位置として使っている"
-    elif defect_id == "SP-20":
-        row = _table_row(_heading_section(text, "2-1"), "| D1 |")
-        roles = _heading_section(text, "4-2")
-        role_row = _table_row(roles, "D1", "順序", "欠落")
-        idempotency_row = _table_row(roles, "D5", "再送", "二重適用")
-        dedup_is_explicitly_excluded = (
-            row is not None
-            and "再送の重複排除" in row
-            and "D5 の用途" in row
-            and "D1 の用途ではない" in row
-        )
-        if (
-            row is None
-            or "順序と欠落" not in row
-            or "undo の逆順" not in row
-            or role_row is None
-            or idempotency_row is None
-            or ("再送の重複排除" in row and not dedup_is_explicitly_excluded)
-        ):
-            return "D1の用途が順序・欠落に限定されていない"
-    return None
+        section = _heading_section(text, token)
+        if not section:
+            raise CheckError(f"scope の節『{token}』が文書に無い")
+        sections.append(section)
+    return "\n".join(sections)
 
 
 def defect_violation_reason(
     defect: Defect,
     text: str,
     manifest: dict[str, ManifestRelation],
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+    invariants: Any | None = None,
+    profile: Any | None = None,
 ) -> str | None:
     """1件の機械欠陥についてliteralと構造的不変条件を評価する。
 
-    ``positive`` と ``mapping`` は散文のまま評価せず、本関数から呼ぶID別の
-    構造ロジックの仕様として実装している。
+    forbidden literalを先に確認し、続いて宣言列をfirst-failureで評価する。
 
     Args:
         defect: 評価する機械欠陥。
         text: 検査対象のMarkdown本文。
         manifest: 関係マニフェスト。
+        section_id_grammar: scopeの節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
+        invariants: 検証済みの不変条件宣言資産。
+        profile: 宣言評価に使う検証済みプロファイル。
 
     Returns:
         違反理由。適合していれば ``None``。
@@ -616,11 +476,63 @@ def defect_violation_reason(
     """
     if defect.detection != "machine" or defect.invariant is None:
         raise CheckError(f"人間照合欠陥は機械評価できない: {defect.id}")
-    scoped = extract_scope(text, defect.invariant.scope)
+    scoped = extract_scope(
+        text,
+        defect.invariant.scope,
+        section_id_grammar=section_id_grammar,
+        preamble=preamble,
+    )
     for forbidden in defect.invariant.forbidden:
         if forbidden in scoped:
             return f"禁止literalが残存: {forbidden}"
-    return _structural_reason(defect.id, text, manifest)
+    if invariants is None:
+        return None
+    context = doc_check_invariants.EvaluationContext()
+    declarations = (
+        declaration
+        for declaration in invariants.declarations
+        if declaration["defect_id"] == defect.id
+    )
+    for declaration in declarations:
+        sections = _resolve_declaration_sections(text, declaration)
+        reason = doc_check_invariants.evaluate_declaration(
+            declaration,
+            text=text,
+            manifest=manifest,
+            profile=profile,
+            sections=sections,
+            context=context,
+        )
+        if reason is not None:
+            return reason.actual or f"{reason.kind} に違反"
+    return None
+
+
+def _resolve_declaration_sections(
+    text: str,
+    declaration: dict[str, Any],
+) -> dict[str, str]:
+    """宣言の節指定を解決し、節不在を入力不正にする。"""
+    if declaration.get("kind") == "absent-section":
+        return {}
+    section_ids: list[str] = []
+    section = declaration.get("section")
+    if isinstance(section, str):
+        section_ids.append(section)
+    sections = declaration.get("sections")
+    if isinstance(sections, list):
+        section_ids.extend(item for item in sections if isinstance(item, str))
+    if declaration.get("kind") == "well-formedness":
+        scope = declaration.get("scope")
+        if isinstance(scope, str):
+            section_ids.append(scope)
+    resolved: dict[str, str] = {}
+    for section_id in section_ids:
+        section_text = _heading_section(text, section_id)
+        if not section_text:
+            raise CheckError(f"宣言の節『{section_id}』が文書に無い")
+        resolved[section_id] = section_text
+    return resolved
 
 
 def _strip_code_span(value: str) -> str:
@@ -631,26 +543,33 @@ def _strip_code_span(value: str) -> str:
 
 def parse_manifest_declaration(
     text: str,
+    *,
+    section_id: str = DEFAULT_DECLARATION_SECTION,
+    row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[dict[str, ManifestRelation], tuple[str, ...]]:
-    """2-5の表間参照宣言表を6フィールドで解析する。
+    """表間参照宣言表を指定された構造で解析する。
 
     Args:
         text: 検査対象のMarkdown本文。
+        section_id: 宣言表を置く節ID。
+        row_prefix: 関係行を識別する接頭辞。
+        column_count: 関係行に必要な列数。
 
     Returns:
         ``(関係ID別の宣言, 解析違反)``。
     """
-    section = _heading_section(text, "2-5")
+    section = _heading_section(text, section_id)
     if not section:
-        return {}, ("2-5の表間参照宣言表がない",)
+        return {}, (f"{section_id}の表間参照宣言表がない",)
     relations: dict[str, ManifestRelation] = {}
     errors: list[str] = []
     for line in section.splitlines():
-        if not line.startswith("| **R-"):
+        if not line.startswith(row_prefix):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 6:
-            errors.append("宣言表の列数が6でない")
+        if len(cells) != column_count:
+            errors.append(f"宣言表の列数が{column_count}でない")
             continue
         relation_id = cells[0].removeprefix("**").removesuffix("**")
         if relation_id in relations:
@@ -689,17 +608,29 @@ def parse_manifest_declaration(
 def check_manifest_consistency(
     text: str,
     manifest: dict[str, ManifestRelation],
+    *,
+    declaration_section: str = DEFAULT_DECLARATION_SECTION,
+    declaration_row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    declaration_column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[str, ...]:
     """本文宣言表とJSONを6フィールドすべてで双方向突合する。
 
     Args:
         text: 検査対象のMarkdown本文。
         manifest: JSONから読んだ関係マニフェスト。
+        declaration_section: 宣言表を置く節ID。
+        declaration_row_prefix: 関係行を識別する接頭辞。
+        declaration_column_count: 関係行に必要な列数。
 
     Returns:
         不一致理由。完全一致なら空タプル。
     """
-    declared, errors = parse_manifest_declaration(text)
+    declared, errors = parse_manifest_declaration(
+        text,
+        section_id=declaration_section,
+        row_prefix=declaration_row_prefix,
+        column_count=declaration_column_count,
+    )
     reasons = list(errors)
     missing = sorted(set(manifest) - set(declared))
     unknown = sorted(set(declared) - set(manifest))
@@ -727,207 +658,14 @@ def _reference_section(text: str, reference: str) -> str:
     return _heading_section(text, match.group("label")) if match is not None else ""
 
 
-def _element_markers(element: str) -> tuple[str, ...]:
-    """要素宣言から本文で照合できる安定IDと意味語を取り出す。
-
-    Args:
-        element: ``B5:認証失効`` などの要素宣言。
-
-    Returns:
-        いずれかが本文にあれば要素が現れたとみなせるマーカー。
-    """
-    identifier, separator, description = element.partition(":")
-    markers: list[str] = []
-    if identifier and not identifier.isdecimal():
-        markers.append(identifier)
-    if separator:
-        semantic = description.split("=", 1)[0].strip()
-        if semantic:
-            markers.append(semantic)
-    elif element:
-        markers.append(element)
-    return tuple(dict.fromkeys(markers))
-
-
-def _semantic_text(value: str) -> str:
-    """意味句の照合用にMarkdown装飾・空白・区切り記号を除く。
-
-    Args:
-        value: 要素宣言の意味句、またはMarkdown表の1行。
-
-    Returns:
-        語順と文字列を保った正規化文字列。
-
-    Notes:
-        逐語一致ではMarkdown装飾や和文の空白差まで伝播漏れにしてしまうため、
-        意味を担わない装飾・空白・区切りだけを除く。一方、語の置換や語順は
-        正規化しないので、右辺を別の値へ変えた場合は一致しない。
-    """
-    return re.sub(r"[\s`*_「」『』（）()、，,。．・:：/／—→]+", "", value)
-
-
-def _semantic_part_occurs(row: str, expected: str) -> bool:
-    """意味句が直後の否定接尾辞で反転されずに行へ現れるかを返す。
-
-    Args:
-        row: 正規化済みの候補行。
-        expected: 正規化済みの期待意味句。
-
-    Returns:
-        期待意味句の直後が ``外`` ではない出現があれば ``True``。
-
-    Notes:
-        ``対象`` が ``対象外`` の部分文字列として一致する穴を閉じる。一般的な
-        自然言語推論は行わず、伝播要素で用いる明示的な接尾否定だけを区別する。
-    """
-    return any(
-        not row[match.end() :].startswith("外")
-        for match in re.finditer(re.escape(expected), row)
-    )
-
-
-def _identifier_set(value: str) -> tuple[str, frozenset[str]] | None:
-    """右辺が同一接頭辞のID集合なら接頭辞と全集合を返す。"""
-    compact = re.sub(r"\s+", "", value)
-    parts = re.split(r"[,、・]", compact)
-    matches = [re.fullmatch(r"(?P<prefix>[A-Z]+)(?P<number>\d+)", part) for part in parts]
-    if not parts or any(match is None for match in matches):
-        return None
-    prefixes = {match.group("prefix") for match in matches if match is not None}
-    if len(prefixes) != 1:
-        return None
-    prefix = prefixes.pop()
-    identifiers = frozenset(
-        f"{prefix}{match.group('number')}" for match in matches if match is not None
-    )
-    return prefix, identifiers
-
-
-def _data_table_rows(section: str) -> tuple[str, ...]:
-    """節からMarkdown表の区切り行を除く候補行を返す。"""
-    return tuple(
-        row
-        for row in section.splitlines()
-        if _table_cells(row)
-        and not all(re.fullmatch(r"\s*[-:]+\s*", cell) for cell in _table_cells(row))
-    )
-
-
-def _element_table_row_occurs(section: str, element: str) -> bool:
-    """``=`` を持つ要素の識別子側と右辺が同じ表行にあるかを返す。
-
-    ``ID:意味名=右辺`` のIDで候補行を構造的に特定する。IDは英字を含むものだけで
-    なく、参加区分表の番号IDも必須とする。右辺が ``T1,T2,...`` のようなID集合
-    なら候補行の同じ接頭辞の集合と完全一致させ、1要素の欠落・余分・別行への
-    移動を検出する。それ以外は ``+`` で分けた意味句ごとに、Markdown装飾・
-    空白・区切りを除いた部分文字列として同じ行に存在することを求める。この粒度は
-    表記差を許しつつ、IDの欠落・交換・置換と意味句の置換を検出するためである。
-
-    Args:
-        section: 参照先の節本文。
-        element: ``1:毎球入力=論理位置を持つ`` などの要素宣言。
-
-    Returns:
-        識別子側と右辺の対応全体が1つのMarkdown表行にあれば ``True``。
-    """
-    identifier, separator, description = element.partition(":")
-    left, equals, right = description.partition("=")
-    if not separator or not equals or not left or not right:
-        return False
-
-    rows = _data_table_rows(section)
-    normalized_left = _semantic_text(left)
-    candidate_rows = [
-        row for row in rows if _identifier_occurs(row, identifier)
-    ]
-
-    identifier_set = _identifier_set(right)
-    if identifier_set is not None:
-        prefix, expected = identifier_set
-        return any(
-            normalized_left in _semantic_text(row)
-            and _numbered_ids(row, prefix) == expected
-            for row in candidate_rows
-        )
-
-    expected_parts = tuple(
-        _semantic_text(part) for part in right.split("+") if _semantic_text(part)
-    )
-    return bool(expected_parts) and any(
-        normalized_left in (normalized_row := _semantic_text(row))
-        and all(
-            _semantic_part_occurs(normalized_row, part) for part in expected_parts
-        )
-        for row in candidate_rows
-    )
-
-
-def _identifier_occurs(text: str, identifier: str) -> bool:
-    """英数字IDが単独または範囲表記で本文に現れるかを返す。
-
-    Args:
-        text: 調べる節本文。
-        identifier: ``B5`` や ``W3-a`` のようなID。
-
-    Returns:
-        IDを識別子として確認できた場合は ``True``。
-    """
-    exact = re.compile(
-        rf"(?<![A-Za-z0-9]){re.escape(identifier)}(?![A-Za-z0-9-])"
-    )
-    if exact.search(text) is not None:
-        return True
-    match = re.fullmatch(r"(?P<prefix>[A-Z]+)(?P<number>\d+)", identifier)
-    if match is None:
-        return False
-    number = int(match.group("number"))
-    prefix = re.escape(match.group("prefix"))
-    for range_match in re.finditer(
-        rf"(?<![A-Za-z0-9]){prefix}(\d+)\s*[〜～-]\s*(?:{prefix})?(\d+)",
-        text,
-    ):
-        start, end = (int(value) for value in range_match.groups())
-        if start <= number <= end:
-            return True
-    return False
-
-
-def _element_occurs(section: str, element: str) -> bool:
-    """宣言要素が節本文に出現するかを返す。
-
-    ``=`` を持つ対応要素は表行単位でID・左辺・右辺を照合する。
-    ``ID:意味句1+意味句2`` は同じ行にIDと全意味句があることを求める。
-    ``+`` を持たない既存の名前付きID、単独ID、IDを持たない列挙語は、従来どおり
-    節内のID・語の出現を照合する。
-    """
-    if "=" in element:
-        return _element_table_row_occurs(section, element)
-    identifier, separator, description = element.partition(":")
-    if separator and re.fullmatch(
-        r"(?:[A-Z]+\d+(?:-[a-z])?|\d+)", identifier
-    ) is not None:
-        if "+" not in description:
-            return _identifier_occurs(section, identifier)
-        expected_parts = tuple(
-            _semantic_text(part)
-            for part in description.split("+")
-            if _semantic_text(part)
-        )
-        return bool(expected_parts) and any(
-            _identifier_occurs(line, identifier)
-            and all(
-                _semantic_part_occurs(normalized_line, part)
-                for part in expected_parts
-            )
-            for line in section.splitlines()
-            if (normalized_line := _semantic_text(line))
-        )
-    return any(
-        _identifier_occurs(section, marker)
-        if re.fullmatch(r"[A-Z]+\d+(?:-[a-z])?", marker)
-        else marker in section
-        for marker in _element_markers(element)
-    )
+_element_markers = doc_check_invariants.element_markers
+_semantic_text = doc_check_invariants.semantic_text
+_semantic_part_occurs = doc_check_invariants.semantic_part_occurs
+_identifier_set = doc_check_invariants.identifier_set
+_data_table_rows = doc_check_invariants.data_table_rows
+_element_table_row_occurs = doc_check_invariants.element_table_row_occurs
+_identifier_occurs = doc_check_invariants.identifier_occurs
+_element_occurs = doc_check_invariants.element_occurs
 
 
 def check_element_coverage(
@@ -977,7 +715,12 @@ def check_element_coverage(
     return tuple(reasons)
 
 
-def check_citation_format(text: str) -> tuple[str, ...]:
+def check_citation_format(
+    text: str,
+    *,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+) -> tuple[str, ...]:
     """可変文書で禁止する3形式の行番号引用を検出する。
 
     版固定アーカイブ ``docs/legacy/`` への行番号引用は逐語証拠として許容する。
@@ -986,6 +729,8 @@ def check_citation_format(text: str) -> tuple[str, ...]:
 
     Args:
         text: 検査対象のMarkdown本文。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
 
     Returns:
         残存した引用形式の識別子。
@@ -1021,10 +766,18 @@ def check_citation_format(text: str) -> tuple[str, ...]:
                 continue
             if event_kind == "path-line":
                 last_path = match.group(0).rsplit(":", 1)[0]
-                if not _is_legacy_citation_path(last_path):
+                if not _is_legacy_citation_path(
+                    last_path,
+                    legacy_prefixes=legacy_prefixes,
+                    legacy_infix=legacy_infix,
+                ):
                     found.add("<パス>.md:<行番号>")
                 continue
-            if last_path is None or not _is_legacy_citation_path(last_path):
+            if last_path is None or not _is_legacy_citation_path(
+                last_path,
+                legacy_prefixes=legacy_prefixes,
+                legacy_infix=legacy_infix,
+            ):
                 found.add("裸の行番号")
     return tuple(
         identifier
@@ -1033,61 +786,85 @@ def check_citation_format(text: str) -> tuple[str, ...]:
     )
 
 
-def _is_legacy_citation_path(path: str) -> bool:
+def _is_legacy_citation_path(
+    path: str,
+    *,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+) -> bool:
     """引用先が版固定のlegacyアーカイブかを返す。
 
     Args:
         path: リポジトリ相対または文書相対のMarkdownパス。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
 
     Returns:
         ``docs/legacy/`` 配下を指す場合は ``True``。
     """
     normalized = path.replace("\\", "/")
-    return (
-        normalized.startswith("docs/legacy/")
-        or normalized.startswith("../legacy/")
-        or "/docs/legacy/" in normalized
-    )
+    return normalized.startswith(tuple(legacy_prefixes)) or legacy_infix in normalized
 
 
-def check_noncanonical_reference(text: str) -> tuple[int, ...]:
+def check_noncanonical_reference(
+    text: str,
+    *,
+    scan_start: str = DEFAULT_NONCANONICAL_SCAN_START,
+    path_pattern: str = NONCANONICAL_PATH_RE.pattern,
+) -> tuple[int, ...]:
     """本文中のdocs/features配下への規範参照を検出する。
 
     変更履歴は経緯の記録なので対象外とし、2章以降を規範本文として走査する。
 
     Args:
         text: 検査対象のMarkdown本文。
+        scan_start: 規範本文の走査を開始する見出しの正規表現。
+        path_pattern: 非正本参照を表すパスの正規表現。
 
     Returns:
         非正本参照がある1始まり行番号。
     """
+    try:
+        scan_start_re = re.compile(scan_start)
+        path_re = re.compile(path_pattern)
+    except re.error as error:
+        raise CheckError(f"非正本参照の正規表現が不正: {error}") from error
     lines = text.splitlines()
     start = next(
-        (index for index, line in enumerate(lines) if re.match(r"^##\s+2(?:[.\s]|$)", line)),
+        (index for index, line in enumerate(lines) if scan_start_re.match(line)),
         len(lines),
     )
     return tuple(
         index + 1
         for index, line in enumerate(lines)
-        if index >= start and NONCANONICAL_PATH_RE.search(line) is not None
+        if index >= start and path_re.search(line) is not None
     )
 
 
-def check_link_targets(text: str, root: Path) -> tuple[str, ...]:
+def check_link_targets(
+    text: str,
+    root: Path,
+    base_dir: Path | None = None,
+) -> tuple[str, ...]:
     """本文の相対Markdownリンクがリポジトリ内に実在するか検査する。
 
-    fixtureも正本文書のコピーとして扱うため、解決基準は常に
-    ``docs/design`` とする。
+    ``base_dir`` が無い場合は、fixtureも正本文書のコピーとして扱う
+    従来どおり ``docs/design`` を解決基準とする。
 
     Args:
         text: 検査対象のMarkdown本文。
         root: リポジトリルート。
+        base_dir: 相対リンクの解決基準。省略時は ``root/docs/design``。
 
     Returns:
         不正または実在しないリンク先。
     """
-    base = (root / "docs" / "design").resolve()
     root = root.resolve()
+    if base_dir is None:
+        base = (root / "docs" / "design").resolve()
+    else:
+        base = base_dir if base_dir.is_absolute() else root / base_dir
+        base = base.resolve()
     missing: list[str] = []
     for match in MARKDOWN_LINK_RE.finditer(text):
         target = match.group("target").strip("<>")
@@ -1101,11 +878,674 @@ def check_link_targets(text: str, root: Path) -> tuple[str, ...]:
     return tuple(dict.fromkeys(missing))
 
 
+def _reference_target(
+    target: str,
+    *,
+    document_path: Path,
+    root: Path,
+) -> tuple[str, str | None, Path | None]:
+    """Markdownリンクを規則照合用の正規化パスへ変換する。"""
+    raw_target = target.strip("<>")
+    path_text, separator, fragment = raw_target.partition("#")
+    fragment_value = fragment if separator else None
+    if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", path_text) or path_text.startswith("//"):
+        return path_text, fragment_value, None
+    if not path_text:
+        resolved = document_path.resolve()
+    elif path_text.startswith("/"):
+        resolved = (root / path_text.lstrip("/")).resolve()
+    else:
+        resolved = (document_path.parent / path_text).resolve()
+    root_path = root.resolve()
+    if not resolved.is_relative_to(root_path):
+        raise CheckError(f"参照先がリポジトリ外です: {raw_target}")
+    return resolved.relative_to(root_path).as_posix(), fragment_value, resolved
+
+
+def _frontmatter_status(path: Path) -> str | None:
+    """Markdown先頭のfrontmatterからstatusを取得する。"""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    if not lines or lines[0] != "---":
+        return None
+    statuses: list[str] = []
+    for line in lines[1:]:
+        if line == "---":
+            return statuses[0] if len(statuses) == 1 else None
+        match = re.match(r"^status:\s*(.*?)\s*$", line)
+        if match is not None:
+            statuses.append(match.group(1).strip("\"'"))
+    return None
+
+
+def check_reference_classes(
+    text: str,
+    *,
+    profile: Any,
+    document_path: Path,
+    root: Path,
+) -> tuple[Finding, ...]:
+    """順序付き規則で参照を分類し、normative先の承認状態を検査する。"""
+    rules = profile.raw["reference_policy"]["rules"]
+    section_pattern = re.compile(
+        rf"^(?P<section>{profile.raw['section_id_grammar']})(?:[.\s(]|$)"
+    )
+    current_section: str | None = None
+    findings: list[Finding] = []
+    fence: str | None = None
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        fence_match = re.match(r"^\s*(`{3,}|~{3,})", line)
+        if fence_match is not None:
+            marker = fence_match.group(1)[0]
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+            continue
+        if fence is not None:
+            continue
+        heading = HEADING_RE.match(line)
+        if heading is not None:
+            title = heading.group("title")
+            section_match = section_pattern.match(title)
+            current_section = (
+                section_match.group("section")
+                if section_match is not None
+                else None
+            )
+        for link in MARKDOWN_LINK_RE.finditer(line):
+            target = link.group("target")
+            normalized, fragment, resolved = _reference_target(
+                target,
+                document_path=document_path,
+                root=root,
+            )
+            matched_rule: Mapping[str, Any] | None = None
+            for rule in rules:
+                if (
+                    "source_section" in rule
+                    and rule["source_section"] != current_section
+                ):
+                    continue
+                if not fnmatch.fnmatchcase(normalized, rule["target_pattern"]):
+                    continue
+                if "fragment" in rule and (
+                    fragment is None
+                    or not fnmatch.fnmatchcase(fragment, rule["fragment"])
+                ):
+                    continue
+                matched_rule = rule
+                break
+            if matched_rule is None:
+                raise CheckError(
+                    "reference_policyに一致する規則がありません: "
+                    f"行{line_number}: {target}"
+                )
+            if matched_rule["role"] != "normative":
+                continue
+            actual_status = _frontmatter_status(resolved) if resolved is not None else None
+            if actual_status != "approved":
+                findings.append(
+                    Finding(
+                        "reference-class",
+                        "reference-class",
+                        f"normative参照先がapprovedでない: {normalized}"
+                        f"(status={actual_status})",
+                    )
+                )
+    return tuple(findings)
+
+
+def check_collection_consistency(
+    profile: Any,
+    assets: Any,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """collection_setsの集合関係違反をFindingにする。"""
+    results = doc_check_profile.evaluate_collection_sets(
+        profile,
+        assets,
+        manifest=raw_manifest,
+    )
+    return tuple(
+        Finding("collection-consistency", "collection-consistency", result.reason)
+        for result in results
+        if result.reason is not None
+    )
+
+
+def _structure_matches(left: Any, right: Any) -> bool:
+    """構造の全項目を照合し、bothだけを両方向として扱う。"""
+    return (
+        left.kind == right.kind
+        and left.source == right.source
+        and left.target == right.target
+        and left.participants == right.participants
+        and (
+            left.direction == right.direction
+            or left.direction == "both"
+            or right.direction == "both"
+        )
+    )
+
+
+def check_forbidden_structures(
+    profile: Any,
+    assets: Any,
+    *,
+    text: str,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """抽出済み構造と禁止構造を名前空間付きで照合する。"""
+    extracted = doc_check_profile.extract_structures(
+        profile,
+        assets,
+        text=text,
+        manifest=raw_manifest,
+    )
+    observed = tuple(
+        structure
+        for structures in extracted.values()
+        for structure in structures
+    )
+    forbidden = doc_check_profile.asset_structures(assets, "forbidden")
+    findings: list[Finding] = []
+    for structure in forbidden:
+        if any(_structure_matches(structure, candidate) for candidate in observed):
+            findings.append(
+                Finding(
+                    "forbidden-structure",
+                    "forbidden-structure",
+                    "禁止構造が実在: " + _format_structure(structure),
+                )
+            )
+    return tuple(findings)
+
+
+def _format_structure(structure: Any) -> str:
+    """構造タプルを診断用の安定文字列にする。"""
+    participants = ",".join(
+        f"{participant.namespace}:{participant.id}"
+        for participant in structure.participants
+    )
+    return (
+        f"kind={structure.kind},"
+        f"source={structure.source.namespace}:{structure.source.id},"
+        f"target={structure.target.namespace}:{structure.target.id},"
+        f"direction={structure.direction},participants=[{participants}]"
+    )
+
+
+def _asset_records(assets: Any, name: str) -> tuple[Any, ...]:
+    """指定資産の全collection項目を返す。"""
+    asset = assets.assets.get(name)
+    if asset is None:
+        raise doc_check_profile.ProfileError(f"資産がありません: {name}")
+    return tuple(
+        record
+        for collection in asset.collections
+        for record in collection.records
+    )
+
+
+def _project_structure(structure: Any, project: Any) -> Any:
+    """構造の全端点を製品IDに射影する。"""
+
+    def endpoint(value: Any) -> Any:
+        return doc_check_profile.NamespacedId(value.namespace, project(value.id))
+
+    return doc_check_profile.StructureTuple(
+        kind=structure.kind,
+        source=endpoint(structure.source),
+        target=endpoint(structure.target),
+        direction=structure.direction,
+        participants=tuple(endpoint(value) for value in structure.participants),
+    )
+
+
+def _product_projector(assets: Any, referenced_ids: set[str]) -> Any:
+    """product_schemaの有無に応じたDDL ID射影関数を返す。"""
+    ddl_asset = assets.assets["ddl_elements"]
+    raw_ddl = ddl_asset.raw
+    product_schema = (
+        isinstance(raw_ddl, Mapping)
+        and isinstance(raw_ddl.get("scope"), Mapping)
+        and raw_ddl["scope"].get("product_schema") is True
+    )
+    if product_schema:
+        return lambda value: value
+
+    records = _asset_records(assets, "product_ddl_map")
+    mappings: dict[str, set[str]] = {}
+    for record in records:
+        raw_id = record.raw.get("ddl_id")
+        product_id = record.raw.get("product_id")
+        if not isinstance(raw_id, str) or not isinstance(product_id, str):
+            raise doc_check_profile.ProfileError(
+                "product_ddl_map のddl_id/product_idが不正です"
+            )
+        normalized_raw = doc_check_profile.normalize_identifier(
+            raw_id,
+            "ddl",
+            assets.normalize,
+        ).id
+        normalized_product = doc_check_profile.normalize_identifier(
+            product_id,
+            "product",
+            assets.normalize,
+        ).id
+        mappings.setdefault(normalized_raw, set()).add(normalized_product)
+    ambiguous = {key: values for key, values in mappings.items() if len(values) != 1}
+    if ambiguous:
+        raise doc_check_profile.ProfileError(
+            f"product_ddl_map に曖昧な写像があります: {ambiguous}"
+        )
+    domain = set(mappings)
+    if domain != referenced_ids:
+        raise doc_check_profile.ProfileError(
+            "product_ddl_map のdomainが参照IDと一致しません"
+            f"(未写像={sorted(referenced_ids - domain)}, "
+            f"余分={sorted(domain - referenced_ids)})"
+        )
+    flattened = {key: next(iter(values)) for key, values in mappings.items()}
+    return lambda value: flattened[value]
+
+
+def check_cross_consistency(
+    profile: Any,
+    assets: Any,
+    *,
+    text: str,
+    raw_manifest: Mapping[str, Any],
+) -> tuple[Finding, ...]:
+    """WAITとAUTHの二段階射影およびFORB衝突を検査する。"""
+    findings: list[Finding] = []
+    extracted = doc_check_profile.extract_structures(
+        profile,
+        assets,
+        text=text,
+        manifest=raw_manifest,
+    )
+    manifest_extractor_ids = {
+        declaration["id"]
+        for declaration in profile.raw["structure_extractors"]
+        if declaration["source"] == "manifest"
+    }
+    manifest_ids = {
+        endpoint.id
+        for extractor_id, structures in extracted.items()
+        if extractor_id in manifest_extractor_ids
+        for structure in structures
+        for endpoint in (
+            structure.source,
+            structure.target,
+            *structure.participants,
+        )
+    }
+    extracted_structures = tuple(
+        structure
+        for values in extracted.values()
+        for structure in values
+    )
+
+    waiting_structures: list[Any] = []
+    for record in _asset_records(assets, "waiting"):
+        if record.raw.get("status") != "resolved":
+            continue
+        physical = record.raw.get("physical")
+        if not isinstance(physical, str) or not physical:
+            raise doc_check_profile.ProfileError("resolved WAIT の physical が不正です")
+        normalized = doc_check_profile.normalize_identifier(
+            physical,
+            "table",
+            assets.normalize,
+        ).id
+        if normalized not in manifest_ids:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"resolved WAIT の physical がmanifestにない: {normalized}",
+                )
+            )
+        if normalized not in text:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"resolved WAIT の physical が本文にない: {normalized}",
+                )
+            )
+        waiting_structures.extend(
+            structure
+            for structure in extracted_structures
+            if any(value.id == normalized for value in structure.participants)
+        )
+
+    auth_records = _asset_records(assets, "auth_catalog")
+    map_records = _asset_records(assets, "auth_ddl_map")
+    auth_ids = {
+        identifier.id for record in auth_records for identifier in record.identifiers
+    }
+    map_ids = {
+        identifier.id for record in map_records for identifier in record.identifiers
+    }
+    if auth_ids != map_ids:
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                "auth_ddl_map ID集合がauth_catalogと不一致"
+                f"(脱落={sorted(auth_ids - map_ids)}, 過剰={sorted(map_ids - auth_ids)})",
+            )
+        )
+
+    ddl_ids = {
+        identifier.id
+        for record in _asset_records(assets, "ddl_elements")
+        for identifier in record.identifiers
+    }
+    map_refs: set[str] = set()
+    auth_structures: list[Any] = []
+    for record in map_records:
+        refs = {reference.id for reference in record.refs}
+        if not refs:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"auth_ddl_map entry のrefsが空: {record.raw.get('catalog_entry_id')}",
+                )
+            )
+        if not record.structures:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "auth_ddl_map entry のstructuresが空: "
+                    f"{record.raw.get('catalog_entry_id')}",
+                )
+            )
+        map_refs.update(refs)
+        auth_structures.extend(record.structures)
+        if not refs <= ddl_ids:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    f"auth_ddl_map refがDDLにない: {sorted(refs - ddl_ids)}",
+                )
+            )
+        participant_ids = {
+            participant.id
+            for structure in record.structures
+            for participant in structure.participants
+        }
+        if not participant_ids <= refs:
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "auth_ddl_map structures.participantsがrefs外: "
+                    f"{sorted(participant_ids - refs)}",
+                )
+            )
+
+    ddl_structures = doc_check_profile.asset_structures(assets, "ddl_elements")
+    if set(auth_structures) != set(ddl_structures):
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                "auth_ddl_map structuresがDDL導出構造と不一致"
+                f"(脱落={len(set(ddl_structures) - set(auth_structures))}, "
+                f"過剰={len(set(auth_structures) - set(ddl_structures))})",
+            )
+        )
+
+    referenced_ids = set(map_refs)
+    for structure in auth_structures:
+        referenced_ids.update(
+            value.id
+            for value in (structure.source, structure.target, *structure.participants)
+        )
+    project = _product_projector(assets, referenced_ids)
+    projected_refs = {project(value) for value in map_refs}
+    if not projected_refs <= manifest_ids:
+        findings.append(
+            Finding(
+                "cross-consistency",
+                "cross-consistency",
+                f"射影後AUTH refがmanifestにない: "
+                f"{sorted(projected_refs - manifest_ids)}",
+            )
+        )
+    projected_structures = tuple(
+        _project_structure(structure, project) for structure in auth_structures
+    )
+    forbidden = doc_check_profile.asset_structures(assets, "forbidden")
+    for forbidden_structure in forbidden:
+        if any(
+            _structure_matches(forbidden_structure, candidate)
+            for candidate in (*projected_structures, *waiting_structures)
+        ):
+            findings.append(
+                Finding(
+                    "cross-consistency",
+                    "cross-consistency",
+                    "射影後構造が禁止構造と衝突: "
+                    + _format_structure(forbidden_structure),
+                )
+            )
+    return tuple(findings)
+
+
+def _ledger_entries(value: Any) -> tuple[dict[str, Any], ...]:
+    """欠陥台帳のmapping/list形を項目列へ正規化する。"""
+    if isinstance(value, Mapping):
+        entries: list[dict[str, Any]] = []
+        for key, item in value.items():
+            if not isinstance(item, Mapping):
+                raise doc_check_profile.ProfileError(f"台帳項目 {key} がobjectではありません")
+            entry = dict(item)
+            if entry.get("id") != key:
+                raise doc_check_profile.ProfileError(
+                    f"台帳キー {key} と id が一致しません"
+                )
+            entries.append(entry)
+        return tuple(entries)
+    if isinstance(value, list) and all(isinstance(item, Mapping) for item in value):
+        return tuple(dict(item) for item in value)
+    raise doc_check_profile.ProfileError("欠陥台帳はobjectまたはobject arrayが必要です")
+
+
+def _immutable_ledger_entry(entry: Mapping[str, Any]) -> dict[str, Any]:
+    """台帳項目から版1のimmutable exact-setを取り出す。"""
+    result: dict[str, Any] = {}
+    for field in doc_check_profile.ASSET_IMMUTABLE_FIELDS:
+        if field.startswith("invariant."):
+            invariant = entry.get("invariant")
+            nested = field.split(".", 1)[1]
+            if not isinstance(invariant, Mapping) or nested not in invariant:
+                raise doc_check_profile.ProfileError(
+                    f"台帳 {entry.get('id')} の {field} がありません"
+                )
+            result[field] = invariant[nested]
+        else:
+            if field not in entry:
+                raise doc_check_profile.ProfileError(
+                    f"台帳 {entry.get('id')} の {field} がありません"
+                )
+            result[field] = entry[field]
+    return result
+
+
+def render_baseline_digest(entries: Sequence[Mapping[str, Any]]) -> str:
+    """台帳のimmutable項目を版1のbaseline digestにする。"""
+    rendered: list[tuple[str, str]] = []
+    for entry in entries:
+        immutable = _immutable_ledger_entry(entry)
+        identifier = immutable["id"]
+        if not isinstance(identifier, str) or not identifier:
+            raise doc_check_profile.ProfileError("台帳 id が空または文字列外です")
+        rendered.append((identifier, doc_check_profile.canonical_digest(immutable)))
+    rendered.sort(key=lambda value: value[0].encode("utf-8"))
+    fields = ",".join(doc_check_profile.ASSET_IMMUTABLE_FIELDS)
+    lines = [f"envelope schema_version=1 algo=sha256 fields={fields}"]
+    lines.extend(f"{identifier} {digest}" for identifier, digest in rendered)
+    return "\n".join(lines) + "\n"
+
+
+def _load_global_ledger(
+    profile: Any,
+    invariants: Any | None,
+) -> tuple[Any, tuple[dict[str, Any], ...]]:
+    """unique-owner宣言と台帳項目を読む。"""
+    declarations = (
+        tuple(
+            value
+            for value in invariants.global_invariants
+            if value.get("kind") == "unique-owner"
+        )
+        if invariants is not None
+        else ()
+    )
+    if len(declarations) != 1:
+        raise doc_check_profile.ProfileError(
+            "required_checks=unique-owner にglobal_invariantsのunique-owner 1件が必要です"
+        )
+    declaration = declarations[0]
+    ledger_path = _resolve(profile.root, Path(declaration["ledger"]))
+    return declaration, _ledger_entries(doc_check_profile.load_json(ledger_path))
+
+
+def check_baseline_digest(
+    profile: Any,
+    assets: Any,
+    invariants: Any | None,
+) -> tuple[Finding, ...]:
+    """欠陥台帳のbaseline digestと固定ファイルを逐語照合する。"""
+    if invariants is not None and any(
+        value.get("kind") == "unique-owner" for value in invariants.global_invariants
+    ):
+        declaration, entries = _load_global_ledger(profile, invariants)
+        digest_path = _resolve(profile.root, Path(declaration["digest_file"]))
+    else:
+        entries = _ledger_entries(doc_check_profile.load_json(profile.defects))
+        digest_path = assets.assets["baseline_digest"].path
+    expected = render_baseline_digest(entries)
+    try:
+        actual = digest_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise doc_check_profile.ProfileError(
+            f"baseline digestを読めません: {digest_path}: {error}"
+        ) from error
+    if actual == expected:
+        return ()
+    return (
+        Finding(
+            "baseline-digest",
+            "baseline-digest",
+            "baseline digestが台帳のimmutable項目と一致しません",
+        ),
+    )
+
+
+def check_unique_owner(
+    profile: Any,
+    assets: Any,
+    invariants: Any | None,
+) -> tuple[Finding, ...]:
+    """台帳IDの独立期待集合とowner_stepの一意性を検査する。"""
+    declaration, entries = _load_global_ledger(profile, invariants)
+    expected_asset = assets.assets.get("expected_ids")
+    digest_asset = assets.assets.get("baseline_digest")
+    if expected_asset is None or digest_asset is None:
+        raise doc_check_profile.ProfileError(
+            "required_checks=unique-owner に expected_ids と baseline_digest が必要です"
+        )
+    expected_path = _resolve(profile.root, Path(declaration["expected_ids"]))
+    digest_path = _resolve(profile.root, Path(declaration["digest_file"]))
+    if expected_path != expected_asset.path or digest_path != digest_asset.path:
+        raise doc_check_profile.ProfileError(
+            "unique-owner宣言のexpected_ids/digest_fileがプロファイル資産と不一致です"
+        )
+    expected_ids = {
+        identifier.id
+        for record in _asset_records(assets, "expected_ids")
+        for identifier in record.identifiers
+    }
+    if not expected_ids:
+        raise doc_check_profile.ProfileError("unique-owner のexpected_ids資産が空です")
+    actual_values = [entry.get("id") for entry in entries]
+    invalid_ids = [
+        value for value in actual_values if not isinstance(value, str) or not value
+    ]
+    if invalid_ids:
+        raise doc_check_profile.ProfileError(f"台帳のidが不正です: {invalid_ids}")
+    actual_ids = [str(value) for value in actual_values]
+    findings: list[Finding] = []
+    duplicates = sorted(
+        identifier
+        for identifier, count in Counter(actual_ids).items()
+        if count > 1
+    )
+    if duplicates:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                f"台帳idが重複: {duplicates}",
+            )
+        )
+    actual_set = set(actual_ids)
+    if actual_set != expected_ids:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                "台帳IDがexpected_idsと不一致"
+                f"(欠落={sorted(expected_ids - actual_set)}, "
+                f"過剰={sorted(actual_set - expected_ids)})",
+            )
+        )
+    allowed = set(declaration["owner_steps_allowed"])
+    invalid_owners = sorted(
+        f"{entry.get('id')}={entry.get('owner_step')!r}"
+        for entry in entries
+        if entry.get("owner_step") not in allowed
+    )
+    if invalid_owners:
+        findings.append(
+            Finding(
+                "unique-owner",
+                "unique-owner",
+                f"owner_stepが許可集合外: {invalid_owners}",
+            )
+        )
+    return tuple(findings)
+
+
 def _global_findings(
     text: str,
     root: Path,
+    document_path: Path,
     manifest: dict[str, ManifestRelation],
     checks: frozenset[str],
+    link_base_dir: Path | None,
+    profile: Any | None,
+    invariants: Any | None,
+    raw_manifest: Mapping[str, Any] | None,
+    *,
+    legacy_prefixes: Sequence[str],
+    legacy_infix: str,
+    noncanonical_scan_start: str,
+    noncanonical_path_pattern: str,
+    declaration_section: str,
+    declaration_row_prefix: str,
+    declaration_column_count: int,
 ) -> list[Finding]:
     findings: list[Finding] = []
     if "element-coverage" in checks:
@@ -1115,19 +1555,33 @@ def _global_findings(
                 Finding("element-coverage", "element-coverage", "; ".join(reasons))
             )
     if "manifest-consistency" in checks:
-        reasons = check_manifest_consistency(text, manifest)
+        reasons = check_manifest_consistency(
+            text,
+            manifest,
+            declaration_section=declaration_section,
+            declaration_row_prefix=declaration_row_prefix,
+            declaration_column_count=declaration_column_count,
+        )
         if reasons:
             findings.append(
                 Finding("manifest-consistency", "manifest-consistency", "; ".join(reasons))
             )
     if "citation-format" in checks:
-        formats = check_citation_format(text)
+        formats = check_citation_format(
+            text,
+            legacy_prefixes=legacy_prefixes,
+            legacy_infix=legacy_infix,
+        )
         if formats:
             findings.append(
                 Finding("citation-format", "citation-format", ", ".join(formats))
             )
     if "noncanonical-reference" in checks:
-        lines = check_noncanonical_reference(text)
+        lines = check_noncanonical_reference(
+            text,
+            scan_start=noncanonical_scan_start,
+            path_pattern=noncanonical_path_pattern,
+        )
         if lines:
             findings.append(
                 Finding(
@@ -1138,11 +1592,59 @@ def _global_findings(
                 )
             )
     if "link-target" in checks:
-        targets = check_link_targets(text, root)
+        targets = check_link_targets(text, root, link_base_dir)
         if targets:
             findings.append(
                 Finding("link-target", "link-target", "実在しないリンク: " + ",".join(targets))
             )
+    if (
+        "reference-class" in checks
+        and profile is not None
+        and "reference-class" in profile.required_checks
+    ):
+        findings.extend(
+            check_reference_classes(
+                text,
+                profile=profile,
+                document_path=document_path,
+                root=root,
+            )
+        )
+    profile_checks = (
+        checks & profile.required_checks & PROFILE_ASSET_CHECK_IDS
+        if profile is not None
+        else frozenset()
+    )
+    if profile_checks:
+        if raw_manifest is None:
+            raise CheckError("プロファイル資産検査にraw manifestが必要")
+        assets = doc_check_profile.load_assets(profile)
+        if "collection-consistency" in profile_checks:
+            findings.extend(
+                check_collection_consistency(profile, assets, raw_manifest)
+            )
+        if "forbidden-structure" in profile_checks:
+            findings.extend(
+                check_forbidden_structures(
+                    profile,
+                    assets,
+                    text=text,
+                    raw_manifest=raw_manifest,
+                )
+            )
+        if "cross-consistency" in profile_checks:
+            findings.extend(
+                check_cross_consistency(
+                    profile,
+                    assets,
+                    text=text,
+                    raw_manifest=raw_manifest,
+                )
+            )
+        if "baseline-digest" in profile_checks:
+            findings.extend(check_baseline_digest(profile, assets, invariants))
+        if "unique-owner" in profile_checks:
+            findings.extend(check_unique_owner(profile, assets, invariants))
     return findings
 
 
@@ -1227,6 +1729,21 @@ def run_checks(
     defects: dict[str, Defect],
     defect_csv: str | None = None,
     check_csv: str | None = None,
+    link_base_dir: Path | None = None,
+    invariants: Any | None = None,
+    profile: Any | None = None,
+    raw_manifest: Mapping[str, Any] | None = None,
+    document_path: Path | None = None,
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+    noncanonical_scan_start: str = DEFAULT_NONCANONICAL_SCAN_START,
+    noncanonical_path_pattern: str = NONCANONICAL_PATH_RE.pattern,
+    declaration_section: str = DEFAULT_DECLARATION_SECTION,
+    declaration_row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    declaration_column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[Finding, ...]:
     """選択条件に従って設計伝播検査を実行する。
 
@@ -1237,21 +1754,86 @@ def run_checks(
         defects: 欠陥oracle。
         defect_csv: ``--defects`` 相当のカンマ区切りID。
         check_csv: ``--checks`` 相当のカンマ区切りID。
+        link_base_dir: 相対Markdownリンクの解決基準。
+        invariants: 検証済みの不変条件宣言資産。未指定なら結合検査を省く。
+        profile: 宣言評価に使う検証済みプロファイル。
+        raw_manifest: 資産・構造検査で使うマニフェスト原値。
+        document_path: 参照分類で使う検査対象文書の実パス。
+        section_id_grammar: scopeの節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
+        noncanonical_scan_start: 非正本参照の走査開始見出し。
+        noncanonical_path_pattern: 非正本参照を表すパスの正規表現。
+        declaration_section: 宣言表を置く節ID。
+        declaration_row_prefix: 関係行を識別する接頭辞。
+        declaration_column_count: 関係行に必要な列数。
 
     Returns:
         欠陥IDまたは全体検査ID単位の違反。
     """
+    if invariants is not None:
+        machine_defect_ids = {
+            defect.id for defect in defects.values() if defect.detection == "machine"
+        }
+        forbidden_defect_ids = {
+            defect.id
+            for defect in defects.values()
+            if defect.detection == "machine"
+            and defect.invariant is not None
+            and defect.invariant.forbidden
+        }
+        doc_check_profile.validate_binding_rules(
+            invariants,
+            machine_defect_ids=machine_defect_ids,
+            forbidden_defect_ids=forbidden_defect_ids,
+            legacy_branch_ids=LEGACY_STRUCTURAL_BRANCH_IDS,
+        )
     checks, selected_defects, allow_global = select_checks_and_defects(
         defects, defect_csv, check_csv
     )
+    if profile is not None and defect_csv is None and check_csv is None:
+        checks = checks & profile.required_checks
+        selected_defects = tuple(
+            defect
+            for defect in selected_defects
+            if defect.check in profile.required_checks
+        )
     findings: list[Finding] = []
     for defect in selected_defects:
-        reason = defect_violation_reason(defect, text, manifest)
+        reason = defect_violation_reason(
+            defect,
+            text,
+            manifest,
+            section_id_grammar=section_id_grammar,
+            preamble=preamble,
+            invariants=invariants,
+            profile=profile,
+        )
         if reason is not None:
             assert defect.check is not None
             findings.append(Finding(defect.id, defect.check, reason))
     if allow_global:
-        findings.extend(_global_findings(text, root, manifest, checks))
+        findings.extend(
+            _global_findings(
+                text,
+                root,
+                document_path or (profile.document if profile is not None else root),
+                manifest,
+                checks,
+                link_base_dir,
+                profile,
+                invariants,
+                raw_manifest,
+                legacy_prefixes=legacy_prefixes,
+                legacy_infix=legacy_infix,
+                noncanonical_scan_start=noncanonical_scan_start,
+                noncanonical_path_pattern=noncanonical_path_pattern,
+                declaration_section=declaration_section,
+                declaration_row_prefix=declaration_row_prefix,
+                declaration_column_count=declaration_column_count,
+            )
+        )
     return tuple(sorted(findings, key=lambda finding: finding.identifier))
 
 
@@ -1274,8 +1856,27 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--document",
         type=Path,
-        default=DEFAULT_DOCUMENT,
-        help="検査対象文書(既定: docs/design/sync-protocol.md)",
+        help="検査対象文書(未指定時はプロファイルのdocument)",
+    )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        help="使用するプロファイル(未指定時はレジストリ先頭のプロファイル)",
+    )
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        help="プロファイルレジストリ(既定: 本番レジストリ)",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="関係マニフェスト(未指定時はプロファイルのmanifest)",
+    )
+    parser.add_argument(
+        "--defects-file",
+        type=Path,
+        help="欠陥oracle(未指定時はプロファイルのdefects)",
     )
     parser.add_argument("--defects", help="実行する機械欠陥IDのカンマ区切り")
     parser.add_argument("--checks", help="実行する検査IDのカンマ区切り")
@@ -1284,6 +1885,29 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def _resolve(root: Path, path: Path) -> Path:
     return path if path.is_absolute() else root / path
+
+
+def _run_registered_profiles(profiles: Sequence[Any], root: Path) -> int:
+    """登録順に全プロファイルを実行し、2優先で終了コードを合成する。"""
+    exit_codes: list[int] = []
+    for profile in profiles:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = main(
+                ["--root", str(root), "--profile", str(profile.path)]
+            )
+        exit_codes.append(exit_code)
+        prefix = f"[{profile.name}]"
+        output_lines = stdout.getvalue().splitlines()
+        error_lines = stderr.getvalue().splitlines()
+        for line in output_lines:
+            print(f"{prefix} {line}")
+        for line in error_lines:
+            print(f"{prefix} {line}", file=sys.stderr)
+        if not output_lines and not error_lines:
+            print(f"{prefix} document={profile.document} rc={exit_code}")
+    return max(exit_codes, default=2)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1298,13 +1922,66 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
-        document = _resolve(root, args.document)
+        enumerate_registry = (
+            args.profile is None
+            and args.document is None
+            and args.manifest is None
+            and args.defects_file is None
+            and args.checks is None
+            and args.defects is None
+        )
+        if args.profile is not None:
+            profile = doc_check_profile.load_profile(args.profile, root=root)
+        else:
+            registry_path = args.registry
+            if registry_path is None:
+                registry_path = doc_check_profile.default_registry_path(root)
+            registry = doc_check_profile.load_registry(registry_path, root=root)
+            profiles = doc_check_profile.resolve_profiles(registry, root=root)
+            if enumerate_registry and len(profiles) > 1:
+                return _run_registered_profiles(profiles, root)
+            profile = profiles[0]
+
+        document = (
+            _resolve(root, args.document)
+            if args.document is not None
+            else profile.document
+        )
+        manifest_path = (
+            _resolve(root, args.manifest)
+            if args.manifest is not None
+            else profile.manifest
+        )
+        defects_path = (
+            _resolve(root, args.defects_file)
+            if args.defects_file is not None
+            else profile.defects
+        )
         try:
             text = document.read_text(encoding="utf-8")
         except OSError as error:
             raise CheckError(f"検査対象を読めない: {document}: {error}") from error
-        manifest = load_manifest(root / DEFAULT_MANIFEST)
-        defects = load_defects(root / DEFAULT_DEFECTS)
+        raw_manifest_value = doc_check_profile.load_json(manifest_path)
+        if not isinstance(raw_manifest_value, Mapping):
+            raise CheckError(f"関係マニフェストがobjectでない: {manifest_path}")
+        requested_checks = _parse_csv(args.checks, "--checks")
+        manifest = (
+            load_manifest(manifest_path)
+            if requested_checks is None
+            or bool(requested_checks & LEGACY_PROP_CHECK_IDS)
+            else {}
+        )
+        defects = load_defects(defects_path)
+        invariants = (
+            doc_check_profile.load_invariants(
+                profile.invariants,
+                schema_dir=profile.schema_dir,
+            )
+            if profile.invariants is not None
+            else None
+        )
+        citation = profile.raw["citation"]
+        declaration_table = profile.raw["declaration_table"]
         findings = run_checks(
             text,
             root,
@@ -1312,10 +1989,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             defects,
             defect_csv=args.defects,
             check_csv=args.checks,
+            link_base_dir=profile.link_base_dir,
+            invariants=invariants,
+            profile=profile,
+            raw_manifest=raw_manifest_value,
+            document_path=document,
+            section_id_grammar=profile.raw["section_id_grammar"],
+            preamble=profile.raw["preamble"],
+            legacy_prefixes=citation["legacy_prefixes"],
+            legacy_infix=citation["legacy_infix"],
+            noncanonical_scan_start=profile.raw["noncanonical_scan_start"],
+            noncanonical_path_pattern=profile.raw["noncanonical_path_pattern"],
+            declaration_section=declaration_table["section"],
+            declaration_row_prefix=declaration_table["row_prefix"],
+            declaration_column_count=declaration_table["column_count"],
         )
-    except CheckError as error:
+    except (
+        CheckError,
+        doc_check_profile.ProfileError,
+        doc_check_invariants.doc_check_profile.ProfileError,
+    ) as error:
         print(f"check_design_propagation.py: {error}", file=sys.stderr)
         return 2
+    if requested_checks is not None:
+        for check_id in CHECK_IDS:
+            if check_id in requested_checks and check_id in profile.not_applicable:
+                print(f"{check_id}: 対象なし: {profile.not_applicable[check_id]}")
     for finding in findings:
         print(f"{finding.identifier}: [{finding.check}] {finding.reason}", file=sys.stderr)
     return 1 if findings else 0
