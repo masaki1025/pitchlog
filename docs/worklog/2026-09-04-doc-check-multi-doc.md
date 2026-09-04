@@ -358,3 +358,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 検証(Claude): ruff/ty → passed(0)/ `pytest tests/test_check_design_propagation.py` → 100 passed(安全網 2 本を含む — 機械 17 件の検出集合が完全一致)/ `check_design_propagation.py`(引数なし・approved)→ **rc 0** /
   `--document tests/fixtures/sync-protocol-source.txt --defects MT-01` → **rc 1**(引き続き検出)/ `check_docs_status` `check_doc_coverage` green / fixture SHA-256 `2e38de6b…` = `fixture-sha256.txt` **一致**
 - 差分範囲: 2 ファイル(+6 / −6)。人間の逐行確認対象(`defects.json` は guard_paths 該当)— PR で実施記録行を付ける
+
+### ステップ 4/38 — スキーマ 2 本・本番レジストリ・同期プロファイル(データのみ・Codex `--resume`)
+
+- 新設: `scripts/design_relations/schemas/profile.schema.json` / `registry.schema.json`(JSON Schema 2020-12 の部分集合・`additionalProperties: false`)、`scripts/design_relations/profiles/registry.json`(同期 1 entry・`must_require` 14・`pins.profile_gating_digest`・`asset_digests` 空)、
+  `scripts/design_relations/profiles/sync-protocol.json`(現行定数の移送・`required_checks` 14・`not_applicable` 8 理由付き・`invariant_kinds` 12・`assets` / 抽出器 / 集合宣言は空・`reference_policy` は現行 noncanonical 判定と同値)、`tests/test_doc_check_profile.py`(9 件)
+- **順序上の判断**: `invariants` フィールドと `pins.invariants_digest` は宣言資産が生まれるステップ 8 で追加(スキーマ上は任意)
+- 検証(Claude): ruff/ty passed / `pytest tests/test_doc_check_profile.py` 9 passed / 3 検査 green / 収集 **920**・基準 875 の欠落 0 / `git diff --name-only HEAD -- 'scripts/*.py' .claude/` = 0 件(スクリプト無変更)/
+  digest を canonical 手順で再計算 → レジストリ値と**一致** / `required_checks ∪ not_applicable` = 22・積空 / `profiles/` = registry.json + sync-protocol.json のみ。Codex 報告: `pytest tests/ -q -rA` 920 passed・skip 系 0

@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "document": {
+            "type": "string",
+            "minLength": 1
+          },
+          "must_require": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "manifest-consistency",
+                "element-coverage",
+                "enum-propagation",
+                "condition-key",
+                "route-matrix",
+                "scope-declaration",
+                "order-use",
+                "citation-format",
+                "noncanonical-reference",
+                "link-target",
+                "emphasis",
+                "draft-metadata",
+                "attribution",
+                "ledger",
+                "forbidden-structure",
+                "cross-consistency",
+                "collection-consistency",
+                "baseline-digest",
+                "unique-owner",
+                "reference-class",
+                "attribution-destination",
+                "attribution-direct"
+              ]
+            }
+          },
+          "pins": {
+            "type": "object",
+            "properties": {
+              "profile_gating_digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "invariants_digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "asset_digests": {
+                "type": "object",
+                "properties": {
+                  "claims": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "auth_catalog": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "ddl_elements": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "auth_ddl_map": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "product_ddl_map": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "waiting": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "forbidden": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "direct_requirements": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "expected_ids": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "baseline_digest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "profile_gating_digest",
+              "asset_digests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "file",
+          "document",
+          "must_require",
+          "pins"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "profiles"
+  ],
+  "additionalProperties": false
+}

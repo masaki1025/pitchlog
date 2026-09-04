@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document": {
+      "type": "string",
+      "minLength": 1
+    },
+    "manifest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defects": {
+      "type": "string",
+      "minLength": 1
+    },
+    "invariants": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requirements": {
+      "type": "string",
+      "minLength": 1
+    },
+    "universe": {
+      "type": "string",
+      "minLength": 1
+    },
+    "section_id_grammar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preamble": {
+      "type": "string",
+      "enum": [
+        "first-h2"
+      ]
+    },
+    "link_base_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "noncanonical_scan_start": {
+      "type": "string",
+      "minLength": 1
+    },
+    "noncanonical_path_pattern": {
+      "type": "string",
+      "minLength": 1
+    },
+    "declaration_table": {
+      "type": "object",
+      "properties": {
+        "section": {
+          "type": "string",
+          "minLength": 1
+        },
+        "row_prefix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "column_count": {
+          "type": "integer"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "section",
+        "row_prefix",
+        "column_count",
+        "columns"
+      ],
+      "additionalProperties": false
+    },
+    "exclusion_vocabulary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "citation": {
+      "type": "object",
+      "properties": {
+        "legacy_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "legacy_infix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inherit_bare_line_from_same_line": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "legacy_prefixes",
+        "legacy_infix",
+        "inherit_bare_line_from_same_line"
+      ],
+      "additionalProperties": false
+    },
+    "attribution": {
+      "type": "object",
+      "properties": {
+        "section_re": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ledger_section": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "assignment_header": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ledger_header": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reference_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ledger_verdicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "destination_grammar": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "section_re",
+        "ledger_section",
+        "kinds",
+        "assignment_header",
+        "ledger_header",
+        "reference_kinds",
+        "ledger_verdicts",
+        "destination_grammar"
+      ],
+      "additionalProperties": false
+    },
+    "defect_id_namespaces": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9]*$"
+          }
+        },
+        "machine": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9]*$"
+          }
+        }
+      },
+      "required": [
+        "all",
+        "machine"
+      ],
+      "additionalProperties": false
+    },
+    "invariant_kinds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "forbidden-element",
+          "row-selector",
+          "row-contains",
+          "section-contains",
+          "exact-set",
+          "element-lookup",
+          "row-scoped-forbidden",
+          "any-of",
+          "required-exclusion",
+          "conditional-forbidden",
+          "well-formedness",
+          "absent-section",
+          "cross-reference"
+        ]
+      }
+    },
+    "required_checks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "manifest-consistency",
+          "element-coverage",
+          "enum-propagation",
+          "condition-key",
+          "route-matrix",
+          "scope-declaration",
+          "order-use",
+          "citation-format",
+          "noncanonical-reference",
+          "link-target",
+          "emphasis",
+          "draft-metadata",
+          "attribution",
+          "ledger",
+          "forbidden-structure",
+          "cross-consistency",
+          "collection-consistency",
+          "baseline-digest",
+          "unique-owner",
+          "reference-class",
+          "attribution-destination",
+          "attribution-direct"
+        ]
+      }
+    },
+    "not_applicable": {
+      "type": "object",
+      "properties": {
+        "manifest-consistency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "element-coverage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enum-propagation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition-key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route-matrix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope-declaration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order-use": {
+          "type": "string",
+          "minLength": 1
+        },
+        "citation-format": {
+          "type": "string",
+          "minLength": 1
+        },
+        "noncanonical-reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "link-target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "emphasis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "draft-metadata": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ledger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forbidden-structure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cross-consistency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "collection-consistency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseline-digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unique-owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference-class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attribution-destination": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attribution-direct": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "structure_extractors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "collection_sets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "direct_requirements": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reference_policy": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target_pattern": {
+                "type": "string",
+                "minLength": 1
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "evidence",
+                  "informative",
+                  "normative"
+                ]
+              }
+            },
+            "required": [
+              "target_pattern",
+              "role"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "rules"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "document",
+    "manifest",
+    "defects",
+    "requirements",
+    "universe",
+    "section_id_grammar",
+    "preamble",
+    "link_base_dir",
+    "noncanonical_scan_start",
+    "noncanonical_path_pattern",
+    "declaration_table",
+    "exclusion_vocabulary",
+    "citation",
+    "attribution",
+    "defect_id_namespaces",
+    "invariant_kinds",
+    "required_checks",
+    "not_applicable",
+    "assets",
+    "structure_extractors",
+    "collection_sets",
+    "reference_policy"
+  ],
+  "additionalProperties": false
+}

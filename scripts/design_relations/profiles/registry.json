@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "name": "sync-protocol",
+      "file": "scripts/design_relations/profiles/sync-protocol.json",
+      "document": "docs/design/sync-protocol.md",
+      "must_require": [
+        "manifest-consistency",
+        "element-coverage",
+        "enum-propagation",
+        "condition-key",
+        "route-matrix",
+        "scope-declaration",
+        "order-use",
+        "citation-format",
+        "noncanonical-reference",
+        "link-target",
+        "emphasis",
+        "draft-metadata",
+        "attribution",
+        "ledger"
+      ],
+      "pins": {
+        "profile_gating_digest": "782ffaed829211ae7be0aeca1a3b80b98441d1c37509f6aa952a18123199e9ef",
+        "asset_digests": {}
+      }
+    }
+  ]
+}
