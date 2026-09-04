@@ -41,7 +41,7 @@ date: 2026-09-04
 | --- | --- | --- |
 | **レジストリ** | `scripts/design_relations/profiles/registry.json` | `schema_version` / `profiles: [{name, file, document, must_require, pins}]`。**`must_require`(必須 check ID)と `pins`(ゲート宣言の canonical digest)はレジストリ entry のフィールド**(プロファイル側には置かない)。一般規則: **必須検査を有効にする宣言はプロファイルの自己申告だけで成立させない — ゲート宣言の変更はレジストリの差分(レビュー対象)を伴う**(R7/R8 の P0 型を欄ごとではなく digest で閉じる。前例: `fixture-sha256.txt` — research 4-1 節) |
 | プロファイル | `scripts/design_relations/profiles/<name>.json` | 文書 1 本につき 1 ファイル。**このディレクトリにはレジストリとプロファイル以外を置かない** |
-| スキーマ | `scripts/design_relations/schemas/{profile,registry,invariant,assets}.schema.json` | `schema_version` を持つ |
+| スキーマ | `scripts/design_relations/schemas/{profile,registry,invariant,assets,runner-envelope}.schema.json` | `schema_version` を持つ(`runner-envelope` は 13 節の JSON 出力の適合先 — R9-P2-4) |
 | 宣言資産 | `scripts/design_relations/invariants/<name>.json` | 欠陥 ID → 構造宣言(2-2 節) |
 | 共通ローダー | `scripts/doc_check_profile.py`(新設) | スキーマ検証(自前の最小検証器)・レジストリ照合・パス解決・`assets` ローダー・構造抽出器 |
 | サンプル | `tests/fixtures/profile-sample/profiles/`(レジストリ + プロファイル 2 本)/ `doc/` / `assets/` | 実プロファイル非依存の契約テスト入力 |
@@ -152,6 +152,7 @@ date: 2026-09-04
 | --- | --- |
 | (全 kind 共通の変異は**置かない** — 意味反転・主述交換は現行の needle 判定と同値でなく、旧述語では検出できない。R8-P1-1 で撤回) | — |
 | 行スコープ kind(`row-contains` / `row-scoped-forbidden` / `any-of` / `conditional-forbidden` / `required-exclusion(row)` / `element-lookup` / `cross-reference`) | 別行移動 |
+| **`row-selector`**(needle / identifier) | **needle 語または識別子を別行へ分散させ、選択行を不成立にする**(`_table_row` / `_identified_row` が `None` を返す状態と同値 — R9-P1-1) |
 | 節スコープ kind(`section-contains` / `required-exclusion(sections)` / `exact-set`) | 別節移動 / 意味部欠落 / ID 交換 |
 | `exact-set` | 別 relation を同一 manifest に置き、指定 relation だけが使われる |
 | `well-formedness` | 奇数行が 2 行(合計偶数)で red / **ヘッダ行のみ奇数で red** / 表外に奇数個で green |
@@ -261,7 +262,7 @@ forbidden corpus の MT-01 対の禁止語を `### 2-2.` へ ② `absent-section
   {"id": "implicit-refs", "source": "derived", "from": "relations", "rule": "transitive-closure", "kind": "reference"}
 ]
 ```
-- `source: manifest | document | derived`。`document` は `section` + `table.header_match`(表の識別)+ 列 → タプル項目の写像(`column` / `regex`)。`derived` は既存抽出結果からの導出(`transitive-closure` / `inverse`)で**暗黙関係**を表す
+- `source: manifest | document | derived`。`document` は `section` + `table.header_match`(表の識別)+ 列 → タプル項目の写像(`column` / `regex` / **`namespace`(端点ごとに必須 — R9-P2-1。同じ綴りの ID が別名前空間に存在する負例をサンプルへ)**)。`derived` は既存抽出結果からの導出(`transitive-closure` / `inverse`)で**暗黙関係**を表す
 - すべてのタプルは `normalize`(別名表を含む)を通す。**抽出器が 1 件も構造を得られない**(節・表が見つからない)場合は終了 2(黙って空にしない)
 - `forbidden-structure` / `cross-consistency` を `required_checks` に含むプロファイルは `structure_extractors` が必須(欠落は終了 2)
 - **完全性はレジストリ `pins.profile_gating_digest` で固定**(R7-P0-1・R8-P0-2): 抽出器の追加・削除・`map` / `direction` / `participants` / `from/rule` の変更はいずれも digest を変える。
@@ -299,8 +300,8 @@ destination 文法は `kind` ごとの判別共用体: `対象外` → 理由文
 
 ## 10. `codex_run.py` の `has_filled_step_row`
 
-見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)。**報告は 3 状態**(R8-P2-2 — 関数は `bool` から `StepTableStatus` 列挙 + 従来互換の真偽ラッパへ):
-`no-table`(表が無い — 現行文言を維持)/ `table-outside-scope`(記入済み行はあるが「実装ステップ」見出しのスコープ外 — 文言「ステップ表は見出し『…』の配下にあります。『実装ステップ』見出しの配下へ移すか、その見出し名を含めてください」)/
+見出しレベルのスタック / fenced code 除外 / 見出し名の正規化一致(否定形は負例)。**報告は 4 状態**(R8-P2-2・R9-P2-2 — 関数は `bool` から `StepTableStatus` 列挙 + 従来互換の真偽ラッパへ):
+`no-table`(表が無い — 現行文言を維持)/ **`no-filled-row`(表はあるが記入済み行が無い — 空テンプレ。現行の拒否文言を維持 — R9-P2-2)**/ `table-outside-scope`(記入済み行はあるが「実装ステップ」見出しのスコープ外 — 文言「ステップ表は見出し『…』の配下にあります。『実装ステップ』見出しの配下へ移すか、その見出し名を含めてください」)/
 `table-in-fenced-code`(記入済み行が fenced code 内にしか無い — 文言「ステップ表がコードブロック内にあります」)。`cmd_implement` は状態別の文言で `die` する。`tests/test_codex_run.py` 新設。`tests/test_hooks.py` の wrapper ケース(`:814`・`:1022`・`:1116`)は green を保つ(期待文言の追随が必要かはステップ 1 で確定 — C 集合の条件付き要素)。
 
 ## 11. TSK-250 への申し送り(PR 本文に転記。**TSK-250 は着手前に再レビューが必要**。24 項目)
