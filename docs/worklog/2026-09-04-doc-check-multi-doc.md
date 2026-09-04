@@ -331,3 +331,13 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   **人間の裁定が要るもの**: ① MT-01(oracle 改訂 / 意味型の分離 / warning 化)② `has_filled_step_row` を射程に含めるか起票か
   ③ `check_authz_catalog.py` を多文書対応の対象に含めるか ④ guard_paths 登録・H-78/H-79 追記の A/B 分担
 - 前提のずれは `research.md` 6-2 節で現行化済み(/plan 冒頭の再確認は不要)
+
+## /implement — ステップ実装記録(H-88: checker の出力を転記)
+
+### ステップ 1/38 — `codex_run.py` の `has_filled_step_row` を是正(Codex sol xhigh・新規セッション)
+
+- 変更: `.claude/scripts/codex_run.py`(`StepTableStatus` 5 値・`_step_table_analysis`・`step_table_status`・互換 `has_filled_step_row`・`cmd_implement` の状態別 `die`)/ `tests/test_codex_run.py`(新設・22 件)。`tests/test_hooks.py` は**不要**(変更なし — C 集合の条件付き要素は「変更なし」で確定)
+- 検証(Claude が再実行): `uv run ruff check .` → All checks passed(0)/ `uv run ty check` → All checks passed(0)/ `uv run pytest tests/test_codex_run.py tests/test_hooks.py -q` → 216 passed(0)/
+  3 検査(引数なし)→ すべて green(0)/ 基準ファイル SHA-256 先頭 `a07454fcc3e3bc9c` 不変。Codex 報告: `pytest tests/ -q -rA` → **897 passed**・skipped/xfailed/xpassed/deselected = 0・基準 875 node ID を包含(`comm -13` 空)
+- 実地確認: 本計画書・TSK-281 計画書・TSK-270 計画書はいずれも `OK`。**TSK-270 計画書から暫定回避(小見出しの語「実装ステップ」)を外しても `OK`** — 1-5 節の欠陥が是正された
+- 差分範囲: `git diff --stat -- scripts/ docs/ tests/test_hooks.py .claude/core-areas.json` = 空(C 集合のみ)
