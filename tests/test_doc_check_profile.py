@@ -212,16 +212,17 @@ def test_required_checks_match_current_module_constants() -> None:
 
 
 def test_nonconstant_profile_values_match_current_source() -> None:
-    """定数化されていない現行リテラルをソースと突合する。"""
+    """外部化した値が関数単体呼び出し用の既定値と一致する。"""
     source = PROPAGATION_SCRIPT.read_text(encoding="utf-8")
-    assert profile["section_id_grammar"] == r"\d+(?:-\d+(?:-[A-Z])?)?"
-    assert profile["section_id_grammar"] in source
-    assert profile["preamble"] == "first-h2"
+    assert profile["section_id_grammar"] == propagation.DEFAULT_SECTION_ID_GRAMMAR
+    assert profile["preamble"] == propagation.DEFAULT_PREAMBLE
     assert 'text.split("\\n## ", 1)[0]' in source
     assert profile["link_base_dir"] == "docs/design"
     assert 'root / "docs" / "design"' in source
-    assert profile["noncanonical_scan_start"] == r"^##\s+2(?:[.\s]|$)"
-    assert profile["noncanonical_scan_start"] in source
+    assert (
+        profile["noncanonical_scan_start"]
+        == propagation.DEFAULT_NONCANONICAL_SCAN_START
+    )
 
     declaration = profile["declaration_table"]
     assert declaration == {
@@ -237,26 +238,29 @@ def test_nonconstant_profile_values_match_current_source() -> None:
             "伝播先ごとの期待部分集合",
         ],
     }
-    assert '"2-5"' in source
-    assert '"| **R-"' in source
-    assert "len(cells) != 6" in source
+    assert declaration["section"] == propagation.DEFAULT_DECLARATION_SECTION
+    assert declaration["row_prefix"] == propagation.DEFAULT_DECLARATION_ROW_PREFIX
+    assert (
+        declaration["column_count"]
+        == propagation.DEFAULT_DECLARATION_COLUMN_COUNT
+    )
 
     assert profile["exclusion_vocabulary"] == [
         "対象外",
         "対象にならない",
         "含めない",
     ]
-    assert '("対象外", "対象にならない", "含めない")' in source
+    assert profile["exclusion_vocabulary"] == list(
+        propagation.DEFAULT_EXCLUSION_VOCABULARY
+    )
     citation = profile["citation"]
     assert citation == {
         "legacy_prefixes": ["docs/legacy/", "../legacy/"],
         "legacy_infix": "/docs/legacy/",
         "inherit_bare_line_from_same_line": True,
     }
-    assert all(
-        literal in source
-        for literal in (*citation["legacy_prefixes"], citation["legacy_infix"])
-    )
+    assert citation["legacy_prefixes"] == list(propagation.DEFAULT_LEGACY_PREFIXES)
+    assert citation["legacy_infix"] == propagation.DEFAULT_LEGACY_INFIX
 
 
 def test_defect_namespaces_match_defects_oracle() -> None:

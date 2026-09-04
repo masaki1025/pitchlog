@@ -382,3 +382,12 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - **順序上の判断**: 「既定プロファイル = レジストリ `profiles[]` の先頭」。複数登録時の列挙はステップ 37
 - 検証(Claude): ruff/ty passed / `pytest test_check_design_propagation + test_doc_check_profile + test_ci_wiring` → **150 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture` rc 1 / **引数なし と `--profile sync` の stderr が完全同一** / `--profile /nonexistent` rc 2 /
   収集 **953**・基準欠落 0 / COV・`.github`・`.claude`・oracle・fixture の差分 0。Codex 報告: `pytest tests/ -q -rA` 953 passed
+
+### ステップ 7/38 — 文法・語彙のプロファイル化 + fail-closed(Codex `--resume`)
+
+- 変更: `scripts/check_design_propagation.py`(+282/−…)6 項目を外部化(既定値は現行値・関数単体呼び出しは後方互換):
+  `extract_scope(section_id_grammar=, preamble=)` / `_has_exclusion(vocabulary=)` / `check_citation_format(legacy_prefixes=, legacy_infix=)` / `check_noncanonical_reference(scan_start=, path_pattern=)` / `parse_manifest_declaration(section_id=, row_prefix=, column_count=)`。`main` → `run_checks` がプロファイル値を渡す
+- **fail-closed**(`extract_scope`): 文法不一致トークン → `CheckError`「scope のトークン『付録A』が節 ID の文法に一致しない」/ 文書に無い節 → `CheckError`「scope の節『99-9』が文書に無い」。`冒頭` は対象外(61 文字のまま)。未対応 `preamble` は `ProfileError`
+- corpus 追随: MT-01 の forbidden 対に scope 11 節の見出しを追加(禁止語は `2-2` 配下のまま)。構造 corpus は変更不要
+- 検証(Claude): ruff/ty passed / 3 テストファイル **159 passed**(skip 系 0)/ 3 検査 rc 0 / `--document fixture` rc 1 / 収集 **962**・基準欠落 0 / 対象外パス(COV・`.github`・`.claude`・oracle・fixture)の差分 0 /
+  fail-closed 2 経路を直接実行して確認 / 除外語彙をプロファイル値で変えると `_has_exclusion` の判定が True → False に変わることを確認。Codex 報告: `pytest tests/ -q -rA` 962 passed

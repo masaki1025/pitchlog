@@ -716,6 +716,30 @@ STRUCTURAL_CHECK_CASES = _build_structural_check_cases(
     checker.load_manifest(REPOSITORY_ROOT / checker.DEFAULT_MANIFEST)
 )
 
+
+def _mt01_corpus_document(*lines: str) -> str:
+    """MT-01の全scope見出しを持つcorpus文書を組み立てる。"""
+    section_ids = (
+        "2-2",
+        "3-1",
+        "3-2",
+        "6-4",
+        "7-3",
+        "7-4",
+        "10-1",
+        "10-3",
+        "11-1",
+        "11-3",
+        "11-4",
+    )
+    return _corpus_document(
+        {
+            section_id: lines if section_id == "2-2" else ()
+            for section_id in section_ids
+        }
+    )
+
+
 FORBIDDEN_CHECK_CASES = (
     (
         "SP-19",
@@ -731,12 +755,8 @@ FORBIDDEN_CHECK_CASES = (
     ),
     (
         "MT-01",
-        """### 2-2. 本書の位置づけ
-同期プロトコルの設計を定める。
-""",
-        """### 2-2. 本書の位置づけ
-本書は「候補案」であり「決定」ではない。
-""",
+        _mt01_corpus_document("同期プロトコルの設計を定める。"),
+        _mt01_corpus_document("本書は「候補案」であり「決定」ではない。"),
     ),
 )
 
@@ -859,6 +879,63 @@ def test_structural_cases_do_not_raise(
     for defect_id, valid_text, invalid_text, mutations in STRUCTURAL_CHECK_CASES:
         for text in (valid_text, invalid_text, *mutations):
             checker.defect_violation_reason(defects[defect_id], text, manifest)
+    for defect_id, valid_text, invalid_text in FORBIDDEN_CHECK_CASES:
+        for text in (valid_text, invalid_text):
+            checker.defect_violation_reason(defects[defect_id], text, manifest)
+
+
+def test_scope_with_invalid_token_is_rejected(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    defect = checker.Defect(
+        id="TEST-01",
+        detection="machine",
+        check="draft-metadata",
+        invariant=checker.Invariant(
+            positive="test",
+            forbidden=(),
+            scope="2-2、付録A",
+            mapping=None,
+        ),
+    )
+
+    with pytest.raises(
+        checker.CheckError,
+        match="scope のトークン『付録A』が節 ID の文法に一致しない",
+    ):
+        checker.defect_violation_reason(
+            defect,
+            "### 2-2. corpus\n本文\n",
+            manifest,
+        )
+
+
+def test_scope_with_missing_section_is_rejected_but_preamble_is_not(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    missing = checker.Defect(
+        id="TEST-02",
+        detection="machine",
+        check="draft-metadata",
+        invariant=checker.Invariant(
+            positive="test",
+            forbidden=(),
+            scope="冒頭、2-2、3-1",
+            mapping=None,
+        ),
+    )
+    preamble_only = replace(
+        missing,
+        invariant=replace(missing.invariant, scope="冒頭"),
+    )
+    text = "冒頭の本文\n### 2-2. corpus\n本文\n"
+
+    assert checker.defect_violation_reason(preamble_only, text, manifest) is None
+    with pytest.raises(
+        checker.CheckError,
+        match="scope の節『3-1』が文書に無い",
+    ):
+        checker.defect_violation_reason(missing, text, manifest)
 
 
 def test_structural_mutations_fail(
@@ -1272,6 +1349,84 @@ def test_noncanonical_reference_has_normal_and_abnormal_cases() -> None:
     assert checker.check_noncanonical_reference(invalid) == (2,)
 
 
+@pytest.mark.parametrize("defect_id", ("SP-12", "SP-16"))
+def test_exclusion_vocabulary_changes_structural_judgment(
+    defect_id: str,
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    valid_text = _STRUCTURAL_CASE_BY_ID[defect_id][1]
+
+    assert checker.defect_violation_reason(defects[defect_id], valid_text, manifest) is None
+    assert checker.defect_violation_reason(
+        defects[defect_id],
+        valid_text,
+        manifest,
+        exclusion_vocabulary=("除外済み",),
+    )
+
+
+def test_citation_vocabulary_changes_legacy_path_judgment() -> None:
+    text = "custom/archive/evidence.md:12"
+
+    assert checker.check_citation_format(text) == ("<パス>.md:<行番号>",)
+    assert checker.check_citation_format(
+        text,
+        legacy_prefixes=("custom/archive/",),
+        legacy_infix="/custom/archive/",
+    ) == ()
+
+
+def test_noncanonical_scan_start_changes_scanned_chapter() -> None:
+    text = (
+        "## 2. 本文\n"
+        "[plan](docs/features/example/plan.md) を参照する。\n"
+        "## 3. 後続章\n"
+        "要件書を参照する。\n"
+    )
+
+    assert checker.check_noncanonical_reference(text) == (2,)
+    assert checker.check_noncanonical_reference(
+        text,
+        scan_start=r"^##\s+3(?:[.\s]|$)",
+    ) == ()
+
+
+def test_declaration_section_changes_manifest_judgment(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    relation = next(iter(manifest.values()))
+    document = _manifest_document(relation)
+
+    assert checker.check_manifest_consistency(
+        document,
+        {relation.id: relation},
+    ) == ()
+    assert checker.check_manifest_consistency(
+        document,
+        {relation.id: relation},
+        declaration_section="9-9",
+    )[0] == "9-9の表間参照宣言表がない"
+
+
+def test_narrow_section_grammar_rejects_existing_scope(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    valid_text = _FORBIDDEN_CASE_BY_ID["SP-19"][1]
+
+    with pytest.raises(
+        checker.CheckError,
+        match="scope のトークン『2-1』が節 ID の文法に一致しない",
+    ):
+        checker.defect_violation_reason(
+            defects["SP-19"],
+            valid_text,
+            manifest,
+            section_id_grammar=r"\d+",
+        )
+
+
 def test_link_target_has_normal_and_abnormal_cases(tmp_path: Path) -> None:
     design_dir = tmp_path / "docs" / "design"
     design_dir.mkdir(parents=True)
@@ -1487,6 +1642,19 @@ def test_registry_with_unregistered_json_fails(tmp_path: Path) -> None:
     result = _run_cli("--registry", str(registry_path))
     assert result.returncode == 2
     assert "未登録" in result.stderr
+
+
+def test_profile_with_unsupported_preamble_fails(tmp_path: Path) -> None:
+    """未対応の冒頭切り出し方式をProfileErrorによる終了2にする。"""
+    registry_path = _make_staging_registry(tmp_path, DESIGN)
+    profile_path = registry_path.parent / "x.json"
+    profile_value = json.loads(profile_path.read_text(encoding="utf-8"))
+    profile_value["preamble"] = "whole-document"
+    _write_json(profile_path, profile_value)
+
+    result = _run_cli("--registry", str(registry_path))
+    assert result.returncode == 2
+    assert "preamble" in result.stderr
 
 
 def test_corrected_document_is_green_for_step_four_defects() -> None:

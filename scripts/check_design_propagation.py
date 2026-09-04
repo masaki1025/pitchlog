@@ -64,6 +64,15 @@ REQ_LINE_CITATION_RE = re.compile(r"\bREQ:\d+\b")
 PATH_LINE_CITATION_RE = re.compile(r"[^\s`\[\]()]+\.md:\d+\b")
 BARE_LINE_CITATION_RE = re.compile(r"(?<![A-Za-z0-9_]):\d+\b")
 NONCANONICAL_PATH_RE = re.compile(r"(?:docs/features/|\.\./features/)")
+DEFAULT_SECTION_ID_GRAMMAR = r"\d+(?:-\d+(?:-[A-Z])?)?"
+DEFAULT_PREAMBLE = "first-h2"
+DEFAULT_EXCLUSION_VOCABULARY = ("対象外", "対象にならない", "含めない")
+DEFAULT_LEGACY_PREFIXES = ("docs/legacy/", "../legacy/")
+DEFAULT_LEGACY_INFIX = "/docs/legacy/"
+DEFAULT_NONCANONICAL_SCAN_START = r"^##\s+2(?:[.\s]|$)"
+DEFAULT_DECLARATION_SECTION = "2-5"
+DEFAULT_DECLARATION_ROW_PREFIX = "| **R-"
+DEFAULT_DECLARATION_COLUMN_COUNT = 6
 
 
 class CheckError(Exception):
@@ -336,16 +345,36 @@ def _heading_section(text: str, label: str) -> str:
     return "\n".join(lines[start:end])
 
 
-def extract_scope(text: str, scope: str) -> str:
+def extract_scope(
+    text: str,
+    scope: str,
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+) -> str:
     """不変条件のscopeに列挙された節だけを本文から切り出す。
 
     Args:
         text: 検査対象のMarkdown本文。
         scope: ``2-1、4-2`` や ``冒頭、1節`` 形式の節指定。
+        section_id_grammar: 節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
 
     Returns:
-        指定された節を出現順に連結した文字列。存在しない節は空として扱う。
+        指定された節を出現順に連結した文字列。
+
+    Raises:
+        CheckError: scopeトークンが不正か、対象の節が文書に無い場合。
+        ProfileError: 冒頭の切り出し方式が未対応の場合。
     """
+    if preamble != DEFAULT_PREAMBLE:
+        raise doc_check_profile.ProfileError(
+            f"preamble は {DEFAULT_PREAMBLE!r} でなければならない: {preamble!r}"
+        )
+    try:
+        section_id_re = re.compile(section_id_grammar)
+    except re.error as error:
+        raise CheckError(f"section_id_grammar が不正: {error}") from error
     sections: list[str] = []
     for raw_token in scope.split("、"):
         token = raw_token.strip()
@@ -353,8 +382,14 @@ def extract_scope(text: str, scope: str) -> str:
             sections.append(text.split("\n## ", 1)[0])
             continue
         token = token.split(" の", 1)[0].removesuffix("節").strip()
-        if re.fullmatch(r"\d+(?:-\d+(?:-[A-Z])?)?", token) is not None:
-            sections.append(_heading_section(text, token))
+        if section_id_re.fullmatch(token) is None:
+            raise CheckError(
+                f"scope のトークン『{token}』が節 ID の文法に一致しない"
+            )
+        section = _heading_section(text, token)
+        if not section:
+            raise CheckError(f"scope の節『{token}』が文書に無い")
+        sections.append(section)
     return "\n".join(sections)
 
 
@@ -437,9 +472,13 @@ def check_emphasis(text: str) -> tuple[int, ...]:
     )
 
 
-def _has_exclusion(section: str, *terms: str) -> bool:
+def _has_exclusion(
+    section: str,
+    *terms: str,
+    vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
+) -> bool:
     return all(term in section for term in terms) and any(
-        word in section for word in ("対象外", "対象にならない", "含めない")
+        word in section for word in vocabulary
     )
 
 
@@ -447,6 +486,10 @@ def _structural_reason(
     defect_id: str,
     text: str,
     manifest: dict[str, ManifestRelation],
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
 ) -> str | None:
     if defect_id == "SP-01":
         row = _table_row(_heading_section(text, "7-2"), "未送信", "退避済み")
@@ -549,14 +592,19 @@ def _structural_reason(
     elif defect_id == "SP-12":
         boundary = _identified_row(_heading_section(text, "6-3"), "B3")
         if boundary is None or not _has_exclusion(
-            boundary, "D1 を持たない変更イベント", "D5"
+            boundary,
+            "D1 を持たない変更イベント",
+            "D5",
+            vocabulary=exclusion_vocabulary,
         ):
             return "D5衝突の再開2択除外が6-3にない"
         for label in ("6-4",):
             row = _table_row(
                 _heading_section(text, label), "D1 を持たない変更イベント", "D5"
             )
-            if row is None or not _has_exclusion(row, "D5"):
+            if row is None or not _has_exclusion(
+                row, "D5", vocabulary=exclusion_vocabulary
+            ):
                 return f"D5衝突の再開2択除外が{label}にない"
     elif defect_id == "SP-13":
         elements = manifest["R-EVENT-FIELD"].source_elements
@@ -581,13 +629,30 @@ def _structural_reason(
     elif defect_id == "SP-16":
         for label in ("6-1", "6-2"):
             section = _heading_section(text, label)
-            if not _has_exclusion(section, "D1 を持たない変更イベント", "prefix"):
+            if not _has_exclusion(
+                section,
+                "D1 を持たない変更イベント",
+                "prefix",
+                vocabulary=exclusion_vocabulary,
+            ):
                 return f"{label}にD1なし変更イベントのprefix射程除外がない"
     elif defect_id == "SP-18":
-        if check_emphasis(extract_scope(text, "4-3-A")):
+        if check_emphasis(
+            extract_scope(
+                text,
+                "4-3-A",
+                section_id_grammar=section_id_grammar,
+                preamble=preamble,
+            )
+        ):
             return "W3表セルの強調記号が閉じていない"
     elif defect_id == "SP-19":
-        if "`D1=5` の位置には" in extract_scope(text, "10-2"):
+        if "`D1=5` の位置には" in extract_scope(
+            text,
+            "10-2",
+            section_id_grammar=section_id_grammar,
+            preamble=preamble,
+        ):
             return "D1をプレイ列の位置として使っている"
     elif defect_id == "SP-20":
         row = _table_row(_heading_section(text, "2-1"), "| D1 |")
@@ -616,6 +681,10 @@ def defect_violation_reason(
     defect: Defect,
     text: str,
     manifest: dict[str, ManifestRelation],
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
 ) -> str | None:
     """1件の機械欠陥についてliteralと構造的不変条件を評価する。
 
@@ -626,6 +695,9 @@ def defect_violation_reason(
         defect: 評価する機械欠陥。
         text: 検査対象のMarkdown本文。
         manifest: 関係マニフェスト。
+        section_id_grammar: scopeの節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
+        exclusion_vocabulary: 除外宣言として認識する語彙。
 
     Returns:
         違反理由。適合していれば ``None``。
@@ -635,11 +707,23 @@ def defect_violation_reason(
     """
     if defect.detection != "machine" or defect.invariant is None:
         raise CheckError(f"人間照合欠陥は機械評価できない: {defect.id}")
-    scoped = extract_scope(text, defect.invariant.scope)
+    scoped = extract_scope(
+        text,
+        defect.invariant.scope,
+        section_id_grammar=section_id_grammar,
+        preamble=preamble,
+    )
     for forbidden in defect.invariant.forbidden:
         if forbidden in scoped:
             return f"禁止literalが残存: {forbidden}"
-    return _structural_reason(defect.id, text, manifest)
+    return _structural_reason(
+        defect.id,
+        text,
+        manifest,
+        section_id_grammar=section_id_grammar,
+        preamble=preamble,
+        exclusion_vocabulary=exclusion_vocabulary,
+    )
 
 
 def _strip_code_span(value: str) -> str:
@@ -650,26 +734,33 @@ def _strip_code_span(value: str) -> str:
 
 def parse_manifest_declaration(
     text: str,
+    *,
+    section_id: str = DEFAULT_DECLARATION_SECTION,
+    row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[dict[str, ManifestRelation], tuple[str, ...]]:
-    """2-5の表間参照宣言表を6フィールドで解析する。
+    """表間参照宣言表を指定された構造で解析する。
 
     Args:
         text: 検査対象のMarkdown本文。
+        section_id: 宣言表を置く節ID。
+        row_prefix: 関係行を識別する接頭辞。
+        column_count: 関係行に必要な列数。
 
     Returns:
         ``(関係ID別の宣言, 解析違反)``。
     """
-    section = _heading_section(text, "2-5")
+    section = _heading_section(text, section_id)
     if not section:
-        return {}, ("2-5の表間参照宣言表がない",)
+        return {}, (f"{section_id}の表間参照宣言表がない",)
     relations: dict[str, ManifestRelation] = {}
     errors: list[str] = []
     for line in section.splitlines():
-        if not line.startswith("| **R-"):
+        if not line.startswith(row_prefix):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 6:
-            errors.append("宣言表の列数が6でない")
+        if len(cells) != column_count:
+            errors.append(f"宣言表の列数が{column_count}でない")
             continue
         relation_id = cells[0].removeprefix("**").removesuffix("**")
         if relation_id in relations:
@@ -708,17 +799,29 @@ def parse_manifest_declaration(
 def check_manifest_consistency(
     text: str,
     manifest: dict[str, ManifestRelation],
+    *,
+    declaration_section: str = DEFAULT_DECLARATION_SECTION,
+    declaration_row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    declaration_column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[str, ...]:
     """本文宣言表とJSONを6フィールドすべてで双方向突合する。
 
     Args:
         text: 検査対象のMarkdown本文。
         manifest: JSONから読んだ関係マニフェスト。
+        declaration_section: 宣言表を置く節ID。
+        declaration_row_prefix: 関係行を識別する接頭辞。
+        declaration_column_count: 関係行に必要な列数。
 
     Returns:
         不一致理由。完全一致なら空タプル。
     """
-    declared, errors = parse_manifest_declaration(text)
+    declared, errors = parse_manifest_declaration(
+        text,
+        section_id=declaration_section,
+        row_prefix=declaration_row_prefix,
+        column_count=declaration_column_count,
+    )
     reasons = list(errors)
     missing = sorted(set(manifest) - set(declared))
     unknown = sorted(set(declared) - set(manifest))
@@ -996,7 +1099,12 @@ def check_element_coverage(
     return tuple(reasons)
 
 
-def check_citation_format(text: str) -> tuple[str, ...]:
+def check_citation_format(
+    text: str,
+    *,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+) -> tuple[str, ...]:
     """可変文書で禁止する3形式の行番号引用を検出する。
 
     版固定アーカイブ ``docs/legacy/`` への行番号引用は逐語証拠として許容する。
@@ -1005,6 +1113,8 @@ def check_citation_format(text: str) -> tuple[str, ...]:
 
     Args:
         text: 検査対象のMarkdown本文。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
 
     Returns:
         残存した引用形式の識別子。
@@ -1040,10 +1150,18 @@ def check_citation_format(text: str) -> tuple[str, ...]:
                 continue
             if event_kind == "path-line":
                 last_path = match.group(0).rsplit(":", 1)[0]
-                if not _is_legacy_citation_path(last_path):
+                if not _is_legacy_citation_path(
+                    last_path,
+                    legacy_prefixes=legacy_prefixes,
+                    legacy_infix=legacy_infix,
+                ):
                     found.add("<パス>.md:<行番号>")
                 continue
-            if last_path is None or not _is_legacy_citation_path(last_path):
+            if last_path is None or not _is_legacy_citation_path(
+                last_path,
+                legacy_prefixes=legacy_prefixes,
+                legacy_infix=legacy_infix,
+            ):
                 found.add("裸の行番号")
     return tuple(
         identifier
@@ -1052,43 +1170,58 @@ def check_citation_format(text: str) -> tuple[str, ...]:
     )
 
 
-def _is_legacy_citation_path(path: str) -> bool:
+def _is_legacy_citation_path(
+    path: str,
+    *,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+) -> bool:
     """引用先が版固定のlegacyアーカイブかを返す。
 
     Args:
         path: リポジトリ相対または文書相対のMarkdownパス。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
 
     Returns:
         ``docs/legacy/`` 配下を指す場合は ``True``。
     """
     normalized = path.replace("\\", "/")
-    return (
-        normalized.startswith("docs/legacy/")
-        or normalized.startswith("../legacy/")
-        or "/docs/legacy/" in normalized
-    )
+    return normalized.startswith(tuple(legacy_prefixes)) or legacy_infix in normalized
 
 
-def check_noncanonical_reference(text: str) -> tuple[int, ...]:
+def check_noncanonical_reference(
+    text: str,
+    *,
+    scan_start: str = DEFAULT_NONCANONICAL_SCAN_START,
+    path_pattern: str = NONCANONICAL_PATH_RE.pattern,
+) -> tuple[int, ...]:
     """本文中のdocs/features配下への規範参照を検出する。
 
     変更履歴は経緯の記録なので対象外とし、2章以降を規範本文として走査する。
 
     Args:
         text: 検査対象のMarkdown本文。
+        scan_start: 規範本文の走査を開始する見出しの正規表現。
+        path_pattern: 非正本参照を表すパスの正規表現。
 
     Returns:
         非正本参照がある1始まり行番号。
     """
+    try:
+        scan_start_re = re.compile(scan_start)
+        path_re = re.compile(path_pattern)
+    except re.error as error:
+        raise CheckError(f"非正本参照の正規表現が不正: {error}") from error
     lines = text.splitlines()
     start = next(
-        (index for index, line in enumerate(lines) if re.match(r"^##\s+2(?:[.\s]|$)", line)),
+        (index for index, line in enumerate(lines) if scan_start_re.match(line)),
         len(lines),
     )
     return tuple(
         index + 1
         for index, line in enumerate(lines)
-        if index >= start and NONCANONICAL_PATH_RE.search(line) is not None
+        if index >= start and path_re.search(line) is not None
     )
 
 
@@ -1135,6 +1268,14 @@ def _global_findings(
     manifest: dict[str, ManifestRelation],
     checks: frozenset[str],
     link_base_dir: Path | None,
+    *,
+    legacy_prefixes: Sequence[str],
+    legacy_infix: str,
+    noncanonical_scan_start: str,
+    noncanonical_path_pattern: str,
+    declaration_section: str,
+    declaration_row_prefix: str,
+    declaration_column_count: int,
 ) -> list[Finding]:
     findings: list[Finding] = []
     if "element-coverage" in checks:
@@ -1144,19 +1285,33 @@ def _global_findings(
                 Finding("element-coverage", "element-coverage", "; ".join(reasons))
             )
     if "manifest-consistency" in checks:
-        reasons = check_manifest_consistency(text, manifest)
+        reasons = check_manifest_consistency(
+            text,
+            manifest,
+            declaration_section=declaration_section,
+            declaration_row_prefix=declaration_row_prefix,
+            declaration_column_count=declaration_column_count,
+        )
         if reasons:
             findings.append(
                 Finding("manifest-consistency", "manifest-consistency", "; ".join(reasons))
             )
     if "citation-format" in checks:
-        formats = check_citation_format(text)
+        formats = check_citation_format(
+            text,
+            legacy_prefixes=legacy_prefixes,
+            legacy_infix=legacy_infix,
+        )
         if formats:
             findings.append(
                 Finding("citation-format", "citation-format", ", ".join(formats))
             )
     if "noncanonical-reference" in checks:
-        lines = check_noncanonical_reference(text)
+        lines = check_noncanonical_reference(
+            text,
+            scan_start=noncanonical_scan_start,
+            path_pattern=noncanonical_path_pattern,
+        )
         if lines:
             findings.append(
                 Finding(
@@ -1257,6 +1412,17 @@ def run_checks(
     defect_csv: str | None = None,
     check_csv: str | None = None,
     link_base_dir: Path | None = None,
+    *,
+    section_id_grammar: str = DEFAULT_SECTION_ID_GRAMMAR,
+    preamble: str = DEFAULT_PREAMBLE,
+    exclusion_vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
+    legacy_prefixes: Sequence[str] = DEFAULT_LEGACY_PREFIXES,
+    legacy_infix: str = DEFAULT_LEGACY_INFIX,
+    noncanonical_scan_start: str = DEFAULT_NONCANONICAL_SCAN_START,
+    noncanonical_path_pattern: str = NONCANONICAL_PATH_RE.pattern,
+    declaration_section: str = DEFAULT_DECLARATION_SECTION,
+    declaration_row_prefix: str = DEFAULT_DECLARATION_ROW_PREFIX,
+    declaration_column_count: int = DEFAULT_DECLARATION_COLUMN_COUNT,
 ) -> tuple[Finding, ...]:
     """選択条件に従って設計伝播検査を実行する。
 
@@ -1268,6 +1434,16 @@ def run_checks(
         defect_csv: ``--defects`` 相当のカンマ区切りID。
         check_csv: ``--checks`` 相当のカンマ区切りID。
         link_base_dir: 相対Markdownリンクの解決基準。
+        section_id_grammar: scopeの節IDを判定する正規表現。
+        preamble: 冒頭スコープの切り出し方式。
+        exclusion_vocabulary: 除外宣言として認識する語彙。
+        legacy_prefixes: legacy引用と認識するパス接頭辞。
+        legacy_infix: legacy引用と認識するパス中間文字列。
+        noncanonical_scan_start: 非正本参照の走査開始見出し。
+        noncanonical_path_pattern: 非正本参照を表すパスの正規表現。
+        declaration_section: 宣言表を置く節ID。
+        declaration_row_prefix: 関係行を識別する接頭辞。
+        declaration_column_count: 関係行に必要な列数。
 
     Returns:
         欠陥IDまたは全体検査ID単位の違反。
@@ -1277,13 +1453,33 @@ def run_checks(
     )
     findings: list[Finding] = []
     for defect in selected_defects:
-        reason = defect_violation_reason(defect, text, manifest)
+        reason = defect_violation_reason(
+            defect,
+            text,
+            manifest,
+            section_id_grammar=section_id_grammar,
+            preamble=preamble,
+            exclusion_vocabulary=exclusion_vocabulary,
+        )
         if reason is not None:
             assert defect.check is not None
             findings.append(Finding(defect.id, defect.check, reason))
     if allow_global:
         findings.extend(
-            _global_findings(text, root, manifest, checks, link_base_dir)
+            _global_findings(
+                text,
+                root,
+                manifest,
+                checks,
+                link_base_dir,
+                legacy_prefixes=legacy_prefixes,
+                legacy_infix=legacy_infix,
+                noncanonical_scan_start=noncanonical_scan_start,
+                noncanonical_path_pattern=noncanonical_path_pattern,
+                declaration_section=declaration_section,
+                declaration_row_prefix=declaration_row_prefix,
+                declaration_column_count=declaration_column_count,
+            )
         )
     return tuple(sorted(findings, key=lambda finding: finding.identifier))
 
@@ -1381,6 +1577,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise CheckError(f"検査対象を読めない: {document}: {error}") from error
         manifest = load_manifest(manifest_path)
         defects = load_defects(defects_path)
+        citation = profile.raw["citation"]
+        declaration_table = profile.raw["declaration_table"]
         findings = run_checks(
             text,
             root,
@@ -1389,6 +1587,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             defect_csv=args.defects,
             check_csv=args.checks,
             link_base_dir=profile.link_base_dir,
+            section_id_grammar=profile.raw["section_id_grammar"],
+            preamble=profile.raw["preamble"],
+            exclusion_vocabulary=profile.raw["exclusion_vocabulary"],
+            legacy_prefixes=citation["legacy_prefixes"],
+            legacy_infix=citation["legacy_infix"],
+            noncanonical_scan_start=profile.raw["noncanonical_scan_start"],
+            noncanonical_path_pattern=profile.raw["noncanonical_path_pattern"],
+            declaration_section=declaration_table["section"],
+            declaration_row_prefix=declaration_table["row_prefix"],
+            declaration_column_count=declaration_table["column_count"],
         )
     except (CheckError, doc_check_profile.ProfileError) as error:
         print(f"check_design_propagation.py: {error}", file=sys.stderr)
