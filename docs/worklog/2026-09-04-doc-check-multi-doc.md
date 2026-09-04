@@ -366,3 +366,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - **順序上の判断**: `invariants` フィールドと `pins.invariants_digest` は宣言資産が生まれるステップ 8 で追加(スキーマ上は任意)
 - 検証(Claude): ruff/ty passed / `pytest tests/test_doc_check_profile.py` 9 passed / 3 検査 green / 収集 **920**・基準 875 の欠落 0 / `git diff --name-only HEAD -- 'scripts/*.py' .claude/` = 0 件(スクリプト無変更)/
   digest を canonical 手順で再計算 → レジストリ値と**一致** / `required_checks ∪ not_applicable` = 22・積空 / `profiles/` = registry.json + sync-protocol.json のみ。Codex 報告: `pytest tests/ -q -rA` 920 passed・skip 系 0
+
+### ステップ 5/38 — 共通ローダー `scripts/doc_check_profile.py`(Codex `--resume`)
+
+- 新設: `scripts/doc_check_profile.py`(840 行・標準ライブラリのみ)— `ProfileError` / 最小スキーマ検証器(`$ref` 等の未対応キーワードは fail)/ `load_json`(重複キー拒否)/ `canonical_digest`(float 拒否)/
+  `CHECK_IDS_ALL`(22)/ `GATING_KEYS` / `Profile` / `RegistryEntry` / `Registry` / `load_profile`(完全分割・未知 ID・空理由・kind)/ `load_registry`(一意性・同ディレクトリ実ファイル集合との完全一致・0 件)/
+  `resolve_profiles`(document 一致・`must_require` 包含・pins 照合・`invariants` pin 欠落)/ `validate_defect_id_namespaces`。両検査スクリプトはまだ呼ばない(無変更)
+- テスト: `tests/test_doc_check_profile.py` 9 → **35 件**(正常系 + 負例 20 種以上 + staging の木)
+- 検証(Claude): ruff/ty passed / 35 passed(skip 系 0)/ 3 検査 green / 収集 **946**・基準欠落 0 / 両検査スクリプトと `.claude/` の差分 0。Codex 報告: `pytest tests/ -q -rA` 946 passed

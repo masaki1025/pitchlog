@@ -5,10 +5,13 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 RELATIONS_DIR = REPOSITORY_ROOT / "scripts" / "design_relations"
@@ -19,6 +22,7 @@ REGISTRY_PATH = PROFILES_DIR / "registry.json"
 DEFECTS_PATH = RELATIONS_DIR / "defects.json"
 PROPAGATION_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_design_propagation.py"
 COVERAGE_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_doc_coverage.py"
+PROFILE_LOADER_SCRIPT = REPOSITORY_ROOT / "scripts" / "doc_check_profile.py"
 
 ALL_CHECK_IDS = {
     "manifest-consistency",
@@ -88,7 +92,9 @@ SCHEMA_KEYWORDS = {
     "enum",
     "items",
     "minLength",
+    "minItems",
     "pattern",
+    "uniqueItems",
 }
 
 
@@ -138,8 +144,37 @@ def _assert_schema_subset(schema: dict[str, Any], *, root: bool = False) -> None
         _assert_schema_subset(items)
 
 
+def _write_json(path: Path, value: Any) -> None:
+    """テスト用JSONを読みやすい形式で書く。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _copy_profile_tree(tmp_path: Path) -> Path:
+    """本番スキーマとプロファイルを一時リポジトリへ複製する。"""
+    root = tmp_path / "repository"
+    relations_dir = root / "scripts" / "design_relations"
+    shutil.copytree(SCHEMAS_DIR, relations_dir / "schemas")
+    shutil.copytree(PROFILES_DIR, relations_dir / "profiles")
+    return root
+
+
+def _temporary_profile_path(root: Path) -> Path:
+    """一時リポジトリの同期プロファイルパスを返す。"""
+    return root / "scripts/design_relations/profiles/sync-protocol.json"
+
+
+def _temporary_registry_path(root: Path) -> Path:
+    """一時リポジトリのレジストリパスを返す。"""
+    return root / "scripts/design_relations/profiles/registry.json"
+
+
 propagation = _load_module("profile_propagation_under_test", PROPAGATION_SCRIPT)
 coverage = _load_module("profile_coverage_under_test", COVERAGE_SCRIPT)
+profile_loader = _load_module("doc_check_profile_under_test", PROFILE_LOADER_SCRIPT)
 profile = _load_json(PROFILE_PATH)
 registry = _load_json(REGISTRY_PATH)
 
@@ -299,7 +334,8 @@ def test_no_checker_or_claude_file_changed() -> None:
             "--name-only",
             "HEAD",
             "--",
-            "scripts/*.py",
+            "scripts/check_design_propagation.py",
+            "scripts/check_doc_coverage.py",
             ".claude/",
         ],
         cwd=REPOSITORY_ROOT,
@@ -309,3 +345,361 @@ def test_no_checker_or_claude_file_changed() -> None:
     )
     assert result.returncode == 0
     assert result.stdout == ""
+
+
+def test_production_registry_resolves_and_validates_all_defect_namespaces() -> None:
+    """本番レジストリと同期プロファイル、欠陥40件を正常に解決する。"""
+    loaded_registry = profile_loader.load_registry(
+        profile_loader.default_registry_path(REPOSITORY_ROOT),
+        root=REPOSITORY_ROOT,
+    )
+    profiles = profile_loader.resolve_profiles(
+        loaded_registry,
+        root=REPOSITORY_ROOT,
+    )
+    assert len(profiles) == 1
+    loaded_profile = profiles[0]
+    assert loaded_profile.name == "sync-protocol"
+    assert loaded_profile.path == PROFILE_PATH.resolve()
+    assert loaded_profile.document.is_absolute()
+    assert loaded_profile.manifest.is_absolute()
+
+    defects = profile_loader.load_json(DEFECTS_PATH)
+    defect_ids = tuple(
+        identifier for identifier in defects if not identifier.startswith("_")
+    )
+    assert len(defect_ids) == 40
+    profile_loader.validate_defect_id_namespaces(loaded_profile, defect_ids)
+
+
+def test_schema_validator_supports_multiple_types_and_array_constraints() -> None:
+    """複数type、minItems、uniqueItemsを解釈する。"""
+    schema = {
+        "type": ["array", "string"],
+        "items": {"type": "integer"},
+        "minItems": 2,
+        "uniqueItems": True,
+    }
+    profile_loader.validate_against_schema([1, 2], schema)
+    profile_loader.validate_against_schema("文字列", schema)
+    with pytest.raises(profile_loader.ProfileError, match=r"\$.*minItems"):
+        profile_loader.validate_against_schema([1], schema)
+    with pytest.raises(profile_loader.ProfileError, match=r"\$\[1\].*uniqueItems"):
+        profile_loader.validate_against_schema([1, 1], schema)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing-required", "wrong-version", "unknown-field"),
+)
+def test_profile_schema_violations_are_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """必須欠落、版不一致、未知フィールドを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    if mutation == "missing-required":
+        del value["document"]
+    elif mutation == "wrong-version":
+        value["schema_version"] = 2
+    else:
+        value["unknown_field"] = True
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match=r"\$"):
+        profile_loader.load_profile(path, root=root)
+
+
+@pytest.mark.parametrize("mutation", ("missing-id", "overlapping-id"))
+def test_check_partition_violations_are_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """検査IDの不足と両集合への重複を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    if mutation == "missing-id":
+        value["required_checks"].remove("ledger")
+    else:
+        value["not_applicable"]["ledger"] = "重複させる負例"
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="完全分割|重複"):
+        profile_loader.load_profile(path, root=root)
+
+
+def test_duplicate_required_check_is_fail_closed(tmp_path: Path) -> None:
+    """required_checks配列内の同一ID重複を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    value["required_checks"].append(value["required_checks"][0])
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="重複ID"):
+        profile_loader.load_profile(path, root=root)
+
+
+def test_empty_not_applicable_reason_is_fail_closed(tmp_path: Path) -> None:
+    """空白だけの適用外理由を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    value["not_applicable"]["forbidden-structure"] = "  "
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="理由が空"):
+        profile_loader.load_profile(path, root=root)
+
+
+def test_unknown_not_applicable_id_is_fail_closed(tmp_path: Path) -> None:
+    """not_applicableの未知検査IDを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    value["not_applicable"]["unknown-check"] = "未知IDの負例"
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="未知フィールド|未知ID"):
+        profile_loader.load_profile(path, root=root)
+
+
+def test_unknown_invariant_kind_is_fail_closed(tmp_path: Path) -> None:
+    """invariant_kindsの未知kindを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    path = _temporary_profile_path(root)
+    value = _load_json(path)
+    value["invariant_kinds"][0] = "unknown-kind"
+    _write_json(path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="enum|未知kind"):
+        profile_loader.load_profile(path, root=root)
+
+
+def test_registry_rejects_unregistered_profile_file(tmp_path: Path) -> None:
+    """profilesディレクトリの未登録JSONを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    extra = _temporary_registry_path(root).parent / "unregistered.json"
+    _write_json(extra, profile)
+
+    with pytest.raises(profile_loader.ProfileError, match="未登録"):
+        profile_loader.load_registry(_temporary_registry_path(root), root=root)
+
+
+def test_registry_rejects_registered_missing_file(tmp_path: Path) -> None:
+    """レジストリに登録済みだが存在しないプロファイルを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    _temporary_profile_path(root).unlink()
+
+    with pytest.raises(profile_loader.ProfileError, match="登録先不在"):
+        profile_loader.load_registry(_temporary_registry_path(root), root=root)
+
+
+@pytest.mark.parametrize("duplicate_field", ("name", "document"))
+def test_registry_rejects_duplicate_identity_fields(
+    tmp_path: Path,
+    duplicate_field: str,
+) -> None:
+    """レジストリのnameとdocumentの重複を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    registry_path = _temporary_registry_path(root)
+    profiles_dir = registry_path.parent
+    second_profile = profiles_dir / "second.json"
+    _write_json(second_profile, profile)
+
+    value = _load_json(registry_path)
+    first = value["profiles"][0]
+    second = json.loads(json.dumps(first))
+    second["file"] = second_profile.relative_to(root).as_posix()
+    second["name"] = "second"
+    second["document"] = "docs/design/second.md"
+    second[duplicate_field] = first[duplicate_field]
+    value["profiles"].append(second)
+    _write_json(registry_path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match=duplicate_field):
+        profile_loader.load_registry(registry_path, root=root)
+
+
+def test_registry_rejects_zero_profiles(tmp_path: Path) -> None:
+    """0件のレジストリを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    registry_path = _temporary_registry_path(root)
+    value = _load_json(registry_path)
+    value["profiles"] = []
+    _write_json(registry_path, value)
+
+    with pytest.raises(profile_loader.ProfileError, match="1件以上"):
+        profile_loader.load_registry(registry_path, root=root)
+
+
+def test_resolve_profiles_rejects_must_require_violation(tmp_path: Path) -> None:
+    """プロファイルがレジストリのmust_requireを満たさない場合に拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    registry_path = _temporary_registry_path(root)
+    value = _load_json(registry_path)
+    value["profiles"][0]["must_require"].append("forbidden-structure")
+    _write_json(registry_path, value)
+    loaded_registry = profile_loader.load_registry(registry_path, root=root)
+
+    with pytest.raises(profile_loader.ProfileError, match="must_require"):
+        profile_loader.resolve_profiles(loaded_registry, root=root)
+
+
+def test_resolve_profiles_rejects_document_mismatch(tmp_path: Path) -> None:
+    """entryとプロファイルのdocument不一致を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    registry_path = _temporary_registry_path(root)
+    value = _load_json(registry_path)
+    value["profiles"][0]["document"] = "docs/design/other.md"
+    _write_json(registry_path, value)
+    loaded_registry = profile_loader.load_registry(registry_path, root=root)
+
+    with pytest.raises(profile_loader.ProfileError, match="document"):
+        profile_loader.resolve_profiles(loaded_registry, root=root)
+
+
+def test_resolve_profiles_rejects_gating_digest_mismatch(tmp_path: Path) -> None:
+    """ゲート節のprofile_gating_digest不一致を拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    registry_path = _temporary_registry_path(root)
+    value = _load_json(registry_path)
+    value["profiles"][0]["pins"]["profile_gating_digest"] = "0" * 64
+    _write_json(registry_path, value)
+    loaded_registry = profile_loader.load_registry(registry_path, root=root)
+
+    with pytest.raises(profile_loader.ProfileError, match="profile_gating_digest"):
+        profile_loader.resolve_profiles(loaded_registry, root=root)
+
+
+def test_load_json_rejects_duplicate_keys_and_missing_file(tmp_path: Path) -> None:
+    """JSON重複キーとファイル欠落をProfileErrorへ写す。"""
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text('{"value": 1, "value": 2}\n', encoding="utf-8")
+    with pytest.raises(profile_loader.ProfileError, match="重複"):
+        profile_loader.load_json(duplicate)
+    with pytest.raises(profile_loader.ProfileError, match="読めません"):
+        profile_loader.load_json(tmp_path / "missing.json")
+
+
+def test_canonical_digest_matches_registry_and_rejects_float() -> None:
+    """canonical digestをレジストリ値と突合しfloatを拒否する。"""
+    gating = {key: profile[key] for key in GATING_KEYS if key in profile}
+    expected = registry["profiles"][0]["pins"]["profile_gating_digest"]
+    assert profile_loader.canonical_digest(gating) == expected
+    assert profile_loader.canonical_digest(gating) == _gating_digest(profile)
+    with pytest.raises(profile_loader.ProfileError, match=r"\$\.nested\[1\].*float"):
+        profile_loader.canonical_digest({"nested": [1, 1.5]})
+
+
+def test_schema_validator_rejects_unsupported_keyword() -> None:
+    """未対応スキーマキーワードを使用位置にかかわらず拒否する。"""
+    schema = {
+        "type": "object",
+        "properties": {"optional": {"type": "string", "$ref": "other.json"}},
+        "additionalProperties": False,
+    }
+    with pytest.raises(profile_loader.ProfileError, match=r"\$ref"):
+        profile_loader.validate_against_schema({}, schema)
+
+
+def test_resolve_profiles_requires_invariants_digest(tmp_path: Path) -> None:
+    """invariants指定時にinvariants_digestが無ければ拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    profile_path = _temporary_profile_path(root)
+    value = _load_json(profile_path)
+    value["invariants"] = "scripts/design_relations/invariants/sync-protocol.json"
+    _write_json(profile_path, value)
+    loaded_registry = profile_loader.load_registry(
+        _temporary_registry_path(root),
+        root=root,
+    )
+
+    with pytest.raises(profile_loader.ProfileError, match="invariants_digest"):
+        profile_loader.resolve_profiles(loaded_registry, root=root)
+
+
+def test_resolve_profiles_accepts_matching_invariants_digest(tmp_path: Path) -> None:
+    """invariants本体と一致するinvariants_digestを受理する。"""
+    root = _copy_profile_tree(tmp_path)
+    profile_path = _temporary_profile_path(root)
+    registry_path = _temporary_registry_path(root)
+    invariants_path = root / "scripts/design_relations/invariants/sync-protocol.json"
+    invariants = {"schema_version": 1, "invariants": {}}
+    _write_json(invariants_path, invariants)
+
+    profile_value = _load_json(profile_path)
+    profile_value["invariants"] = invariants_path.relative_to(root).as_posix()
+    _write_json(profile_path, profile_value)
+    registry_value = _load_json(registry_path)
+    registry_value["profiles"][0]["pins"]["invariants_digest"] = (
+        profile_loader.canonical_digest(invariants)
+    )
+    _write_json(registry_path, registry_value)
+
+    loaded_registry = profile_loader.load_registry(registry_path, root=root)
+    assert len(profile_loader.resolve_profiles(loaded_registry, root=root)) == 1
+
+
+def test_validate_defect_namespaces_rejects_machine_namespace_gap(
+    tmp_path: Path,
+) -> None:
+    """機械欠陥の接頭辞がmachineから欠落したプロファイルを拒否する。"""
+    root = _copy_profile_tree(tmp_path)
+    profile_path = _temporary_profile_path(root)
+    defect_path = root / "scripts/design_relations/defects.json"
+    shutil.copy2(DEFECTS_PATH, defect_path)
+    profile_value = _load_json(profile_path)
+    profile_value["defect_id_namespaces"]["machine"] = ["SP"]
+    _write_json(profile_path, profile_value)
+    loaded_profile = profile_loader.load_profile(profile_path, root=root)
+    defects = profile_loader.load_json(defect_path)
+    defect_ids = (
+        identifier for identifier in defects if not identifier.startswith("_")
+    )
+
+    with pytest.raises(profile_loader.ProfileError, match="machine"):
+        profile_loader.validate_defect_id_namespaces(loaded_profile, defect_ids)
+
+
+def test_staging_tree_resolves_and_rejects_unrelated_json(tmp_path: Path) -> None:
+    """staging直下のprofiles構成を解決し、無関係なJSONを拒否する。"""
+    root = tmp_path / "staging"
+    profiles_dir = root / "profiles"
+    profile_path = profiles_dir / "x.json"
+    registry_path = profiles_dir / "registry.json"
+    profile_value = json.loads(json.dumps(profile))
+    profile_value["name"] = "x"
+    _write_json(profile_path, profile_value)
+
+    entry = json.loads(json.dumps(registry["profiles"][0]))
+    entry["name"] = "x"
+    entry["file"] = "profiles/x.json"
+    _write_json(
+        registry_path,
+        {"schema_version": 1, "profiles": [entry]},
+    )
+    assert {path.name for path in profiles_dir.glob("*.json")} == {
+        "registry.json",
+        "x.json",
+    }
+
+    loaded_registry = profile_loader.load_registry(
+        registry_path,
+        root=root,
+        schema_dir=SCHEMAS_DIR,
+    )
+    profiles = profile_loader.resolve_profiles(loaded_registry, root=root)
+    assert len(profiles) == 1
+    assert profiles[0].path == profile_path.resolve()
+
+    _write_json(profiles_dir / "unrelated.json", {})
+    with pytest.raises(profile_loader.ProfileError, match="未登録"):
+        profile_loader.load_registry(
+            registry_path,
+            root=root,
+            schema_dir=SCHEMAS_DIR,
+        )
