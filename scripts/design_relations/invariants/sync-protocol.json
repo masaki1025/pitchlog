@@ -18,7 +18,6 @@
     "SP-20"
   ],
   "legacy_structural": [
-    "SP-01",
     "SP-02",
     "SP-03",
     "SP-06",
@@ -90,6 +89,45 @@
       "mode": "needle",
       "keys": [
         "期待版不一致"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-selector",
+      "id": "sp01-transition",
+      "section": "7-2",
+      "mode": "needle",
+      "keys": [
+        "未送信",
+        "退避済み"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-contains",
+      "row": "sp01-transition",
+      "literals": [
+        "A5",
+        "退避"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-selector",
+      "id": "sp01-boundary",
+      "section": "6-3",
+      "mode": "identifier",
+      "keys": [
+        "B4"
+      ]
+    },
+    {
+      "defect_id": "SP-01",
+      "kind": "row-contains",
+      "row": "sp01-boundary",
+      "literals": [
+        "A5",
+        "退避"
       ]
     }
   ],

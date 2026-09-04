@@ -284,9 +284,15 @@ def _build_structural_check_cases(
     )
     sp01_row_mutation = _replace_in_section(
         sp01_valid,
-        "7-2",
-        "| 未送信 → 退避済み | ACK の A5 が退避を返す |",
-        "| 未送信 → 退避済み | ACK が退避を返す |\n| 補足 | A5 |",
+        "6-3",
+        "| B4 | A5 が退避を返す |",
+        "| B4 | 応答を返す |\n| 補足 | A5 の退避 |",
+    )
+    sp01_boundary_selector_mutation = _replace_in_section(
+        sp01_valid,
+        "6-3",
+        "| B4 | A5 が退避を返す |",
+        "| 境界 | B4 | A5 が退避を返す |",
     )
 
     ack_elements = manifest["R-ACK-STATE"].source_elements
@@ -651,7 +657,16 @@ def _build_structural_check_cases(
     )
 
     return (
-        ("SP-01", sp01_valid, sp01_invalid, (sp01_selector_mutation, sp01_row_mutation)),
+        (
+            "SP-01",
+            sp01_valid,
+            sp01_invalid,
+            (
+                sp01_selector_mutation,
+                sp01_row_mutation,
+                sp01_boundary_selector_mutation,
+            ),
+        ),
         (
             "SP-02",
             sp02_valid,
@@ -862,6 +877,7 @@ STRUCTURAL_DEFECT_IDS = frozenset(
     }
 )
 ROW_SELECTOR_MIGRATED_IDS = frozenset({"SP-10", "SP-11"})
+MIGRATED_STRUCTURAL_IDS = ROW_SELECTOR_MIGRATED_IDS | {"SP-01"}
 
 
 def _scope_section_ids(scope: str) -> tuple[str, ...]:
@@ -1042,13 +1058,13 @@ def test_sync_invariants_conform_to_fifteen_structural_ids() -> None:
 
     assert invariants.structural_required == STRUCTURAL_DEFECT_IDS
     assert invariants.legacy_structural == (
-        STRUCTURAL_DEFECT_IDS - ROW_SELECTOR_MIGRATED_IDS
+        STRUCTURAL_DEFECT_IDS - MIGRATED_STRUCTURAL_IDS
     )
-    assert len(invariants.legacy_structural) == 13
+    assert len(invariants.legacy_structural) == 12
     assert invariants.required_declarations == {"MT-01"}
     assert frozenset(
         declaration["defect_id"] for declaration in invariants.declarations
-    ) == {"MT-01", *ROW_SELECTOR_MIGRATED_IDS}
+    ) == {"MT-01", *MIGRATED_STRUCTURAL_IDS}
 
 
 def _shadow_case_texts() -> dict[str, str]:
@@ -1103,7 +1119,7 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
     for declaration in invariants.declarations:
         declarations_by_id.setdefault(declaration["defect_id"], []).append(declaration)
 
-    assert len(expected_rows) == len(case_texts) == 98
+    assert len(expected_rows) == len(case_texts) == 99
     assert {row["case_id"] for row in expected_rows} == set(case_texts)
     for row in expected_rows:
         text = case_texts[row["case_id"]]
@@ -1120,10 +1136,10 @@ def test_structural_reason_fixture_matches_legacy_and_shadow_framework(
             profile=profile,
         )
         assert (1 if actual is not None else 0) == row["expected_exit"]
-        if row["defect_id"] in ROW_SELECTOR_MIGRATED_IDS:
+        if row["defect_id"] in MIGRATED_STRUCTURAL_IDS:
             assert (1 if legacy_actual is not None else 0) == row["expected_exit"]
         if (
-            row["defect_id"] not in ROW_SELECTOR_MIGRATED_IDS
+            row["defect_id"] not in MIGRATED_STRUCTURAL_IDS
             or row["reason"] is None
             or row["reason"]["kind"] == "forbidden-element"
         ):
@@ -1270,6 +1286,120 @@ def test_row_selector_evaluator_handles_corpus_and_mutations(
         assert mutation_reason.kind == "row-selector"
 
 
+def test_sp01_migration_matches_expected_legacy_and_new_paths(
+    manifest: dict[str, checker.ManifestRelation],
+    defects: dict[str, checker.Defect],
+) -> None:
+    """SP-01の期待fixture・旧分岐・新宣言経路の違反有無を一致させる。"""
+    expected_rows = {
+        row["case_id"]: row
+        for row in json.loads(STRUCTURAL_REASON_FIXTURE.read_text(encoding="utf-8"))
+        if row["defect_id"] == "SP-01"
+    }
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    case_texts = _shadow_case_texts()
+
+    for case_id, expected in expected_rows.items():
+        text = case_texts[case_id]
+        legacy_reason = checker.defect_violation_reason(
+            defects["SP-01"], text, manifest
+        )
+        declared_reason = checker.defect_violation_reason(
+            defects["SP-01"],
+            text,
+            manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert (legacy_reason is not None) == bool(expected["expected_exit"])
+        assert (declared_reason is not None) == bool(expected["expected_exit"])
+
+
+def test_row_contains_evaluator_handles_sp01_corpus_and_mutations(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """SP-01宣言単独で正常・異常・別行移動・selector変異を判定する。"""
+    invariants = checker.doc_check_profile.load_invariants(
+        REPOSITORY_ROOT
+        / "scripts"
+        / "design_relations"
+        / "invariants"
+        / "sync-protocol.json"
+    )
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    _, valid_text, invalid_text, mutations = _STRUCTURAL_CASE_BY_ID["SP-01"]
+
+    valid_reason, valid_context = _evaluate_declared_defect(
+        "SP-01",
+        valid_text,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert valid_reason is None
+    assert set(valid_context.selected_rows) == {
+        "sp01-transition",
+        "sp01-boundary",
+    }
+
+    invalid_reason, _ = _evaluate_declared_defect(
+        "SP-01",
+        invalid_text,
+        manifest=manifest,
+        invariants=invariants,
+        profile=profile,
+    )
+    assert invalid_reason is not None
+    assert invalid_reason.kind == "row-contains"
+    assert invalid_reason.section == "6-3"
+    assert invalid_reason.token == "A5"
+
+    expected_kinds = ("row-selector", "row-contains", "row-selector")
+    for mutation, expected_kind in zip(mutations, expected_kinds, strict=True):
+        mutation_reason, _ = _evaluate_declared_defect(
+            "SP-01",
+            mutation,
+            manifest=manifest,
+            invariants=invariants,
+            profile=profile,
+        )
+        assert mutation_reason is not None
+        assert mutation_reason.kind == expected_kind
+
+
+def test_row_contains_rejects_undefined_row_reference(
+    manifest: dict[str, checker.ManifestRelation],
+) -> None:
+    """先行selectorが定義していないrow参照をfail-closedにする。"""
+    profile = checker.doc_check_profile.load_profile(PROFILE, root=REPOSITORY_ROOT)
+    declaration = {
+        "defect_id": "SP-01",
+        "kind": "row-contains",
+        "row": "missing-row",
+        "literals": ["A5"],
+    }
+
+    with pytest.raises(
+        invariant_evaluator.doc_check_profile.ProfileError,
+        match=r"参照先 row が未定義.*missing-row",
+    ):
+        invariant_evaluator.evaluate_declaration(
+            declaration,
+            text="",
+            manifest=manifest,
+            profile=profile,
+            sections={},
+            context=invariant_evaluator.EvaluationContext(),
+        )
+
+
 def test_mt01_absent_section_uses_declaration_path(
     manifest: dict[str, checker.ManifestRelation],
     defects: dict[str, checker.Defect],
@@ -1363,7 +1493,7 @@ def test_forbidden_element_declaration_evaluator_is_fail_closed(
         match="未実装の kind",
     ):
         invariant_evaluator.evaluate_declaration(
-            {"defect_id": "SP-01", "kind": "row-contains"},
+            {"defect_id": "SP-01", "kind": "section-contains"},
             text="",
             manifest=manifest,
             profile=profile,
@@ -2081,7 +2211,7 @@ def test_cli_always_enforces_invariant_binding_rules(tmp_path: Path) -> None:
         / "invariants"
         / "sync-protocol.json"
     )
-    invariants["structural_required"].remove("SP-01")
+    invariants["structural_required"].remove("SP-02")
     _write_json(invariants_path, invariants)
     schema_path.parent.mkdir(parents=True, exist_ok=True)
     schema_path.write_text(
@@ -2105,7 +2235,7 @@ def test_cli_always_enforces_invariant_binding_rules(tmp_path: Path) -> None:
     result = _run_cli("--registry", str(registry_path))
     assert result.returncode == 2
     assert "結合規則3" in result.stderr
-    assert "SP-01" in result.stderr
+    assert "SP-02" in result.stderr
 
 
 def test_profile_with_unsupported_preamble_fails(tmp_path: Path) -> None:

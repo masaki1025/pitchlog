@@ -428,3 +428,9 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
   とくに 21・22 は**不可逆で、失敗すると「検査が黙って通る」状態へ戻る**ため独立を維持(R4-P2-2・R9 で確認した順序)
 - **変えないもの**: 計画書のステップ表(38 のまま)/ **コミットはステップ単位**(件名の `(ステップ k/38)` を維持 — `feature_status.py` の進捗導出と反映周突合が読む)/ 各ステップの合格条件(三者一致・`legacy_structural` の残数・検出集合の完全一致)
 - 理由: DSL 群は「評価器を書く → 宣言を足す → allowlist から外す → 三者一致」の同型反復で、委任単位を分けても検証の密度が上がらない。所要の見積は 6〜8 時間 → 3〜4 時間
+
+### ステップ 11/38 — `row-contains` の評価器 + SP-01 の移行(Codex `--resume`)
+
+- 宣言: SP-01 の 4 宣言(`row-selector`(7-2 needle)→ `row-contains`(A5・退避)→ `row-selector`(6-3 identifier B4)→ `row-contains`)。**`legacy_structural` 13 → 12**、宣言 ID = MT-01 / SP-01 / SP-10 / SP-11
+- 評価文脈: `row-selector` の選択行を `id` で参照。参照先未定義は `ProfileError`、先行 selector が違反なら後続は評価しない(first-failure = 旧分岐と同値)
+- 検証(Claude): ruff/ty passed / 3 テストファイル **184 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **987**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致

@@ -66,9 +66,11 @@ class EvaluationContext:
 
     Attributes:
         selected_rows: ``row-selector`` のIDから選択行への対応。
+        selected_sections: ``row-selector`` のIDから選択元の節IDへの対応。
     """
 
     selected_rows: dict[str, str] = field(default_factory=dict)
+    selected_sections: dict[str, str] = field(default_factory=dict)
 
 
 def table_row(section: str, *needles: str) -> str | None:
@@ -136,7 +138,12 @@ def evaluate_declaration(
         ProfileError: kindが未実装か、宣言または節指定が不正な場合。
     """
     kind = declaration.get("kind")
-    if kind not in {"forbidden-element", "row-selector", "absent-section"}:
+    if kind not in {
+        "forbidden-element",
+        "row-selector",
+        "row-contains",
+        "absent-section",
+    }:
         raise doc_check_profile.ProfileError(f"未実装の kind です: {kind!r}")
     doc_check_profile.validate_declaration(declaration)
 
@@ -182,6 +189,34 @@ def evaluate_declaration(
             )
         if context is not None:
             context.selected_rows[declaration["id"]] = row
+            context.selected_sections[declaration["id"]] = section_id
+        return None
+    if kind == "row-contains":
+        row_id = declaration["row"]
+        if context is None or row_id not in context.selected_rows:
+            raise doc_check_profile.ProfileError(
+                f"row-contains の参照先 row が未定義です: {row_id}"
+            )
+        if "elements" in declaration:
+            raise doc_check_profile.ProfileError(
+                "row-contains の elements は未実装です"
+            )
+        section_id = context.selected_sections.get(row_id)
+        if section_id is None:
+            raise doc_check_profile.ProfileError(
+                f"row-contains の参照先 row の節が未定義です: {row_id}"
+            )
+        row = context.selected_rows[row_id]
+        for literal in declaration["literals"]:
+            if literal not in row:
+                return StructuredReason(
+                    violated=True,
+                    kind=kind,
+                    section=section_id,
+                    expected=literal,
+                    actual=row,
+                    token=literal,
+                )
         return None
     del manifest, profile
 

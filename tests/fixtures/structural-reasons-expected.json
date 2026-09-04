@@ -14,10 +14,10 @@
     "reason": {
       "violated": true,
       "kind": "row-contains",
-      "section": null,
-      "expected": null,
-      "actual": "退避済みへの遷移条件がA5の退避でない",
-      "token": null
+      "section": "6-3",
+      "expected": "A5",
+      "actual": "| B4 | 退避を返す |",
+      "token": "A5"
     }
   },
   {
@@ -28,9 +28,9 @@
     "reason": {
       "violated": true,
       "kind": "row-selector",
-      "section": null,
-      "expected": null,
-      "actual": "退避済みへの遷移条件がA5の退避でない",
+      "section": "7-2",
+      "expected": "未送信・退避済み をすべて含む表行",
+      "actual": null,
       "token": null
     }
   },
@@ -42,9 +42,23 @@
     "reason": {
       "violated": true,
       "kind": "row-contains",
-      "section": null,
-      "expected": null,
-      "actual": "退避済みへの遷移条件がA5の退避でない",
+      "section": "6-3",
+      "expected": "A5",
+      "actual": "| B4 | 応答を返す |",
+      "token": "A5"
+    }
+  },
+  {
+    "case_id": "SP-01:corpus-mutation:3",
+    "defect_id": "SP-01",
+    "input_kind": "corpus-mutation",
+    "expected_exit": 1,
+    "reason": {
+      "violated": true,
+      "kind": "row-selector",
+      "section": "6-3",
+      "expected": "第1セルが B4 の表行",
+      "actual": null,
       "token": null
     }
   },

@@ -793,8 +793,36 @@ def test_production_invariants_load_and_satisfy_binding_rules() -> None:
             "mode": "needle",
             "keys": ["期待版不一致"],
         },
+        {
+            "defect_id": "SP-01",
+            "kind": "row-selector",
+            "id": "sp01-transition",
+            "section": "7-2",
+            "mode": "needle",
+            "keys": ["未送信", "退避済み"],
+        },
+        {
+            "defect_id": "SP-01",
+            "kind": "row-contains",
+            "row": "sp01-transition",
+            "literals": ["A5", "退避"],
+        },
+        {
+            "defect_id": "SP-01",
+            "kind": "row-selector",
+            "id": "sp01-boundary",
+            "section": "6-3",
+            "mode": "identifier",
+            "keys": ["B4"],
+        },
+        {
+            "defect_id": "SP-01",
+            "kind": "row-contains",
+            "row": "sp01-boundary",
+            "literals": ["A5", "退避"],
+        },
     )
-    assert len(invariants.legacy_structural) == 13
+    assert len(invariants.legacy_structural) == 12
     assert invariants.global_invariants == ()
     profile_loader.validate_binding_rules(
         invariants,
@@ -827,12 +855,12 @@ def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
     elif mutation == "missing-declaration":
         invariants = replace(
             invariants,
-            legacy_structural=invariants.legacy_structural - {"SP-01"},
+            legacy_structural=invariants.legacy_structural - {"SP-02"},
         )
     elif mutation == "legacy-outside-structural":
         invariants = replace(
             invariants,
-            structural_required=invariants.structural_required - {"SP-01"},
+            structural_required=invariants.structural_required - {"SP-02"},
         )
     elif mutation == "extra-declaration":
         invariants = replace(
@@ -863,12 +891,12 @@ def test_binding_rule_three_rejects_legacy_branch_mismatch() -> None:
     invariants = profile_loader.load_invariants(INVARIANTS_PATH)
     machine, forbidden, legacy_branches = _binding_inputs()
 
-    with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-01"):
+    with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-02"):
         profile_loader.validate_binding_rules(
             invariants,
             machine_defect_ids=machine,
             forbidden_defect_ids=forbidden,
-            legacy_branch_ids=legacy_branches - {"SP-01"},
+            legacy_branch_ids=legacy_branches - {"SP-02"},
         )
 
 
