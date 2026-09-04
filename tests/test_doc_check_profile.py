@@ -345,8 +345,8 @@ def test_schemas_are_versioned_closed_and_list_required_keys() -> None:
     _assert_schema_subset(invariant_schema, root=True)
 
 
-def test_no_checker_or_claude_file_changed() -> None:
-    """本ステップで対象外のCOV検査とClaude設定が無変更であることを確認する。"""
+def test_propagation_checker_and_claude_files_are_unchanged() -> None:
+    """本ステップで対象外のPROP検査とClaude設定が無変更である。"""
     result = subprocess.run(
         [
             "git",
@@ -354,7 +354,7 @@ def test_no_checker_or_claude_file_changed() -> None:
             "--name-only",
             "HEAD",
             "--",
-            "scripts/check_doc_coverage.py",
+            "scripts/check_design_propagation.py",
             ".claude/",
         ],
         cwd=REPOSITORY_ROOT,

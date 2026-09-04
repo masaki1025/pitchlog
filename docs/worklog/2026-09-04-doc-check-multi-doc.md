@@ -483,3 +483,11 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 検証(Claude): ruff/ty passed / 3 テストファイル **213 passed**(skip 系 0)/ 3 検査 rc 0 / **`grep -c 'defect_id == '` = 0**・`_structural_reason` = 0 /
   **SP-19 が forbidden で検出**(`--document fixture --defects SP-19` rc 1)/ **安全網 2 本が本文無変更で green** / 収集 **1016**・基準 875 の欠落 **0** / 対象外パス(COV・`.github`・`.claude`・fixture・oracle)の差分 0
 - **DSL 移行の完了**: 旧分岐 15 ID + MT-01 が宣言(kind 11 種)で判定され、機械 17 件の検出集合は着手前と完全一致
+
+### ステップ 23〜24/38 — `COV` のプロファイル駆動化 + `kind` 別 destination 文法 + `attribution-destination`(**1 委任・1 コミット**)
+
+- **23**: `check_doc_coverage.py` に `--profile` / `--registry` を追加し、対象文書・要件書・母集合・区分語彙・帰属表の節(`^11-3\.` の直書き)・台帳の節・各ヘッダをプロファイル値から取得(既定値は現行値で後方互換)。`ProfileError` → 終了 2。
+  **destination 文法**を `kind` 別の判別共用体に: `対象外` = 理由文(非空)/ 他 = `節式(。説明文)?`、`節式 := segment (・ segment)*`、`segment := section_atom | chapter〜chapter`、`section_atom := chapter | section`。未解析は終了 2。
+  **現行 212 件を全件解析**(回帰例に `2-1・4〜9` / `2-1・6・9` / `10-1・11-1。配信は…` / 理由文)。既存 `attribution` の区分分布 38/84/90 は不変
+- **24**: `attribution-destination`(新 check ID・同期では `not_applicable`)— ① 展開した各節の実在 ② **根拠 = 展開した節のいずれかに当該要件の安定 ID(`FR-xxx`/`NFR-xxx`)が明示出現する行が 1 行以上**。負例: 実在しない節 / 根拠行の欠落
+- 検証(Claude): ruff/ty passed / 3 テストファイル **94 passed**(skip 系 0)/ 3 検査 rc 0 / `COV --checks attribution` 単独 rc 0 / `COV --profile` rc 0 / 収集 **1030**・基準欠落 0 / 対象外パスの差分 0。Codex 報告: 全体 1030 passed

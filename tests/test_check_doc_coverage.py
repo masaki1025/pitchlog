@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -19,6 +20,8 @@ REQUIREMENTS = REPOSITORY_ROOT / "docs" / "requirements" / (
 )
 DOCUMENT = REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md"
 UNIVERSE = REPOSITORY_ROOT / "scripts" / "design_relations" / "req-universe.json"
+RELATIONS_DIR = REPOSITORY_ROOT / "scripts" / "design_relations"
+PROFILE = RELATIONS_DIR / "profiles" / "sync-protocol.json"
 
 
 def _load_checker() -> Any:
@@ -60,6 +63,13 @@ def _make_repository(
 
 
 def _run_cli(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    if root != REPOSITORY_ROOT:
+        for directory in ("schemas", "profiles", "invariants"):
+            shutil.copytree(
+                RELATIONS_DIR / directory,
+                root / "scripts" / "design_relations" / directory,
+                dirs_exist_ok=True,
+            )
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--root", str(root), *arguments],
         cwd=REPOSITORY_ROOT,
@@ -145,6 +155,53 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         "境界として参照": 84,
         "対象外": 90,
     }
+
+
+def test_assignment_destination_grammar_parses_all_212_rows() -> None:
+    """現行帰属212行と代表的な節式・理由文の展開を固定する。"""
+    assignments = {
+        assignment.id: assignment
+        for assignment in checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
+    }
+
+    assert len(assignments) == 212
+    assert assignments["FR-012"].sections == (
+        "2-1",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+    )
+    assert assignments["FR-013"].sections == ("2-1", "6", "9")
+    assert assignments["NFR-006"].sections == ("10-1", "11-1")
+    assert assignments["FR-016"].sections == ()
+    assert assignments["FR-016"].destination.startswith("当該条は")
+
+
+@pytest.mark.parametrize(
+    "destination",
+    ("2-1・付録A", "9〜4", "2-1。"),
+    ids=("unknown-token", "descending-range", "empty-description"),
+)
+def test_assignment_destination_rejects_unparsed_expression(
+    destination: str,
+) -> None:
+    """未解析トークン・逆順範囲・空説明を入力不正にする。"""
+    with pytest.raises(checker.CoverageError):
+        checker.parse_assignment_destination("同期側で決める", destination)
+
+
+def test_assignment_destination_treats_not_applicable_as_reason_text() -> None:
+    """対象外の自由文を節式として解析しない。"""
+    assert (
+        checker.parse_assignment_destination(
+            "対象外",
+            "節番号ではない理由文のため対象外",
+        )
+        == ()
+    )
 
 
 def test_step41_p3_retention_row_extends_only_the_keyed_requirement_universe() -> None:
@@ -253,6 +310,195 @@ def test_cli_accepts_real_document() -> None:
 
     assert result.returncode == 0
     assert result.stderr == ""
+
+
+def test_cli_profile_registry_and_override_routes_match_default() -> None:
+    """レジストリ、単一プロファイル、上書き経路の結果を揃える。"""
+    default = _run_cli(REPOSITORY_ROOT)
+    registry = _run_cli(
+        REPOSITORY_ROOT,
+        "--registry",
+        "scripts/design_relations/profiles/registry.json",
+    )
+    profile = _run_cli(REPOSITORY_ROOT, "--profile", str(PROFILE))
+    overridden = _run_cli(
+        REPOSITORY_ROOT,
+        "--profile",
+        str(PROFILE),
+        "--document",
+        checker.DEFAULT_DOCUMENT.as_posix(),
+        "--requirements",
+        checker.DEFAULT_REQUIREMENTS.as_posix(),
+        "--universe",
+        checker.DEFAULT_UNIVERSE.as_posix(),
+    )
+
+    assert {result.returncode for result in (default, registry, profile, overridden)} == {
+        0
+    }
+    assert {result.stdout for result in (default, registry, profile, overridden)} == {
+        ""
+    }
+    assert {result.stderr for result in (default, registry, profile, overridden)} == {
+        ""
+    }
+
+
+def test_cli_uses_profile_attribution_section_pattern(tmp_path: Path) -> None:
+    """帰属表の節正規表現をプロファイルから取る。"""
+    profile_data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    profile_data["attribution"]["section_re"] = r"^99-9\."
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(
+        json.dumps(profile_data, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        REPOSITORY_ROOT,
+        "--profile",
+        str(profile_path),
+        "--checks",
+        "attribution",
+    )
+
+    assert result.returncode == 2
+    assert "帰属表の節がない" in result.stderr
+
+
+def test_cli_maps_missing_profile_to_exit_2(tmp_path: Path) -> None:
+    """プロファイルの読み込み失敗を入力不正として報告する。"""
+    result = _run_cli(
+        REPOSITORY_ROOT,
+        "--profile",
+        str(tmp_path / "missing.json"),
+    )
+
+    assert result.returncode == 2
+    assert result.stderr.startswith("check_doc_coverage.py: ")
+
+
+def test_cli_maps_registry_file_mismatch_to_exit_2(tmp_path: Path) -> None:
+    """レジストリに未登録のJSONがあれば入力不正にする。"""
+    root = tmp_path / "repository"
+    _write_text(root, checker.DEFAULT_DOCUMENT, DOCUMENT.read_text(encoding="utf-8"))
+    _run_cli(root, "--checks", "ledger")
+    extra = root / "scripts" / "design_relations" / "profiles" / "extra.json"
+    extra.write_text("{}\n", encoding="utf-8")
+
+    result = _run_cli(root, "--checks", "ledger")
+
+    assert result.returncode == 2
+    assert "登録集合と実ファイル集合が一致しません" in result.stderr
+
+
+def test_cli_reports_not_applicable_attribution_destination() -> None:
+    """同期プロファイルの新検査を理由付きの対象なしとする。"""
+    result = _run_cli(
+        REPOSITORY_ROOT,
+        "--checks",
+        checker.ATTRIBUTION_DESTINATION_CHECK_ID,
+    )
+
+    assert result.returncode == 0
+    assert "attribution-destination: 対象なし:" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_runs_applicable_attribution_destination(tmp_path: Path) -> None:
+    """新検査が必須のプロファイルで実際に判定する。"""
+    document = tmp_path / "document.md"
+    document.write_text(
+        "\n".join(
+            (
+                "# 合成設計書",
+                "",
+                "## 2. 合成節",
+                "",
+                "FR-001 を根拠にする。",
+                "",
+                "### 11-3. 帰属表",
+                "",
+                "| ID | 区分 | 本書の対応箇所または対象外の理由 |",
+                "| --- | --- | --- |",
+                "| FR-001 | 同期側で決める | 2 |",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    profile_data = json.loads(PROFILE.read_text(encoding="utf-8"))
+    profile_data["document"] = str(document)
+    profile_data["required_checks"].append("attribution-destination")
+    del profile_data["not_applicable"]["attribution-destination"]
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(
+        json.dumps(profile_data, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        REPOSITORY_ROOT,
+        "--profile",
+        str(profile_path),
+        "--checks",
+        "attribution-destination",
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert result.stderr == ""
+
+
+def test_attribution_destination_accepts_existing_section_with_evidence() -> None:
+    """帰属先節に安定IDを持つ根拠行があれば適合する。"""
+    text = "## 2. 合成節\n\nFR-001 を根拠にこの規則を定める。\n"
+    assignment = checker.Assignment(
+        "FR-001",
+        "同期側で決める",
+        "2",
+        ("2",),
+    )
+
+    assert checker.check_attribution_destinations(text, (assignment,)) == ()
+
+
+def test_attribution_destination_rejects_missing_section() -> None:
+    """帰属先に実在しない節を指定した行を違反にする。"""
+    assignment = checker.Assignment(
+        "FR-001",
+        "同期側で決める",
+        "3",
+        ("3",),
+    )
+
+    findings = checker.check_attribution_destinations(
+        "## 2. 合成節\n\nFR-001 の根拠。\n",
+        (assignment,),
+    )
+
+    assert len(findings) == 1
+    assert findings[0].check == "attribution-destination"
+    assert "節が存在しない" in findings[0].reason
+
+
+def test_attribution_destination_rejects_missing_requirement_evidence() -> None:
+    """節が実在しても安定IDの根拠行がなければ違反にする。"""
+    assignment = checker.Assignment(
+        "NFR-006",
+        "境界として参照",
+        "10-1",
+        ("10-1",),
+    )
+
+    findings = checker.check_attribution_destinations(
+        "### 10-1. 合成節\n\n要件IDを持たない無関係な説明。\n",
+        (assignment,),
+    )
+
+    assert len(findings) == 1
+    assert findings[0].check == "attribution-destination"
+    assert "NFR-006 の根拠行がない" in findings[0].reason
 
 
 def test_universe_is_not_derived_from_extractor() -> None:

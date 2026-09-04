@@ -3,13 +3,32 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
+
+
+def _load_profile_module() -> Any:
+    """隣接する共通プロファイルローダーをファイルパスから読む。"""
+    path = Path(__file__).resolve().parent / "doc_check_profile.py"
+    spec = importlib.util.spec_from_file_location(
+        "check_doc_coverage_doc_check_profile",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"プロファイルローダーを読み込めない: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+doc_check_profile = _load_profile_module()
 
 DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 DEFAULT_DOCUMENT = Path("docs/design/sync-protocol.md")
@@ -17,6 +36,9 @@ DEFAULT_UNIVERSE = Path("scripts/design_relations/req-universe.json")
 
 COVERAGE_CHECK_IDS = ("attribution", "ledger")
 COVERAGE_CHECK_ID_SET = frozenset(COVERAGE_CHECK_IDS)
+ATTRIBUTION_DESTINATION_CHECK_ID = "attribution-destination"
+COVERAGE_SELECTABLE_CHECK_IDS = (*COVERAGE_CHECK_IDS, ATTRIBUTION_DESTINATION_CHECK_ID)
+COVERAGE_SELECTABLE_CHECK_ID_SET = frozenset(COVERAGE_SELECTABLE_CHECK_IDS)
 CATEGORY_IDS = (
     "requirements",
     "sections",
@@ -42,6 +64,8 @@ REFERENCE_KINDS = frozenset({"要件", "正本", "legacy"})
 LEDGER_VERDICTS = frozenset({"支持", "不支持", "射程過大", "誤典拠"})
 REQUIREMENTS_PATH = "docs/requirements/requirements-pitchlog-2026-07-22.md"
 LEDGER_SECTION_ID = "11-5"
+ATTRIBUTION_SECTION_RE = r"^11-3\."
+DESTINATION_GRAMMAR = "sync-v1"
 
 HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+)$")
 REQUIREMENT_RE = re.compile(r"^####\s+((?:FR|NFR)-\d{3}):")
@@ -97,11 +121,13 @@ class Assignment:
         id: 要件の安定 ID。
         kind: 帰属区分。
         destination: 本書の節、または対象外の理由。
+        sections: destination から展開した帰属先節。対象外なら空。
     """
 
     id: str
     kind: str
     destination: str
+    sections: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -414,11 +440,71 @@ def _section_text(text: str, title_pattern: re.Pattern[str]) -> str:
     return "\n".join(_section_lines(text.splitlines(), title_pattern))
 
 
-def parse_assignments(text: str) -> tuple[Assignment, ...]:
+def parse_assignment_destination(
+    kind: str,
+    destination: str,
+    *,
+    destination_grammar: str = DESTINATION_GRAMMAR,
+) -> tuple[str, ...]:
+    """区分別の帰属先文法を検証し、節IDへ展開する。
+
+    Args:
+        kind: 帰属区分。
+        destination: 帰属表の3列目。
+        destination_grammar: プロファイルが指定する文法名。
+
+    Returns:
+        展開した節ID。対象外の理由文なら空タプル。
+
+    Raises:
+        CoverageError: 文法名が未対応か、帰属先を解析できない場合。
+    """
+    if destination_grammar != DESTINATION_GRAMMAR:
+        raise CoverageError(f"未対応の destination 文法: {destination_grammar}")
+    if kind == "対象外":
+        if not destination.strip():
+            raise CoverageError("対象外の理由文が空")
+        return ()
+
+    expression, separator, description = destination.partition("。")
+    expression = expression.strip()
+    if not expression or (separator and not description.strip()):
+        raise CoverageError(f"帰属先の節式が不正: {destination}")
+
+    sections: list[str] = []
+    section_atom = re.compile(r"\d+(?:-\d+(?:-[A-Z])?)?")
+    chapter_range = re.compile(r"(\d+)〜(\d+)")
+    for token in expression.split("・"):
+        if section_atom.fullmatch(token) is not None:
+            sections.append(token)
+            continue
+        range_match = chapter_range.fullmatch(token)
+        if range_match is None:
+            raise CoverageError(f"帰属先に未解析トークンがある: {token}")
+        first = int(range_match.group(1))
+        last = int(range_match.group(2))
+        if first > last:
+            raise CoverageError(f"帰属先の章範囲が逆順: {token}")
+        sections.extend(str(chapter) for chapter in range(first, last + 1))
+    return tuple(sections)
+
+
+def parse_assignments(
+    text: str,
+    *,
+    section_re: str = ATTRIBUTION_SECTION_RE,
+    assignment_kinds: frozenset[str] = ASSIGNMENT_KINDS,
+    assignment_header: Sequence[str] = ASSIGNMENT_HEADER,
+    destination_grammar: str = DESTINATION_GRAMMAR,
+) -> tuple[Assignment, ...]:
     """同期設計 11-3 の帰属表を読み取る。
 
     Args:
         text: 同期プロトコル設計の Markdown 全文。
+        section_re: 帰属表を持つ節見出しの正規表現。
+        assignment_kinds: 許可する帰属区分。
+        assignment_header: 帰属表のヘッダー。
+        destination_grammar: 帰属先の文法名。
 
     Returns:
         表に記載された順の帰属行。
@@ -426,14 +512,18 @@ def parse_assignments(text: str) -> tuple[Assignment, ...]:
     Raises:
         CoverageError: 11-3 または所定ヘッダーの帰属表がない場合。
     """
-    section = _section_text(text, re.compile(r"^11-3\."))
+    try:
+        section_pattern = re.compile(section_re)
+    except re.error as error:
+        raise CoverageError(f"帰属表の節正規表現が不正: {section_re}: {error}") from error
+    section = _section_text(text, section_pattern)
     if not section:
-        raise CoverageError("本書に 11-3 節がない")
+        raise CoverageError(f"本書に帰属表の節がない: {section_re}")
     lines = section.splitlines()
     header_index: int | None = None
     for index, line in enumerate(lines):
         cells = _table_cells(line)
-        if cells is not None and tuple(cells) == ASSIGNMENT_HEADER:
+        if cells is not None and tuple(cells) == tuple(assignment_header):
             header_index = index
             break
     if header_index is None:
@@ -449,9 +539,14 @@ def parse_assignments(text: str) -> tuple[Assignment, ...]:
         identifier, kind, destination = (_without_emphasis(cell) for cell in cells)
         if not identifier or not kind or not destination:
             raise CoverageError(f"帰属表に空セルがある: {line}")
-        if kind not in ASSIGNMENT_KINDS:
+        if kind not in assignment_kinds:
             raise CoverageError(f"帰属表の区分が不正: {identifier}: {kind}")
-        assignments.append(Assignment(identifier, kind, destination))
+        sections = parse_assignment_destination(
+            kind,
+            destination,
+            destination_grammar=destination_grammar,
+        )
+        assignments.append(Assignment(identifier, kind, destination, sections))
     if not assignments:
         raise CoverageError("11-3 の帰属表にデータ行がない")
     return tuple(assignments)
@@ -502,6 +597,72 @@ def check_coverage(
     return tuple(findings)
 
 
+def check_attribution_destinations(
+    text: str,
+    assignments: Sequence[Assignment],
+    *,
+    destination_grammar: str = DESTINATION_GRAMMAR,
+) -> tuple[Finding, ...]:
+    """帰属先節の実在と要件IDの根拠行を検査する。
+
+    Args:
+        text: 帰属表と帰属先節を持つ Markdown 全文。
+        assignments: 検査する帰属行。
+        destination_grammar: 帰属先の文法名。
+
+    Returns:
+        実在しない節と根拠行不足の違反列。
+    """
+    findings: list[Finding] = []
+    for assignment in assignments:
+        if assignment.kind == "対象外":
+            continue
+        sections = assignment.sections or parse_assignment_destination(
+            assignment.kind,
+            assignment.destination,
+            destination_grammar=destination_grammar,
+        )
+        section_texts: list[str] = []
+        missing: list[str] = []
+        for section_id in sections:
+            pattern = re.compile(rf"^{re.escape(section_id)}(?:[.\s(])")
+            section = _section_text(text, pattern)
+            if section:
+                section_texts.append(section)
+            else:
+                missing.append(section_id)
+        if missing:
+            findings.append(
+                Finding(
+                    ATTRIBUTION_DESTINATION_CHECK_ID,
+                    f"{assignment.id}: 帰属先の節が存在しない: {missing}",
+                )
+            )
+            continue
+
+        stable_id_match = re.match(r"(?:FR|NFR)-\d{3}", assignment.id)
+        stable_id = (
+            stable_id_match.group(0)
+            if stable_id_match is not None
+            else assignment.id
+        )
+        stable_id_re = re.compile(
+            rf"(?<![A-Za-z0-9-]){re.escape(stable_id)}(?![A-Za-z0-9-])"
+        )
+        if not any(
+            stable_id_re.search(line) is not None
+            for section in section_texts
+            for line in section.splitlines()
+        ):
+            findings.append(
+                Finding(
+                    ATTRIBUTION_DESTINATION_CHECK_ID,
+                    f"{assignment.id}: 帰属先に要件ID {stable_id} の根拠行がない",
+                )
+            )
+    return tuple(findings)
+
+
 def _heading_identifier(
     title: str,
     level: int,
@@ -536,7 +697,11 @@ def _is_table_separator(line: str) -> bool:
     )
 
 
-def _claim_lines(text: str) -> tuple[tuple[str, str], ...]:
+def _claim_lines(
+    text: str,
+    *,
+    ledger_section_id: str = LEDGER_SECTION_ID,
+) -> tuple[tuple[str, str], ...]:
     lines = text.splitlines()
     parents: dict[int, str] = {}
     current_heading = "document"
@@ -561,7 +726,7 @@ def _claim_lines(text: str) -> tuple[tuple[str, str], ...]:
             }
             parents[level] = heading_id
             current_heading = heading_id
-            if heading_id == LEDGER_SECTION_ID:
+            if heading_id == ledger_section_id:
                 excluded_level = level
             elif excluded_level is not None and level <= excluded_level:
                 excluded_level = None
@@ -731,7 +896,13 @@ def _claim_references(
     return tuple(sorted(references))
 
 
-def extract_citations(text: str, root: Path, document_path: Path) -> tuple[Citation, ...]:
+def extract_citations(
+    text: str,
+    root: Path,
+    document_path: Path,
+    *,
+    ledger_section_id: str = LEDGER_SECTION_ID,
+) -> tuple[Citation, ...]:
     """本文から主張 ID と 4 要素キーを持つ引用列を抽出する。
 
     現行の行番号引用は参照先文書の当該行を包含する安定 ID へ解決する。
@@ -742,13 +913,14 @@ def extract_citations(text: str, root: Path, document_path: Path) -> tuple[Citat
         text: 検査対象文書の Markdown 全文。
         root: リポジトリルート。
         document_path: 検査対象文書のパス。
+        ledger_section_id: 抽出対象から除外する台帳節ID。
 
     Returns:
         本文での出現順に並ぶ引用。ordinal は同一主張・同一参照先ごとに振る。
     """
     cache: dict[Path, list[str]] = {}
     citations: list[Citation] = []
-    for claim_id, claim in _claim_lines(text):
+    for claim_id, claim in _claim_lines(text, ledger_section_id=ledger_section_id):
         ordinals: Counter[tuple[str, str]] = Counter()
         for _, target_path, stable_id in _claim_references(claim, root, document_path, cache):
             pair = (target_path, stable_id)
@@ -765,11 +937,22 @@ def extract_citations(text: str, root: Path, document_path: Path) -> tuple[Citat
     return tuple(citations)
 
 
-def parse_ledger(text: str) -> tuple[LedgerEntry, ...]:
+def parse_ledger(
+    text: str,
+    *,
+    ledger_section_id: str = LEDGER_SECTION_ID,
+    ledger_header: Sequence[str] = LEDGER_HEADER,
+    reference_kinds: frozenset[str] = REFERENCE_KINDS,
+    ledger_verdicts: frozenset[str] = LEDGER_VERDICTS,
+) -> tuple[LedgerEntry, ...]:
     """11-5 の意味照合台帳を読み取る。
 
     Args:
         text: 同期プロトコル設計の Markdown 全文。
+        ledger_section_id: 意味照合台帳の節ID。
+        ledger_header: 台帳のヘッダー。
+        reference_kinds: 許可する参照先種別。
+        ledger_verdicts: 許可する照合判定。
 
     Returns:
         台帳に記載された順の行。空表は空タプルになる。
@@ -777,14 +960,14 @@ def parse_ledger(text: str) -> tuple[LedgerEntry, ...]:
     Raises:
         CoverageError: 台帳節、列、列挙値または ordinal が不正な場合。
     """
-    section = _section_text(text, re.compile(rf"^{LEDGER_SECTION_ID}\."))
+    section = _section_text(text, re.compile(rf"^{re.escape(ledger_section_id)}\."))
     if not section:
-        raise CoverageError(f"本書に {LEDGER_SECTION_ID} 節がない")
+        raise CoverageError(f"本書に {ledger_section_id} 節がない")
     lines = section.splitlines()
     header_index: int | None = None
     for index, line in enumerate(lines):
         cells = _table_cells(line)
-        if cells is not None and tuple(cells) == LEDGER_HEADER:
+        if cells is not None and tuple(cells) == tuple(ledger_header):
             header_index = index
             break
     if header_index is None:
@@ -795,8 +978,10 @@ def parse_ledger(text: str) -> tuple[LedgerEntry, ...]:
         cells = _table_cells(line)
         if cells is None:
             break
-        if len(cells) != len(LEDGER_HEADER):
-            raise CoverageError(f"意味照合台帳の列数が 7 でない: {line}")
+        if len(cells) != len(ledger_header):
+            raise CoverageError(
+                f"意味照合台帳の列数が {len(ledger_header)} でない: {line}"
+            )
         claim_id, ordinal_text, target_path, target_kind, stable_id, verdict, correction = (
             _without_emphasis(cell) for cell in cells
         )
@@ -808,9 +993,9 @@ def parse_ledger(text: str) -> tuple[LedgerEntry, ...]:
             raise CoverageError(f"台帳の ordinal が 1 未満: {ordinal}")
         if not claim_id or not target_path or not stable_id:
             raise CoverageError(f"意味照合台帳のキーに空セルがある: {line}")
-        if target_kind not in REFERENCE_KINDS:
+        if target_kind not in reference_kinds:
             raise CoverageError(f"参照先の種別が不正: {target_kind}")
-        if verdict not in LEDGER_VERDICTS:
+        if verdict not in ledger_verdicts:
             raise CoverageError(f"台帳の判定が不正: {verdict}")
         entries.append(
             LedgerEntry(
@@ -909,11 +1094,16 @@ def check_ledger(
     return tuple(findings)
 
 
-def select_coverage_checks(check_csv: str | None) -> tuple[str, ...]:
+def select_coverage_checks(
+    check_csv: str | None,
+    *,
+    required_checks: frozenset[str] | None = None,
+) -> tuple[str, ...]:
     """実行対象の帰属検査・台帳検査を選ぶ。
 
     Args:
         check_csv: ``--checks`` のカンマ区切り値。省略時は両検査を選ぶ。
+        required_checks: プロファイルの必須検査。省略時は従来2検査。
 
     Returns:
         宣言順に並べた検査 ID。
@@ -922,14 +1112,22 @@ def select_coverage_checks(check_csv: str | None) -> tuple[str, ...]:
         CoverageError: 空要素または未知の検査 ID がある場合。
     """
     if check_csv is None:
-        return COVERAGE_CHECK_IDS
+        if required_checks is None:
+            return COVERAGE_CHECK_IDS
+        return tuple(
+            check_id
+            for check_id in COVERAGE_SELECTABLE_CHECK_IDS
+            if check_id in required_checks
+        )
     requested = check_csv.split(",")
     if not requested or any(not item for item in requested):
         raise CoverageError("--checks に空の検査 ID がある")
-    unknown = sorted(set(requested) - COVERAGE_CHECK_ID_SET)
+    unknown = sorted(set(requested) - COVERAGE_SELECTABLE_CHECK_ID_SET)
     if unknown:
         raise CoverageError(f"未知の検査 ID: {unknown}")
-    return tuple(check_id for check_id in COVERAGE_CHECK_IDS if check_id in requested)
+    return tuple(
+        check_id for check_id in COVERAGE_SELECTABLE_CHECK_IDS if check_id in requested
+    )
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -949,17 +1147,36 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="リポジトリルート(既定: カレントディレクトリ)",
     )
     parser.add_argument(
-        "--requirements", type=Path, default=DEFAULT_REQUIREMENTS, help="検査対象の要件書"
+        "--requirements",
+        type=Path,
+        help="検査対象の要件書(未指定時はプロファイルのrequirements)",
     )
     parser.add_argument(
-        "--document", type=Path, default=DEFAULT_DOCUMENT, help="帰属表を持つ設計書"
+        "--document",
+        type=Path,
+        help="帰属表を持つ設計書(未指定時はプロファイルのdocument)",
     )
     parser.add_argument(
-        "--universe", type=Path, default=DEFAULT_UNIVERSE, help="要件母集合の JSON"
+        "--universe",
+        type=Path,
+        help="要件母集合のJSON(未指定時はプロファイルのuniverse)",
+    )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        help="使用するプロファイル(未指定時はレジストリ先頭のプロファイル)",
+    )
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        help="プロファイルレジストリ(既定: 本番レジストリ)",
     )
     parser.add_argument(
         "--checks",
-        help="実行する検査 ID のカンマ区切り(attribution,ledger。既定: 両方)",
+        help=(
+            "実行する検査IDのカンマ区切り"
+            "(attribution,ledger,attribution-destination)"
+        ),
     )
     return parser.parse_args(argv)
 
@@ -980,21 +1197,81 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parse_args(argv)
         root = args.root.resolve()
-        checks = select_coverage_checks(args.checks)
-        document_path = _resolve(root, args.document)
+        if args.profile is not None:
+            profile = doc_check_profile.load_profile(args.profile, root=root)
+        else:
+            registry_path = args.registry
+            if registry_path is None:
+                registry_path = doc_check_profile.default_registry_path(root)
+            registry = doc_check_profile.load_registry(registry_path, root=root)
+            profiles = doc_check_profile.resolve_profiles(registry, root=root)
+            profile = profiles[0]
+
+        checks = select_coverage_checks(
+            args.checks,
+            required_checks=profile.required_checks,
+        )
+        document_path = (
+            _resolve(root, args.document)
+            if args.document is not None
+            else profile.document
+        )
+        requirements_path = (
+            _resolve(root, args.requirements)
+            if args.requirements is not None
+            else profile.requirements
+        )
+        universe_path = (
+            _resolve(root, args.universe)
+            if args.universe is not None
+            else profile.universe
+        )
         document = _read_text(document_path, "設計書")
+        attribution = profile.raw["attribution"]
+        assignment_options = {
+            "section_re": attribution["section_re"],
+            "assignment_kinds": frozenset(attribution["kinds"]),
+            "assignment_header": tuple(attribution["assignment_header"]),
+            "destination_grammar": attribution["destination_grammar"],
+        }
         findings: list[Finding] = []
         if "attribution" in checks:
-            requirements = _read_text(_resolve(root, args.requirements), "要件書")
-            universe = load_universe(_resolve(root, args.universe))
+            requirements = _read_text(requirements_path, "要件書")
+            universe = load_universe(universe_path)
             extracted = extract_requirement_ids(requirements)
-            assignments = parse_assignments(document)
+            assignments = parse_assignments(document, **assignment_options)
             findings.extend(check_coverage(extracted, universe, assignments))
         if "ledger" in checks:
-            citations = extract_citations(document, root, document_path)
-            entries = parse_ledger(document)
+            citations = extract_citations(
+                document,
+                root,
+                document_path,
+                ledger_section_id=attribution["ledger_section"],
+            )
+            entries = parse_ledger(
+                document,
+                ledger_section_id=attribution["ledger_section"],
+                ledger_header=tuple(attribution["ledger_header"]),
+                reference_kinds=frozenset(attribution["reference_kinds"]),
+                ledger_verdicts=frozenset(attribution["ledger_verdicts"]),
+            )
             findings.extend(check_ledger(citations, entries))
-    except CoverageError as error:
+        if ATTRIBUTION_DESTINATION_CHECK_ID in checks:
+            reason = profile.not_applicable.get(ATTRIBUTION_DESTINATION_CHECK_ID)
+            if reason is not None:
+                print(
+                    f"{ATTRIBUTION_DESTINATION_CHECK_ID}: 対象なし: {reason}"
+                )
+            else:
+                assignments = parse_assignments(document, **assignment_options)
+                findings.extend(
+                    check_attribution_destinations(
+                        document,
+                        assignments,
+                        destination_grammar=attribution["destination_grammar"],
+                    )
+                )
+    except (CoverageError, doc_check_profile.ProfileError) as error:
         print(f"check_doc_coverage.py: {error}", file=sys.stderr)
         return 2
     for finding in findings:
