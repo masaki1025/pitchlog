@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -100,6 +100,15 @@ def identified_row(section: str, identifier: str) -> str | None:
         if cells and plain_cell(cells[0]) == identifier:
             return line
     return None
+
+
+def check_emphasis(text: str) -> tuple[int, ...]:
+    """Markdown表行ごとに閉じていない強調記号の行番号を返す。"""
+    return tuple(
+        index
+        for index, line in enumerate(text.splitlines(), start=1)
+        if line.lstrip().startswith("|") and line.count("**") % 2 == 1
+    )
 
 
 def element_has_row(section: str, element: str) -> bool:
@@ -309,6 +318,30 @@ def _declared_items(
     return _relation_field(manifest, elements["relation"], elements["field"])
 
 
+def _exclusion_vocabulary(profile: Any) -> tuple[str, ...]:
+    """プロファイルから除外語彙をfail-closedで取得する。"""
+    raw = getattr(profile, "raw", None)
+    vocabulary = (
+        raw.get("exclusion_vocabulary") if isinstance(raw, Mapping) else None
+    )
+    if not isinstance(vocabulary, list) or not vocabulary or not all(
+        isinstance(item, str) and item for item in vocabulary
+    ):
+        raise doc_check_profile.ProfileError(
+            "profile.exclusion_vocabulary が非空の文字列配列ではありません"
+        )
+    return tuple(vocabulary)
+
+
+def has_exclusion(
+    value: str, *terms: str, vocabulary: Sequence[str]
+) -> bool:
+    """全termと除外語彙のいずれかが同じ評価範囲にあるかを返す。"""
+    return all(term in value for term in terms) and any(
+        word in value for word in vocabulary
+    )
+
+
 def expected_route_elements(
     manifest: Mapping[str, Any],
     relation_id: str,
@@ -387,6 +420,10 @@ def evaluate_declaration(
         "exact-set",
         "element-lookup",
         "row-scoped-forbidden",
+        "any-of",
+        "required-exclusion",
+        "conditional-forbidden",
+        "well-formedness",
         "absent-section",
     }:
         raise doc_check_profile.ProfileError(f"未実装の kind です: {kind!r}")
@@ -482,6 +519,115 @@ def evaluate_declaration(
                     token=literal,
                 )
         return None
+    if kind == "any-of":
+        row_id = declaration["row"]
+        if context is None or row_id not in context.selected_rows:
+            raise doc_check_profile.ProfileError(
+                f"any-of の参照先 row が未定義です: {row_id}"
+            )
+        section_id = context.selected_sections.get(row_id)
+        if section_id is None:
+            raise doc_check_profile.ProfileError(
+                f"any-of の参照先 row の節が未定義です: {row_id}"
+            )
+        row = context.selected_rows[row_id]
+        literals = declaration["literals"]
+        if any(literal in row for literal in literals):
+            return None
+        expected = " または ".join(literals)
+        return StructuredReason(
+            violated=True,
+            kind=kind,
+            section=section_id,
+            expected=expected,
+            actual=row,
+            token=None,
+        )
+    if kind == "required-exclusion":
+        vocabulary = _exclusion_vocabulary(profile)
+        row_id = declaration.get("row")
+        if row_id is not None:
+            if context is None or row_id not in context.selected_rows:
+                raise doc_check_profile.ProfileError(
+                    f"required-exclusion の参照先 row が未定義です: {row_id}"
+                )
+            section_id = context.selected_sections.get(row_id)
+            if section_id is None:
+                raise doc_check_profile.ProfileError(
+                    f"required-exclusion の参照先 row の節が未定義です: {row_id}"
+                )
+            targets = ((section_id, context.selected_rows[row_id]),)
+        else:
+            requested_sections = declaration["sections"]
+            missing = set(requested_sections) - set(sections)
+            if missing:
+                missing_text = ", ".join(sorted(missing))
+                raise doc_check_profile.ProfileError(
+                    f"required-exclusion の節を解決できません: {missing_text}"
+                )
+            targets = tuple(
+                (section_id, sections[section_id])
+                for section_id in requested_sections
+            )
+        terms = tuple(declaration["terms"])
+        for section_id, target in targets:
+            if not has_exclusion(target, *terms, vocabulary=vocabulary):
+                expected = "・".join(terms) + " と除外語彙"
+                return StructuredReason(
+                    violated=True,
+                    kind=kind,
+                    section=section_id,
+                    expected=expected,
+                    actual=f"除外宣言が節 {section_id} に無い",
+                    token=None,
+                )
+        return None
+    if kind == "conditional-forbidden":
+        row_id = declaration["row"]
+        if context is None or row_id not in context.selected_rows:
+            raise doc_check_profile.ProfileError(
+                f"conditional-forbidden の参照先 row が未定義です: {row_id}"
+            )
+        section_id = context.selected_sections.get(row_id)
+        if section_id is None:
+            raise doc_check_profile.ProfileError(
+                f"conditional-forbidden の参照先 row の節が未定義です: {row_id}"
+            )
+        row = context.selected_rows[row_id]
+        literal = declaration["literal"]
+        unless = declaration["unless"]
+        if literal not in row or all(item in row for item in unless):
+            return None
+        expected = f"{literal} がある場合は " + "・".join(unless)
+        return StructuredReason(
+            violated=True,
+            kind=kind,
+            section=section_id,
+            expected=expected,
+            actual=row,
+            token=literal,
+        )
+    if kind == "well-formedness":
+        section_id = declaration["scope"]
+        section_text = sections.get(section_id)
+        if section_text is None:
+            raise doc_check_profile.ProfileError(
+                f"well-formedness の節を解決できません: {section_id}"
+            )
+        invalid_lines = check_emphasis(section_text)
+        if not invalid_lines:
+            return None
+        actual = "強調不整合行: " + ",".join(
+            str(line_number) for line_number in invalid_lines
+        )
+        return StructuredReason(
+            violated=True,
+            kind=kind,
+            section=section_id,
+            expected="表行ごとに ** が偶数",
+            actual=actual,
+            token=None,
+        )
     if kind == "section-contains":
         requested_sections = declaration["sections"]
         missing = set(requested_sections) - set(sections)

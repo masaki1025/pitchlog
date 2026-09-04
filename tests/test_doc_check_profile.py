@@ -960,8 +960,113 @@ def test_production_invariants_load_and_satisfy_binding_rules() -> None:
             "relation": "R-TXN-ROUTE",
             "routes": {"containing": "T6"},
         },
+        {
+            "defect_id": "SP-09",
+            "kind": "row-selector",
+            "id": "sp09-route",
+            "section": "8-1",
+            "mode": "identifier",
+            "keys": ["P3"],
+        },
+        {
+            "defect_id": "SP-09",
+            "kind": "exact-set",
+            "row": "sp09-route",
+            "relation": "R-TXN-ROUTE",
+            "routes": ["P3"],
+            "prefix": "T",
+        },
+        {
+            "defect_id": "SP-09",
+            "kind": "row-scoped-forbidden",
+            "row": "sp09-route",
+            "literals": ["T5"],
+        },
+        {
+            "defect_id": "SP-09",
+            "kind": "any-of",
+            "row": "sp09-route",
+            "literals": ["T7", "V11"],
+        },
+        {
+            "defect_id": "SP-12",
+            "kind": "row-selector",
+            "id": "sp12-boundary",
+            "section": "6-3",
+            "mode": "identifier",
+            "keys": ["B3"],
+        },
+        {
+            "defect_id": "SP-12",
+            "kind": "required-exclusion",
+            "row": "sp12-boundary",
+            "terms": ["D1 を持たない変更イベント", "D5"],
+        },
+        {
+            "defect_id": "SP-12",
+            "kind": "row-selector",
+            "id": "sp12-resume",
+            "section": "6-4",
+            "mode": "needle",
+            "keys": ["D1 を持たない変更イベント", "D5"],
+        },
+        {
+            "defect_id": "SP-12",
+            "kind": "required-exclusion",
+            "row": "sp12-resume",
+            "terms": ["D5"],
+        },
+        {
+            "defect_id": "SP-16",
+            "kind": "required-exclusion",
+            "sections": ["6-1", "6-2"],
+            "terms": ["D1 を持たない変更イベント", "prefix"],
+        },
+        {
+            "defect_id": "SP-20",
+            "kind": "row-selector",
+            "id": "sp20-definition",
+            "section": "2-1",
+            "mode": "needle",
+            "keys": ["| D1 |"],
+        },
+        {
+            "defect_id": "SP-20",
+            "kind": "row-contains",
+            "row": "sp20-definition",
+            "literals": ["順序と欠落", "undo の逆順"],
+        },
+        {
+            "defect_id": "SP-20",
+            "kind": "row-selector",
+            "id": "sp20-order-role",
+            "section": "4-2",
+            "mode": "needle",
+            "keys": ["D1", "順序", "欠落"],
+        },
+        {
+            "defect_id": "SP-20",
+            "kind": "row-selector",
+            "id": "sp20-idempotency-role",
+            "section": "4-2",
+            "mode": "needle",
+            "keys": ["D5", "再送", "二重適用"],
+        },
+        {
+            "defect_id": "SP-20",
+            "kind": "conditional-forbidden",
+            "row": "sp20-definition",
+            "literal": "再送の重複排除",
+            "unless": ["D5 の用途", "D1 の用途ではない"],
+        },
+        {
+            "defect_id": "SP-18",
+            "kind": "well-formedness",
+            "scope": "4-3-A",
+            "rule": "balanced-emphasis-per-table-row",
+        },
     )
-    assert len(invariants.legacy_structural) == 5
+    assert not invariants.legacy_structural
     assert invariants.global_invariants == ()
     profile_loader.validate_binding_rules(
         invariants,
@@ -994,12 +1099,16 @@ def test_binding_rules_are_always_fail_closed(rule: int, mutation: str) -> None:
     elif mutation == "missing-declaration":
         invariants = replace(
             invariants,
-            legacy_structural=invariants.legacy_structural - {"SP-09"},
+            declarations=tuple(
+                declaration
+                for declaration in invariants.declarations
+                if declaration["defect_id"] != "SP-09"
+            ),
         )
     elif mutation == "legacy-outside-structural":
         invariants = replace(
             invariants,
-            structural_required=invariants.structural_required - {"SP-09"},
+            legacy_structural=invariants.legacy_structural | {"SP-19"},
         )
     elif mutation == "extra-declaration":
         invariants = replace(
@@ -1030,6 +1139,15 @@ def test_binding_rule_three_rejects_legacy_branch_mismatch() -> None:
     invariants = profile_loader.load_invariants(INVARIANTS_PATH)
     machine, forbidden, legacy_branches = _binding_inputs()
 
+    invariants = replace(
+        invariants,
+        legacy_structural=invariants.legacy_structural | {"SP-09"},
+        declarations=tuple(
+            declaration
+            for declaration in invariants.declarations
+            if declaration["defect_id"] != "SP-09"
+        ),
+    )
     with pytest.raises(profile_loader.ProfileError, match=r"結合規則3.*SP-09"):
         profile_loader.validate_binding_rules(
             invariants,

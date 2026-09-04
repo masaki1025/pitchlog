@@ -448,30 +448,10 @@ def _expected_route_elements(
 _route_row_matches = doc_check_invariants.route_row_matches
 
 
-def check_emphasis(text: str) -> tuple[int, ...]:
-    """Markdown表セルで対になっていない強調記号の行番号を返す。
-
-    Args:
-        text: 検査対象のMarkdown本文。
-
-    Returns:
-        ``**`` の個数が奇数である表行の1始まり行番号。
-    """
-    return tuple(
-        index
-        for index, line in enumerate(text.splitlines(), start=1)
-        if line.lstrip().startswith("|") and line.count("**") % 2 == 1
-    )
+check_emphasis = doc_check_invariants.check_emphasis
 
 
-def _has_exclusion(
-    section: str,
-    *terms: str,
-    vocabulary: Sequence[str] = DEFAULT_EXCLUSION_VOCABULARY,
-) -> bool:
-    return all(term in section for term in terms) and any(
-        word in section for word in vocabulary
-    )
+_has_exclusion = doc_check_invariants.has_exclusion
 
 
 def _structural_reason(
@@ -757,6 +737,10 @@ def _resolve_declaration_sections(
     sections = declaration.get("sections")
     if isinstance(sections, list):
         section_ids.extend(item for item in sections if isinstance(item, str))
+    if declaration.get("kind") == "well-formedness":
+        scope = declaration.get("scope")
+        if isinstance(scope, str):
+            section_ids.append(scope)
     resolved: dict[str, str] = {}
     for section_id in section_ids:
         section_text = _heading_section(text, section_id)

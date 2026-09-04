@@ -451,3 +451,17 @@ check ID **22**(既存 14 + 新 8)/ 申し送り **20** / ステップ **38**(�
 - 変異の確認: 節スコープ = 別節移動 / 意味部欠落 / ID 交換、`exact-set` = **3 節を 1 節ずつ壊す負例・別 relation を同一 manifest に置いて指定 relation だけが使われる負例**、`element-lookup` = 意味部の別行移動、`row-scoped-forbidden` = 選択行のみ検査(同節の別行なら適合)
 - 期待 fixture 99 行の `violated` / `expected_exit` は**全件変更前と同一**
 - 検証(Claude): ruff/ty passed / 3 テストファイル **206 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **1009**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致 / 宣言 11 ID が design 2-1 の対応表どおり
+
+### ステップ 16〜19/38 — `any-of` / `required-exclusion` / `conditional-forbidden` / `well-formedness`(**1 委任・1 コミット** — 裁定 (a))
+
+| ステップ | kind | 移行 ID | `legacy_structural` | 中間 digest |
+| --- | --- | --- | --- | --- |
+| 16 | `any-of` | SP-09(4 宣言) | 5 → **4** | `c0955d96…` |
+| 17 | `required-exclusion`(row / sections・`terms` 1〜2) | SP-12・SP-16 | 4 → **2** | `968e6bab…` |
+| 18 | `conditional-forbidden`(含意) | SP-20 | 2 → **1** | `ad5f5f1c…` |
+| 19 | `well-formedness`(`\|` で始まる全表行) | SP-18 | 1 → **0** | `7a811f03…` |
+
+- **`legacy_structural` = 0 に到達**。宣言 ID は **16**(旧分岐 15 + MT-01)、使用 kind は 11 種。**旧分岐(`_structural_reason`)は残置**(規則 6 の検査はステップ 21、撤去はステップ 22)
+- 語彙駆動の証明: `test_required_exclusion_uses_profile_exclusion_vocabulary`(プロファイルの除外語彙を変えると判定が変わる)
+- `well-formedness` の 3 変異: 奇数行 2 行 → red / ヘッダ行のみ奇数 → red / 表外の `**` が奇数 → green
+- 検証(Claude): ruff/ty passed / 3 テストファイル **221 passed**(skip 系 0)/ 3 検査 rc 0 / fixture rc 1 / 収集 **1024**・基準欠落 0 / 対象外パスの差分 0 / `invariants_digest` 再計算一致
