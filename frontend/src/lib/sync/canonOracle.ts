@@ -1,4 +1,4 @@
-// このパーサは docs/design/sync-protocol.md 4-3（V1〜V12 と V12 条件・結果写像）と 5-5 の写しである。
+// このパーサは docs/design/sync-protocol.md 4-3・4-5 と 5-5 の対象規則の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
 // テストからのみ使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
@@ -8,6 +8,8 @@ const EVENT_FIELD_RELATION_ID = 'R-EVENT-FIELD'
 const EVENT_FIELD_ID_PATTERN = /^V\d+$/
 const PARTICIPATION_RELATION_ID = 'R-PARTICIPATION'
 const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
+const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
+const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -423,4 +425,157 @@ export function readCanonV12BoundaryRules(
     throw new Error('R-V12-BOUNDARY.source_elements がありません')
   }
   return parseCanonV12BoundaryRules(relation.source_elements)
+}
+
+type IdempotencyRelationId =
+  typeof D1_BOUNDARY_RELATION_ID | typeof P3_BOUNDARY_RELATION_ID
+
+type OutOfScopeId = Readonly<{
+  id: string
+  reason: string
+}>
+
+export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
+  [D1_BOUNDARY_RELATION_ID]: [
+    { id: 'B1', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B2', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B3', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B4', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B5', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B6', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B7', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
+    { id: 'B3a', reason: '未使用 D5 の P5・T9 処理に依存するため' },
+    { id: 'B3b', reason: 'B3 の処理段階は本ステップの射程外であるため' },
+    { id: 'DI1', reason: 'D5 の照合位置を定める処理段階に依存するため' },
+    { id: 'DI4', reason: '未使用 D5 の後段検査に依存するため' },
+    { id: 'DI5', reason: '混在バッチと A5 の停止境界に依存するため' },
+    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
+  ],
+  [P3_BOUNDARY_RELATION_ID]: [
+    { id: '変更受理', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B8', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B9', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B10', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B11', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B12', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B13', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'B14', reason: 'P3 の完全な境界結果集合に属するため' },
+    { id: 'I1', reason: 'D5 の照合位置を定める処理段階に依存するため' },
+    { id: 'I4', reason: '未使用 D5 の後段検査に依存するため' },
+    { id: 'I5', reason: '無効化意図の保存・配信処理に依存するため' },
+    { id: 'I6', reason: 'P3 受理結果の端末保持処理に依存するため' },
+    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
+  ],
+} as const satisfies Readonly<
+  Record<IdempotencyRelationId, readonly OutOfScopeId[]>
+>
+
+const IMPLEMENTED_IDEMPOTENCY_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI2', 'DI3']),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I2', 'I3']),
+} as const
+
+const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(
+    CANON_IDEMPOTENCY_OUT_OF_SCOPE[D1_BOUNDARY_RELATION_ID].map(
+      (element) => element.id,
+    ),
+  ),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(
+    CANON_IDEMPOTENCY_OUT_OF_SCOPE[P3_BOUNDARY_RELATION_ID].map(
+      (element) => element.id,
+    ),
+  ),
+} as const
+
+export type CanonIdempotencyCollisionRule = Readonly<{
+  relationId: IdempotencyRelationId
+  id: string
+  rightHandSide: string
+}>
+
+function parseIdempotencyRelation(
+  relationId: IdempotencyRelationId,
+  sourceElements: readonly unknown[],
+): readonly CanonIdempotencyCollisionRule[] {
+  const seenIds = new Set<string>()
+  const rules: CanonIdempotencyCollisionRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error(`${relationId} の要素は文字列でなければなりません`)
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    const id =
+      separatorIndex < 0
+        ? sourceElement
+        : sourceElement.slice(0, separatorIndex)
+    if (id.length === 0 || seenIds.has(id)) {
+      throw new Error(`${relationId} の ID が不正です: ${id}`)
+    }
+    seenIds.add(id)
+
+    if (IMPLEMENTED_IDEMPOTENCY_IDS[relationId].has(id)) {
+      const equalsIndex = sourceElement.indexOf('=', separatorIndex + 1)
+      if (
+        separatorIndex <= 0 ||
+        equalsIndex <= separatorIndex + 1 ||
+        sourceElement.indexOf('=', equalsIndex + 1) >= 0 ||
+        equalsIndex === sourceElement.length - 1
+      ) {
+        throw new Error(`${relationId} の要素形式が不正です: ${sourceElement}`)
+      }
+      rules.push(
+        Object.freeze({
+          relationId,
+          id,
+          rightHandSide: sourceElement.slice(equalsIndex + 1),
+        }),
+      )
+    } else if (!OUT_OF_SCOPE_IDEMPOTENCY_IDS[relationId].has(id)) {
+      throw new Error(`${relationId} に未知の ID があります: ${id}`)
+    }
+  }
+
+  for (const implementedId of IMPLEMENTED_IDEMPOTENCY_IDS[relationId]) {
+    if (!seenIds.has(implementedId)) {
+      throw new Error(
+        `${relationId} の実装対象 ID が不足しています: ${implementedId}`,
+      )
+    }
+  }
+  return Object.freeze(rules)
+}
+
+export function parseCanonIdempotencyCollisionRules(
+  d1SourceElements: readonly unknown[],
+  p3SourceElements: readonly unknown[],
+): readonly CanonIdempotencyCollisionRule[] {
+  return Object.freeze([
+    ...parseIdempotencyRelation(D1_BOUNDARY_RELATION_ID, d1SourceElements),
+    ...parseIdempotencyRelation(P3_BOUNDARY_RELATION_ID, p3SourceElements),
+  ])
+}
+
+export function readCanonIdempotencyCollisionRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonIdempotencyCollisionRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const d1Relation = relations[D1_BOUNDARY_RELATION_ID]
+  const p3Relation = relations[P3_BOUNDARY_RELATION_ID]
+  if (
+    !isRecord(d1Relation) ||
+    !Array.isArray(d1Relation.source_elements) ||
+    !isRecord(p3Relation) ||
+    !Array.isArray(p3Relation.source_elements)
+  ) {
+    throw new Error('D5 衝突規則の source_elements がありません')
+  }
+  return parseCanonIdempotencyCollisionRules(
+    d1Relation.source_elements,
+    p3Relation.source_elements,
+  )
 }

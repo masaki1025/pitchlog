@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
 import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
+import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import {
+  CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   readCanonEventFieldRules,
+  readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonEventKindRule,
+  type CanonIdempotencyCollisionRule,
   type CanonV12BoundaryRule,
 } from './canonOracle'
 
@@ -31,6 +35,11 @@ type ComparableV12BoundaryRule = {
   condition: string
   outcomes: readonly string[]
   effect: unknown
+}
+
+type ComparableIdempotencyCollisionRule = {
+  id: string
+  rightHandSide: string
 }
 
 function expectRulesToMatchCanon(
@@ -124,6 +133,18 @@ function expectV12BoundaryRulesToMatchCanon(
         },
       ]),
     ),
+  )
+}
+
+function expectIdempotencyRulesToMatchCanon(
+  rules: readonly ComparableIdempotencyCollisionRule[],
+  canonRules: readonly CanonIdempotencyCollisionRule[],
+): void {
+  expect(new Set(rules.map((rule) => rule.id))).toEqual(
+    new Set(canonRules.map((rule) => rule.id)),
+  )
+  expect(new Map(rules.map((rule) => [rule.id, rule.rightHandSide]))).toEqual(
+    new Map(canonRules.map((rule) => [rule.id, rule.rightHandSide])),
   )
 }
 
@@ -346,5 +367,57 @@ describe('canonOracle', () => {
     expect(() => readCanonV12BoundaryRules(mutatedRelations)).toThrowError(
       /R-V12-BOUNDARY の(?:条件|帰結)/,
     )
+  })
+
+  it('DI2・DI3・I2・I3 の右辺をオラクルと逐語照合する', () => {
+    const reversedCanonRules = [
+      ...readCanonIdempotencyCollisionRules(),
+    ].reverse()
+
+    expectIdempotencyRulesToMatchCanon(
+      IDEMPOTENCY_COLLISION_RULES,
+      reversedCanonRules,
+    )
+  })
+
+  it('D5 衝突規則の射程外 ID を理由つきで列挙する', () => {
+    for (const elements of Object.values(CANON_IDEMPOTENCY_OUT_OF_SCOPE)) {
+      for (const element of elements) {
+        expect(element.id.length).toBeGreaterThan(0)
+        expect(element.reason.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it.each(['R-BOUNDARY', 'R-P3-BOUNDARY'] as const)(
+    '%s の allow-list にない未知 ID を fail-closed で拒否する',
+    (relationId) => {
+      const mutatedRelations = structuredClone(syncProtocolRelations)
+      mutatedRelations[relationId].source_elements.push(
+        'UNKNOWN:D5衝突規則の未知要素',
+      )
+
+      expect(() =>
+        readCanonIdempotencyCollisionRules(mutatedRelations),
+      ).toThrowError(/未知の ID/)
+    },
+  )
+
+  it('実装対象の右辺変更を逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('DI2:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] =
+      'DI2:D1付き経路の既存D5・同一内容=保存済み結果を再掲'
+    expect(() =>
+      expectIdempotencyRulesToMatchCanon(
+        IDEMPOTENCY_COLLISION_RULES,
+        readCanonIdempotencyCollisionRules(mutatedRelations),
+      ),
+    ).toThrow()
   })
 })
