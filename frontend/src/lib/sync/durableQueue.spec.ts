@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import durableQueueSource from './durableQueue.ts?raw'
 import * as durableQueueModule from './durableQueue'
 import {
+  CANON_ACK_STATE_RESULT,
+  readCanonAckStateResults,
+  type CanonAckStateResult,
+} from './canonOracle'
+import {
   DurableQueueUnavailableError,
   I6EvacuationReceipt,
   openDurableQueue,
@@ -107,6 +112,15 @@ if (!REVISION_EVENT_KIND || !PLAYER_REGISTRATION_EVENT_KIND) {
   throw new Error('検査用のイベント種別がありません')
 }
 const REVISION_EVENT_KIND_ID = REVISION_EVENT_KIND.id
+const ACK_ACCEPTED_RESULT: CanonAckStateResult = (() => {
+  const result = readCanonAckStateResults().find(
+    (candidate) => candidate.id === CANON_ACK_STATE_RESULT.ACCEPTED,
+  )
+  if (!result) {
+    throw new Error('受理の A5 結果がありません')
+  }
+  return result
+})()
 
 function revisionEvent(): DurableQueueAppend['event'] {
   return { fields: { [EVENT_KIND_SLOT_ID]: REVISION_EVENT_KIND_ID } }
@@ -149,6 +163,45 @@ async function overwriteQueueSlot(
   transaction.objectStore('queue').put(slot)
   await completion
   database.close()
+}
+
+async function replaceQueueSlot(
+  databaseName: string,
+  original: DurableQueueSlot,
+  replacement: DurableQueueSlot,
+): Promise<void> {
+  const database = await openExistingDatabase(databaseName)
+  const transaction = database.transaction('queue', 'readwrite')
+  const completion = transactionDone(transaction)
+  const store = transaction.objectStore('queue')
+  store.delete([
+    original.game,
+    original.d4,
+    original.d1,
+  ] as unknown as IDBValidKey)
+  store.put(replacement)
+  await completion
+  database.close()
+}
+
+async function prepareA5Persistence(
+  queue: DurableQueue,
+  scope: DurableQueueScope,
+  slot: DurableQueueSlot,
+  result: CanonAckStateResult = ACK_ACCEPTED_RESULT,
+  overrides: Parameters<DurableQueue['prepareA5Transition']>[2] = {},
+) {
+  const preparation = await queue.prepareA5Transition(scope, slot.d1, {
+    resolveA5: () => ({
+      key: { d4: slot.d4, d1: slot.d1, d5: slot.d5 },
+      result,
+    }),
+    ...overrides,
+  })
+  if (!preparation) {
+    throw new Error('A5 永続遷移 preparation がありません')
+  }
+  return preparation
 }
 
 function tombstoneBoundaryRequest(
@@ -298,6 +351,198 @@ describe('durableQueue', () => {
     expect(transactionSpy).toHaveBeenCalledTimes(1)
     expect(transactionSpy).toHaveBeenCalledWith('queue', 'readonly')
     expect(resolvePlayerRegistrationMapping).toHaveBeenCalledWith(event)
+  })
+
+  it('A5 遷移を 1 回の readwrite で永続化し、再読込後も状態を保つ', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'accepted-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(queue, scope, stored)
+    const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
+
+    const persisted = await queue.persistA5Transition(preparation)
+
+    expect(persisted?.state).toBe(queueStateId('同期済み'))
+    expect(transactionSpy).toHaveBeenCalledTimes(1)
+    expect(transactionSpy).toHaveBeenCalledWith('queue', 'readwrite')
+
+    queue.close()
+    const reopened = await openDurableQueue({
+      databaseName,
+      requestStoragePersistence: async () => false,
+    })
+    openedQueues.push(reopened)
+    expect((await reopened.readSlot(scope, stored.d1))?.state).toBe(
+      queueStateId('同期済み'),
+    )
+  })
+
+  it.each([
+    [
+      'D4',
+      (slot: DurableQueueSlot): DurableQueueSlot => ({
+        ...slot,
+        d4: 'different-generation',
+      }),
+    ],
+    ['D1', (slot: DurableQueueSlot): DurableQueueSlot => ({ ...slot, d1: 2 })],
+    [
+      'D5',
+      (slot: DurableQueueSlot): DurableQueueSlot => ({
+        ...slot,
+        d5: 'different-d5',
+      }),
+    ],
+  ] as const)(
+    '実ストアの対象 %s が preparation と異なると A5 遷移を永続化しない',
+    async (_name, changeTarget) => {
+      const queue = await openTestQueue()
+      const databaseName = databaseNames.at(-1)
+      if (!databaseName) {
+        throw new Error('テスト DB 名がありません')
+      }
+      const scope = { game: 'game-a', d4: 'generation-a' }
+      const stored = await appendToQueue(
+        queue,
+        appendInput(scope, { d5: 'original-d5', event: revisionEvent() }),
+      )
+      const preparation = await prepareA5Persistence(queue, scope, stored)
+      const replacement = changeTarget(stored)
+      await replaceQueueSlot(databaseName, stored, replacement)
+
+      await expect(
+        queue.persistA5Transition(preparation),
+      ).resolves.toBeUndefined()
+      expect(
+        (
+          await queue.readSlot(
+            { game: replacement.game, d4: replacement.d4 },
+            replacement.d1,
+          )
+        )?.state,
+      ).toBe(queueStateId('未送信'))
+    },
+  )
+
+  it('同じ応答の A4 が未確認なら同期済みにせず、確認済みなら永続化する', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const event = {
+      fields: { [EVENT_KIND_SLOT_ID]: PLAYER_REGISTRATION_EVENT_KIND.id },
+    }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'registration-d5', event }),
+    )
+    const unconfirmed = await prepareA5Persistence(
+      queue,
+      scope,
+      stored,
+      undefined,
+      {
+        resolvePlayerRegistrationMapping: () => false,
+      },
+    )
+
+    await expect(
+      queue.persistA5Transition(unconfirmed),
+    ).resolves.toBeUndefined()
+    expect((await queue.readSlot(scope, stored.d1))?.state).toBe(
+      queueStateId('未送信'),
+    )
+
+    const confirmed = await prepareA5Persistence(
+      queue,
+      scope,
+      stored,
+      undefined,
+      {
+        resolvePlayerRegistrationMapping: () => true,
+      },
+    )
+    await expect(queue.persistA5Transition(confirmed)).resolves.toMatchObject({
+      state: queueStateId('同期済み'),
+    })
+  })
+
+  it('A5 永続遷移 preparation の逐次再利用を拒否する', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'sequential-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(queue, scope, stored)
+
+    await expect(queue.persistA5Transition(preparation)).resolves.toBeDefined()
+    await expect(queue.persistA5Transition(preparation)).rejects.toThrow(
+      'preparation',
+    )
+  })
+
+  it('A5 永続遷移 preparation の並行再利用を拒否する', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'concurrent-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(queue, scope, stored)
+
+    const results = await Promise.allSettled([
+      queue.persistA5Transition(preparation),
+      queue.persistA5Transition(preparation),
+    ])
+
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1)
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1)
+    expect((await queue.readSlot(scope, stored.d1))?.state).toBe(
+      queueStateId('同期済み'),
+    )
+  })
+
+  it('別の DurableQueue が発行した A5 preparation を拒否する', async () => {
+    const issuer = await openTestQueue()
+    const otherQueue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const stored = await appendToQueue(
+      issuer,
+      appendInput(scope, { d5: 'issuer-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(issuer, scope, stored)
+
+    await expect(otherQueue.persistA5Transition(preparation)).rejects.toThrow(
+      'preparation',
+    )
+    await expect(issuer.persistA5Transition(preparation)).resolves.toBeDefined()
+  })
+
+  it('永続化済み A5 のリプレイは同じスロットを変更しない', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'replay-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(queue, scope, stored)
+    const replayPreparation = await prepareA5Persistence(queue, scope, stored)
+    const first = await queue.persistA5Transition(preparation)
+
+    await expect(
+      queue.persistA5Transition(replayPreparation),
+    ).resolves.toBeUndefined()
+    expect(await queue.readSlot(scope, stored.d1)).toEqual(first)
   })
 
   it('同じ preparation の逐次再利用では同じ D5 のスロットと D1 を増やさない', async () => {

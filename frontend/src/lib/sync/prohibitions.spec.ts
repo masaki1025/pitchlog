@@ -1102,12 +1102,23 @@ describe('prohibitions', () => {
       .filter(hasReadwriteTransaction)
       .map(methodName)
       .filter((name): name is string => name !== undefined)
+    const expectedMutationMethodNames = [
+      'append',
+      'persistA5Transition',
+      'persistI6Acceptance',
+      'evacuateI6',
+      'replaceRevision',
+      'replaceWithTombstone',
+    ]
 
     expect(noUnsafeMutationMethod).toBe(true)
     expect(new Set(publicMethodNames)).toEqual(
       new Set(Object.keys(DURABLE_QUEUE_PUBLIC_METHOD_RULES)),
     )
-    expect(mutationRuleEntries).toHaveLength(5)
+    expect(mutationRuleEntries).toHaveLength(6)
+    expect(new Set(mutationRuleEntries.map(([name]) => name))).toEqual(
+      new Set(expectedMutationMethodNames),
+    )
     expect(new Set(readwriteMethodNames)).toEqual(
       new Set(mutationRuleEntries.map(([name]) => name)),
     )
@@ -1118,6 +1129,8 @@ describe('prohibitions', () => {
           (rule.boundary === 'preparation' || rule.boundary === 'receipt'),
       ),
     ).toBe(true)
+    expect(sourceFor('durableQueue.ts')).not.toContain('QUEUE_TRANSITION_RULES')
+    expect(sourceFor('durableQueue.ts')).not.toContain('CANON_ACK_STATE_RESULT')
   })
 
   it('変異: readwrite の新メソッドを read と自己申告しても AST 集合検査で検出する', () => {

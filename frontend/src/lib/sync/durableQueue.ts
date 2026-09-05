@@ -22,6 +22,10 @@ import {
   type QueueStateId,
 } from './queueState'
 import {
+  evaluateQueueTransition,
+  type QueueTransitionInjections,
+} from './queueTransition'
+import {
   isTargetEventReference,
   TARGET_EVENT_REFERENCE_ELEMENTS,
   type SyncEvent,
@@ -145,6 +149,16 @@ type DurableA5TransitionSnapshot = Readonly<{
   allowsSyncedTransition: boolean
 }>
 
+type DurableA5TransitionTarget = Readonly<{
+  game: unknown
+  d4: unknown
+  d1: number
+  d5: unknown
+}>
+
+type DurableA5TransitionInjections = MappingConfirmationInjections &
+  QueueTransitionInjections
+
 type DurableQueuePreparedPayload =
   | Readonly<{
       kind: 'append'
@@ -153,6 +167,8 @@ type DurableQueuePreparedPayload =
   | Readonly<{
       kind: 'a5-transition'
       snapshot: DurableA5TransitionSnapshot
+      target: DurableA5TransitionTarget
+      injections: DurableA5TransitionInjections
     }>
   | Readonly<{
       kind: 'i6-persistence'
@@ -538,6 +554,52 @@ function i6Key(d5: unknown): IDBValidKey {
   return indexedDbKey([d5])
 }
 
+function matchesA5Target(
+  slot: DurableQueueSlot,
+  target: DurableA5TransitionTarget,
+  snapshot: DurableA5TransitionSnapshot,
+): boolean {
+  return (
+    slot.state === UNSENT_STATE &&
+    Object.is(slot.game, target.game) &&
+    Object.is(slot.d4, target.d4) &&
+    Object.is(slot.d1, target.d1) &&
+    Object.is(slot.d5, target.d5) &&
+    Object.is(snapshot.slot.key.d4, target.d4) &&
+    Object.is(snapshot.slot.key.d1, target.d1) &&
+    Object.is(snapshot.slot.key.d5, target.d5)
+  )
+}
+
+function persistedA5Slot(
+  existing: DurableQueueSlot,
+  transitioned: ReturnType<typeof evaluateQueueTransition>,
+): DurableQueueSlot | undefined {
+  if (
+    !transitioned.applied ||
+    !transitioned.slot ||
+    transitioned.slot.source !== 'd1-event' ||
+    !Object.is(transitioned.slot.key.d4, existing.d4) ||
+    !Object.is(transitioned.slot.key.d1, existing.d1) ||
+    !Object.is(transitioned.slot.key.d5, existing.d5)
+  ) {
+    return undefined
+  }
+
+  return {
+    game: existing.game,
+    d4: existing.d4,
+    d1: existing.d1,
+    d5: existing.d5,
+    version: existing.version,
+    event: existing.event,
+    state: transitioned.slot.state,
+    ...(transitioned.slot.actionRequiredLabel === undefined
+      ? {}
+      : { actionRequiredLabel: transitioned.slot.actionRequiredLabel }),
+  }
+}
+
 export class DurableQueue {
   readonly storagePersistenceGranted: boolean
   readonly #database: IDBDatabase
@@ -619,7 +681,7 @@ export class DurableQueue {
   async prepareA5Transition(
     scope: DurableQueueScope,
     d1: number,
-    injections: MappingConfirmationInjections = {},
+    injections: DurableA5TransitionInjections = {},
   ): Promise<DurableQueuePreparation<'a5-transition'> | undefined> {
     const transaction = this.#database.transaction(QUEUE_STORE_NAME, 'readonly')
     const completion = transactionCompletion(transaction)
@@ -645,6 +707,12 @@ export class DurableQueue {
     return createPreparation(
       {
         kind: 'a5-transition',
+        target: {
+          game: slot.game,
+          d4: slot.d4,
+          d1: slot.d1,
+          d5: slot.d5,
+        },
         snapshot: {
           slot: {
             state: UNSENT_STATE,
@@ -654,8 +722,73 @@ export class DurableQueue {
           },
           allowsSyncedTransition: mappingConfirmation.allowsSyncedTransition,
         },
+        injections: Object.freeze({ ...injections }),
       },
       this.#credentialOwner,
+    )
+  }
+
+  async persistA5Transition(
+    preparation: DurableQueuePreparation<'a5-transition'>,
+  ): Promise<DurableQueueSlot | undefined> {
+    return usePreparation(
+      preparation,
+      'a5-transition',
+      this.#credentialOwner,
+      async ({ target, snapshot, injections }) => {
+        const transaction = this.#database.transaction(
+          QUEUE_STORE_NAME,
+          'readwrite',
+        )
+        const completion = transactionCompletion(transaction)
+
+        try {
+          const store = transaction.objectStore(QUEUE_STORE_NAME)
+          const existing = (await requestResult(
+            store.get(indexedDbKey([target.game, target.d4, target.d1])),
+          )) as DurableQueueSlot | undefined
+          if (!existing || !matchesA5Target(existing, target, snapshot)) {
+            await completion
+            return undefined
+          }
+
+          // 状態の決定は 7-2 の単一実装へ委ね、永続境界では結果だけを書き込む。
+          const evaluationPreparation = createPreparation(
+            {
+              kind: 'a5-transition',
+              target,
+              snapshot,
+              injections,
+            },
+            this.#credentialOwner,
+          )
+          const transitioned = evaluateQueueTransition(
+            {
+              kind: 'apply-a5',
+              queue: this,
+              preparation: evaluationPreparation,
+            },
+            injections,
+          )
+          const persisted = persistedA5Slot(existing, transitioned)
+          if (!persisted) {
+            await completion
+            return undefined
+          }
+
+          store.put(persisted)
+          await completion
+          return persisted
+        } catch (error) {
+          abortTransaction(transaction)
+          try {
+            await completion
+          } catch {
+            // 元の失敗を呼び出し元へ返す。
+          }
+          throw error
+        }
+      },
     )
   }
 
@@ -1050,6 +1183,7 @@ export const DURABLE_QUEUE_PUBLIC_METHOD_RULES = {
   prepareAppend: { effect: 'prepare' },
   append: { effect: 'mutation', boundary: 'preparation' },
   prepareA5Transition: { effect: 'prepare' },
+  persistA5Transition: { effect: 'mutation', boundary: 'preparation' },
   consumeA5Preparation: { effect: 'prepare' },
   prepareI6Acceptance: { effect: 'prepare' },
   persistI6Acceptance: { effect: 'mutation', boundary: 'preparation' },
