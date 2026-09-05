@@ -10,9 +10,11 @@ import {
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
   parseCanonAckStateResults,
+  parseCanonBoundaryResults,
   parseCanonQueueLifeRules,
   parseCanonTombstoneRule,
   readCanonAckStateResults,
+  readCanonBoundaryResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
@@ -21,6 +23,7 @@ import {
   readCanonTombstoneRule,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
+  type CanonBoundaryResult,
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
   type CanonTemporaryIdMappingRule,
@@ -172,6 +175,46 @@ function expectTemporaryIdMappingRulesToMatchCanon(
 }
 
 describe('canonOracle', () => {
+  it('R-BOUNDARY から B1〜B7 の境界結果を読む', () => {
+    const sourceElements = syncProtocolRelations['R-BOUNDARY'].source_elements
+    const expectedResults = sourceElements.slice(0, 7).map((sourceElement) => {
+      const separatorIndex = sourceElement.indexOf(':')
+      return {
+        id: sourceElement.slice(0, separatorIndex),
+        name: sourceElement.slice(separatorIndex + 1),
+      }
+    })
+
+    expect(readCanonBoundaryResults()).toEqual(expectedResults)
+    expect(parseCanonBoundaryResults(sourceElements)).toEqual(expectedResults)
+  })
+
+  it('R-BOUNDARY の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-BOUNDARY'].source_elements.push(
+      'UNKNOWN:未知の境界結果',
+    )
+
+    expect(() => readCanonBoundaryResults(mutatedRelations)).toThrowError(
+      /未知の ID/,
+    )
+  })
+
+  it('R-BOUNDARY の境界結果欠落を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-BOUNDARY'].source_elements.splice(0, 1)
+
+    expect(() => readCanonBoundaryResults(mutatedRelations)).toThrowError(
+      /既知 ID 集合/,
+    )
+  })
+
+  it('CanonBoundaryResult を ID と名称だけに閉じる', () => {
+    const result: CanonBoundaryResult = { id: 'boundary', name: 'result' }
+
+    expect(Object.keys(result).sort()).toEqual(['id', 'name'])
+  })
+
   it('規則表を R-EVENT-FIELD と順序非依存の exact-set で照合する', () => {
     const reversedCanonRules = [...readCanonEventFieldRules()].reverse()
 

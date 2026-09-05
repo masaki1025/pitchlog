@@ -543,6 +543,18 @@ const EXPECTED_IDEMPOTENCY_IDS = {
   ]),
 } as const
 
+const CANON_BOUNDARY_RESULT_ID_PATTERN = /^B[1-7]$/
+const CANON_BOUNDARY_RESULT_IDS = new Set<string>(
+  [...EXPECTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID]].filter((id) =>
+    CANON_BOUNDARY_RESULT_ID_PATTERN.test(id),
+  ),
+)
+
+export type CanonBoundaryResult = Readonly<{
+  id: string
+  name: string
+}>
+
 export type CanonIdempotencyCollisionRule = Readonly<{
   relationId: IdempotencyRelationId
   id: string
@@ -561,6 +573,72 @@ function assertExactKnownIds(
       `${relationId} の既知 ID 集合が一致しません: 不足=${missingIds.join(',')} 超過=${unexpectedIds.join(',')}`,
     )
   }
+}
+
+export function parseCanonBoundaryResults(
+  sourceElements: readonly unknown[],
+): readonly CanonBoundaryResult[] {
+  const seenIds = new Set<string>()
+  const results: CanonBoundaryResult[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-BOUNDARY の要素は文字列でなければなりません')
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    const id =
+      separatorIndex < 0
+        ? sourceElement
+        : sourceElement.slice(0, separatorIndex)
+    if (id.length === 0 || seenIds.has(id)) {
+      throw new Error(`R-BOUNDARY の ID が不正です: ${id}`)
+    }
+    seenIds.add(id)
+
+    if (CANON_BOUNDARY_RESULT_IDS.has(id)) {
+      if (
+        separatorIndex <= 0 ||
+        separatorIndex === sourceElement.length - 1 ||
+        sourceElement.indexOf(':', separatorIndex + 1) >= 0
+      ) {
+        throw new Error(`R-BOUNDARY の境界結果形式が不正です: ${sourceElement}`)
+      }
+      results.push(
+        Object.freeze({
+          id,
+          name: sourceElement.slice(separatorIndex + 1),
+        }),
+      )
+    } else if (!EXPECTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID].has(id)) {
+      throw new Error(`R-BOUNDARY に未知の ID があります: ${id}`)
+    }
+  }
+
+  assertExactKnownIds(
+    D1_BOUNDARY_RELATION_ID,
+    seenIds,
+    EXPECTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
+  )
+  assertExactKnownIds(
+    'R-BOUNDARY の境界結果',
+    new Set(results.map((result) => result.id)),
+    CANON_BOUNDARY_RESULT_IDS,
+  )
+  return Object.freeze(results)
+}
+
+export function readCanonBoundaryResults(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonBoundaryResult[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[D1_BOUNDARY_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-BOUNDARY.source_elements がありません')
+  }
+  return parseCanonBoundaryResults(relation.source_elements)
 }
 
 function parseIdempotencyRelation(

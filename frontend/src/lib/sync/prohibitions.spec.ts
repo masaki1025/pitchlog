@@ -5,6 +5,7 @@ import type {
   D1AckEventResult,
   D1AckPlayerIdMapping,
 } from './ackEnvelope'
+import type { AckBoundaryResult, NoAckBoundaryResult } from './boundaryResults'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
   DURABLE_QUEUE_PUBLIC_METHOD_RULES,
@@ -78,6 +79,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'ackEnvelope.ts',
+  'boundaryResults.ts',
   'canonOracle.ts',
   'changeOperationGate.ts',
   'clientDiscipline.ts',
@@ -101,11 +103,17 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
 
 const EXPECTED_VALUE_EXPORTS = {
   'ackEnvelope.ts': ['parseD1AckEnvelope'],
+  'boundaryResults.ts': [
+    'ACK_BOUNDARY_RESULTS',
+    'NO_ACK_BOUNDARY_RESULTS',
+    'parseAckBoundaryResult',
+  ],
   'canonOracle.ts': [
     'CANON_ACK_STATE_RESULT',
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
     'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
     'parseCanonAckStateResults',
+    'parseCanonBoundaryResults',
     'parseCanonEventFieldRules',
     'parseCanonIdempotencyCollisionRules',
     'parseCanonParticipationRules',
@@ -114,6 +122,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseCanonTombstoneRule',
     'parseCanonV12BoundaryRules',
     'readCanonAckStateResults',
+    'readCanonBoundaryResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
     'readCanonParticipationRules',
@@ -260,8 +269,10 @@ const EXPECTED_TYPE_EXPORTS = {
     'D1AckEventResult',
     'D1AckPlayerIdMapping',
   ],
+  'boundaryResults.ts': ['AckBoundaryResult', 'NoAckBoundaryResult'],
   'canonOracle.ts': [
     'CanonAckStateResult',
+    'CanonBoundaryResult',
     'CanonEventFieldRule',
     'CanonEventKindRule',
     'CanonIdempotencyCollisionRule',
@@ -1190,6 +1201,30 @@ describe('prohibitions', () => {
       exactEventResultKeys,
       exactPlayerIdMappingKeys,
       noServerGuaranteeField,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('境界結果の ACK あり・ACK なし型を discriminant の exact-set に閉じる', () => {
+    const exactAckKeys: ExactKeySet<
+      keyof AckBoundaryResult,
+      'delivery' | 'boundaryResult'
+    > = true
+    const exactNoAckKeys: ExactKeySet<
+      keyof NoAckBoundaryResult,
+      'delivery' | 'boundaryResult'
+    > = true
+    const exactAckDelivery: ExactKeySet<AckBoundaryResult['delivery'], 'ack'> =
+      true
+    const exactNoAckDelivery: ExactKeySet<
+      NoAckBoundaryResult['delivery'],
+      'no-ack'
+    > = true
+
+    expect([
+      exactAckKeys,
+      exactNoAckKeys,
+      exactAckDelivery,
+      exactNoAckDelivery,
     ]).toEqual([true, true, true, true])
   })
 
