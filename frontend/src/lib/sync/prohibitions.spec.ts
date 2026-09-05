@@ -19,6 +19,10 @@ import {
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
 import { readCanonEventFieldRules } from './canonOracle'
+import type {
+  LocalQueueFileImportRequest,
+  LocalQueueFileImportResult,
+} from './localQueueFile'
 import {
   actionRequiredLabelId,
   I6_HOLDING_CONTRACT,
@@ -488,6 +492,14 @@ function byPattern(pattern: RegExp): (source: string) => boolean {
 
 const NUMBERING_PATTERN = /採番/
 const NUMBERING_CONTEXT_PATTERN = /退避|取り込み/
+const IMPORT_PATTERN = /取り込み/
+const EVACUATED_PATTERN = /退避/
+
+export function matchesForbiddenImportContext(source: string): boolean {
+  return source
+    .split(/\r\n?|\n/)
+    .some((line) => IMPORT_PATTERN.test(line) && EVACUATED_PATTERN.test(line))
+}
 
 export function matchesForbiddenNumberingContext(source: string): boolean {
   return source
@@ -509,7 +521,7 @@ const OUT_OF_SCOPE_CANDIDATES = {
     { name: '退避イベント', matches: byPattern(/退避イベント/) },
     {
       name: '退避取り込み',
-      matches: byPattern(/退避.*取り込み|取り込み.*退避/),
+      matches: matchesForbiddenImportContext,
     },
     { name: '挿入位置', matches: byPattern(/挿入位置/) },
     { name: '採番', matches: matchesForbiddenNumberingContext },
@@ -618,8 +630,8 @@ const CLIENT_RULE_VERIFICATION_ROWS = [
 
 const LOCAL_QUEUE_VERIFICATION_ROWS = [
   'X1 書き出しで D1・D4・D5 を含むイベントの原形を保持 → localQueueFile.ts',
-  'X2 取り込み重複を D5 の同一性だけで吸収 → localQueueFile.ts',
-  'X3 同一 D4 と要求境界 verifier の成立時だけ取り込み → localQueueFile.ts',
+  'X2 取り込み専用の重複判定を作らず通常キューへ流す → localQueueFile.ts',
+  'X3 単一の試合・D4 と要求境界 verifier の成立時だけ取り込み → localQueueFile.ts',
   'X4 同一端末・同一ブラウザだけを保証 → localQueueFile.ts',
 ] as const
 
@@ -1044,6 +1056,22 @@ describe('prohibitions', () => {
       ReturnType<typeof checkSyncEvent>,
       SyncEventValidationResult
     > = true
+    const exactLocalQueueImportRequest: ExactKeySet<
+      keyof LocalQueueFileImportRequest,
+      'text' | 'currentScope' | 'boundaryRequest'
+    > = true
+    const exactLocalQueueScope: ExactKeySet<
+      keyof LocalQueueFileImportRequest['currentScope'],
+      'game' | 'd4'
+    > = true
+    const exactLocalQueueImportResult: ExactKeySet<
+      keyof LocalQueueFileImportResult,
+      'status' | 'scope' | 'importedEvents' | 'b4Events' | 'notImportedEvents'
+    > = true
+    const exactLocalQueueResultScope: ExactKeySet<
+      LocalQueueFileImportResult['scope'],
+      LocalQueueFileImportRequest['currentScope']
+    > = true
     const event: SyncEvent = {
       fields: { V1: {}, V2: {}, V3: {}, V4: {}, V5: '6', V7: {} },
     }
@@ -1064,7 +1092,23 @@ describe('prohibitions', () => {
       exactSuccess,
       exactFailure,
       exactReturnType,
-    ]).toEqual([true, true, true, true, true, true, true])
+      exactLocalQueueImportRequest,
+      exactLocalQueueScope,
+      exactLocalQueueImportResult,
+      exactLocalQueueResultScope,
+    ]).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ])
     expectExactOwnKeys(success, ['ok'])
     if (failure.ok) {
       throw new Error('検査失敗の戻り値がありません')
@@ -1207,6 +1251,14 @@ describe('prohibitions', () => {
     expect(
       matchesForbiddenNumberingContext(sourceFor('localQueueFile.ts')),
     ).toBe(false)
+    expect(matchesForbiddenImportContext(sourceFor('localQueueFile.ts'))).toBe(
+      false,
+    )
+  })
+
+  it('X2: ローカルキューファイル実装に D5 のローカル判定を持たない', () => {
+    expect(sourceFor('localQueueFile.ts')).not.toMatch(/\.d5\b/)
+    expect(sourceFor('localQueueFile.ts')).not.toMatch(/duplicateEvents/)
   })
 
   it('H-59 の逐語照合入力を24行出力する', async () => {

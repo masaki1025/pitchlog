@@ -168,6 +168,13 @@ type LocalQueueBoundaryRequest = Extract<
   { p3State?: never }
 >
 
+type LocalQueueFileScope = Readonly<Pick<DurableQueueSlot, 'game' | 'd4'>>
+
+type LocalQueueV12BindingVerifier = (
+  input: Parameters<V12BindingVerifier>[0] &
+    Readonly<{ scope: LocalQueueFileScope }>,
+) => boolean
+
 export type LocalQueueFileProvenance = Readonly<{
   sameDevice: boolean
   sameBrowser: boolean
@@ -178,7 +185,7 @@ export type LocalQueueFileImportInjections = Readonly<{
   resolveProvenance?: (
     envelope: LocalQueueFileEnvelope,
   ) => LocalQueueFileProvenance | undefined
-  v12Binding?: V12BindingVerifier
+  v12Binding?: LocalQueueV12BindingVerifier
 }>
 
 export const LOCAL_QUEUE_IMPORT_STATUS = {
@@ -193,15 +200,14 @@ export type LocalQueueB4Event = Readonly<{
 
 export type LocalQueueFileImportRequest = Readonly<{
   text: string
-  currentD4: unknown
+  currentScope: LocalQueueFileScope
   boundaryRequest: LocalQueueBoundaryRequest
-  existingEvents: readonly DurableQueueSlot[]
 }>
 
 export type LocalQueueFileImportResult = Readonly<{
   status: (typeof LOCAL_QUEUE_IMPORT_STATUS)[keyof typeof LOCAL_QUEUE_IMPORT_STATUS]
+  scope: LocalQueueFileScope
   importedEvents: readonly DurableQueueSlot[]
-  duplicateEvents: readonly DurableQueueSlot[]
   b4Events: readonly LocalQueueB4Event[]
   notImportedEvents: readonly DurableQueueSlot[]
 }>
@@ -266,21 +272,53 @@ function decodeEnvelope(
   return decoded as LocalQueueFileEnvelope
 }
 
-function outsideGuarantee(): LocalQueueFileImportResult {
+function outsideGuarantee(
+  scope: LocalQueueFileScope,
+): LocalQueueFileImportResult {
   return {
     status: LOCAL_QUEUE_IMPORT_STATUS.OUTSIDE_GUARANTEE,
+    scope,
     importedEvents: [],
-    duplicateEvents: [],
     b4Events: [],
     notImportedEvents: [],
   }
 }
 
-function hasSameD5(
-  events: readonly DurableQueueSlot[],
-  candidate: DurableQueueSlot,
+function hasSameScope(
+  first: LocalQueueFileScope,
+  second: LocalQueueFileScope,
 ): boolean {
-  return events.some((event) => Object.is(event.d5, candidate.d5))
+  return Object.is(first.game, second.game) && Object.is(first.d4, second.d4)
+}
+
+function assertSingleFileScope(events: readonly DurableQueueSlot[]): void {
+  const firstEvent = events[0]
+  if (firstEvent === undefined) {
+    return
+  }
+  if (!events.every((event) => hasSameScope(event, firstEvent))) {
+    throw new LocalQueueFileError(
+      'ローカルキューファイルに複数の試合・記録権世代が混在しています',
+    )
+  }
+}
+
+function checkBoundaryForScope(
+  scope: LocalQueueFileScope,
+  boundaryRequest: LocalQueueBoundaryRequest,
+  verifier: LocalQueueV12BindingVerifier | undefined,
+): Readonly<{
+  scope: LocalQueueFileScope
+  boundary: ReturnType<typeof checkRequestBoundary>
+}> {
+  const v12Binding: V12BindingVerifier | undefined =
+    verifier === undefined
+      ? undefined
+      : (input) => verifier({ ...input, scope })
+  return {
+    scope,
+    boundary: checkRequestBoundary(boundaryRequest, { v12Binding }),
+  }
 }
 
 export function importLocalQueueFile(
@@ -289,23 +327,24 @@ export function importLocalQueueFile(
 ): LocalQueueFileImportResult {
   const codec = injections.codec ?? DEFAULT_LOCAL_QUEUE_FILE_CODEC
   const envelope = decodeEnvelope(request.text, codec)
+  assertSingleFileScope(envelope.events)
 
   let provenance: LocalQueueFileProvenance | undefined
   try {
     provenance = injections.resolveProvenance?.(envelope)
   } catch {
-    return outsideGuarantee()
+    return outsideGuarantee(request.currentScope)
   }
   if (provenance?.sameDevice !== true || provenance.sameBrowser !== true) {
-    return outsideGuarantee()
+    return outsideGuarantee(request.currentScope)
   }
 
-  const boundaryResult = checkRequestBoundary(request.boundaryRequest, {
-    v12Binding: injections.v12Binding,
-  })
-  const boundaryAccepted = boundaryResult.ok
+  const boundaryResult = checkBoundaryForScope(
+    request.currentScope,
+    request.boundaryRequest,
+    injections.v12Binding,
+  )
   const importedEvents: DurableQueueSlot[] = []
-  const duplicateEvents: DurableQueueSlot[] = []
   const b4Events: LocalQueueB4Event[] = []
   const notImportedEvents: DurableQueueSlot[] = []
 
@@ -314,18 +353,14 @@ export function importLocalQueueFile(
       notImportedEvents.push(event)
       continue
     }
-    if (!Object.is(event.d4, request.currentD4) || !boundaryAccepted) {
+    if (
+      !hasSameScope(event, boundaryResult.scope) ||
+      !boundaryResult.boundary.ok
+    ) {
       b4Events.push({
         result: REQUEST_BOUNDARY_RESULT.B4,
         event: { ...event, state: EVACUATED_STATE },
       })
-      continue
-    }
-    if (
-      hasSameD5(request.existingEvents, event) ||
-      hasSameD5(importedEvents, event)
-    ) {
-      duplicateEvents.push(event)
       continue
     }
     importedEvents.push(event)
@@ -333,8 +368,8 @@ export function importLocalQueueFile(
 
   return {
     status: LOCAL_QUEUE_IMPORT_STATUS.COMPLETED,
+    scope: boundaryResult.scope,
     importedEvents,
-    duplicateEvents,
     b4Events,
     notImportedEvents,
   }

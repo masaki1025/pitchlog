@@ -19,6 +19,7 @@ import {
 import { queueStateId } from './queueState'
 
 const CURRENT_D4 = 'current-generation'
+const CURRENT_SCOPE = Object.freeze({ game: 'game-a', d4: CURRENT_D4 })
 
 function queueEvent(
   overrides: Partial<DurableQueueSlot> = {},
@@ -94,9 +95,8 @@ describe('localQueueFile', () => {
     const result = importLocalQueueFile(
       {
         text,
-        currentD4: CURRENT_D4,
+        currentScope: CURRENT_SCOPE,
         boundaryRequest: boundaryRequest(),
-        existingEvents: [],
       },
       acceptedInjections({ codec }),
     )
@@ -106,8 +106,8 @@ describe('localQueueFile', () => {
     expect(codec.encode).toHaveBeenCalledOnce()
     expect(codec.decode).toHaveBeenCalledTimes(2)
     expect(result.status).toBe(LOCAL_QUEUE_IMPORT_STATUS.COMPLETED)
+    expect(result.scope).toBe(CURRENT_SCOPE)
     expect(result.importedEvents).toEqual(events)
-    expect(result.duplicateEvents).toEqual([])
     expect(result.b4Events).toEqual([])
   })
 
@@ -130,34 +130,38 @@ describe('localQueueFile', () => {
     expect(writeOutput).not.toHaveBeenCalled()
   })
 
-  it('X2: D5 だけが同一なら他の値が異なっても重複として併合する', async () => {
-    const existing = queueEvent({
+  it('X2: 同一 D5 でも内容と版が異なるイベントを原形のまま取り込む', async () => {
+    const first = queueEvent({
       d1: 99,
-      d5: 'duplicate-key',
-      version: { source: 'existing' },
-      event: { fields: { V7: { source: 'existing' } } },
+      d5: 'same-key',
+      version: { source: 'first' },
+      event: { fields: { V7: { source: 'first' } } },
     })
-    const duplicate = queueEvent({
+    const second = queueEvent({
       d1: 100,
-      d5: 'duplicate-key',
-      version: { source: 'file' },
-      event: { fields: { V7: { source: 'file' } } },
+      d5: 'same-key',
+      version: { source: 'second' },
+      event: { fields: { V7: { source: 'second' } } },
     })
-    const unique = queueEvent({ d1: 101, d5: 'unique-key' })
-    const text = await exportedText([duplicate, unique])
+    const text = await exportedText([first, second])
 
     const result = importLocalQueueFile(
       {
         text,
-        currentD4: CURRENT_D4,
+        currentScope: CURRENT_SCOPE,
         boundaryRequest: boundaryRequest(),
-        existingEvents: [existing],
       },
       acceptedInjections(),
     )
 
-    expect(result.duplicateEvents).toEqual([duplicate])
-    expect(result.importedEvents).toEqual([unique])
+    expect(result.importedEvents).toEqual([first, second])
+    expect(Reflect.ownKeys(result)).toEqual([
+      'status',
+      'scope',
+      'importedEvents',
+      'b4Events',
+      'notImportedEvents',
+    ])
   })
 
   it('R-V12-BOUNDARY の VF1・VF4 だけを逐語で読む', () => {
@@ -179,9 +183,8 @@ describe('localQueueFile', () => {
     const result = importLocalQueueFile(
       {
         text,
-        currentD4: CURRENT_D4,
+        currentScope: CURRENT_SCOPE,
         boundaryRequest: boundaryRequest(),
-        existingEvents: [],
       },
       acceptedInjections(),
     )
@@ -201,9 +204,8 @@ describe('localQueueFile', () => {
     const result = importLocalQueueFile(
       {
         text,
-        currentD4: CURRENT_D4,
+        currentScope: CURRENT_SCOPE,
         boundaryRequest: boundaryRequest(),
-        existingEvents: [],
       },
       acceptedInjections({ v12Binding: () => false }),
     )
@@ -216,6 +218,52 @@ describe('localQueueFile', () => {
       },
     ])
   })
+
+  it('X3: 別試合のイベントには現試合の境界検証結果を使わない', async () => {
+    const event = queueEvent({ game: 'game-b' })
+    const text = await exportedText([event])
+    const v12Binding = vi.fn(() => true)
+    const result = importLocalQueueFile(
+      {
+        text,
+        currentScope: CURRENT_SCOPE,
+        boundaryRequest: boundaryRequest(),
+      },
+      acceptedInjections({ v12Binding }),
+    )
+
+    expect(v12Binding).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: CURRENT_SCOPE }),
+    )
+    expect(result.importedEvents).toEqual([])
+    expect(result.b4Events).toEqual([
+      {
+        result: REQUEST_BOUNDARY_RESULT.B4,
+        event: { ...event, state: queueStateId('退避済み') },
+      },
+    ])
+  })
+
+  it.each([
+    ['試合', { game: 'game-b', d1: 2 }],
+    ['D4', { d4: 'another-generation', d1: 2 }],
+  ] as const)(
+    'X3: 複数の %s スコープが混在するファイルを拒否する',
+    async (_name, overrides) => {
+      const text = await exportedText([queueEvent(), queueEvent(overrides)])
+
+      expect(() =>
+        importLocalQueueFile(
+          {
+            text,
+            currentScope: CURRENT_SCOPE,
+            boundaryRequest: boundaryRequest(),
+          },
+          acceptedInjections(),
+        ),
+      ).toThrowError(LocalQueueFileError)
+    },
+  )
 
   it.each([
     [
@@ -231,17 +279,16 @@ describe('localQueueFile', () => {
       const result = importLocalQueueFile(
         {
           text,
-          currentD4: CURRENT_D4,
+          currentScope: CURRENT_SCOPE,
           boundaryRequest: boundaryRequest(),
-          existingEvents: [],
         },
         { v12Binding: () => true, ...injections },
       )
 
       expect(result).toEqual({
         status: LOCAL_QUEUE_IMPORT_STATUS.OUTSIDE_GUARANTEE,
+        scope: CURRENT_SCOPE,
         importedEvents: [],
-        duplicateEvents: [],
         b4Events: [],
         notImportedEvents: [],
       })
@@ -254,9 +301,8 @@ describe('localQueueFile', () => {
     const result = importLocalQueueFile(
       {
         text,
-        currentD4: CURRENT_D4,
+        currentScope: CURRENT_SCOPE,
         boundaryRequest: boundaryRequest(),
-        existingEvents: [],
       },
       acceptedInjections(),
     )
