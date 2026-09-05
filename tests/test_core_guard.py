@@ -71,6 +71,8 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/testing/failureScenarioAdapter.ts",
         "frontend/src/testing/failureScenarioAdapter.spec.ts",
         "tests/fixtures/sync-protocol-failures/**",
+        "frontend/package.json",
+        "frontend/pnpm-lock.yaml",
         "frontend/vite.config.ts",
         "frontend/tsconfig.app.json",
     ],

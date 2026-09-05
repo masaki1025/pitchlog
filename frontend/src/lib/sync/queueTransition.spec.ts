@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
+import queueTransitionSpecSource from './queueTransition.spec.ts?raw'
 import queueTransitionSource from './queueTransition.ts?raw'
 import {
   CANON_ACK_STATE_RESULT,
@@ -36,7 +37,6 @@ import {
   type QueueTransitionInjections,
   type QueueTransitionResult,
   type QueueTransitionRowId,
-  type QueueTransitionRule,
 } from './queueTransition'
 
 const UNSENT_STATE = QUEUE_STATES[0].id
@@ -213,172 +213,330 @@ function resolveA5(
   }
 }
 
-type TransitionCase = Readonly<{
-  rule: QueueTransitionRule
-  run: () => QueueTransitionResult | Promise<QueueTransitionResult>
+type ExpectedTransitionRow = Readonly<{
+  id: QueueTransitionRowId
+  source: string
+  target: string
+  trigger: string
+  condition: Readonly<{
+    kind: string
+    a5ResultIds?: readonly string[]
+  }>
+  transitionAllowed: boolean
+  changesState: boolean
 }>
 
-const TRANSITION_CASES: readonly TransitionCase[] = [
+// R-QUEUE-LIFE に 14 行の遷移表はなく、正本 7-2 の本文だけが出所である。
+// このため期待表は製品表から生成せず独立したリテラルで持ち、逐語一致は人間の逐行確認へ送る。
+const EXPECTED_TRANSITION_ROWS = [
   {
-    rule: queueTransitionRuleById('QT-01'),
-    run: () =>
-      evaluateQueueTransition({
-        kind: 'append-persisted',
-        key: eventKey(),
-        content: BASE_CONTENT,
-      }),
+    id: 'QT-01',
+    source: '（なし）',
+    target: '未送信',
+    trigger: 'append-persisted',
+    condition: { kind: 'persistence-completed' },
+    transitionAllowed: true,
+    changesState: true,
   },
   {
-    rule: queueTransitionRuleById('QT-02'),
-    run: () => {
-      const slot = queueSlot(UNSENT_STATE)
-      return evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
-        resolveA5(ACK_ACCEPTED_RESULT, slot.key),
-      )
+    id: 'QT-02',
+    source: '未送信',
+    target: '同期済み',
+    trigger: 'apply-a5',
+    condition: {
+      kind: 'a5-result',
+      a5ResultIds: [
+        CANON_ACK_STATE_RESULT.ACCEPTED,
+        CANON_ACK_STATE_RESULT.DUPLICATE,
+      ],
     },
+    transitionAllowed: true,
+    changesState: true,
   },
   {
-    rule: queueTransitionRuleById('QT-03'),
-    run: () => {
-      const slot = queueSlot(UNSENT_STATE)
-      return evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
-        {
-          ...resolveA5(ACK_REJECTED_RESULT, slot.key),
-          classifyB3: () => ({
-            kind: B3_REASON_KIND.CONTENT,
-            actionRequiredLabel: REVISION_ACTION_LABEL.id,
-          }),
-        },
-      )
+    id: 'QT-03',
+    source: '未送信',
+    target: '要操作',
+    trigger: 'apply-a5',
+    condition: {
+      kind: 'a5-rejection-with-b3-classification',
+      a5ResultIds: [CANON_ACK_STATE_RESULT.REJECTED],
     },
+    transitionAllowed: true,
+    changesState: true,
   },
   {
-    rule: queueTransitionRuleById('QT-04'),
-    run: () => {
-      const slot = queueSlot(UNSENT_STATE)
-      return evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
-        resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
-      )
+    id: 'QT-04',
+    source: '未送信',
+    target: '未送信',
+    trigger: 'apply-a5',
+    condition: {
+      kind: 'a5-result',
+      a5ResultIds: [CANON_ACK_STATE_RESULT.UNPROCESSED],
     },
+    transitionAllowed: true,
+    changesState: false,
   },
   {
-    rule: queueTransitionRuleById('QT-05'),
-    run: () =>
-      evaluateQueueTransition({
-        kind: 'ack-unavailable',
-        slot: queueSlot(UNSENT_STATE),
-      }),
+    id: 'QT-05',
+    source: '未送信',
+    target: '未送信',
+    trigger: 'ack-unavailable',
+    condition: { kind: 'ack-not-returned' },
+    transitionAllowed: true,
+    changesState: false,
   },
   {
-    rule: queueTransitionRuleById('QT-06'),
-    run: () => {
-      const slot = queueSlot(ACTION_REQUIRED_STATE, {
-        actionRequiredLabel: REVISION_ACTION_LABEL.id,
-      })
-      return evaluateQueueTransition({
-        kind: 'action-replacement-persisted',
+    id: 'QT-06',
+    source: '要操作',
+    target: '未送信',
+    trigger: 'action-replacement-persisted',
+    condition: { kind: 'same-slot-replacement-completed' },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-07',
+    source: '要操作',
+    target: '未送信',
+    trigger: 'o4-retry-persisted',
+    condition: {
+      kind: 'o4-corrected-and-same-slot-replacement-completed',
+    },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-08',
+    source: '未送信',
+    target: '退避済み',
+    trigger: 'apply-a5',
+    condition: {
+      kind: 'a5-result',
+      a5ResultIds: [CANON_ACK_STATE_RESULT.EVACUATED],
+    },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-09',
+    source: 'P3変更受理結果',
+    target: '同期済み',
+    trigger: 'p3-acceptance-persisted',
+    condition: {
+      kind: 'accepted-at-resolved-and-device-persistence-completed',
+    },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-10',
+    source: '同期済み',
+    target: '退避済み',
+    trigger: 'i6-evacuation-saved',
+    condition: { kind: 'i6-evacuation-save-completed' },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-11',
+    source: '未送信',
+    target: '破棄',
+    trigger: 'discard',
+    condition: { kind: 'no-transition' },
+    transitionAllowed: false,
+    changesState: false,
+  },
+  {
+    id: 'QT-12',
+    source: '要操作',
+    target: '破棄',
+    trigger: 'discard',
+    condition: { kind: 'no-transition' },
+    transitionAllowed: false,
+    changesState: false,
+  },
+  {
+    id: 'QT-13',
+    source: '同期済み',
+    target: '破棄',
+    trigger: 'discard',
+    condition: { kind: 'retention-elapsed-and-rg1-inactive-confirmed' },
+    transitionAllowed: true,
+    changesState: true,
+  },
+  {
+    id: 'QT-14',
+    source: '退避済み',
+    target: '破棄',
+    trigger: 'discard',
+    condition: { kind: 'no-transition' },
+    transitionAllowed: false,
+    changesState: false,
+  },
+] as const satisfies readonly ExpectedTransitionRow[]
+
+type TransitionRunner = () =>
+  QueueTransitionResult | Promise<QueueTransitionResult>
+
+const TRANSITION_RUNNERS = {
+  'QT-01': () =>
+    evaluateQueueTransition({
+      kind: 'append-persisted',
+      key: eventKey(),
+      content: BASE_CONTENT,
+    }),
+  'QT-02': () => {
+    const slot = queueSlot(UNSENT_STATE)
+    return evaluateQueueTransition(
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      resolveA5(ACK_ACCEPTED_RESULT, slot.key),
+    )
+  },
+  'QT-03': () => {
+    const slot = queueSlot(UNSENT_STATE)
+    return evaluateQueueTransition(
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      {
+        ...resolveA5(ACK_REJECTED_RESULT, slot.key),
+        classifyB3: () => ({
+          kind: B3_REASON_KIND.CONTENT,
+          actionRequiredLabel: REVISION_ACTION_LABEL.id,
+        }),
+      },
+    )
+  },
+  'QT-04': () => {
+    const slot = queueSlot(UNSENT_STATE)
+    return evaluateQueueTransition(
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
+    )
+  },
+  'QT-05': () =>
+    evaluateQueueTransition({
+      kind: 'ack-unavailable',
+      slot: queueSlot(UNSENT_STATE),
+    }),
+  'QT-06': () => {
+    const slot = queueSlot(ACTION_REQUIRED_STATE, {
+      actionRequiredLabel: REVISION_ACTION_LABEL.id,
+    })
+    return evaluateQueueTransition({
+      kind: 'action-replacement-persisted',
+      slot,
+      replacement: {
+        key: eventKey({ d5: {} }),
+        content: {},
+      },
+    })
+  },
+  'QT-07': () => {
+    const slot = queueSlot(ACTION_REQUIRED_STATE, {
+      actionRequiredLabel: O4_ACTION_LABEL.id,
+    })
+    return evaluateQueueTransition(
+      {
+        kind: 'o4-retry-persisted',
         slot,
         replacement: {
           key: eventKey({ d5: {} }),
-          content: {},
+          content: slot.content,
         },
-      })
-    },
+      },
+      { confirmO4Correction: () => true },
+    )
   },
-  {
-    rule: queueTransitionRuleById('QT-07'),
-    run: () => {
-      const slot = queueSlot(ACTION_REQUIRED_STATE, {
-        actionRequiredLabel: O4_ACTION_LABEL.id,
-      })
-      return evaluateQueueTransition(
-        {
-          kind: 'o4-retry-persisted',
-          slot,
-          replacement: {
-            key: eventKey({ d5: {} }),
-            content: slot.content,
-          },
-        },
-        { confirmO4Correction: () => true },
-      )
-    },
+  'QT-08': () => {
+    const slot = queueSlot(UNSENT_STATE)
+    return evaluateQueueTransition(
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      resolveA5(ACK_EVACUATED_RESULT, slot.key),
+    )
   },
-  {
-    rule: queueTransitionRuleById('QT-08'),
-    run: () => {
-      const slot = queueSlot(UNSENT_STATE)
-      return evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
-        resolveA5(ACK_EVACUATED_RESULT, slot.key),
-      )
-    },
+  'QT-09': async () => {
+    const acceptance = i6Acceptance()
+    return evaluateQueueTransition({
+      kind: 'p3-acceptance-persisted',
+      acceptance,
+      persistenceReceipt: await persistenceReceipt(acceptance),
+    })
   },
-  {
-    rule: queueTransitionRuleById('QT-09'),
-    run: async () => {
-      const acceptance = i6Acceptance()
-      return evaluateQueueTransition({
-        kind: 'p3-acceptance-persisted',
-        acceptance,
-        persistenceReceipt: await persistenceReceipt(acceptance),
-      })
-    },
-  },
-  {
-    rule: queueTransitionRuleById('QT-10'),
-    run: () =>
-      evaluateQueueTransition(
-        {
-          kind: 'i6-evacuation-saved',
-          slot: p3QueueSlot(SYNCED_STATE),
-        },
-        { confirmI6EvacuationSaved: () => true },
-      ),
-  },
-  {
-    rule: queueTransitionRuleById('QT-11'),
-    run: () =>
-      evaluateQueueTransition({
+  'QT-10': () =>
+    evaluateQueueTransition(
+      {
+        kind: 'i6-evacuation-saved',
+        slot: p3QueueSlot(SYNCED_STATE),
+      },
+      { confirmI6EvacuationSaved: () => true },
+    ),
+  'QT-11': () =>
+    evaluateQueueTransition({
+      kind: 'discard',
+      slot: queueSlot(UNSENT_STATE),
+      confirmed24HoursElapsed: true,
+    }),
+  'QT-12': () =>
+    evaluateQueueTransition({
+      kind: 'discard',
+      slot: queueSlot(ACTION_REQUIRED_STATE),
+      confirmed24HoursElapsed: true,
+    }),
+  'QT-13': () =>
+    evaluateQueueTransition(
+      {
         kind: 'discard',
-        slot: queueSlot(UNSENT_STATE),
+        slot: queueSlot(SYNCED_STATE),
         confirmed24HoursElapsed: true,
-      }),
-  },
-  {
-    rule: queueTransitionRuleById('QT-12'),
-    run: () =>
-      evaluateQueueTransition({
-        kind: 'discard',
-        slot: queueSlot(ACTION_REQUIRED_STATE),
-        confirmed24HoursElapsed: true,
-      }),
-  },
-  {
-    rule: queueTransitionRuleById('QT-13'),
-    run: () =>
-      evaluateQueueTransition(
-        {
-          kind: 'discard',
-          slot: queueSlot(SYNCED_STATE),
-          confirmed24HoursElapsed: true,
-        },
-        { resolveRg1State: () => RG1_STATE.INACTIVE_CONFIRMED },
-      ),
-  },
-  {
-    rule: queueTransitionRuleById('QT-14'),
-    run: () =>
-      evaluateQueueTransition({
-        kind: 'discard',
-        slot: queueSlot(EVACUATED_STATE),
-        confirmed24HoursElapsed: true,
-      }),
-  },
-]
+      },
+      { resolveRg1State: () => RG1_STATE.INACTIVE_CONFIRMED },
+    ),
+  'QT-14': () =>
+    evaluateQueueTransition({
+      kind: 'discard',
+      slot: queueSlot(EVACUATED_STATE),
+      confirmed24HoursElapsed: true,
+    }),
+} satisfies Readonly<Record<QueueTransitionRowId, TransitionRunner>>
+
+type MutableTransitionRule = {
+  id: QueueTransitionRowId
+  source: string
+  target: string
+  trigger: string
+  condition: {
+    kind: string
+    a5ResultIds?: string[]
+  }
+  transitionAllowed: boolean
+  changesState: boolean
+}
+
+function mutableTransitionRuleById(
+  rules: MutableTransitionRule[],
+  id: QueueTransitionRowId,
+): MutableTransitionRule {
+  const rule = rules.find((candidate) => candidate.id === id)
+  if (!rule) {
+    throw new Error(`変異対象のキュー遷移行がありません: ${id}`)
+  }
+  return rule
+}
+
+function expectTransitionTableMatchesExpected(
+  rules: readonly ExpectedTransitionRow[],
+): void {
+  expect(rules).toEqual(EXPECTED_TRANSITION_ROWS)
+}
+
+function extractExpectedTransitionTable(source: string): string {
+  const start = source.indexOf('const EXPECTED_TRANSITION_ROWS =')
+  const end = source.indexOf('type TransitionRunner =', start)
+  if (start < 0 || end < 0) {
+    throw new Error('独立期待表のソース範囲を取得できません')
+  }
+  return source.slice(start, end)
+}
 
 type ComparableTransitionRule = Readonly<{
   source: string
@@ -395,19 +553,16 @@ function expectNoTransitionRows(
   expect(new Set(noTransitionRows.map((rule) => rule.source))).toEqual(
     new Set([UNSENT_STATE, ACTION_REQUIRED_STATE, EVACUATED_STATE]),
   )
-  expect(
-    noTransitionRows.every(
-      (rule) => rule.target === queueTransitionRuleById('QT-11').target,
-    ),
-  ).toBe(true)
+  expect(noTransitionRows.every((rule) => rule.target === '破棄')).toBe(true)
 }
 
 describe('queueTransition', () => {
-  it('14 行の ID と表駆動ケースを完全一致させる', () => {
+  it('正本 7-2 から書き起こした独立期待表と製品表を完全一致させる', () => {
     const tableA5ResultIds = QUEUE_TRANSITION_RULES.flatMap((rule) =>
       'a5ResultIds' in rule.condition ? rule.condition.a5ResultIds : [],
     )
 
+    expectTransitionTableMatchesExpected(QUEUE_TRANSITION_RULES)
     expect(QUEUE_TRANSITION_RULES).toHaveLength(14)
     expect(QUEUE_TRANSITION_ROW_IDS).toHaveLength(14)
     expect(new Set(QUEUE_TRANSITION_ROW_IDS).size).toBe(14)
@@ -415,14 +570,20 @@ describe('queueTransition', () => {
     expect(QUEUE_TRANSITION_ROW_IDS).toEqual(
       QUEUE_TRANSITION_RULES.map((rule) => rule.id),
     )
-    expect(TRANSITION_CASES).toHaveLength(14)
-    expect(TRANSITION_CASES.map((testCase) => testCase.rule.id)).toEqual(
-      QUEUE_TRANSITION_ROW_IDS,
-    )
+    expect(Object.keys(TRANSITION_RUNNERS)).toEqual(EXPECTED_ROW_IDS)
     expect(tableA5ResultIds).toHaveLength(CANON_ACK_RESULTS.length)
     expect(new Set(tableA5ResultIds)).toEqual(
       new Set(CANON_ACK_RESULTS.map((result) => result.id)),
     )
+  })
+
+  it('独立期待表を製品の遷移表から生成していない', () => {
+    const expectedTableSource = extractExpectedTransitionTable(
+      queueTransitionSpecSource,
+    )
+
+    expect(expectedTableSource).not.toContain('QUEUE_TRANSITION_RULES')
+    expect(expectedTableSource).not.toContain('queueTransitionRuleById')
   })
 
   it('R-ACK-STATE の要素順を入れ替えても A5 の語と遷移先を変えない', () => {
@@ -465,16 +626,70 @@ describe('queueTransition', () => {
     ).toThrow('キュー遷移表の行 ID を解決できません')
   })
 
-  it.each(TRANSITION_CASES)(
-    '$rule.id の要求を表どおり判定する',
-    async (testCase) => {
-      const result = await testCase.run()
+  it.each(EXPECTED_TRANSITION_ROWS)(
+    '$id の要求を独立期待値どおり判定する',
+    async (expectedRow) => {
+      const result = await TRANSITION_RUNNERS[expectedRow.id]()
 
-      expect(result.rowId).toBe(testCase.rule.id)
-      expect(result.applied).toBe(testCase.rule.transitionAllowed)
+      expect(result.rowId).toBe(expectedRow.id)
+      expect(result.applied).toBe(expectedRow.transitionAllowed)
       if (result.applied) {
-        expect(result.target).toBe(testCase.rule.target)
+        expect(result.target).toBe(expectedRow.target)
+        if (result.slot) {
+          expect(result.slot.state).toBe(
+            expectedRow.changesState ? expectedRow.target : expectedRow.source,
+          )
+        }
       }
+    },
+  )
+
+  const transitionTableMutations = [
+    {
+      name: '遷移先変更',
+      mutate: (rules: MutableTransitionRule[]) => {
+        mutableTransitionRuleById(rules, 'QT-02').target = '要操作'
+      },
+    },
+    {
+      name: '遷移なし行を遷移させる条件緩和',
+      mutate: (rules: MutableTransitionRule[]) => {
+        const rule = mutableTransitionRuleById(rules, 'QT-11')
+        rule.transitionAllowed = true
+        rule.changesState = true
+      },
+    },
+    {
+      name: '遷移行を遷移させない条件厳格化',
+      mutate: (rules: MutableTransitionRule[]) => {
+        const rule = mutableTransitionRuleById(rules, 'QT-09')
+        rule.transitionAllowed = false
+        rule.changesState = false
+      },
+    },
+    {
+      name: 'A5 の受理と拒否の入れ替え',
+      mutate: (rules: MutableTransitionRule[]) => {
+        mutableTransitionRuleById(rules, 'QT-02').condition.a5ResultIds = [
+          CANON_ACK_STATE_RESULT.REJECTED,
+          CANON_ACK_STATE_RESULT.DUPLICATE,
+        ]
+        mutableTransitionRuleById(rules, 'QT-03').condition.a5ResultIds = [
+          CANON_ACK_STATE_RESULT.ACCEPTED,
+        ]
+      },
+    },
+  ] as const
+
+  it.each(transitionTableMutations)(
+    '変異: $nameを独立期待表で検出する',
+    ({ mutate }) => {
+      const mutatedRules = structuredClone(
+        QUEUE_TRANSITION_RULES,
+      ) as unknown as MutableTransitionRule[]
+      mutate(mutatedRules)
+
+      expect(() => expectTransitionTableMatchesExpected(mutatedRules)).toThrow()
     },
   )
 
