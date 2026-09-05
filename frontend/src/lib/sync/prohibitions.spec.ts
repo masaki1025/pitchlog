@@ -44,6 +44,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'canonOracle.ts',
+  'clientDiscipline.ts',
   'durableQueue.ts',
   'eventFieldRules.ts',
   'eventKinds.ts',
@@ -78,6 +79,14 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonTemporaryIdMappingRules',
     'readCanonTombstoneRule',
     'readCanonV12BoundaryRules',
+  ],
+  'clientDiscipline.ts': [
+    'CLIENT_CLEANUP_TRIGGER',
+    'CLIENT_DISCIPLINE_RULES',
+    'DEFAULT_UNSENT_WARNING_THRESHOLD',
+    'appendUnderQueueDiscipline',
+    'coordinateAuthenticationSync',
+    'planQueueCleanup',
   ],
   'durableQueue.ts': [
     'DurableQueue',
@@ -175,6 +184,17 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
     'CanonV12BoundaryRule',
+  ],
+  'clientDiscipline.ts': [
+    'AuthenticationContinuityInjections',
+    'AuthenticationContinuityResult',
+    'ClientCleanupInjections',
+    'ClientCleanupPlan',
+    'ClientCleanupTrigger',
+    'ClientDisciplineRule',
+    'QueueAppendDisciplineResult',
+    'QueueCleanupCandidate',
+    'QueueCleanupSelector',
   ],
   'durableQueue.ts': [
     'D1Allocator',
