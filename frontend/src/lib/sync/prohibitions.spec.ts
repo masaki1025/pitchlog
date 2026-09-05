@@ -50,6 +50,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'eventKinds.ts',
   'idempotencyCollision.ts',
   'k5Tombstone.ts',
+  'localQueueFile.ts',
   'mappingConfirmationGate.ts',
   'queueState.ts',
   'queueTransition.ts',
@@ -126,6 +127,14 @@ const EXPECTED_VALUE_EXPORTS = {
     'K5_TOMBSTONE_RULE',
     'TOMBSTONE_ONLINE_STATE',
     'prepareTombstoneReplacement',
+  ],
+  'localQueueFile.ts': [
+    'DEFAULT_LOCAL_QUEUE_FILE_CODEC',
+    'LOCAL_QUEUE_IMPORT_STATUS',
+    'LOCAL_QUEUE_V12_BOUNDARY_RULES',
+    'LocalQueueFileError',
+    'exportLocalQueueFile',
+    'importLocalQueueFile',
   ],
   'mappingConfirmationGate.ts': [
     'C4_MAPPING_CONFIRMATION_RULE',
@@ -258,6 +267,17 @@ const EXPECTED_TYPE_EXPORTS = {
     'TombstoneQueueSlotReplacement',
     'TombstoneRecordingRightVerifier',
     'TombstoneSourceSlot',
+  ],
+  'localQueueFile.ts': [
+    'LocalQueueB4Event',
+    'LocalQueueFileCodec',
+    'LocalQueueFileEnvelope',
+    'LocalQueueFileExportInjections',
+    'LocalQueueFileExportRequest',
+    'LocalQueueFileImportInjections',
+    'LocalQueueFileImportRequest',
+    'LocalQueueFileImportResult',
+    'LocalQueueFileProvenance',
   ],
   'mappingConfirmationGate.ts': [
     'MappingConfirmationGateResult',
@@ -853,6 +873,12 @@ describe('prohibitions', () => {
   it('U-2: 行をまたぐ語の出現を取り込み文脈と判定しない', () => {
     expect(
       matchesForbiddenNumberingContext('退避済み資料\n通常の説明\n採番する'),
+    ).toBe(false)
+  })
+
+  it('U-2: ローカルキューファイル実装が禁止された採番文脈を持たない', () => {
+    expect(
+      matchesForbiddenNumberingContext(sourceFor('localQueueFile.ts')),
     ).toBe(false)
   })
 
