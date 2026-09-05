@@ -1,12 +1,24 @@
-import { describe, expect, it, vi } from 'vitest'
+import 'fake-indexeddb/auto'
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import queueTransitionSource from './queueTransition.ts?raw'
 import { readCanonAckStateResults } from './canonOracle'
+import {
+  openDurableQueue,
+  type DurableQueue,
+  type I6PersistenceReceipt,
+} from './durableQueue'
 import { EVENT_KIND_RULES } from './eventKinds'
 import {
   QUEUE_ACTION_REQUIRED_LABELS,
   QUEUE_STATES,
+  type I6Acceptance,
   type QueueStateId,
 } from './queueState'
+import {
+  TARGET_EVENT_REFERENCE_ELEMENTS,
+  type TargetEventReference,
+} from './syncEvent'
 import {
   B3_REASON_KIND,
   evaluateQueueTransition,
@@ -70,6 +82,9 @@ const BASE_KEY_PARTS = {
   d5: {},
 } as const
 const BASE_CONTENT = {}
+let databaseSequence = 0
+const openedI6Queues: DurableQueue[] = []
+const i6DatabaseNames: string[] = []
 const NON_PLAYER_EVENT_KIND = EVENT_KIND_RULES.find(
   (eventKind) => eventKind.name !== '選手のその場登録',
 )
@@ -79,6 +94,63 @@ if (!NON_PLAYER_EVENT_KIND) {
 
 type D1QueueSlot = Extract<QueueSlot, { source: 'd1-event' }>
 type P3QueueSlot = Extract<QueueSlot, { source: 'p3-acceptance' }>
+
+function targetReference(): TargetEventReference {
+  return Object.fromEntries(
+    TARGET_EVENT_REFERENCE_ELEMENTS.map((element) => [element, {}]),
+  ) as TargetEventReference
+}
+
+function i6Acceptance(): I6Acceptance {
+  return {
+    targetReference: targetReference(),
+    expectedVersion: {},
+    d5: `i6-d5-${databaseSequence}`,
+    confirmedContent: {},
+  }
+}
+
+async function persistenceReceipt(
+  acceptance: I6Acceptance,
+): Promise<I6PersistenceReceipt> {
+  databaseSequence += 1
+  const databaseName = `queue-transition-i6-${databaseSequence}`
+  i6DatabaseNames.push(databaseName)
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => false,
+  })
+  openedI6Queues.push(queue)
+  const receipt = await queue.persistI6Acceptance(acceptance, {
+    resolveAcceptedAt: () => ({
+      known: true,
+      targetReference: acceptance.targetReference,
+      acceptedAt: {},
+    }),
+  })
+  if (!receipt) {
+    throw new Error('I6 永続化 receipt がありません')
+  }
+  return receipt
+}
+
+function deleteDatabase(name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('テスト DB を削除できません'))
+  })
+}
+
+afterEach(async () => {
+  for (const queue of openedI6Queues.splice(0)) {
+    queue.close()
+  }
+  for (const name of i6DatabaseNames.splice(0)) {
+    await deleteDatabase(name)
+  }
+})
 
 function eventKey(overrides: Partial<QueueEventKey> = {}): QueueEventKey {
   return { ...BASE_KEY_PARTS, ...overrides }
@@ -99,9 +171,9 @@ function queueSlot(
 
 function p3QueueSlot(state: QueueStateId): P3QueueSlot {
   return {
+    ...i6Acceptance(),
     state,
     source: 'p3-acceptance',
-    acceptance: {},
     acceptedAt: {},
   }
 }
@@ -117,7 +189,7 @@ function resolveA5(
 
 type TransitionCase = Readonly<{
   rule: QueueTransitionRule
-  run: () => QueueTransitionResult
+  run: () => QueueTransitionResult | Promise<QueueTransitionResult>
 }>
 
 const TRANSITION_CASES: readonly TransitionCase[] = [
@@ -221,15 +293,14 @@ const TRANSITION_CASES: readonly TransitionCase[] = [
   },
   {
     rule: queueTransitionRuleById('QT-09'),
-    run: () =>
-      evaluateQueueTransition(
-        {
-          kind: 'p3-acceptance-persisted',
-          acceptance: { key: eventKey(), content: BASE_CONTENT },
-          persistenceSucceeded: true,
-        },
-        { resolveAcceptedAt: () => ({ known: true, value: {} }) },
-      ),
+    run: async () => {
+      const acceptance = i6Acceptance()
+      return evaluateQueueTransition({
+        kind: 'p3-acceptance-persisted',
+        acceptance,
+        persistenceReceipt: await persistenceReceipt(acceptance),
+      })
+    },
   },
   {
     rule: queueTransitionRuleById('QT-10'),
@@ -334,15 +405,18 @@ describe('queueTransition', () => {
     ).toThrow('キュー遷移表の行 ID を解決できません')
   })
 
-  it.each(TRANSITION_CASES)('$rule.id の要求を表どおり判定する', (testCase) => {
-    const result = testCase.run()
+  it.each(TRANSITION_CASES)(
+    '$rule.id の要求を表どおり判定する',
+    async (testCase) => {
+      const result = await testCase.run()
 
-    expect(result.rowId).toBe(testCase.rule.id)
-    expect(result.applied).toBe(testCase.rule.transitionAllowed)
-    if (result.applied) {
-      expect(result.target).toBe(testCase.rule.target)
-    }
-  })
+      expect(result.rowId).toBe(testCase.rule.id)
+      expect(result.applied).toBe(testCase.rule.transitionAllowed)
+      if (result.applied) {
+        expect(result.target).toBe(testCase.rule.target)
+      }
+    },
+  )
 
   it('遷移なし3行の破棄要求を拒否する', () => {
     expectNoTransitionRows(QUEUE_TRANSITION_RULES)
@@ -582,14 +656,11 @@ describe('queueTransition', () => {
   })
 
   it('P3 受理結果の端末永続化失敗では同期済みにしない', () => {
-    const result = evaluateQueueTransition(
-      {
-        kind: 'p3-acceptance-persisted',
-        acceptance: { key: eventKey(), content: BASE_CONTENT },
-        persistenceSucceeded: false,
-      },
-      { resolveAcceptedAt: () => ({ known: true, value: {} }) },
-    )
+    const acceptance = i6Acceptance()
+    const result = evaluateQueueTransition({
+      kind: 'p3-acceptance-persisted',
+      acceptance,
+    })
 
     expect(result.applied).toBe(false)
   })
@@ -696,13 +767,14 @@ describe('queueTransition', () => {
         }),
     },
     {
-      name: 'accepted_at',
-      run: () =>
-        evaluateQueueTransition({
+      name: 'I6 永続化 receipt',
+      run: () => {
+        const acceptance = i6Acceptance()
+        return evaluateQueueTransition({
           kind: 'p3-acceptance-persisted',
-          acceptance: { key: eventKey(), content: BASE_CONTENT },
-          persistenceSucceeded: true,
-        }),
+          acceptance,
+        })
+      },
     },
   ] as const
 
@@ -717,7 +789,7 @@ describe('queueTransition', () => {
     },
   )
 
-  it('明示的に不明な B3 分類と accepted_at を fail-closed にする', () => {
+  it('明示的に不明な B3 分類を fail-closed にする', () => {
     const slot = queueSlot(UNSENT_STATE)
     const unknownB3 = evaluateQueueTransition(
       { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
@@ -726,16 +798,6 @@ describe('queueTransition', () => {
         classifyB3: () => ({ kind: B3_REASON_KIND.UNKNOWN }),
       },
     )
-    const unknownAcceptedAt = evaluateQueueTransition(
-      {
-        kind: 'p3-acceptance-persisted',
-        acceptance: { key: eventKey(), content: BASE_CONTENT },
-        persistenceSucceeded: true,
-      },
-      { resolveAcceptedAt: () => ({ known: false }) },
-    )
-
     expect(unknownB3.applied).toBe(false)
-    expect(unknownAcceptedAt.applied).toBe(false)
   })
 })

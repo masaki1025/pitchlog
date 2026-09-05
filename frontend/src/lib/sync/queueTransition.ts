@@ -5,6 +5,7 @@ import {
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
+import { I6PersistenceReceipt } from './durableQueue'
 import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
 import {
   checkMappingConfirmation,
@@ -13,6 +14,8 @@ import {
 import {
   actionRequiredLabelId,
   queueStateId,
+  type I6Acceptance,
+  type I6AcceptedResult,
   type QueueActionRequiredLabel,
   type QueueStateId,
 } from './queueState'
@@ -274,12 +277,12 @@ type D1QueueSlot = Readonly<{
   actionRequiredLabel?: QueueActionRequiredLabel['id']
 }>
 
-type P3QueueSlot = Readonly<{
-  state: QueueStateId
-  source: 'p3-acceptance'
-  acceptance: unknown
-  acceptedAt: unknown
-}>
+type P3QueueSlot = Readonly<
+  I6AcceptedResult & {
+    state: QueueStateId
+    source: 'p3-acceptance'
+  }
+>
 
 export type QueueSlot = D1QueueSlot | P3QueueSlot
 
@@ -315,9 +318,6 @@ export const RG1_STATE = {
 
 export type Rg1State = (typeof RG1_STATE)[keyof typeof RG1_STATE]
 
-type ResolvedValue =
-  Readonly<{ known: true; value: unknown }> | Readonly<{ known: false }>
-
 export type QueueTransitionInjections = Readonly<{
   resolveA5?: (
     key: QueueEventKey,
@@ -336,7 +336,6 @@ export type QueueTransitionInjections = Readonly<{
   confirmO4Correction?: (slot: QueueSlot) => boolean | undefined
   confirmI6EvacuationSaved?: (slot: QueueSlot) => boolean | undefined
   resolveRg1State?: (slot: QueueSlot) => Rg1State | undefined
-  resolveAcceptedAt?: (acceptance: unknown) => ResolvedValue | undefined
 }>
 
 export type QueueTransitionRequest =
@@ -363,8 +362,8 @@ export type QueueTransitionRequest =
     }>
   | Readonly<{
       kind: 'p3-acceptance-persisted'
-      acceptance: unknown
-      persistenceSucceeded: boolean
+      acceptance: I6Acceptance
+      persistenceReceipt?: I6PersistenceReceipt
     }>
   | Readonly<{ kind: 'i6-evacuation-saved'; slot: QueueSlot }>
   | Readonly<{
@@ -614,29 +613,17 @@ function applyO4Retry(
 
 function applyP3Acceptance(
   request: Extract<QueueTransitionRequest, { kind: 'p3-acceptance-persisted' }>,
-  injections: QueueTransitionInjections,
 ): QueueTransitionResult {
   const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.P3_ACCEPTANCE)
-  if (!request.persistenceSucceeded) {
+  const receipt = request.persistenceReceipt
+  if (
+    !(receipt instanceof I6PersistenceReceipt) ||
+    !receipt.matches(request.acceptance) ||
+    receipt.slot.state !== SYNCED_STATE
+  ) {
     return notApplied(rule.id)
   }
-
-  let acceptedAt: ResolvedValue | undefined
-  try {
-    acceptedAt = injections.resolveAcceptedAt?.(request.acceptance)
-  } catch {
-    return notApplied(rule.id)
-  }
-  if (!acceptedAt?.known) {
-    return notApplied(rule.id)
-  }
-
-  return applySlotRule(rule, {
-    state: SYNCED_STATE,
-    source: 'p3-acceptance',
-    acceptance: request.acceptance,
-    acceptedAt: acceptedAt.value,
-  })
+  return applySlotRule(rule, receipt.slot)
 }
 
 function applyI6Evacuation(
@@ -730,7 +717,7 @@ export function evaluateQueueTransition(
     case 'o4-retry-persisted':
       return applyO4Retry(request, injections)
     case 'p3-acceptance-persisted':
-      return applyP3Acceptance(request, injections)
+      return applyP3Acceptance(request)
     case 'i6-evacuation-saved':
       return applyI6Evacuation(request.slot, injections)
     case 'discard':

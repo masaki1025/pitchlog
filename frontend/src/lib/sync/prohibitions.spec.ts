@@ -3,6 +3,8 @@ import * as ts from 'typescript'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
   DurableQueue,
+  I6PersistenceReceipt,
+  type DurableI6Slot,
   type DurableQueueAppend,
   type DurableQueueSlot,
 } from './durableQueue'
@@ -21,6 +23,7 @@ import {
   actionRequiredLabelId,
   I6_HOLDING_CONTRACT,
   queueStateId,
+  type I6AcceptedResult,
 } from './queueState'
 import {
   QUEUE_TRANSITION_RULES,
@@ -117,6 +120,7 @@ const EXPECTED_VALUE_EXPORTS = {
   'durableQueue.ts': [
     'DurableQueue',
     'DurableQueueUnavailableError',
+    'I6PersistenceReceipt',
     'openDurableQueue',
   ],
   'eventFieldRules.ts': [
@@ -260,12 +264,15 @@ const EXPECTED_TYPE_EXPORTS = {
   ],
   'durableQueue.ts': [
     'D1Allocator',
+    'DurableI6Slot',
     'DurableQueueAppend',
     'DurableQueueOptions',
     'DurableQueueRevisionReplacement',
     'DurableQueueScope',
     'DurableQueueSlot',
     'DurableQueueTombstoneOperation',
+    'I6AcceptedAtResolution',
+    'I6PersistenceInjections',
     'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
@@ -354,6 +361,8 @@ const EXPECTED_TYPE_EXPORTS = {
     'SingleWriterStartFailure',
   ],
   'queueState.ts': [
+    'I6Acceptance',
+    'I6AcceptedResult',
     'I6HoldingContract',
     'I6HoldingContractElement',
     'QueueActionRequiredLabel',
@@ -898,6 +907,37 @@ describe('prohibitions', () => {
     expect(exactReplacementMethods).toBe(true)
     expect(Object.hasOwn(DurableQueue.prototype, 'replace')).toBe(false)
     expect(invalidLowLevelReplace).toBeTypeOf('function')
+  })
+
+  it('I6: 保持結果を5要素の別フィールドに閉じ、期限・回収用フィールドを持たない', () => {
+    type AcceptedResultKeys = keyof I6AcceptedResult
+    const exactAcceptedResultKeys: ExactKeySet<
+      AcceptedResultKeys,
+      | 'targetReference'
+      | 'expectedVersion'
+      | 'd5'
+      | 'confirmedContent'
+      | 'acceptedAt'
+    > = true
+    type ForbiddenHoldingKeys = Extract<
+      AcceptedResultKeys,
+      'retentionDeadline' | 'expiresAt' | 'recoveryState'
+    >
+    const noForbiddenHoldingKeys: ExactKeySet<ForbiddenHoldingKeys, never> =
+      true
+    const invalidReceipt = (slot: DurableI6Slot) => {
+      // @ts-expect-error 永続化を通らない receipt は型から生成できない。
+      return new I6PersistenceReceipt(slot, Symbol('forged receipt'))
+    }
+
+    expect(exactAcceptedResultKeys).toBe(true)
+    expect(noForbiddenHoldingKeys).toBe(true)
+    expect(invalidReceipt).toBeTypeOf('function')
+    expect(
+      Object.keys(moduleFor('durableQueue.ts')).filter((name) =>
+        /recover|reapply|restore/i.test(name),
+      ),
+    ).toEqual([])
   })
 
   it('C4: A5 の公開入口にイベント種別と写像確認 resolver を要求する', () => {

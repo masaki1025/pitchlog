@@ -1,6 +1,8 @@
 // この状態定義と保持契約は docs/design/sync-protocol.md 7-2 の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
 
+import type { TargetEventReference } from './syncEvent'
+
 export const QUEUE_ACTION_REQUIRED_LABELS = [
   { id: '改訂待ち' },
   { id: '墓標待ち' },
@@ -68,3 +70,16 @@ export const I6_HOLDING_CONTRACT = {
 
 export type I6HoldingContract = typeof I6_HOLDING_CONTRACT
 export type I6HoldingContractElement = I6HoldingContract['elements'][number]
+
+export type I6Acceptance = Readonly<{
+  targetReference: TargetEventReference
+  expectedVersion: unknown
+  d5: unknown
+  confirmedContent: unknown
+}>
+
+export type I6AcceptedResult = Readonly<
+  I6Acceptance & {
+    acceptedAt: unknown
+  }
+>
