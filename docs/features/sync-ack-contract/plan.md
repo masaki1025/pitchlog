@@ -1,6 +1,6 @@
 ---
 feature: sync-ack-contract
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-05・山田正輝)
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -107,7 +107,8 @@ created: 2026-09-05
 | **`.claude/core-areas.json`** | **新設・変更ファイルを登録**(§4 の帰属表) | **PR レビュー + 6.3 規則⑤(敵対レビュー + 人間承認)** |
 | **`tests/test_core_guard.py`** | `EXPECTED_AREA_PATHS` を**同一コミットで**追随 | PR レビュー |
 | **`frontend/src/lib/sync/**`** | **新設 6 + 変更 4**(§4 の帰属表) | PR レビュー + **人間の逐行確認** |
-| **`docs/development/harness-evaluation.md`** | **/pr のクローズ処理で判断する** | PR レビュー |
+| **`docs/development/harness-evaluation.md`** | **既存候補 2 件へ実測を追記 + 見立ての訂正 1 件**(/pr のクローズ処理) | PR レビュー(**`H-*` の追記では版を上げない** — 7.6-3 前段) |
+| **`docs/README.md`** | 台帳行の最終更新日を現行化 | PR レビュー |
 | `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `scripts/**` / `docs/legacy/**` / `.github/**` | **反映なし** | — |
 
 ## 4. 実装方針
