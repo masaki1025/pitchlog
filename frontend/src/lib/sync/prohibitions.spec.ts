@@ -1116,6 +1116,7 @@ describe('prohibitions', () => {
       >['resolvePlayerRegistrationMapping']
     >
     const preparation = {} as DurableQueuePreparation<'a5-transition'>
+    const queue = {} as DurableQueue
     const slot: QueueSlot = {
       state: queueStateId('未送信'),
       source: 'd1-event',
@@ -1124,6 +1125,7 @@ describe('prohibitions', () => {
     }
     const request: ApplyA5Request = {
       kind: 'apply-a5',
+      queue,
       preparation,
     }
     const resolver: MappingResolver = () => true
@@ -1134,11 +1136,11 @@ describe('prohibitions', () => {
     } as unknown as QueueTransitionRequest
     const exactRequestKeys: ExactKeySet<
       keyof ApplyA5Request,
-      'kind' | 'preparation'
+      'kind' | 'queue' | 'preparation'
     > = true
 
     expect(exactRequestKeys).toBe(true)
-    expect(Object.keys(request)).toEqual(['kind', 'preparation'])
+    expect(Object.keys(request)).toEqual(['kind', 'queue', 'preparation'])
     expect(resolver({})).toBe(true)
     expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
   })

@@ -197,6 +197,7 @@ export class DurableQueuePreparation<
 
   static consumeA5(
     preparation: DurableQueuePreparation<'a5-transition'> | undefined,
+    owner: object,
   ): DurableA5TransitionSnapshot | undefined {
     if (!preparation) {
       return undefined
@@ -207,7 +208,7 @@ export class DurableQueuePreparation<
       if (preparation.#kind !== 'a5-transition') {
         return undefined
       }
-      record = beginPreparation(preparation, 'a5-transition')
+      record = beginPreparation(preparation, 'a5-transition', owner)
     } catch {
       return undefined
     }
@@ -658,6 +659,12 @@ export class DurableQueue {
     )
   }
 
+  consumeA5Preparation(
+    preparation: DurableQueuePreparation<'a5-transition'>,
+  ): DurableA5TransitionSnapshot | undefined {
+    return DurableQueuePreparation.consumeA5(preparation, this.#credentialOwner)
+  }
+
   prepareI6Acceptance(
     acceptance: I6Acceptance,
     injections: I6PersistenceInjections = {},
@@ -1043,6 +1050,7 @@ export const DURABLE_QUEUE_PUBLIC_METHOD_RULES = {
   prepareAppend: { effect: 'prepare' },
   append: { effect: 'mutation', boundary: 'preparation' },
   prepareA5Transition: { effect: 'prepare' },
+  consumeA5Preparation: { effect: 'prepare' },
   prepareI6Acceptance: { effect: 'prepare' },
   persistI6Acceptance: { effect: 'mutation', boundary: 'preparation' },
   readI6: { effect: 'read' },

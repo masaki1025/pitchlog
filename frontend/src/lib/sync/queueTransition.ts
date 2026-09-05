@@ -7,6 +7,7 @@ import {
   type CanonAckStateResult,
 } from './canonOracle'
 import {
+  DurableQueue,
   DurableQueuePreparation,
   I6EvacuationReceipt,
   I6PersistenceReceipt,
@@ -352,6 +353,7 @@ export type QueueTransitionRequest =
     }>
   | Readonly<{
       kind: 'apply-a5'
+      queue: DurableQueue
       preparation: DurableQueuePreparation<'a5-transition'>
     }>
   | Readonly<{ kind: 'ack-unavailable'; slot: QueueSlot }>
@@ -460,7 +462,12 @@ function applyA5(
   request: Extract<QueueTransitionRequest, { kind: 'apply-a5' }>,
   injections: QueueTransitionInjections,
 ): QueueTransitionResult {
-  const snapshot = DurableQueuePreparation.consumeA5(request.preparation)
+  let snapshot
+  try {
+    snapshot = request.queue.consumeA5Preparation(request.preparation)
+  } catch {
+    return notApplied()
+  }
   if (!snapshot) {
     return notApplied()
   }

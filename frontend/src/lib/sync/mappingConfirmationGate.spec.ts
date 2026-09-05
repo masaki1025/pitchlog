@@ -60,6 +60,7 @@ async function storedA5Preparation(
   eventKind: EventKind,
   mappingInjections: MappingConfirmationInjections = {},
 ): Promise<{
+  queue: DurableQueue
   preparation: DurableQueuePreparation<'a5-transition'>
   slot: Extract<QueueSlot, { source: 'd1-event' }>
 }> {
@@ -92,6 +93,7 @@ async function storedA5Preparation(
     throw new Error('A5 遷移 preparation がありません')
   }
   return {
+    queue,
     preparation,
     slot: {
       state: queueStateId('未送信'),
@@ -210,13 +212,14 @@ describe('mappingConfirmationGate', () => {
   it.each(unconfirmedCases)(
     '製品の A5 入口は選手登録の写像確認が%sなら D1 が prefix 内でも同期済みへ移さない',
     async (_name, mappingInjections) => {
-      const { preparation, slot } = await storedA5Preparation(
+      const { queue, preparation, slot } = await storedA5Preparation(
         PLAYER_REGISTRATION_EVENT_KIND,
         mappingInjections,
       )
       const result = evaluateQueueTransition(
         {
           kind: 'apply-a5',
+          queue,
           preparation,
         },
         syncedA5Injections(slot),
@@ -228,13 +231,14 @@ describe('mappingConfirmationGate', () => {
   )
 
   it('製品の A5 入口は選手登録の写像確認が true のときだけ同期済みへ移す', async () => {
-    const { preparation, slot } = await storedA5Preparation(
+    const { queue, preparation, slot } = await storedA5Preparation(
       PLAYER_REGISTRATION_EVENT_KIND,
       { resolvePlayerRegistrationMapping: () => true },
     )
     const result = evaluateQueueTransition(
       {
         kind: 'apply-a5',
+        queue,
         preparation,
       },
       syncedA5Injections(slot),
@@ -247,10 +251,12 @@ describe('mappingConfirmationGate', () => {
   })
 
   it('製品の A5 入口は永続スロットが選手登録以外なら resolver なしで同期済みへ移す', async () => {
-    const { preparation, slot } = await storedA5Preparation(OTHER_EVENT_KIND)
+    const { queue, preparation, slot } =
+      await storedA5Preparation(OTHER_EVENT_KIND)
     const result = evaluateQueueTransition(
       {
         kind: 'apply-a5',
+        queue,
         preparation,
       },
       syncedA5Injections(slot),
@@ -263,11 +269,12 @@ describe('mappingConfirmationGate', () => {
   })
 
   it('選手登録スロットへ別の既知種別を引数で渡しても C4 を迂回しない', async () => {
-    const { preparation, slot } = await storedA5Preparation(
+    const { queue, preparation, slot } = await storedA5Preparation(
       PLAYER_REGISTRATION_EVENT_KIND,
     )
     const request = {
       kind: 'apply-a5',
+      queue,
       preparation,
       eventKind: OTHER_EVENT_KIND,
     } as unknown as QueueTransitionRequest
@@ -280,14 +287,14 @@ describe('mappingConfirmationGate', () => {
 
   it('永続スロットの種別だけで C4 を発火させる', async () => {
     const resolver = vi.fn(() => true)
-    const { preparation, slot } = await storedA5Preparation(
+    const { queue, preparation, slot } = await storedA5Preparation(
       PLAYER_REGISTRATION_EVENT_KIND,
       { resolvePlayerRegistrationMapping: resolver },
     )
 
     expect(
       evaluateQueueTransition(
-        { kind: 'apply-a5', preparation },
+        { kind: 'apply-a5', queue, preparation },
         syncedA5Injections(slot),
       ).applied,
     ).toBe(true)
@@ -295,11 +302,12 @@ describe('mappingConfirmationGate', () => {
   })
 
   it('同じキーの平文スロットで V5 を改変しても同期済みにならない', async () => {
-    const { preparation, slot } = await storedA5Preparation(
+    const { queue, preparation, slot } = await storedA5Preparation(
       PLAYER_REGISTRATION_EVENT_KIND,
     )
     const tamperedRequest = {
       kind: 'apply-a5',
+      queue,
       preparation,
       slot: { ...slot, content: eventFor(OTHER_EVENT_KIND) },
     } as unknown as QueueTransitionRequest
@@ -307,6 +315,35 @@ describe('mappingConfirmationGate', () => {
     expect(
       evaluateQueueTransition(tamperedRequest, syncedA5Injections(slot)),
     ).toEqual({ applied: false, rowId: 'QT-02' })
+  })
+
+  it('A5 preparation は別の DurableQueue では拒否し、発行元だけで消費する', async () => {
+    const {
+      queue: issuer,
+      preparation,
+      slot,
+    } = await storedA5Preparation(OTHER_EVENT_KIND)
+    databaseSequence += 1
+    const databaseName = `mapping-confirmation-${databaseSequence}`
+    databaseNames.push(databaseName)
+    const otherQueue = await openDurableQueue({
+      databaseName,
+      requestStoragePersistence: async () => false,
+    })
+    openedQueues.push(otherQueue)
+
+    expect(
+      evaluateQueueTransition(
+        { kind: 'apply-a5', queue: otherQueue, preparation },
+        syncedA5Injections(slot),
+      ),
+    ).toEqual({ applied: false })
+    expect(
+      evaluateQueueTransition(
+        { kind: 'apply-a5', queue: issuer, preparation },
+        syncedA5Injections(slot),
+      ).applied,
+    ).toBe(true)
   })
 
   it('製品ファイルで D3 とイベント種別 ID の直書きをしない', () => {

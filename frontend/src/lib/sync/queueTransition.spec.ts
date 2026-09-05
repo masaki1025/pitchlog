@@ -223,6 +223,7 @@ function queueSlot(
 }
 
 async function preparedA5Slot(event: SyncEvent = BASE_CONTENT): Promise<{
+  queue: DurableQueue
   preparation: DurableQueuePreparation<'a5-transition'>
   slot: D1QueueSlot
 }> {
@@ -251,6 +252,7 @@ async function preparedA5Slot(event: SyncEvent = BASE_CONTENT): Promise<{
     throw new Error('A5 遷移 preparation がありません')
   }
   return {
+    queue,
     preparation,
     slot: {
       state: UNSENT_STATE,
@@ -443,16 +445,16 @@ const TRANSITION_RUNNERS = {
       content: BASE_CONTENT,
     }),
   'QT-02': async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       resolveA5(ACK_ACCEPTED_RESULT, slot.key),
     )
   },
   'QT-03': async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({
@@ -463,9 +465,9 @@ const TRANSITION_RUNNERS = {
     )
   },
   'QT-04': async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
     )
   },
@@ -504,9 +506,9 @@ const TRANSITION_RUNNERS = {
     )
   },
   'QT-08': async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       resolveA5(ACK_EVACUATED_RESULT, slot.key),
     )
   },
@@ -716,9 +718,9 @@ describe('queueTransition', () => {
     ] as const
 
     for (const [ackId, expectedTarget] of expectedTargets) {
-      const { preparation, slot } = await preparedA5Slot()
+      const { queue, preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', preparation },
+        { kind: 'apply-a5', queue, preparation },
         {
           ...resolveA5(canonAckResultById(reorderedResults, ackId), slot.key),
           classifyB3: () => ({
@@ -825,9 +827,9 @@ describe('queueTransition', () => {
   it.each([ACK_ACCEPTED_RESULT, ACK_DUPLICATE_RESULT])(
     'A5 の $id は完全一致したイベントキーだけを同期済みにする',
     async (ackResult) => {
-      const { preparation, slot } = await preparedA5Slot()
+      const { queue, preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', preparation },
+        { kind: 'apply-a5', queue, preparation },
         resolveA5(ackResult, slot.key),
       )
 
@@ -839,10 +841,10 @@ describe('queueTransition', () => {
   )
 
   it('同じ D4・D1 でも D5 が異なる A5 結果では遷移しない', async () => {
-    const { preparation } = await preparedA5Slot()
+    const { queue, preparation } = await preparedA5Slot()
     const mismatchedKey = eventKey({ d5: {} })
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       resolveA5(ACK_ACCEPTED_RESULT, mismatchedKey),
     )
 
@@ -865,9 +867,9 @@ describe('queueTransition', () => {
   it.each(CONTENT_ACTION_LABELS)(
     '内容起因の B3 を $id に分類する',
     async (actionRequiredLabel) => {
-      const { preparation, slot } = await preparedA5Slot()
+      const { queue, preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', preparation },
+        { kind: 'apply-a5', queue, preparation },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
           classifyB3: () => ({
@@ -889,9 +891,9 @@ describe('queueTransition', () => {
   )
 
   it('O4 の B3 を管理者対応用ラベルに分類する', async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.O4 }),
@@ -1155,9 +1157,10 @@ describe('queueTransition', () => {
     {
       name: 'A5 結果',
       run: async () => {
-        const { preparation } = await preparedA5Slot()
+        const { queue, preparation } = await preparedA5Slot()
         return evaluateQueueTransition({
           kind: 'apply-a5',
+          queue,
           preparation,
         })
       },
@@ -1165,9 +1168,9 @@ describe('queueTransition', () => {
     {
       name: 'B3 理由分類',
       run: async () => {
-        const { preparation, slot } = await preparedA5Slot()
+        const { queue, preparation, slot } = await preparedA5Slot()
         return evaluateQueueTransition(
-          { kind: 'apply-a5', preparation },
+          { kind: 'apply-a5', queue, preparation },
           resolveA5(ACK_REJECTED_RESULT, slot.key),
         )
       },
@@ -1239,9 +1242,9 @@ describe('queueTransition', () => {
   )
 
   it('明示的に不明な B3 分類を fail-closed にする', async () => {
-    const { preparation, slot } = await preparedA5Slot()
+    const { queue, preparation, slot } = await preparedA5Slot()
     const unknownB3 = evaluateQueueTransition(
-      { kind: 'apply-a5', preparation },
+      { kind: 'apply-a5', queue, preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.UNKNOWN }),
