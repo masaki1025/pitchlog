@@ -35,7 +35,6 @@ import {
 import {
   QUEUE_TRANSITION_RULES,
   type QueueSlot,
-  type QueueTransitionInjections,
   type QueueTransitionRequest,
 } from './queueTransition'
 import {
@@ -780,6 +779,77 @@ function exactStringLiterals(source: string, valuePattern: string): string[] {
     .filter((value): value is string => value !== undefined)
 }
 
+function durableQueuePublicMethods(
+  source: string,
+): readonly ts.MethodDeclaration[] {
+  const sourceFile = ts.createSourceFile(
+    'durableQueue.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const durableQueueClass = sourceFile.statements.find(
+    (statement): statement is ts.ClassDeclaration =>
+      ts.isClassDeclaration(statement) &&
+      statement.name?.text === 'DurableQueue',
+  )
+  if (!durableQueueClass) {
+    throw new Error('DurableQueue class がありません')
+  }
+  return durableQueueClass.members
+    .filter((member): member is ts.MethodDeclaration =>
+      ts.isMethodDeclaration(member),
+    )
+    .filter(
+      (member) =>
+        !ts
+          .getModifiers(member)
+          ?.some(
+            (modifier) =>
+              modifier.kind === ts.SyntaxKind.PrivateKeyword ||
+              modifier.kind === ts.SyntaxKind.ProtectedKeyword ||
+              modifier.kind === ts.SyntaxKind.StaticKeyword,
+          ),
+    )
+}
+
+function methodName(method: ts.MethodDeclaration): string | undefined {
+  return ts.isIdentifier(method.name) ? method.name.text : undefined
+}
+
+function hasReadwriteTransaction(method: ts.MethodDeclaration): boolean {
+  let found = false
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'transaction' &&
+      node.arguments[1] !== undefined &&
+      ts.isStringLiteral(node.arguments[1]) &&
+      node.arguments[1].text === 'readwrite'
+    ) {
+      found = true
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  if (method.body) {
+    visit(method.body)
+  }
+  return found
+}
+
+function sameStringSet(
+  first: readonly string[],
+  second: readonly string[],
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every((value) => second.includes(value))
+  )
+}
+
 describe('prohibitions', () => {
   it('raw 走査対象を再帰取得し、製品ファイルの完全集合と一致させる', () => {
     expect(EXPECTED_PRODUCT_FILE_NAMES.length).toBeGreaterThan(0)
@@ -949,56 +1019,62 @@ describe('prohibitions', () => {
     }[MutationMethodName]
     const noUnsafeMutationMethod: ExactKeySet<UnsafeMutationMethod, never> =
       true
-    const sourceFile = ts.createSourceFile(
-      'durableQueue.ts',
+    const publicMethods = durableQueuePublicMethods(
       sourceFor('durableQueue.ts'),
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.TS,
     )
-    const durableQueueClass = sourceFile.statements.find(
-      (statement): statement is ts.ClassDeclaration =>
-        ts.isClassDeclaration(statement) &&
-        statement.name?.text === 'DurableQueue',
-    )
-    if (!durableQueueClass) {
-      throw new Error('DurableQueue class がありません')
-    }
-    const publicMethodNames = durableQueueClass.members
-      .filter((member): member is ts.MethodDeclaration =>
-        ts.isMethodDeclaration(member),
-      )
-      .filter(
-        (member) =>
-          !ts
-            .getModifiers(member)
-            ?.some(
-              (modifier) =>
-                modifier.kind === ts.SyntaxKind.PrivateKeyword ||
-                modifier.kind === ts.SyntaxKind.ProtectedKeyword ||
-                modifier.kind === ts.SyntaxKind.StaticKeyword,
-            ),
-      )
-      .map((member) =>
-        ts.isIdentifier(member.name) ? member.name.text : undefined,
-      )
+    const publicMethodNames = publicMethods
+      .map(methodName)
       .filter((name): name is string => name !== undefined)
-    const mutationRules = Object.values(
+    const mutationRuleEntries = Object.entries(
       DURABLE_QUEUE_PUBLIC_METHOD_RULES,
-    ).filter((rule) => rule.effect === 'mutation')
+    ).filter((entry) => entry[1].effect === 'mutation')
+    const readwriteMethodNames = publicMethods
+      .filter(hasReadwriteTransaction)
+      .map(methodName)
+      .filter((name): name is string => name !== undefined)
 
     expect(noUnsafeMutationMethod).toBe(true)
     expect(new Set(publicMethodNames)).toEqual(
       new Set(Object.keys(DURABLE_QUEUE_PUBLIC_METHOD_RULES)),
     )
-    expect(mutationRules).toHaveLength(5)
+    expect(mutationRuleEntries).toHaveLength(5)
+    expect(new Set(readwriteMethodNames)).toEqual(
+      new Set(mutationRuleEntries.map(([name]) => name)),
+    )
     expect(
-      mutationRules.every(
-        (rule) =>
+      mutationRuleEntries.every(
+        ([, rule]) =>
           'boundary' in rule &&
           (rule.boundary === 'preparation' || rule.boundary === 'receipt'),
       ),
     ).toBe(true)
+  })
+
+  it('変異: readwrite の新メソッドを read と自己申告しても AST 集合検査で検出する', () => {
+    const mutatedSource = sourceFor('durableQueue.ts').replace(
+      '  close(): void {',
+      `  misclassifiedMutation(): void {
+    this.#database.transaction('queue', 'readwrite')
+  }
+
+  close(): void {`,
+    )
+    const readwriteMethodNames = durableQueuePublicMethods(mutatedSource)
+      .filter(hasReadwriteTransaction)
+      .map(methodName)
+      .filter((name): name is string => name !== undefined)
+    const mutatedRules = {
+      ...DURABLE_QUEUE_PUBLIC_METHOD_RULES,
+      misclassifiedMutation: { effect: 'read' },
+    } as const
+    const declaredMutationNames = Object.entries(mutatedRules)
+      .filter((entry) => entry[1].effect === 'mutation')
+      .map(([name]) => name)
+
+    expect(readwriteMethodNames).toContain('misclassifiedMutation')
+    expect(sameStringSet(readwriteMethodNames, declaredMutationNames)).toBe(
+      false,
+    )
   })
 
   it('I6: 保持結果を5要素の別フィールドに閉じ、期限・回収用フィールドを持たない', () => {
@@ -1032,11 +1108,14 @@ describe('prohibitions', () => {
     ).toEqual([])
   })
 
-  it('C4: A5 の公開入口はイベント種別を永続スロットから導出する', () => {
+  it('C4: A5 の公開入口は永続キュー発行の preparation だけを受け取る', () => {
     type ApplyA5Request = Extract<QueueTransitionRequest, { kind: 'apply-a5' }>
     type MappingResolver = NonNullable<
-      QueueTransitionInjections['resolvePlayerRegistrationMapping']
+      NonNullable<
+        Parameters<DurableQueue['prepareA5Transition']>[2]
+      >['resolvePlayerRegistrationMapping']
     >
+    const preparation = {} as DurableQueuePreparation<'a5-transition'>
     const slot: QueueSlot = {
       state: queueStateId('未送信'),
       source: 'd1-event',
@@ -1045,7 +1124,7 @@ describe('prohibitions', () => {
     }
     const request: ApplyA5Request = {
       kind: 'apply-a5',
-      slot,
+      preparation,
     }
     const resolver: MappingResolver = () => true
     const invalidEventKindArgument = {
@@ -1053,11 +1132,13 @@ describe('prohibitions', () => {
       slot,
       eventKind: EVENT_KIND_RULES[0],
     } as unknown as QueueTransitionRequest
-    const exactRequestKeys: ExactKeySet<keyof ApplyA5Request, 'kind' | 'slot'> =
-      true
+    const exactRequestKeys: ExactKeySet<
+      keyof ApplyA5Request,
+      'kind' | 'preparation'
+    > = true
 
     expect(exactRequestKeys).toBe(true)
-    expect(Object.keys(request)).toEqual(['kind', 'slot'])
+    expect(Object.keys(request)).toEqual(['kind', 'preparation'])
     expect(resolver({})).toBe(true)
     expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
   })

@@ -6,13 +6,11 @@ import {
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
-import { I6EvacuationReceipt, I6PersistenceReceipt } from './durableQueue'
-import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
-import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
 import {
-  checkMappingConfirmation,
-  type PlayerRegistrationMappingResolver,
-} from './mappingConfirmationGate'
+  DurableQueuePreparation,
+  I6EvacuationReceipt,
+  I6PersistenceReceipt,
+} from './durableQueue'
 import {
   actionRequiredLabelId,
   queueStateId,
@@ -332,7 +330,6 @@ export type QueueTransitionInjections = Readonly<{
   resolveA5?: (
     key: QueueEventKey,
   ) => Readonly<{ key: QueueEventKey; result: CanonAckStateResult }> | undefined
-  resolvePlayerRegistrationMapping?: PlayerRegistrationMappingResolver
   classifyB3?: (
     input: Readonly<{
       slot: QueueSlot
@@ -355,7 +352,7 @@ export type QueueTransitionRequest =
     }>
   | Readonly<{
       kind: 'apply-a5'
-      slot: QueueSlot
+      preparation: DurableQueuePreparation<'a5-transition'>
     }>
   | Readonly<{ kind: 'ack-unavailable'; slot: QueueSlot }>
   | Readonly<{
@@ -459,35 +456,15 @@ function hasEmptyContent(content: unknown): boolean {
   )
 }
 
-function resolveKnownEventKind(content: unknown): EventKind | undefined {
-  if (
-    typeof content !== 'object' ||
-    content === null ||
-    !('fields' in content) ||
-    typeof content.fields !== 'object' ||
-    content.fields === null
-  ) {
-    return undefined
-  }
-  return EVENT_KIND_RULES.find(
-    (eventKind) =>
-      eventKind.id ===
-      (content.fields as Readonly<Record<string, unknown>>)[EVENT_KIND_SLOT_ID],
-  )
-}
-
 function applyA5(
   request: Extract<QueueTransitionRequest, { kind: 'apply-a5' }>,
   injections: QueueTransitionInjections,
 ): QueueTransitionResult {
-  const { slot } = request
-  if (slot.source !== 'd1-event' || slot.state !== UNSENT_STATE) {
+  const snapshot = DurableQueuePreparation.consumeA5(request.preparation)
+  if (!snapshot) {
     return notApplied()
   }
-  const eventKind = resolveKnownEventKind(slot.content)
-  if (!eventKind) {
-    return notApplied()
-  }
+  const { slot } = snapshot
 
   let resolved:
     Readonly<{ key: QueueEventKey; result: CanonAckStateResult }> | undefined
@@ -512,14 +489,7 @@ function applyA5(
   )
 
   if (ruleAcceptsA5Result(syncedRule, resolved.result)) {
-    const mappingConfirmation = checkMappingConfirmation(
-      { eventKind, event: slot.content },
-      {
-        resolvePlayerRegistrationMapping:
-          injections.resolvePlayerRegistrationMapping,
-      },
-    )
-    if (!mappingConfirmation.allowsSyncedTransition) {
+    if (!snapshot.allowsSyncedTransition) {
       return notApplied(syncedRule.id)
     }
     return applySlotRule(syncedRule, slot)
@@ -635,12 +605,8 @@ function applyP3Acceptance(
   request: Extract<QueueTransitionRequest, { kind: 'p3-acceptance-persisted' }>,
 ): QueueTransitionResult {
   const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.P3_ACCEPTANCE)
-  const receipt = request.persistenceReceipt
-  if (!(receipt instanceof I6PersistenceReceipt)) {
-    return notApplied(rule.id)
-  }
-  const slot = receipt.slot
-  if (slot.state !== SYNCED_STATE) {
+  const slot = I6PersistenceReceipt.verify(request.persistenceReceipt)
+  if (!slot || slot.state !== SYNCED_STATE) {
     return notApplied(rule.id)
   }
   return applySlotRule(rule, slot)
@@ -650,11 +616,8 @@ function applyI6Evacuation(
   receipt: I6EvacuationReceipt | undefined,
 ): QueueTransitionResult {
   const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.I6_EVACUATION)
-  if (!(receipt instanceof I6EvacuationReceipt)) {
-    return notApplied(rule.id)
-  }
-  const slot = receipt.slot
-  if (slot.state !== SYNCED_STATE || slot.source !== 'p3-acceptance') {
+  const slot = I6EvacuationReceipt.verify(receipt)
+  if (!slot || slot.state !== SYNCED_STATE || slot.source !== 'p3-acceptance') {
     return notApplied(rule.id)
   }
   return applySlotRule(rule, slot)

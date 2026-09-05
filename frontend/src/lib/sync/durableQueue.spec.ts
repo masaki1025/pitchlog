@@ -100,8 +100,11 @@ async function persistI6(
 const REVISION_EVENT_KIND = EVENT_KIND_RULES.find(
   (eventKind) => eventKind.name === '改訂版',
 )
-if (!REVISION_EVENT_KIND) {
-  throw new Error('改訂版のイベント種別がありません')
+const PLAYER_REGISTRATION_EVENT_KIND = EVENT_KIND_RULES.find(
+  (eventKind) => eventKind.name === '選手のその場登録',
+)
+if (!REVISION_EVENT_KIND || !PLAYER_REGISTRATION_EVENT_KIND) {
+  throw new Error('検査用のイベント種別がありません')
 }
 const REVISION_EVENT_KIND_ID = REVISION_EVENT_KIND.id
 
@@ -275,6 +278,98 @@ describe('durableQueue', () => {
       expect.arrayContaining(['queue', 'd1-counters']),
       'readwrite',
     )
+  })
+
+  it('A5 preparation は実ストアの V5 と C4 を 1 回の readonly トランザクションで判定する', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const event = {
+      fields: { [EVENT_KIND_SLOT_ID]: PLAYER_REGISTRATION_EVENT_KIND.id },
+    }
+    const stored = await appendToQueue(queue, appendInput(scope, { event }))
+    const resolvePlayerRegistrationMapping = vi.fn(() => true)
+    const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
+
+    const preparation = await queue.prepareA5Transition(scope, stored.d1, {
+      resolvePlayerRegistrationMapping,
+    })
+
+    expect(preparation).toBeDefined()
+    expect(transactionSpy).toHaveBeenCalledTimes(1)
+    expect(transactionSpy).toHaveBeenCalledWith('queue', 'readonly')
+    expect(resolvePlayerRegistrationMapping).toHaveBeenCalledWith(event)
+  })
+
+  it('同じ preparation の逐次再利用では同じ D5 のスロットと D1 を増やさない', async () => {
+    const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
+    const queue = await openTestQueue({ allocateNextD1: allocator })
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const preparation = queue.prepareAppend(
+      appendInput(scope, { d5: 'single-use-d5' }),
+    )
+
+    const first = await queue.append(preparation)
+    await expect(queue.append(preparation)).rejects.toThrow('preparation')
+
+    expect(first.d1).toBe(1)
+    expect(await queue.countSlots()).toBe(1)
+    expect(allocator).toHaveBeenCalledTimes(1)
+    expect((await queue.readSlot(scope, first.d1))?.d5).toBe('single-use-d5')
+  })
+
+  it('同じ preparation の並行再利用では同じ D5 のスロットと D1 を増やさない', async () => {
+    const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
+    const queue = await openTestQueue({ allocateNextD1: allocator })
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const preparation = queue.prepareAppend(
+      appendInput(scope, { d5: 'concurrent-use-d5' }),
+    )
+
+    const results = await Promise.allSettled([
+      queue.append(preparation),
+      queue.append(preparation),
+    ])
+
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1)
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1)
+    expect(await queue.countSlots()).toBe(1)
+    expect(allocator).toHaveBeenCalledTimes(1)
+    expect(await queue.readNextD1(scope)).toBe(2)
+  })
+
+  it('preparation を発行元と別の DurableQueue では使用できない', async () => {
+    const issuer = await openTestQueue()
+    const otherQueue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const preparation = issuer.prepareAppend(appendInput(scope))
+
+    await expect(otherQueue.append(preparation)).rejects.toThrow('preparation')
+    expect(await otherQueue.countSlots()).toBe(0)
+    expect((await issuer.append(preparation)).d1).toBe(1)
+  })
+
+  it('永続化に失敗した preparation は consumed のまま再利用を拒否する', async () => {
+    const allocator = vi
+      .fn<D1Allocator>()
+      .mockImplementationOnce(() => {
+        throw new Error('採番失敗')
+      })
+      .mockImplementation((previousD1) => previousD1 + 1)
+    const queue = await openTestQueue({ allocateNextD1: allocator })
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const failedPreparation = queue.prepareAppend(appendInput(scope))
+
+    await expect(queue.append(failedPreparation)).rejects.toThrow('採番失敗')
+    await expect(queue.append(failedPreparation)).rejects.toThrow('preparation')
+    expect(await queue.countSlots()).toBe(0)
+    expect(allocator).toHaveBeenCalledTimes(1)
+    expect(
+      await queue.append(queue.prepareAppend(appendInput(scope))),
+    ).toMatchObject({ d1: 1 })
   })
 
   it('状態 index で未送信だけを数える', async () => {

@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import 'fake-indexeddb/auto'
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import mappingConfirmationGateSource from './mappingConfirmationGate.ts?raw'
 import {
   readCanonAckStateResults,
@@ -6,6 +8,11 @@ import {
 } from './canonOracle'
 import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
 import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
+import {
+  openDurableQueue,
+  type DurableQueue,
+  type DurableQueuePreparation,
+} from './durableQueue'
 import {
   C4_MAPPING_CONFIRMATION_RULE,
   checkMappingConfirmation,
@@ -17,7 +24,6 @@ import { queueStateId } from './queueState'
 import {
   evaluateQueueTransition,
   queueTransitionRuleById,
-  type QueueEventKey,
   type QueueSlot,
   type QueueTransitionInjections,
   type QueueTransitionRequest,
@@ -33,20 +39,77 @@ if (!PLAYER_REGISTRATION_EVENT_KIND || !OTHER_EVENT_KIND) {
   throw new Error('ゲート検査用のイベント種別がありません')
 }
 
-const BASE_KEY: QueueEventKey = { d4: {}, d1: {}, d5: {} }
 function eventFor(eventKind: EventKind) {
   return { fields: { [EVENT_KIND_SLOT_ID]: eventKind.id } }
 }
 const BASE_EVENT = eventFor(PLAYER_REGISTRATION_EVENT_KIND)
+let databaseSequence = 0
+const openedQueues: DurableQueue[] = []
+const databaseNames: string[] = []
 
-function unsentSlot(): Extract<QueueSlot, { source: 'd1-event' }> {
+function deleteDatabase(name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('テスト DB を削除できません'))
+  })
+}
+
+async function storedA5Preparation(
+  eventKind: EventKind,
+  mappingInjections: MappingConfirmationInjections = {},
+): Promise<{
+  preparation: DurableQueuePreparation<'a5-transition'>
+  slot: Extract<QueueSlot, { source: 'd1-event' }>
+}> {
+  databaseSequence += 1
+  const databaseName = `mapping-confirmation-${databaseSequence}`
+  databaseNames.push(databaseName)
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => false,
+  })
+  openedQueues.push(queue)
+  const scope = {
+    game: `game-${databaseSequence}`,
+    d4: `generation-${databaseSequence}`,
+  }
+  const stored = await queue.append(
+    queue.prepareAppend({
+      scope,
+      d5: `d5-${databaseSequence}`,
+      version: {},
+      event: eventFor(eventKind),
+    }),
+  )
+  const preparation = await queue.prepareA5Transition(
+    scope,
+    stored.d1,
+    mappingInjections,
+  )
+  if (!preparation) {
+    throw new Error('A5 遷移 preparation がありません')
+  }
   return {
-    state: queueStateId('未送信'),
-    source: 'd1-event',
-    key: BASE_KEY,
-    content: BASE_EVENT,
+    preparation,
+    slot: {
+      state: queueStateId('未送信'),
+      source: 'd1-event',
+      key: { d4: stored.d4, d1: stored.d1, d5: stored.d5 },
+      content: stored.event,
+    },
   }
 }
+
+afterEach(async () => {
+  for (const queue of openedQueues.splice(0)) {
+    queue.close()
+  }
+  for (const name of databaseNames.splice(0)) {
+    await deleteDatabase(name)
+  }
+})
 
 function syncedAckResult() {
   const syncedRule = queueTransitionRuleById('QT-02')
@@ -65,11 +128,9 @@ function syncedAckResult() {
 
 function syncedA5Injections(
   slot: Extract<QueueSlot, { source: 'd1-event' }>,
-  mappingInjections: MappingConfirmationInjections = {},
 ): QueueTransitionInjections {
   return {
     resolveA5: () => ({ key: slot.key, result: syncedAckResult() }),
-    ...mappingInjections,
   }
 }
 
@@ -148,14 +209,17 @@ describe('mappingConfirmationGate', () => {
 
   it.each(unconfirmedCases)(
     '製品の A5 入口は選手登録の写像確認が%sなら D1 が prefix 内でも同期済みへ移さない',
-    (_name, mappingInjections) => {
-      const slot = { ...unsentSlot(), d3: BASE_KEY.d1 }
+    async (_name, mappingInjections) => {
+      const { preparation, slot } = await storedA5Preparation(
+        PLAYER_REGISTRATION_EVENT_KIND,
+        mappingInjections,
+      )
       const result = evaluateQueueTransition(
         {
           kind: 'apply-a5',
-          slot,
+          preparation,
         },
-        syncedA5Injections(slot, mappingInjections),
+        syncedA5Injections(slot),
       )
 
       expect(result.applied).toBe(false)
@@ -163,30 +227,15 @@ describe('mappingConfirmationGate', () => {
     },
   )
 
-  it('製品の A5 入口は選手登録の写像確認が true のときだけ同期済みへ移す', () => {
-    const slot = unsentSlot()
-    const result = evaluateQueueTransition(
-      {
-        kind: 'apply-a5',
-        slot,
-      },
-      syncedA5Injections(slot, {
-        resolvePlayerRegistrationMapping: () => true,
-      }),
+  it('製品の A5 入口は選手登録の写像確認が true のときだけ同期済みへ移す', async () => {
+    const { preparation, slot } = await storedA5Preparation(
+      PLAYER_REGISTRATION_EVENT_KIND,
+      { resolvePlayerRegistrationMapping: () => true },
     )
-
-    expect(result.applied).toBe(true)
-    if (result.applied) {
-      expect(result.slot?.state).toBe(queueStateId('同期済み'))
-    }
-  })
-
-  it('製品の A5 入口は選手登録以外を resolver なしで同期済みへ移す', () => {
-    const slot = unsentSlot()
     const result = evaluateQueueTransition(
       {
         kind: 'apply-a5',
-        slot: { ...slot, content: eventFor(OTHER_EVENT_KIND) },
+        preparation,
       },
       syncedA5Injections(slot),
     )
@@ -197,11 +246,29 @@ describe('mappingConfirmationGate', () => {
     }
   })
 
-  it('選手登録スロットへ別の既知種別を引数で渡しても C4 を迂回しない', () => {
-    const slot = unsentSlot()
+  it('製品の A5 入口は永続スロットが選手登録以外なら resolver なしで同期済みへ移す', async () => {
+    const { preparation, slot } = await storedA5Preparation(OTHER_EVENT_KIND)
+    const result = evaluateQueueTransition(
+      {
+        kind: 'apply-a5',
+        preparation,
+      },
+      syncedA5Injections(slot),
+    )
+
+    expect(result.applied).toBe(true)
+    if (result.applied) {
+      expect(result.slot?.state).toBe(queueStateId('同期済み'))
+    }
+  })
+
+  it('選手登録スロットへ別の既知種別を引数で渡しても C4 を迂回しない', async () => {
+    const { preparation, slot } = await storedA5Preparation(
+      PLAYER_REGISTRATION_EVENT_KIND,
+    )
     const request = {
       kind: 'apply-a5',
-      slot,
+      preparation,
       eventKind: OTHER_EVENT_KIND,
     } as unknown as QueueTransitionRequest
 
@@ -211,19 +278,35 @@ describe('mappingConfirmationGate', () => {
     })
   })
 
-  it('永続スロットの種別だけで C4 を発火させる', () => {
-    const slot = unsentSlot()
+  it('永続スロットの種別だけで C4 を発火させる', async () => {
     const resolver = vi.fn(() => true)
+    const { preparation, slot } = await storedA5Preparation(
+      PLAYER_REGISTRATION_EVENT_KIND,
+      { resolvePlayerRegistrationMapping: resolver },
+    )
 
     expect(
       evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
-        syncedA5Injections(slot, {
-          resolvePlayerRegistrationMapping: resolver,
-        }),
+        { kind: 'apply-a5', preparation },
+        syncedA5Injections(slot),
       ).applied,
     ).toBe(true)
     expect(resolver).toHaveBeenCalledWith(slot.content)
+  })
+
+  it('同じキーの平文スロットで V5 を改変しても同期済みにならない', async () => {
+    const { preparation, slot } = await storedA5Preparation(
+      PLAYER_REGISTRATION_EVENT_KIND,
+    )
+    const tamperedRequest = {
+      kind: 'apply-a5',
+      preparation,
+      slot: { ...slot, content: eventFor(OTHER_EVENT_KIND) },
+    } as unknown as QueueTransitionRequest
+
+    expect(
+      evaluateQueueTransition(tamperedRequest, syncedA5Injections(slot)),
+    ).toEqual({ applied: false, rowId: 'QT-02' })
   })
 
   it('製品ファイルで D3 とイベント種別 ID の直書きをしない', () => {

@@ -11,10 +11,11 @@ import {
   type CanonAckStateResult,
 } from './canonOracle'
 import {
+  I6EvacuationReceipt,
+  I6PersistenceReceipt,
   openDurableQueue,
   type DurableQueue,
-  type I6EvacuationReceipt,
-  type I6PersistenceReceipt,
+  type DurableQueuePreparation,
 } from './durableQueue'
 import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
 import { EVENT_KIND_RULES } from './eventKinds'
@@ -26,6 +27,7 @@ import {
 } from './queueState'
 import {
   TARGET_EVENT_REFERENCE_ELEMENTS,
+  type SyncEvent,
   type TargetEventReference,
 } from './syncEvent'
 import {
@@ -38,6 +40,7 @@ import {
   type QueueEventKey,
   type QueueSlot,
   type QueueTransitionInjections,
+  type QueueTransitionRequest,
   type QueueTransitionResult,
   type QueueTransitionRowId,
 } from './queueTransition'
@@ -216,6 +219,45 @@ function queueSlot(
     content: BASE_CONTENT,
     source: 'd1-event',
     ...overrides,
+  }
+}
+
+async function preparedA5Slot(event: SyncEvent = BASE_CONTENT): Promise<{
+  preparation: DurableQueuePreparation<'a5-transition'>
+  slot: D1QueueSlot
+}> {
+  databaseSequence += 1
+  const databaseName = `queue-transition-a5-${databaseSequence}`
+  i6DatabaseNames.push(databaseName)
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => false,
+  })
+  openedI6Queues.push(queue)
+  const scope = {
+    game: `game-${databaseSequence}`,
+    d4: `generation-${databaseSequence}`,
+  }
+  const stored = await queue.append(
+    queue.prepareAppend({
+      scope,
+      d5: `d5-${databaseSequence}`,
+      version: {},
+      event,
+    }),
+  )
+  const preparation = await queue.prepareA5Transition(scope, stored.d1)
+  if (!preparation) {
+    throw new Error('A5 遷移 preparation がありません')
+  }
+  return {
+    preparation,
+    slot: {
+      state: UNSENT_STATE,
+      source: 'd1-event',
+      key: { d4: stored.d4, d1: stored.d1, d5: stored.d5 },
+      content: stored.event,
+    },
   }
 }
 
@@ -400,17 +442,17 @@ const TRANSITION_RUNNERS = {
       key: eventKey(),
       content: BASE_CONTENT,
     }),
-  'QT-02': () => {
-    const slot = queueSlot(UNSENT_STATE)
+  'QT-02': async () => {
+    const { preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       resolveA5(ACK_ACCEPTED_RESULT, slot.key),
     )
   },
-  'QT-03': () => {
-    const slot = queueSlot(UNSENT_STATE)
+  'QT-03': async () => {
+    const { preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({
@@ -420,10 +462,10 @@ const TRANSITION_RUNNERS = {
       },
     )
   },
-  'QT-04': () => {
-    const slot = queueSlot(UNSENT_STATE)
+  'QT-04': async () => {
+    const { preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
     )
   },
@@ -461,10 +503,10 @@ const TRANSITION_RUNNERS = {
       { confirmO4Correction: () => true },
     )
   },
-  'QT-08': () => {
-    const slot = queueSlot(UNSENT_STATE)
+  'QT-08': async () => {
+    const { preparation, slot } = await preparedA5Slot()
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       resolveA5(ACK_EVACUATED_RESULT, slot.key),
     )
   },
@@ -661,7 +703,7 @@ describe('queueTransition', () => {
     expect(referencedProductIdentifiers).toEqual([])
   })
 
-  it('R-ACK-STATE の要素順を入れ替えても A5 の語と遷移先を変えない', () => {
+  it('R-ACK-STATE の要素順を入れ替えても A5 の語と遷移先を変えない', async () => {
     const mutatedRelations = structuredClone(syncProtocolRelations)
     mutatedRelations['R-ACK-STATE'].source_elements.reverse()
     const reorderedResults = readCanonAckStateResults(mutatedRelations)
@@ -674,9 +716,9 @@ describe('queueTransition', () => {
     ] as const
 
     for (const [ackId, expectedTarget] of expectedTargets) {
-      const slot = queueSlot(UNSENT_STATE)
+      const { preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', preparation },
         {
           ...resolveA5(canonAckResultById(reorderedResults, ackId), slot.key),
           classifyB3: () => ({
@@ -782,10 +824,10 @@ describe('queueTransition', () => {
 
   it.each([ACK_ACCEPTED_RESULT, ACK_DUPLICATE_RESULT])(
     'A5 の $id は完全一致したイベントキーだけを同期済みにする',
-    (ackResult) => {
-      const slot = queueSlot(UNSENT_STATE)
+    async (ackResult) => {
+      const { preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', preparation },
         resolveA5(ackResult, slot.key),
       )
 
@@ -796,11 +838,11 @@ describe('queueTransition', () => {
     },
   )
 
-  it('同じ D4・D1 でも D5 が異なる A5 結果では遷移しない', () => {
-    const slot = queueSlot(UNSENT_STATE)
+  it('同じ D4・D1 でも D5 が異なる A5 結果では遷移しない', async () => {
+    const { preparation } = await preparedA5Slot()
     const mismatchedKey = eventKey({ d5: {} })
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       resolveA5(ACK_ACCEPTED_RESULT, mismatchedKey),
     )
 
@@ -812,7 +854,7 @@ describe('queueTransition', () => {
       kind: 'apply-a5',
       slot: queueSlot(UNSENT_STATE),
       d3: {},
-    } as const
+    } as unknown as QueueTransitionRequest
 
     expect(evaluateQueueTransition(prefixOnlyRequest)).toEqual({
       applied: false,
@@ -822,10 +864,10 @@ describe('queueTransition', () => {
 
   it.each(CONTENT_ACTION_LABELS)(
     '内容起因の B3 を $id に分類する',
-    (actionRequiredLabel) => {
-      const slot = queueSlot(UNSENT_STATE)
+    async (actionRequiredLabel) => {
+      const { preparation, slot } = await preparedA5Slot()
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', preparation },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
           classifyB3: () => ({
@@ -846,10 +888,10 @@ describe('queueTransition', () => {
     },
   )
 
-  it('O4 の B3 を管理者対応用ラベルに分類する', () => {
-    const slot = queueSlot(UNSENT_STATE)
+  it('O4 の B3 を管理者対応用ラベルに分類する', async () => {
+    const { preparation, slot } = await preparedA5Slot()
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.O4 }),
@@ -1012,6 +1054,68 @@ describe('queueTransition', () => {
     expect(result.applied).toBe(false)
   })
 
+  it('I6 永続化 receipt は private snapshot にない偽造・改変・Proxy を拒否する', async () => {
+    const receipt = await persistenceReceipt(i6Acceptance())
+    const trustedSlot = receipt.slot
+    const tamperedSlot = {
+      ...trustedSlot,
+      expectedVersion: 'tampered-version',
+    }
+    const forged = Object.create(
+      I6PersistenceReceipt.prototype,
+    ) as I6PersistenceReceipt
+    Object.defineProperty(forged, 'slot', { value: tamperedSlot })
+    Object.defineProperty(receipt, 'slot', { value: tamperedSlot })
+    const proxy = new Proxy(receipt, {
+      get(target, property, receiver) {
+        return property === 'slot'
+          ? tamperedSlot
+          : Reflect.get(target, property, receiver)
+      },
+    })
+
+    for (const invalidReceipt of [forged, receipt, proxy]) {
+      expect(
+        evaluateQueueTransition({
+          kind: 'p3-acceptance-persisted',
+          persistenceReceipt: invalidReceipt,
+        }),
+      ).toEqual({ applied: false, rowId: 'QT-09' })
+    }
+  })
+
+  it('I6 退避 receipt は private snapshot にない偽造・改変・Proxy を拒否する', async () => {
+    const receipt = await evacuationReceipt(i6Acceptance())
+    const trustedSlot = receipt.slot
+    const tamperedSlot = {
+      ...trustedSlot,
+      confirmedContent: 'tampered-content',
+    }
+    const forged = Object.create(
+      I6EvacuationReceipt.prototype,
+    ) as I6EvacuationReceipt
+    Object.defineProperty(forged, 'slot', { value: tamperedSlot })
+    Object.defineProperty(receipt, 'slot', { value: tamperedSlot })
+    const proxy = new Proxy(receipt, {
+      get(target, property, receiver) {
+        return property === 'slot'
+          ? tamperedSlot
+          : Reflect.get(target, property, receiver)
+      },
+    })
+
+    for (const invalidReceipt of [forged, receipt, proxy]) {
+      expect(
+        evaluateQueueTransition({
+          kind: 'i6-evacuation-saved',
+          evacuationReceipt: invalidReceipt,
+        }),
+      ).toEqual({ applied: false, rowId: 'QT-10' })
+    }
+    expect(queueTransitionSource).not.toMatch(/instanceof\s+I6/)
+    expect(queueTransitionSource).not.toMatch(/receipt\.slot/)
+  })
+
   const blockedRg1Cases = [
     ['RG1 中', { resolveRg1State: () => RG1_STATE.ACTIVE }],
     ['確認不能', { resolveRg1State: () => RG1_STATE.UNKNOWN }],
@@ -1050,18 +1154,20 @@ describe('queueTransition', () => {
   const missingInjectionCases = [
     {
       name: 'A5 結果',
-      run: () =>
-        evaluateQueueTransition({
+      run: async () => {
+        const { preparation } = await preparedA5Slot()
+        return evaluateQueueTransition({
           kind: 'apply-a5',
-          slot: queueSlot(UNSENT_STATE),
-        }),
+          preparation,
+        })
+      },
     },
     {
       name: 'B3 理由分類',
-      run: () => {
-        const slot = queueSlot(UNSENT_STATE)
+      run: async () => {
+        const { preparation, slot } = await preparedA5Slot()
         return evaluateQueueTransition(
-          { kind: 'apply-a5', slot },
+          { kind: 'apply-a5', preparation },
           resolveA5(ACK_REJECTED_RESULT, slot.key),
         )
       },
@@ -1127,15 +1233,15 @@ describe('queueTransition', () => {
 
   it.each(missingInjectionCases)(
     '変異: $name の注入を無視せず fail-closed にする',
-    (testCase) => {
-      expect(testCase.run().applied).toBe(false)
+    async (testCase) => {
+      expect((await testCase.run()).applied).toBe(false)
     },
   )
 
-  it('明示的に不明な B3 分類を fail-closed にする', () => {
-    const slot = queueSlot(UNSENT_STATE)
+  it('明示的に不明な B3 分類を fail-closed にする', async () => {
+    const { preparation, slot } = await preparedA5Slot()
     const unknownB3 = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.UNKNOWN }),
