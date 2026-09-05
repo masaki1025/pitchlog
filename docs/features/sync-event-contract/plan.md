@@ -1,6 +1,6 @@
 ---
 feature: sync-event-contract
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -105,6 +105,8 @@ created: 2026-09-04
 | **`frontend/vite.config.ts` / `frontend/tsconfig.app.json`** | **`@design-relations` alias + `server.fs.allow` + `paths`**(既存の `@contracts` と同型) | PR レビュー(テストを伴う) |
 | **`frontend/src/lib/sync/**`(新設 16 ファイル) | **新設**(4 節の構成表) | PR レビュー(テストを伴う)+ **人間の逐行確認**(コア領域) |
 | `frontend/eslint.config.js` | **反映なし**(P1-5 で denylist を撤回) | — |
+| **`docs/development/harness-evaluation.md`**(台帳) | **`## 候補` へ 2 件追記**(PR 射程ガードの恒久化 / 重複帰属と core-guard の判定の乖離)+ **既存候補へ実測 1 件**(実装後の敵対レビューにも終端条件が無い)+ 変更履歴表へ 1 行。**`H-*` の新規採番はしない** | PR レビュー(7.6-3 前段・版は上げない) |
+| **`docs/README.md`**(索引) | 台帳行の最終更新日と要約を現行化 | PR レビュー |
 | `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `scripts/**` / `docs/legacy/**` | **反映なし** | — |
 
 ## 4. 実装方針
