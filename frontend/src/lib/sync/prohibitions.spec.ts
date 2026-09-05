@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
+import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
+import type { DurableQueueAppend, DurableQueueSlot } from './durableQueue'
 import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_REQUIREDNESS,
@@ -11,6 +13,12 @@ import {
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
 import { readCanonEventFieldRules } from './canonOracle'
+import {
+  actionRequiredLabelId,
+  I6_HOLDING_CONTRACT,
+  queueStateId,
+} from './queueState'
+import { QUEUE_TRANSITION_RULES } from './queueTransition'
 import {
   buildSidecarJoinKey,
   SYNC_EVENT_ENVELOPE_KEYS,
@@ -44,6 +52,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'canonOracle.ts',
+  'changeOperationGate.ts',
   'clientDiscipline.ts',
   'durableQueue.ts',
   'eventFieldRules.ts',
@@ -83,6 +92,10 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonTemporaryIdMappingRules',
     'readCanonTombstoneRule',
     'readCanonV12BoundaryRules',
+  ],
+  'changeOperationGate.ts': [
+    'CHANGE_OPERATION_GATE_RESULT',
+    'checkChangeOperationGate',
   ],
   'clientDiscipline.ts': [
     'CLIENT_CLEANUP_TRIGGER',
@@ -218,6 +231,12 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
     'CanonV12BoundaryRule',
+  ],
+  'changeOperationGate.ts': [
+    'ChangeOperationGateInjections',
+    'ChangeOperationGateRejection',
+    'ChangeOperationGateRequest',
+    'ChangeOperationGateResult',
   ],
   'clientDiscipline.ts': [
     'AuthenticationContinuityInjections',
@@ -367,21 +386,48 @@ const EXPECTED_TYPE_EXPORTS = {
   ],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
-const rawModules = import.meta.glob<RawModule>('./**/*.ts', {
-  query: '?raw',
-  eager: true,
-})
+const EXPECTED_TESTING_SOURCE_FILE_NAMES = [
+  'testing/failureScenarioAdapter.ts',
+] as const
+
+const EXPECTED_SCANNED_SOURCE_FILE_NAMES = [
+  ...EXPECTED_PRODUCT_FILE_NAMES,
+  ...EXPECTED_TESTING_SOURCE_FILE_NAMES,
+] as const
+
+const rawModules = import.meta.glob<RawModule>(
+  ['./**/*.ts', '../../testing/**/*.ts'],
+  {
+    query: '?raw',
+    eager: true,
+  },
+)
 const productModules = import.meta.glob<ProductModule>(
   ['./**/*.ts', '!./**/*.spec.ts'],
   { eager: true },
 )
 
-const productSources: readonly ProductSource[] = Object.entries(rawModules)
-  .filter(([path]) => !path.endsWith('.spec.ts'))
+function scannedFileName(path: string): string {
+  if (path.startsWith('./')) {
+    return path.slice(2)
+  }
+  const testingPrefix = '../../testing/'
+  if (path.startsWith(testingPrefix)) {
+    return `testing/${path.slice(testingPrefix.length)}`
+  }
+  throw new Error(`未知の raw 走査対象パスです: ${path}`)
+}
+
+const scannedSources: readonly ProductSource[] = Object.entries(rawModules)
   .map(([path, module]) => ({
-    fileName: path.slice(2),
+    fileName: scannedFileName(path),
     source: module.default,
   }))
+  .filter((entry) => !entry.fileName.endsWith('.spec.ts'))
+
+const productSources = scannedSources.filter(
+  (entry) => !entry.fileName.startsWith('testing/'),
+)
 
 const actualProductFileNames = productSources
   .map((entry) => entry.fileName)
@@ -397,7 +443,25 @@ if (
     `走査対象の製品ファイル集合が一致しません: ${actualProductFileNames.join(',')}`,
   )
 }
+const actualScannedSourceFileNames = scannedSources
+  .map((entry) => entry.fileName)
+  .sort()
+const expectedScannedSourceFileNames = [
+  ...EXPECTED_SCANNED_SOURCE_FILE_NAMES,
+].sort()
+if (
+  actualScannedSourceFileNames.length !==
+    expectedScannedSourceFileNames.length ||
+  actualScannedSourceFileNames.some(
+    (fileName, index) => fileName !== expectedScannedSourceFileNames[index],
+  )
+) {
+  throw new Error(
+    `raw 走査対象のファイル集合が一致しません: ${actualScannedSourceFileNames.join(',')}`,
+  )
+}
 const PRODUCT_SOURCES = Object.freeze(productSources)
+const SCANNED_SOURCES = Object.freeze(scannedSources)
 
 function byPattern(pattern: RegExp): (source: string) => boolean {
   return (source) => pattern.test(source)
@@ -493,6 +557,74 @@ const VERIFICATION_ROWS = [
   '#12 交代イベントの修正 → eventKinds.ts / EVENT_KIND_RULES（群 B・従属・変更版順あり）',
 ] as const
 
+const QUEUE_STATE_VERIFICATION_ROWS = [
+  `状態 ${queueStateId('未送信')} → queueState.ts / QUEUE_STATES（確定前・自動破棄しない）`,
+  `状態 ${queueStateId('要操作')} → queueState.ts / QUEUE_STATES（自動再送・自動破棄の対象外）`,
+  `状態 ${queueStateId('同期済み')} → queueState.ts / QUEUE_STATES（端末永続化済み結果を保持）`,
+  `状態 ${queueStateId('退避済み')} → queueState.ts / QUEUE_STATES（閲覧・書き出し対象）`,
+  `要操作下位 ${actionRequiredLabelId('改訂待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+  `要操作下位 ${actionRequiredLabelId('墓標待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+  `要操作下位 ${actionRequiredLabelId('管理者対応待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+] as const
+
+const I6_VERIFICATION_ROWS = I6_HOLDING_CONTRACT.elements.map(
+  (element) =>
+    `${I6_HOLDING_CONTRACT.id} ${I6_HOLDING_CONTRACT.name} / ${element.id} → queueState.ts / I6_HOLDING_CONTRACT`,
+)
+
+const TRANSITION_VERIFICATION_ROWS = QUEUE_TRANSITION_RULES.map((rule) => {
+  const a5ResultIds =
+    'a5ResultIds' in rule.condition
+      ? ` / A5=${rule.condition.a5ResultIds.join('+')}`
+      : ''
+  return `${rule.id} ${rule.source} → ${rule.target} / ${rule.trigger} / ${rule.condition.kind}${a5ResultIds} / 許可=${rule.transitionAllowed} / 状態変更=${rule.changesState}`
+})
+
+const CLIENT_RULE_VERIFICATION_ROWS = [
+  'Q1 新規スロットの追記と D1 採番を不可分に永続化 → durableQueue.ts',
+  'Q2 同一ブラウザの複数タブは単一の書き手だけが記録 → singleWriter.ts',
+  `${CLIENT_DISCIPLINE_RULES[0].id} 警告閾値でも記録をブロックしない → clientDiscipline.ts`,
+  'Q4 未送信件数を常時表示する記述子 → syncNotices.ts',
+  'Q5 キュー空の同期成功時に試合と球数を通知する記述子 → syncNotices.ts',
+  'Q6 永続ストレージ要求の拒否を警告する記述子 → syncNotices.ts',
+  `${CLIENT_DISCIPLINE_RULES[1].id} 認証失効でもキューを失わず再ログイン後に同期再開 → clientDiscipline.ts`,
+  'Q2-a 単一書き手選出の6前提 → singleWriter.ts / SINGLE_WRITER_PRECONDITION_IDS',
+  'Q2-b 非所有タブの記録不可と旧タブ終了の導線 → syncNotices.ts / singleWriter.ts',
+  'Q2-c ロック保持中の非所有タブ入力を未受理にする → singleWriter.ts',
+  'Q2-r1 steal を使わない → singleWriter.ts',
+  'Q2-r2 コンテキスト終了時の解放後に待機側が取得 → singleWriter.ts',
+  'Q2-r3 同一 storage bucket の永続キューを保持 → durableQueue.ts / singleWriter.ts',
+  'Q2-r4 ロック取得後かつ記録開始前に単一書き手を再検証 → singleWriter.ts',
+] as const
+
+const LOCAL_QUEUE_VERIFICATION_ROWS = [
+  'X1 書き出しで D1・D4・D5 を含むイベントの原形を保持 → localQueueFile.ts',
+  'X2 取り込み重複を D5 の同一性だけで吸収 → localQueueFile.ts',
+  'X3 同一 D4 と要求境界 verifier の成立時だけ取り込み → localQueueFile.ts',
+  'X4 同一端末・同一ブラウザだけを保証 → localQueueFile.ts',
+] as const
+
+const SPECIAL_RULE_VERIFICATION_ROWS = [
+  'K5 オンライン記録権確認後に同じ D1 の墓標版へ不可分置換 → k5Tombstone.ts',
+  'C4 写像確定まで当該イベントを同期済みにしない → mappingConfirmationGate.ts',
+] as const
+
+const W4_VERIFICATION_ROWS = [
+  'W4 オンライン前提 → 進行中 P3 は適用 / 終了後 P3 も適用',
+  'W4 記録権保持前提 → 進行中 P3 は要求境界で照合 / 終了後 P3 は適用しない',
+  'W4 未同期キュー空前提 → 進行中 P3 は適用 / 終了後 P3 は適用しない',
+] as const
+
+const STEP_13_VERIFICATION_ROWS = [
+  ...QUEUE_STATE_VERIFICATION_ROWS,
+  ...I6_VERIFICATION_ROWS,
+  ...TRANSITION_VERIFICATION_ROWS,
+  ...CLIENT_RULE_VERIFICATION_ROWS,
+  ...LOCAL_QUEUE_VERIFICATION_ROWS,
+  ...SPECIAL_RULE_VERIFICATION_ROWS,
+  ...W4_VERIFICATION_ROWS,
+] as const
+
 function sourceFor(fileName: string): string {
   const productSource = PRODUCT_SOURCES.find(
     (candidate) => candidate.fileName === fileName,
@@ -515,7 +647,7 @@ function expectCandidatesAbsent(
   candidates: readonly ForbiddenCandidate[],
 ): void {
   for (const candidate of candidates) {
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       expect(
         candidate.matches(productSource.source),
         `${productSource.fileName} に ${candidate.name} が現れています`,
@@ -625,6 +757,19 @@ describe('prohibitions', () => {
     expect(
       PRODUCT_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
     ).toBe(true)
+    expect(SCANNED_SOURCES.map((entry) => entry.fileName).sort()).toEqual(
+      [...EXPECTED_SCANNED_SOURCE_FILE_NAMES].sort(),
+    )
+    expect(
+      SCANNED_SOURCES.some(
+        (entry) =>
+          entry.fileName === EXPECTED_TESTING_SOURCE_FILE_NAMES[0] &&
+          entry.source.length > 0,
+      ),
+    ).toBe(true)
+    expect(
+      SCANNED_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
+    ).toBe(true)
   })
 
   it('P-02: サイドカー結合キーを試合・D4・D1の3要素だけで作る', () => {
@@ -662,6 +807,61 @@ describe('prohibitions', () => {
     expect(exactEnvelopeType).toBe(true)
     expect(exactSlotType).toBe(true)
     expectEventSlotsToMatchCanon()
+  })
+
+  it('P-24: キュー要素を SyncEvent 単位に閉じ、プレイ行の列を受け取らない', () => {
+    const event: SyncEvent = { fields: {} }
+    const append: DurableQueueAppend = {
+      scope: { game: {}, d4: {} },
+      d5: {},
+      version: {},
+      event,
+    }
+    const slot: DurableQueueSlot = {
+      game: {},
+      d4: {},
+      d1: 1,
+      d5: {},
+      version: {},
+      event,
+      state: queueStateId('未送信'),
+    }
+    const playRowSequence = [{ id: {} }]
+    const invalidEventAppend: DurableQueueAppend = {
+      ...append,
+      // @ts-expect-error キュー要素にはプレイ行の列を渡せない。
+      event: playRowSequence,
+    }
+    const invalidPlayRowColumn: DurableQueueAppend = {
+      ...append,
+      // @ts-expect-error キュー入力にプレイ行の列を追加できない。
+      playRows: playRowSequence,
+    }
+    const exactAppendKeys: ExactKeySet<
+      keyof DurableQueueAppend,
+      'scope' | 'd5' | 'version' | 'event'
+    > = true
+    const exactSlotKeys: ExactKeySet<
+      keyof DurableQueueSlot,
+      'game' | 'd4' | 'd1' | 'd5' | 'version' | 'event' | 'state'
+    > = true
+    const exactAppendEvent: ExactKeySet<
+      DurableQueueAppend['event'],
+      SyncEvent
+    > = true
+    const exactSlotEvent: ExactKeySet<DurableQueueSlot['event'], SyncEvent> =
+      true
+
+    expect([
+      exactAppendKeys,
+      exactSlotKeys,
+      exactAppendEvent,
+      exactSlotEvent,
+    ]).toEqual([true, true, true, true])
+    expect(append.event).toBe(event)
+    expect(slot.event).toBe(event)
+    expect(invalidEventAppend.event).toBe(playRowSequence)
+    expect(Object.hasOwn(invalidPlayRowColumn, 'playRows')).toBe(true)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {
@@ -837,7 +1037,7 @@ describe('prohibitions', () => {
         exactStringLiterals(sourceFor('eventFieldRules.ts'), valuePattern),
       ),
     ).toEqual(new Set(V_IDS))
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       if (productSource.fileName !== 'eventFieldRules.ts') {
         expect(exactStringLiterals(productSource.source, valuePattern)).toEqual(
           [],
@@ -855,7 +1055,7 @@ describe('prohibitions', () => {
 
     expect(EVENT_KIND_IDS.length).toBeGreaterThan(0)
     expect(eventKindLiterals).toEqual([...EVENT_KIND_IDS, '7'])
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       if (productSource.fileName !== 'eventKinds.ts') {
         expect(exactStringLiterals(productSource.source, valuePattern)).toEqual(
           [],
@@ -911,6 +1111,23 @@ describe('prohibitions', () => {
     expect(VERIFICATION_ROWS.every((row) => !row.includes('\n'))).toBe(true)
 
     console.log(VERIFICATION_ROWS.join('\n'))
+    await Promise.resolve()
+  })
+
+  it('H-59 の実装逐語照合入力を55行出力する', async () => {
+    expect(QUEUE_STATE_VERIFICATION_ROWS).toHaveLength(7)
+    expect(I6_VERIFICATION_ROWS).toHaveLength(11)
+    expect(TRANSITION_VERIFICATION_ROWS).toHaveLength(14)
+    expect(CLIENT_RULE_VERIFICATION_ROWS).toHaveLength(14)
+    expect(LOCAL_QUEUE_VERIFICATION_ROWS).toHaveLength(4)
+    expect(SPECIAL_RULE_VERIFICATION_ROWS).toHaveLength(2)
+    expect(W4_VERIFICATION_ROWS).toHaveLength(3)
+    expect(STEP_13_VERIFICATION_ROWS).toHaveLength(55)
+    expect(STEP_13_VERIFICATION_ROWS.every((row) => !row.includes('\n'))).toBe(
+      true,
+    )
+
+    console.log(STEP_13_VERIFICATION_ROWS.join('\n'))
     await Promise.resolve()
   })
 })
