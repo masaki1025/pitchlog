@@ -1,6 +1,6 @@
 ---
 feature: sync-queue-lifecycle
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-05・山田正輝)
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -133,6 +133,8 @@ created: 2026-09-05
 | **`frontend/src/lib/sync/**`(新設)** | **新設**(4 節の構成表) | PR レビュー(テストを伴う)+ **人間の逐行確認**(コア領域) |
 | **`frontend/src/lib/sync/prohibitions.spec.ts`** | **U-2 パターンの精緻化**(裁定 1)+ **3 つの exact-set を各ステップで追随** | PR レビュー(テストを伴う) |
 | **`tests/fixtures/sync-protocol-failures/`**(新設) | **`NFR-019(d)` の版付きシナリオ資産 4 件**(10-3 の契約に従う) | PR レビュー(テストを伴う) |
+| **`docs/development/harness-evaluation.md`** | **`## 候補` へ 2 件追記 + 既存候補 3 件へ実測**(/pr のクローズ処理) | PR レビュー(**`H-*` の追記では版を上げない** — 7.6-3 前段) |
+| **`docs/README.md`** | 台帳行の最終更新日を現行化 | PR レビュー |
 | `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `scripts/**` / `docs/legacy/**` / `.github/**` | **反映なし** | — |
 
 ### コア領域の帰属(6.3 の境界定義表への当てはめ — P1-6)
