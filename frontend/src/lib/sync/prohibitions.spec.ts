@@ -98,6 +98,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'k5Tombstone.ts',
   'localQueueFile.ts',
   'mappingConfirmationGate.ts',
+  'playerIdMapping.ts',
   'queueState.ts',
   'queueTransition.ts',
   'rejectionReason.ts',
@@ -213,6 +214,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'MAPPING_CONFIRMATION_STATUS',
     'checkMappingConfirmation',
   ],
+  'playerIdMapping.ts': ['receivePlayerIdMapping'],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
     'REQUEST_BOUNDARY_RESULT',
@@ -389,6 +391,13 @@ const EXPECTED_TYPE_EXPORTS = {
     'MappingConfirmationInjections',
     'MappingConfirmationRequest',
     'PlayerRegistrationMappingResolver',
+  ],
+  'playerIdMapping.ts': [
+    'ConfirmedPlayerIdMapping',
+    'PlayerIdMappingReception',
+    'PlayerIdMappingReceptionRequest',
+    'PlayerIdMappingResponse',
+    'PlayerIdMappingTarget',
   ],
   'requestBoundary.ts': [
     'P3RequestState',
