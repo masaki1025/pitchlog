@@ -1,6 +1,6 @@
 // このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2 の対象規則の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
-// テストからのみ使う。
+// 正本語彙を必要とする同期モジュールとテストから使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_KIND_RULES } from './eventKinds'
 
@@ -12,6 +12,7 @@ const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
 const QUEUE_LIFE_RELATION_ID = 'R-QUEUE-LIFE'
+const ACK_STATE_RELATION_ID = 'R-ACK-STATE'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -828,4 +829,54 @@ export function readCanonQueueLifeRules(
     throw new Error('R-QUEUE-LIFE.source_elements がありません')
   }
   return parseCanonQueueLifeRules(relation.source_elements)
+}
+
+const CANON_ACK_STATE_RESULT_IDS = Object.freeze([
+  ...syncProtocolRelations[ACK_STATE_RELATION_ID].source_elements,
+])
+const CANON_ACK_STATE_RESULT_ID_SET = new Set<string>(
+  CANON_ACK_STATE_RESULT_IDS,
+)
+
+export type CanonAckStateResult = Readonly<{ id: string }>
+
+export function parseCanonAckStateResults(
+  sourceElements: readonly unknown[],
+): readonly CanonAckStateResult[] {
+  const seenIds = new Set<string>()
+  const results: CanonAckStateResult[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-ACK-STATE の要素は文字列でなければなりません')
+    }
+    if (!CANON_ACK_STATE_RESULT_ID_SET.has(sourceElement)) {
+      throw new Error(`R-ACK-STATE に未知の要素があります: ${sourceElement}`)
+    }
+    if (seenIds.has(sourceElement)) {
+      throw new Error(`R-ACK-STATE の要素が重複しています: ${sourceElement}`)
+    }
+    seenIds.add(sourceElement)
+    results.push(Object.freeze({ id: sourceElement }))
+  }
+
+  assertExactKnownIds(
+    ACK_STATE_RELATION_ID,
+    seenIds,
+    CANON_ACK_STATE_RESULT_ID_SET,
+  )
+  return Object.freeze(results)
+}
+
+export function readCanonAckStateResults(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonAckStateResult[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[ACK_STATE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-ACK-STATE.source_elements がありません')
+  }
+  return parseCanonAckStateResults(relation.source_elements)
 }

@@ -48,6 +48,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'eventKinds.ts',
   'idempotencyCollision.ts',
   'queueState.ts',
+  'queueTransition.ts',
   'requestBoundary.ts',
   'syncEvent.ts',
   'temporaryIdMapping.ts',
@@ -58,12 +59,14 @@ const EXPECTED_VALUE_EXPORTS = {
   'canonOracle.ts': [
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
     'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
+    'parseCanonAckStateResults',
     'parseCanonEventFieldRules',
     'parseCanonIdempotencyCollisionRules',
     'parseCanonParticipationRules',
     'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
     'parseCanonV12BoundaryRules',
+    'readCanonAckStateResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
     'readCanonParticipationRules',
@@ -112,6 +115,14 @@ const EXPECTED_VALUE_EXPORTS = {
     'QUEUE_ACTION_REQUIRED_LABELS',
     'QUEUE_STATES',
   ],
+  'queueTransition.ts': [
+    'B3_REASON_KIND',
+    'QUEUE_TRANSITION_ROW_IDS',
+    'QUEUE_TRANSITION_RULES',
+    'RG1_STATE',
+    'evaluateQueueTransition',
+    'queueTransitionRuleById',
+  ],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
@@ -133,6 +144,7 @@ const EXPECTED_VALUE_EXPORTS = {
 
 const EXPECTED_TYPE_EXPORTS = {
   'canonOracle.ts': [
+    'CanonAckStateResult',
     'CanonEventFieldRule',
     'CanonEventKindRule',
     'CanonIdempotencyCollisionRule',
@@ -184,6 +196,17 @@ const EXPECTED_TYPE_EXPORTS = {
     'QueueActionRequiredLabel',
     'QueueState',
     'QueueStateId',
+  ],
+  'queueTransition.ts': [
+    'B3ReasonClassification',
+    'QueueEventKey',
+    'QueueSlot',
+    'QueueTransitionInjections',
+    'QueueTransitionRequest',
+    'QueueTransitionResult',
+    'QueueTransitionRowId',
+    'QueueTransitionRule',
+    'Rg1State',
   ],
   'syncEvent.ts': [
     'SidecarJoinKey',

@@ -8,7 +8,9 @@ import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import {
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
+  parseCanonAckStateResults,
   parseCanonQueueLifeRules,
+  readCanonAckStateResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
@@ -564,6 +566,33 @@ describe('canonOracle', () => {
     )
     expect(() => readCanonQueueLifeRules(mutatedRelations)).toThrowError(
       /未知の I6 トークン/,
+    )
+  })
+
+  it('R-ACK-STATE の全結果を各伝播先と照合する', () => {
+    const relation = syncProtocolRelations['R-ACK-STATE']
+    const sourceElements = relation.source_elements
+    const sourceElementSet = new Set<string>(sourceElements)
+
+    expect(sourceElements).toHaveLength(5)
+    expect(parseCanonAckStateResults(sourceElements)).toEqual(
+      readCanonAckStateResults(),
+    )
+    expect(new Set(Object.keys(relation.expected_elements))).toEqual(
+      new Set(relation.targets),
+    )
+    for (const targetElements of Object.values(relation.expected_elements)) {
+      expect(targetElements).toHaveLength(sourceElements.length)
+      expect(new Set(targetElements)).toEqual(sourceElementSet)
+    }
+  })
+
+  it('R-ACK-STATE の未知要素を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-ACK-STATE'].source_elements[0] = '未知のA5結果'
+
+    expect(() => readCanonAckStateResults(mutatedRelations)).toThrowError(
+      /未知の要素/,
     )
   })
 })
