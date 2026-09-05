@@ -329,7 +329,10 @@ export type QueueTransitionInjections = Readonly<{
       result: CanonAckStateResult
     }>,
   ) => B3ReasonClassification | undefined
-  confirmTombstoneGeneration?: (slot: QueueSlot) => boolean | undefined
+  confirmTombstoneGeneration?: (input: {
+    readonly slot: QueueSlot
+    readonly replacement: QueueSlotReplacement
+  }) => boolean | undefined
   confirmO4Correction?: (slot: QueueSlot) => boolean | undefined
   confirmI6EvacuationSaved?: (slot: QueueSlot) => boolean | undefined
   resolveRg1State?: (slot: QueueSlot) => Rg1State | undefined
@@ -437,6 +440,14 @@ function replacedUnsentSlot(
     content: replacement.content,
     source: slot.source,
   }
+}
+
+function hasEmptyContent(content: unknown): boolean {
+  return (
+    typeof content === 'object' &&
+    content !== null &&
+    Reflect.ownKeys(content).length === 0
+  )
 }
 
 function resolveKnownEventKind(value: unknown): EventKind | undefined {
@@ -556,7 +567,13 @@ function applyActionReplacement(
   if (slot.actionRequiredLabel === TOMBSTONE_ACTION_LABEL_ID) {
     let confirmed: boolean | undefined
     try {
-      confirmed = injections.confirmTombstoneGeneration?.(slot)
+      if (!hasEmptyContent(replacement.content)) {
+        return notApplied(rule.id)
+      }
+      confirmed = injections.confirmTombstoneGeneration?.({
+        slot,
+        replacement,
+      })
     } catch {
       return notApplied(rule.id)
     }

@@ -2,13 +2,13 @@
 // 記録権の成立判定は requestBoundary の verifier に委ね、値の形式は解釈しない。
 
 import { SYNC_EVENT_PATH } from './eventFieldRules'
+import type { DurableQueueSlot } from './durableQueue'
 import {
   checkRequestBoundary,
   type RequestBoundaryEnvelope,
   type V12BindingVerifier,
 } from './requestBoundary'
 import { actionRequiredLabelId, queueStateId } from './queueState'
-import type { QueueEventKey, QueueSlot } from './queueTransition'
 
 const UNSENT_STATE = queueStateId('未送信')
 const ACTION_REQUIRED_STATE = queueStateId('要操作')
@@ -55,12 +55,19 @@ export const TOMBSTONE_ONLINE_STATE = {
 export type TombstoneOnlineState =
   (typeof TOMBSTONE_ONLINE_STATE)[keyof typeof TOMBSTONE_ONLINE_STATE]
 
-export type TombstoneSourceSlot = Extract<QueueSlot, { source: 'd1-event' }>
+export type TombstoneSourceSlot = DurableQueueSlot
 
 type D1RequestBoundaryEnvelope = Exclude<
   RequestBoundaryEnvelope,
   { path: typeof SYNC_EVENT_PATH.P3 }
 >
+
+export type TombstoneBoundaryRequest = D1RequestBoundaryEnvelope &
+  Readonly<{
+    game: unknown
+    d4: unknown
+    d1: number
+  }>
 
 export type TombstoneRecordingRightVerifier = (
   input: Parameters<V12BindingVerifier>[0],
@@ -69,7 +76,7 @@ export type TombstoneRecordingRightVerifier = (
 export type TombstoneGenerationRequest = Readonly<{
   slot: TombstoneSourceSlot
   tombstoneVersion: unknown
-  boundaryRequest: D1RequestBoundaryEnvelope
+  boundaryRequest: TombstoneBoundaryRequest
 }>
 
 export type TombstoneGenerationInjections = Readonly<{
@@ -80,13 +87,18 @@ export type TombstoneGenerationInjections = Readonly<{
 }>
 
 type EmptyTombstoneContent = Readonly<Record<string, never>>
+type EmptyTombstoneEvent = Readonly<{
+  fields: EmptyTombstoneContent
+}>
 
 export type TombstoneQueueSlotReplacement = Readonly<{
+  game: TombstoneSourceSlot['game']
+  d4: TombstoneSourceSlot['d4']
+  d1: TombstoneSourceSlot['d1']
+  d5: TombstoneSourceSlot['d5']
+  version: TombstoneSourceSlot['version']
+  event: EmptyTombstoneEvent
   state: typeof UNSENT_STATE
-  source: TombstoneSourceSlot['source']
-  key: QueueEventKey
-  version: unknown
-  content: EmptyTombstoneContent
 }>
 
 export type TombstoneGenerationResult =
@@ -103,6 +115,17 @@ function notOffered(slot: TombstoneSourceSlot): TombstoneGenerationResult {
   return Object.freeze({ offered: false, slot })
 }
 
+function hasSameEventIdentity(
+  slot: TombstoneSourceSlot,
+  boundaryRequest: TombstoneBoundaryRequest,
+): boolean {
+  return (
+    Object.is(slot.game, boundaryRequest.game) &&
+    Object.is(slot.d4, boundaryRequest.d4) &&
+    Object.is(slot.d1, boundaryRequest.d1)
+  )
+}
+
 export function prepareTombstoneReplacement(
   request: TombstoneGenerationRequest,
   injections: TombstoneGenerationInjections = {},
@@ -110,7 +133,8 @@ export function prepareTombstoneReplacement(
   const { slot } = request
   if (
     slot.state !== ACTION_REQUIRED_STATE ||
-    slot.actionRequiredLabel !== TOMBSTONE_ACTION_LABEL_ID
+    slot.actionRequiredLabel !== TOMBSTONE_ACTION_LABEL_ID ||
+    !hasSameEventIdentity(slot, request.boundaryRequest)
   ) {
     return notOffered(slot)
   }
@@ -147,23 +171,21 @@ export function prepareTombstoneReplacement(
   } catch {
     return notOffered(slot)
   }
-  if (Object.is(newD5, slot.key.d5)) {
+  if (newD5 === undefined || Object.is(newD5, slot.d5)) {
     return notOffered(slot)
   }
 
   // allocateD1 は不使用のまま注入可能にし、新しい D1 を採番しない契約を観測可能にする。
   const content: EmptyTombstoneContent = Object.freeze({})
-  const key: QueueEventKey = Object.freeze({
-    d4: slot.key.d4,
-    d1: slot.key.d1,
-    d5: newD5,
-  })
+  const event: EmptyTombstoneEvent = Object.freeze({ fields: content })
   const replacement: TombstoneQueueSlotReplacement = Object.freeze({
-    state: UNSENT_STATE,
-    source: slot.source,
-    key,
+    game: slot.game,
+    d4: slot.d4,
+    d1: slot.d1,
+    d5: newD5,
     version: request.tombstoneVersion,
-    content,
+    event,
+    state: UNSENT_STATE,
   })
 
   return Object.freeze({ offered: true, replacement })

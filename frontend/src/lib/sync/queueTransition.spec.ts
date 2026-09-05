@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import queueTransitionSource from './queueTransition.ts?raw'
 import { readCanonAckStateResults } from './canonOracle'
 import { EVENT_KIND_RULES } from './eventKinds'
@@ -480,17 +480,45 @@ describe('queueTransition', () => {
     const slot = queueSlot(ACTION_REQUIRED_STATE, {
       actionRequiredLabel: TOMBSTONE_ACTION_LABEL.id,
     })
+    const replacement = { key: eventKey({ d5: {} }), content: {} }
+    const confirmTombstoneGeneration = vi.fn(() => true)
     const result = evaluateQueueTransition(
       {
         kind: 'action-replacement-persisted',
         slot,
-        replacement: { key: eventKey({ d5: {} }), content: {} },
+        replacement,
       },
-      { confirmTombstoneGeneration: () => true },
+      { confirmTombstoneGeneration },
     )
 
     expect(result.applied).toBe(true)
     expect(result.rowId).toBe('QT-06')
+    expect(confirmTombstoneGeneration).toHaveBeenCalledWith({
+      slot,
+      replacement,
+    })
+  })
+
+  it('墓標待ちは置換内容が空でなければ確認結果が true でも保持する', () => {
+    const slot = queueSlot(ACTION_REQUIRED_STATE, {
+      actionRequiredLabel: TOMBSTONE_ACTION_LABEL.id,
+    })
+    const confirmTombstoneGeneration = vi.fn(() => true)
+    const result = evaluateQueueTransition(
+      {
+        kind: 'action-replacement-persisted',
+        slot,
+        replacement: {
+          key: eventKey({ d5: {} }),
+          content: { unexpected: true },
+        },
+      },
+      { confirmTombstoneGeneration },
+    )
+
+    expect(result.applied).toBe(false)
+    expect(result.rowId).toBe('QT-06')
+    expect(confirmTombstoneGeneration).not.toHaveBeenCalled()
   })
 
   it('改訂待ちは墓標生成確認を注入せず未送信へ戻す', () => {

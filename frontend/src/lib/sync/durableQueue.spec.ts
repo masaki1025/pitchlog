@@ -8,14 +8,25 @@ import {
   type D1Allocator,
   type DurableQueue,
   type DurableQueueAppend,
-  type DurableQueueReplacementKind,
   type DurableQueueScope,
+  type DurableQueueSlot,
 } from './durableQueue'
-import { queueStateId } from './queueState'
+import { REQUEST_ONLY_IDS, SYNC_EVENT_PATH } from './eventFieldRules'
+import {
+  prepareTombstoneReplacement,
+  TOMBSTONE_ONLINE_STATE,
+  type TombstoneBoundaryRequest,
+  type TombstoneGenerationInjections,
+} from './k5Tombstone'
+import { actionRequiredLabelId, queueStateId } from './queueState'
 
 let databaseSequence = 0
 const openedQueues: DurableQueue[] = []
 const databaseNames: string[] = []
+const REQUEST_ONLY_ID = REQUEST_ONLY_IDS[0]
+if (!REQUEST_ONLY_ID) {
+  throw new Error('要求レベル ID がありません')
+}
 
 function nextDatabaseName(): string {
   databaseSequence += 1
@@ -56,6 +67,63 @@ function deleteDatabase(name: string): Promise<void> {
     request.onerror = () => reject(request.error)
     request.onblocked = () => reject(new Error('テスト DB を削除できません'))
   })
+}
+
+function openExistingDatabase(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => reject(transaction.error)
+    transaction.onerror = () => {
+      // abort が最終結果を通知するため、ここでは完了を確定しない。
+    }
+  })
+}
+
+async function overwriteQueueSlot(
+  databaseName: string,
+  slot: DurableQueueSlot,
+): Promise<void> {
+  const database = await openExistingDatabase(databaseName)
+  const transaction = database.transaction('queue', 'readwrite')
+  const completion = transactionDone(transaction)
+  transaction.objectStore('queue').put(slot)
+  await completion
+  database.close()
+}
+
+function tombstoneBoundaryRequest(
+  slot: DurableQueueSlot,
+  overrides: Partial<TombstoneBoundaryRequest> = {},
+): TombstoneBoundaryRequest {
+  return {
+    path: SYNC_EVENT_PATH.P1,
+    requestValues: { [REQUEST_ONLY_ID]: {} },
+    recoveryGenerationAtCreation: {},
+    game: slot.game,
+    d4: slot.d4,
+    d1: slot.d1,
+    ...overrides,
+  }
+}
+
+function successfulTombstoneInjections(
+  newD5: unknown,
+  overrides: Partial<TombstoneGenerationInjections> = {},
+): TombstoneGenerationInjections {
+  return {
+    resolveOnlineState: () => TOMBSTONE_ONLINE_STATE.ONLINE,
+    v12Binding: () => true,
+    generateD5: () => newD5,
+    ...overrides,
+  }
 }
 
 afterEach(async () => {
@@ -130,33 +198,145 @@ describe('durableQueue', () => {
     )
   })
 
-  it.each(['D6', 'D7'] as const)(
-    '%s の置換では D1 採番器を呼ばず、既存スロットの D1 を保つ',
-    async (kind: DurableQueueReplacementKind) => {
-      const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
-      const queue = await openTestQueue({ allocateNextD1: allocator })
-      const scope = { game: 'game-a', d4: 'generation-a' }
-      const original = await queue.append(appendInput(scope))
-      allocator.mockClear()
-      const newD5 = { value: 'new-d5' }
+  it('D7 はオンライン確認なしのローカル経路で既存 D1 を保つ', async () => {
+    const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
+    const queue = await openTestQueue({ allocateNextD1: allocator })
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const original = await queue.append(appendInput(scope))
+    allocator.mockClear()
+    const newD5 = { value: 'new-d5' }
 
-      const replacement = await queue.replace({
-        kind,
+    const replacement = await queue.replaceRevision({
+      kind: 'D7',
+      scope,
+      d1: original.d1,
+      d5: newD5,
+      version: { value: 'new-version' },
+      event: { fields: {} },
+    })
+
+    expect(allocator).not.toHaveBeenCalled()
+    expect(replacement.d1).toBe(original.d1)
+    expect(replacement.d5).toBe(newD5)
+    expect(replacement.state).toBe(queueStateId('未送信'))
+    expect(await queue.countSlots()).toBe(1)
+    expect(await queue.readSlot(scope, original.d1)).toEqual(replacement)
+  })
+
+  it('K5 は確認・生成・空内容置換を 1 回のトランザクションで行い D1 を採番しない', async () => {
+    const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
+    const queue = await openTestQueue({ allocateNextD1: allocator })
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const original = await queue.append(
+      appendInput(scope, { d5: 'old-d5', event: { fields: { V7: {} } } }),
+    )
+    const source: DurableQueueSlot = {
+      ...original,
+      state: queueStateId('要操作'),
+      actionRequiredLabel: actionRequiredLabelId('墓標待ち'),
+    }
+    await overwriteQueueSlot(databaseName, source)
+    allocator.mockClear()
+    const replacementD1Allocator = vi.fn(() => source.d1 + 1)
+    const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
+
+    const result = await queue.replaceWithTombstone(
+      {
+        kind: 'D6',
         scope,
-        d1: original.d1,
-        d5: newD5,
-        version: { value: 'new-version' },
-        event: { fields: {} },
-      })
+        d1: source.d1,
+        tombstoneVersion: 'tombstone-version',
+        boundaryRequest: tombstoneBoundaryRequest(source),
+      },
+      successfulTombstoneInjections('new-d5', {
+        allocateD1: replacementD1Allocator,
+      }),
+    )
 
-      expect(allocator).not.toHaveBeenCalled()
-      expect(replacement.d1).toBe(original.d1)
-      expect(replacement.d5).toBe(newD5)
-      expect(replacement.state).toBe(queueStateId('未送信'))
-      expect(await queue.countSlots()).toBe(1)
-      expect(await queue.readSlot(scope, original.d1)).toEqual(replacement)
+    expect(result.offered).toBe(true)
+    expect(transactionSpy).toHaveBeenCalledTimes(1)
+    expect(transactionSpy).toHaveBeenCalledWith('queue', 'readwrite')
+    expect(allocator).not.toHaveBeenCalled()
+    expect(replacementD1Allocator).not.toHaveBeenCalled()
+    if (!result.offered) {
+      throw new Error('墓標置換がありません')
+    }
+    expect(result.replacement.d1).toBe(source.d1)
+    expect(result.replacement.d5).toBe('new-d5')
+    expect(Reflect.ownKeys(result.replacement.event.fields)).toHaveLength(0)
+    expect(result.replacement.state).toBe(queueStateId('未送信'))
+    transactionSpy.mockRestore()
+    expect(await queue.readSlot(scope, source.d1)).toEqual(result.replacement)
+  })
+
+  it.each([
+    ['別イベント', 'new-d5', { game: 'game-b' }],
+    ['D5 が undefined', undefined, {}],
+    ['既存 D5 と同一', 'old-d5', {}],
+  ] as const)(
+    'K5 は%sなら永続スロットを変更しない',
+    async (_name, newD5, boundaryOverrides) => {
+      const queue = await openTestQueue()
+      const databaseName = databaseNames.at(-1)
+      if (!databaseName) {
+        throw new Error('テスト DB 名がありません')
+      }
+      const scope = { game: 'game-a', d4: 'generation-a' }
+      const original = await queue.append(appendInput(scope, { d5: 'old-d5' }))
+      const source: DurableQueueSlot = {
+        ...original,
+        state: queueStateId('要操作'),
+        actionRequiredLabel: actionRequiredLabelId('墓標待ち'),
+      }
+      await overwriteQueueSlot(databaseName, source)
+
+      const result = await queue.replaceWithTombstone(
+        {
+          kind: 'D6',
+          scope,
+          d1: source.d1,
+          tombstoneVersion: {},
+          boundaryRequest: tombstoneBoundaryRequest(source, boundaryOverrides),
+        },
+        successfulTombstoneInjections(newD5),
+      )
+
+      expect(result.offered).toBe(false)
+      expect(await queue.readSlot(scope, source.d1)).toEqual(source)
     },
   )
+
+  it('K5 の低水準準備だけでは永続スロットを置換できない', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const original = await queue.append(appendInput(scope, { d5: 'old-d5' }))
+    const source: DurableQueueSlot = {
+      ...original,
+      state: queueStateId('要操作'),
+      actionRequiredLabel: actionRequiredLabelId('墓標待ち'),
+    }
+    await overwriteQueueSlot(databaseName, source)
+
+    const prepared = prepareTombstoneReplacement(
+      {
+        slot: source,
+        tombstoneVersion: {},
+        boundaryRequest: tombstoneBoundaryRequest(source),
+      },
+      successfulTombstoneInjections('new-d5'),
+    )
+
+    expect(prepared.offered).toBe(true)
+    expect(await queue.readSlot(scope, source.d1)).toEqual(source)
+  })
 
   it('置換の永続化に失敗した場合は既存スロットを保つ', async () => {
     const queue = await openTestQueue()
@@ -164,8 +344,8 @@ describe('durableQueue', () => {
     const original = await queue.append(appendInput(scope))
 
     await expect(
-      queue.replace({
-        kind: 'D6',
+      queue.replaceRevision({
+        kind: 'D7',
         scope,
         d1: original.d1,
         d5: { value: 'new-d5' },

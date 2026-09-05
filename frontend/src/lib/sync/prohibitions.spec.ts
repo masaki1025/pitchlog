@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
-import type { DurableQueueAppend, DurableQueueSlot } from './durableQueue'
+import {
+  DurableQueue,
+  type DurableQueueAppend,
+  type DurableQueueSlot,
+} from './durableQueue'
 import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_REQUIREDNESS,
@@ -258,10 +262,10 @@ const EXPECTED_TYPE_EXPORTS = {
     'D1Allocator',
     'DurableQueueAppend',
     'DurableQueueOptions',
-    'DurableQueueReplacement',
-    'DurableQueueReplacementKind',
+    'DurableQueueRevisionReplacement',
     'DurableQueueScope',
     'DurableQueueSlot',
+    'DurableQueueTombstoneOperation',
     'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
@@ -302,6 +306,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'StoredIdempotencyOperation',
   ],
   'k5Tombstone.ts': [
+    'TombstoneBoundaryRequest',
     'TombstoneGenerationInjections',
     'TombstoneGenerationRequest',
     'TombstoneGenerationResult',
@@ -848,7 +853,14 @@ describe('prohibitions', () => {
     > = true
     const exactSlotKeys: ExactKeySet<
       keyof DurableQueueSlot,
-      'game' | 'd4' | 'd1' | 'd5' | 'version' | 'event' | 'state'
+      | 'game'
+      | 'd4'
+      | 'd1'
+      | 'd5'
+      | 'version'
+      | 'event'
+      | 'state'
+      | 'actionRequiredLabel'
     > = true
     const exactAppendEvent: ExactKeySet<
       DurableQueueAppend['event'],
@@ -867,6 +879,25 @@ describe('prohibitions', () => {
     expect(slot.event).toBe(event)
     expect(invalidEventAppend.event).toBe(playRowSequence)
     expect(Object.hasOwn(invalidPlayRowColumn, 'playRows')).toBe(true)
+  })
+
+  it('K5: 汎用置換を公開せず、D6 と D7 の入口を分離する', () => {
+    type ReplacementMethod = Extract<
+      keyof DurableQueue,
+      'replace' | 'replaceRevision' | 'replaceWithTombstone'
+    >
+    const exactReplacementMethods: ExactKeySet<
+      ReplacementMethod,
+      'replaceRevision' | 'replaceWithTombstone'
+    > = true
+    const invalidLowLevelReplace = (queue: DurableQueue) => {
+      // @ts-expect-error K5 を迂回する汎用置換 API は公開しない。
+      return queue.replace
+    }
+
+    expect(exactReplacementMethods).toBe(true)
+    expect(Object.hasOwn(DurableQueue.prototype, 'replace')).toBe(false)
+    expect(invalidLowLevelReplace).toBeTypeOf('function')
   })
 
   it('C4: A5 の公開入口にイベント種別と写像確認 resolver を要求する', () => {

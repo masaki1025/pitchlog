@@ -1,7 +1,17 @@
 // この永続化境界は docs/design/sync-protocol.md 7-4 の Q1 の実装である。
 // 値の形式は解釈せず、IndexedDB の structured clone にそのまま委ねる。
 
-import { queueStateId, type QueueStateId } from './queueState'
+import {
+  prepareTombstoneReplacement,
+  type TombstoneBoundaryRequest,
+  type TombstoneGenerationInjections,
+  type TombstoneGenerationResult,
+} from './k5Tombstone'
+import {
+  queueStateId,
+  type QueueActionRequiredLabel,
+  type QueueStateId,
+} from './queueState'
 import type { SyncEvent } from './syncEvent'
 
 const DATABASE_VERSION = 1
@@ -27,15 +37,21 @@ export type DurableQueueAppend = Readonly<{
   event: SyncEvent
 }>
 
-export type DurableQueueReplacementKind = 'D6' | 'D7'
-
-export type DurableQueueReplacement = Readonly<{
-  kind: DurableQueueReplacementKind
+export type DurableQueueRevisionReplacement = Readonly<{
+  kind: 'D7'
   scope: DurableQueueScope
   d1: number
   d5: unknown
   version: unknown
   event: SyncEvent
+}>
+
+export type DurableQueueTombstoneOperation = Readonly<{
+  kind: 'D6'
+  scope: DurableQueueScope
+  d1: number
+  tombstoneVersion: unknown
+  boundaryRequest: TombstoneBoundaryRequest
 }>
 
 export type DurableQueueSlot = Readonly<{
@@ -46,6 +62,7 @@ export type DurableQueueSlot = Readonly<{
   version: unknown
   event: SyncEvent
   state: QueueStateId
+  actionRequiredLabel?: QueueActionRequiredLabel['id']
 }>
 
 export type D1Allocator = (previousD1: number) => number
@@ -202,7 +219,12 @@ export class DurableQueue {
     }
   }
 
-  async replace(input: DurableQueueReplacement): Promise<DurableQueueSlot> {
+  async replaceRevision(
+    input: DurableQueueRevisionReplacement,
+  ): Promise<DurableQueueSlot> {
+    if (input.kind !== 'D7') {
+      throw new Error('改訂版以外はローカル置換できません')
+    }
     const transaction = this.#database.transaction(
       QUEUE_STORE_NAME,
       'readwrite',
@@ -230,6 +252,55 @@ export class DurableQueue {
       store.put(replacement)
       await completion
       return replacement
+    } catch (error) {
+      abortTransaction(transaction)
+      try {
+        await completion
+      } catch {
+        // 元の失敗を呼び出し元へ返す。
+      }
+      throw error
+    }
+  }
+
+  async replaceWithTombstone(
+    input: DurableQueueTombstoneOperation,
+    injections: TombstoneGenerationInjections = {},
+  ): Promise<TombstoneGenerationResult> {
+    if (input.kind !== 'D6') {
+      throw new Error('墓標以外は K5 の置換対象にできません')
+    }
+    const transaction = this.#database.transaction(
+      QUEUE_STORE_NAME,
+      'readwrite',
+    )
+    const completion = transactionCompletion(transaction)
+
+    try {
+      const store = transaction.objectStore(QUEUE_STORE_NAME)
+      const existing = (await requestResult(
+        store.get(indexedDbKey([input.scope.game, input.scope.d4, input.d1])),
+      )) as DurableQueueSlot | undefined
+      if (!existing) {
+        throw new Error('墓標置換対象のキュースロットがありません')
+      }
+
+      const prepared = prepareTombstoneReplacement(
+        {
+          slot: existing,
+          tombstoneVersion: input.tombstoneVersion,
+          boundaryRequest: input.boundaryRequest,
+        },
+        injections,
+      )
+      if (!prepared.offered) {
+        await completion
+        return prepared
+      }
+
+      store.put(prepared.replacement)
+      await completion
+      return prepared
     } catch (error) {
       abortTransaction(transaction)
       try {

@@ -7,20 +7,19 @@ import {
   K5_TOMBSTONE_RULE,
   prepareTombstoneReplacement,
   TOMBSTONE_ONLINE_STATE,
+  type TombstoneBoundaryRequest,
   type TombstoneGenerationInjections,
   type TombstoneGenerationRequest,
   type TombstoneRecordingRightVerifier,
   type TombstoneSourceSlot,
 } from './k5Tombstone'
-import {
-  type RequestBoundaryEnvelope,
-  V12_BINDING_COMPONENTS,
-} from './requestBoundary'
+import { V12_BINDING_COMPONENTS } from './requestBoundary'
 import { QUEUE_ACTION_REQUIRED_LABELS, QUEUE_STATES } from './queueState'
 import {
   evaluateQueueTransition,
   type QueueEventKey,
   type QueueSlot,
+  type QueueTransitionInjections,
 } from './queueTransition'
 
 const UNSENT_STATE = QUEUE_STATES[0].id
@@ -34,31 +33,34 @@ if (!REQUEST_ONLY_ID) {
 
 const BASE_KEY: QueueEventKey = {
   d4: {},
-  d1: {},
+  d1: 1,
   d5: {},
 }
 const TOMBSTONE_VERSION = {}
 
-type D1RequestBoundaryEnvelope = Exclude<
-  RequestBoundaryEnvelope,
-  { path: typeof SYNC_EVENT_PATH.P3 }
->
-
 function tombstoneSourceSlot(): TombstoneSourceSlot {
   return {
+    game: {},
+    d4: BASE_KEY.d4,
+    d1: BASE_KEY.d1 as number,
+    d5: BASE_KEY.d5,
+    version: {},
+    event: { fields: { V7: { rejected: true } } },
     state: ACTION_REQUIRED_STATE,
-    source: 'd1-event',
-    key: BASE_KEY,
-    content: { rejected: true },
     actionRequiredLabel: TOMBSTONE_ACTION_LABEL.id,
   }
 }
 
-function boundaryRequest(): D1RequestBoundaryEnvelope {
+function boundaryRequest(
+  slot: TombstoneSourceSlot = tombstoneSourceSlot(),
+): TombstoneBoundaryRequest {
   return {
     path: SYNC_EVENT_PATH.P1,
     requestValues: { [REQUEST_ONLY_ID]: {} },
     recoveryGenerationAtCreation: {},
+    game: slot.game,
+    d4: slot.d4,
+    d1: slot.d1,
   }
 }
 
@@ -68,7 +70,7 @@ function generationRequest(
   return {
     slot,
     tombstoneVersion: TOMBSTONE_VERSION,
-    boundaryRequest: boundaryRequest(),
+    boundaryRequest: boundaryRequest(slot),
   }
 }
 
@@ -200,15 +202,38 @@ describe('k5Tombstone', () => {
     if (!result.offered) {
       throw new Error('墓標置換がありません')
     }
-    expect(result.replacement.key.d4).toBe(BASE_KEY.d4)
-    expect(result.replacement.key.d1).toBe(BASE_KEY.d1)
-    expect(result.replacement.key.d5).toBe(newD5)
+    expect(result.replacement.d4).toBe(BASE_KEY.d4)
+    expect(result.replacement.d1).toBe(BASE_KEY.d1)
+    expect(result.replacement.d5).toBe(newD5)
     expect(result.replacement.version).toBe(TOMBSTONE_VERSION)
-    expect(Reflect.ownKeys(result.replacement.content)).toHaveLength(0)
+    expect(Reflect.ownKeys(result.replacement.event.fields)).toHaveLength(0)
     expect(result.replacement.state).toBe(UNSENT_STATE)
     expect(Object.isFrozen(result.replacement)).toBe(true)
-    expect(Object.isFrozen(result.replacement.key)).toBe(true)
-    expect(Object.isFrozen(result.replacement.content)).toBe(true)
+    expect(Object.isFrozen(result.replacement.event)).toBe(true)
+    expect(Object.isFrozen(result.replacement.event.fields)).toBe(true)
+  })
+
+  it('slot と要求境界が別イベントなら墓標操作を提供しない', () => {
+    const request = generationRequest()
+
+    expect(
+      prepareTombstoneReplacement(
+        {
+          ...request,
+          boundaryRequest: { ...request.boundaryRequest, game: {} },
+        },
+        successfulInjections({}),
+      ).offered,
+    ).toBe(false)
+  })
+
+  it('新しい D5 が undefined なら墓標操作を提供しない', () => {
+    expect(
+      prepareTombstoneReplacement(
+        generationRequest(),
+        successfulInjections(undefined),
+      ).offered,
+    ).toBe(false)
   })
 
   it('既存 D5 を再利用する墓標置換を拒否する', () => {
@@ -248,21 +273,39 @@ describe('k5Tombstone', () => {
   it.each(transitionCases)(
     'queueTransition との結合: $name は遷移可否が $expectedApplied',
     ({ onlineState, verifierResult, expectedApplied }) => {
-      const slot = tombstoneSourceSlot()
+      const sourceSlot = tombstoneSourceSlot()
+      const slot: Extract<QueueSlot, { source: 'd1-event' }> = {
+        state: sourceSlot.state,
+        source: 'd1-event',
+        key: {
+          d4: sourceSlot.d4,
+          d1: sourceSlot.d1,
+          d5: sourceSlot.d5,
+        },
+        content: sourceSlot.event.fields,
+        actionRequiredLabel: sourceSlot.actionRequiredLabel,
+      }
       const newD5 = {}
       const replacement = {
         key: { d4: slot.key.d4, d1: slot.key.d1, d5: newD5 },
         content: {},
       }
-      const confirmTombstoneGeneration = (candidate: QueueSlot): boolean => {
-        if (candidate.source !== 'd1-event') {
-          return false
-        }
-        return prepareTombstoneReplacement(generationRequest(candidate), {
+      const prepared = prepareTombstoneReplacement(
+        generationRequest(sourceSlot),
+        {
           resolveOnlineState: () => onlineState,
           v12Binding: () => verifierResult,
           generateD5: () => newD5,
-        }).offered
+        },
+      )
+      const confirmTombstoneGeneration: NonNullable<
+        QueueTransitionInjections['confirmTombstoneGeneration']
+      > = ({ slot: candidate, replacement: candidateReplacement }) => {
+        return (
+          candidate === slot &&
+          candidateReplacement === replacement &&
+          prepared.offered
+        )
       }
       const result = evaluateQueueTransition(
         {
