@@ -17,6 +17,7 @@ const EXPECTED_NOTICE_IDS = [
   'Q2-b',
   'B4',
   'I6',
+  'B5',
 ] as const satisfies readonly SyncNoticeId[]
 
 function createQ5With(params: unknown) {
@@ -49,12 +50,34 @@ function sourceStringLiterals(source: string): readonly string[] {
 }
 
 describe('syncNotices', () => {
-  it('6 種の noticeId を exact-set に閉じる', () => {
-    expect(SYNC_NOTICE_IDS).toHaveLength(6)
+  it('7 種の noticeId を exact-set に閉じる', () => {
+    expect(SYNC_NOTICE_IDS).toHaveLength(7)
     expect(new Set(SYNC_NOTICE_IDS)).toEqual(new Set(EXPECTED_NOTICE_IDS))
     expect(new Set(Object.keys(SYNC_NOTICE_CATALOG))).toEqual(
       new Set(EXPECTED_NOTICE_IDS),
     )
+  })
+
+  // B5 は ACK が返らない経路の通知である(7-1 の A3)。6-3 の B5 行(:748)が求める
+  // 2 要素(再ログインを促す / キューが保持されていることを併せて示す)を固定する。
+  it('B5 は再ログインの促しとキュー保持の 2 要素を含む', () => {
+    const message = SYNC_NOTICE_CATALOG.B5
+    // 単語の存在だけを見ると「認証情報は保持…」のような劣化でも green になるため、
+    // 2 要素それぞれを明示する句で固定する(差分レビュー P2)。
+    expect(message).toContain('再ログインしてください')
+    expect(message).toContain('未送信の記録はそのまま保持')
+    expect(createSyncNotice('B5', {})).toEqual({
+      noticeId: 'B5',
+      params: {},
+    })
+  })
+
+  it('B5 の文面とパラメータに内部状態を出さない', () => {
+    const message: string = SYNC_NOTICE_CATALOG.B5
+    for (const forbidden of ['D4', 'V12', '端末', 'テナント']) {
+      expect(message).not.toContain(forbidden)
+    }
+    expect(Reflect.ownKeys(createSyncNotice('B5', {}).params)).toEqual([])
   })
 
   it('Q4 は未送信件数をパラメータに載せる', () => {

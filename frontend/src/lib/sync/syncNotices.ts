@@ -10,6 +10,10 @@ export const SYNC_NOTICE_CATALOG = {
     'このタブでは記録できません。記録中のタブを終了してから、もう一度お試しください。',
   B4: 'この端末は現在の記録権を保持していないため、この記録はサーバーへ反映せず退避しました。記録は破棄されていません。退避した記録は管理コンソールで閲覧・書き出しできます。',
   I6: '変更受理結果を端末へ永続化できませんでした。保存されていない結果があることを管理者へ通知してください。',
+  // B5(認証失効)は ACK が返らない経路である(7-1 の A3)。6-3 の B5 行(:748)は
+  // 「再ログインを促す」と「キューが保持されていることを併せて示す」の 2 要素を求める。
+  // 操作者が「消えた」と誤解して再入力するのを防ぐための通知であり、Q7 と対になる。
+  B5: '認証の有効期限が切れました。再ログインしてください。未送信の記録はそのまま保持されており、再ログイン後に同期を再開します。',
 } as const
 
 export type SyncNoticeId = keyof typeof SYNC_NOTICE_CATALOG
@@ -27,6 +31,7 @@ export type SyncNoticeParamsById = Readonly<{
   'Q2-b': NoNoticeParams
   B4: NoNoticeParams
   I6: NoNoticeParams
+  B5: NoNoticeParams
 }>
 
 export type SyncNoticeDescriptor<Id extends SyncNoticeId = SyncNoticeId> =
@@ -44,6 +49,7 @@ const NOTICE_PARAMETER_KEYS = {
   'Q2-b': [],
   B4: [],
   I6: [],
+  B5: [],
 } as const satisfies Readonly<Record<SyncNoticeId, readonly string[]>>
 
 function assertNoticeParams(noticeId: SyncNoticeId, params: unknown): void {
