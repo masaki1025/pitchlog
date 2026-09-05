@@ -44,6 +44,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'canonOracle.ts',
+  'durableQueue.ts',
   'eventFieldRules.ts',
   'eventKinds.ts',
   'idempotencyCollision.ts',
@@ -77,6 +78,11 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonTemporaryIdMappingRules',
     'readCanonTombstoneRule',
     'readCanonV12BoundaryRules',
+  ],
+  'durableQueue.ts': [
+    'DurableQueue',
+    'DurableQueueUnavailableError',
+    'openDurableQueue',
   ],
   'eventFieldRules.ts': [
     'EVENT_FIELD_PRESENCE',
@@ -169,6 +175,16 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
     'CanonV12BoundaryRule',
+  ],
+  'durableQueue.ts': [
+    'D1Allocator',
+    'DurableQueueAppend',
+    'DurableQueueOptions',
+    'DurableQueueReplacement',
+    'DurableQueueReplacementKind',
+    'DurableQueueScope',
+    'DurableQueueSlot',
+    'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
     'EventFieldConditionContext',
