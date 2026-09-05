@@ -1,8 +1,13 @@
 import 'fake-indexeddb/auto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import queueTransitionSource from './queueTransition.ts?raw'
-import { readCanonAckStateResults } from './canonOracle'
+import {
+  CANON_ACK_STATE_RESULT,
+  readCanonAckStateResults,
+  type CanonAckStateResult,
+} from './canonOracle'
 import {
   openDurableQueue,
   type DurableQueue,
@@ -62,19 +67,40 @@ const EXPECTED_ROW_IDS = [
 
 const CANON_ACK_RESULTS = readCanonAckStateResults()
 
-function canonAckResultAt(index: number) {
-  const result = CANON_ACK_RESULTS[index]
-  if (!result || CANON_ACK_RESULTS.length !== 5) {
+function canonAckResultById(
+  results: readonly CanonAckStateResult[],
+  id: string,
+): CanonAckStateResult {
+  const result = results.find((candidate) => candidate.id === id)
+  if (
+    !result ||
+    results.length !== Object.keys(CANON_ACK_STATE_RESULT).length
+  ) {
     throw new Error('R-ACK-STATE の結果集合が不正です')
   }
   return result
 }
 
-const ACK_ACCEPTED_RESULT = canonAckResultAt(0)
-const ACK_DUPLICATE_RESULT = canonAckResultAt(1)
-const ACK_REJECTED_RESULT = canonAckResultAt(2)
-const ACK_EVACUATED_RESULT = canonAckResultAt(3)
-const ACK_UNPROCESSED_RESULT = canonAckResultAt(4)
+const ACK_ACCEPTED_RESULT = canonAckResultById(
+  CANON_ACK_RESULTS,
+  CANON_ACK_STATE_RESULT.ACCEPTED,
+)
+const ACK_DUPLICATE_RESULT = canonAckResultById(
+  CANON_ACK_RESULTS,
+  CANON_ACK_STATE_RESULT.DUPLICATE,
+)
+const ACK_REJECTED_RESULT = canonAckResultById(
+  CANON_ACK_RESULTS,
+  CANON_ACK_STATE_RESULT.REJECTED,
+)
+const ACK_EVACUATED_RESULT = canonAckResultById(
+  CANON_ACK_RESULTS,
+  CANON_ACK_STATE_RESULT.EVACUATED,
+)
+const ACK_UNPROCESSED_RESULT = canonAckResultById(
+  CANON_ACK_RESULTS,
+  CANON_ACK_STATE_RESULT.UNPROCESSED,
+)
 
 const BASE_KEY_PARTS = {
   d4: {},
@@ -397,6 +423,40 @@ describe('queueTransition', () => {
     expect(new Set(tableA5ResultIds)).toEqual(
       new Set(CANON_ACK_RESULTS.map((result) => result.id)),
     )
+  })
+
+  it('R-ACK-STATE の要素順を入れ替えても A5 の語と遷移先を変えない', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-ACK-STATE'].source_elements.reverse()
+    const reorderedResults = readCanonAckStateResults(mutatedRelations)
+    const expectedTargets = [
+      [CANON_ACK_STATE_RESULT.ACCEPTED, SYNCED_STATE],
+      [CANON_ACK_STATE_RESULT.DUPLICATE, SYNCED_STATE],
+      [CANON_ACK_STATE_RESULT.REJECTED, ACTION_REQUIRED_STATE],
+      [CANON_ACK_STATE_RESULT.EVACUATED, EVACUATED_STATE],
+      [CANON_ACK_STATE_RESULT.UNPROCESSED, UNSENT_STATE],
+    ] as const
+
+    for (const [ackId, expectedTarget] of expectedTargets) {
+      const slot = queueSlot(UNSENT_STATE)
+      const result = evaluateQueueTransition(
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+        {
+          ...resolveA5(canonAckResultById(reorderedResults, ackId), slot.key),
+          classifyB3: () => ({
+            kind: B3_REASON_KIND.CONTENT,
+            actionRequiredLabel: REVISION_ACTION_LABEL.id,
+          }),
+        },
+      )
+
+      expect(result.applied).toBe(true)
+      if (result.applied) {
+        expect(result.target).toBe(expectedTarget)
+      }
+    }
+    expect(queueTransitionSource).not.toContain('canonAckResultAt')
+    expect(queueTransitionSource).not.toMatch(/CANON_ACK_RESULTS\s*\[/)
   })
 
   it('未知の行 ID を fail-closed で拒否する', () => {

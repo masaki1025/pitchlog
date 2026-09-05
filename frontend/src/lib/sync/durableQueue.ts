@@ -21,8 +21,9 @@ import {
   type TargetEventReference,
 } from './syncEvent'
 
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 const QUEUE_STORE_NAME = 'queue'
+const QUEUE_STATE_INDEX_NAME = 'queue-by-state'
 const COUNTER_STORE_NAME = 'd1-counters'
 const I6_STORE_NAME = 'i6-results'
 const UNSENT_STATE = queueStateId('未送信')
@@ -192,10 +193,17 @@ async function openDatabase(
 
     request.onupgradeneeded = () => {
       const database = request.result
-      if (!database.objectStoreNames.contains(QUEUE_STORE_NAME)) {
-        database.createObjectStore(QUEUE_STORE_NAME, {
-          keyPath: ['game', 'd4', 'd1'],
-        })
+      const upgradeTransaction = request.transaction
+      if (!upgradeTransaction) {
+        throw new Error('IndexedDB の更新トランザクションがありません')
+      }
+      const queueStore = database.objectStoreNames.contains(QUEUE_STORE_NAME)
+        ? upgradeTransaction.objectStore(QUEUE_STORE_NAME)
+        : database.createObjectStore(QUEUE_STORE_NAME, {
+            keyPath: ['game', 'd4', 'd1'],
+          })
+      if (!queueStore.indexNames.contains(QUEUE_STATE_INDEX_NAME)) {
+        queueStore.createIndex(QUEUE_STATE_INDEX_NAME, 'state')
       }
       if (!database.objectStoreNames.contains(COUNTER_STORE_NAME)) {
         database.createObjectStore(COUNTER_STORE_NAME, {
@@ -505,6 +513,19 @@ export class DurableQueue {
     const completion = transactionCompletion(transaction)
     const count = await requestResult(
       transaction.objectStore(QUEUE_STORE_NAME).count(),
+    )
+    await completion
+    return count
+  }
+
+  async countUnsentSlots(): Promise<number> {
+    const transaction = this.#database.transaction(QUEUE_STORE_NAME, 'readonly')
+    const completion = transactionCompletion(transaction)
+    const count = await requestResult(
+      transaction
+        .objectStore(QUEUE_STORE_NAME)
+        .index(QUEUE_STATE_INDEX_NAME)
+        .count(UNSENT_STATE),
     )
     await completion
     return count

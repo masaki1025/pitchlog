@@ -870,9 +870,17 @@ export function readCanonQueueLifeRules(
   return parseCanonQueueLifeRules(relation.source_elements)
 }
 
-const CANON_ACK_STATE_RESULT_IDS = Object.freeze([
-  ...syncProtocolRelations[ACK_STATE_RELATION_ID].source_elements,
-])
+export const CANON_ACK_STATE_RESULT = {
+  ACCEPTED: '受理',
+  DUPLICATE: '重複',
+  REJECTED: '拒否',
+  EVACUATED: '退避',
+  UNPROCESSED: '未処理',
+} as const
+
+const CANON_ACK_STATE_RESULT_IDS = Object.freeze(
+  Object.values(CANON_ACK_STATE_RESULT),
+)
 const CANON_ACK_STATE_RESULT_ID_SET = new Set<string>(
   CANON_ACK_STATE_RESULT_IDS,
 )

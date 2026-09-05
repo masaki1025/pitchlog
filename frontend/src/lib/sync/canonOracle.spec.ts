@@ -6,6 +6,7 @@ import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import {
+  CANON_ACK_STATE_RESULT,
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
   parseCanonAckStateResults,
@@ -612,6 +613,16 @@ describe('canonOracle', () => {
     const sourceElementSet = new Set<string>(sourceElements)
 
     expect(sourceElements).toHaveLength(5)
+    expect(CANON_ACK_STATE_RESULT).toEqual({
+      ACCEPTED: '受理',
+      DUPLICATE: '重複',
+      REJECTED: '拒否',
+      EVACUATED: '退避',
+      UNPROCESSED: '未処理',
+    })
+    expect(new Set(Object.values(CANON_ACK_STATE_RESULT))).toEqual(
+      sourceElementSet,
+    )
     expect(parseCanonAckStateResults(sourceElements)).toEqual(
       readCanonAckStateResults(),
     )

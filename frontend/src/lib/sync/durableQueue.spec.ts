@@ -235,6 +235,31 @@ describe('durableQueue', () => {
     )
   })
 
+  it('状態 index で未送信だけを数える', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const states = [
+      queueStateId('未送信'),
+      queueStateId('要操作'),
+      queueStateId('同期済み'),
+      queueStateId('退避済み'),
+    ] as const
+
+    for (const [index, state] of states.entries()) {
+      const slot = await queue.append(
+        appendInput(scope, { d5: `state-${index}` }),
+      )
+      await overwriteQueueSlot(databaseName, { ...slot, state })
+    }
+
+    expect(await queue.countSlots()).toBe(states.length)
+    expect(await queue.countUnsentSlots()).toBe(1)
+  })
+
   it('I6 の5要素を 1 回のトランザクションで不可分に永続化する', async () => {
     const queue = await openTestQueue()
     const acceptance = i6Acceptance()
@@ -683,7 +708,7 @@ describe('durableQueue', () => {
 
   it('IndexedDB の open が失敗した場合は記録開始を拒否する', async () => {
     const databaseName = nextDatabaseName()
-    const newerVersionRequest = indexedDB.open(databaseName, 3)
+    const newerVersionRequest = indexedDB.open(databaseName, 4)
     const newerVersionDatabase = await new Promise<IDBDatabase>(
       (resolve, reject) => {
         newerVersionRequest.onsuccess = () =>

@@ -111,9 +111,9 @@ describe('syncNotices', () => {
     const message = SYNC_NOTICE_CATALOG.B4
 
     expect(message).toBe(
-      'この記録は現在の記録権世代に属さないため、サーバーへ反映せず退避しました。記録は破棄されていません。退避した記録は管理コンソールで閲覧・書き出しできます。',
+      'この端末は現在の記録権を保持していないため、この記録はサーバーへ反映せず退避しました。記録は破棄されていません。退避した記録は管理コンソールで閲覧・書き出しできます。',
     )
-    expect(message).toContain('現在の記録権世代に属さない')
+    expect(message).toContain('この端末は現在の記録権を保持していない')
     expect(message).toContain('退避しました')
     expect(message).toContain('破棄されていません')
     expect(message).not.toContain('取られ')

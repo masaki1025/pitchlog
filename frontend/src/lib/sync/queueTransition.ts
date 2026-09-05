@@ -2,6 +2,7 @@
 // 外部契約が未注入または確認不能なら状態を変えない。
 
 import {
+  CANON_ACK_STATE_RESULT,
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
@@ -34,19 +35,28 @@ const O4_ACTION_LABEL_ID = actionRequiredLabelId('管理者対応待ち')
 
 const CANON_ACK_RESULTS = readCanonAckStateResults()
 
-function canonAckResultAt(index: number): CanonAckStateResult {
-  const result = CANON_ACK_RESULTS[index]
-  if (!result || CANON_ACK_RESULTS.length !== 5) {
+function canonAckResultById(id: string): CanonAckStateResult {
+  const result = CANON_ACK_RESULTS.find((candidate) => candidate.id === id)
+  if (
+    !result ||
+    CANON_ACK_RESULTS.length !== Object.keys(CANON_ACK_STATE_RESULT).length
+  ) {
     throw new Error('R-ACK-STATE の結果集合が不正です')
   }
   return result
 }
 
-const ACK_ACCEPTED_RESULT = canonAckResultAt(0)
-const ACK_DUPLICATE_RESULT = canonAckResultAt(1)
-const ACK_REJECTED_RESULT = canonAckResultAt(2)
-const ACK_EVACUATED_RESULT = canonAckResultAt(3)
-const ACK_UNPROCESSED_RESULT = canonAckResultAt(4)
+const ACK_ACCEPTED_RESULT = canonAckResultById(CANON_ACK_STATE_RESULT.ACCEPTED)
+const ACK_DUPLICATE_RESULT = canonAckResultById(
+  CANON_ACK_STATE_RESULT.DUPLICATE,
+)
+const ACK_REJECTED_RESULT = canonAckResultById(CANON_ACK_STATE_RESULT.REJECTED)
+const ACK_EVACUATED_RESULT = canonAckResultById(
+  CANON_ACK_STATE_RESULT.EVACUATED,
+)
+const ACK_UNPROCESSED_RESULT = canonAckResultById(
+  CANON_ACK_STATE_RESULT.UNPROCESSED,
+)
 
 const NO_QUEUE_STATE = '（なし）'
 const P3_ACCEPTANCE_SOURCE = 'P3変更受理結果'

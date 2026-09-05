@@ -90,6 +90,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
 
 const EXPECTED_VALUE_EXPORTS = {
   'canonOracle.ts': [
+    'CANON_ACK_STATE_RESULT',
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
     'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
     'parseCanonAckStateResults',

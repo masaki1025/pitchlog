@@ -17,6 +17,7 @@ import {
   type DurableQueue,
   type DurableQueueAppend,
   type DurableQueueScope,
+  type DurableQueueSlot,
 } from './durableQueue'
 import { queueStateId, type QueueStateId } from './queueState'
 import { RG1_STATE, type QueueSlot } from './queueTransition'
@@ -60,6 +61,36 @@ function deleteDatabase(name: string): Promise<void> {
     request.onerror = () => reject(request.error)
     request.onblocked = () => reject(new Error('テスト DB を削除できません'))
   })
+}
+
+function openExistingDatabase(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => reject(transaction.error)
+    transaction.onerror = () => {
+      // abort が最終結果を通知するため、ここでは完了を確定しない。
+    }
+  })
+}
+
+async function overwriteQueueSlot(
+  databaseName: string,
+  slot: DurableQueueSlot,
+): Promise<void> {
+  const database = await openExistingDatabase(databaseName)
+  const transaction = database.transaction('queue', 'readwrite')
+  const completion = transactionDone(transaction)
+  transaction.objectStore('queue').put(slot)
+  await completion
+  database.close()
 }
 
 afterEach(async () => {
@@ -135,6 +166,36 @@ describe('clientDiscipline', () => {
         'warningThresholdReached',
       ].sort(),
     )
+  })
+
+  it('Q3: 未送信以外の状態を永続化しても未送信件数に含めない', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const nonUnsentStates = [
+      queueStateId('要操作'),
+      queueStateId('同期済み'),
+      queueStateId('退避済み'),
+    ] as const
+
+    for (const [index, state] of nonUnsentStates.entries()) {
+      const slot = await queue.append(appendInput(scope, index))
+      await overwriteQueueSlot(databaseName, { ...slot, state })
+    }
+    expect(await queue.countUnsentSlots()).toBe(0)
+
+    const result = await appendUnderQueueDiscipline(
+      queue,
+      appendInput(scope, nonUnsentStates.length),
+      2,
+    )
+
+    expect(await queue.countSlots()).toBe(nonUnsentStates.length + 1)
+    expect(result.unsentCount).toBe(1)
+    expect(result.warningThresholdReached).toBe(false)
   })
 
   it('Q7: 認証失効中もキューと次の D1 を保ち、再ログイン後に同期を再開する', async () => {

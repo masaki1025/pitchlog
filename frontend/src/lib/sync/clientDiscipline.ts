@@ -27,12 +27,12 @@ export type QueueAppendDisciplineResult = Readonly<{
 }>
 
 export async function appendUnderQueueDiscipline(
-  queue: Pick<DurableQueue, 'append' | 'countSlots'>,
+  queue: Pick<DurableQueue, 'append' | 'countUnsentSlots'>,
   input: DurableQueueAppend,
   warningThreshold = DEFAULT_UNSENT_WARNING_THRESHOLD,
 ): Promise<QueueAppendDisciplineResult> {
   const slot = await queue.append(input)
-  const unsentCount = await queue.countSlots()
+  const unsentCount = await queue.countUnsentSlots()
 
   return {
     slot,
