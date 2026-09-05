@@ -85,6 +85,13 @@ import {
   type SyncEventValidationResult,
   type SyncEventViolation,
 } from './validateSyncEvent'
+import type {
+  UndoOperationResolution,
+  UndoOperationResolver,
+  UndoQueueingInjections,
+  UndoQueueingRequest,
+  UndoQueueingResult,
+} from './undoQueueing'
 
 type RawModule = { default: string }
 type ProductModule = Record<string, unknown>
@@ -128,6 +135,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'syncEvent.ts',
   'syncNotices.ts',
   'temporaryIdMapping.ts',
+  'undoQueueing.ts',
   'validateSyncEvent.ts',
 ] as const
 
@@ -297,6 +305,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'TemporaryIdMapping',
     'assertD5IsNotTemporary',
   ],
+  'undoQueueing.ts': ['queueUndoEvent'],
   'validateSyncEvent.ts': [
     'SYNC_EVENT_VIOLATION',
     'SyncEventValidationError',
@@ -504,6 +513,13 @@ const EXPECTED_TYPE_EXPORTS = {
   'temporaryIdMapping.ts': [
     'TemporaryIdMappingRecord',
     'TemporaryIdProvenance',
+  ],
+  'undoQueueing.ts': [
+    'UndoOperationResolution',
+    'UndoOperationResolver',
+    'UndoQueueingInjections',
+    'UndoQueueingRequest',
+    'UndoQueueingResult',
   ],
   'validateSyncEvent.ts': [
     'SourceEventContext',
@@ -1467,6 +1483,83 @@ describe('prohibitions', () => {
       exactReadySlots,
       noServerSideKeys,
     ]).toEqual([true, true, true, true, true, true, true])
+  })
+
+  it('undo 投入の公開契約を注入済み対象・操作結果と U1 だけに閉じる', () => {
+    type WithTarget = Extract<
+      UndoOperationResolution,
+      { targetReference: TargetEventReference }
+    >
+    type WithoutTarget = Extract<
+      UndoOperationResolution,
+      { targetReference?: undefined }
+    >
+    type D1OnlyReference = Pick<
+      TargetEventReference,
+      (typeof TARGET_EVENT_REFERENCE_ELEMENTS)[2]
+    >
+    type D1OnlyResolution = Readonly<{
+      targetReference: D1OnlyReference
+      operationResult: unknown
+    }>
+    type ForbiddenPublicKey = Extract<
+      | keyof UndoQueueingRequest
+      | keyof UndoQueueingInjections
+      | keyof UndoQueueingResult
+      | keyof UndoOperationResolution,
+      | 'sourceState'
+      | 'historyStack'
+      | 'previousState'
+      | 'operationStatus'
+      | 'nextUndoTarget'
+      | 'savedTarget'
+      | 'sameRequestTarget'
+      | 'gapTarget'
+    >
+    const exactTargetResolutionKeys: ExactKeySet<
+      keyof WithTarget,
+      'targetReference' | 'operationResult'
+    > = true
+    const exactNoTargetResolutionKeys: ExactKeySet<
+      keyof WithoutTarget,
+      'targetReference' | 'operationResult'
+    > = true
+    const exactTargetReference: ExactKeySet<
+      WithTarget['targetReference'],
+      TargetEventReference
+    > = true
+    const d1OnlyIsRejected: D1OnlyResolution extends UndoOperationResolution
+      ? false
+      : true = true
+    const exactResolverParameters: ExactKeySet<
+      Parameters<UndoOperationResolver>,
+      []
+    > = true
+    const exactRequestKeys: ExactKeySet<
+      keyof UndoQueueingRequest,
+      'queue' | 'scope' | 'd5' | 'version' | 'event'
+    > = true
+    const exactInjectionKeys: ExactKeySet<
+      keyof UndoQueueingInjections,
+      'resolveUndoOperation'
+    > = true
+    const exactResultKeys: ExactKeySet<
+      keyof UndoQueueingResult,
+      'operationResult' | 'slot'
+    > = true
+    const noForbiddenPublicKey: ExactKeySet<ForbiddenPublicKey, never> = true
+
+    expect([
+      exactTargetResolutionKeys,
+      exactNoTargetResolutionKeys,
+      exactTargetReference,
+      d1OnlyIsRejected,
+      exactResolverParameters,
+      exactRequestKeys,
+      exactInjectionKeys,
+      exactResultKeys,
+      noForbiddenPublicKey,
+    ]).toEqual([true, true, true, true, true, true, true, true, true])
   })
 
   it('境界結果の ACK あり・ACK なし型を discriminant の exact-set に閉じる', () => {
