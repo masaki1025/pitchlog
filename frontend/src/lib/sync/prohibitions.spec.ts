@@ -57,6 +57,12 @@ import type {
   B3O4Rejection,
   B3Rejection,
 } from './rejectionReason'
+import type {
+  D1AfterD3Resolver,
+  ResendD3Checkpoint,
+  ResendRangeRequest,
+  ResendRangeResult,
+} from './resendRange'
 import {
   B3_REASON_KIND,
   QUEUE_TRANSITION_RULES,
@@ -116,6 +122,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'queueState.ts',
   'queueTransition.ts',
   'rejectionReason.ts',
+  'resendRange.ts',
   'requestBoundary.ts',
   'singleWriter.ts',
   'syncEvent.ts',
@@ -272,6 +279,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'O4_CORRECTION_CONFIRMATION',
     'parseB3Rejection',
   ],
+  'resendRange.ts': ['determineResendRange'],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
@@ -475,6 +483,12 @@ const EXPECTED_TYPE_EXPORTS = {
     'B3ContentRejection',
     'B3O4Rejection',
     'B3Rejection',
+  ],
+  'resendRange.ts': [
+    'D1AfterD3Resolver',
+    'ResendD3Checkpoint',
+    'ResendRangeRequest',
+    'ResendRangeResult',
   ],
   'syncEvent.ts': [
     'SidecarJoinKey',
@@ -1397,6 +1411,62 @@ describe('prohibitions', () => {
       exactD1InputKeys,
       exactP3InputKeys,
     ]).toEqual([true, true, true, true, true, true])
+  })
+
+  it('再送範囲の公開契約をクライアント側の D3 選択だけに閉じる', () => {
+    type ReadyRange = Extract<ResendRangeResult, { status: 'ready' }>
+    type UnavailableRange = Extract<
+      ResendRangeResult,
+      { status: 'unavailable' }
+    >
+    type PublicRangeKey =
+      | keyof ResendRangeRequest
+      | keyof ResendD3Checkpoint
+      | keyof ReadyRange
+      | keyof UnavailableRange
+    type ServerSideKey = Extract<
+      PublicRangeKey,
+      | 'd5Decision'
+      | 'savedResult'
+      | 'replayedResult'
+      | 'authorizationResult'
+      | 'v12Result'
+    >
+    const exactCheckpointKeys: ExactKeySet<
+      keyof ResendD3Checkpoint,
+      'd4' | 'd3'
+    > = true
+    const exactRequestKeys: ExactKeySet<
+      keyof ResendRangeRequest,
+      'd4' | 'orderedSlots' | 'lastKnownSynced' | 'ack' | 'isD1AfterD3'
+    > = true
+    const exactReadyKeys: ExactKeySet<
+      keyof ReadyRange,
+      'status' | 'checkpoint' | 'slots'
+    > = true
+    const exactUnavailableKeys: ExactKeySet<
+      keyof UnavailableRange,
+      'status' | 'reason' | 'slots'
+    > = true
+    const exactResolverParameters: ExactKeySet<
+      Parameters<D1AfterD3Resolver>,
+      [DurableQueueSlot['d1'], ResendD3Checkpoint['d3']]
+    > = true
+    const exactReadySlots: ExactKeySet<
+      ReadyRange['slots'][number],
+      DurableQueueSlot
+    > = true
+    const noServerSideKeys: ExactKeySet<ServerSideKey, never> = true
+
+    expect([
+      exactCheckpointKeys,
+      exactRequestKeys,
+      exactReadyKeys,
+      exactUnavailableKeys,
+      exactResolverParameters,
+      exactReadySlots,
+      noServerSideKeys,
+    ]).toEqual([true, true, true, true, true, true, true])
   })
 
   it('境界結果の ACK あり・ACK なし型を discriminant の exact-set に閉じる', () => {
