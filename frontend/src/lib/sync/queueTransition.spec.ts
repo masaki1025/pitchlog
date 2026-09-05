@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as ts from 'typescript'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import queueTransitionSpecSource from './queueTransition.spec.ts?raw'
 import queueTransitionSource from './queueTransition.ts?raw'
@@ -241,7 +242,9 @@ type ExpectedTransitionRow = Readonly<{
 }>
 
 // R-QUEUE-LIFE に 14 行の遷移表はなく、正本 7-2 の本文だけが出所である。
-// このため期待表は製品表から生成せず独立したリテラルで持ち、逐語一致は人間の逐行確認へ送る。
+// R-ACK-STATE も結果集合の5語だけを持ち、14行の遷移条件と A5 の語の対応は照合できない。
+// 製品定数を参照すると表と evaluator の同時誤りを検出できないため、ここでは H-61 より
+// テストの独立性を優先して期待表をリテラルで持ち、逐語一致は人間の逐行確認へ送る。
 const EXPECTED_TRANSITION_ROWS = [
   {
     id: 'QT-01',
@@ -259,10 +262,7 @@ const EXPECTED_TRANSITION_ROWS = [
     trigger: 'apply-a5',
     condition: {
       kind: 'a5-result',
-      a5ResultIds: [
-        CANON_ACK_STATE_RESULT.ACCEPTED,
-        CANON_ACK_STATE_RESULT.DUPLICATE,
-      ],
+      a5ResultIds: ['受理', '重複'],
     },
     transitionAllowed: true,
     changesState: true,
@@ -274,7 +274,7 @@ const EXPECTED_TRANSITION_ROWS = [
     trigger: 'apply-a5',
     condition: {
       kind: 'a5-rejection-with-b3-classification',
-      a5ResultIds: [CANON_ACK_STATE_RESULT.REJECTED],
+      a5ResultIds: ['拒否'],
     },
     transitionAllowed: true,
     changesState: true,
@@ -286,7 +286,7 @@ const EXPECTED_TRANSITION_ROWS = [
     trigger: 'apply-a5',
     condition: {
       kind: 'a5-result',
-      a5ResultIds: [CANON_ACK_STATE_RESULT.UNPROCESSED],
+      a5ResultIds: ['未処理'],
     },
     transitionAllowed: true,
     changesState: false,
@@ -327,7 +327,7 @@ const EXPECTED_TRANSITION_ROWS = [
     trigger: 'apply-a5',
     condition: {
       kind: 'a5-result',
-      a5ResultIds: [CANON_ACK_STATE_RESULT.EVACUATED],
+      a5ResultIds: ['退避'],
     },
     transitionAllowed: true,
     changesState: true,
@@ -550,6 +550,63 @@ function extractExpectedTransitionTable(source: string): string {
   return source.slice(start, end)
 }
 
+function importedProductIdentifiers(source: string): ReadonlySet<string> {
+  const sourceFile = ts.createSourceFile(
+    'queueTransition.spec.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const identifiers = new Set<string>()
+
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !statement.moduleSpecifier.text.startsWith('./') ||
+      statement.moduleSpecifier.text.includes('.spec.')
+    ) {
+      continue
+    }
+    const importClause = statement.importClause
+    if (!importClause) {
+      continue
+    }
+    if (importClause.name) {
+      identifiers.add(importClause.name.text)
+    }
+    const bindings = importClause.namedBindings
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      identifiers.add(bindings.name.text)
+    } else if (bindings) {
+      for (const element of bindings.elements) {
+        identifiers.add(element.name.text)
+      }
+    }
+  }
+  return identifiers
+}
+
+function identifiersInSource(source: string): ReadonlySet<string> {
+  const sourceFile = ts.createSourceFile(
+    'expectedTransitionTable.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const identifiers = new Set<string>()
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) {
+      identifiers.add(node.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return identifiers
+}
+
 type ComparableTransitionRule = Readonly<{
   source: string
   target: string
@@ -589,13 +646,19 @@ describe('queueTransition', () => {
     )
   })
 
-  it('独立期待表を製品の遷移表から生成していない', () => {
+  it('独立期待表が製品 module の識別子を参照しない', () => {
     const expectedTableSource = extractExpectedTransitionTable(
       queueTransitionSpecSource,
     )
+    const productIdentifiers = importedProductIdentifiers(
+      queueTransitionSpecSource,
+    )
+    const referencedProductIdentifiers = [
+      ...identifiersInSource(expectedTableSource),
+    ].filter((identifier) => productIdentifiers.has(identifier))
 
-    expect(expectedTableSource).not.toContain('QUEUE_TRANSITION_RULES')
-    expect(expectedTableSource).not.toContain('queueTransitionRuleById')
+    expect(productIdentifiers.size).toBeGreaterThan(0)
+    expect(referencedProductIdentifiers).toEqual([])
   })
 
   it('R-ACK-STATE の要素順を入れ替えても A5 の語と遷移先を変えない', () => {
