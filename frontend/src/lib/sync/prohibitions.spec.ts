@@ -35,6 +35,11 @@ import type {
   LocalQueueFileImportRequest,
   LocalQueueFileImportResult,
 } from './localQueueFile'
+import type {
+  P3AcceptedResultEnvelope,
+  P3RejectedResultEnvelope,
+  P3ResultEnvelope,
+} from './p3Result'
 import {
   actionRequiredLabelId,
   I6_HOLDING_CONTRACT,
@@ -98,6 +103,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'k5Tombstone.ts',
   'localQueueFile.ts',
   'mappingConfirmationGate.ts',
+  'p3Result.ts',
   'playerIdMapping.ts',
   'queueState.ts',
   'queueTransition.ts',
@@ -125,6 +131,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseCanonBoundaryResults',
     'parseCanonEventFieldRules',
     'parseCanonIdempotencyCollisionRules',
+    'parseCanonP3BoundaryResults',
     'parseCanonParticipationRules',
     'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
@@ -134,6 +141,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonBoundaryResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
+    'readCanonP3BoundaryResults',
     'readCanonParticipationRules',
     'readCanonQueueLifeRules',
     'readCanonTemporaryIdMappingRules',
@@ -214,6 +222,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'MAPPING_CONFIRMATION_STATUS',
     'checkMappingConfirmation',
   ],
+  'p3Result.ts': ['parseP3ResultEnvelope'],
   'playerIdMapping.ts': ['receivePlayerIdMapping'],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
@@ -292,6 +301,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonEventFieldRule',
     'CanonEventKindRule',
     'CanonIdempotencyCollisionRule',
+    'CanonP3BoundaryResult',
     'CanonQueueLifeRule',
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
@@ -391,6 +401,11 @@ const EXPECTED_TYPE_EXPORTS = {
     'MappingConfirmationInjections',
     'MappingConfirmationRequest',
     'PlayerRegistrationMappingResolver',
+  ],
+  'p3Result.ts': [
+    'P3AcceptedResultEnvelope',
+    'P3RejectedResultEnvelope',
+    'P3ResultEnvelope',
   ],
   'playerIdMapping.ts': [
     'ConfirmedPlayerIdMapping',
@@ -1161,6 +1176,76 @@ describe('prohibitions', () => {
         /recover|reapply|restore/i.test(name),
       ),
     ).toEqual([])
+  })
+
+  it('P3 独立応答を D1 ACK から分離し、受理だけを既存 I6 全組へ結合する', () => {
+    const exactAcceptedEnvelopeKeys: ExactKeySet<
+      keyof P3AcceptedResultEnvelope,
+      'boundaryResult' | 'acceptedResult'
+    > = true
+    const exactRejectedEnvelopeKeys: ExactKeySet<
+      keyof P3RejectedResultEnvelope,
+      'boundaryResult'
+    > = true
+    const exactAcceptedResult: ExactKeySet<
+      P3AcceptedResultEnvelope['acceptedResult'],
+      I6AcceptedResult
+    > = true
+    const exactEnvelopeUnion: ExactKeySet<
+      P3ResultEnvelope,
+      P3AcceptedResultEnvelope | P3RejectedResultEnvelope
+    > = true
+    type P3EnvelopeKey =
+      keyof P3AcceptedResultEnvelope | keyof P3RejectedResultEnvelope
+    type ForbiddenD1AckKey = Extract<
+      P3EnvelopeKey,
+      'd1' | 'd3' | 'a3' | 'a5' | 'advancedD3' | 'eventResults' | 'a5Result'
+    >
+    const noD1AckKey: ExactKeySet<ForbiddenD1AckKey, never> = true
+
+    const sourceFile = ts.createSourceFile(
+      'p3Result.ts',
+      sourceFor('p3Result.ts'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    )
+    const queueStateImport = sourceFile.statements.find(
+      (statement): statement is ts.ImportDeclaration =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === './queueState',
+    )
+    const importedI6Types =
+      queueStateImport?.importClause?.namedBindings &&
+      ts.isNamedImports(queueStateImport.importClause.namedBindings)
+        ? queueStateImport.importClause.namedBindings.elements.map(
+            (element) => element.name.text,
+          )
+        : []
+    const locallyDeclaredTypeNames = sourceFile.statements
+      .filter(
+        (
+          statement,
+        ): statement is ts.TypeAliasDeclaration | ts.InterfaceDeclaration =>
+          ts.isTypeAliasDeclaration(statement) ||
+          ts.isInterfaceDeclaration(statement),
+      )
+      .map((statement) => statement.name.text)
+
+    expect([
+      exactAcceptedEnvelopeKeys,
+      exactRejectedEnvelopeKeys,
+      exactAcceptedResult,
+      exactEnvelopeUnion,
+      noD1AckKey,
+    ]).toEqual([true, true, true, true, true])
+    expect(new Set(importedI6Types)).toEqual(
+      new Set(['I6Acceptance', 'I6AcceptedResult']),
+    )
+    expect(queueStateImport?.importClause?.isTypeOnly).toBe(true)
+    expect(locallyDeclaredTypeNames).not.toContain('I6Acceptance')
+    expect(locallyDeclaredTypeNames).not.toContain('I6AcceptedResult')
   })
 
   it('C4: A5 の公開入口は永続キュー発行の preparation だけを受け取る', () => {
