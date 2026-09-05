@@ -6,8 +6,12 @@ import {
   type EventSlotId,
 } from './eventFieldRules'
 
+export const SYNC_EVENT_ENVELOPE_KEYS = ['fields'] as const
+
+export type SyncEventEnvelopeKey = (typeof SYNC_EVENT_ENVELOPE_KEYS)[number]
+
 export type SyncEvent = {
-  fields: Partial<Record<EventSlotId, unknown>>
+  [Key in SyncEventEnvelopeKey]: Partial<Record<EventSlotId, unknown>>
 }
 
 type CompositeFieldRule = Extract<

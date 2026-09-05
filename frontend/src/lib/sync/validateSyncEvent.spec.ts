@@ -156,9 +156,25 @@ describe('validateSyncEvent', () => {
     expect(hasOuterKind).toBe(false)
     expect(Object.keys(event)).toEqual(['fields'])
     expect(event.fields.V5).toBe('1')
-    expect(
-      checkSyncEvent(eventWithContradictoryOuterValue, contextFor('1')),
-    ).toEqual({ ok: true })
+    expectRejected(
+      eventWithContradictoryOuterValue,
+      contextFor('1'),
+      SYNC_EVENT_VIOLATION.INVALID_FIELDS,
+      'kind',
+    )
+  })
+
+  it('外側の symbol キーを拒否する', () => {
+    const event = eventFor('1') as SyncEvent & Record<PropertyKey, unknown>
+    const unexpectedKey = Symbol('outer')
+    event[unexpectedKey] = {}
+
+    expectRejected(
+      event,
+      contextFor('1'),
+      SYNC_EVENT_VIOLATION.INVALID_FIELDS,
+      String(unexpectedKey),
+    )
   })
 
   it.each(EVENT_KIND_RULES)(

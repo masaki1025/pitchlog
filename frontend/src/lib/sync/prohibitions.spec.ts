@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as ts from 'typescript'
 import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_REQUIREDNESS,
@@ -12,10 +13,18 @@ import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
 import { readCanonEventFieldRules } from './canonOracle'
 import {
   buildSidecarJoinKey,
+  SYNC_EVENT_ENVELOPE_KEYS,
   TARGET_EVENT_REFERENCE_ELEMENTS,
   type SyncEvent,
+  type TargetEventReference,
 } from './syncEvent'
-import { checkSyncEvent } from './validateSyncEvent'
+import {
+  checkSyncEvent,
+  type SourceEventContext,
+  type SyncEventValidationContext,
+  type SyncEventValidationResult,
+  type SyncEventViolation,
+} from './validateSyncEvent'
 
 type RawModule = { default: string }
 type ProductModule = Record<string, unknown>
@@ -27,6 +36,11 @@ type ForbiddenCandidate = Readonly<{
   name: string
   pattern: RegExp
 }>
+type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
+  ? [Expected] extends [Actual]
+    ? true
+    : false
+  : false
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'canonOracle.ts',
@@ -91,6 +105,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'validateRequestBoundary',
   ],
   'syncEvent.ts': [
+    'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
     'buildSidecarJoinKey',
     'isTargetEventReference',
@@ -105,6 +120,72 @@ const EXPECTED_VALUE_EXPORTS = {
     'SyncEventValidationError',
     'checkSyncEvent',
     'validateSyncEvent',
+  ],
+} as const satisfies Readonly<Record<string, readonly string[]>>
+
+const EXPECTED_TYPE_EXPORTS = {
+  'canonOracle.ts': [
+    'CanonEventFieldRule',
+    'CanonEventKindRule',
+    'CanonIdempotencyCollisionRule',
+    'CanonTemporaryIdMappingRule',
+    'CanonV12BoundaryRule',
+  ],
+  'eventFieldRules.ts': [
+    'EventFieldConditionContext',
+    'EventFieldPresence',
+    'EventFieldRequiredness',
+    'EventFieldRule',
+    'EventFieldShape',
+    'EventSlotId',
+    'RequestOnlyId',
+    'SyncEventPath',
+  ],
+  'eventKinds.ts': [
+    'EventKind',
+    'EventKindGroup',
+    'EventKindId',
+    'EventParticipation',
+  ],
+  'idempotencyCollision.ts': [
+    'ContentIdentity',
+    'IdempotencyBoundaryResult',
+    'IdempotencyDecisionResult',
+    'IdempotencyEventOriginal',
+    'IdempotencyKeyPart',
+    'IdempotencyOperation',
+    'IdempotencyOriginal',
+    'IdempotencyOriginalComparator',
+    'IdempotencyScopeRule',
+    'StoredIdempotencyOperation',
+  ],
+  'requestBoundary.ts': [
+    'P3RequestState',
+    'RecoveryGenerationVerifier',
+    'RequestBoundaryCheckResult',
+    'RequestBoundaryEnvelope',
+    'RequestBoundaryResult',
+    'RequestBoundaryVerifiers',
+    'V12BindingComponent',
+    'V12BindingVerifier',
+  ],
+  'syncEvent.ts': [
+    'SidecarJoinKey',
+    'SyncEvent',
+    'SyncEventEnvelopeKey',
+    'TargetEventReference',
+  ],
+  'temporaryIdMapping.ts': [
+    'TemporaryIdMappingRecord',
+    'TemporaryIdProvenance',
+  ],
+  'validateSyncEvent.ts': [
+    'SourceEventContext',
+    'SourceEventContextResolver',
+    'SyncEventValidationContext',
+    'SyncEventValidationResult',
+    'SyncEventViolation',
+    'SyncEventViolationType',
   ],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
@@ -140,6 +221,8 @@ if (
 }
 const PRODUCT_SOURCES = Object.freeze(productSources)
 
+// U-1〜U-4 は日本語の正本語が現れるかだけを走査し、意味の同一性までは判定しない。
+// 型プロパティ名や内部構造による同等物は検出できないため、H-59 の人間逐行確認へ送る。
 const OUT_OF_SCOPE_CANDIDATES = {
   U1: [
     { name: '対象連番', pattern: /対象連番/ },
@@ -260,6 +343,68 @@ function expectEventSlotsToMatchCanon(): void {
   expect(new Set(EVENT_SLOT_IDS)).toEqual(new Set(canonEventSlotIds))
 }
 
+function hasExportModifier(node: ts.Node): boolean {
+  return (
+    ts.canHaveModifiers(node) &&
+    (ts
+      .getModifiers(node)
+      ?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+      false)
+  )
+}
+
+function exportedTypeIdentifiers(
+  productSource: ProductSource,
+): readonly string[] {
+  const sourceFile = ts.createSourceFile(
+    productSource.fileName,
+    productSource.source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const identifiers: string[] = []
+
+  for (const statement of sourceFile.statements) {
+    if (
+      (ts.isTypeAliasDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement)) &&
+      hasExportModifier(statement)
+    ) {
+      identifiers.push(statement.name.text)
+      continue
+    }
+    if (!ts.isExportDeclaration(statement)) {
+      continue
+    }
+    if (!statement.exportClause) {
+      if (statement.isTypeOnly) {
+        identifiers.push('*')
+      }
+    } else if (ts.isNamespaceExport(statement.exportClause)) {
+      if (statement.isTypeOnly) {
+        identifiers.push(statement.exportClause.name.text)
+      }
+    } else {
+      identifiers.push(
+        ...statement.exportClause.elements
+          .filter((element) => statement.isTypeOnly || element.isTypeOnly)
+          .map((element) => element.name.text),
+      )
+    }
+  }
+  return identifiers
+}
+
+function expectExactOwnKeys(
+  value: object,
+  expectedKeys: readonly PropertyKey[],
+): void {
+  const actualKeys = Reflect.ownKeys(value)
+  expect(actualKeys).toHaveLength(expectedKeys.length)
+  expect(new Set(actualKeys)).toEqual(new Set(expectedKeys))
+}
+
 function exactStringLiterals(source: string, valuePattern: string): string[] {
   const pattern = new RegExp(`(['"])(${valuePattern})\\1`, 'g')
   return [...source.matchAll(pattern)]
@@ -308,14 +453,16 @@ describe('prohibitions', () => {
   })
 
   it('P-20: 利用者・入力者の追加を許さず、イベント封筒を正本の完全なスロット集合に閉じる', () => {
+    const exactEnvelopeType: ExactKeySet<
+      keyof SyncEvent,
+      (typeof SYNC_EVENT_ENVELOPE_KEYS)[number]
+    > = true
     type EnvelopeSlotId = keyof SyncEvent['fields']
-    const exactSlotType: EnvelopeSlotId extends EventSlotId
-      ? EventSlotId extends EnvelopeSlotId
-        ? true
-        : false
-      : false = true
+    const exactSlotType: ExactKeySet<EnvelopeSlotId, EventSlotId> = true
 
     // 機械検査は追加スロットの不在までとし、不透明値内部の意味は H-59 の人間逐行確認へ送る。
+    expect(SYNC_EVENT_ENVELOPE_KEYS).toEqual(['fields'])
+    expect(exactEnvelopeType).toBe(true)
     expect(exactSlotType).toBe(true)
     expectEventSlotsToMatchCanon()
   })
@@ -346,6 +493,78 @@ describe('prohibitions', () => {
       expect(actualExports).toHaveLength(expectedExports.length)
       expect(new Set(actualExports)).toEqual(new Set(expectedExports))
     }
+  })
+
+  it('公開 type-only export を正の exact-set に閉じる', () => {
+    expect(Object.keys(EXPECTED_TYPE_EXPORTS).sort()).toEqual(
+      [...EXPECTED_PRODUCT_FILE_NAMES].sort(),
+    )
+    for (const productSource of PRODUCT_SOURCES) {
+      const expectedExports =
+        EXPECTED_TYPE_EXPORTS[
+          productSource.fileName as keyof typeof EXPECTED_TYPE_EXPORTS
+        ]
+      const actualExports = exportedTypeIdentifiers(productSource)
+
+      expect(expectedExports).toBeDefined()
+      expect(actualExports).toHaveLength(expectedExports.length)
+      expect(new Set(actualExports)).toEqual(new Set(expectedExports))
+    }
+  })
+
+  it('公開封筒・検査コンテキスト・戻り値のキーを正の exact-set に閉じる', () => {
+    type ValidationSuccess = Extract<SyncEventValidationResult, { ok: true }>
+    type ValidationFailure = Extract<SyncEventValidationResult, { ok: false }>
+    const exactTargetReference: ExactKeySet<
+      keyof TargetEventReference,
+      (typeof TARGET_EVENT_REFERENCE_ELEMENTS)[number]
+    > = true
+    const exactSourceContext: ExactKeySet<
+      keyof SourceEventContext,
+      'participation' | 'cancellable'
+    > = true
+    const exactValidationContext: ExactKeySet<
+      keyof SyncEventValidationContext,
+      'path' | 'eventKinds' | 'sourceEventContextResolver'
+    > = true
+    const exactViolation: ExactKeySet<
+      keyof SyncEventViolation,
+      'violation' | 'target'
+    > = true
+    const exactSuccess: ExactKeySet<keyof ValidationSuccess, 'ok'> = true
+    const exactFailure: ExactKeySet<keyof ValidationFailure, 'ok' | 'reason'> =
+      true
+    const exactReturnType: ExactKeySet<
+      ReturnType<typeof checkSyncEvent>,
+      SyncEventValidationResult
+    > = true
+    const event: SyncEvent = {
+      fields: { V1: {}, V2: {}, V3: {}, V4: {}, V5: '6', V7: {} },
+    }
+    const context: SyncEventValidationContext = {
+      path: SYNC_EVENT_PATH.P1,
+      eventKinds: buildSyncEventKindSet({ stateCorrectionAdopted: true }),
+    }
+    const success = checkSyncEvent(event, context)
+    const failureEvent: SyncEvent = { fields: { ...event.fields } }
+    delete failureEvent.fields.V1
+    const failure = checkSyncEvent(failureEvent, context)
+
+    expect([
+      exactTargetReference,
+      exactSourceContext,
+      exactValidationContext,
+      exactViolation,
+      exactSuccess,
+      exactFailure,
+      exactReturnType,
+    ]).toEqual([true, true, true, true, true, true, true])
+    expectExactOwnKeys(success, ['ok'])
+    if (failure.ok) {
+      throw new Error('検査失敗の戻り値がありません')
+    }
+    expectExactOwnKeys(failure, ['ok', 'reason'])
+    expectExactOwnKeys(failure.reason, ['violation', 'target'])
   })
 
   it('P-32: 投球項目の追加を許さず、V7 の不透明値内部を検査しない', () => {

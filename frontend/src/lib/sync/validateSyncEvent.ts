@@ -18,7 +18,11 @@ import {
   type EventKind,
   type EventParticipation,
 } from './eventKinds'
-import { isTargetEventReference, type SyncEvent } from './syncEvent'
+import {
+  isTargetEventReference,
+  SYNC_EVENT_ENVELOPE_KEYS,
+  type SyncEvent,
+} from './syncEvent'
 
 export const SYNC_EVENT_VIOLATION = {
   INVALID_FIELDS: 'invalid-fields',
@@ -76,6 +80,9 @@ export class SyncEventValidationError extends Error {
 }
 
 const EVENT_SLOT_ID_SET = new Set<string>(EVENT_SLOT_IDS)
+const SYNC_EVENT_ENVELOPE_KEY_SET = new Set<PropertyKey>(
+  SYNC_EVENT_ENVELOPE_KEYS,
+)
 const SYNC_EVENT_PATH_SET = new Set<SyncEventPath>(SYNC_EVENT_PATHS)
 const SOURCE_PARTICIPATIONS = new Set<EventParticipation>([
   EVENT_PARTICIPATION.LOGICAL_POSITION,
@@ -161,7 +168,28 @@ export function checkSyncEvent(
   event: SyncEvent,
   context: SyncEventValidationContext,
 ): SyncEventValidationResult {
-  const fields: unknown = event.fields
+  const envelope: unknown = event
+  if (!isFieldRecord(envelope)) {
+    return failure(
+      SYNC_EVENT_VIOLATION.INVALID_FIELDS,
+      SYNC_EVENT_ENVELOPE_KEYS[0],
+    )
+  }
+  const envelopeKeys = Reflect.ownKeys(envelope)
+  const unexpectedEnvelopeKey = envelopeKeys.find(
+    (key) => !SYNC_EVENT_ENVELOPE_KEY_SET.has(key),
+  )
+  if (
+    envelopeKeys.length !== SYNC_EVENT_ENVELOPE_KEYS.length ||
+    unexpectedEnvelopeKey !== undefined
+  ) {
+    return failure(
+      SYNC_EVENT_VIOLATION.INVALID_FIELDS,
+      unexpectedEnvelopeKey ?? SYNC_EVENT_ENVELOPE_KEYS[0],
+    )
+  }
+
+  const fields: unknown = envelope[SYNC_EVENT_ENVELOPE_KEYS[0]]
   if (!isFieldRecord(fields)) {
     return failure(SYNC_EVENT_VIOLATION.INVALID_FIELDS, EVENT_KIND_SLOT_ID)
   }
