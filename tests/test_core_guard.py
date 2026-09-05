@@ -72,6 +72,9 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/eventFieldRules.spec.ts",
         "frontend/src/lib/sync/validateSyncEvent.ts",
         "frontend/src/lib/sync/validateSyncEvent.spec.ts",
+        "frontend/src/lib/sync/canonOracle.ts",
+        "frontend/src/lib/sync/canonOracle.spec.ts",
+        "frontend/src/lib/sync/prohibitions.spec.ts",
     ],
     "recording-rights": [
         *CORE_DOCUMENT_PATHS,
@@ -82,6 +85,8 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/validateSyncEvent.ts",
         "frontend/src/lib/sync/validateSyncEvent.spec.ts",
         "frontend/src/lib/sync/syncEvent.ts",
+        "frontend/src/lib/sync/canonOracle.ts",
+        "frontend/src/lib/sync/canonOracle.spec.ts",
     ],
     "tenant-isolation": [
         *CORE_DOCUMENT_PATHS,
@@ -101,6 +106,9 @@ EXPECTED_AREA_PATHS = {
     "data-migration": [
         "frontend/src/lib/format.ts",
         "frontend/src/lib/sync/syncEvent.ts",
+        "frontend/src/lib/sync/prohibitions.spec.ts",
+        "frontend/src/lib/sync/eventFieldRules.spec.ts",
+        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
     ],
 }
 NEW_CORE_PATH_CHANGES = (
