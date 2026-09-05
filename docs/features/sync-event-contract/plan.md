@@ -103,7 +103,7 @@ created: 2026-09-04
 | **`.github/workflows/ci.yml`** | frontend の paths-filter へ **`scripts/design_relations/sync-protocol.json`** を追加(**fail-open** を塞ぐ) | PR レビュー(テストを伴う) |
 | **`tests/test_ci_wiring.py`** | 上記 filter を assert | PR レビュー(テストを伴う) |
 | **`frontend/vite.config.ts` / `frontend/tsconfig.app.json`** | **`@design-relations` alias + `server.fs.allow` + `paths`**(既存の `@contracts` と同型) | PR レビュー(テストを伴う) |
-| **`frontend/src/lib/sync/**`(新設 14 ファイル) | **新設**(4 節の構成表) | PR レビュー(テストを伴う)+ **人間の逐行確認**(コア領域) |
+| **`frontend/src/lib/sync/**`(新設 16 ファイル) | **新設**(4 節の構成表) | PR レビュー(テストを伴う)+ **人間の逐行確認**(コア領域) |
 | `frontend/eslint.config.js` | **反映なし**(P1-5 で denylist を撤回) | — |
 | `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `scripts/**` / `docs/legacy/**` | **反映なし** | — |
 
@@ -129,7 +129,7 @@ created: 2026-09-04
 
 **本実装の TypeScript 型は、正本の型決定ではない。** (B) 論点 17・18・26 は判断 1 によりいずれも選ばない。TSK-250 が物理型を決めた時点で追随する。
 
-### ファイル構成(`frontend/src/lib/sync/` — 新設 14 ファイル)
+### ファイル構成(`frontend/src/lib/sync/` — 新設 16 ファイル)
 
 既存の作法(`frontend/src/lib/*.ts` + 同居 `*.spec.ts`・コメントは日本語)に合わせ、`frontend/src/components/zone/` の前例に倣ってサブディレクトリへ置く。
 
