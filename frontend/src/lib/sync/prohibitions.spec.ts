@@ -47,7 +47,9 @@ import type {
   B3Rejection,
 } from './rejectionReason'
 import {
+  B3_REASON_KIND,
   QUEUE_TRANSITION_RULES,
+  type B3ReasonClassification,
   type QueueSlot,
   type QueueTransitionRequest,
 } from './queueTransition'
@@ -1247,6 +1249,14 @@ describe('prohibitions', () => {
   })
 
   it('B3 の受け取り型に操作者が選ぶラベルを持たせない', () => {
+    type ContentClassification = Extract<
+      B3ReasonClassification,
+      { kind: typeof B3_REASON_KIND.CONTENT }
+    >
+    const exactClassificationKeys: ExactKeySet<
+      keyof ContentClassification,
+      'kind'
+    > = true
     const exactContentKeys: ExactKeySet<
       keyof B3ContentRejection,
       'kind' | 'branch' | 'reason'
@@ -1270,11 +1280,12 @@ describe('prohibitions', () => {
     > = true
 
     expect([
+      exactClassificationKeys,
       exactContentKeys,
       exactO4Keys,
       noForbiddenLabelKey,
       exactUnion,
-    ]).toEqual([true, true, true, true])
+    ]).toEqual([true, true, true, true, true])
   })
 
   it('A5 語彙を ackEnvelope.ts に再定義せず canonOracle の型と reader だけから得る', () => {

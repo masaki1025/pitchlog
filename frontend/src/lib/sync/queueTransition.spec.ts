@@ -37,6 +37,7 @@ import {
   QUEUE_TRANSITION_RULES,
   queueTransitionRuleById,
   RG1_STATE,
+  type B3ReasonClassification,
   type QueueEventKey,
   type QueueSlot,
   type QueueTransitionInjections,
@@ -457,10 +458,7 @@ const TRANSITION_RUNNERS = {
       { kind: 'apply-a5', queue, preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
-        classifyB3: () => ({
-          kind: B3_REASON_KIND.CONTENT,
-          actionRequiredLabel: REVISION_ACTION_LABEL.id,
-        }),
+        classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
       },
     )
   },
@@ -723,10 +721,7 @@ describe('queueTransition', () => {
         { kind: 'apply-a5', queue, preparation },
         {
           ...resolveA5(canonAckResultById(reorderedResults, ackId), slot.key),
-          classifyB3: () => ({
-            kind: B3_REASON_KIND.CONTENT,
-            actionRequiredLabel: REVISION_ACTION_LABEL.id,
-          }),
+          classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
         },
       )
 
@@ -864,22 +859,45 @@ describe('queueTransition', () => {
     expect(queueTransitionSource).not.toContain('D3')
   })
 
+  it('内容起因の B3 だけでは下位ラベルを選ばず要操作へ移す', async () => {
+    const { queue, preparation, slot } = await preparedA5Slot()
+    const result = evaluateQueueTransition(
+      { kind: 'apply-a5', queue, preparation },
+      {
+        ...resolveA5(ACK_REJECTED_RESULT, slot.key),
+        classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
+      },
+    )
+
+    expect(result.applied).toBe(true)
+    if (result.applied) {
+      expect(result.slot?.state).toBe(ACTION_REQUIRED_STATE)
+      expect(result.slot?.source).toBe('d1-event')
+      if (result.slot?.source === 'd1-event') {
+        expect(Object.hasOwn(result.slot, 'actionRequiredLabel')).toBe(false)
+      }
+    }
+  })
+
   it.each(CONTENT_ACTION_LABELS)(
-    '内容起因の B3 を $id に分類する',
+    '操作者の 2 択で $id が注入されて初めて下位ラベルを確定する',
     async (actionRequiredLabel) => {
       const { queue, preparation, slot } = await preparedA5Slot()
+      const resolveB3ContentAction = vi.fn(() => actionRequiredLabel.id)
       const result = evaluateQueueTransition(
         { kind: 'apply-a5', queue, preparation },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
-          classifyB3: () => ({
-            kind: B3_REASON_KIND.CONTENT,
-            actionRequiredLabel: actionRequiredLabel.id,
-          }),
+          classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
+          resolveB3ContentAction,
         },
       )
 
       expect(result.applied).toBe(true)
+      expect(resolveB3ContentAction).toHaveBeenCalledWith({
+        slot,
+        result: ACK_REJECTED_RESULT,
+      })
       if (result.applied) {
         expect(result.slot?.state).toBe(ACTION_REQUIRED_STATE)
         expect(result.slot?.source).toBe('d1-event')
@@ -889,6 +907,70 @@ describe('queueTransition', () => {
       }
     },
   )
+
+  const blockedB3ContentActionInjections = [
+    ['未注入', {}],
+    ['undefined', { resolveB3ContentAction: () => undefined }],
+    [
+      '例外',
+      {
+        resolveB3ContentAction: () => {
+          throw new Error('操作者選択の取得失敗')
+        },
+      },
+    ],
+    [
+      '2 択外',
+      {
+        resolveB3ContentAction: () => O4_ACTION_LABEL.id,
+      } as unknown as QueueTransitionInjections,
+    ],
+  ] as const satisfies readonly (readonly [string, QueueTransitionInjections])[]
+
+  it.each(blockedB3ContentActionInjections)(
+    '操作者の 2 択が%sなら下位ラベルを未選択のまま保持する',
+    async (_name, selectionInjection) => {
+      const { queue, preparation, slot } = await preparedA5Slot()
+      const result = evaluateQueueTransition(
+        { kind: 'apply-a5', queue, preparation },
+        {
+          ...resolveA5(ACK_REJECTED_RESULT, slot.key),
+          classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
+          ...selectionInjection,
+        },
+      )
+
+      expect(result.applied).toBe(true)
+      if (result.applied) {
+        expect(result.slot?.state).toBe(ACTION_REQUIRED_STATE)
+        expect(result.slot?.source).toBe('d1-event')
+        if (result.slot?.source === 'd1-event') {
+          expect(Object.hasOwn(result.slot, 'actionRequiredLabel')).toBe(false)
+        }
+      }
+    },
+  )
+
+  it('操作者の 2 択が未注入の要操作スロットは未送信へ進めない', () => {
+    const slot = queueSlot(ACTION_REQUIRED_STATE)
+    const result = evaluateQueueTransition({
+      kind: 'action-replacement-persisted',
+      slot,
+      replacement: { key: eventKey({ d5: {} }), content: {} },
+    })
+
+    expect(result).toEqual({ applied: false, rowId: 'QT-06' })
+  })
+
+  it('内容起因の B3 分類型は操作者の下位ラベルを受け取らない', () => {
+    const classification: B3ReasonClassification = {
+      kind: B3_REASON_KIND.CONTENT,
+      // @ts-expect-error 操作者の 2 択は分類とは別の注入境界で受ける。
+      actionRequiredLabel: REVISION_ACTION_LABEL.id,
+    }
+
+    expect(Object.hasOwn(classification, 'actionRequiredLabel')).toBe(true)
+  })
 
   it('O4 の B3 を管理者対応用ラベルに分類する', async () => {
     const { queue, preparation, slot } = await preparedA5Slot()
