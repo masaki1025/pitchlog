@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
+import type {
+  D1AckEnvelope,
+  D1AckEventResult,
+  D1AckPlayerIdMapping,
+} from './ackEnvelope'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
   DURABLE_QUEUE_PUBLIC_METHOD_RULES,
@@ -21,7 +26,10 @@ import {
   type EventSlotId,
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
-import { readCanonEventFieldRules } from './canonOracle'
+import {
+  readCanonAckStateResults,
+  readCanonEventFieldRules,
+} from './canonOracle'
 import type {
   LocalQueueFileImportRequest,
   LocalQueueFileImportResult,
@@ -69,6 +77,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
   : false
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
+  'ackEnvelope.ts',
   'canonOracle.ts',
   'changeOperationGate.ts',
   'clientDiscipline.ts',
@@ -91,6 +100,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
 ] as const
 
 const EXPECTED_VALUE_EXPORTS = {
+  'ackEnvelope.ts': ['parseD1AckEnvelope'],
   'canonOracle.ts': [
     'CANON_ACK_STATE_RESULT',
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
@@ -245,6 +255,11 @@ const EXPECTED_VALUE_EXPORTS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 const EXPECTED_TYPE_EXPORTS = {
+  'ackEnvelope.ts': [
+    'D1AckEnvelope',
+    'D1AckEventResult',
+    'D1AckPlayerIdMapping',
+  ],
   'canonOracle.ts': [
     'CanonAckStateResult',
     'CanonEventFieldRule',
@@ -1143,6 +1158,99 @@ describe('prohibitions', () => {
     expect(Object.keys(request)).toEqual(['kind', 'queue', 'preparation'])
     expect(resolver({})).toBe(true)
     expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
+  })
+
+  it('D1 ACK の公開型を D3・A5・条件付き A4 だけに閉じる', () => {
+    const exactEnvelopeKeys: ExactKeySet<
+      keyof D1AckEnvelope,
+      'advancedD3' | 'eventResults' | 'playerIdMappings'
+    > = true
+    const exactEventResultKeys: ExactKeySet<
+      keyof D1AckEventResult,
+      'd4' | 'd1' | 'd5' | 'a5Result'
+    > = true
+    const exactPlayerIdMappingKeys: ExactKeySet<
+      keyof D1AckPlayerIdMapping,
+      'temporaryId' | 'officialId'
+    > = true
+    type ServerGuaranteeField = Extract<
+      keyof D1AckEnvelope,
+      | 'a1'
+      | 'a2'
+      | 'atomicCommit'
+      | 'appliedAtomically'
+      | 'idempotencyGuaranteed'
+      | 'preventsDoubleApplication'
+    >
+    const noServerGuaranteeField: ExactKeySet<ServerGuaranteeField, never> =
+      true
+
+    expect([
+      exactEnvelopeKeys,
+      exactEventResultKeys,
+      exactPlayerIdMappingKeys,
+      noServerGuaranteeField,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('A5 語彙を ackEnvelope.ts に再定義せず canonOracle の型と reader だけから得る', () => {
+    const sourceFile = ts.createSourceFile(
+      'ackEnvelope.ts',
+      sourceFor('ackEnvelope.ts'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    )
+    const canonImport = sourceFile.statements.find(
+      (statement): statement is ts.ImportDeclaration =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === './canonOracle',
+    )
+    if (
+      !canonImport?.importClause?.namedBindings ||
+      !ts.isNamedImports(canonImport.importClause.namedBindings)
+    ) {
+      throw new Error(
+        'ackEnvelope.ts に canonOracle の named import がありません',
+      )
+    }
+    const importedIdentifiers =
+      canonImport.importClause.namedBindings.elements.map((element) => ({
+        name: element.name.text,
+        typeOnly: canonImport.importClause?.isTypeOnly || element.isTypeOnly,
+      }))
+    const canonResultIds = new Set(
+      readCanonAckStateResults().map((result) => result.id),
+    )
+    const duplicatedResultLiterals: string[] = []
+    const localLookupCollections: string[] = []
+    let switchStatementCount = 0
+    const visit = (node: ts.Node): void => {
+      if (ts.isStringLiteralLike(node) && canonResultIds.has(node.text)) {
+        duplicatedResultLiterals.push(node.text)
+      }
+      if (
+        ts.isNewExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        (node.expression.text === 'Map' || node.expression.text === 'Set')
+      ) {
+        localLookupCollections.push(node.expression.text)
+      }
+      if (ts.isSwitchStatement(node)) {
+        switchStatementCount += 1
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
+
+    expect(importedIdentifiers).toEqual([
+      { name: 'readCanonAckStateResults', typeOnly: false },
+      { name: 'CanonAckStateResult', typeOnly: true },
+    ])
+    expect(duplicatedResultLiterals).toEqual([])
+    expect(localLookupCollections).toEqual([])
+    expect(switchStatementCount).toBe(0)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {
