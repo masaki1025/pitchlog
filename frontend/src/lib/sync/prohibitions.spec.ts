@@ -48,6 +48,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'durableQueue.ts',
   'eventFieldRules.ts',
   'eventKinds.ts',
+  'failureScenarioContract.ts',
   'idempotencyCollision.ts',
   'k5Tombstone.ts',
   'localQueueFile.ts',
@@ -114,6 +115,14 @@ const EXPECTED_VALUE_EXPORTS = {
     'EVENT_KIND_RULES',
     'EVENT_PARTICIPATION',
     'buildSyncEventKindSet',
+  ],
+  'failureScenarioContract.ts': [
+    'FAILURE_EXPECTED_FIELD_IDS',
+    'FAILURE_SCENARIO_IDS',
+    'FailureScenarioContractError',
+    'parseFailureScenarioContract',
+    'validateFailureScenarioContract',
+    'validateFailureScenarioResult',
   ],
   'idempotencyCollision.ts': [
     'CONTENT_IDENTITY',
@@ -246,6 +255,15 @@ const EXPECTED_TYPE_EXPORTS = {
     'EventKindGroup',
     'EventKindId',
     'EventParticipation',
+  ],
+  'failureScenarioContract.ts': [
+    'FailureExpectedFieldId',
+    'FailureScenarioComparisonUnit',
+    'FailureScenarioContract',
+    'FailureScenarioField',
+    'FailureScenarioId',
+    'FailureScenarioObservation',
+    'FailureScenarioResult',
   ],
   'idempotencyCollision.ts': [
     'ContentIdentity',

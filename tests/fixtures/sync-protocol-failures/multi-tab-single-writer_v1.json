@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "multi-tab-single-writer",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "queueCount": 0,
+        "nextD1": 1
+      }
+    },
+    "queue": {
+      "value": {
+        "unsentCount": 0
+      }
+    },
+    "d1": {
+      "value": {
+        "next": 1
+      }
+    },
+    "d3": {
+      "omittedBecause": "クライアント内の単一書き手選出だけを扱い、サーバーの連続 prefix を観測しないため"
+    },
+    "d4": {
+      "omittedBecause": "同じ試合の同一世代を前提とし、世代照合を故障対象にしないため"
+    },
+    "d5": {
+      "omittedBecause": "二つの確定操作の受理境界を扱い、個別イベントのべき等キーを固定しないため"
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復元ライフサイクルを扱わないクライアント側シナリオのため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "サーバー要求を送る前のクライアント側シナリオのため"
+    },
+    "applicationPath": {
+      "omittedBecause": "サーバーの適用経路へ到達する前のクライアント側シナリオのため"
+    },
+    "tabs": {
+      "value": {
+        "sameBrowser": true,
+        "sameGame": true,
+        "contexts": ["主タブ", "後発タブ"],
+        "confirmedInputTabs": ["主タブ", "後発タブ"]
+      }
+    },
+    "lock": {
+      "value": {
+        "gameScoped": true,
+        "initialOwner": null
+      }
+    }
+  },
+  "faultInjection": {
+    "target": {
+      "value": "同じ試合を開いた二つのタブの確定操作"
+    },
+    "injectionPoint": {
+      "value": "両方のタブが書き手選出を要求する時点"
+    },
+    "stopOperation": {
+      "omittedBecause": "停止を伴わない競合シナリオのため"
+    },
+    "restartOperation": {
+      "omittedBecause": "再開を伴わない競合シナリオのため"
+    }
+  },
+  "expected": {
+    "observations": [
+      {
+        "observationPoint": "両タブの確定操作後",
+        "fields": {
+          "queue": {
+            "appendCount": 1
+          },
+          "d1": {
+            "duplicateCount": 0
+          },
+          "lock": {
+            "ownerCount": 1,
+            "nonOwnerReadOnly": true
+          },
+          "acceptanceDisplay": {
+            "acceptedTabCount": 1,
+            "nonOwnerNoticeId": "Q2-b"
+          },
+          "reinputAvailability": {
+            "nonOwnerInputAccepted": false,
+            "retryAfterLockAcquisition": true
+          }
+        }
+      }
+    ]
+  },
+  "comparisonUnit": [
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "reinputAvailability"
+    }
+  ]
+}

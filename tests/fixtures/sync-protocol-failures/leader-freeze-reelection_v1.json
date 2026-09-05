@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "leader-freeze-reelection",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "queueCount": 2,
+        "nextD1": 3
+      }
+    },
+    "queue": {
+      "value": {
+        "unsentCount": 2
+      }
+    },
+    "d1": {
+      "value": {
+        "next": 3
+      }
+    },
+    "d3": {
+      "omittedBecause": "クライアントの再選出だけを扱い、サーバーの連続 prefix を観測しないため"
+    },
+    "d4": {
+      "omittedBecause": "同じ試合の同一世代での再選出を扱うため"
+    },
+    "d5": {
+      "omittedBecause": "既存キュー全体の保持を観測し、個別イベントのべき等キーを固定しないため"
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復元ライフサイクルを扱わないクライアント側シナリオのため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "サーバー要求を送る前のクライアント側シナリオのため"
+    },
+    "applicationPath": {
+      "omittedBecause": "サーバーの適用経路へ到達する前のクライアント側シナリオのため"
+    },
+    "tabs": {
+      "value": {
+        "contexts": ["主タブ", "待機タブ"],
+        "primaryFrozen": true,
+        "waitingTabUsesTerminationPath": true
+      }
+    },
+    "lock": {
+      "value": {
+        "initialOwner": "主タブ",
+        "heldDuringFreeze": true
+      }
+    }
+  },
+  "faultInjection": {
+    "target": {
+      "value": "排他ロックを保持する主タブ"
+    },
+    "injectionPoint": {
+      "value": "未送信キューを保持したまま主タブをフリーズさせる時点"
+    },
+    "stopOperation": {
+      "value": "待機タブの導線から旧タブを終了する"
+    },
+    "restartOperation": {
+      "value": "待機タブがロック取得後に単一書き手を再検証して記録を再開する"
+    }
+  },
+  "expected": {
+    "observations": [
+      {
+        "observationPoint": "旧タブ終了前",
+        "fields": {
+          "queue": {
+            "unchanged": true,
+            "count": 2
+          },
+          "d1": {
+            "unchanged": true,
+            "next": 3
+          },
+          "lock": {
+            "owner": "主タブ",
+            "forciblyAcquired": false
+          },
+          "acceptanceDisplay": {
+            "waitingInputShownAsAccepted": false
+          },
+          "reinputAvailability": {
+            "required": false
+          }
+        }
+      },
+      {
+        "observationPoint": "待機タブ再選出後",
+        "fields": {
+          "queue": {
+            "unchanged": true,
+            "count": 2
+          },
+          "d1": {
+            "unchanged": true,
+            "next": 3
+          },
+          "lock": {
+            "owner": "待機タブ",
+            "singleWriterRevalidated": true
+          },
+          "acceptanceDisplay": {
+            "recordingResumedAfterRevalidation": true
+          },
+          "reinputAvailability": {
+            "required": false
+          }
+        }
+      }
+    ]
+  },
+  "comparisonUnit": [
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "旧タブ終了前",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "旧タブ終了前",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "旧タブ終了前",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "旧タブ終了前",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "旧タブ終了前",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "待機タブ再選出後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "待機タブ再選出後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "待機タブ再選出後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "待機タブ再選出後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "leader-freeze-reelection",
+      "observationPoint": "待機タブ再選出後",
+      "expectedField": "reinputAvailability"
+    }
+  ]
+}
