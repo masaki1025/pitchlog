@@ -12,8 +12,10 @@ import {
 import {
   openDurableQueue,
   type DurableQueue,
+  type I6EvacuationReceipt,
   type I6PersistenceReceipt,
 } from './durableQueue'
+import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
 import { EVENT_KIND_RULES } from './eventKinds'
 import {
   QUEUE_ACTION_REQUIRED_LABELS,
@@ -107,7 +109,6 @@ const BASE_KEY_PARTS = {
   d1: {},
   d5: {},
 } as const
-const BASE_CONTENT = {}
 let databaseSequence = 0
 const openedI6Queues: DurableQueue[] = []
 const i6DatabaseNames: string[] = []
@@ -117,9 +118,11 @@ const NON_PLAYER_EVENT_KIND = EVENT_KIND_RULES.find(
 if (!NON_PLAYER_EVENT_KIND) {
   throw new Error('選手登録以外のイベント種別がありません')
 }
+const BASE_CONTENT = {
+  fields: { [EVENT_KIND_SLOT_ID]: NON_PLAYER_EVENT_KIND.id },
+}
 
 type D1QueueSlot = Extract<QueueSlot, { source: 'd1-event' }>
-type P3QueueSlot = Extract<QueueSlot, { source: 'p3-acceptance' }>
 
 function targetReference(): TargetEventReference {
   return Object.fromEntries(
@@ -147,15 +150,35 @@ async function persistenceReceipt(
     requestStoragePersistence: async () => false,
   })
   openedI6Queues.push(queue)
-  const receipt = await queue.persistI6Acceptance(acceptance, {
+  const preparation = queue.prepareI6Acceptance(acceptance, {
     resolveAcceptedAt: () => ({
       known: true,
       targetReference: acceptance.targetReference,
       acceptedAt: {},
     }),
   })
+  const receipt = preparation
+    ? await queue.persistI6Acceptance(preparation)
+    : undefined
   if (!receipt) {
     throw new Error('I6 永続化 receipt がありません')
+  }
+  return receipt
+}
+
+async function evacuationReceipt(
+  acceptance: I6Acceptance,
+): Promise<I6EvacuationReceipt> {
+  await persistenceReceipt(acceptance)
+  const queue = openedI6Queues.at(-1)
+  if (!queue) {
+    throw new Error('I6 の永続キューがありません')
+  }
+  const receipt = await queue.prepareI6Evacuation(acceptance.d5, {
+    confirmI6EvacuationSaved: () => true,
+  })
+  if (!receipt) {
+    throw new Error('I6 の退避保存 receipt がありません')
   }
   return receipt
 }
@@ -192,15 +215,6 @@ function queueSlot(
     content: BASE_CONTENT,
     source: 'd1-event',
     ...overrides,
-  }
-}
-
-function p3QueueSlot(state: QueueStateId): P3QueueSlot {
-  return {
-    ...i6Acceptance(),
-    state,
-    source: 'p3-acceptance',
-    acceptedAt: {},
   }
 }
 
@@ -389,14 +403,14 @@ const TRANSITION_RUNNERS = {
   'QT-02': () => {
     const slot = queueSlot(UNSENT_STATE)
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       resolveA5(ACK_ACCEPTED_RESULT, slot.key),
     )
   },
   'QT-03': () => {
     const slot = queueSlot(UNSENT_STATE)
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({
@@ -409,7 +423,7 @@ const TRANSITION_RUNNERS = {
   'QT-04': () => {
     const slot = queueSlot(UNSENT_STATE)
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
     )
   },
@@ -450,7 +464,7 @@ const TRANSITION_RUNNERS = {
   'QT-08': () => {
     const slot = queueSlot(UNSENT_STATE)
     return evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       resolveA5(ACK_EVACUATED_RESULT, slot.key),
     )
   },
@@ -458,18 +472,16 @@ const TRANSITION_RUNNERS = {
     const acceptance = i6Acceptance()
     return evaluateQueueTransition({
       kind: 'p3-acceptance-persisted',
-      acceptance,
       persistenceReceipt: await persistenceReceipt(acceptance),
     })
   },
-  'QT-10': () =>
-    evaluateQueueTransition(
-      {
-        kind: 'i6-evacuation-saved',
-        slot: p3QueueSlot(SYNCED_STATE),
-      },
-      { confirmI6EvacuationSaved: () => true },
-    ),
+  'QT-10': async () => {
+    const acceptance = i6Acceptance()
+    return evaluateQueueTransition({
+      kind: 'i6-evacuation-saved',
+      evacuationReceipt: await evacuationReceipt(acceptance),
+    })
+  },
   'QT-11': () =>
     evaluateQueueTransition({
       kind: 'discard',
@@ -601,7 +613,7 @@ describe('queueTransition', () => {
     for (const [ackId, expectedTarget] of expectedTargets) {
       const slot = queueSlot(UNSENT_STATE)
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+        { kind: 'apply-a5', slot },
         {
           ...resolveA5(canonAckResultById(reorderedResults, ackId), slot.key),
           classifyB3: () => ({
@@ -710,7 +722,7 @@ describe('queueTransition', () => {
     (ackResult) => {
       const slot = queueSlot(UNSENT_STATE)
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+        { kind: 'apply-a5', slot },
         resolveA5(ackResult, slot.key),
       )
 
@@ -725,7 +737,7 @@ describe('queueTransition', () => {
     const slot = queueSlot(UNSENT_STATE)
     const mismatchedKey = eventKey({ d5: {} })
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       resolveA5(ACK_ACCEPTED_RESULT, mismatchedKey),
     )
 
@@ -736,7 +748,6 @@ describe('queueTransition', () => {
     const prefixOnlyRequest = {
       kind: 'apply-a5',
       slot: queueSlot(UNSENT_STATE),
-      eventKind: NON_PLAYER_EVENT_KIND,
       d3: {},
     } as const
 
@@ -751,7 +762,7 @@ describe('queueTransition', () => {
     (actionRequiredLabel) => {
       const slot = queueSlot(UNSENT_STATE)
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+        { kind: 'apply-a5', slot },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
           classifyB3: () => ({
@@ -775,7 +786,7 @@ describe('queueTransition', () => {
   it('O4 の B3 を管理者対応用ラベルに分類する', () => {
     const slot = queueSlot(UNSENT_STATE)
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.O4 }),
@@ -931,10 +942,8 @@ describe('queueTransition', () => {
   })
 
   it('P3 受理結果の端末永続化失敗では同期済みにしない', () => {
-    const acceptance = i6Acceptance()
     const result = evaluateQueueTransition({
       kind: 'p3-acceptance-persisted',
-      acceptance,
     })
 
     expect(result.applied).toBe(false)
@@ -982,7 +991,6 @@ describe('queueTransition', () => {
         evaluateQueueTransition({
           kind: 'apply-a5',
           slot: queueSlot(UNSENT_STATE),
-          eventKind: NON_PLAYER_EVENT_KIND,
         }),
     },
     {
@@ -990,7 +998,7 @@ describe('queueTransition', () => {
       run: () => {
         const slot = queueSlot(UNSENT_STATE)
         return evaluateQueueTransition(
-          { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+          { kind: 'apply-a5', slot },
           resolveA5(ACK_REJECTED_RESULT, slot.key),
         )
       },
@@ -1029,7 +1037,6 @@ describe('queueTransition', () => {
       run: () =>
         evaluateQueueTransition({
           kind: 'i6-evacuation-saved',
-          slot: p3QueueSlot(SYNCED_STATE),
         }),
     },
     {
@@ -1044,10 +1051,8 @@ describe('queueTransition', () => {
     {
       name: 'I6 永続化 receipt',
       run: () => {
-        const acceptance = i6Acceptance()
         return evaluateQueueTransition({
           kind: 'p3-acceptance-persisted',
-          acceptance,
         })
       },
     },
@@ -1067,7 +1072,7 @@ describe('queueTransition', () => {
   it('明示的に不明な B3 分類を fail-closed にする', () => {
     const slot = queueSlot(UNSENT_STATE)
     const unknownB3 = evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
+      { kind: 'apply-a5', slot },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.UNKNOWN }),

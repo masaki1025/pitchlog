@@ -136,7 +136,7 @@ describe('clientDiscipline', () => {
       index < DEFAULT_UNSENT_WARNING_THRESHOLD - 1;
       index += 1
     ) {
-      await queue.append(appendInput(scope, index))
+      await queue.append(queue.prepareAppend(appendInput(scope, index)))
     }
     const thresholdResult = await appendUnderQueueDiscipline(
       queue,
@@ -182,7 +182,9 @@ describe('clientDiscipline', () => {
     ] as const
 
     for (const [index, state] of nonUnsentStates.entries()) {
-      const slot = await queue.append(appendInput(scope, index))
+      const slot = await queue.append(
+        queue.prepareAppend(appendInput(scope, index)),
+      )
       await overwriteQueueSlot(databaseName, { ...slot, state })
     }
     expect(await queue.countUnsentSlots()).toBe(0)
@@ -201,8 +203,8 @@ describe('clientDiscipline', () => {
   it('Q7: 認証失効中もキューと次の D1 を保ち、再ログイン後に同期を再開する', async () => {
     const queue = await openTestQueue()
     const scope = { game: 'game-a', d4: 'generation-a' }
-    await queue.append(appendInput(scope, 0))
-    await queue.append(appendInput(scope, 1))
+    await queue.append(queue.prepareAppend(appendInput(scope, 0)))
+    await queue.append(queue.prepareAppend(appendInput(scope, 1)))
     const countBefore = await queue.countSlots()
     const nextD1Before = await queue.readNextD1(scope)
     const resumeSynchronization = vi.fn(async () => undefined)

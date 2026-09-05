@@ -650,7 +650,7 @@ async function openScenarioQueue(contract: FailureScenarioContract): Promise<
     (_unused, marker) => marker,
   )
   for (const marker of markers) {
-    await queue.append(appendInput(scope, marker))
+    await queue.append(queue.prepareAppend(appendInput(scope, marker)))
   }
   const initial = await queueSnapshot(queue, scope)
   if (initial.count !== queueCount || initial.nextD1 !== nextD1) {

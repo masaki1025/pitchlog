@@ -6,7 +6,8 @@ import {
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
-import { I6PersistenceReceipt } from './durableQueue'
+import { I6EvacuationReceipt, I6PersistenceReceipt } from './durableQueue'
+import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
 import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
 import {
   checkMappingConfirmation,
@@ -15,7 +16,6 @@ import {
 import {
   actionRequiredLabelId,
   queueStateId,
-  type I6Acceptance,
   type I6AcceptedResult,
   type QueueActionRequiredLabel,
   type QueueStateId,
@@ -344,7 +344,6 @@ export type QueueTransitionInjections = Readonly<{
     readonly replacement: QueueSlotReplacement
   }) => boolean | undefined
   confirmO4Correction?: (slot: QueueSlot) => boolean | undefined
-  confirmI6EvacuationSaved?: (slot: QueueSlot) => boolean | undefined
   resolveRg1State?: (slot: QueueSlot) => Rg1State | undefined
 }>
 
@@ -357,7 +356,6 @@ export type QueueTransitionRequest =
   | Readonly<{
       kind: 'apply-a5'
       slot: QueueSlot
-      eventKind: EventKind
     }>
   | Readonly<{ kind: 'ack-unavailable'; slot: QueueSlot }>
   | Readonly<{
@@ -372,10 +370,12 @@ export type QueueTransitionRequest =
     }>
   | Readonly<{
       kind: 'p3-acceptance-persisted'
-      acceptance: I6Acceptance
       persistenceReceipt?: I6PersistenceReceipt
     }>
-  | Readonly<{ kind: 'i6-evacuation-saved'; slot: QueueSlot }>
+  | Readonly<{
+      kind: 'i6-evacuation-saved'
+      evacuationReceipt?: I6EvacuationReceipt
+    }>
   | Readonly<{
       kind: 'discard'
       slot: QueueSlot
@@ -459,11 +459,21 @@ function hasEmptyContent(content: unknown): boolean {
   )
 }
 
-function resolveKnownEventKind(value: unknown): EventKind | undefined {
-  if (typeof value !== 'object' || value === null || !('id' in value)) {
+function resolveKnownEventKind(content: unknown): EventKind | undefined {
+  if (
+    typeof content !== 'object' ||
+    content === null ||
+    !('fields' in content) ||
+    typeof content.fields !== 'object' ||
+    content.fields === null
+  ) {
     return undefined
   }
-  return EVENT_KIND_RULES.find((eventKind) => eventKind.id === value.id)
+  return EVENT_KIND_RULES.find(
+    (eventKind) =>
+      eventKind.id ===
+      (content.fields as Readonly<Record<string, unknown>>)[EVENT_KIND_SLOT_ID],
+  )
 }
 
 function applyA5(
@@ -474,7 +484,7 @@ function applyA5(
   if (slot.source !== 'd1-event' || slot.state !== UNSENT_STATE) {
     return notApplied()
   }
-  const eventKind = resolveKnownEventKind(request.eventKind)
+  const eventKind = resolveKnownEventKind(slot.content)
   if (!eventKind) {
     return notApplied()
   }
@@ -626,32 +636,28 @@ function applyP3Acceptance(
 ): QueueTransitionResult {
   const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.P3_ACCEPTANCE)
   const receipt = request.persistenceReceipt
-  if (
-    !(receipt instanceof I6PersistenceReceipt) ||
-    !receipt.matches(request.acceptance) ||
-    receipt.slot.state !== SYNCED_STATE
-  ) {
+  if (!(receipt instanceof I6PersistenceReceipt)) {
     return notApplied(rule.id)
   }
-  return applySlotRule(rule, receipt.slot)
+  const slot = receipt.slot
+  if (slot.state !== SYNCED_STATE) {
+    return notApplied(rule.id)
+  }
+  return applySlotRule(rule, slot)
 }
 
 function applyI6Evacuation(
-  slot: QueueSlot,
-  injections: QueueTransitionInjections,
+  receipt: I6EvacuationReceipt | undefined,
 ): QueueTransitionResult {
   const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.I6_EVACUATION)
+  if (!(receipt instanceof I6EvacuationReceipt)) {
+    return notApplied(rule.id)
+  }
+  const slot = receipt.slot
   if (slot.state !== SYNCED_STATE || slot.source !== 'p3-acceptance') {
     return notApplied(rule.id)
   }
-
-  let saved: boolean | undefined
-  try {
-    saved = injections.confirmI6EvacuationSaved?.(slot)
-  } catch {
-    return notApplied(rule.id)
-  }
-  return saved === true ? applySlotRule(rule, slot) : notApplied(rule.id)
+  return applySlotRule(rule, slot)
 }
 
 function applyDiscard(
@@ -729,7 +735,7 @@ export function evaluateQueueTransition(
     case 'p3-acceptance-persisted':
       return applyP3Acceptance(request)
     case 'i6-evacuation-saved':
-      return applyI6Evacuation(request.slot, injections)
+      return applyI6Evacuation(request.evacuationReceipt)
     case 'discard':
       return applyDiscard(request, injections)
   }

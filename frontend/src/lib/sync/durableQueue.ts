@@ -2,12 +2,15 @@
 // 値の形式は解釈せず、IndexedDB の structured clone にそのまま委ねる。
 
 import {
-  prepareTombstoneReplacement,
+  prepareTombstoneReplacement as evaluateTombstoneReplacement,
   type TombstoneBoundaryRequest,
   type TombstoneGenerationInjections,
   type TombstoneGenerationResult,
 } from './k5Tombstone'
+import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
+import { EVENT_KIND_RULES } from './eventKinds'
 import {
+  actionRequiredLabelId,
   queueStateId,
   type I6Acceptance,
   type I6AcceptedResult,
@@ -27,9 +30,20 @@ const QUEUE_STATE_INDEX_NAME = 'queue-by-state'
 const COUNTER_STORE_NAME = 'd1-counters'
 const I6_STORE_NAME = 'i6-results'
 const UNSENT_STATE = queueStateId('未送信')
+const ACTION_REQUIRED_STATE = queueStateId('要操作')
 const SYNCED_STATE = queueStateId('同期済み')
 const EVACUATED_STATE = queueStateId('退避済み')
+const REVISION_ACTION_LABEL_ID = actionRequiredLabelId('改訂待ち')
+const REVISION_EVENT_KIND = EVENT_KIND_RULES.find(
+  (eventKind) => eventKind.name === '改訂版',
+)
+if (!REVISION_EVENT_KIND) {
+  throw new Error('改訂版のイベント種別がありません')
+}
+const REVISION_EVENT_KIND_ID = REVISION_EVENT_KIND.id
+const PREPARATION_TOKEN = Symbol('durable queue preparation')
 const I6_RECEIPT_TOKEN = Symbol('I6 persistence receipt')
+const I6_EVACUATION_RECEIPT_TOKEN = Symbol('I6 evacuation receipt')
 
 type CounterRecord = Readonly<{
   game: unknown
@@ -50,7 +64,6 @@ export type DurableQueueAppend = Readonly<{
 }>
 
 export type DurableQueueRevisionReplacement = Readonly<{
-  kind: 'D7'
   scope: DurableQueueScope
   d1: number
   d5: unknown
@@ -98,21 +111,152 @@ export type I6PersistenceInjections = Readonly<{
   ) => I6AcceptedAtResolution | undefined
 }>
 
-export class I6PersistenceReceipt {
-  readonly slot: DurableI6Slot
-  readonly #acceptance: I6Acceptance
+export type I6EvacuationInjections = Readonly<{
+  confirmI6EvacuationSaved?: (slot: DurableI6Slot) => boolean | undefined
+}>
 
-  constructor(slot: DurableI6Slot, token: typeof I6_RECEIPT_TOKEN) {
-    if (token !== I6_RECEIPT_TOKEN) {
-      throw new Error('I6 の永続化 receipt は直接生成できません')
+type DurableQueuePreparationKind =
+  'append' | 'i6-persistence' | 'revision-replacement' | 'tombstone-replacement'
+
+type DurableQueuePreparedPayload =
+  | Readonly<{
+      kind: 'append'
+      input: DurableQueueAppend
+    }>
+  | Readonly<{
+      kind: 'i6-persistence'
+      slot: DurableI6Slot
+    }>
+  | Readonly<{
+      kind: 'revision-replacement'
+      input: DurableQueueRevisionReplacement
+    }>
+  | Readonly<{
+      kind: 'tombstone-replacement'
+      input: DurableQueueTombstoneOperation
+      injections: TombstoneGenerationInjections
+    }>
+
+const PREPARED_PAYLOADS = new WeakMap<
+  DurableQueuePreparation,
+  DurableQueuePreparedPayload
+>()
+
+export class DurableQueuePreparation<
+  Kind extends DurableQueuePreparationKind = DurableQueuePreparationKind,
+> {
+  readonly #kind: Kind
+
+  constructor(kind: Kind, token: typeof PREPARATION_TOKEN) {
+    if (token !== PREPARATION_TOKEN) {
+      throw new Error('永続キューの preparation は直接生成できません')
     }
-    this.slot = slot
-    this.#acceptance = slot
+    this.#kind = kind
     Object.freeze(this)
   }
 
-  matches(acceptance: I6Acceptance): boolean {
-    return sameI6Operation(this.#acceptance, acceptance)
+  matches(kind: DurableQueuePreparationKind): boolean {
+    return this.#kind === kind
+  }
+}
+
+function createPreparation<Kind extends DurableQueuePreparationKind>(
+  payload: Extract<DurableQueuePreparedPayload, { kind: Kind }>,
+): DurableQueuePreparation<Kind> {
+  const preparation = new DurableQueuePreparation(
+    payload.kind,
+    PREPARATION_TOKEN,
+  )
+  PREPARED_PAYLOADS.set(preparation, payload)
+  return preparation
+}
+
+function preparedPayload<Kind extends DurableQueuePreparationKind>(
+  preparation: DurableQueuePreparation<Kind>,
+  kind: Kind,
+): Extract<DurableQueuePreparedPayload, { kind: Kind }> {
+  const payload =
+    preparation instanceof DurableQueuePreparation && preparation.matches(kind)
+      ? PREPARED_PAYLOADS.get(preparation)
+      : undefined
+  if (!payload || payload.kind !== kind) {
+    throw new Error('永続キューの変更に必要な preparation が不正です')
+  }
+  return payload as Extract<DurableQueuePreparedPayload, { kind: Kind }>
+}
+
+type I6ReceiptPayload = Readonly<{
+  slot: DurableI6Slot
+  owner: object
+}>
+
+const I6_PERSISTENCE_RECEIPTS = new WeakMap<
+  I6PersistenceReceipt,
+  I6ReceiptPayload
+>()
+
+export class I6PersistenceReceipt {
+  constructor(
+    slot: DurableI6Slot,
+    token: typeof I6_RECEIPT_TOKEN,
+    owner?: object,
+  ) {
+    if (token !== I6_RECEIPT_TOKEN) {
+      throw new Error('I6 の永続化 receipt は直接生成できません')
+    }
+    I6_PERSISTENCE_RECEIPTS.set(this, {
+      slot: structuredClone(slot),
+      owner: owner ?? this,
+    })
+    Object.freeze(this)
+  }
+
+  get slot(): DurableI6Slot {
+    const payload = I6_PERSISTENCE_RECEIPTS.get(this)
+    if (!payload) {
+      throw new Error('I6 の永続化 receipt が不正です')
+    }
+    return structuredClone(payload.slot)
+  }
+
+  matches(result: I6AcceptedResult): boolean {
+    const payload = I6_PERSISTENCE_RECEIPTS.get(this)
+    return payload ? sameI6Result(payload.slot, result) : false
+  }
+}
+
+const I6_EVACUATION_RECEIPTS = new WeakMap<
+  I6EvacuationReceipt,
+  I6ReceiptPayload
+>()
+
+export class I6EvacuationReceipt {
+  constructor(
+    slot: DurableI6Slot,
+    token: typeof I6_EVACUATION_RECEIPT_TOKEN,
+    owner?: object,
+  ) {
+    if (token !== I6_EVACUATION_RECEIPT_TOKEN) {
+      throw new Error('I6 の退避保存 receipt は直接生成できません')
+    }
+    I6_EVACUATION_RECEIPTS.set(this, {
+      slot: structuredClone(slot),
+      owner: owner ?? this,
+    })
+    Object.freeze(this)
+  }
+
+  get slot(): DurableI6Slot {
+    const payload = I6_EVACUATION_RECEIPTS.get(this)
+    if (!payload) {
+      throw new Error('I6 の退避保存 receipt が不正です')
+    }
+    return structuredClone(payload.slot)
+  }
+
+  matches(result: I6AcceptedResult): boolean {
+    const payload = I6_EVACUATION_RECEIPTS.get(this)
+    return payload ? sameI6Result(payload.slot, result) : false
   }
 }
 
@@ -231,10 +375,27 @@ function sameTargetReference(
   )
 }
 
-function sameI6Operation(first: I6Acceptance, second: I6Acceptance): boolean {
+function sameI6Result(
+  first: I6AcceptedResult,
+  second: I6AcceptedResult,
+): boolean {
   return (
     sameTargetReference(first.targetReference, second.targetReference) &&
-    Object.is(first.d5, second.d5)
+    Object.is(first.expectedVersion, second.expectedVersion) &&
+    Object.is(first.d5, second.d5) &&
+    Object.is(first.confirmedContent, second.confirmedContent) &&
+    Object.is(first.acceptedAt, second.acceptedAt)
+  )
+}
+
+function isRevisionEvent(event: SyncEvent): boolean {
+  return (
+    typeof event === 'object' &&
+    event !== null &&
+    typeof event.fields === 'object' &&
+    event.fields !== null &&
+    Reflect.ownKeys(event.fields).length > 0 &&
+    Object.is(event.fields[EVENT_KIND_SLOT_ID], REVISION_EVENT_KIND_ID)
   )
 }
 
@@ -246,6 +407,7 @@ export class DurableQueue {
   readonly storagePersistenceGranted: boolean
   readonly #database: IDBDatabase
   readonly #allocateNextD1: D1Allocator
+  readonly #receiptOwner = Object.freeze({})
 
   constructor(
     database: IDBDatabase,
@@ -257,7 +419,17 @@ export class DurableQueue {
     this.#allocateNextD1 = allocateNextD1
   }
 
-  async append(input: DurableQueueAppend): Promise<DurableQueueSlot> {
+  prepareAppend(input: DurableQueueAppend): DurableQueuePreparation<'append'> {
+    return createPreparation({
+      kind: 'append',
+      input: structuredClone(input),
+    })
+  }
+
+  async append(
+    preparation: DurableQueuePreparation<'append'>,
+  ): Promise<DurableQueueSlot> {
+    const { input } = preparedPayload(preparation, 'append')
     const transaction = this.#database.transaction(
       [QUEUE_STORE_NAME, COUNTER_STORE_NAME],
       'readwrite',
@@ -300,10 +472,10 @@ export class DurableQueue {
     }
   }
 
-  async persistI6Acceptance(
+  prepareI6Acceptance(
     acceptance: I6Acceptance,
     injections: I6PersistenceInjections = {},
-  ): Promise<I6PersistenceReceipt | undefined> {
+  ): DurableQueuePreparation<'i6-persistence'> | undefined {
     if (!isTargetEventReference(acceptance.targetReference)) {
       return undefined
     }
@@ -326,29 +498,47 @@ export class DurableQueue {
       return undefined
     }
 
-    const transaction = this.#database.transaction(I6_STORE_NAME, 'readwrite')
-    const completion = transactionCompletion(transaction)
-    try {
-      const store = transaction.objectStore(I6_STORE_NAME)
-      const key = i6Key(acceptance.d5)
-      const existing = (await requestResult(store.get(key))) as
-        DurableI6Slot | undefined
-      if (existing) {
-        await completion
-        return sameI6Operation(existing, acceptance)
-          ? new I6PersistenceReceipt(existing, I6_RECEIPT_TOKEN)
-          : undefined
-      }
-
-      const slot: DurableI6Slot = {
+    return createPreparation({
+      kind: 'i6-persistence',
+      slot: structuredClone({
         ...acceptance,
         acceptedAt: resolution.acceptedAt,
         source: 'p3-acceptance',
         state: SYNCED_STATE,
+      } satisfies DurableI6Slot),
+    })
+  }
+
+  async persistI6Acceptance(
+    preparation: DurableQueuePreparation<'i6-persistence'>,
+  ): Promise<I6PersistenceReceipt | undefined> {
+    const { slot } = preparedPayload(preparation, 'i6-persistence')
+
+    const transaction = this.#database.transaction(I6_STORE_NAME, 'readwrite')
+    const completion = transactionCompletion(transaction)
+    try {
+      const store = transaction.objectStore(I6_STORE_NAME)
+      const key = i6Key(slot.d5)
+      const existing = (await requestResult(store.get(key))) as
+        DurableI6Slot | undefined
+      if (existing) {
+        await completion
+        return existing.state === SYNCED_STATE && sameI6Result(existing, slot)
+          ? new I6PersistenceReceipt(
+              existing,
+              I6_RECEIPT_TOKEN,
+              this.#receiptOwner,
+            )
+          : undefined
       }
+
       store.add(slot, key)
       await completion
-      return new I6PersistenceReceipt(slot, I6_RECEIPT_TOKEN)
+      return new I6PersistenceReceipt(
+        slot,
+        I6_RECEIPT_TOKEN,
+        this.#receiptOwner,
+      )
     } catch (error) {
       abortTransaction(transaction)
       try {
@@ -370,15 +560,52 @@ export class DurableQueue {
     return slot
   }
 
-  async evacuateI6(d5: unknown): Promise<DurableI6Slot | undefined> {
+  async prepareI6Evacuation(
+    d5: unknown,
+    injections: I6EvacuationInjections = {},
+  ): Promise<I6EvacuationReceipt | undefined> {
+    const slot = await this.readI6(d5)
+    if (!slot || slot.state !== SYNCED_STATE) {
+      return undefined
+    }
+
+    let saved: boolean | undefined
+    try {
+      saved = injections.confirmI6EvacuationSaved?.(structuredClone(slot))
+    } catch {
+      return undefined
+    }
+    return saved === true
+      ? new I6EvacuationReceipt(
+          slot,
+          I6_EVACUATION_RECEIPT_TOKEN,
+          this.#receiptOwner,
+        )
+      : undefined
+  }
+
+  async evacuateI6(
+    receipt: I6EvacuationReceipt,
+  ): Promise<DurableI6Slot | undefined> {
+    const receiptPayload =
+      receipt instanceof I6EvacuationReceipt
+        ? I6_EVACUATION_RECEIPTS.get(receipt)
+        : undefined
+    if (!receiptPayload || receiptPayload.owner !== this.#receiptOwner) {
+      throw new Error('I6 の退避保存 receipt が不正です')
+    }
     const transaction = this.#database.transaction(I6_STORE_NAME, 'readwrite')
     const completion = transactionCompletion(transaction)
     try {
       const store = transaction.objectStore(I6_STORE_NAME)
-      const key = i6Key(d5)
+      const key = i6Key(receiptPayload.slot.d5)
       const existing = (await requestResult(store.get(key))) as
         DurableI6Slot | undefined
-      if (!existing) {
+      if (
+        !existing ||
+        existing.state !== SYNCED_STATE ||
+        !sameI6Result(existing, receiptPayload.slot)
+      ) {
         await completion
         return undefined
       }
@@ -400,12 +627,23 @@ export class DurableQueue {
     }
   }
 
-  async replaceRevision(
+  prepareRevisionReplacement(
     input: DurableQueueRevisionReplacement,
-  ): Promise<DurableQueueSlot> {
-    if (input.kind !== 'D7') {
-      throw new Error('改訂版以外はローカル置換できません')
+  ): DurableQueuePreparation<'revision-replacement'> {
+    const clonedInput = structuredClone(input)
+    if (!isRevisionEvent(clonedInput.event)) {
+      throw new Error('実際の改訂版イベントだけを準備できます')
     }
+    return createPreparation({
+      kind: 'revision-replacement',
+      input: clonedInput,
+    })
+  }
+
+  async replaceRevision(
+    preparation: DurableQueuePreparation<'revision-replacement'>,
+  ): Promise<DurableQueueSlot> {
+    const { input } = preparedPayload(preparation, 'revision-replacement')
     const transaction = this.#database.transaction(
       QUEUE_STORE_NAME,
       'readwrite',
@@ -419,6 +657,18 @@ export class DurableQueue {
       )) as DurableQueueSlot | undefined
       if (!existing) {
         throw new Error('置換対象のキュースロットがありません')
+      }
+      if (
+        existing.state !== ACTION_REQUIRED_STATE ||
+        existing.actionRequiredLabel !== REVISION_ACTION_LABEL_ID
+      ) {
+        throw new Error('改訂待ちの要操作スロットだけを置換できます')
+      }
+      if (input.d5 === undefined || Object.is(existing.d5, input.d5)) {
+        throw new Error('改訂版には新しい D5 が必要です')
+      }
+      if (!isRevisionEvent(input.event)) {
+        throw new Error('実際の改訂版イベントだけを置換できます')
       }
 
       const replacement: DurableQueueSlot = {
@@ -444,13 +694,27 @@ export class DurableQueue {
     }
   }
 
-  async replaceWithTombstone(
+  prepareTombstoneReplacement(
     input: DurableQueueTombstoneOperation,
     injections: TombstoneGenerationInjections = {},
-  ): Promise<TombstoneGenerationResult> {
+  ): DurableQueuePreparation<'tombstone-replacement'> {
     if (input.kind !== 'D6') {
       throw new Error('墓標以外は K5 の置換対象にできません')
     }
+    return createPreparation({
+      kind: 'tombstone-replacement',
+      input: structuredClone(input),
+      injections: Object.freeze({ ...injections }),
+    })
+  }
+
+  async replaceWithTombstone(
+    preparation: DurableQueuePreparation<'tombstone-replacement'>,
+  ): Promise<TombstoneGenerationResult> {
+    const { input, injections } = preparedPayload(
+      preparation,
+      'tombstone-replacement',
+    )
     const transaction = this.#database.transaction(
       QUEUE_STORE_NAME,
       'readwrite',
@@ -466,7 +730,7 @@ export class DurableQueue {
         throw new Error('墓標置換対象のキュースロットがありません')
       }
 
-      const prepared = prepareTombstoneReplacement(
+      const prepared = evaluateTombstoneReplacement(
         {
           slot: existing,
           tombstoneVersion: input.tombstoneVersion,
@@ -550,6 +814,37 @@ export class DurableQueue {
     this.#database.close()
   }
 }
+
+type DurableQueuePublicMethodRule =
+  | Readonly<{ effect: 'read' | 'prepare' | 'lifecycle' }>
+  | Readonly<{
+      effect: 'mutation'
+      boundary: 'preparation' | 'receipt'
+    }>
+
+export const DURABLE_QUEUE_PUBLIC_METHOD_RULES = {
+  prepareAppend: { effect: 'prepare' },
+  append: { effect: 'mutation', boundary: 'preparation' },
+  prepareI6Acceptance: { effect: 'prepare' },
+  persistI6Acceptance: { effect: 'mutation', boundary: 'preparation' },
+  readI6: { effect: 'read' },
+  prepareI6Evacuation: { effect: 'prepare' },
+  evacuateI6: { effect: 'mutation', boundary: 'receipt' },
+  prepareRevisionReplacement: { effect: 'prepare' },
+  replaceRevision: { effect: 'mutation', boundary: 'preparation' },
+  prepareTombstoneReplacement: { effect: 'prepare' },
+  replaceWithTombstone: { effect: 'mutation', boundary: 'preparation' },
+  readSlot: { effect: 'read' },
+  countSlots: { effect: 'read' },
+  countUnsentSlots: { effect: 'read' },
+  readNextD1: { effect: 'read' },
+  close: { effect: 'lifecycle' },
+} as const satisfies Readonly<
+  Record<
+    Exclude<keyof DurableQueue, 'storagePersistenceGranted'>,
+    DurableQueuePublicMethodRule
+  >
+>
 
 export async function openDurableQueue(
   options: DurableQueueOptions,

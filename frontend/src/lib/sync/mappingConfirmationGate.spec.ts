@@ -5,6 +5,7 @@ import {
   readCanonTemporaryIdMappingRules,
 } from './canonOracle'
 import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
+import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
 import {
   C4_MAPPING_CONFIRMATION_RULE,
   checkMappingConfirmation,
@@ -33,7 +34,10 @@ if (!PLAYER_REGISTRATION_EVENT_KIND || !OTHER_EVENT_KIND) {
 }
 
 const BASE_KEY: QueueEventKey = { d4: {}, d1: {}, d5: {} }
-const BASE_EVENT = {}
+function eventFor(eventKind: EventKind) {
+  return { fields: { [EVENT_KIND_SLOT_ID]: eventKind.id } }
+}
+const BASE_EVENT = eventFor(PLAYER_REGISTRATION_EVENT_KIND)
 
 function unsentSlot(): Extract<QueueSlot, { source: 'd1-event' }> {
   return {
@@ -150,7 +154,6 @@ describe('mappingConfirmationGate', () => {
         {
           kind: 'apply-a5',
           slot,
-          eventKind: PLAYER_REGISTRATION_EVENT_KIND,
         },
         syncedA5Injections(slot, mappingInjections),
       )
@@ -166,7 +169,6 @@ describe('mappingConfirmationGate', () => {
       {
         kind: 'apply-a5',
         slot,
-        eventKind: PLAYER_REGISTRATION_EVENT_KIND,
       },
       syncedA5Injections(slot, {
         resolvePlayerRegistrationMapping: () => true,
@@ -182,7 +184,10 @@ describe('mappingConfirmationGate', () => {
   it('製品の A5 入口は選手登録以外を resolver なしで同期済みへ移す', () => {
     const slot = unsentSlot()
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot, eventKind: OTHER_EVENT_KIND },
+      {
+        kind: 'apply-a5',
+        slot: { ...slot, content: eventFor(OTHER_EVENT_KIND) },
+      },
       syncedA5Injections(slot),
     )
 
@@ -192,34 +197,34 @@ describe('mappingConfirmationGate', () => {
     }
   })
 
-  it.each([
-    [
-      '未指定',
-      (slot: Extract<QueueSlot, { source: 'd1-event' }>) =>
-        ({ kind: 'apply-a5', slot }) as unknown as QueueTransitionRequest,
-    ],
-    [
-      '不明',
-      (slot: Extract<QueueSlot, { source: 'd1-event' }>) =>
-        ({
-          kind: 'apply-a5',
-          slot,
-          eventKind: {
-            ...OTHER_EVENT_KIND,
-            id: 'unknown',
-          } as unknown as EventKind,
-        }) as QueueTransitionRequest,
-    ],
-  ] as const)(
-    '製品の A5 入口はイベント種別が%sなら fail-closed にする',
-    (_name, request) => {
-      const slot = unsentSlot()
+  it('選手登録スロットへ別の既知種別を引数で渡しても C4 を迂回しない', () => {
+    const slot = unsentSlot()
+    const request = {
+      kind: 'apply-a5',
+      slot,
+      eventKind: OTHER_EVENT_KIND,
+    } as unknown as QueueTransitionRequest
 
-      expect(
-        evaluateQueueTransition(request(slot), syncedA5Injections(slot)),
-      ).toEqual({ applied: false })
-    },
-  )
+    expect(evaluateQueueTransition(request, syncedA5Injections(slot))).toEqual({
+      applied: false,
+      rowId: 'QT-02',
+    })
+  })
+
+  it('永続スロットの種別だけで C4 を発火させる', () => {
+    const slot = unsentSlot()
+    const resolver = vi.fn(() => true)
+
+    expect(
+      evaluateQueueTransition(
+        { kind: 'apply-a5', slot },
+        syncedA5Injections(slot, {
+          resolvePlayerRegistrationMapping: resolver,
+        }),
+      ).applied,
+    ).toBe(true)
+    expect(resolver).toHaveBeenCalledWith(slot.content)
+  })
 
   it('製品ファイルで D3 とイベント種別 ID の直書きをしない', () => {
     expect(mappingConfirmationGateSource).not.toContain('D3')

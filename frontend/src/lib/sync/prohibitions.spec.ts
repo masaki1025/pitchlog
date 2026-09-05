@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
+  DURABLE_QUEUE_PUBLIC_METHOD_RULES,
   DurableQueue,
+  DurableQueuePreparation,
+  I6EvacuationReceipt,
   I6PersistenceReceipt,
   type DurableI6Slot,
   type DurableQueueAppend,
@@ -124,7 +127,10 @@ const EXPECTED_VALUE_EXPORTS = {
   ],
   'durableQueue.ts': [
     'DurableQueue',
+    'DURABLE_QUEUE_PUBLIC_METHOD_RULES',
     'DurableQueueUnavailableError',
+    'DurableQueuePreparation',
+    'I6EvacuationReceipt',
     'I6PersistenceReceipt',
     'openDurableQueue',
   ],
@@ -277,6 +283,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'DurableQueueSlot',
     'DurableQueueTombstoneOperation',
     'I6AcceptedAtResolution',
+    'I6EvacuationInjections',
     'I6PersistenceInjections',
     'StoragePersistenceRequester',
   ],
@@ -922,6 +929,78 @@ describe('prohibitions', () => {
     expect(invalidLowLevelReplace).toBeTypeOf('function')
   })
 
+  it('H-78: DurableQueue の公開変更メソッドを不透明 preparation / receipt 境界に閉じる', () => {
+    type MutationMethodName = {
+      [
+        Name in keyof typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES
+      ]: (typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES)[Name] extends {
+        effect: 'mutation'
+      }
+        ? Name
+        : never
+    }[keyof typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES]
+    type MutationBoundary = DurableQueuePreparation | I6EvacuationReceipt
+    type UnsafeMutationMethod = {
+      [Name in MutationMethodName]: Parameters<
+        DurableQueue[Name]
+      >[0] extends MutationBoundary
+        ? never
+        : Name
+    }[MutationMethodName]
+    const noUnsafeMutationMethod: ExactKeySet<UnsafeMutationMethod, never> =
+      true
+    const sourceFile = ts.createSourceFile(
+      'durableQueue.ts',
+      sourceFor('durableQueue.ts'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    )
+    const durableQueueClass = sourceFile.statements.find(
+      (statement): statement is ts.ClassDeclaration =>
+        ts.isClassDeclaration(statement) &&
+        statement.name?.text === 'DurableQueue',
+    )
+    if (!durableQueueClass) {
+      throw new Error('DurableQueue class がありません')
+    }
+    const publicMethodNames = durableQueueClass.members
+      .filter((member): member is ts.MethodDeclaration =>
+        ts.isMethodDeclaration(member),
+      )
+      .filter(
+        (member) =>
+          !ts
+            .getModifiers(member)
+            ?.some(
+              (modifier) =>
+                modifier.kind === ts.SyntaxKind.PrivateKeyword ||
+                modifier.kind === ts.SyntaxKind.ProtectedKeyword ||
+                modifier.kind === ts.SyntaxKind.StaticKeyword,
+            ),
+      )
+      .map((member) =>
+        ts.isIdentifier(member.name) ? member.name.text : undefined,
+      )
+      .filter((name): name is string => name !== undefined)
+    const mutationRules = Object.values(
+      DURABLE_QUEUE_PUBLIC_METHOD_RULES,
+    ).filter((rule) => rule.effect === 'mutation')
+
+    expect(noUnsafeMutationMethod).toBe(true)
+    expect(new Set(publicMethodNames)).toEqual(
+      new Set(Object.keys(DURABLE_QUEUE_PUBLIC_METHOD_RULES)),
+    )
+    expect(mutationRules).toHaveLength(5)
+    expect(
+      mutationRules.every(
+        (rule) =>
+          'boundary' in rule &&
+          (rule.boundary === 'preparation' || rule.boundary === 'receipt'),
+      ),
+    ).toBe(true)
+  })
+
   it('I6: 保持結果を5要素の別フィールドに閉じ、期限・回収用フィールドを持たない', () => {
     type AcceptedResultKeys = keyof I6AcceptedResult
     const exactAcceptedResultKeys: ExactKeySet<
@@ -953,7 +1032,7 @@ describe('prohibitions', () => {
     ).toEqual([])
   })
 
-  it('C4: A5 の公開入口にイベント種別と写像確認 resolver を要求する', () => {
+  it('C4: A5 の公開入口はイベント種別を永続スロットから導出する', () => {
     type ApplyA5Request = Extract<QueueTransitionRequest, { kind: 'apply-a5' }>
     type MappingResolver = NonNullable<
       QueueTransitionInjections['resolvePlayerRegistrationMapping']
@@ -967,23 +1046,20 @@ describe('prohibitions', () => {
     const request: ApplyA5Request = {
       kind: 'apply-a5',
       slot,
-      eventKind: EVENT_KIND_RULES[0],
     }
     const resolver: MappingResolver = () => true
-    // @ts-expect-error A5 の公開入口ではイベント種別を省略できない。
-    const missingEventKind: QueueTransitionRequest = {
+    const invalidEventKindArgument = {
       kind: 'apply-a5',
       slot,
-    }
-    const exactRequestKeys: ExactKeySet<
-      keyof ApplyA5Request,
-      'kind' | 'slot' | 'eventKind'
-    > = true
+      eventKind: EVENT_KIND_RULES[0],
+    } as unknown as QueueTransitionRequest
+    const exactRequestKeys: ExactKeySet<keyof ApplyA5Request, 'kind' | 'slot'> =
+      true
 
     expect(exactRequestKeys).toBe(true)
-    expect(request.eventKind).toBe(EVENT_KIND_RULES[0])
+    expect(Object.keys(request)).toEqual(['kind', 'slot'])
     expect(resolver({})).toBe(true)
-    expect(Object.hasOwn(missingEventKind, 'eventKind')).toBe(false)
+    expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {

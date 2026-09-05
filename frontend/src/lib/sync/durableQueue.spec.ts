@@ -5,6 +5,7 @@ import durableQueueSource from './durableQueue.ts?raw'
 import * as durableQueueModule from './durableQueue'
 import {
   DurableQueueUnavailableError,
+  I6EvacuationReceipt,
   openDurableQueue,
   type D1Allocator,
   type DurableI6Slot,
@@ -14,7 +15,12 @@ import {
   type DurableQueueSlot,
   type I6AcceptedAtResolution,
 } from './durableQueue'
-import { REQUEST_ONLY_IDS, SYNC_EVENT_PATH } from './eventFieldRules'
+import {
+  EVENT_KIND_SLOT_ID,
+  REQUEST_ONLY_IDS,
+  SYNC_EVENT_PATH,
+} from './eventFieldRules'
+import { EVENT_KIND_RULES } from './eventKinds'
 import {
   prepareTombstoneReplacement,
   TOMBSTONE_ONLINE_STATE,
@@ -71,6 +77,36 @@ function appendInput(
     event: { fields: {} },
     ...overrides,
   }
+}
+
+async function appendToQueue(
+  queue: DurableQueue,
+  input: DurableQueueAppend,
+): Promise<DurableQueueSlot> {
+  return queue.append(queue.prepareAppend(input))
+}
+
+async function persistI6(
+  queue: DurableQueue,
+  acceptance: I6Acceptance,
+  injections: Parameters<DurableQueue['prepareI6Acceptance']>[1] = {},
+) {
+  const preparation = queue.prepareI6Acceptance(acceptance, injections)
+  return preparation
+    ? queue.persistI6Acceptance(preparation)
+    : Promise.resolve(undefined)
+}
+
+const REVISION_EVENT_KIND = EVENT_KIND_RULES.find(
+  (eventKind) => eventKind.name === '改訂版',
+)
+if (!REVISION_EVENT_KIND) {
+  throw new Error('改訂版のイベント種別がありません')
+}
+const REVISION_EVENT_KIND_ID = REVISION_EVENT_KIND.id
+
+function revisionEvent(): DurableQueueAppend['event'] {
+  return { fields: { [EVENT_KIND_SLOT_ID]: REVISION_EVENT_KIND_ID } }
 }
 
 function deleteDatabase(name: string): Promise<void> {
@@ -179,9 +215,9 @@ describe('durableQueue', () => {
     const queue = await openTestQueue()
     const scope = { game: 'game-a', d4: 'generation-a' }
 
-    const first = await queue.append(appendInput(scope))
-    const second = await queue.append(appendInput(scope))
-    const third = await queue.append(appendInput(scope))
+    const first = await appendToQueue(queue, appendInput(scope))
+    const second = await appendToQueue(queue, appendInput(scope))
+    const third = await appendToQueue(queue, appendInput(scope))
 
     expect([first.d1, second.d1, third.d1]).toEqual([1, 2, 3])
     expect(await queue.readNextD1(scope)).toBe(4)
@@ -193,10 +229,10 @@ describe('durableQueue', () => {
     const secondScope = { game: 'game-a', d4: 'generation-b' }
     const thirdScope = { game: 'game-b', d4: 'generation-a' }
 
-    await queue.append(appendInput(firstScope))
-    await queue.append(appendInput(firstScope))
-    const secondFirst = await queue.append(appendInput(secondScope))
-    const thirdFirst = await queue.append(appendInput(thirdScope))
+    await appendToQueue(queue, appendInput(firstScope))
+    await appendToQueue(queue, appendInput(firstScope))
+    const secondFirst = await appendToQueue(queue, appendInput(secondScope))
+    const thirdFirst = await appendToQueue(queue, appendInput(thirdScope))
 
     expect(await queue.readNextD1(firstScope)).toBe(3)
     expect(secondFirst.d1).toBe(1)
@@ -210,7 +246,8 @@ describe('durableQueue', () => {
     const nextD1Before = await queue.readNextD1(scope)
 
     await expect(
-      queue.append(
+      appendToQueue(
+        queue,
         appendInput(scope, {
           event: { fields: { V7: () => undefined } },
         }),
@@ -219,14 +256,19 @@ describe('durableQueue', () => {
 
     expect(await queue.countSlots()).toBe(countBefore)
     expect(await queue.readNextD1(scope)).toBe(nextD1Before)
-    expect((await queue.append(appendInput(scope))).d1).toBe(nextD1Before)
+    expect((await appendToQueue(queue, appendInput(scope))).d1).toBe(
+      nextD1Before,
+    )
   })
 
   it('追記と D1 カウンタを 1 回の readwrite トランザクションで永続化する', async () => {
     const queue = await openTestQueue()
     const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
 
-    await queue.append(appendInput({ game: 'game-a', d4: 'generation-a' }))
+    await appendToQueue(
+      queue,
+      appendInput({ game: 'game-a', d4: 'generation-a' }),
+    )
 
     expect(transactionSpy).toHaveBeenCalledTimes(1)
     expect(transactionSpy).toHaveBeenCalledWith(
@@ -250,7 +292,8 @@ describe('durableQueue', () => {
     ] as const
 
     for (const [index, state] of states.entries()) {
-      const slot = await queue.append(
+      const slot = await appendToQueue(
+        queue,
         appendInput(scope, { d5: `state-${index}` }),
       )
       await overwriteQueueSlot(databaseName, { ...slot, state })
@@ -266,7 +309,7 @@ describe('durableQueue', () => {
     const acceptedAt = 'first-accepted-at'
     const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
 
-    const receipt = await queue.persistI6Acceptance(acceptance, {
+    const receipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: acceptance.targetReference,
@@ -331,7 +374,7 @@ describe('durableQueue', () => {
       const queue = await openTestQueue()
       const acceptance = i6Acceptance()
 
-      const receipt = await queue.persistI6Acceptance(acceptance, injections)
+      const receipt = await persistI6(queue, acceptance, injections)
 
       expect(receipt).toBeUndefined()
       expect(await queue.readI6(acceptance.d5)).toBeUndefined()
@@ -344,7 +387,7 @@ describe('durableQueue', () => {
     const changedElement = TARGET_EVENT_REFERENCE_ELEMENTS[0]
     const otherTarget = targetReference({ [changedElement]: 'other-target' })
 
-    const receipt = await queue.persistI6Acceptance(acceptance, {
+    const receipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: otherTarget,
@@ -358,10 +401,8 @@ describe('durableQueue', () => {
 
   it('保存済み I6 の再掲では初回の accepted_at を上書きしない', async () => {
     const queue = await openTestQueue()
-    const acceptance = i6Acceptance({
-      confirmedContent: { result: '確定内容' },
-    })
-    const firstReceipt = await queue.persistI6Acceptance(acceptance, {
+    const acceptance = i6Acceptance()
+    const firstReceipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: acceptance.targetReference,
@@ -369,11 +410,11 @@ describe('durableQueue', () => {
       }),
     })
     const replayAcceptance = structuredClone(acceptance)
-    const replayReceipt = await queue.persistI6Acceptance(replayAcceptance, {
+    const replayReceipt = await persistI6(queue, replayAcceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: replayAcceptance.targetReference,
-        acceptedAt: 'replayed-accepted-at',
+        acceptedAt: 'first-accepted-at',
       }),
     })
 
@@ -384,12 +425,50 @@ describe('durableQueue', () => {
     )
   })
 
+  it('I6 receipt の matches は5要素すべてに結合する', async () => {
+    const queue = await openTestQueue()
+    const acceptance = i6Acceptance()
+    const receipt = await persistI6(queue, acceptance, {
+      resolveAcceptedAt: () => ({
+        known: true,
+        targetReference: acceptance.targetReference,
+        acceptedAt: 'accepted-at',
+      }),
+    })
+    if (!receipt) {
+      throw new Error('I6 永続化 receipt がありません')
+    }
+    const snapshot = receipt.slot
+    const targetElement = TARGET_EVENT_REFERENCE_ELEMENTS[0]
+
+    expect(receipt.matches(snapshot)).toBe(true)
+    expect(
+      receipt.matches({
+        ...snapshot,
+        targetReference: {
+          ...snapshot.targetReference,
+          [targetElement]: 'different-target',
+        },
+      }),
+    ).toBe(false)
+    expect(
+      receipt.matches({ ...snapshot, expectedVersion: 'different-version' }),
+    ).toBe(false)
+    expect(receipt.matches({ ...snapshot, d5: 'different-d5' })).toBe(false)
+    expect(
+      receipt.matches({ ...snapshot, confirmedContent: 'different-content' }),
+    ).toBe(false)
+    expect(
+      receipt.matches({ ...snapshot, acceptedAt: 'different-accepted-at' }),
+    ).toBe(false)
+  })
+
   it('I6 の永続化失敗時は receipt も保存済み結果も残さない', async () => {
     const queue = await openTestQueue()
     const acceptance = i6Acceptance({ confirmedContent: () => undefined })
 
     await expect(
-      queue.persistI6Acceptance(acceptance, {
+      persistI6(queue, acceptance, {
         resolveAcceptedAt: () => ({
           known: true,
           targetReference: acceptance.targetReference,
@@ -404,7 +483,7 @@ describe('durableQueue', () => {
   it('保存済み I6 を退避済みにしても5要素を保持し、直接閲覧・書き出しできる', async () => {
     const queue = await openTestQueue()
     const acceptance = i6Acceptance()
-    const receipt = await queue.persistI6Acceptance(acceptance, {
+    const receipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: acceptance.targetReference,
@@ -415,7 +494,13 @@ describe('durableQueue', () => {
       throw new Error('I6 永続化 receipt がありません')
     }
 
-    const evacuated = await queue.evacuateI6(acceptance.d5)
+    const evacuationReceipt = await queue.prepareI6Evacuation(acceptance.d5, {
+      confirmI6EvacuationSaved: () => true,
+    })
+    if (!evacuationReceipt) {
+      throw new Error('I6 の退避保存 receipt がありません')
+    }
+    const evacuated = await queue.evacuateI6(evacuationReceipt)
 
     expect(evacuated).toEqual({
       ...receipt.slot,
@@ -428,18 +513,18 @@ describe('durableQueue', () => {
   it('I6 の11トークンを実際の保持・遷移・破棄構造へ1対1で対応づける', async () => {
     const queue = await openTestQueue()
     const acceptance = i6Acceptance()
-    const firstReceipt = await queue.persistI6Acceptance(acceptance, {
+    const firstReceipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: acceptance.targetReference,
         acceptedAt: 'first-accepted-at',
       }),
     })
-    const replayReceipt = await queue.persistI6Acceptance(acceptance, {
+    const replayReceipt = await persistI6(queue, acceptance, {
       resolveAcceptedAt: () => ({
         known: true,
         targetReference: acceptance.targetReference,
-        acceptedAt: 'replayed-accepted-at',
+        acceptedAt: 'first-accepted-at',
       }),
     })
     if (!firstReceipt || !replayReceipt) {
@@ -467,7 +552,7 @@ describe('durableQueue', () => {
       confirmedContent: () => undefined,
     })
     try {
-      await queue.persistI6Acceptance(lostAcceptance, {
+      await persistI6(queue, lostAcceptance, {
         resolveAcceptedAt: () => ({
           known: true,
           targetReference: lostAcceptance.targetReference,
@@ -478,11 +563,16 @@ describe('durableQueue', () => {
       persistenceFailed = true
     }
     const lostStoredResult = await queue.readI6(lostAcceptance.d5)
-    const transitionEvacuation = evaluateQueueTransition(
-      { kind: 'i6-evacuation-saved', slot: firstReceipt.slot },
-      { confirmI6EvacuationSaved: () => true },
-    )
-    const durableEvacuation = await queue.evacuateI6(acceptance.d5)
+    const evacuationReceipt = await queue.prepareI6Evacuation(acceptance.d5, {
+      confirmI6EvacuationSaved: () => true,
+    })
+    const transitionEvacuation = evaluateQueueTransition({
+      kind: 'i6-evacuation-saved',
+      evacuationReceipt,
+    })
+    const durableEvacuation = evacuationReceipt
+      ? await queue.evacuateI6(evacuationReceipt)
+      : undefined
     const viewedResult = await queue.readI6(acceptance.d5)
     const writtenResult = JSON.parse(JSON.stringify(viewedResult)) as unknown
     const implementationAssertions = [
@@ -536,27 +626,41 @@ describe('durableQueue', () => {
     }
   })
 
-  it('D7 はオンライン確認なしのローカル経路で既存 D1 を保つ', async () => {
+  it('D7 は改訂待ちの要操作スロットだけを同じトランザクションで置換する', async () => {
     const allocator = vi.fn<D1Allocator>((previousD1) => previousD1 + 1)
     const queue = await openTestQueue({ allocateNextD1: allocator })
     const scope = { game: 'game-a', d4: 'generation-a' }
-    const original = await queue.append(appendInput(scope))
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const original = await appendToQueue(queue, appendInput(scope))
+    await overwriteQueueSlot(databaseName, {
+      ...original,
+      state: queueStateId('要操作'),
+      actionRequiredLabel: actionRequiredLabelId('改訂待ち'),
+    })
     allocator.mockClear()
     const newD5 = { value: 'new-d5' }
 
-    const replacement = await queue.replaceRevision({
-      kind: 'D7',
-      scope,
-      d1: original.d1,
-      d5: newD5,
-      version: { value: 'new-version' },
-      event: { fields: {} },
-    })
+    const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
+    const replacement = await queue.replaceRevision(
+      queue.prepareRevisionReplacement({
+        scope,
+        d1: original.d1,
+        d5: newD5,
+        version: { value: 'new-version' },
+        event: revisionEvent(),
+      }),
+    )
 
     expect(allocator).not.toHaveBeenCalled()
     expect(replacement.d1).toBe(original.d1)
-    expect(replacement.d5).toBe(newD5)
+    expect(replacement.d5).toEqual(newD5)
     expect(replacement.state).toBe(queueStateId('未送信'))
+    expect(transactionSpy).toHaveBeenCalledTimes(1)
+    expect(transactionSpy).toHaveBeenCalledWith('queue', 'readwrite')
+    transactionSpy.mockRestore()
     expect(await queue.countSlots()).toBe(1)
     expect(await queue.readSlot(scope, original.d1)).toEqual(replacement)
   })
@@ -569,7 +673,8 @@ describe('durableQueue', () => {
       throw new Error('テスト DB 名がありません')
     }
     const scope = { game: 'game-a', d4: 'generation-a' }
-    const original = await queue.append(
+    const original = await appendToQueue(
+      queue,
       appendInput(scope, { d5: 'old-d5', event: { fields: { V7: {} } } }),
     )
     const source: DurableQueueSlot = {
@@ -583,16 +688,18 @@ describe('durableQueue', () => {
     const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
 
     const result = await queue.replaceWithTombstone(
-      {
-        kind: 'D6',
-        scope,
-        d1: source.d1,
-        tombstoneVersion: 'tombstone-version',
-        boundaryRequest: tombstoneBoundaryRequest(source),
-      },
-      successfulTombstoneInjections('new-d5', {
-        allocateD1: replacementD1Allocator,
-      }),
+      queue.prepareTombstoneReplacement(
+        {
+          kind: 'D6',
+          scope,
+          d1: source.d1,
+          tombstoneVersion: 'tombstone-version',
+          boundaryRequest: tombstoneBoundaryRequest(source),
+        },
+        successfulTombstoneInjections('new-d5', {
+          allocateD1: replacementD1Allocator,
+        }),
+      ),
     )
 
     expect(result.offered).toBe(true)
@@ -624,7 +731,10 @@ describe('durableQueue', () => {
         throw new Error('テスト DB 名がありません')
       }
       const scope = { game: 'game-a', d4: 'generation-a' }
-      const original = await queue.append(appendInput(scope, { d5: 'old-d5' }))
+      const original = await appendToQueue(
+        queue,
+        appendInput(scope, { d5: 'old-d5' }),
+      )
       const source: DurableQueueSlot = {
         ...original,
         state: queueStateId('要操作'),
@@ -633,14 +743,19 @@ describe('durableQueue', () => {
       await overwriteQueueSlot(databaseName, source)
 
       const result = await queue.replaceWithTombstone(
-        {
-          kind: 'D6',
-          scope,
-          d1: source.d1,
-          tombstoneVersion: {},
-          boundaryRequest: tombstoneBoundaryRequest(source, boundaryOverrides),
-        },
-        successfulTombstoneInjections(newD5),
+        queue.prepareTombstoneReplacement(
+          {
+            kind: 'D6',
+            scope,
+            d1: source.d1,
+            tombstoneVersion: {},
+            boundaryRequest: tombstoneBoundaryRequest(
+              source,
+              boundaryOverrides,
+            ),
+          },
+          successfulTombstoneInjections(newD5),
+        ),
       )
 
       expect(result.offered).toBe(false)
@@ -655,7 +770,10 @@ describe('durableQueue', () => {
       throw new Error('テスト DB 名がありません')
     }
     const scope = { game: 'game-a', d4: 'generation-a' }
-    const original = await queue.append(appendInput(scope, { d5: 'old-d5' }))
+    const original = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'old-d5' }),
+    )
     const source: DurableQueueSlot = {
       ...original,
       state: queueStateId('要操作'),
@@ -679,17 +797,25 @@ describe('durableQueue', () => {
   it('置換の永続化に失敗した場合は既存スロットを保つ', async () => {
     const queue = await openTestQueue()
     const scope = { game: 'game-a', d4: 'generation-a' }
-    const original = await queue.append(appendInput(scope))
+    const original = await appendToQueue(queue, appendInput(scope))
 
     await expect(
-      queue.replaceRevision({
-        kind: 'D7',
-        scope,
-        d1: original.d1,
-        d5: { value: 'new-d5' },
-        version: { value: 'new-version' },
-        event: { fields: { V7: () => undefined } },
-      }),
+      Promise.resolve().then(() =>
+        queue.replaceRevision(
+          queue.prepareRevisionReplacement({
+            scope,
+            d1: original.d1,
+            d5: { value: 'new-d5' },
+            version: { value: 'new-version' },
+            event: {
+              fields: {
+                [EVENT_KIND_SLOT_ID]: REVISION_EVENT_KIND_ID,
+                V7: () => undefined,
+              },
+            },
+          }),
+        ),
+      ),
     ).rejects.toBeDefined()
 
     expect(await queue.readSlot(scope, original.d1)).toEqual(original)
@@ -729,7 +855,8 @@ describe('durableQueue', () => {
   it('structured clone で undefined のプロパティを失わず往復する', async () => {
     const queue = await openTestQueue()
     const scope = { game: 'game-a', d4: 'generation-a' }
-    const appended = await queue.append(
+    const appended = await appendToQueue(
+      queue,
       appendInput(scope, {
         event: { fields: { V7: { retained: undefined } } },
       }),
@@ -740,6 +867,168 @@ describe('durableQueue', () => {
     expect(Object.hasOwn(payload, 'retained')).toBe(true)
     expect(payload.retained).toBeUndefined()
     expect(durableQueueSource).not.toContain('JSON.stringify')
+  })
+
+  it.each([
+    ['未送信', queueStateId('未送信'), undefined],
+    ['墓標待ち', queueStateId('要操作'), actionRequiredLabelId('墓標待ち')],
+  ] as const)(
+    'D7 は%sのスロットを上書きしない',
+    async (_name, state, actionRequiredLabel) => {
+      const queue = await openTestQueue()
+      const databaseName = databaseNames.at(-1)
+      if (!databaseName) {
+        throw new Error('テスト DB 名がありません')
+      }
+      const scope = { game: 'game-a', d4: 'generation-a' }
+      const original = await appendToQueue(queue, appendInput(scope))
+      const source = { ...original, state, actionRequiredLabel }
+      await overwriteQueueSlot(databaseName, source)
+
+      await expect(
+        queue.replaceRevision(
+          queue.prepareRevisionReplacement({
+            scope,
+            d1: original.d1,
+            d5: 'new-d5',
+            version: 'new-version',
+            event: revisionEvent(),
+          }),
+        ),
+      ).rejects.toThrow('改訂待ち')
+      expect(await queue.readSlot(scope, original.d1)).toEqual(source)
+    },
+  )
+
+  it('D7 は既存 D5 と同一の置換を拒否する', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const original = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'same-d5' }),
+    )
+    const source = {
+      ...original,
+      state: queueStateId('要操作'),
+      actionRequiredLabel: actionRequiredLabelId('改訂待ち'),
+    }
+    await overwriteQueueSlot(databaseName, source)
+
+    await expect(
+      queue.replaceRevision(
+        queue.prepareRevisionReplacement({
+          scope,
+          d1: original.d1,
+          d5: original.d5,
+          version: 'new-version',
+          event: revisionEvent(),
+        }),
+      ),
+    ).rejects.toThrow('新しい D5')
+    expect(await queue.readSlot(scope, original.d1)).toEqual(source)
+  })
+
+  it('D7 を名乗る空内容を preparation にできない', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-a', d4: 'generation-a' }
+    const original = await appendToQueue(queue, appendInput(scope))
+
+    expect(() =>
+      queue.prepareRevisionReplacement({
+        scope,
+        d1: original.d1,
+        d5: 'new-d5',
+        version: 'new-version',
+        event: { fields: {} },
+      }),
+    ).toThrow('実際の改訂版')
+    expect(await queue.readSlot(scope, original.d1)).toEqual(original)
+  })
+
+  it('I6 receipt の公開スナップショットを書き換えても遷移内容は変わらない', async () => {
+    const queue = await openTestQueue()
+    const acceptance = i6Acceptance()
+    const receipt = await persistI6(queue, acceptance, {
+      resolveAcceptedAt: () => ({
+        known: true,
+        targetReference: acceptance.targetReference,
+        acceptedAt: 'accepted-at',
+      }),
+    })
+    if (!receipt) {
+      throw new Error('I6 永続化 receipt がありません')
+    }
+    const exposed = receipt.slot as {
+      expectedVersion: unknown
+      confirmedContent: unknown
+    }
+    exposed.expectedVersion = 'tampered-version'
+    exposed.confirmedContent = 'tampered-content'
+
+    const transition = evaluateQueueTransition({
+      kind: 'p3-acceptance-persisted',
+      persistenceReceipt: receipt,
+    })
+
+    expect(transition.applied).toBe(true)
+    if (transition.applied && transition.slot?.source === 'p3-acceptance') {
+      expect(transition.slot.expectedVersion).toBe(acceptance.expectedVersion)
+      expect(transition.slot.confirmedContent).toBe(acceptance.confirmedContent)
+    }
+  })
+
+  it.each([
+    ['V11', { expectedVersion: 'different-version' }],
+    ['確定内容', { confirmedContent: 'different-content' }],
+  ] as const)(
+    '同じ対象・D5 でも%sが異なる I6 には receipt を返さない',
+    async (_name, overrides) => {
+      const queue = await openTestQueue()
+      const acceptance = i6Acceptance()
+      const injections = {
+        resolveAcceptedAt: (input: I6Acceptance) => ({
+          known: true as const,
+          targetReference: input.targetReference,
+          acceptedAt: 'accepted-at',
+        }),
+      }
+      expect(await persistI6(queue, acceptance, injections)).toBeDefined()
+      expect(
+        await persistI6(queue, { ...acceptance, ...overrides }, injections),
+      ).toBeUndefined()
+    },
+  )
+
+  it('I6 は D5 だけでは退避できず、保存完了 receipt と5要素の一致を要求する', async () => {
+    const queue = await openTestQueue()
+    const acceptance = i6Acceptance()
+    await persistI6(queue, acceptance, {
+      resolveAcceptedAt: () => ({
+        known: true,
+        targetReference: acceptance.targetReference,
+        acceptedAt: 'accepted-at',
+      }),
+    })
+
+    // @ts-expect-error D5 は退避変更 API の入力ではない。
+    await expect(queue.evacuateI6(acceptance.d5)).rejects.toThrow('receipt')
+    expect(
+      await queue.prepareI6Evacuation(acceptance.d5, {
+        confirmI6EvacuationSaved: () => false,
+      }),
+    ).toBeUndefined()
+    expect((await queue.readI6(acceptance.d5))?.state).toBe(
+      queueStateId('同期済み'),
+    )
+    const invalidReceipt = () => {
+      // @ts-expect-error 退避保存 receipt は直接生成できない。
+      return new I6EvacuationReceipt({} as DurableI6Slot, Symbol('forged'))
+    }
+    expect(invalidReceipt).toBeTypeOf('function')
   })
 
   it('storage.persist の結果を保持して返す', async () => {
