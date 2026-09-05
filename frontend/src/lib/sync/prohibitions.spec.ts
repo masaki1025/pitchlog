@@ -5,6 +5,12 @@ import type {
   D1AckEventResult,
   D1AckPlayerIdMapping,
 } from './ackEnvelope'
+import type {
+  AckAdapterInjections,
+  AckAdapterRequest,
+  D1AckAdapterInput,
+  P3ResultAdapterInput,
+} from './ackAdapter'
 import type { AckBoundaryResult, NoAckBoundaryResult } from './boundaryResults'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
@@ -56,6 +62,7 @@ import {
   QUEUE_TRANSITION_RULES,
   type B3ReasonClassification,
   type QueueSlot,
+  type QueueTransitionInjections,
   type QueueTransitionRequest,
 } from './queueTransition'
 import {
@@ -90,6 +97,7 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
   : false
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
+  'ackAdapter.ts',
   'ackEnvelope.ts',
   'boundaryResults.ts',
   'canonOracle.ts',
@@ -117,6 +125,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
 ] as const
 
 const EXPECTED_VALUE_EXPORTS = {
+  'ackAdapter.ts': ['createAckAdapterInjections'],
   'ackEnvelope.ts': ['parseD1AckEnvelope'],
   'boundaryResults.ts': [
     'ACK_BOUNDARY_RESULTS',
@@ -289,6 +298,12 @@ const EXPECTED_VALUE_EXPORTS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 const EXPECTED_TYPE_EXPORTS = {
+  'ackAdapter.ts': [
+    'AckAdapterInjections',
+    'AckAdapterRequest',
+    'D1AckAdapterInput',
+    'P3ResultAdapterInput',
+  ],
   'ackEnvelope.ts': [
     'D1AckEnvelope',
     'D1AckEventResult',
@@ -1329,6 +1344,59 @@ describe('prohibitions', () => {
       exactPlayerIdMappingKeys,
       noServerGuaranteeField,
     ]).toEqual([true, true, true, true])
+  })
+
+  it('ACK アダプタの注入境界を D1・P3 が供給する4点だけに閉じる', () => {
+    type ExpectedInjections = Pick<
+      QueueTransitionInjections,
+      'resolveA5' | 'classifyB3'
+    > &
+      Pick<
+        NonNullable<Parameters<DurableQueue['prepareA5Transition']>[2]>,
+        'resolvePlayerRegistrationMapping'
+      > &
+      NonNullable<Parameters<DurableQueue['prepareI6Acceptance']>[1]>
+    type AdapterInjectionKey = keyof AckAdapterInjections
+    type ForbiddenInjectionKey = Extract<
+      AdapterInjectionKey,
+      | 'confirmI6EvacuationSaved'
+      | 'confirmO4Correction'
+      | 'resolveRg1State'
+      | 'resolveB3ContentAction'
+      | 'confirmTombstoneGeneration'
+    >
+    const exactInjections: ExactKeySet<
+      AckAdapterInjections,
+      ExpectedInjections
+    > = true
+    const exactInjectionKeys: ExactKeySet<
+      AdapterInjectionKey,
+      | 'resolveA5'
+      | 'classifyB3'
+      | 'resolvePlayerRegistrationMapping'
+      | 'resolveAcceptedAt'
+    > = true
+    const noForbiddenInjections: ExactKeySet<ForbiddenInjectionKey, never> =
+      true
+    const exactRequestKeys: ExactKeySet<keyof AckAdapterRequest, 'd1' | 'p3'> =
+      true
+    const exactD1InputKeys: ExactKeySet<
+      keyof D1AckAdapterInput,
+      'envelope' | 'boundaryResult' | 'b3Rejection' | 'playerIdMappingTarget'
+    > = true
+    const exactP3InputKeys: ExactKeySet<
+      keyof P3ResultAdapterInput,
+      'envelope' | 'expected'
+    > = true
+
+    expect([
+      exactInjections,
+      exactInjectionKeys,
+      noForbiddenInjections,
+      exactRequestKeys,
+      exactD1InputKeys,
+      exactP3InputKeys,
+    ]).toEqual([true, true, true, true, true, true])
   })
 
   it('境界結果の ACK あり・ACK なし型を discriminant の exact-set に閉じる', () => {
