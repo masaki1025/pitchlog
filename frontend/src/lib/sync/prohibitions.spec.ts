@@ -41,6 +41,11 @@ import {
   queueStateId,
   type I6AcceptedResult,
 } from './queueState'
+import type {
+  B3ContentRejection,
+  B3O4Rejection,
+  B3Rejection,
+} from './rejectionReason'
 import {
   QUEUE_TRANSITION_RULES,
   type QueueSlot,
@@ -93,6 +98,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'mappingConfirmationGate.ts',
   'queueState.ts',
   'queueTransition.ts',
+  'rejectionReason.ts',
   'requestBoundary.ts',
   'singleWriter.ts',
   'syncEvent.ts',
@@ -237,6 +243,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'RG1_STATE',
     'evaluateQueueTransition',
     'queueTransitionRuleById',
+  ],
+  'rejectionReason.ts': [
+    'B3_CONTENT_BRANCH',
+    'B3_REJECTION_KIND',
+    'O4_CORRECTION_CONFIRMATION',
+    'parseB3Rejection',
   ],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
@@ -416,6 +428,12 @@ const EXPECTED_TYPE_EXPORTS = {
     'QueueTransitionRowId',
     'QueueTransitionRule',
     'Rg1State',
+  ],
+  'rejectionReason.ts': [
+    'B3ContentBranch',
+    'B3ContentRejection',
+    'B3O4Rejection',
+    'B3Rejection',
   ],
   'syncEvent.ts': [
     'SidecarJoinKey',
@@ -1225,6 +1243,37 @@ describe('prohibitions', () => {
       exactNoAckKeys,
       exactAckDelivery,
       exactNoAckDelivery,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('B3 の受け取り型に操作者が選ぶラベルを持たせない', () => {
+    const exactContentKeys: ExactKeySet<
+      keyof B3ContentRejection,
+      'kind' | 'branch' | 'reason'
+    > = true
+    const exactO4Keys: ExactKeySet<
+      keyof B3O4Rejection,
+      'kind' | 'reason' | 'correctionConfirmation'
+    > = true
+    type B3VariantKeys = keyof B3ContentRejection | keyof B3O4Rejection
+    type ForbiddenLabelKey = Extract<
+      B3VariantKeys,
+      | 'actionRequiredLabel'
+      | 'revisionPending'
+      | 'tombstonePending'
+      | 'queueState'
+    >
+    const noForbiddenLabelKey: ExactKeySet<ForbiddenLabelKey, never> = true
+    const exactUnion: ExactKeySet<
+      B3Rejection,
+      B3ContentRejection | B3O4Rejection
+    > = true
+
+    expect([
+      exactContentKeys,
+      exactO4Keys,
+      noForbiddenLabelKey,
+      exactUnion,
     ]).toEqual([true, true, true, true])
   })
 
