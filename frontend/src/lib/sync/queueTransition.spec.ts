@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import queueTransitionSource from './queueTransition.ts?raw'
 import { readCanonAckStateResults } from './canonOracle'
+import { EVENT_KIND_RULES } from './eventKinds'
 import {
   QUEUE_ACTION_REQUIRED_LABELS,
   QUEUE_STATES,
@@ -69,6 +70,12 @@ const BASE_KEY_PARTS = {
   d5: {},
 } as const
 const BASE_CONTENT = {}
+const NON_PLAYER_EVENT_KIND = EVENT_KIND_RULES.find(
+  (eventKind) => eventKind.name !== '選手のその場登録',
+)
+if (!NON_PLAYER_EVENT_KIND) {
+  throw new Error('選手登録以外のイベント種別がありません')
+}
 
 type D1QueueSlot = Extract<QueueSlot, { source: 'd1-event' }>
 type P3QueueSlot = Extract<QueueSlot, { source: 'p3-acceptance' }>
@@ -128,7 +135,7 @@ const TRANSITION_CASES: readonly TransitionCase[] = [
     run: () => {
       const slot = queueSlot(UNSENT_STATE)
       return evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         resolveA5(ACK_ACCEPTED_RESULT, slot.key),
       )
     },
@@ -138,7 +145,7 @@ const TRANSITION_CASES: readonly TransitionCase[] = [
     run: () => {
       const slot = queueSlot(UNSENT_STATE)
       return evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
           classifyB3: () => ({
@@ -154,7 +161,7 @@ const TRANSITION_CASES: readonly TransitionCase[] = [
     run: () => {
       const slot = queueSlot(UNSENT_STATE)
       return evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         resolveA5(ACK_UNPROCESSED_RESULT, slot.key),
       )
     },
@@ -207,7 +214,7 @@ const TRANSITION_CASES: readonly TransitionCase[] = [
     run: () => {
       const slot = queueSlot(UNSENT_STATE)
       return evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         resolveA5(ACK_EVACUATED_RESULT, slot.key),
       )
     },
@@ -354,7 +361,7 @@ describe('queueTransition', () => {
     (ackResult) => {
       const slot = queueSlot(UNSENT_STATE)
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         resolveA5(ackResult, slot.key),
       )
 
@@ -369,7 +376,7 @@ describe('queueTransition', () => {
     const slot = queueSlot(UNSENT_STATE)
     const mismatchedKey = eventKey({ d5: {} })
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
       resolveA5(ACK_ACCEPTED_RESULT, mismatchedKey),
     )
 
@@ -380,6 +387,7 @@ describe('queueTransition', () => {
     const prefixOnlyRequest = {
       kind: 'apply-a5',
       slot: queueSlot(UNSENT_STATE),
+      eventKind: NON_PLAYER_EVENT_KIND,
       d3: {},
     } as const
 
@@ -394,7 +402,7 @@ describe('queueTransition', () => {
     (actionRequiredLabel) => {
       const slot = queueSlot(UNSENT_STATE)
       const result = evaluateQueueTransition(
-        { kind: 'apply-a5', slot },
+        { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
         {
           ...resolveA5(ACK_REJECTED_RESULT, slot.key),
           classifyB3: () => ({
@@ -418,7 +426,7 @@ describe('queueTransition', () => {
   it('O4 の B3 を管理者対応用ラベルに分類する', () => {
     const slot = queueSlot(UNSENT_STATE)
     const result = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.O4 }),
@@ -600,6 +608,7 @@ describe('queueTransition', () => {
         evaluateQueueTransition({
           kind: 'apply-a5',
           slot: queueSlot(UNSENT_STATE),
+          eventKind: NON_PLAYER_EVENT_KIND,
         }),
     },
     {
@@ -607,7 +616,7 @@ describe('queueTransition', () => {
       run: () => {
         const slot = queueSlot(UNSENT_STATE)
         return evaluateQueueTransition(
-          { kind: 'apply-a5', slot },
+          { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
           resolveA5(ACK_REJECTED_RESULT, slot.key),
         )
       },
@@ -683,7 +692,7 @@ describe('queueTransition', () => {
   it('明示的に不明な B3 分類と accepted_at を fail-closed にする', () => {
     const slot = queueSlot(UNSENT_STATE)
     const unknownB3 = evaluateQueueTransition(
-      { kind: 'apply-a5', slot },
+      { kind: 'apply-a5', slot, eventKind: NON_PLAYER_EVENT_KIND },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
         classifyB3: () => ({ kind: B3_REASON_KIND.UNKNOWN }),

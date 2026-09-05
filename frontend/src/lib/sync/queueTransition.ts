@@ -5,6 +5,11 @@ import {
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
+import { EVENT_KIND_RULES, type EventKind } from './eventKinds'
+import {
+  checkMappingConfirmation,
+  type PlayerRegistrationMappingResolver,
+} from './mappingConfirmationGate'
 import {
   actionRequiredLabelId,
   queueStateId,
@@ -317,6 +322,7 @@ export type QueueTransitionInjections = Readonly<{
   resolveA5?: (
     key: QueueEventKey,
   ) => Readonly<{ key: QueueEventKey; result: CanonAckStateResult }> | undefined
+  resolvePlayerRegistrationMapping?: PlayerRegistrationMappingResolver
   classifyB3?: (
     input: Readonly<{
       slot: QueueSlot
@@ -336,7 +342,11 @@ export type QueueTransitionRequest =
       key: QueueEventKey
       content: unknown
     }>
-  | Readonly<{ kind: 'apply-a5'; slot: QueueSlot }>
+  | Readonly<{
+      kind: 'apply-a5'
+      slot: QueueSlot
+      eventKind: EventKind
+    }>
   | Readonly<{ kind: 'ack-unavailable'; slot: QueueSlot }>
   | Readonly<{
       kind: 'action-replacement-persisted'
@@ -429,11 +439,23 @@ function replacedUnsentSlot(
   }
 }
 
+function resolveKnownEventKind(value: unknown): EventKind | undefined {
+  if (typeof value !== 'object' || value === null || !('id' in value)) {
+    return undefined
+  }
+  return EVENT_KIND_RULES.find((eventKind) => eventKind.id === value.id)
+}
+
 function applyA5(
-  slot: QueueSlot,
+  request: Extract<QueueTransitionRequest, { kind: 'apply-a5' }>,
   injections: QueueTransitionInjections,
 ): QueueTransitionResult {
+  const { slot } = request
   if (slot.source !== 'd1-event' || slot.state !== UNSENT_STATE) {
+    return notApplied()
+  }
+  const eventKind = resolveKnownEventKind(request.eventKind)
+  if (!eventKind) {
     return notApplied()
   }
 
@@ -460,6 +482,16 @@ function applyA5(
   )
 
   if (ruleAcceptsA5Result(syncedRule, resolved.result)) {
+    const mappingConfirmation = checkMappingConfirmation(
+      { eventKind, event: slot.content },
+      {
+        resolvePlayerRegistrationMapping:
+          injections.resolvePlayerRegistrationMapping,
+      },
+    )
+    if (!mappingConfirmation.allowsSyncedTransition) {
+      return notApplied(syncedRule.id)
+    }
     return applySlotRule(syncedRule, slot)
   }
   if (ruleAcceptsA5Result(unprocessedRule, resolved.result)) {
@@ -666,7 +698,7 @@ export function evaluateQueueTransition(
         },
       )
     case 'apply-a5':
-      return applyA5(request.slot, injections)
+      return applyA5(request, injections)
     case 'ack-unavailable': {
       const ackUnavailableRule = queueTransitionRuleById(
         QUEUE_TRANSITION_ROW_ID.ACK_UNAVAILABLE,

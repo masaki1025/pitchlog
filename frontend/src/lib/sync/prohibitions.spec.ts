@@ -18,7 +18,12 @@ import {
   I6_HOLDING_CONTRACT,
   queueStateId,
 } from './queueState'
-import { QUEUE_TRANSITION_RULES } from './queueTransition'
+import {
+  QUEUE_TRANSITION_RULES,
+  type QueueSlot,
+  type QueueTransitionInjections,
+  type QueueTransitionRequest,
+} from './queueTransition'
 import {
   buildSidecarJoinKey,
   SYNC_EVENT_ENVELOPE_KEYS,
@@ -862,6 +867,39 @@ describe('prohibitions', () => {
     expect(slot.event).toBe(event)
     expect(invalidEventAppend.event).toBe(playRowSequence)
     expect(Object.hasOwn(invalidPlayRowColumn, 'playRows')).toBe(true)
+  })
+
+  it('C4: A5 の公開入口にイベント種別と写像確認 resolver を要求する', () => {
+    type ApplyA5Request = Extract<QueueTransitionRequest, { kind: 'apply-a5' }>
+    type MappingResolver = NonNullable<
+      QueueTransitionInjections['resolvePlayerRegistrationMapping']
+    >
+    const slot: QueueSlot = {
+      state: queueStateId('未送信'),
+      source: 'd1-event',
+      key: { d4: {}, d1: {}, d5: {} },
+      content: {},
+    }
+    const request: ApplyA5Request = {
+      kind: 'apply-a5',
+      slot,
+      eventKind: EVENT_KIND_RULES[0],
+    }
+    const resolver: MappingResolver = () => true
+    // @ts-expect-error A5 の公開入口ではイベント種別を省略できない。
+    const missingEventKind: QueueTransitionRequest = {
+      kind: 'apply-a5',
+      slot,
+    }
+    const exactRequestKeys: ExactKeySet<
+      keyof ApplyA5Request,
+      'kind' | 'slot' | 'eventKind'
+    > = true
+
+    expect(exactRequestKeys).toBe(true)
+    expect(request.eventKind).toBe(EVENT_KIND_RULES[0])
+    expect(resolver({})).toBe(true)
+    expect(Object.hasOwn(missingEventKind, 'eventKind')).toBe(false)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {

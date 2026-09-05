@@ -18,7 +18,8 @@ import {
   queueTransitionRuleById,
   type QueueEventKey,
   type QueueSlot,
-  type QueueTransitionResult,
+  type QueueTransitionInjections,
+  type QueueTransitionRequest,
 } from './queueTransition'
 
 const PLAYER_REGISTRATION_EVENT_KIND = EVENT_KIND_RULES.find(
@@ -58,23 +59,14 @@ function syncedAckResult() {
   return result
 }
 
-function evaluateAfterMappingConfirmation(
+function syncedA5Injections(
   slot: Extract<QueueSlot, { source: 'd1-event' }>,
-  eventKind: EventKind,
-  injections: MappingConfirmationInjections,
-): QueueTransitionResult {
-  const gateResult = checkMappingConfirmation(
-    { eventKind, event: slot.content },
-    injections,
-  )
-  if (!gateResult.allowsSyncedTransition) {
-    return { applied: false }
+  mappingInjections: MappingConfirmationInjections = {},
+): QueueTransitionInjections {
+  return {
+    resolveA5: () => ({ key: slot.key, result: syncedAckResult() }),
+    ...mappingInjections,
   }
-
-  return evaluateQueueTransition(
-    { kind: 'apply-a5', slot },
-    { resolveA5: () => ({ key: slot.key, result: syncedAckResult() }) },
-  )
 }
 
 describe('mappingConfirmationGate', () => {
@@ -89,6 +81,7 @@ describe('mappingConfirmationGate', () => {
 
   const unconfirmedCases = [
     ['未注入', {}],
+    ['false', { resolvePlayerRegistrationMapping: () => false }],
     ['undefined', { resolvePlayerRegistrationMapping: () => undefined }],
     [
       '例外',
@@ -149,25 +142,35 @@ describe('mappingConfirmationGate', () => {
     expect(resolver).not.toHaveBeenCalled()
   })
 
-  it('写像未確定なら D1 が prefix 内でも同期済みへ移さない', () => {
-    const slotWithPrefixEvidence = {
-      ...unsentSlot(),
-      d3: BASE_KEY.d1,
-    }
-    const result = evaluateAfterMappingConfirmation(
-      slotWithPrefixEvidence,
-      PLAYER_REGISTRATION_EVENT_KIND,
-      {},
-    )
+  it.each(unconfirmedCases)(
+    '製品の A5 入口は選手登録の写像確認が%sなら D1 が prefix 内でも同期済みへ移さない',
+    (_name, mappingInjections) => {
+      const slot = { ...unsentSlot(), d3: BASE_KEY.d1 }
+      const result = evaluateQueueTransition(
+        {
+          kind: 'apply-a5',
+          slot,
+          eventKind: PLAYER_REGISTRATION_EVENT_KIND,
+        },
+        syncedA5Injections(slot, mappingInjections),
+      )
 
-    expect(result.applied).toBe(false)
-  })
+      expect(result.applied).toBe(false)
+      expect(result.rowId).toBe('QT-02')
+    },
+  )
 
-  it('写像確定後は queueTransition の未送信から同期済みへの遷移と合成できる', () => {
-    const result = evaluateAfterMappingConfirmation(
-      unsentSlot(),
-      PLAYER_REGISTRATION_EVENT_KIND,
-      { resolvePlayerRegistrationMapping: () => true },
+  it('製品の A5 入口は選手登録の写像確認が true のときだけ同期済みへ移す', () => {
+    const slot = unsentSlot()
+    const result = evaluateQueueTransition(
+      {
+        kind: 'apply-a5',
+        slot,
+        eventKind: PLAYER_REGISTRATION_EVENT_KIND,
+      },
+      syncedA5Injections(slot, {
+        resolvePlayerRegistrationMapping: () => true,
+      }),
     )
 
     expect(result.applied).toBe(true)
@@ -175,6 +178,48 @@ describe('mappingConfirmationGate', () => {
       expect(result.slot?.state).toBe(queueStateId('同期済み'))
     }
   })
+
+  it('製品の A5 入口は選手登録以外を resolver なしで同期済みへ移す', () => {
+    const slot = unsentSlot()
+    const result = evaluateQueueTransition(
+      { kind: 'apply-a5', slot, eventKind: OTHER_EVENT_KIND },
+      syncedA5Injections(slot),
+    )
+
+    expect(result.applied).toBe(true)
+    if (result.applied) {
+      expect(result.slot?.state).toBe(queueStateId('同期済み'))
+    }
+  })
+
+  it.each([
+    [
+      '未指定',
+      (slot: Extract<QueueSlot, { source: 'd1-event' }>) =>
+        ({ kind: 'apply-a5', slot }) as unknown as QueueTransitionRequest,
+    ],
+    [
+      '不明',
+      (slot: Extract<QueueSlot, { source: 'd1-event' }>) =>
+        ({
+          kind: 'apply-a5',
+          slot,
+          eventKind: {
+            ...OTHER_EVENT_KIND,
+            id: 'unknown',
+          } as unknown as EventKind,
+        }) as QueueTransitionRequest,
+    ],
+  ] as const)(
+    '製品の A5 入口はイベント種別が%sなら fail-closed にする',
+    (_name, request) => {
+      const slot = unsentSlot()
+
+      expect(
+        evaluateQueueTransition(request(slot), syncedA5Injections(slot)),
+      ).toEqual({ applied: false })
+    },
+  )
 
   it('製品ファイルで D3 とイベント種別 ID の直書きをしない', () => {
     expect(mappingConfirmationGateSource).not.toContain('D3')
