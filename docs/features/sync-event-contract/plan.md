@@ -144,7 +144,7 @@ created: 2026-09-04
 | `syncEvent.ts` | 封筒の型(`EventSlotId` のみ)・対象参照の合成型・**サイドカー結合キーの合成関数** | 3 |
 | `validateSyncEvent.ts` | 2 表を総称ループする実行時検査 + **参加区分 resolver の注入口**。主 API は throw(NFR-015) | 3 |
 | `validateSyncEvent.spec.ts` | 負例 **N-1〜N-12** と正例 | 3 |
-| `requestBoundary.ts` | 要求境界(VF1〜VF6)。**現行結合の照合は注入済み verifier の結果を B4 / B9 へ写像**する | 4 |
+| `requestBoundary.ts` | 要求境界(VF1〜VF6)。**V12 結合 verifier と復旧世代 verifier の 2 本を注入**し、**復旧世代照合を全 P3(進行中・終了後)で V12 より先に**行って結果を B4 / B9 へ写像する | 4 |
 | `requestBoundary.spec.ts` | VF1〜VF6 の表駆動全件 | 4 |
 | `idempotencyCollision.ts` | 4-5 の衝突判定。**内容同一性の判定器は注入** | 5 |
 | `idempotencyCollision.spec.ts` | 負例 **N-13〜N-18** | 5 |
@@ -196,7 +196,7 @@ created: 2026-09-04
 | 5 | **D5 の再利用禁止範囲と衝突時の fail-closed 判定** — `idempotencyCollision.ts` に照合キー `(テナント, D5)` と 4-5 の 4 行 + DI2/DI3・I2/I3 の判定関数。**内容同一性の判定器は注入**。**DI1・DI5・I1・B3a は実装しない**ことをコメントと申し送りで明示 | `[機械]` **負例 N-13〜N-18 が期待結果コードつきで判定される**(6 節の定義表。**I3 は `B13` 固定**・DI3 は `B3b` 固定)/ 同内容は**保存済み結果の再掲**(**適用はこのモジュールの責務ではない** — 未使用 D5 は `NOT_DUPLICATE` の分類だけを返す。敵対レビュー 1 周目 P1-3)/ **判定器が例外を投げても拒否** / **別テナントの同一 D5 を重複として扱わない** / **変異 M12・M13**(照合キーを `(試合, 世代, D5)` へ・他テナントを重複扱いへ → red)/ 判定器を差し替えても分岐が変わらない |
 | 6 | **一時 ID → 正式 ID の置換契約(4-4)** — `temporaryIdMapping.ts` に**追記のみ**の写像(再写像は fail-closed で拒否 = C3)・置換の記録の保持・**一時 ID を D5 として使えない**不変条件。**provenance は注入した `isTemporaryId` で判定し、値形式を見ない**(判断 1)。C1・C4 は 7 章依存で射程外と明記 | `[機械]` 同じ一時 ID の再解決が**決定的に同じ正式 ID**を返す(C2)/ 別の正式 ID への再写像が throw(C3)/ **上書き・削除の API が存在しない**(export 集合の assert)/ **注入 provenance が「一時 ID」と答えた値を D5 スロットへ入れると拒否**(値の長さ・文字種を見ないことを raw 走査で assert)/ **「同期済み」「ACK」を表す状態が存在しない**ことを raw 走査で assert |
 | 7 | **4-7 の禁止事項照合の機械化 + 単一 locus 検査** — `prohibitions.spec.ts` に P-02/P-20/P-28/P-32/P-57/P-58 の非該当検査と判断 4 の単一 locus 検査を置く。**H-59 の逐語照合表**(V1〜V12 の各行 → 実装のどの構造 / 5-5 の 12 行 → どの行)を worklog に作る | `[機械]` **P-58**(単一 locus 検査で代替)/ **P-20・P-32**(**封筒が受け付けるスロット集合が `R-EVENT-FIELD` の ID 集合と完全一致**することで、利用者項目・投球項目がスロットとして存在しえないことを示す。**英語の禁止語 denylist は使わない** — 敵対レビュー 1 周目 P1-5)/ **P-57**(V8 が「取消可能な操作に限る」必須として表に在る)/ **P-02**(サイドカー結合キー関数の戻り値が**ちょうど 3 要素**)/ **P-28**(状態補正が種別集合の要素であり、状態を直接上書きする export が無い)/ **単一 locus**(`'V*'` が `eventFieldRules.ts` 以外、種別 ID が `eventKinds.ts` 以外の製品ファイルに現れない)/ **U-1〜U-4 の不在**(墓標に対象連番・欠落範囲を持たせない / 退避の取り込み規則が無い / 正史復元の型が無い / 保持期限フィールドが無い。**これは正本語による走査であって意味の判定ではない — 型プロパティ名や内部構造による同等物は検出できない**。敵対レビュー 2 周目 P1-1) `[手動・外部]` **逐語照合表(12 + 12 行)を worklog へ記録**(**機械 green に数えない** — H-59) |
-| 8 | **ハーネス登録と申し送り** — ① `.claude/core-areas.json` の `sync-protocol.paths` へ実装資産を登録(`requestBoundary.*` は **`recording-rights` にも重複帰属**)② `tests/test_core_guard.py` の `EXPECTED_AREA_PATHS` を**同一コミットで**追随 ③ `.github/workflows/ci.yml` の frontend paths-filter へ `scripts/design_relations/sync-protocol.json` を追加し `tests/test_ci_wiring.py` で assert ④ 申し送りを worklog と本書へ記録(実装で埋めない) | `[機械]` ルートで `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/` green / **`core-areas.json` と `test_core_guard.py` の期待集合が辞書完全一致**(**既存登録の削除・縮小がゼロ**であることを diff で確認)/ **paths-filter の配列に当該パスが含まれる**ことを assert / **`scripts/design_relations/**` と `docs/design/sync-protocol.md` の差分がゼロ** `[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認**。**逐行確認は PR 作成者以外**が行う |
+| 8 | **ハーネス登録と申し送り** — ① `.claude/core-areas.json` へ実装資産を登録 — `sync-protocol` に 16 ファイル + alias 配線 2 本、**重複帰属**として `recording-rights`(`requestBoundary.*` / `eventFieldRules.*` / `validateSyncEvent.*` / `syncEvent.ts` / `canonOracle.*`)・`game-state`(`eventKinds.*` / `eventFieldRules.*` / `validateSyncEvent.*` / `canonOracle.*` / `prohibitions.spec.ts`)・`tenant-isolation`(`idempotencyCollision.*`)・`data-migration`(`syncEvent.ts` / `prohibitions.spec.ts` / `eventFieldRules.spec.ts` / `validateSyncEvent.spec.ts`)② `tests/test_core_guard.py` の `EXPECTED_AREA_PATHS` を**同一コミットで**追随 ③ `.github/workflows/ci.yml` の frontend paths-filter へ `scripts/design_relations/sync-protocol.json` を追加し `tests/test_ci_wiring.py` で assert ④ 申し送りを worklog と本書へ記録(実装で埋めない) | `[機械]` ルートで `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/` green / **`core-areas.json` と `test_core_guard.py` の期待集合が辞書完全一致**(**既存登録の削除・縮小がゼロ**であることを diff で確認)/ **paths-filter の配列に当該パスが含まれる**ことを assert / **`scripts/design_relations/**` と `docs/design/sync-protocol.md` の差分がゼロ** `[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認**。**逐行確認は PR 作成者以外**が行う |
 
 **順序の根拠**: ① が最初なのは**配線リスクを 1 コミット目で潰す**ため — `tsconfig.app.json` の `types` が `["vite/client"]` のみで
 `node:fs` が使えず、alias 方式が通らなければ**以降の全ステップの合格条件が成立しない**。
@@ -234,11 +234,11 @@ created: 2026-09-04
 - [ ] **不正なイベントを拒否する実行時検査がある** — **負例 N-1〜N-18 の各入力が期待理由コードつきで拒否され、テスト全体が green**(6 節)
 - [ ] **値の不変条件が単体テストで固定されている** — V1〜V12 の必須性 / P3 の持たない値 / **#9 の参加区分継承** / VF1〜VF6 / **D5 衝突の fail-closed**
       (**`NFR-019(d)` の故障系テストは後続 α へ送る** — 裁定 1)
-- [ ] **注入境界が定義され、未注入は fail-closed である** — 参加区分 resolver / 現行結合 verifier / 内容同一性判定器 / provenance 判定
+- [ ] **注入境界が定義され、未注入は fail-closed である** — 参加区分 resolver / **V12 結合 verifier** / **復旧世代 verifier**(全 P3 で V12 より先) / 内容同一性判定器 / provenance 判定
 - [ ] **値の形式を検査していない**(D5 の長さ・文字種・UUID らしさを見ない — (B) 論点 17 を先取りしない)
 - [ ] **`sync-protocol.md` と `scripts/design_relations/**` に差分がない**(写すだけ・再解釈しない)
 - [ ] **設計の不足を見つけた場合、実装で埋めずに記録している**(4 節の申し送り)
-- [ ] **4-7 の禁止事項 6 件の非該当が機械検査されている**
+- [ ] **4-7 の禁止事項 6 件の非該当が機械検査されている**。**ただし機械で示せるのは「スロット集合・export 集合・ID リテラルの locus・正本語の不在」までであり、型プロパティ名や内部構造による同等物は検出できない** — この残余は**人間の逐行確認へ送る**(敵対レビュー 2・3 周目 P1-1。**全公開型のメンバー集合をリテラルで固定する案は、それ自体が第二の正本になる〔台帳 H-61〕ため不採用**)
 - [ ] **V8 の中身に踏み込んでいない**(NFR-018 = P0 の回避。raw 走査で assert)
 - [ ] **`.claude/core-areas.json` に実装資産が登録され、`test_core_guard.py` と CI の paths-filter が追随している**
 - [ ] **敵対レビュー + 人間の逐行確認を経ている**(コア領域。**逐行確認は PR 作成者以外**)
@@ -266,7 +266,7 @@ created: 2026-09-04
 | N-10 | **V10 から対象 D4 を落とす**(D1 だけで名指す) | 拒否 | `:261` |
 | N-11 | **P3 で V11 欠落** / **群 A に V11** | ともに拒否 | `:262`・`:326` |
 | N-12 | イベント封筒に **V12** / **復旧世代** | ともに拒否(型エラー + 実行時)| `:263`・`:344` |
-| N-13 | 同 D5・**同内容** | **保存済み結果の再掲**・適用関数を呼ばない | `:392`・DI2・I2 |
+| N-13 | 同 D5・**同内容** | **保存済み結果を返す**(`REPLAY_SAVED_RESULT`)。**再適用の抑止は呼び出し側の後続責務**であり、本モジュールは `apply` を持たない | `:392`・DI2・I2 |
 | N-14 | 同 D5・**異内容**(D1 付き) | **`B3b`**・先着原本が不変・P5/T9 を開始しない | `:393`・DI3 |
 | N-15 | 同 D5・**異内容**(P3) | **`B13`**・B3 の 2 択を返さない | `:424`(I3) |
 | N-16 | 判定器が「判定不能」を返す / **例外を投げる** | ともに**後着拒否**(記号的な拒否。**B コードを発明しない**) | `:395` |

@@ -6,7 +6,7 @@ import {
   type EventSlotId,
 } from './eventFieldRules'
 
-export const SYNC_EVENT_ENVELOPE_KEYS = ['fields'] as const
+export const SYNC_EVENT_ENVELOPE_KEYS = Object.freeze(['fields'] as const)
 
 export type SyncEventEnvelopeKey = (typeof SYNC_EVENT_ENVELOPE_KEYS)[number]
 
@@ -34,8 +34,9 @@ if (!targetReferenceRule) {
   throw new Error('対象イベント参照の shape がありません')
 }
 
-export const TARGET_EVENT_REFERENCE_ELEMENTS =
-  targetReferenceRule.shape.elements
+export const TARGET_EVENT_REFERENCE_ELEMENTS = Object.freeze(
+  targetReferenceRule.shape.elements,
+)
 
 export function isTargetEventReference(
   value: unknown,

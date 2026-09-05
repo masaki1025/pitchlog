@@ -13,6 +13,8 @@ import {
 } from './eventKinds'
 import {
   buildSidecarJoinKey,
+  SYNC_EVENT_ENVELOPE_KEYS,
+  TARGET_EVENT_REFERENCE_ELEMENTS,
   type SyncEvent,
   type TargetEventReference,
 } from './syncEvent'
@@ -148,6 +150,23 @@ function expectRejected(
 }
 
 describe('validateSyncEvent', () => {
+  it('実行時の許可キー集合を凍結し、型アサーション経由の変更を拒否する', () => {
+    const mutableEnvelopeKeys = SYNC_EVENT_ENVELOPE_KEYS as unknown as string[]
+    const mutableReferenceElements =
+      TARGET_EVENT_REFERENCE_ELEMENTS as unknown as string[]
+
+    expect(Object.isFrozen(SYNC_EVENT_ENVELOPE_KEYS)).toBe(true)
+    expect(Object.isFrozen(TARGET_EVENT_REFERENCE_ELEMENTS)).toBe(true)
+    expect(() => mutableEnvelopeKeys.push('kind')).toThrow(TypeError)
+    expect(() => mutableReferenceElements.push('extra')).toThrow(TypeError)
+    expect(SYNC_EVENT_ENVELOPE_KEYS).toEqual(['fields'])
+    expect(TARGET_EVENT_REFERENCE_ELEMENTS).toEqual([
+      '試合',
+      '対象の D4',
+      '対象の D1',
+    ])
+  })
+
   it('V5 をイベント種別の唯一の担い手とする', () => {
     const hasOuterKind: 'kind' extends keyof SyncEvent ? true : false = false
     const event = eventFor('1')
