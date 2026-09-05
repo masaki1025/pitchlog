@@ -47,6 +47,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'eventFieldRules.ts',
   'eventKinds.ts',
   'idempotencyCollision.ts',
+  'k5Tombstone.ts',
   'queueState.ts',
   'queueTransition.ts',
   'requestBoundary.ts',
@@ -65,6 +66,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseCanonParticipationRules',
     'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
+    'parseCanonTombstoneRule',
     'parseCanonV12BoundaryRules',
     'readCanonAckStateResults',
     'readCanonEventFieldRules',
@@ -72,6 +74,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonParticipationRules',
     'readCanonQueueLifeRules',
     'readCanonTemporaryIdMappingRules',
+    'readCanonTombstoneRule',
     'readCanonV12BoundaryRules',
   ],
   'eventFieldRules.ts': [
@@ -100,6 +103,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'IDEMPOTENCY_SCOPE_RULE',
     'decideIdempotencyCollision',
   ],
+  'k5Tombstone.ts': [
+    'K5_ACTION_GENERATION_RULES',
+    'K5_TOMBSTONE_RULE',
+    'TOMBSTONE_ONLINE_STATE',
+    'prepareTombstoneReplacement',
+  ],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
     'REQUEST_BOUNDARY_RESULT',
@@ -114,6 +123,8 @@ const EXPECTED_VALUE_EXPORTS = {
     'I6_HOLDING_CONTRACT',
     'QUEUE_ACTION_REQUIRED_LABELS',
     'QUEUE_STATES',
+    'actionRequiredLabelId',
+    'queueStateId',
   ],
   'queueTransition.ts': [
     'B3_REASON_KIND',
@@ -150,6 +161,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonIdempotencyCollisionRule',
     'CanonQueueLifeRule',
     'CanonTemporaryIdMappingRule',
+    'CanonTombstoneRule',
     'CanonV12BoundaryRule',
   ],
   'eventFieldRules.ts': [
@@ -179,6 +191,15 @@ const EXPECTED_TYPE_EXPORTS = {
     'IdempotencyOriginalComparator',
     'IdempotencyScopeRule',
     'StoredIdempotencyOperation',
+  ],
+  'k5Tombstone.ts': [
+    'TombstoneGenerationInjections',
+    'TombstoneGenerationRequest',
+    'TombstoneGenerationResult',
+    'TombstoneOnlineState',
+    'TombstoneQueueSlotReplacement',
+    'TombstoneRecordingRightVerifier',
+    'TombstoneSourceSlot',
   ],
   'requestBoundary.ts': [
     'P3RequestState',

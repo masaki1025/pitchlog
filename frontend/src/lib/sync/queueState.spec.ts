@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { readCanonQueueLifeRules, type CanonQueueLifeRule } from './canonOracle'
 import {
+  actionRequiredLabelId,
   I6_HOLDING_CONTRACT,
   QUEUE_ACTION_REQUIRED_LABELS,
   QUEUE_STATES,
+  queueStateId,
+  type QueueActionRequiredLabel,
+  type QueueStateId,
 } from './queueState'
 
 type ComparableLabel = { id: string }
@@ -92,6 +96,20 @@ function cloneHoldingContract(): ComparableHoldingContract {
 }
 
 describe('queueState', () => {
+  it('状態と下位ラベルの未知 ID を fail-closed で拒否する', () => {
+    const unsent: '未送信' = queueStateId('未送信')
+    const revisionPending: '改訂待ち' = actionRequiredLabelId('改訂待ち')
+
+    expect(unsent).toBe('未送信')
+    expect(revisionPending).toBe('改訂待ち')
+    expect(() => queueStateId('未知状態' as QueueStateId)).toThrow(
+      'キュー状態 ID が存在しません',
+    )
+    expect(() =>
+      actionRequiredLabelId('未知ラベル' as QueueActionRequiredLabel['id']),
+    ).toThrow('要操作の下位ラベル ID が存在しません')
+  })
+
   it('4 状態・要操作の3下位ラベル・I6の11要素を正本と照合する', () => {
     expectQueueStateDefinitionToMatchCanon(
       QUEUE_STATES,

@@ -6,23 +6,23 @@ import {
   type CanonAckStateResult,
 } from './canonOracle'
 import {
-  QUEUE_ACTION_REQUIRED_LABELS,
-  QUEUE_STATES,
+  actionRequiredLabelId,
+  queueStateId,
   type QueueActionRequiredLabel,
   type QueueStateId,
 } from './queueState'
 
-const UNSENT_STATE = QUEUE_STATES[0].id
-const ACTION_REQUIRED_STATE = QUEUE_STATES[1].id
-const SYNCED_STATE = QUEUE_STATES[2].id
-const EVACUATED_STATE = QUEUE_STATES[3].id
-const REVISION_ACTION_LABEL_ID = QUEUE_ACTION_REQUIRED_LABELS[0].id
-const TOMBSTONE_ACTION_LABEL_ID = QUEUE_ACTION_REQUIRED_LABELS[1].id
+const UNSENT_STATE = queueStateId('未送信')
+const ACTION_REQUIRED_STATE = queueStateId('要操作')
+const SYNCED_STATE = queueStateId('同期済み')
+const EVACUATED_STATE = queueStateId('退避済み')
+const REVISION_ACTION_LABEL_ID = actionRequiredLabelId('改訂待ち')
+const TOMBSTONE_ACTION_LABEL_ID = actionRequiredLabelId('墓標待ち')
 const CONTENT_ACTION_LABEL_IDS = new Set<string>([
   REVISION_ACTION_LABEL_ID,
   TOMBSTONE_ACTION_LABEL_ID,
 ])
-const O4_ACTION_LABEL_ID = QUEUE_ACTION_REQUIRED_LABELS[2].id
+const O4_ACTION_LABEL_ID = actionRequiredLabelId('管理者対応待ち')
 
 const CANON_ACK_RESULTS = readCanonAckStateResults()
 
@@ -289,7 +289,10 @@ export const B3_REASON_KIND = {
   UNKNOWN: '不明',
 } as const
 
-type ContentActionLabelId = (typeof QUEUE_ACTION_REQUIRED_LABELS)[0 | 1]['id']
+type ContentActionLabelId = Exclude<
+  QueueActionRequiredLabel['id'],
+  typeof O4_ACTION_LABEL_ID
+>
 
 export type B3ReasonClassification =
   | Readonly<{

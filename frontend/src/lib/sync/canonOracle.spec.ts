@@ -10,12 +10,14 @@ import {
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
   parseCanonAckStateResults,
   parseCanonQueueLifeRules,
+  parseCanonTombstoneRule,
   readCanonAckStateResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
   readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
+  readCanonTombstoneRule,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonEventKindRule,
@@ -316,6 +318,31 @@ describe('canonOracle', () => {
 
     expect(() => readCanonParticipationRules(mutatedRelations)).toThrowError(
       /未知の R-PARTICIPATION ID/,
+    )
+  })
+
+  it('K5 専用 reader が R-PARTICIPATION の定義行だけを返す', () => {
+    const sourceElements =
+      syncProtocolRelations['R-PARTICIPATION'].source_elements
+    const parsedRule = parseCanonTombstoneRule(sourceElements)
+    const readRule = readCanonTombstoneRule()
+
+    expect(readRule).toEqual(parsedRule)
+    expect(readRule.id).toBe('K5')
+    expect(readRule.tokens).toHaveLength(2)
+  })
+
+  it('K5 の未知トークンを fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-PARTICIPATION'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('K5:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = `${sourceElements[targetIndex]}+未知トークン`
+    expect(() => readCanonTombstoneRule(mutatedRelations)).toThrowError(
+      /R-PARTICIPATION の定義が不正/,
     )
   })
 

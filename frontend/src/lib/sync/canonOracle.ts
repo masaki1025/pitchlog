@@ -79,8 +79,8 @@ const REVISION_ORDER_DEFINITION = {
   name: '変更版順',
   tokens: ['D1・D2とは別で論理再生順に使わない'],
 } as const
-// K5 はキュー遷移に属する墓標生成条件のため、既知の射程外定義として検証後に取り込まない。
-const OUT_OF_SCOPE_PARTICIPATION_DEFINITION = {
+// K5 は種別集合には入らないが、墓標生成条件として専用 reader が読み取る。
+const TOMBSTONE_RULE_DEFINITION = {
   id: 'K5',
   name: '墓標生成',
   tokens: ['オンライン記録権確認後', 'D1付きキュー'],
@@ -99,6 +99,12 @@ export type CanonEventKindRule = {
   participation: CanonParticipation
   hasRevisionOrder: boolean
 }
+
+export type CanonTombstoneRule = Readonly<{
+  id: typeof TOMBSTONE_RULE_DEFINITION.id
+  name: typeof TOMBSTONE_RULE_DEFINITION.name
+  tokens: typeof TOMBSTONE_RULE_DEFINITION.tokens
+}>
 
 type ParticipationSourceElement = {
   id: string
@@ -268,23 +274,20 @@ export function parseCanonParticipationRules(
   }
 
   let hasRevisionOrderDefinition = false
-  let hasOutOfScopeDefinition = false
+  let hasTombstoneRuleDefinition = false
   const eventKinds: CanonEventKindRule[] = []
   for (const element of elements) {
     if (element.id === REVISION_ORDER_DEFINITION.id) {
       assertParticipationDefinition(element, REVISION_ORDER_DEFINITION)
       hasRevisionOrderDefinition = true
-    } else if (element.id === OUT_OF_SCOPE_PARTICIPATION_DEFINITION.id) {
-      assertParticipationDefinition(
-        element,
-        OUT_OF_SCOPE_PARTICIPATION_DEFINITION,
-      )
-      hasOutOfScopeDefinition = true
+    } else if (element.id === TOMBSTONE_RULE_DEFINITION.id) {
+      assertParticipationDefinition(element, TOMBSTONE_RULE_DEFINITION)
+      hasTombstoneRuleDefinition = true
     } else {
       eventKinds.push(parseEventKindParticipation(element))
     }
   }
-  if (!hasRevisionOrderDefinition || !hasOutOfScopeDefinition) {
+  if (!hasRevisionOrderDefinition || !hasTombstoneRuleDefinition) {
     throw new Error('R-PARTICIPATION の定義行が不足しています')
   }
   return Object.freeze(eventKinds)
@@ -301,6 +304,43 @@ export function readCanonParticipationRules(
     throw new Error('R-PARTICIPATION.source_elements がありません')
   }
   return parseCanonParticipationRules(relation.source_elements)
+}
+
+export function parseCanonTombstoneRule(
+  sourceElements: readonly unknown[],
+): CanonTombstoneRule {
+  const tombstoneElements = sourceElements
+    .map(parseParticipationSourceElement)
+    .filter((element) => element.id === TOMBSTONE_RULE_DEFINITION.id)
+
+  if (tombstoneElements.length !== 1) {
+    throw new Error('R-PARTICIPATION の K5 行が一意ではありません')
+  }
+
+  const tombstoneElement = tombstoneElements[0]!
+  assertParticipationDefinition(tombstoneElement, TOMBSTONE_RULE_DEFINITION)
+
+  return Object.freeze({
+    id: TOMBSTONE_RULE_DEFINITION.id,
+    name: TOMBSTONE_RULE_DEFINITION.name,
+    tokens: Object.freeze([
+      tombstoneElement.tokens[0]!,
+      tombstoneElement.tokens[1]!,
+    ]) as typeof TOMBSTONE_RULE_DEFINITION.tokens,
+  })
+}
+
+export function readCanonTombstoneRule(
+  relations: unknown = syncProtocolRelations,
+): CanonTombstoneRule {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[PARTICIPATION_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-PARTICIPATION.source_elements がありません')
+  }
+  return parseCanonTombstoneRule(relation.source_elements)
 }
 
 const V12_BOUNDARY_IDS = new Set(['VF1', 'VF2', 'VF3', 'VF4', 'VF5', 'VF6'])

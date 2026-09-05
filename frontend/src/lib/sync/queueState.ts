@@ -25,6 +25,22 @@ export const QUEUE_STATES = [
 export type QueueState = (typeof QUEUE_STATES)[number]
 export type QueueStateId = QueueState['id']
 
+export function queueStateId<Id extends QueueStateId>(id: Id): Id {
+  if (!QUEUE_STATES.some((state) => state.id === id)) {
+    throw new Error(`キュー状態 ID が存在しません: ${id}`)
+  }
+  return id
+}
+
+export function actionRequiredLabelId<
+  Id extends QueueActionRequiredLabel['id'],
+>(id: Id): Id {
+  if (!QUEUE_ACTION_REQUIRED_LABELS.some((label) => label.id === id)) {
+    throw new Error(`要操作の下位ラベル ID が存在しません: ${id}`)
+  }
+  return id
+}
+
 type I6HoldingContractElementDefinition = Readonly<{ id: string }>
 type I6HoldingContractDefinition = Readonly<{
   id: string
