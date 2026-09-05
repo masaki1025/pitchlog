@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "waiting-input-not-accepted",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "queueCount": 1,
+        "nextD1": 2
+      }
+    },
+    "queue": {
+      "value": {
+        "unsentCount": 1
+      }
+    },
+    "d1": {
+      "value": {
+        "next": 2
+      }
+    },
+    "d3": {
+      "omittedBecause": "クライアント入力の受理境界だけを扱い、サーバーの連続 prefix を観測しないため"
+    },
+    "d4": {
+      "omittedBecause": "同じ試合の同一世代でのロック待機を扱うため"
+    },
+    "d5": {
+      "omittedBecause": "受理されない入力にはイベントのべき等キーを確定しないため"
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復元ライフサイクルを扱わないクライアント側シナリオのため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "サーバー要求を送る前のクライアント側シナリオのため"
+    },
+    "applicationPath": {
+      "omittedBecause": "サーバーの適用経路へ到達する前のクライアント側シナリオのため"
+    },
+    "tabs": {
+      "value": {
+        "contexts": ["主タブ", "非所有タブ"],
+        "inputAttemptBy": "非所有タブ"
+      }
+    },
+    "lock": {
+      "value": {
+        "owner": "主タブ",
+        "waiting": "非所有タブ"
+      }
+    }
+  },
+  "faultInjection": {
+    "target": {
+      "value": "ロック待機中の非所有タブの確定入力"
+    },
+    "injectionPoint": {
+      "value": "非所有タブがロックを取得する前"
+    },
+    "stopOperation": {
+      "omittedBecause": "停止を伴わない入力境界シナリオのため"
+    },
+    "restartOperation": {
+      "value": "ロック取得後に同じ入力を改めて行う"
+    }
+  },
+  "expected": {
+    "observations": [
+      {
+        "observationPoint": "ロック待機中の確定入力後",
+        "fields": {
+          "queue": {
+            "appendCount": 0,
+            "unchanged": true
+          },
+          "d1": {
+            "consumed": false,
+            "next": 2
+          },
+          "lock": {
+            "owner": "主タブ"
+          },
+          "acceptanceDisplay": {
+            "shownAsAccepted": false,
+            "noticeId": "Q2-b"
+          },
+          "reinputAvailability": {
+            "afterLockAcquisition": true
+          }
+        }
+      }
+    ]
+  },
+  "comparisonUnit": [
+    {
+      "scenarioId": "waiting-input-not-accepted",
+      "observationPoint": "ロック待機中の確定入力後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "waiting-input-not-accepted",
+      "observationPoint": "ロック待機中の確定入力後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "waiting-input-not-accepted",
+      "observationPoint": "ロック待機中の確定入力後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "waiting-input-not-accepted",
+      "observationPoint": "ロック待機中の確定入力後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "waiting-input-not-accepted",
+      "observationPoint": "ロック待機中の確定入力後",
+      "expectedField": "reinputAvailability"
+    }
+  ]
+}

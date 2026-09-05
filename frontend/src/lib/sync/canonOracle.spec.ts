@@ -6,12 +6,19 @@ import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import {
+  CANON_ACK_STATE_RESULT,
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
+  parseCanonAckStateResults,
+  parseCanonQueueLifeRules,
+  parseCanonTombstoneRule,
+  readCanonAckStateResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
+  readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
+  readCanonTombstoneRule,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonEventKindRule,
@@ -315,6 +322,31 @@ describe('canonOracle', () => {
     )
   })
 
+  it('K5 専用 reader が R-PARTICIPATION の定義行だけを返す', () => {
+    const sourceElements =
+      syncProtocolRelations['R-PARTICIPATION'].source_elements
+    const parsedRule = parseCanonTombstoneRule(sourceElements)
+    const readRule = readCanonTombstoneRule()
+
+    expect(readRule).toEqual(parsedRule)
+    expect(readRule.id).toBe('K5')
+    expect(readRule.tokens).toHaveLength(2)
+  })
+
+  it('K5 の未知トークンを fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-PARTICIPATION'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('K5:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = `${sourceElements[targetIndex]}+未知トークン`
+    expect(() => readCanonTombstoneRule(mutatedRelations)).toThrowError(
+      /R-PARTICIPATION の定義が不正/,
+    )
+  })
+
   it('V12 境界表を R-V12-BOUNDARY と順序非依存の exact-set で照合する', () => {
     const reversedCanonRules = [...readCanonV12BoundaryRules()].reverse()
 
@@ -458,7 +490,12 @@ describe('canonOracle', () => {
   })
 
   it('C2・C3 の右辺を R-TEMP-ID-MAPPING と逐語照合する', () => {
-    const reversedCanonRules = [...readCanonTemporaryIdMappingRules()].reverse()
+    const productRuleIds = new Set<string>(
+      TEMPORARY_ID_MAPPING_RULES.map((rule) => rule.id),
+    )
+    const reversedCanonRules = readCanonTemporaryIdMappingRules()
+      .filter((rule) => productRuleIds.has(rule.id))
+      .reverse()
 
     expectTemporaryIdMappingRulesToMatchCanon(
       TEMPORARY_ID_MAPPING_RULES,
@@ -466,10 +503,10 @@ describe('canonOracle', () => {
     )
   })
 
-  it('C1・C4 を理由つきの射程外 allow-list に置く', () => {
+  it('C1 だけを理由つきの射程外 allow-list に置く', () => {
     expect(
       CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
-    ).toEqual(['C1', 'C4'])
+    ).toEqual(['C1'])
     for (const element of CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE) {
       expect(element.reason.length).toBeGreaterThan(0)
     }
@@ -509,11 +546,101 @@ describe('canonOracle', () => {
 
     expect(targetIndex).toBeGreaterThanOrEqual(0)
     sourceElements[targetIndex] = 'C2:後続イベントの参照+決定的に解決'
+    const productRuleIds = new Set<string>(
+      TEMPORARY_ID_MAPPING_RULES.map((rule) => rule.id),
+    )
     expect(() =>
       expectTemporaryIdMappingRulesToMatchCanon(
         TEMPORARY_ID_MAPPING_RULES,
-        readCanonTemporaryIdMappingRules(mutatedRelations),
+        readCanonTemporaryIdMappingRules(mutatedRelations).filter((rule) =>
+          productRuleIds.has(rule.id),
+        ),
       ),
     ).toThrow()
+  })
+
+  it('R-QUEUE-LIFE の全伝播先を source_elements の被覆として照合する', () => {
+    const relation = syncProtocolRelations['R-QUEUE-LIFE']
+    const sourceElements = relation.source_elements
+    const sourceElementSet = new Set<string>(sourceElements)
+    const propagatedElements = new Set<string>()
+
+    expect(sourceElements).toHaveLength(5)
+    expect(parseCanonQueueLifeRules(sourceElements)).toEqual(
+      readCanonQueueLifeRules(),
+    )
+    expect(new Set(Object.keys(relation.expected_elements))).toEqual(
+      new Set(relation.targets),
+    )
+    for (const targetElements of Object.values(relation.expected_elements)) {
+      for (const element of targetElements) {
+        expect(sourceElementSet.has(element)).toBe(true)
+        propagatedElements.add(element)
+      }
+    }
+    expect(propagatedElements).toEqual(sourceElementSet)
+  })
+
+  it('R-QUEUE-LIFE の未知状態を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-QUEUE-LIFE'].source_elements.push('未知のキュー状態')
+
+    expect(() => readCanonQueueLifeRules(mutatedRelations)).toThrowError(
+      /未知の状態または ID/,
+    )
+  })
+
+  it('R-QUEUE-LIFE の未知 I6 トークンを fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-QUEUE-LIFE'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('I6:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      '+復元規則なし',
+      '+未知の保持契約',
+    )
+    expect(() => readCanonQueueLifeRules(mutatedRelations)).toThrowError(
+      /未知の I6 トークン/,
+    )
+  })
+
+  it('R-ACK-STATE の全結果を各伝播先と照合する', () => {
+    const relation = syncProtocolRelations['R-ACK-STATE']
+    const sourceElements = relation.source_elements
+    const sourceElementSet = new Set<string>(sourceElements)
+
+    expect(sourceElements).toHaveLength(5)
+    expect(CANON_ACK_STATE_RESULT).toEqual({
+      ACCEPTED: '受理',
+      DUPLICATE: '重複',
+      REJECTED: '拒否',
+      EVACUATED: '退避',
+      UNPROCESSED: '未処理',
+    })
+    expect(new Set(Object.values(CANON_ACK_STATE_RESULT))).toEqual(
+      sourceElementSet,
+    )
+    expect(parseCanonAckStateResults(sourceElements)).toEqual(
+      readCanonAckStateResults(),
+    )
+    expect(new Set(Object.keys(relation.expected_elements))).toEqual(
+      new Set(relation.targets),
+    )
+    for (const targetElements of Object.values(relation.expected_elements)) {
+      expect(targetElements).toHaveLength(sourceElements.length)
+      expect(new Set(targetElements)).toEqual(sourceElementSet)
+    }
+  })
+
+  it('R-ACK-STATE の未知要素を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-ACK-STATE'].source_elements[0] = '未知のA5結果'
+
+    expect(() => readCanonAckStateResults(mutatedRelations)).toThrowError(
+      /未知の要素/,
+    )
   })
 })

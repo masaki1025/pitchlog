@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "durable-append-failure",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "queueCount": 2,
+        "nextD1": 3
+      }
+    },
+    "queue": {
+      "value": {
+        "unsentCount": 2
+      }
+    },
+    "d1": {
+      "value": {
+        "next": 3
+      }
+    },
+    "d3": {
+      "omittedBecause": "端末内の永続追記失敗だけを扱い、サーバーの連続 prefix を観測しないため"
+    },
+    "d4": {
+      "omittedBecause": "同じ試合の同一世代における端末内トランザクションを扱うため"
+    },
+    "d5": {
+      "omittedBecause": "失敗した追記は確定しないため、永続化済みのべき等キーとして観測しないため"
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復元ライフサイクルを扱わないクライアント側シナリオのため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "サーバー要求を送る前のクライアント側シナリオのため"
+    },
+    "applicationPath": {
+      "omittedBecause": "サーバーの適用経路へ到達する前のクライアント側シナリオのため"
+    },
+    "tabs": {
+      "value": {
+        "contexts": ["主タブ"],
+        "recordingRightHeld": true
+      }
+    },
+    "lock": {
+      "value": {
+        "owner": "主タブ"
+      }
+    }
+  },
+  "faultInjection": {
+    "target": {
+      "value": "入力と D1 の不可分な永続キュー追記"
+    },
+    "injectionPoint": {
+      "value": "キュー行と D1 カウンタを確定する前"
+    },
+    "stopOperation": {
+      "value": "端末内トランザクションを中断する"
+    },
+    "restartOperation": {
+      "value": "同じ次番号で追記を再試行する"
+    }
+  },
+  "expected": {
+    "observations": [
+      {
+        "observationPoint": "永続追記失敗直後",
+        "fields": {
+          "queue": {
+            "unchanged": true,
+            "count": 2,
+            "partialAppendCount": 0
+          },
+          "d1": {
+            "consumed": false,
+            "next": 3
+          },
+          "lock": {
+            "owner": "主タブ"
+          },
+          "acceptanceDisplay": {
+            "shownAsAccepted": false
+          },
+          "reinputAvailability": {
+            "possible": true,
+            "retryWithSameNextD1": true
+          }
+        }
+      }
+    ]
+  },
+  "comparisonUnit": [
+    {
+      "scenarioId": "durable-append-failure",
+      "observationPoint": "永続追記失敗直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "durable-append-failure",
+      "observationPoint": "永続追記失敗直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "durable-append-failure",
+      "observationPoint": "永続追記失敗直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "durable-append-failure",
+      "observationPoint": "永続追記失敗直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "durable-append-failure",
+      "observationPoint": "永続追記失敗直後",
+      "expectedField": "reinputAvailability"
+    }
+  ]
+}

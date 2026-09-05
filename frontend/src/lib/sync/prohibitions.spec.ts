@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
+import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
+import {
+  DURABLE_QUEUE_PUBLIC_METHOD_RULES,
+  DurableQueue,
+  DurableQueuePreparation,
+  I6EvacuationReceipt,
+  I6PersistenceReceipt,
+  type DurableI6Slot,
+  type DurableQueueAppend,
+  type DurableQueueSlot,
+} from './durableQueue'
 import {
   EVENT_FIELD_PRESENCE,
   EVENT_FIELD_REQUIREDNESS,
@@ -11,6 +22,21 @@ import {
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
 import { readCanonEventFieldRules } from './canonOracle'
+import type {
+  LocalQueueFileImportRequest,
+  LocalQueueFileImportResult,
+} from './localQueueFile'
+import {
+  actionRequiredLabelId,
+  I6_HOLDING_CONTRACT,
+  queueStateId,
+  type I6AcceptedResult,
+} from './queueState'
+import {
+  QUEUE_TRANSITION_RULES,
+  type QueueSlot,
+  type QueueTransitionRequest,
+} from './queueTransition'
 import {
   buildSidecarJoinKey,
   SYNC_EVENT_ENVELOPE_KEYS,
@@ -34,7 +60,7 @@ type ProductSource = Readonly<{
 }>
 type ForbiddenCandidate = Readonly<{
   name: string
-  pattern: RegExp
+  matches: (source: string) => boolean
 }>
 type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
   ? [Expected] extends [Actual]
@@ -44,29 +70,68 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
   'canonOracle.ts',
+  'changeOperationGate.ts',
+  'clientDiscipline.ts',
+  'durableQueue.ts',
   'eventFieldRules.ts',
   'eventKinds.ts',
+  'failureScenarioContract.ts',
   'idempotencyCollision.ts',
+  'k5Tombstone.ts',
+  'localQueueFile.ts',
+  'mappingConfirmationGate.ts',
+  'queueState.ts',
+  'queueTransition.ts',
   'requestBoundary.ts',
+  'singleWriter.ts',
   'syncEvent.ts',
+  'syncNotices.ts',
   'temporaryIdMapping.ts',
   'validateSyncEvent.ts',
 ] as const
 
 const EXPECTED_VALUE_EXPORTS = {
   'canonOracle.ts': [
+    'CANON_ACK_STATE_RESULT',
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
     'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
+    'parseCanonAckStateResults',
     'parseCanonEventFieldRules',
     'parseCanonIdempotencyCollisionRules',
     'parseCanonParticipationRules',
+    'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
+    'parseCanonTombstoneRule',
     'parseCanonV12BoundaryRules',
+    'readCanonAckStateResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
     'readCanonParticipationRules',
+    'readCanonQueueLifeRules',
     'readCanonTemporaryIdMappingRules',
+    'readCanonTombstoneRule',
     'readCanonV12BoundaryRules',
+  ],
+  'changeOperationGate.ts': [
+    'CHANGE_OPERATION_GATE_RESULT',
+    'checkChangeOperationGate',
+  ],
+  'clientDiscipline.ts': [
+    'CLIENT_CLEANUP_TRIGGER',
+    'CLIENT_DISCIPLINE_RULES',
+    'DEFAULT_UNSENT_WARNING_THRESHOLD',
+    'appendUnderQueueDiscipline',
+    'coordinateAuthenticationSync',
+    'planQueueCleanup',
+  ],
+  'durableQueue.ts': [
+    'DurableQueue',
+    'DURABLE_QUEUE_PUBLIC_METHOD_RULES',
+    'DurableQueueUnavailableError',
+    'DurableQueuePreparation',
+    'I6EvacuationReceipt',
+    'I6PersistenceReceipt',
+    'openDurableQueue',
   ],
   'eventFieldRules.ts': [
     'EVENT_FIELD_PRESENCE',
@@ -87,12 +152,39 @@ const EXPECTED_VALUE_EXPORTS = {
     'EVENT_PARTICIPATION',
     'buildSyncEventKindSet',
   ],
+  'failureScenarioContract.ts': [
+    'FAILURE_EXPECTED_FIELD_IDS',
+    'FAILURE_SCENARIO_IDS',
+    'FailureScenarioContractError',
+    'parseFailureScenarioContract',
+    'validateFailureScenarioContract',
+    'validateFailureScenarioResult',
+  ],
   'idempotencyCollision.ts': [
     'CONTENT_IDENTITY',
     'IDEMPOTENCY_COLLISION_RULES',
     'IDEMPOTENCY_DECISION',
     'IDEMPOTENCY_SCOPE_RULE',
     'decideIdempotencyCollision',
+  ],
+  'k5Tombstone.ts': [
+    'K5_ACTION_GENERATION_RULES',
+    'K5_TOMBSTONE_RULE',
+    'TOMBSTONE_ONLINE_STATE',
+    'prepareTombstoneReplacement',
+  ],
+  'localQueueFile.ts': [
+    'DEFAULT_LOCAL_QUEUE_FILE_CODEC',
+    'LOCAL_QUEUE_IMPORT_STATUS',
+    'LOCAL_QUEUE_V12_BOUNDARY_RULES',
+    'LocalQueueFileError',
+    'exportLocalQueueFile',
+    'importLocalQueueFile',
+  ],
+  'mappingConfirmationGate.ts': [
+    'C4_MAPPING_CONFIRMATION_RULE',
+    'MAPPING_CONFIRMATION_STATUS',
+    'checkMappingConfirmation',
   ],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
@@ -104,11 +196,40 @@ const EXPECTED_VALUE_EXPORTS = {
     'retryRequestBoundary',
     'validateRequestBoundary',
   ],
+  'singleWriter.ts': [
+    'NON_OWNER_INPUT_REASON',
+    'SINGLE_WRITER_PRECONDITION_IDS',
+    'SINGLE_WRITER_START_FAILURE',
+    'rejectNonOwnerInput',
+    'runAsSingleWriter',
+    'singleWriterLockName',
+  ],
+  'queueState.ts': [
+    'I6_HOLDING_CONTRACT',
+    'QUEUE_ACTION_REQUIRED_LABELS',
+    'QUEUE_STATES',
+    'actionRequiredLabelId',
+    'queueStateId',
+  ],
+  'queueTransition.ts': [
+    'B3_REASON_KIND',
+    'QUEUE_TRANSITION_ROW_IDS',
+    'QUEUE_TRANSITION_RULES',
+    'RG1_STATE',
+    'evaluateQueueTransition',
+    'queueTransitionRuleById',
+  ],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
     'buildSidecarJoinKey',
     'isTargetEventReference',
+  ],
+  'syncNotices.ts': [
+    'SYNC_NOTICE_CATALOG',
+    'SYNC_NOTICE_IDS',
+    'createStoragePersistenceNotice',
+    'createSyncNotice',
   ],
   'temporaryIdMapping.ts': [
     'TEMPORARY_ID_MAPPING_RULES',
@@ -125,11 +246,45 @@ const EXPECTED_VALUE_EXPORTS = {
 
 const EXPECTED_TYPE_EXPORTS = {
   'canonOracle.ts': [
+    'CanonAckStateResult',
     'CanonEventFieldRule',
     'CanonEventKindRule',
     'CanonIdempotencyCollisionRule',
+    'CanonQueueLifeRule',
     'CanonTemporaryIdMappingRule',
+    'CanonTombstoneRule',
     'CanonV12BoundaryRule',
+  ],
+  'changeOperationGate.ts': [
+    'ChangeOperationGateInjections',
+    'ChangeOperationGateRejection',
+    'ChangeOperationGateRequest',
+    'ChangeOperationGateResult',
+  ],
+  'clientDiscipline.ts': [
+    'AuthenticationContinuityInjections',
+    'AuthenticationContinuityResult',
+    'ClientCleanupInjections',
+    'ClientCleanupPlan',
+    'ClientCleanupTrigger',
+    'ClientDisciplineRule',
+    'QueueAppendDisciplineResult',
+    'QueueCleanupCandidate',
+    'QueueCleanupSelector',
+  ],
+  'durableQueue.ts': [
+    'D1Allocator',
+    'DurableI6Slot',
+    'DurableQueueAppend',
+    'DurableQueueOptions',
+    'DurableQueueRevisionReplacement',
+    'DurableQueueScope',
+    'DurableQueueSlot',
+    'DurableQueueTombstoneOperation',
+    'I6AcceptedAtResolution',
+    'I6EvacuationInjections',
+    'I6PersistenceInjections',
+    'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
     'EventFieldConditionContext',
@@ -147,6 +302,15 @@ const EXPECTED_TYPE_EXPORTS = {
     'EventKindId',
     'EventParticipation',
   ],
+  'failureScenarioContract.ts': [
+    'FailureExpectedFieldId',
+    'FailureScenarioComparisonUnit',
+    'FailureScenarioContract',
+    'FailureScenarioField',
+    'FailureScenarioId',
+    'FailureScenarioObservation',
+    'FailureScenarioResult',
+  ],
   'idempotencyCollision.ts': [
     'ContentIdentity',
     'IdempotencyBoundaryResult',
@@ -159,6 +323,33 @@ const EXPECTED_TYPE_EXPORTS = {
     'IdempotencyScopeRule',
     'StoredIdempotencyOperation',
   ],
+  'k5Tombstone.ts': [
+    'TombstoneBoundaryRequest',
+    'TombstoneGenerationInjections',
+    'TombstoneGenerationRequest',
+    'TombstoneGenerationResult',
+    'TombstoneOnlineState',
+    'TombstoneQueueSlotReplacement',
+    'TombstoneRecordingRightVerifier',
+    'TombstoneSourceSlot',
+  ],
+  'localQueueFile.ts': [
+    'LocalQueueB4Event',
+    'LocalQueueFileCodec',
+    'LocalQueueFileEnvelope',
+    'LocalQueueFileExportInjections',
+    'LocalQueueFileExportRequest',
+    'LocalQueueFileImportInjections',
+    'LocalQueueFileImportRequest',
+    'LocalQueueFileImportResult',
+    'LocalQueueFileProvenance',
+  ],
+  'mappingConfirmationGate.ts': [
+    'MappingConfirmationGateResult',
+    'MappingConfirmationInjections',
+    'MappingConfirmationRequest',
+    'PlayerRegistrationMappingResolver',
+  ],
   'requestBoundary.ts': [
     'P3RequestState',
     'RecoveryGenerationVerifier',
@@ -169,11 +360,47 @@ const EXPECTED_TYPE_EXPORTS = {
     'V12BindingComponent',
     'V12BindingVerifier',
   ],
+  'singleWriter.ts': [
+    'ExclusiveLockManager',
+    'NonOwnerInputRejection',
+    'SingleWriterInjections',
+    'SingleWriterPreconditionId',
+    'SingleWriterPreconditions',
+    'SingleWriterRequest',
+    'SingleWriterResult',
+    'SingleWriterRevalidationContext',
+    'SingleWriterStartFailure',
+  ],
+  'queueState.ts': [
+    'I6Acceptance',
+    'I6AcceptedResult',
+    'I6HoldingContract',
+    'I6HoldingContractElement',
+    'QueueActionRequiredLabel',
+    'QueueState',
+    'QueueStateId',
+  ],
+  'queueTransition.ts': [
+    'B3ReasonClassification',
+    'QueueEventKey',
+    'QueueSlot',
+    'QueueTransitionInjections',
+    'QueueTransitionRequest',
+    'QueueTransitionResult',
+    'QueueTransitionRowId',
+    'QueueTransitionRule',
+    'Rg1State',
+  ],
   'syncEvent.ts': [
     'SidecarJoinKey',
     'SyncEvent',
     'SyncEventEnvelopeKey',
     'TargetEventReference',
+  ],
+  'syncNotices.ts': [
+    'SyncNoticeDescriptor',
+    'SyncNoticeId',
+    'SyncNoticeParamsById',
   ],
   'temporaryIdMapping.ts': [
     'TemporaryIdMappingRecord',
@@ -189,21 +416,48 @@ const EXPECTED_TYPE_EXPORTS = {
   ],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
-const rawModules = import.meta.glob<RawModule>('./**/*.ts', {
-  query: '?raw',
-  eager: true,
-})
+const EXPECTED_TESTING_SOURCE_FILE_NAMES = [
+  'testing/failureScenarioAdapter.ts',
+] as const
+
+const EXPECTED_SCANNED_SOURCE_FILE_NAMES = [
+  ...EXPECTED_PRODUCT_FILE_NAMES,
+  ...EXPECTED_TESTING_SOURCE_FILE_NAMES,
+] as const
+
+const rawModules = import.meta.glob<RawModule>(
+  ['./**/*.ts', '../../testing/**/*.ts'],
+  {
+    query: '?raw',
+    eager: true,
+  },
+)
 const productModules = import.meta.glob<ProductModule>(
   ['./**/*.ts', '!./**/*.spec.ts'],
   { eager: true },
 )
 
-const productSources: readonly ProductSource[] = Object.entries(rawModules)
-  .filter(([path]) => !path.endsWith('.spec.ts'))
+function scannedFileName(path: string): string {
+  if (path.startsWith('./')) {
+    return path.slice(2)
+  }
+  const testingPrefix = '../../testing/'
+  if (path.startsWith(testingPrefix)) {
+    return `testing/${path.slice(testingPrefix.length)}`
+  }
+  throw new Error(`未知の raw 走査対象パスです: ${path}`)
+}
+
+const scannedSources: readonly ProductSource[] = Object.entries(rawModules)
   .map(([path, module]) => ({
-    fileName: path.slice(2),
+    fileName: scannedFileName(path),
     source: module.default,
   }))
+  .filter((entry) => !entry.fileName.endsWith('.spec.ts'))
+
+const productSources = scannedSources.filter(
+  (entry) => !entry.fileName.startsWith('testing/'),
+)
 
 const actualProductFileNames = productSources
   .map((entry) => entry.fileName)
@@ -219,24 +473,69 @@ if (
     `走査対象の製品ファイル集合が一致しません: ${actualProductFileNames.join(',')}`,
   )
 }
+const actualScannedSourceFileNames = scannedSources
+  .map((entry) => entry.fileName)
+  .sort()
+const expectedScannedSourceFileNames = [
+  ...EXPECTED_SCANNED_SOURCE_FILE_NAMES,
+].sort()
+if (
+  actualScannedSourceFileNames.length !==
+    expectedScannedSourceFileNames.length ||
+  actualScannedSourceFileNames.some(
+    (fileName, index) => fileName !== expectedScannedSourceFileNames[index],
+  )
+) {
+  throw new Error(
+    `raw 走査対象のファイル集合が一致しません: ${actualScannedSourceFileNames.join(',')}`,
+  )
+}
 const PRODUCT_SOURCES = Object.freeze(productSources)
+const SCANNED_SOURCES = Object.freeze(scannedSources)
+
+function byPattern(pattern: RegExp): (source: string) => boolean {
+  return (source) => pattern.test(source)
+}
+
+const NUMBERING_PATTERN = /採番/
+const NUMBERING_CONTEXT_PATTERN = /退避|取り込み/
+const IMPORT_PATTERN = /取り込み/
+const EVACUATED_PATTERN = /退避/
+
+export function matchesForbiddenImportContext(source: string): boolean {
+  return source
+    .split(/\r\n?|\n/)
+    .some((line) => IMPORT_PATTERN.test(line) && EVACUATED_PATTERN.test(line))
+}
+
+export function matchesForbiddenNumberingContext(source: string): boolean {
+  return source
+    .split(/\r\n?|\n/)
+    .some(
+      (line) =>
+        NUMBERING_PATTERN.test(line) && NUMBERING_CONTEXT_PATTERN.test(line),
+    )
+}
 
 // U-1〜U-4 は日本語の正本語が現れるかだけを走査し、意味の同一性までは判定しない。
 // 型プロパティ名や内部構造による同等物は検出できないため、H-59 の人間逐行確認へ送る。
 const OUT_OF_SCOPE_CANDIDATES = {
   U1: [
-    { name: '対象連番', pattern: /対象連番/ },
-    { name: '欠落範囲', pattern: /欠落範囲/ },
+    { name: '対象連番', matches: byPattern(/対象連番/) },
+    { name: '欠落範囲', matches: byPattern(/欠落範囲/) },
   ],
   U2: [
-    { name: '退避イベント', pattern: /退避イベント/ },
-    { name: '退避取り込み', pattern: /退避.*取り込み|取り込み.*退避/ },
-    { name: '挿入位置', pattern: /挿入位置/ },
-    { name: '採番', pattern: /採番/ },
-    { name: '凍結', pattern: /凍結/ },
+    { name: '退避イベント', matches: byPattern(/退避イベント/) },
+    {
+      name: '退避取り込み',
+      matches: matchesForbiddenImportContext,
+    },
+    { name: '挿入位置', matches: byPattern(/挿入位置/) },
+    { name: '採番', matches: matchesForbiddenNumberingContext },
+    { name: '凍結', matches: byPattern(/凍結/) },
   ],
-  U3: [{ name: '保持期限', pattern: /保持期限/ }],
-  U4: [{ name: '正史復元', pattern: /正史復元/ }],
+  U3: [{ name: '保持期限', matches: byPattern(/保持期限/) }],
+  U4: [{ name: '正史復元', matches: byPattern(/正史復元/) }],
 } as const satisfies Readonly<Record<string, readonly ForbiddenCandidate[]>>
 
 const V_IDS = [
@@ -296,6 +595,74 @@ const VERIFICATION_ROWS = [
   '#12 交代イベントの修正 → eventKinds.ts / EVENT_KIND_RULES（群 B・従属・変更版順あり）',
 ] as const
 
+const QUEUE_STATE_VERIFICATION_ROWS = [
+  `状態 ${queueStateId('未送信')} → queueState.ts / QUEUE_STATES（確定前・自動破棄しない）`,
+  `状態 ${queueStateId('要操作')} → queueState.ts / QUEUE_STATES（自動再送・自動破棄の対象外）`,
+  `状態 ${queueStateId('同期済み')} → queueState.ts / QUEUE_STATES（端末永続化済み結果を保持）`,
+  `状態 ${queueStateId('退避済み')} → queueState.ts / QUEUE_STATES（閲覧・書き出し対象）`,
+  `要操作下位 ${actionRequiredLabelId('改訂待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+  `要操作下位 ${actionRequiredLabelId('墓標待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+  `要操作下位 ${actionRequiredLabelId('管理者対応待ち')} → queueState.ts / QUEUE_ACTION_REQUIRED_LABELS`,
+] as const
+
+const I6_VERIFICATION_ROWS = I6_HOLDING_CONTRACT.elements.map(
+  (element) =>
+    `${I6_HOLDING_CONTRACT.id} ${I6_HOLDING_CONTRACT.name} / ${element.id} → queueState.ts / I6_HOLDING_CONTRACT`,
+)
+
+const TRANSITION_VERIFICATION_ROWS = QUEUE_TRANSITION_RULES.map((rule) => {
+  const a5ResultIds =
+    'a5ResultIds' in rule.condition
+      ? ` / A5=${rule.condition.a5ResultIds.join('+')}`
+      : ''
+  return `${rule.id} ${rule.source} → ${rule.target} / ${rule.trigger} / ${rule.condition.kind}${a5ResultIds} / 許可=${rule.transitionAllowed} / 状態変更=${rule.changesState}`
+})
+
+const CLIENT_RULE_VERIFICATION_ROWS = [
+  'Q1 新規スロットの追記と D1 採番を不可分に永続化 → durableQueue.ts',
+  'Q2 同一ブラウザの複数タブは単一の書き手だけが記録 → singleWriter.ts',
+  `${CLIENT_DISCIPLINE_RULES[0].id} 警告閾値でも記録をブロックしない → clientDiscipline.ts`,
+  'Q4 未送信件数を常時表示する記述子 → syncNotices.ts',
+  'Q5 キュー空の同期成功時に試合と球数を通知する記述子 → syncNotices.ts',
+  'Q6 永続ストレージ要求の拒否を警告する記述子 → syncNotices.ts',
+  `${CLIENT_DISCIPLINE_RULES[1].id} 認証失効でもキューを失わず再ログイン後に同期再開 → clientDiscipline.ts`,
+  'Q2-a 単一書き手選出の6前提 → singleWriter.ts / SINGLE_WRITER_PRECONDITION_IDS',
+  'Q2-b 非所有タブの記録不可と旧タブ終了の導線 → syncNotices.ts / singleWriter.ts',
+  'Q2-c ロック保持中の非所有タブ入力を未受理にする → singleWriter.ts',
+  'Q2-r1 steal を使わない → singleWriter.ts',
+  'Q2-r2 コンテキスト終了時の解放後に待機側が取得 → singleWriter.ts',
+  'Q2-r3 同一 storage bucket の永続キューを保持 → durableQueue.ts / singleWriter.ts',
+  'Q2-r4 ロック取得後かつ記録開始前に単一書き手を再検証 → singleWriter.ts',
+] as const
+
+const LOCAL_QUEUE_VERIFICATION_ROWS = [
+  'X1 書き出しで D1・D4・D5 を含むイベントの原形を保持 → localQueueFile.ts',
+  'X2 取り込み専用の重複判定を作らず通常キューへ流す → localQueueFile.ts',
+  'X3 単一の試合・D4 と要求境界 verifier の成立時だけ取り込み → localQueueFile.ts',
+  'X4 同一端末・同一ブラウザだけを保証 → localQueueFile.ts',
+] as const
+
+const SPECIAL_RULE_VERIFICATION_ROWS = [
+  'K5 オンライン記録権確認後に同じ D1 の墓標版へ不可分置換 → k5Tombstone.ts',
+  'C4 写像確定まで当該イベントを同期済みにしない → mappingConfirmationGate.ts',
+] as const
+
+const W4_VERIFICATION_ROWS = [
+  'W4 オンライン前提 → 進行中 P3 は適用 / 終了後 P3 も適用',
+  'W4 記録権保持前提 → 進行中 P3 は要求境界で照合 / 終了後 P3 は適用しない',
+  'W4 未同期キュー空前提 → 進行中 P3 は適用 / 終了後 P3 は適用しない',
+] as const
+
+const STEP_13_VERIFICATION_ROWS = [
+  ...QUEUE_STATE_VERIFICATION_ROWS,
+  ...I6_VERIFICATION_ROWS,
+  ...TRANSITION_VERIFICATION_ROWS,
+  ...CLIENT_RULE_VERIFICATION_ROWS,
+  ...LOCAL_QUEUE_VERIFICATION_ROWS,
+  ...SPECIAL_RULE_VERIFICATION_ROWS,
+  ...W4_VERIFICATION_ROWS,
+] as const
+
 function sourceFor(fileName: string): string {
   const productSource = PRODUCT_SOURCES.find(
     (candidate) => candidate.fileName === fileName,
@@ -318,11 +685,11 @@ function expectCandidatesAbsent(
   candidates: readonly ForbiddenCandidate[],
 ): void {
   for (const candidate of candidates) {
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       expect(
-        productSource.source,
+        candidate.matches(productSource.source),
         `${productSource.fileName} に ${candidate.name} が現れています`,
-      ).not.toMatch(candidate.pattern)
+      ).toBe(false)
     }
   }
 }
@@ -412,6 +779,77 @@ function exactStringLiterals(source: string, valuePattern: string): string[] {
     .filter((value): value is string => value !== undefined)
 }
 
+function durableQueuePublicMethods(
+  source: string,
+): readonly ts.MethodDeclaration[] {
+  const sourceFile = ts.createSourceFile(
+    'durableQueue.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const durableQueueClass = sourceFile.statements.find(
+    (statement): statement is ts.ClassDeclaration =>
+      ts.isClassDeclaration(statement) &&
+      statement.name?.text === 'DurableQueue',
+  )
+  if (!durableQueueClass) {
+    throw new Error('DurableQueue class がありません')
+  }
+  return durableQueueClass.members
+    .filter((member): member is ts.MethodDeclaration =>
+      ts.isMethodDeclaration(member),
+    )
+    .filter(
+      (member) =>
+        !ts
+          .getModifiers(member)
+          ?.some(
+            (modifier) =>
+              modifier.kind === ts.SyntaxKind.PrivateKeyword ||
+              modifier.kind === ts.SyntaxKind.ProtectedKeyword ||
+              modifier.kind === ts.SyntaxKind.StaticKeyword,
+          ),
+    )
+}
+
+function methodName(method: ts.MethodDeclaration): string | undefined {
+  return ts.isIdentifier(method.name) ? method.name.text : undefined
+}
+
+function hasReadwriteTransaction(method: ts.MethodDeclaration): boolean {
+  let found = false
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'transaction' &&
+      node.arguments[1] !== undefined &&
+      ts.isStringLiteral(node.arguments[1]) &&
+      node.arguments[1].text === 'readwrite'
+    ) {
+      found = true
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  if (method.body) {
+    visit(method.body)
+  }
+  return found
+}
+
+function sameStringSet(
+  first: readonly string[],
+  second: readonly string[],
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every((value) => second.includes(value))
+  )
+}
+
 describe('prohibitions', () => {
   it('raw 走査対象を再帰取得し、製品ファイルの完全集合と一致させる', () => {
     expect(EXPECTED_PRODUCT_FILE_NAMES.length).toBeGreaterThan(0)
@@ -427,6 +865,19 @@ describe('prohibitions', () => {
     expect(PRODUCT_SOURCES.every((entry) => entry.source.length > 0)).toBe(true)
     expect(
       PRODUCT_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
+    ).toBe(true)
+    expect(SCANNED_SOURCES.map((entry) => entry.fileName).sort()).toEqual(
+      [...EXPECTED_SCANNED_SOURCE_FILE_NAMES].sort(),
+    )
+    expect(
+      SCANNED_SOURCES.some(
+        (entry) =>
+          entry.fileName === EXPECTED_TESTING_SOURCE_FILE_NAMES[0] &&
+          entry.source.length > 0,
+      ),
+    ).toBe(true)
+    expect(
+      SCANNED_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
     ).toBe(true)
   })
 
@@ -465,6 +916,233 @@ describe('prohibitions', () => {
     expect(exactEnvelopeType).toBe(true)
     expect(exactSlotType).toBe(true)
     expectEventSlotsToMatchCanon()
+  })
+
+  it('P-24: キュー要素を SyncEvent 単位に閉じ、プレイ行の列を受け取らない', () => {
+    const event: SyncEvent = { fields: {} }
+    const append: DurableQueueAppend = {
+      scope: { game: {}, d4: {} },
+      d5: {},
+      version: {},
+      event,
+    }
+    const slot: DurableQueueSlot = {
+      game: {},
+      d4: {},
+      d1: 1,
+      d5: {},
+      version: {},
+      event,
+      state: queueStateId('未送信'),
+    }
+    const playRowSequence = [{ id: {} }]
+    const invalidEventAppend: DurableQueueAppend = {
+      ...append,
+      // @ts-expect-error キュー要素にはプレイ行の列を渡せない。
+      event: playRowSequence,
+    }
+    const invalidPlayRowColumn: DurableQueueAppend = {
+      ...append,
+      // @ts-expect-error キュー入力にプレイ行の列を追加できない。
+      playRows: playRowSequence,
+    }
+    const exactAppendKeys: ExactKeySet<
+      keyof DurableQueueAppend,
+      'scope' | 'd5' | 'version' | 'event'
+    > = true
+    const exactSlotKeys: ExactKeySet<
+      keyof DurableQueueSlot,
+      | 'game'
+      | 'd4'
+      | 'd1'
+      | 'd5'
+      | 'version'
+      | 'event'
+      | 'state'
+      | 'actionRequiredLabel'
+    > = true
+    const exactAppendEvent: ExactKeySet<
+      DurableQueueAppend['event'],
+      SyncEvent
+    > = true
+    const exactSlotEvent: ExactKeySet<DurableQueueSlot['event'], SyncEvent> =
+      true
+
+    expect([
+      exactAppendKeys,
+      exactSlotKeys,
+      exactAppendEvent,
+      exactSlotEvent,
+    ]).toEqual([true, true, true, true])
+    expect(append.event).toBe(event)
+    expect(slot.event).toBe(event)
+    expect(invalidEventAppend.event).toBe(playRowSequence)
+    expect(Object.hasOwn(invalidPlayRowColumn, 'playRows')).toBe(true)
+  })
+
+  it('K5: 汎用置換を公開せず、D6 と D7 の入口を分離する', () => {
+    type ReplacementMethod = Extract<
+      keyof DurableQueue,
+      'replace' | 'replaceRevision' | 'replaceWithTombstone'
+    >
+    const exactReplacementMethods: ExactKeySet<
+      ReplacementMethod,
+      'replaceRevision' | 'replaceWithTombstone'
+    > = true
+    const invalidLowLevelReplace = (queue: DurableQueue) => {
+      // @ts-expect-error K5 を迂回する汎用置換 API は公開しない。
+      return queue.replace
+    }
+
+    expect(exactReplacementMethods).toBe(true)
+    expect(Object.hasOwn(DurableQueue.prototype, 'replace')).toBe(false)
+    expect(invalidLowLevelReplace).toBeTypeOf('function')
+  })
+
+  it('H-78: DurableQueue の公開変更メソッドを不透明 preparation / receipt 境界に閉じる', () => {
+    type MutationMethodName = {
+      [
+        Name in keyof typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES
+      ]: (typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES)[Name] extends {
+        effect: 'mutation'
+      }
+        ? Name
+        : never
+    }[keyof typeof DURABLE_QUEUE_PUBLIC_METHOD_RULES]
+    type MutationBoundary = DurableQueuePreparation | I6EvacuationReceipt
+    type UnsafeMutationMethod = {
+      [Name in MutationMethodName]: Parameters<
+        DurableQueue[Name]
+      >[0] extends MutationBoundary
+        ? never
+        : Name
+    }[MutationMethodName]
+    const noUnsafeMutationMethod: ExactKeySet<UnsafeMutationMethod, never> =
+      true
+    const publicMethods = durableQueuePublicMethods(
+      sourceFor('durableQueue.ts'),
+    )
+    const publicMethodNames = publicMethods
+      .map(methodName)
+      .filter((name): name is string => name !== undefined)
+    const mutationRuleEntries = Object.entries(
+      DURABLE_QUEUE_PUBLIC_METHOD_RULES,
+    ).filter((entry) => entry[1].effect === 'mutation')
+    const readwriteMethodNames = publicMethods
+      .filter(hasReadwriteTransaction)
+      .map(methodName)
+      .filter((name): name is string => name !== undefined)
+
+    expect(noUnsafeMutationMethod).toBe(true)
+    expect(new Set(publicMethodNames)).toEqual(
+      new Set(Object.keys(DURABLE_QUEUE_PUBLIC_METHOD_RULES)),
+    )
+    expect(mutationRuleEntries).toHaveLength(5)
+    expect(new Set(readwriteMethodNames)).toEqual(
+      new Set(mutationRuleEntries.map(([name]) => name)),
+    )
+    expect(
+      mutationRuleEntries.every(
+        ([, rule]) =>
+          'boundary' in rule &&
+          (rule.boundary === 'preparation' || rule.boundary === 'receipt'),
+      ),
+    ).toBe(true)
+  })
+
+  it('変異: readwrite の新メソッドを read と自己申告しても AST 集合検査で検出する', () => {
+    const mutatedSource = sourceFor('durableQueue.ts').replace(
+      '  close(): void {',
+      `  misclassifiedMutation(): void {
+    this.#database.transaction('queue', 'readwrite')
+  }
+
+  close(): void {`,
+    )
+    const readwriteMethodNames = durableQueuePublicMethods(mutatedSource)
+      .filter(hasReadwriteTransaction)
+      .map(methodName)
+      .filter((name): name is string => name !== undefined)
+    const mutatedRules = {
+      ...DURABLE_QUEUE_PUBLIC_METHOD_RULES,
+      misclassifiedMutation: { effect: 'read' },
+    } as const
+    const declaredMutationNames = Object.entries(mutatedRules)
+      .filter((entry) => entry[1].effect === 'mutation')
+      .map(([name]) => name)
+
+    expect(readwriteMethodNames).toContain('misclassifiedMutation')
+    expect(sameStringSet(readwriteMethodNames, declaredMutationNames)).toBe(
+      false,
+    )
+  })
+
+  it('I6: 保持結果を5要素の別フィールドに閉じ、期限・回収用フィールドを持たない', () => {
+    type AcceptedResultKeys = keyof I6AcceptedResult
+    const exactAcceptedResultKeys: ExactKeySet<
+      AcceptedResultKeys,
+      | 'targetReference'
+      | 'expectedVersion'
+      | 'd5'
+      | 'confirmedContent'
+      | 'acceptedAt'
+    > = true
+    type ForbiddenHoldingKeys = Extract<
+      AcceptedResultKeys,
+      'retentionDeadline' | 'expiresAt' | 'recoveryState'
+    >
+    const noForbiddenHoldingKeys: ExactKeySet<ForbiddenHoldingKeys, never> =
+      true
+    const invalidReceipt = (slot: DurableI6Slot) => {
+      // @ts-expect-error 永続化を通らない receipt は型から生成できない。
+      return new I6PersistenceReceipt(slot, Symbol('forged receipt'))
+    }
+
+    expect(exactAcceptedResultKeys).toBe(true)
+    expect(noForbiddenHoldingKeys).toBe(true)
+    expect(invalidReceipt).toBeTypeOf('function')
+    expect(
+      Object.keys(moduleFor('durableQueue.ts')).filter((name) =>
+        /recover|reapply|restore/i.test(name),
+      ),
+    ).toEqual([])
+  })
+
+  it('C4: A5 の公開入口は永続キュー発行の preparation だけを受け取る', () => {
+    type ApplyA5Request = Extract<QueueTransitionRequest, { kind: 'apply-a5' }>
+    type MappingResolver = NonNullable<
+      NonNullable<
+        Parameters<DurableQueue['prepareA5Transition']>[2]
+      >['resolvePlayerRegistrationMapping']
+    >
+    const preparation = {} as DurableQueuePreparation<'a5-transition'>
+    const queue = {} as DurableQueue
+    const slot: QueueSlot = {
+      state: queueStateId('未送信'),
+      source: 'd1-event',
+      key: { d4: {}, d1: {}, d5: {} },
+      content: {},
+    }
+    const request: ApplyA5Request = {
+      kind: 'apply-a5',
+      queue,
+      preparation,
+    }
+    const resolver: MappingResolver = () => true
+    const invalidEventKindArgument = {
+      kind: 'apply-a5',
+      slot,
+      eventKind: EVENT_KIND_RULES[0],
+    } as unknown as QueueTransitionRequest
+    const exactRequestKeys: ExactKeySet<
+      keyof ApplyA5Request,
+      'kind' | 'queue' | 'preparation'
+    > = true
+
+    expect(exactRequestKeys).toBe(true)
+    expect(Object.keys(request)).toEqual(['kind', 'queue', 'preparation'])
+    expect(resolver({})).toBe(true)
+    expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {
@@ -538,6 +1216,22 @@ describe('prohibitions', () => {
       ReturnType<typeof checkSyncEvent>,
       SyncEventValidationResult
     > = true
+    const exactLocalQueueImportRequest: ExactKeySet<
+      keyof LocalQueueFileImportRequest,
+      'text' | 'currentScope' | 'boundaryRequest'
+    > = true
+    const exactLocalQueueScope: ExactKeySet<
+      keyof LocalQueueFileImportRequest['currentScope'],
+      'game' | 'd4'
+    > = true
+    const exactLocalQueueImportResult: ExactKeySet<
+      keyof LocalQueueFileImportResult,
+      'status' | 'scope' | 'importedEvents' | 'b4Events' | 'notImportedEvents'
+    > = true
+    const exactLocalQueueResultScope: ExactKeySet<
+      LocalQueueFileImportResult['scope'],
+      LocalQueueFileImportRequest['currentScope']
+    > = true
     const event: SyncEvent = {
       fields: { V1: {}, V2: {}, V3: {}, V4: {}, V5: '6', V7: {} },
     }
@@ -558,7 +1252,23 @@ describe('prohibitions', () => {
       exactSuccess,
       exactFailure,
       exactReturnType,
-    ]).toEqual([true, true, true, true, true, true, true])
+      exactLocalQueueImportRequest,
+      exactLocalQueueScope,
+      exactLocalQueueImportResult,
+      exactLocalQueueResultScope,
+    ]).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ])
     expectExactOwnKeys(success, ['ok'])
     if (failure.ok) {
       throw new Error('検査失敗の戻り値がありません')
@@ -640,7 +1350,7 @@ describe('prohibitions', () => {
         exactStringLiterals(sourceFor('eventFieldRules.ts'), valuePattern),
       ),
     ).toEqual(new Set(V_IDS))
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       if (productSource.fileName !== 'eventFieldRules.ts') {
         expect(exactStringLiterals(productSource.source, valuePattern)).toEqual(
           [],
@@ -658,7 +1368,7 @@ describe('prohibitions', () => {
 
     expect(EVENT_KIND_IDS.length).toBeGreaterThan(0)
     expect(eventKindLiterals).toEqual([...EVENT_KIND_IDS, '7'])
-    for (const productSource of PRODUCT_SOURCES) {
+    for (const productSource of SCANNED_SOURCES) {
       if (productSource.fileName !== 'eventKinds.ts') {
         expect(exactStringLiterals(productSource.source, valuePattern)).toEqual(
           [],
@@ -675,6 +1385,42 @@ describe('prohibitions', () => {
     },
   )
 
+  it.each([
+    '(試合, D4) ごとに D1 を採番する',
+    '書き出しの時点で採番し直さない',
+    '墓標は新しい D1 を採番しない',
+  ])('U-2: 通常の採番文脈を許可する: %s', (source) => {
+    expect(matchesForbiddenNumberingContext(source)).toBe(false)
+  })
+
+  it.each([
+    '退避済み資料を現行世代へ取り込み、採番する',
+    '退避イベントを取り込むときに採番する',
+    '通常の説明\n退避済み資料を採番する\n別の説明',
+  ])('U-2: 退避イベントの取り込み文脈を禁止する: %s', (source) => {
+    expect(matchesForbiddenNumberingContext(source)).toBe(true)
+  })
+
+  it('U-2: 行をまたぐ語の出現を取り込み文脈と判定しない', () => {
+    expect(
+      matchesForbiddenNumberingContext('退避済み資料\n通常の説明\n採番する'),
+    ).toBe(false)
+  })
+
+  it('U-2: ローカルキューファイル実装が禁止された採番文脈を持たない', () => {
+    expect(
+      matchesForbiddenNumberingContext(sourceFor('localQueueFile.ts')),
+    ).toBe(false)
+    expect(matchesForbiddenImportContext(sourceFor('localQueueFile.ts'))).toBe(
+      false,
+    )
+  })
+
+  it('X2: ローカルキューファイル実装に D5 のローカル判定を持たない', () => {
+    expect(sourceFor('localQueueFile.ts')).not.toMatch(/\.d5\b/)
+    expect(sourceFor('localQueueFile.ts')).not.toMatch(/duplicateEvents/)
+  })
+
   it('H-59 の逐語照合入力を24行出力する', async () => {
     expect(VERIFICATION_ROWS).toHaveLength(24)
     expect(VERIFICATION_ROWS.filter((row) => row.startsWith('V'))).toHaveLength(
@@ -686,6 +1432,23 @@ describe('prohibitions', () => {
     expect(VERIFICATION_ROWS.every((row) => !row.includes('\n'))).toBe(true)
 
     console.log(VERIFICATION_ROWS.join('\n'))
+    await Promise.resolve()
+  })
+
+  it('H-59 の実装逐語照合入力を55行出力する', async () => {
+    expect(QUEUE_STATE_VERIFICATION_ROWS).toHaveLength(7)
+    expect(I6_VERIFICATION_ROWS).toHaveLength(11)
+    expect(TRANSITION_VERIFICATION_ROWS).toHaveLength(14)
+    expect(CLIENT_RULE_VERIFICATION_ROWS).toHaveLength(14)
+    expect(LOCAL_QUEUE_VERIFICATION_ROWS).toHaveLength(4)
+    expect(SPECIAL_RULE_VERIFICATION_ROWS).toHaveLength(2)
+    expect(W4_VERIFICATION_ROWS).toHaveLength(3)
+    expect(STEP_13_VERIFICATION_ROWS).toHaveLength(55)
+    expect(STEP_13_VERIFICATION_ROWS.every((row) => !row.includes('\n'))).toBe(
+      true,
+    )
+
+    console.log(STEP_13_VERIFICATION_ROWS.join('\n'))
     await Promise.resolve()
   })
 })

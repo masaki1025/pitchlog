@@ -1,6 +1,6 @@
-// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5 と 5-5 の対象規則の写しである。
+// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2 の対象規則の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
-// テストからのみ使う。
+// 正本語彙を必要とする同期モジュールとテストから使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_KIND_RULES } from './eventKinds'
 
@@ -11,6 +11,8 @@ const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
+const QUEUE_LIFE_RELATION_ID = 'R-QUEUE-LIFE'
+const ACK_STATE_RELATION_ID = 'R-ACK-STATE'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -77,8 +79,8 @@ const REVISION_ORDER_DEFINITION = {
   name: '変更版順',
   tokens: ['D1・D2とは別で論理再生順に使わない'],
 } as const
-// K5 はキュー遷移に属する墓標生成条件のため、既知の射程外定義として検証後に取り込まない。
-const OUT_OF_SCOPE_PARTICIPATION_DEFINITION = {
+// K5 は種別集合には入らないが、墓標生成条件として専用 reader が読み取る。
+const TOMBSTONE_RULE_DEFINITION = {
   id: 'K5',
   name: '墓標生成',
   tokens: ['オンライン記録権確認後', 'D1付きキュー'],
@@ -97,6 +99,12 @@ export type CanonEventKindRule = {
   participation: CanonParticipation
   hasRevisionOrder: boolean
 }
+
+export type CanonTombstoneRule = Readonly<{
+  id: typeof TOMBSTONE_RULE_DEFINITION.id
+  name: typeof TOMBSTONE_RULE_DEFINITION.name
+  tokens: typeof TOMBSTONE_RULE_DEFINITION.tokens
+}>
 
 type ParticipationSourceElement = {
   id: string
@@ -266,23 +274,20 @@ export function parseCanonParticipationRules(
   }
 
   let hasRevisionOrderDefinition = false
-  let hasOutOfScopeDefinition = false
+  let hasTombstoneRuleDefinition = false
   const eventKinds: CanonEventKindRule[] = []
   for (const element of elements) {
     if (element.id === REVISION_ORDER_DEFINITION.id) {
       assertParticipationDefinition(element, REVISION_ORDER_DEFINITION)
       hasRevisionOrderDefinition = true
-    } else if (element.id === OUT_OF_SCOPE_PARTICIPATION_DEFINITION.id) {
-      assertParticipationDefinition(
-        element,
-        OUT_OF_SCOPE_PARTICIPATION_DEFINITION,
-      )
-      hasOutOfScopeDefinition = true
+    } else if (element.id === TOMBSTONE_RULE_DEFINITION.id) {
+      assertParticipationDefinition(element, TOMBSTONE_RULE_DEFINITION)
+      hasTombstoneRuleDefinition = true
     } else {
       eventKinds.push(parseEventKindParticipation(element))
     }
   }
-  if (!hasRevisionOrderDefinition || !hasOutOfScopeDefinition) {
+  if (!hasRevisionOrderDefinition || !hasTombstoneRuleDefinition) {
     throw new Error('R-PARTICIPATION の定義行が不足しています')
   }
   return Object.freeze(eventKinds)
@@ -299,6 +304,43 @@ export function readCanonParticipationRules(
     throw new Error('R-PARTICIPATION.source_elements がありません')
   }
   return parseCanonParticipationRules(relation.source_elements)
+}
+
+export function parseCanonTombstoneRule(
+  sourceElements: readonly unknown[],
+): CanonTombstoneRule {
+  const tombstoneElements = sourceElements
+    .map(parseParticipationSourceElement)
+    .filter((element) => element.id === TOMBSTONE_RULE_DEFINITION.id)
+
+  if (tombstoneElements.length !== 1) {
+    throw new Error('R-PARTICIPATION の K5 行が一意ではありません')
+  }
+
+  const tombstoneElement = tombstoneElements[0]!
+  assertParticipationDefinition(tombstoneElement, TOMBSTONE_RULE_DEFINITION)
+
+  return Object.freeze({
+    id: TOMBSTONE_RULE_DEFINITION.id,
+    name: TOMBSTONE_RULE_DEFINITION.name,
+    tokens: Object.freeze([
+      tombstoneElement.tokens[0]!,
+      tombstoneElement.tokens[1]!,
+    ]) as typeof TOMBSTONE_RULE_DEFINITION.tokens,
+  })
+}
+
+export function readCanonTombstoneRule(
+  relations: unknown = syncProtocolRelations,
+): CanonTombstoneRule {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[PARTICIPATION_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-PARTICIPATION.source_elements がありません')
+  }
+  return parseCanonTombstoneRule(relation.source_elements)
 }
 
 const V12_BOUNDARY_IDS = new Set(['VF1', 'VF2', 'VF3', 'VF4', 'VF5', 'VF6'])
@@ -604,10 +646,9 @@ export function readCanonIdempotencyCollisionRules(
 // 射程外行は ID の存在だけを照合し、右辺を読まないため、右辺だけの変更は検出しない。
 export const CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE = [
   { id: 'C1', reason: '応答で写像を返す7章の契約に依存するため' },
-  { id: 'C4', reason: '写像確定後の状態遷移を定める7章の契約に依存するため' },
 ] as const
 
-const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3'])
+const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3', 'C4'])
 const OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS = new Set<string>(
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
 )
@@ -678,4 +719,211 @@ export function readCanonTemporaryIdMappingRules(
     throw new Error('R-TEMP-ID-MAPPING.source_elements がありません')
   }
   return parseCanonTemporaryIdMappingRules(relation.source_elements)
+}
+
+const CANON_QUEUE_STATE_IDS = [
+  '未送信',
+  '要操作',
+  '同期済み',
+  '退避済み',
+] as const
+type CanonQueueStateId = (typeof CANON_QUEUE_STATE_IDS)[number]
+const CANON_QUEUE_STATE_ID_SET = new Set<string>(CANON_QUEUE_STATE_IDS)
+
+const CANON_I6_ID = 'I6'
+const CANON_I6_NAME = 'P3受理結果の端末保持'
+const CANON_I6_HOLDING_ELEMENT_IDS = [
+  '端末永続化まで成立した対象参照',
+  'V11の版',
+  'D5',
+  '確定内容',
+  'accepted_atを起点',
+  '同期済みと同じ24時間保持',
+  '保存済み結果の再掲で延長しない',
+  'サーバー確定から端末永続化まで保護なし',
+  'RG1中は自動破棄停止',
+  '退避・閲覧・書き出し対象',
+  '復元規則なし',
+] as const
+type CanonI6HoldingElementId = (typeof CANON_I6_HOLDING_ELEMENT_IDS)[number]
+const CANON_I6_HOLDING_ELEMENT_ID_SET = new Set<string>(
+  CANON_I6_HOLDING_ELEMENT_IDS,
+)
+
+export type CanonQueueLifeRule =
+  | Readonly<{
+      kind: 'state'
+      id: CanonQueueStateId
+    }>
+  | Readonly<{
+      kind: 'holding-contract'
+      id: typeof CANON_I6_ID
+      name: typeof CANON_I6_NAME
+      elements: readonly Readonly<{ id: CanonI6HoldingElementId }>[]
+    }>
+
+function isCanonQueueStateId(value: string): value is CanonQueueStateId {
+  return CANON_QUEUE_STATE_ID_SET.has(value)
+}
+
+function isCanonI6HoldingElementId(
+  value: string,
+): value is CanonI6HoldingElementId {
+  return CANON_I6_HOLDING_ELEMENT_ID_SET.has(value)
+}
+
+function parseCanonI6HoldingRule(sourceElement: string): CanonQueueLifeRule {
+  const separatorIndex = sourceElement.indexOf(':')
+  const equalsIndex = sourceElement.indexOf('=', separatorIndex + 1)
+  if (
+    separatorIndex <= 0 ||
+    equalsIndex <= separatorIndex + 1 ||
+    sourceElement.indexOf(':', separatorIndex + 1) >= 0 ||
+    sourceElement.indexOf('=', equalsIndex + 1) >= 0
+  ) {
+    throw new Error(`R-QUEUE-LIFE の I6 形式が不正です: ${sourceElement}`)
+  }
+
+  const id = sourceElement.slice(0, separatorIndex)
+  const name = sourceElement.slice(separatorIndex + 1, equalsIndex)
+  if (id !== CANON_I6_ID || name !== CANON_I6_NAME) {
+    throw new Error(`R-QUEUE-LIFE の I6 定義が不正です: ${sourceElement}`)
+  }
+
+  const tokens = sourceElement.slice(equalsIndex + 1).split('+')
+  const tokenIds = new Set<string>()
+  const elements: Readonly<{ id: CanonI6HoldingElementId }>[] = []
+  for (const token of tokens) {
+    if (!isCanonI6HoldingElementId(token)) {
+      throw new Error(`R-QUEUE-LIFE の未知の I6 トークンです: ${token}`)
+    }
+    tokenIds.add(token)
+    elements.push(Object.freeze({ id: token }))
+  }
+  if (
+    tokens.length !== CANON_I6_HOLDING_ELEMENT_IDS.length ||
+    tokenIds.size !== tokens.length
+  ) {
+    throw new Error('R-QUEUE-LIFE の I6 トークン集合が一致しません')
+  }
+  assertExactKnownIds(
+    `${QUEUE_LIFE_RELATION_ID}.${CANON_I6_ID}`,
+    tokenIds,
+    CANON_I6_HOLDING_ELEMENT_ID_SET,
+  )
+
+  return Object.freeze({
+    kind: 'holding-contract',
+    id: CANON_I6_ID,
+    name: CANON_I6_NAME,
+    elements: Object.freeze(elements),
+  })
+}
+
+export function parseCanonQueueLifeRules(
+  sourceElements: readonly unknown[],
+): readonly CanonQueueLifeRule[] {
+  const seenIds = new Set<string>()
+  const rules: CanonQueueLifeRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-QUEUE-LIFE の要素は文字列でなければなりません')
+    }
+
+    let rule: CanonQueueLifeRule
+    if (isCanonQueueStateId(sourceElement)) {
+      rule = Object.freeze({ kind: 'state', id: sourceElement })
+    } else if (sourceElement.startsWith(`${CANON_I6_ID}:`)) {
+      rule = parseCanonI6HoldingRule(sourceElement)
+    } else {
+      throw new Error(
+        `R-QUEUE-LIFE に未知の状態または ID があります: ${sourceElement}`,
+      )
+    }
+
+    if (seenIds.has(rule.id)) {
+      throw new Error(`R-QUEUE-LIFE の ID が重複しています: ${rule.id}`)
+    }
+    seenIds.add(rule.id)
+    rules.push(rule)
+  }
+
+  assertExactKnownIds(
+    QUEUE_LIFE_RELATION_ID,
+    seenIds,
+    new Set<string>([...CANON_QUEUE_STATE_IDS, CANON_I6_ID]),
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonQueueLifeRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonQueueLifeRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[QUEUE_LIFE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-QUEUE-LIFE.source_elements がありません')
+  }
+  return parseCanonQueueLifeRules(relation.source_elements)
+}
+
+export const CANON_ACK_STATE_RESULT = {
+  ACCEPTED: '受理',
+  DUPLICATE: '重複',
+  REJECTED: '拒否',
+  EVACUATED: '退避',
+  UNPROCESSED: '未処理',
+} as const
+
+const CANON_ACK_STATE_RESULT_IDS = Object.freeze(
+  Object.values(CANON_ACK_STATE_RESULT),
+)
+const CANON_ACK_STATE_RESULT_ID_SET = new Set<string>(
+  CANON_ACK_STATE_RESULT_IDS,
+)
+
+export type CanonAckStateResult = Readonly<{ id: string }>
+
+export function parseCanonAckStateResults(
+  sourceElements: readonly unknown[],
+): readonly CanonAckStateResult[] {
+  const seenIds = new Set<string>()
+  const results: CanonAckStateResult[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-ACK-STATE の要素は文字列でなければなりません')
+    }
+    if (!CANON_ACK_STATE_RESULT_ID_SET.has(sourceElement)) {
+      throw new Error(`R-ACK-STATE に未知の要素があります: ${sourceElement}`)
+    }
+    if (seenIds.has(sourceElement)) {
+      throw new Error(`R-ACK-STATE の要素が重複しています: ${sourceElement}`)
+    }
+    seenIds.add(sourceElement)
+    results.push(Object.freeze({ id: sourceElement }))
+  }
+
+  assertExactKnownIds(
+    ACK_STATE_RELATION_ID,
+    seenIds,
+    CANON_ACK_STATE_RESULT_ID_SET,
+  )
+  return Object.freeze(results)
+}
+
+export function readCanonAckStateResults(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonAckStateResult[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[ACK_STATE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-ACK-STATE.source_elements がありません')
+  }
+  return parseCanonAckStateResults(relation.source_elements)
 }
