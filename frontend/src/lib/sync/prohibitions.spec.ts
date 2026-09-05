@@ -34,7 +34,7 @@ type ProductSource = Readonly<{
 }>
 type ForbiddenCandidate = Readonly<{
   name: string
-  pattern: RegExp
+  matches: (source: string) => boolean
 }>
 type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
   ? [Expected] extends [Actual]
@@ -221,22 +221,41 @@ if (
 }
 const PRODUCT_SOURCES = Object.freeze(productSources)
 
+function byPattern(pattern: RegExp): (source: string) => boolean {
+  return (source) => pattern.test(source)
+}
+
+const NUMBERING_PATTERN = /採番/
+const NUMBERING_CONTEXT_PATTERN = /退避|取り込み/
+
+export function matchesForbiddenNumberingContext(source: string): boolean {
+  return source
+    .split(/\r\n?|\n/)
+    .some(
+      (line) =>
+        NUMBERING_PATTERN.test(line) && NUMBERING_CONTEXT_PATTERN.test(line),
+    )
+}
+
 // U-1〜U-4 は日本語の正本語が現れるかだけを走査し、意味の同一性までは判定しない。
 // 型プロパティ名や内部構造による同等物は検出できないため、H-59 の人間逐行確認へ送る。
 const OUT_OF_SCOPE_CANDIDATES = {
   U1: [
-    { name: '対象連番', pattern: /対象連番/ },
-    { name: '欠落範囲', pattern: /欠落範囲/ },
+    { name: '対象連番', matches: byPattern(/対象連番/) },
+    { name: '欠落範囲', matches: byPattern(/欠落範囲/) },
   ],
   U2: [
-    { name: '退避イベント', pattern: /退避イベント/ },
-    { name: '退避取り込み', pattern: /退避.*取り込み|取り込み.*退避/ },
-    { name: '挿入位置', pattern: /挿入位置/ },
-    { name: '採番', pattern: /採番/ },
-    { name: '凍結', pattern: /凍結/ },
+    { name: '退避イベント', matches: byPattern(/退避イベント/) },
+    {
+      name: '退避取り込み',
+      matches: byPattern(/退避.*取り込み|取り込み.*退避/),
+    },
+    { name: '挿入位置', matches: byPattern(/挿入位置/) },
+    { name: '採番', matches: matchesForbiddenNumberingContext },
+    { name: '凍結', matches: byPattern(/凍結/) },
   ],
-  U3: [{ name: '保持期限', pattern: /保持期限/ }],
-  U4: [{ name: '正史復元', pattern: /正史復元/ }],
+  U3: [{ name: '保持期限', matches: byPattern(/保持期限/) }],
+  U4: [{ name: '正史復元', matches: byPattern(/正史復元/) }],
 } as const satisfies Readonly<Record<string, readonly ForbiddenCandidate[]>>
 
 const V_IDS = [
@@ -320,9 +339,9 @@ function expectCandidatesAbsent(
   for (const candidate of candidates) {
     for (const productSource of PRODUCT_SOURCES) {
       expect(
-        productSource.source,
+        candidate.matches(productSource.source),
         `${productSource.fileName} に ${candidate.name} が現れています`,
-      ).not.toMatch(candidate.pattern)
+      ).toBe(false)
     }
   }
 }
@@ -674,6 +693,28 @@ describe('prohibitions', () => {
       expectCandidatesAbsent(candidates)
     },
   )
+
+  it.each([
+    '(試合, D4) ごとに D1 を採番する',
+    '書き出しの時点で採番し直さない',
+    '墓標は新しい D1 を採番しない',
+  ])('U-2: 通常の採番文脈を許可する: %s', (source) => {
+    expect(matchesForbiddenNumberingContext(source)).toBe(false)
+  })
+
+  it.each([
+    '退避済み資料を現行世代へ取り込み、採番する',
+    '退避イベントを取り込むときに採番する',
+    '通常の説明\n退避済み資料を採番する\n別の説明',
+  ])('U-2: 退避イベントの取り込み文脈を禁止する: %s', (source) => {
+    expect(matchesForbiddenNumberingContext(source)).toBe(true)
+  })
+
+  it('U-2: 行をまたぐ語の出現を取り込み文脈と判定しない', () => {
+    expect(
+      matchesForbiddenNumberingContext('退避済み資料\n通常の説明\n採番する'),
+    ).toBe(false)
+  })
 
   it('H-59 の逐語照合入力を24行出力する', async () => {
     expect(VERIFICATION_ROWS).toHaveLength(24)
