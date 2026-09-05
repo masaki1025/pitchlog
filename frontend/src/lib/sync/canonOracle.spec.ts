@@ -489,7 +489,12 @@ describe('canonOracle', () => {
   })
 
   it('C2・C3 の右辺を R-TEMP-ID-MAPPING と逐語照合する', () => {
-    const reversedCanonRules = [...readCanonTemporaryIdMappingRules()].reverse()
+    const productRuleIds = new Set<string>(
+      TEMPORARY_ID_MAPPING_RULES.map((rule) => rule.id),
+    )
+    const reversedCanonRules = readCanonTemporaryIdMappingRules()
+      .filter((rule) => productRuleIds.has(rule.id))
+      .reverse()
 
     expectTemporaryIdMappingRulesToMatchCanon(
       TEMPORARY_ID_MAPPING_RULES,
@@ -497,10 +502,10 @@ describe('canonOracle', () => {
     )
   })
 
-  it('C1・C4 を理由つきの射程外 allow-list に置く', () => {
+  it('C1 だけを理由つきの射程外 allow-list に置く', () => {
     expect(
       CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
-    ).toEqual(['C1', 'C4'])
+    ).toEqual(['C1'])
     for (const element of CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE) {
       expect(element.reason.length).toBeGreaterThan(0)
     }
@@ -540,10 +545,15 @@ describe('canonOracle', () => {
 
     expect(targetIndex).toBeGreaterThanOrEqual(0)
     sourceElements[targetIndex] = 'C2:後続イベントの参照+決定的に解決'
+    const productRuleIds = new Set<string>(
+      TEMPORARY_ID_MAPPING_RULES.map((rule) => rule.id),
+    )
     expect(() =>
       expectTemporaryIdMappingRulesToMatchCanon(
         TEMPORARY_ID_MAPPING_RULES,
-        readCanonTemporaryIdMappingRules(mutatedRelations),
+        readCanonTemporaryIdMappingRules(mutatedRelations).filter((rule) =>
+          productRuleIds.has(rule.id),
+        ),
       ),
     ).toThrow()
   })

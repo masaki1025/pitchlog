@@ -646,10 +646,9 @@ export function readCanonIdempotencyCollisionRules(
 // 射程外行は ID の存在だけを照合し、右辺を読まないため、右辺だけの変更は検出しない。
 export const CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE = [
   { id: 'C1', reason: '応答で写像を返す7章の契約に依存するため' },
-  { id: 'C4', reason: '写像確定後の状態遷移を定める7章の契約に依存するため' },
 ] as const
 
-const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3'])
+const IMPLEMENTED_TEMPORARY_ID_MAPPING_IDS = new Set<string>(['C2', 'C3', 'C4'])
 const OUT_OF_SCOPE_TEMPORARY_ID_MAPPING_IDS = new Set<string>(
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE.map((element) => element.id),
 )

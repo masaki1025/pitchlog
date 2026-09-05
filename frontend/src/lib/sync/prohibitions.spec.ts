@@ -48,6 +48,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'eventKinds.ts',
   'idempotencyCollision.ts',
   'k5Tombstone.ts',
+  'mappingConfirmationGate.ts',
   'queueState.ts',
   'queueTransition.ts',
   'requestBoundary.ts',
@@ -108,6 +109,11 @@ const EXPECTED_VALUE_EXPORTS = {
     'K5_TOMBSTONE_RULE',
     'TOMBSTONE_ONLINE_STATE',
     'prepareTombstoneReplacement',
+  ],
+  'mappingConfirmationGate.ts': [
+    'C4_MAPPING_CONFIRMATION_RULE',
+    'MAPPING_CONFIRMATION_STATUS',
+    'checkMappingConfirmation',
   ],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
@@ -200,6 +206,12 @@ const EXPECTED_TYPE_EXPORTS = {
     'TombstoneQueueSlotReplacement',
     'TombstoneRecordingRightVerifier',
     'TombstoneSourceSlot',
+  ],
+  'mappingConfirmationGate.ts': [
+    'MappingConfirmationGateResult',
+    'MappingConfirmationInjections',
+    'MappingConfirmationRequest',
+    'PlayerRegistrationMappingResolver',
   ],
   'requestBoundary.ts': [
     'P3RequestState',
