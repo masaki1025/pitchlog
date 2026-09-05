@@ -55,6 +55,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'queueTransition.ts',
   'requestBoundary.ts',
   'syncEvent.ts',
+  'syncNotices.ts',
   'temporaryIdMapping.ts',
   'validateSyncEvent.ts',
 ] as const
@@ -160,6 +161,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'TARGET_EVENT_REFERENCE_ELEMENTS',
     'buildSidecarJoinKey',
     'isTargetEventReference',
+  ],
+  'syncNotices.ts': [
+    'SYNC_NOTICE_CATALOG',
+    'SYNC_NOTICE_IDS',
+    'createStoragePersistenceNotice',
+    'createSyncNotice',
   ],
   'temporaryIdMapping.ts': [
     'TEMPORARY_ID_MAPPING_RULES',
@@ -282,6 +289,11 @@ const EXPECTED_TYPE_EXPORTS = {
     'SyncEvent',
     'SyncEventEnvelopeKey',
     'TargetEventReference',
+  ],
+  'syncNotices.ts': [
+    'SyncNoticeDescriptor',
+    'SyncNoticeId',
+    'SyncNoticeParamsById',
   ],
   'temporaryIdMapping.ts': [
     'TemporaryIdMappingRecord',
