@@ -992,6 +992,35 @@ def test_docs_lint_rejects_selective_check_option() -> None:
         _assert_full_docs_lint_wiring(selective)
 
 
+def test_frontend_paths_filter_includes_sync_protocol_oracle() -> None:
+    """同期プロトコルのオラクル変更で frontend 検査が発火することを確認する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    frontend_changes = jobs.get("frontend-changes")
+    assert isinstance(frontend_changes, dict), "frontend-changes ジョブが必要"
+    steps = frontend_changes.get("steps")
+    assert isinstance(steps, list), "frontend-changes.steps は配列が必要"
+    filter_step = next(
+        (
+            step
+            for step in steps
+            if isinstance(step, dict) and step.get("id") == "filter"
+        ),
+        None,
+    )
+    assert isinstance(filter_step, dict), "frontend の paths-filter が必要"
+    filter_with = filter_step.get("with")
+    assert isinstance(filter_with, dict), "frontend の paths-filter.with が必要"
+    filter_definition = filter_with.get("filters")
+    assert isinstance(filter_definition, str), "frontend の filters 定義が必要"
+    parsed_filter = yaml.safe_load(filter_definition)
+    assert isinstance(parsed_filter, dict), "frontend の filters はマッピングが必要"
+    frontend_paths = parsed_filter.get("frontend")
+    assert isinstance(frontend_paths, list), "frontend filter は配列が必要"
+    assert "scripts/design_relations/sync-protocol.json" in frontend_paths
+
+
 def _staging_profile_registry(tmp_path: Path, *, include_second: bool) -> Path:
     """サンプルプロファイル1〜2件のstagingレジストリを作る。"""
     source = REPOSITORY_ROOT / "tests" / "fixtures" / "profile-sample" / "profiles"
