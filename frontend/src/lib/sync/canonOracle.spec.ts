@@ -8,9 +8,11 @@ import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import {
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
+  parseCanonQueueLifeRules,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonParticipationRules,
+  readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
@@ -515,5 +517,53 @@ describe('canonOracle', () => {
         readCanonTemporaryIdMappingRules(mutatedRelations),
       ),
     ).toThrow()
+  })
+
+  it('R-QUEUE-LIFE の全伝播先を source_elements の被覆として照合する', () => {
+    const relation = syncProtocolRelations['R-QUEUE-LIFE']
+    const sourceElements = relation.source_elements
+    const sourceElementSet = new Set<string>(sourceElements)
+    const propagatedElements = new Set<string>()
+
+    expect(sourceElements).toHaveLength(5)
+    expect(parseCanonQueueLifeRules(sourceElements)).toEqual(
+      readCanonQueueLifeRules(),
+    )
+    expect(new Set(Object.keys(relation.expected_elements))).toEqual(
+      new Set(relation.targets),
+    )
+    for (const targetElements of Object.values(relation.expected_elements)) {
+      for (const element of targetElements) {
+        expect(sourceElementSet.has(element)).toBe(true)
+        propagatedElements.add(element)
+      }
+    }
+    expect(propagatedElements).toEqual(sourceElementSet)
+  })
+
+  it('R-QUEUE-LIFE の未知状態を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-QUEUE-LIFE'].source_elements.push('未知のキュー状態')
+
+    expect(() => readCanonQueueLifeRules(mutatedRelations)).toThrowError(
+      /未知の状態または ID/,
+    )
+  })
+
+  it('R-QUEUE-LIFE の未知 I6 トークンを fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-QUEUE-LIFE'].source_elements
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith('I6:'),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      '+復元規則なし',
+      '+未知の保持契約',
+    )
+    expect(() => readCanonQueueLifeRules(mutatedRelations)).toThrowError(
+      /未知の I6 トークン/,
+    )
   })
 })

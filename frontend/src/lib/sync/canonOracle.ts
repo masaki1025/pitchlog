@@ -1,4 +1,4 @@
-// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5 と 5-5 の対象規則の写しである。
+// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2 の対象規則の写しである。
 // 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
 // テストからのみ使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
@@ -11,6 +11,7 @@ const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
+const QUEUE_LIFE_RELATION_ID = 'R-QUEUE-LIFE'
 const EVENT_KIND_IDS = new Set<string>(
   EVENT_KIND_RULES.map((eventKind) => eventKind.id),
 )
@@ -678,4 +679,153 @@ export function readCanonTemporaryIdMappingRules(
     throw new Error('R-TEMP-ID-MAPPING.source_elements がありません')
   }
   return parseCanonTemporaryIdMappingRules(relation.source_elements)
+}
+
+const CANON_QUEUE_STATE_IDS = [
+  '未送信',
+  '要操作',
+  '同期済み',
+  '退避済み',
+] as const
+type CanonQueueStateId = (typeof CANON_QUEUE_STATE_IDS)[number]
+const CANON_QUEUE_STATE_ID_SET = new Set<string>(CANON_QUEUE_STATE_IDS)
+
+const CANON_I6_ID = 'I6'
+const CANON_I6_NAME = 'P3受理結果の端末保持'
+const CANON_I6_HOLDING_ELEMENT_IDS = [
+  '端末永続化まで成立した対象参照',
+  'V11の版',
+  'D5',
+  '確定内容',
+  'accepted_atを起点',
+  '同期済みと同じ24時間保持',
+  '保存済み結果の再掲で延長しない',
+  'サーバー確定から端末永続化まで保護なし',
+  'RG1中は自動破棄停止',
+  '退避・閲覧・書き出し対象',
+  '復元規則なし',
+] as const
+type CanonI6HoldingElementId = (typeof CANON_I6_HOLDING_ELEMENT_IDS)[number]
+const CANON_I6_HOLDING_ELEMENT_ID_SET = new Set<string>(
+  CANON_I6_HOLDING_ELEMENT_IDS,
+)
+
+export type CanonQueueLifeRule =
+  | Readonly<{
+      kind: 'state'
+      id: CanonQueueStateId
+    }>
+  | Readonly<{
+      kind: 'holding-contract'
+      id: typeof CANON_I6_ID
+      name: typeof CANON_I6_NAME
+      elements: readonly Readonly<{ id: CanonI6HoldingElementId }>[]
+    }>
+
+function isCanonQueueStateId(value: string): value is CanonQueueStateId {
+  return CANON_QUEUE_STATE_ID_SET.has(value)
+}
+
+function isCanonI6HoldingElementId(
+  value: string,
+): value is CanonI6HoldingElementId {
+  return CANON_I6_HOLDING_ELEMENT_ID_SET.has(value)
+}
+
+function parseCanonI6HoldingRule(sourceElement: string): CanonQueueLifeRule {
+  const separatorIndex = sourceElement.indexOf(':')
+  const equalsIndex = sourceElement.indexOf('=', separatorIndex + 1)
+  if (
+    separatorIndex <= 0 ||
+    equalsIndex <= separatorIndex + 1 ||
+    sourceElement.indexOf(':', separatorIndex + 1) >= 0 ||
+    sourceElement.indexOf('=', equalsIndex + 1) >= 0
+  ) {
+    throw new Error(`R-QUEUE-LIFE の I6 形式が不正です: ${sourceElement}`)
+  }
+
+  const id = sourceElement.slice(0, separatorIndex)
+  const name = sourceElement.slice(separatorIndex + 1, equalsIndex)
+  if (id !== CANON_I6_ID || name !== CANON_I6_NAME) {
+    throw new Error(`R-QUEUE-LIFE の I6 定義が不正です: ${sourceElement}`)
+  }
+
+  const tokens = sourceElement.slice(equalsIndex + 1).split('+')
+  const tokenIds = new Set<string>()
+  const elements: Readonly<{ id: CanonI6HoldingElementId }>[] = []
+  for (const token of tokens) {
+    if (!isCanonI6HoldingElementId(token)) {
+      throw new Error(`R-QUEUE-LIFE の未知の I6 トークンです: ${token}`)
+    }
+    tokenIds.add(token)
+    elements.push(Object.freeze({ id: token }))
+  }
+  if (
+    tokens.length !== CANON_I6_HOLDING_ELEMENT_IDS.length ||
+    tokenIds.size !== tokens.length
+  ) {
+    throw new Error('R-QUEUE-LIFE の I6 トークン集合が一致しません')
+  }
+  assertExactKnownIds(
+    `${QUEUE_LIFE_RELATION_ID}.${CANON_I6_ID}`,
+    tokenIds,
+    CANON_I6_HOLDING_ELEMENT_ID_SET,
+  )
+
+  return Object.freeze({
+    kind: 'holding-contract',
+    id: CANON_I6_ID,
+    name: CANON_I6_NAME,
+    elements: Object.freeze(elements),
+  })
+}
+
+export function parseCanonQueueLifeRules(
+  sourceElements: readonly unknown[],
+): readonly CanonQueueLifeRule[] {
+  const seenIds = new Set<string>()
+  const rules: CanonQueueLifeRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-QUEUE-LIFE の要素は文字列でなければなりません')
+    }
+
+    let rule: CanonQueueLifeRule
+    if (isCanonQueueStateId(sourceElement)) {
+      rule = Object.freeze({ kind: 'state', id: sourceElement })
+    } else if (sourceElement.startsWith(`${CANON_I6_ID}:`)) {
+      rule = parseCanonI6HoldingRule(sourceElement)
+    } else {
+      throw new Error(
+        `R-QUEUE-LIFE に未知の状態または ID があります: ${sourceElement}`,
+      )
+    }
+
+    if (seenIds.has(rule.id)) {
+      throw new Error(`R-QUEUE-LIFE の ID が重複しています: ${rule.id}`)
+    }
+    seenIds.add(rule.id)
+    rules.push(rule)
+  }
+
+  assertExactKnownIds(
+    QUEUE_LIFE_RELATION_ID,
+    seenIds,
+    new Set<string>([...CANON_QUEUE_STATE_IDS, CANON_I6_ID]),
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonQueueLifeRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonQueueLifeRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[QUEUE_LIFE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-QUEUE-LIFE.source_elements がありません')
+  }
+  return parseCanonQueueLifeRules(relation.source_elements)
 }
