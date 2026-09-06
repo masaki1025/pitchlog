@@ -350,7 +350,11 @@ describe('durableQueue', () => {
     expect(preparation).toBeDefined()
     expect(transactionSpy).toHaveBeenCalledTimes(1)
     expect(transactionSpy).toHaveBeenCalledWith('queue', 'readonly')
-    expect(resolvePlayerRegistrationMapping).toHaveBeenCalledWith(event)
+    // 写像確認の注入は (D4, D1, D5) のキーへ結合される(敵対レビュー P1)。
+    expect(resolvePlayerRegistrationMapping).toHaveBeenCalledWith({
+      key: { d4: scope.d4, d1: stored.d1, d5: stored.d5 },
+      event,
+    })
   })
 
   it('A5 遷移を 1 回の readwrite で永続化し、再読込後も状態を保つ', async () => {

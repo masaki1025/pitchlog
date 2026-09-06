@@ -41,6 +41,7 @@ const ACK_RESULTS = readCanonAckStateResults()
 const ACCEPTED_ACK_RESULT = ackResultById(CANON_ACK_STATE_RESULT.ACCEPTED)
 const REJECTED_ACK_RESULT = ackResultById(CANON_ACK_STATE_RESULT.REJECTED)
 const B3_BOUNDARY_RESULT = ackBoundaryResultById('B3')
+const B1_BOUNDARY_RESULT = ackBoundaryResultById('B1')
 const ACCEPTED_P3_BOUNDARY_RESULT = acceptedP3BoundaryResult()
 const PLAYER_REGISTRATION_EVENT_KIND = eventKindByName('選手のその場登録')
 const OTHER_EVENT_KIND = EVENT_KIND_RULES.find(
@@ -398,6 +399,48 @@ describe('ackAdapter', () => {
     expect(ackAdapterSource).not.toMatch(/(['"])(?:[1-9]|1[0-2])\1/)
     expect(ackAdapterSource).not.toMatch(
       /\.match\s*\(|\.test\s*\(|\bRegExp\b|charCodeAt|codePointAt|UUID/i,
+    )
+  })
+
+  // 写像確認の注入を別イベントへ使い回せないことを、キーの 3 要素それぞれで固定する。
+  // これが無いと「引数を無視して常に写像を返す」実装でもテストが通る(差分レビュー P1)。
+  it.each([
+    ['D4', { d4: 'other-generation' }],
+    ['D1', { d1: 999 }],
+    ['D5', { d5: 'other-d5' }],
+  ])('A4 の注入は %s が異なるキーへ使い回せない', (_name, override) => {
+    const targetKey: QueueEventKey = {
+      d4: 'generation-a',
+      d1: 1,
+      d5: 'd5-a',
+    }
+    const event = eventOfKind(PLAYER_REGISTRATION_EVENT_KIND)
+    const injections = createAckAdapterInjections({
+      d1: {
+        envelope: {
+          advancedD3: targetKey.d1,
+          eventResults: [{ ...targetKey, a5Result: ACCEPTED_ACK_RESULT.id }],
+          playerIdMappings: [
+            { temporaryId: 'temporary-player', officialId: 'official-player' },
+          ],
+        },
+        boundaryResult: B1_BOUNDARY_RESULT.id,
+        playerIdMappingTarget: {
+          eventKind: PLAYER_REGISTRATION_EVENT_KIND,
+          event,
+          key: targetKey,
+          temporaryId: 'temporary-player',
+        },
+      },
+    })
+    const resolver = injections.resolvePlayerRegistrationMapping
+    if (!resolver) {
+      throw new Error('写像確認の注入がありません')
+    }
+
+    expect(resolver({ key: targetKey, event })).toBe(true)
+    expect(resolver({ key: { ...targetKey, ...override }, event })).toBe(
+      undefined,
     )
   })
 })

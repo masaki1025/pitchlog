@@ -23,6 +23,7 @@ import {
 } from './queueState'
 import {
   evaluateQueueTransition,
+  type QueueEventKey,
   type QueueTransitionInjections,
 } from './queueTransition'
 import {
@@ -156,8 +157,22 @@ type DurableA5TransitionTarget = Readonly<{
   d5: unknown
 }>
 
-type DurableA5TransitionInjections = MappingConfirmationInjections &
-  QueueTransitionInjections
+/**
+ * A5 遷移で使う写像確認の注入。
+ *
+ * 対象イベントは永続化境界で複製されるため、イベントの同一性では結合できない。
+ * `(D4, D1, D5)` のキーで結合する(敵対レビュー P1)。
+ */
+export type KeyBoundMappingResolver = (
+  input: Readonly<{ key: QueueEventKey; event: unknown }>,
+) => boolean | undefined
+
+type DurableA5TransitionInjections = Omit<
+  MappingConfirmationInjections,
+  'resolvePlayerRegistrationMapping'
+> &
+  QueueTransitionInjections &
+  Readonly<{ resolvePlayerRegistrationMapping?: KeyBoundMappingResolver }>
 
 type DurableQueuePreparedPayload =
   | Readonly<{
@@ -699,9 +714,20 @@ export class DurableQueue {
       await completion
       return undefined
     }
+    const mappingKey: QueueEventKey = {
+      d4: slot.d4,
+      d1: slot.d1,
+      d5: slot.d5,
+    }
+    const keyBoundResolver = injections.resolvePlayerRegistrationMapping
     const mappingConfirmation = checkMappingConfirmation(
       { eventKind, event: slot.event },
-      injections,
+      keyBoundResolver
+        ? {
+            resolvePlayerRegistrationMapping: (event) =>
+              keyBoundResolver({ key: mappingKey, event }),
+          }
+        : {},
     )
     await completion
     return createPreparation(

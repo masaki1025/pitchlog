@@ -11,7 +11,7 @@ import type {
   I6PersistenceInjections,
   I6AcceptedAtResolution,
 } from './durableQueue'
-import type { MappingConfirmationInjections } from './mappingConfirmationGate'
+import type { KeyBoundMappingResolver } from './durableQueue'
 import { parseP3ResultEnvelope } from './p3Result'
 import {
   receivePlayerIdMapping,
@@ -48,8 +48,12 @@ export type AckAdapterRequest = Readonly<{
   p3?: P3ResultAdapterInput
 }>
 
+type KeyBoundMappingInjections = Readonly<{
+  resolvePlayerRegistrationMapping?: KeyBoundMappingResolver
+}>
+
 export type AckAdapterInjections = D1QueueTransitionInjections &
-  MappingConfirmationInjections &
+  KeyBoundMappingInjections &
   I6PersistenceInjections
 
 function sameEventKey(first: QueueEventKey, second: QueueEventKey): boolean {
@@ -76,7 +80,7 @@ function eventResultFor(
 function mappingInjectionsFor(
   envelope: D1AckEnvelope,
   target: PlayerIdMappingTarget | undefined,
-): MappingConfirmationInjections {
+): KeyBoundMappingInjections {
   if (!target) {
     return Object.freeze({})
   }
@@ -98,10 +102,12 @@ function mappingInjectionsFor(
     return Object.freeze({})
   }
 
-  // この注入器は target.key の preparation 専用である。永続化境界で複製された
-  // イベントにも、受け取り側が確定した同じ写像結果を渡す。
+  // この注入器は target.key の preparation 専用である。対象イベントは永続化境界で
+  // 複製されるためイベントの同一性では結合できず、(D4, D1, D5) のキーで結合する
+  // (敵対レビュー P1 — 引数を無視すると同じ注入で別イベントを同期済みにできる)。
   return Object.freeze({
-    resolvePlayerRegistrationMapping: () => resolver(target.event),
+    resolvePlayerRegistrationMapping: (input) =>
+      sameEventKey(input.key, target.key) ? resolver(target.event) : undefined,
   })
 }
 
@@ -131,7 +137,7 @@ function classificationInjectionsFor(
 
 function d1InjectionsFor(
   input: D1AckAdapterInput | undefined,
-): D1QueueTransitionInjections & MappingConfirmationInjections {
+): D1QueueTransitionInjections & KeyBoundMappingInjections {
   if (!input) {
     return Object.freeze({})
   }

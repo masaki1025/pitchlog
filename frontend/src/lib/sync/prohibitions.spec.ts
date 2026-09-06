@@ -368,6 +368,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'I6AcceptedAtResolution',
     'I6EvacuationInjections',
     'I6PersistenceInjections',
+    'KeyBoundMappingResolver',
     'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
@@ -1339,7 +1340,8 @@ describe('prohibitions', () => {
 
     expect(exactRequestKeys).toBe(true)
     expect(Object.keys(request)).toEqual(['kind', 'queue', 'preparation'])
-    expect(resolver({})).toBe(true)
+    // 写像確認の注入は (D4, D1, D5) のキーへ結合される(敵対レビュー P1)。
+    expect(resolver({ key: { d4: {}, d1: {}, d5: {} }, event: {} })).toBe(true)
     expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
   })
 
