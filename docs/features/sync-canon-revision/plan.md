@@ -1,6 +1,6 @@
 ---
 feature: sync-canon-revision
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-06・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 同期プロトコル正本の改訂(設計書 6.3)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -71,7 +71,7 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | `docs/design/sync-protocol.md` | **v0.3 へ版繰り上げ**。2-6 拡張・11-3 の 54 件・4-5/6-3・`FR-013` 典拠・テナント粒度・`U1`〜`U6`・11-4・11-5 列定義 | **finalize-doc**(7.3 確定ゲート) |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **v2.7 へ版繰り上げ**。`NFR-020` の前提不成立時の挙動を条文化 | **finalize-doc**(同一ゲートで一括検証) |
 | `docs/README.md` | 索引の版・状態・最終更新を両正本ぶん現行化 | PR レビュー |
-| `docs/development/harness-evaluation.md` | **候補**への追記(機構の穴 4 件 / **H-85 の同期正本への誤った言い換え**) | PR レビュー |
+| `docs/development/harness-evaluation.md` | **候補**への追記(機構の穴 4 件 / **H-85 の同期正本への誤った言い換え** / **`H-85` の連鎖の実行手順が無い** / **`source_text_digest` が一意でない**)+ 既存候補へ実測 1 件(強制終了 通算 23 回)+ 変更履歴 1 行 | PR レビュー |
 
 ### 正本体系外だが同一 PR で運ぶもの
 
@@ -82,8 +82,8 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | **`tests/test_doc_check_profile.py`** | **2 箇所**(ステップ 16 で顕在化): ① `test_required_checks_match_current_module_constants` が **必須検査を 14 件に固定**(`attribution-destination` は `COVERAGE_SELECTABLE_CHECK_IDS` にはあるが `COVERAGE_CHECK_IDS` に無い)→ **15 件へ更新** ② `test_registry_matches_profile_directory_and_gating_digest` が **`must_require == required_checks` をリスト完全一致(順序込み)で検証** → `must_require` を `required_checks` と同順・同内容にした |
 | `tests/test_check_design_propagation.py` | **3 箇所**: ⓪ `test_step35_removed_mechanism_is_absent_and_manifest_is_reduced` の禁止語タプルに **`"リース"`** があり、要件書 8 章の正式名称「完了条件・**リリース**判定基準」を引用すると**部分一致で誤検知**する(ステップ 12 で顕在化)。除去対象は「凍結リース」の状態機械であるため、**直前の「リ」を除外する照合へ**改めた。**調査 §6-3 (iii)「禁止語をテスト本体にハードコード」の実例**。以下は: ① `test_step39_attribution_follows_restore_contracts` が **11-3 の区分件数 `84`/`90` を literal で assert**(ステップ 11 で `FR-017`・`FR-042` を対象外へ移し `82`/`92` になる)② `test_step35_keeps_fr013_must_and_declares_deferred_should` が **`"要件書 v2.5 + 本正本 v0.2"` を literal で assert** しており、**11-4 から版番号を外すと red になる**。版番号に依存しない assert へ置き換える(テストの意図「退避の Must と現行世代への投入を分離して固定する」は保つ)。**調査 §6-3 (iii)「テストが正本の literal をハードコードする」型の実例**(ステップ 9 で顕在化) |
 | `tests/test_check_doc_coverage.py` | **6 箇所**: ⑥ `test_cli_runs_applicable_attribution_destination` が **本番プロファイルを合成的に有効化する**前提(`required_checks.append` と `del not_applicable[...]`)で書かれており、本番が有効化済みだと `KeyError` になる → **冪等な形へ**。以下は : ⑤ `test_valid_assignment_table_covers_universe_once` が **区分の分布 `{38, 84, 90}` を固定**(同上 `{38, 82, 92}` へ)。以下は : ⓪ `_remove_assignment` / `_duplicate_assignment` / `_add_unknown_assignment` の 3 ヘルパーが **`| FR-001 | 境界として参照 | 5-5・7-4 |` を literal で保持**しており、11-3 の当該行を直すと red になる。**行の内容は変異の起点にすぎない**ため、**文書から正規表現で導出する形へ置換**した(ステップ 10 で顕在化。以降の 11-3 改訂では再発しない)。以下は元からの: ① `test_cli_reports_not_applicable_attribution_destination`(有効前提へ)② `test_real_document_passes_all_coverage_checks`(**全必須検査 rc=0 を固定しており、有効化した瞬間に効く**)③ `test_step32_assignment_corrections_are_fixed`(**`FR-021` の帰属先 `8-2` を固定** — 本計画は 8-2 を維持するので**変更不要である見込み。ステップ 16 で実際に確認する**) |
-| **`contracts/authz/*`(8 ファイル)** | **要件書の blob を凍結しているため再 seal が必要**(`requirement-claims.json` の `input_manifest.commit` + `source_blob_digest`、および `route-registry` / `auth-catalog` / `http-route-matrix` とそれぞれの `.lock.json`・`oracle-seal.lock.json`)。**前例 `dfd523a` は 9 ファイル・438 行** |
-| **`tests/test_check_authz_catalog.py`** | `total=1073 auth_claim=184 out_of_scope=889` を `:350` でハードコード。**採取件数が動く場合のみ**追随 |
+| **`contracts/authz/*`(実績 15 ファイル)** | **要件書の blob を凍結しているため再 seal が必要**。**① 母集合 + lock**(`requirement-claims.json` の `input_manifest.commit` + `source_blob_digest` + `item_counts_by_kind`)**② 派生 3 資産 + それぞれの lock**(`route-registry` / `auth-catalog` / `http-route-matrix` — 入力 blob digest のみ)**③ oracle 6 資産 + `oracle-seal.lock.json`**(`oracle_commit` を入力確定コミットへ差し替え・seal 再封印 — 前例 `027d0ac` と同型)。**①②と③は別コミット**(oracle seal はコミット済み blob を要求するため)。**実績**: 母集合 1073 → 1078(auth_claim 184 不変)|
+| **`tests/test_check_authz_catalog.py`** | `total=1073 auth_claim=184 out_of_scope=889` を `:350` でハードコード。**採取件数が動いたため追随した**(`:350` と `:772`・`:773` の 3 箇所 → `total=1078 auth_claim=184 out_of_scope=894`)|
 | `docs/features/sync-canon-revision/**`・`docs/worklog/**` | 計画書・調査メモ・作業ログ(突合の除外対象) |
 
 **`docs/legacy/` は変更しない**(AGENTS.md 絶対規則 3)。
