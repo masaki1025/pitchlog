@@ -139,6 +139,24 @@ approved 化後の再 seal まで結果が変わらない**ため、毎ステッ
 1. **確定ゲートの収束**(7.3-2)→ **人間承認**
 2. **approved 化コミット** — 両正本の変更履歴を approved 行へ・frontmatter を `approved` へ・`docs/README.md` 索引を現行化
 3. **authz 母集合の再 seal コミット**(**要件書が最終形になった後でしか打てない**):
+
+   **専用オプションがある**(`uv run python scripts/check_authz_catalog.py --help` で確認済み):
+
+   | オプション | 意味 |
+   | --- | --- |
+   | `--reseal` | **分類決定の査読後に限り**、母集合と lock の digest を明示更新する |
+   | `--reseal-derived` | **ステップ4の3資産を査読後に限り**、各 decision lock を明示更新する |
+   | `--reseal-oracle` | **ステップ5の全資産を査読後に限り**、oracle seal を明示更新する |
+
+   **前例 `dfd523a` の「reseal ①②」は `--reseal` と `--reseal-derived`** を指す。
+   同コミットの記録は「`--skip-oracle` green / pytest 残 fail = oracle seal 系 2 件のみ(次段の reseal で解消)」。
+
+   **凍結されているのは digest だけではない**: `requirement-claims.json` の `input_manifest` は
+   **`commit`・`source_blob_digest`・`heading_ids`・`item_counts_by_kind`** を持つ。
+   **見出しや項目種別の数が変われば digest だけの更新では通らない。**
+
+   **いずれのオプションも「査読後に限り」と明記されている** — **差分を人間が確認してから打つ**。
+
    - `contracts/authz/requirement-claims.json` の `input_manifest.commit` を **2 のコミット SHA** へ、
      `source_blob_digest` を**そのコミットに収録された要件書の blob ハッシュ**へ
    - 派生資産(`route-registry` / `auth-catalog` / `http-route-matrix` と各 `.lock.json`・`oracle-seal.lock.json`)を追随
