@@ -3,9 +3,9 @@
   "asset_kind": "authz_route_registry",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "2887bfbc5d922fe5d05657b4f22712716b6f09a2",
+    "requirement_claims_blob_digest": "695844a08a80d281f9c0a932cd4eb37f0486dc40",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "47835e47f4326da46c3873121de2f5dd10996667"
+    "requirement_claims_lock_blob_digest": "64fe52da679a9fb5f958f4244c3469227628ce52"
   },
   "enums": {
     "origins": [
