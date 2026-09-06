@@ -312,12 +312,14 @@ type ContentActionLabelId = Exclude<
 >
 
 export type B3ReasonClassification =
-  | Readonly<{
-      kind: typeof B3_REASON_KIND.CONTENT
-      actionRequiredLabel: ContentActionLabelId
-    }>
+  | Readonly<{ kind: typeof B3_REASON_KIND.CONTENT }>
   | Readonly<{ kind: typeof B3_REASON_KIND.O4 }>
   | Readonly<{ kind: typeof B3_REASON_KIND.UNKNOWN }>
+
+type B3ClassificationInput = Readonly<{
+  slot: QueueSlot
+  result: CanonAckStateResult
+}>
 
 export const RG1_STATE = {
   ACTIVE: 'RG1中',
@@ -332,11 +334,13 @@ export type QueueTransitionInjections = Readonly<{
     key: QueueEventKey,
   ) => Readonly<{ key: QueueEventKey; result: CanonAckStateResult }> | undefined
   classifyB3?: (
-    input: Readonly<{
-      slot: QueueSlot
-      result: CanonAckStateResult
-    }>,
+    input: B3ClassificationInput,
   ) => B3ReasonClassification | undefined
+  // 正本 6-4 と 7-2「未送信 → 要操作」行（計画時 :1005）により、
+  // 内容起因の分類では下位ラベルを決めず、操作者の 2 択を別の注入で受ける。
+  resolveB3ContentAction?: (
+    input: B3ClassificationInput,
+  ) => ContentActionLabelId | undefined
   confirmTombstoneGeneration?: (input: {
     readonly slot: QueueSlot
     readonly replacement: QueueSlotReplacement
@@ -524,19 +528,30 @@ function applyA5(
     return notApplied(actionRequiredRule.id)
   }
 
-  let actionRequiredLabel: QueueActionRequiredLabel['id']
   if (classification.kind === B3_REASON_KIND.O4) {
-    actionRequiredLabel = O4_ACTION_LABEL_ID
-  } else if (CONTENT_ACTION_LABEL_IDS.has(classification.actionRequiredLabel)) {
-    actionRequiredLabel = classification.actionRequiredLabel
-  } else {
-    return notApplied(actionRequiredRule.id)
+    return applySlotRule(actionRequiredRule, {
+      ...slot,
+      actionRequiredLabel: O4_ACTION_LABEL_ID,
+    })
   }
 
-  return applySlotRule(actionRequiredRule, {
-    ...slot,
-    actionRequiredLabel,
-  })
+  let actionRequiredLabel: ContentActionLabelId | undefined
+  try {
+    actionRequiredLabel = injections.resolveB3ContentAction?.({
+      slot,
+      result: resolved.result,
+    })
+  } catch {
+    actionRequiredLabel = undefined
+  }
+  if (
+    actionRequiredLabel === undefined ||
+    !CONTENT_ACTION_LABEL_IDS.has(actionRequiredLabel)
+  ) {
+    return applySlotRule(actionRequiredRule, slot)
+  }
+
+  return applySlotRule(actionRequiredRule, { ...slot, actionRequiredLabel })
 }
 
 function applyActionReplacement(

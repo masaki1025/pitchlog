@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
+import type {
+  D1AckEnvelope,
+  D1AckEventResult,
+  D1AckPlayerIdMapping,
+} from './ackEnvelope'
+import type {
+  AckAdapterInjections,
+  AckAdapterRequest,
+  D1AckAdapterInput,
+  P3ResultAdapterInput,
+} from './ackAdapter'
+import type { AckBoundaryResult, NoAckBoundaryResult } from './boundaryResults'
 import { CLIENT_DISCIPLINE_RULES } from './clientDiscipline'
 import {
   DURABLE_QUEUE_PUBLIC_METHOD_RULES,
@@ -21,20 +33,42 @@ import {
   type EventSlotId,
 } from './eventFieldRules'
 import { buildSyncEventKindSet, EVENT_KIND_RULES } from './eventKinds'
-import { readCanonEventFieldRules } from './canonOracle'
+import {
+  readCanonAckStateResults,
+  readCanonEventFieldRules,
+} from './canonOracle'
 import type {
   LocalQueueFileImportRequest,
   LocalQueueFileImportResult,
 } from './localQueueFile'
+import type {
+  P3AcceptedResultEnvelope,
+  P3RejectedResultEnvelope,
+  P3ResultEnvelope,
+} from './p3Result'
 import {
   actionRequiredLabelId,
   I6_HOLDING_CONTRACT,
   queueStateId,
   type I6AcceptedResult,
 } from './queueState'
+import type {
+  B3ContentRejection,
+  B3O4Rejection,
+  B3Rejection,
+} from './rejectionReason'
+import type {
+  D1AfterD3Resolver,
+  ResendD3Checkpoint,
+  ResendRangeRequest,
+  ResendRangeResult,
+} from './resendRange'
 import {
+  B3_REASON_KIND,
   QUEUE_TRANSITION_RULES,
+  type B3ReasonClassification,
   type QueueSlot,
+  type QueueTransitionInjections,
   type QueueTransitionRequest,
 } from './queueTransition'
 import {
@@ -51,6 +85,13 @@ import {
   type SyncEventValidationResult,
   type SyncEventViolation,
 } from './validateSyncEvent'
+import type {
+  UndoOperationResolution,
+  UndoOperationResolver,
+  UndoQueueingInjections,
+  UndoQueueingRequest,
+  UndoQueueingResult,
+} from './undoQueueing'
 
 type RawModule = { default: string }
 type ProductModule = Record<string, unknown>
@@ -69,6 +110,9 @@ type ExactKeySet<Actual, Expected> = [Actual] extends [Expected]
   : false
 
 const EXPECTED_PRODUCT_FILE_NAMES = [
+  'ackAdapter.ts',
+  'ackEnvelope.ts',
+  'boundaryResults.ts',
   'canonOracle.ts',
   'changeOperationGate.ts',
   'clientDiscipline.ts',
@@ -80,32 +124,49 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'k5Tombstone.ts',
   'localQueueFile.ts',
   'mappingConfirmationGate.ts',
+  'p3Result.ts',
+  'playerIdMapping.ts',
   'queueState.ts',
   'queueTransition.ts',
+  'receptionInput.ts',
+  'rejectionReason.ts',
+  'resendRange.ts',
   'requestBoundary.ts',
   'singleWriter.ts',
   'syncEvent.ts',
   'syncNotices.ts',
   'temporaryIdMapping.ts',
+  'undoQueueing.ts',
   'validateSyncEvent.ts',
 ] as const
 
 const EXPECTED_VALUE_EXPORTS = {
+  'ackAdapter.ts': ['createAckAdapterInjections'],
+  'ackEnvelope.ts': ['parseD1AckEnvelope'],
+  'boundaryResults.ts': [
+    'ACK_BOUNDARY_RESULTS',
+    'NO_ACK_BOUNDARY_RESULTS',
+    'parseAckBoundaryResult',
+  ],
   'canonOracle.ts': [
     'CANON_ACK_STATE_RESULT',
     'CANON_IDEMPOTENCY_OUT_OF_SCOPE',
     'CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE',
     'parseCanonAckStateResults',
+    'parseCanonBoundaryResults',
     'parseCanonEventFieldRules',
     'parseCanonIdempotencyCollisionRules',
+    'parseCanonP3BoundaryResults',
     'parseCanonParticipationRules',
     'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
     'parseCanonTombstoneRule',
     'parseCanonV12BoundaryRules',
     'readCanonAckStateResults',
+    'readCanonBoundaryResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
+    'readCanonP3BoundaryResults',
     'readCanonParticipationRules',
     'readCanonQueueLifeRules',
     'readCanonTemporaryIdMappingRules',
@@ -186,6 +247,8 @@ const EXPECTED_VALUE_EXPORTS = {
     'MAPPING_CONFIRMATION_STATUS',
     'checkMappingConfirmation',
   ],
+  'p3Result.ts': ['parseP3ResultEnvelope'],
+  'playerIdMapping.ts': ['receivePlayerIdMapping'],
   'requestBoundary.ts': [
     'P3_REQUEST_STATE',
     'REQUEST_BOUNDARY_RESULT',
@@ -219,6 +282,14 @@ const EXPECTED_VALUE_EXPORTS = {
     'evaluateQueueTransition',
     'queueTransitionRuleById',
   ],
+  'receptionInput.ts': ['assertExactDefinedObject', 'assertInputArray'],
+  'rejectionReason.ts': [
+    'B3_CONTENT_BRANCH',
+    'B3_REJECTION_KIND',
+    'O4_CORRECTION_CONFIRMATION',
+    'parseB3Rejection',
+  ],
+  'resendRange.ts': ['determineResendRange'],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
@@ -236,6 +307,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'TemporaryIdMapping',
     'assertD5IsNotTemporary',
   ],
+  'undoQueueing.ts': ['queueUndoEvent'],
   'validateSyncEvent.ts': [
     'SYNC_EVENT_VIOLATION',
     'SyncEventValidationError',
@@ -245,11 +317,25 @@ const EXPECTED_VALUE_EXPORTS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 const EXPECTED_TYPE_EXPORTS = {
+  'ackAdapter.ts': [
+    'AckAdapterInjections',
+    'AckAdapterRequest',
+    'D1AckAdapterInput',
+    'P3ResultAdapterInput',
+  ],
+  'ackEnvelope.ts': [
+    'D1AckEnvelope',
+    'D1AckEventResult',
+    'D1AckPlayerIdMapping',
+  ],
+  'boundaryResults.ts': ['AckBoundaryResult', 'NoAckBoundaryResult'],
   'canonOracle.ts': [
     'CanonAckStateResult',
+    'CanonBoundaryResult',
     'CanonEventFieldRule',
     'CanonEventKindRule',
     'CanonIdempotencyCollisionRule',
+    'CanonP3BoundaryResult',
     'CanonQueueLifeRule',
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
@@ -284,6 +370,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'I6AcceptedAtResolution',
     'I6EvacuationInjections',
     'I6PersistenceInjections',
+    'KeyBoundMappingResolver',
     'StoragePersistenceRequester',
   ],
   'eventFieldRules.ts': [
@@ -350,6 +437,18 @@ const EXPECTED_TYPE_EXPORTS = {
     'MappingConfirmationRequest',
     'PlayerRegistrationMappingResolver',
   ],
+  'p3Result.ts': [
+    'P3AcceptedResultEnvelope',
+    'P3RejectedResultEnvelope',
+    'P3ResultEnvelope',
+  ],
+  'playerIdMapping.ts': [
+    'ConfirmedPlayerIdMapping',
+    'PlayerIdMappingReception',
+    'PlayerIdMappingReceptionRequest',
+    'PlayerIdMappingResponse',
+    'PlayerIdMappingTarget',
+  ],
   'requestBoundary.ts': [
     'P3RequestState',
     'RecoveryGenerationVerifier',
@@ -391,6 +490,19 @@ const EXPECTED_TYPE_EXPORTS = {
     'QueueTransitionRule',
     'Rg1State',
   ],
+  'receptionInput.ts': [],
+  'rejectionReason.ts': [
+    'B3ContentBranch',
+    'B3ContentRejection',
+    'B3O4Rejection',
+    'B3Rejection',
+  ],
+  'resendRange.ts': [
+    'D1AfterD3Resolver',
+    'ResendD3Checkpoint',
+    'ResendRangeRequest',
+    'ResendRangeResult',
+  ],
   'syncEvent.ts': [
     'SidecarJoinKey',
     'SyncEvent',
@@ -405,6 +517,13 @@ const EXPECTED_TYPE_EXPORTS = {
   'temporaryIdMapping.ts': [
     'TemporaryIdMappingRecord',
     'TemporaryIdProvenance',
+  ],
+  'undoQueueing.ts': [
+    'UndoOperationResolution',
+    'UndoOperationResolver',
+    'UndoQueueingInjections',
+    'UndoQueueingRequest',
+    'UndoQueueingResult',
   ],
   'validateSyncEvent.ts': [
     'SourceEventContext',
@@ -881,6 +1000,42 @@ describe('prohibitions', () => {
     ).toBe(true)
   })
 
+  it('ACK 受け取り6ファイルの構造検査を共有 helper だけに置く', () => {
+    const consumers = [
+      'ackEnvelope.ts',
+      'boundaryResults.ts',
+      'rejectionReason.ts',
+      'playerIdMapping.ts',
+      'p3Result.ts',
+      'resendRange.ts',
+    ]
+
+    for (const fileName of consumers) {
+      const source = sourceFor(fileName)
+
+      expect(source).toContain("from './receptionInput'")
+      expect(source).not.toMatch(
+        /Reflect\.ownKeys|Object\.hasOwn|hasOwnProperty/,
+      )
+    }
+    expect(sourceFor('receptionInput.ts')).toContain('Reflect.ownKeys')
+  })
+
+  it('ACK 受け取り6ファイルの識別値比較を Object.is に統一する', () => {
+    const consumers = [
+      'ackEnvelope.ts',
+      'boundaryResults.ts',
+      'rejectionReason.ts',
+      'playerIdMapping.ts',
+      'p3Result.ts',
+      'resendRange.ts',
+    ]
+
+    for (const fileName of consumers) {
+      expect(sourceFor(fileName)).not.toMatch(/===|!==/)
+    }
+  })
+
   it('P-02: サイドカー結合キーを試合・D4・D1の3要素だけで作る', () => {
     const game = {}
     const recordingRightsGeneration = {}
@@ -1032,12 +1187,23 @@ describe('prohibitions', () => {
       .filter(hasReadwriteTransaction)
       .map(methodName)
       .filter((name): name is string => name !== undefined)
+    const expectedMutationMethodNames = [
+      'append',
+      'persistA5Transition',
+      'persistI6Acceptance',
+      'evacuateI6',
+      'replaceRevision',
+      'replaceWithTombstone',
+    ]
 
     expect(noUnsafeMutationMethod).toBe(true)
     expect(new Set(publicMethodNames)).toEqual(
       new Set(Object.keys(DURABLE_QUEUE_PUBLIC_METHOD_RULES)),
     )
-    expect(mutationRuleEntries).toHaveLength(5)
+    expect(mutationRuleEntries).toHaveLength(6)
+    expect(new Set(mutationRuleEntries.map(([name]) => name))).toEqual(
+      new Set(expectedMutationMethodNames),
+    )
     expect(new Set(readwriteMethodNames)).toEqual(
       new Set(mutationRuleEntries.map(([name]) => name)),
     )
@@ -1048,6 +1214,8 @@ describe('prohibitions', () => {
           (rule.boundary === 'preparation' || rule.boundary === 'receipt'),
       ),
     ).toBe(true)
+    expect(sourceFor('durableQueue.ts')).not.toContain('QUEUE_TRANSITION_RULES')
+    expect(sourceFor('durableQueue.ts')).not.toContain('CANON_ACK_STATE_RESULT')
   })
 
   it('変異: readwrite の新メソッドを read と自己申告しても AST 集合検査で検出する', () => {
@@ -1108,6 +1276,76 @@ describe('prohibitions', () => {
     ).toEqual([])
   })
 
+  it('P3 独立応答を D1 ACK から分離し、受理だけを既存 I6 全組へ結合する', () => {
+    const exactAcceptedEnvelopeKeys: ExactKeySet<
+      keyof P3AcceptedResultEnvelope,
+      'boundaryResult' | 'acceptedResult'
+    > = true
+    const exactRejectedEnvelopeKeys: ExactKeySet<
+      keyof P3RejectedResultEnvelope,
+      'boundaryResult'
+    > = true
+    const exactAcceptedResult: ExactKeySet<
+      P3AcceptedResultEnvelope['acceptedResult'],
+      I6AcceptedResult
+    > = true
+    const exactEnvelopeUnion: ExactKeySet<
+      P3ResultEnvelope,
+      P3AcceptedResultEnvelope | P3RejectedResultEnvelope
+    > = true
+    type P3EnvelopeKey =
+      keyof P3AcceptedResultEnvelope | keyof P3RejectedResultEnvelope
+    type ForbiddenD1AckKey = Extract<
+      P3EnvelopeKey,
+      'd1' | 'd3' | 'a3' | 'a5' | 'advancedD3' | 'eventResults' | 'a5Result'
+    >
+    const noD1AckKey: ExactKeySet<ForbiddenD1AckKey, never> = true
+
+    const sourceFile = ts.createSourceFile(
+      'p3Result.ts',
+      sourceFor('p3Result.ts'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    )
+    const queueStateImport = sourceFile.statements.find(
+      (statement): statement is ts.ImportDeclaration =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === './queueState',
+    )
+    const importedI6Types =
+      queueStateImport?.importClause?.namedBindings &&
+      ts.isNamedImports(queueStateImport.importClause.namedBindings)
+        ? queueStateImport.importClause.namedBindings.elements.map(
+            (element) => element.name.text,
+          )
+        : []
+    const locallyDeclaredTypeNames = sourceFile.statements
+      .filter(
+        (
+          statement,
+        ): statement is ts.TypeAliasDeclaration | ts.InterfaceDeclaration =>
+          ts.isTypeAliasDeclaration(statement) ||
+          ts.isInterfaceDeclaration(statement),
+      )
+      .map((statement) => statement.name.text)
+
+    expect([
+      exactAcceptedEnvelopeKeys,
+      exactRejectedEnvelopeKeys,
+      exactAcceptedResult,
+      exactEnvelopeUnion,
+      noD1AckKey,
+    ]).toEqual([true, true, true, true, true])
+    expect(new Set(importedI6Types)).toEqual(
+      new Set(['I6Acceptance', 'I6AcceptedResult']),
+    )
+    expect(queueStateImport?.importClause?.isTypeOnly).toBe(true)
+    expect(locallyDeclaredTypeNames).not.toContain('I6Acceptance')
+    expect(locallyDeclaredTypeNames).not.toContain('I6AcceptedResult')
+  })
+
   it('C4: A5 の公開入口は永続キュー発行の preparation だけを受け取る', () => {
     type ApplyA5Request = Extract<QueueTransitionRequest, { kind: 'apply-a5' }>
     type MappingResolver = NonNullable<
@@ -1141,8 +1379,352 @@ describe('prohibitions', () => {
 
     expect(exactRequestKeys).toBe(true)
     expect(Object.keys(request)).toEqual(['kind', 'queue', 'preparation'])
-    expect(resolver({})).toBe(true)
+    // 写像確認の注入は (D4, D1, D5) のキーへ結合される(敵対レビュー P1)。
+    expect(resolver({ key: { d4: {}, d1: {}, d5: {} }, event: {} })).toBe(true)
     expect(Object.hasOwn(invalidEventKindArgument, 'eventKind')).toBe(true)
+  })
+
+  it('D1 ACK の公開型を D3・A5・条件付き A4 だけに閉じる', () => {
+    const exactEnvelopeKeys: ExactKeySet<
+      keyof D1AckEnvelope,
+      'advancedD3' | 'eventResults' | 'playerIdMappings'
+    > = true
+    const exactEventResultKeys: ExactKeySet<
+      keyof D1AckEventResult,
+      'd4' | 'd1' | 'd5' | 'a5Result'
+    > = true
+    const exactPlayerIdMappingKeys: ExactKeySet<
+      keyof D1AckPlayerIdMapping,
+      'temporaryId' | 'officialId'
+    > = true
+    type ServerGuaranteeField = Extract<
+      keyof D1AckEnvelope,
+      | 'a1'
+      | 'a2'
+      | 'atomicCommit'
+      | 'appliedAtomically'
+      | 'idempotencyGuaranteed'
+      | 'preventsDoubleApplication'
+    >
+    const noServerGuaranteeField: ExactKeySet<ServerGuaranteeField, never> =
+      true
+
+    expect([
+      exactEnvelopeKeys,
+      exactEventResultKeys,
+      exactPlayerIdMappingKeys,
+      noServerGuaranteeField,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('ACK アダプタの注入境界を D1・P3 が供給する4点だけに閉じる', () => {
+    type ExpectedInjections = Pick<
+      QueueTransitionInjections,
+      'resolveA5' | 'classifyB3'
+    > &
+      Pick<
+        NonNullable<Parameters<DurableQueue['prepareA5Transition']>[2]>,
+        'resolvePlayerRegistrationMapping'
+      > &
+      NonNullable<Parameters<DurableQueue['prepareI6Acceptance']>[1]>
+    type AdapterInjectionKey = keyof AckAdapterInjections
+    type ForbiddenInjectionKey = Extract<
+      AdapterInjectionKey,
+      | 'confirmI6EvacuationSaved'
+      | 'confirmO4Correction'
+      | 'resolveRg1State'
+      | 'resolveB3ContentAction'
+      | 'confirmTombstoneGeneration'
+    >
+    const exactInjections: ExactKeySet<
+      AckAdapterInjections,
+      ExpectedInjections
+    > = true
+    const exactInjectionKeys: ExactKeySet<
+      AdapterInjectionKey,
+      | 'resolveA5'
+      | 'classifyB3'
+      | 'resolvePlayerRegistrationMapping'
+      | 'resolveAcceptedAt'
+    > = true
+    const noForbiddenInjections: ExactKeySet<ForbiddenInjectionKey, never> =
+      true
+    const exactRequestKeys: ExactKeySet<keyof AckAdapterRequest, 'd1' | 'p3'> =
+      true
+    const exactD1InputKeys: ExactKeySet<
+      keyof D1AckAdapterInput,
+      'envelope' | 'boundaryResult' | 'b3Rejection' | 'playerIdMappingTarget'
+    > = true
+    const exactP3InputKeys: ExactKeySet<
+      keyof P3ResultAdapterInput,
+      'envelope' | 'expected'
+    > = true
+
+    expect([
+      exactInjections,
+      exactInjectionKeys,
+      noForbiddenInjections,
+      exactRequestKeys,
+      exactD1InputKeys,
+      exactP3InputKeys,
+    ]).toEqual([true, true, true, true, true, true])
+  })
+
+  it('再送範囲の公開契約をクライアント側の D3 選択だけに閉じる', () => {
+    type ReadyRange = Extract<ResendRangeResult, { status: 'ready' }>
+    type UnavailableRange = Extract<
+      ResendRangeResult,
+      { status: 'unavailable' }
+    >
+    type PublicRangeKey =
+      | keyof ResendRangeRequest
+      | keyof ResendD3Checkpoint
+      | keyof ReadyRange
+      | keyof UnavailableRange
+    type ServerSideKey = Extract<
+      PublicRangeKey,
+      | 'd5Decision'
+      | 'savedResult'
+      | 'replayedResult'
+      | 'authorizationResult'
+      | 'v12Result'
+    >
+    const exactCheckpointKeys: ExactKeySet<
+      keyof ResendD3Checkpoint,
+      'd4' | 'd3'
+    > = true
+    const exactRequestKeys: ExactKeySet<
+      keyof ResendRangeRequest,
+      'd4' | 'orderedSlots' | 'lastKnownSynced' | 'ack' | 'isD1AfterD3'
+    > = true
+    const exactReadyKeys: ExactKeySet<
+      keyof ReadyRange,
+      'status' | 'checkpoint' | 'slots'
+    > = true
+    const exactUnavailableKeys: ExactKeySet<
+      keyof UnavailableRange,
+      'status' | 'reason' | 'slots'
+    > = true
+    const exactResolverParameters: ExactKeySet<
+      Parameters<D1AfterD3Resolver>,
+      [DurableQueueSlot['d1'], ResendD3Checkpoint['d3']]
+    > = true
+    const exactReadySlots: ExactKeySet<
+      ReadyRange['slots'][number],
+      DurableQueueSlot
+    > = true
+    const noServerSideKeys: ExactKeySet<ServerSideKey, never> = true
+
+    expect([
+      exactCheckpointKeys,
+      exactRequestKeys,
+      exactReadyKeys,
+      exactUnavailableKeys,
+      exactResolverParameters,
+      exactReadySlots,
+      noServerSideKeys,
+    ]).toEqual([true, true, true, true, true, true, true])
+  })
+
+  it('undo 投入の公開契約を注入済み対象・操作結果と U1 だけに閉じる', () => {
+    type WithTarget = Extract<
+      UndoOperationResolution,
+      { targetReference: TargetEventReference }
+    >
+    type WithoutTarget = Extract<
+      UndoOperationResolution,
+      { targetReference?: undefined }
+    >
+    type D1OnlyReference = Pick<
+      TargetEventReference,
+      (typeof TARGET_EVENT_REFERENCE_ELEMENTS)[2]
+    >
+    type D1OnlyResolution = Readonly<{
+      targetReference: D1OnlyReference
+      operationResult: unknown
+    }>
+    type ForbiddenPublicKey = Extract<
+      | keyof UndoQueueingRequest
+      | keyof UndoQueueingInjections
+      | keyof UndoQueueingResult
+      | keyof UndoOperationResolution,
+      | 'sourceState'
+      | 'historyStack'
+      | 'previousState'
+      | 'operationStatus'
+      | 'nextUndoTarget'
+      | 'savedTarget'
+      | 'sameRequestTarget'
+      | 'gapTarget'
+    >
+    const exactTargetResolutionKeys: ExactKeySet<
+      keyof WithTarget,
+      'targetReference' | 'operationResult'
+    > = true
+    const exactNoTargetResolutionKeys: ExactKeySet<
+      keyof WithoutTarget,
+      'targetReference' | 'operationResult'
+    > = true
+    const exactTargetReference: ExactKeySet<
+      WithTarget['targetReference'],
+      TargetEventReference
+    > = true
+    const d1OnlyIsRejected: D1OnlyResolution extends UndoOperationResolution
+      ? false
+      : true = true
+    const exactResolverParameters: ExactKeySet<
+      Parameters<UndoOperationResolver>,
+      []
+    > = true
+    const exactRequestKeys: ExactKeySet<
+      keyof UndoQueueingRequest,
+      'queue' | 'scope' | 'd5' | 'version' | 'event'
+    > = true
+    const exactInjectionKeys: ExactKeySet<
+      keyof UndoQueueingInjections,
+      'resolveUndoOperation'
+    > = true
+    const exactResultKeys: ExactKeySet<
+      keyof UndoQueueingResult,
+      'operationResult' | 'slot'
+    > = true
+    const noForbiddenPublicKey: ExactKeySet<ForbiddenPublicKey, never> = true
+
+    expect([
+      exactTargetResolutionKeys,
+      exactNoTargetResolutionKeys,
+      exactTargetReference,
+      d1OnlyIsRejected,
+      exactResolverParameters,
+      exactRequestKeys,
+      exactInjectionKeys,
+      exactResultKeys,
+      noForbiddenPublicKey,
+    ]).toEqual([true, true, true, true, true, true, true, true, true])
+  })
+
+  it('境界結果の ACK あり・ACK なし型を discriminant の exact-set に閉じる', () => {
+    const exactAckKeys: ExactKeySet<
+      keyof AckBoundaryResult,
+      'delivery' | 'boundaryResult'
+    > = true
+    const exactNoAckKeys: ExactKeySet<
+      keyof NoAckBoundaryResult,
+      'delivery' | 'boundaryResult'
+    > = true
+    const exactAckDelivery: ExactKeySet<AckBoundaryResult['delivery'], 'ack'> =
+      true
+    const exactNoAckDelivery: ExactKeySet<
+      NoAckBoundaryResult['delivery'],
+      'no-ack'
+    > = true
+
+    expect([
+      exactAckKeys,
+      exactNoAckKeys,
+      exactAckDelivery,
+      exactNoAckDelivery,
+    ]).toEqual([true, true, true, true])
+  })
+
+  it('B3 の受け取り型に操作者が選ぶラベルを持たせない', () => {
+    type ContentClassification = Extract<
+      B3ReasonClassification,
+      { kind: typeof B3_REASON_KIND.CONTENT }
+    >
+    const exactClassificationKeys: ExactKeySet<
+      keyof ContentClassification,
+      'kind'
+    > = true
+    const exactContentKeys: ExactKeySet<
+      keyof B3ContentRejection,
+      'kind' | 'branch' | 'reason'
+    > = true
+    const exactO4Keys: ExactKeySet<
+      keyof B3O4Rejection,
+      'kind' | 'reason' | 'correctionConfirmation'
+    > = true
+    type B3VariantKeys = keyof B3ContentRejection | keyof B3O4Rejection
+    type ForbiddenLabelKey = Extract<
+      B3VariantKeys,
+      | 'actionRequiredLabel'
+      | 'revisionPending'
+      | 'tombstonePending'
+      | 'queueState'
+    >
+    const noForbiddenLabelKey: ExactKeySet<ForbiddenLabelKey, never> = true
+    const exactUnion: ExactKeySet<
+      B3Rejection,
+      B3ContentRejection | B3O4Rejection
+    > = true
+
+    expect([
+      exactClassificationKeys,
+      exactContentKeys,
+      exactO4Keys,
+      noForbiddenLabelKey,
+      exactUnion,
+    ]).toEqual([true, true, true, true, true])
+  })
+
+  it('A5 語彙を ackEnvelope.ts に再定義せず canonOracle の型と reader だけから得る', () => {
+    const sourceFile = ts.createSourceFile(
+      'ackEnvelope.ts',
+      sourceFor('ackEnvelope.ts'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    )
+    const canonImport = sourceFile.statements.find(
+      (statement): statement is ts.ImportDeclaration =>
+        ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === './canonOracle',
+    )
+    if (
+      !canonImport?.importClause?.namedBindings ||
+      !ts.isNamedImports(canonImport.importClause.namedBindings)
+    ) {
+      throw new Error(
+        'ackEnvelope.ts に canonOracle の named import がありません',
+      )
+    }
+    const importedIdentifiers =
+      canonImport.importClause.namedBindings.elements.map((element) => ({
+        name: element.name.text,
+        typeOnly: canonImport.importClause?.isTypeOnly || element.isTypeOnly,
+      }))
+    const canonResultIds = new Set(
+      readCanonAckStateResults().map((result) => result.id),
+    )
+    const duplicatedResultLiterals: string[] = []
+    const localLookupCollections: string[] = []
+    let switchStatementCount = 0
+    const visit = (node: ts.Node): void => {
+      if (ts.isStringLiteralLike(node) && canonResultIds.has(node.text)) {
+        duplicatedResultLiterals.push(node.text)
+      }
+      if (
+        ts.isNewExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        (node.expression.text === 'Map' || node.expression.text === 'Set')
+      ) {
+        localLookupCollections.push(node.expression.text)
+      }
+      if (ts.isSwitchStatement(node)) {
+        switchStatementCount += 1
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
+
+    expect(importedIdentifiers).toEqual([
+      { name: 'readCanonAckStateResults', typeOnly: false },
+      { name: 'CanonAckStateResult', typeOnly: true },
+    ])
+    expect(duplicatedResultLiterals).toEqual([])
+    expect(localLookupCollections).toEqual([])
+    expect(switchStatementCount).toBe(0)
   })
 
   it('P-28: 状態補正を種別集合の要素とし、製品 module の export を exact-set に閉じる', () => {

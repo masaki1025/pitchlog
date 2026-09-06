@@ -10,19 +10,25 @@ import {
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
   CANON_TEMPORARY_ID_MAPPING_OUT_OF_SCOPE,
   parseCanonAckStateResults,
+  parseCanonBoundaryResults,
+  parseCanonP3BoundaryResults,
   parseCanonQueueLifeRules,
   parseCanonTombstoneRule,
   readCanonAckStateResults,
+  readCanonBoundaryResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
+  readCanonP3BoundaryResults,
   readCanonParticipationRules,
   readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
   readCanonTombstoneRule,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
+  type CanonBoundaryResult,
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
+  type CanonP3BoundaryResult,
   type CanonTemporaryIdMappingRule,
   type CanonV12BoundaryRule,
 } from './canonOracle'
@@ -172,6 +178,89 @@ function expectTemporaryIdMappingRulesToMatchCanon(
 }
 
 describe('canonOracle', () => {
+  it('R-BOUNDARY から B1〜B7 の境界結果を読む', () => {
+    const sourceElements = syncProtocolRelations['R-BOUNDARY'].source_elements
+    const expectedResults = sourceElements.slice(0, 7).map((sourceElement) => {
+      const separatorIndex = sourceElement.indexOf(':')
+      return {
+        id: sourceElement.slice(0, separatorIndex),
+        name: sourceElement.slice(separatorIndex + 1),
+      }
+    })
+
+    expect(readCanonBoundaryResults()).toEqual(expectedResults)
+    expect(parseCanonBoundaryResults(sourceElements)).toEqual(expectedResults)
+  })
+
+  it('R-BOUNDARY の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-BOUNDARY'].source_elements.push(
+      'UNKNOWN:未知の境界結果',
+    )
+
+    expect(() => readCanonBoundaryResults(mutatedRelations)).toThrowError(
+      /未知の ID/,
+    )
+  })
+
+  it('R-BOUNDARY の境界結果欠落を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-BOUNDARY'].source_elements.splice(0, 1)
+
+    expect(() => readCanonBoundaryResults(mutatedRelations)).toThrowError(
+      /既知 ID 集合/,
+    )
+  })
+
+  it('CanonBoundaryResult を ID と名称だけに閉じる', () => {
+    const result: CanonBoundaryResult = { id: 'boundary', name: 'result' }
+
+    expect(Object.keys(result).sort()).toEqual(['id', 'name'])
+  })
+
+  it('R-P3-BOUNDARY から P3 の独立結果8種だけを読む', () => {
+    const sourceElements =
+      syncProtocolRelations['R-P3-BOUNDARY'].source_elements
+    const expectedResults: CanonP3BoundaryResult[] = sourceElements
+      .slice(0, 8)
+      .map((sourceElement) => {
+        const separatorIndex = sourceElement.indexOf(':')
+        return separatorIndex < 0
+          ? { id: sourceElement, name: sourceElement, accepted: true }
+          : {
+              id: sourceElement.slice(0, separatorIndex),
+              name: sourceElement.slice(separatorIndex + 1),
+              accepted: false,
+            }
+      })
+
+    expect(readCanonP3BoundaryResults()).toEqual(expectedResults)
+    expect(parseCanonP3BoundaryResults(sourceElements)).toEqual(expectedResults)
+    const acceptedResults = expectedResults.filter((result) => result.accepted)
+    expect(acceptedResults).toHaveLength(1)
+    expect(acceptedResults[0]?.id).toBe(expectedResults[0]?.id)
+  })
+
+  it('R-P3-BOUNDARY の未知 ID を専用 reader でも fail-closed に拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-P3-BOUNDARY'].source_elements.push(
+      'B15:未知の P3 境界結果',
+    )
+
+    expect(() => readCanonP3BoundaryResults(mutatedRelations)).toThrowError(
+      /未知の ID/,
+    )
+  })
+
+  it('R-P3-BOUNDARY の受理結果欠落を fail-closed に拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-P3-BOUNDARY'].source_elements.splice(0, 1)
+
+    expect(() => readCanonP3BoundaryResults(mutatedRelations)).toThrowError(
+      /既知 ID 集合/,
+    )
+  })
+
   it('規則表を R-EVENT-FIELD と順序非依存の exact-set で照合する', () => {
     const reversedCanonRules = [...readCanonEventFieldRules()].reverse()
 

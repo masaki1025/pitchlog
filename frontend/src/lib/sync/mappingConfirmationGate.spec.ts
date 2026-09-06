@@ -298,7 +298,11 @@ describe('mappingConfirmationGate', () => {
         syncedA5Injections(slot),
       ).applied,
     ).toBe(true)
-    expect(resolver).toHaveBeenCalledWith(slot.content)
+    // 写像確認の注入は (D4, D1, D5) のキーへ結合される(敵対レビュー P1)。
+    expect(resolver).toHaveBeenCalledWith({
+      key: slot.key,
+      event: slot.content,
+    })
   })
 
   it('同じキーの平文スロットで V5 を改変しても同期済みにならない', async () => {
