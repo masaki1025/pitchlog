@@ -229,7 +229,7 @@ status: in-review
 
 **同期側が決めるのは「意味上必須な値と、それらが満たすべき不変条件」まで**である。**列名・型・NULL 性・FK・索引・表分割は決めない** — それらは製品データモデルの正本化(TSK-250)の責務であり、本書は**構造上の帰結を 11 節の「データモデル影響差分」として渡す**。
 
-**本節のイベント契約は、要件書の[4.0](../requirements/requirements-pitchlog-2026-07-22.md#4.0) 共通原則・状態遷移を入力とする**(状態遷移そのものは本書で決めない)。**「必須」の意味**: その値が無いと**同期プロトコルの規則(5〜9 節)のどれかが成立しない**ということ。表示や分析の都合で欲しい値は含めない。
+**本節のイベント契約は、要件書の[4.0](../requirements/requirements-pitchlog-2026-07-22.md#4.0) 共通原則・状態遷移を入力とする**(状態遷移そのものは本書で決めない)。**要件書の[ブロック1](../requirements/requirements-pitchlog-2026-07-22.md#ブロック1)が定める試合記録のうち、同期に載る操作を表現することが本節の入力範囲である。** **「必須」の意味**: その値が無いと**同期プロトコルの規則(5〜9 節)のどれかが成立しない**ということ。表示や分析の都合で欲しい値は含めない。
 
 **「必須」は種別に依存しうる。** **V6(論理位置)と V8(状態差分)は種別ごとの条件付き**であり、**全イベントが持つわけではない**。初版は V6 を無条件の必須として書いていたが、**5-5 の参加区分表で「同期順のみ」「従属」とした種別は自身の D2 を持たない**ため矛盾していた(起草レビュー 1 周目 P1)。
 
@@ -365,7 +365,7 @@ V12 の必須条件と境界結果への写像は次の 6 要素を正とする�
 
 ### 4-4. 一時 ID → 正式 ID の置換契約(論点 13)
 
-断中の選手のその場登録は「**クライアント生成の一時 ID(UUID)で記録され、同期時にサーバーが正式 ID を確定・参照を置換する**」([FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015))。**置換は「参照の置換」であって行の作り直しではない**。同期側は次の 4 点を契約とする。
+断中の選手のその場登録は、要件書の[ブロック2](../requirements/requirements-pitchlog-2026-07-22.md#ブロック2)に属する選手管理の境界であり、「**クライアント生成の一時 ID(UUID)で記録され、同期時にサーバーが正式 ID を確定・参照を置換する**」([FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015))。**置換は「参照の置換」であって行の作り直しではない**。同期側は次の 4 点を契約とする。
 
 | # | 契約 | なぜ必要か |
 | --- | --- | --- |
@@ -553,7 +553,7 @@ FR-007 は進行中試合の修正を「**記録権を保持する端末のみ**
 
 #### イベント種別ごとの参加区分
 
-要件書の[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1) 試合のライフサイクルは、進行中に留まる操作イベントを状態遷移として定めている。その断中操作の完全列挙は「**毎球入力・undo・選手交代・タイブレーク開始・試合終了宣言・選手のその場登録(Must の 6 種)＋状態補正(FR-040 — 採用した場合のみ第 7 の種別)**」である([3](../requirements/requirements-pitchlog-2026-07-22.md#3)・[4.0-4](../requirements/requirements-pitchlog-2026-07-22.md#4.0-4))。**[FR-001](../requirements/requirements-pitchlog-2026-07-22.md#FR-001) がオンライン必須とする試合作成は、断中操作にもイベント参加区分にも含めない**。**この列挙は利用者の操作だけを覆っており、同期プロトコル自身が生成する墓標・改訂版を含まない**。したがって**両方を表に載せる**。
+要件書の[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1) 試合のライフサイクルは、進行中に留まる操作イベントを状態遷移として定めている。その断中操作の完全列挙は「**毎球入力・undo・選手交代・タイブレーク開始・試合終了宣言・選手のその場登録(Must の 6 種)＋状態補正(FR-040 — 採用した場合のみ第 7 の種別)**」である([3](../requirements/requirements-pitchlog-2026-07-22.md#3)・[4.0-4](../requirements/requirements-pitchlog-2026-07-22.md#4.0-4))。**この参加区分は、要件書の[ブロック1](../requirements/requirements-pitchlog-2026-07-22.md#ブロック1)が定める試合記録操作を同期上で分類する。** **[FR-001](../requirements/requirements-pitchlog-2026-07-22.md#FR-001) がオンライン必須とする試合作成は、断中操作にもイベント参加区分にも含めない**。**この列挙は利用者の操作だけを覆っており、同期プロトコル自身が生成する墓標・改訂版を含まない**。したがって**両方を表に載せる**。
 
 参加区分は、**論理再生への参加区分**と、同じ対象への変更を直列化する**変更版順属性**の組で表す。
 
@@ -664,7 +664,7 @@ NFR-015 が要求するのは失敗・スキップ・自動補正の**顕在化*
 
 **「最初の未適用イベントの停止理由」という 1 軸では、全件適用できた場合と全件が重複だった場合を分類できない**(そもそも「最初の未適用イベント」が存在しない)。また「適用済み / 重複」は**停止理由ではなくイベント 1 件ごとの処理結果**である。したがって**2 軸で表す**。
 
-本節の 2 軸と B1〜B7 は、6-1 の R0 に従い **D1 付きイベントの prefix 経路だけ**に適用する。D1 を持たない変更イベント(P3)は prefix コミットの対象外であり、後段の独立した処理段階と境界結果を使う。
+本節の 2 軸と B1〜B7 は、6-1 の R0 に従い **D1 付きイベントの prefix 経路だけ**に適用する。このうち利用者が生成する D1 付きイベントは、要件書の[ブロック1](../requirements/requirements-pitchlog-2026-07-22.md#ブロック1)が定める試合記録操作であり、欠落・拒否・記録権不一致でも記録を失わない境界結果を本節で決める。D1 を持たない変更イベント(P3)は prefix コミットの対象外であり、後段の独立した処理段階と境界結果を使う。
 
 | 軸 | 何を表すか | 値 |
 | --- | --- | --- |
@@ -879,7 +879,7 @@ V12 の条件と結果写像は 4-3 の正本要素をそのまま適用する�
 
 ### 6-5. B6(認可・テナント不一致)の非開示規則
 
-要件書の[6.4](../requirements/requirements-pitchlog-2026-07-22.md#6.4) 個人情報・機密情報の扱いは選手名・背番号・成績・所見をチーム内限定と定める。要件書は、**自チームが記録したデータと [FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041) の共同分析グループで明示的に付与された範囲の集計データ**に限ってアクセスを認め、**それ以外の他チームのデータ資源は内容・存在を含め参照できない**と定める([NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010))。また、付与範囲外は「**404 または拒否となり、内容・存在が応答から判別できない**」([FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034))。**同期の応答も出力経路の 1 つ**であり、この規則の対象になる。
+要件書の[6.4](../requirements/requirements-pitchlog-2026-07-22.md#6.4) 個人情報・機密情報の扱いは選手名・背番号・成績・所見をチーム内限定と定める。要件書は、**自チームが記録したデータと [FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041) の共同分析グループで明示的に付与された範囲の集計データ**に限ってアクセスを認め、**それ以外の他チームのデータ資源は内容・存在を含め参照できない**と定める([NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010))。また、付与範囲外は「**404 または拒否となり、内容・存在が応答から判別できない**」([FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034))。これは要件書の[ブロック7](../requirements/requirements-pitchlog-2026-07-22.md#ブロック7)が定める認証・マルチテナント境界であり、**同期の応答も出力経路の 1 つ**としてこの規則の対象になる。
 
 | 対象 | 規則 |
 | --- | --- |
@@ -993,9 +993,9 @@ P3 と D1 付き経路の V12 条件は次の写像に固定する。
 
 | 状態 | 意味 | 典拠 |
 | --- | --- | --- |
-| **未送信** | 端末内キューに積まれ、まだ確定していない。A5 の結果で別状態へ移るまで**破棄しない** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
+| **未送信** | 端末内キューに積まれ、まだ確定していない。A5 の結果で別状態へ移るまで**破棄しない** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)。[要件書の G-1](../requirements/requirements-pitchlog-2026-07-22.md#G-1)が求める毎球記録率 100% を損なわないため、受理した毎球記録を確定または退避より前に捨てない |
 | **要操作**(改訂待ち / 墓標待ち / 管理者対応待ち) | **内容起因で拒否された**、または **O4** の永続化済み D2 同値を検出した(B3)。内容起因では操作者の判断、O4 では管理者による D2 一意性の是正確認を待ち、自動再送・自動破棄の対象から外す | 内容起因は [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)。O4 は 5-5 の fail-closed 規則 |
-| **同期済み(24 時間保持)** | D1 付きイベントの確定、または**端末永続化まで成立した P3 の変更受理結果**が I6 として保持された。**DB 障害時の再送・確認出所**として端末に残し、通常時は初回確定から 24 時間の経過で自動破棄する。**RG1 中または RG1 中でないことを確認できない間は期限を経過しても自動破棄せず**、P3 の保存済み結果再掲で期限を延長しない | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
+| **同期済み(24 時間保持)** | D1 付きイベントの確定、または**端末永続化まで成立した P3 の変更受理結果**が I6 として保持された。**DB 障害時の再送・確認出所**として端末に残し、通常時は初回確定から 24 時間の経過で自動破棄する。**RG1 中または RG1 中でないことを確認できない間は期限を経過しても自動破棄せず**、P3 の保存済み結果再掲で期限を延長しない | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)。[要件書の R-10](../requirements/requirements-pitchlog-2026-07-22.md#R-10)が定める同期直後の DB 障害への緩和として、端末上の再送出所を 24 時間維持する |
 | **退避済み** | **D4 または V12 の記録権照合に失敗した D1 付きイベント**(B4)、または**復元前に保持した P3 受理結果**が、正史へ適用されず退避資料として保存された。管理コンソールで閲覧・書き出しでき、v0.1 では自動破棄せず保持する | [FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)・[FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)(対象外) |
 
 | ID | P3 の保持契約 | 帰結 |
@@ -1095,11 +1095,11 @@ P3 と D1 付き経路の V12 条件は次の写像に固定する。
 
 ### 7-5. 試合終了に固有の経路(論点 8)
 
-要件書の[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1) 試合のライフサイクルは進行中から終了への遷移を定め、FR-010 は終了時の同期について 2 つの受入基準を持つ。**通常の同期規律とは別に明示する**。
+要件書の[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1) 試合のライフサイクルは進行中から終了への遷移を定め、要件書の[ブロック1](../requirements/requirements-pitchlog-2026-07-22.md#ブロック1)に属する FR-010 は終了時の同期について 2 つの受入基準を持つ。**通常の同期規律とは別に明示する**。
 
 | 場面 | 規則 | 典拠 |
 | --- | --- | --- |
-| **未同期プレイがある状態で試合終了** | **同期が実行され、失敗があれば件数と理由が明示される**(**黙って欠損しない**) | [FR-010](../requirements/requirements-pitchlog-2026-07-22.md#FR-010) |
+| **未同期プレイがある状態で試合終了** | **同期が実行され、失敗があれば件数と理由が明示される**(**黙って欠損しない**) | [FR-010](../requirements/requirements-pitchlog-2026-07-22.md#FR-010)。[要件書の G-2](../requirements/requirements-pitchlog-2026-07-22.md#G-2)に従い、試合終了宣言後の初回同期は全イベントが欠損なく確定した場合だけ完了と判定し、拒否・退避・未処理が 1 件でも残れば完了とせず件数と理由を示す |
 | **通信断中の試合終了宣言** | **終了宣言イベントがキューに積まれ、復帰後に同期・確定される**。あわせて**未送信である旨の警告**と**試合一覧の未送信バッジ**が表示される | [FR-010](../requirements/requirements-pitchlog-2026-07-22.md#FR-010) |
 
 **「失敗があれば件数と理由」は 6-3 の境界結果と A5 へ写す**: 終了時同期の要求境界は **B2〜B7**である。A5 の拒否・退避・未処理を含めて件数と理由を表示し、**終了固有の新しい失敗分類は作らない**。
@@ -1171,7 +1171,7 @@ P3 と D1 付き経路の V12 条件は次の写像に固定する。
 
 ### 8-1. 単一トランザクションの構成要素と境界
 
-要件書は 4 つの要素が**単一の DB トランザクションで確定する**ことを求める([FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) — 「**途中クラッシュでプレイが消える/二重適用される事故の防止**」)。本書は経路ごとの欠落を防ぐため、これに **T5〜T9** を加える。T5 は D2 の採番・再採番、T6 は再送時に再掲する確定結果、T7 は D1 を持たない変更イベントの楽観ロックと無効化意図の保存、T8 は旧世代イベントの退避と B4 応答の境界、T9 は未使用 D5 の内容拒否原本と結果の原子保存を担う。
+要件書は 4 つの要素が**単一の DB トランザクションで確定する**ことを求める([FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) — 「**途中クラッシュでプレイが消える/二重適用される事故の防止**」)。この原子境界は、要件書の[ブロック1](../requirements/requirements-pitchlog-2026-07-22.md#ブロック1)が定める試合記録イベントを欠損・二重適用なく確定し、[要件書の G-2](../requirements/requirements-pitchlog-2026-07-22.md#G-2)が求める初回同期完了時点の全イベント無欠損を支える。本書は経路ごとの欠落を防ぐため、これに **T5〜T9** を加える。T5 は D2 の採番・再採番、T6 は再送時に再掲する確定結果、T7 は D1 を持たない変更イベントの楽観ロックと無効化意図の保存、T8 は旧世代イベントの退避と B4 応答の境界、T9 は未使用 D5 の内容拒否原本と結果の原子保存を担う。
 
 定義行の意味を原子経路へそのまま伝播する。
 
@@ -1282,7 +1282,7 @@ P3 は **W3・W3-a・W3-c・W4** に従い、D1 と prefix を持たず、全要
 
 | # | 規則 | 典拠 |
 | --- | --- | --- |
-| **S1** | **正本は DB の 1 系統のみ**。断中のクライアント計算は**暫定**であり、**復帰同期時のサーバー再計算が確定記録** | [4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)・[FR-020](../requirements/requirements-pitchlog-2026-07-22.md#FR-020)・[FR-021](../requirements/requirements-pitchlog-2026-07-22.md#FR-021)・[FR-022](../requirements/requirements-pitchlog-2026-07-22.md#FR-022)・[FR-023](../requirements/requirements-pitchlog-2026-07-22.md#FR-023) |
+| **S1** | **正本は DB の 1 系統のみ**。断中のクライアント計算は**暫定**であり、**復帰同期時のサーバー再計算が確定記録**。要件書の[ブロック3](../requirements/requirements-pitchlog-2026-07-22.md#ブロック3)が定めるスコアボード・当日成績・球種分布も、この確定記録から更新する | [4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)・[FR-020](../requirements/requirements-pitchlog-2026-07-22.md#FR-020)・[FR-021](../requirements/requirements-pitchlog-2026-07-22.md#FR-021)・[FR-022](../requirements/requirements-pitchlog-2026-07-22.md#FR-022)・[FR-023](../requirements/requirements-pitchlog-2026-07-22.md#FR-023)・[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)(クライアントとサーバーの計算乖離を解消する確定境界であり、二重実装を許す根拠にはしない) |
 | **S2** | サーバーは**イベント列を入力順に再計算・検証**する。**状況判定の正解は [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) のスキーマに従う付録E の全表(シードデータ)であり、[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) はその代表例にすぎない** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1)・[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) |
 | **S3** | **サーバー結果が確定記録**となる | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
 | **S4** | クライアント表示と差異があれば**補正し、操作者に通知する**(**黙って直さない**) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[NFR-015](../requirements/requirements-pitchlog-2026-07-22.md#NFR-015) |
@@ -1299,7 +1299,7 @@ P3 は **W3・W3-a・W3-c・W4** に従い、D1 と prefix を持たず、全要
 
 | 通知すべき場面 | 何を伝えるか | 典拠 |
 | --- | --- | --- |
-| **再計算でクライアント表示と差異が出た** | **補正した内容** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
+| **再計算でクライアント表示と差異が出た** | 要件書の[ブロック3](../requirements/requirements-pitchlog-2026-07-22.md#ブロック3)が定めるリアルタイム表示値を含む**補正した内容** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
 | **墓標で破棄した** | **後続イベントへのサーバー補正の内容**(破棄したイベントに依存していた状態が変わるため) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
 | **同期が B2〜B7 で止まった** | どこで止まったかを伝える | **4.0-2「黙殺しない」・NFR-015** |
 | **P3 が B8〜B14 で止まった** | **B8 は期待版不一致と現在版**、B9 は記録権、B10 は再試行中、B11 は再ログイン、B12 は非開示、B13 は新 D5、B14 は修正方法を伝える | **FR-007 の楽観ロック・4.0-2「黙殺しない」・NFR-015** |
@@ -1463,8 +1463,8 @@ D1 付き経路の強制点も同じ認可先行の順序に固定する。
 
 | # | 規則 | 典拠 |
 | --- | --- | --- |
-| **E1** | 旧世代のイベントは**適用されないが破棄されず退避される** | [FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013) |
-| **E2** | 退避イベントは [FR-037](../requirements/requirements-pitchlog-2026-07-22.md#FR-037) の運用保守面である管理コンソールから**閲覧・書き出しができる**(**Must**)。「**黙って捨てないこと自体が NFR-015 の要求**」 | [FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013) |
+| **E1** | 旧世代のイベントは**適用されないが破棄されず退避される**。[要件書の G-1](../requirements/requirements-pitchlog-2026-07-22.md#G-1)が対象とする毎球記録も、記録権世代の不一致だけを理由に失わない | [FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013) |
+| **E2** | 退避イベントは [FR-037](../requirements/requirements-pitchlog-2026-07-22.md#FR-037) の運用保守面である管理コンソールから**閲覧・書き出しができる**(**Must**)。これは要件書の[ブロック8](../requirements/requirements-pitchlog-2026-07-22.md#ブロック8)が定めるデータ管理機能へ退避資料を接続する境界である。「**黙って捨てないこと自体が NFR-015 の要求**」 | [FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013) |
 
 #### 保持期間と破棄可否(論点 11)
 
@@ -1480,7 +1480,7 @@ D1 付き経路の強制点も同じ認可先行の順序に固定する。
 
 ### 9-5. 復元後の全世代フェンスと端末内キューの回収
 
-NFR-009 は「**復元後の手順**」として、「バックアップからの復元 = サーバーが過去に戻るため、**復元後は全試合の記録権世代を無効化(フェンス)して新世代を発行**し、**端末の同期済み 24 時間保持分(FR-012)の回収・突合を復旧手順に含める**(端末側が「同期済み」と認識しているイベントがサーバーから消えている「**世界線ズレ**」の解消)」と定める([NFR-009](../requirements/requirements-pitchlog-2026-07-22.md#NFR-009))。
+NFR-009 は「**復元後の手順**」として、「バックアップからの復元 = サーバーが過去に戻るため、**復元後は全試合の記録権世代を無効化(フェンス)して新世代を発行**し、**端末の同期済み 24 時間保持分(FR-012)の回収・突合を復旧手順に含める**(端末側が「同期済み」と認識しているイベントがサーバーから消えている「**世界線ズレ**」の解消)」と定める([NFR-009](../requirements/requirements-pitchlog-2026-07-22.md#NFR-009))。この回収は、[要件書の R-10](../requirements/requirements-pitchlog-2026-07-22.md#R-10)が挙げる同期完了直後の DB 障害を入力とし、端末の 24 時間保持分を失わず退避する同期側の緩和である。回収物を正史へ戻す規則は本節では決めない。
 
 NFR-009 が回収を明記する最小範囲は**同期済み 24 時間保持分**である。ただし、復元を理由に端末内の他状態や P3 の保持結果を破棄してはならない。本書が決めるのは、**全 D4 の失効、復元調整中の書き込み停止、旧世代イベントと P3 受理結果の退避、管理コンソールでの閲覧・書き出し確認、新しい D4(D3 = 0)の開始**までの同期側の終端条件である。復旧手順の起動時刻・担当者・回収対象端末の指定・再試行・エスカレーションは NFR-009 の復旧手順が決める。
 
@@ -1562,7 +1562,7 @@ NFR-009 が回収を明記する最小範囲は**同期済み 24 時間保持分
 
 ### 10-2. NFR-019(c)(d) の観点
 
-要件書の[8](../requirements/requirements-pitchlog-2026-07-22.md#8) 完了条件・リリース判定基準は、4 章・5 章の Must 要件が受入基準を満たすことをリリース可の条件に置く。**(a) 一致性テストの正解ベクタは [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) のスキーマに従う付録E の全表(シードデータ)であり、[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) はその代表例にすぎない**。要件書は CI に含めるテストとして **(c) 主要分岐の E2E テスト**と **(d) 同期プロトコルの故障系テスト**を挙げる([NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019))。
+要件書の[8](../requirements/requirements-pitchlog-2026-07-22.md#8) 完了条件・リリース判定基準は、4 章・5 章の Must 要件が受入基準を満たすことをリリース可の条件に置く。**(a) 一致性テストの正解ベクタは [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) のスキーマに従う付録E の全表(シードデータ)であり、[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) はその代表例にすぎない**。[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)が挙げるクライアントとサーバーの計算乖離は (a) と NFR-018 の検査で抑止し、[要件書の R-5](../requirements/requirements-pitchlog-2026-07-22.md#R-5)が挙げる通信断機構の実地未検証は (c) の通信断 E2E と 8 章の実戦リハーサルの両方で緩和する。**本節の故障系テストは実地検証を置き換えない。** 要件書は CI に含めるテストとして **(c) 主要分岐の E2E テスト**と **(d) 同期プロトコルの故障系テスト**を挙げる([NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019))。
 
 - **(c)**: 「タイブレーク・コールド・引き分け・終了後修正→再集計・交代フルセット・**通信断→復帰同期**・**記録権の通常/緊急引き継ぎと退避経路**」
 - **(d)**: 「**墓標/改訂の適用**・**サーバー適用の原子性(クラッシュ注入)**・**複数タブの単一書き手競合**」に加え、**NFR-019(d)/E5 のフリーズ後の再選出・待機中入力の非受理・永続追記失敗**
@@ -1639,7 +1639,7 @@ P3 の故障注入では、次の T7 の永続化境界を独立して観測す�
 | --- | --- | --- |
 | **墓標の適用** | `D1=1..7` を送り、`D1=5` を B3 にする。**現保持端末**ではオンラインで V12 を確認してから墓標を生成する。**旧保持端末**では墓標操作が提供されないことを確かめる。確認後・送信前に権を移す競合も実行する | 現保持端末では **D3 が 4 → 7**へ前進し、投影の長さ・並びは変わらない。旧保持端末では墓標を生成できない。確認後に権が移った場合は **B4** となり、墓標を適用せず退避する。破棄・退避のいずれも黙殺しない([FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)) |
 | **改訂の適用** | 同上で `D1=5` を拒否させ、**同一 D1・新しい D5** の改訂版を送る | **旧版が置換される**。**D3 は 5 → 7 へ前進**する。**D2 は元の位置を保つ**(5-5 の #9)ため、**プレイの並びが変わらない** |
-| **P1** | D2 の採番を伴わない D1 付きイベントを適用し、**T1・T2・T3・T4・T6**の各境界でプロセスを落とす。ACK 消失後に記録権を引き継ぎ、同じ D5・同じ内容で再送する | ③認可が D5 照合より先で、D5 照合は V12 より先。**T1・T2・T3・T4・T6**はすべて確定またはすべて未確定で、受理済みなら引き継ぎ後も T6 の確定結果・一時 ID 写像を再掲する。B4 へ変化させず、二重適用・重複生成がない |
+| **P1** | D2 の採番を伴わない D1 付きイベントを適用し、**T1・T2・T3・T4・T6**の各境界でプロセスを落とす。ACK 消失後に記録権を引き継ぎ、同じ D5・同じ内容で再送する | ③認可が D5 照合より先で、D5 照合は V12 より先。**T1・T2・T3・T4・T6**はすべて確定またはすべて未確定で、受理済みなら引き継ぎ後も T6 の確定結果・一時 ID 写像を再掲する。要件書の[ブロック2](../requirements/requirements-pitchlog-2026-07-22.md#ブロック2)が定める断中の選手登録では一時 ID 写像も同じ結果として再掲し、B4 へ変化させず、二重適用・選手の重複生成がない |
 | **P2** | **D2 採番・再採番あり**。各 T 境界のクラッシュと ACK 消失後の引き継ぎを起こす | P1 と同じ順序で保存済み結果を引き継ぎ後も再掲する。**T1・T2・T3・T4・T5・T6**はすべて確定またはすべて未確定で、D1 だけの gap も同一 D1 の採番競合もない |
 | **P3** | **W4** に従う **D1 なし変更イベント**を要求作成時の復旧世代とともに送る。原子境界のクラッシュ、**T7 の確定後・無効化配信前**、既存 outbox の**消費側反映後・配信完了記録前**、サーバー確定後・I6 端末永続化前の応答消失/ブラウザ終了を注入する。**変更受理**、V11 不一致の **B8 期待版不一致**、進行中の不成立 V12 または全 P3 の旧復旧世代による **B9 記録権不保持**、**B10 一時障害**、**B11 認証失効**、別テナントと不存在を同じ外形にする **B12 認可・テナント不一致**、同じ D5・異なる内容の **B13 D5 衝突**、**B14 変更内容拒否**をそれぞれ起こす。終了後 P3 の要求を復元前の復旧世代のまま RG1 解除後に再送するケースも含める | ③認可、RG1、復旧世代、D5、V12、V11 の順になる。旧復旧世代は終了後も B9 とし、D5・変更・無効化意図を保存せず利用者/管理者へ顕在化する。変更受理の原子境界では **T1・T2・T4・T6・T7**が全確定または全非確定。**I5** は無効化意図を 1 件だけ保存し、既存 outbox の**安定した意図 ID**を期待値として観測する。消費側反映後・配信完了記録前に再配送しても、同じ意図 ID の**同じ論理無効化**として冪等に完了し、意図・論理効果を重複させない。**I6 は端末永続化まで成立した結果だけ**で、サーバー確定から端末永続化までの窓は保持済みと判定せず、D5 と内容も失った場合の回収を期待しない。保存失敗と未保護窓を NFR-015 の通知/ログで顕在化する。現復旧世代の保存済み同一内容だけを再掲し、B8・B9・B11・B12・B14 では今回のイベント適用境界が非確定になる |
 | **D1 混在バッチ** | 既存 D5・同一内容、既存 D5・異なる内容、未使用 D5 を 1 要求に混在させ、ACK 消失、記録権引き継ぎも起こす | ③認可後に全件を D5 の内部候補へ分類するが、A5 と停止境界は D1 昇順で確定する。停止しなければ、既存同一内容へ保存済み結果、既存異内容へ B3b、未使用 D5 へ現在の V12・prefix・内容検査の結果を返す。最初の B2・B3 以降は候補の種類を問わず未処理とし、保存済み結果を現在の状態や V12 で上書きしない |
@@ -1671,7 +1671,7 @@ P3 の故障注入では、次の T7 の永続化境界を独立して観測す�
 
 ### 10-3. 正解ベクタの発効ゲートは (d) に及ばない
 
-**NFR-018 は正解ベクタについて「完成をもって発効する」という強い規律を持つ**([NFR-018](../requirements/requirements-pitchlog-2026-07-22.md#NFR-018) — 「**完成をもって正解ベクタとして発効する。完成前に NFR-019(a) を合格と判定してはならない**」)。
+**NFR-018 は正解ベクタについて「完成をもって発効する」という強い規律を持つ**([NFR-018](../requirements/requirements-pitchlog-2026-07-22.md#NFR-018) — 「**完成をもって正解ベクタとして発効する。完成前に NFR-019(a) を合格と判定してはならない**」)。この発効前を合格にしない規律は、[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)が緩和策に指定する単一実装・差分検出・構成完全性を、未完成の正解ベクタで満たしたと誤判定しないための境界である。
 
 **この発効ゲートは (d) の故障系テスト資産には掛からない。** 同条は対象を**明示的に限定している**:
 
@@ -1735,8 +1735,8 @@ P3 の資産契約は、次の原子境界を名前付きで参照する。
 | 指標 | 目標 | 前提負荷 | 受け取り先 |
 | --- | --- | --- | --- |
 | **NFR-001** 確定 → 次の入力可能 | **p95 1 秒**([NFR-001](../requirements/requirements-pitchlog-2026-07-22.md#NFR-001)) | [NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005) | 実装計画 + 実戦リハーサル([NFR-001](../requirements/requirements-pitchlog-2026-07-22.md#NFR-001)) |
-| **NFR-002** サーバー同期 | **p95 5 秒**([NFR-002](../requirements/requirements-pitchlog-2026-07-22.md#NFR-002)) | [NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005) | 同上 |
-| **NFR-006** 閲覧端末への反映 | **10 秒以内 — Should**([NFR-006](../requirements/requirements-pitchlog-2026-07-22.md#NFR-006)) | [NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005) | 実装計画。**方式は (B) 論点 22** |
+| **NFR-002** サーバー同期 | **p95 5 秒**([NFR-002](../requirements/requirements-pitchlog-2026-07-22.md#NFR-002))。[要件書の G-2](../requirements/requirements-pitchlog-2026-07-22.md#G-2)が判定点とする試合終了宣言後の初回同期も完了時刻を採り、全イベントの欠損有無は G-2 の別指標として判定する | [NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005) | 同上 |
+| **NFR-006** 閲覧端末への反映 | **10 秒以内 — Should**([NFR-006](../requirements/requirements-pitchlog-2026-07-22.md#NFR-006))。対象は要件書の[ブロック3](../requirements/requirements-pitchlog-2026-07-22.md#ブロック3)が定めるスコアボード・投手/打者成績・球種分布のリアルタイム表示 | [NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005) | 実装計画。**方式は (B) 論点 22** |
 
 **NFR-006 の Must は反映時間ではない。** 同条の優先度は「**Should(鮮度表示は Must)**」であり([NFR-006](../requirements/requirements-pitchlog-2026-07-22.md#NFR-006))、**Must なのは鮮度表示** — 「**閲覧画面には最終反映時刻を表示し、入力端末がオフラインの間はその旨を明示する**」([NFR-006](../requirements/requirements-pitchlog-2026-07-22.md#NFR-006))である。**10 秒を外しても鮮度表示は外せない**。
 
@@ -1943,13 +1943,13 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 9 | 境界として参照 | 6-4・9-5・11-4 |
 | 10 | 境界として参照 | 10-1・10-3 |
 | ブロック1 | 同期側で決める | 4〜8 |
-| ブロック2 | 境界として参照 | 4-4・8-5・10-2 |
+| ブロック2 | 境界として参照 | 4-4・10-2 |
 | ブロック3 | 境界として参照 | 8-2・8-3・11-1 |
 | ブロック4 | 対象外 | 当該機能ブロックは同期プロトコルの決定または入力ではないため対象外 |
 | ブロック5 | 対象外 | 当該機能ブロックは同期プロトコルの決定または入力ではないため対象外 |
 | ブロック6 | 対象外 | 当該機能ブロックは同期プロトコルの決定または入力ではないため対象外 |
 | ブロック7 | 境界として参照 | 6-5 |
-| ブロック8 | 境界として参照 | 4-4・9-4 |
+| ブロック8 | 境界として参照 | 9-4 |
 | 付録A/A-1 | 対象外 | 当該付録項は同期プロトコルの決定または入力ではないため対象外 |
 | 付録A/A-2 | 対象外 | 当該付録項は同期プロトコルの決定または入力ではないため対象外 |
 | 付録A/A-2b | 対象外 | 当該付録項は同期プロトコルの決定または入力ではないため対象外 |
@@ -2314,8 +2314,10 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 7-1/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-015 | 支持 |  |
 | 7-1/経路別の応答契約/p7 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
+| 7-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | G-1 | 支持 |  |
 | 7-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-2/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
+| 7-2/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-10 | 支持 |  |
 | 7-2/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 7-2/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-2/r6 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
@@ -2338,6 +2340,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 7-4/r12 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-020 | 支持 |  |
 | 7-4/r12 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-5/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-010 | 支持 |  |
+| 7-5/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | G-2 | 支持 |  |
 | 7-5/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-010 | 支持 |  |
 | 7-5/p3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-010 | 支持 |  |
 | 7-6/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
@@ -2372,6 +2375,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 7-7/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-8/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 8-1/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
+| 8-1/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | G-2 | 支持 |  |
 | 8-1/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 8-1/r16 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 8-1/r17 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
@@ -2380,6 +2384,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 8-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-021 | 支持 |  |
 | 8-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-022 | 支持 |  |
 | 8-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-023 | 支持 |  |
+| 8-2/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-3 | 支持 |  |
 | 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 8-2/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 8-2/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
@@ -2409,11 +2414,13 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 9-3/p4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 9-3/p4 | 2 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 9-4/退避の位置づけ/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
+| 9-4/退避の位置づけ/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | G-1 | 支持 |  |
 | 9-4/退避の位置づけ/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 9-4/退避の位置づけ/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-037 | 支持 |  |
 | 9-4/保持期間と破棄可否(論点-11)/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 9-4/保持期間と破棄可否(論点-11)/p2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 6.1 | 支持 |  |
 | 9-5/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-009 | 支持 |  |
+| 9-5/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-10 | 支持 |  |
 | 9-5/p3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-015 | 支持 |  |
 | 10-1/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 10-1/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-002 | 支持 |  |
@@ -2425,9 +2432,12 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 10-1/r6 | 2 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-006 | 支持 |  |
 | 10-1/r9 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-019 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-3 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-5 | 支持 |  |
 | 10-2/(d)-の故障系観点-—-実行可能なシナリオ/r22 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 10-2/(d)-の故障系観点-—-実行可能なシナリオ/r39 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 10-3/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-018 | 支持 |  |
+| 10-3/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | R-3 | 支持 |  |
 | 10-3/p3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-018 | 支持 |  |
 | 11-1/同期のクリティカルパス/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-001 | 支持 |  |
 | 11-1/同期のクリティカルパス/r1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 4.0-4 | 支持 |  |
@@ -2442,6 +2452,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 11-1/実測の条件と受け取り先/r1 | 2 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-001 | 支持 |  |
 | 11-1/実測の条件と受け取り先/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-002 | 支持 |  |
 | 11-1/実測の条件と受け取り先/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-005 | 支持 |  |
+| 11-1/実測の条件と受け取り先/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | G-2 | 支持 |  |
 | 11-1/実測の条件と受け取り先/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-006 | 支持 |  |
 | 11-1/実測の条件と受け取り先/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-005 | 支持 |  |
 | 11-1/実測の条件と受け取り先/p3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-006 | 支持 |  |
