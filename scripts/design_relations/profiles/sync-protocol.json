@@ -113,7 +113,8 @@
     "emphasis",
     "draft-metadata",
     "attribution",
-    "ledger"
+    "ledger",
+    "attribution-destination"
   ],
   "not_applicable": {
     "forbidden-structure": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)",
@@ -122,7 +123,6 @@
     "baseline-digest": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)",
     "unique-owner": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)",
     "reference-class": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)",
-    "attribution-destination": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)",
     "attribution-direct": "二文書目(データモデル正本)向けの検査。同期正本には対応する資産が無く、既存の振る舞いを変えないため無効化(TSK-269 design 5-1)"
   },
   "assets": {},

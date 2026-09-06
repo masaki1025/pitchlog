@@ -448,8 +448,13 @@ def test_cli_maps_registry_file_mismatch_to_exit_2(tmp_path: Path) -> None:
     assert "登録集合と実ファイル集合が一致しません" in result.stderr
 
 
-def test_cli_reports_not_applicable_attribution_destination() -> None:
-    """同期プロファイルの新検査を理由付きの対象なしとする。"""
+def test_cli_runs_attribution_destination_on_real_document() -> None:
+    """同期プロファイルの帰属先検査が有効であり、実文書で指摘ゼロであることを固定する。
+
+    「対象なし」が出ないことを固定するのは、`not_applicable` へ戻したり
+    `required_checks` から外したりして検査が走らなくなった状態を捕まえるため。
+    削除だけでは検査が選ばれず、rc=0 のまま無登録になり得る。
+    """
     result = _run_cli(
         REPOSITORY_ROOT,
         "--checks",
@@ -457,7 +462,7 @@ def test_cli_reports_not_applicable_attribution_destination() -> None:
     )
 
     assert result.returncode == 0
-    assert "attribution-destination: 対象なし:" in result.stdout
+    assert "attribution-destination: 対象なし:" not in result.stdout
     assert result.stderr == ""
 
 
@@ -485,8 +490,11 @@ def test_cli_runs_applicable_attribution_destination(tmp_path: Path) -> None:
     )
     profile_data = json.loads(PROFILE.read_text(encoding="utf-8"))
     profile_data["document"] = str(document)
-    profile_data["required_checks"].append("attribution-destination")
-    del profile_data["not_applicable"]["attribution-destination"]
+    # 本番プロファイルは TSK-322 で attribution-destination を必須化済みだが、
+    # このテストは無効化状態から有効化する経路も含めて成立させたいので冪等に扱う。
+    if "attribution-destination" not in profile_data["required_checks"]:
+        profile_data["required_checks"].append("attribution-destination")
+    profile_data["not_applicable"].pop("attribution-destination", None)
     profile_path = tmp_path / "profile.json"
     profile_path.write_text(
         json.dumps(profile_data, ensure_ascii=False),
