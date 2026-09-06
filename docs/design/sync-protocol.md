@@ -2078,7 +2078,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | **U-9** | **全数割り当ての安定 ID と網羅の検査方法**(11-3)。**本改訂で閉じる範囲**は、参照規約 2-6 を帰属母集合の 8 カテゴリへ拡張し、11-3 の 54 件を是正して `attribution-destination` を有効化するところまでとする(ステップ 10〜16)。**残る範囲**は、① **`(ID, 帰属先節)` ペアの全数についての意味的な帰属判断**、② **`STABLE_ID_RE` の拡張**である | ① 検査は `any()` 判定であり、割り当て先のどれか 1 節に安定 ID があれば通るため、機械では全ペアの妥当性を保証できない。② `blocks`・`keyed_table_rows`・`release_dod` の合成 ID と `NFR-019/(a)`〜`NFR-019/(d)` は安定 ID として受理されず 11-5 に載らない(2-6)。パーサの拡張は検査資産の変更であり、本改訂の射程外とする | **TSK-326**(11-3 の全帰属先ペアの意味判断と `STABLE_ID_RE` の拡張) |
 | **U-10** | **DI4(D1 付き経路の未使用 D5 = V12・prefix・内容検査対象)のバックエンド実装への受け取り記録**。DI1・DI5・I1・B3a と同じく、サーバー側の適用へ伝播させる | **規則自体は本書で確定しており、欠けているのは実装側の受け取り記録である**。本書はバックエンドの実装計画を確定しない | **実装計画**(バックエンド) |
 | **U-11** | **イベントが時刻属性を持つことを定めた条文が要件書に無い**(4-3) | 要件に受け皿がなく、設計が単独で規範化すると要件の創出になる。部分的に接触するのは要件書の G-2 の測定方法・6.1 の P3 受理結果(`accepted_at`)・付録D の 88 列だけで、いずれも種別限定または外部契約であり、全イベントの属性を定めていない | **TSK-327**(要件書改訂 — イベントが時刻属性を持つことの条文化) |
-| **U-12** | **6-5 の監査規則は「サーバー側のログには記録する」「管理者は追跡できる」を無条件に要求する([FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035))が、記録先である[6.1/管理者操作ログ（Should）](../requirements/requirements-pitchlog-2026-07-22.md#6.1/管理者操作ログ（Should）)は **Should** である。**未採用時に監査が何によって成立するかが定まらない** | **未採用を許すなら監査を条件化し、監査を必須とするなら記録先を Must にする方式判断**が要る。いずれも要件側の裁定であり本書では決められない(本改訂で顕在化した既存の緊張であり、本改訂が作ったものではない) | **要件改訂タスク** |
+| **U-12** | **6-5 の監査規則は「サーバー側のログには記録する」「管理者は追跡できる」を無条件に要求する([FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035))が、記録先である[6.1/管理者操作ログ（Should）](../requirements/requirements-pitchlog-2026-07-22.md#6.1/管理者操作ログ（Should）)は **Should** である。**未採用時に監査が何によって成立するかが定まらない** | **未採用を許すなら監査を条件化し、監査を必須とするなら記録先を Must にする方式判断**が要る。いずれも要件側の裁定であり本書では決められない(本改訂で顕在化した既存の緊張であり、本改訂が作ったものではない) | **TSK-328**(要件書改訂 — 監査規則の無条件要求と管理者操作ログ Should の衝突) |
 
 #### 残存リスク
 
@@ -2097,6 +2097,7 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | **TSK-326**(11-3 の全帰属先ペアの意味判断と `STABLE_ID_RE` の拡張) | U-9 の残る範囲(`(ID, 帰属先節)` ペアの全数についての意味的な帰属判断 + `STABLE_ID_RE` の拡張) |
 | **要件改訂タスク** | U-3(要件側) |
 | **TSK-327**(要件書改訂 — イベントが時刻属性を持つことの条文化) | U-11 |
+| **TSK-328**(要件書改訂 — 監査規則の無条件要求と管理者操作ログ Should の衝突) | U-12 |
 | **移行仕様タスク** | **調査上の申し送り(非規範)**: 同じ旧リポジトリ `Baseball_Scoring` develop・`ed6a20f` 時点を対象とする原典間に、未裁定の矛盾が 3 件ある。① `data-layer.md` は全 12 テーブル(`docs/legacy/research/data-layer.md:15-17`)だが、`baseball-scoring-db-structure.md` は 13 テーブル(`docs/legacy/baseball-scoring-db-structure.md:13-18`)。② 前者は外部キーに `ON DELETE CASCADE` は一切ない(`docs/legacy/research/data-layer.md:21`)が、後者は `game_lineup_snapshot` に唯一の `ON DELETE CASCADE` がある(`docs/legacy/baseball-scoring-db-structure.md:177`)。③ 前者は PostgreSQL 接続プールを `SimpleConnectionPool(1, 3)` とする(`docs/legacy/research/data-layer.md:247-252`)が、後者は `ThreadedConnectionPool` の min1/max10 とする(`docs/legacy/baseball-scoring-db-structure.md:18`)。両資料の対象リビジョンは `docs/legacy/research/README.md:3` と `docs/legacy/baseball-scoring-db-structure.md:3`、移行における資料の優先規定は `docs/legacy/research/README.md:36` に記録されているが、**本書は 3 件を裁定しない**。また、旧列名 `プレイの番号` に UNIQUE 制約がなく重複し得ることは確認できる(`docs/legacy/research/data-layer.md:402`)一方、**欠番があり得るかは原典から確認できず不明**である。原典の再検証と移行規則の決定は移行仕様タスクが担い、これらを**本書の同期規則の結論には用いない** |
 | **実装計画** | 10-1 の (B) 8 件 + U-5・U-8(実装側) + U-10(DI4 のバックエンド実装) + RR-3 の NFR-015 表示/ログ。RR-3 を回収する新機構は作らない |
 | **NFR-009 の復旧手順**(運用) | U-4(起動時刻・担当者・端末回収順・復元調整の解除判断・回収対象端末の指定・再実行・エスカレーション) + RR-2(復元前の受理済みイベントを正史へ戻す判断と手順) + RR-3(I6 未保護窓の注意・顕在化)。本書は正史へ戻す規則を持たず、同期側ではフェンス・端末永続化済み保持物の退避・閲覧/書き出し・未回収/期限切れ欠落 0・新 D4(D3 = 0)開始を終端条件とする |
@@ -2463,16 +2464,16 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 11-4/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 11-4/残存リスク/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-015 | 支持 |  |
 | 11-4/r11 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-035 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 2 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 3.2 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/research/data-layer.md | legacy | 3.2 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 2 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/research/README.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 2 | docs/legacy/research/README.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r6 | 1 | docs/legacy/research/data-layer.md | legacy | 6 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 3.2 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 3.2 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/README.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/research/README.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 6 | 支持 |  |
 
 ## 12. 検証記録
 
