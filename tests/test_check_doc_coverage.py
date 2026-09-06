@@ -196,7 +196,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assert checker.check_coverage(extracted, universe, assignments) == ()
     assert len(assignments) == 212
     assert Counter(assignment.kind for assignment in assignments) == {
-        "同期側で決める": 38,
+        "同期側で決める": 37,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
         # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
@@ -208,7 +208,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # P1-6(確定ゲート 9 周目)で、DoD ⑥を復元ライフサイクルの同期側の
         # 完走条件として「境界として参照」から「同期側で決める」へ移した。
         # ステップ41で6.1のP3受理結果保持を母集合と同期側の帰属へ1件追加した。
-        "境界として参照": 82,
+        "境界として参照": 83,
         "対象外": 92,
     }
 

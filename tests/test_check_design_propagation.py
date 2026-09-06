@@ -3895,8 +3895,8 @@ def test_step39_attribution_follows_restore_contracts() -> None:
         DESIGN.read_text(encoding="utf-8"), "11-3"
     )
 
-    assert "| 同期側で決める | 38 |" in attribution
-    assert "| 境界として参照 | 82 |" in attribution
+    assert "| 同期側で決める | 37 |" in attribution
+    assert "| 境界として参照 | 83 |" in attribution
     assert "| 対象外 | 92 |" in attribution
     assert "| FR-035 | 境界として参照 | 4-4・9-4・9-5 |" in attribution
     assert (
