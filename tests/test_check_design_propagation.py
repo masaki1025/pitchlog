@@ -3755,7 +3755,7 @@ def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
     assert "退避・非破棄・管理コンソールでの閲覧・書き出し" in handoff
     assert "**RR-1**" in handoff
     assert "**TSK-267**" in handoff
-    assert "要件書 v2.5 + 本正本 v0.2" in handoff
+    assert "同一の確定ゲートで一括検証" in handoff
 
     assert all(element in document for element in ("D8", "B4", "P4", "T8"))
     assert all(element in document for element in ("O1", "O2", "O4"))

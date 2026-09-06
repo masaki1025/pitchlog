@@ -79,6 +79,7 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | --- | --- |
 | `scripts/design_relations/profiles/sync-protocol.json` | `required_checks` に `attribution-destination` 追加・`not_applicable` から削除 |
 | `scripts/design_relations/profiles/registry.json` | `must_require` 追加・`pins.profile_gating_digest` 再計算 |
+| `tests/test_check_design_propagation.py` | `test_step35_keeps_fr013_must_and_declares_deferred_should` が **`"要件書 v2.5 + 本正本 v0.2"` を literal で assert** しており、**11-4 から版番号を外すと red になる**。版番号に依存しない assert へ置き換える(テストの意図「退避の Must と現行世代への投入を分離して固定する」は保つ)。**調査 §6-3 (iii)「テストが正本の literal をハードコードする」型の実例**(ステップ 9 で顕在化) |
 | `tests/test_check_doc_coverage.py` | **3 箇所**: ① `test_cli_reports_not_applicable_attribution_destination`(有効前提へ)② `test_real_document_passes_all_coverage_checks`(**全必須検査 rc=0 を固定しており、有効化した瞬間に効く**)③ `test_step32_assignment_corrections_are_fixed`(**`FR-021` の帰属先 `8-2` を固定** — 本計画は 8-2 を維持するので**変更不要である見込み。ステップ 16 で実際に確認する**) |
 | **`contracts/authz/*`(8 ファイル)** | **要件書の blob を凍結しているため再 seal が必要**(`requirement-claims.json` の `input_manifest.commit` + `source_blob_digest`、および `route-registry` / `auth-catalog` / `http-route-matrix` とそれぞれの `.lock.json`・`oracle-seal.lock.json`)。**前例 `dfd523a` は 9 ファイル・438 行** |
 | **`tests/test_check_authz_catalog.py`** | `total=1073 auth_claim=184 out_of_scope=889` を `:350` でハードコード。**採取件数が動く場合のみ**追随 |
