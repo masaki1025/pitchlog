@@ -80,6 +80,8 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | `scripts/design_relations/profiles/sync-protocol.json` | `required_checks` に `attribution-destination` 追加・`not_applicable` から削除 |
 | `scripts/design_relations/profiles/registry.json` | `must_require` 追加・`pins.profile_gating_digest` 再計算 |
 | `tests/test_check_doc_coverage.py` | **3 箇所**: ① `test_cli_reports_not_applicable_attribution_destination`(有効前提へ)② `test_real_document_passes_all_coverage_checks`(**全必須検査 rc=0 を固定しており、有効化した瞬間に効く**)③ `test_step32_assignment_corrections_are_fixed`(**`FR-021` の帰属先 `8-2` を固定** — 本計画は 8-2 を維持するので**変更不要である見込み。ステップ 16 で実際に確認する**) |
+| **`contracts/authz/*`(8 ファイル)** | **要件書の blob を凍結しているため再 seal が必要**(`requirement-claims.json` の `input_manifest.commit` + `source_blob_digest`、および `route-registry` / `auth-catalog` / `http-route-matrix` とそれぞれの `.lock.json`・`oracle-seal.lock.json`)。**前例 `dfd523a` は 9 ファイル・438 行** |
+| **`tests/test_check_authz_catalog.py`** | `total=1073 auth_claim=184 out_of_scope=889` を `:350` でハードコード。**採取件数が動く場合のみ**追随 |
 | `docs/features/sync-canon-revision/**`・`docs/worklog/**` | 計画書・調査メモ・作業ログ(突合の除外対象) |
 
 **`docs/legacy/` は変更しない**(AGENTS.md 絶対規則 3)。
@@ -103,7 +105,35 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | **6** | **2-6 の拡張と 11-5 の列定義を同一コミットで揃える。** ただし **`STABLE_ID_RE` は合成 ID を認識しない**ため、**11-5 への収載は機械が受理する範囲に留まる**。この非対称を条文で自認し、パーサ拡張は 11-4 経由で送る(DoD をその範囲に縮める) |
 | **7** | **要件書 → 設計の順で直す。** 逆順は「要件に無い規則を設計が決めた」状態を作る |
 | **8** | **`NFR-020` の前提不成立時は「記録を開始させない + 顕在化」**(人間の裁定)。既存キューは破棄せず、閲覧は許す。**前提 5(サイトストレージ利用不可)は FR-012 `:308` が既に「警告して継続」を定めている**ため、**新条文が既定条文と衝突しないことをステップ 3 の合格条件に置く** |
+| **10** | **要件書を触った時点から `test_repository_catalog_covers_the_entire_requirements_file` が red になる。** `contracts/authz/requirement-claims.json` が要件書の **`commit` と `source_blob_digest` の両方**を凍結しているため。**再 seal は「その blob を含むコミット」を指す必要があり、要件書が最終形になるまで打てない** — 要件書はステップ 1(frontmatter・変更履歴)・ステップ 3(`NFR-020` 条文)・**確定ゲートの反映周**・**approved 化**で繰り返し変わる。したがって **再 seal は approved 化コミットの後に 1 回だけ打つ**(人間の裁定)。**途中の全ステップは当該 1 件を除いて green** を機械条件とする |
 | **9** | **`attribution-destination` の有効化は最終ステップに置く。** `test_real_document_passes_all_coverage_checks` が**全必須検査の rc=0 と `stderr == ""`** を固定しており、**54 件を残したまま必須化すると pytest が必ず red になる**ため、途中に置く設計は成立しない |
+
+### 「既知 red 1 件」の定義(全ステップ共通)
+
+**ステップ 1 で要件書を触った時点から、次の 1 件だけが red になる**:
+
+```
+tests/test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_requirements_file
+  → source blob digest が不一致
+```
+
+**この 1 件以外が red になったら、そのステップは不合格**とする(既知 red を口実に別の失敗を通さない)。
+確認は `uv run pytest tests/ -q` の `short test summary` が**この 1 件のみ**を挙げていることで行う。
+**CI(`pytest -c pyproject.toml tests/`)も同じ 1 件で red になる** — マージ前に解消する(下記クローズ処理)。
+
+### 確定ゲート後のクローズ処理(ステップ表の外・ステップ記法を付けない)
+
+**順序を守ること。1 つでも前後すると digest が再び崩れる。**
+
+1. **確定ゲートの収束**(7.3-2)→ **人間承認**
+2. **approved 化コミット** — 両正本の変更履歴を approved 行へ・frontmatter を `approved` へ・`docs/README.md` 索引を現行化
+3. **authz 母集合の再 seal コミット**(**要件書が最終形になった後でしか打てない**):
+   - `contracts/authz/requirement-claims.json` の `input_manifest.commit` を **2 のコミット SHA** へ、
+     `source_blob_digest` を**そのコミットに収録された要件書の blob ハッシュ**へ
+   - 派生資産(`route-registry` / `auth-catalog` / `http-route-matrix` と各 `.lock.json`・`oracle-seal.lock.json`)を追随
+   - **採取件数が動いた場合のみ** `tests/test_check_authz_catalog.py:350` の `total=... auth_claim=... out_of_scope=...` を更新
+   - 合格条件: **`uv run pytest tests/` が完全 green**(既知 red が消える)/ `check_docs_status.py` rc=0
+   - 前例: `dfd523a`「要件書 v2.6 への authz 母集合・派生資産の追随 — 採取 +10・auth 帰属変更 0・reseal ①②」(9 ファイル・438 行)
 
 ### 途中ステップの機械検証手順(有効化前に測定するための唯一の経路)
 
@@ -130,23 +160,23 @@ git status --porcelain   # profiles/ に差分が無いことを確認
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **両正本の in-review 化と改訂枠の設置**。設計 v0.3・要件書 v2.7 の変更履歴行(in-review)を起こし **7.3-7 の射程宣言**を当該行に書く。frontmatter と `docs/README.md` 索引を同時更新。worklog へ **7.3-1 の適用版**(版数 + 条文コミット SHA = 第一親)を暫定記録 | `[機械]` 3 検査 rc=0 維持 / `uv run pytest tests/` green `[手動・外部]` 射程宣言が本書 2 節を過不足なく写し **`v0.2`・`v2.5` を取っていない** |
-| 2 | **参照規約 2-6 の拡張**。表行・ブロック・指標/リスク行・リリース DoD の 4 カテゴリを追加し書式を規定。**11-5 の列定義も同一コミットで整合**させ、**`STABLE_ID_RE` が合成 ID を認識しないため 11-5 への収載が及ばない範囲を条文で自認** | `[機械]` 全検査 rc=0 / `pytest` green `[手動・外部]` ① 54 件の ID が新規約で一意に書ける ② `G-1`/`R-3` と本書の `R-BOUNDARY`・`R5` の衝突が規約で切り分かる ③ **収載が及ばない残余の受け取り先がステップ 9 と対応している** |
-| 3 | **要件書 v2.7 — `NFR-020` 前提不成立時の条文化**。**記録を開始させない + 顕在化**(既存キューは破棄せず閲覧は許す)。`:936` の主語と前提 4・5・6 の不整合も是正 | `[機械]` `attribution` rc=0(**`extractor-mismatch`・`unassigned` が出ない** = 母集合 212 が動いていない)/ `check_docs_status.py` rc=0 / `pytest` green `[手動・外部]` ① **6 前提のどれが不成立でも挙動が一意に定まる** ② **前提 5 について FR-012 `:308`(警告して継続)と衝突しない** ③ FR-012 `:298`・2.2 Won't `:92` と矛盾しない |
-| 4 | **設計 — `Q2`/`Q2-a` の矛盾解消**。ステップ 3 の新条文を典拠に一本化する | `[機械]` 全検査 rc=0 / `ledger` 過不足なし / `pytest` green `[手動・外部]` 解消後の記述が**要件書の新条文から導ける** |
+| 1 | **両正本の in-review 化と改訂枠の設置**。設計 v0.3・要件書 v2.7 の変更履歴行(in-review)を起こし **7.3-7 の射程宣言**を当該行に書く。frontmatter と `docs/README.md` 索引を同時更新。worklog へ **7.3-1 の適用版**(版数 + 条文コミット SHA = 第一親)を暫定記録 | `[機械]` 3 検査 rc=0 維持 / `uv run pytest tests/` が**既知 red 1 件を除いて** green `[手動・外部]` 射程宣言が本書 2 節を過不足なく写し **`v0.2`・`v2.5` を取っていない** |
+| 2 | **参照規約 2-6 の拡張**。表行・ブロック・指標/リスク行・リリース DoD の 4 カテゴリを追加し書式を規定。**11-5 の列定義も同一コミットで整合**させ、**`STABLE_ID_RE` が合成 ID を認識しないため 11-5 への収載が及ばない範囲を条文で自認** | `[機械]` 全検査 rc=0 / `pytest` が**既知 red 1 件を除いて** green `[手動・外部]` ① 54 件の ID が新規約で一意に書ける ② `G-1`/`R-3` と本書の `R-BOUNDARY`・`R5` の衝突が規約で切り分かる ③ **収載が及ばない残余の受け取り先がステップ 9 と対応している** |
+| 3 | **要件書 v2.7 — `NFR-020` 前提不成立時の条文化**。**記録を開始させない + 顕在化**(既存キューは破棄せず閲覧は許す)。`:936` の主語と前提 4・5・6 の不整合も是正 | `[機械]` `attribution` rc=0(**`extractor-mismatch`・`unassigned` が出ない** = 母集合 212 が動いていない)/ `check_docs_status.py` rc=0 / `pytest` が**既知 red 1 件を除いて** green `[手動・外部]` ① **6 前提のどれが不成立でも挙動が一意に定まる** ② **前提 5 について FR-012 `:308`(警告して継続)と衝突しない** ③ FR-012 `:298`・2.2 Won't `:92` と矛盾しない |
+| 4 | **設計 — `Q2`/`Q2-a` の矛盾解消**。ステップ 3 の新条文を典拠に一本化する | `[機械]` 全検査 rc=0 / `ledger` 過不足なし / `pytest` が**既知 red 1 件を除いて** green `[手動・外部]` 解消後の記述が**要件書の新条文から導ける** |
 | 5 | **4-5 r4 と 6-3 の非対称の是正**。**新しい境界結果コードを発明せず**、r4 は「コードを与えない」と明記して理由を書く。r3 と `I3`→`B13` の非対称も是正 | `[機械]` `element-coverage`・`manifest-consistency` rc=0 / **`design_relations/sync-protocol.json`・2-5 宣言表・`canonOracle.ts` に差分が無い**(新コードを立てていないことの機械証明)/ `ledger` rc=0 `[手動・外部・最重要]` ① 4-5 の 4 行と 6-3 が**行単位で対称** ② **行を追加した場合は意味上適切な位置で、11-5 の既存キーに差分が出ない** ③ **正本に規則行を足しても機械は鳴らないため逐行確認が唯一の担保** |
 | 6 | **`FR-013` の典拠表記の分離 + テナントの記述粒度** | `[機械]` 全検査 rc=0 / `ledger` rc=0 `[手動・外部]` ① 要件由来と設計判断が読者に区別できる ② テナントの出所が既存要件で閉じ **搬送要求を新設していない** |
 | 7 | **`U1`〜`U6` へ undo の 2 条項を追加**(FR-006 の補足) | `[機械]` 全検査 rc=0 `[手動・外部・最重要]` ① 既存規則と重複・矛盾しない ② 11-5 の既存キーに差分が出ない ③ 機械は鳴らないため逐行確認が唯一の担保 |
 | 8 | **設計 `:287` の時刻記述を狭める**。「時刻は表示・監査のための属性としてのみ持つ」は**要件に受け皿が無いまま属性保持を規範化している**ため、**「順序決定に使わない」という禁止の範囲へ狭める**(属性を持つことの規範化は要件改訂タスクへ送る) | `[機械]` 全検査 rc=0 / `ledger` rc=0 `[手動・外部]` 狭めた後の記述が **`:294`・`:296`(連番で順序を保証)から導ける**こと |
 | 9 | **11-4 の整備**。`DI4` の受け取り先 / **`U-9` 残余(全帰属先の意味判断)と `STABLE_ID_RE` 拡張** / **イベント時刻の条文化**の 3 つを受け取り先つきで立て、**4 箇所から版番号を除去** | `[機械]` 全検査 rc=0 / **grep で 11-4 に `v0.2`・`v2.5` が残らない**(変更履歴の過去事実行は除く) `[手動・外部]` ① 新行が各表の末尾 ② `DI4` が同族の送り先と整合 ③ **本タスクで閉じる範囲と送る範囲の境界が `(ID, 帰属先節)` 単位で一意** |
-| 10 | **11-3 是正 ① — FR/NFR のうち引用を足す群**。既存行のセル内へリンク引用を追記 + `FR-005`・`FR-038` は第 3 列のみ。**根拠の無い帰属先節は第 3 列から落とす**。追加引用ぶんの 11-5 行を該当主張ブロックの末尾へ | `[機械]` 測定手順で当該 ID が消え**他が 1 件も増えない** / `ledger` rc=0 / **11-5 の既存キーに差分が出ない** / `pytest` green `[手動・外部]` **残した帰属先節すべて**について、本当にその要件を決めている/入力にしていること。**literal を置いただけの節が無い** |
-| 11 | **11-3 是正 ② — `FR-020`〜`023` を 8-2 へ根拠づけ + `FR-017`・`FR-042` を対象外へ**。**集計行(`38 / 84 / 90`)を追随**させる | `[機械]` 当該 6 件が消え他が増えない / **`FR-021` の帰属先が `8-2` のまま**(`test_step32_assignment_corrections_are_fixed` が green)/ **集計行の 3 値が実際の行数と一致** / `pytest` green `[手動・外部・最重要]` ① `FR-017`・`FR-042` が**本当に決定でも入力でもない**(受け取り先を明示)② `FR-020`〜`023` の根拠行が 8-2 の実態に即している |
+| 10 | **11-3 是正 ① — FR/NFR のうち引用を足す群**。既存行のセル内へリンク引用を追記 + `FR-005`・`FR-038` は第 3 列のみ。**根拠の無い帰属先節は第 3 列から落とす**。追加引用ぶんの 11-5 行を該当主張ブロックの末尾へ | `[機械]` 測定手順で当該 ID が消え**他が 1 件も増えない** / `ledger` rc=0 / **11-5 の既存キーに差分が出ない** / `pytest` が**既知 red 1 件を除いて** green `[手動・外部]` **残した帰属先節すべて**について、本当にその要件を決めている/入力にしていること。**literal を置いただけの節が無い** |
+| 11 | **11-3 是正 ② — `FR-020`〜`023` を 8-2 へ根拠づけ + `FR-017`・`FR-042` を対象外へ**。**集計行(`38 / 84 / 90`)を追随**させる | `[機械]` 当該 6 件が消え他が増えない / **`FR-021` の帰属先が `8-2` のまま**(`test_step32_assignment_corrections_are_fixed` が green)/ **集計行の 3 値が実際の行数と一致** / `pytest` が**既知 red 1 件を除いて** green `[手動・外部・最重要]` ① `FR-017`・`FR-042` が**本当に決定でも入力でもない**(受け取り先を明示)② `FR-020`〜`023` の根拠行が 8-2 の実態に即している |
 | 12 | **11-3 是正 ③ — 章節 6 + 付録項番 2**(既存 2-6 の語彙で引ける群) | `[機械]` 当該 8 件が**このステップ単独で**消え他が増えない / `ledger` rc=0 `[手動・外部]` **節 ID の literal 一致は弱い**(`8` は「第 8 章」でも成立)ため 8 件それぞれの帰属の実質を逐行確認 |
 | 13 | **11-3 是正 ④ — ブロック 5 + 指標/リスク 5**。ステップ 2 の新規約に従って記載 | `[機械]` 当該 10 件が消え他が増えない / `ledger` rc=0 `[手動・外部]` ① `R-3`/`R-5`/`R-10` が本書の関係 ID と混同されない ② ブロックは 11-5 に載らないため逐行確認だけが担保であることを自認 |
 | 14 | **11-3 是正 ⑤ — 表行 12**(付録C 3 + 6.1 データ保持表 9)。**「最大 1 試合分」の伝播欠落をここで吸収** | `[機械]` 当該 12 件が消え他が増えない `[手動・外部]` ① 12 行が帰属先節で**保持期間・破棄契機・概算量のどれを引いているか**が読める ② `6.1/未同期キュー` の概算量が**上限でなく想定**である性格付けと矛盾しない |
-| 15 | **11-3 是正 ⑥ — リリース DoD 5 + 10章 1**。**測定で指摘ゼロになることを確認**(有効化はまだしない) | `[機械]` 測定手順で **`attribution-destination` の指摘が 0 件** / 3 検査 rc=0 / `pytest` green `[手動・外部]` 54 件を通しで見て **literal を置いただけの節が 1 件も無い** |
-| 16 | **`attribution-destination` の有効化**。profile の `required_checks` 追加 + `not_applicable` 削除 / `registry.json` の `must_require` 追加 + `pins.profile_gating_digest` 再計算 / `tests/test_check_doc_coverage.py` の対象なし前提テストを有効前提へ書き換え | `[機械]` **`check_doc_coverage.py` rc=0** / `check_design_propagation.py` rc=0 / `check_docs_status.py` rc=0 / **`uv run pytest tests/` green**(`test_real_document_passes_all_coverage_checks` を含む)/ `core_guard` `[手動・外部]` `not_applicable` に残る 7 件の理由が依然として成立(`attribution-direct` を含む) |
-| 17 | **申し送りの記録**。`U2-a`/`R5` の反転が復元不能であることを worklog へ。**`docs/development/harness-evaluation.md` の `## 候補`** へ機構の穴 4 件と **`H-85` の同期正本への誤った言い換えの訂正**を追記。`docs/README.md` の台帳行を現行化 | `[機械]` `check_docs_status.py` rc=0 / `pytest` green / `check_plan_docs_sync.py` rc=0 `[手動・外部]` 候補の記述が**単発事象と傾向を区別**しており、`H-*` の新規採番をしていないこと(7.6-3 前段) |
+| 15 | **11-3 是正 ⑥ — リリース DoD 5 + 10章 1**。**測定で指摘ゼロになることを確認**(有効化はまだしない) | `[機械]` 測定手順で **`attribution-destination` の指摘が 0 件** / 3 検査 rc=0 / `pytest` が**既知 red 1 件を除いて** green `[手動・外部]` 54 件を通しで見て **literal を置いただけの節が 1 件も無い** |
+| 16 | **`attribution-destination` の有効化**。profile の `required_checks` 追加 + `not_applicable` 削除 / `registry.json` の `must_require` 追加 + `pins.profile_gating_digest` 再計算 / `tests/test_check_doc_coverage.py` の対象なし前提テストを有効前提へ書き換え | `[機械]` **`check_doc_coverage.py` rc=0** / `check_design_propagation.py` rc=0 / `check_docs_status.py` rc=0 / **`uv run pytest tests/` が**既知 red 1 件を除いて** green**(`test_real_document_passes_all_coverage_checks` を含む)/ `core_guard` `[手動・外部]` `not_applicable` に残る 7 件の理由が依然として成立(`attribution-direct` を含む) |
+| 17 | **申し送りの記録**。`U2-a`/`R5` の反転が復元不能であることを worklog へ。**`docs/development/harness-evaluation.md` の `## 候補`** へ機構の穴 4 件と **`H-85` の同期正本への誤った言い換えの訂正**を追記。`docs/README.md` の台帳行を現行化 | `[機械]` `check_docs_status.py` rc=0 / `pytest` が**既知 red 1 件を除いて** green / `check_plan_docs_sync.py` rc=0 `[手動・外部]` 候補の記述が**単発事象と傾向を区別**しており、`H-*` の新規採番をしていないこと(7.6-3 前段) |
 
 **順序の根拠**: ②が⑩〜⑮より前なのは、検査が literal 一致であり**規約が書式を決めるまで是正の形が定まらない**ため。
 ③が④より前、⑤〜⑨(行の挿入を伴う作業)が⑩〜⑮(セル追記)より前なのは中核判断 5・7。
@@ -164,7 +194,7 @@ git status --porcelain   # profiles/ に差分が無いことを確認
 - [ ] **11-5 の列定義が 2-6 と整合**し、**`STABLE_ID_RE` が認識しない合成 ID が収載されない非対称を条文で自認**している
       (**パーサ拡張は本タスクの射程外**。11-4 経由で送る)
 - [ ] **11-3 の 54 件が `(ID, 帰属先節)` 単位で裁定・是正**され、根拠の無い帰属先節が第 3 列から落ちている
-- [ ] **`attribution-destination` が有効化され `check_doc_coverage.py` rc=0**、かつ **`uv run pytest tests/` green**
+- [ ] **`attribution-destination` が有効化され `check_doc_coverage.py` rc=0**、かつ **`uv run pytest tests/` が**既知 red 1 件を除いて** green**
 - [ ] **是正が「literal を置いただけ」でない**ことを人間が逐行確認した(**残した全帰属先節について**)
 - [ ] **`NFR-020` の前提不成立時の挙動が要件書に条文化**され(記録を開始させない + 顕在化)、
       **前提 5 が FR-012 `:308` と衝突しない**ことを確認し、設計の `Q2`/`Q2-a` の矛盾が解消している
@@ -178,6 +208,8 @@ git status --porcelain   # profiles/ に差分が無いことを確認
 - [ ] **申し送りが記録されている** — `U2-a`/`R5` の復元不能を worklog へ、機構の穴 4 件と
       **`H-85` の誤った言い換えの訂正**を台帳の `## 候補` へ
 - [ ] **設計 v0.3・要件書 v2.7 が単一の確定ゲート(7.3)を通り approved**、`docs/README.md` が現行化されている
+- [ ] **authz 母集合の再 seal が approved 化コミットの後に打たれ、`uv run pytest tests/` が完全 green**
+      (`contracts/authz/*` の追随 + 採取件数が動いた場合の `tests/test_check_authz_catalog.py:350`)
 - [ ] **人間の逐行確認(PR 作成者以外)**を実施した
 - [ ] **設計の不足を見つけた場合、実装で埋めずに記録している**
 

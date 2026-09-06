@@ -260,6 +260,31 @@ rc=1 / attribution-destination: 54 件
 - 「**11 関係マニフェスト**」も混線: `sync-protocol.json` は **1 ファイルの中に 11 関係**。
   別の「11」は `tests/test_core_guard.py:194-206` の **検査資産 11 ファイル**
 
+### 6-1-a. **ただし要件書には `H-85` が正面から効く**(2026-09-06 実測 — 実装ステップ 1 で発火)
+
+**§6-1 は `docs/design/sync-protocol.md` についての結論であり、要件書には当てはまらない。**
+本タスクは **要件書 v2.7** を射程に含むため、**`H-85` の連鎖をそのまま踏む**。
+
+```
+$ uv run pytest tests/          # 要件書の frontmatter + 変更履歴行 1 行を変えただけ
+FAILED tests/test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_requirements_file
+  source blob digest が不一致: 期待=3f400c22… 実際=470b668d…
+1 failed, 1128 passed
+```
+
+- `contracts/authz/requirement-claims.json` の **`input_manifest`** が要件書の
+  **`commit`(`dc9d114…`)と `source_blob_digest` の両方**を凍結し、**`claims` を 1073 件**保持する
+- `tests/test_check_authz_catalog.py:350` が **`total=1073 auth_claim=184 out_of_scope=889`** をハードコード
+- **CI も `pytest -c pyproject.toml tests/` を回す**(`.github/workflows/ci.yml:85`)ため **PR が red になる**
+- **再 seal は「その blob を含むコミット」を指す必要があり、要件書が最終形になるまで打てない**。
+  要件書は **ステップ 1 → ステップ 3 → 確定ゲートの反映周 → approved 化**で繰り返し変わる
+  → **再 seal は approved 化コミットの後に 1 回だけ**(人間の裁定 2026-09-06)
+- **前例**: `dfd523a`「要件書 v2.6 への authz 母集合・派生資産の追随 — 採取 +10・auth 帰属変更 0・reseal ①②
+  (ステップ 10/10)」= **9 ファイル・438 行**
+
+**教訓**: 「`H-85` は同期正本に当てはまらない」は正しいが、**それを「本タスクに連鎖は無い」と読んではならない**。
+連鎖の有無は**文書ごと**に判定する。
+
 ### 6-2. 実測した追随コスト
 
 | 変更の種類 | 追随が必要なファイル | 実測 |
