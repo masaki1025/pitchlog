@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -127,21 +128,36 @@ def _add_unknown_requirement_heading(text: str) -> str:
     return text + "\n#### FR-999: 母集合外のテスト用要件\n"
 
 
+def _assignment_line(text: str) -> str:
+    """帰属表から FR-001 の行を取り出す。
+
+    行の内容(区分・帰属先節)は本検査の対象ではなく、変異の起点として
+    実在の行が 1 つあればよい。正本の改訂で帰属先が変わってもテストが
+    壊れないよう、リテラルで固定せず文書から導出する。
+
+    Args:
+        text: 帰属表を含む Markdown 全文。
+
+    Returns:
+        末尾に改行を含む FR-001 の帰属行。
+    """
+    match = re.search(r"^\| FR-001 \|[^\n]*\|\n", text, re.MULTILINE)
+    assert match is not None
+    return match.group(0)
+
+
 def _remove_assignment(text: str) -> str:
-    line = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert line in text
+    line = _assignment_line(text)
     return text.replace(line, "", 1)
 
 
 def _duplicate_assignment(text: str) -> str:
-    line = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert line in text
+    line = _assignment_line(text)
     return text.replace(line, line + line, 1)
 
 
 def _add_unknown_assignment(text: str) -> str:
-    marker = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert marker in text
+    marker = _assignment_line(text)
     return text.replace(
         marker,
         marker + "| FR-999 | 対象外 | 母集合に存在しないテスト用 ID |\n",
