@@ -79,7 +79,7 @@ TSK-280(イベント契約)・後続 α(キュー状態遷移)・後続 β(ACK �
 | --- | --- |
 | `scripts/design_relations/profiles/sync-protocol.json` | `required_checks` に `attribution-destination` 追加・`not_applicable` から削除 |
 | `scripts/design_relations/profiles/registry.json` | `must_require` 追加・`pins.profile_gating_digest` 再計算 |
-| `tests/test_check_design_propagation.py` | **2 箇所**: ① `test_step39_attribution_follows_restore_contracts` が **11-3 の区分件数 `84`/`90` を literal で assert**(ステップ 11 で `FR-017`・`FR-042` を対象外へ移し `82`/`92` になる)② `test_step35_keeps_fr013_must_and_declares_deferred_should` が **`"要件書 v2.5 + 本正本 v0.2"` を literal で assert** しており、**11-4 から版番号を外すと red になる**。版番号に依存しない assert へ置き換える(テストの意図「退避の Must と現行世代への投入を分離して固定する」は保つ)。**調査 §6-3 (iii)「テストが正本の literal をハードコードする」型の実例**(ステップ 9 で顕在化) |
+| `tests/test_check_design_propagation.py` | **3 箇所**: ⓪ `test_step35_removed_mechanism_is_absent_and_manifest_is_reduced` の禁止語タプルに **`"リース"`** があり、要件書 8 章の正式名称「完了条件・**リリース**判定基準」を引用すると**部分一致で誤検知**する(ステップ 12 で顕在化)。除去対象は「凍結リース」の状態機械であるため、**直前の「リ」を除外する照合へ**改めた。**調査 §6-3 (iii)「禁止語をテスト本体にハードコード」の実例**。以下は: ① `test_step39_attribution_follows_restore_contracts` が **11-3 の区分件数 `84`/`90` を literal で assert**(ステップ 11 で `FR-017`・`FR-042` を対象外へ移し `82`/`92` になる)② `test_step35_keeps_fr013_must_and_declares_deferred_should` が **`"要件書 v2.5 + 本正本 v0.2"` を literal で assert** しており、**11-4 から版番号を外すと red になる**。版番号に依存しない assert へ置き換える(テストの意図「退避の Must と現行世代への投入を分離して固定する」は保つ)。**調査 §6-3 (iii)「テストが正本の literal をハードコードする」型の実例**(ステップ 9 で顕在化) |
 | `tests/test_check_doc_coverage.py` | **5 箇所**: ⑤ `test_valid_assignment_table_covers_universe_once` が **区分の分布 `{38, 84, 90}` を固定**(同上 `{38, 82, 92}` へ)。以下は : ⓪ `_remove_assignment` / `_duplicate_assignment` / `_add_unknown_assignment` の 3 ヘルパーが **`| FR-001 | 境界として参照 | 5-5・7-4 |` を literal で保持**しており、11-3 の当該行を直すと red になる。**行の内容は変異の起点にすぎない**ため、**文書から正規表現で導出する形へ置換**した(ステップ 10 で顕在化。以降の 11-3 改訂では再発しない)。以下は元からの: ① `test_cli_reports_not_applicable_attribution_destination`(有効前提へ)② `test_real_document_passes_all_coverage_checks`(**全必須検査 rc=0 を固定しており、有効化した瞬間に効く**)③ `test_step32_assignment_corrections_are_fixed`(**`FR-021` の帰属先 `8-2` を固定** — 本計画は 8-2 を維持するので**変更不要である見込み。ステップ 16 で実際に確認する**) |
 | **`contracts/authz/*`(8 ファイル)** | **要件書の blob を凍結しているため再 seal が必要**(`requirement-claims.json` の `input_manifest.commit` + `source_blob_digest`、および `route-registry` / `auth-catalog` / `http-route-matrix` とそれぞれの `.lock.json`・`oracle-seal.lock.json`)。**前例 `dfd523a` は 9 ファイル・438 行** |
 | **`tests/test_check_authz_catalog.py`** | `total=1073 auth_claim=184 out_of_scope=889` を `:350` でハードコード。**採取件数が動く場合のみ**追随 |
@@ -147,21 +147,29 @@ approved 化後の再 seal まで結果が変わらない**ため、毎ステッ
 
 ### 途中ステップの機械検証手順(有効化前に測定するための唯一の経路)
 
-ステップ 10〜15 は検査が無効のままなので、**一時有効化して測定し復元する**。**この変更はコミットしない。**
+ステップ 10〜15 は検査が無効のままなので、**有効化した複製プロファイルで測定する**。
+**リポジトリのファイルを一切変更しない**ため、**強制終了されても作業ツリーが汚れない**。
 
-```bash
-# 1) 一時有効化(profile の not_applicable から削除 + required_checks 追加)
-# 2) registry.json の pins.profile_gating_digest を再計算して差し替え
-#    digest = doc_check_profile.canonical_digest({k: raw[k] for k in GATING_KEYS if k in raw})
-# 3) 測定
-uv run python scripts/check_doc_coverage.py 2>&1 | grep '^attribution-destination:' | sort
-# 4) 復元(必須)
-git checkout -- scripts/design_relations/profiles/
-git status --porcelain   # profiles/ に差分が無いことを確認
-```
+手順は次の 5 つで、いずれも欠かせない:
+
+1. **一時ディレクトリ `$T` を作り**、`scripts/design_relations/profiles/` を**丸ごと複製**する
+2. 複製側の `sync-protocol.json` から **`not_applicable` の `attribution-destination` を削除**し、
+   **`required_checks` へ追加**する
+3. 複製側の `registry.json` の **`pins.profile_gating_digest` を再計算**する
+   (`doc_check_profile.canonical_digest({k: raw[k] for k in GATING_KEYS if k in raw})`)。
+   **`must_require` にも `attribution-destination` を足す**(`must_require ⊆ required_checks` が検証される)
+4. **複製側 `registry.json` の `file` を複製プロファイルの絶対パスへ書き換える。**
+   **レジストリ内の相対パスはリポジトリ root 基準で解決される**ため、
+   **これを忘れると複製レジストリを渡しても本体のプロファイルを読んでしまい、測定にならない**
+5. `uv run python scripts/check_doc_coverage.py --registry "$T/profiles/registry.json"` を実行し、
+   `attribution-destination:` の行から ID を抜いて `sort` する
 
 **各ステップの `[機械]` 条件は、この測定で得た ID 集合の差分**で表す
 (「当該カテゴリの ID が消え、**他が 1 件も増えない**」)。**件数一致では足りない**(別原因の混入を弾けない)。
+
+> **経緯**: 当初は本体のプロファイルを一時的に書き換えて測定し末尾で復元する方式にしていたが、
+> **ステップ 11・12 で「復元前に強制終了され、プロファイルが有効化されたまま残る」事故が 2 回**起きた。
+> `trap` を足しても **`SIGKILL` は捕捉できない**ため、**リポジトリを触らない方式へ変更した**(2026-09-06)。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 

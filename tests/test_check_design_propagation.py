@@ -3446,7 +3446,13 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     """除去対象が本文とマニフェストへ復活しないことを固定する。"""
     document = DESIGN.read_text(encoding="utf-8")
     removed_markers = ("凍結", "リース", "FS", "FT", "B15", "B16", "O3")
-    assert all(marker not in document for marker in removed_markers)
+    # 本文だけは「リース」を直前の「リ」を除外して照合する。除去対象は
+    # 「凍結リース」の状態機械であり、素の部分一致では要件書 8 章の正式名称
+    # 「完了条件・リリース判定基準」の引用にも当たって誤検知するため。
+    # マニフェスト側は要件書を引用しないので、素の部分一致のまま維持する。
+    document_markers = tuple(m for m in removed_markers if m != "リース")
+    assert all(marker not in document for marker in document_markers)
+    assert re.search(r"(?<!リ)リース", document) is None
 
     manifest_text = repr(
         [
