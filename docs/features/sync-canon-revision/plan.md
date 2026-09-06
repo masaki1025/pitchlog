@@ -118,7 +118,16 @@ tests/test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_req
 ```
 
 **この 1 件以外が red になったら、そのステップは不合格**とする(既知 red を口実に別の失敗を通さない)。
-確認は `uv run pytest tests/ -q` の `short test summary` が**この 1 件のみ**を挙げていることで行う。
+
+**回し方(実測に基づく運用細目 — 2026-09-06)**: `test_check_authz_catalog.py` は**単独で 229 秒**を要し、
+`pytest tests/` 全体 285 秒の **約 80%** を占める。**このファイルが既知 red の当該 1 件を含み、
+approved 化後の再 seal まで結果が変わらない**ため、毎ステップ回すのは無為である。
+
+- **各ステップ**: `uv run pytest tests/ -q --ignore=tests/test_check_authz_catalog.py` → **51 秒・1057 件**。
+  **これが全件 green であること**を条件とする(既知 red 以外が増えていないことの確認はこれで足りる)
+- **フェーズ境界(ステップ 9・15)と `/pr` の前**: `uv run pytest tests/ -q` を**全件**回し、
+  `short test summary` が**既知 red 1 件のみ**を挙げることを確認する
+- **クローズ処理の再 seal 後**: 全件回して**完全 green** を確認する
 **CI(`pytest -c pyproject.toml tests/`)も同じ 1 件で red になる** — マージ前に解消する(下記クローズ処理)。
 
 ### 確定ゲート後のクローズ処理(ステップ表の外・ステップ記法を付けない)

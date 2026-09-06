@@ -1133,6 +1133,11 @@ FR-010 は終了時の同期について 2 つの受入基準を持つ。**通�
 
 **U6 と 5-5 の関係**: undo は**従属**(取り消す対象の D2 に従う)であり、**自身の論理位置を持たない**。**undo を undo しない**ため、**undo を対象とする undo イベントは生成され得ない**。
 
+| # | 規則 | 典拠 |
+| --- | --- | --- |
+| **U7** | 対象は常に**直前の取消可能な操作 1 件**とする。取消可能な操作は、**確定プレイ**と、**FR-040 を採用した場合の状態補正**であり、**未採用の場合は確定プレイのみ**とする(採否の扱いは 4-6) | [FR-006](../requirements/requirements-pitchlog-2026-07-22.md#FR-006) |
+| **U8** | undo を適用した後は、**取り消された操作の 1 つ前の取消可能な操作**を次の対象とする。該当する操作が無い場合は **U4** に従う | [FR-006](../requirements/requirements-pitchlog-2026-07-22.md#FR-006) |
+
 ### 7-7. キューのローカル書き出しと復旧後取り込み(論点 16)
 
 要件書は「**端末内キューのローカル書き出し(ファイル保存)と復旧後取り込み**」を **Should** とし、**保証範囲を「同一端末・同一ブラウザ」**に限定する([FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012))。**キュー上限でのブロックを廃止したことに伴い、キュー肥大時の非常口として重要度が上がった**という経緯を持つ。
@@ -2336,6 +2341,8 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 7-6/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 7-6/p3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
 | 7-6/r8 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
+| 7-6/r10 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
+| 7-6/r11 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
 | 7-7/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-7/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-7/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
