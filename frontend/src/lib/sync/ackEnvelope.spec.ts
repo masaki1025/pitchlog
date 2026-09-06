@@ -28,6 +28,83 @@ describe('ackEnvelope', () => {
     expect(() => parseD1AckEnvelope({ eventResults: [] })).toThrowError(/D3/)
   })
 
+  it.each([
+    ['ACK 封筒', { advancedD3: {}, eventResults: [], extra: {} }],
+    [
+      'イベント結果',
+      {
+        advancedD3: {},
+        eventResults: [
+          {
+            d4: {},
+            d1: {},
+            d5: {},
+            a5Result: readCanonAckStateResults()[0]!.id,
+            extra: {},
+          },
+        ],
+      },
+    ],
+    [
+      'A4 写像',
+      {
+        advancedD3: {},
+        eventResults: [],
+        playerIdMappings: [{ temporaryId: {}, officialId: {}, extra: {} }],
+      },
+    ],
+  ])('%s の余分なキーを拒否する', (_name, candidate) => {
+    expect(() => parseD1AckEnvelope(candidate)).toThrow()
+  })
+
+  it.each(['advancedD3', 'eventResults'] as const)(
+    '%s が undefined の ACK を拒否する',
+    (key) => {
+      expect(() =>
+        parseD1AckEnvelope({
+          advancedD3: {},
+          eventResults: [],
+          [key]: undefined,
+        }),
+      ).toThrow()
+    },
+  )
+
+  it.each(['d4', 'd1', 'd5', 'a5Result'] as const)(
+    '%s が undefined のイベント結果を拒否する',
+    (key) => {
+      expect(() =>
+        parseD1AckEnvelope({
+          advancedD3: {},
+          eventResults: [
+            {
+              d4: {},
+              d1: {},
+              d5: {},
+              a5Result: readCanonAckStateResults()[0]!.id,
+              [key]: undefined,
+            },
+          ],
+        }),
+      ).toThrow()
+    },
+  )
+
+  it.each(['temporaryId', 'officialId'] as const)(
+    '%s が undefined の A4 写像を拒否する',
+    (key) => {
+      expect(() =>
+        parseD1AckEnvelope({
+          advancedD3: {},
+          eventResults: [],
+          playerIdMappings: [
+            { temporaryId: {}, officialId: {}, [key]: undefined },
+          ],
+        }),
+      ).toThrow()
+    },
+  )
+
   it('未知の A5 結果を fail-closed に拒否する', () => {
     expect(() =>
       parseD1AckEnvelope({
@@ -94,6 +171,21 @@ describe('ackEnvelope', () => {
     expect(Object.hasOwn(withoutMapping, 'playerIdMappings')).toBe(false)
     expect(withMapping.playerIdMappings).toEqual([{ temporaryId, officialId }])
     expect(Object.isFrozen(withMapping.playerIdMappings)).toBe(true)
+  })
+
+  it('同じ一時 ID の A4 写像を重複として拒否する', () => {
+    const temporaryId = {}
+
+    expect(() =>
+      parseD1AckEnvelope({
+        advancedD3: {},
+        eventResults: [],
+        playerIdMappings: [
+          { temporaryId, officialId: {} },
+          { temporaryId, officialId: {} },
+        ],
+      }),
+    ).toThrowError(/重複/)
   })
 
   it('A4 写像の値の形式を検査せず、不透明値として保持する', () => {

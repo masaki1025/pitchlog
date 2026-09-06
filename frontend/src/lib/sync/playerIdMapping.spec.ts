@@ -126,6 +126,64 @@ describe('playerIdMapping', () => {
     ).toThrowError(/重複/)
   })
 
+  it.each(['temporaryId', 'officialId'] as const)(
+    '写像の %s が undefined なら fail-closed に拒否する',
+    (key) => {
+      const request = receptionRequest()
+      const response = request.response!
+
+      expect(() =>
+        receivePlayerIdMapping({
+          ...request,
+          response: {
+            ...response,
+            mappings: [{ ...response.mappings[0]!, [key]: undefined }],
+          },
+        }),
+      ).toThrow()
+    },
+  )
+
+  it('対象の一時 ID が undefined なら fail-closed に拒否する', () => {
+    const request = receptionRequest()
+
+    expect(() =>
+      receivePlayerIdMapping({
+        ...request,
+        target: { ...request.target, temporaryId: undefined },
+      }),
+    ).toThrowError(/一時 ID/)
+  })
+
+  it.each([
+    (request: PlayerIdMappingReceptionRequest) => ({ ...request, extra: {} }),
+    (request: PlayerIdMappingReceptionRequest) => ({
+      ...request,
+      target: { ...request.target, extra: {} },
+    }),
+    (request: PlayerIdMappingReceptionRequest) => ({
+      ...request,
+      target: { ...request.target, key: { ...request.target.key, extra: {} } },
+    }),
+    (request: PlayerIdMappingReceptionRequest) => ({
+      ...request,
+      response: { ...request.response!, extra: {} },
+    }),
+    (request: PlayerIdMappingReceptionRequest) => ({
+      ...request,
+      response: {
+        ...request.response!,
+        mappings: [{ ...request.response!.mappings[0]!, extra: {} }],
+      },
+    }),
+  ])('余分なキーを持つ A4 受け取り入力を拒否する', (mutate) => {
+    expect(() =>
+      receivePlayerIdMapping(
+        mutate(receptionRequest()) as PlayerIdMappingReceptionRequest,
+      ),
+    ).toThrow()
+  })
+
   it('余分な写像結果を fail-closed に拒否する', () => {
     const request = receptionRequest()
     const response = request.response!

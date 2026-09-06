@@ -128,6 +128,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'playerIdMapping.ts',
   'queueState.ts',
   'queueTransition.ts',
+  'receptionInput.ts',
   'rejectionReason.ts',
   'resendRange.ts',
   'requestBoundary.ts',
@@ -281,6 +282,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'evaluateQueueTransition',
     'queueTransitionRuleById',
   ],
+  'receptionInput.ts': ['assertExactDefinedObject', 'assertInputArray'],
   'rejectionReason.ts': [
     'B3_CONTENT_BRANCH',
     'B3_REJECTION_KIND',
@@ -488,6 +490,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'QueueTransitionRule',
     'Rg1State',
   ],
+  'receptionInput.ts': [],
   'rejectionReason.ts': [
     'B3ContentBranch',
     'B3ContentRejection',
@@ -995,6 +998,42 @@ describe('prohibitions', () => {
     expect(
       SCANNED_SOURCES.every((entry) => !entry.fileName.endsWith('.spec.ts')),
     ).toBe(true)
+  })
+
+  it('ACK 受け取り6ファイルの構造検査を共有 helper だけに置く', () => {
+    const consumers = [
+      'ackEnvelope.ts',
+      'boundaryResults.ts',
+      'rejectionReason.ts',
+      'playerIdMapping.ts',
+      'p3Result.ts',
+      'resendRange.ts',
+    ]
+
+    for (const fileName of consumers) {
+      const source = sourceFor(fileName)
+
+      expect(source).toContain("from './receptionInput'")
+      expect(source).not.toMatch(
+        /Reflect\.ownKeys|Object\.hasOwn|hasOwnProperty/,
+      )
+    }
+    expect(sourceFor('receptionInput.ts')).toContain('Reflect.ownKeys')
+  })
+
+  it('ACK 受け取り6ファイルの識別値比較を Object.is に統一する', () => {
+    const consumers = [
+      'ackEnvelope.ts',
+      'boundaryResults.ts',
+      'rejectionReason.ts',
+      'playerIdMapping.ts',
+      'p3Result.ts',
+      'resendRange.ts',
+    ]
+
+    for (const fileName of consumers) {
+      expect(sourceFor(fileName)).not.toMatch(/===|!==/)
+    }
   })
 
   it('P-02: サイドカー結合キーを試合・D4・D1の3要素だけで作る', () => {

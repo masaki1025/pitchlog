@@ -138,6 +138,44 @@ describe('p3Result', () => {
     ).toThrowError(/accepted_at/)
   })
 
+  it.each([
+    'targetReference',
+    'expectedVersion',
+    'd5',
+    'confirmedContent',
+  ] as const)('%s が undefined の P3 受理結果を拒否する', (key) => {
+    const expected = acceptance()
+
+    expect(() =>
+      parseP3ResultEnvelope(
+        acceptedCandidate(expected, { [key]: undefined }),
+        expected,
+      ),
+    ).toThrow()
+  })
+
+  it('境界結果が undefined の P3 応答を拒否する', () => {
+    expect(() =>
+      parseP3ResultEnvelope({ boundaryResult: undefined }, acceptance()),
+    ).toThrow()
+  })
+
+  it.each([
+    (expected: I6Acceptance) => ({
+      boundaryResult: ACCEPTED_BOUNDARY_RESULT.id,
+      acceptedResult: { ...expected, acceptedAt: {} },
+      extra: {},
+    }),
+    (expected: I6Acceptance) => ({
+      boundaryResult: ACCEPTED_BOUNDARY_RESULT.id,
+      acceptedResult: { ...expected, acceptedAt: {}, extra: {} },
+    }),
+  ])('余分なキーを持つ P3 受理入力を拒否する', (candidate) => {
+    const expected = acceptance()
+
+    expect(() => parseP3ResultEnvelope(candidate(expected), expected)).toThrow()
+  })
+
   it.each(REJECTED_BOUNDARY_RESULTS)(
     '$id は I6 情報を持たない独立応答として受け取る',
     (boundaryResult) => {

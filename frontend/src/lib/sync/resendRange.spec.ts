@@ -25,6 +25,7 @@ import {
   determineResendRange,
   type D1AfterD3Resolver,
   type ResendD3Checkpoint,
+  type ResendRangeRequest,
 } from './resendRange'
 import type { SyncEvent } from './syncEvent'
 
@@ -297,6 +298,86 @@ describe('resendRange', () => {
     })
     expect(comparison).not.toHaveBeenCalled()
   })
+
+  it.each([
+    {
+      d4: undefined,
+      orderedSlots: [slot(1)],
+      lastKnownSynced: checkpoint(0),
+      isD1AfterD3,
+    },
+    {
+      d4: CURRENT_D4,
+      orderedSlots: [slot(1)],
+      lastKnownSynced: { d4: CURRENT_D4, d3: undefined },
+      isD1AfterD3,
+    },
+    {
+      d4: CURRENT_D4,
+      orderedSlots: [slot(1)],
+      ack: { advancedD3: undefined, eventResults: [] },
+      isD1AfterD3,
+    },
+  ] as const)('D4 または D3 が undefined の入力を拒否する', (request) => {
+    expect(() => determineResendRange(request as ResendRangeRequest)).toThrow()
+  })
+
+  it.each([
+    {
+      d4: CURRENT_D4,
+      orderedSlots: [slot(1)],
+      lastKnownSynced: checkpoint(0),
+      isD1AfterD3,
+      extra: {},
+    },
+    {
+      d4: CURRENT_D4,
+      orderedSlots: [slot(1)],
+      lastKnownSynced: { ...checkpoint(0), extra: {} },
+      isD1AfterD3,
+    },
+    {
+      d4: CURRENT_D4,
+      orderedSlots: [{ ...slot(1), extra: {} }],
+      lastKnownSynced: checkpoint(0),
+      isD1AfterD3,
+    },
+  ])('余分なキーを持つ再送入力を拒否する', (request) => {
+    expect(() => determineResendRange(request as ResendRangeRequest)).toThrow()
+  })
+
+  it('orderedSlots の同じ D4・D1 を重複として拒否する', () => {
+    const first = slot(1)
+
+    expect(() =>
+      determineResendRange({
+        d4: CURRENT_D4,
+        orderedSlots: [first, { ...first }],
+        lastKnownSynced: checkpoint(0),
+        isD1AfterD3,
+      }),
+    ).toThrowError(/重複/)
+  })
+
+  it.each([null, 0, 'true', {}])(
+    'resolver の非 boolean 戻り値 %j を order-unknown として拒否する',
+    (resolverResult) => {
+      const resolver = (() => resolverResult) as unknown as D1AfterD3Resolver
+
+      expect(
+        determineResendRange({
+          d4: CURRENT_D4,
+          orderedSlots: [slot(1)],
+          lastKnownSynced: checkpoint(0),
+          isD1AfterD3: resolver,
+        }),
+      ).toEqual({
+        status: 'unavailable',
+        reason: 'order-unknown',
+        slots: [],
+      })
+    },
+  )
 
   it.each([
     ['不明', (): boolean | undefined => undefined],

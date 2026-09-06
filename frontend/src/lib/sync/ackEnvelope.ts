@@ -5,6 +5,19 @@ import {
   readCanonAckStateResults,
   type CanonAckStateResult,
 } from './canonOracle'
+import { assertExactDefinedObject, assertInputArray } from './receptionInput'
+
+const ACK_ENVELOPE_KEYS = Object.freeze([
+  'advancedD3',
+  'eventResults',
+  'playerIdMappings',
+] as const)
+const ACK_REQUIRED_KEYS = Object.freeze(['advancedD3', 'eventResults'] as const)
+const EVENT_RESULT_KEYS = Object.freeze(['d4', 'd1', 'd5', 'a5Result'] as const)
+const PLAYER_ID_MAPPING_KEYS = Object.freeze([
+  'temporaryId',
+  'officialId',
+] as const)
 
 export type D1AckEventResult = Readonly<{
   d4: unknown
@@ -24,44 +37,22 @@ export type D1AckEnvelope = Readonly<{
   playerIdMappings?: readonly D1AckPlayerIdMapping[]
 }>
 
-function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function hasOwn(value: object, key: PropertyKey): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key)
-}
-
 function parseEventResult(
   candidate: unknown,
   canonResults: readonly CanonAckStateResult[],
-  parsedResults: readonly D1AckEventResult[],
 ): D1AckEventResult {
-  if (
-    !isRecord(candidate) ||
-    !hasOwn(candidate, 'd4') ||
-    !hasOwn(candidate, 'd1') ||
-    !hasOwn(candidate, 'd5') ||
-    !hasOwn(candidate, 'a5Result')
-  ) {
-    throw new Error('ACK のイベント結果が不足しています')
-  }
+  assertExactDefinedObject(
+    candidate,
+    EVENT_RESULT_KEYS,
+    EVENT_RESULT_KEYS,
+    'ACK のイベント結果が不足しているか、余分な要素があります',
+  )
 
-  const result = canonResults.find(
-    (canonResult) => canonResult.id === candidate.a5Result,
+  const result = canonResults.find((canonResult) =>
+    Object.is(canonResult.id, candidate.a5Result),
   )
   if (!result) {
     throw new Error('ACK に未知の A5 結果があります')
-  }
-
-  const duplicate = parsedResults.some(
-    (parsedResult) =>
-      Object.is(parsedResult.d4, candidate.d4) &&
-      Object.is(parsedResult.d1, candidate.d1) &&
-      Object.is(parsedResult.d5, candidate.d5),
-  )
-  if (duplicate) {
-    throw new Error('ACK のイベント結果が重複しています')
   }
 
   return Object.freeze({
@@ -73,13 +64,12 @@ function parseEventResult(
 }
 
 function parsePlayerIdMapping(candidate: unknown): D1AckPlayerIdMapping {
-  if (
-    !isRecord(candidate) ||
-    !hasOwn(candidate, 'temporaryId') ||
-    !hasOwn(candidate, 'officialId')
-  ) {
-    throw new Error('ACK の A4 写像が不足しています')
-  }
+  assertExactDefinedObject(
+    candidate,
+    PLAYER_ID_MAPPING_KEYS,
+    PLAYER_ID_MAPPING_KEYS,
+    'ACK の A4 写像が不足しているか、余分な要素があります',
+  )
 
   return Object.freeze({
     temporaryId: candidate.temporaryId,
@@ -88,36 +78,53 @@ function parsePlayerIdMapping(candidate: unknown): D1AckPlayerIdMapping {
 }
 
 export function parseD1AckEnvelope(candidate: unknown): D1AckEnvelope {
-  if (!isRecord(candidate) || !hasOwn(candidate, 'advancedD3')) {
-    throw new Error('ACK に前進後の D3 がありません')
-  }
-  if (!Array.isArray(candidate.eventResults)) {
-    throw new Error('ACK にイベントごとの A5 結果がありません')
-  }
+  assertExactDefinedObject(
+    candidate,
+    ACK_ENVELOPE_KEYS,
+    ACK_REQUIRED_KEYS,
+    'ACK に前進後の D3 またはイベントごとの A5 結果がありません',
+  )
+  assertInputArray(
+    candidate.eventResults,
+    'ACK にイベントごとの A5 結果がありません',
+  )
 
   const canonResults = readCanonAckStateResults()
-  const eventResults: D1AckEventResult[] = []
-  for (const eventResult of candidate.eventResults) {
-    eventResults.push(parseEventResult(eventResult, canonResults, eventResults))
-  }
+  const eventResults = candidate.eventResults.map((eventResult) =>
+    parseEventResult(eventResult, canonResults),
+  )
+  assertInputArray<D1AckEventResult>(
+    eventResults,
+    'ACK のイベント結果が配列ではありません',
+    (first, second) =>
+      Object.is(first.d4, second.d4) &&
+      Object.is(first.d1, second.d1) &&
+      Object.is(first.d5, second.d5),
+    'ACK のイベント結果が重複しています',
+  )
 
   const frozenEventResults = Object.freeze(eventResults)
-  if (!hasOwn(candidate, 'playerIdMappings')) {
+  if (Object.is(candidate.playerIdMappings, undefined)) {
     return Object.freeze({
       advancedD3: candidate.advancedD3,
       eventResults: frozenEventResults,
     })
   }
-  if (!Array.isArray(candidate.playerIdMappings)) {
-    throw new Error('ACK の A4 写像が配列ではありません')
-  }
+  assertInputArray(
+    candidate.playerIdMappings,
+    'ACK の A4 写像が配列ではありません',
+  )
 
-  const playerIdMappings = Object.freeze(
-    candidate.playerIdMappings.map(parsePlayerIdMapping),
+  const playerIdMappings = candidate.playerIdMappings.map(parsePlayerIdMapping)
+  assertInputArray<D1AckPlayerIdMapping>(
+    playerIdMappings,
+    'ACK の A4 写像が配列ではありません',
+    (first, second) => Object.is(first.temporaryId, second.temporaryId),
+    'ACK の A4 写像が重複しています',
   )
   return Object.freeze({
     advancedD3: candidate.advancedD3,
     eventResults: frozenEventResults,
-    playerIdMappings,
+    playerIdMappings: Object.freeze(playerIdMappings),
   })
 }

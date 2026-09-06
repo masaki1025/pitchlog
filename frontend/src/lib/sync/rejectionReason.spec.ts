@@ -103,6 +103,28 @@ describe('rejectionReason', () => {
     ).toThrowError(/理由がありません/)
   })
 
+  it('reason が undefined の拒否結果を fail-closed に拒否する', () => {
+    expect(() =>
+      parseB3Rejection({
+        kind: B3_REJECTION_KIND.CONTENT,
+        branch: B3_CONTENT_BRANCH.B3A,
+        reason: undefined,
+      }),
+    ).toThrowError(/理由がありません/)
+  })
+
+  it.each([
+    {
+      kind: B3_REJECTION_KIND.CONTENT,
+      branch: B3_CONTENT_BRANCH.B3A,
+      reason: {},
+      extra: {},
+    },
+    { kind: B3_REJECTION_KIND.O4, reason: {}, extra: {} },
+  ])('余分なキーを持つ拒否結果を拒否する', (candidate) => {
+    expect(() => parseB3Rejection(candidate)).toThrow()
+  })
+
   it('O4 に内容拒否の下位区分を混在させない', () => {
     expect(() =>
       parseB3Rejection({

@@ -59,6 +59,15 @@ describe('boundaryResults', () => {
     )
   })
 
+  it('余分なキーを持つ境界結果入力を拒否する', () => {
+    expect(() =>
+      parseAckBoundaryResult({
+        boundaryResult: canonAckResults[0]!.id,
+        extra: {},
+      }),
+    ).toThrow()
+  })
+
   it('ACK ありと ACK なしを型の discriminant で区別する', () => {
     type AckDelivery = AckBoundaryResult['delivery']
     type NoAckDelivery = NoAckBoundaryResult['delivery']
@@ -90,6 +99,12 @@ describe('boundaryResults', () => {
     ].map((match) => match[2])
 
     expect(exactBoundaryIdLiterals).toEqual([])
+  })
+
+  it('境界 ID の文字列や数値を解釈して ACK 有無を決めない', () => {
+    expect(boundaryResultsSource).not.toMatch(
+      /\.slice\s*\(|\bNumber\s*\(|\bparseInt\s*\(|\bparseFloat\s*\(/,
+    )
   })
 
   it('B3 の下位分類や境界結果の決定処理を持たない', () => {
