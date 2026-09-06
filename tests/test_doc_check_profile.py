@@ -212,12 +212,19 @@ def test_profile_attribution_matches_current_module_constants() -> None:
 
 
 def test_required_checks_match_current_module_constants() -> None:
-    """同期プロファイルの必須検査が現行14検査と一致する。"""
-    expected = set(propagation.LEGACY_PROP_CHECK_IDS) | set(
-        coverage.COVERAGE_CHECK_IDS
+    """同期プロファイルの必須検査が現行15検査と一致する。
+
+    `attribution-destination` は選択可能検査だが、TSK-322 で 11-3 の帰属先を
+    全数是正したうえで必須へ昇格させた。`attribution-direct` は
+    `direct_requirements` 資産と `collection_sets` を要するため対象外のまま。
+    """
+    expected = (
+        set(propagation.LEGACY_PROP_CHECK_IDS)
+        | set(coverage.COVERAGE_CHECK_IDS)
+        | {coverage.ATTRIBUTION_DESTINATION_CHECK_ID}
     )
     assert set(profile["required_checks"]) == expected
-    assert len(profile["required_checks"]) == 14
+    assert len(profile["required_checks"]) == 15
 
 
 def test_nonconstant_profile_values_match_current_source() -> None:

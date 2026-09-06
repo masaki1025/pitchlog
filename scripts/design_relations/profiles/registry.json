@@ -19,10 +19,11 @@
         "emphasis",
         "draft-metadata",
         "attribution",
-        "ledger"
+        "ledger",
+        "attribution-destination"
       ],
       "pins": {
-        "profile_gating_digest": "782ffaed829211ae7be0aeca1a3b80b98441d1c37509f6aa952a18123199e9ef",
+        "profile_gating_digest": "7f4a75c163329d907440d76a3eaa9ec68d71fb75b040a7a6556bbb52f9d8ee14",
         "invariants_digest": "7a811f03200b88becde1d8925539b92014cc61057c0ed7f6a9a71c59ac2d11de",
         "asset_digests": {}
       }

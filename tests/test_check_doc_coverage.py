@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -127,21 +128,36 @@ def _add_unknown_requirement_heading(text: str) -> str:
     return text + "\n#### FR-999: 母集合外のテスト用要件\n"
 
 
+def _assignment_line(text: str) -> str:
+    """帰属表から FR-001 の行を取り出す。
+
+    行の内容(区分・帰属先節)は本検査の対象ではなく、変異の起点として
+    実在の行が 1 つあればよい。正本の改訂で帰属先が変わってもテストが
+    壊れないよう、リテラルで固定せず文書から導出する。
+
+    Args:
+        text: 帰属表を含む Markdown 全文。
+
+    Returns:
+        末尾に改行を含む FR-001 の帰属行。
+    """
+    match = re.search(r"^\| FR-001 \|[^\n]*\|\n", text, re.MULTILINE)
+    assert match is not None
+    return match.group(0)
+
+
 def _remove_assignment(text: str) -> str:
-    line = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert line in text
+    line = _assignment_line(text)
     return text.replace(line, "", 1)
 
 
 def _duplicate_assignment(text: str) -> str:
-    line = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert line in text
+    line = _assignment_line(text)
     return text.replace(line, line + line, 1)
 
 
 def _add_unknown_assignment(text: str) -> str:
-    marker = "| FR-001 | 境界として参照 | 5-5・7-4 |\n"
-    assert marker in text
+    marker = _assignment_line(text)
     return text.replace(
         marker,
         marker + "| FR-999 | 対象外 | 母集合に存在しないテスト用 ID |\n",
@@ -180,7 +196,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assert checker.check_coverage(extracted, universe, assignments) == ()
     assert len(assignments) == 212
     assert Counter(assignment.kind for assignment in assignments) == {
-        "同期側で決める": 38,
+        "同期側で決める": 37,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
         # 8-4 がサーバーのステートレス規範として引用する `7.1` を「対象外」から
         # 「境界として参照」へ移した。総数 211 と過不足なしの表明は変えていない。
@@ -192,8 +208,8 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # P1-6(確定ゲート 9 周目)で、DoD ⑥を復元ライフサイクルの同期側の
         # 完走条件として「境界として参照」から「同期側で決める」へ移した。
         # ステップ41で6.1のP3受理結果保持を母集合と同期側の帰属へ1件追加した。
-        "境界として参照": 84,
-        "対象外": 90,
+        "境界として参照": 83,
+        "対象外": 92,
     }
 
 
@@ -432,8 +448,13 @@ def test_cli_maps_registry_file_mismatch_to_exit_2(tmp_path: Path) -> None:
     assert "登録集合と実ファイル集合が一致しません" in result.stderr
 
 
-def test_cli_reports_not_applicable_attribution_destination() -> None:
-    """同期プロファイルの新検査を理由付きの対象なしとする。"""
+def test_cli_runs_attribution_destination_on_real_document() -> None:
+    """同期プロファイルの帰属先検査が有効であり、実文書で指摘ゼロであることを固定する。
+
+    「対象なし」が出ないことを固定するのは、`not_applicable` へ戻したり
+    `required_checks` から外したりして検査が走らなくなった状態を捕まえるため。
+    削除だけでは検査が選ばれず、rc=0 のまま無登録になり得る。
+    """
     result = _run_cli(
         REPOSITORY_ROOT,
         "--checks",
@@ -441,7 +462,7 @@ def test_cli_reports_not_applicable_attribution_destination() -> None:
     )
 
     assert result.returncode == 0
-    assert "attribution-destination: 対象なし:" in result.stdout
+    assert "attribution-destination: 対象なし:" not in result.stdout
     assert result.stderr == ""
 
 
@@ -469,8 +490,11 @@ def test_cli_runs_applicable_attribution_destination(tmp_path: Path) -> None:
     )
     profile_data = json.loads(PROFILE.read_text(encoding="utf-8"))
     profile_data["document"] = str(document)
-    profile_data["required_checks"].append("attribution-destination")
-    del profile_data["not_applicable"]["attribution-destination"]
+    # 本番プロファイルは TSK-322 で attribution-destination を必須化済みだが、
+    # このテストは無効化状態から有効化する経路も含めて成立させたいので冪等に扱う。
+    if "attribution-destination" not in profile_data["required_checks"]:
+        profile_data["required_checks"].append("attribution-destination")
+    profile_data["not_applicable"].pop("attribution-destination", None)
     profile_path = tmp_path / "profile.json"
     profile_path.write_text(
         json.dumps(profile_data, ensure_ascii=False),

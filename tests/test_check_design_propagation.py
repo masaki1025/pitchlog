@@ -3446,7 +3446,13 @@ def test_step35_removed_mechanism_is_absent_and_manifest_is_reduced(
     """除去対象が本文とマニフェストへ復活しないことを固定する。"""
     document = DESIGN.read_text(encoding="utf-8")
     removed_markers = ("凍結", "リース", "FS", "FT", "B15", "B16", "O3")
-    assert all(marker not in document for marker in removed_markers)
+    # 本文だけは「リース」を直前の「リ」を除外して照合する。除去対象は
+    # 「凍結リース」の状態機械であり、素の部分一致では要件書 8 章の正式名称
+    # 「完了条件・リリース判定基準」の引用にも当たって誤検知するため。
+    # マニフェスト側は要件書を引用しないので、素の部分一致のまま維持する。
+    document_markers = tuple(m for m in removed_markers if m != "リース")
+    assert all(marker not in document for marker in document_markers)
+    assert re.search(r"(?<!リ)リース", document) is None
 
     manifest_text = repr(
         [
@@ -3755,7 +3761,7 @@ def test_step35_keeps_fr013_must_and_declares_deferred_should() -> None:
     assert "退避・非破棄・管理コンソールでの閲覧・書き出し" in handoff
     assert "**RR-1**" in handoff
     assert "**TSK-267**" in handoff
-    assert "要件書 v2.5 + 本正本 v0.2" in handoff
+    assert "同一の確定ゲートで一括検証" in handoff
 
     assert all(element in document for element in ("D8", "B4", "P4", "T8"))
     assert all(element in document for element in ("O1", "O2", "O4"))
@@ -3889,9 +3895,9 @@ def test_step39_attribution_follows_restore_contracts() -> None:
         DESIGN.read_text(encoding="utf-8"), "11-3"
     )
 
-    assert "| 同期側で決める | 38 |" in attribution
-    assert "| 境界として参照 | 84 |" in attribution
-    assert "| 対象外 | 90 |" in attribution
+    assert "| 同期側で決める | 37 |" in attribution
+    assert "| 境界として参照 | 83 |" in attribution
+    assert "| 対象外 | 92 |" in attribution
     assert "| FR-035 | 境界として参照 | 4-4・9-4・9-5 |" in attribution
     assert (
         "| NFR-015 | 同期側で決める | 6-3・7-1・7-4・8-3・9-2・9-5 |"
