@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d293b75e687816a8c45e921b998da75
 branch: feature/sync-server-apply
 created: 2026-09-07
-計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 7        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -77,7 +77,7 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 | `docs/design/sync-protocol.md` | **反映なし** — 正本を改訂しない(裁定 2・4) | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
 | `docs/adr/*` | **反映なし** | — |
-| `docs/development/harness-evaluation.md` | **`## 候補` へ 2 件**: ① **ハーネス設計書の `contracts/` 記述の揺れ**(`:181` は OpenAPI を含む / `:198` は NFR-019a のベクタに限定。10-3 と `ADR-003 D-1-b` は後者を援用 — TSK-331 の置き場裁定に直撃)② **正本由来の橋渡し資産を既存フィルタ外へ新設すると、正本と同時変更したときに frontend ジョブが起動しない**(`ci.yml:124-130` の filters は `frontend/**`・`contracts/**`・**`scripts/design_relations/sync-protocol.json`** を列挙する**個別列挙方式**。**既存の 3 資産は既に載っている**が、新しい橋渡し資産を足すたびに `ci.yml`〔`guard_paths`〕の更新が要り、漏らすと黙ってすり抜ける)。変更履歴表へ 1 行(**`H-*` の新規採番なし・版は上げない**) | **PR レビュー** |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 2 件**: ① **ハーネス設計書の `contracts/` 記述の揺れ**(`:181` は OpenAPI を含む / `:198` は NFR-019a のベクタに限定。10-3 と `ADR-003 D-1-b` は後者を援用 — TSK-331 の置き場裁定に直撃)② **`frontend-changes` は個別列挙方式なので、そのどれにも一致しない場所へ橋渡し資産を新設すると、正本と同時変更したときに frontend ジョブが起動しない**(`ci.yml:124-130` の対象は現在 `frontend/**`・`mise.toml`・`frontend/pnpm-lock.yaml`・`.github/workflows/ci.yml`・`contracts/**`・`scripts/design_relations/sync-protocol.json`。**`frontend/**` や `contracts/**` 配下に置く限りフィルタ更新は不要**で、**それ以外の新しいファイル名を使うときだけ** `ci.yml`〔`guard_paths`〕の更新が要り、漏らすと黙ってすり抜ける)。変更履歴表へ 1 行(**`H-*` の新規採番なし・版は上げない**) | **PR レビュー** |
 | `docs/README.md` | 台帳行の最終更新日を現行化 | **PR レビュー** |
 
 **台帳と索引の更新は `/pr` のクローズ処理で行う**。**実装ステップ表には置かない**
@@ -96,7 +96,7 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 | `frontend/src/lib/sync/restoreAdjustmentGate.ts` +`.spec.ts`(新規) | `RG1` 共通前段ゲート |
 | `frontend/src/lib/sync/prohibitions.spec.ts` | **3 つの exact-set** の追随 |
 | `scripts/check_processing_stages.py` + `tests/test_check_processing_stages.py`(新規) | **harness(常時実行)で正本 6-2 ↔ スナップショットを照合** |
-| `.claude/core-areas.json` / `tests/test_core_guard.py` | **新規ファイル 5 件**(2 モジュール + 各 spec + スナップショット)を `sync-protocol` の `paths` へ。**あわせて重複帰属を登録** — `processingStages.ts`・`.spec.ts`・`.snapshot.json` は**認可順序(③認可 < ④D5)を固定するので `tenant-isolation` にも、記録権照合の段階⑤を含むので `recording-rights` にも**、`restoreAdjustmentGate.ts`・`.spec.ts` は**新 D4 の開始境界を扱うので `recording-rights` にも**登録する。**新規検査器 2 パス**を `guard_paths` へ。`test_core_guard.py` の**各 area の期待集合も追随**させる |
+| `.claude/core-areas.json` / `tests/test_core_guard.py` | **新規ファイル 5 件**(2 モジュール + 各 spec + スナップショット)を `sync-protocol` の `paths` へ。**あわせて重複帰属を登録** — `processingStages.ts`・`.spec.ts`・`.snapshot.json` は**認可順序(③認可 < ④D5)を固定するので `tenant-isolation` にも、記録権照合の段階⑤を含むので `recording-rights` にも**、`restoreAdjustmentGate.ts`・`.spec.ts` は**`RG1` が「③認可後」を強制するので `tenant-isolation` にも、解除と新 D4 開始の不可分性を扱うので `recording-rights` にも**登録する。**本タスクで変更する `canonOracle.ts`・`.spec.ts` も、`RG1`・`DI1`・`I1` の右辺(いずれも「③認可後」を含む)を実装済みとして読むので `tenant-isolation` へ重複登録**する。**新規検査器 2 パス**を `guard_paths` へ。`test_core_guard.py` の**各 area の期待集合も追随**させる |
 
 **`failureScenarioContract.ts` / `failureScenarioAdapter.ts` / `tests/fixtures/sync-protocol-failures/` は
 本タスクでは 1 行も変更しない**(TSK-332 の射程)。
@@ -125,11 +125,11 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 
 | # | 論点 | 裁定 | 周 |
 | --- | --- | --- | --- |
-| 1 | 射程 | 案 A: 契約・オラクル・注入点の固定に限定 | 着手時 |
-| 2 | 6-2 の関係化 | 登録しない(正本を改訂しない) | 着手時 |
-| 3 | `U-13`・`U-14` | γ の射程外 | 着手時 |
+| 1 | 射程 | 案 A: 契約・オラクル・注入点の固定に限定(→ **裁定 10 で分割** — 契約と注入点は TSK-332 へ。**backend 不変と TSK-250 非依存は維持**) | 着手時 |
+| 2 | 6-2 の関係化 | 登録しない(正本を改訂しない)(→ **維持**。「TS の単体テストで固定」は**裁定 7・9 の 2 層検査**へ強化) | 着手時 |
+| 3 | `U-13`・`U-14` | 射程外(→ **維持**。ただし「契約・オラクルの固定は矛盾に触れず成立する」という見立ては**誤りで、裁定 8 で `DI5` ごと射程外へ**) | 着手時 |
 | 4 | wire スキーマ | 含めない → TSK-331 | 着手時 |
-| 5 | 期待フィールド | 条件付き必須へ(→ 1 周目で共通 9 件へ是正)| 着手時 |
+| 5 | 期待フィールド | 条件付き必須へ(→ 1 周目で共通 9 件へ是正 → **裁定 10 で設計ごと TSK-332 へ**)| 着手時 |
 | 6 | `DI5`・`B3b` | 両方やる(→ **裁定 8 で `DI5` を部分撤回**) | 2 |
 | 7 | ドリフト検査の置き場 | **2 層**(harness の Python / Vitest) | 2 |
 | 8 | `U-14` との衝突 | **`DI5` を射程外へ戻す** | 3 |
@@ -144,7 +144,7 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 | --- | --- | --- |
 | 1 | **`R-TXN-ROUTE` の専用パーサと reader**(`canonOracle.ts`)。経路行 = `:` 1 個 + `=` 1 個 + `,` split、T 要素行 = `:` 1 個かつ **`=` を明示的に禁止**。2 つの exact-set 照合(関係全体 = 14 / 経路が参照する T の和集合 = 9)。**経路 → T 集合の写像を公開**する(TSK-332 が 18 組の出所として使う) | `[機械]` `pnpm test` green / **変異 5 件以上**(未知 ID・T 行に `=` 混入・経路行から `=` 欠落・参照 T 欠落・ID 重複)/ `prohibitions.spec.ts` の 3 exact-set 追随 / `[手動]` 14 要素が正本 8-1 と逐語一致 |
 | 2 | **`processingStages.ts`(新規)+ スナップショット + 2 層ドリフト検査 + `DI1`・`DI4`・`I1`・`I4` を実装済みへ**。スナップショットを **`frontend/src/lib/sync/processingStages.snapshot.json`** に置き、**harness の `check_processing_stages.py` が正本 6-2 の 2 表と逐語照合**、**Vitest がスナップショットと TS 実装を照合**する | `[機械]` 全 green / **正本 6-2 を 1 行変えると harness の検査が red** / **スナップショットを 1 行変えると Vitest が red** / **同時に変えてもスナップショットが `frontend/**` に当たり Vitest が起動する** / `EXPECTED = 実装済み ∪ 射程外` の総和が不変 / **`sync-protocol` の `paths` に 3 パス・`guard_paths` に 2 パスを登録し、同じ 3 パスを `tenant-isolation` と `recording-rights` にも重複登録**(`test_core_guard.py` の各 area 期待集合も追随)/ `[手動]` 9 段階 + 11 段階の逐行確認 |
-| 3 | **`restoreAdjustmentGate.ts`(新規)+ `RG1` を両関係で実装済みへ**。右辺 10 節(③認可後 / D5 照合前 / 全通常書き込み・内部ジョブ停止 / P1・P2・P4 は `B7` / P3 は `B10` / D5 消費なし / コミット直前再検証 / サービス再開 fail-closed / 解除・新 D4 開始不可分 / 復旧制御面だけ許可)を逐語固定 | `[機械]` 全 green / 右辺 10 節が正本 `:768` と逐語一致 / **`R-P3-BOUNDARY` の allow-list 先頭 `変更受理` を動かしていない**(`CANON_P3_ACCEPTED_RESULT_ID` の添字 0 依存)/ **`sync-protocol` の `paths` に 2 パス登録し、同じ 2 パスを `recording-rights` にも重複登録**(`test_core_guard.py` も追随)/ `[手動]` fail-closed の向きが**止める側**に倒れている |
+| 3 | **`restoreAdjustmentGate.ts`(新規)+ `RG1` を両関係で実装済みへ**。右辺 10 節(③認可後 / D5 照合前 / 全通常書き込み・内部ジョブ停止 / P1・P2・P4 は `B7` / P3 は `B10` / D5 消費なし / コミット直前再検証 / サービス再開 fail-closed / 解除・新 D4 開始不可分 / 復旧制御面だけ許可)を逐語固定 | `[機械]` 全 green / 右辺 10 節が正本 `:768` と逐語一致 / **`R-P3-BOUNDARY` の allow-list 先頭 `変更受理` を動かしていない**(`CANON_P3_ACCEPTED_RESULT_ID` の添字 0 依存)/ **`sync-protocol` の `paths` に 2 パス登録し、同じ 2 パスを `tenant-isolation`・`recording-rights` にも重複登録**(`test_core_guard.py` も追随)/ `[手動]` fail-closed の向きが**止める側**に倒れている |
 | 4 | **既存 D5 分類器を正本 4-5 へ是正 + `B3b` を実装済みへ**。① **判定不能・比較例外を経路別に `B3b`/`B13`** へ写像(正本 `:404`)② **複数一致は「一意な先着原本が無い破損」として専用例外(例: `IdempotencyCollisionCorruptionError`)の送出へ一意化**し、**`IdempotencyDecisionResult` の値としては表現できなくする** | `[機械]` 全 green / **正本 `:404` どおり D1 付き経路 = `B3b`・P3 = `B13`** / **両経路の変異試験** / **複数一致で当該例外が送出されることを厳密に検査**(現行の `REJECT_LATER` を返す実装では red になる — 「混ざらない」だけの条件はコードを変えなくても通ってしまうため)/ **複数一致時に内容同一性の判定器が呼ばれないことを検査** / 製品表と canon の突合で `B3b` の右辺が逐語一致 / `[手動・最重要]` **既存振る舞いの変更**なので逐行確認。**呼び出し元への波及を確認** |
 
 **順序の根拠**: **ステップ 1 が先**。**経路 → T 集合の写像を使うのは TSK-332 であり、本タスクの
@@ -174,7 +174,7 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 - [ ] **`EXPECTED = 実装済み ∪ 射程外` の総和が不変**
 - [ ] **`backend/` を 1 行も変更していない**・**正本 `docs/design/sync-protocol.md` を 1 行も変更していない**
 - [ ] **`failureScenarioContract.ts` / `failureScenarioAdapter.ts` / `tests/fixtures/sync-protocol-failures/` を 1 行も変更していない**(TSK-332 の射程)
-- [ ] **新規ファイル 5 件が `sync-protocol` の `paths` に、新規検査器 2 件が `guard_paths` に**登録され、**`processingStages` 系 3 件が `tenant-isolation`・`recording-rights` にも、`restoreAdjustmentGate` 系 2 件が `recording-rights` にも重複帰属**している(`test_core_guard.py` の各 area 期待集合も一致)
+- [ ] **新規ファイル 5 件が `sync-protocol` の `paths` に、新規検査器 2 件が `guard_paths` に**登録され、**`processingStages` 系 3 件・`restoreAdjustmentGate` 系 2 件・`canonOracle` 系 2 件が `tenant-isolation` にも**(いずれも「③認可後」の順序を固定・実装済みとして読む)、**`processingStages` 系 3 件・`restoreAdjustmentGate` 系 2 件が `recording-rights` にも**重複帰属している(`test_core_guard.py` の各 area 期待集合も一致)
 - [ ] **TSK-330・TSK-331・TSK-332 が起票され、本タスクと相互リンクされている**
 - [ ] /check が全グリーン(`[手動]` 条件を green に数えていない)
 - [ ] **人間の逐行確認(PR 作成者以外)が完了** — 最優先は**ステップ 4(既存振る舞いの変更)**、次にステップ 2 の段階順序
@@ -199,7 +199,7 @@ TSK-280(イベント契約)が `DI1`・`DI5`・`I1`・`B3a` を「6 章の処理
 | 層 | 追加するテスト |
 | --- | --- |
 | **Vitest**(`frontend/`) | ステップ 1: reader/parser 一致 + **変異 5 件以上** / ステップ 2: 段階の単体テスト + **スナップショット↔TS 照合**(1 行変異で red)/ ステップ 3: `RG1` の逐語照合 + 変異 / **ステップ 4: 判定不能の経路別変異(D1 → `B3b` / P3 → `B13`)・複数一致で専用例外が送出されること・判定器が呼ばれないこと・呼び出し元への波及** |
-| **pytest**(ルート) | **`tests/test_check_processing_stages.py`(新規)** — 正本 6-2 ↔ スナップショットの照合と、**正本 1 行変異で red** になること。`test_core_guard.py` に**新規ファイル 5 件(`sync-protocol` の `paths`)+ 検査器 2 件(`guard_paths`)+ 重複帰属**(`tenant-isolation` へ 3 件・`recording-rights` へ 5 件)を登録 |
+| **pytest**(ルート) | **`tests/test_check_processing_stages.py`(新規)** — 正本 6-2 ↔ スナップショットの照合と、**正本 1 行変異で red** になること。`test_core_guard.py` に**新規ファイル 5 件(`sync-protocol` の `paths`)+ 検査器 2 件(`guard_paths`)+ 重複帰属**(`tenant-isolation` へ 7 件〔`processingStages` 3・`restoreAdjustmentGate` 2・`canonOracle` 2〕・`recording-rights` へ 5 件)を登録 |
 | **pytest**(`backend/`) | **追加なし**(`backend/` を変更しない) |
 | **Playwright** | **追加なし** |
 

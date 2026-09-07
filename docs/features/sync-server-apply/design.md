@@ -219,7 +219,7 @@ TSK-330 で資産構造から作り直しになる。
 ```
 
 **TSK-332 が作る資産での 18 組の分担**: `p1-crash-boundaries` が P1 の 5 組、`p2-…` が P2 の 6 組、
-`p3-…` が P3 の 5 組、`p4-…` が P4 の 1 組、`p5-b3a-…` が P5 の 1 組 = **18 組を γ で覆い切る**。
+`p3-…` が P3 の 5 組、`p4-…` が P4 の 1 組、`p5-b3a-…` が P5 の 1 組 = **18 組を TSK-332 で覆い切る**。
 `p5-b3b-unreached-t9` は **`T9` に到達しない**分岐なので**トランザクション内 case を宣言しない**(空集合)。
 
 **被覆 ② の分担**: `p3-crash-boundaries` が「`T7` 確定後・無効化配信前」と
@@ -321,13 +321,17 @@ TSK-330 で資産構造から作り直しになる。
 裁定 2 により 6-2 の段階表を関係マニフェストへ登録しない。
 そのままだと **TypeScript 側の順序テストは通るが、正本の 9/11 段階が後日変わっても鳴らない**。
 
-さらに **`ci.yml:124-128` の `frontend-changes` フィルタは `frontend/**` のみ**で正本を含まないため、
-**検査を Vitest だけに置くと、正本だけを変えた PR では skip される**(2 周目 P1-1)。
-一方 **harness ジョブは「paths filter は付けない」と明記**されている(`ci.yml:88`)。
+さらに **`ci.yml:124-130` の `frontend-changes` フィルタは対象を個別に列挙**しており、
+現在は **`frontend/**`・`mise.toml`・`frontend/pnpm-lock.yaml`・`.github/workflows/ci.yml`・
+`contracts/**`・`scripts/design_relations/sync-protocol.json`** が対象である。
+**正本の markdown はどれにも一致しない**ため、**検査を Vitest だけに置くと、正本だけを変えた PR では
+frontend ジョブが起動しない**(2 周目 P1-1)。一方 **harness ジョブは「paths filter は付けない」と明記**
+されている(`ci.yml:88`)。
 
-**さらに 3 周目 P1-1**: スナップショットを `scripts/design_relations/` に置くと、
-**正本とスナップショットを同時に変えた PR** で harness は green・**Vitest はフィルタ外で skip** になり、
-**TS 実装だけ旧状態でも検出されない**。
+**さらに 3 周目 P1-1**: 橋渡し資産を**上記のいずれにも一致しない場所**(例えば
+`scripts/design_relations/processing-stages.json` のような**新しいファイル名**)に置くと、
+**正本と資産を同時に変えた PR** で harness は green・**Vitest はフィルタ外で起動せず**、
+**TS 実装だけ旧状態でも検出されない**。**`frontend/**` 配下に置けばこの穴は生じない**。
 
 ### 5-2. 採る形(人間の裁定 9)
 
@@ -397,7 +401,10 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 | 復元調整中の全変更経路 | `restore-all-write-paths-blocked` | **繰り延べ → TSK-330** |
 | RG1 解除と新 D4 の境界 | `restore-release-new-generation-boundary` | **繰り延べ → TSK-330** |
 
-**合計 26**(作成済み 4 + γ **10** + 繰り延べ **12**)。
+**合計 26**(作成済み 4 + **TSK-332 が作る 10** + **TSK-330 へ繰り延べ 12**)。
+
+**「第 1 群 / 第 2 群」は TSK-321 の旧ステップ 7 / 8 に由来する暫定分類**であり、
+**実装順序・コミット単位・依存関係は TSK-332 の計画で確定する**。
 
 復元系のうち 8 ID は **10-3 `:1692` が逐語で名指し**したもの。ただし同節は「**少なくとも**」と書いており、
 **10-2 の観点「復元調整中の全変更経路」(`:1648`)と「RG1 解除と新 D4 の境界」(`:1652`)を
@@ -495,7 +502,7 @@ TSK-332 が作る 10 資産はすべて **runner 繰り延べ**に入る(実行�
 | 2 | `EXPECTED_VALUE_EXPORTS` | 同 `:143-318` | **値 export の完全集合** |
 | 3 | `EXPECTED_TYPE_EXPORTS` | 同 `:319-536` | **型 export が 0 件でも `[]` エントリが必須** |
 | 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規ファイルは 5 件**(2 モジュール + 各 spec + スナップショット JSON) |
-| 4a | **同 `paths` の重複帰属**(6 周目 P2-1) | `tenant-isolation` / `recording-rights` | `sync-protocol` だけだとコアレビューは発火するが**機械可読 paths 上の帰属が漏れる**。**`processingStages.ts`・`.spec.ts`・`.snapshot.json` は `tenant-isolation`**(段階順序「③認可 < ④D5」が `FR-034`・`NFR-010` の存在秘匿の根拠)**と `recording-rights`**(段階⑤の記録権照合)へ、**`restoreAdjustmentGate.ts`・`.spec.ts` は `recording-rights`**(解除と新 D4 開始の不可分性)へも登録する |
+| 4a | **同 `paths` の重複帰属**(6 周目 P2-1 / 7 周目 P2-1) | `tenant-isolation` / `recording-rights` | `sync-protocol` だけだとコアレビューは発火するが**機械可読 paths 上の帰属が漏れる**。**`tenant-isolation` へ**: `processingStages.ts`・`.spec.ts`・`.snapshot.json`(段階順序「③認可 < ④D5」が `FR-034`・`NFR-010` の存在秘匿の根拠 — 正本 `:695`)/ **`restoreAdjustmentGate.ts`・`.spec.ts`**(`RG1` が「**③認可後**」を強制 — `:768`)/ **`canonOracle.ts`・`.spec.ts`**(`RG1`・`DI1`・`I1` の右辺がいずれも「③認可後」を含み、それを実装済みとして読む)= **7 件**。**`recording-rights` へ**: `processingStages` 系 3 件(段階⑤の記録権照合 — `:690`)/ `restoreAdjustmentGate` 系 2 件(解除と新 D4 開始の不可分性)= **5 件** |
 | 5 | **`.claude/core-areas.json` の `guard_paths`** | — | **`check_processing_stages.py`・`test_check_processing_stages.py` の 2 パス**(既存の検査器が `guard_paths` にある作法に合わせる) |
 | 6 | **`tests/test_core_guard.py`** | **各 area の期待集合** | 4・4a・5 と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる**。**重複帰属も area ごとに追随**させる |
 
@@ -514,8 +521,8 @@ TSK-332 が作る 10 資産はすべて **runner 繰り延べ**に入る(実行�
 - **`CANON_P3_ACCEPTED_RESULT_ID` の添字 0 依存**(`canonOracle.ts:517-518`)はステップ 2・3 で踏みやすい。
   解消できるならステップ 2 で解消するが、射程を広げないため必須にはしない
 - **`faultInjection` を実行器が一切読んでいない**。3-6 で語彙と組合せを閉じても、
-  **γ の射程では資産に書けるだけで実測されない**。実測は **TSK-330** の責務
+  **TSK-332 の射程では資産に書けるだけで実測されない**。実測は **TSK-330** の責務
 - **観点 key の完全な列挙は TSK-332 の計画で確定**する。本書は写像の**機構**(6-2 の exact-set)を定め、
   列挙そのものは正本 10-2 を全行読んで固定する
-- **`DI5` を射程外へ戻したことで、混在バッチの A5 停止境界は γ で一切固定されない**。
+- **`DI5` を射程外へ戻したことで、混在バッチの A5 停止境界は TSK-321 で一切固定されない**。
   `d1-mixed-batch` と `b3b-after-gap` の**資産は作る**が、**規則の実装と実行検証は TSK-330**(`U-14` 解決後)
