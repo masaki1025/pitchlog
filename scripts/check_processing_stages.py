@@ -30,6 +30,10 @@ class ProcessingStagesError(Exception):
     """正本またはスナップショットの入力不正を表す。"""
 
 
+class ProcessingStagesDuplicateError(ProcessingStagesError):
+    """正本の見出しまたは表ヘッダーの重複を表す。"""
+
+
 @dataclass(frozen=True)
 class ProcessingStageTables:
     """正規化済みの2つの処理段階表を表す。
@@ -57,24 +61,48 @@ def _table_cells(line: str) -> tuple[str, ...] | None:
     return tuple(cell.strip().replace("**", "") for cell in stripped[1:-1].split("|"))
 
 
+def _require_unique_index(indices: tuple[int, ...], label: str) -> int:
+    """対象位置が厳密に1件であることを検証する。
+
+    Args:
+        indices: 対象に一致した行の位置。
+        label: エラーで特定する対象名。
+
+    Returns:
+        一意な対象位置。
+
+    Raises:
+        ProcessingStagesError: 対象が存在しない場合。
+        ProcessingStagesDuplicateError: 対象が重複している場合。
+    """
+    count = len(indices)
+    if count == 0:
+        raise ProcessingStagesError(f"{label}は厳密に1件必要ですが0件でした")
+    if count > 1:
+        raise ProcessingStagesDuplicateError(
+            f"{label}は厳密に1件必要ですが{count}件ありました"
+        )
+    return indices[0]
+
+
 def _section_lines(document: str) -> list[str]:
     lines = document.splitlines()
-    start = next(
-        (index for index, line in enumerate(lines) if line.startswith(SECTION_HEADING)),
-        None,
+    start = _require_unique_index(
+        tuple(
+            index
+            for index, line in enumerate(lines)
+            if line.startswith(SECTION_HEADING)
+        ),
+        "正本の6-2見出し",
     )
-    if start is None:
-        raise ProcessingStagesError("正本に6-2節がありません")
-    end = next(
-        (
+    end = _require_unique_index(
+        tuple(
             index
             for index, line in enumerate(lines[start + 1 :], start=start + 1)
             if line.startswith(NEXT_SECTION_HEADING)
         ),
-        None,
+        "6-2節開始後の6-3見出し",
     )
-    if end is None:
-        raise ProcessingStagesError("正本に6-3節がありません")
     return lines[start:end]
 
 
@@ -83,16 +111,14 @@ def _extract_table(
     headers: tuple[str, ...],
     expected_rows: int,
 ) -> tuple[tuple[str, ...], ...]:
-    header_index = next(
-        (
+    header_index = _require_unique_index(
+        tuple(
             index
             for index, line in enumerate(section_lines)
             if _table_cells(line) == headers
         ),
-        None,
+        f"6-2節の表ヘッダー {headers}",
     )
-    if header_index is None:
-        raise ProcessingStagesError(f"6-2節に表ヘッダーがありません: {headers}")
     if header_index + 1 >= len(section_lines):
         raise ProcessingStagesError(f"6-2節の表区切りがありません: {headers}")
     delimiter = _table_cells(section_lines[header_index + 1])
@@ -264,7 +290,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         argv: テスト時に指定する引数列。省略時はコマンドライン引数を使う。
 
     Returns:
-        一致なら0、不一致なら1、入力不正なら2。
+        一致なら0、不一致または重複なら1、その他の入力不正なら2。
     """
     try:
         args = parse_args(argv)
@@ -275,6 +301,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         document_tables = extract_processing_stage_tables(document)
         snapshot_tables = load_snapshot(snapshot_path)
         findings = compare_processing_stage_tables(document_tables, snapshot_tables)
+    except ProcessingStagesDuplicateError as error:
+        print(f"processing-stages: 入力不正: {error}", file=sys.stderr)
+        return 1
     except ProcessingStagesError as error:
         print(f"processing-stages: 入力不正: {error}", file=sys.stderr)
         return 2
