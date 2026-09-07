@@ -1,6 +1,6 @@
 // この判定は docs/design/sync-protocol.md 4-5 の D5 再利用禁止範囲と衝突規則の写しである。
-// 射程は DI2・DI3・I2・I3 と内容同一性を判定できない場合の後着拒否に限る。
-// DI1・DI5・I1・B3a は6章の処理段階に依存するため実装しない。
+// 射程は DI2・DI3・I2・I3、内容同一性の fail-closed 分類、B3b の分岐に限る。
+// DI5 は U-14 が未解決で、B3a は T9 の永続化を伴うため TSK-330 の射程とする。
 
 import { SYNC_EVENT_PATH, type SyncEventPath } from './eventFieldRules'
 import type { SyncEvent } from './syncEvent'
@@ -35,7 +35,6 @@ export const IDEMPOTENCY_DECISION = {
   REPLAY_SAVED_RESULT: '保存済み結果の再掲',
   D1_COLLISION: 'B3b',
   P3_COLLISION: 'B13',
-  REJECT_LATER: '後着拒否',
 } as const
 
 export type IdempotencyBoundaryResult =
@@ -52,6 +51,28 @@ export type IdempotencyScopeRule = Readonly<{
 export const IDEMPOTENCY_SCOPE_RULE: IdempotencyScopeRule = Object.freeze({
   keyParts: Object.freeze(['tenant', 'd5'] as const),
   differentTenantIsDuplicate: false,
+})
+
+export type B3BranchRule = Readonly<{
+  id: typeof IDEMPOTENCY_DECISION.D1_COLLISION
+  name: string
+  clauses: readonly [string, string, string]
+  rightHandSide: string
+  startsT9: false
+}>
+
+const b3ExistingD5BranchClauses = Object.freeze([
+  '先着原本との比較',
+  'B3',
+  'T9開始なし',
+] as const)
+
+export const B3_EXISTING_D5_BRANCH_RULE: B3BranchRule = Object.freeze({
+  id: IDEMPOTENCY_DECISION.D1_COLLISION,
+  name: '既存D5との衝突',
+  clauses: b3ExistingD5BranchClauses,
+  rightHandSide: b3ExistingD5BranchClauses.join('+'),
+  startsT9: false,
 })
 
 type CollisionPathGroup = 'D1付き経路' | 'P3'
@@ -127,9 +148,13 @@ export type IdempotencyDecisionResult<SavedResult> =
   | Readonly<{
       decision: IdempotencyBoundaryResult
     }>
-  | Readonly<{
-      decision: typeof IDEMPOTENCY_DECISION.REJECT_LATER
-    }>
+
+export class IdempotencyCollisionCorruptionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'IdempotencyCollisionCorruptionError'
+  }
+}
 
 function isSameIdempotencyKey(
   first: IdempotencyOperation,
@@ -150,11 +175,7 @@ function isSameIdempotencyKey(
 }
 
 function pathGroup(path: SyncEventPath): CollisionPathGroup {
-  return path === SYNC_EVENT_PATH.P3 ? 'P3' : 'D1付き経路'
-}
-
-function rejectLater<SavedResult>(): IdempotencyDecisionResult<SavedResult> {
-  return { decision: IDEMPOTENCY_DECISION.REJECT_LATER }
+  return Object.is(path, SYNC_EVENT_PATH.P3) ? 'P3' : 'D1付き経路'
 }
 
 export function decideIdempotencyCollision<SavedResult>(
@@ -162,15 +183,19 @@ export function decideIdempotencyCollision<SavedResult>(
   storedOperations: readonly StoredIdempotencyOperation<SavedResult>[],
   compareOriginal: IdempotencyOriginalComparator,
 ): IdempotencyDecisionResult<SavedResult> {
-  const matches = storedOperations.filter((stored) =>
-    isSameIdempotencyKey(stored.operation, later),
+  const matches = Object.freeze(
+    storedOperations.filter((stored) =>
+      isSameIdempotencyKey(stored.operation, later),
+    ),
   )
 
   if (matches.length === 0) {
     return { decision: IDEMPOTENCY_DECISION.NOT_DUPLICATE }
   }
   if (matches.length !== 1) {
-    return rejectLater()
+    throw new IdempotencyCollisionCorruptionError(
+      '同一の冪等キーに一意な先着原本がありません',
+    )
   }
 
   const first = matches[0]!
@@ -178,23 +203,26 @@ export function decideIdempotencyCollision<SavedResult>(
   try {
     contentIdentity = compareOriginal(first.operation.original, later.original)
   } catch {
-    return rejectLater()
+    contentIdentity = CONTENT_IDENTITY.DIFFERENT
   }
 
-  if (contentIdentity === CONTENT_IDENTITY.INDETERMINATE) {
-    return rejectLater()
+  if (Object.is(contentIdentity, CONTENT_IDENTITY.INDETERMINATE)) {
+    contentIdentity = CONTENT_IDENTITY.DIFFERENT
   }
 
+  const laterPathGroup = pathGroup(later.original.path)
   const rule = IDEMPOTENCY_COLLISION_RULES.find(
     (candidate) =>
-      candidate.pathGroup === pathGroup(later.original.path) &&
-      candidate.contentIdentity === contentIdentity,
+      Object.is(candidate.pathGroup, laterPathGroup) &&
+      Object.is(candidate.contentIdentity, contentIdentity),
   )
   if (!rule) {
-    return rejectLater()
+    throw new IdempotencyCollisionCorruptionError(
+      `D5 衝突規則がありません: ${laterPathGroup}/${contentIdentity}`,
+    )
   }
 
-  if (rule.effect.kind === 'replay') {
+  if (!('result' in rule.effect)) {
     return {
       decision: IDEMPOTENCY_DECISION.REPLAY_SAVED_RESULT,
       savedResult: first.savedResult,

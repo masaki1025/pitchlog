@@ -1,5 +1,6 @@
-// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2 の対象規則の写しである。
-// 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
+// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2・8-1 の対象規則の写しである。
+// 射程は source_elements の正本語彙と構造の読み取りに限り、値の変更は正本の改訂ゲートを通す。
+// 同期処理の実行は各製品モジュールの責務であるため射程外とする。
 // 正本語彙を必要とする同期モジュールとテストから使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_KIND_RULES } from './eventKinds'
@@ -11,6 +12,7 @@ const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
+const TXN_ROUTE_RELATION_ID = 'R-TXN-ROUTE'
 const QUEUE_LIFE_RELATION_ID = 'R-QUEUE-LIFE'
 const ACK_STATE_RELATION_ID = 'R-ACK-STATE'
 const EVENT_KIND_IDS = new Set<string>(
@@ -488,12 +490,12 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B5', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B6', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B7', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
-    { id: 'B3a', reason: '未使用 D5 の P5・T9 処理に依存するため' },
-    { id: 'B3b', reason: 'B3 の処理段階は本ステップの射程外であるため' },
-    { id: 'DI1', reason: 'D5 の照合位置を定める処理段階に依存するため' },
-    { id: 'DI4', reason: '未使用 D5 の後段検査に依存するため' },
-    { id: 'DI5', reason: '混在バッチと A5 の停止境界に依存するため' },
-    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
+    { id: 'B3a', reason: 'T9 の保存を伴い TSK-330 が受け取るため' },
+    {
+      id: 'DI5',
+      reason:
+        'U-14 の保存済み退避再掲を B1・B4 のどちらにするか未確定であり TSK-330 が受け取るため',
+    },
   ],
   [P3_BOUNDARY_RELATION_ID]: [
     { id: '変更受理', reason: 'P3 の完全な境界結果集合に属するため' },
@@ -504,11 +506,14 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B12', reason: 'P3 の完全な境界結果集合に属するため' },
     { id: 'B13', reason: 'P3 の完全な境界結果集合に属するため' },
     { id: 'B14', reason: 'P3 の完全な境界結果集合に属するため' },
-    { id: 'I1', reason: 'D5 の照合位置を定める処理段階に依存するため' },
-    { id: 'I4', reason: '未使用 D5 の後段検査に依存するため' },
-    { id: 'I5', reason: '無効化意図の保存・配信処理に依存するため' },
-    { id: 'I6', reason: 'P3 受理結果の端末保持処理に依存するため' },
-    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
+    {
+      id: 'I5',
+      reason: '無効化意図の保存・配信を伴い TSK-330 が受け取るため',
+    },
+    {
+      id: 'I6',
+      reason: 'P3 受理結果の端末永続化を伴い TSK-330 が受け取るため',
+    },
   ],
 } as const satisfies Readonly<
   Record<IdempotencyRelationId, readonly OutOfScopeId[]>
@@ -520,6 +525,16 @@ const CANON_P3_ACCEPTED_RESULT_ID =
 const IMPLEMENTED_IDEMPOTENCY_IDS = {
   [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI2', 'DI3']),
   [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I2', 'I3']),
+} as const
+
+const IMPLEMENTED_PROCESSING_STAGE_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI1', 'DI4', 'RG1']),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I1', 'I4', 'RG1']),
+} as const
+
+const IMPLEMENTED_B3_BRANCH_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['B3b']),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(),
 } as const
 
 const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {
@@ -538,10 +553,14 @@ const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {
 const EXPECTED_IDEMPOTENCY_IDS = {
   [D1_BOUNDARY_RELATION_ID]: new Set<string>([
     ...IMPLEMENTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_PROCESSING_STAGE_IDS[D1_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_B3_BRANCH_IDS[D1_BOUNDARY_RELATION_ID],
     ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
   ]),
   [P3_BOUNDARY_RELATION_ID]: new Set<string>([
     ...IMPLEMENTED_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_PROCESSING_STAGE_IDS[P3_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_B3_BRANCH_IDS[P3_BOUNDARY_RELATION_ID],
     ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
   ]),
 } as const
@@ -571,10 +590,28 @@ export type CanonP3BoundaryResult =
   | Readonly<{ id: string; name: string; accepted: false }>
 
 export type CanonIdempotencyCollisionRule = Readonly<{
+  purpose: 'idempotency-collision'
   relationId: IdempotencyRelationId
   id: string
   rightHandSide: string
 }>
+
+export type CanonProcessingStageRule = Readonly<{
+  purpose: 'processing-stage'
+  relationId: IdempotencyRelationId
+  id: string
+  rightHandSide: string
+}>
+
+export type CanonB3BranchRule = Readonly<{
+  purpose: 'b3-branch'
+  relationId: IdempotencyRelationId
+  id: string
+  rightHandSide: string
+}>
+
+type CanonImplementedRelationRule =
+  CanonIdempotencyCollisionRule | CanonProcessingStageRule | CanonB3BranchRule
 
 function assertExactKnownIds(
   relationId: string,
@@ -737,9 +774,9 @@ export function readCanonP3BoundaryResults(
 function parseIdempotencyRelation(
   relationId: IdempotencyRelationId,
   sourceElements: readonly unknown[],
-): readonly CanonIdempotencyCollisionRule[] {
+): readonly CanonImplementedRelationRule[] {
   const seenIds = new Set<string>()
-  const rules: CanonIdempotencyCollisionRule[] = []
+  const rules: CanonImplementedRelationRule[] = []
 
   for (const sourceElement of sourceElements) {
     if (typeof sourceElement !== 'string') {
@@ -756,7 +793,14 @@ function parseIdempotencyRelation(
     }
     seenIds.add(id)
 
-    if (IMPLEMENTED_IDEMPOTENCY_IDS[relationId].has(id)) {
+    const purpose = IMPLEMENTED_IDEMPOTENCY_IDS[relationId].has(id)
+      ? 'idempotency-collision'
+      : IMPLEMENTED_PROCESSING_STAGE_IDS[relationId].has(id)
+        ? 'processing-stage'
+        : IMPLEMENTED_B3_BRANCH_IDS[relationId].has(id)
+          ? 'b3-branch'
+          : undefined
+    if (purpose) {
       const equalsIndex = sourceElement.indexOf('=', separatorIndex + 1)
       if (
         separatorIndex <= 0 ||
@@ -768,6 +812,7 @@ function parseIdempotencyRelation(
       }
       rules.push(
         Object.freeze({
+          purpose,
           relationId,
           id,
           rightHandSide: sourceElement.slice(equalsIndex + 1),
@@ -786,10 +831,13 @@ export function parseCanonIdempotencyCollisionRules(
   d1SourceElements: readonly unknown[],
   p3SourceElements: readonly unknown[],
 ): readonly CanonIdempotencyCollisionRule[] {
-  return Object.freeze([
+  const rules = [
     ...parseIdempotencyRelation(D1_BOUNDARY_RELATION_ID, d1SourceElements),
     ...parseIdempotencyRelation(P3_BOUNDARY_RELATION_ID, p3SourceElements),
-  ])
+  ].filter((rule): rule is CanonIdempotencyCollisionRule =>
+    Object.is(rule.purpose, 'idempotency-collision'),
+  )
+  return Object.freeze(rules)
 }
 
 export function readCanonIdempotencyCollisionRules(
@@ -812,6 +860,68 @@ export function readCanonIdempotencyCollisionRules(
     d1Relation.source_elements,
     p3Relation.source_elements,
   )
+}
+
+export function readCanonProcessingStageRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonProcessingStageRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const d1Relation = relations[D1_BOUNDARY_RELATION_ID]
+  const p3Relation = relations[P3_BOUNDARY_RELATION_ID]
+  if (
+    !isRecord(d1Relation) ||
+    !Array.isArray(d1Relation.source_elements) ||
+    !isRecord(p3Relation) ||
+    !Array.isArray(p3Relation.source_elements)
+  ) {
+    throw new Error('処理段階規則の source_elements がありません')
+  }
+  const rules = [
+    ...parseIdempotencyRelation(
+      D1_BOUNDARY_RELATION_ID,
+      d1Relation.source_elements,
+    ),
+    ...parseIdempotencyRelation(
+      P3_BOUNDARY_RELATION_ID,
+      p3Relation.source_elements,
+    ),
+  ].filter((rule): rule is CanonProcessingStageRule =>
+    Object.is(rule.purpose, 'processing-stage'),
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonB3BranchRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonB3BranchRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const d1Relation = relations[D1_BOUNDARY_RELATION_ID]
+  const p3Relation = relations[P3_BOUNDARY_RELATION_ID]
+  if (
+    !isRecord(d1Relation) ||
+    !Array.isArray(d1Relation.source_elements) ||
+    !isRecord(p3Relation) ||
+    !Array.isArray(p3Relation.source_elements)
+  ) {
+    throw new Error('B3 分岐規則の source_elements がありません')
+  }
+  const rules = [
+    ...parseIdempotencyRelation(
+      D1_BOUNDARY_RELATION_ID,
+      d1Relation.source_elements,
+    ),
+    ...parseIdempotencyRelation(
+      P3_BOUNDARY_RELATION_ID,
+      p3Relation.source_elements,
+    ),
+  ].filter((rule): rule is CanonB3BranchRule =>
+    Object.is(rule.purpose, 'b3-branch'),
+  )
+  return Object.freeze(rules)
 }
 
 // 射程外行は ID の存在だけを照合し、右辺を読まないため、右辺だけの変更は検出しない。
@@ -890,6 +1000,146 @@ export function readCanonTemporaryIdMappingRules(
     throw new Error('R-TEMP-ID-MAPPING.source_elements がありません')
   }
   return parseCanonTemporaryIdMappingRules(relation.source_elements)
+}
+
+const CANON_TXN_ROUTE_IDS = ['P1', 'P2', 'P3', 'P4', 'P5'] as const
+const CANON_TXN_STEP_IDS = [
+  'T1',
+  'T2',
+  'T3',
+  'T4',
+  'T5',
+  'T6',
+  'T7',
+  'T8',
+  'T9',
+] as const
+const CANON_TXN_ROUTE_ID_PATTERN = /^P[1-5]$/
+const CANON_TXN_STEP_ID_PATTERN = /^T[1-9]$/
+const CANON_TXN_EXPECTED_IDS = new Set<string>([
+  ...CANON_TXN_ROUTE_IDS,
+  ...CANON_TXN_STEP_IDS,
+])
+const CANON_TXN_EXPECTED_STEP_IDS = new Set<string>(CANON_TXN_STEP_IDS)
+
+type CanonTxnRouteId = (typeof CANON_TXN_ROUTE_IDS)[number]
+type CanonTxnStepId = (typeof CANON_TXN_STEP_IDS)[number]
+
+export type CanonTxnRouteRule =
+  | Readonly<{
+      kind: 'route'
+      id: CanonTxnRouteId
+      name: string
+      stepIds: readonly CanonTxnStepId[]
+    }>
+  | Readonly<{
+      kind: 'step'
+      id: CanonTxnStepId
+      name: string
+    }>
+
+export function parseCanonTxnRouteRules(
+  sourceElements: readonly unknown[],
+): readonly CanonTxnRouteRule[] {
+  const seenIds = new Set<string>()
+  const referencedStepIds = new Set<string>()
+  const rules: CanonTxnRouteRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-TXN-ROUTE の要素は文字列でなければなりません')
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    const id =
+      separatorIndex < 0
+        ? sourceElement
+        : sourceElement.slice(0, separatorIndex)
+    const isRoute = CANON_TXN_ROUTE_ID_PATTERN.test(id)
+    const isStep = CANON_TXN_STEP_ID_PATTERN.test(id)
+    if (!isRoute && !isStep) {
+      throw new Error(`R-TXN-ROUTE に未知の ID があります: ${id}`)
+    }
+    if (seenIds.has(id)) {
+      throw new Error(`R-TXN-ROUTE の ID が重複しています: ${id}`)
+    }
+    seenIds.add(id)
+
+    if (
+      separatorIndex <= 0 ||
+      separatorIndex === sourceElement.length - 1 ||
+      sourceElement.indexOf(':', separatorIndex + 1) >= 0
+    ) {
+      throw new Error(`R-TXN-ROUTE の要素形式が不正です: ${sourceElement}`)
+    }
+
+    const body = sourceElement.slice(separatorIndex + 1)
+    if (isRoute) {
+      const equalsIndex = body.indexOf('=')
+      if (
+        equalsIndex <= 0 ||
+        equalsIndex === body.length - 1 ||
+        body.indexOf('=', equalsIndex + 1) >= 0
+      ) {
+        throw new Error(`R-TXN-ROUTE の経路形式が不正です: ${sourceElement}`)
+      }
+
+      const name = body.slice(0, equalsIndex)
+      const stepIds = body.slice(equalsIndex + 1).split(',')
+      const uniqueStepIds = new Set(stepIds)
+      if (
+        stepIds.some((stepId) => !CANON_TXN_STEP_ID_PATTERN.test(stepId)) ||
+        uniqueStepIds.size !== stepIds.length
+      ) {
+        throw new Error(`R-TXN-ROUTE の参照 T 要素が不正です: ${sourceElement}`)
+      }
+
+      for (const stepId of stepIds) {
+        referencedStepIds.add(stepId)
+      }
+      rules.push(
+        Object.freeze({
+          kind: 'route',
+          id: id as CanonTxnRouteId,
+          name,
+          stepIds: Object.freeze(stepIds as CanonTxnStepId[]),
+        }),
+      )
+      continue
+    }
+
+    if (body.includes('=')) {
+      throw new Error(`R-TXN-ROUTE の T 要素形式が不正です: ${sourceElement}`)
+    }
+    rules.push(
+      Object.freeze({
+        kind: 'step',
+        id: id as CanonTxnStepId,
+        name: body,
+      }),
+    )
+  }
+
+  assertExactKnownIds(TXN_ROUTE_RELATION_ID, seenIds, CANON_TXN_EXPECTED_IDS)
+  assertExactKnownIds(
+    'R-TXN-ROUTE の参照 T 要素',
+    referencedStepIds,
+    CANON_TXN_EXPECTED_STEP_IDS,
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonTxnRouteRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonTxnRouteRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[TXN_ROUTE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-TXN-ROUTE.source_elements がありません')
+  }
+  return parseCanonTxnRouteRules(relation.source_elements)
 }
 
 const CANON_QUEUE_STATE_IDS = [

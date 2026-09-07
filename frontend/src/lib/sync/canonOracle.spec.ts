@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
 import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
-import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
+import {
+  B3_EXISTING_D5_BRANCH_RULE,
+  IDEMPOTENCY_COLLISION_RULES,
+} from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
+import { PROCESSING_STAGE_RULES } from './processingStages'
 import {
   CANON_ACK_STATE_RESULT,
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
@@ -14,22 +18,29 @@ import {
   parseCanonP3BoundaryResults,
   parseCanonQueueLifeRules,
   parseCanonTombstoneRule,
+  parseCanonTxnRouteRules,
   readCanonAckStateResults,
+  readCanonB3BranchRules,
   readCanonBoundaryResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
   readCanonP3BoundaryResults,
   readCanonParticipationRules,
+  readCanonProcessingStageRules,
   readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
   readCanonTombstoneRule,
+  readCanonTxnRouteRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
+  type CanonB3BranchRule,
   type CanonBoundaryResult,
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
   type CanonP3BoundaryResult,
+  type CanonProcessingStageRule,
   type CanonTemporaryIdMappingRule,
+  type CanonTxnRouteRule,
   type CanonV12BoundaryRule,
 } from './canonOracle'
 
@@ -57,6 +68,19 @@ type ComparableV12BoundaryRule = {
 type ComparableIdempotencyCollisionRule = {
   id: string
   rightHandSide: string
+}
+
+type ComparableProcessingStageRule = {
+  purpose: string
+  relationId: string
+  id: string
+  rightHandSide: string
+}
+
+type CanonTxnRoute = Extract<CanonTxnRouteRule, { kind: 'route' }>
+
+function isCanonTxnRoute(rule: CanonTxnRouteRule): rule is CanonTxnRoute {
+  return Object.is(rule.kind, 'route')
 }
 
 function expectRulesToMatchCanon(
@@ -163,6 +187,37 @@ function expectIdempotencyRulesToMatchCanon(
   expect(new Map(rules.map((rule) => [rule.id, rule.rightHandSide]))).toEqual(
     new Map(canonRules.map((rule) => [rule.id, rule.rightHandSide])),
   )
+}
+
+function expectProcessingStageRulesToMatchCanon(
+  rules: readonly ComparableProcessingStageRule[],
+  canonRules: readonly CanonProcessingStageRule[],
+): void {
+  const toRuleMap = (source: readonly ComparableProcessingStageRule[]) =>
+    new Map(
+      source.map((rule) => [
+        `${rule.relationId}:${rule.id}`,
+        {
+          purpose: rule.purpose,
+          rightHandSide: rule.rightHandSide,
+        },
+      ]),
+    )
+
+  expect(toRuleMap(rules)).toEqual(toRuleMap(canonRules))
+}
+
+function expectB3BranchRuleToMatchCanon(
+  canonRules: readonly CanonB3BranchRule[],
+): void {
+  expect(canonRules).toEqual([
+    {
+      purpose: 'b3-branch',
+      relationId: 'R-BOUNDARY',
+      id: B3_EXISTING_D5_BRANCH_RULE.id,
+      rightHandSide: B3_EXISTING_D5_BRANCH_RULE.rightHandSide,
+    },
+  ])
 }
 
 function expectTemporaryIdMappingRulesToMatchCanon(
@@ -517,6 +572,140 @@ describe('canonOracle', () => {
     )
   })
 
+  it('B3b の右辺3節を製品表と逐語照合する', () => {
+    expectB3BranchRuleToMatchCanon(readCanonB3BranchRules())
+  })
+
+  it('B3b の右辺変更を製品表との逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
+    const targetId = 'B3b'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      'T9開始なし',
+      'T9開始あり',
+    )
+    expect(() =>
+      expectB3BranchRuleToMatchCanon(readCanonB3BranchRules(mutatedRelations)),
+    ).toThrow()
+  })
+
+  it('DI1・DI4・I1・I4 の右辺を処理段階の製品表と逐語照合する', () => {
+    const productRuleKeys = new Set(
+      PROCESSING_STAGE_RULES.map((rule) => `${rule.relationId}:${rule.id}`),
+    )
+    const reversedCanonRules = readCanonProcessingStageRules()
+      .filter((rule) => productRuleKeys.has(`${rule.relationId}:${rule.id}`))
+      .reverse()
+
+    expectProcessingStageRulesToMatchCanon(
+      PROCESSING_STAGE_RULES,
+      reversedCanonRules,
+    )
+  })
+
+  it('処理段階へ移した4 ID の右辺変更を逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
+    const targetId = 'DI1'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      '③認可後',
+      '③認可前',
+    )
+    expect(() =>
+      expectProcessingStageRulesToMatchCanon(
+        PROCESSING_STAGE_RULES,
+        readCanonProcessingStageRules(mutatedRelations).filter(
+          (rule) => !Object.is(rule.id, 'RG1'),
+        ),
+      ),
+    ).toThrow()
+  })
+
+  it('実装済みと射程外の総和を正本の ID 集合と一致させる', () => {
+    const implementedRules = [
+      ...readCanonIdempotencyCollisionRules(),
+      ...readCanonProcessingStageRules(),
+      ...readCanonB3BranchRules(),
+    ]
+
+    for (const relationId of ['R-BOUNDARY', 'R-P3-BOUNDARY'] as const) {
+      const sourceIds = syncProtocolRelations[relationId].source_elements.map(
+        (element) => {
+          const separatorIndex = element.indexOf(':')
+          return separatorIndex < 0 ? element : element.slice(0, separatorIndex)
+        },
+      )
+      const implementedIds = implementedRules
+        .filter((rule) => Object.is(rule.relationId, relationId))
+        .map((rule) => rule.id)
+      const outOfScopeIds = CANON_IDEMPOTENCY_OUT_OF_SCOPE[relationId].map(
+        (element) => element.id,
+      )
+
+      expect(new Set([...implementedIds, ...outOfScopeIds])).toEqual(
+        new Set(sourceIds),
+      )
+    }
+  })
+
+  it('実装対象を射程外から除き P3 受理結果を先頭に保つ', () => {
+    const d1OutOfScopeIds = new Set<string>(
+      CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-BOUNDARY'].map((element) => element.id),
+    )
+    const p3OutOfScopeIds = new Set<string>(
+      CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'].map(
+        (element) => element.id,
+      ),
+    )
+
+    expect(d1OutOfScopeIds.has('DI1')).toBe(false)
+    expect(d1OutOfScopeIds.has('DI4')).toBe(false)
+    expect(p3OutOfScopeIds.has('I1')).toBe(false)
+    expect(p3OutOfScopeIds.has('I4')).toBe(false)
+    expect(d1OutOfScopeIds.has('RG1')).toBe(false)
+    expect(p3OutOfScopeIds.has('RG1')).toBe(false)
+    expect(d1OutOfScopeIds.has('B3b')).toBe(false)
+    expect(CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'][0]?.id).toBe(
+      '変更受理',
+    )
+  })
+
+  it('射程外に残す4 ID の理由へ受け取り先と依存事項を明記する', () => {
+    const expectedReasonParts = Object.freeze({
+      B3a: Object.freeze(['T9 の保存', 'TSK-330']),
+      DI5: Object.freeze(['U-14', 'B1・B4', 'TSK-330']),
+      I5: Object.freeze(['保存・配信', 'TSK-330']),
+      I6: Object.freeze(['端末永続化', 'TSK-330']),
+    })
+    const allOutOfScopeElements = Object.freeze(
+      Object.values(CANON_IDEMPOTENCY_OUT_OF_SCOPE).flat(),
+    )
+
+    for (const [id, reasonParts] of Object.entries(expectedReasonParts)) {
+      const target = allOutOfScopeElements.find((element) =>
+        Object.is(element.id, id),
+      )
+
+      expect(target).toBeDefined()
+      if (!target) {
+        throw new Error(`射程外 ID がありません: ${id}`)
+      }
+      for (const reasonPart of reasonParts) {
+        expect(target.reason).toContain(reasonPart)
+      }
+    }
+  })
+
   it('D5 衝突規則の射程外 ID を理由つきで列挙する', () => {
     for (const elements of Object.values(CANON_IDEMPOTENCY_OUT_OF_SCOPE)) {
       for (const element of elements) {
@@ -646,6 +835,136 @@ describe('canonOracle', () => {
         ),
       ),
     ).toThrow()
+  })
+
+  it('R-TXN-ROUTE の reader と parser が同じ経路規則を返す', () => {
+    const sourceElements = syncProtocolRelations['R-TXN-ROUTE'].source_elements
+    const rules: readonly CanonTxnRouteRule[] = readCanonTxnRouteRules()
+
+    expect(rules).toEqual(parseCanonTxnRouteRules(sourceElements))
+    expect(rules).toHaveLength(14)
+    expect(rules.filter((rule) => Object.is(rule.kind, 'route'))).toHaveLength(
+      5,
+    )
+    expect(rules.filter((rule) => Object.is(rule.kind, 'step'))).toHaveLength(9)
+  })
+
+  it('R-TXN-ROUTE のパース結果から14要素を逐語かつ順序込みで復元する', () => {
+    const sourceElements = syncProtocolRelations['R-TXN-ROUTE'].source_elements
+    const rules = parseCanonTxnRouteRules(sourceElements)
+    const reconstructedElements = Object.freeze(
+      rules.map((rule) =>
+        isCanonTxnRoute(rule)
+          ? `${rule.id}:${rule.name}=${rule.stepIds.join(',')}`
+          : `${rule.id}:${rule.name}`,
+      ),
+    )
+
+    expect(reconstructedElements).toEqual(sourceElements)
+  })
+
+  it('R-TXN-ROUTE の公開写像を重複のない18組へ展開する', () => {
+    const routeRules = parseCanonTxnRouteRules(
+      syncProtocolRelations['R-TXN-ROUTE'].source_elements,
+    ).filter(isCanonTxnRoute)
+    const routeStepPairs = Object.freeze(
+      routeRules.flatMap((rule) =>
+        rule.stepIds.map((stepId) => `${rule.id}:${stepId}`),
+      ),
+    )
+
+    expect(routeStepPairs).toHaveLength(18)
+    expect(new Set(routeStepPairs).size).toBe(18)
+  })
+
+  it('R-TXN-ROUTE の5経路ごとの T 要素列を正本どおりに固定する', () => {
+    const expectedStepIds = Object.freeze({
+      P1: Object.freeze(['T1', 'T2', 'T3', 'T4', 'T6']),
+      P2: Object.freeze(['T1', 'T2', 'T3', 'T4', 'T5', 'T6']),
+      P3: Object.freeze(['T1', 'T2', 'T4', 'T6', 'T7']),
+      P4: Object.freeze(['T8']),
+      P5: Object.freeze(['T9']),
+    })
+    const routeRules = parseCanonTxnRouteRules(
+      syncProtocolRelations['R-TXN-ROUTE'].source_elements,
+    ).filter(isCanonTxnRoute)
+
+    expect(routeRules).toHaveLength(5)
+    for (const rule of routeRules) {
+      expect(rule.stepIds).toEqual(expectedStepIds[rule.id])
+    }
+  })
+
+  it('R-TXN-ROUTE の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-TXN-ROUTE'].source_elements.push('UNKNOWN:未知の経路')
+
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /未知の ID/,
+    )
+  })
+
+  it('R-TXN-ROUTE の T 要素行に混入した等号を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'T3'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = 'T3:prefix更新=何か'
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /T 要素形式/,
+    )
+  })
+
+  it('R-TXN-ROUTE の経路行から等号が欠落した形式を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P1'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = 'P1:D1付きイベント'
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /経路形式/,
+    )
+  })
+
+  it('R-TXN-ROUTE の経路が参照しない T 要素を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P2'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      ',T5',
+      '',
+    )
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /参照 T 要素.*既知 ID 集合/,
+    )
+  })
+
+  it('R-TXN-ROUTE の重複 ID を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P4'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements.push(sourceElements[targetIndex]!)
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /ID が重複/,
+    )
   })
 
   it('R-QUEUE-LIFE の全伝播先を source_elements の被覆として照合する', () => {

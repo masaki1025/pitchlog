@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { SYNC_EVENT_PATH } from './eventFieldRules'
 import type { EventKindId } from './eventKinds'
 import {
+  B3_EXISTING_D5_BRANCH_RULE,
   CONTENT_IDENTITY,
   decideIdempotencyCollision,
   IDEMPOTENCY_DECISION,
   IDEMPOTENCY_SCOPE_RULE,
+  IdempotencyCollisionCorruptionError,
+  type ContentIdentity,
   type IdempotencyEventOriginal,
   type IdempotencyOperation,
   type IdempotencyOriginal,
@@ -124,26 +127,67 @@ describe('idempotencyCollision', () => {
   })
 
   it.each([
-    ['判定不能', () => CONTENT_IDENTITY.INDETERMINATE],
-    [
-      '判定器の例外',
-      () => {
-        throw new Error('comparison failed')
-      },
-    ],
-  ] satisfies readonly (readonly [string, IdempotencyOriginalComparator])[])(
-    'N-16: %s は B コードではない後着拒否へ倒す',
-    (_, comparator) => {
+    [SYNC_EVENT_PATH.P1, IDEMPOTENCY_DECISION.D1_COLLISION],
+    [SYNC_EVENT_PATH.P3, IDEMPOTENCY_DECISION.P3_COLLISION],
+  ] as const)(
+    'N-16: %s の判定不能を異内容として経路別の衝突へ倒す',
+    (path, expectedDecision) => {
       const result = decideIdempotencyCollision(
-        operation({}, { event: eventOriginal('later') }),
+        operation({}, { path, event: eventOriginal('later') }),
         [storedOperation()],
-        comparator,
+        () => CONTENT_IDENTITY.INDETERMINATE,
       )
 
-      expect(result).toEqual({ decision: IDEMPOTENCY_DECISION.REJECT_LATER })
-      expect(result.decision).not.toMatch(/^B/)
+      expect(result).toEqual({ decision: expectedDecision })
     },
   )
+
+  it.each([
+    [SYNC_EVENT_PATH.P1, IDEMPOTENCY_DECISION.D1_COLLISION],
+    [SYNC_EVENT_PATH.P3, IDEMPOTENCY_DECISION.P3_COLLISION],
+  ] as const)(
+    'N-16: %s の比較例外を漏らさず経路別の衝突へ倒す',
+    (path, expectedDecision) => {
+      const result = decideIdempotencyCollision(
+        operation({}, { path, event: eventOriginal('later') }),
+        [storedOperation()],
+        () => {
+          throw new Error('comparison failed')
+        },
+      )
+
+      expect(result).toEqual({ decision: expectedDecision })
+    },
+  )
+
+  it('複数の先着原本が一致した破損では専用例外を投げて比較しない', () => {
+    const stored = storedOperation()
+    const duplicatedStored = structuredClone(stored)
+    const compareOriginal = vi.fn<IdempotencyOriginalComparator>(
+      () => CONTENT_IDENTITY.SAME,
+    )
+
+    expect(() =>
+      decideIdempotencyCollision(
+        operation(),
+        [stored, duplicatedStored],
+        compareOriginal,
+      ),
+    ).toThrowError(IdempotencyCollisionCorruptionError)
+    expect(compareOriginal).not.toHaveBeenCalled()
+  })
+
+  it('規則表にない組み合わせを決定値にせず専用例外へ倒す', () => {
+    const missingIdentity = 'missing-rule' as ContentIdentity
+
+    expect(() =>
+      decideIdempotencyCollision(
+        operation(),
+        [storedOperation()],
+        () => missingIdentity,
+      ),
+    ).toThrowError(IdempotencyCollisionCorruptionError)
+  })
 
   it('N-17a: 別試合・別世代でも同じテナント・D5を候補として見つける', () => {
     const stored = storedOperation()
@@ -256,10 +300,10 @@ describe('idempotencyCollision', () => {
 
   it('判定器を差し替えても同じ三値から同じ分岐を選ぶ', () => {
     const compareByValue: IdempotencyOriginalComparator = (first, later) => {
-      if (eventValue(later) === 'unknown') {
+      if (Object.is(eventValue(later), 'unknown')) {
         return CONTENT_IDENTITY.INDETERMINATE
       }
-      return eventValue(first) === eventValue(later)
+      return Object.is(eventValue(first), eventValue(later))
         ? CONTENT_IDENTITY.SAME
         : CONTENT_IDENTITY.DIFFERENT
     }
@@ -309,9 +353,37 @@ describe('idempotencyCollision', () => {
         IDEMPOTENCY_DECISION.REPLAY_SAVED_RESULT,
         IDEMPOTENCY_DECISION.D1_COLLISION,
         IDEMPOTENCY_DECISION.P3_COLLISION,
-        IDEMPOTENCY_DECISION.REJECT_LATER,
+        IDEMPOTENCY_DECISION.D1_COLLISION,
       ])
     }
+  })
+
+  it('B3b の3節と T9 を開始しない型リテラルを固定する', () => {
+    const startsT9: false = B3_EXISTING_D5_BRANCH_RULE.startsT9
+
+    expect(B3_EXISTING_D5_BRANCH_RULE.clauses).toEqual([
+      '先着原本との比較',
+      'B3',
+      'T9開始なし',
+    ])
+    expect(B3_EXISTING_D5_BRANCH_RULE.rightHandSide).toBe(
+      B3_EXISTING_D5_BRANCH_RULE.clauses.join('+'),
+    )
+    expect(startsT9).toBe(false)
+  })
+
+  it('変異した B3b が T9 を開始する契約を検出する', () => {
+    const mutatedRule = structuredClone(B3_EXISTING_D5_BRANCH_RULE) as {
+      startsT9: boolean
+    }
+    mutatedRule.startsT9 = true
+
+    expect(() => expect(mutatedRule.startsT9).toBe(false)).toThrow()
+  })
+
+  it('正本にない後着拒否を決定語彙に残さない', () => {
+    expect(IDEMPOTENCY_DECISION).not.toHaveProperty('REJECT_LATER')
+    expect(idempotencyCollisionSource).not.toContain('後着拒否')
   })
 
   it('未使用 D5 は後段検査対象と分類するだけで適用を行わない', () => {

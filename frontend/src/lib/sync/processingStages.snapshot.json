@@ -1,0 +1,117 @@
+{
+  "d1Stages": [
+    {
+      "stage": "① トランスポート・処理系",
+      "check": "要求が届き、処理が完了したか",
+      "stopBoundaryResult": "B7 一時障害"
+    },
+    {
+      "stage": "② 認証",
+      "check": "呼び出し元が認証されているか",
+      "stopBoundaryResult": "B5 認証失効"
+    },
+    {
+      "stage": "③ 認可(テナント)",
+      "check": "その試合が自テナントのものか",
+      "stopBoundaryResult": "B6 認可・テナント不一致"
+    },
+    {
+      "stage": "③-a 復元調整ゲート",
+      "check": "RG1: 復元調整中の fail-closed 共通ゲート = ③ 認可後 + D5 照合前 + 全通常書き込み・内部ジョブ停止 + P1・P2・P4・通常/緊急引き継ぎは B7 + P3 は B10 + D5 消費なし + コミット直前再検証 + サービス再開 fail-closed + 解除・新 D4 開始不可分 + 復旧制御面だけ許可",
+      "stopBoundaryResult": "D1 付き経路は B7 で再試行可能に止め、A5・D3 を返さず D5 を記録しない"
+    },
+    {
+      "stage": "④ D5 の照合",
+      "check": "各イベントを内部候補へ分類する。既存 D5・同一内容なら保存済み結果を再掲する候補として再適用せず、既存 D5・異なる内容は B3b 候補とし、未使用 D5 だけ⑤へ進む。この段階では外部結果を確定しない",
+      "stopBoundaryResult": "B3b 候補。同一内容は保存済み結果候補"
+    },
+    {
+      "stage": "⑤ 記録権(D4・V12)",
+      "check": "未使用 D5 の新規操作について、D4 が現世代で、V12 が現保持端末へ結合された証明として有効か",
+      "stopBoundaryResult": "B4 記録権不一致"
+    },
+    {
+      "stage": "⑥ 連番(D1)の連続性",
+      "check": "D3 + 1 から D1 昇順に走査し、欠落がないかを確かめる。欠落がなければ、その位置の④の候補を外部結果へ確定する。最初の B2 または B3 で止め、それ以降は候補の種類を問わず未処理にする",
+      "stopBoundaryResult": "B2 gap、またはその位置で確定した B3b"
+    },
+    {
+      "stage": "⑦ 内容の検証",
+      "check": "⑥を通過した未使用 D5 のイベント内容が受理できるか",
+      "stopBoundaryResult": "B3a 恒久的な内容拒否"
+    },
+    {
+      "stage": "⑧ コミット直前の RG1 再検証・完了",
+      "check": "書き込みトランザクションがコミット直前にも復元調整中でないことを確認し、最後まで処理し切ったか",
+      "stopBoundaryResult": "復元調整へ移行済みなら B7 として全変更をロールバック。通過時だけ B1 要求終端"
+    }
+  ],
+  "p3Stages": [
+    {
+      "order": "① トランスポート・処理系",
+      "inProgress": "要求が届き、処理が完了したか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B10 一時障害"
+    },
+    {
+      "order": "② 認証",
+      "inProgress": "呼び出し元が認証されているか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B11 認証失効"
+    },
+    {
+      "order": "③ 認可(テナント)",
+      "inProgress": "その試合が自テナントのものか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B12 認可・テナント不一致"
+    },
+    {
+      "order": "③-a 復元調整ゲート",
+      "inProgress": "RG1: 復元調整中の fail-closed 共通ゲート = ③ 認可後 + D5 照合前 + 全通常書き込み・内部ジョブ停止 + P1・P2・P4・通常/緊急引き継ぎは B7 + P3 は B10 + D5 消費なし + コミット直前再検証 + サービス再開 fail-closed + 解除・新 D4 開始不可分 + 復旧制御面だけ許可",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B10 で再試行可能に止め、D5 を記録しない"
+    },
+    {
+      "order": "③-b 復旧世代の照合",
+      "inProgress": "要求作成時の復旧世代が現復旧世代と一致するか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "不一致なら B9。終了後 P3 も適用せず、D5 を照合・消費しない。旧復旧世代であることを利用者へ示し、管理者ログへ残す"
+    },
+    {
+      "order": "④ D5 の照合",
+      "inProgress": "既存 D5・同一内容なら保存済み結果を再掲して終了し、再適用しない。既存 D5・異なる内容なら B13。未使用 D5 だけ⑤へ進む",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B13 D5 衝突。同一内容は保存済み結果"
+    },
+    {
+      "order": "⑤ 記録権証明",
+      "inProgress": "未使用 D5 の新規操作について、V12 が現 D4 の保持端末へ結合された証明として有効か",
+      "afterCompletion": "適用しない。そのまま⑥へ進む",
+      "stopBoundaryResult": "B9 記録権不保持(進行中だけ)"
+    },
+    {
+      "order": "⑥ 内容の検証",
+      "inProgress": "変更内容が受理できるか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B14 変更内容拒否"
+    },
+    {
+      "order": "⑦ V11 の期待版照合",
+      "inProgress": "対象の現在の確定版と V11 が一致するか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "B8 期待版不一致"
+    },
+    {
+      "order": "⑧ コミット直前の RG1 再検証",
+      "inProgress": "書き込みトランザクションがコミット直前にも復元調整中でないことを確認する",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "復元調整へ移行済みなら B10 として T1・T2・T4・T6・T7 をすべてロールバックする"
+    },
+    {
+      "order": "⑨ 完了",
+      "inProgress": "T1・T2・T4・T6・T7 をすべて確定したか",
+      "afterCompletion": "同左",
+      "stopBoundaryResult": "変更受理"
+    }
+  ]
+}
