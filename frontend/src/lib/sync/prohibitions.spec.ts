@@ -161,6 +161,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseCanonQueueLifeRules',
     'parseCanonTemporaryIdMappingRules',
     'parseCanonTombstoneRule',
+    'parseCanonTxnRouteRules',
     'parseCanonV12BoundaryRules',
     'readCanonAckStateResults',
     'readCanonBoundaryResults',
@@ -171,6 +172,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'readCanonQueueLifeRules',
     'readCanonTemporaryIdMappingRules',
     'readCanonTombstoneRule',
+    'readCanonTxnRouteRules',
     'readCanonV12BoundaryRules',
   ],
   'changeOperationGate.ts': [
@@ -339,6 +341,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'CanonQueueLifeRule',
     'CanonTemporaryIdMappingRule',
     'CanonTombstoneRule',
+    'CanonTxnRouteRule',
     'CanonV12BoundaryRule',
   ],
   'changeOperationGate.ts': [

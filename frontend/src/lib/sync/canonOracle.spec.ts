@@ -14,6 +14,7 @@ import {
   parseCanonP3BoundaryResults,
   parseCanonQueueLifeRules,
   parseCanonTombstoneRule,
+  parseCanonTxnRouteRules,
   readCanonAckStateResults,
   readCanonBoundaryResults,
   readCanonEventFieldRules,
@@ -23,6 +24,7 @@ import {
   readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
   readCanonTombstoneRule,
+  readCanonTxnRouteRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
   type CanonBoundaryResult,
@@ -30,6 +32,7 @@ import {
   type CanonIdempotencyCollisionRule,
   type CanonP3BoundaryResult,
   type CanonTemporaryIdMappingRule,
+  type CanonTxnRouteRule,
   type CanonV12BoundaryRule,
 } from './canonOracle'
 
@@ -646,6 +649,90 @@ describe('canonOracle', () => {
         ),
       ),
     ).toThrow()
+  })
+
+  it('R-TXN-ROUTE の reader と parser が同じ経路規則を返す', () => {
+    const sourceElements = syncProtocolRelations['R-TXN-ROUTE'].source_elements
+    const rules: readonly CanonTxnRouteRule[] = readCanonTxnRouteRules()
+
+    expect(rules).toEqual(parseCanonTxnRouteRules(sourceElements))
+    expect(rules).toHaveLength(14)
+    expect(rules.filter((rule) => Object.is(rule.kind, 'route'))).toHaveLength(
+      5,
+    )
+    expect(rules.filter((rule) => Object.is(rule.kind, 'step'))).toHaveLength(9)
+  })
+
+  it('R-TXN-ROUTE の未知 ID を fail-closed で拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    mutatedRelations['R-TXN-ROUTE'].source_elements.push('UNKNOWN:未知の経路')
+
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /未知の ID/,
+    )
+  })
+
+  it('R-TXN-ROUTE の T 要素行に混入した等号を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'T3'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = 'T3:prefix更新=何か'
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /T 要素形式/,
+    )
+  })
+
+  it('R-TXN-ROUTE の経路行から等号が欠落した形式を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P1'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = 'P1:D1付きイベント'
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /経路形式/,
+    )
+  })
+
+  it('R-TXN-ROUTE の経路が参照しない T 要素を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P2'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      ',T5',
+      '',
+    )
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /参照 T 要素.*既知 ID 集合/,
+    )
+  })
+
+  it('R-TXN-ROUTE の重複 ID を拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const targetId = 'P4'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements.push(sourceElements[targetIndex]!)
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /ID が重複/,
+    )
   })
 
   it('R-QUEUE-LIFE の全伝播先を source_elements の被覆として照合する', () => {

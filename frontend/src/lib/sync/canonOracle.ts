@@ -1,5 +1,6 @@
-// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2 の対象規則の写しである。
-// 値は実装で決めず、変更は正本の改訂ゲートを通すこと。
+// このパーサは docs/design/sync-protocol.md 4-3・4-4・4-5・5-5・7-2・8-1 の対象規則の写しである。
+// 射程は source_elements の正本語彙と構造の読み取りに限り、値の変更は正本の改訂ゲートを通す。
+// 同期処理の実行は各製品モジュールの責務であるため射程外とする。
 // 正本語彙を必要とする同期モジュールとテストから使う。
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_KIND_RULES } from './eventKinds'
@@ -11,6 +12,7 @@ const V12_BOUNDARY_RELATION_ID = 'R-V12-BOUNDARY'
 const D1_BOUNDARY_RELATION_ID = 'R-BOUNDARY'
 const P3_BOUNDARY_RELATION_ID = 'R-P3-BOUNDARY'
 const TEMPORARY_ID_MAPPING_RELATION_ID = 'R-TEMP-ID-MAPPING'
+const TXN_ROUTE_RELATION_ID = 'R-TXN-ROUTE'
 const QUEUE_LIFE_RELATION_ID = 'R-QUEUE-LIFE'
 const ACK_STATE_RELATION_ID = 'R-ACK-STATE'
 const EVENT_KIND_IDS = new Set<string>(
@@ -890,6 +892,146 @@ export function readCanonTemporaryIdMappingRules(
     throw new Error('R-TEMP-ID-MAPPING.source_elements がありません')
   }
   return parseCanonTemporaryIdMappingRules(relation.source_elements)
+}
+
+const CANON_TXN_ROUTE_IDS = ['P1', 'P2', 'P3', 'P4', 'P5'] as const
+const CANON_TXN_STEP_IDS = [
+  'T1',
+  'T2',
+  'T3',
+  'T4',
+  'T5',
+  'T6',
+  'T7',
+  'T8',
+  'T9',
+] as const
+const CANON_TXN_ROUTE_ID_PATTERN = /^P[1-5]$/
+const CANON_TXN_STEP_ID_PATTERN = /^T[1-9]$/
+const CANON_TXN_EXPECTED_IDS = new Set<string>([
+  ...CANON_TXN_ROUTE_IDS,
+  ...CANON_TXN_STEP_IDS,
+])
+const CANON_TXN_EXPECTED_STEP_IDS = new Set<string>(CANON_TXN_STEP_IDS)
+
+type CanonTxnRouteId = (typeof CANON_TXN_ROUTE_IDS)[number]
+type CanonTxnStepId = (typeof CANON_TXN_STEP_IDS)[number]
+
+export type CanonTxnRouteRule =
+  | Readonly<{
+      kind: 'route'
+      id: CanonTxnRouteId
+      name: string
+      stepIds: readonly CanonTxnStepId[]
+    }>
+  | Readonly<{
+      kind: 'step'
+      id: CanonTxnStepId
+      name: string
+    }>
+
+export function parseCanonTxnRouteRules(
+  sourceElements: readonly unknown[],
+): readonly CanonTxnRouteRule[] {
+  const seenIds = new Set<string>()
+  const referencedStepIds = new Set<string>()
+  const rules: CanonTxnRouteRule[] = []
+
+  for (const sourceElement of sourceElements) {
+    if (typeof sourceElement !== 'string') {
+      throw new Error('R-TXN-ROUTE の要素は文字列でなければなりません')
+    }
+
+    const separatorIndex = sourceElement.indexOf(':')
+    const id =
+      separatorIndex < 0
+        ? sourceElement
+        : sourceElement.slice(0, separatorIndex)
+    const isRoute = CANON_TXN_ROUTE_ID_PATTERN.test(id)
+    const isStep = CANON_TXN_STEP_ID_PATTERN.test(id)
+    if (!isRoute && !isStep) {
+      throw new Error(`R-TXN-ROUTE に未知の ID があります: ${id}`)
+    }
+    if (seenIds.has(id)) {
+      throw new Error(`R-TXN-ROUTE の ID が重複しています: ${id}`)
+    }
+    seenIds.add(id)
+
+    if (
+      separatorIndex <= 0 ||
+      separatorIndex === sourceElement.length - 1 ||
+      sourceElement.indexOf(':', separatorIndex + 1) >= 0
+    ) {
+      throw new Error(`R-TXN-ROUTE の要素形式が不正です: ${sourceElement}`)
+    }
+
+    const body = sourceElement.slice(separatorIndex + 1)
+    if (isRoute) {
+      const equalsIndex = body.indexOf('=')
+      if (
+        equalsIndex <= 0 ||
+        equalsIndex === body.length - 1 ||
+        body.indexOf('=', equalsIndex + 1) >= 0
+      ) {
+        throw new Error(`R-TXN-ROUTE の経路形式が不正です: ${sourceElement}`)
+      }
+
+      const name = body.slice(0, equalsIndex)
+      const stepIds = body.slice(equalsIndex + 1).split(',')
+      const uniqueStepIds = new Set(stepIds)
+      if (
+        stepIds.some((stepId) => !CANON_TXN_STEP_ID_PATTERN.test(stepId)) ||
+        uniqueStepIds.size !== stepIds.length
+      ) {
+        throw new Error(`R-TXN-ROUTE の参照 T 要素が不正です: ${sourceElement}`)
+      }
+
+      for (const stepId of stepIds) {
+        referencedStepIds.add(stepId)
+      }
+      rules.push(
+        Object.freeze({
+          kind: 'route',
+          id: id as CanonTxnRouteId,
+          name,
+          stepIds: Object.freeze(stepIds as CanonTxnStepId[]),
+        }),
+      )
+      continue
+    }
+
+    if (body.includes('=')) {
+      throw new Error(`R-TXN-ROUTE の T 要素形式が不正です: ${sourceElement}`)
+    }
+    rules.push(
+      Object.freeze({
+        kind: 'step',
+        id: id as CanonTxnStepId,
+        name: body,
+      }),
+    )
+  }
+
+  assertExactKnownIds(TXN_ROUTE_RELATION_ID, seenIds, CANON_TXN_EXPECTED_IDS)
+  assertExactKnownIds(
+    'R-TXN-ROUTE の参照 T 要素',
+    referencedStepIds,
+    CANON_TXN_EXPECTED_STEP_IDS,
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonTxnRouteRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonTxnRouteRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const relation = relations[TXN_ROUTE_RELATION_ID]
+  if (!isRecord(relation) || !Array.isArray(relation.source_elements)) {
+    throw new Error('R-TXN-ROUTE.source_elements がありません')
+  }
+  return parseCanonTxnRouteRules(relation.source_elements)
 }
 
 const CANON_QUEUE_STATE_IDS = [
