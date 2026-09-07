@@ -177,6 +177,35 @@ exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を
 
 **無効な T ID・`P1` に `T9`・誤字のある P3 注入点はいずれも red** にする。
 
+### 3-6a. 注入 case の被覆 — 許可語彙だけでは足りない(4 周目 P1-3)
+
+**18 組を「許可語彙」として閉じても、各資産が有効な組を 1 件選ぶだけで合格条件を通る。**
+それでは「**各 T 境界で落とす**」という正本 10-2 の目的(`:1643-1645`・`:1658-1659`)を満たさず、
+TSK-330 で資産構造から作り直しになる。
+
+**資産の故障注入を複数 `case` として表す構造に固定し、被覆を exact-set で照合する。**
+
+```
+資産の faultInjection = case の配列(1 件以上)
+  各 case = { target(経路 × T 要素 または クライアント操作), injectionPoint, stopOperation, restartOperation }
+
+被覆 ①(トランザクション内)
+  TRANSACTION_INJECTION_COVERAGE : scenarioId → 宣言した (経路, T 要素) case の集合
+  主張: ⋃(作成済み ∪ 未作成繰り延べ) = 1 章の reader が返す 18 組     (exact-set)
+
+被覆 ②(トランザクション外)
+  OUT_OF_TRANSACTION_INJECTION_COVERAGE : scenarioId → 宣言した P3 の 3 注入点
+  主張: ⋃(作成済み ∪ 未作成繰り延べ) = 3 点                          (exact-set)
+```
+
+**γ が作る資産での 18 組の分担**: `p1-crash-boundaries` が P1 の 5 組、`p2-…` が P2 の 6 組、
+`p3-…` が P3 の 5 組、`p4-…` が P4 の 1 組、`p5-b3a-…` が P5 の 1 組 = **18 組を γ で覆い切る**。
+`p5-b3b-unreached-t9` は **`T9` に到達しない**分岐なので**トランザクション内 case を宣言しない**(空集合)。
+
+**被覆 ② の分担**: `p3-crash-boundaries` が「`T7` 確定後・無効化配信前」と
+「サーバー確定後・`I6` 端末永続化前」の 2 点、
+**`p3-invalidation-consumed-before-complete`(繰り延べ)が「消費側反映後・配信完了記録前」の 1 点**。
+
 ### 3-7. `_v2` 原子移行(2 周目 P2 で不変条件を是正)
 
 10-3 `:1689` が要求する不変条件は「**旧版参照が存在する間に旧資産を削除しない**」である
@@ -189,19 +218,22 @@ exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を
 ファイル名と内部 `version` / **`schemaVersion: 2`** /
 **`failureScenarioContract.spec.ts:72-75` の `_v1` ハードコードを現行版の宣言表へ置き換える**。
 
-### 3-8. `tElementCommitment` — T 要素の全確定/全非確定(3 周目 P0-4)
+### 3-8. `tElementCommitment` — T 要素の全確定/全非確定(3 周目 P0-4 / 4 周目 P1-1)
 
 正本 10-3 `:1694` が比較面に含めることを要求している。**1 周目の計画にはあったが 2 周目の
 書き直しで落としていた退行**である。
 
-```
-tElementCommitment(期待フィールドの 10 件目)
-  当該観測点で、当該経路に存在する T 要素の確定状態を表す
-  T 集合は 1 章の reader から導出する(資産に列挙させない)
-  値は「全要素 committed」または「全要素 notCommitted」のいずれかでなければならない
-  部分確定(一部だけ committed)は red
-  applicationPath を持たないクライアント側資産では omittedBecause 可(3-2)
-```
+**単一の集約値にすると、runner が T 要素ごとの実状態を示さず部分確定を隠せる**(4 周目 P1-1)。
+**資産側と結果側で形を分ける。**
+
+| 側 | 形 | 検査 |
+| --- | --- | --- |
+| **資産(期待値)** | `{ mode: "allCommitted" \| "allNotCommitted" }` | 2 値のいずれか。**T 集合を資産に列挙させない** |
+| **結果(runner 出力)** | **T ID を exact-key とする状態 record** — `{ T1: "committed", T2: "committed", … }` | ① **キー集合が当該経路の T 集合(1 章の reader 由来)と一致** ② 各値が `committed` \| `notCommitted` ③ **全要素が同値** ④ その同値が資産の `mode` と一致 |
+
+**部分確定の変異試験**: **結果 record の 1 要素だけを反転**させ、③ が red になることを確かめる。
+
+`applicationPath` を持たないクライアント側資産では `omittedBecause` 可(3-2)。
 
 これが無いと、**`T2` のイベント保存や `T4` の状態遷移が部分確定しても
 共通フィールドと注入点の組検査だけでは green になり得る**。
@@ -328,37 +360,93 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 | 復元中の 24 時間清掃(期限切れ未回収) | `restore-expired-not-collected` | **繰り延べ → TSK-330** |
 | D4 のロールバック後非再利用(過去発行 D4 集合) | `restore-d4-issued-set` | **繰り延べ → TSK-330** |
 | D4 のロールバック後非再利用(連続復元) | `restore-d4-consecutive-rollbacks` | **繰り延べ → TSK-330** |
+| 復元調整中の全変更経路 | `restore-all-write-paths-blocked` | **繰り延べ → TSK-330** |
+| RG1 解除と新 D4 の境界 | `restore-release-new-generation-boundary` | **繰り延べ → TSK-330** |
 
-**合計 24**(作成済み 4 + γ 10 + 繰り延べ 10)。復元系 8 ID は **10-3 `:1692` が逐語で名指し**したもの。
+**合計 26**(作成済み 4 + γ **10** + 繰り延べ **12**)。
 
-### 6-2. 観点被覆 — ID の存在だけでは足りない(3 周目 P1-3)
+復元系のうち 8 ID は **10-3 `:1692` が逐語で名指し**したもの。ただし同節は「**少なくとも**」と書いており、
+**10-2 の観点「復元調整中の全変更経路」(`:1648`)と「RG1 解除と新 D4 の境界」(`:1652`)を
+8 ID のどれも一意に覆わない**ため、上の 2 ID を追加した(正本の許す範囲)。
+
+### 6-2. 観点被覆 — 和集合では足りず、ペア集合で照合する(3 周目 P1-3 / 4 周目 P1-2)
 
 `作成済み ∪ 繰り延べ = scenarioId 母集合` は **ID の存在しか検査しない**。
-「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」などが**どの資産で覆われるかを
-欠落・誤写像しても green** になる。
+さらに **`観点集合 = ⋃ covers` という和集合検査も不十分**である(4 周目 P1-2):
 
-**正本 10-2 の観点行にも stable key を与え、`観点集合 = 各 scenarioId の covers の和集合` を
-exact-set 化する。**
+- `OBSERVATION_KEYS` と `SCENARIO_COVERS` を**同時に作れば、両方から同じ観点を落としても green**
+- **別シナリオへ誤って付け替えても和集合は不変**
+- **重複被覆では 1 辺を消しても red にならない**
+
+**`scenarioId × 観点key` の期待ペア集合そのものを exact-set 照合する。**
+
+`(d)` の故障系観点は **10-2 `#### (d) の故障系観点 — 実行可能なシナリオ` の 22 行**
+(`:1670` 以降の「通信断 → 復帰同期」「記録権の通常/緊急引き継ぎと退避経路」の 2 行は
+**`#### (c) のうち同期側が関わる 2 経路` = `NFR-019(c)` であり (d) ではない**)。
+
+| # | 観点 key(10-2 の行) | scenarioId |
+| ---: | --- | --- |
+| 1 | `tombstone-apply` | `tombstone-application` |
+| 2 | `revision-apply` | `revision-application` |
+| 3 | `p1` | `p1-crash-boundaries` |
+| 4 | `p2` | `p2-crash-boundaries` |
+| 5 | `p3` | `p3-crash-boundaries` |
+| 6 | `p3` | `p3-invalidation-consumed-before-complete` |
+| 7 | `d1-mixed-batch` | `d1-mixed-batch` |
+| 8 | `b3b-after-gap` | `b3b-after-gap` |
+| 9 | `d4-no-reuse-after-rollback` | `restore-d4-issued-set` |
+| 10 | `d4-no-reuse-after-rollback` | `restore-d4-consecutive-rollbacks` |
+| 11 | `all-write-paths-during-restore` | `restore-all-write-paths-blocked` |
+| 12 | `rg1-commit-race` | `restore-commit-race` |
+| 13 | `rg1-release-new-d4-boundary` | `restore-release-new-generation-boundary` |
+| 14 | `restore-lifecycle-complete` | `restore-fence-escrow-new-generation` |
+| 15 | `restore-crash-midway` | `restore-crash-before-new-generation` |
+| 16 | `restore-uncollected-device` | `restore-uncollected-device` |
+| 17 | `restore-24h-cleanup` | `restore-cleanup-held` |
+| 18 | `restore-24h-cleanup` | `restore-expired-not-collected` |
+| 19 | `o4-persisted-d2-equivalence` | `o4-persisted-d2-equivalence` |
+| 20 | `multi-tab-single-writer` | `multi-tab-single-writer` |
+| 21 | `p4` | `p4-crash-boundaries` |
+| 22 | `p5` | `p5-b3a-crash-boundaries` |
+| 23 | `p5` | `p5-b3b-unreached-t9` |
+| 24 | `leader-freeze-reelection` | `leader-freeze-reelection` |
+| 25 | `waiting-input-not-accepted` | `waiting-input-not-accepted` |
+| 26 | `durable-append-failure` | `durable-append-failure` |
+
+**観点 key 22 種・ペア 26 件・scenarioId 26 件**(各 scenarioId はちょうど 1 回現れる)。
 
 ```
-OBSERVATION_KEYS   : 10-2 の故障系シナリオ表の各行 + 10-3 が名指しする項目
-SCENARIO_COVERS    : scenarioId → 覆う観点 key の集合
-主張: OBSERVATION_KEYS = ⋃ SCENARIO_COVERS[*]   (exact-set)
+主張 ①  OBSERVATION_SCENARIO_PAIRS = 上表の 26 ペア            (exact-set・ペアそのものを照合)
+主張 ②  ペアの第 1 要素の集合 = OBSERVATION_KEYS(22)           (取りこぼし・余剰を拒否)
+主張 ③  ペアの第 2 要素の集合 = scenarioId 母集合(26)          (同上)
 ```
 
-**観点を 1 つ covers から外すと red** にする。復元系の多対多写像(10-2 の 6 行 → 10-3 の 8 ID)は
-**この exact-set で確定させる**。**観点 key の完全な列挙はステップ 7 で正本 10-2 を全行読んで固定する。**
+**ペアを 1 件消しても、別シナリオへ付け替えても、観点を落としても red** になる。
 
-### 6-3. runner 繰り延べ(別の表)
+### 6-3. 2 つの繰り延べ表 — 和集合に加えて交差が空(4 周目 P1-2)
 
 ```
-SCENARIO_RUNNERS のキー集合 ∪ runner 繰り延べ = FAILURE_SCENARIO_IDS
+未作成繰り延べ  : 作成済み ∪ 未作成繰り延べ = 母集合   かつ  作成済み ∩ 未作成繰り延べ = ∅
+runner 繰り延べ : SCENARIO_RUNNERS ∪ runner 繰り延べ = FAILURE_SCENARIO_IDS
+                  かつ SCENARIO_RUNNERS ∩ runner 繰り延べ = ∅
 it.each は runner 繰り延べを除いた集合で回す
 ```
 
+**和集合だけだと両方への重複登録を許す**ため、**交差が空であること**も要求する。
 γ が作る 10 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
 
-**4 つの exact-set(母集合 / 観点被覆 / 未作成繰り延べ / runner 繰り延べ)は、どれも 1 件消すと red。**
+### 6-4. exact-set の一覧(6 本)
+
+| # | 名前 | 主張 |
+| --- | --- | --- |
+| 1 | **母集合** | `作成済み ∪ 未作成繰り延べ = 26 の scenarioId` かつ **交差が空** |
+| 2 | **観点被覆** | `OBSERVATION_SCENARIO_PAIRS = 26 ペア`(+ 第 1/第 2 要素の集合一致) |
+| 3 | **runner 繰り延べ** | `SCENARIO_RUNNERS ∪ 繰り延べ = FAILURE_SCENARIO_IDS` かつ **交差が空** |
+| 4 | **トランザクション内注入被覆** | `⋃ TRANSACTION_INJECTION_COVERAGE = reader の 18 組` |
+| 5 | **トランザクション外注入被覆** | `⋃ OUT_OF_TRANSACTION_INJECTION_COVERAGE = P3 の 3 点` |
+| 6 | **`canonOracle` の既知 ID** | `EXPECTED = 実装済み ∪ 射程外`(既存・総和が不変) |
+
+**1〜5 はどれも 1 件消すと red** にする。
 
 ### 6-4. 新 scenarioId の追加位置
 
@@ -380,6 +468,11 @@ it.each は runner 繰り延べを除いた集合で回す
 
 **台帳(`harness-evaluation.md`)と索引(`docs/README.md`)は `/pr` のクローズ処理で更新する**
 (pr スキル手順 1-3)。**クローズ処理はステップ表の外側**にあるため実装ステップには置かない。
+
+**同一コミットの範囲**(4 周目 P2 で是正): pr スキルが同一コミットに要求するのは
+**②台帳・③変更履歴表・④索引**である。**①計画書 3 節への宣言は「先に」行うもの**であり、
+同一コミットの構成要素ではない。本タスクでは**①は本計画の改訂時点で完了済み**で、
+②〜④を `/pr` の同一クローズコミットで更新する。
 
 ## 未解決・検討メモ
 
