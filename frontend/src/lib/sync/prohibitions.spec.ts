@@ -166,6 +166,7 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseCanonTxnRouteRules',
     'parseCanonV12BoundaryRules',
     'readCanonAckStateResults',
+    'readCanonB3BranchRules',
     'readCanonBoundaryResults',
     'readCanonEventFieldRules',
     'readCanonIdempotencyCollisionRules',
@@ -227,10 +228,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'validateFailureScenarioResult',
   ],
   'idempotencyCollision.ts': [
+    'B3_EXISTING_D5_BRANCH_RULE',
     'CONTENT_IDENTITY',
     'IDEMPOTENCY_COLLISION_RULES',
     'IDEMPOTENCY_DECISION',
     'IDEMPOTENCY_SCOPE_RULE',
+    'IdempotencyCollisionCorruptionError',
     'decideIdempotencyCollision',
   ],
   'k5Tombstone.ts': [
@@ -349,6 +352,7 @@ const EXPECTED_TYPE_EXPORTS = {
   'boundaryResults.ts': ['AckBoundaryResult', 'NoAckBoundaryResult'],
   'canonOracle.ts': [
     'CanonAckStateResult',
+    'CanonB3BranchRule',
     'CanonBoundaryResult',
     'CanonEventFieldRule',
     'CanonEventKindRule',
@@ -419,6 +423,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'FailureScenarioResult',
   ],
   'idempotencyCollision.ts': [
+    'B3BranchRule',
     'ContentIdentity',
     'IdempotencyBoundaryResult',
     'IdempotencyDecisionResult',

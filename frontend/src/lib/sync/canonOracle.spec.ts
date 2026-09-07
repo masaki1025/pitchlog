@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import syncProtocolRelations from '@design-relations/sync-protocol.json'
 import { EVENT_FIELD_REQUIREDNESS, EVENT_FIELD_RULES } from './eventFieldRules'
 import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
-import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
+import {
+  B3_EXISTING_D5_BRANCH_RULE,
+  IDEMPOTENCY_COLLISION_RULES,
+} from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
 import { PROCESSING_STAGE_RULES } from './processingStages'
@@ -17,6 +20,7 @@ import {
   parseCanonTombstoneRule,
   parseCanonTxnRouteRules,
   readCanonAckStateResults,
+  readCanonB3BranchRules,
   readCanonBoundaryResults,
   readCanonEventFieldRules,
   readCanonIdempotencyCollisionRules,
@@ -29,6 +33,7 @@ import {
   readCanonTxnRouteRules,
   readCanonV12BoundaryRules,
   type CanonEventFieldRule,
+  type CanonB3BranchRule,
   type CanonBoundaryResult,
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
@@ -194,6 +199,19 @@ function expectProcessingStageRulesToMatchCanon(
     )
 
   expect(toRuleMap(rules)).toEqual(toRuleMap(canonRules))
+}
+
+function expectB3BranchRuleToMatchCanon(
+  canonRules: readonly CanonB3BranchRule[],
+): void {
+  expect(canonRules).toEqual([
+    {
+      purpose: 'b3-branch',
+      relationId: 'R-BOUNDARY',
+      id: B3_EXISTING_D5_BRANCH_RULE.id,
+      rightHandSide: B3_EXISTING_D5_BRANCH_RULE.rightHandSide,
+    },
+  ])
 }
 
 function expectTemporaryIdMappingRulesToMatchCanon(
@@ -548,6 +566,28 @@ describe('canonOracle', () => {
     )
   })
 
+  it('B3b の右辺3節を製品表と逐語照合する', () => {
+    expectB3BranchRuleToMatchCanon(readCanonB3BranchRules())
+  })
+
+  it('B3b の右辺変更を製品表との逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
+    const targetId = 'B3b'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      'T9開始なし',
+      'T9開始あり',
+    )
+    expect(() =>
+      expectB3BranchRuleToMatchCanon(readCanonB3BranchRules(mutatedRelations)),
+    ).toThrow()
+  })
+
   it('DI1・DI4・I1・I4 の右辺を処理段階の製品表と逐語照合する', () => {
     const productRuleKeys = new Set(
       PROCESSING_STAGE_RULES.map((rule) => `${rule.relationId}:${rule.id}`),
@@ -589,6 +629,7 @@ describe('canonOracle', () => {
     const implementedRules = [
       ...readCanonIdempotencyCollisionRules(),
       ...readCanonProcessingStageRules(),
+      ...readCanonB3BranchRules(),
     ]
 
     for (const relationId of ['R-BOUNDARY', 'R-P3-BOUNDARY'] as const) {
@@ -611,7 +652,7 @@ describe('canonOracle', () => {
     }
   })
 
-  it('処理段階対象を射程外から除き P3 受理結果を先頭に保つ', () => {
+  it('実装対象を射程外から除き P3 受理結果を先頭に保つ', () => {
     const d1OutOfScopeIds = new Set<string>(
       CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-BOUNDARY'].map((element) => element.id),
     )
@@ -627,9 +668,36 @@ describe('canonOracle', () => {
     expect(p3OutOfScopeIds.has('I4')).toBe(false)
     expect(d1OutOfScopeIds.has('RG1')).toBe(false)
     expect(p3OutOfScopeIds.has('RG1')).toBe(false)
+    expect(d1OutOfScopeIds.has('B3b')).toBe(false)
     expect(CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'][0]?.id).toBe(
       '変更受理',
     )
+  })
+
+  it('射程外に残す4 ID の理由へ受け取り先と依存事項を明記する', () => {
+    const expectedReasonParts = Object.freeze({
+      B3a: Object.freeze(['T9 の保存', 'TSK-330']),
+      DI5: Object.freeze(['U-14', 'B1・B4', 'TSK-330']),
+      I5: Object.freeze(['保存・配信', 'TSK-330']),
+      I6: Object.freeze(['端末永続化', 'TSK-330']),
+    })
+    const allOutOfScopeElements = Object.freeze(
+      Object.values(CANON_IDEMPOTENCY_OUT_OF_SCOPE).flat(),
+    )
+
+    for (const [id, reasonParts] of Object.entries(expectedReasonParts)) {
+      const target = allOutOfScopeElements.find((element) =>
+        Object.is(element.id, id),
+      )
+
+      expect(target).toBeDefined()
+      if (!target) {
+        throw new Error(`射程外 ID がありません: ${id}`)
+      }
+      for (const reasonPart of reasonParts) {
+        expect(target.reason).toContain(reasonPart)
+      }
+    }
   })
 
   it('D5 衝突規則の射程外 ID を理由つきで列挙する', () => {

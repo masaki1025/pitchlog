@@ -490,9 +490,12 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B5', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B6', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B7', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
-    { id: 'B3a', reason: '未使用 D5 の P5・T9 処理に依存するため' },
-    { id: 'B3b', reason: 'B3 の処理段階は本ステップの射程外であるため' },
-    { id: 'DI5', reason: '混在バッチと A5 の停止境界に依存するため' },
+    { id: 'B3a', reason: 'T9 の保存を伴い TSK-330 が受け取るため' },
+    {
+      id: 'DI5',
+      reason:
+        'U-14 の保存済み退避再掲を B1・B4 のどちらにするか未確定であり TSK-330 が受け取るため',
+    },
   ],
   [P3_BOUNDARY_RELATION_ID]: [
     { id: '変更受理', reason: 'P3 の完全な境界結果集合に属するため' },
@@ -503,8 +506,14 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B12', reason: 'P3 の完全な境界結果集合に属するため' },
     { id: 'B13', reason: 'P3 の完全な境界結果集合に属するため' },
     { id: 'B14', reason: 'P3 の完全な境界結果集合に属するため' },
-    { id: 'I5', reason: '無効化意図の保存・配信処理に依存するため' },
-    { id: 'I6', reason: 'P3 受理結果の端末保持処理に依存するため' },
+    {
+      id: 'I5',
+      reason: '無効化意図の保存・配信を伴い TSK-330 が受け取るため',
+    },
+    {
+      id: 'I6',
+      reason: 'P3 受理結果の端末永続化を伴い TSK-330 が受け取るため',
+    },
   ],
 } as const satisfies Readonly<
   Record<IdempotencyRelationId, readonly OutOfScopeId[]>
@@ -521,6 +530,11 @@ const IMPLEMENTED_IDEMPOTENCY_IDS = {
 const IMPLEMENTED_PROCESSING_STAGE_IDS = {
   [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI1', 'DI4', 'RG1']),
   [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I1', 'I4', 'RG1']),
+} as const
+
+const IMPLEMENTED_B3_BRANCH_IDS = {
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['B3b']),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(),
 } as const
 
 const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {
@@ -540,11 +554,13 @@ const EXPECTED_IDEMPOTENCY_IDS = {
   [D1_BOUNDARY_RELATION_ID]: new Set<string>([
     ...IMPLEMENTED_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
     ...IMPLEMENTED_PROCESSING_STAGE_IDS[D1_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_B3_BRANCH_IDS[D1_BOUNDARY_RELATION_ID],
     ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[D1_BOUNDARY_RELATION_ID],
   ]),
   [P3_BOUNDARY_RELATION_ID]: new Set<string>([
     ...IMPLEMENTED_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
     ...IMPLEMENTED_PROCESSING_STAGE_IDS[P3_BOUNDARY_RELATION_ID],
+    ...IMPLEMENTED_B3_BRANCH_IDS[P3_BOUNDARY_RELATION_ID],
     ...OUT_OF_SCOPE_IDEMPOTENCY_IDS[P3_BOUNDARY_RELATION_ID],
   ]),
 } as const
@@ -587,8 +603,15 @@ export type CanonProcessingStageRule = Readonly<{
   rightHandSide: string
 }>
 
+export type CanonB3BranchRule = Readonly<{
+  purpose: 'b3-branch'
+  relationId: IdempotencyRelationId
+  id: string
+  rightHandSide: string
+}>
+
 type CanonImplementedRelationRule =
-  CanonIdempotencyCollisionRule | CanonProcessingStageRule
+  CanonIdempotencyCollisionRule | CanonProcessingStageRule | CanonB3BranchRule
 
 function assertExactKnownIds(
   relationId: string,
@@ -774,7 +797,9 @@ function parseIdempotencyRelation(
       ? 'idempotency-collision'
       : IMPLEMENTED_PROCESSING_STAGE_IDS[relationId].has(id)
         ? 'processing-stage'
-        : undefined
+        : IMPLEMENTED_B3_BRANCH_IDS[relationId].has(id)
+          ? 'b3-branch'
+          : undefined
     if (purpose) {
       const equalsIndex = sourceElement.indexOf('=', separatorIndex + 1)
       if (
@@ -864,6 +889,37 @@ export function readCanonProcessingStageRules(
     ),
   ].filter((rule): rule is CanonProcessingStageRule =>
     Object.is(rule.purpose, 'processing-stage'),
+  )
+  return Object.freeze(rules)
+}
+
+export function readCanonB3BranchRules(
+  relations: unknown = syncProtocolRelations,
+): readonly CanonB3BranchRule[] {
+  if (!isRecord(relations)) {
+    throw new Error('設計関係 JSON の形式が不正です')
+  }
+  const d1Relation = relations[D1_BOUNDARY_RELATION_ID]
+  const p3Relation = relations[P3_BOUNDARY_RELATION_ID]
+  if (
+    !isRecord(d1Relation) ||
+    !Array.isArray(d1Relation.source_elements) ||
+    !isRecord(p3Relation) ||
+    !Array.isArray(p3Relation.source_elements)
+  ) {
+    throw new Error('B3 分岐規則の source_elements がありません')
+  }
+  const rules = [
+    ...parseIdempotencyRelation(
+      D1_BOUNDARY_RELATION_ID,
+      d1Relation.source_elements,
+    ),
+    ...parseIdempotencyRelation(
+      P3_BOUNDARY_RELATION_ID,
+      p3Relation.source_elements,
+    ),
+  ].filter((rule): rule is CanonB3BranchRule =>
+    Object.is(rule.purpose, 'b3-branch'),
   )
   return Object.freeze(rules)
 }
