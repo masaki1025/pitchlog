@@ -4,16 +4,17 @@ type: design
 date: 2026-09-07
 ---
 
-# 詳細設計: 後続 γ の機構(パーサ / allow-list / 故障系契約 / 単一実装 / ドリフト検査)
+# 詳細設計: 後続 γ の機構
 
 plan.md 4 節から参照される補助資料。射程・ステップ表・機構が読む状態は plan.md が正。
-事実の典拠は [research.md](research.md)。**計画レビュー 1 周目(2026-09-07・`sol xhigh`)の指摘 10 件を反映済み。**
+事実の典拠は [research.md](research.md)。
+**計画レビュー 1 周目(P0 5・P1 5)と 2 周目(P0 5・P1 2・P2 1)の指摘を反映済み。**
 
 ## 1. `R-TXN-ROUTE` 専用パーサ
 
 ### 1-1. なぜ既存パーサを流用できないか
 
-`scripts/design_relations/sync-protocol.json` の `R-TXN-ROUTE.source_elements` は **14 要素・2 形式混在**:
+`R-TXN-ROUTE.source_elements` は **14 要素・2 形式混在**:
 
 ```
 経路 5 行  P1:D1付きイベント=T1,T2,T3,T4,T6
@@ -26,83 +27,59 @@ T 要素 9 行 T1:べき等キーの記録 … T9:未使用D5の内容拒否原�
 
 | 既存パーサ | 判定 | 理由 |
 | --- | --- | --- |
-| `parseIdempotencyRelation`(`canonOracle.ts:737-783`) | **不可** | ① 第 1 引数が `IdempotencyRelationId`(`:473-474`)で型が通らず、union を広げると `CANON_IDEMPOTENCY_OUT_OF_SCOPE` の `satisfies`(`:515-517`)がキー不足で壊れる ② T 要素 9 行は `=` が無く `:756` で必ず throw ③ 経路行も `,` split をしない |
-| `parseCanonBoundaryResults`(`:593-643`) | **不可(最も危険)** | 形式検査は `:` の個数と位置だけで **`=` を一切見ない**(`:615-621`)。`P1:D1付きイベント=T1,T2,T3,T4,T6` は **throw せず** `name = 'D1付きイベント=T1,T2,T3,T4,T6'` として **silent-pass** する |
-| `parseCanonV12BoundaryRules`(`:404-458`) | 不可 | 全要素に `=` ちょうど 1 個を要求するので T 要素 9 行で throw |
-| `parseCanonTemporaryIdMappingRules`(`:836-880`) | T 行のみ可 | `:` 1 個だけを要求。経路行には不可 |
+| `parseIdempotencyRelation`(`canonOracle.ts:737-783`) | **不可** | 型が `IdempotencyRelationId` に閉じている / T 要素 9 行は `=` が無く `:756` で throw / `,` split をしない |
+| `parseCanonBoundaryResults`(`:593-643`) | **不可(最も危険)** | `=` を一切検査しない(`:615-621`)ため、経路行が **throw せず** `name = 'D1付きイベント=T1,…'` として **silent-pass** する |
+| `parseCanonV12BoundaryRules`(`:404-458`) | 不可 | 全要素に `=` を要求 |
+| `parseCanonTemporaryIdMappingRules`(`:836-880`) | T 行のみ可 | 経路行の `=` を分けない |
 
 ### 1-2. 採る形 — `parseCanonQueueLifeRules` の `kind` dispatch
 
-`canonOracle.ts:994-1029` がマニフェスト内で**混在要素を扱う唯一の先例**。同型にする。
+`canonOracle.ts:994-1029` が混在要素を扱う唯一の先例。同型にする。
 
 ```
-parseCanonTxnRouteRules(sourceElements)
-  要素ごとに ID を切る(最初の ':' まで。':' が無ければ全体)
-  ID が /^P[1-5]$/  → 経路行
-      ':' ちょうど 1 個・末尾でない / '=' ちょうど 1 個・左右とも非空
-      右辺を ',' で split し、各トークンが /^T[1-9]$/ かつ重複なし
-      → { kind: 'route', id, name, stepIds }
-  ID が /^T[1-9]$/  → T 要素行
-      ':' ちょうど 1 個・末尾でない
-      '=' を含んではならない          ← 既存 parseCanonBoundaryResults に無い検査
-      → { kind: 'step', id, name }
-  それ以外・ID 重複 → throw
-  2 つの exact-set 照合
-    ① 関係全体の ID = P1..P5 ∪ T1..T9(14)
-    ② 経路が参照する T の和集合 = T1..T9(9)   ← 孤立 T を許さない
+ID が /^P[1-5]$/  → 経路行: ':' 1 個・'=' 1 個・右辺を ',' split・各トークン /^T[1-9]$/ かつ重複なし
+ID が /^T[1-9]$/  → T 要素行: ':' 1 個・'=' を含んではならない  ← 既存パーサに無い検査
+それ以外・ID 重複 → throw
+exact-set 照合 ① 関係全体 = P1..P5 ∪ T1..T9(14) ② 経路が参照する T の和集合 = T1..T9(9)
 ```
 
-**`,` split は既存に存在しない**(全 11 関係で `R-TXN-ROUTE` だけが `,` を使う)。新設する。
+**`,` split は既存に存在しない**(全 11 関係で `R-TXN-ROUTE` だけ)。新設する。
 
-**この reader が返す 18 組の `(経路, T 要素)` を、3 章の注入点検査が唯一の出所として使う**(二重定義しない)。
+**この reader が返す 18 組の `(経路, T 要素)` を、3-6 の注入点検査が唯一の出所として使う**(二重定義しない)。
 
 ### 1-3. 実測した参照関係(② の根拠)
 
-| T | 参照する経路 |
-| --- | --- |
-| T1・T2・T6 | P1・P2・P3 |
-| T3 | P1・P2 |
-| T4 | P1・P2・P3 |
-| **T5** | **P2 のみ** |
-| **T7** | **P3 のみ** |
-| **T8** | **P4 のみ** |
-| **T9** | **P5 のみ** |
+T1・T2・T6 = P1・P2・P3 / T3 = P1・P2 / T4 = P1・P2・P3 /
+**T5 = P2 のみ** / **T7 = P3 のみ** / **T8 = P4 のみ** / **T9 = P5 のみ**。
 
 ### 1-4. 触ってはならないもの
 
 - **`IdempotencyRelationId`(`:473-474`)に `R-TXN-ROUTE` を足さない**
-- **`CANON_P3_ACCEPTED_RESULT_ID`(`:517-518`)は allow-list の添字 0 に位置依存**。`R-P3-BOUNDARY` の先頭 `変更受理` を動かすと受理結果 ID が黙って `B8` になる
-- **`P5` を `SyncEventPath` で型付けしない**。`eventFieldRules.ts:148-153` の `SYNC_EVENT_PATH` は P1〜P4 のみ
-- 変異テストで要素を引くときは **`startsWith(\`${id}:\`)` とコロン付き**にする(`P4` の左辺と `T8` の body が前方一致するため)
+- **`CANON_P3_ACCEPTED_RESULT_ID`(`:517-518`)は allow-list の添字 0 に位置依存**
+- **`P5` を `SyncEventPath` で型付けしない**(`eventFieldRules.ts:148-153` は P1〜P4 のみ)
+- 変異テストは **`startsWith(\`${id}:\`)`** で引く(`P4` の左辺と `T8` の body が前方一致)
 
 ## 2. allow-list の用途別分割
 
-### 2-1. 現状(`canonOracle.ts:520-547`)
+### 2-1. 現状と、なぜ分割するか
 
 ```
-IMPLEMENTED_IDEMPOTENCY_IDS   = { 'R-BOUNDARY': {DI2, DI3}, 'R-P3-BOUNDARY': {I2, I3} }
-OUT_OF_SCOPE_IDEMPOTENCY_IDS  = CANON_IDEMPOTENCY_OUT_OF_SCOPE から id を写像
-EXPECTED_IDEMPOTENCY_IDS      = 実装済み ∪ 射程外
+EXPECTED_IDEMPOTENCY_IDS = 実装済み ∪ 射程外   ← 和集合なので移動しても assertExactKnownIds は鳴らない
 ```
 
-`EXPECTED` が和集合なので**移動しても `assertExactKnownIds` は鳴らない**。
 実効的に検出するのは `canonOracle.spec.ts:509-518` の**製品表突合 1 本だけ**。
-
-### 2-2. 採る形
-
 製品表 `IDEMPOTENCY_COLLISION_RULES`(`idempotencyCollision.ts:70-104`)は **D5 衝突規則**の表で
-`id: 'DI2' | 'DI3' | 'I2' | 'I3'` の literal union(`:58`)で閉じている。
-**`DI1`(照合位置)・`RG1`(復元ゲート)は衝突規則ではない**ため、処理段階側の実装済み集合を別に設ける。
+`id: 'DI2' | 'DI3' | 'I2' | 'I3'` に閉じており、`DI1`(照合位置)・`RG1`(復元ゲート)は衝突規則ではない。
 
 ```
-IMPLEMENTED_IDEMPOTENCY_IDS       (D5 衝突規則)      : {DI2,DI3} / {I2,I3}   ← 据え置き
-IMPLEMENTED_PROCESSING_STAGE_IDS  (処理段階・停止境界): 下表
-EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                                  ← 総和は不変
+IMPLEMENTED_IDEMPOTENCY_IDS       (D5 衝突規則)      : {DI2,DI3,B3b} / {I2,I3}   ← B3b は 4 章で合流
+IMPLEMENTED_PROCESSING_STAGE_IDS  (処理段階・停止境界): {DI1,DI4,DI5,RG1} / {I1,I4,RG1}
+EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                                      ← 総和は不変
 ```
 
-### 2-3. 移動する 7 ID と、残す ID
+### 2-2. 移動する 7 ID と、残す ID
 
-**移動できるのは正本要素に `=` を持つものだけ**(`parseIdempotencyRelation:756` が `=` を要求)。
+**移動できるのは正本要素に `=` を持つものだけ**。
 
 | ID | 関係 | 正本の右辺 | 扱い | ステップ |
 | --- | --- | --- | --- | --- |
@@ -113,210 +90,274 @@ EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              
 | `RG1` | 両方 | 10 節の共通前段ゲート | **移動** | 3 |
 | `DI5` | R-BOUNDARY | 混在バッチの A5(6 節) | **移動** | 4 |
 | `B3b` | R-BOUNDARY | `先着原本との比較+B3+T9開始なし` | **移動** — **`T9` を開始しない**分岐なので永続化を伴わない | 4 |
-| **`B3a`** | R-BOUNDARY | **`P5+T9`** | **射程外に残す** — 正本の帰結は**不可分な `P5 + T9`**(`:1248`・`:1209`)。allow-list から外すと**機械上は `P5+T9` 全体が実装済みに見え、`T9` 未実装を取り落とす**。理由を **TSK-330 名指し**へ更新する | — |
-| `I5` | R-P3-BOUNDARY | 無効化意図の保存・配信 | **射程外に残す** — 保存と配信を伴う | — |
-| `I6` | R-P3-BOUNDARY | 端末永続化まで成立した保持 | **射程外に残す** — 保存を伴う | — |
+| **`B3a`** | R-BOUNDARY | **`P5+T9`** | **射程外に残す** — 正本の帰結は**不可分な `P5 + T9`**(`:1248`・`:1209`)。外すと機械上は全体が実装済みに見え、**`T9` 未実装を取り落とす**。理由を **TSK-330** 名指しへ | — |
+| `I5` / `I6` | R-P3-BOUNDARY | 保存・配信 / 端末永続化 | **射程外に残す** | — |
 | `B1`〜`B7` / `変更受理` / `B8`〜`B14` | 両方 | **`=` を持たない** | **移動不可**。別ルートで既に読まれている | — |
 
-**`B3a` の判定に相当する処理が要る場合は、`B3a` とは別の内部能力として扱い、正本 ID の実装済み集合に数えない。**
-
-## 3. 故障系契約 — 共通 9 件と条件付き省略可否
+## 3. 故障系契約
 
 ### 3-1. 正本の読み(1 周目 P0-1 で是正)
 
-10-3 `:1691` は **「各 JSON は」**と書いており、**条件付きの部分は加算**である:
+10-3 `:1691` は **「各 JSON は」**と書き、**条件付きの部分は加算**である:
 
 > **各 JSON は**…**期待結果として各観測点の永続状態・キュー状態・prefix・べき等結果・一時 ID 写像・記録権・利用者への顕在化を表す。**
 > `適用経路` が **P3** の JSON は、期待結果に…**と**…を**必須とする**。
 > `適用経路` が **P5** の JSON は、入力の `P5分岐` に **B3a または B3b** を必須とする。
 > **該当しないフィールドは省略理由を契約内に明示し**、期待値を製品実装から自動生成しない。
 
-したがって **`prefix`・べき等結果・一時 ID 写像・記録権は全 JSON 共通の必須**であり、
-**「クライアント側は基底 5 件」という例外は正本に無い**(初版の設計はここを誤っていた)。
+したがって後半 4 件も**全 JSON 共通の必須**。「クライアント側は基底 5 件」という例外は正本に無い。
 
-### 3-2. 採る形 — 集合は無条件・省略可否だけ条件付き
+### 3-2. 集合は無条件・省略可否だけ条件付き
 
 | | 現行 | 本タスク後 |
 | --- | --- | --- |
 | 期待フィールドの**集合** | 5 件(無条件) | **9 件(無条件)** |
-| `omittedBecause` の可否 | **一律禁止**(`validateObservations:234-239`) | **`applicationPath` で条件付き** |
+| `omittedBecause` の可否 | 一律禁止(`validateObservations:234-239`) | **`applicationPath` で条件付き** |
 
 ```
-applicationPath 省略(クライアント側)
-  → 後半 4 件(prefix・idempotentResult・temporaryIdMapping・recordingRight)は omittedBecause 可
-applicationPath = P1 / P2 / P4 / P5
-  → 9 件すべて実値必須(省略すると red)
-applicationPath = P3
-  → 9 件 + 13 件(復旧世代照合・意図 ID・永続/配信/消費側反映/配信完了記録状態・再掲後件数・I6 の 4 項目・保持期限・退避状態)
-applicationPath = P5
-  → 入力の P5分岐 を discriminated union にする
-       B3a: 未使用 D5 + 内容拒否になる原本
-       B3b: 不変な先着原本 + 同一 D5・異なる内容の後着入力
-     いずれも exact-key で必須化し、T9 到達分岐と非到達分岐を暗黙表現にしない
+applicationPath 省略(クライアント側) → 後半 4 件は omittedBecause 可
+applicationPath = P1 / P2 / P4 / P5   → 9 件すべて実値必須
+applicationPath = P3                  → 9 件 + 13 件
+applicationPath = P5                  → 入力の P5分岐(3-4)
 ```
 
 **`requireExactKeys` の過不足・順序検査は緩めない。** 緩めるのは「その経路で該当しないフィールドに
-省略理由を書ける」ことだけで、これは正本 `:1691` 末尾の規則そのものである。
+省略理由を書ける」ことだけで、これは正本 `:1691` 末尾の規則そのもの。
 
-### 3-3. 既存 4 資産の `_v2` 原子移行
+### 3-3. `schemaVersion` の繰り上げ(2 周目 P0-1)
 
-`expected` が変わるので 10-3 `:1689` の版繰り上げが要る:
+必須フィールドを 5 → 9 に増やし P5 union を足すので**旧構造は新 validator を通らない = 非後方互換**。
+10-3 `:1689` は「後方互換でない変更では `schemaVersion` も上げる」と要求する。
 
-> 入力・故障注入・期待結果・比較単位のいずれかを変えた場合は `N` を上げて別ファイルを作り、
-> **参照するテストがすべて新版へ移るまで旧版を上書きまたは削除しない**
+- **既存 4 資産と新規 9 資産をすべて `schemaVersion: 2`** にする
+- **validator が「構造」と「`schemaVersion`」の組を照合**する
+- **旧 `schemaVersion` + 新構造 / 新 `schemaVersion` + 旧構造をいずれも red** にする
 
-**同一コミット内で「新版作成 → 全テスト移行 → 旧版削除」を行う。**
-この順序なら**旧版を参照するテストが存在する瞬間が無く**、規則を満たす。
+### 3-4. P5 の値関係検査(2 周目 P0-4)
 
-移行の内容(4 資産 × 各観測点):
+exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を入れても通ってしまう。**値の関係**を検査する:
 
-- 後半 4 件を `omittedBecause` で追記(クライアント側シナリオなので実値は書かない)
-- `comparisonUnit` を **25 → 45 単位**へ(観測点が外ループ・期待フィールドが内ループの順序を守る)
-- ファイル名 `_v1` → `_v2`、内部 `version: 1` → `2`
-- **`failureScenarioContract.spec.ts:72-75` の `_v1` ハードコードを「現行版の宣言表」へ置き換える**
+| 分岐 | 実行時に検査すること |
+| --- | --- |
+| **`B3b`** | 先着原本が**初期永続状態と一致**する / 先着と後着の **D5 が同一** / **内容が異なる** |
+| **`B3a`** | 対象 D5 が**初期べき等集合に存在しない**(未使用である) |
 
-**runner 4 本は変更不要**。省略したフィールドは算出しないため、
-`failureScenarioAdapter.spec.ts:110-130` の**期待値リテラル複製禁止に触れない**。
+**異なる D5・同一内容・既存 D5 の各変異が red** になることを合格条件にする。
 
-### 3-4. 注入点の閉じた語彙と実行時検査(1 周目 P1-2)
+### 3-5. 契約検査と結果検査の分離(2 周目 P1-2)
+
+`validateFailureScenarioResult`(`:416-449`)も同じ `validateObservations` を使うため、
+集合を 9 件へ増やすと **5 キーしか返さない既存 runner が必ず red** になる。
+同じ validator を緩めると `P1`〜`P5` の実値必須まで緩む。**両者を分離する**:
+
+| | 要求 |
+| --- | --- |
+| **契約(資産 JSON)の検査** | 常に **9 キー**を要求。省略可否は 3-2 の条件付き |
+| **結果(runner 出力)の検査** | **契約が `omittedBecause` としたキーの不在だけ**を許可。実値対象の欠落・省略表現は**拒否** |
+
+合格条件に **「既存 runner が green のまま」と「サーバー経路の欠落が red」の両方**を入れる。
+
+### 3-6. 注入点の閉じた語彙(1 周目 P1-2)
 
 現行 `faultInjection` の検査はキーと wrapper だけで、**値も組合せも見ていない**。閉じる:
 
 | 語彙 | 出所 |
 | --- | --- |
-| 経路 `P1`〜`P5` | **1 章の reader**(`SYNC_EVENT_PATH` は `P5` が無いので流用しない) |
-| T 要素 `T1`〜`T9` | 同上 |
-| **有効な 18 組の `(経路, T 要素)`** | 同上(二重定義しない) |
+| 経路 `P1`〜`P5` / T 要素 `T1`〜`T9` / **有効な 18 組** | **1 章の reader**(二重定義しない。`SYNC_EVENT_PATH` は `P5` が無いので流用しない) |
 | P3 のトランザクション外 3 注入点 | 10-3 `:1691` — `T7` 確定後・無効化配信前 / 消費側反映後・配信完了記録前 / サーバー確定後・`I6` 端末永続化前 |
 
 **無効な T ID・`P1` に `T9`・誤字のある P3 注入点はいずれも red** にする。
 
-### 3-5. 2 つの繰り延べ表(1 周目 P0-3 / P0-4)
+### 3-7. `_v2` 原子移行(2 周目 P2 で不変条件を是正)
 
-**runner 未実装**と**未作成資産**は別の事柄なので、表を分ける。どちらも exact-set で主張する。
+10-3 `:1689`:
 
-```
-① runner 繰り延べ
-   SCENARIO_RUNNERS のキー集合 ∪ 繰り延べ = FAILURE_SCENARIO_IDS
-   it.each は繰り延べを除いた集合で回す
+> …`N` を上げて別ファイルを作り、**参照するテストがすべて新版へ移るまで旧版を上書きまたは削除しない**
 
-② 未作成資産の繰り延べ(ID・必要な契約拡張・受け取り先を個別に列挙)
-   復元ライフサイクル 8 シナリオ            (10-3 :1692)  → TSK-330
-   p3-invalidation-consumed-before-complete (10-3 :1702)  → TSK-330
-   P1〜P5 の故障行列                        (10-2 :1641-1659) → TSK-330
-```
+**満たすべき不変条件は「旧版参照が存在する間に旧資産を削除しない」**である
+(1 周目の説明「旧版を参照するテストが存在する瞬間が無い」は誤り — 親コミットには当然存在する)。
 
-**どちらの表も 1 件消すと red** にする(黙って追跡対象から外れることがない)。
+**同一コミット内で順に**「① 新版 `_v2` を追加 → ② 旧資産を残したまま全参照を移行 → ③ 旧版を削除」を行う。
+コミット前(親 = 旧参照 + 旧資産)とコミット後(子 = 新参照 + 新資産)の**どちらにも参照切れが無い**。
 
-**ステップ 6 と 7 を分けたうえで、繰り延べ表・資産・scenarioId はステップ 7 で原子的に追加する。**
-ステップ 6 時点では繰り延べ対象が存在せず「1 件消すと red」を試せず、
-先に ID だけ足すと `failureScenarioContract.spec.ts:72-75` の fixture exact-set が red になるため。
+移行の内容: 後半 4 件を `omittedBecause` で追記 / `comparisonUnit` 25 → 45 /
+ファイル名と内部 `version` / **`schemaVersion: 2`** / **`failureScenarioContract.spec.ts:72-75` の
+`_v1` ハードコードを現行版の宣言表へ置き換える**。
 
-### 3-6. 新 scenarioId の追加位置
+## 4. D5 分類の単一実装と正本への是正
 
-**`FAILURE_SCENARIO_IDS` の末尾に足す。** `failureScenarioAdapter.ts:65-70` の分割代入と
-`failureScenarioAdapter.spec.ts:133/146/159/168` が**位置依存**で、中間挿入は TypeScript が検出しない。
-scenarioId は `FILE_NAME_PATTERN`(`:90`)の `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる。
+### 4-1. 既存実装が既に持っているもの(1 周目 P0-5)
 
-## 4. `DI5`・`B3b` の単一実装(`NFR-018`)
-
-### 4-1. 既存実装が既に持っているもの
-
-`idempotencyCollision.ts` は**すでに D5 を分類し、D1 付き経路の異内容を `B3b` に決定している**:
-
-| 既存 | 場所 |
-| --- | --- |
-| 照合キー `(テナント, D5)` と別テナントの扱い | `:52-55`・`:138-141` |
-| 内容同一性判定器の注入と fail-closed(throw / `INDETERMINATE` / 複数一致 → 後着拒否) | `:163-186`・`:172-174` |
-| 分類規則 `DI2`(same → 再掲)・`DI3`(different → **`B3b`**)・`I2`・`I3` | `:70-104` |
-| 結果語彙 `NOT_DUPLICATE` / `REPLAY_SAVED_RESULT` / `D1_COLLISION='B3b'` / `P3_COLLISION='B13'` / `REJECT_LATER` | `:33-39` |
-
+`idempotencyCollision.ts` は**すでに D5 を分類し、D1 付き経路の異内容を `B3b` に決定している**
+(照合キー `:52-55` / 判定器の注入 `:163-186` / 規則表 `:70-104` / 結果語彙 `:33-39`)。
 **新しい分類器を書くとコピー実装になり `NFR-018` 違反(P0)。**
-合格条件で比較していた `rejectionReason.ts` は **DTO パーサ**であって重複先ではない。
 
-### 4-2. 採る形
+### 4-2. 正本 4-5 との乖離(2 周目 P0-2)
+
+正本 `:404`:
+
+> **内容の同一性を判定できない** | **判定不能は異内容として扱い、先着を正として後着を拒否する**
+> (判定不能を「同じ」と見なさない)。**D1 付き経路は B3b、D1 を持たない変更イベントは B13 を返す**
+
+一方、現行実装は例外・`INDETERMINATE` を **`REJECT_LATER`**(`B3b`・`B13` とは**別の第 3 の値**)にしている。
+**このまま `B3b` を実装済みへ移すと、非正本の結果を封印する。**
+
+**是正**: 判定不能・比較例外を**経路別に `B3b` / `B13`** へ写像する。
+**複数一致による破損状態は別ケースとして明示**し(後着拒否のまま残すか別語彙にするかを実装時に決める)、
+**両経路の変異試験**を追加する。
+
+### 4-3. `batchStopBoundary.ts` の責務(2 周目 P0-3)
+
+分類結果だけでは A5 を決定できない。`NOT_DUPLICATE` の A5 は**後段**(⑤記録権 → `B4` 退避 /
+⑥連番 → `B2` / ⑦内容 → `B3a`)で受理・拒否・退避に分かれるためである。
 
 ```
-batchStopBoundary.ts の責務は「分類済み結果に対する D1 昇順の停止」だけ
+batchStopBoundary.ts の責務 = 「分類済み結果に対する D1 昇順の停止」だけ
 
-  入力: イベント列(D1 と、decideIdempotencyCollision が返した分類結果)
+  入力: イベント列(D1 と decideIdempotencyCollision の分類結果)
+      + 未使用 D5 の後段候補を返す遅延評価のコールバック(注入)
   処理: D3 + 1 から D1 昇順に走査
+        未使用 D5 に限り後段候補をコールバックで取得
         最初の B2(gap)または B3 で停止
         それ以降は「事前分類済み B3b を含め」すべて A5 の「未処理」
   出力: A5(受理 / 重複 / 拒否 / 退避 / 未処理)の列 + 境界結果
 
-  D5 の同一性判定・分類は一切持たない(呼び出し側が decideIdempotencyCollision の結果を渡す)
-  B3b は同関数の D1_COLLISION を合成して表現する
+  D5 の同一性判定・分類は一切持たない
+  gap 以降はコールバックを呼ばない(保証を検査する)
 ```
+
+コールバック注入は既存の作法と整合する(`compareOriginal` が同じ形で注入されている)。
 
 **機械的な確認**: `batchStopBoundary.ts` が `CONTENT_IDENTITY` の比較や照合キーの構築を
 自前で持たないことを、AST または import グラフで検査する。
 
-### 4-3. 正本の受け入れ例(`:760`)
+### 4-4. 正本の受け入れ例(`:760`)
 
-> 例えば D3 = 4 で D1 = 5 が欠け、D1 = 6 が未使用 D5、D1 = 7 が既存 D5・異内容なら、
+> D3 = 4 で D1 = 5 が欠け、D1 = 6 が未使用 D5、D1 = 7 が既存 D5・異内容なら、
 > 境界結果は **B2**、D1 = 6 と 7 はともに**未処理**であり、**D1 = 7 の B3b は返さない**。
 
 これをテストの正解ベクタにする。
 
-## 5. スナップショット・ドリフト検査(1 周目 P1-5)
+## 5. 2 層の正本ドリフト検査(1 周目 P1-5 / 2 周目 P1-1)
 
 ### 5-1. 何を解くか
 
 裁定 2 により 6-2 の段階表を関係マニフェストへ登録しない。
 そのままだと **TypeScript 側の順序テストは通るが、正本の 9/11 段階が後日変わっても鳴らない**。
-`DI1`・`I1`・`RG1` を実装済みへ移した後に認可順序が乖離し得る。
 
-### 5-2. 採る形
+さらに **`ci.yml:124-128` の `frontend-changes` フィルタは `frontend/**` のみ**で正本を含まないため、
+**検査を Vitest だけに置くと、正本だけを変えた PR では skip される**(2 周目 P1-1)。
+一方 **harness ジョブは「paths filter は付けない」と明記**されている(`ci.yml:88`
+「フィルタ自体が誤ると検査が黙って通り fail-closed に反するため」)。
 
-**`docs/design/sync-protocol.md` の 6-2 の 2 表を実際に読み、TypeScript 側の段階定義と逐語照合する。**
+### 5-2. 採る形 — 既存の二層構造に合わせる
 
 ```
-Vitest から docs/design/sync-protocol.md を読む(node 環境。
-  failureScenarioAdapter.ts:669-679 が tests/fixtures を readdirSync している先例がある)
-  ↓ 6-2 の見出し配下から 2 表を抽出
-     D1 付き経路: (段階番号, 何を確かめるか, 境界結果) × 9
-     P3 経路:     (順序, 進行中, 終了後, 境界結果) × 11
-  ↓ 逐語照合
-TypeScript の段階定義
-
-正本を 1 行でも変えると red
+docs/design/sync-protocol.md 6-2
+   ↓ ① harness(Python・常時実行)  scripts/check_processing_stages.py
+scripts/design_relations/processing-stages.json   ← スナップショット(新規資産)
+   ↓ ② Vitest                      processingStages.spec.ts
+frontend/src/lib/sync/processingStages.ts
 ```
 
-**正本を 1 行も改訂しない**ので確定ゲートを回さずに済み、裁定 2 を維持したままドリフトを検出できる。
+**`element-coverage`(正本↔マニフェスト)と `canonOracle.spec`(マニフェスト↔TS)と同じ二層構造**であり、
+`ci.yml` も `test_ci_wiring.py` も触らずに済む(どちらも `guard_paths`)。
 
-**合格条件**: 読み込んだ文字列を複製して 1 行変異させたとき検査が red になること(ドリフト検出の実証)。
-**原本のファイルは書き換えない。**
+**スナップショットの内容**: D1 付き経路 9 段階の `(段階番号, 何を確かめるか, 境界結果)` と、
+P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
+
+**合格条件**: **正本 6-2 を 1 行変えると ① が red**(常時実行ジョブで確認)/
+**スナップショットを 1 行変えると ② が red**。いずれも**原本のファイルを書き換えず**、
+読み込んだ文字列の複製に対して変異させる。
 
 ### 5-3. 採らなかった案
 
 | 案 | 却下理由 |
 | --- | --- |
-| 関係マニフェストへ登録 | 正本 2-5 表の改訂 = **確定ゲート**(敵対レビュー + 人間承認)。TSK-322 の 11 周の直後にもう一度回すコスト。裁定 2 で見送り |
-| 検査を作らず台帳の候補へ送るだけ | **台帳の候補は実装への強制点ではない**。`DI1`・`I1`・`RG1` を実装済みへ移す本タスクでは釣り合わない(1 周目 P1-5) |
+| 関係マニフェストへ登録 | 正本 2-5 表の改訂 = **確定ゲート**。裁定 2 で見送り |
+| Vitest 1 本で正本を直接読む | **`ci.yml` の frontend フィルタが正本を含まず skip される**(2 周目 P1-1) |
+| `ci.yml` のフィルタに正本を足す | `ci.yml` と `test_ci_wiring.py` はいずれも `guard_paths` で、逐行確認の対象が増える |
+| harness の Python が TypeScript を直接パースする | 既存の検査群はすべて markdown ↔ JSON で、形が異質になる |
 
-## 6. 新規モジュールを足すときの登録先(漏らすと 34 件が collection エラー)
+## 6. 正本必須資産 ID の母集合と 2 つの繰り延べ表(1 周目 P0-3 / 2 周目 P0-5)
 
-`prohibitions.spec.ts` は `describe` の外(`:581-611`)で走査対象の集合を exact-set 照合している。
-**新しい `.ts` を置くたび、同一コミットで下記を追随する。**
+### 6-1. 母集合 — 10-2 の故障系シナリオ表 + 10-3 が名指しする ID
+
+**`作成済み ∪ 未作成繰り延べ = 母集合`** を独立した exact-set として定義する。
+scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
+`^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
+
+| 正本 10-2 の観点 / 10-3 の名指し | stable scenarioId | 状態 |
+| --- | --- | --- |
+| 複数タブの単一書き手 | `multi-tab-single-writer` | **作成済み**(後続 α) |
+| フリーズ後の再選出 | `leader-freeze-reelection` | **作成済み**(後続 α) |
+| 待機中の入力非受理 | `waiting-input-not-accepted` | **作成済み**(後続 α) |
+| 永続追記失敗 | `durable-append-failure` | **作成済み**(後続 α) |
+| **墓標の適用** | `tombstone-application` | **γ ステップ 7 で作成** |
+| **改訂の適用** | `revision-application` | **γ ステップ 7 で作成** |
+| **P1** | `p1-crash-boundaries` | **γ ステップ 8 で作成** |
+| **P2** | `p2-crash-boundaries` | **γ ステップ 8 で作成** |
+| **P3** | `p3-crash-boundaries` | **γ ステップ 8 で作成** |
+| **P4** | `p4-crash-boundaries` | **γ ステップ 8 で作成** |
+| **P5** | `p5-crash-boundaries` | **γ ステップ 8 で作成** |
+| **D1 混在バッチ** | `d1-mixed-batch` | **γ ステップ 8 で作成** |
+| **gap より後ろの B3b** | `b3b-after-gap` | **γ ステップ 8 で作成** |
+| P3 の消費側反映後・配信完了記録前(10-3 `:1702` が名指し) | `p3-invalidation-consumed-before-complete` | **繰り延べ → TSK-330** |
+| `O4` の永続化済み D2 同値 | `o4-persisted-d2-equivalence` | **繰り延べ → TSK-330** |
+| 復元ライフサイクルの完走 | `restore-fence-escrow-new-generation` | **繰り延べ → TSK-330** |
+| 復元途中のクラッシュ | `restore-crash-before-new-generation` | **繰り延べ → TSK-330** |
+| 復元時の未回収端末 | `restore-uncollected-device` | **繰り延べ → TSK-330** |
+| RG1 移行とのコミット競合 | `restore-commit-race` | **繰り延べ → TSK-330** |
+| 復元中の 24 時間清掃(保持中) | `restore-cleanup-held` | **繰り延べ → TSK-330** |
+| 復元中の 24 時間清掃(期限切れ未回収) | `restore-expired-not-collected` | **繰り延べ → TSK-330** |
+| D4 のロールバック後非再利用(過去発行 D4 集合) | `restore-d4-issued-set` | **繰り延べ → TSK-330** |
+| D4 のロールバック後非再利用(連続復元) | `restore-d4-consecutive-rollbacks` | **繰り延べ → TSK-330** |
+
+復元系 8 ID は **10-3 `:1692` が逐語で名指ししたもの**をそのまま使う。
+10-2 の「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」は上記 8 ID のいずれかへ写像する
+(**写像はステップ 7 の exact-set で確定させ、母集合に取りこぼしが無いことを合格条件にする**)。
+
+**繰り延べ行の必須項目**: `scenarioId` / **必要な契約拡張**(復元系なら「過去発行 D4 集合・連続復元回数・
+回収対象端末などの入力フィールド」)/ **受け取り先 = TSK-330**。
+
+### 6-2. runner 繰り延べ(別の表)
+
+**runner 未実装**と**未作成資産**は別の事柄なので表を分ける。
+
+```
+SCENARIO_RUNNERS のキー集合 ∪ runner 繰り延べ = FAILURE_SCENARIO_IDS
+it.each は runner 繰り延べを除いた集合で回す
+```
+
+γ が作る 9 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
+
+**3 つの exact-set(母集合 / 未作成繰り延べ / runner 繰り延べ)は、どれも 1 件消すと red** にする。
+
+### 6-3. 新 scenarioId の追加位置
+
+**`FAILURE_SCENARIO_IDS` の末尾に足す。** `failureScenarioAdapter.ts:65-70` の分割代入と
+`failureScenarioAdapter.spec.ts:133/146/159/168` が**位置依存**で、中間挿入は TypeScript が検出しない。
+
+## 7. 新規資産の登録先(漏らすと 34 件が collection エラー)
 
 | # | 対象 | 場所 | 注意 |
 | --- | --- | --- | --- |
-| 1 | `EXPECTED_PRODUCT_FILE_NAMES` | `prohibitions.spec.ts:112-141` | ソート後比較なので並び順は自由 |
-| 2 | `EXPECTED_VALUE_EXPORTS` | 同 `:143-318` | **値 export の完全集合**。実行時の `Object.keys(module)` と照合 |
+| 1 | `EXPECTED_PRODUCT_FILE_NAMES` | `prohibitions.spec.ts:112-141` | ソート後比較 |
+| 2 | `EXPECTED_VALUE_EXPORTS` | 同 `:143-318` | **値 export の完全集合** |
 | 3 | `EXPECTED_TYPE_EXPORTS` | 同 `:319-536` | **型 export が 0 件でも `[]` エントリが必須** |
-| 4 | **`.claude/core-areas.json`** | `sync-protocol` の `paths` | **製品と spec を個別に列挙**するのが現行の作法(例: `ackAdapter.ts` と `ackAdapter.spec.ts` の両方)。**新規 3 モジュール + 各 spec = 6 パス** |
-| 5 | **`tests/test_core_guard.py`** | 同上の期待値 | `core-areas.json` と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる**(1 周目 P1-3) |
+| 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規 3 モジュール + 各 spec = 6 パス** |
+| 5 | **`.claude/core-areas.json` の `guard_paths`** | — | **スナップショット `processing-stages.json`・`check_processing_stages.py`・`test_check_processing_stages.py` の 3 パス**(既存の検査器・マニフェストが `guard_paths` にある作法に合わせる) |
+| 6 | **`tests/test_core_guard.py`** | 期待値 | 4・5 と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる** |
 
-`tests/fixtures/sync-protocol-failures/**` は**グロブ**なので資産 JSON の追加では 4・5 は不要。
+`tests/fixtures/sync-protocol-failures/**` は**グロブ**なので資産 JSON の追加では 4〜6 は不要。
 
 ## 未解決・検討メモ
 
-- **`CANON_P3_ACCEPTED_RESULT_ID` の添字 0 依存**(`canonOracle.ts:517-518`)はステップ 2・3 で
-  `R-P3-BOUNDARY` の allow-list を触るため踏みやすい。解消できるならステップ 2 で解消するが、
-  射程を広げないため必須にはしない(合格条件は「先頭 `変更受理` を動かさない」に留める)
-- **`faultInjection` を実行器が一切読んでいない**。3-4 で語彙と組合せを閉じても、
-  **γ の射程では資産に書けるだけで実測されない**。実測は runner を書く **TSK-330** の責務であることを
-  繰り延べ理由に明記する
-- **P3 の 3 注入点は 8-1 の T 要素境界では表せない**(`T7` の「後」・配信・端末永続化はトランザクション外)。
-  18 組とは**別の語彙**として閉じる
+- **`CANON_P3_ACCEPTED_RESULT_ID` の添字 0 依存**(`canonOracle.ts:517-518`)はステップ 2・3 で踏みやすい。
+  解消できるならステップ 2 で解消するが、射程を広げないため必須にはしない
+- **`faultInjection` を実行器が一切読んでいない**。3-6 で語彙と組合せを閉じても、
+  **γ の射程では資産に書けるだけで実測されない**。実測は **TSK-330** の責務
+- **複数一致(照合キーが 2 件以上ヒット)による破損状態**を、4-2 の是正で `B3b` に含めるか
+  別語彙で残すかは実装時に決める。**正本 4-5 はこのケースを明示していない**
+- 10-2 の「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」から復元系 8 ID への写像は
+  **ステップ 7 の exact-set で確定**させる
