@@ -77,6 +77,12 @@ type ComparableProcessingStageRule = {
   rightHandSide: string
 }
 
+type CanonTxnRoute = Extract<CanonTxnRouteRule, { kind: 'route' }>
+
+function isCanonTxnRoute(rule: CanonTxnRouteRule): rule is CanonTxnRoute {
+  return Object.is(rule.kind, 'route')
+}
+
 function expectRulesToMatchCanon(
   rules: readonly ComparableRule[],
   canonRules: readonly CanonEventFieldRule[],
@@ -841,6 +847,52 @@ describe('canonOracle', () => {
       5,
     )
     expect(rules.filter((rule) => Object.is(rule.kind, 'step'))).toHaveLength(9)
+  })
+
+  it('R-TXN-ROUTE のパース結果から14要素を逐語かつ順序込みで復元する', () => {
+    const sourceElements = syncProtocolRelations['R-TXN-ROUTE'].source_elements
+    const rules = parseCanonTxnRouteRules(sourceElements)
+    const reconstructedElements = Object.freeze(
+      rules.map((rule) =>
+        isCanonTxnRoute(rule)
+          ? `${rule.id}:${rule.name}=${rule.stepIds.join(',')}`
+          : `${rule.id}:${rule.name}`,
+      ),
+    )
+
+    expect(reconstructedElements).toEqual(sourceElements)
+  })
+
+  it('R-TXN-ROUTE の公開写像を重複のない18組へ展開する', () => {
+    const routeRules = parseCanonTxnRouteRules(
+      syncProtocolRelations['R-TXN-ROUTE'].source_elements,
+    ).filter(isCanonTxnRoute)
+    const routeStepPairs = Object.freeze(
+      routeRules.flatMap((rule) =>
+        rule.stepIds.map((stepId) => `${rule.id}:${stepId}`),
+      ),
+    )
+
+    expect(routeStepPairs).toHaveLength(18)
+    expect(new Set(routeStepPairs).size).toBe(18)
+  })
+
+  it('R-TXN-ROUTE の5経路ごとの T 要素列を正本どおりに固定する', () => {
+    const expectedStepIds = Object.freeze({
+      P1: Object.freeze(['T1', 'T2', 'T3', 'T4', 'T6']),
+      P2: Object.freeze(['T1', 'T2', 'T3', 'T4', 'T5', 'T6']),
+      P3: Object.freeze(['T1', 'T2', 'T4', 'T6', 'T7']),
+      P4: Object.freeze(['T8']),
+      P5: Object.freeze(['T9']),
+    })
+    const routeRules = parseCanonTxnRouteRules(
+      syncProtocolRelations['R-TXN-ROUTE'].source_elements,
+    ).filter(isCanonTxnRoute)
+
+    expect(routeRules).toHaveLength(5)
+    for (const rule of routeRules) {
+      expect(rule.stepIds).toEqual(expectedStepIds[rule.id])
+    }
   })
 
   it('R-TXN-ROUTE の未知 ID を fail-closed で拒否する', () => {
