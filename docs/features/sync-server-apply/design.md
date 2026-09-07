@@ -8,7 +8,7 @@ date: 2026-09-07
 
 plan.md 4 節から参照される補助資料。射程・ステップ表・機構が読む状態は plan.md が正。
 事実の典拠は [research.md](research.md)。
-**計画レビュー 1 周目(P0 5・P1 5)と 2 周目(P0 5・P1 2・P2 1)の指摘を反映済み。**
+**計画レビュー 1 周目(P0 5・P1 5)/ 2 周目(P0 5・P1 2・P2 1)/ 3 周目(P0 4・P1 4)の指摘を反映済み。**
 
 ## 1. `R-TXN-ROUTE` 専用パーサ
 
@@ -45,7 +45,8 @@ exact-set 照合 ① 関係全体 = P1..P5 ∪ T1..T9(14) ② 経路が参照す
 
 **`,` split は既存に存在しない**(全 11 関係で `R-TXN-ROUTE` だけ)。新設する。
 
-**この reader が返す 18 組の `(経路, T 要素)` を、3-6 の注入点検査が唯一の出所として使う**(二重定義しない)。
+**この reader が返す「経路 → T 集合」の写像を、3-6 の注入点検査(18 組)と 3-8 の
+`tElementCommitment` が唯一の出所として使う**(二重定義しない)。
 
 ### 1-3. 実測した参照関係(② の根拠)
 
@@ -72,12 +73,12 @@ EXPECTED_IDEMPOTENCY_IDS = 実装済み ∪ 射程外   ← 和集合なので�
 `id: 'DI2' | 'DI3' | 'I2' | 'I3'` に閉じており、`DI1`(照合位置)・`RG1`(復元ゲート)は衝突規則ではない。
 
 ```
-IMPLEMENTED_IDEMPOTENCY_IDS       (D5 衝突規則)      : {DI2,DI3,B3b} / {I2,I3}   ← B3b は 4 章で合流
-IMPLEMENTED_PROCESSING_STAGE_IDS  (処理段階・停止境界): {DI1,DI4,DI5,RG1} / {I1,I4,RG1}
-EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                                      ← 総和は不変
+IMPLEMENTED_IDEMPOTENCY_IDS       (D5 衝突規則)  : {DI2,DI3,B3b} / {I2,I3}
+IMPLEMENTED_PROCESSING_STAGE_IDS  (処理段階)     : {DI1,DI4,RG1} / {I1,I4,RG1}
+EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              ← 総和は不変
 ```
 
-### 2-2. 移動する 7 ID と、残す ID
+### 2-2. 移動する 6 ID と、残す ID
 
 **移動できるのは正本要素に `=` を持つものだけ**。
 
@@ -88,9 +89,9 @@ EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              
 | `I1` | R-P3-BOUNDARY | `③認可後+RG1後+復旧世代照合後+V12前+V11前` | **移動** | 2 |
 | `I4` | R-P3-BOUNDARY | `現復旧世代+V12・V11照合対象` | **移動** | 2 |
 | `RG1` | 両方 | 10 節の共通前段ゲート | **移動** | 3 |
-| `DI5` | R-BOUNDARY | 混在バッチの A5(6 節) | **移動** | 4 |
 | `B3b` | R-BOUNDARY | `先着原本との比較+B3+T9開始なし` | **移動** — **`T9` を開始しない**分岐なので永続化を伴わない | 4 |
-| **`B3a`** | R-BOUNDARY | **`P5+T9`** | **射程外に残す** — 正本の帰結は**不可分な `P5 + T9`**(`:1248`・`:1209`)。外すと機械上は全体が実装済みに見え、**`T9` 未実装を取り落とす**。理由を **TSK-330** 名指しへ | — |
+| **`DI5`** | R-BOUNDARY | 混在バッチの A5(6 節) | **射程外に残す** — 4-5 を参照。**`U-14` の解決が前提**。理由を **TSK-330(`U-14` 依存)** 名指しへ | — |
+| **`B3a`** | R-BOUNDARY | **`P5+T9`** | **射程外に残す** — 帰結が**不可分な `P5 + T9`**(`:1248`・`:1209`)。外すと機械上は全体が実装済みに見える | — |
 | `I5` / `I6` | R-P3-BOUNDARY | 保存・配信 / 端末永続化 | **射程外に残す** | — |
 | `B1`〜`B7` / `変更受理` / `B8`〜`B14` | 両方 | **`=` を持たない** | **移動不可**。別ルートで既に読まれている | — |
 
@@ -105,19 +106,26 @@ EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              
 > `適用経路` が **P5** の JSON は、入力の `P5分岐` に **B3a または B3b** を必須とする。
 > **該当しないフィールドは省略理由を契約内に明示し**、期待値を製品実装から自動生成しない。
 
-したがって後半 4 件も**全 JSON 共通の必須**。「クライアント側は基底 5 件」という例外は正本に無い。
+さらに 10-3 `:1694`:
 
-### 3-2. 集合は無条件・省略可否だけ条件付き
+> 各観測点では、**当該経路に存在する T 要素が全部確定または全部非確定であること**を含め、
+> 期待結果の一部だけを比較面に採らない。
+
+### 3-2. 集合は無条件・省略可否だけ条件付き(期待フィールド 10 件)
 
 | | 現行 | 本タスク後 |
 | --- | --- | --- |
-| 期待フィールドの**集合** | 5 件(無条件) | **9 件(無条件)** |
+| 期待フィールドの**集合** | 5 件(無条件) | **10 件(無条件)** |
 | `omittedBecause` の可否 | 一律禁止(`validateObservations:234-239`) | **`applicationPath` で条件付き** |
 
+10 件 = `queue`・`d1`・`lock`・`acceptanceDisplay`・`reinputAvailability`
++ `prefix`・`idempotentResult`・`temporaryIdMapping`・`recordingRight`
++ **`tElementCommitment`**(3-8)。
+
 ```
-applicationPath 省略(クライアント側) → 後半 4 件は omittedBecause 可
-applicationPath = P1 / P2 / P4 / P5   → 9 件すべて実値必須
-applicationPath = P3                  → 9 件 + 13 件
+applicationPath 省略(クライアント側) → 後半 5 件は omittedBecause 可
+applicationPath = P1 / P2 / P4 / P5   → 10 件すべて実値必須
+applicationPath = P3                  → 10 件 + 13 件
 applicationPath = P5                  → 入力の P5分岐(3-4)
 ```
 
@@ -126,10 +134,10 @@ applicationPath = P5                  → 入力の P5分岐(3-4)
 
 ### 3-3. `schemaVersion` の繰り上げ(2 周目 P0-1)
 
-必須フィールドを 5 → 9 に増やし P5 union を足すので**旧構造は新 validator を通らない = 非後方互換**。
+必須フィールドを 5 → 10 に増やし P5 union を足すので**旧構造は新 validator を通らない = 非後方互換**。
 10-3 `:1689` は「後方互換でない変更では `schemaVersion` も上げる」と要求する。
 
-- **既存 4 資産と新規 9 資産をすべて `schemaVersion: 2`** にする
+- **全資産を `schemaVersion: 2`** にする
 - **validator が「構造」と「`schemaVersion`」の組を照合**する
 - **旧 `schemaVersion` + 新構造 / 新 `schemaVersion` + 旧構造をいずれも red** にする
 
@@ -144,22 +152,23 @@ exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を
 
 **異なる D5・同一内容・既存 D5 の各変異が red** になることを合格条件にする。
 
+**単一の資産では union の片方しか表せない**(3 周目 P0-3)。**`p5-b3a-crash-boundaries` と
+`p5-b3b-unreached-t9` の 2 資産に分割**する。`b3b-after-gap` は外部結果が `B2` なので、
+**直接の `B3b` と `T9` 到達不能の検査を代替しない**。
+
 ### 3-5. 契約検査と結果検査の分離(2 周目 P1-2)
 
 `validateFailureScenarioResult`(`:416-449`)も同じ `validateObservations` を使うため、
-集合を 9 件へ増やすと **5 キーしか返さない既存 runner が必ず red** になる。
-同じ validator を緩めると `P1`〜`P5` の実値必須まで緩む。**両者を分離する**:
+集合を増やすと **既存 runner が必ず red** になる。同じ validator を緩めると実値必須まで緩む。**分離する**:
 
 | | 要求 |
 | --- | --- |
-| **契約(資産 JSON)の検査** | 常に **9 キー**を要求。省略可否は 3-2 の条件付き |
+| **契約(資産 JSON)の検査** | 常に **10 キー**を要求。省略可否は 3-2 の条件付き |
 | **結果(runner 出力)の検査** | **契約が `omittedBecause` としたキーの不在だけ**を許可。実値対象の欠落・省略表現は**拒否** |
 
 合格条件に **「既存 runner が green のまま」と「サーバー経路の欠落が red」の両方**を入れる。
 
 ### 3-6. 注入点の閉じた語彙(1 周目 P1-2)
-
-現行 `faultInjection` の検査はキーと wrapper だけで、**値も組合せも見ていない**。閉じる:
 
 | 語彙 | 出所 |
 | --- | --- |
@@ -170,21 +179,34 @@ exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を
 
 ### 3-7. `_v2` 原子移行(2 周目 P2 で不変条件を是正)
 
-10-3 `:1689`:
+10-3 `:1689` が要求する不変条件は「**旧版参照が存在する間に旧資産を削除しない**」である
+(1 周目の「旧版を参照するテストが存在する瞬間が無い」は誤り — 親コミットには当然存在する)。
 
-> …`N` を上げて別ファイルを作り、**参照するテストがすべて新版へ移るまで旧版を上書きまたは削除しない**
+**同一コミット内で順に**「① 新版 `_v2` を追加 → ② 旧資産を残したまま全参照を移行 → ③ 旧版を削除」。
+親(旧参照 + 旧資産)と子(新参照 + 新資産)の**どちらにも参照切れが無い**。
 
-**満たすべき不変条件は「旧版参照が存在する間に旧資産を削除しない」**である
-(1 周目の説明「旧版を参照するテストが存在する瞬間が無い」は誤り — 親コミットには当然存在する)。
+移行の内容: 後半 5 件を `omittedBecause` で追記 / `comparisonUnit` を 10 件分へ拡張 /
+ファイル名と内部 `version` / **`schemaVersion: 2`** /
+**`failureScenarioContract.spec.ts:72-75` の `_v1` ハードコードを現行版の宣言表へ置き換える**。
 
-**同一コミット内で順に**「① 新版 `_v2` を追加 → ② 旧資産を残したまま全参照を移行 → ③ 旧版を削除」を行う。
-コミット前(親 = 旧参照 + 旧資産)とコミット後(子 = 新参照 + 新資産)の**どちらにも参照切れが無い**。
+### 3-8. `tElementCommitment` — T 要素の全確定/全非確定(3 周目 P0-4)
 
-移行の内容: 後半 4 件を `omittedBecause` で追記 / `comparisonUnit` 25 → 45 /
-ファイル名と内部 `version` / **`schemaVersion: 2`** / **`failureScenarioContract.spec.ts:72-75` の
-`_v1` ハードコードを現行版の宣言表へ置き換える**。
+正本 10-3 `:1694` が比較面に含めることを要求している。**1 周目の計画にはあったが 2 周目の
+書き直しで落としていた退行**である。
 
-## 4. D5 分類の単一実装と正本への是正
+```
+tElementCommitment(期待フィールドの 10 件目)
+  当該観測点で、当該経路に存在する T 要素の確定状態を表す
+  T 集合は 1 章の reader から導出する(資産に列挙させない)
+  値は「全要素 committed」または「全要素 notCommitted」のいずれかでなければならない
+  部分確定(一部だけ committed)は red
+  applicationPath を持たないクライアント側資産では omittedBecause 可(3-2)
+```
+
+これが無いと、**`T2` のイベント保存や `T4` の状態遷移が部分確定しても
+共通フィールドと注入点の組検査だけでは green になり得る**。
+
+## 4. D5 分類の正本 4-5 への是正
 
 ### 4-1. 既存実装が既に持っているもの(1 周目 P0-5)
 
@@ -199,46 +221,36 @@ exact-key と存在検査だけでは、`B3b` に同一内容や異なる D5 を
 > **内容の同一性を判定できない** | **判定不能は異内容として扱い、先着を正として後着を拒否する**
 > (判定不能を「同じ」と見なさない)。**D1 付き経路は B3b、D1 を持たない変更イベントは B13 を返す**
 
-一方、現行実装は例外・`INDETERMINATE` を **`REJECT_LATER`**(`B3b`・`B13` とは**別の第 3 の値**)にしている。
+現行実装は例外・`INDETERMINATE` を **`REJECT_LATER`**(`B3b`・`B13` とは**別の第 3 の値**)にしている。
 **このまま `B3b` を実装済みへ移すと、非正本の結果を封印する。**
 
 **是正**: 判定不能・比較例外を**経路別に `B3b` / `B13`** へ写像する。
-**複数一致による破損状態は別ケースとして明示**し(後着拒否のまま残すか別語彙にするかを実装時に決める)、
-**両経路の変異試験**を追加する。
 
-### 4-3. `batchStopBoundary.ts` の責務(2 周目 P0-3)
+### 4-3. 複数一致の扱いを計画段階で確定する(3 周目 P1-2)
 
-分類結果だけでは A5 を決定できない。`NOT_DUPLICATE` の A5 は**後段**(⑤記録権 → `B4` 退避 /
-⑥連番 → `B2` / ⑦内容 → `B3a`)で受理・拒否・退避に分かれるためである。
+現行 `:172-174` は照合キーが 2 件以上一致した場合も `REJECT_LATER` にしている。
+**正本 4-5 はこのケースを扱っていない**(同じ D5 に 2 つの原本を作らない前提)。
 
-```
-batchStopBoundary.ts の責務 = 「分類済み結果に対する D1 昇順の停止」だけ
+**確定**: **「一意な先着原本が存在しない破損状態」として明示的な内部エラーに固定**し、
+**`B3b` / `B13` へ混ぜない**。境界結果の語彙を汚さないためであり、
+呼び出し元は破損として扱う(正本の境界結果として返さない)。
 
-  入力: イベント列(D1 と decideIdempotencyCollision の分類結果)
-      + 未使用 D5 の後段候補を返す遅延評価のコールバック(注入)
-  処理: D3 + 1 から D1 昇順に走査
-        未使用 D5 に限り後段候補をコールバックで取得
-        最初の B2(gap)または B3 で停止
-        それ以降は「事前分類済み B3b を含め」すべて A5 の「未処理」
-  出力: A5(受理 / 重複 / 拒否 / 退避 / 未処理)の列 + 境界結果
+### 4-4. `DI5` を射程外へ戻す(3 周目 P0-1・P0-2 / 人間の裁定 8)
 
-  D5 の同一性判定・分類は一切持たない
-  gap 以降はコールバックを呼ばない(保証を検査する)
-```
+当初は `batchStopBoundary.ts` を新設して `DI5`(混在バッチの A5)を閉じる計画だったが、
+**A5 は「受理 / 重複 / 拒否 / 退避 / 未処理」という外部境界結果を返す**必要があり、
+そのとき**保存済み退避の再掲を `B1` と `B4` のどちらにするか**を決めねばならない。
+これがまさに **`U-14`(選択規則が無い — `sync-protocol.md:2084`)** である。
 
-コールバック注入は既存の作法と整合する(`compareOriginal` が同じ形で注入されている)。
+| 選択肢 | 判定 |
+| --- | --- |
+| 任意に決める | **不可** — 正本の一方に反する |
+| `U-14` を γ で解決する | 正本改訂 + 確定ゲートが必要。裁定 2・4 と衝突 |
+| **`DI5` を射程外へ戻す** | **採用**(裁定 8)。**`batchStopBoundary.ts` は作らない** |
 
-**機械的な確認**: `batchStopBoundary.ts` が `CONTENT_IDENTITY` の比較や照合キーの構築を
-自前で持たないことを、AST または import グラフで検査する。
+**`DI5` の allow-list の理由を「`U-14` の選択規則が未確定のため。TSK-330(`U-14` 解決後)」へ更新する。**
 
-### 4-4. 正本の受け入れ例(`:760`)
-
-> D3 = 4 で D1 = 5 が欠け、D1 = 6 が未使用 D5、D1 = 7 が既存 D5・異内容なら、
-> 境界結果は **B2**、D1 = 6 と 7 はともに**未処理**であり、**D1 = 7 の B3b は返さない**。
-
-これをテストの正解ベクタにする。
-
-## 5. 2 層の正本ドリフト検査(1 周目 P1-5 / 2 周目 P1-1)
+## 5. 2 層の正本ドリフト検査
 
 ### 5-1. 何を解くか
 
@@ -247,43 +259,46 @@ batchStopBoundary.ts の責務 = 「分類済み結果に対する D1 昇順の�
 
 さらに **`ci.yml:124-128` の `frontend-changes` フィルタは `frontend/**` のみ**で正本を含まないため、
 **検査を Vitest だけに置くと、正本だけを変えた PR では skip される**(2 周目 P1-1)。
-一方 **harness ジョブは「paths filter は付けない」と明記**されている(`ci.yml:88`
-「フィルタ自体が誤ると検査が黙って通り fail-closed に反するため」)。
+一方 **harness ジョブは「paths filter は付けない」と明記**されている(`ci.yml:88`)。
 
-### 5-2. 採る形 — 既存の二層構造に合わせる
+**さらに 3 周目 P1-1**: スナップショットを `scripts/design_relations/` に置くと、
+**正本とスナップショットを同時に変えた PR** で harness は green・**Vitest はフィルタ外で skip** になり、
+**TS 実装だけ旧状態でも検出されない**。
+
+### 5-2. 採る形(人間の裁定 9)
 
 ```
 docs/design/sync-protocol.md 6-2
-   ↓ ① harness(Python・常時実行)  scripts/check_processing_stages.py
-scripts/design_relations/processing-stages.json   ← スナップショット(新規資産)
-   ↓ ② Vitest                      processingStages.spec.ts
+   ↓ ① harness(Python・paths filter なし)  scripts/check_processing_stages.py
+frontend/src/lib/sync/processingStages.snapshot.json   ← スナップショット(frontend 配下)
+   ↓ ② Vitest(frontend/** フィルタで起動)   processingStages.spec.ts
 frontend/src/lib/sync/processingStages.ts
 ```
 
-**`element-coverage`(正本↔マニフェスト)と `canonOracle.spec`(マニフェスト↔TS)と同じ二層構造**であり、
-`ci.yml` も `test_ci_wiring.py` も触らずに済む(どちらも `guard_paths`)。
+**スナップショットを `frontend/` 配下に置く**ことで、同時変更でも**既存の `frontend/**` フィルタが当たり
+Vitest が起動**する。`ci.yml` と `test_ci_wiring.py`(いずれも `guard_paths`)を触らずに穴が閉じる。
+`prohibitions.spec.ts` の走査は `./**/*.ts` のみなので **JSON は影響しない**。
 
 **スナップショットの内容**: D1 付き経路 9 段階の `(段階番号, 何を確かめるか, 境界結果)` と、
 P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
 
-**合格条件**: **正本 6-2 を 1 行変えると ① が red**(常時実行ジョブで確認)/
-**スナップショットを 1 行変えると ② が red**。いずれも**原本のファイルを書き換えず**、
-読み込んだ文字列の複製に対して変異させる。
+**合格条件**: 正本 6-2 を 1 行変えると ① が red / スナップショットを 1 行変えると ② が red /
+**同時に変えても ② が起動する**。いずれも**原本のファイルを書き換えず**、複製に対して変異させる。
 
 ### 5-3. 採らなかった案
 
 | 案 | 却下理由 |
 | --- | --- |
 | 関係マニフェストへ登録 | 正本 2-5 表の改訂 = **確定ゲート**。裁定 2 で見送り |
-| Vitest 1 本で正本を直接読む | **`ci.yml` の frontend フィルタが正本を含まず skip される**(2 周目 P1-1) |
-| `ci.yml` のフィルタに正本を足す | `ci.yml` と `test_ci_wiring.py` はいずれも `guard_paths` で、逐行確認の対象が増える |
-| harness の Python が TypeScript を直接パースする | 既存の検査群はすべて markdown ↔ JSON で、形が異質になる |
+| Vitest 1 本で正本を直接読む | `ci.yml` の frontend フィルタが正本を含まず skip される |
+| スナップショットを `scripts/design_relations/` へ | **同時変更で Vitest が skip され穴が残る**(3 周目 P1-1) |
+| `ci.yml` のフィルタに足す | `ci.yml` と `test_ci_wiring.py` はいずれも `guard_paths` |
+| harness の Python が TypeScript も直接パースする | 既存の検査群はすべて markdown ↔ JSON で、形が異質になる |
 
-## 6. 正本必須資産 ID の母集合と 2 つの繰り延べ表(1 周目 P0-3 / 2 周目 P0-5)
+## 6. 母集合・観点被覆・2 つの繰り延べ表
 
-### 6-1. 母集合 — 10-2 の故障系シナリオ表 + 10-3 が名指しする ID
+### 6-1. 母集合 — 24 の stable scenarioId
 
-**`作成済み ∪ 未作成繰り延べ = 母集合`** を独立した exact-set として定義する。
 scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
 
@@ -293,16 +308,17 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 | フリーズ後の再選出 | `leader-freeze-reelection` | **作成済み**(後続 α) |
 | 待機中の入力非受理 | `waiting-input-not-accepted` | **作成済み**(後続 α) |
 | 永続追記失敗 | `durable-append-failure` | **作成済み**(後続 α) |
-| **墓標の適用** | `tombstone-application` | **γ ステップ 7 で作成** |
-| **改訂の適用** | `revision-application` | **γ ステップ 7 で作成** |
-| **P1** | `p1-crash-boundaries` | **γ ステップ 8 で作成** |
-| **P2** | `p2-crash-boundaries` | **γ ステップ 8 で作成** |
-| **P3** | `p3-crash-boundaries` | **γ ステップ 8 で作成** |
-| **P4** | `p4-crash-boundaries` | **γ ステップ 8 で作成** |
-| **P5** | `p5-crash-boundaries` | **γ ステップ 8 で作成** |
-| **D1 混在バッチ** | `d1-mixed-batch` | **γ ステップ 8 で作成** |
-| **gap より後ろの B3b** | `b3b-after-gap` | **γ ステップ 8 で作成** |
-| P3 の消費側反映後・配信完了記録前(10-3 `:1702` が名指し) | `p3-invalidation-consumed-before-complete` | **繰り延べ → TSK-330** |
+| **墓標の適用** | `tombstone-application` | **γ ステップ 7** |
+| **改訂の適用** | `revision-application` | **γ ステップ 7** |
+| **P1** | `p1-crash-boundaries` | **γ ステップ 8** |
+| **P2** | `p2-crash-boundaries` | **γ ステップ 8** |
+| **P3** | `p3-crash-boundaries` | **γ ステップ 8** |
+| **P4** | `p4-crash-boundaries` | **γ ステップ 8** |
+| **P5(B3a のクラッシュ境界)** | `p5-b3a-crash-boundaries` | **γ ステップ 8** |
+| **P5(B3b と T9 到達不能)** | `p5-b3b-unreached-t9` | **γ ステップ 8** |
+| **D1 混在バッチ** | `d1-mixed-batch` | **γ ステップ 8** |
+| **gap より後ろの B3b** | `b3b-after-gap` | **γ ステップ 8** |
+| P3 の消費側反映後・配信完了記録前(10-3 `:1702`) | `p3-invalidation-consumed-before-complete` | **繰り延べ → TSK-330** |
 | `O4` の永続化済み D2 同値 | `o4-persisted-d2-equivalence` | **繰り延べ → TSK-330** |
 | 復元ライフサイクルの完走 | `restore-fence-escrow-new-generation` | **繰り延べ → TSK-330** |
 | 復元途中のクラッシュ | `restore-crash-before-new-generation` | **繰り延べ → TSK-330** |
@@ -313,27 +329,38 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 | D4 のロールバック後非再利用(過去発行 D4 集合) | `restore-d4-issued-set` | **繰り延べ → TSK-330** |
 | D4 のロールバック後非再利用(連続復元) | `restore-d4-consecutive-rollbacks` | **繰り延べ → TSK-330** |
 
-復元系 8 ID は **10-3 `:1692` が逐語で名指ししたもの**をそのまま使う。
-10-2 の「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」は上記 8 ID のいずれかへ写像する
-(**写像はステップ 7 の exact-set で確定させ、母集合に取りこぼしが無いことを合格条件にする**)。
+**合計 24**(作成済み 4 + γ 10 + 繰り延べ 10)。復元系 8 ID は **10-3 `:1692` が逐語で名指し**したもの。
 
-**繰り延べ行の必須項目**: `scenarioId` / **必要な契約拡張**(復元系なら「過去発行 D4 集合・連続復元回数・
-回収対象端末などの入力フィールド」)/ **受け取り先 = TSK-330**。
+### 6-2. 観点被覆 — ID の存在だけでは足りない(3 周目 P1-3)
 
-### 6-2. runner 繰り延べ(別の表)
+`作成済み ∪ 繰り延べ = scenarioId 母集合` は **ID の存在しか検査しない**。
+「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」などが**どの資産で覆われるかを
+欠落・誤写像しても green** になる。
 
-**runner 未実装**と**未作成資産**は別の事柄なので表を分ける。
+**正本 10-2 の観点行にも stable key を与え、`観点集合 = 各 scenarioId の covers の和集合` を
+exact-set 化する。**
+
+```
+OBSERVATION_KEYS   : 10-2 の故障系シナリオ表の各行 + 10-3 が名指しする項目
+SCENARIO_COVERS    : scenarioId → 覆う観点 key の集合
+主張: OBSERVATION_KEYS = ⋃ SCENARIO_COVERS[*]   (exact-set)
+```
+
+**観点を 1 つ covers から外すと red** にする。復元系の多対多写像(10-2 の 6 行 → 10-3 の 8 ID)は
+**この exact-set で確定させる**。**観点 key の完全な列挙はステップ 7 で正本 10-2 を全行読んで固定する。**
+
+### 6-3. runner 繰り延べ(別の表)
 
 ```
 SCENARIO_RUNNERS のキー集合 ∪ runner 繰り延べ = FAILURE_SCENARIO_IDS
 it.each は runner 繰り延べを除いた集合で回す
 ```
 
-γ が作る 9 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
+γ が作る 10 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
 
-**3 つの exact-set(母集合 / 未作成繰り延べ / runner 繰り延べ)は、どれも 1 件消すと red** にする。
+**4 つの exact-set(母集合 / 観点被覆 / 未作成繰り延べ / runner 繰り延べ)は、どれも 1 件消すと red。**
 
-### 6-3. 新 scenarioId の追加位置
+### 6-4. 新 scenarioId の追加位置
 
 **`FAILURE_SCENARIO_IDS` の末尾に足す。** `failureScenarioAdapter.ts:65-70` の分割代入と
 `failureScenarioAdapter.spec.ts:133/146/159/168` が**位置依存**で、中間挿入は TypeScript が検出しない。
@@ -342,14 +369,17 @@ it.each は runner 繰り延べを除いた集合で回す
 
 | # | 対象 | 場所 | 注意 |
 | --- | --- | --- | --- |
-| 1 | `EXPECTED_PRODUCT_FILE_NAMES` | `prohibitions.spec.ts:112-141` | ソート後比較 |
+| 1 | `EXPECTED_PRODUCT_FILE_NAMES` | `prohibitions.spec.ts:112-141` | ソート後比較。**JSON は走査対象外**(`./**/*.ts` のみ) |
 | 2 | `EXPECTED_VALUE_EXPORTS` | 同 `:143-318` | **値 export の完全集合** |
 | 3 | `EXPECTED_TYPE_EXPORTS` | 同 `:319-536` | **型 export が 0 件でも `[]` エントリが必須** |
-| 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規 3 モジュール + 各 spec = 6 パス** |
-| 5 | **`.claude/core-areas.json` の `guard_paths`** | — | **スナップショット `processing-stages.json`・`check_processing_stages.py`・`test_check_processing_stages.py` の 3 パス**(既存の検査器・マニフェストが `guard_paths` にある作法に合わせる) |
+| 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規 2 モジュール + 各 spec + スナップショット JSON = 5 パス** |
+| 5 | **`.claude/core-areas.json` の `guard_paths`** | — | **`check_processing_stages.py`・`test_check_processing_stages.py` の 2 パス**(既存の検査器が `guard_paths` にある作法に合わせる) |
 | 6 | **`tests/test_core_guard.py`** | 期待値 | 4・5 と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる** |
 
 `tests/fixtures/sync-protocol-failures/**` は**グロブ**なので資産 JSON の追加では 4〜6 は不要。
+
+**台帳(`harness-evaluation.md`)と索引(`docs/README.md`)は `/pr` のクローズ処理で更新する**
+(pr スキル手順 1-3)。**クローズ処理はステップ表の外側**にあるため実装ステップには置かない。
 
 ## 未解決・検討メモ
 
@@ -357,7 +387,7 @@ it.each は runner 繰り延べを除いた集合で回す
   解消できるならステップ 2 で解消するが、射程を広げないため必須にはしない
 - **`faultInjection` を実行器が一切読んでいない**。3-6 で語彙と組合せを閉じても、
   **γ の射程では資産に書けるだけで実測されない**。実測は **TSK-330** の責務
-- **複数一致(照合キーが 2 件以上ヒット)による破損状態**を、4-2 の是正で `B3b` に含めるか
-  別語彙で残すかは実装時に決める。**正本 4-5 はこのケースを明示していない**
-- 10-2 の「復元調整中の全変更経路」「RG1 解除と新 D4 の境界」から復元系 8 ID への写像は
-  **ステップ 7 の exact-set で確定**させる
+- **観点 key の完全な列挙はステップ 7 で確定**する。本書は写像の**機構**(6-2 の exact-set)を定め、
+  列挙そのものは正本 10-2 を全行読んで固定する
+- **`DI5` を射程外へ戻したことで、混在バッチの A5 停止境界は γ で一切固定されない**。
+  `d1-mixed-batch` と `b3b-after-gap` の**資産は作る**が、**規則の実装と実行検証は TSK-330**(`U-14` 解決後)
