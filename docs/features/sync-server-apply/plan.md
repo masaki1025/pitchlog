@@ -1,7 +1,7 @@
 ---
 feature: sync-server-apply
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。ラッパーの implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— ラッパーが「済」でないと実行を拒否する
+承認: 済(2026-09-07・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— ラッパーが「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d293b75e687816a8c45e921b998da75
