@@ -5,6 +5,7 @@ import { EVENT_KIND_RULES, EVENT_PARTICIPATION } from './eventKinds'
 import { IDEMPOTENCY_COLLISION_RULES } from './idempotencyCollision'
 import { V12_BOUNDARY_RULES } from './requestBoundary'
 import { TEMPORARY_ID_MAPPING_RULES } from './temporaryIdMapping'
+import { PROCESSING_STAGE_RULES } from './processingStages'
 import {
   CANON_ACK_STATE_RESULT,
   CANON_IDEMPOTENCY_OUT_OF_SCOPE,
@@ -21,6 +22,7 @@ import {
   readCanonIdempotencyCollisionRules,
   readCanonP3BoundaryResults,
   readCanonParticipationRules,
+  readCanonProcessingStageRules,
   readCanonQueueLifeRules,
   readCanonTemporaryIdMappingRules,
   readCanonTombstoneRule,
@@ -31,6 +33,7 @@ import {
   type CanonEventKindRule,
   type CanonIdempotencyCollisionRule,
   type CanonP3BoundaryResult,
+  type CanonProcessingStageRule,
   type CanonTemporaryIdMappingRule,
   type CanonTxnRouteRule,
   type CanonV12BoundaryRule,
@@ -58,6 +61,13 @@ type ComparableV12BoundaryRule = {
 }
 
 type ComparableIdempotencyCollisionRule = {
+  id: string
+  rightHandSide: string
+}
+
+type ComparableProcessingStageRule = {
+  purpose: string
+  relationId: string
   id: string
   rightHandSide: string
 }
@@ -166,6 +176,24 @@ function expectIdempotencyRulesToMatchCanon(
   expect(new Map(rules.map((rule) => [rule.id, rule.rightHandSide]))).toEqual(
     new Map(canonRules.map((rule) => [rule.id, rule.rightHandSide])),
   )
+}
+
+function expectProcessingStageRulesToMatchCanon(
+  rules: readonly ComparableProcessingStageRule[],
+  canonRules: readonly CanonProcessingStageRule[],
+): void {
+  const toRuleMap = (source: readonly ComparableProcessingStageRule[]) =>
+    new Map(
+      source.map((rule) => [
+        `${rule.relationId}:${rule.id}`,
+        {
+          purpose: rule.purpose,
+          rightHandSide: rule.rightHandSide,
+        },
+      ]),
+    )
+
+  expect(toRuleMap(rules)).toEqual(toRuleMap(canonRules))
 }
 
 function expectTemporaryIdMappingRulesToMatchCanon(
@@ -517,6 +545,81 @@ describe('canonOracle', () => {
     expectIdempotencyRulesToMatchCanon(
       IDEMPOTENCY_COLLISION_RULES,
       reversedCanonRules,
+    )
+  })
+
+  it('DI1・DI4・I1・I4 の右辺を処理段階の製品表と逐語照合する', () => {
+    const reversedCanonRules = [...readCanonProcessingStageRules()].reverse()
+
+    expectProcessingStageRulesToMatchCanon(
+      PROCESSING_STAGE_RULES,
+      reversedCanonRules,
+    )
+  })
+
+  it('処理段階へ移した4 ID の右辺変更を逐語照合で検出する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const sourceElements = mutatedRelations['R-BOUNDARY'].source_elements
+    const targetId = 'DI1'
+    const targetIndex = sourceElements.findIndex((element) =>
+      element.startsWith(`${targetId}:`),
+    )
+
+    expect(targetIndex).toBeGreaterThanOrEqual(0)
+    sourceElements[targetIndex] = sourceElements[targetIndex]!.replace(
+      '③認可後',
+      '③認可前',
+    )
+    expect(() =>
+      expectProcessingStageRulesToMatchCanon(
+        PROCESSING_STAGE_RULES,
+        readCanonProcessingStageRules(mutatedRelations),
+      ),
+    ).toThrow()
+  })
+
+  it('実装済みと射程外の総和を正本の ID 集合と一致させる', () => {
+    const implementedRules = [
+      ...readCanonIdempotencyCollisionRules(),
+      ...readCanonProcessingStageRules(),
+    ]
+
+    for (const relationId of ['R-BOUNDARY', 'R-P3-BOUNDARY'] as const) {
+      const sourceIds = syncProtocolRelations[relationId].source_elements.map(
+        (element) => {
+          const separatorIndex = element.indexOf(':')
+          return separatorIndex < 0 ? element : element.slice(0, separatorIndex)
+        },
+      )
+      const implementedIds = implementedRules
+        .filter((rule) => Object.is(rule.relationId, relationId))
+        .map((rule) => rule.id)
+      const outOfScopeIds = CANON_IDEMPOTENCY_OUT_OF_SCOPE[relationId].map(
+        (element) => element.id,
+      )
+
+      expect(new Set([...implementedIds, ...outOfScopeIds])).toEqual(
+        new Set(sourceIds),
+      )
+    }
+  })
+
+  it('移動対象だけを射程外から除き P3 受理結果を先頭に保つ', () => {
+    const d1OutOfScopeIds = new Set<string>(
+      CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-BOUNDARY'].map((element) => element.id),
+    )
+    const p3OutOfScopeIds = new Set<string>(
+      CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'].map(
+        (element) => element.id,
+      ),
+    )
+
+    expect(d1OutOfScopeIds.has('DI1')).toBe(false)
+    expect(d1OutOfScopeIds.has('DI4')).toBe(false)
+    expect(p3OutOfScopeIds.has('I1')).toBe(false)
+    expect(p3OutOfScopeIds.has('I4')).toBe(false)
+    expect(CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'][0]?.id).toBe(
+      '変更受理',
     )
   })
 
