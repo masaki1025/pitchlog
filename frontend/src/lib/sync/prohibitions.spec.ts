@@ -132,6 +132,7 @@ const EXPECTED_PRODUCT_FILE_NAMES = [
   'receptionInput.ts',
   'rejectionReason.ts',
   'resendRange.ts',
+  'restoreAdjustmentGate.ts',
   'requestBoundary.ts',
   'singleWriter.ts',
   'syncEvent.ts',
@@ -301,6 +302,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'parseB3Rejection',
   ],
   'resendRange.ts': ['determineResendRange'],
+  'restoreAdjustmentGate.ts': [
+    'RESTORE_ADJUSTMENT_BOUNDARY_RESULTS',
+    'RESTORE_ADJUSTMENT_GATE_POSITION',
+    'RESTORE_ADJUSTMENT_GATE_RULE',
+    'checkRestoreAdjustmentGate',
+  ],
   'syncEvent.ts': [
     'SYNC_EVENT_ENVELOPE_KEYS',
     'TARGET_EVENT_REFERENCE_ELEMENTS',
@@ -520,6 +527,15 @@ const EXPECTED_TYPE_EXPORTS = {
     'ResendD3Checkpoint',
     'ResendRangeRequest',
     'ResendRangeResult',
+  ],
+  'restoreAdjustmentGate.ts': [
+    'RestoreAdjustmentGatePosition',
+    'RestoreAdjustmentGateRequest',
+    'RestoreAdjustmentGateResult',
+    'RestoreAdjustmentGateRule',
+    'RestoreAdjustmentPath',
+    'RestoreAdjustmentPhase',
+    'RestoreAdjustmentState',
   ],
   'syncEvent.ts': [
     'SidecarJoinKey',

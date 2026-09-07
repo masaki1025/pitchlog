@@ -549,7 +549,12 @@ describe('canonOracle', () => {
   })
 
   it('DI1・DI4・I1・I4 の右辺を処理段階の製品表と逐語照合する', () => {
-    const reversedCanonRules = [...readCanonProcessingStageRules()].reverse()
+    const productRuleKeys = new Set(
+      PROCESSING_STAGE_RULES.map((rule) => `${rule.relationId}:${rule.id}`),
+    )
+    const reversedCanonRules = readCanonProcessingStageRules()
+      .filter((rule) => productRuleKeys.has(`${rule.relationId}:${rule.id}`))
+      .reverse()
 
     expectProcessingStageRulesToMatchCanon(
       PROCESSING_STAGE_RULES,
@@ -573,7 +578,9 @@ describe('canonOracle', () => {
     expect(() =>
       expectProcessingStageRulesToMatchCanon(
         PROCESSING_STAGE_RULES,
-        readCanonProcessingStageRules(mutatedRelations),
+        readCanonProcessingStageRules(mutatedRelations).filter(
+          (rule) => !Object.is(rule.id, 'RG1'),
+        ),
       ),
     ).toThrow()
   })
@@ -604,7 +611,7 @@ describe('canonOracle', () => {
     }
   })
 
-  it('移動対象だけを射程外から除き P3 受理結果を先頭に保つ', () => {
+  it('処理段階対象を射程外から除き P3 受理結果を先頭に保つ', () => {
     const d1OutOfScopeIds = new Set<string>(
       CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-BOUNDARY'].map((element) => element.id),
     )
@@ -618,6 +625,8 @@ describe('canonOracle', () => {
     expect(d1OutOfScopeIds.has('DI4')).toBe(false)
     expect(p3OutOfScopeIds.has('I1')).toBe(false)
     expect(p3OutOfScopeIds.has('I4')).toBe(false)
+    expect(d1OutOfScopeIds.has('RG1')).toBe(false)
+    expect(p3OutOfScopeIds.has('RG1')).toBe(false)
     expect(CANON_IDEMPOTENCY_OUT_OF_SCOPE['R-P3-BOUNDARY'][0]?.id).toBe(
       '変更受理',
     )

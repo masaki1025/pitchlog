@@ -493,7 +493,6 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B3a', reason: '未使用 D5 の P5・T9 処理に依存するため' },
     { id: 'B3b', reason: 'B3 の処理段階は本ステップの射程外であるため' },
     { id: 'DI5', reason: '混在バッチと A5 の停止境界に依存するため' },
-    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
   ],
   [P3_BOUNDARY_RELATION_ID]: [
     { id: '変更受理', reason: 'P3 の完全な境界結果集合に属するため' },
@@ -506,7 +505,6 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B14', reason: 'P3 の完全な境界結果集合に属するため' },
     { id: 'I5', reason: '無効化意図の保存・配信処理に依存するため' },
     { id: 'I6', reason: 'P3 受理結果の端末保持処理に依存するため' },
-    { id: 'RG1', reason: '復元調整中の共通処理段階に依存するため' },
   ],
 } as const satisfies Readonly<
   Record<IdempotencyRelationId, readonly OutOfScopeId[]>
@@ -521,8 +519,8 @@ const IMPLEMENTED_IDEMPOTENCY_IDS = {
 } as const
 
 const IMPLEMENTED_PROCESSING_STAGE_IDS = {
-  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI1', 'DI4']),
-  [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I1', 'I4']),
+  [D1_BOUNDARY_RELATION_ID]: new Set<string>(['DI1', 'DI4', 'RG1']),
+  [P3_BOUNDARY_RELATION_ID]: new Set<string>(['I1', 'I4', 'RG1']),
 } as const
 
 const OUT_OF_SCOPE_IDEMPOTENCY_IDS = {

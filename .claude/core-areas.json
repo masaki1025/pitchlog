@@ -73,6 +73,8 @@
         "frontend/src/lib/sync/processingStages.spec.ts",
         "frontend/src/lib/sync/processingStages.snapshot.json",
         "frontend/src/lib/sync/processingStages.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.ts",
         "frontend/src/lib/sync/prohibitions.spec.ts",
         "frontend/src/lib/sync/queueState.spec.ts",
         "frontend/src/lib/sync/queueState.ts",
@@ -163,6 +165,8 @@
         "frontend/src/lib/sync/processingStages.spec.ts",
         "frontend/src/lib/sync/processingStages.snapshot.json",
         "frontend/src/lib/sync/processingStages.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.ts",
         "frontend/src/lib/sync/queueState.spec.ts",
         "frontend/src/lib/sync/queueState.ts",
         "frontend/src/lib/sync/queueTransition.spec.ts",
@@ -201,7 +205,9 @@
         "frontend/src/lib/sync/idempotencyCollision.spec.ts",
         "frontend/src/lib/sync/processingStages.spec.ts",
         "frontend/src/lib/sync/processingStages.snapshot.json",
-        "frontend/src/lib/sync/processingStages.ts"
+        "frontend/src/lib/sync/processingStages.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
+        "frontend/src/lib/sync/restoreAdjustmentGate.ts"
       ]
     },
     {
