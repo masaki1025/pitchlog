@@ -133,7 +133,7 @@ EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              
 
 ### 3-2. 集合は無条件・省略可否だけ条件付き(期待フィールド 10 件)
 
-| | 現行 | 本タスク後 |
+| | 現行 | TSK-332 の完了後 |
 | --- | --- | --- |
 | 期待フィールドの**集合** | 5 件(無条件) | **10 件(無条件)** |
 | `omittedBecause` の可否 | 一律禁止(`validateObservations:234-239`) | **`applicationPath` で条件付き** |
@@ -218,7 +218,7 @@ TSK-330 で資産構造から作り直しになる。
   主張: ⋃(作成済み ∪ 未作成繰り延べ) = 3 点                          (exact-set)
 ```
 
-**γ が作る資産での 18 組の分担**: `p1-crash-boundaries` が P1 の 5 組、`p2-…` が P2 の 6 組、
+**TSK-332 が作る資産での 18 組の分担**: `p1-crash-boundaries` が P1 の 5 組、`p2-…` が P2 の 6 組、
 `p3-…` が P3 の 5 組、`p4-…` が P4 の 1 組、`p5-b3a-…` が P5 の 1 組 = **18 組を γ で覆い切る**。
 `p5-b3b-unreached-t9` は **`T9` に到達しない**分岐なので**トランザクション内 case を宣言しない**(空集合)。
 
@@ -283,9 +283,21 @@ TSK-330 で資産構造から作り直しになる。
 現行 `:172-174` は照合キーが 2 件以上一致した場合も `REJECT_LATER` にしている。
 **正本 4-5 はこのケースを扱っていない**(同じ D5 に 2 つの原本を作らない前提)。
 
-**確定**: **「一意な先着原本が存在しない破損状態」として明示的な内部エラーに固定**し、
-**`B3b` / `B13` へ混ぜない**。境界結果の語彙を汚さないためであり、
-呼び出し元は破損として扱う(正本の境界結果として返さない)。
+**確定**: **「一意な先着原本が存在しない破損状態」として専用例外の送出へ一意化する**
+(例: `IdempotencyCollisionCorruptionError`)。
+
+**なぜ「`B3b`/`B13` へ混ぜない」だけでは足りないか**(6 周目 P1-2): **現行実装は既に `REJECT_LATER` を
+返しており、それは `B3b` でも `B13` でもない**。したがって「混ざらないことの検査」は
+**コードを 1 行も変えなくても green** になり、是正が実効化しない。
+
+| | 要求 |
+| --- | --- |
+| **表現** | **`IdempotencyDecisionResult` の値としては表現できなくする**(`REJECT_LATER` を返さない) |
+| **検査** | 照合キーが 2 件以上一致したとき**当該例外が送出されること**を厳密に検査する。**現行実装では red になる** |
+| **副次** | **複数一致時に内容同一性の判定器(`compareOriginal`)が呼ばれないこと**も固定する |
+
+**波及範囲**: 現時点で `decideIdempotencyCollision` を呼ぶ**製品コードは存在しない**。
+影響は同 spec と `prohibitions.spec.ts` の export / type exact-set に限られる。
 
 ### 4-4. `DI5` を射程外へ戻す(3 周目 P0-1・P0-2 / 人間の裁定 8)
 
@@ -351,7 +363,7 @@ P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
 
 > **⚠️ 本章は TSK-321 の射程外**。[TSK-332](https://app.notion.com/p/3d493b75e687816eb9fbd19dda889d5e) への申し送りであり、**5 周目の未反映指摘 4 件**(冒頭の表を参照)が残っている。
 
-### 6-1. 母集合 — 24 の stable scenarioId
+### 6-1. 母集合 — 26 の stable scenarioId
 
 scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
@@ -362,16 +374,16 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 | フリーズ後の再選出 | `leader-freeze-reelection` | **作成済み**(後続 α) |
 | 待機中の入力非受理 | `waiting-input-not-accepted` | **作成済み**(後続 α) |
 | 永続追記失敗 | `durable-append-failure` | **作成済み**(後続 α) |
-| **墓標の適用** | `tombstone-application` | **γ ステップ 7** |
-| **改訂の適用** | `revision-application` | **γ ステップ 7** |
-| **P1** | `p1-crash-boundaries` | **γ ステップ 8** |
-| **P2** | `p2-crash-boundaries` | **γ ステップ 8** |
-| **P3** | `p3-crash-boundaries` | **γ ステップ 8** |
-| **P4** | `p4-crash-boundaries` | **γ ステップ 8** |
-| **P5(B3a のクラッシュ境界)** | `p5-b3a-crash-boundaries` | **γ ステップ 8** |
-| **P5(B3b と T9 到達不能)** | `p5-b3b-unreached-t9` | **γ ステップ 8** |
-| **D1 混在バッチ** | `d1-mixed-batch` | **γ ステップ 8** |
-| **gap より後ろの B3b** | `b3b-after-gap` | **γ ステップ 8** |
+| **墓標の適用** | `tombstone-application` | **TSK-332 で作成(第 1 群)** |
+| **改訂の適用** | `revision-application` | **TSK-332 で作成(第 1 群)** |
+| **P1** | `p1-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
+| **P2** | `p2-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
+| **P3** | `p3-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
+| **P4** | `p4-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
+| **P5(B3a のクラッシュ境界)** | `p5-b3a-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
+| **P5(B3b と T9 到達不能)** | `p5-b3b-unreached-t9` | **TSK-332 で作成(第 2 群)** |
+| **D1 混在バッチ** | `d1-mixed-batch` | **TSK-332 で作成(第 2 群)** |
+| **gap より後ろの B3b** | `b3b-after-gap` | **TSK-332 で作成(第 2 群)** |
 | P3 の消費側反映後・配信完了記録前(10-3 `:1702`) | `p3-invalidation-consumed-before-complete` | **繰り延べ → TSK-330** |
 | `O4` の永続化済み D2 同値 | `o4-persisted-d2-equivalence` | **繰り延べ → TSK-330** |
 | 復元ライフサイクルの完走 | `restore-fence-escrow-new-generation` | **繰り延べ → TSK-330** |
@@ -455,7 +467,7 @@ it.each は runner 繰り延べを除いた集合で回す
 ```
 
 **和集合だけだと両方への重複登録を許す**ため、**交差が空であること**も要求する。
-γ が作る 10 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
+TSK-332 が作る 10 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
 
 ### 6-4. exact-set の一覧(6 本)
 
@@ -482,9 +494,10 @@ it.each は runner 繰り延べを除いた集合で回す
 | 1 | `EXPECTED_PRODUCT_FILE_NAMES` | `prohibitions.spec.ts:112-141` | ソート後比較。**JSON は走査対象外**(`./**/*.ts` のみ) |
 | 2 | `EXPECTED_VALUE_EXPORTS` | 同 `:143-318` | **値 export の完全集合** |
 | 3 | `EXPECTED_TYPE_EXPORTS` | 同 `:319-536` | **型 export が 0 件でも `[]` エントリが必須** |
-| 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規 2 モジュール + 各 spec + スナップショット JSON = 5 パス** |
+| 4 | **`.claude/core-areas.json` の `paths`** | `sync-protocol` | **製品と spec を個別に列挙**するのが現行の作法。**新規ファイルは 5 件**(2 モジュール + 各 spec + スナップショット JSON) |
+| 4a | **同 `paths` の重複帰属**(6 周目 P2-1) | `tenant-isolation` / `recording-rights` | `sync-protocol` だけだとコアレビューは発火するが**機械可読 paths 上の帰属が漏れる**。**`processingStages.ts`・`.spec.ts`・`.snapshot.json` は `tenant-isolation`**(段階順序「③認可 < ④D5」が `FR-034`・`NFR-010` の存在秘匿の根拠)**と `recording-rights`**(段階⑤の記録権照合)へ、**`restoreAdjustmentGate.ts`・`.spec.ts` は `recording-rights`**(解除と新 D4 開始の不可分性)へも登録する |
 | 5 | **`.claude/core-areas.json` の `guard_paths`** | — | **`check_processing_stages.py`・`test_check_processing_stages.py` の 2 パス**(既存の検査器が `guard_paths` にある作法に合わせる) |
-| 6 | **`tests/test_core_guard.py`** | 期待値 | 4・5 と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる** |
+| 6 | **`tests/test_core_guard.py`** | **各 area の期待集合** | 4・4a・5 と一致させる。**両方を同時に更新しないと green のまま逐行確認の対象から外れる**。**重複帰属も area ごとに追随**させる |
 
 `tests/fixtures/sync-protocol-failures/**` は**グロブ**なので資産 JSON の追加では 4〜6 は不要。
 
@@ -502,7 +515,7 @@ it.each は runner 繰り延べを除いた集合で回す
   解消できるならステップ 2 で解消するが、射程を広げないため必須にはしない
 - **`faultInjection` を実行器が一切読んでいない**。3-6 で語彙と組合せを閉じても、
   **γ の射程では資産に書けるだけで実測されない**。実測は **TSK-330** の責務
-- **観点 key の完全な列挙はステップ 7 で確定**する。本書は写像の**機構**(6-2 の exact-set)を定め、
+- **観点 key の完全な列挙は TSK-332 の計画で確定**する。本書は写像の**機構**(6-2 の exact-set)を定め、
   列挙そのものは正本 10-2 を全行読んで固定する
 - **`DI5` を射程外へ戻したことで、混在バッチの A5 停止境界は γ で一切固定されない**。
   `d1-mixed-batch` と `b3b-after-gap` の**資産は作る**が、**規則の実装と実行検証は TSK-330**(`U-14` 解決後)
