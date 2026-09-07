@@ -1,6 +1,6 @@
 ---
 feature: legacy-column-mapping
-status: active            # active | in-review(/pr が PR 内で更新。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-08・山田正輝)  # codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # データ移行(設計書 6.3 境界定義表)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
