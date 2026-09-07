@@ -389,7 +389,9 @@ frontend/src/lib/sync/processingStages.ts
 
 ### 残っているもの(すべて人間の作業)
 
-1. **人間の逐行確認**(コア領域 4 領域該当・**PR 作成者以外**)。CI が `- [x]` を機械検査する
+1. **人間の逐行確認**(**PR 作成者以外**)。`/pr` で base 側 `core-areas.json` へ機械突合した結果は
+   **コア領域 5 領域**(`sync-protocol` 5 件・`game-state` 3 件・`recording-rights` 2 件・
+   `tenant-isolation` 2 件・`data-migration` 1 件)**+ トップレベル `guard_paths` 2 件**。CI が `- [x]` を機械検査する
 2. **実施記録行の記入**(`対象= 範囲= 方法=`)
 3. **マージ**
 
