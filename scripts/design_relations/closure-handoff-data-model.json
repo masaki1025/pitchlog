@@ -1,0 +1,953 @@
+{
+ "_note": "本ファイルは TSK-342(データモデル設計の正本化)が TSK-250 へ渡す closure 契約である。TSK-250 のステップ 15 が defects-data-model.json の resolved / closure_evidence へ取り込む。欠陥 ID の定義そのものはリポジトリに存在せず(T250P にあるのは群の件数と所有だけ)、TSK-250 のステップ 4 がベースライン 78 件を作る。したがって本ファイルの subject は「TSK-342 が何を是正したか」の記述であり、TSK-250 は自身のベースラインと突合したうえで取り込む。",
+ "schema_version": "1.0",
+ "source_task": "TSK-342",
+ "destination_task": "TSK-250",
+ "canon": "docs/design/data-model.md",
+ "canon_status_at_handoff": "draft(確定ゲート前)",
+ "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+ "counts": {
+  "defects": 52,
+  "waiting": 8,
+  "not_owned": 4,
+  "rulings": 10
+ },
+ "rulings": [
+  {
+   "id": "A-1",
+   "subject": "`game_lineup_snapshot` の受け皿を作るか",
+   "decision": "作る",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "12-3"
+  },
+  {
+   "id": "A-2",
+   "subject": "越境テスト再実行ゲートの所有者",
+   "decision": "定義は TSK-342・実行は TSK-344",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "12-4・12-8"
+  },
+  {
+   "id": "A-3",
+   "subject": "移行バッチの書き込み経路",
+   "decision": "専用ロールへ `BYPASSRLS`",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "3-2"
+  },
+  {
+   "id": "A-4",
+   "subject": "`NFR-018` (b)③ が ORM の実行時 SQL 生成に及ぶか",
+   "decision": "及ばない",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "12-6"
+  },
+  {
+   "id": "A-5",
+   "subject": "再参加時の付与の扱い",
+   "decision": "既定(すべて非共有)から始める",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "9-2・12-6"
+  },
+  {
+   "id": "A-6",
+   "subject": "カルテ所見の世代上限超過分",
+   "decision": "残して保持対象外(復元候補から外す)",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "10-1・12-6"
+  },
+  {
+   "id": "A-7",
+   "subject": "移行の取り込みバッチの識別子",
+   "decision": "持つ",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "10-6・12-3・12-6"
+  },
+  {
+   "id": "A-8",
+   "subject": "非表示の復元可否",
+   "decision": "復元できる",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "11-1・12-6"
+  },
+  {
+   "id": "A-9",
+   "subject": "移行由来で未検証のプレイ行の区別",
+   "decision": "プレイ行に表せる列を持つ",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "12-3・12-6"
+  },
+  {
+   "id": "A-10",
+   "subject": "個人アカウント化の余地",
+   "decision": "認証情報を別表にする",
+   "decided_by": "山田正輝",
+   "decided_on": "2026-09-08",
+   "reflected_in": "8-2・12-6"
+  }
+ ],
+ "old_step_16_split": {
+  "_note": "T250P の宿題 1(旧ステップ 16 の ID 単位の内訳)への回答。基準 = 主題が「復旧世代」「RG1」「I6」のいずれかなら TSK-250、それ以外は TSK-342。",
+  "TSK-342": [
+   "C07",
+   "C15",
+   "C16",
+   "M11",
+   "M12",
+   "M13"
+  ],
+  "TSK-250": [
+   "M14",
+   "M16",
+   "M19"
+  ]
+ },
+ "defects": [
+  {
+   "id": "C01",
+   "subject": "`D1` の役割を同期の順序・欠落・undo に限る",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "4-3・5-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C02",
+   "subject": "`D2`(論理順序)を独立した識別子として置く",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "4-3・5-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C03",
+   "subject": "`D2` の物理表現を整数の間隔(gap)方式で確定する",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C04",
+   "subject": "出場区間の境界を `D2` で持つ(`D1` を使わない)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-2・6-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C05",
+   "subject": "再計算の起点を `D2` にする(`D1` を使わない)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-2・6-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C06",
+   "subject": "確定済み記録の訂正の正を変更イベント #10〜#12 にし、墓標・改訂を流用しない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "4-2・5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 5",
+    "commit_step": 5
+   }
+  },
+  {
+   "id": "C07",
+   "subject": "退避原本を操作イベント表と別の表に置く",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "C08",
+   "subject": "移行でも `D1` と `D2` を別の列で持つ",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "C09",
+   "subject": "`D5` の一意範囲を `(テナント, D5)` にする(試合・世代を跨ぐ)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "3-4・5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "C10",
+   "subject": "`D1` の連続性を新規割り当てに限り、DB 側で欠落を強制しない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "C11",
+   "subject": "適用水位 `D3` の粒度と用途の限定",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "C12",
+   "subject": "履歴文脈と必須値の NULL 性の規律(`V12` を行に保存しない)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "4-4・5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "C14",
+   "subject": "楽観ロック(`V11` と対象側の確定版)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "C15",
+   "subject": "端末キュー状態 4 種のサーバー側対応物(鏡像列を作らない)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "C16",
+   "subject": "管理関数クラスから退避の取り込みを分離する",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "8-2-B",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "M01",
+   "subject": "`D1` 列と `(試合, D4, D1)` の部分一意",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M02",
+   "subject": "`D2` 列(型・NULL 性・一意制約を置かないこと)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M03",
+   "subject": "`D2` に不変前提の索引を張らない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3・11-3 の原則 8",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M04",
+   "subject": "`D4` 列",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M05",
+   "subject": "`P1`〜`P5` と `T1`〜`T9` の対応と書き込み先",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "M06",
+   "subject": "削除の 4 系統と #11 の訂正を同じ機構にまとめない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3・11-1",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 5",
+    "commit_step": 5
+   }
+  },
+  {
+   "id": "M07",
+   "subject": "`V10` の複合参照列",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M08",
+   "subject": "`V11` と対象側の確定版列",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M09",
+   "subject": "`T4` の所在(サーバー側にキュー状態を作らない)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "M10",
+   "subject": "拒否原本を受理済み行と混ぜない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "M11",
+   "subject": "退避原本の列・キー・FK・由来 2 系統",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "M12",
+   "subject": "退避の閲覧・書き出しの経路(原本のまま・ページング)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "M13",
+   "subject": "退避の保持期間の器",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "M15",
+   "subject": "世代・引き継ぎ・フェンスの永続化",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4・6-1",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "M17",
+   "subject": "一時 ID → 正式 ID の写像",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "M18",
+   "subject": "保存済み結果の再掲",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "M20",
+   "subject": "クラッシュ注入点が定義できる配置",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "B01",
+   "subject": "発火条件を同期プロトコル設計 8-5 の参照にとどめる",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "B02",
+   "subject": "物理的な無効化先(5 区分 × 鍵の構成)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "B03",
+   "subject": "無効化意図表と意図 ID の決定的な導出",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "B04",
+   "subject": "配信状態と未配信の絞り込み",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "B05",
+   "subject": "事前集計を持たない場合の無効化契約",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-01",
+   "subject": "再参加時の付与の扱い(裁定 `A-5`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "9-2・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-02",
+   "subject": "カルテ所見の世代上限超過分(裁定 `A-6`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "10-1・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-03",
+   "subject": "移行の取り込みバッチの識別子(裁定 `A-7`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "10-6・12-3・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-04",
+   "subject": "非表示の復元可否(裁定 `A-8`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-1・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-05",
+   "subject": "移行由来で未検証のプレイ行の区別(裁定 `A-9`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-3・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-06",
+   "subject": "個人アカウント化の余地(裁定 `A-10`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "8-2・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "RQ-07",
+   "subject": "`game_lineup_snapshot` の保全先(裁定 `A-1`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-3・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 3",
+    "commit_step": 3
+   }
+  },
+  {
+   "id": "RQ-08",
+   "subject": "移行バッチの書き込み経路(裁定 `A-3`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "3-2・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 3",
+    "commit_step": 3
+   }
+  },
+  {
+   "id": "RQ-09",
+   "subject": "`NFR-018` (b)③ の適用範囲(裁定 `A-4`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-01",
+   "subject": "`P-01` 88 列を物理スキーマにしない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-1・12-2・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-02",
+   "subject": "`P-03` SQLite 併用・別 DB にしない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "12-4・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-03",
+   "subject": "`P-04` Supabase 固有機能に依存しない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "3-1・3-2・12-4・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-04",
+   "subject": "`P-10` プレイ 0 件エンティティを物理削除しない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-1・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-05",
+   "subject": "`P-11` TTL・アーカイブ削除を既定にしない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-1・6-4 の直後・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "SP-06",
+   "subject": "`P-22` `team_id` 分離を後付け前提にしない",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "3-1・3-4・12-6",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  }
+ ],
+ "waiting": [
+  {
+   "id": "WAIT-01",
+   "subject": "`D3` の物理表現(保持場所・型・後退禁止の機構)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 7",
+    "commit_step": 7
+   }
+  },
+  {
+   "id": "WAIT-02",
+   "subject": "退避イベントの永続化",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "WAIT-03",
+   "subject": "`D2` の数値型(`bigint`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 6",
+    "commit_step": 6
+   }
+  },
+  {
+   "id": "WAIT-04",
+   "subject": "退避の保持期間の**構造側のみ**(値は TSK-345)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "6-4 の直後",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 9",
+    "commit_step": 9
+   }
+  },
+  {
+   "id": "WAIT-05",
+   "subject": "`D1` と `D2` の用途分離の伝播(`U-7`)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "4-3・5-2・6-2・6-3・12-3",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 4",
+    "commit_step": 4
+   }
+  },
+  {
+   "id": "WAIT-06",
+   "subject": "クラッシュ注入点が定義できる配置(`U-8` 構造側)",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  },
+  {
+   "id": "WAIT-07",
+   "subject": "無効化マトリクスの正本化",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "11-2",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 10",
+    "commit_step": 10
+   }
+  },
+  {
+   "id": "WAIT-08",
+   "subject": "9-2 境界表 17 行の永続化写像",
+   "owner": "TSK-342",
+   "resolved": true,
+   "closure_evidence": {
+    "canon": "docs/design/data-model.md",
+    "sections": "5-4",
+    "worklog": "docs/worklog/2026-09-08-data-model-schema-orm.md",
+    "worklog_step": "ステップ 8",
+    "commit_step": 8
+   }
+  }
+ ],
+ "not_owned": [
+  {
+   "id": "C13",
+   "subject": "`D4` の非再利用・世代の永続化写像",
+   "owner": "TSK-250",
+   "resolved": false,
+   "reason": "裁定 `R-6` — TSK-250 の新ステップ 10",
+   "absent_from_canon": true
+  },
+  {
+   "id": "M14",
+   "subject": "`RG1` 中の「`D5` を消費せず何も保存しない」の永続化表現",
+   "owner": "TSK-250",
+   "resolved": false,
+   "reason": "裁定 `R-6` — 主題が `RG1`",
+   "absent_from_canon": true
+  },
+  {
+   "id": "M16",
+   "subject": "`I6`(`P3` 受理結果の端末保持 5 要素)の回収・退避",
+   "owner": "TSK-250",
+   "resolved": false,
+   "reason": "裁定 `R-6` — 主題が `I6`",
+   "absent_from_canon": true
+  },
+  {
+   "id": "M19",
+   "subject": "現復旧世代の照合の永続化接続",
+   "owner": "TSK-250",
+   "resolved": false,
+   "reason": "裁定 `R-6` — 主題が復旧世代",
+   "absent_from_canon": true
+  }
+ ],
+ "handoff_tasks": [
+  {
+   "task": "TSK-343",
+   "receives": "`models` / `migration` / 依存追加 / 設計書 5.1・10.1 の改訂"
+  },
+  {
+   "task": "TSK-344",
+   "receives": "越境テスト再実行ゲートの実行(実スキーマ適用後)"
+  },
+  {
+   "task": "TSK-345",
+   "receives": "`WAIT-04` の退避イベントの保持期間の要件改訂(`U-3`)"
+  },
+  {
+   "task": "TSK-317",
+   "receives": "RLS ポリシー・ロール DDL の実機確定と越境テストの作成"
+  },
+  {
+   "task": "TSK-250",
+   "receives": "`C13` / `M14` / `M16` / `M19` と `P-01`〜`P-60` の台帳の置き場"
+  }
+ ]
+}
