@@ -613,6 +613,30 @@ crosswalk を受け取らないと契約を作れない)」。→ `T250P` 18 →
 | `[手動・外部]` | TSK-317 入力行が成果 ID と digest 参照を持ち、新番号で特定されている | **新ステップ 13**(判定者: 山田正輝) |
 | `[手動・外部]` | 裁定 `R-3` の結果が開始条件の記述と一致し、統制の空白の扱いが記録されている | **上記のとおり** |
 
+## `/check` の結果(既存 green の維持確認・2026-09-08)
+
+**本タスクはコード変更 0 行**(`backend/` `frontend/` `scripts/` `tests/` を 1 ファイルも触らない)。
+**着手前と同じ結果**であることを確認した。
+
+| 層 | チェック | 結果 |
+| --- | --- | --- |
+| harness | `ruff check .` | **All checks passed**(`tests/test_core_guard.py:811` の implicit string concatenation 警告は既存) |
+| harness | `ty check` | **All checks passed** |
+| harness | `pytest tests/` | **1138 passed**(289s) |
+| backend | `ruff format --check .` | **10 files already formatted** |
+| backend | `ruff check .` | **All checks passed** |
+| backend | `ty check` | **All checks passed** |
+| backend | `pytest` | **11 passed / 3 errors** — `tests/db/test_database_environment.py` の 3 件。**`PITCHLOG_TEST_ADMIN_DSN` / `PITCHLOG_TEST_ROLE_DSN` 未設定の環境要因で fail-closed に落ちる既知事象**(CI では `services: postgres` と両 DSN が渡るため実行される)。**着手前の実測と同一**(前セッションの `/check` も `11 passed, 3 errors`) |
+| frontend | `prettier --check .` | **All matched files use Prettier code style** |
+| frontend | `eslint .` | green |
+| frontend | `vue-tsc --noEmit` | green |
+| frontend | `pnpm test --run` | **35 files / 664 tests passed** |
+
+| 文書検査 | 結果 |
+| --- | --- |
+| `check_docs_status.py` | **rc=0** |
+| `check_plan_docs_sync.py --plan <本書> --base origin/develop` | **rc=0** |
+
 ## 未決・次の一歩
 
 - **人間の承認を待っている**(`承認: 未`)。承認後、ステップ 1 から Claude が直接編集で進める
