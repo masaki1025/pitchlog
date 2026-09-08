@@ -1,7 +1,7 @@
 ---
 feature: data-model-canonical
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 初回承認 2026-08-31 → 2026-09-04 再承認(A の申し送り 24 項目の反映・契約 5 の文言変更・ステップ 26 → 28)。**2026-09-08 に TSK-335 の射程改訂のため「未」へ戻した**(改訂中に旧承認日の「済」を残さない — TSK-335 計画レビュー 3 周目 `#8`)。改訂完了後に新しい日付・承認者で「済」へ
+承認: 未                  # 初回承認 2026-08-31 → 2026-09-04 再承認(A の申し送り 24 項目の反映・契約 5 の文言変更・ステップ 17 → 28)。**2026-09-08 に TSK-335 の射程改訂のため「未」へ戻した**(改訂中に旧承認日の「済」を残さない — TSK-335 計画レビュー 3 周目 `#8`)。改訂完了後に新しい日付・承認者で「済」へ
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3c593b75e6878152b3edd6cf4f26b30b
@@ -72,7 +72,7 @@ created: 2026-08-30
 | 合成サンプル | `tests/fixtures/profile-sample/`(**`profiles/data-model-like.json` が全 22 ID を有効化したデータモデル型の雛形** — 本タスクのプロファイルはこれを実文書向けに写す) |
 
 **本改訂は A の申し送り 24 項目だけを反映したものであり、計画全体の再レビューではない**(2026-09-04)。
-**射程が変わった**(契約 5 の文言・ステップ 26 → 28)ため `承認` をいったん `未` へ戻し、
+**射程が変わった**(契約 5 の文言・ステップ 17 → 28)ため `承認` をいったん `未` へ戻し、
 **2026-09-04 に人間の再承認を得た**(山田正輝 — A の design 11 節ヘッダ「**TSK-250 は着手前に再レビューが必要**」・本書 4 節 確定ゲート手順 8 が要求する承認)。
 
 ### 先行タスク A との受け渡し契約(**本タスクが依存する最小集合**)
@@ -87,7 +87,7 @@ created: 2026-08-30
 3. **fail-closed 条件**。**充足**(申し送り 6 — 未対応の不変条件種別 / 未知の ID / プロファイル欠落 に加え、
    **解決できない節 / 脱落トークン / レジストリ不一致 / 完全分割違反 / 必須検査の資産・抽出器・集合宣言の欠落 / 正規化衝突 / 重複 JSON キー / 抽出器が 1 件も構造を得られない / pins 不一致・必須 pin の欠落** も終了コード 2)
 4. **汎用コンフォーマンスランナーとサンプルプロファイル** — A は**実プロファイルに依存しない**形で契約テストを持つ。
-   **充足**(`scripts/check_doc_profiles.py` + `tests/fixtures/profile-sample/`)。**実プロファイルを使う契約テストは本タスクのステップ 4** で足す
+   **充足**(`scripts/check_doc_profiles.py` + `tests/fixtures/profile-sample/`)。**実プロファイルを使う契約テストは本タスクのステップ 3** で足す
 5. **(改訂 — PO 裁定 (b)・2026-09-04)** **A は 4 検査 + 集合一致 + `unique-owner` の機構(評価器・構造抽出器・集合一致・資産ローダー・pins)を提供し、
    合成サンプルで全 22 ID が動くことを保証する。データモデル正本に対する実入力契約(資産形状・必須抽出器・集合宣言・pin 対象と実値)は
    本タスクが自分の計画で固定し、機械保証の主張は本タスク側の受け入れ条件(5 節)に置く。**
@@ -99,7 +99,7 @@ created: 2026-08-30
    - **`WAIT` / `AUTH` / `FORB` の交差検査** — `cross-consistency`
 
 **「D1〜D9 の定義と参照の区別」は本タスク側の不変条件設定で表現する**(`forbidden-element` で
-定義文の型を禁止する)。**ステップ 8 は「DSL の設定」に限定**し、**エンジンの変更が必要と判明したら停止する**
+定義文の型を禁止する)。**ステップ 7 は「DSL の設定」に限定**し、**エンジンの変更が必要と判明したら停止する**
 (`scripts/check_*.py`・`scripts/doc_check_*.py` は本タスクの変更対象外 — 3 節)。
 **「A へ戻す」経路**(申し送り 9): A はマージ済みのため差し戻し先が無い。**Notion の TSK-269 へコメントを残し、
 新規タスクを起票**して、そのマージを本タスクの再開条件に加える(TSK-269 を再開しない)。
@@ -108,29 +108,29 @@ created: 2026-08-30
 
 | # | 申し送り | 本書の反映先 |
 | --- | --- | --- |
-| 1 | CI は引数なし列挙 | 4 節 検証コマンド集合 5・6 / **ステップ 24**(「明示引数」を撤回) |
-| 2 | 設計書 10.1・`test_ci_wiring.py` は A が触らない | 3 節 / **ステップ 24** |
+| 1 | CI は引数なし列挙 | 4 節 検証コマンド集合 5・6 / **ステップ 16**(「明示引数」を撤回) |
+| 2 | 設計書 10.1・`test_ci_wiring.py` は A が触らない | 3 節 / **ステップ 16** |
 | 3 | `guard_paths` 登録(B 集合) | **ステップ 1(最初の独立コミット・新設)** |
-| 4 | 台帳 H-78・H-79 | 3 節 / **ステップ 27** |
+| 4 | 台帳 H-78・H-79 | 3 節 / **ステップ 18** |
 | 5 | プロファイル・レジストリの実パス | 3 節(`profiles/data-model.json`・`profiles/registry.json` の entry 追加) |
-| 6 | fail-closed の条件 | 1 節 契約 3 / **ステップ 4** |
-| 7 | `verify_handoff_digest.py` はランナーに載せない | 3 節(**専用スクリプトとして新設**)/ 4 節 コマンド 9 / **ステップ 6** |
-| 8 | `assets` の宣言形式 | 3 節 / **ステップ 4・6・7** |
-| 9 | 「A へ戻す」経路 | 1 節(上記)/ **ステップ 8** |
-| 10 | 欠陥台帳・宣言資産の項目 | 3 節(immutable / mutable の確定)/ **ステップ 5** |
-| 11 | 完全分割と `must_require` | 3 節(registry entry)/ **ステップ 4** |
-| 12 | ランナー契約と全検査 0 の時期 | **ステップ 3**(終了 1 の診断)/ **ステップ 23**(終了 0) |
-| 13 | `absent-section` | **ステップ 5**(`DM-MT-01`: 候補案 13 節の不在) |
-| 14 | 作成順と staging の木 | **ステップ 3(新設)** / **ステップ 24**(本番移設 + 登録を同一コミット) |
-| 15 | `auth_ddl_map` / `product_ddl_map` / `direct_requirements` / `expected_ids` | 3 節(**独立資産 4 本を新設**)/ **ステップ 5・6・19** |
+| 6 | fail-closed の条件 | 1 節 契約 3 / **ステップ 3** |
+| 7 | `verify_handoff_digest.py` はランナーに載せない | 3 節(**専用スクリプトとして新設**)/ 4 節 コマンド 9 / **ステップ 5** |
+| 8 | `assets` の宣言形式 | 3 節 / **ステップ 3・5・6** |
+| 9 | 「A へ戻す」経路 | 1 節(上記)/ **ステップ 7** |
+| 10 | 欠陥台帳・宣言資産の項目 | 3 節(immutable / mutable の確定)/ **ステップ 4** |
+| 11 | 完全分割と `must_require` | 3 節(registry entry)/ **ステップ 3** |
+| 12 | ランナー契約と全検査 0 の時期 | **ステップ 2**(終了 1 の診断)/ **ステップ 15**(終了 0) |
+| 13 | `absent-section` | **ステップ 4**(`DM-MT-01`: 候補案 13 節の不在) |
+| 14 | 作成順と staging の木 | **ステップ 2(新設)** / **ステップ 16**(本番移設 + 登録を同一コミット) |
+| 15 | `auth_ddl_map` / `product_ddl_map` / `direct_requirements` / `expected_ids` | 3 節(**独立資産 4 本を新設**)/ **ステップ 4・5・13** |
 | 16 | 計画書の改訂点 | 本表のとおり全件反映(`auth_target` は本書に記述が無く、削除対象なし) |
-| 17 | 契約の種別名 | **ステップ 4**(`invariant_kinds` に 5 種別名を書ける) |
+| 17 | 契約の種別名 | **ステップ 3**(`invariant_kinds` に 5 種別名を書ける) |
 | 18 | 変異テストの方針 | 6 節 テスト計画 |
-| 19 | `structure_extractors` | **ステップ 4**(遷移表・列役割表・暗黙関係) |
-| 20 | `collection_sets` | **ステップ 7**(claims の `relation` 行 = manifest) |
-| 21 | レジストリ entry の `must_require` + `pins` | 3 節 / **ステップ 4** / 4 節「pins の更新規律」 |
-| 22 | claims の分類 `direct_requirement` | **採る** — 3 節(4 分類)/ **ステップ 6** |
-| 23 | `product_ddl_map` の二段階射影 | 4 節 台帳間の交差検査 / **ステップ 19** |
+| 19 | `structure_extractors` | **ステップ 3**(遷移表・列役割表・暗黙関係) |
+| 20 | `collection_sets` | **ステップ 6**(claims の `relation` 行 = manifest) |
+| 21 | レジストリ entry の `must_require` + `pins` | 3 節 / **ステップ 3** / 4 節「pins の更新規律」 |
+| 22 | claims の分類 `direct_requirement` | **採る** — 3 節(4 分類)/ **ステップ 5** |
+| 23 | `product_ddl_map` の二段階射影 | 4 節 台帳間の交差検査 / **ステップ 13** |
 | 24 | 契約 5 の文言変更 | 1 節 契約 5(上記)/ 5 節 DoD |
 
 ## 2. スコープ
@@ -194,7 +194,7 @@ created: 2026-08-30
 | **16 のうち「退避原本・端末キュー状態 4 種・保持期間の器・`C16` の管理関数クラス分離・`WAIT-02`・`WAIT-04`」** | 同上 | **TSK-342** | `R-1` |
 | **16 のうち「復旧世代・`RG1`・`I6` の永続化写像」** | 記録権世代の物理化 | **本タスクに残す** | `R-6`(同上) |
 | **25** | 設計書 5.1(ORM = SQLAlchemy 2.x / psycopg 3 / Alembic) | **TSK-342** | `R-2`・`R-5`(折衷形を維持し、TSK-342 の確定ゲートで扱う) |
-| **24**(**分割しない**) | staging の木の本番移設 + `profiles/registry.json` の `data-model` entry + `tests/test_ci_wiring.py` の docs-lint 系 + 設計書 10.1 の **`docs-lint` 行** | **本タスクに残す** | `R-8`。**ステップ 24 が触る 10.1 は `docs-lint` 行**であり ORM 条項ではない |
+| **24**(**分割しない**) | staging の木の本番移設 + `profiles/registry.json` の `data-model` entry + `tests/test_ci_wiring.py` の docs-lint 系 + 設計書 10.1 の **`docs-lint` 行** | **本タスクに残す** | `R-8`。**ステップ 16 が触る 10.1 は `docs-lint` 行**であり ORM 条項ではない |
 | **26 のうち「`contracts/legacy-columns/` 資産の `data-migration.paths` 登録」** | 同 `paths` | **[TSK-339](https://app.notion.com/p/3d493b75e6878160abe1c3564bfcca8c)** | `R-8`(**TSK-339 の射程はこの範囲だけ**) |
 | **26 の残り**(既存 4 領域へ本正本を追加 / `guard_paths` へ新資産の全パスを完全列挙 / 実設定を読む回帰テスト)**・27**(台帳更新) | `.claude/core-areas.json` / `docs/development/harness-evaluation.md` | **本タスクに残す** | `R-8` |
 | **3〜10・21・23・28** | 文書検査機構・帰属表・意味照合台帳・検証手順 | **本タスクに残す** | 文書の内部整合の装置 |
@@ -224,10 +224,10 @@ TSK-339 が器(`contracts/legacy-columns/` の JSON・schema・lock・検査器)
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| **`docs/design/data-model.md`** | **新設**(`0.1`・`draft` → `in-review` → `approved`)。候補案 1〜12 節を素材に移送し、**同期 ID → 物理写像の表**・**表間参照宣言表**・**`AUTH-*` 対応表**・**要件帰属表**・**意味照合台帳**を新設。**候補案 13 節は移送しない**(`absent-section` で機械保証 — ステップ 5) | **finalize-doc**(7.3。**新設**) |
+| **`docs/design/data-model.md`** | **新設**(`0.1`・`draft` → `in-review` → `approved`)。候補案 1〜12 節を素材に移送し、**同期 ID → 物理写像の表**・**表間参照宣言表**・**`AUTH-*` 対応表**・**要件帰属表**・**意味照合台帳**を新設。**候補案 13 節は移送しない**(`absent-section` で機械保証 — ステップ 4) | **finalize-doc**(7.3。**新設**) |
 | **`docs/development/dev-harness-design-2026-08-07.md`** | **5.1 の追随** — Alembic 行の留保を解除し、**ORM = SQLAlchemy 2.x**・**ドライバ = psycopg 3** の行を新設。**10.1 の `docs-lint` 行を現行化**(「伝播突合 12 検査(引数なし)」→ **レジストリ列挙**で同期 12 / データモデル 18、`check_doc_coverage.py` は同期 2 / データモデル 4 — 申し送り 2)。**版は上げない**が、**5.1 の差分を `/finalize-doc` の敵対レビュー対象に含める** | **finalize-doc**(差分のみ。版は上げない) |
 | **`docs/README.md`**(索引) | 設計正本の行を新設(`draft` → `approved`)。設計書の最終更新日を現行化 | PR レビュー |
-| **`.claude/core-areas.json`** | **① A の新資産 33 件を `guard_paths` へ完全列挙で追加(ステップ 1)** ② `data-migration` の `paths` を充填 + 既存 4 領域へ本正本を追加 ③ **本タスクの新資産を `guard_paths` へ完全列挙で追加**(ステップ 26) | PR レビュー(+ 6.3 規則⑤は本ゲートで充足) |
+| **`.claude/core-areas.json`** | **① A の新資産 33 件を `guard_paths` へ完全列挙で追加(ステップ 1)** ② `data-migration` の `paths` を充填 + 既存 4 領域へ本正本を追加 ③ **本タスクの新資産を `guard_paths` へ完全列挙で追加**(ステップ 17) | PR レビュー(+ 6.3 規則⑤は本ゲートで充足) |
 | **`scripts/design_relations/profiles/data-model.json`**(新設) | **文書プロファイル**(A のスキーマ版 1。識別・資産・文法・宣言表・語彙・帰属・名前空間〔`all` = `machine` = `["DM"]`〕・`invariant_kinds`・**`required_checks` = 全 22 / `not_applicable` = {}**・`assets`・**`structure_extractors`**・**`collection_sets`**・`direct_requirements`・`reference_policy`)。**雛形は `tests/fixtures/profile-sample/profiles/data-model-like.json`** | PR レビュー(テストを伴う) |
 | **`scripts/design_relations/profiles/registry.json`**(**変更**・既登録) | **`data-model` entry を追加** — `name` / `file` / `document` / **`must_require` = 全 22**(申し送り 11)/ **`pins`**(`profile_gating_digest`・`invariants_digest`・`asset_digests`)。**プロファイル・宣言資産・oracle 資産の変更は必ずこの entry の差分を伴う**(申し送り 21) | PR レビュー + 人間の逐行確認 |
 | **`scripts/design_relations/invariants/data-model.json`**(新設) | **宣言資産**(`schema_version` / `structural_required` / `legacy_structural`〔= `[]`〕/ `required_declarations` / `declarations` / `global_invariants`〔`unique-owner`〕)。**A の design 2-2 節の結合規則 1〜6 を満たす**(申し送り 10) | PR レビュー(テストを伴う) |
@@ -241,13 +241,13 @@ TSK-339 が器(`contracts/legacy-columns/` の JSON・schema・lock・検査器)
 | **`scripts/design_relations/direct-requirements-data-model.json`**(**新設** — 申し送り 15) | **データモデル直接要件の ID 集合**(非空・全 ID が `req-universe.json` に存在)。**`claims` の `direct_requirement` 分類と exact-set**。`attribution-direct` の oracle であり、**`pins.asset_digests.direct_requirements` で固定する** | PR レビュー + 人間の逐行確認 |
 | **`scripts/design_relations/auth-ddl-map-data-model.json`**(**新設** — 申し送り 15) | **AUTH カタログ entry → DDL 要素 ID + 構造**の写像。`entries[*].{catalog_entry_id, ddl_ids[*], structures[*]}`。ID 集合 = `auth_catalog` と exact-set / `ddl_ids` 非空 / **`structures` は entry ごとに非空・`participants ⊆ ddl_ids`・全 entry の和 = `ddl_elements` 導出構造と exact** | PR レビュー + 人間の逐行確認 |
 | **`scripts/design_relations/product-ddl-map-data-model.json`**(**新設・条件付き** — 申し送り 15・23) | **probe 要素 ID → 製品要素 ID** の写像。**`contracts/authz/ddl-elements.json` の `scope.product_schema` が `false`(2026-09-04 時点は `candidate_probe_only`)である限り必須**。domain = `auth_ddl_map` が参照する全 ID(`refs` ∪ `structures` の `source`/`target`/`participants`)と exact-set。未写像・余分・曖昧(1 対多)は終了 2 | PR レビュー + 人間の逐行確認 |
-| **`scripts/design_relations/citation-map-data-model.json`**(新設) | **旧参照 → 新安定 ID の対応表**(ステップ 22 の置換を覆い、置換前後の規範の同一性判定を行ごとに記録する) | PR レビュー(テストを伴う) |
+| **`scripts/design_relations/citation-map-data-model.json`**(新設) | **旧参照 → 新安定 ID の対応表**(**TSK-342 の旧ステップ 22** の置換を覆い、置換前後の規範の同一性判定を行ごとに記録する。**本資産は TSK-342 の射程**) | **TSK-342 が持つ**(裁定 `R-1`) |
 | **`scripts/design_relations/handoff-digest-data-model.json`**(新設) | **先行タスク B・C の受け渡し資産のパスと digest**(写像時点の値。最終検証で再照合する) | PR レビュー(テストを伴う) |
 | **`scripts/verify_handoff_digest.py`**(**新設** — 申し送り 7) | **受け渡し digest の再照合器**。**A のコンフォーマンスランナーには載せない**(ランナーは単一プロファイルの検証器)。本タスクの専用スクリプトとして置き、`guard_paths` へ加える | PR レビュー(テストを伴う) |
 | **`tests/fixtures/data-model-source.txt`**(新設) | 退行 fixture(本文のバイト単位のコピー。**拡張子は `.txt`**) | PR レビュー |
 | **`scripts/design_relations/fixture-sha256-data-model.txt`**(新設) | **ソース fixture 専用の SHA-256**(欠陥台帳用の `baseline-digest-data-model.txt` とは別資産 — 用途が違うので代用しない) | PR レビュー |
 | **`tests/fixtures/data-model-negative/` 配下の 10 ファイル**(新設) | 負例。**`guard_paths` は完全一致集合でディレクトリ登録では配下の変更が発火しない**(`scripts/core_guard.py`)ため、**個別ファイル名で固定する**: `01-relation-missing.json` / `02-claim-missing.json` / `03-all-out-of-scope.json` / `04-forbidden-alias.json` / `05-wait-resolved-by-forbidden.json` / `06-baseline-digest-tampered.json` / `07-auth-uses-forbidden-direction.json`(4 周目 P1-2)/ **`08-auth-ddl-map-structure-missing.json`** / **`09-product-ddl-map-domain-gap.json`** / **`10-direct-requirements-claims-mismatch.json`**(申し送り 15・22・23) | PR レビュー(テストを伴う) |
-| **`scripts/design_relations/staging/data-model/`**(**一時物** — 申し送り 14) | ステップ 3 で作りステップ 24 で本番へ移設して削除する。**`guard_paths` へは登録しない**(最終パスをステップ 26 で登録する) | PR レビュー |
+| **`scripts/design_relations/staging/data-model/`**(**一時物** — 申し送り 14) | ステップ 2 で作りステップ 16 で本番へ移設して削除する。**`guard_paths` へは登録しない**(最終パスをステップ 17 で登録する) | PR レビュー |
 | **CI ワークフロー** | **`ci.yml` は無変更**(docs-lint の 3 step。**引数なし = 本番レジストリ列挙**)。`tests/test_ci_wiring.py` を**登録の事実**に合わせて更新する | PR レビュー(テストを伴う) |
 | **`docs/development/harness-evaluation.md`**(台帳) | H-12 の事象欄を現況へ。**H-78・H-79 に本タスクの実績を追記**(A の申し送り処理と統制の空白の解消を含む — 申し送り 4)。**`H-*` の新規採番はしない** | PR レビュー |
 | `docs/requirements/**` / `docs/adr/**` / `contracts/` / `backend/` / `scripts/check_*.py` / `scripts/doc_check_*.py` | **反映なし**(要件改訂・ADR・ベクタ・実装・検査エンジンはいずれも別タスクの射程) | — |
@@ -312,7 +312,7 @@ TSK-339 が器(`contracts/legacy-columns/` の JSON・schema・lock・検査器)
 
 ### 検証コマンド集合(**計画で事前固定する** — 2 周目 P1-13 を採用 / 申し送り 1・7)
 
-ステップ 28 が収録するのは**次の集合と exact-set 一致**でなければ失格とする:
+ステップ 19 が収録するのは**次の集合と exact-set 一致**でなければ失格とする:
 
 1. `uv run ruff check .`
 2. `uv run ty check`
@@ -338,42 +338,98 @@ A のマージで引数なし列挙が正になったため、暫定パスの置
 **開始条件**: 先行タスク A・B・C が**完了**していること(A は充足 — PR #42 / `fdda374`。**B は TSK-270 の第 1 群だけがマージ済みで、
 [TSK-317](https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2) の完了を要する** — 5 節)。
 **文書の是正ステップでは fixture と digest を変更しない。**
-**ステップ 4 以降、プロファイル・宣言資産・oracle 資産を触るステップは `pins` を同一コミットで更新する。**
+**ステップ 3 以降、プロファイル・宣言資産・oracle 資産を触るステップは `pins` を同一コミットで更新する。**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **A の新資産の `guard_paths` 登録**(**最初の独立コミット** — 申し送り 3)— `.claude/core-areas.json` の `guard_paths` へ、**TSK-269 が新設した B 集合の未登録 33 パスを完全列挙で追加**する(`scripts/design_relations/{profiles/registry.json, profiles/sync-protocol.json, invariants/sync-protocol.json}`・`schemas/` 5 本・`scripts/doc_check_profile.py`・**`scripts/doc_check_invariants.py`**・`scripts/check_doc_profiles.py`・`tests/fixtures/profile-sample/` 19 本・`tests/fixtures/structural-reasons-expected.json`・`tests/test_doc_check_profile.py`・`tests/test_check_doc_profiles.py`)。**`.claude/scripts/codex_run.py` / `tests/test_codex_run.py`(C 集合)は対象外**(2 節) | **`fdda374` の差分のうち `docs/` 以外の全ファイルが `guard_paths` に包含されている**(実 diff から導出した集合と突合。**A の design 3 節 B 表は 38 件だが `scripts/doc_check_invariants.py` が漏れているため、表ではなく実 diff を正とする**)/ **各パスの変更で `core_guard.py` が発火することを実設定から確認するテストがある** / `uv run pytest tests/` green / **本ステップの差分は `.claude/core-areas.json` と `tests/test_core_guard.py` のみ** |
-| 2 | **素材の移送・索引・fixture の固定** — `docs/design/data-model.md` を新設し候補案 1〜12 節を移送(**変更は相対リンクの解決のみ**)+ frontmatter 3 行・変更履歴表(`0.1`/`draft`)。**同一コミットで** 索引 1 行 + fixture と SHA-256 | `check_docs_status.py` green / **相対リンクの参照先がすべて実在** / **相対リンク以外の本文が候補案と一致**(diff)/ **13 節が存在しない** / **fixture が本文とバイト一致し SHA-256 が一致** |
-| 3 | **staging の木の原子的作成**(**新設** — 申し送り 14・12)— **ステップ 2 の直後**に `scripts/design_relations/staging/data-model/` へ `profiles/{registry.json,data-model.json}`・`doc/{manifest,defects,invariants}.json`・`assets/`(10 資産)を、**全必須資産の構造的に妥当な骨格つきで 1 コミットに**作る。`document` / `requirements` / `universe` は本番パスを参照する | **`check_doc_profiles.py --registry <staging>/profiles/registry.json --profile <staging>/profiles/data-model.json --json` が終了 2 にならない**(= スキーマ・レジストリ・完全分割・`must_require`・`pins`・必須資産の宣言がすべて成立)/ **終了 1・`partial: false` で 22 件の診断が返る** / **`staging/.../profiles/` にレジストリとプロファイル以外を置いていない** / **本番レジストリは無変更**(CI green) |
-| 4 | **文書プロファイルの確定** — staging の `data-model.json` を実仕様へ確定する: 識別・資産・文法・宣言表節・帰属表節・台帳節・帰属区分の語彙・**`defect_id_namespaces` = `{all: ["DM"], machine: ["DM"]}`**・`invariant_kinds`(**契約の 5 種別名も書ける** — 申し送り 17)・**`required_checks` = 全 22 / `not_applicable` = {}**(申し送り 11)・**`assets`**(申し送り 8 — `path` / `identity` / `collections` / `join` / `namespace` / `structure` / `normalize`)・**`structure_extractors`**(申し送り 19 — 関係・遷移表・列役割表・暗黙関係)・**`collection_sets`**(申し送り 20)・`direct_requirements`・`reference_policy`。**レジストリ entry の `must_require` = 全 22 と `pins` を同時に確定** | **staging レジストリでローダーを通る**(スキーマ版一致・`profiles/` 実ファイル完全一致・`pins` 一致)/ **`required_checks ∪ not_applicable` = 22・積は空・`required_checks ⊇ must_require`** / **未対応の不変条件種別・未知フィールド・pins 不一致・必須検査の資産/抽出器/集合宣言の欠落がいずれも終了 2 になる**(fail-closed の確認 — 申し送り 6)/ **`structure_extractors` が `forbidden` の全 `kind` を覆う** / **実プロファイルを使う契約テストがある**(契約 4) |
-| 5 | **欠陥台帳のベースライン固定** — `defects-data-model.json` に **78 件**を全 ID 明記で固定し、**immutable / mutable を 3 節の項目どおりに分け**、`baseline-digest-data-model.txt` と `expected-ids-data-model.json` を作る。**`invariants/data-model.json` に `global_invariants`(`unique-owner`)と `DM-MT-01`(`absent-section: "13"`)を置く**(申し送り 10・13・15) | **78 件すべてに必須フィールド(機械欠陥は `check` と `invariant` を持つ)** / **群別件数と ID 集合が 4 節の表と一致**(exact-set)/ **全 ID がちょうど 1 回・`owner_steps_allowed` の範囲に割り当て**(`unique-owner`)/ **immutable 各フィールド(`baseline` 反転を含む)の改変で red・mutable 改変で green**(`baseline-digest`)/ **候補案 13 節を復活させると `absent-section` が red** / **負例 `06-baseline-digest-tampered.json` で red** |
-| 6 | **入力主張母集合・独立資産・受け渡し digest の固定** — `claims-data-model.json` に、**同期正本 11-2 の行・要件のデータモデル直接条項・候補案の関係主張・B の DDL 要素表・C の 88 列写像の和集合**を**安定 ID + 共通正規化 ID 付き**で固定し、全行を **`relation` / `forbidden` / `direct_requirement` / `out-of-scope`(理由・受取先)** へ排他分類する(申し送り 22)。**同一コミットで `direct-requirements-data-model.json`・`auth-ddl-map-data-model.json`・(probe-only なら)`product-ddl-map-data-model.json`・`handoff-digest-data-model.json` を作り、`scripts/verify_handoff_digest.py` を新設する**(申し送り 7・15) | **全行に出典の安定 ID と共通正規化 ID がある**(**該当なしは明示的な空集合 + 理由**)/ **B・C の資産の全行が母集合に現れる**(exact-set。**digest 照合つき**)/ **未分類・二重分類が 0 件** / **`direct_requirements` が非空で `claims` の `direct_requirement` と exact**(`collection-consistency`)/ **`auth_ddl_map` の ID 集合 = `auth_catalog`・`structures` 非空・`participants ⊆ ddl_ids`** / **`verify_handoff_digest.py` が B・C の全資産を覆い green** / **負例 `02`・`03`・`08`・`09`・`10` で red** / **本ステップで本文を変更していない** |
-| 7 | **受け取り台帳・禁止構造台帳・関係マニフェスト** — `waiting-data-model.json`(`WAIT-01`〜`08`)/ `forbidden-data-model.json`(`FORB-01`〜`04`)/ `data-model.json`(**母集合の `relation` 行の exact-set**)を固定し、**`collection_sets` に `claims-relations-vs-manifest`(exact)を宣言する**(申し送り 20) | **`WAIT-01`〜`08` が同期正本の該当箇所と 1 対 1**(逐行照合し結果を worklog へ)/ **`FORB-*` が `{kind, source, target, direction, participants}` の構造として表現され、別名の負例で red**(別名は単一の `normalize.aliases` のみが供給源)/ **マニフェストが `relation` 行の exact-set でなければ red** / **禁止関係を母集合へ混入させた負例で red** |
-| 8 | **交差検査の設定** — 4 節の 3 条件(`WAIT` → 存在 / `AUTH` → 二段階射影で存在 / `WAIT`・`AUTH` ∩ `FORB` = ∅)を **A の DSL・`structure_extractors`・`collection_sets` の設定として**表現し、衝突の負例 fixture を置く。**エンジンの変更が必要と判明したら停止し、Notion の TSK-269 へコメント + 新規タスク起票**(申し送り 9。本ステップで `scripts/check_*.py` / `scripts/doc_check_*.py` を変更しない) | `uv run pytest tests/` green / **3 条件それぞれに正常系と衝突負例がある** / **正規化 ID の付け方が本書とマニフェストで一致** / **本ステップの差分に `scripts/check_*.py` / `scripts/doc_check_*.py` が含まれていない**(含める必要が生じた時点で停止) |
-| 9 | **表間参照宣言表** — 本書へ宣言表を置き、マニフェストと一致させる | 宣言表がマニフェストと**全フィールドで双方向に一致** / **母集合の全 `relation` が宣言表に現れる** / 伝播検査 green |
-| 10 | **述語の参照規約** — D1〜D9 を**本書で再定義せず参照**する規約と、**同期 ID → 物理写像の表**の枠を置く。本書固有の述語の単一定義節と**禁じる別名の表**を作る | **D1〜D9 の定義文が本書に無い**(`forbidden-element`)/ **本書の述語がすべて単一定義節にあり他節は参照のみ** / 伝播検査 green |
-| 11 | **順序系の写像**(`C01`〜`C05`・`C08`)+ **`WAIT-05`**(U-7 の D1/D2 用途分離)— 用途対応表・6-2 節・**12-3 節(移行)**の 4 箇所すべてで境界・起点を **D2** へ改め、**到着順の語を全廃**する。**同型の残存を一括で直す**(台帳 H-79 の教訓) | **該当 4 箇所を逐行照合**し結果を worklog へ / **禁止語(到着順・受信順)が 0 件** / **`WAIT-05` が `resolved` になり物理要素と closure evidence が記録されている** / 伝播検査 `--defects`(該当 ID)green |
-| 12 | **削除経路の分離**(`C06`・`M06`)— 確定済み記録の修正・削除を**変更イベント(参加区分 #10〜#12)**として実体化し、墓標・改訂の流用記述を撤去する | **#10〜#12 に対応する実体・属性・制約がある** / **「正は墓標・改訂イベント」が 0 件** / 伝播検査(累積)green |
-| 13 | **識別子と一意性**(`M01`〜`M04`・`M07`・`M08`・`M17`)+ **`WAIT-03`**(D2 の数値型)— D2 の列・部分一意・索引の禁止、V10 の複合参照列、V11 と確定版列を物理写像として置く | **`(試合, D4, D1)` の部分一意がある** / **D2 に不変前提の索引を張らない旨が索引原則にある** / **`WAIT-03` が `resolved`(数値型と根拠が本文にある)** / 伝播検査(累積)green |
-| 14 | **一意範囲・連続性・世代**(`C09`・`C10`・`C13`)+ **適用水位・履歴文脈・楽観ロック**(`C11`・`C12`・`C14`)+ **`WAIT-01`**(D3 の物理表現)| **D5 の一意範囲が `(テナント, D5)`** / **D1 の連続性が新規割り当てに限られる** / **D4 が非再利用として表現されている** / **`WAIT-01` が `resolved`(物理表・列・後退禁止の表現)** / **意味規則の再記述が 0 件**(ステップ 10 の検査)/ 伝播検査(累積)green |
-| 15 | **原子境界と結果保持**(`M05`・`M09`・`M10`・`M15`・`M18`・`M20`)+ **`WAIT-06`**(U-8 構造側)・**`WAIT-08`**(9-2 境界表 17 行の永続化写像)| **P1〜P5 と T1〜T9 の対応表がある** / **拒否原本が受理済み行と混ざらない** / **9-2 境界表の 17 行すべてに物理写像がある**(exact-set)/ **`WAIT-06`・`WAIT-08` が `resolved`** / 伝播検査(累積)green |
-| 16 | **退避と復元**(`C07`・`C15`・`C16`・`M11`〜`M14`・`M16`・`M19`)+ **`WAIT-02`**(退避の列定義)・**`WAIT-04`**(U-3 構造側)— 復旧世代・RG1・I6 と退避原本の区別・端末キュー状態 4 種・保持期間の器を置く。**`C16`: 候補案 8-2-B の管理関数クラス (c) から「取り込み」を分離**し、現版で許可する「閲覧・書き出し」だけを残す | **`FORB-01`〜`04` の構造がいずれも存在しない**(`forbidden-structure` — **別名・暗黙関係を含む** + `cross-consistency`)/ **管理関数の記述に「取り込み」が残っていない** / **`WAIT-02`・`WAIT-04` が `resolved`** / 伝播検査(累積)green |
-| 17 | **キャッシュ無効化の物理化**(`B01`〜`B05`)+ **`WAIT-07`** — **同期側のトリガー ID を参照**し、本書は**物理的な無効化先**だけを決める | **要件の 14 トリガーが全数対応づいている**(**招待の失効を含めない**)/ **在籍区分変更が入っている** / **発火条件の再記述が 0 件** / **`WAIT-07` が `resolved`** / 伝播検査(累積)green |
-| 18 | **88 列写像の確定**(`LG-01`〜`LG-16`・`LX-01`〜`LX-06`)— **許可入力集合**(`#### 写像ステップの許可入力集合` の `IN-01`〜`IN-08`)**だけ**を根拠に、**88 列すべての意味欄 4 項目**(実際の中身 / 旧コードの参照箇所 / 新スキーマの行き先 / 変換規則)と**欠損時規則**(センチネル由来と解決不能由来を分離)を本文へ確定する。**値を決めるのは本タスク**(裁定 `R-9`)。**`LX-01`・`LX-02` は「射程外・不明」のまま渡す** | **`column_index` 0〜87 の全行が本文にある**(欠番 0)/ **各行の根拠が `IN-01`〜`IN-08` のいずれかを明示**しており、**集合外の資料を根拠に引いた行が 0 件** / **`IN-01`〜`IN-04` は `research_blob_sha` を照合**し、一致しなければ fail / **`docs/legacy/` が `normative` として参照されていない**(`reference-class` で `evidence` のみ)/ **`LX-01`・`LX-02` に値を書いていない**(「不明」のまま)/ 伝播検査(累積)green |
-| 19 | **認可構成の写像** — **先行タスク B の AUTH カタログ・DDL 要素表・不採用構成表**を本文へ写像し、**主張 ID → DDL 要素 → テスト ID → 正本の節**の対応表を置く。**`auth_ddl_map`(と probe-only なら `product_ddl_map`)を実値で埋める**(申し送り 15・23) | **`AUTH-*` が B のカタログと exact-set 一致**(**B の blob digest を照合**。本文に書いた分だけを数えない)/ **全 `AUTH-*` に DDL 要素とテスト ID がある** / **段階 A・段階 B の両方が green**(`cross-consistency`)/ **B の不採用構成表の各項目が本文に 1 件も現れない**(**不採用集合との突合**で判定)/ **`AUTH` ∩ `FORB` = ∅ green** / **負例 `07`・`08`・`09` で red** |
-| 20 | **要件由来の写像**(`RQ-01`〜`RQ-09`・`SP-01`〜`SP-06`)— **計画承認前に得た裁定**(5 節)を反映し、FR-030・管理者操作ログ・6.1 超過実体の 3 群分け・検証可能条件を落とす。禁止事項 6 件を判定する | **`RQ-*` 各件に裁定 ID・決定者・決定日・反映節・closure evidence がある** / **FR-030 と管理者操作ログが独立した行として閉じている** / **`SP-01`〜`06` に判定と該当節があり、各判定が構造不変条件に対応づいている** / 伝播検査(累積)green |
-| 21 | **要件帰属表** — `req-universe.json` に対する本書の帰属表を安定 ID で作る。**「対象外」は理由コードと受取先を必須**とし、**データモデル直接要件には使用禁止**(`attribution-direct`) | **母集合の全 ID が分類されている** / **帰属先の節が実在し、展開した節のいずれかに当該要件の安定 ID が明示出現する行が 1 行以上ある**(`attribution-destination`)/ **全件「対象外」の負例で red** / **`direct_requirements` の ID を「対象外」にすると red** / **行番号由来のキーが 0 件** |
-| 22 | **典拠の識別子参照化** — 行番号引用 3 形式を識別子参照へ置換し、**旧参照 → 新安定 ID の対応表を資産として固定**する。参照を `normative` / `evidence` / `informative` に分類する(`reference_policy` は順序付き first-match・未一致は終了 2) | 残存検査 green / **対応表が全置換を覆い、置換前後の規範の同一性判定が行ごとに記録されている** / **規範参照に feature・worklog・Notion・legacy が 0 件** / **`normative` のリンク先がすべて `status: approved`** |
-| 23 | **意味照合台帳の記入と本文の是正** — 全引用について台帳を埋め、判定が「支持」以外の箇所を本文で是正する。**ここで staging の全 22 検査が終了 0 になる**(申し送り 12) | 台帳検査 green(**台帳のキー集合 = 本文の引用集合**)/ **判定が「支持」以外の行が 0 件** / **`check_doc_profiles.py --registry <staging>/profiles/registry.json --profile <staging>/profiles/data-model.json` が終了 0・22 件すべて `pass`** / 伝播検査(累積)green |
-| 24 | **本番移設と登録(= CI 配線)**(申し送り 1・2・14)— staging の木を**本番パスへ移設**し、**`profiles/registry.json` へ `data-model` entry(`must_require` = 全 22・`pins` 実値)を追加**する。**移設と登録は同一コミット**。`ci.yml` は無変更(引数なし列挙)。`tests/test_ci_wiring.py` を更新し、設計書 10.1 の `docs-lint` 行を現行化 | **引数なしの `check_design_propagation.py` / `check_doc_coverage.py` が 2 プロファイルを列挙して green**(新旧両文書)/ **`profiles/` の実ファイル集合とレジストリの `file` 集合が完全一致** / **`staging/` が残っていない** / **`test_ci_wiring.py` が「本番レジストリに `data-model` entry がある」ことを確認**(明示引数のアサーションを置かない)/ `uv run pytest tests/` green / 設計書の変更履歴表に行がある |
-| 25 | **設計書 5.1 の追随** — **ORM = SQLAlchemy 2.x**・**ドライバ = psycopg 3**・**Alembic** を確定し、留保文言を除去。変更履歴表へ 1 行(**版は上げない**)。**本差分は `/finalize-doc` の対象** | `check_docs_status.py` green / **5.1 の 3 行が計画の固定値と exact-set 一致** / **「設計フェーズで最終確定」が残っていない** / **B の DDL 要素表が使うドライバ・接続方式が固定値と一致**(digest 照合。「矛盾しない」ではなく**両者の値の一致**で判定する) |
-| 26 | **`core-areas.json` の登録(本タスク分)** — `data-migration` の `paths` 充填、既存 4 領域へ本正本を追加、**`guard_paths` へ 3 節で固定した新資産の全パスを完全列挙**、**実設定を読む回帰テスト** | `uv run pytest tests/` green / **3 節が列挙する新資産の全パスが `guard_paths` に包含されている**(**負例 10 ファイルも個別に登録**。`guard_paths` は完全一致集合で**ディレクトリ登録では配下の変更が発火しない**)/ **`staging/` のパスが登録されていない**(移設済み)/ **① 5 領域すべてに本正本 ② `data-migration` が空でない ③ 新資産それぞれの変更で発火 を実設定から確認するテストがある** |
-| 27 | **台帳の更新** — H-12 の事象欄を現況へ(**`core-areas.json` から導出した期待値を列挙して照合**)、**H-78・H-79 に実績を追記**(A の申し送り 24 項目の処理結果と、ステップ 1 による統制の空白の解消を含む)。**`H-*` の新規採番はしない** | `check_docs_status.py` green / **H-12 の記述が `core-areas.json` の実値と一致** / **H-78・H-79 に本タスクの実績行がある** / **`H-*` の新規採番が 0 件** |
-| 28 | **検証手順の収録** — 本書へ**4 節で事前固定したコマンド集合(9 件)**を収録する。**実行結果・SHA は worklog へ** | **収録列が 4 節の集合と exact-set 一致** / **本書に実行結果が書かれていない** / **worklog に全コマンドの結果と対象 SHA がある** / **全コマンド green** |
+| 2 | **staging の木の原子的作成**(**新設** — 申し送り 14・12)— **開始条件(TSK-342 の完了)を満たした直後**に `scripts/design_relations/staging/data-model/` へ `profiles/{registry.json,data-model.json}`・`doc/{manifest,defects,invariants}.json`・`assets/`(10 資産)を、**全必須資産の構造的に妥当な骨格つきで 1 コミットに**作る。`document` / `requirements` / `universe` は本番パスを参照する | **`check_doc_profiles.py --registry <staging>/profiles/registry.json --profile <staging>/profiles/data-model.json --json` が終了 2 にならない**(= スキーマ・レジストリ・完全分割・`must_require`・`pins`・必須資産の宣言がすべて成立)/ **終了 1・`partial: false` で 22 件の診断が返る** / **`staging/.../profiles/` にレジストリとプロファイル以外を置いていない** / **本番レジストリは無変更**(CI green) |
+| 3 | **文書プロファイルの確定** — staging の `data-model.json` を実仕様へ確定する: 識別・資産・文法・宣言表節・帰属表節・台帳節・帰属区分の語彙・**`defect_id_namespaces` = `{all: ["DM"], machine: ["DM"]}`**・`invariant_kinds`(**契約の 5 種別名も書ける** — 申し送り 17)・**`required_checks` = 全 22 / `not_applicable` = {}**(申し送り 11)・**`assets`**(申し送り 8 — `path` / `identity` / `collections` / `join` / `namespace` / `structure` / `normalize`)・**`structure_extractors`**(申し送り 19 — 関係・遷移表・列役割表・暗黙関係)・**`collection_sets`**(申し送り 20)・`direct_requirements`・`reference_policy`。**レジストリ entry の `must_require` = 全 22 と `pins` を同時に確定** | **staging レジストリでローダーを通る**(スキーマ版一致・`profiles/` 実ファイル完全一致・`pins` 一致)/ **`required_checks ∪ not_applicable` = 22・積は空・`required_checks ⊇ must_require`** / **未対応の不変条件種別・未知フィールド・pins 不一致・必須検査の資産/抽出器/集合宣言の欠落がいずれも終了 2 になる**(fail-closed の確認 — 申し送り 6)/ **`structure_extractors` が `forbidden` の全 `kind` を覆う** / **実プロファイルを使う契約テストがある**(契約 4) |
+| 4 | **欠陥台帳のベースライン固定** — `defects-data-model.json` に **78 件**を全 ID 明記で固定し、**immutable / mutable を 3 節の項目どおりに分け**、`baseline-digest-data-model.txt` と `expected-ids-data-model.json` を作る。**`invariants/data-model.json` に `global_invariants`(`unique-owner`)と `DM-MT-01`(`absent-section: "13"`)を置く**(申し送り 10・13・15) | **78 件すべてに必須フィールド(機械欠陥は `check` と `invariant` を持つ)** / **群別件数と ID 集合が 4 節の表と一致**(exact-set)/ **全 ID がちょうど 1 回・`owner_steps_allowed` の範囲に割り当て**(`unique-owner`)/ **immutable 各フィールド(`baseline` 反転を含む)の改変で red・mutable 改変で green**(`baseline-digest`)/ **候補案 13 節を復活させると `absent-section` が red** / **負例 `06-baseline-digest-tampered.json` で red** |
+| 5 | **入力主張母集合・独立資産・受け渡し digest の固定** — `claims-data-model.json` に、**同期正本 11-2 の行・要件のデータモデル直接条項・候補案の関係主張・B の DDL 要素表・C の 88 列写像の和集合**を**安定 ID + 共通正規化 ID 付き**で固定し、全行を **`relation` / `forbidden` / `direct_requirement` / `out-of-scope`(理由・受取先)** へ排他分類する(申し送り 22)。**同一コミットで `direct-requirements-data-model.json`・`auth-ddl-map-data-model.json`・(probe-only なら)`product-ddl-map-data-model.json`・`handoff-digest-data-model.json` を作り、`scripts/verify_handoff_digest.py` を新設する**(申し送り 7・15) | **全行に出典の安定 ID と共通正規化 ID がある**(**該当なしは明示的な空集合 + 理由**)/ **B・C の資産の全行が母集合に現れる**(exact-set。**digest 照合つき**)/ **未分類・二重分類が 0 件** / **`direct_requirements` が非空で `claims` の `direct_requirement` と exact**(`collection-consistency`)/ **`auth_ddl_map` の ID 集合 = `auth_catalog`・`structures` 非空・`participants ⊆ ddl_ids`** / **`verify_handoff_digest.py` が B・C の全資産を覆い green** / **負例 `02`・`03`・`08`・`09`・`10` で red** / **本ステップで本文を変更していない** |
+| 6 | **受け取り台帳・禁止構造台帳・関係マニフェスト** — `waiting-data-model.json`(`WAIT-01`〜`08`)/ `forbidden-data-model.json`(`FORB-01`〜`04`)/ `data-model.json`(**母集合の `relation` 行の exact-set**)を固定し、**`collection_sets` に `claims-relations-vs-manifest`(exact)を宣言する**(申し送り 20) | **`WAIT-01`〜`08` が同期正本の該当箇所と 1 対 1**(逐行照合し結果を worklog へ)/ **`FORB-*` が `{kind, source, target, direction, participants}` の構造として表現され、別名の負例で red**(別名は単一の `normalize.aliases` のみが供給源)/ **マニフェストが `relation` 行の exact-set でなければ red** / **禁止関係を母集合へ混入させた負例で red** |
+| 7 | **交差検査の設定** — 4 節の 3 条件(`WAIT` → 存在 / `AUTH` → 二段階射影で存在 / `WAIT`・`AUTH` ∩ `FORB` = ∅)を **A の DSL・`structure_extractors`・`collection_sets` の設定として**表現し、衝突の負例 fixture を置く。**エンジンの変更が必要と判明したら停止し、Notion の TSK-269 へコメント + 新規タスク起票**(申し送り 9。本ステップで `scripts/check_*.py` / `scripts/doc_check_*.py` を変更しない) | `uv run pytest tests/` green / **3 条件それぞれに正常系と衝突負例がある** / **正規化 ID の付け方が本書とマニフェストで一致** / **本ステップの差分に `scripts/check_*.py` / `scripts/doc_check_*.py` が含まれていない**(含める必要が生じた時点で停止) |
+| 8 | **表間参照宣言表** — 本書へ宣言表を置き、マニフェストと一致させる | 宣言表がマニフェストと**全フィールドで双方向に一致** / **母集合の全 `relation` が宣言表に現れる** / 伝播検査 green |
+| 9 | **述語の参照規約** — D1〜D9 を**本書で再定義せず参照**する規約と、**同期 ID → 物理写像の表**の枠を置く。本書固有の述語の単一定義節と**禁じる別名の表**を作る | **D1〜D9 の定義文が本書に無い**(`forbidden-element`)/ **本書の述語がすべて単一定義節にあり他節は参照のみ** / 伝播検査 green |
+| 10 | **`D4` の永続化写像**(`C13` の非再利用・世代)— **旧ステップ 14 を資産単位で分割した残り**(裁定 `R-6`。`D5` の一意範囲・`D1` の連続性・適用水位・履歴文脈・楽観ロック・`WAIT-01` は **TSK-342**)。**生成アルゴリズム・物理形式は入れない**(`R-6` の除外 — 論点 17 の受け取り先が持つ) | **`D4` が非再利用として表現されている** / **世代の物理表現がある** / **生成アルゴリズム・物理形式の記述が 0 件** / **意味規則の再記述が 0 件**(ステップ 8 の検査)/ 伝播検査(累積)green |
+| 11 | **復旧世代・`RG1`・`I6` の永続化写像** — **旧ステップ 16 を資産単位で分割した残り**(裁定 `R-6`。退避原本・端末キュー状態 4 種・保持期間の器・`C16` の管理関数クラス分離・`WAIT-02`・`WAIT-04` は **TSK-342**)。**生成アルゴリズム・物理形式は入れない**(`R-6` の除外) | **復旧世代・`RG1`・`I6` に物理写像がある** / **退避原本との区別が本文にある** / **生成アルゴリズム・物理形式の記述が 0 件** / 伝播検査(累積)green |
+| 12 | **88 列写像の確定**(`LG-01`〜`LG-16`・`LX-01`〜`LX-06`)— **許可入力集合**(`#### 写像ステップの許可入力集合` の `IN-01`〜`IN-08`)**だけ**を根拠に、**88 列すべての意味欄 4 項目**(実際の中身 / 旧コードの参照箇所 / 新スキーマの行き先 / 変換規則)と**欠損時規則**(センチネル由来と解決不能由来を分離)を本文へ確定する。**値を決めるのは本タスク**(裁定 `R-9`)。**`LX-01`・`LX-02` は「射程外・不明」のまま渡す** | **`column_index` 0〜87 の全行が本文にある**(欠番 0)/ **各行の根拠が `IN-01`〜`IN-08` のいずれかを明示**しており、**集合外の資料を根拠に引いた行が 0 件** / **`IN-01`〜`IN-04` は `research_blob_sha` を照合**し、一致しなければ fail / **`docs/legacy/` が `normative` として参照されていない**(`reference-class` で `evidence` のみ)/ **`LX-01`・`LX-02` に値を書いていない**(「不明」のまま)/ 伝播検査(累積)green |
+| 13 | **認可構成の写像** — **先行タスク B の AUTH カタログ・DDL 要素表・不採用構成表**を本文へ写像し、**主張 ID → DDL 要素 → テスト ID → 正本の節**の対応表を置く。**`auth_ddl_map`(と probe-only なら `product_ddl_map`)を実値で埋める**(申し送り 15・23) | **`AUTH-*` が B のカタログと exact-set 一致**(**B の blob digest を照合**。本文に書いた分だけを数えない)/ **全 `AUTH-*` に DDL 要素とテスト ID がある** / **段階 A・段階 B の両方が green**(`cross-consistency`)/ **B の不採用構成表の各項目が本文に 1 件も現れない**(**不採用集合との突合**で判定)/ **`AUTH` ∩ `FORB` = ∅ green** / **負例 `07`・`08`・`09` で red** |
+| 14 | **要件帰属表** — `req-universe.json` に対する本書の帰属表を安定 ID で作る。**「対象外」は理由コードと受取先を必須**とし、**データモデル直接要件には使用禁止**(`attribution-direct`) | **母集合の全 ID が分類されている** / **帰属先の節が実在し、展開した節のいずれかに当該要件の安定 ID が明示出現する行が 1 行以上ある**(`attribution-destination`)/ **全件「対象外」の負例で red** / **`direct_requirements` の ID を「対象外」にすると red** / **行番号由来のキーが 0 件** |
+| 15 | **意味照合台帳の記入と本文の是正** — 全引用について台帳を埋め、判定が「支持」以外の箇所を本文で是正する。**ここで staging の全 22 検査が終了 0 になる**(申し送り 12) | 台帳検査 green(**台帳のキー集合 = 本文の引用集合**)/ **判定が「支持」以外の行が 0 件** / **`check_doc_profiles.py --registry <staging>/profiles/registry.json --profile <staging>/profiles/data-model.json` が終了 0・22 件すべて `pass`** / 伝播検査(累積)green |
+| 16 | **本番移設と登録(= CI 配線)**(申し送り 1・2・14)— staging の木を**本番パスへ移設**し、**`profiles/registry.json` へ `data-model` entry(`must_require` = 全 22・`pins` 実値)を追加**する。**移設と登録は同一コミット**。`ci.yml` は無変更(引数なし列挙)。`tests/test_ci_wiring.py` を更新し、設計書 10.1 の `docs-lint` 行を現行化 | **引数なしの `check_design_propagation.py` / `check_doc_coverage.py` が 2 プロファイルを列挙して green**(新旧両文書)/ **`profiles/` の実ファイル集合とレジストリの `file` 集合が完全一致** / **`staging/` が残っていない** / **`test_ci_wiring.py` が「本番レジストリに `data-model` entry がある」ことを確認**(明示引数のアサーションを置かない)/ `uv run pytest tests/` green / 設計書の変更履歴表に行がある |
+| 17 | **`core-areas.json` の登録(本タスク分)** — `data-migration` の `paths` 充填、既存 4 領域へ本正本を追加、**`guard_paths` へ 3 節で固定した新資産の全パスを完全列挙**、**実設定を読む回帰テスト** | `uv run pytest tests/` green / **3 節が列挙する新資産の全パスが `guard_paths` に包含されている**(**負例 10 ファイルも個別に登録**。`guard_paths` は完全一致集合で**ディレクトリ登録では配下の変更が発火しない**)/ **`staging/` のパスが登録されていない**(移設済み)/ **① 5 領域すべてに本正本 ② `data-migration` が空でない ③ 新資産それぞれの変更で発火 を実設定から確認するテストがある** |
+| 18 | **台帳の更新** — H-12 の事象欄を現況へ(**`core-areas.json` から導出した期待値を列挙して照合**)、**H-78・H-79 に実績を追記**(A の申し送り 24 項目の処理結果と、ステップ 1 による統制の空白の解消を含む)。**`H-*` の新規採番はしない** | `check_docs_status.py` green / **H-12 の記述が `core-areas.json` の実値と一致** / **H-78・H-79 に本タスクの実績行がある** / **`H-*` の新規採番が 0 件** |
+| 19 | **検証手順の収録** — 本書へ**4 節で事前固定したコマンド集合(9 件)**を収録する。**実行結果・SHA は worklog へ** | **収録列が 4 節の集合と exact-set 一致** / **本書に実行結果が書かれていない** / **worklog に全コマンドの結果と対象 SHA がある** / **全コマンド green** |
+#### ステップの資産所有表
+
+**operative なステップ表と 1:1 で対応する。所有が `TSK-250` 以外の行はここに置かない。**
+**`contracts/legacy-columns/` 資産の `data-migration.paths` 登録は TSK-339 の所有**であり、
+ステップ 17 には含めない(裁定 `R-8`)。
+
+| 新ステップ ID | 変更する資産 | 所有タスク |
+| --- | --- | --- |
+| 1 | `.claude/core-areas.json` の `guard_paths`(A の新資産 33 件) | TSK-250 |
+| 2 | `scripts/design_relations/staging/data-model/**`(staging の木) | TSK-250 |
+| 3 | staging の `profiles/data-model.json` | TSK-250 |
+| 4 | `scripts/design_relations/defects-data-model.json` | TSK-250 |
+| 5 | `claims-data-model.json` / 独立資産・受け渡し digest | TSK-250 |
+| 6 | `waiting-data-model.json` / `forbidden-data-model.json` / 関係マニフェスト | TSK-250 |
+| 7 | 交差検査の設定(A の DSL・`structure_extractors`) | TSK-250 |
+| 8 | `docs/design/data-model.md` の表間参照宣言表 | TSK-250 |
+| 9 | `docs/design/data-model.md` の述語の参照規約節 | TSK-250 |
+| 10 | `docs/design/data-model.md` の `D4` の永続化写像節 | TSK-250 |
+| 11 | `docs/design/data-model.md` の復旧世代・`RG1`・`I6` の永続化写像節 | TSK-250 |
+| 12 | `docs/design/data-model.md` の 88 列写像節 | TSK-250 |
+| 13 | `docs/design/data-model.md` の認可構成の写像節 / `auth_ddl_map`・`product_ddl_map` | TSK-250 |
+| 14 | `req-universe.json` に対する要件帰属表 | TSK-250 |
+| 15 | 意味照合台帳 / `docs/design/data-model.md` の是正 | TSK-250 |
+| 16 | `scripts/design_relations/**` の本番パス / `profiles/registry.json` / `tests/test_ci_wiring.py`(docs-lint 系)/ 設計書 10.1 の `docs-lint` 行 | TSK-250 |
+| 17 | `.claude/core-areas.json`(`data-migration.paths` の本タスク分・既存 4 領域・`guard_paths`) | TSK-250 |
+| 18 | `docs/development/harness-evaluation.md`(H-12・H-78・H-79) | TSK-250 |
+| 19 | `docs/design/data-model.md` の検証手順節 | TSK-250 |
+
+#### 旧番号 → 新番号の対応表
+
+**除去・分割した旧番号も全部載せる**(裁定 `R-1`・`R-6`・`R-8`)。
+
+| 旧 | 新 | 行き先 |
+| --- | --- | --- |
+| 1 | 1 | 本タスク |
+| 2 | — | **TSK-342** |
+| 3 | 2 | 本タスク |
+| 4 | 3 | 本タスク |
+| 5 | 4 | 本タスク |
+| 6 | 5 | 本タスク |
+| 7 | 6 | 本タスク |
+| 8 | 7 | 本タスク |
+| 9 | 8 | 本タスク |
+| 10 | 9 | 本タスク |
+| 11 | — | **TSK-342** |
+| 12 | — | **TSK-342** |
+| 13 | — | **TSK-342** |
+| 14 | **10**(分割) | **`D4` の永続化写像だけ本タスク** / 残りは **TSK-342** |
+| 15 | — | **TSK-342** |
+| 16 | **11**(分割) | **復旧世代・`RG1`・`I6` の永続化写像だけ本タスク** / 残りは **TSK-342** |
+| 17 | — | **TSK-342** |
+| 18 | 12 | 本タスク |
+| 19 | 13 | 本タスク |
+| 20 | — | **TSK-342** |
+| 21 | 14 | 本タスク |
+| 22 | — | **TSK-342** |
+| 23 | 15 | 本タスク |
+| 24 | 16 | 本タスク |
+| 25 | — | **TSK-342** |
+| 26 | 17(**一部**) | 本タスク。**`contracts/legacy-columns/` 資産の paths 登録は TSK-339** |
+| 27 | 18 | 本タスク |
+| 28 | 19 | 本タスク |
+
+**`R-6` の除外**: 記録権世代の**生成アルゴリズム・物理形式**は新ステップ 10・11 にも
+TSK-342 にも入れない — 論点 17 の受け取り先が持つ。
 
 #### 写像ステップの許可入力集合
 
-**この集合の外にある資料を 88 列写像の根拠に使わない。**(TSK-335 のステップ 4・裁定 `R-9`)
+**この集合の外にある資料を 88 列写像の根拠に使わない。**(TSK-335 のステップ 3・裁定 `R-9`)
 **見出しに旧ステップ番号を入れない** — 再採番後の対応は `#### 旧番号 → 新番号の対応表` で解決する。
 
 | 入力 ID | 出所 | digest / 版の参照先 |
@@ -391,7 +447,7 @@ A のマージで引数なし列挙が正になったため、暫定パスの置
 JSON・schema・lock・検査器)を作る。** 本タスクは TSK-339 の完了を待たない。
 **`IN-08` だけが TSK-342 待ち**であり、それは本タスクの開始条件そのものである。
 
-### 確定ゲート(ステップ 28 完了後 — 表外手順)
+### 確定ゲート(ステップ 19 完了後 — 表外手順)
 
 1. `plan.md` の `status` を `in-review` へ / 索引と本書の frontmatter を `in-review` へ
 2. **開始条件(機械検査)**: **`WAIT-01`〜`08` がすべて `resolved`** かつ **欠陥台帳の全件(ベースライン +
@@ -425,7 +481,7 @@ JSON・schema・lock・検査器)を作る。** 本タスクは TSK-339 の完�
 > **【TSK-335 による改訂中(2026-09-08)】** 本タスクの射程からスキーマ本体・ORM・設計書 5.1/10.1 を
 > **[TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)**(データモデルのスキーマ本体と
 > ORM 導入)へ切り出した(人間の裁定 `R-1`・`R-2`・`R-5`)。**開始条件は A・B・C のタスク単位から
-> 「TSK-342 の完了」へ改める**(TSK-335 のステップ 7 で本節を正式に書き換える)。
+> 「TSK-342 の完了」へ改める**(TSK-335 のステップ 6 で本節を正式に書き換える)。
 > 改訂中のため frontmatter は `承認: 未` に戻してある。
 
 - [x] **先行タスク A**(文書検査機構の多文書対応)がマージ済み — **PR #42 / `fdda374`(2026-09-04)**。
@@ -474,14 +530,14 @@ JSON・schema・lock・検査器)を作る。** 本タスクは TSK-339 の完�
 | **単体**(a) | **fail-closed**(1 節 契約 3 の各条件で終了 2)・**`pins` 不一致**・**完全分割違反**・**必須 pin の欠落** | `tests/` |
 | **単体**(a) | `test_ci_wiring.py`(**本番レジストリへの登録**)・`test_core_guard.py`(**A の新資産 33 件**・5 領域への登録・本タスクの新資産での発火) | `tests/` |
 | **越境テスト**(b) | **本タスクでは足さない** — 先行タスク B の射程。**HTTP 404 の判定は Phase 4 の API テストへ送付** | — |
-| **一致性**(c)・**E2E**・**故障系**(d) | **本タスクでは足さない**(ベクタは TSK-235/236/237、実装は Phase 4)。**故障系の注入点が定義できる配置**はステップ 15 の合格条件で担保する | — |
+| **一致性**(c)・**E2E**・**故障系**(d) | **本タスクでは足さない**(ベクタは TSK-235/236/237、実装は Phase 4)。**故障系の注入点が定義できる配置**は **TSK-342 の旧ステップ 15** の合格条件で担保する(裁定 `R-1`) | — |
 
 **変異テストの方針**(申し送り 18): **行スコープの宣言 = 別行移動**、**節スコープの宣言 = 別節移動・意味部欠落・ID 交換**、
 **`row-selector` = needle 語・識別子を別行へ分散させて選択行を不成立にする**、**`exact-set` = 別 relation を同一マニフェストに置く**。
 **旧述語と同値でない変異(意味反転・主述交換)は使わない**(A の design 2-1 節の変異集合が唯一の正)。
 
 **文書側の検証**: 表間伝播検査・要件帰属の全数検査・意味照合台帳・行番号引用の残存検査・参照分類の検査。
-いずれも**本番レジストリへの登録による引数なし列挙で** CI で常時実行する(ステップ 24)。
+いずれも**本番レジストリへの登録による引数なし列挙で** CI で常時実行する(ステップ 16)。
 
 ## 履歴
 
@@ -494,5 +550,16 @@ JSON・schema・lock・検査器)を作る。** 本タスクは TSK-339 の完�
 | --- | --- | --- | --- |
 | 2026-09-08 | 1 節 受け渡し契約表 C 行 | 88 列すべての 保存元 / 変換 / 欠損時規則 / 逆変換可能性 の確定 | 裁定 `R-4` — 要件書 付録 D-1 の意味欄 4 項目(実際の中身 / 旧コードの参照箇所 / 新スキーマの行き先 / 変換規則)へ接続し直した。`保存元` `欠損時規則` は D-1 の語彙に無く、`逆変換可能性` は要件のどの条項にも紐づかない |
 | 2026-09-08 | 2 節 やること 5 | 先行タスク C の成果(88 列の行き先表)を本文へ写像する | 「行き先表」は要件書・TSK-271 の成果物名のいずれにも存在しない呼称。成果物の実体は `column_index = 0..87` をキーにした **88 列写像 JSON** |
-| 2026-09-08 | 4 節 実装ステップ表 ステップ 18 | \| 18 \| **88 列の写像**(`LG-01`〜`LG-16`・`LX-01`〜`LX-06`)— **先行タスク C の 88 列写像 JSON**(`column_index = 0..87`)を本文へ写像する。**本タスクでは裁定しない** \| **`column_index` 0〜87 の全行が本文にあり、C の JSON と 4 項目 + 共通正規化 ID で exact-set 一致**(**C の blob digest を照合し、一致しなければ fail**)/ **本文の記述のうち C の JSON に無い値が 0 件**(再解釈の機械検出)/ **`docs/legacy/` が `normative` として参照されていない**(`reference-class` で `evidence` のみ)/ 伝播検査(累積)green \| | 裁定 `R-9` — **C(TSK-271)は 88 列写像 JSON を作らない**(2026-09-07 の PO 裁定で射程が「判定 22 件 + 調査メモ」へ縮小され、写像 JSON は TSK-250 が所有することになった)。よって「C の JSON と exact-set 一致」「C の blob digest を照合」は**入力が存在しない**。かつ TSK-339 の開始条件が「TSK-250 のマージ」であるため**循環していた** |
+| 2026-09-08 | 4 節 実装ステップ表 ステップ 12(**旧 18**) | \| 18 \| **88 列の写像**(`LG-01`〜`LG-16`・`LX-01`〜`LX-06`)— **先行タスク C の 88 列写像 JSON**(`column_index = 0..87`)を本文へ写像する。**本タスクでは裁定しない** \| **`column_index` 0〜87 の全行が本文にあり、C の JSON と 4 項目 + 共通正規化 ID で exact-set 一致**(**C の blob digest を照合し、一致しなければ fail**)/ **本文の記述のうち C の JSON に無い値が 0 件**(再解釈の機械検出)/ **`docs/legacy/` が `normative` として参照されていない**(`reference-class` で `evidence` のみ)/ 伝播検査(累積)green \| | 裁定 `R-9` — **C(TSK-271)は 88 列写像 JSON を作らない**(2026-09-07 の PO 裁定で射程が「判定 22 件 + 調査メモ」へ縮小され、写像 JSON は TSK-250 が所有することになった)。よって「C の JSON と exact-set 一致」「C の blob digest を照合」は**入力が存在しない**。かつ TSK-339 の開始条件が「TSK-250 のマージ」であるため**循環していた** |
 | 2026-09-08 | 2 節 やること(全 10 項目) | ### やること ⏎  ⏎ 1. **`docs/design/data-model.md` の新設**と設計書 7.3 の確定ゲート通過(`/finalize-doc`) ⏎ 2. **同期プロトコル正本の決定を本文へ写像**する — 矛盾 15 件・欠落 20 件・書き換え 5 件 ⏎ 3. **`WAIT-01`〜`WAIT-08`**(同期正本が本書の確定を待つ 8 件)を個別に閉じる ⏎ 4. **先行タスク B の成果(認可構成と `AUTH-*` カタログ)を本文へ写像**する ⏎ 5. **先行タスク C の成果(88 列写像 JSON)を本文へ写像**する ⏎ 6. **要件由来の裁定の反映**(導出 5 件・FR-030・管理者操作ログ) ⏎ 7. **典拠の全件貼り替え**と**要件帰属表**・**意味照合台帳** ⏎ 8. **設計書 5.1 の追随** — **ORM = SQLAlchemy 2.x / ドライバ = psycopg 3 / マイグレーション = Alembic** ⏎    に確定する(**人間の裁定 2026-08-31**。値を計画で固定し、実装者が選ばない) ⏎ 9. **`.claude/core-areas.json`** — **A の新資産 33 件の `guard_paths` 登録(最初の独立コミット)**、 ⏎    `data-migration` の `paths` 充填、本タスクの新資産追加 ⏎ 10. **データモデル用プロファイル一式の作成**(A の機構に対する実入力契約 — 裁定 (b)): ⏎     プロファイル・宣言資産・`structure_extractors`・`collection_sets`・独立資産 4 本・**レジストリ entry の `must_require` = 全 22 と `pins`** | 裁定 `R-1`〜`R-9` — 送り先を実 ID で確定し、TSK-342 / TSK-339 / TSK-334 / TSK-317 所有の項目を除去した。旧 1(新設 + 確定ゲート)→ 加筆 + 加筆差分のゲートへ / 旧 5(C の成果を写像)→ 許可入力集合だけを根拠に決める(`R-9`)/ 旧 8(設計書 5.1)→ TSK-342 / 本番移設と台帳更新を明示的な項目として立てた(`R-8`) |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 2(**除去**) | \| 2 \| **素材の移送・索引・fixture の固定** — `docs/design/data-model.md` を新設し候補案 1〜12 節を移送(**変更は相対リンクの解決のみ**)+ frontmatter 3 行・変更履歴表(`0.1`/`draft`)。**同一コミットで** 索引 1 行 + fixture と SHA-256 \| `check_docs_status.py` green / **相対リンクの参照先がすべて実在** / **相対リンク以外の本文が候補案と一致**(diff)/ **13 節が存在しない** / **fixture が本文とバイト一致し SHA-256 が一致** \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 11(**除去**) | \| 11 \| **順序系の写像**(`C01`〜`C05`・`C08`)+ **`WAIT-05`**(U-7 の D1/D2 用途分離)— 用途対応表・6-2 節・**12-3 節(移行)**の 4 箇所すべてで境界・起点を **D2** へ改め、**到着順の語を全廃**する。**同型の残存を一括で直す**(台帳 H-79 の教訓) \| **該当 4 箇所を逐行照合**し結果を worklog へ / **禁止語(到着順・受信順)が 0 件** / **`WAIT-05` が `resolved` になり物理要素と closure evidence が記録されている** / 伝播検査 `--defects`(該当 ID)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 12(**除去**) | \| 12 \| **削除経路の分離**(`C06`・`M06`)— 確定済み記録の修正・削除を**変更イベント(参加区分 #10〜#12)**として実体化し、墓標・改訂の流用記述を撤去する \| **#10〜#12 に対応する実体・属性・制約がある** / **「正は墓標・改訂イベント」が 0 件** / 伝播検査(累積)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 13(**除去**) | \| 13 \| **識別子と一意性**(`M01`〜`M04`・`M07`・`M08`・`M17`)+ **`WAIT-03`**(D2 の数値型)— D2 の列・部分一意・索引の禁止、V10 の複合参照列、V11 と確定版列を物理写像として置く \| **`(試合, D4, D1)` の部分一意がある** / **D2 に不変前提の索引を張らない旨が索引原則にある** / **`WAIT-03` が `resolved`(数値型と根拠が本文にある)** / 伝播検査(累積)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 14(**分割**) | \| 14 \| **一意範囲・連続性・世代**(`C09`・`C10`・`C13`)+ **適用水位・履歴文脈・楽観ロック**(`C11`・`C12`・`C14`)+ **`WAIT-01`**(D3 の物理表現)\| **D5 の一意範囲が `(テナント, D5)`** / **D1 の連続性が新規割り当てに限られる** / **D4 が非再利用として表現されている** / **`WAIT-01` が `resolved`(物理表・列・後退禁止の表現)** / **意味規則の再記述が 0 件**(ステップ 10 の検査)/ 伝播検査(累積)green \| | 裁定 `R-6`。**永続化写像だけを本タスクの新ステップ 10** として残し、**残りは [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** へ送った |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 15(**除去**) | \| 15 \| **原子境界と結果保持**(`M05`・`M09`・`M10`・`M15`・`M18`・`M20`)+ **`WAIT-06`**(U-8 構造側)・**`WAIT-08`**(9-2 境界表 17 行の永続化写像)\| **P1〜P5 と T1〜T9 の対応表がある** / **拒否原本が受理済み行と混ざらない** / **9-2 境界表の 17 行すべてに物理写像がある**(exact-set)/ **`WAIT-06`・`WAIT-08` が `resolved`** / 伝播検査(累積)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 16(**分割**) | \| 16 \| **退避と復元**(`C07`・`C15`・`C16`・`M11`〜`M14`・`M16`・`M19`)+ **`WAIT-02`**(退避の列定義)・**`WAIT-04`**(U-3 構造側)— 復旧世代・RG1・I6 と退避原本の区別・端末キュー状態 4 種・保持期間の器を置く。**`C16`: 候補案 8-2-B の管理関数クラス (c) から「取り込み」を分離**し、現版で許可する「閲覧・書き出し」だけを残す \| **`FORB-01`〜`04` の構造がいずれも存在しない**(`forbidden-structure` — **別名・暗黙関係を含む** + `cross-consistency`)/ **管理関数の記述に「取り込み」が残っていない** / **`WAIT-02`・`WAIT-04` が `resolved`** / 伝播検査(累積)green \| | 裁定 `R-6`。**永続化写像だけを本タスクの新ステップ 11** として残し、**残りは [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** へ送った |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 17(**除去**) | \| 17 \| **キャッシュ無効化の物理化**(`B01`〜`B05`)+ **`WAIT-07`** — **同期側のトリガー ID を参照**し、本書は**物理的な無効化先**だけを決める \| **要件の 14 トリガーが全数対応づいている**(**招待の失効を含めない**)/ **在籍区分変更が入っている** / **発火条件の再記述が 0 件** / **`WAIT-07` が `resolved`** / 伝播検査(累積)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 20(**除去**) | \| 20 \| **要件由来の写像**(`RQ-01`〜`RQ-09`・`SP-01`〜`SP-06`)— **計画承認前に得た裁定**(5 節)を反映し、FR-030・管理者操作ログ・6.1 超過実体の 3 群分け・検証可能条件を落とす。禁止事項 6 件を判定する \| **`RQ-*` 各件に裁定 ID・決定者・決定日・反映節・closure evidence がある** / **FR-030 と管理者操作ログが独立した行として閉じている** / **`SP-01`〜`06` に判定と該当節があり、各判定が構造不変条件に対応づいている** / 伝播検査(累積)green \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 22(**除去**) | \| 22 \| **典拠の識別子参照化** — 行番号引用 3 形式を識別子参照へ置換し、**旧参照 → 新安定 ID の対応表を資産として固定**する。参照を `normative` / `evidence` / `informative` に分類する(`reference_policy` は順序付き first-match・未一致は終了 2) \| 残存検査 green / **対応表が全置換を覆い、置換前後の規範の同一性判定が行ごとに記録されている** / **規範参照に feature・worklog・Notion・legacy が 0 件** / **`normative` のリンク先がすべて `status: approved`** \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
+| 2026-09-08 | 4 節 実装ステップ表 旧ステップ 25(**除去**) | \| 25 \| **設計書 5.1 の追随** — **ORM = SQLAlchemy 2.x**・**ドライバ = psycopg 3**・**Alembic** を確定し、留保文言を除去。変更履歴表へ 1 行(**版は上げない**)。**本差分は `/finalize-doc` の対象** \| `check_docs_status.py` green / **5.1 の 3 行が計画の固定値と exact-set 一致** / **「設計フェーズで最終確定」が残っていない** / **B の DDL 要素表が使うドライバ・接続方式が固定値と一致**(digest 照合。「矛盾しない」ではなく**両者の値の一致**で判定する) \| | 裁定 `R-1`(`R-2`・`R-5` を含む)。**送り先 = [TSK-342](https://app.notion.com/p/3d593b75e68781958074ed04dff7dab7)** |
