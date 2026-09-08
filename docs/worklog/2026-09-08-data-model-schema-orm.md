@@ -1733,3 +1733,33 @@ TSK-250 のステップ 4 がベースライン 78 件を作る。**したがっ
 | ④ ID の在/不在 | **rc=0** |
 | ① 引用形式 | `()` → rc=0 |
 | ② 文書検査 3 本 | **rc=0**(`check_docs_status` が索引と frontmatter の一致を確認) |
+
+---
+
+## ステップ 13: 退行 fixture と SHA-256 の固定(**確定ゲート通過後の唯一のステップ**)
+
+**計画 4・5 周目の是正で、このステップだけがゲート通過後に実行される設計**になっている
+(**ゲート中の反映周と `approved` 化が本文のバイト列を変えるため、ステップ 12 では固定できない**)。
+
+### 作ったもの
+
+| ファイル | 内容 |
+| --- | --- |
+| `tests/fixtures/data-model-source.txt` | **`approved` 化まで終えた `docs/design/data-model.md` のバイト単位のコピー** |
+| `scripts/design_relations/fixture-sha256-data-model.txt` | **`<sha256>  tests/fixtures/data-model-source.txt`**(既存の `fixture-sha256.txt` と同じ形式) |
+
+**SHA-256**: `112377a5f24a0adbd1ba8a6ec18e0d5246a061de75312d9c3e408516c4bc4934`
+
+### 合格条件の検証(**すべて機械**)
+
+| 条件 | 結果 |
+| --- | --- |
+| **fixture が `docs/design/data-model.md` とバイト一致** | **`cmp` が rc=0** |
+| **SHA-256 が fixture の実値と一致** | **一致**(記録値と再計算値が同一) |
+| **このコミットの差分に `docs/design/data-model.md` が無い** | **`git status --porcelain` が新規 2 ファイルだけ**(本文の変更 0) |
+| 検査 ① 引用形式 | 正本 `()` / 候補案 3 形式 → **rc=0** |
+| 検査 ② 文書検査 3 本 | **rc=0** |
+| 検査 ③ core-guard | **51 passed** |
+| 検査 ④ ID の在/不在 | **rc=0** |
+
+**両ファイルはステップ 11 で `guard_paths` へ登録済み**なので、**次回以降の変更は core-guard が発火する**。
