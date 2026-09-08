@@ -1,0 +1,4380 @@
+{
+ "_note": "本ファイルは候補案 docs/features/product-data-model-design/design.md 1〜12 節の 行番号引用を、docs/design/data-model.md への移送時に安定 ID 参照へ貼り替えるための対応表である。2 層構成: references(参照別・一意な旧参照ごとに 1 エントリ)と occurrences(出現別・本文の何行目の何番目の出現かで一意)。companion_lines は「REQ:597-606」「REQ:722・724・744」のように 1 トークンの中で 2 個目以降に現れる行番号(検査器の REQ:<行番号> 正規表現には掛からないが、規範としては引用されているもの)。bare_line_citations は 「ADR-003 `:93-104`」型の裸の行番号引用。",
+ "schema_version": "1.0",
+ "source": {
+  "path": "docs/features/product-data-model-design/design.md",
+  "sections": "1-12",
+  "line_range": [
+   9,
+   1791
+  ],
+  "blob_sha": "be00795b6f8e828db70b359a2475d1f388ed4a31"
+ },
+ "requirements_baseline": {
+  "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+  "note": "候補案を書いた 16 コミットすべてで要件書は同一内容だった(md5 1 種・1249 行)。したがって行番号引用の解決基準は単一である。",
+  "line_count": 1249,
+  "sha256": "fa14950527d5913b2583127134714198bfdd77dafe44b6e50d17d62f3ff0053b"
+ },
+ "requirements_current": {
+  "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+  "line_count": 1296,
+  "sha256": "1b02d4755531965708138129778bdec2a806809d2e3b840376439a436e9a2071"
+ },
+ "stable_id_universe": "scripts/design_relations/req-universe.json",
+ "counts": {
+  "references": 145,
+  "occurrences": 291,
+  "companion_lines": 36,
+  "bare_line_citations": 5
+ },
+ "references": {
+  "REQ:83": {
+   "kind": "requirement-line",
+   "baseline_line": 83,
+   "target_id": "2.2",
+   "category": "sections",
+   "replacement": "[2.2](../requirements/requirements-pitchlog-2026-07-22.md#2.2)",
+   "current_line": 97,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:112": {
+   "kind": "requirement-line",
+   "baseline_line": 112,
+   "target_id": "3",
+   "category": "sections",
+   "replacement": "[3](../requirements/requirements-pitchlog-2026-07-22.md#3)",
+   "current_line": 126,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:114": {
+   "kind": "requirement-line",
+   "baseline_line": 114,
+   "target_id": "3",
+   "category": "sections",
+   "replacement": "[3](../requirements/requirements-pitchlog-2026-07-22.md#3)",
+   "current_line": 128,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:117": {
+   "kind": "requirement-line",
+   "baseline_line": 117,
+   "target_id": "3",
+   "category": "sections",
+   "replacement": "[3](../requirements/requirements-pitchlog-2026-07-22.md#3)",
+   "current_line": 131,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:128": {
+   "kind": "requirement-line",
+   "baseline_line": 128,
+   "target_id": "4.0-1",
+   "category": "sections",
+   "replacement": "[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1)",
+   "current_line": 142,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:143": {
+   "kind": "requirement-line",
+   "baseline_line": 143,
+   "target_id": "4.0-2",
+   "category": "sections",
+   "replacement": "[4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)",
+   "current_line": 157,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:144": {
+   "kind": "requirement-line",
+   "baseline_line": 144,
+   "target_id": "4.0-2",
+   "category": "sections",
+   "replacement": "[4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)",
+   "current_line": 158,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:147": {
+   "kind": "requirement-line",
+   "baseline_line": 147,
+   "target_id": "4.0-2",
+   "category": "sections",
+   "replacement": "[4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)",
+   "current_line": 161,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:148": {
+   "kind": "requirement-line",
+   "baseline_line": 148,
+   "target_id": "4.0-2",
+   "category": "sections",
+   "replacement": "[4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)",
+   "current_line": 162,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:150": {
+   "kind": "requirement-line",
+   "baseline_line": 150,
+   "target_id": "4.0-3",
+   "category": "sections",
+   "replacement": "[4.0-3](../requirements/requirements-pitchlog-2026-07-22.md#4.0-3)",
+   "current_line": 164,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:157": {
+   "kind": "requirement-line",
+   "baseline_line": 157,
+   "target_id": "4.0-3",
+   "category": "sections",
+   "replacement": "[4.0-3](../requirements/requirements-pitchlog-2026-07-22.md#4.0-3)",
+   "current_line": 171,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:159": {
+   "kind": "requirement-line",
+   "baseline_line": 159,
+   "target_id": "4.0-3",
+   "category": "sections",
+   "replacement": "[4.0-3](../requirements/requirements-pitchlog-2026-07-22.md#4.0-3)",
+   "current_line": 173,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:160": {
+   "kind": "requirement-line",
+   "baseline_line": 160,
+   "target_id": "4.0-3",
+   "category": "sections",
+   "replacement": "[4.0-3](../requirements/requirements-pitchlog-2026-07-22.md#4.0-3)",
+   "current_line": 174,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:177": {
+   "kind": "requirement-line",
+   "baseline_line": 177,
+   "target_id": "FR-001",
+   "category": "requirements",
+   "replacement": "[FR-001](../requirements/requirements-pitchlog-2026-07-22.md#FR-001)",
+   "current_line": 191,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:179": {
+   "kind": "requirement-line",
+   "baseline_line": 179,
+   "target_id": "FR-001",
+   "category": "requirements",
+   "replacement": "[FR-001](../requirements/requirements-pitchlog-2026-07-22.md#FR-001)",
+   "current_line": 193,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:186": {
+   "kind": "requirement-line",
+   "baseline_line": 186,
+   "target_id": "FR-002",
+   "category": "requirements",
+   "replacement": "[FR-002](../requirements/requirements-pitchlog-2026-07-22.md#FR-002)",
+   "current_line": 200,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:187": {
+   "kind": "requirement-line",
+   "baseline_line": 187,
+   "target_id": "FR-002",
+   "category": "requirements",
+   "replacement": "[FR-002](../requirements/requirements-pitchlog-2026-07-22.md#FR-002)",
+   "current_line": 201,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:197": {
+   "kind": "requirement-line",
+   "baseline_line": 197,
+   "target_id": "FR-003",
+   "category": "requirements",
+   "replacement": "[FR-003](../requirements/requirements-pitchlog-2026-07-22.md#FR-003)",
+   "current_line": 211,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:203": {
+   "kind": "requirement-line",
+   "baseline_line": 203,
+   "target_id": "FR-004",
+   "category": "requirements",
+   "replacement": "[FR-004](../requirements/requirements-pitchlog-2026-07-22.md#FR-004)",
+   "current_line": 217,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:206": {
+   "kind": "requirement-line",
+   "baseline_line": 206,
+   "target_id": "FR-004",
+   "category": "requirements",
+   "replacement": "[FR-004](../requirements/requirements-pitchlog-2026-07-22.md#FR-004)",
+   "current_line": 220,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:227": {
+   "kind": "requirement-line",
+   "baseline_line": 227,
+   "target_id": "FR-006",
+   "category": "requirements",
+   "replacement": "[FR-006](../requirements/requirements-pitchlog-2026-07-22.md#FR-006)",
+   "current_line": 241,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:232": {
+   "kind": "requirement-line",
+   "baseline_line": 232,
+   "target_id": "FR-007",
+   "category": "requirements",
+   "replacement": "[FR-007](../requirements/requirements-pitchlog-2026-07-22.md#FR-007)",
+   "current_line": 246,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:234": {
+   "kind": "requirement-line",
+   "baseline_line": 234,
+   "target_id": "FR-007",
+   "category": "requirements",
+   "replacement": "[FR-007](../requirements/requirements-pitchlog-2026-07-22.md#FR-007)",
+   "current_line": 248,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:236": {
+   "kind": "requirement-line",
+   "baseline_line": 236,
+   "target_id": "FR-007",
+   "category": "requirements",
+   "replacement": "[FR-007](../requirements/requirements-pitchlog-2026-07-22.md#FR-007)",
+   "current_line": 250,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:272": {
+   "kind": "requirement-line",
+   "baseline_line": 272,
+   "target_id": "FR-011",
+   "category": "requirements",
+   "replacement": "[FR-011](../requirements/requirements-pitchlog-2026-07-22.md#FR-011)",
+   "current_line": 286,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:282": {
+   "kind": "requirement-line",
+   "baseline_line": 282,
+   "target_id": "FR-012",
+   "category": "requirements",
+   "replacement": "[FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)",
+   "current_line": 296,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:284": {
+   "kind": "requirement-line",
+   "baseline_line": 284,
+   "target_id": "FR-012",
+   "category": "requirements",
+   "replacement": "[FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)",
+   "current_line": 298,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:288": {
+   "kind": "requirement-line",
+   "baseline_line": 288,
+   "target_id": "FR-012",
+   "category": "requirements",
+   "replacement": "[FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)",
+   "current_line": 306,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:299": {
+   "kind": "requirement-line",
+   "baseline_line": 299,
+   "target_id": "FR-013",
+   "category": "requirements",
+   "replacement": "[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)",
+   "current_line": 317,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:301": {
+   "kind": "requirement-line",
+   "baseline_line": 301,
+   "target_id": "FR-013",
+   "category": "requirements",
+   "replacement": "[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)",
+   "current_line": 319,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:302": {
+   "kind": "requirement-line",
+   "baseline_line": 302,
+   "target_id": "FR-013",
+   "category": "requirements",
+   "replacement": "[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)",
+   "current_line": 320,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:303": {
+   "kind": "requirement-line",
+   "baseline_line": 303,
+   "target_id": "FR-013",
+   "category": "requirements",
+   "replacement": "[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)",
+   "current_line": 321,
+   "resolution": "manual(nomatch)",
+   "norm_preserved": true,
+   "note": "v2.4 の FR-035 優先度分割に伴い受入基準の文言が整理されたが、「適用されず、破棄されず退避され」という本引用が依拠する規範は不変。"
+  },
+  "REQ:305": {
+   "kind": "requirement-line",
+   "baseline_line": 305,
+   "target_id": "FR-013",
+   "category": "requirements",
+   "replacement": "[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013)",
+   "current_line": 323,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:312": {
+   "kind": "requirement-line",
+   "baseline_line": 312,
+   "target_id": "FR-014",
+   "category": "requirements",
+   "replacement": "[FR-014](../requirements/requirements-pitchlog-2026-07-22.md#FR-014)",
+   "current_line": 330,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:316": {
+   "kind": "requirement-line",
+   "baseline_line": 316,
+   "target_id": "FR-014",
+   "category": "requirements",
+   "replacement": "[FR-014](../requirements/requirements-pitchlog-2026-07-22.md#FR-014)",
+   "current_line": 334,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:317": {
+   "kind": "requirement-line",
+   "baseline_line": 317,
+   "target_id": "FR-014",
+   "category": "requirements",
+   "replacement": "[FR-014](../requirements/requirements-pitchlog-2026-07-22.md#FR-014)",
+   "current_line": 335,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:321": {
+   "kind": "requirement-line",
+   "baseline_line": 321,
+   "target_id": "FR-040",
+   "category": "requirements",
+   "replacement": "[FR-040](../requirements/requirements-pitchlog-2026-07-22.md#FR-040)",
+   "current_line": 339,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:323": {
+   "kind": "requirement-line",
+   "baseline_line": 323,
+   "target_id": "FR-040",
+   "category": "requirements",
+   "replacement": "[FR-040](../requirements/requirements-pitchlog-2026-07-22.md#FR-040)",
+   "current_line": 341,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:324": {
+   "kind": "requirement-line",
+   "baseline_line": 324,
+   "target_id": "FR-040",
+   "category": "requirements",
+   "replacement": "[FR-040](../requirements/requirements-pitchlog-2026-07-22.md#FR-040)",
+   "current_line": 342,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:338": {
+   "kind": "requirement-line",
+   "baseline_line": 338,
+   "target_id": "FR-015",
+   "category": "requirements",
+   "replacement": "[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)",
+   "current_line": 356,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:339": {
+   "kind": "requirement-line",
+   "baseline_line": 339,
+   "target_id": "FR-015",
+   "category": "requirements",
+   "replacement": "[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)",
+   "current_line": 357,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:340": {
+   "kind": "requirement-line",
+   "baseline_line": 340,
+   "target_id": "FR-015",
+   "category": "requirements",
+   "replacement": "[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)",
+   "current_line": 358,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:341": {
+   "kind": "requirement-line",
+   "baseline_line": 341,
+   "target_id": "FR-015",
+   "category": "requirements",
+   "replacement": "[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)",
+   "current_line": 359,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:342": {
+   "kind": "requirement-line",
+   "baseline_line": 342,
+   "target_id": "FR-015",
+   "category": "requirements",
+   "replacement": "[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)",
+   "current_line": 360,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:350": {
+   "kind": "requirement-line",
+   "baseline_line": 350,
+   "target_id": "FR-016",
+   "category": "requirements",
+   "replacement": "[FR-016](../requirements/requirements-pitchlog-2026-07-22.md#FR-016)",
+   "current_line": 368,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:355": {
+   "kind": "requirement-line",
+   "baseline_line": 355,
+   "target_id": "FR-017",
+   "category": "requirements",
+   "replacement": "[FR-017](../requirements/requirements-pitchlog-2026-07-22.md#FR-017)",
+   "current_line": 373,
+   "resolution": "manual(exact_multi)",
+   "norm_preserved": true,
+   "note": "行本文が「- **受け入れ基準**:」で一意に定まらないため、FR-017 の受入基準ブロックとして解決した。区分 3 固定・拡張ラベル Should・全区分可逆はいずれも現行 FR-017 に存在し規範は不変。"
+  },
+  "REQ:361": {
+   "kind": "requirement-line",
+   "baseline_line": 361,
+   "target_id": "FR-017",
+   "category": "requirements",
+   "replacement": "[FR-017](../requirements/requirements-pitchlog-2026-07-22.md#FR-017)",
+   "current_line": 379,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:367": {
+   "kind": "requirement-line",
+   "baseline_line": 367,
+   "target_id": "FR-018",
+   "category": "requirements",
+   "replacement": "[FR-018](../requirements/requirements-pitchlog-2026-07-22.md#FR-018)",
+   "current_line": 385,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:368": {
+   "kind": "requirement-line",
+   "baseline_line": 368,
+   "target_id": "FR-018",
+   "category": "requirements",
+   "replacement": "[FR-018](../requirements/requirements-pitchlog-2026-07-22.md#FR-018)",
+   "current_line": 386,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:369": {
+   "kind": "requirement-line",
+   "baseline_line": 369,
+   "target_id": "FR-018",
+   "category": "requirements",
+   "replacement": "[FR-018](../requirements/requirements-pitchlog-2026-07-22.md#FR-018)",
+   "current_line": 387,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:370": {
+   "kind": "requirement-line",
+   "baseline_line": 370,
+   "target_id": "FR-018",
+   "category": "requirements",
+   "replacement": "[FR-018](../requirements/requirements-pitchlog-2026-07-22.md#FR-018)",
+   "current_line": 388,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:387": {
+   "kind": "requirement-line",
+   "baseline_line": 387,
+   "target_id": "FR-039",
+   "category": "requirements",
+   "replacement": "[FR-039](../requirements/requirements-pitchlog-2026-07-22.md#FR-039)",
+   "current_line": 405,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:389": {
+   "kind": "requirement-line",
+   "baseline_line": 389,
+   "target_id": "FR-039",
+   "category": "requirements",
+   "replacement": "[FR-039](../requirements/requirements-pitchlog-2026-07-22.md#FR-039)",
+   "current_line": 407,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:391": {
+   "kind": "requirement-line",
+   "baseline_line": 391,
+   "target_id": "FR-039",
+   "category": "requirements",
+   "replacement": "[FR-039](../requirements/requirements-pitchlog-2026-07-22.md#FR-039)",
+   "current_line": 409,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:401": {
+   "kind": "requirement-line",
+   "baseline_line": 401,
+   "target_id": "FR-020",
+   "category": "requirements",
+   "replacement": "[FR-020](../requirements/requirements-pitchlog-2026-07-22.md#FR-020)",
+   "current_line": 419,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:477": {
+   "kind": "requirement-line",
+   "baseline_line": 477,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 495,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:478": {
+   "kind": "requirement-line",
+   "baseline_line": 478,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 496,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:479": {
+   "kind": "requirement-line",
+   "baseline_line": 479,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 497,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:480": {
+   "kind": "requirement-line",
+   "baseline_line": 480,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 498,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:483": {
+   "kind": "requirement-line",
+   "baseline_line": 483,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 501,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:484": {
+   "kind": "requirement-line",
+   "baseline_line": 484,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 502,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:487": {
+   "kind": "requirement-line",
+   "baseline_line": 487,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 505,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:488": {
+   "kind": "requirement-line",
+   "baseline_line": 488,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 506,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:489": {
+   "kind": "requirement-line",
+   "baseline_line": 489,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 507,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:493": {
+   "kind": "requirement-line",
+   "baseline_line": 493,
+   "target_id": "FR-041",
+   "category": "requirements",
+   "replacement": "[FR-041](../requirements/requirements-pitchlog-2026-07-22.md#FR-041)",
+   "current_line": 511,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:521": {
+   "kind": "requirement-line",
+   "baseline_line": 521,
+   "target_id": "FR-028",
+   "category": "requirements",
+   "replacement": "[FR-028](../requirements/requirements-pitchlog-2026-07-22.md#FR-028)",
+   "current_line": 539,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:522": {
+   "kind": "requirement-line",
+   "baseline_line": 522,
+   "target_id": "FR-028",
+   "category": "requirements",
+   "replacement": "[FR-028](../requirements/requirements-pitchlog-2026-07-22.md#FR-028)",
+   "current_line": 540,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:532": {
+   "kind": "requirement-line",
+   "baseline_line": 532,
+   "target_id": "FR-029",
+   "category": "requirements",
+   "replacement": "[FR-029](../requirements/requirements-pitchlog-2026-07-22.md#FR-029)",
+   "current_line": 550,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:553": {
+   "kind": "requirement-line",
+   "baseline_line": 553,
+   "target_id": "FR-031",
+   "category": "requirements",
+   "replacement": "[FR-031](../requirements/requirements-pitchlog-2026-07-22.md#FR-031)",
+   "current_line": 571,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:586": {
+   "kind": "requirement-line",
+   "baseline_line": 586,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 604,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:597": {
+   "kind": "requirement-line",
+   "baseline_line": 597,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 615,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:610": {
+   "kind": "requirement-line",
+   "baseline_line": 610,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 628,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:619": {
+   "kind": "requirement-line",
+   "baseline_line": 619,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 637,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:623": {
+   "kind": "requirement-line",
+   "baseline_line": 623,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 641,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:625": {
+   "kind": "requirement-line",
+   "baseline_line": 625,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 643,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:645": {
+   "kind": "requirement-line",
+   "baseline_line": 645,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 663,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:647": {
+   "kind": "requirement-line",
+   "baseline_line": 647,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 665,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:648": {
+   "kind": "requirement-line",
+   "baseline_line": 648,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 666,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:651": {
+   "kind": "requirement-line",
+   "baseline_line": 651,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 669,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:653": {
+   "kind": "requirement-line",
+   "baseline_line": 653,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 671,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:655": {
+   "kind": "requirement-line",
+   "baseline_line": 655,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 673,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:659": {
+   "kind": "requirement-line",
+   "baseline_line": 659,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 677,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:667": {
+   "kind": "requirement-line",
+   "baseline_line": 667,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 685,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:679": {
+   "kind": "requirement-line",
+   "baseline_line": 679,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 697,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:704": {
+   "kind": "requirement-line",
+   "baseline_line": 704,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 722,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:705": {
+   "kind": "requirement-line",
+   "baseline_line": 705,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 723,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:708": {
+   "kind": "requirement-line",
+   "baseline_line": 708,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 726,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:710": {
+   "kind": "requirement-line",
+   "baseline_line": 710,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 728,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:712": {
+   "kind": "requirement-line",
+   "baseline_line": 712,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 730,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:714": {
+   "kind": "requirement-line",
+   "baseline_line": 714,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 732,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:715": {
+   "kind": "requirement-line",
+   "baseline_line": 715,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 733,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:717": {
+   "kind": "requirement-line",
+   "baseline_line": 717,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 735,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:718": {
+   "kind": "requirement-line",
+   "baseline_line": 718,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 736,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:719": {
+   "kind": "requirement-line",
+   "baseline_line": 719,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 737,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:720": {
+   "kind": "requirement-line",
+   "baseline_line": 720,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 738,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:721": {
+   "kind": "requirement-line",
+   "baseline_line": 721,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 739,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:722": {
+   "kind": "requirement-line",
+   "baseline_line": 722,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 740,
+   "resolution": "manual(fuzzy)",
+   "norm_preserved": false,
+   "note": "規範が変わった。v2.4 で FR-035 の退避イベント基準が優先度分割され、「閲覧・書き出し = Must」「挿入位置を指定して取り込む = Should」になった。候補案が 1 つの Must として書いていた「閲覧・書き出し・取り込み」は正本では分けて書く(本タスクのステップ 9 の C16 と同じ是正)。"
+  },
+  "REQ:723": {
+   "kind": "requirement-line",
+   "baseline_line": 723,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 742,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:724": {
+   "kind": "requirement-line",
+   "baseline_line": 724,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 743,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:731": {
+   "kind": "requirement-line",
+   "baseline_line": 731,
+   "target_id": "FR-036",
+   "category": "requirements",
+   "replacement": "[FR-036](../requirements/requirements-pitchlog-2026-07-22.md#FR-036)",
+   "current_line": 750,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:744": {
+   "kind": "requirement-line",
+   "baseline_line": 744,
+   "target_id": "FR-037",
+   "category": "requirements",
+   "replacement": "[FR-037](../requirements/requirements-pitchlog-2026-07-22.md#FR-037)",
+   "current_line": 763,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:748": {
+   "kind": "requirement-line",
+   "baseline_line": 748,
+   "target_id": "FR-037",
+   "category": "requirements",
+   "replacement": "[FR-037](../requirements/requirements-pitchlog-2026-07-22.md#FR-037)",
+   "current_line": 767,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:755": {
+   "kind": "requirement-line",
+   "baseline_line": 755,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 774,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:756": {
+   "kind": "requirement-line",
+   "baseline_line": 756,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 775,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:757": {
+   "kind": "requirement-line",
+   "baseline_line": 757,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 776,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:758": {
+   "kind": "requirement-line",
+   "baseline_line": 758,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 777,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:759": {
+   "kind": "requirement-line",
+   "baseline_line": 759,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 778,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:760": {
+   "kind": "requirement-line",
+   "baseline_line": 760,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 779,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:761": {
+   "kind": "requirement-line",
+   "baseline_line": 761,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 780,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:762": {
+   "kind": "requirement-line",
+   "baseline_line": 762,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 781,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:763": {
+   "kind": "requirement-line",
+   "baseline_line": 763,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 782,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:764": {
+   "kind": "requirement-line",
+   "baseline_line": 764,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 783,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:765": {
+   "kind": "requirement-line",
+   "baseline_line": 765,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 784,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:766": {
+   "kind": "requirement-line",
+   "baseline_line": 766,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 785,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:767": {
+   "kind": "requirement-line",
+   "baseline_line": 767,
+   "target_id": "FR-038",
+   "category": "requirements",
+   "replacement": "[FR-038](../requirements/requirements-pitchlog-2026-07-22.md#FR-038)",
+   "current_line": 786,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:786": {
+   "kind": "requirement-line",
+   "baseline_line": 786,
+   "target_id": "NFR-003",
+   "category": "requirements",
+   "replacement": "[NFR-003](../requirements/requirements-pitchlog-2026-07-22.md#NFR-003)",
+   "current_line": 805,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:795": {
+   "kind": "requirement-line",
+   "baseline_line": 795,
+   "target_id": "NFR-005",
+   "category": "requirements",
+   "replacement": "[NFR-005](../requirements/requirements-pitchlog-2026-07-22.md#NFR-005)",
+   "current_line": 814,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:819": {
+   "kind": "requirement-line",
+   "baseline_line": 819,
+   "target_id": "NFR-009",
+   "category": "requirements",
+   "replacement": "[NFR-009](../requirements/requirements-pitchlog-2026-07-22.md#NFR-009)",
+   "current_line": 840,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:823": {
+   "kind": "requirement-line",
+   "baseline_line": 823,
+   "target_id": "NFR-010",
+   "category": "requirements",
+   "replacement": "[NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010)",
+   "current_line": 844,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:824": {
+   "kind": "requirement-line",
+   "baseline_line": 824,
+   "target_id": "NFR-010",
+   "category": "requirements",
+   "replacement": "[NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010)",
+   "current_line": 845,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:829": {
+   "kind": "requirement-line",
+   "baseline_line": 829,
+   "target_id": "NFR-011",
+   "category": "requirements",
+   "replacement": "[NFR-011](../requirements/requirements-pitchlog-2026-07-22.md#NFR-011)",
+   "current_line": 850,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:901": {
+   "kind": "requirement-line",
+   "baseline_line": 901,
+   "target_id": "NFR-019",
+   "category": "requirements",
+   "replacement": "[NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019)",
+   "current_line": 922,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:928": {
+   "kind": "requirement-line",
+   "baseline_line": 928,
+   "target_id": "NFR-023",
+   "category": "requirements",
+   "replacement": "[NFR-023](../requirements/requirements-pitchlog-2026-07-22.md#NFR-023)",
+   "current_line": 963,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:947": {
+   "kind": "requirement-line",
+   "baseline_line": 947,
+   "target_id": "6.1/共同分析グループ・参加・付与（v2.0）",
+   "category": "keyed_table_rows",
+   "replacement": "[6.1/共同分析グループ・参加・付与（v2.0）](../requirements/requirements-pitchlog-2026-07-22.md#6.1/共同分析グループ・参加・付与（v2.0）)",
+   "current_line": 982,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:948": {
+   "kind": "requirement-line",
+   "baseline_line": 948,
+   "target_id": "6.1/管理者操作ログ（Should）",
+   "category": "keyed_table_rows",
+   "replacement": "[6.1/管理者操作ログ（Should）](../requirements/requirements-pitchlog-2026-07-22.md#6.1/管理者操作ログ（Should）)",
+   "current_line": 983,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:953": {
+   "kind": "requirement-line",
+   "baseline_line": 953,
+   "target_id": "6.2",
+   "category": "sections",
+   "replacement": "[6.2](../requirements/requirements-pitchlog-2026-07-22.md#6.2)",
+   "current_line": 989,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:954": {
+   "kind": "requirement-line",
+   "baseline_line": 954,
+   "target_id": "6.2",
+   "category": "sections",
+   "replacement": "[6.2](../requirements/requirements-pitchlog-2026-07-22.md#6.2)",
+   "current_line": 990,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:955": {
+   "kind": "requirement-line",
+   "baseline_line": 955,
+   "target_id": "6.2",
+   "category": "sections",
+   "replacement": "[6.2](../requirements/requirements-pitchlog-2026-07-22.md#6.2)",
+   "current_line": 991,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:956": {
+   "kind": "requirement-line",
+   "baseline_line": 956,
+   "target_id": "6.2",
+   "category": "sections",
+   "replacement": "[6.2](../requirements/requirements-pitchlog-2026-07-22.md#6.2)",
+   "current_line": 992,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:960": {
+   "kind": "requirement-line",
+   "baseline_line": 960,
+   "target_id": "6.3",
+   "category": "sections",
+   "replacement": "[6.3](../requirements/requirements-pitchlog-2026-07-22.md#6.3)",
+   "current_line": 996,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:975": {
+   "kind": "requirement-line",
+   "baseline_line": 975,
+   "target_id": "7.1",
+   "category": "sections",
+   "replacement": "[7.1](../requirements/requirements-pitchlog-2026-07-22.md#7.1)",
+   "current_line": 1011,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:976": {
+   "kind": "requirement-line",
+   "baseline_line": 976,
+   "target_id": "7.1",
+   "category": "sections",
+   "replacement": "[7.1](../requirements/requirements-pitchlog-2026-07-22.md#7.1)",
+   "current_line": 1012,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:981": {
+   "kind": "requirement-line",
+   "baseline_line": 981,
+   "target_id": "7.1",
+   "category": "sections",
+   "replacement": "[7.1](../requirements/requirements-pitchlog-2026-07-22.md#7.1)",
+   "current_line": 1017,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1038": {
+   "kind": "requirement-line",
+   "baseline_line": 1038,
+   "target_id": "10",
+   "category": "sections",
+   "replacement": "[10](../requirements/requirements-pitchlog-2026-07-22.md#10)",
+   "current_line": 1076,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1053": {
+   "kind": "requirement-line",
+   "baseline_line": 1053,
+   "target_id": "付録A/A-1",
+   "category": "appendix_items",
+   "replacement": "[付録A/A-1](../requirements/requirements-pitchlog-2026-07-22.md#付録A/A-1)",
+   "current_line": 1091,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1055": {
+   "kind": "requirement-line",
+   "baseline_line": 1055,
+   "target_id": "付録A/A-1",
+   "category": "appendix_items",
+   "replacement": "[付録A/A-1](../requirements/requirements-pitchlog-2026-07-22.md#付録A/A-1)",
+   "current_line": 1093,
+   "resolution": "manual(nomatch)",
+   "norm_preserved": true,
+   "note": "v2.6 で併記値の定義が追補され規範は強まったが、「割合・率の表示には常に母数を併記する」という本引用の依拠部分は不変。"
+  },
+  "REQ:1154": {
+   "kind": "requirement-line",
+   "baseline_line": 1154,
+   "target_id": "付録B/B-5",
+   "category": "appendix_items",
+   "replacement": "[付録B/B-5](../requirements/requirements-pitchlog-2026-07-22.md#付録B/B-5)",
+   "current_line": 1201,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1182": {
+   "kind": "requirement-line",
+   "baseline_line": 1182,
+   "target_id": "付録D/D-3",
+   "category": "appendix_items",
+   "replacement": "[付録D/D-3](../requirements/requirements-pitchlog-2026-07-22.md#付録D/D-3)",
+   "current_line": 1229,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1183": {
+   "kind": "requirement-line",
+   "baseline_line": 1183,
+   "target_id": "付録D/D-4",
+   "category": "appendix_items",
+   "replacement": "[付録D/D-4](../requirements/requirements-pitchlog-2026-07-22.md#付録D/D-4)",
+   "current_line": 1230,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1191": {
+   "kind": "requirement-line",
+   "baseline_line": 1191,
+   "target_id": "付録D/D-6",
+   "category": "appendix_items",
+   "replacement": "[付録D/D-6](../requirements/requirements-pitchlog-2026-07-22.md#付録D/D-6)",
+   "current_line": 1238,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "REQ:1231": {
+   "kind": "requirement-line",
+   "baseline_line": 1231,
+   "target_id": "付録F/F-1",
+   "category": "appendix_items",
+   "replacement": "[付録F/F-1](../requirements/requirements-pitchlog-2026-07-22.md#付録F/F-1)",
+   "current_line": 1278,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "baseball-scoring-db-structure.md:168": {
+   "kind": "path-line",
+   "replacement": "docs/legacy/baseball-scoring-db-structure.md:168",
+   "target_id": null,
+   "category": "legacy-archive",
+   "evidence": "team テーブル(テナントと対戦相手レコードが同一テーブル)",
+   "norm_preserved": true,
+   "note": "版固定アーカイブへの行番号引用は引用規約が許容する。パスが未修飾で `docs/legacy/` 判定に落ちていたので修飾する。"
+  },
+  "baseball-scoring-db-structure.md:176": {
+   "kind": "path-line",
+   "replacement": "docs/legacy/baseball-scoring-db-structure.md:176",
+   "target_id": null,
+   "category": "legacy-archive",
+   "evidence": "game テーブル(`owner_team_id` が所有権境界)",
+   "norm_preserved": true,
+   "note": "版固定アーカイブへの行番号引用は引用規約が許容する。パスが未修飾で `docs/legacy/` 判定に落ちていたので修飾する。"
+  },
+  "data-layer.md:402": {
+   "kind": "path-line",
+   "replacement": "docs/legacy/research/data-layer.md:402",
+   "target_id": null,
+   "category": "legacy-archive",
+   "evidence": "旧列名「プレイの番号」に UNIQUE 制約がない",
+   "norm_preserved": true,
+   "note": "版固定アーカイブへの行番号引用は引用規約が許容する。パスが未修飾で `docs/legacy/` 判定に落ちていたので修飾する。"
+  },
+  "db-structure.md:286": {
+   "kind": "path-line",
+   "replacement": "docs/legacy/baseball-scoring-db-structure.md:286",
+   "target_id": null,
+   "category": "legacy-archive",
+   "evidence": "`game.owner_team_id` の列位置が環境で異なり得る(読み取りは列名で行う)",
+   "norm_preserved": true,
+   "note": "版固定アーカイブへの行番号引用は引用規約が許容する。パスが未修飾で `docs/legacy/` 判定に落ちていたので修飾する。"
+  }
+ },
+ "companion_lines": {
+  "140": {
+   "kind": "requirement-line",
+   "baseline_line": 140,
+   "target_id": "4.0-1",
+   "category": "sections",
+   "replacement": "[4.0-1](../requirements/requirements-pitchlog-2026-07-22.md#4.0-1)",
+   "current_line": 154,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "161": {
+   "kind": "requirement-line",
+   "baseline_line": 161,
+   "target_id": "4.0-3",
+   "category": "sections",
+   "replacement": "[4.0-3](../requirements/requirements-pitchlog-2026-07-22.md#4.0-3)",
+   "current_line": 175,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "164": {
+   "kind": "requirement-line",
+   "baseline_line": 164,
+   "target_id": "4.0-4",
+   "category": "sections",
+   "replacement": "[4.0-4](../requirements/requirements-pitchlog-2026-07-22.md#4.0-4)",
+   "current_line": 178,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "178": {
+   "kind": "requirement-line",
+   "baseline_line": 178,
+   "target_id": "FR-001",
+   "category": "requirements",
+   "replacement": "[FR-001](../requirements/requirements-pitchlog-2026-07-22.md#FR-001)",
+   "current_line": 192,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "189": {
+   "kind": "requirement-line",
+   "baseline_line": 189,
+   "target_id": "FR-002",
+   "category": "requirements",
+   "replacement": "[FR-002](../requirements/requirements-pitchlog-2026-07-22.md#FR-002)",
+   "current_line": 203,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "214": {
+   "kind": "requirement-line",
+   "baseline_line": 214,
+   "target_id": "FR-005",
+   "category": "requirements",
+   "replacement": "[FR-005](../requirements/requirements-pitchlog-2026-07-22.md#FR-005)",
+   "current_line": 228,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "238": {
+   "kind": "requirement-line",
+   "baseline_line": 238,
+   "target_id": "FR-007",
+   "category": "requirements",
+   "replacement": "[FR-007](../requirements/requirements-pitchlog-2026-07-22.md#FR-007)",
+   "current_line": 252,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "275": {
+   "kind": "requirement-line",
+   "baseline_line": 275,
+   "target_id": "FR-011",
+   "category": "requirements",
+   "replacement": "[FR-011](../requirements/requirements-pitchlog-2026-07-22.md#FR-011)",
+   "current_line": 289,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "314": {
+   "kind": "requirement-line",
+   "baseline_line": 314,
+   "target_id": "FR-014",
+   "category": "requirements",
+   "replacement": "[FR-014](../requirements/requirements-pitchlog-2026-07-22.md#FR-014)",
+   "current_line": 332,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "326": {
+   "kind": "requirement-line",
+   "baseline_line": 326,
+   "target_id": "FR-040",
+   "category": "requirements",
+   "replacement": "[FR-040](../requirements/requirements-pitchlog-2026-07-22.md#FR-040)",
+   "current_line": 344,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "392": {
+   "kind": "requirement-line",
+   "baseline_line": 392,
+   "target_id": "FR-039",
+   "category": "requirements",
+   "replacement": "[FR-039](../requirements/requirements-pitchlog-2026-07-22.md#FR-039)",
+   "current_line": 410,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "403": {
+   "kind": "requirement-line",
+   "baseline_line": 403,
+   "target_id": "FR-020",
+   "category": "requirements",
+   "replacement": "[FR-020](../requirements/requirements-pitchlog-2026-07-22.md#FR-020)",
+   "current_line": 421,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "520": {
+   "kind": "requirement-line",
+   "baseline_line": 520,
+   "target_id": "FR-028",
+   "category": "requirements",
+   "replacement": "[FR-028](../requirements/requirements-pitchlog-2026-07-22.md#FR-028)",
+   "current_line": 538,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "545": {
+   "kind": "requirement-line",
+   "baseline_line": 545,
+   "target_id": "FR-030",
+   "category": "requirements",
+   "replacement": "[FR-030](../requirements/requirements-pitchlog-2026-07-22.md#FR-030)",
+   "current_line": 563,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "546": {
+   "kind": "requirement-line",
+   "baseline_line": 546,
+   "target_id": "FR-030",
+   "category": "requirements",
+   "replacement": "[FR-030](../requirements/requirements-pitchlog-2026-07-22.md#FR-030)",
+   "current_line": 564,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "554": {
+   "kind": "requirement-line",
+   "baseline_line": 554,
+   "target_id": "FR-031",
+   "category": "requirements",
+   "replacement": "[FR-031](../requirements/requirements-pitchlog-2026-07-22.md#FR-031)",
+   "current_line": 572,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "606": {
+   "kind": "requirement-line",
+   "baseline_line": 606,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 624,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "618": {
+   "kind": "requirement-line",
+   "baseline_line": 618,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 636,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "620": {
+   "kind": "requirement-line",
+   "baseline_line": 620,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 638,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "637": {
+   "kind": "requirement-line",
+   "baseline_line": 637,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 655,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "641": {
+   "kind": "requirement-line",
+   "baseline_line": 641,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 659,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "650": {
+   "kind": "requirement-line",
+   "baseline_line": 650,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 668,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "657": {
+   "kind": "requirement-line",
+   "baseline_line": 657,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 675,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "683": {
+   "kind": "requirement-line",
+   "baseline_line": 683,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 701,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "703": {
+   "kind": "requirement-line",
+   "baseline_line": 703,
+   "target_id": "FR-034",
+   "category": "requirements",
+   "replacement": "[FR-034](../requirements/requirements-pitchlog-2026-07-22.md#FR-034)",
+   "current_line": 721,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "716": {
+   "kind": "requirement-line",
+   "baseline_line": 716,
+   "target_id": "FR-035",
+   "category": "requirements",
+   "replacement": "[FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035)",
+   "current_line": 734,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "825": {
+   "kind": "requirement-line",
+   "baseline_line": 825,
+   "target_id": "NFR-010",
+   "category": "requirements",
+   "replacement": "[NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010)",
+   "current_line": 846,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1150": {
+   "kind": "requirement-line",
+   "baseline_line": 1150,
+   "target_id": "付録B/B-1",
+   "category": "appendix_items",
+   "replacement": "[付録B/B-1](../requirements/requirements-pitchlog-2026-07-22.md#付録B/B-1)",
+   "current_line": 1197,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1155": {
+   "kind": "requirement-line",
+   "baseline_line": 1155,
+   "target_id": "付録B/B-6",
+   "category": "appendix_items",
+   "replacement": "[付録B/B-6](../requirements/requirements-pitchlog-2026-07-22.md#付録B/B-6)",
+   "current_line": 1202,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1168": {
+   "kind": "requirement-line",
+   "baseline_line": 1168,
+   "target_id": "付録C/トークン有効期限",
+   "category": "keyed_table_rows",
+   "replacement": "[付録C/トークン有効期限](../requirements/requirements-pitchlog-2026-07-22.md#付録C/トークン有効期限)",
+   "current_line": 1215,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1169": {
+   "kind": "requirement-line",
+   "baseline_line": 1169,
+   "target_id": "付録C/所見の変更履歴世代数",
+   "category": "keyed_table_rows",
+   "replacement": "[付録C/所見の変更履歴世代数](../requirements/requirements-pitchlog-2026-07-22.md#付録C/所見の変更履歴世代数)",
+   "current_line": 1216,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1180": {
+   "kind": "requirement-line",
+   "baseline_line": 1180,
+   "target_id": "付録D/D-1",
+   "category": "appendix_items",
+   "replacement": "[付録D/D-1](../requirements/requirements-pitchlog-2026-07-22.md#付録D/D-1)",
+   "current_line": 1227,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1189": {
+   "kind": "requirement-line",
+   "baseline_line": 1189,
+   "target_id": "付録D/D-4",
+   "category": "appendix_items",
+   "replacement": "[付録D/D-4](../requirements/requirements-pitchlog-2026-07-22.md#付録D/D-4)",
+   "current_line": 1236,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1237": {
+   "kind": "requirement-line",
+   "baseline_line": 1237,
+   "target_id": "付録F/F-1",
+   "category": "appendix_items",
+   "replacement": "[付録F/F-1](../requirements/requirements-pitchlog-2026-07-22.md#付録F/F-1)",
+   "current_line": 1284,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1239": {
+   "kind": "requirement-line",
+   "baseline_line": 1239,
+   "target_id": "付録F/F-2",
+   "category": "appendix_items",
+   "replacement": "[付録F/F-2](../requirements/requirements-pitchlog-2026-07-22.md#付録F/F-2)",
+   "current_line": 1286,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  },
+  "1246": {
+   "kind": "requirement-line",
+   "baseline_line": 1246,
+   "target_id": "付録F/F-2",
+   "category": "appendix_items",
+   "replacement": "[付録F/F-2](../requirements/requirements-pitchlog-2026-07-22.md#付録F/F-2)",
+   "current_line": 1293,
+   "resolution": "text-match",
+   "norm_preserved": true,
+   "note": null
+  }
+ },
+ "bare_line_citations": [
+  {
+   "source_line": 23,
+   "cited": "ADR-003 `:93-104`",
+   "replacement": "ADR-003 D-1",
+   "reason": "(β) を SQL 生成で DB 側実行とする切り分けは D-1 の決定表にある"
+  },
+  {
+   "source_line": 363,
+   "cited": "ADR-003 `:93-104`",
+   "replacement": "ADR-003 D-6・D-8",
+   "reason": "契約の単位「1 遷移」は D-6、`input` = 事前状態 + 履歴文脈 + 次イベント 1 件は D-8 の比較面表"
+  },
+  {
+   "source_line": 466,
+   "cited": "ADR-003 `:29`",
+   "replacement": "ADR-003 D-6",
+   "reason": "履歴文脈が「取消可能な操作のスタック(各要素は種別と差分)」であることは D-6 の ゴールデンケース契約にある。`:29` は変更履歴行であって規範ではない"
+  },
+  {
+   "source_line": 484,
+   "cited": "決定記録 `:438`",
+   "replacement": "決定記録 D-43",
+   "reason": "主審・補助ラベルを列連続性のため保持する採用理由は D-43(v1.6 旧コード突合)の記述"
+  },
+  {
+   "source_line": 1436,
+   "cited": "決定記録 `:438`",
+   "replacement": "決定記録 D-43",
+   "reason": "同上"
+  }
+ ],
+ "occurrences": [
+  {
+   "source_line": 58,
+   "ordinal": 1,
+   "column": 55,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 59,
+   "ordinal": 1,
+   "column": 49,
+   "ref": "REQ:493",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 60,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:488",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 61,
+   "ordinal": 1,
+   "column": 54,
+   "ref": "REQ:653",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 62,
+   "ordinal": 1,
+   "column": 58,
+   "ref": "REQ:597",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 65,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 66,
+   "ordinal": 1,
+   "column": 19,
+   "ref": "REQ:705",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 82,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:653",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 91,
+   "ordinal": 1,
+   "column": 66,
+   "ref": "REQ:976",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 95,
+   "ordinal": 1,
+   "column": 6,
+   "ref": "REQ:824",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 95,
+   "ordinal": 2,
+   "column": 41,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 114,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:976",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 120,
+   "ordinal": 1,
+   "column": 283,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 161,
+   "ordinal": 1,
+   "column": 21,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 185,
+   "ordinal": 1,
+   "column": 84,
+   "ref": "REQ:975",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 213,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 223,
+   "ordinal": 1,
+   "column": 2,
+   "ref": "REQ:350",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 223,
+   "ordinal": 2,
+   "column": 30,
+   "ref": "REQ:764",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 223,
+   "ordinal": 3,
+   "column": 57,
+   "ref": "REQ:480",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 225,
+   "ordinal": 1,
+   "column": 3,
+   "ref": "REQ:339",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 230,
+   "ordinal": 1,
+   "column": 8,
+   "ref": "REQ:824",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 238,
+   "ordinal": 1,
+   "column": 87,
+   "ref": "REQ:623",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 239,
+   "ordinal": 1,
+   "column": 89,
+   "ref": "REQ:645",
+   "kind": "requirement-line",
+   "introduced_in": "ab52b093df19"
+  },
+  {
+   "source_line": 246,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:824",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 252,
+   "ordinal": 1,
+   "column": 93,
+   "ref": "REQ:653",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 256,
+   "ordinal": 1,
+   "column": 41,
+   "ref": "REQ:704",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 256,
+   "ordinal": 2,
+   "column": 73,
+   "ref": "REQ:928",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 257,
+   "ordinal": 1,
+   "column": 77,
+   "ref": "REQ:648",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 258,
+   "ordinal": 1,
+   "column": 100,
+   "ref": "REQ:114",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 262,
+   "ordinal": 1,
+   "column": 12,
+   "ref": "REQ:647",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 263,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:648",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 263,
+   "ordinal": 2,
+   "column": 42,
+   "ref": "REQ:651",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 266,
+   "ordinal": 1,
+   "column": 10,
+   "ref": "REQ:645",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 283,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:586",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 290,
+   "ordinal": 1,
+   "column": 149,
+   "ref": "REQ:625",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 296,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:625",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 299,
+   "ordinal": 1,
+   "column": 20,
+   "ref": "REQ:597",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 309,
+   "ordinal": 1,
+   "column": 47,
+   "ref": "REQ:610",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 313,
+   "ordinal": 1,
+   "column": 32,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 324,
+   "ordinal": 1,
+   "column": 61,
+   "ref": "REQ:483",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 333,
+   "ordinal": 1,
+   "column": 12,
+   "ref": "REQ:610",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 341,
+   "ordinal": 1,
+   "column": 52,
+   "ref": "REQ:597",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 344,
+   "ordinal": 1,
+   "column": 10,
+   "ref": "REQ:623",
+   "kind": "requirement-line",
+   "introduced_in": "1395d0879763"
+  },
+  {
+   "source_line": 376,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:953",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 376,
+   "ordinal": 2,
+   "column": 58,
+   "ref": "REQ:147",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 376,
+   "ordinal": 3,
+   "column": 109,
+   "ref": "REQ:232",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 377,
+   "ordinal": 1,
+   "column": 28,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 377,
+   "ordinal": 2,
+   "column": 91,
+   "ref": "REQ:305",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 378,
+   "ordinal": 1,
+   "column": 40,
+   "ref": "REQ:1182",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 384,
+   "ordinal": 1,
+   "column": 63,
+   "ref": "REQ:288",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 388,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 396,
+   "ordinal": 1,
+   "column": 18,
+   "ref": "REQ:236",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 402,
+   "ordinal": 1,
+   "column": 76,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 403,
+   "ordinal": 1,
+   "column": 56,
+   "ref": "REQ:236",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 404,
+   "ordinal": 1,
+   "column": 47,
+   "ref": "REQ:272",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 410,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:236",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 420,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:305",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 422,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:234",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 423,
+   "ordinal": 1,
+   "column": 41,
+   "ref": "REQ:954",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 432,
+   "ordinal": 1,
+   "column": 31,
+   "ref": "REQ:147",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 438,
+   "ordinal": 1,
+   "column": 69,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 439,
+   "ordinal": 1,
+   "column": 102,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 440,
+   "ordinal": 1,
+   "column": 57,
+   "ref": "REQ:299",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 441,
+   "ordinal": 1,
+   "column": 87,
+   "ref": "REQ:341",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 442,
+   "ordinal": 1,
+   "column": 72,
+   "ref": "REQ:338",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 447,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:288",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 455,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:719",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 457,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:341",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 464,
+   "ordinal": 1,
+   "column": 10,
+   "ref": "REQ:901",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 469,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:227",
+   "kind": "requirement-line",
+   "introduced_in": "411e8cdad8b0"
+  },
+  {
+   "source_line": 482,
+   "ordinal": 1,
+   "column": 84,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 483,
+   "ordinal": 1,
+   "column": 58,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 484,
+   "ordinal": 1,
+   "column": 66,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 485,
+   "ordinal": 1,
+   "column": 60,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 486,
+   "ordinal": 1,
+   "column": 65,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 487,
+   "ordinal": 1,
+   "column": 80,
+   "ref": "REQ:128",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 496,
+   "ordinal": 1,
+   "column": 122,
+   "ref": "REQ:148",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 497,
+   "ordinal": 1,
+   "column": 79,
+   "ref": "REQ:186",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 498,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:187",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 499,
+   "ordinal": 1,
+   "column": 12,
+   "ref": "REQ:186",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 500,
+   "ordinal": 1,
+   "column": 80,
+   "ref": "REQ:206",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 501,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:203",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 502,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:197",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 503,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:232",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 525,
+   "ordinal": 1,
+   "column": 63,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 526,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 527,
+   "ordinal": 1,
+   "column": 131,
+   "ref": "REQ:117",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 528,
+   "ordinal": 1,
+   "column": 68,
+   "ref": "REQ:901",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 529,
+   "ordinal": 1,
+   "column": 69,
+   "ref": "REQ:288",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 530,
+   "ordinal": 1,
+   "column": 63,
+   "ref": "REQ:284",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 543,
+   "ordinal": 1,
+   "column": 22,
+   "ref": "REQ:147",
+   "kind": "requirement-line",
+   "introduced_in": "fd67d0a32952"
+  },
+  {
+   "source_line": 564,
+   "ordinal": 1,
+   "column": 65,
+   "ref": "REQ:299",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 565,
+   "ordinal": 1,
+   "column": 24,
+   "ref": "REQ:299",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 566,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:301",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 567,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:299",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 570,
+   "ordinal": 1,
+   "column": 49,
+   "ref": "REQ:302",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 572,
+   "ordinal": 1,
+   "column": 21,
+   "ref": "REQ:819",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 583,
+   "ordinal": 1,
+   "column": 149,
+   "ref": "REQ:272",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 584,
+   "ordinal": 1,
+   "column": 72,
+   "ref": "REQ:234",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 587,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:234",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 593,
+   "ordinal": 1,
+   "column": 3,
+   "ref": "REQ:767",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 599,
+   "ordinal": 1,
+   "column": 35,
+   "ref": "REQ:321",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 600,
+   "ordinal": 1,
+   "column": 44,
+   "ref": "REQ:324",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 601,
+   "ordinal": 1,
+   "column": 19,
+   "ref": "REQ:323",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 614,
+   "ordinal": 1,
+   "column": 40,
+   "ref": "REQ:303",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 615,
+   "ordinal": 1,
+   "column": 28,
+   "ref": "REQ:303",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 616,
+   "ordinal": 1,
+   "column": 40,
+   "ref": "REQ:303",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 617,
+   "ordinal": 1,
+   "column": 50,
+   "ref": "REQ:305",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 619,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:305",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 622,
+   "ordinal": 1,
+   "column": 38,
+   "ref": "REQ:722",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 623,
+   "ordinal": 1,
+   "column": 19,
+   "ref": "REQ:303",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 629,
+   "ordinal": 1,
+   "column": 110,
+   "ref": "REQ:1231",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 630,
+   "ordinal": 1,
+   "column": 39,
+   "ref": "REQ:317",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 631,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:312",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 632,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:312",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 634,
+   "ordinal": 1,
+   "column": 44,
+   "ref": "REQ:312",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 636,
+   "ordinal": 1,
+   "column": 33,
+   "ref": "REQ:144",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 637,
+   "ordinal": 1,
+   "column": 20,
+   "ref": "REQ:316",
+   "kind": "requirement-line",
+   "introduced_in": "285f5e3d702b"
+  },
+  {
+   "source_line": 659,
+   "ordinal": 1,
+   "column": 35,
+   "ref": "REQ:391",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 662,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:112",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 663,
+   "ordinal": 1,
+   "column": 33,
+   "ref": "REQ:361",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 664,
+   "ordinal": 1,
+   "column": 22,
+   "ref": "REQ:179",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 677,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:361",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 684,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:112",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 685,
+   "ordinal": 1,
+   "column": 20,
+   "ref": "REQ:483",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 686,
+   "ordinal": 1,
+   "column": 18,
+   "ref": "REQ:619",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 694,
+   "ordinal": 1,
+   "column": 83,
+   "ref": "REQ:714",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 704,
+   "ordinal": 1,
+   "column": 7,
+   "ref": "REQ:619",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 709,
+   "ordinal": 1,
+   "column": 3,
+   "ref": "REQ:389",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 711,
+   "ordinal": 1,
+   "column": 3,
+   "ref": "baseball-scoring-db-structure.md:168",
+   "kind": "path-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 714,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:387",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 715,
+   "ordinal": 1,
+   "column": 2,
+   "ref": "baseball-scoring-db-structure.md:176",
+   "kind": "path-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 728,
+   "ordinal": 1,
+   "column": 68,
+   "ref": "REQ:1191",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 731,
+   "ordinal": 1,
+   "column": 32,
+   "ref": "REQ:387",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 738,
+   "ordinal": 1,
+   "column": 46,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 744,
+   "ordinal": 1,
+   "column": 202,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 747,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:756",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 760,
+   "ordinal": 1,
+   "column": 17,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 766,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:338",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 768,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:338",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 769,
+   "ordinal": 1,
+   "column": 75,
+   "ref": "REQ:339",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 770,
+   "ordinal": 1,
+   "column": 72,
+   "ref": "REQ:355",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 772,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:342",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 773,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:955",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 778,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:340",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 794,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:340",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 803,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:763",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 807,
+   "ordinal": 1,
+   "column": 12,
+   "ref": "REQ:144",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 813,
+   "ordinal": 1,
+   "column": 63,
+   "ref": "REQ:350",
+   "kind": "requirement-line",
+   "introduced_in": "17d6bba445c2"
+  },
+  {
+   "source_line": 814,
+   "ordinal": 1,
+   "column": 91,
+   "ref": "REQ:177",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 839,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 840,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:708",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 842,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 845,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 854,
+   "ordinal": 1,
+   "column": 52,
+   "ref": "REQ:829",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 855,
+   "ordinal": 1,
+   "column": 47,
+   "ref": "REQ:731",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 856,
+   "ordinal": 1,
+   "column": 37,
+   "ref": "REQ:731",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 859,
+   "ordinal": 1,
+   "column": 31,
+   "ref": "REQ:981",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 872,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:710",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 873,
+   "ordinal": 1,
+   "column": 43,
+   "ref": "REQ:712",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 874,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:714",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 875,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:720",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 886,
+   "ordinal": 1,
+   "column": 22,
+   "ref": "REQ:720",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 889,
+   "ordinal": 1,
+   "column": 49,
+   "ref": "REQ:722",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 901,
+   "ordinal": 1,
+   "column": 54,
+   "ref": "REQ:722",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 902,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:724",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 903,
+   "ordinal": 1,
+   "column": 50,
+   "ref": "REQ:744",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 909,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:744",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 910,
+   "ordinal": 1,
+   "column": 35,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 911,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:723",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 911,
+   "ordinal": 2,
+   "column": 59,
+   "ref": "REQ:795",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 916,
+   "ordinal": 1,
+   "column": 60,
+   "ref": "REQ:744",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 916,
+   "ordinal": 2,
+   "column": 79,
+   "ref": "REQ:722",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 917,
+   "ordinal": 1,
+   "column": 28,
+   "ref": "REQ:717",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 920,
+   "ordinal": 1,
+   "column": 28,
+   "ref": "REQ:717",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 926,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:489",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 938,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:653",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 940,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:723",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 942,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:659",
+   "kind": "requirement-line",
+   "introduced_in": "3953d680d06e"
+  },
+  {
+   "source_line": 947,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:724",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 952,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:823",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 962,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:731",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 963,
+   "ordinal": 1,
+   "column": 54,
+   "ref": "REQ:829",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 964,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:829",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 966,
+   "ordinal": 1,
+   "column": 28,
+   "ref": "REQ:731",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 974,
+   "ordinal": 1,
+   "column": 17,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 981,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:721",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 982,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:824",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 983,
+   "ordinal": 1,
+   "column": 58,
+   "ref": "REQ:824",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 985,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:948",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 993,
+   "ordinal": 1,
+   "column": 8,
+   "ref": "REQ:718",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 1008,
+   "ordinal": 1,
+   "column": 21,
+   "ref": "REQ:975",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 1010,
+   "ordinal": 1,
+   "column": 20,
+   "ref": "REQ:1038",
+   "kind": "requirement-line",
+   "introduced_in": "38f4715c9b08"
+  },
+  {
+   "source_line": 1015,
+   "ordinal": 1,
+   "column": 32,
+   "ref": "REQ:956",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1041,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:487",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1042,
+   "ordinal": 1,
+   "column": 52,
+   "ref": "REQ:947",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1049,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1051,
+   "ordinal": 1,
+   "column": 10,
+   "ref": "REQ:705",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1052,
+   "ordinal": 1,
+   "column": 15,
+   "ref": "REQ:493",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1054,
+   "ordinal": 1,
+   "column": 35,
+   "ref": "REQ:493",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1056,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:479",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1064,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:114",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1071,
+   "ordinal": 1,
+   "column": 3,
+   "ref": "REQ:487",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1071,
+   "ordinal": 2,
+   "column": 53,
+   "ref": "REQ:480",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1082,
+   "ordinal": 1,
+   "column": 61,
+   "ref": "REQ:478",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1083,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:478",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1084,
+   "ordinal": 1,
+   "column": 31,
+   "ref": "REQ:478",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1085,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:478",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1087,
+   "ordinal": 1,
+   "column": 21,
+   "ref": "REQ:478",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1089,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:655",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1089,
+   "ordinal": 2,
+   "column": 49,
+   "ref": "REQ:704",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1091,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:955",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1096,
+   "ordinal": 1,
+   "column": 74,
+   "ref": "REQ:488",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1097,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:488",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1101,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "a188e970f317"
+  },
+  {
+   "source_line": 1124,
+   "ordinal": 1,
+   "column": 14,
+   "ref": "REQ:488",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1130,
+   "ordinal": 1,
+   "column": 47,
+   "ref": "REQ:477",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1138,
+   "ordinal": 1,
+   "column": 26,
+   "ref": "REQ:114",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1150,
+   "ordinal": 1,
+   "column": 17,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1164,
+   "ordinal": 1,
+   "column": 18,
+   "ref": "REQ:715",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1176,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:679",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1179,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:679",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1181,
+   "ordinal": 1,
+   "column": 42,
+   "ref": "REQ:667",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1183,
+   "ordinal": 1,
+   "column": 44,
+   "ref": "REQ:667",
+   "kind": "requirement-line",
+   "introduced_in": "1896c49f9508"
+  },
+  {
+   "source_line": 1201,
+   "ordinal": 1,
+   "column": 82,
+   "ref": "REQ:764",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1202,
+   "ordinal": 1,
+   "column": 86,
+   "ref": "REQ:521",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1206,
+   "ordinal": 1,
+   "column": 37,
+   "ref": "REQ:522",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1210,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:484",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1216,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:532",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1218,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:532",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1224,
+   "ordinal": 1,
+   "column": 8,
+   "ref": "REQ:150",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1232,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:157",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1234,
+   "ordinal": 1,
+   "column": 37,
+   "ref": "REQ:157",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1237,
+   "ordinal": 1,
+   "column": 15,
+   "ref": "REQ:159",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1241,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:1183",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1242,
+   "ordinal": 1,
+   "column": 8,
+   "ref": "REQ:160",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1247,
+   "ordinal": 1,
+   "column": 6,
+   "ref": "REQ:748",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1261,
+   "ordinal": 1,
+   "column": 27,
+   "ref": "REQ:312",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1270,
+   "ordinal": 1,
+   "column": 57,
+   "ref": "REQ:759",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1271,
+   "ordinal": 1,
+   "column": 29,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1272,
+   "ordinal": 1,
+   "column": 41,
+   "ref": "REQ:757",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1273,
+   "ordinal": 1,
+   "column": 40,
+   "ref": "REQ:758",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1278,
+   "ordinal": 1,
+   "column": 39,
+   "ref": "REQ:758",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1281,
+   "ordinal": 1,
+   "column": 13,
+   "ref": "REQ:765",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1285,
+   "ordinal": 1,
+   "column": 12,
+   "ref": "REQ:766",
+   "kind": "requirement-line",
+   "introduced_in": "71eaac9f88d6"
+  },
+  {
+   "source_line": 1306,
+   "ordinal": 1,
+   "column": 31,
+   "ref": "REQ:143",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1316,
+   "ordinal": 1,
+   "column": 38,
+   "ref": "REQ:367",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1321,
+   "ordinal": 1,
+   "column": 46,
+   "ref": "REQ:368",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1322,
+   "ordinal": 1,
+   "column": 72,
+   "ref": "REQ:370",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1323,
+   "ordinal": 1,
+   "column": 62,
+   "ref": "REQ:369",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1324,
+   "ordinal": 1,
+   "column": 44,
+   "ref": "REQ:367",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1335,
+   "ordinal": 1,
+   "column": 18,
+   "ref": "REQ:1053",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1340,
+   "ordinal": 1,
+   "column": 0,
+   "ref": "REQ:955",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1366,
+   "ordinal": 1,
+   "column": 36,
+   "ref": "REQ:955",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1369,
+   "ordinal": 1,
+   "column": 30,
+   "ref": "REQ:955",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1386,
+   "ordinal": 1,
+   "column": 53,
+   "ref": "REQ:1055",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1397,
+   "ordinal": 1,
+   "column": 37,
+   "ref": "REQ:786",
+   "kind": "requirement-line",
+   "introduced_in": "3bbf8e9d5835"
+  },
+  {
+   "source_line": 1419,
+   "ordinal": 1,
+   "column": 1,
+   "ref": "REQ:761",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1456,
+   "ordinal": 1,
+   "column": 51,
+   "ref": "REQ:148",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1458,
+   "ordinal": 1,
+   "column": 66,
+   "ref": "REQ:1154",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1461,
+   "ordinal": 1,
+   "column": 159,
+   "ref": "REQ:760",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1467,
+   "ordinal": 1,
+   "column": 47,
+   "ref": "REQ:187",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1486,
+   "ordinal": 1,
+   "column": 6,
+   "ref": "REQ:760",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1497,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:763",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1499,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:767",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1504,
+   "ordinal": 1,
+   "column": 73,
+   "ref": "REQ:763",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1514,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:1182",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1519,
+   "ordinal": 1,
+   "column": 61,
+   "ref": "REQ:553",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1527,
+   "ordinal": 1,
+   "column": 107,
+   "ref": "data-layer.md:402",
+   "kind": "path-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1528,
+   "ordinal": 1,
+   "column": 92,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1532,
+   "ordinal": 1,
+   "column": 34,
+   "ref": "REQ:147",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1533,
+   "ordinal": 1,
+   "column": 0,
+   "ref": "REQ:954",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1550,
+   "ordinal": 1,
+   "column": 4,
+   "ref": "data-layer.md:402",
+   "kind": "path-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1552,
+   "ordinal": 1,
+   "column": 25,
+   "ref": "REQ:755",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1556,
+   "ordinal": 1,
+   "column": 4,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1560,
+   "ordinal": 1,
+   "column": 101,
+   "ref": "REQ:760",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1561,
+   "ordinal": 1,
+   "column": 66,
+   "ref": "db-structure.md:286",
+   "kind": "path-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1562,
+   "ordinal": 1,
+   "column": 67,
+   "ref": "REQ:762",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1563,
+   "ordinal": 1,
+   "column": 103,
+   "ref": "REQ:758",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1613,
+   "ordinal": 1,
+   "column": 97,
+   "ref": "REQ:401",
+   "kind": "requirement-line",
+   "introduced_in": "c9840f9ef5a1"
+  },
+  {
+   "source_line": 1639,
+   "ordinal": 1,
+   "column": 52,
+   "ref": "REQ:83",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1644,
+   "ordinal": 1,
+   "column": 23,
+   "ref": "REQ:367",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1649,
+   "ordinal": 1,
+   "column": 46,
+   "ref": "REQ:368",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1650,
+   "ordinal": 1,
+   "column": 65,
+   "ref": "REQ:370",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1651,
+   "ordinal": 1,
+   "column": 62,
+   "ref": "REQ:369",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1652,
+   "ordinal": 1,
+   "column": 48,
+   "ref": "REQ:367",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1690,
+   "ordinal": 1,
+   "column": 35,
+   "ref": "REQ:765",
+   "kind": "requirement-line",
+   "introduced_in": "eceddf9b03a4"
+  },
+  {
+   "source_line": 1724,
+   "ordinal": 1,
+   "column": 95,
+   "ref": "REQ:83",
+   "kind": "requirement-line",
+   "introduced_in": "f1fc43d36c99"
+  },
+  {
+   "source_line": 1775,
+   "ordinal": 1,
+   "column": 7,
+   "ref": "REQ:236",
+   "kind": "requirement-line",
+   "introduced_in": "312ce1b38055"
+  },
+  {
+   "source_line": 1775,
+   "ordinal": 2,
+   "column": 24,
+   "ref": "REQ:282",
+   "kind": "requirement-line",
+   "introduced_in": "312ce1b38055"
+  },
+  {
+   "source_line": 1784,
+   "ordinal": 1,
+   "column": 0,
+   "ref": "REQ:960",
+   "kind": "requirement-line",
+   "introduced_in": "312ce1b38055"
+  }
+ ]
+}
