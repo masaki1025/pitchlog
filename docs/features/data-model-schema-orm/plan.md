@@ -119,6 +119,7 @@ TSK-250 の承認済み計画を表どおり実行すると**後段が前段と�
 | --- | --- | --- |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **新設**(`0.1` → `in-review` → `approved`)。候補案 1〜12 節を素材に移送し、**引用を安定 ID 参照へ貼り替え**、RLS の設計判断・テーブル制約・裁定 A-1/A-3 の反映・**欠陥 ID 群の是正**・`WAIT-*` の物理表現・`NFR-018` の境界・越境テスト再実行ゲートの定義・**7.3-7 の射程宣言節**を持たせる | **finalize-doc**(7.3 — **正本の新設**) |
 | [`docs/README.md`](../../README.md)(索引) | **設計正本の行を新設**(`draft` → `approved`) | —(常に現行化 — 7.2) |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md)(台帳) | **既存候補「計画レビューに終端条件が無く、敵対レビューが 9 周続いた」へ実測を追記**(確定ゲート 13 周・指摘 102 件・PO 裁定 4 回・打ち切りの根拠)+ **`## 候補` へ 1 件新設**(**字面の走査では自然言語の言い換えによる残滓を捕まえられない**)+ 変更履歴に 1 行。**`H-*` の新規採番はしない・版は上げない** | PR レビュー(7.6-3 前段) |
 | [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) / `docs/requirements/**` / `docs/adr/**` / `docs/ops/**` / `contracts/**` / `backend/**` / `frontend/**` | **反映なし**(**5.1・10.1 の改訂は TSK-343**) | — |
 
 ### 正本体系外だが同一 PR で運ぶもの(/pr 突合の別枠宣言)
