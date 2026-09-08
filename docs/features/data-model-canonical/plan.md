@@ -254,8 +254,8 @@ TSK-339 が器(`contracts/legacy-columns/` の JSON・schema・lock・検査器)
 | **`scripts/design_relations/citation-map-data-model.json`**(新設) | **旧参照 → 新安定 ID の対応表**(**TSK-342 の旧ステップ 22** の置換を覆い、置換前後の規範の同一性判定を行ごとに記録する。**本資産は TSK-342 の射程**) | **TSK-342 が持つ**(裁定 `R-1`) |
 | **`scripts/design_relations/handoff-digest-data-model.json`**(新設) | **受け渡し資産のパスと digest**(写像時点の値。最終検証で再照合する)— **TSK-317 の確定成果**(AUTH カタログ・DDL 要素表・不採用構成表)**と `IN-01`〜`IN-04` の `research_blob_sha`**。**「C の 88 列写像 JSON」は入れない**(存在しない — 裁定 `R-9`) | PR レビュー(テストを伴う) |
 | **`scripts/verify_handoff_digest.py`**(**新設** — 申し送り 7) | **受け渡し digest の再照合器**。**A のコンフォーマンスランナーには載せない**(ランナーは単一プロファイルの検証器)。本タスクの専用スクリプトとして置き、`guard_paths` へ加える | PR レビュー(テストを伴う) |
-| **`tests/fixtures/data-model-source.txt`** | 退行 fixture(本文のバイト単位のコピー。**拡張子は `.txt`**)。**新設は TSK-342 の旧ステップ 2** — 本タスクは**入力として受ける**(加筆に合わせた更新は本タスク) | **新設は TSK-342** / 更新は PR レビュー |
-| **`scripts/design_relations/fixture-sha256-data-model.txt`** | **ソース fixture 専用の SHA-256**(**新設は TSK-342 の旧ステップ 2**。本タスクは加筆に合わせて更新する)(欠陥台帳用の `baseline-digest-data-model.txt` とは別資産 — 用途が違うので代用しない) | PR レビュー |
+| **`tests/fixtures/data-model-source.txt`** | 退行 fixture(本文のバイト単位のコピー。**拡張子は `.txt`**)。**新設は TSK-342 の旧ステップ 2** — 本タスクは**入力として受け、ステップ 19 で本文の最終形へ更新する** | **新設は TSK-342** / 更新は PR レビュー |
+| **`scripts/design_relations/fixture-sha256-data-model.txt`** | **ソース fixture 専用の SHA-256**(**新設は TSK-342 の旧ステップ 2**。本タスクは**ステップ 19 で**本文の最終形に合わせて更新する)(欠陥台帳用の `baseline-digest-data-model.txt` とは別資産 — 用途が違うので代用しない) | PR レビュー |
 | **`tests/fixtures/data-model-negative/` 配下の 10 ファイル**(新設) | 負例。**`guard_paths` は完全一致集合でディレクトリ登録では配下の変更が発火しない**(`scripts/core_guard.py`)ため、**個別ファイル名で固定する**: `01-relation-missing.json` / `02-claim-missing.json` / `03-all-out-of-scope.json` / `04-forbidden-alias.json` / `05-wait-resolved-by-forbidden.json` / `06-baseline-digest-tampered.json` / `07-auth-uses-forbidden-direction.json`(4 周目 P1-2)/ **`08-auth-ddl-map-structure-missing.json`** / **`09-product-ddl-map-domain-gap.json`** / **`10-direct-requirements-claims-mismatch.json`**(申し送り 15・22・23) | PR レビュー(テストを伴う) |
 | **`scripts/design_relations/staging/data-model/`**(**一時物** — 申し送り 14) | ステップ 2 で作りステップ 16 で本番へ移設して削除する。**`guard_paths` へは登録しない**(最終パスをステップ 17 で登録する) | PR レビュー |
 | **CI ワークフロー** | **`ci.yml` は無変更**(docs-lint の 3 step。**引数なし = 本番レジストリ列挙**)。`tests/test_ci_wiring.py` を**登録の事実**に合わせて更新する | PR レビュー(テストを伴う) |
@@ -293,36 +293,26 @@ TSK-339 が器(`contracts/legacy-columns/` の JSON・schema・lock・検査器)
 | `DM-LX-*` | 6 | `LX-01`〜`LX-06` | **本タスク** | **12**(同上。**`LX-01`・`LX-02` は「射程外・不明」のまま渡す**) |
 | `DM-RQ-*` | 9 | `RQ-01`〜`RQ-09`(**各件に裁定 ID・決定者・決定日・反映節** — 2 周目 P1-12 を採用) | **TSK-342**(旧 20) | — |
 | `DM-SP-*` | 6 | `SP-01`〜`SP-06`(同期正本が判定を放棄して送った禁止事項) | **TSK-342**(旧 20) | — |
-| 合計 | **78** | | | |
+| 合計 | **78**(ベースライン) | | | |
+| **`DM-MT-*`** | 1 | **`DM-MT-01`**(`absent-section: "13"` — **追記分・`baseline: false`**) | **本タスク** | **`S4`**(欠陥台帳のベースライン固定と同一コミット) |
 
 **TSK-342 所有の群の扱い**: **TSK-342 側の欠陥台帳で `resolved` + `closure_evidence` を持つ。**
 本タスクは **① 開始条件(TSK-342 の完了)でそれを確認**し、**② ステップ 15 で本タスクの台帳へ
 `closure_evidence` を取り込む**(取り込んだ行の `owner_step` は **`TSK-342` を明示**し、
-本タスクの `S<番号>` を割り当てない)。**`owner_steps_allowed` は「新 1〜19 または `TSK-342`」という広い集合にしない**
-(2 周目 `P0-1`: それでは `DM-LG-*` を旧 18 のまま残しても通ってしまう。**失格になるのは旧 20 だけ**
-だった — 実測)。→ **群ごとの許可集合の写像**として `expected-ids-data-model.json` に固定する
-(**作成は ステップ 4**):
-
-**`owner_step` の値は素の数値にしない。`S<新番号>` の形にする**(自己走査で発見 — 素の数値だと
-**旧 11(順序系の写像 → TSK-342)と新 11(復旧世代の永続化写像 → 本タスク)が数字として衝突**し、
-`DM-SY-C*` は旧番号のままでも通ってしまった〔実測〕)。**`S` 接頭辞により旧番号の残存が構文的に落ちる。**
+本タスクの `S<番号>` を割り当てない)。**`owner_step` の値は素の数値にしない。`S<新番号>` の形にする**(**旧 11(順序系の写像 → TSK-342)と
+新 11(復旧世代の永続化写像 → 本タスク)が数字として衝突する**ため — 実測)。
 ※ これは `owner_step` の**値**の書式であり、`#### ステップの資産所有表` の「新ステップ ID」列
 (素の `1`〜`19`)とは別物である。
 
-| 群 | `owner_steps_allowed`(この集合の外は終了 2) |
-| --- | --- |
-| `DM-LG-*` | **`{"S12"}`** のみ |
-| `DM-LX-*` | **`{"S12"}`** のみ |
-| `DM-SY-C*` | **`{"S10", "S11", "TSK-342"}`** のみ |
-| `DM-SY-M*` | **`{"S11", "TSK-342"}`** のみ |
-| `DM-SY-B*` | **`{"TSK-342"}`** のみ |
-| `DM-RQ-*` | **`{"TSK-342"}`** のみ |
-| `DM-SP-*` | **`{"TSK-342"}`** のみ |
+**`owner_steps_allowed` の具体形は本計画では確定しない。**(**TSK-335 の成果物レビュー 3 周目の
+打ち切り裁定〔2026-09-08・山田正輝〕** — 下の `#### 本タスクの再承認前に閉じる宿題` の 1 番)
+TSK-335 は**移管が漏れていないこと**までを保証し、**欠陥 ID 単位の所有割当ては本タスクの
+再承認レビューで詰める**。理由: 旧 16 が持つ `C07`・`C15`・`C16`・`M11`〜`M14`・`M16`・`M19` の
+どれが「復旧世代・`RG1`・`I6`」側かは**同期プロトコル正本を ID ごとに読まないと決まらず**、
+TSK-335 の射程(受け渡し契約の改訂とスキーマ + ORM の切り出し)を超える。
 
-**`DM-SY-C*`・`DM-SY-M*` の ID 単位の内訳はステップ 4 で確定する**(旧 16 は `C07`・`C15`・`C16`・
-`M11`〜`M14`・`M16`・`M19` を持ち、そのうち **復旧世代・`RG1`・`I6` に関わる ID が新 11**、
-**残りが TSK-342**。旧 14 は `C13` が `S10`)。**1 欠陥 ID を 2 つの所有へ分けない**(`unique-owner`)。
-ステップ 4 の合格条件で **各 ID が群の許可集合のいずれか 1 つに割り当てられている**ことを検査する。
+**現時点で確定している所有**(上の表が正): `DM-LG-*`・`DM-LX-*` = `S12` / `DM-SY-B*`・`DM-RQ-*`・
+`DM-SP-*` = `TSK-342` / `DM-SY-C*` の `C13` = `S10`。**`DM-SY-C*` の残りと `DM-SY-M*` は未確定**。
 
 **追記分**: `DM-MT-01`(候補案 13 節の不在 — `absent-section`。申し送り 13)は**ベースライン外の追記**として
 `baseline: false` で置き、`required_declarations` に入れる。**ベースライン 78 件の集合は変えない。**
@@ -382,7 +372,10 @@ A のマージで引数なし列挙が正になったため、暫定パスの置
 `approved`)/ **TSK-317 の完了**(認可構成の確定成果。候補 probe 資産では満たさない)/ **TSK-334 の完了**
 (値の採否 = `IN-05`)/ **本改訂への人間の再承認**。A(TSK-269)は充足 — PR #42 / `fdda374`。
 C(TSK-271)は PR #48 / `196627ec` でマージ済みだが **88 列写像 JSON は作らない**(裁定 `R-9`)。
-**文書の是正ステップでは fixture と digest を変更しない。**
+**文書の是正ステップ(8〜15)では fixture と digest を変更しない。**
+**`tests/fixtures/data-model-source.txt` と `scripts/design_relations/fixture-sha256-data-model.txt` の
+更新は、本文を変更する最後のステップ(= ステップ 19)で行う**(2 周目 `P0-3` / 3 周目 `P0-3`。
+ステップ 15 で更新するとステップ 19 の本文追加と一致しなくなる)。
 **ステップ 3 以降、プロファイル・宣言資産・oracle 資産を触るステップは `pins` を同一コミットで更新する。**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
@@ -390,7 +383,7 @@ C(TSK-271)は PR #48 / `196627ec` でマージ済みだが **88 列写像 JSON �
 | 1 | **A の新資産の `guard_paths` 登録**(**最初の独立コミット** — 申し送り 3)— `.claude/core-areas.json` の `guard_paths` へ、**TSK-269 が新設した B 集合の未登録 33 パスを完全列挙で追加**する(`scripts/design_relations/{profiles/registry.json, profiles/sync-protocol.json, invariants/sync-protocol.json}`・`schemas/` 5 本・`scripts/doc_check_profile.py`・**`scripts/doc_check_invariants.py`**・`scripts/check_doc_profiles.py`・`tests/fixtures/profile-sample/` 19 本・`tests/fixtures/structural-reasons-expected.json`・`tests/test_doc_check_profile.py`・`tests/test_check_doc_profiles.py`)。**`.claude/scripts/codex_run.py` / `tests/test_codex_run.py`(C 集合)は対象外**(2 節) | **`fdda374` の差分のうち `docs/` 以外の全ファイルが `guard_paths` に包含されている**(実 diff から導出した集合と突合。**A の design 3 節 B 表は 38 件だが `scripts/doc_check_invariants.py` が漏れているため、表ではなく実 diff を正とする**)/ **各パスの変更で `core_guard.py` が発火することを実設定から確認するテストがある** / `uv run pytest tests/` green / **本ステップの差分は `.claude/core-areas.json` と `tests/test_core_guard.py` のみ** |
 | 2 | **staging の木の原子的作成**(**新設** — 申し送り 14・12)— **開始条件(TSK-342 の完了)を満たした直後**に `scripts/design_relations/staging/data-model/` へ `profiles/{registry.json,data-model.json}`・`doc/{manifest,defects,invariants}.json`・`assets/`(10 資産)を、**全必須資産の構造的に妥当な骨格つきで 1 コミットに**作る。`document` / `requirements` / `universe` は本番パスを参照する | **`check_doc_profiles.py --registry <staging>/profiles/registry.json --profile <staging>/profiles/data-model.json --json` が終了 2 にならない**(= スキーマ・レジストリ・完全分割・`must_require`・`pins`・必須資産の宣言がすべて成立)/ **終了 1・`partial: false` で 22 件の診断が返る** / **`staging/.../profiles/` にレジストリとプロファイル以外を置いていない** / **本番レジストリは無変更**(CI green) |
 | 3 | **文書プロファイルの確定** — staging の `data-model.json` を実仕様へ確定する: 識別・資産・文法・宣言表節・帰属表節・台帳節・帰属区分の語彙・**`defect_id_namespaces` = `{all: ["DM"], machine: ["DM"]}`**・`invariant_kinds`(**契約の 5 種別名も書ける** — 申し送り 17)・**`required_checks` = 全 22 / `not_applicable` = {}**(申し送り 11)・**`assets`**(申し送り 8 — `path` / `identity` / `collections` / `join` / `namespace` / `structure` / `normalize`)・**`structure_extractors`**(申し送り 19 — 関係・遷移表・列役割表・暗黙関係)・**`collection_sets`**(申し送り 20)・`direct_requirements`・`reference_policy`。**レジストリ entry の `must_require` = 全 22 と `pins` を同時に確定** | **staging レジストリでローダーを通る**(スキーマ版一致・`profiles/` 実ファイル完全一致・`pins` 一致)/ **`required_checks ∪ not_applicable` = 22・積は空・`required_checks ⊇ must_require`** / **未対応の不変条件種別・未知フィールド・pins 不一致・必須検査の資産/抽出器/集合宣言の欠落がいずれも終了 2 になる**(fail-closed の確認 — 申し送り 6)/ **`structure_extractors` が `forbidden` の全 `kind` を覆う** / **実プロファイルを使う契約テストがある**(契約 4) |
-| 4 | **欠陥台帳のベースライン固定** — `defects-data-model.json` に **78 件**を全 ID 明記で固定し、**immutable / mutable を 3 節の項目どおりに分け**、`baseline-digest-data-model.txt` と `expected-ids-data-model.json` を作る。**`invariants/data-model.json` に `global_invariants`(`unique-owner`)と `DM-MT-01`(`absent-section: "13"`)を置く**(申し送り 10・13・15) | **78 件すべてに必須フィールド(機械欠陥は `check` と `invariant` を持つ)** / **群別件数と ID 集合が 4 節の表と一致**(exact-set)/ **全 ID がちょうど 1 回・`owner_steps_allowed` の範囲に割り当て**(`unique-owner`)/ **`owner_steps_allowed` が 4 節の群写像どおり**(`DM-LG-*`・`DM-LX-*` は `{"S12"}` のみ / `DM-SY-C*` は `{"S10", "S11", "TSK-342"}` のみ / `DM-SY-M*` は `{"S11", "TSK-342"}` のみ / `DM-SY-B*`・`DM-RQ-*`・`DM-SP-*` は `{"TSK-342"}` のみ)/ **`owner_step` の値が `^S(1[0-9]|[1-9])$` または `TSK-342` に一致**(**素の数値は終了 2** — 旧番号の残存を構文で落とす)。**旧番号を素の数値で入れた負例(`11`・`18`・`20`)で終了 2**/ **immutable 各フィールド(`baseline` 反転を含む)の改変で red・mutable 改変で green**(`baseline-digest`)/ **候補案 13 節を復活させると `absent-section` が red** / **負例 `06-baseline-digest-tampered.json` で red** |
+| 4 | **欠陥台帳のベースライン固定** — `defects-data-model.json` に **ベースライン 78 件 + 追記分 `DM-MT-01`(`baseline: false`)**を全 ID 明記で固定し、**immutable / mutable を 3 節の項目どおりに分け**、`baseline-digest-data-model.txt` と `expected-ids-data-model.json` を作る。**`invariants/data-model.json` に `global_invariants`(`unique-owner`)と `DM-MT-01`(`absent-section: "13"`)を置く**(申し送り 10・13・15) | **全 79 件(ベースライン 78 + `DM-MT-01`)に必須フィールド(機械欠陥は `check` と `invariant` を持つ)** / **群別件数と ID 集合が 4 節の表と一致**(exact-set)/ **全 ID がちょうど 1 回・`owner_steps_allowed` の範囲に割り当て**(`unique-owner`)/ **`owner_step` の値が `^S(1[0-9]|[1-9])$` または `TSK-342` に一致**(**素の数値は終了 2** — 旧番号の残存を構文で落とす)。**旧番号を素の数値で入れた負例(`11`・`18`・`20`)で終了 2** / **4 節で確定済みの所有どおり**(`DM-LG-*`・`DM-LX-*` = `S12` / `DM-SY-B*`・`DM-RQ-*`・`DM-SP-*` = `TSK-342` / `C13` = `S10`)。**`DM-SY-C*` の残りと `DM-SY-M*` の割当ては本タスクの再承認前に確定する**(宿題 1)/ **immutable 各フィールド(`baseline` 反転を含む)の改変で red・mutable 改変で green**(`baseline-digest`)/ **候補案 13 節を復活させると `absent-section` が red** / **負例 `06-baseline-digest-tampered.json` で red** |
 | 5 | **入力主張母集合・独立資産・受け渡し digest の固定** — `claims-data-model.json` に、**同期正本 11-2 の行・要件のデータモデル直接条項・候補案の関係主張・TSK-317 の DDL 要素表・C の `IN-01`〜`IN-04`**(判定 22 件 + センチネル全 88 列表 + 座標の確定式)**の和集合**を**安定 ID + 共通正規化 ID 付き**で固定し、全行を **`relation` / `forbidden` / `direct_requirement` / `out-of-scope`(理由・受取先)** へ排他分類する(申し送り 22)。**同一コミットで `direct-requirements-data-model.json`・`auth-ddl-map-data-model.json`・(probe-only なら)`product-ddl-map-data-model.json`・`handoff-digest-data-model.json` を作り、`scripts/verify_handoff_digest.py` を新設する**(申し送り 7・15) | **全行に出典の安定 ID と共通正規化 ID がある**(**該当なしは明示的な空集合 + 理由**)/ **TSK-317 の確定成果の全行と `IN-01`〜`IN-04` の全行が母集合に現れる**(exact-set。**成果 ID + blob digest と `research_blob_sha` の照合つき**。**`IN-05`〜`IN-08` は claims の母集合に入れない** — `IN-05` は値の採否・`IN-06` は要件・`IN-07` は evidence・`IN-08` は物理実体名であり主張ではない)/ **未分類・二重分類が 0 件** / **`direct_requirements` が非空で `claims` の `direct_requirement` と exact**(`collection-consistency`)/ **`auth_ddl_map` の ID 集合 = `auth_catalog`・`structures` 非空・`participants ⊆ ddl_ids`** / **`verify_handoff_digest.py` が TSK-317 の確定成果と `IN-01`〜`IN-04` を覆い green** / **負例 `02`・`03`・`08`・`09`・`10` で red** / **本ステップで本文を変更していない** |
 | 6 | **受け取り台帳・禁止構造台帳・関係マニフェスト** — `waiting-data-model.json`(`WAIT-01`〜`08`)/ `forbidden-data-model.json`(`FORB-01`〜`04`)/ `data-model.json`(**母集合の `relation` 行の exact-set**)を固定し、**`collection_sets` に `claims-relations-vs-manifest`(exact)を宣言する**(申し送り 20) | **`WAIT-01`〜`08` が同期正本の該当箇所と 1 対 1**(逐行照合し結果を worklog へ)/ **`FORB-*` が `{kind, source, target, direction, participants}` の構造として表現され、別名の負例で red**(別名は単一の `normalize.aliases` のみが供給源)/ **マニフェストが `relation` 行の exact-set でなければ red** / **禁止関係を母集合へ混入させた負例で red** |
 | 7 | **交差検査の設定** — 4 節の 3 条件(`WAIT` → 存在 / `AUTH` → 二段階射影で存在 / `WAIT`・`AUTH` ∩ `FORB` = ∅)を **A の DSL・`structure_extractors`・`collection_sets` の設定として**表現し、衝突の負例 fixture を置く。**エンジンの変更が必要と判明したら停止し、Notion の TSK-269 へコメント + 新規タスク起票**(申し送り 9。本ステップで `scripts/check_*.py` / `scripts/doc_check_*.py` を変更しない) | `uv run pytest tests/` green / **3 条件それぞれに正常系と衝突負例がある** / **正規化 ID の付け方が本書とマニフェストで一致** / **本ステップの差分に `scripts/check_*.py` / `scripts/doc_check_*.py` が含まれていない**(含める必要が生じた時点で停止) |
@@ -405,7 +398,7 @@ C(TSK-271)は PR #48 / `196627ec` でマージ済みだが **88 列写像 JSON �
 | 16 | **本番移設と登録(= CI 配線)**(申し送り 1・2・14)— staging の木を**本番パスへ移設**し、**`profiles/registry.json` へ `data-model` entry(`must_require` = 全 22・`pins` 実値)を追加**する。**移設と登録は同一コミット**。`ci.yml` は無変更(引数なし列挙)。`tests/test_ci_wiring.py` を更新し、設計書 10.1 の `docs-lint` 行を現行化 | **引数なしの `check_design_propagation.py` / `check_doc_coverage.py` が 2 プロファイルを列挙して green**(新旧両文書)/ **`profiles/` の実ファイル集合とレジストリの `file` 集合が完全一致** / **`staging/` が残っていない** / **`test_ci_wiring.py` が「本番レジストリに `data-model` entry がある」ことを確認**(明示引数のアサーションを置かない)/ `uv run pytest tests/` green / 設計書の変更履歴表に行がある |
 | 17 | **`core-areas.json` の登録(本タスク分)** — `data-migration` の `paths` 充填、既存 4 領域へ本正本を追加、**`guard_paths` へ 3 節で固定した新資産の全パスを完全列挙**、**実設定を読む回帰テスト** | `uv run pytest tests/` green / **3 節が列挙する新資産の全パスが `guard_paths` に包含されている**(**負例 10 ファイルも個別に登録**。`guard_paths` は完全一致集合で**ディレクトリ登録では配下の変更が発火しない**)/ **`staging/` のパスが登録されていない**(移設済み)/ **① 5 領域すべてに本正本 ② `data-migration` が空でない ③ 新資産それぞれの変更で発火 を実設定から確認するテストがある** |
 | 18 | **台帳の更新** — H-12 の事象欄を現況へ(**`core-areas.json` から導出した期待値を列挙して照合**)、**H-78・H-79 に実績を追記**(A の申し送り 24 項目の処理結果と、ステップ 1 による統制の空白の解消を含む)。**`H-*` の新規採番はしない** | `check_docs_status.py` green / **H-12 の記述が `core-areas.json` の実値と一致** / **H-78・H-79 に本タスクの実績行がある** / **`H-*` の新規採番が 0 件** |
-| 19 | **検証手順の収録** — 本書へ**4 節で事前固定したコマンド集合(9 件)**を収録する。**実行結果・SHA は worklog へ** | **収録列が 4 節の集合と exact-set 一致** / **本書に実行結果が書かれていない** / **worklog に全コマンドの結果と対象 SHA がある** / **全コマンド green** |
+| 19 | **検証手順の収録** — 本書へ**4 節で事前固定したコマンド集合(9 件)**を収録する。**実行結果・SHA は worklog へ**。**同一コミットで source fixture と SHA を本文の最終形へ更新する**(3 周目 `P0-3`) | **収録列が 4 節の集合と exact-set 一致** / **`data-model-source.txt` が本文とバイト一致** / **`fixture-sha256-data-model.txt` がその SHA-256 と一致** / **本書に実行結果が書かれていない** / **worklog に全コマンドの結果と対象 SHA がある** / **全コマンド green** |
 #### 移管資産の禁止集合と残存資産の必須集合
 
 **TSK-335 のステップ 7 で固定した安定 ID 付きの 2 集合。**
@@ -444,46 +437,71 @@ C(TSK-271)は PR #48 / `196627ec` でマージ済みだが **88 列写像 JSON �
 | `MB-11` | 台帳 H-12・H-78・H-79 の更新(**`H-*` の新規採番 0 件**) | 18 |
 | `MB-12` | 検証手順の収録(**実行結果と SHA は worklog**) | 19 |
 
+#### 本タスクの再承認前に閉じる宿題(**TSK-335 の打ち切り裁定 2026-09-08**)
+
+**TSK-335 の成果物レビューは 3 周(7 → 4 → 5 件)で件数が減らず、人間の裁定で打ち切った。**
+**残った指摘はいずれも「本タスクの内部詳細」であり、TSK-335 の射程(受け渡し契約の改訂と
+スキーマ + ORM の切り出し)を超える。** → **本タスクの再承認レビューで閉じる。**
+
+| # | 宿題 | 出所 |
+| --- | --- | --- |
+| **1** | **欠陥 ID 単位の所有割当ての確定** — `DM-SY-C*` の `C13` 以外と `DM-SY-M*` について、旧 16 が持つ `C07`・`C15`・`C16`・`M11`〜`M14`・`M16`・`M19` の**どれが「復旧世代・`RG1`・`I6`」側(= `S11`)でどれが TSK-342 か**を、**同期プロトコル正本を ID ごとに読んで**決める。**群単位の許可集合では `C13` を `S11` や `TSK-342` に誤配分しても全条件を通る**(実測 — 3 周目 `P1-2`)ため、**ID 単位の単一所有者写像**にする | 3 周目 `P0-1`・`P1-2` |
+| **2** | **資産所有表の完全化** — 途中の `pins` 更新・ステップ 3 の実プロファイル契約テスト・ステップ 15 の `closure_evidence` 取込を含め、**operative なステップ表と「ステップ ID × 変更資産 × 所有」の三つ組で一致**させる。合格条件もあわせて書く | 3 周目 `P1-4` |
+
+**この 2 件を閉じないまま `approved` にしない**(確定ゲート手順 9 の人間承認の前提)。
+
 #### ステップの資産所有表
 
 **operative なステップ表と 1:1 で対応する。所有が `TSK-250` 以外の行はここに置かない。**
 **`contracts/legacy-columns/` 資産の `data-migration.paths` 登録は TSK-339 の所有**であり、
 ステップ 17 には含めない(裁定 `R-8`)。
 
-**各行は operative なステップ表の「変更する資産」の完全集合**(1 周目 `P1-5` の反映 —
-当初は代表資産だけを書いていた)。**テスト・`pins`・digest・`expected_ids`・`invariants`・
-負例 fixture も漏れなく含める。**
+**各行は operative なステップ表の「変更する資産」の主要集合**である。
+**「完全集合」とは宣言しない**(**TSK-335 の成果物レビュー 3 周目の打ち切り裁定〔2026-09-08〕** —
+1 周目 `P1-5` で完全集合を宣言したが、途中の `pins` 更新・契約テスト・closure 取込まで
+列挙し切れず、宣言と例外が矛盾した〔3 周目 `P1-4`〕)。
+**完全化は本タスクの再承認レビューで行う**(上の宿題 2)。
 
-**負例 fixture の所有規則**(2 周目 `P0-3`): `tests/fixtures/data-model-negative/` の 10 ファイルは、
-**それを合格条件に使う各ステップが同一コミットで置く**。**1 ファイルが複数ステップの合格条件に
-現れる場合は、最初に使うステップが所有する**(`08`・`09` はステップ 5 が所有し、ステップ 13 は
-既存のものを使う)。**ステップ 3 は負例を所有しない**(fail-closed の確認は入力不正の合成で行う)。
+**表に載せずに規則で覆うもの**:
+- **`pins`**: **ステップ 3 で初期確定**し、**プロファイルのゲート節・宣言資産・oracle 資産を触る
+  ステップは同一コミットで再計算する**(4 節「pins の更新規律」)。**表には初期確定(3)と
+  本番 entry(16)だけを書く。**
+- **テスト**: 各ステップは自分が作る資産のテストを同一コミットで置く(`NFR-019`)。
 
-**`pins` の更新規則**(同): **ステップ 3 で初期確定**し、**ステップ 4 以降でプロファイル・宣言資産・
-oracle 資産を触るステップは同一コミットで更新する**(4 節「pins の更新規律」)。**所有表では
-初期確定(3)と本番 entry(16)を明示し、途中の更新はこの規則で覆う。**
+**負例 fixture の所有配分**(2 周目 `P0-3` / 3 周目 `P1-5` — **配分を列挙で固定した**):
+
+| 所有ステップ | 負例 |
+| --- | --- |
+| **4** | `06-baseline-digest-tampered.json` |
+| **5** | `02-claim-missing.json` / `03-all-out-of-scope.json` / `08-auth-ddl-map-structure-missing.json` / `09-product-ddl-map-domain-gap.json` / `10-direct-requirements-claims-mismatch.json` |
+| **6** | `01-relation-missing.json` / `04-forbidden-alias.json` |
+| **7** | `05-wait-resolved-by-forbidden.json` / `07-auth-uses-forbidden-direction.json` |
+| **13** | なし(**`07`・`08`・`09` は既存を使う**) |
+| **3** | なし(fail-closed の確認は入力不正の合成で行う) |
+
+**規則**: **1 ファイルが複数ステップの合格条件に現れる場合は、最初に使うステップが所有する。**
 
 | 新ステップ ID | 変更する資産 | 所有タスク |
 | --- | --- | --- |
 | 1 | `.claude/core-areas.json` の `guard_paths`(**A の新資産 B 集合 33 パスを完全列挙**)/ `tests/test_core_guard.py`(実設定を読む回帰) | TSK-250 |
 | 2 | `scripts/design_relations/staging/data-model/**`(staging の木 — `profiles/{registry.json,data-model.json}`・`invariants/data-model.json`・各台帳・マニフェストの器) | TSK-250 |
 | 3 | staging の `profiles/data-model.json`(識別・資産・文法・宣言表節・帰属表節・台帳節・語彙・`defect_id_namespaces`・`invariant_kinds`・`required_checks` = 全 22・`assets`・`structure_extractors`)/ **staging の `profiles/registry.json` の `data-model` entry**(`must_require` = 全 22・`pins` 実値 — **ステップ 3 で同時確定**) | TSK-250 |
-| 4 | `scripts/design_relations/defects-data-model.json`(78 件・`owner_step` は `S<新番号>` 形式)/ `baseline-digest-data-model.txt` / `expected-ids-data-model.json`(**群ごとの `owner_steps_allowed` 写像**)/ `invariants/data-model.json`(`global_invariants` の `unique-owner`・`DM-MT-01`)/ **負例 `06-baseline-digest-tampered.json`** | TSK-250 |
+| 4 | `scripts/design_relations/defects-data-model.json`(**ベースライン 78 件 + `DM-MT-01`**・`owner_step` は `S<新番号>` 形式)/ `baseline-digest-data-model.txt` / `expected-ids-data-model.json`(**群ごとの `owner_steps_allowed` 写像**)/ `invariants/data-model.json`(`global_invariants` の `unique-owner`・`DM-MT-01`)/ **負例 `06-baseline-digest-tampered.json`** | TSK-250 |
 | 5 | `claims-data-model.json` / `direct-requirements-data-model.json` / `auth-ddl-map-data-model.json` /(probe-only なら)`product-ddl-map-data-model.json` / `handoff-digest-data-model.json` / `scripts/verify_handoff_digest.py` + そのテスト / **負例 `02`・`03`・`08`・`09`・`10`** | TSK-250 |
-| 6 | `waiting-data-model.json`(`WAIT-01`〜`08`)/ `forbidden-data-model.json`(`FORB-01`〜`04`)/ `data-model.json`(関係マニフェスト)/ staging プロファイルの `collection_sets` | TSK-250 |
-| 7 | staging プロファイルの交差検査設定(`structure_extractors`・`collection_sets`)/ **衝突の負例 fixture**(3 条件それぞれの正常系と衝突負例)/(検査器そのものは変更しない — 申し送り 9) | TSK-250 |
+| 6 | `waiting-data-model.json`(`WAIT-01`〜`08`)/ `forbidden-data-model.json`(`FORB-01`〜`04`)/ `data-model.json`(関係マニフェスト)/ staging プロファイルの `collection_sets` / **負例 `01`・`04`** | TSK-250 |
+| 7 | staging プロファイルの交差検査設定(`structure_extractors`・`collection_sets`)/ **負例 `05`・`07`**(3 条件それぞれの正常系と衝突負例)/(検査器そのものは変更しない — 申し送り 9) | TSK-250 |
 | 8 | `docs/design/data-model.md` の表間参照宣言表節 + 関係マニフェストとの一致 | TSK-250 |
 | 9 | `docs/design/data-model.md` の述語の参照規約節・単一定義節・禁じる別名の表 | TSK-250 |
 | 10 | `docs/design/data-model.md` の `D4` の永続化写像節(`C13`) | TSK-250 |
 | 11 | `docs/design/data-model.md` の復旧世代・`RG1`・`I6` の永続化写像節 | TSK-250 |
 | 12 | `docs/design/data-model.md` の 88 列写像節(88 行 + 各行の根拠 `IN-01`〜`IN-08`) | TSK-250 |
-| 13 | `docs/design/data-model.md` の認可構成の写像節 / `auth-ddl-map-data-model.json` /(probe-only なら)`product-ddl-map-data-model.json` の実値 / **負例 `07`**(`08`・`09` は**ステップ 5 が所有** — 下の規則) | TSK-250 |
+| 13 | `docs/design/data-model.md` の認可構成の写像節 / `auth-ddl-map-data-model.json` /(probe-only なら)`product-ddl-map-data-model.json` の実値(**負例 `07`・`08`・`09` は既存を使う** — 所有はステップ 7・5) | TSK-250 |
 | 14 | `docs/design/data-model.md` の要件帰属表節 / `req-universe.json` に対する帰属 | TSK-250 |
-| 15 | `docs/design/data-model.md` の意味照合台帳節と本文の是正 / `defects-data-model.json`(**TSK-342 の `closure_evidence` の取り込み**)/ **`tests/fixtures/data-model-source.txt` と `scripts/design_relations/fixture-sha256-data-model.txt` の更新**(**本文の最終形に合わせる** — 本タスク最後の本文変更ステップ) | TSK-250 |
+| 15 | `docs/design/data-model.md` の意味照合台帳節と本文の是正 / `defects-data-model.json`(**TSK-342 の `closure_evidence` の取り込み**) | TSK-250 |
 | 16 | `scripts/design_relations/**` の**本番パス**(staging から移設)/ `profiles/registry.json` の `data-model` entry(`must_require` = 全 22・`pins` 実値)/ `tests/test_ci_wiring.py`(**docs-lint 系のみ**)/ 設計書 10.1 の **`docs-lint` 行** | TSK-250 |
 | 17 | `.claude/core-areas.json`(`data-migration.paths` の本タスク分 / 既存 4 領域へ本正本 / `guard_paths` へ新資産の全パス〔**負例 10 ファイルも個別に**〕)/ `tests/test_core_guard.py`(実設定を読む回帰) | TSK-250 |
 | 18 | `docs/development/harness-evaluation.md`(H-12 の事象欄 / H-78・H-79 への実績追記。**`H-*` の新規採番なし**) | TSK-250 |
-| 19 | `docs/design/data-model.md` の検証手順節(4 節のコマンド集合と exact-set。**実行結果と SHA は worklog**) | TSK-250 |
+| 19 | `docs/design/data-model.md` の検証手順節(4 節のコマンド集合と exact-set。**実行結果と SHA は worklog**)/ **`tests/fixtures/data-model-source.txt` と `scripts/design_relations/fixture-sha256-data-model.txt` の更新**(**本文の最終形とバイト一致・SHA 一致** — 本タスク最後の本文変更ステップ) | TSK-250 |
 
 #### 旧番号 → 新番号の対応表
 
@@ -549,8 +567,9 @@ JSON・schema・lock・検査器)を作る。** 本タスクは TSK-339 の完�
 2. **開始条件(機械検査)**: **欠陥台帳の全件(ベースライン + 追記分)が `resolved` で
    `closure_evidence` を持ち、`owner_step` が有効**(2 周目 P1-10 を採用。**`WAIT-01`〜`08` は
    TSK-342 の射程へ移した** — 裁定 `R-1`)。**`owner_step` の有効値は `S1`〜`S19` または
-   `TSK-342`**(**素の数値は無効** — 旧番号との数字の衝突を構文で落とす)。**群ごとの許可集合は
-   4 節の群写像が正**であり、`owner_steps_allowed` はそれと一致していること。**TSK-342 所有の群は
+   `TSK-342`**(**素の数値は無効** — 旧番号との数字の衝突を構文で落とす)。**4 節で確定済みの所有**
+   (`DM-LG-*`・`DM-LX-*` = `S12` / `DM-SY-B*`・`DM-RQ-*`・`DM-SP-*` = `TSK-342` / `C13` = `S10`)と
+   一致していること。**`DM-SY-C*` の残りと `DM-SY-M*` の割当ては再承認前に確定する**(宿題 1)。**TSK-342 所有の群は
    取り込んだ `closure_evidence` で `resolved`** になっていること、
    かつ **`check_doc_profiles.py --profile scripts/design_relations/profiles/data-model.json` が終了 0(22 件 `pass`)**
 3. `codex_run.py review adversarial` で**本 PR の全差分を一括検証**(文書・プロファイル・レジストリ entry・各台帳・
