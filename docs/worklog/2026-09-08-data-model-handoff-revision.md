@@ -127,6 +127,68 @@ dataclass の処理が `sys.modules.get(cls.__module__)` で `None` を引く。
 | 節の存在(手動表の対象) | 線引き **0** / 台帳 **0** / 許可入力 **0** / 資産所有 **0** / 対応表 **0** | 是正型 |
 | 行番号引用 | `T250P` **0** / 本書 **0** / research.md **0** | **番人型**(是正の証拠ではない) |
 
+## ステップ 1: `T250P` を含む 4 文書の内容移送(2026-09-08)
+
+**移送した 4 文書**(**マージしていない** — 通常のステップコミットで内容を持ってきた):
+
+| 文書 | 出所 |
+| --- | --- |
+| `docs/features/data-model-canonical/plan.md`(`T250P`) | `feature/data-model-canonical` worktree |
+| `docs/features/data-model-canonical/research.md` | 同 |
+| `docs/worklog/2026-08-30-data-model-canonical.md` | 同 |
+| `docs/worklog/2026-09-04-data-model-canonical.md` | 同 |
+
+**なぜマージしないか**(1 周目 `P0-2`): `feature/data-model-canonical` は develop から **147 コミット
+遅れており develop に無いコミットを 6 件持つ**。マージすると第 2 親が `origin/develop` 系統でない
+ためステップ進捗の導出が `merge_unknown` になる(設計書 6.1)。
+
+### 取り込みの帰結(**明記して申し送る**)
+
+1. **TSK-250 のブランチ側に旧版が残る** — `feature/data-model-canonical` の `plan.md` は
+   2026-09-04 時点の版のままである。**同ブランチを再開すると本ブランチの改訂版と全文コンフリクトになる。**
+2. **`T250P` は develop 側を正とし、ブランチ側を捨てる** — 再開時は `git checkout origin/develop --
+   docs/features/data-model-canonical/` 相当でブランチ側を破棄する。**両方を手で混ぜない。**
+3. **`feature_status.py` は本ブランチの `T250P` を読まない**(実測 2026-09-08)— 同スクリプトは
+   worktree ごとに `expected_feature_slug(branch)` の 1 本だけを選ぶため
+   (`collect_features()` 内 `expected_plan_path` の決定)、移送した `T250P` は
+   **永久に読まれない**(frontmatter の `branch` が別なので「plan 重複」にもならない)。
+   `feature: data-model-canonical` のブロックは**他 worktree 由来の旧版**から出続ける。
+   → **本ブランチでの `T250P` の検証は 4 節の機械検査 ② でパーサへ直接渡す。**
+
+### `T250P` の承認を「未」へ戻した(3 周目 `#8`)
+
+| 対象 | 変更前 | 変更後 |
+| --- | --- | --- |
+| frontmatter `承認` | `済(2026-09-04・山田正輝)` | **`未`**(改訂完了後に新しい日付・承認者で `済` へ) |
+| DoD「本改訂に対する人間の再承認」 | `- [x]` (2026-09-04) | **`- [ ]`**(TSK-335 の射程改訂後の再承認を待つ。過去の承認 2 件は注記として保持) |
+
+**理由**: ステップ 3〜7 で `T250P` を大幅改訂する間、旧承認日の `済` を残すと**再承認前の新版が
+承認済みに見える期間**が生じる(確定ゲート手順 8 は射程変更に再レビューと人間承認を要求する)。
+
+### 合格条件の判定
+
+| 種別 | 条件 | 結果 |
+| --- | --- | --- |
+| `[機械]` | 4 文書が worktree に存在 | **4/4 OK** |
+| `[機械]` | `git log -1 --format=%P` の親が 1 個 | **1 個**(マージコミットでない) |
+| `[機械]` | `T250P` frontmatter が `承認: 未` | **1 件**(literal) |
+| `[機械]` | 検査 ③(`check_docs_status.py`) | **rc=0** |
+| `[手動・外部]` | `feature_status.py` が `ステップ進捗: 1/8` | **一致**(下記の実測) |
+| `[手動・外部]` | 取り込みの帰結が worklog に記録されている | **本節**(帰結 3 件) |
+
+**`feature_status.py` の実測**(ステップ 1 のコミット直後):
+
+```
+feature: data-model-handoff-revision (feature/data-model-handoff-revision)
+  段階: 実装中(ステップ 1/8 完了)
+  ステップ進捗: 1/8
+  PR 状態: 未取得
+  計画レビュー周回: 3
+  反映周コミット突合: 一致
+```
+
+**`PR 状態: 未取得` は PR 未作成時の正常値**(2 周目 `P0-1` の是正どおり、段階・ステップ進捗の 2 行だけを見る)。
+
 ## 未決・次の一歩
 
 - **人間の承認を待っている**(`承認: 未`)。承認後、ステップ 1 から Claude が直接編集で進める
