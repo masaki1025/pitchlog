@@ -836,3 +836,70 @@ DB 側で実行する」と定めているため、同じ集計を ORM で人手
 | 発火条件の再記述 | **0 件** |
 | ① 引用形式 | `()` → rc=0 |
 | ② 文書検査 3 本 | rc=0 |
+
+---
+
+## ステップ 11: `core-areas.json` へ新設資産を登録(**Codex 委任**)
+
+### 委任と差し戻し
+
+**1 回目の委任**では「`game-state` には追加しない」と指示した。**理由は「状況計算(要件書 4.0-4・付録E)は
+本書が決めないと本書自身が明記している」**。→ **敵対レビュー(6.3 規則⑤)で P1 が 1 件成立し、差し戻した。**
+
+**P1 の内容(成立)**: **`game-state` にも登録すべき**。根拠は設計書 6.3 の `paths` への落とし込み規則:
+
+- **①** コアの不変条件・強制点・契約を**変え得る**ファイルを含める
+- **②** 混在ファイルは**ファイル全体を含める** / **③** **領域間の `paths` 重複を許す**
+- 「**判定に迷うコードは含む側に倒す**(fail-closed)」
+
+**`game-state` の境界定義には「状態補正(FR-040)」と「下流再計算 / リプレイ」が含まれる**。
+**本書はそれらの契約を変え得る** — **再計算の起点を `D2` に固定**(5-2・6-3 節)/
+**下流再計算は投影を作り直し交代時点で選手を帰属**(4-2 節)/ **`FR-040` の補正位置と直接上書きの禁止**(6-3 節)。
+→ **「算術そのものを決めない」は除外の理由にならない**(規則①は「変え得る」で判定する)。
+
+**是正後: 5 領域すべてに登録**(`sync-protocol` / `game-state` / `recording-rights` /
+`tenant-isolation` / `data-migration`)。
+
+### 登録内容
+
+| 対象 | 登録先 | 根拠 |
+| --- | --- | --- |
+| `docs/design/data-model.md` | **5 領域すべての `paths`** | 上記 |
+| `scripts/design_relations/citation-map-data-model.json` | **`guard_paths`** | 既存の `defects.json`・`req-universe.json` と同種(文書検査の宣言資産) |
+| `scripts/design_relations/closure-handoff-data-model.json` | **`guard_paths`** | 同前 |
+| `tests/fixtures/data-model-source.txt` | **`guard_paths`** | 既存の `tests/fixtures/sync-protocol-source.txt` と同種(退行 fixture) |
+| `scripts/design_relations/fixture-sha256-data-model.txt` | **`guard_paths`** | 既存の `fixture-sha256.txt` と同種 |
+
+**`guard_paths` は 26 → 30 件。** **完全一致集合なので個別のパス文字列で書いた**
+(ディレクトリ・グロブでは配下の変更で発火しない — `scripts/core_guard.py`)。
+
+**未存在パスの先行登録**: `closure-handoff-data-model.json`(ステップ 12)と fixture・SHA(ステップ 13)は
+**この時点で存在しない**が先に登録した。**敵対レビューで「機構を壊さない」ことを確認** —
+`core_guard.py` は設定文字列を集合化して差分パスと比較するだけで、**登録先ファイルを読まない**。
+
+### 負例の実効を独立に確認した(**9 通り**)
+
+| 変異 | 述語 |
+| --- | --- |
+| 5 領域のいずれか 1 つから `data-model.md` を外す(5 通り) | **すべて False** |
+| `guard_paths` の 4 件のいずれか 1 つを外す(4 通り) | **すべて False** |
+
+**敵対レビュー側でも「領域 ID の改名」「`paths` の型崩れ」でも False になることを確認**したと報告があった。
+**既存の exact-set テストは領域 ID の重複や余分な登録も検出する。**
+
+### `/pr` の判定への影響(**重要**)
+
+**ステップ 11 の完了後は本書が 5 領域の `paths` に入る**が、
+**`/pr` はコア領域判定を base 側の `core-areas.json`**(`git show origin/develop:.claude/core-areas.json`)
+**で行う**。→ **本 PR の時点では `guard_paths` 該当のみ**で、計画書 4 節の判定は変わらない
+(PR テンプレは**逐行確認チェックのみ**を有効化する)。
+**次の PR 以降は本書への変更がコア領域として発火する。** **計画書 4 節へこの旨を追記した。**
+
+### 検査
+
+| 検査 | 結果 |
+| --- | --- |
+| ③ core-guard | `tests/test_core_guard.py` **51 passed** |
+| ruff / ty | green |
+| 変更ファイル | `.claude/core-areas.json` と `tests/test_core_guard.py` の 2 件のみ |
+| 敵対レビュー(6.3 規則⑤) | 1 周目 P1×1 → **反映済み**。**残る手動条件は PR での人間の逐行確認**(PR 作成者以外) |

@@ -27,9 +27,25 @@ CORE_DOCUMENT_PATHS = (
     "docs/design/sync-protocol.md",
     "docs/requirements/requirements-pitchlog-2026-07-22.md",
 )
+DATA_MODEL_DOCUMENT_PATH = "docs/design/data-model.md"
+DATA_MODEL_AREA_IDS = (
+    "sync-protocol",
+    "game-state",
+    "recording-rights",
+    "tenant-isolation",
+    "data-migration",
+)
+DATA_MODEL_GUARD_PATHS = (
+    "scripts/design_relations/citation-map-data-model.json",
+    "scripts/design_relations/closure-handoff-data-model.json",
+    "tests/fixtures/data-model-source.txt",
+    "scripts/design_relations/fixture-sha256-data-model.txt",
+)
 EXPECTED_AREA_PATHS = {
     "sync-protocol": [
-        *CORE_DOCUMENT_PATHS,
+        CORE_DOCUMENT_PATHS[0],
+        DATA_MODEL_DOCUMENT_PATH,
+        CORE_DOCUMENT_PATHS[1],
         "frontend/package.json",
         "frontend/pnpm-lock.yaml",
         "frontend/src/lib/sync/ackAdapter.spec.ts",
@@ -98,7 +114,9 @@ EXPECTED_AREA_PATHS = {
         "tests/fixtures/sync-protocol-failures/**",
     ],
     "game-state": [
-        *CORE_DOCUMENT_PATHS,
+        CORE_DOCUMENT_PATHS[0],
+        DATA_MODEL_DOCUMENT_PATH,
+        CORE_DOCUMENT_PATHS[1],
         "frontend/src/lib/courseInputView.ts",
         "frontend/src/lib/displayGeometry.ts",
         "frontend/src/lib/spatialInput.ts",
@@ -125,7 +143,9 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/prohibitions.spec.ts",
     ],
     "recording-rights": [
-        *CORE_DOCUMENT_PATHS,
+        CORE_DOCUMENT_PATHS[0],
+        DATA_MODEL_DOCUMENT_PATH,
+        CORE_DOCUMENT_PATHS[1],
         "frontend/src/lib/sync/ackEnvelope.spec.ts",
         "frontend/src/lib/sync/ackEnvelope.ts",
         "frontend/src/lib/sync/boundaryResults.spec.ts",
@@ -164,7 +184,9 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/validateSyncEvent.ts",
     ],
     "tenant-isolation": [
-        *CORE_DOCUMENT_PATHS,
+        CORE_DOCUMENT_PATHS[0],
+        DATA_MODEL_DOCUMENT_PATH,
+        CORE_DOCUMENT_PATHS[1],
         "contracts/authz/*",
         "scripts/check_authz_catalog.py",
         "tests/test_check_authz_catalog.py",
@@ -186,6 +208,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/restoreAdjustmentGate.ts",
     ],
     "data-migration": [
+        DATA_MODEL_DOCUMENT_PATH,
         "frontend/src/lib/format.ts",
         "frontend/src/lib/sync/syncEvent.ts",
         "frontend/src/lib/sync/prohibitions.spec.ts",
@@ -211,12 +234,16 @@ EXISTING_REAL_GUARD_PATHS = (
 NEW_GUARD_PATHS = (
     "scripts/design_relations/defects.json",
     "scripts/design_relations/sync-protocol.json",
+    "scripts/design_relations/citation-map-data-model.json",
+    "scripts/design_relations/closure-handoff-data-model.json",
     "scripts/design_relations/req-universe.json",
     "scripts/design_relations/fixture-sha256.txt",
+    "scripts/design_relations/fixture-sha256-data-model.txt",
     "scripts/check_design_propagation.py",
     "scripts/check_doc_coverage.py",
     "scripts/check_processing_stages.py",
     "tests/fixtures/sync-protocol-source.txt",
+    "tests/fixtures/data-model-source.txt",
     "tests/test_check_design_propagation.py",
     "tests/test_check_doc_coverage.py",
     "tests/test_check_processing_stages.py",
@@ -526,6 +553,61 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def has_expected_data_model_registrations(configuration: dict[str, Any]) -> bool:
+    """データモデル正本と検査資産が期待する集合へ登録済みか判定する。"""
+    areas = configuration.get("areas")
+    guard_paths = configuration.get("guard_paths")
+    if not isinstance(areas, list) or not isinstance(guard_paths, list):
+        return False
+
+    paths_by_area: dict[str, set[str]] = {}
+    for area in areas:
+        if not isinstance(area, dict):
+            return False
+        area_id = area.get("id")
+        paths = area.get("paths")
+        if (
+            not isinstance(area_id, str)
+            or not isinstance(paths, list)
+            or not all(isinstance(path, str) for path in paths)
+        ):
+            return False
+        paths_by_area[area_id] = set(paths)
+
+    return (
+        all(
+            DATA_MODEL_DOCUMENT_PATH in paths_by_area.get(area_id, set())
+            for area_id in DATA_MODEL_AREA_IDS
+        )
+        and set(DATA_MODEL_GUARD_PATHS).issubset(set(guard_paths))
+    )
+
+
+def test_actual_config_registers_data_model_assets_in_expected_sets():
+    configuration = load_actual_core_areas()
+
+    assert has_expected_data_model_registrations(configuration)
+
+
+def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
+    original_bytes = CORE_AREAS_PATH.read_bytes()
+    copied_path = tmp_path / "core-areas.json"
+    copied_path.write_bytes(original_bytes)
+    configuration = json.loads(copied_path.read_text(encoding="utf-8"))
+    area = next(
+        item for item in configuration["areas"] if item["id"] == "game-state"
+    )
+    area["paths"].remove(DATA_MODEL_DOCUMENT_PATH)
+    copied_path.write_text(
+        json.dumps(configuration, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    copied_configuration = json.loads(copied_path.read_text(encoding="utf-8"))
+    assert CORE_AREAS_PATH.read_bytes() == original_bytes
+    assert not has_expected_data_model_registrations(copied_configuration)
 
 
 def test_actual_core_area_paths_are_exact_expected_set():
