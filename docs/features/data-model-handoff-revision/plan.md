@@ -1,6 +1,6 @@
 ---
 feature: data-model-handoff-revision
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review        # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-08・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -109,10 +109,16 @@ created: 2026-09-08
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) / `docs/ops/**` / [`docs/README.md`](../../README.md) / `.claude/**` / `contracts/**` / `scripts/**` / `tests/**` / `backend/**` / `frontend/**` | **反映なし** | — |
+| `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) / `docs/ops/**` / `.claude/**` / `contracts/**` / `scripts/**` / `tests/**` / `backend/**` / `frontend/**` | **反映なし** | — |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md)(台帳) | **`## 候補` の既存候補「計画レビューに終端条件が無く、敵対レビューが 9 周続いた」へ実測 1 件を追記**(計画レビュー 3 周 8→11→9 / 成果物レビュー 3 周 7→4→5 でいずれも減らず、**2 度とも人間の裁定で打ち切った**)+ **H-12 を再発 5 件へ** + 変更履歴表 1 行。**`H-*` の新規採番はしない**(制御目的の典拠は TSK-340 の確定ゲート通過後) | **PR レビュー**(7.6-3 前段 — 版は上げない) |
+| [`docs/README.md`](../../README.md)(索引) | 台帳行の最終更新日と要約を現行化 | —(常に現行化 — 7.2) |
 
-**新設・版繰り上げ・正本の節更新はいずれも行わない。** 成果物は `docs/features/` と `docs/worklog/`
-(設計書 7.2 が「**正本ではない**」と定める領域)+ Notion に閉じる。
+**上 2 件を除き、新設・版繰り上げ・正本の節更新はいずれも行わない。** 主成果物は `docs/features/` と
+`docs/worklog/`(設計書 7.2 が「**正本ではない**」と定める領域)+ Notion に閉じる。
+
+**台帳への追記を判断した**(`/pr` 手順 1-3): **該当する。** 本タスクで**計画レビューと成果物レビューの
+両方が 3 周で収束せず、いずれも人間の裁定で打ち切った**という実測が得られ、既存候補の材料になる。
+**新規候補は立てず、既存候補へ実測として追記する。**
 
 **設計書 10.1 の「ORM は入れない」箇条の改訂は本タスクでは行わない**(2 節「やらないこと」)。
 **起票のみ**を行い、改訂はその新規タスクの射程とする。
