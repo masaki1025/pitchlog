@@ -685,21 +685,16 @@ def _runtime_fixture_definition(case: _PositiveCase) -> _PositiveRuntimeFixture:
 _POSITIVE_CASES = _positive_cases_from_assets()
 
 
-@pytest.fixture
-def positive_runtime_fixture(
+def _insert_runtime_fixture(
     provisioned_catalog: ProvisionedCatalog,
-    case: _PositiveCase,
-) -> _PositiveRuntimeFixture:
-    """資産駆動の正例と返却禁止行を適用済み構成へ投入する。
+    fixture: _PositiveRuntimeFixture,
+) -> None:
+    """正例と拒否例で共有する業務行 fixture を投入する。
 
     Args:
         provisioned_catalog: 共通の適用済み使い捨て構成。
-        case: 現在の allow セルから導出した probe 正例。
-
-    Returns:
-        関数出力とは独立に期待集合を持つ fixture 定義。
+        fixture: 関数出力とは独立に期待集合を持つ fixture 定義。
     """
-    fixture = _runtime_fixture_definition(case)
     with provisioned_catalog.admin.cursor() as cursor:
         cursor.executemany(
             "INSERT INTO probe_data.probe_groups (group_id, status) VALUES (%s, %s)",
@@ -730,6 +725,24 @@ def positive_runtime_fixture(
             tuple(row.database_row() for row in fixture.business_rows),
         )
     provisioned_catalog.admin.commit()
+
+
+@pytest.fixture
+def positive_runtime_fixture(
+    provisioned_catalog: ProvisionedCatalog,
+    case: _PositiveCase,
+) -> _PositiveRuntimeFixture:
+    """資産駆動の正例と返却禁止行を適用済み構成へ投入する。
+
+    Args:
+        provisioned_catalog: 共通の適用済み使い捨て構成。
+        case: 現在の allow セルから導出した probe 正例。
+
+    Returns:
+        関数出力とは独立に期待集合を持つ fixture 定義。
+    """
+    fixture = _runtime_fixture_definition(case)
+    _insert_runtime_fixture(provisioned_catalog, fixture)
     return fixture
 
 
@@ -767,6 +780,44 @@ def _normalize_returned_rows(rows: list[tuple[Any, ...]]) -> frozenset[_Returned
     return frozenset(normalized)
 
 
+def _fetch_authorized_shared_rows(
+    connection: psycopg.Connection[Any],
+    fixture: _PositiveRuntimeFixture,
+    invocation: _ProbeInvocation,
+) -> frozenset[_ReturnedRow]:
+    """共通 fixture の文脈で共有関数を呼び出し、返却集合を正規化する。
+
+    Args:
+        connection: アプリ用ロール自身で認証した接続。
+        fixture: 要求元テナントと粒度を持つ共通 fixture。
+        invocation: グループと対象集合を持つ呼び出し定義。
+
+    Returns:
+        exact-set 比較用に正規化した関数返却集合。
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_catalog.set_config('app.tenant_id', %s, true)",
+            (str(fixture.requester_tenant_id),),
+        )
+        cursor.execute(
+            """
+            SELECT tenant_id, resource_kind, ownership_kind, payload
+            FROM authz_private.authorized_shared_rows(
+                %s::BIGINT,
+                %s::BIGINT[],
+                %s::TEXT
+            )
+            """,
+            (
+                invocation.group_id,
+                list(invocation.target_tenant_ids),
+                fixture.granularity,
+            ),
+        )
+        return _normalize_returned_rows(cursor.fetchall())
+
+
 @pytest.mark.parametrize(
     "case",
     _POSITIVE_CASES,
@@ -780,28 +831,12 @@ def test_authorized_shared_rows_returns_only_fixture_authorized_rows(
     """各 allow セルで fixture が許可した業務行だけを exact-set 取得する。"""
     assert positive_runtime_fixture.granularity == case.granularity
     try:
-        with app_role_connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT pg_catalog.set_config('app.tenant_id', %s, true)",
-                (str(positive_runtime_fixture.requester_tenant_id),),
+        for invocation in positive_runtime_fixture.invocations:
+            actual_rows = _fetch_authorized_shared_rows(
+                app_role_connection,
+                positive_runtime_fixture,
+                invocation,
             )
-            for invocation in positive_runtime_fixture.invocations:
-                cursor.execute(
-                    """
-                    SELECT tenant_id, resource_kind, ownership_kind, payload
-                    FROM authz_private.authorized_shared_rows(
-                        %s::BIGINT,
-                        %s::BIGINT[],
-                        %s::TEXT
-                    )
-                    """,
-                    (
-                        invocation.group_id,
-                        list(invocation.target_tenant_ids),
-                        positive_runtime_fixture.granularity,
-                    ),
-                )
-                actual_rows = _normalize_returned_rows(cursor.fetchall())
-                assert actual_rows == invocation.expected_rows, invocation.invocation_id
+            assert actual_rows == invocation.expected_rows, invocation.invocation_id
     finally:
         app_role_connection.rollback()
