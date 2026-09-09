@@ -10,7 +10,7 @@ date: 2026-09-09
 
 > **本計画の承認範囲は第 2 群前半(ステップ 1〜21)である**(裁定 `D-8`)。
 > 本書のうち **8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は改訂 3 の射程**であり、
-> 承認範囲には入らない。**改訂 3 が満たすべき要件は plan.md 4 節の `S-1`〜`S-8` が正**。
+> 承認範囲には入らない。**改訂 3 が満たすべき要件は plan.md 4 節の `S-1`〜`S-9` が正**。
 **機構が読む状態と実装ステップ表は plan.md のみに置く**
 (設計書 7.1-1)。前計画書の内容・凍結資産の中身・要件の逐語は**ここへ複製せず**、
 [../pg-authz-verification/plan.md](../pg-authz-verification/plan.md) と [research.md](research.md) を参照する。
@@ -64,7 +64,7 @@ date: 2026-09-09
 | `functions`(3) | `CREATE FUNCTION` + `SECURITY DEFINER` + `SET search_path` | **`search_path` は末尾 `pg_temp`**(`REJ-003`)/ `public_execute: false` |
 | `acl_expectations`(17) / `column_acl_expectations`(1) | `REVOKE` + `GRANT` | **関数作成と `REVOKE ALL ... FROM PUBLIC` を同一トランザクション**に置く |
 
-**生成の検証方法**(ステップ 2 の合格条件の実装形):
+**生成の検証方法**(ステップ 3 の合格条件の実装形):
 
 1. 資産の全要素 ID(`role_id` / `schema_id` / `table_id` / `policy_id` / `function_id` / `acl_id`)を
    集合として取り、**sha256 を取って生成物側の被覆集合と exact-set 突合**する
@@ -278,7 +278,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 2. **ステップ 10 で認可行列の許可行**を `http-route-matrix.json` の allow セルから導出する
 3. **直積のすべてにテスト ID を割り当て、ID 集合の sha256 で exact-set 突合**する
 4. **1 行落とすと red**。**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)は
-   ステップ 8 の資産に**独立の行**として持つ
+   ステップ 9 の資産に**独立の行**として持つ
 
 **選手個別の行フィルタ**: **`kind = 'self'` かつ在籍区分が現役(`active`)の選手だけ**。
 **チーム集計には在籍フィルタを掛けない**(OB が出場した過去試合も含めるのが正)。
