@@ -96,3 +96,71 @@ branch: feature/pg-authz-verification-g2
 - **ハーネス運用評価台帳への追記の判断は `/pr` のクローズ処理で行う**(本タスクの経過は候補が複数ある —
   とくに「**凍結資産を実測しない計画レビューは 4 周連続で誤った前提を通す**」型と
   「**自作の母集合は自己申告になり、機械で縛ろうとすると無限後退する**」型)。
+
+
+## TSK-235 のタブからの申し送り(2026-09-10)— 受領と実測
+
+**申し送り B(TSK-317 宛)の 3 件を受領し、すべて実測で確認した。**
+
+### 【1】`guard_paths` への未登録 — **指摘は 4 本だが実測は 6 本**
+
+申し送りはステップ 9 までの 4 本を挙げていたが、**ステップ 14 で 2 本増えて 6 本**である。
+
+| 未登録のパス | 新設したステップ |
+| --- | --- |
+| `scripts/check_authz_function_bodies.py` | 2 |
+| `tests/test_check_authz_function_bodies.py` | 2 |
+| `scripts/check_shared_preconditions.py` | 9 |
+| `tests/test_check_shared_preconditions.py` | 9 |
+| `scripts/check_failure_injection_points.py` | 14 |
+| `tests/test_check_failure_injection_points.py` | 14 |
+
+**現行の `guard_paths` は 30 件**で、**`check_design_propagation` / `check_doc_coverage` /
+`check_processing_stages` をスクリプトとテストの対で個別列挙**している。
+**命名規約上この 6 本も入る系列**であり、**未登録のままでは凍結資産を検査するスクリプトを
+弱めても逐行確認が発火しない**(台帳 `H-12` の型)。
+
+→ **計画書の `S-8`(改訂 3 の要件)へ実測 6 本を明記した。**
+**`guard_paths` 追加は 6.3 規則⑤(敵対レビュー + 人間承認)**なので改訂 3 の射程である。
+
+### 【2】harness の予算基線 — 測定条件を記録する
+
+申し送りが「run id 付きで残してほしい」と要求しているので、**測定条件を明記して記録する**。
+
+| 項目 | 値 |
+| --- | --- |
+| **測定値** | **1171 passed**(ステップ 14 時点) |
+| **コミット** | `a9f28fa` |
+| **測定日** | 2026-09-10 |
+| **実行環境** | **ローカル**(WSL2 / Linux 6.6.114.1-microsoft-standard-WSL2)。**CI runner ではない** |
+| **コマンド** | `uv run pytest tests/`(worktree のルートで) |
+| **run id** | **なし**(ローカル実行のため)。**CI の run id は本タスクの PR 作成後に付く** |
+| root tests への増分 | **+691 行**(`test_check_authz_function_bodies.py` 256 / `test_check_shared_preconditions.py` 204 / `test_check_failure_injection_points.py` 231) |
+
+**申し送りが引いていた基線は 1144 passed / 285.07s @ `75b6cd3`**(TSK-235 のブランチ)。
+**本タスクのマージ後に失効する**という見立てのとおりである。
+**CI の run id 付きの数値は PR 作成時に記録する。**
+
+### 【3】`auth-catalog.json` の owner は 2 種だった — **私の TSK-250 宛の申し送りを訂正する**
+
+**実測**:
+
+| owner | status |
+| --- | --- |
+| **`catalog_test_owner`** | **187 件すべて `implemented`** |
+| **`enforcement_test_owner`** | **187 件すべて `planned`**(`TSK-270` 169 / `TSK-312` 18) |
+
+**私が TSK-250 へ送った申し送り【3】は後者だけを見ていた。**
+申し送り B の指摘どおり、**TSK-250 の計画書ステップ 19 の合格条件
+「全 `AUTH-*` に DDL 要素とテスト ID がある」は、文字面では前者(既に `implemented`)で
+通ってしまう**。
+
+ただし同計画書 5 節(B の信頼境界・3 周目 `P0-3` の採用)が exact-set を
+**「要件安定 ID → AUTH 主張 → 関数の全シグネチャ・ロール・期待結果 → テスト ID」**と定義しており、
+**「期待結果」まで結ぶ以上これは enforcement 側**である。
+
+→ **私が「開始条件 B が改訂 3 まで完了を意味する可能性がある」と書いた点は、
+計画書の文言から支持される読みへ格上げできる。**
+→ **計画書の `S-2` へ owner 2 種の実測を追記し、受取側が enforcement 側を見ることを
+`S-6` の受取契約で固定する**ことにした。
+
