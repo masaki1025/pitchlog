@@ -19,7 +19,7 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from pitchlog.authz.ddl import DDL_ELEMENTS_PATH, DDLStatement, generate_authz_ddl
-from pitchlog.authz.provisioning import apply_authz_ddl
+from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 
 from .environment_contract import load_expectations
 
@@ -314,6 +314,7 @@ class ProvisionedCatalog:
     reference_admin: psycopg.Connection[Any]
     asset: dict[str, object]
     statements: tuple[DDLStatement, ...]
+    provisioning_result: ProvisioningResult
 
 
 def _run_docker(
@@ -549,13 +550,14 @@ def provisioned_catalog(
                 # 参照 DB も ordered steps を完走し、一時 membership を閉じる。
                 apply_authz_ddl(reference_provisioner, _REPOSITORY_ROOT)
                 with psycopg.connect(provisioner_dsn) as provisioner:
-                    apply_authz_ddl(provisioner, _REPOSITORY_ROOT)
+                    provisioning_result = apply_authz_ddl(provisioner, _REPOSITORY_ROOT)
                 yield ProvisionedCatalog(
                     cluster=cluster,
                     admin=admin,
                     reference_admin=reference_admin,
                     asset=asset,
                     statements=statements,
+                    provisioning_result=provisioning_result,
                 )
 
 
