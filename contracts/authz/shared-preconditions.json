@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_shared_preconditions",
+  "extraction_rule": {
+    "source_document_role": "normative_source",
+    "section_heading": "FR-034: データ所有権制御",
+    "list_heading": "全行に掛かる前提条件",
+    "selection_rule": "numbered_list_all_items"
+  },
+  "source_documents": [
+    {
+      "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "document_role": "normative_source",
+      "git_blob_digest": "8d83359865382310c61b801291c077fde3ce62ff"
+    },
+    {
+      "path": "docs/design/data-model.md",
+      "document_role": "mapping_target",
+      "git_blob_digest": "fc573b6eb1f70bad663beeee2f4e3000e0bf19ab"
+    }
+  ],
+  "preconditions": [
+    {
+      "precondition_id": "shared_group_active",
+      "verbatim_text": "指定されたグループが `active`（終了していれば除外）",
+      "kind": "通常",
+      "equivalent_registry_precondition_id": "group_active"
+    },
+    {
+      "precondition_id": "shared_both_memberships_active",
+      "verbatim_text": "要求元と対象テナントの参加がともに `active`（離脱済みは除外）",
+      "kind": "通常",
+      "equivalent_registry_precondition_id": "active_membership"
+    },
+    {
+      "precondition_id": "shared_both_tenants_enabled",
+      "verbatim_text": "両テナントが無効化されていない（FR-035 の無効化 → 除外）",
+      "kind": "通常",
+      "equivalent_registry_precondition_id": "tenant_active"
+    },
+    {
+      "precondition_id": "shared_reciprocal_grant",
+      "verbatim_text": "**要求元テナントが同一の付与を、指定されたグループで出している**（相互性 = 見るには出す）",
+      "kind": "通常",
+      "equivalent_registry_precondition_id": null
+    },
+    {
+      "precondition_id": "shared_self_tenant_exception",
+      "verbatim_text": "**自テナント自身が集合に含まれる場合は、付与・相互性の条件を適用しない**（自分のデータであるため常に通る）。ただし**同時比較表示上限には数える**",
+      "kind": "例外",
+      "equivalent_registry_precondition_id": null
+    },
+    {
+      "precondition_id": "shared_comparison_limit",
+      "verbatim_text": "要求された集合の要素数が**同時比較表示上限以下**（超えていれば**要求全体を400で拒否**する。切り捨てない）",
+      "kind": "通常",
+      "equivalent_registry_precondition_id": null
+    }
+  ]
+}
