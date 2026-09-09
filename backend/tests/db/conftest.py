@@ -7,8 +7,8 @@ import os
 import secrets
 import subprocess
 import time
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,6 +19,7 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from pitchlog.authz.ddl import DDL_ELEMENTS_PATH, DDLStatement, generate_authz_ddl
+from pitchlog.authz.provisioning import apply_authz_ddl
 
 from .environment_contract import load_expectations
 
@@ -27,6 +28,59 @@ _EXECUTED_DB_TESTS: set[str] = set()
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _ROLE_CONNECTION_SUFFIX = "_connection"
 _VERIFIED_AUTHZ_ROLE_IDS = pytest.StashKey[tuple[str, ...]]()
+
+
+def _load_ddl_asset() -> dict[str, object]:
+    """DDL 要素資産を JSON object として読む。
+
+    Returns:
+        認可 DDL 要素資産。
+    """
+    asset_path = _REPOSITORY_ROOT / DDL_ELEMENTS_PATH
+    try:
+        asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise AssertionError(f"DDL要素資産を読めない: {asset_path}: {error}") from error
+    if not isinstance(asset, dict):
+        raise AssertionError("DDL要素資産はJSON objectでなければならない")
+    return asset
+
+
+def _asset_rows(asset: dict[str, object], key: str) -> tuple[dict[str, object], ...]:
+    """資産の object 配列を型確認して返す。
+
+    Args:
+        asset: DDL 要素資産。
+        key: 配列を持つセクション名。
+
+    Returns:
+        資産順の object 行。
+    """
+    rows = asset.get(key)
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        raise AssertionError(f"DDL要素資産の{key}はobject配列でなければならない")
+    return tuple(row for row in rows if isinstance(row, dict))
+
+
+def _role_id(asset: dict[str, object], role_kind: str) -> str:
+    """Role kind から一意な role ID を導出する。
+
+    Args:
+        asset: DDL 要素資産。
+        role_kind: 選択するロール種別。
+
+    Returns:
+        一意に選ばれたロール ID。
+    """
+    roles = [
+        row for row in _asset_rows(asset, "roles") if row.get("role_kind") == role_kind
+    ]
+    if len(roles) != 1:
+        raise AssertionError(f"role_kindを一意に導出できない: {role_kind}")
+    role_id = roles[0].get("role_id")
+    if not isinstance(role_id, str) or not role_id:
+        raise AssertionError(f"role_idが空でない文字列ではない: {role_kind}")
+    return role_id
 
 
 def _required_dsn(variable_name: str) -> str:
@@ -83,16 +137,7 @@ def _authz_login_role_ids() -> tuple[str, ...]:
     Returns:
         資産順の実接続対象ロール ID。
     """
-    asset_path = _REPOSITORY_ROOT / DDL_ELEMENTS_PATH
-    try:
-        asset = json.loads(asset_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise AssertionError(f"DDL要素資産を読めない: {asset_path}: {error}") from error
-    if not isinstance(asset, dict):
-        raise AssertionError("DDL要素資産はJSON objectでなければならない")
-    roles = asset.get("roles")
-    if not isinstance(roles, list) or not all(isinstance(role, dict) for role in roles):
-        raise AssertionError("DDL要素資産のrolesはobject配列でなければならない")
+    roles = _asset_rows(_load_ddl_asset(), "roles")
 
     role_ids: list[str] = []
     for role in roles:
@@ -260,6 +305,17 @@ class DisposablePostgres:
     role_dsn_template: str
 
 
+@dataclass(frozen=True, slots=True)
+class ProvisionedCatalog:
+    """使い捨てクラスタ上の適用済み構成を保持する。"""
+
+    cluster: DisposablePostgres
+    admin: psycopg.Connection[Any]
+    reference_admin: psycopg.Connection[Any]
+    asset: dict[str, object]
+    statements: tuple[DDLStatement, ...]
+
+
 def _run_docker(
     *arguments: str, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
@@ -299,6 +355,63 @@ def _wait_for_postgres(dsn: str) -> None:
     raise AssertionError("使い捨て PostgreSQL が 60 秒以内に起動しない") from last_error
 
 
+def _prepare_external_provisioner(
+    admin: psycopg.Connection[Any],
+    cluster: DisposablePostgres,
+    asset: dict[str, object],
+    statements: tuple[DDLStatement, ...],
+    additional_database_ids: tuple[str, ...],
+) -> str:
+    """Ordered steps 外の外部前提を与え、provisioner DSN を返す。
+
+    Args:
+        admin: ロールと database 権限を準備する管理接続。
+        cluster: 接続先の使い捨てクラスタ。
+        asset: DDL 要素資産。
+        statements: 資産から生成した DDL 文列。
+        additional_database_ids: 同じ前提を与える追加 database ID。
+
+    Returns:
+        外部 provisioner 自身で認証する DSN。
+    """
+    provisioner_id = _role_id(asset, "external_provisioner")
+    role_statements = [
+        statement
+        for statement in statements
+        if statement.element_type == "role" and statement.element_id == provisioner_id
+    ]
+    if len(role_statements) != 1:
+        raise AssertionError("external provisioner の role SQL が一意でない")
+    password = secrets.token_urlsafe()
+    with admin.cursor() as cursor:
+        # ロールと database 権限は provisioning_claim.ordered_steps の外部前提。
+        cursor.execute(role_statements[0].sql.encode("utf-8"))
+        cursor.execute(
+            sql.SQL("ALTER ROLE {} PASSWORD {}").format(
+                sql.Identifier(provisioner_id),
+                sql.Literal(password),
+            )
+        )
+        cursor.execute("SELECT current_database()")
+        row = cursor.fetchone()
+        if row is None:
+            raise AssertionError("使い捨てクラスタのdatabase名を取得できない")
+        database_name = str(row[0])
+        for target_database in (database_name, *additional_database_ids):
+            cursor.execute(
+                sql.SQL("GRANT CONNECT, CREATE ON DATABASE {} TO {}").format(
+                    sql.Identifier(target_database),
+                    sql.Identifier(provisioner_id),
+                )
+            )
+    admin.commit()
+    return make_conninfo(
+        cluster.role_dsn_template,
+        user=provisioner_id,
+        password=password,
+    )
+
+
 def _disposable_role_dsn_template(admin_dsn: str) -> str:
     """既存ロールDSNを使い捨てクラスタ用テンプレートへ変換する。
 
@@ -325,7 +438,9 @@ def _disposable_role_dsn_template(admin_dsn: str) -> str:
 
 
 @pytest.fixture
-def disposable_postgres_cluster():
+def disposable_postgres_cluster() -> Callable[
+    [], AbstractContextManager[DisposablePostgres]
+]:
     """実クラスタを起動し、利用後にコンテナごと破棄する factory を返す。
 
     Returns:
@@ -385,6 +500,65 @@ def disposable_postgres_cluster():
     return factory
 
 
+@pytest.fixture
+def provisioned_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> Iterator[ProvisionedCatalog]:
+    """適用器で構成した使い捨てクラスタを管理接続付きで供給する。
+
+    Args:
+        disposable_postgres_cluster: 使い捨てクラスタを生成する factory。
+
+    Yields:
+        本体 DB と定義 oracle 用参照 DB を適用済みにした構成。
+    """
+    asset = _load_ddl_asset()
+    statements = generate_authz_ddl(_REPOSITORY_ROOT)
+    with disposable_postgres_cluster() as cluster:
+        with psycopg.connect(cluster.admin_dsn) as admin:
+            reference_database = f"{admin.info.dbname}_catalog_reference"
+            admin.autocommit = True
+            with admin.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("CREATE DATABASE {}").format(
+                        sql.Identifier(reference_database)
+                    )
+                )
+            admin.autocommit = False
+            provisioner_dsn = _prepare_external_provisioner(
+                admin,
+                cluster,
+                asset,
+                statements,
+                (reference_database,),
+            )
+            reference_admin_dsn = make_conninfo(
+                cluster.admin_dsn,
+                dbname=reference_database,
+            )
+            reference_provisioner_dsn = make_conninfo(
+                provisioner_dsn,
+                dbname=reference_database,
+            )
+            with (
+                psycopg.connect(reference_admin_dsn) as reference_admin,
+                psycopg.connect(reference_provisioner_dsn) as reference_provisioner,
+            ):
+                # 参照 DB も ordered steps を完走し、一時 membership を閉じる。
+                apply_authz_ddl(reference_provisioner, _REPOSITORY_ROOT)
+                with psycopg.connect(provisioner_dsn) as provisioner:
+                    apply_authz_ddl(provisioner, _REPOSITORY_ROOT)
+                yield ProvisionedCatalog(
+                    cluster=cluster,
+                    admin=admin,
+                    reference_admin=reference_admin,
+                    asset=asset,
+                    statements=statements,
+                )
+
+
 @contextmanager
 def _connect_authz_login_roles(
     cluster: DisposablePostgres,
@@ -438,18 +612,68 @@ def _connect_authz_login_roles(
                 cluster_admin.commit()
 
 
+@contextmanager
+def _connect_provisioned_authz_login_roles(
+    catalog: ProvisionedCatalog,
+) -> Iterator[dict[str, psycopg.Connection[Any]]]:
+    """適用済み構成の全 LOGIN ロールへ実接続する。
+
+    Args:
+        catalog: ロール作成まで完了した使い捨て構成。
+
+    Yields:
+        ロール ID から当該ロール自身で認証した接続への対応。
+    """
+    connections: dict[str, psycopg.Connection[Any]] = {}
+    role_dsns: dict[str, str] = {}
+    with catalog.admin.cursor() as cursor:
+        for role_id in _authz_login_role_ids():
+            password = secrets.token_urlsafe()
+            cursor.execute(
+                sql.SQL("ALTER ROLE {} PASSWORD {}").format(
+                    sql.Identifier(role_id),
+                    sql.Literal(password),
+                )
+            )
+            role_dsns[role_id] = make_conninfo(
+                catalog.cluster.role_dsn_template,
+                user=role_id,
+                password=password,
+            )
+    catalog.admin.commit()
+    try:
+        for role_id, role_dsn in role_dsns.items():
+            connections[role_id] = psycopg.connect(role_dsn)
+        yield connections
+    finally:
+        for connection in reversed(tuple(connections.values())):
+            connection.close()
+
+
 @pytest.fixture
 def _authz_login_role_connections(
-    disposable_postgres_cluster,
+    request: pytest.FixtureRequest,
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
 ) -> Iterator[dict[str, psycopg.Connection[Any]]]:
     """実接続対象ロールを同じ使い捨てクラスタ上で供給する。
 
     Args:
+        request: 適用済み構成を使うテストか判定する pytest 要求。
         disposable_postgres_cluster: 使い捨てクラスタを生成する factory。
 
     Yields:
         資産由来LOGINロールの実接続対応。
     """
+    if "provisioned_catalog" in request.fixturenames:
+        catalog = request.getfixturevalue("provisioned_catalog")
+        if not isinstance(catalog, ProvisionedCatalog):
+            raise AssertionError("適用済み構成 fixture の型が不正")
+        with _connect_provisioned_authz_login_roles(catalog) as connections:
+            yield connections
+        return
+
     with disposable_postgres_cluster() as cluster:
         with _connect_authz_login_roles(cluster) as connections:
             yield connections

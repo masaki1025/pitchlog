@@ -5,11 +5,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
-import secrets
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -18,16 +17,19 @@ from typing import Any
 import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import make_conninfo
 
 from pitchlog.authz.catalog import (
     CatalogCheckError,
     inspect_authz_catalog,
 )
-from pitchlog.authz.ddl import DDL_ELEMENTS_PATH, DDLStatement, generate_authz_ddl
-from pitchlog.authz.provisioning import apply_authz_ddl
+from pitchlog.authz.ddl import DDLStatement
 
-from .conftest import DisposablePostgres
+from .conftest import (
+    ProvisionedCatalog,
+    _asset_rows,
+    _load_ddl_asset,
+    _role_id,
+)
 
 pytestmark = pytest.mark.requires_db
 
@@ -40,50 +42,12 @@ _REVOKE_TARGET_RE = re.compile(
 
 
 @dataclass(frozen=True, slots=True)
-class _ProvisionedCatalog:
-    """使い捨てクラスタ上の適用済み構成を保持する。"""
-
-    cluster: DisposablePostgres
-    admin: psycopg.Connection[Any]
-    reference_admin: psycopg.Connection[Any]
-    asset: dict[str, object]
-    statements: tuple[DDLStatement, ...]
-
-
-@dataclass(frozen=True, slots=True)
 class _NegativeCase:
     """単独のカタログ故障と期待する検査 ID を表す。"""
 
     case_id: str
-    mutation: Callable[[_ProvisionedCatalog, Path], Path]
+    mutation: Callable[[ProvisionedCatalog, Path], Path]
     expected_check_ids: frozenset[str]
-
-
-def _load_asset() -> dict[str, object]:
-    """DDL 要素資産をテスト入力として読む。"""
-    value = json.loads(
-        (_REPOSITORY_ROOT / DDL_ELEMENTS_PATH).read_text(encoding="utf-8")
-    )
-    assert isinstance(value, dict)
-    return value
-
-
-def _asset_rows(asset: dict[str, object], key: str) -> tuple[dict[str, object], ...]:
-    """資産の object 配列を返す。"""
-    rows = asset[key]
-    assert isinstance(rows, list) and all(isinstance(row, dict) for row in rows)
-    return tuple(row for row in rows if isinstance(row, dict))
-
-
-def _role_id(asset: dict[str, object], role_kind: str) -> str:
-    """Role kind から一意な role ID を導出する。"""
-    roles = [
-        row for row in _asset_rows(asset, "roles") if row.get("role_kind") == role_kind
-    ]
-    assert len(roles) == 1
-    role_id = roles[0]["role_id"]
-    assert isinstance(role_id, str)
-    return role_id
 
 
 def _function(asset: dict[str, object], function_class: str) -> dict[str, object]:
@@ -98,7 +62,7 @@ def _function(asset: dict[str, object], function_class: str) -> dict[str, object
 
 
 def _statement(
-    catalog: _ProvisionedCatalog, element_type: str, element_id: str
+    catalog: ProvisionedCatalog, element_type: str, element_id: str
 ) -> DDLStatement:
     """生成済み SQL から資産要素を一意に選ぶ。"""
     matches = [
@@ -154,106 +118,12 @@ def _expected_check_ids(asset: dict[str, object]) -> set[str]:
     return expected
 
 
-def _prepare_external_provisioner(
-    admin: psycopg.Connection[Any],
-    cluster: DisposablePostgres,
-    asset: dict[str, object],
-    statements: tuple[DDLStatement, ...],
-    additional_database_ids: tuple[str, ...],
-) -> str:
-    """Ordered steps 外の外部前提を与え、provisioner DSN を返す。"""
-    provisioner_id = _role_id(asset, "external_provisioner")
-    role_statements = [
-        statement
-        for statement in statements
-        if statement.element_type == "role" and statement.element_id == provisioner_id
-    ]
-    assert len(role_statements) == 1
-    password = secrets.token_urlsafe()
-    with admin.cursor() as cursor:
-        # ロールと database 権限は provisioning_claim.ordered_steps の外部前提。
-        cursor.execute(role_statements[0].sql.encode("utf-8"))
-        cursor.execute(
-            sql.SQL("ALTER ROLE {} PASSWORD {}").format(
-                sql.Identifier(provisioner_id),
-                sql.Literal(password),
-            )
-        )
-        cursor.execute("SELECT current_database()")
-        row = cursor.fetchone()
-        assert row is not None
-        database_name = str(row[0])
-        for target_database in (database_name, *additional_database_ids):
-            cursor.execute(
-                sql.SQL("GRANT CONNECT, CREATE ON DATABASE {} TO {}").format(
-                    sql.Identifier(target_database),
-                    sql.Identifier(provisioner_id),
-                )
-            )
-    admin.commit()
-    return make_conninfo(
-        cluster.role_dsn_template,
-        user=provisioner_id,
-        password=password,
-    )
-
-
-@pytest.fixture
-def provisioned_catalog(
-    disposable_postgres_cluster: Callable[[], Any],
-) -> Iterator[_ProvisionedCatalog]:
-    """適用器で構成した使い捨てクラスタを管理接続付きで供給する。"""
-    asset = _load_asset()
-    statements = generate_authz_ddl(_REPOSITORY_ROOT)
-    with disposable_postgres_cluster() as cluster:
-        with psycopg.connect(cluster.admin_dsn) as admin:
-            reference_database = f"{admin.info.dbname}_catalog_reference"
-            admin.autocommit = True
-            with admin.cursor() as cursor:
-                cursor.execute(
-                    sql.SQL("CREATE DATABASE {}").format(
-                        sql.Identifier(reference_database)
-                    )
-                )
-            admin.autocommit = False
-            provisioner_dsn = _prepare_external_provisioner(
-                admin,
-                cluster,
-                asset,
-                statements,
-                (reference_database,),
-            )
-            reference_admin_dsn = make_conninfo(
-                cluster.admin_dsn,
-                dbname=reference_database,
-            )
-            reference_provisioner_dsn = make_conninfo(
-                provisioner_dsn,
-                dbname=reference_database,
-            )
-            with (
-                psycopg.connect(reference_admin_dsn) as reference_admin,
-                psycopg.connect(reference_provisioner_dsn) as reference_provisioner,
-            ):
-                # 参照 DB も ordered steps を完走し、一時 membership を閉じる。
-                apply_authz_ddl(reference_provisioner, _REPOSITORY_ROOT)
-                with psycopg.connect(provisioner_dsn) as provisioner:
-                    apply_authz_ddl(provisioner, _REPOSITORY_ROOT)
-                yield _ProvisionedCatalog(
-                    cluster=cluster,
-                    admin=admin,
-                    reference_admin=reference_admin,
-                    asset=asset,
-                    statements=statements,
-                )
-
-
-def _commit(catalog: _ProvisionedCatalog) -> None:
+def _commit(catalog: ProvisionedCatalog) -> None:
     """単独故障を他接続からも観測可能にする。"""
     catalog.admin.commit()
 
 
-def _create_forbidden_relation(catalog: _ProvisionedCatalog) -> tuple[str, str]:
+def _create_forbidden_relation(catalog: ProvisionedCatalog) -> tuple[str, str]:
     """資産の依存集合にない relation を保護 schema 内へ作る。"""
     first_table = _asset_rows(catalog.asset, "tables")[0]
     schema_id = first_table["schema_id"]
@@ -270,7 +140,7 @@ def _create_forbidden_relation(catalog: _ProvisionedCatalog) -> tuple[str, str]:
 
 
 def _replace_sql_function(
-    catalog: _ProvisionedCatalog,
+    catalog: ProvisionedCatalog,
     function: dict[str, object],
     inserted_statement: str,
 ) -> None:
@@ -294,7 +164,7 @@ def _replace_sql_function(
     _commit(catalog)
 
 
-def _mutate_forbidden_select(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_forbidden_select(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """読み取り関数へ dependency 外 relation の SELECT を加える。"""
     del tmp_path
     schema_id, relation_id = _create_forbidden_relation(catalog)
@@ -307,7 +177,7 @@ def _mutate_forbidden_select(catalog: _ProvisionedCatalog, tmp_path: Path) -> Pa
     return _REPOSITORY_ROOT
 
 
-def _mutate_forbidden_dml(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_forbidden_dml(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """更新関数へ dependency 外 relation の DML を加える。"""
     del tmp_path
     schema_id, relation_id = _create_forbidden_relation(catalog)
@@ -320,7 +190,7 @@ def _mutate_forbidden_dml(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
     return _REPOSITORY_ROOT
 
 
-def _mutate_dynamic_sql(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_dynamic_sql(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """関数を動的 SQL を含む PL/pgSQL 定義へ差し替える。"""
     del tmp_path
     function = _function(catalog.asset, "representative_management_operation")
@@ -373,7 +243,7 @@ def _load_module(name: str, path: Path) -> ModuleType:
     return module
 
 
-def _mutate_later_body_commit(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_later_body_commit(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """現 digest だけ追随させ、source commit の封印と不一致にする。"""
     del catalog
     copied_root = tmp_path / "repository"
@@ -456,7 +326,7 @@ def _mutate_later_body_commit(catalog: _ProvisionedCatalog, tmp_path: Path) -> P
     return copied_root
 
 
-def _mutate_indirect_superuser(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_indirect_superuser(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """Caller から superuser へ二段の SET・USAGE 経路を作る。"""
     del tmp_path
     app_role = _role_id(catalog.asset, "tested_caller")
@@ -483,9 +353,7 @@ def _mutate_indirect_superuser(catalog: _ProvisionedCatalog, tmp_path: Path) -> 
     return _REPOSITORY_ROOT
 
 
-def _mutate_table_owner_membership(
-    catalog: _ProvisionedCatalog, tmp_path: Path
-) -> Path:
+def _mutate_table_owner_membership(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """App caller から保護表 owner への直接経路を作る。"""
     del tmp_path
     app_role = _role_id(catalog.asset, "tested_caller")
@@ -501,7 +369,7 @@ def _mutate_table_owner_membership(
     return _REPOSITORY_ROOT
 
 
-def _mutate_app_superuser(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_app_superuser(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """App caller 自身を危険終点に変える。"""
     del tmp_path
     app_role = _role_id(catalog.asset, "tested_caller")
@@ -513,7 +381,7 @@ def _mutate_app_superuser(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
     return _REPOSITORY_ROOT
 
 
-def _mutate_extra_function(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_extra_function(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """採用関数 schema へ資産外 SECURITY DEFINER 関数を増やす。"""
     del tmp_path
     function = _function(catalog.asset, "shared_read")
@@ -549,7 +417,7 @@ def _mutate_extra_function(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path
     return _REPOSITORY_ROOT
 
 
-def _mutate_public_execute(catalog: _ProvisionedCatalog, tmp_path: Path) -> Path:
+def _mutate_public_execute(catalog: ProvisionedCatalog, tmp_path: Path) -> Path:
     """越境関数の全 overload のうち 1 本へ PUBLIC EXECUTE を戻す。"""
     del tmp_path
     function = _function(catalog.asset, "shared_read")
@@ -655,11 +523,11 @@ def _negative_cases(asset: dict[str, object]) -> tuple[_NegativeCase, ...]:
     )
 
 
-_NEGATIVE_CASES = _negative_cases(_load_asset())
+_NEGATIVE_CASES = _negative_cases(_load_ddl_asset())
 
 
 def _violation_ids(
-    catalog: _ProvisionedCatalog,
+    catalog: ProvisionedCatalog,
     root: Path,
 ) -> frozenset[str]:
     """Catalog report と入力検査エラーを同じ検査 ID 集合へ正規化する。"""
@@ -675,7 +543,7 @@ def _violation_ids(
 
 
 def test_applied_catalog_matches_assets_and_uses_all_login_role_fixtures(
-    provisioned_catalog: _ProvisionedCatalog,
+    provisioned_catalog: ProvisionedCatalog,
     table_owner_connection: psycopg.Connection[Any],
     app_role_connection: psycopg.Connection[Any],
     management_caller_connection: psycopg.Connection[Any],
@@ -708,7 +576,7 @@ def test_applied_catalog_matches_assets_and_uses_all_login_role_fixtures(
     ids=lambda case: case.case_id,
 )
 def test_catalog_negative_cases_are_red(
-    provisioned_catalog: _ProvisionedCatalog,
+    provisioned_catalog: ProvisionedCatalog,
     tmp_path: Path,
     case: _NegativeCase,
 ) -> None:
