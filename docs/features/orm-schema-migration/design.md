@@ -518,7 +518,25 @@ FK(参照先・構成列・**`MATCH`**・**削除動作**・複合か越境か)/
    **`fnmatch` の `*` は `/` を跨ぐ**ので **`backend/src/pitchlog/db/game_state/*` のような glob で配下を覆える**
    (既存の `backend/*conftest.py` が `backend/tests/db/conftest.py` に当たっているのが実例)。
    → **完全列挙にしない**。**glob にすることで後から足すファイルも自動で覆われ、
-   新規ファイルの登録漏れ(台帳 `H-12` の再発型)を構造で防げる**(fail-closed)
+   新規ファイルの登録漏れ(台帳 `H-12` の再発型)を構造で防げる**(fail-closed)。
+
+   **これは新方針ではなく既存の慣行に揃える話である**(TSK-235 が実測・本セッションで追認 — 2026-09-10):
+
+   | 領域 | paths | うち glob | 実例 |
+   | --- | --- | --- | --- |
+   | **`tenant-isolation`** | 22 | **4** | `contracts/authz/*` / `tests/fixtures/authz_claims/*` / `backend/tests/db/*` / `backend/*conftest.py` |
+   | **`sync-protocol`** | 69 | **1** | `tests/fixtures/sync-protocol-failures/**` |
+   | `game-state` / `recording-rights` / `data-migration` | 27 / 39 / 6 | 0 | — |
+
+   **本タスクが登録する `tenant-isolation` には既に glob が 4 件ある。**
+
+   **正本側の根拠**: 設計書 `:368` の **paths への落とし込み規則④** —
+   「**過剰包含は PR 単位の例外で外さず、モジュール分割で境界を切ってから paths を狭める**」
+   「**判定に迷うコードは含む側に倒す**(fail-closed)」。
+   **正本が「過小より過剰に倒す」と明示している**ので、**glob(過剰側)が完全列挙(過小になり得る)より規則に沿う**。
+
+   **注記**: `fnmatch` は `*` と `**` を同じに扱う(どちらも `.*` へ変換される)ので、
+   `sync-protocol` の `**` は表記上の区別にすぎない
 2. **全 DDL を含む Alembic revision は混在ファイル**なので **4 領域すべてへ重複登録**(規則②③)
 3. `backend/alembic.ini` と `contracts/db/schema-manifest.json` も該当領域へ登録
 4. **`guard_paths` へ足す場合は完全一致集合**(`path in core_areas.guard_paths`)なので
