@@ -1,6 +1,6 @@
 ---
 feature: data-model-v0-2
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-09・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -152,7 +152,7 @@ created: 2026-09-09
 | --- | --- | --- |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **`:240` の是正 + 層の明記 1 行 + 12-8 節の受け取り先 + 射程宣言(7.3-7)+ 版を v0.2 へ + 変更履歴** | **7.3 の確定ゲート**(敵対レビュー + 人間承認 — `/finalize-doc`)。AGENTS.md 絶対規則 4・7.6-3「**版繰り上げを伴う構造的変更**はその部分だけ 7.3 の確定ゲートを通す」 |
 | [`docs/README.md`](../../README.md) | 索引の**状態・版・最終更新日**を現行化(ステップ 1 と確定ゲートの 2 回) | —(常に現行化 — 7.2) |
-| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **追記の判断は /pr のクローズ処理で行う**(3 周の型は台帳候補) | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **`## 候補` へ 2 件追記 + 既存候補 1 件へ実測**(/pr のクローズ処理で判断 — ① 是正の完全性を証明する機構を同一射程へ入れると輪になる ② 記述を別の場所へ写すと写し先が劣化する / 実測 = 「字面の走査では言い換えを捕まえられない」候補の対応案が TSK-353 として起票された)+ 変更履歴 1 行 | PR レビュー(**`H-*` の新規採番はしない・版は上げない** — 7.6-3 前段) |
 | `.claude/core-areas.json` / `tests/test_core_guard.py` / `tests/fixtures/**` / `scripts/**` | **反映なし**(**PO 裁定で TSK-353 へ切り出した**) | — |
 | `docs/requirements/**` / `docs/adr/**` / `docs/ops/**` / `docs/development/dev-harness-design-2026-08-07.md` / `contracts/**` / `backend/**` / `frontend/**` / `.github/**` | **反映なし** | — |
 
