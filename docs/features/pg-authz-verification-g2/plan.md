@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -62,6 +62,7 @@ TSK-270 の計画レビューが 3 周連続で否決され、**人間の裁定 
 | **D-4** | oracle の裁定待ち 2 件 | **frozen 値を確定として承認** — 管理コマンド **8**・`SCOPE:ALL_LOGICAL` **29**。要件書の「7 操作」との **1:N 写像を明示**して食い違いを解消する |
 | **D-5** | 正本側の未処理 3 件(`search_path` の P0 / 返却契約の不一致 / 定義の言い換えによる重複) | **[TSK-348](https://app.notion.com/p/3d693b75e687816b8911f266f9bb59c5) として v0.2 の改訂ゲートを 1 本立てる**。**本タスクの射程外**。本タスクは正しい値(`pg_temp` 末尾明示・認可済み業務行を返す)を前提に進む |
 | **D-6** | 187 件の enforcement の実在化と oracle の封印の衝突 | **ステップ 22 へ統合する** — `auth-catalog.json` は seal の `input_assets` で、検査器が **`oracle_commit` 上の blob との一致まで**要求する。status を動かすには **`oracle_commit` の前進**が必要。**入力資産の変更・封印資産の変更・`oracle_commit` の前進・4 種の reseal・検査器の契約変更を 1 コミットにまとめ、差分敵対レビューを 1 回だけ払う** |
+| **D-8** | 計画レビューが収束しない(**前周修正起因が 2 周連続で過半** — 7.3-6 の発火) | **第 2 群をさらに分割する** — **ステップ 1〜21(実体を作る)を本計画の承認範囲**とし、**引き渡しと封印(旧 21〜27)は実測後の計画改訂 3 で確定する**。TSK-270 が 3 周否決後に取ったのと同じ形(人間の裁定 2026-08-31)。**根本原因**: 第 1 群が凍結した oracle には第 2 群が必要とする母集合(関数 body・MC/DC の判定・失敗注入点・要件の小項)が無く、第 2 群が自作すると自己申告になる。文書段階で閉じようとすると台帳 `H-68` の型に入る |
 | **D-7** | 正本の「作成 → REVOKE → GRANT を分割しない」と凍結資産の 03/04 分割 | **適用器側で同一トランザクションに収める**。`TX:PROVISIONING.atomic: false` は**5 ステップ全体**の話であり、部分原子性と矛盾しない。**資産も正本も変えない**。中間状態で `PUBLIC` が実行できないことを試験する |
 
 > **`D-5` は当初の裁定 `D-2`(「本タスクの先頭ステップで直す」)を置き換える。**
@@ -100,24 +101,33 @@ TSK-270 の計画レビューが 3 周連続で否決され、**人間の裁定 
 | 13 | 6 前提は資産から導出できる | **できない。** 資産の `precondition_ids`(6 個)は**管理操作用の別概念**(`tenant_active`・`group_active`・`active_membership`・`participant_capacity`・`invitation_active`・`preserve_active_admin`)。共有関数の 6 前提は正本 3-6 節の別の列挙。**母集合を独立ステップで新設する**(ステップ 8。テストと同時に作らない) |
 | 14 | 4 ロールの DSN を期待値資産へ追加する | **増やさない。** 既存 `PITCHLOG_TEST_ROLE_DSN` を**テンプレート**として使い、user とパスワードをロールごとに差し替える。`tests/test_ci_wiring.py` が既に「ロール DSN はユーザーだけ異なり host/db は同一」を検査しており、この形が想定されている。**CI 配線の変更が不要になる** |
 
+### 計画レビュー 3 周目で訂正した前提(実測)
+
+| # | 当初の記述 | 実測による訂正 |
+| --- | --- | --- |
+| 15 | manifest を body と同一コミットに置き `source_commit` に**そのコミットの SHA** を入れる | **構築不能。** コミット SHA は manifest 自身の blob を含む tree から決まるので、自コミットの SHA をその内容へ埋め込めない。**body(ステップ 1)→ manifest + 静的照合(ステップ 2)の 2 コミットへ分ける** |
+| 16 | `enforcement_test_owner.id` を `implemented` にすればよい | **必ず red になる。** 実測で全 187 件が `TSK-270.step4.<claim>.db` 形式で **`::` が 0 件**。検査器は `implemented` の ID を `pytest --collect-only` の node ID と完全一致させる(`catalog_test_owner` 側は実 node ID)。**論理 ID → node ID の解決方式を決める必要がある**(方式が分岐 — **改訂 3 へ送る**) |
+| 17 | 要件側 7 単位は `req-universe.json` の安定 ID で参照する | **参照できない。** 実測で `req-universe.json` に `list_item` は **0 件**(条レベルの `FR-041` のみ)。小項 ID は `contracts/authz/requirement-claims.json` 側にある(**改訂 3 へ送る**) |
+| 18 | 失敗注入点は `step_id` で参照すれば足りる | **足りない。** 「policy 変更後・body 置換後・owner 変更後」はいずれも `PROVISION-03` 内、「ACL 正規化途中」は `PROVISION-04` 内の位置。**5 行すべてに同じ `step_id` を書いても現在の条件を満たせる**。**閉じた `injection_point_id` 5 個 + 適用器が発行する `checkpoint_id` + 相互重複禁止 + 実行ログとの exact-set** が要る |
+| 19 | MC/DC の判定 ID は `mcdc-map.json` で exact-set 固定すれば足りる | **自己申告のまま。** 判定 ID の母集合が同資産自身以外にない。**架空の 4 判定を置いても機械 green にできる**。→ **判定 ID を body 側の注記として持たせ、ステップ 1 の先行コミットで凍結する**(body 由来の集合と exact-set 一致を要求する) |
+
 ## 2. スコープ
 
-### やること
+### やること(**本計画の承認範囲 = 第 2 群前半・ステップ 1〜21**)
 
-1. **関数 body と DDL の SQL 実体 + manifest**(`contracts/authz/function-bodies/**` — **先行コミット**。
-   manifest に `source_commit` + `blob_digest` を持たせ、**後続コミットでの改変を `git rev-parse` 照合で捕まえる**)
-2. **DDL 生成器**(資産 + body を入力として SQL を組む。手打ちの識別子を持たない)
-3. **DDL 適用器**(順序適用・**非原子**・**関数作成 + `REVOKE` + `GRANT` は同一トランザクション** — 裁定 `D-7`)
-4. **4 ロール実接続の行列**(既存 DSN をテンプレートに。**新しい DSN 環境変数を増やさない**)
-5. **カタログ検査**(構成そのもの — `R-1`・`R-2`・`R-8`)
-6. **越境テスト**(正例 / 拒否例 / **6 前提 × 認可行列各行** / 書き込み 8 権限 / 管理経路 probe /
-   TOCTOU / 失敗点 / 信頼境界 / **`contract_only` 158 件の runtime テスト**)
-7. **新設する母集合資産 3 本** — 共有関数の 6 前提(ステップ 8)/ 失敗注入点(ステップ 13)/
-   MC/DC の写像(ステップ 18)。**いずれも封印 6 資産の外**なので oracle の再封印を発火させない
-8. **mutation の全量**(231 変異 + 276 相互作用 + 最小 cut set 24 + MC/DC・kill 5 条件)
-9. **第 3 群**: 7→8 写像 / **統合ステップ 22**(enforcement 187 の実在化 + プレースホルダ受取先の実 ID 化 +
-   `scope` の消化 + `oracle_commit` の前進 + 4 種の reseal + 検査器の契約変更)/ 引き渡しマニフェスト /
-   `core-areas.json` 登録 / `test_ci_wiring.py` の追記 / 期待件数のハードコード撤去
+**裁定 `D-8` により、本計画は「実体を作る」までを承認範囲とする。**
+
+1. **関数 body と DDL の SQL 実体**(ステップ 1・先行コミット)+ **manifest と静的照合**(ステップ 2)
+2. **DDL 生成器**(ステップ 3)/ **DDL 適用器**(ステップ 4 — 裁定 `D-7` のコミット境界)
+3. **4 ロール実接続の行列**(ステップ 5 — 新しい DSN 環境変数を増やさない)
+4. **カタログ検査**(ステップ 6 — `R-1`・`R-2`・`R-8`)
+5. **越境テスト**(ステップ 7〜13・16〜17 — 正例 / 拒否例 / 6 前提 × 認可行列各行 / 書き込み 8 権限 /
+   管理経路 probe / TOCTOU / 信頼境界 / `contract_only` 158 件)
+6. **新設する母集合資産 3 本** — 共有関数の 6 前提(ステップ 9)/ 失敗注入点(ステップ 14)/
+   MC/DC の写像(ステップ 19)。**いずれも封印 6 資産の外**
+7. **mutation の全量**(ステップ 18・20・21 — 231 変異 + 276 相互作用 + cut set 24 + MC/DC・kill 5 条件)
+
+**封印資産・入力資産には一切触らない**(`git diff --exit-code contracts/authz/` が本計画の全ステップで 0)。
 
 ### やらないこと(**`H-68` 対策 — 隣接規範を引き込む要求を書かない**)
 
@@ -260,9 +270,10 @@ CI でも動く。**ローカル実行は再現手順として文書化する**(
 
 ### 規模の申し送り
 
-**`D-1`(全量)と 2 周のレビュー反映により本計画は 27 ステップになる。** コア領域なので全ステップに人間の逐行確認が掛かり、
+**裁定 `D-8` により、本計画の承認範囲は 21 ステップ(第 2 群前半)である。** コア領域なので全ステップに人間の逐行確認が掛かり、
 **スループットの上限は逐行確認**である(TSK-317 のカード自身が「逐行確認は並列化できない人的資源」と警告)。
-停滞した場合の**自然な分割点はステップ 20/21 の境界**(第 2 群の完了 = マージゲートの通過条件①が揃う点)。
+**第 2 群後半・第 3 群は改訂 3 で確定する**(4 節の `S-1`〜`S-8`)。
+マージゲートの通過条件①が揃うのは改訂 3 の完了時点である。
 
 ### 詳細設計
 
@@ -274,73 +285,89 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 > **見出しに「実装ステップ」を含めるのは機構要件**。`.claude/scripts/codex_run.py` はステップ表を
 > **見出しスタックで判定する**ため、小見出しは本見出しの配下に置くこと(祖先に「実装ステップ」があれば射程内)。
 
-#### 実装ステップ — 第 2 群: 実機検証(1〜20)
+#### 実装ステップ — 第 2 群前半: 実体を作る(1〜21・**本計画の承認範囲**)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **関数 body と DDL の SQL 実体 + manifest を新設**(先行コミット)— `contracts/authz/function-bodies/**`。読み取り関数は **`LANGUAGE SQL BEGIN ATOMIC`** に限定し**動的 SQL を含まない**。manifest に **`source_commit` + 各ファイルの `blob_digest`** を持つ。**このコミットには検査を含めない**(`R-1`) | `[機械]` `ddl-elements.json` の `functions` 3 / `tables` 6 / `policies` 6 / `roles` 7 の**全 ID に対応する SQL がある**(ID 集合の sha256 で exact-set)・**`EXECUTE`/`format(`/文字列連結による動的 SQL が 0 件**・**manifest の `blob_digest` が実ファイルと一致**・`contains_sql_body: false` を変えていない。`[手動・外部]` **body が `dependency_table_ids` 以外の relation を参照していない**ことを逐行で確認した |
-| 2 | **DDL 生成器**(資産 + body → 実行可能な SQL)— psycopg 直書き(`D-3`)。**入力 2 つ以外の識別子定数を持たない** | `[機械]` **資産を参照しない識別子リテラルが 0 件**・**負例: 資産から 1 要素を削ると生成物が変わる**(全要素で確認)・生成物が `force_rls` / `public_execute: false` / `search_path` 末尾 `pg_temp` を落とさない |
-| 3 | **DDL 適用器** — `ordered_steps` 5 件の順序を**資産から読んで**実行。**関数作成 + `REVOKE ALL ... FROM PUBLIC` + 名前付き `GRANT` を 1 トランザクションに収める**(裁定 `D-7`)。全体は `atomic: false` なので**冪等な再適用が回復手段** | `[機械]` 空クラスタへ 2 回適用してカタログが一致(冪等)・**古い直接 `GRANT` が 1 回目と 2 回目の双方で消えている**・**順序が資産由来**(コード上の並びを入れ替えても資産どおり実行される)・**中間状態で `PUBLIC` が越境関数を実行できない**(関数作成後・`REVOKE` 前に別接続から `EXECUTE` を試み、そのコミットが観測できないことを示す)・**負例: 作成と `REVOKE` を別トランザクションに分けると red**・**負例: 手順 2 を手順 3 の後ろへ移すと適用そのものが失敗する**・**負例: 手順 5 の `REVOKE` を省略すると `pg_has_role(...,'SET')` が true のまま残り red**(`R-8`) |
-| 4 | **4 ロール実接続 fixture** — `table_owner` / `app_role` / `management_caller` / `outsider_role`。**既存 `PITCHLOG_TEST_ROLE_DSN` をテンプレートに user とパスワードを差し替える**(訂正 14)。**`SET ROLE` を使わない** | `[機械]` 4 本すべてが別ユーザーで接続する・**`environment-expectations.json` の `dsn_environment_variables` の差分が 0**・`assert "SET ROLE" not in conftest` が維持される・各テスト冒頭の `session_user`/`current_user` 照合を外すと red・`requires_db` の 0 件収集/0 件実行ガードが維持される・DSN 未設定は skip ではなく fail |
-| 5 | **カタログ検査(構成そのもの)** — `pg_policy` の 5 属性を正規化して exact 比較 / **ステップ 1 の manifest を期待値とする body digest の照合**(10 属性 — `R-1`。**`git rev-parse <manifest.source_commit>:<path>` でも照合し、後続コミットでの body 改変を捕まえる**)/ **`CATALOG:FUNCTION-STRUCTURE:*`**(`BEGIN ATOMIC` / 動的 SQL 0 件 / 参照 relation の限定)/ **危険終点と `SET` 到達集合の交差が空**(`R-2`。`SET` 到達と `USAGE` 到達を分ける)/ 列 ACL・schema ACL・default ACL / `search_path` 末尾 `pg_temp` が 1 回 / `CATALOG:PROVISIONER-*` 2 件(`R-8`)/ **`BYPASSRLS` ロール所有 object と全 `SECURITY DEFINER` routine が exact-set** | `[機械]` **負例 9 種で red**: body へ禁止 relation の **SELECT** 追加 / 同 **DML** 追加 / body に動的 SQL 導入 / **body を後続コミットで差し替え**(`source_commit` 照合で捕まる)/ superuser への間接所属 / 表 owner への所属 / アプリの `SUPERUSER` 化 / 採用構成外の関数が 1 件増える / `PUBLIC` の `EXECUTE` を残す。`[手動・外部]` **`R-1`・`R-2`・`R-8` の各要求と検査 ID の対応表を worklog に置いた**(未対応 0 件) |
-| 6 | **越境テスト(正例)** — `positive_cases.cases` 6 件 | `[機械]` `http-route-matrix.json` の allow セルと**正例テスト ID が 1:1**(sha256 で exact-set)・**許可された行だけが返る**(全件返す実装では red)・**返却契約は凍結資産の読み**(`typed_authorized_business_rows` / `aggregation_contract: none`)。正本の表現との差の解消は TSK-348(`D-5`) |
-| 7 | **越境テスト(拒否例)** — 常に 404 の 4 資源 / **対象側が非共有なら要求元が付与していても返らない** / `PUBLIC` が越境関数を実行できない / `search_path` の乗っ取りが効かない / 関数を経由しない他テナント行の読み取り | `[機械]` 12-4 節の**最低要求 4 件がすべて実行可能なテストとして存在**・deny セルと 1:1・**`REJ-001`/`REJ-002`/`REJ-003` の各構成に戻すと red**・**常に 404 の 4 資源は関数のシグネチャに当該列が存在しない**(付与の値で分岐させない) |
-| 8 | **共有関数の 6 前提の母集合を新設**(`contracts/authz/shared-preconditions.json`)— 正本 3-6 節の 6 前提の列挙から**抽出規則 + 元文書 blob digest つき**で作る。**資産の `precondition_ids`(管理操作用の別概念)と混同しない**(訂正 13)。**テストはこのステップで書かない** | `[機械]` 6 件が正本の当該箇所から**逐語で抽出**されている(元文書 digest を持ち、正本が変わると red)・**`route-registry.json` の `precondition_ids` との重複が 0 件**(別概念であることを機械で示す)・**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)が独立の行として存在する |
-| 9 | **6 前提 × 認可行列各行の越境テスト**(`data-model.md:544`)— 6 前提を満たした要素それぞれについて要求粒度の行を認可行列から引き、**`相手の付与 ∧ 要求元の付与` の双方**を検査する | `[機械]` **母集合はステップ 8 の資産 × `http-route-matrix.json` の allow セルから導出**(テストと同時に作らない)・**直積のすべてにテスト ID があり ID 集合の sha256 で exact-set**・**「対象側は非共有・要求元だけ付与」が必ず含まれる**・**1 行落とすと red**・**選手個別は `kind='self'` かつ在籍 `active`、チーム集計には在籍フィルタを掛けない** |
-| 10 | **書き込みの検証** — 表権限 **8 種**(`R-6`)× ロール。`table_privilege_probe_matrix` 8 行。**共有行は SELECT のみ正例・全 DML は拒否** | `[機械]` 8 種が**単一の機械可読集合から**生成されている・**「6 権限」という記述が 0 件**・`table_privilege_probe_matrix` と exact-set・**1 権限を落とすと red** |
-| 11 | **管理経路の代表 probe 1 件** — `representative_management_probe`。**`TX:REPRESENTATIVE_MANAGEMENT` の `atomic: true`** に従い認可と副作用が同一トランザクション | `[機械]` `management_caller` の `probe_management_effects` への直接アクセスが 8 権限すべてで deny・関数経由のみ成功・**認可失敗時に副作用行が増えない**・**それ以上の管理操作を実装していない**(実装した操作の集合が資産と一致) |
-| 12 | **TOCTOU の 2 接続試験**(`R-3`) | `[機械]` **barrier を外すと red**・認可行を lock するか認可条件を副作用 DML の同一文へ埋め込むことで **linearization point が一意**であることを示す |
-| 13 | **失敗注入点の資産を新設**(`contracts/authz/failure-injection-points.json` — 訂正 12)— `R-5` の 5 種(ロール作成後 / policy 変更後 / body 置換後 / owner 変更後 / ACL 正規化途中)の**注入位置と比較対象**を持つ。**裁定 `D-7` のトランザクション境界を跨がない位置**に置く | `[機械]` 5 件が `ordered_steps` のどの位置かを**資産の `step_id` で参照している**(自由文でない)・**比較対象(catalog / membership / default ACL / fixture data)が列として列挙されている**・**関数作成と `REVOKE` の間に注入点が無い**(`D-7` の境界を跨がない)・**1 件落とすと後続ステップが red** |
-| 14 | **失敗点 5 種の注入と再適用**(`R-5`)— **非原子なので「注入 → 再適用 → 正常適用時と一致」を要求する** | `[機械]` 5 点すべてで**注入後に再適用して全比較対象が正常適用時と一致**・**注入位置はステップ 13 の資産由来**(手書き定数でない)・**注入後に再適用しない場合の状態も記録される**(隠さない)・**最初の文より前に失敗させるだけでは合格しない** |
-| 15 | **信頼境界の残余リスク試験** — **アプリ用実接続から `set_config()` で他テナント ID を設定できる**ことを試験し記録する(隠さない) | `[機械]` 試験が存在し**「設定できてしまう」ことを期待値として持つ**(将来塞がれたら red)。`[手動・外部]` 残余リスクを worklog へ**申し送り先つき**(TSK-217)で記録した |
-| 16 | **`contract_only` 158 件の runtime テスト**(訂正 11)— `receiving_task_id` が **`TSK-270-GROUP-2`(= 本タスク自身)**の 158 件。`runtime_kill_required: false` なので kill は要求されないが、**`runtime_evidence_kind: handoff_runtime_test` の証跡として実テストを持つ** | `[機械]` 158 件の `runtime_test_owner.id` が `collect_pytest_node_ids` に実在する・**件数は資産から導出**(定数で持たない)・**`TSK-217` の 7 件は本タスクで実装しない**ことを機械で分ける・**負例: ある claim のテストを常時成功にすると red**(claim の述語が assertion に現れることを検査する) |
-| 17 | **mutation ランナーと kill 判定 5 条件** — `KILL-01`〜`KILL-05`(`KILL-05` は**使い捨てクラスタ**) | `[機械]` 5 条件が資産から導出されている・**`KILL-01` の負例(宣言外の属性も変える変異)を kill と数えない**・**`KILL-04` の負例(setup 失敗を kill に数える)で red**・**`KILL-05` の負例(共有クラスタでロール属性を変異)で red**・**変異ごとに新しい DB を作る** |
-| 18 | **MC/DC の写像を新設**(`contracts/authz/mcdc-map.json` — 訂正 9 / `P1-9`)— 凍結資産には `AND`/`OR`/`NOT`/`CASE` の**判定形の名前しかない**ため、**判定 ID・個別条件・独立影響のテスト対**を作る | `[機械]` **判定 ID の全体が exact-set で固定**されている・各テスト対で **2 つのテスト ID が相異**・**対象条件以外の入力が同一**・**対象条件だけが反転**・**実測した判定結果が反転する**(この 4 条件をすべて機械で検査する。自明な疑似ペアを弾く)・`mcdc_decision_forms` の全判定形を覆う。`[手動・外部]` 判定の抽出が関数本体とポリシー述語の実体と一致している |
-| 19 | **変異の全量実行** — 231 変異(`authorization_predicate` 205 / `configuration` 24 / `r8_provisioning` 2) | `[機械]` **非等価変異の生存 0**・変異集合が資産由来で**件数を定数で持たない**・等価変異は人手判定で分母から除外し**除外の記録がある**。`[手動・外部]` 等価判定の根拠を変異ごとに記録した |
-| 20 | **2 因子相互作用 276 + 最小 cut set 24 + MC/DC の実行** | `[機械]` 276 と 24 が資産と exact-set・**ステップ 18 の写像に対して MC/DC を満たす**・**1 相互作用を落とすと red**・**cut set の 1 要素を落とすと red** |
+| 1 | **関数 body と DDL の SQL 実体を新設**(先行コミット)— `contracts/authz/function-bodies/**`。読み取り関数は **`LANGUAGE SQL BEGIN ATOMIC`** に限定し**動的 SQL を含まない**。**認可判定に `-- DECISION: <id>` の注記を置く**(ステップ 19 の判定母集合になる)。**manifest も検査も置かない**(訂正 15) | `[機械]` `ddl-elements.json` の `functions` 3 / `tables` 6 / `policies` 6 / `roles` 7 の**全 ID に対応する SQL がある**(ID 集合の sha256 で exact-set)・**`EXECUTE`/`format(`/文字列連結が 0 件**・**判定注記が全認可判定に付いている**・`contains_sql_body: false` を変えていない。`[手動・外部]` **body が `dependency_table_ids` 以外の relation を参照していない**ことを逐行で確認した |
+| 2 | **body manifest と静的照合**(訂正 15)— `source_commit` に**ステップ 1 のコミット SHA**、各ファイルの `blob_digest`。照合は **① 現ファイルの digest ② `git rev-parse <source_commit>:<path>` の blob** の 2 段 | `[機械]` manifest の `source_commit` が**ステップ 1 のコミットを指す**・2 段の照合が通る・**負例: body を本コミットで書き換えると ② が落ちる**・**負例: `source_commit` を本コミット自身にすると解決できず red** |
+| 3 | **DDL 生成器**(資産 + body → 実行可能な SQL)— psycopg 直書き(`D-3`)。**入力 2 つ以外の識別子定数を持たない** | `[機械]` **資産を参照しない識別子リテラルが 0 件**・**負例: 資産から 1 要素を削ると生成物が変わる**(全要素で確認)・生成物が `force_rls` / `public_execute: false` / `search_path` 末尾 `pg_temp` を落とさない |
+| 4 | **DDL 適用器** — `ordered_steps` 5 件の順序を**資産から読んで**実行。**関数作成 + `REVOKE ALL ... FROM PUBLIC` + 名前付き `GRANT` を 1 トランザクションに収める**(裁定 `D-7`)。**各文の実行位置に `checkpoint_id`(step_id + 序数)を発行して実行ログへ残す**(ステップ 14 の母集合になる) | `[機械]` 空クラスタへ 2 回適用してカタログが一致(冪等)・**古い直接 `GRANT` が 1 回目と 2 回目の双方で消えている**・**順序が資産由来**・**中間状態で `PUBLIC` が越境関数を実行できない**・**実行ログの `checkpoint_id` が一意で序数が連番**・**負例: 作成と `REVOKE` を別トランザクションに分けると red**・**負例: 手順 2 を手順 3 の後ろへ移すと適用そのものが失敗する**・**負例: 手順 5 の `REVOKE` を省略すると red**(`R-8`) |
+| 5 | **4 ロール実接続 fixture** — `table_owner` / `app_role` / `management_caller` / `outsider_role`。**既存 `PITCHLOG_TEST_ROLE_DSN` をテンプレートに user とパスワードを差し替える**(訂正 14)。**`SET ROLE` を使わない** | `[機械]` 4 本すべてが別ユーザーで接続する・**`environment-expectations.json` の差分が 0**・`assert "SET ROLE" not in conftest` が維持される・`session_user`/`current_user` 照合を外すと red・`requires_db` の 0 件収集/0 件実行ガードが維持される |
+| 6 | **カタログ検査(構成そのもの)** — `pg_policy` の 5 属性の exact 比較 / **ステップ 2 の manifest を期待値とする body digest の照合**(10 属性 — `R-1`)/ **`CATALOG:FUNCTION-STRUCTURE:*`**(`BEGIN ATOMIC` / 動的 SQL 0 件 / 参照 relation の限定)/ **危険終点と `SET` 到達集合の交差が空**(`R-2`。`SET` 到達と `USAGE` 到達を分ける)/ 列 ACL・schema ACL・default ACL / `search_path` 末尾 `pg_temp` が 1 回 / `CATALOG:PROVISIONER-*` 2 件(`R-8`)/ **`BYPASSRLS` ロール所有 object と全 `SECURITY DEFINER` routine が exact-set** | `[機械]` **負例 9 種で red**: body へ禁止 relation の SELECT 追加 / 同 DML 追加 / 動的 SQL 導入 / **body を後続コミットで差し替え** / superuser への間接所属 / 表 owner への所属 / アプリの `SUPERUSER` 化 / 採用構成外の関数が 1 件増える / `PUBLIC` の `EXECUTE` を残す。`[手動・外部]` **`R-1`・`R-2`・`R-8` の各要求と検査 ID の対応表を worklog に置いた**(未対応 0 件) |
+| 7 | **越境テスト(正例)** — `positive_cases.cases` 6 件 | `[機械]` allow セルと**正例テスト ID が 1:1**(sha256 で exact-set)・**許可された行だけが返る**・**返却契約は凍結資産の読み**(`aggregation_contract: none`) |
+| 8 | **越境テスト(拒否例)** — 常に 404 の 4 資源 / **対象側が非共有なら要求元が付与していても返らない** / `PUBLIC` が越境関数を実行できない / `search_path` の乗っ取りが効かない / 関数を経由しない他テナント行の読み取り | `[機械]` 12-4 節の**最低要求 4 件がすべて実行可能なテストとして存在**・deny セルと 1:1・**`REJ-001`/`REJ-002`/`REJ-003` の各構成に戻すと red**・**常に 404 の 4 資源は関数のシグネチャに当該列が存在しない** |
+| 9 | **共有関数の 6 前提の母集合を新設**(`contracts/authz/shared-preconditions.json`)— 正本 3-6 節の列挙から**抽出規則 + 元文書 blob digest つき**で作る。**テストはこのステップで書かない** | `[機械]` 6 件が正本の当該箇所から**逐語で抽出**されている(元文書 digest を持ち正本が変わると red)・**`route-registry.json` の `precondition_ids` との重複が 0 件**・**前提 ⑤ の例外**が独立の行として存在する |
+| 10 | **6 前提 × 認可行列各行の越境テスト**(`data-model.md:544`) | `[機械]` **母集合はステップ 9 の資産 × allow セルから導出**(テストと同時に作らない)・**直積のすべてにテスト ID があり sha256 で exact-set**・**「対象側は非共有・要求元だけ付与」が必ず含まれる**・**1 行落とすと red**・**選手個別は `kind='self'` かつ在籍 `active`、チーム集計には在籍フィルタを掛けない** |
+| 11 | **書き込みの検証** — 表権限 **8 種**(`R-6`)× ロール。`table_privilege_probe_matrix` 8 行 | `[機械]` 8 種が**単一の機械可読集合から**生成されている・**「6 権限」という記述が 0 件**・`table_privilege_probe_matrix` と exact-set・**1 権限を落とすと red** |
+| 12 | **管理経路の代表 probe 1 件** — **`TX:REPRESENTATIVE_MANAGEMENT` の `atomic: true`** に従い認可と副作用が同一トランザクション | `[機械]` `management_caller` の直接アクセスが 8 権限すべてで deny・関数経由のみ成功・**認可失敗時に副作用行が増えない**・**それ以上の管理操作を実装していない** |
+| 13 | **TOCTOU の 2 接続試験**(`R-3`) | `[機械]` **barrier を外すと red**・**linearization point が一意**であることを示す |
+| 14 | **失敗注入点の資産を新設**(`contracts/authz/failure-injection-points.json` — 訂正 18)— **閉じた `injection_point_id` 5 個**(ロール作成後 / policy 変更後 / body 置換後 / owner 変更後 / ACL 正規化途中)。各行は `step_id` + **ステップ 4 の適用器が発行する `checkpoint_id`**(step 内の序数)+ 比較対象を持つ | `[機械]` **`injection_point_id` が閉じた 5 個で重複 0**・**5 行の `checkpoint_id` が相互に異なる**(同じ checkpoint を 5 回使えない)・**`checkpoint_id` がステップ 4 の実行ログの集合と exact-set 一致**(架空の位置を書けない)・**関数作成と `REVOKE` の間に注入点が無い**(`D-7` の境界を跨がない)・比較対象が列として列挙されている |
+| 15 | **失敗点 5 種の注入と再適用**(`R-5`)— **非原子なので「注入 → 再適用 → 正常適用時と一致」を要求する** | `[機械]` 5 点すべてで**注入後に再適用して全比較対象が正常適用時と一致**・**注入位置はステップ 14 の資産由来**・**注入後に再適用しない場合の状態も記録される**・**最初の文より前に失敗させるだけでは合格しない** |
+| 16 | **信頼境界の残余リスク試験** — アプリ用実接続から `set_config()` で他テナント ID を設定できることを試験し記録する | `[機械]` 試験が存在し**「設定できてしまう」ことを期待値として持つ**。`[手動・外部]` 残余リスクを worklog へ申し送り先つき(TSK-217)で記録した |
+| 17 | **`contract_only` 158 件の runtime テスト** — `receiving_task_id` が **`TSK-270-GROUP-2`(= 本タスク自身)**の 158 件。**資産の status は変えない**(封印に触らない — 改訂 3 の射程) | `[機械]` 158 件に対応するテストが `collect_pytest_node_ids` に実在する・**件数は資産から導出**・**`TSK-217` の 7 件は実装しない**ことを機械で分ける・**負例: ある claim のテストを常時成功にすると red**(claim の述語が assertion に現れることを検査する)・**`contracts/authz/` の差分が 0** |
+| 18 | **mutation ランナーと kill 判定 5 条件** — `KILL-01`〜`KILL-05`(`KILL-05` は**使い捨てクラスタ**) | `[機械]` 5 条件が資産から導出されている・**`KILL-01` の負例(宣言外の属性も変える変異)を kill と数えない**・**`KILL-04` の負例(setup 失敗を kill に数える)で red**・**`KILL-05` の負例(共有クラスタでロール属性を変異)で red**・**変異ごとに新しい DB を作る** |
+| 19 | **MC/DC の写像を新設**(`contracts/authz/mcdc-map.json` — 訂正 19)— **判定 ID の母集合はステップ 1 で凍結した body の `-- DECISION:` 注記から抽出する**(自己申告にしない)。判定・個別条件・独立影響のテスト対を持つ | `[機械]` **判定 ID 集合が body 由来の集合と exact-set 一致**(架空の判定を書けない・body を後から変えると manifest 照合で落ちる)・各テスト対で **2 つのテスト ID が相異**・**対象条件以外の入力が同一**・**対象条件だけが反転**・**実測した判定結果が反転する**・`mcdc_decision_forms` の全判定形を覆う。`[手動・外部]` 判定注記が実際の認可判定を漏れなく覆っていることを逐行で確認した |
+| 20 | **変異の全量実行** — 231 変異(`authorization_predicate` 205 / `configuration` 24 / `r8_provisioning` 2) | `[機械]` **非等価変異の生存 0**・変異集合が資産由来で**件数を定数で持たない**・等価変異は人手判定で分母から除外し**除外の記録がある** |
+| 21 | **2 因子相互作用 276 + 最小 cut set 24 + MC/DC の実行** | `[機械]` 276 と 24 が資産と exact-set・**ステップ 19 の写像に対して MC/DC を満たす**・**1 相互作用を落とすと red**・**cut set の 1 要素を落とすと red**・**`contracts/authz/` の差分が 0**(封印に触っていない) |
 
-#### 実装ステップ — 第 3 群: 引き渡し(21〜27)
+### 第 2 群後半・第 3 群 — **本計画の承認範囲外。計画改訂 3 で確定する**
 
-| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
+**裁定 `D-8`(2026-09-09)**: 計画レビューが **3 周**を要し、**前周修正起因が 2 周連続で過半**になった
+(7.3-6 の発火)。指摘の型は「**新設した母集合資産が自己申告で自明に green にできる**」に収束しており、
+これを機械で縛るにはさらに上位の母集合が必要という**無限後退**に入っていた。
+
+**根本原因**: 第 1 群が凍結した oracle には、第 2 群が必要とする母集合(関数 body・MC/DC の判定・
+失敗注入点・要件の小項)が**無い**。第 2 群が自作すると自己申告になる。**実体を作る前に文書で閉じようとした**
+のが台帳 `H-68` の型である。
+
+→ **本計画はステップ 1〜21(実体を作る)を承認範囲とする。**
+**これを終えれば、後半は実測に基づいて書ける**(第 1 群と同じ形 — 人間の裁定 2026-08-31)。
+
+#### 改訂 3 が満たすべき要件(3 周分のレビューで確定した実質的な指摘。**失わないためにここへ記録する**)
+
+| # | 要件 | 由来 |
 | --- | --- | --- |
-| 21 | **要件の 7 単位と `operation_ids`(8)の 1:N 写像を新設**(`contracts/authz/operation-count-mapping.json` — `D-4` / `P1-11`)。**要件側は自己申告にしない** — `scripts/design_relations/req-universe.json` の安定 ID を source とし、**抽出規則と要件書の blob digest** を持つ | `[機械]` 要件側 7 単位が**安定 ID で参照**され(自由文の宣言でない)・**要件書の blob digest を持ち、要件書が変わると red**・8 ID との**双方向の差集合が 0**・`issue_invitation` = `participant_capacity` / `revoke_invitation` = `invitation_active` が写像に現れる・**「7 操作」という件数の主張を資産に書いていない**・**8 ID 側も件数リテラルで持たない**。`[手動・外部]` 要件書の 3 箇所との対応を確認した |
-| 22 | **【統合ステップ】enforcement の実在化と oracle の再封印**(裁定 `D-6`)— ① `auth-catalog.json` の 187 件を `planned` → `implemented` ② `claim-mutant-map.json` の `receiving_task_id: TSK-270-GROUP-2` を **実 ID `TSK-317`** へ ③ `ddl-elements.json` の `scope` を確定値へ ④ `boundary-proposal.json` の裁定 2 件を反映(**`frozen_value` は変えない**)⑤ **`oracle_commit` を本コミットの直前へ前進**させ 6 沈黙資産の `oracle_context` を同時更新 ⑥ **`--reseal` / `--reseal-derived` / `--reseal-oracle` を実施** ⑦ `check_authz_catalog.py` の status ハード要求を改訂 ⑧ `tests/test_check_authz_catalog.py` の追随。**`scope` の確定値**: `status: "verified_probe_configuration"` / `product_schema: false`(probe のまま)/ `contains_sql_body: false`(body は外部資産)/ `second_group_approval_required: false` | `[機械]` `frozen_value` が `8` と `29` のまま・**`oracle_commit_semantics` の文字列が不変**・**前進後の `oracle_commit` 上の blob が全入力資産の現ファイルと一致**・reseal 後に `check_authz_catalog.py` が rc=0・**reseal フラグなしでは差分が出ない**・**負例: 検査器を改訂せず資産だけ変えると `CatalogError`**・**負例: `scope` に上記以外の値を入れると red**(検査器が新しい exact 値を要求する)・**`TSK-270-GROUP-2` の残存が 0 件**。`[手動・外部]` **`ORACLE_STEP5_REREVIEW` の差分敵対レビューと人間査読を通した**(3 周を目安・超えたら PO 裁定) |
-| 23 | **引き渡しマニフェストと `R-4` の受取契約**(`contracts/authz/handoff-manifest.json` — **封印外の新設** / `P1-7`・`P0-6`)— 3 資産(`ddl-elements.json` / `auth-catalog.json` / `rejected-configs.json`)の**パス・版・`catalog_entry_id` 集合の sha256・blob digest**。あわせて **`R-4` の登録・相互リンク・read-back** | `[機械]` **3 資産のパスがマニフェストに明記**されている(任意の 3 ファイルでは満たせない)・**ID は実在する `CATALOG:*`**(`AUTH-*` は使わない — 訂正 10)・`git_blob_digest` の照合が通る・**受取タスクの DoD から取得したテスト ID 集合と資産側の差集合が 0**(`TSK-250.runtime.*` 13 + `TSK-250.management.*` 8 → TSK-250 / `TSK-217.runtime.*` 7 → TSK-217)。`[手動・外部]` 受取タスクの DoD へテスト ID を登録し、相互リンクをコメントで記録した(取得結果を worklog に貼った) |
-| 24 | **`core-areas.json` へ新設パスを登録**(6.3 規則⑤)+ `tests/test_core_guard.py` の発火試験 | `[機械]` `matched_paths` が `backend/src/pitchlog/authz/*`・`contracts/authz/function-bodies/*` ほか新設パスにマッチ・`uv run pytest tests/test_core_guard.py` green・**登録を外すと発火しないことを負例で示す**。`[手動・外部]` **paths 追加の敵対レビュー + 人間承認**(逐行確認は PR 作成者以外) |
-| 25 | **`tests/test_ci_wiring.py` の追記** — 使い捨てクラスタの配線を固定する。**新しい DSN 環境変数を増やさない**(訂正 14)。**設計書 10.1 は射程外**(TSK-343 — 訂正 6) | `[機械]` `uv run pytest tests/test_ci_wiring.py` green・**pytest の実行回数が 1 のまま**・`-m` を含むコマンドが 0 件・**`docs/development/dev-harness-design-2026-08-07.md` の差分が 0**・**`environment-expectations.json` の DSN 節の差分が 0** |
-| 26 | **期待件数のハードコード撤去** — `tests/test_check_authz_catalog.py` の**既存 20 箇所すべて**と本タスクの新設分を資産由来の導出へ(`H-85` ③。**追随は独立コミット** — ①) | `[機械]` **`tests/test_check_authz_catalog.py` と新設テストに件数リテラルが 0 件**(数値リテラルの機械検出。閾値と添字は許可リストで明示)・**資産を 1 要素増やすとテストが自動追随する**(実際に増やして確認)。`[手動・外部]` 許可リストに入れた数値とその理由を記録した |
-| 27 | **成果物の敵対レビューの採否記録** — **指摘の反映は該当ステップ番号 + 付記のコミットで行う**(例 `(ステップ 5 レビュー反映 2 周目)`)。**本ステップは worklog だけを変更する**(訂正 7) | `[機械]` 最終周 P0/P1 = 0 で収束したことが worklog に記録されている・**本ステップのコミットが `docs/` 配下のみを変更している**。`[手動・外部]` 採否記録が worklog に周ごとにある(**指摘ゼロの周も残す**) |
+| `S-1` | **統合コミットを 2 段に分ける** — ① 入力・封印資産・検査器・追随テスト・derived lock を変更する基準コミット ② その**基準コミット SHA** を 6 資産の `oracle_context` と seal へ設定し `--reseal-oracle` するコミット。**`oracle_commit` に自コミットの SHA は入れられない**。各層の reseal は一度ずつでよく、差分敵対レビューは 2 コミットの範囲に対して 1 回にできる | 3 周目 `P1-2` |
+| `S-2` | **`enforcement_test_owner.id` の論理 ID → pytest node ID の解決方式を決める** — 実測で全 187 件が `TSK-270.step4.<claim>.db` 形式で **`::` が 0 件**。検査器は `implemented` の ID を `pytest --collect-only` の node ID と完全一致させる。**資産を実 node ID へ変えるか、独立の解決 manifest を設けるか**(方式が分岐) | 3 周目 `P1-3` |
+| `S-3` | **要件側 7 単位の source を決め直す** — `req-universe.json` に `list_item` は **0 件**(条レベルのみ)。小項 ID は `contracts/authz/requirement-claims.json` 側にある。**同資産を source にするか、`req-universe.json` へ小項母集合を追加するか**(方式が分岐) | 3 周目 `P1-6` |
+| `S-4` | **引き渡しマニフェストの ID 完全性を固定する** — 「実在する `CATALOG:*`」だけでは 1 件でも空集合でも通る。**`auth-catalog.json` の全 187 `catalog_entry_id` と exact-set 一致**を要求する。あわせて **TSK-250 側は 13 claim 行だが一意な runtime test ID は 8 件**(`FR-041/list_item-006` が 3 行、`list_item-007` が 4 行で ID を共有)— **「13 件」と「ID 集合」のどちらを read-back するか**を決める | 3 周目 `P1-7` |
+| `S-5` | **`boundary-proposal.json` の裁定後の型を確定する** — 現在値には `proposal_status: pending_tsk_235_confirmation`・`PENDING-*` ID・2 種の pending status・`alternative_value: 7` がある。**どれを維持・改名・削除するかの exact 値と負例**を `scope` と同様に定める | 3 周目 `P1-8` |
+| `S-6` | **`R-4` / `R-7` の受取契約を閉じる** — 受取タスク(TSK-250 / TSK-217)の DoD へ安定テスト ID を登録し、相互リンクし、**受取側から取得した集合と exact-set 突合**する。**製品 adapter / manifest の事前凍結**も `R-4` の要求 | 2 周目 `P0-6` / 3 周目の突合 |
+| `S-7` | **`scope` の確定値**(参考 — 3 周目 `P1-6` で有効と判定済み): `status: "verified_probe_configuration"` / `product_schema: false` / `contains_sql_body: false` / `second_group_approval_required: false`。**上記以外の値を入れると red** | 2 周目 `P1-6` |
+| `S-8` | 引き渡し 3 資産のパス(`ddl-elements.json` / `auth-catalog.json` / `rejected-configs.json`)・`core-areas.json` への新設パス登録・`test_ci_wiring.py` の追記・期待件数のハードコード撤去(既存 20 箇所すべて)・成果物の敵対レビュー | 1〜2 周目 |
+
+**改訂 3 の進め方**: 本計画のステップ 21 が終わった時点で `status` を `active` のまま改訂し、再レビューを通す。
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] **関数 body と DDL の SQL 実体が先行コミットで固定され、manifest の `source_commit` で後続改変を捕まえる**
-- [ ] **読み取り関数が `LANGUAGE SQL BEGIN ATOMIC` に限定され、動的 SQL が 0 件**(`R-1`)
+**本計画の承認範囲は第 2 群前半(ステップ 1〜21)**であり、下記はその受け入れ基準である(裁定 `D-8`)。
+**第 2 群後半・第 3 群の DoD は計画改訂 3 で確定する**(4 節の `S-1`〜`S-8`)。
+
+- [ ] **関数 body がステップ 1 の先行コミットで固定され、manifest の `source_commit` がそのコミットを指す**。**2 段の照合(現ファイル + `git rev-parse`)が通り、後続コミットでの差し替えが red になる**
+- [ ] **読み取り関数が `LANGUAGE SQL BEGIN ATOMIC` に限定され、動的 SQL が 0 件**。**認可判定に `-- DECISION:` 注記がある**(`R-1`)
 - [ ] **DDL 生成器の入力が資産 + body の 2 つだけ**(資産を参照しない識別子リテラル 0 件)
 - [ ] **適用器が `ordered_steps` の順序を資産から読み、関数作成 + `REVOKE` + `GRANT` を 1 トランザクションに収める**(裁定 `D-7`)。**中間状態で `PUBLIC` が実行できないことを試験した**
-- [ ] **適用器が冪等で、失敗注入後に再適用して正常適用時と一致する**(`atomic: false` 前提 — `R-5`)
+- [ ] **適用器が `checkpoint_id` を発行して実行ログへ残す**(ステップ 14 の母集合)。**冪等で、失敗注入後に再適用して正常適用時と一致する**(`R-5`)
 - [ ] **4 ロールの実接続の行列がある**(`SET ROLE` の模擬を使わない・**新しい DSN 環境変数を増やしていない**)
 - [ ] **カタログ検査が `R-1`・`R-2`・`R-8` を満たし、負例 9 種で red になる**
-- [ ] **12-4 節の越境テスト最低要求 4 件と、`data-model.md:544` の「6 前提 × 認可行列各行」が機械条件として存在する**(母集合を独立ステップで新設し、テストと同時に作っていない)
+- [ ] **12-4 節の越境テスト最低要求 4 件と、`data-model.md:544` の「6 前提 × 認可行列各行」が機械条件として存在する**(母集合をステップ 9 で独立に新設し、テストと同時に作っていない)
 - [ ] **「常に 404 の 4 資源」が関数のシグネチャに存在しない**(付与の値で分岐させていない)
 - [ ] **表権限 8 種が単一の機械可読集合から生成されている**(「6 権限」の記述が 0 件)
 - [ ] **`TX:REPRESENTATIVE_MANAGEMENT` の原子性・TOCTOU・失敗注入 5 種・信頼境界の残余リスク試験がある**
-- [ ] **`contract_only` 158 件の runtime テストがある**(受取先が本タスク自身 — `TSK-217` の 7 件は本タスクで実装しない)
-- [ ] **MC/DC の写像を新設し、疑似ペアを弾く 4 条件を機械で検査している**(2 テスト ID の相異 / 対象条件以外の入力同一 / 対象条件だけの反転 / 判定結果の反転)
+- [ ] **失敗注入点の 5 件が閉じた ID を持ち、`checkpoint_id` が相互に異なり、適用器の実行ログと exact-set 一致する**(同じ checkpoint を 5 回使えない)
+- [ ] **`contract_only` 158 件の runtime テストがある**(`TSK-217` の 7 件は実装しない。**資産の status は変えない**)
+- [ ] **MC/DC の判定 ID 集合が body 由来の集合と exact-set 一致する**(自己申告でない)。**疑似ペアを弾く 4 条件を機械で検査している**
 - [ ] **231 変異・276 相互作用・最小 cut set 24・MC/DC を実行し、非等価変異の生存が 0 件**。**件数を定数で持っていない**
-- [ ] **要件の 7 単位と `operation_ids`(8)の 1:N 写像を新設した**(要件側を安定 ID + 要件書 blob digest で縛り、自己申告にしていない)
-- [ ] **ステップ 22 の 1 コミットで、入力資産・封印資産・`oracle_commit` の前進・4 種の reseal・検査器の契約変更を行った**(裁定 `D-6`)。**前後のステップで封印資産と入力資産に触っていない**
-- [ ] **`frozen_value`(`8` と `29`)と `oracle_commit_semantics` の差分が 0**。`TSK-270-GROUP-2` の残存が 0 件
-- [ ] **引き渡しマニフェストが 3 資産のパスを明記し、実在する `CATALOG:*` の ID 集合 sha256 を持つ**(`AUTH-*` は使わない)
-- [ ] **`R-4` を弱めていない** — 受取タスク(TSK-250 / TSK-217)の DoD へテスト ID を登録し、相互リンクし、**受取側から取得した集合と exact-set 突合した**
-- [ ] **`core-areas.json` へ新設パスを登録した**(6.3 規則⑤の敵対レビュー + 人間承認)
-- [ ] **設計書 10.1 と `data-model.md` の差分が 0**(TSK-343・TSK-348 の所有)
-- [ ] **[TSK-348](https://app.notion.com/p/3d693b75e687816b8911f266f9bb59c5) がマージ済みである**(本タスクのマージの前提 — 承認済み正本と製品マージゲートが矛盾した期間を作らない)
-- [ ] **`tests/test_check_authz_catalog.py` の期待件数ハードコードを既存 20 箇所すべて撤去した**
+- [ ] **`contracts/authz/` の差分が 0**(封印資産・入力資産に一切触っていない — 触るのは改訂 3 の射程)
+- [ ] **`docs/design/data-model.md` と設計書 10.1 の差分が 0**(TSK-348・TSK-343 の所有)
+- [ ] **[TSK-348](https://app.notion.com/p/3d693b75e687816b8911f266f9bb59c5) がマージ済みである**(本タスクのマージの前提)
 - [ ] **本タスクの成果を「`NFR-010` 適合」と主張していない**。HTTP 経路の判定は TSK-217 へ送った
 - [ ] **mutation を `NFR-019` のテスト種別として計上せず、`NFR-018`(b)② を根拠に引いていない**(6 節)
 - [ ] **コードに触れる無記法コミットが 0 件**(現在地導出が「不明」に落ちていない)
-- [ ] **申し送りを起票した** — ADR-003 `D-12` と `contracts/authz/` / アプリ用ロールの `DELETE` / `H-57` のジョブ行 / `closure-handoff-data-model.json` の「作成」と正本の「作成・実行」の差 / **`AUTH-*` と `CATALOG:*` の ID 体系の食い違い**
-- [ ] **TSK-348・TSK-349・TSK-343・TSK-344・TSK-250・TSK-217 と相互リンクした**
+- [ ] **改訂 3 が満たすべき要件 `S-1`〜`S-8` を 4 節に記録した**(失わないため)
+- [ ] **申し送りを起票した** — ADR-003 `D-12` と `contracts/authz/` / アプリ用ロールの `DELETE` / `H-57` のジョブ行 / `AUTH-*` と `CATALOG:*` の ID 体系の食い違い / `closure-handoff-data-model.json` の「作成」と正本の「作成・実行」の差
+- [ ] **TSK-348・TSK-349・TSK-343・TSK-344 と相互リンクした**
 - [ ] **`[手動・外部]` の全項目について、逐項の証跡を worklog に残した**
 - [ ] **コア領域として敵対レビュー + 人間の逐行確認を通っている**(逐行確認は **PR 作成者以外**が行い、**実施記録行を確認者本人が記入**した)
 

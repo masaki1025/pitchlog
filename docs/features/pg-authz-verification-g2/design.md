@@ -6,7 +6,12 @@ date: 2026-09-09
 
 # 詳細設計: PostgreSQL 認可構成の実機検証 第 2 群・第 3 群
 
-[plan.md](plan.md) 4 節から参照される詳細設計。**機構が読む状態と実装ステップ表は plan.md のみに置く**
+[plan.md](plan.md) 4 節から参照される詳細設計。
+
+> **本計画の承認範囲は第 2 群前半(ステップ 1〜21)である**(裁定 `D-8`)。
+> 本書のうち **8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は改訂 3 の射程**であり、
+> 承認範囲には入らない。**改訂 3 が満たすべき要件は plan.md 4 節の `S-1`〜`S-8` が正**。
+**機構が読む状態と実装ステップ表は plan.md のみに置く**
 (設計書 7.1-1)。前計画書の内容・凍結資産の中身・要件の逐語は**ここへ複製せず**、
 [../pg-authz-verification/plan.md](../pg-authz-verification/plan.md) と [research.md](research.md) を参照する。
 
@@ -14,18 +19,18 @@ date: 2026-09-09
 
 | 対象 | 配置 | 理由 |
 | --- | --- | --- |
-| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なのでステップ 24 で登録する(6.3 規則⑤) |
+| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なので**改訂 3 の射程**(4 節 `S-8`) |
 | 適用器 | `backend/src/pitchlog/authz/provisioning.py` | 同上。psycopg 直書き(`D-3`) |
 | カタログ検査 | `backend/src/pitchlog/authz/catalog.py` | 同上。**問い合わせだけを持ち、期待値は資産から読む** |
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
 | 越境テスト・行列 | `backend/tests/db/authz/test_*.py` | `backend/tests/db/*` は既に `tenant-isolation.paths` に登録済み |
 | 4 ロール fixture | `backend/tests/db/conftest.py` の拡張 | 既存の `tested_role_connection` の形を踏襲(`backend/*conftest.py` は登録済み) |
 | **関数 body と DDL の SQL 実体** | **`contracts/authz/function-bodies/**`** | **封印 6 資産に含まれない**ため oracle の再封印を発火させない。ステップ 1 の先行コミットで置く |
-| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。ステップ 18 |
-| **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。ステップ 21 |
-| **共有関数の 6 前提の母集合** | **`contracts/authz/shared-preconditions.json`** | 資産の `precondition_ids` は管理操作用の別概念。ステップ 8 |
-| **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。資産に列が無いため新設。ステップ 13 |
-| **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | 封印外。ステップ 23(下記 8 節) |
+| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。ステップ 19 |
+| **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。**改訂 3 の射程**(`S-3`) |
+| **共有関数の 6 前提の母集合** | **`contracts/authz/shared-preconditions.json`** | 資産の `precondition_ids` は管理操作用の別概念。ステップ 9 |
+| **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。ステップ 14。**閉じた `injection_point_id` 5 個 + ステップ 4 の適用器が発行する `checkpoint_id`(step 内の序数)+ 相互重複禁止 + 実行ログとの exact-set**(3 周目 `P1-4` — `step_id` だけでは 5 行に同じ値を書けてしまう) |
+| **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | **改訂 3 の射程**(`S-4`・下記 8 節) |
 
 **`backend/src/pitchlog/authz/` の 3 モジュールは責務で分ける** — 生成(資産 → SQL 文字列)/
 適用(SQL → クラスタ・順序と原子性)/ 検査(クラスタ → 観測値)。
@@ -40,13 +45,13 @@ date: 2026-09-09
 **body・引数型・戻り列が無い**(`contains_sql_body: false` は `scripts/check_authz_catalog.py:2680` が
 **ハード要求する値**なので、そこへ body を入れることはできない)。構造だけを入力にして SQL を生成し、
 その生成結果の `pg_get_functiondef` digest を検査すると、**誤った認可関数を生成しても同じ digest で green になる**
-(自己 oracle 化)。したがって **body はステップ 1 の先行コミットで固定し、検査はステップ 5 の後続コミットで置く**。
+(自己 oracle 化)。したがって **body はステップ 1 の先行コミットで固定し、manifest と静的照合をステップ 2、カタログ検査をステップ 6 に置く**。
 `function-bodies/**` は**封印 6 資産に含まれない**ので oracle の再封印を発火させない。
 
 **「先にコミットした」という履歴だけでは閉じない(計画レビュー 2 周目 `P1-3` の訂正)** —
 後続コミットで body を変えれば期待 digest も一緒に動く。したがって manifest に
 **`source_commit`(ステップ 1 のコミット SHA)と各ファイルの `blob_digest`** を持たせ、
-ステップ 5 の検査は **`git rev-parse <source_commit>:<path>` の blob が manifest の digest と一致すること**
+ステップ 2 の検査は **`git rev-parse <source_commit>:<path>` の blob が manifest の digest と一致すること**
 まで確認する(oracle seal が `input_assets` に対して行っているのと同じ 2 段の縛り)。
 これで**後続コミットでの body 差し替えが red になる**。
 
@@ -94,9 +99,9 @@ DB 層では塞げない(同 `RES-01`)。
 
 | `boundary_id` | `boundary_kind` | `atomic` | 本タスクでの扱い |
 | --- | --- | --- | --- |
-| `TX:PROVISIONING` | `ordered_application` | **`false`** | ステップ 3・12。順序を守り、失敗後は**再適用で収束**する |
-| `TX:REPRESENTATIVE_MANAGEMENT` | `authorization_and_side_effect` | **`true`** | ステップ 10。**認可と副作用が同一トランザクション**。認可失敗時に副作用行が増えない |
-| `TX:GLOBAL_MUTATION_ISOLATION` | `disposable_cluster` | **`false`** | ステップ 14。起動〜破棄は原子でない |
+| `TX:PROVISIONING` | `ordered_application` | **`false`** | ステップ 4・15。順序を守り、失敗後は**再適用で収束**する |
+| `TX:REPRESENTATIVE_MANAGEMENT` | `authorization_and_side_effect` | **`true`** | ステップ 12。**認可と副作用が同一トランザクション**。認可失敗時に副作用行が増えない |
+| `TX:GLOBAL_MUTATION_ISOLATION` | `disposable_cluster` | **`false`** | ステップ 18。起動〜破棄は原子でない |
 
 `R-5` の失敗点 5 種は**注入位置を資産由来の列で持つ**(ロール作成後 / policy 変更後 / body 置換後 /
 owner 変更後 / ACL 正規化途中)。比較対象は**全対象 catalog・membership・default ACL・fixture data** で、
@@ -215,7 +220,14 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 3. **対象条件以外の入力が同一**で、**対象条件だけが反転**している
 4. **実測した判定結果が反転する**(期待値の宣言ではなく実行結果で確認する)
 
-**判定の抽出が実体と一致していること**は `[手動・外部]` で確認する(自動抽出できない)。
+**判定 ID の母集合は body から取る(3 周目 `P1-5` の訂正)** — `mcdc-map.json` が判定 ID を
+自分で宣言すると、**架空の 4 判定を 1 条件ずつ置いても機械 green にできる**。したがって
+**ステップ 1 で body の各認可判定へ `-- DECISION: <id>` の注記を置き、その注記の集合を母集合とする**。
+body は**ステップ 1 の先行コミットで凍結され、manifest の `source_commit` 照合で改変が捕まる**ので、
+**後から判定を減らすことも架空の判定を足すこともできない**。
+ステップ 19 の合格条件は「**`mcdc-map.json` の判定 ID 集合が body 由来の集合と exact-set 一致**」。
+
+**注記が実際の認可判定を漏れなく覆っていること**は `[手動・外部]` で確認する(自動抽出できない)。
 **この資産は封印 6 資産に含まれない**ので oracle の再封印を発火させない。
 
 ## 7. 越境テストの構造
@@ -254,10 +266,10 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 `participant_capacity` / `invitation_active` / `preserve_active_admin`)は管理操作用の別概念**であり、
 共有関数の 6 前提とは違う(正本 3-6 節の別の列挙)。
 
-1. **ステップ 8 で `contracts/authz/shared-preconditions.json` を新設**する — 正本 3-6 節の 6 前提を
+1. **ステップ 9 で `contracts/authz/shared-preconditions.json` を新設**する — 正本 3-6 節の 6 前提を
    **逐語で抽出**し、**抽出規則と正本の blob digest** を持たせる(正本が変わると red)。
    **`route-registry.json` の `precondition_ids` との重複が 0 件**であることを機械で示す
-2. **ステップ 9 で認可行列の許可行**を `http-route-matrix.json` の allow セルから導出する
+2. **ステップ 10 で認可行列の許可行**を `http-route-matrix.json` の allow セルから導出する
 3. **直積のすべてにテスト ID を割り当て、ID 集合の sha256 で exact-set 突合**する
 4. **1 行落とすと red**。**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)は
    ステップ 8 の資産に**独立の行**として持つ
@@ -325,7 +337,7 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 3. **read-back** — **受取タスクの DoD を取得し、資産のテスト ID 集合と exact-set 突合する**
    (差集合 0 を機械で示す。取得結果を worklog に貼る)
 
-**ステップの割り当て**: ステップ 21(引き渡し 3 資産の確定)に含める。
+**ステップの割り当て**: **改訂 3 の射程**(4 節 `S-6`)。本計画の承認範囲には入らない。
 **登録と相互リンクは外部手続きなので `[手動・外部]`、read-back の突合は `[機械]`** に書き分ける。
 
 ## 未解決・検討メモ
