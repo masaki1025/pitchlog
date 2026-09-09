@@ -312,6 +312,7 @@ class ProvisionedCatalog:
     cluster: DisposablePostgres
     admin: psycopg.Connection[Any]
     reference_admin: psycopg.Connection[Any]
+    provisioner_dsn: str
     asset: dict[str, object]
     statements: tuple[DDLStatement, ...]
     provisioning_result: ProvisioningResult
@@ -555,6 +556,7 @@ def provisioned_catalog(
                     cluster=cluster,
                     admin=admin,
                     reference_admin=reference_admin,
+                    provisioner_dsn=provisioner_dsn,
                     asset=asset,
                     statements=statements,
                     provisioning_result=provisioning_result,
