@@ -29,7 +29,7 @@ date: 2026-09-09
 | **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。ステップ 19 |
 | **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。**改訂 3 の射程**(`S-3`) |
 | **共有関数の 6 前提の母集合** | **`contracts/authz/shared-preconditions.json`** | 資産の `precondition_ids` は管理操作用の別概念。ステップ 9 |
-| **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。ステップ 14。**閉じた `injection_point_id` 5 個 + ステップ 4 の適用器が発行する `checkpoint_id`(step 内の序数)+ 相互重複禁止 + 実行ログとの exact-set**(3 周目 `P1-4` — `step_id` だけでは 5 行に同じ値を書けてしまう) |
+| **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。ステップ 14。**閉じた `injection_point_id` 5 個 + ステップ 4 の適用器が発行する `checkpoint_id`(step 内の序数)+ 相互重複禁止 + 実行ログへの実在**(3 周目 `P1-4`)。**実行ログ全体との exact-set ではない** — 凍結 DDL は 7 ロール・3 スキーマ・6 表・6 ポリシー・3 関数・17 ACL で 5 文を大きく超えるため両立しない(4 周目 `P1-3`)。5 種の位置への対応は `operation_kind` で機械判定する |
 | **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | **改訂 3 の射程**(`S-4`・下記 8 節) |
 
 **`backend/src/pitchlog/authz/` の 3 モジュールは責務で分ける** — 生成(資産 → SQL 文字列)/
@@ -224,7 +224,13 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 自分で宣言すると、**架空の 4 判定を 1 条件ずつ置いても機械 green にできる**。したがって
 **ステップ 1 で body の各認可判定へ `-- DECISION: <id>` の注記を置き、その注記の集合を母集合とする**。
 body は**ステップ 1 の先行コミットで凍結され、manifest の `source_commit` 照合で改変が捕まる**ので、
-**後から判定を減らすことも架空の判定を足すこともできない**。
+**後から判定を減らすことも、body に無い判定 ID を書くこともできない**。
+
+**ただし「最初から注記を漏らす」ことは機械では捕まえられない(4 周目 `P1-2`)** —
+body と注記を同じステップ 1 で作るため、実際の認可判定から注記を省いた縮んだ集合と
+`mcdc-map.json` を一致させれば機械 green になる。**注記の網羅性は `[手動・外部]` で担保する**
+(SQL の AST から認可判定を自動識別するのは別種の実装であり、本タスクの射程を超える)。
+**「機械的に自己申告でない」とは主張しない** — 機械が閉じるのは上の 2 点だけである。
 ステップ 19 の合格条件は「**`mcdc-map.json` の判定 ID 集合が body 由来の集合と exact-set 一致**」。
 
 **注記が実際の認可判定を漏れなく覆っていること**は `[手動・外部]` で確認する(自動抽出できない)。
