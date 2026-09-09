@@ -20,6 +20,9 @@ date: 2026-09-09
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
 | 越境テスト・行列 | `backend/tests/db/authz/test_*.py` | `backend/tests/db/*` は既に `tenant-isolation.paths` に登録済み |
 | 4 ロール fixture | `backend/tests/db/conftest.py` の拡張 | 既存の `tested_role_connection` の形を踏襲(`backend/*conftest.py` は登録済み) |
+| **関数 body と DDL の SQL 実体** | **`contracts/authz/function-bodies/**`** | **封印 6 資産に含まれない**ため oracle の再封印を発火させない。ステップ 1 の先行コミットで置く |
+| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2) |
+| **7 操作 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`(下記 8-2) |
 
 **`backend/src/pitchlog/authz/` の 3 モジュールは責務で分ける** — 生成(資産 → SQL 文字列)/
 適用(SQL → クラスタ・順序と原子性)/ 検査(クラスタ → 観測値)。
@@ -27,7 +30,15 @@ date: 2026-09-09
 
 ## 2. DDL 生成器の入力契約
 
-**入力は `contracts/authz/ddl-elements.json` のみ。** 生成器は資産以外の定数を持たない。
+**入力は 2 つ** — `contracts/authz/ddl-elements.json`(構造)と
+`contracts/authz/function-bodies/**`(関数 body と DDL の SQL 実体)。生成器は**この 2 つ以外の定数を持たない**。
+
+**なぜ body を資産の外に置くか(計画レビュー 1 周目 `P0-2` の訂正)**: `ddl-elements.json` には
+**body・引数型・戻り列が無い**(`contains_sql_body: false` は `scripts/check_authz_catalog.py:2680` が
+**ハード要求する値**なので、そこへ body を入れることはできない)。構造だけを入力にして SQL を生成し、
+その生成結果の `pg_get_functiondef` digest を検査すると、**誤った認可関数を生成しても同じ digest で green になる**
+(自己 oracle 化)。したがって **body はステップ 1 の先行コミットで固定し、検査はステップ 5 の後続コミットで置く**。
+`function-bodies/**` は**封印 6 資産に含まれない**ので oracle の再封印を発火させない。
 
 | 資産の節 | 生成物 | 落としてはいけない属性 |
 | --- | --- | --- |
@@ -67,9 +78,19 @@ DB 層では塞げない(同 `RES-01`)。
 **完了時の検査**(`completion_catalog_expectations`):
 `pg_has_role(<provisioner>, <fn_owner>, 'SET') = false` / `pg_has_role(<provisioner>, <fn_owner>, 'USAGE') = false`
 
-**原子性**: 全体を 1 トランザクションで実行する。`R-5` の失敗点 5 種は**注入位置を資産由来の列で持つ**
-(ロール作成後 / policy 変更後 / body 置換後 / owner 変更後 / ACL 正規化途中)。
-比較対象は**全対象 catalog・membership・default ACL・fixture data**。
+**原子性 — 適用は非原子である(計画レビュー 1 周目 `P0-5` の訂正)**: `ddl-elements.json` の
+`transaction_boundaries` は `TX:PROVISIONING` を **`atomic: false`** の `ordered_application` と定める。
+したがって**失敗時の回復手段は rollback ではなく「冪等な再適用による収束」**である。
+
+| `boundary_id` | `boundary_kind` | `atomic` | 本タスクでの扱い |
+| --- | --- | --- | --- |
+| `TX:PROVISIONING` | `ordered_application` | **`false`** | ステップ 3・12。順序を守り、失敗後は**再適用で収束**する |
+| `TX:REPRESENTATIVE_MANAGEMENT` | `authorization_and_side_effect` | **`true`** | ステップ 10。**認可と副作用が同一トランザクション**。認可失敗時に副作用行が増えない |
+| `TX:GLOBAL_MUTATION_ISOLATION` | `disposable_cluster` | **`false`** | ステップ 14。起動〜破棄は原子でない |
+
+`R-5` の失敗点 5 種は**注入位置を資産由来の列で持つ**(ロール作成後 / policy 変更後 / body 置換後 /
+owner 変更後 / ACL 正規化途中)。比較対象は**全対象 catalog・membership・default ACL・fixture data** で、
+**注入 → 再適用 → 正常適用時と一致**を要求する。**注入後に再適用しない場合の状態も記録する**(隠さない)。
 
 **冪等性**: `CREATE OR REPLACE` + `ALTER ... OWNER TO` + **ACL の全正規化**。
 「古い直接 `GRANT` が 1 回目と 2 回目の双方で消えている」ことを要求する(差分適用にしない)。
@@ -82,12 +103,17 @@ DB 層では塞げない(同 `RES-01`)。
 | 検査 ID の系列 | 観測対象 | 由来 |
 | --- | --- | --- |
 | `CATALOG:POLICY:*` | `pg_policy` の `polcmd` / `polroles` / `polpermissive` / `polqual` / `polwithcheck` を正規化して exact 比較 | 前計画書 4 節「読み取りだけでなく書き込み」 |
-| `CATALOG:FUNCTION-DIGEST:*` | `pg_get_functiondef` / owner / language / security / volatility / leakproof / strict / parallel / `proconfig` / ACL の **10 属性の digest** | **`R-1`** |
+| `CATALOG:FUNCTION-DIGEST:*` | `pg_get_functiondef` / owner / language / security / volatility / leakproof / strict / parallel / `proconfig` / ACL の **10 属性の digest**。**期待値はステップ 1 で先行コミットした `function-bodies/**` から取る**(観測値を後から期待値にしない) | **`R-1`** |
+| `CATALOG:FUNCTION-STRUCTURE:*` | **読み取り関数が `LANGUAGE SQL BEGIN ATOMIC`** であること / **動的 SQL(`EXECUTE`・`format(`・文字列連結)が 0 件** / **body が `dependency_table_ids` 以外の relation を参照しない** | **`R-1`**(digest だけでは「後から足された参照」を型として捕まえられないため、構造検査を併置する) |
 | `CATALOG:REACHABILITY:*` | 危険終点 = **`rolsuper OR rolbypassrls OR 保護 relation/schema/routine の owner`** と、アプリ・管理呼び出し・outsider からの `SET` 到達集合の**交差が空** | **`R-2`** |
 | `CATALOG:ACL:*` | 表 ACL・**列 ACL**・**schema ACL**・**default ACL**。`PUBLIC` が含まれないこと | 前計画書 4 節「カタログ検査」 |
 | `CATALOG:SEARCH-PATH:*` | **末尾が `pg_temp` で、かつ `pg_temp` の出現回数が 1** | `REJ-003` / 既存 `scripts/check_authz_catalog.py:2910-2911` と同じ述語 |
 | `CATALOG:PROVISIONER-*` | 上記 `completion_catalog_expectations` の 2 件 | **`R-8`** |
 | `CATALOG:OWNED-OBJECTS:*` | **`BYPASSRLS` ロールが所有する全 object** と **全 `SECURITY DEFINER` routine** が exact-set(採用構成外の関数が 1 件増えると red) | 前計画書 4 節 |
+
+**`R-1` の負例は SELECT と DML の双方**を要求する — 既存関数の body へ禁止 relation の
+`SELECT` を追加する変異と、`INSERT`/`UPDATE`/`DELETE` を追加する変異を別に持ち、**両方で red** にする。
+あわせて **body に動的 SQL を導入する変異**でも red にする(構造検査の実効性の確認)。
 
 **到達閉包は 2 種を分ける** — `pg_auth_members` の推移閉包について、
 **`SET` 権限による到達**と**`USAGE`(継承)による到達**を別に取る(`R-2` の負例 3 種が両方に掛かる)。
@@ -152,29 +178,78 @@ DB 層では塞げない(同 `RES-01`)。
 teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** — 製品適用器を巻き戻し装置にしない。
 
 **2 因子相互作用(276)と最小 cut set(24)**: `attack-tree.json` の `minimal_cut_sets` と
-`two_factor_interactions` から読む。**MC/DC は `mcdc_decision_forms` の各判定形**について満たす。
+`two_factor_interactions` から読む。
+
+### 6-2. MC/DC の写像を新設する(計画レビュー 1 周目 `P1-9` の訂正)
+
+**凍結資産にあるのは `mcdc_decision_forms`(`AND` / `OR` / `NOT` / `CASE` の**判定形の名前**)だけ**で、
+**判定・個別条件・独立影響を示すテスト対の写像が無い**。「各判定形で MC/DC を満たす」という条件は
+**4 つの literal を置くだけで green にできる**。そこで `contracts/authz/mcdc-map.json` を新設する。
+
+| フィールド | 内容 |
+| --- | --- |
+| `decision_id` | 判定の安定 ID(関数本体・ポリシー述語のどの判定か) |
+| `decision_form` | `mcdc_decision_forms` のいずれか(exact-set で全判定形を覆う) |
+| `conditions[]` | その判定の**個別条件**の一覧(安定 ID つき) |
+| `independence_pairs[]` | 各条件について**独立影響を示すテスト対**(2 つのテスト ID と、変えた条件・期待結果の差) |
+
+**合格条件の形**: **テスト対の片方を落とすと当該条件の MC/DC が未達と判定される**こと。
+**判定の抽出が実体と一致していること**は `[手動・外部]` で確認する(自動抽出できない)。
+**この資産は封印 6 資産に含まれない**ので oracle の再封印を発火させない。
 
 ## 7. 越境テストの構造
 
 **正例**(`positive_cases.cases` 6 件)と**拒否例**を、`http-route-matrix.json` の `cells`(12・allow 6 / deny 6)と
 **テスト ID で 1:1 に結ぶ**(ID 集合の sha256 で exact-set)。
 
-**関数が返す形の要求**(`data-model.md` 3-6 節):
+**関数が返す形の要求 — 凍結資産の読みを採る(計画レビュー 1 周目 `P0-3` の訂正)**
 
-- **越境関数は「許可された業務行」を返す**形にし、**許可された行だけが返る**ことを試験する
-- **集計は関数に書かない**
+正本 3-6 節は「**返す列を集計値に限定**すれば」と「**集計は関数に書かない**」を併記しており、
+**関数が集計後の値を返すのに集計を書かない**という読みになって矛盾する。凍結資産は
+`return_contract: "typed_authorized_business_rows"` / **`aggregation_contract: "none"`** で、
+**認可済みの業務行を返し、集計は呼び出し側**という読みを取っている。
+
+→ **本タスクは凍結資産の読みに従う**(`contract_only` の claim も同じ前提で書かれている)。
+**正本の表現との差の解消は [TSK-348](https://app.notion.com/p/3d693b75e687816b8911f266f9bb59c5) が持つ**(裁定 `D-5`)。
+**本タスクは正本の当該表現を変更しない。**
+
+- **越境関数は「認可済みの業務行」を返す**形にし、**許可された行だけが返る**ことを試験する
+- **集計は関数に書かない**(`aggregation_contract: none`)
 - **下段 4 行(常に 404)は「返す経路を持たない」形**にする。付与の値で分岐させない
   → **テストは「返らない」ではなく「そのシグネチャが存在しない」ことも確認する**
 - 関数は **`group_id` を必須引数に取り、内部で当該グループに紐づく付与だけを見る**
 
-**第 2 層(認可行列)の検査**(同 3-6 節・敵対レビュー P0-2 の是正):
+**第 2 層(認可行列)の検査 — 機械条件にする(計画レビュー 1 周目 `P1-8` の訂正)**
+
 6 前提を満たした要素それぞれについて、要求粒度の行を認可行列から引き、
 **`相手の付与 ∧ 要求元の付与` の双方**を検査する。**とくに「対象側は非共有・要求元だけ付与」の組み合わせ**。
+
+**当初は `[手動・外部]` の概念名確認に落としていたが、それではテストを実装せず worklog に語を置くだけで
+合格できてしまう**(`H-79` を閉じていない)。したがって**母集合を資産から導出する**:
+
+1. **6 前提**を `data-model.md` 3-6 節の列挙に対応する安定 ID として持つ(`PRECOND-01`〜`PRECOND-06`)
+2. **認可行列の許可行**を `http-route-matrix.json` の allow セルと `route-registry.json` の
+   `resource_kinds` から導出する
+3. **直積のすべてにテスト ID を割り当て、ID 集合の sha256 で exact-set 突合**する
+4. **1 行落とすと red**。**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)にも
+   テストを持つ
 
 **選手個別の行フィルタ**: **`kind = 'self'` かつ在籍区分が現役(`active`)の選手だけ**。
 **チーム集計には在籍フィルタを掛けない**(OB が出場した過去試合も含めるのが正)。
 
 ## 8. 引き渡し 3 資産の形(第 3 群)
+
+**対象の 3 資産を明示する(計画レビュー 1 周目 `P1-12` の訂正)** — 当初は seal 風の構造だけを指定しており、
+**任意の 3 ファイルに版と digest を置けば条件を満たせた**。対象は次の 3 つに固定する:
+
+| # | 資産 | 役割 |
+| --- | --- | --- |
+| 1 | `contracts/authz/ddl-elements.json` | **通った構成**(ステップ 20 で `scope` を消化したもの) |
+| 2 | `contracts/authz/auth-catalog.json` | **`AUTH-*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`) |
+| 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(`REJ-001`〜`REJ-003` + 第 2 群で追加した分) |
+
+**この 3 パスを資産側(引き渡しマニフェスト)に明記する** — 受け手(TSK-343 / TSK-344)が
+パスを推測しないで済むようにする。
 
 **受け手が exact-set で突合できる形にする** — `AUTH-*` を**成果 ID + blob digest** で特定できるようにし、
 **ID 集合の sha256 を資産に持たせる**(受け手が件数を数え直さずに照合できる)。
@@ -188,12 +263,39 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 `revoke_invitation` = `invitation_active`)。**「7 操作」という件数の主張を資産に書かない** —
 書くと 8 件の実体と食い違う。
 
+## 9. 受取契約(`R-4`)— 弱めず、実在するタスクへ登録して read-back する
+
+**計画レビュー 1 周目 `P0-6` の訂正。** 当初は「資産内の `test_owner.id` 文字列が一致すること」に縮めていたが、
+**それは read-back ではなく自己照合**であり、`contract_only` の runtime テスト ID が
+**実在する受取ゲートへ接続されない**。`R-4` が要求するのは受取タスクの DoD への登録・相互リンク・
+**受取側からの exact read-back**・製品 adapter / manifest の事前凍結である。
+
+**受取先の割り当て**(TSK-250 が分割されたため実 ID へ振り直す):
+
+| 資産側の `test_owner.id` の系列 | 受取先 | 根拠 |
+| --- | --- | --- |
+| `TSK-250.runtime.*`(7 操作の状態遷移・招待の一回消費・同時受諾・最後の `admin` の離脱/降格・無効化時の終了・再有効化) | **TSK-250**(現存 — 残りの正本化を持つ) | `closure-handoff-data-model.json` が TSK-250 の受け取りを維持している |
+| `TSK-250.management.*`(管理経路 8 操作) | **TSK-250** | 同上 |
+| cache / 通知・操作ログ | **TSK-217**(HTTP 経路) | `NFR-010` の測定方法が API 直叩きを含む |
+
+**read-back の形**(`[手動・外部]` を含む 3 段):
+
+1. **登録** — 上表のテスト ID を**受取タスクの Notion DoD へ書き込む**(安定テスト ID つき)
+2. **相互リンク** — 本タスクと受取タスクをコメントで相互に記録する(`URL` プロパティは `/pr` 専用)
+3. **read-back** — **受取タスクの DoD を取得し、資産のテスト ID 集合と exact-set 突合する**
+   (差集合 0 を機械で示す。取得結果を worklog に貼る)
+
+**ステップの割り当て**: ステップ 21(引き渡し 3 資産の確定)に含める。
+**登録と相互リンクは外部手続きなので `[手動・外部]`、read-back の突合は `[機械]`** に書き分ける。
+
 ## 未解決・検討メモ
 
-- **`R-4` の受取先** — 前計画書は「TSK-250 の DoD へ登録して read-back」と書くが、TSK-250 は分割された
-  (正本化 = TSK-342 完了 / `models`・`migration` = TSK-343 / ゲート再実行 = TSK-344)。
-  **本タスクは資産の `test_owner.id` 文字列(`TSK-250.management.*` / `TSK-250.runtime.*`)を維持し、
-  read-back は「文字列が資産と一致すること」の機械検査に留める**。受け手のタスク再編は射程外(research.md 5-U-7)
+- **移行バッチ用ロールの検査は [TSK-349](https://app.notion.com/p/3d693b75e68781cdaa22f364955f9fab) が持つ** —
+  計画レビュー 1 周目 `P0-4` が「検査責務の所有者が空」と判定したため、**実 ID で起票して受取先を閉じた**
+  (プレースホルダの「新規起票」では閉じない)
+- **正本側の 3 件は [TSK-348](https://app.notion.com/p/3d693b75e687816b8911f266f9bb59c5) が持つ**(裁定 `D-5`)—
+  `search_path` の P0 / 返却契約の不一致 / 定義の言い換えによる重複。**本タスクは正本を変更しない**
+- **設計書 10.1 の追随は TSK-343 が持つ**(`P1-14`)— `data-model.md` の受け取り先表がそう割り当てている
 - **`closure-handoff-data-model.json` の「作成」と正本 `:2750` の「作成・実行」の差** — どちらを正とする条項が
   見つからない。本タスクは**probe クラスタ上での作成・実行まで**と読む(実スキーマは TSK-343 の成果)。
   差の解消は申し送り(research.md 5-U-8)
