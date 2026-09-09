@@ -14,15 +14,18 @@ date: 2026-09-09
 
 | 対象 | 配置 | 理由 |
 | --- | --- | --- |
-| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なのでステップ 20 で登録する(6.3 規則⑤) |
+| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なのでステップ 24 で登録する(6.3 規則⑤) |
 | 適用器 | `backend/src/pitchlog/authz/provisioning.py` | 同上。psycopg 直書き(`D-3`) |
 | カタログ検査 | `backend/src/pitchlog/authz/catalog.py` | 同上。**問い合わせだけを持ち、期待値は資産から読む** |
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
 | 越境テスト・行列 | `backend/tests/db/authz/test_*.py` | `backend/tests/db/*` は既に `tenant-isolation.paths` に登録済み |
 | 4 ロール fixture | `backend/tests/db/conftest.py` の拡張 | 既存の `tested_role_connection` の形を踏襲(`backend/*conftest.py` は登録済み) |
 | **関数 body と DDL の SQL 実体** | **`contracts/authz/function-bodies/**`** | **封印 6 資産に含まれない**ため oracle の再封印を発火させない。ステップ 1 の先行コミットで置く |
-| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2) |
-| **7 操作 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`(下記 8-2) |
+| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。ステップ 18 |
+| **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。ステップ 21 |
+| **共有関数の 6 前提の母集合** | **`contracts/authz/shared-preconditions.json`** | 資産の `precondition_ids` は管理操作用の別概念。ステップ 8 |
+| **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。資産に列が無いため新設。ステップ 13 |
+| **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | 封印外。ステップ 23(下記 8 節) |
 
 **`backend/src/pitchlog/authz/` の 3 モジュールは責務で分ける** — 生成(資産 → SQL 文字列)/
 適用(SQL → クラスタ・順序と原子性)/ 検査(クラスタ → 観測値)。
@@ -39,6 +42,13 @@ date: 2026-09-09
 その生成結果の `pg_get_functiondef` digest を検査すると、**誤った認可関数を生成しても同じ digest で green になる**
 (自己 oracle 化)。したがって **body はステップ 1 の先行コミットで固定し、検査はステップ 5 の後続コミットで置く**。
 `function-bodies/**` は**封印 6 資産に含まれない**ので oracle の再封印を発火させない。
+
+**「先にコミットした」という履歴だけでは閉じない(計画レビュー 2 周目 `P1-3` の訂正)** —
+後続コミットで body を変えれば期待 digest も一緒に動く。したがって manifest に
+**`source_commit`(ステップ 1 のコミット SHA)と各ファイルの `blob_digest`** を持たせ、
+ステップ 5 の検査は **`git rev-parse <source_commit>:<path>` の blob が manifest の digest と一致すること**
+まで確認する(oracle seal が `input_assets` に対して行っているのと同じ 2 段の縛り)。
+これで**後続コミットでの body 差し替えが red になる**。
 
 | 資産の節 | 生成物 | 落としてはいけない属性 |
 | --- | --- | --- |
@@ -144,9 +154,13 @@ owner 変更後 / ACL 正規化途中)。比較対象は**全対象 catalog・me
   autouse fixture を 4 本へ拡張。**ソースの grep を合格根拠にしない**)
 - **`NOLOGIN` の関数所有ロール 2 本は実行行列に入らない** — 実接続できないため。
   これらは**カタログ検査の対象**とし、実行は `SECURITY DEFINER` 経由だけ
-- **DSN は期待値資産から名前を引く**(既存 `_dsn_names`・`:40-53` の形)。新規 2 本の DSN 名も
-  `environment-expectations.json` の `dsn_environment_variables` へ**先に固定**してから配線する
-  (`oracle_policy.expectations_must_precede_observation_code: true`)
+- **新しい DSN 環境変数を増やさない(計画レビュー 2 周目 `P1-13` の訂正)** — 実資産の
+  `dsn_environment_variables` は `admin_connection` と `tested_role_connection` の **2 本だけ**。
+  4 ロールに 4 変数を割り当てると CI と compose の両方へ配線が要る。
+  代わりに **既存 `PITCHLOG_TEST_ROLE_DSN` をテンプレートとして使い、user とパスワードを差し替える**。
+  `tests/test_ci_wiring.py` が既に「**ロール DSN はユーザーだけ異なり host/db は同一**」を検査しており、
+  この形が想定されている。パスワードは管理接続の `CREATE ROLE ... LOGIN PASSWORD` で設定する。
+  **`environment-expectations.json` は変更しない。**
 
 ## 6. 変異の軸と kill 判定の写像
 
@@ -193,7 +207,14 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 | `conditions[]` | その判定の**個別条件**の一覧(安定 ID つき) |
 | `independence_pairs[]` | 各条件について**独立影響を示すテスト対**(2 つのテスト ID と、変えた条件・期待結果の差) |
 
-**合格条件の形**: **テスト対の片方を落とすと当該条件の MC/DC が未達と判定される**こと。
+**合格条件の形(計画レビュー 2 周目 `P1-9` の訂正)** — 「参照が存在する」「片方を消すと red」だけでは
+**4 形式に自明な 1 条件ずつと同一テストを割り当てても green にできる**。次の 4 条件を**すべて機械で検査する**:
+
+1. **判定 ID の全体が exact-set で固定**されている(後から判定を減らせない)
+2. 各テスト対の **2 つのテスト ID が相異**する
+3. **対象条件以外の入力が同一**で、**対象条件だけが反転**している
+4. **実測した判定結果が反転する**(期待値の宣言ではなく実行結果で確認する)
+
 **判定の抽出が実体と一致していること**は `[手動・外部]` で確認する(自動抽出できない)。
 **この資産は封印 6 資産に含まれない**ので oracle の再封印を発火させない。
 
@@ -227,12 +248,19 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 **当初は `[手動・外部]` の概念名確認に落としていたが、それではテストを実装せず worklog に語を置くだけで
 合格できてしまう**(`H-79` を閉じていない)。したがって**母集合を資産から導出する**:
 
-1. **6 前提**を `data-model.md` 3-6 節の列挙に対応する安定 ID として持つ(`PRECOND-01`〜`PRECOND-06`)
-2. **認可行列の許可行**を `http-route-matrix.json` の allow セルと `route-registry.json` の
-   `resource_kinds` から導出する
+**母集合はテストと同じステップで作らない(計画レビュー 2 周目 `P1-10` の訂正)** — 同時に作ると
+**1 つ落としたときに前提集合とテスト集合の両方が縮んで green のまま**になり、`H-79` / `H-53` を閉じない。
+また **資産の `precondition_ids`(6 個: `tenant_active` / `group_active` / `active_membership` /
+`participant_capacity` / `invitation_active` / `preserve_active_admin`)は管理操作用の別概念**であり、
+共有関数の 6 前提とは違う(正本 3-6 節の別の列挙)。
+
+1. **ステップ 8 で `contracts/authz/shared-preconditions.json` を新設**する — 正本 3-6 節の 6 前提を
+   **逐語で抽出**し、**抽出規則と正本の blob digest** を持たせる(正本が変わると red)。
+   **`route-registry.json` の `precondition_ids` との重複が 0 件**であることを機械で示す
+2. **ステップ 9 で認可行列の許可行**を `http-route-matrix.json` の allow セルから導出する
 3. **直積のすべてにテスト ID を割り当て、ID 集合の sha256 で exact-set 突合**する
-4. **1 行落とすと red**。**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)にも
-   テストを持つ
+4. **1 行落とすと red**。**前提 ⑤ の例外**(自テナントは付与・相互性を適用しないが同時比較上限には数える)は
+   ステップ 8 の資産に**独立の行**として持つ
 
 **選手個別の行フィルタ**: **`kind = 'self'` かつ在籍区分が現役(`active`)の選手だけ**。
 **チーム集計には在籍フィルタを掛けない**(OB が出場した過去試合も含めるのが正)。
@@ -245,23 +273,35 @@ teardown は `docker rm --force`)。**変異ごとに新しい DB を作る** �
 | # | 資産 | 役割 |
 | --- | --- | --- |
 | 1 | `contracts/authz/ddl-elements.json` | **通った構成**(ステップ 20 で `scope` を消化したもの) |
-| 2 | `contracts/authz/auth-catalog.json` | **`AUTH-*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`) |
+| 2 | `contracts/authz/auth-catalog.json` | **`CATALOG:*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`)。**`AUTH-*` は実在しない** |
 | 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(`REJ-001`〜`REJ-003` + 第 2 群で追加した分) |
 
 **この 3 パスを資産側(引き渡しマニフェスト)に明記する** — 受け手(TSK-343 / TSK-344)が
 パスを推測しないで済むようにする。
 
-**受け手が exact-set で突合できる形にする** — `AUTH-*` を**成果 ID + blob digest** で特定できるようにし、
+**受け手が exact-set で突合できる形にする** — **実在する `catalog_entry_id`(= `CATALOG:*`。`AUTH-*` は 0 件 — 計画レビュー 2 周目 `P1-8` の訂正)**を
+**成果 ID + blob digest** で特定できるようにし、
 **ID 集合の sha256 を資産に持たせる**(受け手が件数を数え直さずに照合できる)。
 
 `oracle-seal.lock.json` の構造を踏襲: `input_assets[]`(`path` + `git_blob_digest`)/
 `sealed_assets[]`(`path` + `asset_role`(`expectation`/`evidence`)+ `asset_kind` + `canonical_sha256`)。
 **期待値資産と証跡資産を別ファイルに保つ**(第 1 群の規律)。
 
-**`D-4` の 1:N 写像**: 要件書の「7 操作」と資産の `operation_ids`(8)の対応を、
-**前提条件の差つきで**機械可読に持つ(`issue_invitation` = `participant_capacity` /
-`revoke_invitation` = `invitation_active`)。**「7 操作」という件数の主張を資産に書かない** —
-書くと 8 件の実体と食い違う。
+### 8-2. `D-4` の 1:N 写像 — 要件側を自己申告にしない(計画レビュー 2 周目 `P1-11` の訂正)
+
+要件書の 7 単位と資産の `operation_ids`(8)の対応を機械可読に持つ。**資産側 8 ID は凍結資産から導出**できるが、
+**要件側 7 単位を新資産が自分で宣言すると、任意の 7 単位を書いて差集合 0 を作れる**。したがって:
+
+| フィールド | 内容 |
+| --- | --- |
+| `requirement_source_digest` | **要件書の blob digest**(要件書が変わると red) |
+| `requirement_units[].stable_id` | **`scripts/design_relations/req-universe.json` の安定 ID**(例 `FR-041/list_item-006`)。自由文の宣言を許さない |
+| `requirement_units[].extraction_rule` | 抽出規則の ID(閉じた値域)。「どの列挙のどの項目を 1 単位と数えたか」 |
+| `operation_ids[]` | 資産側の 8 ID(`route-registry.json` から導出) |
+| `mapping[]` | 1:N の対応 + **前提条件の差**(`issue_invitation` = `participant_capacity` / `revoke_invitation` = `invitation_active`) |
+
+**「7 操作」「8 操作」という件数の主張を資産に書かない** — 書くと実体と食い違う。
+件数は双方を導出して**差集合 0** で示す。
 
 ## 9. 受取契約(`R-4`)— 弱めず、実在するタスクへ登録して read-back する
 
