@@ -81,7 +81,7 @@ created: 2026-09-09
 | **⑥ models** | `backend/src/pitchlog/db/` に SQLAlchemy models。**領域ごとにモジュール分割**(design.md 9 節) |
 | **⑦ migration** | `backend/migrations/` に Alembic。**テーブル・制約・テナント列・複合 FK まで**。**不変列マトリクスのトリガ**(design.md 5 節) |
 | **⑧ テスト** | models・migration・型境界 3 層・スキーマ契約の全数突合(6 節) |
-| **⑨ core-areas.json 登録** | 新設資産を **4 領域**へ**完全列挙**で登録(6.3 規則②③⑤ — design.md 9 節) |
+| **⑨ core-areas.json 登録** | 新設資産を **4 領域**へ登録(6.3 規則②③⑤ — design.md 9 節)。**`areas[].paths` は glob**(`fnmatch` の `*` は `/` を跨ぐ)/ **`guard_paths` に足す場合は完全一致なので完全列挙** |
 | **⑩ CI** | 10.1 の `backend` ジョブへ **`alembic` 3 段**を追加 + **job env へ `PITCHLOG_MIGRATION_DATABASE_URL` を供給**(レビュー 3 周目 `P0-2`)+ **`tests/test_ci_wiring.py` の CI コマンド契約を更新**(design.md 8-3 節) |
 | **⑪ 受入証跡** | **`N1`・`N3`・`N4` の突合シートを機械生成**(判定は人間・**判定区分と是正遷移つき**)+ **`N2`・`N5`・`N6` は受け取り先で閉じる**(design.md 10 節) |
 
@@ -115,7 +115,7 @@ created: 2026-09-09
 | [ドキュメントマップ](../../README.md) | 設計書の状態・版・最終更新を **v1.14** へ現行化 | PRレビュー |
 | **`tests/test_ci_wiring.py`** | ① ORM 不在検査 → ORM スタックの厳密固定検査 ② **backend ジョブの CI コマンド契約を「既存 6 件 + Alembic 3 件」へ更新**(design.md 8-3 節) | PRレビュー + **core-guard**(`guard_paths`) |
 | **`.github/workflows/ci.yml`** | `backend` ジョブへ **`alembic upgrade head` / `current --check-heads` / `check`** を追加 + **job env へ `PITCHLOG_MIGRATION_DATABASE_URL`**(既存の `PITCHLOG_TEST_*_DSN` とは別キー)。**新しいジョブは起こさない** | PRレビュー |
-| **`.claude/core-areas.json`** | **4 領域**へ新設資産を**完全列挙**で登録(design.md 9 節) | **6.3 規則⑤ = 敵対レビュー + 人間承認** |
+| **`.claude/core-areas.json`** | **4 領域**の `areas[].paths` へ新設資産を **glob** で登録(design.md 9 節) | **6.3 規則⑤ = 敵対レビュー + 人間承認** |
 | **`contracts/db/schema-manifest.json`**(新設) | スキーマ契約の期待値(カタログで表現可能な範囲)+ 正本への追跡可能性 | PRレビュー + **core-guard**(4 領域へ登録) |
 | **`docs/features/orm-schema-migration/acceptance-sheets/`**(新設・機械生成) | **`N1`・`N3`・`N4` の突合シート**(design.md 10 節)。**判定区分 `一致` / `差分` / `対象外` を人間が付ける** | PRレビュー(**判定は人間**) |
 | 設定正本テンプレート(`.env` の見本) | **3 キーへ分離**(アプリ用 URL / Alembic 用 URL / **pooler フラグ**)+ `postgresql+psycopg://` の形 | PRレビュー(**編集は人間・ステップ 3** — 4-7 節) |
@@ -412,8 +412,8 @@ DoD 対応表 / 5.1 の規範本文へ理由 / 最小 revision / 一意制約の
 | **S-3** | **Claude の反映誤りの再発**(正本と逆を書く / 有効な構成を拒否する型) | **コア領域なので人間の逐行確認が必須**(PR 作成者以外)。**逐行確認では「正本と逆になっていないか」を明示の観点にする** |
 | **S-4** | **`SP-06`(`:2604`)と 12-4 の射程外宣言の字面の衝突** | **TSK-348 / TSK-353 へ申し送る**(本タスクでは `data-model.md` を触らない) |
 | **S-5** | **RLS 未適用スキーマの上に製品機能が乗ることを機械的に止める仕組みが不在** | **/pr のクローズ処理で運用評価台帳の候補として起票を検討** |
-| **S-6** | **DB テストが強制終了されると teardown が飛び、使い捨てクラスタのコンテナと `pitchlog_test_role` が残る**。**ロールの残存は fixture が fail-closed で弾くため以後の全 DB テストが error になる**。**復旧手順はどの正本にも書かれていない**(復旧 = `docker rm -f` と `DROP OWNED BY` → `DROP ROLE`)。**TSK-317 が 2026-09-10 に 3 回踏んだ** | **本タスクは DB テストを多用する**(ステップ 2・9〜26)。**踏んだら上記手順で復旧する**。**運用評価台帳の候補として /pr のクローズ処理で起票を検討**(復旧手順の正本化) |
-| **S-7** | **`feature_status.py` の縮退** — **develop 取り込みマージを入れると、ステップコミットが 1 本も無い段階で現在地が「不明」へ落ちる**。設計書 6.1 は develop 取り込みマージを「**正当(記法不要)**」と定めているのに、`derive_progress` の最終ガード `any(kind not in {"planning","documentation"})` が **`merge_allowed` を弾く**(`scripts/feature_status.py:998-1000`)。**同型が `feature/data-model-canonical` でも発生中**(マージ `128be83` を持ち「実装状況: 不明」) | **表示の縮退であり実害は無い**(ステップ 1 のコミットが入れば復帰する見込み)。**運用評価台帳の候補として /pr のクローズ処理で起票**。**台帳 `H-58` と同型**(反映周コミットの縮退)だが**別事象**(こちらは develop 取り込みマージ) |
+| **S-6** | **DB テストが強制終了されると teardown が飛び、使い捨てクラスタのコンテナと `pitchlog_test_role` が残る**。**ロールの残存は fixture が fail-closed で弾くため以後の全 DB テストが error になる**。**復旧手順はどの正本にも書かれていない**(復旧 = `docker rm -f` と `DROP OWNED BY` → `DROP ROLE`)。**TSK-317 が 2026-09-10 に 3 回踏んだ** | **本タスクは DB テストを多用する**(ステップ 2・9〜26)。**踏んだら上記手順で復旧する**。**運用評価台帳の候補として /pr のクローズ処理で起票を検討**(復旧手順の正本化)。**もう 1 つの罠(TSK-317 が実測)**: **`ALTER TABLE ... OWNER TO` を含む DDL は、対象表へ触った接続が 1 つでも `idle in transaction` で残っていると永久に待つ**(ACCESS EXCLUSIVE 待ち。**読み取りだけの接続でも同じ**)。TSK-317 は 1 点 10 分 48 秒の「処理時間」が実は待ち時間だったと `pg_blocking_pids` で確定した。**診断**: `pg_stat_activity` で `pg_blocking_pids(pid)` が空でない行を探し、`state = idle in transaction` が犯人。**migration を書く本タスクに直接効く** |
+| **S-7** | **`feature_status.py` の縮退** — **develop 取り込みマージを入れると、ステップコミットが 1 本も無い段階で現在地が「不明」へ落ちる**。設計書 6.1 は develop 取り込みマージを「**正当(記法不要)**」と定めているのに、`derive_progress` の最終ガード `any(kind not in {"planning","documentation"})` が **`merge_allowed` を弾く**(`scripts/feature_status.py:998-1000`)。**同型が `feature/data-model-canonical` でも発生中**(マージ `128be83` を持ち「実装状況: 不明」) | **表示の縮退であり実害は無い**(ステップ 1 のコミットが入れば復帰する見込み)。**運用評価台帳の候補として /pr のクローズ処理で起票**。**台帳 `H-58` と同型**(反映周コミットの縮退)だが**別事象**(こちらは develop 取り込みマージ)。**分類漏れであって仕様ではない根拠**(TSK-235 が追認): **同じ関数のすぐ上に `note="許可されないマージコミット混在"` 専用の分岐が別にある** — **「許可されないマージ」を名指しで弾く分岐が既にある以上、許可マージは通す設計意図だった**と読める。**行番号参照を安定参照へ寄せる前例**は TSK-278 が確立済み(`adr003-display-privatives` ではなく `docs/features/adr003-display-primitives/plan.md` 6 節の「機械条件の判定方法」表に**「行番号参照 0 件」型**があり、provenance を節番号・条項 ID で持って**文言存在**で実在検査する)。**台帳へ出すときはこの前例を引く** |
 
 ### 4-13. 承認後の追記(2026-09-10)
 
@@ -542,7 +542,7 @@ DoD 対応表 / 5.1 の規範本文へ理由 / 最小 revision / 一意制約の
 | 25 | **不変列マトリクスの検査**(design.md 5 節) | **5 表(記録権世代 / `D5` 台帳 / チームレコード / 管理者操作ログ / 語彙のシステム固定層)の全行**について **`pg_get_triggerdef` の全文・対象表と対象列・`tgenabled`・関数定義**が manifest と一致 / **保護列の更新を拒否し許可更新列は通る** / **追記専用表は `UPDATE`/`DELETE` を拒否し `INSERT` を通す** / **downgrade でトリガと関数が消える**。**5 表は本計画が拾う範囲であり全数性はここでは閉じない**(design.md 10 節 `N3` の受入証跡へ)。**追加修正は行わない** |
 | 26 | **migration の往復 + CI 3 段 + CI コマンド契約 + migration URL の供給** | 空 DB へ `upgrade head` → `downgrade base` → `upgrade head` が通る(**`downgrade` は自主基準**)/ `current --check-heads` が単一 head / **`alembic check` の差分 0** / **`CREATE POLICY`/`CREATE ROLE`/`ALTER ROLE` が 0 件** / **`create_all()` が 0 件** / **DDL と DML を統合していない** / **`ci.yml` の `backend` ジョブが「既存 6 件 + Alembic 3 件」で新しいジョブを起こしていない** / **job env に `PITCHLOG_MIGRATION_DATABASE_URL` がある**(レビュー 3 周目 `P0-2`)/ **`tests/test_ci_wiring.py` の期待列が更新され、負例 4 種(欠落・重複・順序違い・別ジョブ追加)で red** / **`environment-expectations.json` の差分が 0** |
 | 27 | **受入証跡の突合シート生成と判定**(design.md 10 節・10-1 節) | **`N1`・`N3`・`N4` の突合シートが機械生成される**(`docs/features/orm-schema-migration/acceptance-sheets/`)/ **`N1`**: manifest の表一覧 ↔ `data-model.md` 5〜12 章の節見出し / **`N3`**: 「不変」「変えない」「昇格させない」「後退させない」「追記のみ」「**変更不可**」「更新しない」「上書きしない」の語の機械抽出 ↔ 不変列マトリクス / **`N4`**: ****11-1 節の削除 4 系統の表** が挙げる業務オブジェクトに対応する表だけ** ↔ 軸 1 の値(**それ以外の表は「正本に直接割当なし」として個別典拠を添える**)/ **各行が `一致` / `差分` / `対象外`(理由と典拠が必須)のいずれかで判定されている** / **未判定 0 かつ未解消の `差分` 0** / **`差分` があれば末尾へ番号付きの是正ステップを追加し、是正後にシートを再生成して再判定した** / **`N2` の受け取り先が TSK-250** / **`N5` の受け取り先が承認前条件で確定済み**(4-10 節) |
-| 28 | **`.claude/core-areas.json` へ 4 領域へ登録**(6.3 規則②③⑤・design.md 9 節)+ 回帰テスト | 新設資産の**全パスが該当領域の `paths` に完全列挙で包含** / **Alembic revision が 4 領域すべてに登録**(混在ファイル — 規則②)/ **負例: 1 パスを外すと red** / `uv run pytest tests/test_core_guard.py` green / `[手動・外部]` **paths 追加の敵対レビュー + 人間承認**(**逐行確認は PR 作成者以外**) |
+| 28 | **`.claude/core-areas.json` へ 4 領域へ登録**(6.3 規則②③⑤・design.md 9 節)+ 回帰テスト | 新設資産の**全パスが該当領域の `paths` の glob に包含される**(**`fnmatch` の `*` は `/` を跨ぐ**ので `backend/src/pitchlog/db/*` で配下を覆える — 実証済み)/ **後から足すファイルも同じ glob に入る**(**新規ファイルの登録漏れ = `H-12` 再発を構造で防ぐ**) / **Alembic revision が 4 領域すべてに登録**(混在ファイル — 規則②)/ **負例: 1 パスを外すと red** / `uv run pytest tests/test_core_guard.py` green / `[手動・外部]` **paths 追加の敵対レビュー + 人間承認**(**逐行確認は PR 作成者以外**) |
 
 ## 5. DoD(受け入れ基準)
 
@@ -597,7 +597,7 @@ DoD 対応表 / 5.1 の規範本文へ理由 / 最小 revision / 一意制約の
       **`ON DELETE CASCADE` が 0 件**
 - [ ] **D10**: **NFR-014** — **製品コードと Alembic 設定に接続文字列のハードコードが 0 件**
       (**設定正本テンプレートと CI の隔離されたテスト値は対象外として分類した**)
-- [ ] **D11**: **`.claude/core-areas.json` へ新設資産を 4 領域へ完全列挙で登録した**
+- [ ] **D11**: **`.claude/core-areas.json` へ新設資産を 4 領域へ登録した**(**`areas[].paths` は glob**・**`guard_paths` に足すなら完全一致なので完全列挙**)
       (**6.3 規則⑤ の敵対レビュー + 人間承認**。負例: 1 パスを外すと red)
 - [ ] **D12**: **コア領域として敵対レビュー + 人間の逐行確認(PR 作成者以外)を通した**。実施記録行を記入した
 - [ ] **D13**: **TSK-342 / TSK-330 と相互リンクした**。**TSK-344 の再実行契機が発火することを PR に記録した**

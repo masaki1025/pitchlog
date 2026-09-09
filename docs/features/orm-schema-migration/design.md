@@ -513,9 +513,19 @@ FK(参照先・構成列・**`MATCH`**・**削除動作**・複合か越境か)/
 
 → **採る形**:
 
-1. **models を領域ごとにモジュール分割する**(規則④ の順序 — 分割してから登録)
+1. **models を領域ごとにモジュール分割する**(規則④ の順序 — 分割してから登録)。
+   **`areas[].paths` は `fnmatch.fnmatchcase` で照合される**(`scripts/core_guard.py:222-227`)。
+   **`fnmatch` の `*` は `/` を跨ぐ**ので **`backend/src/pitchlog/db/game_state/*` のような glob で配下を覆える**
+   (既存の `backend/*conftest.py` が `backend/tests/db/conftest.py` に当たっているのが実例)。
+   → **完全列挙にしない**。**glob にすることで後から足すファイルも自動で覆われ、
+   新規ファイルの登録漏れ(台帳 `H-12` の再発型)を構造で防げる**(fail-closed)
 2. **全 DDL を含む Alembic revision は混在ファイル**なので **4 領域すべてへ重複登録**(規則②③)
 3. `backend/alembic.ini` と `contracts/db/schema-manifest.json` も該当領域へ登録
+4. **`guard_paths` へ足す場合は完全一致集合**(`path in core_areas.guard_paths`)なので
+   **完全列挙が必要**(glob は効かない)。**本タスクは `guard_paths` を増やさない** —
+   `tests/test_ci_wiring.py` は既に登録済みで、新設資産は `areas[].paths` 側の glob で覆う。
+   **TSK-317 の改訂 3(`S-8`)が `guard_paths` へ 6〜8 パスを足す予定**なので、
+   **そちらとは別配列で衝突しない**(2026-09-10・TSK-317 セッションからの実測共有)
 
 **「データ移行領域では強化レビュー対象外」という当初の記述は撤回した** —
 6.3 の除外は「**旧データと接しない**新スキーマ内部の通常マイグレーション」であり、
