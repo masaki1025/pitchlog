@@ -699,6 +699,34 @@ v0.2 での再評価は research.md §6-8 が正。**トリガー 2 は再スコ
 - `test_ci_wiring.py` は**列挙器の空虚化防止の弱い側(`assert leaf_paths`)しか使っていない** →
   **母集合計測**型(`assert attempts == 期待件数`)へ格上げする
 
+### 14-1. 新設ジョブが DB を使うなら `services: postgres` が要る(暗黙結合)
+
+**TSK-317 の実測 + 本タスクでの追認(2026-09-10)。** (β) の SQL プロパティテストは実 PostgreSQL を
+使うため、**CI 配線ステップで踏む**。
+
+**機構**: 使い捨てクラスタは `backend/tests/db/conftest.py` の **`--pull=never`** で起動する。
+CI runner には image が無いはずなのに動くのは、**`ci.yml` の `services: postgres` が同じ image tag を
+pull し、それが local の image cache に入る**ため。**`ci.yml` に `docker` の明示的な言及は 0 件**(実測)。
+
+**既存の防波堤**: `tests/test_ci_wiring.py` が
+**`backend.services.postgres.image` = `environment-expectations.json` の期待値 = `docker-compose.yml`** の
+**3 者一致**を要求する。image tag を片方だけ変えると `--pull=never` が CI で落ちるので、この検査が守っている。
+
+**◎ ただしこの検査は `backend` ジョブだけを見ている**(`_mapping_at(backend, ("services", "postgres"))`)。
+
+→ **本タスクが新設する `consistency` / 変異ジョブが DB を使うなら、そのジョブにも同じ tag の
+`services: postgres` が必要なのに、既存検査はそれを要求しない。** §14 の
+「全葉変異の母集団が `backend` ジョブの `services`〜`defaults` 手前に限定」と**同じ穴が image 結合にもある**。
+
+**CI 配線ステップの合格条件へ入れるもの**:
+
+- **DB を使う全ジョブ**について `services: postgres` の image が 3 者一致すること(**`backend` に限定しない**)
+- **新設ジョブに `services: postgres` を書き忘れると red になる**負例(現状は静かに `--pull=never` で落ちる)
+- `services` を持たないジョブが DB テストを呼んでいないことの検査
+
+**このステップは敵対レビュー 3 周目 P0-7 で「28 ステップのどこにも無い」と指摘されたもの**であり、
+再開時の復元対象。復元時に本節の 3 条件を合格条件へ含める。
+
 ## 15. 並行タスクとの資産の所有
 
 **マージ順序 = `TSK-348 → TSK-317 → TSK-343 → 本タスク`。**
