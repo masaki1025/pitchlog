@@ -518,6 +518,37 @@ def _sealed_reference_function_definitions(
     return sealed_statements, definitions
 
 
+def observe_function_dependency_relations(
+    connection: psycopg.Connection[Any], function_oid: int
+) -> tuple[tuple[str, str], ...]:
+    """関数が構文木で依存する relation 集合を ``pg_depend`` から得る。
+
+    Args:
+        connection: 関数カタログを観測する接続。
+        function_oid: 観測対象関数の OID。
+
+    Returns:
+        Schema 名と relation 名を辞書順に並べた重複のない組。
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT namespace.nspname, relation.relname
+            FROM pg_catalog.pg_depend AS dependency
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = dependency.refobjid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            WHERE dependency.classid = 'pg_catalog.pg_proc'::regclass
+              AND dependency.objid = %s
+              AND dependency.refclassid = 'pg_catalog.pg_class'::regclass
+            ORDER BY 1, 2
+            """,
+            (function_oid,),
+        )
+        return tuple((str(row[0]), str(row[1])) for row in cursor.fetchall())
+
+
 def _check_policies(
     connection: psycopg.Connection[Any],
     asset: dict[str, object],
@@ -729,25 +760,10 @@ def _check_functions(
         )
         actual_relations: tuple[tuple[str, str], ...] = ()
         if len(rows) == 1:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT DISTINCT namespace.nspname, relation.relname
-                    FROM pg_catalog.pg_depend AS dependency
-                    JOIN pg_catalog.pg_class AS relation
-                      ON relation.oid = dependency.refobjid
-                    JOIN pg_catalog.pg_namespace AS namespace
-                      ON namespace.oid = relation.relnamespace
-                    WHERE dependency.classid = 'pg_catalog.pg_proc'::regclass
-                      AND dependency.objid = %s
-                      AND dependency.refclassid = 'pg_catalog.pg_class'::regclass
-                    ORDER BY 1, 2
-                    """,
-                    (rows[0].oid,),
-                )
-                actual_relations = tuple(
-                    (str(row[0]), str(row[1])) for row in cursor.fetchall()
-                )
+            actual_relations = observe_function_dependency_relations(
+                connection,
+                rows[0].oid,
+            )
         report.compare(
             f"CATALOG:FUNCTION-STRUCTURE:{function_id}:DEPENDENCY-RELATIONS",
             expected_relations,
