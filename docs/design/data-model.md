@@ -238,7 +238,8 @@ RLS を採ると決めた瞬間に従属して決まるもの**であり、**要
 | **既定 `EXECUTE` の剥奪** | **`REVOKE ALL ON FUNCTION ... FROM PUBLIC`** を関数作成と**同一トランザクション**で行い、そのうえでアプリ用ロールへ `EXECUTE` を `GRANT` する。**作成 → REVOKE → GRANT を分割しない**(その隙間で `PUBLIC` が実行できる) |
 | **名前解決の固定** | 関数に**安全な `search_path` を設定**する(または**全オブジェクトを完全修飾**する)。公式が `SECURITY DEFINER` 関数の要件として明記している |
 | **スキーマ検査** | **関数所有者 / ACL(`PUBLIC` が含まれないこと)/ `search_path` / 所有ロールの `NOLOGIN`・`BYPASSRLS` / ロール所属**を検査するテストを置く。**NFR-019(b) の越境テストとは別に、構成そのものを検査する** |
-| **一時スキーマ** | 書き込み可能スキーマ・一時スキーマを `search_path` から外す |
+| **一時スキーマ** | **`search_path` の末尾に `pg_temp` を明示する**(`place_pg_temp_explicitly_last` — `contracts/authz/rejected-configs.json` の `REJ-003`)。**`pg_temp` を列挙から外してはならない** — 外すと**暗黙の `pg_temp` が列挙スキーマより前に来る**(`IMPLICIT_PG_TEMP_PRECEDES_LISTED_SCHEMAS`)ため、**一時リレーションによる乗っ取りが成立する**(PostgreSQL 17.11 実機で観測 — `temporary_relation_hijack_returned_attacker_rows`)。**`pg_temp` の出現は 1 回とし、必ず末尾に置く** |
+| **書き込み可能スキーマ** | **`search_path` に載せるスキーマには、所有者以外のいかなるロールにも `CREATE` を与えない**。**呼び出しロールに限定しない** — 未信頼ロールが探索対象スキーマへオブジェクトを置ければ、正規の呼び出しを経由して解決させられる。(**この不変条件は候補構成側でも `create_role_ids` を空に保つ形で機械検査されている**) |
 
 - **これは「唯一の越境経路」を成立させる前提条件**である。ACL と名前解決を固定しないと、
   関数本体の正しさに関係なく越境できる([NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010) の「**API 直叩きを含む全経路**」に反する)
