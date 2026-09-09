@@ -40,7 +40,11 @@ branch: feature/adr003-bootstrap-transition
 
 - **人間の判断を仰ぐ論点 5 件**を計画書に載せる(research の「未解決・申し送り」— 許容期間の書き方 /
   D-13 新設の可否 / 射程に発効条件を含めるか / 語彙 / 10 章の扱い)。**私は確定しない。**
-- `/plan` で計画書を起草し、敵対レビュー(`review adversarial`)まで進めて**承認待ちで停止**する(人間は就寝中)。
+- **`/plan` で停止した(機構による)。** `.claude/skills/plan/SKILL.md` は frontmatter に
+  `disable-model-invocation: true` を持つため、**Claude 側から起動できない**(「人が都度判断する」ためのゲート)。
+  人間の指示は「`/plan` の敵対レビューまで進めて承認待ちで止める」であったが、
+  **スキルのワークフローを別手段で再現することは明示的に禁止**されているため再現しない。
+  → **人間が `/plan adr003-bootstrap-transition` を打った時点で、調査済みの状態から即座に起草へ入れる。**
 
 ## 並行セッションとの調整
 
