@@ -172,8 +172,8 @@ TSK-235 の設計を読んだうえでの立論であり、**完全に独立し�
 | `docs/README.md`(索引) | 版・状態・最終更新の現行化 | **PR レビュー**(常に現行化) |
 | **`contracts/authz/` 母集合層**: `requirement-claims.json` / `requirement-claims.lock.json` | `input_manifest` の手更新 + `claims` の追随(**位置移動を含む**)+ `--reseal` | **PR レビュー**(§4-6) |
 | **`contracts/authz/` 派生層**: `route-registry.json` / `route-registry.lock.json` / `auth-catalog.json` / `auth-catalog.lock.json` / `http-route-matrix.json` / `http-route-matrix.lock.json` | 入力 digest の更新 + `--reseal-derived` | **PR レビュー**(§4-6) |
-| **`contracts/authz/` oracle 層**: `claim-mutant-map.json` / `attack-tree.json` / `boundary-proposal.json` / `verification-evidence.json` / `ddl-elements.json` / `rejected-configs.json` / `oracle-seal.lock.json` | `oracle_commit` の更新 + **人間査読** + `--reseal-oracle` | **PR レビュー + 人間査読**(§4-6。`reseal_policy.human_review_required`) |
-| `contracts/authz/shared-preconditions.json` | `git_blob_digest` の手更新。**TSK-317 のマージ後にのみ存在する**(develop 時点では不在 — 実測)。reseal 経路が無いため手で直す。**括りでは逐行確認から漏れやすいため個別に列挙**(TSK-317 からの依頼) | **PR レビュー**(条件付き) |
+| **`contracts/authz/` oracle 層** | `oracle_commit` の更新 + **人間査読** + `--reseal-oracle`。**資産の一覧は固定しない — 着手時のリベース後に実測して確定する**(§4-6 の注記) | **PR レビュー + 人間査読**(§4-6。`reseal_policy.human_review_required`) |
+| `contracts/authz/shared-preconditions.json` | `git_blob_digest` の手更新。**2026-09-11 に develop へ実在化**(TSK-317 PR #1 = PR #52・マージコミット `67e06a2`)。reseal 経路が無いため手で直す。**括りでは逐行確認から漏れやすいため個別に列挙**(TSK-317 からの依頼) | **PR レビュー** |
 | `tests/` の期待件数テスト | 母集合の件数変動に追随(H-85 の連鎖に含まれる) | **PR レビュー** |
 | `docs/development/harness-evaluation.md` | **H-85 への実測追記**(本タスクは H-85 の 3 例目以降の発火事例)。版は上げない | **PR レビュー**(7.6-3 前段) |
 | `docs/development/github-setup.md` | **反映なし(確認のみ)**。必須チェックの数・名称を変えないことを検査して結論を書く | —(確認記録のみ) |
@@ -304,6 +304,9 @@ core-guard は発火するが、**「ADR-003 だけを触る差分では機械�
 TSK-278 の実測にも「**入力確定コミット → `oracle_commit` 差し替え〔7 ファイル〕→ 人間確認 → reseal の
 2 段コミットが機構上必須**」とある(`_verify_manifest_commit` が「commit が指す blob が digest と一致すること」を
 要求するため、**正本の変更と oracle の追随を同一コミットにできない**)。
+
+**資産の一覧は固定しない**: `contracts/authz/` の資産は TSK-317 の PR で増減する
+(2026-09-11 の PR #1 で 4 資産が新設された)。**着手時のリベース後に実測して確定する。**
 
 **7 段**:
 
@@ -770,7 +773,13 @@ C-3 は実質不可(TSK-343 も同意)。
 | **人間の逐行確認** | コア領域のため**必須**。**`ADR-003` を対象に明示的に含める**(§4-1) | マージ前 |
 | **人間査読(oracle)** | `reseal_policy.human_review_required` により**必須** | ステップ 8 |
 
-**回帰の基線**(2026-09-10 実測・`4ed54fc`。**測定条件**: worktree
+**回帰の基線は着手時のリベース後に取り直す**(**固定値を計画書に持たない** — 版番号を
+ハードコードしない方針〔§4-12〕と同じ理由)。**2026-09-11 時点で develop は `4ed54fc` から
+45 コミット進み**(TSK-317 PR #1 = PR #52 のマージ)、`contracts/authz/` に
+`shared-preconditions.json` / `failure-injection-points.json` / `function-bodies/` / `mcdc-map.json` が
+**新設された**。**TSK-343 と TSK-317 PR #2 のマージでさらに変わる。**
+
+**下記は起点時点の記録であり、着手時の基線ではない**(2026-09-10 実測・`4ed54fc`。**測定条件**: worktree
 `feature-adr003-bootstrap-transition` のローカル実行であり **CI runner ではない**。
 `uv` の仮想環境は初回作成時のもの): `check_authz_catalog.py` = `ok total=1078 auth_claim=184
 out_of_scope=894 db_claims=187 routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231
