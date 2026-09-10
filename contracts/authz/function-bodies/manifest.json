@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_function_body_manifest",
-  "source_commit": "635a595cec83eb20e4d907eafeb8a5ad77729446",
+  "source_commit": "14973f6449ecb7b7502762c89d89ae88d5054ec1",
   "entries": [
     {
       "path": "contracts/authz/function-bodies/acl-expectations/ACL:apply_representative_grant_change:management_caller.sql",
@@ -113,19 +113,19 @@
     },
     {
       "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
-      "blob_digest": "7d1331358b96b8da5a8d778b57e087e26153d326",
+      "blob_digest": "9b52c9184603e88a018926820cbd03c2364f7246",
       "element_type": "function",
       "element_id": "apply_representative_grant_change"
     },
     {
       "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
-      "blob_digest": "e13c10779dbe124116a701a3116d951610a8734c",
+      "blob_digest": "286d3c5f2d3d123670b0a3c0c3cf8a27b4d8e067",
       "element_type": "function",
       "element_id": "authorized_shared_rows"
     },
     {
       "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
-      "blob_digest": "c2111759f44e20f251eabd079f56c0e97188d1f6",
+      "blob_digest": "0d38c435eb47f549c3f0c8296d42ea3afd039088",
       "element_type": "function",
       "element_id": "read_control_resources"
     },
