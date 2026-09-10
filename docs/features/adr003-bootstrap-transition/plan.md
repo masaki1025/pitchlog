@@ -1,7 +1,7 @@
 ---
 feature: adr003-bootstrap-transition
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-11・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d693b75e68781b3b9f8d441f1d1cde5
@@ -28,7 +28,9 @@ created: 2026-09-10
 > ③**H-68 型と判断し、機械条件の確定を実装ステップ 2(design.md)へ送る**(§4-10)。
 > **総順序の循環は 2026-09-11 に決着済み**(§4-12 — 新しい裁定は不要だった)。
 >
-> **→ 人間の承認待ち。**
+> **→ 人間の承認を取得済み(2026-09-11・山田正輝)。**
+> **着手はステップ 1 の開始条件(`TSK-317 PR #2` と `TSK-343` のマージ後にリベース)を満たしてから**
+> — §4-12。それまで本タスクは静止する。
 
 ## 1. 背景・目的
 
