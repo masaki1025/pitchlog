@@ -734,11 +734,13 @@ C-3 は実質不可(TSK-343 も同意)。
 | **機械検査(harness)** | `check_authz_catalog.py`(**7 段の追随後**)/ **`check_shared_preconditions.py`**(TSK-317 マージ後)/ `uv run pytest tests/`(**期待件数テストを含む**) | CI `harness` |
 | **機械検査(core-guard)** | 要件書が paths に登録済みのため発火。逐行確認チェックが必須付与される | CI `core-guard` |
 | **リンク検査** | lychee | CI `docs-lint` |
-| **敵対レビュー** | `codex_run.py review adversarial`(sol xhigh)を 7.3-2 の収束まで | ステップ 6 |
+| **敵対レビュー** | `codex_run.py review adversarial`(sol xhigh)を 7.3-2 の収束まで。**実測値を証拠として出すときは「示せること / 示せないこと / 測定条件」を併記する**(2026-09-11 の一般則 — §1-2 の実証で交絡を後から突かれた反省。**先に限界を宣言すれば「過大主張」ではなく「限定つきの証拠」として扱われる**) | ステップ 6 |
 | **人間の逐行確認** | コア領域のため**必須**。**`ADR-003` を対象に明示的に含める**(§4-1) | マージ前 |
 | **人間査読(oracle)** | `reseal_policy.human_review_required` により**必須** | ステップ 8 |
 
-**回帰の基線**(2026-09-10 実測・`4ed54fc`): `check_authz_catalog.py` = `ok total=1078 auth_claim=184
+**回帰の基線**(2026-09-10 実測・`4ed54fc`。**測定条件**: worktree
+`feature-adr003-bootstrap-transition` のローカル実行であり **CI runner ではない**。
+`uv` の仮想環境は初回作成時のもの): `check_authz_catalog.py` = `ok total=1078 auth_claim=184
 out_of_scope=894 db_claims=187 routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231
 cut_sets=24` / 他 3 本 = 出力なし exit 0。**`total` は条文追加分だけ増え、`auth_claim` は 184 のままであること**を
 ステップ 7 で確認する。
