@@ -195,6 +195,106 @@ def _backend_commands(backend: dict[str, Any]) -> list[str]:
     ]
 
 
+def _canonical_distribution_name(specification: str) -> str:
+    """依存指定の先頭から正規化済み distribution 名を得る。
+
+    Args:
+        specification: PEP 508 形式の依存指定。
+
+    Returns:
+        正規化済みの distribution 名。名前を取得できなければ空文字列。
+    """
+    match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", specification)
+    if match is None:
+        return ""
+    return re.sub(r"[-_.]+", "-", match[0]).lower()
+
+
+def _orm_stack_dependency_errors(
+    project: dict[str, Any],
+    lock: dict[str, Any],
+) -> list[str]:
+    """ORM スタックの直接依存と lock の違反を返す。
+
+    Args:
+        project: backend/pyproject.toml を読み込んだマッピング。
+        lock: backend/uv.lock を読み込んだマッピング。
+
+    Returns:
+        検出した違反。空配列なら契約を満たす。
+    """
+    errors: list[str] = []
+    project_section = project.get("project")
+    if not isinstance(project_section, dict):
+        return ["pyproject に project テーブルが必要"]
+    dependencies = project_section.get("dependencies")
+    if not isinstance(dependencies, list):
+        return ["project.dependencies は配列が必要"]
+
+    required_dependencies = (
+        (
+            "psycopg",
+            r"psycopg\[binary\]==(\d+\.\d+\.\d+)",
+            "psycopg[binary] は製品依存で厳密固定する",
+        ),
+        (
+            "sqlalchemy",
+            r"sqlalchemy==(\d+\.\d+\.\d+)",
+            "sqlalchemy は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+        (
+            "alembic",
+            r"alembic==(\d+\.\d+\.\d+)",
+            "alembic は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+    )
+    exact_versions: dict[str, str] = {}
+    for name, pattern, invalid_message in required_dependencies:
+        specifications = [
+            dependency
+            for dependency in dependencies
+            if isinstance(dependency, str)
+            and _canonical_distribution_name(dependency) == name
+        ]
+        if len(specifications) != 1:
+            errors.append(f"{name} の直接依存はちょうど 1 件必要")
+            continue
+        match = re.fullmatch(pattern, specifications[0])
+        if match is None:
+            errors.append(invalid_message)
+            continue
+        exact_versions[name] = match[1]
+
+    sqlalchemy_version = exact_versions.get("sqlalchemy")
+    if sqlalchemy_version is not None and sqlalchemy_version.split(".", maxsplit=1)[0] != "2":
+        errors.append("SQLAlchemy の major は 2 が必要")
+
+    packages = lock.get("package")
+    if not isinstance(packages, list):
+        errors.append("lock の package は配列が必要")
+        return errors
+    locked_versions = {
+        _canonical_distribution_name(name): version
+        for package in packages
+        if isinstance(package, dict)
+        and isinstance((name := package.get("name")), str)
+        and isinstance((version := package.get("version")), str)
+    }
+    lock_expectations = (
+        ("psycopg", exact_versions.get("psycopg")),
+        ("psycopg-binary", exact_versions.get("psycopg")),
+        ("sqlalchemy", sqlalchemy_version),
+        ("alembic", exact_versions.get("alembic")),
+    )
+    for name, expected_version in lock_expectations:
+        if (
+            expected_version is not None
+            and locked_versions.get(name) != expected_version
+        ):
+            errors.append(f"lock の {name} が pyproject の固定版と一致しない")
+    return errors
+
+
 def _harness_commands(harness: dict[str, Any]) -> list[str]:
     """harness ジョブの run コマンドを順序どおり返す。
 
@@ -1247,26 +1347,71 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
     ]
 
 
-def test_psycopg_is_exact_product_dependency_without_orm_packages() -> None:
-    """psycopg の厳密製品依存と ORM 非導入を lock まで確認する。"""
+def test_orm_stack_is_exact_product_dependency() -> None:
+    """ORM スタックの厳密製品依存を実ファイルで確認する。"""
     project = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
-    direct_dependencies = project["project"]["dependencies"]
-    psycopg_dependencies = [
-        dependency
-        for dependency in direct_dependencies
-        if str(dependency).startswith("psycopg[")
-    ]
-    assert len(psycopg_dependencies) == 1
-    match = re.fullmatch(r"psycopg\[binary\]==(\d+\.\d+\.\d+)", psycopg_dependencies[0])
-    assert match is not None, "psycopg[binary] は製品依存で厳密固定する"
-
     lock = tomllib.loads(BACKEND_LOCK_PATH.read_text(encoding="utf-8"))
-    packages = lock["package"]
-    locked_versions = {
-        package["name"]: package.get("version")
-        for package in packages
-        if isinstance(package, dict) and isinstance(package.get("name"), str)
+    assert _orm_stack_dependency_errors(project, lock) == []
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        ("sqlalchemy-major", "SQLAlchemy の major は 2 が必要"),
+        (
+            "sqlalchemy-range",
+            "sqlalchemy は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+        (
+            "lock-mismatch",
+            "lock の sqlalchemy が pyproject の固定版と一致しない",
+        ),
+        ("alembic-missing", "alembic の直接依存はちょうど 1 件必要"),
+        ("psycopg-extra", "psycopg[binary] は製品依存で厳密固定する"),
+    ],
+)
+def test_orm_stack_dependency_negative_cases_are_red(
+    mutation: str,
+    expected_error: str,
+) -> None:
+    """ORM 依存契約の負例 5 種を純関数が拒否する。"""
+    project = tomllib.loads(
+        """
+[project]
+dependencies = [
+    "psycopg[binary]==3.3.4",
+    "sqlalchemy==2.0.52",
+    "alembic==1.19.2",
+]
+"""
+    )
+    lock: dict[str, Any] = {
+        "package": [
+            {"name": "psycopg", "version": "3.3.4"},
+            {"name": "psycopg-binary", "version": "3.3.4"},
+            {"name": "sqlalchemy", "version": "2.0.52"},
+            {"name": "alembic", "version": "1.19.2"},
+        ]
     }
-    assert locked_versions.get("psycopg") == match[1]
-    assert locked_versions.get("psycopg-binary") == match[1]
-    assert {"sqlalchemy", "alembic"}.isdisjoint(locked_versions)
+    project_section = project["project"]
+    assert isinstance(project_section, dict)
+    dependencies = project_section["dependencies"]
+    assert isinstance(dependencies, list)
+    lock_packages = lock["package"]
+    assert isinstance(lock_packages, list)
+
+    if mutation == "sqlalchemy-major":
+        dependencies[1] = "sqlalchemy==3.0.0"
+        lock_packages[2] = {"name": "sqlalchemy", "version": "3.0.0"}
+    elif mutation == "sqlalchemy-range":
+        dependencies[1] = "sqlalchemy>=2,<3"
+    elif mutation == "lock-mismatch":
+        lock_packages[2] = {"name": "sqlalchemy", "version": "2.0.51"}
+    elif mutation == "alembic-missing":
+        dependencies.pop(2)
+    else:
+        dependencies[0] = "psycopg[binary,pool]==3.3.4"
+
+    errors = _orm_stack_dependency_errors(project, lock)
+
+    assert expected_error in errors

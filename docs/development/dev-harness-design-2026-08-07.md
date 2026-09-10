@@ -1,11 +1,12 @@
 ---
-status: approved
+status: in-review
 ---
 
 # pitchlog 開発ハーネス設計案
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.14 | 2026-09-10 | **ORM スタックの標準確定(TSK-343)**: **5.1** に ORM(`SQLAlchemy 2.x`)・DB ドライバ(`psycopg 3`)を新設し、Alembic の留保を除去。approved の `data-model.md` 12-4 節を根拠に採用理由と却下案 3 件を規範本文へ記録した。**10.1 の実装追随**は psycopg 3・SQLAlchemy 2.x・Alembic の直接依存・厳密固定と lock 一致検査へ現行化し、規範・受入条件は変更しない。**ADR は起票しない**(方式の正を複製しないため)。**射程宣言(7.3-7)**: 本改訂で確定する範囲 = 5.1 の ORM・DB ドライバ・DB マイグレーション標準と判断理由、10.1 の依存検査の現況 / 実装時に確定する範囲 = Alembic の骨組み・models / migration・CI 3 段の具体的な配線(本計画の後続ステップ) | **in-review** |
 | 1.13 | 2026-09-04 | **10.1 の実装追随(core-area-paths / TSK-281)**: CI の pytest 2 呼び出し(`harness`・`backend`)へ `-c pyproject.toml` を固定した実装への追随 — ジョブ表 2 行を現行化 + 実装追随の箇条を追加(遮断対象 = 別設定ファイルによる検査対象の差し替え・恒久化 = `tests/test_ci_wiring.py` の exact オラクル)。**節更新のみ・版は上げない**(7.6-3 前段) | approved |
 | 0.1 | 2026-08-07 | 初版起案（Claude）。Claude Code / Codex 公式ドキュメント調査+環境実査に基づく | **draft**（Codex敵対レビュー未実施・人間承認未了） |
 | 0.2 | 2026-08-07 | 実行分離モデル（12.1: git worktree × Codex sandbox）を新設 — 脅威対応表・sandbox 固定ポリシー・worktree 運用規約。hooks に codex_guard 追加、タスクライフサイクル（/task-start〜/task-done）へ worktree を統合、Phase 計画を更新 | **draft**（同上） |
@@ -208,9 +209,17 @@ pitchlog/
 | リンタ+フォーマッタ | **ruff** | `[tool.ruff.lint.pydocstyle] convention = "google"` で Google docstring を機構検査。日本語コメント許容 |
 | 型検査 | **ty** | ※プレビュー段階のツールのため、安定性に問題が出た場合の代替は mypy（切替は ADR 起票の上）— 論点E |
 | テスト | **pytest**（+ pytest-cov, **anyio**, httpx） | NFR-019 の**バックエンドランナー = pytest**（他へ分散させない）に整合。**非同期テストは AnyIO 方式**（`pytest.mark.anyio` + httpx の `ASGITransport`）— FastAPI 公式の async テストが AnyIO を使うため（Phase 4-2 で採用・人間裁定 2026-08-19）。**pytest-asyncio は使わない** |
-| DBマイグレーション | **Alembic** | SQLAlchemy 前提。設計フェーズで最終確定 |
+| ORM | **SQLAlchemy 2.x** | 2.x の型付き API を使用 |
+| DBドライバ | **psycopg 3** | 製品依存の `[binary]` extra として厳密固定 |
+| DBマイグレーション | **Alembic** | 単一 head を維持 |
 
 - 実行はすべて `uv run <cmd>` に統一（グローバル汚染なし・CI と同一コマンド）
+- **採用理由**: approved の [`data-model.md`](../design/data-model.md) 12-4 節が方式を固定している。DB ドライバは **psycopg 3 に統一**し、migration は **direct connection** を使う。transaction pooler 使用時は `prepare_threshold=None`、Alembic は**単一 head**を維持し、enum は**参照テーブル + FK**を既定とする。テストは空 DB へ `alembic upgrade head` を実行し、`create_all()` は使わない。CI は `alembic upgrade head` + `alembic current --check-heads` + `alembic check` の 3 段とする
+- **却下案**:
+  - **psycopg2** — 新規採用しない。保守モードであり非同期経路が無い
+  - **SQLAlchemy 1.4 系** — 2.x の型付き API を使い、`ty` の検査を効かせる
+  - **native enum** — 値セットの安定性が無く、autogenerate が enum 値の増減を信頼して扱わない
+- **ADR は起票しない**。方式の正は `data-model.md` 12-4 節であり、ADR を起票すると同じ決定が 3 箇所に散って 7.1-1 の「内容を複製しない」に反するため
 
 ### 5.2 フロントエンド（Vue.js + TypeScript — ADR-002 で確定）
 
@@ -692,7 +701,7 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
   - **付随して判明した実装時制約(恒久の不採用理由ではない — 将来 CI 化を再検討する際の入力)**: **scheduled workflow は default branch でしか実行されない**。本リポジトリの default branch は `main` であり、**2026-08-26 時点の `main` には `backend/`・`frontend/`・`docker-compose.yml`・`mise.toml` が存在しない**(実測)。かつ `main` が進むのはリリース時だけであるため、**この時点で定期ジョブを置いても初回リリースまで実際には発火しない**。**ただしこれは初回リリースまでの一時的な状態であり、解消後は消える。不採用の恒久的な根拠は上記のランナーの 3 点である**
 - **実装追随(2026-08-23・root-lint-typecheck)**: **ルートの Python プロジェクトへ ruff・ty を導入**し、`harness` ジョブで実行するようにした(**別ジョブにしない** — 責務が「hooks・ラッパーの検査」で一致するため)。**版は backend と同一に固定**(ruff 0.16.3 / ty 0.0.73)。**backend と違える設定は 3 つだけ** — 行長 100(ruff の `E501` は表示幅で測り日本語は全角 1 文字 = 2 桁。実測で幅 88 超 160 行 / 100 超 12 行)/ `D403` の除外(`D415` と同じ日本語 docstring への誤検知)/ `tests/**` の `D103` 除外。**検査対象は `scripts/` と `tests/` に限定**(`backend/` は自前の設定と backend ジョブで検査済み。**`.claude/**` は venv を使わず `/usr/bin/python3` で起動される別系統で未導入** — 残件 **ruff 73 件・ty 19 件**。うち `codex_run.py` の 5 件は **`die()` の注釈が `-> None`** であることに起因し(実体は `sys.exit`)、**`-> NoReturn` へ直すと 19 → 14 件になる**(**実バグではない** — 当初「実バグ疑い」と報告したのを実測で訂正)。残る 14 件は `sys.stdout.reconfigure` への誤検知で、**コードでは直せないため扱いに人間の裁定を要する**。follow-up)。**`ruff format` は未導入**(行長 100 で 17 ファイル中 14 が reformat 対象になるため独立した PR へ)。**導入により、型検査を一度も掛けていなかったことで残っていた注釈の欠陥 8 件を検出・是正**した
 
-- **実装追随(2026-08-31・pg-authz-verification / TSK-270)**: 上表の **`backend` 行へ `services: postgres` を追加**した。**新しいジョブは起こさない** — 責務が「同じ pytest ランナー・同じ発火集合・**DB 障害時も backend 全体を fail させる**」で一致するため(**ゲート回避を理由にしない**)。**期待値を実装より先に固定した** — イメージ版・initdb 引数・locale provider・collate / ctype / encoding・healthcheck の性質と待機パラメータ・marker 名・path 規則・単一実行コマンド・DSN 変数名を `backend/tests/db/environment-expectations.json` へ**先行するコミットで**置き、**接続後に SQL で読んだ値がその資産と一致することを検査**する(**観測値を後から期待値にできない**ようにするため)。**典拠は `docker-compose.yml` からの逐語引用**で、実在を全数検査するテストを同梱した。**psycopg 3 は製品依存**(`[project] dependencies`)とし、**ORM は入れない**(`sqlalchemy` / `alembic` が lock に無いことを検査)。**ロールごとに実接続を張り替える**(`SET ROLE` による模擬は使わない — **`SET ROLE` の可否はセッションの認証ユーザーで判定される**ため模擬では検証にならない)。**ロール属性・所属・default ACL を変える変異は使い捨てクラスタで実行する**(**ロールはクラスタ全域に存在し、別 DB では他の変異へ漏れる**)。**規範・受入条件は変更していない**。計画: `../features/pg-authz-verification/plan.md`
+- **実装追随(2026-08-31・pg-authz-verification / TSK-270)**: 上表の **`backend` 行へ `services: postgres` を追加**した。**新しいジョブは起こさない** — 責務が「同じ pytest ランナー・同じ発火集合・**DB 障害時も backend 全体を fail させる**」で一致するため(**ゲート回避を理由にしない**)。**期待値を実装より先に固定した** — イメージ版・initdb 引数・locale provider・collate / ctype / encoding・healthcheck の性質と待機パラメータ・marker 名・path 規則・単一実行コマンド・DSN 変数名を `backend/tests/db/environment-expectations.json` へ**先行するコミットで**置き、**接続後に SQL で読んだ値がその資産と一致することを検査**する(**観測値を後から期待値にできない**ようにするため)。**典拠は `docker-compose.yml` からの逐語引用**で、実在を全数検査するテストを同梱した。**psycopg 3 は製品依存**(`[project] dependencies` の `psycopg[binary]`)として厳密固定する。**ORM スタック(SQLAlchemy 2.x・Alembic)も直接依存として厳密固定**し、lock との版一致と SQLAlchemy の major = 2 を検査する。**ロールごとに実接続を張り替える**(`SET ROLE` による模擬は使わない — **`SET ROLE` の可否はセッションの認証ユーザーで判定される**ため模擬では検証にならない)。**ロール属性・所属・default ACL を変える変異は使い捨てクラスタで実行する**(**ロールはクラスタ全域に存在し、別 DB では他の変異へ漏れる**)。**規範・受入条件は変更していない**。計画: `../features/pg-authz-verification/plan.md`
 
 - **実装追随(2026-09-04・core-area-paths / TSK-281)**: 上表の **`harness`・`backend` 両ジョブの pytest 呼び出しへ `-c pyproject.toml` を付与**した(pytest は `pytest.ini`・`pytest.toml` 等を `pyproject.toml` より**優先する**ため、保護外の別設定ファイルの新設で検査対象を差し替えられる経路の遮断 — harness = リポジトリルート / backend = `backend/` の各 `pyproject.toml` に固定)。**固定自体は `tests/test_ci_wiring.py` の exact オラクルで恒久化**(2 コマンドの完全一致 + working-directory の構造検査 — `-c` の欠落・改変で red)。**規範・受入条件は変更していない**。計画: `../features/core-area-paths/plan.md`
 
