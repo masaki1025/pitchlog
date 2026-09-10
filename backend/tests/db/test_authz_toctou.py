@@ -378,6 +378,7 @@ def _mutant_queries(
             SELECT 1
             FROM {} AS caller_membership
             JOIN {} AS target_grant
+              -- DECISION: MANAGEMENT_TARGET_GRANT_GROUP_MATCH
               ON target_grant.group_id = caller_membership.group_id
             WHERE
                 -- DECISION: MANAGEMENT_REQUESTER_CONTEXT_PRESENT
