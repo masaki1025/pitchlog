@@ -1,7 +1,7 @@
 ---
 feature: orm-schema-migration
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-09-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d593b75e68781469990ca4e61fca9d2
@@ -643,7 +643,9 @@ TSK-348(済) → TSK-317 PR #1 → TSK-343 → TSK-317 PR #2 → TSK-355 → TSK
 **現在の `承認: 済(2026-09-10・山田正輝)` は 7 周目の反映前の版に対するものである。**
 
 **Claude は `承認` 欄に触らない**(人間の判断 — `codex_run.py implement` の権限付与に相当する)。
-**人間が修正版を確認して再承認するまで、`/implement` を実行しない。**
+
+> **再承認された**(**2026-09-11・山田正輝**)。frontmatter を `承認: 済(2026-09-11・山田正輝)` へ更新した。
+> **7 周目の反映を含む版が承認対象である。**
 
 **レビューの最終判定**: 「**実装に入って安全か: いいえ**」— ただしこれは**上記 `P0` 2 件が未反映の時点**の
 判定であり、**本反映で 2 件とも閉じた**。**再承認の判断材料として人間へ渡す。**
