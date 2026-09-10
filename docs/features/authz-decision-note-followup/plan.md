@@ -1,6 +1,6 @@
 ---
 feature: authz-decision-note-followup
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -17,8 +17,14 @@ created: 2026-09-10
 
 ## 1. 背景・目的
 
-**develop が red である。** 原因は 2 つで、**どちらも PR #52(TSK-317・マージ済み `67e06a2`)の
-`14973f6` が入れた `source_commit` に起因する**。
+**develop が red である。** 原因は 2 つで、**どちらも PR #52(TSK-317・マージ済み `67e06a2`)由来**である。
+**ただし起因コミットは 2 つの欠陥で別である**(敵対レビュー 1 周目 `P2-2` の是正 — **当初「`14973f6` が入れた `source_commit`」と書いたが誤りだった**):
+
+| コミット | 何をしたか | どちらの欠陥の起因か |
+| --- | --- | --- |
+| **`5f668bf`** | **`manifest.json` と 2 段の静的照合を新設し、`source_commit` の機構を導入** | **② の起因** — **浅いクローンで解決できない履歴依存を CI へ持ち込んだのはこのコミットである**。`git merge-base --is-ancestor 5f668bf 67e06a2^1` は偽(**マージ前 develop の祖先ではない** = PR #52 で入った) |
+| **`14973f6`** | **判定注記 7 行のみを追加**(SQL 3 ファイル) | **① の起因** — テスト側 2 箇所がこの注記に追随しなかった |
+| **`8a72a93`** | **`source_commit` を `14973f6` へ再導出**(manifest 4 行) | **② の発現を確定させた** — **解決対象の SHA が tip 以外になった** |
 
 | # | 欠陥 | 症状 |
 | --- | --- | --- |
