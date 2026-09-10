@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 8        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 9        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -167,7 +167,7 @@ git diff --exit-code origin/develop...HEAD -- \
 | 正本 | 変更内容 | ゲート(PR レビュー / finalize-doc) |
 | --- | --- | --- |
 | [`docs/README.md`](../../README.md) | 索引の最終更新日を現行化 | —(常に現行化 — 7.2) |
-| `.claude/core-areas.json` | `tenant-isolation.paths` へ新設パスを登録 + description 現行化 | **6.3 規則⑤(敵対レビュー + 人間承認)** |
+| `.claude/core-areas.json` | **本計画(第 1 弾)では変更しない** — `tenant-isolation.paths` への新設パス登録(実測 6 本)は**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) | **6.3 規則⑤(敵対レビュー + 人間承認)— 第 2 弾で払う** |
 | [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **追記の判断は /pr のクローズ処理で行う**(該当時は本節へ宣言を先に追記してから台帳へ) | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **反映なし**(3 件の是正は **TSK-348**) | — |
 | [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) | **反映なし**(10.1 の追随は **TSK-343**) | — |
@@ -187,8 +187,8 @@ git diff --exit-code origin/develop...HEAD -- \
 | `contracts/authz/` の**凍結 15 パス** | **本計画では変更しない**(`S-1`・`S-5`・`S-7` として改訂 3 第 2 弾の射程) |
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
-| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | 新設資産(`shared-preconditions` / `failure-injection-points` / `mcdc-map` / body manifest)の検査を追加する。**status 契約の変更と期待件数の撤去は改訂 3**(`S-2`・`S-8`) |
-| `tests/test_core_guard.py` | 新設パスの発火試験。**`core-areas.json` への登録と `test_ci_wiring.py` の追記は改訂 3**(`S-8`) |
+| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | 新設資産(`shared-preconditions` / `failure-injection-points` / `mcdc-map` / body manifest)の検査を追加する。**status 契約の変更と期待件数の撤去は改訂 3 第 2 弾**(`S-2`・`S-8`)— **本計画では行わない** |
+| `tests/test_core_guard.py` | **本計画(第 1 弾)では変更しない** — 新設パスの発火試験・`core-areas.json` への登録・`test_ci_wiring.py` の追記はいずれも**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) |
 | `docs/features/pg-authz-verification-g2/{plan,research,design}.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
 ## 4. 実装方針
@@ -260,8 +260,8 @@ reseal で digest を更新しても `oracle_commit` 上の blob は古いまま
 → **裁定 `D-6` は当時「ステップ 22 の 1 コミットへ集約する」としたが、コミット構造は `S-1`(2 段の基準コミット)が置き換え、その確定は裁定 `D-10` で改訂 3 第 2 弾へ送った。****本計画の承認範囲(ステップ 1〜20)では oracle を変更しない。**
 入力資産の変更(187 件の status)・封印資産の変更(`scope` / `pending_human_reviews` / プレースホルダ受取先)・
 `oracle_commit` の前進・**4 種の reseal**(`--reseal` / `--reseal-derived` / `--reseal-oracle` と 6 資産の
-`oracle_context` 更新)・検査器の契約変更・テスト期待値の追随を**同一コミットで**行い、
-**差分敵対レビューを 1 回だけ払う**。**この段取りの確定は改訂 3 第 2 弾の `S-1` の射程である**(裁定 `D-10`)。**本計画の承認範囲では封印資産と入力資産に一切触らない。**
+`oracle_context` 更新)・検査器の契約変更・テスト期待値の追随をまとめ、
+**差分敵対レビューを 1 回だけ払う**。**ただしコミット構造は 1 つではなく `S-1` の 2 段(基準コミット → reseal コミット)である** — `oracle_commit` に自コミットの SHA を入れられないため1 コミットでは構築不能(4 周目 `P1-8` / `H-85` の実測)。**この段取りの確定は改訂 3 第 2 弾の `S-1` の射程である**(裁定 `D-10`)。**本計画の承認範囲では封印資産と入力資産に一切触らない。**
 **再レビューの周回は 3 周を目安**とし、超えたら PO 裁定を起動する(7.3-6 の 6 周警告に倣う)。
 
 ### 実機検証の実施主体

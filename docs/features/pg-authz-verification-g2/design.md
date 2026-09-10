@@ -8,9 +8,10 @@ date: 2026-09-09
 
 [plan.md](plan.md) 4 節から参照される詳細設計。
 
-> **本計画の承認範囲は第 2 群前半(ステップ 1〜21)である**(裁定 `D-8`)。
-> 本書のうち **8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は改訂 3 の射程**であり、
-> 承認範囲には入らない。**改訂 3 が満たすべき要件は plan.md 4 節の `S-1`〜`S-9` が正**。
+> **本計画の承認範囲は第 2 群前半(ステップ 1〜20)である**(裁定 `D-8` — **裁定 `D-9`(2026-09-10)で旧ステップ 17〔`contract_only` の runtime テスト〕を撤去し、旧 18〜21 を 17〜20 へ連番で振り直したため 21 → 20**)。
+> 本書のうち **8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は改訂 3 第 2 弾の射程**であり、承認範囲には入らない。
+> **改訂 3 第 2 弾が満たすべき要件は plan.md 4 節の `S-1`〜`S-10` が正**(**裁定 `D-10`(2026-09-10)で改訂 3 を 2 弾に分けた** — 第 1 弾は機械的な作業のみ、`S-1`〜`S-10` の機械条件の確定は**ステップ 17〜20 の完了後**)。
+> **`S-10` は旧ステップ 17 の置き換えで、`contract_only` 158 行の runtime テストは受取タスクの所有である**(`R-7`)— **本タスクは実テストを書かない**。
 **機構が読む状態と実装ステップ表は plan.md のみに置く**
 (設計書 7.1-1)。前計画書の内容・凍結資産の中身・要件の逐語は**ここへ複製せず**、
 [../pg-authz-verification/plan.md](../pg-authz-verification/plan.md) と [research.md](research.md) を参照する。
@@ -19,18 +20,18 @@ date: 2026-09-09
 
 | 対象 | 配置 | 理由 |
 | --- | --- | --- |
-| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なので**改訂 3 の射程**(4 節 `S-8`) |
+| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**`core-areas.json` へ未登録**なので**改訂 3 第 2 弾の射程**(4 節 `S-8`) |
 | 適用器 | `backend/src/pitchlog/authz/provisioning.py` | 同上。psycopg 直書き(`D-3`) |
 | カタログ検査 | `backend/src/pitchlog/authz/catalog.py` | 同上。**問い合わせだけを持ち、期待値は資産から読む** |
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
 | 越境テスト・行列 | `backend/tests/db/authz/test_*.py` | `backend/tests/db/*` は既に `tenant-isolation.paths` に登録済み |
 | 4 ロール fixture | `backend/tests/db/conftest.py` の拡張 | 既存の `tested_role_connection` の形を踏襲(`backend/*conftest.py` は登録済み) |
 | **関数 body と DDL の SQL 実体** | **`contracts/authz/function-bodies/**`** | **封印 6 資産に含まれない**ため oracle の再封印を発火させない。ステップ 1 の先行コミットで置く |
-| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。ステップ 19 |
-| **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。**改訂 3 の射程**(`S-3`) |
+| **MC/DC の写像** | **`contracts/authz/mcdc-map.json`** | 凍結資産には判定形の名前しかない(下記 6-2)。**ステップ 18**(裁定 `D-9` の連番振り直しで旧 19 → 18)|
+| **7 単位 → 8 ID の写像** | **`contracts/authz/operation-count-mapping.json`** | 裁定 `D-4`。**改訂 3 第 2 弾の射程**(`S-3`) |
 | **共有関数の 6 前提の母集合** | **`contracts/authz/shared-preconditions.json`** | 資産の `precondition_ids` は管理操作用の別概念。ステップ 9 |
 | **失敗注入点** | **`contracts/authz/failure-injection-points.json`** | `R-5` の 5 種。ステップ 14。**閉じた `injection_point_id` 5 個 + ステップ 4 の適用器が発行する `checkpoint_id`(step 内の序数)+ 相互重複禁止 + 実行ログへの実在**(3 周目 `P1-4`)。**実行ログ全体との exact-set ではない** — 凍結 DDL は 7 ロール・3 スキーマ・6 表・6 ポリシー・3 関数・17 ACL で 5 文を大きく超えるため両立しない(4 周目 `P1-3`)。5 種の位置への対応は `operation_kind` で機械判定する |
-| **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | **改訂 3 の射程**(`S-4`・下記 8 節) |
+| **引き渡しマニフェスト** | **`contracts/authz/handoff-manifest.json`** | **改訂 3 第 2 弾の射程**(`S-4`・下記 8 節) |
 
 **`backend/src/pitchlog/authz/` の 3 モジュールは責務で分ける** — 生成(資産 → SQL 文字列)/
 適用(SQL → クラスタ・順序と原子性)/ 検査(クラスタ → 観測値)。
@@ -101,7 +102,7 @@ DB 層では塞げない(同 `RES-01`)。
 | --- | --- | --- | --- |
 | `TX:PROVISIONING` | `ordered_application` | **`false`** | ステップ 4・15。順序を守り、失敗後は**再適用で収束**する |
 | `TX:REPRESENTATIVE_MANAGEMENT` | `authorization_and_side_effect` | **`true`** | ステップ 12。**認可と副作用が同一トランザクション**。認可失敗時に副作用行が増えない |
-| `TX:GLOBAL_MUTATION_ISOLATION` | `disposable_cluster` | **`false`** | ステップ 18。起動〜破棄は原子でない |
+| `TX:GLOBAL_MUTATION_ISOLATION` | `disposable_cluster` | **`false`** | **ステップ 17**(裁定 `D-9` の連番振り直しで旧 18 → 17)。起動〜破棄は原子でない |
 
 `R-5` の失敗点 5 種は**注入位置を資産由来の列で持つ**(ロール作成後 / policy 変更後 / body 置換後 /
 owner 変更後 / ACL 正規化途中)。比較対象は**全対象 catalog・membership・default ACL・fixture data** で、
@@ -231,7 +232,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 `mcdc-map.json` を一致させれば機械 green になる。**注記の網羅性は `[手動・外部]` で担保する**
 (SQL の AST から認可判定を自動識別するのは別種の実装であり、本タスクの射程を超える)。
 **「機械的に自己申告でない」とは主張しない** — 機械が閉じるのは上の 2 点だけである。
-ステップ 19 の合格条件は「**`mcdc-map.json` の判定 ID 集合が body 由来の集合と exact-set 一致**」。
+**ステップ 18**(裁定 `D-9` の連番振り直しで旧 19 → 18)の合格条件は「**`mcdc-map.json` の判定 ID 集合が body 由来の集合と exact-set 一致**」。
 
 **注記が実際の認可判定を漏れなく覆っていること**は `[手動・外部]` で確認する(自動抽出できない)。
 **この資産は封印 6 資産に含まれない**ので oracle の再封印を発火させない。
@@ -290,7 +291,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 
 | # | 資産 | 役割 |
 | --- | --- | --- |
-| 1 | `contracts/authz/ddl-elements.json` | **通った構成**(ステップ 20 で `scope` を消化したもの) |
+| 1 | `contracts/authz/ddl-elements.json` | **通った構成** — **`scope` の消化は改訂 3 第 2 弾の `S-7` の射程**(裁定 `D-10`。**現在のステップ表 1〜20 に `scope` 消化のステップは無い**)|
 | 2 | `contracts/authz/auth-catalog.json` | **`CATALOG:*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`)。**`AUTH-*` は実在しない** |
 | 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(`REJ-001`〜`REJ-003` + 第 2 群で追加した分) |
 
@@ -343,7 +344,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 3. **read-back** — **受取タスクの DoD を取得し、資産のテスト ID 集合と exact-set 突合する**
    (差集合 0 を機械で示す。取得結果を worklog に貼る)
 
-**ステップの割り当て**: **改訂 3 の射程**(4 節 `S-6`)。本計画の承認範囲には入らない。
+**ステップの割り当て**: **改訂 3 第 2 弾の射程**(4 節 `S-6`)。本計画の承認範囲には入らない。
 **登録と相互リンクは外部手続きなので `[手動・外部]`、read-back の突合は `[機械]`** に書き分ける。
 
 ## 未解決・検討メモ
