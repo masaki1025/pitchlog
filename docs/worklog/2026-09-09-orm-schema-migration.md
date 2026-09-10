@@ -313,3 +313,104 @@ DB テストの罠は TSK-317 が出す規則)。**ただし実測は本タス�
 私の前便はそこを混同していた。TSK-317 は `POSTGRES_USER/PASSWORD/DB` から DSN を直接組んだため
 `+psycopg` を踏んでいない。**worklog と `S-9` の記述は「私の手元環境の環境変数が原因」に
 限定してあるので変更不要。**
+
+## develop の CI が red — `S-10`(2026-09-10)
+
+「CI は全件を回しているのだから PR #52 の red を捕まえたはずだ」と考えて確認したところ、
+**develop の CI が PR #52 のマージ以降 red** で、しかも **CI はそもそも `S-9` の 11 件を
+捕まえられない構造**だと分かった。
+
+### 実測
+
+```
+2026-09-10T10:09:40Z  failure  67e06a2   ← PR #52 のマージ
+2026-09-09T16:22:36Z  success  4ed54fc   ← TSK-348(PR #51)
+2026-09-08T23:22:56Z  success  1424d67
+```
+
+落ちているジョブは 2 つ:
+
+| ジョブ | 結果 |
+| --- | --- |
+| `harness` | **19 failed, 1164 passed**(`test_check_authz_function_bodies.py` 7 + `test_check_mcdc_map.py` 12) |
+| `backend` | **15 failed, 62 passed, 85 errors** |
+
+### 原因は単一 — 浅いクローン
+
+失敗理由を集計すると全部これに行き着く:
+
+```
+source_commitを解決できない: 14973f6449ecb7b7502762c89d89ae88d5054ec1
+fatal: bad object 14973f6449ecb7b7502762c89d89ae88d5054ec1
+fatal: bad revision 'origin/develop...HEAD'      ← mutation_composition
+```
+
+body manifest の `source_commit` を検査器が解決しようとするが、
+**`ci.yml` の `harness` と `backend` の `actions/checkout` に `fetch-depth: 0` が無い**。
+
+| ジョブ | クローン |
+| --- | --- |
+| `secrets` / `core-guard` / `nfr021-append-only` / `backend-changes` / `frontend-changes` | `fetch-depth: 0` |
+| **`harness`** / **`backend`** | **浅いクローン(既定 depth 1)** |
+| `docs-lint` / `frontend` | 浅いクローン(現状 green なので触る理由なし) |
+
+**手元では全部通る**(私の worktree でルート pytest 1188 passed = develop 相当の 1183 +
+ステップ 1 の負例 5)。**完全なクローンかどうかだけの差。**
+
+### これが `S-9` の 11 件を CI が捕まえられなかった理由
+
+`backend` の 85 errors のうち **probe と toctou の 13 件は error** で、`provisioned_catalog`
+fixture が `AuthzDDLGenerationError: body静的照合に失敗した: ... source_commitを解決できない`
+で死ぬため **`_assert_failure_case_contract()` に到達していない**。
+**CI ログに `sha256 exact-set 一致しない` は 0 件。**
+
+→ **`S-9` に書いた「fail-closed な setup error が実体の red を飲み込む」の 3 段目が、
+今度は CI の中で起きていた。** 機械は捕まえるように書かれていたのに、
+**機械が走る前に別の理由で倒れていた。**
+
+### マージのタイミング(事実の記録のみ)
+
+```
+10:05:19  backend ジョブ開始
+10:06:44  backend ジョブ FAILURE
+10:09:37  PR #52 マージ
+10:10:57  backend ジョブ FAILURE(再実行)
+```
+
+**1 回目の `backend` はマージの 3 分前に FAILURE が確定していた。**
+判断したのは人間なので、経緯には踏み込まず事実として記録する。
+
+### 射程と本タスクへの影響
+
+**`ci.yml` の `fetch-depth` は本タスクの射程外**(ステップ 26 の射程は ORM/Alembic の
+CI コマンド契約)。**TSK-317 の regression なので TSK-317 が持つ。**
+**`/pr` を出した時点で同じ 19 + 15 + 85 が本タスクの PR にも出る**ので、
+**`D12` と `/pr` のブロッカ**になる。**解消するまで PR を出さない。**
+
+**単純な `fetch-depth: 0` だけでは足りない可能性**も併せて伝えた —
+`mutation_composition` は `origin/develop...HEAD` を要求するが、`actions/checkout` は
+PR では merge ref を取るので **`fetch-depth: 0` でも `origin/develop` という ref が
+無いことがある**。明示的な取得か、比較基準を base SHA に変えるかが要る。
+
+### 恒久側についての見解(TSK-317 へ渡した)
+
+TSK-317 が「`111` という定数を DoD に書くと次に同じ問題が起きる」と懸念していた点について:
+
+- **部分実行を防ぐ恒久機構は「CI が全件を回すこと」で、定数ではない**。
+  `ci.yml:221` は `uv run pytest -c pyproject.toml --cov` で `testpaths = ["tests"]`、
+  **`-k`・`-m`・`--deselect` なしの全件実行**になっている
+- したがって **fix の DoD に `112 passed` を書くのは正しい**(手元実行に対する一回限りの期待値)。
+  **恒久側は定数ではなく「CI が緑」に寄せる** — **ただし今それが成り立っていない**のが上記
+- **`backend/tests/db/conftest.py:769-783` の `_required_db_execution_error` は
+  0 件収集・0 件実行だけを fail-closed にしている**。ここを
+  **「収集した DB 必須テストのうち call フェーズに到達しなかったものがあれば red」**
+  へ広げると **今回の「fixture で死んで assertion に到達しない」型が機構で見える**。
+  定数を要しない形なので恒久側の候補として提案した(TSK-317 の資産なので提案まで)
+
+### 収集件数 112 の裏取り(TSK-317 の読みは正しい)
+
+- `_AUTHORIZATION_FAILURE_CASES` を参照するのは **`test_authz_management_probe.py` だけ**
+  (全リポ検索で 5 箇所、うち parametrize は `:670` の 1 箇所のみ)
+- **`test_authz_toctou.py` は参照していない**(`_decision_ids_from_body` だけ import)。
+  toctou の 5 件は失敗ケース表と無関係
+- → **8 件目を足すと probe が 8 → 9、総数 111 → 112。** ほかに増える箇所は無い
