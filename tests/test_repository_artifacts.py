@@ -1,0 +1,400 @@
+"""追跡済み生成物をリポジトリへ混入させないことを検証する。"""
+
+from __future__ import annotations
+
+import subprocess
+from collections.abc import Iterator
+from dataclasses import dataclass
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+@dataclass(frozen=True, slots=True)
+class _IgnoredArtifactRepository:
+    """ignore 対象を追跡した一時リポジトリ。"""
+
+    root: Path
+    artifact_path: Path
+
+
+def _git(
+    repository_root: Path,
+    *arguments: str,
+    check: bool = True,
+    input_data: bytes | None = None,
+) -> subprocess.CompletedProcess[bytes]:
+    """指定ディレクトリを起点に Git を実行する。
+
+    Args:
+        repository_root: Git コマンドの作業ディレクトリ。
+        arguments: Git へ渡す引数。
+        check: 非ゼロ終了を例外にするか。
+        input_data: 標準入力へ渡すバイト列。
+
+    Returns:
+        Git コマンドの実行結果。
+    """
+    return subprocess.run(
+        ["git", *arguments],
+        cwd=repository_root,
+        check=check,
+        input=input_data,
+        capture_output=True,
+    )
+
+
+def _paths_from_nul(output: bytes) -> tuple[Path, ...]:
+    """NUL 区切りの Git 出力をパスへ変換する。"""
+    return tuple(
+        Path(raw_path.decode("utf-8"))
+        for raw_path in output.split(b"\0")
+        if raw_path
+    )
+
+
+def _tracked_paths(repository_root: Path) -> tuple[Path, ...]:
+    """Git index にある全パスを導出する。"""
+    completed = _git(repository_root, "ls-files", "-z")
+    return _paths_from_nul(completed.stdout)
+
+
+def _initialize_repository(tmp_path: Path) -> Path:
+    """空の一時 Git リポジトリを初期化する。"""
+    repository_root = tmp_path / "repository"
+    repository_root.mkdir()
+    _git(repository_root, "init", "--quiet")
+    return repository_root
+
+
+def _repository_state(repository_root: Path) -> tuple[bytes, bytes]:
+    """Git index と status の論理状態を取得する。"""
+    index = _git(repository_root, "ls-files", "--stage", "-z").stdout
+    status = _git(
+        repository_root,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "-z",
+    ).stdout
+    return index, status
+
+
+def _check_ignored_paths(
+    repository_root: Path,
+    paths: tuple[Path, ...],
+    *,
+    no_index: bool,
+) -> tuple[Path, ...]:
+    """Git 自身の ignore 判定で一致したパスを返す。
+
+    Args:
+        repository_root: 判定を行う Git リポジトリ。
+        paths: 判定対象のリポジトリ相対パス。
+        no_index: 追跡状態を無視して判定するか。
+
+    Returns:
+        ignore 規則に一致した入力パス。
+    """
+    if not paths:
+        return ()
+    arguments = [
+        "-c",
+        "core.excludesFile=/dev/null",
+        "check-ignore",
+    ]
+    if no_index:
+        arguments.append("--no-index")
+    arguments.extend(("-z", "--stdin"))
+    completed = _git(
+        repository_root,
+        *arguments,
+        check=False,
+        input_data=b"\0".join(path.as_posix().encode() for path in paths) + b"\0",
+    )
+    if completed.returncode not in (0, 1):
+        completed.check_returncode()
+    return _paths_from_nul(completed.stdout)
+
+
+def _index_evaluation_repository(
+    repository_root: Path,
+    workspace: Path,
+) -> Path:
+    """元リポジトリの index 内容だけを一時リポジトリへ展開する。
+
+    Args:
+        repository_root: index を読む元リポジトリ。
+        workspace: 一時評価リポジトリの親ディレクトリ。
+
+    Returns:
+        index 内容だけを持つ新規 Git リポジトリ。
+    """
+    evaluation_root = workspace / f"index-{uuid4().hex}"
+    evaluation_root.mkdir(parents=True)
+    _git(
+        repository_root,
+        "checkout-index",
+        "-a",
+        f"--prefix={evaluation_root.as_posix()}/",
+    )
+    _git(evaluation_root, "init", "--quiet")
+    (evaluation_root / ".git/info/exclude").write_text("", encoding="utf-8")
+    _git(evaluation_root, "add", "-f", "--all")
+    return evaluation_root
+
+
+def _tracked_ignored_paths_with_mode(
+    repository_root: Path,
+    workspace: Path,
+    *,
+    no_index: bool,
+) -> tuple[Path, ...]:
+    """index 時点へ固定した環境で追跡済みパスを ignore 判定する。"""
+    tracked_paths = _tracked_paths(repository_root)
+    evaluation_root = _index_evaluation_repository(repository_root, workspace)
+    return _check_ignored_paths(
+        evaluation_root,
+        tracked_paths,
+        no_index=no_index,
+    )
+
+
+def _tracked_ignored_paths(
+    repository_root: Path,
+    workspace: Path,
+) -> tuple[Path, ...]:
+    """追跡済みだが管理下の ignore 規則に一致するパスを返す。"""
+    return _tracked_ignored_paths_with_mode(
+        repository_root,
+        workspace,
+        no_index=True,
+    )
+
+
+def _assert_no_tracked_ignored_paths(paths: tuple[Path, ...]) -> None:
+    """ignore 対象の追跡済みパスがないことを要求する。"""
+    assert paths == (), f"ignore 対象が追跡されている: {paths}"
+
+
+def _single_name_mutant(repository_root: Path) -> tuple[Path, ...]:
+    """特定の生成物名だけを検出する不正な縮小実装を模倣する。"""
+    target_name = "." + "coverage"
+    return tuple(
+        path for path in _tracked_paths(repository_root) if path.name == target_name
+    )
+
+
+def _head_snapshot_mutant(
+    repository_root: Path,
+    workspace: Path,
+) -> tuple[Path, ...]:
+    """コミット済み時点だけで述語を評価する不正実装を模倣する。"""
+    tracked_paths = _tracked_paths(repository_root)
+    evaluation_root = workspace / f"committed-{uuid4().hex}"
+    _git(
+        workspace,
+        "clone",
+        "--quiet",
+        repository_root.as_posix(),
+        evaluation_root.as_posix(),
+    )
+    return _check_ignored_paths(
+        evaluation_root,
+        tracked_paths,
+        no_index=True,
+    )
+
+
+@pytest.fixture(autouse=True)
+def real_repository_unchanged() -> Iterator[None]:
+    """各テストの前後で実リポジトリの index と status を照合する。"""
+    before = _repository_state(REPOSITORY_ROOT)
+    yield
+    assert _repository_state(REPOSITORY_ROOT) == before
+
+
+@pytest.fixture
+def ignored_artifact_repository(tmp_path: Path) -> _IgnoredArtifactRepository:
+    """動的な ignore 規則に一致するファイルを強制追跡する。"""
+    repository_root = _initialize_repository(tmp_path)
+    output_directory = Path(f"generated-{uuid4().hex}")
+    artifact_path = output_directory / f"artifact-{uuid4().hex}"
+    (repository_root / output_directory).mkdir()
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        f"/{output_directory.as_posix()}/\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    return _IgnoredArtifactRepository(repository_root, artifact_path)
+
+
+def test_repository_has_no_tracked_ignored_artifacts(tmp_path: Path) -> None:
+    """実リポジトリに ignore 対象の追跡済みファイルがない。"""
+    _assert_no_tracked_ignored_paths(
+        _tracked_ignored_paths(REPOSITORY_ROOT, tmp_path)
+    )
+
+
+def test_tracked_ignored_artifact_is_detected(
+    ignored_artifact_repository: _IgnoredArtifactRepository,
+    tmp_path: Path,
+) -> None:
+    """Ignore 対象を index へ加える負例を検出する。"""
+    violations = _tracked_ignored_paths(ignored_artifact_repository.root, tmp_path)
+
+    assert violations == (ignored_artifact_repository.artifact_path,)
+    with pytest.raises(AssertionError):
+        _assert_no_tracked_ignored_paths(violations)
+
+
+def test_new_ignore_pattern_is_applied_without_checker_changes(tmp_path: Path) -> None:
+    """新しい ignore 規則へ検査実装の変更なしで追随する。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"new-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", artifact_path.as_posix())
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+    (repository_root / ".gitignore").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+
+    assert _tracked_ignored_paths(repository_root, tmp_path) == (artifact_path,)
+
+
+def test_single_name_mutant_misses_new_ignore_pattern(
+    ignored_artifact_repository: _IgnoredArtifactRepository,
+    tmp_path: Path,
+) -> None:
+    """特定名だけを見る縮小実装を動的な ignore 規則で拒否する。"""
+    expected = _tracked_ignored_paths(ignored_artifact_repository.root, tmp_path)
+    mutant = _single_name_mutant(ignored_artifact_repository.root)
+
+    assert expected == (ignored_artifact_repository.artifact_path,)
+    assert mutant == ()
+    with pytest.raises(AssertionError):
+        assert mutant == expected
+
+
+def test_info_exclude_only_pattern_is_not_authoritative(tmp_path: Path) -> None:
+    """ローカルな info/exclude だけの一致を違反にしない。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"local-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", artifact_path.as_posix())
+    (repository_root / ".git/info/exclude").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+
+    assert _check_ignored_paths(
+        repository_root,
+        (artifact_path,),
+        no_index=True,
+    ) == (artifact_path,)
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
+def test_without_no_index_mutant_misses_tracked_ignored_artifact(
+    ignored_artifact_repository: _IgnoredArtifactRepository,
+    tmp_path: Path,
+) -> None:
+    """No-index 判定を外すと追跡済みの負例を見逃す。"""
+    expected = _tracked_ignored_paths(ignored_artifact_repository.root, tmp_path)
+    mutant = _tracked_ignored_paths_with_mode(
+        ignored_artifact_repository.root,
+        tmp_path,
+        no_index=False,
+    )
+
+    assert expected == (ignored_artifact_repository.artifact_path,)
+    assert mutant == ()
+    with pytest.raises(AssertionError):
+        assert mutant == expected
+
+
+def test_untracked_nested_ignore_files_do_not_change_evaluation(
+    tmp_path: Path,
+) -> None:
+    """未追跡の下位 ignore 規則を正・否定の両方で評価から除く。"""
+    repository_root = _initialize_repository(tmp_path)
+    nested = Path(f"nested-{uuid4().hex}")
+    artifact_path = nested / f"artifact-{uuid4().hex}"
+    ordinary_path = nested / f"ordinary-{uuid4().hex}"
+    (repository_root / nested).mkdir()
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    (repository_root / ordinary_path).write_text("ordinary\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+    _git(repository_root, "add", "--", ordinary_path.as_posix())
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    baseline = _tracked_ignored_paths(repository_root, tmp_path)
+    assert baseline == (artifact_path,)
+
+    nested_ignore = repository_root / nested / ".gitignore"
+    nested_ignore.write_text(f"{ordinary_path.name}\n", encoding="utf-8")
+    in_place_positive = _check_ignored_paths(
+        repository_root,
+        (artifact_path, ordinary_path),
+        no_index=True,
+    )
+    assert frozenset(in_place_positive) == frozenset(
+        {artifact_path, ordinary_path}
+    )
+    assert _tracked_ignored_paths(repository_root, tmp_path) == baseline
+
+    nested_ignore.write_text(f"!{artifact_path.name}\n", encoding="utf-8")
+    assert _check_ignored_paths(
+        repository_root,
+        (artifact_path,),
+        no_index=True,
+    ) == ()
+    assert _tracked_ignored_paths(repository_root, tmp_path) == baseline
+    assert nested / ".gitignore" not in _tracked_paths(repository_root)
+
+
+def test_staged_ignore_change_is_used_instead_of_committed_snapshot(
+    tmp_path: Path,
+) -> None:
+    """未コミットで stage した ignore 規則を同じ index 時点で評価する。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"staged-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text("", encoding="utf-8")
+    _git(repository_root, "add", ".gitignore", artifact_path.as_posix())
+    _git(
+        repository_root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "--quiet",
+        "--no-gpg-sign",
+        "-m",
+        "baseline",
+    )
+    (repository_root / ".gitignore").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+
+    expected = _tracked_ignored_paths(repository_root, tmp_path)
+    committed_snapshot_mutant = _head_snapshot_mutant(repository_root, tmp_path)
+
+    assert expected == (artifact_path,)
+    assert committed_snapshot_mutant == ()
+    with pytest.raises(AssertionError):
+        assert committed_snapshot_mutant == expected
