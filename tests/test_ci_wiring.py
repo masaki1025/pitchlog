@@ -176,8 +176,11 @@ def _is_pinned_checkout_action(uses: object) -> bool:
 def _checkout_step(job_name: str, job: object) -> dict[str, Any]:
     """広く抽出した候補から唯一かつ正規の checkout ステップを取得する。
 
-    候補抽出の部分一致は偽装を見逃さず件数へ含めるために使い、その後で
-    唯一の候補が公式 action の SHA 固定参照であることを別に主張する。
+    候補抽出では大小文字を無視した部分一致を使い、偽装を件数へ含める。
+    その後で唯一の候補が公式 action の SHA 固定参照であることを別に主張する。
+    ``checkout`` を名前に含まない浅い clone action は見逃す一方、Git を変更しない
+    ``checkout-metadata`` なども候補になる。後者が生じた場合は宣言を見直すか、
+    候補判定を精緻化する必要があるという fail-closed の選択である。
 
     Args:
         job_name: CI ジョブ名。
@@ -196,7 +199,7 @@ def _checkout_step(job_name: str, job: object) -> dict[str, Any]:
         for step in steps
         if isinstance(step, dict)
         and isinstance((uses := step.get("uses")), str)
-        and "checkout" in uses
+        and "checkout" in uses.lower()
     ]
     if not checkout_candidates:
         raise AssertionError(f"{job_name} に checkout ステップが無い")
@@ -1261,6 +1264,51 @@ def test_checkout_fetch_depth_rejects_tagged_checkout() -> None:
     ) as raised:
         _assert_checkout_fetch_depth_contract(mutated)
     assert tagged_uses in str(raised.value)
+
+
+def test_checkout_fetch_depth_rejects_additional_mixed_case_checkout_step() -> None:
+    """大小文字違いの偽装 checkout 追加を候補件数で拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    harness = _harness_job(mutated)
+    checkout = _checkout_step("harness", harness)
+    uses = _mapping_at(checkout, ("uses",))
+    assert isinstance(uses, str)
+    _, separator, ref = uses.partition("@")
+    assert separator == "@" and ref
+    forged_uses = f"evil/actions/CheckOut@{ref}"
+    forged_checkout = copy.deepcopy(checkout)
+    _set_node_at(forged_checkout, ("uses",), forged_uses)
+    _set_node_at(forged_checkout, ("with", "fetch-depth"), 1)
+    steps = _mapping_at(harness, ("steps",))
+    assert isinstance(steps, list)
+    steps.append(forged_checkout)
+
+    with pytest.raises(AssertionError, match="checkout ステップが複数ある") as raised:
+        _assert_checkout_fetch_depth_contract(mutated)
+    message = str(raised.value)
+    assert uses in message
+    assert forged_uses in message
+
+
+def test_checkout_fetch_depth_rejects_uppercase_forged_checkout_action() -> None:
+    """大文字の偽装 checkout を同一性違反として拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    checkout = _checkout_step("harness", _harness_job(mutated))
+    uses = _mapping_at(checkout, ("uses",))
+    assert isinstance(uses, str)
+    _, separator, ref = uses.partition("@")
+    assert separator == "@" and ref
+    forged_uses = f"evil/actions/CHECKOUT@{ref}"
+    _set_node_at(checkout, ("uses",), forged_uses)
+
+    with pytest.raises(
+        AssertionError,
+        match=re.escape("actions/checkout@<40桁SHA> でない"),
+    ) as raised:
+        _assert_checkout_fetch_depth_contract(mutated)
+    assert forged_uses in str(raised.value)
 
 
 def _staging_profile_registry(tmp_path: Path, *, include_second: bool) -> Path:
