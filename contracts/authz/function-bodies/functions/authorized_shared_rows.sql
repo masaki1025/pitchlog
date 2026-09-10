@@ -179,6 +179,7 @@ BEGIN ATOMIC
         business_row.payload
     FROM authorized_targets AS authorized_target
     JOIN probe_data.probe_business_rows AS business_row
+      -- DECISION: SHARED_BUSINESS_ROW_TENANT_MATCH
       ON business_row.tenant_id = authorized_target.target_tenant_id
      AND
         -- DECISION: SHARED_RESOURCE_KIND_ALLOWLIST

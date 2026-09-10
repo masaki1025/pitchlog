@@ -27,6 +27,7 @@ BEGIN ATOMIC
         SELECT 1 AS authorization_token
         FROM probe_data.probe_memberships AS caller_membership
         JOIN probe_data.probe_grants AS target_grant
+          -- DECISION: MANAGEMENT_TARGET_GRANT_GROUP_MATCH
           ON target_grant.group_id = caller_membership.group_id
         CROSS JOIN request_context
         WHERE

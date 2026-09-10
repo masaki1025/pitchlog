@@ -91,6 +91,7 @@ BEGIN ATOMIC
             NULL::BOOLEAN AS enabled
         FROM request_access
         JOIN probe_data.probe_groups AS controlled_group
+          -- DECISION: CONTROL_GROUP_ROW_GROUP_MATCH
           ON controlled_group.group_id = request_access.group_id
         WHERE request_access.control_kind = 'group'
 
@@ -106,6 +107,7 @@ BEGIN ATOMIC
             NULL::BOOLEAN
         FROM request_access
         JOIN probe_data.probe_memberships AS controlled_membership
+          -- DECISION: CONTROL_MEMBER_ROW_GROUP_MATCH
           ON controlled_membership.group_id = request_access.group_id
         WHERE request_access.control_kind = 'member_names'
           AND
@@ -124,6 +126,7 @@ BEGIN ATOMIC
             NULL::BOOLEAN
         FROM request_access
         JOIN probe_data.probe_memberships AS controlled_membership
+          -- DECISION: CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH
           ON controlled_membership.group_id = request_access.group_id
         WHERE request_access.control_kind = 'membership_admin_details'
           AND
@@ -141,6 +144,7 @@ BEGIN ATOMIC
             controlled_grant.enabled
         FROM request_access
         JOIN probe_data.probe_grants AS controlled_grant
+          -- DECISION: CONTROL_GRANT_ROW_GROUP_MATCH
           ON controlled_grant.group_id = request_access.group_id
         WHERE request_access.control_kind = 'grant'
           AND
@@ -165,6 +169,7 @@ BEGIN ATOMIC
             NULL::BOOLEAN
         FROM request_access
         JOIN probe_data.probe_invitations AS controlled_invitation
+          -- DECISION: CONTROL_INVITATION_ROW_GROUP_MATCH
           ON controlled_invitation.group_id = request_access.group_id
         WHERE request_access.control_kind = 'invitation'
     )
