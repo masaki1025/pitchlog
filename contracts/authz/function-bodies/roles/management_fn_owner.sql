@@ -1,0 +1,5 @@
+-- ELEMENT-TYPE: role
+-- ELEMENT-ID: management_fn_owner
+
+CREATE ROLE management_fn_owner
+    WITH NOLOGIN BYPASSRLS NOSUPERUSER NOCREATEROLE NOINHERIT;

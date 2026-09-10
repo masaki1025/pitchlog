@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_function_body_manifest",
+  "source_commit": "14973f6449ecb7b7502762c89d89ae88d5054ec1",
+  "entries": [
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:apply_representative_grant_change:management_caller.sql",
+      "blob_digest": "d6d723199d9cfeb83238f12b8d3e98571d0d112c",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:apply_representative_grant_change:management_caller"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:authorized_shared_rows:app_role.sql",
+      "blob_digest": "ab9997fecda4f54c8bb1df6c17a578880be7dc5f",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:authorized_shared_rows:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_business_rows:app_role.sql",
+      "blob_digest": "59c2ae25bbe654beb4ba27102bca0fd06f4963d0",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_business_rows:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_business_rows:shared_fn_owner.sql",
+      "blob_digest": "248835f3ad6776a16833e0e001cd204c452a415d",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_business_rows:shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_grants:app_role.sql",
+      "blob_digest": "593e7a8d33773035a9d70e6d4d53ddd024040af9",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_grants:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_grants:management_fn_owner.sql",
+      "blob_digest": "58835b9880d1b69bfc2190a4f57d47e65af47c76",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_grants:management_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_grants:shared_fn_owner.sql",
+      "blob_digest": "a0e6e9a549cc3224403bef10bdfdb475aee716aa",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_grants:shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_groups:app_role.sql",
+      "blob_digest": "9ba0e220f59a49882ae870143495607d801cf29e",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_groups:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_groups:shared_fn_owner.sql",
+      "blob_digest": "132932d95fd4eaca2494c91fc25a494de72c351c",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_groups:shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_invitations:app_role.sql",
+      "blob_digest": "3c5d2301cde18c9788da185ade3077e3bc584615",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_invitations:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_invitations:shared_fn_owner.sql",
+      "blob_digest": "e20a87125df7ca1c0d718c7443b8fb423f7b7c4c",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_invitations:shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_management_effects:app_role.sql",
+      "blob_digest": "b8123719a4bd2967f79196cdc12d104c651aba58",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_management_effects:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_management_effects:management_fn_owner.sql",
+      "blob_digest": "94c885659829675badd76239b184700ef81ac7c8",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_management_effects:management_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_memberships:app_role.sql",
+      "blob_digest": "ec2037632502bfdbd36e352f0881fe102cabdbaa",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_memberships:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_memberships:management_fn_owner.sql",
+      "blob_digest": "5a5b925413e5e7b21ffc04e25623ab50d329b2a1",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_memberships:management_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:probe_memberships:shared_fn_owner.sql",
+      "blob_digest": "389f6d04f8f1664dfc0e4d779f609d928f10a77f",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:probe_memberships:shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/acl-expectations/ACL:read_control_resources:app_role.sql",
+      "blob_digest": "14fcba2730e60b4ab433c0683fafadb148d40401",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:read_control_resources:app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/column-acl-expectations/COLUMN-ACL:ALL-PROBE-TABLES:NO-EXPLICIT-GRANTS.sql",
+      "blob_digest": "1301da267d8a9466278c5987249002142092c3ec",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:ALL-PROBE-TABLES:NO-EXPLICIT-GRANTS"
+    },
+    {
+      "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+      "blob_digest": "9b52c9184603e88a018926820cbd03c2364f7246",
+      "element_type": "function",
+      "element_id": "apply_representative_grant_change"
+    },
+    {
+      "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+      "blob_digest": "286d3c5f2d3d123670b0a3c0c3cf8a27b4d8e067",
+      "element_type": "function",
+      "element_id": "authorized_shared_rows"
+    },
+    {
+      "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+      "blob_digest": "0d38c435eb47f549c3f0c8296d42ea3afd039088",
+      "element_type": "function",
+      "element_id": "read_control_resources"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_business_rows:tenant_boundary.sql",
+      "blob_digest": "7db91d29638362167735c964f16e44b140eda1fd",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_business_rows:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_grants:tenant_boundary.sql",
+      "blob_digest": "e688017551ed65820d23439dae5f57bd065dd3d9",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_grants:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_groups:tenant_boundary.sql",
+      "blob_digest": "549a1db3efbbb0120d23ca77ae96475a713744ab",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_groups:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_invitations:tenant_boundary.sql",
+      "blob_digest": "2c313a905c960362a0abd321a371a9002a3e4312",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_invitations:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_management_effects:tenant_boundary.sql",
+      "blob_digest": "7bcd8787a0eac870105567aa587c10bf8429a6c8",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_management_effects:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/policies/POLICY:probe_memberships:tenant_boundary.sql",
+      "blob_digest": "4b102462f3a0e665296698f8d657eba63f471c85",
+      "element_type": "policy",
+      "element_id": "POLICY:probe_memberships:tenant_boundary"
+    },
+    {
+      "path": "contracts/authz/function-bodies/predicates/PREDICATE:CURRENT_TENANT_OWNS_ROW.sql",
+      "blob_digest": "451c440340296d1412c0be89a827997244930e9f",
+      "element_type": "predicate",
+      "element_id": "PREDICATE:CURRENT_TENANT_OWNS_ROW"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/app_role.sql",
+      "blob_digest": "e1dd8e8ab3815dafd54cfbce58e4a0f6c1400e57",
+      "element_type": "role",
+      "element_id": "app_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/management_caller.sql",
+      "blob_digest": "bd8e83fb19f640910a24d8d8bf5bfb3e1aa7e6f6",
+      "element_type": "role",
+      "element_id": "management_caller"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/management_fn_owner.sql",
+      "blob_digest": "a4fc1c2d5cd56fb57fb969919fdca6524f9e1637",
+      "element_type": "role",
+      "element_id": "management_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/outsider_role.sql",
+      "blob_digest": "ff8fa0f33ed7e97323e192313e3a18ddbf1fdbc6",
+      "element_type": "role",
+      "element_id": "outsider_role"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/provisioner.sql",
+      "blob_digest": "0470e074e8cd5f81d752b58df8f848465796dc2f",
+      "element_type": "role",
+      "element_id": "provisioner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/shared_fn_owner.sql",
+      "blob_digest": "c55d47994f8f325ea0e3ac7f033b4c8e1da2f249",
+      "element_type": "role",
+      "element_id": "shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/roles/table_owner.sql",
+      "blob_digest": "35081b408b3a6d3498b6d39cf0b9938d4b1de6b8",
+      "element_type": "role",
+      "element_id": "table_owner"
+    },
+    {
+      "path": "contracts/authz/function-bodies/schemas/authz_private.sql",
+      "blob_digest": "6d531c673e64d5fe1d0dddd5316f8ad4efe1feb8",
+      "element_type": "schema",
+      "element_id": "authz_private"
+    },
+    {
+      "path": "contracts/authz/function-bodies/schemas/management_private.sql",
+      "blob_digest": "8d6fc33d5f5ef94789fa8c373e78511c8cfc0b08",
+      "element_type": "schema",
+      "element_id": "management_private"
+    },
+    {
+      "path": "contracts/authz/function-bodies/schemas/probe_data.sql",
+      "blob_digest": "a13eb72a3008006c1af0291745b4c65b2dbca220",
+      "element_type": "schema",
+      "element_id": "probe_data"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_business_rows.sql",
+      "blob_digest": "57dc4c60df9cac6c98c467836c7222d73ae1c05a",
+      "element_type": "table",
+      "element_id": "probe_business_rows"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_grants.sql",
+      "blob_digest": "a3d6e8b97b45c13c804d9a2965e15c6319247025",
+      "element_type": "table",
+      "element_id": "probe_grants"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_groups.sql",
+      "blob_digest": "8bd104bb21f6387a5bc9487d82d716edca564910",
+      "element_type": "table",
+      "element_id": "probe_groups"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_invitations.sql",
+      "blob_digest": "806c75b884038192810550caf8ca8bd936e0a942",
+      "element_type": "table",
+      "element_id": "probe_invitations"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_management_effects.sql",
+      "blob_digest": "142fb8194f4f28deb5dd12af4deb4c5bba3fd343",
+      "element_type": "table",
+      "element_id": "probe_management_effects"
+    },
+    {
+      "path": "contracts/authz/function-bodies/tables/probe_memberships.sql",
+      "blob_digest": "e7c2b0bbc829ab367c7a235d9c741c9c0d6ad4e3",
+      "element_type": "table",
+      "element_id": "probe_memberships"
+    }
+  ]
+}
