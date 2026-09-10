@@ -754,3 +754,134 @@ DoD は第 1 弾の射程と整合 / `承認: 未`・`status: active`・`計画�
 現時点の見立ては「**A と E は同じ根(人手列挙の母集団)の別の現れ**なので、
 **候補として 1 本立て、A・E を実例として束ねる**」。
 **実例が 7 + 2(A・E の元の実例)= 9 件あるので、傾向として確定している。**
+
+---
+
+## ステップ 18 の `[手動・外部]` 逐行確認 — **注記漏れ 7 件を検出した**(2026-09-10)
+
+**計画書の合格条件**: 「**注記の網羅性はここで担保する** — 機械では『最初から注記を漏らす』ことを
+捕まえられない(4 周目 `P1-2`)。**body の全認可判定に注記が付いていることを逐行で確認し、
+判定の数と位置を worklog へ記録する**」
+
+### 結果: **7 件の認可判定に注記が無かった**
+
+| ファイル | 行(是正前) | 条件 | 影響 |
+| --- | --- | --- | --- |
+| `apply_representative_grant_change.sql` | 30 | `target_grant.group_id = caller_membership.group_id` | **外すと別グループの grant を操作できる** |
+| **`authorized_shared_rows.sql`** | **182** | **`business_row.tenant_id = authorized_target.target_tenant_id`** | **外すと全テナントの行が返る — 読み取り経路のテナント分離の中核** |
+| `read_control_resources.sql` | 94 | `controlled_group.group_id = request_access.group_id` | 外すと別グループの情報が返る |
+| 同上 | 109 | `controlled_membership.group_id = ...`(member list) | 同 |
+| 同上 | 127 | `controlled_membership.group_id = ...`(admin details) | 同 |
+| 同上 | 144 | `controlled_grant.group_id = ...` | 同 |
+| 同上 | 168 | `controlled_invitation.group_id = ...` | 同 |
+
+**いずれも JOIN の `ON` 条件**であり、**`WHERE` 句の述語だけを注記していた**のが漏れの型である。
+
+### 機構は設計どおり働き、人手が漏れた
+
+**ステップ 1 の `[手動・外部]` 条件**が同じ確認を要求していた
+(「body の全認可判定に注記が付いていることを逐行で確認した」)。**私はそこで漏らした。**
+今回捕まえられたのは、**ステップ 18 が同じ人手確認をもう一度要求していた**ためである。
+**同じ人手確認を 2 つのステップに置いた計画の設計が効いた。**
+
+### 走査の 1 回目は 1 件しか見つけられなかった — **同型 8 回目**
+
+最初に書いた補助スクリプトは「**演算子だけの行の次**」を見る形で、**1 件**しか検出しなかった。
+盲点(**同一行に条件を伴う `AND`** と **`ON` 句**)に気づいて
+「**注記の外にある比較・真偽演算を全掃き**」に変えたら **7 件**出た。
+
+**1 回目の走査結果を信じていたら 6 件を取り逃していた。**
+これは本タスクで **8 回目**の「**人が決めた母集団**」の失敗である
+(走査の鍵 ×2 / セル内の位置 / 歴史的記録の分類 / 対象ファイルの選定 / 抽出キー /
+DoD の否定範囲 / `guard_paths` の列挙 / **本件 = 走査位置の想定**)。
+
+### PO 裁定(2026-09-10・山田正輝)— **注記を追加して再凍結する**
+
+選択肢は 3 つ提示した: **A** 注記を追加して再凍結 / **B** 注記の射程を「`WHERE` 句の認可述語」に
+限定すると明文化して 7 件を残余リスクにする / **C** 231 変異の被覆を先に測って判断する。
+**A を採用。**
+
+### 是正の 3 コミット(`H-85` の 2 段構造を踏んだ)
+
+| コミット | 内容 |
+| --- | --- |
+| `14973f6` | body 3 ファイルへ注記 7 件を追加(ステップ 1 追随)。**この時点で検査は意図的に red** |
+| `8a72a93` | `manifest.json` を `source_commit: 14973f6` へ再導出(ステップ 2 追随)。差分は **4 行のみ** |
+| (次) | `mcdc-map.json` を **40 → 47** へ再生成(ステップ 18) |
+
+**`manifest.json` の `source_commit` にはその body を含むコミットの SHA が必要**で、
+**自コミットの SHA を内容へ埋め込めない**ため 1 コミットでは構築できない
+(`check_authz_function_bodies.py` の `_verify_manifest_commit`)。
+**台帳 `H-85` が記録している 2 段コミット構造そのもの**であり、
+本日 TSK-355 と実測で突き合わせた構造を自分の側でも踏んだ。
+
+### 追加した負例 — **今後は機械で漏らせなくする**
+
+**`SHARED_BUSINESS_ROW_TENANT_MATCH` を写像から外すと red** になる負例を足した。
+**今回人手で漏らした判定を、今後は機械が捕まえる**形にするためである。
+これがないと同じ漏れが人手確認だけに依存し続ける。
+
+### 判定の数と位置(47 件・合格条件の記録要求)
+
+- **総数 47・一意 47**(是正前 40)
+- **判定形の分布**: `ATOMIC` 34 / `AND` 9 / `OR` 1 / `NOT` 2 / `CASE` 1
+- **条件総数 64**(是正前 57)
+
+```text
+functions/apply_representative_grant_change.sql (8)
+    30  MANAGEMENT_TARGET_GRANT_GROUP_MATCH
+    34  MANAGEMENT_REQUESTER_CONTEXT_PRESENT
+    37  MANAGEMENT_GROUP_SCOPE
+    40  MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE
+    45  MANAGEMENT_ADMIN_ROLE_REQUIRED
+    48  MANAGEMENT_TARGET_GRANT_SCOPE
+    51  MANAGEMENT_EFFECT_KIND_MATCH
+    54  MANAGEMENT_TARGET_GRANT_ENABLED
+functions/authorized_shared_rows.sql (14)
+    76  SHARED_RESOURCE_GRANULARITY_ALLOWED
+    79  SHARED_REQUESTER_CONTEXT_PRESENT
+    82  SHARED_TARGET_SET_NONEMPTY
+    85  SHARED_COMPARISON_LIMIT
+    95  SHARED_TARGET_IDENTIFIER_PRESENT
+   105  SHARED_GROUP_EFFECTIVE
+   113  SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE
+   123  SHARED_TARGET_MEMBERSHIP_EFFECTIVE
+   133  SHARED_SELF_TENANT_EXEMPTION
+   137  SHARED_TARGET_GRANTS_COMPLETE
+   155  SHARED_REQUESTER_GRANTS_COMPLETE
+   182  SHARED_BUSINESS_ROW_TENANT_MATCH
+   185  SHARED_RESOURCE_KIND_ALLOWLIST
+   188  SHARED_SELF_OWNED_RESOURCE
+functions/read_control_resources.sql (13)
+    46  CONTROL_RESOURCE_KIND_ALLOWED
+    49  CONTROL_REQUESTER_CONTEXT_PRESENT
+    52  CONTROL_GROUP_EFFECTIVE
+    60  CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE
+    70  CONTROL_ADMIN_ONLY_ACCESS
+    94  CONTROL_GROUP_ROW_GROUP_MATCH
+   110  CONTROL_MEMBER_ROW_GROUP_MATCH
+   114  CONTROL_MEMBER_LIST_ACTIVE_ROW
+   129  CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH
+   133  CONTROL_ADMIN_MEMBER_ACTIVE_ROW
+   147  CONTROL_GRANT_ROW_GROUP_MATCH
+   151  CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE
+   172  CONTROL_INVITATION_ROW_GROUP_MATCH
+policies/POLICY:probe_business_rows:tenant_boundary.sql (2)
+    10  RLS_PROBE_BUSINESS_ROWS_USING
+    21  RLS_PROBE_BUSINESS_ROWS_WITH_CHECK
+policies/POLICY:probe_grants:tenant_boundary.sql (2)
+    10  RLS_PROBE_GRANTS_USING
+    21  RLS_PROBE_GRANTS_WITH_CHECK
+policies/POLICY:probe_groups:tenant_boundary.sql (2)
+    10  RLS_PROBE_GROUPS_USING
+    24  RLS_PROBE_GROUPS_WITH_CHECK
+policies/POLICY:probe_invitations:tenant_boundary.sql (2)
+    10  RLS_PROBE_INVITATIONS_USING
+    21  RLS_PROBE_INVITATIONS_WITH_CHECK
+policies/POLICY:probe_management_effects:tenant_boundary.sql (2)
+    10  RLS_PROBE_MANAGEMENT_EFFECTS_USING
+    21  RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK
+policies/POLICY:probe_memberships:tenant_boundary.sql (2)
+    10  RLS_PROBE_MEMBERSHIPS_USING
+    21  RLS_PROBE_MEMBERSHIPS_WITH_CHECK
+```

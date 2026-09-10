@@ -154,8 +154,26 @@ def test_unresolvable_body_paths_at_another_source_commit_are_red(
     root = copied_repository
     manifest = _read_manifest(root)
     source_commit = manifest["source_commit"]
+    introduction_result = subprocess.run(
+        [
+            "git",
+            "log",
+            "--format=%H",
+            "--diff-filter=A",
+            source_commit,
+            "--",
+            AUTHORIZED_SHARED_ROWS_PATH,
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert introduction_result.returncode == 0, introduction_result.stderr
+    introduction_commits = introduction_result.stdout.splitlines()
+    assert introduction_commits
     result = subprocess.run(
-        ["git", "rev-parse", f"{source_commit}^"],
+        ["git", "rev-parse", f"{introduction_commits[-1]}^"],
         cwd=root,
         capture_output=True,
         text=True,
