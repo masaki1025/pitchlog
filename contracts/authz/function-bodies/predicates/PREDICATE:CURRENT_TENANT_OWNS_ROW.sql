@@ -1,0 +1,11 @@
+-- ELEMENT-TYPE: predicate
+-- ELEMENT-ID: PREDICATE:CURRENT_TENANT_OWNS_ROW
+
+-- PostgreSQL に独立した predicate object はないため、この論理要素は各 policy の
+-- USING / WITH CHECK に次の SQL 式として実体化する。
+-- tenant_id を持つ行:
+--   COALESCE(tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::BIGINT, FALSE)
+-- invitation 行:
+--   COALESCE(invited_tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::BIGINT, FALSE)
+-- group 行は tenant_id を持たないため、同じ group_id の active membership の
+-- tenant_id に上記の比較を適用する。

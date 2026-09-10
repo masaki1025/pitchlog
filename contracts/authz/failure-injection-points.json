@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_failure_injection_points",
+  "source_asset": {
+    "path": "contracts/authz/ddl-elements.json",
+    "git_blob_digest": "a54886bf7cf82c6c4af14e172928849b4b6e4a27"
+  },
+  "injection_points": [
+    {
+      "injection_point_id": "FAILURE-INJECTION:AFTER-ROLE-CREATION",
+      "step_id": "PROVISION-01-CREATE-OWNER",
+      "checkpoint_id": "PROVISION-01-CREATE-OWNER#1",
+      "operation_kind": "create_no_login_bypass_owner",
+      "element_type": "role",
+      "position_rule": {
+        "after_command": "create_role",
+        "command_ordinal_within_element": 1,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "all_target_catalogs",
+        "role_memberships",
+        "default_acls",
+        "fixture_data"
+      ]
+    },
+    {
+      "injection_point_id": "FAILURE-INJECTION:AFTER-POLICY-CHANGE",
+      "step_id": "PROVISION-03-ASSIGN-OBJECTS",
+      "checkpoint_id": "PROVISION-03-ASSIGN-OBJECTS#38",
+      "operation_kind": "create_and_assign_owned_objects",
+      "element_type": "policy",
+      "position_rule": {
+        "after_command": "create_policy",
+        "command_ordinal_within_element": 2,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "all_target_catalogs",
+        "role_memberships",
+        "default_acls",
+        "fixture_data"
+      ]
+    },
+    {
+      "injection_point_id": "FAILURE-INJECTION:AFTER-FUNCTION-BODY-REPLACEMENT",
+      "step_id": "PROVISION-03-ASSIGN-OBJECTS",
+      "checkpoint_id": "PROVISION-03-ASSIGN-OBJECTS#49",
+      "operation_kind": "create_and_assign_owned_objects",
+      "element_type": "function",
+      "position_rule": {
+        "after_command": "create_or_replace_function",
+        "command_ordinal_within_element": 1,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "all_target_catalogs",
+        "role_memberships",
+        "default_acls",
+        "fixture_data"
+      ]
+    },
+    {
+      "injection_point_id": "FAILURE-INJECTION:AFTER-OWNER-CHANGE",
+      "step_id": "PROVISION-03-ASSIGN-OBJECTS",
+      "checkpoint_id": "PROVISION-03-ASSIGN-OBJECTS#50",
+      "operation_kind": "create_and_assign_owned_objects",
+      "element_type": "function",
+      "position_rule": {
+        "after_command": "alter_owner",
+        "command_ordinal_within_element": 2,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "all_target_catalogs",
+        "role_memberships",
+        "default_acls",
+        "fixture_data"
+      ]
+    },
+    {
+      "injection_point_id": "FAILURE-INJECTION:DURING-ACL-NORMALIZATION",
+      "step_id": "PROVISION-04-CLOSE-FUNCTION-ACL",
+      "checkpoint_id": "PROVISION-04-CLOSE-FUNCTION-ACL#4",
+      "operation_kind": "revoke_public_and_grant_named_execute",
+      "element_type": "acl_expectation",
+      "position_rule": {
+        "after_command": "revoke_all_privileges",
+        "command_ordinal_within_element": 1,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "all_target_catalogs",
+        "role_memberships",
+        "default_acls",
+        "fixture_data"
+      ]
+    }
+  ]
+}
