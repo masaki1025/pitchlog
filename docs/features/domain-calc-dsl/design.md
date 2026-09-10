@@ -1046,6 +1046,54 @@ TSK-343 は **`承認: 済(2026-09-10・山田正輝)`**(計画レビュー 6 �
 `.gitignore`(27 行)に `.coverage` にマッチするパターンが**無い**
 (`coverage/` はディレクトリなのでファイル `.coverage` に当たらない)。→ index 除去 + `.gitignore` 追加が必要。
 
+## 15-2. ◎ `boundary-proposal.json` が本タスクへ割り当てた所有は受け取れない(2026-09-11)
+
+**TSK-317 からの照会**。`contracts/authz/boundary-proposal.json`(develop)が
+**本タスクを 3 箇所の owner に指名している**:
+
+| 箇所 | owner |
+| --- | --- |
+| `BOUNDARY:SHARED-AUTHORIZED-ROWS` の `aggregation_owner_task_id` | **TSK-235** |
+| `BOUNDARY:CONTROL-READS` の `aggregation_owner_task_id` | **TSK-235** |
+| `deferred_equivalence_contract.owner_task_id`(`status: deferred`) | **TSK-235** |
+
+かつ **`proposal_status: pending_tsk_235_confirmation`**。
+
+### 実測(2026-09-11)
+
+- **本タスクの plan / design / research に `BOUNDARY` / `boundary` / `deferred_equivalence` /
+  `SHARED-AUTHORIZED` / `CONTROL-READS` の語は 1 件も無い**(grep で 0 / 0 / 0)
+- **本計画書は `承認: 未`** — **一度も承認されていない**。「承認済み計画書に入っているか」という問い自体が
+  成立しない
+- 計画書 §3 は **`contracts/**` = 反映なし**と宣言している
+- `boundaries[0]` の `aggregation_location` は **`generated_sql_expression`**
+
+### 判定 — 受け取れない。理由は 2 段
+
+**(1) 機構と対象の混同がある。** `generated_sql_expression` は NFR-018 の **(β) 区分**の形
+(SQL 式 + 型付き受け口)なので、**それを生成する機構**は確かに本タスクの射程。
+しかし本タスクは**基盤のみ**で、**対象別の生成物は作らない**(§2 やらないこと 1 = `ADR-003` 段階 2)。
+**「機構を持つ」ことは「その対象を所有する」ことではない。**
+
+**(2) この集計は NFR-018 の対象集合に入っていない。** 対象は **(α)5 + (β)①〜⑧** で閉じており
+(要件書 `NFR-018 対象欄`)、**追加・削除には要件書の改訂を要する**。(β)①〜⑧ は成績系の集計・導出であり、
+**認可境界の集計は含まれない**。
+
+→ **二者択一になる**:
+
+| 読み | 帰結 |
+| --- | --- |
+| この集計が **NFR-018 の対象計算である** | **要件書の改訂で対象集合へ追加する**必要がある。**TSK-235 が黙って所有することはできない** |
+| **対象計算ではない** | 通常の認可コードであり、**本タスクとは無関係**。owner は認可側(TSK-317 / TSK-250)へ移す |
+
+**どちらにせよ、現状の owner 記載のまま再封印してはならない。**
+
+### `pending_tsk_235_confirmation` について
+
+**本タスクは確認主体になり得ない。** 計画は未承認かつ停止中で、確認すべき対象も射程に無い。
+→ **PO 裁定へ上げる事項**であって、TSK-235 の確認待ちではない。**status が陳腐化している**か、
+**起票時に受取先を誤って指名した**かのいずれか。
+
 ## 16. 再開時の自己点検(TSK-355 の確定ゲートで実証された 2 つの型)
 
 TSK-355 が敵対レビューで突かれた型のうち、**本タスクに同型がある**もの。再開時に自分の計画へ当てる。
