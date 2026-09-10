@@ -28,6 +28,7 @@ BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
+CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
 # source_commit 検査や三点差分へ推移した先にあるため、ジョブ名を列挙する。
 # 片方だけでは新設ジョブが素通りするので、あり・なしの両集合を exact-set 固定する。
@@ -150,8 +151,33 @@ def _mapping_at(node: object, path: NodePath) -> Any:
     return current
 
 
+def _is_pinned_checkout_action(uses: object) -> bool:
+    """uses が公式 checkout の SHA 固定参照なら真を返す。
+
+    action ID を固定しなければジョブ名の exact-set が意味を持たないため、
+    候補の件数検査とは分けて action ID と ref の双方を厳格に検査する。
+
+    Args:
+        uses: CI ステップの ``uses`` 値。
+
+    Returns:
+        ``actions/checkout@<40桁SHA>`` と完全一致する場合は真。
+    """
+    if not isinstance(uses, str):
+        return False
+    action_id, separator, ref = uses.partition("@")
+    return (
+        separator == "@"
+        and action_id == "actions/checkout"
+        and CHECKOUT_SHA_RE.fullmatch(ref) is not None
+    )
+
+
 def _checkout_step(job_name: str, job: object) -> dict[str, Any]:
-    """ジョブから唯一の checkout ステップを取得する。
+    """広く抽出した候補から唯一かつ正規の checkout ステップを取得する。
+
+    候補抽出の部分一致は偽装を見逃さず件数へ含めるために使い、その後で
+    唯一の候補が公式 action の SHA 固定参照であることを別に主張する。
 
     Args:
         job_name: CI ジョブ名。
@@ -159,21 +185,34 @@ def _checkout_step(job_name: str, job: object) -> dict[str, Any]:
 
     Returns:
         唯一の actions/checkout ステップ。
+
+    Raises:
+        AssertionError: 候補が 0 件・複数件、または正規の SHA 固定参照でない場合。
     """
     steps = _mapping_at(job, ("steps",))
     assert isinstance(steps, list), f"{job_name}.steps は配列でなければならない"
-    checkout_steps = [
+    checkout_candidates = [
         step
         for step in steps
         if isinstance(step, dict)
         and isinstance((uses := step.get("uses")), str)
-        and "actions/checkout" in uses
+        and "checkout" in uses
     ]
-    assert len(checkout_steps) == 1, (
-        f"{job_name} の actions/checkout はちょうど 1 件必要: "
-        f"{len(checkout_steps)} 件"
+    if not checkout_candidates:
+        raise AssertionError(f"{job_name} に checkout ステップが無い")
+    if len(checkout_candidates) > 1:
+        candidate_uses = [candidate["uses"] for candidate in checkout_candidates]
+        raise AssertionError(
+            f"{job_name} に checkout ステップが複数ある: uses={candidate_uses}"
+        )
+
+    checkout = checkout_candidates[0]
+    uses = checkout["uses"]
+    assert _is_pinned_checkout_action(uses), (
+        f"{job_name} の checkout は actions/checkout@<40桁SHA> でない: "
+        f"actual={uses!r}"
     )
-    return checkout_steps[0]
+    return checkout
 
 
 def _assert_checkout_fetch_depth_contract(
@@ -1152,6 +1191,76 @@ def test_checkout_fetch_depth_rejects_new_shallow_job() -> None:
 
     with pytest.raises(AssertionError, match="fetch-depth: 0 を持たないジョブ"):
         _assert_checkout_fetch_depth_contract(mutated)
+
+
+@pytest.mark.parametrize(
+    "forged_action_id",
+    (
+        pytest.param("evil/actions/checkout", id="owner-prefix"),
+        pytest.param("actions/checkout-fake", id="repository-suffix"),
+    ),
+)
+def test_checkout_fetch_depth_rejects_forged_checkout_action_id(
+    forged_action_id: str,
+) -> None:
+    """公式 checkout に似せた action ID を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    checkout = _checkout_step("harness", _harness_job(mutated))
+    uses = _mapping_at(checkout, ("uses",))
+    assert isinstance(uses, str)
+    _, separator, ref = uses.partition("@")
+    assert separator == "@" and ref
+    forged_uses = f"{forged_action_id}@{ref}"
+    _set_node_at(checkout, ("uses",), forged_uses)
+
+    with pytest.raises(
+        AssertionError,
+        match=re.escape("actions/checkout@<40桁SHA> でない"),
+    ) as raised:
+        _assert_checkout_fetch_depth_contract(mutated)
+    assert forged_uses in str(raised.value)
+
+
+def test_checkout_fetch_depth_rejects_additional_forged_checkout_step() -> None:
+    """本物と偽装 checkout の重複を候補件数で拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    harness = _harness_job(mutated)
+    checkout = _checkout_step("harness", harness)
+    uses = _mapping_at(checkout, ("uses",))
+    assert isinstance(uses, str)
+    _, separator, ref = uses.partition("@")
+    assert separator == "@" and ref
+    forged_uses = f"evil/actions/checkout@{ref}"
+    forged_checkout = copy.deepcopy(checkout)
+    _set_node_at(forged_checkout, ("uses",), forged_uses)
+    _set_node_at(forged_checkout, ("with", "fetch-depth"), 1)
+    steps = _mapping_at(harness, ("steps",))
+    assert isinstance(steps, list)
+    steps.append(forged_checkout)
+
+    with pytest.raises(AssertionError, match="checkout ステップが複数ある") as raised:
+        _assert_checkout_fetch_depth_contract(mutated)
+    message = str(raised.value)
+    assert uses in message
+    assert forged_uses in message
+
+
+def test_checkout_fetch_depth_rejects_tagged_checkout() -> None:
+    """checkout のタグ固定を SHA 固定違反として拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    checkout = _checkout_step("harness", _harness_job(mutated))
+    tagged_uses = "actions/checkout@v5"
+    _set_node_at(checkout, ("uses",), tagged_uses)
+
+    with pytest.raises(
+        AssertionError,
+        match=re.escape("actions/checkout@<40桁SHA> でない"),
+    ) as raised:
+        _assert_checkout_fetch_depth_contract(mutated)
+    assert tagged_uses in str(raised.value)
 
 
 def _staging_profile_registry(tmp_path: Path, *, include_second: bool) -> Path:
