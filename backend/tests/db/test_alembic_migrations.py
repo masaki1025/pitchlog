@@ -71,6 +71,7 @@ def test_minimal_revision_and_application_engine_use_the_empty_database(
         database_url = _sqlalchemy_url(cluster.admin_dsn)
         monkeypatch.setenv("PITCHLOG_MIGRATION_DATABASE_URL", database_url)
         monkeypatch.setenv("PITCHLOG_DATABASE_URL", database_url)
+        monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
         config = _alembic_config()
 
         heads = ScriptDirectory.from_config(config).get_heads()

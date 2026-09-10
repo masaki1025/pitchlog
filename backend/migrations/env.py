@@ -7,6 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from pitchlog.db.base import Base
+from pitchlog.db.config import require_database_configuration
 from pitchlog.db.url import normalize_postgresql_url
 
 config = context.config
@@ -25,7 +26,11 @@ def _migration_database_url() -> str:
     Returns:
         psycopg 3 を明示した migration 用 URL。
     """
-    return normalize_postgresql_url(os.environ[_MIGRATION_DATABASE_URL_VARIABLE])
+    database_url = require_database_configuration(
+        _MIGRATION_DATABASE_URL_VARIABLE,
+        os.environ.get(_MIGRATION_DATABASE_URL_VARIABLE),
+    )
+    return normalize_postgresql_url(database_url)
 
 
 def run_migrations_offline() -> None:

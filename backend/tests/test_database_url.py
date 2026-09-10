@@ -44,6 +44,7 @@ def test_application_engine_uses_psycopg_driver(
         "PITCHLOG_DATABASE_URL",
         "postgresql://user:password@db.example/pitchlog",
     )
+    monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
 
     engine = create_database_engine()
     try:
