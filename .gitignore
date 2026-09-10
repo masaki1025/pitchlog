@@ -16,6 +16,9 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 *.egg-info/
+# coverage.py の生成物が一括 add で再び追跡されるのを防ぐ
+.coverage
+.coverage.*
 
 # Node
 node_modules/
