@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 9        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 10        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -187,7 +187,7 @@ git diff --exit-code origin/develop...HEAD -- \
 | `contracts/authz/` の**凍結 15 パス** | **本計画では変更しない**(`S-1`・`S-5`・`S-7` として改訂 3 第 2 弾の射程) |
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
-| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | 新設資産(`shared-preconditions` / `failure-injection-points` / `mcdc-map` / body manifest)の検査を追加する。**status 契約の変更と期待件数の撤去は改訂 3 第 2 弾**(`S-2`・`S-8`)— **本計画では行わない** |
+| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更と期待件数の撤去は改訂 3 第 2 弾**(`S-2`・`S-8`)— **本計画では行わない** |
 | `tests/test_core_guard.py` | **本計画(第 1 弾)では変更しない** — 新設パスの発火試験・`core-areas.json` への登録・`test_ci_wiring.py` の追記はいずれも**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) |
 | `docs/features/pg-authz-verification-g2/{plan,research,design}.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
@@ -382,7 +382,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 - [ ] **`TX:REPRESENTATIVE_MANAGEMENT` の原子性・失敗注入 5 種・信頼境界の残余リスク試験がある**
 - [ ] **`R-3` の封鎖方式を実装した** — **認可行を lock する**か**認可条件を副作用 DML の同一文へ埋め込む**(観測だけで満たした扱いにしていない — 4 周目 `P1-7`)
 - [ ] **失敗注入点の 5 件が閉じた ID を持ち、`checkpoint_id` が相互に異なり、適用器の実行ログに実在する**(実行ログ全体との exact-set ではない — 4 周目 `P1-3`)。**5 種の位置に対応することを `operation_kind` で機械判定した**
-- [ ] **`contract_only` 158 行について、本計画の承認範囲では何も実装していない**(**裁定 `D-9`** で旧ステップ 17「152 個の実テストを書く」を撤去した — `R-7` が runtime テストを**受取タスクの所有**と定めており、TSK-317 が書くと同条が名指しで警戒する「契約 lint を実副作用 kill として数える抜け道」になる)。**検証方法**: **`runtime_test_owner.status` が 158 行すべて `planned` のまま**であり、**`contract_only` 158 行を対象とする新設テストが 0 件**であること。**受取契約の確定は改訂 3 第 2 弾の `S-10`**(裁定 `D-10` — 本計画の DoD ではない)
+- [ ] **`contract_only` 158 行について、本計画の承認範囲では「受取タスク所有の runtime テスト」と「その論理 ID → pytest node ID の解決」を実装していない**(**schema-drift kill は禁止対象ではない** — **実測で 231 変異のうち 173 件が `contract_only` のみを参照**しており、**それらはステップ 19 の全量実行が schema-drift チャネルで kill する本タスクの仕事である**。`contract_only` の意味は `kill_contract.contract_only_runtime_rule` = `runtime_kill_forbidden_handoff_test_required` のとおり**「runtime kill を禁じる」であって「schema-drift kill もしない」ではない**。5 周目 `P0-2`)(**裁定 `D-9`** で旧ステップ 17「152 個の実テストを書く」を撤去した — `R-7` が runtime テストを**受取タスクの所有**と定めており、TSK-317 が書くと同条が名指しで警戒する「契約 lint を実副作用 kill として数える抜け道」になる)。**検証方法**: **`runtime_test_owner.status` が 158 行すべて `planned` のまま**であり、**`runtime_test_owner.id` の論理 ID を pytest node ID へ解決する仕組みを本計画で作っていない**こと(**schema-drift kill を実行する mutation は対象外** — ステップ 19 の要求と両立させる)。**受取契約の確定は改訂 3 第 2 弾の `S-10`**(裁定 `D-10` — 本計画の DoD ではない)
 - [ ] **MC/DC の判定 ID 集合が body 由来の集合と exact-set 一致する**(架空の判定を足せない・後から減らせない)。**疑似ペアを弾く 4 条件を機械で検査している**
 - [ ] **注記の網羅性を人手逐行確認で担保した** — **機械では「最初から注記を漏らす」ことを捕まえられない**(4 周目 `P1-2`)。body の全認可判定に注記があることを確認し、判定の数と位置を worklog へ記録した
 - [ ] **231 変異・276 相互作用・最小 cut set 24・MC/DC を実行し、非等価変異の生存が 0 件**。**件数を定数で持っていない**
