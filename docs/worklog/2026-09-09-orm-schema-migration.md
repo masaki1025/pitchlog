@@ -191,3 +191,73 @@ branch: feature/orm-schema-migration
 
 **`TSK-355` を `/task-start` する新しいタブが要る** — TSK-235 のクリティカルパスはこれだけになった。
 **1 タスク = 1 worktree の規律があるので既存タブでは開けない**(TSK-235 のタブもそう判断している)。
+
+## ステップ 1 完了と DB テストの切り分け(2026-09-10)
+
+**ステップ 1(`71c3d86`)を完了した。** 合格条件 6 件はすべて worktree で実測確認した
+(「ORM は入れない」0 件 / 「設計フェーズで最終確定」0 件 / 5.1 の採用理由と却下案 3 件 /
+変更履歴の最大版 v1.14 = `docs/README.md` / lock ↔ pyproject 一致で SQLAlchemy major = 2 /
+ORM 契約テスト 6 passed)。`/check` はルート `ruff`・`ty` green で pytest **1188 passed**、
+backend は `ruff format` 35 files unchanged・`ruff check` green・`ty check` green・非 DB **60 passed**。
+
+### 罠 1 — DSN のスキームが DB 必須テスト 102 件を全滅させていた
+
+`tests/db` が **102 件すべて setup error** になっていた。原因は環境変数
+`PITCHLOG_TEST_ADMIN_DSN` / `PITCHLOG_TEST_ROLE_DSN` のスキームが `postgresql+psycopg://` で、
+これは **SQLAlchemy の URL 形式であり libpq の conninfo ではない**こと。psycopg の
+`conninfo_to_dict` が `missing "=" after ...` で弾いていた。**`research.md` 4-3 節が
+文書化した罠がそのまま発火した。**
+
+スキームを外すだけで通る(値の他の部分は正しい。PostgreSQL 17.11 へ実接続して確認済み):
+
+```
+PITCHLOG_TEST_ADMIN_DSN="${PITCHLOG_TEST_ADMIN_DSN/+psycopg/}" \
+PITCHLOG_TEST_ROLE_DSN="${PITCHLOG_TEST_ROLE_DSN/+psycopg/}" \
+uv run pytest -c pyproject.toml tests/db -q
+```
+
+→ **102 setup error が消え、100 passed まで到達した。** 詳細設計 7-2 節へ追記した。
+
+### 罠 2 — その setup error が develop の既存 red 11 件を隠していた
+
+102 件が消えた結果 **11 failed** が露出した。**すべて TSK-317 の認可テスト**で、
+develop でも同じ 11 件が失敗する(**失敗テスト ID を diff して差分 0** で確定)。
+
+**単一原因**: TSK-317 PR #1(#52)の `14973f6` が凍結 body へ判定注記
+`MANAGEMENT_TARGET_GRANT_GROUP_MATCH` を追加し body 側を **8 件**にしたが、
+exact-set の相手側 2 箇所が **7 件のまま**。
+
+| 資産 | 注記の件数 |
+| --- | --- |
+| `contracts/authz/function-bodies/functions/apply_representative_grant_change.sql` | **8**(`:30` に GROUP_MATCH) |
+| `backend/tests/db/test_authz_management_probe.py:331` `_AUTHORIZATION_FAILURE_CASES` | **7** |
+| `backend/tests/db/test_authz_toctou.py` の 2 文 mutant SQL | **7** |
+
+`_assert_failure_case_contract`(probe:370-378)と `_assert_mutant_decision_set`(toctou:515-528)が
+どちらも `_decision_ids_from_body()` と exact-set 比較するので 8 対 7 で必ず red。
+`git log -S'MANAGEMENT_TARGET_GRANT_GROUP_MATCH' -- backend/tests/db/` は **0 件**で、
+テスト側には一度も入っていない。manifest 再導出(`8a72a93`)と MC/DC 写像(`573fb63`)は
+追随済みなので、**この 2 ファイルだけが取り残された**。
+
+**修正は TSK-317 の所有範囲**(3 節の所有境界で `backend/tests/db/` は TSK-317)なので触らない。
+**`pitchlog-89` へ報告済み**(スキームの誤診の訂正も併せて — 同タブは「サンドボックスから
+PostgreSQL に到達できない」と判断していたが、実際は DSN のスキームだった)。
+申し送り **`S-9`** として計画書 4-12 節へ記録した。
+
+### 構図として記録すべきこと
+
+`14973f6` のコミット本文は「機構は設計どおり動き、人手が漏れた」と書いている。
+今回はその**二段目**が見えた — **機械の exact-set は片側を増やしたことを正しく捕まえていたのに、
+その red が DSN スキーム起因の setup error に隠れて誰にも見えなかった**。
+**fail-closed な setup error は、その先の実体的な red を全部飲み込む。**
+→ 症状の見分け方を詳細設計 7-2 節へ書いた(setup error が 102 件そろっていればスキームの疑い、
+個別の `AssertionError` なら実体の red。前者は後者を隠すので前者を先に消す)。
+
+### 他タブの待ち状況の更新(2026-09-10)
+
+| タブ | タスク | 状態 | ブロッカ |
+| --- | --- | --- | --- |
+| `pitchlog-89` | **TSK-317** | **PR #1(#52)マージ済 → PR 段階** | **develop に red 11 件を残している**(本タブから報告済) |
+| **`tsk343-orm`(本タブ)** | **TSK-343** | **実装中 ステップ 1/28 完了** | なし(`S-9` の 11 件は除外して進める) |
+| `tsk355-transition` | **TSK-355** | 着手済(別タブが起票された) | — |
+| `tsk235-dsl` | **TSK-235** | 停止 | **TSK-355** |

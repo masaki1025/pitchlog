@@ -386,6 +386,17 @@ FK(参照先・構成列・**`MATCH`**・**削除動作**・複合か越境か)/
 **次の 3 資産には触らない**: `tests/test_ci_wiring.py:395-397` /
 `.github/workflows/ci.yml` の job env の DSN / `backend/tests/db/environment-expectations.json:197,205`。
 
+**作業者の手元環境も同じ範囲に含める**(2026-09-10 実測で発火した): 環境変数
+`PITCHLOG_TEST_ADMIN_DSN` / `PITCHLOG_TEST_ROLE_DSN` は **libpq の conninfo として消費される**ので、
+**`postgresql+psycopg://` スキームを与えてはいけない**。与えると psycopg が
+`missing "=" after ...` で弾き、**DB 必須テスト 102 件が全部 setup error になる**。
+ステップ 3 以降でアプリ用・Alembic 用の URL を `postgresql+psycopg://` へ正規化するが、
+**その正規化はこの 2 本のテスト DSN には適用しない**(DoD `D3` の
+「psycopg へ直接渡るテスト DSN は変更していない」がこれを閉じる)。
+**症状の見分け方**: `tests/db` の失敗が「setup error」で 102 件そろっていればスキームの疑い、
+個別の `AssertionError` なら実体の red。**前者は後者を隠す**ので、
+まずスキームを外して 102 件の setup error を消してから残りを読む。
+
 ### 7-3. 設定契約 — 3 つのキーに分ける(2 つの URL + pooler フラグ)
 
 **1 周目で「Alembic 用 direct URL とアプリ用 URL を別設定にする」と決めたが、
