@@ -177,9 +177,21 @@ def _shared_runtime_scenario(
     Returns:
         共通 fixture と、非共有対象を含む主呼び出し。
     """
+    fixture, invocation = _shared_runtime_scenario_definition()
+    _insert_runtime_fixture(provisioned_catalog, fixture)
+    return fixture, invocation
+
+
+def _shared_runtime_scenario_definition() -> tuple[
+    _PositiveRuntimeFixture, _ProbeInvocation
+]:
+    """ステップ 7 の fixture からステップ 8 の拒否シナリオを選ぶ。
+
+    Returns:
+        共通 fixture と、非共有対象を含む主呼び出し。
+    """
     case = next(iter(_POSITIVE_CASES))
     fixture = _runtime_fixture_definition(case)
-    _insert_runtime_fixture(provisioned_catalog, fixture)
     unshared_tenant_ids = {
         row.tenant_id
         for row in fixture.business_rows

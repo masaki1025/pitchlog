@@ -800,6 +800,30 @@ def _fetch_authorized_shared_rows(
             "SELECT pg_catalog.set_config('app.tenant_id', %s, true)",
             (str(fixture.requester_tenant_id),),
         )
+
+    return _fetch_authorized_shared_rows_in_current_context(
+        connection,
+        fixture,
+        invocation,
+    )
+
+
+def _fetch_authorized_shared_rows_in_current_context(
+    connection: psycopg.Connection[Any],
+    fixture: _PositiveRuntimeFixture,
+    invocation: _ProbeInvocation,
+) -> frozenset[_ReturnedRow]:
+    """現在のテナント文脈を変更せず共有関数の返却集合を取得する。
+
+    Args:
+        connection: アプリ用ロール自身で認証した接続。
+        fixture: 粒度を持つ共通 fixture。
+        invocation: グループと対象集合を持つ呼び出し定義。
+
+    Returns:
+        exact-set 比較用に正規化した関数返却集合。
+    """
+    with connection.cursor() as cursor:
         cursor.execute(
             """
             SELECT tenant_id, resource_kind, ownership_kind, payload
