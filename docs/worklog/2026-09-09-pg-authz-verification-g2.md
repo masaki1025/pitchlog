@@ -1121,3 +1121,91 @@ TSK-235 の申し送りが「**未登録のままでは、凍結資産を検査�
 → **PR #2 のクローズ処理で台帳の候補 1 を是正する**(「示せること / 示せないこと」の書き分けを入れる)。
 **TSK-355 と TSK-235 は同じ交絡を指摘し合って両方の文書で書き分けた**と報告しており、
 **同じ形に揃える。**
+
+---
+
+## PR #2 の着手準備 — `S-1`〜`S-10` の実測(2026-09-11)
+
+**PR #1 のマージ後、TSK-343 のマージを待つ間に実測した。**
+**改訂 3 第 2 弾の起草に入る前の入力であり、この時点では計画書を変更しない**
+(`status` は `in-review` のまま)。
+
+### 実測の一覧
+
+| # | 実測で確定した事実 |
+| --- | --- |
+| **`S-1`** | 入力資産 **8** + 封印資産 **6** = **14 パス**(凍結 15 パスは lock を含む数え方)。`reseal_policy` = `{normal_validation_reseals: false, dedicated_flag: "--reseal-oracle", human_review_required: true}`。**`oracle-seal.lock.json` 自身は `oracle_context.oracle_commit` を持たない**(`None`) |
+| **`S-2`** | 解決対象は **468** = 本タスク所有 claims **178** + `positive_cases.cases[].test_owner` **6** + `two_factor_interactions` **276** + `ddl-elements` の表権限 **8**。**`::` を含む論理 ID は 0/468**。対して `catalog_test_owner` **187/187** と `schema_drift_test_owner` **198/198** は**実 node ID**(`::` あり) |
+| **`S-3`** | 小項 ID は **`requirement-claims.json` の `list_item` 603 件**にある。**`req-universe.json` は `contracts/` ではなく `scripts/design_relations/` にあり別系統**(`tests/fixtures/` にも同名がある) |
+| **`S-4`** | `auth-catalog.json` の `catalog_entry_id` は **187 件・一意 187・全件 `CATALOG:` 接頭辞**(`AUTH-*` は 0 件) |
+| **`S-5`** | `proposal_status: pending_tsk_235_confirmation` / `pending_human_reviews` **2 件**(`PENDING-MANAGEMENT-COMMAND-COUNT` = `frozen_value: 8` / `alternative_value: 7` / `status: pending_human_decision`、`PENDING-ALL-LOGICAL-SCOPE` = `frozen_value: 29` / `alternative_value: null` / `status: pending_human_review`)。**status の綴りが 2 種ある** |
+| **`S-6`** | `boundary-proposal.json` の owner は **TSK-235 が 3 件・TSK-250 が 1 件・TSK-217 が 1 件** |
+| **`S-7`** | `scope` の現在値 = `{"status": "candidate_probe_only", "product_schema": false, "contains_sql_body": false, "second_group_approval_required": true}`。**変更するのは `status` と `second_group_approval_required` の 2 箇所** |
+| **`S-8`** | PR #1 で新設した検査器とテストは **8 本・全件 `guard_paths` 未登録**。**develop 上の未登録 `check_*` / `test_check_*` は全体で 17 本** |
+| **`S-9`** | `TSK-270-GROUP-2` は **`claim-mutant-map.json` の 178 件のみ**(他資産に 0 件) |
+| **`S-10`** | `contract_only` 158 行 / 一意 152 ID(既測)。**`claims[].runtime_test_owner` 全体では 198 参照 / 187 一意で、8 組が ID を共有(重複 11 件)** |
+
+### 計画書の記述との突合 — **食い違い 0 件だが、私の初回の数え方が誤っていた**
+
+**`S-2` の「468 参照」を検算したところ、私の最初の測定は 474 と出て食い違った。**
+原因は**私が「本タスク所有」で絞らず全 198 claims を数えた**こと。
+**正しい内訳は 178 + 6 + 276 + 8 = 468 で、計画書の記述は正しい。**
+
+**教訓**: **計画書の数字を疑う前に、計画書が何を数えているかを読む。**
+本件は「計画書が間違っている」と誤認しかけた 1 例で、
+**新規候補の型(母集団の定義の食い違い)の裏返し**である。
+
+### 計画書に無い新事実 — **第 2 弾で扱う必要があるもの 4 件**
+
+**① `S-6` に TSK-235 が抜けている(最重要)**
+
+`boundary-proposal.json` の owner は **TSK-235 が最多の 3 件**である:
+
+| 箇所 | owner |
+| --- | --- |
+| `boundaries[0]` `BOUNDARY:SHARED-AUTHORIZED-ROWS` の `aggregation_owner_task_id` | **TSK-235** |
+| `boundaries[1]` `BOUNDARY:CONTROL-READS` の `aggregation_owner_task_id` | **TSK-235** |
+| `deferred_equivalence_contract.owner_task_id` | **TSK-235** |
+| `boundaries[2]` `BOUNDARY:REPRESENTATIVE-MANAGEMENT` の `aggregation_owner_task_id` | TSK-250 |
+| `trust_boundary.verification_owner_task_id` | TSK-217 |
+
+**`S-6` は「受取タスク(TSK-250 / TSK-217)」しか挙げていない。**
+**集計の等価性契約が TSK-235 の所有**なのに受取契約に入っていない。
+しかも **`proposal_status: pending_tsk_235_confirmation`** で
+**TSK-235 の確認を待っている状態**である。
+→ **`S-6` の射程に TSK-235 を加えるか、別要件を立てるかを第 2 弾で決める。**
+
+**② `S-8` の射程が 8 本では足りない可能性**
+
+`guard_paths` に登録されている `check` 系は **6 本だけ**
+(`check_design_propagation` / `check_doc_coverage` / `check_processing_stages` とその対)。
+**`scripts/check_authz_catalog.py` — 凍結オラクル資産を検査する中央の検査器 — が未登録。**
+未登録 17 本の内訳 = **PR #1 の新設 8** + **既存 9**
+(`check_authz_catalog` / `check_docs_status` / `check_doc_profiles` /
+`check_nfr021_append_only` / `check_plan_docs_sync` と対のうち 4 本)。
+→ **登録対象を 8 本に限るか 17 本にするかは PO 裁定へ上げる**
+(6.3 規則⑤の負担が対象数に比例するため)。
+
+**③ `S-10` の共有 ID は 152/158 だけの話ではない**
+
+`contract_only` の 158 行で 6 組が共有していることは既測だが、
+**`claims[].runtime_test_owner` 全体では 198 参照 / 187 一意で 8 組が共有**している。
+**`S-2` の解決方式も共有 ID を扱えないと落ちる。**
+
+**④ `S-1` の「7 ファイル × 1 行」の内訳**
+
+**`oracle-seal.lock.json` 自身は `oracle_commit` を持たない**(実測で `None`)。
+`H-85` の実測が「6 資産と seal の `oracle_commit` 差し替え(7 ファイル × 1 行)」と記録しているが、
+**seal 側は別のフィールド**である可能性がある。
+→ **第 2 弾で実際に reseal を打つ前に、seal のどのフィールドが変わるかを実測する**
+(`H-85` の候補①が記録する「委任プロンプトには誤った手順を書いていた」を踏まないため)。
+
+### 第 2 弾の起草時にやること(順序つき)
+
+1. **TSK-343 のマージを待ってリベース**(`test_ci_wiring.py` と `core-areas.json` が動く)
+2. **リベース後に本節の実測を取り直す**(TSK-343 が触る 2 ファイルと、
+   `check_authz_catalog` の出力〔`total=1078` 等〕が変わり得る)
+3. **上記 ① ② を PO 裁定へ上げる**(`S-6` の射程 / `S-8` の対象数)
+4. **写像表をどのステップの許容差分に入れるかを先に決める**(TSK-355 の助言)
+5. 計画書を `status: in-review → active`・`承認: 未` へ戻して改訂
+6. **敵対レビュー(コア領域なので必須)→ 人間承認 → 実装**
