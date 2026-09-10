@@ -254,7 +254,7 @@ test-only metadata に差分を作ると `alembic check` が red になる負例
 
 ### 4-6. マージ順序(裁定 `Q-4`)
 
-**TSK-348(完了)→ TSK-317 PR #1 → 本タスク → TSK-317 PR #2 → TSK-355 → TSK-235。**
+**TSK-348(完了)→ TSK-317 PR #1(完了)→ TSK-317 fix → 本タスク → TSK-317 PR #2 → TSK-355 → TSK-235。**
 
 > **是正(2026-09-10)**: **旧記述「… → TSK-235 → (TSK-317 の改訂 3)」は循環を生んでいた**
 > ため、**既存の事実に合わせて是正した**(4-16 節)。**人間の裁定 `Q-4` 本体
@@ -262,8 +262,26 @@ test-only metadata に差分を作ると `alembic check` が red になる負例
 > 末尾の付記**だけである。
 
 **第 1 矢は完了した** — TSK-348 は **PR #51 として develop へマージ済み**(2026-09-10・`4ed54fc`)。
-**残るのは TSK-317 PR #1 → 本タスク → TSK-317 PR #2 → TSK-355 → TSK-235**。
-**TSK-317 は 17/20**(2026-09-10 実測 — 最新コミット `14e8bb1` が「(ステップ 17)」)。
+**第 2 矢も完了した** — **TSK-317 PR #1 は PR #52 として develop へマージ済み**(2026-09-10・`67e06a2`)。
+
+**`TSK-317 fix` を 2026-09-10 に挿入した**(承認後の追記 — 4-13 節と同型)。
+**ブランチは `fix/authz-decision-note-followup`**、射程は `backend/tests/db/` の 2 ファイルのみ
+(`contracts/authz/**` には触らない)。
+
+- **挿入の理由**: **PR #1 が develop に red 11 件を残した**(申し送り `S-9`)。
+  **これを本タスクより後にすると、本タスクのステップ 2 以降が「backend DB テスト green」を
+  合格条件に使えない**。TSK-317 は当初「PR #2 に載せる」案だったが、
+  **develop が数週間 red のままになる**ため PO 判断で fix ブランチに分離された
+- **人間の裁定 `Q-4` 本体は変えていない** — `Q-4` が定めるのは
+  **`TSK-348 → TSK-317 → 本タスク`** の相対順序であり、
+  **TSK-317 の成果物が本タスクより前に来ること**は保たれている。
+  **新たに循環を作らないことも確認した**(fix は本タスクより前・PR #2 は本タスクより後で、
+  fix と PR #2 の間に本タスクが挟まるだけの一直線)
+- **本タスク側の追随**: **fix が develop へ入った時点で develop を取り込み、
+  `S-9` の「11 件を除外」を解除する**。**解除後の期待値は `tests/db` が 111 passed**
+  (収集件数 111 を develop で実測 — 2026-09-10)
+
+**残るのは TSK-317 fix → 本タスク → TSK-317 PR #2 → TSK-355 → TSK-235**。
 
 **4 本目の TSK-235 は 2026-09-10 に追記した**(承認後の追記 — 4-13 節)。
 **根拠は既存の人間の裁定**であり、本計画が新たに決めたものではない:
@@ -436,7 +454,7 @@ DoD 対応表 / 5.1 の規範本文へ理由 / 最小 revision / 一意制約の
 | **S-6** | **DB テストが強制終了されると teardown が飛び、使い捨てクラスタのコンテナと `pitchlog_test_role` が残る**。**ロールの残存は fixture が fail-closed で弾くため以後の全 DB テストが error になる**。**復旧手順はどの正本にも書かれていない**(復旧 = `docker rm -f` と `DROP OWNED BY` → `DROP ROLE`)。**TSK-317 が 2026-09-10 に 3 回踏んだ** | **本タスクは DB テストを多用する**(ステップ 2・9〜26)。**踏んだら上記手順で復旧する**。**運用評価台帳の候補として /pr のクローズ処理で起票を検討**(復旧手順の正本化)。**もう 1 つの罠(TSK-317 が実測)**: **`ALTER TABLE ... OWNER TO` を含む DDL は、対象表へ触った接続が 1 つでも `idle in transaction` で残っていると永久に待つ**(ACCESS EXCLUSIVE 待ち。**読み取りだけの接続でも同じ**)。TSK-317 は 1 点 10 分 48 秒の「処理時間」が実は待ち時間だったと `pg_blocking_pids` で確定した。**診断**: `pg_stat_activity` で `pg_blocking_pids(pid)` が空でない行を探し、`state = idle in transaction` が犯人。**migration を書く本タスクに直接効く** |
 | **S-8** | **順序の付記に理由を書かないと、複数計画に跨ったときに循環を作る**(本タスクが当事者)。**運用評価台帳の新設候補**。**提出は TSK-355 が担う**(TSK-317 経由で `/pr` クローズ処理に出す) | **本タスクの `/pr` では参照に留め、重複提出しない**(DB テストの罠を TSK-317 が出すのと同じ扱い)。**本タスクが提供した見解**: 対応案は (a) 付記にも理由を書く /(b) **原典を当たる前に答えない**(TSK-355 の是正 — 当初は「他タスクの順序に答えるときは当該計画書を読む」と書いていたが、**本セッションの 4 件の誤りはすべて「原典を当たる前に答えた」で説明がつく**: 本タスクの誤引用 2 件〔サブエージェントの報告を検証せず引き写した〕/ TSK-317 の「矛盾なし」〔引用された 4 段だけを見て答えた〕/ TSK-355 の引用落ちと帰属の取り違え。**「典拠を置いて聞く」は聞く側が典拠を掘る工程を前段に持って初めて成立する**) /(c) **制約を機械可読にして循環を検出する**の 3 つで、**(a)(b) は「気づく確率を上げる」・(c) は「気づかなくても止まる」**。**fail-closed の思想に照らして (c) を主対応**とし、**(a) を (c) の付随情報(各辺に理由を必須)として統合**する — **循環が報告された時点で「理由の無い辺」が即座に見える**(TSK-355 の補強)。**(c) の射程は「書かれた辺の循環」に限る**ことを明記する(書き漏らした辺は順序違反として別の型で現れる) |
 | **S-7** | **`feature_status.py` の縮退** — **develop 取り込みマージを入れると、ステップコミットが 1 本も無い段階で現在地が「不明」へ落ちる**。設計書 6.1 は develop 取り込みマージを「**正当(記法不要)**」と定めているのに、`derive_progress` の最終ガード `any(kind not in {"planning","documentation"})` が **`merge_allowed` を弾く**(`scripts/feature_status.py:998-1000`)。**同型が `feature/data-model-canonical` でも発生中**(マージ `128be83` を持ち「実装状況: 不明」) | **表示の縮退であり実害は無い**(ステップ 1 のコミットが入れば復帰する見込み)。**運用評価台帳の候補として /pr のクローズ処理で起票**。**台帳 `H-58` と同型**(反映周コミットの縮退)だが**別事象**(こちらは develop 取り込みマージ)。**分類漏れであって仕様ではない根拠**(TSK-235 が追認): **同じ関数のすぐ上に `note="許可されないマージコミット混在"` 専用の分岐が別にある** — **「許可されないマージ」を名指しで弾く分岐が既にある以上、許可マージは通す設計意図だった**と読める。**行番号参照を安定参照へ寄せる前例**は TSK-278 が確立済み(`adr003-display-privatives` ではなく `docs/features/adr003-display-primitives/plan.md` 6 節の「機械条件の判定方法」表に**「行番号参照 0 件」型**があり、provenance を節番号・条項 ID で持って**文言存在**で実在検査する)。**台帳へ出すときはこの前例を引く** |
-| **S-9** | **develop に既存の red が 11 件ある** — TSK-317 PR #1(#52)の `14973f6` が凍結 body へ判定注記 `MANAGEMENT_TARGET_GRANT_GROUP_MATCH` を追加したが、**exact-set の相手側 2 箇所が追随していない**(`backend/tests/db/test_authz_management_probe.py` の `_AUTHORIZATION_FAILURE_CASES` = 7 件 / `backend/tests/db/test_authz_toctou.py` の 2 文 mutant SQL の注記 = 7 件。**body 側は 8 件**)。`_assert_failure_case_contract` と `_assert_mutant_decision_set` がどちらも body と exact-set 比較するので 8 対 7 で必ず red になる。**develop と本ブランチで失敗テスト ID 11 件が完全一致**(2026-09-10 実測・diff 差分なし)し、**本タスクの変更起因ではない** | **修正は TSK-317 の所有範囲**(`backend/tests/db/` — 3 節の所有境界)なので**本タスクは触らない**。**ステップ 2 以降の「backend DB テスト green」からこの 11 件を除外**し、**除外していることを各ステップの検証記録に明記する**。**TSK-317 へ報告済み**(2026-09-10)。**develop で解消したら除外を外す**。**同時に判明した罠**: `PITCHLOG_TEST_ADMIN_DSN` / `PITCHLOG_TEST_ROLE_DSN` は **libpq の conninfo** であり `postgresql+psycopg://` を与えると psycopg が `missing "=" after ...` で弾き **DB 必須テスト 102 件が全部 setup error になる**(`research.md` 4-3 節が予告した罠がそのまま発火した)。**ステップ 3 以降の「URL を `postgresql+psycopg://` へ正規化する」作業と混同しないこと** — 詳細設計 7-2 節の「触ってはいけない範囲」に該当する |
+| **S-9** | **develop に既存の red が 11 件ある** — TSK-317 PR #1(#52)の `14973f6` が凍結 body へ判定注記 `MANAGEMENT_TARGET_GRANT_GROUP_MATCH` を追加したが、**exact-set の相手側 2 箇所が追随していない**(`backend/tests/db/test_authz_management_probe.py` の `_AUTHORIZATION_FAILURE_CASES` = 7 件 / `backend/tests/db/test_authz_toctou.py` の 2 文 mutant SQL の注記 = 7 件。**body 側は 8 件**)。`_assert_failure_case_contract` と `_assert_mutant_decision_set` がどちらも body と exact-set 比較するので 8 対 7 で必ず red になる。**develop と本ブランチで失敗テスト ID 11 件が完全一致**(2026-09-10 実測・diff 差分なし)し、**本タスクの変更起因ではない** | **修正は TSK-317 の所有範囲**(`backend/tests/db/` — 3 節の所有境界)なので**本タスクは触らない**。**ステップ 2 以降の「backend DB テスト green」からこの 11 件を除外**し、**除外していることを各ステップの検証記録に明記する**。**TSK-317 へ報告済み**(2026-09-10)。**決着(同日)**: TSK-317 が**`fix/authz-decision-note-followup` を develop から切り、本タスクより先に入れる**(PO 判断。「PR #2 に載せる」案は develop が数週間 red のままになるため却下された。マージ順序は 4-6 節で更新済み)。射程は当該 2 ファイルのみで `contracts/authz/**` には触らない。**fix が develop へ入ったら develop を取り込み、除外を解除して `tests/db` が 111 passed になることを確認する**(収集件数 111 を develop で実測。現在は 100 passed + 11 failed)。**台帳候補は TSK-317 が提出し、本タスクは参照のみ**(`S-6` と同じ帰属。ただし実測は本タスクなので**候補の本文は本タスクが提供した**)。**同時に判明した罠**: `PITCHLOG_TEST_ADMIN_DSN` / `PITCHLOG_TEST_ROLE_DSN` は **libpq の conninfo** であり `postgresql+psycopg://` を与えると psycopg が `missing "=" after ...` で弾き **DB 必須テスト 102 件が全部 setup error になる**(`research.md` 4-3 節が予告した罠がそのまま発火した)。**ステップ 3 以降の「URL を `postgresql+psycopg://` へ正規化する」作業と混同しないこと** — 詳細設計 7-2 節の「触ってはいけない範囲」に該当する |
 
 ### 4-14. 他タスクとの調整結果(2026-09-10)
 
