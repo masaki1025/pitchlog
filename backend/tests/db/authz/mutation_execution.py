@@ -394,9 +394,17 @@ def _ddl_row(
     )
 
 
-def _mutate_ddl_configuration(spec: MutantSpec) -> dict[str, object]:
+def _mutate_ddl_configuration(
+    spec: MutantSpec,
+    source_asset: dict[str, object] | None = None,
+) -> dict[str, object]:
     """構成 target grammar から事前構成の一時 DDL 資産を実際に変異する。"""
-    asset = copy.deepcopy(_read_json_object(DDL_ELEMENTS_PATH))
+    source = (
+        source_asset
+        if source_asset is not None
+        else _read_json_object(DDL_ELEMENTS_PATH)
+    )
+    asset = copy.deepcopy(source)
     operator_id = spec.operator_id
     if operator_id == "remove_role_attribute":
         role_id, attribute_id = _parse_colon_target(_single_target(spec), 2)
