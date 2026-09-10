@@ -1,6 +1,6 @@
 ---
 feature: pg-authz-verification-g2
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -168,7 +168,7 @@ git diff --exit-code origin/develop...HEAD -- \
 | --- | --- | --- |
 | [`docs/README.md`](../../README.md) | 索引の最終更新日を現行化 | —(常に現行化 — 7.2) |
 | `.claude/core-areas.json` | **本計画(第 1 弾)では変更しない** — `tenant-isolation.paths` への新設パス登録(実測 6 本)は**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) | **6.3 規則⑤(敵対レビュー + 人間承認)— 第 2 弾で払う** |
-| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **追記の判断は /pr のクローズ処理で行う**(該当時は本節へ宣言を先に追記してから台帳へ) | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **該当した。`## 候補` へ 7 件追記 + 既存候補 1 件へ実測補記**(**内訳**: **TSK-317 由来 4 件**(母集団の人手列挙 / DB テスト残骸の fail-closed / ジョブ横断の不変条件 / guard の部分一致誤検知)+ **TSK-355 由来 3 件**(順序の循環 / 成果物と許容差分のずれ / `H-68` 型の送り先が空手形)。**TSK-355 の 3 件は同タスクの依頼による代理提出**(先方の PR はマージ順序上いちばん最後で数週間先になるため。**TSK-235 とも同じ理由で分担を合意済み**))(**`H-*` の新規採番はしない・版は上げない**)。**新設候補 ①「母集団を人が列挙する検査は、射程が動くたびに黙って古くなる」**(本タスクの 6 周のレビューで 8 回・層を変えて再発。既存の `feature_status.py` allowlist とステップ表の集合差を同根として束ねた)/ **新設候補 ②「順序の付記に理由を書かないと、複数の承認済み計画に跨って循環を作る」**(TSK-317 / TSK-343 / TSK-355 / TSK-235 の 4 タスクが循環。TSK-355 の依頼で本 PR が代理提出)/ **既存候補「`H-85` の連鎖を実行する手順が無い」へ実測補記**(`--reseal` は `_validate_manifest` に先に止められて到達せず、`reseal_catalog()` は `input_manifest` を触らない。**3 フラグの fail-early が非対称** — `--reseal-oracle` だけが自分の seal 検査を明示的に飛ばす)。**TSK-355 の候補 3 件はすべて本 PR が代理提出した。** | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **反映なし**(3 件の是正は **TSK-348**) | — |
 | [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) | **反映なし**(10.1 の追随は **TSK-343**) | — |
 | `docs/requirements/**` / `docs/adr/**` / `docs/ops/**` / `frontend/**` | **反映なし** | — |
@@ -189,7 +189,11 @@ git diff --exit-code origin/develop...HEAD -- \
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
 | `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更と期待件数の撤去は改訂 3 第 2 弾**(`S-2`・`S-8`)— **本計画では行わない** |
 | `tests/test_core_guard.py` | **本計画(第 1 弾)では変更しない** — 新設パスの発火試験・`core-areas.json` への登録・`test_ci_wiring.py` の追記はいずれも**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) |
-| `docs/features/pg-authz-verification-g2/{plan,research,design}.md` | feature 作業ディレクトリ(記録・正本ではない) |
+| `backend/tests/db/test_authz_*.py` | **新設 12 本** — カタログ検査 / 越境の正例・拒否例 / 6 前提行列 / 表権限 8 種 / 管理経路 probe / TOCTOU / 失敗注入 / 信頼境界 / ロール接続 / 適用器 / mutation 全量。**`requires_db` マーカー付きで `backend/tests/db/` 配下**(`environment-expectations.json` の `required_path` 契約) |
+| `backend/tests/test_authz_*.py` | **新設 5 本** — **DB を必要としない**契約試験(DDL 生成器 / mutation の判定機構 / executor の観測 / 2 因子合成 × 2)。**`backend/tests/db/` の外に置く**(DB 必須テストの path 契約と分けるため) |
+| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は改訂 3 第 2 弾の `S-8`**(裁定 `D-10`。**ステップ 18 の 2 本を含めて 8 本になる** — 6 周目 `P2-1` の送り先記録) |
+| `tests/test_check_authz_function_bodies.py` | **追随** — `manifest.json` の `source_commit` を注記追加後のコミットへ変えたため、「body 導入前のコミット」を `--diff-filter=A` で探す形へ変更(**assertion は不変・弱体化していない**) |
+| `docs/features/pg-authz-verification-g2/{plan,research,design}.md` / `catalog-check-map.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
 ## 4. 実装方針
 
