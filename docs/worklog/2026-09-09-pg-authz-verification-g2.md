@@ -300,3 +300,68 @@ branch: feature/pg-authz-verification-g2
 - **昇格条件 / 対応案**: (a) **計画書の再構成時に旧ステップ表との集合差を出すことを 6.1 へ足す**
   (b) **他タスクへ所有・射程の提案をする際に該当箇所の引用を必須にする**(引用すれば読み直す)
   (c) 現状維持
+
+---
+
+## PO 裁定 `D-9`(2026-09-10・山田正輝)— ステップ 17 を撤去し改訂 3 へ送る
+
+### 発火
+
+ステップ 17(`contract_only` の runtime テスト)の**委任前の実測**で、
+**合格条件が凍結資産の定義と矛盾している**ことが判明した。
+実測を先にやる方針(ステップ 6・13・15 の差し戻し 3 回の反省)が効いた形である。
+
+### 実測(すべて原典・2026-09-10)
+
+| # | 事実 | 典拠 |
+| --- | --- | --- |
+| 1 | `receiving_task_id == TSK-270-GROUP-2` かつ `execution_class == contract_only` は **158 行**、一意な `runtime_test_owner.id` は **152 個**(共有 6 組)。**計画書の数字は正しい** | `contracts/authz/claim-mutant-map.json` |
+| 2 | 内訳は `CONTRACT_ONLY_RUNTIME_TARGET_PENDING` **157** / `CONTRACT_ONLY_NO_DB_DECISION_POINT` **1**。理由コードは `route_universe_pending` **157** / `no_db_decision_point` **1** | 同上 |
+| 3 | **`contract_only` の 165 行には `runtime_target` キーが存在しない**。`probe_executable` の 33 行は**持つ**。**資産が runtime のターゲットを定義していない** | 同上(キー集合の比較) |
+| 4 | `runtime_kill_required: False` / `runtime_evidence_kind: handoff_runtime_test` / mutant の `expected_runtime_outcome: handoff` / `waiver_reason: contract_only_handoff` は、**検査器が `contract_only` 全行に機械的に強制している値**。**独立情報を持たない** | `scripts/check_authz_catalog.py:3803-3808`・`:3881-3888`・`:3923-3929` |
+| 5 | `schema_drift_test_owner` は **198 行すべてが同一の 1 本**を指す(`tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid`)。「既に覆われている」の実質は**資産の自己整合検査のみ** | `claim-mutant-map.json` |
+| 6 | `kill_contract.contract_only_runtime_rule` = **`runtime_kill_forbidden_handoff_test_required`**。**runtime kill を禁じ、handoff テストを要求する** | 同上 |
+| 7 | **`R-7` の原文**: 「HTTP/cache と実装しない 6 操作には**本タスク内の実越境 kill 経路が無い**ため、『全 claim に runtime kill』は不可能か、**契約 lint を実副作用 kill として数える抜け道**になる。前者だけ runtime kill を必須にし、**後者は schema-drift kill + 受取タスクの runtime テスト ID** を必須にする」 | `docs/features/pg-authz-verification/plan.md:414` |
+| 8 | `backend/src/pitchlog/` は `__init__.py` / `main.py` / 本タスクの `authz/catalog.py` のみ。**HTTP 経路も製品スキーマも存在しない**(`route_universe_pending` の由来)。`scope.product_schema: false` は `S-7` の確定値 | 実測 |
+
+### 矛盾の内容
+
+ステップ 17 の合格条件は「**152 の一意な論理 ID それぞれに対応する実テストが `collect_pytest_node_ids` に存在する**」
+「**負例: ある claim のテストを常時成功にすると red**(**claim の述語が assertion に現れる**ことを検査する)」を要求する。
+しかし **事実 3 により資産は runtime のターゲットを定義しておらず**、**事実 8 により対象の製品コードが存在しない**。
+assert できるのは「要件条文が存在する」「分類が期待どおり」程度で、**実質は資産の自己検査**になる。
+
+これは **`R-7` 自身が名指しで警戒している「契約 lint を実副作用 kill として数える抜け道」**(事実 7)であり、
+**設計書 7.3-3 が P1 と定める「文言は直したが実効がない」型**、
+かつ**本計画書 4 節の実装方針 規律 2**(「合格条件を『検査が green』に置かず『割り当てが正しい』に置く
+— 検査は literal 一致で通るため、literal を置くだけで green にできる」)に正面から当たる。
+
+### 相談の経過
+
+**fable(上位モデルのセッション)へ相談した**(2026-09-10)。回答の根拠 5 件を**すべて原典で追認**した(上表 4〜8)。
+**私が当初「② を支持する材料」と考えた 3 属性(事実 4)は循環していた** — 検査器が強制する値なので独立情報がない。
+これは fable の指摘で気づいた。
+
+**fable の指摘のうち 1 件は誤りだったので採らなかった**: 「ステップ 17 を飛ばすと
+`derive_progress` が max を取って `18/21` と表示され 17 未了が見えなくなる」。
+**逆で、`scripts/feature_status.py:948-958` が `completed != set(range(1, maximum + 1))` を検査し、
+欠番があれば `kind="inconsistent"` + `note="完了ステップに欠番がある"` を返す**(`:33`)。
+**機構は捕まえる。** ただしその帰結として、**17 を飛ばして 18 をコミットすると現在地導出が不整合になる**ため、
+**18〜21 を先に進める経路は存在しない**。これが「改訂 3 を今やる」ことの機構上の根拠になった。
+
+### 裁定
+
+**A: ステップ 17 を表から撤去し、`S-10` として改訂 3 へ送る。**
+
+1. **ステップ 17 を撤去**し、**旧 18〜21 を 17〜20 へ連番で振り直す**(枝番を使わない — `feature_status.py` は認識しない)。**総数 21 → 20**
+2. **`S-10` を新設**: `contract_only` 158 行の runtime テストの所有先と、TSK-317 側で機械固定する範囲を確定する
+3. **`S-9` の置換先を 3 分割する** — 現行の `S-9` は `receiving_task_id: TSK-270-GROUP-2` の **178 件を一律 `TSK-317` へ置換**する要件だが、**157 件の受取先は TSK-317 ではない**(製品経路を作らないと自ら宣言している)。一律置換すると**所有先が空白の claim を封印で固定する**
+4. **改訂 3 を今すぐ実施する**(旧予定は「ステップ 21 の完了後」)。理由は上記の欠番不整合により 18〜21 を先行できないこと
+
+### 裁定の帰結(手続き)
+
+- **`承認: 済(2026-09-09・山田正輝)` → `承認: 未` へ戻す**(実質的な改訂なので再承認が必要。
+  `codex_run.py implement` は承認済みを要求するので、改訂中は実装を止める)
+- **`status` は `active` のまま**(差し戻しではない)
+- **コア領域なので改訂は敵対レビュー必須**、収束後に人間の承認
+- **ステップ 1〜16 は影響を受けない**(番号が動かないため履歴の書き換えも不要)
