@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Iterator
 from dataclasses import dataclass
+from os import fsdecode
 from pathlib import Path
 from uuid import uuid4
 
@@ -19,6 +20,26 @@ class _IgnoredArtifactRepository:
 
     root: Path
     artifact_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class _IndexEntry:
+    """Git index の mode と blob 参照を保持する。"""
+
+    mode: str
+    object_id: str
+    stage: int
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class _NestedNegationRepository:
+    """下位の否定規則と、その対象を持つ一時リポジトリ。"""
+
+    root: Path
+    ignore_path: Path
+    artifact_path: Path
+    ignore_blob: bytes
 
 
 def _git(
@@ -56,10 +77,34 @@ def _paths_from_nul(output: bytes) -> tuple[Path, ...]:
     )
 
 
+def _index_entries(repository_root: Path) -> tuple[_IndexEntry, ...]:
+    """Git index にある全 entry を mode 付きで導出する。"""
+    completed = _git(repository_root, "ls-files", "--stage", "-z")
+    entries: list[_IndexEntry] = []
+    for record in completed.stdout.split(b"\0"):
+        if not record:
+            continue
+        metadata, raw_path = record.split(b"\t", maxsplit=1)
+        raw_mode, raw_object_id, raw_stage = metadata.split(b" ")
+        entries.append(
+            _IndexEntry(
+                mode=raw_mode.decode("ascii"),
+                object_id=raw_object_id.decode("ascii"),
+                stage=int(raw_stage),
+                path=Path(raw_path.decode("utf-8")),
+            )
+        )
+    return tuple(entries)
+
+
+def _paths_from_index_entries(entries: tuple[_IndexEntry, ...]) -> tuple[Path, ...]:
+    """Index entry から重複しない追跡パスを導出する。"""
+    return tuple(dict.fromkeys(entry.path for entry in entries))
+
+
 def _tracked_paths(repository_root: Path) -> tuple[Path, ...]:
     """Git index にある全パスを導出する。"""
-    completed = _git(repository_root, "ls-files", "-z")
-    return _paths_from_nul(completed.stdout)
+    return _paths_from_index_entries(_index_entries(repository_root))
 
 
 def _initialize_repository(tmp_path: Path) -> Path:
@@ -68,6 +113,40 @@ def _initialize_repository(tmp_path: Path) -> Path:
     repository_root.mkdir()
     _git(repository_root, "init", "--quiet")
     return repository_root
+
+
+def _initialize_nested_negation_repository(
+    tmp_path: Path,
+    *,
+    symbolic_ignore: bool,
+) -> _NestedNegationRepository:
+    """下位の否定規則を通常ファイルまたは symlink として追跡する。"""
+    repository_root = _initialize_repository(tmp_path)
+    nested = Path(f"nested-{uuid4().hex}")
+    ignore_path = nested / ".gitignore"
+    artifact_path = nested / f"artifact-{uuid4().hex}"
+    ignore_blob = f"!{artifact_path.name}".encode()
+    (repository_root / nested).mkdir()
+    (repository_root / ".gitignore").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    if symbolic_ignore:
+        link_target = nested / ignore_blob.decode()
+        (repository_root / link_target).write_text("readable target\n", encoding="utf-8")
+        (repository_root / ignore_path).symlink_to(link_target.name)
+        _git(repository_root, "add", "--", link_target.as_posix())
+    else:
+        (repository_root / ignore_path).write_bytes(ignore_blob)
+    _git(repository_root, "add", "--", ".gitignore", ignore_path.as_posix())
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    return _NestedNegationRepository(
+        root=repository_root,
+        ignore_path=ignore_path,
+        artifact_path=artifact_path,
+        ignore_blob=ignore_blob,
+    )
 
 
 def _repository_state(repository_root: Path) -> tuple[bytes, bytes]:
@@ -144,60 +223,69 @@ def _check_ignored_paths(
 def _index_evaluation_repository(
     repository_root: Path,
     workspace: Path,
-    tracked_paths: tuple[Path, ...],
+    index_entries: tuple[_IndexEntry, ...],
 ) -> Path:
     """元リポジトリの index にある ignore 規則だけを直接書き出す。
 
     ``cat-file blob :<path>`` で index の blob を直接読むため、skip-worktree
     ビット、attributes、smudge filter のいずれも内容の抽出経路に入らない。
+    通常ファイルは blob をそのまま書き、symlink は blob をリンク先として再現する。
+    Gitlink は規則ファイルにならないため実体化せず、symlink を作れなければ失敗する。
 
     Args:
         repository_root: index を読む元リポジトリ。
         workspace: 一時評価リポジトリの親ディレクトリ。
-        tracked_paths: 元リポジトリの index にある全パス。
+        index_entries: 元リポジトリの mode 付き index entry。
 
     Returns:
         index 由来の ignore 規則と追跡パス情報を持つ新規 Git リポジトリ。
     """
     evaluation_root = workspace / f"index-{uuid4().hex}"
     evaluation_root.mkdir(parents=True)
-    for path in tracked_paths:
-        if path.name != ".gitignore":
+    for entry in index_entries:
+        if entry.path.name != ".gitignore":
             continue
+        if entry.mode == "160000":
+            # gitlink はディレクトリ entry であり、ignore 規則ファイルではない。
+            continue
+        if entry.mode not in {"100644", "100755", "120000"}:
+            raise ValueError(f"未対応の index mode: {entry.mode} {entry.path}")
         content = _git(
             repository_root,
             "cat-file",
             "blob",
-            f":{path.as_posix()}",
+            f":{entry.path.as_posix()}",
         ).stdout
-        destination = evaluation_root / path
+        destination = evaluation_root / entry.path
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(content)
+        if entry.mode == "120000":
+            try:
+                destination.symlink_to(fsdecode(content))
+            except OSError as error:
+                raise RuntimeError(
+                    f"index の symlink を再現できない: {entry.path}"
+                ) from error
+        else:
+            destination.write_bytes(content)
 
     _git(evaluation_root, "init", "--quiet")
     (evaluation_root / ".git/info/exclude").write_text("", encoding="utf-8")
-    if tracked_paths:
-        empty_blob = _git(
-            evaluation_root,
-            "hash-object",
-            "-w",
-            "--stdin",
-            input_data=b"",
-        ).stdout.strip()
-        index_entries = b"".join(
-            b"100644 "
-            + empty_blob
-            + b"\t"
-            + path.as_posix().encode()
-            + b"\0"
-            for path in tracked_paths
+    if index_entries:
+        raw_index_entries = b"".join(
+            (
+                f"{entry.mode} {entry.object_id} {entry.stage}\t".encode()
+                + entry.path.as_posix().encode()
+                + b"\0"
+            )
+            for entry in index_entries
         )
         _git(
             evaluation_root,
             "update-index",
+            "--info-only",
             "-z",
             "--index-info",
-            input_data=index_entries,
+            input_data=raw_index_entries,
         )
     return evaluation_root
 
@@ -209,11 +297,12 @@ def _tracked_ignored_paths_with_mode(
     no_index: bool,
 ) -> tuple[Path, ...]:
     """index 時点へ固定した環境で追跡済みパスを ignore 判定する。"""
-    tracked_paths = _tracked_paths(repository_root)
+    index_entries = _index_entries(repository_root)
+    tracked_paths = _paths_from_index_entries(index_entries)
     evaluation_root = _index_evaluation_repository(
         repository_root,
         workspace,
-        tracked_paths,
+        index_entries,
     )
     return _check_ignored_paths(
         evaluation_root,
@@ -378,6 +467,68 @@ def test_info_exclude_only_pattern_is_not_authoritative(tmp_path: Path) -> None:
         no_index=True,
     ) == (artifact_path,)
     assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
+def test_symlink_ignore_does_not_apply_nested_negation(tmp_path: Path) -> None:
+    """Symlink の下位 ignore を通常ファイル化せず、違反を見逃さない。"""
+    repository = _initialize_nested_negation_repository(
+        tmp_path,
+        symbolic_ignore=True,
+    )
+    ignore_entry = next(
+        entry
+        for entry in _index_entries(repository.root)
+        if entry.path == repository.ignore_path
+    )
+
+    assert ignore_entry.mode == "120000"
+    assert (
+        _git(
+            repository.root,
+            "cat-file",
+            "blob",
+            f":{repository.ignore_path.as_posix()}",
+        ).stdout
+        == repository.ignore_blob
+    )
+    assert _check_ignored_paths(
+        repository.root,
+        (repository.artifact_path,),
+        no_index=True,
+    ) == (repository.artifact_path,)
+    assert _tracked_ignored_paths(repository.root, tmp_path) == (
+        repository.artifact_path,
+    )
+
+
+def test_regular_ignore_applies_same_nested_negation(tmp_path: Path) -> None:
+    """同じ blob の通常ファイルでは下位の否定規則が有効になる。"""
+    repository = _initialize_nested_negation_repository(
+        tmp_path,
+        symbolic_ignore=False,
+    )
+    ignore_entry = next(
+        entry
+        for entry in _index_entries(repository.root)
+        if entry.path == repository.ignore_path
+    )
+
+    assert ignore_entry.mode == "100644"
+    assert (
+        _git(
+            repository.root,
+            "cat-file",
+            "blob",
+            f":{repository.ignore_path.as_posix()}",
+        ).stdout
+        == repository.ignore_blob
+    )
+    assert _check_ignored_paths(
+        repository.root,
+        (repository.artifact_path,),
+        no_index=True,
+    ) == ()
+    assert _tracked_ignored_paths(repository.root, tmp_path) == ()
 
 
 def test_skip_worktree_nested_ignore_is_extracted_from_index(tmp_path: Path) -> None:
