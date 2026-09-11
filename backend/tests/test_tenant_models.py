@@ -26,6 +26,9 @@ from pitchlog.db.tenant_isolation.models import (
     AdminOperationLog,
     AdminSession,
     AdminVocabulary,
+    AnalysisGroup,
+    GroupInvitation,
+    GroupMembership,
     MedicalNote,
     MedicalNoteVersion,
     PdfExportRecord,
@@ -33,6 +36,7 @@ from pitchlog.db.tenant_isolation.models import (
     PlayerMergeEvent,
     PlayerMoveRecord,
     RateLimitCounter,
+    SharingGrant,
     SystemSetting,
     SystemVocabulary,
     TeamRecord,
@@ -73,6 +77,9 @@ _PLAYER_MERGE_MIGRATION_PATH = (
     / "versions"
     / "0013_player_merge_rate_limits.py"
 )
+_ANALYSIS_GROUP_MIGRATION_PATH = (
+    _REPOSITORY_ROOT / "backend" / "migrations" / "versions" / "0014_analysis_groups.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
@@ -93,6 +100,10 @@ _MODEL_CLASSES: dict[str, Any] = {
     "player_merge_events": PlayerMergeEvent,
     "player_move_records": PlayerMoveRecord,
     "rate_limit_counters": RateLimitCounter,
+    "analysis_groups": AnalysisGroup,
+    "group_memberships": GroupMembership,
+    "sharing_grants": SharingGrant,
+    "group_invitations": GroupInvitation,
 }
 
 
@@ -298,7 +309,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """19 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """23 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -498,6 +509,22 @@ def test_player_move_and_rate_limit_optional_columns_match_scope() -> None:
 def test_player_merge_migration_contains_no_dml() -> None:
     """選手統合・移動・レート制限 migration が DML を含まないと示す。"""
     source = _PLAYER_MERGE_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+
+
+def test_group_control_tables_have_only_membership_tenant_column() -> None:
+    """グループ制御資源では参加行だけが tenant_id を持つと示す。"""
+    assert "tenant_id" not in AnalysisGroup.__table__.columns
+    assert "tenant_id" in GroupMembership.__table__.columns
+    assert "tenant_id" not in SharingGrant.__table__.columns
+    assert "tenant_id" not in GroupInvitation.__table__.columns
+
+
+def test_analysis_group_migration_contains_no_dml() -> None:
+    """グループ migration が DML を含まないと示す。"""
+    source = _ANALYSIS_GROUP_MIGRATION_PATH.read_text(encoding="utf-8").upper()
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source

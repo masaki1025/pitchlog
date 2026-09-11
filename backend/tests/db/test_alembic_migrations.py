@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0013_player_merge_rate_limits"
+_REVISION = "0014_analysis_groups"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -662,6 +662,90 @@ BEGIN
 END;
 $function$
 """
+_ANALYSIS_GROUP_TRIGGER_NAME = "trg_analysis_groups_id_immutable"
+_ANALYSIS_GROUP_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_analysis_groups_id_immutable BEFORE UPDATE OF id ON "
+    "analysis_groups FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_analysis_groups_id_update()"
+)
+_ANALYSIS_GROUP_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_analysis_groups_id_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.id IS DISTINCT FROM OLD.id THEN
+        RAISE EXCEPTION 'analysis group ID is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_GROUP_MEMBERSHIP_TRIGGER_NAME = "trg_group_memberships_identity_immutable"
+_GROUP_MEMBERSHIP_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_group_memberships_identity_immutable BEFORE UPDATE OF "
+    "id, group_id, tenant_id, joined_at ON group_memberships FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_group_memberships_identity_update()"
+)
+_GROUP_MEMBERSHIP_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_group_memberships_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.group_id, NEW.tenant_id, NEW.joined_at)
+       IS DISTINCT FROM
+       ROW(OLD.id, OLD.group_id, OLD.tenant_id, OLD.joined_at) THEN
+        RAISE EXCEPTION 'group membership identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_SHARING_GRANT_TRIGGER_NAME = "trg_sharing_grants_membership_immutable"
+_SHARING_GRANT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_sharing_grants_membership_immutable BEFORE UPDATE OF "
+    "membership_id ON sharing_grants FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_sharing_grants_membership_update()"
+)
+_SHARING_GRANT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_sharing_grants_membership_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.membership_id IS DISTINCT FROM OLD.membership_id THEN
+        RAISE EXCEPTION 'sharing grant membership is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_GROUP_INVITATION_TRIGGER_NAME = "trg_group_invitations_identity_immutable"
+_GROUP_INVITATION_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_group_invitations_identity_immutable BEFORE UPDATE OF "
+    "id, group_id, code_hash, initial_role ON group_invitations FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_group_invitations_identity_update()"
+)
+_GROUP_INVITATION_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_group_invitations_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.group_id, NEW.code_hash, NEW.initial_role)
+       IS DISTINCT FROM
+       ROW(OLD.id, OLD.group_id, OLD.code_hash, OLD.initial_role) THEN
+        RAISE EXCEPTION 'group invitation identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
 _D2_FIXED_VALUE_OR_RANGE = re.compile(
     r"(?:\bd2\b\s*(?:=|<>|!=|<=|>=|<|>|(?:NOT\s+)?BETWEEN\b|"
     r"(?:NOT\s+)?IN\s*\()|"
@@ -1008,6 +1092,15 @@ def _game_lineup_trigger_catalog_contract(
     return str(row[0]), str(row[1]), list(row[2]), str(row[3]), str(row[4])
 
 
+def _normalized_predicate(predicate: str | None) -> str | None:
+    """PostgreSQL が補う括弧と text cast を除いて述語全文を比較する。"""
+    if predicate is None:
+        return None
+    return _normalize_sql(
+        predicate.replace("(", "").replace(")", "").replace("::text", "")
+    )
+
+
 def _index_catalog_contract(
     connection: psycopg.Connection[Any], index_name: str
 ) -> tuple[str, str, list[str], str | None, bool]:
@@ -1050,7 +1143,7 @@ def _index_catalog_contract(
         row = cursor.fetchone()
     if row is None:
         raise AssertionError(f"索引が存在しない: {index_name}")
-    predicate = None if row[3] is None else str(row[3])
+    predicate = _normalized_predicate(None if row[3] is None else str(row[3]))
     return str(row[0]), str(row[1]), list(row[2]), predicate, bool(row[4])
 
 
@@ -1061,7 +1154,11 @@ def _manifest_index_contract(index_name: str) -> tuple[str, list[str], str | Non
         for collection in ("unique_constraints", "indexes"):
             for index in table[collection]:
                 if index["name"] == index_name:
-                    return table["name"], index["columns"], index["predicate"]
+                    return (
+                        table["name"],
+                        index["columns"],
+                        _normalized_predicate(index["predicate"]),
+                    )
     raise AssertionError(f"Manifest に索引が存在しない: {index_name}")
 
 
@@ -1883,10 +1980,8 @@ def test_play_projection_constraints_and_migration_round_trip(
             )
             assert d2_table == "operation_events"
             assert d2_columns == ["tenant_id", "game_id", "d2"]
-            assert d2_predicate is not None
-            assert (
-                _normalize_sql(d2_predicate.replace("(", "").replace(")", ""))
-                == "d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL"
+            assert d2_predicate == (
+                "d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL"
             )
             assert d2_unique
 
@@ -2950,15 +3045,6 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
         command.check(config)
 
 
-def _recording_predicate(predicate: str | None) -> str | None:
-    """PostgreSQL が補う括弧と text cast を除いて述語全文を比較する。"""
-    if predicate is None:
-        return None
-    return _normalize_sql(
-        predicate.replace("(", "").replace(")", "").replace("::text", "")
-    )
-
-
 def _assert_step_twelve_objects_are_absent(
     connection: psycopg.Connection[Any],
 ) -> None:
@@ -3029,9 +3115,7 @@ def test_recording_generation_d3_guard_and_migration_round_trip(
                 "recording_generations",
                 ["tenant_id", "game_id"],
             )
-            assert _recording_predicate(current_index[3]) == (
-                "kind = 'normal' AND revoked_at IS NULL"
-            )
+            assert current_index[3] == ("kind = 'normal' AND revoked_at IS NULL")
             assert current_index[4]
 
             migration_index = _index_catalog_contract(
@@ -3041,9 +3125,7 @@ def test_recording_generation_d3_guard_and_migration_round_trip(
                 "recording_generations",
                 ["tenant_id", "game_id"],
             )
-            assert _recording_predicate(migration_index[3]) == (
-                "kind = 'migration' AND retired_at IS NULL"
-            )
+            assert migration_index[3] == ("kind = 'migration' AND retired_at IS NULL")
             assert migration_index[4]
 
             history_index = _index_catalog_contract(
@@ -4764,7 +4846,10 @@ def test_admin_operation_logs_append_only_guards_and_migration_round_trip(
                     ORDER BY conname
                     """
                 )
-                assert cursor.fetchall() == [("fk_admin_operation_logs_tenant",)]
+                assert cursor.fetchall() == [
+                    ("fk_admin_operation_logs_group",),
+                    ("fk_admin_operation_logs_tenant",),
+                ]
 
                 tenant_id = uuid4()
                 group_id = uuid4()
@@ -4772,6 +4857,10 @@ def test_admin_operation_logs_append_only_guards_and_migration_round_trip(
                 cursor.execute(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "管理者操作ログテストテナント"),
+                )
+                cursor.execute(
+                    "INSERT INTO analysis_groups (id) VALUES (%s)",
+                    (group_id,),
                 )
                 cursor.execute(
                     """
@@ -5246,6 +5335,641 @@ def test_player_merge_move_and_rate_limit_guards_and_migration_round_trip(
         command.downgrade(config, "0012_admin_operation_logs")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_seventeen_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _foreign_key_catalog_contracts(
+    connection: psycopg.Connection[Any],
+) -> dict[str, tuple[str, str, list[str], list[str]]]:
+    """実 DB の FK 名・両端表・両端構成列を pg_constraint から返す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                constraint_row.conname,
+                source_relation.relname,
+                target_relation.relname,
+                ARRAY(
+                    SELECT source_attribute.attname
+                    FROM unnest(constraint_row.conkey)
+                        WITH ORDINALITY AS key_column(attnum, position)
+                    JOIN pg_attribute AS source_attribute
+                      ON source_attribute.attrelid = constraint_row.conrelid
+                     AND source_attribute.attnum = key_column.attnum
+                    ORDER BY key_column.position
+                ),
+                ARRAY(
+                    SELECT target_attribute.attname
+                    FROM unnest(constraint_row.confkey)
+                        WITH ORDINALITY AS key_column(attnum, position)
+                    JOIN pg_attribute AS target_attribute
+                      ON target_attribute.attrelid = constraint_row.confrelid
+                     AND target_attribute.attnum = key_column.attnum
+                    ORDER BY key_column.position
+                )
+            FROM pg_constraint AS constraint_row
+            JOIN pg_class AS source_relation
+              ON source_relation.oid = constraint_row.conrelid
+            JOIN pg_namespace AS source_namespace
+              ON source_namespace.oid = source_relation.relnamespace
+            JOIN pg_class AS target_relation
+              ON target_relation.oid = constraint_row.confrelid
+            JOIN pg_namespace AS target_namespace
+              ON target_namespace.oid = target_relation.relnamespace
+            WHERE constraint_row.contype = 'f'
+              AND source_namespace.nspname = 'public'
+              AND target_namespace.nspname = 'public'
+            ORDER BY constraint_row.conname
+            """
+        )
+        rows = cursor.fetchall()
+    return {
+        str(name): (
+            str(source_table),
+            str(target_table),
+            [str(column) for column in source_columns],
+            [str(column) for column in target_columns],
+        )
+        for name, source_table, target_table, source_columns, target_columns in rows
+    }
+
+
+def _table_column_catalog(connection: psycopg.Connection[Any]) -> dict[str, set[str]]:
+    """Public schema の各表が持つ実列集合を返す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT table_name, column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+            ORDER BY table_name, ordinal_position
+            """
+        )
+        rows = cursor.fetchall()
+    tables: dict[str, set[str]] = {}
+    for table_name, column_name in rows:
+        tables.setdefault(str(table_name), set()).add(str(column_name))
+    return tables
+
+
+def _assert_step_eighteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後にグループ表・トリガ関数・追加 FK が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.analysis_groups'),
+                to_regclass('public.group_memberships'),
+                to_regclass('public.sharing_grants'),
+                to_regclass('public.group_invitations'),
+                (
+                    SELECT count(*)
+                    FROM pg_trigger
+                    WHERE tgname = ANY(%s) AND NOT tgisinternal
+                ),
+                (
+                    SELECT count(*)
+                    FROM unnest(%s::text[]) AS function_name
+                    WHERE to_regprocedure(
+                        'public.' || function_name || '()'
+                    ) IS NOT NULL
+                ),
+                (
+                    SELECT count(*)
+                    FROM pg_constraint
+                    WHERE conname = 'fk_admin_operation_logs_group'
+                )
+            """,
+            (
+                [
+                    _ANALYSIS_GROUP_TRIGGER_NAME,
+                    _GROUP_MEMBERSHIP_TRIGGER_NAME,
+                    _SHARING_GRANT_TRIGGER_NAME,
+                    _GROUP_INVITATION_TRIGGER_NAME,
+                ],
+                [
+                    "prevent_analysis_groups_id_update",
+                    "prevent_group_memberships_identity_update",
+                    "prevent_sharing_grants_membership_update",
+                    "prevent_group_invitations_identity_update",
+                ],
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, None, 0, 0, 0)
+
+
+def test_analysis_group_cross_tenant_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """グループ制約、越境 FK、不変性と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _ANALYSIS_GROUP_TRIGGER_NAME,
+                    _ANALYSIS_GROUP_TRIGGER_DEFINITION,
+                    "analysis_groups",
+                    ["id"],
+                    _ANALYSIS_GROUP_FUNCTION_DEFINITION,
+                ),
+                (
+                    _GROUP_MEMBERSHIP_TRIGGER_NAME,
+                    _GROUP_MEMBERSHIP_TRIGGER_DEFINITION,
+                    "group_memberships",
+                    ["id", "group_id", "tenant_id", "joined_at"],
+                    _GROUP_MEMBERSHIP_FUNCTION_DEFINITION,
+                ),
+                (
+                    _SHARING_GRANT_TRIGGER_NAME,
+                    _SHARING_GRANT_TRIGGER_DEFINITION,
+                    "sharing_grants",
+                    ["membership_id"],
+                    _SHARING_GRANT_FUNCTION_DEFINITION,
+                ),
+                (
+                    _GROUP_INVITATION_TRIGGER_NAME,
+                    _GROUP_INVITATION_TRIGGER_DEFINITION,
+                    "group_invitations",
+                    ["id", "group_id", "code_hash", "initial_role"],
+                    _GROUP_INVITATION_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual_trigger = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual_trigger[0]) == _normalize_sql(definition)
+                assert actual_trigger[1] == table
+                assert actual_trigger[2] == columns
+                assert actual_trigger[3] == "O"
+                assert _normalize_sql(actual_trigger[4]) == _normalize_sql(function)
+
+            table_columns = _table_column_catalog(connection)
+            actual_foreign_keys = _foreign_key_catalog_contracts(connection)
+            manifest = json.loads(_SCHEMA_MANIFEST_PATH.read_text(encoding="utf-8"))
+            predicate_index_names = {
+                index["name"]
+                for table in manifest["tables"]
+                if table["name"] in table_columns
+                for collection in ("unique_constraints", "indexes")
+                for index in table[collection]
+                if index["predicate"] is not None
+            }
+            assert predicate_index_names
+            for index_name in sorted(predicate_index_names):
+                actual_index = _index_catalog_contract(connection, index_name)
+                assert actual_index[1:4] == _manifest_index_contract(index_name)
+
+            expected_foreign_keys = {
+                foreign_key["name"]: (
+                    table["name"],
+                    foreign_key["references"]["table"],
+                    foreign_key["columns"],
+                    foreign_key["references"]["columns"],
+                    foreign_key["cross_tenant"],
+                    foreign_key["composite"],
+                )
+                for table in manifest["tables"]
+                if table["name"] in table_columns
+                for foreign_key in table["foreign_keys"]
+                if foreign_key["references"]["table"] in table_columns
+            }
+            assert set(actual_foreign_keys) == set(expected_foreign_keys)
+            for name, actual_foreign_key in actual_foreign_keys.items():
+                expected_foreign_key = expected_foreign_keys[name]
+                assert actual_foreign_key == expected_foreign_key[:4]
+                assert (len(actual_foreign_key[2]) > 1) is expected_foreign_key[5]
+
+            expected_cross_tenant = {
+                name
+                for name, foreign_key in expected_foreign_keys.items()
+                if foreign_key[4]
+            }
+            actual_noncomposite_cross_tenant = {
+                name
+                for name in expected_cross_tenant
+                if len(actual_foreign_keys[name][2]) == 1
+            }
+            assert actual_noncomposite_cross_tenant == expected_cross_tenant
+
+            cross_tenant_source_tables = {
+                expected_foreign_keys[name][0] for name in expected_cross_tenant
+            }
+            assert {
+                name
+                for name, foreign_key in actual_foreign_keys.items()
+                if foreign_key[0] in cross_tenant_source_tables
+                and len(foreign_key[2]) == 1
+                and foreign_key[1] != "tenants"
+                and name not in expected_cross_tenant
+            } == set()
+            for name, foreign_key in expected_foreign_keys.items():
+                if foreign_key[4] or not foreign_key[5]:
+                    continue
+                actual_foreign_key = actual_foreign_keys[name]
+                assert "tenant_id" in actual_foreign_key[2]
+                assert "tenant_id" in actual_foreign_key[3]
+
+            index_contracts = {
+                "uq_group_memberships_active": (
+                    "group_memberships",
+                    ["group_id", "tenant_id"],
+                    "status = 'active'",
+                    True,
+                ),
+                "ix_group_memberships_tenant": (
+                    "group_memberships",
+                    ["tenant_id", "status", "group_id"],
+                    None,
+                    False,
+                ),
+                "ix_group_invitations_expiry": (
+                    "group_invitations",
+                    ["expires_at", "id"],
+                    "status = 'unconsumed'",
+                    False,
+                ),
+            }
+            for index_name, expected in index_contracts.items():
+                assert _manifest_index_contract(index_name) == expected[:3]
+                actual_index = _index_catalog_contract(connection, index_name)
+                assert actual_index[1:4] == expected[:3]
+                assert actual_index[4] is expected[3]
+
+            assert {
+                table_name
+                for table_name in (
+                    "analysis_groups",
+                    "group_memberships",
+                    "sharing_grants",
+                    "group_invitations",
+                )
+                if "tenant_id" in table_columns[table_name]
+            } == {"group_memberships"}
+
+            with connection.cursor() as cursor:
+                tenant_id = uuid4()
+                other_tenant_id = uuid4()
+                group_id = uuid4()
+                other_group_id = uuid4()
+                delete_probe_group_id = uuid4()
+                membership_id = uuid4()
+                alternate_membership_id = uuid4()
+                delete_probe_membership_id = uuid4()
+                invitation_id = uuid4()
+                expires_at = datetime(2026, 9, 20, tzinfo=UTC)
+
+                cursor.executemany(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    [
+                        (tenant_id, "グループ参加テナント"),
+                        (other_tenant_id, "別グループ参加テナント"),
+                    ],
+                )
+                cursor.executemany(
+                    "INSERT INTO analysis_groups (id) VALUES (%s)",
+                    [
+                        (group_id,),
+                        (other_group_id,),
+                        (delete_probe_group_id,),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM analysis_groups
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (delete_probe_group_id,),
+                )
+                assert cursor.fetchone() == (delete_probe_group_id,)
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO analysis_groups (id, status, terminated_at)
+                        VALUES (%s, 'terminated', NULL)
+                        """,
+                        (uuid4(),),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO analysis_groups (id, status, terminated_at)
+                        VALUES (%s, 'active', %s)
+                        """,
+                        (uuid4(), datetime(2026, 9, 12, tzinfo=UTC)),
+                    )
+
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="analysis group ID is immutable",
+                ):
+                    cursor.execute(
+                        "UPDATE analysis_groups SET id = %s WHERE id = %s",
+                        (uuid4(), group_id),
+                    )
+                cursor.execute(
+                    """
+                    UPDATE analysis_groups
+                    SET termination_reason = %s
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    ("管理者判断", group_id),
+                )
+                assert cursor.fetchone() == (group_id,)
+                cursor.execute(
+                    """
+                    UPDATE analysis_groups
+                    SET status = 'terminated', terminated_at = %s
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (terminated_at := datetime(2026, 9, 13, tzinfo=UTC), group_id),
+                )
+                assert cursor.fetchone() == (group_id,)
+                cursor.execute(
+                    """
+                    UPDATE analysis_groups
+                    SET status = 'terminated'
+                    WHERE id = %s
+                    RETURNING status
+                    """,
+                    (group_id,),
+                )
+                assert cursor.fetchone() == ("terminated",)
+                cursor.execute(
+                    """
+                    UPDATE analysis_groups
+                    SET terminated_at = %s
+                    WHERE id = %s
+                    RETURNING terminated_at
+                    """,
+                    (terminated_at, group_id),
+                )
+                assert cursor.fetchone() == (terminated_at,)
+
+                cursor.executemany(
+                    """
+                    INSERT INTO group_memberships (
+                        id, group_id, tenant_id
+                    ) VALUES (%s, %s, %s)
+                    """,
+                    [
+                        (membership_id, group_id, tenant_id),
+                        (
+                            delete_probe_membership_id,
+                            other_group_id,
+                            other_tenant_id,
+                        ),
+                    ],
+                )
+                with pytest.raises(psycopg.errors.UniqueViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_memberships (
+                            id, group_id, tenant_id
+                        ) VALUES (%s, %s, %s)
+                        """,
+                        (uuid4(), group_id, tenant_id),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_memberships (
+                            id, group_id, tenant_id, role
+                        ) VALUES (%s, %s, %s, 'owner')
+                        """,
+                        (uuid4(), group_id, other_tenant_id),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_memberships (
+                            id, group_id, tenant_id, status
+                        ) VALUES (%s, %s, %s, 'pending')
+                        """,
+                        (uuid4(), group_id, other_tenant_id),
+                    )
+                cursor.execute(
+                    """
+                    DELETE FROM group_memberships
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (delete_probe_membership_id,),
+                )
+                assert cursor.fetchone() == (delete_probe_membership_id,)
+                cursor.execute(
+                    """
+                    INSERT INTO group_memberships (id, group_id, tenant_id)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (alternate_membership_id, other_group_id, other_tenant_id),
+                )
+
+                protected_membership_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "group_id": other_group_id,
+                    "tenant_id": other_tenant_id,
+                    "joined_at": datetime(2026, 9, 14, tzinfo=UTC),
+                }
+                for column, value in protected_membership_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="group membership identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE group_memberships SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, membership_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE group_memberships
+                    SET role = 'admin'
+                    WHERE id = %s
+                    RETURNING role
+                    """,
+                    (membership_id,),
+                )
+                assert cursor.fetchone() == ("admin",)
+                cursor.execute(
+                    """
+                    UPDATE group_memberships
+                    SET status = 'left'
+                    WHERE id = %s
+                    RETURNING status
+                    """,
+                    (membership_id,),
+                )
+                assert cursor.fetchone() == ("left",)
+                cursor.execute(
+                    """
+                    UPDATE group_memberships
+                    SET left_at = %s
+                    WHERE id = %s
+                    RETURNING left_at
+                    """,
+                    (left_at := datetime(2026, 9, 15, tzinfo=UTC), membership_id),
+                )
+                assert cursor.fetchone() == (left_at,)
+
+                cursor.executemany(
+                    """
+                    INSERT INTO sharing_grants (membership_id, grant_flags)
+                    VALUES (%s, %s)
+                    """,
+                    [
+                        (membership_id, Jsonb({"games": True})),
+                        (alternate_membership_id, Jsonb({"players": True})),
+                    ],
+                )
+                with pytest.raises(psycopg.errors.UniqueViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO sharing_grants (membership_id, grant_flags)
+                        VALUES (%s, %s)
+                        """,
+                        (membership_id, Jsonb({"duplicate": True})),
+                    )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="sharing grant membership is immutable",
+                ):
+                    cursor.execute(
+                        """
+                        UPDATE sharing_grants
+                        SET membership_id = %s
+                        WHERE membership_id = %s
+                        """,
+                        (alternate_membership_id, membership_id),
+                    )
+                cursor.execute(
+                    """
+                    UPDATE sharing_grants
+                    SET grant_flags = %s
+                    WHERE membership_id = %s
+                    RETURNING grant_flags
+                    """,
+                    (Jsonb({"games": False}), membership_id),
+                )
+                assert cursor.fetchone() == ({"games": False},)
+                cursor.execute(
+                    """
+                    DELETE FROM sharing_grants
+                    WHERE membership_id = %s
+                    RETURNING membership_id
+                    """,
+                    (alternate_membership_id,),
+                )
+                assert cursor.fetchone() == (alternate_membership_id,)
+
+                cursor.execute(
+                    """
+                    INSERT INTO group_invitations (
+                        id, group_id, code_hash, expires_at
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (invitation_id, group_id, "sha256:shared-code", expires_at),
+                )
+                with pytest.raises(psycopg.errors.UniqueViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_invitations (
+                            id, group_id, code_hash, expires_at
+                        ) VALUES (%s, %s, %s, %s)
+                        """,
+                        (uuid4(), other_group_id, "sha256:shared-code", expires_at),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_invitations (
+                            id, group_id, code_hash, expires_at, status
+                        ) VALUES (%s, %s, %s, %s, 'expired')
+                        """,
+                        (uuid4(), group_id, "sha256:bad-status", expires_at),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO group_invitations (
+                            id, group_id, code_hash, expires_at, initial_role
+                        ) VALUES (%s, %s, %s, %s, 'owner')
+                        """,
+                        (uuid4(), group_id, "sha256:bad-role", expires_at),
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO group_invitations (
+                        id, group_id, code_hash, expires_at
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        delete_probe_invitation_id := uuid4(),
+                        other_group_id,
+                        "sha256:delete-probe",
+                        expires_at,
+                    ),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM group_invitations
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (delete_probe_invitation_id,),
+                )
+                assert cursor.fetchone() == (delete_probe_invitation_id,)
+
+                protected_invitation_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "group_id": other_group_id,
+                    "code_hash": "sha256:changed",
+                    "initial_role": "admin",
+                }
+                for column, value in protected_invitation_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="group invitation identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE group_invitations SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, invitation_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE group_invitations
+                    SET status = 'consumed'
+                    WHERE id = %s
+                    RETURNING status
+                    """,
+                    (invitation_id,),
+                )
+                assert cursor.fetchone() == ("consumed",)
+
+        command.downgrade(config, "0013_player_merge_rate_limits")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_eighteen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

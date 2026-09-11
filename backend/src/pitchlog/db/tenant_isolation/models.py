@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     PrimaryKeyConstraint,
     Text,
+    UniqueConstraint,
     Uuid,
     text,
 )
@@ -611,6 +612,14 @@ class AdminOperationLog(LifecycleMixin, Base):
     __tablename__ = "admin_operation_logs"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["group_id"],
+            ["analysis_groups.id"],
+            name="fk_admin_operation_logs_group",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": True},
+        ),
+        ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],
             name="fk_admin_operation_logs_tenant",
@@ -850,6 +859,209 @@ Index(
     RateLimitCounter.__table__.c.id,
     info={"purpose": "range_sort"},
 )
+
+
+class AnalysisGroup(LifecycleMixin, Base):
+    """複数テナントが参加できる分析グループを保持する。"""
+
+    __tablename__ = "analysis_groups"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'terminated')"),
+        CheckConstraint("(status = 'terminated') = (terminated_at IS NOT NULL)"),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_analysis_groups",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'active'")
+    )
+    terminated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    termination_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.ENDED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id"}),
+        allowed_update_columns=frozenset(
+            {"status", "terminated_at", "termination_reason"}
+        ),
+    )
+
+
+class GroupMembership(TenantMixin, LifecycleMixin, Base):
+    """分析グループへのテナント参加と役割を保持する。"""
+
+    __tablename__ = "group_memberships"
+    __table_args__ = (
+        CheckConstraint("role IN ('admin', 'member')"),
+        CheckConstraint("status IN ('active', 'left')"),
+        ForeignKeyConstraint(
+            ["group_id"],
+            ["analysis_groups.id"],
+            name="fk_group_memberships_group",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": True},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_group_memberships_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": True},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_group_memberships",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "uq_group_memberships_active",
+            "group_id",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            info={"roles": ("business_unique",)},
+        ),
+        Index(
+            "ix_group_memberships_tenant",
+            "tenant_id",
+            "status",
+            "group_id",
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    group_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    role: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'member'")
+    )
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'active'")
+    )
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    left_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.ENDED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "group_id", "tenant_id", "joined_at"}),
+        allowed_update_columns=frozenset({"role", "status", "left_at"}),
+    )
+
+
+class SharingGrant(LifecycleMixin, Base):
+    """参加行ごとの共有権限を高々1件保持する。"""
+
+    __tablename__ = "sharing_grants"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["membership_id"],
+            ["group_memberships.id"],
+            name="fk_sharing_grants_membership",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": True},
+        ),
+        PrimaryKeyConstraint(
+            "membership_id",
+            name="pk_sharing_grants",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    membership_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    grant_flags: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"membership_id"}),
+        allowed_update_columns=frozenset({"grant_flags"}),
+    )
+
+
+class GroupInvitation(LifecycleMixin, Base):
+    """テナントを跨いで一意なハッシュを持つグループ招待。"""
+
+    __tablename__ = "group_invitations"
+    __table_args__ = (
+        CheckConstraint("status IN ('unconsumed', 'consumed', 'revoked')"),
+        CheckConstraint("initial_role IN ('admin', 'member')"),
+        ForeignKeyConstraint(
+            ["group_id"],
+            ["analysis_groups.id"],
+            name="fk_group_invitations_group",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": True},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_group_invitations",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        UniqueConstraint(
+            "code_hash",
+            name="uq_group_invitations_code_hash",
+            info={"roles": ("business_unique",)},
+        ),
+        Index(
+            "ix_group_invitations_expiry",
+            "expires_at",
+            "id",
+            postgresql_where=text("status = 'unconsumed'"),
+            info={"purpose": "range_sort"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    group_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'unconsumed'")
+    )
+    initial_role: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'member'")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.ENDED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "group_id", "code_hash", "initial_role"}),
+        allowed_update_columns=frozenset({"status"}),
+    )
 
 
 Index(
