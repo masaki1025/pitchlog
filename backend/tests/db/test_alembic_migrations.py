@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0008_recording_generations"
+_REVISION = "0009_medical_notes_pdf_exports"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -302,6 +302,78 @@ BEGIN
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
+END;
+$function$
+"""
+_MEDICAL_NOTE_TRIGGER_NAME = "trg_medical_notes_identity_immutable"
+_MEDICAL_NOTE_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_medical_notes_identity_immutable BEFORE UPDATE OF "
+    "player_id, note_kind ON medical_notes FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_medical_notes_identity_update()"
+)
+_MEDICAL_NOTE_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_medical_notes_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.player_id, NEW.note_kind)
+       IS DISTINCT FROM ROW(OLD.player_id, OLD.note_kind) THEN
+        RAISE EXCEPTION 'medical note identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_MEDICAL_VERSION_TRIGGER_NAME = "trg_medical_note_versions_content_immutable"
+_MEDICAL_VERSION_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_medical_note_versions_content_immutable BEFORE UPDATE "
+    "OF medical_note_id, version, content, origin, recorded_at ON "
+    "medical_note_versions FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_medical_note_versions_content_update()"
+)
+_MEDICAL_VERSION_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_medical_note_versions_content_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.medical_note_id,
+        NEW.version,
+        NEW.content,
+        NEW.origin,
+        NEW.recorded_at
+    ) IS DISTINCT FROM ROW(
+        OLD.medical_note_id,
+        OLD.version,
+        OLD.content,
+        OLD.origin,
+        OLD.recorded_at
+    ) THEN
+        RAISE EXCEPTION 'medical note version content is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_PDF_EXPORT_TRIGGER_NAME = "trg_pdf_export_records_append_only"
+_PDF_EXPORT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_pdf_export_records_append_only BEFORE DELETE OR UPDATE "
+    "ON pdf_export_records FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_pdf_export_records_mutation()"
+)
+_PDF_EXPORT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_pdf_export_records_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'pdf export records are append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
 END;
 $function$
 """
@@ -2844,6 +2916,399 @@ def test_recording_generation_d3_guard_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_twelve_objects_are_absent(connection)
             _clear_event_slots_before_recording_generation_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_thirteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後にカルテ・PDF 表とトリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.medical_notes'),
+                to_regclass('public.medical_note_versions'),
+                to_regclass('public.pdf_export_records'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_medical_notes_identity_update()'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_medical_note_versions_content_update()'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_pdf_export_records_mutation()'
+                )
+            """,
+            (
+                _MEDICAL_NOTE_TRIGGER_NAME,
+                _MEDICAL_VERSION_TRIGGER_NAME,
+                _PDF_EXPORT_TRIGGER_NAME,
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, False, None, False, None, False, None)
+
+
+def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """カルテ・PDF 実績の制約、不変性、追記専用性と往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _MEDICAL_NOTE_TRIGGER_NAME,
+                    _MEDICAL_NOTE_TRIGGER_DEFINITION,
+                    "medical_notes",
+                    ["player_id", "note_kind"],
+                    _MEDICAL_NOTE_FUNCTION_DEFINITION,
+                ),
+                (
+                    _MEDICAL_VERSION_TRIGGER_NAME,
+                    _MEDICAL_VERSION_TRIGGER_DEFINITION,
+                    "medical_note_versions",
+                    [
+                        "medical_note_id",
+                        "version",
+                        "content",
+                        "origin",
+                        "recorded_at",
+                    ],
+                    _MEDICAL_VERSION_FUNCTION_DEFINITION,
+                ),
+                (
+                    _PDF_EXPORT_TRIGGER_NAME,
+                    _PDF_EXPORT_TRIGGER_DEFINITION,
+                    "pdf_export_records",
+                    [],
+                    _PDF_EXPORT_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual[0]) == _normalize_sql(definition)
+                assert actual[1] == table
+                assert actual[2] == columns
+                assert actual[3] == "O"
+                assert _normalize_sql(actual[4]) == _normalize_sql(function)
+
+            active_note_index = _index_catalog_contract(
+                connection, "uq_medical_notes_active"
+            )
+            assert active_note_index[1:4] == (
+                "medical_notes",
+                ["tenant_id", "player_id", "note_kind"],
+                "retired_at IS NULL",
+            )
+            assert active_note_index[4]
+
+            history_contract = (
+                "medical_note_versions",
+                ["tenant_id", "medical_note_id", "version DESC"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_medical_note_versions_history")
+                == history_contract
+            )
+            history_index = _index_catalog_contract(
+                connection, "ix_medical_note_versions_history"
+            )
+            assert history_index[1:4] == history_contract
+            assert not history_index[4]
+
+            pdf_time_contract = (
+                "pdf_export_records",
+                ["tenant_id", "exported_at DESC", "id DESC"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_pdf_export_records_time")
+                == pdf_time_contract
+            )
+            pdf_time_index = _index_catalog_contract(
+                connection, "ix_pdf_export_records_time"
+            )
+            assert pdf_time_index[1:4] == pdf_time_contract
+            assert not pdf_time_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'pdf_export_records'
+                      AND column_name = ANY(%s)
+                    ORDER BY column_name
+                    """,
+                    (
+                        [
+                            "deleted_at",
+                            "disabled_at",
+                            "discarded_at",
+                            "ended_at",
+                            "hidden_at",
+                            "import_batch_id",
+                            "retired_at",
+                            "trashed_at",
+                        ],
+                    ),
+                )
+                assert cursor.fetchall() == []
+
+                tenant_id = uuid4()
+                team_id = uuid4()
+                player_id = uuid4()
+                medical_note_id = uuid4()
+                medical_version_id = uuid4()
+                pdf_export_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "カルテテストテナント"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, 'self', %s)
+                    """,
+                    (tenant_id, team_id, "カルテテストチーム"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO players (
+                        tenant_id, id, team_record_id, name, roster_status_key
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (tenant_id, player_id, team_id, "選手", "active"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO medical_notes (
+                        tenant_id, id, player_id, note_kind, content
+                    ) VALUES (%s, %s, %s, 'pitcher', %s)
+                    """,
+                    (tenant_id, medical_note_id, player_id, "初版"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO medical_note_versions (
+                        tenant_id, id, medical_note_id, version, content
+                    ) VALUES (%s, %s, %s, 1, %s)
+                    """,
+                    (tenant_id, medical_version_id, medical_note_id, "初版"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO pdf_export_records (
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        player_id,
+                        applied_filters
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        tenant_id,
+                        pdf_export_id,
+                        team_id,
+                        player_id,
+                        Jsonb({"season": 2026}),
+                    ),
+                )
+                assert cursor.fetchone() == (pdf_export_id,)
+
+                protected_note_updates: dict[str, object] = {
+                    "player_id": uuid4(),
+                    "note_kind": "batter",
+                }
+                for column, value in protected_note_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="medical note identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE medical_notes SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, medical_note_id),
+                        )
+
+                allowed_note_updates: dict[str, object] = {
+                    "content": "改訂版",
+                    "version": 2,
+                    "hidden_at": datetime(2026, 9, 12, tzinfo=UTC),
+                    "retired_at": datetime(2026, 9, 13, tzinfo=UTC),
+                }
+                for column, value in allowed_note_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE medical_notes SET {} = %s "
+                            "WHERE tenant_id = %s AND id = %s RETURNING id"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id, medical_note_id),
+                    )
+                    assert cursor.fetchone() == (medical_note_id,)
+
+                protected_version_updates: dict[str, object] = {
+                    "medical_note_id": uuid4(),
+                    "version": 2,
+                    "content": "改変",
+                    "origin": "merge",
+                    "recorded_at": datetime(2026, 9, 14, tzinfo=UTC),
+                }
+                for column, value in protected_version_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="medical note version content is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE medical_note_versions SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, medical_version_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE medical_note_versions
+                    SET retained_for_restore = false
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING retained_for_restore
+                    """,
+                    (tenant_id, medical_version_id),
+                )
+                assert cursor.fetchone() == (False,)
+
+                protected_pdf_updates: dict[str, object] = {
+                    "tenant_id": uuid4(),
+                    "id": uuid4(),
+                    "exported_at": datetime(2026, 9, 14, tzinfo=UTC),
+                    "team_record_id": uuid4(),
+                    "player_id": uuid4(),
+                    "applied_filters": Jsonb({"changed": True}),
+                }
+                for column, value in protected_pdf_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="pdf export records are append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE pdf_export_records SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, pdf_export_id),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="pdf export records are append-only",
+                ):
+                    cursor.execute(
+                        """
+                        DELETE FROM pdf_export_records
+                        WHERE tenant_id = %s AND id = %s
+                        """,
+                        (tenant_id, pdf_export_id),
+                    )
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO medical_notes (
+                            tenant_id, id, player_id, note_kind
+                        ) VALUES (%s, %s, %s, 'catcher')
+                        """,
+                        (tenant_id, uuid4(), player_id),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO medical_notes (
+                            tenant_id, id, player_id, note_kind, version
+                        ) VALUES (%s, %s, %s, 'batter', 0)
+                        """,
+                        (tenant_id, uuid4(), player_id),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO medical_note_versions (
+                            tenant_id,
+                            id,
+                            medical_note_id,
+                            version,
+                            content,
+                            origin
+                        ) VALUES (%s, %s, %s, 2, %s, 'automatic')
+                        """,
+                        (tenant_id, uuid4(), medical_note_id, "不正 origin"),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO medical_note_versions (
+                            tenant_id, id, medical_note_id, version, content
+                        ) VALUES (%s, %s, %s, 0, %s)
+                        """,
+                        (tenant_id, uuid4(), medical_note_id, "不正 version"),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO medical_note_versions (
+                            tenant_id,
+                            id,
+                            medical_note_id,
+                            version,
+                            content,
+                            origin,
+                            retained_for_restore
+                        ) VALUES (%s, %s, %s, 2, %s, 'merge', false)
+                        """,
+                        (tenant_id, uuid4(), medical_note_id, "復元不能 merge"),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO pdf_export_records (
+                            tenant_id, id, applied_filters
+                        ) VALUES (%s, %s, %s)
+                        """,
+                        (tenant_id, uuid4(), Jsonb({})),
+                    )
+
+        command.downgrade(config, "0008_recording_generations")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_thirteen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

@@ -1,4 +1,4 @@
-"""テナント・チームレコード・選手モデルを manifest と照合する。"""
+"""テナント分離領域のモデルを manifest と照合する。"""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -15,9 +16,19 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import operators
+from sqlalchemy.sql.elements import UnaryExpression
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
-from pitchlog.db.tenant_isolation.models import Player, TeamRecord, Tenant
+from pitchlog.db.tenant_isolation.models import (
+    MedicalNote,
+    MedicalNoteVersion,
+    PdfExportRecord,
+    Player,
+    TeamRecord,
+    Tenant,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
@@ -25,6 +36,9 @@ _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
     "players": Player,
+    "medical_notes": MedicalNote,
+    "medical_note_versions": MedicalNoteVersion,
+    "pdf_export_records": PdfExportRecord,
 }
 
 
@@ -66,6 +80,10 @@ def _column_type_name(column: Column[Any]) -> str:
     """SQLAlchemy の列型を manifest の型名へ正規化する。"""
     if isinstance(column.type, Uuid):
         return "uuid"
+    if isinstance(column.type, JSONB):
+        return "jsonb"
+    if isinstance(column.type, BigInteger):
+        return "bigint"
     if isinstance(column.type, Text):
         return "text"
     if isinstance(column.type, Boolean):
@@ -182,12 +200,30 @@ def _model_indexes(table: Table) -> list[_IndexContract]:
         contracts.append(
             {
                 "name": index.name,
-                "columns": list(index.columns.keys()),
+                "columns": _index_columns(index),
                 "predicate": _index_predicate(index),
                 "purpose": str(index.info["purpose"]),
             }
         )
     return sorted(contracts, key=lambda index: index["name"])
+
+
+def _index_columns(index: Index) -> list[str]:
+    """索引の列順と降順指定を manifest の形へ変換する。"""
+    columns: list[str] = []
+    for expression in index.expressions:
+        if isinstance(expression, Column):
+            columns.append(expression.name)
+            continue
+        if (
+            isinstance(expression, UnaryExpression)
+            and expression.modifier is operators.desc_op
+            and isinstance(expression.element, Column)
+        ):
+            columns.append(f"{expression.element.name} DESC")
+            continue
+        raise AssertionError(f"未対応の索引式: {index.name}: {expression}")
+    return columns
 
 
 def _model_lifecycle(model: Any) -> dict[str, str]:
@@ -208,7 +244,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """3 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """6 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -260,3 +296,21 @@ def test_step_six_uniqueness_and_uniform_number_contract() -> None:
     ]
     uniform_number = Player.__table__.columns["uniform_number"]
     assert isinstance(uniform_number.type, Text)
+
+
+def test_pdf_export_records_have_no_deletion_or_migration_columns() -> None:
+    """追記専用の PDF 出力実績に削除・退役・取り込み列が無いと示す。"""
+    columns = set(PdfExportRecord.__table__.columns.keys())
+
+    assert columns.isdisjoint(
+        {
+            "deleted_at",
+            "disabled_at",
+            "discarded_at",
+            "ended_at",
+            "hidden_at",
+            "import_batch_id",
+            "retired_at",
+            "trashed_at",
+        }
+    )
