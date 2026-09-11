@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy import MetaData
 
+from pitchlog.db import all_models
 from pitchlog.db.base import Base
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -565,6 +566,7 @@ def test_changed_canonical_digest_is_reported_as_stale() -> None:
 
 def test_implemented_tables_are_manifested_while_schema_is_incomplete() -> None:
     """実装表が manifest 内にあり、全表実装前であることを検査する。"""
+    assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
     model_tables = set(Base.metadata.tables)
     migration_tables = _migration_table_names(_MIGRATIONS_PATH)
