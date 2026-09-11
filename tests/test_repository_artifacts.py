@@ -573,6 +573,37 @@ def test_directory_only_rule_applies_to_gitlink(tmp_path: Path) -> None:
     assert _tracked_ignored_paths(repository_root, tmp_path) == (gitlink_path,)
 
 
+def test_directory_only_rule_does_not_apply_to_symlink(tmp_path: Path) -> None:
+    """規則ファイルではない symlink をディレクトリと誤認しない。"""
+    repository_root = _initialize_repository(tmp_path)
+    symlink_path = Path("generated")
+    target_path = Path(f"symlink-target-{uuid4().hex}")
+    (repository_root / ".gitignore").write_text("/generated/\n", encoding="utf-8")
+    (repository_root / target_path).write_text("readable target\n", encoding="utf-8")
+    (repository_root / symlink_path).symlink_to(target_path)
+    _git(
+        repository_root,
+        "add",
+        "--",
+        ".gitignore",
+        symlink_path.as_posix(),
+        target_path.as_posix(),
+    )
+    symlink_entry = next(
+        entry
+        for entry in _index_entries(repository_root)
+        if entry.path == symlink_path
+    )
+
+    assert symlink_entry.mode == "120000"
+    assert _check_ignored_paths(
+        repository_root,
+        (symlink_path,),
+        no_index=True,
+    ) == ()
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
 def test_executable_ignore_applies_rules(tmp_path: Path) -> None:
     """Mode 100755 の ignore 規則も通常ファイルとして適用する。"""
     repository_root = _initialize_repository(tmp_path)
