@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, TypedDict, cast
+from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -13,6 +14,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Integer,
+    Numeric,
     Text,
     UniqueConstraint,
     Uuid,
@@ -28,8 +30,11 @@ from pitchlog.db.game_state.models import (
     GameTypeRuleDefault,
     LineupMemory,
     ParticipationInterval,
+    PlayRow,
+    PlayRunner,
     RuleSet,
     TournamentRuleAssignment,
+    derive_migrated_play_row_id,
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +47,8 @@ _MODEL_CLASSES: dict[str, Any] = {
     "rule_sets": RuleSet,
     "game_type_rule_defaults": GameTypeRuleDefault,
     "tournament_rule_assignments": TournamentRuleAssignment,
+    "play_rows": PlayRow,
+    "play_runners": PlayRunner,
 }
 
 
@@ -89,6 +96,8 @@ def _column_type_name(column: Column[Any]) -> str:
         return "bigint"
     if isinstance(column.type, Integer):
         return "integer"
+    if isinstance(column.type, Numeric):
+        return "numeric"
     if isinstance(column.type, Text):
         return "text"
     if isinstance(column.type, Boolean):
@@ -249,7 +258,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_game_state_models_match_manifest_contracts() -> None:
-    """7 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """9 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -370,3 +379,49 @@ def test_rule_assignment_scope_and_game_snapshot_structure() -> None:
     assert _foreign_key_targets(tournament_table) == {
         "fk_tournament_rule_assignments_rule": {"rule_sets"}
     }
+
+
+def test_migrated_play_row_id_is_stable_across_reprojection() -> None:
+    """同じ旧行と正本イベントからの2回の再投影が同じ ID になる。"""
+    source_event_id = UUID("018f7765-9380-7bf2-89fd-8dd231cc1e7b")
+    legacy_row_identifier = "legacy-play-row:0042"
+
+    first_projection = PlayRow(
+        id=derive_migrated_play_row_id(source_event_id, legacy_row_identifier),
+        source_event_id=source_event_id,
+        legacy_row_identifier=legacy_row_identifier,
+    )
+    second_projection = PlayRow(
+        id=derive_migrated_play_row_id(source_event_id, legacy_row_identifier),
+        source_event_id=source_event_id,
+        legacy_row_identifier=legacy_row_identifier,
+    )
+
+    assert first_projection.id == second_projection.id
+    assert first_projection.id == UUID("04088b4f-ea70-5f83-8776-848ef4e03b40")
+
+
+def test_play_projection_does_not_copy_d2_and_keeps_legacy_identity_nullable() -> None:
+    """投影2表が D2 を複製せず通常入力へ旧行識別子を強制しない。"""
+    play_table = cast(Table, PlayRow.__table__)
+    runner_table = cast(Table, PlayRunner.__table__)
+
+    assert "d2" not in play_table.columns
+    assert "d2" not in runner_table.columns
+    assert play_table.columns["legacy_row_identifier"].nullable
+    assert PlayRow.immutability.protected_columns == frozenset(
+        {"id", "source_event_id", "legacy_row_identifier"}
+    )
+
+
+def test_play_runner_has_one_required_responsible_pitcher_column() -> None:
+    """走者1行が責任投手を1列だけ必須保持すると示す。"""
+    table = cast(Table, PlayRunner.__table__)
+    responsible_columns = [
+        column.name
+        for column in table.columns
+        if column.name.startswith("responsible_pitcher")
+    ]
+
+    assert responsible_columns == ["responsible_pitcher_id"]
+    assert not table.columns["responsible_pitcher_id"].nullable

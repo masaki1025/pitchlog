@@ -19,13 +19,18 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
-from pitchlog.db.sync_protocol.models import EventSlot, OperationEvent
+from pitchlog.db.sync_protocol.models import (
+    EventSlot,
+    OperationEvent,
+    TemporaryPlayerIdMapping,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
 _MODEL_CLASSES: dict[str, Any] = {
     "event_slots": EventSlot,
     "operation_events": OperationEvent,
+    "temporary_player_id_mappings": TemporaryPlayerIdMapping,
 }
 _C12_CHECKS = {
     "ledger_kind = 'accepted'",
@@ -249,7 +254,7 @@ def _foreign_key_targets(table: Table) -> dict[str, tuple[str, tuple[str, ...]]]
 
 
 def test_sync_protocol_models_match_manifest_contracts() -> None:
-    """2表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """3表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -338,3 +343,24 @@ def test_operation_event_slot_fks_and_partial_uniqueness() -> None:
         "d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL"
     )
     assert uniques["uq_operation_events_d5"]["predicate"] is None
+
+
+def test_temporary_player_mapping_uses_immutable_uuid_identifiers() -> None:
+    """一時 ID が UUID でテナント内一意かつ写像の両端が不変と示す。"""
+    table = cast(Table, TemporaryPlayerIdMapping.__table__)
+    uniques = {
+        contract["name"]: contract for contract in _model_unique_constraints(table)
+    }
+
+    assert isinstance(table.columns["temporary_id"].type, Uuid)
+    assert uniques["uq_temporary_player_id_mappings_temporary"] == {
+        "name": "uq_temporary_player_id_mappings_temporary",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "temporary_id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+    }
+    assert TemporaryPlayerIdMapping.immutability.protected_columns == frozenset(
+        {"temporary_id", "player_id"}
+    )
+    assert TemporaryPlayerIdMapping.immutability.allowed_update_columns == frozenset()

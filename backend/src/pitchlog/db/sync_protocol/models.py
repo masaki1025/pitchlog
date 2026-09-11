@@ -233,3 +233,50 @@ class OperationEvent(
         ),
         allowed_update_columns=frozenset({"d2", "replaced_at", "retired_at"}),
     )
+
+
+class TemporaryPlayerIdMapping(TenantMixin, LifecycleMixin, Base):
+    """クライアントの一時選手 ID と確定した選手 ID の対応を保持する。"""
+
+    __tablename__ = "temporary_player_id_mappings"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "player_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_temporary_player_id_mappings_player",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_temporary_player_id_mappings",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "temporary_id",
+            name="uq_temporary_player_id_mappings_temporary",
+            info={"roles": ("business_unique",)},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    temporary_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    player_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resolved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"temporary_id", "player_id"}),
+        allowed_update_columns=frozenset(),
+    )

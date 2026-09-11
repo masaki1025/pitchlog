@@ -1,9 +1,17 @@
-"""試合・スタメン・出場区間の状況計算領域モデルを定義する。"""
+"""試合・スタメン・出場区間・プレイ投影の状況計算モデルを定義する。
+
+移行由来のプレイ投影 ID:
+- 生成元イベント ID を UUIDv5 の名前空間、旧行識別子を名前として ID を導出する。
+- 同じ正本イベントと旧行からの再投影は挿入順や乱数に依存せず同じ ID になり、
+  サイドカーの結合先を安定させられるため、この形を採る。
+- 旧行識別子が NULL の通常入力はこの導出関数の対象外であり、別途発行された ID を使う。
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
+from decimal import Decimal
+from uuid import UUID, uuid5
 
 from sqlalchemy import (
     BigInteger,
@@ -13,6 +21,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     PrimaryKeyConstraint,
     Text,
     Uuid,
@@ -35,6 +44,21 @@ from pitchlog.db.model_metadata import (
     Lifecycle,
     MigrationRetirement,
 )
+
+
+def derive_migrated_play_row_id(
+    source_event_id: UUID, legacy_row_identifier: str
+) -> UUID:
+    """移行由来の投影行 ID を正本イベントと旧行識別子から導出する。
+
+    Args:
+        source_event_id: 投影を生成した正本イベント ID。
+        legacy_row_identifier: 移行元で同じ行を識別する文字列。
+
+    Returns:
+        入力の組に対して決定的な UUIDv5。
+    """
+    return uuid5(source_event_id, legacy_row_identifier)
 
 
 class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
@@ -419,4 +443,157 @@ class TournamentRuleAssignment(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"rule_set_id"}),
+    )
+
+
+class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
+    """操作イベントから再生成できる毎球データの投影行。"""
+
+    __tablename__ = "play_rows"
+    __table_args__ = (
+        CheckConstraint("event_kind IN ('pitch', 'non_pitch')"),
+        CheckConstraint("version > 0"),
+        CheckConstraint("course_x IS NULL OR course_x BETWEEN 0 AND 1"),
+        CheckConstraint("course_y IS NULL OR course_y BETWEEN 0 AND 1"),
+        ForeignKeyConstraint(
+            ["tenant_id", "game_id"],
+            ["games.tenant_id", "games.id"],
+            name="fk_play_rows_game",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "source_event_id"],
+            ["operation_events.tenant_id", "operation_events.id"],
+            name="fk_play_rows_event",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_play_rows",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_play_rows_game_order",
+            "tenant_id",
+            "game_id",
+            "play_number",
+            "id",
+            postgresql_where=text("hidden_at IS NULL"),
+            info={"purpose": "range_sort"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    game_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_event_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    play_number: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    event_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    batter_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    pitcher_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    catcher_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    course_x: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    course_y: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    pitch_speed: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    raw_fielder_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolved_fielder_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+    raw_error_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolved_error_player_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+    compatibility_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False
+    )
+    version: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("1")
+    )
+    hidden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    legacy_row_identifier: Mapped[str | None] = mapped_column(Text, nullable=True)
+    migration_unverified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.HIDDEN,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "source_event_id", "legacy_row_identifier"}),
+        allowed_update_columns=frozenset({"version", "hidden_at"}),
+    )
+
+
+class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin, Base):
+    """プレイ時点の各塁の走者と責任投手を1行ずつ保持する。"""
+
+    __tablename__ = "play_runners"
+    __table_args__ = (
+        CheckConstraint("base IN (1, 2, 3)"),
+        ForeignKeyConstraint(
+            ["tenant_id", "play_id"],
+            ["play_rows.tenant_id", "play_rows.id"],
+            name="fk_play_runners_play",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "runner_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_play_runners_runner",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "responsible_pitcher_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_play_runners_pitcher",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_play_runners",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "uq_play_runners_active",
+            "tenant_id",
+            "play_id",
+            "base",
+            unique=True,
+            postgresql_where=text("retired_at IS NULL"),
+            info={"roles": ("business_unique",)},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    play_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    base: Mapped[int] = mapped_column(Integer, nullable=False)
+    runner_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    responsible_pitcher_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), nullable=False
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.HAS_PREDICATE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(),
+        allowed_update_columns=frozenset({"status", "retired_at"}),
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
@@ -29,7 +30,7 @@ from .conftest import DisposablePostgres
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_REVISION = "0005_sync_events"
+_REVISION = "0006_play_projections"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -141,6 +142,57 @@ _FORBIDDEN_OPERATION_EVENT_COLUMNS = {
     "created_by_user_id",
     "inputter_id",
 }
+_PLAY_ROW_TRIGGER_NAME = "trg_play_rows_projection_identity_immutable"
+_PLAY_ROW_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_play_rows_projection_identity_immutable BEFORE UPDATE OF "
+    "id, source_event_id, legacy_row_identifier ON play_rows FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_play_rows_projection_identity_update()"
+)
+_PLAY_ROW_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_play_rows_projection_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.source_event_id, NEW.legacy_row_identifier)
+       IS DISTINCT FROM
+       ROW(OLD.id, OLD.source_event_id, OLD.legacy_row_identifier) THEN
+        RAISE EXCEPTION 'play_rows projection identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_PLAYER_MAPPING_TRIGGER_NAME = "trg_temporary_player_id_mappings_identity_immutable"
+_PLAYER_MAPPING_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_temporary_player_id_mappings_identity_immutable "
+    "BEFORE UPDATE OF temporary_id, player_id ON temporary_player_id_mappings "
+    "FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_temporary_player_id_mappings_identity_update()"
+)
+_PLAYER_MAPPING_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_temporary_player_id_mappings_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.temporary_id, NEW.player_id)
+       IS DISTINCT FROM ROW(OLD.temporary_id, OLD.player_id) THEN
+        RAISE EXCEPTION 'temporary player ID mapping is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_D2_FIXED_VALUE_OR_RANGE = re.compile(
+    r"(?:\bd2\b\s*(?:=|<>|!=|<=|>=|<|>|(?:NOT\s+)?BETWEEN\b|"
+    r"(?:NOT\s+)?IN\s*\()|"
+    r"(?:=|<>|!=|<=|>=|<|>)\s*\bd2\b|"
+    r"\bd2\b\s+IS\s+(?:NOT\s+)?DISTINCT\s+FROM\s+(?!NULL\b))",
+    re.IGNORECASE,
+)
 
 
 def _alembic_config() -> Config:
@@ -1147,6 +1199,518 @@ def test_sync_event_immutability_and_migration_round_trip(
         command.downgrade(config, "0004_rule_sets")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_nine_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _d2_fixed_predicate_violations(
+    definitions: list[tuple[str, str, str]],
+) -> list[str]:
+    """D2 の特定値・範囲を固定する CHECK・索引述語を返す。"""
+    return [
+        f"{kind}: {name}"
+        for kind, name, definition in definitions
+        if _D2_FIXED_VALUE_OR_RANGE.search(definition) is not None
+    ]
+
+
+def _assert_step_ten_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後にステップ 10 の表・トリガ・関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.play_rows'),
+                to_regclass('public.play_runners'),
+                to_regclass('public.temporary_player_id_mappings'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_play_rows_projection_identity_update()'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_temporary_player_id_mappings_identity_update()'
+                )
+            """,
+            (_PLAY_ROW_TRIGGER_NAME, _PLAYER_MAPPING_TRIGGER_NAME),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, False, None, False, None)
+
+
+def test_play_projection_constraints_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D2・投影・走者・一時 ID 写像の契約と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        assert (
+            _d2_fixed_predicate_violations(
+                [
+                    ("INDEX", "allowed_not_null", "d2 IS NOT NULL"),
+                    ("CHECK", "allowed_null", "CHECK (d2 IS NULL)"),
+                    (
+                        "CHECK",
+                        "different_column",
+                        "CHECK (valid_until_d2 > valid_from_d2)",
+                    ),
+                ]
+            )
+            == []
+        )
+        assert _d2_fixed_predicate_violations(
+            [
+                ("CHECK", "fixed", "CHECK (d2 = 10)"),
+                ("INDEX", "lower_bound", "d2 > 0"),
+                ("CHECK", "range", "CHECK (d2 BETWEEN 1 AND 10)"),
+                ("CHECK", "fixed_set", "CHECK (d2 NOT IN (1, 2))"),
+            ]
+        ) == [
+            "CHECK: fixed",
+            "INDEX: lower_bound",
+            "CHECK: range",
+            "CHECK: fixed_set",
+        ]
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            d2_definition, d2_table, d2_columns, d2_predicate, d2_unique = (
+                _index_catalog_contract(connection, "uq_operation_events_active_d2")
+            )
+            assert _normalize_sql(d2_definition).startswith(
+                "CREATE UNIQUE INDEX uq_operation_events_active_d2 "
+                "ON operation_events USING btree (tenant_id, game_id, d2)"
+            )
+            assert d2_table == "operation_events"
+            assert d2_columns == ["tenant_id", "game_id", "d2"]
+            assert d2_predicate is not None
+            assert (
+                _normalize_sql(d2_predicate.replace("(", "").replace(")", ""))
+                == "d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL"
+            )
+            assert d2_unique
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT relation.relname, constraint_row.conname
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS relation
+                      ON relation.oid = constraint_row.conrelid
+                    JOIN pg_namespace AS namespace
+                      ON namespace.oid = relation.relnamespace
+                    WHERE namespace.nspname = 'public'
+                      AND constraint_row.contype = 'p'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM unnest(constraint_row.conkey) AS key_column(attnum)
+                          JOIN pg_attribute AS attribute
+                            ON attribute.attrelid = constraint_row.conrelid
+                           AND attribute.attnum = key_column.attnum
+                          WHERE attribute.attname = 'd2'
+                      )
+                    ORDER BY relation.relname, constraint_row.conname
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                cursor.execute(
+                    """
+                    SELECT source.relname, constraint_row.conname
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS source
+                      ON source.oid = constraint_row.conrelid
+                    JOIN pg_class AS target
+                      ON target.oid = constraint_row.confrelid
+                    JOIN pg_namespace AS namespace
+                      ON namespace.oid = target.relnamespace
+                    WHERE namespace.nspname = 'public'
+                      AND constraint_row.contype = 'f'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM unnest(constraint_row.confkey) AS key_column(attnum)
+                          JOIN pg_attribute AS attribute
+                            ON attribute.attrelid = constraint_row.confrelid
+                           AND attribute.attnum = key_column.attnum
+                          WHERE attribute.attname = 'd2'
+                      )
+                    ORDER BY source.relname, constraint_row.conname
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                cursor.execute(
+                    """
+                    SELECT table_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND column_name = 'd2'
+                    ORDER BY table_name
+                    """
+                )
+                assert cursor.fetchall() == [("operation_events",)]
+
+                cursor.execute(
+                    """
+                    SELECT
+                        'CHECK',
+                        constraint_row.conname,
+                        pg_get_expr(
+                            constraint_row.conbin,
+                            constraint_row.conrelid,
+                            true
+                        )
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS relation
+                      ON relation.oid = constraint_row.conrelid
+                    JOIN pg_namespace AS namespace
+                      ON namespace.oid = relation.relnamespace
+                    WHERE namespace.nspname = 'public'
+                      AND constraint_row.contype = 'c'
+                    UNION ALL
+                    SELECT
+                        'INDEX',
+                        index_relation.relname,
+                        pg_get_expr(
+                            index_row.indpred,
+                            index_row.indrelid,
+                            true
+                        )
+                    FROM pg_index AS index_row
+                    JOIN pg_class AS index_relation
+                      ON index_relation.oid = index_row.indexrelid
+                    JOIN pg_class AS table_relation
+                      ON table_relation.oid = index_row.indrelid
+                    JOIN pg_namespace AS namespace
+                      ON namespace.oid = table_relation.relnamespace
+                    WHERE namespace.nspname = 'public'
+                      AND index_row.indpred IS NOT NULL
+                    ORDER BY 1, 2
+                    """
+                )
+                predicate_definitions = [
+                    (str(row[0]), str(row[1]), str(row[2])) for row in cursor.fetchall()
+                ]
+                assert _d2_fixed_predicate_violations(predicate_definitions) == []
+
+            play_trigger = _sync_trigger_catalog_contract(
+                connection, _PLAY_ROW_TRIGGER_NAME
+            )
+            assert _normalize_sql(play_trigger[0]) == _normalize_sql(
+                _PLAY_ROW_TRIGGER_DEFINITION
+            )
+            assert play_trigger[1] == "play_rows"
+            assert play_trigger[2] == [
+                "id",
+                "source_event_id",
+                "legacy_row_identifier",
+            ]
+            assert play_trigger[3] == "O"
+            assert _normalize_sql(play_trigger[4]) == _normalize_sql(
+                _PLAY_ROW_FUNCTION_DEFINITION
+            )
+
+            mapping_trigger = _sync_trigger_catalog_contract(
+                connection, _PLAYER_MAPPING_TRIGGER_NAME
+            )
+            assert _normalize_sql(mapping_trigger[0]) == _normalize_sql(
+                _PLAYER_MAPPING_TRIGGER_DEFINITION
+            )
+            assert mapping_trigger[1] == "temporary_player_id_mappings"
+            assert mapping_trigger[2] == ["temporary_id", "player_id"]
+            assert mapping_trigger[3] == "O"
+            assert _normalize_sql(mapping_trigger[4]) == _normalize_sql(
+                _PLAYER_MAPPING_FUNCTION_DEFINITION
+            )
+
+            runner_index = _index_catalog_contract(connection, "uq_play_runners_active")
+            assert runner_index[1:] == (
+                "play_runners",
+                ["tenant_id", "play_id", "base"],
+                "retired_at IS NULL",
+                True,
+            )
+
+            tenant_id = uuid4()
+            self_team_id = uuid4()
+            opponent_team_id = uuid4()
+            runner_id = uuid4()
+            responsible_pitcher_id = uuid4()
+            game_id = uuid4()
+            source_event_id = uuid4()
+            play_id = uuid4()
+            mapping_id = uuid4()
+            temporary_id = uuid4()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "プレイ投影テストテナント"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO players (
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        name,
+                        roster_status_key
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            tenant_id,
+                            runner_id,
+                            self_team_id,
+                            "走者",
+                            "active",
+                        ),
+                        (
+                            tenant_id,
+                            responsible_pitcher_id,
+                            opponent_team_id,
+                            "責任投手",
+                            "active",
+                        ),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO event_slots (
+                        tenant_id, game_id, generation, d1
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (tenant_id, game_id, 1, 1),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO operation_events (
+                        tenant_id,
+                        id,
+                        game_id,
+                        generation,
+                        d1,
+                        d2,
+                        d5,
+                        event_kind,
+                        payload,
+                        target_generation,
+                        target_d1
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        source_event_id,
+                        game_id,
+                        1,
+                        1,
+                        1,
+                        uuid4(),
+                        "pitch",
+                        Jsonb({"result": "strike"}),
+                        1,
+                        1,
+                    ),
+                )
+
+                insert_play = """
+                    INSERT INTO play_rows (
+                        tenant_id,
+                        id,
+                        game_id,
+                        source_event_id,
+                        play_number,
+                        event_kind,
+                        compatibility_payload,
+                        legacy_row_identifier
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                with pytest.raises(
+                    psycopg.errors.NotNullViolation,
+                    match="event_kind",
+                ):
+                    cursor.execute(
+                        insert_play,
+                        (
+                            tenant_id,
+                            uuid4(),
+                            game_id,
+                            source_event_id,
+                            1,
+                            None,
+                            Jsonb({}),
+                            "legacy-row:null-event-kind",
+                        ),
+                    )
+                cursor.execute(
+                    insert_play,
+                    (
+                        tenant_id,
+                        play_id,
+                        game_id,
+                        source_event_id,
+                        1,
+                        "pitch",
+                        Jsonb({}),
+                        "legacy-row:1",
+                    ),
+                )
+
+                insert_runner = """
+                    INSERT INTO play_runners (
+                        tenant_id,
+                        id,
+                        play_id,
+                        base,
+                        runner_id,
+                        status,
+                        responsible_pitcher_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                with pytest.raises(
+                    psycopg.errors.NotNullViolation,
+                    match="responsible_pitcher_id",
+                ):
+                    cursor.execute(
+                        insert_runner,
+                        (
+                            tenant_id,
+                            uuid4(),
+                            play_id,
+                            1,
+                            runner_id,
+                            "on_base",
+                            None,
+                        ),
+                    )
+                cursor.execute(
+                    insert_runner,
+                    (
+                        tenant_id,
+                        uuid4(),
+                        play_id,
+                        1,
+                        runner_id,
+                        "on_base",
+                        responsible_pitcher_id,
+                    ),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO temporary_player_id_mappings (
+                        tenant_id, id, temporary_id, player_id
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (tenant_id, mapping_id, temporary_id, runner_id),
+                )
+
+                protected_play_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "source_event_id": uuid4(),
+                    "legacy_row_identifier": "legacy-row:2",
+                }
+                for column, value in protected_play_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="play_rows projection identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE play_rows SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, play_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE play_rows SET version = 2
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING version
+                    """,
+                    (tenant_id, play_id),
+                )
+                assert cursor.fetchone() == (2,)
+                cursor.execute(
+                    """
+                    UPDATE play_rows SET hidden_at = CURRENT_TIMESTAMP
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING hidden_at IS NOT NULL
+                    """,
+                    (tenant_id, play_id),
+                )
+                assert cursor.fetchone() == (True,)
+
+                protected_mapping_updates = {
+                    "temporary_id": uuid4(),
+                    "player_id": responsible_pitcher_id,
+                }
+                for column, value in protected_mapping_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="temporary player ID mapping is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE temporary_player_id_mappings SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, mapping_id),
+                        )
+
+        command.downgrade(config, "0005_sync_events")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_ten_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
