@@ -664,6 +664,194 @@ Index(
 )
 
 
+class PlayerMergeEvent(TenantMixin, LifecycleMixin, Base):
+    """選手統合と取り消しの監査事実を保持する。"""
+
+    __tablename__ = "player_merge_events"
+    __table_args__ = (
+        CheckConstraint("source_player_id <> target_player_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "source_player_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_player_merge_events_source",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "target_player_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_player_merge_events_target",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_player_merge_events",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_player_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    target_player_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    executor: Mapped[str] = mapped_column(Text, nullable=False)
+    reverted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {"source_player_id", "target_player_id", "occurred_at", "executor"}
+        ),
+        allowed_update_columns=frozenset({"reverted_at"}),
+    )
+
+
+Index(
+    "ix_player_merge_events_time",
+    PlayerMergeEvent.__table__.c.tenant_id,
+    PlayerMergeEvent.__table__.c.occurred_at.desc(),
+    PlayerMergeEvent.__table__.c.id.desc(),
+    info={"purpose": "range_sort"},
+)
+
+
+class PlayerMoveRecord(TenantMixin, LifecycleMixin, Base):
+    """選手統合に伴う資源の移動先と移動元を記録する。"""
+
+    __tablename__ = "player_move_records"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merge_event_id"],
+            ["player_merge_events.tenant_id", "player_merge_events.id"],
+            name="fk_player_move_records_merge",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "original_player_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_player_move_records_original_player",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "moved_player_id"],
+            ["players.tenant_id", "players.id"],
+            name="fk_player_move_records_moved_player",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_player_move_records",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    merge_event_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resource_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    resource_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    original_player_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    moved_player_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    medical_note_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.APPEND_ONLY,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {
+                "tenant_id",
+                "id",
+                "merge_event_id",
+                "resource_kind",
+                "resource_id",
+                "original_player_id",
+                "moved_player_id",
+                "medical_note_version_id",
+            }
+        ),
+        allowed_update_columns=frozenset(),
+    )
+
+
+Index(
+    "ix_player_move_records_merge",
+    PlayerMoveRecord.__table__.c.tenant_id,
+    PlayerMoveRecord.__table__.c.merge_event_id,
+    PlayerMoveRecord.__table__.c.id,
+    info={"purpose": "lookup"},
+)
+
+
+class RateLimitCounter(LifecycleMixin, Base):
+    """認証主体の確定前に適用するレート制限の窓と回数を保持する。"""
+
+    __tablename__ = "rate_limit_counters"
+    __table_args__ = (
+        CheckConstraint("attempt_count >= 0"),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_rate_limit_counters",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    scope_key: Mapped[str] = mapped_column(Text, nullable=False)
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "scope_key", "window_start"}),
+        allowed_update_columns=frozenset({"attempt_count", "locked_until"}),
+    )
+
+
+Index(
+    "ix_rate_limit_counters_window",
+    RateLimitCounter.__table__.c.scope_key,
+    RateLimitCounter.__table__.c.window_start.desc(),
+    RateLimitCounter.__table__.c.id,
+    info={"purpose": "range_sort"},
+)
+
+
 Index(
     "ix_medical_note_versions_history",
     MedicalNoteVersion.__table__.c.tenant_id,

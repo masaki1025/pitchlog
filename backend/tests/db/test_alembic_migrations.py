@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0012_admin_operation_logs"
+_REVISION = "0013_player_merge_rate_limits"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -589,6 +589,76 @@ BEGIN
     RAISE EXCEPTION 'admin operation logs are append-only'
         USING ERRCODE = '23514';
     RETURN NULL;
+END;
+$function$
+"""
+_PLAYER_MERGE_TRIGGER_NAME = "trg_player_merge_events_content_immutable"
+_PLAYER_MERGE_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_player_merge_events_content_immutable BEFORE UPDATE OF "
+    "source_player_id, target_player_id, occurred_at, executor ON "
+    "player_merge_events FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_player_merge_events_content_update()"
+)
+_PLAYER_MERGE_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_player_merge_events_content_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.source_player_id,
+        NEW.target_player_id,
+        NEW.occurred_at,
+        NEW.executor
+    ) IS DISTINCT FROM ROW(
+        OLD.source_player_id,
+        OLD.target_player_id,
+        OLD.occurred_at,
+        OLD.executor
+    ) THEN
+        RAISE EXCEPTION 'player merge event content is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_PLAYER_MOVE_TRIGGER_NAME = "trg_player_move_records_append_only"
+_PLAYER_MOVE_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_player_move_records_append_only BEFORE DELETE OR UPDATE "
+    "ON player_move_records FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_player_move_records_mutation()"
+)
+_PLAYER_MOVE_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_player_move_records_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'player move records are append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
+END;
+$function$
+"""
+_RATE_LIMIT_TRIGGER_NAME = "trg_rate_limit_counters_identity_immutable"
+_RATE_LIMIT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_rate_limit_counters_identity_immutable BEFORE UPDATE OF "
+    "id, scope_key, window_start ON rate_limit_counters FOR EACH ROW EXECUTE "
+    "FUNCTION prevent_rate_limit_counters_identity_update()"
+)
+_RATE_LIMIT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_rate_limit_counters_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.scope_key, NEW.window_start)
+       IS DISTINCT FROM ROW(OLD.id, OLD.scope_key, OLD.window_start) THEN
+        RAISE EXCEPTION 'rate limit counter identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
 END;
 $function$
 """
@@ -4768,6 +4838,414 @@ def test_admin_operation_logs_append_only_guards_and_migration_round_trip(
         command.downgrade(config, "0011_authentication_tables")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_sixteen_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_seventeen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に選手統合・移動・レート制限の資産が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.player_merge_events'),
+                to_regclass('public.player_move_records'),
+                to_regclass('public.rate_limit_counters'),
+                (
+                    SELECT count(*)
+                    FROM pg_trigger
+                    WHERE tgname = ANY(%s) AND NOT tgisinternal
+                ),
+                (
+                    SELECT count(*)
+                    FROM unnest(%s::text[]) AS function_name
+                    WHERE to_regprocedure(
+                        'public.' || function_name || '()'
+                    ) IS NOT NULL
+                )
+            """,
+            (
+                [
+                    _PLAYER_MERGE_TRIGGER_NAME,
+                    _PLAYER_MOVE_TRIGGER_NAME,
+                    _RATE_LIMIT_TRIGGER_NAME,
+                ],
+                [
+                    "prevent_player_merge_events_content_update",
+                    "prevent_player_move_records_mutation",
+                    "prevent_rate_limit_counters_identity_update",
+                ],
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, 0, 0)
+
+
+def test_player_merge_move_and_rate_limit_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """選手統合・移動・レート制限の制約、不変性と往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _PLAYER_MERGE_TRIGGER_NAME,
+                    _PLAYER_MERGE_TRIGGER_DEFINITION,
+                    "player_merge_events",
+                    [
+                        "source_player_id",
+                        "target_player_id",
+                        "occurred_at",
+                        "executor",
+                    ],
+                    _PLAYER_MERGE_FUNCTION_DEFINITION,
+                ),
+                (
+                    _PLAYER_MOVE_TRIGGER_NAME,
+                    _PLAYER_MOVE_TRIGGER_DEFINITION,
+                    "player_move_records",
+                    [],
+                    _PLAYER_MOVE_FUNCTION_DEFINITION,
+                ),
+                (
+                    _RATE_LIMIT_TRIGGER_NAME,
+                    _RATE_LIMIT_TRIGGER_DEFINITION,
+                    "rate_limit_counters",
+                    ["id", "scope_key", "window_start"],
+                    _RATE_LIMIT_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual[0]) == _normalize_sql(definition)
+                assert actual[1] == table
+                assert actual[2] == columns
+                assert actual[3] == "O"
+                assert _normalize_sql(actual[4]) == _normalize_sql(function)
+
+            index_contracts = {
+                "ix_player_merge_events_time": (
+                    "player_merge_events",
+                    ["tenant_id", "occurred_at DESC", "id DESC"],
+                    None,
+                ),
+                "ix_player_move_records_merge": (
+                    "player_move_records",
+                    ["tenant_id", "merge_event_id", "id"],
+                    None,
+                ),
+                "ix_rate_limit_counters_window": (
+                    "rate_limit_counters",
+                    ["scope_key", "window_start DESC", "id"],
+                    None,
+                ),
+            }
+            for index_name, expected in index_contracts.items():
+                assert _manifest_index_contract(index_name) == expected
+                actual_index = _index_catalog_contract(connection, index_name)
+                assert actual_index[1:4] == expected
+                assert not actual_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'rate_limit_counters'
+                      AND column_name = 'tenant_id'
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                tenant_id = uuid4()
+                team_id = uuid4()
+                source_player_id = uuid4()
+                target_player_id = uuid4()
+                third_player_id = uuid4()
+                merge_event_id = uuid4()
+                delete_probe_merge_id = uuid4()
+                alternate_merge_id = uuid4()
+                move_record_id = uuid4()
+                rate_limit_id = uuid4()
+                window_start = datetime(2026, 9, 11, tzinfo=UTC)
+
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "選手統合テストテナント"),
+                )
+                _insert_test_vocabularies(cursor, tenant_id)
+                cursor.execute(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, 'self', %s)
+                    """,
+                    (tenant_id, team_id, "選手統合テストチーム"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO players (
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        name,
+                        roster_status_key,
+                        roster_label_key
+                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    """,
+                    [
+                        (tenant_id, source_player_id, team_id, "統合元選手"),
+                        (tenant_id, target_player_id, team_id, "統合先選手"),
+                        (tenant_id, third_player_id, team_id, "第三選手"),
+                    ],
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO player_merge_events (
+                        tenant_id,
+                        id,
+                        source_player_id,
+                        target_player_id,
+                        executor
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            tenant_id,
+                            merge_event_id,
+                            source_player_id,
+                            target_player_id,
+                            "admin:test",
+                        ),
+                        (
+                            tenant_id,
+                            delete_probe_merge_id,
+                            source_player_id,
+                            target_player_id,
+                            "admin:delete-probe",
+                        ),
+                        (
+                            tenant_id,
+                            alternate_merge_id,
+                            target_player_id,
+                            third_player_id,
+                            "admin:alternate",
+                        ),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM player_merge_events
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING id
+                    """,
+                    (tenant_id, delete_probe_merge_id),
+                )
+                assert cursor.fetchone() == (delete_probe_merge_id,)
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO player_merge_events (
+                            tenant_id,
+                            id,
+                            source_player_id,
+                            target_player_id,
+                            executor
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (
+                            tenant_id,
+                            uuid4(),
+                            source_player_id,
+                            source_player_id,
+                            "admin:self-merge",
+                        ),
+                    )
+
+                protected_merge_updates: dict[str, object] = {
+                    "source_player_id": third_player_id,
+                    "target_player_id": third_player_id,
+                    "occurred_at": datetime(2026, 9, 12, tzinfo=UTC),
+                    "executor": "admin:changed",
+                }
+                for column, value in protected_merge_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="player merge event content is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE player_merge_events SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, merge_event_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE player_merge_events
+                    SET reverted_at = %s
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING id
+                    """,
+                    (
+                        datetime(2026, 9, 13, tzinfo=UTC),
+                        tenant_id,
+                        merge_event_id,
+                    ),
+                )
+                assert cursor.fetchone() == (merge_event_id,)
+
+                cursor.execute(
+                    """
+                    INSERT INTO player_move_records (
+                        tenant_id,
+                        id,
+                        merge_event_id,
+                        resource_kind,
+                        resource_id,
+                        original_player_id,
+                        moved_player_id,
+                        medical_note_version_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, NULL)
+                    RETURNING id
+                    """,
+                    (
+                        tenant_id,
+                        move_record_id,
+                        merge_event_id,
+                        "play_row",
+                        uuid4(),
+                        source_player_id,
+                        target_player_id,
+                    ),
+                )
+                assert cursor.fetchone() == (move_record_id,)
+
+                protected_move_updates: dict[str, object] = {
+                    "tenant_id": uuid4(),
+                    "id": uuid4(),
+                    "merge_event_id": alternate_merge_id,
+                    "resource_kind": "medical_note",
+                    "resource_id": uuid4(),
+                    "original_player_id": target_player_id,
+                    "moved_player_id": third_player_id,
+                    "medical_note_version_id": uuid4(),
+                }
+                for column, value in protected_move_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="player move records are append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE player_move_records SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, move_record_id),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="player move records are append-only",
+                ):
+                    cursor.execute(
+                        """
+                        DELETE FROM player_move_records
+                        WHERE tenant_id = %s AND id = %s
+                        """,
+                        (tenant_id, move_record_id),
+                    )
+
+                cursor.execute(
+                    """
+                    INSERT INTO rate_limit_counters (
+                        id, scope_key, window_start
+                    ) VALUES (%s, %s, %s)
+                    """,
+                    (rate_limit_id, "ip:192.0.2.1", window_start),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO rate_limit_counters (
+                        id, scope_key, window_start
+                    ) VALUES (%s, %s, %s)
+                    """,
+                    (delete_probe_rate_id := uuid4(), "ip:192.0.2.2", window_start),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM rate_limit_counters
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (delete_probe_rate_id,),
+                )
+                assert cursor.fetchone() == (delete_probe_rate_id,)
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO rate_limit_counters (
+                            id, scope_key, window_start, attempt_count
+                        ) VALUES (%s, %s, %s, -1)
+                        """,
+                        (uuid4(), "ip:192.0.2.3", window_start),
+                    )
+
+                protected_rate_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "scope_key": "ip:192.0.2.4",
+                    "window_start": datetime(2026, 9, 12, tzinfo=UTC),
+                }
+                for column, value in protected_rate_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="rate limit counter identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE rate_limit_counters SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, rate_limit_id),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE rate_limit_counters
+                    SET attempt_count = 1
+                    WHERE id = %s
+                    RETURNING attempt_count
+                    """,
+                    (rate_limit_id,),
+                )
+                assert cursor.fetchone() == (1,)
+                cursor.execute(
+                    """
+                    UPDATE rate_limit_counters
+                    SET locked_until = %s
+                    WHERE id = %s
+                    RETURNING locked_until
+                    """,
+                    (locked_until := datetime(2026, 9, 12, tzinfo=UTC), rate_limit_id),
+                )
+                assert cursor.fetchone() == (locked_until,)
+
+        command.downgrade(config, "0012_admin_operation_logs")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_seventeen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

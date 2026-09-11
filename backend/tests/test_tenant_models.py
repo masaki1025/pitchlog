@@ -30,6 +30,9 @@ from pitchlog.db.tenant_isolation.models import (
     MedicalNoteVersion,
     PdfExportRecord,
     Player,
+    PlayerMergeEvent,
+    PlayerMoveRecord,
+    RateLimitCounter,
     SystemSetting,
     SystemVocabulary,
     TeamRecord,
@@ -63,6 +66,13 @@ _ADMIN_OPERATION_LOG_MIGRATION_PATH = (
     / "versions"
     / "0012_admin_operation_logs.py"
 )
+_PLAYER_MERGE_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0013_player_merge_rate_limits.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
@@ -80,6 +90,9 @@ _MODEL_CLASSES: dict[str, Any] = {
     "admin_sessions": AdminSession,
     "tenant_tokens": TenantToken,
     "admin_operation_logs": AdminOperationLog,
+    "player_merge_events": PlayerMergeEvent,
+    "player_move_records": PlayerMoveRecord,
+    "rate_limit_counters": RateLimitCounter,
 }
 
 
@@ -285,7 +298,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """16 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """19 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -465,6 +478,26 @@ def test_admin_operation_log_targets_are_independently_optional() -> None:
 def test_admin_operation_log_migration_contains_no_dml() -> None:
     """管理者操作ログ migration が DML を含まないと示す。"""
     source = _ADMIN_OPERATION_LOG_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+
+
+def test_player_move_and_rate_limit_optional_columns_match_scope() -> None:
+    """移動記録の任意列と認証前レート制限の非テナント性を示す。"""
+    move_columns = PlayerMoveRecord.__table__.columns
+    rate_limit_columns = set(RateLimitCounter.__table__.columns.keys())
+
+    assert move_columns["medical_note_version_id"].nullable
+    assert "tenant_id" not in rate_limit_columns
+    assert "import_batch_id" not in rate_limit_columns
+    assert "retired_at" not in rate_limit_columns
+    assert RateLimitCounter.__table__.columns["locked_until"].nullable
+
+
+def test_player_merge_migration_contains_no_dml() -> None:
+    """選手統合・移動・レート制限 migration が DML を含まないと示す。"""
+    source = _PLAYER_MERGE_MIGRATION_PATH.read_text(encoding="utf-8").upper()
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source
