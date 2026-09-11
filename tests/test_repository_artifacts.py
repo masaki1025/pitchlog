@@ -144,27 +144,61 @@ def _check_ignored_paths(
 def _index_evaluation_repository(
     repository_root: Path,
     workspace: Path,
+    tracked_paths: tuple[Path, ...],
 ) -> Path:
-    """元リポジトリの index 内容だけを一時リポジトリへ展開する。
+    """元リポジトリの index にある ignore 規則だけを直接書き出す。
+
+    ``cat-file blob :<path>`` で index の blob を直接読むため、skip-worktree
+    ビット、attributes、smudge filter のいずれも内容の抽出経路に入らない。
 
     Args:
         repository_root: index を読む元リポジトリ。
         workspace: 一時評価リポジトリの親ディレクトリ。
+        tracked_paths: 元リポジトリの index にある全パス。
 
     Returns:
-        index 内容だけを持つ新規 Git リポジトリ。
+        index 由来の ignore 規則と追跡パス情報を持つ新規 Git リポジトリ。
     """
     evaluation_root = workspace / f"index-{uuid4().hex}"
     evaluation_root.mkdir(parents=True)
-    _git(
-        repository_root,
-        "checkout-index",
-        "-a",
-        f"--prefix={evaluation_root.as_posix()}/",
-    )
+    for path in tracked_paths:
+        if path.name != ".gitignore":
+            continue
+        content = _git(
+            repository_root,
+            "cat-file",
+            "blob",
+            f":{path.as_posix()}",
+        ).stdout
+        destination = evaluation_root / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+
     _git(evaluation_root, "init", "--quiet")
     (evaluation_root / ".git/info/exclude").write_text("", encoding="utf-8")
-    _git(evaluation_root, "add", "-f", "--all")
+    if tracked_paths:
+        empty_blob = _git(
+            evaluation_root,
+            "hash-object",
+            "-w",
+            "--stdin",
+            input_data=b"",
+        ).stdout.strip()
+        index_entries = b"".join(
+            b"100644 "
+            + empty_blob
+            + b"\t"
+            + path.as_posix().encode()
+            + b"\0"
+            for path in tracked_paths
+        )
+        _git(
+            evaluation_root,
+            "update-index",
+            "-z",
+            "--index-info",
+            input_data=index_entries,
+        )
     return evaluation_root
 
 
@@ -176,7 +210,11 @@ def _tracked_ignored_paths_with_mode(
 ) -> tuple[Path, ...]:
     """index 時点へ固定した環境で追跡済みパスを ignore 判定する。"""
     tracked_paths = _tracked_paths(repository_root)
-    evaluation_root = _index_evaluation_repository(repository_root, workspace)
+    evaluation_root = _index_evaluation_repository(
+        repository_root,
+        workspace,
+        tracked_paths,
+    )
     return _check_ignored_paths(
         evaluation_root,
         tracked_paths,
@@ -239,6 +277,15 @@ def real_repository_unchanged() -> Iterator[None]:
 
 
 @pytest.fixture
+def isolated_git_home(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    """一時リポジトリの初期化前に global Git 設定を隔離する。"""
+    return _isolate_global_git_config(tmp_path, monkeypatch)
+
+
+@pytest.fixture
 def ignored_artifact_repository(tmp_path: Path) -> _IgnoredArtifactRepository:
     """動的な ignore 規則に一致するファイルを強制追跡する。"""
     repository_root = _initialize_repository(tmp_path)
@@ -260,6 +307,15 @@ def test_repository_has_no_tracked_ignored_artifacts(tmp_path: Path) -> None:
     _assert_no_tracked_ignored_paths(
         _tracked_ignored_paths(REPOSITORY_ROOT, tmp_path)
     )
+
+
+def test_non_git_repository_fails_closed(tmp_path: Path) -> None:
+    """Git の母集団導出に失敗した場合は空集合で合格させない。"""
+    non_git_directory = tmp_path / "not-a-repository"
+    non_git_directory.mkdir()
+
+    with pytest.raises(subprocess.CalledProcessError):
+        _tracked_ignored_paths(non_git_directory, tmp_path)
 
 
 def test_tracked_ignored_artifact_is_detected(
@@ -324,17 +380,77 @@ def test_info_exclude_only_pattern_is_not_authoritative(tmp_path: Path) -> None:
     assert _tracked_ignored_paths(repository_root, tmp_path) == ()
 
 
+def test_skip_worktree_nested_ignore_is_extracted_from_index(tmp_path: Path) -> None:
+    """Skip-worktree の下位 ignore 規則も index の blob から抽出する。"""
+    repository_root = _initialize_repository(tmp_path)
+    nested = Path(f"skip-{uuid4().hex}")
+    ignore_path = nested / ".gitignore"
+    artifact_path = nested / f"artifact-{uuid4().hex}"
+    (repository_root / nested).mkdir()
+    (repository_root / ignore_path).write_text(
+        f"/{artifact_path.name}\n",
+        encoding="utf-8",
+    )
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", ignore_path.as_posix())
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    _git(repository_root, "update-index", "--skip-worktree", ignore_path.as_posix())
+
+    assert ignore_path in _tracked_paths(repository_root)
+    assert _tracked_ignored_paths(repository_root, tmp_path) == (artifact_path,)
+
+
+def test_source_smudge_filter_does_not_change_indexed_ignore(
+    tmp_path: Path,
+) -> None:
+    """Source 側の attributes と smudge filter を blob 抽出へ入れない。"""
+    repository_root = _initialize_repository(tmp_path)
+    nested = Path(f"filtered-{uuid4().hex}")
+    ignore_path = nested / ".gitignore"
+    artifact_path = nested / f"artifact-{uuid4().hex}"
+    (repository_root / nested).mkdir()
+    (repository_root / ignore_path).write_text(
+        f"/{artifact_path.name}\n",
+        encoding="utf-8",
+    )
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", ignore_path.as_posix())
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    (repository_root / ".git/info/attributes").write_text(
+        f"{ignore_path.as_posix()} filter=empty-ignore\n",
+        encoding="utf-8",
+    )
+    _git(
+        repository_root,
+        "config",
+        "filter.empty-ignore.smudge",
+        "sed 's/.*//'",
+    )
+    checkout_probe = tmp_path / "checkout-probe"
+    checkout_probe.mkdir()
+    _git(
+        repository_root,
+        "checkout-index",
+        "--force",
+        f"--prefix={checkout_probe.as_posix()}/",
+        "--",
+        ignore_path.as_posix(),
+    )
+    assert (checkout_probe / ignore_path).read_text(encoding="utf-8").strip() == ""
+
+    assert _tracked_ignored_paths(repository_root, tmp_path) == (artifact_path,)
+
+
 def test_global_excludes_file_is_not_authoritative(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    isolated_git_home: Path,
 ) -> None:
     """一時 HOME の global excludesFile によって判定を変えない。"""
     repository_root = _initialize_repository(tmp_path)
     artifact_path = Path(f"global-artifact-{uuid4().hex}")
     (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
     _git(repository_root, "add", "--", artifact_path.as_posix())
-    home = _isolate_global_git_config(tmp_path, monkeypatch)
-    global_excludes = home / "global-excludes"
+    global_excludes = isolated_git_home / "global-excludes"
     global_excludes.write_text(f"/{artifact_path.as_posix()}\n", encoding="utf-8")
     _git(
         repository_root,
@@ -349,14 +465,13 @@ def test_global_excludes_file_is_not_authoritative(
 
 def test_template_info_exclude_is_cleared(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    isolated_git_home: Path,
 ) -> None:
     """Git template 由来の info/exclude によって判定を変えない。"""
     repository_root = _initialize_repository(tmp_path)
     artifact_path = Path(f"template-artifact-{uuid4().hex}")
     (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
     _git(repository_root, "add", "--", artifact_path.as_posix())
-    _isolate_global_git_config(tmp_path, monkeypatch)
     template = tmp_path / "git-template"
     template_info = template / "info"
     template_info.mkdir(parents=True)
@@ -377,7 +492,7 @@ def test_template_info_exclude_is_cleared(
 
 def test_global_ignore_case_does_not_change_case_sensitive_evaluation(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    isolated_git_home: Path,
 ) -> None:
     """Global の ignoreCase=true を継承せず Linux と同じ判定にする。"""
     repository_root = _initialize_repository(tmp_path)
@@ -389,7 +504,6 @@ def test_global_ignore_case_does_not_change_case_sensitive_evaluation(
         encoding="utf-8",
     )
     _git(repository_root, "add", ".gitignore", artifact_path.as_posix())
-    _isolate_global_git_config(tmp_path, monkeypatch)
     _git(repository_root, "config", "--global", "core.ignoreCase", "true")
 
     assert _tracked_ignored_paths(repository_root, tmp_path) == ()

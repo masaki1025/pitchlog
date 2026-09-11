@@ -211,6 +211,15 @@ def test_utf8_with_nul_is_excluded(tmp_path: Path) -> None:
     (repository_root / scan_root).mkdir(parents=True)
     nul_path = scan_root / f"nul-{uuid4().hex}"
     (repository_root / nul_path).write_bytes(b"abc\0def")
+    ignored = _git(
+        repository_root,
+        "check-ignore",
+        "--quiet",
+        "--",
+        nul_path.as_posix(),
+        check=False,
+    )
+    assert ignored.returncode == 1
 
     files = collect_wording_scan_files(repository_root, (scan_root,))
 
