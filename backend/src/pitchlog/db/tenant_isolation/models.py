@@ -368,6 +368,240 @@ class PdfExportRecord(TenantMixin, LifecycleMixin, Base):
     )
 
 
+class TenantAuthSubject(TenantMixin, LifecycleMixin, Base):
+    """テナント利用者の認証主体を資格情報から分離して保持する。"""
+
+    __tablename__ = "tenant_auth_subjects"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_tenant_auth_subjects_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_tenant_auth_subjects",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_tenant_auth_subjects_tenant",
+            "tenant_id",
+            "id",
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "tenant_id"}),
+        allowed_update_columns=frozenset(),
+    )
+
+
+class TenantCredential(LifecycleMixin, Base):
+    """テナント認証主体ごとの bcrypt ハッシュと資格情報世代を保持する。"""
+
+    __tablename__ = "tenant_credentials"
+    __table_args__ = (
+        CheckConstraint("generation > 0"),
+        ForeignKeyConstraint(
+            ["auth_subject_id"],
+            ["tenant_auth_subjects.id"],
+            name="fk_tenant_credentials_subject",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "auth_subject_id",
+            name="pk_tenant_credentials",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    auth_subject_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    generation: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("1")
+    )
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"auth_subject_id"}),
+        allowed_update_columns=frozenset(
+            {"password_hash", "generation", "password_changed_at"}
+        ),
+    )
+
+
+class AdminCredential(LifecycleMixin, Base):
+    """テナントに属さない管理者資格情報を保持する。"""
+
+    __tablename__ = "admin_credentials"
+    __table_args__ = (
+        CheckConstraint("generation > 0"),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_admin_credentials",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    generation: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("1")
+    )
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id"}),
+        allowed_update_columns=frozenset(
+            {"password_hash", "generation", "password_changed_at"}
+        ),
+    )
+
+
+class AdminSession(LifecycleMixin, Base):
+    """管理者資格情報の世代へ結び付く管理者セッションを保持する。"""
+
+    __tablename__ = "admin_sessions"
+    __table_args__ = (
+        CheckConstraint("credential_generation > 0"),
+        CheckConstraint("expires_at >= last_used_at"),
+        ForeignKeyConstraint(
+            ["admin_credential_id"],
+            ["admin_credentials.id"],
+            name="fk_admin_sessions_credential",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_admin_sessions",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_admin_sessions_expiry",
+            "expires_at",
+            "id",
+            info={"purpose": "range_sort"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    admin_credential_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), nullable=False
+    )
+    credential_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {"id", "admin_credential_id", "credential_generation"}
+        ),
+        allowed_update_columns=frozenset({"expires_at", "last_used_at"}),
+    )
+
+
+class TenantToken(TenantMixin, LifecycleMixin, Base):
+    """テナント認証主体の資格情報世代へ結び付く通常トークン。"""
+
+    __tablename__ = "tenant_tokens"
+    __table_args__ = (
+        CheckConstraint("credential_generation > 0"),
+        CheckConstraint("expires_at >= last_used_at"),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_tenant_tokens_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["auth_subject_id"],
+            ["tenant_auth_subjects.id"],
+            name="fk_tenant_tokens_subject",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_tenant_tokens",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_tenant_tokens_expiry",
+            "tenant_id",
+            "expires_at",
+            "id",
+            info={"purpose": "range_sort"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    auth_subject_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    credential_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {"id", "tenant_id", "auth_subject_id", "credential_generation"}
+        ),
+        allowed_update_columns=frozenset({"expires_at", "last_used_at"}),
+    )
+
+
 Index(
     "ix_medical_note_versions_history",
     MedicalNoteVersion.__table__.c.tenant_id,

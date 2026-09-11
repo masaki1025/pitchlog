@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0010_vocabularies_settings"
+_REVISION = "0011_authentication_tables"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -455,6 +455,119 @@ AS $function$
 BEGIN
     IF NEW.key IS DISTINCT FROM OLD.key THEN
         RAISE EXCEPTION 'system setting key is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_TENANT_AUTH_SUBJECT_TRIGGER_NAME = "trg_tenant_auth_subjects_immutable"
+_TENANT_AUTH_SUBJECT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_tenant_auth_subjects_immutable BEFORE UPDATE OF id, "
+    "tenant_id ON tenant_auth_subjects FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_tenant_auth_subjects_update()"
+)
+_TENANT_AUTH_SUBJECT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_tenant_auth_subjects_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.tenant_id)
+       IS DISTINCT FROM ROW(OLD.id, OLD.tenant_id) THEN
+        RAISE EXCEPTION 'tenant auth subject is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_TENANT_CREDENTIAL_TRIGGER_NAME = "trg_tenant_credentials_subject_immutable"
+_TENANT_CREDENTIAL_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_tenant_credentials_subject_immutable BEFORE UPDATE OF "
+    "auth_subject_id ON tenant_credentials FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_tenant_credentials_subject_update()"
+)
+_TENANT_CREDENTIAL_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_tenant_credentials_subject_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.auth_subject_id IS DISTINCT FROM OLD.auth_subject_id THEN
+        RAISE EXCEPTION 'tenant credential subject is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_ADMIN_CREDENTIAL_TRIGGER_NAME = "trg_admin_credentials_id_immutable"
+_ADMIN_CREDENTIAL_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_admin_credentials_id_immutable BEFORE UPDATE OF id ON "
+    "admin_credentials FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_admin_credentials_id_update()"
+)
+_ADMIN_CREDENTIAL_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_admin_credentials_id_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.id IS DISTINCT FROM OLD.id THEN
+        RAISE EXCEPTION 'admin credential ID is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_ADMIN_SESSION_TRIGGER_NAME = "trg_admin_sessions_identity_immutable"
+_ADMIN_SESSION_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_admin_sessions_identity_immutable BEFORE UPDATE OF id, "
+    "admin_credential_id, credential_generation ON admin_sessions FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_admin_sessions_identity_update()"
+)
+_ADMIN_SESSION_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_admin_sessions_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.admin_credential_id, NEW.credential_generation)
+       IS DISTINCT FROM
+       ROW(OLD.id, OLD.admin_credential_id, OLD.credential_generation) THEN
+        RAISE EXCEPTION 'admin session identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_TENANT_TOKEN_TRIGGER_NAME = "trg_tenant_tokens_identity_immutable"
+_TENANT_TOKEN_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_tenant_tokens_identity_immutable BEFORE UPDATE OF id, "
+    "tenant_id, auth_subject_id, credential_generation ON tenant_tokens FOR EACH "
+    "ROW EXECUTE FUNCTION prevent_tenant_tokens_identity_update()"
+)
+_TENANT_TOKEN_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_tenant_tokens_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.id,
+        NEW.tenant_id,
+        NEW.auth_subject_id,
+        NEW.credential_generation
+    ) IS DISTINCT FROM ROW(
+        OLD.id,
+        OLD.tenant_id,
+        OLD.auth_subject_id,
+        OLD.credential_generation
+    ) THEN
+        RAISE EXCEPTION 'tenant token identity is immutable'
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
@@ -3921,6 +4034,546 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_fourteen_objects_are_absent(connection)
             _clear_vocabulary_references_before_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_fifteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に認証5表と不変性トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.tenant_auth_subjects'),
+                to_regclass('public.tenant_credentials'),
+                to_regclass('public.admin_credentials'),
+                to_regclass('public.admin_sessions'),
+                to_regclass('public.tenant_tokens'),
+                (
+                    SELECT count(*)
+                    FROM pg_trigger
+                    WHERE tgname = ANY(%s) AND NOT tgisinternal
+                ),
+                (
+                    SELECT count(*)
+                    FROM unnest(%s::text[]) AS function_name
+                    WHERE to_regprocedure(
+                        'public.' || function_name || '()'
+                    ) IS NOT NULL
+                )
+            """,
+            (
+                [
+                    _TENANT_AUTH_SUBJECT_TRIGGER_NAME,
+                    _TENANT_CREDENTIAL_TRIGGER_NAME,
+                    _ADMIN_CREDENTIAL_TRIGGER_NAME,
+                    _ADMIN_SESSION_TRIGGER_NAME,
+                    _TENANT_TOKEN_TRIGGER_NAME,
+                ],
+                [
+                    "prevent_tenant_auth_subjects_update",
+                    "prevent_tenant_credentials_subject_update",
+                    "prevent_admin_credentials_id_update",
+                    "prevent_admin_sessions_identity_update",
+                    "prevent_tenant_tokens_identity_update",
+                ],
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, None, None, 0, 0)
+
+
+def test_authentication_tables_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """認証5表の分離、制約、不変性と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _TENANT_AUTH_SUBJECT_TRIGGER_NAME,
+                    _TENANT_AUTH_SUBJECT_TRIGGER_DEFINITION,
+                    "tenant_auth_subjects",
+                    ["id", "tenant_id"],
+                    _TENANT_AUTH_SUBJECT_FUNCTION_DEFINITION,
+                ),
+                (
+                    _TENANT_CREDENTIAL_TRIGGER_NAME,
+                    _TENANT_CREDENTIAL_TRIGGER_DEFINITION,
+                    "tenant_credentials",
+                    ["auth_subject_id"],
+                    _TENANT_CREDENTIAL_FUNCTION_DEFINITION,
+                ),
+                (
+                    _ADMIN_CREDENTIAL_TRIGGER_NAME,
+                    _ADMIN_CREDENTIAL_TRIGGER_DEFINITION,
+                    "admin_credentials",
+                    ["id"],
+                    _ADMIN_CREDENTIAL_FUNCTION_DEFINITION,
+                ),
+                (
+                    _ADMIN_SESSION_TRIGGER_NAME,
+                    _ADMIN_SESSION_TRIGGER_DEFINITION,
+                    "admin_sessions",
+                    ["id", "admin_credential_id", "credential_generation"],
+                    _ADMIN_SESSION_FUNCTION_DEFINITION,
+                ),
+                (
+                    _TENANT_TOKEN_TRIGGER_NAME,
+                    _TENANT_TOKEN_TRIGGER_DEFINITION,
+                    "tenant_tokens",
+                    [
+                        "id",
+                        "tenant_id",
+                        "auth_subject_id",
+                        "credential_generation",
+                    ],
+                    _TENANT_TOKEN_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual[0]) == _normalize_sql(definition)
+                assert actual[1] == table
+                assert actual[2] == columns
+                assert actual[3] == "O"
+                assert _normalize_sql(actual[4]) == _normalize_sql(function)
+
+            manifest = json.loads(_SCHEMA_MANIFEST_PATH.read_text(encoding="utf-8"))
+            authentication_table_names = {
+                "tenant_auth_subjects",
+                "tenant_credentials",
+                "admin_credentials",
+                "admin_sessions",
+                "tenant_tokens",
+            }
+            manifest_tables = {table["name"]: table for table in manifest["tables"]}
+            with connection.cursor() as cursor:
+                for table_name in authentication_table_names:
+                    table_manifest = manifest_tables[table_name]
+                    cursor.execute(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = %s
+                        """,
+                        (table_name,),
+                    )
+                    actual_columns = {str(row[0]) for row in cursor.fetchall()}
+                    assert actual_columns.isdisjoint(
+                        table_manifest["forbidden_columns"]
+                    )
+
+                tenant_id = uuid4()
+                other_tenant_id = uuid4()
+                auth_subject_id = uuid4()
+                other_auth_subject_id = uuid4()
+                generation_probe_subject_id = uuid4()
+                delete_probe_subject_id = uuid4()
+                admin_credential_id = uuid4()
+                other_admin_credential_id = uuid4()
+                admin_session_id = uuid4()
+                tenant_token_id = uuid4()
+                last_used_at = datetime(2026, 9, 11, tzinfo=UTC)
+                expires_at = datetime(2026, 9, 12, tzinfo=UTC)
+
+                cursor.executemany(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    [
+                        (tenant_id, "認証テストテナント"),
+                        (other_tenant_id, "別認証テストテナント"),
+                    ],
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO tenant_auth_subjects (id, tenant_id)
+                    VALUES (%s, %s)
+                    """,
+                    [
+                        (auth_subject_id, tenant_id),
+                        (other_auth_subject_id, tenant_id),
+                        (generation_probe_subject_id, tenant_id),
+                        (delete_probe_subject_id, tenant_id),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM tenant_auth_subjects
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (delete_probe_subject_id,),
+                )
+                assert cursor.fetchone() == (delete_probe_subject_id,)
+
+                cursor.execute(
+                    """
+                    INSERT INTO tenant_credentials (
+                        auth_subject_id, password_hash
+                    ) VALUES (%s, %s)
+                    """,
+                    (auth_subject_id, "$2b$12$tenant-test-hash"),
+                )
+                with pytest.raises(psycopg.errors.UniqueViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO tenant_credentials (
+                            auth_subject_id, password_hash
+                        ) VALUES (%s, %s)
+                        """,
+                        (auth_subject_id, "$2b$12$duplicate-test-hash"),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO tenant_credentials (
+                            auth_subject_id, password_hash, generation
+                        ) VALUES (%s, %s, 0)
+                        """,
+                        (
+                            generation_probe_subject_id,
+                            "$2b$12$invalid-generation-hash",
+                        ),
+                    )
+
+                cursor.executemany(
+                    """
+                    INSERT INTO admin_credentials (id, password_hash)
+                    VALUES (%s, %s)
+                    """,
+                    [
+                        (admin_credential_id, "$2b$12$admin-test-hash"),
+                        (other_admin_credential_id, "$2b$12$other-admin-hash"),
+                    ],
+                )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO admin_credentials (
+                            id, password_hash, generation
+                        ) VALUES (%s, %s, 0)
+                        """,
+                        (uuid4(), "$2b$12$invalid-admin-generation"),
+                    )
+
+                cursor.execute(
+                    """
+                    INSERT INTO admin_sessions (
+                        id,
+                        admin_credential_id,
+                        credential_generation,
+                        expires_at,
+                        last_used_at
+                    ) VALUES (%s, %s, 1, %s, %s)
+                    """,
+                    (
+                        admin_session_id,
+                        admin_credential_id,
+                        expires_at,
+                        last_used_at,
+                    ),
+                )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO admin_sessions (
+                            id,
+                            admin_credential_id,
+                            credential_generation,
+                            expires_at,
+                            last_used_at
+                        ) VALUES (%s, %s, 0, %s, %s)
+                        """,
+                        (
+                            uuid4(),
+                            admin_credential_id,
+                            expires_at,
+                            last_used_at,
+                        ),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO admin_sessions (
+                            id,
+                            admin_credential_id,
+                            credential_generation,
+                            expires_at,
+                            last_used_at
+                        ) VALUES (%s, %s, 1, %s, %s)
+                        """,
+                        (
+                            uuid4(),
+                            admin_credential_id,
+                            last_used_at,
+                            expires_at,
+                        ),
+                    )
+
+                cursor.execute(
+                    """
+                    INSERT INTO tenant_tokens (
+                        id,
+                        tenant_id,
+                        auth_subject_id,
+                        credential_generation,
+                        expires_at,
+                        last_used_at
+                    ) VALUES (%s, %s, %s, 1, %s, %s)
+                    """,
+                    (
+                        tenant_token_id,
+                        tenant_id,
+                        auth_subject_id,
+                        expires_at,
+                        last_used_at,
+                    ),
+                )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO tenant_tokens (
+                            id,
+                            tenant_id,
+                            auth_subject_id,
+                            credential_generation,
+                            expires_at,
+                            last_used_at
+                        ) VALUES (%s, %s, %s, 0, %s, %s)
+                        """,
+                        (
+                            uuid4(),
+                            tenant_id,
+                            auth_subject_id,
+                            expires_at,
+                            last_used_at,
+                        ),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO tenant_tokens (
+                            id,
+                            tenant_id,
+                            auth_subject_id,
+                            credential_generation,
+                            expires_at,
+                            last_used_at
+                        ) VALUES (%s, %s, %s, 1, %s, %s)
+                        """,
+                        (
+                            uuid4(),
+                            tenant_id,
+                            auth_subject_id,
+                            last_used_at,
+                            expires_at,
+                        ),
+                    )
+
+                protected_updates = (
+                    (
+                        "tenant_auth_subjects",
+                        "id",
+                        uuid4(),
+                        "id = %s",
+                        (auth_subject_id,),
+                        "tenant auth subject is immutable",
+                    ),
+                    (
+                        "tenant_auth_subjects",
+                        "tenant_id",
+                        other_tenant_id,
+                        "id = %s",
+                        (auth_subject_id,),
+                        "tenant auth subject is immutable",
+                    ),
+                    (
+                        "tenant_credentials",
+                        "auth_subject_id",
+                        other_auth_subject_id,
+                        "auth_subject_id = %s",
+                        (auth_subject_id,),
+                        "tenant credential subject is immutable",
+                    ),
+                    (
+                        "admin_credentials",
+                        "id",
+                        uuid4(),
+                        "id = %s",
+                        (admin_credential_id,),
+                        "admin credential ID is immutable",
+                    ),
+                    (
+                        "admin_sessions",
+                        "id",
+                        uuid4(),
+                        "id = %s",
+                        (admin_session_id,),
+                        "admin session identity is immutable",
+                    ),
+                    (
+                        "admin_sessions",
+                        "admin_credential_id",
+                        other_admin_credential_id,
+                        "id = %s",
+                        (admin_session_id,),
+                        "admin session identity is immutable",
+                    ),
+                    (
+                        "admin_sessions",
+                        "credential_generation",
+                        2,
+                        "id = %s",
+                        (admin_session_id,),
+                        "admin session identity is immutable",
+                    ),
+                    (
+                        "tenant_tokens",
+                        "id",
+                        uuid4(),
+                        "id = %s",
+                        (tenant_token_id,),
+                        "tenant token identity is immutable",
+                    ),
+                    (
+                        "tenant_tokens",
+                        "tenant_id",
+                        other_tenant_id,
+                        "id = %s",
+                        (tenant_token_id,),
+                        "tenant token identity is immutable",
+                    ),
+                    (
+                        "tenant_tokens",
+                        "auth_subject_id",
+                        other_auth_subject_id,
+                        "id = %s",
+                        (tenant_token_id,),
+                        "tenant token identity is immutable",
+                    ),
+                    (
+                        "tenant_tokens",
+                        "credential_generation",
+                        2,
+                        "id = %s",
+                        (tenant_token_id,),
+                        "tenant token identity is immutable",
+                    ),
+                )
+                for table, column, value, predicate, keys, message in protected_updates:
+                    with pytest.raises(psycopg.errors.CheckViolation, match=message):
+                        cursor.execute(
+                            sql.SQL("UPDATE {} SET {} = %s WHERE ").format(
+                                sql.Identifier(table),
+                                sql.Identifier(column),
+                            )
+                            + sql.SQL(predicate),
+                            (value, *keys),
+                        )
+
+                later_expiry = datetime(2026, 9, 14, tzinfo=UTC)
+                later_use = datetime(2026, 9, 13, tzinfo=UTC)
+                allowed_updates = (
+                    (
+                        "tenant_credentials",
+                        "password_hash",
+                        "$2b$12$updated-tenant-hash",
+                        "auth_subject_id = %s",
+                        (auth_subject_id,),
+                    ),
+                    (
+                        "tenant_credentials",
+                        "generation",
+                        2,
+                        "auth_subject_id = %s",
+                        (auth_subject_id,),
+                    ),
+                    (
+                        "tenant_credentials",
+                        "password_changed_at",
+                        later_use,
+                        "auth_subject_id = %s",
+                        (auth_subject_id,),
+                    ),
+                    (
+                        "admin_credentials",
+                        "password_hash",
+                        "$2b$12$updated-admin-hash",
+                        "id = %s",
+                        (admin_credential_id,),
+                    ),
+                    (
+                        "admin_credentials",
+                        "generation",
+                        2,
+                        "id = %s",
+                        (admin_credential_id,),
+                    ),
+                    (
+                        "admin_credentials",
+                        "password_changed_at",
+                        later_use,
+                        "id = %s",
+                        (admin_credential_id,),
+                    ),
+                    (
+                        "admin_sessions",
+                        "expires_at",
+                        later_expiry,
+                        "id = %s",
+                        (admin_session_id,),
+                    ),
+                    (
+                        "admin_sessions",
+                        "last_used_at",
+                        later_use,
+                        "id = %s",
+                        (admin_session_id,),
+                    ),
+                    (
+                        "tenant_tokens",
+                        "expires_at",
+                        later_expiry,
+                        "id = %s",
+                        (tenant_token_id,),
+                    ),
+                    (
+                        "tenant_tokens",
+                        "last_used_at",
+                        later_use,
+                        "id = %s",
+                        (tenant_token_id,),
+                    ),
+                )
+                for table, column, value, predicate, keys in allowed_updates:
+                    cursor.execute(
+                        sql.SQL("UPDATE {} SET {} = %s WHERE ").format(
+                            sql.Identifier(table),
+                            sql.Identifier(column),
+                        )
+                        + sql.SQL(predicate)
+                        + sql.SQL(" RETURNING 1"),
+                        (value, *keys),
+                    )
+                    assert cursor.fetchone() == (1,)
+
+        command.downgrade(config, "0010_vocabularies_settings")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_fifteen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

@@ -22,6 +22,8 @@ from sqlalchemy.sql.elements import UnaryExpression
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.tenant_isolation.models import (
+    AdminCredential,
+    AdminSession,
     AdminVocabulary,
     MedicalNote,
     MedicalNoteVersion,
@@ -31,6 +33,9 @@ from pitchlog.db.tenant_isolation.models import (
     SystemVocabulary,
     TeamRecord,
     Tenant,
+    TenantAuthSubject,
+    TenantCredential,
+    TenantToken,
     TenantVocabulary,
 )
 
@@ -43,6 +48,13 @@ _VOCABULARY_MIGRATION_PATH = (
     / "versions"
     / "0010_vocabularies_settings.py"
 )
+_AUTH_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0011_authentication_tables.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
@@ -54,6 +66,11 @@ _MODEL_CLASSES: dict[str, Any] = {
     "admin_vocabularies": AdminVocabulary,
     "tenant_vocabularies": TenantVocabulary,
     "system_settings": SystemSetting,
+    "tenant_auth_subjects": TenantAuthSubject,
+    "tenant_credentials": TenantCredential,
+    "admin_credentials": AdminCredential,
+    "admin_sessions": AdminSession,
+    "tenant_tokens": TenantToken,
 }
 
 
@@ -259,7 +276,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """10 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """15 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -350,6 +367,62 @@ def test_vocabulary_layers_have_no_deletion_or_migration_columns() -> None:
 def test_vocabulary_migration_contains_no_seed_data() -> None:
     """語彙 migration が参照値を投入する DML を含まないと示す。"""
     source = _VOCABULARY_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+
+
+def _foreign_key_graph() -> dict[str, set[str]]:
+    """モデルの FK を参照元から参照先へのグラフに変換する。"""
+    return {
+        table_name: {
+            constraint.referred_table.name
+            for constraint in model.__table__.foreign_key_constraints
+        }
+        for table_name, model in _MODEL_CLASSES.items()
+    }
+
+
+def _reachable_tables(graph: dict[str, set[str]], source: str) -> set[str]:
+    """指定した表から FK を辿って到達できる表を返す。"""
+    reachable: set[str] = set()
+    frontier = list(graph.get(source, set()))
+    while frontier:
+        target = frontier.pop()
+        if target in reachable:
+            continue
+        reachable.add(target)
+        frontier.extend(graph.get(target, set()) - reachable)
+    return reachable
+
+
+def test_admin_authentication_has_no_foreign_key_path_to_tenants() -> None:
+    """管理者資格情報・セッションが FK グラフ上もテナントと別系統である。"""
+    graph = _foreign_key_graph()
+
+    assert _reachable_tables(graph, "admin_credentials") == set()
+    assert _reachable_tables(graph, "admin_sessions") == {"admin_credentials"}
+    assert "tenants" in _reachable_tables(graph, "tenant_auth_subjects")
+    assert "tenants" in _reachable_tables(graph, "tenant_credentials")
+
+
+def test_authentication_models_exclude_all_manifest_forbidden_columns() -> None:
+    """認証5表に平文・可逆保持・主体混同につながる禁止列が無い。"""
+    manifest_tables = _load_manifest_tables()
+    for table_name in (
+        "tenant_auth_subjects",
+        "tenant_credentials",
+        "admin_credentials",
+        "admin_sessions",
+        "tenant_tokens",
+    ):
+        columns = set(_MODEL_CLASSES[table_name].__table__.columns.keys())
+        assert columns.isdisjoint(manifest_tables[table_name]["forbidden_columns"])
+
+
+def test_authentication_migration_contains_no_seed_data() -> None:
+    """認証 migration が資格情報を投入する DML を含まないと示す。"""
+    source = _AUTH_MIGRATION_PATH.read_text(encoding="utf-8").upper()
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source
