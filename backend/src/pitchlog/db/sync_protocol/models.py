@@ -403,3 +403,74 @@ class RejectedEventOriginal(TenantMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"d5", "kind", "payload"}),
         allowed_update_columns=frozenset(),
     )
+
+
+class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
+    """結果としてのキャッシュ無効化先を永続化する。
+
+    発火規則(6.2 の 14 種)はアプリ層が持ち、この表は結果としての無効化先だけを記録する。
+    """
+
+    __tablename__ = "invalidation_intents"
+    __table_args__ = (
+        CheckConstraint(
+            "scope_kind IN ('game', 'player_total', 'team_total', "
+            "'shared_total', 'chart')"
+        ),
+        CheckConstraint("delivery_status IN ('pending', 'delivered')"),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "intent_id",
+            name="pk_invalidation_intents",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_invalidation_intents_delivery",
+            "tenant_id",
+            "delivery_status",
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    intent_id: Mapped[str] = mapped_column(Text, nullable=False)
+    scope_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    game_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    player_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    group_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    requesting_tenant_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+    target_tenant_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+    period: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    chart_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'pending'")
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {
+                "tenant_id",
+                "intent_id",
+                "scope_kind",
+                "game_id",
+                "player_id",
+                "group_id",
+                "requesting_tenant_id",
+                "target_tenant_id",
+                "period",
+                "chart_kind",
+            }
+        ),
+        allowed_update_columns=frozenset({"delivery_status", "delivered_at"}),
+    )

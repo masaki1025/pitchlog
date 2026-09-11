@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0014_analysis_groups"
+_REVISION = "0015_invalidation_intents"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -740,6 +740,50 @@ BEGIN
        IS DISTINCT FROM
        ROW(OLD.id, OLD.group_id, OLD.code_hash, OLD.initial_role) THEN
         RAISE EXCEPTION 'group invitation identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_INVALIDATION_INTENT_TRIGGER_NAME = "trg_invalidation_intents_target_immutable"
+_INVALIDATION_INTENT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_invalidation_intents_target_immutable BEFORE UPDATE OF "
+    "tenant_id, intent_id, scope_kind, game_id, player_id, group_id, "
+    "requesting_tenant_id, target_tenant_id, period, chart_kind ON "
+    "invalidation_intents FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_invalidation_intents_target_update()"
+)
+_INVALIDATION_INTENT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_invalidation_intents_target_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.tenant_id,
+        NEW.intent_id,
+        NEW.scope_kind,
+        NEW.game_id,
+        NEW.player_id,
+        NEW.group_id,
+        NEW.requesting_tenant_id,
+        NEW.target_tenant_id,
+        NEW.period,
+        NEW.chart_kind
+    ) IS DISTINCT FROM ROW(
+        OLD.tenant_id,
+        OLD.intent_id,
+        OLD.scope_kind,
+        OLD.game_id,
+        OLD.player_id,
+        OLD.group_id,
+        OLD.requesting_tenant_id,
+        OLD.target_tenant_id,
+        OLD.period,
+        OLD.chart_kind
+    ) THEN
+        RAISE EXCEPTION 'invalidation intent target is immutable'
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
@@ -5970,6 +6014,345 @@ def test_analysis_group_cross_tenant_guards_and_migration_round_trip(
         command.downgrade(config, "0013_player_merge_rate_limits")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_eighteen_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_nineteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に無効化意図表・トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.invalidation_intents'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_invalidation_intents_target_update()'
+                )
+            """,
+            (_INVALIDATION_INTENT_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (None, False, None)
+
+
+def test_invalidation_intent_scopes_delivery_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """無効化先5種、配信索引、不変性と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger = _sync_trigger_catalog_contract(
+                connection, _INVALIDATION_INTENT_TRIGGER_NAME
+            )
+            assert _normalize_sql(trigger[0]) == _normalize_sql(
+                _INVALIDATION_INTENT_TRIGGER_DEFINITION
+            )
+            assert trigger[1] == "invalidation_intents"
+            assert trigger[2] == [
+                "tenant_id",
+                "intent_id",
+                "scope_kind",
+                "game_id",
+                "player_id",
+                "group_id",
+                "requesting_tenant_id",
+                "target_tenant_id",
+                "period",
+                "chart_kind",
+            ]
+            assert trigger[3] == "O"
+            assert _normalize_sql(trigger[4]) == _normalize_sql(
+                _INVALIDATION_INTENT_FUNCTION_DEFINITION
+            )
+
+            delivery_index_contract = (
+                "invalidation_intents",
+                ["tenant_id", "delivery_status"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_invalidation_intents_delivery")
+                == delivery_index_contract
+            )
+            delivery_index = _index_catalog_contract(
+                connection, "ix_invalidation_intents_delivery"
+            )
+            assert delivery_index[1:4] == delivery_index_contract
+            assert not delivery_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE conrelid = 'invalidation_intents'::regclass
+                      AND contype = 'f'
+                    ORDER BY conname
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'invalidation_intents'
+                      AND column_name = 'deleted_at'
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                cursor.execute(
+                    """
+                    SELECT pg_get_expr(conbin, conrelid, true)
+                    FROM pg_constraint
+                    WHERE conrelid = 'invalidation_intents'::regclass
+                      AND contype = 'c'
+                    ORDER BY conname
+                    """
+                )
+                check_definitions = [str(row[0]) for row in cursor.fetchall()]
+                assert len(check_definitions) == 2
+                scope_check = next(
+                    definition
+                    for definition in check_definitions
+                    if "scope_kind" in definition
+                )
+                delivery_check = next(
+                    definition
+                    for definition in check_definitions
+                    if "delivery_status" in definition
+                )
+                for scope_kind in (
+                    "game",
+                    "player_total",
+                    "team_total",
+                    "shared_total",
+                    "chart",
+                ):
+                    assert f"'{scope_kind}'::text" in scope_check
+                for delivery_status in ("pending", "delivered"):
+                    assert f"'{delivery_status}'::text" in delivery_check
+                check_text = " ".join(check_definitions)
+                assert all(
+                    column not in check_text
+                    for column in (
+                        "game_id",
+                        "player_id",
+                        "group_id",
+                        "requesting_tenant_id",
+                        "target_tenant_id",
+                        "period",
+                        "chart_kind",
+                    )
+                )
+
+                tenant_id = uuid4()
+                requesting_tenant_id = uuid4()
+                target_tenant_id = uuid4()
+                group_id = uuid4()
+                game_id = uuid4()
+                player_id = uuid4()
+                period = Jsonb({"season": 2026})
+                cursor.executemany(
+                    """
+                    INSERT INTO invalidation_intents (
+                        tenant_id,
+                        intent_id,
+                        scope_kind,
+                        game_id,
+                        player_id,
+                        group_id,
+                        requesting_tenant_id,
+                        target_tenant_id,
+                        period,
+                        chart_kind
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                    """,
+                    [
+                        (
+                            tenant_id,
+                            "game-intent",
+                            "game",
+                            game_id,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        (
+                            tenant_id,
+                            "player-total-intent",
+                            "player_total",
+                            None,
+                            player_id,
+                            None,
+                            None,
+                            None,
+                            period,
+                            None,
+                        ),
+                        (
+                            tenant_id,
+                            "team-total-intent",
+                            "team_total",
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            period,
+                            None,
+                        ),
+                        (
+                            tenant_id,
+                            "shared-total-intent",
+                            "shared_total",
+                            None,
+                            None,
+                            group_id,
+                            requesting_tenant_id,
+                            target_tenant_id,
+                            period,
+                            None,
+                        ),
+                        (
+                            tenant_id,
+                            "chart-intent",
+                            "chart",
+                            game_id,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            "pitch_location",
+                        ),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    SELECT scope_kind
+                    FROM invalidation_intents
+                    WHERE tenant_id = %s
+                    ORDER BY scope_kind
+                    """,
+                    (tenant_id,),
+                )
+                assert {str(row[0]) for row in cursor.fetchall()} == {
+                    "game",
+                    "player_total",
+                    "team_total",
+                    "shared_total",
+                    "chart",
+                }
+                cursor.execute(
+                    """
+                    SELECT group_id, requesting_tenant_id, target_tenant_id, period
+                    FROM invalidation_intents
+                    WHERE tenant_id = %s AND intent_id = 'shared-total-intent'
+                    """,
+                    (tenant_id,),
+                )
+                assert cursor.fetchone() == (
+                    group_id,
+                    requesting_tenant_id,
+                    target_tenant_id,
+                    {"season": 2026},
+                )
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO invalidation_intents (
+                            tenant_id, intent_id, scope_kind
+                        ) VALUES (%s, %s, 'unknown')
+                        """,
+                        (tenant_id, "unknown-scope"),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO invalidation_intents (
+                            tenant_id, intent_id, scope_kind, delivery_status
+                        ) VALUES (%s, %s, 'game', 'failed')
+                        """,
+                        (tenant_id, "unknown-delivery"),
+                    )
+
+                protected_updates: dict[str, object] = {
+                    "tenant_id": uuid4(),
+                    "intent_id": "changed-intent",
+                    "scope_kind": "team_total",
+                    "game_id": uuid4(),
+                    "player_id": uuid4(),
+                    "group_id": uuid4(),
+                    "requesting_tenant_id": uuid4(),
+                    "target_tenant_id": uuid4(),
+                    "period": Jsonb({"season": 2027}),
+                    "chart_kind": "spray_chart",
+                }
+                for column, value in protected_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="invalidation intent target is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE invalidation_intents SET {} = %s "
+                                "WHERE tenant_id = %s AND intent_id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, "game-intent"),
+                        )
+
+                cursor.execute(
+                    """
+                    UPDATE invalidation_intents
+                    SET delivery_status = 'delivered'
+                    WHERE tenant_id = %s AND intent_id = 'game-intent'
+                    RETURNING delivery_status
+                    """,
+                    (tenant_id,),
+                )
+                assert cursor.fetchone() == ("delivered",)
+                delivered_at = datetime(2026, 9, 21, tzinfo=UTC)
+                cursor.execute(
+                    """
+                    UPDATE invalidation_intents
+                    SET delivered_at = %s
+                    WHERE tenant_id = %s AND intent_id = 'game-intent'
+                    RETURNING delivered_at
+                    """,
+                    (delivered_at, tenant_id),
+                )
+                assert cursor.fetchone() == (delivered_at,)
+
+        command.downgrade(config, "0014_analysis_groups")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_nineteen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

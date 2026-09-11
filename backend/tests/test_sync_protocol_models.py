@@ -22,6 +22,7 @@ from sqlalchemy.sql.schema import DefaultClause, Index, Table
 from pitchlog.db.sync_protocol.models import (
     EventSlot,
     IdempotencyLedger,
+    InvalidationIntent,
     OperationEvent,
     RejectedEventOriginal,
     TemporaryPlayerIdMapping,
@@ -29,12 +30,20 @@ from pitchlog.db.sync_protocol.models import (
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
+_INVALIDATION_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0015_invalidation_intents.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "event_slots": EventSlot,
     "operation_events": OperationEvent,
     "temporary_player_id_mappings": TemporaryPlayerIdMapping,
     "idempotency_ledger": IdempotencyLedger,
     "rejected_event_originals": RejectedEventOriginal,
+    "invalidation_intents": InvalidationIntent,
 }
 _C12_CHECKS = {
     "ledger_kind = 'accepted'",
@@ -258,7 +267,7 @@ def _foreign_key_targets(table: Table) -> dict[str, tuple[str, tuple[str, ...]]]
 
 
 def test_sync_protocol_models_match_manifest_contracts() -> None:
-    """5 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """6 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -422,3 +431,30 @@ def test_d5_ledger_and_sync_sources_use_kind_bound_full_match_fks() -> None:
             ["tenant_id", "d5", "ledger_kind"],
             ["tenant_id", "d5", "kind"],
         )
+
+
+def test_invalidation_intent_has_only_scope_and_delivery_value_checks() -> None:
+    """無効化意図が FK や発火規則を持たず値域だけを制約すると示す。"""
+    table = cast(Table, InvalidationIntent.__table__)
+
+    assert table.foreign_key_constraints == set()
+    assert {
+        str(check.sqltext)
+        for check in table.constraints
+        if isinstance(check, CheckConstraint)
+    } == {
+        "scope_kind IN ('game', 'player_total', 'team_total', 'shared_total', 'chart')",
+        "delivery_status IN ('pending', 'delivered')",
+    }
+    assert "deleted_at" not in table.columns
+    assert not table.columns["tenant_id"].nullable
+    assert list(table.primary_key.columns.keys()) == ["tenant_id", "intent_id"]
+
+
+def test_invalidation_migration_contains_no_dml_or_cascade() -> None:
+    """無効化意図 migration が DML や削除連鎖を含まないと示す。"""
+    source = _INVALIDATION_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+    assert "ON DELETE CASCADE" not in source
