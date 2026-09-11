@@ -230,7 +230,8 @@ def _index_evaluation_repository(
     ``cat-file blob :<path>`` で index の blob を直接読むため、skip-worktree
     ビット、attributes、smudge filter のいずれも内容の抽出経路に入らない。
     通常ファイルは blob をそのまま書き、symlink は blob をリンク先として再現する。
-    Gitlink は規則ファイルにならないため実体化せず、symlink を作れなければ失敗する。
+    Gitlink は directory-only 規則の判定用に空ディレクトリとして再現し、
+    symlink を作れなければ失敗する。
 
     Args:
         repository_root: index を読む元リポジトリ。
@@ -243,10 +244,12 @@ def _index_evaluation_repository(
     evaluation_root = workspace / f"index-{uuid4().hex}"
     evaluation_root.mkdir(parents=True)
     for entry in index_entries:
-        if entry.path.name != ".gitignore":
-            continue
+        destination = evaluation_root / entry.path
         if entry.mode == "160000":
-            # gitlink はディレクトリ entry であり、ignore 規則ファイルではない。
+            # Gitlink の中身は展開せず、種別判定に必要な空ディレクトリだけを作る。
+            destination.mkdir(parents=True)
+            continue
+        if entry.path.name != ".gitignore":
             continue
         if entry.mode not in {"100644", "100755", "120000"}:
             raise ValueError(f"未対応の index mode: {entry.mode} {entry.path}")
@@ -256,7 +259,6 @@ def _index_evaluation_repository(
             "blob",
             f":{entry.path.as_posix()}",
         ).stdout
-        destination = evaluation_root / entry.path
         destination.parent.mkdir(parents=True, exist_ok=True)
         if entry.mode == "120000":
             try:
@@ -529,6 +531,68 @@ def test_regular_ignore_applies_same_nested_negation(tmp_path: Path) -> None:
         no_index=True,
     ) == ()
     assert _tracked_ignored_paths(repository.root, tmp_path) == ()
+
+
+def test_directory_only_rule_applies_to_gitlink(tmp_path: Path) -> None:
+    """Gitlink を空ディレクトリとして再現し directory-only 規則を適用する。"""
+    repository_root = _initialize_repository(tmp_path)
+    gitlink_path = Path("generated")
+    (repository_root / ".gitignore").write_text("/generated/\n", encoding="utf-8")
+    _git(repository_root, "add", ".gitignore")
+    empty_tree = _git(repository_root, "mktree", input_data=b"").stdout.strip()
+    gitlink_commit = _git(
+        repository_root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit-tree",
+        empty_tree.decode(),
+        input_data=b"gitlink\n",
+    ).stdout.strip()
+    _git(
+        repository_root,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{gitlink_commit.decode()},{gitlink_path.as_posix()}",
+    )
+    (repository_root / gitlink_path).mkdir()
+    gitlink_entry = next(
+        entry
+        for entry in _index_entries(repository_root)
+        if entry.path == gitlink_path
+    )
+
+    assert gitlink_entry.mode == "160000"
+    assert _check_ignored_paths(
+        repository_root,
+        (gitlink_path,),
+        no_index=True,
+    ) == (gitlink_path,)
+    assert _tracked_ignored_paths(repository_root, tmp_path) == (gitlink_path,)
+
+
+def test_executable_ignore_applies_rules(tmp_path: Path) -> None:
+    """Mode 100755 の ignore 規則も通常ファイルとして適用する。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"executable-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+    _git(repository_root, "update-index", "--chmod=+x", ".gitignore")
+    _git(repository_root, "add", "-f", "--", artifact_path.as_posix())
+    ignore_entry = next(
+        entry
+        for entry in _index_entries(repository_root)
+        if entry.path == Path(".gitignore")
+    )
+
+    assert ignore_entry.mode == "100755"
+    assert _tracked_ignored_paths(repository_root, tmp_path) == (artifact_path,)
 
 
 def test_skip_worktree_nested_ignore_is_extracted_from_index(tmp_path: Path) -> None:
