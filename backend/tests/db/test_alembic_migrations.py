@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0015_invalidation_intents"
+_REVISION = "0016_migration_quarantine"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -787,6 +787,24 @@ BEGIN
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
+END;
+$function$
+"""
+_MIGRATION_QUARANTINE_TRIGGER_NAME = "trg_migration_quarantine_append_only"
+_MIGRATION_QUARANTINE_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_migration_quarantine_append_only BEFORE DELETE OR UPDATE "
+    "ON migration_quarantine FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_migration_quarantine_mutation()"
+)
+_MIGRATION_QUARANTINE_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_migration_quarantine_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'migration quarantine is append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
 END;
 $function$
 """
@@ -6353,6 +6371,167 @@ def test_invalidation_intent_scopes_delivery_and_migration_round_trip(
         command.downgrade(config, "0014_analysis_groups")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_nineteen_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_twenty_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に隔離表・追記専用トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.migration_quarantine'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_migration_quarantine_mutation()'
+                )
+            """,
+            (_MIGRATION_QUARANTINE_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (None, False, None)
+
+
+def test_migration_quarantine_raw_payload_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """隔離原本の無変換往復、追記専用性と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger = _sync_trigger_catalog_contract(
+                connection, _MIGRATION_QUARANTINE_TRIGGER_NAME
+            )
+            assert _normalize_sql(trigger[0]) == _normalize_sql(
+                _MIGRATION_QUARANTINE_TRIGGER_DEFINITION
+            )
+            assert trigger[1] == "migration_quarantine"
+            assert trigger[2] == []
+            assert trigger[3] == "O"
+            assert _normalize_sql(trigger[4]) == _normalize_sql(
+                _MIGRATION_QUARANTINE_FUNCTION_DEFINITION
+            )
+
+            source_index_contract = (
+                "migration_quarantine",
+                ["import_batch_id", "source_read_order"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_migration_quarantine_source")
+                == source_index_contract
+            )
+            source_index = _index_catalog_contract(
+                connection, "ix_migration_quarantine_source"
+            )
+            assert source_index[1:4] == source_index_contract
+            assert not source_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'migration_quarantine'
+                    ORDER BY ordinal_position
+                    """
+                )
+                assert cursor.fetchall() == [
+                    ("id", "uuid", "NO", None),
+                    ("import_batch_id", "uuid", "NO", None),
+                    ("source_read_order", "bigint", "NO", None),
+                    ("raw_payload", "bytea", "NO", None),
+                ]
+
+                cursor.execute(
+                    """
+                    SELECT contype, count(*)
+                    FROM pg_constraint
+                    WHERE conrelid = 'migration_quarantine'::regclass
+                    GROUP BY contype
+                    ORDER BY contype
+                    """
+                )
+                assert cursor.fetchall() == [("p", 1)]
+
+                fields = [f"field-{index}".encode() for index in range(88)]
+                fields[55] = b"\xff\xfe\x80"
+                raw_payload = b"\x1f".join(fields)
+                assert len(raw_payload.split(b"\x1f")) == 88
+                with pytest.raises(UnicodeDecodeError):
+                    raw_payload.decode("utf-8")
+
+                quarantine_id = uuid4()
+                import_batch_id = uuid4()
+                cursor.execute(
+                    """
+                    INSERT INTO migration_quarantine (
+                        id, import_batch_id, source_read_order, raw_payload
+                    ) VALUES (%s, %s, %s, %s)
+                    RETURNING raw_payload
+                    """,
+                    (quarantine_id, import_batch_id, 1, raw_payload),
+                )
+                assert cursor.fetchone() == (raw_payload,)
+                cursor.execute(
+                    """
+                    SELECT raw_payload
+                    FROM migration_quarantine
+                    WHERE id = %s
+                    """,
+                    (quarantine_id,),
+                )
+                stored_payload = cursor.fetchone()
+                assert stored_payload == (raw_payload,)
+                assert len(bytes(stored_payload[0]).split(b"\x1f")) == 88
+
+                protected_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "import_batch_id": uuid4(),
+                    "source_read_order": 2,
+                    "raw_payload": b"changed",
+                }
+                for column, value in protected_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="migration quarantine is append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE migration_quarantine SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, quarantine_id),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="migration quarantine is append-only",
+                ):
+                    cursor.execute(
+                        "DELETE FROM migration_quarantine WHERE id = %s",
+                        (quarantine_id,),
+                    )
+
+        command.downgrade(config, "0015_invalidation_intents")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_twenty_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
