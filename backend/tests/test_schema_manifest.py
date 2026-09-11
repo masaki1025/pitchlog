@@ -436,6 +436,26 @@ def _pending_manifest_foreign_keys(
     }
 
 
+def _mixed_nullability_full_match_foreign_keys(
+    manifest: dict[str, Any],
+) -> list[str]:
+    """MATCH FULL の構成列に NULL 性が混在する FK 名を全表から返す。"""
+    violations: list[str] = []
+    for table in manifest["tables"]:
+        nullability = {
+            column["name"]: bool(column["nullable"]) for column in table["columns"]
+        }
+        for foreign_key in table["foreign_keys"]:
+            if foreign_key["match"] != "FULL":
+                continue
+            column_nullability = {
+                nullability[column] for column in foreign_key["columns"]
+            }
+            if len(column_nullability) > 1:
+                violations.append(f"{table['name']}.{foreign_key['name']}")
+    return sorted(violations)
+
+
 def test_manifest_is_bound_to_the_canonical_data_model() -> None:
     """実 manifest の SHA・参照・自己整合性を薄い層で検査する。"""
     manifest = _load_manifest()
@@ -540,6 +560,37 @@ def test_pending_foreign_keys_are_derived_from_target_implementation() -> None:
 
     assert _pending_manifest_foreign_keys({contract}, {"source"}) == {contract}
     assert _pending_manifest_foreign_keys({contract}, {"source", "target"}) == set()
+
+
+def test_full_match_foreign_keys_do_not_mix_column_nullability() -> None:
+    """Manifest 全 FK の MATCH FULL が NULL 性の混在を持たないと示す。"""
+    assert _mixed_nullability_full_match_foreign_keys(_load_manifest()) == []
+
+
+def test_mixed_nullability_full_match_foreign_key_is_rejected() -> None:
+    """NULL 性が混在する FK を MATCH FULL にした負例が red になると示す。"""
+    manifest = copy.deepcopy(_load_manifest())
+    candidate: tuple[str, dict[str, Any]] | None = None
+    for table in manifest["tables"]:
+        nullability = {
+            column["name"]: bool(column["nullable"]) for column in table["columns"]
+        }
+        for foreign_key in table["foreign_keys"]:
+            column_nullability = {
+                nullability[column] for column in foreign_key["columns"]
+            }
+            if foreign_key["match"] == "SIMPLE" and len(column_nullability) > 1:
+                candidate = (table["name"], foreign_key)
+                break
+        if candidate is not None:
+            break
+
+    assert candidate is not None
+    table_name, foreign_key = candidate
+    foreign_key["match"] = "FULL"
+    assert _mixed_nullability_full_match_foreign_keys(manifest) == [
+        f"{table_name}.{foreign_key['name']}"
+    ]
 
 
 def test_one_sided_table_implementation_remains_missing() -> None:

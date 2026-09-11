@@ -49,6 +49,11 @@ from pitchlog.db.model_metadata import (
     Lifecycle,
     MigrationRetirement,
 )
+from pitchlog.db.sync_protocol.event_kinds import (
+    EVENT_KIND_CHECK_EXPRESSION,
+    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+    TOMBSTONE_CHECK_EXPRESSION,
+)
 
 
 class EventSlot(TenantMixin, LifecycleMixin, Base):
@@ -116,6 +121,10 @@ class OperationEvent(
         CheckConstraint("ledger_kind = 'accepted'"),
         CheckConstraint("(d1 IS NULL) = (generation IS NULL)"),
         CheckConstraint(
+            "(target_generation IS NULL) = (target_d1 IS NULL)",
+            name="ck_operation_events_target_pair",
+        ),
+        CheckConstraint(
             "event_kind NOT IN ('play_change', 'play_delete', "
             "'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND "
             "generation IS NULL AND target_generation IS NOT NULL AND "
@@ -124,6 +133,18 @@ class OperationEvent(
         CheckConstraint(
             "event_kind IN ('play_change', 'play_delete', "
             "'substitution_change') OR d1 IS NOT NULL"
+        ),
+        CheckConstraint(
+            EVENT_KIND_CHECK_EXPRESSION,
+            name="ck_operation_events_event_kind",
+        ),
+        CheckConstraint(
+            STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+            name="ck_operation_events_state_diff_by_kind",
+        ),
+        CheckConstraint(
+            TOMBSTONE_CHECK_EXPRESSION,
+            name="ck_operation_events_tombstone",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
@@ -142,7 +163,7 @@ class OperationEvent(
                 "event_slots.d1",
             ],
             name="fk_operation_events_slot",
-            match="FULL",
+            match="SIMPLE",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -155,7 +176,7 @@ class OperationEvent(
                 "event_slots.d1",
             ],
             name="fk_operation_events_target",
-            match="FULL",
+            match="SIMPLE",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -227,6 +248,9 @@ class OperationEvent(
     event_kind: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     state_diff: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    is_tombstone: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     replaced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

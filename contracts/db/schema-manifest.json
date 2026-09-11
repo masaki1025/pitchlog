@@ -92,7 +92,7 @@
       "foreign_keys": [
         {"name": "fk_players_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_players_roster_status", "columns": ["roster_status_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
-        {"name": "fk_players_roster_label", "columns": ["tenant_id", "roster_label_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+        {"name": "fk_players_roster_label", "columns": ["tenant_id", "roster_label_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
       "checks": [],
       "unique_constraints": [{"name": "pk_players", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
@@ -323,6 +323,7 @@
         {"name": "event_kind", "type": "text", "nullable": false, "default": null},
         {"name": "payload", "type": "jsonb", "nullable": false, "default": null},
         {"name": "state_diff", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "is_tombstone", "type": "boolean", "nullable": false, "default": "false"},
         {"name": "replaced_at", "type": "timestamptz", "nullable": true, "default": null},
         {"name": "target_generation", "type": "bigint", "nullable": true, "default": null},
         {"name": "target_d1", "type": "bigint", "nullable": true, "default": null},
@@ -336,11 +337,11 @@
       "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
       "foreign_keys": [
         {"name": "fk_operation_events_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_operation_events_slot", "columns": ["tenant_id", "game_id", "generation", "d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_operation_events_target", "columns": ["tenant_id", "game_id", "target_generation", "target_d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_operation_events_slot", "columns": ["tenant_id", "game_id", "generation", "d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_operation_events_target", "columns": ["tenant_id", "game_id", "target_generation", "target_d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_operation_events_ledger", "columns": ["tenant_id", "d5", "ledger_kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
-      "checks": ["ledger_kind = 'accepted'", "(d1 IS NULL) = (generation IS NULL)", "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)", "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS NOT NULL"],
+      "checks": ["ledger_kind = 'accepted'", "(d1 IS NULL) = (generation IS NULL)", "(target_generation IS NULL) = (target_d1 IS NULL)", "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)", "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS NOT NULL", "event_kind IN ('play_input', 'undo', 'substitution', 'tiebreak_start', 'game_end_declaration', 'player_registration', 'play_change', 'play_delete', 'substitution_change')", "(event_kind <> 'play_input' OR state_diff IS NOT NULL) AND (event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR state_diff IS NULL)", "(NOT is_tombstone OR (d1 IS NOT NULL AND d2 IS NULL AND state_diff IS NULL)) AND (NOT is_tombstone OR event_kind NOT IN ('play_change', 'play_delete', 'substitution_change')) AND (NOT is_tombstone OR payload = '{}'::jsonb)"],
       "unique_constraints": [
         {"name": "pk_operation_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
         {"name": "uq_operation_events_active_slot", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "generation", "d1"], "predicate": "d1 IS NOT NULL AND replaced_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "(試合, D4, D1) の有効な行が 1 件", "key_shape": "UNIQUE (tenant_id, 試合, D4, D1) WHERE D1 IS NOT NULL AND 置換されていない", "scope": "scoped"}},
@@ -549,7 +550,7 @@
       "foreign_keys": [
         {"name": "fk_evacuated_event_originals_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_evacuated_event_originals_ledger", "columns": ["tenant_id", "d5", "kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_evacuated_event_originals_imported_event", "columns": ["tenant_id", "imported_event_id"], "references": {"table": "operation_events", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+        {"name": "fk_evacuated_event_originals_imported_event", "columns": ["tenant_id", "imported_event_id"], "references": {"table": "operation_events", "columns": ["tenant_id", "id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
       "checks": ["kind = 'evacuated'", "origin IN ('authority_mismatch', 'restore_collection')", "status IN ('pending', 'imported', 'not_imported', 'discarded')"],
       "unique_constraints": [
@@ -657,8 +658,8 @@
       ],
       "lifecycle": {"deletion": "対象外", "append_mode": "追記専用", "migration_retirement": "持たない"},
       "foreign_keys": [
-        {"name": "fk_pdf_export_records_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_pdf_export_records_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+        {"name": "fk_pdf_export_records_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_pdf_export_records_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
       "checks": ["team_record_id IS NOT NULL OR player_id IS NOT NULL"],
       "unique_constraints": [{"name": "pk_pdf_export_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],

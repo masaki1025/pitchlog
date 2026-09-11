@@ -70,7 +70,7 @@ class EvacuatedEventOriginal(TenantMixin, ImportBatchMixin, LifecycleMixin, Base
             ["tenant_id", "imported_event_id"],
             ["operation_events.tenant_id", "operation_events.id"],
             name="fk_evacuated_event_originals_imported_event",
-            match="FULL",
+            match="SIMPLE",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),

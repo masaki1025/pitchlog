@@ -19,6 +19,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
+from pitchlog.db.sync_protocol.event_kinds import (
+    EVENT_KIND_CHECK_EXPRESSION,
+    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+    TOMBSTONE_CHECK_EXPRESSION,
+)
 from pitchlog.db.sync_protocol.models import (
     EventSlot,
     IdempotencyLedger,
@@ -45,14 +50,18 @@ _MODEL_CLASSES: dict[str, Any] = {
     "rejected_event_originals": RejectedEventOriginal,
     "invalidation_intents": InvalidationIntent,
 }
-_C12_CHECKS = {
+_OPERATION_EVENT_CHECKS = {
     "ledger_kind = 'accepted'",
     "(d1 IS NULL) = (generation IS NULL)",
+    "(target_generation IS NULL) = (target_d1 IS NULL)",
     "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR "
     "(d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS "
     "NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)",
     "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS "
     "NOT NULL",
+    EVENT_KIND_CHECK_EXPRESSION,
+    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+    TOMBSTONE_CHECK_EXPRESSION,
 }
 _FORBIDDEN_EVENT_COLUMNS = {
     "v12",
@@ -319,7 +328,7 @@ def test_operation_event_c12_checks_and_forbidden_columns() -> None:
         if isinstance(check, CheckConstraint)
     }
 
-    assert checks == _C12_CHECKS
+    assert checks == _OPERATION_EVENT_CHECKS
     assert table.columns["generation"].nullable
     assert table.columns["d1"].nullable
     assert table.columns["d2"].nullable
@@ -358,6 +367,15 @@ def test_operation_event_slot_fks_and_partial_uniqueness() -> None:
             "event_slots",
             ("tenant_id", "game_id", "generation", "d1"),
         ),
+    }
+    assert {
+        constraint.name: constraint.match
+        for constraint in event_table.foreign_key_constraints
+    } == {
+        "fk_operation_events_game": "FULL",
+        "fk_operation_events_ledger": "FULL",
+        "fk_operation_events_slot": "SIMPLE",
+        "fk_operation_events_target": "SIMPLE",
     }
     assert uniques["uq_operation_events_active_slot"]["predicate"] == (
         "d1 IS NOT NULL AND replaced_at IS NULL"

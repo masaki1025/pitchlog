@@ -1923,10 +1923,8 @@ def test_sync_event_immutability_and_migration_round_trip(
                         d5,
                         event_kind,
                         payload,
-                        state_diff,
-                        target_generation,
-                        target_d1
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        state_diff
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         tenant_id,
@@ -1936,11 +1934,9 @@ def test_sync_event_immutability_and_migration_round_trip(
                         1,
                         1,
                         event_d5,
-                        "pitch",
+                        "play_input",
                         Jsonb({"result": "strike"}),
                         Jsonb({"outs": 0}),
-                        1,
-                        1,
                     ),
                 )
 
@@ -2025,6 +2021,9 @@ def test_sync_event_immutability_and_migration_round_trip(
                     (tenant_id, event_id),
                 )
                 assert cursor.fetchone() == (True,)
+                cursor.execute("DELETE FROM operation_events")
+                cursor.execute("SELECT count(*) FROM operation_events")
+                assert cursor.fetchone() == (0,)
 
         command.downgrade(config, "0004_rule_sets")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
@@ -2402,9 +2401,10 @@ def test_play_projection_constraints_and_migration_round_trip(
                         d5,
                         event_kind,
                         payload,
-                        target_generation,
-                        target_d1
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        state_diff
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
                     """,
                     (
                         tenant_id,
@@ -2414,10 +2414,9 @@ def test_play_projection_constraints_and_migration_round_trip(
                         1,
                         1,
                         source_event_d5,
-                        "pitch",
+                        "play_input",
                         Jsonb({"result": "strike"}),
-                        1,
-                        1,
+                        Jsonb({"outs": 0}),
                     ),
                 )
 
@@ -2566,6 +2565,9 @@ def test_play_projection_constraints_and_migration_round_trip(
                 # 是正 revision を跨ぐ往復前にプレイ投影の検査行を片付ける。
                 cursor.execute("DELETE FROM play_runners")
                 cursor.execute("DELETE FROM play_rows")
+                cursor.execute("DELETE FROM operation_events")
+                cursor.execute("SELECT count(*) FROM operation_events")
+                assert cursor.fetchone() == (0,)
 
         command.downgrade(config, "0005_sync_events")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
@@ -2660,11 +2662,12 @@ def _assert_operation_event_without_ledger_is_rejected(
                 d5,
                 event_kind,
                 payload,
-                target_generation,
-                target_d1
-            ) VALUES (%s, %s, %s, 1, 4, 4, %s, 'pitch', %s, 1, 1)
+                state_diff
+            ) VALUES (
+                %s, %s, %s, 1, 4, 4, %s, 'play_input', %s, %s
+            )
             """,
-            (tenant_id, uuid4(), game_id, uuid4(), Jsonb({})),
+            (tenant_id, uuid4(), game_id, uuid4(), Jsonb({}), Jsonb({})),
         )
 
 
@@ -2910,8 +2913,7 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
                         ledger_kind,
                         event_kind,
                         payload,
-                        target_generation,
-                        target_d1
+                        state_diff
                     ) VALUES (
                         %(tenant_id)s,
                         %(id)s,
@@ -2921,10 +2923,9 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
                         %(d2)s,
                         %(d5)s,
                         %(kind)s,
-                        'pitch',
+                        'play_input',
                         %(payload)s,
-                        1,
-                        1
+                        '{}'::jsonb
                     )
                 """
                 accepted_d5 = uuid4()
@@ -3186,6 +3187,39 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
                     (tenant_id, ledger_d5),
                 )
                 assert cursor.fetchone() == (True,)
+                cursor.execute(
+                    """
+                    UPDATE evacuated_event_originals
+                    SET imported_event_id = NULL
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                cursor.execute(
+                    """
+                    SELECT count(*)
+                    FROM evacuated_event_originals
+                    WHERE tenant_id = %s AND imported_event_id IS NOT NULL
+                    """,
+                    (tenant_id,),
+                )
+                assert cursor.fetchone() == (0,)
+                cursor.execute(
+                    "DELETE FROM evacuated_event_originals WHERE tenant_id = %s",
+                    (tenant_id,),
+                )
+                cursor.execute(
+                    """
+                    SELECT count(*)
+                    FROM evacuated_event_originals
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                assert cursor.fetchone() == (0,)
+                cursor.execute("DELETE FROM operation_events")
+                cursor.execute("SELECT count(*) FROM operation_events")
+                assert cursor.fetchone() == (0,)
 
         command.downgrade(config, "0006_play_projections")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
@@ -4090,7 +4124,7 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         "fk_players_roster_label",
                         "players",
                         "tenant_vocabularies",
-                        "f",
+                        "s",
                     ),
                     (
                         "fk_players_roster_status",
