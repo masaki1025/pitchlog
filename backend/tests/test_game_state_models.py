@@ -12,6 +12,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Integer,
     Text,
     UniqueConstraint,
     Uuid,
@@ -24,8 +25,11 @@ from sqlalchemy.sql.schema import DefaultClause, Index, Table
 from pitchlog.db.game_state.models import (
     Game,
     GameLineup,
+    GameTypeRuleDefault,
     LineupMemory,
     ParticipationInterval,
+    RuleSet,
+    TournamentRuleAssignment,
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +39,9 @@ _MODEL_CLASSES: dict[str, Any] = {
     "lineup_memories": LineupMemory,
     "game_lineups": GameLineup,
     "participation_intervals": ParticipationInterval,
+    "rule_sets": RuleSet,
+    "game_type_rule_defaults": GameTypeRuleDefault,
+    "tournament_rule_assignments": TournamentRuleAssignment,
 }
 
 
@@ -80,6 +87,8 @@ def _column_type_name(column: Column[Any]) -> str:
         return "jsonb"
     if isinstance(column.type, BigInteger):
         return "bigint"
+    if isinstance(column.type, Integer):
+        return "integer"
     if isinstance(column.type, Text):
         return "text"
     if isinstance(column.type, Boolean):
@@ -240,7 +249,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_game_state_models_match_manifest_contracts() -> None:
-    """4 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """7 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -321,3 +330,43 @@ def test_partial_uniqueness_and_games_without_business_uniqueness() -> None:
             "roles": ["fk_target", "primary_key"],
         }
     ]
+
+
+def _foreign_key_targets(table: Table) -> dict[str, set[str]]:
+    """Models の FK 名から参照先表名集合への対応を返す。"""
+    targets: dict[str, set[str]] = {}
+    for constraint in table.foreign_key_constraints:
+        if not isinstance(constraint.name, str):
+            raise AssertionError(f"FK 名が空である: {table.name}")
+        targets[constraint.name] = {
+            element.target_fullname.rsplit(".", maxsplit=1)[0]
+            for element in constraint.elements
+        }
+    return targets
+
+
+def test_rule_assignment_scope_and_game_snapshot_structure() -> None:
+    """規則表のテナント範囲と試合スナップショットの独立性を検査する。"""
+    game_table = cast(Table, Game.__table__)
+    rule_set_table = cast(Table, RuleSet.__table__)
+    game_type_table = cast(Table, GameTypeRuleDefault.__table__)
+    tournament_table = cast(Table, TournamentRuleAssignment.__table__)
+
+    applied_rules = game_table.columns["applied_rules"]
+    assert isinstance(applied_rules.type, JSONB)
+    assert not applied_rules.nullable
+    assert "rule_sets" not in {
+        target
+        for targets in _foreign_key_targets(game_table).values()
+        for target in targets
+    }
+
+    assert "tenant_id" not in rule_set_table.columns
+    assert "tenant_id" not in game_type_table.columns
+    assert not tournament_table.columns["tenant_id"].nullable
+    assert _foreign_key_targets(game_type_table) == {
+        "fk_game_type_rule_defaults_rule": {"rule_sets"}
+    }
+    assert _foreign_key_targets(tournament_table) == {
+        "fk_tournament_rule_assignments_rule": {"rule_sets"}
+    }

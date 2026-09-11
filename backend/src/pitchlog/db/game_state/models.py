@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKeyConstraint,
     Index,
+    Integer,
     PrimaryKeyConstraint,
     Text,
     Uuid,
@@ -301,4 +302,121 @@ class ParticipationInterval(
     immutability = Immutability(
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"valid_until_d2", "retired_at"}),
+    )
+
+
+class RuleSet(LifecycleMixin, Base):
+    """試合へ適用するシステム全体の規則定義を保持する。"""
+
+    __tablename__ = "rule_sets"
+    __table_args__ = (
+        CheckConstraint("regulation_innings > 0"),
+        CheckConstraint(
+            "extra_innings_limit IS NULL OR extra_innings_limit >= regulation_innings"
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_rule_sets",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    regulation_innings: Mapped[int] = mapped_column(Integer, nullable=False)
+    called_game_conditions: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, nullable=False
+    )
+    extra_innings_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tiebreak_rule: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    uses_dh: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(),
+        allowed_update_columns=frozenset(
+            {
+                "regulation_innings",
+                "called_game_conditions",
+                "extra_innings_limit",
+                "tiebreak_rule",
+                "uses_dh",
+            }
+        ),
+    )
+
+
+class GameTypeRuleDefault(LifecycleMixin, Base):
+    """試合区分ごとの既定規則セットを保持する。"""
+
+    __tablename__ = "game_type_rule_defaults"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["rule_set_id"],
+            ["rule_sets.id"],
+            name="fk_game_type_rule_defaults_rule",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "game_type_key",
+            name="pk_game_type_rule_defaults",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    game_type_key: Mapped[str] = mapped_column(Text, nullable=False)
+    rule_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(),
+        allowed_update_columns=frozenset({"rule_set_id"}),
+    )
+
+
+class TournamentRuleAssignment(TenantMixin, LifecycleMixin, Base):
+    """テナント内の大会名へ規則セットを割り当てる。"""
+
+    __tablename__ = "tournament_rule_assignments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["rule_set_id"],
+            ["rule_sets.id"],
+            name="fk_tournament_rule_assignments_rule",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "tournament_key",
+            name="pk_tournament_rule_assignments",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    tournament_key: Mapped[str] = mapped_column(Text, nullable=False)
+    rule_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(),
+        allowed_update_columns=frozenset({"rule_set_id"}),
     )

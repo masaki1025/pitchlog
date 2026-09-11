@@ -28,7 +28,7 @@ from .conftest import DisposablePostgres
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_REVISION = "0003_games_lineups_participation"
+_REVISION = "0004_rule_sets"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -585,6 +585,193 @@ def test_game_state_constraints_and_migration_round_trip(
         command.downgrade(config, "0002_tenants_teams_players")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_seven_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_rule_tables_are_absent(connection: psycopg.Connection[Any]) -> None:
+    """Downgrade 後にステップ 8 の3表が残っていないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.rule_sets'),
+                to_regclass('public.game_type_rule_defaults'),
+                to_regclass('public.tournament_rule_assignments')
+            """
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None)
+
+
+def test_game_rule_snapshot_is_independent_and_migration_round_trips(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """規則更新が試合スナップショットへ波及せず migration が往復すると示す。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT attribute.attnotnull
+                    FROM pg_attribute AS attribute
+                    JOIN pg_class AS relation
+                      ON relation.oid = attribute.attrelid
+                    WHERE relation.relname = 'games'
+                      AND attribute.attname = 'applied_rules'
+                      AND NOT attribute.attisdropped
+                    """
+                )
+                assert cursor.fetchone() == (True,)
+
+                cursor.execute(
+                    """
+                    SELECT source.relname, constraint_row.conname, target.relname
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS source
+                      ON source.oid = constraint_row.conrelid
+                    JOIN pg_class AS target
+                      ON target.oid = constraint_row.confrelid
+                    WHERE constraint_row.contype = 'f'
+                      AND (
+                        (
+                            source.relname = 'games'
+                            AND target.relname = 'rule_sets'
+                        )
+                        OR constraint_row.conname IN (
+                            'fk_game_type_rule_defaults_rule',
+                            'fk_tournament_rule_assignments_rule'
+                        )
+                      )
+                    ORDER BY source.relname, constraint_row.conname
+                    """
+                )
+                assert cursor.fetchall() == [
+                    (
+                        "game_type_rule_defaults",
+                        "fk_game_type_rule_defaults_rule",
+                        "rule_sets",
+                    ),
+                    (
+                        "tournament_rule_assignments",
+                        "fk_tournament_rule_assignments_rule",
+                        "rule_sets",
+                    ),
+                ]
+
+                tenant_id = uuid4()
+                self_team_id = uuid4()
+                opponent_team_id = uuid4()
+                rule_set_id = uuid4()
+                game_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "規則テストテナント"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO rule_sets (
+                        id,
+                        regulation_innings,
+                        called_game_conditions,
+                        extra_innings_limit,
+                        tiebreak_rule,
+                        uses_dh
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        rule_set_id,
+                        9,
+                        Jsonb([{"run_difference": 10, "from_inning": 5}]),
+                        12,
+                        Jsonb({"from_inning": 10}),
+                        False,
+                    ),
+                )
+                applied_snapshot = {
+                    "regulation_innings": 9,
+                    "called_game_conditions": [
+                        {"run_difference": 10, "from_inning": 5}
+                    ],
+                    "extra_innings_limit": 12,
+                    "tiebreak_rule": {"from_inning": 10},
+                    "uses_dh": False,
+                }
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb(applied_snapshot),
+                    ),
+                )
+                cursor.execute(
+                    """
+                    UPDATE rule_sets
+                    SET regulation_innings = 7,
+                        called_game_conditions = %s,
+                        extra_innings_limit = 9,
+                        tiebreak_rule = %s,
+                        uses_dh = true
+                    WHERE id = %s
+                    """,
+                    (
+                        Jsonb([{"run_difference": 7, "from_inning": 5}]),
+                        Jsonb({"from_inning": 8}),
+                        rule_set_id,
+                    ),
+                )
+                cursor.execute(
+                    """
+                    SELECT applied_rules
+                    FROM games
+                    WHERE tenant_id = %s AND id = %s
+                    """,
+                    (tenant_id, game_id),
+                )
+                assert cursor.fetchone() == (applied_snapshot,)
+
+        command.downgrade(config, "0003_games_lineups_participation")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_rule_tables_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
