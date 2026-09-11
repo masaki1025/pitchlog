@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0011_authentication_tables"
+_REVISION = "0012_admin_operation_logs"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -571,6 +571,24 @@ BEGIN
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
+END;
+$function$
+"""
+_ADMIN_OPERATION_LOG_TRIGGER_NAME = "trg_admin_operation_logs_append_only"
+_ADMIN_OPERATION_LOG_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_admin_operation_logs_append_only BEFORE DELETE OR UPDATE "
+    "ON admin_operation_logs FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_admin_operation_logs_mutation()"
+)
+_ADMIN_OPERATION_LOG_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_admin_operation_logs_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'admin operation logs are append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
 END;
 $function$
 """
@@ -4574,6 +4592,182 @@ def test_authentication_tables_guards_and_migration_round_trip(
         command.downgrade(config, "0010_vocabularies_settings")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_fifteen_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_sixteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に管理者操作ログと追記専用トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.admin_operation_logs'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_admin_operation_logs_mutation()'
+                )
+            """,
+            (_ADMIN_OPERATION_LOG_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (None, False, None)
+
+
+def test_admin_operation_logs_append_only_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """管理者操作ログの対象、追記専用性、索引と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            actual = _sync_trigger_catalog_contract(
+                connection, _ADMIN_OPERATION_LOG_TRIGGER_NAME
+            )
+            assert _normalize_sql(actual[0]) == _normalize_sql(
+                _ADMIN_OPERATION_LOG_TRIGGER_DEFINITION
+            )
+            assert actual[1] == "admin_operation_logs"
+            assert actual[2] == []
+            assert actual[3] == "O"
+            assert _normalize_sql(actual[4]) == _normalize_sql(
+                _ADMIN_OPERATION_LOG_FUNCTION_DEFINITION
+            )
+
+            time_index_contract = (
+                "admin_operation_logs",
+                ["occurred_at DESC", "id DESC"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_admin_operation_logs_time")
+                == time_index_contract
+            )
+            time_index = _index_catalog_contract(
+                connection, "ix_admin_operation_logs_time"
+            )
+            assert time_index[1:4] == time_index_contract
+            assert not time_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT column_name, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'admin_operation_logs'
+                    """
+                )
+                columns = {
+                    str(column): str(is_nullable)
+                    for column, is_nullable in cursor.fetchall()
+                }
+                assert columns["tenant_id"] == "YES"
+                assert columns["group_id"] == "YES"
+                assert {
+                    "deleted_at",
+                    "retention_deadline",
+                }.isdisjoint(columns)
+
+                cursor.execute(
+                    """
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE conrelid = 'admin_operation_logs'::regclass
+                      AND contype = 'f'
+                    ORDER BY conname
+                    """
+                )
+                assert cursor.fetchall() == [("fk_admin_operation_logs_tenant",)]
+
+                tenant_id = uuid4()
+                group_id = uuid4()
+                log_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "管理者操作ログテストテナント"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO admin_operation_logs (
+                        id,
+                        operation_kind,
+                        target,
+                        tenant_id,
+                        group_id
+                    ) VALUES (%s, %s, %s, NULL, %s)
+                    RETURNING id
+                    """,
+                    (
+                        log_id,
+                        "group_status_changed",
+                        Jsonb({"kind": "group", "id": str(group_id)}),
+                        group_id,
+                    ),
+                )
+                assert cursor.fetchone() == (log_id,)
+                cursor.execute(
+                    """
+                    INSERT INTO admin_operation_logs (
+                        id, operation_kind, target, tenant_id, group_id
+                    ) VALUES (%s, %s, %s, NULL, NULL)
+                    RETURNING id
+                    """,
+                    (
+                        global_log_id := uuid4(),
+                        "system_setting_changed",
+                        Jsonb({"kind": "system_setting"}),
+                    ),
+                )
+                assert cursor.fetchone() == (global_log_id,)
+
+                protected_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "occurred_at": datetime(2026, 9, 12, tzinfo=UTC),
+                    "operation_kind": "group_terminated",
+                    "target": Jsonb({"kind": "group", "changed": True}),
+                    "tenant_id": tenant_id,
+                    "group_id": uuid4(),
+                }
+                for column, value in protected_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="admin operation logs are append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE admin_operation_logs SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, log_id),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="admin operation logs are append-only",
+                ):
+                    cursor.execute(
+                        "DELETE FROM admin_operation_logs WHERE id = %s",
+                        (log_id,),
+                    )
+
+        command.downgrade(config, "0011_authentication_tables")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_sixteen_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

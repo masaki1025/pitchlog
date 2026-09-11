@@ -23,6 +23,7 @@ from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.tenant_isolation.models import (
     AdminCredential,
+    AdminOperationLog,
     AdminSession,
     AdminVocabulary,
     MedicalNote,
@@ -55,6 +56,13 @@ _AUTH_MIGRATION_PATH = (
     / "versions"
     / "0011_authentication_tables.py"
 )
+_ADMIN_OPERATION_LOG_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0012_admin_operation_logs.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
@@ -71,6 +79,7 @@ _MODEL_CLASSES: dict[str, Any] = {
     "admin_credentials": AdminCredential,
     "admin_sessions": AdminSession,
     "tenant_tokens": TenantToken,
+    "admin_operation_logs": AdminOperationLog,
 }
 
 
@@ -276,7 +285,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """15 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """16 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -423,6 +432,39 @@ def test_authentication_models_exclude_all_manifest_forbidden_columns() -> None:
 def test_authentication_migration_contains_no_seed_data() -> None:
     """認証 migration が資格情報を投入する DML を含まないと示す。"""
     source = _AUTH_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+
+
+def test_admin_operation_logs_have_no_deletion_or_retention_columns() -> None:
+    """管理者操作ログに削除・保持期限・移行用の列が無いと示す。"""
+    columns = set(AdminOperationLog.__table__.columns.keys())
+
+    assert columns.isdisjoint(
+        {
+            "deleted_at",
+            "hidden_at",
+            "import_batch_id",
+            "retention_deadline",
+            "retired_at",
+            "trashed_at",
+        }
+    )
+
+
+def test_admin_operation_log_targets_are_independently_optional() -> None:
+    """管理者操作ログのテナント・グループ対象がともに任意だと示す。"""
+    table = AdminOperationLog.__table__
+
+    assert table.columns["tenant_id"].nullable
+    assert table.columns["group_id"].nullable
+    assert not table.columns["target"].nullable
+
+
+def test_admin_operation_log_migration_contains_no_dml() -> None:
+    """管理者操作ログ migration が DML を含まないと示す。"""
+    source = _ADMIN_OPERATION_LOG_MIGRATION_PATH.read_text(encoding="utf-8").upper()
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source

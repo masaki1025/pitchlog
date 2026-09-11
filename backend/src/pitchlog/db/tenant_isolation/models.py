@@ -602,6 +602,68 @@ class TenantToken(TenantMixin, LifecycleMixin, Base):
     )
 
 
+class AdminOperationLog(LifecycleMixin, Base):
+    """管理者操作の監査記録を保持する。
+
+    NFR-017 の一般ログとは別であり、この表は管理者操作の監査記録に限る。
+    """
+
+    __tablename__ = "admin_operation_logs"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_admin_operation_logs_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_admin_operation_logs",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    operation_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    target: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    tenant_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    group_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.APPEND_ONLY,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {
+                "id",
+                "occurred_at",
+                "operation_kind",
+                "target",
+                "tenant_id",
+                "group_id",
+            }
+        ),
+        allowed_update_columns=frozenset(),
+    )
+
+
+Index(
+    "ix_admin_operation_logs_time",
+    AdminOperationLog.__table__.c.occurred_at.desc(),
+    AdminOperationLog.__table__.c.id.desc(),
+    info={"purpose": "range_sort"},
+)
+
+
 Index(
     "ix_medical_note_versions_history",
     MedicalNoteVersion.__table__.c.tenant_id,
