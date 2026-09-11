@@ -151,6 +151,33 @@ def test_every_expected_root_includes_tracked_and_untracked_text(
     )
 
 
+def test_ignored_text_is_excluded(tmp_path: Path) -> None:
+    """Git が ignore するテキストを母集団から除外する。"""
+    repository_root = _initialize_repository(tmp_path)
+    scan_root = _EXPECTED_SCAN_ROOTS[0]
+    (repository_root / scan_root).mkdir(parents=True)
+    ignored_path = scan_root / f"ignored-{uuid4().hex}"
+    (repository_root / ignored_path).write_text("ignored text\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        f"/{ignored_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore")
+    ignored = _git(
+        repository_root,
+        "check-ignore",
+        "--quiet",
+        "--",
+        ignored_path.as_posix(),
+        check=False,
+    )
+    assert ignored.returncode == 0
+
+    files = collect_wording_scan_files(repository_root, (scan_root,))
+
+    assert ignored_path not in {item.path for item in files}
+
+
 def test_non_ignored_binary_is_excluded(tmp_path: Path) -> None:
     """Git で無視されていないバイナリもテキスト母集団から除外する。"""
     repository_root = _initialize_repository(tmp_path)
@@ -175,6 +202,19 @@ def test_non_ignored_binary_is_excluded(tmp_path: Path) -> None:
 
     assert text_path in paths
     assert binary_path not in paths
+
+
+def test_utf8_with_nul_is_excluded(tmp_path: Path) -> None:
+    """UTF-8 として復号できても NUL を含む内容を母集団から除外する。"""
+    repository_root = _initialize_repository(tmp_path)
+    scan_root = _EXPECTED_SCAN_ROOTS[0]
+    (repository_root / scan_root).mkdir(parents=True)
+    nul_path = scan_root / f"nul-{uuid4().hex}"
+    (repository_root / nul_path).write_bytes(b"abc\0def")
+
+    files = collect_wording_scan_files(repository_root, (scan_root,))
+
+    assert nul_path not in {item.path for item in files}
 
 
 def test_forbidden_wording_in_included_file_is_detected(

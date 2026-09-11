@@ -83,13 +83,32 @@ def _repository_state(repository_root: Path) -> tuple[bytes, bytes]:
     return index, status
 
 
+def _isolate_global_git_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    """当該テストだけが使う HOME と global Git 設定領域を作る。"""
+    home = tmp_path / "home"
+    xdg_config_home = tmp_path / "xdg-config"
+    home.mkdir()
+    xdg_config_home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_home))
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    return home
+
+
 def _check_ignored_paths(
     repository_root: Path,
     paths: tuple[Path, ...],
     *,
     no_index: bool,
 ) -> tuple[Path, ...]:
-    """Git 自身の ignore 判定で一致したパスを返す。
+    """Git 自身の case-sensitive な ignore 判定で一致したパスを返す。
+
+    CI が動く Linux の判定を green/red の権威とするため、開発環境から
+    ``core.ignoreCase`` を継承せず case-sensitive に固定する。
 
     Args:
         repository_root: 判定を行う Git リポジトリ。
@@ -104,6 +123,8 @@ def _check_ignored_paths(
     arguments = [
         "-c",
         "core.excludesFile=/dev/null",
+        "-c",
+        "core.ignoreCase=false",
         "check-ignore",
     ]
     if no_index:
@@ -300,6 +321,77 @@ def test_info_exclude_only_pattern_is_not_authoritative(tmp_path: Path) -> None:
         (artifact_path,),
         no_index=True,
     ) == (artifact_path,)
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
+def test_global_excludes_file_is_not_authoritative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """一時 HOME の global excludesFile によって判定を変えない。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"global-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", artifact_path.as_posix())
+    home = _isolate_global_git_config(tmp_path, monkeypatch)
+    global_excludes = home / "global-excludes"
+    global_excludes.write_text(f"/{artifact_path.as_posix()}\n", encoding="utf-8")
+    _git(
+        repository_root,
+        "config",
+        "--global",
+        "core.excludesFile",
+        global_excludes.as_posix(),
+    )
+
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
+def test_template_info_exclude_is_cleared(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Git template 由来の info/exclude によって判定を変えない。"""
+    repository_root = _initialize_repository(tmp_path)
+    artifact_path = Path(f"template-artifact-{uuid4().hex}")
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    _git(repository_root, "add", "--", artifact_path.as_posix())
+    _isolate_global_git_config(tmp_path, monkeypatch)
+    template = tmp_path / "git-template"
+    template_info = template / "info"
+    template_info.mkdir(parents=True)
+    (template_info / "exclude").write_text(
+        f"/{artifact_path.as_posix()}\n",
+        encoding="utf-8",
+    )
+    _git(
+        repository_root,
+        "config",
+        "--global",
+        "init.templateDir",
+        template.as_posix(),
+    )
+
+    assert _tracked_ignored_paths(repository_root, tmp_path) == ()
+
+
+def test_global_ignore_case_does_not_change_case_sensitive_evaluation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Global の ignoreCase=true を継承せず Linux と同じ判定にする。"""
+    repository_root = _initialize_repository(tmp_path)
+    pattern_name = f"case-artifact-{uuid4().hex}"
+    artifact_path = Path(pattern_name.upper())
+    (repository_root / artifact_path).write_text("generated\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        f"/{pattern_name}\n",
+        encoding="utf-8",
+    )
+    _git(repository_root, "add", ".gitignore", artifact_path.as_posix())
+    _isolate_global_git_config(tmp_path, monkeypatch)
+    _git(repository_root, "config", "--global", "core.ignoreCase", "true")
+
     assert _tracked_ignored_paths(repository_root, tmp_path) == ()
 
 
