@@ -28,6 +28,11 @@ BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
+ALEMBIC_CI_COMMANDS = (
+    "uv run alembic upgrade head",
+    "uv run alembic current --check-heads",
+    "uv run alembic check",
+)
 CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
 # source_commit 検査や三点差分へ推移した先にあるため、ジョブ名を列挙する。
@@ -315,6 +320,36 @@ def _backend_commands(backend: dict[str, Any]) -> list[str]:
         if isinstance(step, dict)
         and isinstance((command := step.get("run")), str)
     ]
+
+
+def _alembic_command_locations(
+    workflow: dict[str, Any],
+) -> list[tuple[str, str]]:
+    """全ジョブから Alembic 実行コマンドと所属ジョブを順序どおり得る。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        ジョブ宣言順・step 宣言順の ``(job 名, run コマンド)``。
+    """
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return []
+    locations: list[tuple[str, str]] = []
+    for job_name, job in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(job, dict):
+            continue
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            command = step.get("run")
+            if isinstance(command, str) and "alembic" in shlex.split(command):
+                locations.append((job_name, command))
+    return locations
 
 
 def _canonical_distribution_name(specification: str) -> str:
@@ -742,12 +777,16 @@ def _ci_wiring_errors(
         role_name = variables["tested_role_connection"]["expected_name"]
         admin_dsn = job_environment.get(admin_name)
         role_dsn = job_environment.get(role_name)
+        migration_dsn = job_environment.get("PITCHLOG_MIGRATION_DATABASE_URL")
         admin_parts = _dsn_template_parts(admin_dsn)
         role_parts = _dsn_template_parts(role_dsn)
+        migration_parts = _dsn_template_parts(migration_dsn)
         if admin_parts is None:
             errors.append("管理接続 DSN の job env がない")
         if role_parts is None:
             errors.append("被検査ロール DSN の job env がない")
+        if migration_parts is None:
+            errors.append("migration direct URL の job env がない")
         if admin_parts is not None and role_parts is not None:
             expected_admin_parts = (
                 service_user,
@@ -759,9 +798,18 @@ def _ci_wiring_errors(
                 errors.append("管理接続 DSN が service の資格情報・DB と一致しない")
             if role_parts[0] == admin_parts[0] or role_parts[2:] != admin_parts[2:]:
                 errors.append("被検査ロール DSN の認証ユーザー分離が不正")
+        if migration_parts is not None:
+            expected_migration_parts = (
+                service_user,
+                service_password,
+                "127.0.0.1",
+                service_database,
+            )
+            if migration_parts != expected_migration_parts:
+                errors.append("migration direct URL が service の管理接続と一致しない")
         if admin_name == role_name or admin_dsn == role_dsn:
             errors.append("管理接続と被検査ロール接続が分離されていない")
-        for value in (admin_dsn, role_dsn):
+        for value in (admin_dsn, role_dsn, migration_dsn):
             if isinstance(value, str) and (":-" in value or ":+" in value):
                 errors.append("DSN 変数間の fallback がある")
 
@@ -796,16 +844,22 @@ def _ci_wiring_errors(
             errors.append("backend-changes の既存 paths-filter が変わっている")
 
     commands = _backend_commands(backend)
-    required_existing_commands = [
+    required_backend_commands = [
         "uv python install",
         "uv sync --locked --dev",
         "uv run ruff check .",
         "uv run ruff format --check .",
         "uv run ty check",
         execution["single_command"]["expected"],
+        *ALEMBIC_CI_COMMANDS,
     ]
-    if commands != required_existing_commands:
-        errors.append("backend の既存検査 step が維持されていない")
+    if commands != required_backend_commands:
+        errors.append("backend の既存 6 件 + Alembic 3 段が順序どおりでない")
+    expected_alembic_locations = [
+        ("backend", command) for command in ALEMBIC_CI_COMMANDS
+    ]
+    if _alembic_command_locations(workflow) != expected_alembic_locations:
+        errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
     pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
     single_command = execution["single_command"]
     if pytest_commands != [single_command["expected"]]:
@@ -1536,6 +1590,65 @@ def test_backend_postgres_wiring_matches_asset_and_development_database() -> Non
         _load_expectations(),
         _load_yaml_mapping(COMPOSE_PATH),
     ) == []
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-upgrade",
+        "missing-current",
+        "missing-check",
+        "duplicate",
+        "wrong-order",
+        "separate-job",
+    ),
+)
+def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
+    """Alembic 3 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    backend = _backend_job(mutated)
+    steps = backend.get("steps")
+    assert isinstance(steps, list)
+    alembic_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and command in ALEMBIC_CI_COMMANDS
+    ]
+    assert len(alembic_indexes) == len(ALEMBIC_CI_COMMANDS)
+
+    if mutation.startswith("missing-"):
+        missing_command = {
+            "missing-upgrade": ALEMBIC_CI_COMMANDS[0],
+            "missing-current": ALEMBIC_CI_COMMANDS[1],
+            "missing-check": ALEMBIC_CI_COMMANDS[2],
+        }[mutation]
+        steps.pop(alembic_indexes[ALEMBIC_CI_COMMANDS.index(missing_command)])
+    elif mutation == "duplicate":
+        steps.insert(
+            alembic_indexes[0],
+            copy.deepcopy(steps[alembic_indexes[0]]),
+        )
+    elif mutation == "wrong-order":
+        first, second = alembic_indexes[:2]
+        steps[first], steps[second] = steps[second], steps[first]
+    else:
+        jobs = mutated.get("jobs")
+        assert isinstance(jobs, dict)
+        jobs["detached-alembic"] = {
+            "runs-on": "ubuntu-latest",
+            "steps": [{"run": command} for command in ALEMBIC_CI_COMMANDS],
+        }
+
+    errors = _ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する" in errors
 
 
 def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
