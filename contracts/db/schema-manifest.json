@@ -234,7 +234,7 @@
         {"name": "tiebreak_rule", "type": "jsonb", "nullable": true, "default": null},
         {"name": "uses_dh", "type": "boolean", "nullable": false, "default": "false"}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [],
       "checks": ["regulation_innings > 0", "extra_innings_limit IS NULL OR extra_innings_limit >= regulation_innings"],
       "unique_constraints": [{"name": "pk_rule_sets", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
@@ -251,7 +251,7 @@
         {"name": "game_type_key", "type": "text", "nullable": false, "default": null},
         {"name": "rule_set_id", "type": "uuid", "nullable": false, "default": null}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
         {"name": "fk_game_type_rule_defaults_type", "columns": ["game_type_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
         {"name": "fk_game_type_rule_defaults_rule", "columns": ["rule_set_id"], "references": {"table": "rule_sets", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
@@ -605,11 +605,10 @@
         {"name": "note_kind", "type": "text", "nullable": false, "default": null},
         {"name": "content", "type": "text", "nullable": false, "default": "''"},
         {"name": "version", "type": "bigint", "nullable": false, "default": "1"},
-        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
         {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
         {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
       ],
-      "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
       "foreign_keys": [{"name": "fk_medical_notes_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
       "checks": ["note_kind IN ('pitcher', 'batter')", "version > 0"],
       "unique_constraints": [
@@ -618,7 +617,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "hidden_at", "retired_at"]}
+      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "retired_at"]}
     },
     {
       "name": "medical_note_versions",
@@ -754,7 +753,7 @@
         {"name": "id", "type": "uuid", "nullable": false, "default": null},
         {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [{"name": "fk_tenant_auth_subjects_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
       "checks": [],
       "unique_constraints": [{"name": "pk_tenant_auth_subjects", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
@@ -773,7 +772,7 @@
         {"name": "generation", "type": "bigint", "nullable": false, "default": "1"},
         {"name": "password_changed_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [{"name": "fk_tenant_credentials_subject", "columns": ["auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
       "checks": ["generation > 0"],
       "unique_constraints": [{"name": "pk_tenant_credentials", "kind": "PRIMARY KEY", "columns": ["auth_subject_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "8-2", "uniqueness": "認証主体と認証情報は 1 対 1", "key_shape": "UNIQUE (認証主体) — 認証情報表の側", "scope": "scoped"}}],
@@ -792,7 +791,7 @@
         {"name": "generation", "type": "bigint", "nullable": false, "default": "1"},
         {"name": "password_changed_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [],
       "checks": ["generation > 0"],
       "unique_constraints": [{"name": "pk_admin_credentials", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
@@ -812,7 +811,7 @@
         {"name": "expires_at", "type": "timestamptz", "nullable": false, "default": null},
         {"name": "last_used_at", "type": "timestamptz", "nullable": false, "default": null}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [{"name": "fk_admin_sessions_credential", "columns": ["admin_credential_id"], "references": {"table": "admin_credentials", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
       "checks": ["credential_generation > 0", "expires_at >= last_used_at"],
       "unique_constraints": [{"name": "pk_admin_sessions", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
@@ -833,7 +832,7 @@
         {"name": "expires_at", "type": "timestamptz", "nullable": false, "default": null},
         {"name": "last_used_at", "type": "timestamptz", "nullable": false, "default": null}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
         {"name": "fk_tenant_tokens_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
         {"name": "fk_tenant_tokens_subject", "columns": ["auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}

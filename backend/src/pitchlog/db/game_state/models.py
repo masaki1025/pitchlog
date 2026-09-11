@@ -374,7 +374,7 @@ class RuleSet(LifecycleMixin, Base):
     )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )
@@ -424,7 +424,7 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
     rule_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )

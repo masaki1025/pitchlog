@@ -253,20 +253,15 @@ class MedicalNote(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin
     version: Mapped[int] = mapped_column(
         BigInteger, nullable=False, server_default=text("1")
     )
-    hidden_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.HIDDEN,
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.HAS_PREDICATE,
     )
     immutability = Immutability(
         protected_columns=frozenset({"player_id", "note_kind"}),
-        allowed_update_columns=frozenset(
-            {"content", "version", "hidden_at", "retired_at"}
-        ),
+        allowed_update_columns=frozenset({"content", "version", "retired_at"}),
     )
 
 
@@ -414,7 +409,7 @@ class TenantAuthSubject(TenantMixin, LifecycleMixin, Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )
@@ -457,7 +452,7 @@ class TenantCredential(LifecycleMixin, Base):
     )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )
@@ -494,7 +489,7 @@ class AdminCredential(LifecycleMixin, Base):
     )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )
@@ -547,7 +542,7 @@ class AdminSession(LifecycleMixin, Base):
     )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )
@@ -607,7 +602,7 @@ class TenantToken(TenantMixin, LifecycleMixin, Base):
     )
 
     lifecycle = Lifecycle(
-        deletion=DeletionLifecycle.DISABLED,
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
         append_mode=AppendMode.MUTABLE,
         migration_retirement=MigrationRetirement.NONE,
     )

@@ -3758,7 +3758,6 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
                 allowed_note_updates: dict[str, object] = {
                     "content": "改訂版",
                     "version": 2,
-                    "hidden_at": datetime(2026, 9, 12, tzinfo=UTC),
                     "retired_at": datetime(2026, 9, 13, tzinfo=UTC),
                 }
                 for column, value in allowed_note_updates.items():
