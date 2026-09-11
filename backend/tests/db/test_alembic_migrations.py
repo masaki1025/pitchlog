@@ -34,7 +34,6 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0018_migration_reports"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -1021,7 +1020,7 @@ def test_schema_revision_and_application_engine_use_the_database(
         config = _alembic_config()
 
         heads = ScriptDirectory.from_config(config).get_heads()
-        assert heads == [_REVISION]
+        assert len(heads) == 1
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

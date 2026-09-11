@@ -531,11 +531,11 @@ class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     course_x: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     course_y: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     pitch_speed: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
-    raw_fielder_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_fielder_position: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved_fielder_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
-    raw_error_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_error_position: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved_error_player_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
