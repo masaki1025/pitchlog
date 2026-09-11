@@ -1,0 +1,1143 @@
+{
+  "manifest_version": 1,
+  "description": "カタログで表現可能な構造の期待値と正本への追跡可能性を保持する。表の全数オラクルではなく、表の全数性はステップ27の受入証跡N1で人が閉じる。",
+  "traceability_rule": "各表のsource_sectionsとrequirement_idsは、その表のprovenanceに列挙した9構造群すべてへ共通適用する。行き先区分は各要素が個別に参照を持つ。",
+  "canonical_source": {
+    "path": "docs/design/data-model.md",
+    "digest_kind": "ファイル内容のSHA-256",
+    "sha256": "79bbd007799966473dcffdae73770a9fced06e86e118535bd3161dba5be0e15c",
+    "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
+  },
+  "provenance_methods": {
+    "手動転記": "正本の散文から人が起こした値。機械では全数性・正しさを検証しない。",
+    "正本表から照合": "正本3-4節または12-1節の表を見出しからパースしてexact-set照合する値。",
+    "カタログ照合": "ステップ23〜25で実スキーマのカタログと突合する値。"
+  },
+  "legacy_destination_categories": [
+    {"category": "試合", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "プレイ行", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "走者別表", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "スタメン・出場区間", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "導出", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "保持のみ", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"},
+    {"category": "移行時に使用", "source_sections": ["12-1"], "requirement_ids": ["FR-038"], "provenance": "正本表から照合"}
+  ],
+  "tables": [
+    {
+      "name": "tenants",
+      "source_sections": ["8-1", "11-1", "12-3"],
+      "requirement_ids": ["FR-035", "NFR-010", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "enabled", "type": "boolean", "nullable": false, "default": "true"},
+        {"name": "disabled_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_tenants_import_batch", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": ["enabled OR disabled_at IS NOT NULL"],
+      "unique_constraints": [{"name": "pk_tenants", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"]}
+    },
+    {
+      "name": "team_records",
+      "source_sections": ["7-1", "11-1", "12-3"],
+      "requirement_ids": ["FR-039", "P-19", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "kind", "type": "text", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_team_records_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_team_records_import_batch", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
+      ],
+      "checks": ["kind IN ('self', 'opponent')", "kind <> 'self' OR hidden_at IS NULL"],
+      "unique_constraints": [
+        {"name": "pk_team_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_team_records_self", "kind": "UNIQUE INDEX", "columns": ["tenant_id"], "predicate": "kind = 'self'", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "7-1", "uniqueness": "テナント自身のチームレコードは高々 1 件", "key_shape": "UNIQUE (tenant_id) WHERE kind = 'self'", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["kind"], "allowed_update_columns": ["name", "hidden_at"]}
+    },
+    {
+      "name": "players",
+      "source_sections": ["7-2", "11-1", "12-3"],
+      "requirement_ids": ["FR-015", "FR-017", "P-15", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "throws", "type": "text", "nullable": true, "default": null},
+        {"name": "bats", "type": "text", "nullable": true, "default": null},
+        {"name": "uniform_number", "type": "text", "nullable": true, "default": null},
+        {"name": "roster_status_key", "type": "text", "nullable": false, "default": null},
+        {"name": "roster_label_key", "type": "text", "nullable": true, "default": null},
+        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_players_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_players_roster_status", "columns": ["roster_status_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_players_roster_label", "columns": ["tenant_id", "roster_label_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_players", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_players_team", "columns": ["tenant_id", "team_record_id", "id"], "predicate": "hidden_at IS NULL", "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "enrollment_year", "school_year"],
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["name", "throws", "bats", "uniform_number", "roster_status_key", "roster_label_key", "hidden_at"]}
+    },
+    {
+      "name": "games",
+      "source_sections": ["5-1", "11-1", "12-3"],
+      "requirement_ids": ["FR-001", "FR-005", "P-29", "P-30", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "scheduled_at", "type": "timestamptz", "nullable": false, "default": null},
+        {"name": "game_type_key", "type": "text", "nullable": false, "default": null},
+        {"name": "tournament_key", "type": "text", "nullable": false, "default": null},
+        {"name": "away_team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "home_team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "plate_umpire", "type": "text", "nullable": true, "default": null},
+        {"name": "section_label", "type": "text", "nullable": true, "default": null},
+        {"name": "week_label", "type": "text", "nullable": true, "default": null},
+        {"name": "day_label", "type": "text", "nullable": true, "default": null},
+        {"name": "game_number_label", "type": "text", "nullable": true, "default": null},
+        {"name": "started_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "status", "type": "text", "nullable": false, "default": "'preparing'"},
+        {"name": "applied_rules", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "rule_override", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "trashed_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "ゴミ箱", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_games_away_team", "columns": ["tenant_id", "away_team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_games_home_team", "columns": ["tenant_id", "home_team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_games_game_type", "columns": ["game_type_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_games_tournament", "columns": ["tenant_id", "tournament_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["status IN ('preparing', 'in_progress', 'finished', 'trashed', 'hidden')"],
+      "unique_constraints": [{"name": "pk_games", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_games_list", "columns": ["tenant_id", "scheduled_at DESC", "id DESC"], "predicate": "trashed_at IS NULL AND hidden_at IS NULL", "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"]}
+    },
+    {
+      "name": "lineup_memories",
+      "source_sections": ["7-4", "12-3"],
+      "requirement_ids": ["FR-016", "P-18", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "lineup", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "migration_preserved_only", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [{"name": "fk_lineup_memories_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [
+        {"name": "pk_lineup_memories", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_lineup_memories_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "team_record_id"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "7-4", "uniqueness": "スタメン記憶はチームレコードにつき 1 件", "key_shape": "UNIQUE (tenant_id, チームレコード) WHERE 退役していない", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["lineup", "retired_at"]}
+    },
+    {
+      "name": "game_lineups",
+      "source_sections": ["7-3", "7-4", "12-3"],
+      "requirement_ids": ["FR-001", "FR-015", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "entries_with_uniform_number_snapshot", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_game_lineups_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_game_lineups_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_game_lineups", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_game_lineups_game", "columns": ["tenant_id", "game_id", "team_record_id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["entries_with_uniform_number_snapshot"], "allowed_update_columns": []}
+    },
+    {
+      "name": "participation_intervals",
+      "source_sections": ["6-2", "7-3", "12-3"],
+      "requirement_ids": ["FR-007", "C04", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "slot_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "slot", "type": "text", "nullable": false, "default": null},
+        {"name": "player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "valid_from_d2", "type": "bigint", "nullable": false, "default": null},
+        {"name": "valid_until_d2", "type": "bigint", "nullable": true, "default": null},
+        {"name": "uniform_number_snapshot", "type": "text", "nullable": true, "default": null},
+        {"name": "unknown_for_migration", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [
+        {"name": "fk_participation_intervals_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_participation_intervals_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["slot_kind IN ('batting_order', 'fielding_position')", "valid_until_d2 IS NULL OR valid_until_d2 > valid_from_d2"],
+      "unique_constraints": [
+        {"name": "pk_participation_intervals", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_participation_intervals_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "slot_kind", "slot", "valid_from_d2"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "6-2", "uniqueness": "出場区間は (試合, 枠種別, 枠, 有効開始) で 1 件", "key_shape": "UNIQUE (tenant_id, 試合, 枠種別, 枠, 有効開始 D2) WHERE 退役していない", "scope": "scoped"}}
+      ],
+      "indexes": [{"name": "ix_participation_intervals_range", "columns": ["tenant_id", "game_id", "valid_from_d2", "valid_until_d2"], "predicate": "retired_at IS NULL", "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "d1"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["valid_until_d2", "retired_at"]}
+    },
+    {
+      "name": "rule_sets",
+      "source_sections": ["6-5", "10-5"],
+      "requirement_ids": ["FR-014", "P-30"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "regulation_innings", "type": "integer", "nullable": false, "default": null},
+        {"name": "called_game_conditions", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "extra_innings_limit", "type": "integer", "nullable": true, "default": null},
+        {"name": "tiebreak_rule", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "uses_dh", "type": "boolean", "nullable": false, "default": "false"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["regulation_innings > 0", "extra_innings_limit IS NULL OR extra_innings_limit >= regulation_innings"],
+      "unique_constraints": [{"name": "pk_rule_sets", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["regulation_innings", "called_game_conditions", "extra_innings_limit", "tiebreak_rule", "uses_dh"]}
+    },
+    {
+      "name": "game_type_rule_defaults",
+      "source_sections": ["6-5", "10-5"],
+      "requirement_ids": ["FR-014", "FR-037"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "game_type_key", "type": "text", "nullable": false, "default": null},
+        {"name": "rule_set_id", "type": "uuid", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_game_type_rule_defaults_type", "columns": ["game_type_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_game_type_rule_defaults_rule", "columns": ["rule_set_id"], "references": {"table": "rule_sets", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_game_type_rule_defaults", "kind": "PRIMARY KEY", "columns": ["game_type_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"]}
+    },
+    {
+      "name": "tournament_rule_assignments",
+      "source_sections": ["6-5", "10-5"],
+      "requirement_ids": ["FR-014"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "tournament_key", "type": "text", "nullable": false, "default": null},
+        {"name": "rule_set_id", "type": "uuid", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_tournament_rule_assignments_tournament", "columns": ["tenant_id", "tournament_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_tournament_rule_assignments_rule", "columns": ["rule_set_id"], "references": {"table": "rule_sets", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_tournament_rule_assignments", "kind": "PRIMARY KEY", "columns": ["tenant_id", "tournament_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"]}
+    },
+    {
+      "name": "event_slots",
+      "source_sections": ["5-3", "12-3"],
+      "requirement_ids": ["M07", "M08", "V10", "V11"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "generation", "type": "bigint", "nullable": false, "default": null},
+        {"name": "d1", "type": "bigint", "nullable": false, "default": null},
+        {"name": "confirmed_version", "type": "bigint", "nullable": false, "default": "1"}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_event_slots_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_event_slots_generation", "columns": ["tenant_id", "game_id", "generation"], "references": {"table": "recording_generations", "columns": ["tenant_id", "game_id", "generation"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["d1 > 0", "confirmed_version > 0"],
+      "unique_constraints": [{"name": "pk_event_slots", "kind": "PRIMARY KEY", "columns": ["tenant_id", "game_id", "generation", "d1"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "イベントスロットは (試合, D4, D1) で 1 件", "key_shape": "PRIMARY KEY (tenant_id, 試合, D4, D1)(退役済みの行も残るので、再投入は新しい D4〔新しい移行世代〕で行う — 12-3 節の不変条件 6)", "scope": "scoped"}}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["tenant_id", "game_id", "generation", "d1"], "allowed_update_columns": ["confirmed_version"]}
+    },
+    {
+      "name": "operation_events",
+      "source_sections": ["5-3", "5-4", "12-3"],
+      "requirement_ids": ["FR-012", "M01", "M02", "C09", "C12", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "generation", "type": "bigint", "nullable": true, "default": null},
+        {"name": "d1", "type": "bigint", "nullable": true, "default": null},
+        {"name": "d2", "type": "bigint", "nullable": true, "default": null},
+        {"name": "d5", "type": "uuid", "nullable": false, "default": null},
+        {"name": "ledger_kind", "type": "text", "nullable": false, "default": "'accepted'"},
+        {"name": "event_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "payload", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "state_diff", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "replaced_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "target_generation", "type": "bigint", "nullable": true, "default": null},
+        {"name": "target_d1", "type": "bigint", "nullable": true, "default": null},
+        {"name": "expected_version", "type": "bigint", "nullable": true, "default": null},
+        {"name": "change_order", "type": "bigint", "nullable": true, "default": null},
+        {"name": "legacy_row_identifier", "type": "text", "nullable": true, "default": null},
+        {"name": "migration_unverified", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [
+        {"name": "fk_operation_events_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_operation_events_slot", "columns": ["tenant_id", "game_id", "generation", "d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_operation_events_target", "columns": ["tenant_id", "game_id", "target_generation", "target_d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_operation_events_ledger", "columns": ["tenant_id", "d5", "ledger_kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["ledger_kind = 'accepted'", "(d1 IS NULL) = (generation IS NULL)", "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)", "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS NOT NULL"],
+      "unique_constraints": [
+        {"name": "pk_operation_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_operation_events_active_slot", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "generation", "d1"], "predicate": "d1 IS NOT NULL AND replaced_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "(試合, D4, D1) の有効な行が 1 件", "key_shape": "UNIQUE (tenant_id, 試合, D4, D1) WHERE D1 IS NOT NULL AND 置換されていない", "scope": "scoped"}},
+        {"name": "uq_operation_events_active_d2", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "d2"], "predicate": "d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "D2 は「同時に有効で自身の D2 を持つイベント」の間で 1 件", "key_shape": "UNIQUE (tenant_id, 試合, D2) WHERE D2 IS NOT NULL AND 置換されていない AND 退役していない", "scope": "scoped"}},
+        {"name": "uq_operation_events_d5", "kind": "UNIQUE", "columns": ["tenant_id", "d5"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "操作イベント(版)は D5 台帳の 1 件に対応", "key_shape": "UNIQUE (tenant_id, D5) — 台帳行への参照が 1 対 1 であることの強制(全経路一意は台帳が持つ)", "scope": "scoped"}}
+      ],
+      "indexes": [{"name": "ix_operation_events_replay", "columns": ["tenant_id", "game_id", "d2", "id"], "predicate": "replaced_at IS NULL AND retired_at IS NULL", "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "recording_authority_proof", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["tenant_id", "id", "game_id", "generation", "d1", "d5", "event_kind", "payload", "state_diff"], "allowed_update_columns": ["d2", "replaced_at", "retired_at"]}
+    },
+    {
+      "name": "play_rows",
+      "source_sections": ["5-2", "12-1", "12-3"],
+      "requirement_ids": ["FR-002", "FR-007", "M09", "RQ-05"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "source_event_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "play_number", "type": "bigint", "nullable": false, "default": null},
+        {"name": "event_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "batter_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "pitcher_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "catcher_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "course_x", "type": "numeric", "nullable": true, "default": null},
+        {"name": "course_y", "type": "numeric", "nullable": true, "default": null},
+        {"name": "pitch_speed", "type": "numeric", "nullable": true, "default": null},
+        {"name": "raw_fielder_position", "type": "integer", "nullable": true, "default": null},
+        {"name": "resolved_fielder_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "raw_error_position", "type": "integer", "nullable": true, "default": null},
+        {"name": "resolved_error_player_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "compatibility_payload", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "version", "type": "bigint", "nullable": false, "default": "1"},
+        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "legacy_row_identifier", "type": "text", "nullable": true, "default": null},
+        {"name": "migration_unverified", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_play_rows_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_play_rows_event", "columns": ["tenant_id", "source_event_id"], "references": {"table": "operation_events", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["event_kind IN ('pitch', 'non_pitch')", "version > 0", "course_x IS NULL OR course_x BETWEEN 0 AND 1", "course_y IS NULL OR course_y BETWEEN 0 AND 1"],
+      "unique_constraints": [{"name": "pk_play_rows", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_play_rows_game_order", "columns": ["tenant_id", "game_id", "play_number", "id"], "predicate": "hidden_at IS NULL", "purpose": "range_sort"}],
+      "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "source_event_id", "legacy_row_identifier"], "allowed_update_columns": ["version", "hidden_at"]}
+    },
+    {
+      "name": "play_runners",
+      "source_sections": ["5-2", "12-3"],
+      "requirement_ids": ["FR-004", "P-33", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "play_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "base", "type": "integer", "nullable": false, "default": null},
+        {"name": "runner_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "status", "type": "text", "nullable": false, "default": null},
+        {"name": "responsible_pitcher_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [
+        {"name": "fk_play_runners_play", "columns": ["tenant_id", "play_id"], "references": {"table": "play_rows", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_play_runners_runner", "columns": ["tenant_id", "runner_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_play_runners_pitcher", "columns": ["tenant_id", "responsible_pitcher_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["base IN (1, 2, 3)"],
+      "unique_constraints": [
+        {"name": "pk_play_runners", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_play_runners_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "play_id", "base"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-2", "uniqueness": "走者は (プレイ, 塁) で 1 件", "key_shape": "UNIQUE (tenant_id, プレイ, 塁) WHERE 退役していない", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "retired_at"]}
+    },
+    {
+      "name": "temporary_player_id_mappings",
+      "source_sections": ["5-3", "12-3"],
+      "requirement_ids": ["M17", "FR-015", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "temporary_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "resolved_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_temporary_player_id_mappings_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [
+        {"name": "pk_temporary_player_id_mappings", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_temporary_player_id_mappings_temporary", "kind": "UNIQUE", "columns": ["tenant_id", "temporary_id"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "一時 ID → 正式 ID の写像は 1 件", "key_shape": "UNIQUE (tenant_id, 一時 ID)", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["temporary_id", "player_id"], "allowed_update_columns": []}
+    },
+    {
+      "name": "idempotency_ledger",
+      "source_sections": ["5-4", "12-3"],
+      "requirement_ids": ["C09", "M18", "V1", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "d5", "type": "uuid", "nullable": false, "default": null},
+        {"name": "kind", "type": "text", "nullable": false, "default": null},
+        {"name": "source_fingerprint", "type": "text", "nullable": false, "default": null},
+        {"name": "result", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "reason", "type": "text", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["kind IN ('accepted', 'rejected', 'evacuated')"],
+      "unique_constraints": [
+        {"name": "pk_idempotency_ledger", "kind": "PRIMARY KEY", "columns": ["tenant_id", "d5"], "predicate": null, "roles": ["business_unique", "primary_key"], "verification": "正本表から照合", "source_row": {"section": "5-4", "uniqueness": "べき等キー D5", "key_shape": "UNIQUE (tenant_id, D5) — 試合・世代を跨ぐ((tenant_id, 試合, D5) にしない)", "scope": "scoped"}},
+        {"name": "uq_idempotency_ledger_kind", "kind": "UNIQUE", "columns": ["tenant_id", "d5", "kind"], "predicate": null, "roles": ["fk_target"], "verification": "カタログ照合"}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["game_id", "generation", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["kind", "source_fingerprint", "result", "reason"], "allowed_update_columns": ["retired_at"]}
+    },
+    {
+      "name": "rejected_event_originals",
+      "source_sections": ["5-4"],
+      "requirement_ids": ["M10", "C09"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "d5", "type": "uuid", "nullable": false, "default": null},
+        {"name": "kind", "type": "text", "nullable": false, "default": "'rejected'"},
+        {"name": "payload", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "recorded_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_rejected_event_originals_ledger", "columns": ["tenant_id", "d5", "kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": ["kind = 'rejected'"],
+      "unique_constraints": [
+        {"name": "pk_rejected_event_originals", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_rejected_event_originals_d5", "kind": "UNIQUE", "columns": ["tenant_id", "d5"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-4", "uniqueness": "拒否原本は D5 台帳の 1 件に対応", "key_shape": "UNIQUE (tenant_id, D5) — 同上", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["d5", "kind", "payload"], "allowed_update_columns": []}
+    },
+    {
+      "name": "evacuated_event_originals",
+      "source_sections": ["6-4", "12-3"],
+      "requirement_ids": ["C07", "M11", "M12", "M13", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "old_generation", "type": "bigint", "nullable": false, "default": null},
+        {"name": "original_d1", "type": "bigint", "nullable": false, "default": null},
+        {"name": "d5", "type": "uuid", "nullable": false, "default": null},
+        {"name": "kind", "type": "text", "nullable": false, "default": "'evacuated'"},
+        {"name": "origin", "type": "text", "nullable": false, "default": null},
+        {"name": "payload", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "recovered_device", "type": "text", "nullable": true, "default": null},
+        {"name": "recovered_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'"},
+        {"name": "imported_event_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retention_deadline", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "discarded_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_evacuated_event_originals_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_evacuated_event_originals_ledger", "columns": ["tenant_id", "d5", "kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_evacuated_event_originals_imported_event", "columns": ["tenant_id", "imported_event_id"], "references": {"table": "operation_events", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["kind = 'evacuated'", "origin IN ('authority_mismatch', 'restore_collection')", "status IN ('pending', 'imported', 'not_imported', 'discarded')"],
+      "unique_constraints": [
+        {"name": "pk_evacuated_event_originals", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_evacuated_event_originals_source", "kind": "UNIQUE", "columns": ["tenant_id", "game_id", "old_generation", "original_d1"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "6-4 の直後", "uniqueness": "退避原本は (試合, 旧世代, 元の連番) で 1 件", "key_shape": "UNIQUE (tenant_id, 試合, 旧世代, 元の連番)", "scope": "scoped"}},
+        {"name": "uq_evacuated_event_originals_d5", "kind": "UNIQUE", "columns": ["tenant_id", "d5"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "6-4 の直後", "uniqueness": "退避原本も D5 台帳の 1 件に対応", "key_shape": "UNIQUE (tenant_id, D5) — 同上", "scope": "scoped"}}
+      ],
+      "indexes": [{"name": "ix_evacuated_event_originals_retention", "columns": ["tenant_id", "retention_deadline"], "predicate": "retention_deadline IS NOT NULL AND discarded_at IS NULL", "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["game_id", "old_generation", "original_d1", "d5", "kind", "origin"], "allowed_update_columns": ["status", "imported_event_id", "retention_deadline", "discarded_at"]}
+    },
+    {
+      "name": "recording_generations",
+      "source_sections": ["5-3", "6-1", "12-3"],
+      "requirement_ids": ["FR-013", "M04", "C11", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "generation", "type": "bigint", "nullable": false, "default": null},
+        {"name": "kind", "type": "text", "nullable": false, "default": "'normal'"},
+        {"name": "issuance_order", "type": "bigint", "nullable": false, "default": null},
+        {"name": "holder_device", "type": "text", "nullable": true, "default": null},
+        {"name": "confirmed_watermark", "type": "bigint", "nullable": false, "default": "0"},
+        {"name": "applied_prefix", "type": "bigint", "nullable": false, "default": "0"},
+        {"name": "granted_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "revoked_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [{"name": "fk_recording_generations_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": ["kind IN ('normal', 'migration')", "confirmed_watermark >= 0", "applied_prefix >= 0", "kind <> 'migration' OR holder_device IS NULL"],
+      "unique_constraints": [
+        {"name": "pk_recording_generations", "kind": "PRIMARY KEY", "columns": ["tenant_id", "game_id", "generation"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_recording_generations_current", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id"], "predicate": "kind = 'normal' AND revoked_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "記録権の現世代が 1 件", "key_shape": "UNIQUE (tenant_id, 試合) WHERE 種別 = 通常 AND 失効していない", "scope": "scoped"}},
+        {"name": "uq_recording_generations_migration", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id"], "predicate": "kind = 'migration' AND retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "12-3", "uniqueness": "移行世代は試合につき退役していないものが 1 件", "key_shape": "UNIQUE (tenant_id, 試合) WHERE 種別 = migration AND 退役していない", "scope": "scoped"}},
+        {"name": "uq_recording_generations_issuance_order", "kind": "UNIQUE", "columns": ["tenant_id", "game_id", "issuance_order"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "記録権世代の発行順は試合内で一意", "key_shape": "UNIQUE (tenant_id, 試合, 発行順)", "scope": "scoped"}}
+      ],
+      "indexes": [{"name": "ix_recording_generations_history", "columns": ["tenant_id", "game_id", "issuance_order DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["generation", "kind", "issuance_order", "holder_device", "granted_at"], "allowed_update_columns": ["confirmed_watermark", "applied_prefix", "revoked_at", "retired_at"]}
+    },
+    {
+      "name": "medical_notes",
+      "source_sections": ["10-1", "11-1", "12-3"],
+      "requirement_ids": ["FR-028", "FR-038", "RQ-02", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "note_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "content", "type": "text", "nullable": false, "default": "''"},
+        {"name": "version", "type": "bigint", "nullable": false, "default": "1"},
+        {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [{"name": "fk_medical_notes_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": ["note_kind IN ('pitcher', 'batter')", "version > 0"],
+      "unique_constraints": [
+        {"name": "pk_medical_notes", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_medical_notes_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "player_id", "note_kind"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "10-1", "uniqueness": "カルテ所見は (選手, カルテ種別) で 1 件", "key_shape": "UNIQUE (tenant_id, 選手, カルテ種別) WHERE 退役していない", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "hidden_at", "retired_at"]}
+    },
+    {
+      "name": "medical_note_versions",
+      "source_sections": ["8-5", "10-1"],
+      "requirement_ids": ["FR-028", "FR-035", "RQ-02"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "medical_note_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "version", "type": "bigint", "nullable": false, "default": null},
+        {"name": "content", "type": "text", "nullable": false, "default": null},
+        {"name": "origin", "type": "text", "nullable": false, "default": "'user_edit'"},
+        {"name": "recorded_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "retained_for_restore", "type": "boolean", "nullable": false, "default": "true"}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_medical_note_versions_note", "columns": ["tenant_id", "medical_note_id"], "references": {"table": "medical_notes", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}],
+      "checks": ["origin IN ('user_edit', 'merge')", "version > 0", "origin <> 'merge' OR retained_for_restore"],
+      "unique_constraints": [{"name": "pk_medical_note_versions", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_medical_note_versions_history", "columns": ["tenant_id", "medical_note_id", "version DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["medical_note_id", "version", "content", "origin", "recorded_at"], "allowed_update_columns": ["retained_for_restore"]}
+    },
+    {
+      "name": "pdf_export_records",
+      "source_sections": ["10-2"],
+      "requirement_ids": ["FR-029"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "exported_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "team_record_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "player_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "applied_filters", "type": "jsonb", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_pdf_export_records_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_pdf_export_records_player", "columns": ["tenant_id", "player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["team_record_id IS NOT NULL OR player_id IS NOT NULL"],
+      "unique_constraints": [{"name": "pk_pdf_export_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_pdf_export_records_time", "columns": ["tenant_id", "exported_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "retention_deadline", "deleted_at"],
+      "immutability": {"protected_columns": ["tenant_id", "id", "exported_at", "team_record_id", "player_id", "applied_filters"], "allowed_update_columns": []}
+    },
+    {
+      "name": "system_vocabularies",
+      "source_sections": ["10-3", "11-1"],
+      "requirement_ids": ["FR-037", "P-12", "P-34"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "key", "type": "text", "nullable": false, "default": null},
+        {"name": "category", "type": "text", "nullable": false, "default": null},
+        {"name": "display_name", "type": "text", "nullable": false, "default": null},
+        {"name": "disabled", "type": "boolean", "nullable": false, "default": "false"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["category IN ('game_type', 'roster_status')"],
+      "unique_constraints": [{"name": "pk_system_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム固定の層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["key", "category", "display_name", "disabled"], "allowed_update_columns": []}
+    },
+    {
+      "name": "admin_vocabularies",
+      "source_sections": ["10-3", "11-1"],
+      "requirement_ids": ["FR-037", "P-12", "P-35"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "key", "type": "text", "nullable": false, "default": null},
+        {"name": "category", "type": "text", "nullable": false, "default": null},
+        {"name": "display_name", "type": "text", "nullable": false, "default": null},
+        {"name": "disabled", "type": "boolean", "nullable": false, "default": "false"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["category IN ('batting_result', 'batted_ball', 'season')"],
+      "unique_constraints": [{"name": "pk_admin_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム管理者が管理する層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "disabled"]}
+    },
+    {
+      "name": "tenant_vocabularies",
+      "source_sections": ["10-3", "11-1"],
+      "requirement_ids": ["FR-037", "P-12", "P-38"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "key", "type": "text", "nullable": false, "default": null},
+        {"name": "category", "type": "text", "nullable": false, "default": null},
+        {"name": "display_name", "type": "text", "nullable": false, "default": null},
+        {"name": "pitch_family", "type": "text", "nullable": true, "default": null},
+        {"name": "abbreviation", "type": "text", "nullable": true, "default": null},
+        {"name": "disabled", "type": "boolean", "nullable": false, "default": "false"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_tenant_vocabularies_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": ["category IN ('pitch_type', 'strategy', 'tournament', 'roster_label')", "category <> 'pitch_type' OR pitch_family IS NOT NULL"],
+      "unique_constraints": [{"name": "pk_tenant_vocabularies", "kind": "PRIMARY KEY", "columns": ["tenant_id", "key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちチーム拡張可の層", "key_shape": "UNIQUE (tenant_id, キー名)", "scope": "scoped"}}],
+      "indexes": [],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "pitch_family", "abbreviation", "disabled"]}
+    },
+    {
+      "name": "system_settings",
+      "source_sections": ["10-4", "11-2"],
+      "requirement_ids": ["FR-037", "B02"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "key", "type": "text", "nullable": false, "default": null},
+        {"name": "value", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "updated_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_system_settings", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-4", "uniqueness": "付録C のシステム設定値", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["key"], "allowed_update_columns": ["value", "updated_at"]}
+    },
+    {
+      "name": "tenant_auth_subjects",
+      "source_sections": ["8-2"],
+      "requirement_ids": ["RQ-06", "P-20"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_tenant_auth_subjects_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_tenant_auth_subjects", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_tenant_auth_subjects_tenant", "columns": ["tenant_id", "id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["user_id", "role", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "tenant_id"], "allowed_update_columns": []}
+    },
+    {
+      "name": "tenant_credentials",
+      "source_sections": ["8-2"],
+      "requirement_ids": ["NFR-011", "FR-036", "RQ-06"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "auth_subject_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "password_hash", "type": "text", "nullable": false, "default": null},
+        {"name": "generation", "type": "bigint", "nullable": false, "default": "1"},
+        {"name": "password_changed_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_tenant_credentials_subject", "columns": ["auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": ["generation > 0"],
+      "unique_constraints": [{"name": "pk_tenant_credentials", "kind": "PRIMARY KEY", "columns": ["auth_subject_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "8-2", "uniqueness": "認証主体と認証情報は 1 対 1", "key_shape": "UNIQUE (認証主体) — 認証情報表の側", "scope": "scoped"}}],
+      "indexes": [],
+      "forbidden_columns": ["password", "plaintext_password", "reversible_password", "v12", "created_by", "inputter_id"],
+      "immutability": {"protected_columns": ["auth_subject_id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"]}
+    },
+    {
+      "name": "admin_credentials",
+      "source_sections": ["8-2-A"],
+      "requirement_ids": ["FR-035", "NFR-011", "P-20"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "password_hash", "type": "text", "nullable": false, "default": null},
+        {"name": "generation", "type": "bigint", "nullable": false, "default": "1"},
+        {"name": "password_changed_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["generation > 0"],
+      "unique_constraints": [{"name": "pk_admin_credentials", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "password", "plaintext_password", "reversible_password", "role", "v12", "created_by", "inputter_id"],
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"]}
+    },
+    {
+      "name": "admin_sessions",
+      "source_sections": ["8-2-A", "8-3"],
+      "requirement_ids": ["FR-035", "NFR-011"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "admin_credential_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "credential_generation", "type": "bigint", "nullable": false, "default": null},
+        {"name": "expires_at", "type": "timestamptz", "nullable": false, "default": null},
+        {"name": "last_used_at", "type": "timestamptz", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_admin_sessions_credential", "columns": ["admin_credential_id"], "references": {"table": "admin_credentials", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": ["credential_generation > 0", "expires_at >= last_used_at"],
+      "unique_constraints": [{"name": "pk_admin_sessions", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_admin_sessions_expiry", "columns": ["expires_at", "id"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["tenant_id", "role", "v12", "created_by", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "admin_credential_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"]}
+    },
+    {
+      "name": "tenant_tokens",
+      "source_sections": ["8-3"],
+      "requirement_ids": ["NFR-011", "FR-036"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "auth_subject_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "credential_generation", "type": "bigint", "nullable": false, "default": null},
+        {"name": "expires_at", "type": "timestamptz", "nullable": false, "default": null},
+        {"name": "last_used_at", "type": "timestamptz", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_tenant_tokens_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_tenant_tokens_subject", "columns": ["auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
+      ],
+      "checks": ["credential_generation > 0", "expires_at >= last_used_at"],
+      "unique_constraints": [{"name": "pk_tenant_tokens", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_tenant_tokens_expiry", "columns": ["tenant_id", "expires_at", "id"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["role", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "tenant_id", "auth_subject_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"]}
+    },
+    {
+      "name": "admin_operation_logs",
+      "source_sections": ["8-4"],
+      "requirement_ids": ["FR-035", "NFR-010"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "occurred_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "operation_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "target", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "tenant_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "group_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_admin_operation_logs_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_admin_operation_logs_group", "columns": ["group_id"], "references": {"table": "analysis_groups", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": true}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_admin_operation_logs", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_admin_operation_logs_time", "columns": ["occurred_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at", "retention_deadline"],
+      "immutability": {"protected_columns": ["id", "occurred_at", "operation_kind", "target", "tenant_id", "group_id"], "allowed_update_columns": []}
+    },
+    {
+      "name": "player_merge_events",
+      "source_sections": ["8-5"],
+      "requirement_ids": ["FR-035"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "source_player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "target_player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "occurred_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "executor", "type": "text", "nullable": false, "default": null},
+        {"name": "reverted_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_player_merge_events_source", "columns": ["tenant_id", "source_player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_player_merge_events_target", "columns": ["tenant_id", "target_player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": ["source_player_id <> target_player_id"],
+      "unique_constraints": [{"name": "pk_player_merge_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_player_merge_events_time", "columns": ["tenant_id", "occurred_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["source_player_id", "target_player_id", "occurred_at", "executor"], "allowed_update_columns": ["reverted_at"]}
+    },
+    {
+      "name": "player_move_records",
+      "source_sections": ["8-5"],
+      "requirement_ids": ["FR-035"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "merge_event_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "resource_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "resource_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "original_player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "moved_player_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "medical_note_version_id", "type": "uuid", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_player_move_records_merge", "columns": ["tenant_id", "merge_event_id"], "references": {"table": "player_merge_events", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_player_move_records_original_player", "columns": ["tenant_id", "original_player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_player_move_records_moved_player", "columns": ["tenant_id", "moved_player_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_player_move_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_player_move_records_merge", "columns": ["tenant_id", "merge_event_id", "id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["tenant_id", "id", "merge_event_id", "resource_kind", "resource_id", "original_player_id", "moved_player_id", "medical_note_version_id"], "allowed_update_columns": []}
+    },
+    {
+      "name": "rate_limit_counters",
+      "source_sections": ["8-6"],
+      "requirement_ids": ["FR-033", "P-05", "P-09"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "scope_key", "type": "text", "nullable": false, "default": null},
+        {"name": "window_start", "type": "timestamptz", "nullable": false, "default": null},
+        {"name": "attempt_count", "type": "bigint", "nullable": false, "default": "0"},
+        {"name": "locked_until", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["attempt_count >= 0"],
+      "unique_constraints": [{"name": "pk_rate_limit_counters", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_rate_limit_counters_window", "columns": ["scope_key", "window_start DESC", "id"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["deleted_at", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "scope_key", "window_start"], "allowed_update_columns": ["attempt_count", "locked_until"]}
+    },
+    {
+      "name": "analysis_groups",
+      "source_sections": ["9-4-A", "9-4-B"],
+      "requirement_ids": ["FR-041", "FR-035"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'"},
+        {"name": "terminated_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "termination_reason", "type": "text", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "終了・離脱", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["status IN ('active', 'terminated')", "(status = 'terminated') = (terminated_at IS NOT NULL)"],
+      "unique_constraints": [{"name": "pk_analysis_groups", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["status", "terminated_at", "termination_reason"]}
+    },
+    {
+      "name": "group_memberships",
+      "source_sections": ["9-1", "9-4"],
+      "requirement_ids": ["FR-041", "NFR-010"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "group_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "role", "type": "text", "nullable": false, "default": "'member'"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'"},
+        {"name": "joined_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "left_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "終了・離脱", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [
+        {"name": "fk_group_memberships_group", "columns": ["group_id"], "references": {"table": "analysis_groups", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": true},
+        {"name": "fk_group_memberships_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": true}
+      ],
+      "checks": ["role IN ('admin', 'member')", "status IN ('active', 'left')"],
+      "unique_constraints": [
+        {"name": "pk_group_memberships", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_group_memberships_active", "kind": "UNIQUE INDEX", "columns": ["group_id", "tenant_id"], "predicate": "status = 'active'", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "9-1", "uniqueness": "参加は active が最大 1 件", "key_shape": "UNIQUE (グループ, 参加テナント) WHERE 状態 = active", "scope": "scoped"}}
+      ],
+      "indexes": [{"name": "ix_group_memberships_tenant", "columns": ["tenant_id", "status", "group_id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "group_id", "tenant_id", "joined_at"], "allowed_update_columns": ["role", "status", "left_at"]}
+    },
+    {
+      "name": "sharing_grants",
+      "source_sections": ["9-2", "9-4-B"],
+      "requirement_ids": ["FR-041", "RQ-01"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "membership_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "grant_flags", "type": "jsonb", "nullable": false, "default": "'{}'::jsonb"}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_sharing_grants_membership", "columns": ["membership_id"], "references": {"table": "group_memberships", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": true}],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_sharing_grants", "kind": "PRIMARY KEY", "columns": ["membership_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "9-2", "uniqueness": "付与は参加行につき 1 件", "key_shape": "UNIQUE (参加行) — 参加行を鍵にする((グループ, テナント) にしない)", "scope": "scoped"}}],
+      "indexes": [],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["membership_id"], "allowed_update_columns": ["grant_flags"]}
+    },
+    {
+      "name": "group_invitations",
+      "source_sections": ["9-3"],
+      "requirement_ids": ["FR-041", "FR-034"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "group_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "code_hash", "type": "text", "nullable": false, "default": null},
+        {"name": "expires_at", "type": "timestamptz", "nullable": false, "default": null},
+        {"name": "status", "type": "text", "nullable": false, "default": "'unconsumed'"},
+        {"name": "initial_role", "type": "text", "nullable": false, "default": "'member'"}
+      ],
+      "lifecycle": {"deletion": "終了・離脱", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_group_invitations_group", "columns": ["group_id"], "references": {"table": "analysis_groups", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": true}],
+      "checks": ["status IN ('unconsumed', 'consumed', 'revoked')", "initial_role IN ('admin', 'member')"],
+      "unique_constraints": [
+        {"name": "pk_group_invitations", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_group_invitations_code_hash", "kind": "UNIQUE", "columns": ["code_hash"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "9-3", "uniqueness": "招待はコードのハッシュで 1 件", "key_shape": "UNIQUE (コードのハッシュ)", "scope": "outside"}}
+      ],
+      "indexes": [{"name": "ix_group_invitations_expiry", "columns": ["expires_at", "id"], "predicate": "status = 'unconsumed'", "purpose": "range_sort"}],
+      "forbidden_columns": ["tenant_id", "invitation_code", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["id", "group_id", "code_hash", "initial_role"], "allowed_update_columns": ["status"]}
+    },
+    {
+      "name": "invalidation_intents",
+      "source_sections": ["11-2"],
+      "requirement_ids": ["B02", "B03", "B04"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "intent_id", "type": "text", "nullable": false, "default": null},
+        {"name": "scope_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "player_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "group_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "requesting_tenant_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "target_tenant_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "period", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "chart_kind", "type": "text", "nullable": true, "default": null},
+        {"name": "delivery_status", "type": "text", "nullable": false, "default": "'pending'"},
+        {"name": "delivered_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["scope_kind IN ('game', 'player_total', 'team_total', 'shared_total', 'chart')", "delivery_status IN ('pending', 'delivered')"],
+      "unique_constraints": [{"name": "pk_invalidation_intents", "kind": "PRIMARY KEY", "columns": ["tenant_id", "intent_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "11-2", "uniqueness": "無効化意図は意図 ID で 1 件", "key_shape": "UNIQUE (tenant_id, 意図 ID)", "scope": "scoped"}}],
+      "indexes": [{"name": "ix_invalidation_intents_delivery", "columns": ["tenant_id", "delivery_status"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
+      "immutability": {"protected_columns": ["tenant_id", "intent_id", "scope_kind", "game_id", "player_id", "group_id", "requesting_tenant_id", "target_tenant_id", "period", "chart_kind"], "allowed_update_columns": ["delivery_status", "delivered_at"]}
+    },
+    {
+      "name": "migration_quarantine",
+      "source_sections": ["10-6", "12-3"],
+      "requirement_ids": ["FR-038", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "source_read_order", "type": "bigint", "nullable": false, "default": null},
+        {"name": "raw_payload", "type": "bytea", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_migration_quarantine_run", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_migration_quarantine", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_migration_quarantine_source", "columns": ["import_batch_id", "source_read_order"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_read_order", "raw_payload"], "allowed_update_columns": []}
+    },
+    {
+      "name": "migrated_final_lineups",
+      "source_sections": ["7-4", "12-3"],
+      "requirement_ids": ["FR-038", "P-45", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "正本表から照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "tenant_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "team_record_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "raw_lineup", "type": "text", "nullable": false, "default": null},
+        {"name": "legacy_row_identifier", "type": "text", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
+      "foreign_keys": [
+        {"name": "fk_migrated_final_lineups_game", "columns": ["tenant_id", "game_id"], "references": {"table": "games", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
+        {"name": "fk_migrated_final_lineups_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
+      ],
+      "checks": [],
+      "unique_constraints": [
+        {"name": "pk_migrated_final_lineups", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_migrated_final_lineups_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "team_record_id"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "12-3", "uniqueness": "移行元最終オーダーは試合 × チームレコードで 1 件", "key_shape": "UNIQUE (tenant_id, 試合, チームレコード) WHERE 退役していない", "scope": "scoped"}}
+      ],
+      "indexes": [],
+      "forbidden_columns": ["resolved_player_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
+      "immutability": {"protected_columns": ["game_id", "team_record_id", "raw_lineup", "legacy_row_identifier", "import_batch_id"], "allowed_update_columns": ["retired_at"]}
+    },
+    {
+      "name": "migration_runs",
+      "source_sections": ["10-6", "12-3"],
+      "requirement_ids": ["FR-038", "RQ-03"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "started_at", "type": "timestamptz", "nullable": false, "default": "CURRENT_TIMESTAMP"},
+        {"name": "completed_at", "type": "timestamptz", "nullable": true, "default": null},
+        {"name": "source_counts", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "generated_copy_counts", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "validation_results", "type": "jsonb", "nullable": false, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
+      ],
+      "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "foreign_keys": [],
+      "checks": ["completed_at IS NULL OR completed_at >= started_at"],
+      "unique_constraints": [{"name": "pk_migration_runs", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_migration_runs_time", "columns": ["started_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
+      "immutability": {"protected_columns": ["id", "started_at", "source_counts"], "allowed_update_columns": ["completed_at", "generated_copy_counts", "validation_results", "retired_at"]}
+    },
+    {
+      "name": "migration_resolution_reports",
+      "source_sections": ["10-6"],
+      "requirement_ids": ["FR-038"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "source_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "legacy_row_identifier", "type": "text", "nullable": false, "default": null},
+        {"name": "issue", "type": "jsonb", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_migration_resolution_reports_run", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_migration_resolution_reports", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_migration_resolution_reports_run", "columns": ["import_batch_id", "source_kind", "id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "issue"], "allowed_update_columns": []}
+    },
+    {
+      "name": "migration_warning_reports",
+      "source_sections": ["10-6", "12-3"],
+      "requirement_ids": ["FR-038", "P-46"],
+      "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "import_batch_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "source_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "legacy_row_identifier", "type": "text", "nullable": false, "default": null},
+        {"name": "warning_kind", "type": "text", "nullable": false, "default": null},
+        {"name": "details", "type": "jsonb", "nullable": false, "default": null}
+      ],
+      "lifecycle": {"deletion": "親に従う", "append_mode": "追記専用", "migration_retirement": "持たない"},
+      "foreign_keys": [{"name": "fk_migration_warning_reports_run", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
+      "checks": [],
+      "unique_constraints": [{"name": "pk_migration_warning_reports", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "indexes": [{"name": "ix_migration_warning_reports_run", "columns": ["import_batch_id", "warning_kind", "id"], "predicate": null, "purpose": "lookup"}],
+      "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "warning_kind", "details"], "allowed_update_columns": []}
+    }
+  ]
+}
