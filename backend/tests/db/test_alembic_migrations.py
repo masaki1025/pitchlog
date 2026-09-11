@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0016_migration_quarantine"
+_REVISION = "0017_migrated_final_lineups"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -805,6 +805,39 @@ BEGIN
     RAISE EXCEPTION 'migration quarantine is append-only'
         USING ERRCODE = '23514';
     RETURN NULL;
+END;
+$function$
+"""
+_MIGRATED_FINAL_LINEUP_TRIGGER_NAME = "trg_migrated_final_lineups_source_immutable"
+_MIGRATED_FINAL_LINEUP_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_migrated_final_lineups_source_immutable BEFORE UPDATE OF "
+    "game_id, team_record_id, raw_lineup, legacy_row_identifier, import_batch_id "
+    "ON migrated_final_lineups FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_migrated_final_lineups_source_update()"
+)
+_MIGRATED_FINAL_LINEUP_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_migrated_final_lineups_source_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.game_id,
+        NEW.team_record_id,
+        NEW.raw_lineup,
+        NEW.legacy_row_identifier,
+        NEW.import_batch_id
+    ) IS DISTINCT FROM ROW(
+        OLD.game_id,
+        OLD.team_record_id,
+        OLD.raw_lineup,
+        OLD.legacy_row_identifier,
+        OLD.import_batch_id
+    ) THEN
+        RAISE EXCEPTION 'migrated final lineup source is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
 END;
 $function$
 """
@@ -6532,6 +6565,406 @@ def test_migration_quarantine_raw_payload_and_migration_round_trip(
         command.downgrade(config, "0015_invalidation_intents")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_twenty_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_twenty_one_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に最終オーダー表・トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.migrated_final_lineups'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_migrated_final_lineups_source_update()'
+                )
+            """,
+            (_MIGRATED_FINAL_LINEUP_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (None, False, None)
+
+
+def test_migrated_final_lineup_and_existing_migration_markers_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """移行世代・最終オーダー・未検証印と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger = _sync_trigger_catalog_contract(
+                connection, _MIGRATED_FINAL_LINEUP_TRIGGER_NAME
+            )
+            assert _normalize_sql(trigger[0]) == _normalize_sql(
+                _MIGRATED_FINAL_LINEUP_TRIGGER_DEFINITION
+            )
+            assert trigger[1] == "migrated_final_lineups"
+            assert trigger[2] == [
+                "game_id",
+                "team_record_id",
+                "raw_lineup",
+                "legacy_row_identifier",
+                "import_batch_id",
+            ]
+            assert trigger[3] == "O"
+            assert _normalize_sql(trigger[4]) == _normalize_sql(
+                _MIGRATED_FINAL_LINEUP_FUNCTION_DEFINITION
+            )
+
+            active_index_contract = (
+                "migrated_final_lineups",
+                ["tenant_id", "game_id", "team_record_id"],
+                "retired_at IS NULL",
+            )
+            assert (
+                _manifest_index_contract("uq_migrated_final_lineups_active")
+                == active_index_contract
+            )
+            active_index = _index_catalog_contract(
+                connection, "uq_migrated_final_lineups_active"
+            )
+            assert active_index[1:4] == active_index_contract
+            assert active_index[4]
+
+            migration_generation_contract = (
+                "recording_generations",
+                ["tenant_id", "game_id"],
+                "kind = 'migration' AND retired_at IS NULL",
+            )
+            assert (
+                _manifest_index_contract("uq_recording_generations_migration")
+                == migration_generation_contract
+            )
+            migration_generation_index = _index_catalog_contract(
+                connection, "uq_recording_generations_migration"
+            )
+            assert migration_generation_index[1:4] == migration_generation_contract
+            assert migration_generation_index[4]
+
+            foreign_keys = _foreign_key_catalog_contracts(connection)
+            assert foreign_keys["fk_migrated_final_lineups_game"] == (
+                "migrated_final_lineups",
+                "games",
+                ["tenant_id", "game_id"],
+                ["tenant_id", "id"],
+            )
+            assert foreign_keys["fk_migrated_final_lineups_team"] == (
+                "migrated_final_lineups",
+                "team_records",
+                ["tenant_id", "team_record_id"],
+                ["tenant_id", "id"],
+            )
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        conname,
+                        confmatchtype,
+                        confdeltype,
+                        pg_get_constraintdef(oid, true)
+                    FROM pg_constraint
+                    WHERE conname = ANY(%s)
+                    ORDER BY conname
+                    """,
+                    (
+                        [
+                            "fk_migrated_final_lineups_game",
+                            "fk_migrated_final_lineups_team",
+                        ],
+                    ),
+                )
+                foreign_key_definitions = cursor.fetchall()
+                assert [row[:3] for row in foreign_key_definitions] == [
+                    ("fk_migrated_final_lineups_game", "f", "a"),
+                    ("fk_migrated_final_lineups_team", "f", "a"),
+                ]
+                assert all(
+                    "MATCH FULL" in str(row[3]) for row in foreign_key_definitions
+                )
+
+                cursor.execute(
+                    """
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'migrated_final_lineups'
+                    ORDER BY ordinal_position
+                    """
+                )
+                assert cursor.fetchall() == [
+                    ("tenant_id", "uuid", "NO", None),
+                    ("id", "uuid", "NO", None),
+                    ("game_id", "uuid", "NO", None),
+                    ("team_record_id", "uuid", "NO", None),
+                    ("raw_lineup", "text", "NO", None),
+                    ("legacy_row_identifier", "text", "NO", None),
+                    ("import_batch_id", "uuid", "NO", None),
+                    ("retired_at", "timestamp with time zone", "YES", None),
+                ]
+
+                cursor.execute(
+                    """
+                    SELECT table_name, column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND (
+                        (
+                            table_name = 'migrated_final_lineups'
+                            AND column_name LIKE 'resolved\\_%' ESCAPE '\\'
+                        )
+                        OR (
+                            table_name = 'play_rows'
+                            AND column_name IN (
+                                'legacy_row_identifier',
+                                'play_number',
+                                'migration_unverified'
+                            )
+                        )
+                      )
+                    ORDER BY table_name, column_name
+                    """
+                )
+                assert cursor.fetchall() == [
+                    ("play_rows", "legacy_row_identifier"),
+                    ("play_rows", "migration_unverified"),
+                    ("play_rows", "play_number"),
+                ]
+
+                cursor.execute(
+                    """
+                    SELECT
+                        attribute.attnotnull,
+                        pg_get_expr(default_row.adbin, default_row.adrelid, true)
+                    FROM pg_attribute AS attribute
+                    JOIN pg_class AS relation
+                      ON relation.oid = attribute.attrelid
+                    LEFT JOIN pg_attrdef AS default_row
+                      ON default_row.adrelid = attribute.attrelid
+                     AND default_row.adnum = attribute.attnum
+                    WHERE relation.relname = 'play_rows'
+                      AND attribute.attname = 'migration_unverified'
+                      AND NOT attribute.attisdropped
+                    """
+                )
+                assert cursor.fetchone() == (True, "false")
+
+                cursor.execute(
+                    """
+                    SELECT table_relation.relname, index_relation.relname
+                    FROM pg_index AS index_row
+                    JOIN pg_class AS index_relation
+                      ON index_relation.oid = index_row.indexrelid
+                    JOIN pg_class AS table_relation
+                      ON table_relation.oid = index_row.indrelid
+                    WHERE table_relation.relname IN (
+                            'play_rows', 'migrated_final_lineups'
+                        )
+                      AND index_row.indisunique
+                      AND EXISTS (
+                          SELECT 1
+                          FROM unnest(index_row.indkey::smallint[])
+                              AS key_column(attnum)
+                          JOIN pg_attribute AS attribute
+                            ON attribute.attrelid = index_row.indrelid
+                           AND attribute.attnum = key_column.attnum
+                          WHERE attribute.attname = 'legacy_row_identifier'
+                      )
+                    ORDER BY table_relation.relname, index_relation.relname
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                tenant_id = uuid4()
+                self_team_id = uuid4()
+                opponent_team_id = uuid4()
+                game_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "移行元最終オーダーテストテナント"),
+                )
+                _insert_test_vocabularies(cursor, tenant_id)
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO recording_generations (
+                            tenant_id,
+                            game_id,
+                            generation,
+                            kind,
+                            issuance_order,
+                            holder_device
+                        ) VALUES (%s, %s, 1, 'migration', 1, %s)
+                        """,
+                        (tenant_id, game_id, "migration-device"),
+                    )
+                with pytest.raises(
+                    psycopg.errors.NotNullViolation,
+                    match="confirmed_watermark",
+                ):
+                    cursor.execute(
+                        """
+                        INSERT INTO recording_generations (
+                            tenant_id,
+                            game_id,
+                            generation,
+                            kind,
+                            issuance_order,
+                            confirmed_watermark
+                        ) VALUES (%s, %s, 1, 'migration', 1, NULL)
+                        """,
+                        (tenant_id, game_id),
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO recording_generations (
+                        tenant_id,
+                        game_id,
+                        generation,
+                        kind,
+                        issuance_order
+                    ) VALUES (%s, %s, 1, 'migration', 1)
+                    RETURNING confirmed_watermark, holder_device
+                    """,
+                    (tenant_id, game_id),
+                )
+                assert cursor.fetchone() == (0, None)
+
+                lineup_id = uuid4()
+                import_batch_id = uuid4()
+                insert_lineup = """
+                    INSERT INTO migrated_final_lineups (
+                        tenant_id,
+                        id,
+                        game_id,
+                        team_record_id,
+                        raw_lineup,
+                        legacy_row_identifier,
+                        import_batch_id
+                    ) VALUES (
+                        %(tenant_id)s,
+                        %(id)s,
+                        %(game_id)s,
+                        %(team_record_id)s,
+                        %(raw_lineup)s,
+                        %(legacy_row_identifier)s,
+                        %(import_batch_id)s
+                    )
+                """
+                lineup_values = {
+                    "tenant_id": tenant_id,
+                    "id": lineup_id,
+                    "game_id": game_id,
+                    "team_record_id": self_team_id,
+                    "raw_lineup": "1:legacy-player-a,2:legacy-player-b",
+                    "legacy_row_identifier": "legacy-final-lineup-1",
+                    "import_batch_id": import_batch_id,
+                }
+                cursor.execute(insert_lineup, lineup_values)
+                with pytest.raises(psycopg.errors.UniqueViolation):
+                    cursor.execute(
+                        insert_lineup,
+                        {
+                            **lineup_values,
+                            "id": uuid4(),
+                            "legacy_row_identifier": "legacy-final-lineup-2",
+                        },
+                    )
+
+                protected_updates: dict[str, object] = {
+                    "game_id": uuid4(),
+                    "team_record_id": uuid4(),
+                    "raw_lineup": "changed",
+                    "legacy_row_identifier": "changed",
+                    "import_batch_id": uuid4(),
+                }
+                for column, value in protected_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="migrated final lineup source is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE migrated_final_lineups SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, lineup_id),
+                        )
+
+                cursor.execute(
+                    """
+                    UPDATE migrated_final_lineups
+                    SET retired_at = CURRENT_TIMESTAMP
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING retired_at IS NOT NULL
+                    """,
+                    (tenant_id, lineup_id),
+                )
+                assert cursor.fetchone() == (True,)
+                cursor.execute(
+                    insert_lineup,
+                    {
+                        **lineup_values,
+                        "id": uuid4(),
+                    },
+                )
+
+        command.downgrade(config, "0016_migration_quarantine")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_twenty_one_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

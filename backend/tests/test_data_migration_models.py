@@ -6,10 +6,24 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from sqlalchemy import BigInteger, CheckConstraint, LargeBinary, Uuid
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    LargeBinary,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.sql.schema import Column, DefaultClause, Table
 
-from pitchlog.db.data_migration.models import MigrationQuarantine
+from pitchlog.db.data_migration.models import (
+    MigratedFinalLineup,
+    MigrationQuarantine,
+)
+from pitchlog.db.game_state.models import PlayRow
+from pitchlog.db.recording_rights.models import RecordingGeneration
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
@@ -20,14 +34,19 @@ _MIGRATION_PATH = (
     / "versions"
     / "0016_migration_quarantine.py"
 )
+_MIGRATED_FINAL_LINEUP_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0017_migrated_final_lineups.py"
+)
 
 
-def _manifest_table() -> dict[str, Any]:
-    """隔離表の manifest 契約を返す。"""
+def _manifest_table(table_name: str) -> dict[str, Any]:
+    """指定した表の manifest 契約を返す。"""
     manifest = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
-    return next(
-        table for table in manifest["tables"] if table["name"] == "migration_quarantine"
-    )
+    return next(table for table in manifest["tables"] if table["name"] == table_name)
 
 
 def _column_type(column: Column[Any]) -> str:
@@ -36,8 +55,14 @@ def _column_type(column: Column[Any]) -> str:
         return "uuid"
     if isinstance(column.type, BigInteger):
         return "bigint"
+    if isinstance(column.type, Boolean):
+        return "boolean"
     if isinstance(column.type, LargeBinary):
         return "bytea"
+    if isinstance(column.type, Text):
+        return "text"
+    if isinstance(column.type, DateTime) and column.type.timezone:
+        return "timestamptz"
     raise AssertionError(f"未対応の列型: {column.name}: {column.type}")
 
 
@@ -54,7 +79,7 @@ def _column_default(column: Column[Any]) -> str | None:
 
 def test_migration_quarantine_matches_manifest_contract() -> None:
     """隔離表の列・制約・索引・メタデータが manifest と一致する。"""
-    manifest = _manifest_table()
+    manifest = _manifest_table("migration_quarantine")
     table = cast(Table, MigrationQuarantine.__table__)
 
     actual_columns = sorted(
@@ -138,6 +163,210 @@ def test_quarantine_has_only_raw_payload_and_technical_identifiers() -> None:
 def test_quarantine_migration_contains_no_dml_or_forbidden_ddl() -> None:
     """隔離 migration が内容制約や権限 DDL・DML を含まないと示す。"""
     source = _MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source
+    assert "CREATE POLICY" not in source
+    assert "CREATE ROLE" not in source
+    assert "ALTER ROLE" not in source
+    assert "CREATE_ALL" not in source
+
+
+def _unique_column_sets(table: Table) -> list[set[str]]:
+    """表の主キーと一意制約・一意索引の構成列集合を返す。"""
+    unique_columns = [set(table.primary_key.columns.keys())]
+    unique_columns.extend(
+        set(constraint.columns.keys())
+        for constraint in table.constraints
+        if isinstance(constraint, UniqueConstraint)
+    )
+    unique_columns.extend(
+        set(index.columns.keys()) for index in table.indexes if index.unique
+    )
+    return unique_columns
+
+
+def test_migrated_final_lineups_match_manifest_contract() -> None:
+    """移行元最終オーダーの models が manifest と exact-set 一致する。"""
+    manifest = _manifest_table("migrated_final_lineups")
+    table = cast(Table, MigratedFinalLineup.__table__)
+
+    actual_columns = sorted(
+        (
+            {
+                "name": column.name,
+                "type": _column_type(column),
+                "nullable": column.nullable,
+                "default": _column_default(column),
+            }
+            for column in table.columns
+        ),
+        key=lambda column: str(column["name"]),
+    )
+    assert actual_columns == sorted(
+        manifest["columns"], key=lambda column: column["name"]
+    )
+    assert {
+        str(check.sqltext)
+        for check in table.constraints
+        if isinstance(check, CheckConstraint)
+    } == set(manifest["checks"])
+
+    actual_foreign_keys = sorted(
+        (
+            {
+                "name": constraint.name,
+                "columns": list(constraint.columns.keys()),
+                "references": {
+                    "table": constraint.elements[0].target_fullname.split(".")[0],
+                    "columns": [
+                        element.target_fullname.split(".")[1]
+                        for element in constraint.elements
+                    ],
+                },
+                "match": constraint.match or "SIMPLE",
+                "on_delete": constraint.ondelete or "NO ACTION",
+                "composite": len(constraint.columns) > 1,
+                "cross_tenant": bool(constraint.info.get("cross_tenant", False)),
+            }
+            for constraint in table.foreign_key_constraints
+        ),
+        key=lambda constraint: str(constraint["name"]),
+    )
+    assert actual_foreign_keys == sorted(
+        manifest["foreign_keys"], key=lambda constraint: constraint["name"]
+    )
+
+    actual_unique_constraints = [
+        {
+            "name": table.primary_key.name,
+            "kind": "PRIMARY KEY",
+            "columns": list(table.primary_key.columns.keys()),
+            "predicate": None,
+            "roles": sorted(table.primary_key.info["roles"]),
+        }
+    ]
+    actual_unique_constraints.extend(
+        {
+            "name": index.name,
+            "kind": "UNIQUE INDEX",
+            "columns": list(index.columns.keys()),
+            "predicate": str(index.dialect_options["postgresql"]["where"]),
+            "roles": sorted(index.info["roles"]),
+        }
+        for index in table.indexes
+        if index.unique
+    )
+    expected_unique_constraints = [
+        {
+            "name": constraint["name"],
+            "kind": constraint["kind"],
+            "columns": constraint["columns"],
+            "predicate": constraint["predicate"],
+            "roles": sorted(constraint["roles"]),
+        }
+        for constraint in manifest["unique_constraints"]
+    ]
+    assert sorted(
+        actual_unique_constraints, key=lambda constraint: str(constraint["name"])
+    ) == sorted(
+        expected_unique_constraints, key=lambda constraint: str(constraint["name"])
+    )
+    assert [index for index in table.indexes if not index.unique] == []
+    assert manifest["indexes"] == []
+    assert {
+        "deletion": MigratedFinalLineup.lifecycle.deletion.value,
+        "append_mode": MigratedFinalLineup.lifecycle.append_mode.value,
+        "migration_retirement": (
+            MigratedFinalLineup.lifecycle.migration_retirement.value
+        ),
+    } == manifest["lifecycle"]
+    assert {
+        "protected_columns": sorted(MigratedFinalLineup.immutability.protected_columns),
+        "allowed_update_columns": sorted(
+            MigratedFinalLineup.immutability.allowed_update_columns
+        ),
+    } == {key: sorted(value) for key, value in manifest["immutability"].items()}
+    assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
+
+
+def test_migrated_final_lineups_keep_only_unresolved_source_columns() -> None:
+    """最終オーダーが8列だけで解決列と行識別子の一意性を持たない。"""
+    table = cast(Table, MigratedFinalLineup.__table__)
+    column_names = set(table.columns.keys())
+
+    assert len(column_names) == 8
+    assert column_names == {
+        column["name"]
+        for column in _manifest_table("migrated_final_lineups")["columns"]
+    }
+    assert all(not column.startswith("resolved_") for column in column_names)
+    assert not table.columns["import_batch_id"].nullable
+    assert all(
+        "legacy_row_identifier" not in columns for columns in _unique_column_sets(table)
+    )
+
+
+def test_existing_migration_generation_contract_is_preserved() -> None:
+    """移行世代の部分一意、D3 と保持端末の契約を既存 model で検査する。"""
+    manifest = _manifest_table("recording_generations")
+    table = cast(Table, RecordingGeneration.__table__)
+    migration_index = next(
+        index
+        for index in table.indexes
+        if index.name == "uq_recording_generations_migration"
+    )
+    expected_index = next(
+        constraint
+        for constraint in manifest["unique_constraints"]
+        if constraint["name"] == "uq_recording_generations_migration"
+    )
+
+    assert {
+        "name": migration_index.name,
+        "kind": "UNIQUE INDEX",
+        "columns": list(migration_index.columns.keys()),
+        "predicate": str(migration_index.dialect_options["postgresql"]["where"]),
+        "roles": sorted(migration_index.info["roles"]),
+    } == {
+        "name": expected_index["name"],
+        "kind": expected_index["kind"],
+        "columns": expected_index["columns"],
+        "predicate": expected_index["predicate"],
+        "roles": sorted(expected_index["roles"]),
+    }
+    confirmed_watermark = table.columns["confirmed_watermark"]
+    assert isinstance(confirmed_watermark.type, BigInteger)
+    assert not confirmed_watermark.nullable
+    assert _column_default(confirmed_watermark) == "0"
+    assert table.columns["holder_device"].nullable
+    assert "kind <> 'migration' OR holder_device IS NULL" in {
+        str(check.sqltext)
+        for check in table.constraints
+        if isinstance(check, CheckConstraint)
+    }
+
+
+def test_play_rows_keep_migration_verification_separate_from_play_number() -> None:
+    """未検証印と移行行識別子が業務上のプレイ番号から独立している。"""
+    table = cast(Table, PlayRow.__table__)
+    migration_unverified = table.columns["migration_unverified"]
+
+    assert isinstance(migration_unverified.type, Boolean)
+    assert not migration_unverified.nullable
+    assert _column_default(migration_unverified) == "false"
+    assert table.columns["legacy_row_identifier"] is not table.columns["play_number"]
+    assert (
+        table.columns["legacy_row_identifier"].name != table.columns["play_number"].name
+    )
+    assert all(
+        "legacy_row_identifier" not in columns for columns in _unique_column_sets(table)
+    )
+
+
+def test_migrated_final_lineup_migration_contains_no_dml_or_forbidden_ddl() -> None:
+    """最終オーダー migration が権限 DDL・DML を含まないと示す。"""
+    source = _MIGRATED_FINAL_LINEUP_MIGRATION_PATH.read_text(encoding="utf-8").upper()
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source
