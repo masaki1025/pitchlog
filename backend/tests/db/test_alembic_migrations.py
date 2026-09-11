@@ -2468,8 +2468,9 @@ def test_play_projection_constraints_and_migration_round_trip(
                         base,
                         runner_id,
                         status,
+                        status_source,
                         responsible_pitcher_id
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 with pytest.raises(
                     psycopg.errors.NotNullViolation,
@@ -2484,7 +2485,51 @@ def test_play_projection_constraints_and_migration_round_trip(
                             1,
                             runner_id,
                             "on_base",
+                            "auto",
                             None,
+                        ),
+                    )
+                with pytest.raises(
+                    psycopg.errors.NotNullViolation,
+                    match="status_source",
+                ):
+                    cursor.execute(
+                        """
+                        INSERT INTO play_runners (
+                            tenant_id,
+                            id,
+                            play_id,
+                            base,
+                            runner_id,
+                            status,
+                            responsible_pitcher_id
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            tenant_id,
+                            uuid4(),
+                            play_id,
+                            2,
+                            runner_id,
+                            "advanced",
+                            responsible_pitcher_id,
+                        ),
+                    )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="ck_play_runners_status_source",
+                ):
+                    cursor.execute(
+                        insert_runner,
+                        (
+                            tenant_id,
+                            uuid4(),
+                            play_id,
+                            2,
+                            runner_id,
+                            "advanced",
+                            "derived",
+                            responsible_pitcher_id,
                         ),
                     )
                 cursor.execute(
@@ -2496,6 +2541,20 @@ def test_play_projection_constraints_and_migration_round_trip(
                         1,
                         runner_id,
                         "on_base",
+                        "auto",
+                        responsible_pitcher_id,
+                    ),
+                )
+                cursor.execute(
+                    insert_runner,
+                    (
+                        tenant_id,
+                        uuid4(),
+                        play_id,
+                        2,
+                        runner_id,
+                        "advanced",
+                        "manual",
                         responsible_pitcher_id,
                     ),
                 )

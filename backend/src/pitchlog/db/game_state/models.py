@@ -718,6 +718,10 @@ class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin,
     __tablename__ = "play_runners"
     __table_args__ = (
         CheckConstraint("base IN (1, 2, 3)"),
+        CheckConstraint(
+            "status_source IN ('auto', 'manual')",
+            name="ck_play_runners_status_source",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "play_id"],
             ["play_rows.tenant_id", "play_rows.id"],
@@ -764,6 +768,7 @@ class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin,
     base: Mapped[int] = mapped_column(Integer, nullable=False)
     runner_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
+    status_source: Mapped[str] = mapped_column(Text, nullable=False)
     responsible_pitcher_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), nullable=False
     )
@@ -775,5 +780,5 @@ class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin,
     )
     immutability = Immutability(
         protected_columns=frozenset(),
-        allowed_update_columns=frozenset({"status", "retired_at"}),
+        allowed_update_columns=frozenset({"status", "status_source", "retired_at"}),
     )

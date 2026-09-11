@@ -575,3 +575,24 @@ def test_play_runner_has_one_required_responsible_pitcher_column() -> None:
 
     assert responsible_columns == ["responsible_pitcher_id"]
     assert not table.columns["responsible_pitcher_id"].nullable
+
+
+def test_play_runner_status_source_contract() -> None:
+    """走者状況の由来が既定値なしの必須二値として宣言されている。"""
+    table = cast(Table, PlayRunner.__table__)
+    status = table.columns["status"]
+    status_source = table.columns["status_source"]
+    checks = {
+        constraint.name: str(constraint.sqltext)
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+
+    assert isinstance(status.type, Text)
+    assert not status.nullable
+    assert isinstance(status_source.type, Text)
+    assert not status_source.nullable
+    assert _column_default(status_source) is None
+    assert checks["ck_play_runners_status_source"] == (
+        "status_source IN ('auto', 'manual')"
+    )

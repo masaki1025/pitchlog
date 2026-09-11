@@ -431,6 +431,7 @@
         {"name": "base", "type": "integer", "nullable": false, "default": null},
         {"name": "runner_id", "type": "uuid", "nullable": false, "default": null},
         {"name": "status", "type": "text", "nullable": false, "default": null},
+        {"name": "status_source", "type": "text", "nullable": false, "default": null},
         {"name": "responsible_pitcher_id", "type": "uuid", "nullable": false, "default": null},
         {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
         {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
@@ -441,14 +442,14 @@
         {"name": "fk_play_runners_runner", "columns": ["tenant_id", "runner_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_play_runners_pitcher", "columns": ["tenant_id", "responsible_pitcher_id"], "references": {"table": "players", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
-      "checks": ["base IN (1, 2, 3)"],
+      "checks": ["base IN (1, 2, 3)", "status_source IN ('auto', 'manual')"],
       "unique_constraints": [
         {"name": "pk_play_runners", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
         {"name": "uq_play_runners_active", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "play_id", "base"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-2", "uniqueness": "走者は (プレイ, 塁) で 1 件", "key_shape": "UNIQUE (tenant_id, プレイ, 塁) WHERE 退役していない", "scope": "scoped"}}
       ],
       "indexes": [],
       "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "retired_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "status_source", "retired_at"]}
     },
     {
       "name": "temporary_player_id_mappings",
