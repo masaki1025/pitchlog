@@ -328,7 +328,13 @@ def test_operation_event_slot_fks_and_partial_uniqueness() -> None:
         for contract in _model_unique_constraints(event_table)
     }
 
-    assert slot_foreign_keys == {"fk_event_slots_game": ("games", ("tenant_id", "id"))}
+    assert slot_foreign_keys == {
+        "fk_event_slots_game": ("games", ("tenant_id", "id")),
+        "fk_event_slots_generation": (
+            "recording_generations",
+            ("tenant_id", "game_id", "generation"),
+        ),
+    }
     assert event_foreign_keys == {
         "fk_operation_events_game": ("games", ("tenant_id", "id")),
         "fk_operation_events_ledger": (

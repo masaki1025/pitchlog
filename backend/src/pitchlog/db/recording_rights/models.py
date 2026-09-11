@@ -21,7 +21,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pitchlog.db.base import Base
-from pitchlog.db.mixins import ImportBatchMixin, LifecycleMixin, TenantMixin
+from pitchlog.db.mixins import (
+    ImportBatchMixin,
+    LifecycleMixin,
+    RetirementMixin,
+    TenantMixin,
+)
 from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
@@ -140,3 +145,100 @@ class EvacuatedEventOriginal(TenantMixin, ImportBatchMixin, LifecycleMixin, Base
             {"status", "imported_event_id", "retention_deadline", "discarded_at"}
         ),
     )
+
+
+class RecordingGeneration(
+    TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin, Base
+):
+    """試合の記録権世代と確定済み D3 を保持する。"""
+
+    __tablename__ = "recording_generations"
+    __table_args__ = (
+        CheckConstraint("kind IN ('normal', 'migration')"),
+        CheckConstraint("confirmed_watermark >= 0"),
+        CheckConstraint("applied_prefix >= 0"),
+        CheckConstraint("kind <> 'migration' OR holder_device IS NULL"),
+        ForeignKeyConstraint(
+            ["tenant_id", "game_id"],
+            ["games.tenant_id", "games.id"],
+            name="fk_recording_generations_game",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "game_id",
+            "generation",
+            name="pk_recording_generations",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "uq_recording_generations_current",
+            "tenant_id",
+            "game_id",
+            unique=True,
+            postgresql_where=text("kind = 'normal' AND revoked_at IS NULL"),
+            info={"roles": ("business_unique",)},
+        ),
+        Index(
+            "uq_recording_generations_migration",
+            "tenant_id",
+            "game_id",
+            unique=True,
+            postgresql_where=text("kind = 'migration' AND retired_at IS NULL"),
+            info={"roles": ("business_unique",)},
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "game_id",
+            "issuance_order",
+            name="uq_recording_generations_issuance_order",
+            info={"roles": ("business_unique",)},
+        ),
+    )
+
+    game_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    kind: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'normal'")
+    )
+    issuance_order: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    holder_device: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confirmed_watermark: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+    applied_prefix: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.HAS_PREDICATE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {"generation", "kind", "issuance_order", "holder_device", "granted_at"}
+        ),
+        allowed_update_columns=frozenset(
+            {"confirmed_watermark", "applied_prefix", "revoked_at", "retired_at"}
+        ),
+    )
+
+
+Index(
+    "ix_recording_generations_history",
+    RecordingGeneration.__table__.c.tenant_id,
+    RecordingGeneration.__table__.c.game_id,
+    RecordingGeneration.__table__.c.issuance_order.desc(),
+    info={"purpose": "range_sort"},
+)

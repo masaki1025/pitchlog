@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -30,7 +31,10 @@ from .conftest import DisposablePostgres
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_REVISION = "0007_idempotency_originals"
+_SCHEMA_MANIFEST_PATH = (
+    _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
+)
+_REVISION = "0008_recording_generations"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -264,6 +268,43 @@ BEGIN
 END;
 $function$
 """
+_RECORDING_GENERATION_TRIGGER_NAME = "trg_recording_generations_update_guard"
+_RECORDING_GENERATION_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_recording_generations_update_guard BEFORE UPDATE OF "
+    "generation, kind, issuance_order, holder_device, granted_at, "
+    "confirmed_watermark ON recording_generations FOR EACH ROW EXECUTE FUNCTION "
+    "protect_recording_generations_updates()"
+)
+_RECORDING_GENERATION_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.protect_recording_generations_updates()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.generation,
+        NEW.kind,
+        NEW.issuance_order,
+        NEW.holder_device,
+        NEW.granted_at
+    ) IS DISTINCT FROM ROW(
+        OLD.generation,
+        OLD.kind,
+        OLD.issuance_order,
+        OLD.holder_device,
+        OLD.granted_at
+    ) THEN
+        RAISE EXCEPTION 'recording generation identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    IF NEW.confirmed_watermark < OLD.confirmed_watermark THEN
+        RAISE EXCEPTION 'recording generation D3 cannot move backward'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
 _D2_FIXED_VALUE_OR_RANGE = re.compile(
     r"(?:\bd2\b\s*(?:=|<>|!=|<=|>=|<|>|(?:NOT\s+)?BETWEEN\b|"
     r"(?:NOT\s+)?IN\s*\()|"
@@ -305,6 +346,25 @@ def _sqlalchemy_url(dsn: str) -> str:
         port=int(str(required["port"])),
         database=str(required["dbname"]),
     ).render_as_string(hide_password=False)
+
+
+def _insert_recording_generation(
+    cursor: psycopg.Cursor[Any], tenant_id: object, game_id: object
+) -> None:
+    """イベントスロットより先に参照先の通常記録権世代を追加する。"""
+    cursor.execute(
+        """
+        INSERT INTO recording_generations (
+            tenant_id,
+            game_id,
+            generation,
+            kind,
+            issuance_order,
+            holder_device
+        ) VALUES (%s, %s, 1, 'normal', 1, %s)
+        """,
+        (tenant_id, game_id, "test-device"),
+    )
 
 
 def test_schema_revision_and_application_engine_use_the_database(
@@ -557,11 +617,17 @@ def _index_catalog_contract(
                 pg_get_indexdef(index_row.indexrelid, 0, true),
                 table_relation.relname,
                 ARRAY(
-                    SELECT pg_get_indexdef(
-                        index_row.indexrelid,
-                        position,
-                        true
-                    )
+                    SELECT
+                        pg_get_indexdef(
+                            index_row.indexrelid,
+                            position,
+                            true
+                        ) || CASE
+                            WHEN (
+                                index_row.indoption[position - 1] & 1
+                            ) = 1 THEN ' DESC'
+                            ELSE ''
+                        END
                     FROM generate_series(
                         1,
                         index_row.indnkeyatts
@@ -584,6 +650,17 @@ def _index_catalog_contract(
         raise AssertionError(f"索引が存在しない: {index_name}")
     predicate = None if row[3] is None else str(row[3])
     return str(row[0]), str(row[1]), list(row[2]), predicate, bool(row[4])
+
+
+def _manifest_index_contract(index_name: str) -> tuple[str, list[str], str | None]:
+    """Manifest から索引の対象表・列順と方向・述語を取得する。"""
+    manifest = json.loads(_SCHEMA_MANIFEST_PATH.read_text(encoding="utf-8"))
+    for table in manifest["tables"]:
+        for collection in ("unique_constraints", "indexes"):
+            for index in table[collection]:
+                if index["name"] == index_name:
+                    return table["name"], index["columns"], index["predicate"]
+    raise AssertionError(f"Manifest に索引が存在しない: {index_name}")
 
 
 def _assert_step_seven_objects_are_absent(
@@ -669,6 +746,16 @@ def test_game_state_constraints_and_migration_round_trip(
                 assert index_columns == expected_columns
                 assert predicate == "retired_at IS NULL"
                 assert unique
+
+            game_list_contract = (
+                "games",
+                ["tenant_id", "scheduled_at DESC", "id DESC"],
+                "trashed_at IS NULL AND hidden_at IS NULL",
+            )
+            assert _manifest_index_contract("ix_games_list") == game_list_contract
+            game_list_index = _index_catalog_contract(connection, "ix_games_list")
+            assert game_list_index[1:4] == game_list_contract
+            assert not game_list_index[4]
 
             tenant_id = uuid4()
             self_team_id = uuid4()
@@ -1152,6 +1239,7 @@ def test_sync_event_immutability_and_migration_round_trip(
                         Jsonb({}),
                     ),
                 )
+                _insert_recording_generation(cursor, tenant_id, game_id)
                 cursor.execute(
                     """
                     INSERT INTO event_slots (
@@ -1535,6 +1623,20 @@ def test_play_projection_constraints_and_migration_round_trip(
                 "retired_at IS NULL",
                 True,
             )
+            play_order_contract = (
+                "play_rows",
+                ["tenant_id", "game_id", "play_number", "id"],
+                "hidden_at IS NULL",
+            )
+            assert (
+                _manifest_index_contract("ix_play_rows_game_order")
+                == play_order_contract
+            )
+            play_order_index = _index_catalog_contract(
+                connection, "ix_play_rows_game_order"
+            )
+            assert play_order_index[1:4] == play_order_contract
+            assert not play_order_index[4]
 
             tenant_id = uuid4()
             self_team_id = uuid4()
@@ -1613,6 +1715,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                         Jsonb({}),
                     ),
                 )
+                _insert_recording_generation(cursor, tenant_id, game_id)
                 cursor.execute(
                     """
                     INSERT INTO event_slots (
@@ -1808,6 +1911,7 @@ def test_play_projection_constraints_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_ten_objects_are_absent(connection)
             _clear_operation_events_before_ledger_reupgrade(connection)
+            _clear_event_slots_before_recording_generation_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -1910,6 +2014,16 @@ def _clear_operation_events_before_ledger_reupgrade(
     with connection.cursor() as cursor:
         cursor.execute("DELETE FROM operation_events")
         cursor.execute("SELECT count(*) FROM operation_events")
+        assert cursor.fetchone() == (0,)
+
+
+def _clear_event_slots_before_recording_generation_reupgrade(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """記録権世代の消滅後、再 upgrade 前にイベントスロットを空にする。"""
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM event_slots")
+        cursor.execute("SELECT count(*) FROM event_slots")
         assert cursor.fetchone() == (0,)
 
 
@@ -2112,6 +2226,7 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
                         Jsonb({}),
                     ),
                 )
+                _insert_recording_generation(cursor, tenant_id, game_id)
                 cursor.executemany(
                     """
                     INSERT INTO event_slots (
@@ -2414,6 +2529,321 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_eleven_objects_are_absent(connection)
             _clear_operation_events_before_ledger_reupgrade(connection)
+            _clear_event_slots_before_recording_generation_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _recording_predicate(predicate: str | None) -> str | None:
+    """PostgreSQL が補う括弧と text cast を除いて述語全文を比較する。"""
+    if predicate is None:
+        return None
+    return _normalize_sql(
+        predicate.replace("(", "").replace(")", "").replace("::text", "")
+    )
+
+
+def _assert_step_twelve_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に記録権世代・追加 FK・トリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.recording_generations'),
+                EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'fk_event_slots_generation'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.protect_recording_generations_updates()'
+                )
+            """,
+            (_RECORDING_GENERATION_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (None, False, False, None)
+
+
+def test_recording_generation_d3_guard_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """記録権世代の一意性・D3 更新方向・migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger = _sync_trigger_catalog_contract(
+                connection, _RECORDING_GENERATION_TRIGGER_NAME
+            )
+            assert _normalize_sql(trigger[0]) == _normalize_sql(
+                _RECORDING_GENERATION_TRIGGER_DEFINITION
+            )
+            assert trigger[1] == "recording_generations"
+            assert trigger[2] == [
+                "generation",
+                "kind",
+                "issuance_order",
+                "holder_device",
+                "granted_at",
+                "confirmed_watermark",
+            ]
+            assert trigger[3] == "O"
+            assert _normalize_sql(trigger[4]) == _normalize_sql(
+                _RECORDING_GENERATION_FUNCTION_DEFINITION
+            )
+
+            current_index = _index_catalog_contract(
+                connection, "uq_recording_generations_current"
+            )
+            assert current_index[1:3] == (
+                "recording_generations",
+                ["tenant_id", "game_id"],
+            )
+            assert _recording_predicate(current_index[3]) == (
+                "kind = 'normal' AND revoked_at IS NULL"
+            )
+            assert current_index[4]
+
+            migration_index = _index_catalog_contract(
+                connection, "uq_recording_generations_migration"
+            )
+            assert migration_index[1:3] == (
+                "recording_generations",
+                ["tenant_id", "game_id"],
+            )
+            assert _recording_predicate(migration_index[3]) == (
+                "kind = 'migration' AND retired_at IS NULL"
+            )
+            assert migration_index[4]
+
+            history_index = _index_catalog_contract(
+                connection, "ix_recording_generations_history"
+            )
+            history_contract = (
+                "recording_generations",
+                ["tenant_id", "game_id", "issuance_order DESC"],
+                None,
+            )
+            assert (
+                _manifest_index_contract("ix_recording_generations_history")
+                == history_contract
+            )
+            assert history_index[1:4] == history_contract
+            assert not history_index[4]
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT pg_get_constraintdef(oid, true)
+                    FROM pg_constraint
+                    WHERE conname = 'uq_recording_generations_issuance_order'
+                    """
+                )
+                assert cursor.fetchone() == (
+                    "UNIQUE (tenant_id, game_id, issuance_order)",
+                )
+                cursor.execute(
+                    """
+                    SELECT pg_get_expr(conbin, conrelid, true)
+                    FROM pg_constraint
+                    WHERE conrelid = 'recording_generations'::regclass
+                      AND contype = 'c'
+                    ORDER BY conname
+                    """
+                )
+                check_definitions = " ".join(str(row[0]) for row in cursor.fetchall())
+                assert "kind = ANY" in check_definitions
+                assert "'normal'::text" in check_definitions
+                assert "'migration'::text" in check_definitions
+                assert "confirmed_watermark >= 0" in check_definitions
+                assert "applied_prefix >= 0" in check_definitions
+                assert "holder_device IS NULL" in check_definitions
+
+                tenant_id = uuid4()
+                self_team_id = uuid4()
+                opponent_team_id = uuid4()
+                game_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "記録権世代テストテナント"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO recording_generations (
+                        tenant_id,
+                        game_id,
+                        generation,
+                        kind,
+                        issuance_order,
+                        holder_device,
+                        confirmed_watermark
+                    ) VALUES (%s, %s, 1, 'normal', 1, %s, 5)
+                    """,
+                    (tenant_id, game_id, "device-a"),
+                )
+
+                with pytest.raises(
+                    psycopg.errors.ForeignKeyViolation,
+                    match="fk_event_slots_generation",
+                ):
+                    cursor.execute(
+                        """
+                        INSERT INTO event_slots (
+                            tenant_id, game_id, generation, d1
+                        ) VALUES (%s, %s, 99, 1)
+                        """,
+                        (tenant_id, game_id),
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO event_slots (
+                        tenant_id, game_id, generation, d1
+                    ) VALUES (%s, %s, 1, 1)
+                    """,
+                    (tenant_id, game_id),
+                )
+
+                protected_updates: dict[str, object] = {
+                    "generation": 2,
+                    "kind": "migration",
+                    "issuance_order": 2,
+                    "holder_device": "device-b",
+                    "granted_at": datetime(2026, 9, 12, tzinfo=UTC),
+                }
+                for column, value in protected_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="recording generation identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE recording_generations SET {} = %s "
+                                "WHERE tenant_id = %s AND game_id = %s "
+                                "AND generation = 1"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, game_id),
+                        )
+
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="recording generation D3 cannot move backward",
+                ):
+                    cursor.execute(
+                        """
+                        UPDATE recording_generations
+                        SET confirmed_watermark = 4
+                        WHERE tenant_id = %s AND game_id = %s
+                          AND generation = 1
+                        """,
+                        (tenant_id, game_id),
+                    )
+                cursor.execute(
+                    """
+                    UPDATE recording_generations
+                    SET confirmed_watermark = 5
+                    WHERE tenant_id = %s AND game_id = %s
+                      AND generation = 1
+                    RETURNING confirmed_watermark
+                    """,
+                    (tenant_id, game_id),
+                )
+                assert cursor.fetchone() == (5,)
+                cursor.execute(
+                    """
+                    UPDATE recording_generations
+                    SET confirmed_watermark = 6
+                    WHERE tenant_id = %s AND game_id = %s
+                      AND generation = 1
+                    RETURNING confirmed_watermark
+                    """,
+                    (tenant_id, game_id),
+                )
+                assert cursor.fetchone() == (6,)
+
+                allowed_updates: dict[str, object] = {
+                    "applied_prefix": 1,
+                    "revoked_at": datetime(2026, 9, 12, tzinfo=UTC),
+                    "retired_at": datetime(2026, 9, 13, tzinfo=UTC),
+                }
+                for column, value in allowed_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE recording_generations SET {} = %s "
+                            "WHERE tenant_id = %s AND game_id = %s "
+                            "AND generation = 1 RETURNING generation"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id, game_id),
+                    )
+                    assert cursor.fetchone() == (1,)
+                cursor.execute(
+                    """
+                    INSERT INTO recording_generations (
+                        tenant_id,
+                        game_id,
+                        generation,
+                        issuance_order,
+                        holder_device
+                    ) VALUES (%s, %s, 2, 2, %s)
+                    RETURNING confirmed_watermark
+                    """,
+                    (tenant_id, game_id, "device-b"),
+                )
+                assert cursor.fetchone() == (0,)
+
+        command.downgrade(config, "0007_idempotency_originals")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_twelve_objects_are_absent(connection)
+            _clear_event_slots_before_recording_generation_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

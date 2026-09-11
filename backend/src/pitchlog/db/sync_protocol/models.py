@@ -66,6 +66,18 @@ class EventSlot(TenantMixin, LifecycleMixin, Base):
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "game_id", "generation"],
+            [
+                "recording_generations.tenant_id",
+                "recording_generations.game_id",
+                "recording_generations.generation",
+            ],
+            name="fk_event_slots_generation",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
         PrimaryKeyConstraint(
             "tenant_id",
             "game_id",
