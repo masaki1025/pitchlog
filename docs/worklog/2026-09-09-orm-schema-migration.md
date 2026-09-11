@@ -1036,3 +1036,50 @@ TSK-348(完了)→ TSK-317 PR #1(#52 完了)→ TSK-317 fix(#53 完了)
 ```
 
 **待ちは無い。次は本タスクである。**
+
+### ステップ 22 の中断 — Codex の使用上限(2026-09-11)
+
+**ステップ 22(移行結果・解決・警告レポート)の委任中に Codex の使用上限へ到達した。**
+
+```
+ERROR: You've hit your usage limit.
+       Visit https://chatgpt.com/codex/settings/usage to purchase more credits
+       or try again at Sep 15th, 2026 1:00 PM.
+```
+
+#### 中途状態と是正
+
+Codex は **models だけ書いて migration とテストを作る前に止まった**:
+
+- `data_migration/models.py` へ 3 表(`migration_runs` / `migration_resolution_reports` /
+  `migration_warning_reports`)の宣言が入った
+- `tenant_isolation/models.py` へ保留 FK の追加が入った
+- **`backend/migrations/versions/0018_*` は作られていない**
+- **テストも作られていない**
+
+**この状態はブランチを壊していた**(実測: `ruff check` 2 errors / `ty check` 2 diagnostics /
+非 DB テストが収集エラー 2 件)。**models に表があるのに migration が無い**ので
+`alembic check` も差分を出す状態である。
+
+→ **中途変更を破棄し、ステップ 21 完了の検証済み状態へ戻した。**
+**戻した後の実測**: `ruff check` green / `ty check` green / 非 DB **134 passed**。
+
+#### 判断の根拠
+
+**中途状態を残さなかった理由**: 実装ステップは「1 委任 = 1 ステップ = 1 コミット」で、
+**コミットは合格条件を満たしたときだけ作る**(設計書 6.1 段階実装)。
+**models だけが入った状態は合格条件を満たさず、次に再開する人が
+「どこまで終わっているか」を差分から読めない**。**破棄して再実行するほうが安い。**
+
+**Claude が自分で実装を書かなかった理由**: CLAUDE.md が
+「**実装コードは自分で書かず Codex へ委任する。例外的に直接書いた場合は
+`codex_run.py review normal` を必ず通す**」と定めており、**例外経路も Codex を要する**ので
+使用上限下では成立しない。**規律を曲げずに止まるのが正しい。**
+
+#### 到達点
+
+**ステップ 21/28 完了・実装済み 42 表 / 45・単一 head `0017`・保留 FK 3 件**
+(いずれも `migration_runs` 参照で、**ステップ 22 で解消する予定**)。
+
+**残っているのは表 1 ステップ(22)+ 横断 audit 3(23〜25)+ CI 3 段(26)+
+突合シート(27)+ core-areas 登録(28)の 6 ステップ。**
