@@ -24,8 +24,6 @@ from pitchlog.db.model_metadata import (
     MigrationRetirement,
 )
 
-_PRODUCTION_TABLES_BEFORE_TEST_MODELS = frozenset(Base.metadata.tables)
-
 
 class _TestBase(DeclarativeBase):
     """製品 Base.metadata を汚さないテスト専用基底。"""
@@ -170,4 +168,4 @@ def test_immutability_metadata_rejects_overlapping_columns() -> None:
 def test_test_models_do_not_modify_production_metadata() -> None:
     """テスト専用モデルが製品 Base.metadata に登録されないことを検査する。"""
     assert _TestBase.metadata is not Base.metadata
-    assert frozenset(Base.metadata.tables) == _PRODUCTION_TABLES_BEFORE_TEST_MODELS
+    assert set(_TestBase.metadata.tables).isdisjoint(Base.metadata.tables)

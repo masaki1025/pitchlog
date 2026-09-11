@@ -1,6 +1,7 @@
 """Alembic の migration 実行環境を構成する。"""
 
 import os
+from importlib import import_module
 from logging.config import fileConfig
 
 from alembic import context
@@ -15,6 +16,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Base の定義後に集約モジュールを読み込み、全モデルを metadata へ登録する。
+_all_models = import_module("pitchlog.db.all_models")
 target_metadata = Base.metadata
 
 _MIGRATION_DATABASE_URL_VARIABLE = "PITCHLOG_MIGRATION_DATABASE_URL"

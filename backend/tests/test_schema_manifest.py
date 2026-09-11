@@ -7,8 +7,11 @@ import copy
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from sqlalchemy import MetaData
 
 from pitchlog.db.base import Base
 
@@ -49,6 +52,21 @@ _DESTINATION_CATEGORIES = {
     "保持のみ",
     "移行時に使用",
 }
+
+
+@dataclass(frozen=True, order=True)
+class _ForeignKeyContract:
+    """Manifest と models の FK を比較する正規形。"""
+
+    source_table: str
+    name: str
+    columns: tuple[str, ...]
+    target_table: str
+    target_columns: tuple[str, ...]
+    match: str
+    on_delete: str
+    composite: bool
+    cross_tenant: bool
 
 
 def _load_manifest() -> dict[str, Any]:
@@ -427,6 +445,70 @@ def _missing_implementation_tables(
     return sorted(manifest_tables - (model_tables & migration_tables))
 
 
+def _manifest_foreign_keys(
+    manifest: dict[str, Any], source_tables: set[str]
+) -> set[_ForeignKeyContract]:
+    """実装済み表について manifest の FK を比較用集合へ変換する。"""
+    return {
+        _ForeignKeyContract(
+            source_table=table["name"],
+            name=foreign_key["name"],
+            columns=tuple(foreign_key["columns"]),
+            target_table=foreign_key["references"]["table"],
+            target_columns=tuple(foreign_key["references"]["columns"]),
+            match=foreign_key["match"],
+            on_delete=foreign_key["on_delete"],
+            composite=foreign_key["composite"],
+            cross_tenant=foreign_key["cross_tenant"],
+        )
+        for table in manifest["tables"]
+        if table["name"] in source_tables
+        for foreign_key in table["foreign_keys"]
+    }
+
+
+def _model_foreign_keys(metadata: MetaData) -> set[_ForeignKeyContract]:
+    """Models の FK を manifest と同じ比較用集合へ変換する。"""
+    contracts: set[_ForeignKeyContract] = set()
+    for table in metadata.tables.values():
+        for foreign_key in table.foreign_key_constraints:
+            targets = [
+                element.target_fullname.rsplit(".", maxsplit=1)
+                for element in foreign_key.elements
+            ]
+            target_tables = {target[0] for target in targets}
+            if len(target_tables) != 1:
+                raise AssertionError(f"FK の参照先表が一意でない: {foreign_key.name}")
+            foreign_key_name = foreign_key.name
+            if not isinstance(foreign_key_name, str):
+                raise AssertionError("Models の FK 名が空である")
+            contracts.add(
+                _ForeignKeyContract(
+                    source_table=table.name,
+                    name=foreign_key_name,
+                    columns=tuple(foreign_key.columns.keys()),
+                    target_table=target_tables.pop(),
+                    target_columns=tuple(target[1] for target in targets),
+                    match=foreign_key.match or "SIMPLE",
+                    on_delete=foreign_key.ondelete or "NO ACTION",
+                    composite=len(foreign_key.columns) > 1,
+                    cross_tenant=bool(foreign_key.info.get("cross_tenant", False)),
+                )
+            )
+    return contracts
+
+
+def _pending_manifest_foreign_keys(
+    manifest_foreign_keys: set[_ForeignKeyContract], implemented_tables: set[str]
+) -> set[_ForeignKeyContract]:
+    """参照先表が未実装で models へまだ置けない FK を導出する。"""
+    return {
+        foreign_key
+        for foreign_key in manifest_foreign_keys
+        if foreign_key.target_table not in implemented_tables
+    }
+
+
 def test_manifest_is_bound_to_the_canonical_data_model() -> None:
     """実 manifest の SHA・参照・自己整合性を薄い層で検査する。"""
     manifest = _load_manifest()
@@ -493,6 +575,38 @@ def test_implemented_tables_are_manifested_while_schema_is_incomplete() -> None:
 
     assert (model_tables & migration_tables) <= manifest_tables
     assert missing
+
+
+def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> None:
+    """Models の FK と、参照先未実装による保留だけが manifest と食い違う。"""
+    manifest = _load_manifest()
+    model_tables = set(Base.metadata.tables)
+    migration_tables = _migration_table_names(_MIGRATIONS_PATH)
+    implemented_tables = model_tables & migration_tables
+    manifest_foreign_keys = _manifest_foreign_keys(manifest, implemented_tables)
+    model_foreign_keys = _model_foreign_keys(Base.metadata)
+    pending = _pending_manifest_foreign_keys(manifest_foreign_keys, implemented_tables)
+
+    assert model_foreign_keys <= manifest_foreign_keys
+    assert manifest_foreign_keys - model_foreign_keys == pending
+
+
+def test_pending_foreign_keys_are_derived_from_target_implementation() -> None:
+    """保留集合が FK 名の列挙ではなく参照先の実装状態だけで縮むことを示す。"""
+    contract = _ForeignKeyContract(
+        source_table="source",
+        name="fk_source_target",
+        columns=("target_id",),
+        target_table="target",
+        target_columns=("id",),
+        match="SIMPLE",
+        on_delete="NO ACTION",
+        composite=False,
+        cross_tenant=False,
+    )
+
+    assert _pending_manifest_foreign_keys({contract}, {"source"}) == {contract}
+    assert _pending_manifest_foreign_keys({contract}, {"source", "target"}) == set()
 
 
 def test_one_sided_table_implementation_remains_missing() -> None:

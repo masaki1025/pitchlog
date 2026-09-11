@@ -1,0 +1,172 @@
+"""テナント分離領域のテナント・チーム・選手モデルを定義する。"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from uuid import UUID
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    PrimaryKeyConstraint,
+    Text,
+    Uuid,
+    text,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from pitchlog.db.base import Base
+from pitchlog.db.mixins import ImportBatchMixin, LifecycleMixin, TenantMixin
+from pitchlog.db.model_metadata import (
+    AppendMode,
+    DeletionLifecycle,
+    Immutability,
+    Lifecycle,
+    MigrationRetirement,
+)
+
+
+class Tenant(ImportBatchMixin, LifecycleMixin, Base):
+    """データ所有と有効状態の単位となるテナント。"""
+
+    __tablename__ = "tenants"
+    __table_args__ = (
+        CheckConstraint("enabled OR disabled_at IS NOT NULL"),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_tenants",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(),
+        allowed_update_columns=frozenset({"name", "enabled", "disabled_at"}),
+    )
+
+
+class TeamRecord(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
+    """自テナントまたは対戦相手を表すチームレコード。"""
+
+    __tablename__ = "team_records"
+    __table_args__ = (
+        CheckConstraint("kind IN ('self', 'opponent')"),
+        CheckConstraint("kind <> 'self' OR hidden_at IS NULL"),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_team_records_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_team_records",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "uq_team_records_self",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("kind = 'self'"),
+            info={"roles": ("business_unique",)},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    hidden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.HIDDEN,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"kind"}),
+        allowed_update_columns=frozenset({"name", "hidden_at"}),
+    )
+
+
+class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
+    """テナント内の選手と現在の在籍区分を表す。"""
+
+    __tablename__ = "players"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "team_record_id"],
+            ["team_records.tenant_id", "team_records.id"],
+            name="fk_players_team",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_players",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_players_team",
+            "tenant_id",
+            "team_record_id",
+            "id",
+            postgresql_where=text("hidden_at IS NULL"),
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    team_record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    throws: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bats: Mapped[str | None] = mapped_column(Text, nullable=True)
+    uniform_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    roster_status_key: Mapped[str] = mapped_column(Text, nullable=False)
+    roster_label_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hidden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.HIDDEN,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id"}),
+        allowed_update_columns=frozenset(
+            {
+                "name",
+                "throws",
+                "bats",
+                "uniform_number",
+                "roster_status_key",
+                "roster_label_key",
+                "hidden_at",
+            }
+        ),
+    )

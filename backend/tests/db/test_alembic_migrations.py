@@ -5,7 +5,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
+import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -23,7 +26,27 @@ from .conftest import DisposablePostgres
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_REVISION = "0001_initialize_schema"
+_REVISION = "0002_tenants_teams_players"
+_TRIGGER_NAME = "trg_team_records_kind_immutable"
+_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
+    "ON team_records FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_team_records_kind_update()"
+)
+_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_team_records_kind_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.kind IS DISTINCT FROM OLD.kind THEN
+        RAISE EXCEPTION 'team_records.kind is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
 
 
 def _alembic_config() -> Config:
@@ -60,7 +83,7 @@ def _sqlalchemy_url(dsn: str) -> str:
     ).render_as_string(hide_password=False)
 
 
-def test_minimal_revision_and_application_engine_use_the_empty_database(
+def test_schema_revision_and_application_engine_use_the_database(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
@@ -118,3 +141,146 @@ def test_alembic_check_is_red_for_test_only_metadata_difference(
             match="test_only_metadata_probe",
         ):
             command.check(config)
+
+
+def _normalize_sql(definition: str) -> str:
+    """カタログが返す SQL 全文の空白だけを比較用に正規化する。"""
+    return " ".join(definition.split())
+
+
+def _trigger_catalog_contract(
+    connection: psycopg.Connection[Any],
+) -> tuple[str, str, list[str], str, str]:
+    """Kind 不変性トリガの構造と関数定義をカタログから取得する。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                pg_get_triggerdef(trigger_row.oid, true),
+                relation.relname,
+                ARRAY(
+                    SELECT attribute.attname
+                    FROM unnest(trigger_row.tgattr::smallint[])
+                        WITH ORDINALITY AS target(attnum, position)
+                    JOIN pg_attribute AS attribute
+                      ON attribute.attrelid = trigger_row.tgrelid
+                     AND attribute.attnum = target.attnum
+                    ORDER BY target.position
+                ),
+                trigger_row.tgenabled,
+                pg_get_functiondef(function_row.oid)
+            FROM pg_trigger AS trigger_row
+            JOIN pg_class AS relation ON relation.oid = trigger_row.tgrelid
+            JOIN pg_proc AS function_row
+              ON function_row.oid = trigger_row.tgfoid
+            WHERE trigger_row.tgname = %s
+              AND NOT trigger_row.tgisinternal
+            """,
+            (_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        raise AssertionError("team_records.kind の不変性トリガが存在しない")
+    return str(row[0]), str(row[1]), list(row[2]), str(row[3]), str(row[4])
+
+
+def _assert_trigger_and_function_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後にトリガと関数が残っていないことを検査する。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure('public.prevent_team_records_kind_update()')
+            """,
+            (_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (False, None)
+
+
+def test_team_kind_trigger_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Kind の不変性と migration の downgrade・再 upgrade を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger, table, columns, enabled, function = _trigger_catalog_contract(
+                connection
+            )
+            assert _normalize_sql(trigger) == _normalize_sql(_TRIGGER_DEFINITION)
+            assert table == "team_records"
+            assert columns == ["kind"]
+            assert enabled == "O"
+            assert _normalize_sql(function) == _normalize_sql(_FUNCTION_DEFINITION)
+
+            tenant_id = uuid4()
+            self_team_id = uuid4()
+            opponent_team_id = uuid4()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "テストテナント"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="team_records.kind is immutable",
+                ):
+                    cursor.execute(
+                        """
+                        UPDATE team_records SET kind = 'self'
+                        WHERE tenant_id = %s AND id = %s
+                        """,
+                        (tenant_id, opponent_team_id),
+                    )
+                cursor.execute(
+                    """
+                    UPDATE team_records SET name = '更新後'
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING name
+                    """,
+                    (tenant_id, self_team_id),
+                )
+                assert cursor.fetchone() == ("更新後",)
+                cursor.execute(
+                    """
+                    UPDATE team_records SET hidden_at = CURRENT_TIMESTAMP
+                    WHERE tenant_id = %s AND id = %s
+                    RETURNING hidden_at IS NOT NULL
+                    """,
+                    (tenant_id, opponent_team_id),
+                )
+                assert cursor.fetchone() == (True,)
+
+        command.downgrade(config, "0001_initialize_schema")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_trigger_and_function_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
