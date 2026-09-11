@@ -1,11 +1,14 @@
-"""隔離領域と移行元最終オーダーのモデルを定義する。"""
+"""隔離領域・移行元最終オーダー・移行レポートのモデルを定義する。"""
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
+    DateTime,
     ForeignKeyConstraint,
     Index,
     LargeBinary,
@@ -14,6 +17,7 @@ from sqlalchemy import (
     Uuid,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pitchlog.db.base import Base
@@ -41,6 +45,14 @@ class MigrationQuarantine(ImportBatchMixin, LifecycleMixin, Base):
 
     __tablename__ = "migration_quarantine"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["import_batch_id"],
+            ["migration_runs.id"],
+            name="fk_migration_quarantine_run",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
         PrimaryKeyConstraint(
             "id",
             name="pk_migration_quarantine",
@@ -135,4 +147,162 @@ class MigratedFinalLineup(
             }
         ),
         allowed_update_columns=frozenset({"retired_at"}),
+    )
+
+
+class MigrationRun(RetirementMixin, LifecycleMixin, Base):
+    """全テナント横断の移行結果と検証状況を保持する。"""
+
+    __tablename__ = "migration_runs"
+    __table_args__ = (
+        CheckConstraint("completed_at IS NULL OR completed_at >= started_at"),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_migration_runs",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    source_counts: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    generated_copy_counts: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False
+    )
+    validation_results: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"id", "started_at", "source_counts"}),
+        allowed_update_columns=frozenset(
+            {
+                "completed_at",
+                "generated_copy_counts",
+                "validation_results",
+                "retired_at",
+            }
+        ),
+    )
+
+
+Index(
+    "ix_migration_runs_time",
+    MigrationRun.__table__.c.started_at.desc(),
+    MigrationRun.__table__.c.id.desc(),
+    info={"purpose": "range_sort"},
+)
+
+
+class MigrationResolutionReport(ImportBatchMixin, LifecycleMixin, Base):
+    """移行元の値を解決できなかった事実を追記専用で保持する。"""
+
+    __tablename__ = "migration_resolution_reports"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["import_batch_id"],
+            ["migration_runs.id"],
+            name="fk_migration_resolution_reports_run",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_migration_resolution_reports",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_migration_resolution_reports_run",
+            "import_batch_id",
+            "source_kind",
+            "id",
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    import_batch_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    legacy_row_identifier: Mapped[str] = mapped_column(Text, nullable=False)
+    issue: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.APPEND_ONLY,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {"id", "import_batch_id", "source_kind", "legacy_row_identifier", "issue"}
+        ),
+        allowed_update_columns=frozenset(),
+    )
+
+
+class MigrationWarningReport(ImportBatchMixin, LifecycleMixin, Base):
+    """移行元の重複や変換時の警告を追記専用で保持する。
+
+    移行元の重複は 1 行に潰さず 2 行として取り込み、
+    重複の事実は警告レポートに記録する。DB は重複を拒否しない。
+    """
+
+    __tablename__ = "migration_warning_reports"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["import_batch_id"],
+            ["migration_runs.id"],
+            name="fk_migration_warning_reports_run",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "id",
+            name="pk_migration_warning_reports",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        Index(
+            "ix_migration_warning_reports_run",
+            "import_batch_id",
+            "warning_kind",
+            "id",
+            info={"purpose": "lookup"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    import_batch_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    legacy_row_identifier: Mapped[str] = mapped_column(Text, nullable=False)
+    warning_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    details: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.FOLLOWS_PARENT,
+        append_mode=AppendMode.APPEND_ONLY,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset(
+            {
+                "id",
+                "import_batch_id",
+                "source_kind",
+                "legacy_row_identifier",
+                "warning_kind",
+                "details",
+            }
+        ),
+        allowed_update_columns=frozenset(),
     )

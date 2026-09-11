@@ -564,8 +564,8 @@ def test_changed_canonical_digest_is_reported_as_stale() -> None:
     ]
 
 
-def test_implemented_tables_are_manifested_while_schema_is_incomplete() -> None:
-    """実装表が manifest 内にあり、全表実装前であることを検査する。"""
+def test_all_manifest_tables_have_models_and_migrations() -> None:
+    """Manifest 全45表が models と migration の両方に存在する。"""
     assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
     model_tables = set(Base.metadata.tables)
@@ -576,7 +576,7 @@ def test_implemented_tables_are_manifested_while_schema_is_incomplete() -> None:
     )
 
     assert (model_tables & migration_tables) <= manifest_tables
-    assert missing
+    assert missing == []
 
 
 def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> None:

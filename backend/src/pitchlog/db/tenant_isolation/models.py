@@ -43,6 +43,14 @@ class Tenant(ImportBatchMixin, LifecycleMixin, Base):
     __tablename__ = "tenants"
     __table_args__ = (
         CheckConstraint("enabled OR disabled_at IS NOT NULL"),
+        ForeignKeyConstraint(
+            ["import_batch_id"],
+            ["migration_runs.id"],
+            name="fk_tenants_import_batch",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
         PrimaryKeyConstraint(
             "id",
             name="pk_tenants",
@@ -81,6 +89,14 @@ class TeamRecord(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             ["tenant_id"],
             ["tenants.id"],
             name="fk_team_records_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["import_batch_id"],
+            ["migration_runs.id"],
+            name="fk_team_records_import_batch",
             match="SIMPLE",
             ondelete="NO ACTION",
             info={"cross_tenant": False},

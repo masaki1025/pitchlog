@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0017_migrated_final_lineups"
+_REVISION = "0018_migration_reports"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -838,6 +838,64 @@ BEGIN
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
+END;
+$function$
+"""
+_MIGRATION_RUN_TRIGGER_NAME = "trg_migration_runs_source_immutable"
+_MIGRATION_RUN_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_migration_runs_source_immutable BEFORE UPDATE OF "
+    "id, started_at, source_counts ON migration_runs FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_migration_runs_source_update()"
+)
+_MIGRATION_RUN_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_migration_runs_source_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id, NEW.started_at, NEW.source_counts)
+       IS DISTINCT FROM
+       ROW(OLD.id, OLD.started_at, OLD.source_counts) THEN
+        RAISE EXCEPTION 'migration run source is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_MIGRATION_RESOLUTION_TRIGGER_NAME = "trg_migration_resolution_reports_append_only"
+_MIGRATION_RESOLUTION_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_migration_resolution_reports_append_only "
+    "BEFORE DELETE OR UPDATE ON migration_resolution_reports FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_migration_resolution_reports_mutation()"
+)
+_MIGRATION_RESOLUTION_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_migration_resolution_reports_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'migration resolution report is append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
+END;
+$function$
+"""
+_MIGRATION_WARNING_TRIGGER_NAME = "trg_migration_warning_reports_append_only"
+_MIGRATION_WARNING_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_migration_warning_reports_append_only "
+    "BEFORE DELETE OR UPDATE ON migration_warning_reports FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_migration_warning_reports_mutation()"
+)
+_MIGRATION_WARNING_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_migration_warning_reports_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'migration warning report is append-only'
+        USING ERRCODE = '23514';
+    RETURN NULL;
 END;
 $function$
 """
@@ -6503,7 +6561,7 @@ def test_migration_quarantine_raw_payload_and_migration_round_trip(
                     ORDER BY contype
                     """
                 )
-                assert cursor.fetchall() == [("p", 1)]
+                assert cursor.fetchall() == [("f", 1), ("p", 1)]
 
                 fields = [f"field-{index}".encode() for index in range(88)]
                 fields[55] = b"\xff\xfe\x80"
@@ -6514,6 +6572,22 @@ def test_migration_quarantine_raw_payload_and_migration_round_trip(
 
                 quarantine_id = uuid4()
                 import_batch_id = uuid4()
+                cursor.execute(
+                    """
+                    INSERT INTO migration_runs (
+                        id,
+                        source_counts,
+                        generated_copy_counts,
+                        validation_results
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        import_batch_id,
+                        Jsonb({"source_rows": 1}),
+                        Jsonb({}),
+                        Jsonb({}),
+                    ),
+                )
                 cursor.execute(
                     """
                     INSERT INTO migration_quarantine (
@@ -6965,6 +7039,468 @@ def test_migrated_final_lineup_and_existing_migration_markers_round_trip(
         command.downgrade(config, "0016_migration_quarantine")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_twenty_one_objects_are_absent(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_twenty_two_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に移行結果・レポート・追加 FK が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.migration_runs'),
+                to_regclass('public.migration_resolution_reports'),
+                to_regclass('public.migration_warning_reports'),
+                (
+                    SELECT count(*)
+                    FROM pg_constraint
+                    WHERE conname = ANY(%s)
+                ),
+                (
+                    SELECT count(*)
+                    FROM pg_trigger
+                    WHERE tgname = ANY(%s) AND NOT tgisinternal
+                ),
+                to_regprocedure('public.prevent_migration_runs_source_update()'),
+                to_regprocedure(
+                    'public.prevent_migration_resolution_reports_mutation()'
+                ),
+                to_regprocedure(
+                    'public.prevent_migration_warning_reports_mutation()'
+                )
+            """,
+            (
+                [
+                    "fk_tenants_import_batch",
+                    "fk_team_records_import_batch",
+                    "fk_migration_quarantine_run",
+                ],
+                [
+                    _MIGRATION_RUN_TRIGGER_NAME,
+                    _MIGRATION_RESOLUTION_TRIGGER_NAME,
+                    _MIGRATION_WARNING_TRIGGER_NAME,
+                ],
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, 0, 0, None, None, None)
+
+
+def _clear_migration_run_references_before_reupgrade(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Migration run が無い downgrade 状態の残存参照値を除去する。"""
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE team_records SET import_batch_id = NULL")
+        cursor.execute("UPDATE tenants SET import_batch_id = NULL")
+        cursor.execute("TRUNCATE migration_quarantine")
+
+
+def test_migration_reports_duplicates_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """移行レポートの重複許容・不変性・FK と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _MIGRATION_RUN_TRIGGER_NAME,
+                    _MIGRATION_RUN_TRIGGER_DEFINITION,
+                    "migration_runs",
+                    ["id", "started_at", "source_counts"],
+                    _MIGRATION_RUN_FUNCTION_DEFINITION,
+                ),
+                (
+                    _MIGRATION_RESOLUTION_TRIGGER_NAME,
+                    _MIGRATION_RESOLUTION_TRIGGER_DEFINITION,
+                    "migration_resolution_reports",
+                    [],
+                    _MIGRATION_RESOLUTION_FUNCTION_DEFINITION,
+                ),
+                (
+                    _MIGRATION_WARNING_TRIGGER_NAME,
+                    _MIGRATION_WARNING_TRIGGER_DEFINITION,
+                    "migration_warning_reports",
+                    [],
+                    _MIGRATION_WARNING_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual[0]) == _normalize_sql(definition)
+                assert actual[1] == table
+                assert actual[2] == columns
+                assert actual[3] == "O"
+                assert _normalize_sql(actual[4]) == _normalize_sql(function)
+
+            index_contracts = {
+                "ix_migration_runs_time": (
+                    "migration_runs",
+                    ["started_at DESC", "id DESC"],
+                    None,
+                ),
+                "ix_migration_resolution_reports_run": (
+                    "migration_resolution_reports",
+                    ["import_batch_id", "source_kind", "id"],
+                    None,
+                ),
+                "ix_migration_warning_reports_run": (
+                    "migration_warning_reports",
+                    ["import_batch_id", "warning_kind", "id"],
+                    None,
+                ),
+            }
+            for index_name, expected in index_contracts.items():
+                assert _manifest_index_contract(index_name) == expected
+                actual = _index_catalog_contract(connection, index_name)
+                assert actual[1:4] == expected
+                assert not actual[4]
+
+            foreign_keys = _foreign_key_catalog_contracts(connection)
+            expected_foreign_keys = {
+                "fk_tenants_import_batch": (
+                    "tenants",
+                    "migration_runs",
+                    ["import_batch_id"],
+                    ["id"],
+                ),
+                "fk_team_records_import_batch": (
+                    "team_records",
+                    "migration_runs",
+                    ["import_batch_id"],
+                    ["id"],
+                ),
+                "fk_migration_quarantine_run": (
+                    "migration_quarantine",
+                    "migration_runs",
+                    ["import_batch_id"],
+                    ["id"],
+                ),
+                "fk_migration_resolution_reports_run": (
+                    "migration_resolution_reports",
+                    "migration_runs",
+                    ["import_batch_id"],
+                    ["id"],
+                ),
+                "fk_migration_warning_reports_run": (
+                    "migration_warning_reports",
+                    "migration_runs",
+                    ["import_batch_id"],
+                    ["id"],
+                ),
+            }
+            for name, expected in expected_foreign_keys.items():
+                assert foreign_keys[name] == expected
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT conname, confmatchtype, confdeltype
+                    FROM pg_constraint
+                    WHERE conname = ANY(%s)
+                    ORDER BY conname
+                    """,
+                    (list(expected_foreign_keys),),
+                )
+                assert cursor.fetchall() == [
+                    ("fk_migration_quarantine_run", "s", "a"),
+                    ("fk_migration_resolution_reports_run", "s", "a"),
+                    ("fk_migration_warning_reports_run", "s", "a"),
+                    ("fk_team_records_import_batch", "s", "a"),
+                    ("fk_tenants_import_batch", "s", "a"),
+                ]
+
+                cursor.execute(
+                    """
+                    SELECT pg_get_expr(conbin, conrelid, true)
+                    FROM pg_constraint
+                    WHERE conrelid = 'migration_warning_reports'::regclass
+                      AND contype = 'c'
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                cursor.execute(
+                    """
+                    SELECT table_relation.relname, index_relation.relname
+                    FROM pg_index AS index_row
+                    JOIN pg_class AS index_relation
+                      ON index_relation.oid = index_row.indexrelid
+                    JOIN pg_class AS table_relation
+                      ON table_relation.oid = index_row.indrelid
+                    WHERE table_relation.relname IN (
+                            'migration_quarantine',
+                            'migrated_final_lineups',
+                            'play_rows',
+                            'migration_warning_reports'
+                        )
+                      AND index_row.indisunique
+                      AND EXISTS (
+                          SELECT 1
+                          FROM unnest(index_row.indkey::smallint[])
+                              AS key_column(attnum)
+                          JOIN pg_attribute AS attribute
+                            ON attribute.attrelid = index_row.indrelid
+                           AND attribute.attnum = key_column.attnum
+                          WHERE (
+                              table_relation.relname = 'migration_quarantine'
+                              AND attribute.attname = 'raw_payload'
+                          ) OR (
+                              table_relation.relname <> 'migration_quarantine'
+                              AND attribute.attname = 'legacy_row_identifier'
+                          )
+                      )
+                    ORDER BY table_relation.relname, index_relation.relname
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                run_id = uuid4()
+                started_at = datetime(2026, 9, 11, 10, 0, tzinfo=UTC)
+                cursor.execute(
+                    """
+                    INSERT INTO migration_runs (
+                        id,
+                        started_at,
+                        source_counts,
+                        generated_copy_counts,
+                        validation_results
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        run_id,
+                        started_at,
+                        Jsonb({"legacy_rows": 2}),
+                        Jsonb({}),
+                        Jsonb({}),
+                    ),
+                )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO migration_runs (
+                            id,
+                            started_at,
+                            completed_at,
+                            source_counts,
+                            generated_copy_counts,
+                            validation_results
+                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            uuid4(),
+                            started_at,
+                            datetime(2026, 9, 11, 9, 59, tzinfo=UTC),
+                            Jsonb({}),
+                            Jsonb({}),
+                            Jsonb({}),
+                        ),
+                    )
+
+                tenant_id = uuid4()
+                team_id = uuid4()
+                cursor.execute(
+                    """
+                    INSERT INTO tenants (id, name, import_batch_id)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (tenant_id, "移行レポートテストテナント", run_id),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO team_records (
+                        tenant_id, id, kind, name, import_batch_id
+                    ) VALUES (%s, %s, 'self', %s, %s)
+                    """,
+                    (tenant_id, team_id, "自チーム", run_id),
+                )
+
+                duplicated_payload = b"same-legacy-row"
+                cursor.executemany(
+                    """
+                    INSERT INTO migration_quarantine (
+                        id, import_batch_id, source_read_order, raw_payload
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (uuid4(), run_id, 1, duplicated_payload),
+                        (uuid4(), run_id, 1, duplicated_payload),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    SELECT count(*)
+                    FROM migration_quarantine
+                    WHERE import_batch_id = %s AND raw_payload = %s
+                    """,
+                    (run_id, duplicated_payload),
+                )
+                assert cursor.fetchone() == (2,)
+
+                resolution_id = uuid4()
+                cursor.execute(
+                    """
+                    INSERT INTO migration_resolution_reports (
+                        id,
+                        import_batch_id,
+                        source_kind,
+                        legacy_row_identifier,
+                        issue
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        resolution_id,
+                        run_id,
+                        "legacy_play",
+                        "legacy-row-1",
+                        Jsonb({"field": "player"}),
+                    ),
+                )
+
+                warning_ids = [uuid4(), uuid4()]
+                cursor.executemany(
+                    """
+                    INSERT INTO migration_warning_reports (
+                        id,
+                        import_batch_id,
+                        source_kind,
+                        legacy_row_identifier,
+                        warning_kind,
+                        details
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            warning_id,
+                            run_id,
+                            "legacy_play",
+                            "legacy-row-1",
+                            "future_duplicate_warning:v2",
+                            Jsonb({"duplicate": True}),
+                        )
+                        for warning_id in warning_ids
+                    ],
+                )
+                cursor.execute(
+                    """
+                    SELECT count(*)
+                    FROM migration_warning_reports
+                    WHERE import_batch_id = %s
+                      AND legacy_row_identifier = 'legacy-row-1'
+                    """,
+                    (run_id,),
+                )
+                assert cursor.fetchone() == (2,)
+
+                protected_run_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "started_at": datetime(2026, 9, 11, 11, 0, tzinfo=UTC),
+                    "source_counts": Jsonb({"changed": True}),
+                }
+                for column, value in protected_run_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="migration run source is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE migration_runs SET {} = %s WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, run_id),
+                        )
+
+                allowed_run_updates: dict[str, object] = {
+                    "completed_at": datetime(2026, 9, 11, 12, 0, tzinfo=UTC),
+                    "generated_copy_counts": Jsonb({"plays": 2}),
+                    "validation_results": Jsonb({"passed": True}),
+                    "retired_at": datetime(2026, 9, 12, 10, 0, tzinfo=UTC),
+                }
+                for column, value in allowed_run_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE migration_runs SET {} = %s WHERE id = %s "
+                            "RETURNING id"
+                        ).format(sql.Identifier(column)),
+                        (value, run_id),
+                    )
+                    assert cursor.fetchone() == (run_id,)
+
+                resolution_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "import_batch_id": uuid4(),
+                    "source_kind": "changed",
+                    "legacy_row_identifier": "changed",
+                    "issue": Jsonb({"changed": True}),
+                }
+                for column, value in resolution_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="migration resolution report is append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE migration_resolution_reports SET {} = %s "
+                                "WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, resolution_id),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="migration resolution report is append-only",
+                ):
+                    cursor.execute(
+                        "DELETE FROM migration_resolution_reports WHERE id = %s",
+                        (resolution_id,),
+                    )
+
+                warning_updates: dict[str, object] = {
+                    "id": uuid4(),
+                    "import_batch_id": uuid4(),
+                    "source_kind": "changed",
+                    "legacy_row_identifier": "changed",
+                    "warning_kind": "changed",
+                    "details": Jsonb({"changed": True}),
+                }
+                for column, value in warning_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="migration warning report is append-only",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE migration_warning_reports SET {} = %s "
+                                "WHERE id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, warning_ids[0]),
+                        )
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="migration warning report is append-only",
+                ):
+                    cursor.execute(
+                        "DELETE FROM migration_warning_reports WHERE id = %s",
+                        (warning_ids[0],),
+                    )
+
+        command.downgrade(config, "0017_migrated_final_lineups")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_twenty_two_objects_are_absent(connection)
+            _clear_migration_run_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
