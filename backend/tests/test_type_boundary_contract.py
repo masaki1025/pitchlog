@@ -14,6 +14,7 @@ from type_boundary_contract import (
     four_shape_violations,
     legacy_storage_types,
     payload_contract_violations,
+    play_row_type_violations,
     raw_payload_round_trip_violations,
     regular_schema_violations,
     sentinel_conversion_hits,
@@ -193,6 +194,31 @@ def test_regular_schema_boundary_pure_reference_is_valid() -> None:
     """C の純関数が正常な原本/解決列境界を受理することを示す。"""
     source_types = legacy_storage_types(_DATA_LAYER_PATH.read_text(encoding="utf-8"))
     assert regular_schema_violations(_valid_regular_schema(), source_types) == []
+
+
+def test_play_row_type_contract_detects_real_as_numeric_and_owns_uuid_exceptions() -> (
+    None
+):
+    """REAL の numeric 化を拒否し、名寄せ列の uuid 例外を契約側で扱う。"""
+    destination_numbers = frozenset({27, 42})
+    source_columns = {27: "batter_id", 42: "course_x"}
+    source_types = {27: "TEXT", 42: "REAL"}
+    valid_columns = {
+        ("play_rows", "batter_id"): ColumnContract("uuid", True, None),
+        ("play_rows", "course_x"): ColumnContract("double precision", True, None),
+    }
+
+    assert (
+        play_row_type_violations(
+            destination_numbers, source_columns, valid_columns, source_types
+        )
+        == []
+    )
+    broken_columns = dict(valid_columns)
+    broken_columns[("play_rows", "course_x")] = ColumnContract("numeric", True, None)
+    assert play_row_type_violations(
+        destination_numbers, source_columns, broken_columns, source_types
+    ) == ["列 42 の型が旧保存型契約と不一致: course_x=numeric, 期待=double precision"]
 
 
 @pytest.mark.parametrize(

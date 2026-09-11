@@ -2429,9 +2429,8 @@ def test_play_projection_constraints_and_migration_round_trip(
                         source_event_id,
                         play_number,
                         event_kind,
-                        compatibility_payload,
                         legacy_row_identifier
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 with pytest.raises(
                     psycopg.errors.NotNullViolation,
@@ -2446,7 +2445,6 @@ def test_play_projection_constraints_and_migration_round_trip(
                             source_event_id,
                             1,
                             None,
-                            Jsonb({}),
                             "legacy-row:null-event-kind",
                         ),
                     )
@@ -2459,7 +2457,6 @@ def test_play_projection_constraints_and_migration_round_trip(
                         source_event_id,
                         1,
                         "pitch",
-                        Jsonb({}),
                         "legacy-row:1",
                     ),
                 )
@@ -2564,6 +2561,11 @@ def test_play_projection_constraints_and_migration_round_trip(
                             ).format(sql.Identifier(column)),
                             (value, tenant_id, mapping_id),
                         )
+
+                # 旧来の NOT NULL JSONB 列へ未定義の値を捏造せず戻せるよう、
+                # 是正 revision を跨ぐ往復前にプレイ投影の検査行を片付ける。
+                cursor.execute("DELETE FROM play_runners")
+                cursor.execute("DELETE FROM play_rows")
 
         command.downgrade(config, "0005_sync_events")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:

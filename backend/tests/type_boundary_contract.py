@@ -13,12 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from test_schema_manifest import (
-    _markdown_tables,
-    _plain_markdown_cell,
-    _section_body,
-)
-
 _DESTINATION_CATEGORY_ALIASES = {
     "スタメンのみ": "スタメン・出場区間",
 }
@@ -31,6 +25,21 @@ _LEGACY_STORAGE_TYPE_TO_SQL = {
 _NORMALIZED_PAIRS = {
     47: ("raw_fielder_position", "resolved_fielder_id"),
     55: ("raw_error_position", "resolved_error_player_id"),
+}
+_PLAY_ROW_TYPE_EXCEPTIONS = {
+    27: "uuid",
+    32: "uuid",
+    35: "uuid",
+}
+PLAY_ROW_VOCABULARY_REFERENCES = {
+    29: "tenant_vocabularies",
+    30: "tenant_vocabularies",
+    31: "tenant_vocabularies",
+    44: "tenant_vocabularies",
+    45: "admin_vocabularies",
+    46: "admin_vocabularies",
+    48: "admin_vocabularies",
+    49: "admin_vocabularies",
 }
 _EXCLUDED_PAYLOAD_CATEGORIES = frozenset({"導出", "移行時に使用"})
 _RETAINED_SCHEMA_CATEGORIES = frozenset(
@@ -61,6 +70,56 @@ class ColumnContract:
     data_type: str
     nullable: bool
     default: str | None
+
+
+def _section_body(document: str, section: str) -> str:
+    """番号付き節見出しから次の同階層見出し直前までを返す。"""
+    heading_pattern = re.compile(
+        rf"^(?P<marks>###+)\s+{re.escape(section)}\.\s+.*$", re.MULTILINE
+    )
+    match = heading_pattern.search(document)
+    if match is None:
+        raise ValueError(f"正本節を解決できない: {section}")
+
+    heading_level = len(match.group("marks"))
+    next_heading = re.compile(rf"^#{{2,{heading_level}}}\s+", re.MULTILINE).search(
+        document, match.end()
+    )
+    end = next_heading.start() if next_heading is not None else len(document)
+    return document[match.end() : end]
+
+
+def _plain_markdown_cell(cell: str) -> str:
+    """表セルを比較用の可読な平文へ正規化する。"""
+    value = re.sub(r"\[([^]]+)]\([^)]*\)", r"\1", cell)
+    value = value.replace("**", "").replace("`", "")
+    return " ".join(value.strip().split())
+
+
+def _markdown_tables(section_body: str) -> list[tuple[list[str], list[list[str]]]]:
+    """節本文に含まれる Markdown 表を列名と行へ分解する。"""
+    lines = section_body.splitlines()
+    tables: list[tuple[list[str], list[list[str]]]] = []
+    index = 0
+    while index + 1 < len(lines):
+        header_line = lines[index].strip()
+        separator_line = lines[index + 1].strip()
+        if not header_line.startswith("|") or not re.fullmatch(
+            r"\|(?:\s*:?-+:?\s*\|)+", separator_line
+        ):
+            index += 1
+            continue
+
+        headers = [cell.strip() for cell in header_line.strip("|").split("|")]
+        rows: list[list[str]] = []
+        index += 2
+        while index < len(lines) and lines[index].strip().startswith("|"):
+            row = [cell.strip() for cell in lines[index].strip().strip("|").split("|")]
+            if len(row) == len(headers):
+                rows.append(row)
+            index += 1
+        tables.append((headers, rows))
+    return tables
 
 
 def raw_payload_round_trip_violations(
@@ -147,6 +206,15 @@ def destination_columns(document: str) -> dict[str, frozenset[int]]:
     return {category: frozenset(numbers) for category, numbers in columns.items()}
 
 
+def play_row_destination_columns(document: str) -> frozenset[int]:
+    """12-1 節の共通パーサからプレイ行行き先の母集団だけを返す。"""
+    destinations = destination_columns(document)
+    try:
+        return destinations["プレイ行"]
+    except KeyError as error:
+        raise ValueError("12-1 節にプレイ行の行き先区分がない") from error
+
+
 def _expanded_column_numbers(value: str) -> range:
     """単一番号または閉区間の列番号表記を range にする。"""
     normalized = _plain_markdown_cell(value)
@@ -203,33 +271,84 @@ def payload_contract_violations(
 
 
 def legacy_storage_types(document: str) -> dict[int, str]:
-    """旧 play_data 表から列 47・55 の保存型を表ヘッダで特定する。
+    """旧 play_data の 88 列全数表から保存型を機械抽出する。
 
     Args:
         document: `data-layer.md` 全文。
 
     Returns:
-        旧列番号から保存型への対応。
+        旧 88 列の番号から保存型への対応。
 
     Raises:
-        ValueError: 対象表または対象列が一意に解決できない場合。
+        ValueError: 88 列全数表が一意に解決できない場合。
     """
-    matches: dict[int, str] = {}
+    candidates: list[dict[int, str]] = []
     for headers, rows in _markdown_tables(document):
         if headers != ["#", "カラム名", "DB型", "意味", "値の例 / 初期値"]:
             continue
+        storage_types: dict[int, str] = {}
         for row in rows:
-            number = _plain_markdown_cell(row[0])
-            if number in {"47", "55"}:
-                source_number = int(number)
-                if source_number in matches:
+            for source_number in _expanded_column_numbers(row[0]):
+                if source_number in storage_types:
                     raise ValueError(
-                        f"旧 play_data の対象列が重複している: {source_number}"
+                        f"旧 play_data の列番号が重複している: {source_number}"
                     )
-                matches[source_number] = _plain_markdown_cell(row[2])
-    if set(matches) != set(_NORMALIZED_PAIRS):
-        raise ValueError("旧 play_data の列 47・55 の保存型を一意に解決できない")
-    return matches
+                storage_types[source_number] = _plain_markdown_cell(row[2])
+        if set(storage_types) == set(range(88)):
+            candidates.append(storage_types)
+    if len(candidates) != 1:
+        raise ValueError("旧 play_data の 88 列全数表を一意に解決できない")
+    return candidates[0]
+
+
+def play_row_type_violations(
+    destination_numbers: frozenset[int],
+    source_columns: dict[int, str],
+    columns: dict[tuple[str, str], ColumnContract],
+    source_types: dict[int, str],
+) -> list[str]:
+    """プレイ行行き先の全列について旧保存型と実列型の違反を返す。
+
+    Args:
+        destination_numbers: 12-1 節から導出したプレイ行の旧列番号集合。
+        source_columns: models の追跡情報から導出した旧列番号と列名。
+        columns: 実カタログまたは models から得た列構造。
+        source_types: 旧 88 列全数表から導出した保存型。
+
+    Returns:
+        母集団・対応列・型に関する違反。名寄せ3列の uuid 例外は契約側で扱う。
+    """
+    violations = [
+        f"プレイ行の旧列対応が不足: {number}"
+        for number in sorted(destination_numbers - source_columns.keys())
+    ]
+    violations.extend(
+        f"プレイ行の旧列対応が余剰: {number}"
+        for number in sorted(source_columns.keys() - destination_numbers)
+    )
+    for source_number in sorted(destination_numbers & source_columns.keys()):
+        column_name = source_columns[source_number]
+        column = columns.get(("play_rows", column_name))
+        if column is None:
+            violations.append(
+                f"プレイ行の対応列が実スキーマにない: {source_number}={column_name}"
+            )
+            continue
+        expected_type = _PLAY_ROW_TYPE_EXCEPTIONS.get(source_number)
+        if expected_type is None:
+            source_type = source_types.get(source_number)
+            expected_type = _LEGACY_STORAGE_TYPE_TO_SQL.get(source_type or "")
+            if expected_type is None:
+                violations.append(
+                    f"列 {source_number} の旧保存型を変換できない: {source_type!r}"
+                )
+                continue
+        if column.data_type != expected_type:
+            violations.append(
+                f"列 {source_number} の型が旧保存型契約と不一致: "
+                f"{column_name}={column.data_type}, 期待={expected_type}"
+            )
+    return violations
 
 
 def regular_schema_violations(

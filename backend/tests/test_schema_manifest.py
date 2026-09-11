@@ -11,7 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import type_boundary_contract
 from sqlalchemy import MetaData
+from type_boundary_contract import (
+    _markdown_tables,
+    _plain_markdown_cell,
+    _section_body,
+)
 
 from pitchlog.db import all_models
 from pitchlog.db.base import Base
@@ -75,67 +81,6 @@ def _load_manifest() -> dict[str, Any]:
     return json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
-def _section_body(document: str, section: str) -> str:
-    """番号付き節見出しから次の同階層見出し直前までを返す。
-
-    Args:
-        document: Markdown 文書全体。
-        section: `3-4` のような節番号。
-
-    Returns:
-        指定節の本文。
-
-    Raises:
-        ValueError: 指定した節見出しが存在しない場合。
-    """
-    heading_pattern = re.compile(
-        rf"^(?P<marks>###+)\s+{re.escape(section)}\.\s+.*$", re.MULTILINE
-    )
-    match = heading_pattern.search(document)
-    if match is None:
-        raise ValueError(f"正本節を解決できない: {section}")
-
-    heading_level = len(match.group("marks"))
-    next_heading = re.compile(rf"^#{{2,{heading_level}}}\s+", re.MULTILINE).search(
-        document, match.end()
-    )
-    end = next_heading.start() if next_heading is not None else len(document)
-    return document[match.end() : end]
-
-
-def _plain_markdown_cell(cell: str) -> str:
-    """表セルを比較用の可読な平文へ正規化する。"""
-    value = re.sub(r"\[([^]]+)]\([^)]*\)", r"\1", cell)
-    value = value.replace("**", "").replace("`", "")
-    return " ".join(value.strip().split())
-
-
-def _markdown_tables(section_body: str) -> list[tuple[list[str], list[list[str]]]]:
-    """節本文に含まれる Markdown 表を列名と行へ分解する。"""
-    lines = section_body.splitlines()
-    tables: list[tuple[list[str], list[list[str]]]] = []
-    index = 0
-    while index + 1 < len(lines):
-        header_line = lines[index].strip()
-        separator_line = lines[index + 1].strip()
-        if not header_line.startswith("|") or not re.fullmatch(
-            r"\|(?:\s*:?-+:?\s*\|)+", separator_line
-        ):
-            index += 1
-            continue
-
-        headers = [cell.strip() for cell in header_line.strip("|").split("|")]
-        rows: list[list[str]] = []
-        index += 2
-        while index < len(lines) and lines[index].strip().startswith("|"):
-            row = [cell.strip() for cell in lines[index].strip().strip("|").split("|")]
-            if len(row) == len(headers):
-                rows.append(row)
-            index += 1
-        tables.append((headers, rows))
-    return tables
-
-
 def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
     """3-4 節の業務的一意性全数表を節見出しから抽出する。"""
     body = _section_body(document, "3-4")
@@ -156,27 +101,8 @@ def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
 
 
 def _destination_categories(document: str) -> set[str]:
-    """12-1 節の 88 列表から行き先区分の集合を抽出する。"""
-    body = _section_body(document, "12-1")
-    categories: set[str] = set()
-    previous: str | None = None
-    for headers, rows in _markdown_tables(body):
-        if "行き先" not in headers:
-            continue
-        destination_index = headers.index("行き先")
-        for row in rows:
-            destination = _plain_markdown_cell(row[destination_index])
-            if destination == "同上":
-                if previous is None:
-                    raise ValueError("12-1 節の行き先「同上」に先行値がない")
-                category = previous
-            else:
-                category = destination.split("(", maxsplit=1)[0]
-                if category == "スタメンのみ":
-                    category = "スタメン・出場区間"
-                previous = category
-            categories.add(category)
-    return categories
+    """12-1 節の共通パーサから行き先区分の集合を返す。"""
+    return set(type_boundary_contract.destination_columns(document))
 
 
 def _manifest_business_uniqueness_rows(

@@ -17,9 +17,13 @@ from type_boundary_contract import (
     ColumnContract,
     four_shape_violations,
     legacy_storage_types,
+    play_row_destination_columns,
+    play_row_type_violations,
     raw_payload_round_trip_violations,
     regular_schema_violations,
 )
+
+from pitchlog.db.game_state.models import PlayRow
 
 from .conftest import DisposablePostgres
 from .test_alembic_migrations import _alembic_config, _sqlalchemy_url
@@ -27,6 +31,7 @@ from .test_alembic_migrations import _alembic_config, _sqlalchemy_url
 pytestmark = pytest.mark.requires_db
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_DATA_MODEL_PATH = _REPOSITORY_ROOT / "docs" / "design" / "data-model.md"
 _DATA_LAYER_PATH = _REPOSITORY_ROOT / "docs" / "legacy" / "research" / "data-layer.md"
 
 
@@ -146,7 +151,7 @@ def test_regular_schema_original_and_resolved_columns_follow_legacy_types(
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """C1〜C4 を旧 DB 型と実 PostgreSQL カタログから検査する。"""
+    """プレイ行の全旧列型と C1〜C4 を実 PostgreSQL カタログで検査する。"""
     with disposable_postgres_cluster() as cluster:
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
@@ -156,4 +161,18 @@ def test_regular_schema_original_and_resolved_columns_follow_legacy_types(
             columns = _type_boundary_catalog(connection)
 
     source_types = legacy_storage_types(_DATA_LAYER_PATH.read_text(encoding="utf-8"))
+    source_columns = {
+        source_number: column.name
+        for column in PlayRow.__table__.columns
+        for source_number in column.info.get("legacy_source_columns", ())
+    }
+    assert (
+        play_row_type_violations(
+            play_row_destination_columns(_DATA_MODEL_PATH.read_text(encoding="utf-8")),
+            source_columns,
+            columns,
+            source_types,
+        )
+        == []
+    )
     assert regular_schema_violations(columns, source_types) == []

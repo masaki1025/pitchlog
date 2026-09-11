@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 from typing import Any, TypedDict, cast
@@ -13,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Double,
     Integer,
     Numeric,
     Text,
@@ -23,6 +25,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import operators
 from sqlalchemy.sql.elements import UnaryExpression
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
+from type_boundary_contract import (
+    PLAY_ROW_VOCABULARY_REFERENCES,
+    ColumnContract,
+    legacy_storage_types,
+    play_row_destination_columns,
+    play_row_type_violations,
+)
 
 from pitchlog.db.game_state.models import (
     Game,
@@ -39,6 +48,17 @@ from pitchlog.db.game_state.models import (
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
+_DATA_MODEL_PATH = _REPOSITORY_ROOT / "docs" / "design" / "data-model.md"
+_LEGACY_DATA_LAYER_PATH = (
+    _REPOSITORY_ROOT / "docs" / "legacy" / "research" / "data-layer.md"
+)
+_PLAY_ROW_DESTINATION_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0020_play_row_destinations.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "games": Game,
     "lineup_memories": LineupMemory,
@@ -96,6 +116,8 @@ def _column_type_name(column: Column[Any]) -> str:
         return "bigint"
     if isinstance(column.type, Integer):
         return "integer"
+    if isinstance(column.type, Double):
+        return "double precision"
     if isinstance(column.type, Numeric):
         return "numeric"
     if isinstance(column.type, Text):
@@ -352,6 +374,132 @@ def _foreign_key_targets(table: Table) -> dict[str, set[str]]:
             for element in constraint.elements
         }
     return targets
+
+
+def _model_legacy_source_columns(table: Table) -> dict[int, Column[Any]]:
+    """モデル列の追跡情報から旧列番号と物理列の対応を導出する。"""
+    columns: dict[int, Column[Any]] = {}
+    for column in table.columns:
+        for source_number in column.info.get("legacy_source_columns", ()):
+            if source_number in columns:
+                raise AssertionError(f"旧列番号 {source_number} の対応列が重複している")
+            columns[source_number] = column
+    return columns
+
+
+def _migration_added_play_row_columns() -> set[str]:
+    """是正 migration の upgrade が追加するプレイ行列を AST から導出する。"""
+    tree = ast.parse(_PLAY_ROW_DESTINATION_MIGRATION_PATH.read_text(encoding="utf-8"))
+    upgrade = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+    )
+    columns: set[str] = set()
+    for node in ast.walk(upgrade):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "op"
+            and node.func.attr == "add_column"
+            and len(node.args) >= 2
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "play_rows"
+        ):
+            continue
+        column_call = node.args[1]
+        if not (
+            isinstance(column_call, ast.Call)
+            and column_call.args
+            and isinstance(column_call.args[0], ast.Constant)
+            and isinstance(column_call.args[0].value, str)
+        ):
+            raise AssertionError("追加列名を migration から解決できない")
+        columns.add(column_call.args[0].value)
+    return columns
+
+
+def test_play_row_columns_cover_canonical_destinations_exactly() -> None:
+    """正本でプレイ行へ送る旧列をモデル列が過不足なく覆う。"""
+    expected = set(
+        play_row_destination_columns(_DATA_MODEL_PATH.read_text(encoding="utf-8"))
+    )
+    actual = set(_model_legacy_source_columns(cast(Table, PlayRow.__table__)))
+
+    assert actual == expected
+    assert "compatibility_payload" not in PlayRow.__table__.columns
+
+
+def test_play_row_vocabulary_destinations_reference_their_owning_layers() -> None:
+    """語彙列が管理層またはテナント層の正しい参照形を持つ。"""
+    table = cast(Table, PlayRow.__table__)
+    actual: dict[int, str] = {}
+    for constraint in table.foreign_key_constraints:
+        target_tables = {
+            element.target_fullname.rsplit(".", maxsplit=1)[0]
+            for element in constraint.elements
+        }
+        if not target_tables <= {"tenant_vocabularies", "admin_vocabularies"}:
+            continue
+        assert len(target_tables) == 1
+        target_table = target_tables.pop()
+        source_columns = list(constraint.columns)
+        vocabulary_column = source_columns[-1]
+        if target_table == "tenant_vocabularies":
+            assert [column.name for column in source_columns[:1]] == ["tenant_id"]
+            assert [element.target_fullname for element in constraint.elements] == [
+                "tenant_vocabularies.tenant_id",
+                "tenant_vocabularies.key",
+            ]
+        else:
+            assert len(source_columns) == 1
+            assert [element.target_fullname for element in constraint.elements] == [
+                "admin_vocabularies.key"
+            ]
+        assert constraint.match == "SIMPLE"
+        source_numbers = vocabulary_column.info.get("legacy_source_columns", ())
+        assert len(source_numbers) == 1
+        actual[source_numbers[0]] = target_table
+
+    assert actual == PLAY_ROW_VOCABULARY_REFERENCES
+
+
+def test_all_play_row_destinations_follow_legacy_storage_type_contract() -> None:
+    """プレイ行行き先の全母集団へ旧保存型契約を適用する。"""
+    table = cast(Table, PlayRow.__table__)
+    source_columns = _model_legacy_source_columns(table)
+    columns = {
+        ("play_rows", column.name): ColumnContract(
+            _column_type_name(column), bool(column.nullable), _column_default(column)
+        )
+        for column in table.columns
+    }
+
+    assert (
+        play_row_type_violations(
+            play_row_destination_columns(_DATA_MODEL_PATH.read_text(encoding="utf-8")),
+            {number: column.name for number, column in source_columns.items()},
+            columns,
+            legacy_storage_types(_LEGACY_DATA_LAYER_PATH.read_text(encoding="utf-8")),
+        )
+        == []
+    )
+
+
+def test_added_play_row_columns_preserve_legacy_storage_types_and_nullability() -> None:
+    """是正で追加する列が追跡情報を持ち、NULL 可・既定値なしである。"""
+    table = cast(Table, PlayRow.__table__)
+    source_columns = _model_legacy_source_columns(table)
+
+    for column_name in _migration_added_play_row_columns():
+        column = table.columns[column_name]
+        source_numbers = column.info.get("legacy_source_columns", ())
+        assert len(source_numbers) == 1
+        source_number = source_numbers[0]
+        assert source_columns[source_number] is column
+        assert column.nullable
+        assert _column_default(column) is None
 
 
 def test_rule_assignment_scope_and_game_snapshot_structure() -> None:

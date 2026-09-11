@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from uuid import UUID, uuid5
 
 from sqlalchemy import (
@@ -18,10 +17,10 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Double,
     ForeignKeyConstraint,
     Index,
     Integer,
-    Numeric,
     PrimaryKeyConstraint,
     Text,
     Uuid,
@@ -487,6 +486,14 @@ class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         CheckConstraint("version > 0"),
         CheckConstraint("course_x IS NULL OR course_x BETWEEN 0 AND 1"),
         CheckConstraint("course_y IS NULL OR course_y BETWEEN 0 AND 1"),
+        CheckConstraint(
+            "hit_x IS NULL OR hit_x BETWEEN 0 AND 1",
+            name="ck_play_rows_hit_x_range",
+        ),
+        CheckConstraint(
+            "hit_y IS NULL OR hit_y BETWEEN 0 AND 1",
+            name="ck_play_rows_hit_y_range",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
             ["games.tenant_id", "games.id"],
@@ -500,6 +507,70 @@ class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             ["operation_events.tenant_id", "operation_events.id"],
             name="fk_play_rows_event",
             match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "strategy_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_play_rows_strategy",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "strategy_detail_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_play_rows_strategy_detail",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "strategy_result_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_play_rows_strategy_result",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "pitch_type_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_play_rows_pitch_type",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["batting_result_key"],
+            ["admin_vocabularies.key"],
+            name="fk_play_rows_batting_result",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["secondary_batting_result_key"],
+            ["admin_vocabularies.key"],
+            name="fk_play_rows_secondary_batting_result",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["batted_ball_type"],
+            ["admin_vocabularies.key"],
+            name="fk_play_rows_batted_ball_type",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["batted_ball_strength"],
+            ["admin_vocabularies.key"],
+            name="fk_play_rows_batted_ball_strength",
+            match="SIMPLE",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -523,24 +594,101 @@ class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     game_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     source_event_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    play_number: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    event_kind: Mapped[str] = mapped_column(Text, nullable=False)
-    batter_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    pitcher_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    catcher_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    course_x: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
-    course_y: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
-    pitch_speed: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
-    raw_fielder_position: Mapped[str | None] = mapped_column(Text, nullable=True)
+    play_number: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, info={"legacy_source_columns": (9,)}
+    )
+    batting_order: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, info={"legacy_source_columns": (26,)}
+    )
+    batter_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, info={"legacy_source_columns": (27,)}
+    )
+    batting_side: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (28,)}
+    )
+    strategy_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (29,)}
+    )
+    strategy_detail_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (30,)}
+    )
+    strategy_result_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (31,)}
+    )
+    pitcher_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, info={"legacy_source_columns": (32,)}
+    )
+    catcher_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, info={"legacy_source_columns": (35,)}
+    )
+    batter_status: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (39,)}
+    )
+    event_kind: Mapped[str] = mapped_column(
+        Text, nullable=False, info={"legacy_source_columns": (40,)}
+    )
+    stance: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (41,)}
+    )
+    course_x: Mapped[float | None] = mapped_column(
+        Double, nullable=True, info={"legacy_source_columns": (42,)}
+    )
+    course_y: Mapped[float | None] = mapped_column(
+        Double, nullable=True, info={"legacy_source_columns": (43,)}
+    )
+    pitch_type_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (44,)}
+    )
+    batting_result_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (45,)}
+    )
+    secondary_batting_result_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (46,)}
+    )
+    raw_fielder_position: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (47,)}
+    )
     resolved_fielder_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
-    raw_error_position: Mapped[str | None] = mapped_column(Text, nullable=True)
+    batted_ball_type: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (48,)}
+    )
+    batted_ball_strength: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (49,)}
+    )
+    hit_x: Mapped[float | None] = mapped_column(
+        Double, nullable=True, info={"legacy_source_columns": (50,)}
+    )
+    hit_y: Mapped[float | None] = mapped_column(
+        Double, nullable=True, info={"legacy_source_columns": (51,)}
+    )
+    pickoff_type: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (52,)}
+    )
+    pickoff_detail: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (53,)}
+    )
+    error_type: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (54,)}
+    )
+    raw_error_position: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (55,)}
+    )
     resolved_error_player_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
-    compatibility_payload: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False
+    pitch_speed: Mapped[float | None] = mapped_column(
+        Double, nullable=True, info={"legacy_source_columns": (56,)}
+    )
+    press: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (57,)}
+    )
+    fake_run: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (58,)}
+    )
+    comment: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"legacy_source_columns": (60,)}
     )
     version: Mapped[int] = mapped_column(
         BigInteger, nullable=False, server_default=text("1")
