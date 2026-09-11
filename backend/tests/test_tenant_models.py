@@ -22,16 +22,27 @@ from sqlalchemy.sql.elements import UnaryExpression
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.tenant_isolation.models import (
+    AdminVocabulary,
     MedicalNote,
     MedicalNoteVersion,
     PdfExportRecord,
     Player,
+    SystemSetting,
+    SystemVocabulary,
     TeamRecord,
     Tenant,
+    TenantVocabulary,
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
+_VOCABULARY_MIGRATION_PATH = (
+    _REPOSITORY_ROOT
+    / "backend"
+    / "migrations"
+    / "versions"
+    / "0010_vocabularies_settings.py"
+)
 _MODEL_CLASSES: dict[str, Any] = {
     "tenants": Tenant,
     "team_records": TeamRecord,
@@ -39,6 +50,10 @@ _MODEL_CLASSES: dict[str, Any] = {
     "medical_notes": MedicalNote,
     "medical_note_versions": MedicalNoteVersion,
     "pdf_export_records": PdfExportRecord,
+    "system_vocabularies": SystemVocabulary,
+    "admin_vocabularies": AdminVocabulary,
+    "tenant_vocabularies": TenantVocabulary,
+    "system_settings": SystemSetting,
 }
 
 
@@ -244,7 +259,7 @@ def _model_immutability(model: Any) -> dict[str, list[str]]:
 
 
 def test_tenant_models_match_manifest_contracts() -> None:
-    """6 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """10 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -314,3 +329,27 @@ def test_pdf_export_records_have_no_deletion_or_migration_columns() -> None:
             "trashed_at",
         }
     )
+
+
+def test_vocabulary_layers_have_no_deletion_or_migration_columns() -> None:
+    """語彙3層に削除・退役・取り込み列が無いと示す。"""
+    forbidden = {
+        "deleted_at",
+        "discarded_at",
+        "ended_at",
+        "hidden_at",
+        "import_batch_id",
+        "retired_at",
+        "trashed_at",
+    }
+
+    for model in (SystemVocabulary, AdminVocabulary, TenantVocabulary):
+        assert set(model.__table__.columns.keys()).isdisjoint(forbidden)
+
+
+def test_vocabulary_migration_contains_no_seed_data() -> None:
+    """語彙 migration が参照値を投入する DML を含まないと示す。"""
+    source = _VOCABULARY_MIGRATION_PATH.read_text(encoding="utf-8").upper()
+
+    assert "INSERT" not in source
+    assert "BULK_INSERT" not in source

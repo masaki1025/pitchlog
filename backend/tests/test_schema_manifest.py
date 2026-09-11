@@ -591,6 +591,11 @@ def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> No
 
     assert model_foreign_keys <= manifest_foreign_keys
     assert manifest_foreign_keys - model_foreign_keys == pending
+    assert {
+        foreign_key
+        for foreign_key in pending
+        if foreign_key.target_table in {"system_vocabularies", "tenant_vocabularies"}
+    } == set()
 
 
 def test_pending_foreign_keys_are_derived_from_target_implementation() -> None:

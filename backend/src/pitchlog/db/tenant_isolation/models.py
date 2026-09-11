@@ -130,6 +130,22 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
+        ForeignKeyConstraint(
+            ["roster_status_key"],
+            ["system_vocabularies.key"],
+            name="fk_players_roster_status",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "roster_label_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_players_roster_label",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
         PrimaryKeyConstraint(
             "tenant_id",
             "id",
@@ -359,6 +375,147 @@ Index(
     MedicalNoteVersion.__table__.c.version.desc(),
     info={"purpose": "range_sort"},
 )
+
+
+class SystemVocabulary(LifecycleMixin, Base):
+    """試合区分と在籍区分の変更不可なシステム固定語彙。"""
+
+    __tablename__ = "system_vocabularies"
+    __table_args__ = (
+        CheckConstraint("category IN ('game_type', 'roster_status')"),
+        PrimaryKeyConstraint(
+            "key",
+            name="pk_system_vocabularies",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    disabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"key", "category", "display_name", "disabled"}),
+        allowed_update_columns=frozenset(),
+    )
+
+
+class AdminVocabulary(LifecycleMixin, Base):
+    """システム管理者が表示と無効状態を管理する語彙。"""
+
+    __tablename__ = "admin_vocabularies"
+    __table_args__ = (
+        CheckConstraint("category IN ('batting_result', 'batted_ball', 'season')"),
+        PrimaryKeyConstraint(
+            "key",
+            name="pk_admin_vocabularies",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    disabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"key", "category"}),
+        allowed_update_columns=frozenset({"display_name", "disabled"}),
+    )
+
+
+class TenantVocabulary(TenantMixin, LifecycleMixin, Base):
+    """テナントが拡張できる球種・戦術・大会・在籍ラベル語彙。"""
+
+    __tablename__ = "tenant_vocabularies"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('pitch_type', 'strategy', 'tournament', 'roster_label')"
+        ),
+        CheckConstraint("category <> 'pitch_type' OR pitch_family IS NOT NULL"),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_tenant_vocabularies_tenant",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "key",
+            name="pk_tenant_vocabularies",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    pitch_family: Mapped[str | None] = mapped_column(Text, nullable=True)
+    abbreviation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    disabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.DISABLED,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"key", "category"}),
+        allowed_update_columns=frozenset(
+            {"display_name", "pitch_family", "abbreviation", "disabled"}
+        ),
+    )
+
+
+class SystemSetting(LifecycleMixin, Base):
+    """システム全体の設定値と更新日時を保持する。"""
+
+    __tablename__ = "system_settings"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "key",
+            name="pk_system_settings",
+            info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"key"}),
+        allowed_update_columns=frozenset({"value", "updated_at"}),
+    )
+
 
 Index(
     "ix_pdf_export_records_time",

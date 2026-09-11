@@ -34,7 +34,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
-_REVISION = "0009_medical_notes_pdf_exports"
+_REVISION = "0010_vocabularies_settings"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -377,6 +377,90 @@ BEGIN
 END;
 $function$
 """
+_SYSTEM_VOCABULARY_TRIGGER_NAME = "trg_system_vocabularies_immutable"
+_SYSTEM_VOCABULARY_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_system_vocabularies_immutable BEFORE UPDATE OF key, "
+    "category, display_name, disabled ON system_vocabularies FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_system_vocabularies_update()"
+)
+_SYSTEM_VOCABULARY_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_system_vocabularies_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.key, NEW.category, NEW.display_name, NEW.disabled)
+       IS DISTINCT FROM
+       ROW(OLD.key, OLD.category, OLD.display_name, OLD.disabled) THEN
+        RAISE EXCEPTION 'system vocabulary is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_ADMIN_VOCABULARY_TRIGGER_NAME = "trg_admin_vocabularies_identity_immutable"
+_ADMIN_VOCABULARY_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_admin_vocabularies_identity_immutable BEFORE UPDATE OF "
+    "key, category ON admin_vocabularies FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_admin_vocabularies_identity_update()"
+)
+_ADMIN_VOCABULARY_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_admin_vocabularies_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.key, NEW.category)
+       IS DISTINCT FROM ROW(OLD.key, OLD.category) THEN
+        RAISE EXCEPTION 'admin vocabulary identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_TENANT_VOCABULARY_TRIGGER_NAME = "trg_tenant_vocabularies_identity_immutable"
+_TENANT_VOCABULARY_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_tenant_vocabularies_identity_immutable BEFORE UPDATE OF "
+    "key, category ON tenant_vocabularies FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_tenant_vocabularies_identity_update()"
+)
+_TENANT_VOCABULARY_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_tenant_vocabularies_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.key, NEW.category)
+       IS DISTINCT FROM ROW(OLD.key, OLD.category) THEN
+        RAISE EXCEPTION 'tenant vocabulary identity is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_SYSTEM_SETTING_TRIGGER_NAME = "trg_system_settings_key_immutable"
+_SYSTEM_SETTING_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_system_settings_key_immutable BEFORE UPDATE OF key ON "
+    "system_settings FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_system_settings_key_update()"
+)
+_SYSTEM_SETTING_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_system_settings_key_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF NEW.key IS DISTINCT FROM OLD.key THEN
+        RAISE EXCEPTION 'system setting key is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
 _D2_FIXED_VALUE_OR_RANGE = re.compile(
     r"(?:\bd2\b\s*(?:=|<>|!=|<=|>=|<|>|(?:NOT\s+)?BETWEEN\b|"
     r"(?:NOT\s+)?IN\s*\()|"
@@ -437,6 +521,51 @@ def _insert_recording_generation(
         """,
         (tenant_id, game_id, "test-device"),
     )
+
+
+def _insert_test_vocabularies(cursor: psycopg.Cursor[Any], tenant_id: object) -> None:
+    """既存モデル行より先に参照先となるテスト語彙を追加する。"""
+    cursor.executemany(
+        """
+        INSERT INTO system_vocabularies (key, category, display_name)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (key) DO NOTHING
+        """,
+        [
+            ("official", "game_type", "公式戦"),
+            ("active", "roster_status", "在籍"),
+        ],
+    )
+    cursor.executemany(
+        """
+        INSERT INTO tenant_vocabularies (
+            tenant_id, key, category, display_name
+        ) VALUES (%s, %s, %s, %s)
+        ON CONFLICT (tenant_id, key) DO NOTHING
+        """,
+        [
+            (tenant_id, "autumn", "tournament", "秋季大会"),
+            (tenant_id, "roster-active", "roster_label", "登録中"),
+        ],
+    )
+
+
+def _clear_vocabulary_references_before_reupgrade(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """語彙表が無い downgrade 状態で残存する参照元行を除去する。"""
+    with connection.cursor() as cursor:
+        for table_name in (
+            "tournament_rule_assignments",
+            "game_type_rule_defaults",
+            "games",
+            "players",
+        ):
+            cursor.execute("SELECT to_regclass(%s)", (f"public.{table_name}",))
+            if cursor.fetchone() != (None,):
+                cursor.execute(
+                    sql.SQL("DELETE FROM {}").format(sql.Identifier(table_name))
+                )
 
 
 def test_schema_revision_and_application_engine_use_the_database(
@@ -839,6 +968,7 @@ def test_game_state_constraints_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "試合テストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -1040,6 +1170,7 @@ def test_game_rule_snapshot_is_independent_and_migration_round_trips(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "規則テストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -1132,6 +1263,7 @@ def test_game_rule_snapshot_is_independent_and_migration_round_trips(
         command.downgrade(config, "0003_games_lineups_participation")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_rule_tables_are_absent(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -1277,6 +1409,7 @@ def test_sync_event_immutability_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "同期イベントテストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -1446,6 +1579,7 @@ def test_sync_event_immutability_and_migration_round_trip(
         command.downgrade(config, "0004_rule_sets")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_nine_objects_are_absent(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -1726,6 +1860,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "プレイ投影テストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -1743,8 +1878,9 @@ def test_play_projection_constraints_and_migration_round_trip(
                         id,
                         team_record_id,
                         name,
-                        roster_status_key
-                    ) VALUES (%s, %s, %s, %s, %s)
+                        roster_status_key,
+                        roster_label_key
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
                     """,
                     [
                         (
@@ -1753,6 +1889,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             self_team_id,
                             "走者",
                             "active",
+                            "roster-active",
                         ),
                         (
                             tenant_id,
@@ -1760,6 +1897,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             opponent_team_id,
                             "責任投手",
                             "active",
+                            "roster-active",
                         ),
                     ],
                 )
@@ -1984,6 +2122,7 @@ def test_play_projection_constraints_and_migration_round_trip(
             _assert_step_ten_objects_are_absent(connection)
             _clear_operation_events_before_ledger_reupgrade(connection)
             _clear_event_slots_before_recording_generation_reupgrade(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -2264,6 +2403,7 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "D5 台帳テストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -2602,6 +2742,7 @@ def test_d5_ledger_source_guards_and_migration_round_trip(
             _assert_step_eleven_objects_are_absent(connection)
             _clear_operation_events_before_ledger_reupgrade(connection)
             _clear_event_slots_before_recording_generation_reupgrade(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -2755,6 +2896,7 @@ def test_recording_generation_d3_guard_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "記録権世代テストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.executemany(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -2916,6 +3058,7 @@ def test_recording_generation_d3_guard_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_twelve_objects_are_absent(connection)
             _clear_event_slots_before_recording_generation_reupgrade(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
@@ -3093,6 +3236,7 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "カルテテストテナント"),
                 )
+                _insert_test_vocabularies(cursor, tenant_id)
                 cursor.execute(
                     """
                     INSERT INTO team_records (tenant_id, id, kind, name)
@@ -3103,10 +3247,22 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
                 cursor.execute(
                     """
                     INSERT INTO players (
-                        tenant_id, id, team_record_id, name, roster_status_key
-                    ) VALUES (%s, %s, %s, %s, %s)
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        name,
+                        roster_status_key,
+                        roster_label_key
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
                     """,
-                    (tenant_id, player_id, team_id, "選手", "active"),
+                    (
+                        tenant_id,
+                        player_id,
+                        team_id,
+                        "選手",
+                        "active",
+                        "roster-active",
+                    ),
                 )
                 cursor.execute(
                     """
@@ -3309,6 +3465,462 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
         command.downgrade(config, "0008_recording_generations")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_thirteen_objects_are_absent(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_step_fourteen_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に語彙・設定表とトリガ関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.system_vocabularies'),
+                to_regclass('public.admin_vocabularies'),
+                to_regclass('public.tenant_vocabularies'),
+                to_regclass('public.system_settings'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure('public.prevent_system_vocabularies_update()'),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_admin_vocabularies_identity_update()'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure(
+                    'public.prevent_tenant_vocabularies_identity_update()'
+                ),
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure('public.prevent_system_settings_key_update()'),
+                (
+                    SELECT count(*)
+                    FROM pg_constraint
+                    WHERE conname = ANY(%s)
+                )
+            """,
+            (
+                _SYSTEM_VOCABULARY_TRIGGER_NAME,
+                _ADMIN_VOCABULARY_TRIGGER_NAME,
+                _TENANT_VOCABULARY_TRIGGER_NAME,
+                _SYSTEM_SETTING_TRIGGER_NAME,
+                [
+                    "fk_players_roster_status",
+                    "fk_players_roster_label",
+                    "fk_games_game_type",
+                    "fk_games_tournament",
+                    "fk_game_type_rule_defaults_type",
+                    "fk_tournament_rule_assignments_tournament",
+                ],
+            ),
+        )
+        row = cursor.fetchone()
+    assert row == (
+        None,
+        None,
+        None,
+        None,
+        False,
+        None,
+        False,
+        None,
+        False,
+        None,
+        False,
+        None,
+        0,
+    )
+
+
+def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """語彙3層・設定値の制約、不変性、FK と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger_contracts = (
+                (
+                    _SYSTEM_VOCABULARY_TRIGGER_NAME,
+                    _SYSTEM_VOCABULARY_TRIGGER_DEFINITION,
+                    "system_vocabularies",
+                    ["key", "category", "display_name", "disabled"],
+                    _SYSTEM_VOCABULARY_FUNCTION_DEFINITION,
+                ),
+                (
+                    _ADMIN_VOCABULARY_TRIGGER_NAME,
+                    _ADMIN_VOCABULARY_TRIGGER_DEFINITION,
+                    "admin_vocabularies",
+                    ["key", "category"],
+                    _ADMIN_VOCABULARY_FUNCTION_DEFINITION,
+                ),
+                (
+                    _TENANT_VOCABULARY_TRIGGER_NAME,
+                    _TENANT_VOCABULARY_TRIGGER_DEFINITION,
+                    "tenant_vocabularies",
+                    ["key", "category"],
+                    _TENANT_VOCABULARY_FUNCTION_DEFINITION,
+                ),
+                (
+                    _SYSTEM_SETTING_TRIGGER_NAME,
+                    _SYSTEM_SETTING_TRIGGER_DEFINITION,
+                    "system_settings",
+                    ["key"],
+                    _SYSTEM_SETTING_FUNCTION_DEFINITION,
+                ),
+            )
+            for name, definition, table, columns, function in trigger_contracts:
+                actual = _sync_trigger_catalog_contract(connection, name)
+                assert _normalize_sql(actual[0]) == _normalize_sql(definition)
+                assert actual[1] == table
+                assert actual[2] == columns
+                assert actual[3] == "O"
+                assert _normalize_sql(actual[4]) == _normalize_sql(function)
+
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT count(*) FROM pg_type WHERE typtype = 'e'")
+                assert cursor.fetchone() == (0,)
+
+                cursor.execute(
+                    """
+                    SELECT
+                        constraint_row.conname,
+                        source.relname,
+                        target.relname,
+                        constraint_row.confmatchtype
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS source
+                      ON source.oid = constraint_row.conrelid
+                    JOIN pg_class AS target
+                      ON target.oid = constraint_row.confrelid
+                    WHERE constraint_row.conname = ANY(%s)
+                    ORDER BY constraint_row.conname
+                    """,
+                    (
+                        [
+                            "fk_players_roster_status",
+                            "fk_players_roster_label",
+                            "fk_games_game_type",
+                            "fk_games_tournament",
+                            "fk_game_type_rule_defaults_type",
+                            "fk_tournament_rule_assignments_tournament",
+                        ],
+                    ),
+                )
+                assert cursor.fetchall() == [
+                    (
+                        "fk_game_type_rule_defaults_type",
+                        "game_type_rule_defaults",
+                        "system_vocabularies",
+                        "s",
+                    ),
+                    (
+                        "fk_games_game_type",
+                        "games",
+                        "system_vocabularies",
+                        "s",
+                    ),
+                    (
+                        "fk_games_tournament",
+                        "games",
+                        "tenant_vocabularies",
+                        "f",
+                    ),
+                    (
+                        "fk_players_roster_label",
+                        "players",
+                        "tenant_vocabularies",
+                        "f",
+                    ),
+                    (
+                        "fk_players_roster_status",
+                        "players",
+                        "system_vocabularies",
+                        "s",
+                    ),
+                    (
+                        "fk_tournament_rule_assignments_tournament",
+                        "tournament_rule_assignments",
+                        "tenant_vocabularies",
+                        "f",
+                    ),
+                ]
+
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id := uuid4(), "語彙テストテナント"),
+                )
+                _insert_test_vocabularies(cursor, tenant_id)
+                cursor.execute(
+                    """
+                    INSERT INTO system_vocabularies (key, category, display_name)
+                    VALUES ('delete-probe', 'game_type', '削除確認')
+                    """
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM system_vocabularies
+                    WHERE key = 'delete-probe'
+                    RETURNING key
+                    """
+                )
+                assert cursor.fetchone() == ("delete-probe",)
+
+                cursor.execute(
+                    """
+                    INSERT INTO admin_vocabularies (key, category, display_name)
+                    VALUES ('single', 'batting_result', '単打')
+                    """
+                )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        """
+                        INSERT INTO tenant_vocabularies (
+                            tenant_id, key, category, display_name, pitch_family
+                        ) VALUES (%s, 'pitch-invalid', 'pitch_type', '不正球種', NULL)
+                        """,
+                        (tenant_id,),
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO tenant_vocabularies (
+                        tenant_id, key, category, display_name, pitch_family
+                    ) VALUES (%s, 'strategy-basic', 'strategy', '基本戦術', NULL)
+                    RETURNING key
+                    """,
+                    (tenant_id,),
+                )
+                assert cursor.fetchone() == ("strategy-basic",)
+                cursor.execute(
+                    """
+                    INSERT INTO tenant_vocabularies (
+                        tenant_id,
+                        key,
+                        category,
+                        display_name,
+                        pitch_family
+                    ) VALUES (%s, 'pitch-fastball', 'pitch_type', '直球', 'fastball')
+                    """,
+                    (tenant_id,),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO system_settings (key, value)
+                    VALUES ('scoring', %s)
+                    """,
+                    (Jsonb({"enabled": True}),),
+                )
+
+                protected_system_updates: dict[str, object] = {
+                    "key": "official-renamed",
+                    "category": "roster_status",
+                    "display_name": "名称変更",
+                    "disabled": True,
+                }
+                for column, value in protected_system_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="system vocabulary is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE system_vocabularies SET {} = %s "
+                                "WHERE key = 'official'"
+                            ).format(sql.Identifier(column)),
+                            (value,),
+                        )
+
+                protected_admin_updates: dict[str, object] = {
+                    "key": "single-renamed",
+                    "category": "season",
+                }
+                for column, value in protected_admin_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="admin vocabulary identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE admin_vocabularies SET {} = %s "
+                                "WHERE key = 'single'"
+                            ).format(sql.Identifier(column)),
+                            (value,),
+                        )
+                for column, value in {
+                    "display_name": "シングルヒット",
+                    "disabled": True,
+                }.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE admin_vocabularies SET {} = %s "
+                            "WHERE key = 'single' RETURNING key"
+                        ).format(sql.Identifier(column)),
+                        (value,),
+                    )
+                    assert cursor.fetchone() == ("single",)
+
+                protected_tenant_updates: dict[str, object] = {
+                    "key": "pitch-fastball-renamed",
+                    "category": "strategy",
+                }
+                for column, value in protected_tenant_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="tenant vocabulary identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE tenant_vocabularies SET {} = %s "
+                                "WHERE tenant_id = %s AND key = 'pitch-fastball'"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id),
+                        )
+                for column, value in {
+                    "display_name": "フォーシーム",
+                    "pitch_family": "straight",
+                    "abbreviation": "4S",
+                    "disabled": True,
+                }.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE tenant_vocabularies SET {} = %s "
+                            "WHERE tenant_id = %s AND key = 'pitch-fastball' "
+                            "RETURNING key"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id),
+                    )
+                    assert cursor.fetchone() == ("pitch-fastball",)
+
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match="system setting key is immutable",
+                ):
+                    cursor.execute(
+                        """
+                        UPDATE system_settings SET key = 'scoring-renamed'
+                        WHERE key = 'scoring'
+                        """
+                    )
+                cursor.execute(
+                    """
+                    UPDATE system_settings SET value = %s
+                    WHERE key = 'scoring' RETURNING key
+                    """,
+                    (Jsonb({"enabled": False}),),
+                )
+                assert cursor.fetchone() == ("scoring",)
+                cursor.execute(
+                    """
+                    UPDATE system_settings SET updated_at = %s
+                    WHERE key = 'scoring' RETURNING key
+                    """,
+                    (datetime(2026, 9, 12, tzinfo=UTC),),
+                )
+                assert cursor.fetchone() == ("scoring",)
+
+                self_team_id = uuid4()
+                opponent_team_id = uuid4()
+                player_id = uuid4()
+                game_id = uuid4()
+                rule_set_id = uuid4()
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO players (
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        name,
+                        roster_status_key,
+                        roster_label_key
+                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    """,
+                    (tenant_id, player_id, self_team_id, "語彙参照選手"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, 'official', 'autumn', %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, tzinfo=UTC),
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO rule_sets (
+                        id, regulation_innings, called_game_conditions
+                    ) VALUES (%s, 9, %s)
+                    """,
+                    (rule_set_id, Jsonb([])),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO game_type_rule_defaults (
+                        game_type_key, rule_set_id
+                    ) VALUES ('official', %s)
+                    """,
+                    (rule_set_id,),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO tournament_rule_assignments (
+                        tenant_id, tournament_key, rule_set_id
+                    ) VALUES (%s, 'autumn', %s)
+                    """,
+                    (tenant_id, rule_set_id),
+                )
+
+        command.downgrade(config, "0009_medical_notes_pdf_exports")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_fourteen_objects_are_absent(connection)
+            _clear_vocabulary_references_before_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

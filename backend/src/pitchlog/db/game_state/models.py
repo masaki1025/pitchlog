@@ -70,6 +70,22 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             "status IN ('preparing', 'in_progress', 'finished', 'trashed', 'hidden')"
         ),
         ForeignKeyConstraint(
+            ["game_type_key"],
+            ["system_vocabularies.key"],
+            name="fk_games_game_type",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "tournament_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_games_tournament",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
             ["tenant_id", "away_team_record_id"],
             ["team_records.tenant_id", "team_records.id"],
             name="fk_games_away_team",
@@ -383,6 +399,14 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
     __tablename__ = "game_type_rule_defaults"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["game_type_key"],
+            ["system_vocabularies.key"],
+            name="fk_game_type_rule_defaults_type",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
             ["rule_set_id"],
             ["rule_sets.id"],
             name="fk_game_type_rule_defaults_rule",
@@ -416,6 +440,14 @@ class TournamentRuleAssignment(TenantMixin, LifecycleMixin, Base):
 
     __tablename__ = "tournament_rule_assignments"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "tournament_key"],
+            ["tenant_vocabularies.tenant_id", "tenant_vocabularies.key"],
+            name="fk_tournament_rule_assignments_tournament",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
         ForeignKeyConstraint(
             ["rule_set_id"],
             ["rule_sets.id"],

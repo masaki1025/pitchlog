@@ -374,10 +374,12 @@ def test_rule_assignment_scope_and_game_snapshot_structure() -> None:
     assert "tenant_id" not in game_type_table.columns
     assert not tournament_table.columns["tenant_id"].nullable
     assert _foreign_key_targets(game_type_table) == {
-        "fk_game_type_rule_defaults_rule": {"rule_sets"}
+        "fk_game_type_rule_defaults_type": {"system_vocabularies"},
+        "fk_game_type_rule_defaults_rule": {"rule_sets"},
     }
     assert _foreign_key_targets(tournament_table) == {
-        "fk_tournament_rule_assignments_rule": {"rule_sets"}
+        "fk_tournament_rule_assignments_tournament": {"tenant_vocabularies"},
+        "fk_tournament_rule_assignments_rule": {"rule_sets"},
     }
 
 
