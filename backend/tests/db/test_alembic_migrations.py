@@ -7,7 +7,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, LiteralString
 from uuid import uuid4
 
 import psycopg
@@ -30,7 +30,7 @@ from .conftest import DisposablePostgres
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_REVISION = "0006_play_projections"
+_REVISION = "0007_idempotency_originals"
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -180,6 +180,84 @@ BEGIN
     IF ROW(NEW.temporary_id, NEW.player_id)
        IS DISTINCT FROM ROW(OLD.temporary_id, OLD.player_id) THEN
         RAISE EXCEPTION 'temporary player ID mapping is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_LEDGER_TRIGGER_NAME = "trg_idempotency_ledger_result_immutable"
+_LEDGER_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_idempotency_ledger_result_immutable BEFORE UPDATE OF "
+    "kind, source_fingerprint, result, reason ON idempotency_ledger FOR EACH ROW "
+    "EXECUTE FUNCTION prevent_idempotency_ledger_result_update()"
+)
+_LEDGER_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_idempotency_ledger_result_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.kind, NEW.source_fingerprint, NEW.result, NEW.reason)
+       IS DISTINCT FROM
+       ROW(OLD.kind, OLD.source_fingerprint, OLD.result, OLD.reason) THEN
+        RAISE EXCEPTION 'idempotency ledger result is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_REJECTED_ORIGINAL_TRIGGER_NAME = "trg_rejected_event_originals_content_immutable"
+_REJECTED_ORIGINAL_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_rejected_event_originals_content_immutable BEFORE UPDATE "
+    "OF d5, kind, payload ON rejected_event_originals FOR EACH ROW EXECUTE "
+    "FUNCTION prevent_rejected_event_originals_content_update()"
+)
+_REJECTED_ORIGINAL_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_rejected_event_originals_content_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.d5, NEW.kind, NEW.payload)
+       IS DISTINCT FROM ROW(OLD.d5, OLD.kind, OLD.payload) THEN
+        RAISE EXCEPTION 'rejected event original is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_EVACUATED_ORIGINAL_TRIGGER_NAME = "trg_evacuated_event_originals_identity_immutable"
+_EVACUATED_ORIGINAL_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_evacuated_event_originals_identity_immutable BEFORE "
+    "UPDATE OF game_id, old_generation, original_d1, d5, kind, origin ON "
+    "evacuated_event_originals FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_evacuated_event_originals_identity_update()"
+)
+_EVACUATED_ORIGINAL_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_evacuated_event_originals_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.game_id,
+        NEW.old_generation,
+        NEW.original_d1,
+        NEW.d5,
+        NEW.kind,
+        NEW.origin
+    ) IS DISTINCT FROM ROW(
+        OLD.game_id,
+        OLD.old_generation,
+        OLD.original_d1,
+        OLD.d5,
+        OLD.kind,
+        OLD.origin
+    ) THEN
+        RAISE EXCEPTION 'evacuated event original identity is immutable'
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
@@ -1035,6 +1113,7 @@ def test_sync_event_immutability_and_migration_round_trip(
                 opponent_team_id = uuid4()
                 game_id = uuid4()
                 event_id = uuid4()
+                event_d5 = uuid4()
                 cursor.execute(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
                     (tenant_id, "同期イベントテストテナント"),
@@ -1083,6 +1162,14 @@ def test_sync_event_immutability_and_migration_round_trip(
                 )
                 cursor.execute(
                     """
+                    INSERT INTO idempotency_ledger (
+                        tenant_id, d5, kind, source_fingerprint, result
+                    ) VALUES (%s, %s, 'accepted', %s, %s)
+                    """,
+                    (tenant_id, event_d5, "sync-event", Jsonb({})),
+                )
+                cursor.execute(
+                    """
                     INSERT INTO operation_events (
                         tenant_id,
                         id,
@@ -1105,7 +1192,7 @@ def test_sync_event_immutability_and_migration_round_trip(
                         1,
                         1,
                         1,
-                        uuid4(),
+                        event_d5,
                         "pitch",
                         Jsonb({"result": "strike"}),
                         Jsonb({"outs": 0}),
@@ -1456,6 +1543,7 @@ def test_play_projection_constraints_and_migration_round_trip(
             responsible_pitcher_id = uuid4()
             game_id = uuid4()
             source_event_id = uuid4()
+            source_event_d5 = uuid4()
             play_id = uuid4()
             mapping_id = uuid4()
             temporary_id = uuid4()
@@ -1535,6 +1623,14 @@ def test_play_projection_constraints_and_migration_round_trip(
                 )
                 cursor.execute(
                     """
+                    INSERT INTO idempotency_ledger (
+                        tenant_id, d5, kind, source_fingerprint, result
+                    ) VALUES (%s, %s, 'accepted', %s, %s)
+                    """,
+                    (tenant_id, source_event_d5, "play-source", Jsonb({})),
+                )
+                cursor.execute(
+                    """
                     INSERT INTO operation_events (
                         tenant_id,
                         id,
@@ -1556,7 +1652,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                         1,
                         1,
                         1,
-                        uuid4(),
+                        source_event_d5,
                         "pitch",
                         Jsonb({"result": "strike"}),
                         1,
@@ -1711,6 +1807,613 @@ def test_play_projection_constraints_and_migration_round_trip(
         command.downgrade(config, "0005_sync_events")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_ten_objects_are_absent(connection)
+            _clear_operation_events_before_ledger_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _insert_idempotency_ledger(
+    cursor: psycopg.Cursor[Any],
+    tenant_id: object,
+    d5: object,
+    kind: str,
+    fingerprint: str,
+) -> None:
+    """D5 参照元の検査に使う台帳行を追加する。"""
+    cursor.execute(
+        """
+        INSERT INTO idempotency_ledger (
+            tenant_id, d5, kind, source_fingerprint, result
+        ) VALUES (%s, %s, %s, %s, %s)
+        """,
+        (tenant_id, d5, kind, fingerprint, Jsonb({"status": kind})),
+    )
+
+
+def _assert_source_kind_rejections(
+    cursor: psycopg.Cursor[Any],
+    insert_statement: LiteralString,
+    base_parameters: dict[str, object],
+    kind_parameter: str,
+    literal_kind: str,
+    other_kind: str,
+) -> None:
+    """参照元 1 表について種別と台帳参照の負例 4 種を検査する。"""
+    null_parameters = base_parameters | {"d5": uuid4(), kind_parameter: None}
+    with pytest.raises(psycopg.errors.NotNullViolation):
+        cursor.execute(insert_statement, null_parameters)
+
+    invalid_parameters = base_parameters | {
+        "d5": uuid4(),
+        kind_parameter: "invalid",
+    }
+    with pytest.raises(psycopg.errors.CheckViolation):
+        cursor.execute(insert_statement, invalid_parameters)
+
+    missing_parameters = base_parameters | {
+        "d5": uuid4(),
+        kind_parameter: literal_kind,
+    }
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        cursor.execute(insert_statement, missing_parameters)
+
+    other_d5 = uuid4()
+    _insert_idempotency_ledger(
+        cursor,
+        base_parameters["tenant_id"],
+        other_d5,
+        other_kind,
+        f"other-kind:{literal_kind}",
+    )
+    other_kind_parameters = base_parameters | {
+        "d5": other_d5,
+        kind_parameter: literal_kind,
+    }
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        cursor.execute(insert_statement, other_kind_parameters)
+
+
+def _assert_operation_event_without_ledger_is_rejected(
+    cursor: psycopg.Cursor[Any], tenant_id: object, game_id: object
+) -> None:
+    """台帳を先に作らない操作イベントを独立した負例として拒否する。"""
+    with pytest.raises(
+        psycopg.errors.ForeignKeyViolation,
+        match="fk_operation_events_ledger",
+    ):
+        cursor.execute(
+            """
+            INSERT INTO operation_events (
+                tenant_id,
+                id,
+                game_id,
+                generation,
+                d1,
+                d2,
+                d5,
+                event_kind,
+                payload,
+                target_generation,
+                target_d1
+            ) VALUES (%s, %s, %s, 1, 4, 4, %s, 'pitch', %s, 1, 1)
+            """,
+            (tenant_id, uuid4(), game_id, uuid4(), Jsonb({})),
+        )
+
+
+def _clear_operation_events_before_ledger_reupgrade(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """台帳消滅後の再 upgrade 前に残存イベントを除去して空を確認する。"""
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM operation_events")
+        cursor.execute("SELECT count(*) FROM operation_events")
+        assert cursor.fetchone() == (0,)
+
+
+def _assert_step_eleven_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に D5 台帳・原本・追加 FK・関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                to_regclass('public.idempotency_ledger'),
+                to_regclass('public.rejected_event_originals'),
+                to_regclass('public.evacuated_event_originals'),
+                EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'fk_operation_events_ledger'
+                ),
+                to_regprocedure(
+                    'public.prevent_idempotency_ledger_result_update()'
+                ),
+                to_regprocedure(
+                    'public.prevent_rejected_event_originals_content_update()'
+                ),
+                to_regprocedure(
+                    'public.prevent_evacuated_event_originals_identity_update()'
+                )
+            """
+        )
+        row = cursor.fetchone()
+    assert row == (None, None, None, False, None, None, None)
+
+
+def test_d5_ledger_source_guards_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D5 台帳・参照元 3 表・不変性トリガ・migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            ledger_trigger = _sync_trigger_catalog_contract(
+                connection, _LEDGER_TRIGGER_NAME
+            )
+            assert _normalize_sql(ledger_trigger[0]) == _normalize_sql(
+                _LEDGER_TRIGGER_DEFINITION
+            )
+            assert ledger_trigger[1] == "idempotency_ledger"
+            assert ledger_trigger[2] == [
+                "kind",
+                "source_fingerprint",
+                "result",
+                "reason",
+            ]
+            assert ledger_trigger[3] == "O"
+            assert _normalize_sql(ledger_trigger[4]) == _normalize_sql(
+                _LEDGER_FUNCTION_DEFINITION
+            )
+
+            rejected_trigger = _sync_trigger_catalog_contract(
+                connection, _REJECTED_ORIGINAL_TRIGGER_NAME
+            )
+            assert _normalize_sql(rejected_trigger[0]) == _normalize_sql(
+                _REJECTED_ORIGINAL_TRIGGER_DEFINITION
+            )
+            assert rejected_trigger[1] == "rejected_event_originals"
+            assert rejected_trigger[2] == ["d5", "kind", "payload"]
+            assert rejected_trigger[3] == "O"
+            assert _normalize_sql(rejected_trigger[4]) == _normalize_sql(
+                _REJECTED_ORIGINAL_FUNCTION_DEFINITION
+            )
+
+            evacuated_trigger = _sync_trigger_catalog_contract(
+                connection, _EVACUATED_ORIGINAL_TRIGGER_NAME
+            )
+            assert _normalize_sql(evacuated_trigger[0]) == _normalize_sql(
+                _EVACUATED_ORIGINAL_TRIGGER_DEFINITION
+            )
+            assert evacuated_trigger[1] == "evacuated_event_originals"
+            assert evacuated_trigger[2] == [
+                "game_id",
+                "old_generation",
+                "original_d1",
+                "d5",
+                "kind",
+                "origin",
+            ]
+            assert evacuated_trigger[3] == "O"
+            assert _normalize_sql(evacuated_trigger[4]) == _normalize_sql(
+                _EVACUATED_ORIGINAL_FUNCTION_DEFINITION
+            )
+
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        source.relname,
+                        constraint_row.conname,
+                        constraint_row.confmatchtype,
+                        pg_get_constraintdef(constraint_row.oid, true)
+                    FROM pg_constraint AS constraint_row
+                    JOIN pg_class AS source
+                      ON source.oid = constraint_row.conrelid
+                    WHERE constraint_row.conname IN (
+                        'fk_operation_events_ledger',
+                        'fk_rejected_event_originals_ledger',
+                        'fk_evacuated_event_originals_ledger'
+                    )
+                    ORDER BY source.relname
+                    """
+                )
+                ledger_foreign_keys = cursor.fetchall()
+                assert [str(row[0]) for row in ledger_foreign_keys] == [
+                    "evacuated_event_originals",
+                    "operation_events",
+                    "rejected_event_originals",
+                ]
+                assert all(str(row[2]) == "f" for row in ledger_foreign_keys)
+                assert all("MATCH FULL" in str(row[3]) for row in ledger_foreign_keys)
+
+                cursor.execute(
+                    """
+                    SELECT column_name, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND (
+                        (table_name = 'idempotency_ledger'
+                         AND column_name IN ('d5', 'kind'))
+                        OR (table_name = 'rejected_event_originals'
+                            AND column_name = 'kind')
+                        OR (table_name = 'evacuated_event_originals'
+                            AND column_name = 'kind')
+                        OR (table_name = 'operation_events'
+                            AND column_name = 'ledger_kind')
+                      )
+                    ORDER BY table_name, column_name
+                    """
+                )
+                nullability = cursor.fetchall()
+                assert len(nullability) == 5
+                assert all(str(row[1]) == "NO" for row in nullability)
+                cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'idempotency_ledger'
+                      AND column_name = 'game_id'
+                    """
+                )
+                assert cursor.fetchall() == []
+
+                tenant_id = uuid4()
+                self_team_id = uuid4()
+                opponent_team_id = uuid4()
+                game_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "D5 台帳テストテナント"),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO event_slots (
+                        tenant_id, game_id, generation, d1
+                    ) VALUES (%s, %s, 1, %s)
+                    """,
+                    [(tenant_id, game_id, d1) for d1 in range(1, 5)],
+                )
+
+                operation_insert = """
+                    INSERT INTO operation_events (
+                        tenant_id,
+                        id,
+                        game_id,
+                        generation,
+                        d1,
+                        d2,
+                        d5,
+                        ledger_kind,
+                        event_kind,
+                        payload,
+                        target_generation,
+                        target_d1
+                    ) VALUES (
+                        %(tenant_id)s,
+                        %(id)s,
+                        %(game_id)s,
+                        1,
+                        %(d1)s,
+                        %(d2)s,
+                        %(d5)s,
+                        %(kind)s,
+                        'pitch',
+                        %(payload)s,
+                        1,
+                        1
+                    )
+                """
+                accepted_d5 = uuid4()
+                accepted_event_id = uuid4()
+                _insert_idempotency_ledger(
+                    cursor,
+                    tenant_id,
+                    accepted_d5,
+                    "accepted",
+                    "accepted-event",
+                )
+                cursor.execute(
+                    operation_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": accepted_event_id,
+                        "game_id": game_id,
+                        "d1": 1,
+                        "d2": 1,
+                        "d5": accepted_d5,
+                        "kind": "accepted",
+                        "payload": Jsonb({}),
+                    },
+                )
+                _assert_source_kind_rejections(
+                    cursor,
+                    operation_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": uuid4(),
+                        "game_id": game_id,
+                        "d1": 2,
+                        "d2": 2,
+                        "payload": Jsonb({}),
+                    },
+                    "kind",
+                    "accepted",
+                    "rejected",
+                )
+                _assert_operation_event_without_ledger_is_rejected(
+                    cursor, tenant_id, game_id
+                )
+
+                rejected_insert = """
+                    INSERT INTO rejected_event_originals (
+                        tenant_id, id, d5, kind, payload
+                    ) VALUES (
+                        %(tenant_id)s,
+                        %(id)s,
+                        %(d5)s,
+                        %(kind)s,
+                        %(payload)s
+                    )
+                """
+                _assert_source_kind_rejections(
+                    cursor,
+                    rejected_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": uuid4(),
+                        "payload": Jsonb({}),
+                    },
+                    "kind",
+                    "rejected",
+                    "accepted",
+                )
+
+                evacuated_insert = """
+                    INSERT INTO evacuated_event_originals (
+                        tenant_id,
+                        id,
+                        game_id,
+                        old_generation,
+                        original_d1,
+                        d5,
+                        kind,
+                        origin,
+                        payload,
+                        imported_event_id
+                    ) VALUES (
+                        %(tenant_id)s,
+                        %(id)s,
+                        %(game_id)s,
+                        %(old_generation)s,
+                        %(original_d1)s,
+                        %(d5)s,
+                        %(kind)s,
+                        'authority_mismatch',
+                        %(payload)s,
+                        %(imported_event_id)s
+                    )
+                """
+                _assert_source_kind_rejections(
+                    cursor,
+                    evacuated_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": uuid4(),
+                        "game_id": game_id,
+                        "old_generation": 1,
+                        "original_d1": 1,
+                        "payload": Jsonb({}),
+                        "imported_event_id": accepted_event_id,
+                    },
+                    "kind",
+                    "evacuated",
+                    "accepted",
+                )
+
+                rejected_d5 = uuid4()
+                rejected_id = uuid4()
+                _insert_idempotency_ledger(
+                    cursor,
+                    tenant_id,
+                    rejected_d5,
+                    "rejected",
+                    "rejected-original",
+                )
+                cursor.execute(
+                    rejected_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": rejected_id,
+                        "d5": rejected_d5,
+                        "kind": "rejected",
+                        "payload": Jsonb({"raw": "rejected"}),
+                    },
+                )
+                for column, value in {
+                    "d5": uuid4(),
+                    "kind": "accepted",
+                    "payload": Jsonb({"changed": True}),
+                }.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="rejected event original is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE rejected_event_originals SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, rejected_id),
+                        )
+
+                second_accepted_d5 = uuid4()
+                second_accepted_event_id = uuid4()
+                _insert_idempotency_ledger(
+                    cursor,
+                    tenant_id,
+                    second_accepted_d5,
+                    "accepted",
+                    "second-accepted-event",
+                )
+                cursor.execute(
+                    operation_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": second_accepted_event_id,
+                        "game_id": game_id,
+                        "d1": 3,
+                        "d2": 3,
+                        "d5": second_accepted_d5,
+                        "kind": "accepted",
+                        "payload": Jsonb({}),
+                    },
+                )
+                evacuated_d5 = uuid4()
+                evacuated_id = uuid4()
+                _insert_idempotency_ledger(
+                    cursor,
+                    tenant_id,
+                    evacuated_d5,
+                    "evacuated",
+                    "evacuated-original",
+                )
+                cursor.execute(
+                    evacuated_insert,
+                    {
+                        "tenant_id": tenant_id,
+                        "id": evacuated_id,
+                        "game_id": game_id,
+                        "old_generation": 2,
+                        "original_d1": 2,
+                        "d5": evacuated_d5,
+                        "kind": "evacuated",
+                        "payload": Jsonb({"raw": "evacuated"}),
+                        "imported_event_id": accepted_event_id,
+                    },
+                )
+                for column, value in {
+                    "game_id": uuid4(),
+                    "old_generation": 3,
+                    "original_d1": 3,
+                    "d5": uuid4(),
+                    "kind": "accepted",
+                    "origin": "restore_collection",
+                }.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="evacuated event original identity is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE evacuated_event_originals SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, evacuated_id),
+                        )
+                allowed_evacuated_updates: dict[str, object] = {
+                    "status": "imported",
+                    "imported_event_id": second_accepted_event_id,
+                    "retention_deadline": datetime(2026, 10, 1, tzinfo=UTC),
+                    "discarded_at": datetime(2026, 9, 30, tzinfo=UTC),
+                }
+                for column, value in allowed_evacuated_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE evacuated_event_originals SET {} = %s "
+                            "WHERE tenant_id = %s AND id = %s RETURNING id"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id, evacuated_id),
+                    )
+                    assert cursor.fetchone() == (evacuated_id,)
+
+                ledger_d5 = uuid4()
+                _insert_idempotency_ledger(
+                    cursor,
+                    tenant_id,
+                    ledger_d5,
+                    "rejected",
+                    "immutable-ledger",
+                )
+                protected_ledger_updates: dict[str, object] = {
+                    "kind": "evacuated",
+                    "source_fingerprint": "changed",
+                    "result": Jsonb({"changed": True}),
+                    "reason": "changed",
+                }
+                for column, value in protected_ledger_updates.items():
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="idempotency ledger result is immutable",
+                    ):
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE idempotency_ledger SET {} = %s "
+                                "WHERE tenant_id = %s AND d5 = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, ledger_d5),
+                        )
+                cursor.execute(
+                    """
+                    UPDATE idempotency_ledger
+                    SET retired_at = CURRENT_TIMESTAMP
+                    WHERE tenant_id = %s AND d5 = %s
+                    RETURNING retired_at IS NOT NULL
+                    """,
+                    (tenant_id, ledger_d5),
+                )
+                assert cursor.fetchone() == (True,)
+
+        command.downgrade(config, "0006_play_projections")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_step_eleven_objects_are_absent(connection)
+            _clear_operation_events_before_ledger_reupgrade(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)

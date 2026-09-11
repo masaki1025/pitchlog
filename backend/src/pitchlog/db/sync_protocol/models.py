@@ -9,6 +9,9 @@
   1 経路の漏れで不変条件が破れるためである(NFR-015)。詳細設計 5-1 節と同じ理由で
   DB トリガが所有する。
 - `N3` の受入証跡がこの判定を拾い、manifest の `immutability` が証跡の入力になる。
+
+D5 台帳と原本の対応が保証するのは高々 1 件であり、ちょうど 1 件ではない。
+台帳行と原本行の原子書き込みの責務はアプリ層にある。
 """
 
 from __future__ import annotations
@@ -140,6 +143,18 @@ class OperationEvent(
                 "event_slots.d1",
             ],
             name="fk_operation_events_target",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "d5", "ledger_kind"],
+            [
+                "idempotency_ledger.tenant_id",
+                "idempotency_ledger.d5",
+                "idempotency_ledger.kind",
+            ],
+            name="fk_operation_events_ledger",
             match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
@@ -278,5 +293,101 @@ class TemporaryPlayerIdMapping(TenantMixin, LifecycleMixin, Base):
     )
     immutability = Immutability(
         protected_columns=frozenset({"temporary_id", "player_id"}),
+        allowed_update_columns=frozenset(),
+    )
+
+
+class IdempotencyLedger(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
+    """D5 ごとの確定結果と原本種別を一意に保持する台帳。"""
+
+    __tablename__ = "idempotency_ledger"
+    __table_args__ = (
+        CheckConstraint("kind IN ('accepted', 'rejected', 'evacuated')"),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "d5",
+            name="pk_idempotency_ledger",
+            info={"roles": ("business_unique", "primary_key")},
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "d5",
+            "kind",
+            name="uq_idempotency_ledger_kind",
+            info={"roles": ("fk_target",)},
+        ),
+    )
+
+    d5: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    result: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"kind", "source_fingerprint", "result", "reason"}),
+        allowed_update_columns=frozenset({"retired_at"}),
+    )
+
+
+class RejectedEventOriginal(TenantMixin, LifecycleMixin, Base):
+    """拒否された操作イベントの原本を D5 台帳へ結び付けて保持する。"""
+
+    __tablename__ = "rejected_event_originals"
+    __table_args__ = (
+        CheckConstraint("kind = 'rejected'"),
+        ForeignKeyConstraint(
+            ["tenant_id", "d5", "kind"],
+            [
+                "idempotency_ledger.tenant_id",
+                "idempotency_ledger.d5",
+                "idempotency_ledger.kind",
+            ],
+            name="fk_rejected_event_originals_ledger",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "id",
+            name="pk_rejected_event_originals",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "d5",
+            name="uq_rejected_event_originals_d5",
+            info={"roles": ("business_unique",)},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    d5: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'rejected'")
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"d5", "kind", "payload"}),
         allowed_update_columns=frozenset(),
     )

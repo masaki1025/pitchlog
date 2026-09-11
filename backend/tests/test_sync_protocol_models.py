@@ -21,7 +21,9 @@ from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.sync_protocol.models import (
     EventSlot,
+    IdempotencyLedger,
     OperationEvent,
+    RejectedEventOriginal,
     TemporaryPlayerIdMapping,
 )
 
@@ -31,6 +33,8 @@ _MODEL_CLASSES: dict[str, Any] = {
     "event_slots": EventSlot,
     "operation_events": OperationEvent,
     "temporary_player_id_mappings": TemporaryPlayerIdMapping,
+    "idempotency_ledger": IdempotencyLedger,
+    "rejected_event_originals": RejectedEventOriginal,
 }
 _C12_CHECKS = {
     "ledger_kind = 'accepted'",
@@ -254,7 +258,7 @@ def _foreign_key_targets(table: Table) -> dict[str, tuple[str, tuple[str, ...]]]
 
 
 def test_sync_protocol_models_match_manifest_contracts() -> None:
-    """3表の models が FK 以外の manifest 契約と exact-set 一致する。"""
+    """5 表の models が FK 以外の manifest 契約と exact-set 一致する。"""
     manifest_tables = _load_manifest_tables()
 
     for table_name, model in _MODEL_CLASSES.items():
@@ -327,6 +331,10 @@ def test_operation_event_slot_fks_and_partial_uniqueness() -> None:
     assert slot_foreign_keys == {"fk_event_slots_game": ("games", ("tenant_id", "id"))}
     assert event_foreign_keys == {
         "fk_operation_events_game": ("games", ("tenant_id", "id")),
+        "fk_operation_events_ledger": (
+            "idempotency_ledger",
+            ("tenant_id", "d5", "kind"),
+        ),
         "fk_operation_events_slot": (
             "event_slots",
             ("tenant_id", "game_id", "generation", "d1"),
@@ -364,3 +372,47 @@ def test_temporary_player_mapping_uses_immutable_uuid_identifiers() -> None:
         {"temporary_id", "player_id"}
     )
     assert TemporaryPlayerIdMapping.immutability.allowed_update_columns == frozenset()
+
+
+def test_d5_ledger_and_sync_sources_use_kind_bound_full_match_fks() -> None:
+    """D5 台帳と同期側参照元が種別を含む完全 FK で結ばれると示す。"""
+    ledger_table = cast(Table, IdempotencyLedger.__table__)
+    event_table = cast(Table, OperationEvent.__table__)
+    rejected_table = cast(Table, RejectedEventOriginal.__table__)
+    ledger_uniques = {
+        contract["name"]: contract
+        for contract in _model_unique_constraints(ledger_table)
+    }
+
+    assert not ledger_table.columns["d5"].nullable
+    assert "game_id" not in ledger_table.columns
+    assert ledger_uniques["uq_idempotency_ledger_kind"] == {
+        "name": "uq_idempotency_ledger_kind",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "d5", "kind"],
+        "predicate": None,
+        "roles": ["fk_target"],
+    }
+    assert not event_table.columns["ledger_kind"].nullable
+    assert not rejected_table.columns["kind"].nullable
+
+    source_fks = {
+        constraint.name: constraint
+        for table in (event_table, rejected_table)
+        for constraint in table.foreign_key_constraints
+        if constraint.name
+        in {
+            "fk_operation_events_ledger",
+            "fk_rejected_event_originals_ledger",
+        }
+    }
+    assert set(source_fks) == {
+        "fk_operation_events_ledger",
+        "fk_rejected_event_originals_ledger",
+    }
+    for constraint in source_fks.values():
+        assert constraint.match == "FULL"
+        assert list(constraint.columns.keys()) in (
+            ["tenant_id", "d5", "ledger_kind"],
+            ["tenant_id", "d5", "kind"],
+        )
