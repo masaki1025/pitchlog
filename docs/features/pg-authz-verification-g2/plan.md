@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 17        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 18        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -282,11 +282,11 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 | `contracts/authz/` の**凍結 15 パス** | **第 1 弾では変更しなかった。本改訂は `boundary-proposal.json` / `ddl-elements.json` の 2 本と `oracle-seal.lock.json` を変更する**(`S-5`・`S-7`・`S-1`)。**残り 12 パスは不変**(**`claim-mutant-map.json` は裁定 `D-15` で PR #3 へ**) |
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
-| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去は裁定 `D-16` で別タスクへ。****本改訂が触るのは `S-5`・`S-7` の literal 追随と、重複行で潰れる 5 配列の多重度検査(4 節 2-d の表)だけ**(いずれもステップ 2) |
+| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去は裁定 `D-16` で別タスクへ。****本改訂が触るのは 3 件**(いずれもステップ 2)— **① `S-5`・`S-7` の literal 追随** / **② 重複行で潰れる 5 配列の多重度検査**(4 節 2-d の層 ①)/ **③ 変更する 3 資産の全配列 + 全 JSON キー対を走る恒久検査と、その負例 3 種**(同 層 ②。**`tests/test_check_authz_catalog.py` へ追加する**) |
 | `tests/test_core_guard.py` | **本改訂のステップ 1 で変更する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
 | `backend/tests/db/test_authz_*.py` | **新設 12 本** — カタログ検査 / 越境の正例・拒否例 / 6 前提行列 / 表権限 8 種 / 管理経路 probe / TOCTOU / 失敗注入 / 信頼境界 / ロール接続 / 適用器 / mutation 全量。**`requires_db` マーカー付きで `backend/tests/db/` 配下**(`environment-expectations.json` の `required_path` 契約) |
 | `backend/tests/test_authz_*.py` | **新設 5 本** — **DB を必要としない**契約試験(DDL 生成器 / mutation の判定機構 / executor の観測 / 2 因子合成 × 2)。**`backend/tests/db/` の外に置く**(DB 必須テストの path 契約と分けるため) |
-| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 2**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
+| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 1**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
 | `tests/test_check_authz_function_bodies.py` | **追随** — `manifest.json` の `source_commit` を注記追加後のコミットへ変えたため、「body 導入前のコミット」を `--diff-filter=A` で探す形へ変更(**assertion は不変・弱体化していない**) |
 | `docs/features/pg-authz-verification-g2/{plan,research,design}.md` / `catalog-check-map.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
@@ -563,6 +563,17 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | **② 資産の恒久検査**(`tests/`) | **本改訂が変更する 3 資産に重複が入る**こと | **3 資産を恒久的に閉じる**(**全配列 + 全 JSON キー対の汎用走査**)。**残る 12 資産への拡大は別タスク** |
 
 **② は一回限りの実測ではなく恒久的なテストとして置く**(`tests/` 配下 —**実行証跡が CI に残り、将来の混入も止まる**)。
+
+**② の走査自体を壊せないようにする**(10 周目 `P1-1`)— **正常な 3 資産で「重複 0 件」を確かめるだけでは、走査を壊しても green になる**。
+**次の 3 つの壊し方それぞれについて、負例で red を示す**:
+
+| 壊し方 | 負例の形 |
+| --- | --- |
+| **走査が再帰しない**(最上位の配列しか見ない) | **入れ子の深さ 2 以上に重複要素を置いた資産**で red |
+| **重複キーを `json.loads` の last-wins で潰す** | **重複 JSON キーを持つ資産**で red |
+| **検査そのものが無効化されている** | **重複を 1 件入れた資産で必ず red**(**skip・空走査で通らない**) |
+
+**負例の資産は本物の凍結資産を変異させず、一時ディレクトリの写しで作る**(**本物を壊さない** — 第 1 弾の `_make_repository(tmp_path)` と同じ形)。
 **① を 5 配列に絞るのは、検査器の読み取り経路を変える作業が別タスクの射程だからである**
 (**重複キーの検出には `_read_json` の `object_pairs_hook` が要る** — `:491`)。
 
@@ -737,6 +748,8 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 - [ ] **既に red だった配列の検査を変えていない**
 - [ ] **層 ②: 変更する 3 資産の全配列 + 全 JSON キー対を走る恒久検査を `tests/` へ置いた**
 - [ ] **その検査が再封印の直前にも走り、重複 0 件であることを確認した**
+- [ ] **走査自体を壊した 3 種の負例で red**(**再帰しない** = 深さ 2 以上の重複で red / **`json.loads` の last-wins** = 重複キーで red / **無効化** = 重複 1 件で必ず red・skip や空走査で通らない)
+- [ ] **負例の資産は一時ディレクトリの写しで作り、本物の凍結資産を変異させていない**
 - [ ] **層 ① と層 ② の射程の違いを計画書で書き分けた**(① = 検査器の 5 配列 / ② = 3 資産の恒久検査)
 - [ ] **別タスクへ送った 2 件を計画書に書いた**(① の残り 10 配列 + 重複キー / ② の残る 12 資産)
 - [ ] **「多重度を閉じた」と主張していない**(**7 周目の当該記録は撤回済み**)
