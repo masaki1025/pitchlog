@@ -349,9 +349,45 @@ def _duplicate_array_element(
     return mutated
 
 
+def _g_entry_partition_from_seal(
+    seal: dict[str, Any],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """seal の資産行の型から g の対象入口と対象外入力を分ける。"""
+    seal_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
+    included = {seal_path}
+    excluded: set[str] = set()
+    asset_tables = [
+        value
+        for value in seal.values()
+        if isinstance(value, list)
+        and value
+        and all(isinstance(row, dict) and "path" in row for row in value)
+    ]
+    assert asset_tables
+    for rows in asset_tables:
+        for row in rows:
+            assert isinstance(row, dict)
+            path = str(row["path"])
+            is_semantic_asset = {
+                "asset_kind",
+                "asset_role",
+                "canonical_sha256",
+            } <= set(row)
+            is_input_asset = set(row) == {"path", "git_blob_digest"}
+            assert is_semantic_asset is not is_input_asset
+            (included if is_semantic_asset else excluded).add(path)
+
+    frozen_paths = frozenset(_frozen_asset_paths_from_seal(seal))
+    assert included.isdisjoint(excluded)
+    assert included | excluded == frozen_paths
+    return frozenset(included), frozenset(excluded)
+
+
 @lru_cache(maxsize=1)
-def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
-    """固定基準版の7資産へ g を実行し、多重度が潰れる配列を導出する。"""
+def _derive_g_multiplicity() -> tuple[
+    tuple[tuple[str, ArrayPath], ...], frozenset[str]
+]:
+    """固定基準版へ g を実行し、出力と実際に踏んだ入口を返す。"""
     base_checker = _base_checker()
     seal_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
     seal = _base_json(seal_path)
@@ -374,10 +410,12 @@ def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
     implemented_test_ids = frozenset(
         {IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}
     )
+    observed_entry_paths: set[str] = set()
 
     def asset_mutation_is_green(
         name: str, path: ArrayPath, index: int
     ) -> bool:
+        observed_entry_paths.add(paths[name])
         mutated_assets = copy.deepcopy(assets)
         mutated_assets[name] = _duplicate_array_element(
             assets[name], path, index
@@ -415,6 +453,7 @@ def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
         for index in range(len(array)):
             mutated = _duplicate_array_element(seal, path, index)
             try:
+                observed_entry_paths.add(seal_path)
                 base_checker.validate_oracle_seal(
                     mutated, assets, paths, REPOSITORY_ROOT
                 )
@@ -425,7 +464,24 @@ def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
         if any(outcomes):
             output.append(("oracle_seal", path))
 
-    return tuple(output)
+    return tuple(output), frozenset(observed_entry_paths)
+
+
+def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
+    """g が出力した配列パスだけを返す。"""
+    return _derive_g_multiplicity()[0]
+
+
+def _assert_g_entry_population(
+    actual: frozenset[str], seal: dict[str, Any]
+) -> None:
+    """実測入口を seal の資産区分から導出した期待集合と突合する。"""
+    expected, excluded = _g_entry_partition_from_seal(seal)
+    assert actual == expected, (
+        "g の入口集合が不一致: "
+        f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
+    )
+    assert actual.isdisjoint(excluded)
 
 
 def _container_metrics(value: object, depth: int = 0) -> tuple[int, int]:
@@ -2766,6 +2822,19 @@ def test_ddl_scope_has_four_exact_final_values(monkeypatch: pytest.MonkeyPatch) 
     mutated["scope"]["status"] = "candidate_probe_only"
     monkeypatch.setattr(checker, "_validate_ddl_scope", lambda _raw: None)
     checker.validate_ddl_elements(mutated, REPOSITORY_ROOT)
+
+
+def test_g_entry_population_matches_the_seal_derived_partition() -> None:
+    """g が意味資産と seal の全入口を踏み、入力資産を除外すると示す。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    _output, actual = _derive_g_multiplicity()
+    expected, excluded = _g_entry_partition_from_seal(seal)
+
+    _assert_g_entry_population(actual, seal)
+    assert excluded == frozenset(_base_frozen_asset_paths()) - expected
+    for omitted in expected:
+        with pytest.raises(AssertionError, match="g の入口集合が不一致"):
+            _assert_g_entry_population(actual - {omitted}, seal)
 
 
 def test_g_arrays_reject_every_element_duplication_at_the_semantic_entry() -> None:

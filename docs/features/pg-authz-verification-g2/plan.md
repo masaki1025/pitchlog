@@ -918,7 +918,13 @@ uv run pytest tests/test_check_authz_catalog.py -k duplicate_scan_negative -q
 
 # 2-f. 層 ① の多重度検査が実効を持つこと(母集団は `g` の出力)(seal の digest 不一致で判定していない)
 #      多重度検査を外すと負例が red でなくなることを示す
-uv run pytest tests/test_check_authz_catalog.py -k multiplicity -q
+uv run pytest tests/test_check_authz_catalog.py -k g_duplicates_pass_when -q
+
+# 2-g. `g` の入口集合そのものが全数であること(**母集団を導出にしても入口は母集団である**)
+#      期待集合は seal の行の型から導く(意味資産 = `asset_kind`/`asset_role`/`canonical_sha256` を持つ行
+#      / 入力資産 = `path`+`git_blob_digest` だけの行)。二分が凍結 15 を覆うことも同じ試験が要求する
+#      **`g` の出力から入口を逆算しない** — 出力に 1 件も現れない入口(`rejected-configs`)があるため
+uv run pytest tests/test_check_authz_catalog.py -k g_entry_population -q
 
 # 3. 品質ゲート一括(/check 相当)
 (cd "$WT" && uv run ruff check . && uv run ty check && uv run pytest tests/)
