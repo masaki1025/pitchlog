@@ -150,7 +150,7 @@ class MigratedFinalLineup(
         ),
         allowed_update_columns=frozenset({"retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 

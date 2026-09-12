@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import type_boundary_contract
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, Table
 from type_boundary_contract import (
     _markdown_tables,
     _plain_markdown_cell,
@@ -21,6 +21,7 @@ from type_boundary_contract import (
 
 from pitchlog.db import all_models
 from pitchlog.db.base import Base
+from pitchlog.db.model_metadata import Immutability, is_task_handoff_id
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
@@ -338,6 +339,10 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
             violations.append(f"{name}: 部分被覆に未分類列の受け取り先がない")
         elif coverage == "exhaustive" and handoff is not None:
             violations.append(f"{name}: 全列分類済みに未分類列の受け取り先がある")
+        if handoff is not None and (
+            not isinstance(handoff, str) or not is_task_handoff_id(handoff)
+        ):
+            violations.append(f"{name}: 未分類列の受け取り先 ID の形式が不正")
         if set(table["forbidden_columns"]) & set(column_names):
             violations.append(f"{name}: 禁止列が実列に含まれる")
         primary_keys = [
@@ -553,6 +558,43 @@ def test_all_manifest_tables_have_models_and_migrations() -> None:
 
     assert (model_tables & migration_tables) <= manifest_tables
     assert missing == []
+
+
+def test_all_model_immutability_handoffs_are_task_ids() -> None:
+    """全 ORM モデルを機械走査し、受け取り先を実タスク ID 形式に限定する。"""
+    manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
+    immutability_by_table = {
+        mapper.local_table.name: immutability
+        for mapper in Base.registry.mappers
+        if isinstance(mapper.local_table, Table)
+        if isinstance(
+            immutability := getattr(mapper.class_, "immutability", None),
+            Immutability,
+        )
+    }
+
+    assert set(immutability_by_table) == manifest_tables == set(Base.metadata.tables)
+    assert all(
+        immutability.unclassified_handoff is None
+        or is_task_handoff_id(immutability.unclassified_handoff)
+        for immutability in immutability_by_table.values()
+    )
+
+
+def test_manifest_rejects_non_task_immutability_handoff_id() -> None:
+    """Manifest の受け取り先を仮文字列へ戻した負例を検出する。"""
+    manifest = copy.deepcopy(_load_manifest())
+    partial_table = next(
+        table
+        for table in manifest["tables"]
+        if table["immutability"]["coverage"] == "partial"
+    )
+    partial_table["immutability"]["unclassified_handoff"] = "follow-up-A"
+
+    assert (
+        f"{partial_table['name']}: 未分類列の受け取り先 ID の形式が不正"
+        in _manifest_shape_violations(manifest)
+    )
 
 
 def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> None:

@@ -146,7 +146,7 @@ class EvacuatedEventOriginal(TenantMixin, ImportBatchMixin, LifecycleMixin, Base
             {"status", "imported_event_id", "retention_deadline", "discarded_at"}
         ),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -237,7 +237,7 @@ class RecordingGeneration(
         ),
         conditional_update_columns=frozenset({"confirmed_watermark"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 

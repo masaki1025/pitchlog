@@ -16,6 +16,7 @@ from type_boundary_contract import (
     _section_body,
 )
 
+from pitchlog.db.model_metadata import is_task_handoff_id
 from pitchlog.db.sync_protocol.event_kinds import (
     C12_CHECK_EXPRESSIONS,
     C12_REQUIREMENT_MATRIX,
@@ -224,7 +225,7 @@ def test_c12_matrix_exactly_covers_participation_value_product() -> None:
 
 
 def test_c12_unrepresentable_cells_have_explicit_handoffs() -> None:
-    """射程外セルが理由と暫定受け取り先を欠かさないと示す。"""
+    """全84セルを走査し、射程外セルの理由と実タスク ID を検査する。"""
     cells = tuple(
         cell
         for cell in C12_REQUIREMENT_MATRIX.values()
@@ -267,6 +268,11 @@ def test_c12_unrepresentable_cells_have_explicit_handoffs() -> None:
     } == (expected_keys)
     assert all(cell.unrepresentable_reason for cell in cells)
     assert all(cell.unrepresentable_handoff for cell in cells)
+    assert all(
+        cell.unrepresentable_handoff is None
+        or is_task_handoff_id(cell.unrepresentable_handoff)
+        for cell in C12_REQUIREMENT_MATRIX.values()
+    )
 
 
 def test_c12_first_seven_kind_predicates_exclude_tombstones() -> None:
@@ -383,6 +389,8 @@ def test_c12_unrepresentable_metadata_negative_cases_are_red() -> None:
         replace(cell, unrepresentable_reason=None)
     with pytest.raises(ValueError, match="受け取り先 ID が必要"):
         replace(cell, unrepresentable_handoff=None)
+    with pytest.raises(ValueError, match=r"TSK-<数字> 形式"):
+        replace(cell, unrepresentable_handoff="follow-up-A")
 
 
 def test_c12_canonical_d2_mutation_negative_case_is_red() -> None:

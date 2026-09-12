@@ -8,6 +8,8 @@ from enum import StrEnum
 from itertools import product
 from types import MappingProxyType
 
+from pitchlog.db.model_metadata import is_task_handoff_id
+
 
 class ParticipationBinding(StrEnum):
     """参加区分が操作イベント行のどの要素へ写るか。"""
@@ -69,6 +71,10 @@ class C12Cell:
                 raise ValueError("表現不能セルには理由が必要です")
             if not self.unrepresentable_handoff:
                 raise ValueError("表現不能セルには受け取り先 ID が必要です")
+            if not is_task_handoff_id(self.unrepresentable_handoff):
+                raise ValueError(
+                    "表現不能セルの受け取り先 ID は TSK-<数字> 形式で指定してください"
+                )
         elif (
             self.unrepresentable_reason is not None
             or self.unrepresentable_handoff is not None
@@ -176,14 +182,16 @@ _C12_SOURCE_BY_VALUE = MappingProxyType(
         C12Value.V11: "sync-protocol.md:4-3",
     }
 )
-_FOLLOW_UP_B = "follow-up-B"
-_P58_HANDOFF = "P-58"
+_FOLLOW_UP_B = "TSK-373"
+_P58_HANDOFF = "TSK-375"
 _REVISION_ROW_AMBIGUITY_REASON = (
     "改訂版を名指す列が無く、replaced_at は置換された旧版側に立つため "
     "event_kind だけでは通常版と区別できない"
 )
 _V10_TOMBSTONE_REASON = "墓標の V10 の物理表現を正本が定めていない"
-_STATE_CORRECTION_REASON = "状態補正(#7)の採否を Must 前提として組み込めない"
+_STATE_CORRECTION_REASON = (
+    "P-58 が状態補正(#7)の採否を Must 前提として組み込むことを禁じている"
+)
 _UNREPRESENTABLE_ROW_PREDICATE = "FALSE"
 
 

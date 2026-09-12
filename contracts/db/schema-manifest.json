@@ -41,7 +41,7 @@
       "unique_constraints": [{"name": "pk_tenants", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "team_records",
@@ -68,7 +68,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["kind"], "allowed_update_columns": ["name", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["kind"], "allowed_update_columns": ["name", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "players",
@@ -98,7 +98,7 @@
       "unique_constraints": [{"name": "pk_players", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_players_team", "columns": ["tenant_id", "team_record_id", "id"], "predicate": "hidden_at IS NULL", "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "enrollment_year", "school_year"],
-      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["name", "throws", "bats", "uniform_number", "roster_status_key", "roster_label_key", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["name", "throws", "bats", "uniform_number", "roster_status_key", "roster_label_key", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "games",
@@ -137,7 +137,7 @@
       "unique_constraints": [{"name": "pk_games", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_games_list", "columns": ["tenant_id", "scheduled_at DESC", "id DESC"], "predicate": "trashed_at IS NULL AND hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "lineup_memories",
@@ -162,7 +162,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["lineup", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["lineup", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "game_lineups",
@@ -186,7 +186,7 @@
       "unique_constraints": [{"name": "pk_game_lineups", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_game_lineups_game", "columns": ["tenant_id", "game_id", "team_record_id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["entries_with_uniform_number_snapshot"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["entries_with_uniform_number_snapshot"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "participation_intervals",
@@ -219,7 +219,7 @@
       ],
       "indexes": [{"name": "ix_participation_intervals_range", "columns": ["tenant_id", "game_id", "valid_from_d2", "valid_until_d2"], "predicate": "retired_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "d1"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["valid_until_d2", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["valid_until_d2", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "rule_sets",
@@ -240,7 +240,7 @@
       "unique_constraints": [{"name": "pk_rule_sets", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["regulation_innings", "called_game_conditions", "extra_innings_limit", "tiebreak_rule", "uses_dh"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["regulation_innings", "called_game_conditions", "extra_innings_limit", "tiebreak_rule", "uses_dh"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "game_type_rule_defaults",
@@ -260,7 +260,7 @@
       "unique_constraints": [{"name": "pk_game_type_rule_defaults", "kind": "PRIMARY KEY", "columns": ["game_type_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "tournament_rule_assignments",
@@ -281,7 +281,7 @@
       "unique_constraints": [{"name": "pk_tournament_rule_assignments", "kind": "PRIMARY KEY", "columns": ["tenant_id", "tournament_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "event_slots",
@@ -417,7 +417,7 @@
       "unique_constraints": [{"name": "pk_play_rows", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_play_rows_game_order", "columns": ["tenant_id", "game_id", "play_number", "id"], "predicate": "hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "source_event_id", "legacy_row_identifier"], "allowed_update_columns": ["version", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["id", "source_event_id", "legacy_row_identifier"], "allowed_update_columns": ["version", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "play_runners",
@@ -449,7 +449,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "status_source", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "status_source", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "temporary_player_id_mappings",
@@ -472,7 +472,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["temporary_id", "player_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["temporary_id", "player_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "idempotency_ledger",
@@ -498,7 +498,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["game_id", "generation", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["kind", "source_fingerprint", "result", "reason"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["kind", "source_fingerprint", "result", "reason"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "rejected_event_originals",
@@ -522,7 +522,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["d5", "kind", "payload"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["d5", "kind", "payload"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "evacuated_event_originals",
@@ -561,7 +561,7 @@
       ],
       "indexes": [{"name": "ix_evacuated_event_originals_retention", "columns": ["tenant_id", "retention_deadline"], "predicate": "retention_deadline IS NOT NULL AND discarded_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["game_id", "old_generation", "original_d1", "d5", "kind", "origin"], "allowed_update_columns": ["status", "imported_event_id", "retention_deadline", "discarded_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["game_id", "old_generation", "original_d1", "d5", "kind", "origin"], "allowed_update_columns": ["status", "imported_event_id", "retention_deadline", "discarded_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "recording_generations",
@@ -593,7 +593,7 @@
       ],
       "indexes": [{"name": "ix_recording_generations_history", "columns": ["tenant_id", "game_id", "issuance_order DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["generation", "kind", "issuance_order", "holder_device", "granted_at"], "allowed_update_columns": ["applied_prefix", "revoked_at", "retired_at"], "conditional_update_columns": ["confirmed_watermark"], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["generation", "kind", "issuance_order", "holder_device", "granted_at"], "allowed_update_columns": ["applied_prefix", "revoked_at", "retired_at"], "conditional_update_columns": ["confirmed_watermark"], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "medical_notes",
@@ -619,7 +619,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "medical_note_versions",
@@ -642,7 +642,7 @@
       "unique_constraints": [{"name": "pk_medical_note_versions", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_medical_note_versions_history", "columns": ["tenant_id", "medical_note_id", "version DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["medical_note_id", "version", "content", "origin", "recorded_at"], "allowed_update_columns": ["retained_for_restore"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["medical_note_id", "version", "content", "origin", "recorded_at"], "allowed_update_columns": ["retained_for_restore"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "pdf_export_records",
@@ -726,7 +726,7 @@
       "unique_constraints": [{"name": "pk_tenant_vocabularies", "kind": "PRIMARY KEY", "columns": ["tenant_id", "key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちチーム拡張可の層", "key_shape": "UNIQUE (tenant_id, キー名)", "scope": "scoped"}}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "pitch_family", "abbreviation", "disabled"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "pitch_family", "abbreviation", "disabled"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "system_settings",
@@ -892,7 +892,7 @@
       "unique_constraints": [{"name": "pk_player_merge_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_player_merge_events_time", "columns": ["tenant_id", "occurred_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["source_player_id", "target_player_id", "occurred_at", "executor"], "allowed_update_columns": ["reverted_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["source_player_id", "target_player_id", "occurred_at", "executor"], "allowed_update_columns": ["reverted_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "player_move_records",
@@ -1027,7 +1027,7 @@
       ],
       "indexes": [{"name": "ix_group_invitations_expiry", "columns": ["expires_at", "id"], "predicate": "status = 'unconsumed'", "purpose": "range_sort"}],
       "forbidden_columns": ["tenant_id", "invitation_code", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "group_id", "code_hash", "initial_role"], "allowed_update_columns": ["status"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["id", "group_id", "code_hash", "initial_role"], "allowed_update_columns": ["status"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "invalidation_intents",
@@ -1102,7 +1102,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["resolved_player_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["game_id", "team_record_id", "raw_lineup", "legacy_row_identifier", "import_batch_id"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["game_id", "team_record_id", "raw_lineup", "legacy_row_identifier", "import_batch_id"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "migration_runs",

@@ -356,7 +356,7 @@ class TemporaryPlayerIdMapping(TenantMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"temporary_id", "player_id"}),
         allowed_update_columns=frozenset(),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -399,7 +399,7 @@ class IdempotencyLedger(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"kind", "source_fingerprint", "result", "reason"}),
         allowed_update_columns=frozenset({"retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -456,7 +456,7 @@ class RejectedEventOriginal(TenantMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"d5", "kind", "payload"}),
         allowed_update_columns=frozenset(),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 

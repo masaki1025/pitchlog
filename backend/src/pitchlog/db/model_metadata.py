@@ -1,7 +1,15 @@
 """ORM モデルが宣言する表単位の契約メタデータを定義する。"""
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
+
+_TASK_HANDOFF_ID_PATTERN = re.compile(r"TSK-[0-9]+")
+
+
+def is_task_handoff_id(value: str) -> bool:
+    """受け取り先が実タスク ID の形式なら真を返す。"""
+    return _TASK_HANDOFF_ID_PATTERN.fullmatch(value) is not None
 
 
 class DeletionLifecycle(StrEnum):
@@ -75,3 +83,9 @@ class Immutability:
             and self.unclassified_handoff is not None
         ):
             raise ValueError("全列分類済みに未分類列の受け取り先は指定できない")
+        if self.unclassified_handoff is not None and not is_task_handoff_id(
+            self.unclassified_handoff
+        ):
+            raise ValueError(
+                "未分類列の受け取り先 ID は TSK-<数字> 形式で指定してください"
+            )

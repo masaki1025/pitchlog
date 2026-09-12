@@ -154,7 +154,7 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             {"status", "started_at", "trashed_at", "hidden_at"}
         ),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -215,7 +215,7 @@ class LineupMemory(
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"lineup", "retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -271,7 +271,7 @@ class GameLineup(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"entries_with_uniform_number_snapshot"}),
         allowed_update_columns=frozenset(),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -349,7 +349,7 @@ class ParticipationInterval(
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"valid_until_d2", "retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -399,7 +399,7 @@ class RuleSet(LifecycleMixin, Base):
             }
         ),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -443,7 +443,7 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"rule_set_id"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -488,7 +488,7 @@ class TournamentRuleAssignment(TenantMixin, LifecycleMixin, Base):
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"rule_set_id"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -725,7 +725,7 @@ class PlayRow(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"id", "source_event_id", "legacy_row_identifier"}),
         allowed_update_columns=frozenset({"version", "hidden_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -799,5 +799,5 @@ class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin,
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"status", "status_source", "retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )

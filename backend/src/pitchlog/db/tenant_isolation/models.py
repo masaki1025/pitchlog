@@ -77,7 +77,7 @@ class Tenant(ImportBatchMixin, LifecycleMixin, Base):
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"name", "enabled", "disabled_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -135,7 +135,7 @@ class TeamRecord(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         protected_columns=frozenset({"kind"}),
         allowed_update_columns=frozenset({"name", "hidden_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -215,7 +215,7 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             }
         ),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -270,7 +270,7 @@ class MedicalNote(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin
         protected_columns=frozenset({"player_id", "note_kind"}),
         allowed_update_columns=frozenset({"content", "version", "retired_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -325,7 +325,7 @@ class MedicalNoteVersion(TenantMixin, LifecycleMixin, Base):
         ),
         allowed_update_columns=frozenset({"retained_for_restore"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -756,7 +756,7 @@ class PlayerMergeEvent(TenantMixin, LifecycleMixin, Base):
         ),
         allowed_update_columns=frozenset({"reverted_at"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -1098,7 +1098,7 @@ class GroupInvitation(LifecycleMixin, Base):
         protected_columns=frozenset({"id", "group_id", "code_hash", "initial_role"}),
         allowed_update_columns=frozenset({"status"}),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -1220,7 +1220,7 @@ class TenantVocabulary(TenantMixin, LifecycleMixin, Base):
             {"display_name", "pitch_family", "abbreviation", "disabled"}
         ),
         coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        unclassified_handoff="TSK-372",
     )
 
 

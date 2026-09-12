@@ -23,6 +23,7 @@ from pitchlog.db.model_metadata import (
     ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
+    is_task_handoff_id,
 )
 
 
@@ -212,8 +213,22 @@ def test_exhaustive_immutability_rejects_unclassified_handoff() -> None:
             protected_columns=frozenset(),
             allowed_update_columns=frozenset(),
             coverage=ImmutabilityCoverage.EXHAUSTIVE,
+            unclassified_handoff="TSK-372",
+        )
+
+
+def test_partial_immutability_rejects_non_task_handoff_id() -> None:
+    """部分被覆の受け取り先に仮文字列を指定した負例を拒否する。"""
+    with pytest.raises(ValueError, match=r"TSK-<数字> 形式"):
+        Immutability(
+            protected_columns=frozenset(),
+            allowed_update_columns=frozenset(),
+            coverage=ImmutabilityCoverage.PARTIAL,
             unclassified_handoff="follow-up-A",
         )
+
+    assert is_task_handoff_id("TSK-372")
+    assert not is_task_handoff_id("follow-up-A")
 
 
 def test_test_models_do_not_modify_production_metadata() -> None:

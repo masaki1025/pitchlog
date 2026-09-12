@@ -2,7 +2,7 @@
 
 構造の全表突合は test_immutability_enforcement.py が担う。本モジュールの行 fixture は
 既存 5 表に operation_events と players を加えた 7 表だけを対象とする。実更新挙動の
-全表化は受け取り先 C の宿題であり、ここでは暗黙に全表被覆を主張しない。
+全表化は TSK-374 の宿題であり、ここでは暗黙に全表被覆を主張しない。
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def _load_behavior_matrix() -> dict[str, _MatrixRow]:
     """Manifest から行 fixture を持つ 7 表の不変列宣言を読み出す。
 
     実更新挙動は既存 5 表と operation_events・players の 7 表を対象とする。
-    全表の実更新挙動は受け取り先 C で追加する。
+    全表の実更新挙動は TSK-374 で追加する。
     """
     manifest: dict[str, Any] = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
     tables = {
@@ -489,7 +489,7 @@ def test_selected_immutability_update_behavior(
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """受け取り先 C までの明示的な 7 表で更新・削除挙動を検査する。"""
+    """TSK-374 までの明示的な 7 表で更新・削除挙動を検査する。"""
     matrix = _load_behavior_matrix()
     assert set(matrix) == set(_BEHAVIOR_TABLES)
     assert set(_PROTECTED_UPDATE_ERRORS) == set(matrix)
