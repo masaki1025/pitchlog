@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 12        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 13        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -204,7 +204,7 @@ git diff --exit-code origin/develop...HEAD -- \
 **したがって `S-1` の 2 段コミットは不要**で、**`--reseal-oracle` を 1 回回せば足りる**(`_build_oracle_seal()` は **`input_assets[].git_blob_digest`(不変)と `sealed_assets[]` の再構築(変わる)だけ**を行う — 実測)。
 
 **`S-1` の要求(reseal と人間査読)は本改訂で完結する。**
-**PR #3 は `auth-catalog.json`(入力資産)を変えるため、その PR 自身で 2 段コミットを要する**が、**これは `S-1` の残部ではなく PR #3 の実装制約である**(**送り先表と DoD の「6 件」に `S-1` が無いのはこのため** — 4 周目 `P2-9`)。
+**PR #3 は `auth-catalog.json`(入力資産)を変えるため、その PR 自身で 2 段コミットを要する**が、**これは `S-1` の残部ではなく PR #3 の実装制約である**(**送り先表と DoD の「7 件」に `S-1` が無いのはこのため** — 4 周目 `P2-9`)。
 
 #### PR #3 へ送るもの(**空手形にしないため受取先を明記する**)
 
@@ -219,6 +219,19 @@ git diff --exit-code origin/develop...HEAD -- \
 | `S-8` のうち **3 資産のパスと版・digest** | **PR #3** | `S-4` の ID 完全性に依存 |
 
 **PR #3 は本改訂のマージ後に、同じ計画書の改訂 4 として起こす。**
+
+#### マージ順序(**PO 裁定 2026-09-12**)
+
+```
+TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
+  → TSK-355 → **TSK-317 PR #3** → TSK-235
+```
+
+**PR #3 は TSK-355 の後**である。**PR #3 は `auth-catalog.json`(入力資産)を変えて `oracle_commit` を前進させ、TSK-355 は要件書の改訂で `requirement-claims.json`(同じく入力資産)を動かす** — **同じ seal の入力側を両方が触る**ため、順序を決めないとどちらかが再封印をやり直す。
+
+**裁定の根拠**: **TSK-355 の確定ゲートが最長区間**(同型の前例 TSK-278 で 27 周)で、**この順序なら PR #3 はその間に計画・実装を進められる**(待つのはマージだけ)。**逆順にすると 2 つの長い作業が直列になり、さらに TSK-355 の承認済み計画の改訂と再承認で人間の手番が 1 回増える。**
+
+→ **PR #3 の計画は、TSK-355 マージ後の状態を前提として起こす**(`requirement-claims.json` の digest と `oracle_commit` が動いた後の版に乗る)。
 
 ### やらないこと(**`H-68` 対策 — 隣接規範を引き込む要求を書かない**)
 
@@ -341,7 +354,7 @@ reseal で digest を更新しても `oracle_commit` 上の blob は古いまま
 
 **本改訂の実測(2026-09-12)**: **本改訂は `input_assets`(8)を 1 つも変えない**ため、
 **上記の「`oracle_commit` の前進」も「2 段コミット」も要らない**(2 節の実測)。
-**`sealed_assets` の 3 本だけが変わるので、`--reseal-oracle` を 1 回回せば seal は再構築できる。**
+**`sealed_assets` の 2 本だけが変わるので、`--reseal-oracle` を 1 回回せば seal は再構築できる**(**裁定 `D-15` で `claim-mutant-map` が PR #3 へ移り 3 本 → 2 本**)。
 **したがって oracle を触る点は本改訂でも 1 ステップ(ステップ 3)だけである。**
 
 **`oracle_commit` の前進と 2 段コミットは PR #3 の実装制約**であり(PR #3 は `auth-catalog.json` = 入力資産を変える)、**本改訂の射程ではない。**
@@ -443,26 +456,43 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | --- | --- | --- |
 | 1 | **期待件数のハードコード撤去**(`S-8` の一部)— `tests/test_check_authz_catalog.py` の「**資産由来の数量を整数リテラルで固定している `assert`**」を資産からの導出へ置き換える。**母集団は走査器が規則で定義する**(下記)。**撤去しない箇所は allowlist へ理由つきで載せる**。**封印資産に触れない** | `[機械]` **走査器が下記の規則を実装している**・**母集団 − allowlist = 0 件**・**allowlist の各項目が規則で再導出できる**(**実在しない行や規則に当たらない行を載せると red**)・**各項目の理由が非空**・**資産を 1 要素増やすとテストが自動追随する**・**負例: 規則に当たる整数リテラルを 1 件足すと red / allowlist から 1 件外すと red**・`uv run pytest tests/test_check_authz_catalog.py` green |
 | 2 | **`core-areas.json` への登録**(裁定 `D-13` + `S-8` の一部)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(いずれも下表で確定済み)。**封印資産に触れない** | `[機械]` **下表の 10 本と 9 パターンが登録されている**(exact-set)・**いずれか 1 件を外すと red**・**`tenant-isolation.paths` に追加した各パターンが実在ファイルへ 1 件以上マッチする**(**空振りのパターンを書けない**)・`uv run pytest tests/test_core_guard.py tests/test_ci_wiring.py` green。`[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認** |
-| 3 | **封印資産の確定と再封印**(owner 移管 + `S-5` + `S-7` + 検査器追随 + `--reseal-oracle` **1 回**)— **3-a 〜 3-d を 1 コミットに収める**(上記の理由)。**`oracle_commit` は動かさない**(入力資産が不変のため — 2 節の実測) | `[機械]` **3-a 〜 3-d の全条件を満たす**(下記)・**reseal 後に `check_authz_catalog.py` が rc=0**・**`--reseal-oracle` を付けない通常検証では reseal されない**。`[手動・外部]` **差分敵対レビューと人間査読**(`reseal_policy.human_review_required`) |
+| 3 | **封印資産の確定と再封印**(owner 移管 + `S-5` + `S-7` + 検査器追随(**`input_assets` の重複行検査を含む**)+ `--reseal-oracle` **1 回**)— **3-a 〜 3-e を 1 コミットに収める**(上記の理由)。**`oracle_commit` は動かさない**(入力資産が不変のため — 2 節の実測) | `[機械]` **3-a 〜 3-e の全条件を満たす**(下記)・**reseal 後に `check_authz_catalog.py` が rc=0**・**`--reseal-oracle` を付けない通常検証では reseal されない**。`[手動・外部]` **差分敵対レビューと人間査読**(`reseal_policy.human_review_required`) |
 
 ##### ステップ 1 の母集団 — **走査器の規則**(**件数を計画書に書かない** — 4 周目 `P1-8`)
 
-**対象**: `tests/test_check_authz_catalog.py`。**規則**(Python の AST で判定する):
+**対象**: `tests/test_check_authz_catalog.py`。**規則**(Python の AST で判定する)。
+**`assert` 文の中に現れる次の 3 種すべて**を母集団に入れる:
 
-- **`assert` 文の中に現れるすべての `int` リテラル**(`bool` を除く)。
-  **位置を限定しない** — **比較の右辺だけでなく、`Counter({"allow": 6, "deny": 6})` のような
-  コンテナリテラルの中の値も、`attempts == 894` のような名前との比較も母集団に入る**
-  (**「左辺が `len(...)` か `count`」に絞ると両者を取りこぼす** — 4 周目 `P1-3` の実測)。
-- **唯一の除外**: **比較の左辺の原文に `returncode` を含む `ast.Compare` の中**のリテラル。
-  **プロセスの終了状態であって資産由来の数量ではない**。
-  **除外はこの 1 種類だけで、他はすべて母集団に入る。**
+1. **`int` リテラル**(`bool` を除く)。**位置を限定しない** —
+   **`Counter({"allow": 6, "deny": 6})` のようなコンテナリテラルの中の値も、
+   `attempts == 894` のような名前との比較も入る**(4 周目 `P1-3` の実測)。
+2. **`str` リテラルのうち、2 桁以上の数字列を含むもの**。
+   **現物に `"total=1078 auth_claim=184 out_of_scope=894"` がある**(`:350`)—
+   **整数を文字列へ移すだけで走査を抜けられるため**(5 周目 `P1-2` の実測)。
+3. **`assert` 文が参照する名前のうち、同一モジュール内で `int` リテラルに束縛されたもの**。
+   **定数へ退避するだけで走査を抜けられるため**(同前)。
+
+**唯一の除外**: **比較の左辺の原文に `returncode` を含む `ast.Compare` の中**のもの。
+**プロセスの終了状態であって資産由来の数量ではない**。
+**除外はこの 1 種類だけで、他はすべて母集団に入る。**
 
 **allowlist の項目**(**撤去しないものはここへ理由つきで載せる**):
 
-- **キーは `(テスト関数名, 整数値)`**(**行番号ではない** — 行の移動で allowlist が壊れない)
+- **キーは `(テスト関数名, 種別, 値, 出現回数)`**(**行番号ではない** — 行の移動で壊れない)。
+  **`出現回数` を持つのが要点** — **`(関数名, 値)` だけだと同じ関数へ資産件数の `== 1` を
+  足しても同じキーとして許可され、「リテラルを 1 件足すと red」が成り立たない**
+  (5 周目 `P1-3` の実測 — **現物では 47 出現が 40 キーへ潰れる**)。
 - **理由は非空**。**下限の主張(`> 0`)・禁止語が 0 件・言語仕様上の定数**などは、
   **「資産由来の数量ではない」理由を個別に書く**
-- **allowlist の各項目が、規則で得た母集団に実在すること**(**架空の項目を載せると red**)
+- **allowlist の各項目が、規則で得た母集団に同じ出現回数で実在すること**
+  (**架空の項目・回数の食い違いは red**)
+
+**負例**(**規則の穴を塞げたことを示す**):
+
+- **整数リテラルを 1 件足すと red**(同じ関数の同じ値でも**回数が増えるので red**)
+- **整数を文字列へ移すと red**(規則 2)
+- **整数を関数外の定数へ退避すると red**(規則 3)
+- **allowlist から 1 件外すと red**
 
 **計画書は件数を断定しない。** **母集団は走査器の実行結果が正**であり、
 **実装時点の実測値を worklog へ記録する**(**「20 箇所」という前提は 4 周目 `P1-8` で撤回した** —
@@ -546,7 +576,25 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **証跡は PR 本文と worklog へ置く** — **第 1 弾(PR #52 / `67e06a2`)の当該 CI run と、
 そこで green になった検証ステップを明記する。**
 
-**3-d oracle の再封印**(`--reseal-oracle` **1 回**)
+**3-d `input_assets` の重複行を落とす**(**5 周目 `P0-1` の実測**)
+
+**`check_authz_catalog.py:4531-4566` は `input_assets` の path を `set` へ積んで
+`required_input_paths` と比較するだけ**なので、**同じ path の行を複製しても 9 行のまま green になる**
+(レビューが実資産の負例で確認した)。**`--reseal-oracle` も既存の行を保ったまま digest を更新するので、
+この不正形を直さない。**
+
+**`sealed_assets` 側には既に `if path_text in sealed_by_path: raise` がある**(`:4582`)。
+**入力側だけがこの検査を持っていないという非対称**なので、**同じ形へ揃える**。
+
+> **これは射程の拡大ではない。** **本改訂の DoD が「`input_assets` 8 件が不変」を要求している**のに、
+> **検査器が 9 行を通すなら、その DoD は検証できない。**
+> **自分の受け入れ基準を検査可能にするための是正である。**
+
+`[機械]` **`input_assets` の行数が 8 で、path に重複が無い**・
+**負例: 行を 1 件複製すると red**(**現在は green になる** — 反転を負例で示す)・
+**`sealed_assets` 側の既存検査は変えない**。
+
+**3-e oracle の再封印**(`--reseal-oracle` **1 回**)
 
 `[機械]` **seal の `oracle_commit` が `dd2cb92...` のまま**・
 **`oracle_commit_semantics` が `last_committed_step_4_input_baseline` のまま**・
@@ -595,6 +643,10 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **これを終えれば、後半は実測に基づいて書ける**(第 1 群と同じ形 — 人間の裁定 2026-08-31)。
 
 #### 改訂 3 **第 2 弾**が満たすべき要件(**失わないためにここへ記録する**)
+
+> **本表は `S-1`〜`S-10` の要件そのものの記録であり、射程の割り当てではない。**
+> **本改訂(PR #2)の射程は `S-1`・`S-5`・`S-7`・`S-8` の一部**(`core-areas.json` 登録と期待件数の撤去)**だけ**である。
+> **残る `S-2`・`S-3`・`S-4`・`S-6`・`S-9`・`S-10`・`S-8` の残部は PR #3 の射程**(裁定 `D-14`・`D-15`)。**割り当ての正は 2 節の送り先表**である。
 
 > **本節の `S-1`〜`S-10` はすべて改訂 3 第 2 弾の射程であり、本計画(第 1 弾)の承認条件ではない**(裁定 `D-10`・2026-09-10)。
 > **第 2 弾はステップ 17〜20 の完了後に行う。**
@@ -657,13 +709,15 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 #### ステップ 1 — 期待件数のハードコード撤去
 
-- [ ] **走査器が 4 節の規則を実装している**(**`assert` 文中のすべての `int` リテラル**・
-      **位置を限定しない**・**除外は `returncode` 比較の 1 種類だけ**)
+- [ ] **走査器が 4 節の 3 種すべてを母集団に入れている**(**`int` リテラル** /
+      **2 桁以上の数字列を含む `str` リテラル** / **`int` リテラルに束縛された参照名**)
+- [ ] **除外は `returncode` 比較の 1 種類だけ**
 - [ ] **`Counter({...})` の中の値と、名前との比較(`attempts == 894`)が母集団に入っている**
+- [ ] **`"total=1078 auth_claim=184 out_of_scope=894"` が母集団に入っている**(`:350`)
 - [ ] **母集団 − allowlist = 0 件**
-- [ ] **allowlist のキーが `(テスト関数名, 整数値)`** で、**各項目が母集団に実在し、理由が非空**
-      (**架空の項目を載せると red**)
-- [ ] **資産を 1 要素増やすとテストが自動追随する**
+- [ ] **allowlist のキーが `(テスト関数名, 種別, 値, 出現回数)`** で、
+      **各項目が母集団に同じ出現回数で実在し、理由が非空**
+- [ ] **負例 4 種で red**(リテラルを 1 件足す / 文字列へ移す / 定数へ退避する / allowlist から 1 件外す)
 - [ ] **実装時点の母集団の実測値を worklog へ記録した**(**計画書に件数を書かない**)
 
 #### ステップ 2 — `core-areas.json` への登録
@@ -681,10 +735,10 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 - [ ] **`deferred_equivalence_contract.owner_task_id` が実 ID と完全一致**
 - [ ] **`proposal_status` と 2 件の `status` が確定値**・**`frozen_value` / `alternative_value` / `review_id` は不変**
 - [ ] **`scope` の 4 キーが確定値**で、**検査器の literal が資産と一致**し、**4 キーそれぞれの負例がある**
+- [ ] **`input_assets` の行数が 8 で path に重複が無いことを検査器が拒めるようにした**(**行を 1 件複製すると red** — 5 周目 `P0-1`)
 - [ ] **`--reseal-oracle` を 1 回だけ回した**
 - [ ] **`oracle_commit` と `oracle_commit_semantics` が不変**
-- [ ] **`input_assets[].git_blob_digest` 8 件が不変**で、
-      **`sealed_assets[]` の 2 本(`boundary-proposal` / `ddl-elements`)だけが変わった**
+- [ ] **`input_assets` が 8 行のまま**(**重複なし**)で、**`git_blob_digest` 8 件が不変**。**`sealed_assets[]` の 2 本(`boundary-proposal` / `ddl-elements`)だけが変わった**
 - [ ] **`claim-mutant-map.json` に触っていない**(裁定 `D-15` — `S-9` は PR #3)
 - [ ] **「通った構成」の実行証跡を PR 本文と worklog へ記録した**(**`scope` へは置けない**)
 - [ ] **差分敵対レビューと人間査読を通した**
@@ -755,14 +809,19 @@ base = json.loads(subprocess.run(
 head = json.load(open(f"{wt}/contracts/authz/oracle-seal.lock.json"))
 assert base["oracle_commit"] == head["oracle_commit"], "oracle_commit が動いている"
 assert base["oracle_commit_semantics"] == head["oracle_commit_semantics"], "semantics が動いている"
-b = {a["path"]: a["canonical_sha256"] for a in base["sealed_assets"]}
-h = {a["path"]: a["canonical_sha256"] for a in head["sealed_assets"]}
-changed = {p for p in b if b[p] != h.get(p)}
+# 行の集合ではなく「行の列」で比べる — 辞書化すると重複行が潰れて見逃す(5 周目 P0-1)
+bi = [(a["path"], a["git_blob_digest"]) for a in base["input_assets"]]
+hi = [(a["path"], a["git_blob_digest"]) for a in head["input_assets"]]
+assert len(hi) == 8, f"input_assets が 8 行でない: {len(hi)}"
+assert len({p for p, _ in hi}) == 8, "input_assets の path が重複している"
+assert bi == hi, "入力資産の行が動いている"
+b = [(a["path"], a["canonical_sha256"]) for a in base["sealed_assets"]]
+h = [(a["path"], a["canonical_sha256"]) for a in head["sealed_assets"]]
+assert len(h) == 6 and len({p for p, _ in h}) == 6, "sealed_assets が 6 行の一意な集合でない"
+assert [p for p, _ in b] == [p for p, _ in h], "sealed_assets の並びが変わっている"
+changed = {p for (p, d), (_, e) in zip(b, h) if d != e}
 expected = {"contracts/authz/ddl-elements.json", "contracts/authz/boundary-proposal.json"}
 assert changed == expected, f"canonical が変わった資産が期待と違う: {changed}"
-bi = {a["path"]: a["git_blob_digest"] for a in base["input_assets"]}
-hi = {a["path"]: a["git_blob_digest"] for a in head["input_assets"]}
-assert bi == hi, "入力資産の digest が動いている"
 print("seal OK")
 PY
 
@@ -784,7 +843,7 @@ uv run python scripts/feature_status.py
 (未設定は skip ではなく fail)。**ローカルでは人間が用意する**。CI では配線済み。
 
 **人間が確認すること**(**本改訂の承認範囲 = ステップ 1〜3 の分**):
-**oracle の reseal 差分が `sealed_assets` の 3 本だけであること** /
+**oracle の reseal 差分が `sealed_assets` の 2 本だけであること** /
 **`core-areas.json` の追加分(10 本 + 9 パターン)** /
 **`boundary-proposal.json` の 3 境界の owner が閉じた表と一致し、`TSK-250` が残っていること** /
 **`scope` の確定値が第 1 弾の実行結果に裏づけられていること**(**証跡は PR 本文と worklog**)。
