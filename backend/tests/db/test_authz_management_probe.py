@@ -327,6 +327,13 @@ def _with_disabled_target_grant(fixture: _ManagementFixture) -> _ManagementFixtu
     return replace(fixture, grant_enabled=False)
 
 
+def _with_mismatched_target_grant_group(
+    fixture: _ManagementFixture,
+) -> _ManagementFixture:
+    """対象 grant のグループだけを membership 行と不一致にする。"""
+    return replace(fixture, grant_group_id=12_101)
+
+
 _BASELINE_FIXTURE = _baseline_management_fixture()
 _AUTHORIZATION_FAILURE_CASES: Final[tuple[_AuthorizationFailureCase, ...]] = (
     _AuthorizationFailureCase(
@@ -363,6 +370,11 @@ _AUTHORIZATION_FAILURE_CASES: Final[tuple[_AuthorizationFailureCase, ...]] = (
         decision_id="MANAGEMENT_TARGET_GRANT_ENABLED",
         changed_field_id="grant_enabled",
         mutate=_with_disabled_target_grant,
+    ),
+    _AuthorizationFailureCase(
+        decision_id="MANAGEMENT_TARGET_GRANT_GROUP_MATCH",
+        changed_field_id="grant_group_id",
+        mutate=_with_mismatched_target_grant_group,
     ),
 )
 

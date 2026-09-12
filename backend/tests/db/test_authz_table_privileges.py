@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Literal
@@ -11,6 +10,7 @@ from typing import Any, Final, Literal
 import psycopg
 import pytest
 from psycopg import sql
+from wording_scan import collect_wording_scan_files
 
 from .conftest import ProvisionedCatalog, _role_id
 from .test_authz_precondition_matrix import _assert_same_identifier_set, _only
@@ -445,35 +445,6 @@ def _assert_direct_operation_is_table_privilege_denied(
     )
 
 
-def _wording_scan_paths() -> tuple[Path, ...]:
-    """指定された成果物範囲の追跡済み・未追跡ファイルを列挙する。
-
-    Returns:
-        現行計画書を除いた repository 相対パス。
-    """
-    completed = subprocess.run(
-        [
-            "git",
-            "ls-files",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "-z",
-            "--",
-            *(str(path) for path in _WORDING_SCAN_ROOTS),
-        ],
-        cwd=_REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-    )
-    paths = tuple(
-        Path(raw_path.decode("utf-8"))
-        for raw_path in completed.stdout.split(b"\0")
-        if raw_path
-    )
-    return tuple(path for path in paths if path not in _WORDING_SCAN_EXCLUSIONS)
-
-
 _DDL_ASSET = _read_json_object(_DDL_ELEMENTS_PATH)
 _TABLE_PRIVILEGE_CONTRACT = _table_privilege_contract(_DDL_ASSET)
 
@@ -497,9 +468,13 @@ def test_current_step_has_no_legacy_privilege_count_wording() -> None:
     """指定された成果物範囲に旧来の権限件数表現を残さない。"""
     forbidden = ("6" + " 権限").encode()
     violations = tuple(
-        path
-        for path in _wording_scan_paths()
-        if forbidden in (_REPOSITORY_ROOT / path).read_bytes()
+        item.path
+        for item in collect_wording_scan_files(
+            _REPOSITORY_ROOT,
+            _WORDING_SCAN_ROOTS,
+            _WORDING_SCAN_EXCLUSIONS,
+        )
+        if forbidden in item.content
     )
     assert violations == ()
 

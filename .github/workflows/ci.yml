@@ -72,7 +72,10 @@ jobs:
   harness:
     runs-on: ubuntu-latest
     steps:
+      # manifest.json の source_commit を解決するため fetch-depth: 0 が必須(既定の 1 では到達できない)。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.8.13"
@@ -200,11 +203,15 @@ jobs:
     env:
       PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
       PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_MIGRATION_DATABASE_URL: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
     defaults:
       run:
         working-directory: backend
     steps:
+      # manifest.json の source_commit を解決するため fetch-depth: 0 が必須(既定の 1 では到達できない)。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.8.13"
@@ -219,3 +226,6 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ty check
       - run: uv run pytest -c pyproject.toml --cov
+      - run: uv run alembic upgrade head
+      - run: uv run alembic current --check-heads
+      - run: uv run alembic check

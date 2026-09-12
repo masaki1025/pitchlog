@@ -3,6 +3,8 @@
 検査資産は黙って書き換えられると検査自体が意味を失い、guard_paths の漏れは CI が
 green のまま起きる。そのため架空設定の単体テストに加え、実設定を直接読む回帰テストを持つ。
 """
+import ast
+import importlib.util
 import json
 import os
 import subprocess
@@ -41,6 +43,144 @@ DATA_MODEL_GUARD_PATHS = (
     "tests/fixtures/data-model-source.txt",
     "scripts/design_relations/fixture-sha256-data-model.txt",
 )
+ORM_SCHEMA_MIGRATION_AREA_PATHS = {
+    "sync-protocol": (
+        ".env.example",
+        "backend/alembic.ini",
+        "backend/migrations/*",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/src/pitchlog/db/__init__.py",
+        "backend/src/pitchlog/db/all_models.py",
+        "backend/src/pitchlog/db/base.py",
+        "backend/src/pitchlog/db/config.py",
+        "backend/src/pitchlog/db/engine.py",
+        "backend/src/pitchlog/db/mixins.py",
+        "backend/src/pitchlog/db/model_metadata.py",
+        "backend/src/pitchlog/db/url.py",
+        "backend/src/pitchlog/db/sync_protocol/*",
+        "backend/tests/test_alembic_environment.py",
+        "backend/tests/test_database_configuration.py",
+        "backend/tests/test_database_url.py",
+        "backend/tests/test_migration_hygiene.py",
+        "backend/tests/test_model_mixins.py",
+        "backend/tests/test_operation_event_kind_contract.py",
+        "backend/tests/test_schema_manifest.py",
+        "backend/tests/test_sync_protocol_models.py",
+        "contracts/db/schema-manifest.json",
+        "scripts/generate_orm_acceptance_sheets.py",
+        "tests/test_environment_template.py",
+        "tests/test_orm_acceptance_sheets.py",
+    ),
+    "game-state": (
+        ".env.example",
+        "backend/alembic.ini",
+        "backend/migrations/*",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/src/pitchlog/db/__init__.py",
+        "backend/src/pitchlog/db/all_models.py",
+        "backend/src/pitchlog/db/base.py",
+        "backend/src/pitchlog/db/config.py",
+        "backend/src/pitchlog/db/engine.py",
+        "backend/src/pitchlog/db/mixins.py",
+        "backend/src/pitchlog/db/model_metadata.py",
+        "backend/src/pitchlog/db/url.py",
+        "backend/src/pitchlog/db/game_state/*",
+        "backend/tests/test_alembic_environment.py",
+        "backend/tests/test_database_configuration.py",
+        "backend/tests/test_database_url.py",
+        "backend/tests/test_game_state_models.py",
+        "backend/tests/test_migration_hygiene.py",
+        "backend/tests/test_model_mixins.py",
+        "backend/tests/test_schema_manifest.py",
+        "contracts/db/schema-manifest.json",
+        "scripts/generate_orm_acceptance_sheets.py",
+        "tests/test_environment_template.py",
+        "tests/test_orm_acceptance_sheets.py",
+    ),
+    "recording-rights": (
+        ".env.example",
+        "backend/alembic.ini",
+        "backend/migrations/*",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/src/pitchlog/db/__init__.py",
+        "backend/src/pitchlog/db/all_models.py",
+        "backend/src/pitchlog/db/base.py",
+        "backend/src/pitchlog/db/config.py",
+        "backend/src/pitchlog/db/engine.py",
+        "backend/src/pitchlog/db/mixins.py",
+        "backend/src/pitchlog/db/model_metadata.py",
+        "backend/src/pitchlog/db/url.py",
+        "backend/src/pitchlog/db/recording_rights/*",
+        "backend/tests/test_alembic_environment.py",
+        "backend/tests/test_database_configuration.py",
+        "backend/tests/test_database_url.py",
+        "backend/tests/test_migration_hygiene.py",
+        "backend/tests/test_model_mixins.py",
+        "backend/tests/test_recording_rights_models.py",
+        "backend/tests/test_schema_manifest.py",
+        "contracts/db/schema-manifest.json",
+        "scripts/generate_orm_acceptance_sheets.py",
+        "tests/test_environment_template.py",
+        "tests/test_orm_acceptance_sheets.py",
+    ),
+    "tenant-isolation": (
+        ".env.example",
+        "backend/alembic.ini",
+        "backend/migrations/*",
+        "backend/src/pitchlog/db/__init__.py",
+        "backend/src/pitchlog/db/all_models.py",
+        "backend/src/pitchlog/db/base.py",
+        "backend/src/pitchlog/db/config.py",
+        "backend/src/pitchlog/db/engine.py",
+        "backend/src/pitchlog/db/mixins.py",
+        "backend/src/pitchlog/db/model_metadata.py",
+        "backend/src/pitchlog/db/url.py",
+        "backend/src/pitchlog/db/tenant_isolation/*",
+        "backend/tests/test_alembic_environment.py",
+        "backend/tests/test_database_configuration.py",
+        "backend/tests/test_database_url.py",
+        "backend/tests/test_migration_hygiene.py",
+        "backend/tests/test_model_mixins.py",
+        "backend/tests/test_schema_manifest.py",
+        "backend/tests/test_tenant_models.py",
+        "contracts/db/schema-manifest.json",
+        "scripts/generate_orm_acceptance_sheets.py",
+        "tests/test_environment_template.py",
+        "tests/test_orm_acceptance_sheets.py",
+    ),
+    "data-migration": (
+        ".env.example",
+        "backend/alembic.ini",
+        "backend/migrations/*",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/src/pitchlog/db/__init__.py",
+        "backend/src/pitchlog/db/all_models.py",
+        "backend/src/pitchlog/db/base.py",
+        "backend/src/pitchlog/db/config.py",
+        "backend/src/pitchlog/db/engine.py",
+        "backend/src/pitchlog/db/mixins.py",
+        "backend/src/pitchlog/db/model_metadata.py",
+        "backend/src/pitchlog/db/url.py",
+        "backend/src/pitchlog/db/data_migration/*",
+        "backend/tests/test_alembic_environment.py",
+        "backend/tests/test_data_migration_models.py",
+        "backend/tests/test_database_configuration.py",
+        "backend/tests/test_database_url.py",
+        "backend/tests/test_migration_hygiene.py",
+        "backend/tests/test_model_mixins.py",
+        "backend/tests/test_schema_manifest.py",
+        "backend/tests/test_type_boundary_contract.py",
+        "backend/tests/type_boundary_contract.py",
+        "contracts/db/schema-manifest.json",
+        "scripts/generate_orm_acceptance_sheets.py",
+        "tests/test_environment_template.py",
+        "tests/test_orm_acceptance_sheets.py",
+    ),
+}
 EXPECTED_AREA_PATHS = {
     "sync-protocol": [
         CORE_DOCUMENT_PATHS[0],
@@ -112,6 +252,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/tsconfig.app.json",
         "frontend/vite.config.ts",
         "tests/fixtures/sync-protocol-failures/**",
+        *ORM_SCHEMA_MIGRATION_AREA_PATHS["sync-protocol"],
     ],
     "game-state": [
         CORE_DOCUMENT_PATHS[0],
@@ -141,6 +282,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/canonOracle.ts",
         "frontend/src/lib/sync/canonOracle.spec.ts",
         "frontend/src/lib/sync/prohibitions.spec.ts",
+        *ORM_SCHEMA_MIGRATION_AREA_PATHS["game-state"],
     ],
     "recording-rights": [
         CORE_DOCUMENT_PATHS[0],
@@ -182,6 +324,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/undoQueueing.ts",
         "frontend/src/lib/sync/validateSyncEvent.spec.ts",
         "frontend/src/lib/sync/validateSyncEvent.ts",
+        *ORM_SCHEMA_MIGRATION_AREA_PATHS["recording-rights"],
     ],
     "tenant-isolation": [
         CORE_DOCUMENT_PATHS[0],
@@ -206,6 +349,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/processingStages.ts",
         "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
         "frontend/src/lib/sync/restoreAdjustmentGate.ts",
+        *ORM_SCHEMA_MIGRATION_AREA_PATHS["tenant-isolation"],
     ],
     "data-migration": [
         DATA_MODEL_DOCUMENT_PATH,
@@ -214,6 +358,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/prohibitions.spec.ts",
         "frontend/src/lib/sync/eventFieldRules.spec.ts",
         "frontend/src/lib/sync/validateSyncEvent.spec.ts",
+        *ORM_SCHEMA_MIGRATION_AREA_PATHS["data-migration"],
     ],
 }
 NEW_CORE_PATH_CHANGES = (
@@ -555,6 +700,127 @@ def load_actual_core_areas() -> dict[str, Any]:
     return value
 
 
+def load_core_guard_module() -> Any:
+    """実際の core_guard.py を照合関数の正として読み込む。"""
+    module_name = "core_guard_module"
+    loaded = sys.modules.get(module_name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(module_name, SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+SCHEMA_CONTRACT_TOKENS = ("pitchlog.db", "schema-manifest", "migrations")
+
+
+def _local_module_dependencies(
+    path: Path, module_paths: dict[str, str]
+) -> set[str]:
+    """テスト補助モジュールへの import 依存をリポジトリ相対パスで返す。
+
+    Args:
+        path: 解析対象の Python ファイル。
+        module_paths: モジュール名からリポジトリ相対パスへの対応。
+
+    Returns:
+        `backend/tests/` 配下にある依存先のリポジトリ相対パス。
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names |= {alias.name.split(".")[0] for alias in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            names.add(node.module.split(".")[0])
+    return {module_paths[name] for name in names if name in module_paths}
+
+
+def schema_contract_test_paths() -> set[str]:
+    """スキーマ契約に触れる `backend/tests/` の資産を走査で返す。
+
+    ブランチの状態に依存しない規則で切る。版管理の差分を母集団にすると、
+    マージ後の develop では差分が空になり検査が空洞化する(実測)。
+
+    Returns:
+        スキーマ契約を参照するテストと、それが import する補助モジュール。
+    """
+    test_root = REPO / "backend/tests"
+    files = {
+        path.relative_to(REPO).as_posix(): path
+        for path in test_root.rglob("*.py")
+        if "__pycache__" not in path.parts
+    }
+    module_paths = {Path(name).stem: name for name in files}
+    population = {
+        name
+        for name, path in files.items()
+        if any(
+            token in path.read_text(encoding="utf-8")
+            for token in SCHEMA_CONTRACT_TOKENS
+        )
+    }
+    while True:
+        added = {
+            dependency
+            for name in population
+            for dependency in _local_module_dependencies(
+                files[name], module_paths
+            )
+        } - population
+        if not added:
+            return population
+        population |= added
+
+
+def schema_contract_asset_paths() -> list[str]:
+    """スキーマ契約の実体とスキーマ契約テストを機械導出して返す。"""
+    db_python_files = (REPO / "backend/src/pitchlog/db").rglob("*.py")
+    migration_files = (
+        path
+        for path in (REPO / "backend/migrations").rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+    contract_files = (
+        path
+        for path in (REPO / "contracts/db").rglob("*")
+        if path.is_file()
+    )
+    task_test_files = schema_contract_test_paths()
+    return sorted(
+        {
+            *(
+                path.relative_to(REPO).as_posix()
+                for path in (
+                    *db_python_files,
+                    *migration_files,
+                    *contract_files,
+                )
+            ),
+            *task_test_files,
+        }
+    )
+
+
+def assert_schema_contract_assets_are_registered(
+    asset_paths: list[str], *, configured: Any | None = None
+) -> None:
+    """スキーマ契約の実体が実際の領域パターンへ全件一致することを検証する。"""
+    core_guard = load_core_guard_module()
+    if configured is None:
+        configured = core_guard.load_core_areas(REPO)
+    area_patterns_only = core_guard.CoreAreas(
+        path_patterns=configured.path_patterns,
+        guard_paths=frozenset(),
+    )
+    matched = set(core_guard.matched_paths(asset_paths, area_patterns_only))
+    missing = sorted(set(asset_paths) - matched)
+    assert missing == [], f"areas[].paths に未登録のスキーマ契約資産: {missing}"
+
+
 def has_expected_data_model_registrations(configuration: dict[str, Any]) -> bool:
     """データモデル正本と検査資産が期待する集合へ登録済みか判定する。"""
     areas = configuration.get("areas")
@@ -618,6 +884,50 @@ def test_actual_core_area_paths_are_exact_expected_set():
 
     assert len(actual_by_id) == len(areas), "コア領域 ID が重複している"
     assert actual_by_id == EXPECTED_AREA_PATHS
+
+
+def test_all_schema_contract_assets_match_an_actual_core_area_path():
+    """今後増えるスキーマ契約資産も実際の領域パターンで自動検出する。"""
+    assert_schema_contract_assets_are_registered(schema_contract_asset_paths())
+
+
+def test_unregistered_schema_contract_asset_is_rejected_without_creating_it():
+    """走査範囲内に未登録ファイルが増えた場合は同じ判定をredにする。"""
+    hypothetical_path = "backend/src/pitchlog/db/unregistered_area/models.py"
+    assets = [*schema_contract_asset_paths(), hypothetical_path]
+
+    with pytest.raises(AssertionError, match=hypothetical_path):
+        assert_schema_contract_assets_are_registered(assets)
+
+
+def test_schema_contract_test_population_does_not_depend_on_branch() -> None:
+    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。"""
+    population = schema_contract_test_paths()
+    assert population, "backend/tests/ の母集団が空になっている"
+    assert "backend/tests/test_operation_event_kind_contract.py" in population
+    assert not any(
+        name.startswith("backend/tests/db/test_authz_") for name in population
+    ), "認可検証の資産まで巻き込んでいる"
+
+
+def test_unregistered_schema_contract_test_is_rejected() -> None:
+    """スキーマ契約テストを登録から外すと全件検査をredにする。"""
+    missing_path = "backend/tests/test_operation_event_kind_contract.py"
+    core_guard = load_core_guard_module()
+    configured = core_guard.load_core_areas(REPO)
+    without_new_test = core_guard.CoreAreas(
+        path_patterns=tuple(
+            pattern
+            for pattern in configured.path_patterns
+            if pattern != missing_path
+        ),
+        guard_paths=frozenset(),
+    )
+
+    with pytest.raises(AssertionError, match=missing_path):
+        assert_schema_contract_assets_are_registered(
+            schema_contract_asset_paths(), configured=without_new_test
+        )
 
 
 def test_actual_core_area_document_changes_trigger_guard(tmp_path):
@@ -875,17 +1185,8 @@ def test_fails_closed_on_invalid_core_areas_json(tmp_path):
 
 def _load_required_check_text_from_script() -> str:
     """scripts/core_guard.py から REQUIRED_CHECK_TEXT の実値を読む(正は script 側)。"""
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("core_guard_module", SCRIPT)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclass がモジュールを解決できるよう登録してから実行する
-    try:
-        spec.loader.exec_module(module)
-        return module.REQUIRED_CHECK_TEXT
-    finally:
-        sys.modules.pop(spec.name, None)
+    module = load_core_guard_module()
+    return module.REQUIRED_CHECK_TEXT
 
 
 def test_check_text_is_consistent_across_script_template_and_skill():
