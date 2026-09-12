@@ -3,6 +3,7 @@
 検査資産は黙って書き換えられると検査自体が意味を失い、guard_paths の漏れは CI が
 green のまま起きる。そのため架空設定の単体テストに加え、実設定を直接読む回帰テストを持つ。
 """
+import ast
 import importlib.util
 import json
 import os
@@ -713,9 +714,70 @@ def load_core_guard_module() -> Any:
     return module
 
 
+SCHEMA_CONTRACT_TOKENS = ("pitchlog.db", "schema-manifest", "migrations")
+
+
+def _local_module_dependencies(
+    path: Path, module_paths: dict[str, str]
+) -> set[str]:
+    """テスト補助モジュールへの import 依存をリポジトリ相対パスで返す。
+
+    Args:
+        path: 解析対象の Python ファイル。
+        module_paths: モジュール名からリポジトリ相対パスへの対応。
+
+    Returns:
+        `backend/tests/` 配下にある依存先のリポジトリ相対パス。
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names |= {alias.name.split(".")[0] for alias in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            names.add(node.module.split(".")[0])
+    return {module_paths[name] for name in names if name in module_paths}
+
+
+def schema_contract_test_paths() -> set[str]:
+    """スキーマ契約に触れる `backend/tests/` の資産を走査で返す。
+
+    ブランチの状態に依存しない規則で切る。版管理の差分を母集団にすると、
+    マージ後の develop では差分が空になり検査が空洞化する(実測)。
+
+    Returns:
+        スキーマ契約を参照するテストと、それが import する補助モジュール。
+    """
+    test_root = REPO / "backend/tests"
+    files = {
+        path.relative_to(REPO).as_posix(): path
+        for path in test_root.rglob("*.py")
+        if "__pycache__" not in path.parts
+    }
+    module_paths = {Path(name).stem: name for name in files}
+    population = {
+        name
+        for name, path in files.items()
+        if any(
+            token in path.read_text(encoding="utf-8")
+            for token in SCHEMA_CONTRACT_TOKENS
+        )
+    }
+    while True:
+        added = {
+            dependency
+            for name in population
+            for dependency in _local_module_dependencies(
+                files[name], module_paths
+            )
+        } - population
+        if not added:
+            return population
+        population |= added
+
+
 def schema_contract_asset_paths() -> list[str]:
-    """スキーマ契約の実体と本タスクのテストを機械導出して返す。"""
-    core_guard = load_core_guard_module()
+    """スキーマ契約の実体とスキーマ契約テストを機械導出して返す。"""
     db_python_files = (REPO / "backend/src/pitchlog/db").rglob("*.py")
     migration_files = (
         path
@@ -727,11 +789,7 @@ def schema_contract_asset_paths() -> list[str]:
         for path in (REPO / "contracts/db").rglob("*")
         if path.is_file()
     )
-    task_test_files = (
-        path
-        for path in core_guard.changed_paths(REPO, "origin/develop", "HEAD")
-        if path.startswith("backend/tests/")
-    )
+    task_test_files = schema_contract_test_paths()
     return sorted(
         {
             *(
@@ -842,8 +900,18 @@ def test_unregistered_schema_contract_asset_is_rejected_without_creating_it():
         assert_schema_contract_assets_are_registered(assets)
 
 
-def test_unregistered_task_test_is_rejected_from_version_control_population():
-    """本タスクの新設テストを登録から外すと全件検査をredにする。"""
+def test_schema_contract_test_population_does_not_depend_on_branch() -> None:
+    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。"""
+    population = schema_contract_test_paths()
+    assert population, "backend/tests/ の母集団が空になっている"
+    assert "backend/tests/test_operation_event_kind_contract.py" in population
+    assert not any(
+        name.startswith("backend/tests/db/test_authz_") for name in population
+    ), "認可検証の資産まで巻き込んでいる"
+
+
+def test_unregistered_schema_contract_test_is_rejected() -> None:
+    """スキーマ契約テストを登録から外すと全件検査をredにする。"""
     missing_path = "backend/tests/test_operation_event_kind_contract.py"
     core_guard = load_core_guard_module()
     configured = core_guard.load_core_areas(REPO)
