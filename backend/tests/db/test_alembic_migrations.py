@@ -898,6 +898,25 @@ BEGIN
 END;
 $function$
 """
+_PLAYER_IDENTITY_TRIGGER_NAME = "trg_players_identity_immutable"
+_PLAYER_IDENTITY_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_players_identity_immutable BEFORE UPDATE OF id ON players "
+    "FOR EACH ROW EXECUTE FUNCTION prevent_players_identity_update()"
+)
+_PLAYER_IDENTITY_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_players_identity_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(NEW.id) IS DISTINCT FROM ROW(OLD.id) THEN
+        RAISE EXCEPTION 'players.id is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
 _D2_FIXED_VALUE_OR_RANGE = re.compile(
     r"(?:\bd2\b\s*(?:=|<>|!=|<=|>=|<|>|(?:NOT\s+)?BETWEEN\b|"
     r"(?:NOT\s+)?IN\s*\()|"
@@ -7594,6 +7613,153 @@ def test_migration_reports_duplicates_guards_and_migration_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _assert_step_twenty_two_objects_are_absent(connection)
             _clear_migration_run_references_before_reupgrade(connection)
+
+        command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_player_identity_objects_are_absent(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """Downgrade 後に選手 ID のトリガと関数が残らないと示す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = %s AND NOT tgisinternal
+                ),
+                to_regprocedure('public.prevent_players_identity_update()')
+            """,
+            (_PLAYER_IDENTITY_TRIGGER_NAME,),
+        )
+        row = cursor.fetchone()
+    assert row == (False, None)
+
+
+def test_player_identity_guard_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """選手 ID の不変性・許可更新列と migration 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            trigger = _sync_trigger_catalog_contract(
+                connection, _PLAYER_IDENTITY_TRIGGER_NAME
+            )
+            assert _normalize_sql(trigger[0]) == _normalize_sql(
+                _PLAYER_IDENTITY_TRIGGER_DEFINITION
+            )
+            assert trigger[1] == "players"
+            assert trigger[2] == ["id"]
+            assert trigger[3] == "O"
+            assert _normalize_sql(trigger[4]) == _normalize_sql(
+                _PLAYER_IDENTITY_FUNCTION_DEFINITION
+            )
+
+            tenant_id = uuid4()
+            team_id = uuid4()
+            player_id = uuid4()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "選手 ID 不変性テストテナント"),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, 'self', %s)
+                    """,
+                    (tenant_id, team_id, "自チーム"),
+                )
+                _insert_test_vocabularies(cursor, tenant_id)
+                cursor.execute(
+                    """
+                    INSERT INTO system_vocabularies (key, category, display_name)
+                    VALUES ('inactive', 'roster_status', '退団')
+                    """
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO tenant_vocabularies (
+                        tenant_id, key, category, display_name
+                    ) VALUES (%s, 'roster-reserve', 'roster_label', '控え')
+                    """,
+                    (tenant_id,),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO players (
+                        tenant_id,
+                        id,
+                        team_record_id,
+                        name,
+                        throws,
+                        bats,
+                        uniform_number,
+                        roster_status_key,
+                        roster_label_key
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        player_id,
+                        team_id,
+                        "変更前",
+                        "right",
+                        "right",
+                        "1",
+                        "active",
+                        "roster-active",
+                    ),
+                )
+
+                with pytest.raises(
+                    psycopg.errors.CheckViolation,
+                    match=r"players\.id is immutable",
+                ) as error:
+                    cursor.execute(
+                        """
+                        UPDATE players SET id = %s
+                        WHERE tenant_id = %s AND id = %s
+                        """,
+                        (uuid4(), tenant_id, player_id),
+                    )
+                assert error.value.sqlstate == "23514"
+
+                allowed_updates: dict[str, object] = {
+                    "name": "変更後",
+                    "throws": "left",
+                    "bats": "left",
+                    "uniform_number": "42",
+                    "roster_status_key": "inactive",
+                    "roster_label_key": "roster-reserve",
+                    "hidden_at": datetime(2026, 9, 12, tzinfo=UTC),
+                }
+                for column, value in allowed_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE players SET {} = %s "
+                            "WHERE tenant_id = %s AND id = %s RETURNING id"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id, player_id),
+                    )
+                    assert cursor.fetchone() == (player_id,)
+
+        command.downgrade(config, "0023_play_runner_status_source")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_player_identity_objects_are_absent(connection)
 
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
