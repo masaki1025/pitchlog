@@ -29,6 +29,14 @@ from .mutation_execution import (
 CLAIM_MUTANT_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/claim-mutant-map.json"
 ATTACK_TREE_PATH = REPOSITORY_ROOT / "contracts/authz/attack-tree.json"
 MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
+ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
+STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
+STEP2_CHANGED_CANONICAL_ASSET_PATHS = frozenset(
+    {
+        "contracts/authz/boundary-proposal.json",
+        "contracts/authz/ddl-elements.json",
+    }
+)
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -894,37 +902,130 @@ def run_step20(
     )
 
 
-def frozen_oracle_paths(root: Path = REPOSITORY_ROOT) -> tuple[str, ...]:
-    """sealの入力8件・封印6件・seal自身から凍結パスを導出する。"""
-    seal = _read_json_object(root.resolve() / "contracts/authz/oracle-seal.lock.json")
+def _frozen_oracle_paths_from_seal(seal: dict[str, object]) -> tuple[str, ...]:
+    """sealの入力・封印行とseal自身から凍結パスを導出する。"""
     paths = [
         _text(row.get("path"), "frozen asset path")
         for key in ("input_assets", "sealed_assets")
         for row in _expect_rows(seal.get(key), f"oracle seal.{key}")
     ]
-    paths.append("contracts/authz/oracle-seal.lock.json")
+    paths.append(ORACLE_SEAL_RELATIVE_PATH)
     if len(paths) != len(set(paths)):
         raise MutationCompositionError("凍結パスが重複している")
     return tuple(paths)
 
 
-def verify_frozen_oracle_unchanged(
+def _oracle_seal_at_revision(root: Path, revision: str) -> dict[str, object]:
+    """固定revisionにあるoracle sealを読み取る。"""
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{ORACLE_SEAL_RELATIVE_PATH}"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise MutationCompositionError(
+            f"基準版のoracle sealを取得できない: {result.stderr.strip()}"
+        )
+    try:
+        seal = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise MutationCompositionError("基準版のoracle sealが不正なJSON") from error
+    if not isinstance(seal, dict):
+        raise MutationCompositionError("基準版のoracle sealがオブジェクトでない")
+    return seal
+
+
+def frozen_oracle_paths(
     root: Path = REPOSITORY_ROOT,
-    base_ref: str = "origin/develop",
-) -> None:
-    """origin/develop...HEAD基準でseal由来パスの差分0を検査する。"""
+    base_ref: str | None = None,
+) -> tuple[str, ...]:
+    """現在または固定revisionのsealから凍結パスを導出する。"""
     resolved = root.resolve()
+    seal = (
+        _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
+        if base_ref is None
+        else _oracle_seal_at_revision(resolved, base_ref)
+    )
+    return _frozen_oracle_paths_from_seal(seal)
+
+
+def _canonical_digests_by_path(seal: dict[str, object], label: str) -> dict[str, str]:
+    """sealed_assetsを重複を許さないpathとdigestの写像へ変換する。"""
+    result: dict[str, str] = {}
+    for row in _expect_rows(seal.get("sealed_assets"), f"{label}.sealed_assets"):
+        path = _text(row.get("path"), f"{label}.sealed_assets.path")
+        digest = _text(
+            row.get("canonical_sha256"),
+            f"{label}.sealed_assets.canonical_sha256",
+        )
+        if path in result:
+            raise MutationCompositionError(f"{label}.sealed_assets.pathが重複")
+        result[path] = digest
+    return result
+
+
+def intentionally_changed_frozen_oracle_paths(
+    root: Path = REPOSITORY_ROOT,
+    base_ref: str = STEP2_BASE_REVISION,
+) -> frozenset[str]:
+    """基準版からcanonicalが変わった資産とreseal済みsealを導出する。"""
+    resolved = root.resolve()
+    base_seal = _oracle_seal_at_revision(resolved, base_ref)
+    current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
+    base_digests = _canonical_digests_by_path(base_seal, "base oracle seal")
+    current_digests = _canonical_digests_by_path(current_seal, "current oracle seal")
+    if set(base_digests) != set(current_digests):
+        raise MutationCompositionError("sealed_assets.path集合が基準版と不一致")
+    changed_canonical = frozenset(
+        path for path, digest in current_digests.items() if digest != base_digests[path]
+    )
+    if not changed_canonical:
+        raise MutationCompositionError("意図的に変更したcanonical資産が空")
+    if changed_canonical != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+        raise MutationCompositionError(
+            "canonicalが変わった資産がステップ2の確定集合と不一致: "
+            f"{tuple(sorted(changed_canonical))}"
+        )
+    excluded = changed_canonical | {ORACLE_SEAL_RELATIVE_PATH}
+    if not excluded:
+        raise MutationCompositionError("凍結差分から除外する集合が空")
+    return frozenset(excluded)
+
+
+def unchanged_frozen_oracle_paths(
+    root: Path = REPOSITORY_ROOT,
+    base_ref: str = STEP2_BASE_REVISION,
+) -> tuple[str, ...]:
+    """基準版の凍結集合から本改訂の意図的変更だけを除いて返す。"""
+    frozen = frozen_oracle_paths(root, base_ref)
+    excluded = intentionally_changed_frozen_oracle_paths(root, base_ref)
+    if not excluded <= set(frozen):
+        raise MutationCompositionError("凍結差分の除外集合が基準版の外を含む")
+    unchanged = tuple(path for path in frozen if path not in excluded)
+    if not unchanged:
+        raise MutationCompositionError("不変を要求する凍結パスが空")
+    return unchanged
+
+
+def _branch_changed_paths(
+    root: Path,
+    base_ref: str,
+    paths: tuple[str, ...],
+) -> tuple[str, ...]:
+    """固定基準からHEADまでに変更された対象パスを返す。"""
     command = [
         "git",
         "diff",
         "--name-only",
         f"{base_ref}...HEAD",
         "--",
-        *frozen_oracle_paths(resolved),
+        *paths,
     ]
     result = subprocess.run(
         command,
-        cwd=resolved,
+        cwd=root,
         check=False,
         capture_output=True,
         text=True,
@@ -933,6 +1034,16 @@ def verify_frozen_oracle_unchanged(
         raise MutationCompositionError(
             f"凍結差分を取得できない: {result.stderr.strip()}"
         )
-    changed = tuple(line for line in result.stdout.splitlines() if line)
+    return tuple(line for line in result.stdout.splitlines() if line)
+
+
+def verify_frozen_oracle_unchanged(
+    root: Path = REPOSITORY_ROOT,
+    base_ref: str = STEP2_BASE_REVISION,
+) -> None:
+    """固定基準から意図的変更を除くseal由来パスの差分0を検査する。"""
+    resolved = root.resolve()
+    paths = unchanged_frozen_oracle_paths(resolved, base_ref)
+    changed = _branch_changed_paths(resolved, base_ref, paths)
     if changed:
         raise MutationCompositionError(f"凍結パスに差分がある: {changed}")
