@@ -2636,3 +2636,40 @@ seal が一切検査されていなかったため。** **「19 本」は偽陽�
 | --- | --- | --- |
 | 1 | `core-areas.json` への登録 | 触れない |
 | 2 | 封印資産の確定と再封印(1 コミット) | `boundary-proposal` / `ddl-elements` + seal |
+
+---
+
+## ステップ 1 の `f` 実測(2026-09-12)
+
+**基準版**: `56c281c409e972927940fad830aa38352df32f1e:.claude/core-areas.json`。
+**測定方法**: `scripts/check_*.py` を子プロセスで実行し、`sys.addaudithook` の
+`open` イベントから実際に開いたリポジトリ内パスを採取した。作業コピーの
+`core-areas.json` は入力に使っていない。
+
+**結果**: **検査器 9 本・名前の対を含めて 18 パス。基準版で既登録 6 パス・未登録 12 パス**。
+
+| 判定 | 検査器 | 名前の対 |
+| --- | --- | --- |
+| 既登録 | `scripts/check_design_propagation.py` | `tests/test_check_design_propagation.py` |
+| 既登録 | `scripts/check_doc_coverage.py` | `tests/test_check_doc_coverage.py` |
+| 既登録 | `scripts/check_processing_stages.py` | `tests/test_check_processing_stages.py` |
+| 未登録 | `scripts/check_authz_catalog.py` | `tests/test_check_authz_catalog.py` |
+| 未登録 | `scripts/check_authz_function_bodies.py` | `tests/test_check_authz_function_bodies.py` |
+| 未登録 | `scripts/check_mcdc_map.py` | `tests/test_check_mcdc_map.py` |
+| 未登録 | `scripts/check_failure_injection_points.py` | `tests/test_check_failure_injection_points.py` |
+| 未登録 | `scripts/check_shared_preconditions.py` | `tests/test_check_shared_preconditions.py` |
+| 未登録 | `scripts/check_docs_status.py` | `tests/test_check_docs_status.py` |
+
+`check_docs_status.py` は実行時に次の `areas[].paths` 該当ファイルを開いた。
+
+- `docs/design/data-model.md`
+- `docs/design/sync-protocol.md`
+- `docs/requirements/requirements-pitchlog-2026-07-22.md`
+
+**当初の静的な文字列検索では `check_docs_status.py` を取りこぼし、8 本・16 パスと誤測定した。**
+`Path` 定数・別名・helper 経由などを含む実行時の到達先は静的な文字列検索では閉じないため、
+監査フックの実測を正とする。
+
+`tenant-isolation.paths` へ追加した 9 パターンは、追跡中の実在ファイルへすべて 1 件以上一致した。
+最初の 8 パターンは各 1 ファイル、`backend/src/pitchlog/authz/*` は 4 ファイルへ一致し、
+**合計 12 ファイル**を覆った。
