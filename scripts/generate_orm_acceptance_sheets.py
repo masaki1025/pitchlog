@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,7 @@ SHEET_FILENAMES = (
     "N4-deletion-lifecycle.md",
     "N7-required-attributes.md",
 )
+SHEET_HEADERS = ("対象", "正本側", "実装側", "判定", "理由と典拠")
 
 N3_TERMS = (
     "不変",
@@ -48,6 +50,54 @@ _SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
 _MODEL_TABLE_RE = re.compile(r'^\s*__tablename__\s*=\s*["\'](?P<table>[^"\']+)["\']')
 _REFERENCE_RE = re.compile(
     r"(?:docs/[^ :|]+\.md|[^ :|]+\.md):§?\d+(?:-\d+(?:-[A-Z])?)?"
+)
+_QUOTED_FRAGMENT_RE = re.compile(
+    r'''(?P<quote>["'])(?P<value>.*?)(?P=quote)'''
+)
+_CONTRACT_IDENTIFIER_RE = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_]*|[\u3040-\u30ff\u3400-\u9fff]+"
+)
+_DECLARED_IDENTIFIER_RE = re.compile(
+    r"^[+-]\s*(?P<identifier>[A-Za-z_][A-Za-z0-9_]*)\s*:"
+)
+_DIFF_STRUCTURE_WORDS = frozenset(
+    {
+        "allowed_update_columns",
+        "AND",
+        "append_mode",
+        "BETWEEN",
+        "checks",
+        "columns",
+        "composite",
+        "cross_tenant",
+        "default",
+        "deletion",
+        "False",
+        "foreign_keys",
+        "immutability",
+        "info",
+        "IN",
+        "IS",
+        "lifecycle",
+        "Mapped",
+        "mapped_column",
+        "match",
+        "migration_retirement",
+        "name",
+        "NO",
+        "NOT",
+        "NULL",
+        "None",
+        "nullable",
+        "on_delete",
+        "ondelete",
+        "OR",
+        "protected_columns",
+        "references",
+        "table",
+        "True",
+        "type",
+    }
 )
 
 ManifestTable = dict[str, Any]
@@ -107,6 +157,22 @@ class N7Group:
     section: str
     tables: tuple[ManifestTable, ...]
     rows: tuple[SheetRow, ...]
+
+
+@dataclass(frozen=True)
+class CarryForwardStats:
+    """判定持ち越しと空欄化の件数を表す。"""
+
+    carried: int = 0
+    key_changed: int = 0
+    difference: int = 0
+    changed_identifier: int = 0
+    reset_count: int = 0
+
+    @property
+    def reset(self) -> int:
+        """空欄へ戻した行数を返す。"""
+        return self.reset_count
 
 
 def _plain_markdown(value: str) -> str:
@@ -674,7 +740,21 @@ def _render_readme(row_counts: Mapping[str, int]) -> str:
             "uv run python scripts/generate_orm_acceptance_sheets.py",
             "```",
             "",
-            "再生成すると判定欄と理由欄は空になる。差分是正後は必ず再生成し、全行を再判定する。",
+            "既定の再生成では判定欄と理由欄が空になる。",
+            "",
+            "是正前の判定を安全な行だけ持ち越す場合:",
+            "",
+            "```bash",
+            (
+                "uv run python scripts/generate_orm_acceptance_sheets.py "
+                "--carry-judgments-from <是正前のrevision>"
+            ),
+            "```",
+            "",
+            (
+                "持ち越しモードは突合キーが不変・旧判定が差分でない・旧理由が"
+                "契約 diff の変更識別子を含まない行だけを引き継ぐ。"
+            ),
             "",
             "## シート",
             "",
@@ -793,7 +873,6 @@ def parse_sheet_rows(content: str) -> tuple[SheetRow, ...]:
     Returns:
         判定欄と理由欄を含む突合行。
     """
-    expected_headers = ("対象", "正本側", "実装側", "判定", "理由と典拠")
     rows: list[SheetRow] = []
     in_table = False
     for line in content.splitlines():
@@ -801,15 +880,214 @@ def parse_sheet_rows(content: str) -> tuple[SheetRow, ...]:
             in_table = False
             continue
         cells = _split_markdown_row(line)
-        if cells == expected_headers:
+        if cells == SHEET_HEADERS:
             in_table = True
             continue
         if not in_table or _is_separator_row(cells):
             continue
-        if len(cells) != len(expected_headers):
+        if len(cells) != len(SHEET_HEADERS):
             raise ValueError("突合行の列数が 5 ではない")
         rows.append(SheetRow(*cells))
     return tuple(rows)
+
+
+def _row_key(row: SheetRow) -> tuple[str, str, str]:
+    """判定持ち越しに使う三つ組を返す。"""
+    return row.target, row.canonical, row.implementation
+
+
+def _replace_sheet_rows(content: str, rows: Sequence[SheetRow]) -> str:
+    """生成本文の突合行だけを、同じ三つ組を持つ行へ置き換える。"""
+    replacements = iter(rows)
+    rendered: list[str] = []
+    in_table = False
+    replaced = 0
+    for line in content.splitlines():
+        if not line.lstrip().startswith("|"):
+            in_table = False
+            rendered.append(line)
+            continue
+        cells = _split_markdown_row(line)
+        if cells == SHEET_HEADERS:
+            in_table = True
+            rendered.append(line)
+            continue
+        if not in_table or _is_separator_row(cells):
+            rendered.append(line)
+            continue
+        replacement = next(replacements)
+        if tuple(cells[:3]) != _row_key(replacement):
+            raise ValueError("置換対象の突合キーが生成本文と一致しない")
+        rendered.append(
+            "| "
+            + " | ".join(
+                _escape_cell(value)
+                for value in (
+                    replacement.target,
+                    replacement.canonical,
+                    replacement.implementation,
+                    replacement.judgment,
+                    replacement.rationale,
+                )
+            )
+            + " |"
+        )
+        replaced += 1
+    if replaced != len(rows):
+        raise ValueError("置換されなかった突合行がある")
+    try:
+        next(replacements)
+    except StopIteration:
+        pass
+    else:
+        raise ValueError("生成本文より置換行が多い")
+    suffix = "\n" if content.endswith("\n") else ""
+    return "\n".join(rendered) + suffix
+
+
+def without_human_judgments(content: str) -> str:
+    """判定欄と理由欄だけを空にし、生成された本文構造を保つ。"""
+    rows = tuple(
+        SheetRow(row.target, row.canonical, row.implementation)
+        for row in parse_sheet_rows(content)
+    )
+    return _replace_sheet_rows(content, rows)
+
+
+def _rationale_mentions_identifier(
+    rationale: str, identifiers: set[str]
+) -> bool:
+    """理由欄が変更識別子を独立した語として含むかを返す。"""
+    for identifier in identifiers:
+        if identifier.isascii():
+            if re.search(
+                rf"(?<![A-Za-z0-9_]){re.escape(identifier)}(?![A-Za-z0-9_])",
+                rationale,
+            ):
+                return True
+        elif identifier in rationale:
+            return True
+    return False
+
+
+def carry_forward_sheet(
+    generated: str,
+    previous: str,
+    changed_identifiers: set[str],
+) -> tuple[str, CarryForwardStats]:
+    """3 条件を満たす旧判定だけを新しい生成本文へ持ち越す。"""
+    previous_by_key = {_row_key(row): row for row in parse_sheet_rows(previous)}
+    previous_by_target = {
+        row.target: row for row in parse_sheet_rows(previous)
+    }
+    carried_rows: list[SheetRow] = []
+    counts: Counter[str] = Counter()
+    for row in parse_sheet_rows(generated):
+        previous_row = previous_by_key.get(_row_key(row))
+        comparable_previous = previous_row or previous_by_target.get(row.target)
+        key_changed = previous_row is None
+        was_difference = (
+            comparable_previous is not None
+            and comparable_previous.judgment == "差分"
+        )
+        mentions_changed_identifier = (
+            comparable_previous is not None
+            and _rationale_mentions_identifier(
+                comparable_previous.rationale, changed_identifiers
+            )
+        )
+        if key_changed:
+            counts["key_changed"] += 1
+        if was_difference:
+            counts["difference"] += 1
+        if mentions_changed_identifier:
+            counts["changed_identifier"] += 1
+        if key_changed or was_difference or mentions_changed_identifier:
+            counts["reset_count"] += 1
+            carried_rows.append(row)
+        else:
+            assert previous_row is not None
+            counts["carried"] += 1
+            carried_rows.append(
+                SheetRow(
+                    row.target,
+                    row.canonical,
+                    row.implementation,
+                    previous_row.judgment,
+                    previous_row.rationale,
+                )
+            )
+    stats = CarryForwardStats(
+        carried=counts["carried"],
+        key_changed=counts["key_changed"],
+        difference=counts["difference"],
+        changed_identifier=counts["changed_identifier"],
+        reset_count=counts["reset_count"],
+    )
+    return _replace_sheet_rows(generated, carried_rows), stats
+
+
+def carry_forward_sheets(
+    generated: Mapping[str, str],
+    previous: Mapping[str, str],
+    changed_identifiers: set[str],
+) -> tuple[dict[str, str], dict[str, CarryForwardStats]]:
+    """4 シートへ判定を持ち越し、README は生成結果をそのまま使う。"""
+    carried = dict(generated)
+    stats: dict[str, CarryForwardStats] = {}
+    for filename in SHEET_FILENAMES:
+        carried[filename], stats[filename] = carry_forward_sheet(
+            generated[filename], previous[filename], changed_identifiers
+        )
+    return carried, stats
+
+
+def _identifiers_from_contract_diff(diff: str) -> set[str]:
+    """契約 diff の追加・削除行から列名・値・制約名を抽出する。"""
+    identifiers: set[str] = set()
+    for line in diff.splitlines():
+        if (
+            not line.startswith(("+", "-"))
+            or line.startswith(("+++", "---"))
+            or '"""' in line
+        ):
+            continue
+        declaration = _DECLARED_IDENTIFIER_RE.match(line)
+        if declaration:
+            identifiers.add(declaration.group("identifier"))
+        for quoted in _QUOTED_FRAGMENT_RE.finditer(line):
+            for identifier in _CONTRACT_IDENTIFIER_RE.findall(
+                quoted.group("value")
+            ):
+                if identifier not in _DIFF_STRUCTURE_WORDS:
+                    identifiers.add(identifier)
+        if '"checks"' in line or "CheckConstraint" in line:
+            identifiers.add("CHECK")
+    return identifiers
+
+
+def changed_contract_identifiers(repo_root: Path, baseline: str) -> set[str]:
+    """基準 revision 以後の manifest・DB 製品コード差分から識別子を返す。"""
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--unified=0",
+            f"{baseline}..HEAD",
+            "--",
+            MANIFEST_RELATIVE_PATH.as_posix(),
+            "backend/src/pitchlog/db/",
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"変更識別子の抽出に失敗した: {result.stderr.strip()}"
+        )
+    return _identifiers_from_contract_diff(result.stdout)
 
 
 def judgment_errors(sheets: Mapping[str, str]) -> list[str]:
@@ -844,16 +1122,47 @@ def judgment_errors(sheets: Mapping[str, str]) -> list[str]:
     return errors
 
 
-def write_sheets(repo_root: Path) -> dict[str, str]:
+def _read_existing_sheets(repo_root: Path) -> dict[str, str]:
+    """現在の判定済みシートを読み込む。"""
+    output_root = repo_root / OUTPUT_RELATIVE_PATH
+    return {
+        filename: (output_root / filename).read_text(encoding="utf-8")
+        for filename in SHEET_FILENAMES
+    }
+
+
+def render_sheets_with_carried_judgments(
+    repo_root: Path,
+    previous: Mapping[str, str],
+    baseline: str,
+) -> tuple[dict[str, str], dict[str, CarryForwardStats], set[str]]:
+    """契約差分を基に安全な旧判定だけを持ち越して生成する。"""
+    generated = render_sheets(repo_root)
+    identifiers = changed_contract_identifiers(repo_root, baseline)
+    carried, stats = carry_forward_sheets(generated, previous, identifiers)
+    return carried, stats, identifiers
+
+
+def write_sheets(
+    repo_root: Path, *, carry_judgments_from: str | None = None
+) -> dict[str, str]:
     """突合シートを所定ディレクトリへ書き出す。
 
     Args:
         repo_root: リポジトリルート。
+        carry_judgments_from: 判定を持ち越す場合の是正前 revision。
 
     Returns:
         書き出したファイル名から本文への対応。
     """
-    sheets = render_sheets(repo_root)
+    if carry_judgments_from is None:
+        sheets = render_sheets(repo_root)
+    else:
+        sheets, _, _ = render_sheets_with_carried_judgments(
+            repo_root,
+            _read_existing_sheets(repo_root),
+            carry_judgments_from,
+        )
     output_root = repo_root / OUTPUT_RELATIVE_PATH
     output_root.mkdir(parents=True, exist_ok=True)
     for filename, content in sheets.items():
@@ -877,8 +1186,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=Path(__file__).resolve().parents[1],
         help="リポジトリルート",
     )
+    parser.add_argument(
+        "--carry-judgments-from",
+        metavar="REVISION",
+        help="指定 revision 以後の契約差分を使い、安全な旧判定だけを持ち越す",
+    )
     args = parser.parse_args(argv)
-    sheets = write_sheets(args.repo_root.resolve())
+    sheets = write_sheets(
+        args.repo_root.resolve(),
+        carry_judgments_from=args.carry_judgments_from,
+    )
     for filename in sorted(sheets):
         print(f"generated: {OUTPUT_RELATIVE_PATH / filename}")
     return 0

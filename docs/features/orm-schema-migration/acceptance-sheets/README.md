@@ -8,7 +8,15 @@
 uv run python scripts/generate_orm_acceptance_sheets.py
 ```
 
-再生成すると判定欄と理由欄は空になる。差分是正後は必ず再生成し、全行を再判定する。
+既定の再生成では判定欄と理由欄が空になる。
+
+是正前の判定を安全な行だけ持ち越す場合:
+
+```bash
+uv run python scripts/generate_orm_acceptance_sheets.py --carry-judgments-from <是正前のrevision>
+```
+
+持ち越しモードは突合キーが不変・旧判定が差分でない・旧理由が契約 diff の変更識別子を含まない行だけを引き継ぐ。
 
 ## シート
 

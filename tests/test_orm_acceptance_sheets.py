@@ -37,13 +37,6 @@ def _read_committed_sheets() -> dict[str, str]:
     }
 
 
-def _generated_columns(content: str) -> tuple[tuple[str, str, str], ...]:
-    return tuple(
-        (row.target, row.canonical, row.implementation)
-        for row in generator.parse_sheet_rows(content)
-    )
-
-
 def _single_row_sheet(judgment: str, rationale: str = "") -> str:
     return "\n".join(
         (
@@ -134,9 +127,7 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
 
     for filename in generator.SHEET_FILENAMES:
         actual_content = (OUTPUT_ROOT / filename).read_text(encoding="utf-8")
-        assert _generated_columns(actual_content) == _generated_columns(
-            expected[filename]
-        )
+        assert generator.without_human_judgments(actual_content) == expected[filename]
         assert generator.parse_sheet_rows(actual_content)
         assert "## 判定区分と適格条件" in actual_content
         assert "## 差分時の是正遷移" in actual_content
@@ -239,6 +230,105 @@ def test_generator_does_not_fill_human_judgments() -> None:
             not row.judgment and not row.rationale
             for row in generator.parse_sheet_rows(generated[filename])
         )
+
+
+def test_generation_comparison_detects_stale_column_contract_block() -> None:
+    """判定外の列契約ブロックが古ければ全文比較で検出できる。"""
+    expected = generator.render_sheets(REPO_ROOT)["N7-required-attributes.md"]
+    stale = expected.replace(
+        "tenant_id:uuid/NOT NULL/default=なし",
+        "tenant_id:text/NOT NULL/default=なし",
+        1,
+    )
+
+    assert stale != expected
+    assert generator.without_human_judgments(stale) != expected
+
+
+def test_carry_forward_rejects_changed_row_key() -> None:
+    """三つ組が変わった行の判定を持ち越さない。"""
+    previous = _single_row_sheet("一致")
+    generated = _single_row_sheet("").replace(
+        "manifest: games", "manifest: players"
+    )
+
+    carried, stats = generator.carry_forward_sheet(generated, previous, set())
+
+    assert generator.parse_sheet_rows(carried)[0].judgment == ""
+    assert stats.key_changed == 1
+    assert stats.reset == 1
+
+
+def test_carry_forward_rejects_previous_difference() -> None:
+    """三つ組が同じでも差分判定を持ち越さない。"""
+    previous = _single_row_sheet("差分", "未解消 data-model.md:5-1")
+    generated = _single_row_sheet("")
+
+    carried, stats = generator.carry_forward_sheet(generated, previous, set())
+
+    assert generator.parse_sheet_rows(carried)[0].judgment == ""
+    assert stats.difference == 1
+    assert stats.reset == 1
+
+
+def test_carry_forward_rejects_changed_identifier_in_rationale() -> None:
+    """旧理由が変更識別子を含む行を持ち越さない。"""
+    previous = _single_row_sheet(
+        "一致", "status_source を確認した data-model.md:5-2"
+    )
+    generated = _single_row_sheet("")
+
+    carried, stats = generator.carry_forward_sheet(
+        generated, previous, {"status_source"}
+    )
+
+    row = generator.parse_sheet_rows(carried)[0]
+    assert row.judgment == ""
+    assert row.rationale == ""
+    assert stats.changed_identifier == 1
+    assert stats.reset == 1
+
+
+def test_carry_forward_preserves_eligible_judgment() -> None:
+    """除外条件に当たらない旧判定と理由を持ち越す。"""
+    previous = _single_row_sheet(
+        "対象外", "表定義の範囲外である data-model.md:5-1"
+    )
+    generated = _single_row_sheet("")
+
+    carried, stats = generator.carry_forward_sheet(
+        generated, previous, {"status_source"}
+    )
+
+    row = generator.parse_sheet_rows(carried)[0]
+    assert row.judgment == "対象外"
+    assert row.rationale == "表定義の範囲外である data-model.md:5-1"
+    assert stats.carried == 1
+    assert stats.reset == 0
+
+
+def test_changed_identifiers_are_derived_from_contract_diff_lines() -> None:
+    """追加・削除行から宣言名・値・CHECK 変更を抽出する。"""
+    diff = "\n".join(
+        (
+            '-        {"name": "compatibility_payload", "type": "jsonb"}',
+            '+        {"name": "status_source", "type": "text"}',
+            '+    status_source: Mapped[str] = mapped_column(Text)',
+            "+        CheckConstraint(\"status_source IN ('auto', 'manual')\"),",
+        )
+    )
+
+    identifiers = generator._identifiers_from_contract_diff(diff)
+
+    assert {
+        "compatibility_payload",
+        "jsonb",
+        "status_source",
+        "text",
+        "auto",
+        "manual",
+        "CHECK",
+    } <= identifiers
 
 
 def test_judgment_validator_accepts_eligible_completed_rows() -> None:
