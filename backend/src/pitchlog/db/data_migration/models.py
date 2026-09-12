@@ -31,6 +31,7 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
 )
@@ -81,6 +82,7 @@ class MigrationQuarantine(ImportBatchMixin, LifecycleMixin, Base):
             {"id", "import_batch_id", "source_read_order", "raw_payload"}
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -147,6 +149,8 @@ class MigratedFinalLineup(
             }
         ),
         allowed_update_columns=frozenset({"retired_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -193,6 +197,7 @@ class MigrationRun(RetirementMixin, LifecycleMixin, Base):
                 "retired_at",
             }
         ),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -247,6 +252,7 @@ class MigrationResolutionReport(ImportBatchMixin, LifecycleMixin, Base):
             {"id", "import_batch_id", "source_kind", "legacy_row_identifier", "issue"}
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -305,4 +311,5 @@ class MigrationWarningReport(ImportBatchMixin, LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )

@@ -300,11 +300,16 @@ def _model_lifecycle(model: Any) -> dict[str, str]:
     }
 
 
-def _model_immutability(model: Any) -> dict[str, list[str]]:
+def _model_immutability(model: Any) -> dict[str, object]:
     """モデルの不変列マトリクスを比較用に正規化する。"""
     return {
         "protected_columns": sorted(model.immutability.protected_columns),
         "allowed_update_columns": sorted(model.immutability.allowed_update_columns),
+        "conditional_update_columns": sorted(
+            model.immutability.conditional_update_columns
+        ),
+        "coverage": model.immutability.coverage.value,
+        "unclassified_handoff": model.immutability.unclassified_handoff,
     }
 
 
@@ -332,7 +337,8 @@ def test_tenant_models_match_manifest_contracts() -> None:
         )
         assert _model_lifecycle(model) == manifest["lifecycle"]
         assert _model_immutability(model) == {
-            key: sorted(value) for key, value in manifest["immutability"].items()
+            key: sorted(value) if isinstance(value, list) else value
+            for key, value in manifest["immutability"].items()
         }
         assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 

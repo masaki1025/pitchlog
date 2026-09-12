@@ -46,13 +46,15 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
 )
 from pitchlog.db.sync_protocol.event_kinds import (
+    C12_CHECK_EXPRESSIONS,
+    C12_TOMBSTONE_CHECK_EXPRESSION,
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12Value,
 )
 
 
@@ -108,6 +110,7 @@ class EventSlot(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"tenant_id", "game_id", "generation", "d1"}),
         allowed_update_columns=frozenset({"confirmed_version"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -139,12 +142,24 @@ class OperationEvent(
             name="ck_operation_events_event_kind",
         ),
         CheckConstraint(
-            STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+            C12_CHECK_EXPRESSIONS[C12Value.V8],
             name="ck_operation_events_state_diff_by_kind",
         ),
         CheckConstraint(
-            TOMBSTONE_CHECK_EXPRESSION,
+            C12_TOMBSTONE_CHECK_EXPRESSION,
             name="ck_operation_events_tombstone",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V6],
+            name="ck_operation_events_d2_by_kind",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V10],
+            name="ck_operation_events_target_by_kind",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V11],
+            name="ck_operation_events_expected_version_by_kind",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
@@ -280,9 +295,19 @@ class OperationEvent(
                 "event_kind",
                 "payload",
                 "state_diff",
+                "ledger_kind",
+                "is_tombstone",
+                "target_generation",
+                "target_d1",
+                "expected_version",
+                "change_order",
+                "legacy_row_identifier",
+                "migration_unverified",
+                "import_batch_id",
             }
         ),
         allowed_update_columns=frozenset({"d2", "replaced_at", "retired_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -330,6 +355,8 @@ class TemporaryPlayerIdMapping(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"temporary_id", "player_id"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -371,6 +398,8 @@ class IdempotencyLedger(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"kind", "source_fingerprint", "result", "reason"}),
         allowed_update_columns=frozenset({"retired_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -426,6 +455,8 @@ class RejectedEventOriginal(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"d5", "kind", "payload"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -497,4 +528,5 @@ class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset({"delivery_status", "delivered_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )

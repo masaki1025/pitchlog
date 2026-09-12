@@ -186,6 +186,20 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
         )
         for row in change_history_rows
     )
+    n3_candidate_rows = [
+        row
+        for row in generator.parse_sheet_rows(
+            expected["N3-immutability-completeness.md"]
+        )
+        if "manifest immutability: 該当候補なし" not in row.implementation
+    ]
+    assert n3_candidate_rows
+    assert all(
+        "conditional=" in row.implementation
+        and "coverage=" in row.implementation
+        and "unclassified_handoff=" in row.implementation
+        for row in n3_candidate_rows
+    )
 
     manifest = json.loads(
         (REPO_ROOT / generator.MANIFEST_RELATIVE_PATH).read_text(encoding="utf-8")

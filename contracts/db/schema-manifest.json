@@ -41,7 +41,7 @@
       "unique_constraints": [{"name": "pk_tenants", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "team_records",
@@ -68,7 +68,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["kind"], "allowed_update_columns": ["name", "hidden_at"]}
+      "immutability": {"protected_columns": ["kind"], "allowed_update_columns": ["name", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "players",
@@ -98,7 +98,7 @@
       "unique_constraints": [{"name": "pk_players", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_players_team", "columns": ["tenant_id", "team_record_id", "id"], "predicate": "hidden_at IS NULL", "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "enrollment_year", "school_year"],
-      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["name", "throws", "bats", "uniform_number", "roster_status_key", "roster_label_key", "hidden_at"]}
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["name", "throws", "bats", "uniform_number", "roster_status_key", "roster_label_key", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "games",
@@ -137,7 +137,7 @@
       "unique_constraints": [{"name": "pk_games", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_games_list", "columns": ["tenant_id", "scheduled_at DESC", "id DESC"], "predicate": "trashed_at IS NULL AND hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "lineup_memories",
@@ -162,7 +162,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["lineup", "retired_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["lineup", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "game_lineups",
@@ -186,7 +186,7 @@
       "unique_constraints": [{"name": "pk_game_lineups", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_game_lineups_game", "columns": ["tenant_id", "game_id", "team_record_id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["entries_with_uniform_number_snapshot"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["entries_with_uniform_number_snapshot"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "participation_intervals",
@@ -219,7 +219,7 @@
       ],
       "indexes": [{"name": "ix_participation_intervals_range", "columns": ["tenant_id", "game_id", "valid_from_d2", "valid_until_d2"], "predicate": "retired_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "d1"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["valid_until_d2", "retired_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["valid_until_d2", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "rule_sets",
@@ -240,7 +240,7 @@
       "unique_constraints": [{"name": "pk_rule_sets", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["regulation_innings", "called_game_conditions", "extra_innings_limit", "tiebreak_rule", "uses_dh"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["regulation_innings", "called_game_conditions", "extra_innings_limit", "tiebreak_rule", "uses_dh"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "game_type_rule_defaults",
@@ -260,7 +260,7 @@
       "unique_constraints": [{"name": "pk_game_type_rule_defaults", "kind": "PRIMARY KEY", "columns": ["game_type_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "tournament_rule_assignments",
@@ -281,7 +281,7 @@
       "unique_constraints": [{"name": "pk_tournament_rule_assignments", "kind": "PRIMARY KEY", "columns": ["tenant_id", "tournament_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["rule_set_id"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "event_slots",
@@ -304,7 +304,7 @@
       "unique_constraints": [{"name": "pk_event_slots", "kind": "PRIMARY KEY", "columns": ["tenant_id", "game_id", "generation", "d1"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "イベントスロットは (試合, D4, D1) で 1 件", "key_shape": "PRIMARY KEY (tenant_id, 試合, D4, D1)(退役済みの行も残るので、再投入は新しい D4〔新しい移行世代〕で行う — 12-3 節の不変条件 6)", "scope": "scoped"}}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["tenant_id", "game_id", "generation", "d1"], "allowed_update_columns": ["confirmed_version"]}
+      "immutability": {"protected_columns": ["tenant_id", "game_id", "generation", "d1"], "allowed_update_columns": ["confirmed_version"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "operation_events",
@@ -341,7 +341,7 @@
         {"name": "fk_operation_events_target", "columns": ["tenant_id", "game_id", "target_generation", "target_d1"], "references": {"table": "event_slots", "columns": ["tenant_id", "game_id", "generation", "d1"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_operation_events_ledger", "columns": ["tenant_id", "d5", "ledger_kind"], "references": {"table": "idempotency_ledger", "columns": ["tenant_id", "d5", "kind"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
-      "checks": ["ledger_kind = 'accepted'", "(d1 IS NULL) = (generation IS NULL)", "(target_generation IS NULL) = (target_d1 IS NULL)", "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)", "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS NOT NULL", "event_kind IN ('play_input', 'undo', 'substitution', 'tiebreak_start', 'game_end_declaration', 'player_registration', 'play_change', 'play_delete', 'substitution_change')", "(event_kind <> 'play_input' OR state_diff IS NOT NULL) AND (event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR state_diff IS NULL)", "(NOT is_tombstone OR (d1 IS NOT NULL AND d2 IS NULL AND state_diff IS NULL)) AND (NOT is_tombstone OR event_kind NOT IN ('play_change', 'play_delete', 'substitution_change')) AND (NOT is_tombstone OR payload = '{}'::jsonb)"],
+      "checks": ["ledger_kind = 'accepted'", "(d1 IS NULL) = (generation IS NULL)", "(target_generation IS NULL) = (target_d1 IS NULL)", "event_kind NOT IN ('play_change', 'play_delete', 'substitution_change') OR (d1 IS NULL AND d2 IS NULL AND generation IS NULL AND target_generation IS NOT NULL AND target_d1 IS NOT NULL AND expected_version IS NOT NULL)", "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS NOT NULL", "event_kind IN ('play_input', 'undo', 'substitution', 'tiebreak_start', 'game_end_declaration', 'player_registration', 'play_change', 'play_delete', 'substitution_change')", "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (state_diff IS NOT NULL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'substitution' AND NOT is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'tiebreak_start' AND NOT is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'game_end_declaration' AND NOT is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'player_registration' AND NOT is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'state_correction' AND NOT is_tombstone) OR (state_diff IS NOT NULL)) AND (NOT (is_tombstone) OR (state_diff IS NULL)) AND (NOT (event_kind = 'play_change') OR (state_diff IS NULL)) AND (NOT (event_kind = 'play_delete') OR (state_diff IS NULL)) AND (NOT (event_kind = 'substitution_change') OR (state_diff IS NULL))", "((NOT (event_kind = 'play_change') OR (NOT is_tombstone)) AND (NOT (event_kind = 'play_delete') OR (NOT is_tombstone)) AND (NOT (event_kind = 'substitution_change') OR (NOT is_tombstone))) AND (NOT is_tombstone OR payload = '{}'::jsonb)", "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (d2 IS NOT NULL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR (d2 IS NULL)) AND (NOT (event_kind = 'substitution' AND NOT is_tombstone) OR (d2 IS NOT NULL)) AND (NOT (event_kind = 'tiebreak_start' AND NOT is_tombstone) OR (d2 IS NOT NULL)) AND (NOT (event_kind = 'game_end_declaration' AND NOT is_tombstone) OR (d2 IS NOT NULL)) AND (NOT (event_kind = 'player_registration' AND NOT is_tombstone) OR (d2 IS NULL)) AND (NOT (is_tombstone) OR (d2 IS NULL)) AND (NOT (event_kind = 'play_change') OR (d2 IS NULL)) AND (NOT (event_kind = 'play_delete') OR (d2 IS NULL)) AND (NOT (event_kind = 'substitution_change') OR (d2 IS NULL))", "(NOT (event_kind = 'undo' AND NOT is_tombstone) OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL)) AND (NOT (event_kind = 'play_change') OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL)) AND (NOT (event_kind = 'play_delete') OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL)) AND (NOT (event_kind = 'substitution_change') OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL))", "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'substitution' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'tiebreak_start' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'game_end_declaration' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'player_registration' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'state_correction' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind = 'play_change') OR (expected_version IS NOT NULL)) AND (NOT (event_kind = 'play_delete') OR (expected_version IS NOT NULL)) AND (NOT (event_kind = 'substitution_change') OR (expected_version IS NOT NULL))"],
       "unique_constraints": [
         {"name": "pk_operation_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
         {"name": "uq_operation_events_active_slot", "kind": "UNIQUE INDEX", "columns": ["tenant_id", "game_id", "generation", "d1"], "predicate": "d1 IS NOT NULL AND replaced_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "5-3", "uniqueness": "(試合, D4, D1) の有効な行が 1 件", "key_shape": "UNIQUE (tenant_id, 試合, D4, D1) WHERE D1 IS NOT NULL AND 置換されていない", "scope": "scoped"}},
@@ -350,7 +350,7 @@
       ],
       "indexes": [{"name": "ix_operation_events_replay", "columns": ["tenant_id", "game_id", "d2", "id"], "predicate": "replaced_at IS NULL AND retired_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "recording_authority_proof", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["tenant_id", "id", "game_id", "generation", "d1", "d5", "event_kind", "payload", "state_diff"], "allowed_update_columns": ["d2", "replaced_at", "retired_at"]}
+      "immutability": {"protected_columns": ["tenant_id", "id", "game_id", "generation", "d1", "d5", "event_kind", "payload", "state_diff", "ledger_kind", "is_tombstone", "target_generation", "target_d1", "expected_version", "change_order", "legacy_row_identifier", "migration_unverified", "import_batch_id"], "allowed_update_columns": ["d2", "replaced_at", "retired_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "play_rows",
@@ -417,7 +417,7 @@
       "unique_constraints": [{"name": "pk_play_rows", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_play_rows_game_order", "columns": ["tenant_id", "game_id", "play_number", "id"], "predicate": "hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "source_event_id", "legacy_row_identifier"], "allowed_update_columns": ["version", "hidden_at"]}
+      "immutability": {"protected_columns": ["id", "source_event_id", "legacy_row_identifier"], "allowed_update_columns": ["version", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "play_runners",
@@ -449,7 +449,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["d2", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "status_source", "retired_at"]}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "status_source", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "temporary_player_id_mappings",
@@ -472,7 +472,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["temporary_id", "player_id"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["temporary_id", "player_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "idempotency_ledger",
@@ -498,7 +498,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["game_id", "generation", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["kind", "source_fingerprint", "result", "reason"], "allowed_update_columns": ["retired_at"]}
+      "immutability": {"protected_columns": ["kind", "source_fingerprint", "result", "reason"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "rejected_event_originals",
@@ -522,7 +522,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["d5", "kind", "payload"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["d5", "kind", "payload"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "evacuated_event_originals",
@@ -561,7 +561,7 @@
       ],
       "indexes": [{"name": "ix_evacuated_event_originals_retention", "columns": ["tenant_id", "retention_deadline"], "predicate": "retention_deadline IS NOT NULL AND discarded_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["game_id", "old_generation", "original_d1", "d5", "kind", "origin"], "allowed_update_columns": ["status", "imported_event_id", "retention_deadline", "discarded_at"]}
+      "immutability": {"protected_columns": ["game_id", "old_generation", "original_d1", "d5", "kind", "origin"], "allowed_update_columns": ["status", "imported_event_id", "retention_deadline", "discarded_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "recording_generations",
@@ -593,7 +593,7 @@
       ],
       "indexes": [{"name": "ix_recording_generations_history", "columns": ["tenant_id", "game_id", "issuance_order DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["generation", "kind", "issuance_order", "holder_device", "granted_at"], "allowed_update_columns": ["confirmed_watermark", "applied_prefix", "revoked_at", "retired_at"]}
+      "immutability": {"protected_columns": ["generation", "kind", "issuance_order", "holder_device", "granted_at"], "allowed_update_columns": ["applied_prefix", "revoked_at", "retired_at"], "conditional_update_columns": ["confirmed_watermark"], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "medical_notes",
@@ -619,7 +619,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "retired_at"]}
+      "immutability": {"protected_columns": ["player_id", "note_kind"], "allowed_update_columns": ["content", "version", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "medical_note_versions",
@@ -642,7 +642,7 @@
       "unique_constraints": [{"name": "pk_medical_note_versions", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_medical_note_versions_history", "columns": ["tenant_id", "medical_note_id", "version DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["medical_note_id", "version", "content", "origin", "recorded_at"], "allowed_update_columns": ["retained_for_restore"]}
+      "immutability": {"protected_columns": ["medical_note_id", "version", "content", "origin", "recorded_at"], "allowed_update_columns": ["retained_for_restore"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "pdf_export_records",
@@ -666,7 +666,7 @@
       "unique_constraints": [{"name": "pk_pdf_export_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_pdf_export_records_time", "columns": ["tenant_id", "exported_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "retention_deadline", "deleted_at"],
-      "immutability": {"protected_columns": ["tenant_id", "id", "exported_at", "team_record_id", "player_id", "applied_filters"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["tenant_id", "id", "exported_at", "team_record_id", "player_id", "applied_filters"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "system_vocabularies",
@@ -685,7 +685,7 @@
       "unique_constraints": [{"name": "pk_system_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム固定の層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["key", "category", "display_name", "disabled"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["key", "category", "display_name", "disabled"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "admin_vocabularies",
@@ -704,7 +704,7 @@
       "unique_constraints": [{"name": "pk_admin_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム管理者が管理する層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "disabled"]}
+      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "disabled"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "tenant_vocabularies",
@@ -726,7 +726,7 @@
       "unique_constraints": [{"name": "pk_tenant_vocabularies", "kind": "PRIMARY KEY", "columns": ["tenant_id", "key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちチーム拡張可の層", "key_shape": "UNIQUE (tenant_id, キー名)", "scope": "scoped"}}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "pitch_family", "abbreviation", "disabled"]}
+      "immutability": {"protected_columns": ["key", "category"], "allowed_update_columns": ["display_name", "pitch_family", "abbreviation", "disabled"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "system_settings",
@@ -744,7 +744,7 @@
       "unique_constraints": [{"name": "pk_system_settings", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-4", "uniqueness": "付録C のシステム設定値", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["key"], "allowed_update_columns": ["value", "updated_at"]}
+      "immutability": {"protected_columns": ["key"], "allowed_update_columns": ["value", "updated_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "tenant_auth_subjects",
@@ -761,7 +761,7 @@
       "unique_constraints": [{"name": "pk_tenant_auth_subjects", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_tenant_auth_subjects_tenant", "columns": ["tenant_id", "id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["user_id", "role", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "tenant_id"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["id", "tenant_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "tenant_credentials",
@@ -780,7 +780,7 @@
       "unique_constraints": [{"name": "pk_tenant_credentials", "kind": "PRIMARY KEY", "columns": ["auth_subject_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "8-2", "uniqueness": "認証主体と認証情報は 1 対 1", "key_shape": "UNIQUE (認証主体) — 認証情報表の側", "scope": "scoped"}}],
       "indexes": [],
       "forbidden_columns": ["password", "plaintext_password", "reversible_password", "v12", "created_by", "inputter_id"],
-      "immutability": {"protected_columns": ["auth_subject_id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"]}
+      "immutability": {"protected_columns": ["auth_subject_id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "admin_credentials",
@@ -799,7 +799,7 @@
       "unique_constraints": [{"name": "pk_admin_credentials", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "password", "plaintext_password", "reversible_password", "role", "v12", "created_by", "inputter_id"],
-      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"]}
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["password_hash", "generation", "password_changed_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "admin_sessions",
@@ -819,7 +819,7 @@
       "unique_constraints": [{"name": "pk_admin_sessions", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_admin_sessions_expiry", "columns": ["expires_at", "id"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["tenant_id", "role", "v12", "created_by", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "admin_credential_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"]}
+      "immutability": {"protected_columns": ["id", "admin_credential_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "tenant_tokens",
@@ -843,7 +843,7 @@
       "unique_constraints": [{"name": "pk_tenant_tokens", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_tenant_tokens_expiry", "columns": ["tenant_id", "expires_at", "id"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["role", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "tenant_id", "auth_subject_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"]}
+      "immutability": {"protected_columns": ["id", "tenant_id", "auth_subject_id", "credential_generation"], "allowed_update_columns": ["expires_at", "last_used_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "admin_operation_logs",
@@ -867,7 +867,7 @@
       "unique_constraints": [{"name": "pk_admin_operation_logs", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_admin_operation_logs_time", "columns": ["occurred_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at", "retention_deadline"],
-      "immutability": {"protected_columns": ["id", "occurred_at", "operation_kind", "target", "tenant_id", "group_id"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["id", "occurred_at", "operation_kind", "target", "tenant_id", "group_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "player_merge_events",
@@ -892,7 +892,7 @@
       "unique_constraints": [{"name": "pk_player_merge_events", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_player_merge_events_time", "columns": ["tenant_id", "occurred_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["source_player_id", "target_player_id", "occurred_at", "executor"], "allowed_update_columns": ["reverted_at"]}
+      "immutability": {"protected_columns": ["source_player_id", "target_player_id", "occurred_at", "executor"], "allowed_update_columns": ["reverted_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "player_move_records",
@@ -919,7 +919,7 @@
       "unique_constraints": [{"name": "pk_player_move_records", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_player_move_records_merge", "columns": ["tenant_id", "merge_event_id", "id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["tenant_id", "id", "merge_event_id", "resource_kind", "resource_id", "original_player_id", "moved_player_id", "medical_note_version_id"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["tenant_id", "id", "merge_event_id", "resource_kind", "resource_id", "original_player_id", "moved_player_id", "medical_note_version_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "rate_limit_counters",
@@ -939,7 +939,7 @@
       "unique_constraints": [{"name": "pk_rate_limit_counters", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_rate_limit_counters_window", "columns": ["scope_key", "window_start DESC", "id"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["deleted_at", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "scope_key", "window_start"], "allowed_update_columns": ["attempt_count", "locked_until"]}
+      "immutability": {"protected_columns": ["id", "scope_key", "window_start"], "allowed_update_columns": ["attempt_count", "locked_until"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "analysis_groups",
@@ -958,7 +958,7 @@
       "unique_constraints": [{"name": "pk_analysis_groups", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["status", "terminated_at", "termination_reason"]}
+      "immutability": {"protected_columns": ["id"], "allowed_update_columns": ["status", "terminated_at", "termination_reason"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "group_memberships",
@@ -986,7 +986,7 @@
       ],
       "indexes": [{"name": "ix_group_memberships_tenant", "columns": ["tenant_id", "status", "group_id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "group_id", "tenant_id", "joined_at"], "allowed_update_columns": ["role", "status", "left_at"]}
+      "immutability": {"protected_columns": ["id", "group_id", "tenant_id", "joined_at"], "allowed_update_columns": ["role", "status", "left_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "sharing_grants",
@@ -1003,7 +1003,7 @@
       "unique_constraints": [{"name": "pk_sharing_grants", "kind": "PRIMARY KEY", "columns": ["membership_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "9-2", "uniqueness": "付与は参加行につき 1 件", "key_shape": "UNIQUE (参加行) — 参加行を鍵にする((グループ, テナント) にしない)", "scope": "scoped"}}],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["membership_id"], "allowed_update_columns": ["grant_flags"]}
+      "immutability": {"protected_columns": ["membership_id"], "allowed_update_columns": ["grant_flags"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "group_invitations",
@@ -1027,7 +1027,7 @@
       ],
       "indexes": [{"name": "ix_group_invitations_expiry", "columns": ["expires_at", "id"], "predicate": "status = 'unconsumed'", "purpose": "range_sort"}],
       "forbidden_columns": ["tenant_id", "invitation_code", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["id", "group_id", "code_hash", "initial_role"], "allowed_update_columns": ["status"]}
+      "immutability": {"protected_columns": ["id", "group_id", "code_hash", "initial_role"], "allowed_update_columns": ["status"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "invalidation_intents",
@@ -1054,7 +1054,7 @@
       "unique_constraints": [{"name": "pk_invalidation_intents", "kind": "PRIMARY KEY", "columns": ["tenant_id", "intent_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "11-2", "uniqueness": "無効化意図は意図 ID で 1 件", "key_shape": "UNIQUE (tenant_id, 意図 ID)", "scope": "scoped"}}],
       "indexes": [{"name": "ix_invalidation_intents_delivery", "columns": ["tenant_id", "delivery_status"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["tenant_id", "intent_id", "scope_kind", "game_id", "player_id", "group_id", "requesting_tenant_id", "target_tenant_id", "period", "chart_kind"], "allowed_update_columns": ["delivery_status", "delivered_at"]}
+      "immutability": {"protected_columns": ["tenant_id", "intent_id", "scope_kind", "game_id", "player_id", "group_id", "requesting_tenant_id", "target_tenant_id", "period", "chart_kind"], "allowed_update_columns": ["delivery_status", "delivered_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "migration_quarantine",
@@ -1073,7 +1073,7 @@
       "unique_constraints": [{"name": "pk_migration_quarantine", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_migration_quarantine_source", "columns": ["import_batch_id", "source_read_order"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["id", "import_batch_id", "source_read_order", "raw_payload"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_read_order", "raw_payload"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "migrated_final_lineups",
@@ -1102,7 +1102,7 @@
       ],
       "indexes": [],
       "forbidden_columns": ["resolved_player_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["game_id", "team_record_id", "raw_lineup", "legacy_row_identifier", "import_batch_id"], "allowed_update_columns": ["retired_at"]}
+      "immutability": {"protected_columns": ["game_id", "team_record_id", "raw_lineup", "legacy_row_identifier", "import_batch_id"], "allowed_update_columns": ["retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "migration_runs",
@@ -1124,7 +1124,7 @@
       "unique_constraints": [{"name": "pk_migration_runs", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_migration_runs_time", "columns": ["started_at DESC", "id DESC"], "predicate": null, "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["id", "started_at", "source_counts"], "allowed_update_columns": ["completed_at", "generated_copy_counts", "validation_results", "retired_at"]}
+      "immutability": {"protected_columns": ["id", "started_at", "source_counts"], "allowed_update_columns": ["completed_at", "generated_copy_counts", "validation_results", "retired_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "migration_resolution_reports",
@@ -1144,7 +1144,7 @@
       "unique_constraints": [{"name": "pk_migration_resolution_reports", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_migration_resolution_reports_run", "columns": ["import_batch_id", "source_kind", "id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "issue"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "issue"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "migration_warning_reports",
@@ -1165,7 +1165,7 @@
       "unique_constraints": [{"name": "pk_migration_warning_reports", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_migration_warning_reports_run", "columns": ["import_batch_id", "warning_kind", "id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "warning_kind", "details"], "allowed_update_columns": []}
+      "immutability": {"protected_columns": ["id", "import_batch_id", "source_kind", "legacy_row_identifier", "warning_kind", "details"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     }
   ]
 }

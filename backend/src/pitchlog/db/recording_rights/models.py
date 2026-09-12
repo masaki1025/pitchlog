@@ -31,6 +31,7 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
 )
@@ -144,6 +145,8 @@ class EvacuatedEventOriginal(TenantMixin, ImportBatchMixin, LifecycleMixin, Base
         allowed_update_columns=frozenset(
             {"status", "imported_event_id", "retention_deadline", "discarded_at"}
         ),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -230,8 +233,11 @@ class RecordingGeneration(
             {"generation", "kind", "issuance_order", "holder_device", "granted_at"}
         ),
         allowed_update_columns=frozenset(
-            {"confirmed_watermark", "applied_prefix", "revoked_at", "retired_at"}
+            {"applied_prefix", "revoked_at", "retired_at"}
         ),
+        conditional_update_columns=frozenset({"confirmed_watermark"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
