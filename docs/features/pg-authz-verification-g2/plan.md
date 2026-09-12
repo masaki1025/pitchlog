@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 35        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 36        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -101,12 +101,16 @@ TSK-270 の計画レビューが 3 周連続で否決され、**人間の裁定 
 
 #### `D-13` の規則を実測へ当てた結果(2026-09-12・TSK-343 マージ後)
 
-| 判定 | 検査器 | 凍結資産を読む | コア領域該当 |
-| --- | --- | --- | --- |
-| **登録** | `check_authz_catalog` / `check_authz_function_bodies` / `check_mcdc_map` / `check_failure_injection_points` / `check_shared_preconditions` | **はい** | 1〜5 領域 |
-| 対象外 | `check_nfr021_append_only` / `check_docs_status` / `check_doc_profiles` / `check_plan_docs_sync` | **いいえ** | **なし** |
+| 判定 | 検査器 | `f` が返す理由 |
+| --- | --- | --- |
+| **`f` が返す(既登録)** | `check_design_propagation` / `check_doc_coverage` / `check_processing_stages` | `areas[].paths` にマッチするファイルを開く |
+| **`f` が返す(未登録)** | `check_authz_catalog` / `check_authz_function_bodies` / `check_mcdc_map` / `check_failure_injection_points` / `check_shared_preconditions` | `contracts/authz/` 配下を開く |
+| **`f` が返さない** | `check_nfr021_append_only` / `check_docs_status` / `check_doc_profiles` / `check_plan_docs_sync` | どちらも開かない |
 
-**5 検査器 + その対 5 本 = 10 本**。**規則を人手で解釈せず機械で当てられた。**
+**`f` の出力 = 検査器 8 本 × 名前の対 = 16 パス。うち 6 パスは既登録、10 パスが未登録。**
+**本改訂が足すのはその差分 10 パスである**(25 周目 `P1-1` — **以前は「コア領域該当なし」という
+人手の判定を理由に書いていたが、合格条件は `f` の出力すべてが登録されていることである**)。
+**判定は `design.md` C 節の述語を実行して得る**(**人手で解釈しない**)。
 
 #### **`S-1` ④ の記録を撤回する**(2026-09-12)
 
@@ -208,6 +212,8 @@ git diff --exit-code origin/develop...HEAD -- \
 **したがって `S-1` の 2 段コミットは不要**で、**`--reseal-oracle` を 1 回回せば足りる**(`_build_oracle_seal()` は **`input_assets[].git_blob_digest`(不変)と `sealed_assets[]` の再構築(変わる)だけ**を行う — 実測)。
 
 **`S-1` の要求(reseal と人間査読)は本改訂で完結する。**
+**コミット構造の正はステップ表である** — **ステップ 2 の 1 コミットで資産変更と reseal を行う**
+(25 周目 `P1-2` — **本節の「2 段コミット不要」は理由の説明であって、コミット数の定義ではない**)。
 **PR #3 は `auth-catalog.json`(入力資産)を変えるため、その PR 自身で 2 段コミットを要する**が、**これは `S-1` の残部ではなく PR #3 の実装制約である**(**送り先表と DoD の「7 件」に `S-1` が無いのはこのため** — 4 周目 `P2-9`)。
 
 #### PR #3 へ送るもの(**空手形にしないため受取先を明記する**)
@@ -503,10 +509,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 `[機械]` **上表の全箇所が期待値と完全一致**・
 **`deferred_equivalence_contract.owner_task_id` が実 ID と完全一致**。
 
-**負例の母集団**(規律 4): **導出元 `S` = `git show origin/develop:contracts/authz/boundary-proposal.json` の全キー**
-(**版を base へ固定する** — **本ステップで改変する作業コピーを `S` にすると 3 問の 1 で落ちる**。14 周目 `P1-4`)。
-**導出器 `f` = 資産を再帰的に走り、キー名に `owner` または `task_id` を含む全箇所を返す**。
-**導出器と全数性は [design.md](design.md) D 節が正。**
+**母集団・導出器・全数性は [design.md](design.md) D 節が正。**
 **実測(2026-09-12)— `f` の出力は 5 箇所**(**私が数えていた 4 箇所ではない** — 13 周目 `P1-4`):
 
 | パス | 現在値 | 本改訂の扱い |
