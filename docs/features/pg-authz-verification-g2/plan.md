@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 23        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 24        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -286,10 +286,10 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
 | `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去は裁定 `D-16` で別タスクへ。****本改訂が触るのは 3 件**(いずれもステップ 2)— **① `S-5`・`S-7` の literal 追随** / **② 重複行で潰れる配列の多重度検査**(**母集団は導出器 `g` の出力** — 4 節 2-d の層 ①)/ **③ 変更する 3 資産の全配列 + 全 JSON キー対を走る恒久検査と、その負例 6 種**(同 層 ②。**`tests/test_check_authz_catalog.py` へ追加する**) |
-| `tests/test_core_guard.py` | **本改訂のステップ 2 で変更する**(登録)・**ステップ 1 で検査基盤へ登録する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
+| `tests/test_core_guard.py` | **本改訂のステップ 1 で変更する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
 | `backend/tests/db/test_authz_*.py` | **新設 12 本** — カタログ検査 / 越境の正例・拒否例 / 6 前提行列 / 表権限 8 種 / 管理経路 probe / TOCTOU / 失敗注入 / 信頼境界 / ロール接続 / 適用器 / mutation 全量。**`requires_db` マーカー付きで `backend/tests/db/` 配下**(`environment-expectations.json` の `required_path` 契約) |
 | `backend/tests/test_authz_*.py` | **新設 5 本** — **DB を必要としない**契約試験(DDL 生成器 / mutation の判定機構 / executor の観測 / 2 因子合成 × 2)。**`backend/tests/db/` の外に置く**(DB 必須テストの path 契約と分けるため) |
-| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 2**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
+| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 1**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
 | `tests/test_check_authz_function_bodies.py` | **追随** — `manifest.json` の `source_commit` を注記追加後のコミットへ変えたため、「body 導入前のコミット」を `--diff-filter=A` で探す形へ変更(**assertion は不変・弱体化していない**) |
 | `docs/features/pg-authz-verification-g2/{plan,research,design}.md` / `catalog-check-map.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
@@ -305,7 +305,7 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 **core-guard は発火する** — `contracts/authz/*`・`backend/tests/db/*`・`scripts/check_authz_catalog.py`・
 `tests/test_check_authz_catalog.py`・`backend/pyproject.toml`・`backend/uv.lock`・`backend/*conftest.py`・
 `docker-compose.yml` が `tenant-isolation.paths`(22 件)に登録済み(導入 `d4373ec`)。
-**未登録は `backend/src/pitchlog/authz/*` と新設検査器 8 本**で、**本改訂のステップ 2 で登録する**(4 節の表が正)。**現在のステップ表は本改訂の 1〜2 である**(第 1 弾の 1〜20 は「第 1 弾の実施記録」へ移した)。
+**未登録は `backend/src/pitchlog/authz/*` と新設検査器 8 本**で、**本改訂のステップ 1 で登録する**(4 節の表が正)。**現在のステップ表は本改訂の 1〜2 である**(第 1 弾の 1〜20 は「第 1 弾の実施記録」へ移した)。
 
 ### 合格条件の書き方(5 つの規律)
 
@@ -431,7 +431,7 @@ CI でも動く。**ローカル実行は再現手順として文書化する**(
 
 ### 規模の申し送り
 
-**裁定 `D-8` と `D-9` により、第 1 弾の承認範囲は 20 ステップ(第 2 群前半)だった。****本改訂の承認範囲は 3 ステップ(検査基盤 + 封印系)である**(裁定 `D-14`・`D-16`・`D-17`)。**以下は第 1 弾についての記述である。** コア領域なので全ステップに人間の逐行確認が掛かり、
+**裁定 `D-8` と `D-9` により、第 1 弾の承認範囲は 20 ステップ(第 2 群前半)だった。****本改訂の承認範囲は 2 ステップ(封印系)である**(裁定 `D-14`・`D-16`・`D-18`)。**以下は第 1 弾についての記述である。** コア領域なので全ステップに人間の逐行確認が掛かり、
 **スループットの上限は逐行確認**である(TSK-317 のカード自身が「逐行確認は並列化できない人的資源」と警告)。
 **第 2 群後半・第 3 群は改訂 3 第 2 弾で確定する**(4 節の `S-1`〜`S-10`)。
 マージゲートの通過条件①が揃うのは改訂 3 第 2 弾の完了時点である。
@@ -498,20 +498,16 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 封印資産に触れない `core-areas.json` の登録を先行ステップにした。**
 **これは 1 ステップ = 1 コミットの例外ではなく、2 ステップとも 1 コミットである。**
 
-**検査基盤を先頭に置くのは裁定 `D-17` による** — **規律 5 の (c)(当該検査だけを無効化すると負例が通る)を、後続ステップの全条件へ機構が機械適用するため**。**基盤が無いと (c) を条件ごとに文章で書くことになり、書き漏らした箇所が次のレビュー指摘になる**(**12 周で 8 回再生産した**)。
-
 > **期待件数の撤去は裁定 `D-16` で別タスクへ送った**(1 節)。**本改訂の先行ステップは `core-areas.json` の登録 1 件だけになった。**
 
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
-| 1 | **`core-areas.json` への登録**(裁定 `D-13` + `S-8` の一部)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(いずれも下表で確定済み)。**封印資産に触れない** | `[機械]` **下表の 10 本と 9 パターンが登録されている**(exact-set)・**`tenant-isolation.paths` に追加した各パターンが実在ファイルへ 1 件以上マッチする**(**空振りのパターンを書けない**)・`uv run pytest tests/test_core_guard.py tests/test_ci_wiring.py` green。**負例の母集団**(規律 4): **導出元 `S` = `scripts/*.py` と `tests/test_*.py` の実在ファイル**。**導出器 `f` = 機械判定できる述語**(**日本語の規則をそのまま条件にしない** — 13 周目 `P1-2`):**「`contracts/authz/` 配下のファイルを開く、または `core-areas.json` の`areas[].paths` にマッチするファイルを開く `scripts/check_*.py` と、それを import する `tests/test_check_*.py`」**。**全数性**: **その述語を満たす検査器を 1 本足した合成ツリーで、母集団が 2 増えることを示す。****`f` の出力は既登録分を含む**(**実測 2026-09-12: 検査器 8 本 = 16 パス。うち `check_design_propagation` / `check_doc_coverage` / `check_processing_stages` の 6 パスは既登録**)。**本改訂が追加するのはその差分 10 パスである。****合格条件は「`f` の出力すべてが `guard_paths` に登録されている」を本改訂のテスト内で 1 度確かめるところまで**である。
-**これを恒久テストとして常時発火させると、未登録の 11 本目を検出する導出型検査そのものになり、裁定 `D-13` の送り先と衝突する**(15 周目 `P1-7`)。
-**恒久化は別タスクの射程**([core-areas.json の登録を導出型の検査で閉じる](https://app.notion.com/p/3d993b75e68781e6bcb4e42c79ddd789))。
-**本改訂のテストは `f` を実リポジトリへ 1 度当て、その時点の出力が全件登録済みであることを示す。**
-**下表は差分の内訳であって母集団の定義ではない。****母集団の各要素を 1 件ずつ外すと red**(**「いずれか 1 件」ではなく全件**)・**`guard_paths` は完全一致なので、パスの大小文字を変えるだけでも red**・**規律 5 により、当該検査を外すと 19 件の負例が red でなくなることを示す**。`[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認** |
+| 1 | **`core-areas.json` への登録**(裁定 `D-13` + `S-8` の一部)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(いずれも下表で確定済み)。**封印資産に触れない** | `[機械]` **下表の 10 本と 9 パターンが登録されている**(exact-set)・**`tenant-isolation.paths` に追加した各パターンが実在ファイルへ 1 件以上マッチする**(**空振りのパターンを書けない**)・`uv run pytest tests/test_core_guard.py tests/test_ci_wiring.py` green。**負例の母集団と導出器は下記「ステップ 1 の登録先」** |
 | 2 | **封印資産の確定と再封印**(owner 移管 + `S-5` + `S-7` + 検査器追随(**重複行で潰れる配列の検査を含む**)+ `--reseal-oracle` **1 回**)— **2-a 〜 2-e を 1 コミットに収める**(上記の理由)。**`oracle_commit` は動かさない**(入力資産が不変のため — 2 節の実測) | `[機械]` **2-a 〜 2-e の全条件を満たす**(下記)・**reseal 後に `check_authz_catalog.py` が rc=0**・**`--reseal-oracle` を付けない通常検証では reseal されない**。`[手動・外部]` **差分敵対レビューと人間査読**(`reseal_policy.human_review_required`) |
 
 ##### ステップ 1 の登録先 — **`D-13` の規則を当てた結果**(**実測で確定済み**)
+
+**負例の母集団**(規律 4): **導出元 `S` = `scripts/*.py` と `tests/test_*.py` の実在ファイル**。**導出器 `f` = 機械判定できる述語**(**日本語の規則をそのまま条件にしない** — 13 周目 `P1-2`):**「`contracts/authz/` 配下のファイルを開く、または `core-areas.json` の`areas[].paths` にマッチするファイルを開く `scripts/check_*.py` と、それを import する `tests/test_check_*.py`」**。**全数性**: **その述語を満たす検査器を 1 本足した合成ツリーで、母集団が 2 増えることを示す。****`f` の出力は既登録分を含む**(**実測 2026-09-12: 検査器 8 本 = 16 パス。うち `check_design_propagation` / `check_doc_coverage` / `check_processing_stages` の 6 パスは既登録**)。**本改訂が追加するのはその差分 10 パスである。****合格条件は「`f` の出力すべてが `guard_paths` に登録されている」を本改訂のテスト内で 1 度確かめるところまで**である。**これを恒久テストとして常時発火させると、未登録の 11 本目を検出する導出型検査そのものになり、裁定 `D-13` の送り先と衝突する**(15 周目 `P1-7`)。**恒久化は別タスクの射程**([core-areas.json の登録を導出型の検査で閉じる](https://app.notion.com/p/3d993b75e68781e6bcb4e42c79ddd789))。**本改訂は `f` の出力を「実装時点で 1 度測り、その結果を worklog へ記録する」** —**`f` を呼ぶ恒久テストを `tests/` へコミットしない**(**コミットすれば常時発火する導出型検査そのものになる** —16 周目 `P1-3`)。**`tests/` へ入れるのは「4 節の表が列挙する 19 件が登録されている」という固定の検査だけ**で、**11 本目の検出は別タスクが恒久化する。****下表は差分の内訳であって母集団の定義ではない。****母集団の各要素を 1 件ずつ外すと red**(**「いずれか 1 件」ではなく全件**)。**`guard_paths` は完全一致なので、パスの大小文字を変えるだけでも red**。**規律 5 により、当該検査を外すと 19 件の負例が red でなくなることを示す**。`[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認**
 
 **`guard_paths`(完全一致・`frozenset`)へ 10 本** — 規則「**凍結資産またはコア領域の成果物を検査する検査器とその対**」:
 
@@ -592,7 +588,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | **`trust_boundary.verification_owner_task_id`** | **`TSK-217` 以外へ変える・消す** | red(**現行は green になる** — 本改訂で検査を足す)|
 
 **加えて全箇所共通**: **形式だけ似た別 ID を入れると red / 空文字で red**。
-**規律 5 により、当該検査を外すと母集団全件の負例が red でなくなることを示す。**
+**規律 5 により、負例は当該 validator の関数を直接呼び、その関数が投げることを確かめる**(**`check_authz_catalog.py` 全体を回して red を見ない**)。
 
 > **「`aggregation_location: none` の境界に owner が無いこと」を合格条件にしてはならない**
 > (4 周目 `P0-5` の実測)。**`REPRESENTATIVE-MANAGEMENT` も `none` で、正当な `TSK-250` owner を持つ**ため、
@@ -609,9 +605,11 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 | 導出元 `S` | 導出器 `f` | 全数性の示し方 |
 | --- | --- | --- |
-| **`git show origin/develop:contracts/authz/boundary-proposal.json` の全 leaf と、変更後の全 leaf の和集合**(**版を base へ固定し、削除・新設した leaf も母集団に残す** — 14 周目 `P1-4`) | **両版を再帰的に走り、全 leaf のパスの和を返す** | **どちらかの版へ leaf を 1 つ足すと母集団が 1 増えることを示す** |
+| **`git show origin/develop:contracts/authz/boundary-proposal.json` の全 leaf**(**base のみ** — **変更後を入れると本ステップの diff が入力になり規律 4 の問 1 に no**。16 周目 `P1-2`) | **base を再帰的に走り、全 leaf のパスを返す** | **base へ leaf を 1 つ足すと母集団が 1 増えることを示す** |
 
-**全 leaf を 3 つに分類する**(**分類も資産と本計画の確定値表から機械的に決める**):
+**base の全 leaf を 3 つに分類する**(**分類は本計画の確定値表から決める**)。
+**新設する leaf は母集団に入らない** — **本改訂は `boundary-proposal.json` へ leaf を追加しない**(**`CONTROL-READS` の owner を削除するだけ**。**追加が出たら計画違反として別に検出する** —
+**「base に無い leaf が変更後にある」を独立した合格条件にする**):
 
 | 区分 | 期待 |
 | --- | --- |
@@ -697,11 +695,19 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **`oracle-seal.lock.json` 自身はどちらにも登録されていないので、seal が母集団から漏れる**
 (14 周目 `P1-5` の実測)。
 **全数性**: **差分へ資産を 1 本足すと対象が 1 増えることを示す**。
-**層 ① の対象配列も同じ形で導く** — **導出元 `S` = 上記 `f` が返す資産の全コンテナ**、
+**層 ① の対象配列も同じ形で導く** — **導出元 `S` = 上記 `f` が返す資産の `origin/develop` 版の全コンテナ**、
 **導出器 `g` = 「先頭要素を複製しても検査器が green のまま通る配列」**(**変異で判定する**)。
-**検査器の版は base へ固定する** — `git show origin/develop:scripts/check_authz_catalog.py`。
-**作業コピーの検査器で導出すると、本ステップがその検査器を直すので `g = ∅` になり循環する**
-(15 周目 `P0-3`)。
+
+**`g` は入力・検査器の両方を base へ固定する**(16 周目 `P0-1`):
+
+| 固定するもの | 版 |
+| --- | --- |
+| 資産 | `git show origin/develop:contracts/authz/<name>` |
+| 検査器 | `git show origin/develop:scripts/check_authz_catalog.py` |
+
+**検査器だけを固定すると `g = ∅` になる** — **ステップ 2 後の `boundary-proposal` と `ddl-elements` は base 検査器が要求する旧 `status`/`scope` と意図的に異なるので、複製する前から red になる**(16 周目 `P0-1` の実測)。
+**作業コピーの検査器で導出しても `g = ∅` になる** — **本ステップがその検査器を直すため**(15 周目 `P0-3`)。
+**両方を base に揃えた状態は「本改訂が何も変えていない時点」であり、本ステップの diff の外にある**(規律 4 の問 1)。
 
 **`g` の出力を人が絞らない**(14 周目 `P1-6`)— **以前は「5 配列」と書いて
 残り 10 配列を別タスクへ延期したが、`g` は 10 配列も返すので述語と延期が両立しなかった**。
@@ -779,7 +785,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | **`sealed_assets[]` の行の `asset_role` / `asset_kind` を変える** | red |
 | **`--reseal-oracle` を付けない通常検証で reseal される** | red |
 
-**規律 5 により、当該検査を外すと上記の負例が red でなくなることを示す。**
+**規律 5 により、負例は当該 validator の関数を直接呼び、その関数が投げることを確かめる。**
 
 #### 資産と検査器が二重に固定されている(**`S-5` と `S-7` の実測**)
 
@@ -847,7 +853,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | `S-5` | **`boundary-proposal.json` の裁定後の型を確定する** — 現在値には `proposal_status: pending_tsk_235_confirmation`・`PENDING-*` ID・2 種の pending status・`alternative_value: 7` がある。**どれを維持・改名・削除するかの exact 値と負例**を `scope` と同様に定める | 3 周目 `P1-8` |
 | `S-6` | **`R-4` / `R-7` の受取契約を閉じる** — 受取タスク(TSK-250 / TSK-217)の DoD へ安定テスト ID を登録し、相互リンクし、**受取側から取得した集合と exact-set 突合**する。**製品 adapter / manifest の事前凍結**も `R-4` の要求 | 2 周目 `P0-6` / 3 周目の突合 |
 | `S-7` | **`scope` の確定値**(参考 — 3 周目 `P1-6` で有効と判定済み): `status: "verified_probe_configuration"` / `product_schema: false` / `contains_sql_body: false` / `second_group_approval_required: false`。**上記以外の値を入れると red** | 2 周目 `P1-6` |
-| `S-8` | 引き渡し 3 資産のパスと版・digest(`ddl-elements.json` / `auth-catalog.json` / `rejected-configs.json` — **PR #3**)・`core-areas.json` への新設パス登録(**本改訂のステップ 2**。**下記「人手で列挙せず機械的に導く」は裁定 `D-13`(2026-09-12)が上書きした** — **本改訂は規則から導いた 10 本を列挙で登録し、導出型の一般化は別タスクへ送る**。**要件としての「機械的に導く」は撤回ではなく延期であり、受取先は [core-areas.json の登録を導出型の検査で閉じる](https://app.notion.com/p/3d993b75e68781e6bcb4e42c79ddd789)**)・`test_ci_wiring.py` の追記(**PR #3**)・期待件数のハードコード撤去(**別タスク — 裁定 `D-16`。「既存 20 箇所すべて」という旧方針は 4 周目 `P1-8` で撤回した**)・成果物の敵対レビュー。**`guard_paths` へ登録すべき新設検査経路の実測(2026-09-10・TSK-235 のタブからの申し送り)= 6 本**: `scripts/check_authz_function_bodies.py` / `scripts/check_shared_preconditions.py` / `scripts/check_failure_injection_points.py` と、それぞれ対になる `tests/test_check_*.py` 3 本。**現行の `guard_paths` 30 件は `check_design_propagation` / `check_doc_coverage` / `check_processing_stages` をスクリプトとテストの対で個別列挙**しており、**命名規約上この 6 本も入る系列**である。**未登録のままでは、凍結資産を検査するスクリプトを弱めても逐行確認が発火しない**(台帳 `H-12` の型 — `docs/README.md` に「再発 5 件目」が記録済み)。**`guard_paths` 追加は 6.3 規則⑤(敵対レビュー + 人間承認)**。**送り先記録(6 周目 `P2-1`・`(B)`)**: **上記「6 本」は 2026-09-10 時点の人手列挙であり、ステップ 18 で `mcdc-map.json` の独立検査器とそのテストを新設するので 8 本になる。****第 2 弾では登録母集団を人手で列挙せず、`scripts/check_*.py` と対になる `tests/test_check_*.py` の実在から機械的に導く**(**本タスクは「人が列挙した集合が母集団になっている」型の欠陥を 6 周のレビューで 7 回踏んでいる** — 走査の鍵 / セル内の位置 / 歴史的記録の分類 / 対象ファイルの選定 / 抽出キー / DoD の否定範囲 / **本項の `guard_paths` の列挙**。台帳候補 A・E と同型) | 1〜2 周目 / **2026-09-10 の申し送り** |
+| `S-8` | 引き渡し 3 資産のパスと版・digest(`ddl-elements.json` / `auth-catalog.json` / `rejected-configs.json` — **PR #3**)・`core-areas.json` への新設パス登録(**本改訂のステップ 1**。**下記「人手で列挙せず機械的に導く」は裁定 `D-13`(2026-09-12)が上書きした** — **本改訂は規則から導いた 10 本を列挙で登録し、導出型の一般化は別タスクへ送る**。**要件としての「機械的に導く」は撤回ではなく延期であり、受取先は [core-areas.json の登録を導出型の検査で閉じる](https://app.notion.com/p/3d993b75e68781e6bcb4e42c79ddd789)**)・`test_ci_wiring.py` の追記(**PR #3**)・期待件数のハードコード撤去(**別タスク — 裁定 `D-16`。「既存 20 箇所すべて」という旧方針は 4 周目 `P1-8` で撤回した**)・成果物の敵対レビュー。**`guard_paths` へ登録すべき新設検査経路の実測(2026-09-10・TSK-235 のタブからの申し送り)= 6 本**: `scripts/check_authz_function_bodies.py` / `scripts/check_shared_preconditions.py` / `scripts/check_failure_injection_points.py` と、それぞれ対になる `tests/test_check_*.py` 3 本。**現行の `guard_paths` 30 件は `check_design_propagation` / `check_doc_coverage` / `check_processing_stages` をスクリプトとテストの対で個別列挙**しており、**命名規約上この 6 本も入る系列**である。**未登録のままでは、凍結資産を検査するスクリプトを弱めても逐行確認が発火しない**(台帳 `H-12` の型 — `docs/README.md` に「再発 5 件目」が記録済み)。**`guard_paths` 追加は 6.3 規則⑤(敵対レビュー + 人間承認)**。**送り先記録(6 周目 `P2-1`・`(B)`)**: **上記「6 本」は 2026-09-10 時点の人手列挙であり、ステップ 18 で `mcdc-map.json` の独立検査器とそのテストを新設するので 8 本になる。****第 2 弾では登録母集団を人手で列挙せず、`scripts/check_*.py` と対になる `tests/test_check_*.py` の実在から機械的に導く**(**本タスクは「人が列挙した集合が母集団になっている」型の欠陥を 6 周のレビューで 7 回踏んでいる** — 走査の鍵 / セル内の位置 / 歴史的記録の分類 / 対象ファイルの選定 / 抽出キー / DoD の否定範囲 / **本項の `guard_paths` の列挙**。台帳候補 A・E と同型) | 1〜2 周目 / **2026-09-10 の申し送り** |
 | `S-9` | **プレースホルダ受取先を実 ID へ置換する**(4 周目 `P1-9`)— 凍結資産に `receiving_task_id: TSK-270-GROUP-2` が **178 件**残っている(**実測** — `contract_only` 158 + `probe_executable` 20)。**残存 0 件**を条件にする。封印資産の変更なので `S-1` の基準コミットに含める。**確定済みの事実(改訂 3 第 1 弾で実測)**: **① 分割単位は claim 行ではなく `runtime_test_owner.id` である** — `FR-041/list_item-014#request-validation`(`no_db_decision_point`)と `#participant-authorization`(`route_universe_pending`)が**同一 ID を共有**しており(共有 6 組のうち理由コードが混在するのはこの 1 組だけ)、**claim 行で分けると 1 つのテスト ID を 2 タスクが所有する**。**② `probe_executable` 20 件は `runtime_target` を持ち TSK-317 の probe 経路で実行できる**。**③ `contract_only` 158 件は `runtime_target` を持たず、本計画は `product_schema: false` を宣言しているので TSK-317 は受取先になれない**。**④ `claim-mutant-map.json` は oracle 層なので `--reseal-oracle` で足りる**(`_validate_manifest` は要件書の変更だけを見るため掛からない — `S-1` の実測)。**具体の分割・受取タスクの起票・検査条件は改訂 3 第 2 弾で確定する**(裁定 `D-10`) | 4 周目 `P1-9` / 裁定 `D-9` / 改訂 3 第 1 弾 1〜2 周目 |
 | `S-10` | **`contract_only` 158 行の受取契約を確定する**(**裁定 `D-9`・2026-09-10 で新設** — 旧ステップ 17 の置き換え)。**確定済みの規範**: **`R-7` が「`contract_only` は schema-drift kill + 受取タスクの runtime テスト ID」と定めるので、TSK-317 は実テストを書かない**(書くと同条が名指しで警戒する「契約 lint を実副作用 kill として数える抜け道」になる)。**`runtime_test_owner.status` は `planned` のまま動かさない。****改訂 3 第 2 弾で確定すべき論点(1〜2 周目の敵対レビューで洗い出した — いずれも実体〔ステップ 17〜20〕と実 CI が無いと合格条件を書けないため送る。裁定 `D-10`)**: **(1) 分類の exact-set の比較元と基準コミット**(`S-1` ② が同じファイルの `oracle_context.oracle_commit` も必ず変えるため、「ファイル差分が `receiving_task_id` だけ」では成立しない — 正規化して比較する形が要る。1 周目 `P0-3` / 2 周目 `P1-4`)**(2) 受取先の許容集合の検査**(現行検査器 `check_authz_catalog.py:3803` は**非空文字列しか見ない**ので、リテラルを置くだけで通る。1 周目 `P0-3`)**(3) 同一 `runtime_test_owner.id` の行が同一受取先を持つことの検査**(`S-9` ① の不変条件)**(4) `TSK-217` の 7 件の機械的分離****(5) 158 claim 行と 152 の一意 ID の対応**(6 組の共有を取りこぼさない・件数は定数で持たない)**(6) 凍結 15 パスの差分の基準区間**(`S-1` が凍結 15 パスのほぼ全体を変更対象にしているため、**「`S-1`・`S-9` が宣言した資産のみ」では任意の変更を `S-1` 名目で通せる** — **許可パスと許可フィールドの閉じた集合**が要る。2 周目 `P0-3`)**(7) 履歴を要する検査の CI 実行可能性**(**実測: root の `harness` ジョブは `fetch-depth` を指定しておらず浅い履歴**〔`ci.yml:75`〕。`<base>^` を要する検査は履歴取得なしでは解決できず、**スキップすると無効・fail-closed だと CI が常時失敗する**。2 周目 `P1-6`)**(8) 受取側からの read-back と exact-set 突合**(`S-6` と同じ形にするかを明示する — **明示しないとローカル資産へ受取先リテラルを置くだけで通る**。2 周目 `P1-5`)**(9) 受取タスクの DoD へ課す条件**(152 の安定 ID / 158 claim の被覆 / **各テストで「claim の述語が assertion に現れ、常時成功にすると red」**— 旧ステップ 17 の負例条件を受取契約へ移す) | 裁定 `D-9`・`D-10` / 改訂 3 第 1 弾 1〜2 周目 |
 
@@ -1056,4 +1062,4 @@ uv run python scripts/feature_status.py
 3. 収束したら**人間の承認**を求める → `承認: 済(YYYY-MM-DD・承認者)` へ
 4. 承認後 `/implement` で**ステップ 1 から**委任する(1 委任 = 1 ステップ = 1 コミット・件名は `(ステップ k)` — **総数接尾辞は付けない**(4 節「ステップ番号の規律」))。**第 1 弾の 1〜20 は再実装しない** — **番号は 1 から振り直してあり**(2 節の実測: **merge-base 以降のステップ記法コミットが 0 件**)、**第 1 弾の表は「実装ステップ」見出しの配下から外して機構の射程外へ置いた**(4 周目 `P0-1`)
 
-> **`承認: 未` の間、現在地導出はステップ進捗を表示しない。** `scripts/feature_status.py:1390` の `if not approved(frontmatter)` が**履歴走査より前に return する**ため、**第 1 弾が完了済みでも「計画段階(承認待ち)」と表示される**(`progress=Progress(kind="not_applicable", note="計画段階")`)。**進捗が失われたのではなく、改訂中は表示されないだけである** — **再承認後は本改訂の 0/3 から始まる**(**第 1 弾の進捗は merge-base の向こう側にあり、`feature_status.py:761` の走査範囲に入らない**)。改訂 3 の敵対レビュー 1 周目 `P1-5`
+> **`承認: 未` の間、現在地導出はステップ進捗を表示しない。** `scripts/feature_status.py:1390` の `if not approved(frontmatter)` が**履歴走査より前に return する**ため、**第 1 弾が完了済みでも「計画段階(承認待ち)」と表示される**(`progress=Progress(kind="not_applicable", note="計画段階")`)。**進捗が失われたのではなく、改訂中は表示されないだけである** — **再承認後は本改訂の 0/2 から始まる**(**第 1 弾の進捗は merge-base の向こう側にあり、`feature_status.py:761` の走査範囲に入らない**)。改訂 3 の敵対レビュー 1 周目 `P1-5`
