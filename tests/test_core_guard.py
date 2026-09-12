@@ -48,6 +48,7 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         ".env.example",
         "backend/alembic.ini",
         "backend/migrations/*",
+        "backend/tests/db/*",
         "backend/pyproject.toml",
         "backend/uv.lock",
         "backend/src/pitchlog/db/__init__.py",
@@ -76,6 +77,7 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         ".env.example",
         "backend/alembic.ini",
         "backend/migrations/*",
+        "backend/tests/db/*",
         "backend/pyproject.toml",
         "backend/uv.lock",
         "backend/src/pitchlog/db/__init__.py",
@@ -103,6 +105,7 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         ".env.example",
         "backend/alembic.ini",
         "backend/migrations/*",
+        "backend/tests/db/*",
         "backend/pyproject.toml",
         "backend/uv.lock",
         "backend/src/pitchlog/db/__init__.py",
@@ -155,6 +158,7 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         ".env.example",
         "backend/alembic.ini",
         "backend/migrations/*",
+        "backend/tests/db/*",
         "backend/pyproject.toml",
         "backend/uv.lock",
         "backend/src/pitchlog/db/__init__.py",
@@ -884,6 +888,20 @@ def test_actual_core_area_paths_are_exact_expected_set():
 
     assert len(actual_by_id) == len(areas), "コア領域 ID が重複している"
     assert actual_by_id == EXPECTED_AREA_PATHS
+
+
+def test_database_tests_have_the_same_area_ownership_as_migrations() -> None:
+    """DB migration を所有する全領域が DB テストも同じく所有すると示す。"""
+    configuration = load_actual_core_areas()
+    areas = configuration["areas"]
+    migration_area_ids = {
+        area["id"] for area in areas if "backend/migrations/*" in area["paths"]
+    }
+    database_test_area_ids = {
+        area["id"] for area in areas if "backend/tests/db/*" in area["paths"]
+    }
+
+    assert database_test_area_ids == migration_area_ids
 
 
 def test_all_schema_contract_assets_match_an_actual_core_area_path():

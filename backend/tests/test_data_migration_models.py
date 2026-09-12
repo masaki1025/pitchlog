@@ -168,7 +168,15 @@ def test_migration_quarantine_matches_manifest_contract() -> None:
         "allowed_update_columns": sorted(
             MigrationQuarantine.immutability.allowed_update_columns
         ),
-    } == {key: sorted(value) for key, value in manifest["immutability"].items()}
+        "conditional_update_columns": sorted(
+            MigrationQuarantine.immutability.conditional_update_columns
+        ),
+        "coverage": MigrationQuarantine.immutability.coverage.value,
+        "unclassified_handoff": (MigrationQuarantine.immutability.unclassified_handoff),
+    } == {
+        key: sorted(value) if isinstance(value, list) else value
+        for key, value in manifest["immutability"].items()
+    }
     assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 
 
@@ -315,7 +323,15 @@ def test_migrated_final_lineups_match_manifest_contract() -> None:
         "allowed_update_columns": sorted(
             MigratedFinalLineup.immutability.allowed_update_columns
         ),
-    } == {key: sorted(value) for key, value in manifest["immutability"].items()}
+        "conditional_update_columns": sorted(
+            MigratedFinalLineup.immutability.conditional_update_columns
+        ),
+        "coverage": MigratedFinalLineup.immutability.coverage.value,
+        "unclassified_handoff": (MigratedFinalLineup.immutability.unclassified_handoff),
+    } == {
+        key: sorted(value) if isinstance(value, list) else value
+        for key, value in manifest["immutability"].items()
+    }
     assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 
 
@@ -568,7 +584,15 @@ def test_migration_result_and_report_models_match_manifest_exactly() -> None:
         assert {
             "protected_columns": sorted(model.immutability.protected_columns),
             "allowed_update_columns": sorted(model.immutability.allowed_update_columns),
-        } == {key: sorted(value) for key, value in manifest["immutability"].items()}
+            "conditional_update_columns": sorted(
+                model.immutability.conditional_update_columns
+            ),
+            "coverage": model.immutability.coverage.value,
+            "unclassified_handoff": model.immutability.unclassified_handoff,
+        } == {
+            key: sorted(value) if isinstance(value, list) else value
+            for key, value in manifest["immutability"].items()
+        }
         assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 
 

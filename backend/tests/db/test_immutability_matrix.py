@@ -1,10 +1,8 @@
-"""Manifest の不変列マトリクス 5 行を実 PostgreSQL と横断照合する。
+"""選定した 7 表の不変列を実 UPDATE・DELETE で挙動検査する。
 
-この 5 表は本計画が拾う範囲であり、正本が不変性を要求している列の全数ではない。
-全数性は `N3` の受入証跡(ステップ 28)で閉じる。
-
-既存の個別 migration テストは各 revision 固有の制約と往復を検査する。本モジュールは
-確定済みの DDL 期待値を再利用し、manifest の 5 行を同じ検査水準で横断照合する。
+構造の全表突合は test_immutability_enforcement.py が担う。本モジュールの行 fixture は
+既存 5 表に operation_events と players を加えた 7 表だけを対象とする。実更新挙動の
+全表化は TSK-374 の宿題であり、ここでは暗黙に全表被覆を主張しない。
 """
 
 from __future__ import annotations
@@ -27,78 +25,23 @@ from psycopg.types.json import Jsonb
 
 from .conftest import DisposablePostgres
 from .test_alembic_migrations import (
-    _ADMIN_OPERATION_LOG_FUNCTION_DEFINITION,
-    _ADMIN_OPERATION_LOG_TRIGGER_DEFINITION,
-    _ADMIN_OPERATION_LOG_TRIGGER_NAME,
-    _FUNCTION_DEFINITION,
-    _LEDGER_FUNCTION_DEFINITION,
-    _LEDGER_TRIGGER_DEFINITION,
-    _LEDGER_TRIGGER_NAME,
-    _RECORDING_GENERATION_FUNCTION_DEFINITION,
-    _RECORDING_GENERATION_TRIGGER_DEFINITION,
-    _RECORDING_GENERATION_TRIGGER_NAME,
-    _SYSTEM_VOCABULARY_FUNCTION_DEFINITION,
-    _SYSTEM_VOCABULARY_TRIGGER_DEFINITION,
-    _SYSTEM_VOCABULARY_TRIGGER_NAME,
-    _TRIGGER_DEFINITION,
-    _TRIGGER_NAME,
     _alembic_config,
-    _normalize_sql,
     _sqlalchemy_url,
-    _sync_trigger_catalog_contract,
 )
 
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
-_TARGET_TABLES = (
+_BEHAVIOR_TABLES = (
     "recording_generations",
     "idempotency_ledger",
     "team_records",
     "admin_operation_logs",
     "system_vocabularies",
+    "operation_events",
+    "players",
 )
-
-
-@dataclass(frozen=True)
-class _TriggerExpectation:
-    """既存個別テストから再利用するトリガの確定済み期待値。"""
-
-    name: str
-    definition: str
-    function_definition: str
-    conditional_columns: tuple[str, ...] = ()
-
-
-_TRIGGER_EXPECTATIONS = {
-    "recording_generations": _TriggerExpectation(
-        _RECORDING_GENERATION_TRIGGER_NAME,
-        _RECORDING_GENERATION_TRIGGER_DEFINITION,
-        _RECORDING_GENERATION_FUNCTION_DEFINITION,
-        ("confirmed_watermark",),
-    ),
-    "idempotency_ledger": _TriggerExpectation(
-        _LEDGER_TRIGGER_NAME,
-        _LEDGER_TRIGGER_DEFINITION,
-        _LEDGER_FUNCTION_DEFINITION,
-    ),
-    "team_records": _TriggerExpectation(
-        _TRIGGER_NAME,
-        _TRIGGER_DEFINITION,
-        _FUNCTION_DEFINITION,
-    ),
-    "admin_operation_logs": _TriggerExpectation(
-        _ADMIN_OPERATION_LOG_TRIGGER_NAME,
-        _ADMIN_OPERATION_LOG_TRIGGER_DEFINITION,
-        _ADMIN_OPERATION_LOG_FUNCTION_DEFINITION,
-    ),
-    "system_vocabularies": _TriggerExpectation(
-        _SYSTEM_VOCABULARY_TRIGGER_NAME,
-        _SYSTEM_VOCABULARY_TRIGGER_DEFINITION,
-        _SYSTEM_VOCABULARY_FUNCTION_DEFINITION,
-    ),
-}
 
 _PROTECTED_UPDATE_ERRORS = {
     "recording_generations": "recording generation identity is immutable",
@@ -106,6 +49,8 @@ _PROTECTED_UPDATE_ERRORS = {
     "team_records": "team_records.kind is immutable",
     "admin_operation_logs": "admin operation logs are append-only",
     "system_vocabularies": "system vocabulary is immutable",
+    "operation_events": "operation_events confirmed content is immutable",
+    "players": "players.id is immutable",
 }
 
 
@@ -115,6 +60,7 @@ class _MatrixRow:
 
     protected_columns: tuple[str, ...]
     allowed_update_columns: tuple[str, ...]
+    conditional_update_columns: tuple[str, ...]
     append_only: bool
 
 
@@ -127,102 +73,43 @@ class _BehaviorProbe:
     allowed_values: Mapping[str, object]
 
 
-def _load_matrix() -> dict[str, _MatrixRow]:
-    """Manifest から対象 5 表の不変列と追記専用性だけを読み出す。"""
+def _load_behavior_matrix() -> dict[str, _MatrixRow]:
+    """Manifest から行 fixture を持つ 7 表の不変列宣言を読み出す。
+
+    実更新挙動は既存 5 表と operation_events・players の 7 表を対象とする。
+    全表の実更新挙動は TSK-374 で追加する。
+    """
     manifest: dict[str, Any] = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
     tables = {
         table["name"]: table
         for table in manifest["tables"]
-        if table["name"] in _TARGET_TABLES
+        if table["name"] in _BEHAVIOR_TABLES
     }
-    if set(tables) != set(_TARGET_TABLES):
-        raise AssertionError("manifest の不変列マトリクス対象 5 表を解決できない")
+    if set(tables) != set(_BEHAVIOR_TABLES):
+        raise AssertionError("manifest の実更新挙動対象 7 表を解決できない")
     return {
         name: _MatrixRow(
             tuple(table["immutability"]["protected_columns"]),
             tuple(table["immutability"]["allowed_update_columns"]),
+            tuple(table["immutability"]["conditional_update_columns"]),
             table["lifecycle"]["append_mode"] == "追記専用",
         )
         for name, table in tables.items()
     }
 
 
-def _trigger_pairs(
-    connection: psycopg.Connection[Any],
-) -> set[tuple[str, str]]:
-    """対象 5 表の非内部トリガを public schema のカタログから返す。"""
-    rows = connection.execute(
-        """
-        SELECT relation.relname, trigger_row.tgname
-        FROM pg_trigger AS trigger_row
-        JOIN pg_class AS relation ON relation.oid = trigger_row.tgrelid
-        JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-        WHERE namespace.nspname = 'public'
-          AND relation.relname = ANY(%s)
-          AND NOT trigger_row.tgisinternal
-        ORDER BY relation.relname, trigger_row.tgname
-        """,
-        (list(_TARGET_TABLES),),
-    ).fetchall()
-    return {(str(table), str(name)) for table, name in rows}
-
-
-def _structure_violations(
-    connection: psycopg.Connection[Any], matrix: Mapping[str, _MatrixRow]
-) -> list[str]:
-    """5 表のトリガ全文・対象・有効状態・関数全文の差分を返す。"""
-    violations: list[str] = []
-    expected_pairs = {
-        (table, expectation.name)
-        for table, expectation in _TRIGGER_EXPECTATIONS.items()
-    }
-    actual_pairs = _trigger_pairs(connection)
-    if actual_pairs != expected_pairs:
-        violations.append(
-            f"対象 5 表のトリガ集合が不一致: 期待={sorted(expected_pairs)!r}, "
-            f"実際={sorted(actual_pairs)!r}"
-        )
-
-    for table in _TARGET_TABLES:
-        expectation = _TRIGGER_EXPECTATIONS[table]
-        if (table, expectation.name) not in actual_pairs:
-            continue
-        trigger = _sync_trigger_catalog_contract(connection, expectation.name)
-        if _normalize_sql(trigger[0]) != _normalize_sql(expectation.definition):
-            violations.append(f"{table}: pg_get_triggerdef 全文が不一致")
-        if trigger[1] != table:
-            violations.append(f"{table}: トリガの対象表が {trigger[1]} になっている")
-        expected_columns = (
-            []
-            if matrix[table].append_only
-            else [
-                *matrix[table].protected_columns,
-                *expectation.conditional_columns,
-            ]
-        )
-        if trigger[2] != expected_columns:
-            violations.append(
-                f"{table}: 対象列が manifest と不一致: "
-                f"期待={expected_columns!r}, 実際={trigger[2]!r}"
-            )
-        if trigger[3] != "O":
-            violations.append(f"{table}: トリガが有効ではない: tgenabled={trigger[3]}")
-        if _normalize_sql(trigger[4]) != _normalize_sql(
-            expectation.function_definition
-        ):
-            violations.append(f"{table}: pg_get_functiondef 全文が不一致")
-    return violations
-
-
 def _seed_behavior_rows(
     connection: psycopg.Connection[Any],
 ) -> dict[str, _BehaviorProbe]:
-    """5 表の更新挙動を独立に観測できる参照行を作る。"""
+    """7 表の更新挙動を独立に観測できる参照行を作る。"""
     tenant_id = uuid4()
     self_team_id = uuid4()
     opponent_team_id = uuid4()
+    player_id = uuid4()
     game_id = uuid4()
     ledger_d5 = uuid4()
+    operation_d5 = uuid4()
+    operation_id = uuid4()
     admin_log_id = uuid4()
     connection.execute(
         "INSERT INTO tenants (id, name) VALUES (%s, %s)",
@@ -237,16 +124,23 @@ def _seed_behavior_rows(
             [
                 ("official", "game_type", "公式戦"),
                 ("immutability-probe", "roster_status", "固定語彙"),
+                ("roster-active", "roster_status", "在籍"),
+                ("roster-inactive", "roster_status", "退団"),
             ],
         )
-    connection.execute(
-        """
-        INSERT INTO tenant_vocabularies (
-            tenant_id, key, category, display_name
-        ) VALUES (%s, 'autumn', 'tournament', '秋季大会')
-        """,
-        (tenant_id,),
-    )
+    with connection.cursor() as cursor:
+        cursor.executemany(
+            """
+            INSERT INTO tenant_vocabularies (
+                tenant_id, key, category, display_name
+            ) VALUES (%s, %s, %s, %s)
+            """,
+            [
+                (tenant_id, "autumn", "tournament", "秋季大会"),
+                (tenant_id, "roster-primary", "roster_label", "一軍"),
+                (tenant_id, "roster-reserve", "roster_label", "控え"),
+            ],
+        )
     with connection.cursor() as cursor:
         cursor.executemany(
             """
@@ -258,6 +152,32 @@ def _seed_behavior_rows(
                 (tenant_id, opponent_team_id, "opponent", "対戦相手"),
             ],
         )
+    connection.execute(
+        """
+        INSERT INTO players (
+            tenant_id,
+            id,
+            team_record_id,
+            name,
+            throws,
+            bats,
+            uniform_number,
+            roster_status_key,
+            roster_label_key
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            tenant_id,
+            player_id,
+            self_team_id,
+            "選手名",
+            "right",
+            "right",
+            "1",
+            "roster-active",
+            "roster-primary",
+        ),
+    )
     connection.execute(
         """
         INSERT INTO games (
@@ -296,11 +216,51 @@ def _seed_behavior_rows(
     )
     connection.execute(
         """
-        INSERT INTO idempotency_ledger (
-            tenant_id, d5, kind, source_fingerprint, result
-        ) VALUES (%s, %s, 'accepted', 'first-source', %s)
+        INSERT INTO event_slots (tenant_id, game_id, generation, d1)
+        VALUES (%s, %s, 1, 1)
         """,
-        (tenant_id, ledger_d5, Jsonb({"accepted": True})),
+        (tenant_id, game_id),
+    )
+    with connection.cursor() as cursor:
+        cursor.executemany(
+            """
+            INSERT INTO idempotency_ledger (
+                tenant_id, d5, kind, source_fingerprint, result
+            ) VALUES (%s, %s, 'accepted', %s, %s)
+            """,
+            [
+                (
+                    tenant_id,
+                    ledger_d5,
+                    "first-source",
+                    Jsonb({"accepted": True}),
+                ),
+                (tenant_id, operation_d5, "operation-source", Jsonb({})),
+            ],
+        )
+    connection.execute(
+        """
+        INSERT INTO operation_events (
+            tenant_id,
+            id,
+            game_id,
+            generation,
+            d1,
+            d2,
+            d5,
+            event_kind,
+            payload,
+            state_diff
+        ) VALUES (%s, %s, %s, 1, 1, 1, %s, 'play_input', %s, %s)
+        """,
+        (
+            tenant_id,
+            operation_id,
+            game_id,
+            operation_d5,
+            Jsonb({"result": "strike"}),
+            Jsonb({"outs": 0}),
+        ),
     )
     connection.execute(
         """
@@ -367,6 +327,47 @@ def _seed_behavior_rows(
             },
             {},
         ),
+        "operation_events": _BehaviorProbe(
+            {"tenant_id": tenant_id, "id": operation_id},
+            {
+                "tenant_id": uuid4(),
+                "id": uuid4(),
+                "game_id": uuid4(),
+                "generation": 2,
+                "d1": 2,
+                "d5": uuid4(),
+                "event_kind": "undo",
+                "payload": Jsonb({"changed": True}),
+                "state_diff": Jsonb({"outs": 1}),
+                "ledger_kind": "rejected",
+                "is_tombstone": True,
+                "target_generation": 2,
+                "target_d1": 2,
+                "expected_version": 2,
+                "change_order": 1,
+                "legacy_row_identifier": "changed-row",
+                "migration_unverified": True,
+                "import_batch_id": uuid4(),
+            },
+            {
+                "d2": 2,
+                "replaced_at": datetime(2026, 9, 15, tzinfo=UTC),
+                "retired_at": datetime(2026, 9, 16, tzinfo=UTC),
+            },
+        ),
+        "players": _BehaviorProbe(
+            {"tenant_id": tenant_id, "id": player_id},
+            {"id": uuid4()},
+            {
+                "name": "選手名変更後",
+                "throws": "left",
+                "bats": "left",
+                "uniform_number": "42",
+                "roster_status_key": "roster-inactive",
+                "roster_label_key": "roster-reserve",
+                "hidden_at": datetime(2026, 9, 17, tzinfo=UTC),
+            },
+        ),
     }
 
 
@@ -397,12 +398,14 @@ def _assert_update_behavior(
     matrix: Mapping[str, _MatrixRow],
     probes: Mapping[str, _BehaviorProbe],
 ) -> None:
-    """Manifest の全保護列を拒否し全許可列を通すことを横断検査する。"""
-    for table in _TARGET_TABLES:
+    """行 fixture を持つ 7 表で全保護列を拒否し全許可列を通す。"""
+    for table in _BEHAVIOR_TABLES:
         row = matrix[table]
         probe = probes[table]
         assert set(probe.protected_values) == set(row.protected_columns)
-        assert set(probe.allowed_values) == set(row.allowed_update_columns)
+        assert set(probe.allowed_values) == set(row.allowed_update_columns) | set(
+            row.conditional_update_columns
+        )
         for column, value in probe.protected_values.items():
             with pytest.raises(
                 psycopg.errors.CheckViolation,
@@ -437,7 +440,7 @@ def _assert_update_behavior(
         6,
     ) == (6,)
 
-    for table in _TARGET_TABLES:
+    for table in _BEHAVIOR_TABLES:
         probe = probes[table]
         for column, value in probe.allowed_values.items():
             if table == "recording_generations" and column == "confirmed_watermark":
@@ -480,53 +483,15 @@ def _assert_append_and_mutable_delete_behavior(
     assert deleted == ("immutability-probe",)
 
 
-def _function_signature(definition: str) -> str:
-    """既存の関数全文から downgrade 後の解決確認用署名を得る。"""
-    match = re.search(
-        r"CREATE OR REPLACE FUNCTION public\.([a-z0-9_]+)\(\)", definition
-    )
-    if match is None:
-        raise AssertionError("トリガ関数の署名を期待値から解決できない")
-    return f"public.{match.group(1)}()"
-
-
-def _downgraded_asset_violations(
-    connection: psycopg.Connection[Any],
-) -> list[str]:
-    """Downgrade 後に 5 トリガと関数が残っていれば違反を返す。"""
-    violations = [
-        f"downgrade 後もトリガが残る: {table}.{name}"
-        for table, name in sorted(_trigger_pairs(connection))
-    ]
-    signatures = [
-        _function_signature(expectation.function_definition)
-        for expectation in _TRIGGER_EXPECTATIONS.values()
-    ]
-    rows = connection.execute(
-        """
-        SELECT signature, to_regprocedure(signature)
-        FROM unnest(%s::text[]) AS signature
-        ORDER BY signature
-        """,
-        (signatures,),
-    ).fetchall()
-    violations.extend(
-        f"downgrade 後も関数が残る: {signature}"
-        for signature, procedure in rows
-        if procedure is not None
-    )
-    return violations
-
-
-def test_manifest_immutability_matrix_matches_database_guards(
+def test_selected_immutability_update_behavior(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """5 表の構造・全列挙動・追記専用性・downgrade を一度に照合する。"""
-    matrix = _load_matrix()
-    assert set(_TRIGGER_EXPECTATIONS) == set(matrix) == set(_TARGET_TABLES)
+    """TSK-374 までの明示的な 7 表で更新・削除挙動を検査する。"""
+    matrix = _load_behavior_matrix()
+    assert set(matrix) == set(_BEHAVIOR_TABLES)
     assert set(_PROTECTED_UPDATE_ERRORS) == set(matrix)
     assert {table for table, row in matrix.items() if row.append_only} == {
         "admin_operation_logs"
@@ -539,11 +504,7 @@ def test_manifest_immutability_matrix_matches_database_guards(
         config = _alembic_config()
         command.upgrade(config, "head")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            assert _structure_violations(connection, matrix) == []
             probes = _seed_behavior_rows(connection)
+            assert set(probes) == set(_BEHAVIOR_TABLES)
             _assert_update_behavior(connection, matrix, probes)
             _assert_append_and_mutable_delete_behavior(connection, probes)
-
-        command.downgrade(config, "0001_initialize_schema")
-        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            assert _downgraded_asset_violations(connection) == []

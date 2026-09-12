@@ -226,7 +226,15 @@ def _assert_model_matches_manifest(model: Any, table_name: str) -> None:
     assert {
         "protected_columns": sorted(model.immutability.protected_columns),
         "allowed_update_columns": sorted(model.immutability.allowed_update_columns),
-    } == {key: sorted(value) for key, value in manifest["immutability"].items()}
+        "conditional_update_columns": sorted(
+            model.immutability.conditional_update_columns
+        ),
+        "coverage": model.immutability.coverage.value,
+        "unclassified_handoff": model.immutability.unclassified_handoff,
+    } == {
+        key: sorted(value) if isinstance(value, list) else value
+        for key, value in manifest["immutability"].items()
+    }
     assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 
 

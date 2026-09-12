@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import MISSING, fields, replace
 from typing import Any
 
 import pytest
@@ -20,8 +20,10 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
+    is_task_handoff_id,
 )
 
 
@@ -51,6 +53,7 @@ class _LifecycleModel(LifecycleMixin, _TestBase):
     immutability = Immutability(
         protected_columns=frozenset({"id"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -151,18 +154,81 @@ def test_retirement_mixin_adds_optional_timezone_aware_timestamp() -> None:
     assert column.server_default is None
 
 
-def test_immutability_metadata_rejects_overlapping_columns() -> None:
-    """不変列マトリクスで同じ列を保護側と許可側へ置けないことを検査する。"""
+@pytest.mark.parametrize(
+    ("protected", "allowed", "conditional"),
+    (
+        (frozenset({"state"}), frozenset({"state"}), frozenset()),
+        (frozenset({"state"}), frozenset(), frozenset({"state"})),
+        (frozenset(), frozenset({"state"}), frozenset({"state"})),
+    ),
+    ids=("protected-allowed", "protected-conditional", "allowed-conditional"),
+)
+def test_immutability_metadata_rejects_overlapping_columns(
+    protected: frozenset[str],
+    allowed: frozenset[str],
+    conditional: frozenset[str],
+) -> None:
+    """不変列マトリクスの 3 集合を相互に重複させられないことを検査する。"""
     assert _LifecycleModel.immutability == Immutability(
         protected_columns=frozenset({"id"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
-    with pytest.raises(ValueError, match="保護列と許可更新列が重複している: state"):
+    with pytest.raises(ValueError, match="不変列マトリクスの分類が重複している: state"):
         Immutability(
-            protected_columns=frozenset({"state"}),
-            allowed_update_columns=frozenset({"state"}),
+            protected_columns=protected,
+            allowed_update_columns=allowed,
+            conditional_update_columns=conditional,
+            coverage=ImmutabilityCoverage.EXHAUSTIVE,
         )
+
+
+def test_immutability_metadata_requires_explicit_coverage() -> None:
+    """被覆状態に既定値がなく、新しい表で明示宣言が必要なことを検査する。"""
+    coverage_field = next(
+        field for field in fields(Immutability) if field.name == "coverage"
+    )
+
+    assert coverage_field.default is MISSING
+    assert coverage_field.default_factory is MISSING
+
+
+def test_partial_immutability_requires_unclassified_handoff() -> None:
+    """部分被覆に未分類列の受け取り先がなければ拒否する。"""
+    with pytest.raises(ValueError, match="部分被覆には未分類列の受け取り先が必要"):
+        Immutability(
+            protected_columns=frozenset(),
+            allowed_update_columns=frozenset(),
+            coverage=ImmutabilityCoverage.PARTIAL,
+        )
+
+
+def test_exhaustive_immutability_rejects_unclassified_handoff() -> None:
+    """全列分類済みに未分類列の受け取り先があれば拒否する。"""
+    with pytest.raises(
+        ValueError, match="全列分類済みに未分類列の受け取り先は指定できない"
+    ):
+        Immutability(
+            protected_columns=frozenset(),
+            allowed_update_columns=frozenset(),
+            coverage=ImmutabilityCoverage.EXHAUSTIVE,
+            unclassified_handoff="TSK-372",
+        )
+
+
+def test_partial_immutability_rejects_non_task_handoff_id() -> None:
+    """部分被覆の受け取り先に仮文字列を指定した負例を拒否する。"""
+    with pytest.raises(ValueError, match=r"TSK-<数字> 形式"):
+        Immutability(
+            protected_columns=frozenset(),
+            allowed_update_columns=frozenset(),
+            coverage=ImmutabilityCoverage.PARTIAL,
+            unclassified_handoff="follow-up-A",
+        )
+
+    assert is_task_handoff_id("TSK-372")
+    assert not is_task_handoff_id("follow-up-A")
 
 
 def test_test_models_do_not_modify_production_metadata() -> None:

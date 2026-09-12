@@ -29,7 +29,10 @@ from .test_alembic_migrations import (
 pytestmark = pytest.mark.requires_db
 
 _EVENT_KIND_CONSTRAINT = "ck_operation_events_event_kind"
+_D2_CONSTRAINT = "ck_operation_events_d2_by_kind"
+_EXPECTED_VERSION_CONSTRAINT = "ck_operation_events_expected_version_by_kind"
 _STATE_DIFF_CONSTRAINT = "ck_operation_events_state_diff_by_kind"
+_TARGET_CONSTRAINT = "ck_operation_events_target_by_kind"
 _TOMBSTONE_CONSTRAINT = "ck_operation_events_tombstone"
 _TARGET_PAIR_CONSTRAINT = "ck_operation_events_target_pair"
 
@@ -190,8 +193,11 @@ def _operation_event_check_status(
         """,
         (
             [
+                _D2_CONSTRAINT,
                 _EVENT_KIND_CONSTRAINT,
+                _EXPECTED_VERSION_CONSTRAINT,
                 _STATE_DIFF_CONSTRAINT,
+                _TARGET_CONSTRAINT,
                 _TARGET_PAIR_CONSTRAINT,
                 _TOMBSTONE_CONSTRAINT,
             ],
@@ -235,8 +241,11 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
                 assert _operation_event_check_status(cursor) == {
+                    _D2_CONSTRAINT: True,
                     _EVENT_KIND_CONSTRAINT: True,
+                    _EXPECTED_VERSION_CONSTRAINT: True,
                     _STATE_DIFF_CONSTRAINT: True,
+                    _TARGET_CONSTRAINT: True,
                     _TARGET_PAIR_CONSTRAINT: True,
                     _TOMBSTONE_CONSTRAINT: True,
                 }
@@ -308,7 +317,7 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
 
                 with pytest.raises(
                     psycopg.errors.CheckViolation,
-                    match=_TOMBSTONE_CONSTRAINT,
+                    match=_D2_CONSTRAINT,
                 ):
                     _insert_operation_event(
                         cursor,
@@ -337,20 +346,9 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
                         is_tombstone=True,
                     )
 
-                with pytest.raises(
-                    psycopg.errors.CheckViolation,
-                    match=_TOMBSTONE_CONSTRAINT,
-                ):
-                    _insert_operation_event(
-                        cursor,
-                        tenant_id,
-                        game_id,
-                        event_kind=CHANGE_EVENT_KIND_LITERALS[0],
-                        state_diff=None,
-                        d1=None,
-                        d2=None,
-                        is_tombstone=True,
-                    )
+                # 変更イベントの墓標行は V9 禁止と墓標側の V11 禁止を同時に
+                # 破るため、実表では片方だけを破る行を構成できない。V9 単独の
+                # 負例は test_operation_event_c12.py のセル自動展開で検査する。
 
                 normal_event_id = _insert_operation_event(
                     cursor,
@@ -381,7 +379,27 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
                     d2=None,
                     is_tombstone=True,
                 )
-                assert len({normal_event_id, change_event_id, tombstone_event_id}) == 3
+                play_tombstone_event_id = _insert_operation_event(
+                    cursor,
+                    tenant_id,
+                    game_id,
+                    event_kind=PLAY_INPUT_EVENT_KIND,
+                    state_diff=None,
+                    d1=4,
+                    d2=None,
+                    is_tombstone=True,
+                )
+                assert (
+                    len(
+                        {
+                            normal_event_id,
+                            change_event_id,
+                            tombstone_event_id,
+                            play_tombstone_event_id,
+                        }
+                    )
+                    == 4
+                )
                 cursor.execute(
                     """
                     SELECT id, is_tombstone, target_generation, target_d1
@@ -391,13 +409,19 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
                     """,
                     (
                         tenant_id,
-                        [normal_event_id, change_event_id, tombstone_event_id],
+                        [
+                            normal_event_id,
+                            change_event_id,
+                            tombstone_event_id,
+                            play_tombstone_event_id,
+                        ],
                     ),
                 )
                 assert set(cursor.fetchall()) == {
                     (normal_event_id, False, None, None),
                     (change_event_id, False, 1, 1),
                     (tombstone_event_id, True, None, None),
+                    (play_tombstone_event_id, True, None, None),
                 }
 
                 cursor.execute("DELETE FROM operation_events")

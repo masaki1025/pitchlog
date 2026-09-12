@@ -32,6 +32,7 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
 )
@@ -75,6 +76,8 @@ class Tenant(ImportBatchMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset(),
         allowed_update_columns=frozenset({"name", "enabled", "disabled_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -131,6 +134,8 @@ class TeamRecord(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"kind"}),
         allowed_update_columns=frozenset({"name", "hidden_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -209,6 +214,8 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
                 "hidden_at",
             }
         ),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -262,6 +269,8 @@ class MedicalNote(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin
     immutability = Immutability(
         protected_columns=frozenset({"player_id", "note_kind"}),
         allowed_update_columns=frozenset({"content", "version", "retired_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -315,6 +324,8 @@ class MedicalNoteVersion(TenantMixin, LifecycleMixin, Base):
             {"medical_note_id", "version", "content", "origin", "recorded_at"}
         ),
         allowed_update_columns=frozenset({"retained_for_restore"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -377,6 +388,7 @@ class PdfExportRecord(TenantMixin, LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -416,6 +428,7 @@ class TenantAuthSubject(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"id", "tenant_id"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -461,6 +474,7 @@ class TenantCredential(LifecycleMixin, Base):
         allowed_update_columns=frozenset(
             {"password_hash", "generation", "password_changed_at"}
         ),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -498,6 +512,7 @@ class AdminCredential(LifecycleMixin, Base):
         allowed_update_columns=frozenset(
             {"password_hash", "generation", "password_changed_at"}
         ),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -551,6 +566,7 @@ class AdminSession(LifecycleMixin, Base):
             {"id", "admin_credential_id", "credential_generation"}
         ),
         allowed_update_columns=frozenset({"expires_at", "last_used_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -611,6 +627,7 @@ class TenantToken(TenantMixin, LifecycleMixin, Base):
             {"id", "tenant_id", "auth_subject_id", "credential_generation"}
         ),
         allowed_update_columns=frozenset({"expires_at", "last_used_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -673,6 +690,7 @@ class AdminOperationLog(LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -737,6 +755,8 @@ class PlayerMergeEvent(TenantMixin, LifecycleMixin, Base):
             {"source_player_id", "target_player_id", "occurred_at", "executor"}
         ),
         allowed_update_columns=frozenset({"reverted_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -815,6 +835,7 @@ class PlayerMoveRecord(TenantMixin, LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -860,6 +881,7 @@ class RateLimitCounter(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"id", "scope_key", "window_start"}),
         allowed_update_columns=frozenset({"attempt_count", "locked_until"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -905,6 +927,7 @@ class AnalysisGroup(LifecycleMixin, Base):
         allowed_update_columns=frozenset(
             {"status", "terminated_at", "termination_reason"}
         ),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -978,6 +1001,7 @@ class GroupMembership(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"id", "group_id", "tenant_id", "joined_at"}),
         allowed_update_columns=frozenset({"role", "status", "left_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -1014,6 +1038,7 @@ class SharingGrant(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"membership_id"}),
         allowed_update_columns=frozenset({"grant_flags"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -1072,6 +1097,8 @@ class GroupInvitation(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"id", "group_id", "code_hash", "initial_role"}),
         allowed_update_columns=frozenset({"status"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -1112,6 +1139,7 @@ class SystemVocabulary(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"key", "category", "display_name", "disabled"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -1143,6 +1171,7 @@ class AdminVocabulary(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"key", "category"}),
         allowed_update_columns=frozenset({"display_name", "disabled"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -1190,6 +1219,8 @@ class TenantVocabulary(TenantMixin, LifecycleMixin, Base):
         allowed_update_columns=frozenset(
             {"display_name", "pitch_family", "abbreviation", "disabled"}
         ),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="TSK-372",
     )
 
 
@@ -1221,6 +1252,7 @@ class SystemSetting(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"key"}),
         allowed_update_columns=frozenset({"value", "updated_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 

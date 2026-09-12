@@ -19,10 +19,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
+from pitchlog.db.model_metadata import ImmutabilityCoverage
 from pitchlog.db.sync_protocol.event_kinds import (
+    C12_CHECK_EXPRESSIONS,
+    C12_TOMBSTONE_CHECK_EXPRESSION,
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12Value,
 )
 from pitchlog.db.sync_protocol.models import (
     EventSlot,
@@ -60,8 +62,11 @@ _OPERATION_EVENT_CHECKS = {
     "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS "
     "NOT NULL",
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12_CHECK_EXPRESSIONS[C12Value.V6],
+    C12_CHECK_EXPRESSIONS[C12Value.V8],
+    C12_TOMBSTONE_CHECK_EXPRESSION,
+    C12_CHECK_EXPRESSIONS[C12Value.V10],
+    C12_CHECK_EXPRESSIONS[C12Value.V11],
 }
 _FORBIDDEN_EVENT_COLUMNS = {
     "v12",
@@ -247,11 +252,16 @@ def _model_lifecycle(model: Any) -> dict[str, str]:
     }
 
 
-def _model_immutability(model: Any) -> dict[str, list[str]]:
+def _model_immutability(model: Any) -> dict[str, object]:
     """モデルの不変列マトリクスを比較用に正規化する。"""
     return {
         "protected_columns": sorted(model.immutability.protected_columns),
         "allowed_update_columns": sorted(model.immutability.allowed_update_columns),
+        "conditional_update_columns": sorted(
+            model.immutability.conditional_update_columns
+        ),
+        "coverage": model.immutability.coverage.value,
+        "unclassified_handoff": model.immutability.unclassified_handoff,
     }
 
 
@@ -299,7 +309,8 @@ def test_sync_protocol_models_match_manifest_contracts() -> None:
         )
         assert _model_lifecycle(model) == manifest["lifecycle"]
         assert _model_immutability(model) == {
-            key: sorted(value) for key, value in manifest["immutability"].items()
+            key: sorted(value) if isinstance(value, list) else value
+            for key, value in manifest["immutability"].items()
         }
         assert set(table.columns.keys()).isdisjoint(manifest["forbidden_columns"])
 
@@ -333,6 +344,45 @@ def test_operation_event_c12_checks_and_forbidden_columns() -> None:
     assert table.columns["d1"].nullable
     assert table.columns["d2"].nullable
     assert set(table.columns.keys()).isdisjoint(_FORBIDDEN_EVENT_COLUMNS)
+
+
+def test_operation_event_immutability_classifies_all_columns() -> None:
+    """操作イベント 21 列が保護 18 列と許可 3 列へ全分類されると示す。"""
+    table = cast(Table, OperationEvent.__table__)
+    immutability = OperationEvent.immutability
+
+    assert immutability.protected_columns == frozenset(
+        {
+            "tenant_id",
+            "id",
+            "game_id",
+            "generation",
+            "d1",
+            "d5",
+            "event_kind",
+            "payload",
+            "state_diff",
+            "ledger_kind",
+            "is_tombstone",
+            "target_generation",
+            "target_d1",
+            "expected_version",
+            "change_order",
+            "legacy_row_identifier",
+            "migration_unverified",
+            "import_batch_id",
+        }
+    )
+    assert immutability.allowed_update_columns == frozenset(
+        {"d2", "replaced_at", "retired_at"}
+    )
+    assert immutability.conditional_update_columns == frozenset()
+    assert immutability.coverage is ImmutabilityCoverage.EXHAUSTIVE
+    assert immutability.unclassified_handoff is None
+    assert (
+        immutability.protected_columns | immutability.allowed_update_columns
+        == frozenset(table.columns.keys())
+    )
 
 
 def test_operation_event_slot_fks_and_partial_uniqueness() -> None:
