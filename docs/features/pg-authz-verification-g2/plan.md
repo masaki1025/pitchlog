@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 15        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 16        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -86,9 +86,9 @@ TSK-270 の計画レビューが 3 周連続で否決され、**人間の裁定 
 | **D-11** | `SHARED-AUTHORIZED-ROWS` の `aggregation_owner_task_id` | **新タスクへ移す**(起票済み — 下記)。**要件書の改訂は不要**((β)④ として既に列挙済み) |
 | **D-12** | `deferred_equivalence_contract.owner_task_id` | **D-11 と同じ新タスクへ** |
 | **D-13** | `guard_paths` の登録基準 | **規則で決める** — 「**凍結資産またはコア領域の成果物を検査する検査器とその対**」。**当面は規則から導いた 10 本を列挙で登録し、機械化は別タスクへ送る** |
-| **D-14** | **改訂 3 第 2 弾の射程**(2026-09-12) | **2 本に分ける** — **本改訂(PR #2)= 封印系**(`S-1` の一部・`S-5`・`S-7` + owner 移管 + `S-8` の一部 — **`S-9` は裁定 `D-15` で PR #3 へ移した**)/ **PR #3 = ID 解決と受取契約**(`S-2`・`S-3`・`S-4`・`S-6`・`S-9`・`S-10`・`S-8` の残部 — **`S-9` は裁定 `D-15` で追加**)。**理由**: 後者は**受取タスクの DoD へ書き込む必要があり、先方が未着手**である。**分ければ本改訂は実測だけで閉じられる** |
+| **D-14** | **改訂 3 第 2 弾の射程**(2026-09-12) | **2 本に分ける** — **本改訂(PR #2)= 封印系**(`S-1` の一部・`S-5`・`S-7` + owner 移管 + `S-8` の一部 — **`S-9` は裁定 `D-15` で PR #3 へ移した**)/ **PR #3 = ID 解決と受取契約**(`S-2`・`S-3`・`S-4`・`S-6`・`S-9`・`S-10` と **`S-8` のうち引き渡し 3 資産のパス・`test_ci_wiring.py` の追記** — **`S-9` は裁定 `D-15` で追加**)。**理由**: 後者は**受取タスクの DoD へ書き込む必要があり、先方が未着手**である。**分ければ本改訂は実測だけで閉じられる** |
 | **D-15** | **`S-9`(受取先 178 件)の射程**(2026-09-12) | **丸ごと PR #3 へ送る** — **`contract_only` 158 行は `contract_only_reason_code: route_universe_pending`**、すなわち**経路の母集合が未確定だから受取先が決まっていない行**である。**受取タスクの名も「受取先を決める」であり、決める前の状態を確定所有者として封印することになる**(計画レビュー 3・4 周目が 2 周続けて `P0` 指摘)。**`D-14` の「受取タスクが未着手なら PR #3」と同じ理由で一貫する。****本改訂が触る封印資産は `boundary-proposal.json` と `ddl-elements.json` の 2 本になる** |
-| **D-16** | **期待件数のハードコード撤去(旧ステップ 1)の射程**(2026-09-12) | **別タスクへ送る**([起票済み](https://app.notion.com/p/3d993b75e68781578e53d7a2268aded7))。**理由**: **構文的な走査で「ハードコードが無い」を閉じることはできない**。**計画レビュー 4・5・6 周目が 3 周連続で抜け道を指摘した**(コンテナリテラルの中の値 → 文字列・変数への退避 → **1 桁の文字列化と出現の置換**)。**性質が意味的なので、新タスクでは「走査で閉じる」をやめ、『資産を 1 要素増やした fixture でテストの期待値が追随する』を変異で確かめる設計で起こす。****本改訂とは独立**(実測 — **ステップ 3 が変えるのは `S-5` の status 文字列と `S-7` の scope 値で、件数ではない**)。**本改訂は 2 ステップになる** |
+| **D-16** | **期待件数のハードコード撤去(旧 3 ステップ構成のステップ 1)の射程**(2026-09-12) | **別タスクへ送る**([起票済み](https://app.notion.com/p/3d993b75e68781578e53d7a2268aded7))。**理由**: **構文的な走査で「ハードコードが無い」を閉じることはできない**。**計画レビュー 4・5・6 周目が 3 周連続で抜け道を指摘した**(コンテナリテラルの中の値 → 文字列・変数への退避 → **1 桁の文字列化と出現の置換**)。**性質が意味的なので、新タスクでは「走査で閉じる」をやめ、『資産を 1 要素増やした fixture でテストの期待値が追随する』を変異で確かめる設計で起こす。****本改訂とは独立**(実測 — **ステップ 3 が変えるのは `S-5` の status 文字列と `S-7` の scope 値で、件数ではない**)。**本改訂は 3 → 2 ステップになる** |
 | — | `CONTROL-READS` の `aggregation_owner_task_id` | **裁定不要・事実の是正**(`aggregation_location: none` なのに owner がある資産の欠陥) |
 
 **起票済みの受取タスク**:
@@ -262,7 +262,7 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 | 正本 | 変更内容 | ゲート(PR レビュー / finalize-doc) |
 | --- | --- | --- |
 | [`docs/README.md`](../../README.md) | 索引の最終更新日を現行化 | —(常に現行化 — 7.2) |
-| `.claude/core-areas.json` | **本改訂で変更する**(ステップ 2)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(4 節の表が正)。**第 1 弾では変更しなかった**(裁定 `D-10` で第 2 弾へ送っていた) | **6.3 規則⑤(敵対レビュー + 人間承認)— 本改訂で払う** |
+| `.claude/core-areas.json` | **本改訂で変更する**(ステップ 1)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(4 節の表が正)。**第 1 弾では変更しなかった**(裁定 `D-10` で第 2 弾へ送っていた) | **6.3 規則⑤(敵対レビュー + 人間承認)— 本改訂で払う** |
 | [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **該当した。`## 候補` へ 7 件追記 + 既存候補 1 件へ実測補記**(**内訳**: **TSK-317 由来 4 件**(母集団の人手列挙 / DB テスト残骸の fail-closed / ジョブ横断の不変条件 / guard の部分一致誤検知)+ **TSK-355 由来 3 件**(順序の循環 / 成果物と許容差分のずれ / `H-68` 型の送り先が空手形)。**TSK-355 の 3 件は同タスクの依頼による代理提出**(先方の PR はマージ順序上いちばん最後で数週間先になるため。**TSK-235 とも同じ理由で分担を合意済み**))(**`H-*` の新規採番はしない・版は上げない**)。**新設候補 ①「母集団を人が列挙する検査は、射程が動くたびに黙って古くなる」**(本タスクの 6 周のレビューで 8 回・層を変えて再発。既存の `feature_status.py` allowlist とステップ表の集合差を同根として束ねた)/ **新設候補 ②「順序の付記に理由を書かないと、複数の承認済み計画に跨って循環を作る」**(TSK-317 / TSK-343 / TSK-355 / TSK-235 の 4 タスクが循環。TSK-355 の依頼で本 PR が代理提出)/ **既存候補「`H-85` の連鎖を実行する手順が無い」へ実測補記**(`--reseal` は `_validate_manifest` に先に止められて到達せず、`reseal_catalog()` は `input_manifest` を触らない。**3 フラグの fail-early が非対称** — `--reseal-oracle` だけが自分の seal 検査を明示的に飛ばす)。**TSK-355 の候補 3 件はすべて本 PR が代理提出した。** | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **反映なし**(3 件の是正は **TSK-348**) | — |
 | [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) | **反映なし**(10.1 の追随は **TSK-343**) | — |
@@ -282,8 +282,8 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 | `contracts/authz/` の**凍結 15 パス** | **第 1 弾では変更しなかった。本改訂は `boundary-proposal.json` / `ddl-elements.json` の 2 本と `oracle-seal.lock.json` を変更する**(`S-5`・`S-7`・`S-1`)。**残り 12 パスは不変**(**`claim-mutant-map.json` は裁定 `D-15` で PR #3 へ**) |
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
-| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去は裁定 `D-16` で別タスクへ。****本改訂が触るのは `S-5`・`S-7` の literal 追随と `input_assets` の重複行検査(ステップ 2)だけ** |
-| `tests/test_core_guard.py` | **本改訂のステップ 2 で変更する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
+| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去は裁定 `D-16` で別タスクへ。****本改訂が触るのは `S-5`・`S-7` の literal 追随と、重複行で潰れる 5 配列の多重度検査(4 節 2-d の表)だけ**(いずれもステップ 2) |
+| `tests/test_core_guard.py` | **本改訂のステップ 1 で変更する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
 | `backend/tests/db/test_authz_*.py` | **新設 12 本** — カタログ検査 / 越境の正例・拒否例 / 6 前提行列 / 表権限 8 種 / 管理経路 probe / TOCTOU / 失敗注入 / 信頼境界 / ロール接続 / 適用器 / mutation 全量。**`requires_db` マーカー付きで `backend/tests/db/` 配下**(`environment-expectations.json` の `required_path` 契約) |
 | `backend/tests/test_authz_*.py` | **新設 5 本** — **DB を必要としない**契約試験(DDL 生成器 / mutation の判定機構 / executor の観測 / 2 因子合成 × 2)。**`backend/tests/db/` の外に置く**(DB 必須テストの path 契約と分けるため) |
 | `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 2**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
@@ -302,7 +302,7 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ **TSK-317 PR #2**
 **core-guard は発火する** — `contracts/authz/*`・`backend/tests/db/*`・`scripts/check_authz_catalog.py`・
 `tests/test_check_authz_catalog.py`・`backend/pyproject.toml`・`backend/uv.lock`・`backend/*conftest.py`・
 `docker-compose.yml` が `tenant-isolation.paths`(22 件)に登録済み(導入 `d4373ec`)。
-**未登録は `backend/src/pitchlog/authz/*` と新設検査器 8 本**で、**本改訂のステップ 2 で登録する**(4 節の表が正)。**現在のステップ表は本改訂の 1〜3 である**(第 1 弾の 1〜20 は「第 1 弾の実施記録」へ移した)。
+**未登録は `backend/src/pitchlog/authz/*` と新設検査器 8 本**で、**本改訂のステップ 1 で登録する**(4 節の表が正)。**現在のステップ表は本改訂の 1〜2 である**(第 1 弾の 1〜20 は「第 1 弾の実施記録」へ移した)。
 
 ### 合格条件の書き方(3 つの規律)
 
@@ -449,7 +449,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 > **機構が読むステップ表は本表だけである**(上記「第 1 弾の実施記録」は見出しに
 > 「実装ステップ」を含めず射程外に置いた — 4 周目 `P0-1`)。
 
-**3 本に分けた理由 — 封印は原子単位である**(**4 周目 `P0-4` の実測**):
+**2 本に分けた理由 — 封印は原子単位である**(**4 周目 `P0-4` の実測**):
 
 **`check_authz_catalog.py:4588` の seal 照合は、`sealed_assets[]` の 6 本の
 `canonical_sha256` を毎回再計算して seal と突き合わせる。**
@@ -546,18 +546,14 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **証跡は PR 本文と worklog へ置く** — **第 1 弾(PR #52 / `67e06a2`)の当該 CI run と、
 そこで green になった検証ステップを明記する。**
 
-**2-d 重複行で潰れる配列を落とす**(**5・7 周目の実測**)
+**2-d 重複行で潰れる配列を 5 件だけ落とす**(**部分的な硬化 — 多重度を閉じる主張ではない**)
 
 **検査器は配列を `set` / `dict` へ畳んでから exact-set を比べる**ので、
 **同じ行を複製しても多重度が潰れて green になる**。
-**本改訂は該当資産を再封印するので、不正形を正規の oracle として固定できる。**
 
-**母集団は列挙せず変異で測る**(**列挙は 3 周連続で取りこぼした** — 裁定 `D-16` の教訓):
-**再封印する資産(`boundary-proposal.json` / `ddl-elements.json` / `oracle-seal.lock.json`)の
-`dict` を要素に持つ全配列について、先頭行を 1 件複製して検査器を通す。
-green のまま通る配列が対象である。**
-
-**実測結果(2026-09-12)— 対象は 5 配列**:
+**この PR が封印する形は正しい**(**実測 2026-09-12**: 凍結 15 資産・**2290 配列**を走査して
+**重複要素 0 件・重複 JSON キー 0 件**)。**したがって本改訂の封印が壊れる危険はない。**
+**本項は「将来の混入を防ぐ」硬化であり、その範囲は下表の 5 件に限る。**
 
 | 資産 | 配列 | 畳んでいる箇所 |
 | --- | --- | --- |
@@ -567,27 +563,28 @@ green のまま通る配列が対象である。**
 | `ddl-elements.json` | `transaction_boundaries` | 同型 |
 | `ddl-elements.json` | `provisioning_claim.completion_catalog_expectations` | 同型 |
 
-**同じ走査で red になった配列は対象外**(`provenance` / `roles` / `schemas` / `tables` /
-`predicates` / `policies` / `functions` と配下の `owner_dependency_acl` / `acl_expectations` /
-`ordered_steps` / `column_acl_expectations` / `table_privilege_probe_matrix`)—
-**既に多重度が閉じている**。
+> **【撤回】7 周目に「変異で測ったので母集団は閉じた」と書いたが誤りである。**
+> **走査の入口を「`dict` を要素に持つ配列」と私が選んだ**ため、
+> **文字列の配列が漏れていた**(`pending_human_reviews[0].affected_ids_if_changed` /
+> `tables[0..5].row_shape_ids` / `transaction_boundaries[0..2].step_ids` — **計 10 配列**)。
+> **さらに JSON オブジェクトの重複キーは、解析後のオブジェクトを走っても観測できない**
+> (`_read_json` が `json.loads` の last-wins で潰す — `:491`)。
+> **「閉じる対象を人が選んだ」という、本 PR で 4 度目の同じ失敗である。**
 
-**`sealed_assets` には既に `if path_text in sealed_by_path: raise` がある**(`:4582`)。
-**この形を上記 5 配列へ揃える**(**行数と ID 一意性**)。
+**残る母集団(10 配列 + 重複キー)は別タスクへ送った** —
+**[authz 凍結資産の多重度を検査器で閉じる(重複行・重複キー)](https://app.notion.com/p/3d993b75e68781b59bd3c55024f9ffea)**。
+**本改訂は上表 5 件の部分的な硬化に留める。**
 
-> **これは射程の拡大ではない。** **本改訂の DoD が「`input_assets` 8 件が不変」
-> 「3 境界が閉じた表と完全一致」を要求している**のに、
-> **検査器が重複行を通すなら、その DoD は検証できない。**
-> **自分の受け入れ基準を検査可能にするための是正である。**
-> **6 周目のレビューが `input_assets` について「既存検査器・既存 seal・実測済み反例の
-> 同一境界内の補修であり `H-68` には当たらない」と判定しており、本件は同じ境界内である。**
-
-`[機械]` **上記 5 配列それぞれに行数と ID 一意性の検査がある**・
-**負例: 5 配列それぞれで先頭行を 1 件複製すると red**(**現在は 5 件とも green** — 反転を負例で示す)・
-**母集団の導出を走査で再現できる**(**上記の複製実験を回して、green のまま通る配列が 0 件**)・
+`[機械]` **上表 5 配列それぞれに行数と ID 一意性の検査がある**・
+**負例: 5 配列それぞれで先頭行を 1 件複製すると、多重度検査が red を出す**
+(**seal の digest 不一致では判定しない** — `ddl-elements` と `boundary-proposal` は
+**digest 不一致だけでも必ず red になる**ため、**それでは検査を 1 行も書かなくても負例が通る**
+〔8 周目 `P1-3`〕。**semantic validator を直接呼ぶか、変異後の seal を追随させて、
+多重度検査の有無で結果が変わることを示す**)・
+**負例: 多重度検査を外すと上記の負例が red でなくなる**・
 **既に red だった配列の検査は変えない**。
 
-**2-e oracle の再封印****2-e oracle の再封印**(`--reseal-oracle` **1 回**)
+**2-e oracle の再封印**(`--reseal-oracle` **1 回**)**2-e oracle の再封印**(`--reseal-oracle` **1 回**)
 
 `[機械]` **seal の `oracle_commit` が `dd2cb92...` のまま**・
 **`oracle_commit_semantics` が `last_committed_step_4_input_baseline` のまま**・
@@ -722,9 +719,11 @@ green のまま通る配列が対象である。**
 - [ ] **`proposal_status` と 2 件の `status` が確定値**・**`frozen_value` / `alternative_value` / `review_id` は不変**
 - [ ] **`scope` の 4 キーが確定値**で、**検査器の literal が資産と一致**し、**4 キーそれぞれの負例がある**
 - [ ] **重複行で潰れる 5 配列に行数と ID 一意性の検査を置いた**(`input_assets` / `boundaries` / `pending_human_reviews` / `transaction_boundaries` / `provisioning_claim.completion_catalog_expectations`)
-- [ ] **5 配列それぞれで先頭行を 1 件複製すると red**(**現在は 5 件とも green** — 5・7 周目の実測)
-- [ ] **母集団の導出を走査で再現した** — **再封印する 3 資産の全 object 配列で複製実験を回し、green のまま通る配列が 0 件**
+- [ ] **5 配列それぞれで、多重度検査が red を出す**(**seal の digest 不一致で判定していない** — **多重度検査を外すと負例が red でなくなる**)
 - [ ] **既に red だった配列の検査を変えていない**
+- [ ] **再封印の直前に、変更後の 3 ファイルへ重複が 0 件であることを実測した**(**全配列 + 全 JSON キー対を走る汎用走査**。**この実測が本改訂の封印を守る**)
+- [ ] **残る母集団(10 配列 + 重複キー)を別タスクへ送った**と計画書に書いた
+- [ ] **「多重度を閉じた」と主張していない**(**7 周目の当該記録は撤回済み**)
 - [ ] **`--reseal-oracle` を 1 回だけ回した**
 - [ ] **`oracle_commit` と `oracle_commit_semantics` が不変**
 - [ ] **`input_assets` が 8 行のまま**(**重複なし**)で、**`git_blob_digest` 8 件が不変**。**`sealed_assets[]` の 2 本(`boundary-proposal` / `ddl-elements`)だけが変わった**
@@ -734,7 +733,8 @@ green のまま通る配列が対象である。**
 
 #### 引き渡し
 
-- [ ] **PR #3 へ送る 7 件を計画書へ受取先つきで書いた**(`S-2` `S-3` `S-4` `S-6` `S-9` `S-10` `S-8` の残部)
+- [ ] **PR #3 へ送る 7 件を計画書へ受取先つきで書いた**(`S-2` `S-3` `S-4` `S-6` `S-9` `S-10` と **`S-8` のうち引き渡し 3 資産のパス・`test_ci_wiring.py` の追記**)
+- [ ] **`S-8` の 3 つの送り先を書き分けた**(本改訂 = `core-areas.json` 登録 / PR #3 = 上記 / 別タスク = 期待件数の撤去)
 - [ ] **コア領域として敵対レビュー + 人間の逐行確認を通っている**(**逐行確認は PR 作成者以外**・**実施記録行を確認者本人が記入する**)
 - [ ] **引き渡し前に PR HEAD の `core-guard` 以外の全ジョブが green**
 - [ ] **人間の逐行確認と PR 本文の記入の後、`edited` で起きた新 run の全ジョブが green**
@@ -814,9 +814,14 @@ assert changed == expected, f"canonical が変わった資産が期待と違う:
 print("seal OK")
 PY
 
-# 2-d. 重複行で潰れる配列が 0 件であること(母集団は列挙せず変異で測る — 7 周目 P0)
-#      再封印する 3 資産の dict を要素に持つ全配列で先頭行を複製し、green のまま通るものを探す
-uv run pytest backend/../tests/test_check_authz_catalog.py -k duplicate_row -q
+# 2-d. 変更後の 3 ファイルに重複が 0 件であること(**本改訂の封印を守るのはこの実測**)
+#      全配列の要素と全 JSON キー対を走る汎用走査。列挙を含まないので取りこぼさない。
+#      実装はテストとして置く(scripts ではなく tests 側 — 実行証跡が CI に残る)
+uv run pytest tests/test_check_authz_catalog.py -k reseal_targets_have_no_duplicates -q
+
+# 2-e. 5 配列の多重度検査が実効を持つこと(seal の digest 不一致で判定していない)
+#      多重度検査を外すと負例が red でなくなることを示す
+uv run pytest tests/test_check_authz_catalog.py -k multiplicity -q
 
 # 3. 品質ゲート一括(/check 相当)
 (cd "$WT" && uv run ruff check . && uv run ty check && uv run pytest tests/)
