@@ -7985,11 +7985,12 @@ def test_operation_event_expanded_guard_and_migration_round_trip(
                         game_id,
                         generation,
                         d1,
+                        d2,
                         d5,
                         event_kind,
                         payload,
                         state_diff
-                    ) VALUES (%s, %s, %s, 1, 1, %s, 'play_input', %s, %s)
+                    ) VALUES (%s, %s, %s, 1, 1, 1, %s, 'play_input', %s, %s)
                     """,
                     (
                         tenant_id,
@@ -8075,7 +8076,7 @@ def test_operation_event_expanded_guard_and_migration_round_trip(
                     assert error.value.sqlstate == "23514"
 
                 allowed_updates: dict[str, object] = {
-                    "d2": 1,
+                    "d2": 2,
                     "replaced_at": datetime(2026, 9, 12, 10, 0, tzinfo=UTC),
                     "retired_at": datetime(2026, 9, 12, 11, 0, tzinfo=UTC),
                 }

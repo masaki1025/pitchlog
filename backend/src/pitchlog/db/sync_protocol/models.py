@@ -51,9 +51,10 @@ from pitchlog.db.model_metadata import (
     MigrationRetirement,
 )
 from pitchlog.db.sync_protocol.event_kinds import (
+    C12_CHECK_EXPRESSIONS,
+    C12_TOMBSTONE_CHECK_EXPRESSION,
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12Value,
 )
 
 
@@ -141,12 +142,24 @@ class OperationEvent(
             name="ck_operation_events_event_kind",
         ),
         CheckConstraint(
-            STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
+            C12_CHECK_EXPRESSIONS[C12Value.V8],
             name="ck_operation_events_state_diff_by_kind",
         ),
         CheckConstraint(
-            TOMBSTONE_CHECK_EXPRESSION,
+            C12_TOMBSTONE_CHECK_EXPRESSION,
             name="ck_operation_events_tombstone",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V6],
+            name="ck_operation_events_d2_by_kind",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V10],
+            name="ck_operation_events_target_by_kind",
+        ),
+        CheckConstraint(
+            C12_CHECK_EXPRESSIONS[C12Value.V11],
+            name="ck_operation_events_expected_version_by_kind",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],

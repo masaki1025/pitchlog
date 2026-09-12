@@ -396,6 +396,13 @@ def generate_c12_check_expressions(
 
 C12_CHECK_EXPRESSIONS = generate_c12_check_expressions()
 
+# V9 は墓標であること自体の種別条件だけを表す。墓標 payload の空 object 要件は
+# C12 の 7 値に含まれないため、既存要件を残して同じ名前の CHECK へ合成する。
+C12_TOMBSTONE_CHECK_EXPRESSION = (
+    f"({C12_CHECK_EXPRESSIONS[C12Value.V9]}) AND "
+    "(NOT is_tombstone OR payload = '{}'::jsonb)"
+)
+
 
 def _sql_literal_list(literals: tuple[str, ...]) -> str:
     """信頼済みの種別リテラルを CHECK 用の SQL リストへ整形する。"""

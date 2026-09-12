@@ -246,11 +246,12 @@ def _seed_behavior_rows(
             game_id,
             generation,
             d1,
+            d2,
             d5,
             event_kind,
             payload,
             state_diff
-        ) VALUES (%s, %s, %s, 1, 1, %s, 'play_input', %s, %s)
+        ) VALUES (%s, %s, %s, 1, 1, 1, %s, 'play_input', %s, %s)
         """,
         (
             tenant_id,
@@ -349,7 +350,7 @@ def _seed_behavior_rows(
                 "import_batch_id": uuid4(),
             },
             {
-                "d2": 1,
+                "d2": 2,
                 "replaced_at": datetime(2026, 9, 15, tzinfo=UTC),
                 "retired_at": datetime(2026, 9, 16, tzinfo=UTC),
             },

@@ -21,9 +21,10 @@ from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.model_metadata import ImmutabilityCoverage
 from pitchlog.db.sync_protocol.event_kinds import (
+    C12_CHECK_EXPRESSIONS,
+    C12_TOMBSTONE_CHECK_EXPRESSION,
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12Value,
 )
 from pitchlog.db.sync_protocol.models import (
     EventSlot,
@@ -61,8 +62,11 @@ _OPERATION_EVENT_CHECKS = {
     "event_kind IN ('play_change', 'play_delete', 'substitution_change') OR d1 IS "
     "NOT NULL",
     EVENT_KIND_CHECK_EXPRESSION,
-    STATE_DIFF_BY_EVENT_KIND_CHECK_EXPRESSION,
-    TOMBSTONE_CHECK_EXPRESSION,
+    C12_CHECK_EXPRESSIONS[C12Value.V6],
+    C12_CHECK_EXPRESSIONS[C12Value.V8],
+    C12_TOMBSTONE_CHECK_EXPRESSION,
+    C12_CHECK_EXPRESSIONS[C12Value.V10],
+    C12_CHECK_EXPRESSIONS[C12Value.V11],
 }
 _FORBIDDEN_EVENT_COLUMNS = {
     "v12",
