@@ -282,11 +282,19 @@ class OperationEvent(
                 "event_kind",
                 "payload",
                 "state_diff",
+                "ledger_kind",
+                "is_tombstone",
+                "target_generation",
+                "target_d1",
+                "expected_version",
+                "change_order",
+                "legacy_row_identifier",
+                "migration_unverified",
+                "import_batch_id",
             }
         ),
         allowed_update_columns=frozenset({"d2", "replaced_at", "retired_at"}),
-        coverage=ImmutabilityCoverage.PARTIAL,
-        unclassified_handoff="follow-up-A",
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 

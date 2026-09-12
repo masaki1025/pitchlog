@@ -350,7 +350,7 @@
       ],
       "indexes": [{"name": "ix_operation_events_replay", "columns": ["tenant_id", "game_id", "d2", "id"], "predicate": "replaced_at IS NULL AND retired_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "recording_authority_proof", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": ["tenant_id", "id", "game_id", "generation", "d1", "d5", "event_kind", "payload", "state_diff"], "allowed_update_columns": ["d2", "replaced_at", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "follow-up-A"}
+      "immutability": {"protected_columns": ["tenant_id", "id", "game_id", "generation", "d1", "d5", "event_kind", "payload", "state_diff", "ledger_kind", "is_tombstone", "target_generation", "target_d1", "expected_version", "change_order", "legacy_row_identifier", "migration_unverified", "import_batch_id"], "allowed_update_columns": ["d2", "replaced_at", "retired_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "play_rows",

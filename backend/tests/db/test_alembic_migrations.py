@@ -98,13 +98,96 @@ END;
 $function$
 """
 _OPERATION_EVENT_TRIGGER_NAME = "trg_operation_events_content_immutable"
+_LEGACY_OPERATION_EVENT_PROTECTED_COLUMNS = (
+    "tenant_id",
+    "id",
+    "game_id",
+    "generation",
+    "d1",
+    "d5",
+    "event_kind",
+    "payload",
+    "state_diff",
+)
+_OPERATION_EVENT_PROTECTED_COLUMNS = (
+    *_LEGACY_OPERATION_EVENT_PROTECTED_COLUMNS,
+    "ledger_kind",
+    "is_tombstone",
+    "target_generation",
+    "target_d1",
+    "expected_version",
+    "change_order",
+    "legacy_row_identifier",
+    "migration_unverified",
+    "import_batch_id",
+)
 _OPERATION_EVENT_TRIGGER_DEFINITION = (
+    "CREATE TRIGGER trg_operation_events_content_immutable BEFORE UPDATE OF "
+    "tenant_id, id, game_id, generation, d1, d5, event_kind, payload, state_diff, "
+    "ledger_kind, is_tombstone, target_generation, target_d1, expected_version, "
+    "change_order, legacy_row_identifier, migration_unverified, import_batch_id "
+    "ON operation_events FOR EACH ROW EXECUTE FUNCTION "
+    "prevent_operation_events_content_update()"
+)
+_OPERATION_EVENT_FUNCTION_DEFINITION = """
+CREATE OR REPLACE FUNCTION public.prevent_operation_events_content_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    IF ROW(
+        NEW.tenant_id,
+        NEW.id,
+        NEW.game_id,
+        NEW.generation,
+        NEW.d1,
+        NEW.d5,
+        NEW.event_kind,
+        NEW.payload,
+        NEW.state_diff,
+        NEW.ledger_kind,
+        NEW.is_tombstone,
+        NEW.target_generation,
+        NEW.target_d1,
+        NEW.expected_version,
+        NEW.change_order,
+        NEW.legacy_row_identifier,
+        NEW.migration_unverified,
+        NEW.import_batch_id
+    ) IS DISTINCT FROM ROW(
+        OLD.tenant_id,
+        OLD.id,
+        OLD.game_id,
+        OLD.generation,
+        OLD.d1,
+        OLD.d5,
+        OLD.event_kind,
+        OLD.payload,
+        OLD.state_diff,
+        OLD.ledger_kind,
+        OLD.is_tombstone,
+        OLD.target_generation,
+        OLD.target_d1,
+        OLD.expected_version,
+        OLD.change_order,
+        OLD.legacy_row_identifier,
+        OLD.migration_unverified,
+        OLD.import_batch_id
+    ) THEN
+        RAISE EXCEPTION 'operation_events confirmed content is immutable'
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$function$
+"""
+_LEGACY_OPERATION_EVENT_TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_operation_events_content_immutable BEFORE UPDATE OF "
     "tenant_id, id, game_id, generation, d1, d5, event_kind, payload, state_diff "
     "ON operation_events FOR EACH ROW EXECUTE FUNCTION "
     "prevent_operation_events_content_update()"
 )
-_OPERATION_EVENT_FUNCTION_DEFINITION = """
+_LEGACY_OPERATION_EVENT_FUNCTION_DEFINITION = """
 CREATE OR REPLACE FUNCTION public.prevent_operation_events_content_update()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1840,17 +1923,7 @@ def test_sync_event_immutability_and_migration_round_trip(
                 _OPERATION_EVENT_TRIGGER_DEFINITION
             )
             assert event_trigger[1] == "operation_events"
-            assert event_trigger[2] == [
-                "tenant_id",
-                "id",
-                "game_id",
-                "generation",
-                "d1",
-                "d5",
-                "event_kind",
-                "payload",
-                "state_diff",
-            ]
+            assert event_trigger[2] == list(_OPERATION_EVENT_PROTECTED_COLUMNS)
             assert event_trigger[3] == "O"
             assert _normalize_sql(event_trigger[4]) == _normalize_sql(
                 _OPERATION_EVENT_FUNCTION_DEFINITION
@@ -1999,6 +2072,15 @@ def test_sync_event_immutability_and_migration_round_trip(
                     "event_kind": "runner_advance",
                     "payload": Jsonb({"result": "ball"}),
                     "state_diff": Jsonb({"outs": 1}),
+                    "ledger_kind": "rejected",
+                    "is_tombstone": True,
+                    "target_generation": 2,
+                    "target_d1": 2,
+                    "expected_version": 2,
+                    "change_order": 1,
+                    "legacy_row_identifier": "changed-row",
+                    "migration_unverified": True,
+                    "import_batch_id": uuid4(),
                 }
                 for column, value in protected_event_updates.items():
                     with pytest.raises(
@@ -7762,5 +7844,267 @@ def test_player_identity_guard_and_migration_round_trip(
             _assert_player_identity_objects_are_absent(connection)
 
         command.upgrade(config, "head")
+        command.current(config, check_heads=True)
+        command.check(config)
+
+
+def _assert_operation_event_trigger_catalog_contract(
+    connection: psycopg.Connection[Any],
+    *,
+    trigger_definition: str,
+    protected_columns: tuple[str, ...],
+    function_definition: str,
+) -> None:
+    """操作イベントのトリガ全文・対象列・関数全文を照合する。"""
+    trigger = _sync_trigger_catalog_contract(connection, _OPERATION_EVENT_TRIGGER_NAME)
+    assert _normalize_sql(trigger[0]) == _normalize_sql(trigger_definition)
+    assert trigger[1] == "operation_events"
+    assert trigger[2] == list(protected_columns)
+    assert trigger[3] == "O"
+    assert _normalize_sql(trigger[4]) == _normalize_sql(function_definition)
+
+
+def test_operation_event_expanded_guard_and_migration_round_trip(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """操作イベント 18 列の不変性・許可更新と 0025 往復を検査する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _sqlalchemy_url(cluster.admin_dsn),
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_operation_event_trigger_catalog_contract(
+                connection,
+                trigger_definition=_OPERATION_EVENT_TRIGGER_DEFINITION,
+                protected_columns=_OPERATION_EVENT_PROTECTED_COLUMNS,
+                function_definition=_OPERATION_EVENT_FUNCTION_DEFINITION,
+            )
+
+            tenant_id = uuid4()
+            self_team_id = uuid4()
+            opponent_team_id = uuid4()
+            game_id = uuid4()
+            regular_event_id = uuid4()
+            tombstone_event_id = uuid4()
+            change_event_id = uuid4()
+            regular_d5 = uuid4()
+            tombstone_d5 = uuid4()
+            change_d5 = uuid4()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_id, "操作イベント不変性テストテナント"),
+                )
+                _insert_test_vocabularies(cursor, tenant_id)
+                cursor.executemany(
+                    """
+                    INSERT INTO team_records (tenant_id, id, kind, name)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, self_team_id, "self", "自チーム"),
+                        (tenant_id, opponent_team_id, "opponent", "対戦相手"),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO games (
+                        tenant_id,
+                        id,
+                        scheduled_at,
+                        game_type_key,
+                        tournament_key,
+                        away_team_record_id,
+                        home_team_record_id,
+                        applied_rules
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        game_id,
+                        datetime(2026, 9, 11, 10, 0, tzinfo=UTC),
+                        "official",
+                        "autumn",
+                        opponent_team_id,
+                        self_team_id,
+                        Jsonb({}),
+                    ),
+                )
+                _insert_recording_generation(cursor, tenant_id, game_id)
+                cursor.execute(
+                    """
+                    INSERT INTO recording_generations (
+                        tenant_id,
+                        game_id,
+                        generation,
+                        kind,
+                        issuance_order,
+                        holder_device
+                    ) VALUES (%s, %s, 2, 'migration', 2, NULL)
+                    """,
+                    (tenant_id, game_id),
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO event_slots (
+                        tenant_id, game_id, generation, d1
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (tenant_id, game_id, 1, 1),
+                        (tenant_id, game_id, 1, 2),
+                        (tenant_id, game_id, 1, 3),
+                        (tenant_id, game_id, 1, 4),
+                        (tenant_id, game_id, 2, 3),
+                    ],
+                )
+                cursor.executemany(
+                    """
+                    INSERT INTO idempotency_ledger (
+                        tenant_id, d5, kind, source_fingerprint, result
+                    ) VALUES (%s, %s, 'accepted', %s, %s)
+                    """,
+                    [
+                        (tenant_id, regular_d5, "regular-event", Jsonb({})),
+                        (tenant_id, tombstone_d5, "tombstone-event", Jsonb({})),
+                        (tenant_id, change_d5, "change-event", Jsonb({})),
+                    ],
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO operation_events (
+                        tenant_id,
+                        id,
+                        game_id,
+                        generation,
+                        d1,
+                        d5,
+                        event_kind,
+                        payload,
+                        state_diff
+                    ) VALUES (%s, %s, %s, 1, 1, %s, 'play_input', %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        regular_event_id,
+                        game_id,
+                        regular_d5,
+                        Jsonb({"result": "strike"}),
+                        Jsonb({"outs": 0}),
+                    ),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO operation_events (
+                        tenant_id,
+                        id,
+                        game_id,
+                        generation,
+                        d1,
+                        d5,
+                        event_kind,
+                        payload,
+                        state_diff,
+                        is_tombstone
+                    ) VALUES (
+                        %s, %s, %s, 1, 2, %s, 'undo', '{}'::jsonb, NULL, true
+                    )
+                    """,
+                    (tenant_id, tombstone_event_id, game_id, tombstone_d5),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO operation_events (
+                        tenant_id,
+                        id,
+                        game_id,
+                        d5,
+                        event_kind,
+                        payload,
+                        state_diff,
+                        target_generation,
+                        target_d1,
+                        expected_version
+                    ) VALUES (
+                        %s, %s, %s, %s, 'play_change', %s, NULL, 1, 3, 1
+                    )
+                    """,
+                    (
+                        tenant_id,
+                        change_event_id,
+                        game_id,
+                        change_d5,
+                        Jsonb({"result": "corrected"}),
+                    ),
+                )
+
+                protected_updates = (
+                    (tombstone_event_id, "is_tombstone", False),
+                    (change_event_id, "target_generation", 2),
+                    (change_event_id, "target_d1", 4),
+                    (change_event_id, "expected_version", 2),
+                    (regular_event_id, "ledger_kind", "rejected"),
+                    (regular_event_id, "change_order", 1),
+                    (
+                        regular_event_id,
+                        "legacy_row_identifier",
+                        "legacy-row-changed",
+                    ),
+                    (regular_event_id, "migration_unverified", True),
+                    (regular_event_id, "import_batch_id", uuid4()),
+                )
+                for event_id, column, value in protected_updates:
+                    with pytest.raises(
+                        psycopg.errors.CheckViolation,
+                        match="operation_events confirmed content is immutable",
+                    ) as error:
+                        cursor.execute(
+                            sql.SQL(
+                                "UPDATE operation_events SET {} = %s "
+                                "WHERE tenant_id = %s AND id = %s"
+                            ).format(sql.Identifier(column)),
+                            (value, tenant_id, event_id),
+                        )
+                    assert error.value.sqlstate == "23514"
+
+                allowed_updates: dict[str, object] = {
+                    "d2": 1,
+                    "replaced_at": datetime(2026, 9, 12, 10, 0, tzinfo=UTC),
+                    "retired_at": datetime(2026, 9, 12, 11, 0, tzinfo=UTC),
+                }
+                for column, value in allowed_updates.items():
+                    cursor.execute(
+                        sql.SQL(
+                            "UPDATE operation_events SET {} = %s "
+                            "WHERE tenant_id = %s AND id = %s RETURNING id"
+                        ).format(sql.Identifier(column)),
+                        (value, tenant_id, regular_event_id),
+                    )
+                    assert cursor.fetchone() == (regular_event_id,)
+
+        command.downgrade(config, "0024_players_identity_trigger")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_operation_event_trigger_catalog_contract(
+                connection,
+                trigger_definition=_LEGACY_OPERATION_EVENT_TRIGGER_DEFINITION,
+                protected_columns=_LEGACY_OPERATION_EVENT_PROTECTED_COLUMNS,
+                function_definition=_LEGACY_OPERATION_EVENT_FUNCTION_DEFINITION,
+            )
+
+        command.upgrade(config, "head")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            _assert_operation_event_trigger_catalog_contract(
+                connection,
+                trigger_definition=_OPERATION_EVENT_TRIGGER_DEFINITION,
+                protected_columns=_OPERATION_EVENT_PROTECTED_COLUMNS,
+                function_definition=_OPERATION_EVENT_FUNCTION_DEFINITION,
+            )
         command.current(config, check_heads=True)
         command.check(config)
