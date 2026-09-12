@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -81,6 +82,28 @@ class _ForeignKeyContract:
 def _load_manifest() -> dict[str, Any]:
     """実ファイルの manifest を読み込む。"""
     return json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _immutability_coverage_violation(
+    *,
+    table_name: str,
+    columns: Collection[str],
+    classified_columns: Collection[str],
+    coverage: str,
+) -> str | None:
+    """列全体と3分類の差から coverage の矛盾を返す。
+
+    ``Immutability.__post_init__`` は表の列全体を知らないため、列母集団を持つ
+    スキーマ走査側に判定を置く。Manifest と SQLAlchemy モデルの双方がこの関数を
+    参照し、同じ差集合でラチェットを評価する。
+    """
+    unclassified_columns = set(columns) - set(classified_columns)
+    if coverage == "partial" and not unclassified_columns:
+        return f"{table_name}: coverage=partial だが未分類列がない"
+    if coverage == "exhaustive" and unclassified_columns:
+        names = ", ".join(sorted(unclassified_columns))
+        return f"{table_name}: coverage=exhaustive だが未分類列がある: {names}"
+    return None
 
 
 def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
@@ -343,6 +366,14 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
             not isinstance(handoff, str) or not is_task_handoff_id(handoff)
         ):
             violations.append(f"{name}: 未分類列の受け取り先 ID の形式が不正")
+        coverage_violation = _immutability_coverage_violation(
+            table_name=name,
+            columns=column_names,
+            classified_columns=matrix_columns,
+            coverage=coverage,
+        )
+        if coverage_violation is not None:
+            violations.append(coverage_violation)
         if set(table["forbidden_columns"]) & set(column_names):
             violations.append(f"{name}: 禁止列が実列に含まれる")
         primary_keys = [
@@ -560,11 +591,14 @@ def test_all_manifest_tables_have_models_and_migrations() -> None:
     assert missing == []
 
 
-def test_all_model_immutability_handoffs_are_task_ids() -> None:
-    """全 ORM モデルを機械走査し、受け取り先を実タスク ID 形式に限定する。"""
+def test_all_model_immutability_contracts_cover_the_same_table_population() -> None:
+    """全 ORM モデルで母集団、coverage、受け取り先形式を検査する。"""
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
-    immutability_by_table = {
-        mapper.local_table.name: immutability
+    model_contracts = {
+        mapper.local_table.name: (
+            immutability,
+            frozenset(mapper.local_table.columns.keys()),
+        )
         for mapper in Base.registry.mappers
         if isinstance(mapper.local_table, Table)
         if isinstance(
@@ -573,11 +607,26 @@ def test_all_model_immutability_handoffs_are_task_ids() -> None:
         )
     }
 
-    assert set(immutability_by_table) == manifest_tables == set(Base.metadata.tables)
+    assert len(model_contracts) == len(manifest_tables) == len(Base.metadata.tables)
+    assert set(model_contracts) == manifest_tables == set(Base.metadata.tables)
     assert all(
         immutability.unclassified_handoff is None
         or is_task_handoff_id(immutability.unclassified_handoff)
-        for immutability in immutability_by_table.values()
+        for immutability, _columns in model_contracts.values()
+    )
+    assert all(
+        _immutability_coverage_violation(
+            table_name=table_name,
+            columns=columns,
+            classified_columns=(
+                immutability.protected_columns
+                | immutability.allowed_update_columns
+                | immutability.conditional_update_columns
+            ),
+            coverage=immutability.coverage.value,
+        )
+        is None
+        for table_name, (immutability, columns) in model_contracts.items()
     )
 
 
@@ -593,6 +642,37 @@ def test_manifest_rejects_non_task_immutability_handoff_id() -> None:
 
     assert (
         f"{partial_table['name']}: 未分類列の受け取り先 ID の形式が不正"
+        in _manifest_shape_violations(manifest)
+    )
+
+
+def test_exhaustive_manifest_with_an_unclassified_column_is_red() -> None:
+    """変異1: 未分類列を残した exhaustive 宣言を拒否する。"""
+    manifest = copy.deepcopy(_load_manifest())
+    event_slots = next(
+        table for table in manifest["tables"] if table["name"] == "event_slots"
+    )
+    event_slots["immutability"]["allowed_update_columns"] = []
+    event_slots["immutability"]["coverage"] = "exhaustive"
+    event_slots["immutability"]["unclassified_handoff"] = None
+
+    assert (
+        "event_slots: coverage=exhaustive だが未分類列がある: confirmed_version"
+        in _manifest_shape_violations(manifest)
+    )
+
+
+def test_partial_manifest_without_unclassified_columns_is_red() -> None:
+    """変異2: 未分類列がない partial 宣言を拒否する。"""
+    manifest = copy.deepcopy(_load_manifest())
+    operation_events = next(
+        table for table in manifest["tables"] if table["name"] == "operation_events"
+    )
+    operation_events["immutability"]["coverage"] = "partial"
+    operation_events["immutability"]["unclassified_handoff"] = "TSK-372"
+
+    assert (
+        "operation_events: coverage=partial だが未分類列がない"
         in _manifest_shape_violations(manifest)
     )
 
