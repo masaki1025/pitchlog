@@ -29,6 +29,13 @@ class MigrationRetirement(StrEnum):
     NONE = "持たない"
 
 
+class ImmutabilityCoverage(StrEnum):
+    """不変列マトリクスによる列分類の被覆状態。"""
+
+    EXHAUSTIVE = "exhaustive"
+    PARTIAL = "partial"
+
+
 @dataclass(frozen=True, slots=True)
 class Lifecycle:
     """削除・追記専用性・移行退役の独立した 3 軸。"""
@@ -44,10 +51,27 @@ class Immutability:
 
     protected_columns: frozenset[str]
     allowed_update_columns: frozenset[str]
+    coverage: ImmutabilityCoverage
+    conditional_update_columns: frozenset[str] = frozenset()
+    unclassified_handoff: str | None = None
 
     def __post_init__(self) -> None:
-        """保護列と許可更新列が重複する誤った宣言を拒否する。"""
-        overlap = self.protected_columns & self.allowed_update_columns
+        """列分類の重複と被覆状態に反する受け取り先宣言を拒否する。"""
+        overlap = (
+            (self.protected_columns & self.allowed_update_columns)
+            | (self.protected_columns & self.conditional_update_columns)
+            | (self.allowed_update_columns & self.conditional_update_columns)
+        )
         if overlap:
             columns = ", ".join(sorted(overlap))
-            raise ValueError(f"保護列と許可更新列が重複している: {columns}")
+            raise ValueError(f"不変列マトリクスの分類が重複している: {columns}")
+        if (
+            self.coverage is ImmutabilityCoverage.PARTIAL
+            and not self.unclassified_handoff
+        ):
+            raise ValueError("部分被覆には未分類列の受け取り先が必要")
+        if (
+            self.coverage is ImmutabilityCoverage.EXHAUSTIVE
+            and self.unclassified_handoff is not None
+        ):
+            raise ValueError("全列分類済みに未分類列の受け取り先は指定できない")

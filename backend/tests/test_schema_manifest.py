@@ -49,6 +49,7 @@ _DELETION_LIFECYCLES = {
 }
 _APPEND_MODES = {"追記専用", "更新可"}
 _RETIREMENT_MODES = {"退役述語を持つ", "持たない"}
+_IMMUTABILITY_COVERAGES = {"exhaustive", "partial"}
 _UNIQUE_ROLES = {"business_unique", "primary_key", "fk_target"}
 _DESTINATION_CATEGORIES = {
     "試合",
@@ -303,11 +304,40 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
             index_columns = {column.split()[0] for column in index["columns"]}
             if not index_columns <= set(column_names):
                 violations.append(f"{name}: 索引の構成列が存在しない")
-        matrix_columns = set(table["immutability"]["protected_columns"]) | set(
-            table["immutability"]["allowed_update_columns"]
+        immutability = table["immutability"]
+        expected_immutability_fields = {
+            "protected_columns",
+            "allowed_update_columns",
+            "conditional_update_columns",
+            "coverage",
+            "unclassified_handoff",
+        }
+        if set(immutability) != expected_immutability_fields:
+            violations.append(f"{name}: 不変列マトリクスの項目が不正")
+            continue
+        protected_columns = set(immutability["protected_columns"])
+        allowed_update_columns = set(immutability["allowed_update_columns"])
+        conditional_update_columns = set(immutability["conditional_update_columns"])
+        matrix_columns = (
+            protected_columns | allowed_update_columns | conditional_update_columns
         )
         if not matrix_columns <= set(column_names):
             violations.append(f"{name}: 不変列マトリクスの列が存在しない")
+        overlap = (
+            (protected_columns & allowed_update_columns)
+            | (protected_columns & conditional_update_columns)
+            | (allowed_update_columns & conditional_update_columns)
+        )
+        if overlap:
+            violations.append(f"{name}: 不変列マトリクスの分類が重複している")
+        coverage = immutability["coverage"]
+        handoff = immutability["unclassified_handoff"]
+        if coverage not in _IMMUTABILITY_COVERAGES:
+            violations.append(f"{name}: 不変列マトリクスの被覆状態が不正")
+        elif coverage == "partial" and (not isinstance(handoff, str) or not handoff):
+            violations.append(f"{name}: 部分被覆に未分類列の受け取り先がない")
+        elif coverage == "exhaustive" and handoff is not None:
+            violations.append(f"{name}: 全列分類済みに未分類列の受け取り先がある")
         if set(table["forbidden_columns"]) & set(column_names):
             violations.append(f"{name}: 禁止列が実列に含まれる")
         primary_keys = [

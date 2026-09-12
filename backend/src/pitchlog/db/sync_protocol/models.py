@@ -46,6 +46,7 @@ from pitchlog.db.model_metadata import (
     AppendMode,
     DeletionLifecycle,
     Immutability,
+    ImmutabilityCoverage,
     Lifecycle,
     MigrationRetirement,
 )
@@ -108,6 +109,7 @@ class EventSlot(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"tenant_id", "game_id", "generation", "d1"}),
         allowed_update_columns=frozenset({"confirmed_version"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 
 
@@ -283,6 +285,8 @@ class OperationEvent(
             }
         ),
         allowed_update_columns=frozenset({"d2", "replaced_at", "retired_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="follow-up-A",
     )
 
 
@@ -330,6 +334,8 @@ class TemporaryPlayerIdMapping(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"temporary_id", "player_id"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="follow-up-A",
     )
 
 
@@ -371,6 +377,8 @@ class IdempotencyLedger(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"kind", "source_fingerprint", "result", "reason"}),
         allowed_update_columns=frozenset({"retired_at"}),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="follow-up-A",
     )
 
 
@@ -426,6 +434,8 @@ class RejectedEventOriginal(TenantMixin, LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"d5", "kind", "payload"}),
         allowed_update_columns=frozenset(),
+        coverage=ImmutabilityCoverage.PARTIAL,
+        unclassified_handoff="follow-up-A",
     )
 
 
@@ -497,4 +507,5 @@ class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
             }
         ),
         allowed_update_columns=frozenset({"delivery_status", "delivered_at"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )

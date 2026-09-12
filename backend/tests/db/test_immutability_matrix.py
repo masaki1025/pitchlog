@@ -115,6 +115,7 @@ class _MatrixRow:
 
     protected_columns: tuple[str, ...]
     allowed_update_columns: tuple[str, ...]
+    conditional_update_columns: tuple[str, ...]
     append_only: bool
 
 
@@ -141,6 +142,7 @@ def _load_matrix() -> dict[str, _MatrixRow]:
         name: _MatrixRow(
             tuple(table["immutability"]["protected_columns"]),
             tuple(table["immutability"]["allowed_update_columns"]),
+            tuple(table["immutability"]["conditional_update_columns"]),
             table["lifecycle"]["append_mode"] == "追記専用",
         )
         for name, table in tables.items()
@@ -402,7 +404,9 @@ def _assert_update_behavior(
         row = matrix[table]
         probe = probes[table]
         assert set(probe.protected_values) == set(row.protected_columns)
-        assert set(probe.allowed_values) == set(row.allowed_update_columns)
+        assert set(probe.allowed_values) == set(row.allowed_update_columns) | set(
+            row.conditional_update_columns
+        )
         for column, value in probe.protected_values.items():
             with pytest.raises(
                 psycopg.errors.CheckViolation,

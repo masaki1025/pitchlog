@@ -69,7 +69,9 @@ _DIFF_STRUCTURE_WORDS = frozenset(
         "checks",
         "columns",
         "composite",
+        "conditional_update_columns",
         "cross_tenant",
+        "coverage",
         "default",
         "deletion",
         "False",
@@ -97,6 +99,7 @@ _DIFF_STRUCTURE_WORDS = frozenset(
         "table",
         "True",
         "type",
+        "unclassified_handoff",
     }
 )
 
@@ -410,7 +413,12 @@ def _n3_rows(
                     matrices = " / ".join(
                         f"{table['name']}: "
                         f"protected={table['immutability']['protected_columns']}; "
-                        f"allowed={table['immutability']['allowed_update_columns']}"
+                        f"allowed={table['immutability']['allowed_update_columns']}; "
+                        "conditional="
+                        f"{table['immutability']['conditional_update_columns']}; "
+                        f"coverage={table['immutability']['coverage']}; "
+                        "unclassified_handoff="
+                        f"{table['immutability']['unclassified_handoff']}"
                         for table in candidates
                     )
                 else:
