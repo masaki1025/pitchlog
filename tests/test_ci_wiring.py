@@ -28,6 +28,11 @@ BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
+ALEMBIC_CI_COMMANDS = (
+    "uv run alembic upgrade head",
+    "uv run alembic current --check-heads",
+    "uv run alembic check",
+)
 CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
 # source_commit 検査や三点差分へ推移した先にあるため、ジョブ名を列挙する。
@@ -315,6 +320,136 @@ def _backend_commands(backend: dict[str, Any]) -> list[str]:
         if isinstance(step, dict)
         and isinstance((command := step.get("run")), str)
     ]
+
+
+def _alembic_command_locations(
+    workflow: dict[str, Any],
+) -> list[tuple[str, str]]:
+    """全ジョブから Alembic 実行コマンドと所属ジョブを順序どおり得る。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        ジョブ宣言順・step 宣言順の ``(job 名, run コマンド)``。
+    """
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return []
+    locations: list[tuple[str, str]] = []
+    for job_name, job in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(job, dict):
+            continue
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            command = step.get("run")
+            if isinstance(command, str) and "alembic" in shlex.split(command):
+                locations.append((job_name, command))
+    return locations
+
+
+def _canonical_distribution_name(specification: str) -> str:
+    """依存指定の先頭から正規化済み distribution 名を得る。
+
+    Args:
+        specification: PEP 508 形式の依存指定。
+
+    Returns:
+        正規化済みの distribution 名。名前を取得できなければ空文字列。
+    """
+    match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", specification)
+    if match is None:
+        return ""
+    return re.sub(r"[-_.]+", "-", match[0]).lower()
+
+
+def _orm_stack_dependency_errors(
+    project: dict[str, Any],
+    lock: dict[str, Any],
+) -> list[str]:
+    """ORM スタックの直接依存と lock の違反を返す。
+
+    Args:
+        project: backend/pyproject.toml を読み込んだマッピング。
+        lock: backend/uv.lock を読み込んだマッピング。
+
+    Returns:
+        検出した違反。空配列なら契約を満たす。
+    """
+    errors: list[str] = []
+    project_section = project.get("project")
+    if not isinstance(project_section, dict):
+        return ["pyproject に project テーブルが必要"]
+    dependencies = project_section.get("dependencies")
+    if not isinstance(dependencies, list):
+        return ["project.dependencies は配列が必要"]
+
+    required_dependencies = (
+        (
+            "psycopg",
+            r"psycopg\[binary\]==(\d+\.\d+\.\d+)",
+            "psycopg[binary] は製品依存で厳密固定する",
+        ),
+        (
+            "sqlalchemy",
+            r"sqlalchemy==(\d+\.\d+\.\d+)",
+            "sqlalchemy は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+        (
+            "alembic",
+            r"alembic==(\d+\.\d+\.\d+)",
+            "alembic は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+    )
+    exact_versions: dict[str, str] = {}
+    for name, pattern, invalid_message in required_dependencies:
+        specifications = [
+            dependency
+            for dependency in dependencies
+            if isinstance(dependency, str)
+            and _canonical_distribution_name(dependency) == name
+        ]
+        if len(specifications) != 1:
+            errors.append(f"{name} の直接依存はちょうど 1 件必要")
+            continue
+        match = re.fullmatch(pattern, specifications[0])
+        if match is None:
+            errors.append(invalid_message)
+            continue
+        exact_versions[name] = match[1]
+
+    sqlalchemy_version = exact_versions.get("sqlalchemy")
+    if sqlalchemy_version is not None and sqlalchemy_version.split(".", maxsplit=1)[0] != "2":
+        errors.append("SQLAlchemy の major は 2 が必要")
+
+    packages = lock.get("package")
+    if not isinstance(packages, list):
+        errors.append("lock の package は配列が必要")
+        return errors
+    locked_versions = {
+        _canonical_distribution_name(name): version
+        for package in packages
+        if isinstance(package, dict)
+        and isinstance((name := package.get("name")), str)
+        and isinstance((version := package.get("version")), str)
+    }
+    lock_expectations = (
+        ("psycopg", exact_versions.get("psycopg")),
+        ("psycopg-binary", exact_versions.get("psycopg")),
+        ("sqlalchemy", sqlalchemy_version),
+        ("alembic", exact_versions.get("alembic")),
+    )
+    for name, expected_version in lock_expectations:
+        if (
+            expected_version is not None
+            and locked_versions.get(name) != expected_version
+        ):
+            errors.append(f"lock の {name} が pyproject の固定版と一致しない")
+    return errors
 
 
 def _harness_commands(harness: dict[str, Any]) -> list[str]:
@@ -642,12 +777,16 @@ def _ci_wiring_errors(
         role_name = variables["tested_role_connection"]["expected_name"]
         admin_dsn = job_environment.get(admin_name)
         role_dsn = job_environment.get(role_name)
+        migration_dsn = job_environment.get("PITCHLOG_MIGRATION_DATABASE_URL")
         admin_parts = _dsn_template_parts(admin_dsn)
         role_parts = _dsn_template_parts(role_dsn)
+        migration_parts = _dsn_template_parts(migration_dsn)
         if admin_parts is None:
             errors.append("管理接続 DSN の job env がない")
         if role_parts is None:
             errors.append("被検査ロール DSN の job env がない")
+        if migration_parts is None:
+            errors.append("migration direct URL の job env がない")
         if admin_parts is not None and role_parts is not None:
             expected_admin_parts = (
                 service_user,
@@ -659,9 +798,18 @@ def _ci_wiring_errors(
                 errors.append("管理接続 DSN が service の資格情報・DB と一致しない")
             if role_parts[0] == admin_parts[0] or role_parts[2:] != admin_parts[2:]:
                 errors.append("被検査ロール DSN の認証ユーザー分離が不正")
+        if migration_parts is not None:
+            expected_migration_parts = (
+                service_user,
+                service_password,
+                "127.0.0.1",
+                service_database,
+            )
+            if migration_parts != expected_migration_parts:
+                errors.append("migration direct URL が service の管理接続と一致しない")
         if admin_name == role_name or admin_dsn == role_dsn:
             errors.append("管理接続と被検査ロール接続が分離されていない")
-        for value in (admin_dsn, role_dsn):
+        for value in (admin_dsn, role_dsn, migration_dsn):
             if isinstance(value, str) and (":-" in value or ":+" in value):
                 errors.append("DSN 変数間の fallback がある")
 
@@ -696,16 +844,22 @@ def _ci_wiring_errors(
             errors.append("backend-changes の既存 paths-filter が変わっている")
 
     commands = _backend_commands(backend)
-    required_existing_commands = [
+    required_backend_commands = [
         "uv python install",
         "uv sync --locked --dev",
         "uv run ruff check .",
         "uv run ruff format --check .",
         "uv run ty check",
         execution["single_command"]["expected"],
+        *ALEMBIC_CI_COMMANDS,
     ]
-    if commands != required_existing_commands:
-        errors.append("backend の既存検査 step が維持されていない")
+    if commands != required_backend_commands:
+        errors.append("backend の既存 6 件 + Alembic 3 段が順序どおりでない")
+    expected_alembic_locations = [
+        ("backend", command) for command in ALEMBIC_CI_COMMANDS
+    ]
+    if _alembic_command_locations(workflow) != expected_alembic_locations:
+        errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
     pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
     single_command = execution["single_command"]
     if pytest_commands != [single_command["expected"]]:
@@ -1438,6 +1592,65 @@ def test_backend_postgres_wiring_matches_asset_and_development_database() -> Non
     ) == []
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-upgrade",
+        "missing-current",
+        "missing-check",
+        "duplicate",
+        "wrong-order",
+        "separate-job",
+    ),
+)
+def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
+    """Alembic 3 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    backend = _backend_job(mutated)
+    steps = backend.get("steps")
+    assert isinstance(steps, list)
+    alembic_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and command in ALEMBIC_CI_COMMANDS
+    ]
+    assert len(alembic_indexes) == len(ALEMBIC_CI_COMMANDS)
+
+    if mutation.startswith("missing-"):
+        missing_command = {
+            "missing-upgrade": ALEMBIC_CI_COMMANDS[0],
+            "missing-current": ALEMBIC_CI_COMMANDS[1],
+            "missing-check": ALEMBIC_CI_COMMANDS[2],
+        }[mutation]
+        steps.pop(alembic_indexes[ALEMBIC_CI_COMMANDS.index(missing_command)])
+    elif mutation == "duplicate":
+        steps.insert(
+            alembic_indexes[0],
+            copy.deepcopy(steps[alembic_indexes[0]]),
+        )
+    elif mutation == "wrong-order":
+        first, second = alembic_indexes[:2]
+        steps[first], steps[second] = steps[second], steps[first]
+    else:
+        jobs = mutated.get("jobs")
+        assert isinstance(jobs, dict)
+        jobs["detached-alembic"] = {
+            "runs-on": "ubuntu-latest",
+            "steps": [{"run": command} for command in ALEMBIC_CI_COMMANDS],
+        }
+
+    errors = _ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する" in errors
+
+
 def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
     """CI 契約ブロックの全葉を機械列挙し、値改変・削除を拒否する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
@@ -1537,26 +1750,71 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
     ]
 
 
-def test_psycopg_is_exact_product_dependency_without_orm_packages() -> None:
-    """psycopg の厳密製品依存と ORM 非導入を lock まで確認する。"""
+def test_orm_stack_is_exact_product_dependency() -> None:
+    """ORM スタックの厳密製品依存を実ファイルで確認する。"""
     project = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
-    direct_dependencies = project["project"]["dependencies"]
-    psycopg_dependencies = [
-        dependency
-        for dependency in direct_dependencies
-        if str(dependency).startswith("psycopg[")
-    ]
-    assert len(psycopg_dependencies) == 1
-    match = re.fullmatch(r"psycopg\[binary\]==(\d+\.\d+\.\d+)", psycopg_dependencies[0])
-    assert match is not None, "psycopg[binary] は製品依存で厳密固定する"
-
     lock = tomllib.loads(BACKEND_LOCK_PATH.read_text(encoding="utf-8"))
-    packages = lock["package"]
-    locked_versions = {
-        package["name"]: package.get("version")
-        for package in packages
-        if isinstance(package, dict) and isinstance(package.get("name"), str)
+    assert _orm_stack_dependency_errors(project, lock) == []
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        ("sqlalchemy-major", "SQLAlchemy の major は 2 が必要"),
+        (
+            "sqlalchemy-range",
+            "sqlalchemy は直接依存で X.Y.Z 形式に厳密固定する",
+        ),
+        (
+            "lock-mismatch",
+            "lock の sqlalchemy が pyproject の固定版と一致しない",
+        ),
+        ("alembic-missing", "alembic の直接依存はちょうど 1 件必要"),
+        ("psycopg-extra", "psycopg[binary] は製品依存で厳密固定する"),
+    ],
+)
+def test_orm_stack_dependency_negative_cases_are_red(
+    mutation: str,
+    expected_error: str,
+) -> None:
+    """ORM 依存契約の負例 5 種を純関数が拒否する。"""
+    project = tomllib.loads(
+        """
+[project]
+dependencies = [
+    "psycopg[binary]==3.3.4",
+    "sqlalchemy==2.0.52",
+    "alembic==1.19.2",
+]
+"""
+    )
+    lock: dict[str, Any] = {
+        "package": [
+            {"name": "psycopg", "version": "3.3.4"},
+            {"name": "psycopg-binary", "version": "3.3.4"},
+            {"name": "sqlalchemy", "version": "2.0.52"},
+            {"name": "alembic", "version": "1.19.2"},
+        ]
     }
-    assert locked_versions.get("psycopg") == match[1]
-    assert locked_versions.get("psycopg-binary") == match[1]
-    assert {"sqlalchemy", "alembic"}.isdisjoint(locked_versions)
+    project_section = project["project"]
+    assert isinstance(project_section, dict)
+    dependencies = project_section["dependencies"]
+    assert isinstance(dependencies, list)
+    lock_packages = lock["package"]
+    assert isinstance(lock_packages, list)
+
+    if mutation == "sqlalchemy-major":
+        dependencies[1] = "sqlalchemy==3.0.0"
+        lock_packages[2] = {"name": "sqlalchemy", "version": "3.0.0"}
+    elif mutation == "sqlalchemy-range":
+        dependencies[1] = "sqlalchemy>=2,<3"
+    elif mutation == "lock-mismatch":
+        lock_packages[2] = {"name": "sqlalchemy", "version": "2.0.51"}
+    elif mutation == "alembic-missing":
+        dependencies.pop(2)
+    else:
+        dependencies[0] = "psycopg[binary,pool]==3.3.4"
+
+    errors = _orm_stack_dependency_errors(project, lock)
+
+    assert expected_error in errors
