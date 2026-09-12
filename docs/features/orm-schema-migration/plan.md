@@ -1,6 +1,6 @@
 ---
 feature: orm-schema-migration
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -123,7 +123,7 @@ created: 2026-09-09
 | [改善台帳](../../improvements-from-baseball-scoring.md) | **反映なし** | — |
 | [データモデル設計](../../design/data-model.md) | **反映なし** | — |
 | [同期プロトコル設計](../../design/sync-protocol.md) | **反映なし** | — |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **反映なし**(候補の起票判断は /pr のクローズ処理) | — |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **`## 候補` へ 2 件追記 + 既存候補 1 件へ 4 例目〜7 例目**(`/pr` のクローズ処理で判断 — **新規候補①** フィクスチャが正本上あり得ない値を埋めるとその制約の欠陥が永久に隠れる / **新規候補②** 生成物の陳腐化は生成物を使う人の手元では分からない / **既存候補「母集団を人が列挙する検査」へ 14〜17**)。**`H-*` の新規採番はしない・版は上げない**(7.6-3 前段) | **PR レビューで可**(7.6-3 前段) |
 | ADR-001 / ADR-002 / ADR-003 | **反映なし** | — |
 | [オンボーディング](../../development/onboarding.md) / [GitHub 設定手順](../../development/github-setup.md) | **反映なし** | — |
 | [NFR-021 受入証跡の運用](../../ops/nfr021-acceptance/README.md) 他 ops 4 本 | **反映なし**(ただし**依存追加で既存の受入証跡が失効する** — 4-5 節) | — |
