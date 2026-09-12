@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 30        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 31        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -664,6 +664,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | `review_id` の `PENDING-` 接頭辞を改名する | red |
 
 **加えて: 資産だけ変えると red / 検査器だけ変えても red**(**資産と検査器が二重に固定されていることの確認**)。
+**規律 5 の validator は `validate_boundary_proposal`**(自己監査 2026-09-12 — **どれを呼ぶかを書かないと実装者が選べる**)。
 
 **2-c `S-7` — `ddl-elements.json` の `scope` を確定**
 
@@ -674,6 +675,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 `[機械]` **4 キーが確定値と完全一致**・**検査器の literal が資産と一致**・
 **`tests/test_check_authz_catalog.py` が 4 キーそれぞれの負例を持つ**。
+**規律 5 の validator は `validate_ddl_elements`。**
 
 `[手動・外部]` **「通った構成」の実行証跡は資産へ置けない** — **`scope` は 4 キー exact で、
 参照フィールドを足すと `_expect_keys` が落ちる**(4 周目 `P1-7` の実測)。
@@ -849,7 +851,7 @@ green のまま通る配列」**(**変異で判定する**)。
 | **`sealed_assets[]` の行の `asset_role` / `asset_kind` を変える** | red |
 | **`--reseal-oracle` を付けない通常検証で reseal される** | red |
 
-**規律 5 により、負例は当該 validator の関数を直接呼び、その関数が投げることを確かめる。**
+**規律 5 により、負例は `validate_oracle_seal` を直接呼び、その関数が投げることを確かめる。**
 
 #### 資産と検査器が二重に固定されている(**`S-5` と `S-7` の実測**)
 
