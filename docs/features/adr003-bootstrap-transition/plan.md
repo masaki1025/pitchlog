@@ -315,6 +315,13 @@ TSK-278 の実測にも「**入力確定コミット → `oracle_commit` 差し�
 **資産の一覧は固定しない**: `contracts/authz/` の資産は TSK-317 の PR で増減する
 (2026-09-11 の PR #1 で 4 資産が新設された)。**着手時のリベース後に実測して確定する。**
 
+**既知の穴**(2026-09-12・TSK-317 から共有): **`check_authz_catalog.py` は `input_assets` の重複行を通す**
+(先方が `validate_oracle_seal` を直接呼んで実測 — 正常 8 行も、重複行を足した 9 行も green)。
+**`sealed_assets` 側には重複拒否があるのに入力側だけ無い**という非対称。
+**TSK-317 PR #2 の 3-d で塞ぐ予定**だが、**PR #2 が別の形に落ち着いた場合、本タスクの reseal も
+同じ穴の上を通る**。→ **ステップ 7 の着手時に「この穴が塞がれているか」を実測で確認し、
+塞がれていなければ `input_assets` の重複が無いことを自前で確かめる**(合格条件へ反映)。
+
 **7 段**:
 
 1. 母集合の `input_manifest` と、**変更・追加・位置移動したすべての `claims`** を更新
@@ -374,7 +381,7 @@ TSK-278 の実測も「**auth 帰属変更 0**」で 2 段を踏んでいる)。
 | 4 | **`ADR-003` の見直しトリガー追加**。「移行状態が機能しない場合」を既存トリガー表へ追加し、**既存 5 件**(実測 — 5 周目 P2-6)と文型を揃える | `[機械]` 差分が `ADR-003` のトリガー表に限られる / `[手動]` **既存 5 件**と文型が揃っている(判定者: Claude) |
 | 5 | **波及の検査と結論の記録**。設計書 **6.1・6.3・13 章**(10.1 は射程内のため除く)/ `github-setup.md` / 改善台帳 / `docs/design/*.md` を実測し、**波及なしの結論を worklog へ記録**。波及ありなら 7.6-3 の判定を行い **PO 裁定へ上げて停止** | `[機械]` `check_design_propagation.py` / `check_doc_coverage.py` green / **当該ファイル群の差分が 0** / `[手動]` 各対象の「波及なし」の根拠が逐語で記録されている・**TSK-235 との `consistency` 行の分担確認(規範 / 機構の記述)が worklog に証跡として残っている**(3 周目 P1-6)(判定者: Claude。**波及ありは人間へエスカレーション**) |
 | 6 | **確定ゲートの完了**(`/finalize-doc`)。敵対レビューを 7.3-2 の収束まで回し(**依頼文に `design.md` と写像表を検証証跡として必須で添付する** — 3 周目 P1-2)、**採否記録を周ごとに worklog へ追記**。人間承認後に **approved 化・版確定(版は**ステップ 1 で確定した番号**を用いる — 固定値を使わない。3 周目 P1-7)・変更履歴の確定行追加・索引の現行化** | `[機械]` **3 正本すべて**の frontmatter が `approved` / `check_docs_status.py` green(索引の版・日付が変更履歴表の最大値と一致)/ `[手動]` **人間承認が明示的に得られている**(判定者: **人間 = 山田正輝**)・**逐行確認の実施記録がある**(`ADR-003` を明示的に含む) |
-| 7 | **母集合の追随・前段**(§4-6 の 1〜5)。`input_manifest` と `claims`(位置移動を含む)の更新 → **`shared-preconditions.json` の `git_blob_digest` の手更新**(TSK-317 マージ後に存在。2 周目 P1-8)→ `--reseal --skip-derived --skip-oracle` → 派生 3 資産と lock の入力 digest 更新 → `--reseal-derived --skip-oracle` → **入力確定コミット** | `[機械]` 母集合層・派生層の検査が green / **`check_shared_preconditions.py` green** / 差分が母集合 + lock + 派生 3 資産 + 各 lock + **`shared-preconditions.json`** に限られる / `[手動]` **`auth_claim` が 184 のまま**(変動したら**人間へエスカレーション**) |
+| 7 | **母集合の追随・前段**(§4-6 の 1〜5)。`input_manifest` と `claims`(位置移動を含む)の更新 → **`shared-preconditions.json` の `git_blob_digest` の手更新**(TSK-317 マージ後に存在。2 周目 P1-8)→ `--reseal --skip-derived --skip-oracle` → 派生 3 資産と lock の入力 digest 更新 → `--reseal-derived --skip-oracle` → **入力確定コミット** | `[機械]` 母集合層・派生層の検査が green / **`check_shared_preconditions.py` green** / **`input_assets` の重複拒否が効いていることを実測で確認**(TSK-317 PR #2 の 3-d で塞がれた見込みだが、塞がれていなければ重複が無いことを自前で確かめる — §4-6 の既知の穴)/ 差分が母集合 + lock + 派生 3 資産 + 各 lock + **`shared-preconditions.json`** に限られる / `[手動]` **`auth_claim` が 184 のまま**(変動したら**人間へエスカレーション**) |
 | 8 | **母集合の追随・後段**(§4-6 の 6〜7)。oracle 6 資産と seal の `oracle_commit` をステップ 7 のコミットへ更新 → **人間査読** → `--reseal-oracle`。あわせて `tests/` の期待件数と `harness-evaluation.md` の H-85 実測を追記 | `[機械]` **要件書を参照する checker をすべて再実行して exit 0**(`check_authz_catalog.py` / `check_doc_coverage.py` / `check_design_propagation.py` / **`check_shared_preconditions.py`**〔TSK-317 マージ後〕— 4 周目 P2-5)/ `uv run pytest tests/` green / `[手動]` **人間査読が完了している**(判定者: **人間**。`reseal_policy.human_review_required`) |
 
 **ステップ 6 は `/finalize-doc` が担う。反映周コミットは `反映<r>周目` のみを件名に含め、ステップ記法を付けない。**
@@ -635,7 +642,13 @@ TSK-278 の 27 周は同型の前例だが、本タスクの計画レビュー�
 **2026-09-11 時点の現況**(マージ済みのものを明示する — 待ちの対象を一意にするため)。
 **この表は `uv run python scripts/feature_status.py` の実測で書く**(**他タブの報告を書き写さない** —
 2026-09-11 に伝聞で「TSK-343 はステップ 1 実行中」と書いたところ、**実測では 8/28** であり、
-**受け取った時点で既に古かった**。**進捗は自分で測れる**):
+**受け取った時点で既に古かった**。**進捗は自分で測れる**)。
+
+**この規律は「他タブへ影響を伝えるとき」にも同じく適用する**(2026-09-12 追加): 2026-09-12 に
+TSK-235 へ「`S-9` があなたに関係します」と伝えたが、**実測では `claim-mutant-map.json` に TSK-235 の
+出現は 0 件**(`receiving_task_id` は `TSK-270-GROUP-2` 178 / `TSK-250` 13 / `TSK-217` 7)で、
+**関係は無かった**。**以前の伝聞を根拠に推測を伝えており、資産で測れるものを測っていなかった。**
+→ **資産で測れる事実は、受け取るときも伝えるときも測ってから扱う。**
 
 | 段 | 状態 |
 | --- | --- |
