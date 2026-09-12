@@ -181,6 +181,9 @@ class FrozenJsonMultiplicityError(AssertionError):
 
 ArrayPath = tuple[str | int, ...]
 ArrayWalker = Callable[[object, ArrayPath], list[tuple[ArrayPath, list[Any]]]]
+GDecision = tuple[str, ArrayPath, int, bool]
+GDecisionRecorder = Callable[[], None]
+GDecisionDispatcher = Callable[[str, ArrayPath, int, GDecisionRecorder], None]
 
 
 def _base_json(relative_path: str) -> dict[str, Any]:
@@ -383,11 +386,20 @@ def _g_entry_partition_from_seal(
     return frozenset(included), frozenset(excluded)
 
 
-@lru_cache(maxsize=1)
-def _derive_g_multiplicity() -> tuple[
-    tuple[tuple[str, ArrayPath], ...], frozenset[str]
-]:
-    """固定基準版へ g を実行し、出力と実際に踏んだ入口を返す。"""
+def _record_g_decision(
+    _entry_path: str,
+    _array_path: ArrayPath,
+    _index: int,
+    validate_and_record: GDecisionRecorder,
+) -> None:
+    """通常経路では validator の実行と判定記録を省略しない。"""
+    validate_and_record()
+
+
+def _derive_g_multiplicity_with_dispatcher(
+    dispatch: GDecisionDispatcher,
+) -> tuple[tuple[tuple[str, ArrayPath], ...], tuple[GDecision, ...]]:
+    """固定基準版へ g を実行し、出力と validator の判定証跡を返す。"""
     base_checker = _base_checker()
     seal_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
     seal = _base_json(seal_path)
@@ -410,41 +422,50 @@ def _derive_g_multiplicity() -> tuple[
     implemented_test_ids = frozenset(
         {IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}
     )
-    observed_entry_paths: set[str] = set()
+    decisions: list[GDecision] = []
 
-    def asset_mutation_is_green(
-        name: str, path: ArrayPath, index: int
-    ) -> bool:
-        observed_entry_paths.add(paths[name])
-        mutated_assets = copy.deepcopy(assets)
-        mutated_assets[name] = _duplicate_array_element(
-            assets[name], path, index
-        )
-        try:
-            base_checker.validate_oracle_assets(
-                requirement_catalog,
-                route_registry,
-                auth_catalog,
-                http_matrix,
-                mutated_assets,
-                seal,
-                paths,
-                REPOSITORY_ROOT,
-                implemented_test_ids,
-                verify_seal=False,
+    def dispatch_asset_mutation(
+        name: str,
+        path: ArrayPath,
+        index: int,
+        outcomes: list[bool],
+    ) -> None:
+        entry_path = paths[name]
+
+        def validate_and_record() -> None:
+            mutated_assets = dict(assets)
+            mutated_assets[name] = _duplicate_array_element(
+                assets[name], path, index
             )
-        except base_checker.CatalogError:
-            return False
-        return True
+            try:
+                base_checker.validate_oracle_assets(
+                    requirement_catalog,
+                    route_registry,
+                    auth_catalog,
+                    http_matrix,
+                    mutated_assets,
+                    seal,
+                    paths,
+                    REPOSITORY_ROOT,
+                    implemented_test_ids,
+                    verify_seal=False,
+                )
+            except base_checker.CatalogError:
+                green = False
+            else:
+                green = True
+            decisions.append((entry_path, path, index, green))
+            outcomes.append(green)
+
+        dispatch(entry_path, path, index, validate_and_record)
 
     output: list[tuple[str, ArrayPath]] = []
     for relative_path in sealed_paths:
         name = names_by_path[relative_path]
         for path, array in _walk_json_arrays(assets[name]):
-            outcomes = tuple(
-                asset_mutation_is_green(name, path, index)
-                for index in range(len(array))
-            )
+            outcomes: list[bool] = []
+            for index in range(len(array)):
+                dispatch_asset_mutation(name, path, index, outcomes)
             if any(outcomes):
                 output.append((name, path))
 
@@ -452,19 +473,37 @@ def _derive_g_multiplicity() -> tuple[
         outcomes: list[bool] = []
         for index in range(len(array)):
             mutated = _duplicate_array_element(seal, path, index)
-            try:
-                observed_entry_paths.add(seal_path)
-                base_checker.validate_oracle_seal(
-                    mutated, assets, paths, REPOSITORY_ROOT
-                )
-            except base_checker.CatalogError:
-                outcomes.append(False)
-            else:
-                outcomes.append(True)
+
+            def validate_and_record(
+                *,
+                mutated: dict[str, Any] = mutated,
+                path: ArrayPath = path,
+                index: int = index,
+            ) -> None:
+                try:
+                    base_checker.validate_oracle_seal(
+                        mutated, assets, paths, REPOSITORY_ROOT
+                    )
+                except base_checker.CatalogError:
+                    green = False
+                else:
+                    green = True
+                decisions.append((seal_path, path, index, green))
+                outcomes.append(green)
+
+            dispatch(seal_path, path, index, validate_and_record)
         if any(outcomes):
             output.append(("oracle_seal", path))
 
-    return tuple(output), frozenset(observed_entry_paths)
+    return tuple(output), tuple(decisions)
+
+
+@lru_cache(maxsize=1)
+def _derive_g_multiplicity() -> tuple[
+    tuple[tuple[str, ArrayPath], ...], tuple[GDecision, ...]
+]:
+    """通常の判定実行器で固定基準版の g を導出する。"""
+    return _derive_g_multiplicity_with_dispatcher(_record_g_decision)
 
 
 def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
@@ -482,6 +521,48 @@ def _assert_g_entry_population(
         f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
     )
     assert actual.isdisjoint(excluded)
+
+
+def _expected_g_decision_counts(seal: dict[str, Any]) -> Counter[str]:
+    """各入口の期待判定数を、その BASE 資産の配列要素数から導出する。"""
+    included, _excluded = _g_entry_partition_from_seal(seal)
+    return Counter(
+        {
+            entry_path: sum(
+                len(array)
+                for _path, array in _walk_json_arrays(_base_json(entry_path))
+            )
+            for entry_path in included
+        }
+    )
+
+
+def _expected_g_decision_keys(
+    seal: dict[str, Any],
+) -> frozenset[tuple[str, ArrayPath, int]]:
+    """各入口で判定すべき全要素を BASE 資産から導出する。"""
+    included, _excluded = _g_entry_partition_from_seal(seal)
+    return frozenset(
+        (entry_path, path, index)
+        for entry_path in included
+        for path, array in _walk_json_arrays(_base_json(entry_path))
+        for index in range(len(array))
+    )
+
+
+def _actual_g_decision_counts(decisions: tuple[GDecision, ...]) -> Counter[str]:
+    """validator が判定を返した要素だけを入口別に数える。"""
+    return Counter(entry_path for entry_path, _path, _index, _green in decisions)
+
+
+def _assert_g_decision_counts(
+    actual: Counter[str], expected: Counter[str]
+) -> None:
+    """入口別の実判定数を資産由来の期待数と突合する。"""
+    assert actual == expected, (
+        "g の入口別判定件数が不一致: "
+        f"不足={dict(expected - actual)}, 余分={dict(actual - expected)}"
+    )
 
 
 def _container_metrics(value: object, depth: int = 0) -> tuple[int, int]:
@@ -2825,16 +2906,78 @@ def test_ddl_scope_has_four_exact_final_values(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_g_entry_population_matches_the_seal_derived_partition() -> None:
-    """g が意味資産と seal の全入口を踏み、入力資産を除外すると示す。"""
+    """g の全入口・全要素が validator の判定を返したと示す。"""
     seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
-    _output, actual = _derive_g_multiplicity()
+    _output, decisions = _derive_g_multiplicity()
+    actual_counts = _actual_g_decision_counts(decisions)
     expected, excluded = _g_entry_partition_from_seal(seal)
 
-    _assert_g_entry_population(actual, seal)
+    _assert_g_entry_population(frozenset(actual_counts), seal)
+    _assert_g_decision_counts(actual_counts, _expected_g_decision_counts(seal))
+    actual_keys = tuple(
+        (entry_path, path, index)
+        for entry_path, path, index, _green in decisions
+    )
+    assert len(actual_keys) == len(set(actual_keys))
+    assert frozenset(actual_keys) == _expected_g_decision_keys(seal)
     assert excluded == frozenset(_base_frozen_asset_paths()) - expected
-    for omitted in expected:
-        with pytest.raises(AssertionError, match="g の入口集合が不一致"):
-            _assert_g_entry_population(actual - {omitted}, seal)
+
+
+def test_g_deriver_rejects_a_skipped_entry() -> None:
+    """導出器内で1入口の validator を全省略すると入口検査が red になる。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    expected_counts = _expected_g_decision_counts(seal)
+    omitted_entry = min(
+        expected_counts, key=lambda entry: (expected_counts[entry], entry)
+    )
+
+    def skip_inside_deriver(
+        entry_path: str,
+        _array_path: ArrayPath,
+        _index: int,
+        validate_and_record: GDecisionRecorder,
+    ) -> None:
+        if entry_path == omitted_entry:
+            return
+        validate_and_record()
+
+    _output, decisions = _derive_g_multiplicity_with_dispatcher(
+        skip_inside_deriver
+    )
+    actual_counts = _actual_g_decision_counts(decisions)
+    with pytest.raises(AssertionError, match="g の入口集合が不一致"):
+        _assert_g_entry_population(frozenset(actual_counts), seal)
+
+
+def test_g_deriver_rejects_one_skipped_decision() -> None:
+    """導出器内で1要素の validator を省略すると判定件数が red になる。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    expected_counts = _expected_g_decision_counts(seal)
+    partial_entry = min(
+        expected_counts, key=lambda entry: (expected_counts[entry], entry)
+    )
+    decision_skipped = False
+
+    def skip_inside_deriver(
+        entry_path: str,
+        _array_path: ArrayPath,
+        _index: int,
+        validate_and_record: GDecisionRecorder,
+    ) -> None:
+        nonlocal decision_skipped
+        if entry_path == partial_entry and not decision_skipped:
+            decision_skipped = True
+            return
+        validate_and_record()
+
+    _output, decisions = _derive_g_multiplicity_with_dispatcher(
+        skip_inside_deriver
+    )
+    actual_counts = _actual_g_decision_counts(decisions)
+    assert decision_skipped
+    _assert_g_entry_population(frozenset(actual_counts), seal)
+    with pytest.raises(AssertionError, match="g の入口別判定件数が不一致"):
+        _assert_g_decision_counts(actual_counts, expected_counts)
 
 
 def test_g_arrays_reject_every_element_duplication_at_the_semantic_entry() -> None:

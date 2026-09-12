@@ -2855,8 +2855,11 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 
 - `uv run pytest tests/test_check_authz_catalog.py`: **90 passed**(429.02 秒)
 - `uv run ruff check .` / `uv run ty check`: green
-- 変更したのは `tests/test_check_authz_catalog.py` のみ。
-  **`contracts/authz/`・`.claude/core-areas.json`・`scripts/check_authz_catalog.py` は不変。**
+- **コミット `ddf4463` の差分は 3 ファイル**: `tests/test_check_authz_catalog.py`(実装)・
+  `docs/features/pg-authz-verification-g2/plan.md`(P2 の `-k` 修正と検証行 `2-g` の追加)・
+  本 worklog(採否記録)。**Codex へ委任した実装の変更は `tests/` の 1 本だけ**で、
+  残り 2 本は私(Claude)が書いた文書である。
+- **`contracts/authz/`・`.claude/core-areas.json`・`scripts/check_authz_catalog.py` は不変。**
 
 ### 実行時間の増加(**指摘ではなく報告**)
 
@@ -2871,3 +2874,79 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 **このファイル単独で 429 秒。** 探針の直積化(1 周目 P1-2)と `g` の実行化(同 P1-1)が主因で、
 **どちらも指摘を正しく直した結果**である。短縮するなら**母集団の導出結果を資産として封印し、
 再導出を差分時だけにする**案があるが、**本改訂の射程外**なので別タスクへ送る候補とする。
+
+## 成果物の敵対レビュー 3 周目の採否(2026-09-13)
+
+**差分レビュー**(対象 `e43435e..ddf4463`)。**判定: 否決(P0 0 / P1 1 / P2 1)。2 件とも採用。**
+
+| # | 要旨 | 重大度 | 起因 | 区分 | 採否と理由 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **入口の記録が「実際に踏んだ」ではなく「踏もうとした」を測っていた** — `observed_entry_paths.add()` が validator の呼び出し**前**にある。**AST 変異で `rejected_configs` だけ記録直後に `return False` させ、validator を一度も呼ばなくしても `actual=7` のまま green** だった。**負例も照合関数の引数をいじるだけで導出器に接続されていない** | **P1** | 起因 | (-) | **採用**。**2 周目 P1 の未解消**。判定(green/red)が返ってはじめて踏んだと数える形へ変え、**入口ごとの判定件数を資産自身から導いた件数と突合**し、**負例は導出器の中で欠落を起こす**形にする |
+| 2 | worklog が「変更したのは `tests/` のみ」と書いているが、実差分は計画書と worklog 自身を含む **3 ファイル** | **P2** | 起因 | (-) | **採用**。**委任した実装の変更が 1 本で、残り 2 本は私が書いた文書である**と書き分けた |
+
+### 同じ型の 3 周目 — **どこで終端するか**
+
+| 周 | 直したこと | 次に露出した内側 |
+| --- | --- | --- |
+| **1** | 多重度の穴を塞ぐ検査を足した | **その検査自身が同じ穴を持っていた** |
+| **2** | 母集団を手書き定数から実行へ移した | **その実行の入口が手書きだった** |
+| **3** | 入口集合を seal の行の型から導出した | **入口を踏んだという記録が実行と無関係だった** |
+
+**4 周目の終端理由**: **観測を「導出器の自己申告」から「validator が返した判定の件数」へ移し、
+その件数を資産自身から導いた件数と突合する。**
+**これを破るには判定そのものを偽造する必要があり、
+それは「母集団を狭める」ではなく「測定を偽る」= 規律 5 が言う別の型になる。**
+
+### 打ち切り判断の材料(**PO へ提示した実測**)
+
+**層 ①(`g` = 意味検査器)の入口が仮に欠けても、層 ②(汎用走査)が独立に覆う**ことを実測した。
+
+| 実測 | 結果 |
+| --- | --- |
+| 層 ② が恒久検査する凍結パス | **15 パス全部**(`rejected-configs` を含む) |
+| 各パスで配列要素を 1 つ複製したとき層 ② が red になるか | **15 / 15・見逃し 0** |
+
+**PO 裁定(2026-09-13)**: **もう 1 周だけ直す**。上の終端理由により収束見込みがあるため。
+
+### 3 周目の反映(実装 — 2026-09-13)
+
+**観測の主体を「導出器の自己申告」から「validator が返した判定」へ移した。**
+
+| 変更 | 中身 |
+| --- | --- |
+| **判定の証跡** | `_derive_g_multiplicity()` が `(入口パス, 配列パス, 添字, green)` の **4 つ組の列**を返す。**記録は validator が判定を返した後**にのみ起こる |
+| **期待側の導出** | `_expected_g_decision_counts(seal)` が **入口ごとの配列要素数**を、`_expected_g_decision_keys(seal)` が **判定すべき (入口, 配列パス, 添字) の全組**を、いずれも **BASE 資産から**導く |
+| **突合** | 入口集合・入口別件数・**4 つ組の exact-set** の 3 段。あわせて**重複記録が無いこと**も要求する |
+| **負例** | `_derive_g_multiplicity_with_dispatcher()` に**判定実行器を差し込む継ぎ目**を置き、**導出器の中で**欠落を起こす。入口ごと(`test_g_deriver_rejects_a_skipped_entry`)と 1 判定だけ(`test_g_deriver_rejects_one_skipped_decision`)の 2 本 |
+
+### **3 周目を突破した変異の再演**(**継ぎ目ではなく通常経路で測った**)
+
+**レビューが使ったのと同じ形の AST 変異**を `dispatch_asset_mutation` の先頭へ入れ、
+**`_derive_g_multiplicity()`(通常経路)**で実測した。
+
+| 変異 | `output` | 結果 |
+| --- | --- | --- |
+| **ある入口の validator を全省略**(3 周目を突破した形) | **18(不変)** | **red** — `g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json']` |
+| **判定を 1 件だけ省略**(入口集合は完全なまま) | **18(不変)** | **red** — `g の入口別判定件数が不一致: 不足={'contracts/authz/ddl-elements.json': 1}` |
+
+**どちらも `output` は 18 のまま変わらない。**
+**出力からは絶対に見えない欠落を、判定の証跡が捕まえている。**
+
+### 浅いコピーへの変更の安全性(**実測**)
+
+`mutated_assets` を `copy.deepcopy(assets)` から `dict(assets)` へ変えて高速化している
+(1 導出あたり 80 秒 → 52 秒)。**validator が入力を書き換えないことが前提**なので実測した。
+
+- `validate_oracle_assets(..., verify_seal=False)` 実行後、**6 資産と seal のいずれも digest 不変**
+- `validate_oracle_seal(...)` 実行後も**同じく不変**
+
+### 検証(2026-09-13)
+
+- `uv run pytest tests/test_check_authz_catalog.py`: **92 passed**(509.56 秒)
+- **このコミットで Codex が変えたのは `tests/test_check_authz_catalog.py` の 1 本だけ**。
+  本 worklog の記述は私(Claude)が書いた。
+  **`contracts/authz/`・`.claude/core-areas.json`・`scripts/check_authz_catalog.py` は不変。**
+
+**実行時間**: 429 秒 → **510 秒**。導出 1 回あたりは 80 → 52 秒へ下がったが、
+**負例 2 本が導出器を通る**ため導出が 3 回になった(52 × 3 = 157 秒)。
+**負例を導出器へ接続した対価**であり、3 周目 P1 の要件 3 そのものである。
