@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g2
 created: 2026-09-09
-計画レビュー周回: 11        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 12        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -86,7 +86,8 @@ TSK-270 の計画レビューが 3 周連続で否決され、**人間の裁定 
 | **D-11** | `SHARED-AUTHORIZED-ROWS` の `aggregation_owner_task_id` | **新タスクへ移す**(起票済み — 下記)。**要件書の改訂は不要**((β)④ として既に列挙済み) |
 | **D-12** | `deferred_equivalence_contract.owner_task_id` | **D-11 と同じ新タスクへ** |
 | **D-13** | `guard_paths` の登録基準 | **規則で決める** — 「**凍結資産またはコア領域の成果物を検査する検査器とその対**」。**当面は規則から導いた 10 本を列挙で登録し、機械化は別タスクへ送る** |
-| **D-14** | **改訂 3 第 2 弾の射程**(2026-09-12) | **2 本に分ける** — **本改訂(PR #2)= 封印系**(`S-1` の一部・`S-5`・`S-7`・`S-9` + owner 移管 + `S-8` の一部)/ **PR #3 = ID 解決と受取契約**(`S-2`・`S-3`・`S-4`・`S-6`・`S-10`・`S-8` の残部)。**理由**: 後者は**受取タスクの DoD へ書き込む必要があり、先方が未着手**である。**分ければ本改訂は実測だけで閉じられる** |
+| **D-14** | **改訂 3 第 2 弾の射程**(2026-09-12) | **2 本に分ける** — **本改訂(PR #2)= 封印系**(`S-1` の一部・`S-5`・`S-7` + owner 移管 + `S-8` の一部 — **`S-9` は裁定 `D-15` で PR #3 へ移した**)/ **PR #3 = ID 解決と受取契約**(`S-2`・`S-3`・`S-4`・`S-6`・`S-9`・`S-10`・`S-8` の残部 — **`S-9` は裁定 `D-15` で追加**)。**理由**: 後者は**受取タスクの DoD へ書き込む必要があり、先方が未着手**である。**分ければ本改訂は実測だけで閉じられる** |
+| **D-15** | **`S-9`(受取先 178 件)の射程**(2026-09-12) | **丸ごと PR #3 へ送る** — **`contract_only` 158 行は `contract_only_reason_code: route_universe_pending`**、すなわち**経路の母集合が未確定だから受取先が決まっていない行**である。**受取タスクの名も「受取先を決める」であり、決める前の状態を確定所有者として封印することになる**(計画レビュー 3・4 周目が 2 周続けて `P0` 指摘)。**`D-14` の「受取タスクが未着手なら PR #3」と同じ理由で一貫する。****本改訂が触る封印資産は `boundary-proposal.json` と `ddl-elements.json` の 2 本になる** |
 | — | `CONTROL-READS` の `aggregation_owner_task_id` | **裁定不要・事実の是正**(`aggregation_location: none` なのに owner がある資産の欠陥) |
 
 **起票済みの受取タスク**:
@@ -183,7 +184,7 @@ git diff --exit-code origin/develop...HEAD -- \
 ### やること — **第 2 弾(本改訂の承認範囲 = ステップ 1〜3)**
 
 **裁定 `D-14` により封印系だけを射程とする。**
-**触るのは封印資産 3 本と検査器・配線だけで、入力資産には一切触らない。**
+**触るのは封印資産 2 本**(`boundary-proposal.json` / `ddl-elements.json`)**と検査器・配線だけで、入力資産には一切触らない**(**裁定 `D-15` で `claim-mutant-map.json` を触る `S-9` が PR #3 へ移った**)。
 
 #### ステップ番号は **1 から振り直す**(**実測で確定**)
 
@@ -196,7 +197,7 @@ git diff --exit-code origin/develop...HEAD -- \
 | 資産の区分 | 中身 | 本改訂が触るか |
 | --- | --- | --- |
 | **`input_assets`(8)** | `requirement-claims` / `route-registry` / **`auth-catalog`** / `http-route-matrix`(+ lock) | **触らない** |
-| **`sealed_assets`(6)** | `ddl-elements` / `rejected-configs` / **`claim-mutant-map`** / `attack-tree` / **`boundary-proposal`** / `verification-evidence` | **3 本を触る** |
+| **`sealed_assets`(6)** | **`ddl-elements`** / `rejected-configs` / `claim-mutant-map` / `attack-tree` / **`boundary-proposal`** / `verification-evidence` | **2 本を触る**(`claim-mutant-map` は裁定 `D-15` で PR #3 へ) |
 
 **`oracle_commit_semantics` は `last_committed_step_4_input_baseline`** —**入力の基準**を指す印である(`:4524` が literal を要求)。
 **本改訂は入力資産を 1 つも変えないので `oracle_commit` は動かさない。**
@@ -209,6 +210,7 @@ git diff --exit-code origin/develop...HEAD -- \
 
 | 要件 | 送り先 | 理由 |
 | --- | --- | --- |
+| **`S-9`**(`claim-mutant-map.json` の受取先 178 件) | **PR #3** | **裁定 `D-15`** — **`contract_only` 158 行は `route_universe_pending` で受取先が未確定**であり、**確定所有者として封印できない**。**`probe_executable` 20 件だけを切り出すと `TSK-270-GROUP-2` が 158 件残り、置換後に対象集合を再導出できなくなる**(4 周目 `P0-1` の実測 — 全 198 行のうち既存 `TSK-250` 13 / `TSK-217` 7 が同じ分類に混ざる) |
 | `S-2`(論理 ID → node ID・187 + 310 参照・status 更新) | **PR #3** | **`auth-catalog.json`(入力資産)を変えるので 2 段コミットが要る** |
 | `S-3`(要件側 7 単位の source) | **PR #3** | `S-2` と同じ資産の話 |
 | `S-4`(引き渡しマニフェストの ID 完全性) | **PR #3** | `S-2` の結果に依存 |
@@ -238,7 +240,7 @@ git diff --exit-code origin/develop...HEAD -- \
 | 正本 | 変更内容 | ゲート(PR レビュー / finalize-doc) |
 | --- | --- | --- |
 | [`docs/README.md`](../../README.md) | 索引の最終更新日を現行化 | —(常に現行化 — 7.2) |
-| `.claude/core-areas.json` | **本計画(第 1 弾)では変更しない** — `tenant-isolation.paths` への新設パス登録(実測 6 本)は**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) | **6.3 規則⑤(敵対レビュー + 人間承認)— 第 2 弾で払う** |
+| `.claude/core-areas.json` | **本改訂で変更する**(ステップ 2)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(4 節の表が正)。**第 1 弾では変更しなかった**(裁定 `D-10` で第 2 弾へ送っていた) | **6.3 規則⑤(敵対レビュー + 人間承認)— 本改訂で払う** |
 | [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **該当した。`## 候補` へ 7 件追記 + 既存候補 1 件へ実測補記**(**内訳**: **TSK-317 由来 4 件**(母集団の人手列挙 / DB テスト残骸の fail-closed / ジョブ横断の不変条件 / guard の部分一致誤検知)+ **TSK-355 由来 3 件**(順序の循環 / 成果物と許容差分のずれ / `H-68` 型の送り先が空手形)。**TSK-355 の 3 件は同タスクの依頼による代理提出**(先方の PR はマージ順序上いちばん最後で数週間先になるため。**TSK-235 とも同じ理由で分担を合意済み**))(**`H-*` の新規採番はしない・版は上げない**)。**新設候補 ①「母集団を人が列挙する検査は、射程が動くたびに黙って古くなる」**(本タスクの 6 周のレビューで 8 回・層を変えて再発。既存の `feature_status.py` allowlist とステップ表の集合差を同根として束ねた)/ **新設候補 ②「順序の付記に理由を書かないと、複数の承認済み計画に跨って循環を作る」**(TSK-317 / TSK-343 / TSK-355 / TSK-235 の 4 タスクが循環。TSK-355 の依頼で本 PR が代理提出)/ **既存候補「`H-85` の連鎖を実行する手順が無い」へ実測補記**(`--reseal` は `_validate_manifest` に先に止められて到達せず、`reseal_catalog()` は `input_manifest` を触らない。**3 フラグの fail-early が非対称** — `--reseal-oracle` だけが自分の seal 検査を明示的に飛ばす)。**TSK-355 の候補 3 件はすべて本 PR が代理提出した。** | PR レビュー(`H-*` の追記では版を上げない — 7.6-3 前段) |
 | [`docs/design/data-model.md`](../../design/data-model.md) | **反映なし**(3 件の是正は **TSK-348**) | — |
 | [`docs/development/dev-harness-design-2026-08-07.md`](../../development/dev-harness-design-2026-08-07.md) | **反映なし**(10.1 の追随は **TSK-343**) | — |
@@ -255,14 +257,14 @@ git diff --exit-code origin/develop...HEAD -- \
 | `contracts/authz/mcdc-map.json` | **新設** — MC/DC の判定・個別条件・独立影響のテスト対(**ステップ 18**) |
 | `contracts/authz/operation-count-mapping.json` | **改訂 3 第 2 弾の射程**(`S-3`)— 要件の 7 単位と `operation_ids`(8)の 1:N 写像。**本計画では作らない** |
 | `contracts/authz/handoff-manifest.json` | **改訂 3 第 2 弾の射程**(`S-4`)。**本計画では作らない** |
-| `contracts/authz/` の**凍結 15 パス** | **第 1 弾では変更しなかった。本改訂は `claim-mutant-map.json` / `boundary-proposal.json` / `ddl-elements.json` の 3 本と `oracle-seal.lock.json` を変更する**(`S-9`・`S-5`・`S-7`・`S-1`)。**残り 11 パスは不変** |
+| `contracts/authz/` の**凍結 15 パス** | **第 1 弾では変更しなかった。本改訂は `boundary-proposal.json` / `ddl-elements.json` の 2 本と `oracle-seal.lock.json` を変更する**(`S-5`・`S-7`・`S-1`)。**残り 12 パスは不変**(**`claim-mutant-map.json` は裁定 `D-15` で PR #3 へ**) |
 | `backend/src/pitchlog/authz/**` | **新設** — DDL 生成器・適用器・カタログ検査 |
 | `backend/tests/db/authz/**` / `backend/tests/db/conftest.py` | 4 ロール fixture の拡張・越境テスト・mutation ランナー |
-| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更と期待件数の撤去は改訂 3 第 2 弾**(`S-2`・`S-8`)— **本計画では行わない** |
-| `tests/test_core_guard.py` | **本計画(第 1 弾)では変更しない** — 新設パスの発火試験・`core-areas.json` への登録・`test_ci_wiring.py` の追記はいずれも**改訂 3 第 2 弾の `S-8` の射程**(裁定 `D-10`) |
+| `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py` | **この中央 2 ファイルへは新設資産の検査を追加しない**(**実装済みのステップ 2・9・14 は、それぞれ独立した `scripts/check_authz_function_bodies.py` / `check_shared_preconditions.py` / `check_failure_injection_points.py` と対になるテストを新設しており、中央 2 ファイルは変更していない** — 実測。`S-8` もこの独立 6 パスを前提にしている)。**残るステップ 18 の `mcdc-map.json` も同じ形で独立した検査器を新設する。****status 契約の変更(`S-2`)は PR #3。****期待件数の撤去と `S-5`・`S-7` の literal 追随は本改訂のステップ 1・3 で行う** |
+| `tests/test_core_guard.py` | **本改訂のステップ 2 で変更する** — 新設パスの発火試験と `core-areas.json` への登録。**第 1 弾では変更しなかった**(裁定 `D-10`) |
 | `backend/tests/db/test_authz_*.py` | **新設 12 本** — カタログ検査 / 越境の正例・拒否例 / 6 前提行列 / 表権限 8 種 / 管理経路 probe / TOCTOU / 失敗注入 / 信頼境界 / ロール接続 / 適用器 / mutation 全量。**`requires_db` マーカー付きで `backend/tests/db/` 配下**(`environment-expectations.json` の `required_path` 契約) |
 | `backend/tests/test_authz_*.py` | **新設 5 本** — **DB を必要としない**契約試験(DDL 生成器 / mutation の判定機構 / executor の観測 / 2 因子合成 × 2)。**`backend/tests/db/` の外に置く**(DB 必須テストの path 契約と分けるため) |
-| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は改訂 3 第 2 弾の `S-8`**(裁定 `D-10`。**ステップ 18 の 2 本を含めて 8 本になる** — 6 周目 `P2-1` の送り先記録) |
+| `scripts/check_shared_preconditions.py` / `check_failure_injection_points.py` / `check_mcdc_map.py` と、対になる `tests/test_check_*.py` | **新設 6 本** — 新設資産それぞれの独立した検査器(中央 2 ファイルへ足さない方針)。**`guard_paths` への登録は本改訂のステップ 2**(**中央 2 ファイルを含めて 10 本** — 裁定 `D-13` の規則を当てた実測) |
 | `tests/test_check_authz_function_bodies.py` | **追随** — `manifest.json` の `source_commit` を注記追加後のコミットへ変えたため、「body 導入前のコミット」を `--diff-filter=A` で探す形へ変更(**assertion は不変・弱体化していない**) |
 | `docs/features/pg-authz-verification-g2/{plan,research,design}.md` / `catalog-check-map.md` | feature 作業ディレクトリ(記録・正本ではない) |
 
@@ -278,7 +280,7 @@ git diff --exit-code origin/develop...HEAD -- \
 **core-guard は発火する** — `contracts/authz/*`・`backend/tests/db/*`・`scripts/check_authz_catalog.py`・
 `tests/test_check_authz_catalog.py`・`backend/pyproject.toml`・`backend/uv.lock`・`backend/*conftest.py`・
 `docker-compose.yml` が `tenant-isolation.paths`(22 件)に登録済み(導入 `d4373ec`)。
-**未登録は `backend/src/**`** で、これは**改訂 3 第 2 弾の `S-8` の対象**(**旧「ステップ 22」は裁定 `D-8` の分割で本計画の承認範囲から外れており、現在のステップ表は 1〜20 である** — 裁定 `D-10`)。
+**未登録は `backend/src/pitchlog/authz/*` と新設検査器 8 本**で、**本改訂のステップ 2 で登録する**(4 節の表が正)。**現在のステップ表は本改訂の 1〜3 である**(第 1 弾の 1〜20 は「第 1 弾の実施記録」へ移した)。
 
 ### 合格条件の書き方(3 つの規律)
 
@@ -441,18 +443,26 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | --- | --- | --- |
 | 1 | **期待件数のハードコード撤去**(`S-8` の一部)— `tests/test_check_authz_catalog.py` の「**資産由来の数量を整数リテラルで固定している `assert`**」を資産からの導出へ置き換える。**母集団は走査器が規則で定義する**(下記)。**撤去しない箇所は allowlist へ理由つきで載せる**。**封印資産に触れない** | `[機械]` **走査器が下記の規則を実装している**・**母集団 − allowlist = 0 件**・**allowlist の各項目が規則で再導出できる**(**実在しない行や規則に当たらない行を載せると red**)・**各項目の理由が非空**・**資産を 1 要素増やすとテストが自動追随する**・**負例: 規則に当たる整数リテラルを 1 件足すと red / allowlist から 1 件外すと red**・`uv run pytest tests/test_check_authz_catalog.py` green |
 | 2 | **`core-areas.json` への登録**(裁定 `D-13` + `S-8` の一部)— **`guard_paths` へ 10 本**・**`tenant-isolation.paths` へ 9 パターン**(いずれも下表で確定済み)。**封印資産に触れない** | `[機械]` **下表の 10 本と 9 パターンが登録されている**(exact-set)・**いずれか 1 件を外すと red**・**`tenant-isolation.paths` に追加した各パターンが実在ファイルへ 1 件以上マッチする**(**空振りのパターンを書けない**)・`uv run pytest tests/test_core_guard.py tests/test_ci_wiring.py` green。`[手動・外部]` **6.3 規則⑤の敵対レビュー + 人間承認** |
-| 3 | **封印資産の確定と再封印**(`S-9` + owner 移管 + `S-5` + `S-7` + 検査器追随 + `--reseal-oracle` **1 回**)— **3-a 〜 3-e を 1 コミットに収める**(上記の理由)。**`oracle_commit` は動かさない**(入力資産が不変のため — 2 節の実測) | `[機械]` **3-a 〜 3-e の全条件を満たす**(下記)・**reseal 後に `check_authz_catalog.py` が rc=0**・**`--reseal-oracle` を付けない通常検証では reseal されない**。`[手動・外部]` **差分敵対レビューと人間査読**(`reseal_policy.human_review_required`) |
+| 3 | **封印資産の確定と再封印**(owner 移管 + `S-5` + `S-7` + 検査器追随 + `--reseal-oracle` **1 回**)— **3-a 〜 3-d を 1 コミットに収める**(上記の理由)。**`oracle_commit` は動かさない**(入力資産が不変のため — 2 節の実測) | `[機械]` **3-a 〜 3-d の全条件を満たす**(下記)・**reseal 後に `check_authz_catalog.py` が rc=0**・**`--reseal-oracle` を付けない通常検証では reseal されない**。`[手動・外部]` **差分敵対レビューと人間査読**(`reseal_policy.human_review_required`) |
 
 ##### ステップ 1 の母集団 — **走査器の規則**(**件数を計画書に書かない** — 4 周目 `P1-8`)
 
 **対象**: `tests/test_check_authz_catalog.py`。**規則**(Python の AST で判定する):
 
-- `assert` 文の中の `ast.Compare` で、**演算子が `Eq` ちょうど 1 個**、かつ
-- **比較の右辺が `bool` でない `int` リテラル**、かつ
-- **左辺が ① `len(...)` 呼び出し、または ② 原文に `count` を含む式**
+- **`assert` 文の中に現れるすべての `int` リテラル**(`bool` を除く)。
+  **位置を限定しない** — **比較の右辺だけでなく、`Counter({"allow": 6, "deny": 6})` のような
+  コンテナリテラルの中の値も、`attempts == 894` のような名前との比較も母集団に入る**
+  (**「左辺が `len(...)` か `count`」に絞ると両者を取りこぼす** — 4 周目 `P1-3` の実測)。
+- **唯一の除外**: **比較の左辺の原文に `returncode` を含む `ast.Compare` の中**のリテラル。
+  **プロセスの終了状態であって資産由来の数量ではない**。
+  **除外はこの 1 種類だけで、他はすべて母集団に入る。**
 
-**除外**: 左辺の原文が `returncode` を含むもの(**プロセスの終了状態であって資産由来の数量ではない**)/
-**右辺が `0` のもの**(「**禁止語が 0 件**」の主張であって資産由来の数量ではない)。
+**allowlist の項目**(**撤去しないものはここへ理由つきで載せる**):
+
+- **キーは `(テスト関数名, 整数値)`**(**行番号ではない** — 行の移動で allowlist が壊れない)
+- **理由は非空**。**下限の主張(`> 0`)・禁止語が 0 件・言語仕様上の定数**などは、
+  **「資産由来の数量ではない」理由を個別に書く**
+- **allowlist の各項目が、規則で得た母集団に実在すること**(**架空の項目を載せると red**)
 
 **計画書は件数を断定しない。** **母集団は走査器の実行結果が正**であり、
 **実装時点の実測値を worklog へ記録する**(**「20 箇所」という前提は 4 周目 `P1-8` で撤回した** —
@@ -488,33 +498,10 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 ##### ステップ 3 の内訳と合格条件
 
-**3-a `S-9` — プレースホルダ受取先を実 ID へ置換**
+> **`S-9`(`claim-mutant-map.json` の受取先 178 件)は裁定 `D-15` で PR #3 へ送った。**
+> **本改訂は `claim-mutant-map.json` に触らない。**
 
-`claim-mutant-map.json` の `receiving_task_id: TSK-270-GROUP-2` **178 件**を、
-**分類ごとの閉じた写像**で置き換える:
-
-| 分類(**資産から導出する**) | 受取先 |
-| --- | --- |
-| **`runtime_target` を持つ**(`probe_executable`) | **`TSK-317`**(本タスク) |
-| **`runtime_target` を持たず `product_schema: false`**(`contract_only`) | **`3d993b75-e687-8144-bd42-ee08d678b68f`** |
-
-`[機械]` **`TSK-270-GROUP-2` の残存 0 件**・
-**全 178 行が「分類から決まる受取先」と一致する**(**許容写像を exact に検査する** —
-**受取先が上表の 2 値以外なら red**)・
-**分類は `runtime_target` の有無から導出している**(**件数を定数で持たない**)・
-**同一 `runtime_test_owner.id` を共有する行の受取先が一致**(**8 組すべてで成立する** — `S-10` の実測)・
-**負例: 178 行すべてを同一の実在文字列にすると red / `contract_only` の 1 行を `TSK-317` にすると red /
-受取先を任意の非空文字列にすると red / 同一 owner ID の行を別受取先にすると red**。
-
-> **封印するのは「所有者」であって「契約」ではない**(4 周目 `P0-3` への回答)。
-> **`contract_only` 158 行の受取先は「受取先を決めるタスク」ではなく、
-> その runtime テストを所有するタスクである。**
-> **TSK-317 は `runtime_target` を持たない claim の runtime テストを書けない**ため、
-> **所有者になり得ないことが資産から決まる。**
-> **実受取契約・許容集合・read-back(`S-10`)は当該タスクの DoD で確定する**が、
-> **それは所有者の確定とは別の事項であり、PR #3 の射程である。**
-
-**3-b owner の移管と `CONTROL-READS` の事実是正**(裁定 `D-11` `D-12`)
+**3-a owner の移管と `CONTROL-READS` の事実是正**(裁定 `D-11` `D-12`)
 
 **`boundary-proposal.json` の 3 境界を閉じた表で固定する**(**条件で一般化しない**):
 
@@ -536,7 +523,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 > **条件で一般化すると正しい実装が不合格になるか、正当な owner まで削られる。**
 > **母集団は 3 境界の閉じた表である。**
 
-**3-c `S-5` — `boundary-proposal.json` の裁定後の型を確定**
+**3-b `S-5` — `boundary-proposal.json` の裁定後の型を確定**
 
 **資産と検査器を同時に変える**(下記「資産と検査器が二重に固定されている」)。
 
@@ -544,7 +531,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **検査器の literal が資産と一致**・**`tests/test_check_authz_catalog.py` が追随している**・
 **負例: 資産だけ変えると red / 検査器だけ変えても red**。
 
-**3-d `S-7` — `ddl-elements.json` の `scope` を確定**
+**3-c `S-7` — `ddl-elements.json` の `scope` を確定**
 
 `status: verified_probe_configuration` / `product_schema: false` /
 `contains_sql_body: false` / `second_group_approval_required: false`。
@@ -559,13 +546,13 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 **証跡は PR 本文と worklog へ置く** — **第 1 弾(PR #52 / `67e06a2`)の当該 CI run と、
 そこで green になった検証ステップを明記する。**
 
-**3-e oracle の再封印**(`--reseal-oracle` **1 回**)
+**3-d oracle の再封印**(`--reseal-oracle` **1 回**)
 
 `[機械]` **seal の `oracle_commit` が `dd2cb92...` のまま**・
 **`oracle_commit_semantics` が `last_committed_step_4_input_baseline` のまま**・
 **`input_assets[].git_blob_digest` 8 件が不変**・
-**`sealed_assets[]` のうち `claim-mutant-map` / `boundary-proposal` / `ddl-elements` の
-3 本だけ `canonical_sha256` が変わる**(**残り 3 本は不変**)。
+**`sealed_assets[]` のうち `boundary-proposal` / `ddl-elements` の
+2 本だけ `canonical_sha256` が変わる**(**残り 4 本は不変** — **`claim-mutant-map` は裁定 `D-15` で PR #3 へ**)。
 
 #### 資産と検査器が二重に固定されている(**`S-5` と `S-7` の実測**)
 
@@ -594,7 +581,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 ### 第 2 群後半・第 3 群 — **第 1 弾の承認範囲外だった要件の記録**
 
-> **本節の `S-1`〜`S-10` のうち、`S-1`・`S-5`・`S-7`・`S-9`・`S-8` の一部は本改訂の射程である**(裁定 `D-14`)。**残る `S-2`・`S-3`・`S-4`・`S-6`・`S-10`・`S-8` の残部は PR #3 の射程**で、**2 節の送り先表が正**である。
+> **本節の `S-1`〜`S-10` のうち、`S-1`・`S-5`・`S-7`・`S-8` の一部は本改訂の射程である**(裁定 `D-14`)。**残る `S-2`・`S-3`・`S-4`・`S-6`・`S-9`・`S-10`・`S-8` の残部は PR #3 の射程**で(**`S-9` は裁定 `D-15`**)、**2 節の送り先表が正**である。
 
 **裁定 `D-8`(2026-09-09)**: 計画レビューが **3 周**を要し、**前周修正起因が 2 周連続で過半**になった
 (7.3-6 の発火)。指摘の型は「**新設した母集合資産が自己申告で自明に green にできる**」に収束しており、
@@ -670,10 +657,12 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 #### ステップ 1 — 期待件数のハードコード撤去
 
-- [ ] **走査器が 4 節の規則を実装している**(AST・`Eq` 1 個・右辺 int リテラル・左辺 `len(...)` か `count`)
-- [ ] **`returncode` と `== 0` を除外している**
+- [ ] **走査器が 4 節の規則を実装している**(**`assert` 文中のすべての `int` リテラル**・
+      **位置を限定しない**・**除外は `returncode` 比較の 1 種類だけ**)
+- [ ] **`Counter({...})` の中の値と、名前との比較(`attempts == 894`)が母集団に入っている**
 - [ ] **母集団 − allowlist = 0 件**
-- [ ] **allowlist の各項目が規則で再導出でき、理由が非空**(**実在しない行・規則に当たらない行を載せると red**)
+- [ ] **allowlist のキーが `(テスト関数名, 整数値)`** で、**各項目が母集団に実在し、理由が非空**
+      (**架空の項目を載せると red**)
 - [ ] **資産を 1 要素増やすとテストが自動追随する**
 - [ ] **実装時点の母集団の実測値を worklog へ記録した**(**計画書に件数を書かない**)
 
@@ -687,9 +676,6 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 
 #### ステップ 3 — 封印資産の確定と再封印(**1 コミット**)
 
-- [ ] **`TSK-270-GROUP-2` の残存 0 件**で、**全行が「分類から決まる受取先」と一致する**(**2 値以外は red**)
-- [ ] **分類を `runtime_target` の有無から導出している**(**件数を定数で持たない**)
-- [ ] **同一 `runtime_test_owner.id` を共有する行が同一受取先**
 - [ ] **`boundary-proposal.json` の 3 境界が 4 節の閉じた表と完全一致**
       (**`REPRESENTATIVE-MANAGEMENT` の `TSK-250` は不変**)
 - [ ] **`deferred_equivalence_contract.owner_task_id` が実 ID と完全一致**
@@ -697,13 +683,15 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 - [ ] **`scope` の 4 キーが確定値**で、**検査器の literal が資産と一致**し、**4 キーそれぞれの負例がある**
 - [ ] **`--reseal-oracle` を 1 回だけ回した**
 - [ ] **`oracle_commit` と `oracle_commit_semantics` が不変**
-- [ ] **`input_assets[].git_blob_digest` 8 件が不変**で、**`sealed_assets[]` の 3 本だけが変わった**
+- [ ] **`input_assets[].git_blob_digest` 8 件が不変**で、
+      **`sealed_assets[]` の 2 本(`boundary-proposal` / `ddl-elements`)だけが変わった**
+- [ ] **`claim-mutant-map.json` に触っていない**(裁定 `D-15` — `S-9` は PR #3)
 - [ ] **「通った構成」の実行証跡を PR 本文と worklog へ記録した**(**`scope` へは置けない**)
 - [ ] **差分敵対レビューと人間査読を通した**
 
 #### 引き渡し
 
-- [ ] **PR #3 へ送る 6 件を計画書へ受取先つきで書いた**(`S-2` `S-3` `S-4` `S-6` `S-10` `S-8` の残部)
+- [ ] **PR #3 へ送る 7 件を計画書へ受取先つきで書いた**(`S-2` `S-3` `S-4` `S-6` `S-9` `S-10` `S-8` の残部)
 - [ ] **コア領域として敵対レビュー + 人間の逐行確認を通っている**(**逐行確認は PR 作成者以外**・**実施記録行を確認者本人が記入する**)
 - [ ] **引き渡し前に PR HEAD の `core-guard` 以外の全ジョブが green**
 - [ ] **人間の逐行確認と PR 本文の記入の後、`edited` で起きた新 run の全ジョブが green**
@@ -725,7 +713,7 @@ DDL 生成器の入力契約・カタログ検査の検査 ID 一覧・変異軸
 | **(a) 一致性 /(c) E2E /(d) 同期故障系** | **追加なし** |
 | **構成検査(要件の 4 種に属さない — 設計判断)** | ステップ **6** のカタログ検査 / ステップ **4** の冪等性とコミット境界 / ステップ **13** の TOCTOU / ステップ **14・15** の失敗注入 / ステップ **2** の body 静的照合。**`NFR-019` の種別として計上しない**(`data-model.md:239` が「越境テストとは別に構成そのものを検査する」と定める) |
 | **mutation(要件の 4 種に属さない — 設計判断)** | ステップ **17〜20**。**`NFR-018`(b)② を根拠に引かない** — 同項の対象列挙(状況判定・座標変換・捕球選手推定・成績集計の前処理・終了判定)に**認可構成は入っておらず**、実装判断で対象に加える規定もない。**「3 変異で必ず red」という件数にも要件典拠がない**(要件の閾値は「非等価変異の生存 0」) |
-| **回帰(本物の資産)** | `test_repository_oracle_assets_are_valid` / `test_repository_derived_assets_are_valid` ほか既存 72 件が green のまま。**第 1 弾(ステップ 1〜20)の全期間で凍結 15 パスのバイトが変わらない**ことを assert した。**本改訂では対象を 11 パスへ縮める** — **`ddl-elements` / `claim-mutant-map` / `boundary-proposal` と seal は本改訂が変更するため、15 パス全体で差分 0 を要求すると正しい実装が必ず落ちる**(4 周目 `P0-2`) |
+| **回帰(本物の資産)** | `test_repository_oracle_assets_are_valid` / `test_repository_derived_assets_are_valid` ほか既存 72 件が green のまま。**第 1 弾(ステップ 1〜20)の全期間で凍結 15 パスのバイトが変わらない**ことを assert した。**本改訂では対象を 12 パスへ縮める** — **`ddl-elements` / `boundary-proposal` と seal は本改訂が変更するため、15 パス全体で差分 0 を要求すると正しい実装が必ず落ちる**(4 周目 `P0-2`。**`claim-mutant-map` は裁定 `D-15` で PR #3 へ移ったので不変側に戻った**) |
 
 **既存のハードコード撤去は本改訂のステップ 1 の射程**(`S-8`)。**第 1 弾の新設テストは資産由来の導出にした** —
 既存のハードコードが過去に他タスクを red にした連鎖(`H-85`)があるため、新設分で同じ型を作らない。
@@ -740,26 +728,43 @@ WT=/home/ymdms/projects/pitchlog-worktrees/feature-pg-authz-verification-g2
 # 1. 認可資産の検査(違反 0)
 uv run python scripts/check_authz_catalog.py --root "$WT"
 
-# 2-a. 凍結 15 パスのうち **11 パスが不変**であること(基準は origin/develop...HEAD)
-#      本改訂は sealed_assets の 3 本と seal を変更する。差分 0 を要求すると必ず落ちる(4 周目 P0-2)
+# 2-a. 凍結 15 パスのうち **12 パスが不変**であること(基準は origin/develop...HEAD)
+#      本改訂は sealed_assets の 2 本と seal を変更する。差分 0 を要求すると必ず落ちる(4 周目 P0-2)
 git -C "$WT" diff --exit-code origin/develop...HEAD -- \
   contracts/authz/requirement-claims.json contracts/authz/requirement-claims.lock.json \
   contracts/authz/route-registry.json contracts/authz/route-registry.lock.json \
   contracts/authz/auth-catalog.json contracts/authz/auth-catalog.lock.json \
   contracts/authz/http-route-matrix.json contracts/authz/http-route-matrix.lock.json \
   contracts/authz/rejected-configs.json contracts/authz/attack-tree.json \
-  contracts/authz/verification-evidence.json
+  contracts/authz/verification-evidence.json contracts/authz/claim-mutant-map.json
 
-# 2-b. 変更する 4 パスに**差分があること**(無変更で通らないようにする)
-git -C "$WT" diff --quiet origin/develop...HEAD -- \
-  contracts/authz/ddl-elements.json contracts/authz/claim-mutant-map.json \
-  contracts/authz/boundary-proposal.json contracts/authz/oracle-seal.lock.json \
-  && { echo "封印資産に差分が無い"; exit 1; }
+# 2-b. 変更する 3 パス**それぞれ**に差分があること(1 本だけ変えて通る経路を塞ぐ — 4 周目 P1-4)
+for p in contracts/authz/ddl-elements.json contracts/authz/boundary-proposal.json \
+         contracts/authz/oracle-seal.lock.json; do
+  git -C "$WT" diff --quiet origin/develop...HEAD -- "$p" && { echo "差分が無い: $p"; exit 1; }
+done
 
-# 2-c. seal の oracle_commit / semantics / input_assets の digest が不変であること
-git -C "$WT" diff origin/develop...HEAD -- contracts/authz/oracle-seal.lock.json \
-  | grep -E '^[-+].*(oracle_commit|git_blob_digest)' \
-  && { echo "入力側の封印が動いている"; exit 1; }
+# 2-c. 空白だけの変更で通らないこと — seal が持つ canonical_sha256 が実際に動いたかを見る
+#      (2-b は差分の有無しか見ないので、意味の変化はここで確かめる — 4 周目 P1-4)
+uv run python - "$WT" <<'PY'
+import json, subprocess, sys
+wt = sys.argv[1]
+base = json.loads(subprocess.run(
+    ["git", "-C", wt, "show", "origin/develop:contracts/authz/oracle-seal.lock.json"],
+    capture_output=True, text=True, check=True).stdout)
+head = json.load(open(f"{wt}/contracts/authz/oracle-seal.lock.json"))
+assert base["oracle_commit"] == head["oracle_commit"], "oracle_commit が動いている"
+assert base["oracle_commit_semantics"] == head["oracle_commit_semantics"], "semantics が動いている"
+b = {a["path"]: a["canonical_sha256"] for a in base["sealed_assets"]}
+h = {a["path"]: a["canonical_sha256"] for a in head["sealed_assets"]}
+changed = {p for p in b if b[p] != h.get(p)}
+expected = {"contracts/authz/ddl-elements.json", "contracts/authz/boundary-proposal.json"}
+assert changed == expected, f"canonical が変わった資産が期待と違う: {changed}"
+bi = {a["path"]: a["git_blob_digest"] for a in base["input_assets"]}
+hi = {a["path"]: a["git_blob_digest"] for a in head["input_assets"]}
+assert bi == hi, "入力資産の digest が動いている"
+print("seal OK")
+PY
 
 # 3. 品質ゲート一括(/check 相当)
 (cd "$WT" && uv run ruff check . && uv run ty check && uv run pytest tests/)
@@ -794,6 +799,6 @@ uv run python scripts/feature_status.py
    `python .claude/scripts/codex_run.py review adversarial -`
 2. 指摘を反映(指摘反映を伴うレビュー 1 周ごとに frontmatter の `計画レビュー周回` を +1)
 3. 収束したら**人間の承認**を求める → `承認: 済(YYYY-MM-DD・承認者)` へ
-4. 承認後 `/implement` で**ステップ 1 から**委任する(1 委任 = 1 ステップ = 1 コミット・件名は `(ステップ k/3)`)。**第 1 弾の 1〜20 は再実装しない** — **番号は 1 から振り直してあり**(2 節の実測: **merge-base 以降のステップ記法コミットが 0 件**)、**第 1 弾の表は「実装ステップ」見出しの配下から外して機構の射程外へ置いた**(4 周目 `P0-1`)
+4. 承認後 `/implement` で**ステップ 1 から**委任する(1 委任 = 1 ステップ = 1 コミット・件名は `(ステップ k)` — **総数接尾辞は付けない**(4 節「ステップ番号の規律」))。**第 1 弾の 1〜20 は再実装しない** — **番号は 1 から振り直してあり**(2 節の実測: **merge-base 以降のステップ記法コミットが 0 件**)、**第 1 弾の表は「実装ステップ」見出しの配下から外して機構の射程外へ置いた**(4 周目 `P0-1`)
 
 > **`承認: 未` の間、現在地導出はステップ進捗を表示しない。** `scripts/feature_status.py:1390` の `if not approved(frontmatter)` が**履歴走査より前に return する**ため、**第 1 弾が完了済みでも「計画段階(承認待ち)」と表示される**(`progress=Progress(kind="not_applicable", note="計画段階")`)。**進捗が失われたのではなく、改訂中は表示されないだけである** — **再承認後は本改訂の 0/3 から始まる**(**第 1 弾の進捗は merge-base の向こう側にあり、`feature_status.py:761` の走査範囲に入らない**)。改訂 3 の敵対レビュー 1 周目 `P1-5`
