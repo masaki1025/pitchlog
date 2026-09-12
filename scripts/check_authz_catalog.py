@@ -565,6 +565,19 @@ def _validate_object_path_uniqueness(
         raise CatalogError(f"{label} の path が重複している")
 
 
+def _index_unique_object_rows(
+    rows: list[dict[str, object]], key: str, label: str
+) -> dict[str, dict[str, object]]:
+    """識別子で行を畳む前に、値の型と行の一意性を検査する。"""
+    indexed: dict[str, dict[str, object]] = {}
+    for index, row in enumerate(rows):
+        identifier = _expect_string(row.get(key), f"{label}[{index}].{key}")
+        if identifier in indexed:
+            raise CatalogError(f"{label} の {key} が重複している: {identifier}")
+        indexed[identifier] = row
+    return indexed
+
+
 def _validate_manifest(
     raw: object,
     extraction: Extraction,
@@ -4358,16 +4371,13 @@ def validate_attack_tree(
 
 
 def _validate_boundary_owner_assignments(
-    boundaries: list[dict[str, object]],
+    boundary_by_id: dict[str, dict[str, object]],
     deferred: object,
     trust_boundary: object,
 ) -> None:
     """裁定した5箇所だけに owner を置き、各値を exact に検査する。"""
     if not isinstance(deferred, dict) or not isinstance(trust_boundary, dict):
         raise CatalogError("境界 owner の格納先がオブジェクトでない")
-    boundary_by_id = {
-        str(boundary.get("boundary_id")): boundary for boundary in boundaries
-    }
     actual: dict[tuple[str, str], object] = {}
     for boundary_id, boundary in boundary_by_id.items():
         for key, value in boundary.items():
@@ -4406,7 +4416,9 @@ def _validate_boundary_decisions(
     if raw["proposal_status"] != "tsk_235_confirmed":
         raise CatalogError("境界案の TSK-235 確認状態が不正")
     reviews = _expect_object_list(raw["pending_human_reviews"], "pending_human_reviews")
-    review_by_id = {str(review.get("review_id")): review for review in reviews}
+    review_by_id = _index_unique_object_rows(
+        reviews, "review_id", "pending_human_reviews"
+    )
     if set(review_by_id) != {
         "PENDING-MANAGEMENT-COMMAND-COUNT",
         "PENDING-ALL-LOGICAL-SCOPE",
@@ -4513,8 +4525,8 @@ def validate_boundary_proposal(
     if oracle_commit != ORACLE_INPUT_BASELINE_COMMIT:
         raise CatalogError("boundary proposal の oracle_commit が基準版と不一致")
     boundaries = _expect_object_list(raw["boundaries"], "boundaries")
-    boundary_ids = {str(boundary.get("boundary_id")) for boundary in boundaries}
-    if boundary_ids != {
+    boundary_by_id = _index_unique_object_rows(boundaries, "boundary_id", "boundaries")
+    if set(boundary_by_id) != {
         "BOUNDARY:SHARED-AUTHORIZED-ROWS",
         "BOUNDARY:CONTROL-READS",
         "BOUNDARY:REPRESENTATIVE-MANAGEMENT",
@@ -4522,12 +4534,8 @@ def validate_boundary_proposal(
         raise CatalogError("境界案が閉じた3責務と不一致")
     deferred = raw["deferred_equivalence_contract"]
     trust_boundary = raw["trust_boundary"]
-    _validate_boundary_owner_assignments(boundaries, deferred, trust_boundary)
-    shared = next(
-        boundary
-        for boundary in boundaries
-        if boundary["boundary_id"] == "BOUNDARY:SHARED-AUTHORIZED-ROWS"
-    )
+    _validate_boundary_owner_assignments(boundary_by_id, deferred, trust_boundary)
+    shared = boundary_by_id["BOUNDARY:SHARED-AUTHORIZED-ROWS"]
     if (
         shared.get("aggregation_location") != "generated_sql_expression"
         or shared.get("returns_tenant_ids_only") is not False
@@ -4552,11 +4560,7 @@ def validate_boundary_proposal(
         },
         "SHARED-AUTHORIZED-ROWS boundary",
     )
-    control = next(
-        boundary
-        for boundary in boundaries
-        if boundary["boundary_id"] == "BOUNDARY:CONTROL-READS"
-    )
+    control = boundary_by_id["BOUNDARY:CONTROL-READS"]
     _expect_keys(
         {
             key: value
@@ -4579,11 +4583,7 @@ def validate_boundary_proposal(
         or control.get("product_entry_contract") != "paged_rows_only"
     ):
         raise CatalogError("制御読み取り境界の確定値が不正")
-    representative = next(
-        boundary
-        for boundary in boundaries
-        if boundary["boundary_id"] == "BOUNDARY:REPRESENTATIVE-MANAGEMENT"
-    )
+    representative = boundary_by_id["BOUNDARY:REPRESENTATIVE-MANAGEMENT"]
     representative_claim_ids = frozenset(
         _expect_string_list(
             representative.get("claim_ids"), "representative management claims"
