@@ -104,6 +104,7 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
     "IMPORT_EVACUATED_EVENT",
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
+ORACLE_INPUT_BASELINE_COMMIT = "dd2cb92cf48d5b1a58431ce1b65e64b4c91e8ba0"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
 RUNTIME_TARGET_KINDS = frozenset(
     {
@@ -519,6 +520,49 @@ def _expect_string_list(value: object, label: str) -> list[str]:
     if len(value) != len(set(value)):
         raise CatalogError(f"{label}に重複がある")
     return value
+
+
+def _validate_json_array_multiplicity(
+    value: object,
+    label: str,
+    path: tuple[str | int, ...] = (),
+) -> None:
+    """JSON の全配列を再帰走査し、同一要素の複製を拒否する。"""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _validate_json_array_multiplicity(child, label, (*path, key))
+        return
+    if not isinstance(value, list):
+        return
+    signatures = [
+        json.dumps(
+            item,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for item in value
+    ]
+    if len(signatures) != len(set(signatures)):
+        rendered_path = "".join(
+            f"[{part}]" if isinstance(part, int) else f".{part}"
+            for part in path
+        ).removeprefix(".")
+        raise CatalogError(f"{label}.{rendered_path} の配列要素が重複している")
+    for index, child in enumerate(value):
+        _validate_json_array_multiplicity(child, label, (*path, index))
+
+
+def _validate_object_path_uniqueness(
+    rows: list[dict[str, object]], label: str
+) -> None:
+    """path を持つオブジェクト配列の行重複を拒否する。"""
+    paths = [
+        _expect_string(row.get("path"), f"{label}[{index}].path")
+        for index, row in enumerate(rows)
+    ]
+    if len(paths) != len(set(paths)):
+        raise CatalogError(f"{label} の path が重複している")
 
 
 def _validate_manifest(
@@ -2632,6 +2676,29 @@ def _validate_referenced_provenance(
         raise CatalogError(f"{label}が逐語典拠の閉集合にない")
 
 
+def _validate_ddl_scope(raw: object) -> None:
+    """実機確認済み probe 構成の閉じた scope を検査する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("DDL manifest.scope はオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "status",
+            "product_schema",
+            "contains_sql_body",
+            "second_group_approval_required",
+        },
+        "DDL manifest.scope",
+    )
+    if raw != {
+        "status": "verified_probe_configuration",
+        "product_schema": False,
+        "contains_sql_body": False,
+        "second_group_approval_required": False,
+    }:
+        raise CatalogError("DDL manifest が実機確認済み probe の範囲を越えている")
+
+
 def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
     """第2群向けの宣言的 DDL 要素だけを検査する。"""
     if not isinstance(raw, dict):
@@ -2664,26 +2731,7 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         raise CatalogError("DDL manifest の schema_version または asset_kind が不正")
     oracle_commit = _validate_oracle_context(raw["oracle_context"], "DDL manifest")
     _validate_oracle_provenance(raw["provenance"], root, "DDL manifest")
-    scope = raw["scope"]
-    if not isinstance(scope, dict):
-        raise CatalogError("DDL manifest.scope はオブジェクトでなければならない")
-    _expect_keys(
-        scope,
-        {
-            "status",
-            "product_schema",
-            "contains_sql_body",
-            "second_group_approval_required",
-        },
-        "DDL manifest.scope",
-    )
-    if (
-        scope["status"] != "candidate_probe_only"
-        or scope["product_schema"] is not False
-        or scope["contains_sql_body"] is not False
-        or scope["second_group_approval_required"] is not True
-    ):
-        raise CatalogError("DDL manifest が宣言的 probe 候補の範囲を越えている")
+    _validate_ddl_scope(raw["scope"])
     enums = raw["enums"]
     if not isinstance(enums, dict):
         raise CatalogError("DDL manifest.enums はオブジェクトでなければならない")
@@ -4309,6 +4357,124 @@ def validate_attack_tree(
     }
 
 
+def _validate_boundary_owner_assignments(
+    boundaries: list[dict[str, object]],
+    deferred: object,
+    trust_boundary: object,
+) -> None:
+    """裁定した5箇所だけに owner を置き、各値を exact に検査する。"""
+    if not isinstance(deferred, dict) or not isinstance(trust_boundary, dict):
+        raise CatalogError("境界 owner の格納先がオブジェクトでない")
+    boundary_by_id = {
+        str(boundary.get("boundary_id")): boundary for boundary in boundaries
+    }
+    actual: dict[tuple[str, str], object] = {}
+    for boundary_id, boundary in boundary_by_id.items():
+        for key, value in boundary.items():
+            if "owner" in key or "task_id" in key:
+                actual[(boundary_id, key)] = value
+    for section, value in (
+        ("deferred_equivalence_contract", deferred),
+        ("trust_boundary", trust_boundary),
+    ):
+        for key, child in value.items():
+            if "owner" in key or "task_id" in key:
+                actual[(section, key)] = child
+    expected = {
+        (
+            "BOUNDARY:SHARED-AUTHORIZED-ROWS",
+            "aggregation_owner_task_id",
+        ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
+        (
+            "BOUNDARY:REPRESENTATIVE-MANAGEMENT",
+            "aggregation_owner_task_id",
+        ): "TSK-250",
+        (
+            "deferred_equivalence_contract",
+            "owner_task_id",
+        ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
+        ("trust_boundary", "verification_owner_task_id"): "TSK-217",
+    }
+    if actual != expected:
+        raise CatalogError("boundary proposal の owner 5箇所が裁定と不一致")
+
+
+def _validate_boundary_decisions(
+    raw: dict[str, object], expected_all_logical: list[str]
+) -> list[dict[str, object]]:
+    """S-5 で確定した状態・値・安定 ID を exact に検査する。"""
+    if raw["proposal_status"] != "tsk_235_confirmed":
+        raise CatalogError("境界案の TSK-235 確認状態が不正")
+    reviews = _expect_object_list(raw["pending_human_reviews"], "pending_human_reviews")
+    review_by_id = {str(review.get("review_id")): review for review in reviews}
+    if set(review_by_id) != {
+        "PENDING-MANAGEMENT-COMMAND-COUNT",
+        "PENDING-ALL-LOGICAL-SCOPE",
+    }:
+        raise CatalogError("保留中の人間裁定2件が exact-set 不一致")
+    operation_review = review_by_id["PENDING-MANAGEMENT-COMMAND-COUNT"]
+    _expect_keys(
+        operation_review,
+        {
+            "review_id",
+            "status",
+            "frozen_value",
+            "alternative_value",
+            "affected_ids_if_changed",
+            "oracle_change_action",
+        },
+        "management command count review",
+    )
+    operation_affected = operation_review.get("affected_ids_if_changed")
+    if (
+        operation_review.get("status") != "human_decided"
+        or operation_review.get("frozen_value") != 8
+        or operation_review.get("alternative_value") != 7
+        or not isinstance(operation_affected, list)
+        or not all(isinstance(item, str) for item in operation_affected)
+        or set(operation_affected)
+        != {
+            "issue_invitation",
+            "revoke_invitation",
+            "ROUTE:MANAGEMENT:ISSUE_INVITATION",
+            "ROUTE:MANAGEMENT:REVOKE_INVITATION",
+            "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+            "HTTP:ROUTE:MANAGEMENT:REVOKE_INVITATION",
+            "FR-041/list_item-006#issue-permission",
+            "FR-041/list_item-006#invitation-state",
+            "FR-041/list_item-006#capacity-constraint",
+        }
+    ):
+        raise CatalogError("管理操作8/7の確定裁定または影響行が不正")
+    scope_review = review_by_id["PENDING-ALL-LOGICAL-SCOPE"]
+    _expect_keys(
+        scope_review,
+        {
+            "review_id",
+            "status",
+            "frozen_value",
+            "alternative_value",
+            "affected_claim_ids",
+            "oracle_change_action",
+        },
+        "all logical scope review",
+    )
+    affected_claim_ids = scope_review.get("affected_claim_ids")
+    if (
+        scope_review.get("status") != "human_decided"
+        or scope_review.get("frozen_value") != len(expected_all_logical)
+        or scope_review.get("alternative_value") is not None
+        or not isinstance(affected_claim_ids, list)
+        or not all(isinstance(item, str) for item in affected_claim_ids)
+        or set(affected_claim_ids) != set(expected_all_logical)
+    ):
+        raise CatalogError("ALL_LOGICAL 査読対象が AUTH catalog と exact-set 不一致")
+    for review in reviews:
+        if review.get("oracle_change_action") != "return_to_step_5_and_re_review":
+            raise CatalogError("保留裁定が oracle 再レビュー規律へ接続されていない")
+    return reviews
+
+
 def validate_boundary_proposal(
     raw: object,
     auth_catalog: dict[str, object],
@@ -4335,9 +4501,17 @@ def validate_boundary_proposal(
     if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_boundary_proposal":
         raise CatalogError("boundary proposal の schema_version または asset_kind が不正")
     oracle_commit = _validate_oracle_context(raw["oracle_context"], "boundary proposal")
-    _validate_oracle_provenance(raw["provenance"], root, "boundary proposal")
-    if raw["proposal_status"] != "pending_tsk_235_confirmation":
-        raise CatalogError("境界案を確定済みにしてはならない")
+    provenance_ids = _validate_oracle_provenance(
+        raw["provenance"], root, "boundary proposal"
+    )
+    if provenance_ids != {
+        "PLAN-AUTHORIZED-BUSINESS-ROWS",
+        "PLAN-NO-HANDWRITTEN-AGGREGATION",
+        "PLAN-BOUNDARY-PROPOSAL-ONLY",
+    }:
+        raise CatalogError("boundary proposal の provenance が exact-set 不一致")
+    if oracle_commit != ORACLE_INPUT_BASELINE_COMMIT:
+        raise CatalogError("boundary proposal の oracle_commit が基準版と不一致")
     boundaries = _expect_object_list(raw["boundaries"], "boundaries")
     boundary_ids = {str(boundary.get("boundary_id")) for boundary in boundaries}
     if boundary_ids != {
@@ -4346,6 +4520,9 @@ def validate_boundary_proposal(
         "BOUNDARY:REPRESENTATIVE-MANAGEMENT",
     }:
         raise CatalogError("境界案が閉じた3責務と不一致")
+    deferred = raw["deferred_equivalence_contract"]
+    trust_boundary = raw["trust_boundary"]
+    _validate_boundary_owner_assignments(boundaries, deferred, trust_boundary)
     shared = next(
         boundary
         for boundary in boundaries
@@ -4354,8 +4531,54 @@ def validate_boundary_proposal(
     if (
         shared.get("aggregation_location") != "generated_sql_expression"
         or shared.get("returns_tenant_ids_only") is not False
+        or shared.get("responsibility")
+        != "return_typed_authorized_business_rows"
+        or shared.get("product_entry_contract")
+        != "single_query_combines_authorized_rows_and_generated_aggregation"
     ):
         raise CatalogError("共有境界に集計または tenant ID だけを置いている")
+    _expect_keys(
+        {
+            key: value
+            for key, value in shared.items()
+            if "owner" not in key and "task_id" not in key
+        },
+        {
+            "boundary_id",
+            "responsibility",
+            "aggregation_location",
+            "returns_tenant_ids_only",
+            "product_entry_contract",
+        },
+        "SHARED-AUTHORIZED-ROWS boundary",
+    )
+    control = next(
+        boundary
+        for boundary in boundaries
+        if boundary["boundary_id"] == "BOUNDARY:CONTROL-READS"
+    )
+    _expect_keys(
+        {
+            key: value
+            for key, value in control.items()
+            if "owner" not in key and "task_id" not in key
+        },
+        {
+            "boundary_id",
+            "responsibility",
+            "aggregation_location",
+            "returns_tenant_ids_only",
+            "product_entry_contract",
+        },
+        "CONTROL-READS boundary",
+    )
+    if (
+        control.get("responsibility") != "return_paged_authorized_control_rows"
+        or control.get("aggregation_location") != "none"
+        or control.get("returns_tenant_ids_only") is not False
+        or control.get("product_entry_contract") != "paged_rows_only"
+    ):
+        raise CatalogError("制御読み取り境界の確定値が不正")
     representative = next(
         boundary
         for boundary in boundaries
@@ -4368,21 +4591,51 @@ def validate_boundary_proposal(
     )
     if representative_claim_ids != MANAGEMENT_PROBE_CLAIM_IDS:
         raise CatalogError("代表管理境界が2件のprobe claimと exact-set 不一致")
-    reviews = _expect_object_list(raw["pending_human_reviews"], "pending_human_reviews")
-    review_by_id = {str(review.get("review_id")): review for review in reviews}
-    if set(review_by_id) != {
-        "PENDING-MANAGEMENT-COMMAND-COUNT",
-        "PENDING-ALL-LOGICAL-SCOPE",
-    }:
-        raise CatalogError("保留中の人間裁定2件が exact-set 不一致")
-    operation_review = review_by_id["PENDING-MANAGEMENT-COMMAND-COUNT"]
+    _expect_keys(
+        {
+            key: value
+            for key, value in representative.items()
+            if "owner" not in key and "task_id" not in key
+        },
+        {
+            "boundary_id",
+            "responsibility",
+            "aggregation_location",
+            "returns_tenant_ids_only",
+            "product_entry_contract",
+            "claim_ids",
+        },
+        "REPRESENTATIVE-MANAGEMENT boundary",
+    )
     if (
-        operation_review.get("status") != "pending_human_decision"
-        or operation_review.get("frozen_value") != 8
-        or operation_review.get("alternative_value") != 7
-        or not operation_review.get("affected_ids_if_changed")
+        representative.get("responsibility")
+        != "authorize_and_apply_representative_grant_change_atomically"
+        or representative.get("aggregation_location") != "none"
+        or representative.get("returns_tenant_ids_only") is not False
+        or representative.get("product_entry_contract")
+        != "probe_only_not_product_side_effect"
     ):
-        raise CatalogError("管理操作8/7の保留裁定または影響行が不正")
+        raise CatalogError("代表管理境界の確定値が不正")
+    if not isinstance(deferred, dict) or {
+        key: value
+        for key, value in deferred.items()
+        if "owner" not in key and "task_id" not in key
+    } != {
+        "status": "deferred",
+        "comparison": (
+            "product_entry_equals_direct_authorized_rows_plus_generated_aggregation"
+        ),
+    }:
+        raise CatalogError("集計等価性の移管契約が不正")
+    if not isinstance(trust_boundary, dict) or {
+        key: value
+        for key, value in trust_boundary.items()
+        if "owner" not in key and "task_id" not in key
+    } != {
+        "app_tenant_context": "trusted_input_set_only_by_authenticated_api",
+        "db_connection_to_attacker": False,
+    }:
+        raise CatalogError("信頼境界または検証 owner が不正")
     entries = auth_catalog.get("entries")
     if not isinstance(entries, list):
         raise CatalogError("AUTH catalog.entries が不正")
@@ -4391,16 +4644,7 @@ def validate_boundary_proposal(
         for entry in entries
         if isinstance(entry, dict) and entry.get("route_scope_id") == "SCOPE:ALL_LOGICAL"
     )
-    scope_review = review_by_id["PENDING-ALL-LOGICAL-SCOPE"]
-    if (
-        scope_review.get("status") != "pending_human_review"
-        or scope_review.get("frozen_value") != len(expected_all_logical)
-        or scope_review.get("affected_claim_ids") != expected_all_logical
-    ):
-        raise CatalogError("ALL_LOGICAL 査読対象が AUTH catalog と exact-set 不一致")
-    for review in reviews:
-        if review.get("oracle_change_action") != "return_to_step_5_and_re_review":
-            raise CatalogError("保留裁定が oracle 再レビュー規律へ接続されていない")
+    reviews = _validate_boundary_decisions(raw, expected_all_logical)
     return {
         "oracle_commit": oracle_commit,
         "pending_review_count": len(reviews),
@@ -4528,6 +4772,7 @@ def validate_oracle_seal(
         if not isinstance(context_raw, dict) or context_raw.get("oracle_commit") != oracle_commit:
             raise CatalogError(f"{name}: oracle_commit が seal と不一致")
     input_rows = _expect_object_list(raw["input_assets"], "oracle seal.input_assets")
+    _validate_object_path_uniqueness(input_rows, "oracle seal.input_assets")
     input_paths: set[str] = set()
     for index, entry in enumerate(input_rows):
         label = f"oracle seal.input_assets[{index}]"
@@ -4607,6 +4852,7 @@ def validate_oracle_seal(
         "human_review_required": True,
     }:
         raise CatalogError("oracle の再封印が専用操作に限定されていない")
+    _validate_json_array_multiplicity(raw, "oracle seal")
     return oracle_commit
 
 
@@ -4679,6 +4925,8 @@ def validate_oracle_assets(
     evidence_result = validate_verification_evidence(
         assets["verification_evidence"], root
     )
+    for name, asset in assets.items():
+        _validate_json_array_multiplicity(asset, paths[name])
     results: dict[str, dict[str, object]] = {
         "ddl": ddl_result,
         "rejected": rejected_result,

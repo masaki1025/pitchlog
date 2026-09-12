@@ -42,7 +42,7 @@
       "path": "contracts/authz/ddl-elements.json",
       "asset_role": "expectation",
       "asset_kind": "authz_candidate_ddl_manifest",
-      "canonical_sha256": "d813d05253c7afc86aa4a4fa12255bcdf7bc600dfdb31d3e87c9cebd7b5577ae"
+      "canonical_sha256": "2a63f6d15802fffe32f237e65605f64b485940206f24233a100a40a39cb0ae55"
     },
     {
       "path": "contracts/authz/rejected-configs.json",
@@ -66,7 +66,7 @@
       "path": "contracts/authz/boundary-proposal.json",
       "asset_role": "expectation",
       "asset_kind": "authz_boundary_proposal",
-      "canonical_sha256": "38dc802ca4afec44236e6b4037565d6a38f111a261136b00e926a51e511813f6"
+      "canonical_sha256": "f524ddc8e9fc1e5a355084f8b6f3940d59676ee72e5fa99aee529a64d28e6f34"
     },
     {
       "path": "contracts/authz/verification-evidence.json",

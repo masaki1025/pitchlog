@@ -2673,3 +2673,111 @@ seal が一切検査されていなかったため。** **「19 本」は偽陽�
 `tenant-isolation.paths` へ追加した 9 パターンは、追跡中の実在ファイルへすべて 1 件以上一致した。
 最初の 8 パターンは各 1 ファイル、`backend/src/pitchlog/authz/*` は 4 ファイルへ一致し、
 **合計 12 ファイル**を覆った。
+
+---
+
+## ステップ 2 の母集団再測定と再封印(2026-09-12)
+
+### 固定した測定入力
+
+- `<BASE>`: `56c281c409e972927940fad830aa38352df32f1e`
+- `g` の資産: `<BASE>:contracts/authz/oracle-seal.lock.json` の
+  `sealed_assets[]` 6 パスと seal 自身
+- `g` の検査器: `<BASE>:scripts/check_authz_catalog.py`
+- 凍結資産の走査対象: `<BASE>` の seal が導く `input_assets[]` 8 パス、
+  `sealed_assets[]` 6 パス、seal 自身の合計 15 パス
+
+作業コピーの資産や検査器を `g` の入力にはしていない。6 資産は
+`validate_oracle_assets(..., verify_seal=False)`、seal 自身は
+`validate_oracle_seal` を入口にし、各非空配列の**全要素位置**を 1 件ずつ複製して測った。
+
+### `f`・`g`・`w`・`d` の実測
+
+- ステップ 1 の監査フックによる `f`: **検査器 9 本 = 18 パス**
+  (既登録 6、追加対象 12)。詳細は直前の「ステップ 1 の `f` 実測」に記録した。
+- owner 導出器 `f`: `<BASE>:boundary-proposal.json` の全キーから **5 パス**。
+- `S-5` の leaf 導出器 `f`: `<BASE>:boundary-proposal.json` から **88 leaf**。
+- seal の leaf 導出器 `f`: `<BASE>:oracle-seal.lock.json` から **51 leaf**。
+- `w`: 凍結 15 パスの全コンテナの最大要素数 = **1078**。
+- `d`: 凍結 15 パスの最大コンテナ深さ = **8**。
+- 層 ① の 7 パスには非空配列が **1676 本**あり、`g` の出力は **18 本**。
+
+`g` の 18 本は次のとおりだった。
+
+| 資産 | 配列 | 本数 |
+| --- | --- | ---: |
+| `ddl-elements.json` | `tables[0..5].row_shape_ids` | 6 |
+| 同上 | `transaction_boundaries` | 1 |
+| 同上 | `transaction_boundaries[0..2].step_ids` | 3 |
+| 同上 | `provisioning_claim.completion_catalog_expectations` | 1 |
+| `claim-mutant-map.json` | `kill_contract.conditions` | 1 |
+| `attack-tree.json` | `attack_goals` | 1 |
+| `boundary-proposal.json` | `boundaries` | 1 |
+| 同上 | `pending_human_reviews` | 1 |
+| 同上 | `pending_human_reviews[0].affected_ids_if_changed` | 1 |
+| `verification-evidence.json` | `residual_risks` | 1 |
+| `oracle-seal.lock.json` | `input_assets` | 1 |
+
+層 ② の実測では、凍結 15 パスに**全配列 2341 本**
+(非空 2290、空 51)、**全 JSON キー対 38982 組**があり、
+重複配列要素と重複 JSON キーはいずれも **0 件**だった。
+`object_pairs_hook` で解析前の全キー対を調べ、配列の到達パス集合は通常の
+`json.loads` 結果を反復走査する独立実装と突き合わせた。
+
+### 通常検証の非 reseal と専用 reseal
+
+資産の意味検査が green、seal だけが古い状態で通常検証を実行したところ、
+`ddl-elements.json: canonical digest が oracle seal と不一致` で rc=1 になった。
+この前後で seal ファイルの SHA-256 はどちらも
+`b5244187be927cca7f5d77395bfa7bb25283ca63375586178e592136c7d2154a` であり、
+通常検証は seal を書き換えなかった。恒久負例ではさらに、
+`verification-evidence.json` の `provenance[].extracted_text` 末尾へ空白を足し、
+`validate_verification_evidence` が green であることを直接確認した上で、古い seal を使う
+通常検証が seal をバイト不変に保つことを検査する。
+
+`--reseal-oracle` は **1 回だけ**実行し、rc=0 だった。実行結果は
+`total=1078 auth_claim=184 out_of_scope=894 db_claims=187 routes=37 cells=12`
+`oracle_claims=198 probe=33 contract=165 mutants=231 cut_sets=24 oracle-resealed`。
+
+再封印後も次は不変だった。
+
+- `oracle_commit`: `dd2cb92cf48d5b1a58431ce1b65e64b4c91e8ba0`
+- `oracle_commit_semantics`: `last_committed_step_4_input_baseline`
+- `input_assets`: 8 行、重複 0。8 件の `git_blob_digest` は基準版と全件一致。
+
+`sealed_assets[].canonical_sha256` の変更は次の 2 本だけだった。
+
+| パス | 変更前 | 変更後 |
+| --- | --- | --- |
+| `contracts/authz/ddl-elements.json` | `d813d05253c7afc86aa4a4fa12255bcdf7bc600dfdb31d3e87c9cebd7b5577ae` | `2a63f6d15802fffe32f237e65605f64b485940206f24233a100a40a39cb0ae55` |
+| `contracts/authz/boundary-proposal.json` | `38dc802ca4afec44236e6b4037565d6a38f111a261136b00e926a51e511813f6` | `f524ddc8e9fc1e5a355084f8b6f3940d59676ee72e5fa99aee529a64d28e6f34` |
+
+`rejected-configs` / `claim-mutant-map` / `attack-tree` /
+`verification-evidence` の 4 digest は基準版と一致した。入力 8 資産、
+`claim-mutant-map.json`、正本ドキュメントには変更を加えていない。
+
+`ddl-elements.json` の Git blob は `a54886bf7cf82c6c4af14e172928849b4b6e4a27` から
+`7fb7a2a2254af2123e8a9f4f58de2960fb5de666` へ変わったため、非凍結の
+`failure-injection-points.json` が持つ `source_asset.git_blob_digest` も同じ値へ追随させた。
+これを旧値のままにすると独立検査器が rc=1 になること、追随後は
+`authz-failure-injection-points: OK injection_points=5` になることを確認した。
+
+### 「通った構成」の証跡
+
+第 1 弾は PR #52 / `67e06a2` で完了し、probe 構成に対する DDL・カタログ・
+実接続・変異検証が green になった。この結果を根拠に、本ステップで
+`scope.status = verified_probe_configuration`、
+`second_group_approval_required = false` を確定した。`scope` は 4 キー exact のため、
+この証跡を資産のフィールドとして追加していない。
+
+### ステップ 2 の最終検証
+
+再封印後は専用フラグを再使用せず、次を実行した。
+
+- `uv run python scripts/check_authz_catalog.py --root .`: rc=0
+- `uv run ruff check .`: green
+- `uv run ty check`: green
+- `uv run pytest tests/`: **1318 passed**(297.89 秒)
+
+`tests/test_check_failure_injection_points.py` も 11 件すべて green で、
+`source_asset.git_blob_digest` の追随後に DDL 適用手順との結線を維持している。
