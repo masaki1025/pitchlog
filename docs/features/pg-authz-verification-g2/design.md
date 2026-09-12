@@ -8,7 +8,8 @@ date: 2026-09-09
 
 [plan.md](plan.md) 4 節から参照される詳細設計。
 
-> **本改訂(計画改訂 3 第 2 弾)の承認範囲は封印系の 3 ステップである**(裁定 `D-14`・2026-09-12)。
+> **本改訂(計画改訂 3 第 2 弾)の承認範囲は封印系の 2 ステップである**(裁定 `D-14`・`D-16`・2026-09-12)。
+> **`S-9` は裁定 `D-15` で PR #3 へ、期待件数のハードコード撤去は裁定 `D-16` で別タスクへ送った。**
 > **本書のうち 8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は PR #3 の射程**であり、
 > **本改訂の承認範囲には入らない。**
 > **以下の記述は第 1 弾(PR #52 でマージ済み)についての記録である。**
@@ -24,7 +25,7 @@ date: 2026-09-09
 
 | 対象 | 配置 | 理由 |
 | --- | --- | --- |
-| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**生成器そのものは本計画のステップ 3 で実装する**。**第 2 弾(`S-8`)へ送るのは `core-areas.json` への paths 登録だけ**である(現在このパスは `tenant-isolation.paths` へ未登録)|
+| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**生成器そのものは第 1 弾のステップ 3 で実装済み**。**第 2 弾(`S-8`)へ送るのは `core-areas.json` への paths 登録だけ**である(現在このパスは `tenant-isolation.paths` へ未登録)|
 | 適用器 | `backend/src/pitchlog/authz/provisioning.py` | 同上。psycopg 直書き(`D-3`) |
 | カタログ検査 | `backend/src/pitchlog/authz/catalog.py` | 同上。**問い合わせだけを持ち、期待値は資産から読む** |
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
@@ -69,7 +70,7 @@ date: 2026-09-09
 | `functions`(3) | `CREATE FUNCTION` + `SECURITY DEFINER` + `SET search_path` | **`search_path` は末尾 `pg_temp`**(`REJ-003`)/ `public_execute: false` |
 | `acl_expectations`(17) / `column_acl_expectations`(1) | `REVOKE` + `GRANT` | **関数作成と `REVOKE ALL ... FROM PUBLIC` を同一トランザクション**に置く |
 
-**生成の検証方法**(ステップ 3 の合格条件の実装形):
+**生成の検証方法**(第 1 弾ステップ 3 の合格条件の実装形):
 
 1. 資産の全要素 ID(`role_id` / `schema_id` / `table_id` / `policy_id` / `function_id` / `acl_id`)を
    集合として取り、**sha256 を取って生成物側の被覆集合と exact-set 突合**する
