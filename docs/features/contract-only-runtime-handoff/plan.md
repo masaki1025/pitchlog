@@ -1,6 +1,6 @@
 ---
 feature: contract-only-runtime-handoff
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-13・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -326,7 +326,9 @@ PENDING_REF ::= "PENDING:" ("FR" | "NFR") "-" [0-9]{3}
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| **なし** | **本タスクは正本を変更しない。** 産出するのは規則と割り当て表(作業管理面 — 裁定 `C` 自身が「正本ではない」と分類済み。`../../worklog/2026-09-12-merge-gate-api-cycle.md:43`) | — |
+| `../../development/harness-evaluation.md` | **既存候補「母集団を人が列挙する検査は、射程が動くたびに黙って古くなる」へ実測 2 件を追記**(18・19。**4 タスク目**)。**`H-*` は与えない**(昇格判断は PO)。変更履歴表へ 1 行(**版は上げない** — 7.6-3 前段)| **PR レビュー** |
+| `../../README.md` | 台帳行の最終更新日と寄与の現行化 | **PR レビュー** |
+| **上記以外はなし** | 産出する規則と割り当ては**作業管理面**であり、裁定 `C` 自身が「正本ではない」と分類済み(`../../worklog/2026-09-12-merge-gate-api-cycle.md:43`)| — |
 
 > **制約**: `docs/features/` は正本ではない。`scripts/check_design_propagation.py:103` の
 > `NONCANONICAL_PATH_RE` が**正本から `docs/features/` への規範参照を禁じる**(`:1590`)。
