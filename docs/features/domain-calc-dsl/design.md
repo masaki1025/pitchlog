@@ -1121,7 +1121,32 @@ push → PR 作成(この時点では core-guard 以外しか確認できない)
 **TSK-317 の実績**: #52 は red のままマージ / #53 は run 2 が偶然完走 / #54 は完走なし。
 **偶然に頼ると 3 回に 1 回しか成立しない。** `/pr` の手順としてこの順序を守る。
 
-## 15-2. ◎ `boundary-proposal.json` が本タスクへ割り当てた所有は受け取れない(2026-09-11)
+## 15-2. ✅ `boundary-proposal.json` の所有は是正済み(提起 2026-09-11 → 解決 2026-09-12)
+
+**結論**: **本タスクは `contracts/authz/` の資産を 1 件も所有しない。**
+**PO 裁定 `D-11` / `D-12`(2026-09-11・山田正輝)で本タスクの主張が全面的に通り、
+新タスク TSK-366 へ移管された。**
+
+**実測(develop 先端・2026-09-13 に再測)**:
+
+```
+proposal_status: pending_tsk_235_confirmation → tsk_235_confirmed
+BOUNDARY:SHARED-AUTHORIZED-ROWS  owner: TSK-235 → TSK-366
+BOUNDARY:CONTROL-READS           owner: TSK-235 → なし(削除。aggregation_location: none なので当然)
+deferred_equivalence_contract    owner: TSK-235 → TSK-366
+```
+
+**受取先**: [TSK-366 FR-041 共有集計の対象別生成と等価性契約](https://app.notion.com/p/3d993b75e687818d8cb8ec57508e73e0)
+(着手可 / 中)。**本タスクが提案した「1 タスクにまとめる」が採られた**
+(別々に起票すると「契約だけ先に決まって生成物が無い」状態が生じるため)。
+**同カードは本タスクの 2 段の判定と「形の食い違い」の指摘をそのまま根拠として記録している。**
+
+**TSK-366 の着手条件**: **TSK-317 PR #2 が owner を移して reseal した後**。
+**本タスクの停止とは独立**に進む。
+
+以下は提起時の分析(記録として残す)。
+
+### 提起時の分析(2026-09-11)
 
 **TSK-317 からの照会**。`contracts/authz/boundary-proposal.json`(develop)が
 **本タスクを 3 箇所の owner に指名している**:
