@@ -3096,7 +3096,7 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 | --- | --- |
 | **P1-1** `test_authz*.py` へ拡張 | **被覆維持 7 件 OK**・**新たに `test_authz.py` / `test_authz_future.py` を覆う**・**`test_authorization.py` / `frontend/test_authz_x.py` / `backend/tests/nested/test_authz_x.py` / `test_health.py` / `test_package.py` はいずれも不一致**。追跡ファイルの被覆 **318 / 672** |
 | **P1-2** 実 `f` との結線 | **`f` の出力 18 パスが `AUTHZ_GUARD_CANDIDATE_PATHS` と exact-set 一致**・**基準版未登録分が `AUTHZ_GUARD_PATH_ADDITIONS` と exact-set 一致**・**削除と同数置換の双方で red** |
-| **実 `f` が本物か**(私の独立検証) | **走査した検査器 12 本すべてが 1 件以上ファイルを開いた**(空振り 0 本)。**所要 2.40 秒** — 検査器 1 本あたり 0.2 秒で妥当 |
+| **実 `f` が空振りしていないか**(私の独立検証) | **走査した検査器 12 本すべてが 1 件以上ファイルを開いた**。**ただしこれは「`f` の述語へ結線されている」までしか示さない** — **監査ランナーは全例外を握り潰し終了コードも見ないので、「検査器が意図どおり完走した」とは言えない**(4 周目 `P2` で是正)。**所要 2.40 秒** |
 
 **`tenant-isolation.paths` 57 / `guard_paths` 42(不変)**。
 `tests/test_core_guard.py` + `tests/test_ci_wiring.py` は **165 passed**。
