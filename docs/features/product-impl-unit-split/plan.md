@@ -1,6 +1,6 @@
 ---
 feature: product-impl-unit-split
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-13・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -67,7 +67,9 @@ ADR-003 の 4 段階の 2 本だけ**で、後者は **[NFR-018](../../requireme
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / `docs/development/**` / `docs/ops/**` / `docs/README.md` | **反映なし** | — |
+| `docs/development/harness-evaluation.md` | **`## 候補` 1 件へ 2 例目を追記**(TSK-348 の候補「是正の完全性を証明する機構を同一タスクの射程へ入れると輪になる」の**変種** — 本タスクでは機構ではなく**計画書の散文が完全性を証明しようとした**)+ **変更履歴表に 1 行** | **PR レビュー**(7.6-3 前段 — **`H-*` の採番はしない・版は上げない**) |
+| `docs/README.md` | **台帳行の最終更新日を現行化** | PR レビュー |
+| `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / `docs/ops/**` / `docs/development/**`(**上記の台帳を除く**) | **反映なし** | — |
 | `.claude/core-areas.json` | **反映なし**(各核単位が自 PR で登録する) | — |
 | `contracts/**` | **反映なし** | — |
 
