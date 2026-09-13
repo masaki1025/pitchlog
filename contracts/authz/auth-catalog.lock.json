@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "e8840bfcbdafcafdfb0472458fa26243268cd0f26dbdaf30ed85783885fe31ee",
+  "asset_digest": "b972bfb4ef3f1a8d9c354711a2555f34ed43724d9ea5869b0db4f63ef6ba3a89",
   "entry_count": 187,
-  "aggregate_decision_digest": "ce86a275efb535b5dc7f9696ed59b381330d28e647dd4338c570371c012796e3",
+  "aggregate_decision_digest": "479b4a6ea8e0cf5ac4c71e5d5aa6adeb3353cfb515c2063a771fae05f333e8d3",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",
@@ -3563,7 +3563,7 @@
         "origin": "requirement",
         "layer": "verification_contract",
         "db_basis_rule_id": "DB_VERIFICATION_QUERY",
-        "source_text_digest": "89aca663e1bfa6d2ed4731b9d7cbc420a197bd7cbfcbb048bae6f3ad5d8007e4",
+        "source_text_digest": "4b851cef2ecf009a0bcd4fea83a877fd8186bf37865f7aab777b9a6872b0cce5",
         "route_scope_id": "SCOPE:ALL_LOGICAL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3574,7 +3574,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "ef949bdfa52a4ed8ef47105c30767d4c76488b81bad23aed7931dc78301f55cc"
+      "decision_digest": "92455c122b8d73cc53dd14b3562b35c77fec895c953b6ef8bc19c1fc986fb69f"
     },
     {
       "entry_id": "catalog:CATALOG:SECTION-6.2/list_item-003",

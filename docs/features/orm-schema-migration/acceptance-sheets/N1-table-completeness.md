@@ -105,24 +105,25 @@
 | 見出し 077: 12-3. 移行が要求する構造 | data-model.md §12-3 | manifest tables: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports | 一致 | §12-3 に束縛された manifest 表を特定できる: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports |
 | 見出し 078: 移行バッチの退役(本書の定義はここだけ — 1-1 節の定義の所在表) | data-model.md §12-3 | manifest tables: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports | 一致 | §12-3 に束縛された manifest 表を特定できる: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports |
 | 見出し 079: 移行元の最終オーダーの保全先(裁定 A-1 — 2026-09-08・山田正輝) | data-model.md §12-3 | manifest tables: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports | 一致 | §12-3 に束縛された manifest 表を特定できる: tenants, team_records, players, games, lineup_memories, game_lineups, participation_intervals, event_slots, operation_events, play_rows, play_runners, temporary_player_id_mappings, idempotency_ledger, evacuated_event_originals, recording_generations, medical_notes, migration_quarantine, migrated_final_lineups, migration_runs, migration_warning_reports |
-| 見出し 080: 12-4. マイグレーション方針(方針 — 依存追加・models・migration の実装は TSK-343) | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
-| 見出し 081: 本スキーマの初回 migration は non-serving である | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
-| 見出し 082: 越境テスト再実行ゲート | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
-| 見出し 083: 12-5. FR-001〜042 の全数対応(取りこぼし 0 件) | data-model.md §12-5 | manifest tables: 該当候補なし | 対象外 | FR-001〜042 の全数対応表であり表を定義しない data-model.md:12-5 |
-| 見出し 084: 12-6. 要件由来の写像・裁定の記録・申し送り | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 085: 要件に明示がなく、裁定で決めた事項(RQ-01〜RQ-09) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 086: NFR-018 の境界(裁定 A-4 = RQ-09 の判定と理由) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 087: 論点表に無いが決めた事項 | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 088: 要件書 6.1 の表を超えている実体(改訂は提案しない) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 089: 同期プロトコル設計が判定を送った禁止事項(SP-01〜SP-06) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 090: 残余リスク(本書が塞がないもの) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 091: 次のタスクへの申し送り | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
-| 見出し 092: 12-7. 起草時の敵対レビューで収束しなかった 3 領域(受け取り先を明示する) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
-| 見出し 093: (1) 認可機構の物理構成 — 受け取り先: 実機確定タスク(実機検証を伴う) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
-| 見出し 094: (2) イベントの順序 — 解消済み(受け取り先: 同期プロトコル設計 — v0.3 で approved) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
-| 見出し 095: (3) 移行のファンアウト — 受け取り先: 移行仕様タスク | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
-| 見出し 096: 12-8. 射程宣言(設計書 7.3-7) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
-| 見出し 097: 本書で確定する範囲 | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
-| 見出し 098: 実装時に確定する範囲(受け取り先を明示する) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
-| 見出し 099: 本版で閉じきらなかったもの(確定ゲートの打ち切りに伴う申し送り) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
-| 見出し 100: 本宣言が確定しないことの明示 | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
+| 見出し 080: 12-4. マイグレーション方針(方針 — 依存追加・models・migration の実装は TSK-343 で完了済み) | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
+| 見出し 081: 経路と入口の定義(適用単位で使う語) | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
+| 見出し 082: 本スキーマの初回 migration は non-serving である | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
+| 見出し 083: 越境テスト再実行ゲート | data-model.md §12-4 | manifest tables: 該当候補なし | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない data-model.md:12-4 |
+| 見出し 084: 12-5. FR-001〜042 の全数対応(取りこぼし 0 件) | data-model.md §12-5 | manifest tables: 該当候補なし | 対象外 | FR-001〜042 の全数対応表であり表を定義しない data-model.md:12-5 |
+| 見出し 085: 12-6. 要件由来の写像・裁定の記録・申し送り | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 086: 要件に明示がなく、裁定で決めた事項(RQ-01〜RQ-09) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 087: NFR-018 の境界(裁定 A-4 = RQ-09 の判定と理由) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 088: 論点表に無いが決めた事項 | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 089: 要件書 6.1 の表を超えている実体(改訂は提案しない) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 090: 同期プロトコル設計が判定を送った禁止事項(SP-01〜SP-06) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 091: 残余リスク(本書が塞がないもの) | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 092: 次のタスクへの申し送り | data-model.md §12-6 | manifest tables: 該当候補なし | 対象外 | 要件由来の写像・裁定・申し送りの記録であり表を定義しない data-model.md:12-6 |
+| 見出し 093: 12-7. 起草時の敵対レビューで収束しなかった 3 領域(受け取り先を明示する) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
+| 見出し 094: (1) 認可機構の物理構成 — 受け取り先: 実機確定タスク(実機検証を伴う) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
+| 見出し 095: (2) イベントの順序 — 解消済み(受け取り先: 同期プロトコル設計 — v0.3 で approved) | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
+| 見出し 096: (3) 移行のファンアウト — 受け取り先: 移行仕様タスク | data-model.md §12-7 | manifest tables: 該当候補なし | 対象外 | 起草時に収束しなかった領域と受け取り先の記録であり表を定義しない data-model.md:12-7 |
+| 見出し 097: 12-8. 射程宣言(設計書 7.3-7) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
+| 見出し 098: 本書で確定する範囲 | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
+| 見出し 099: 実装時に確定する範囲(受け取り先を明示する) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
+| 見出し 100: 本版で閉じきらなかったもの(確定ゲートの打ち切りに伴う申し送り) | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
+| 見出し 101: 本宣言が確定しないことの明示 | data-model.md §12-8 | manifest tables: 該当候補なし | 対象外 | 射程宣言であり表を定義しない data-model.md:12-8 |
