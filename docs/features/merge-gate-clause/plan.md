@@ -102,13 +102,17 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 **digest 連鎖の実測**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
 `failure-injection-points` / `mcdc-map` の **4 段**。
 
-**既知の red が 2 件ある**(**本 PR では直さない** — **受け取り先は
+**既知の red が 3 件ある**(**本 PR では直さない** — **受け取り先は
 [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**):
 
 | # | red | 要求 |
 | --- | --- | --- |
-| 1 | `backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_paths_have_no_branch_diff` | seal 由来 15 パスが **`origin/develop` から差分ゼロ**であること |
-| 2 | `scripts/check_authz_catalog.py`(`boundary proposal の oracle_commit が基準版と不一致`) | **`ORACLE_INPUT_BASELINE_COMMIT = "dd2cb92…"`** と一致すること(`:107`・`:4525`) |
+| 1 | `backend/…::test_frozen_oracle_paths_have_no_branch_diff` | seal 由来 15 パスが **`origin/develop` から差分ゼロ**であること |
+| 2 | `tests/test_check_authz_catalog.py::test_boundary_proposal_base_leaves_follow_the_approved_classification` | **`AUTHZ_STEP2_BASE_REVISION = "56c281c…"`** 時点の分類に従うこと(`tests/…:38`) |
+| 3 | `tests/test_check_authz_catalog.py::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | 同上(**`oracle_commit` が `dd2cb92` のままであること**を期待している) |
+
+**`ORACLE_INPUT_BASELINE_COMMIT` は `0cf994f`(本改訂の入力確定コミット)へ進めた。**
+**同じ欠陥は少なくとも 4 箇所にある** — 検査器の定数・backend の凍結検査・上記テスト 2 本。
 
 **2 件は同じ欠陥である** — **どちらも「入力ベースラインは永久に動かない」を別の場所で
 言っているだけ**で、**要件書を改訂すると必ずどちらかが赤くなる**。
@@ -119,10 +123,18 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 PR #59 が実質変更した資産)。**定数が `dd2cb92` を要求しているあいだは `--reseal-oracle` が
 実行できない**(検査が先に走って止まる)ため、**TSK-386 待ちである**。
 
-**本 PR で是正しない理由**: **`oracle_commit` をどちらへ倒しても 1 件目は red のまま**なので、
-**検査器を書き換えるリスクも、事実に反する記録を残すコストも、マージ可能性の改善ゼロで払う**
-ことになる。**1 件目の是正は一度試みて敵対レビューで `P1` となり取り下げた**
-(封印資産の履歴上の不変性が失われることを実測で確認した — worklog に全文と再現手順)。
+**`oracle_commit` を `0cf994f` へ進めた理由**(PO 裁定 2026-09-13・山田正輝): **同一ツリーで両方を実測**すると、
+**進めた場合 2 本 / 撤回した場合 9 本**だった。**9 本は独立ではなく、`check_authz_catalog` が早期に
+例外を投げるため同検査器を呼ぶテストが連鎖で落ちているだけ**である。**進めたほうが赤の面が小さく、
+原因も 1 つに見える。** あわせて **seal は入力 8 件・封印 6 件とも実ファイルと一致**する(実測)。
+**「全 oracle 資産が単一の宣言ベースラインに合意している」という不変条件は保たれており、
+動いたのは宣言値だけ**である(**検査を弱めていない**)。
+**残るリスク**: `0cf994f` は**本ブランチ上のコミット**なので、**rebase 等でベースラインが変われば再び壊れる**。
+**恒久的な解は TSK-386。**
+
+**1 件目(凍結検査)の是正は一度試みて敵対レビューで `P1` となり取り下げた**
+(**封印資産の履歴上の不変性が失われることを実測で確認した** — worklog に全文と再現手順)。
+**そちらは検査を弱める変更だったので取り下げた**という点で、本件とは性質が異なる。
 
 ## 4. 実装方針
 
