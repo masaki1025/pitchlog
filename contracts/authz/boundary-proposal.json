@@ -5,13 +5,13 @@
     "oracle_commit": "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
-  "proposal_status": "pending_tsk_235_confirmation",
+  "proposal_status": "tsk_235_confirmed",
   "boundaries": [
     {
       "boundary_id": "BOUNDARY:SHARED-AUTHORIZED-ROWS",
       "responsibility": "return_typed_authorized_business_rows",
       "aggregation_location": "generated_sql_expression",
-      "aggregation_owner_task_id": "TSK-235",
+      "aggregation_owner_task_id": "3d993b75-e687-818d-8cb8-ec57508e73e0",
       "returns_tenant_ids_only": false,
       "product_entry_contract": "single_query_combines_authorized_rows_and_generated_aggregation"
     },
@@ -19,7 +19,6 @@
       "boundary_id": "BOUNDARY:CONTROL-READS",
       "responsibility": "return_paged_authorized_control_rows",
       "aggregation_location": "none",
-      "aggregation_owner_task_id": "TSK-235",
       "returns_tenant_ids_only": false,
       "product_entry_contract": "paged_rows_only"
     },
@@ -37,7 +36,7 @@
     }
   ],
   "deferred_equivalence_contract": {
-    "owner_task_id": "TSK-235",
+    "owner_task_id": "3d993b75-e687-818d-8cb8-ec57508e73e0",
     "status": "deferred",
     "comparison": "product_entry_equals_direct_authorized_rows_plus_generated_aggregation"
   },
@@ -49,7 +48,7 @@
   "pending_human_reviews": [
     {
       "review_id": "PENDING-MANAGEMENT-COMMAND-COUNT",
-      "status": "pending_human_decision",
+      "status": "human_decided",
       "frozen_value": 8,
       "alternative_value": 7,
       "affected_ids_if_changed": [
@@ -67,7 +66,7 @@
     },
     {
       "review_id": "PENDING-ALL-LOGICAL-SCOPE",
-      "status": "pending_human_review",
+      "status": "human_decided",
       "frozen_value": 29,
       "alternative_value": null,
       "affected_claim_ids": [
