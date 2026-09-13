@@ -621,6 +621,27 @@ Markdown の表を `split("|")` で割っていた** — **行本文に `\|` の
 | N1 | 見出し 081: 経路と入口の定義 | 対象外 | 同上(**HEAD の 12-4 節の見出し 3 件すべてが同じ判定**) |
 | N3 | 出現 071: 変えない | 対象外 | **条文の文言を変えないという編集上の要求であり、列の不変性ではない** |
 
+### ステップ 9(後段): oracle の再封印と下流の digest 連鎖
+
+**前段のコミット `0cf994f` を入力確定コミットとして** oracle 段を回した(前例が定める
+「**内容追随 → commit 差し替え → reseal**」の順序)。
+
+1. **`oracle_commit` を `dd2cb92` → `0cf994f` へ差し替え** — **7 ファイル × 各 1 行のみ**
+   (oracle 6 資産の `oracle_context.oracle_commit` と `oracle-seal.lock.json`)。
+   **差分が 7 行だけであることを `git diff --numstat` で確認**した
+2. **`--reseal-oracle`** → `ok total=1080 auth_claim=184 out_of_scope=896 db_claims=187
+   routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231 cut_sets=24 oracle-resealed`。
+   **oracle 側の件数はすべて不変**(内容への波及なし)
+3. **下流の digest 連鎖 2 件**: `failure-injection-points.json` が持つ `ddl-elements.json` の
+   blob digest と、`mcdc-map.json` が持つ `claim-mutant-map.json` の digest。
+   **oracle_commit の差し替えで両ファイルの blob が変わるため連鎖で赤くなった**
+4. **`tests/test_check_authz_catalog.py` の期待件数**を `total=1078 / out_of_scope=894` →
+   `1080 / 896` へ(3 箇所)
+
+**digest の連鎖は 4 段あった**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
+`failure-injection-points` / `mcdc-map`。**台帳が記録している「連鎖が届かない」型を、
+今回は 1 段ずつ実測で追った。**
+
 ## 決定
 
 ## 未決・次の一歩
