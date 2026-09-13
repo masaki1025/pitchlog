@@ -746,3 +746,97 @@ Markdown の表を `split("|")` で割っていた** — **行本文に `\|` の
 **該当する。** 候補 3 件 + 既存候補「送り先が空手形になる」へ**解消の追記**(過去記録は書き換えない)。
 
 ## 未決・次の一歩
+
+## develop の取り込みと基準コミットの前進(2026-09-13・`tsk355-transition` が代行)
+
+**`TSK-317 PR #2`(PR #59)が develop へ入り、本ブランチと `contracts/authz` の 4 資産で重なった。**
+**取り込みと再封印を `tsk355-transition` セッションが代行した**(PO 指示。本タスクの担当は手が止まっていた)。
+
+### 1. マージ(`c787826`)と、その解決の誤り(`1ff7f94` で是正)
+
+衝突は 2 件。**いずれも digest 値だったため develop 側で解決したが、`oracle-seal.lock.json` については誤りだった。**
+
+| seal の版 | `oracle_commit` | `input_assets[0].digest` |
+| --- | --- | --- |
+| **`96d0f86`**(本タスクの最終) | `0cf994f4` | **`44af906c`** ← **実ファイルと一致** |
+| `478a026`(develop) | `dd2cb92c` | `695844a0`(要件書 v2.7 時点) |
+
+**develop 側を採ると seal 全体が古い入力を指す状態へ後退する。** `96d0f86` の版を復元した(`1ff7f94`)。
+
+**判定の根拠は `input_assets` 8 件の実測**(seal の記録値 / 実ファイル / develop):
+
+```
+requirement-claims.json        695844a0 / 44af906c / 695844a0
+requirement-claims.lock.json   64fe52da / 7002339b / 64fe52da
+route-registry.json            6e816eaf / ac4e206c / 6e816eaf
+route-registry.lock.json       3500650d / 2d65b0d5 / 3500650d
+auth-catalog.json              e7332a90 / d21ba063 / e7332a90
+auth-catalog.lock.json         73209168 / 42973b54 / 73209168
+http-route-matrix.json         5c090c68 / f7077695 / 5c090c68
+http-route-matrix.lock.json    c55b5a38 / cd5813a7 / c55b5a38
+```
+
+**8 件すべてが develop から変化している** — 要件書 v2.8 に伴う母集合・派生の追随が
+**実際に入力を動かした**。
+
+### 2. マージで新しい制約が入った
+
+`PR #59` が `scripts/check_authz_catalog.py:107` へ
+**`ORACLE_INPUT_BASELINE_COMMIT = "dd2cb92c..."`** を新設していた(導入元は `9259892`)。
+**`96d0f86` の時点ではこの定数は存在せず、マージで初めて入った。**
+
+本ブランチの oracle 6 資産は `0cf994f4` を指すため、**`--reseal-oracle` が検査の段で止まる**:
+
+```
+check_authz_catalog.py: boundary proposal の oracle_commit が基準版と不一致
+```
+
+**再封印は、この食い違いを解かないと実行できない**(実測で確認)。
+
+### 3. PO 裁定(2026-09-13・山田正輝)— **定数を入力確定コミットへ進める**
+
+**判断の材料**(`master` セッションが提供した事実 2 件):
+
+- `_build_oracle_seal()` は既存 seal を deep-copy し、`input_assets[].git_blob_digest` を
+  **不変として扱う**。**つまり `--reseal-oracle` は `oracle_commit` も input digest も動かさない**
+- `PR #59` は `input_assets` を 1 つも変えなかったため `oracle_commit` を動かさなかった。
+  **入力が動いたかどうかが分岐点**である
+
+**実測**: `input_assets` 8 件の**最終変更コミットは全件 `0cf994f`**(ステップ 9/10 前段)で、
+**マージ後も動いていない**。`oracle_commit_semantics` は `last_committed_step_4_input_baseline` であり、
+**`oracle_commit = 0cf994f` は semantics どおり正しい**。**古いのは定数の側**である。
+
+→ **定数を `0cf994f4aa6ca51331a62c05fcd6e0756c4492d2` へ進めた。**
+
+**この判断には「自分の PR を通すために検査器を書き換える」外形がある** — 本タスクが
+`verify_frozen_oracle_unchanged` で一度行い、敵対レビューで `P1` 2 件を受けて撤回した行為と
+構造が同じである。**そのため作成者判断では決めず、PO 裁定に上げた。**
+
+**両者の違い**(記録として残す): 撤回した件は**検査の基準を緩めて防御力を落とした**
+(封印資産を改ざんして同時に再封印すると全検査を通ることを実測で確認した)。
+本件は**入力が正当に前進したことを実測で示したうえで、その事実に検査器を追随させている**。
+**定数の参照箇所は `scripts/check_authz_catalog.py` の 2 箇所のみ**で、他は worklog と
+research の歴史的記録(触らない)。
+
+### 4. 再封印と検証
+
+`--reseal-oracle` を 1 回。**変化したのは `sealed_assets` の 2 digest だけ**:
+
+```
+ddl-elements.json      8850b331 → 8c9599f7
+boundary-proposal.json 5ca9ce37 → 7eaa5269
+```
+
+いずれも **`PR #59` が実質変更した資産**である(他の 4 資産 — `rejected-configs` /
+`claim-mutant-map` / `attack-tree` / `verification-evidence` — は一致していた)。
+
+**検証結果**:
+
+| 検査 | 結果 |
+| --- | --- |
+| `check_authz_catalog.py` | **ok** `total=1080 auth_claim=184 out_of_scope=896 db_claims=187 routes=37 cells=12 oracle_claims=198 probe=33 contract=165 mutants=231 cut_sets=24` |
+| `check_docs_status` / `check_plan_docs_sync` / `check_shared_preconditions` / `check_design_propagation` / `check_doc_coverage` | **全件 rc=0** |
+| `uv run ruff check .` / `uv run ty check` | **All checks passed** |
+| `test_frozen_oracle_paths_have_no_branch_diff` | **red のまま**(既知・TSK-386 が受け取り先。方針どおり本 PR では直さない) |
+
+**`auth_claim` は 184 で不変。** `total` は要件書 v2.8 の条文追加により **1078 → 1080**。
