@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3da93b75e68781308abac4ecfe162251
 branch: fix/oracle-input-baseline
 created: 2026-09-13
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -39,33 +39,40 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 
 ## 2. スコープ
 
-**計画レビュー 2 周**(1 周目 `P1` 7 件・`P2` 1 件 / 2 周目 `P1` 6 件・`P2` 1 件)。
-**両周の誤りは [design.md](design.md) 8 節が全件持つ。**
-**2 周目の要点は「この設計が機械的に保証しないことを明示した」こと**(同 3-3)。
+**計画レビュー 3 周**(1 周目 `P1` 7 / 2 周目 `P1` 6・`P2` 1 / 3 周目 `P1` 6・`P2` 1)。
+**全周の誤り 21 件は [design.md](design.md) 8 節が持つ。**
+**3 周目の要点は 2 つ** — **① `AUTHZ_GUARD_BASE_REVISION` は重複ではなく独立系列**(同 2-3)
+**② 新設検査を `ci.yml` へ結線しないと、実 PR に 1 度も走らない実装でも合格できる**(同 3-6)。
 
 ### やること
 
 1. **ハーネス設計書へ `7.7 凍結基準の更新経路` を新設**(`v1.14 → v1.15`・**7.6-3 後段**)
 2. **`contracts/authz/frozen-baselines.json` を新設** — **追記のみの基準台帳**
-   (`oracle_input` / `oracle_meaning` / `corpus_versions` の 3 系列)
-3. **凍結基準の直書き 4 箇所をすべて台帳へ移す**(`P1-3` — **条文の適用範囲と実装を一致させる**。
-   **2 周目 `P1-6` で 4 件目が判明した** — 初版は 3 件と数えていた)
-   - `scripts/check_authz_catalog.py:107` `ORACLE_INPUT_BASELINE_COMMIT`
-   - `backend/tests/db/authz/mutation_composition.py:36` `STEP2_BASE_REVISION`
-   - `tests/test_check_authz_catalog.py:38` `AUTHZ_STEP2_BASE_REVISION`(**重複**)
-   - **`tests/test_core_guard.py:47` `AUTHZ_GUARD_BASE_REVISION`**(**同じ値の 3 つ目の重複**)
+   (`oracle_input` / `oracle_meaning` / **`core_areas_guard`** / `corpus_versions` の **4 系列**)
+3. **凍結基準の直書き 4 箇所をすべて台帳へ移す**(`P1-3` — **条文の適用範囲と実装を一致させる**)。
+   **台帳は 4 系列**(`oracle_input` / `oracle_meaning` / **`core_areas_guard`** / `corpus_versions`)
+   - `scripts/check_authz_catalog.py:107` `ORACLE_INPUT_BASELINE_COMMIT` → `oracle_input`
+   - `backend/tests/db/authz/mutation_composition.py:36` `STEP2_BASE_REVISION` → `oracle_meaning`
+   - `tests/test_check_authz_catalog.py:38` `AUTHZ_STEP2_BASE_REVISION` → 同上(**これだけが重複**)
+   - **`tests/test_core_guard.py:47` `AUTHZ_GUARD_BASE_REVISION` → `core_areas_guard`(独立系列)**
+     — **値は同じだが対象が違う**(`core-areas.json` を読む固定基準。**3 周目 `P1-2`**。
+     統合すると **oracle 意味基準の更新が core-guard の基準まで暗黙にリベースする**)
 4. **`:4798` の fail-open を fail-closed へ**
 5. **`H-85` 対応案②** — 母集合へ `corpus_version`、**派生 3 資産の digest 辺 6 本を 0 本へ**
    (**台帳側で 1 本増えるので純減 5 本** — 2 周目 `P1-1`)
-6. **負例 9 件を固定**(N1〜N9 — design.md 6 節。**`N9` は移行 PR の初期値すり替え**)
-7. **allow-list 方式の走査を作る**(2 周目 `P1-6`)— **40 桁 OID literal を全数列挙し、
-   列挙に無い新規の literal が現れたら red**。「凍結基準かどうか」は字面から判定できないため
+6. **負例 11 件を固定**(N1〜N11 — design.md 6 節。**`N9` 初期値すり替え / `N10` `F-7` の比較元 /
+   `N11` allow-list の識別単位**)
+7. **allow-list 方式の走査を作る**(2 周目 `P1-6` + **3 周目 `P1-3` で仕様確定**)—
+   **識別単位は `(パス, 値)` の組**・置き場は `scripts/frozen-baseline-scan-allowlist.json`・
+   **未登録の出現も、消えた登録も red**(design.md 2-4)
+8. **`ci.yml` へ新設検査のステップを足す**(**3 周目 `P1-4`**)— **`fetch-depth: 0` のジョブへ**。
+   **base/HEAD を要る検査は `pytest tests/` の経路では走らない**(先例 `ci.yml:108`)
 
 ### やらないこと(**無宛先の申し送りを作らない** — `P2-8`)
 
 | 対象 | 判定 |
 | --- | --- |
-| `.github/workflows/ci.yml` へ authz 系の実行ステップを足す | **不採用(閉じる)**。**harness ジョブが `pytest tests/` を無条件実行し、`test_repository_catalog_covers_the_entire_requirements_file` が実スクリプトを subprocess 実行している**ため**検査の実効に差が無い** |
+| `.github/workflows/ci.yml` へ **既存** authz 系の実行ステップを足す | **不採用(閉じる)**。**harness ジョブが `pytest tests/` を無条件実行し、`test_repository_catalog_covers_the_entire_requirements_file` が実スクリプトを subprocess 実行している**ため**検査の実効に差が無い**。**ただし新設 `check_frozen_baselines.py` は別**(やること 8 — base/HEAD を要るため `pytest` 経路では走らない。**3 周目 `P1-4` で判定を部分的に取り消した**) |
 | harness 側 `test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` の整理 | **不採用(閉じる)**。**無条件実行 vs パスフィルタ依存の差**があり、**消すと弱くなる場合がある** |
 | `contracts/authz/function-bodies/manifest.json` の `source_commit` | **射程外。台帳の候補へ記録する**(受け取り先を持たせる) |
 | 要件書 → 母集合の 1 段目 / oracle → 下流 2 の 3 段目 | `H-85` の射程外 / 封印の性質そのもの |
@@ -79,7 +86,7 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 | --- | --- | --- |
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **`7.7 凍結基準の更新経路` を新設**(`v1.14 → v1.15`)。基準の外出し・更新経路の必置・**追記のみ**・更新の記録・fail-closed・委任の境界 | **finalize-doc**(7.6-3 **後段** — 合否条件の新設。先例は `:720`・裁定 `Q-1`) |
 | [ドキュメント索引](../../README.md) | ハーネス設計書の版・要約・最終更新を現行化 | PR レビュー(機械強制) |
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **`H-85` へ対応の追記** + **候補「2 つの機械検査が正面から矛盾し…」へ解消の追記** + **候補 2 件を新規**(**完了コミットを持たないステップで現在地導出が壊れる** / `function-bodies` の `source_commit`)+ 変更履歴 1 行。**`H-*` の新規採番はしない・版は上げない** | PR レビュー(7.6-3 前段) |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **`H-85` へ対応の追記** + **候補「2 つの機械検査が正面から矛盾し…」へ解消の追記** + **候補 4 件を新規**(**完了コミットを持たないステップで現在地導出が壊れる** / `function-bodies` の `source_commit` / **一度きりの移行検査(`F-7`)がマージ後に到達不能な分岐として残る問題** / **レビュー指摘の訂正を 1 箇所だけ直して「反映した」と数える型**〔3 周目の非起因 3 件がすべてこれ — design.md 8 節〕)+ 変更履歴 1 行。**`H-*` の新規採番はしない・版は上げない** | PR レビュー(7.6-3 前段) |
 | [データモデル設計](../../design/data-model.md) | **反映なし**(`:244` の委任を使うだけ) | — |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **反映なし** | — |
 | [ADR-004](../../adr/ADR-004-merge-gate-scope.md) | **反映なし** | — |
@@ -88,7 +95,9 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 `contracts/authz/frozen-baselines.json`(**新設**)/ `oracle-seal.lock.json` /
 `requirement-claims.json`(`corpus_version`)/ 派生 3 資産 + 各 `.lock.json` /
 `scripts/check_authz_catalog.py` / **`backend/tests/db/authz/mutation_composition.py`**(`P1-1`)/
-`tests/test_check_authz_catalog.py` / **新設する追記のみ検査**/
+`tests/test_check_authz_catalog.py` / **`tests/test_core_guard.py`**(3 周目 `P1-2`)/
+**`scripts/check_frozen_baselines.py`(新設)**/ **`scripts/frozen-baseline-scan-allowlist.json`(新設)**/
+**`.github/workflows/ci.yml`**(**新設検査のステップ** — 3 周目 `P1-4`)/
 `docs/features/oracle-input-baseline/` / `docs/worklog/2026-09-13-oracle-input-baseline.md`。
 
 ## 4. 実装方針
@@ -106,7 +115,9 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 - **基準台帳は連鎖の外に置く** — `input_assets` にも `sealed_assets` にも入れない(同 3-1)
 - **`F-4` 追記のみが要** — **先例 `scripts/check_nfr021_append_only.py:397`**(同 3-3)
 - **保証する / しないの境界を表で持つ**(同 3-3)。**ブランチ保護が無い**ので
-  (`docs/development/github-setup.md:35-39`)、**`F-4` は「改ざんが差分として見える」までである**
+  (`docs/development/github-setup.md:35-39`)、**`F-4` は「改ざんが差分として見える」までである**。
+  **承認欄をコピーした新規追記は通る**(条文の骨子 3・4 もこの表現に揃えた — 3 周目 `P1-5`)
+- **新設検査は `ci.yml` へ結線する**(同 3-6)— **結線が無いと実 PR に 1 度も走らない**
 - **移行 PR の初期記録は `F-7` で守る**(同 3-4)— `F-4` は base にファイルが無いと効かない
 - **上げ忘れの検出も追記のみが anchor**(同 4-3)。**派生の追随は `G-5`**
 
@@ -121,14 +132,14 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 | 1 | **退行の物差しを作る** — N1・N2 を一時ディレクトリの複製上で実行する形で固定し、**現行実装に対して red になることを記録する** | **N1・N2 が現行で red** / **worktree を汚さない** / ルート `pytest tests/` green |
 | 2 | **ハーネス設計書を `in-review` 化する** — frontmatter・変更履歴へ**起案行(射程宣言)**・索引 / **同一コミットで適用版(7.3-1)を worklog へ暫定記録** | `check_docs_status.py` exit 0 / **条文コミット SHA = 本コミットの第一親**を `git show` の差分本体で確認 / **版セルは暫定と明記** |
 | 3 | **`7.7 凍結基準の更新経路` を書き、確定ゲートを通して approved にする**(`/finalize-doc`)。**反映周のコミットは `反映<r>周目` のみでステップ記法を付けない。本ステップの完了コミットは approved 化コミット** | **条文に個別の識別子が無い** / **凍結資産を列挙していない** / 収束まで反映(7.3-2)/ **6 周警告**(7.3-6)/ **frontmatter・変更履歴・索引の三者が一致** |
-| 4 | **`frozen-baselines.json` を新設し、追記のみ検査を作る** — 3 系列の骨格 + **`F-1`〜`F-7`** | **`F-4` が PR の base と HEAD を比べている**(先例と同型)/ **N3・N5・N6・N9 が red** / **N5 が最重要**(既存記録の書き換え)/ **`F-7` が移行 PR の初期値を削除前の定数と突合している**(2 周目 `P1-4`) |
-| 5 | **`oracle_input` 系列へ現行の基準を移し、検査器から SHA を落とす**。**あわせて allow-list 走査を作る**(2 周目 `P1-6`) | **`scripts/check_authz_catalog.py` に 40 桁 SHA の直書きが 0 件**(**allow-list 走査が数える** — 手で列挙しない)/ **列挙に無い literal を 1 件足すと red**(fail-closed の実証)/ **N2 が red のまま** |
+| 4 | **`frozen-baselines.json`(4 系列)と `scripts/check_frozen_baselines.py` を新設し、`ci.yml` へ結線する** — `F-1`〜`F-7` | **`F-4` が PR の base と HEAD を比べている**(先例と同型)/ **N3・N5・N6・N9・N10 が red** / **`F-7` が base 側ソースから定数を抽出している**(**検査器に 40 桁の値を書いていない** — 3 周目 `P1-1`)/ **`ci.yml` に `fetch-depth: 0` のジョブでの実行ステップがある**(3 周目 `P1-4`)/ **そのステップを外すと `N5` が CI で緑になることを実測**(結線の実証) |
+| 5 | **`oracle_input` 系列へ現行の基準を移し、検査器から SHA を落とす**。**あわせて allow-list 走査を作る**(design.md 2-4) | **`scripts/check_authz_catalog.py` に 40 桁 SHA の直書きが 0 件**(**allow-list 走査が数える** — 手で列挙しない)/ **`N11` が red**(**既存の値を別ファイルへ足しても red** = 識別単位が `(パス, 値)` であることの実証 — 3 周目 `P1-3`)/ **allow-list から 1 件消すと red**(消えた登録も検出)/ **N2 が red のまま** |
 | 6 | **`:4798` の fail-open を fail-closed へ** | **N4 が red**(**現在は green**)/ 既存の緑を落としていない |
-| 7 | **`oracle_meaning` 系列へ移し、backend と harness の直書き 3 件を落とす**(**`test_core_guard.py:47` を含む** — 2 周目 `P1-6`) | **`backend/tests/**` と `tests/**` に凍結基準の 40 桁 SHA 直書きが 0 件**(allow-list 走査)/ **N1 が red のまま** / **`core-guard` の既存テストが green** / **重複 3 件が 1 箇所に集約** |
+| 7 | **`oracle_meaning` 系列へ 2 件、`core_areas_guard` 系列へ 1 件を移す**(**別系列** — 3 周目 `P1-2`) | **`backend/tests/**` と `tests/**` に凍結基準の 40 桁 SHA 直書きが 0 件**(allow-list 走査)/ **N1 が red のまま** / **`test_core_guard.py` の既存テストが green** / **`oracle_meaning` へ追記しても `core_areas_guard` の末尾が動かないことを実測**(暗黙リベースが起きないことの実証)/ **重複は `AUTHZ_STEP2_BASE_REVISION` の 1 件だけが解消** |
 | 8 | **`corpus_versions` 系列と `corpus_version` を新設する**(母集合 + **派生 3 資産**) | **N7・N8 が red** / **`G-1`〜`G-5` が実装されている**(**`G-5` = 派生の版が母集合と一致 — 2 周目 `P1-5`。これが無いと `N8` が実装不能**) |
-| 9 | **派生 3 資産の digest 辺 6 本を版参照へ置き換える(入力資産の変更・第 1 コミット)** | **`contracts/` の digest 辺の全数列挙で派生側が 6 本減・台帳側が 1 本増・純減 5 本**(**変更前後を機械が数える** — 手で数えない。2 周目 `P1-1`)/ **派生 3 資産に `requirement_claims_blob_digest` が 0 件** |
+| 9 | **派生 3 資産の digest 辺 6 本を版参照へ置き換える(入力資産の変更・第 1 コミット)** | **資産全体を指す digest 辺が `21 → 16`**(**機械が変更前後を数える**。定義と実測は design.md 4-1 — **`contracts/` の digest らしきキー全部 5241 件のほうではない**)/ **派生 3 資産に `requirement_claims_blob_digest` が 0 件** |
 | 10 | **新 blob を含むコミットへ基準を追記し、再封印する(第 2 コミット)** | **`P1-6` の二段構造**。台帳へ追記(`supersedes` が連鎖)/ `--reseal-oracle` / **`check_authz_catalog` ok** |
-| 11 | **負例 9 件を通しで確認し、効果を実測する** | **N1〜N9 がすべて red** / **digest 辺の数を機械が変更前後で出力し、純減 5 本を記録** / **手で計算する digest が 6 → 1**(台帳の `canonical_sha256` が残る)/ **要件書を 1 バイト変えて追随し、検査器のソースを 1 行も編集せずに済むことを実測** |
+| 11 | **負例 11 件を通しで確認し、効果を実測する** | **N1〜N11 がすべて red** / **digest 辺を機械が変更前後で出力し `21 → 16` を記録** / **手で計算する digest が 6 → 1**(台帳の `canonical_sha256` が残る)/ **要件書を 1 バイト変えて追随し、検査器のソースを 1 行も編集せずに済むことを実測** |
 | 12 | **クローズ処理**(`/pr`) | 3 節の宣言と PR 内容が突合 / **台帳の過去記録を書き換えず追記** / CI 全ジョブ green / 逐行確認のチェックと実施記録行 / **PR 本文に「`F-7` が効くのはこの 1 回だけなので初期記録 2 件を逐行で見る」と明記**(2 周目 `P1-4`) |
 
 **ステップ 3 が最も重い。** ハーネス設計書は approved 正本で、**確定ゲートが要る**。
@@ -140,18 +151,23 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 - [ ] **ハーネス設計書に `7.7 凍結基準の更新経路` が approved で存在する**(`v1.15`)
 - [ ] **凍結基準の 40 桁 SHA 直書きが、`scripts/` `tests/` `backend/tests/` に 0 件** —
       **allow-list 走査が数える**(**手で列挙しない** — 2 周目 `P1-6`。初版は 3 件と数えて 1 件見落とした)
-- [ ] **allow-list に無い 40 桁 OID literal を 1 件足すと red になる**(fail-closed の実証)
-- [ ] **`frozen-baselines.json` が追記のみで守られている** — **既存記録の書き換えが red**(N5)
+- [ ] **allow-list に無い `(パス, 値)` の組が現れると red**(**既存の値を別ファイルへ足しても red** — N11)
+- [ ] **allow-list から 1 件消すと red**(古くなった宣言を残さない)
+- [ ] **`frozen-baselines.json` が 4 系列を持ち、追記のみで守られている** — **既存記録の書き換えが red**(N5)
+- [ ] **`oracle_meaning` への追記が `core_areas_guard` の基準を動かさない**(3 周目 `P1-2`)
 - [ ] **記録なしに基準を動かせない**(N3・N6 が red)
 - [ ] **`oracle_commit` が到達不能なとき red**(N4 — fail-closed)
 - [ ] **既存の性質を落としていない** — N1・N2 が**変更前と同じく red**
 - [ ] **母集合の版の上げ忘れが red**(N7)・**派生の追随漏れが red**(N8 — `G-5`)
 - [ ] **移行 PR の初期記録が、削除する定数の値と一致しないと red**(N9 — `F-7`)
-- [ ] **`contracts/` の digest 辺が純減 5 本**(**派生 −6 / 台帳 +1**)であることを、
-      **機械が全数列挙して変更前後で出力した**(2 周目 `P1-1`)
+- [ ] **`F-7` の比較元が base 側ソースである** — **base の定数値を変えると red**(N10)。
+      **検査器に 40 桁の値をハードコードしていない**
+- [ ] **`ci.yml` に新設検査のステップがあり、外すと `N5` が CI で緑になることを実測した**(3 周目 `P1-4`)
+- [ ] **資産全体を指す digest 辺が `21 → 16`**(**派生 −6 / 台帳 +1**)であることを、
+      **機械が全数列挙して変更前後で出力した**(定義は design.md 4-1)
 - [ ] **手で計算する digest が 6 → 1 になったことを示した**(台帳の `canonical_sha256` が残る)
 - [ ] **要件書を 1 バイト改訂して追随し、検査器のソースを 1 行も編集せずに済むことを実測した**
-- [ ] **台帳へ `H-85` の対応・候補の解消・新規候補 2 件を追記した**(過去記録は書き換えない)
+- [ ] **台帳へ `H-85` の対応・候補の解消・新規候補 4 件を追記した**(過去記録は書き換えない)
 - [ ] **敵対レビューと人間の逐行確認を通っている**
 - [ ] **design.md 3-3 の「保証しない」欄が、実装後の実際の挙動と一致することを確認した**
       (**過大主張を 2 周続けて出しているため、DoD に置く**)
@@ -164,8 +180,8 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 | 種別 | 何を足すか |
 | --- | --- |
 | **退行**(既存の性質を落としていないこと) | **N1** 意味本文の改ざん + 再封印 / **N2** ポインタを内容等価な別コミットへ。**ステップ 1 で先に測る** |
-| **負例(新設)** | **N3** 承認欄が空 / **N4** 到達不能な commit / **N5 既存記録の書き換え(最重要)** / **N6** `supersedes` の不連鎖 / **N7** 版の上げ忘れ / **N8** 派生の追随漏れ(`G-5`)/ **N9** 移行 PR の初期値すり替え(`F-7`) |
-| **静的** | **allow-list 走査** — 40 桁 OID literal の全数列挙。**列挙外が現れたら red**(fail-closed)/ **派生 3 資産に `requirement_claims_blob_digest` が 0 件** / **`contracts/` の digest 辺の全数列挙**(**機械が**変更前後で数える) |
+| **負例(新設)** | **N3** 承認欄が空 / **N4** 到達不能な commit / **N5 既存記録の書き換え(最重要)** / **N6** `supersedes` の不連鎖 / **N7** 版の上げ忘れ / **N8** 派生の追随漏れ(`G-5`)/ **N9** 移行 PR の初期値すり替え(`F-7`)/ **N10** `F-7` の比較元が base 側ソースであること / **N11** allow-list の識別単位が `(パス, 値)` であること |
+| **静的** | **allow-list 走査** — `(パス, 値)` の組の全数列挙。**未登録の出現も、消えた登録も red** / **派生 3 資産に `requirement_claims_blob_digest` が 0 件** / **`contracts/` の digest 辺の全数列挙**(**機械が**変更前後で数える) |
 
 **負例はすべて一時ディレクトリへリポジトリを複製して実行する**
 (先例: `backend/tests/test_authz_mutation_composition_full.py` の `_clone_repository`)。
@@ -177,6 +193,7 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 uv run ruff check . && uv run ty check && uv run pytest tests/
 (cd backend && uv run pytest --ignore=tests/db)
 uv run python scripts/check_authz_catalog.py
+uv run python scripts/check_frozen_baselines.py --base origin/develop
 uv run python scripts/check_plan_docs_sync.py --plan docs/features/oracle-input-baseline/plan.md --base origin/develop
 ```
 
@@ -186,6 +203,7 @@ uv run python scripts/check_plan_docs_sync.py --plan docs/features/oracle-input-
 | --- | --- |
 | 条文が個別の識別子を持たないこと | `7.7` を読んで `oracle_commit` 等が出てこないことを確認 |
 | 更新経路が 1 本であること | **台帳への追記以外に基準を動かせる経路が無い**ことを、検査器を読んで確認 |
-| 負例が守りたい性質に対応していること | N1〜N8 のそれぞれが、**どの性質が壊れたときに鳴るか**を対応づける |
+| 負例が守りたい性質に対応していること | **N1〜N11** のそれぞれが、**どの性質が壊れたときに鳴るか**を対応づける |
 | **機械が保証していない範囲** | **design.md 3-3 の「保証しない」欄 4 件**を読み、**残余リスクとして受け入れるかを人間が判断する**。とくに **① `approved_by` のコピー貼り付けは通る ② ブランチ保護が無いので直接 push で base を書き換えられる**(`github-setup.md:35-39`) |
-| **移行 PR の初期記録**(1 回限り) | **`F-7` が効くのは新設 PR だけ**。**`oracle_input[0]` と `oracle_meaning[0]` の 2 件を逐行で見る**(2 周目 `P1-4`) |
+| **移行 PR の初期記録**(1 回限り) | **`F-7` が効くのは新設 PR だけ**。**`oracle_input[0]`・`oracle_meaning[0]`・`core_areas_guard[0]` の 3 件を逐行で見る** |
+| **`F-7` がマージ後は到達しない分岐になること** | **畳み方を台帳の候補へ記録したか**(受け取り先を持たせる — 3 周目 `P1-1`) |
