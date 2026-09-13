@@ -693,7 +693,7 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 | --- | --- | --- |
 | `backend` | `uv sync` → `ruff check` + `ruff format --check` → `ty check` → `pytest -c pyproject.toml --cov`（paths filter: backend/ contracts/）。**`services: postgres` 付き**(`postgres:17.11-bookworm`・initdb 引数とロケールは開発 DB と一致・healthcheck は TCP 明示)で、**DB 必須テストを同じ pytest 実行に含める**(marker で分けた二重実行はしない)。**DSN 未設定・DB テスト 0 件収集・0 件実行はいずれも fail** | Phase 4（骨格と同時）。**postgres サービスは TSK-270** |
 | `frontend` | `pnpm install` → ESLint → `prettier --check` → `vue-tsc` → Vitest（paths filter: frontend/ contracts/） | Phase 4 |
-| `consistency` | ゴールデンベクタ一致性テスト（NFR-019a: 同一入力列 → クライアント/サーバー同一状況） | 実装期 |
+| `consistency` | ゴールデンベクタ一致性テスト（NFR-019a: 同一入力列 → クライアント/サーバー同一状況）。**移行状態における本ジョブの green の意味は下記「移行状態における CI 全ジョブ green の意味」が定める**（v1.15） | 実装期 |
 | `e2e` | Playwright（NFR-019c の主要分岐。webkit 含む） | 実装期 |
 | `secrets` | gitleaks（NFR-014 の機構化） | **Phase 3（コード前から常設）** |
 | `docs-lint` | markdown リンク切れ検査・正本 frontmatter 検査（status 必須等）・同期プロトコル設計の伝播突合 12 検査（`scripts/check_design_propagation.py`、引数なし）・要件帰属/意味照合台帳の全数検査（`scripts/check_doc_coverage.py`、引数なし） | Phase 3 |
@@ -704,6 +704,15 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
 
 - `concurrency` で同一 PR の旧実行をキャンセル。uv / pnpm のキャッシュ有効化
 - **CI 全ジョブ green をマージ条件にする**（10.2）— 要件書 7.3 / NFR-019 の直接要求。**現在このマージ条件のリモート強制は未適用**（縮退中 — 10.2 実装状況。運用は github-setup.md 2 章の管理手続）
+- **移行状態における CI 全ジョブ green の意味**（`BOOT-CI-MEANING` — 要件書 `NFR-018` (e)・v1.15 新設）: **同項の経過規定が発効しているあいだ、`consistency` を含む全ジョブの green は「移行状態の要求を満たしている」ことを意味し、`NFR-019(a)` の合格および `NFR-018(b)②` の充足を意味しない**。3 者の関係は次のとおり:
+
+  | 判定 | 意味 | 成立時点 |
+  | --- | --- | --- |
+  | **段階ゲートの green** | 当該 PR が移行状態の要求を満たしている | PR ごと |
+  | **`NFR-019(a)` の充足** | (α) の全対象のベクタが完成し一致性が成立した | **移行状態の終了後** |
+  | **全体適合判定** | `NFR-018(b)②` を満たした | **移行状態の終了後** |
+
+  **移行状態にあるあいだ、CI は未達および既知債務の一覧を機械可読な形式で出力する**（同項 `BOOT-REPORT`。出力のない緑は経過規定の充足とみなさない）。**本項はジョブ名・個数・導入時期を変更しない** — 変更するのは**ジョブ状態の意味づけ**のみである。
 - **Phase 3 実装追随(2026-08-10・ci-foundation)**: `secrets`・`docs-lint`・`core-guard`・`harness` の 4 ジョブを `.github/workflows/ci.yml` として **feature/ci-foundation の PR で実装済み(develop への反映はマージ後)**。採用: gitleaks-action v3.0.0(コメント/artifact/summary 無効)/ lychee-action v2.9.0(`--offline`・`docs/legacy` 除外)+ `scripts/check_docs_status.py`(7.1-5 の固定文法が検査仕様の正)/ `scripts/core_guard.py`(検知対象 = `areas[].paths` ∪ `guard_paths`)/ setup-uv v9.0.0(uv 0.8.13・Python 3.12.3 固定)。**全 Action はコミット SHA ピン留め(値の正は ci.yml)**。トリガー = pull_request(**edited 含む** — PR 本文のチェック編集で core-guard を再評価)+ push(develop/main)+ workflow_dispatch(gitleaks 全履歴)。運用手続は github-setup.md が正
 - **Phase 4-5 実装追随(2026-08-22・nfr021-evidence-verifier)**: 本節の受入ゲートを機械検証する 2 スクリプトを実装した。**`scripts/verify_nfr021_evidence.py`**(合格条件 ①〜⑩ の検査・失効判定・候補 SHA の固定・検証器自身の自己同一性確認 — **CI ジョブにはしない**。受入の実施者が手元で走らせる道具であり、候補 SHA と証跡の名指しを入力に要するため)/ **`scripts/check_nfr021_append_only.py`**(上表の `nfr021-append-only` ジョブの実体)。**この 2 本は本節の既存規範の機械化であり、新しい規範を作らない**(記録項目・媒体・キーを増やさない — 13 章の宿題への結論)。**`push` 経路の事後検査は実装しない**(本節が直接 push・UI/API マージを残余リスクとして明示的に受容しており、同じ箇所が「マージ後の検査は事後検出であり手遅れになりうる」とも評価しているため。**ブランチ保護が適用可能になった時点で再検討する** — 台帳の follow-up)
 - **NFR-021 の継続検証基盤の選定結果(v1.10・2026-08-26・Phase 4-6)**: 上表の `win-setup` を**不採用**と確定した(要件書 10 章の未決事項「NFR-021 の継続検証基盤」に対応する選定 — **決定者は要件書 8 章の判定者**)。**本項が正であるのは「CI における `win-setup` の採否と、その帰結としての実装判断」に限る。** **要件書 10 章の未決事項行そのものの状態更新は本書では行わず、要件改訂のゲート(7.6-3)を通す別タスクで行う** と v1.10 で定めた。**v1.11: その別タスクは前提 PR 第 3 号(13 章の同名節)であり、同 PR で要件書 v2.3 が 10 章の当該行を「決着済み＝手動再現に一本化」として現況化する。** **併存期間が終了するのは、要件書 v2.3 と本書 v1.11 がいずれも approved 化され `develop` へ統合された時点である** — **それまでの上位規範は要件書 v2.2 の暫定方針(必須ゲートは Windows 11 x64 上の WSL2 の手動再現・hosted は必須ゲートの代替にならない)と本書 v1.10 のまま**とする。統合後の規範は、要件書 NFR-021 の受入プロファイル(ホストのアーキテクチャに対応する WSL2 の手動再現)と 10 章の決着済み行が正である。本項はそれに反する内容を含まない。
