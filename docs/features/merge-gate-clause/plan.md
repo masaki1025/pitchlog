@@ -1,6 +1,6 @@
 ---
 feature: merge-gate-clause
-status: active                # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review             # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-13・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -102,34 +102,64 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 **digest 連鎖の実測**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
 `failure-injection-points` / `mcdc-map` の **4 段**。
 
-**既知の red が 4 件ある**(**本 PR では直さない** — **受け取り先は
-[TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**):
+**射程の追加(2026-09-13・山田正輝の承認)— 凍結オラクル検査 4 本を本 PR で直す**
 
-| # | red | 要求 |
+**当初は「本 PR では直さない・受け取り先は TSK-386」と宣言していた。**
+**PR #60 の敵対レビュー 1 周目の `P1` を受けて、人間の承認のうえで射程へ入れた。**
+
+| | 内容 |
+| --- | --- |
+| **きっかけ** | 敵対レビュー 1 周目の `P1`: 「**定数を戻すのではなく、入力 8 資産は現在の seal が指す commit と照合しつつ、oracle の意味本文は `oracle_commit` を除外して固定基準との差分を守る形へ、凍結テストを本 PR 内で追随させる必要がある**」 |
+| **なぜ送らずに直すか** | **レビュアが設計まで指定しており、同じレビュアが次周で検証できる**。TSK-386 へ渡すと**この具体案が途中で失われる**。加えて **`0faab75` の実装は、朝に取り下げた案とは逆に防御を強めている**(下記) |
+| **対象**(**この 3 ファイル以外へ触れない**) | `backend/tests/db/authz/mutation_composition.py` / `backend/tests/test_authz_mutation_composition_full.py` / `tests/test_check_authz_catalog.py` |
+| **触れないもの** | `scripts/check_authz_catalog.py` / `contracts/**` / `docs/**` / 製品コード。**`ORACLE_INPUT_BASELINE_COMMIT` と `STEP2_BASE_REVISION` は動かさない** |
+| **実装ステップ表との関係** | **新しいステップとして番号を振らない**(表の総数 `N=10` を変えると既存コミットの `(ステップ k/10)` トークンが総数と食い違う — 設計書 6.1 の厳密文法)。**差し戻し修正として 1 まとまり 1 コミット**とし、**ステップ記法を付けない** |
+| **承認** | **済(2026-09-13・山田正輝)** |
+
+**入れた不変条件は 2 つ**:
+
+| 対象 | 不変条件 |
+| --- | --- |
+| **入力 8 資産** | **作業ツリーの blob・seal の `oracle_commit` 上の blob・seal の記録値の三者照合** |
+| **封印 6 資産 + seal** | **`oracle_commit` を除いた意味本文が固定基準 `STEP2_BASE_REVISION` から不変**。変わってよいのは承認済み 2 資産のみ |
+
+**「ベースラインのポインタは動いてよいが、オラクルの意味本文は 1 バイトも動いてはならない」**という形である。
+
+**朝に取り下げた案との違い**: **朝は封印資産を検査から丸ごと外し、境界の意味を改ざんして
+同時に再封印すると通る穴を開けた**。**今回は封印資産を検査に残したまま、変わってよい
+1 フィールドだけを除外する**。**朝の攻撃が捕まることを関数レベルで再現して確認した**
+(① 改ざん前 green / ② 意味本文の改ざん red / ③ **seal も追随させた朝の形でも red**)。
+
+**負例テスト 2 件を追加**(一時ディレクトリへリポジトリを複製して実行)。
+**固定 SHA を新しく直書きしていない**ことを実測で確認した。
+
+**この結果、当初「本 PR では直さない」としていた 4 件はすべて解消した。**
+
+| # | 旧 red | 現在 |
 | --- | --- | --- |
-| 1 | `backend/…::test_frozen_oracle_paths_have_no_branch_diff` | seal 由来 15 パスが **`origin/develop` から差分ゼロ**であること |
-| 2 | `backend/…::test_frozen_oracle_exclusions_match_the_resealed_canonical_assets` | **canonical が変わった資産が「ステップ 2 の確定集合」と一致**すること(本改訂は `oracle_commit` の差し替えで 6 資産すべてが変わる) |
-| 3 | `tests/test_check_authz_catalog.py::test_boundary_proposal_base_leaves_follow_the_approved_classification` | **`AUTHZ_STEP2_BASE_REVISION = "56c281c…"`** 時点の分類に従うこと(`tests/…:38`) |
-| 4 | `tests/test_check_authz_catalog.py::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | 同上(**`oracle_commit` が `dd2cb92` のままであること**を期待している) |
+| 1 | `backend/…::test_frozen_oracle_paths_have_no_branch_diff` | **green** |
+| 2 | `backend/…::test_frozen_oracle_exclusions_match_the_resealed_canonical_assets` | **green** |
+| 3 | `tests/…::test_boundary_proposal_base_leaves_follow_the_approved_classification` | **green** |
+| 4 | `tests/…::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | **green** |
 
-**`ORACLE_INPUT_BASELINE_COMMIT` は `0cf994f`(本改訂の入力確定コミット)へ進めた。**
-**同じ欠陥は少なくとも 5 箇所にある** — 検査器の定数・backend の 2 本・上記テスト 2 本。
-**すべて「入力ベースラインは永久に動かない」を別の場所で言っている。**
+**TSK-386 に残るもの**: **`scripts/check_authz_catalog.py:107` の
+`ORACLE_INPUT_BASELINE_COMMIT` が固定 SHA 直書きのままである**(本 PR では `0cf994f` へ進めた
+応急処置)。**要件書を改訂するたびに検査器を編集する運用が残る**ので、恒久的な解は TSK-386。
+**ただし本 PR のブロッカーではなくなった。**
 
-**red 以外はすべて green**: harness `ruff` / `ty` / `pytest`(**1344 passed**)/
-backend `ruff format` / `ruff check` / `ty` / `pytest`(**195 passed**)/
-frontend `prettier` / `eslint` / `vue-tsc` / `vitest`(**664 passed**)/
-`check_docs_status` / `check_plan_docs_sync` / `check_design_propagation` /
-`check_doc_coverage` / `check_authz_catalog` / `check_failure_injection_points` / `check_mcdc_map`。
+**最終実測**: harness `pytest` **1346 passed / 0 failed**・`ruff` / `ty` green /
+backend `pytest` **198 passed / 0 failed**・`ruff format` / `ruff check` / `ty` green /
+frontend `prettier` / `eslint` / `vue-tsc` green・`vitest` **664 passed** /
+文書・契約の検査 7 種すべて rc=0。
 
 **2 件は同じ欠陥である** — **どちらも「入力ベースラインは永久に動かない」を別の場所で
 言っているだけ**で、**要件書を改訂すると必ずどちらかが赤くなる**。
 **2 件目は develop のマージ(PR #59 の `9259892`)で初めて入った制約**であり、
 **96d0f86 時点には存在しなかった**。
 
-**封印資産 2 件が不一致のまま残る**(`ddl-elements.json` / `boundary-proposal.json` — どちらも
-PR #59 が実質変更した資産)。**定数が `dd2cb92` を要求しているあいだは `--reseal-oracle` が
-実行できない**(検査が先に走って止まる)ため、**TSK-386 待ちである**。
+**封印資産の不一致は解消済み**である(`ddl-elements.json` / `boundary-proposal.json` — どちらも
+PR #59 が実質変更した資産)。**ベースラインを進めたことで `--reseal-oracle` が実行でき、
+seal は入力 8 件・封印 6 件とも実ファイルと一致する**(実測)。
 
 **`oracle_commit` を `0cf994f` へ進めた理由**(PO 裁定 2026-09-13・山田正輝): **同一ツリーで両方を実測**すると、
 **進めた場合 2 本 / 撤回した場合 9 本**だった。**9 本は独立ではなく、`check_authz_catalog` が早期に
