@@ -642,6 +642,52 @@ Markdown の表を `split("|")` で割っていた** — **行本文に `\|` の
 `failure-injection-points` / `mcdc-map`。**台帳が記録している「連鎖が届かない」型を、
 今回は 1 段ずつ実測で追った。**
 
+### 凍結オラクル検査との矛盾 — **是正を試みて取り下げた**(TSK-386 へ)
+
+**ステップ 9 の後、backend の `test_frozen_oracle_paths_have_no_branch_diff` が red のままになった。**
+
+| 検査 | 要求 |
+| --- | --- |
+| `scripts/check_authz_catalog.py`(harness CI・常時) | 母集合が**現在の要件書の blob を束縛**していること → **要件書が変わったら母集合を変えろ** |
+| `verify_frozen_oracle_unchanged`(backend CI・`contracts/**` で発火) | seal 由来 15 パスが **`origin/develop...HEAD` で差分ゼロ**であること → **母集合を変えるな** |
+
+**要件書を改訂するとどちらかが必ず赤くなる。** 凍結検査は **2026-09-10(`9558cc7`・TSK-317)**に入り、
+要件書の直近改訂は **2026-09-07(v2.7)**なので、**本タスクがこの検査の下で要件書を改訂する最初のタスク**である。
+
+#### 是正を試み、敵対レビューで取り下げた
+
+**PO の承認を得て射程拡大として実装した**(基準を `oracle_commit` へ・対象を `input_assets` 8 件のみへ・
+正例 1 と負例 2 を追加)。**backend 198 passed・lint / 型とも green** になったが、
+**敵対レビューが `P1` を 2 件出し、1 件目を自分で再現して確認した**。
+
+**私は「防御力は落ちない」と述べたが、それは誤りだった。** 実際に攻撃が通る:
+
+1. `boundary-proposal.json` の `BOUNDARY:CONTROL-READS` の `responsibility` を
+   `return_paged_authorized_control_rows` → **`return_all_tenants_control_rows_without_filter`** へ改ざん
+2. `check_authz_catalog.py` → **red**(`canonical digest が oracle seal と不一致`)
+3. **`--reseal-oracle`**
+4. `check_authz_catalog.py` → **ok(全 green)**
+5. **修正版の凍結検査 → passed**
+
+**誤りの中身**: 「封印資産の完全性は `check_authz_catalog` が `canonical_sha256` で検査している」と
+書いたが、**それが保証するのは現在の資産と現在の seal の自己整合だけ**で、
+**承認済みのベースラインとの一致ではない**。**旧検査の git 差分だけが、封印された期待値を
+レビュー済みの基準に繋ぎ止めていた**。**確かめずに「別途検査済み」と断定したのが原因である。**
+
+**`P1` の 2 件目も正当**だった — 承認済み計画の射程外であり、手続上「自分の PR を通すために
+検査を緩めた」に当たる。**射程拡大を推奨した根拠が崩れた以上、反論できない。**
+
+**backend の変更は revert した。** 検証用に改ざんした `boundary-proposal.json` も復旧し、
+`check_authz_catalog` が green であることを確認した。
+
+**受け取り先: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。**
+**単純な基準の差し替えでは不十分**であることと、**封印資産の差分を
+`oracle_context.oracle_commit` フィールドのみに限定する**という候補、
+`human_review_required` が文字列検査にすぎない点、`oracle_commit` が commit object か
+検査していない点(tree SHA でも通る — 敵対レビュー `P2` で実測)まで先方の本文へ書いた。
+
+**本 PR はこの 1 本が red のままマージ待ちになる。**
+
 ## 決定
 
 ## 未決・次の一歩

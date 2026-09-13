@@ -84,12 +84,31 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 | [同期プロトコル設計](../../design/sync-protocol.md) | **反映なし** | — |
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **反映なし**(5.1 は現行のままでよい。12-4 側が追随する) | — |
 
-**正本体系外だが同一 PR で運ぶもの**:
-`contracts/authz/shared-preconditions.json`(blob digest)/
-`contracts/db/schema-manifest.json`(SHA-256)/
-`docs/features/orm-schema-migration/acceptance-sheets/`(N1・N3 の再生成)/
-`tests/test_orm_acceptance_sheets.py`(件数)/
-`docs/features/merge-gate-clause/`・`docs/worklog/2026-09-13-merge-gate-clause.md`。
+**正本体系外だが同一 PR で運ぶもの**(**ステップ 9 の実測で当初の見積より 4 段深い連鎖だった** —
+下記「digest 連鎖の実測」):
+
+- `contracts/authz/shared-preconditions.json`(blob digest 2 件)
+- `contracts/db/schema-manifest.json`(SHA-256)
+- **母集合**: `contracts/authz/requirement-claims.json` + `.lock.json`
+- **派生 3 資産**: `route-registry` / `http-route-matrix` / `auth-catalog` の各 `.json` + `.lock.json`
+- **oracle 6 資産 + seal**: `attack-tree` / `boundary-proposal` / `claim-mutant-map` /
+  `ddl-elements` / `rejected-configs` / `verification-evidence` / `oracle-seal.lock.json`
+- **下流の連鎖 2 件**: `failure-injection-points.json`(`ddl-elements` の blob)/
+  `mcdc-map.json`(`claim-mutant-map` の digest)
+- `docs/features/orm-schema-migration/acceptance-sheets/`(N1・N3・README の再生成)
+- `tests/test_orm_acceptance_sheets.py`・`tests/test_check_authz_catalog.py`(件数)
+- `docs/features/merge-gate-clause/`・`docs/worklog/2026-09-13-merge-gate-clause.md`
+
+**digest 連鎖の実測**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
+`failure-injection-points` / `mcdc-map` の **4 段**。
+
+**既知の red が 1 件ある**(**本 PR では直さない**):
+`backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_paths_have_no_branch_diff`。
+**凍結オラクル検査(`origin/develop` 基準で seal 由来 15 パスの差分ゼロを要求)と、
+母集合の追随義務が正面から矛盾している**ため、要件書を改訂するとどちらかが必ず赤くなる。
+**受け取り先は [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**。
+**本 PR での是正を一度試みたが、敵対レビューで `P1` となり取り下げた**(封印資産の
+履歴上の不変性が失われることを実測で確認した — worklog に全文と再現手順)。
 
 ## 4. 実装方針
 
