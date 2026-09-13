@@ -245,6 +245,59 @@ def _frozen_asset_paths_from_seal(
     return paths
 
 
+def _oracle_meaning_body(asset: dict[str, Any]) -> dict[str, Any]:
+    """oracle資産から可動ポインタだけを除いた意味本文を返す。"""
+    body = copy.deepcopy(asset)
+    context = body["oracle_context"]
+    assert isinstance(context, dict)
+    oracle_commit = context.pop("oracle_commit")
+    assert isinstance(oracle_commit, str) and oracle_commit
+    return body
+
+
+def _oracle_seal_meaning_body(seal: dict[str, Any]) -> dict[str, Any]:
+    """sealから入力ポインタとポインタ由来digestだけを除いて返す。"""
+    body = copy.deepcopy(seal)
+    oracle_commit = body.pop("oracle_commit")
+    assert isinstance(oracle_commit, str) and oracle_commit
+    for row in body["input_assets"]:
+        digest = row.pop("git_blob_digest")
+        assert isinstance(digest, str) and digest
+    for row in body["sealed_assets"]:
+        digest = row.pop("canonical_sha256")
+        assert isinstance(digest, str) and digest
+    return body
+
+
+def _git_object_id(arguments: list[str]) -> str:
+    """repositoryでGitコマンドが返す単一object IDを取得する。"""
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    object_id = result.stdout.strip()
+    assert object_id
+    return object_id
+
+
+def _assert_oracle_input_baseline_matches_seal(seal: dict[str, Any]) -> None:
+    """入力8資産の作業ツリー・基準commit・seal blobを三者照合する。"""
+    oracle_commit = seal["oracle_commit"]
+    assert isinstance(oracle_commit, str) and oracle_commit
+    rows = seal["input_assets"]
+    assert isinstance(rows, list)
+    assert len(rows) == len({row["path"] for row in rows}) == 8
+    for row in rows:
+        path = row["path"]
+        recorded = row["git_blob_digest"]
+        assert _git_object_id(["hash-object", "--", path]) == recorded
+        assert _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) == recorded
+
+
 def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     """object_pairs_hook で解析前の重複キーを拒否する。"""
     keys = [key for key, _value in pairs]
@@ -811,7 +864,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1078 auth_claim=184 out_of_scope=894" in result.stdout
+    assert "total=1080 auth_claim=184 out_of_scope=896" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1233,8 +1286,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 894
-    assert attempts == 894
+    assert len(out_claims) == 896
+    assert attempts == 896
     assert escaped == []
 
 
@@ -2784,9 +2837,11 @@ def test_boundary_and_review_ids_reject_duplicate_rows_before_folding(
 
 
 def test_boundary_proposal_base_leaves_follow_the_approved_classification() -> None:
-    """基準版の全葉を変更・不変・削除へ分け、計画外の新設も拒否する。"""
+    """可動ポインタを除く全葉を変更・不変・削除へ分ける。"""
     base = _base_json("contracts/authz/boundary-proposal.json")
     current = _read_repository_json("contracts/authz/boundary-proposal.json")
+    seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    pointer_path = ("oracle_context", "oracle_commit")
     removed = {("boundaries", 1, "aggregation_owner_task_id")}
     changed = {
         ("proposal_status",): "tsk_235_confirmed",
@@ -2806,7 +2861,8 @@ def test_boundary_proposal_base_leaves_follow_the_approved_classification() -> N
     current_paths = set(_iter_leaf_paths(current))
 
     assert current_paths == base_paths - removed
-    for path in base_paths - removed:
+    assert _value_at_path(current, pointer_path) == seal["oracle_commit"]
+    for path in base_paths - removed - {pointer_path}:
         expected = changed.get(path, _value_at_path(base, path))
         assert _value_at_path(current, path) == expected
 
@@ -3287,34 +3343,29 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
 
 
 def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> None:
-    """固定基準版との比較で入力8行を保ち、予定した2資産だけ再封印する。"""
+    """入力baselineを三者照合し、意味が変わる資産を予定した2件に限る。"""
     relative_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
     base = _base_json(relative_path)
     current = _read_repository_json(relative_path)
     assets, _seal, paths = _repository_oracle_assets()
 
-    assert current["oracle_commit"] == base["oracle_commit"]
     assert current["oracle_commit_semantics"] == base["oracle_commit_semantics"]
-    assert current["input_assets"] == base["input_assets"]
-    assert len(current["input_assets"]) == len(
-        {row["path"] for row in current["input_assets"]}
-    )
-    base_digests = {
-        row["path"]: row["canonical_sha256"] for row in base["sealed_assets"]
-    }
-    current_digests = {
-        row["path"]: row["canonical_sha256"]
-        for row in current["sealed_assets"]
-    }
+    assert _oracle_seal_meaning_body(current) == _oracle_seal_meaning_body(base)
+    _assert_oracle_input_baseline_matches_seal(current)
+    current_by_path = {paths[name]: asset for name, asset in assets.items()}
+    base_by_path = {path: _base_json(path) for path in current_by_path}
     changed = {
         path
-        for path, digest in current_digests.items()
-        if digest != base_digests[path]
+        for path, asset in current_by_path.items()
+        if _oracle_meaning_body(asset) != _oracle_meaning_body(base_by_path[path])
     }
     assert changed == {
         "contracts/authz/boundary-proposal.json",
         "contracts/authz/ddl-elements.json",
     }
+    assert {
+        asset["oracle_context"]["oracle_commit"] for asset in assets.values()
+    } == {current["oracle_commit"]}
     checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 

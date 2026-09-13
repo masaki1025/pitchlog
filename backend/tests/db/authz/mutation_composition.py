@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from collections import Counter, defaultdict
@@ -30,11 +31,13 @@ CLAIM_MUTANT_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/claim-mutant-map.json
 ATTACK_TREE_PATH = REPOSITORY_ROOT / "contracts/authz/attack-tree.json"
 MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
+_BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
+_DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
 STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 STEP2_CHANGED_CANONICAL_ASSET_PATHS = frozenset(
     {
-        "contracts/authz/boundary-proposal.json",
-        "contracts/authz/ddl-elements.json",
+        _BOUNDARY_PROPOSAL_RELATIVE_PATH,
+        _DDL_ELEMENTS_RELATIVE_PATH,
     }
 )
 
@@ -937,6 +940,32 @@ def _oracle_seal_at_revision(root: Path, revision: str) -> dict[str, object]:
     return seal
 
 
+def _json_object_at_revision(
+    root: Path,
+    revision: str,
+    relative_path: str,
+) -> dict[str, object]:
+    """指定revisionにあるJSONオブジェクトを読み取る。"""
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{relative_path}"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise MutationCompositionError(
+            f"基準版のJSONを取得できない: {relative_path}: {result.stderr.strip()}"
+        )
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise MutationCompositionError(
+            f"基準版のJSONが不正: {relative_path}"
+        ) from error
+    return _expect_object(value, f"base asset {relative_path}")
+
+
 def frozen_oracle_paths(
     root: Path = REPOSITORY_ROOT,
     base_ref: str | None = None,
@@ -951,80 +980,105 @@ def frozen_oracle_paths(
     return _frozen_oracle_paths_from_seal(seal)
 
 
-def _canonical_digests_by_path(seal: dict[str, object], label: str) -> dict[str, str]:
-    """sealed_assetsを重複を許さないpathとdigestの写像へ変換する。"""
-    result: dict[str, str] = {}
+def _json_copy(value: dict[str, object], label: str) -> dict[str, object]:
+    """JSONオブジェクトを参照共有なしで複製する。"""
+    return _expect_object(json.loads(json.dumps(value)), label)
+
+
+def _oracle_meaning_body(
+    asset: dict[str, object],
+    label: str,
+) -> dict[str, object]:
+    """oracle資産から可動ポインタだけを除いた意味本文を返す。"""
+    body = _json_copy(asset, label)
+    context = _expect_object(body.get("oracle_context"), f"{label}.oracle_context")
+    _text(context.pop("oracle_commit", None), f"{label}.oracle_context.oracle_commit")
+    return body
+
+
+def _expected_step2_meaning_body(
+    relative_path: str,
+    base: dict[str, object],
+) -> dict[str, object]:
+    """固定基準へ承認済みの2資産の意味変更だけを適用する。"""
+    expected = _oracle_meaning_body(base, f"base asset {relative_path}")
+    if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
+        expected["proposal_status"] = "tsk_235_confirmed"
+        boundaries = _expect_rows(expected.get("boundaries"), "base boundaries")
+        boundaries[0]["aggregation_owner_task_id"] = (
+            "3d993b75-e687-818d-8cb8-ec57508e73e0"
+        )
+        boundaries[1].pop("aggregation_owner_task_id", None)
+        deferred = _expect_object(
+            expected.get("deferred_equivalence_contract"),
+            "base deferred_equivalence_contract",
+        )
+        deferred["owner_task_id"] = "3d993b75-e687-818d-8cb8-ec57508e73e0"
+        reviews = _expect_rows(
+            expected.get("pending_human_reviews"),
+            "base pending_human_reviews",
+        )
+        reviews[0]["status"] = "human_decided"
+        reviews[1]["status"] = "human_decided"
+    elif relative_path == _DDL_ELEMENTS_RELATIVE_PATH:
+        scope = _expect_object(expected.get("scope"), "base DDL scope")
+        scope["status"] = "verified_probe_configuration"
+        scope["second_group_approval_required"] = False
+    return expected
+
+
+def _sealed_rows_by_path(
+    seal: dict[str, object],
+    label: str,
+) -> dict[str, dict[str, object]]:
+    """sealed_assetsを重複を許さないpath写像へ変換する。"""
+    result: dict[str, dict[str, object]] = {}
     for row in _expect_rows(seal.get("sealed_assets"), f"{label}.sealed_assets"):
         path = _text(row.get("path"), f"{label}.sealed_assets.path")
-        digest = _text(
-            row.get("canonical_sha256"),
-            f"{label}.sealed_assets.canonical_sha256",
-        )
         if path in result:
             raise MutationCompositionError(f"{label}.sealed_assets.pathが重複")
-        result[path] = digest
+        result[path] = row
     return result
 
 
-def intentionally_changed_frozen_oracle_paths(
-    root: Path = REPOSITORY_ROOT,
-    base_ref: str = STEP2_BASE_REVISION,
-) -> frozenset[str]:
-    """基準版からcanonicalが変わった資産とreseal済みsealを導出する。"""
-    resolved = root.resolve()
-    base_seal = _oracle_seal_at_revision(resolved, base_ref)
-    current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
-    base_digests = _canonical_digests_by_path(base_seal, "base oracle seal")
-    current_digests = _canonical_digests_by_path(current_seal, "current oracle seal")
-    if set(base_digests) != set(current_digests):
-        raise MutationCompositionError("sealed_assets.path集合が基準版と不一致")
-    changed_canonical = frozenset(
-        path for path, digest in current_digests.items() if digest != base_digests[path]
-    )
-    if not changed_canonical:
-        raise MutationCompositionError("意図的に変更したcanonical資産が空")
-    if changed_canonical != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
-        raise MutationCompositionError(
-            "canonicalが変わった資産がステップ2の確定集合と不一致: "
-            f"{tuple(sorted(changed_canonical))}"
+def _input_rows_by_path(
+    seal: dict[str, object],
+    label: str,
+) -> dict[str, dict[str, object]]:
+    """input_assetsを重複を許さないpath写像へ変換する。"""
+    result: dict[str, dict[str, object]] = {}
+    for row in _expect_rows(seal.get("input_assets"), f"{label}.input_assets"):
+        path = _text(row.get("path"), f"{label}.input_assets.path")
+        if path in result:
+            raise MutationCompositionError(f"{label}.input_assets.pathが重複")
+        result[path] = row
+    return result
+
+
+def _oracle_seal_meaning_body(
+    seal: dict[str, object],
+    label: str,
+) -> dict[str, object]:
+    """sealから入力ポインタとポインタ由来digestだけを除いて返す。"""
+    body = _json_copy(seal, label)
+    _text(body.pop("oracle_commit", None), f"{label}.oracle_commit")
+    for row in _expect_rows(body.get("input_assets"), f"{label}.input_assets"):
+        _text(
+            row.pop("git_blob_digest", None),
+            f"{label}.input_assets.git_blob_digest",
         )
-    excluded = changed_canonical | {ORACLE_SEAL_RELATIVE_PATH}
-    if not excluded:
-        raise MutationCompositionError("凍結差分から除外する集合が空")
-    return frozenset(excluded)
+    for row in _expect_rows(body.get("sealed_assets"), f"{label}.sealed_assets"):
+        _text(
+            row.pop("canonical_sha256", None),
+            f"{label}.sealed_assets.canonical_sha256",
+        )
+    return body
 
 
-def unchanged_frozen_oracle_paths(
-    root: Path = REPOSITORY_ROOT,
-    base_ref: str = STEP2_BASE_REVISION,
-) -> tuple[str, ...]:
-    """基準版の凍結集合から本改訂の意図的変更だけを除いて返す。"""
-    frozen = frozen_oracle_paths(root, base_ref)
-    excluded = intentionally_changed_frozen_oracle_paths(root, base_ref)
-    if not excluded <= set(frozen):
-        raise MutationCompositionError("凍結差分の除外集合が基準版の外を含む")
-    unchanged = tuple(path for path in frozen if path not in excluded)
-    if not unchanged:
-        raise MutationCompositionError("不変を要求する凍結パスが空")
-    return unchanged
-
-
-def _branch_changed_paths(
-    root: Path,
-    base_ref: str,
-    paths: tuple[str, ...],
-) -> tuple[str, ...]:
-    """固定基準からHEADまでに変更された対象パスを返す。"""
-    command = [
-        "git",
-        "diff",
-        "--name-only",
-        f"{base_ref}...HEAD",
-        "--",
-        *paths,
-    ]
+def _git_object_id(root: Path, arguments: list[str], label: str) -> str:
+    """Gitコマンドが返した単一object IDを取得する。"""
     result = subprocess.run(
-        command,
+        ["git", *arguments],
         cwd=root,
         check=False,
         capture_output=True,
@@ -1032,18 +1086,120 @@ def _branch_changed_paths(
     )
     if result.returncode != 0:
         raise MutationCompositionError(
-            f"凍結差分を取得できない: {result.stderr.strip()}"
+            f"{label}を取得できない: {result.stderr.strip()}"
         )
-    return tuple(line for line in result.stdout.splitlines() if line)
+    return _text(result.stdout.strip(), label)
+
+
+def _verify_oracle_input_assets(
+    root: Path,
+    seal: dict[str, object],
+) -> None:
+    """入力資産の作業ツリー・基準commit・sealのblobを三者照合する。"""
+    oracle_commit = _text(seal.get("oracle_commit"), "oracle seal.oracle_commit")
+    for path, row in _input_rows_by_path(seal, "current oracle seal").items():
+        recorded = _text(
+            row.get("git_blob_digest"),
+            f"current oracle seal.input_assets[{path}].git_blob_digest",
+        )
+        worktree = _git_object_id(
+            root,
+            ["hash-object", "--", path],
+            f"作業ツリーのblob {path}",
+        )
+        baseline = _git_object_id(
+            root,
+            ["rev-parse", f"{oracle_commit}:{path}"],
+            f"oracle commit上のblob {path}",
+        )
+        if worktree != baseline or baseline != recorded:
+            raise MutationCompositionError(
+                f"oracle入力blobが三者不一致: {path}: "
+                f"worktree={worktree}, baseline={baseline}, seal={recorded}"
+            )
+
+
+def _canonical_sha256(value: object) -> str:
+    """checkerと同じcanonical JSONのSHA-256を返す。"""
+    return hashlib.sha256(_canonical_json(value).encode()).hexdigest()
+
+
+def _verify_current_sealed_assets(
+    root: Path,
+    seal: dict[str, object],
+) -> None:
+    """封印6資産のポインタとraw canonical digestを現sealへ照合する。"""
+    oracle_commit = _text(seal.get("oracle_commit"), "oracle seal.oracle_commit")
+    for path, row in _sealed_rows_by_path(seal, "current oracle seal").items():
+        asset = _read_json_object(root / path)
+        context = _expect_object(asset.get("oracle_context"), f"{path}.oracle_context")
+        if context.get("oracle_commit") != oracle_commit:
+            raise MutationCompositionError(f"{path}: oracle_commitがsealと不一致")
+        recorded = _text(
+            row.get("canonical_sha256"),
+            f"current oracle seal.sealed_assets[{path}].canonical_sha256",
+        )
+        if recorded != _canonical_sha256(asset):
+            raise MutationCompositionError(f"{path}: canonical digestがsealと不一致")
+
+
+def _changed_oracle_meaning_paths(
+    root: Path,
+    base_ref: str,
+    current_seal: dict[str, object],
+) -> frozenset[str]:
+    """可動ポインタを除いて固定基準から意味が変わった資産を返す。"""
+    current_paths = set(_sealed_rows_by_path(current_seal, "current oracle seal"))
+    base_seal = _oracle_seal_at_revision(root, base_ref)
+    base_paths = set(_sealed_rows_by_path(base_seal, "base oracle seal"))
+    if current_paths != base_paths:
+        raise MutationCompositionError("sealed_assets.path集合が基準版と不一致")
+    changed: set[str] = set()
+    for path in sorted(base_paths):
+        base = _json_object_at_revision(root, base_ref, path)
+        current = _read_json_object(root / path)
+        current_body = _oracle_meaning_body(current, f"current asset {path}")
+        if current_body != _oracle_meaning_body(base, f"base asset {path}"):
+            changed.add(path)
+        expected = _expected_step2_meaning_body(path, base)
+        if current_body != expected:
+            raise MutationCompositionError(f"{path}: 承認済みのoracle意味本文と不一致")
+    return frozenset(changed)
+
+
+def intentionally_changed_frozen_oracle_paths(
+    root: Path = REPOSITORY_ROOT,
+    base_ref: str = STEP2_BASE_REVISION,
+) -> frozenset[str]:
+    """可動ポインタを除いて基準版から意味が変わった資産を導出する。"""
+    resolved = root.resolve()
+    current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
+    changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
+    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+        raise MutationCompositionError(
+            "意味本文が変わった資産がステップ2の確定集合と不一致: "
+            f"{tuple(sorted(changed))}"
+        )
+    return changed
 
 
 def verify_frozen_oracle_unchanged(
     root: Path = REPOSITORY_ROOT,
     base_ref: str = STEP2_BASE_REVISION,
 ) -> None:
-    """固定基準から意図的変更を除くseal由来パスの差分0を検査する。"""
+    """入力baselineの三者一致とoracle意味本文の固定を検査する。"""
     resolved = root.resolve()
-    paths = unchanged_frozen_oracle_paths(resolved, base_ref)
-    changed = _branch_changed_paths(resolved, base_ref, paths)
-    if changed:
-        raise MutationCompositionError(f"凍結パスに差分がある: {changed}")
+    base_seal = _oracle_seal_at_revision(resolved, base_ref)
+    current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
+    if _oracle_seal_meaning_body(
+        current_seal, "current oracle seal"
+    ) != _oracle_seal_meaning_body(base_seal, "base oracle seal"):
+        raise MutationCompositionError("oracle sealの意味本文が基準版と不一致")
+    _verify_oracle_input_assets(resolved, current_seal)
+    _verify_current_sealed_assets(resolved, current_seal)
+    changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
+    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+        raise MutationCompositionError(
+            "意味本文が変わった資産がステップ2の確定集合と不一致: "
+            f"{tuple(sorted(changed))}"
+        )

@@ -4,8 +4,8 @@
   "classification_rules_digest": "18082bd7f79416179c2cce3071bfebdb1e6eca5644b646d114b338f6545ce480",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1078,
-  "aggregate_decision_digest": "98cd8fd69b026ffd9edb9bbde18aad2ed7c4c95c14c173181698f08c32a04513",
+  "decision_count": 1080,
+  "aggregate_decision_digest": "6848b05edee56f3e5df818739aa6420be9bb49db188f9e418baceea37608b947",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -286,6 +286,20 @@
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "e6685271b08c97d3b102548dc3a28afe6bcd3ecda796faeaa7b7610c44686208",
       "decision_digest": "82cba4025c665b88e91aef19e8af00ddf7f7470b250b056c1f701d3d5bf5f598"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-034",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "6eee03c388705af19ae797b47f67f7c666a8a2ae7e729ec48d6ea6188cfeef8e",
+      "decision_digest": "be5646ae11a75dbc2349ad4a2593e572d74a260fff582a254c4793ebccd2f6b1"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-035",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "24c070c4706268b46a76dd6b4e0bcf73dcedb60186b5920dbdc9c1d3c2df55c6",
+      "decision_digest": "dc49000b1c6b91564fe96c537dbaff7f10ca5c78e99b0a9b726f6c38a0083665"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -9031,7 +9045,7 @@
       "source_id": "NFR-019/paragraph-001",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_VERIFICATION",
-      "source_text_digest": "89aca663e1bfa6d2ed4731b9d7cbc420a197bd7cbfcbb048bae6f3ad5d8007e4",
+      "source_text_digest": "4b851cef2ecf009a0bcd4fea83a877fd8186bf37865f7aab777b9a6872b0cce5",
       "layer": "verification_contract",
       "decidable_at": [
         {
@@ -9059,7 +9073,7 @@
           }
         }
       ],
-      "decision_digest": "94cebfd81458fcdab9632e704e58452bbe9f85dc8a71f9d556b7e28d3fa721bc"
+      "decision_digest": "ce9ce2f4f5687d7ede4a7335c93ba500f211ccbf855205877a85301f19f9592a"
     },
     {
       "source_id": "NFR-019/list_item-008",
