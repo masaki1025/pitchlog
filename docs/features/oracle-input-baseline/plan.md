@@ -7,54 +7,170 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3da93b75e68781308abac4ecfe162251
 branch: fix/oracle-input-baseline
 created: 2026-09-13
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
 
-# 実装計画書: 入力ベースラインが動かせない欠陥を 5 箇所まとめて解く(TSK-386)
+# 実装計画書: 凍結資産の更新経路を条文化し、検査器から SHA を落とす(TSK-386)
 
 ## 1. 背景・目的
 
-<!-- なぜやるか。Notion タスクと要件 FR/NFR へのリンクを必ず含める -->
+Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
+調査: [research.md](research.md)。詳細設計: [design.md](design.md)。
+
+**送り元は TSK-379(PR #60・マージ済み `0bc05b8`)。** 同タスクは要件書を v2.8 へ改訂する際に、
+**「入力ベースラインは永久に動かない」を前提にした検査が 5 箇所ある**ことに突き当たった。
+**うち 4 箇所は PR #60 内で解消したが、`scripts/check_authz_catalog.py:107` の
+`ORACLE_INPUT_BASELINE_COMMIT`(コミット SHA 直書き)は応急処置のまま残っている。**
+
+**放置すると、要件書を改訂するたびに検査器のソースを編集する運用が続く。**
+
+**要件の根拠**: [NFR-010](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-010)(測定方法)+
+[NFR-019](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-019)(b)。
+構成検査の位置づけは **`data-model.md:244` の明示委任**(「各項目の検査対象集合と合格述語は実装が確定する」
+— 範囲確定・PO 裁定 2026-09-09)。
+**`NFR-018` は根拠にしない** — 同項の対象列挙に認可構成は入っておらず、
+承認済み計画書が明文で禁じている(`docs/features/pg-authz-verification-g2/plan.md:854`)。
+
+**台帳の受け取り先**: `docs/development/harness-evaluation.md:2708` が本タスクを名指ししている。
+**上位型は `H-85`(採番済み・未対応)**(同 `:745`)。
 
 ## 2. スコープ
 
+**計画レビュー 1 周目で `P1` 7 件・`P2` 1 件を受け、射程とステップ表を作り直した。**
+**設計の変更点と初版の誤りは [design.md](design.md) 8 節が持つ。**
+
 ### やること
 
-### やらないこと
+1. **ハーネス設計書へ `7.7 凍結基準の更新経路` を新設**(`v1.14 → v1.15`・**7.6-3 後段**)
+2. **`contracts/authz/frozen-baselines.json` を新設** — **追記のみの基準台帳**
+   (`oracle_input` / `oracle_meaning` / `corpus_versions` の 3 系列)
+3. **凍結基準の直書き 3 箇所をすべて台帳へ移す**(`P1-3` — **条文の適用範囲と実装を一致させる**)
+   - `scripts/check_authz_catalog.py:107` `ORACLE_INPUT_BASELINE_COMMIT`
+   - `backend/tests/db/authz/mutation_composition.py:36` `STEP2_BASE_REVISION`
+   - `tests/test_check_authz_catalog.py:38` `AUTHZ_STEP2_BASE_REVISION`(**重複も解消**)
+4. **`:4798` の fail-open を fail-closed へ**
+5. **`H-85` 対応案②** — 母集合へ `corpus_version`、**派生 3 資産の digest 辺 6 本を 0 本へ**
+6. **負例 8 件を固定**(N1〜N8 — design.md 6 節)
+
+### やらないこと(**無宛先の申し送りを作らない** — `P2-8`)
+
+| 対象 | 判定 |
+| --- | --- |
+| `.github/workflows/ci.yml` へ authz 系の実行ステップを足す | **不採用(閉じる)**。**harness ジョブが `pytest tests/` を無条件実行し、`test_repository_catalog_covers_the_entire_requirements_file` が実スクリプトを subprocess 実行している**ため**検査の実効に差が無い** |
+| harness 側 `test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` の整理 | **不採用(閉じる)**。**無条件実行 vs パスフィルタ依存の差**があり、**消すと弱くなる場合がある** |
+| `contracts/authz/function-bodies/manifest.json` の `source_commit` | **射程外。台帳の候補へ記録する**(受け取り先を持たせる) |
+| 要件書 → 母集合の 1 段目 / oracle → 下流 2 の 3 段目 | `H-85` の射程外 / 封印の性質そのもの |
+| `review_policy` / `reseal_policy` の変更 | **一次記録が無く**、変える理由も無い |
+
+**製品コードは 1 行も書かない。**
 
 ## 3. 影響する正本
 
-<!-- この feature が更新・新設すべき正本を列挙。「反映なし」の場合も明示する(空欄禁止) -->
-
-| 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
+| 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
+| [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **`7.7 凍結基準の更新経路` を新設**(`v1.14 → v1.15`)。基準の外出し・更新経路の必置・**追記のみ**・更新の記録・fail-closed・委任の境界 | **finalize-doc**(7.6-3 **後段** — 合否条件の新設。先例は `:720`・裁定 `Q-1`) |
+| [ドキュメント索引](../../README.md) | ハーネス設計書の版・要約・最終更新を現行化 | PR レビュー(機械強制) |
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **`H-85` へ対応の追記** + **候補「2 つの機械検査が正面から矛盾し…」へ解消の追記** + **候補 2 件を新規**(**完了コミットを持たないステップで現在地導出が壊れる** / `function-bodies` の `source_commit`)+ 変更履歴 1 行。**`H-*` の新規採番はしない・版は上げない** | PR レビュー(7.6-3 前段) |
+| [データモデル設計](../../design/data-model.md) | **反映なし**(`:244` の委任を使うだけ) | — |
+| [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **反映なし** | — |
+| [ADR-004](../../adr/ADR-004-merge-gate-scope.md) | **反映なし** | — |
+
+**正本体系外だが同一 PR で運ぶもの**:
+`contracts/authz/frozen-baselines.json`(**新設**)/ `oracle-seal.lock.json` /
+`requirement-claims.json`(`corpus_version`)/ 派生 3 資産 + 各 `.lock.json` /
+`scripts/check_authz_catalog.py` / **`backend/tests/db/authz/mutation_composition.py`**(`P1-1`)/
+`tests/test_check_authz_catalog.py` / **新設する追記のみ検査**/
+`docs/features/oracle-input-baseline/` / `docs/worklog/2026-09-13-oracle-input-baseline.md`。
 
 ## 4. 実装方針
 
-<!-- 重さ分類(frontmatter)の根拠を明記。コア領域(CLAUDE.md の列挙)に触れるかを必ず判定。
-     詳細設計・長文の検討は design.md(テンプレ: design-template.md)へ分離し、本節からは相対リンクで参照する
-     (内容を複製しない — 設計書 7.1-1。design.md は任意 — 密度が高くなる場合に /plan が分離) -->
+### 重さ分類の根拠 — **コア領域**
+
+`scripts/check_authz_catalog.py`・`contracts/authz/*`・`tests/test_check_authz_catalog.py` は
+**コア領域 tenant-isolation の paths**(`.claude/core-areas.json:291-310`)。
+**敵対レビュー + 人間の逐行確認が必須**(設計書 `:370`・`:699`)。
+
+### 設計の中身
+
+**[design.md](design.md) が持つ。** 要点だけ:
+
+- **基準台帳は連鎖の外に置く** — `input_assets` にも `sealed_assets` にも入れない(同 3-1)
+- **`F-4` 追記のみが要** — **先例 `scripts/check_nfr021_append_only.py:397`**(同 3-3)
+- **機械的に保証できるのは「記録なしに動かせない」まで。「実際に人間が承認したか」は数えない**(同 3-4)
+- **上げ忘れの検出も追記のみが anchor**(同 4-3)
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-<!-- 1 ステップ = 1 委任 = 1 コミット(レビュー可能な粒度・1 論理変更)。/implement がこの表を上から実行する。
-     ラッパーは「番号・ステップ・合格条件の3セルすべてが埋まった行」が最低1つ無いと実行を拒否する(空テンプレ不可)。
-     番号列は 1 からの連番(欠番・重複不可)。ステップコミットの件名には完全トークン「(ステップ <k>[/<N>][ 付記])」を
-     ちょうど 1 個含める(/<N> と付記は任意・全半角括弧可 — feature_status.py が進捗導出)。承認・起票コミットには付けない -->
+**すべてのステップが完了コミットを持つ**(`P1-7` — 欠番があると `feature_status.py` が
+`inconsistent` を返す。`scripts/feature_status.py:950` の
+`completed != set(range(1, maximum + 1))`)。**確定ゲートの反映周はステップ表の外**である。
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | (例: 投球イベントのモデルとマイグレーション) | (例: pytest の該当ケース green・alembic upgrade 成功) |
+| 1 | **退行の物差しを作る** — N1・N2 を一時ディレクトリの複製上で実行する形で固定し、**現行実装に対して red になることを記録する** | **N1・N2 が現行で red** / **worktree を汚さない** / ルート `pytest tests/` green |
+| 2 | **ハーネス設計書を `in-review` 化する** — frontmatter・変更履歴へ**起案行(射程宣言)**・索引 / **同一コミットで適用版(7.3-1)を worklog へ暫定記録** | `check_docs_status.py` exit 0 / **条文コミット SHA = 本コミットの第一親**を `git show` の差分本体で確認 / **版セルは暫定と明記** |
+| 3 | **`7.7 凍結基準の更新経路` を書き、確定ゲートを通して approved にする**(`/finalize-doc`)。**反映周のコミットは `反映<r>周目` のみでステップ記法を付けない。本ステップの完了コミットは approved 化コミット** | **条文に個別の識別子が無い** / **凍結資産を列挙していない** / 収束まで反映(7.3-2)/ **6 周警告**(7.3-6)/ **frontmatter・変更履歴・索引の三者が一致** |
+| 4 | **`frozen-baselines.json` を新設し、追記のみ検査を作る** — 3 系列の骨格 + `F-1`〜`F-6` | **`F-4` が PR の base と HEAD を比べている**(先例と同型)/ **N3・N5・N6 が red** / **N5 が最重要**(既存記録の書き換え) |
+| 5 | **`oracle_input` 系列へ現行の基準を移し、検査器から SHA を落とす** | **`scripts/check_authz_catalog.py` に 40 桁 SHA の直書きが 0 件**(機械走査)/ **N2 が red のまま** |
+| 6 | **`:4798` の fail-open を fail-closed へ** | **N4 が red**(**現在は green**)/ 既存の緑を落としていない |
+| 7 | **`oracle_meaning` 系列へ移し、backend と harness の直書き 2 件を落とす** | **`backend/tests/**` と `tests/**` に凍結基準の 40 桁 SHA 直書きが 0 件** / **N1 が red のまま** / **重複が解消**(1 箇所で持つ) |
+| 8 | **`corpus_versions` 系列と `corpus_version` を新設する** | **N7・N8 が red** / **G-1〜G-4 が実装されている** |
+| 9 | **派生 3 資産の digest 辺 6 本を版参照へ置き換える(入力資産の変更・第 1 コミット)** | **`contracts/` の digest 辺の全数列挙で 6 本減**(変更前後を機械で数える)/ **派生 3 資産に `requirement_claims_blob_digest` が 0 件** |
+| 10 | **新 blob を含むコミットへ基準を追記し、再封印する(第 2 コミット)** | **`P1-6` の二段構造**。台帳へ追記(`supersedes` が連鎖)/ `--reseal-oracle` / **`check_authz_catalog` ok** |
+| 11 | **負例 8 件を通しで確認し、効果を実測する** | **N1〜N8 がすべて red** / **digest 辺の数を変更前後で記録** / **手で計算する digest が 6 → 0** / **要件書を 1 バイト変えて追随し、検査器のソースを 1 行も編集せずに済むことを実測** |
+| 12 | **クローズ処理**(`/pr`) | 3 節の宣言と PR 内容が突合 / **台帳の過去記録を書き換えず追記** / CI 全ジョブ green / 逐行確認のチェックと実施記録行 |
+
+**ステップ 3 が最も重い。** ハーネス設計書は approved 正本で、**確定ゲートが要る**。
+**ステップ 1 を最初に置くのが要**である — **朝にこの領域で防御を落としている**ので、
+**変更前の物差しを先に作る**。
 
 ## 5. DoD(受け入れ基準)
 
-<!-- Notion タスクの DoD と同期させる。全 ON で完了にできる粒度 -->
-
-- [ ]
+- [ ] **ハーネス設計書に `7.7 凍結基準の更新経路` が approved で存在する**(`v1.15`)
+- [ ] **凍結基準の 40 桁 SHA 直書きが、`scripts/` `tests/` `backend/tests/` に 0 件**(機械走査)
+- [ ] **`frozen-baselines.json` が追記のみで守られている** — **既存記録の書き換えが red**(N5)
+- [ ] **記録なしに基準を動かせない**(N3・N6 が red)
+- [ ] **`oracle_commit` が到達不能なとき red**(N4 — fail-closed)
+- [ ] **既存の性質を落としていない** — N1・N2 が**変更前と同じく red**
+- [ ] **母集合の版の上げ忘れが red**(N7)・**派生の追随漏れが red**(N8)
+- [ ] **`contracts/` の digest 辺が 6 本減ったことを、全数列挙の変更前後で示した**
+- [ ] **手で計算する digest が 6 → 0 になったことを示した**
+- [ ] **要件書を 1 バイト改訂して追随し、検査器のソースを 1 行も編集せずに済むことを実測した**
+- [ ] **台帳へ `H-85` の対応・候補の解消・新規候補 2 件を追記した**(過去記録は書き換えない)
+- [ ] **敵対レビューと人間の逐行確認を通っている**
 
 ## 6. テスト計画
 
-<!-- NFR-019 のどのテスト種別(単体・一致性・越境・E2E・故障系)に何を足すか -->
+**NFR-019 のテスト種別に足すものは無い。** 製品コードを書かないため。
+**構成検査は「要件の 4 種に属さない」**(`docs/features/pg-authz-verification-g2/plan.md:853`)。
+
+| 種別 | 何を足すか |
+| --- | --- |
+| **退行**(既存の性質を落としていないこと) | **N1** 意味本文の改ざん + 再封印 / **N2** ポインタを内容等価な別コミットへ。**ステップ 1 で先に測る** |
+| **負例(新設)** | **N3** 承認欄が空 / **N4** 到達不能な commit / **N5 既存記録の書き換え(最重要)** / **N6** `supersedes` の不連鎖 / **N7** 版の上げ忘れ / **N8** 派生の追随漏れ |
+| **静的** | **凍結基準の 40 桁 SHA 直書きが `scripts/` `tests/` `backend/tests/` に 0 件** / **派生 3 資産に `requirement_claims_blob_digest` が 0 件** / **`contracts/` の digest 辺の全数列挙**(変更前後で数える) |
+
+**負例はすべて一時ディレクトリへリポジトリを複製して実行する**
+(先例: `backend/tests/test_authz_mutation_composition_full.py` の `_clone_repository`)。
+**worktree を汚さない。**
+
+**回すコマンド**
+
+```
+uv run ruff check . && uv run ty check && uv run pytest tests/
+(cd backend && uv run pytest --ignore=tests/db)
+uv run python scripts/check_authz_catalog.py
+uv run python scripts/check_plan_docs_sync.py --plan docs/features/oracle-input-baseline/plan.md --base origin/develop
+```
+
+**人が読んで確かめること**
+
+| 何を | どう確かめるか |
+| --- | --- |
+| 条文が個別の識別子を持たないこと | `7.7` を読んで `oracle_commit` 等が出てこないことを確認 |
+| 更新経路が 1 本であること | **台帳への追記以外に基準を動かせる経路が無い**ことを、検査器を読んで確認 |
+| 負例が守りたい性質に対応していること | N1〜N8 のそれぞれが、**どの性質が壊れたときに鳴るか**を対応づける |
+| **機械が保証していない範囲** | **`approved_by` の人物が実際に承認したかは機械では検証できない**(design.md 3-4)。**残余リスクとして受け入れるかを人間が判断する** |
