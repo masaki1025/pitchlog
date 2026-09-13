@@ -102,13 +102,27 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 **digest 連鎖の実測**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
 `failure-injection-points` / `mcdc-map` の **4 段**。
 
-**既知の red が 1 件ある**(**本 PR では直さない**):
-`backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_paths_have_no_branch_diff`。
-**凍結オラクル検査(`origin/develop` 基準で seal 由来 15 パスの差分ゼロを要求)と、
-母集合の追随義務が正面から矛盾している**ため、要件書を改訂するとどちらかが必ず赤くなる。
-**受け取り先は [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**。
-**本 PR での是正を一度試みたが、敵対レビューで `P1` となり取り下げた**(封印資産の
-履歴上の不変性が失われることを実測で確認した — worklog に全文と再現手順)。
+**既知の red が 2 件ある**(**本 PR では直さない** — **受け取り先は
+[TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**):
+
+| # | red | 要求 |
+| --- | --- | --- |
+| 1 | `backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_paths_have_no_branch_diff` | seal 由来 15 パスが **`origin/develop` から差分ゼロ**であること |
+| 2 | `scripts/check_authz_catalog.py`(`boundary proposal の oracle_commit が基準版と不一致`) | **`ORACLE_INPUT_BASELINE_COMMIT = "dd2cb92…"`** と一致すること(`:107`・`:4525`) |
+
+**2 件は同じ欠陥である** — **どちらも「入力ベースラインは永久に動かない」を別の場所で
+言っているだけ**で、**要件書を改訂すると必ずどちらかが赤くなる**。
+**2 件目は develop のマージ(PR #59 の `9259892`)で初めて入った制約**であり、
+**96d0f86 時点には存在しなかった**。
+
+**封印資産 2 件が不一致のまま残る**(`ddl-elements.json` / `boundary-proposal.json` — どちらも
+PR #59 が実質変更した資産)。**定数が `dd2cb92` を要求しているあいだは `--reseal-oracle` が
+実行できない**(検査が先に走って止まる)ため、**TSK-386 待ちである**。
+
+**本 PR で是正しない理由**: **`oracle_commit` をどちらへ倒しても 1 件目は red のまま**なので、
+**検査器を書き換えるリスクも、事実に反する記録を残すコストも、マージ可能性の改善ゼロで払う**
+ことになる。**1 件目の是正は一度試みて敵対レビューで `P1` となり取り下げた**
+(封印資産の履歴上の不変性が失われることを実測で確認した — worklog に全文と再現手順)。
 
 ## 4. 実装方針
 
