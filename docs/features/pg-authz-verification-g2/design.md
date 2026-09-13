@@ -27,7 +27,7 @@ date: 2026-09-09
 
 | 対象 | 配置 | 理由 |
 | --- | --- | --- |
-| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**生成器そのものは第 1 弾のステップ 3 で実装済み**。**第 2 弾(`S-8`)へ送るのは `core-areas.json` への paths 登録だけ**である(現在このパスは `tenant-isolation.paths` へ未登録)|
+| DDL 生成器 | `backend/src/pitchlog/authz/ddl.py` | 製品コード側。**生成器そのものは第 1 弾のステップ 3 で実装済み**。**第 2 弾(`S-8`)へ送ったのは `core-areas.json` への paths 登録だけ**である。**本改訂のステップ 1 で `backend/src/pitchlog/authz/*` として登録済み**(裁定 `D-13`)|
 | 適用器 | `backend/src/pitchlog/authz/provisioning.py` | 同上。psycopg 直書き(`D-3`) |
 | カタログ検査 | `backend/src/pitchlog/authz/catalog.py` | 同上。**問い合わせだけを持ち、期待値は資産から読む** |
 | 変異の適用 | `backend/tests/db/authz/mutation.py` | **テスト側**に置く。製品コードに変異機構を入れない |
