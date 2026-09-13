@@ -6,10 +6,10 @@
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "scope": {
-    "status": "candidate_probe_only",
+    "status": "verified_probe_configuration",
     "product_schema": false,
     "contains_sql_body": false,
-    "second_group_approval_required": true
+    "second_group_approval_required": false
   },
   "enums": {
     "table_privilege_ids": [

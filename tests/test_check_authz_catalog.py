@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import itertools
 import json
 import shutil
 import subprocess
 import sys
 from collections import Counter
+from collections.abc import Callable
+from functools import lru_cache
 from pathlib import Path
+from types import ModuleType
 from typing import Any
+
+import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
@@ -29,6 +35,7 @@ ORACLE_ASSET_FILES = {
     "verification_evidence": "verification-evidence.json",
 }
 ORACLE_SEAL_FILE = "oracle-seal.lock.json"
+AUTHZ_STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 IMPLEMENTED_CATALOG_TEST_ID = (
     "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid"
 )
@@ -166,6 +173,463 @@ def _repository_oracle_assets() -> tuple[
         paths[name] = path
     seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
     return assets, seal, paths
+
+
+class FrozenJsonMultiplicityError(AssertionError):
+    """凍結 JSON のキーまたは配列要素の重複を表す。"""
+
+
+ArrayPath = tuple[str | int, ...]
+ArrayWalker = Callable[[object, ArrayPath], list[tuple[ArrayPath, list[Any]]]]
+GDecision = tuple[str, ArrayPath, int, bool]
+GDecisionRecorder = Callable[[], None]
+GDecisionDispatcher = Callable[[str, ArrayPath, int, GDecisionRecorder], None]
+
+
+def _base_json(relative_path: str) -> dict[str, Any]:
+    """固定基準版の JSON オブジェクトを Git から読む。"""
+    result = subprocess.run(
+        ["git", "show", f"{AUTHZ_STEP2_BASE_REVISION}:{relative_path}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    value = json.loads(result.stdout)
+    assert isinstance(value, dict)
+    return value
+
+
+@lru_cache(maxsize=1)
+def _base_checker() -> ModuleType:
+    """固定基準版の検査器を作業コピーから独立して読み込む。"""
+    result = subprocess.run(
+        [
+            "git",
+            "show",
+            f"{AUTHZ_STEP2_BASE_REVISION}:scripts/check_authz_catalog.py",
+        ],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    name = "check_authz_catalog_step2_base"
+    module = ModuleType(name)
+    module.__file__ = f"{AUTHZ_STEP2_BASE_REVISION}:scripts/check_authz_catalog.py"
+    sys.modules[name] = module
+    exec(compile(result.stdout, module.__file__, "exec"), module.__dict__)
+    return module
+
+
+def _base_frozen_asset_paths() -> tuple[str, ...]:
+    """固定基準版の seal から凍結 15 パスを導出する。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    return _frozen_asset_paths_from_seal(seal)
+
+
+def _frozen_asset_paths_from_seal(
+    seal: dict[str, Any], *, include_seal: bool = True
+) -> tuple[str, ...]:
+    """seal の2資産区分と seal 自身から凍結対象パスを導く。"""
+    paths = tuple(
+        str(row["path"])
+        for key in ("input_assets", "sealed_assets")
+        for row in seal[key]
+    )
+    if include_seal:
+        paths += (f"contracts/authz/{ORACLE_SEAL_FILE}",)
+    assert len(paths) == len(set(paths))
+    return paths
+
+
+def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """object_pairs_hook で解析前の重複キーを拒否する。"""
+    keys = [key for key, _value in pairs]
+    if len(keys) != len(set(keys)):
+        raise FrozenJsonMultiplicityError("JSON オブジェクトのキーが重複している")
+    return dict(pairs)
+
+
+def _walk_json_arrays(
+    value: object, path: ArrayPath = ()
+) -> list[tuple[ArrayPath, list[Any]]]:
+    """JSON の全分岐を再帰し、到達した配列とパスを返す。"""
+    arrays: list[tuple[ArrayPath, list[Any]]] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            arrays.extend(_walk_json_arrays(child, (*path, key)))
+    elif isinstance(value, list):
+        arrays.append((path, value))
+        for index, child in enumerate(value):
+            arrays.extend(_walk_json_arrays(child, (*path, index)))
+    return arrays
+
+
+def _independent_json_array_paths(value: object) -> set[ArrayPath]:
+    """被検査走査と別の反復実装で全配列パスを列挙する。"""
+    paths: set[ArrayPath] = set()
+    pending: list[tuple[ArrayPath, object]] = [((), value)]
+    while pending:
+        path, current = pending.pop()
+        if isinstance(current, list):
+            paths.add(path)
+            pending.extend(
+                ((*path, index), child) for index, child in enumerate(current)
+            )
+        elif isinstance(current, dict):
+            pending.extend(
+                ((*path, key), child) for key, child in current.items()
+            )
+    return paths
+
+
+def _validate_frozen_json_text(
+    text: str,
+    array_walker: ArrayWalker = _walk_json_arrays,
+) -> set[ArrayPath]:
+    """1 JSON の全キー対・全配列を多重度と到達範囲込みで検査する。"""
+    value = json.loads(text, object_pairs_hook=_strict_json_object)
+    arrays = array_walker(value, ())
+    reached = {path for path, _array in arrays}
+    independent = _independent_json_array_paths(json.loads(text))
+    if reached != independent:
+        raise FrozenJsonMultiplicityError("配列パスの到達集合が独立走査と不一致")
+    for path, array in arrays:
+        signatures = [
+            json.dumps(
+                item,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            for item in array
+        ]
+        if len(signatures) != len(set(signatures)):
+            raise FrozenJsonMultiplicityError(f"配列要素が重複している: {path}")
+    return reached
+
+
+def _validate_frozen_asset_set(root: Path, relative_paths: tuple[str, ...]) -> int:
+    """同じ入口から対象 JSON 全件の多重度を検査する。"""
+    return sum(
+        len(
+            _validate_frozen_json_text(
+                (root / relative_path).read_text(encoding="utf-8")
+            )
+        )
+        for relative_path in relative_paths
+    )
+
+
+def _copy_frozen_assets(tmp_path: Path) -> Path:
+    """実資産を変えずに負例を作るため凍結 15 パスを複製する。"""
+    root = tmp_path / "frozen-assets"
+    for relative_path in _base_frozen_asset_paths():
+        destination = root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+    return root
+
+
+def _duplicate_array_element(
+    value: dict[str, Any], path: ArrayPath, index: int
+) -> dict[str, Any]:
+    """指定配列の要素を直後へ複製した深いコピーを返す。"""
+    mutated = copy.deepcopy(value)
+    target: object = mutated
+    for part in path:
+        if isinstance(target, dict):
+            assert isinstance(part, str)
+            target = target[part]
+        else:
+            assert isinstance(target, list) and isinstance(part, int)
+            target = target[part]
+    assert isinstance(target, list)
+    target.insert(index + 1, copy.deepcopy(target[index]))
+    return mutated
+
+
+def _g_entry_partition_from_seal(
+    seal: dict[str, Any],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """seal の資産行の型から g の対象入口と対象外入力を分ける。"""
+    seal_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
+    included = {seal_path}
+    excluded: set[str] = set()
+    asset_tables = [
+        value
+        for value in seal.values()
+        if isinstance(value, list)
+        and value
+        and all(isinstance(row, dict) and "path" in row for row in value)
+    ]
+    assert asset_tables
+    for rows in asset_tables:
+        for row in rows:
+            assert isinstance(row, dict)
+            path = str(row["path"])
+            is_semantic_asset = {
+                "asset_kind",
+                "asset_role",
+                "canonical_sha256",
+            } <= set(row)
+            is_input_asset = set(row) == {"path", "git_blob_digest"}
+            assert is_semantic_asset is not is_input_asset
+            (included if is_semantic_asset else excluded).add(path)
+
+    frozen_paths = frozenset(_frozen_asset_paths_from_seal(seal))
+    assert included.isdisjoint(excluded)
+    assert included | excluded == frozen_paths
+    return frozenset(included), frozenset(excluded)
+
+
+def _record_g_decision(
+    _entry_path: str,
+    _array_path: ArrayPath,
+    _index: int,
+    validate_and_record: GDecisionRecorder,
+) -> None:
+    """通常経路では validator の実行と判定記録を省略しない。"""
+    validate_and_record()
+
+
+def _derive_g_multiplicity_with_dispatcher(
+    dispatch: GDecisionDispatcher,
+) -> tuple[tuple[tuple[str, ArrayPath], ...], tuple[GDecision, ...]]:
+    """固定基準版へ g を実行し、出力と validator の判定証跡を返す。"""
+    base_checker = _base_checker()
+    seal_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
+    seal = _base_json(seal_path)
+    names_by_path = {
+        f"contracts/authz/{filename}": name
+        for name, filename in ORACLE_ASSET_FILES.items()
+    }
+    sealed_paths = tuple(str(row["path"]) for row in seal["sealed_assets"])
+    assert len(sealed_paths) == len(set(sealed_paths))
+    assert set(sealed_paths) == set(names_by_path)
+    assets = {
+        names_by_path[path]: _base_json(path)
+        for path in sealed_paths
+    }
+    paths = {names_by_path[path]: path for path in sealed_paths}
+    requirement_catalog = _base_json("contracts/authz/requirement-claims.json")
+    route_registry = _base_json("contracts/authz/route-registry.json")
+    auth_catalog = _base_json("contracts/authz/auth-catalog.json")
+    http_matrix = _base_json("contracts/authz/http-route-matrix.json")
+    implemented_test_ids = frozenset(
+        {IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}
+    )
+    decisions: list[GDecision] = []
+
+    def dispatch_asset_mutation(
+        name: str,
+        path: ArrayPath,
+        index: int,
+        outcomes: list[bool],
+    ) -> None:
+        entry_path = paths[name]
+
+        def validate_and_record() -> None:
+            mutated_assets = dict(assets)
+            mutated_assets[name] = _duplicate_array_element(
+                assets[name], path, index
+            )
+            try:
+                base_checker.validate_oracle_assets(
+                    requirement_catalog,
+                    route_registry,
+                    auth_catalog,
+                    http_matrix,
+                    mutated_assets,
+                    seal,
+                    paths,
+                    REPOSITORY_ROOT,
+                    implemented_test_ids,
+                    verify_seal=False,
+                )
+            except base_checker.CatalogError:
+                green = False
+            else:
+                green = True
+            decisions.append((entry_path, path, index, green))
+            outcomes.append(green)
+
+        dispatch(entry_path, path, index, validate_and_record)
+
+    output: list[tuple[str, ArrayPath]] = []
+    for relative_path in sealed_paths:
+        name = names_by_path[relative_path]
+        for path, array in _walk_json_arrays(assets[name]):
+            outcomes: list[bool] = []
+            for index in range(len(array)):
+                dispatch_asset_mutation(name, path, index, outcomes)
+            if any(outcomes):
+                output.append((name, path))
+
+    for path, array in _walk_json_arrays(seal):
+        outcomes: list[bool] = []
+        for index in range(len(array)):
+            mutated = _duplicate_array_element(seal, path, index)
+
+            def validate_and_record(
+                *,
+                mutated: dict[str, Any] = mutated,
+                path: ArrayPath = path,
+                index: int = index,
+            ) -> None:
+                try:
+                    base_checker.validate_oracle_seal(
+                        mutated, assets, paths, REPOSITORY_ROOT
+                    )
+                except base_checker.CatalogError:
+                    green = False
+                else:
+                    green = True
+                decisions.append((seal_path, path, index, green))
+                outcomes.append(green)
+
+            dispatch(seal_path, path, index, validate_and_record)
+        if any(outcomes):
+            output.append(("oracle_seal", path))
+
+    return tuple(output), tuple(decisions)
+
+
+@lru_cache(maxsize=1)
+def _derive_g_multiplicity() -> tuple[
+    tuple[tuple[str, ArrayPath], ...], tuple[GDecision, ...]
+]:
+    """通常の判定実行器で固定基準版の g を導出する。"""
+    return _derive_g_multiplicity_with_dispatcher(_record_g_decision)
+
+
+def _derive_g_multiplicity_array_paths() -> tuple[tuple[str, ArrayPath], ...]:
+    """g が出力した配列パスだけを返す。"""
+    return _derive_g_multiplicity()[0]
+
+
+def _assert_g_entry_population(
+    actual: frozenset[str], seal: dict[str, Any]
+) -> None:
+    """実測入口を seal の資産区分から導出した期待集合と突合する。"""
+    expected, excluded = _g_entry_partition_from_seal(seal)
+    assert actual == expected, (
+        "g の入口集合が不一致: "
+        f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
+    )
+    assert actual.isdisjoint(excluded)
+
+
+def _expected_g_decision_counts(seal: dict[str, Any]) -> Counter[str]:
+    """各入口の期待判定数を、その BASE 資産の配列要素数から導出する。"""
+    included, _excluded = _g_entry_partition_from_seal(seal)
+    return Counter(
+        {
+            entry_path: sum(
+                len(array)
+                for _path, array in _walk_json_arrays(_base_json(entry_path))
+            )
+            for entry_path in included
+        }
+    )
+
+
+def _expected_g_decision_keys(
+    seal: dict[str, Any],
+) -> frozenset[tuple[str, ArrayPath, int]]:
+    """各入口で判定すべき全要素を BASE 資産から導出する。"""
+    included, _excluded = _g_entry_partition_from_seal(seal)
+    return frozenset(
+        (entry_path, path, index)
+        for entry_path in included
+        for path, array in _walk_json_arrays(_base_json(entry_path))
+        for index in range(len(array))
+    )
+
+
+def _actual_g_decision_counts(decisions: tuple[GDecision, ...]) -> Counter[str]:
+    """validator が判定を返した要素だけを入口別に数える。"""
+    return Counter(entry_path for entry_path, _path, _index, _green in decisions)
+
+
+def _assert_g_decision_counts(
+    actual: Counter[str], expected: Counter[str]
+) -> None:
+    """入口別の実判定数を資産由来の期待数と突合する。"""
+    assert actual == expected, (
+        "g の入口別判定件数が不一致: "
+        f"不足={dict(expected - actual)}, 余分={dict(actual - expected)}"
+    )
+
+
+def _container_metrics(value: object, depth: int = 0) -> tuple[int, int]:
+    """JSON コンテナの最大幅と最大深さを返す。"""
+    if not isinstance(value, dict | list):
+        return 0, depth
+    width = len(value)
+    maximum_depth = depth + 1
+    children = value.values() if isinstance(value, dict) else value
+    for child in children:
+        child_width, child_depth = _container_metrics(child, depth + 1)
+        width = max(width, child_width)
+        maximum_depth = max(maximum_depth, child_depth)
+    return width, maximum_depth
+
+
+def _frozen_container_limits() -> tuple[int, int]:
+    """固定基準版の凍結資産から探針の幅 w と深さ d を導出する。"""
+    metrics = [
+        _container_metrics(_base_json(relative_path))
+        for relative_path in _base_frozen_asset_paths()
+    ]
+    return max(width for width, _depth in metrics), max(
+        depth for _width, depth in metrics
+    )
+
+
+def _wrap_with_wide_container(
+    sequence: tuple[str, ...],
+    widened_index: int,
+    value: object,
+    width: int,
+) -> object:
+    """型列の指定段だけを幅 w にし、全兄弟へ同じ探針を置く。"""
+    assert 0 <= widened_index < len(sequence)
+
+    def wrap(index: int) -> object:
+        if index == len(sequence):
+            return copy.deepcopy(value)
+        child = wrap(index + 1)
+        if index != widened_index:
+            return {"branch": child} if sequence[index] == "dict" else [child]
+        if sequence[index] == "dict":
+            return {
+                f"branch_{sibling}": copy.deepcopy(child)
+                for sibling in range(width)
+            }
+        return [copy.deepcopy(child) for _sibling in range(width)]
+
+    return wrap(0)
+
+
+def _iter_matching_key_paths(
+    value: object, path: ArrayPath = ()
+) -> list[ArrayPath]:
+    """owner または task_id を含む全キーのパスを再帰導出する。"""
+    matches: list[ArrayPath] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = (*path, key)
+            if "owner" in key or "task_id" in key:
+                matches.append(child_path)
+            matches.extend(_iter_matching_key_paths(child, child_path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            matches.extend(_iter_matching_key_paths(child, (*path, index)))
+    return matches
 
 
 def _iter_leaf_paths(
@@ -1911,6 +2375,8 @@ def _validate_repository_oracle(
     assets: dict[str, dict[str, Any]],
     seal: dict[str, Any],
     paths: dict[str, str],
+    *,
+    verify_seal: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """ステップ1・4の正本を入力に oracle 資産を統合検査する。"""
     requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
@@ -1925,6 +2391,7 @@ def _validate_repository_oracle(
         paths,
         REPOSITORY_ROOT,
         frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
+        verify_seal=verify_seal,
     )
     assert isinstance(result, dict)
     return result
@@ -2205,6 +2672,650 @@ def test_oracle_reseal_is_only_enabled_by_the_dedicated_flag() -> None:
     assert explicit.reseal_oracle is True
     assert explicit.reseal is False
     assert explicit.reseal_derived is False
+
+
+def _validate_boundary_asset(boundary: dict[str, Any]) -> None:
+    """境界資産だけを当該 semantic validator へ直接渡す。"""
+    derived_assets, _locks, _paths = _repository_derived_assets()
+    checker.validate_boundary_proposal(
+        boundary, derived_assets["auth_catalog"], REPOSITORY_ROOT
+    )
+
+
+def test_boundary_owner_population_and_final_values_are_closed() -> None:
+    """基準版から導出した owner 5 箇所を裁定後の値で閉じる。"""
+    base = _base_json("contracts/authz/boundary-proposal.json")
+    current = _read_repository_json("contracts/authz/boundary-proposal.json")
+    owner_paths = _iter_matching_key_paths(base)
+    expected_base_values: dict[ArrayPath, str] = {
+        ("boundaries", 0, "aggregation_owner_task_id"): "TSK-235",
+        ("boundaries", 1, "aggregation_owner_task_id"): "TSK-235",
+        ("boundaries", 2, "aggregation_owner_task_id"): "TSK-250",
+        ("deferred_equivalence_contract", "owner_task_id"): "TSK-235",
+        ("trust_boundary", "verification_owner_task_id"): "TSK-217",
+    }
+    assert {path: _value_at_path(base, path) for path in owner_paths} == (
+        expected_base_values
+    )
+    _validate_boundary_asset(current)
+
+    mutations: list[tuple[str, dict[str, Any]]] = []
+    control_path = ("boundaries", 1, "aggregation_owner_task_id")
+    for path in owner_paths:
+        mutated = copy.deepcopy(current)
+        parent, key = _parent_and_key(mutated, path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        for replacement in ("TSK-SIMILAR-BUT-WRONG", ""):
+            candidate = copy.deepcopy(mutated)
+            candidate_parent, candidate_key = _parent_and_key(candidate, path)
+            assert isinstance(candidate_parent, dict)
+            assert isinstance(candidate_key, str)
+            candidate_parent[candidate_key] = replacement
+            mutations.append((f"{path}:{replacement!r}", candidate))
+        if path != control_path:
+            removed = copy.deepcopy(mutated)
+            removed_parent, removed_key = _parent_and_key(removed, path)
+            assert isinstance(removed_parent, dict)
+            assert isinstance(removed_key, str)
+            del removed_parent[removed_key]
+            mutations.append((f"{path}:deleted", removed))
+        base_value = expected_base_values[path]
+        if path == control_path or _value_at_path(current, path) != base_value:
+            old_value = copy.deepcopy(current)
+            old_parent, old_key = _parent_and_key(old_value, path)
+            assert isinstance(old_parent, dict) and isinstance(old_key, str)
+            old_parent[old_key] = base_value
+            mutations.append((f"{path}:base-value", old_value))
+
+    escaped: list[str] = []
+    for label, mutated in mutations:
+        try:
+            _validate_boundary_asset(mutated)
+        except checker.CatalogError:
+            pass
+        else:
+            escaped.append(label)
+    assert escaped == []
+
+
+def test_owner_mutations_pass_when_the_owner_check_is_removed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """owner 5箇所の負例が追加した専用検査だけにより落ちると示す。"""
+    base = _base_json("contracts/authz/boundary-proposal.json")
+    current = _read_repository_json("contracts/authz/boundary-proposal.json")
+    mutations: list[dict[str, Any]] = []
+    for path in _iter_matching_key_paths(base):
+        mutated = copy.deepcopy(current)
+        parent, key = _parent_and_key(mutated, path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        parent[key] = "TSK-WITHOUT-OWNER-CHECK"
+        mutations.append(mutated)
+
+    monkeypatch.setattr(
+        checker, "_validate_boundary_owner_assignments", lambda *_args: None
+    )
+    for mutated in mutations:
+        _validate_boundary_asset(mutated)
+
+
+def test_boundary_and_review_ids_reject_duplicate_rows_before_folding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """境界・裁定行の重複を索引化前に拒否し、専用検査の因果も示す。"""
+    boundary = _read_repository_json("contracts/authz/boundary-proposal.json")
+    mutations: list[dict[str, Any]] = []
+    for key in ("boundaries", "pending_human_reviews"):
+        mutated = copy.deepcopy(boundary)
+        rows = mutated[key]
+        assert isinstance(rows, list) and rows
+        rows.append(copy.deepcopy(rows[0]))
+        mutations.append(mutated)
+        with pytest.raises(checker.CatalogError):
+            _validate_boundary_asset(mutated)
+
+    monkeypatch.setattr(
+        checker,
+        "_index_unique_object_rows",
+        lambda rows, key, _label: {str(row.get(key)): row for row in rows},
+    )
+    for mutated in mutations:
+        _validate_boundary_asset(mutated)
+
+
+def test_boundary_proposal_base_leaves_follow_the_approved_classification() -> None:
+    """基準版の全葉を変更・不変・削除へ分け、計画外の新設も拒否する。"""
+    base = _base_json("contracts/authz/boundary-proposal.json")
+    current = _read_repository_json("contracts/authz/boundary-proposal.json")
+    removed = {("boundaries", 1, "aggregation_owner_task_id")}
+    changed = {
+        ("proposal_status",): "tsk_235_confirmed",
+        (
+            "boundaries",
+            0,
+            "aggregation_owner_task_id",
+        ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
+        (
+            "deferred_equivalence_contract",
+            "owner_task_id",
+        ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
+        ("pending_human_reviews", 0, "status"): "human_decided",
+        ("pending_human_reviews", 1, "status"): "human_decided",
+    }
+    base_paths = set(_iter_leaf_paths(base))
+    current_paths = set(_iter_leaf_paths(current))
+
+    assert current_paths == base_paths - removed
+    for path in base_paths - removed:
+        expected = changed.get(path, _value_at_path(base, path))
+        assert _value_at_path(current, path) == expected
+
+    unexpected = copy.deepcopy(current)
+    unexpected["unapproved_leaf"] = True
+    with pytest.raises(checker.CatalogError):
+        _validate_boundary_asset(unexpected)
+
+
+def test_s5_mutations_pass_when_the_decision_check_is_removed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S-5 の状態・凍結値・代替値・安定 ID が専用検査で落ちると示す。"""
+    boundary = _read_repository_json("contracts/authz/boundary-proposal.json")
+    mutations: list[dict[str, Any]] = []
+    for path, value in (
+        (("proposal_status",), "pending_tsk_235_confirmation"),
+        (("pending_human_reviews", 0, "status"), "pending_human_decision"),
+        (("pending_human_reviews", 1, "status"), "pending_human_review"),
+        (("pending_human_reviews", 0, "frozen_value"), 7),
+        (("pending_human_reviews", 1, "frozen_value"), 28),
+        (("pending_human_reviews", 0, "alternative_value"), 8),
+        (("pending_human_reviews", 1, "alternative_value"), 7),
+        (("pending_human_reviews", 0, "review_id"), "RENAMED-COUNT"),
+        (("pending_human_reviews", 1, "review_id"), "RENAMED-SCOPE"),
+    ):
+        mutated = copy.deepcopy(boundary)
+        parent, key = _parent_and_key(mutated, path)
+        if isinstance(parent, dict):
+            assert isinstance(key, str)
+            parent[key] = value
+        else:
+            assert isinstance(key, int)
+            parent[key] = value
+        mutations.append(mutated)
+
+    missing_alternative = copy.deepcopy(boundary)
+    del missing_alternative["pending_human_reviews"][0]["alternative_value"]
+    mutations.append(missing_alternative)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_boundary_decisions",
+        lambda raw, _expected: raw["pending_human_reviews"],
+    )
+    for mutated in mutations:
+        _validate_boundary_asset(mutated)
+
+
+def test_every_boundary_leaf_mutation_reaches_the_semantic_validator() -> None:
+    """裁定後の境界資産の全葉を直接変異し、意味検査で red にする。"""
+    boundary = _read_repository_json("contracts/authz/boundary-proposal.json")
+    escaped: list[tuple[ArrayPath, str]] = []
+
+    for path in _iter_leaf_paths(boundary):
+        for mutation in ("change", "delete"):
+            mutated = _mutate_leaf(boundary, path, delete=mutation == "delete")
+            try:
+                _validate_boundary_asset(mutated)
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((path, mutation))
+
+    assert escaped == []
+
+
+def test_ddl_scope_has_four_exact_final_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    """scope の4キーを直接変異し、専用意味検査だけが拒否すると示す。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    ddl = assets["ddl_elements"]
+    expected = {
+        "status": "verified_probe_configuration",
+        "product_schema": False,
+        "contains_sql_body": False,
+        "second_group_approval_required": False,
+    }
+    assert ddl["scope"] == expected
+
+    mutations: list[dict[str, Any]] = []
+    for key, value in expected.items():
+        mutated = copy.deepcopy(ddl)
+        mutated["scope"][key] = _changed_leaf_value(value)
+        mutations.append(mutated)
+        missing = copy.deepcopy(ddl)
+        del missing["scope"][key]
+        mutations.append(missing)
+
+    for mutated in mutations:
+        with pytest.raises(checker.CatalogError):
+            checker.validate_ddl_elements(mutated, REPOSITORY_ROOT)
+
+    mutated = copy.deepcopy(ddl)
+    mutated["scope"]["status"] = "candidate_probe_only"
+    monkeypatch.setattr(checker, "_validate_ddl_scope", lambda _raw: None)
+    checker.validate_ddl_elements(mutated, REPOSITORY_ROOT)
+
+
+def test_g_entry_population_matches_the_seal_derived_partition() -> None:
+    """g の全入口・全要素が validator の判定を返したと示す。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    _output, decisions = _derive_g_multiplicity()
+    actual_counts = _actual_g_decision_counts(decisions)
+    expected, excluded = _g_entry_partition_from_seal(seal)
+
+    _assert_g_entry_population(frozenset(actual_counts), seal)
+    _assert_g_decision_counts(actual_counts, _expected_g_decision_counts(seal))
+    actual_keys = tuple(
+        (entry_path, path, index)
+        for entry_path, path, index, _green in decisions
+    )
+    assert len(actual_keys) == len(set(actual_keys))
+    assert frozenset(actual_keys) == _expected_g_decision_keys(seal)
+    assert excluded == frozenset(_base_frozen_asset_paths()) - expected
+
+
+def test_g_deriver_rejects_a_skipped_entry() -> None:
+    """導出器内で1入口の validator を全省略すると入口検査が red になる。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    expected_counts = _expected_g_decision_counts(seal)
+    omitted_entry = min(
+        expected_counts, key=lambda entry: (expected_counts[entry], entry)
+    )
+
+    def skip_inside_deriver(
+        entry_path: str,
+        _array_path: ArrayPath,
+        _index: int,
+        validate_and_record: GDecisionRecorder,
+    ) -> None:
+        if entry_path == omitted_entry:
+            return
+        validate_and_record()
+
+    _output, decisions = _derive_g_multiplicity_with_dispatcher(
+        skip_inside_deriver
+    )
+    actual_counts = _actual_g_decision_counts(decisions)
+    with pytest.raises(AssertionError, match="g の入口集合が不一致"):
+        _assert_g_entry_population(frozenset(actual_counts), seal)
+
+
+def test_g_deriver_rejects_one_skipped_decision() -> None:
+    """導出器内で1要素の validator を省略すると判定件数が red になる。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    expected_counts = _expected_g_decision_counts(seal)
+    partial_entry = min(
+        expected_counts, key=lambda entry: (expected_counts[entry], entry)
+    )
+    decision_skipped = False
+
+    def skip_inside_deriver(
+        entry_path: str,
+        _array_path: ArrayPath,
+        _index: int,
+        validate_and_record: GDecisionRecorder,
+    ) -> None:
+        nonlocal decision_skipped
+        if entry_path == partial_entry and not decision_skipped:
+            decision_skipped = True
+            return
+        validate_and_record()
+
+    _output, decisions = _derive_g_multiplicity_with_dispatcher(
+        skip_inside_deriver
+    )
+    actual_counts = _actual_g_decision_counts(decisions)
+    assert decision_skipped
+    _assert_g_entry_population(frozenset(actual_counts), seal)
+    with pytest.raises(AssertionError, match="g の入口別判定件数が不一致"):
+        _assert_g_decision_counts(actual_counts, expected_counts)
+
+
+def test_g_arrays_reject_every_element_duplication_at_the_semantic_entry() -> None:
+    """基準版へ g を実行し、出力した全配列・全要素の複製を拒否する。"""
+    assets, seal, paths = _repository_oracle_assets()
+    g_paths = _derive_g_multiplicity_array_paths()
+    escaped: list[tuple[str, ArrayPath, int]] = []
+    attempts = 0
+    expected_attempts = 0
+
+    for name, path in g_paths:
+        source = seal if name == "oracle_seal" else assets[name]
+        target = _value_at_path(source, path)
+        assert isinstance(target, list) and target
+        expected_attempts += len(target)
+        for index in range(len(target)):
+            mutated = _duplicate_array_element(source, path, index)
+            try:
+                if name == "oracle_seal":
+                    checker.validate_oracle_seal(
+                        mutated, assets, paths, REPOSITORY_ROOT
+                    )
+                else:
+                    mutated_assets = copy.deepcopy(assets)
+                    mutated_assets[name] = mutated
+                    _validate_repository_oracle(
+                        mutated_assets, seal, paths, verify_seal=False
+                    )
+            except checker.CatalogError:
+                pass
+            else:
+                escaped.append((name, path, index))
+            attempts += 1
+
+    assert g_paths
+    assert attempts == expected_attempts
+    assert escaped == []
+
+
+def test_g_duplicates_pass_when_the_new_multiplicity_checks_are_removed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """g の負例が既存検査でなく追加した多重度検査により落ちると示す。"""
+    assets, seal, paths = _repository_oracle_assets()
+    monkeypatch.setattr(
+        checker, "_validate_json_array_multiplicity", lambda *_args: None
+    )
+    monkeypatch.setattr(
+        checker, "_validate_object_path_uniqueness", lambda *_args: None
+    )
+    monkeypatch.setattr(
+        checker,
+        "_index_unique_object_rows",
+        lambda rows, key, _label: {str(row.get(key)): row for row in rows},
+    )
+    escaped: list[tuple[str, ArrayPath]] = []
+
+    for name, path in _derive_g_multiplicity_array_paths():
+        source = seal if name == "oracle_seal" else assets[name]
+        mutated = _duplicate_array_element(source, path, 0)
+        try:
+            if name == "oracle_seal":
+                checker.validate_oracle_seal(
+                    mutated, assets, paths, REPOSITORY_ROOT
+                )
+            else:
+                mutated_assets = copy.deepcopy(assets)
+                mutated_assets[name] = mutated
+                _validate_repository_oracle(
+                    mutated_assets, seal, paths, verify_seal=False
+                )
+        except checker.CatalogError:
+            escaped.append((name, path))
+
+    assert escaped == []
+
+
+def test_frozen_assets_have_no_duplicates() -> None:
+    """固定基準版の seal が導く凍結 15 パスを同じ入口で恒久検査する。"""
+    paths = _base_frozen_asset_paths()
+    array_count = _validate_frozen_asset_set(REPOSITORY_ROOT, paths)
+
+    assert len(paths) == 15
+    assert array_count > 0
+
+
+def test_frozen_path_derivation_covers_both_asset_tables_and_the_seal() -> None:
+    """sealed/input の追加と seal 自身の3入口を独立した探針で検査する。"""
+    seal = _base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    baseline = _frozen_asset_paths_from_seal(seal)
+
+    added_sealed = copy.deepcopy(seal)
+    sealed_probe = copy.deepcopy(added_sealed["sealed_assets"][0])
+    sealed_probe["path"] = "contracts/authz/sealed-probe.json"
+    added_sealed["sealed_assets"].append(sealed_probe)
+
+    added_input = copy.deepcopy(seal)
+    input_probe = copy.deepcopy(added_input["input_assets"][0])
+    input_probe["path"] = "contracts/authz/input-probe.json"
+    added_input["input_assets"].append(input_probe)
+
+    assert len(_frozen_asset_paths_from_seal(added_sealed)) == len(baseline) + 1
+    assert len(_frozen_asset_paths_from_seal(added_input)) == len(baseline) + 1
+    assert len(_frozen_asset_paths_from_seal(seal, include_seal=False)) == (
+        len(baseline) - 1
+    )
+
+
+def test_each_frozen_asset_is_individually_required_by_the_multiplicity_scan(
+    tmp_path: Path,
+) -> None:
+    """15パスを1件ずつ攻撃し、対象集合を狭めるとその1件だけ逃げると示す。"""
+    root = _copy_frozen_assets(tmp_path)
+    paths = _base_frozen_asset_paths()
+    escaped: list[str] = []
+
+    for relative_path in paths:
+        source = _read_repository_json(relative_path)
+        array_path, array = next(
+            (path, candidate)
+            for path, candidate in _walk_json_arrays(source)
+            if candidate
+        )
+        mutated = _duplicate_array_element(source, array_path, len(array) - 1)
+        destination = root / relative_path
+        destination.write_text(
+            json.dumps(mutated, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        try:
+            _validate_frozen_asset_set(root, paths)
+        except FrozenJsonMultiplicityError:
+            pass
+        else:
+            escaped.append(relative_path)
+
+        narrowed = tuple(path for path in paths if path != relative_path)
+        _validate_frozen_asset_set(root, narrowed)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+
+    assert escaped == []
+
+
+def test_duplicate_scan_negative_cases_are_all_rejected() -> None:
+    """再帰・全要素・生キー・有効化・深さ・分岐到達の欠陥を負例で閉じる。"""
+    nested_duplicate = '{"outer":{"rows":[{"id":1},{"id":1}]}}'
+
+    def top_level_only(
+        value: object, path: ArrayPath = ()
+    ) -> list[tuple[ArrayPath, list[Any]]]:
+        if isinstance(value, list):
+            return [(path, value)]
+        return []
+
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(nested_duplicate, top_level_only)
+    assert json.loads(nested_duplicate)
+
+    values = [{"id": 1}, {"id": 2}, {"id": 3}]
+    for index in range(len(values)):
+        mutated = copy.deepcopy(values)
+        mutated.insert(index + 1, copy.deepcopy(mutated[index]))
+        with pytest.raises(FrozenJsonMultiplicityError):
+            _validate_frozen_json_text(json.dumps({"rows": mutated}))
+
+    later_duplicate = '{"rows":[{"id":1},{"id":2},{"id":2}]}'
+    parsed_later = json.loads(later_duplicate)
+    assert parsed_later["rows"][0] not in parsed_later["rows"][1:]
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(later_duplicate)
+
+    duplicate_key = '{"outer":{"same":1,"same":2}}'
+    assert json.loads(duplicate_key)["outer"]["same"] == 2
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(duplicate_key)
+
+    branched = '{"kept":{"rows":[1]},"swallowed":{"rows":[2]}}'
+
+    def swallow_one_branch(
+        value: object, path: ArrayPath = ()
+    ) -> list[tuple[ArrayPath, list[Any]]]:
+        if isinstance(value, dict):
+            return [
+                item
+                for key, child in value.items()
+                if key != "swallowed"
+                for item in swallow_one_branch(child, (*path, key))
+            ]
+        if isinstance(value, list):
+            return [(path, value)] + [
+                item
+                for index, child in enumerate(value)
+                for item in swallow_one_branch(child, (*path, index))
+            ]
+        return []
+
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(branched, swallow_one_branch)
+
+
+def test_multiplicity_scanner_reaches_the_actual_deepest_array() -> None:
+    """固定基準版の最大深度を導出し、深さ制限では届かない配列を拒否する。"""
+    _width, maximum_depth = _frozen_container_limits()
+    candidates = [
+        (len(path), relative_path, path, array)
+        for relative_path in _base_frozen_asset_paths()
+        for path, array in _walk_json_arrays(_base_json(relative_path))
+        if array
+    ]
+    path_depth, relative_path, array_path, array = max(candidates)
+    mutated = _duplicate_array_element(
+        _read_repository_json(relative_path), array_path, len(array) - 1
+    )
+    mutated_text = json.dumps(mutated, ensure_ascii=False)
+
+    def depth_limited(
+        value: object, path: ArrayPath = ()
+    ) -> list[tuple[ArrayPath, list[Any]]]:
+        if len(path) >= path_depth:
+            return []
+        if isinstance(value, dict):
+            return [
+                item
+                for key, child in value.items()
+                for item in depth_limited(child, (*path, key))
+            ]
+        if isinstance(value, list):
+            return [(path, value)] + [
+                item
+                for index, child in enumerate(value)
+                for item in depth_limited(child, (*path, index))
+            ]
+        return []
+
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(mutated_text)
+    with pytest.raises(FrozenJsonMultiplicityError):
+        _validate_frozen_json_text(mutated_text, depth_limited)
+    assert maximum_depth > path_depth
+
+
+def test_recursive_derivers_cover_generated_container_sequences_and_siblings() -> None:
+    """深さ d の全容器列・述語分岐・葉型と幅 w の全兄弟を探針で覆う。"""
+    maximum_width, maximum_depth = _frozen_container_limits()
+    leaf_values: tuple[object, ...] = ("text", 1, True, None, {}, [])
+    sequences = tuple(
+        sequence
+        for depth in range(1, maximum_depth + 1)
+        for sequence in itertools.product(("dict", "list"), repeat=depth)
+    )
+    leaf_probe_value = {
+        f"{predicate}_probe_{index}": copy.deepcopy(leaf)
+        for index, leaf in enumerate(leaf_values)
+        for predicate in ("owner", "task_id")
+    }
+    expected_leaf_count = len(leaf_probe_value) * maximum_width
+
+    for sequence in sequences:
+        for widened_index in range(len(sequence)):
+            array_probe = _wrap_with_wide_container(
+                sequence, widened_index, ["array-probe"], maximum_width
+            )
+            terminal_arrays = [
+                array
+                for _path, array in _walk_json_arrays(array_probe)
+                if array == ["array-probe"]
+            ]
+            assert len(terminal_arrays) == maximum_width
+
+            leaf_probe = _wrap_with_wide_container(
+                sequence,
+                widened_index,
+                leaf_probe_value,
+                maximum_width,
+            )
+            assert len(_iter_matching_key_paths(leaf_probe)) == expected_leaf_count
+            assert len(_iter_leaf_paths(leaf_probe)) == expected_leaf_count
+
+
+def test_normal_validation_never_reseals_a_semantically_valid_drift(
+    tmp_path: Path,
+) -> None:
+    """意味検査を通る digest 差分でも通常実行が seal を書き換えないと示す。"""
+    root = tmp_path / "repository"
+    shutil.copytree(
+        REPOSITORY_ROOT,
+        root,
+        ignore=shutil.ignore_patterns(
+            ".git", ".venv", ".pytest_cache", "__pycache__", ".ruff_cache"
+        ),
+    )
+    evidence_path = root / "contracts/authz/verification-evidence.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["provenance"][0]["extracted_text"] += " "
+    checker.validate_verification_evidence(evidence, root)
+    evidence_path.write_text(
+        json.dumps(evidence, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    seal_path = root / f"contracts/authz/{ORACLE_SEAL_FILE}"
+    seal_before = seal_path.read_bytes()
+
+    result = checker.main(["--root", str(root)])
+
+    assert result == 1
+    assert seal_path.read_bytes() == seal_before
+
+
+def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> None:
+    """固定基準版との比較で入力8行を保ち、予定した2資産だけ再封印する。"""
+    relative_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
+    base = _base_json(relative_path)
+    current = _read_repository_json(relative_path)
+    assets, _seal, paths = _repository_oracle_assets()
+
+    assert current["oracle_commit"] == base["oracle_commit"]
+    assert current["oracle_commit_semantics"] == base["oracle_commit_semantics"]
+    assert current["input_assets"] == base["input_assets"]
+    assert len(current["input_assets"]) == len(
+        {row["path"] for row in current["input_assets"]}
+    )
+    base_digests = {
+        row["path"]: row["canonical_sha256"] for row in base["sealed_assets"]
+    }
+    current_digests = {
+        row["path"]: row["canonical_sha256"]
+        for row in current["sealed_assets"]
+    }
+    changed = {
+        path
+        for path, digest in current_digests.items()
+        if digest != base_digests[path]
+    }
+    assert changed == {
+        "contracts/authz/boundary-proposal.json",
+        "contracts/authz/ddl-elements.json",
+    }
+    checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 
 def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:

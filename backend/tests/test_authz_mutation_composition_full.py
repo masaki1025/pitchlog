@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import os
 
+import pytest
+from db.authz import mutation_composition
 from db.authz.mutation_composition import (
+    ORACLE_SEAL_RELATIVE_PATH,
+    STEP2_BASE_REVISION,
+    STEP2_CHANGED_CANONICAL_ASSET_PATHS,
+    MutationCompositionError,
+    frozen_oracle_paths,
+    intentionally_changed_frozen_oracle_paths,
     load_step20_catalog,
     run_step20,
     select_step20_work,
     step20_selection_from_environment,
+    unchanged_frozen_oracle_paths,
     verify_frozen_oracle_unchanged,
 )
 
@@ -33,5 +42,46 @@ def test_step20_asset_populations_execute_as_exact_sets() -> None:
 
 
 def test_frozen_oracle_paths_have_no_branch_diff() -> None:
-    """seal由来の凍結パスがorigin/developから変更されていない。"""
+    """固定基準から意図的変更を除いた凍結パスに差分がない。"""
     verify_frozen_oracle_unchanged()
+
+
+def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:
+    """canonical差分2本とseal自身だけが不変検査から除外される。"""
+    frozen = frozen_oracle_paths(base_ref=STEP2_BASE_REVISION)
+    excluded = intentionally_changed_frozen_oracle_paths()
+    unchanged = unchanged_frozen_oracle_paths()
+
+    assert excluded
+    assert excluded == STEP2_CHANGED_CANONICAL_ASSET_PATHS | {ORACLE_SEAL_RELATIVE_PATH}
+    assert set(unchanged) == set(frozen) - excluded
+    assert len(unchanged) == len(frozen) - len(excluded)
+
+
+def test_each_unchanged_frozen_oracle_path_rejects_a_branch_diff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """導出した不変パスを1件ずつ変更した負例がすべてredになる。"""
+    frozen = frozen_oracle_paths(base_ref=STEP2_BASE_REVISION)
+    expected_excluded = STEP2_CHANGED_CANONICAL_ASSET_PATHS | {
+        ORACLE_SEAL_RELATIVE_PATH
+    }
+    unchanged = tuple(path for path in frozen if path not in expected_excluded)
+    escaped: list[str] = []
+
+    for changed_path in unchanged:
+        monkeypatch.setattr(
+            mutation_composition,
+            "_branch_changed_paths",
+            lambda _root, _base_ref, paths, path=changed_path: (
+                (path,) if path in paths else ()
+            ),
+        )
+        try:
+            verify_frozen_oracle_unchanged()
+        except MutationCompositionError:
+            pass
+        else:
+            escaped.append(changed_path)
+
+    assert escaped == []

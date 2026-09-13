@@ -4,6 +4,7 @@
 green のまま起きる。そのため架空設定の単体テストに加え、実設定を直接読む回帰テストを持つ。
 """
 import ast
+import fnmatch
 import importlib.util
 import json
 import os
@@ -42,6 +43,72 @@ DATA_MODEL_GUARD_PATHS = (
     "scripts/design_relations/closure-handoff-data-model.json",
     "tests/fixtures/data-model-source.txt",
     "scripts/design_relations/fixture-sha256-data-model.txt",
+)
+AUTHZ_GUARD_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
+AUTHZ_GUARD_CANDIDATE_PATHS = (
+    "scripts/check_authz_catalog.py",
+    "scripts/check_authz_function_bodies.py",
+    "scripts/check_design_propagation.py",
+    "scripts/check_doc_coverage.py",
+    "scripts/check_docs_status.py",
+    "scripts/check_failure_injection_points.py",
+    "scripts/check_mcdc_map.py",
+    "scripts/check_processing_stages.py",
+    "scripts/check_shared_preconditions.py",
+    "tests/test_check_authz_catalog.py",
+    "tests/test_check_authz_function_bodies.py",
+    "tests/test_check_design_propagation.py",
+    "tests/test_check_doc_coverage.py",
+    "tests/test_check_docs_status.py",
+    "tests/test_check_failure_injection_points.py",
+    "tests/test_check_mcdc_map.py",
+    "tests/test_check_processing_stages.py",
+    "tests/test_check_shared_preconditions.py",
+)
+AUTHZ_GUARD_PATH_ADDITIONS = (
+    "scripts/check_authz_catalog.py",
+    "scripts/check_authz_function_bodies.py",
+    "scripts/check_mcdc_map.py",
+    "scripts/check_failure_injection_points.py",
+    "scripts/check_shared_preconditions.py",
+    "scripts/check_docs_status.py",
+    "tests/test_check_authz_catalog.py",
+    "tests/test_check_authz_function_bodies.py",
+    "tests/test_check_mcdc_map.py",
+    "tests/test_check_failure_injection_points.py",
+    "tests/test_check_shared_preconditions.py",
+    "tests/test_check_docs_status.py",
+)
+AUTHZ_BACKEND_TEST_PATTERN = "backend/tests/test_authz*.py"
+AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS = (
+    "backend/tests/wording_scan.py",
+    "backend/tests/test_wording_scan.py",
+)
+AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS = (
+    "backend/tests/test_authz_ddl.py",
+    "backend/tests/test_authz_mutation.py",
+    "backend/tests/test_authz_mutation_composition.py",
+    "backend/tests/test_authz_mutation_composition_full.py",
+    "backend/tests/test_authz_mutation_execution.py",
+    *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
+)
+AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
+    "scripts/check_authz_function_bodies.py",
+    "scripts/check_mcdc_map.py",
+    "scripts/check_failure_injection_points.py",
+    "scripts/check_shared_preconditions.py",
+    "tests/test_check_authz_function_bodies.py",
+    "tests/test_check_mcdc_map.py",
+    "tests/test_check_failure_injection_points.py",
+    "tests/test_check_shared_preconditions.py",
+    "backend/src/pitchlog/authz/*",
+    AUTHZ_BACKEND_TEST_PATTERN,
+    *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
+)
+RECEPTION_INPUT_AREA_IDS = ("sync-protocol", "recording-rights")
+RECEPTION_INPUT_AREA_PATHS = (
+    "frontend/src/lib/sync/receptionInput.spec.ts",
+    "frontend/src/lib/sync/receptionInput.ts",
 )
 ORM_SCHEMA_MIGRATION_AREA_PATHS = {
     "sync-protocol": (
@@ -234,6 +301,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/queueState.ts",
         "frontend/src/lib/sync/queueTransition.spec.ts",
         "frontend/src/lib/sync/queueTransition.ts",
+        *RECEPTION_INPUT_AREA_PATHS,
         "frontend/src/lib/sync/rejectionReason.spec.ts",
         "frontend/src/lib/sync/rejectionReason.ts",
         "frontend/src/lib/sync/requestBoundary.spec.ts",
@@ -319,6 +387,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/queueState.ts",
         "frontend/src/lib/sync/queueTransition.spec.ts",
         "frontend/src/lib/sync/queueTransition.ts",
+        *RECEPTION_INPUT_AREA_PATHS,
         "frontend/src/lib/sync/requestBoundary.spec.ts",
         "frontend/src/lib/sync/requestBoundary.ts",
         "frontend/src/lib/sync/resendRange.spec.ts",
@@ -337,6 +406,7 @@ EXPECTED_AREA_PATHS = {
         "contracts/authz/*",
         "scripts/check_authz_catalog.py",
         "tests/test_check_authz_catalog.py",
+        *AUTHZ_TENANT_AREA_PATH_ADDITIONS,
         "tests/fixtures/authz_claims/*",
         "backend/tests/db/*",
         "backend/pyproject.toml",
@@ -391,11 +461,13 @@ NEW_GUARD_PATHS = (
     "scripts/check_design_propagation.py",
     "scripts/check_doc_coverage.py",
     "scripts/check_processing_stages.py",
+    *AUTHZ_GUARD_PATH_ADDITIONS[:6],
     "tests/fixtures/sync-protocol-source.txt",
     "tests/fixtures/data-model-source.txt",
     "tests/test_check_design_propagation.py",
     "tests/test_check_doc_coverage.py",
     "tests/test_check_processing_stages.py",
+    *AUTHZ_GUARD_PATH_ADDITIONS[6:],
     "tests/test_ci_wiring.py",
     "tests/test_core_guard.py",
     ".claude/skills/finalize-doc/SKILL.md",
@@ -704,6 +776,22 @@ def load_actual_core_areas() -> dict[str, Any]:
     return value
 
 
+def load_base_core_areas(
+    root: Path = REPO,
+    base_revision: str = AUTHZ_GUARD_BASE_REVISION,
+) -> dict[str, Any]:
+    """指定リポジトリの固定基準版 core-areas.json を Git から読む。"""
+    value = json.loads(
+        run_git(
+            root,
+            "show",
+            f"{base_revision}:.claude/core-areas.json",
+        ).stdout
+    )
+    assert isinstance(value, dict)
+    return value
+
+
 def load_core_guard_module() -> Any:
     """実際の core_guard.py を照合関数の正として読み込む。"""
     module_name = "core_guard_module"
@@ -716,6 +804,250 @@ def load_core_guard_module() -> Any:
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+_AUDIT_PATHS_MARKER = "__CORE_GUARD_AUDIT_PATHS__="
+_AUDIT_RUNNER = f"""
+import json
+import os
+import runpy
+import sys
+
+opened_paths = []
+
+
+def record_open(event, arguments):
+    if event != "open" or not arguments:
+        return
+    try:
+        path = os.fsdecode(os.fspath(arguments[0]))
+    except TypeError:
+        return
+    opened_paths.append(path)
+
+
+sys.addaudithook(record_open)
+script = sys.argv[1]
+root = sys.argv[2]
+sys.path.insert(0, os.path.dirname(script))
+sys.argv = [script, "--root", root]
+try:
+    runpy.run_path(script, run_name="__main__")
+except BaseException:
+    pass
+finally:
+    sys.__stdout__.write(
+        "\\n{_AUDIT_PATHS_MARKER}" + json.dumps(opened_paths) + "\\n"
+    )
+"""
+
+
+def _checker_opened_paths(root: Path, checker: Path) -> set[str]:
+    """子プロセスの監査イベントから検査器が開いたパスを返す。
+
+    Args:
+        root: 判定対象ツリーのルート。
+        checker: 実行する検査器。
+
+    Returns:
+        root 配下で開かれたファイルのルート相対パス。
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _AUDIT_RUNNER, str(checker), str(root)],
+        cwd=root,
+        capture_output=True,
+        encoding="utf-8",
+        timeout=30,
+        check=False,
+    )
+    marker_index = result.stdout.rfind(_AUDIT_PATHS_MARKER)
+    assert marker_index >= 0, (
+        f"監査イベントの出力を取得できない: {checker}: {result.stderr}"
+    )
+    payload = result.stdout[marker_index + len(_AUDIT_PATHS_MARKER) :].splitlines()[0]
+    opened_paths = json.loads(payload)
+    assert isinstance(opened_paths, list)
+
+    resolved_root = root.resolve()
+    relative_paths: set[str] = set()
+    for opened_path in opened_paths:
+        if not isinstance(opened_path, str):
+            continue
+        candidate = Path(opened_path)
+        if not candidate.is_absolute():
+            candidate = resolved_root / candidate
+        if not candidate.is_file():
+            continue
+        try:
+            relative = candidate.resolve().relative_to(resolved_root)
+        except ValueError:
+            continue
+        relative_paths.add(relative.as_posix())
+    return relative_paths
+
+
+def derive_authz_guard_candidate_paths(
+    root: Path,
+    base_revision: str = AUTHZ_GUARD_BASE_REVISION,
+) -> list[str]:
+    """基準版の領域または認可契約を開く検査器と名前の対を導出する。
+
+    Args:
+        root: 判定対象ツリーのルート。
+        base_revision: core-areas.json を読む固定 Git revision。
+
+    Returns:
+        guard_paths の登録候補となるルート相対パス。
+    """
+    baseline = load_base_core_areas(root, base_revision)
+    areas = baseline.get("areas")
+    assert isinstance(areas, list)
+    patterns = tuple(
+        pattern
+        for area in areas
+        if isinstance(area, dict)
+        for pattern in area.get("paths", [])
+        if isinstance(pattern, str)
+    )
+
+    candidates: set[str] = set()
+    for checker in sorted((root / "scripts").glob("check_*.py")):
+        opened_paths = _checker_opened_paths(root, checker)
+        if not any(
+            opened_path.startswith("contracts/authz/")
+            or any(
+                fnmatch.fnmatchcase(opened_path, pattern)
+                for pattern in patterns
+            )
+            for opened_path in opened_paths
+        ):
+            continue
+        checker_path = checker.relative_to(root).as_posix()
+        candidates.add(checker_path)
+        paired_test = root / "tests" / f"test_{checker.name}"
+        if paired_test.is_file():
+            candidates.add(paired_test.relative_to(root).as_posix())
+    return sorted(candidates)
+
+
+def assert_authz_guard_candidates_are_registered(
+    configuration: dict[str, Any],
+) -> None:
+    """実測で固定した認可検査器の全候補が guard_paths にあると示す。"""
+    guard_paths = configuration.get("guard_paths")
+    assert isinstance(guard_paths, list)
+    missing = sorted(set(AUTHZ_GUARD_CANDIDATE_PATHS) - set(guard_paths))
+    assert missing == [], f"guard_paths に未登録の認可検査資産: {missing}"
+
+
+def expected_authz_guard_paths() -> frozenset[str]:
+    """固定基準版と認可検査資産の追加集合から guard_paths を導出する。"""
+    baseline_guard_paths = load_base_core_areas().get("guard_paths")
+    assert isinstance(baseline_guard_paths, list)
+    assert all(isinstance(path, str) for path in baseline_guard_paths)
+    return frozenset(baseline_guard_paths) | frozenset(AUTHZ_GUARD_PATH_ADDITIONS)
+
+
+def assert_authz_guard_paths_are_exact(configuration: dict[str, Any]) -> None:
+    """現設定の guard_paths が固定基準版と認可追加の和に一致すると示す。"""
+    guard_paths = configuration.get("guard_paths")
+    assert isinstance(guard_paths, list)
+    expected = expected_authz_guard_paths()
+    actual = set(guard_paths)
+    assert actual == expected, (
+        "guard_paths が固定基準版と認可追加の和集合に不一致: "
+        f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
+    )
+    assert len(guard_paths) == len(actual), "guard_paths に重複がある"
+
+
+def assert_authz_tenant_area_patterns_are_registered(
+    configuration: dict[str, Any],
+) -> None:
+    """追加対象のパターンが tenant-isolation に全件あると示す。"""
+    areas = configuration.get("areas")
+    assert isinstance(areas, list)
+    tenant_area = next(
+        area
+        for area in areas
+        if isinstance(area, dict) and area.get("id") == "tenant-isolation"
+    )
+    tenant_paths = tenant_area.get("paths")
+    assert isinstance(tenant_paths, list)
+    missing = sorted(set(AUTHZ_TENANT_AREA_PATH_ADDITIONS) - set(tenant_paths))
+    assert missing == [], f"tenant-isolation.paths に未登録のパターン: {missing}"
+
+
+def assert_reception_input_paths_are_registered(
+    configuration: dict[str, Any],
+) -> None:
+    """同期受け取り境界の共通実装が両領域へ登録済みと示す。"""
+    areas = configuration.get("areas")
+    assert isinstance(areas, list)
+    areas_by_id = {
+        area.get("id"): area
+        for area in areas
+        if isinstance(area, dict) and isinstance(area.get("id"), str)
+    }
+    for area_id in RECEPTION_INPUT_AREA_IDS:
+        area = areas_by_id.get(area_id)
+        assert isinstance(area, dict)
+        paths = area.get("paths")
+        assert isinstance(paths, list)
+        missing = sorted(set(RECEPTION_INPUT_AREA_PATHS) - set(paths))
+        assert missing == [], (
+            f"{area_id}.paths に未登録の receptionInput 資産: {missing}"
+        )
+
+
+def make_authz_guard_probe_repo(tmp_path: Path) -> tuple[Path, str]:
+    """認可検査資産の導出を試す最小の合成ツリーを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+
+    Returns:
+        合成ツリーのルートと core-areas.json を固定した revision。
+    """
+    root = make_repo(tmp_path, core_paths=["backend/core/*"])
+    write_text(root, "contracts/authz/probe.json", "{}\n")
+    write_text(root, "backend/core/probe.txt", "core\n")
+    base_revision = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    return root, base_revision
+
+
+def write_authz_guard_probe(
+    root: Path,
+    *,
+    checker_name: str,
+    opened_path: str,
+    with_pair: bool,
+) -> None:
+    """指定パスだけを開く合成検査器と任意の名前の対を作る。
+
+    Args:
+        root: 合成ツリーのルート。
+        checker_name: `check_` から始まる検査器名。
+        opened_path: 検査器が開くルート相対パス。
+        with_pair: 名前の対となるテストも作るか。
+    """
+    write_text(
+        root,
+        f"scripts/{checker_name}",
+        (
+            "import sys\n"
+            "from pathlib import Path\n"
+            "\n"
+            "root = Path(sys.argv[sys.argv.index('--root') + 1])\n"
+            f"(root / {opened_path!r}).read_text(encoding='utf-8')\n"
+        ),
+    )
+    if with_pair:
+        write_text(
+            root,
+            f"tests/test_{checker_name}",
+            "def test_probe():\n    assert True\n",
+        )
 
 
 SCHEMA_CONTRACT_TOKENS = ("pitchlog.db", "schema-manifest", "migrations")
@@ -859,6 +1191,263 @@ def test_actual_config_registers_data_model_assets_in_expected_sets():
     configuration = load_actual_core_areas()
 
     assert has_expected_data_model_registrations(configuration)
+
+
+def test_actual_config_registers_fixed_authz_guard_candidates():
+    """実測済みの 18 パスがすべて guard_paths にあることを検証する。"""
+    configuration = load_actual_core_areas()
+
+    assert_authz_guard_candidates_are_registered(configuration)
+    registered_additions = [
+        path
+        for path in configuration["guard_paths"]
+        if path in AUTHZ_GUARD_PATH_ADDITIONS
+    ]
+    assert registered_additions == list(AUTHZ_GUARD_PATH_ADDITIONS)
+
+
+def test_guard_paths_population_remains_unchanged():
+    """guard_paths を固定基準版と認可追加の和集合で exact に閉じる。"""
+    assert_authz_guard_paths_are_exact(load_actual_core_areas())
+
+
+def test_guard_paths_reject_removal_and_same_size_replacement():
+    """guard_paths の削除と同数置換が exact-set 検査で red になる。"""
+    removed = min(expected_authz_guard_paths())
+
+    missing = load_actual_core_areas()
+    missing["guard_paths"].remove(removed)
+    with pytest.raises(AssertionError, match="guard_paths .*和集合に不一致"):
+        assert_authz_guard_paths_are_exact(missing)
+
+    replaced = load_actual_core_areas()
+    index = replaced["guard_paths"].index(removed)
+    replaced["guard_paths"][index] = "tests/guard-path-replacement-probe.py"
+    with pytest.raises(AssertionError, match="guard_paths .*和集合に不一致"):
+        assert_authz_guard_paths_are_exact(replaced)
+
+
+@pytest.mark.parametrize(
+    "guard_path",
+    AUTHZ_GUARD_CANDIDATE_PATHS,
+    ids=AUTHZ_GUARD_CANDIDATE_PATHS,
+)
+def test_each_fixed_authz_guard_candidate_is_required(guard_path: str):
+    """実測母集団の各要素を 1 件ずつ外すと登録検査が red になる。"""
+    configuration = load_actual_core_areas()
+    configuration["guard_paths"].remove(guard_path)
+
+    with pytest.raises(AssertionError, match="guard_paths に未登録"):
+        assert_authz_guard_candidates_are_registered(configuration)
+
+
+def test_actual_config_registers_fixed_authz_tenant_patterns():
+    """tenant-isolation への追加パターンを exact-set で検証する。"""
+    configuration = load_actual_core_areas()
+
+    assert_authz_tenant_area_patterns_are_registered(configuration)
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    registered_additions = [
+        path
+        for path in tenant_area["paths"]
+        if path in AUTHZ_TENANT_AREA_PATH_ADDITIONS
+    ]
+    assert registered_additions == list(AUTHZ_TENANT_AREA_PATH_ADDITIONS)
+
+
+@pytest.mark.parametrize(
+    "path",
+    AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS,
+    ids=AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS,
+)
+def test_each_authz_backend_contract_file_matches_tenant_isolation(path: str):
+    """追加した認可契約7件を実設定の tenant 領域だけで検出する。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    assert core_guard.matched_paths([path], tenant_only) == [path]
+
+
+def test_authz_backend_pattern_covers_current_and_future_without_overmatch():
+    """認可テストの現集合・将来名を覆い、現追跡ファイルを過剰包含しない。"""
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    matches = tuple(
+        path
+        for path in tracked_files
+        if fnmatch.fnmatchcase(path, AUTHZ_BACKEND_TEST_PATTERN)
+    )
+    expected_current = tuple(
+        path
+        for path in tracked_files
+        if Path(path).parent == Path("backend/tests")
+        and Path(path).name.startswith("test_authz")
+        and Path(path).suffix == ".py"
+    )
+    assert matches == expected_current
+    assert all(Path(path).parent == Path("backend/tests") for path in matches)
+    previous_pattern = AUTHZ_BACKEND_TEST_PATTERN.replace(
+        "test_authz*", "test_authz_*"
+    )
+    previous_matches = {
+        path
+        for path in tracked_files
+        if fnmatch.fnmatchcase(path, previous_pattern)
+    }
+    assert previous_matches <= set(matches)
+    assert len(matches) >= len(previous_matches)
+
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+    future_path = "backend/tests/test_authz.py"
+    assert core_guard.matched_paths([future_path], tenant_only) == [future_path]
+    excluded_paths = (
+        "backend/tests/test_authorization.py",
+        "frontend/test_authz_x.py",
+        "backend/tests/nested/test_authz_x.py",
+        "backend/tests/test_health.py",
+    )
+    assert all(
+        not fnmatch.fnmatchcase(path, AUTHZ_BACKEND_TEST_PATTERN)
+        for path in excluded_paths
+    )
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    AUTHZ_TENANT_AREA_PATH_ADDITIONS,
+    ids=AUTHZ_TENANT_AREA_PATH_ADDITIONS,
+)
+def test_each_fixed_authz_tenant_pattern_is_required(pattern: str):
+    """追加した各パターンを 1 件ずつ外すと登録検査が red になる。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    tenant_area["paths"].remove(pattern)
+
+    with pytest.raises(AssertionError, match="tenant-isolation.paths に未登録"):
+        assert_authz_tenant_area_patterns_are_registered(configuration)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    AUTHZ_TENANT_AREA_PATH_ADDITIONS,
+    ids=AUTHZ_TENANT_AREA_PATH_ADDITIONS,
+)
+def test_each_authz_tenant_pattern_matches_a_tracked_file(pattern: str):
+    """追加した tenant-isolation パターンの空振りを拒否する。"""
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+
+    matches = [
+        path for path in tracked_files if fnmatch.fnmatchcase(path, pattern)
+    ]
+    assert matches, f"実在する追跡ファイルに一致しないパターン: {pattern}"
+
+
+@pytest.mark.parametrize("area_id", RECEPTION_INPUT_AREA_IDS)
+@pytest.mark.parametrize("path", RECEPTION_INPUT_AREA_PATHS)
+def test_reception_input_matches_each_owning_area_without_guard_paths(
+    area_id: str,
+    path: str,
+):
+    """共通実装の対を各所有領域の paths だけで検出する。"""
+    configuration = load_actual_core_areas()
+    area = next(item for item in configuration["areas"] if item["id"] == area_id)
+    core_guard = load_core_guard_module()
+    area_only = core_guard.CoreAreas(
+        path_patterns=tuple(area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    assert core_guard.matched_paths([path], area_only) == [path]
+
+
+@pytest.mark.parametrize("area_id", RECEPTION_INPUT_AREA_IDS)
+@pytest.mark.parametrize("path", RECEPTION_INPUT_AREA_PATHS)
+def test_reception_input_registration_rejects_each_missing_area_path(
+    area_id: str,
+    path: str,
+):
+    """両領域の各 registration を 1 件ずつ外すと red になる。"""
+    configuration = load_actual_core_areas()
+    area = next(item for item in configuration["areas"] if item["id"] == area_id)
+    area["paths"].remove(path)
+
+    with pytest.raises(AssertionError, match="未登録の receptionInput 資産"):
+        assert_reception_input_paths_are_registered(configuration)
+
+
+@pytest.mark.parametrize(
+    ("checker_name", "opened_path", "with_pair", "expected_delta"),
+    (
+        (
+            "check_contract_probe.py",
+            "contracts/authz/probe.json",
+            True,
+            2,
+        ),
+        (
+            "check_core_area_probe.py",
+            "backend/core/probe.txt",
+            True,
+            2,
+        ),
+        (
+            "check_unpaired_probe.py",
+            "contracts/authz/probe.json",
+            False,
+            1,
+        ),
+    ),
+)
+def test_authz_guard_candidate_derivation_is_complete_for_each_branch(
+    tmp_path: Path,
+    checker_name: str,
+    opened_path: str,
+    with_pair: bool,
+    expected_delta: int,
+):
+    """述語の 2 入力分岐と名前の対の有無を独立した探針で検証する。"""
+    root, base_revision = make_authz_guard_probe_repo(tmp_path)
+    baseline = derive_authz_guard_candidate_paths(root, base_revision)
+    write_authz_guard_probe(
+        root,
+        checker_name=checker_name,
+        opened_path=opened_path,
+        with_pair=with_pair,
+    )
+
+    candidates = derive_authz_guard_candidate_paths(root, base_revision)
+
+    assert baseline == []
+    assert len(candidates) == len(baseline) + expected_delta
+    assert f"scripts/{checker_name}" in candidates
+    paired_path = f"tests/test_{checker_name}"
+    assert (paired_path in candidates) is with_pair
 
 
 def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
