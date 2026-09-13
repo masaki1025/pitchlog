@@ -79,7 +79,7 @@ AUTHZ_GUARD_PATH_ADDITIONS = (
     "tests/test_check_shared_preconditions.py",
     "tests/test_check_docs_status.py",
 )
-AUTHZ_BACKEND_TEST_PATTERN = "backend/tests/test_authz_*.py"
+AUTHZ_BACKEND_TEST_PATTERN = "backend/tests/test_authz*.py"
 AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS = (
     "backend/tests/wording_scan.py",
     "backend/tests/test_wording_scan.py",
@@ -954,6 +954,34 @@ def assert_authz_guard_paths_are_exact(configuration: dict[str, Any]) -> None:
     assert len(guard_paths) == len(actual), "guard_paths に重複がある"
 
 
+def assert_authz_guard_population_matches_fixed_sets(
+    derived_paths: tuple[str, ...],
+    candidate_paths: tuple[str, ...] = AUTHZ_GUARD_CANDIDATE_PATHS,
+    added_paths: tuple[str, ...] = AUTHZ_GUARD_PATH_ADDITIONS,
+) -> None:
+    """実リポジトリで導出した母集団を固定候補・追加集合と照合する。"""
+    derived = set(derived_paths)
+    candidates = set(candidate_paths)
+    assert len(derived_paths) == len(derived), "f の出力に重複がある"
+    assert len(candidate_paths) == len(candidates), "固定候補に重複がある"
+    assert derived == candidates, (
+        "実リポジトリの f と固定候補が不一致: "
+        f"不足={sorted(derived - candidates)}, 余分={sorted(candidates - derived)}"
+    )
+
+    baseline_guard_paths = load_base_core_areas().get("guard_paths")
+    assert isinstance(baseline_guard_paths, list)
+    assert all(isinstance(path, str) for path in baseline_guard_paths)
+    derived_additions = derived - set(baseline_guard_paths)
+    additions = set(added_paths)
+    assert len(added_paths) == len(additions), "固定追加集合に重複がある"
+    assert derived_additions == additions, (
+        "f の基準版未登録集合と固定追加集合が不一致: "
+        f"不足={sorted(derived_additions - additions)}, "
+        f"余分={sorted(additions - derived_additions)}"
+    )
+
+
 def assert_authz_tenant_area_patterns_are_registered(
     configuration: dict[str, Any],
 ) -> None:
@@ -1177,6 +1205,76 @@ def test_actual_config_registers_fixed_authz_guard_candidates():
     assert registered_additions == list(AUTHZ_GUARD_PATH_ADDITIONS)
 
 
+@pytest.fixture(scope="module")
+def real_authz_guard_candidate_paths() -> tuple[str, ...]:
+    """実リポジトリへ監査フック版 f を一度だけ適用する。"""
+    return tuple(
+        derive_authz_guard_candidate_paths(REPO, AUTHZ_GUARD_BASE_REVISION)
+    )
+
+
+def test_real_authz_guard_population_matches_fixed_sets(
+    real_authz_guard_candidate_paths: tuple[str, ...],
+):
+    """実リポジトリの f と固定候補・基準版未登録集合を exact に結ぶ。"""
+    assert_authz_guard_population_matches_fixed_sets(
+        real_authz_guard_candidate_paths
+    )
+
+
+def test_real_authz_guard_population_rejects_fixed_set_mutations(
+    real_authz_guard_candidate_paths: tuple[str, ...],
+):
+    """固定候補・追加集合の削除と同数置換を実測した f で拒否する。"""
+    candidate = min(AUTHZ_GUARD_CANDIDATE_PATHS)
+    candidates_without_one = tuple(
+        path for path in AUTHZ_GUARD_CANDIDATE_PATHS if path != candidate
+    )
+    candidates_with_replacement = tuple(
+        "tests/authz-guard-candidate-replacement-probe.py"
+        if path == candidate
+        else path
+        for path in AUTHZ_GUARD_CANDIDATE_PATHS
+    )
+    with pytest.raises(AssertionError, match="実リポジトリの f と固定候補が不一致"):
+        assert_authz_guard_population_matches_fixed_sets(
+            real_authz_guard_candidate_paths,
+            candidate_paths=candidates_without_one,
+        )
+    with pytest.raises(AssertionError, match="実リポジトリの f と固定候補が不一致"):
+        assert_authz_guard_population_matches_fixed_sets(
+            real_authz_guard_candidate_paths,
+            candidate_paths=candidates_with_replacement,
+        )
+
+    addition = min(AUTHZ_GUARD_PATH_ADDITIONS)
+    additions_without_one = tuple(
+        path for path in AUTHZ_GUARD_PATH_ADDITIONS if path != addition
+    )
+    additions_with_replacement = tuple(
+        "tests/authz-guard-addition-replacement-probe.py"
+        if path == addition
+        else path
+        for path in AUTHZ_GUARD_PATH_ADDITIONS
+    )
+    with pytest.raises(
+        AssertionError,
+        match="f の基準版未登録集合と固定追加集合が不一致",
+    ):
+        assert_authz_guard_population_matches_fixed_sets(
+            real_authz_guard_candidate_paths,
+            added_paths=additions_without_one,
+        )
+    with pytest.raises(
+        AssertionError,
+        match="f の基準版未登録集合と固定追加集合が不一致",
+    ):
+        assert_authz_guard_population_matches_fixed_sets(
+            real_authz_guard_candidate_paths,
+            added_paths=additions_with_replacement,
+        )
+
+
 def test_guard_paths_population_remains_unchanged():
     """guard_paths を固定基準版と認可追加の和集合で exact に閉じる。"""
     assert_authz_guard_paths_are_exact(load_actual_core_areas())
@@ -1264,11 +1362,21 @@ def test_authz_backend_pattern_covers_current_and_future_without_overmatch():
         path
         for path in tracked_files
         if Path(path).parent == Path("backend/tests")
-        and Path(path).name.startswith("test_authz_")
+        and Path(path).name.startswith("test_authz")
         and Path(path).suffix == ".py"
     )
     assert matches == expected_current
     assert all(Path(path).parent == Path("backend/tests") for path in matches)
+    previous_pattern = AUTHZ_BACKEND_TEST_PATTERN.replace(
+        "test_authz*", "test_authz_*"
+    )
+    previous_matches = {
+        path
+        for path in tracked_files
+        if fnmatch.fnmatchcase(path, previous_pattern)
+    }
+    assert previous_matches <= set(matches)
+    assert len(matches) >= len(previous_matches)
 
     configuration = load_actual_core_areas()
     tenant_area = next(
@@ -1281,10 +1389,17 @@ def test_authz_backend_pattern_covers_current_and_future_without_overmatch():
         path_patterns=tuple(tenant_area["paths"]),
         guard_paths=frozenset(),
     )
-    future_path = "backend/tests/test_authz_future.py"
+    future_path = "backend/tests/test_authz.py"
     assert core_guard.matched_paths([future_path], tenant_only) == [future_path]
-    assert not fnmatch.fnmatchcase(
-        "backend/tests/db/test_authz_future.py", AUTHZ_BACKEND_TEST_PATTERN
+    excluded_paths = (
+        "backend/tests/test_authorization.py",
+        "frontend/test_authz_x.py",
+        "backend/tests/nested/test_authz_x.py",
+        "backend/tests/test_health.py",
+    )
+    assert all(
+        not fnmatch.fnmatchcase(path, AUTHZ_BACKEND_TEST_PATTERN)
+        for path in excluded_paths
     )
 
 

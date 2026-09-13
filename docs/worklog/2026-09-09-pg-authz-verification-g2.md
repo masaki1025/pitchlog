@@ -3056,7 +3056,7 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 
 **検査基盤 33 件は依然としてどのコア領域にも `guard_paths` にも一致しない。**
 **これらを弱める変更は、現状では強化レビューも逐行確認も要求されない。**
-**送り先: TSK-342 / `feature/data-model-canonical` のステップ 1**(**同タスクの計画書が所有**)。
+**送り先: TSK-250「データモデル設計の正本化」のステップ 1**(`feature/data-model-canonical`)。**TSK-342 は同計画の前タスク**(正本の新設と最初の `approved` 化)であって、33 パスの登録を所有するのは **TSK-250** である(3 周目 `P2` で是正)。
 **本 PR で登録しない理由は射程の衝突であり、リスクを否定したものではない。**
 
 ### 2 周目の反映(2026-09-13)
@@ -3080,3 +3080,23 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 **現在そのファイルは存在しないが、fail-closed の観点では穴である。**
 **`backend/tests/test_authz*.py` にすれば両方覆える** — **3 周目のレビューで是非を判定させる**
 (**承認済みの登録内容をこちらの判断だけで再び広げない**)。
+
+### 3 周目の採否 — **否決(P0 1 / P1 2 / P2 1)**
+
+| # | 要旨 | 重大度 | 起因 | 区分 | 採否と理由 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **検査基盤 33 件の未登録**(**前周指摘の維持**)。「送り先がある」は作業配分の事情であって **P0 の解消根拠にならない**。TSK-250 は `承認: 未` で開始が TSK-342 待ちのため**閉じる時期が未定** | **P0** | 非起因 | (A) | **不採用(PO 裁定・残余リスクとして受容)**。**私の前周の整理が甘かった** — 「誰がやるべきか」と「いまリスクを許容してよいか」を混同していた。**決め手は実測**: **本 PR が登録した認可検査器 6 本は 33 件を 1 つも参照しない**(静的に 0 件)。33 件を読むのは `check_doc_coverage.py` / `check_design_propagation.py` ほかで、**この 2 本は基準版から既に `guard_paths` にある**。**既存の穴であり本 PR と因果が無い**。[Notion へ起票](https://app.notion.com/p/3da93b75e6878185b722d0a7139f2199)し **TSK-250 と相互リンク**した |
+| 2 | **`backend/tests/test_authz_*.py` が `test_authz.py`(接尾辞なし)を取りこぼす** — **私が前周に自分で出した疑義をレビューが追認**した | **P1** | 起因 | (A) | **採用**。**`backend/tests/test_authz*.py` へ拡張**。`test_authzfoo.py` まで含むが**強化レビュー側へ倒れるだけで実害ある過剰包含ではない**(レビューの判定) |
+| 3 | **期待集合が実リポジトリの `f` に結線されていない** — `AUTHZ_GUARD_CANDIDATE_PATHS` と `AUTHZ_GUARD_PATH_ADDITIONS` は**独立した手書き列挙**で、`derive_authz_guard_candidate_paths()` は**合成 probe リポジトリでしか実行されていなかった**。**設定と両定数から同数置換すると全 assertion が green** | **P1** | 起因 | (A) | **採用**。**実リポジトリ + 固定基準版に対して `f` を実行し、両定数と exact-set 突合する試験**を置いた |
+| 4 | **残余リスクの送り先 ID が誤り**(TSK-342 ではなく **TSK-250**) | **P2** | 起因 | (-) | **採用**。是正した |
+
+### 3 周目の反映(2026-09-13)
+
+| 指摘 | 実測 |
+| --- | --- |
+| **P1-1** `test_authz*.py` へ拡張 | **被覆維持 7 件 OK**・**新たに `test_authz.py` / `test_authz_future.py` を覆う**・**`test_authorization.py` / `frontend/test_authz_x.py` / `backend/tests/nested/test_authz_x.py` / `test_health.py` / `test_package.py` はいずれも不一致**。追跡ファイルの被覆 **318 / 672** |
+| **P1-2** 実 `f` との結線 | **`f` の出力 18 パスが `AUTHZ_GUARD_CANDIDATE_PATHS` と exact-set 一致**・**基準版未登録分が `AUTHZ_GUARD_PATH_ADDITIONS` と exact-set 一致**・**削除と同数置換の双方で red** |
+| **実 `f` が本物か**(私の独立検証) | **走査した検査器 12 本すべてが 1 件以上ファイルを開いた**(空振り 0 本)。**所要 2.40 秒** — 検査器 1 本あたり 0.2 秒で妥当 |
+
+**`tenant-isolation.paths` 57 / `guard_paths` 42(不変)**。
+`tests/test_core_guard.py` + `tests/test_ci_wiring.py` は **165 passed**。
