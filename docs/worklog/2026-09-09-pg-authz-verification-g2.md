@@ -3012,3 +3012,71 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 
 **いずれも事故で起こりうる欠陥であり、4 周とも正味の価値があった。**
 **5 周目以降は事故で起こらない領域に入るため、ここで止める。**
+
+## 設計書 6.3 規則⑤ の敵対レビュー(2026-09-13)
+
+**`.claude/core-areas.json` の paths 変更そのものに対する敵対レビュー。**
+**この後に人間承認が続く**(規則⑤: **paths の追加・削除・縮小は敵対レビュー + 人間承認の対象**)。
+
+### 変更の実数
+
+| 対象 | 変更前 | 変更後 | 追加 | 削除 |
+| --- | --- | --- | --- | --- |
+| `guard_paths` | 30 | **42** | **12** | **0** |
+| `areas[tenant-isolation].paths` | 45 | **57** | **12** | **0** |
+
+**縮小・削除は 1 件も無い。**
+
+### 1 周目の採否 — **否決(P0 1 / P1 0 / P2 0)**
+
+| # | 要旨 | 重大度 | 起因 | 区分 | 採否と理由 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **`tenant-isolation.paths` に認可契約テスト 7 件が未登録**で `matched_paths()` が空集合。**これらを変えれば DDL・mutation・表権限契約を弱められるのに強化レビューを迂回できる**(規則①) | **P0** | 非起因 | (A) | **採用**(**PO 裁定 `D-20`**)。**7 件とも登録した。** 根拠は 6.3 の「**判定に迷うコードは含む側に倒す**」。**7 件は基準 `56c281c` に既存だが、`test_authz_mutation_composition_full.py` は本 PR が変更している** |
+
+**1 周目で確認できた(指摘なし)項目**: audit hook 実測の **9 検査器 + 9 対 = 18 パス**が
+既登録 6 + 追加 12 と完全一致 / 規則② 違反なし(部分ファイル指定なし)/
+他領域への重複帰属は不要 / 削除・縮小なし / **`check_docs_status.py` を `guard_paths` にだけ置く非対称は正当**
+(**正本状態を検査する横断的ガードであり、テナント認可の意味実装ではない**)/
+**`backend/src/pitchlog/authz/*` は未来パスではなく実在 4 ファイルに一致**(**私の懸念は外れていた**)/
+**`D-13` は規則① から導ける。**
+
+### 2 周目の採否 — **否決(P0 1 / P1 2 / P2 0)**
+
+| # | 要旨 | 重大度 | 起因 | 区分 | 採否と理由 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **規則① 該当の検査基盤 33 件が未登録**(`check_doc_profiles.py` / `doc_check_profile.py` / `doc_check_invariants.py` / `scripts/design_relations/` の 8 件 / `tests/fixtures/profile-sample/` 19 件 ほか) | **P0** | 非起因 | (A) | **不採用 — 送り先あり**。**`docs/features/data-model-canonical/plan.md` の「ステップ 1」が同じ 33 パスの登録を所有する**(原典で確認)。**先方の合格条件は「本ステップの差分は `.claude/core-areas.json` と `tests/test_core_guard.py` のみ」**であり、**ここで登録すると先方のステップが空振りになって成立しなくなる**。絶対規則 5(計画にない範囲へ触れない)にも反する |
+| 2 | **認可テスト 5 件を個別列挙したため、今後の `backend/tests/test_authz_*.py` を取りこぼす**(仮想パス `test_authz_future.py` の `matched_paths()` が空) | **P1** | 起因 | (A) | **採用**。**`backend/tests/test_authz_*.py` の 1 パターンへまとめた**(**実測: 旧 5 件を覆ったまま `test_authz_future.py` にも一致し、`test_health.py` / `test_package.py` / `frontend/` / 入れ子には不一致**)。**`wording_scan.py` 2 件は汎用機能なので個別登録のまま** |
+| 3 | **`assert len(guard_paths) == 42` が `H-53`(件数を定数で持たない)に反する**。**さらに件数と重複しか見ないので、1 件削除して別パスを 1 件追加する同数置換が通る** | **P1** | 起因 | (A) | **採用**。**基準版の `guard_paths` と `AUTHZ_GUARD_PATH_ADDITIONS` の和集合を期待集合とし、現設定と exact-set 比較する**形へ。**`42` は結果として導出される** |
+
+**2 周目で確認できた(指摘なし)項目**: **7 件は過不足なく追加**・**各 `matched_paths()` が非空**・
+**個別除外はすべて red**・**`guard_paths` は `b4698d9` と exact-set 一致で追加削除とも 0 件**・
+**`D-20` とステップ 1 の記述が実装と一致**。
+
+### P0 不採用の残余リスク(**PR 本文へも転記する**)
+
+**検査基盤 33 件は依然としてどのコア領域にも `guard_paths` にも一致しない。**
+**これらを弱める変更は、現状では強化レビューも逐行確認も要求されない。**
+**送り先: TSK-342 / `feature/data-model-canonical` のステップ 1**(**同タスクの計画書が所有**)。
+**本 PR で登録しない理由は射程の衝突であり、リスクを否定したものではない。**
+
+### 2 周目の反映(2026-09-13)
+
+| 指摘 | 直したこと | 実測 |
+| --- | --- | --- |
+| **P1-1** 個別列挙で将来を取りこぼす | 認可テスト 5 件を **`backend/tests/test_authz_*.py`** の 1 パターンへ。**`wording_scan.py` 2 件は汎用機能なので個別のまま** | **旧 5 件を覆ったまま**(縮小でない)・**`test_authz_future.py` に一致**(範囲が広がった)・**`test_health.py` / `test_package.py` / `test_authz.py` / `frontend/test_authz_x.py` / `backend/tests/nested/test_authz_x.py` はいずれも不一致**(過剰包含なし) |
+| **P1-2** `42` の件数リテラル | **基準版 `guard_paths` ∪ `AUTHZ_GUARD_PATH_ADDITIONS`** を期待集合とし、現設定と **exact-set** 比較 + **重複なし**を検査 | **`42` のリテラルが 0 件**・**1 件削除で red**・**同数置換(1 件削除 + 別パス 1 件追加)でも red** |
+
+**`fnmatch` の `*` が `/` を跨ぐ**ため過剰包含を疑ったが、
+**パターンが `backend/tests/` の直後に `test_authz_` を要求する**ので、
+**入れ子(`backend/tests/nested/test_authz_x.py`)には一致しない**ことを実測で確認した。
+
+**変更後の実数**: `guard_paths` **30 → 42**(追加 12・削除 0)/
+`tenant-isolation.paths` **45 → 57**(追加 12・削除 0)。
+`tests/test_core_guard.py` + `tests/test_ci_wiring.py` は **163 passed**。
+
+### 自分で見つけた残りの穴(**3 周目のレビューへ回す**)
+
+**`backend/tests/test_authz.py`(接尾辞の無い名前)はパターンに一致しない。**
+**現在そのファイルは存在しないが、fail-closed の観点では穴である。**
+**`backend/tests/test_authz*.py` にすれば両方覆える** — **3 周目のレビューで是非を判定させる**
+(**承認済みの登録内容をこちらの判断だけで再び広げない**)。

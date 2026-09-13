@@ -79,14 +79,18 @@ AUTHZ_GUARD_PATH_ADDITIONS = (
     "tests/test_check_shared_preconditions.py",
     "tests/test_check_docs_status.py",
 )
-AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS = (
+AUTHZ_BACKEND_TEST_PATTERN = "backend/tests/test_authz_*.py"
+AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS = (
+    "backend/tests/wording_scan.py",
+    "backend/tests/test_wording_scan.py",
+)
+AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS = (
     "backend/tests/test_authz_ddl.py",
     "backend/tests/test_authz_mutation.py",
     "backend/tests/test_authz_mutation_composition.py",
     "backend/tests/test_authz_mutation_composition_full.py",
     "backend/tests/test_authz_mutation_execution.py",
-    "backend/tests/wording_scan.py",
-    "backend/tests/test_wording_scan.py",
+    *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
 AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "scripts/check_authz_function_bodies.py",
@@ -98,7 +102,8 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "tests/test_check_failure_injection_points.py",
     "tests/test_check_shared_preconditions.py",
     "backend/src/pitchlog/authz/*",
-    *AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
+    AUTHZ_BACKEND_TEST_PATTERN,
+    *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
 ORM_SCHEMA_MIGRATION_AREA_PATHS = {
     "sync-protocol": (
@@ -764,6 +769,22 @@ def load_actual_core_areas() -> dict[str, Any]:
     return value
 
 
+def load_base_core_areas(
+    root: Path = REPO,
+    base_revision: str = AUTHZ_GUARD_BASE_REVISION,
+) -> dict[str, Any]:
+    """指定リポジトリの固定基準版 core-areas.json を Git から読む。"""
+    value = json.loads(
+        run_git(
+            root,
+            "show",
+            f"{base_revision}:.claude/core-areas.json",
+        ).stdout
+    )
+    assert isinstance(value, dict)
+    return value
+
+
 def load_core_guard_module() -> Any:
     """実際の core_guard.py を照合関数の正として読み込む。"""
     module_name = "core_guard_module"
@@ -871,13 +892,7 @@ def derive_authz_guard_candidate_paths(
     Returns:
         guard_paths の登録候補となるルート相対パス。
     """
-    baseline_text = run_git(
-        root,
-        "show",
-        f"{base_revision}:.claude/core-areas.json",
-    ).stdout
-    baseline = json.loads(baseline_text)
-    assert isinstance(baseline, dict)
+    baseline = load_base_core_areas(root, base_revision)
     areas = baseline.get("areas")
     assert isinstance(areas, list)
     patterns = tuple(
@@ -916,6 +931,27 @@ def assert_authz_guard_candidates_are_registered(
     assert isinstance(guard_paths, list)
     missing = sorted(set(AUTHZ_GUARD_CANDIDATE_PATHS) - set(guard_paths))
     assert missing == [], f"guard_paths に未登録の認可検査資産: {missing}"
+
+
+def expected_authz_guard_paths() -> frozenset[str]:
+    """固定基準版と認可検査資産の追加集合から guard_paths を導出する。"""
+    baseline_guard_paths = load_base_core_areas().get("guard_paths")
+    assert isinstance(baseline_guard_paths, list)
+    assert all(isinstance(path, str) for path in baseline_guard_paths)
+    return frozenset(baseline_guard_paths) | frozenset(AUTHZ_GUARD_PATH_ADDITIONS)
+
+
+def assert_authz_guard_paths_are_exact(configuration: dict[str, Any]) -> None:
+    """現設定の guard_paths が固定基準版と認可追加の和に一致すると示す。"""
+    guard_paths = configuration.get("guard_paths")
+    assert isinstance(guard_paths, list)
+    expected = expected_authz_guard_paths()
+    actual = set(guard_paths)
+    assert actual == expected, (
+        "guard_paths が固定基準版と認可追加の和集合に不一致: "
+        f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
+    )
+    assert len(guard_paths) == len(actual), "guard_paths に重複がある"
 
 
 def assert_authz_tenant_area_patterns_are_registered(
@@ -1142,11 +1178,24 @@ def test_actual_config_registers_fixed_authz_guard_candidates():
 
 
 def test_guard_paths_population_remains_unchanged():
-    """今回変更しない guard_paths が42件・重複なしのままと示す。"""
-    guard_paths = load_actual_core_areas()["guard_paths"]
+    """guard_paths を固定基準版と認可追加の和集合で exact に閉じる。"""
+    assert_authz_guard_paths_are_exact(load_actual_core_areas())
 
-    assert len(guard_paths) == 42
-    assert len(guard_paths) == len(set(guard_paths))
+
+def test_guard_paths_reject_removal_and_same_size_replacement():
+    """guard_paths の削除と同数置換が exact-set 検査で red になる。"""
+    removed = min(expected_authz_guard_paths())
+
+    missing = load_actual_core_areas()
+    missing["guard_paths"].remove(removed)
+    with pytest.raises(AssertionError, match="guard_paths .*和集合に不一致"):
+        assert_authz_guard_paths_are_exact(missing)
+
+    replaced = load_actual_core_areas()
+    index = replaced["guard_paths"].index(removed)
+    replaced["guard_paths"][index] = "tests/guard-path-replacement-probe.py"
+    with pytest.raises(AssertionError, match="guard_paths .*和集合に不一致"):
+        assert_authz_guard_paths_are_exact(replaced)
 
 
 @pytest.mark.parametrize(
@@ -1183,8 +1232,8 @@ def test_actual_config_registers_fixed_authz_tenant_patterns():
 
 @pytest.mark.parametrize(
     "path",
-    AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
-    ids=AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
+    AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS,
+    ids=AUTHZ_BACKEND_PREVIOUSLY_COVERED_PATHS,
 )
 def test_each_authz_backend_contract_file_matches_tenant_isolation(path: str):
     """追加した認可契約7件を実設定の tenant 領域だけで検出する。"""
@@ -1201,6 +1250,42 @@ def test_each_authz_backend_contract_file_matches_tenant_isolation(path: str):
     )
 
     assert core_guard.matched_paths([path], tenant_only) == [path]
+
+
+def test_authz_backend_pattern_covers_current_and_future_without_overmatch():
+    """認可テストの現集合・将来名を覆い、現追跡ファイルを過剰包含しない。"""
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    matches = tuple(
+        path
+        for path in tracked_files
+        if fnmatch.fnmatchcase(path, AUTHZ_BACKEND_TEST_PATTERN)
+    )
+    expected_current = tuple(
+        path
+        for path in tracked_files
+        if Path(path).parent == Path("backend/tests")
+        and Path(path).name.startswith("test_authz_")
+        and Path(path).suffix == ".py"
+    )
+    assert matches == expected_current
+    assert all(Path(path).parent == Path("backend/tests") for path in matches)
+
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+    future_path = "backend/tests/test_authz_future.py"
+    assert core_guard.matched_paths([future_path], tenant_only) == [future_path]
+    assert not fnmatch.fnmatchcase(
+        "backend/tests/db/test_authz_future.py", AUTHZ_BACKEND_TEST_PATTERN
+    )
 
 
 @pytest.mark.parametrize(
