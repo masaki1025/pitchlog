@@ -795,7 +795,22 @@ DoD への追加 2 件)。
 | 3 | `tests/test_check_authz_catalog.py::test_boundary_proposal_base_leaves_follow_the_approved_classification` | `AUTHZ_STEP2_BASE_REVISION = "56c281c…"` 時点の分類に従うこと |
 | 4 | 同 `::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | `oracle_commit` が `dd2cb92` のままであること |
 
-**1 つ塞ぐと隣が鳴る。** **TSK-386 は 4 箇所をまとめて解く必要がある**旨を先方へ追記する。
+**最終検証で 5 箇所目が出た**: `backend/…::test_frozen_oracle_exclusions_match_the_resealed_canonical_assets` —
+「**canonical が変わった資産がステップ 2 の確定集合と一致すること**」を要求するが、
+**本改訂は `oracle_commit` の差し替えで oracle 6 資産すべての canonical を動かす**ので落ちる。
+
+**1 つ塞ぐと隣が鳴る。** **TSK-386 は 5 箇所をまとめて解く必要がある**旨を先方へ追記する。
+
+#### 最終検証(ツリーが落ち着いた後・同一ツリー)
+
+| 対象 | 結果 |
+| --- | --- |
+| harness | `ruff` / `ty` green・`pytest` **1344 passed / 2 failed** |
+| backend | `ruff format` / `ruff check` / `ty` green・`pytest` **195 passed / 2 failed** |
+| frontend | `prettier` / `eslint` / `vue-tsc` green・`vitest` **664 passed** |
+| 文書・契約の検査 | `check_docs_status` / `check_plan_docs_sync` / `check_design_propagation` / `check_doc_coverage` / `check_authz_catalog` / `check_failure_injection_points` / `check_mcdc_map` **すべて rc=0** |
+
+**赤 4 件はすべて同じ欠陥に由来し、受け取り先は TSK-386 である。**
 
 #### 独立に是正した 1 件
 

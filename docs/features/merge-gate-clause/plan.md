@@ -102,17 +102,25 @@ TSK-378(マージ済み・PR #58)で **PO 裁定 3 件**が下りた。**裁定�
 **digest 連鎖の実測**: 要件書 → 母集合 → 派生 3 資産 → oracle 6 資産 + seal →
 `failure-injection-points` / `mcdc-map` の **4 段**。
 
-**既知の red が 3 件ある**(**本 PR では直さない** — **受け取り先は
+**既知の red が 4 件ある**(**本 PR では直さない** — **受け取り先は
 [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)**):
 
 | # | red | 要求 |
 | --- | --- | --- |
 | 1 | `backend/…::test_frozen_oracle_paths_have_no_branch_diff` | seal 由来 15 パスが **`origin/develop` から差分ゼロ**であること |
-| 2 | `tests/test_check_authz_catalog.py::test_boundary_proposal_base_leaves_follow_the_approved_classification` | **`AUTHZ_STEP2_BASE_REVISION = "56c281c…"`** 時点の分類に従うこと(`tests/…:38`) |
-| 3 | `tests/test_check_authz_catalog.py::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | 同上(**`oracle_commit` が `dd2cb92` のままであること**を期待している) |
+| 2 | `backend/…::test_frozen_oracle_exclusions_match_the_resealed_canonical_assets` | **canonical が変わった資産が「ステップ 2 の確定集合」と一致**すること(本改訂は `oracle_commit` の差し替えで 6 資産すべてが変わる) |
+| 3 | `tests/test_check_authz_catalog.py::test_boundary_proposal_base_leaves_follow_the_approved_classification` | **`AUTHZ_STEP2_BASE_REVISION = "56c281c…"`** 時点の分類に従うこと(`tests/…:38`) |
+| 4 | `tests/test_check_authz_catalog.py::test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests` | 同上(**`oracle_commit` が `dd2cb92` のままであること**を期待している) |
 
 **`ORACLE_INPUT_BASELINE_COMMIT` は `0cf994f`(本改訂の入力確定コミット)へ進めた。**
-**同じ欠陥は少なくとも 4 箇所にある** — 検査器の定数・backend の凍結検査・上記テスト 2 本。
+**同じ欠陥は少なくとも 5 箇所にある** — 検査器の定数・backend の 2 本・上記テスト 2 本。
+**すべて「入力ベースラインは永久に動かない」を別の場所で言っている。**
+
+**red 以外はすべて green**: harness `ruff` / `ty` / `pytest`(**1344 passed**)/
+backend `ruff format` / `ruff check` / `ty` / `pytest`(**195 passed**)/
+frontend `prettier` / `eslint` / `vue-tsc` / `vitest`(**664 passed**)/
+`check_docs_status` / `check_plan_docs_sync` / `check_design_propagation` /
+`check_doc_coverage` / `check_authz_catalog` / `check_failure_injection_points` / `check_mcdc_map`。
 
 **2 件は同じ欠陥である** — **どちらも「入力ベースラインは永久に動かない」を別の場所で
 言っているだけ**で、**要件書を改訂すると必ずどちらかが赤くなる**。
