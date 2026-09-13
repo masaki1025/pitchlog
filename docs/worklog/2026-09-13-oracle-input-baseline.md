@@ -33,6 +33,17 @@ Notion: TSK-386。計画書: `docs/features/oracle-input-baseline/plan.md`。
 
 **対策 6 つのうち 4 つは効いた**(効きは同 8 節の表)。**節参照の機械突合を 5 周目に足して 0 件にした。**
 
+### ステップ 1: 退行の物差し
+
+`frozen_negative` marker で N1・N2 を一括実行できるようにし、marker の付いたテスト名が
+期待する 2 件と完全一致する exact-set テストを追加した。N1・N2 は一時ディレクトリへ
+`git clone --shared` した複製上で、改ざんが検査器に拒否されること(red)を確認する。
+
+- 変更前: `uv run pytest tests/test_authz_mutation_composition_full.py` — **5 passed**
+- 変更後(負例集合): `uv run pytest tests/test_authz_mutation_composition_full.py -m frozen_negative -v` —
+  **2 passed, 4 deselected**(N1・N2 が期待する例外を発生させ、負例として red)
+- 変更後(ファイル全体): `uv run pytest tests/test_authz_mutation_composition_full.py -v` — **6 passed**
+
 ## 決定
 
 | # | 決定 | 理由 |

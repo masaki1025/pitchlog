@@ -51,4 +51,5 @@ entrypoint = "pitchlog.main:app"
 testpaths = ["tests"]
 markers = [
     "requires_db: PostgreSQL 17.11 への実接続を必須とするテスト",
+    "frozen_negative: 凍結基準への不正な変更が red になることを検証する負例",
 ]

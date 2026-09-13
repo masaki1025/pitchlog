@@ -43,6 +43,24 @@ def test_step20_asset_populations_execute_as_exact_sets() -> None:
     }
 
 
+def test_frozen_negative_tests_execute_as_exact_set() -> None:
+    """凍結基準の負例が期待する集合と完全に一致する。"""
+    marked_tests = {
+        name
+        for name, test in globals().items()
+        if name.startswith("test_")
+        and any(
+            marker.name == "frozen_negative"
+            for marker in getattr(test, "pytestmark", ())
+        )
+    }
+
+    assert marked_tests == {
+        "test_frozen_oracle_rejects_input_change_without_baseline_advance",
+        "test_frozen_oracle_rejects_meaning_tampering_after_reseal",
+    }
+
+
 def test_frozen_oracle_paths_have_no_branch_diff() -> None:
     """入力baselineとポインタを除くoracle意味本文が固定されている。"""
     verify_frozen_oracle_unchanged()
@@ -88,6 +106,7 @@ def _write_json(path: Path, value: object) -> None:
     )
 
 
+@pytest.mark.frozen_negative
 def test_frozen_oracle_rejects_meaning_tampering_after_reseal(
     tmp_path: Path,
 ) -> None:
@@ -119,6 +138,7 @@ def test_frozen_oracle_rejects_meaning_tampering_after_reseal(
         verify_frozen_oracle_unchanged(root)
 
 
+@pytest.mark.frozen_negative
 def test_frozen_oracle_rejects_input_change_without_baseline_advance(
     tmp_path: Path,
 ) -> None:
