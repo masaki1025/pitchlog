@@ -563,6 +563,25 @@ Notion: TSK-379。計画書: `docs/features/merge-gate-clause/plan.md`(承認: �
 **判定が細かくなる方向の精密化であり、裁定の意図を緩めていない**と判断したが、
 **裁定の文言からは動いている。**
 
+### ステップ 8: 人間承認後の確定(2026-09-13・山田正輝)
+
+**3 正本を approved にし、版を確定した。**
+
+| 正本 | 版 | frontmatter | 変更履歴 | 索引 |
+| --- | --- | --- | --- | --- |
+| `docs/adr/ADR-004-merge-gate-scope.md` | **0.1** | `approved` | 確定行(**0.1**・状態 approved)を先頭へ + メタ表の状態行を現行化 | approved / 0.1 / 2026-09-13 |
+| `docs/design/data-model.md` | **0.3** | `approved` | 確定行(0.3)を先頭へ | approved / 0.3 / 2026-09-13 |
+| 要件書 | **2.8** | `approved` | 確定行(**2.8**)を末尾へ(同書は古い順) | approved / 2.8 / 2026-09-13 |
+
+**三者一致を機械で確認**: `check_docs_status.py` rc=0 /
+`check_design_propagation.py` rc=0 / `check_doc_coverage.py` rc=0。
+
+**3 書の変更履歴が相手を「一括検証」で相互参照していることを機械走査で確認**した
+(ADR-004 → data-model・要件書 / data-model → ADR-004・要件書 / 要件書 → ADR-004・data-model)。
+
+**人間承認で確認した 1 点**: **裁定 A・B は「経路」単位で下されたが、条文は「入口」単位である。**
+ADR-004 の確定行に明記した。
+
 ## 決定
 
 ## 未決・次の一歩
