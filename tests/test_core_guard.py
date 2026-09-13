@@ -105,6 +105,11 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     AUTHZ_BACKEND_TEST_PATTERN,
     *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
+RECEPTION_INPUT_AREA_IDS = ("sync-protocol", "recording-rights")
+RECEPTION_INPUT_AREA_PATHS = (
+    "frontend/src/lib/sync/receptionInput.spec.ts",
+    "frontend/src/lib/sync/receptionInput.ts",
+)
 ORM_SCHEMA_MIGRATION_AREA_PATHS = {
     "sync-protocol": (
         ".env.example",
@@ -296,6 +301,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/queueState.ts",
         "frontend/src/lib/sync/queueTransition.spec.ts",
         "frontend/src/lib/sync/queueTransition.ts",
+        *RECEPTION_INPUT_AREA_PATHS,
         "frontend/src/lib/sync/rejectionReason.spec.ts",
         "frontend/src/lib/sync/rejectionReason.ts",
         "frontend/src/lib/sync/requestBoundary.spec.ts",
@@ -381,6 +387,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/queueState.ts",
         "frontend/src/lib/sync/queueTransition.spec.ts",
         "frontend/src/lib/sync/queueTransition.ts",
+        *RECEPTION_INPUT_AREA_PATHS,
         "frontend/src/lib/sync/requestBoundary.spec.ts",
         "frontend/src/lib/sync/requestBoundary.ts",
         "frontend/src/lib/sync/resendRange.spec.ts",
@@ -971,6 +978,28 @@ def assert_authz_tenant_area_patterns_are_registered(
     assert missing == [], f"tenant-isolation.paths に未登録のパターン: {missing}"
 
 
+def assert_reception_input_paths_are_registered(
+    configuration: dict[str, Any],
+) -> None:
+    """同期受け取り境界の共通実装が両領域へ登録済みと示す。"""
+    areas = configuration.get("areas")
+    assert isinstance(areas, list)
+    areas_by_id = {
+        area.get("id"): area
+        for area in areas
+        if isinstance(area, dict) and isinstance(area.get("id"), str)
+    }
+    for area_id in RECEPTION_INPUT_AREA_IDS:
+        area = areas_by_id.get(area_id)
+        assert isinstance(area, dict)
+        paths = area.get("paths")
+        assert isinstance(paths, list)
+        missing = sorted(set(RECEPTION_INPUT_AREA_PATHS) - set(paths))
+        assert missing == [], (
+            f"{area_id}.paths に未登録の receptionInput 資産: {missing}"
+        )
+
+
 def make_authz_guard_probe_repo(tmp_path: Path) -> tuple[Path, str]:
     """認可検査資産の導出を試す最小の合成ツリーを作る。
 
@@ -1337,6 +1366,39 @@ def test_each_authz_tenant_pattern_matches_a_tracked_file(pattern: str):
         path for path in tracked_files if fnmatch.fnmatchcase(path, pattern)
     ]
     assert matches, f"実在する追跡ファイルに一致しないパターン: {pattern}"
+
+
+@pytest.mark.parametrize("area_id", RECEPTION_INPUT_AREA_IDS)
+@pytest.mark.parametrize("path", RECEPTION_INPUT_AREA_PATHS)
+def test_reception_input_matches_each_owning_area_without_guard_paths(
+    area_id: str,
+    path: str,
+):
+    """共通実装の対を各所有領域の paths だけで検出する。"""
+    configuration = load_actual_core_areas()
+    area = next(item for item in configuration["areas"] if item["id"] == area_id)
+    core_guard = load_core_guard_module()
+    area_only = core_guard.CoreAreas(
+        path_patterns=tuple(area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    assert core_guard.matched_paths([path], area_only) == [path]
+
+
+@pytest.mark.parametrize("area_id", RECEPTION_INPUT_AREA_IDS)
+@pytest.mark.parametrize("path", RECEPTION_INPUT_AREA_PATHS)
+def test_reception_input_registration_rejects_each_missing_area_path(
+    area_id: str,
+    path: str,
+):
+    """両領域の各 registration を 1 件ずつ外すと red になる。"""
+    configuration = load_actual_core_areas()
+    area = next(item for item in configuration["areas"] if item["id"] == area_id)
+    area["paths"].remove(path)
+
+    with pytest.raises(AssertionError, match="未登録の receptionInput 資産"):
+        assert_reception_input_paths_are_registered(configuration)
 
 
 @pytest.mark.parametrize(

@@ -3138,8 +3138,41 @@ g の入口集合が不一致: 不足=['contracts/authz/rejected-configs.json'],
 | `tests/` から実リポジトリへ `f` を適用する箇所 | **0 件**(残るのは**合成 probe リポジトリ `tmp_path` への分岐試験のみ** — 計画の射程内) |
 | DoD「`f` の出力すべてが登録」 | `test_actual_config_registers_fixed_authz_guard_candidates` **1 件** |
 | DoD「各要素を 1 件ずつ外すと red」 | `test_each_fixed_authz_guard_candidate_is_required` **18 件**(全数パラメタ化) |
-| DoD「追加パターンが実在ファイルへ 1 件以上マッチ」 | `test_actual_config_registers_fixed_authz_tenant_patterns` **1 件** |
+| DoD「追加パターンが実在ファイルへ 1 件以上マッチ」 | **`test_each_authz_tenant_pattern_matches_a_tracked_file` 12 件**(全パターンをパラメタ化)。**5 周目 `P2` で是正** — 当初 `test_actual_config_registers_fixed_authz_tenant_patterns` と書いたが、**それは登録集合だけを検査しており実在ファイルへのマッチは見ていない** |
 | テスト | `tests/test_core_guard.py` + `tests/test_ci_wiring.py` **163 passed** |
 
 **3 周目 `P1-2` の扱いを「採用」から
 「不採用 — 送り先あり(検査基盤の別タスク・裁定 `D-13`/`D-18`)」へ改める。**
+
+### 規則⑤ 5 周目の採否 — **否決(P0 1 / P1 0 / P2 1)**
+
+| # | 要旨 | 重大度 | 起因 | 区分 | 採否と理由 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **`frontend/src/lib/sync/receptionInput.ts` と `receptionInput.spec.ts` が未登録**。**同期応答の受け取り境界の fail-closed 検査の単一実装**で、**`ackEnvelope` / `resendRange` ほか 7 ファイルが使う**のに**共通実装だけが漏れていた** | **P0** | 非起因 | (A) | **採用**(**PO 裁定 `D-21`**)。**`sync-protocol` と `recording-rights` の両領域へ登録**(規則③ の重複帰属)。**所有者が無く、放置すれば誰も拾わない**(どの計画書にも言及 0 件 — 実測) |
+| 2 | worklog の DoD 対応表が、**実在ファイルへのマッチ検査を誤ったテストへ対応付けている** | **P2** | 起因 | (-) | **採用**。正しくは **`test_each_authz_tenant_pattern_matches_a_tracked_file`(12 件)**。挙げていた `test_actual_config_registers_fixed_authz_tenant_patterns` は**登録集合だけを検査**していた |
+
+#### **もぐら叩きを止めるための全数測定**
+
+**3 周目は検査基盤 33 件、5 周目は同期の 2 件と、周ごとに別領域の既存ギャップが出た。**
+**1 件ずつ潰すと終わらないので、クラス全体を実測した。**
+
+**測り方**: **登録済みファイルが `import` しているのに、自分は未登録**のファイルを全数列挙する
+(TS/Vue の相対 import を解決)。
+
+| 時点 | 依存ギャップ |
+| --- | --- |
+| `D-21` 反映前 | **3 件**(`receptionInput.ts` + PNG 2 件) |
+| `D-21` 反映後 | **2 件**(**PNG 2 件のみ** — `batter-silhouette-front/right.png`) |
+
+**ロジックの穴はゼロになった。**
+**PNG 2 件は画像であり実装を含まないため裁定の対象外とした**(`StrikeZone.vue` は登録済み)。
+
+#### 実測(是正後)
+
+| 項目 | 結果 |
+| --- | --- |
+| 2 ファイルが**各領域単独の設定**で一致するか | **`sync-protocol` / `recording-rights` とも 2 件ずつ一致**(**`guard_paths` に隠れていない**) |
+| **負例: 各領域から 1 件外す**(4 通り) | **全て red** |
+| `guard_paths` / `tenant-isolation.paths` | **42 / 57**(不変) |
+| 追跡ファイルの被覆 | 318 → **320** / 672 |
+| テスト | `tests/test_core_guard.py` + `tests/test_ci_wiring.py` **171 passed** |
