@@ -582,6 +582,45 @@ Notion: TSK-379。計画書: `docs/features/merge-gate-clause/plan.md`(承認: �
 **人間承認で確認した 1 点**: **裁定 A・B は「経路」単位で下されたが、条文は「入口」単位である。**
 ADR-004 の確定行に明記した。
 
+### ステップ 9(前段): 派生資産の追随
+
+**ステップ 8 の後に行った**(`P0-3` — ゲート前に固定すると反映周と approved 化で必ず stale になる)。
+
+| 資産 | 追随 |
+| --- | --- |
+| `contracts/authz/shared-preconditions.json` | **blob digest 2 件**(`data-model.md`・要件書) |
+| `contracts/db/schema-manifest.json` | **`data-model.md` の SHA-256** |
+| `contracts/authz/requirement-claims.json` | **manifest の commit と blob**・**`item_counts_by_kind` の `table_row` 201 → 203**・**新規 2 行**(`CHANGELOG/table_row-034`・`-035`)・**`NFR-019/paragraph-001` の `source_text` と digest** → `--reseal --skip-derived --skip-oracle` |
+| 派生 3 資産(`route-registry` / `http-route-matrix` / `auth-catalog`) | **`requirement_claims_blob_digest`・`requirement_claims_lock_blob_digest`**・**`auth-catalog` の `source_text_digest` 1 件** → `--reseal-derived --skip-oracle` |
+| 受入シート 4 本 | **再生成**(N1 100 → 101 行・N3 77 → 78 行)+ **期待件数の追随** |
+
+**母集合の増減を実測で確認した**: `total 1078 → 1080` / **`auth_claim` 184 で不変** /
+`out_of_scope` 894 → 896 / `db_claims=187` `routes=37` `cells=12` **いずれも不変**。
+**新規 2 行は既存 33 件の `CHANGELOG` 表行と同じ分類**(`out_of_scope` / `OUT_DOCUMENT_METADATA`)で、
+**`NFR-019/paragraph-001` の分類も `auth_claim` / `AUTH_VERIFICATION` のまま変わらない**。
+
+#### 受入シートの判定の持ち越しで、自分の解析バグを 1 件踏んだ
+
+**見出しを 1 本足したので `N1` の連番が全部ずれ、`--carry-judgments-from` が 22 行分の判定を落とした**
+(番号を含むキーで突き合わせるため)。**内容一致で持ち越す処理を自分で書いたが、最初の版は
+Markdown の表を `split("|")` で割っていた** — **行本文に `\|` のエスケープが含まれるため列がずれ、
+判定欄に本文が入った状態のファイルを一度書いてしまった**。
+
+**気づいたのは、書き込んだ行を目視で確認したときである。** 生成器が持つ
+`parse_sheet_rows` / `_replace_sheet_rows`(エスケープを正しく扱う)へ差し替えて書き直した。
+**さらに同一キーの重複行があったので、順序つきの多重マップ(FIFO)で 1 対 1 に対応させた** —
+これをしないと「同上(…)」と書かれた 2 行目の理由が 1 行目に付く。
+
+**結果: 326 行を持ち越し・3 行だけが人間の判定**(**計画が予測したとおり N1 の 2 箇所** + N3 の 1 行)。
+
+#### 人間の判定(2026-09-13・山田正輝)
+
+| シート | 行 | 判定 | 理由 |
+| --- | --- | --- | --- |
+| N1 | 見出し 080: 12-4. マイグレーション方針 | 対象外 | マイグレーション方針(依存追加・models・migration の手順)であり表を定義しない |
+| N1 | 見出し 081: 経路と入口の定義 | 対象外 | 同上(**HEAD の 12-4 節の見出し 3 件すべてが同じ判定**) |
+| N3 | 出現 071: 変えない | 対象外 | **条文の文言を変えないという編集上の要求であり、列の不変性ではない** |
+
 ## 決定
 
 ## 未決・次の一歩
