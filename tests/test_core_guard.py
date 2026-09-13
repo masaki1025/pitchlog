@@ -79,6 +79,15 @@ AUTHZ_GUARD_PATH_ADDITIONS = (
     "tests/test_check_shared_preconditions.py",
     "tests/test_check_docs_status.py",
 )
+AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS = (
+    "backend/tests/test_authz_ddl.py",
+    "backend/tests/test_authz_mutation.py",
+    "backend/tests/test_authz_mutation_composition.py",
+    "backend/tests/test_authz_mutation_composition_full.py",
+    "backend/tests/test_authz_mutation_execution.py",
+    "backend/tests/wording_scan.py",
+    "backend/tests/test_wording_scan.py",
+)
 AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "scripts/check_authz_function_bodies.py",
     "scripts/check_mcdc_map.py",
@@ -89,6 +98,7 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "tests/test_check_failure_injection_points.py",
     "tests/test_check_shared_preconditions.py",
     "backend/src/pitchlog/authz/*",
+    *AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
 )
 ORM_SCHEMA_MIGRATION_AREA_PATHS = {
     "sync-protocol": (
@@ -1131,6 +1141,14 @@ def test_actual_config_registers_fixed_authz_guard_candidates():
     assert registered_additions == list(AUTHZ_GUARD_PATH_ADDITIONS)
 
 
+def test_guard_paths_population_remains_unchanged():
+    """今回変更しない guard_paths が42件・重複なしのままと示す。"""
+    guard_paths = load_actual_core_areas()["guard_paths"]
+
+    assert len(guard_paths) == 42
+    assert len(guard_paths) == len(set(guard_paths))
+
+
 @pytest.mark.parametrize(
     "guard_path",
     AUTHZ_GUARD_CANDIDATE_PATHS,
@@ -1146,7 +1164,7 @@ def test_each_fixed_authz_guard_candidate_is_required(guard_path: str):
 
 
 def test_actual_config_registers_fixed_authz_tenant_patterns():
-    """tenant-isolation への 9 追加パターンを exact-set で検証する。"""
+    """tenant-isolation への追加パターンを exact-set で検証する。"""
     configuration = load_actual_core_areas()
 
     assert_authz_tenant_area_patterns_are_registered(configuration)
@@ -1161,6 +1179,28 @@ def test_actual_config_registers_fixed_authz_tenant_patterns():
         if path in AUTHZ_TENANT_AREA_PATH_ADDITIONS
     ]
     assert registered_additions == list(AUTHZ_TENANT_AREA_PATH_ADDITIONS)
+
+
+@pytest.mark.parametrize(
+    "path",
+    AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
+    ids=AUTHZ_BACKEND_TENANT_AREA_PATH_ADDITIONS,
+)
+def test_each_authz_backend_contract_file_matches_tenant_isolation(path: str):
+    """追加した認可契約7件を実設定の tenant 領域だけで検出する。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area
+        for area in configuration["areas"]
+        if area["id"] == "tenant-isolation"
+    )
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    assert core_guard.matched_paths([path], tenant_only) == [path]
 
 
 @pytest.mark.parametrize(
