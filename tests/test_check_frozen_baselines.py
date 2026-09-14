@@ -56,7 +56,7 @@ def _git(root: Path, *args: str) -> str:
 
 def _commit_all(root: Path, subject: str) -> str:
     _git(root, "add", "-A")
-    _git(root, "commit", "--quiet", "-m", subject)
+    _git(root, "commit", "--quiet", "--allow-empty", "-m", subject)
     return _git(root, "rev-parse", "HEAD")
 
 
@@ -317,6 +317,61 @@ def test_repository_frozen_baselines_are_valid() -> None:
     assert "supersedes" not in version_record
 
 
+def test_digest_edge_composition_accepts_appended_corpus_version(
+    cloned_repository: Path,
+) -> None:
+    """正当なcorpus版追記では導出したdigest辺の期待も1本増える。"""
+    root = cloned_repository
+    base = _git(root, "rev-parse", "HEAD")
+    corpus = _read_json_object(root, CORPUS_RELATIVE_PATH)
+    corpus["corpus_version"] = 2
+    _write_json_object(root, CORPUS_RELATIVE_PATH, corpus)
+    for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
+        derived = _read_json_object(root, relative_path)
+        derived["corpus_version"] = 2
+        _write_json_object(root, relative_path, derived)
+    catalog = _read_catalog(root)
+    _history(catalog, "corpus_versions").append(
+        {
+            "version": 2,
+            "canonical_sha256": _canonical_sha256(corpus),
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-15",
+            "reason": "正当な更新経路の受理テスト",
+        }
+    )
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root, base)
+
+    assert result.returncode == 0, result.stderr
+    assert "digest_edges=17" in result.stdout
+
+
+def test_digest_edge_composition_rejects_restored_derived_edge(
+    cloned_repository: Path,
+) -> None:
+    """派生資産へ戻された母集合digest辺を拒否する。"""
+    root = cloned_repository
+    relative_path = DERIVED_CORPUS_RELATIVE_PATHS[0]
+    derived = _read_json_object(root, relative_path)
+    manifest = derived["input_manifest"]
+    assert isinstance(manifest, dict)
+    manifest["requirement_claims_blob_digest"] = _git(
+        root,
+        "rev-parse",
+        f"HEAD:{CORPUS_RELATIVE_PATH.as_posix()}",
+    )
+    _write_json_object(root, relative_path, derived)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "digest 辺: 資産ごとの構成が期待と一致しない" in result.stderr
+    assert relative_path.as_posix() in result.stderr
+    assert "(1, 0)" in result.stderr
+
+
 def test_g1_corpus_version_must_match_ledger(cloned_repository: Path) -> None:
     """G-1: 母集合の版だけを進めた状態を拒否する。"""
     root = cloned_repository
@@ -380,6 +435,7 @@ def test_g4_corpus_versions_are_sequential(cloned_repository: Path) -> None:
     assert "G-4" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n7_changed_corpus_without_version_advance_is_red(
     cloned_repository: Path,
 ) -> None:
@@ -401,6 +457,7 @@ def test_n7_changed_corpus_without_version_advance_is_red(
     DERIVED_CORPUS_RELATIVE_PATHS,
     ids=lambda path: path.stem,
 )
+@pytest.mark.frozen_negative
 def test_n8_derived_assets_must_follow_corpus_version(
     cloned_repository: Path,
     lagging_path: Path,
@@ -438,6 +495,7 @@ def test_n8_derived_assets_must_follow_corpus_version(
     assert lagging_path.as_posix() in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
     """N3: 承認者が空の追記をF-3で拒否する。"""
     root = cloned_repository
@@ -454,6 +512,7 @@ def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
     assert "F-3" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n5_changed_existing_approval_is_red(cloned_repository: Path) -> None:
     """N5: baseに存在する承認者の書き換えをF-4で拒否する。"""
     root = cloned_repository
@@ -477,6 +536,7 @@ def test_n5_changed_existing_approval_is_red(cloned_repository: Path) -> None:
     assert "F-4" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n6_unlinked_supersedes_is_red(cloned_repository: Path) -> None:
     """N6: 直前commitを指さない追記をF-2で拒否する。"""
     root = cloned_repository
@@ -493,6 +553,7 @@ def test_n6_unlinked_supersedes_is_red(cloned_repository: Path) -> None:
     assert "F-2" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n9_initial_commit_mismatch_is_red(cloned_repository: Path) -> None:
     """N9: 新設台帳の初期値すり替えをbase側定数とのF-7で拒否する。"""
     root = cloned_repository
@@ -511,6 +572,7 @@ def test_n9_initial_commit_mismatch_is_red(cloned_repository: Path) -> None:
     assert "F-7" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> None:
     """N10: base側ソースを変えると、その値を読んだF-7が拒否する。"""
     root = cloned_repository
@@ -536,6 +598,7 @@ def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> Non
     assert "F-7" in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n11_unlisted_source_pair_is_red(cloned_repository: Path) -> None:
     """N11: 未登録パスにある既存OIDを拒否する。"""
     root = cloned_repository
@@ -554,6 +617,7 @@ def test_n11_unlisted_source_pair_is_red(cloned_repository: Path) -> None:
     assert relative_path.as_posix() in result.stderr
 
 
+@pytest.mark.frozen_negative
 def test_n12_stale_allowlist_pair_is_red(cloned_repository: Path) -> None:
     """N12: ソースに存在しない登録済み組を拒否する。"""
     root = cloned_repository
@@ -577,3 +641,21 @@ def test_n12_stale_allowlist_pair_is_red(cloned_repository: Path) -> None:
     assert result.returncode == 1
     assert "走査で見つからない" in result.stderr
     assert relative_path in result.stderr
+
+
+@pytest.mark.frozen_negative
+def test_n13_pending_removal_after_ledger_introduction_is_red(
+    cloned_repository: Path,
+) -> None:
+    """N13: 台帳がbaseにある状態のpending_removal=trueを拒否する。"""
+    root = cloned_repository
+    base = _git(root, "rev-parse", "HEAD")
+    allowlist = _read_allowlist(root)
+    entries = _allowlist_entries(allowlist)
+    entries[0]["pending_removal"] = True
+    _write_allowlist(root, allowlist)
+
+    result = _run_cli(root, base)
+
+    assert result.returncode == 1
+    assert "台帳が base に存在するため pending_removal=true" in result.stderr

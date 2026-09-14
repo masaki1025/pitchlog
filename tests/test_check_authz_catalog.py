@@ -2773,6 +2773,7 @@ def test_repository_oracle_assets_are_valid() -> None:
     ) == seal["oracle_commit"]
 
 
+@pytest.mark.frozen_negative
 def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
     """N4: 到達不能commitのblobを解決できなければredにする。"""
     root = _clone_repository(tmp_path)

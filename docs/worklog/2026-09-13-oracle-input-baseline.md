@@ -489,6 +489,158 @@ HEAD 上の記録とバイト相当で一致したままで、追記の `superse
 - ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1367 passed**、
   backend `ruff` / `ty` — **green**、`pytest --ignore=tests/db` — **199 passed**
 
+### ステップ 11: 負例 14 件の通し確認と効果測定
+
+#### 負例の exact-set
+
+両 pytest root の Python ソースを AST で走査し、`pytest.mark.frozen_negative` が付いた
+`(リポジトリ相対パス, テスト名)` の組を数える横断検査を追加した。テスト名の接頭辞は識別に使わないため、
+本タスクと無関係な `tests/test_orm_acceptance_sheets.py` の
+`test_n7_catalog_claim_is_covered_by_schema_audit` は母集団に入らない。
+
+| 負例 | marker の付いたテスト |
+| --- | --- |
+| N1 | `backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_rejects_meaning_tampering_after_reseal` |
+| N2 | `backend/tests/test_authz_mutation_composition_full.py::test_frozen_oracle_rejects_input_change_without_baseline_advance` |
+| N3 | `tests/test_check_frozen_baselines.py::test_n3_empty_approved_by_is_red` |
+| N4 | `tests/test_check_authz_catalog.py::test_n4_unreachable_oracle_commit_is_red` |
+| N5 | `tests/test_check_frozen_baselines.py::test_n5_changed_existing_approval_is_red` |
+| N6 | `tests/test_check_frozen_baselines.py::test_n6_unlinked_supersedes_is_red` |
+| N7 | `tests/test_check_frozen_baselines.py::test_n7_changed_corpus_without_version_advance_is_red` |
+| N8 | `tests/test_check_frozen_baselines.py::test_n8_derived_assets_must_follow_corpus_version` |
+| N9 | `tests/test_check_frozen_baselines.py::test_n9_initial_commit_mismatch_is_red` |
+| N10 | `tests/test_check_frozen_baselines.py::test_n10_changed_base_source_constant_is_red` |
+| N11 | `tests/test_check_frozen_baselines.py::test_n11_unlisted_source_pair_is_red` |
+| N12 | `tests/test_check_frozen_baselines.py::test_n12_stale_allowlist_pair_is_red` |
+| N13 | `tests/test_check_frozen_baselines.py::test_n13_pending_removal_after_ledger_introduction_is_red` |
+| N14 | `tests/test_ci_wiring.py::test_n14_missing_fetch_depth_is_red` |
+
+N13 は計画の割り当て漏れ(`3dbbf95` で記録)を補修した。台帳が存在する clone の `HEAD` を base にし、
+実在する allow-list 登録 1 件を `pending_removal: true` に変えると、検査器は **exit 1**、
+`台帳が base に存在するため pending_removal=true` となった。
+
+- 横断 exact-set と欠落変異: **2 passed**。一時コピーから N14 の marker だけを消すと、
+  `missing=[(..., 'test_n14_missing_fetch_depth_is_red')]` で exact-set 自体が red になる
+- harness root の `-m frozen_negative`: **14 passed, 1358 deselected**。論理識別子は N3〜N14 の
+  12 件で、N8 を派生 3 資産について実行するため pytest case は 14 件
+- backend root の `-m frozen_negative`: **2 passed, 4 deselected**(N1・N2)
+- marker で数えた論理識別子は、両 root 合計で **ちょうど 14 件**
+
+#### digest 辺と手計算対象の変更前後
+
+`git clone --shared` の一時複製を `origin/develop@569954d1a8a58af72f7c827090920e4f1697ef21`
+へ detached checkout し、現在の `_enumerate_digest_edges` を両ツリーへ適用した。
+
+| 時点 | digest 辺 | 機械出力の内訳 |
+| --- | ---: | --- |
+| `origin/develop` | **21** | oracle seal 14 / 派生 3 資産 6 / 母集合 1 |
+| 現在(`3dbbf952c63e3dc706f81f9e54cc197cfb46c3cc`) | **16** | oracle seal 14 / 母集合 1 / 台帳 1 |
+
+同じ一時複製に対し、派生 3 資産の `requirement_claims_blob_digest` /
+`requirement_claims_lock_blob_digest` と、台帳の `corpus_versions[].canonical_sha256` を機械列挙した。
+
+- `origin/develop`: **6 件**(派生 3 資産 × 2 キー)
+- 現在: **1 件**(`frozen-baselines.json:corpus_versions[0].canonical_sha256`)
+
+#### 要件書 1 バイト改訂の追随実測
+
+現在 HEAD の `git clone --shared` 上だけで実施した。要件書 frontmatter の
+`status: approved` の末尾へ空白 1 バイトを足し、**260023 → 260024 bytes(delta=1)** を確認した。
+既存の分類判断は使い回し、抽出器の 1080 source item から母集合の本文・digest・manifest を再生成した。
+
+1. 要件書だけをコミット: `5c9fba5a72f460524ba2c6be5705785c5ec25d58`
+2. 母集合と派生 3 資産を `corpus_version: 2` へ進め、母集合・派生 lock を再封印し、
+   `corpus_versions` を追記: `8680f2e06c077bf2b8463baf21d9d828b6f83a18`
+3. `oracle_input` を同コミットへ追記(`supersedes=b64fdefc784c6cdc802ff674903f31b0b0ec83e7`)し、
+   oracle 6 資産と seal を追随して `--reseal-oracle`:
+   `133e045f53d564b1bc15c0e2842f0446ea048175`
+
+`--reseal` は `ok total=1080 auth_claim=184 out_of_scope=896 resealed`、
+`--reseal-derived` は同件数に加えて `db_claims=187 routes=37 cells=12 derived-resealed`、
+`--reseal-oracle` は `oracle_claims=198 ... mutants=231 cut_sets=24 oracle-resealed` で完了した。
+通常の `check_authz_catalog.py` も **exit 0** となった。一時 clone の最終 worktree は clean だった。
+
+初期 `3dbbf95` と最終 `133e045` の間を
+`git diff --name-only/--numstat -- scripts backend/tests tests` で比較した結果は、開始・終了マーカー間が
+どちらも**空**であり、検査器と両 test root のソース変更は **0 ファイル・0 行**だった。
+
+初回の追随実測では、`corpus_versions` の追記自体が `baselines` 配下の digest 辺を
+1 本増やすため、`check_frozen_baselines.py --base 3dbbf95...` が **exit 1**、
+`digest 辺: ... actual=17, expected=16` となった。検査器が現在本数 16 をソース定数で持つため、
+正当な version 追記のたびに検査器ソースの編集が必要になる欠陥をここで検出した。
+
+ユーザー判断によりステップ 11 内で補修した。固定合計を削除し、資産ごとの期待を次の構成から導出する。
+
+- oracle seal = `len(input_assets) + len(sealed_assets)`
+- 母集合 = 1
+- 台帳 = `len(baselines.corpus_versions)`
+- 派生 3 資産 = 各 0
+- それ以外の `contracts/**/*.json` = 0
+
+正当な `corpus_versions` 追記は `digest_edges=17` で green、派生資産へ
+`requirement_claims_blob_digest` を 1 本戻す変異は、当該資産が `(actual=1, expected=0)` となって red
+になることをテストで固定した。関連する台帳・exact-set テストは **21 passed**。新しい述語・負例番号は
+追加していない。
+
+修正版を基準とする別の一時 clone で同じ 1 バイト追随を再実行した。要件書は再び
+**260023 → 260024 bytes(delta=1)**、母集合は 1080 item、`corpus_version: 2` として再生成した。
+
+1. 修正版の測定基準: `627bd614e9d3beb1dc26ac4d8677de3e477e0ffa`
+2. 要件書 1 バイト改訂: `5248edd8cfb39495b271ca82f1727e2fcbce4da2`
+3. 母集合・派生・版台帳の追随: `e2b3aa650789452eb5c0a0f1136d0c26e36c6906`
+4. oracle_input 追記と再封印: `1a839cebb09a08d9c422fd5213a55599cfe801b8`
+
+修正後は通常の `check_authz_catalog.py` が **exit 0**、
+`check_frozen_baselines.py --base 627bd614...` も **exit 0**、
+`pending_removal=0 digest_edges=17` となった。初期と最終の
+`git diff --name-only/--numstat -- scripts backend/tests tests` はいずれも空で、ソース変更は
+**0 ファイル・0 行**。最終 worktree も clean であり、検査器ソースを編集せず追随を完走できた。
+
+#### DoD 突合
+
+| # | 計画書 5 節の項目 | 状況 | 根拠・残件 |
+| ---: | --- | --- | --- |
+| 1 | 7.7 が approved・v1.15 | 充足 | 正本 frontmatter と変更履歴が approved・v1.15 |
+| 2 | 凍結基準 SHA のソース直書き 0 | 充足 | allow-list 走査 10 出現は全件 NFR-021 のダミー値。基準値は台帳から読む |
+| 3 | 未登録 `(path, value)` を拒否(N11) | 充足 | N11 が red を確認 |
+| 4 | 消えた allow-list 登録を拒否(N12) | 充足 | N12 が red を確認 |
+| 5 | 本文部分一致走査、14→13→10 | 充足 | ステップ 5・7 の機械出力を記録済み。現在 10 |
+| 6 | `pending_removal=0` と期限(N13) | 充足 | 現在 0。N13 を本ステップで補修し red を確認 |
+| 7 | 4 系列・追記のみ(N5) | 充足 | 台帳 4 系列、N5 が red |
+| 8 | commit/version 型の述語分離 | 充足 | version 記録に `supersedes` なし。F-3/F-4 + G-1〜G-5 |
+| 9 | 台帳へ入る digest 参照が無い | 充足 | seal の入力・封印対象外で、`contracts/authz` 内に台帳パスへの参照なし |
+| 10 | meaning 更新と core guard の独立 | 充足 | ステップ 7 の一時 clone 実測を記録済み |
+| 11 | 記録なしの基準移動を拒否(N3・N6) | 充足 | 両負例が red |
+| 12 | 到達不能 oracle commit を拒否(N4) | 充足 | N4 が red |
+| 13 | F-8 と `fetch-depth: 0`(N14) | 充足 | 到達 2 ジョブを固定し、N14 が red |
+| 14 | N1・N2 を維持 | 充足 | backend marker 実行 2 passed |
+| 15 | 両 root の負例 14 件を exact-set | 充足 | marker の `(path, name)` が 14 件。1 marker 除去も red |
+| 16 | 母集合/派生の版上げ忘れ(N7・N8) | 充足 | N7 と N8 の 3 派生 case が red |
+| 17 | 移行初期値すり替え(N9) | 充足 | N9 が red |
+| 18 | F-7 が base 側ソースを読む(N10) | 充足 | N10 が red。検査器に基準値なし |
+| 19 | CI 結線と N9 の同一コマンド実測 | 充足 | ステップ 4 に exit 1 と CI 行を記録済み |
+| 20 | digest 辺 21→16 | 充足 | 本ステップで `origin/develop` と現在を機械列挙 |
+| 21 | 手計算 digest 6→1 | 充足 | 本ステップで対象キーを機械列挙 |
+| 22 | 1 バイト改訂をソース編集なしで追随 | 充足 | 修正後はソース差分 0 行で authz・台帳検査とも green。台帳は履歴 2 件から17本を導出 |
+| 23 | H-85 対応・候補解消・候補 6 件を台帳へ追記 | **未充足** | ステップ 12 のクローズ処理範囲。`harness-evaluation.md` へ未追記のまま渡す |
+| 24 | 敵対レビューと人間の逐行確認 | **一部充足** | 正本の確定ゲートと PO 承認は完了。実装差分の逐行確認はステップ 12 |
+| 25 | design.md 3-4 の保証しない欄と実挙動 | 充足 | 承認欄コピー・base 自体の改変・同一 base の複数 PR・検査器弱体化は、実装も保証していない |
+
+突合結果は **23 項目充足 / 1 項目一部充足 / 1 項目未充足**。残る 2 項目はいずれも
+ステップ 12 のクローズ処理に割り当てられている。
+
+**ステップ 12 への未充足**: ① `harness-evaluation.md` の H-85 対応・候補解消・新規候補 6 件が未追記
+(ステップ 12 のクローズ処理で行う) ② コア領域の実装差分に対する人間の逐行確認が未実施。
+
+指定検証の結果:
+
+- ルート `ruff check .` / `ty check` — **green**
+- ルート `pytest tests/` — **1372 passed**
+- `check_authz_catalog.py` — **exit 0**、`ok total=1080 auth_claim=184 out_of_scope=896 ...`
+- `check_frozen_baselines.py --base origin/develop` — **exit 0**、
+  `scan_occurrences=10 scan_pairs=6 scan_values=4 pending_removal=0 digest_edges=16`
+- backend `pytest --ignore=tests/db` — **199 passed**
+
 ## 決定
 
 | # | 決定 | 理由 |

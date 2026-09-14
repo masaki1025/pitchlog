@@ -18,6 +18,7 @@ SCRIPT_NAME = "check_frozen_baselines"
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
 ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 CORPUS_RELATIVE_PATH = Path("contracts/authz/requirement-claims.json")
+ORACLE_SEAL_RELATIVE_PATH = Path("contracts/authz/oracle-seal.lock.json")
 DERIVED_CORPUS_RELATIVE_PATHS = (
     Path("contracts/authz/route-registry.json"),
     Path("contracts/authz/auth-catalog.json"),
@@ -77,7 +78,6 @@ DIGEST_EDGE_CONTAINERS = frozenset(
 )
 DIGEST_EDGE_KEY_PATTERN = re.compile(r"digest|sha256|checksum", re.IGNORECASE)
 DIGEST_EDGE_VALUE_PATTERN = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
-EXPECTED_DIGEST_EDGE_COUNT = 16
 
 type BaselineRecord = dict[str, object]
 type BaselineHistories = dict[str, tuple[BaselineRecord, ...]]
@@ -502,12 +502,51 @@ def _enumerate_digest_edges(root: Path) -> tuple[_DigestEdge, ...]:
     return tuple(edges)
 
 
-def _validate_digest_edge_count(root: Path) -> tuple[_DigestEdge, ...]:
+def _expected_digest_edge_counts(
+    root: Path,
+    histories: BaselineHistories,
+) -> dict[str, int]:
+    """宣言済み資産の構造から digest 辺の期待本数を導出する。"""
+    seal = _load_json_object(root, ORACLE_SEAL_RELATIVE_PATH, "digest 辺")
+    input_assets = _as_array(
+        seal.get("input_assets"),
+        f"{ORACLE_SEAL_RELATIVE_PATH}.input_assets",
+        predicate="digest 辺",
+    )
+    sealed_assets = _as_array(
+        seal.get("sealed_assets"),
+        f"{ORACLE_SEAL_RELATIVE_PATH}.sealed_assets",
+        predicate="digest 辺",
+    )
+    return {
+        ORACLE_SEAL_RELATIVE_PATH.as_posix(): len(input_assets) + len(sealed_assets),
+        CORPUS_RELATIVE_PATH.as_posix(): 1,
+        CATALOG_RELATIVE_PATH.as_posix(): len(histories[VERSION_SERIES]),
+        **{path.as_posix(): 0 for path in DERIVED_CORPUS_RELATIVE_PATHS},
+    }
+
+
+def _validate_digest_edge_composition(
+    root: Path,
+    histories: BaselineHistories,
+) -> tuple[_DigestEdge, ...]:
     edges = _enumerate_digest_edges(root)
-    if len(edges) != EXPECTED_DIGEST_EDGE_COUNT:
+    expected = _expected_digest_edge_counts(root, histories)
+    actual: dict[str, int] = {}
+    for edge in edges:
+        actual[edge.asset_path] = actual.get(edge.asset_path, 0) + 1
+    mismatches = {
+        path: (actual.get(path, 0), count)
+        for path, count in expected.items()
+        if actual.get(path, 0) != count
+    }
+    unexpected = {
+        path: count for path, count in actual.items() if path not in expected
+    }
+    if mismatches or unexpected:
         raise _FrozenBaselineError(
-            "digest 辺: 資産全体を指す辺の本数が期待値と一致しない: "
-            f"actual={len(edges)}, expected={EXPECTED_DIGEST_EDGE_COUNT}"
+            "digest 辺: 資産ごとの構成が期待と一致しない: "
+            f"mismatches={mismatches}, unexpected={unexpected}"
         )
     return edges
 
@@ -867,7 +906,10 @@ def check_frozen_baselines(
     else:
         _validate_initial_records(resolved_root, merge_base, current_histories)
     summary = _validate_source_scan(resolved_root, base_has_catalog)
-    digest_edges = _validate_digest_edge_count(resolved_root)
+    digest_edges = _validate_digest_edge_composition(
+        resolved_root,
+        current_histories,
+    )
     return merge_base, summary, digest_edges
 
 

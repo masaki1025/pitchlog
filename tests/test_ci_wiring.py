@@ -1391,6 +1391,7 @@ def test_frozen_baseline_reachable_jobs_have_full_history() -> None:
     _assert_frozen_baseline_fetch_depth_contract(workflow)
 
 
+@pytest.mark.frozen_negative
 def test_n14_missing_fetch_depth_is_red(tmp_path: Path) -> None:
     """N14: 到達ジョブから完全履歴設定を外した複製をF-8で拒否する。"""
     root = _clone_repository(tmp_path)
