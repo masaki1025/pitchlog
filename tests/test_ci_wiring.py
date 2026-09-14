@@ -49,6 +49,8 @@ CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
     }
 )
 CHECKOUT_JOBS_WITHOUT_FETCH_DEPTH_ZERO = frozenset({"docs-lint", "frontend"})
+# harness はルート pytest と専用検査、backend は全 backend pytest から凍結基準検査へ到達する。
+FROZEN_BASELINE_REACHABLE_JOBS = frozenset({"harness", "backend"})
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -88,6 +90,33 @@ def _load_yaml_mapping(path: Path) -> dict[str, Any]:
     loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert isinstance(loaded, dict), f"{path}: YAML ルートはマッピングが必要"
     return loaded
+
+
+def _clone_repository(tmp_path: Path) -> Path:
+    """現在の履歴を共有する負例用の一時cloneを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+
+    Returns:
+        clone したリポジトリのルート。
+    """
+    root = tmp_path / "repository"
+    result = subprocess.run(
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "--shared",
+            str(REPOSITORY_ROOT),
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return root
 
 
 def _load_expectations() -> dict[str, Any]:
@@ -260,6 +289,58 @@ def _assert_checkout_fetch_depth_contract(
         f"actual={sorted(observed_without)}, "
         f"expected={sorted(without_fetch_depth_zero)}"
     )
+
+
+def _assert_frozen_baseline_fetch_depth_contract(
+    workflow: dict[str, Any],
+) -> None:
+    """F-8: 凍結基準検査へ到達する全ジョブに完全履歴を要求する。
+
+    Args:
+        workflow: CI workflow の構造。
+    """
+    jobs = _mapping_at(workflow, ("jobs",))
+    assert isinstance(jobs, dict), "F-8: ci.yml に jobs が必要"
+    observed_reachable: set[str] = set()
+    for job_name, job in jobs.items():
+        assert isinstance(job_name, str), "F-8: CI ジョブ名は文字列でなければならない"
+        assert isinstance(job, dict), f"F-8: {job_name} ジョブはマッピングでなければならない"
+        steps = job.get("steps")
+        assert isinstance(steps, list), f"F-8: {job_name}.steps は配列でなければならない"
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            command = step.get("run")
+            if not isinstance(command, str):
+                continue
+            try:
+                tokens = shlex.split(command)
+            except ValueError as error:
+                raise AssertionError(
+                    f"F-8: {job_name} の run コマンドを解釈できない: {error}"
+                ) from error
+            command_names = {Path(token).name for token in tokens}
+            if command_names & {
+                "pytest",
+                "check_authz_catalog.py",
+                "check_frozen_baselines.py",
+            }:
+                observed_reachable.add(job_name)
+
+    assert observed_reachable == FROZEN_BASELINE_REACHABLE_JOBS, (
+        "F-8: 凍結基準検査へ到達するジョブが exact-set 不一致: "
+        f"actual={sorted(observed_reachable)}, "
+        f"expected={sorted(FROZEN_BASELINE_REACHABLE_JOBS)}"
+    )
+    for job_name in sorted(observed_reachable):
+        job = jobs.get(job_name)
+        assert isinstance(job, dict), f"F-8: 到達ジョブ {job_name} が存在しない"
+        checkout = _checkout_step(job_name, job)
+        fetch_depth = _mapping_at(checkout, ("with", "fetch-depth"))
+        assert fetch_depth == 0, (
+            f"F-8: 凍結基準検査へ到達する {job_name} ジョブに "
+            f"fetch-depth: 0 がない: actual={fetch_depth!r}"
+        )
 
 
 def _leaf_paths(node: object, path: NodePath = ()) -> list[NodePath]:
@@ -1301,6 +1382,33 @@ def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
     """全ジョブの checkout と fetch-depth の両集合を固定する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     _assert_checkout_fetch_depth_contract(workflow)
+
+
+def test_frozen_baseline_reachable_jobs_have_full_history() -> None:
+    """F-8: harness と backend の完全履歴依存を機械で固定する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    _assert_frozen_baseline_fetch_depth_contract(workflow)
+
+
+def test_n14_missing_fetch_depth_is_red(tmp_path: Path) -> None:
+    """N14: 到達ジョブから完全履歴設定を外した複製をF-8で拒否する。"""
+    root = _clone_repository(tmp_path)
+    workflow_path = root / ".github" / "workflows" / "ci.yml"
+    workflow = _load_workflow(workflow_path.read_text(encoding="utf-8"))
+    checkout = _checkout_step("harness", _harness_job(workflow))
+    _delete_node_at(checkout, ("with", "fetch-depth"))
+    workflow_path.write_text(
+        yaml.safe_dump(workflow, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    mutated = _load_workflow(workflow_path.read_text(encoding="utf-8"))
+
+    with pytest.raises(AssertionError, match="F-8") as raised:
+        _assert_frozen_baseline_fetch_depth_contract(mutated)
+
+    assert "harness" in str(raised.value)
+    assert "fetch-depth: 0" in str(raised.value)
 
 
 def test_checkout_fetch_depth_rejects_step_three_rollback() -> None:

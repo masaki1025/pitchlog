@@ -367,6 +367,24 @@ Notion: TSK-386。計画書: `docs/features/oracle-input-baseline/plan.md`。
 - backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
   **2 passed, 4 deselected**(N2 を含む負例が引き続き期待どおり red)
 
+### ステップ 6: fail-closed 化と F-8
+
+`.git` がある実行経路では、oracle commit 上の入力 blob を `git rev-parse` で解決できなければ
+即座に red とし、エラーへ commit・対象パス・Git stderr を含める形へ変えた。
+`.git` を持たない凍結資産コピーの既存経路は残し、正常資産が green のままであることも固定した。
+
+- N4 変更前: 到達不能 commit へポインタと封印を追随させた一時 `git clone --shared` で
+  `validate_oracle_seal` — **green**(`rev-parse` の非0終了を黙って通過)
+- N4 変更後: 同じ変異を **`CatalogError` で red**。commit・入力パス・実際の Git stderr を
+  テストで完全一致確認
+- F-8: CI の `run` コマンドから凍結基準検査へ到達するジョブを機械抽出し、
+  **`harness` / `backend` の exact-set** と両 checkout の **`fetch-depth: 0`** を確認
+- N14: 一時 clone の `harness` から `fetch-depth: 0` を除去 — **F-8 で red**
+- `check_authz_catalog.py` / `check_frozen_baselines.py --base origin/develop` — **exit 0**
+- ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1358 passed**
+- backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
+  **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
+
 ## 決定
 
 | # | 決定 | 理由 |
