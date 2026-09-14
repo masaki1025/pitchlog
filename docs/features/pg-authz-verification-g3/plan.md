@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g3
 created: 2026-09-09
-計画レビュー周回: 39        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 40        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -275,6 +275,39 @@ contracts/authz/oracle-seal.lock.json
 **是正 PR のマージ後の版を引き、引いた commit を worklog へ記録する。**
 **マージ前に実装する場合は上表の「除外」で `:134` を明示的に外す。**
 
+### 13 owner の受取契約(**4 周目 `P0` — 切り出しで落ちていた**)
+
+**実 ID を書いて封印しただけでは `R-7` を満たさない。** **`R-7` は `contract_only` を
+「schema-drift kill + 受取タスクの runtime テスト ID」と定めており、
+受取側が実際にそのテストを持つことまでが契約である。**
+
+**`S-10` (8)(9) が課す受取契約は、次の 13 owner については本改訂で閉じる**
+(**`PENDING:FR-nnn` の 139 owner には課せない** — 受取タスクが 1 件も起票されていないため)。
+
+| 集合 | owner 数 | 受取先 | 受取先の状態 |
+| --- | --- | --- | --- |
+| **`B_SET`** | **10** | **TSK-217** | **起票済み・未着手**(**計画書と DoD がリポジトリに存在せず、射程の正は Notion カード本文**) |
+| **`PENDING:TASK-RECOVERY`** | **2** | **TSK-411** | **起票済み・未着手**。**カード本文が「受け取る 2 owner」を逐語で列挙している** |
+| **`PENDING:TASK-REQ-LABEL`** | **1** | **TSK-410** | **起票済み・未着手**。**カード本文が「当該 owner」を名指ししている** |
+
+#### 本改訂が課す 4 つ(**`S-10` (8)(9) の逐語を 13 owner へ当てたもの**)
+
+| # | 契約 | 本改訂での扱い |
+| --- | --- | --- |
+| **1 登録** | **受取タスクの DoD へ、受け取る owner の安定 ID を書き込む** | **本改訂で行う**(Notion カードの DoD を更新する)。**`[手動・外部]`** |
+| **2 相互リンク** | **TSK-317 と受取タスクを双方のコメントで相互に記録する** | **本改訂で行う。`[手動・外部]`** |
+| **3 read-back** | **受取タスクの DoD を取得し、資産の owner 集合と exact-set 突合する** | **本改訂で行う。`[手動・外部]`**(**Notion は CI から引けない** — 人間の逐行確認の観点 4) |
+| **4 退化の負例** | **各テストで「claim の述語が assertion に現れ、常時成功にすると red」** | **受取タスクの DoD へ条文として書く**(**本改訂はテストを書かない** — `R-7`)。**`[手動・外部]`** |
+
+**TSK-411 と TSK-410 は既にカード本文で owner を名指ししている**ので、
+**本改訂は「DoD へ安定 ID を書き、相互リンクし、read-back で突合する」だけでよい。**
+
+**TSK-217 は計画書と DoD がリポジトリに無い**ので、**カード本文へ 10 owner の安定 ID を追記する。**
+**TSK-367 が「渡した 10 owner のうち 6 件が TSK-217 のカードのスコープ節に明記されていない」と
+報告している**ので、**その 6 件を含めて 10 件すべてを書く。**
+
+**これらは `[手動・外部]` であり機械では確かめられない。** **人間の逐行確認の観点 4 で見る。**
+
 ### `contract_only_reason_code` の導出は変えない
 
 **`:3818-3836` の `expected_reasons` の導出は `_has_db_decision` / `runtime_target_kind` /
@@ -321,6 +354,8 @@ contracts/authz/oracle-seal.lock.json
 - [ ] **`--reseal-oracle` のみを使った**
 - [ ] **`oracle_commit` 上の blob 一致を合格条件の根拠にしていない**(`:4796-4799` の fail-open)
 - [ ] **派生資産の `input_manifest` のキー名を直接アサートしていない**(TSK-386 で 2 キーが消える)
+- [ ] **13 owner の受取契約 4 つを実施した**(登録 / 相互リンク / read-back / 退化の負例の条文化)— **`B_SET` 10(TSK-217)+ TSK-411 2 + TSK-410 1**
+- [ ] **TSK-217 のカードへ 10 owner の安定 ID を追記した**(**TSK-367 が「6 件が明記されていない」と報告**)
 - [ ] **送る 6 項目に受取先の実 ID がある**(2 節)
 - [ ] **TSK-367 からの依頼 3 点が読める**(規則は TSK-367 が確定済み / 本改訂は消費する側 / 正は先方の 2 節)
 - [ ] **引いた commit を明記した**
@@ -343,70 +378,135 @@ contracts/authz/oracle-seal.lock.json
 
 ## 7. 検証(このタスクが終わったことの確認方法)
 
+> **【4 周目 `P0` で設計し直した】検証は「差分を列挙する」のではなく
+> 「期待版を構築して完全一致を見る」形にする。**
+>
+> **理由**: **差分を列挙する形は、列挙し忘れた軸がそのまま抜け道になる。**
+> **4 周目のレビューは、私が書いた 3 つのスクリプトすべてで迂回を再現した** —
+> **段 1 は `grep -v` が正常時に exit 1・禁止パス検出時に exit 0 で合否が逆**、
+> **段 2 は非対象 owner の `receiving_task_id` 変更を通し `claims` 外も見ていない**、
+> **段 3 はトップレベルの未知キーと `sealed_assets` の並べ替えを通した。**
+>
+> **期待版との完全一致なら、許可した以外のすべての変化が自動的に red になる。**
+
 ```bash
 WT=/home/ymdms/projects/pitchlog-worktrees/feature-pg-authz-verification-g3
 cd "$WT"
+set -e   # 途中で落ちたら止める(4 周目 P0-1)
 
 # 1. 残存 0 件と分布(資産から導出)
 uv run python - <<'EOF'
-import json, collections
+import json, collections, sys
 d = json.load(open("contracts/authz/claim-mutant-map.json"))
 c = collections.Counter(x["receiving_task_id"] for x in d["claims"])
-assert "TSK-270-GROUP-2" not in c, f"残存 {c['TSK-270-GROUP-2']} 件"
-assert not [k for k in c if k.startswith("PENDING:TASK-")], "別名が残っている"
+if "TSK-270-GROUP-2" in c:
+    sys.exit(f"残存 {c['TSK-270-GROUP-2']} 件")
+if [k for k in c if k.startswith("PENDING:TASK-")]:
+    sys.exit("PENDING:TASK-* の別名が残っている")
 print(sorted(c.items()))
 EOF
 
-# 2. 差分閉包 段 1 — 変更してよいパスは 2 本だけ
-git diff --name-only origin/develop...HEAD -- contracts/ \
-  | grep -v -E '^contracts/authz/(claim-mutant-map|oracle-seal\.lock)\.json$'   # 空であること
-
-# 3. 差分閉包 段 2 — claim-mutant-map で変わったのは対象 owner の receiving_task_id だけ
+# 2. 差分閉包 段 1 — 変更してよいパスは 2 本だけ(合否判定にする)
 uv run python - <<'EOF'
-import json, subprocess
-mb = subprocess.check_output(["git","merge-base","origin/develop","HEAD"], text=True).strip()
-base = json.loads(subprocess.check_output(
-    ["git","show",f"{mb}:contracts/authz/claim-mutant-map.json"], text=True))
-head = json.load(open("contracts/authz/claim-mutant-map.json"))
-assert base.get("oracle_context") == head.get("oracle_context"), "oracle_context が変わった"
-b = {c["claim_id"]: c for c in base["claims"]}
-h = {c["claim_id"]: c for c in head["claims"]}
-assert set(b) == set(h), "claim_id の集合が変わった"
-for k in b:
-    changed = {f for f in set(b[k]) | set(h[k]) if b[k].get(f) != h[k].get(f)}
-    assert changed <= {"receiving_task_id"}, f"{k}: {changed}"
-print(f"変更 {sum(1 for k in b if b[k] != h[k])} 行・変わったフィールドは receiving_task_id だけ")
+import subprocess, sys
+ALLOWED = {
+    "contracts/authz/claim-mutant-map.json",
+    "contracts/authz/oracle-seal.lock.json",
+}
+changed = subprocess.check_output(
+    ["git", "diff", "--name-only", "origin/develop...HEAD", "--", "contracts/"],
+    text=True).split()
+forbidden = sorted(set(changed) - ALLOWED)
+if forbidden:
+    sys.exit("禁止パスが変更されている: " + ", ".join(forbidden))
+print(f"contracts/ の変更は許可 2 本のみ({len(changed)} 件)")
 EOF
 
-# 4. 差分閉包 段 3 — seal で変わったのは claim-mutant-map 行の canonical_sha256 だけ
+# 3. 差分閉包 段 2・段 3 — 期待版を構築して完全一致を見る
 uv run python - <<'EOF'
-import json, subprocess
-mb = subprocess.check_output(["git","merge-base","origin/develop","HEAD"], text=True).strip()
-base = json.loads(subprocess.check_output(
-    ["git","show",f"{mb}:contracts/authz/oracle-seal.lock.json"], text=True))
-head = json.load(open("contracts/authz/oracle-seal.lock.json"))
-for key in ("oracle_commit","oracle_commit_semantics","review_policy","reseal_policy","input_assets"):
-    assert base[key] == head[key], f"{key} が変わった"
-TARGET = "contracts/authz/claim-mutant-map.json"
-bs = {a["path"]: a for a in base["sealed_assets"]}
-hs = {a["path"]: a for a in head["sealed_assets"]}
-assert set(bs) == set(hs), "sealed_assets の集合が変わった"
-for p in bs:
-    changed = {f for f in set(bs[p]) | set(hs[p]) if bs[p].get(f) != hs[p].get(f)}
-    assert changed <= ({"canonical_sha256"} if p == TARGET else set()), f"{p}: {changed}"
-print("seal の変更は claim-mutant-map 行の canonical_sha256 だけ")
+import json, subprocess, sys, copy
+
+def at(rev, path):
+    return json.loads(subprocess.check_output(["git", "show", f"{rev}:{path}"], text=True))
+
+def ser(obj):
+    # dict は挿入順を保つので、並べ替えも差として出る(sort_keys を使わない)
+    return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=False)
+
+MB = subprocess.check_output(["git", "merge-base", "origin/develop", "HEAD"], text=True).strip()
+CMM = "contracts/authz/claim-mutant-map.json"
+SEAL = "contracts/authz/oracle-seal.lock.json"
+PRE = "TSK-270.group2.runtime."
+
+# --- 段 2: claim-mutant-map ---
+base, head = at(MB, CMM), json.load(open(CMM))
+# 対象 owner = 基準版で contract_only かつ TSK-270-GROUP-2 のもの(= U の 152 owner)
+target = {c["runtime_test_owner"]["id"] for c in base["claims"]
+          if c.get("execution_class") == "contract_only"
+          and c.get("receiving_task_id") == "TSK-270-GROUP-2"}
+if not target:
+    sys.exit("対象 owner が 0 件。基準版の取り方が誤っている")
+
+expected = copy.deepcopy(base)
+if len(expected["claims"]) != len(head["claims"]):
+    sys.exit("claims の行数が変わった")
+for e, h in zip(expected["claims"], head["claims"]):
+    if e["claim_id"] != h["claim_id"]:
+        sys.exit(f"claim の並びが変わった: {e['claim_id']} vs {h['claim_id']}")
+    if e["runtime_test_owner"]["id"] in target:
+        e["receiving_task_id"] = h["receiving_task_id"]   # 対象 owner だけ HEAD を採る
+if ser(expected) != ser(head):
+    sys.exit(f"{CMM}: 対象 owner の receiving_task_id 以外が変わっている")
+print(f"段 2 OK — 対象 {len(target)} owner の receiving_task_id だけが変わった")
+
+# --- 段 3: oracle-seal.lock ---
+sb, sh = at(MB, SEAL), json.load(open(SEAL))
+exp = copy.deepcopy(sb)
+if len(exp["sealed_assets"]) != len(sh["sealed_assets"]):
+    sys.exit("sealed_assets の件数が変わった")
+hit = 0
+for e, h in zip(exp["sealed_assets"], sh["sealed_assets"]):
+    if e["path"] != h["path"]:
+        sys.exit(f"sealed_assets の並びが変わった: {e['path']} vs {h['path']}")
+    if e["path"] == CMM:
+        e["canonical_sha256"] = h["canonical_sha256"]     # この 1 つだけ HEAD を採る
+        hit += 1
+if hit != 1:
+    sys.exit(f"claim-mutant-map の sealed_assets 行が {hit} 件(1 件であるべき)")
+if ser(exp) != ser(sh):
+    sys.exit(f"{SEAL}: claim-mutant-map 行の canonical_sha256 以外が変わっている")
+print("段 3 OK — seal の変更はその 1 leaf だけ")
 EOF
 
-# 5. 認可資産の検査(封印込み・違反 0)
+# 4. 置換先が規則の導出と exact-set 一致(段 2 と独立 — 値そのものを見る)
+#    導出の実装はステップ 1 の成果物。ここではその出力と資産を突合する。
 uv run python scripts/check_authz_catalog.py
 
-# 6. 正本反映の突合(本改訂は正本を変更しない)
+# 5. 正本反映の突合(本改訂は正本を変更しない)
 uv run python scripts/check_plan_docs_sync.py --plan docs/features/pg-authz-verification-g3/plan.md --base origin/develop
 
-# 7. 現在地導出と品質ゲート
+# 6. 現在地導出と品質ゲート
 uv run python scripts/feature_status.py
 uv run ruff check . && uv run ty check && uv run pytest tests/
 ```
+
+> **判定ロジックの負例検査(2026-09-14 実測)** — **4 周目のレビュアが再現した迂回 3 つが塞がることを確かめた**:
+>
+> | 注入 | 期待 | 実測 |
+> | --- | --- | --- |
+> | 無変更 | green | **green** |
+> | 対象 owner の `receiving_task_id` を置換 | green | **green** |
+> | **非対象 owner**(`TSK-250` → `TSK-217`)を変更 | red | **red** |
+> | **`claims` 外**(`schema_version`)を変更 | red | **red** |
+> | **未知のトップレベルキー**を追加 | red | **red** |
+> | 対象行の**別フィールド**(`contract_only_reason_code`)を変更 | red | **red** |
+>
+> **段 1 も同様に確かめた**(変更なし / 許可 2 本 = green、禁止パス注入 = red)。
+> **段 3 は段 2 と同じ「期待版との完全一致」なので同型である。**
+
+> **段 2・段 3 の限界(明示)**: **JSON の重複キーは `json.loads` が後勝ちで畳むので検出できない。**
+> **重複キーは `check_authz_catalog.py` の `_expect_keys` が入力不正として落とす**ので、
+> **段 2・段 3 はその前提に乗る**(**手順 4 が段 2・3 より後にあるのはそのため**)。
 
 **人間が確認すること**(**コア領域 — 逐行確認必須**):
 
@@ -415,10 +515,8 @@ uv run ruff check . && uv run ty check && uv run pytest tests/
 | 1 | **152 owner の置換先が TSK-367 の規則と一致するか** | **規則の適用は意味判断を含む**(`R-A′` の「その FR が入口を開かない場合は執行先へ寄せる」) |
 | 2 | **`FR-034` の 51 owner の割り当て**(48 → `FR-041` / 3 → `TSK-217`) | **FR 自身が入口を持たない、という判断の妥当性** |
 | 3 | **`TSK-410` / `TSK-411` が実在し、当該 owner を受け取るカードか** | **Notion は CI から引けない**(層② の限界) |
-| 4 | **差分閉包の許可集合が狭すぎ・広すぎでないか** | **広すぎると対象外 owner を正規に封印できる** |
+| 4 | **13 owner の受取契約が受取側へ届いているか**(下記) | **Notion カードの DoD は機械で見られない** |
 | 5 | **射程を `S-9`/`S-10` へ絞る判断**(裁定 `D-22`) | **裁定 `D-14` の再割り当てである** |
-
----
 
 ## 8. 進め方
 
