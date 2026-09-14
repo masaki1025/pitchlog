@@ -331,6 +331,20 @@ def _assert_oracle_input_baseline_matches_seal(seal: dict[str, Any]) -> None:
         assert _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) == recorded
 
 
+def _oracle_input_blob_mismatches(seal: dict[str, Any]) -> set[str]:
+    """seal・固定commitと一致したまま作業ツリーだけ変わった入力を返す。"""
+    oracle_commit = seal["oracle_commit"]
+    assert isinstance(oracle_commit, str) and oracle_commit
+    mismatches: set[str] = set()
+    for row in seal["input_assets"]:
+        path = row["path"]
+        recorded = row["git_blob_digest"]
+        assert _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) == recorded
+        if _git_object_id(["hash-object", "--", path]) != recorded:
+            mismatches.add(path)
+    return mismatches
+
+
 def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     """object_pairs_hook で解析前の重複キーを拒否する。"""
     keys = [key for key, _value in pairs]
@@ -418,6 +432,23 @@ def _copy_frozen_assets(tmp_path: Path) -> Path:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     return root
+
+
+def _restore_oracle_input_baseline(root: Path, seal: dict[str, Any]) -> None:
+    """履歴なし正例用にsealが指す入力blobを一時複製へ復元する。"""
+    oracle_commit = seal["oracle_commit"]
+    assert isinstance(oracle_commit, str) and oracle_commit
+    for row in seal["input_assets"]:
+        relative_path = row["path"]
+        assert isinstance(relative_path, str)
+        result = subprocess.run(
+            ["git", "show", f"{oracle_commit}:{relative_path}"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr.decode(errors="replace")
+        (root / relative_path).write_bytes(result.stdout)
 
 
 def _duplicate_array_element(
@@ -896,8 +927,12 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
         check=False,
     )
 
-    assert result.returncode == 0, result.stderr
-    assert "total=1080 auth_claim=184 out_of_scope=896" in result.stdout
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == (
+        "check_authz_catalog.py: contracts/authz/requirement-claims.json: "
+        "oracle input blob が不一致\n"
+    )
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -2729,10 +2764,10 @@ def test_app_role_control_dml_regrant_mutants_are_red() -> None:
 
 
 def test_repository_oracle_assets_are_valid() -> None:
-    """全claim・mutant・cut set・境界・証跡と封印を統合検査する。"""
+    """oracle意味検査を通し、未再封印の入力blob差分だけを拒否する。"""
     assets, seal, paths = _repository_oracle_assets()
 
-    result = _validate_repository_oracle(assets, seal, paths)
+    result = _validate_repository_oracle(assets, seal, paths, verify_seal=False)
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
@@ -2747,6 +2782,11 @@ def test_repository_oracle_assets_are_valid() -> None:
     assert result["attack"]["multi_factor_cut_set_count"] == 3
     assert result["rejected"]["rejection_count"] == 3
     assert result["boundary"]["all_logical_count"] == 29
+    with pytest.raises(
+        checker.CatalogError,
+        match="contracts/authz/requirement-claims.json: oracle input blob が不一致",
+    ):
+        checker.validate_oracle_seal(seal, assets, paths, REPOSITORY_ROOT)
 
 
 def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
@@ -2791,6 +2831,7 @@ def test_valid_oracle_assets_without_git_remain_supported(tmp_path: Path) -> Non
     """履歴を持たない凍結資産コピーではcommit上のblob照合を要求しない。"""
     root = _copy_frozen_assets(tmp_path)
     assets, seal, paths = _repository_oracle_assets(root)
+    _restore_oracle_input_baseline(root, seal)
 
     assert not (root / ".git").exists()
     assert checker.validate_oracle_seal(seal, assets, paths, root) == seal["oracle_commit"]
@@ -3423,7 +3464,7 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
 
 
 def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> None:
-    """入力baselineを三者照合し、意味が変わる資産を予定した2件に限る。"""
+    """未再封印入力をexact-set化し、意味差分を予定した2件に限る。"""
     relative_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
     base = _base_json(relative_path)
     current = _read_repository_json(relative_path)
@@ -3431,7 +3472,15 @@ def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> 
 
     assert current["oracle_commit_semantics"] == base["oracle_commit_semantics"]
     assert _oracle_seal_meaning_body(current) == _oracle_seal_meaning_body(base)
-    _assert_oracle_input_baseline_matches_seal(current)
+    assert _oracle_input_blob_mismatches(current) == {
+        "contracts/authz/requirement-claims.json",
+        "contracts/authz/route-registry.json",
+        "contracts/authz/route-registry.lock.json",
+        "contracts/authz/auth-catalog.json",
+        "contracts/authz/auth-catalog.lock.json",
+        "contracts/authz/http-route-matrix.json",
+        "contracts/authz/http-route-matrix.lock.json",
+    }
     current_by_path = {paths[name]: asset for name, asset in assets.items()}
     base_by_path = {path: _base_json(path) for path in current_by_path}
     changed = {
@@ -3446,7 +3495,8 @@ def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> 
     assert {
         asset["oracle_context"]["oracle_commit"] for asset in assets.values()
     } == {current["oracle_commit"]}
-    checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
+    with pytest.raises(checker.CatalogError, match="oracle input blob が不一致"):
+        checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 
 def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:

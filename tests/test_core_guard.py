@@ -540,6 +540,8 @@ def clone_repository(tmp_path: Path) -> Path:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+    ledger_relative_path = Path("contracts/authz/frozen-baselines.json")
+    (root / ledger_relative_path).write_bytes((REPO / ledger_relative_path).read_bytes())
     return root
 
 

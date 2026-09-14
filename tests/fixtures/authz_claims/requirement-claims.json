@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "corpus_version": 1,
   "input_manifest": {
     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "source_path": "requirements.md",

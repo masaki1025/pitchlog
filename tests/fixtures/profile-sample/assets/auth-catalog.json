@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "corpus_version": 1,
   "asset_kind": "authz_catalog",
   "input_manifest": {},
   "origins": ["requirement"],

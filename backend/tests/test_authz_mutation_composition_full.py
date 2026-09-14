@@ -61,9 +61,10 @@ def test_frozen_negative_tests_execute_as_exact_set() -> None:
     }
 
 
-def test_frozen_oracle_paths_have_no_branch_diff() -> None:
-    """入力baselineとポインタを除くoracle意味本文が固定されている。"""
-    verify_frozen_oracle_unchanged()
+def test_pending_corpus_version_change_is_only_an_input_baseline_drift() -> None:
+    """ステップ8の未再封印入力を三者不一致だけで拒否する。"""
+    with pytest.raises(MutationCompositionError, match="三者不一致"):
+        verify_frozen_oracle_unchanged()
 
 
 def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:

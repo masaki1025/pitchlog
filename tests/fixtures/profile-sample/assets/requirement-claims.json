@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "corpus_version": 1,
   "input_manifest": {},
   "classification_rules": {},
   "basis_rules": {},

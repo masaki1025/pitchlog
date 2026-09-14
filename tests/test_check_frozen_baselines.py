@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -18,6 +19,12 @@ SCRIPT_RELATIVE_PATH = Path("scripts/check_frozen_baselines.py")
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
 ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 AUTHZ_CATALOG_RELATIVE_PATH = Path("scripts/check_authz_catalog.py")
+CORPUS_RELATIVE_PATH = Path("contracts/authz/requirement-claims.json")
+DERIVED_CORPUS_RELATIVE_PATHS = (
+    Path("contracts/authz/route-registry.json"),
+    Path("contracts/authz/auth-catalog.json"),
+    Path("contracts/authz/http-route-matrix.json"),
+)
 MUTATION_COMPOSITION_RELATIVE_PATH = Path(
     "backend/tests/db/authz/mutation_composition.py"
 )
@@ -58,6 +65,8 @@ def _copy_current_assets(root: Path) -> None:
         SCRIPT_RELATIVE_PATH,
         CATALOG_RELATIVE_PATH,
         ALLOWLIST_RELATIVE_PATH,
+        CORPUS_RELATIVE_PATH,
+        *DERIVED_CORPUS_RELATIVE_PATHS,
     ):
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -101,6 +110,13 @@ def cloned_repository(tmp_path: Path) -> Iterator[Path]:
         CATALOG_PATH: CATALOG_PATH.read_bytes(),
         ALLOWLIST_PATH: ALLOWLIST_PATH.read_bytes(),
         AUTHZ_CATALOG_PATH: AUTHZ_CATALOG_PATH.read_bytes(),
+        REPOSITORY_ROOT / CORPUS_RELATIVE_PATH: (
+            REPOSITORY_ROOT / CORPUS_RELATIVE_PATH
+        ).read_bytes(),
+        **{
+            REPOSITORY_ROOT / path: (REPOSITORY_ROOT / path).read_bytes()
+            for path in DERIVED_CORPUS_RELATIVE_PATHS
+        },
     }
     root = tmp_path / "repository"
     result = subprocess.run(
@@ -138,6 +154,33 @@ def _write_catalog(root: Path, catalog: dict[str, Any]) -> None:
         json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _read_json_object(root: Path, relative_path: Path) -> dict[str, Any]:
+    loaded = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def _write_json_object(
+    root: Path,
+    relative_path: Path,
+    value: dict[str, Any],
+) -> None:
+    (root / relative_path).write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _canonical_sha256(value: object) -> str:
+    canonical = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _read_allowlist(root: Path) -> dict[str, Any]:
@@ -229,7 +272,7 @@ def _replace_constant(
 
 
 def test_repository_frozen_baselines_are_valid() -> None:
-    """実リポジトリの初期台帳がbase側の3定数と一致する。"""
+    """実リポジトリの4系列とcorpus版参照がすべて一致する。"""
     result = subprocess.run(
         [
             sys.executable,
@@ -251,6 +294,137 @@ def test_repository_frozen_baselines_are_valid() -> None:
     assert "scan_pairs=6" in result.stdout
     assert "scan_values=4" in result.stdout
     assert "pending_removal=0" in result.stdout
+    catalog = _read_catalog(REPOSITORY_ROOT)
+    version_record = _history(catalog, "corpus_versions")[0]
+    assert set(version_record) == {
+        "version",
+        "canonical_sha256",
+        "approved_by",
+        "approved_at",
+        "reason",
+    }
+    assert "supersedes" not in version_record
+
+
+def test_g1_corpus_version_must_match_ledger(cloned_repository: Path) -> None:
+    """G-1: 母集合の版だけを進めた状態を拒否する。"""
+    root = cloned_repository
+    corpus = _read_json_object(root, CORPUS_RELATIVE_PATH)
+    corpus["corpus_version"] = 2
+    _write_json_object(root, CORPUS_RELATIVE_PATH, corpus)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "G-1" in result.stderr
+
+
+def test_f3_corpus_version_requires_approval(cloned_repository: Path) -> None:
+    """F-3: version型にも承認3項目の非空条件を適用する。"""
+    root = cloned_repository
+    catalog = _read_catalog(root)
+    _history(catalog, "corpus_versions")[0]["approved_by"] = ""
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "F-3" in result.stderr
+
+
+def test_g3_corpus_version_history_is_append_only(cloned_repository: Path) -> None:
+    """G-3: baseに存在する版記録の書き換えを拒否する。"""
+    root = cloned_repository
+    base = _commit_all(root, "test: corpus version 基準をbaseへ追加")
+    catalog = _read_catalog(root)
+    _history(catalog, "corpus_versions")[0]["approved_by"] = "別の承認者"
+    _write_catalog(root, catalog)
+    _commit_all(root, "test: corpus version の既存承認者を書き換え")
+
+    result = _run_cli(root, base)
+
+    assert result.returncode == 1
+    assert "G-3/F-4" in result.stderr
+
+
+def test_g4_corpus_versions_are_sequential(cloned_repository: Path) -> None:
+    """G-4: version 1の次に3を追記する飛び番を拒否する。"""
+    root = cloned_repository
+    catalog = _read_catalog(root)
+    history = _history(catalog, "corpus_versions")
+    history.append(
+        {
+            "version": 3,
+            "canonical_sha256": history[-1]["canonical_sha256"],
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-15",
+            "reason": "G-4 負例テスト用の飛び番",
+        }
+    )
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "G-4" in result.stderr
+
+
+def test_n7_changed_corpus_without_version_advance_is_red(
+    cloned_repository: Path,
+) -> None:
+    """N7: 版と派生を据え置いた母集合変更をG-2だけで拒否する。"""
+    root = cloned_repository
+    corpus = _read_json_object(root, CORPUS_RELATIVE_PATH)
+    corpus["n7_content_probe"] = True
+    _write_json_object(root, CORPUS_RELATIVE_PATH, corpus)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "G-2" in result.stderr
+    assert "G-5" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    "lagging_path",
+    DERIVED_CORPUS_RELATIVE_PATHS,
+    ids=lambda path: path.stem,
+)
+def test_n8_derived_assets_must_follow_corpus_version(
+    cloned_repository: Path,
+    lagging_path: Path,
+) -> None:
+    """N8: G-1/G-2を満たして派生だけ未追随の状態をG-5で拒否する。"""
+    root = cloned_repository
+    corpus = _read_json_object(root, CORPUS_RELATIVE_PATH)
+    corpus["corpus_version"] = 2
+    _write_json_object(root, CORPUS_RELATIVE_PATH, corpus)
+    for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
+        derived = _read_json_object(root, relative_path)
+        if relative_path != lagging_path:
+            derived["corpus_version"] = 2
+            _write_json_object(root, relative_path, derived)
+    catalog = _read_catalog(root)
+    history = _history(catalog, "corpus_versions")
+    history.append(
+        {
+            "version": 2,
+            "canonical_sha256": _canonical_sha256(corpus),
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-15",
+            "reason": "N8 負例テスト用の版追記",
+        }
+    )
+    _write_catalog(root, catalog)
+
+    assert history[-1]["version"] == corpus["corpus_version"]
+    assert history[-1]["canonical_sha256"] == _canonical_sha256(corpus)
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "G-5" in result.stderr
+    assert "G-2" not in result.stderr
+    assert lagging_path.as_posix() in result.stderr
 
 
 def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:

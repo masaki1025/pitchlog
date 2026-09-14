@@ -544,6 +544,12 @@ def _expect_string(value: object, label: str) -> str:
     return value
 
 
+def _validate_corpus_version(value: object, label: str) -> None:
+    """資産の corpus_version が1以上の整数であることを検査する。"""
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise CatalogError(f"{label}は1以上の整数でなければならない")
+
+
 def _expect_string_list(value: object, label: str) -> list[str]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise CatalogError(f"{label}は文字列配列でなければならない")
@@ -1227,6 +1233,7 @@ def validate_catalog(
         raw,
         {
             "schema_version",
+            "corpus_version",
             "input_manifest",
             "classification_rules",
             "basis_rules",
@@ -1237,6 +1244,7 @@ def validate_catalog(
     )
     if raw["schema_version"] != 1:
         raise CatalogError("schema_version は1でなければならない")
+    _validate_corpus_version(raw["corpus_version"], "母集合.corpus_version")
     classification_rules, basis_rules, layer_ids = _catalog_tables(raw)
     _validate_manifest(raw["input_manifest"], extraction, source_bytes, requirements_path, root)
 
@@ -1853,6 +1861,7 @@ def validate_route_registry(
         raw,
         {
             "schema_version",
+            "corpus_version",
             "asset_kind",
             "input_manifest",
             "enums",
@@ -1865,6 +1874,10 @@ def validate_route_registry(
     )
     if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_route_registry":
         raise CatalogError("route registry の schema_version または asset_kind が不正")
+    _validate_corpus_version(
+        raw["corpus_version"],
+        "route registry.corpus_version",
+    )
     _validate_derived_input_manifest(raw["input_manifest"], root)
     provenance_ids = _validate_design_provenance(raw["design_provenance"], root)
     auth_claims = _auth_claims_by_id(requirement_catalog)
@@ -2152,6 +2165,7 @@ def validate_auth_catalog(
         raw,
         {
             "schema_version",
+            "corpus_version",
             "asset_kind",
             "input_manifest",
             "origins",
@@ -2162,6 +2176,7 @@ def validate_auth_catalog(
     )
     if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_catalog":
         raise CatalogError("AUTH catalog の schema_version または asset_kind が不正")
+    _validate_corpus_version(raw["corpus_version"], "AUTH catalog.corpus_version")
     _validate_derived_input_manifest(raw["input_manifest"], root)
     if frozenset(_expect_string_list(raw["origins"], "AUTH catalog.origins")) != ORIGINS:
         raise CatalogError("AUTH catalog.origins が閉じた値域と不一致")
@@ -2296,6 +2311,7 @@ def validate_http_route_matrix(
         raw,
         {
             "schema_version",
+            "corpus_version",
             "asset_kind",
             "input_manifest",
             "route_classes",
@@ -2311,6 +2327,7 @@ def validate_http_route_matrix(
     )
     if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_http_route_matrix":
         raise CatalogError("HTTP matrix の schema_version または asset_kind が不正")
+    _validate_corpus_version(raw["corpus_version"], "HTTP matrix.corpus_version")
     _validate_derived_input_manifest(raw["input_manifest"], root)
     closed_tables = {
         "route_classes": ROUTE_CLASSES,

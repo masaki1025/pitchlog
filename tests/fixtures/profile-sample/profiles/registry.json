@@ -21,8 +21,8 @@
         "profile_gating_digest": "c3b543742ba39ebaf20eda2bac460bf600c3aa22fdbed928c4e420dce68727ba",
         "invariants_digest": "847bae5d244ce11ada606214ec239b07876c5f877984b037700024076cd4753a",
         "asset_digests": {
-          "claims": "70729535f07cf0497248555e2f890d34adf29e884a6fc5b43693225a56b00f1d",
-          "auth_catalog": "9f124365408312ef6ae12435e8f1a6638ceb43829c044e413aee7c84d00608ae",
+          "claims": "3489fdadbd4578b56a3f95891d21e246f6a271d4920904c8ccd84817c4247e4f",
+          "auth_catalog": "740bda7448517c9ac9b81b1a42352537baf307924e5df34b521d1e12e9851482",
           "ddl_elements": "cb1c698e3a39f22717f26c02bbe95c09b5ed968c2d72fb118a4fcb3ca65948e2",
           "auth_ddl_map": "25072f4bdc160cce8276f63ba12243454fdcd41d05d0fd91e64f3762e5ea5124",
           "product_ddl_map": "4e0d02eb1f9f3f0c86fa9c7090e2c491ffeddcd6b8e449f3698992f00f9f8efa",

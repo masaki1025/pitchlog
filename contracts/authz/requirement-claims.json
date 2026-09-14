@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "corpus_version": 1,
   "input_manifest": {
     "commit": "8083100ca67513b4f559381f3b77ab29afd9baa8",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",

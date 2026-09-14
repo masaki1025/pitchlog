@@ -402,6 +402,31 @@ fail-closed で扱う。
   **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
 - `pytest tests/test_core_guard.py` — **134 passed**
 
+### ステップ 8: corpus_versions と corpus_version の新設
+
+台帳へ version 型の `corpus_versions` 初版を追加し、母集合と派生 3 資産へ
+`corpus_version: 1` を追加した。version 記録は `version` / `canonical_sha256` / 承認 3 項目の
+exact-set で、`supersedes` は持たない。commit 型の F-1・F-2・F-5〜F-7 は適用せず、
+共通の F-3・F-4 と G-1〜G-5 を検査する。
+
+- 母集合の canonical digest は既存 authz 資産と同じ正規化で算出し、台帳末尾と一致
+- N7: 母集合本文だけを変え、版と派生 3 資産を据え置いた一時 `git clone --shared` —
+  **G-2 だけで exit 1**
+- N8: 母集合と台帳を version 2 + 同一 canonical digest へ進め、派生だけ据え置いた複製 —
+  **G-5 だけで exit 1**
+- version 系列の F-3、F-4/G-3、1 からの連番 G-4、母集合と台帳の版一致 G-1 も独立負例で確認。
+  G-5 は派生 3 資産を 1 件ずつ未追随にして全入口を確認し、
+  `tests/test_check_frozen_baselines.py` は **16 passed**
+- `check_frozen_baselines.py --base origin/develop` — **exit 0**、
+  `scan_occurrences=10 scan_pairs=6 scan_values=4 pending_removal=0`
+- `check_authz_catalog.py` — **exit 1**。唯一の理由は
+  `contracts/authz/requirement-claims.json: oracle input blob が不一致`
+- 未再封印の入力差分は母集合・派生 3 資産・派生 lock 3 資産の **exact-set 7 件**。
+  `--reseal-oracle` は未実行
+- ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1367 passed**
+- backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
+  **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
+
 ## 決定
 
 | # | 決定 | 理由 |

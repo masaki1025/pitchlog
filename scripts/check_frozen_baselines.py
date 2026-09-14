@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -16,6 +17,12 @@ from typing import NoReturn
 SCRIPT_NAME = "check_frozen_baselines"
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
 ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
+CORPUS_RELATIVE_PATH = Path("contracts/authz/requirement-claims.json")
+DERIVED_CORPUS_RELATIVE_PATHS = (
+    Path("contracts/authz/route-registry.json"),
+    Path("contracts/authz/auth-catalog.json"),
+    Path("contracts/authz/http-route-matrix.json"),
+)
 SCHEMA_VERSION = 1
 ASSET_KIND = "authz_frozen_baselines"
 ALLOWLIST_ASSET_KIND = "frozen_baseline_scan_allowlist"
@@ -24,6 +31,8 @@ COMMIT_SERIES = (
     "oracle_meaning",
     "core_areas_guard",
 )
+VERSION_SERIES = "corpus_versions"
+ALL_SERIES = (*COMMIT_SERIES, VERSION_SERIES)
 INITIAL_SOURCE_BY_SERIES = {
     "oracle_input": (
         "scripts/check_authz_catalog.py",
@@ -43,10 +52,14 @@ ALLOWLIST_ROOT_KEYS = frozenset({"schema_version", "asset_kind", "entries"})
 ALLOWLIST_ENTRY_KEYS = frozenset(
     {"path", "value", "reason", "pending_removal"}
 )
-RECORD_KEYS = frozenset(
+COMMIT_RECORD_KEYS = frozenset(
     {"commit", "supersedes", "approved_by", "approved_at", "reason"}
 )
+VERSION_RECORD_KEYS = frozenset(
+    {"version", "canonical_sha256", "approved_by", "approved_at", "reason"}
+)
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 SOURCE_COMMIT_PATTERN = re.compile(
     r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])"
 )
@@ -127,17 +140,29 @@ def _parse_json(text: str, display_path: str) -> object:
         ) from error
 
 
-def _as_object(value: object, location: str) -> dict[str, object]:
+def _as_object(
+    value: object,
+    location: str,
+    predicate: str = "F-1",
+) -> dict[str, object]:
     if not isinstance(value, dict) or not all(
         isinstance(key, str) for key in value
     ):
-        raise _FrozenBaselineError(f"F-1: {location} はオブジェクトでなければならない")
+        raise _FrozenBaselineError(
+            f"{predicate}: {location} はオブジェクトでなければならない"
+        )
     return {key: item for key, item in value.items() if isinstance(key, str)}
 
 
-def _as_array(value: object, location: str) -> list[object]:
+def _as_array(
+    value: object,
+    location: str,
+    predicate: str = "F-1",
+) -> list[object]:
     if not isinstance(value, list):
-        raise _FrozenBaselineError(f"F-1: {location} は配列でなければならない")
+        raise _FrozenBaselineError(
+            f"{predicate}: {location} は配列でなければならない"
+        )
     return value
 
 
@@ -145,11 +170,12 @@ def _require_exact_keys(
     value: dict[str, object],
     expected: frozenset[str],
     location: str,
+    predicate: str = "F-1",
 ) -> None:
     actual = frozenset(value)
     if actual != expected:
         raise _FrozenBaselineError(
-            f"F-1: {location} のキーが exact-set 不一致である: "
+            f"{predicate}: {location} のキーが exact-set 不一致である: "
             f"actual={sorted(actual)}, expected={sorted(expected)}"
         )
 
@@ -232,7 +258,7 @@ def _validate_approval(record: BaselineRecord, location: str) -> None:
         ) from error
 
 
-def _validate_history(
+def _validate_commit_history(
     root: Path,
     series: str,
     raw_history: object,
@@ -247,7 +273,7 @@ def _validate_history(
     for index, raw_record in enumerate(history):
         location = f"baselines.{series}[{index}]"
         record = _as_object(raw_record, location)
-        _require_exact_keys(record, RECORD_KEYS, location)
+        _require_exact_keys(record, COMMIT_RECORD_KEYS, location)
 
         commit = record["commit"]
         if not isinstance(commit, str) or COMMIT_PATTERN.fullmatch(commit) is None:
@@ -280,6 +306,46 @@ def _validate_history(
     return tuple(records)
 
 
+def _validate_version_history(raw_history: object) -> tuple[BaselineRecord, ...]:
+    history = _as_array(
+        raw_history,
+        f"baselines.{VERSION_SERIES}",
+        predicate="G-4",
+    )
+    if not history:
+        raise _FrozenBaselineError(f"G-4: baselines.{VERSION_SERIES} が空である")
+
+    records: list[BaselineRecord] = []
+    for index, raw_record in enumerate(history):
+        location = f"baselines.{VERSION_SERIES}[{index}]"
+        record = _as_object(raw_record, location, predicate="G-4")
+        _require_exact_keys(
+            record,
+            VERSION_RECORD_KEYS,
+            location,
+            predicate="G-4",
+        )
+
+        version = record["version"]
+        expected_version = index + 1
+        if (
+            not isinstance(version, int)
+            or isinstance(version, bool)
+            or version != expected_version
+        ):
+            raise _FrozenBaselineError(
+                f"G-4: {location}.version は {expected_version} でなければならない"
+            )
+        digest = record["canonical_sha256"]
+        if not isinstance(digest, str) or SHA256_PATTERN.fullmatch(digest) is None:
+            raise _FrozenBaselineError(
+                f"G-2: {location}.canonical_sha256 が64桁の小文字hexではない"
+            )
+        _validate_approval(record, location)
+        records.append(record)
+    return tuple(records)
+
+
 def _validate_catalog(root: Path, text: str, display_path: str) -> BaselineHistories:
     catalog = _as_object(_parse_json(text, display_path), display_path)
     _require_exact_keys(catalog, ROOT_KEYS, display_path)
@@ -296,12 +362,19 @@ def _validate_catalog(root: Path, text: str, display_path: str) -> BaselineHisto
         )
 
     baselines = _as_object(catalog["baselines"], "baselines")
-    expected_series = frozenset(COMMIT_SERIES)
-    _require_exact_keys(baselines, expected_series, "baselines")
-    return {
-        series: _validate_history(root, series, baselines[series])
+    expected_series = frozenset(ALL_SERIES)
+    _require_exact_keys(
+        baselines,
+        expected_series,
+        "baselines",
+        predicate="台帳",
+    )
+    histories = {
+        series: _validate_commit_history(root, series, baselines[series])
         for series in COMMIT_SERIES
     }
+    histories[VERSION_SERIES] = _validate_version_history(baselines[VERSION_SERIES])
+    return histories
 
 
 def _load_current_catalog(root: Path) -> BaselineHistories:
@@ -317,6 +390,83 @@ def _load_current_catalog(root: Path) -> BaselineHistories:
             f"F-1: {CATALOG_RELATIVE_PATH} を読み込めない: {error}"
         ) from error
     return _validate_catalog(root, text, CATALOG_RELATIVE_PATH.as_posix())
+
+
+def _load_json_object(root: Path, relative_path: Path, predicate: str) -> dict[str, object]:
+    path = root / relative_path
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise _FrozenBaselineError(
+            f"{predicate}: {relative_path} が UTF-8 ではない"
+        ) from error
+    except OSError as error:
+        raise _FrozenBaselineError(
+            f"{predicate}: {relative_path} を読み込めない: {error}"
+        ) from error
+    return _as_object(
+        _parse_json(text, relative_path.as_posix()),
+        relative_path.as_posix(),
+        predicate=predicate,
+    )
+
+
+def _canonical_sha256(value: object) -> str:
+    """既存 authz 資産と同じ canonical JSON の SHA-256 を返す。"""
+    canonical = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _corpus_version(value: dict[str, object], location: str, predicate: str) -> int:
+    version = value.get("corpus_version")
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version < 1
+    ):
+        raise _FrozenBaselineError(
+            f"{predicate}: {location}.corpus_version が1以上の整数ではない"
+        )
+    return version
+
+
+def _validate_corpus_state(
+    root: Path,
+    histories: BaselineHistories,
+) -> None:
+    latest = histories[VERSION_SERIES][-1]
+    ledger_version = latest["version"]
+    ledger_digest = latest["canonical_sha256"]
+    assert isinstance(ledger_version, int)
+    assert isinstance(ledger_digest, str)
+
+    corpus = _load_json_object(root, CORPUS_RELATIVE_PATH, "G-1/G-2")
+    corpus_version = _corpus_version(corpus, CORPUS_RELATIVE_PATH.as_posix(), "G-1")
+    if corpus_version != ledger_version:
+        raise _FrozenBaselineError(
+            "G-1: 母集合の corpus_version が台帳末尾の version と一致しない: "
+            f"corpus={corpus_version}, ledger={ledger_version}"
+        )
+    actual_digest = _canonical_sha256(corpus)
+    if actual_digest != ledger_digest:
+        raise _FrozenBaselineError(
+            "G-2: 母集合の canonical digest が台帳末尾と一致しない: "
+            f"actual={actual_digest}, ledger={ledger_digest}"
+        )
+
+    for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
+        derived = _load_json_object(root, relative_path, "G-5")
+        derived_version = _corpus_version(derived, relative_path.as_posix(), "G-5")
+        if derived_version != corpus_version:
+            raise _FrozenBaselineError(
+                f"G-5: {relative_path}.corpus_version が母集合と一致しない: "
+                f"derived={derived_version}, corpus={corpus_version}"
+            )
 
 
 def load_frozen_baseline_commit(root: Path, series: str) -> str:
@@ -378,12 +528,13 @@ def _validate_append_only(
     base_histories: BaselineHistories,
     current_histories: BaselineHistories,
 ) -> None:
-    for series in COMMIT_SERIES:
+    for series in ALL_SERIES:
         base_history = base_histories[series]
         current_history = current_histories[series]
         if current_history[: len(base_history)] != base_history:
+            predicate = "G-3/F-4" if series == VERSION_SERIES else "F-4"
             raise _FrozenBaselineError(
-                f"F-4: baselines.{series} の既存記録が書き換えまたは削除された"
+                f"{predicate}: baselines.{series} の既存記録が書き換えまたは削除された"
             )
 
 
@@ -607,6 +758,7 @@ def check_frozen_baselines(
     resolved_root = root.resolve()
     merge_base = _resolve_merge_base(resolved_root, base_revision)
     current_histories = _load_current_catalog(resolved_root)
+    _validate_corpus_state(resolved_root, current_histories)
     base_has_catalog = _base_has_catalog(resolved_root, merge_base)
     if base_has_catalog:
         base_histories = _load_base_catalog(resolved_root, merge_base)

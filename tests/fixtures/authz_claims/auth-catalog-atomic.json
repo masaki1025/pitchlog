@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
+  "corpus_version": 1,
   "asset_kind": "authz_catalog",
   "input_manifest": {
     "requirement_claims_path": "requirement-claims.json",
-    "requirement_claims_blob_digest": "6dae14b6b1e943e3b4653ea74283e3df235b8388",
+    "requirement_claims_blob_digest": "6937a7866199225df34823ce92ba466f1eb5902b",
     "requirement_claims_lock_path": "requirement-claims.lock.json",
     "requirement_claims_lock_blob_digest": "c6b3cf094bbae608122b7a3f323e569600088c25"
   },

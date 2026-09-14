@@ -28,6 +28,15 @@
         "approved_at": "2026-09-14",
         "reason": "検査器のソースからの移設。基準そのものは動かしていない(TSK-386 ステップ 4)"
       }
+    ],
+    "corpus_versions": [
+      {
+        "version": 1,
+        "canonical_sha256": "5dc35ec859d9a535ee2f0919886171a909ce74004f3dbfe8da4e4cb6ce367ca9",
+        "approved_by": "山田正輝",
+        "approved_at": "2026-09-15",
+        "reason": "初版。TSK-386 ステップ 8"
+      }
     ]
   }
 }
