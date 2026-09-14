@@ -345,9 +345,9 @@ TSK-278 の実測にも「**入力確定コミット → `oracle_commit` 差し�
    (`source_id` が**位置依存**のため「足した行だけ」では足りない)。
    **あわせて `shared-preconditions.json` の `git_blob_digest` を手更新する**(TSK-317 マージ後。
    reseal 経路が無いため手作業 — 2 周目 P1-8)
-2. `--reseal --skip-derived --skip-oracle`
+2. `--reseal`(**`--skip-derived --skip-oracle` を併用してもよい** — **2026-09-13 に「オプションは存在しない」と記録したが誤りで、`help=argparse.SUPPRESS` で`--help` に出ないだけだった。2026-09-14 に `master` からの訂正で判明**。**ただし両者は検査のスキップであって reseal ではなく、封印を閉じる用途には使えない**ため、**段 2 で必要なのは `--reseal` のみ**)
 3. 派生 3 資産と各 lock の入力 digest を更新
-4. `--reseal-derived --skip-oracle`
+4. `--reseal-derived`(同上 — **`--skip-oracle` の併用は任意**)
 5. **入力確定コミット**
 6. oracle 6 資産と seal の `oracle_commit` を **そのコミット** へ更新し **人間査読**
 7. `--reseal-oracle`

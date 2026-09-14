@@ -748,7 +748,13 @@ PR #3 が計画・実装を並行できる**(案 B では直列)②**PR #3 は�
 ### 1. **計画書 §4-6 の段 2 のコマンドは実行できない**(訂正)
 
 計画書は段 2 を **`--reseal --skip-derived --skip-oracle`** と書いているが、
-**`--skip-*` というオプションは存在しない**(実測):
+> **⚠ この結論は誤りだった**(2026-09-14・`master` からの訂正で判明)。
+> **`--skip-derived` と `--skip-oracle` は実在する** — `scripts/check_authz_catalog.py:5014` と `:5019` で
+> `add_argument` されており、**`help=argparse.SUPPRESS` のため `--help` に出ない**。
+> **「`--help` に出ない = 存在しない」と読んだのが誤り。**
+> **ただし手順の結論は変わらない**(下記の「訂正後」を参照)。
+
+**当時の記録(誤った結論を含む)**:
 
 ```
 --reseal           分類決定の査読後に限り、母集合と lock の digest を明示更新する
@@ -757,6 +763,23 @@ PR #3 が計画・実装を並行できる**(案 B では直列)②**PR #3 は�
 ```
 
 `--reseal --skip-derived` を実行すると **`oracle 検査にはステップ4資産の検査が必要`** で停止する。
+
+**訂正後(2026-09-14)**: **この観測自体は正しかった** — `:5101` の
+`if args.skip_derived and not args.skip_oracle` がそのまま発火している。
+**`--skip-derived` は `--skip-oracle` を要求する**ためである。
+
+**`--skip-*` の実体**(`:5097-5101`):
+
+| 制約 | 内容 |
+| --- | --- |
+| `--skip-derived` × `--reseal-derived` | **同時指定不可** |
+| `--skip-oracle` × `--reseal-oracle` | **同時指定不可** |
+| `--skip-derived` | **`--skip-oracle` を要求する** |
+
+**両者は「検査のスキップ」であって reseal ではない。封印を閉じる用途には使えない。**
+
+→ **手順の結論は変わらない**: **段 2 = `--reseal` のみ / 段 4 = `--reseal-derived` のみ /
+段 7 = `--reseal-oracle` のみ**。**実害は出ていない。**
 
 → **段 2 は `--reseal` のみ。段 4 は `--reseal-derived` のみ。段 7 は `--reseal-oracle` のみ。**
 **計画書の `--skip-*` は 2026-09-10 時点の想定であり、実測と異なる。**
@@ -1014,7 +1037,8 @@ check_authz_catalog.py rc=1
 **あわせて master から確認結果を受領**(2026-09-14・すべて develop で再現):
 
 - **reseal 系オプションは 3 つだけ**(`--reseal` :5000 / `--reseal-derived` :5005 / `--reseal-oracle` :5010)。
-  **`--skip-derived` も `--skip-oracle` も存在しない。** `:4851` の `dedicated_flag` も `--reseal-oracle`
+  **`--skip-derived` も `--skip-oracle` も存在しない**(**⚠ 2026-09-14 に訂正 — 実在する。
+  `help=argparse.SUPPRESS` で隠れていた**)。`:4851` の `dedicated_flag` も `--reseal-oracle`
   → **PR #3 の封印手順は「段 2 = `--reseal` のみ / 段 4 = `--reseal-derived` のみ / 段 7 = `--reseal-oracle` のみ」で書く**
   (**先方いわく「指摘が無ければ計画書に誤ったコマンドを書いていた」**)
 - **`_validate_object_path_uniqueness` は `:556` に実在**し、**`:4775` で `oracle seal.input_assets` に対して呼ばれている**
