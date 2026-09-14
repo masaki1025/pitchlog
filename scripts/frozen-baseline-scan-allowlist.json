@@ -3,24 +3,6 @@
   "asset_kind": "frozen_baseline_scan_allowlist",
   "entries": [
     {
-      "path": "backend/tests/db/authz/mutation_composition.py",
-      "value": "56c281c409e972927940fad830aa38352df32f1e",
-      "reason": "凍結基準。TSK-386 ステップ 7 で台帳へ移設予定",
-      "pending_removal": true
-    },
-    {
-      "path": "tests/test_check_authz_catalog.py",
-      "value": "56c281c409e972927940fad830aa38352df32f1e",
-      "reason": "凍結基準。TSK-386 ステップ 7 で台帳へ移設予定",
-      "pending_removal": true
-    },
-    {
-      "path": "tests/test_core_guard.py",
-      "value": "56c281c409e972927940fad830aa38352df32f1e",
-      "reason": "凍結基準。TSK-386 ステップ 7 で台帳へ移設予定",
-      "pending_removal": true
-    },
-    {
       "path": "tests/test_nfr021_append_only.py",
       "value": "0123456789abcdef0123456789abcdef01234567",
       "reason": "NFR-021 受入証跡テストのダミー SHA。凍結基準ではない",

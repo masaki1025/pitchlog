@@ -11,11 +11,11 @@ import pytest
 from db.authz import mutation_composition
 from db.authz.mutation_composition import (
     ORACLE_SEAL_RELATIVE_PATH,
-    STEP2_BASE_REVISION,
     STEP2_CHANGED_CANONICAL_ASSET_PATHS,
     MutationCompositionError,
     frozen_oracle_paths,
     intentionally_changed_frozen_oracle_paths,
+    load_oracle_meaning_baseline_commit,
     load_step20_catalog,
     run_step20,
     select_step20_work,
@@ -68,7 +68,8 @@ def test_frozen_oracle_paths_have_no_branch_diff() -> None:
 
 def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:
     """ポインタを除く意味差分が承認済み2資産だけである。"""
-    base_frozen = set(frozen_oracle_paths(base_ref=STEP2_BASE_REVISION))
+    baseline_commit = load_oracle_meaning_baseline_commit()
+    base_frozen = set(frozen_oracle_paths(base_ref=baseline_commit))
     current_frozen = set(frozen_oracle_paths())
     changed = intentionally_changed_frozen_oracle_paths()
 

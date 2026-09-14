@@ -319,6 +319,30 @@ def _load_current_catalog(root: Path) -> BaselineHistories:
     return _validate_catalog(root, text, CATALOG_RELATIVE_PATH.as_posix())
 
 
+def load_frozen_baseline_commit(root: Path, series: str) -> str:
+    """commit 型系列の末尾から現行の凍結基準を読む。
+
+    Args:
+        root: リポジトリルート。
+        series: 読み出す commit 型系列名。
+
+    Returns:
+        系列末尾の40桁commit。
+
+    Raises:
+        _FrozenBaselineError: 台帳を読めない、系列が不正、または記録が不正な場合。
+    """
+    if series not in COMMIT_SERIES:
+        raise _FrozenBaselineError(f"F-1: 未知の commit 型系列である: {series}")
+    histories = _load_current_catalog(root.resolve())
+    commit = histories[series][-1]["commit"]
+    if not isinstance(commit, str) or COMMIT_PATTERN.fullmatch(commit) is None:
+        raise _FrozenBaselineError(
+            f"F-1: baselines.{series} 末尾の commit が40桁の小文字hexではない"
+        )
+    return commit
+
+
 def _base_has_catalog(root: Path, base: str) -> bool:
     output = _git_output(
         root,

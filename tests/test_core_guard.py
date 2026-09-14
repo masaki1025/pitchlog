@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from frozen_baseline_reader import load_frozen_baseline_commit
 
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
@@ -44,7 +45,6 @@ DATA_MODEL_GUARD_PATHS = (
     "tests/fixtures/data-model-source.txt",
     "scripts/design_relations/fixture-sha256-data-model.txt",
 )
-AUTHZ_GUARD_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 AUTHZ_GUARD_CANDIDATE_PATHS = (
     "scripts/check_authz_catalog.py",
     "scripts/check_authz_function_bodies.py",
@@ -522,6 +522,27 @@ def run_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def clone_repository(tmp_path: Path) -> Path:
+    """現在の履歴を共有する一時cloneを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+
+    Returns:
+        clone したリポジトリのルート。
+    """
+    root = tmp_path / "repository"
+    result = subprocess.run(
+        ["git", "clone", "--quiet", "--shared", str(REPO), str(root)],
+        capture_output=True,
+        encoding="utf-8",
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return root
+
+
 def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
     """検査用の core-areas.json を持つ一時 git リポジトリを作る。
 
@@ -778,14 +799,19 @@ def load_actual_core_areas() -> dict[str, Any]:
 
 def load_base_core_areas(
     root: Path = REPO,
-    base_revision: str = AUTHZ_GUARD_BASE_REVISION,
+    base_revision: str | None = None,
 ) -> dict[str, Any]:
     """指定リポジトリの固定基準版 core-areas.json を Git から読む。"""
+    baseline_commit = (
+        load_frozen_baseline_commit(root, "core_areas_guard")
+        if base_revision is None
+        else base_revision
+    )
     value = json.loads(
         run_git(
             root,
             "show",
-            f"{base_revision}:.claude/core-areas.json",
+            f"{baseline_commit}:.claude/core-areas.json",
         ).stdout
     )
     assert isinstance(value, dict)
@@ -888,7 +914,7 @@ def _checker_opened_paths(root: Path, checker: Path) -> set[str]:
 
 def derive_authz_guard_candidate_paths(
     root: Path,
-    base_revision: str = AUTHZ_GUARD_BASE_REVISION,
+    base_revision: str | None = None,
 ) -> list[str]:
     """基準版の領域または認可契約を開く検査器と名前の対を導出する。
 
@@ -940,19 +966,22 @@ def assert_authz_guard_candidates_are_registered(
     assert missing == [], f"guard_paths に未登録の認可検査資産: {missing}"
 
 
-def expected_authz_guard_paths() -> frozenset[str]:
+def expected_authz_guard_paths(root: Path = REPO) -> frozenset[str]:
     """固定基準版と認可検査資産の追加集合から guard_paths を導出する。"""
-    baseline_guard_paths = load_base_core_areas().get("guard_paths")
+    baseline_guard_paths = load_base_core_areas(root).get("guard_paths")
     assert isinstance(baseline_guard_paths, list)
     assert all(isinstance(path, str) for path in baseline_guard_paths)
     return frozenset(baseline_guard_paths) | frozenset(AUTHZ_GUARD_PATH_ADDITIONS)
 
 
-def assert_authz_guard_paths_are_exact(configuration: dict[str, Any]) -> None:
+def assert_authz_guard_paths_are_exact(
+    configuration: dict[str, Any],
+    root: Path = REPO,
+) -> None:
     """現設定の guard_paths が固定基準版と認可追加の和に一致すると示す。"""
     guard_paths = configuration.get("guard_paths")
     assert isinstance(guard_paths, list)
-    expected = expected_authz_guard_paths()
+    expected = expected_authz_guard_paths(root)
     actual = set(guard_paths)
     assert actual == expected, (
         "guard_paths が固定基準版と認可追加の和集合に不一致: "
@@ -1209,6 +1238,52 @@ def test_actual_config_registers_fixed_authz_guard_candidates():
 def test_guard_paths_population_remains_unchanged():
     """guard_paths を固定基準版と認可追加の和集合で exact に閉じる。"""
     assert_authz_guard_paths_are_exact(load_actual_core_areas())
+
+
+def test_oracle_meaning_advance_does_not_rebase_core_areas_guard(
+    tmp_path: Path,
+) -> None:
+    """oracle意味基準だけの追記がcore guard基準へ波及しないことを示す。"""
+    root = clone_repository(tmp_path)
+    ledger_path = root / "contracts/authz/frozen-baselines.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    baselines = ledger["baselines"]
+    oracle_meaning = baselines["oracle_meaning"]
+    core_history_before = json.dumps(
+        baselines["core_areas_guard"],
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    core_commit_before = load_frozen_baseline_commit(root, "core_areas_guard")
+    core_areas_before = load_base_core_areas(root)
+    next_meaning_commit = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    assert next_meaning_commit != oracle_meaning[-1]["commit"]
+    oracle_meaning.append(
+        {
+            "commit": next_meaning_commit,
+            "supersedes": oracle_meaning[-1]["commit"],
+            "approved_by": "台帳系列分離テスト",
+            "approved_at": "2026-09-14",
+            "reason": "oracle_meaning だけを進める負例ではない独立性テスト",
+        }
+    )
+    ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    updated = json.loads(ledger_path.read_text(encoding="utf-8"))["baselines"]
+    assert load_frozen_baseline_commit(root, "oracle_meaning") == next_meaning_commit
+    assert load_frozen_baseline_commit(root, "core_areas_guard") == core_commit_before
+    assert (
+        json.dumps(updated["core_areas_guard"], ensure_ascii=False, sort_keys=True)
+        == core_history_before
+    )
+    assert load_base_core_areas(root) == core_areas_before
+    assert_authz_guard_paths_are_exact(
+        json.loads((root / ".claude/core-areas.json").read_text(encoding="utf-8")),
+        root,
+    )
 
 
 def test_guard_paths_reject_removal_and_same_size_replacement():

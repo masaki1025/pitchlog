@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -33,7 +34,7 @@ MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
 _BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
 _DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
-STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
+_FROZEN_BASELINES_RELATIVE_PATH = "contracts/authz/frozen-baselines.json"
 STEP2_CHANGED_CANONICAL_ASSET_PATHS = frozenset(
     {
         _BOUNDARY_PROPOSAL_RELATIVE_PATH,
@@ -53,6 +54,46 @@ _T = TypeVar("_T")
 
 class MutationCompositionError(ValueError):
     """ステップ20資産または実行結果の契約違反を表す。"""
+
+
+def load_oracle_meaning_baseline_commit(
+    root: Path = REPOSITORY_ROOT,
+) -> str:
+    """台帳の oracle_meaning 系列末尾から現行基準を読む。
+
+    Args:
+        root: リポジトリルート。
+
+    Returns:
+        oracle_meaning 系列末尾の40桁commit。
+
+    Raises:
+        MutationCompositionError: 台帳を読めない、系列が空、または値が不正な場合。
+    """
+    path = root.resolve() / _FROZEN_BASELINES_RELATIVE_PATH
+    try:
+        catalog = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise MutationCompositionError(
+            f"凍結基準台帳を読めない: {path}: {error}"
+        ) from error
+    if not isinstance(catalog, dict):
+        raise MutationCompositionError("凍結基準台帳がobjectでない")
+    baselines = catalog.get("baselines")
+    if not isinstance(baselines, dict):
+        raise MutationCompositionError("凍結基準台帳.baselinesがobjectでない")
+    history = baselines.get("oracle_meaning")
+    if not isinstance(history, list) or not history:
+        raise MutationCompositionError(
+            "凍結基準台帳.oracle_meaningが空でない配列でない"
+        )
+    latest = history[-1]
+    if not isinstance(latest, dict):
+        raise MutationCompositionError("凍結基準台帳.oracle_meaning末尾がobjectでない")
+    commit = latest.get("commit")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise MutationCompositionError("凍結基準台帳.oracle_meaning末尾のcommitが不正")
+    return commit
 
 
 @dataclass(frozen=True, slots=True)
@@ -1169,12 +1210,15 @@ def _changed_oracle_meaning_paths(
 
 def intentionally_changed_frozen_oracle_paths(
     root: Path = REPOSITORY_ROOT,
-    base_ref: str = STEP2_BASE_REVISION,
+    base_ref: str | None = None,
 ) -> frozenset[str]:
     """可動ポインタを除いて基準版から意味が変わった資産を導出する。"""
     resolved = root.resolve()
+    baseline_commit = (
+        load_oracle_meaning_baseline_commit(resolved) if base_ref is None else base_ref
+    )
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
-    changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
+    changed = _changed_oracle_meaning_paths(resolved, baseline_commit, current_seal)
     if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "
@@ -1185,11 +1229,14 @@ def intentionally_changed_frozen_oracle_paths(
 
 def verify_frozen_oracle_unchanged(
     root: Path = REPOSITORY_ROOT,
-    base_ref: str = STEP2_BASE_REVISION,
+    base_ref: str | None = None,
 ) -> None:
     """入力baselineの三者一致とoracle意味本文の固定を検査する。"""
     resolved = root.resolve()
-    base_seal = _oracle_seal_at_revision(resolved, base_ref)
+    baseline_commit = (
+        load_oracle_meaning_baseline_commit(resolved) if base_ref is None else base_ref
+    )
+    base_seal = _oracle_seal_at_revision(resolved, baseline_commit)
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
     if _oracle_seal_meaning_body(
         current_seal, "current oracle seal"
@@ -1197,7 +1244,7 @@ def verify_frozen_oracle_unchanged(
         raise MutationCompositionError("oracle sealの意味本文が基準版と不一致")
     _verify_oracle_input_assets(resolved, current_seal)
     _verify_current_sealed_assets(resolved, current_seal)
-    changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
+    changed = _changed_oracle_meaning_paths(resolved, baseline_commit, current_seal)
     if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "

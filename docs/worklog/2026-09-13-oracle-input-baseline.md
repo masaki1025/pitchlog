@@ -385,6 +385,23 @@ Notion: TSK-386。計画書: `docs/features/oracle-input-baseline/plan.md`。
 - backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
   **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
 
+### ステップ 7: oracle_meaning と core_areas_guard の移設
+
+`STEP2_BASE_REVISION` と重複していた `AUTHZ_STEP2_BASE_REVISION` は、台帳の
+`oracle_meaning` 系列末尾を読む形へ統合した。`AUTHZ_GUARD_BASE_REVISION` は対象が異なるため、
+独立した `core_areas_guard` 系列末尾から読む。ルート側の 2 テストは共通の台帳読取関数を利用し、
+別 pytest root の backend 側はデータ読取境界だけを持つ。いずれも読取不能・空系列・不正値を
+fail-closed で扱う。
+
+- allow-list 走査: **13 → 10 出現**、`scan_pairs=6 scan_values=4 pending_removal=0`
+- 一時 `git clone --shared` の台帳で `oracle_meaning` だけを 1 件進めても、
+  `core_areas_guard` の履歴と末尾は不変で、core-guard の exact-set 検査も **green**
+- `check_authz_catalog.py` / `check_frozen_baselines.py --base origin/develop` — **exit 0**
+- ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1359 passed**
+- backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
+  **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
+- `pytest tests/test_core_guard.py` — **134 passed**
+
 ## 決定
 
 | # | 決定 | 理由 |

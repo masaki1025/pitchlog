@@ -17,6 +17,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from frozen_baseline_reader import load_frozen_baseline_commit
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
@@ -35,7 +36,6 @@ ORACLE_ASSET_FILES = {
     "verification_evidence": "verification-evidence.json",
 }
 ORACLE_SEAL_FILE = "oracle-seal.lock.json"
-AUTHZ_STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 IMPLEMENTED_CATALOG_TEST_ID = (
     "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid"
 )
@@ -55,6 +55,12 @@ def _load_checker() -> Any:
 
 
 checker = _load_checker()
+
+
+@lru_cache(maxsize=1)
+def _oracle_meaning_baseline_commit() -> str:
+    """台帳の oracle_meaning 系列末尾から現行基準を読む。"""
+    return load_frozen_baseline_commit(REPOSITORY_ROOT, "oracle_meaning")
 
 
 def _make_repository(tmp_path: Path) -> Path:
@@ -213,8 +219,9 @@ GDecisionDispatcher = Callable[[str, ArrayPath, int, GDecisionRecorder], None]
 
 def _base_json(relative_path: str) -> dict[str, Any]:
     """固定基準版の JSON オブジェクトを Git から読む。"""
+    baseline_commit = _oracle_meaning_baseline_commit()
     result = subprocess.run(
-        ["git", "show", f"{AUTHZ_STEP2_BASE_REVISION}:{relative_path}"],
+        ["git", "show", f"{baseline_commit}:{relative_path}"],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -229,11 +236,12 @@ def _base_json(relative_path: str) -> dict[str, Any]:
 @lru_cache(maxsize=1)
 def _base_checker() -> ModuleType:
     """固定基準版の検査器を作業コピーから独立して読み込む。"""
+    baseline_commit = _oracle_meaning_baseline_commit()
     result = subprocess.run(
         [
             "git",
             "show",
-            f"{AUTHZ_STEP2_BASE_REVISION}:scripts/check_authz_catalog.py",
+            f"{baseline_commit}:scripts/check_authz_catalog.py",
         ],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
@@ -243,7 +251,7 @@ def _base_checker() -> ModuleType:
     assert result.returncode == 0, result.stderr
     name = "check_authz_catalog_step2_base"
     module = ModuleType(name)
-    module.__file__ = f"{AUTHZ_STEP2_BASE_REVISION}:scripts/check_authz_catalog.py"
+    module.__file__ = f"{baseline_commit}:scripts/check_authz_catalog.py"
     sys.modules[name] = module
     exec(compile(result.stdout, module.__file__, "exec"), module.__dict__)
     return module

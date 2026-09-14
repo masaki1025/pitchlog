@@ -18,6 +18,17 @@ SCRIPT_RELATIVE_PATH = Path("scripts/check_frozen_baselines.py")
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
 ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 AUTHZ_CATALOG_RELATIVE_PATH = Path("scripts/check_authz_catalog.py")
+MUTATION_COMPOSITION_RELATIVE_PATH = Path(
+    "backend/tests/db/authz/mutation_composition.py"
+)
+AUTHZ_CATALOG_TEST_RELATIVE_PATH = Path("tests/test_check_authz_catalog.py")
+CORE_GUARD_TEST_RELATIVE_PATH = Path("tests/test_core_guard.py")
+MIGRATED_BASELINE_CONSTANTS = (
+    (AUTHZ_CATALOG_RELATIVE_PATH, "ORACLE_INPUT_BASELINE_COMMIT"),
+    (MUTATION_COMPOSITION_RELATIVE_PATH, "STEP2_BASE_REVISION"),
+    (AUTHZ_CATALOG_TEST_RELATIVE_PATH, "AUTHZ_STEP2_BASE_REVISION"),
+    (CORE_GUARD_TEST_RELATIVE_PATH, "AUTHZ_GUARD_BASE_REVISION"),
+)
 SCRIPT_PATH = REPOSITORY_ROOT / SCRIPT_RELATIVE_PATH
 CATALOG_PATH = REPOSITORY_ROOT / CATALOG_RELATIVE_PATH
 ALLOWLIST_PATH = REPOSITORY_ROOT / ALLOWLIST_RELATIVE_PATH
@@ -60,21 +71,26 @@ def _restore_tracked_assets(root: Path) -> None:
         "--",
         SCRIPT_RELATIVE_PATH.as_posix(),
         CATALOG_RELATIVE_PATH.as_posix(),
+        ALLOWLIST_RELATIVE_PATH.as_posix(),
         AUTHZ_CATALOG_RELATIVE_PATH.as_posix(),
+        MUTATION_COMPOSITION_RELATIVE_PATH.as_posix(),
+        AUTHZ_CATALOG_TEST_RELATIVE_PATH.as_posix(),
+        CORE_GUARD_TEST_RELATIVE_PATH.as_posix(),
     )
 
 
-def _remove_oracle_input_constant(root: Path) -> None:
-    path = root / AUTHZ_CATALOG_RELATIVE_PATH
-    text = path.read_text(encoding="utf-8")
-    pattern = re.compile(
-        r'^ORACLE_INPUT_BASELINE_COMMIT\s*=\s*"[0-9a-f]{40}"\n?',
-        re.MULTILINE,
-    )
-    replaced, count = pattern.subn("", text)
-    assert count in {0, 1}
-    assert pattern.search(replaced) is None
-    path.write_text(replaced, encoding="utf-8")
+def _remove_migrated_baseline_constants(root: Path) -> None:
+    for relative_path, constant_name in MIGRATED_BASELINE_CONSTANTS:
+        path = root / relative_path
+        text = path.read_text(encoding="utf-8")
+        pattern = re.compile(
+            rf'^{re.escape(constant_name)}\s*=\s*"[0-9a-f]{{40}}"\n?',
+            re.MULTILINE,
+        )
+        replaced, count = pattern.subn("", text)
+        assert count in {0, 1}
+        assert pattern.search(replaced) is None
+        path.write_text(replaced, encoding="utf-8")
 
 
 @pytest.fixture
@@ -102,7 +118,7 @@ def cloned_repository(tmp_path: Path) -> Iterator[Path]:
     )
     assert result.returncode == 0, result.stderr
     _copy_current_assets(root)
-    _remove_oracle_input_constant(root)
+    _remove_migrated_baseline_constants(root)
     _git(root, "config", "user.email", "test@example.com")
     _git(root, "config", "user.name", "test")
 
@@ -231,10 +247,10 @@ def test_repository_frozen_baselines_are_valid() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "frozen-baselines: OK" in result.stdout
-    assert "scan_occurrences=13" in result.stdout
-    assert "scan_pairs=9" in result.stdout
-    assert "scan_values=5" in result.stdout
-    assert "pending_removal=3" in result.stdout
+    assert "scan_occurrences=10" in result.stdout
+    assert "scan_pairs=6" in result.stdout
+    assert "scan_values=4" in result.stdout
+    assert "pending_removal=0" in result.stdout
 
 
 def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
@@ -259,7 +275,7 @@ def test_n5_changed_existing_approval_is_red(cloned_repository: Path) -> None:
     _restore_tracked_assets(root)
     _git(root, "checkout", "--quiet", "--detach", _base_without_catalog(root))
     _copy_current_assets(root)
-    _remove_oracle_input_constant(root)
+    _remove_migrated_baseline_constants(root)
     allowlist = _read_allowlist(root)
     for entry in _allowlist_entries(allowlist):
         entry["pending_removal"] = False
@@ -324,7 +340,7 @@ def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> Non
     _git(root, "add", "scripts/check_authz_catalog.py")
     _git(root, "commit", "--quiet", "-m", "test: base側定数を書き換え")
     changed_base = _git(root, "rev-parse", "HEAD")
-    _remove_oracle_input_constant(root)
+    _remove_migrated_baseline_constants(root)
     _commit_all(root, "test: 台帳を新設")
 
     result = _run_cli(root, changed_base)
