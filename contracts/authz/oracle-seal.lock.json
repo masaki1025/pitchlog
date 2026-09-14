@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2",
+  "oracle_commit": "b64fdefc784c6cdc802ff674903f31b0b0ec83e7",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
       "path": "contracts/authz/requirement-claims.json",
-      "git_blob_digest": "44af906c7abb91361dd2cec75eab4f3a5d8c1ea0"
+      "git_blob_digest": "99ae37913bc978e796aeea82d59b089b69ea92d0"
     },
     {
       "path": "contracts/authz/requirement-claims.lock.json",
@@ -14,27 +14,27 @@
     },
     {
       "path": "contracts/authz/route-registry.json",
-      "git_blob_digest": "ac4e206cacda54505a923eb623c8988251a78dc5"
+      "git_blob_digest": "716e9fd53fd05d30be14105e387017a15591f2c5"
     },
     {
       "path": "contracts/authz/route-registry.lock.json",
-      "git_blob_digest": "2d65b0d5c5ba7229ab09aaa7bb50342bf74b75c4"
+      "git_blob_digest": "432357921e8cb93e1f3cc2f700ad6bc0617bde5d"
     },
     {
       "path": "contracts/authz/auth-catalog.json",
-      "git_blob_digest": "d21ba0631a7b37cd5244935cd01e67cffea4abb6"
+      "git_blob_digest": "404a91186c3284e1af1803aa48aad44ec708ceae"
     },
     {
       "path": "contracts/authz/auth-catalog.lock.json",
-      "git_blob_digest": "42973b547ede0d9b8a57ff73fb630dcc66873bfe"
+      "git_blob_digest": "2bf38c9f2722322c3df5ab54dd364cf038b8fea0"
     },
     {
       "path": "contracts/authz/http-route-matrix.json",
-      "git_blob_digest": "f70776950c7819a8787e30bd63b157b6a2d30dd5"
+      "git_blob_digest": "22e3e439dfe7996d7f49d8a8d8994953e0e580ed"
     },
     {
       "path": "contracts/authz/http-route-matrix.lock.json",
-      "git_blob_digest": "cd5813a70ad198c29a18391d577dd58b2d9815cd"
+      "git_blob_digest": "a267e2e53c90c4bab5431c57c901a8a441598c9e"
     }
   ],
   "sealed_assets": [
@@ -42,37 +42,37 @@
       "path": "contracts/authz/ddl-elements.json",
       "asset_role": "expectation",
       "asset_kind": "authz_candidate_ddl_manifest",
-      "canonical_sha256": "8c9599f76fb86b80377ae10ac6fade5a95ba327ec7827849f018c9c7f5400cc3"
+      "canonical_sha256": "bc1ee738d773f758f5e48da65e586f6cc3900bc8c95a9ffdcc821cdcfefbbab0"
     },
     {
       "path": "contracts/authz/rejected-configs.json",
       "asset_role": "evidence",
       "asset_kind": "authz_rejected_configurations",
-      "canonical_sha256": "c46aae9305b004697493c6220744c57a8093e5307678526efda580f76d896667"
+      "canonical_sha256": "44140b01ac24ab33c2845c691264c7659ce702d96b4d97f83b4b35e01e55e1e8"
     },
     {
       "path": "contracts/authz/claim-mutant-map.json",
       "asset_role": "expectation",
       "asset_kind": "authz_claim_mutant_map",
-      "canonical_sha256": "c552baace2315be6c656b2a5c51f47539933af158e444f74edb54a3d40888c6f"
+      "canonical_sha256": "ba0398457ab5b1da7664b8297905b6d52e224d16ab41589b4482a622593653c9"
     },
     {
       "path": "contracts/authz/attack-tree.json",
       "asset_role": "expectation",
       "asset_kind": "authz_attack_tree",
-      "canonical_sha256": "867a06c9a4d1861ea7bfff4ed9a18208f68fae13c706fcce519bc518486afb3c"
+      "canonical_sha256": "3120e98a520f7008010448471f3ce25dddaf91bfbb57f0f13eead0826b98747f"
     },
     {
       "path": "contracts/authz/boundary-proposal.json",
       "asset_role": "expectation",
       "asset_kind": "authz_boundary_proposal",
-      "canonical_sha256": "7eaa526926cfc85a9d303364e9a76199b90a0b1d470491cb3fba6d5b7c35b429"
+      "canonical_sha256": "934b81f18c46a40a704cb092a792db026eb9df46b26a845a1abd47663fdf5fc6"
     },
     {
       "path": "contracts/authz/verification-evidence.json",
       "asset_role": "evidence",
       "asset_kind": "authz_verification_evidence",
-      "canonical_sha256": "bf54273ac4c69563fabb3c72e2fdb6b48f9edc269fb3a8d68942a8ee725d02fc"
+      "canonical_sha256": "dfb4c2a0ff04e694c38903a3ffd8ec677e2a3da1e79614276e21d0c2499c63dc"
     }
   ],
   "review_policy": {

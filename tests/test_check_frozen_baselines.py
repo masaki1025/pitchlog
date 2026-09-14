@@ -246,8 +246,9 @@ def _base_without_catalog(root: Path) -> str:
 
 
 def _new_record(root: Path, previous_commit: str) -> dict[str, object]:
+    commit = _commit_all(root, "test: 負例用の新基準commit")
     return {
-        "commit": _git(root, "rev-parse", "HEAD"),
+        "commit": commit,
         "supersedes": previous_commit,
         "approved_by": "山田正輝",
         "approved_at": "2026-09-14",
@@ -496,7 +497,9 @@ def test_n9_initial_commit_mismatch_is_red(cloned_repository: Path) -> None:
     """N9: 新設台帳の初期値すり替えをbase側定数とのF-7で拒否する。"""
     root = cloned_repository
     catalog = _read_catalog(root)
-    record = _history(catalog, "oracle_input")[0]
+    history = _history(catalog, "oracle_input")
+    del history[1:]
+    record = history[0]
     replacement = _git(root, "rev-parse", "HEAD")
     assert replacement != record["commit"]
     record["commit"] = replacement

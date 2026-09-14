@@ -9,6 +9,13 @@
         "approved_by": "山田正輝",
         "approved_at": "2026-09-14",
         "reason": "検査器のソースからの移設。基準そのものは動かしていない(TSK-386 ステップ 4)"
+      },
+      {
+        "commit": "b64fdefc784c6cdc802ff674903f31b0b0ec83e7",
+        "supersedes": "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2",
+        "approved_by": "山田正輝",
+        "approved_at": "2026-09-15",
+        "reason": "派生 3 資産の digest 辺を版参照へ置き換えたため入力資産が変わった。TSK-386 ステップ 9・10"
       }
     ],
     "oracle_meaning": [

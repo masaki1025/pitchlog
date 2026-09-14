@@ -456,6 +456,39 @@ exact-set で、`supersedes` は持たない。commit 型の F-1・F-2・F-5〜F
 - ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1367 passed**、
   backend `ruff` / `ty` — **green**、`pytest --ignore=tests/db` — **199 passed**
 
+### ステップ 10: oracle_input 基準の追記と再封印
+
+台帳の `oracle_input` 系列へ、ステップ 9 の完了コミット
+`b64fdefc784c6cdc802ff674903f31b0b0ec83e7` を 2 件目として追記した。既存 1 件は
+HEAD 上の記録とバイト相当で一致したままで、追記の `supersedes` は直前の
+`0cf994f4aa6ca51331a62c05fcd6e0756c4492d2` と一致する。
+
+`--reseal-oracle` は `oracle_commit` を動かさない実装であることを先に確認し、seal と封印 6 資産の
+ポインタをステップ 9 コミットへ揃えてから実行した。母集合・派生資産の再封印はステップ 8・9 で
+完了済みのため、本ステップでは実行していない。
+
+- `--reseal-oracle` — **exit 0**、`oracle-resealed`。seal の `oracle_commit` は
+  `0cf994f… → b64fdef…`
+- `input_assets` 8 件のうち、ステップ 8・9 で内容が変わった **7 件の
+  `git_blob_digest` を更新**。不変だった `requirement-claims.lock.json` の 1 件は動かなかった。
+  更新後は 8 件すべてで worktree blob = `b64fdef…` 上の blob = seal 記録値
+- `sealed_assets` 6 件は `oracle_context.oracle_commit` の更新を内容へ反映し、
+  **6 件すべての `canonical_sha256` を更新**。各値は現在の資産内容と一致
+- seal から `oracle_commit` と計算対象 digest を除いた全フィールドは変更なし。
+  封印 6 資産も `oracle_context.oracle_commit` 以外は変更なし
+- `failure-injection-points.json` は更新後の `ddl-elements.json` を直接参照するため、
+  `source_asset.git_blob_digest` 1 件を現在の blob へ追随。これはルート `source_asset` 配下であり、
+  design.md 4-1 の digest 辺には含まれないため `digest_edges` は 16 のまま
+- 同様に `mcdc-map.json` の `sources.claim_mutant_map.blob_digest` 1 件を、更新後の
+  `claim-mutant-map.json` の blob へ追随。こちらもルート `sources` 配下のため
+  `digest_edges` の対象外
+- `check_authz_catalog.py` — **exit 0**、通常実行で `ok`。
+  `check_frozen_baselines.py --base origin/develop` — **exit 0**、`digest_edges=16`
+- N1・N2 の assertion は変更せず、`-m frozen_negative` は
+  **2 passed, 4 deselected**。正当な再封印後も意味改ざんと未承認入力変更を拒否
+- ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1367 passed**、
+  backend `ruff` / `ty` — **green**、`pytest --ignore=tests/db` — **199 passed**
+
 ## 決定
 
 | # | 決定 | 理由 |
