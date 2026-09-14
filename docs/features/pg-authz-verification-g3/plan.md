@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g3
 created: 2026-09-09
-計画レビュー周回: 41        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 42        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -323,21 +323,52 @@ contracts/authz/oracle-seal.lock.json
 
 ```json
 {
-  "captured_at": "YYYY-MM-DD",
-  "captured_by": "<人間の名前>",
+  "captured_at": "2026-09-15",
+  "captured_by": "山田正輝",
   "sources": [
-    {"task": "TSK-217", "url": "...", "owners": ["...", "..."]},
-    {"task": "TSK-411", "url": "...", "owners": ["...", "..."]},
-    {"task": "TSK-410", "url": "...", "owners": ["..."]}
+    {
+      "task": "TSK-217",
+      "url": "https://app.notion.com/p/...",
+      "card_last_edited": "2026-09-15",
+      "owners": [
+        {"id": "NFR-010/list_item-004",
+         "dod_excerpt": "- [ ] `NFR-010/list_item-004` の runtime テストを本タスクが所有する"}
+      ]
+    }
   ]
 }
 ```
 
-**突合の合格条件**(検証節 手順 5):
+**突合の合格条件**(検証節 手順 5 — **6 周目 `P0-1` で閉じた**):
 
-- **証跡の owner 全件の和が、資産で当該受取先を持つ owner 集合と exact-set 一致する**
-- **`captured_at` / `captured_by` が空でない**(**誰がいつ取ったか分からない証跡は受け付けない**)
-- **差集合が 1 件でもあれば red**(欠落も余分も)
+| # | 条件 | なぜ |
+| --- | --- | --- |
+| 1 | **トップレベルのキーが `captured_at` / `captured_by` / `sources` の 3 つで閉じている** | 未知キーで情報を紛れ込ませない |
+| 2 | **`task` の集合が `{TSK-217, TSK-410, TSK-411}` と exact 一致**・**重複なし** | **`sources: []` や一部欠落で green にならない**(**当初はこれで通った**) |
+| 3 | **各 source のキーが `task` / `url` / `card_last_edited` / `owners` で閉じている** | 同上 |
+| 4 | **`url` が Notion のカード**・**`card_last_edited` が日付形式** | **どの版のカードを読んだかを残す** |
+| 5 | **`captured_at` が日付形式で、例示値のままでない**・**`captured_by` が空でも例示値でもない** | **任意の truthy 値では通さない** |
+| 6 | **各 owner が `id` と `dod_excerpt` を持ち、`dod_excerpt` が `id` を実際に含む** | **owner 配列を資産からそのまま生成しただけの証跡を弾く**(**外部 DoD の逐語が要る**) |
+| 7 | **比較母集団は「基準版の `U` に属し、HEAD で非 `PENDING:` になった owner」**(**13 件**) | **資産の全 claim を受取先別に集めると、基準版に既にある `TSK-217` の 7 owner が混ざって必ず red になる**(6 周目 `P1-3`) |
+| 8 | **証跡の owner とその 13 owner が task ごとに exact-set 一致**・**差集合 0** | 欠落も余分も red |
+
+**証跡スキーマの負例検査(2026-09-14 実測)** — **9 ケースとも期待どおり**:
+
+| 注入 | 期待 | 実測 |
+| --- | --- | --- |
+| 正しい証跡 | green | **green** |
+| **`sources: []`**(**6 周目の指摘まで green だった**) | red | **red**(task 集合) |
+| **`TSK-410` が欠落** | red | **red**(task 集合) |
+| 未知タスクを追加 | red | **red**(task 集合) |
+| **`captured_by` が例示値のまま** | red | **red** |
+| **`captured_at` が任意の truthy 値**(`"yes"`) | red | **red** |
+| **`dod_excerpt` が `id` を含まない** | red | **red** |
+| 未知のトップレベルキー | red | **red** |
+| `owners` が空 | red | **red** |
+
+**限界(明示)**: **`dod_excerpt` が本当にカードから写されたかは機械では確かめられない。**
+**人間が捏造すれば通る。** **これは `[手動・外部]` の性質であり、人間の逐行確認の観点 4 で見る。**
+**機械が閉じるのは「資産から自動生成しただけでは通らない」ところまでである。**
 
 **TSK-411 と TSK-410 は既にカード本文で owner を名指ししている**ので、
 **本改訂は「DoD へ安定 ID を書き、相互リンクし、read-back で突合する」だけでよい。**
@@ -438,6 +469,13 @@ WT=/home/ymdms/projects/pitchlog-worktrees/feature-pg-authz-verification-g3
 cd "$WT"
 set -e   # 途中で落ちたら止める(4 周目 P0-1)
 
+# 0. 作業ツリーが HEAD と一致していること(**未追跡を含む**)
+#    これが無いと、HEAD が未置換でも作業ツリーだけ直せば全手順が green になる(6 周目 P0-2)。
+#    段 2・3 は git show HEAD: を読むので「変更なし」を許容してしまい、
+#    残りの手順は作業ツリーを読むので green になる。ここで揃える。
+test -z "$(git status --porcelain)" || { echo "作業ツリーが HEAD と一致していない"; exit 1; }
+echo "0 OK — 作業ツリー == HEAD(以降どちらを読んでも同じ)"
+
 # 1. 残存 0 件と分布(資産から導出)
 uv run python - <<'EOF'
 import json, collections, sys
@@ -529,25 +567,79 @@ uv run python scripts/check_authz_catalog.py
 
 # 5. read-back の突合(取得は人間・突合は機械)
 uv run python - <<'EOF'
-import json, sys, collections
-ev = json.load(open("docs/features/pg-authz-verification-g3/readback-evidence.json"))
-if not ev.get("captured_at") or not ev.get("captured_by"):
-    sys.exit("証跡に captured_at / captured_by が無い")
-d = json.load(open("contracts/authz/claim-mutant-map.json"))
+import json, re, sys, subprocess
+
+EV = "docs/features/pg-authz-verification-g3/readback-evidence.json"
+CMM = "contracts/authz/claim-mutant-map.json"
 PRE = "TSK-270.group2.runtime."
-actual = collections.defaultdict(set)
-for c in d["claims"]:
+EXPECTED_TASKS = {"TSK-217", "TSK-410", "TSK-411"}
+PLACEHOLDER = {"", "<人間の名前>", "YYYY-MM-DD", "TODO", "-"}
+
+ev = json.load(open(EV))
+
+# --- 証跡のスキーマを閉じる(6 周目 P0-1)---
+if set(ev) != {"captured_at", "captured_by", "sources"}:
+    sys.exit(f"証跡のトップレベルキーが閉じていない: {sorted(ev)}")
+if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(ev["captured_at"])) or ev["captured_at"] in PLACEHOLDER:
+    sys.exit("captured_at が日付形式でない、または例示値のまま")
+if str(ev["captured_by"]).strip() in PLACEHOLDER:
+    sys.exit("captured_by が空または例示値のまま")
+
+tasks = [s.get("task") for s in ev["sources"]]
+if set(tasks) != EXPECTED_TASKS:
+    sys.exit(f"証跡の task 集合が {sorted(EXPECTED_TASKS)} と一致しない: {sorted(set(tasks))}")
+if len(tasks) != len(set(tasks)):
+    sys.exit("証跡に同じ task が複数ある")
+for s in ev["sources"]:
+    if set(s) != {"task", "url", "card_last_edited", "owners"}:
+        sys.exit(f"{s.get('task')}: source のキーが閉じていない: {sorted(s)}")
+    if not str(s["url"]).startswith("https://app.notion.com/"):
+        sys.exit(f"{s['task']}: url が Notion のカードでない")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(s["card_last_edited"])):
+        sys.exit(f"{s['task']}: card_last_edited が日付形式でない")
+    if not s["owners"]:
+        sys.exit(f"{s['task']}: owners が空")
+    if len(s["owners"]) != len(set(map(tuple, (o.items() for o in s["owners"])))):
+        sys.exit(f"{s['task']}: owners に重複がある")
+    for o in s["owners"]:
+        if set(o) != {"id", "dod_excerpt"}:
+            sys.exit(f"{s['task']}: owner のキーが閉じていない: {sorted(o)}")
+        # 逐語抜粋が owner の安定 ID を実際に含むこと(資産から生成しただけの配列を弾く)
+        if o["id"] not in o["dod_excerpt"]:
+            sys.exit(f"{s['task']}/{o['id']}: dod_excerpt が当該 owner の ID を含まない")
+
+# --- 比較母集団 = 基準版の U のうち、HEAD で非 PENDING: になった owner(6 周目 P1-3)---
+def at(rev):
+    return json.loads(subprocess.check_output(["git", "show", f"{rev}:{CMM}"], text=True))
+
+MB = subprocess.check_output(["git", "merge-base", "origin/develop", "HEAD"], text=True).strip()
+base, head = at(MB), at("HEAD")
+u_owners = {c["runtime_test_owner"]["id"] for c in base["claims"]
+            if c.get("receiving_task_id") == "TSK-270-GROUP-2"
+            and c.get("execution_class") == "contract_only"}
+expected = {}
+for c in head["claims"]:
     oid = c["runtime_test_owner"]["id"]
-    actual[c["receiving_task_id"]].add(oid[len(PRE):] if oid.startswith(PRE) else oid)
+    if oid in u_owners and not c["receiving_task_id"].startswith("PENDING:"):
+        expected.setdefault(c["receiving_task_id"], set()).add(oid[len(PRE):])
+
+if set(expected) != EXPECTED_TASKS:
+    sys.exit(f"非 PENDING: へ移った受取先が {sorted(EXPECTED_TASKS)} と一致しない: {sorted(expected)}")
+
 bad = False
 for s in ev["sources"]:
-    want, got = set(s["owners"]), actual.get(s["task"], set())
+    want = {o["id"] for o in s["owners"]}
+    got = expected[s["task"]]
     if want != got:
         bad = True
-        print(f"  {s['task']}: 証跡にのみ {sorted(want-got)} / 資産にのみ {sorted(got-want)}")
+        print(f"  {s['task']}: 証跡にのみ {sorted(want - got)} / 資産にのみ {sorted(got - want)}")
 if bad:
     sys.exit("read-back の exact-set 突合が不一致")
-print(f"read-back OK — {sum(len(s['owners']) for s in ev['sources'])} owner が一致")
+
+total = sum(len(v) for v in expected.values())
+if total != 13:
+    sys.exit(f"非 PENDING: へ移った owner が {total} 件(13 件であるべき)")
+print(f"read-back OK — {total} owner が一致({ {k: len(v) for k, v in expected.items()} })")
 EOF
 
 # 6. 正本反映の突合(本改訂は正本を変更しない)
