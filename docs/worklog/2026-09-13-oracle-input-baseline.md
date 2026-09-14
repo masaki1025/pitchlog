@@ -338,6 +338,18 @@ Notion: TSK-386。計画書: `docs/features/oracle-input-baseline/plan.md`。
 **承認後の処理**(7.3 手順 6): frontmatter を `approved` へ / 変更履歴行へ**確定ゲート通過の記録**
 (周ごとの重大度内訳・PO 裁定 2 回・`P0` の型)を追記し状態を `approved` へ / `docs/README.md` 索引を現行化。
 
+### ステップ 4: 基準台帳と検査器
+
+`contracts/authz/frozen-baselines.json` に commit 型 3 系列の初期記録を置き、
+`scripts/check_frozen_baselines.py` で F-1〜F-7 を検査する。CI は `harness` ジョブの
+`fetch-depth: 0`(`.github/workflows/ci.yml:78`)の下で、専用 step(`:89`)として実行する。
+
+- CI と同一コマンド・引数 `uv run python scripts/check_frozen_baselines.py --base origin/develop` —
+  正常台帳は **exit 0**
+- N9 を仕込んだ `git clone --shared` の一時複製で同じコマンド・引数を実行 — **exit 1**。
+  `F-7: baselines.oracle_input[0].commit が base 側の ORACLE_INPUT_BASELINE_COMMIT と一致しない`
+- 検査器ソース内の 40 桁 hex 直書き — **0 件**
+
 ## 決定
 
 | # | 決定 | 理由 |

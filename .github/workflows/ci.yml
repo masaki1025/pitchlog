@@ -86,6 +86,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ty check
       - run: uv run pytest -c pyproject.toml tests/
+      - run: uv run python scripts/check_frozen_baselines.py --base origin/develop
 
   # NFR-021 受入証跡の append-only 統合時検査(設計書 10.1「試行の排他と採番」)。
   # paths filter は付けない: フィルタ自体が誤ると検査が黙って通り fail-closed に反するため。

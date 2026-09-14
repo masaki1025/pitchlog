@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_frozen_baselines",
+  "baselines": {
+    "oracle_input": [
+      {
+        "commit": "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2",
+        "supersedes": null,
+        "approved_by": "山田正輝",
+        "approved_at": "2026-09-14",
+        "reason": "検査器のソースからの移設。基準そのものは動かしていない(TSK-386 ステップ 4)"
+      }
+    ],
+    "oracle_meaning": [
+      {
+        "commit": "56c281c409e972927940fad830aa38352df32f1e",
+        "supersedes": null,
+        "approved_by": "山田正輝",
+        "approved_at": "2026-09-14",
+        "reason": "検査器のソースからの移設。基準そのものは動かしていない(TSK-386 ステップ 4)"
+      }
+    ],
+    "core_areas_guard": [
+      {
+        "commit": "56c281c409e972927940fad830aa38352df32f1e",
+        "supersedes": null,
+        "approved_by": "山田正輝",
+        "approved_at": "2026-09-14",
+        "reason": "検査器のソースからの移設。基準そのものは動かしていない(TSK-386 ステップ 4)"
+      }
+    ]
+  }
+}
