@@ -85,6 +85,7 @@ def _restore_tracked_assets(root: Path) -> None:
         MUTATION_COMPOSITION_RELATIVE_PATH.as_posix(),
         AUTHZ_CATALOG_TEST_RELATIVE_PATH.as_posix(),
         CORE_GUARD_TEST_RELATIVE_PATH.as_posix(),
+        *(path.as_posix() for path in DERIVED_CORPUS_RELATIVE_PATHS),
     )
 
 
@@ -294,6 +295,15 @@ def test_repository_frozen_baselines_are_valid() -> None:
     assert "scan_pairs=6" in result.stdout
     assert "scan_values=4" in result.stdout
     assert "pending_removal=0" in result.stdout
+    assert "digest_edges=16" in result.stdout
+    for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
+        derived = _read_json_object(REPOSITORY_ROOT, relative_path)
+        manifest = derived["input_manifest"]
+        assert isinstance(manifest, dict)
+        assert set(manifest) == {
+            "requirement_claims_path",
+            "requirement_claims_lock_path",
+        }
     catalog = _read_catalog(REPOSITORY_ROOT)
     version_record = _history(catalog, "corpus_versions")[0]
     assert set(version_record) == {

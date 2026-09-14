@@ -1720,17 +1720,6 @@ def _atomic_route_registry() -> dict[str, Any]:
     return registry
 
 
-def _point_derived_asset_at_catalog(asset: dict[str, Any], root: Path) -> None:
-    """derived fixture の入力 digest を一時 atomic 母集合へ合わせる。"""
-    manifest = asset["input_manifest"]
-    manifest["requirement_claims_blob_digest"] = checker.git_blob_digest(
-        (root / "requirement-claims.json").read_bytes()
-    )
-    manifest["requirement_claims_lock_blob_digest"] = checker.git_blob_digest(
-        (root / "requirement-claims.lock.json").read_bytes()
-    )
-
-
 def test_invalid_atomic_claims_are_red() -> None:
     """atomic ID・layer・親決定・下流参照の既知負例を全て拒否する。"""
     cases = json.loads(
@@ -1809,14 +1798,12 @@ def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     _write_catalog(root, catalog)
     _write_lock(root, lock)
     registry = _atomic_route_registry()
-    _point_derived_asset_at_catalog(registry, root)
     registry_result = checker.validate_route_registry(
         registry, catalog, root, frozenset()
     )
     auth_catalog = json.loads(
         (FIXTURE_ROOT / "auth-catalog-atomic.json").read_text(encoding="utf-8")
     )
-    _point_derived_asset_at_catalog(auth_catalog, root)
     auth_result = checker.validate_auth_catalog(
         auth_catalog,
         catalog,
@@ -2805,6 +2792,11 @@ def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
         path = row["path"]
         assert isinstance(path, str)
         row["canonical_sha256"] = checker._table_digest(assets_by_path[path])
+    for row in seal["input_assets"]:
+        assert isinstance(row, dict)
+        path = row["path"]
+        assert isinstance(path, str)
+        row["git_blob_digest"] = checker.git_blob_digest((root / path).read_bytes())
 
     input_path = seal["input_assets"][0]["path"]
     assert isinstance(input_path, str)

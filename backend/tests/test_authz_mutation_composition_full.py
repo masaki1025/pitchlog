@@ -81,7 +81,7 @@ def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:
 
 
 def _clone_repository(tmp_path: Path) -> Path:
-    """負例用に現在のHEADと履歴を持つ一時repositoryを作る。"""
+    """負例用に凍結入力と現在の意味資産を持つ一時repositoryを作る。"""
     root = tmp_path / "repository"
     result = subprocess.run(
         [
@@ -97,6 +97,18 @@ def _clone_repository(tmp_path: Path) -> Path:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+    seal = json.loads((root / ORACLE_SEAL_RELATIVE_PATH).read_text(encoding="utf-8"))
+    oracle_commit = seal["oracle_commit"]
+    for row in seal["input_assets"]:
+        relative_path = row["path"]
+        frozen = subprocess.run(
+            ["git", "show", f"{oracle_commit}:{relative_path}"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+        )
+        assert frozen.returncode == 0, frozen.stderr.decode(errors="replace")
+        (root / relative_path).write_bytes(frozen.stdout)
     return root
 
 

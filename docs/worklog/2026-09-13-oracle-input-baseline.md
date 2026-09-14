@@ -427,6 +427,35 @@ exact-set で、`supersedes` は持たない。commit 型の F-1・F-2・F-5〜F
 - backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
   **2 passed, 4 deselected**(N1・N2 が引き続き期待どおり red)
 
+### ステップ 9: 派生 3 資産の digest 辺を版参照へ置換
+
+派生 3 資産の `input_manifest` から、母集合と母集合 lock を指す blob digest 2 キーを
+それぞれ削除した。`corpus_version` の一致は `check_frozen_baselines.py` の G-5 に一元化し、
+共用の `_validate_derived_input_manifest` では入力元を示すパス 2 キーの exact-set、
+リポジトリ内への解決、参照先の存在だけを検査する。パスは生成元の所在を示す provenance として
+意味を持つため残した。
+
+- design.md 4-1 と同じ機械走査を `check_frozen_baselines.py` に実装し、変更前
+  (ステップ 8 終了時)は **22 本**、変更後は **16 本**。変更前の内訳は
+  oracle seal 14 / 派生 3 資産 6 / 母集合 1 / 台帳 1、変更後は
+  oracle seal 14 / 母集合 1 / 台帳 1
+- ステップ 8 の台帳追加前を起点にしたタスク全体では **21 → 16 本**で純減 5 本。
+  派生 3 資産の `requirement_claims_blob_digest` と
+  `requirement_claims_lock_blob_digest` は **0 件**
+- `--reseal-derived --skip-oracle` — **exit 0**。派生 lock 3 資産は各
+  `asset_digest` だけが追随し、通常の派生資産検査も green。
+  **`--reseal-oracle` は実行していない**
+- `check_frozen_baselines.py --base origin/develop` — **exit 0**、
+  `scan_occurrences=10 scan_pairs=6 scan_values=4 pending_removal=0 digest_edges=16`。
+  N7・N8 を含む `tests/test_check_frozen_baselines.py` は **16 passed**
+- `check_authz_catalog.py` — **exit 1**。唯一の理由は
+  `contracts/authz/requirement-claims.json: oracle input blob が不一致`
+- 二段コミット中の入力差分が N1 の意味改ざん検出を先取りしないよう、負例用の一時 clone だけで
+  seal が指す入力 8 資産を固定基準版へ戻す。N1・N2 の assertion は変更せず、
+  `-m frozen_negative` は **2 passed, 4 deselected**
+- ルート `ruff` / `ty` — **green**、ルート `pytest tests/` — **1367 passed**、
+  backend `ruff` / `ty` — **green**、`pytest --ignore=tests/db` — **199 passed**
+
 ## 決定
 
 | # | 決定 | 理由 |

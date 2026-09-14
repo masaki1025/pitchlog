@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "505b49f3a7c774eb784df7d9e6bb4ee1c04f222364b9f5f60fd76a0b6794f1c9",
+  "asset_digest": "45d8203b30df0691a330f926f90ea984473a18cdd4d8ec5e60cc434a25813ddf",
   "entry_count": 187,
   "aggregate_decision_digest": "479b4a6ea8e0cf5ac4c71e5d5aa6adeb3353cfb515c2063a771fae05f333e8d3",
   "entries": [

@@ -1669,26 +1669,22 @@ def _validate_derived_input_manifest(raw: object, root: Path) -> None:
         raw,
         {
             "requirement_claims_path",
-            "requirement_claims_blob_digest",
             "requirement_claims_lock_path",
-            "requirement_claims_lock_blob_digest",
         },
         "derived input_manifest",
     )
-    path_pairs = (
-        ("requirement_claims_path", "requirement_claims_blob_digest"),
-        ("requirement_claims_lock_path", "requirement_claims_lock_blob_digest"),
-    )
-    for path_key, digest_key in path_pairs:
+    for path_key in (
+        "requirement_claims_path",
+        "requirement_claims_lock_path",
+    ):
         relative = _expect_string(raw[path_key], f"input_manifest.{path_key}")
         path = (root / relative).resolve()
         try:
             path.relative_to(root.resolve())
         except ValueError as error:
             raise CatalogError(f"{path_key}がリポジトリ外を指している") from error
-        digest = _expect_string(raw[digest_key], f"input_manifest.{digest_key}")
-        if not path.is_file() or git_blob_digest(_read_bytes(path, path_key)) != digest:
-            raise CatalogError(f"{digest_key}が入力資産と一致しない")
+        if not path.is_file():
+            raise CatalogError(f"{path_key}が存在する入力資産を指していない")
 
 
 def _validate_test_owner(

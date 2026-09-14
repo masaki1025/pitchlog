@@ -23,6 +23,7 @@ DERIVED_CORPUS_RELATIVE_PATHS = (
     Path("contracts/authz/auth-catalog.json"),
     Path("contracts/authz/http-route-matrix.json"),
 )
+CONTRACTS_RELATIVE_PATH = Path("contracts")
 SCHEMA_VERSION = 1
 ASSET_KIND = "authz_frozen_baselines"
 ALLOWLIST_ASSET_KIND = "frozen_baseline_scan_allowlist"
@@ -71,6 +72,12 @@ SOURCE_PATHSPECS = (
     ":(glob)backend/**/*.py",
 )
 SOURCE_ROOTS = frozenset({"scripts", "tests", "backend"})
+DIGEST_EDGE_CONTAINERS = frozenset(
+    {"input_manifest", "input_assets", "sealed_assets", "oracle_context", "baselines"}
+)
+DIGEST_EDGE_KEY_PATTERN = re.compile(r"digest|sha256|checksum", re.IGNORECASE)
+DIGEST_EDGE_VALUE_PATTERN = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+EXPECTED_DIGEST_EDGE_COUNT = 16
 
 type BaselineRecord = dict[str, object]
 type BaselineHistories = dict[str, tuple[BaselineRecord, ...]]
@@ -85,6 +92,15 @@ class _ScanSummary:
     pairs: int
     values: int
     pending_removals: int
+
+
+@dataclass(frozen=True)
+class _DigestEdge:
+    """資産全体を指す digest 辺の検出位置と値を保持する。"""
+
+    asset_path: str
+    key_path: str
+    value: str
 
 
 class _FrozenBaselineError(Exception):
@@ -409,6 +425,91 @@ def _load_json_object(root: Path, relative_path: Path, predicate: str) -> dict[s
         relative_path.as_posix(),
         predicate=predicate,
     )
+
+
+def _collect_digest_edges(
+    value: object,
+    *,
+    asset_path: str,
+    key_path: str,
+    edges: list[_DigestEdge],
+) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{key_path}.{key}"
+            if (
+                DIGEST_EDGE_KEY_PATTERN.search(key) is not None
+                and isinstance(child, str)
+                and DIGEST_EDGE_VALUE_PATTERN.fullmatch(child) is not None
+            ):
+                edges.append(
+                    _DigestEdge(
+                        asset_path=asset_path,
+                        key_path=child_path,
+                        value=child,
+                    )
+                )
+            _collect_digest_edges(
+                child,
+                asset_path=asset_path,
+                key_path=child_path,
+                edges=edges,
+            )
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _collect_digest_edges(
+                child,
+                asset_path=asset_path,
+                key_path=f"{key_path}[{index}]",
+                edges=edges,
+            )
+
+
+def _enumerate_digest_edges(root: Path) -> tuple[_DigestEdge, ...]:
+    """contracts 配下から資産全体を指す digest 辺を全数列挙する。"""
+    contracts_root = root / CONTRACTS_RELATIVE_PATH
+    try:
+        paths = sorted(contracts_root.rglob("*.json"))
+    except OSError as error:
+        raise _FrozenBaselineError(
+            f"digest 辺: {CONTRACTS_RELATIVE_PATH} を走査できない: {error}"
+        ) from error
+
+    edges: list[_DigestEdge] = []
+    for path in paths:
+        relative_path = path.relative_to(root).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            raise _FrozenBaselineError(
+                f"digest 辺: {relative_path} が UTF-8 ではない"
+            ) from error
+        except OSError as error:
+            raise _FrozenBaselineError(
+                f"digest 辺: {relative_path} を読み込めない: {error}"
+            ) from error
+        raw = _parse_json(text, relative_path)
+        if not isinstance(raw, dict):
+            continue
+        for container in sorted(DIGEST_EDGE_CONTAINERS):
+            if container in raw:
+                _collect_digest_edges(
+                    raw[container],
+                    asset_path=relative_path,
+                    key_path=container,
+                    edges=edges,
+                )
+    return tuple(edges)
+
+
+def _validate_digest_edge_count(root: Path) -> tuple[_DigestEdge, ...]:
+    edges = _enumerate_digest_edges(root)
+    if len(edges) != EXPECTED_DIGEST_EDGE_COUNT:
+        raise _FrozenBaselineError(
+            "digest 辺: 資産全体を指す辺の本数が期待値と一致しない: "
+            f"actual={len(edges)}, expected={EXPECTED_DIGEST_EDGE_COUNT}"
+        )
+    return edges
 
 
 def _canonical_sha256(value: object) -> str:
@@ -742,7 +843,7 @@ def _validate_source_scan(root: Path, base_has_catalog: bool) -> _ScanSummary:
 def check_frozen_baselines(
     root: Path,
     base_revision: str,
-) -> tuple[str, _ScanSummary]:
+) -> tuple[str, _ScanSummary, tuple[_DigestEdge, ...]]:
     """凍結基準台帳を merge-base と現在の checkout の間で検査する。
 
     Args:
@@ -750,7 +851,7 @@ def check_frozen_baselines(
         base_revision: PR base を指す Git revision。
 
     Returns:
-        解決した一意な merge-base commit とソース走査件数。
+        解決した一意な merge-base commit、ソース走査件数、digest 辺の一覧。
 
     Raises:
         _FrozenBaselineError: 台帳違反または判定不能がある場合。
@@ -766,7 +867,8 @@ def check_frozen_baselines(
     else:
         _validate_initial_records(resolved_root, merge_base, current_histories)
     summary = _validate_source_scan(resolved_root, base_has_catalog)
-    return merge_base, summary
+    digest_edges = _validate_digest_edge_count(resolved_root)
+    return merge_base, summary, digest_edges
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -780,7 +882,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     try:
         args = _parse_args(argv)
-        merge_base, summary = check_frozen_baselines(args.root, args.base)
+        merge_base, summary, digest_edges = check_frozen_baselines(
+            args.root,
+            args.base,
+        )
     except _FrozenBaselineError as error:
         print(f"{SCRIPT_NAME}: {error}", file=sys.stderr)
         return 1
@@ -789,7 +894,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"scan_occurrences={summary.occurrences} "
         f"scan_pairs={summary.pairs} "
         f"scan_values={summary.values} "
-        f"pending_removal={summary.pending_removals}"
+        f"pending_removal={summary.pending_removals} "
+        f"digest_edges={len(digest_edges)}"
     )
     return 0
 
