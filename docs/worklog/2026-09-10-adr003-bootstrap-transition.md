@@ -2127,3 +2127,110 @@ D-4 の規律を維持する           → BOOT-NO-CLAIM / BOOT-SEAL-MONOTONE / 
 | **8** | **人間の逐行確認**(コア領域 — 設計書 6.3。実施記録行を必須で記入する) |
 | — | **クローズ処理**(`/pr`)— **台帳候補の提出** |
 | — | **`TSK-235` への引き渡し** — 条文全文と 5 点、および上記の残余リスク①の逐条突合 |
+
+---
+
+# ステップ 7・8 — 母集合の追随(`H-85` の 7 段)
+
+## ステップ 7(段 1〜5)— 入力確定コミット `24ef4fc`
+
+| 段 | 内容 | 結果 |
+| --- | --- | --- |
+| 1 | `input_manifest`(`commit` / `source_blob_digest` / `heading_ids` / `item_counts_by_kind`)と影響 claims を更新。**`shared-preconditions.json` の `git_blob_digest` は手更新**(reseal 経路が無い) | 完了 |
+| 2 | `--reseal` — 母集合と decision lock を再封印 | 完了 |
+| 3 | 派生 3 資産の `requirement_claims_blob_digest` と `requirement_claims_lock_blob_digest` を更新 | 完了 |
+| 4 | `--reseal-derived` — 派生 3 資産の各 decision lock を再封印 | 完了 |
+| 5 | **入力確定コミット** | `24ef4fc` |
+
+**claims の実測**: **不変 1075 / 位置移動 3 / 本文変化 2 / 新規 3 = 1083**(旧 1080)。
+
+### ◎ 位置移動が発生した — 「足した行だけ」では通らない
+
+**`source_id` は `{見出し}/{種別}-{連番}` で位置依存**である。**`NFR-018` へ達成条件 (e) を
+挿入したことで、後続 3 行の ID が 1 つずつ繰り上がった**:
+
+```
+旧 NFR-018/list_item-026 (測定方法)   → 新 027
+旧 NFR-018/list_item-027 (正解ベクタ) → 新 028
+旧 NFR-018/list_item-028 (申し送り)   → 新 029
+新 NFR-018/list_item-026 = (e) 経過規定(真の新規)
+```
+
+**引き当ては「同一の本文 digest を持つ旧 claim」で行った。**
+評価台帳の既存候補が「**`source_text_digest` は一意でない**(1073 行中 76 件が重複)。
+digest を主キーに突合すると別見出しの行を掴む」と警告しているが、
+**今回は同一見出し内での移動であり、見出しを跨がないため衝突しない**ことを確認した。
+
+### 新規 3 行の分類(判定根拠)
+
+| source_id | 分類 | 根拠 |
+| --- | --- | --- |
+| `NFR-018/list_item-026`((e)) | `out_of_scope` / `OUT_NON_AUTH_REQUIREMENT` | **認可の文脈語を含まない**(禁止パターン非合致を実測)。**同階層の (d) と同じ規則**で、`NFR-018` の 32 行中 24 行がこの規則 |
+| `CHANGELOG/table_row-036`(v2.9 起案行) | `out_of_scope` / `OUT_DOCUMENT_METADATA` | **`CHANGELOG` 見出しの全行がこの規則** |
+| `CHANGELOG/table_row-037`(承認行) | 同上 | 同上 |
+
+**`auth_claim` は 184 のまま**(ステップ 7 の合格条件)。
+
+### `input_assets` の重複拒否(plan §4-6 の既知の穴)
+
+**塞がれていることをコードで確認した** — `scripts/check_authz_catalog.py:4775` の
+`_validate_object_path_uniqueness(input_rows, "oracle seal.input_assets")`。
+**現に重複 0 件であることも実測した。** TSK-317 PR #2 の 3-d で解消済み。
+
+---
+
+## ステップ 8(段 6〜7)
+
+| 段 | 内容 | 結果 |
+| --- | --- | --- |
+| 6 | oracle 6 資産と seal の `oracle_commit` を `24ef4fc` へ差し替え → **人間査読** | **承認 2026-09-14・山田正輝** |
+| 7 | `--reseal-oracle` | `ok total=1083 auth_claim=184 out_of_scope=899` |
+
+### 査読に出した材料(記録)
+
+1. **差し替えは 8 ファイル × 1 行のみ**(挿入 8 / 削除 8。他の変更を含まない)。
+2. **`24ef4fc` が基準として妥当か** — `oracle_commit_semantics` = `last_committed_step_4_input_baseline`
+   と一致し、**8 資産すべてで「`24ef4fc` 上の blob == 現物」を機械検証**して提示した。
+3. **`--reseal-oracle` が書き換える範囲を事前開示** — `input_assets` の 8 件の `git_blob_digest`
+   の旧値と新値を表で提示した。
+
+**「reseal が何を書き換えるか」を査読前に開示した**のは、
+**前セッションで `oracle-seal.lock.json` のマージ解決を誤り、先方が正しく更新した seal を
+古い版へ後退させた**ことがあるため。**査読者が「何が変わるはずか」を先に知っていれば、
+変わらなかったときに気づける。**
+
+### ◎ `H-85` の連鎖は 8 資産で閉じなかった(3 件目の実測・**本件が初**)
+
+**`oracle_commit` の差し替えは「7 ファイル × 1 行」で終わらなかった。**
+**その 7 ファイルの blob が変わることで、さらに 3 つが動いた**:
+
+| 追加で動いたもの | 何が固定していたか |
+| --- | --- |
+| **`scripts/check_authz_catalog.py:107` の `ORACLE_INPUT_BASELINE_COMMIT`** | **同 `:4525` が `boundary-proposal.json` の `oracle_commit` との一致を要求** |
+| **`contracts/authz/mcdc-map.json`** | `claim-mutant-map.json` の blob digest(`sources.claim_mutant_map`) |
+| **`contracts/authz/failure-injection-points.json`** | `ddl-elements.json` の blob digest(`source_asset`) |
+
+**評価台帳 `H-85` の見出しが言う「8 資産」は下限であって上限ではない。**
+**第 2 階層の資産と、一致を要求するスクリプト定数がさらに動く。**
+
+### 計画外の変更 1 件(PO 裁可)
+
+**`ORACLE_INPUT_BASELINE_COMMIT` の更新は計画書 §4-6 の 7 段に書かれておらず、
+§3「影響する正本」の表にも `scripts/check_authz_catalog.py` が無い。**
+**機構上不可避**(更新しなければ `boundary-proposal` の検査が red)であるため、
+**実行前に停止して選択肢を提示し、PO 裁可を得た**(2026-09-14・山田正輝 —
+「定数も更新する」)。**前例**: TSK-379 の代行で同じ定数を `dd2cb92` → `0cf994f` へ更新している。
+
+### `tests/` の期待件数
+
+```
+total=1080 auth_claim=184 out_of_scope=896  →  total=1083 auth_claim=184 out_of_scope=899
+```
+
+`tests/test_check_authz_catalog.py` の **3 箇所**(`:867` の stdout 照合 / `:1289` / `:1290`)。
+**`auth_claim` は不変**のため、認可帰属に関する期待は 1 つも動いていない。
+
+### 更新ファイルの総量
+
+**20 ファイル** = 母集合 + lock + 派生 3 + 各 lock 3 + `shared-preconditions` +
+oracle 6 + seal + 第 2 階層 2 + スクリプト定数 1 + `tests/` 1。
