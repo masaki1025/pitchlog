@@ -1,12 +1,12 @@
 ---
-feature: pg-authz-verification-g2
+feature: pg-authz-verification-g3
 type: research
 date: 2026-09-14
 ---
 
 # 調査メモ: TSK-317 改訂 4(PR #3)— 引き渡しの ID 完全性と受取契約
 
-**ブランチ**: `feature/pg-authz-verification-g3`(計画書ディレクトリは `pg-authz-verification-g2` のまま — 改訂 4 は同じ文書の続き)。
+**ブランチ**: `feature/pg-authz-verification-g3` / **計画書**: `docs/features/pg-authz-verification-g3/plan.md`(**改訂 4** — 同じ文書の続き。**2026-09-14 に `pg-authz-verification-g2/` から移した** — `feature_status.py:1589` が `docs/features/<ブランチslug>/plan.md` を要求し、不一致だと `plan 重複` へ縮退するため)。
 **基準**: develop `569954d`。**調査 4 本を並列で実施**(数値の再導出 / spec-checker / decision-tracer / 資産と検査器の実測)。
 
 ## 問い

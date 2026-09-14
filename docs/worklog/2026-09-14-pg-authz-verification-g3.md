@@ -7,22 +7,25 @@ branch: feature/pg-authz-verification-g3
 # 作業ログ: 2026-09-14 TSK-317 改訂 4(PR #3)
 
 Notion: [TSK-317](https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2)(**進行中**)。
-計画書: `docs/features/pg-authz-verification-g2/plan.md`(**改訂 4** — 同じ文書の続き)。
+計画書: `docs/features/pg-authz-verification-g3/plan.md`(**改訂 4** — 同じ文書の続き)。
 
-## ブランチ名と計画書ディレクトリが一致しない(**意図的**)
+## ディレクトリをブランチ slug へ合わせた(**2026-09-14 に是正**)
 
-| | |
-| --- | --- |
-| ブランチ | `feature/pg-authz-verification-g3` |
-| 計画書 | `docs/features/pg-authz-verification-g2/plan.md` |
+**当初は計画書を `docs/features/pg-authz-verification-g2/` のままにした**
+(`feature/pg-authz-verification-g2` が origin に残っていて同名で切れず、
+**改訂 4 は同じ文書の続きなのでディレクトリを分割しない**と判断した)。
 
-**`feature/pg-authz-verification-g2` は origin に残っている**(PR #52・#59 でマージ済み)ため
-同名で切れない。**計画書は改訂 4 として同じ文書を継ぐ**ので、ディレクトリは分割しない(7.1-1)。
+**これは誤りだった。** **敵対レビュー 2 周目の `P0` で検出**:
 
-**機構への影響**: `codex_run.py` が検証するのは **worktree の実ブランチと frontmatter `branch` の一致だけ**
-(`:414`)で、**ディレクトリ名とは突合しない**。**`feature_status.py` も frontmatter の `branch` で照合する。**
-**ただし `/pr` の `check_plan_docs_sync.py` は `--plan` 省略時にブランチ名から導出するので、
-本タスクでは `--plan docs/features/pg-authz-verification-g2/plan.md` を明示する。**
+**`scripts/feature_status.py:1589` は `docs/features/<ブランチslug>/plan.md` を要求する。**
+**別のパスにある plan がそのブランチを名乗ると `plan 重複` として縮退し、
+段階もステップ進捗も表示されなくなる**(実測で再現)。
+
+**`codex_run.py` が検証するのは worktree の実ブランチと frontmatter `branch` の一致だけ**
+(`:414`)**という私の調査は正しかったが、`feature_status.py` の要求を確かめていなかった。**
+
+**是正**: `git mv docs/features/pg-authz-verification-g2 docs/features/pg-authz-verification-g3`。
+**`feature:` フィールドと文書内の参照も追随させた。** **文書は 1 つのまま**(移しただけで分割していない)。
 
 ## 改訂 4 の射程(**前改訂が送ったもの** — `D-14` `D-15`)
 
@@ -167,7 +170,7 @@ TSK-348(済)→ TSK-317 PR #1(済)→ TSK-343(済)→ TSK-317 PR #2(済)
 2. 計画書 frontmatter を改訂 4 用へ(`status: active` / `承認: 未` / `branch` 更新)
 3. 本作業ログを作成
 4. **`/investigate` を 4 本並列で実施**(数値の再導出 / spec-checker / decision-tracer / 資産と検査器の実測)。
-   **結果は `docs/features/pg-authz-verification-g2/research.md`(470 行)に統合した**
+   **結果は `docs/features/pg-authz-verification-g3/research.md`(470 行)に統合した**
 
 ## 調査の主な結果(**詳細は research.md が正**)
 

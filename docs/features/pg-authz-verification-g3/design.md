@@ -1,5 +1,5 @@
 ---
-feature: pg-authz-verification-g2
+feature: pg-authz-verification-g3
 type: design
 date: 2026-09-09
 ---
@@ -304,7 +304,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 | # | 資産 | 役割 |
 | --- | --- | --- |
 | 1 | `contracts/authz/ddl-elements.json` | **通った構成** — **`scope` の消化(`S-7`)は本改訂(PR #2)のステップ 2 に含まれる**(**裁定 `D-10` 当時は「現在のステップ表 1〜20 に無い」と書いたが、その後 `D-14`・`D-18` で本改訂の射程に入った**) |
-| 2 | `contracts/authz/auth-catalog.json` | **`CATALOG:*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`)。**`AUTH-*` は実在しない** |
+| 2 | `contracts/authz/auth-catalog.json` | **`CATALOG:*` の母集合**(187 entries)。**【2026-09-14 是正】`implemented` なのは `catalog_test_owner` であって `enforcement_test_owner` ではない** — **実測で `enforcement_test_owner` は 187 件すべて `planned`**(接頭辞は `TSK-270` 169 / `TSK-312` 18)。**しかも `catalog_test_owner` の ID は全件同一の 1 つ**(`tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid`)**なので網羅の証拠にならない**。**`AUTH-*` は実在しない** |
 | 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(**`REJ-001`〜`REJ-003` の 3 件** — **【2026-09-14 是正】「第 2 群で追加した分」は無い。実測で追加ゼロ**) |
 
 **この 3 パスを資産側(引き渡しマニフェスト)に明記する** — 受け手がパスを推測しないで済むようにする。
