@@ -89,7 +89,10 @@ Notion: [TSK-317](https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2)(**�
 
 ### 封印手順のコマンド(**2026-09-14 に実測で是正**)
 
-**`--skip-derived` / `--skip-oracle` というオプションは存在しない。**
+**`--skip-derived`(`:5014`)と `--skip-oracle`(`:5019`)は実在する**(**2026-09-14 に是正** —
+**`argparse.SUPPRESS` でヘルプに出ないため、2 セッションが独立に「存在しない」と誤認した**)。
+**ただし reseal ではなく検査のスキップ**であり、**`--reseal-*` と同時指定不可**(`:5097-5100`)、
+**`--skip-derived` は `--skip-oracle` を要求する**(`:5101`「oracle 検査にはステップ4資産の検査が必要」)。
 `check_authz_catalog.py` にあるのは **`--reseal`(`:5000`)/ `--reseal-derived`(`:5005`)/
 `--reseal-oracle`(`:5010`)の 3 つだけ**(`:4851` の `dedicated_flag` も `--reseal-oracle`)。
 

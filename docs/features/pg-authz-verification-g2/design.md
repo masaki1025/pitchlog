@@ -8,10 +8,15 @@ date: 2026-09-09
 
 [plan.md](plan.md) 4 節から参照される詳細設計。
 
-> **本改訂(計画改訂 3 第 2 弾)の承認範囲は 2 ステップである**(`core-areas.json` 登録 / 封印資産の確定と reseal — 裁定 `D-14`・`D-16`・`D-18`・2026-09-12)。
-> **`S-9` は裁定 `D-15` で PR #3 へ、期待件数のハードコード撤去は裁定 `D-16` で別タスクへ送った。**
-> **本書のうち 8 節(引き渡し 3 資産)・8-2(7→8 写像)・9 節(`R-4` の受取契約)は PR #3 の射程**であり、
-> **本改訂の承認範囲には入らない。**
+> **【2026-09-14 更新】本書の現在地** — **改訂 3 第 2 弾(PR #2)は PR #59 でマージ済み。**
+> **現在は改訂 4(PR #3)で、その承認範囲は `S-9` + `S-10` の 3 ステップである**(裁定 `D-22`)。
+>
+> **本書のうち 8 節(引き渡し 3 資産)・8-2 節(7→8 写像)は、裁定 `D-22` で改訂 4 の射程から外れた。**
+> **受取先**: 8 節 = [引き渡しマニフェストを新設する](https://app.notion.com/p/3db93b75e6878111b8a7e7111f3e510e)(`S-4`)/
+> **8-2 節** = [要件側 7 単位の source を決める](https://app.notion.com/p/3db93b75e68781fc821fe62a4efd5af2)(`S-3`)。
+> **9 節(`R-4` の受取契約 = `S-6`)は受取側の着手待ち**(TSK-250 / TSK-217 の DoD が無い)。
+>
+> **以下の各節は、当時の記述をそのまま残す**(**送り先で使うため**)。**射程の現在地は上記が正。**
 > **以下の記述は第 1 弾(PR #52 でマージ済み)についての記録である** — **ただし本書末尾の「試験設計」A〜F 節は現行 PR(改訂 3 第 2 弾)のためのもの**(裁定 `D-19`・2026-09-12)。
 >
 > **第 1 弾の承認範囲は第 2 群前半(ステップ 1〜20)だった**(裁定 `D-8` — **裁定 `D-9`(2026-09-10)で旧ステップ 17〔`contract_only` の runtime テスト〕を撤去し、旧 18〜21 を 17〜20 へ連番で振り直したため 21 → 20**)。
@@ -300,10 +305,15 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 | --- | --- | --- |
 | 1 | `contracts/authz/ddl-elements.json` | **通った構成** — **`scope` の消化(`S-7`)は本改訂(PR #2)のステップ 2 に含まれる**(**裁定 `D-10` 当時は「現在のステップ表 1〜20 に無い」と書いたが、その後 `D-14`・`D-18` で本改訂の射程に入った**) |
 | 2 | `contracts/authz/auth-catalog.json` | **`CATALOG:*` の母集合**(187 entries・`enforcement_test_owner` が `implemented`)。**`AUTH-*` は実在しない** |
-| 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(`REJ-001`〜`REJ-003` + 第 2 群で追加した分) |
+| 3 | `contracts/authz/rejected-configs.json` | **不採用構成**(**`REJ-001`〜`REJ-003` の 3 件** — **【2026-09-14 是正】「第 2 群で追加した分」は無い。実測で追加ゼロ**) |
 
-**この 3 パスを資産側(引き渡しマニフェスト)に明記する** — 受け手(TSK-343 / TSK-344)が
-パスを推測しないで済むようにする。
+**この 3 パスを資産側(引き渡しマニフェスト)に明記する** — 受け手がパスを推測しないで済むようにする。
+
+> **【2026-09-14 是正】受け手の記述が食い違っている。** **本節は `TSK-343` / `TSK-344` と名指すが、
+> `docs/features/data-model-canonical/plan.md` は TSK-250 が自分を受け手として開始条件に据えている。**
+> **どちらを正とする裁定は見つからない。しかも `TSK-343` は既に完了しており、
+> 名指しされた受け手の片方は 3 資産の版・digest が固まる前に閉じている。**
+> **受取先の確定は `S-4` の受取タスクの射程。**
 
 **受け手が exact-set で突合できる形にする** — **実在する `catalog_entry_id`(= `CATALOG:*`。`AUTH-*` は 0 件 — 計画レビュー 2 周目 `P1-8` の訂正)**を
 **成果 ID + blob digest** で特定できるようにし、
@@ -321,7 +331,7 @@ body と注記を同じステップ 1 で作るため、実際の認可判定か
 | フィールド | 内容 |
 | --- | --- |
 | `requirement_source_digest` | **要件書の blob digest**(要件書が変わると red) |
-| `requirement_units[].stable_id` | **`scripts/design_relations/req-universe.json` の安定 ID**(例 `FR-041/list_item-006`)。自由文の宣言を許さない |
+| `requirement_units[].stable_id` | **【2026-09-14 是正】`req-universe.json` に `list_item` は 0 件**(実測)。**代替は `contracts/authz/requirement-claims.json` の `source_id`(全 list_item 603 件)か `route-registry.json` の `management_operations[].source_claim_ids`(FR-041 由来 7 個)。どちらを採るかは `S-3` の受取タスクが決める。** 以下は当時の記述: **`scripts/design_relations/req-universe.json` の安定 ID**(例 `FR-041/list_item-006`)。自由文の宣言を許さない |
 | `requirement_units[].extraction_rule` | 抽出規則の ID(閉じた値域)。「どの列挙のどの項目を 1 単位と数えたか」 |
 | `operation_ids[]` | 資産側の 8 ID(`route-registry.json` から導出) |
 | `mapping[]` | 1:N の対応 + **前提条件の差**(`issue_invitation` = `participant_capacity` / `revoke_invitation` = `invitation_active`) |
