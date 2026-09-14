@@ -16,8 +16,12 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_RELATIVE_PATH = Path("scripts/check_frozen_baselines.py")
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
+ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
+AUTHZ_CATALOG_RELATIVE_PATH = Path("scripts/check_authz_catalog.py")
 SCRIPT_PATH = REPOSITORY_ROOT / SCRIPT_RELATIVE_PATH
 CATALOG_PATH = REPOSITORY_ROOT / CATALOG_RELATIVE_PATH
+ALLOWLIST_PATH = REPOSITORY_ROOT / ALLOWLIST_RELATIVE_PATH
+AUTHZ_CATALOG_PATH = REPOSITORY_ROOT / AUTHZ_CATALOG_RELATIVE_PATH
 
 
 def _git(root: Path, *args: str) -> str:
@@ -39,10 +43,38 @@ def _commit_all(root: Path, subject: str) -> str:
 
 
 def _copy_current_assets(root: Path) -> None:
-    for relative_path in (SCRIPT_RELATIVE_PATH, CATALOG_RELATIVE_PATH):
+    for relative_path in (
+        SCRIPT_RELATIVE_PATH,
+        CATALOG_RELATIVE_PATH,
+        ALLOWLIST_RELATIVE_PATH,
+    ):
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+
+
+def _restore_tracked_assets(root: Path) -> None:
+    _git(
+        root,
+        "restore",
+        "--",
+        SCRIPT_RELATIVE_PATH.as_posix(),
+        CATALOG_RELATIVE_PATH.as_posix(),
+        AUTHZ_CATALOG_RELATIVE_PATH.as_posix(),
+    )
+
+
+def _remove_oracle_input_constant(root: Path) -> None:
+    path = root / AUTHZ_CATALOG_RELATIVE_PATH
+    text = path.read_text(encoding="utf-8")
+    pattern = re.compile(
+        r'^ORACLE_INPUT_BASELINE_COMMIT\s*=\s*"[0-9a-f]{40}"\n?',
+        re.MULTILINE,
+    )
+    replaced, count = pattern.subn("", text)
+    assert count in {0, 1}
+    assert pattern.search(replaced) is None
+    path.write_text(replaced, encoding="utf-8")
 
 
 @pytest.fixture
@@ -51,6 +83,8 @@ def cloned_repository(tmp_path: Path) -> Iterator[Path]:
     originals = {
         SCRIPT_PATH: SCRIPT_PATH.read_bytes(),
         CATALOG_PATH: CATALOG_PATH.read_bytes(),
+        ALLOWLIST_PATH: ALLOWLIST_PATH.read_bytes(),
+        AUTHZ_CATALOG_PATH: AUTHZ_CATALOG_PATH.read_bytes(),
     }
     root = tmp_path / "repository"
     result = subprocess.run(
@@ -68,6 +102,7 @@ def cloned_repository(tmp_path: Path) -> Iterator[Path]:
     )
     assert result.returncode == 0, result.stderr
     _copy_current_assets(root)
+    _remove_oracle_input_constant(root)
     _git(root, "config", "user.email", "test@example.com")
     _git(root, "config", "user.name", "test")
 
@@ -87,6 +122,26 @@ def _write_catalog(root: Path, catalog: dict[str, Any]) -> None:
         json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _read_allowlist(root: Path) -> dict[str, Any]:
+    loaded = json.loads((root / ALLOWLIST_RELATIVE_PATH).read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def _write_allowlist(root: Path, allowlist: dict[str, Any]) -> None:
+    (root / ALLOWLIST_RELATIVE_PATH).write_text(
+        json.dumps(allowlist, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _allowlist_entries(allowlist: dict[str, Any]) -> list[dict[str, Any]]:
+    entries = allowlist["entries"]
+    assert isinstance(entries, list)
+    assert all(isinstance(entry, dict) for entry in entries)
+    return entries
 
 
 def _history(catalog: dict[str, Any], series: str) -> list[dict[str, Any]]:
@@ -176,6 +231,10 @@ def test_repository_frozen_baselines_are_valid() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "frozen-baselines: OK" in result.stdout
+    assert "scan_occurrences=13" in result.stdout
+    assert "scan_pairs=9" in result.stdout
+    assert "scan_values=5" in result.stdout
+    assert "pending_removal=3" in result.stdout
 
 
 def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
@@ -197,8 +256,14 @@ def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
 def test_n5_changed_existing_approval_is_red(cloned_repository: Path) -> None:
     """N5: baseに存在する承認者の書き換えをF-4で拒否する。"""
     root = cloned_repository
+    _restore_tracked_assets(root)
     _git(root, "checkout", "--quiet", "--detach", _base_without_catalog(root))
     _copy_current_assets(root)
+    _remove_oracle_input_constant(root)
+    allowlist = _read_allowlist(root)
+    for entry in _allowlist_entries(allowlist):
+        entry["pending_removal"] = False
+    _write_allowlist(root, allowlist)
     base = _commit_all(root, "test: 台帳をbaseへ追加")
     catalog = _read_catalog(root)
     _history(catalog, "oracle_input")[0]["approved_by"] = "別の承認者"
@@ -247,6 +312,7 @@ def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> Non
     """N10: base側ソースを変えると、その値を読んだF-7が拒否する。"""
     root = cloned_repository
     base_without_catalog = _base_without_catalog(root)
+    _restore_tracked_assets(root)
     _git(root, "checkout", "--quiet", "--detach", base_without_catalog)
     _copy_current_assets(root)
     _replace_constant(
@@ -258,10 +324,53 @@ def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> Non
     _git(root, "add", "scripts/check_authz_catalog.py")
     _git(root, "commit", "--quiet", "-m", "test: base側定数を書き換え")
     changed_base = _git(root, "rev-parse", "HEAD")
-    _git(root, "add", CATALOG_RELATIVE_PATH.as_posix())
-    _git(root, "commit", "--quiet", "-m", "test: 台帳を新設")
+    _remove_oracle_input_constant(root)
+    _commit_all(root, "test: 台帳を新設")
 
     result = _run_cli(root, changed_base)
 
     assert result.returncode == 1
     assert "F-7" in result.stderr
+
+
+def test_n11_unlisted_source_pair_is_red(cloned_repository: Path) -> None:
+    """N11: 未登録パスにある既存OIDを拒否する。"""
+    root = cloned_repository
+    allowlist = _read_allowlist(root)
+    value = _allowlist_entries(allowlist)[0]["value"]
+    assert isinstance(value, str)
+    relative_path = Path("tests/fixtures/unregistered_frozen_baseline.py")
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f'UNLISTED_OID = "{value}"\n', encoding="utf-8")
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "allow-list にない" in result.stderr
+    assert relative_path.as_posix() in result.stderr
+
+
+def test_n12_stale_allowlist_pair_is_red(cloned_repository: Path) -> None:
+    """N12: ソースに存在しない登録済み組を拒否する。"""
+    root = cloned_repository
+    allowlist = _read_allowlist(root)
+    entries = _allowlist_entries(allowlist)
+    value = entries[0]["value"]
+    assert isinstance(value, str)
+    relative_path = "tests/fixtures/stale_frozen_baseline.py"
+    entries.append(
+        {
+            "path": relative_path,
+            "value": value,
+            "reason": "N12 の孤立した allow-list 登録",
+            "pending_removal": False,
+        }
+    )
+    _write_allowlist(root, allowlist)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "走査で見つからない" in result.stderr
+    assert relative_path in result.stderr

@@ -42,6 +42,7 @@ DEFAULT_ATTACK_TREE = Path("contracts/authz/attack-tree.json")
 DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
+DEFAULT_FROZEN_BASELINES = Path("contracts/authz/frozen-baselines.json")
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -104,7 +105,6 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
     "IMPORT_EVACUATED_EVENT",
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
-ORACLE_INPUT_BASELINE_COMMIT = "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
 RUNTIME_TARGET_KINDS = frozenset(
     {
@@ -496,6 +496,36 @@ def _read_json(path: Path, label: str = "母集合") -> object:
         raise CatalogError(f"{label}を読めない: {path}: {error}") from error
     except json.JSONDecodeError as error:
         raise CatalogError(f"{label}の JSON が不正: {path}: {error}") from error
+
+
+def load_oracle_input_baseline(root: Path) -> str:
+    """凍結基準台帳の oracle_input 系列末尾から現行基準を読む。
+
+    Args:
+        root: リポジトリルート。
+
+    Returns:
+        oracle_input 系列末尾の40桁commit。
+
+    Raises:
+        CatalogError: 台帳を読めない、系列が空、または末尾の値が不正な場合。
+    """
+    raw = _read_json(root / DEFAULT_FROZEN_BASELINES, "凍結基準台帳")
+    if not isinstance(raw, dict):
+        raise CatalogError("凍結基準台帳はオブジェクトでなければならない")
+    baselines = raw.get("baselines")
+    if not isinstance(baselines, dict):
+        raise CatalogError("凍結基準台帳.baselines はオブジェクトでなければならない")
+    history = baselines.get("oracle_input")
+    if not isinstance(history, list) or not history:
+        raise CatalogError("凍結基準台帳.oracle_input は空でない配列でなければならない")
+    latest = history[-1]
+    if not isinstance(latest, dict):
+        raise CatalogError("凍結基準台帳.oracle_input の末尾はオブジェクトでなければならない")
+    commit = latest.get("commit")
+    if not isinstance(commit, str) or not COMMIT_RE.fullmatch(commit):
+        raise CatalogError("凍結基準台帳.oracle_input 末尾の commit が不正")
+    return commit
 
 
 def _expect_keys(value: dict[str, object], expected: set[str], label: str) -> None:
@@ -4522,7 +4552,7 @@ def validate_boundary_proposal(
         "PLAN-BOUNDARY-PROPOSAL-ONLY",
     }:
         raise CatalogError("boundary proposal の provenance が exact-set 不一致")
-    if oracle_commit != ORACLE_INPUT_BASELINE_COMMIT:
+    if oracle_commit != load_oracle_input_baseline(root):
         raise CatalogError("boundary proposal の oracle_commit が基準版と不一致")
     boundaries = _expect_object_list(raw["boundaries"], "boundaries")
     boundary_by_id = _index_unique_object_rows(boundaries, "boundary_id", "boundaries")

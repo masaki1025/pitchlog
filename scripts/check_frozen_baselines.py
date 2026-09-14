@@ -8,14 +8,17 @@ import re
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NoReturn
 
 SCRIPT_NAME = "check_frozen_baselines"
 CATALOG_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
+ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 SCHEMA_VERSION = 1
 ASSET_KIND = "authz_frozen_baselines"
+ALLOWLIST_ASSET_KIND = "frozen_baseline_scan_allowlist"
 COMMIT_SERIES = (
     "oracle_input",
     "oracle_meaning",
@@ -36,15 +39,39 @@ INITIAL_SOURCE_BY_SERIES = {
     ),
 }
 ROOT_KEYS = frozenset({"schema_version", "asset_kind", "baselines"})
+ALLOWLIST_ROOT_KEYS = frozenset({"schema_version", "asset_kind", "entries"})
+ALLOWLIST_ENTRY_KEYS = frozenset(
+    {"path", "value", "reason", "pending_removal"}
+)
 RECORD_KEYS = frozenset(
     {"commit", "supersedes", "approved_by", "approved_at", "reason"}
 )
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+SOURCE_COMMIT_PATTERN = re.compile(
+    r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])"
+)
 ISO_DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 GIT_TIMEOUT_SECONDS = 30
+SOURCE_PATHSPECS = (
+    ":(glob)scripts/**/*.py",
+    ":(glob)tests/**/*.py",
+    ":(glob)backend/**/*.py",
+)
+SOURCE_ROOTS = frozenset({"scripts", "tests", "backend"})
 
 type BaselineRecord = dict[str, object]
 type BaselineHistories = dict[str, tuple[BaselineRecord, ...]]
+type ScanKey = tuple[str, str]
+
+
+@dataclass(frozen=True)
+class _ScanSummary:
+    """凍結基準候補のソース走査件数を保持する。"""
+
+    occurrences: int
+    pairs: int
+    values: int
+    pending_removals: int
 
 
 class _FrozenBaselineError(Exception):
@@ -381,7 +408,166 @@ def _validate_initial_records(
             )
 
 
-def check_frozen_baselines(root: Path, base_revision: str) -> str:
+def _load_scan_allowlist(root: Path) -> dict[ScanKey, bool]:
+    path = root / ALLOWLIST_RELATIVE_PATH
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise _FrozenBaselineError(
+            f"allow-list: {ALLOWLIST_RELATIVE_PATH} が UTF-8 ではない"
+        ) from error
+    except OSError as error:
+        raise _FrozenBaselineError(
+            f"allow-list: {ALLOWLIST_RELATIVE_PATH} を読み込めない: {error}"
+        ) from error
+
+    allowlist = _as_object(
+        _parse_json(text, ALLOWLIST_RELATIVE_PATH.as_posix()),
+        ALLOWLIST_RELATIVE_PATH.as_posix(),
+    )
+    _require_exact_keys(
+        allowlist,
+        ALLOWLIST_ROOT_KEYS,
+        ALLOWLIST_RELATIVE_PATH.as_posix(),
+    )
+    if allowlist["schema_version"] != SCHEMA_VERSION or isinstance(
+        allowlist["schema_version"], bool
+    ):
+        raise _FrozenBaselineError(
+            f"allow-list: schema_version は {SCHEMA_VERSION} でなければならない"
+        )
+    if allowlist["asset_kind"] != ALLOWLIST_ASSET_KIND:
+        raise _FrozenBaselineError(
+            f"allow-list: asset_kind は {ALLOWLIST_ASSET_KIND} でなければならない"
+        )
+
+    entries = _as_array(allowlist["entries"], "allow-list.entries")
+    declared: dict[ScanKey, bool] = {}
+    for index, raw_entry in enumerate(entries):
+        location = f"allow-list.entries[{index}]"
+        entry = _as_object(raw_entry, location)
+        _require_exact_keys(entry, ALLOWLIST_ENTRY_KEYS, location)
+
+        raw_path = entry["path"]
+        if not isinstance(raw_path, str):
+            raise _FrozenBaselineError(f"allow-list: {location}.path が文字列ではない")
+        relative_path = PurePosixPath(raw_path)
+        if (
+            relative_path.is_absolute()
+            or relative_path.as_posix() != raw_path
+            or ".." in relative_path.parts
+            or len(relative_path.parts) < 2
+            or relative_path.parts[0] not in SOURCE_ROOTS
+            or relative_path.suffix != ".py"
+        ):
+            raise _FrozenBaselineError(
+                f"allow-list: {location}.path が走査対象の相対パスではない"
+            )
+
+        value = entry["value"]
+        if not isinstance(value, str) or COMMIT_PATTERN.fullmatch(value) is None:
+            raise _FrozenBaselineError(
+                f"allow-list: {location}.value が40桁の小文字hexではない"
+            )
+        reason = entry["reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            raise _FrozenBaselineError(f"allow-list: {location}.reason が空である")
+        pending_removal = entry["pending_removal"]
+        if not isinstance(pending_removal, bool):
+            raise _FrozenBaselineError(
+                f"allow-list: {location}.pending_removal が真偽値ではない"
+            )
+
+        key = (raw_path, value)
+        if key in declared:
+            raise _FrozenBaselineError(
+                f"allow-list: (path, value) が重複している: {raw_path}, {value}"
+            )
+        declared[key] = pending_removal
+    return declared
+
+
+def _source_paths(root: Path) -> tuple[str, ...]:
+    output = _git_output(
+        root,
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--",
+        *SOURCE_PATHSPECS,
+        predicate="allow-list",
+    )
+    paths = tuple(path for path in output.split("\0") if path)
+    if len(paths) != len(set(paths)):
+        raise _FrozenBaselineError("allow-list: 走査対象パスが重複している")
+    return paths
+
+
+def _scan_source_commits(root: Path) -> tuple[dict[ScanKey, int], int]:
+    observed: dict[ScanKey, int] = {}
+    occurrence_count = 0
+    for relative_path in _source_paths(root):
+        path = root / relative_path
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            raise _FrozenBaselineError(
+                f"allow-list: {relative_path} が UTF-8 ではない"
+            ) from error
+        except OSError as error:
+            raise _FrozenBaselineError(
+                f"allow-list: {relative_path} を読み込めない: {error}"
+            ) from error
+        for match in SOURCE_COMMIT_PATTERN.finditer(text):
+            key = (relative_path, match.group(0))
+            observed[key] = observed.get(key, 0) + 1
+            occurrence_count += 1
+    return observed, occurrence_count
+
+
+def _format_scan_keys(keys: set[ScanKey]) -> str:
+    return ", ".join(f"({path}, {value})" for path, value in sorted(keys))
+
+
+def _validate_source_scan(root: Path, base_has_catalog: bool) -> _ScanSummary:
+    declared = _load_scan_allowlist(root)
+    if base_has_catalog:
+        pending = {key for key, is_pending in declared.items() if is_pending}
+        if pending:
+            raise _FrozenBaselineError(
+                "allow-list: 台帳が base に存在するため pending_removal=true "
+                f"を許可できない: {_format_scan_keys(pending)}"
+            )
+
+    observed, occurrence_count = _scan_source_commits(root)
+    observed_keys = set(observed)
+    declared_keys = set(declared)
+    unknown = observed_keys - declared_keys
+    if unknown:
+        raise _FrozenBaselineError(
+            "allow-list: 走査で見つかったが allow-list にない (path, value): "
+            f"{_format_scan_keys(unknown)}"
+        )
+    stale = declared_keys - observed_keys
+    if stale:
+        raise _FrozenBaselineError(
+            "allow-list: allow-list にあるが走査で見つからない (path, value): "
+            f"{_format_scan_keys(stale)}"
+        )
+    return _ScanSummary(
+        occurrences=occurrence_count,
+        pairs=len(observed_keys),
+        values=len({value for _, value in observed_keys}),
+        pending_removals=sum(declared.values()),
+    )
+
+
+def check_frozen_baselines(
+    root: Path,
+    base_revision: str,
+) -> tuple[str, _ScanSummary]:
     """凍結基準台帳を merge-base と現在の checkout の間で検査する。
 
     Args:
@@ -389,7 +575,7 @@ def check_frozen_baselines(root: Path, base_revision: str) -> str:
         base_revision: PR base を指す Git revision。
 
     Returns:
-        解決した一意な merge-base commit。
+        解決した一意な merge-base commit とソース走査件数。
 
     Raises:
         _FrozenBaselineError: 台帳違反または判定不能がある場合。
@@ -397,12 +583,14 @@ def check_frozen_baselines(root: Path, base_revision: str) -> str:
     resolved_root = root.resolve()
     merge_base = _resolve_merge_base(resolved_root, base_revision)
     current_histories = _load_current_catalog(resolved_root)
-    if _base_has_catalog(resolved_root, merge_base):
+    base_has_catalog = _base_has_catalog(resolved_root, merge_base)
+    if base_has_catalog:
         base_histories = _load_base_catalog(resolved_root, merge_base)
         _validate_append_only(base_histories, current_histories)
     else:
         _validate_initial_records(resolved_root, merge_base, current_histories)
-    return merge_base
+    summary = _validate_source_scan(resolved_root, base_has_catalog)
+    return merge_base, summary
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -416,11 +604,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     try:
         args = _parse_args(argv)
-        merge_base = check_frozen_baselines(args.root, args.base)
+        merge_base, summary = check_frozen_baselines(args.root, args.base)
     except _FrozenBaselineError as error:
         print(f"{SCRIPT_NAME}: {error}", file=sys.stderr)
         return 1
-    print(f"frozen-baselines: OK (base={merge_base})")
+    print(
+        f"frozen-baselines: OK (base={merge_base}) "
+        f"scan_occurrences={summary.occurrences} "
+        f"scan_pairs={summary.pairs} "
+        f"scan_values={summary.values} "
+        f"pending_removal={summary.pending_removals}"
+    )
     return 0
 
 

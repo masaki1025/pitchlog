@@ -350,6 +350,23 @@ Notion: TSK-386。計画書: `docs/features/oracle-input-baseline/plan.md`。
   `F-7: baselines.oracle_input[0].commit が base 側の ORACLE_INPUT_BASELINE_COMMIT と一致しない`
 - 検査器ソース内の 40 桁 hex 直書き — **0 件**
 
+### ステップ 5: oracle_input の移設と allow-list 走査
+
+`scripts/check_authz_catalog.py` の `oracle_input` 基準を、台帳の同系列末尾から fail-closed で
+読む形へ移した。40 桁 hex はソース本文を部分一致で走査し、
+`scripts/frozen-baseline-scan-allowlist.json` の `(パス, 値)` と双方向で完全一致させる。
+`pending_removal: true` の 3 件は、台帳が base に存在しない移行中だけ許可する。
+
+- 変更前(同一正規表現で `HEAD` を走査): **14 出現**
+- 変更後: `check_frozen_baselines.py --base origin/develop` — **exit 0**、
+  `scan_occurrences=13 scan_pairs=9 scan_values=5 pending_removal=3`
+- N11(走査にだけ存在)・N12(allow-list にだけ存在): 一時 `git clone --shared` 上でそれぞれ
+  **exit 1**。`tests/test_check_frozen_baselines.py` は **8 passed**
+- `check_authz_catalog.py` — **ok**、ルート `ruff` / `ty` — **green**、
+  ルート `pytest tests/` — **1354 passed**
+- backend `pytest --ignore=tests/db` — **199 passed**、`-m frozen_negative` —
+  **2 passed, 4 deselected**(N2 を含む負例が引き続き期待どおり red)
+
 ## 決定
 
 | # | 決定 | 理由 |
