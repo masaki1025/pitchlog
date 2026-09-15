@@ -2333,3 +2333,48 @@ BOOT-ACTIVATION     発効原子性(機構・負例・正例①〜④が同一 P
 `feature_status.py` が **「実装状況: 不整合(完了ステップに欠番がある)」** を出す。
 **欠番はステップ 6 のみ**で、**計画書が「ステップ 6 は `/finalize-doc` が担いステップ記法を付けない」と
 定めた結果**である(設計書 6.1 の規約どおり)。**規約違反ではない。**
+
+---
+
+## クローズ処理中の追加是正(2026-09-16)
+
+### 相対リンクの誤り 1 件(本 PR 内)
+
+`/check` の docs 検査で **`research.md:82` の `[ADR-003](../adr/…)` が実在しない**ことが判明した
+(正しくは **`../../adr/`** — `docs/features/<slug>/` からは 2 段上がる)。
+**本タスクの起票コミット `f3699e1` で入ったもの**であり、本 PR 内で是正した。
+
+### 別タスクへの申し送り — **同型が `docs/features/product-impl-phase/plan.md:251` にもある**
+
+**同じ誤り(`](../adr/`)が別 feature の計画書にも存在する**(TSK-363 の射程)。
+**一度は直したが、本 PR の射程外であるため戻した**(AGENTS.md 絶対規則 5 —
+「計画にない変更範囲へ触れない」)。**当該タスクへ申し送る。**
+
+**なお `docs/features/**` は `/pr` 手順 2-2 の突合対象から除外されており、
+`check_docs_status.py` のリンク検査も `docs/features/**` を索引カバレッジから外している** —
+**feature 配下の壊れたリンクを機械で捕まえる経路が無い**(2 件とも `/check` の目視相当の検査で出た)。
+
+### `feature_status.py` の欠番警告は PR 段階で消える(実測)
+
+**`status: active` のあいだだけ**「実装状況: 不整合(完了ステップに欠番がある)」が出る。
+**`/pr` 手順 1-1 で `in-review` へ更新すると「PR 段階」になり進捗が「未判定」へ落ちるため消える。**
+→ **`/pr` 手順 2-3 で転記する時点では既に消えており、PR レビューでは見えない。**
+**台帳候補③の記述をこの実測で正確化した。**
+
+### `/check` の結果(2026-09-16)
+
+| 層 | チェック | 結果 |
+| --- | --- | --- |
+| harness | `ruff check` / `ty check` | **All checks passed** |
+| harness | `pytest tests/` | **1346 passed** |
+| backend | `ruff format --check` / `ruff check` / `ty check` | **105 files formatted / All checks passed ×2** |
+| backend | `pytest` | **207 passed / 194 errors** — **DB 接続の設定起因で本タスクとは無関係**(下記) |
+| frontend | `prettier --check` / `eslint` / `vue-tsc` | **All matched files / 指摘なし / 指摘なし** |
+| frontend | `pnpm test --run` | **35 files・664 passed** |
+| docs | 変更 markdown の相対リンク | **是正後 0 件** |
+
+**backend の 194 errors は本タスク起因ではない** — **`develop` でも同一のエラーが再現する**ことを
+実測で確認した(メインツリーで `tests/db/test_schema_audit.py` を実行)。
+**原因**: 接続文字列が **`postgresql+psycopg://…`**(SQLAlchemy の URL 形式)のまま psycopg へ渡され、
+`psycopg.ProgrammingError: missing "=" after …` になる。**DB コンテナは healthy で起動している。**
+**本 PR は `backend/` を 1 行も変更していない**(差分 0 件)。
