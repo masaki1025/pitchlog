@@ -140,7 +140,7 @@ created: 2026-09-09
 ### 封印は単一コミットで閉じる(**実測**)
 
 **`claim-mutant-map.json` は `sealed_assets`(`asset_role: expectation`)側**であり、
-**入力 8 資産**(`check_authz_catalog.py:4800-4808` の `required_input_paths`)**に含まれない。**
+**入力 8 資産**(`check_authz_catalog.py` の `required_input_paths` — `:5215-5223`)**に含まれない。**
 
 **したがって本改訂は入力資産に触れず、`oracle_commit` を動かす必要が無い。**
 **`--reseal-oracle` のみ・単一コミットで閉じる。** **これは `S-9` ④ の逐語と一致する。**
@@ -152,8 +152,8 @@ created: 2026-09-09
 **「これから作るコミット」を基準点に指定できないことが 2 段コミットの機構的な理由**であり、
 **`oracle_commit_semantics: "last_committed_step_4_input_baseline"` がその意味を持っている。**
 
-**reseal 系のフラグは 3 つで相互排他**(`--reseal` `:5000` / `--reseal-derived` `:5005` /
-`--reseal-oracle` `:5010`・`:5090-5096`)。**`--skip-derived`(`:5014`)と `--skip-oracle`(`:5019`)も実在するが**
+**reseal 系のフラグは 3 つで相互排他**(`--reseal` `:5417` / `--reseal-derived` `:5422` /
+`--reseal-oracle` `:5427`・排他判定は `:5607-5613`)。**`--skip-derived`(`:5432`)と `--skip-oracle`(`:5437`)も実在するが**
 (**`argparse.SUPPRESS` でヘルプに出ない** — 2026-09-14 に是正)**検査のスキップであって封印は閉じない**。
 **本改訂は `--skip-*` を使わない。**
 
@@ -186,7 +186,7 @@ PENDING_REF ::= "PENDING:" ("FR" | "NFR") "-" [0-9]{3}
 今回解決した 2 別名以外の架空タスク別名が恒久検査を通り、誤った受取先を後から正規に封印できる。**
 
 **負例**: **`TSK-270-GROUP-2` が red** / **`PENDING:TASK-ANYTHING` が red** /
-**`TSK-1234`(4 桁)が red** / **現行が非空文字列しか見ないこと**(`:3867-3868`)**を検査を外して示す**。
+**`TSK-1234`(4 桁)が red** / **本改訂の前は非空文字列しか見ていなかったこと**(`_expect_string` だけ。現在は `_validate_receiving_task_id_syntax` — `:3728`)**を検査を外して示す**。
 
 ### 合格条件 — **層② 参照整合**
 
@@ -380,17 +380,17 @@ contracts/authz/mcdc-map.json
 
 ### `contract_only_reason_code` の導出は変えない
 
-**`:3818-3836` の `expected_reasons` の導出は `_has_db_decision` / `runtime_target_kind` /
+**`expected_reasons` の導出(`:4229-4247`)は `_has_db_decision` / `runtime_target_kind` /
 `management_claim_ids` の 3 つに分岐し、`receiving_task_id` に依存しない。**
 **したがって受取先を置換しても壊れない。** **新しい理由コードも導入しない。**
 
-**将来 足すなら 2 箇所が要る** — **定数 `CONTRACT_ONLY_REASON_CODES`(`:118-120`)と導出分岐(`:3818-3836`)**。
-**定数追加だけでは `:3838` で「導出理由と不一致」で落ちる**(2026-09-14 に実験で確認)。
+**将来 足すなら 2 箇所が要る** — **定数 `CONTRACT_ONLY_REASON_CODES`(`:212`)と導出分岐(`:4229-4247`)**。
+**定数追加だけでは `:4249-4251` で「導出理由と不一致」で落ちる**(2026-09-14 に実験で確認)。
 
 ### 明示的に確定しないもの
 
 - **`no_db_decision_point` → `TSK-217` の写像** — **これを定めた文書は存在しない**
-  (2 系統の独立走査で追認)。**検査器は受取先について非空文字列しか見ていない**(`:3867-3868`)。
+  (2 系統の独立走査で追認)。**本改訂の前は検査器が受取先について非空文字列しか見ていなかった**(現在は `_validate_receiving_task_id_syntax` — `:3728`)。
   **本改訂は「写像は無い」と記録するだけで、写像を作らない。**
 - **既定 7 行の根拠** — **カード本文の「404 / 400 / 存在秘匿の同値性」は実データと合わない**。
   **7 行の `source_text` に `404` も `400` も 0 件**で、**存在秘匿は 1 行だけ**
@@ -422,7 +422,7 @@ contracts/authz/mcdc-map.json
 - [ ] **差分閉包の 4 段が検証節のスクリプトで実行できる**
 - [ ] **`oracle_commit` が不変**・**`auth-catalog.json` に触れていない**
 - [ ] **`--reseal-oracle` のみを使った**
-- [ ] **`oracle_commit` 上の blob 一致を合格条件の根拠にしていない**(`:4796-4799` の fail-open)
+- [ ] **`oracle_commit` 上の blob 一致を合格条件の根拠にしていない**(`git rev-parse` が失敗すると黙って通る fail-open — `:5206-5214`)
 - [ ] **派生資産の `input_manifest` のキー名を直接アサートしていない**(TSK-386 で 2 キーが消える)
 - [ ] **受取カード 3 枚**(`TSK-217` / `TSK-410` / `TSK-411`)**の DoD へ 13 owner の安定 ID を書いた**(登録)
 - [ ] **TSK-317 と受取 3 タスクを双方のコメントで相互に記録した**(相互リンク)
@@ -490,7 +490,7 @@ cd "$WT"
 set -e   # 途中で落ちたら止める(4 周目 P0-1)
 
 # 0. 検証は HEAD の clean checkout で走らせる(**7 周目 P0**)
-#    作業ツリーで走らせると、開始時にクリーンでも「段 3 のあとに作業ツリーだけ正しく直す」
+#    作業ツリーで走らせると、開始時にクリーンでも「手順 3 のあとに作業ツリーだけ正しく直す」
 #    経路が残る(段 2〜4 は merge-base と HEAD を読み「変更なし」を許容し、
 #    手順 4・6 は作業ツリーを読む — 「段」ではなく本ブロックの手順番号)。
 #    git status --porcelain も --untracked-files=all を固定しないと Git 設定で抑制できる。
@@ -597,6 +597,10 @@ MC = "contracts/authz/mcdc-map.json"
 def raw(rev, path):
     return subprocess.check_output(["git", "show", f"{rev}:{path}"], text=True)
 def pairs(text):
+    # 恒久検査(_parse_unique_mcdc_map_json)と同じ厳しさで読む。
+    # parse_constant を落とすと NaN / Infinity が通る(実装後レビュー 3 周目 P1)
+    def reject_constant(c):
+        sys.exit(f"{MC}: 標準外の数値定数がある: {c}")
     dup = []
     def hook(items):
         seen = set()
@@ -604,7 +608,7 @@ def pairs(text):
             if k in seen: dup.append(k)
             seen.add(k)
         return dict(items)
-    obj = json.loads(text, object_pairs_hook=hook)
+    obj = json.loads(text, object_pairs_hook=hook, parse_constant=reject_constant)
     return obj, dup
 
 mb_obj, mb_dup = pairs(raw(MB, MC))
@@ -649,9 +653,9 @@ uv run ruff check . && uv run ty check && uv run pytest tests/
 > **段 2・段 3 の限界(明示 — 5 周目 `P2` で説明を是正)**: **JSON の重複キーは `json.loads` が
 > 後勝ちで畳むので、段 2・段 3 では検出できない。**
 > **`check_authz_catalog.py` の `_expect_keys` も落とせない** — **同スクリプトは先に通常の
-> `json.loads` で読む**(`:492`)**ので、`_expect_keys` から重複キーは見えない。**
+> `json.loads` で読む**(`:588`)**ので、`_expect_keys` から重複キーは見えない。**
 > **実際に落とすのは `tests/test_check_authz_catalog.py` の `object_pairs_hook` を使う恒久検査**
-> (`:301` / `:3114`)**であり、手順 6 の `pytest tests/` で掛かる。**
+> (`_strict_json_object` — `:405` / 段 4 の負例 — `:3106`)**であり、手順 6 の `pytest tests/` で掛かる。**
 > **したがって全検証経路としては red になるが、「手順 4 が守る」という説明は誤りだった。**
 >
 > **段 4 はこの限界を持たない(実装後レビュー 1 周目 `P1-1`)**: **`mcdc-map.json` は凍結 15 資産の
