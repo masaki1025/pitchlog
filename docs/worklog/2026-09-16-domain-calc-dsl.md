@@ -59,3 +59,5 @@ branch: feature/domain-calc-dsl
 | 封印集合の要素数 | **約 136**(対象 13 × 宣言 10 + トップレベル 2 + (b) 由来 約 4) |
 | `.claude/core-areas.json` | areas 5・`guard_paths` 42。**`game-state` は 27 → 53 paths**(うち backend 21 本) |
 | リベース | **395 コミット分・衝突 0** |
+| 品質ゲート | `ruff` ✅ / `ty` ✅ / **`pytest tests/` 1346 passed / 597.23s** |
+| `harness` 予算基線 | **1144 / 285.07s(2026-09-09)→ 1346 / 597.23s(2026-09-16)**。**後者は敵対レビューと並行実行した上限値**で、**専有での測り直しが要る** |
