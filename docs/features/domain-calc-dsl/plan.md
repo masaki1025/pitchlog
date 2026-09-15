@@ -15,34 +15,36 @@ created: 2026-09-01
 
 # 実装計画書: ドメイン計算の検査・生成基盤(ADR-003 段階 1 の②)
 
-> ## ⚠️ 停止中(2026-09-10)— 承認しないこと
+> ## ✅ 再開(2026-09-16)— ブロッカ解消。**計画レビュー 3 周目の敵対レビュー待ち**
 >
-> **敵対レビュー 3 周目の判定は「承認不可」**(P0 8 件・P1 7 件・起因 3 件・非起因 12 件)。
-> うち **P0-1 は分類 (A)** = **正本の改訂を要する**。
+> **ブロッカだった [TSK-355](https://app.notion.com/p/3d693b75e68781b3b9f8d441f1d1cde5) は approved**
+> (PR #64 マージ済み・2026-09-15)。**敵対レビュー 3 周目の `P0-1`(移行状態が正本に授権を持たない)は解けた。**
 >
-> **停止の理由**: 本計画書 §4-(2)-2 と design.md §3-2 の「**未達・債務は exit 0**」が、
-> 要件書の fail-closed 条項(「**正解ベクタが未整備の間…いずれも不合格として扱う**」)と
-> `ADR-003` D-7 実行契機表の (b)③ 行(「**PR 必須**」「**マージ不可**」)に**授権を持たない**。
-> (b)③ は宣言集合と実在入口集合の差で fail するため、**対象が未登録のあいだは必ずマージ経路が無くなる**。
+> **正本の所在**(いずれも `develop`): **要件書 v2.9** `NFR-018` 達成条件 **(e)**(`BOOT-*` 12 条項 +
+> 実装への委任 4 項目)/ **`ADR-003` v0.3**(D-7 実行契機表の 6 行すべてに併記・**D-13** 新設)/
+> **開発ハーネス設計書 v1.15**(10.1 の `BOOT-CI-MEANING`)。
 >
-> **PO 裁定(2026-09-10)= 甲**: **ADR-003 と要件書へ「検査基盤の導入期の移行状態(未達・`bootstrapDebt`・
-> 昇格条件)」を条文化する改訂タスクを起票し、確定ゲートを通す。** 本タスクはその完了後に再開する。
+> | 再開時に行った作業 | 結果 |
+> | --- | --- |
+> | **`develop` へのリベース** | **395 コミット分・衝突 0** |
+> | **〔正本〕20 命題の逐条突合**(**`TSK-355` 承認の条件**) | **是正 5 件**。実質が崩れた命題は 0 件 — design.md §17 |
+> | **`P0-1` / `P0-2` の反映** | design.md §4 を封印集合の実装へ全面改稿。**旧語彙「債務」を撤去** |
+> | **`P1-5` + トリガー 16 件目** | design.md §12-1(4 列追加)・§12-3(停止ゲート) |
+> | **`P1-1` / `P1-7` / `P0-2` のステップ再構成** | **29 → 45 ステップ**(§4) |
+> | **`P1-6` の DoD 再構成** | **`stepId` 対応表 45 行**(§5)。1 対 1 を機械検査 |
+> | **行番号参照の一掃**(自己適用の是正) | **69 件 → 0 件**。うち 23 件は表の区切り行を指していた — design.md §16-12 |
 >
-> **ブロッカ**: [TSK-355 検査基盤の導入期の移行状態を条文化する(ADR-003 + 要件書)](https://app.notion.com/p/3d693b75e68781b3b9f8d441f1d1cde5)(高 / 5pt)
->
-> **これは design.md §12-1 のトリガー 15 件のどれにも該当しない** — トリガー表が再び不十分だった
-> (2 周目 P1「トリガー 12 件では不十分」と同型の再発)。**再開時にトリガー 16 件目として追加する。**
+> **残る前提**: **マージ順序**(PO 裁定 2026-09-12)は
+> `TSK-348`(済)→ `TSK-317` PR #1(済)→ `TSK-343`(済)→ `TSK-317` PR #2(済)→
+> **`TSK-355`(済)**→ **`TSK-317` PR #3** → **本タスク**。
+> **`TSK-317` PR #3(`feature/pg-authz-verification-g3`)は実装完了・PR 前** — **本タスクの実装着手の前提**であり、
+> **計画の承認そのものは妨げない。**
 >
 > | 項目 | 場所 |
 > | --- | --- |
 > | **3 周目の指摘 全 15 件の全文** | [`docs/worklog/2026-09-10-domain-calc-dsl.md`](../../worklog/2026-09-10-domain-calc-dsl.md) |
-> | 停止手順の実行状況 | 同 worklog「実行した停止手順」 |
-> | 再開条件 | ①移行状態の条文化の approved ②**TSK-343 の裁定 `Q-4` の承認**(§3 の開始条件) |
->
-> **本計画書は 3 周目の指摘を未反映のまま置いてある**(停止手順 5 = 改訂と敵対レビューの再実施は
-> 改訂タスクの完了後)。**`計画レビュー周回` は `2` のまま据え置く。**
-> とくに次の 3 件は**本改訂で入れた欠陥**として認識済み: **P0-7 = CI 配線の実装ステップが 28 件のどこにも無い** /
-> P0-4 = design.md §10-3 の「迂回の検出」の射程(下記で是正)/ P0-8 = `Q-4` の扱い(下記で是正)。
+> | **再開後の作業ログ** | [`docs/worklog/2026-09-16-domain-calc-dsl.md`](../../worklog/2026-09-16-domain-calc-dsl.md) |
+> | **逐条突合の結果** | [design.md §17](design.md) |
 
 ## 1. 背景・目的
 
@@ -151,28 +153,26 @@ created: 2026-09-01
 
 **所有境界は design.md §15 が正。**
 
-### ◎ 開始条件(未確定 — 承認済みの決定ではない)
+### ◎ 開始条件(**2026-09-16 実測 — 4 件すべて充足**)
 
-マージ順序 **`TSK-348 → TSK-317 → TSK-343 → 本タスク`** は**まだ裁定として確定していない**
-(敵対レビュー 3 周目 P0-8 の是正)。実測:
+**マージ順序**(PO 裁定 2026-09-12):
+`TSK-348`(済)→ `TSK-317` PR #1(済・PR #52)→ `TSK-343`(済・PR #55)→
+`TSK-317` PR #2(済・PR #59)→ **`TSK-355`(済・PR #64)**→ **`TSK-317` PR #3** → **本タスク**。
 
-| 事実 | 典拠 |
-| --- | --- |
-| `TSK-348 → TSK-317` は**明文の制約** | `data-model-v0-2/plan.md`「**TSK-317 の PR はこのマージを待つ**」 |
-| `TSK-317 → TSK-343` は TSK-343 の裁定 `Q-4` にあるが、**その計画書は `承認: 未`** | `orm-schema-migration/plan.md`(frontmatter) |
-| **`TSK-343` との相対順序を定めた決定は存在しない** | `orm-schema-migration/research.md`「**TSK-343 との相対順序を定めた決定は見つからない(不明)**」 |
-| **本タスクが最後**は Notion の人間の裁定(2026-09-08)「実装は ORM タスクのマージ後に開始」 | Notion タスクのコメント |
+| # | 条件 | 状態(2026-09-16 実測) |
+| --- | --- | --- |
+| 1 | **`TSK-343` の計画書が承認され、裁定 `Q-4`(マージ順序)が確定していること** | **充足**。`承認: 済(2026-09-10・山田正輝)`・計画レビュー 6 周。**`Q-4` の 4 本目に本タスクが追記された**。**PR #55 でマージ済み** |
+| 2 | **共有 4 ファイルの所有が両計画書で相互にリンクされ read-back されていること** | **解消**。**4 本すべてが `develop` に実在する**(`tests/test_ci_wiring.py` 1820 行 / `backend/pyproject.toml` 54 行 / `backend/uv.lock` 922 行 / `.claude/core-areas.json` 393 行)。**所有の調整ではなく、既にマージされた形の上に載せる** |
+| 3 | **`TSK-317` の改訂 3 が `core-areas.json` / `test_ci_wiring.py` をいつ触るかが決まっていること** | **解消**(2026-09-10)。改訂 3(`S-8`)は **`TSK-317` の承認済みステップの範囲外**で、**本タスクより後** |
+| **4** | **`TSK-355` の approved**(2026-09-10 に追加された条件) | **充足**(2026-09-14 承認・2026-09-15 マージ)。**要件書 v2.9 / `ADR-003` v0.3 / 設計書 v1.15** |
 
-**開始条件(PO 裁定 2026-09-10 = 前提条件として明示し、計画承認までは進める)**:
+> **◎ 残る前提は `TSK-317` PR #3 のマージのみ**(`feature/pg-authz-verification-g3` — **実装完了・PR 前**)。
+> **これは実装着手の前提であり、計画の承認を妨げない。**
 
-1. ~~**TSK-343 の計画書が承認され、裁定 `Q-4`(マージ順序)が確定していること**~~ → **充足(2026-09-10)**。TSK-343 は `承認: 済(2026-09-10・山田正輝)`・計画レビュー 6 周。**`Q-4` の 4 本目に本タスクが追記された**(TSK-343 のコミット `f1a971a`)
-2. **共有 4 ファイル**(`tests/test_ci_wiring.py` / `backend/pyproject.toml` / `backend/uv.lock` /
-   `.claude/core-areas.json`)**の所有が両計画書で相互にリンクされ read-back されていること**
-3. ~~**TSK-317 の改訂 3 が `core-areas.json` / `test_ci_wiring.py` をいつ触るかが決まっていること**~~ → **解消(2026-09-10)**。改訂 3(`S-8`)は **TSK-317 の承認済み 21 ステップの範囲外**で、**本タスクより後**(design.md §未解決 6)
-
-→ **実装着手の直前に、上記が満たされた時点の SHA を本節へ固定する。**
-`tests/test_ci_wiring.py` / `backend/pyproject.toml` / `backend/uv.lock` は TSK-343 の所有見込みであり、
-本タスクは**その置き換え後の形の上に載せる**前提で書いているが、**この前提自体が上記 1 の成立に依存する**。
+> **◎ `backend/pyproject.toml` / `backend/uv.lock` は `game-state` のコア領域 paths に入った**
+> (`TSK-343` のマージ結果・2026-09-16 実測)。**本タスクが依存を足すとコア領域 PR になる**が、
+> **本タスクは元々コア領域分類**なので重さは変わらない。**`core-guard` の基線(ステップ 44)は
+> この 2 本が既に登録済みであることを前提に組む。**
 
 ## 4. 実装方針
 
@@ -196,10 +196,13 @@ created: 2026-09-01
 | 5 | **provenance は条項 ID**。資産に行番号参照を 0 件にする | design.md §2-1 |
 | 6 | **恣意的迂回は保証範囲外として明示的に記録**し、「検出する」合格条件を書かない | design.md §7-4 |
 
-### (3) 見直しトリガーは 15 件
+### (3) 見直しトリガーは 16 件
 
 design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書式は v0.2 で解消・条件付き写像と 1 対多写像は残存)。
-**13〜15 が v0.2 で新設。** 発火時の遷移は design.md §12-2(**前例あり** — トリガー 2 は実際に機能した)。
+**13〜15 が v0.2 で新設。16 は `TSK-355` の approved 後に確定**(依拠する授権の条項 ID が正本に実在しない)。
+**16 件それぞれに `evaluationMethod`・判定者・証拠資産・発火値を持つ**(`P1-5` の是正)。
+発火時の遷移は design.md §12-2(**前例あり** — トリガー 2 は実際に機能した)。
+**発火レコードの機械ゲートは design.md §12-3**(ステップ 3)。
 
 ### (4) 前提ゲートは 1 件
 
@@ -343,34 +346,85 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] **配置(資産 / 実装 / 生成物 / テスト)が確定し、`packages.find` を不用意に広げていない**
-- [ ] **`[機械]` 条件がすべて design.md §2 の型に紐づき、資産の行番号参照が 0 件**
-- [ ] **検査集合 4 分離が実装され、不合格理由が集合ごとに別々に出る**(「0 件」で丸めない)
-- [ ] **「未達 / 違反 / 債務」が型として分かれ、未達レポートが機械可読で、昇格条件と昇格忘れ検出がある**
-- [ ] **`bootstrapDebt` が封印され、追加・再導入・降格が禁止され、空になったら自動かつ不可逆に昇格する**
-- [ ] **`D` が FR-006 単独から導出され、具体値と全 case 集合が資産に固定されている**(`D+1` に出力同値を課していない)
-- [ ] **マニフェスト schema が 2 層の exact-set を持ち、composite target(`kind` / `components[]` / `invocation`)と表示対応宣言を持ち、FR-040 の除外宣言機構がある**
-- [ ] **3 層の runner 基盤(網羅ベクタ・網羅性の証明・不変条件 runner の本体・プロパティ等価性 3 区分・カタログ独立性・変異器)がすべて存在する**
-- [ ] **表示系変異演算子が第 4 系統として存在し、表示生成物を持つ対象計算に 1 種以上適用される**
-- [ ] **等価変異台帳の基盤がある**(空でよい)。**表示系の等価変異の判定手順が書かれている**
-- [ ] **生成器が合成 DSL fixture で全 target matrix を実行検証し、生成前検査 5 種を持つ**
-- [ ] **経路一致検査が値の連鎖を独立に検証し、表示値を正規化せず、恣意的迂回を保証範囲外として記録している**
-- [ ] **D-3 のコミット単位検査があり、片側コミット → 後続で揃える履歴が fail する**
-- [ ] **(b)③ の不変条件 4 つ(frontend 閉域 / backend 閉域と実行時制限 / 表外既定の表示対応の突合 / 実在入口の全列挙)がすべて閉じ、判定不能を合格にしない**
-- [ ] **変異コストが拘束実測され、10 分 / 30 分に対する判定が記録されている**
-- [ ] **`harness` / `consistency` / 変異ジョブの責務が分離し、同一テストを二重実行しない。両ジョブに `timeout-minutes` がある**
-- [ ] **`consistency` と変異ジョブが実際に新設され、必須 context が 9 → 11 になり `github-setup.md` と Ruleset JSON が同期している**(P0-7)
-- [ ] **全葉変異の母集団が新設ジョブまで一般化され、DB を使う全ジョブで image が 3 者一致し、`services: postgres` の書き忘れが red になる**(P0-7・§14-1)
-- [ ] **対象 ID ごとの `vectors[]` 帰属数が 1 で、未知契約が 0**(P0-5)
-- [ ] **対象計算ごとに非等価 mutant の生存が 0**(P0-6。要件書「非等価変異の生存を認めない」)
-- [ ] **丸め境界 × 符号の直積 6 通りが完全一致で存在し、1 件ずつ削る負例が個別に fail する**(P0-3)
-- [ ] **`core-guard` の基線が base 側 commit アンカーで外部化され、JSON・期待値・アンカーの 3 点同時変更でも fail する**(P1-4)
-- [ ] **`game-state` と `data-migration` の両方に登録され、他 3 領域は据え置き層のまま**
-- [ ] **対象別 DSL 正本・製品生成物・製品の実ベクタ case 値・実 mutant を追加していない**(合成 fixture の case 値は本タスクの射程 — PO 裁定 2026-09-10)
+> **◎ 2026-09-16 全面改訂**(`P1-6` の是正)。**旧 DoD は機構の「存在」をまとめて列挙しており、
+> 28 ステップの合格条件と 1 対 1 対応していなかった** — **reseal 拒否・版管理ツール不在・段別 I/O・
+> skip/xfail/todo・5 項目欠落に対応する項目が無く、逆に CI ジョブ分離の DoD には実装ステップが
+> 存在しなかった**(`P0-7`)。
+> → **`stepId` / `artifact` / `acceptanceTest` / `command` の表とし、1〜45 の各 ID をちょうど 1 回参照させる。**
+> **1 対 1 であることは機械検査する**(ステップ 3 の資産が突合 — **集合差**)。
+
+### 5-1. ステップ ID 対応表(45 行 — 各 ID をちょうど 1 回)
+
+| `stepId` | `artifact` | `acceptanceTest` | `command` |
+| --- | --- | --- | --- |
+| 1 | `backend/domain/vocabulary.schema.json` | 語彙 schema の exact-set(3 類・型 3 形・供給源 3 経路)/ 単位パラメータ不在 / パス allowlist | `uv run pytest tests/domain/test_vocabulary_schema.py` |
+| 2 | `backend/domain/machine-conditions.json` | 行番号参照 0 件 / 全 12 型に正例と負例 / 型に紐づかない `[機械]` 条件 0 件 | `uv run pytest tests/domain/test_machine_conditions.py` |
+| 3 | `backend/domain/review-triggers.json` / `backend/domain/step-authorities.json` | 依拠条項の逐語が正本に実在(1 件でも不在で fail)/ トリガー 16 件の評価レコード全件性 / `[手動]` 9 件の証拠パス実在 / 判定者が PO / 発火時に後続が exit 2 / **自己適用**(本ゲートも依拠条項を宣言) | `uv run pytest tests/domain/test_step_authorities.py` |
+| 4 | `backend/domain/history-depth.json` | `D` が case → 長さ → 最大値の式として独立導出 / `FR-006 補足` の文言存在 / 主要フラグ 9 項目と表示 primitive に値域 / `D+1` に出力同値を課さない | `uv run pytest tests/domain/test_history_depth.py` |
+| 5 | `backend/domain/manifest.schema.json` | 2 層 exact-set(母集合計測)/ `kind` と段数の整合 / `minItems` / provenance が条項 ID 形式で逐語実在 / 否定葉 / `history_precedes` / `vectors[]` 帰属数 `== 1` かつ 未知契約 `== 0` / 対象母集合が非空 / 欠落・重複・未知の 3 負例 / 資産内の重複拒否 5 種 | `uv run pytest tests/domain/test_manifest_schema.py` |
+| 6 | `backend/src/pitchlog/domaincheck/cli.py` | exit 0 / 1 / 2 を `subprocess` で直接 assert / 全葉変異で escape 0 かつ `assert attempts == 期待件数` | `uv run pytest tests/domain/test_checker_cli.py` |
+| 7 | `backend/src/pitchlog/domaincheck/seal.py` | `--reseal*` が CI 環境変数下で拒否 / 版管理ツール不在で traceback しない / 通常検証が黙って再封印しない / 比較元が merge-base でない / 固定 SHA 書き換えが無条件 fail | `uv run pytest tests/domain/test_seal.py` |
+| 8 | `backend/src/pitchlog/domaincheck/collect_entrypoints_fe.py` | 母集合計測(`assert attempts == 期待件数`)/ 解析不能例で exit 2 / production build と import graph を直接読む / **この段階では `entrypoints[]` と突合しない**ことの静的検査 | `uv run pytest tests/domain/test_collect_fe.py` + `pnpm test -- --run` |
+| 9 | `backend/src/pitchlog/domaincheck/collect_entrypoints_be.py` | 同上 3 点 / 動的読み込み箇所が「解析不能」として列挙される | `uv run pytest tests/domain/test_collect_be.py` |
+| 10 | `backend/src/pitchlog/domaincheck/collect_display_paths.py` | 対象集合が schema 閉包から独立導出(「等」のハードコード無し)/ 母集合計測 / 解析不能例で exit 2 | `uv run pytest tests/domain/test_collect_display.py` |
+| 11 | `backend/domain/check-sets.json` | exit コード分離(封印済み由来 0 / 封印外 1 / 判定不能 2)/ 対象集合を要件書から独立導出 / **報告の語彙が免除の分岐条件に現れない**静的検査 / FR-040 除外の 3 負例 | `uv run pytest tests/domain/test_check_sets.py` |
+| 12 | `backend/domain/boot-seal.json` | 封印集合が実測から独立導出(手書き列挙なし)/ 実測集合との差 1 件で fail(集合差)/ 要素数の母集合計測(約 136)/ 拘束①②③④の負例 4 種 / (b) 由来 4 件の単位定義の文言存在 | `uv run pytest tests/domain/test_boot_seal.py` |
+| 13 | `backend/src/pitchlog/domaincheck/boot/judge.py` | 12 条項すべてに検出経路(母集合計測 + 集合差)/ 条項 ID の逐語実在 / 免除適用後の green を入力にしない(循環禁止)/ exit コード分離 | `uv run pytest tests/domain/boot/test_judge.py` |
+| 14 | `backend/tests/domain/boot/negatives/` | 12 条項それぞれに負例 1 件以上(集合差)/ 各負例が個別に fail / 負例を無効化すると緑になることの変異検査 | `uv run pytest tests/domain/boot/test_negatives.py` |
+| 15 | `backend/tests/domain/boot/positives_a/` | 未解消 0 件で自動かつ不可逆に昇格(復帰経路の不在を静的検査)/ 50 マージ無減少で失効 / 50 本目と減少・昇格が同一変更なら減少・昇格を優先 / 第一親上の PR 統合コミットのみを数える負例 | `uv run pytest tests/domain/boot/test_positives_a.py` |
+| 16 | `backend/tests/domain/boot/positives_b/` | (i) `BOOT-GRANT` で実際にマージ可能 (ii) 再承認で授権が実際に回復 (iii) 要求が揃って実際に発効 の 3 件が個別に成立 / **deny-all 実装で 3 件とも fail** / 正例 B を持たないステップが 0 件 | `uv run pytest tests/domain/boot/test_positives_b.py` |
+| 17 | `backend/domain/boot-report.schema.json` | 出力の無い緑が fail / 厳密キー集合 / 未解消件数が**要素単位** / `BOOT-NO-CLAIM` の文言がレポートに含まれる | `uv run pytest tests/domain/boot/test_report.py` |
+| 18 | `backend/src/pitchlog/domaincheck/boot/stall.py` | 失効前の承認記録が使えない / 同一記録で 2 度開始すると fail / 再承認 PR に他の変更を含むと fail / 昇格後の再承認が fail / 承認者が PO 以外なら fail / 時間的期限が実装に存在しない静的検査 | `uv run pytest tests/domain/boot/test_stall.py` |
+| 19 | `backend/src/pitchlog/domaincheck/boot/phase2.py` | paths 接触を判定に用いない静的検査 / 対象 2 件の PR が fail / 宣言だけの PR は fail しないが解消も成立しない / 対象欄に無い対象の宣言は fail / 発効前後で資産不在の扱いが分岐する 2 通り | `uv run pytest tests/domain/boot/test_phase2.py` |
+| 20 | `backend/src/pitchlog/domaingen/core.py` | 中間表現の schema が exact-set / 空入力で exit 0(別コマンド・別 exit 契約)/ `contracts/` に何も書かない / 生成元 ID が条項 ID 形式 | `uv run pytest tests/domain/gen/test_core.py` |
+| 21 | `backend/src/pitchlog/domaingen/backends/` | 3 言語すべて生成(母集合計測)/ 段別 hash が言語をまたいで一致 / (β)⑦ に集計 reducer を生成しない / 直接 import できない形で生成 | `uv run pytest tests/domain/gen/test_backends.py` |
+| 22 | `backend/src/pitchlog/domaingen/formatter.py` | 参照実装が `generated_provenance` を満たす / formatter まで生成されている / 製品経路に載っていない静的検査 / (β)⑦ の写像①適用受け口が生成される | `uv run pytest tests/domain/gen/test_formatter.py` |
+| 23 | `backend/src/pitchlog/domaingen/pregen_checks.py` | 5 種が個別に fail / 5 種のいずれかを外すと不正な宣言が生成まで通ることを負例で示す | `uv run pytest tests/domain/gen/test_pregen.py` |
+| 24 | `backend/tests/domain/fixtures/synthetic_dsl/` | 全 target matrix が生成される(母集合計測で区分数を固定)/ `kind` と段数の整合が実機で成立 / 製品ベクタを含まない静的検査 `[手動]` トリガー 8 の判定(PO) | `uv run pytest tests/domain/gen/test_target_matrix.py` |
+| 25 | `backend/src/pitchlog/domaincheck/collect_layers.py` | skip/xfail/todo/0 生成の 4 通りを個別に fail / 5 項目の欠落を個別に fail / 段別 I/O を欠く提出が fail / 実行証跡の生成元も負例で検査 | `uv run pytest tests/domain/test_collect_layers.py` |
+| 26 | `backend/domain/path-match.schema.json` | 5 判定のいずれか不成立で fail / 要求集合と証跡集合の差 1 件で fail / 入口 2 つで片方だけ実行を検出 / 比較器が丸めない / 未知・欠落フィールドで fail / 構造化のみと表示値ありの両 fixture | `uv run pytest tests/domain/test_path_match.py` |
+| 27 | `backend/tests/domain/fixtures/adversarial_path/` | 4 種すべてで fail / アダプタが `true` を 5 個返すだけでは通らない / 段別 hash 不一致で段数分 fail / 「迂回を検出する」合格条件を持たない静的検査 | `uv run pytest tests/domain/test_path_adversarial.py` |
+| 28 | `backend/src/pitchlog/domaincheck/runners/vectors.py` | 正規化を素通りさせた入力が fail / 未対応 case・未知 field・重複 ID・schema 不一致がそれぞれ fail | `uv run pytest tests/domain/runners/test_vectors.py` |
+| 29 | `backend/domain/required-cases.json` | 8 軸すべてに case(母集合計測)/ 丸め境界 × 符号の直積 6 通りが完全一致で存在 / 負値の丸め境界一致 / 6 通りを 1 件ずつ削る負例が個別に fail / 集合差 / 要求集合の独立導出 / 「全 case 消費」だけでは通らない負例 | `uv run pytest tests/domain/runners/test_coverage_proof.py` |
+| 30 | `backend/src/pitchlog/domaincheck/runners/properties.py` | 述語違反で fail / 述語ごとに典拠の文言存在 / 0 ケース生成を実行済みに数えない / 不変条件と等価性の双方が 1 件以上完走 | `uv run pytest tests/domain/runners/test_invariants.py` |
+| 31 | `backend/src/pitchlog/domaincheck/runners/equivalence.py` | 区分別に等価性違反が fail / 構造化段と表示段の両方を比較 / 参照実装が `generated_provenance` / 製品経路に載っていない | `uv run pytest tests/domain/runners/test_equivalence.py` |
+| 32 | `backend/domain/property-catalog.json` | allowlist 外の読み取りで fail / 依存グラフにカタログを混ぜると fail | `uv run pytest tests/domain/runners/test_catalog_independence.py` |
+| 33 | `backend/src/pitchlog/domainmut/engine.py` | 未対応 1 件で fail / 生成変異 0 で fail / 対象計算ごとに `generated - approved_equivalents - killed == ∅` / 負例 3 種が個別に fail / 合成対象が非空 / hash kill が分子に入らない | `uv run pytest tests/domain/mut/test_engine.py` |
+| 34 | `backend/src/pitchlog/domainmut/operators_display.py` | 5 系統が個別に mutant を生成 / 表示生成物を持つ対象で表示系 0 件なら fail / `scale=0` の formatter 迂回が等価変異台帳へ回る | `uv run pytest tests/domain/mut/test_display_operators.py` |
+| 35 | `backend/src/pitchlog/domainmut/scope.py` | 発火条件 7 種を個別に検査 / 逆引き不能で全面へ倒れる / 内部タイムアウトで fail / 上限超過が暫定マージにならない | `uv run pytest tests/domain/mut/test_scope.py` |
+| 36 | `backend/domain/mutation-equivalents.json` | 厳密キー / 判定者が PO 以外なら fail / 未記録の変異が非等価扱い / 台帳の改変が全面発火 | `uv run pytest tests/domain/mut/test_equivalents.py` |
+| 37 | `backend/src/pitchlog/domaincheck/divergence.py` | 片側コミット → 後続で揃える履歴が fail(最終ツリー一致では通さない)/ 古い派生物・手修正の 2 通りが個別に fail / `backend/domain/` だけの変更でも発火 | `uv run pytest tests/domain/test_divergence.py` |
+| 38 | `frontend/.dependency-cruiser.cjs` / `frontend/src/lib/generated/` | 実在入口と `entrypoints[]` の差 1 件で fail(集合差)/ 正例・負例・解析不能例の 3 通り / 判定不能を合格にしない / import graph を直接読む統合テスト | `pnpm exec depcruise --validate` + `pnpm test -- --run` |
+| 39 | `frontend/index.html`(CSP)/ `frontend/vite.config.ts` | CSP 設定を直接読む統合テスト / 外部リソース参照が 1 件でも fail / 3 通り | `pnpm run build` + `pnpm test -- --run` |
+| 40 | `backend/src/pitchlog/domaincheck/closure_be.py` | 3 通り / 宣言外の入口を**拒否する**(検出ではなく)/ 集合差 | `uv run pytest tests/domain/test_closure_be.py` |
+| 41 | `backend/domain/display-binding.json` | 登録漏れ・formatter 非経由の表示経路が差分として fail(集合差)/ 対象集合が schema 閉包から独立導出 / 未宣言項目が**ステップ 12 の封印集合に既に含まれている**(後から足せない) | `uv run pytest tests/domain/test_display_binding.py` |
+| 42 | `docs/features/domain-calc-dsl/mutation-cost.json` | 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 `[手動]` 10 分 / 30 分の判定(PO)。超過なら §12-2 で停止 | `uv run pytest tests/domain/mut/test_cost_record.py` |
+| 43 | `.github/workflows/ci.yml` / `tests/test_ci_wiring.py` / `docs/development/github-setup.md` | YAML 契約木の全葉変異で escape 0 かつ母集合計測 / 母集団を新設ジョブまで一般化 / DB を使う全ジョブで image が 3 者一致 / `services: postgres` 忘れで red / 二重実行なし / `backend/domain/` が `ty check` 対象 / `uv sync --locked` / `.coverage` が index から消える / **第 4 群 7 ステップの資産がすべて `consistency` の実行対象**(集合差)/ **「実行された」ことを証跡で確認** / `github-setup.md` と Ruleset JSON が 9 → 11 context へ同期(**検査できるのは文書の同期のみ**) | `uv run pytest tests/test_ci_wiring.py` |
+| 44 | `scripts/core_guard.py` / `tests/test_core_guard.py` | 比較元が変更不能な merge-base の blob / 他 3 領域は据え置き層から導出 / 追加層に無い変更が fail / JSON と期待値の同一コミット書き換えが fail / **JSON・期待値・アンカーの 3 点同時変更でも fail** | `uv run pytest tests/test_core_guard.py` |
+| 45 | `.claude/core-areas.json` / `docs/development/dev-harness-design-2026-08-07.md` / `docs/README.md` | 両 area 配列に該当 glob / 後から足したファイルが glob に覆われる負例(集合差)/ 他 3 領域は据え置き層のまま / 新規各パスで core-guard 発火 / 3 つの文書検査が OK `[手動]` 敵対レビュー + PR 作成者以外の逐行確認(設計書 6.3-⑤) | `uv run pytest tests/ && uv run python scripts/check_docs_status.py` |
+
+### 5-2. 表に載らない DoD(**ステップに対応しない禁止事項**)
+
+**`P1-6` は「1〜45 の各 ID をちょうど 1 回参照させる」ことを求めるが、
+「やらなかったこと」はステップに対応しない。** 以下は**射程の境界**であり、**別枠で検査する**:
+
+- [ ] **対象別 DSL 正本・製品生成物・製品の実ベクタ case 値・実 mutant を追加していない**(**合成 fixture の case 値は本タスクの射程** — PO 裁定 2026-09-10)
 - [ ] **付録A の書式 binding を新設・変更していない**
-- [ ] **`NFR-018(b)②` / `NFR-019(a)` の充足を宣言していない**
-- [ ] **見直しトリガー 15 件の評価結果が worklog に記録されている**
-- [ ] **トリガー非発火なら要件書・ADR-003・`contracts/`・`docs/design/` に差分なし。発火したなら本タスクは停止し、改訂・再承認後に計画を作り直している**
+- [ ] **`NFR-018(b)②` / `NFR-019(a)` の充足を宣言していない**(`BOOT-NO-CLAIM`。**移行状態の CI 緑は充足を意味しない**)
+- [ ] **要件書・`ADR-003`・`contracts/`・`docs/design/` に差分がない**(トリガー非発火の場合。**発火したなら本タスクは停止し、改訂・再承認後に計画を作り直している**)
+- [ ] **見直しトリガー 16 件の評価結果が発火レコード資産に記録されている**(ステップ 3 が機械検査 — **worklog への記録だけでは足りない**)
+
+### 5-3. 1 対 1 対応の機械検査
+
+**本 DoD 表とステップ表の対応そのものを検査する**(`P1-6` が「1 対 1 でない」ことを指摘したため):
+
+| 検査 | 内容 | 型 |
+| --- | --- | --- |
+| **全射** | **ステップ表の 1〜45 がすべて DoD 表に現れる** | **集合差** |
+| **単射** | **DoD 表の各 `stepId` が 1 回だけ現れる** | **母集合計測** |
+| **`artifact` の実在** | **各行の `artifact` パスが当該ステップの完了時点で実在する** | **パス allowlist** + 実在検査 |
+| **`command` の実行可能性** | **各行の `command` が実際に実行され、終了コードが記録される** | **exit コード分離** |
+
 
 ## 6. テスト計画
 
@@ -396,7 +450,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 | # | 論点 | 裁定 |
 | --- | --- | --- |
-| 1 | **見積り・分割** | **甲 = TSK-235 を再ポイントして 1 タスクのまま進める**(ステップ **29**・想定コミット 29。**当初 28 だったが、敵対レビュー 3 周目 P0-7〔CI 配線ステップの欠落〕の是正で 1 つ増えた**)。乙(4 分割)は 4 タスクすべてが揃わないと段階 1 が閉じず、中間状態で他タスクが着手できない期間が長くなるため。レビュー単位の縮小はステップ単位の委任(1 ステップ = 1 コミット)で既に得ている。**13pt → 再ポイントを Notion へ反映する** |
+| 1 | **見積り・分割** | **甲 = TSK-235 を再ポイントして 1 タスクのまま進める**(**ステップ 45**・想定コミット 45。**当初 28 → 29〔`P0-7` の是正〕→ 2026-09-16 の再構成で 45**)。乙(4 分割)は 4 タスクすべてが揃わないと段階 1 が閉じず、中間状態で他タスクが着手できない期間が長くなるため。レビュー単位の縮小はステップ単位の委任(1 ステップ = 1 コミット)で既に得ている。**13pt → 再ポイントを Notion へ反映する**。**2026-09-16 時点の提案は 34pt**(ステップ 29 時点の提案 21pt × 45/29 ≒ 33。**移行状態の 7 ステップは負例 12 件・正例 5 件を含み 1 ステップあたりが重い**ため切り上げ)。**確定は人間の判断** |
 | 2 | **`ADR-003 D-11 ② 入力範囲表 状況判定行`/`:206` と §2 の衝突**(「具体ケース値は TSK-235 で確定」の読み) | **合成 DSL fixture 上の case 値は本タスク・製品の対象計算ごとの実ベクタ case 値は TSK-236〜239**。§2「やらないこと」に但し書きを追加した(design.md §8-1) |
 
 ### 未(承認時に確認いただきたいもの)
@@ -405,5 +459,6 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- |
 | 1 | **マージ順序への本タスクの明記** | 本計画書と design.md §15 には記録した。**TSK-343 側の衝突表への追記は要調整**(TSK-343 は計画段階) |
 | 2 | **打球方向の等角 5 分割区分が 4.0-3 の「打球情報」語彙に含まれるか** | **不明**。含まれると `ADR-003 D-1 表示規則 3 類` の写像①適格性と衝突。要件書に明示なし。TSK-236〜239 のベクタ契約で判明する見込みで、**本タスクの schema 凍結には効かない** |
-| 3 | **TSK-317 の改訂 3 が `core-areas.json` / `test_ci_wiring.py` をいつ触るか** | **不明**。TSK-317 は検査資産 4 本を `guard_paths` 未登録で新設しており台帳 `H-12` 再発の 6 件目に当たる。ステップ 28 の期待値が失効するリスク |
-| 4 | **`harness` の予算基線の測り直し** | 2026-09-09 に 285.07s を実測。**TSK-317 マージ後に再測**が必要 |
+| 3 | **`TSK-317` PR #3 が `core-areas.json` / `test_ci_wiring.py` をいつ触るか** | **PR 前**(`feature/pg-authz-verification-g3` は実装完了)。**ステップ 44・45 の期待値が失効するリスクは残る** — **実装着手の直前に再測する**(design.md §16-5) |
+| 4 | **`harness` の予算基線の測り直し** | 2026-09-09 に **1144 passed / 285.07s** を実測。**`TSK-343`・`TSK-355` のマージで母集合が変わったため再測が必要**(ローカル値には 10% の変動がある — worklog 2026-09-10) |
+| 5 | **再ポイント(13pt → 34pt 提案)と Notion の状態** | **人間判断**。`.claude/notion-map.json` は `ブロック中` を手動遷移と定める。**ブロッカは解消したので `進行中` のままでよい** |
