@@ -201,23 +201,62 @@ def _base_json(relative_path: str) -> dict[str, Any]:
     return value
 
 
-def _receiving_task_base_json(relative_path: str) -> dict[str, Any]:
-    """受取先置換の承認時基準版から JSON オブジェクトを読む。"""
+@lru_cache(maxsize=1)
+def _receiving_task_base_revision() -> str:
+    """受取先置換の基準版を origin/develop と HEAD から導出する。"""
     result = subprocess.run(
-        [
-            "git",
-            "show",
-            f"{checker.RECEIVING_TASK_CHANGE_BASE_REVISION}:{relative_path}",
-        ],
+        ["git", "merge-base", "origin/develop", "HEAD"],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    value = json.loads(result.stdout)
+    return result.stdout.strip()
+
+
+def _receiving_task_revision_text(revision: str, relative_path: str) -> str:
+    """受取先置換の指定スナップショットからファイル本文を読む。"""
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{relative_path}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
+def _receiving_task_base_text(relative_path: str) -> str:
+    """受取先置換の merge-base からファイル本文を読む。"""
+    return _receiving_task_revision_text(
+        _receiving_task_base_revision(), relative_path
+    )
+
+
+def _receiving_task_head_text(relative_path: str) -> str:
+    """受取先置換の HEAD からファイル本文を読む。"""
+    return _receiving_task_revision_text("HEAD", relative_path)
+
+
+def _receiving_task_base_json(relative_path: str) -> dict[str, Any]:
+    """受取先置換の merge-base から JSON オブジェクトを読む。"""
+    value = json.loads(_receiving_task_base_text(relative_path))
     assert isinstance(value, dict)
     return value
+
+
+def _receiving_task_head_json(relative_path: str) -> dict[str, Any]:
+    """受取先置換の HEAD から JSON オブジェクトを読む。"""
+    value = json.loads(_receiving_task_head_text(relative_path))
+    assert isinstance(value, dict)
+    return value
+
+
+def _json_text(value: object) -> str:
+    """テスト用 JSON 本文をリポジトリ資産と同じ体裁で返す。"""
+    return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
 @lru_cache(maxsize=1)
@@ -2538,15 +2577,15 @@ def test_receiving_task_four_layers_accept_the_repository_assets() -> None:
         "contracts/authz/claim-mutant-map.json"
     )
     base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
-    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
-    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    base_mcdc_map_text = _receiving_task_base_text("contracts/authz/mcdc-map.json")
+    mcdc_map_text = _receiving_task_head_text("contracts/authz/mcdc-map.json")
     checker.validate_receiving_task_change_closure(
         base_mapping,
         mapping,
         base_seal,
         seal,
-        base_mcdc_map,
-        mcdc_map,
+        base_mcdc_map_text,
+        mcdc_map_text,
         checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
     )
 
@@ -2726,8 +2765,8 @@ def test_receiving_task_change_scope_rejects_another_contract_path(
         "contracts/authz/claim-mutant-map.json"
     )
     base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
-    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
-    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    base_mcdc_map_text = _receiving_task_base_text("contracts/authz/mcdc-map.json")
+    mcdc_map_text = _receiving_task_head_text("contracts/authz/mcdc-map.json")
     changed_paths = checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT)
     forbidden_paths = changed_paths | {"contracts/authz/auth-catalog.json"}
     with pytest.raises(checker.CatalogError):
@@ -2741,10 +2780,52 @@ def test_receiving_task_change_scope_rejects_another_contract_path(
         assets["claim_mutant_map"],
         base_seal,
         seal,
-        base_mcdc_map,
-        mcdc_map,
+        base_mcdc_map_text,
+        mcdc_map_text,
         forbidden_paths,
     )
+
+
+def test_receiving_task_repository_closure_uses_merge_base_and_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """差分閉包の4段が動的 merge-base と HEAD のスナップショットだけを読む。"""
+    expected_base = _receiving_task_base_revision()
+    assert checker._receiving_task_merge_base(REPOSITORY_ROOT) == expected_base
+    assert not hasattr(checker, "RECEIVING_TASK_CHANGE_BASE_REVISION")
+
+    text_reads: list[tuple[str, str]] = []
+    changed_path_bases: list[str | None] = []
+    original_text_reader = checker._git_text_at_revision
+    original_changed_paths = checker._receiving_task_changed_contract_paths
+
+    def recording_text_reader(root: Path, revision: str, path: str) -> str:
+        text_reads.append((revision, path))
+        return original_text_reader(root, revision, path)
+
+    def recording_changed_paths(
+        root: Path, base_revision: str | None = None
+    ) -> set[str]:
+        changed_path_bases.append(base_revision)
+        return original_changed_paths(root, base_revision)
+
+    monkeypatch.setattr(checker, "_git_text_at_revision", recording_text_reader)
+    monkeypatch.setattr(
+        checker, "_receiving_task_changed_contract_paths", recording_changed_paths
+    )
+    checker._validate_receiving_task_repository_change_closure(REPOSITORY_ROOT)
+
+    expected_paths = {
+        "contracts/authz/claim-mutant-map.json",
+        f"contracts/authz/{ORACLE_SEAL_FILE}",
+        "contracts/authz/mcdc-map.json",
+    }
+    assert set(text_reads) == {
+        (revision, path)
+        for revision in (expected_base, "HEAD")
+        for path in expected_paths
+    }
+    assert changed_path_bases == [expected_base]
 
 
 def test_mutant_map_change_closure_rejects_every_unapproved_change() -> None:
@@ -2808,8 +2889,8 @@ def test_mutant_map_unapproved_change_passes_without_stage_two(
         "contracts/authz/claim-mutant-map.json"
     )
     base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
-    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
-    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    base_mcdc_map_text = _receiving_task_base_text("contracts/authz/mcdc-map.json")
+    mcdc_map_text = _receiving_task_head_text("contracts/authz/mcdc-map.json")
     monkeypatch.setattr(
         checker, "_validate_receiving_task_mutant_map_change", lambda *_args: None
     )
@@ -2818,8 +2899,8 @@ def test_mutant_map_unapproved_change_passes_without_stage_two(
         current,
         base_seal,
         seal,
-        base_mcdc_map,
-        mcdc_map,
+        base_mcdc_map_text,
+        mcdc_map_text,
         checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
     )
 
@@ -2873,8 +2954,8 @@ def test_oracle_seal_unapproved_change_passes_without_stage_three(
         "contracts/authz/claim-mutant-map.json"
     )
     base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
-    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
-    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    base_mcdc_map_text = _receiving_task_base_text("contracts/authz/mcdc-map.json")
+    mcdc_map_text = _receiving_task_head_text("contracts/authz/mcdc-map.json")
     monkeypatch.setattr(
         checker, "_validate_receiving_task_oracle_seal_change", lambda *_args: None
     )
@@ -2883,8 +2964,8 @@ def test_oracle_seal_unapproved_change_passes_without_stage_three(
         assets["claim_mutant_map"],
         base_seal,
         mutated,
-        base_mcdc_map,
-        mcdc_map,
+        base_mcdc_map_text,
+        mcdc_map_text,
         checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
     )
 
@@ -2894,21 +2975,21 @@ def test_mcdc_map_change_closure_rejects_every_unapproved_change(
 ) -> None:
     """段4で claim mutant map の digest 以外を拒否し、専用検査の因果を示す。"""
     assets, seal, _paths = _repository_oracle_assets()
-    current = _read_repository_json("contracts/authz/mcdc-map.json")
-    base = _receiving_task_base_json("contracts/authz/mcdc-map.json")
-    mutations: list[dict[str, Any]] = []
+    current = _receiving_task_head_json("contracts/authz/mcdc-map.json")
+    base_text = _receiving_task_base_text("contracts/authz/mcdc-map.json")
+    mutations: list[str] = []
 
     decision = copy.deepcopy(current)
     decision["decisions"][0]["decision_form"] = "OR"
-    mutations.append(decision)
+    mutations.append(_json_text(decision))
 
     body_manifest = copy.deepcopy(current)
     body_manifest["sources"]["body_manifest"]["blob_digest"] = "0" * 40
-    mutations.append(body_manifest)
+    mutations.append(_json_text(body_manifest))
 
     unknown_key = copy.deepcopy(current)
     unknown_key["unapproved_leaf"] = True
-    mutations.append(unknown_key)
+    mutations.append(_json_text(unknown_key))
 
     reordered_sources = copy.deepcopy(current)
     sources = reordered_sources["sources"]
@@ -2916,11 +2997,11 @@ def test_mcdc_map_change_closure_rejects_every_unapproved_change(
         "claim_mutant_map": sources["claim_mutant_map"],
         "body_manifest": sources["body_manifest"],
     }
-    mutations.append(reordered_sources)
+    mutations.append(_json_text(reordered_sources))
 
-    for mutated in mutations:
+    for mutated_text in mutations:
         with pytest.raises(checker.CatalogError):
-            checker._validate_receiving_task_mcdc_map_change(base, mutated)
+            checker._validate_receiving_task_mcdc_map_change(base_text, mutated_text)
 
     base_mapping = _receiving_task_base_json(
         "contracts/authz/claim-mutant-map.json"
@@ -2929,14 +3010,64 @@ def test_mcdc_map_change_closure_rejects_every_unapproved_change(
     monkeypatch.setattr(
         checker, "_validate_receiving_task_mcdc_map_change", lambda *_args: None
     )
-    for mutated in mutations:
+    for mutated_text in mutations:
         checker.validate_receiving_task_change_closure(
             base_mapping,
             assets["claim_mutant_map"],
             base_seal,
             seal,
-            base,
-            mutated,
+            base_text,
+            mutated_text,
+            checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
+        )
+
+
+def test_mcdc_map_change_closure_rejects_duplicate_keys_in_base_and_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """段4が基準版とHEADの decisions 重複を拒否し、専用検査の因果を示す。"""
+    path = "contracts/authz/mcdc-map.json"
+    base_text = _receiving_task_base_text(path)
+    head_text = _receiving_task_head_text(path)
+
+    def inject_duplicate_decisions(text: str) -> str:
+        mutated = text.replace(
+            '  "decisions": [', '  "decisions": [],\n  "decisions": [', 1
+        )
+        assert mutated != text
+        assert len(json.loads(mutated)["decisions"]) == len(
+            json.loads(text)["decisions"]
+        )
+        return mutated
+
+    duplicate_base_text = inject_duplicate_decisions(base_text)
+    duplicate_head_text = inject_duplicate_decisions(head_text)
+    mutations = (
+        (duplicate_base_text, head_text),
+        (base_text, duplicate_head_text),
+    )
+    for mutated_base_text, mutated_head_text in mutations:
+        with pytest.raises(checker.CatalogError, match="JSON キーが重複"):
+            checker._validate_receiving_task_mcdc_map_change(
+                mutated_base_text, mutated_head_text
+            )
+
+    assets, seal, _paths = _repository_oracle_assets()
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_mcdc_map_change", lambda *_args: None
+    )
+    for mutated_base_text, mutated_head_text in mutations:
+        checker.validate_receiving_task_change_closure(
+            base_mapping,
+            assets["claim_mutant_map"],
+            base_seal,
+            seal,
+            mutated_base_text,
+            mutated_head_text,
             checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
         )
 

@@ -1,13 +1,13 @@
 ---
 feature: pg-authz-verification-g3
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-09-16・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-16・山田正輝・射程改訂を再承認) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g3
 created: 2026-09-09
-計画レビュー周回: 45        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 46        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -58,6 +58,7 @@ created: 2026-09-09
 | **D-23** | **`reason_code` の owner 単位の畳み込み** | **畳まない。** **行の属性として扱い、owner 単位の不変条件は `receiving_task_id` にだけ課す**。**理由**: `FR-041/list_item-014` の 2 行が割れるのは**資産の実態**で、TSK-367 の `plan.md:87`「行ごとの判定が割れたら即エラー」を `reason_code` へ拡張する根拠が見つからなかった。**`S-9` ① とは両立する**(受取先は owner 単位・理由コードは行単位) |
 | **D-24** | **文書内部整合の検査器** | **改訂 4 では作らない。別タスクへ送る**(2 節)。**理由**: **既存 0 件で新規実装が要り**、パーサの罠が 4 つ、**`guard_paths` 登録が 3 箇所へ波及**する。**「完全性の証明を本体と同じ射程に置くと輪になる」型**(台帳) |
 | **D-25** | **`U-T1`(TSK-363)の依存の欠落** | **別タスクとして起票した**(2 節)。`data-model.md` が `U-T1` の構成要素 4 つ(`:238` / `:244` / `:246` / `:2845`)を TSK-317 へ送っているのに、**TSK-363 の `U-T1` の依存列は `U-00` のみ**だった |
+| **D-27** | **承認後の射程改訂の再承認**(2026-09-16・山田正輝) | **許可パスを 3 資産・閉包を 4 段へ広げる改訂を再承認した。** **経緯**: **実装中に `mcdc-map.json` が `claim-mutant-map.json` の blob digest を固定していること**(`check_mcdc_map.py:294-301`)**が判明し、許可パス 2 本では完了不能だった**(実測で再現)。**私(Claude)は計画改訂と実装を同じコミットへ入れ、再承認を取らずに進めた** — **実装後の敵対レビューが `P0`「承認済み計画に従っていない」として検出した**(AGENTS.md 絶対規則 5)。**正しい手順は「実装を止めて計画改訂の承認を求める」であり、射程を広げる判断は PO のものだった。** **封印は緩んでいない**(`mcdc-map.json` は seal の外 — 入力 8 資産にも封印 6 資産にも含まれない) |
 | **D-26** | **本書の切り出し** | **改訂 4 の契約だけにする**(冒頭)。**理由**: `P0` が 3 周連続 4 件で、**うち 4/6 が追随漏れ**だった |
 
 ---
@@ -202,7 +203,7 @@ PENDING_REF ::= "PENDING:" ("FR" | "NFR") "-" [0-9]{3}
   **共有 8 組で破ると red**
 - **`reason_code` は畳まない**(裁定 `D-23`)— **行の属性のまま**
 
-### 合格条件 — **層④ 差分閉包**(3 段)
+### 合格条件 — **層④ 差分閉包**(4 段)
 
 **基準版**(`origin/develop...HEAD` の merge-base)**と比較する。**
 
@@ -418,7 +419,7 @@ contracts/authz/mcdc-map.json
 - [ ] **`PENDING:TASK-*` が 0 件**(層① が値域から外している)
 - [ ] **`probe_executable` 20 件が `TSK-317`**(`S-9` ②)
 - [ ] **層①〜④ がそれぞれ負例で赤くなることを示した**
-- [ ] **差分閉包の 3 段が検証節のスクリプトで実行できる**
+- [ ] **差分閉包の 4 段が検証節のスクリプトで実行できる**
 - [ ] **`oracle_commit` が不変**・**`auth-catalog.json` に触れていない**
 - [ ] **`--reseal-oracle` のみを使った**
 - [ ] **`oracle_commit` 上の blob 一致を合格条件の根拠にしていない**(`:4796-4799` の fail-open)
@@ -431,7 +432,8 @@ contracts/authz/mcdc-map.json
 - [ ] **段 4 が `mcdc-map.json` の `sources.claim_mutant_map.blob_digest` だけを許している**
 - [ ] **`uv run pytest tests/` が全件 green**(**MC/DC 検査 2 件を含む**)
 - [ ] **段 2 の許可対象が 178 行**(`contract_only` 158 + `probe_executable` 20)**である**(**`execution_class` で絞っていない**)
-- [ ] **段 2・段 3 が `git show HEAD:` を読んでいる**(**作業ツリーを読んでいない**)
+- [ ] **段 2〜段 4 が merge-base と HEAD を読んでいる**(**作業ツリーを読んでいない・基準コミットを定数で固定していない**)
+- [ ] **段 4 が `mcdc-map.json` の生 JSON の重複キーを検出する**(`object_pairs_hook`)
 - [ ] **TSK-217 のカードへ 10 owner の安定 ID を追記した**(**TSK-367 が「6 件が明記されていない」と報告**)
 - [ ] **送る 6 項目に受取先の実 ID がある**(2 節)
 - [ ] **TSK-367 からの依頼 3 点が読める**(規則は TSK-367 が確定済み / 本改訂は消費する側 / 正は先方の 2 節)
@@ -519,6 +521,7 @@ import subprocess, sys
 ALLOWED = {
     "contracts/authz/claim-mutant-map.json",
     "contracts/authz/oracle-seal.lock.json",
+    "contracts/authz/mcdc-map.json",
 }
 changed = subprocess.check_output(
     ["git", "diff", "--name-only", "origin/develop...HEAD", "--", "contracts/"],
@@ -526,7 +529,7 @@ changed = subprocess.check_output(
 forbidden = sorted(set(changed) - ALLOWED)
 if forbidden:
     sys.exit("禁止パスが変更されている: " + ", ".join(forbidden))
-print(f"contracts/ の変更は許可 2 本のみ({len(changed)} 件)")
+print(f"contracts/ の変更は許可 3 本のみ({len(changed)} 件)")
 EOF
 
 # 3. 差分閉包 段 2・段 3 — 期待版を構築して完全一致を見る
@@ -586,6 +589,31 @@ if hit != 1:
 if ser(exp) != ser(sh):
     sys.exit(f"{SEAL}: claim-mutant-map 行の canonical_sha256 以外が変わっている")
 print("段 3 OK — seal の変更はその 1 leaf だけ")
+
+# --- 段 4: mcdc-map(重複キーも見る)---
+MC = "contracts/authz/mcdc-map.json"
+def raw(rev, path):
+    return subprocess.check_output(["git", "show", f"{rev}:{path}"], text=True)
+def pairs(text):
+    dup = []
+    def hook(items):
+        seen = set()
+        for k, _ in items:
+            if k in seen: dup.append(k)
+            seen.add(k)
+        return dict(items)
+    obj = json.loads(text, object_pairs_hook=hook)
+    return obj, dup
+
+mb_obj, mb_dup = pairs(raw(MB, MC))
+hd_obj, hd_dup = pairs(raw("HEAD", MC))
+if hd_dup:
+    sys.exit(f"{MC}: 重複キーがある: {sorted(set(hd_dup))}")
+em = copy.deepcopy(mb_obj)
+em["sources"]["claim_mutant_map"]["blob_digest"] = hd_obj["sources"]["claim_mutant_map"]["blob_digest"]
+if ser(em) != ser(hd_obj):
+    sys.exit(f"{MC}: sources.claim_mutant_map.blob_digest 以外が変わっている")
+print("段 4 OK — mcdc-map の変更はその 1 leaf だけ(重複キーなし)")
 EOF
 
 # 4. 置換先が規則の導出と exact-set 一致(段 2 と独立 — 値そのものを見る)
@@ -611,7 +639,7 @@ uv run ruff check . && uv run ty check && uv run pytest tests/
 > | **未知のトップレベルキー**を追加 | red | **red** |
 > | 対象行の**別フィールド**(`contract_only_reason_code`)を変更 | red | **red** |
 >
-> **段 1 も同様に確かめた**(変更なし / 許可 2 本 = green、禁止パス注入 = red)。
+> **段 1 も同様に確かめた**(変更なし / 許可 3 本 = green、禁止パス注入 = red)。
 > **段 3 は段 2 と同じ「期待版との完全一致」なので同型である。**
 
 > **段 2・段 3 の限界(明示 — 5 周目 `P2` で説明を是正)**: **JSON の重複キーは `json.loads` が

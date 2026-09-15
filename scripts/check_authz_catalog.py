@@ -107,7 +107,6 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
 ORACLE_INPUT_BASELINE_COMMIT = "0cf994f4aa6ca51331a62c05fcd6e0756c4492d2"
-RECEIVING_TASK_CHANGE_BASE_REVISION = "569954d1a8a58af72f7c827090920e4f1697ef21"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
 RECEIVING_TASK_ID_RE = re.compile(r"(?:TSK-[0-9]{3}|PENDING:(?:FR|NFR)-[0-9]{3})")
 PENDING_REQUIREMENT_REF_RE = re.compile(r"PENDING:(?P<requirement>(?:FR|NFR)-[0-9]{3})")
@@ -3952,11 +3951,34 @@ def _validate_receiving_task_oracle_seal_change(
         )
 
 
+def _reject_duplicate_json_object(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    """生 JSON の object pairs から重複キーを拒否してオブジェクトを返す。"""
+    key_counts = Counter(key for key, _value in pairs)
+    duplicates = sorted(key for key, count in key_counts.items() if count > 1)
+    if duplicates:
+        raise CatalogError(f"mcdc map の JSON キーが重複している: {duplicates}")
+    return dict(pairs)
+
+
+def _parse_unique_mcdc_map_json(text: str, label: str) -> dict[str, object]:
+    """mcdc map の生 JSON を重複キーを許さず解析する。"""
+    try:
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_json_object)
+    except json.JSONDecodeError as error:
+        raise CatalogError(f"{label} の JSON が不正: {error}") from error
+    if not isinstance(value, dict):
+        raise CatalogError(f"{label} はオブジェクトでなければならない")
+    return value
+
+
 def _validate_receiving_task_mcdc_map_change(
-    base: dict[str, object], current: dict[str, object]
+    base_text: str, current_text: str
 ) -> None:
-    """差分閉包の段4として claim mutant map の blob digest 以外を固定する。"""
-    expected = copy.deepcopy(base)
+    """差分閉包の段4として生JSONの重複と許可外変更を拒否する。"""
+    expected = copy.deepcopy(_parse_unique_mcdc_map_json(base_text, "基準版 mcdc map"))
+    current = _parse_unique_mcdc_map_json(current_text, "現行 mcdc map")
     expected_sources = expected.get("sources")
     current_sources = current.get("sources")
     if not isinstance(expected_sources, dict) or not isinstance(current_sources, dict):
@@ -3979,15 +4001,17 @@ def validate_receiving_task_change_closure(
     current_mutant_map: dict[str, object],
     base_oracle_seal: dict[str, object],
     current_oracle_seal: dict[str, object],
-    base_mcdc_map: dict[str, object],
-    current_mcdc_map: dict[str, object],
+    base_mcdc_map_text: str,
+    current_mcdc_map_text: str,
     changed_contract_paths: set[str],
 ) -> None:
     """受取先置換の差分を許可パス・2資産・seal の4段で閉じる。"""
     _validate_receiving_task_changed_paths(changed_contract_paths)
     _validate_receiving_task_mutant_map_change(base_mutant_map, current_mutant_map)
     _validate_receiving_task_oracle_seal_change(base_oracle_seal, current_oracle_seal)
-    _validate_receiving_task_mcdc_map_change(base_mcdc_map, current_mcdc_map)
+    _validate_receiving_task_mcdc_map_change(
+        base_mcdc_map_text, current_mcdc_map_text
+    )
 
 
 def validate_claim_mutant_map(
@@ -5444,8 +5468,8 @@ def _verify_manifest_commit(root: Path, raw: object) -> None:
         raise CatalogError("input commit 上の source blob がマニフェストと一致しない")
 
 
-def _git_json_at_revision(root: Path, revision: str, relative_path: str) -> dict[str, object]:
-    """指定 revision の JSON オブジェクトを Git から読む。"""
+def _git_text_at_revision(root: Path, revision: str, relative_path: str) -> str:
+    """指定 revision のファイル本文を Git から読む。"""
     result = subprocess.run(
         ["git", "show", f"{revision}:{relative_path}"],
         cwd=root,
@@ -5455,77 +5479,89 @@ def _git_json_at_revision(root: Path, revision: str, relative_path: str) -> dict
     )
     if result.returncode != 0:
         raise CatalogError(
-            f"受取先差分の基準版を読めない: {revision}:{relative_path}: "
+            f"受取先差分のスナップショットを読めない: {revision}:{relative_path}: "
             f"{result.stderr.strip()}"
         )
+    return result.stdout
+
+
+def _git_json_at_revision(root: Path, revision: str, relative_path: str) -> dict[str, object]:
+    """指定 revision の JSON オブジェクトを Git から読む。"""
+    text = _git_text_at_revision(root, revision, relative_path)
     try:
-        value = json.loads(result.stdout)
+        value = json.loads(text)
     except json.JSONDecodeError as error:
-        raise CatalogError(f"受取先差分の基準版 JSON が不正: {relative_path}") from error
+        raise CatalogError(
+            f"受取先差分のスナップショット JSON が不正: "
+            f"{revision}:{relative_path}"
+        ) from error
     if not isinstance(value, dict):
-        raise CatalogError(f"受取先差分の基準版がオブジェクトでない: {relative_path}")
+        raise CatalogError(
+            f"受取先差分のスナップショットがオブジェクトでない: "
+            f"{revision}:{relative_path}"
+        )
     return value
 
 
-def _receiving_task_changed_contract_paths(root: Path) -> set[str]:
-    """固定した承認時基準からの追跡済み・未追跡 contracts 差分を返す。"""
-    commands = (
+def _receiving_task_merge_base(root: Path) -> str:
+    """受取先差分の基準版を origin/develop と HEAD の merge-base から返す。"""
+    result = subprocess.run(
+        ["git", "merge-base", "origin/develop", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    revision = result.stdout.strip()
+    if result.returncode != 0 or not COMMIT_RE.fullmatch(revision):
+        raise CatalogError(
+            "受取先差分の merge-base を取得できない: "
+            f"{result.stderr.strip() or revision}"
+        )
+    return revision
+
+
+def _receiving_task_changed_contract_paths(
+    root: Path, base_revision: str | None = None
+) -> set[str]:
+    """merge-base と HEAD の間で変更された contracts/authz パスを返す。"""
+    revision = base_revision or _receiving_task_merge_base(root)
+    result = subprocess.run(
         [
             "git",
             "diff",
             "--name-only",
-            RECEIVING_TASK_CHANGE_BASE_REVISION,
+            revision,
+            "HEAD",
             "--",
             "contracts/authz",
         ],
-        [
-            "git",
-            "ls-files",
-            "--others",
-            "--exclude-standard",
-            "--",
-            "contracts/authz",
-        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    changed_paths: set[str] = set()
-    for command in commands:
-        result = subprocess.run(
-            command,
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise CatalogError(
-                f"受取先差分のパスを取得できない: {result.stderr.strip()}"
-            )
-        changed_paths.update(result.stdout.splitlines())
-    return changed_paths
+    if result.returncode != 0:
+        raise CatalogError(f"受取先差分のパスを取得できない: {result.stderr.strip()}")
+    return set(result.stdout.splitlines())
 
 
 def _validate_receiving_task_repository_change_closure(
     root: Path,
-    current_mutant_map: dict[str, object],
-    current_oracle_seal: dict[str, object],
 ) -> None:
-    """承認時の develop 基準から現在までの受取先差分を4段で検査する。"""
+    """merge-base と HEAD の受取先差分を4段で検査する。"""
+    base_revision = _receiving_task_merge_base(root)
     mutant_map_path = str(DEFAULT_CLAIM_MUTANT_MAP)
     oracle_seal_path = str(DEFAULT_ORACLE_SEAL)
     mcdc_map_path = str(DEFAULT_MCDC_MAP)
-    current_mcdc_map = _read_json(root / DEFAULT_MCDC_MAP, "mcdc map")
-    if not isinstance(current_mcdc_map, dict):
-        raise CatalogError("mcdc map はオブジェクトでなければならない")
     validate_receiving_task_change_closure(
-        _git_json_at_revision(
-            root, RECEIVING_TASK_CHANGE_BASE_REVISION, mutant_map_path
-        ),
-        current_mutant_map,
-        _git_json_at_revision(root, RECEIVING_TASK_CHANGE_BASE_REVISION, oracle_seal_path),
-        current_oracle_seal,
-        _git_json_at_revision(root, RECEIVING_TASK_CHANGE_BASE_REVISION, mcdc_map_path),
-        current_mcdc_map,
-        _receiving_task_changed_contract_paths(root),
+        _git_json_at_revision(root, base_revision, mutant_map_path),
+        _git_json_at_revision(root, "HEAD", mutant_map_path),
+        _git_json_at_revision(root, base_revision, oracle_seal_path),
+        _git_json_at_revision(root, "HEAD", oracle_seal_path),
+        _git_text_at_revision(root, base_revision, mcdc_map_path),
+        _git_text_at_revision(root, "HEAD", mcdc_map_path),
+        _receiving_task_changed_contract_paths(root, base_revision),
     )
 
 
@@ -5673,11 +5709,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if use_receiving_task_change_closure:
                 if not isinstance(oracle_seal, dict):
                     raise CatalogError("oracle seal はオブジェクトでなければならない")
-                _validate_receiving_task_repository_change_closure(
-                    root,
-                    oracle_assets["claim_mutant_map"],
-                    oracle_seal,
-                )
+                _validate_receiving_task_repository_change_closure(root)
             oracle_result = validate_oracle_assets(
                 raw,
                 derived_assets["route_registry"],
@@ -5701,11 +5733,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     root,
                 )
                 if use_receiving_task_change_closure:
-                    _validate_receiving_task_repository_change_closure(
-                        root,
-                        oracle_assets["claim_mutant_map"],
-                        new_seal,
-                    )
+                    _validate_receiving_task_repository_change_closure(root)
                 validate_oracle_seal(
                     new_seal, oracle_assets, oracle_relative_paths, root
                 )
