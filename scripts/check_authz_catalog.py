@@ -3962,10 +3962,19 @@ def _reject_duplicate_json_object(
     return dict(pairs)
 
 
+def _reject_nonstandard_json_constant(constant: str) -> object:
+    """標準 JSON にない数値定数を、その字句を示して拒否する。"""
+    raise CatalogError(f"mcdc map の JSON に標準外の数値定数がある: {constant}")
+
+
 def _parse_unique_mcdc_map_json(text: str, label: str) -> dict[str, object]:
-    """mcdc map の生 JSON を重複キーを許さず解析する。"""
+    """mcdc map の生 JSON を重複キー・標準外定数を許さず解析する。"""
     try:
-        value = json.loads(text, object_pairs_hook=_reject_duplicate_json_object)
+        value = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_json_object,
+            parse_constant=_reject_nonstandard_json_constant,
+        )
     except json.JSONDecodeError as error:
         raise CatalogError(f"{label} の JSON が不正: {error}") from error
     if not isinstance(value, dict):

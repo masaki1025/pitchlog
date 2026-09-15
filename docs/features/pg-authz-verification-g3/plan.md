@@ -491,7 +491,8 @@ set -e   # 途中で落ちたら止める(4 周目 P0-1)
 
 # 0. 検証は HEAD の clean checkout で走らせる(**7 周目 P0**)
 #    作業ツリーで走らせると、開始時にクリーンでも「段 3 のあとに作業ツリーだけ正しく直す」
-#    経路が残る(段 2・3 は HEAD を読み「変更なし」を許容し、段 4・6 は作業ツリーを読む)。
+#    経路が残る(段 2〜4 は merge-base と HEAD を読み「変更なし」を許容し、
+#    手順 4・6 は作業ツリーを読む — 「段」ではなく本ブロックの手順番号)。
 #    git status --porcelain も --untracked-files=all を固定しないと Git 設定で抑制できる。
 #    一時 worktree を切れば、以降のすべての手順が同じ HEAD スナップショットを見る。
 VERIFY_DIR=$(mktemp -d)/verify
@@ -515,7 +516,7 @@ if [k for k in c if k.startswith("PENDING:TASK-")]:
 print(sorted(c.items()))
 EOF
 
-# 2. 差分閉包 段 1 — 変更してよいパスは 2 本だけ(合否判定にする)
+# 2. 差分閉包 段 1 — 変更してよいパスは 3 本だけ(合否判定にする — D-27)
 uv run python - <<'EOF'
 import subprocess, sys
 ALLOWED = {
@@ -532,9 +533,10 @@ if forbidden:
 print(f"contracts/ の変更は許可 3 本のみ({len(changed)} 件)")
 EOF
 
-# 3. 差分閉包 段 2・段 3 — 期待版を構築して完全一致を見る
-#    手順 0 の clean checkout にいるので、作業ツリー == HEAD が保証されている。
-#    それでも git show HEAD: を使う(読む対象を明示するため。二重の安全)。
+# 3. 差分閉包 段 2〜段 4 — 期待版を構築して完全一致を見る
+#    基準側は merge-base、比較側は HEAD。どちらも git show で読み、作業ツリーは読まない
+#    (5 周目 P1-3 — 基準コミットを定数で固定しない)。手順 0 の clean checkout は
+#    手順 4・6 のためのもので、本手順の正しさはそれに依存しない。
 uv run python - <<'EOF'
 import json, subprocess, sys, copy
 
@@ -550,7 +552,7 @@ CMM = "contracts/authz/claim-mutant-map.json"
 SEAL = "contracts/authz/oracle-seal.lock.json"
 
 # --- 段 2: claim-mutant-map ---
-# 基準側も比較側も HEAD(コミット済み)を読む。作業ツリーは読まない(5 周目 P1-3)
+# 基準側 = merge-base、比較側 = HEAD。ともにコミット済みを読む(作業ツリーは読まない)
 base, head = at(MB, CMM), at("HEAD", CMM)
 
 # 許可対象 = 基準版で receiving_task_id == "TSK-270-GROUP-2" の行すべて
@@ -607,8 +609,10 @@ def pairs(text):
 
 mb_obj, mb_dup = pairs(raw(MB, MC))
 hd_obj, hd_dup = pairs(raw("HEAD", MC))
-if hd_dup:
-    sys.exit(f"{MC}: 重複キーがある: {sorted(set(hd_dup))}")
+# 基準版と HEAD の両方を見る。基準版だけに重複を注入すると期待版が汚れるため
+# (実装後レビュー 2 周目 P1 — mb_dup を取得して使っていなかった)
+if mb_dup or hd_dup:
+    sys.exit(f"{MC}: 重複キーがある: 基準版={sorted(set(mb_dup))} HEAD={sorted(set(hd_dup))}")
 em = copy.deepcopy(mb_obj)
 em["sources"]["claim_mutant_map"]["blob_digest"] = hd_obj["sources"]["claim_mutant_map"]["blob_digest"]
 if ser(em) != ser(hd_obj):
@@ -649,6 +653,10 @@ uv run ruff check . && uv run ty check && uv run pytest tests/
 > **実際に落とすのは `tests/test_check_authz_catalog.py` の `object_pairs_hook` を使う恒久検査**
 > (`:301` / `:3114`)**であり、手順 6 の `pytest tests/` で掛かる。**
 > **したがって全検証経路としては red になるが、「手順 4 が守る」という説明は誤りだった。**
+>
+> **段 4 はこの限界を持たない(実装後レビュー 1 周目 `P1-1`)**: **`mcdc-map.json` は凍結 15 資産の
+> 重複キー検査の対象外**なので、恒久検査に頼れない。**段 4 だけは `object_pairs_hook` で
+> 基準版と HEAD の両方の生 JSON を読み、重複キーを自分で落とす。**
 
 **人間が確認すること**(**コア領域 — 逐行確認必須**):
 

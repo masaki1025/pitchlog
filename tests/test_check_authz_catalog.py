@@ -3072,6 +3072,51 @@ def test_mcdc_map_change_closure_rejects_duplicate_keys_in_base_and_head(
         )
 
 
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_mcdc_map_change_closure_rejects_nonstandard_constants_in_base_and_head(
+    constant: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """段4が基準版とHEADの標準外数値定数を拒否し、parse_constantの因果を示す。"""
+    path = "contracts/authz/mcdc-map.json"
+    base_text = _receiving_task_base_text(path)
+    head_text = _receiving_task_head_text(path)
+
+    def inject_nonstandard_digest(text: str) -> str:
+        parsed = json.loads(text)
+        digest = parsed["sources"]["claim_mutant_map"]["blob_digest"]
+        mutated = text.replace(
+            f'"blob_digest": "{digest}"', f'"blob_digest": {constant}', 1
+        )
+        assert mutated != text
+        return mutated
+
+    mutations = (
+        (inject_nonstandard_digest(base_text), head_text),
+        (base_text, inject_nonstandard_digest(head_text)),
+    )
+    for mutated_base_text, mutated_head_text in mutations:
+        with pytest.raises(checker.CatalogError, match=constant):
+            checker._validate_receiving_task_mcdc_map_change(
+                mutated_base_text, mutated_head_text
+            )
+
+    def parse_without_constant_rejection(text: str, _label: str) -> dict[str, Any]:
+        value = json.loads(
+            text, object_pairs_hook=checker._reject_duplicate_json_object
+        )
+        assert isinstance(value, dict)
+        return value
+
+    monkeypatch.setattr(
+        checker, "_parse_unique_mcdc_map_json", parse_without_constant_rejection
+    )
+    for mutated_base_text, mutated_head_text in mutations:
+        checker._validate_receiving_task_mcdc_map_change(
+            mutated_base_text, mutated_head_text
+        )
+
+
 def _generalized_table_privilege_mapping() -> dict[str, Any]:
     """複数 target 対を宣言した実資産の独立 copy を返す。"""
     assets, _seal, _paths = _repository_oracle_assets()
