@@ -4,8 +4,8 @@
   "classification_rules_digest": "18082bd7f79416179c2cce3071bfebdb1e6eca5644b646d114b338f6545ce480",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1080,
-  "aggregate_decision_digest": "6848b05edee56f3e5df818739aa6420be9bb49db188f9e418baceea37608b947",
+  "decision_count": 1083,
+  "aggregate_decision_digest": "2ff43b12cf1ac2f3ddb7de8fbb320ba5d27c86803052faec11f00e68c7cbaac4",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -300,6 +300,20 @@
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "24c070c4706268b46a76dd6b4e0bcf73dcedb60186b5920dbdc9c1d3c2df55c6",
       "decision_digest": "dc49000b1c6b91564fe96c537dbaff7f10ca5c78e99b0a9b726f6c38a0083665"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-036",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "926d3ebb3895b28e15b44c340f6879e6f22f23c43f4f6098db0213d4f2b56623",
+      "decision_digest": "6ef521241e66cea8f725689c9decd4b59049d8ed2cab99eb2ef4181982d57d5f"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-037",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "bb6c93964afff8d0ce3be81e8b4002395d4b562bde8e04bda34be498e3d426bb",
+      "decision_digest": "cf200ddf5ed812262be4839f9b5793a7e17814d101cae6c592d03c3d57469189"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -8968,22 +8982,29 @@
       "source_id": "NFR-018/list_item-026",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "9a089472c679cc3ef587ffbf287607bfeee4433a1e27b3345cf04de5dfa1a2fb",
-      "decision_digest": "9cb38779740895661e769b1777386b668c74469d1daa86f5a31780b43c1de5b0"
+      "source_text_digest": "10bc2a2ecbc99c9a8ff36f25403eda80d29abe4310041161711c6ec319db84f9",
+      "decision_digest": "64d756c802f2b2ad8620190b8e130ae0a56d3268a97679e58d344f1669c7ef0e"
     },
     {
       "source_id": "NFR-018/list_item-027",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "6a09a59609b7daa734d071a2bc1bcb0e9d4d3c3d186d33473dadc5614753b441",
-      "decision_digest": "9c5e27aaf81dd8326cd55d7e4d87b0be23d57268a06a842b4ba868a13e934e2a"
+      "source_text_digest": "9a089472c679cc3ef587ffbf287607bfeee4433a1e27b3345cf04de5dfa1a2fb",
+      "decision_digest": "3b5f3be784d6baf7f10bebc2d53c2e55a27c5d9ae969aa4f6ee45c79c32d7ac2"
     },
     {
       "source_id": "NFR-018/list_item-028",
       "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "6a09a59609b7daa734d071a2bc1bcb0e9d4d3c3d186d33473dadc5614753b441",
+      "decision_digest": "65437f211c2f2766b5c2c542b461bca1392f935f318d8034e14c88a377bde27c"
+    },
+    {
+      "source_id": "NFR-018/list_item-029",
+      "classification": "out_of_scope",
       "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
       "source_text_digest": "b33d91045c46c425ed56540756f1e27593586392df51c9f092909096ab6ffa53",
-      "decision_digest": "9f31cb124113935ae814037cccde0a4cad0227e452154ee9028f727be88c1041"
+      "decision_digest": "453750d5f052fe1441d6f28dc7f142a15bdc651d954a15bc48736e250e06e9c6"
     },
     {
       "source_id": "NFR-019/heading-001",
@@ -9003,8 +9024,8 @@
       "source_id": "NFR-019/list_item-002",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "6f51ba59421f9440f342495a6d1fdb274695f3a15f7d946b5a8a786d01517671",
-      "decision_digest": "48a0ee583d9592f00774413526a3b19b5370e2fb11c5258ca1b41302e1f938b0"
+      "source_text_digest": "4ab115eb4b0baf6193fffa569ba53b13353f7d9b3ab7014f710a1b763fbd3336",
+      "decision_digest": "4175d53c1536ea1a1d67a64c949b17e1f47e3702e23145e8e9cd474a4e54d779"
     },
     {
       "source_id": "NFR-019/list_item-003",
@@ -10142,8 +10163,8 @@
       "source_id": "SECTION-10/table_row-007",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "683aa0bad659104fbc195792aaad68861bebc8f86f65120918321ca8ad572b0f",
-      "decision_digest": "4740845b39898d224163e449395dd50c5f5cb654a558b24c54521b93f3c08d30"
+      "source_text_digest": "aed8fbe774f8bf5822d035999fb6e318a95dc72517ed8d76aa13987970071df1",
+      "decision_digest": "938a64dd0a637a9c6c9fd5f02b963dad2f52db0ccf402318e782a4e346ba4bec"
     },
     {
       "source_id": "SECTION-10/table_row-008",
