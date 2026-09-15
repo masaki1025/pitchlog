@@ -1,6 +1,6 @@
 ---
 feature: adr003-bootstrap-transition
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review        # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-11・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -187,14 +187,22 @@ TSK-235 の設計を読んだうえでの立論であり、**完全に独立し�
 | `docs/README.md`(索引) | 版・状態・最終更新の現行化 | **PR レビュー**(常に現行化) |
 | **`contracts/authz/` 母集合層**: `requirement-claims.json` / `requirement-claims.lock.json` | `input_manifest` の手更新 + `claims` の追随(**位置移動を含む**)+ `--reseal` | **PR レビュー**(§4-6) |
 | **`contracts/authz/` 派生層**: `route-registry.json` / `route-registry.lock.json` / `auth-catalog.json` / `auth-catalog.lock.json` / `http-route-matrix.json` / `http-route-matrix.lock.json` | 入力 digest の更新 + `--reseal-derived` | **PR レビュー**(§4-6) |
-| **`contracts/authz/` oracle 層** | `oracle_commit` の更新 + **人間査読** + `--reseal-oracle`。**資産の一覧は固定しない — 着手時のリベース後に実測して確定する**(§4-6 の注記) | **PR レビュー + 人間査読**(§4-6。`reseal_policy.human_review_required`) |
+| **`contracts/authz/` oracle 層**(実測 = `attack-tree.json` / `boundary-proposal.json` / `claim-mutant-map.json` / `ddl-elements.json` / `rejected-configs.json` / `verification-evidence.json` + `oracle-seal.lock.json`) | `oracle_commit` の更新 + **人間査読**(2026-09-14・山田正輝)+ `--reseal-oracle`。**資産の一覧は固定しない — 着手時のリベース後に実測して確定する**(§4-6 の注記) | **PR レビュー + 人間査読**(§4-6。`reseal_policy.human_review_required`) |
+| **`contracts/authz/` 第 2 階層**: `mcdc-map.json` / `failure-injection-points.json` | **oracle 資産の blob digest の参照更新**(前者は `claim-mutant-map.json`・後者は `ddl-elements.json`)。**ステップ 8 の実測で判明** — **`oracle_commit` の 1 行変更が oracle 資産の blob を動かし、それを入力とする第 2 階層が連鎖する**(`H-85` の 3 件目の実測。**計画時点では「8 資産で閉じる」と見込んでいた**) | **PR レビュー**(§4-6) |
 | `contracts/authz/shared-preconditions.json` | `git_blob_digest` の手更新。**2026-09-11 に develop へ実在化**(TSK-317 PR #1 = PR #52・マージコミット `67e06a2`)。reseal 経路が無いため手で直す。**括りでは逐行確認から漏れやすいため個別に列挙**(TSK-317 からの依頼) | **PR レビュー** |
 | `tests/` の期待件数テスト | 母集合の件数変動に追随(H-85 の連鎖に含まれる) | **PR レビュー** |
 | `docs/development/harness-evaluation.md` | **H-85 への実測追記**(本タスクは H-85 の 3 例目以降の発火事例)。版は上げない | **PR レビュー**(7.6-3 前段) |
 | `docs/development/github-setup.md` | **反映なし(確認のみ)**。必須チェックの数・名称を変えないことを検査して結論を書く | —(確認記録のみ) |
 | `docs/development/dev-harness-design-2026-08-07.md` **6.1 / 6.3 / 13 章** | **反映なし(確認のみ)**。13 章は禁止の主語が「**対象計算のコード**」に限定され検査基盤 PR 自身のマージは対象外 / 6.3 はレビュー範囲の規則 | —(確認記録のみ) |
 | `docs/improvements-from-baseball-scoring.md` / `docs/design/sync-protocol.md` / `docs/design/data-model.md` | **反映なし**(1 周目レビューが「直接改訂は不要」と確認) | — |
-| `backend/**` / `frontend/**` / `scripts/**` | **反映なし**(検査スクリプトの実装は TSK-235 の射程) | — |
+| `backend/**` / `frontend/**` | **反映なし** | — |
+
+### 正本体系外だが同一 PR で更新するもの
+
+| ファイル | 変更内容 | 根拠 |
+| --- | --- | --- |
+| `scripts/check_authz_catalog.py`(**1 行**: `ORACLE_INPUT_BASELINE_COMMIT`) | **`oracle_commit` を差し替えると、同ファイル `:4525` が `boundary-proposal.json` の `oracle_commit` との一致を要求するため機構上不可避**。**当初の宣言は「`scripts/**` は反映なし(検査スクリプトの実装は TSK-235 の射程)」であり、本変更はそれと矛盾する** — **実行前に停止して選択肢を提示し PO 裁可を得た**(2026-09-14・山田正輝)。**検査スクリプトの実装ではなく、oracle 基準コミットの追随である**点で TSK-235 の射程とは別 | **PO 裁可**(計画外・ステップ 8) |
+| `tests/test_check_authz_catalog.py`(**3 箇所**) | 母集合の件数変動への追随(`H-85` の連鎖)。上表の「`tests/` の期待件数テスト」行と同一のもの | §4-6 |
 
 ## 4. 実装方針
 
