@@ -43,6 +43,7 @@ DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
 DEFAULT_FROZEN_BASELINES = Path("contracts/authz/frozen-baselines.json")
+_VERIFIED_REACHABLE_ORACLE_COMMITS: set[tuple[Path, str]] = set()
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -498,14 +499,14 @@ def _read_json(path: Path, label: str = "母集合") -> object:
         raise CatalogError(f"{label}の JSON が不正: {path}: {error}") from error
 
 
-def load_oracle_input_baseline(root: Path) -> str:
-    """凍結基準台帳の oracle_input 系列末尾から現行基準を読む。
+def load_oracle_input_declaration(root: Path) -> tuple[dict[str, object], str]:
+    """入力lockを対象に含む宣言と、その系列末尾の基準を読む。
 
     Args:
         root: リポジトリルート。
 
     Returns:
-        oracle_input 系列末尾の40桁commit。
+        宣言の3指定と、その ``basis_series`` 末尾の40桁commit。
 
     Raises:
         CatalogError: 台帳を読めない、系列が空、または末尾の値が不正な場合。
@@ -513,18 +514,59 @@ def load_oracle_input_baseline(root: Path) -> str:
     raw = _read_json(root / DEFAULT_FROZEN_BASELINES, "凍結基準台帳")
     if not isinstance(raw, dict):
         raise CatalogError("凍結基準台帳はオブジェクトでなければならない")
+    declarations = raw.get("declarations")
     baselines = raw.get("baselines")
+    if not isinstance(declarations, dict):
+        raise CatalogError(
+            "凍結基準台帳.declarations はオブジェクトでなければならない"
+        )
     if not isinstance(baselines, dict):
         raise CatalogError("凍結基準台帳.baselines はオブジェクトでなければならない")
-    history = baselines.get("oracle_input")
+    target = DEFAULT_LOCK.as_posix()
+    candidates: list[dict[str, object]] = []
+    for value in declarations.values():
+        if not isinstance(value, dict):
+            raise CatalogError("凍結基準台帳.declarations の記録が不正")
+        targets = value.get("frozen_targets")
+        if isinstance(targets, list) and target in targets:
+            candidates.append(value)
+    if len(candidates) != 1:
+        raise CatalogError(f"凍結対象 {target} を含む宣言が一意でない")
+    declaration = candidates[0]
+    _expect_keys(
+        declaration,
+        {"frozen_targets", "identity", "granularity", "basis_series"},
+        "oracle入力の凍結宣言",
+    )
+    targets = declaration["frozen_targets"]
+    basis_series = declaration["basis_series"]
+    if (
+        not isinstance(targets, list)
+        or not targets
+        or not all(isinstance(item, str) for item in targets)
+        or len(targets) != len(set(targets))
+        or declaration["identity"] != "git_blob_digest"
+        or declaration["granularity"] != "blob"
+        or not isinstance(basis_series, str)
+    ):
+        raise CatalogError("oracle入力の凍結宣言が不正または実行不能")
+    history = baselines.get(basis_series)
     if not isinstance(history, list) or not history:
-        raise CatalogError("凍結基準台帳.oracle_input は空でない配列でなければならない")
+        raise CatalogError(
+            f"凍結基準台帳.{basis_series} は空でない配列でなければならない"
+        )
     latest = history[-1]
     if not isinstance(latest, dict):
         raise CatalogError("凍結基準台帳.oracle_input の末尾はオブジェクトでなければならない")
     commit = latest.get("commit")
     if not isinstance(commit, str) or not COMMIT_RE.fullmatch(commit):
-        raise CatalogError("凍結基準台帳.oracle_input 末尾の commit が不正")
+        raise CatalogError(f"凍結基準台帳.{basis_series} 末尾の commit が不正")
+    return declaration, commit
+
+
+def load_oracle_input_baseline(root: Path) -> str:
+    """凍結対象の宣言から入力基準系列の末尾commitを導出する。"""
+    _declaration, commit = load_oracle_input_declaration(root)
     return commit
 
 
@@ -4810,6 +4852,9 @@ def validate_oracle_seal(
         raise CatalogError("oracle_commit が commit SHA でない")
     if raw["oracle_commit_semantics"] != "last_committed_step_4_input_baseline":
         raise CatalogError("oracle_commit の意味が不正")
+    input_declaration, declared_commit = load_oracle_input_declaration(root)
+    if oracle_commit != declared_commit:
+        raise CatalogError("oracle_commit が宣言の基準系列末尾と不一致")
     for name, asset in assets.items():
         context_raw = asset.get("oracle_context")
         if not isinstance(context_raw, dict) or context_raw.get("oracle_commit") != oracle_commit:
@@ -4817,6 +4862,37 @@ def validate_oracle_seal(
     input_rows = _expect_object_list(raw["input_assets"], "oracle seal.input_assets")
     _validate_object_path_uniqueness(input_rows, "oracle seal.input_assets")
     input_paths: set[str] = set()
+    has_git_history = (root / ".git").exists()
+    if not has_git_history:
+        print(
+            "oracle seal: .git が無いため履歴照合を省略した; "
+            "この実行は凍結の保証対象外である"
+        )
+    elif (root.resolve(), oracle_commit) not in _VERIFIED_REACHABLE_ORACLE_COMMITS:
+        for arguments, failure in (
+            (
+                ["cat-file", "-e", f"{oracle_commit}^{{commit}}"],
+                "commit を解決できない",
+            ),
+            (
+                ["merge-base", "--is-ancestor", oracle_commit, "HEAD"],
+                "commit が HEAD から到達不能",
+            ),
+        ):
+            result = subprocess.run(
+                ["git", *arguments],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip() or "<stderr なし>"
+                raise CatalogError(
+                    f"oracle commit {oracle_commit}: {failure}: "
+                    f"git {' '.join(arguments)} stderr={stderr}"
+                )
+        _VERIFIED_REACHABLE_ORACLE_COMMITS.add((root.resolve(), oracle_commit))
     for index, entry in enumerate(input_rows):
         label = f"oracle seal.input_assets[{index}]"
         _expect_keys(entry, {"path", "git_blob_digest"}, label)
@@ -4830,7 +4906,7 @@ def validate_oracle_seal(
         if not path.is_file() or git_blob_digest(_read_bytes(path, path_text)) != digest:
             raise CatalogError(f"{path_text}: oracle input blob が不一致")
         input_paths.add(path_text)
-        if (root / ".git").exists():
+        if has_git_history:
             result = subprocess.run(
                 ["git", "rev-parse", f"{oracle_commit}:{path_text}"],
                 cwd=root,
@@ -4846,16 +4922,9 @@ def validate_oracle_seal(
                 )
             if result.stdout.strip() != digest:
                 raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
-    required_input_paths = {
-        "contracts/authz/requirement-claims.json",
-        "contracts/authz/requirement-claims.lock.json",
-        "contracts/authz/route-registry.json",
-        "contracts/authz/route-registry.lock.json",
-        "contracts/authz/auth-catalog.json",
-        "contracts/authz/auth-catalog.lock.json",
-        "contracts/authz/http-route-matrix.json",
-        "contracts/authz/http-route-matrix.lock.json",
-    }
+    declared_targets = input_declaration["frozen_targets"]
+    assert isinstance(declared_targets, list)
+    required_input_paths = set(declared_targets)
     if input_paths != required_input_paths:
         raise CatalogError("oracle 入力8資産が exact-set 不一致")
     sealed_rows = _expect_object_list(raw["sealed_assets"], "oracle seal.sealed_assets")
@@ -5308,6 +5377,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         summary += " derived-resealed"
     if args.reseal_oracle:
         summary += " oracle-resealed"
+    if oracle_result is not None:
+        input_declaration, _commit = load_oracle_input_declaration(root)
+        print(
+            "frozen-declaration-used="
+            + json.dumps(
+                input_declaration,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     print(summary)
     return 0
 

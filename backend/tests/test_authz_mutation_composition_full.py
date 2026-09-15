@@ -11,7 +11,6 @@ import pytest
 from db.authz import mutation_composition
 from db.authz.mutation_composition import (
     ORACLE_SEAL_RELATIVE_PATH,
-    STEP2_CHANGED_CANONICAL_ASSET_PATHS,
     MutationCompositionError,
     frozen_oracle_paths,
     intentionally_changed_frozen_oracle_paths,
@@ -66,16 +65,42 @@ def test_resealed_oracle_input_matches_baseline() -> None:
     verify_frozen_oracle_unchanged()
 
 
+def test_oracle_meaning_reports_the_exact_declaration_it_uses(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """意味検査が現に用いた3指定を台帳と完全一致で出力する。"""
+    load_oracle_meaning_baseline_commit()
+    line = capsys.readouterr().out.strip()
+    prefix = "frozen-declaration-used="
+    assert line.startswith(prefix)
+    used = json.loads(line.removeprefix(prefix))
+    ledger = json.loads(
+        (
+            mutation_composition.REPOSITORY_ROOT
+            / "contracts/authz/frozen-baselines.json"
+        ).read_text(encoding="utf-8")
+    )
+    matches = [
+        declaration
+        for declaration in ledger["declarations"].values()
+        if ORACLE_SEAL_RELATIVE_PATH in declaration["frozen_targets"]
+    ]
+    assert used == matches[0]
+    assert len(matches) == 1
+
+
 def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:
-    """ポインタを除く意味差分が承認済み2資産だけである。"""
+    """基準からHEADへの意味差分を固定値なしで導出する。"""
     baseline_commit = load_oracle_meaning_baseline_commit()
     base_frozen = set(frozen_oracle_paths(base_ref=baseline_commit))
     current_frozen = set(frozen_oracle_paths())
     changed = intentionally_changed_frozen_oracle_paths()
 
     assert base_frozen == current_frozen
-    assert changed == STEP2_CHANGED_CANONICAL_ASSET_PATHS
-    assert changed < current_frozen
+    assert changed == {
+        "contracts/authz/boundary-proposal.json",
+        "contracts/authz/ddl-elements.json",
+    }
     assert ORACLE_SEAL_RELATIVE_PATH in current_frozen
 
 
@@ -96,6 +121,20 @@ def _clone_repository(tmp_path: Path) -> Path:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "test"],
+        cwd=root,
+        check=True,
+    )
+    ledger_path = Path("contracts/authz/frozen-baselines.json")
+    (root / ledger_path).write_bytes(
+        (mutation_composition.REPOSITORY_ROOT / ledger_path).read_bytes()
+    )
     seal = json.loads((root / ORACLE_SEAL_RELATIVE_PATH).read_text(encoding="utf-8"))
     oracle_commit = seal["oracle_commit"]
     for row in seal["input_assets"]:
@@ -109,6 +148,50 @@ def _clone_repository(tmp_path: Path) -> Path:
         assert frozen.returncode == 0, frozen.stderr.decode(errors="replace")
         (root / relative_path).write_bytes(frozen.stdout)
     return root
+
+
+def test_oracle_meaning_baseline_can_advance_to_head_without_code_change(
+    tmp_path: Path,
+) -> None:
+    """7.7-2: 基準をHEADへ進めると導出差分が空になり検査が通る。"""
+    root = _clone_repository(tmp_path)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    ledger_path = root / "contracts/authz/frozen-baselines.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    declarations = ledger["declarations"]
+    declaration = next(
+        value
+        for value in declarations.values()
+        if ORACLE_SEAL_RELATIVE_PATH in value["frozen_targets"]
+    )
+    history = ledger["baselines"][declaration["basis_series"]]
+    assert intentionally_changed_frozen_oracle_paths(root) == {
+        "contracts/authz/boundary-proposal.json",
+        "contracts/authz/ddl-elements.json",
+    }
+    history.append(
+        {
+            "commit": head,
+            "supersedes": history[-1]["commit"],
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-16",
+            "reason": "oracle意味基準を現在へ進める正当経路の実証",
+        }
+    )
+    ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    verify_frozen_oracle_unchanged(root)
+
+    assert intentionally_changed_frozen_oracle_paths(root) == frozenset()
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -143,6 +226,21 @@ def test_frozen_oracle_rejects_meaning_tampering_after_reseal(
     boundary_row["canonical_sha256"] = mutation_composition._canonical_sha256(boundary)
     _write_json(boundary_path, boundary)
     _write_json(seal_path, seal)
+    subprocess.run(
+        [
+            "git",
+            "add",
+            boundary_path.relative_to(root).as_posix(),
+            seal_path.relative_to(root).as_posix(),
+        ],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "--quiet", "-m", "test: tamper oracle meaning"],
+        cwd=root,
+        check=True,
+    )
 
     assert boundary_row["canonical_sha256"] == (
         mutation_composition._canonical_sha256(boundary)

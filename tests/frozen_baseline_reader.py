@@ -7,7 +7,7 @@ import sys
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 READER_SCRIPT = REPOSITORY_ROOT / "scripts/check_frozen_baselines.py"
@@ -29,6 +29,28 @@ def _load_reader() -> Callable[[Path, str], str]:
     return cast(Callable[[Path, str], str], reader)
 
 
+@lru_cache(maxsize=1)
+def _load_target_reader() -> Callable[[Path, str], tuple[Any, str]]:
+    """検査器から対象起点の宣言・基準読取関数を取得する。"""
+    _load_reader()
+    module = sys.modules["frozen_baseline_reader_script"]
+    reader = getattr(module, "load_frozen_baseline_for_target", None)
+    if not callable(reader):
+        raise RuntimeError("凍結基準検査器に対象起点の共通読取関数がない")
+    return cast(Callable[[Path, str], tuple[Any, str]], reader)
+
+
+@lru_cache(maxsize=1)
+def _load_usage_formatter() -> Callable[[Any], str]:
+    """検査器から宣言使用実績の整形関数を取得する。"""
+    _load_reader()
+    module = sys.modules["frozen_baseline_reader_script"]
+    formatter = getattr(module, "format_frozen_declaration_usage", None)
+    if not callable(formatter):
+        raise RuntimeError("凍結基準検査器に宣言使用実績の整形関数がない")
+    return cast(Callable[[Any], str], formatter)
+
+
 def load_frozen_baseline_commit(root: Path, series: str) -> str:
     """指定した commit 型系列の末尾から現行基準を読む。
 
@@ -40,3 +62,13 @@ def load_frozen_baseline_commit(root: Path, series: str) -> str:
         系列末尾の40桁commit。
     """
     return _load_reader()(root, series)
+
+
+def load_frozen_baseline_for_target(root: Path, target: str) -> tuple[Any, str]:
+    """凍結対象から宣言と末尾基準を導出する。"""
+    return _load_target_reader()(root, target)
+
+
+def format_frozen_declaration_usage(declaration: Any) -> str:
+    """現に用いた宣言の3指定を機械可読な形へ整形する。"""
+    return _load_usage_formatter()(declaration)

@@ -1,6 +1,56 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_frozen_baselines",
+  "declarations": {
+    "oracle_input": {
+      "frozen_targets": [
+        "contracts/authz/requirement-claims.json",
+        "contracts/authz/requirement-claims.lock.json",
+        "contracts/authz/route-registry.json",
+        "contracts/authz/route-registry.lock.json",
+        "contracts/authz/auth-catalog.json",
+        "contracts/authz/auth-catalog.lock.json",
+        "contracts/authz/http-route-matrix.json",
+        "contracts/authz/http-route-matrix.lock.json"
+      ],
+      "identity": "git_blob_digest",
+      "granularity": "blob",
+      "basis_series": "oracle_input"
+    },
+    "oracle_meaning": {
+      "frozen_targets": [
+        "contracts/authz/oracle-seal.lock.json",
+        "contracts/authz/ddl-elements.json",
+        "contracts/authz/rejected-configs.json",
+        "contracts/authz/claim-mutant-map.json",
+        "contracts/authz/attack-tree.json",
+        "contracts/authz/boundary-proposal.json",
+        "contracts/authz/verification-evidence.json"
+      ],
+      "identity": "canonical_json",
+      "granularity": "asset_without_movable_pointers",
+      "basis_series": "oracle_meaning"
+    },
+    "core_areas_guard": {
+      "frozen_targets": [
+        ".claude/core-areas.json"
+      ],
+      "identity": "canonical_json",
+      "granularity": "asset",
+      "basis_series": "core_areas_guard"
+    },
+    "corpus_versions": {
+      "frozen_targets": [
+        "contracts/authz/requirement-claims.json",
+        "contracts/authz/route-registry.json",
+        "contracts/authz/auth-catalog.json",
+        "contracts/authz/http-route-matrix.json"
+      ],
+      "identity": "canonical_sha256_and_corpus_version",
+      "granularity": "canonical_json_asset",
+      "basis_series": "corpus_versions"
+    }
+  },
   "baselines": {
     "oracle_input": [
       {
@@ -40,6 +90,7 @@
       {
         "version": 1,
         "canonical_sha256": "5dc35ec859d9a535ee2f0919886171a909ce74004f3dbfe8da4e4cb6ce367ca9",
+        "supersedes": null,
         "approved_by": "山田正輝",
         "approved_at": "2026-09-15",
         "reason": "初版。TSK-386 ステップ 8"

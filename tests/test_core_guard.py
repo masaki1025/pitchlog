@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from frozen_baseline_reader import load_frozen_baseline_commit
+from frozen_baseline_reader import (
+    format_frozen_declaration_usage,
+    load_frozen_baseline_commit,
+    load_frozen_baseline_for_target,
+)
 
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
@@ -804,11 +808,15 @@ def load_base_core_areas(
     base_revision: str | None = None,
 ) -> dict[str, Any]:
     """指定リポジトリの固定基準版 core-areas.json を Git から読む。"""
-    baseline_commit = (
-        load_frozen_baseline_commit(root, "core_areas_guard")
-        if base_revision is None
-        else base_revision
-    )
+    if base_revision is None:
+        target = CORE_AREAS_PATH.relative_to(REPO).as_posix()
+        declaration, baseline_commit = load_frozen_baseline_for_target(root, target)
+        print(
+            "frozen-declaration-used="
+            f"{format_frozen_declaration_usage(declaration)}"
+        )
+    else:
+        baseline_commit = base_revision
     value = json.loads(
         run_git(
             root,
@@ -974,6 +982,28 @@ def expected_authz_guard_paths(root: Path = REPO) -> frozenset[str]:
     assert isinstance(baseline_guard_paths, list)
     assert all(isinstance(path, str) for path in baseline_guard_paths)
     return frozenset(baseline_guard_paths) | frozenset(AUTHZ_GUARD_PATH_ADDITIONS)
+
+
+def test_core_guard_reports_the_exact_declaration_it_uses(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """core guard が現に用いた3指定を台帳と完全一致で出力する。"""
+    load_base_core_areas()
+    line = capsys.readouterr().out.strip()
+    prefix = "frozen-declaration-used="
+    assert line.startswith(prefix)
+    used = json.loads(line.removeprefix(prefix))
+    ledger = json.loads(
+        (REPO / "contracts/authz/frozen-baselines.json").read_text(encoding="utf-8")
+    )
+    target = CORE_AREAS_PATH.relative_to(REPO).as_posix()
+    matches = [
+        declaration
+        for declaration in ledger["declarations"].values()
+        if target in declaration["frozen_targets"]
+    ]
+    assert used == matches[0]
+    assert len(matches) == 1
 
 
 def assert_authz_guard_paths_are_exact(

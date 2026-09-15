@@ -6,6 +6,7 @@ import copy
 import importlib.util
 import itertools
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -17,7 +18,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-from frozen_baseline_reader import load_frozen_baseline_commit
+from frozen_baseline_reader import load_frozen_baseline_for_target
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
@@ -60,7 +61,11 @@ checker = _load_checker()
 @lru_cache(maxsize=1)
 def _oracle_meaning_baseline_commit() -> str:
     """台帳の oracle_meaning 系列末尾から現行基準を読む。"""
-    return load_frozen_baseline_commit(REPOSITORY_ROOT, "oracle_meaning")
+    _declaration, commit = load_frozen_baseline_for_target(
+        REPOSITORY_ROOT,
+        f"contracts/authz/{ORACLE_SEAL_FILE}",
+    )
+    return commit
 
 
 def _make_repository(tmp_path: Path) -> Path:
@@ -86,6 +91,18 @@ def _clone_repository(tmp_path: Path) -> Path:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "test"],
+        cwd=root,
+        check=True,
+    )
+    relative_ledger = Path("contracts/authz/frozen-baselines.json")
+    shutil.copy2(REPOSITORY_ROOT / relative_ledger, root / relative_ledger)
     return root
 
 
@@ -431,6 +448,10 @@ def _copy_frozen_assets(tmp_path: Path) -> Path:
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+    relative_ledger = Path("contracts/authz/frozen-baselines.json")
+    ledger_destination = root / relative_ledger
+    ledger_destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / relative_ledger, ledger_destination)
     return root
 
 
@@ -929,7 +950,20 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
 
     assert result.returncode == 0
     assert result.stderr == ""
-    assert result.stdout.startswith("check_authz_catalog.py: ok ")
+    output_lines = result.stdout.splitlines()
+    assert output_lines[-1].startswith("check_authz_catalog.py: ok ")
+    usage_prefix = "frozen-declaration-used="
+    assert output_lines[0].startswith(usage_prefix)
+    used_declaration = json.loads(output_lines[0].removeprefix(usage_prefix))
+    ledger = _read_repository_json("contracts/authz/frozen-baselines.json")
+    candidates = [
+        declaration
+        for declaration in ledger["declarations"].values()
+        if "contracts/authz/requirement-claims.lock.json"
+        in declaration["frozen_targets"]
+    ]
+    assert used_declaration == candidates[0]
+    assert len(candidates) == 1
     assert "oracle_claims=198" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
@@ -2775,10 +2809,40 @@ def test_repository_oracle_assets_are_valid() -> None:
 
 @pytest.mark.frozen_negative
 def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
-    """N4: 到達不能commitのblobを解決できなければredにする。"""
+    """N4: 実在するがHEADから到達不能なcommitをredにする。"""
     root = _clone_repository(tmp_path)
     assets, seal, paths = _repository_oracle_assets(root)
-    unreachable = "0" * 40
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    unreachable = subprocess.run(
+        ["git", "commit-tree", tree, "-m", "dangling baseline"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert re.fullmatch(r"[0-9a-f]{40}", unreachable)
+    ledger_path = root / "contracts/authz/frozen-baselines.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    history = ledger["baselines"]["oracle_input"]
+    history.append(
+        {
+            "commit": unreachable,
+            "supersedes": history[-1]["commit"],
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-16",
+            "reason": "N4のdangling commit負例",
+        }
+    )
+    ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     seal["oracle_commit"] = unreachable
     for asset in assets.values():
         context = asset["oracle_context"]
@@ -2796,28 +2860,43 @@ def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
         assert isinstance(path, str)
         row["git_blob_digest"] = checker.git_blob_digest((root / path).read_bytes())
 
-    input_path = seal["input_assets"][0]["path"]
-    assert isinstance(input_path, str)
-    git_result = subprocess.run(
-        ["git", "rev-parse", f"{unreachable}:{input_path}"],
+    exists_result = subprocess.run(
+        ["git", "cat-file", "-e", f"{unreachable}^{{commit}}"],
         cwd=root,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert git_result.returncode != 0
-    assert git_result.stderr.strip()
+    reachable_result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", unreachable, "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert exists_result.returncode == 0
+    assert reachable_result.returncode == 1
+    assert not subprocess.run(
+        ["git", "branch", "--contains", unreachable],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
 
     with pytest.raises(checker.CatalogError) as raised:
         checker.validate_oracle_seal(seal, assets, paths, root)
 
     message = str(raised.value)
     assert unreachable in message
-    assert input_path in message
-    assert git_result.stderr.strip() in message
+    assert "HEAD から到達不能" in message
+    assert "merge-base --is-ancestor" in message
 
 
-def test_valid_oracle_assets_without_git_remain_supported(tmp_path: Path) -> None:
+def test_valid_oracle_assets_without_git_remain_supported(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """履歴を持たない凍結資産コピーではcommit上のblob照合を要求しない。"""
     root = _copy_frozen_assets(tmp_path)
     assets, seal, paths = _repository_oracle_assets(root)
@@ -2825,6 +2904,9 @@ def test_valid_oracle_assets_without_git_remain_supported(tmp_path: Path) -> Non
 
     assert not (root / ".git").exists()
     assert checker.validate_oracle_seal(seal, assets, paths, root) == seal["oracle_commit"]
+    output = capsys.readouterr().out
+    assert "履歴照合を省略した" in output
+    assert "凍結の保証対象外" in output
 
 
 def test_oracle_reseal_is_only_enabled_by_the_dedicated_flag() -> None:

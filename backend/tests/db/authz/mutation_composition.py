@@ -32,15 +32,7 @@ CLAIM_MUTANT_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/claim-mutant-map.json
 ATTACK_TREE_PATH = REPOSITORY_ROOT / "contracts/authz/attack-tree.json"
 MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
-_BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
-_DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
 _FROZEN_BASELINES_RELATIVE_PATH = "contracts/authz/frozen-baselines.json"
-STEP2_CHANGED_CANONICAL_ASSET_PATHS = frozenset(
-    {
-        _BOUNDARY_PROPOSAL_RELATIVE_PATH,
-        _DDL_ELEMENTS_RELATIVE_PATH,
-    }
-)
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -54,6 +46,109 @@ _T = TypeVar("_T")
 
 class MutationCompositionError(ValueError):
     """ステップ20資産または実行結果の契約違反を表す。"""
+
+
+@dataclass(frozen=True, slots=True)
+class _FrozenDeclaration:
+    """台帳から導出した凍結対象・比較方式・基準系列を保持する。"""
+
+    frozen_targets: tuple[str, ...]
+    identity: str
+    granularity: str
+    basis_series: str
+
+    def specifications(self) -> dict[str, object]:
+        """委任された3指定を台帳と同じ形で返す。"""
+        return {
+            "frozen_targets": list(self.frozen_targets),
+            "identity": self.identity,
+            "granularity": self.granularity,
+            "basis_series": self.basis_series,
+        }
+
+
+def _load_oracle_meaning_declaration(
+    root: Path,
+) -> tuple[_FrozenDeclaration, str]:
+    """Oracle seal を対象に含む宣言と、その末尾基準を読む。"""
+    path = root.resolve() / _FROZEN_BASELINES_RELATIVE_PATH
+    try:
+        catalog = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise MutationCompositionError(
+            f"凍結基準台帳を読めない: {path}: {error}"
+        ) from error
+    if not isinstance(catalog, dict):
+        raise MutationCompositionError("凍結基準台帳がobjectでない")
+    raw_declarations = catalog.get("declarations")
+    baselines = catalog.get("baselines")
+    if not isinstance(raw_declarations, dict):
+        raise MutationCompositionError("凍結基準台帳.declarationsがobjectでない")
+    if not isinstance(baselines, dict):
+        raise MutationCompositionError("凍結基準台帳.baselinesがobjectでない")
+    candidates: list[tuple[str, dict[str, object]]] = []
+    for name, raw_declaration in raw_declarations.items():
+        if not isinstance(name, str) or not isinstance(raw_declaration, dict):
+            raise MutationCompositionError("凍結基準台帳.declarationsが不正")
+        if set(raw_declaration) != {
+            "frozen_targets",
+            "identity",
+            "granularity",
+            "basis_series",
+        }:
+            raise MutationCompositionError(f"凍結基準台帳.declarations.{name}が不正")
+        targets = raw_declaration.get("frozen_targets")
+        if not isinstance(targets, list) or not all(
+            isinstance(target, str) for target in targets
+        ):
+            raise MutationCompositionError(
+                f"凍結基準台帳.declarations.{name}.frozen_targetsが不正"
+            )
+        if ORACLE_SEAL_RELATIVE_PATH in targets:
+            candidates.append((name, raw_declaration))
+    if len(candidates) != 1:
+        raise MutationCompositionError(
+            "oracle sealを対象に含む凍結基準宣言が一意でない"
+        )
+    name, raw_declaration = candidates[0]
+    frozen_targets = raw_declaration["frozen_targets"]
+    identity = raw_declaration["identity"]
+    granularity = raw_declaration["granularity"]
+    basis_series = raw_declaration["basis_series"]
+    if (
+        not isinstance(frozen_targets, list)
+        or not frozen_targets
+        or len(frozen_targets) != len(set(frozen_targets))
+        or not isinstance(identity, str)
+        or not isinstance(granularity, str)
+        or not isinstance(basis_series, str)
+        or basis_series != name
+    ):
+        raise MutationCompositionError("oracle意味本文の凍結基準宣言が不正")
+    if identity != "canonical_json" or granularity != (
+        "asset_without_movable_pointers"
+    ):
+        raise MutationCompositionError(
+            "oracle意味本文の宣言した同一性・粒度を実行できない"
+        )
+    history = baselines.get(basis_series)
+    if not isinstance(history, list) or not history:
+        raise MutationCompositionError(
+            f"凍結基準台帳.{basis_series}が空でない配列でない"
+        )
+    latest = history[-1]
+    if not isinstance(latest, dict):
+        raise MutationCompositionError(f"凍結基準台帳.{basis_series}末尾がobjectでない")
+    commit = latest.get("commit")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise MutationCompositionError(f"凍結基準台帳.{basis_series}末尾のcommitが不正")
+    declaration = _FrozenDeclaration(
+        frozen_targets=tuple(frozen_targets),
+        identity=identity,
+        granularity=granularity,
+        basis_series=basis_series,
+    )
+    return declaration, commit
 
 
 def load_oracle_meaning_baseline_commit(
@@ -70,29 +165,16 @@ def load_oracle_meaning_baseline_commit(
     Raises:
         MutationCompositionError: 台帳を読めない、系列が空、または値が不正な場合。
     """
-    path = root.resolve() / _FROZEN_BASELINES_RELATIVE_PATH
-    try:
-        catalog = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise MutationCompositionError(
-            f"凍結基準台帳を読めない: {path}: {error}"
-        ) from error
-    if not isinstance(catalog, dict):
-        raise MutationCompositionError("凍結基準台帳がobjectでない")
-    baselines = catalog.get("baselines")
-    if not isinstance(baselines, dict):
-        raise MutationCompositionError("凍結基準台帳.baselinesがobjectでない")
-    history = baselines.get("oracle_meaning")
-    if not isinstance(history, list) or not history:
-        raise MutationCompositionError(
-            "凍結基準台帳.oracle_meaningが空でない配列でない"
+    declaration, commit = _load_oracle_meaning_declaration(root)
+    print(
+        "frozen-declaration-used="
+        + json.dumps(
+            declaration.specifications(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
         )
-    latest = history[-1]
-    if not isinstance(latest, dict):
-        raise MutationCompositionError("凍結基準台帳.oracle_meaning末尾がobjectでない")
-    commit = latest.get("commit")
-    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
-        raise MutationCompositionError("凍結基準台帳.oracle_meaning末尾のcommitが不正")
+    )
     return commit
 
 
@@ -946,19 +1028,6 @@ def run_step20(
     )
 
 
-def _frozen_oracle_paths_from_seal(seal: dict[str, object]) -> tuple[str, ...]:
-    """sealの入力・封印行とseal自身から凍結パスを導出する。"""
-    paths = [
-        _text(row.get("path"), "frozen asset path")
-        for key in ("input_assets", "sealed_assets")
-        for row in _expect_rows(seal.get(key), f"oracle seal.{key}")
-    ]
-    paths.append(ORACLE_SEAL_RELATIVE_PATH)
-    if len(paths) != len(set(paths)):
-        raise MutationCompositionError("凍結パスが重複している")
-    return tuple(paths)
-
-
 def _oracle_seal_at_revision(root: Path, revision: str) -> dict[str, object]:
     """固定revisionにあるoracle sealを読み取る。"""
     result = subprocess.run(
@@ -1011,14 +1080,12 @@ def frozen_oracle_paths(
     root: Path = REPOSITORY_ROOT,
     base_ref: str | None = None,
 ) -> tuple[str, ...]:
-    """現在または固定revisionのsealから凍結パスを導出する。"""
+    """台帳宣言からoracle意味本文の凍結パスを導出する。"""
     resolved = root.resolve()
-    seal = (
-        _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
-        if base_ref is None
-        else _oracle_seal_at_revision(resolved, base_ref)
-    )
-    return _frozen_oracle_paths_from_seal(seal)
+    declaration, _commit = _load_oracle_meaning_declaration(resolved)
+    if base_ref is not None:
+        _oracle_seal_at_revision(resolved, base_ref)
+    return declaration.frozen_targets
 
 
 def _json_copy(value: dict[str, object], label: str) -> dict[str, object]:
@@ -1037,13 +1104,14 @@ def _oracle_meaning_body(
     return body
 
 
-def _expected_step2_meaning_body(
-    relative_path: str,
+def _approved_oracle_meaning_body(
     base: dict[str, object],
+    label: str,
 ) -> dict[str, object]:
-    """固定基準へ承認済みの2資産の意味変更だけを適用する。"""
-    expected = _oracle_meaning_body(base, f"base asset {relative_path}")
-    if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
+    """基準版の資産種別に対応する承認済み意味本文を導出する。"""
+    expected = _oracle_meaning_body(base, label)
+    asset_kind = _text(expected.get("asset_kind"), f"{label}.asset_kind")
+    if asset_kind == "authz_boundary_proposal":
         expected["proposal_status"] = "tsk_235_confirmed"
         boundaries = _expect_rows(expected.get("boundaries"), "base boundaries")
         boundaries[0]["aggregation_owner_task_id"] = (
@@ -1061,7 +1129,7 @@ def _expected_step2_meaning_body(
         )
         reviews[0]["status"] = "human_decided"
         reviews[1]["status"] = "human_decided"
-    elif relative_path == _DDL_ELEMENTS_RELATIVE_PATH:
+    elif asset_kind == "authz_candidate_ddl_manifest":
         scope = _expect_object(expected.get("scope"), "base DDL scope")
         scope["status"] = "verified_probe_configuration"
         scope["second_group_approval_required"] = False
@@ -1188,22 +1256,36 @@ def _changed_oracle_meaning_paths(
     root: Path,
     base_ref: str,
     current_seal: dict[str, object],
+    declaration: _FrozenDeclaration,
 ) -> frozenset[str]:
-    """可動ポインタを除いて固定基準から意味が変わった資産を返す。"""
+    """基準からHEADへの意味差分を導出し、作業コピーがHEADと一致するか検査する。"""
+    declared_paths = set(declaration.frozen_targets)
+    if ORACLE_SEAL_RELATIVE_PATH not in declared_paths:
+        raise MutationCompositionError("oracle sealが意味本文の凍結対象にない")
+    declared_asset_paths = declared_paths - {ORACLE_SEAL_RELATIVE_PATH}
     current_paths = set(_sealed_rows_by_path(current_seal, "current oracle seal"))
     base_seal = _oracle_seal_at_revision(root, base_ref)
     base_paths = set(_sealed_rows_by_path(base_seal, "base oracle seal"))
-    if current_paths != base_paths:
-        raise MutationCompositionError("sealed_assets.path集合が基準版と不一致")
+    head_seal = _oracle_seal_at_revision(root, "HEAD")
+    head_paths = set(_sealed_rows_by_path(head_seal, "HEAD oracle seal"))
+    if not (current_paths == base_paths == head_paths == declared_asset_paths):
+        raise MutationCompositionError(
+            "sealed_assets.path集合が宣言・基準版・HEAD・作業コピーで不一致"
+        )
     changed: set[str] = set()
-    for path in sorted(base_paths):
+    for path in sorted(declared_asset_paths):
         base = _json_object_at_revision(root, base_ref, path)
+        head = _json_object_at_revision(root, "HEAD", path)
         current = _read_json_object(root / path)
         current_body = _oracle_meaning_body(current, f"current asset {path}")
-        if current_body != _oracle_meaning_body(base, f"base asset {path}"):
+        head_body = _oracle_meaning_body(head, f"HEAD asset {path}")
+        if current_body != head_body:
+            raise MutationCompositionError(f"{path}: 意味本文がHEADの確定内容と不一致")
+        base_body = _oracle_meaning_body(base, f"base asset {path}")
+        if head_body != base_body:
             changed.add(path)
-        expected = _expected_step2_meaning_body(path, base)
-        if current_body != expected:
+        expected_body = _approved_oracle_meaning_body(base, f"base asset {path}")
+        if head_body != expected_body:
             raise MutationCompositionError(f"{path}: 承認済みのoracle意味本文と不一致")
     return frozenset(changed)
 
@@ -1214,17 +1296,15 @@ def intentionally_changed_frozen_oracle_paths(
 ) -> frozenset[str]:
     """可動ポインタを除いて基準版から意味が変わった資産を導出する。"""
     resolved = root.resolve()
-    baseline_commit = (
-        load_oracle_meaning_baseline_commit(resolved) if base_ref is None else base_ref
-    )
+    declaration, declared_commit = _load_oracle_meaning_declaration(resolved)
+    baseline_commit = declared_commit if base_ref is None else base_ref
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
-    changed = _changed_oracle_meaning_paths(resolved, baseline_commit, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
-        raise MutationCompositionError(
-            "意味本文が変わった資産がステップ2の確定集合と不一致: "
-            f"{tuple(sorted(changed))}"
-        )
-    return changed
+    return _changed_oracle_meaning_paths(
+        resolved,
+        baseline_commit,
+        current_seal,
+        declaration,
+    )
 
 
 def verify_frozen_oracle_unchanged(
@@ -1233,9 +1313,17 @@ def verify_frozen_oracle_unchanged(
 ) -> None:
     """入力baselineの三者一致とoracle意味本文の固定を検査する。"""
     resolved = root.resolve()
-    baseline_commit = (
-        load_oracle_meaning_baseline_commit(resolved) if base_ref is None else base_ref
+    declaration, declared_commit = _load_oracle_meaning_declaration(resolved)
+    print(
+        "frozen-declaration-used="
+        + json.dumps(
+            declaration.specifications(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
     )
+    baseline_commit = declared_commit if base_ref is None else base_ref
     base_seal = _oracle_seal_at_revision(resolved, baseline_commit)
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
     if _oracle_seal_meaning_body(
@@ -1244,9 +1332,9 @@ def verify_frozen_oracle_unchanged(
         raise MutationCompositionError("oracle sealの意味本文が基準版と不一致")
     _verify_oracle_input_assets(resolved, current_seal)
     _verify_current_sealed_assets(resolved, current_seal)
-    changed = _changed_oracle_meaning_paths(resolved, baseline_commit, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
-        raise MutationCompositionError(
-            "意味本文が変わった資産がステップ2の確定集合と不一致: "
-            f"{tuple(sorted(changed))}"
-        )
+    _changed_oracle_meaning_paths(
+        resolved,
+        baseline_commit,
+        current_seal,
+        declaration,
+    )

@@ -297,6 +297,13 @@ def test_repository_frozen_baselines_are_valid() -> None:
     assert "scan_values=4" in result.stdout
     assert "pending_removal=0" in result.stdout
     assert "digest_edges=16" in result.stdout
+    used_declarations = {}
+    for line in result.stdout.splitlines():
+        match = re.fullmatch(r"frozen-declaration-used\[([^]]+)\]=(\{.*\})", line)
+        if match is not None:
+            used_declarations[match.group(1)] = json.loads(match.group(2))
+    catalog = _read_catalog(REPOSITORY_ROOT)
+    assert used_declarations == catalog["declarations"]
     for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
         derived = _read_json_object(REPOSITORY_ROOT, relative_path)
         manifest = derived["input_manifest"]
@@ -305,16 +312,53 @@ def test_repository_frozen_baselines_are_valid() -> None:
             "requirement_claims_path",
             "requirement_claims_lock_path",
         }
-    catalog = _read_catalog(REPOSITORY_ROOT)
     version_record = _history(catalog, "corpus_versions")[0]
     assert set(version_record) == {
         "version",
         "canonical_sha256",
+        "supersedes",
         "approved_by",
         "approved_at",
         "reason",
     }
-    assert "supersedes" not in version_record
+    assert version_record["supersedes"] is None
+
+
+def test_delegated_specifications_are_not_held_in_legacy_constants() -> None:
+    """委任3指定を保持していた実装側の固定値が残っていない。"""
+    sources = {
+        SCRIPT_RELATIVE_PATH: {
+            "CORPUS_RELATIVE_PATH",
+            "DERIVED_CORPUS_RELATIVE_PATHS",
+            "ORACLE_SEAL_RELATIVE_PATH",
+            "COMMIT_SERIES",
+            "VERSION_SERIES",
+            "ALL_SERIES",
+        },
+        MUTATION_COMPOSITION_RELATIVE_PATH: {
+            "STEP2_CHANGED_CANONICAL_ASSET_PATHS",
+            "_BOUNDARY_PROPOSAL_RELATIVE_PATH",
+            "_DDL_ELEMENTS_RELATIVE_PATH",
+        },
+    }
+    found = {
+        relative_path.as_posix(): sorted(
+            name
+            for name in forbidden
+            if re.search(
+                rf"^{re.escape(name)}\s*=",
+                (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+            is not None
+        )
+        for relative_path, forbidden in sources.items()
+    }
+
+    assert found == {
+        SCRIPT_RELATIVE_PATH.as_posix(): [],
+        MUTATION_COMPOSITION_RELATIVE_PATH.as_posix(): [],
+    }
 
 
 def test_digest_edge_composition_accepts_appended_corpus_version(
@@ -322,7 +366,7 @@ def test_digest_edge_composition_accepts_appended_corpus_version(
 ) -> None:
     """正当なcorpus版追記では導出したdigest辺の期待も1本増える。"""
     root = cloned_repository
-    base = _git(root, "rev-parse", "HEAD")
+    base = _commit_all(root, "test: 宣言を含む台帳をbaseへ追加")
     corpus = _read_json_object(root, CORPUS_RELATIVE_PATH)
     corpus["corpus_version"] = 2
     _write_json_object(root, CORPUS_RELATIVE_PATH, corpus)
@@ -335,6 +379,7 @@ def test_digest_edge_composition_accepts_appended_corpus_version(
         {
             "version": 2,
             "canonical_sha256": _canonical_sha256(corpus),
+            "supersedes": 1,
             "approved_by": "山田正輝",
             "approved_at": "2026-09-15",
             "reason": "正当な更新経路の受理テスト",
@@ -422,6 +467,7 @@ def test_g4_corpus_versions_are_sequential(cloned_repository: Path) -> None:
         {
             "version": 3,
             "canonical_sha256": history[-1]["canonical_sha256"],
+            "supersedes": 1,
             "approved_by": "山田正輝",
             "approved_at": "2026-09-15",
             "reason": "G-4 負例テスト用の飛び番",
@@ -433,6 +479,61 @@ def test_g4_corpus_versions_are_sequential(cloned_repository: Path) -> None:
 
     assert result.returncode == 1
     assert "G-4" in result.stderr
+
+
+def test_f2_corpus_version_supersedes_previous_version(
+    cloned_repository: Path,
+) -> None:
+    """F-2: version型でも直前versionと不連鎖な記録を拒否する。"""
+    root = cloned_repository
+    catalog = _read_catalog(root)
+    _history(catalog, "corpus_versions")[0]["supersedes"] = 1
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "F-2" in result.stderr
+    assert "直前の version" in result.stderr
+
+
+def test_f5_dangling_commit_is_not_a_reachable_baseline(
+    cloned_repository: Path,
+) -> None:
+    """F-5: 実在してもHEADから到達不能なcommitを基準にできない。"""
+    root = cloned_repository
+    tree = _git(root, "rev-parse", "HEAD^{tree}")
+    dangling = _git(root, "commit-tree", tree, "-m", "dangling baseline")
+    assert re.fullmatch(r"[0-9a-f]{40}", dangling)
+    assert not _git(root, "branch", "--contains", dangling)
+    reachable = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", dangling, "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert reachable.returncode == 1
+
+    catalog = _read_catalog(root)
+    history = _history(catalog, "oracle_meaning")
+    history.append(
+        {
+            "commit": dangling,
+            "supersedes": history[-1]["commit"],
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-16",
+            "reason": "dangling commitを拒否するF-5負例",
+        }
+    )
+    _write_catalog(root, catalog)
+
+    result = _run_cli(root)
+
+    assert result.returncode == 1
+    assert "F-5" in result.stderr
+    assert dangling in result.stderr
+    assert "HEAD から到達不能" in result.stderr
 
 
 @pytest.mark.frozen_negative
@@ -478,6 +579,7 @@ def test_n8_derived_assets_must_follow_corpus_version(
         {
             "version": 2,
             "canonical_sha256": _canonical_sha256(corpus),
+            "supersedes": 1,
             "approved_by": "山田正輝",
             "approved_at": "2026-09-15",
             "reason": "N8 負例テスト用の版追記",
@@ -516,14 +618,6 @@ def test_n3_empty_approved_by_is_red(cloned_repository: Path) -> None:
 def test_n5_changed_existing_approval_is_red(cloned_repository: Path) -> None:
     """N5: baseに存在する承認者の書き換えをF-4で拒否する。"""
     root = cloned_repository
-    _restore_tracked_assets(root)
-    _git(root, "checkout", "--quiet", "--detach", _base_without_catalog(root))
-    _copy_current_assets(root)
-    _remove_migrated_baseline_constants(root)
-    allowlist = _read_allowlist(root)
-    for entry in _allowlist_entries(allowlist):
-        entry["pending_removal"] = False
-    _write_allowlist(root, allowlist)
     base = _commit_all(root, "test: 台帳をbaseへ追加")
     catalog = _read_catalog(root)
     _history(catalog, "oracle_input")[0]["approved_by"] = "別の承認者"
@@ -590,6 +684,10 @@ def test_n10_changed_base_source_constant_is_red(cloned_repository: Path) -> Non
     _git(root, "commit", "--quiet", "-m", "test: base側定数を書き換え")
     changed_base = _git(root, "rev-parse", "HEAD")
     _remove_migrated_baseline_constants(root)
+    catalog = _read_catalog(root)
+    del _history(catalog, "oracle_input")[1:]
+    del _history(catalog, "oracle_meaning")[1:]
+    _write_catalog(root, catalog)
     _commit_all(root, "test: 台帳を新設")
 
     result = _run_cli(root, changed_base)
@@ -649,7 +747,7 @@ def test_n13_pending_removal_after_ledger_introduction_is_red(
 ) -> None:
     """N13: 台帳がbaseにある状態のpending_removal=trueを拒否する。"""
     root = cloned_repository
-    base = _git(root, "rev-parse", "HEAD")
+    base = _commit_all(root, "test: 宣言を含む台帳をbaseへ追加")
     allowlist = _read_allowlist(root)
     entries = _allowlist_entries(allowlist)
     entries[0]["pending_removal"] = True

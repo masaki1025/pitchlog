@@ -726,3 +726,33 @@ N13 は計画の割り当て漏れ(`3dbbf95` で記録)を補修した。台帳�
 
 **TSK-317 PR #3 と封印手順の同じ場所を触る**(`contracts/authz/auth-catalog.json` + `oracle-seal.lock.json`)。
 **PR #3 を先に**する見立てを別セッションへ回答済み(理由は同回答)。
+
+## 差し戻し修正(PR #63 敵対レビュー)
+
+計画書 5 節直前の「差し戻し修正」に従い、ステップ表を増やさず P0 3 件・P1 1 件と
+`.git` 無し経路の明示化を補修した。先の DoD 表 #8 と決定 D-6 に記録した
+「version 型は `supersedes` を持たない」は、訂正済みの設計 3-3 と本節で明示的に取り消す。
+
+| 指摘 | 修正と実測 |
+| --- | --- |
+| 7.7-6 の委任 3 指定 | 台帳の4系列へ `declarations` を追加。検査器は seal と母集合の構造から対象宣言を導出し、`frozen_targets` / `identity`・`granularity` / `basis_series` の実使用値を JSON で出力する。出力4件と台帳の宣言4件が exact-set・内容とも完全一致。旧固定値定数の機械走査は0件 |
+| version 型の直前基準 | `corpus_versions[0].supersedes = null` を補完し、以降は直前の `version` を要求。不連鎖へ変異すると `F-2: ... 直前の version と一致しない` で red |
+| F-5 の到達可能性 | `cat-file -e` に加え `merge-base --is-ancestor <commit> HEAD` を実行。テスト内で `commit-tree` により dangling commit を作り、前者 exit 0・後者 exit 1・含む branch 0件を確認したうえで red |
+| `.git` 無し | 履歴なし資産コピーは従来どおり内容検査を通すが、標準出力へ `履歴照合を省略した` と `凍結の保証対象外` を明示 |
+| oracle meaning 更新経路 | 固定2資産集合を削除し、宣言対象について `基準 → HEAD` の意味差分を導出。一時 clone の台帳へ `56c281c… → 3fcc3c9…` を追記すると差分 `frozenset()` で green。承認済み意味本文との内容照合は維持し、N1 は改ざん・再封印を実際に commit した後も red |
+
+宣言から導出した現行の3指定は `check_frozen_baselines.py` の出力で次のとおり確認した。
+
+- `oracle_input`: 8対象 / `git_blob_digest` / `blob` / `oracle_input`
+- `oracle_meaning`: sealを含む7対象 / `canonical_json` /
+  `asset_without_movable_pointers` / `oracle_meaning`
+- `core_areas_guard`: `.claude/core-areas.json` / `canonical_json` / `asset` /
+  `core_areas_guard`
+- `corpus_versions`: 母集合・派生3資産 / `canonical_sha256_and_corpus_version` /
+  `canonical_json_asset` / `corpus_versions`
+
+回帰確認では、ルート一括 **1376 passed**(authz 検査 94 件とそれ以外 1282 件)、backend は
+format・ruff・ty が green、DB 除外 201 件が green。負例 inventory の exact-set は従来どおり
+N1〜N14 の14件で、追加した dangling commit の F-5 負例は番号を増やさず別テストとして固定した。
+`check_authz_catalog.py` と `check_frozen_baselines.py --base origin/develop` はともに exit 0、
+後者の観測値は `scan_occurrences=10 pending_removal=0 digest_edges=16` のままである。
