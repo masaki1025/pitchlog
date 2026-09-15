@@ -153,6 +153,28 @@ created: 2026-09-01
 
 **所有境界は design.md §15 が正。**
 
+### ◎ 本タスクが新設する資産(**2026-09-16 追加** — `§16-2` の全数突合で 43 本が未宣言だった)
+
+**`P1-6` の DoD 表(§5-1)に現れる `artifact` 53 本のうち 43 本が、上記のどの宣言にも覆われていなかった。**
+**/pr は §3 の宣言と PR 内容を突合する**ので、**このままだと PR 作成時に全件が「宣言外の変更」になる。**
+**パス接頭辞で宣言する**(完全列挙にしない — 台帳 `H-12` の再発型):
+
+| 接頭辞 | 内容 | ステップ |
+| --- | --- | --- |
+| `backend/domain/**` | **規範資産(JSON)** — 語彙 / 機械条件 / 依拠条項 / 発火レコード / `D` / マニフェスト schema / 検査集合 / 封印集合 / 未解消レポート schema / 経路一致 schema / 要求 case / プロパティカタログ / 等価変異台帳 / 表示対応 | 1〜5・11・12・17・26・29・32・36・41 |
+| `backend/src/pitchlog/domaincheck/**` | **検査器**(CLI・封印・収集器 3 種・移行判定器 `boot/` 3 本・層別収集器・runner 3 本・乖離検出・backend 閉域) | 6〜10・13・18・19・25・28・30〜32・37・40 |
+| `backend/src/pitchlog/domaingen/**` | **生成器**(コア・言語別 backend・formatter・生成前検査) | 20〜23 |
+| `backend/src/pitchlog/domainmut/**` | **変異器**(エンジン・表示系演算子・影響範囲) | 33〜35 |
+| `backend/tests/domain/**` | **負例・正例・合成 fixture** | 14〜16・24・27 ほか全ステップ |
+| `tests/domain/**` | **検査器の単体テスト**(ルート側 — design.md §1-3 の配置) | 全ステップ |
+| `frontend/src/lib/generated/**` | **frontend 生成コード**(`ADR-003 D-1 生成前検査行`。**現在存在しない** — 本タスクで新設) | 38 |
+| `frontend/.dependency-cruiser.cjs` | **依存規則** | 38 |
+| `docs/features/domain-calc-dsl/**` | **計画書・design・research・実測レコード** | 全ステップ・42 |
+
+**各ステップの差分は、上記のうち当該ステップが宣言した接頭辞に収まる**(**パス allowlist** 型 — ステップ 1 の合格条件)。
+**接頭辞の宣言そのものもステップ 3 の資産へ載せ、DoD 表の `artifact` と突合する**(**集合差**)。
+
+
 ### ◎ 開始条件(**2026-09-16 実測 — 4 件すべて充足**)
 
 **マージ順序**(PO 裁定 2026-09-12):
@@ -239,7 +261,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- |
 | 1 | **配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価する** | `[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **単位パラメータが存在しない**こと / 差分が **`docs/features/**` / worklog / `backend/domain/` と対応テスト**に収まる(**パス allowlist**)`[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝。典拠 = `D-1 射程行` と research.md §6-11)。**発火なら design.md §12-2 で停止** |
 | 2 | **機械条件の判定方法の型**(design.md §2)。既存 5 型 + 本タスクの **7 型**を資産化し、以降の全ステップの `[機械]` 条件をこの型に紐づける | `[機械]` **行番号参照 0 件**(資産・計画書・design に `:<数字>` 形式の正本参照が無い)/ 各型に**正例と負例が 1 つ以上**ある / 型に紐づかない `[機械]` 条件が 0 件 |
-| 3 | **◎ 依拠条項リストと停止ゲート**(design.md §12-1 トリガー 16・§12-3)。**全 45 ステップの「依拠する正本の条項 ID」**を資産化し、**逐語の実在を照合**する。**発火レコード資産**(`backend/domain/review-triggers.json`)と**後続拒否ゲート**を置く | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **母集合計測**(トリガー 16 件すべてに評価レコードがある。未評価は fail)/ `[手動]` の 9 件が**証拠資産のパスを持ち実在する**(**パス allowlist** + 実在検査)/ **判定者が PO 以外なら fail**(**文言存在**)/ **発火レコードが 1 件でもあれば後続ステップが exit 2 で拒否される**(**exit コード分離**)/ **本ゲート自身も依拠条項を宣言している**(自己適用 — design.md §16-12) |
+| 3 | **◎ 依拠条項リストと停止ゲート**(design.md §12-1 トリガー 16・§12-3)。**全 45 ステップの「依拠する正本の条項 ID」**を資産化し、**逐語の実在を照合**する。**発火レコード資産**(`backend/domain/review-triggers.json`)と**後続拒否ゲート**を置く | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **母集合計測**(トリガー 16 件すべてに評価レコードがある。未評価は fail)/ `[手動]` の 9 件が**証拠資産のパスを持ち実在する**(**パス allowlist** + 実在検査)/ **判定者が PO 以外なら fail**(**文言存在**)/ **発火レコードが 1 件でもあれば後続ステップが exit 2 で拒否される**(**exit コード分離**)/ **本ゲート自身も依拠条項を宣言している**(自己適用 — design.md §16-12) / **◎ 発火レコードが 0 件のとき後続ステップが実際に通る**(**正例 B** — 常に exit 2 を返す実装を排除する) |
 
 #### 第 2 群 — 封印前の独立実測(4〜10)
 
@@ -248,10 +270,10 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 4 | **`D`(履歴文脈の検査上限)の導出と値域 schema**(design.md §5)。**FR-006 単独**で長さ 4 を導き、**`D` の具体値**と**深さ・構成・シナリオ長の全 case 集合**を資産へ固定。主要フラグ 9 項目 + **表示 primitive の全パラメータ値域**。**トリガー 9 を評価** | `[機械]` 導出が **case → 長さ → 最大値の式**として機械可読(**独立導出**)/ 典拠の**文言存在**(`FR-006 補足` の逐語)/ 主要フラグ 9 項目と表示 primitive パラメータに値域 / **`D+1` に出力同値を課していない** `[手動]` 導出の意味レビュー(判定者: 山田正輝) |
-| 5 | **マニフェスト schema の凍結**(design.md §6)。**2 層 exact-set**(per-calculation 10 / トップレベル = `propertyCatalog` + コンテナ + **表示対応宣言**)+ **composite target**(`kind` / `components[]` / `invocation`)+ 空を許さない 5 フィールド。各期待値は `{expected, comparison, provenance}`。**トリガー 7・10・11 を評価** | `[機械]` **2 層それぞれの exact-set**(**母集合計測**でフィールド数を固定)/ `kind` と段数の整合((β)①〜⑤ = 3・(β)⑦ = 2・single = 1)/ `minItems` / **provenance が条項 ID 形式**で逐語が実在(**文言存在**)/ 否定葉の存在 / **検査器より前のコミットである**(**`history_precedes`**)/ **対象 ID ごとの `vectors[]` 帰属数が `== 1`** かつ **未知契約が `== 0`** / **対象母集合が非空** / **欠落・重複・未知の 3 負例が個別に fail** / **資産内の重複を拒否する**(`calculation` ID / `components[]` の `generated[]` 参照 / `entrypoints[]` / `vectors[]` / `properties[]`) |
+| 4 | **`D`(履歴文脈の検査上限)の導出と値域 schema**(design.md §5)。**FR-006 単独**で長さ 4 を導き、**`D` の具体値**と**深さ・構成・シナリオ長の全 case 集合**を資産へ固定。主要フラグ 9 項目 + **表示 primitive の全パラメータ値域**。**トリガー 9 を評価** | `[機械]` 導出が **case → 長さ → 最大値の式**として機械可読(**独立導出**)/ 典拠の**文言存在**(`FR-006 補足` の逐語)/ 主要フラグ 9 項目と表示 primitive パラメータに値域 / **`D+1` に出力同値を課していない** `[手動]` 導出の意味レビュー(判定者: 山田正輝) / **◎ `D` 以下の全 case が実際に検査を通過する**(**正例 B**) |
+| 5 | **マニフェスト schema の凍結**(design.md §6)。**2 層 exact-set**(per-calculation 10 / トップレベル = `propertyCatalog` + コンテナ + **表示対応宣言**)+ **composite target**(`kind` / `components[]` / `invocation`)+ 空を許さない 5 フィールド。各期待値は `{expected, comparison, provenance}`。**トリガー 7・10・11 を評価** | `[機械]` **2 層それぞれの exact-set**(**母集合計測**でフィールド数を固定)/ `kind` と段数の整合((β)①〜⑤ = 3・(β)⑦ = 2・single = 1)/ `minItems` / **provenance が条項 ID 形式**で逐語が実在(**文言存在**)/ 否定葉の存在 / **検査器より前のコミットである**(**`history_precedes`**)/ **対象 ID ごとの `vectors[]` 帰属数が `== 1`** かつ **未知契約が `== 0`** / **対象母集合が非空** / **欠落・重複・未知の 3 負例が個別に fail** / **資産内の重複を拒否する**(`calculation` ID / `components[]` の `generated[]` 参照 / `entrypoints[]` / `vectors[]` / `properties[]`) / **◎ 正しいマニフェストが実際に受理される**(**正例 B** — すべてを拒否する schema を排除する) |
 | 6 | **検査器の schema/CLI**。独立収集器・canonical JSON・厳密キー集合・exact-set の両方向・**exit 0/1/2**・`--root` | `[機械]` **exit コード分離**で 1 / 2 を直接 assert / **全葉変異**で escape 0 かつ **`assert attempts == 期待件数`** |
-| 7 | **封印の機構と履歴規律**(design.md §4)。blob digest・reseal 専用フラグ(相互排他・既定 off・書き込み前に自己検査)・**`os.environ["CI"]` ガード**・**版管理ツール不在で traceback しない**。**固定 SHA は `BOOT-SEAL-BASE`**(merge-base 不可・当該 PR から変更不能) | `[機械]` `--reseal*` が CI 環境変数下で拒否される / 版管理ツールを PATH から外して traceback しない / 通常検証が黙って再封印しない / **比較元が merge-base でないことの静的検査** / **固定 SHA を書き換える差分が無条件に fail**(`BOOT-SEAL-IMMUTABLE`) |
+| 7 | **封印の機構と履歴規律**(design.md §4)。blob digest・reseal 専用フラグ(相互排他・既定 off・書き込み前に自己検査)・**`os.environ["CI"]` ガード**・**版管理ツール不在で traceback しない**。**固定 SHA は `BOOT-SEAL-BASE`**(merge-base 不可・当該 PR から変更不能) | `[機械]` `--reseal*` が CI 環境変数下で拒否される / 版管理ツールを PATH から外して traceback しない / 通常検証が黙って再封印しない / **比較元が merge-base でないことの静的検査** / **固定 SHA を書き換える差分が無条件に fail**(`BOOT-SEAL-IMMUTABLE`) / **◎ 正当な reseal が実際に成功し封印が更新される**(**正例 B**) |
 | 8 | **◎ 実在入口の独立収集器 — frontend**(design.md §10-1 の前半)。Vite の全 input・Web Worker・Service Worker・別 HTML・静的配信配下の入口を**全列挙するだけ**の監査専用収集器 | `[機械]` **母集合計測**(列挙器が空でなく `assert attempts == 期待件数`)/ **解析不能例で exit 2**(合格にしない)/ **production build と import graph を直接読む**(静的リストを持たない — **独立導出**)/ **この段階では `entrypoints[]` と突合しない**ことの静的検査(判定は新 38) |
 | 9 | **◎ 実在入口の独立収集器 — backend**(design.md §10-2 の前半)。Python の import グラフ + `importlib` / `getattr` / entry point 経由の読み込み箇所を**全列挙するだけ** | `[機械]` 同上 3 点 / **動的読み込み箇所が「解析不能」として列挙される**(黙って落とさない) |
 | 10 | **◎ 表示経路の静的解析器**(design.md §10-3 の前半)。**製品の表示呼出箇所**を静的解析で**全列挙するだけ**。**対象集合は宣言モデル schema の閉包から機械導出**。**トリガー 13 を評価** | `[機械]` **対象集合が schema 閉包から導出される**(「等」の列挙をハードコードしていない — **独立導出**)/ **母集合計測** / **解析不能例で exit 2** |
@@ -275,8 +297,8 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 14 | **負例 12 件**(要求②)。**各条項が不合格とする事象について、それが実際に不合格となることを示す** | `[機械]` **12 条項それぞれに負例が 1 件以上**(**集合差** — 負例を持たない条項が 1 件でもあれば fail)/ **各負例が個別に fail する**(まとめて 1 回ではなく)/ **負例を無効化すると検査が緑になる**ことの変異検査(**全葉変異**の要領) |
 | 15 | **正例 A — 例外的遷移**(要求③)。**軸①の自動昇格**と**軸②の失効**が、実際にその条件で成立することを履歴 fixture で示す | `[機械]` **未解消 0 件で自動かつ不可逆に昇格する**(昇格後に移行状態へ戻る経路が実装に存在しないことの静的検査)/ **50 マージ無減少で失効する** / **50 本目と減少・昇格が同一変更なら減少・昇格を優先する**(`BOOT-STALL` 逐語の負例)/ **母集合は `develop` の第一親上の PR 統合コミット**(feature 側の取り込みマージを数えない負例) |
 | 16 | **◎ 正例 B — 通常動作**(要求④)。**本規定が実際に機能することを示す 3 件**: **(i)** 封印要素由来の不合格を含む変更が `BOOT-GRANT` で**実際にマージ可能になる** **(ii)** 失効後の正当な再承認で**授権が実際に回復する** **(iii)** 要求が揃ったとき**実際に発効する** | `[機械]` **3 件が個別に成立する** / **◎ すべての変更と再承認を拒否する実装(deny-all)にすると 3 件とも fail する**ことを負例で示す(**要求④を欠くと①〜③は通ってしまう** — `TSK-355` 確定ゲート 5 周目の実測)/ **正例 B を持たないステップが 0 件**(design.md §16-6-a の 4 類型) |
-| 17 | **未解消レポート**(`BOOT-REPORT`)。**機械可読な未解消要素の一覧**をファイル名・スキーマ・フィールド名込みで確定し、CI が毎回出力する | `[機械]` **出力の無い緑が fail になる**(「出力のない緑は充足とみなさない」の逐語)/ 厳密キー集合 / **未解消件数が要素単位で数えられている**(対象単位ではない — `M-5-b`)/ **`BOOT-NO-CLAIM` の文言がレポートに含まれる**(移行状態の緑が充足を意味しないこと。**文言存在**) |
-| 18 | **停滞の測定と再承認**(`BOOT-STALL` / `BOOT-REAPPROVAL`)。エポックの 3 開始点・**`N` = 50**・母集合・優先順位。再承認は**失効後に限る・単回性・専用の変更・昇格後は受け付けない・期限を設けない**。承認者は**要件書 8 章の判定者** | `[機械]` 失効前に作成された承認記録が**再承認として使えない**(fail)/ 同一承認記録で 2 度エポックを開始すると fail / **再承認の記録に他の変更を含む PR が fail** / **昇格後の再承認が fail** / **承認者が PO 以外なら fail** / **時間的な期限が実装に存在しない**ことの静的検査 |
+| 17 | **未解消レポート**(`BOOT-REPORT`)。**機械可読な未解消要素の一覧**をファイル名・スキーマ・フィールド名込みで確定し、CI が毎回出力する | `[機械]` **出力の無い緑が fail になる**(「出力のない緑は充足とみなさない」の逐語)/ 厳密キー集合 / **未解消件数が要素単位で数えられている**(対象単位ではない — `M-5-b`)/ **`BOOT-NO-CLAIM` の文言がレポートに含まれる**(移行状態の緑が充足を意味しないこと。**文言存在**) / **◎ 正しいレポートが実際に出力され、それを含む緑が受理される**(**正例 B**) |
+| 18 | **停滞の測定と再承認**(`BOOT-STALL` / `BOOT-REAPPROVAL`)。エポックの 3 開始点・**`N` = 50**・母集合・優先順位。再承認は**失効後に限る・単回性・専用の変更・昇格後は受け付けない・期限を設けない**。承認者は**要件書 8 章の判定者** | `[機械]` 失効前に作成された承認記録が**再承認として使えない**(fail)/ 同一承認記録で 2 度エポックを開始すると fail / **再承認の記録に他の変更を含む PR が fail** / **昇格後の再承認が fail** / **承認者が PO 以外なら fail** / **時間的な期限が実装に存在しない**ことの静的検査 / **◎ 正当な再承認が実際に停滞エポックを開始する**(**正例 B** — `BOOT-ACTIVATION` 要求④ (ii) の本体) |
 | 19 | **段階 2 判定器**(委任③ — design.md §4-5)。**対象単位**で判定し、**4 点が揃っているか**を意味差分で見る。**2 件以上は `ADR-003` 段階 2 違反として fail**。**判定できない場合は段階 2**(fail-closed)。**発効前に限り比較元の資産不在を空集合として扱う** | `[機械]` **paths 接触を判定に用いていない**ことの静的検査(発効 PR 自身が段階 2 と誤判定されない)/ **対象 2 件の PR が fail**(§17 是正 `A`)/ **宣言だけの PR は fail しない**が**解消も成立しない**(§17 是正 `B`)/ **対象欄に無い対象の宣言は fail**(未分類 fail-closed)/ **発効前の資産不在が「判定できない場合」に当たらない** かつ **発効後は不成立条件へ戻る**の 2 通りを個別に検査 |
 
 #### 第 5 群 — 生成器と合成 fixture(20〜24)**`P1-1` で前倒し・`P1-7` で 5 分割**
@@ -289,26 +311,26 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 20 | **生成コア**(design.md §6-3)。宣言モデル → 中間表現。**段別 hash / version / 生成元 ID** の付与。**言語 backend を持たない** | `[機械]` **中間表現の schema が exact-set** / **空入力で exit 0**(適合判定とは別コマンド・別 exit 契約)/ **`contracts/` に何も書かない** / **生成元 ID が条項 ID 形式**(**文言存在**) |
 | 21 | **言語別 backend**(Python / TypeScript / SQL)。**3 言語の生成のみ**。formatter と参照実装は含まない | `[機械]` **3 言語すべてが生成される**(**母集合計測**)/ **段別 hash が言語をまたいで一致** / **(β)⑦ に集計 reducer を生成していない** / **生成物が直接 import できない形で生成される**(ラッパー越し) |
 | 22 | **formatter と参照実装**(design.md §6-4)。**(α) Python / TS 双方の formatter** / **表示まで生成するテスト専用 Python 参照実装**。**トリガー 3 を評価** | `[機械]` **参照実装が生成物であり手書きでない**(**`generated_provenance`**)/ **参照実装が formatter まで生成されている** / **参照実装が製品経路に載っていない**(静的検査)/ **(β)⑦ の写像①適用受け口が生成される** |
-| 23 | **生成前検査 5 種**(design.md §6-3)。生成に入る前に宣言モデルを検査する 5 系統 | `[機械]` **5 種が個別に fail する** / **5 種のいずれかを外すと不正な宣言が生成まで通る**ことを負例で示す |
+| 23 | **生成前検査 5 種**(design.md §6-3)。生成に入る前に宣言モデルを検査する 5 系統 | `[機械]` **5 種が個別に fail する** / **5 種のいずれかを外すと不正な宣言が生成まで通る**ことを負例で示す / **◎ 正しい宣言が 5 種すべてを通過して生成へ進む**(**正例 B**) |
 | 24 | **合成 DSL fixture と全 target matrix**。**全区分**((α) / (β)①〜⑤ の 3 段 / (β)⑦ の 2 段 / (β)⑥⑧)を合成 DSL で実行検証。**トリガー 8 を評価** | `[機械]` **全 target matrix が生成される**(**母集合計測**で区分数を固定)/ `kind` と段数の整合が実機で成立 / **合成 fixture の case 値が本タスクの射程**(PO 裁定 2026-09-10)で、**製品ベクタを含まない**ことの静的検査 `[手動]` **トリガー 8 の判定**(判定者: 山田正輝。証拠 = 生成器の行数・生成 target 数・保守手順の実測) |
 
 #### 第 6 群 — 証跡の収集と経路一致(25〜27)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 25 | **層別収集器**(design.md §8-5)。pytest(JUnit XML の `properties`)/ Vitest(reporter JSON)から実行証跡を採取。**composite では段別 I/O を必須入力とする**。**skip・xfail・todo・0 ケース生成を「実行済み」に数えない**。**トリガー 14 を評価** | `[機械]` 4 通り(skip/xfail/todo/0 生成)を**個別に** fail / 5 項目の欠落を**個別に** fail(5 通り)/ **段別 I/O を欠く提出が fail** / **実行証跡の生成元も負例で検査** |
+| 25 | **層別収集器**(design.md §8-5)。pytest(JUnit XML の `properties`)/ Vitest(reporter JSON)から実行証跡を採取。**composite では段別 I/O を必須入力とする**。**skip・xfail・todo・0 ケース生成を「実行済み」に数えない**。**トリガー 14 を評価** | `[機械]` 4 通り(skip/xfail/todo/0 生成)を**個別に** fail / 5 項目の欠落を**個別に** fail(5 通り)/ **段別 I/O を欠く提出が fail** / **実行証跡の生成元も負例で検査** / **◎ 正しい実行証跡が「実行済み」として実際に数えられる**(**正例 B**) |
 | 26 | **経路一致の証跡 schema と比較器**(design.md §7)。5 判定・**6 次元要求集合**・**値の連鎖の独立検証**・**表示値は文字列の完全一致**・**対象計算ごとに表示値を比較面に含む/含まないを持つ**。**トリガー 4 を評価** | `[機械]` 5 判定のいずれか不成立で fail / **要求集合と証跡集合の差 1 件で fail**(**集合差**)/ 入口 2 つで片方だけ実行を検出 / **比較器が丸めない・表示値に正規化変換を置かない** / 未知・欠落フィールドで fail / **状況判定は構造化のみ・断中前処理は表示値を含む**を両方 fixture で確認 |
-| 27 | **経路一致の敵対 fixture**(design.md §7-4)。**偽 SQL / 段別 hash 不一致 / 期待値直返し / 値の連鎖不整合**の 4 種 + **恣意的迂回を保証範囲外として記録** | `[機械]` 4 種すべてで fail / **アダプタが `true` を 5 個返すだけでは通らない** / **段別 hash が `generated[]` と不一致で fail**(段数分)/ **「迂回を検出する」合格条件を持たない**(design.md §7-4 との整合を静的検査) |
+| 27 | **経路一致の敵対 fixture**(design.md §7-4)。**偽 SQL / 段別 hash 不一致 / 期待値直返し / 値の連鎖不整合**の 4 種 + **恣意的迂回を保証範囲外として記録** | `[機械]` 4 種すべてで fail / **アダプタが `true` を 5 個返すだけでは通らない** / **段別 hash が `generated[]` と不一致で fail**(段数分)/ **「迂回を検出する」合格条件を持たない**(design.md §7-4 との整合を静的検査) / **◎ 正当な経路の証跡が実際に通る**(**正例 B** — 敵対 fixture だけでは全拒否の比較器が通る) |
 
 #### 第 7 群 — 3 層 runner(28〜32)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 28 | **網羅ベクタ runner の基盤**。合成契約で **生値 → 生成済み正規化 → 正規化後値の照合 → 計算入力**、**全 case 消費**、**未知 field / 重複 ID の拒否** | `[機械]` **正規化を素通りさせた入力が fail** / 未対応 case・未知 field・重複 ID・schema 不一致がそれぞれ fail |
-| 29 | **要求 case 集合と網羅性の証明**(design.md §8-1)。**表示 primitive の同値分割 8 軸** × **丸め境界 × 符号の直積**を要求 case 集合として資産化し、**証跡集合との差を fail** | `[機械]` **8 軸すべてに case がある**(**母集合計測**)/ **丸め境界(直前・一致・直後)× 符号(正・負)の直積 6 通りが完全一致で存在する**(**各軸 1 件ずつでは通さない**)/ **負値の丸め境界一致が存在する** / **6 通りを 1 件ずつ削る負例が個別に fail** / **要求集合と証跡集合の差 1 件で fail**(**集合差**)/ **要求集合を正本 ID と schema 軸から独立生成する**(**独立導出**)/ **「全 case 消費」だけでは通らない**ことを負例で示す |
+| 28 | **網羅ベクタ runner の基盤**。合成契約で **生値 → 生成済み正規化 → 正規化後値の照合 → 計算入力**、**全 case 消費**、**未知 field / 重複 ID の拒否** | `[機械]` **正規化を素通りさせた入力が fail** / 未対応 case・未知 field・重複 ID・schema 不一致がそれぞれ fail / **◎ 正しいベクタが全 case 消費で実際に通る**(**正例 B**) |
+| 29 | **要求 case 集合と網羅性の証明**(design.md §8-1)。**表示 primitive の同値分割 8 軸** × **丸め境界 × 符号の直積**を要求 case 集合として資産化し、**証跡集合との差を fail** | `[機械]` **8 軸すべてに case がある**(**母集合計測**)/ **丸め境界(直前・一致・直後)× 符号(正・負)の直積 6 通りが完全一致で存在する**(**各軸 1 件ずつでは通さない**)/ **負値の丸め境界一致が存在する** / **6 通りを 1 件ずつ削る負例が個別に fail** / **要求集合と証跡集合の差 1 件で fail**(**集合差**)/ **要求集合を正本 ID と schema 軸から独立生成する**(**独立導出**)/ **「全 case 消費」だけでは通らない**ことを負例で示す / **◎ 要求 case 集合を満たす証跡が実際に通る**(**正例 B**) |
 | 30 | **不変条件 runner の本体**(design.md §8-2)。カタログの述語を**生成 case へ適用**し偽なら fail。**述語ごとに典拠(条項 ID)**。v0.2 追加の「集計対象 0 件」不変条件を含む | `[機械]` 述語違反で fail / **述語ごとに典拠がある**(**文言存在**)/ **0 ケース生成を「実行済み」に数えない** / **不変条件テストと等価性テストの双方が 1 件以上完走**しないと fail |
-| 31 | **プロパティ runner(等価性)**(design.md §8-3)。**(β) を 3 区分**に分け区分別の比較面を持つ。(α) は formatter を含む表示文字列一致。(β)①〜⑤ は最終表示文字列 **+ 構造化段も保持**。(β)⑦ は写像①適用後の表示名。ライブラリ選定 | `[機械]` 区分別に等価性違反が fail / **構造化段と表示段の両方を比較している**(片方だけなら fail)/ **参照実装が生成物であり手書きでない**(**`generated_provenance`**)/ **製品経路に載っていない** |
-| 32 | **プロパティ runner(カタログ独立性)**。**allowlist × ファイルアクセス証跡**の突合 + **生成器依存グラフにカタログが現れないことの静的検査** | `[機械]` allowlist 外の読み取りで fail / 依存グラフにカタログを混ぜると fail |
+| 31 | **プロパティ runner(等価性)**(design.md §8-3)。**(β) を 3 区分**に分け区分別の比較面を持つ。(α) は formatter を含む表示文字列一致。(β)①〜⑤ は最終表示文字列 **+ 構造化段も保持**。(β)⑦ は写像①適用後の表示名。ライブラリ選定 | `[機械]` 区分別に等価性違反が fail / **構造化段と表示段の両方を比較している**(片方だけなら fail)/ **参照実装が生成物であり手書きでない**(**`generated_provenance`**)/ **製品経路に載っていない** / **◎ 等価な実装どうしが実際に一致と判定される**(**正例 B**) |
+| 32 | **プロパティ runner(カタログ独立性)**。**allowlist × ファイルアクセス証跡**の突合 + **生成器依存グラフにカタログが現れないことの静的検査** | `[機械]` allowlist 外の読み取りで fail / 依存グラフにカタログを混ぜると fail / **◎ allowlist 内の読み取りだけで runner が実際に完走する**(**正例 B**) |
 
 #### 第 8 群 — 変異(33〜36)
 
@@ -316,31 +338,31 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- |
 | 33 | **変異器の基盤**(design.md §9-2)。言語別演算子(Python / TS / **SQL**)・**未対応箇所の列挙と fail**・**生成変異 0 で fail**・**kill 要因の必須記録**・**プロパティ層 kill 0 件で fail**・**(b)① による kill を分子に数えない**。**トリガー 5 を評価** | `[機械]` 未対応 1 件で fail / 生成変異 0 で fail / **対象計算ごとに `generated - approved_equivalents - killed == ∅`** / **負例 3 種が個別に fail**(生存 1 件 / 他対象による希釈 / 未記録を等価扱い)/ **合成対象が非空で固定されている** / **hash 検査だけで kill された mutant が分子に入らず最終的に生存扱いになる**ことのテスト |
 | 34 | **表示系変異演算子**(design.md §9-1)。文字列リテラル置換・placeholder の削除と入替・写像テーブルの値と順序・**表示 primitive のパラメータ変異**・**formatter 呼出の削除と言語既定文字列化への置換**。**トリガー 5・15 を評価** | `[機械]` 5 系統の演算子が個別に mutant を生成 / **表示生成物を持つ対象計算で表示系が 0 件なら fail** / **`scale=0` の formatter 迂回が等価変異として台帳へ回る**(kill 要件にしない) |
-| 35 | **変異の影響範囲解決と時間予算**(design.md §9-4)。**変更対象 + 依存先の逆引き**・**全面発火条件**・**変異処理内の 10 分 / 30 分タイムアウト**・**逆引き不能は全面**(fail-closed) | `[機械]` 発火条件 7 種を個別に検査 / **逆引き不能で全面へ倒れる** / **内部タイムアウトで fail** / 上限超過が暫定マージにならない |
-| 36 | **等価変異台帳の基盤**(design.md §9-3)。`backend/domain/mutation-equivalents.json`(識別子・理由・**判定者 = PO**・判定日)。**空台帳でよい**。**未記録は非等価扱い**。**表示系の等価変異の判定手順**を運用規約として書く。**トリガー 15 を評価** | `[機械]` 厳密キー / 判定者が PO 以外なら fail / **未記録の変異が非等価として扱われる** / 台帳の改変が全面発火を起こす |
+| 35 | **変異の影響範囲解決と時間予算**(design.md §9-4)。**変更対象 + 依存先の逆引き**・**全面発火条件**・**変異処理内の 10 分 / 30 分タイムアウト**・**逆引き不能は全面**(fail-closed) | `[機械]` 発火条件 7 種を個別に検査 / **逆引き不能で全面へ倒れる** / **内部タイムアウトで fail** / 上限超過が暫定マージにならない / **◎ 変更対象と依存先が正しく解決され、全面へ倒れずに完了する**(**正例 B**) |
+| 36 | **等価変異台帳の基盤**(design.md §9-3)。`backend/domain/mutation-equivalents.json`(識別子・理由・**判定者 = PO**・判定日)。**空台帳でよい**。**未記録は非等価扱い**。**表示系の等価変異の判定手順**を運用規約として書く。**トリガー 15 を評価** | `[機械]` 厳密キー / 判定者が PO 以外なら fail / **未記録の変異が非等価として扱われる** / 台帳の改変が全面発火を起こす / **◎ 台帳に記録された等価変異が実際に kill 要件から外れる**(**正例 B**) |
 
 #### 第 9 群 — (b)① と (b)③ の判定(37〜41)**第 2 群の収集器を使う側**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 37 | **(b)① 乖離検出と D-3 のコミット単位検査**。**PR 内の各コミットを走査**し、正本変更と当該生成物・generator version 変更と全生成物が**同一コミットにある**ことを検査。履歴 fixture・`fetch-depth: 0`・base/head の解決契約 | `[機械]` **片側コミット → 後続で揃える**履歴が fail する(**最終ツリー一致では通さない**)/ 古い派生物・手修正の 2 通りが個別に fail / **`backend/domain/` だけの変更でも発火** |
+| 37 | **(b)① 乖離検出と D-3 のコミット単位検査**。**PR 内の各コミットを走査**し、正本変更と当該生成物・generator version 変更と全生成物が**同一コミットにある**ことを検査。履歴 fixture・`fetch-depth: 0`・base/head の解決契約 | `[機械]` **片側コミット → 後続で揃える**履歴が fail する(**最終ツリー一致では通さない**)/ 古い派生物・手修正の 2 通りが個別に fail / **`backend/domain/` だけの変更でも発火** / **◎ 正本と生成物が揃ったコミットが実際に通る**(**正例 B**) |
 | 38 | **(b)③ frontend 閉域 — 依存規則**(design.md §10-1)。**ステップ 8 の収集器の実測**と `entrypoints[]` の突合 + `dependency-cruiser` + lint による動的機構の禁止 + **`src/lib/generated/` の新設** + **生成物の直接 import を lint で禁止**。**トリガー 6 を評価** | `[機械]` **実在入口と `entrypoints[]` の差 1 件で fail**(**集合差**)/ **正例・負例・解析不能例の 3 通り**(**解析不能例は合成 fixture**)/ **判定不能を合格にしない** / **import graph を直接読む統合テスト** |
 | 39 | **(b)③ frontend 閉域 — CSP と build**(`P1-7` で分割)。`index.html` の CSP + production build 検査 | `[機械]` **CSP 設定を直接読む統合テスト** / **外部リソース参照が 1 件でも fail** / 正例・負例・解析不能例の 3 通り |
 | 40 | **(b)③ backend 閉域と実行時制限**(design.md §10-2)。**ステップ 9 の収集器の実測**と `entrypoints[]` の突合 + `importlib` / `getattr` / entry point 経由の読み込み禁止 + 実行時の制限 | `[機械]` 同上 3 通り / **宣言外の入口を拒否する**(検出ではなく)/ **集合差** |
-| 41 | **(b)③ 表外既定の表示対応の突合**(design.md §10-3)。**ステップ 10 の解析器の実測**とマニフェストの表示対応宣言を突合。**トリガー 6・13 を評価** | `[機械]` **登録漏れ・formatter 非経由の表示経路が差分として fail**(**集合差**)/ **対象集合が schema 閉包から導出される**(**独立導出**)/ **未宣言の表外既定項目が封印集合の要素として既に列挙されている**(ステップ 12 の実測に含まれる — **後から足せない**) |
+| 41 | **(b)③ 表外既定の表示対応の突合**(design.md §10-3)。**ステップ 10 の解析器の実測**とマニフェストの表示対応宣言を突合。**トリガー 6・13 を評価** | `[機械]` **登録漏れ・formatter 非経由の表示経路が差分として fail**(**集合差**)/ **対象集合が schema 閉包から導出される**(**独立導出**)/ **未宣言の表外既定項目が封印集合の要素として既に列挙されている**(ステップ 12 の実測に含まれる — **後から足せない**) / **◎ すべての表示項目が宣言と一致したとき実際に通る**(**正例 B**) |
 
 #### 第 10 群 — 実測と CI 配線(42〜43)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 42 | **変異コストの拘束実測**。ステップ 24 の合成生成物・全 runner・**4 系統の演算子**で **mutant 数 × スイート再実行時間**を実測。**トリガー 5・12 を評価** | `[機械]` 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 `[手動]` **10 分 / 30 分に収まるかの判定**(判定者: 山田正輝)。**超過なら design.md §12-2 で停止し ADR 改訂ゲートへ** |
+| 42 | **変異コストの拘束実測**。ステップ 24 の合成生成物・全 runner・**4 系統の演算子**で **mutant 数 × スイート再実行時間**を実測。**トリガー 5・12 を評価** | `[機械]` 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 `[手動]` **10 分 / 30 分に収まるかの判定**(判定者: 山田正輝)。**超過なら design.md §12-2 で停止し ADR 改訂ゲートへ** / **◎ 実測レコードが実際に生成され、10 分 / 30 分以内なら通る**(**正例 B**) |
 | 43 | **CI 配線と検査スコープの穴埋め**(design.md §14・§14-1・§4-6)。`consistency` + 変異ジョブ(別ジョブ)の新設。**§14 の所有ジョブ分離**。`ty` の `include` / `testpaths` / package-data + 依存と lock + **`backend/.coverage` の index 除去**。**両ジョブに `timeout-minutes`**。**DB を使うジョブへ `services: postgres`**。**◎ 第 4 群の機構・負例・正例を `consistency` へ配線する**(`BOOT-ACTIVATION` の発効条件) | `[機械]` `tests/test_ci_wiring.py` の YAML 契約木の全葉変異で escape 0 かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **同一テストが二重実行されない** / **`backend/domain/` が `ty check` の対象** / **`uv sync --locked` が通る** / **`backend/.coverage` が index から消え、再生成後も untracked** / **◎ 第 4 群の 7 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ 「接続されている」だけでなく「実行された」ことを証跡で確認する**(§17 是正 `C` — `BOOT-ACTIVATION` 逐語「存在するだけでは足りない」)/ **`github-setup.md` の 3 分類と Ruleset JSON の記述が 9 → 11 context へ同期**(**集合差**。**検査できるのは文書の同期のみ** — `required_status_checks` はリモートに存在せず〔個人 Free + private で Rulesets 利用不可〕、**強制は `github-setup.md` 2 章の人間の手続き**) |
 
 #### 第 11 群 — コア領域の登録(44〜45)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 44 | **`core-guard` の基線機構**(design.md §11-1・§11-2)。`EXPECTED_AREA_PATHS` を**二層方式**(据え置き / 追加分・**領域ごとに分ける**)へ改め、**base 側 commit アンカーに一本化**して基線を外部化 | `[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture |
+| 44 | **`core-guard` の基線機構**(design.md §11-1・§11-2)。`EXPECTED_AREA_PATHS` を**二層方式**(据え置き / 追加分・**領域ごとに分ける**)へ改め、**base 側 commit アンカーに一本化**して基線を外部化 | `[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**) |
 | 45 | **`core-areas.json` の登録と文書の追随**。**`game-state` と `data-migration` の両方**へ該当パスを **glob で**追加(完全列挙にしない — design.md §11-5)。`tests/test_core_guard.py` の更新。設計書 10.1 + `github-setup.md` + 索引 | `[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / `check_docs_status` / `check_doc_coverage` / `check_design_propagation` OK / **`docs/README.md` の設計書行が現行版に追随済み** `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤ |
 
 
@@ -359,11 +381,11 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- | --- |
 | 1 | `backend/domain/vocabulary.schema.json` | 語彙 schema の exact-set(3 類・型 3 形・供給源 3 経路)/ 単位パラメータ不在 / パス allowlist | `uv run pytest tests/domain/test_vocabulary_schema.py` |
 | 2 | `backend/domain/machine-conditions.json` | 行番号参照 0 件 / 全 12 型に正例と負例 / 型に紐づかない `[機械]` 条件 0 件 | `uv run pytest tests/domain/test_machine_conditions.py` |
-| 3 | `backend/domain/review-triggers.json` / `backend/domain/step-authorities.json` | 依拠条項の逐語が正本に実在(1 件でも不在で fail)/ トリガー 16 件の評価レコード全件性 / `[手動]` 9 件の証拠パス実在 / 判定者が PO / 発火時に後続が exit 2 / **自己適用**(本ゲートも依拠条項を宣言) | `uv run pytest tests/domain/test_step_authorities.py` |
-| 4 | `backend/domain/history-depth.json` | `D` が case → 長さ → 最大値の式として独立導出 / `FR-006 補足` の文言存在 / 主要フラグ 9 項目と表示 primitive に値域 / `D+1` に出力同値を課さない | `uv run pytest tests/domain/test_history_depth.py` |
-| 5 | `backend/domain/manifest.schema.json` | 2 層 exact-set(母集合計測)/ `kind` と段数の整合 / `minItems` / provenance が条項 ID 形式で逐語実在 / 否定葉 / `history_precedes` / `vectors[]` 帰属数 `== 1` かつ 未知契約 `== 0` / 対象母集合が非空 / 欠落・重複・未知の 3 負例 / 資産内の重複拒否 5 種 | `uv run pytest tests/domain/test_manifest_schema.py` |
+| 3 | `backend/domain/review-triggers.json` / `backend/domain/step-authorities.json` | 依拠条項の逐語が正本に実在(1 件でも不在で fail)/ トリガー 16 件の評価レコード全件性 / `[手動]` 9 件の証拠パス実在 / 判定者が PO / 発火時に後続が exit 2 / **自己適用**(本ゲートも依拠条項を宣言) / **◎ 発火レコードが 0 件のとき後続ステップが実際に通る**(**正例 B** — 常に exit 2 を返す実装を排除する) | `uv run pytest tests/domain/test_step_authorities.py` |
+| 4 | `backend/domain/history-depth.json` | `D` が case → 長さ → 最大値の式として独立導出 / `FR-006 補足` の文言存在 / 主要フラグ 9 項目と表示 primitive に値域 / `D+1` に出力同値を課さない / **◎ `D` 以下の全 case が実際に検査を通過する**(**正例 B**) | `uv run pytest tests/domain/test_history_depth.py` |
+| 5 | `backend/domain/manifest.schema.json` | 2 層 exact-set(母集合計測)/ `kind` と段数の整合 / `minItems` / provenance が条項 ID 形式で逐語実在 / 否定葉 / `history_precedes` / `vectors[]` 帰属数 `== 1` かつ 未知契約 `== 0` / 対象母集合が非空 / 欠落・重複・未知の 3 負例 / 資産内の重複拒否 5 種 / **◎ 正しいマニフェストが実際に受理される**(**正例 B** — すべてを拒否する schema を排除する) | `uv run pytest tests/domain/test_manifest_schema.py` |
 | 6 | `backend/src/pitchlog/domaincheck/cli.py` | exit 0 / 1 / 2 を `subprocess` で直接 assert / 全葉変異で escape 0 かつ `assert attempts == 期待件数` | `uv run pytest tests/domain/test_checker_cli.py` |
-| 7 | `backend/src/pitchlog/domaincheck/seal.py` | `--reseal*` が CI 環境変数下で拒否 / 版管理ツール不在で traceback しない / 通常検証が黙って再封印しない / 比較元が merge-base でない / 固定 SHA 書き換えが無条件 fail | `uv run pytest tests/domain/test_seal.py` |
+| 7 | `backend/src/pitchlog/domaincheck/seal.py` | `--reseal*` が CI 環境変数下で拒否 / 版管理ツール不在で traceback しない / 通常検証が黙って再封印しない / 比較元が merge-base でない / 固定 SHA 書き換えが無条件 fail / **◎ 正当な reseal が実際に成功し封印が更新される**(**正例 B**) | `uv run pytest tests/domain/test_seal.py` |
 | 8 | `backend/src/pitchlog/domaincheck/collect_entrypoints_fe.py` | 母集合計測(`assert attempts == 期待件数`)/ 解析不能例で exit 2 / production build と import graph を直接読む / **この段階では `entrypoints[]` と突合しない**ことの静的検査 | `uv run pytest tests/domain/test_collect_fe.py` + `pnpm test -- --run` |
 | 9 | `backend/src/pitchlog/domaincheck/collect_entrypoints_be.py` | 同上 3 点 / 動的読み込み箇所が「解析不能」として列挙される | `uv run pytest tests/domain/test_collect_be.py` |
 | 10 | `backend/src/pitchlog/domaincheck/collect_display_paths.py` | 対象集合が schema 閉包から独立導出(「等」のハードコード無し)/ 母集合計測 / 解析不能例で exit 2 | `uv run pytest tests/domain/test_collect_display.py` |
@@ -373,34 +395,34 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 14 | `backend/tests/domain/boot/negatives/` | 12 条項それぞれに負例 1 件以上(集合差)/ 各負例が個別に fail / 負例を無効化すると緑になることの変異検査 | `uv run pytest tests/domain/boot/test_negatives.py` |
 | 15 | `backend/tests/domain/boot/positives_a/` | 未解消 0 件で自動かつ不可逆に昇格(復帰経路の不在を静的検査)/ 50 マージ無減少で失効 / 50 本目と減少・昇格が同一変更なら減少・昇格を優先 / 第一親上の PR 統合コミットのみを数える負例 | `uv run pytest tests/domain/boot/test_positives_a.py` |
 | 16 | `backend/tests/domain/boot/positives_b/` | (i) `BOOT-GRANT` で実際にマージ可能 (ii) 再承認で授権が実際に回復 (iii) 要求が揃って実際に発効 の 3 件が個別に成立 / **deny-all 実装で 3 件とも fail** / 正例 B を持たないステップが 0 件 | `uv run pytest tests/domain/boot/test_positives_b.py` |
-| 17 | `backend/domain/boot-report.schema.json` | 出力の無い緑が fail / 厳密キー集合 / 未解消件数が**要素単位** / `BOOT-NO-CLAIM` の文言がレポートに含まれる | `uv run pytest tests/domain/boot/test_report.py` |
-| 18 | `backend/src/pitchlog/domaincheck/boot/stall.py` | 失効前の承認記録が使えない / 同一記録で 2 度開始すると fail / 再承認 PR に他の変更を含むと fail / 昇格後の再承認が fail / 承認者が PO 以外なら fail / 時間的期限が実装に存在しない静的検査 | `uv run pytest tests/domain/boot/test_stall.py` |
+| 17 | `backend/domain/boot-report.schema.json` | 出力の無い緑が fail / 厳密キー集合 / 未解消件数が**要素単位** / `BOOT-NO-CLAIM` の文言がレポートに含まれる / **◎ 正しいレポートが実際に出力され、それを含む緑が受理される**(**正例 B**) | `uv run pytest tests/domain/boot/test_report.py` |
+| 18 | `backend/src/pitchlog/domaincheck/boot/stall.py` | 失効前の承認記録が使えない / 同一記録で 2 度開始すると fail / 再承認 PR に他の変更を含むと fail / 昇格後の再承認が fail / 承認者が PO 以外なら fail / 時間的期限が実装に存在しない静的検査 / **◎ 正当な再承認が実際に停滞エポックを開始する**(**正例 B** — `BOOT-ACTIVATION` 要求④ (ii) の本体) | `uv run pytest tests/domain/boot/test_stall.py` |
 | 19 | `backend/src/pitchlog/domaincheck/boot/phase2.py` | paths 接触を判定に用いない静的検査 / 対象 2 件の PR が fail / 宣言だけの PR は fail しないが解消も成立しない / 対象欄に無い対象の宣言は fail / 発効前後で資産不在の扱いが分岐する 2 通り | `uv run pytest tests/domain/boot/test_phase2.py` |
 | 20 | `backend/src/pitchlog/domaingen/core.py` | 中間表現の schema が exact-set / 空入力で exit 0(別コマンド・別 exit 契約)/ `contracts/` に何も書かない / 生成元 ID が条項 ID 形式 | `uv run pytest tests/domain/gen/test_core.py` |
 | 21 | `backend/src/pitchlog/domaingen/backends/` | 3 言語すべて生成(母集合計測)/ 段別 hash が言語をまたいで一致 / (β)⑦ に集計 reducer を生成しない / 直接 import できない形で生成 | `uv run pytest tests/domain/gen/test_backends.py` |
 | 22 | `backend/src/pitchlog/domaingen/formatter.py` | 参照実装が `generated_provenance` を満たす / formatter まで生成されている / 製品経路に載っていない静的検査 / (β)⑦ の写像①適用受け口が生成される | `uv run pytest tests/domain/gen/test_formatter.py` |
-| 23 | `backend/src/pitchlog/domaingen/pregen_checks.py` | 5 種が個別に fail / 5 種のいずれかを外すと不正な宣言が生成まで通ることを負例で示す | `uv run pytest tests/domain/gen/test_pregen.py` |
+| 23 | `backend/src/pitchlog/domaingen/pregen_checks.py` | 5 種が個別に fail / 5 種のいずれかを外すと不正な宣言が生成まで通ることを負例で示す / **◎ 正しい宣言が 5 種すべてを通過して生成へ進む**(**正例 B**) | `uv run pytest tests/domain/gen/test_pregen.py` |
 | 24 | `backend/tests/domain/fixtures/synthetic_dsl/` | 全 target matrix が生成される(母集合計測で区分数を固定)/ `kind` と段数の整合が実機で成立 / 製品ベクタを含まない静的検査 `[手動]` トリガー 8 の判定(PO) | `uv run pytest tests/domain/gen/test_target_matrix.py` |
-| 25 | `backend/src/pitchlog/domaincheck/collect_layers.py` | skip/xfail/todo/0 生成の 4 通りを個別に fail / 5 項目の欠落を個別に fail / 段別 I/O を欠く提出が fail / 実行証跡の生成元も負例で検査 | `uv run pytest tests/domain/test_collect_layers.py` |
+| 25 | `backend/src/pitchlog/domaincheck/collect_layers.py` | skip/xfail/todo/0 生成の 4 通りを個別に fail / 5 項目の欠落を個別に fail / 段別 I/O を欠く提出が fail / 実行証跡の生成元も負例で検査 / **◎ 正しい実行証跡が「実行済み」として実際に数えられる**(**正例 B**) | `uv run pytest tests/domain/test_collect_layers.py` |
 | 26 | `backend/domain/path-match.schema.json` | 5 判定のいずれか不成立で fail / 要求集合と証跡集合の差 1 件で fail / 入口 2 つで片方だけ実行を検出 / 比較器が丸めない / 未知・欠落フィールドで fail / 構造化のみと表示値ありの両 fixture | `uv run pytest tests/domain/test_path_match.py` |
-| 27 | `backend/tests/domain/fixtures/adversarial_path/` | 4 種すべてで fail / アダプタが `true` を 5 個返すだけでは通らない / 段別 hash 不一致で段数分 fail / 「迂回を検出する」合格条件を持たない静的検査 | `uv run pytest tests/domain/test_path_adversarial.py` |
-| 28 | `backend/src/pitchlog/domaincheck/runners/vectors.py` | 正規化を素通りさせた入力が fail / 未対応 case・未知 field・重複 ID・schema 不一致がそれぞれ fail | `uv run pytest tests/domain/runners/test_vectors.py` |
-| 29 | `backend/domain/required-cases.json` | 8 軸すべてに case(母集合計測)/ 丸め境界 × 符号の直積 6 通りが完全一致で存在 / 負値の丸め境界一致 / 6 通りを 1 件ずつ削る負例が個別に fail / 集合差 / 要求集合の独立導出 / 「全 case 消費」だけでは通らない負例 | `uv run pytest tests/domain/runners/test_coverage_proof.py` |
+| 27 | `backend/tests/domain/fixtures/adversarial_path/` | 4 種すべてで fail / アダプタが `true` を 5 個返すだけでは通らない / 段別 hash 不一致で段数分 fail / 「迂回を検出する」合格条件を持たない静的検査 / **◎ 正当な経路の証跡が実際に通る**(**正例 B** — 敵対 fixture だけでは全拒否の比較器が通る) | `uv run pytest tests/domain/test_path_adversarial.py` |
+| 28 | `backend/src/pitchlog/domaincheck/runners/vectors.py` | 正規化を素通りさせた入力が fail / 未対応 case・未知 field・重複 ID・schema 不一致がそれぞれ fail / **◎ 正しいベクタが全 case 消費で実際に通る**(**正例 B**) | `uv run pytest tests/domain/runners/test_vectors.py` |
+| 29 | `backend/domain/required-cases.json` | 8 軸すべてに case(母集合計測)/ 丸め境界 × 符号の直積 6 通りが完全一致で存在 / 負値の丸め境界一致 / 6 通りを 1 件ずつ削る負例が個別に fail / 集合差 / 要求集合の独立導出 / 「全 case 消費」だけでは通らない負例 / **◎ 要求 case 集合を満たす証跡が実際に通る**(**正例 B**) | `uv run pytest tests/domain/runners/test_coverage_proof.py` |
 | 30 | `backend/src/pitchlog/domaincheck/runners/properties.py` | 述語違反で fail / 述語ごとに典拠の文言存在 / 0 ケース生成を実行済みに数えない / 不変条件と等価性の双方が 1 件以上完走 | `uv run pytest tests/domain/runners/test_invariants.py` |
-| 31 | `backend/src/pitchlog/domaincheck/runners/equivalence.py` | 区分別に等価性違反が fail / 構造化段と表示段の両方を比較 / 参照実装が `generated_provenance` / 製品経路に載っていない | `uv run pytest tests/domain/runners/test_equivalence.py` |
-| 32 | `backend/domain/property-catalog.json` | allowlist 外の読み取りで fail / 依存グラフにカタログを混ぜると fail | `uv run pytest tests/domain/runners/test_catalog_independence.py` |
+| 31 | `backend/src/pitchlog/domaincheck/runners/equivalence.py` | 区分別に等価性違反が fail / 構造化段と表示段の両方を比較 / 参照実装が `generated_provenance` / 製品経路に載っていない / **◎ 等価な実装どうしが実際に一致と判定される**(**正例 B**) | `uv run pytest tests/domain/runners/test_equivalence.py` |
+| 32 | `backend/domain/property-catalog.json` | allowlist 外の読み取りで fail / 依存グラフにカタログを混ぜると fail / **◎ allowlist 内の読み取りだけで runner が実際に完走する**(**正例 B**) | `uv run pytest tests/domain/runners/test_catalog_independence.py` |
 | 33 | `backend/src/pitchlog/domainmut/engine.py` | 未対応 1 件で fail / 生成変異 0 で fail / 対象計算ごとに `generated - approved_equivalents - killed == ∅` / 負例 3 種が個別に fail / 合成対象が非空 / hash kill が分子に入らない | `uv run pytest tests/domain/mut/test_engine.py` |
 | 34 | `backend/src/pitchlog/domainmut/operators_display.py` | 5 系統が個別に mutant を生成 / 表示生成物を持つ対象で表示系 0 件なら fail / `scale=0` の formatter 迂回が等価変異台帳へ回る | `uv run pytest tests/domain/mut/test_display_operators.py` |
-| 35 | `backend/src/pitchlog/domainmut/scope.py` | 発火条件 7 種を個別に検査 / 逆引き不能で全面へ倒れる / 内部タイムアウトで fail / 上限超過が暫定マージにならない | `uv run pytest tests/domain/mut/test_scope.py` |
-| 36 | `backend/domain/mutation-equivalents.json` | 厳密キー / 判定者が PO 以外なら fail / 未記録の変異が非等価扱い / 台帳の改変が全面発火 | `uv run pytest tests/domain/mut/test_equivalents.py` |
-| 37 | `backend/src/pitchlog/domaincheck/divergence.py` | 片側コミット → 後続で揃える履歴が fail(最終ツリー一致では通さない)/ 古い派生物・手修正の 2 通りが個別に fail / `backend/domain/` だけの変更でも発火 | `uv run pytest tests/domain/test_divergence.py` |
+| 35 | `backend/src/pitchlog/domainmut/scope.py` | 発火条件 7 種を個別に検査 / 逆引き不能で全面へ倒れる / 内部タイムアウトで fail / 上限超過が暫定マージにならない / **◎ 変更対象と依存先が正しく解決され、全面へ倒れずに完了する**(**正例 B**) | `uv run pytest tests/domain/mut/test_scope.py` |
+| 36 | `backend/domain/mutation-equivalents.json` | 厳密キー / 判定者が PO 以外なら fail / 未記録の変異が非等価扱い / 台帳の改変が全面発火 / **◎ 台帳に記録された等価変異が実際に kill 要件から外れる**(**正例 B**) | `uv run pytest tests/domain/mut/test_equivalents.py` |
+| 37 | `backend/src/pitchlog/domaincheck/divergence.py` | 片側コミット → 後続で揃える履歴が fail(最終ツリー一致では通さない)/ 古い派生物・手修正の 2 通りが個別に fail / `backend/domain/` だけの変更でも発火 / **◎ 正本と生成物が揃ったコミットが実際に通る**(**正例 B**) | `uv run pytest tests/domain/test_divergence.py` |
 | 38 | `frontend/.dependency-cruiser.cjs` / `frontend/src/lib/generated/` | 実在入口と `entrypoints[]` の差 1 件で fail(集合差)/ 正例・負例・解析不能例の 3 通り / 判定不能を合格にしない / import graph を直接読む統合テスト | `pnpm exec depcruise --validate` + `pnpm test -- --run` |
 | 39 | `frontend/index.html`(CSP)/ `frontend/vite.config.ts` | CSP 設定を直接読む統合テスト / 外部リソース参照が 1 件でも fail / 3 通り | `pnpm run build` + `pnpm test -- --run` |
 | 40 | `backend/src/pitchlog/domaincheck/closure_be.py` | 3 通り / 宣言外の入口を**拒否する**(検出ではなく)/ 集合差 | `uv run pytest tests/domain/test_closure_be.py` |
-| 41 | `backend/domain/display-binding.json` | 登録漏れ・formatter 非経由の表示経路が差分として fail(集合差)/ 対象集合が schema 閉包から独立導出 / 未宣言項目が**ステップ 12 の封印集合に既に含まれている**(後から足せない) | `uv run pytest tests/domain/test_display_binding.py` |
-| 42 | `docs/features/domain-calc-dsl/mutation-cost.json` | 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 `[手動]` 10 分 / 30 分の判定(PO)。超過なら §12-2 で停止 | `uv run pytest tests/domain/mut/test_cost_record.py` |
+| 41 | `backend/domain/display-binding.json` | 登録漏れ・formatter 非経由の表示経路が差分として fail(集合差)/ 対象集合が schema 閉包から独立導出 / 未宣言項目が**ステップ 12 の封印集合に既に含まれている**(後から足せない) / **◎ すべての表示項目が宣言と一致したとき実際に通る**(**正例 B**) | `uv run pytest tests/domain/test_display_binding.py` |
+| 42 | `docs/features/domain-calc-dsl/mutation-cost.json` | 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 `[手動]` 10 分 / 30 分の判定(PO)。超過なら §12-2 で停止 / **◎ 実測レコードが実際に生成され、10 分 / 30 分以内なら通る**(**正例 B**) | `uv run pytest tests/domain/mut/test_cost_record.py` |
 | 43 | `.github/workflows/ci.yml` / `tests/test_ci_wiring.py` / `docs/development/github-setup.md` | YAML 契約木の全葉変異で escape 0 かつ母集合計測 / 母集団を新設ジョブまで一般化 / DB を使う全ジョブで image が 3 者一致 / `services: postgres` 忘れで red / 二重実行なし / `backend/domain/` が `ty check` 対象 / `uv sync --locked` / `.coverage` が index から消える / **第 4 群 7 ステップの資産がすべて `consistency` の実行対象**(集合差)/ **「実行された」ことを証跡で確認** / `github-setup.md` と Ruleset JSON が 9 → 11 context へ同期(**検査できるのは文書の同期のみ**) | `uv run pytest tests/test_ci_wiring.py` |
-| 44 | `scripts/core_guard.py` / `tests/test_core_guard.py` | 比較元が変更不能な merge-base の blob / 他 3 領域は据え置き層から導出 / 追加層に無い変更が fail / JSON と期待値の同一コミット書き換えが fail / **JSON・期待値・アンカーの 3 点同時変更でも fail** | `uv run pytest tests/test_core_guard.py` |
+| 44 | `scripts/core_guard.py` / `tests/test_core_guard.py` | 比較元が変更不能な merge-base の blob / 他 3 領域は据え置き層から導出 / 追加層に無い変更が fail / JSON と期待値の同一コミット書き換えが fail / **JSON・期待値・アンカーの 3 点同時変更でも fail** / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**) | `uv run pytest tests/test_core_guard.py` |
 | 45 | `.claude/core-areas.json` / `docs/development/dev-harness-design-2026-08-07.md` / `docs/README.md` | 両 area 配列に該当 glob / 後から足したファイルが glob に覆われる負例(集合差)/ 他 3 領域は据え置き層のまま / 新規各パスで core-guard 発火 / 3 つの文書検査が OK `[手動]` 敵対レビュー + PR 作成者以外の逐行確認(設計書 6.3-⑤) | `uv run pytest tests/ && uv run python scripts/check_docs_status.py` |
 
 ### 5-2. 表に載らない DoD(**ステップに対応しない禁止事項**)
