@@ -922,7 +922,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1080 auth_claim=184 out_of_scope=896" in result.stdout
+    assert "total=1083 auth_claim=184 out_of_scope=899" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1344,8 +1344,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 896
-    assert attempts == 896
+    assert len(out_claims) == 899
+    assert attempts == 899
     assert escaped == []
 
 
