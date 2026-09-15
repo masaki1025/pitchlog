@@ -54,7 +54,7 @@
       "path": "contracts/authz/claim-mutant-map.json",
       "asset_role": "expectation",
       "asset_kind": "authz_claim_mutant_map",
-      "canonical_sha256": "c552baace2315be6c656b2a5c51f47539933af158e444f74edb54a3d40888c6f"
+      "canonical_sha256": "d3c3191cd7631529b8e25dd98c3d49aee449e350bfa747287aa19b1cbce98aac"
     },
     {
       "path": "contracts/authz/attack-tree.json",

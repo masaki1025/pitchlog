@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d193b75e687815b83a1faed4848dba2
 branch: feature/pg-authz-verification-g3
 created: 2026-09-09
-計画レビュー周回: 44        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 45        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -119,6 +119,7 @@ created: 2026-09-09
 | ファイル | 変更内容 |
 | --- | --- |
 | **`contracts/authz/claim-mutant-map.json`** | **178 件の `receiving_task_id` を実 ID / `PENDING:` へ置換**。**`sealed_assets` 側なので `canonical_sha256` が変わる** |
+| **`contracts/authz/mcdc-map.json`** | **`sources.claim_mutant_map.blob_digest` の追随のみ**(**2026-09-16 実装時に判明** — `check_mcdc_map.py:294-301` が blob を固定しており、追随しないと完了不能。**seal の外なので封印は緩まない**) |
 | **`contracts/authz/oracle-seal.lock.json`** | **`--reseal-oracle` による再封印**。**`sealed_assets` の `claim-mutant-map` の行だけが変わり `oracle_commit` は不変** |
 | **`scripts/check_authz_catalog.py`** | **受取先の検査 4 層を新設** |
 | **`tests/test_check_authz_catalog.py`** | **上記の正例・負例** |
@@ -210,9 +211,21 @@ PENDING_REF ::= "PENDING:" ("FR" | "NFR") "-" [0-9]{3}
 ```
 contracts/authz/claim-mutant-map.json
 contracts/authz/oracle-seal.lock.json
+contracts/authz/mcdc-map.json
 ```
 
-**この 2 本以外の `contracts/authz/**` が 1 バイトでも変わったら red。**
+> **【2026-09-16 実装時に是正】`mcdc-map.json` を許可パスへ足した。**
+> **`check_mcdc_map.py:294-301` が `sources.claim_mutant_map.blob_digest` で
+> `claim-mutant-map.json` の blob を固定している**ため、**置換すると
+> `authz-mcdc-map: 違反: claim-mutant-map の digest 連鎖が不一致` で落ちる**(実測)。
+> **許可パス 2 本では完了不能だった。**
+>
+> **封印は緩まない** — **`mcdc-map.json` は seal の外である**
+> (入力 8 資産にも封印 6 資産にも含まれない。実測)。
+> **したがって「別の封印資産を同時に変えて reseal する」経路は開かない。**
+> **代わりに段 4 で `mcdc-map.json` 側の閉包を掛ける。**
+
+**この 3 本以外の `contracts/authz/**` が 1 バイトでも変わったら red。**
 **とくに他の封印資産 5 本**(`ddl-elements` / `rejected-configs` / `attack-tree` /
 `boundary-proposal` / `verification-evidence`)**と入力 8 資産は不変。**
 
@@ -235,8 +248,15 @@ contracts/authz/oracle-seal.lock.json
 - **`oracle_commit` / `oracle_commit_semantics` / `review_policy` / `reseal_policy` は不変**
 - **`input_assets[]` の 8 行と他の `sealed_assets[]` 5 行は不変**
 
-**3 段が無いと、対象外 owner を文法上有効な別タスクへ変えたり、
-別の封印資産を同時に変更して `--reseal-oracle` したりしても正規に封印できる。**
+**段 4 — `mcdc-map.json` で変更してよい値**(**2026-09-16 追加**):
+
+- **`sources.claim_mutant_map.blob_digest` だけ**
+- **`sources.body_manifest` / `decisions` / `schema_version` / `asset_kind` は不変**
+- **段 2・段 3 と同じ「期待版との完全一致」で見る**
+
+**4 段が無いと、対象外 owner を文法上有効な別タスクへ変えたり、
+別の封印資産を同時に変更して `--reseal-oracle` したり、
+`mcdc-map.json` の `decisions` を digest 追随に紛れ込ませたりしても通る。**
 
 ### 置換先の導出(**152 owner 全件**)
 
@@ -395,6 +415,9 @@ contracts/authz/oracle-seal.lock.json
 - [ ] **TSK-317 と受取 3 タスクを双方のコメントで相互に記録した**(相互リンク)
 - [ ] **受取 DoD へ 2 つの条文を書いた** — **(a) 受けた owner 集合を資産と exact-set 突合する** / **(b) claim の述語が assertion に現れ、常時成功にすると red**
 - [ ] **「受取契約を閉じた」と書いていない**(**`S-10` (8)(9) の充足は受取タスクが行う** — 8 周目 PO 判断)
+- [ ] **段 1 の許可パスが 3 本**(`claim-mutant-map` / `oracle-seal.lock` / `mcdc-map`)**で、それ以外の `contracts/authz/**` が不変**
+- [ ] **段 4 が `mcdc-map.json` の `sources.claim_mutant_map.blob_digest` だけを許している**
+- [ ] **`uv run pytest tests/` が全件 green**(**MC/DC 検査 2 件を含む**)
 - [ ] **段 2 の許可対象が 178 行**(`contract_only` 158 + `probe_executable` 20)**である**(**`execution_class` で絞っていない**)
 - [ ] **段 2・段 3 が `git show HEAD:` を読んでいる**(**作業ツリーを読んでいない**)
 - [ ] **TSK-217 のカードへ 10 owner の安定 ID を追記した**(**TSK-367 が「6 件が明記されていない」と報告**)

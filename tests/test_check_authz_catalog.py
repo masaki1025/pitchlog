@@ -201,6 +201,25 @@ def _base_json(relative_path: str) -> dict[str, Any]:
     return value
 
 
+def _receiving_task_base_json(relative_path: str) -> dict[str, Any]:
+    """受取先置換の承認時基準版から JSON オブジェクトを読む。"""
+    result = subprocess.run(
+        [
+            "git",
+            "show",
+            f"{checker.RECEIVING_TASK_CHANGE_BASE_REVISION}:{relative_path}",
+        ],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    value = json.loads(result.stdout)
+    assert isinstance(value, dict)
+    return value
+
+
 @lru_cache(maxsize=1)
 def _base_checker() -> ModuleType:
     """固定基準版の検査器を作業コピーから独立して読み込む。"""
@@ -1879,7 +1898,6 @@ def _claim_mutant_map_with_execution_support() -> tuple[
                     "classification_rule_id": unsupported["classification_rule_id"],
                     "runtime_kill_required": False,
                     "runtime_evidence_kind": "handoff_runtime_test",
-                    "receiving_task_id": unsupported["receiving_task_id"],
                     "contract_only_reason_code": unsupported[
                         "contract_only_reason_code"
                     ],
@@ -2467,6 +2485,460 @@ def _validate_mutant_map(mutated: dict[str, Any]) -> None:
         REPOSITORY_ROOT,
         frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID}),
     )
+
+
+def test_receiving_task_four_layers_accept_the_repository_assets() -> None:
+    """受取先の文法・参照・owner・規則導出と差分閉包の正例を検査する。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    mapping = assets["claim_mutant_map"]
+    claims = mapping["claims"]
+    requirement_text = (
+        REPOSITORY_ROOT / "docs/requirements/requirements-pitchlog-2026-07-22.md"
+    ).read_text(encoding="utf-8")
+    requirement_ids = checker.requirement_reference_ids(requirement_text)
+    independently_extracted = frozenset(
+        line.split(maxsplit=2)[1].removesuffix(":")
+        for line in requirement_text.splitlines()
+        if line.startswith(("#### FR-", "#### NFR-"))
+    )
+
+    assert requirement_ids == independently_extracted
+    for index, claim in enumerate(claims):
+        checker._validate_receiving_task_id_syntax(
+            claim["receiving_task_id"], f"claims[{index}].receiving_task_id"
+        )
+    checker._validate_receiving_task_references(claims, requirement_ids)
+    checker._validate_receiving_task_owner_consistency(claims)
+    checker._validate_receiving_task_assignments(claims)
+
+    handoff_owners = {
+        claim["runtime_test_owner"]["id"]
+        for claim in claims
+        if claim["runtime_test_owner"]["id"].startswith(
+            checker.RUNTIME_HANDOFF_OWNER_PREFIX
+        )
+    }
+    assert set(checker._derive_receiving_task_targets(claims)) == handoff_owners
+    assert all(
+        claim["receiving_task_id"] != "TSK-270-GROUP-2"
+        and not claim["receiving_task_id"].startswith("PENDING:TASK-")
+        for claim in claims
+    )
+
+    mixed_reason_rows = [
+        claim
+        for claim in claims
+        if claim["runtime_test_owner"]["id"]
+        == "TSK-270.group2.runtime.FR-041/list_item-014"
+    ]
+    assert len({claim["contract_only_reason_code"] for claim in mixed_reason_rows}) > 1
+    assert len({claim["receiving_task_id"] for claim in mixed_reason_rows}) == 1
+
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
+    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    checker.validate_receiving_task_change_closure(
+        base_mapping,
+        mapping,
+        base_seal,
+        seal,
+        base_mcdc_map,
+        mcdc_map,
+        checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid_receiving_task_id",
+    ["TSK-270-GROUP-2", "PENDING:TASK-ANYTHING", "TSK-1234"],
+)
+def test_receiving_task_syntax_rejects_values_outside_the_final_grammar(
+    invalid_receiving_task_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧群・タスク別名・4桁IDを層①だけで拒否する。"""
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_id_syntax(
+            invalid_receiving_task_id, "receiving_task_id"
+        )
+
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    claim = next(
+        row
+        for row in mapping["claims"]
+        if row["runtime_test_owner"]["id"].startswith("TSK-217.runtime.")
+    )
+    claim["receiving_task_id"] = invalid_receiving_task_id
+    with pytest.raises(checker.CatalogError):
+        _validate_mutant_map(mapping)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_receiving_task_id_syntax",
+        lambda value, _label: str(value),
+    )
+    _validate_mutant_map(mapping)
+
+
+def test_pending_requirement_reference_must_exist_in_requirement_headings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PENDING:FR-999 を層②だけで拒否し、NFR の実在参照は許す。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    claims = mapping["claims"]
+    requirement_text = (
+        REPOSITORY_ROOT / "docs/requirements/requirements-pitchlog-2026-07-22.md"
+    ).read_text(encoding="utf-8")
+    requirement_ids = checker.requirement_reference_ids(requirement_text)
+    checker._validate_receiving_task_references(
+        [
+            {
+                "execution_class": "contract_only",
+                "receiving_task_id": "PENDING:NFR-019",
+            }
+        ],
+        requirement_ids,
+    )
+
+    claim = next(
+        row
+        for row in claims
+        if row["runtime_test_owner"]["id"].startswith("TSK-217.runtime.")
+    )
+    claim["receiving_task_id"] = "PENDING:FR-999"
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_references(claims, requirement_ids)
+    with pytest.raises(checker.CatalogError):
+        _validate_mutant_map(mapping)
+
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_references", lambda *_args: None
+    )
+    _validate_mutant_map(mapping)
+
+
+def test_probe_executable_rejects_a_pending_receiving_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """確定済み probe の PENDING 受取先を層②だけで拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    claims = mapping["claims"]
+    owner_counts = Counter(
+        claim["runtime_test_owner"]["id"] for claim in claims
+    )
+    claim = next(
+        row
+        for row in claims
+        if row["execution_class"] == "probe_executable"
+        and not row["runtime_test_owner"]["id"].startswith(
+            checker.RUNTIME_HANDOFF_OWNER_PREFIX
+        )
+        and owner_counts[row["runtime_test_owner"]["id"]] == 1
+    )
+    claim["receiving_task_id"] = "PENDING:FR-041"
+    requirement_ids = checker.requirement_reference_ids(
+        (
+            REPOSITORY_ROOT
+            / "docs/requirements/requirements-pitchlog-2026-07-22.md"
+        ).read_text(encoding="utf-8")
+    )
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_references(claims, requirement_ids)
+    with pytest.raises(checker.CatalogError):
+        _validate_mutant_map(mapping)
+
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_references", lambda *_args: None
+    )
+    _validate_mutant_map(mapping)
+
+
+def test_shared_runtime_owner_rejects_different_receiving_tasks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """共有 owner の片方だけを変え、層③だけで拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    claims = mapping["claims"]
+    shared_owner = "TSK-250.runtime.FR-041/list_item-006"
+    shared_rows = [
+        claim for claim in claims if claim["runtime_test_owner"]["id"] == shared_owner
+    ]
+    assert len(shared_rows) > 1
+    shared_rows[0]["receiving_task_id"] = "TSK-217"
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_owner_consistency(claims)
+    with pytest.raises(checker.CatalogError):
+        _validate_mutant_map(mapping)
+
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_owner_consistency", lambda *_args: None
+    )
+    _validate_mutant_map(mapping)
+
+
+@pytest.mark.parametrize("execution_class", ["contract_only", "probe_executable"])
+def test_receiving_task_rule_derivation_rejects_a_valid_but_wrong_task_id(
+    execution_class: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """文法上有効な誤宛先を規則導出との exact-set 突合だけで拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    mapping = copy.deepcopy(assets["claim_mutant_map"])
+    claims = mapping["claims"]
+    owner_counts = Counter(
+        claim["runtime_test_owner"]["id"] for claim in claims
+    )
+    claim = next(
+        row
+        for row in claims
+        if row["execution_class"] == execution_class
+        and row["runtime_test_owner"]["id"].startswith(
+            checker.RUNTIME_HANDOFF_OWNER_PREFIX
+        )
+        and owner_counts[row["runtime_test_owner"]["id"]] == 1
+        and row["receiving_task_id"] != "TSK-250"
+    )
+    claim["receiving_task_id"] = "TSK-250"
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_assignments(claims)
+    with pytest.raises(checker.CatalogError):
+        _validate_mutant_map(mapping)
+
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_assignments", lambda *_args: None
+    )
+    _validate_mutant_map(mapping)
+
+
+def test_receiving_task_change_scope_rejects_another_contract_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """差分閉包の段1で許可3本以外の contracts パスを拒否する。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
+    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    changed_paths = checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT)
+    forbidden_paths = changed_paths | {"contracts/authz/auth-catalog.json"}
+    with pytest.raises(checker.CatalogError):
+        checker._validate_receiving_task_changed_paths(forbidden_paths)
+
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_changed_paths", lambda *_args: None
+    )
+    checker.validate_receiving_task_change_closure(
+        base_mapping,
+        assets["claim_mutant_map"],
+        base_seal,
+        seal,
+        base_mcdc_map,
+        mcdc_map,
+        forbidden_paths,
+    )
+
+
+def test_mutant_map_change_closure_rejects_every_unapproved_change() -> None:
+    """差分閉包の段2で非対象・別field・集合・未知keyの変更を拒否する。"""
+    assets, _seal, _paths = _repository_oracle_assets()
+    current = assets["claim_mutant_map"]
+    base = _receiving_task_base_json("contracts/authz/claim-mutant-map.json")
+    mutations: list[dict[str, Any]] = []
+
+    non_target = copy.deepcopy(current)
+    next(
+        claim
+        for claim in non_target["claims"]
+        if claim["runtime_test_owner"]["id"].startswith("TSK-250.runtime.")
+    )["receiving_task_id"] = "TSK-217"
+    mutations.append(non_target)
+
+    other_field = copy.deepcopy(current)
+    next(
+        claim
+        for claim in other_field["claims"]
+        if claim["execution_class"] == "contract_only"
+        and claim["runtime_test_owner"]["id"].startswith(
+            checker.RUNTIME_HANDOFF_OWNER_PREFIX
+        )
+    )["contract_only_reason_code"] = "ddl_target_pending"
+    mutations.append(other_field)
+
+    unknown_key = copy.deepcopy(current)
+    unknown_key["unapproved_leaf"] = True
+    mutations.append(unknown_key)
+
+    removed = copy.deepcopy(current)
+    removed["claims"].pop()
+    mutations.append(removed)
+
+    reordered = copy.deepcopy(current)
+    reordered["claims"][0], reordered["claims"][1] = (
+        reordered["claims"][1],
+        reordered["claims"][0],
+    )
+    mutations.append(reordered)
+
+    for mutated in mutations:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_receiving_task_mutant_map_change(base, mutated)
+
+
+def test_mutant_map_unapproved_change_passes_without_stage_two(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """段2の負例が追加した完全一致検査だけにより落ちると示す。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    current = copy.deepcopy(assets["claim_mutant_map"])
+    next(
+        claim
+        for claim in current["claims"]
+        if claim["runtime_test_owner"]["id"].startswith("TSK-250.runtime.")
+    )["receiving_task_id"] = "TSK-217"
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
+    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_mutant_map_change", lambda *_args: None
+    )
+    checker.validate_receiving_task_change_closure(
+        base_mapping,
+        current,
+        base_seal,
+        seal,
+        base_mcdc_map,
+        mcdc_map,
+        checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
+    )
+
+
+def test_oracle_seal_change_closure_rejects_every_unapproved_change() -> None:
+    """差分閉包の段3で対象digest以外の値・集合・順序変更を拒否する。"""
+    _assets, current, _paths = _repository_oracle_assets()
+    base = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    mutations: list[dict[str, Any]] = []
+
+    unknown_key = copy.deepcopy(current)
+    unknown_key["unapproved_leaf"] = True
+    mutations.append(unknown_key)
+
+    oracle_commit = copy.deepcopy(current)
+    oracle_commit["oracle_commit"] = "0" * 40
+    mutations.append(oracle_commit)
+
+    input_digest = copy.deepcopy(current)
+    input_digest["input_assets"][0]["git_blob_digest"] = "0" * 40
+    mutations.append(input_digest)
+
+    other_sealed_digest = copy.deepcopy(current)
+    next(
+        row
+        for row in other_sealed_digest["sealed_assets"]
+        if row["path"] != "contracts/authz/claim-mutant-map.json"
+    )["canonical_sha256"] = "0" * 64
+    mutations.append(other_sealed_digest)
+
+    reordered = copy.deepcopy(current)
+    reordered["sealed_assets"][0], reordered["sealed_assets"][1] = (
+        reordered["sealed_assets"][1],
+        reordered["sealed_assets"][0],
+    )
+    mutations.append(reordered)
+
+    for mutated in mutations:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_receiving_task_oracle_seal_change(base, mutated)
+
+
+def test_oracle_seal_unapproved_change_passes_without_stage_three(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """段3の負例が追加した完全一致検査だけにより落ちると示す。"""
+    assets, current, _paths = _repository_oracle_assets()
+    mutated = copy.deepcopy(current)
+    mutated["review_policy"] = "unapproved"
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    base_mcdc_map = _receiving_task_base_json("contracts/authz/mcdc-map.json")
+    mcdc_map = _read_repository_json("contracts/authz/mcdc-map.json")
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_oracle_seal_change", lambda *_args: None
+    )
+    checker.validate_receiving_task_change_closure(
+        base_mapping,
+        assets["claim_mutant_map"],
+        base_seal,
+        mutated,
+        base_mcdc_map,
+        mcdc_map,
+        checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
+    )
+
+
+def test_mcdc_map_change_closure_rejects_every_unapproved_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """段4で claim mutant map の digest 以外を拒否し、専用検査の因果を示す。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    current = _read_repository_json("contracts/authz/mcdc-map.json")
+    base = _receiving_task_base_json("contracts/authz/mcdc-map.json")
+    mutations: list[dict[str, Any]] = []
+
+    decision = copy.deepcopy(current)
+    decision["decisions"][0]["decision_form"] = "OR"
+    mutations.append(decision)
+
+    body_manifest = copy.deepcopy(current)
+    body_manifest["sources"]["body_manifest"]["blob_digest"] = "0" * 40
+    mutations.append(body_manifest)
+
+    unknown_key = copy.deepcopy(current)
+    unknown_key["unapproved_leaf"] = True
+    mutations.append(unknown_key)
+
+    reordered_sources = copy.deepcopy(current)
+    sources = reordered_sources["sources"]
+    reordered_sources["sources"] = {
+        "claim_mutant_map": sources["claim_mutant_map"],
+        "body_manifest": sources["body_manifest"],
+    }
+    mutations.append(reordered_sources)
+
+    for mutated in mutations:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_receiving_task_mcdc_map_change(base, mutated)
+
+    base_mapping = _receiving_task_base_json(
+        "contracts/authz/claim-mutant-map.json"
+    )
+    base_seal = _receiving_task_base_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
+    monkeypatch.setattr(
+        checker, "_validate_receiving_task_mcdc_map_change", lambda *_args: None
+    )
+    for mutated in mutations:
+        checker.validate_receiving_task_change_closure(
+            base_mapping,
+            assets["claim_mutant_map"],
+            base_seal,
+            seal,
+            base,
+            mutated,
+            checker._receiving_task_changed_contract_paths(REPOSITORY_ROOT),
+        )
 
 
 def _generalized_table_privilege_mapping() -> dict[str, Any]:
@@ -3342,8 +3814,8 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     assert seal_path.read_bytes() == seal_before
 
 
-def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> None:
-    """入力baselineを三者照合し、意味が変わる資産を予定した2件に限る。"""
+def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
+    """入力baselineを三者照合し、意味が変わる資産を予定した集合に限る。"""
     relative_path = f"contracts/authz/{ORACLE_SEAL_FILE}"
     base = _base_json(relative_path)
     current = _read_repository_json(relative_path)
@@ -3361,6 +3833,7 @@ def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> 
     }
     assert changed == {
         "contracts/authz/boundary-proposal.json",
+        "contracts/authz/claim-mutant-map.json",
         "contracts/authz/ddl-elements.json",
     }
     assert {
