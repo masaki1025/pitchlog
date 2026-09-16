@@ -461,3 +461,53 @@ Notion を引かなければ気づかなかった(**`TSK-411` の DoD には明�
 - **`TSK-410` の受取契約** — 先方カードへ DoD 追記を依頼済み。**恒久検出は `TSK-383` へ**
 - **`FR-037` の実装タスクが `FR-041` に依存する**こと
 - **`TSK-217` の owner #9 は残余置き場としての割り当て**であること(ハーネス定義の PO 裁定で整理)
+
+## CI の backend ジョブが red(2026-09-16・本 PR 起因)
+
+**PR #66 作成後、`backend` ジョブが fail(7m19s)。`harness` は pass(12m47s)。**
+
+```
+FAILED tests/test_authz_mutation_composition_full.py::test_frozen_oracle_paths_have_no_branch_diff
+FAILED tests/test_authz_mutation_composition_full.py::test_frozen_oracle_exclusions_match_the_resealed_canonical_assets
+  MutationCompositionError: contracts/authz/claim-mutant-map.json: 承認済みのoracle意味本文と不一致
+```
+
+### 私の失敗 2 件
+
+1. **`/check` の backend 層を回していない。** `backend/pyproject.toml` は存在するのに、
+   ルートの harness 層(`ruff` / `ty` / `pytest tests/` 1366)だけで「全グリーン」と
+   **PR 本文とこの worklog に書いた**。**事実と違った。**
+   `check/SKILL.md` は**存在する層すべて**を回すと定めている。
+2. **差分閉包の段 1 が `contracts/` しか見ていなかった。**
+   `mcdc-map.json` の digest 連鎖は実装中に見つけたのに、
+   **`backend/` 側に同じ資産を固定する第 2 の凍結がある**ことを確かめなかった。
+   台帳が繰り返し記録している「**検査の連鎖が届かない穴**」と同型。
+   **「`contracts/authz/` を 1 バイトも変えない」を守れば閉じる、と思い込んでいた** —
+   **閉じるのは `contracts/` の側だけで、`contracts/` を固定している側は別にある。**
+
+### 原因
+
+**`backend/tests/db/authz/mutation_composition.py:36` の `STEP2_BASE_REVISION = 56c281c4…`** を基準に、
+**封印 6 資産の意味本文**(`oracle_commit` だけを除いた全体)を固定している。
+**承認済みの意味変更は `_expected_step2_meaning_body`(`:999`)が 2 資産分だけ列挙**しており、
+`claim-mutant-map.json` は入っていない。**手元でも再現した。**
+
+### 対処(**PO 裁定 `D-28`・2026-09-16**)
+
+**PR #63(TSK-386)がこの構造そのものを移設中**だった。
+`STEP2_BASE_REVISION` / `STEP2_CHANGED_CANONICAL_ASSET_PATHS` / `_expected_step2_meaning_body` を削除し、
+**`contracts/authz/frozen-baselines.json` へ移す**。同台帳は **`supersedes` 付きの系列**で、
+**基準の前進を `approved_by` / `approved_at` / `reason` つきの正式操作**として設計している
+(`oracle_input` で実施済み 2 件。**2 件目は当の PR 自身のコミットを指す** — 私が必要とするのと同じ形)。
+
+→ **#63 を先にマージし、その拡張点へ `oracle_meaning` 基準を 1 件足す。**
+**マージ順を ③↔④ で入れ替える。** **射程へ足すのは `contracts/authz/frozen-baselines.json` の 1 本だけ・コード変更ゼロ。**
+
+**却下した案**: 現行定数の拡張 — **#63 が当該 3 定数を削除するので確実に衝突**し、
+**178 件の置換規則を backend へ二重実装**することになる(NFR-018 と同型)。
+
+### 状態
+
+- 計画書 frontmatter を `in-review` → `active` へ戻した
+- **PR #66 は #63 のマージ待ち**(red のまま OPEN)
+- **PR 本文の「/check 全グリーン」は訂正する**
