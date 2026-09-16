@@ -1,6 +1,6 @@
 ---
 feature: pg-authz-verification-g3
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-16・山田正輝・射程改訂を再承認) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -105,8 +105,8 @@ created: 2026-09-09
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| [`docs/README.md`](../../README.md) | **反映なし**(索引に載る正本を変更しない) | — |
-| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **反映なし**(現時点)。**`/pr` のクローズ処理で追記を判断し、該当するなら本節へ宣言を先に追記してから台帳を書く**(`pr/SKILL.md` 手順 1-3)。**該当しない場合は worklog に理由を残す** | PR レビュー |
+| [`docs/README.md`](../../README.md) | **台帳行の最終更新日を現行化**(台帳へ候補 2 件を追記したため — `pr/SKILL.md` 手順 1-3 ④) | PR レビュー |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **`## 候補` へ 1 件を新設し、既存候補 1 件へ事例を追加する**(`H-*` は採番しない・版は上げない — 7.6-3 前段)。**新設**: 機械検査(CI)の射程と、作業する主体が実際に持つ経路を取り違えると、機械で閉じられる確認を人手へ回す。**追加**: 「正本の行番号引用は書き手自身の手で古くなる」へ、**他 PR のマージでファイルが伸びてずれる**事例 | PR レビュー |
 | `.claude/core-areas.json` | **反映なし** — **本改訂が触る検査器とテストは `guard_paths` に登録済み**(PR #59)。新規パスを足さない | — |
 | `docs/design/**` / `docs/requirements/**` / `docs/adr/**` / `docs/development/**` / `docs/ops/**` | **反映なし** | — |
 | `contracts/**` を除く `backend/**` / `frontend/**` | **反映なし** | — |
@@ -121,7 +121,7 @@ created: 2026-09-09
 | --- | --- |
 | **`contracts/authz/claim-mutant-map.json`** | **178 件の `receiving_task_id` を実 ID / `PENDING:` へ置換**。**`sealed_assets` 側なので `canonical_sha256` が変わる** |
 | **`contracts/authz/mcdc-map.json`** | **`sources.claim_mutant_map.blob_digest` の追随のみ**(**2026-09-16 実装時に判明** — `check_mcdc_map.py:294-301` が blob を固定しており、追随しないと完了不能。**seal の外なので封印は緩まない**) |
-| **`contracts/authz/oracle-seal.lock.json`** | **`--reseal-oracle` による再封印**。**`sealed_assets` の `claim-mutant-map` の行だけが変わり `oracle_commit` は不変** |
+| **`contracts/authz/oracle-seal.lock.json`** | **`--reseal-oracle` による再封印**。**`sealed_assets` の `claim-mutant-map` の行が変わる**。**`oracle_commit` は本改訂では動かさないが、develop(PR #64 / TSK-355)の取り込みで `0cf994f4…` → `24ef4fcc…` へ前進した値に追随している** |
 | **`scripts/check_authz_catalog.py`** | **受取先の検査 4 層を新設** |
 | **`tests/test_check_authz_catalog.py`** | **上記の正例・負例** |
 | `docs/features/pg-authz-verification-g3/**` / `docs/worklog/2026-09-14-pg-authz-verification-g3.md` | 本書・`design.md`・`research.md`・作業ログ |
