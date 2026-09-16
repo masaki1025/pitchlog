@@ -42,7 +42,7 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 **計画レビュー 6 周で収束**(`P1` 7 / 6 / 6 / 6 / 3 / **0**)。
 **6 周目 `可決 P0 0 / P1 0 / P2 2`** — 総合判定「**実装に入れる状態である**」。
 **全周の誤り 38 件は [design.md](design.md) 8 節が持つ**(繰り返した型 5 つと、その対策の効きも)。
-**後半 2 周の要点**: **① version 型は `supersedes` を持たない**(`G-4` が同じ役目 — 同 3-3)
+**後半 2 周の要点**: **① version 型も `supersedes` を持つ**(直前の `version`。**確定ゲート 5 周目に落としたのは方向が誤りで、PR #63 の敵対レビュー `P0` で撤回した** — 同 3-3)
 **② `pending_removal` は「台帳が base に無いとき」にだけ許す**(機械の期限 — 同 2-4)。
 
 ### やること
@@ -140,7 +140,7 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
 | 5 | **`oracle_input` 系列へ現行の基準を移し、検査器から SHA を落とす**。**あわせて allow-list 走査を作る**(design.md 2-4) | **`scripts/check_authz_catalog.py` に 40 桁 SHA の直書きが 0 件**(**allow-list 走査が数える** — 手で列挙しない)/ **`N11` が red**(既存の値を別ファイルへ足しても red = 識別単位が `(パス, 値)`)/ **`N12` が red**(**走査で見つからない組を登録すると red** = 逆向き。**`N11` とは向きが違う** — 4 周目 `P1-4`)/ **走査の出現が `14 → 13`**(**本ステップで `check_authz_catalog.py` の `0cf994f4…` 1 件が消える** — 5 周目 `P1-3`。**14 のままにすると合格条件が同時達成不能だった**)/ **`tests/`・`backend/` に残る 3 件は `pending_removal: true` で登録**/ **N2 が red のまま** |
 | 6 | **`:4798` の fail-open を fail-closed へ**。**あわせて `F-8`(到達する CI ジョブが `fetch-depth: 0` を持つ)を実装する** | **N4 が red**(**現在は green**)/ **N14 が red**(`fetch-depth: 0` を外した複製 — 台帳 `:2469` の PR #52 の再発を塞ぐ)/ **`harness`(`ci.yml:78`)と `backend`(同 `:214`)が `fetch-depth: 0` を持つことを機械が確認**/ 既存の緑を落としていない |
 | 7 | **`oracle_meaning` 系列へ 2 件、`core_areas_guard` 系列へ 1 件を移す**(**別系列** — 3 周目 `P1-2`) | **`backend/tests/**` と `tests/**` に凍結基準の 40 桁 SHA 直書きが 0 件**(allow-list 走査)/ **N1 が red のまま** / **`test_core_guard.py` の既存テストが green** / **`oracle_meaning` へ追記しても `core_areas_guard` の末尾が動かないことを実測**(暗黙リベースが起きないことの実証)/ **allow-list の `pending_removal` が 0 件** / **走査の出現が `13 → 10`** / **重複は `AUTHZ_STEP2_BASE_REVISION` の 1 件だけが解消** |
-| 8 | **`corpus_versions`(version 型・4 系列目)と `corpus_version` を新設する**(母集合 + **派生 3 資産**) | **N7・N8 が red** / **`G-1`〜`G-5` が実装されている**(`G-5` = 派生の版が母集合と一致)/ **共通述語は `F-3`・`F-4` の 2 つだけ**(**`F-2` は commit 型専用** — 5 周目 `P1-1`)/ **version 型の記録に `supersedes` が無い**(4-3 の構造例どおり)|
+| 8 | **`corpus_versions`(version 型・4 系列目)と `corpus_version` を新設する**(母集合 + **派生 3 資産**) | **N7・N8 が red** / **`G-1`〜`G-5` が実装されている**(`G-5` = 派生の版が母集合と一致)/ **共通述語は `F-2`・`F-3`・`F-4`**(**`F-2` は全系列。比較対象は系列の型で決める** — PR #63 の `P0` で撤回)/ **version 型の記録も `supersedes` を持つ**(直前の `version`)|
 | 9 | **派生 3 資産の digest 辺 6 本を版参照へ置き換える(入力資産の変更・第 1 コミット)** | **資産全体を指す digest 辺が `21 → 16`**(**機械が変更前後を数える**。定義と実測は design.md 4-1 — **`contracts/` の digest らしきキー全部 5241 件のほうではない**)/ **派生 3 資産に `requirement_claims_blob_digest` が 0 件** |
 | 10 | **新 blob を含むコミットへ基準を追記し、再封印する(第 2 コミット)** | **`P1-6` の二段構造**。台帳へ追記(`supersedes` が連鎖)/ `--reseal-oracle` / **`check_authz_catalog` ok** |
 | 11 | **負例 14 件を通しで確認し、効果を実測する** | **N1〜N14 がすべて red**、かつ**その 14 件が exact-set で数えられている**(**ステップ 1 の物差しは `backend/tests/` の 1 ファイル内しか見ていない**。N3 以降は harness 側 `tests/`〔別 venv〕に載るので、**両 root を横断して負例集合を数える形にする** — 実装時の追記)/ **digest 辺を機械が変更前後で出力し `21 → 16` を記録** / **手で計算する digest が 6 → 1**(台帳の `canonical_sha256` が残る)/ **要件書を 1 バイト変えて追随し、検査器のソースを 1 行も編集せずに済むことを実測** |
@@ -194,7 +194,10 @@ Notion: [TSK-386](https://app.notion.com/p/3da93b75e68781308abac4ecfe162251)。
       **base に台帳がある状態で `true` を置くと red**(N13 — 禁止側。6 周目 `P2`)
 - [ ] **`frozen-baselines.json` が 4 系列を持ち、追記のみで守られている** — **既存記録の書き換えが red**(N5)
 - [ ] **commit 型 3 系列と version 型 1 系列で、適用する述語が分かれている**。
-      **`supersedes` は commit 型だけが持つ**(version 型は `G-4` の連番 — 5 周目 `P1-1`)
+      **`supersedes` は全系列が持つ**(commit 型は直前の `commit`、version 型は直前の `version`)
+- [ ] **宣言が挙動を選択している**(`identity`/`granularity` を変えると挙動が変わる — design.md 3-4-2-B `R-1`)
+- [ ] **宣言の凍結対象が独立な出どころと完全一致する**(同 `R-4`)
+- [ ] **宣言を狭めると red**(4 系列すべてで実証)
 - [ ] **台帳は他資産の digest を持つが、誰からも digest で参照されない**(片方向 — design.md 3-1)
 - [ ] **`oracle_meaning` への追記が `core_areas_guard` の基準を動かさない**(3 周目 `P1-2`)
 - [ ] **記録なしに基準を動かせない**(N3・N6 が red)
