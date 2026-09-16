@@ -71,12 +71,26 @@ _LoggingSnapshot = TypedDict(
 _LOGGING_PROBE_SCRIPT = f'''\
 import json
 import logging
+import logging.config
 import runpy
 from collections.abc import Iterator
 from contextlib import contextmanager
-from logging.config import fileConfig
 
 import alembic
+
+
+original_file_config = logging.config.fileConfig
+
+
+def file_config_with_default_existing_loggers(
+    fname: str,
+    defaults: dict[str, object] | None = None,
+    disable_existing_loggers: bool = True,
+    encoding: str | None = None,
+) -> None:
+    """既存ロガーの扱いを既定引数へ強制して設定を読み込む。"""
+    del disable_existing_loggers
+    original_file_config(fname, defaults=defaults, encoding=encoding)
 
 
 class ConfigStub:
@@ -149,7 +163,8 @@ application_logger = logging.getLogger("pitchlog.api.errors")
 sentinel_logger = logging.getLogger("pitchlog_sentinel_disabled")
 sentinel_logger.disabled = True
 
-RUN_LOGGING_CONFIGURATION
+FORCE_DEFAULT_FILE_CONFIG
+runpy.run_path({str(_ENVIRONMENT_PATH)!r})
 
 snapshot = {{
     "root": snapshot_root_logger(),
@@ -259,19 +274,20 @@ def test_all_model_modules_are_discovered_and_registered() -> None:
 
 
 def _logging_probe_script(action: Literal["environment", "default"]) -> str:
-    """指定したロギング設定経路を実行する子プロセスコードを返す。
+    """指定した実効引数で env.py を実行する子プロセスコードを返す。
 
     Args:
-        action: env.py または fileConfig の既定引数を選ぶ識別子。
+        action: env.py の指定値または fileConfig の既定値を選ぶ識別子。
 
     Returns:
         子プロセスへ渡す Python コード。
     """
-    if action == "environment":
-        statement = f"runpy.run_path({str(_ENVIRONMENT_PATH)!r})"
-    else:
-        statement = f"fileConfig({str(_ALEMBIC_CONFIG_PATH)!r})"
-    return _LOGGING_PROBE_SCRIPT.replace("RUN_LOGGING_CONFIGURATION", statement)
+    statement = (
+        ""
+        if action == "environment"
+        else ("logging.config.fileConfig = file_config_with_default_existing_loggers")
+    )
+    return _LOGGING_PROBE_SCRIPT.replace("FORCE_DEFAULT_FILE_CONFIG", statement)
 
 
 def _run_logging_probe(
@@ -280,7 +296,7 @@ def _run_logging_probe(
     """隔離した子プロセスでロギング状態を取得する。
 
     Args:
-        action: env.py または fileConfig の既定引数を選ぶ識別子。
+        action: env.py の指定値または fileConfig の既定値を選ぶ識別子。
 
     Returns:
         比較対象だけを含む正規化済みスナップショット。
@@ -304,10 +320,10 @@ def _run_logging_probe(
 
 @pytest.fixture(scope="module")
 def logging_snapshots() -> tuple[_LoggingSnapshot, _LoggingSnapshot]:
-    """env.py 経路と既定引数経路の状態を 1 回ずつ取得する。
+    """env.py の指定値と強制した既定値の状態を 1 回ずつ取得する。
 
     Returns:
-        env.py 経路、fileConfig の既定引数経路の順に並べた状態。
+        env.py の指定値、fileConfig の既定値の順に並べた状態。
     """
     return _run_logging_probe("environment"), _run_logging_probe("default")
 
@@ -324,7 +340,7 @@ def test_environment_keeps_application_logger_enabled(
 def test_default_file_config_disables_application_logger(
     logging_snapshots: tuple[_LoggingSnapshot, _LoggingSnapshot],
 ) -> None:
-    """既定引数の fileConfig が対照ロガーを無効化すると示す。"""
+    """env.py 内の fileConfig を既定引数へ強制すると無効化すると示す。"""
     _, default_snapshot = logging_snapshots
 
     assert default_snapshot["pitchlog.api.errors"]["disabled"]

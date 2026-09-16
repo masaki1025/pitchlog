@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3dd93b75e6878147aae9d37a76665e14
 branch: fix/alembic-logging-isolation
 created: 2026-09-16
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -179,12 +179,24 @@ TSK-387 が置いた `assert not ...disabled` との役割分担も 1 文で書�
 | 出力 | スナップショットを **JSON で標準出力**へ 1 行 |
 | 親の検証 | **`returncode == 0` を表明し、非 0 なら `stderr` を添えて失敗させる**。そのうえで JSON を解析する |
 
-**子プロセス (a) と (b) の違いは 1 点だけ**にする:
+**子プロセス (a) と (b) の違いは 1 点だけ**にする。
+**両方とも `runpy.run_path(env.py)` で env.py を実行し、(b) だけ引数を既定へ強制する**:
 
-- **(a)**: `runpy.run_path(env.py)` で env.py を実行する(= `disable_existing_loggers=False` が効く経路)
-- **(b)**: **同じ ini を `fileConfig` の既定引数で直接適用した対照**
-  (**「env.py の既定実行」ではない** — 2 周目 P2。env.py を通らないため、
-  比較の主張は「**引数差による最終 logging 状態の違い**」に限る)
+- **(a)**: そのまま env.py を実行する(= `disable_existing_loggers=False` が効く経路)
+- **(b)**: **env.py を実行する前に、子プロセス内で `logging.config.fileConfig` をラップし、
+  `disable_existing_loggers` を落として既定引数で呼ぶようにする**。
+  env.py は `from logging.config import fileConfig` を**実行時に**解決するため、
+  `runpy` で読み込む前に `logging.config.fileConfig` を差し替えればラッパーが使われる
+
+**【3 周目レビュー P0 の是正】** 当初は (b) を「同じ ini を `fileConfig` の既定引数で**直接**適用した対照」
+としていたが、**これでは対照実験が単一変数にならない**。(a) は env.py 経由で
+`pitchlog.db.*` / `sqlalchemy` を import するため、**`fileConfig` 到達時点の loggerDict の母集団が
+(b) と異なる**(実測 — (a) にだけ `sqlalchemy.orm.*` 等が存在する)。
+その状態で表明 3 が示せるのは「**異なる二経路の最終スナップショットが現在一致する**」ことだけで、
+「**引数差が alembic 側の列挙項目を変えない**」という因果の主張にはならない
+(import の副作用による差や相殺を引数差と区別できない)。
+**同じ計画書の中で「違いは 1 点だけ」と「(b) は直接呼び出し」が両立していなかった** —
+実装はそのうち明示された後者に従っており、実装のミスではない。
 
 どちらの子プロセスも、実行前に **アプリのロガー**(`pitchlog.api.errors`)と
 **番兵ロガー**を生成する。**番兵の qualname は `alembic.` / `sqlalchemy.engine.` の子孫にしない**
@@ -209,7 +221,7 @@ TSK-387 が置いた `assert not ...disabled` との役割分担も 1 文で書�
 | --- | --- | --- |
 | 1 | (a) の `pitchlog.api.errors` が `disabled` **でない** | 修正の直接目的 |
 | 2 | (b) の `pitchlog.api.errors` が `disabled` **である** | **内蔵の対照** — 検査が空振りでないことを、変異を待たずに示す |
-| 3 | (a) と (b) の **列挙した alembic 側項目が一致** | 「alembic 側は引数差の影響を受けない」 |
+| 3 | (a) と (b) の **列挙した alembic 側項目が一致** | **引数差が alembic 側の列挙項目を変えない**(両者とも env.py を実行するため、差は引数だけ) |
 | 4 | (a) の `pitchlog_sentinel_disabled` が `disabled` **でない** | **characterization test**(下記) |
 
 **表明 4 の位置づけ(2 周目レビュー P1)** — これは「望ましい仕様」ではなく
