@@ -4795,7 +4795,13 @@ def validate_oracle_seal(
                 text=True,
                 check=False,
             )
-            if result.returncode == 0 and result.stdout.strip() != digest:
+            if result.returncode != 0:
+                stderr = result.stderr.strip() or "<stderr なし>"
+                raise CatalogError(
+                    f"{path_text}: oracle commit {oracle_commit} 上の blob を解決できない: "
+                    f"git rev-parse stderr={stderr}"
+                )
+            if result.stdout.strip() != digest:
                 raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
     required_input_paths = {
         "contracts/authz/requirement-claims.json",
