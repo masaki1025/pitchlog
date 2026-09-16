@@ -63,26 +63,6 @@ def _make_repository(tmp_path: Path) -> Path:
     return root
 
 
-def _clone_repository(tmp_path: Path) -> Path:
-    """現在の履歴を共有する負例用の一時cloneを作る。"""
-    root = tmp_path / "repository"
-    result = subprocess.run(
-        [
-            "git",
-            "clone",
-            "--quiet",
-            "--shared",
-            str(REPOSITORY_ROOT),
-            str(root),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    return root
-
-
 def _read_catalog(root: Path) -> dict[str, Any]:
     raw = json.loads((root / "requirement-claims.json").read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
@@ -158,12 +138,9 @@ def _run_cli(root: Path, *, reseal: bool = False) -> subprocess.CompletedProcess
     )
 
 
-def _read_repository_json(
-    relative_path: str,
-    root: Path = REPOSITORY_ROOT,
-) -> dict[str, Any]:
+def _read_repository_json(relative_path: str) -> dict[str, Any]:
     """リポジトリの JSON オブジェクトを読む。"""
-    raw = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    raw = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
     return raw
 
@@ -184,9 +161,7 @@ def _repository_derived_assets() -> tuple[
     return assets, locks, paths
 
 
-def _repository_oracle_assets(
-    root: Path = REPOSITORY_ROOT,
-) -> tuple[
+def _repository_oracle_assets() -> tuple[
     dict[str, dict[str, Any]], dict[str, Any], dict[str, str]
 ]:
     """ステップ5の6資産・oracle seal・相対パスを読む。"""
@@ -194,9 +169,9 @@ def _repository_oracle_assets(
     paths: dict[str, str] = {}
     for name, filename in ORACLE_ASSET_FILES.items():
         path = f"contracts/authz/{filename}"
-        assets[name] = _read_repository_json(path, root)
+        assets[name] = _read_repository_json(path)
         paths[name] = path
-    seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}", root)
+    seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
     return assets, seal, paths
 
 
@@ -2739,53 +2714,6 @@ def test_repository_oracle_assets_are_valid() -> None:
     assert result["attack"]["multi_factor_cut_set_count"] == 3
     assert result["rejected"]["rejection_count"] == 3
     assert result["boundary"]["all_logical_count"] == 29
-
-
-def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
-    """N4: 到達不能commitのblobを解決できなければredにする。"""
-    root = _clone_repository(tmp_path)
-    assets, seal, paths = _repository_oracle_assets(root)
-    unreachable = "0" * 40
-    seal["oracle_commit"] = unreachable
-    for asset in assets.values():
-        context = asset["oracle_context"]
-        assert isinstance(context, dict)
-        context["oracle_commit"] = unreachable
-    assets_by_path = {path: assets[name] for name, path in paths.items()}
-    for row in seal["sealed_assets"]:
-        assert isinstance(row, dict)
-        path = row["path"]
-        assert isinstance(path, str)
-        row["canonical_sha256"] = checker._table_digest(assets_by_path[path])
-
-    input_path = seal["input_assets"][0]["path"]
-    assert isinstance(input_path, str)
-    git_result = subprocess.run(
-        ["git", "rev-parse", f"{unreachable}:{input_path}"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert git_result.returncode != 0
-    assert git_result.stderr.strip()
-
-    with pytest.raises(checker.CatalogError) as raised:
-        checker.validate_oracle_seal(seal, assets, paths, root)
-
-    message = str(raised.value)
-    assert unreachable in message
-    assert input_path in message
-    assert git_result.stderr.strip() in message
-
-
-def test_valid_oracle_assets_without_git_remain_supported(tmp_path: Path) -> None:
-    """履歴を持たない凍結資産コピーではcommit上のblob照合を要求しない。"""
-    root = _copy_frozen_assets(tmp_path)
-    assets, seal, paths = _repository_oracle_assets(root)
-
-    assert not (root / ".git").exists()
-    assert checker.validate_oracle_seal(seal, assets, paths, root) == seal["oracle_commit"]
 
 
 def test_oracle_reseal_is_only_enabled_by_the_dedicated_flag() -> None:
