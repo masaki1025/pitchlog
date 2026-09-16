@@ -1,6 +1,6 @@
 ---
 feature: u00-api-shell
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-16・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -69,7 +69,8 @@ created: 2026-09-16
 
 ## 3. 影響する正本
 
-**すべて「反映なし」**。器は入口を開かず、既存の正本に追随を要する変更を持たない。
+**ハーネス運用評価台帳のみ反映あり**(/pr クローズ処理での判断 — 下表末尾)。
+それ以外はすべて「反映なし」で、器は入口を開かず既存の正本に追随を要する変更を持たない。
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
@@ -83,6 +84,7 @@ created: 2026-09-16
 | `contracts/README.md` | **反映なし**(OpenAPI を収載しない) | — |
 | `docs/README.md`(索引) | **反映なし**(進行中 feature の静的一覧を持たない — `docs/README.md:29`) | — |
 | `AGENTS.md` / `CLAUDE.md` | **反映なし** | — |
+| `docs/development/harness-evaluation.md`(台帳) | **反映あり** — `H-69` へ 5 件目の実測(sandbox のキャッシュ退避が実装委任 3 ステップとも再発)/ 既存候補「検証コマンドを人が選ぶと CI が走らせるコマンドとの差分が黙って残る」へ **2 例目**(**委任側と受任側でコマンドが違い、同じ 194 件が「errors」と「deselected」という正反対の語で報告された**)/ **新規候補 1 件**(タスクカードの DoD に原典を持たない項目が混ざる)。**`H-*` の新規採番なし・版は上げない**(設計書 7.6-3 前段) | PR レビュー |
 
 ## 4. 実装方針
 
