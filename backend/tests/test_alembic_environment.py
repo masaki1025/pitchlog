@@ -60,6 +60,7 @@ class _DisabledSnapshot(TypedDict):
 _LoggingSnapshot = TypedDict(
     "_LoggingSnapshot",
     {
+        "effective_disable_existing_loggers": bool,
         "root": _RootLoggerSnapshot,
         "alembic": _NamedLoggerSnapshot,
         "sqlalchemy.engine": _NamedLoggerSnapshot,
@@ -80,17 +81,33 @@ import alembic
 
 
 original_file_config = logging.config.fileConfig
+forward_disable_existing_loggers = FORWARD_DISABLE_EXISTING_LOGGERS
+effective_disable_existing_loggers: bool | None = None
 
 
-def file_config_with_default_existing_loggers(
+def file_config_wrapper(
     fname: str,
     defaults: dict[str, object] | None = None,
     disable_existing_loggers: bool = True,
     encoding: str | None = None,
 ) -> None:
-    """既存ロガーの扱いを既定引数へ強制して設定を読み込む。"""
-    del disable_existing_loggers
-    original_file_config(fname, defaults=defaults, encoding=encoding)
+    """指定された方針で既存ロガーの扱いを元実装へ転送する。"""
+    global effective_disable_existing_loggers
+
+    if forward_disable_existing_loggers:
+        effective_disable_existing_loggers = disable_existing_loggers
+        return original_file_config(
+            fname,
+            defaults=defaults,
+            disable_existing_loggers=disable_existing_loggers,
+            encoding=encoding,
+        )
+
+    effective_disable_existing_loggers = True
+    return original_file_config(fname, defaults=defaults, encoding=encoding)
+
+
+logging.config.fileConfig = file_config_wrapper
 
 
 class ConfigStub:
@@ -163,10 +180,11 @@ application_logger = logging.getLogger("pitchlog.api.errors")
 sentinel_logger = logging.getLogger("pitchlog_sentinel_disabled")
 sentinel_logger.disabled = True
 
-FORCE_DEFAULT_FILE_CONFIG
 runpy.run_path({str(_ENVIRONMENT_PATH)!r})
 
+assert effective_disable_existing_loggers is not None
 snapshot = {{
+    "effective_disable_existing_loggers": effective_disable_existing_loggers,
     "root": snapshot_root_logger(),
     "alembic": snapshot_named_logger("alembic"),
     "sqlalchemy.engine": snapshot_named_logger("sqlalchemy.engine"),
@@ -282,12 +300,11 @@ def _logging_probe_script(action: Literal["environment", "default"]) -> str:
     Returns:
         子プロセスへ渡す Python コード。
     """
-    statement = (
-        ""
-        if action == "environment"
-        else ("logging.config.fileConfig = file_config_with_default_existing_loggers")
+    forward_disable_existing_loggers = action == "environment"
+    return _LOGGING_PROBE_SCRIPT.replace(
+        "FORWARD_DISABLE_EXISTING_LOGGERS",
+        str(forward_disable_existing_loggers),
     )
-    return _LOGGING_PROBE_SCRIPT.replace("FORCE_DEFAULT_FILE_CONFIG", statement)
 
 
 def _run_logging_probe(
@@ -349,9 +366,11 @@ def test_default_file_config_disables_application_logger(
 def test_environment_preserves_alembic_logging_configuration(
     logging_snapshots: tuple[_LoggingSnapshot, _LoggingSnapshot],
 ) -> None:
-    """引数差が Alembic 側の比較対象項目を変えないと示す。"""
+    """実効引数だけが異なり Alembic 側の項目は一致すると示す。"""
     environment_snapshot, default_snapshot = logging_snapshots
 
+    assert environment_snapshot["effective_disable_existing_loggers"] is False
+    assert default_snapshot["effective_disable_existing_loggers"] is True
     assert environment_snapshot["root"] == default_snapshot["root"]
     assert environment_snapshot["alembic"] == default_snapshot["alembic"]
     assert (
