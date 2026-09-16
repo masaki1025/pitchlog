@@ -4,7 +4,7 @@ import logging
 from uuid import uuid4
 
 import pytest
-from api_fixtures import create_error_test_app
+from api_fixtures import create_error_test_app, error_logger
 from httpx import ASGITransport, AsyncClient
 
 from pitchlog.api.schemas.base import ErrorEnvelope
@@ -57,10 +57,12 @@ async def test_method_not_allowed_returns_fixed_envelope() -> None:
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures(error_logger.__name__)
 async def test_forbidden_is_hidden_as_not_found_and_logged(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """403 が 404 と同一の本文になり ERROR ログへ残ることを確認する。"""
+    assert not logging.getLogger("pitchlog.api.errors").disabled
     caplog.set_level(logging.ERROR, logger="pitchlog.api.errors")
     transport = ASGITransport(app=create_error_test_app(), raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -76,10 +78,12 @@ async def test_forbidden_is_hidden_as_not_found_and_logged(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures(error_logger.__name__)
 async def test_unhandled_exception_returns_safe_response_and_logs_traceback(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """未捕捉例外が安全な 500 応答と traceback を残すことを確認する。"""
+    assert not logging.getLogger("pitchlog.api.errors").disabled
     caplog.set_level(logging.ERROR, logger="pitchlog.api.errors")
     transport = ASGITransport(app=create_error_test_app(), raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -102,10 +106,12 @@ async def test_unhandled_exception_returns_safe_response_and_logs_traceback(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures(error_logger.__name__)
 async def test_unhandled_exception_does_not_log_request_secrets(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """未捕捉例外時にも要求中の毒性値をログへ出さないことを確認する。"""
+    assert not logging.getLogger("pitchlog.api.errors").disabled
     toxic_value = f"SUPER-SECRET-TOKEN-{uuid4()}"
     caplog.set_level(logging.ERROR, logger="pitchlog.api.errors")
     transport = ASGITransport(app=create_error_test_app(), raise_app_exceptions=False)

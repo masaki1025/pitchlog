@@ -1,5 +1,9 @@
 """API エラーを検証するテスト用アプリケーションを提供する。"""
 
+import logging
+from collections.abc import Generator
+
+import pytest
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -10,6 +14,26 @@ class _ValidationPayload(BaseModel):
     """バリデーション検証用の入力を表す。"""
 
     player_name: str
+
+
+@pytest.fixture
+def error_logger() -> Generator[logging.Logger, None, None]:
+    """API エラーロガーをテスト中だけ有効にする。
+
+    alembic の env.py は fileConfig を既定の disable_existing_loggers=True で呼ぶため、
+    先行するテストが本ロガーを無効化しうる。これはテスト隔離のための手当てであり、
+    env.py 側の是正は別タスクの射程である。
+
+    Yields:
+        テスト中だけ有効化した API エラーロガー。
+    """
+    logger = logging.getLogger("pitchlog.api.errors")
+    previous_disabled = logger.disabled
+    logger.disabled = False
+    try:
+        yield logger
+    finally:
+        logger.disabled = previous_disabled
 
 
 def create_error_test_app() -> FastAPI:
