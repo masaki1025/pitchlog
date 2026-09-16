@@ -14,13 +14,13 @@
 **plan.md との一致は `tests/test_plan_generation.py`(ステップ 50)が検査する。**
 """
 
-EXPECTED_TOTAL = 55
+EXPECTED_TOTAL = 56
 
 #: 正例 B を要求しないステップの**閉じた集合**。
 #: 機構を作らない宣言・導出・負例集・正例 A のステップだけがここに入る。
 #: 5 周目 `P1`: 自己申告のフラグだけでは `pb` を両方 false へ倒せば通ってしまうため、
 #: 集合そのものを宣言して exact-set で突き合わせる。
-PB_FALSE = frozenset([1, 2, 3, 4, 6, 14, 19, 21, 22, 23, 32])
+PB_FALSE = frozenset([2, 3, 4, 6, 14, 19, 21, 22, 23, 32])
 
 GROUPS = []  # [(group_id, title, note, first_id, last_id)]
 S = []
@@ -42,13 +42,13 @@ def st(title, crit, art, cmd, pb):
 grp(1, '第 1 群 — 語彙・型・前提照合(1〜5)',
     '**`P1-5`(3 周目)の停止ゲートは「着手前の前提照合」なので先頭群に置く。**\n**`P1-5`(4 周目)の是正で、旧ステップ 3 を台帳・評価レコード・ゲートの 3 つへ分けた。**')
 st('**配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価**',
-   '`[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝。典拠 = `ADR-003 D-1 正本の射程行` と research.md §6-11)。**発火なら design.md §12-2 で停止**',
-   '`backend/domain/vocabulary.schema.json`', '`uv run pytest tests/domain/test_vocabulary_schema.py`', False)
+   '`[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止**',
+   '`backend/domain/vocabulary.schema.json`', '`uv run pytest tests/domain/test_vocabulary_schema.py`', True)
 st('**機械条件の判定方法の型**(design.md §2)。既存 5 型 + 本タスクの **7 型**を資産化し、以降の全ステップの `[機械]` 条件をこの型に紐づける',
    '`[機械]` **行番号参照 0 件** / 各型に**正例と負例が 1 つ以上**ある / 型に紐づかない `[機械]` 条件が 0 件',
    '`backend/domain/machine-conditions.json`', '`uv run pytest tests/domain/test_machine_conditions.py`', False)
-st('**依拠条項台帳**(トリガー 16)。**全 53 ステップの「依拠する正本の条項 ID」**と、**`requiresPositiveB`** を資産化する',
-   '`[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **53 ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12)',
+st('**依拠条項台帳**(トリガー 16)。**全 {N} ステップの「依拠する正本の条項 ID」**と、**`requiresPositiveB`** を資産化する',
+   '`[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **{N} ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12)',
    '`backend/domain/step-authorities.json`', '`uv run pytest tests/domain/test_step_authorities.py`', False)
 st('**見直しトリガーの評価レコードの形式と定義**(design.md §12-1)。**16 件それぞれに `evaluationMethod`・判定者・証拠資産の置き場・発火値**を宣言する。**評価結果は各評価ステップが追記する** — **本ステップでは評価しない**(**5 周目 `P1` の是正**: 旧版は本ステップで 16 件すべての評価済みと 証拠資産の実在を要求していたが、トリガー 5・8・12・15 の証拠はステップ 27 以降・最遅 48 で作られるため **本ステップのコミット時点では合格不能**だった)',
    '`[機械]` **母集合計測**(16 件すべてに**枠**がある)/ **`evaluationMethod` が design.md §2 の 12 型のいずれかを指す**(**集合差**)/ **判定者が PO 以外なら fail**(**文言存在**)/ **証拠資産の置き場が宣言されている**(**この時点での実在は要求しない**)/ **評価するステップ番号が実在するステップを指す**(**集合差** — 番号の陳腐化を機械検出する)/ **評価結果の欄が空であることを許す**',
@@ -85,7 +85,7 @@ st('**検査集合の分離と exit 契約**(design.md §3)。**報告の語彙*
    '`[機械]` **exit コード分離**(封印済み由来 = 0 / 封印外 = 1 / 判定不能 = 2)/ **対象集合を 13 とハードコードせず要件書から導出**(**独立導出**)/ **報告の語彙が免除の分岐条件に現れない**静的検査 / 無宣言除外・不正な除外・採用後の case 復帰の 3 負例 / **◎ 封印済み由来のみの入力で exit 0 を返す**(**正例 B**)',
    '`backend/domain/check-sets.json`', '`uv run pytest tests/domain/test_check_sets.py`', True)
 st('**封印集合の導出**(design.md §4-3)。**ステップ 10〜12 の実測**と**マニフェスト schema の 10 + 3 宣言 × 対象 13** から封印集合を**機械導出**する。**(b) 由来 3 件の閉じた母集合**(**(b)① 乖離検出の判定機構** / **(b)② 差分の検出可能性の判定機構**(3 層検査)/ **(b)③ 構成の完全性の判定機構**)を**列挙して資産へ書く**。**3 件はいずれも「判定機構の不在」であり、D-11 由来の「宣言の不在」と事項の種類が異なる**(**5 周目 `P1` の是正**: 旧版の 3 件目「本番到達可能な全域の走査対象の宣言が不在」は**宣言**であり **D-11 の `entrypoints[]` と意味上重なっていた**)',
-   '`[機械]` **封印集合が実測から導出される**(手書きの列挙を持たない — **独立導出**)/ **要素数が `assert total == 136`**(**母集合計測**。**概数で assert しない**)/ **内訳が `assert d11 == 133 and b == 3`** / **D-11 由来集合と (b) 由来集合が互いに素**(**ID の積集合が空**であることに加え、**(b) 由来 3 件の解消述語が D-11 由来のどの要素の解消述語とも一致しない**ことを検査する — **ID だけでは意味上の重複を検出できない**。5 周目 `P1`)/ **(b) 由来 3 件が `NFR-018` (b) の ①②③ と一対一**(**集合差**)/ **(b) 由来 3 件それぞれに安定 ID と解消述語がある**',
+   '`[機械]` **封印集合が実測から導出される**(手書きの列挙を持たない — **独立導出**)/ **要素数が `assert total == 136`**(**母集合計測**。**概数で assert しない**)/ **内訳が `assert d11 == 133 and b == 3`** / **D-11 由来集合と (b) 由来集合が互いに素**(**ID の積集合が空**であることに加え、**全 {N2} 件の要素を代数的型の正規キーで表す** — **`declaration_absence(target, field)`**(D-11 由来 133)と **`mechanism_absence(b_clause)`**((b) 由来 3)の **2 つの互いに素な構成子**とし、**正規キーの一意性を検査する**。**自然文の解消述語を突き合わせる形は採らない** — **言い換えれば通ってしまう**(6 周目 `P1`))/ **(b) 由来 3 件が `NFR-018` (b) の ①②③ と一対一**(**集合差**)/ **構成子が 2 つだけである**ことの静的検査(**3 つ目を足せば重複を隠せるため**)/ **`declaration_absence` の `target` が `NFR-018` 対象欄から・`field` が D-11 の宣言名から導出される**(**独立導出**)/ **(b) 由来 3 件それぞれに安定 ID と解消述語がある**',
    '`backend/domain/boot-seal.json`', '`uv run pytest tests/domain/test_boot_seal_derive.py`', False)
 st('**封印の確定と拘束①〜④の検査**(`BOOT-SEAL`)。ステップ 14 の導出結果を**固定 SHA 基準で封印**する',
    '`[機械]` **実測集合と封印集合の差が 1 件でも fail**(**集合差** — `P0-2`: 後段で漏れを発見しても `BOOT-SEAL-MONOTONE` により追加できない)/ **拘束①**(改名で別要素にならない)**②**(封印後の範囲拡大が fail)**③**(対象計算の宣言全体を 1 要素にしていない)**④**(同一事項が 2 要素にならない)**の負例が個別に fail** / **◎ 正しい封印集合が実際に封印され、以後の検証が通る**(**正例 B**)',
@@ -198,34 +198,44 @@ st('**(b)③ backend 閉域と実行時制限**(design.md §10-2)。**ステッ�
 st('**(b)③ 表外既定の表示対応の突合**(design.md §10-3)。**ステップ 12 の解析器の実測**とマニフェストの表示対応宣言を突合。**トリガー 6・13 を評価**',
    '`[機械]` **登録漏れ・formatter 非経由の表示経路が差分として fail**(**集合差**)/ **対象集合が schema 閉包から導出される**(**独立導出**)/ **未宣言項目がステップ 14 の封印集合に既に含まれている**(後から足せない)/ **◎ すべての表示項目が宣言と一致したとき実際に通る**(**正例 B**)',
    '`backend/domain/display-binding.json`', '`uv run pytest tests/domain/test_display_binding.py`', True)
-grp(10, '第 10 群 — 実測・整合検査・CI 配線(48〜53)',
+grp(10, '第 10 群 — 実測・整合検査・CI 配線(48〜54)',
     '**`P1-5`(4 周目)の是正で旧 1 ステップを 3 つへ分けた**(ジョブ新設 / 依存とツール設定 / 発効の実確認と文書同期)。\n**`P0`・`P1`(5 周目)の是正で 2 つ追加した**(トリガー評価の完了検査 / 計画書と生成元の一致検査)。')
 st('**変異コストの拘束実測**。ステップ 29 の合成生成物・全 runner・**4 系統の演算子**で **mutant 数 × スイート再実行時間**を実測。**トリガー 5・12 を評価**',
    '`[機械]` 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 / **◎ 実測レコードが実際に生成され、10 分 / 30 分以内なら通る**(**正例 B**)`[手動]` **上限判定**(判定者: 山田正輝)。**超過なら design.md §12-2 で停止し ADR 改訂ゲートへ**',
    '`docs/features/domain-calc-dsl/mutation-cost.json`', '`uv run pytest tests/domain/mut/test_cost_record.py`', True)
 st('**見直しトリガー 16 件の評価完了検査**(**5 周目 `P1` の是正** — ステップ 4 から分離した後段)。**全 16 件に評価結果があり、未評価が 0 件**であることを検査する。**証拠資産の実在もここで要求する**',
    '`[機械]` **16 件すべてに評価結果がある**(**母集合計測**。未評価 1 件でも fail)/ **`[手動]` 9 件の証拠資産のパスが実在する**(**パス allowlist** + 実在検査)/ **発火レコードがあれば本ステップより後をすべて拒否する**(ステップ 5 と同じ機構を再適用)/ **◎ 全件が非発火で評価済みなら実際に通る**(**正例 B**)',
-   '`backend/domain/review-triggers.json`', '`uv run pytest tests/domain/test_review_triggers_complete.py`', True)
-st('**計画書と生成元の一致検査**(**5 周目 `P0` の是正** — §5-3 の 7 検査のうち 5 件に実装ステップが無かった。**3 周目 `P0-7`「DoD に項目があるのに実装ステップが無い」の 3 回目**)。**`docs/features/domain-calc-dsl/steps.py` の出力と plan.md §4・§5-1 の本体を完全比較する**',
-   '`[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜55 がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **`artifact` のパスが実在する**(**パス allowlist** + 実在検査)/ **`command` が実行され終了コードが記録される**(**exit コード分離**)/ **`steps.py check()` が総数・群範囲・`pb` の閉じた集合を検査する** / **◎ 一致しているとき実際に通る**(**正例 B**)/ **末尾 1 件を落とす・群を誤配置する・`pb` を両方 false へ倒す の 3 負例が個別に fail**',
+   '`backend/src/pitchlog/domaincheck/trigger_completion.py`', '`uv run pytest tests/domain/test_review_triggers_complete.py`', True)
+st('**計画書と生成元の構造検査**(**5 周目 `P0` の是正** — §5-3 の 8 検査のうち 5 件に実装ステップが無かった。**3 周目 `P0-7` の 3 回目**)。**`steps.py` の出力と plan.md §4・§5-1 の本体を完全比較し、表の構造を検査する**。**履歴と `command` の監査はステップ 51**(**6 周目 `P1` の是正**: 一致比較・全射単射・履歴時点の実在・{N} 件の `command` 実行・自己整合負例を 1 コミットに集約しており、**しかも本ステップ自身の `command` を全件実行すると自己再帰する**構成だった)',
+   '`[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜{N} がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **§5-3 の「実装ステップ」列に空欄が無い**(**母集合計測**)/ **`steps.py check()` が総数・群 ID の一意性と昇順・`S[].g` と群範囲の突合・見出し範囲の存在と一致・`PB_FALSE` の exact-set を検査する** / **`PB_FALSE` が封印されており、集合とフラグの同時変更が fail する**(ステップ 9 の封印機構を流用 — **6 周目 `P1`: `PB_FALSE` へ足せば正例 B を免れる経路を塞ぐ**)/ **◎ 一致しているとき実際に通る**(**正例 B**)/ **負例 6 種が個別に fail**(末尾 1 件を落とす / 群を誤配置する / 群 ID を重複・逆順にする / 見出し範囲を解析不能な表記へ変える / `pb` を両方 false へ倒す / `pb` と `PB_FALSE` を同時に書き換える)',
    '`tests/test_plan_generation.py`', '`uv run pytest tests/test_plan_generation.py`', True)
+st('**履歴と `command` の監査**(**6 周目 `P1` の是正** — ステップ 50 から分離)。'
+   '**各ステップのコミットを履歴から検査し、当該ステップ完了時点で `artifact` が実在したこと**と、'
+   '**`command` が実際に実行され終了コード 0 だったこと**を確認する',
+   '`[機械]` **`artifact` の実在を履歴時点で検査する**(**現在木では「当該ステップ完了時点の実在」を証明できない** — '
+   '**`history_precedes` と同じく履歴を見る**)/ **各 `command` の `cwd`・期待 exit=0 を資産に持つ**(**パス allowlist**)/ '
+   '**`command` の重複が無い**かつ **`artifact` の重複が無い**(**母集合計測**)/ '
+   '**◎ 本ステップ自身の `command` は他ステップの `command` 実行から除外する**(**自己再帰の禁止**。'
+   '**除外が実装に存在することの静的検査**)/ **◎ 全 `command` が exit 0 で完了したとき実際に通る**(**正例 B**)/ '
+   '**負例 3 種**(履歴時点で不在の `artifact` / exit 非 0 の `command` / 自己再帰を許す実装)**が個別に fail**',
+   '`tests/test_step_history_audit.py`', '`uv run pytest tests/test_step_history_audit.py`', True)
 st('**CI ジョブの新設と配線**(design.md §14・§4-6)。`consistency` + 変異ジョブ(別ジョブ)の新設。**§14 の所有ジョブ分離**。**両ジョブに `timeout-minutes`**。**DB を使うジョブへ `services: postgres`**。**第 4 群 9 ステップの資産を `consistency` へ配線**',
-   '`[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**)',
+   '`[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ ステップ 50・51 のテストが PR 必須ジョブ ちょうど 1 件から実行される**(**集合差**。**6 周目 `P1` の是正**: 旧版は第 4 群だけを配線対象にしており、**計画書の整合検査がローカルだけで終わる構成を排除できなかった**)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**)',
    '`.github/workflows/ci.yml` / `tests/test_ci_wiring.py`', '`uv run pytest tests/test_ci_wiring.py`', True)
 st('**依存・lock・`ty` の対象・coverage**。`ty` の `include` / `testpaths` / package-data + 依存と lock + **`backend/.coverage` の index 除去**',
    '`[機械]` **`backend/domain/` が `ty check` の対象** / **`uv sync --locked` が通る**(`TSK-343` の 3 assert を通したまま再生成)/ **`backend/.coverage` が index から消え、再生成後も untracked** / **実 wheel に含まれるファイル一覧のテスト** / **◎ `uv sync --locked` と `ty check` が実際に通る**(**正例 B**)',
    '`backend/pyproject.toml` / `backend/uv.lock`', '`uv sync --locked` + `uv run pytest tests/test_packaging.py`', True)
-st('**発効の実確認と文書同期**(`BOOT-ACTIVATION`)。**第 4 群の機構・負例・正例が実 CI で実際に実行されたことを証跡で確認**する。`github-setup.md` の 3 分類 + Ruleset JSON + 設計書 10.1 + 索引',
-   '`[機械]` **「接続されている」だけでなく「実行された」ことを証跡で確認する**(§17 是正 `C` — 逐語「存在するだけでは足りない」)/ **◎ 要求①〜④が揃ったとき実際に発効する**(**正例 B** — 要求④ (iii) の本体。ステップ 24 から移した)/ **`github-setup.md` の 3 分類と Ruleset JSON の記述が 9 → 11 context へ同期**(**集合差**。**検査できるのは文書の同期のみ** — `required_status_checks` はリモートに存在せず〔個人 Free + private で Rulesets 利用不可〕、**強制は `github-setup.md` 2 章の人間の手続き**)/ `check_docs_status` / `check_doc_coverage` / `check_design_propagation` OK',
+st('**発効の実確認と文書同期**(`BOOT-ACTIVATION`)。**第 4 群の機構・負例・正例、および ステップ 50・51 の整合検査が実 CI で実際に実行されたことを証跡で確認**する。`github-setup.md` の 3 分類 + Ruleset JSON + 設計書 10.1 + 索引',
+   '`[機械]` **「接続されている」だけでなく「実行された」ことを証跡で確認する**(§17 是正 `C` — 逐語「存在するだけでは足りない」)/ **◎ ステップ 50・51 の実行証跡が存在する**(**集合差** — 6 周目 `P1`)/ **◎ 要求①〜④が揃ったとき実際に発効する**(**正例 B** — 要求④ (iii) の本体。ステップ 24 から移した)/ **`github-setup.md` の 3 分類と Ruleset JSON の記述が 9 → 11 context へ同期**(**集合差**。**検査できるのは文書の同期のみ** — `required_status_checks` はリモートに存在せず〔個人 Free + private で Rulesets 利用不可〕、**強制は `github-setup.md` 2 章の人間の手続き**)/ `check_docs_status` / `check_doc_coverage` / `check_design_propagation` OK',
    '`docs/development/github-setup.md` / `docs/development/dev-harness-design-2026-08-07.md` / `docs/README.md`', '`uv run pytest tests/test_ci_wiring.py` + `uv run python scripts/check_docs_status.py`', True)
-grp(11, '第 11 群 — コア領域の登録(54〜55)',
+grp(11, '第 11 群 — コア領域の登録(55〜56)',
     '')
 st('**`core-guard` の基線機構**(design.md §11-1・§11-2)。`EXPECTED_AREA_PATHS` を**二層方式**(据え置き / 追加分・**領域ごとに分ける**)へ改め、**base 側 commit アンカーに一本化**して基線を外部化',
    '`[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**)',
    '`scripts/core_guard.py` / `tests/test_core_guard.py`', '`uv run pytest tests/test_core_guard.py`', True)
 st('**`core-areas.json` の登録**。**`game-state` と `data-migration` の両方**へ該当パスを **glob で**追加(完全列挙にしない — design.md §11-5)',
    '`[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / **◎ 登録対象外のパスの変更では発火しない**(**正例 B** — 全変更を発火させる実装を排除する) `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤',
-   '`.claude/core-areas.json`', '`uv run pytest tests/test_core_guard.py`', True)
+   '`.claude/core-areas.json`', '`uv run pytest tests/test_core_guard.py::test_area_registration`', True)
 
 def group_of(step_id):
     """ステップ番号から群番号を返す。"""
@@ -233,6 +243,15 @@ def group_of(step_id):
         if a <= step_id <= b:
             return gid
     raise KeyError(step_id)
+
+
+def _fill(text):
+    """本文中のプレースホルダを展開する。
+
+    6 周目 `P1`: ステップ 3 の本文が「全 53 ステップ」のまま総数の変更へ追随せず、
+    **ステップ 54・55 の授権行を欠いても通る**状態だった。数値リテラルを置かない。
+    """
+    return text.replace("{N2}", str(136)).replace("{N}", str(EXPECTED_TOTAL))
 
 
 def emit_steps():
@@ -249,14 +268,14 @@ def emit_steps():
                 out.append(note + "\n")
             out.append("| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |")
             out.append("| --- | --- | --- |")
-        out.append("| %d | %s | %s |" % (s["id"], s["t"], s["c"]))
+        out.append("| %d | %s | %s |" % (s["id"], _fill(s["t"]), _fill(s["c"])))
     return "\n".join(out)
 
 
 def emit_dod():
     """§5-1 の DoD 表の本体を返す。"""
     return "\n".join(
-        "| %d | %s | %s | %s | %s |" % (s["id"], "✓" if s["pb"] else "—", s["a"], s["c"], s["m"])
+        "| %d | %s | %s | %s | %s |" % (s["id"], "✓" if s["pb"] else "—", s["a"], _fill(s["c"]), s["m"])
         for s in S
     )
 
@@ -267,6 +286,21 @@ def check():
     5 周目 `P1`: 旧版は「ID が 1 からの連番であること」しか見ておらず、
     ID を呼び出し順で採番する以上それは常に成立していた。末尾を 1 件落としても
     エラー 0 件で通った。総数・群の連続性・`pb` の閉じた集合を加える。
+
+    6 周目 `P1`: さらに 群 ID の一意性と昇順・`S[].g` と群範囲の突合・
+    見出し範囲が「無い場合も fail」・`artifact` と `command` の重複を加えた。
+    負例 10 種のうち 9 種を検出することを実測した。
+
+    **本関数が原理的に検出できないもの(§16-3 — 限界を併記する)**:
+
+    - **`pb` フラグと `PB_FALSE` を同時に書き換える変更。**
+      両方とも本ファイル内の自己申告なので、整合したまま一緒に動かせば
+      本関数からは正しく見える。**これは自己申告を別の自己申告で検査する形の限界**であり、
+      関数の作りでは閉じられない。
+      → **ステップ 50 が `PB_FALSE` を承認済み基準に対して封印し**(ステップ 9 の封印機構)、
+      **当該 PR からの書き換えを無条件に fail させる**ことで閉じる。
+      **比較元は固定 SHA であり当該 PR から変更できない**ため、同時変更は封印側で落ちる。
+    - **合格条件の本文が意味として妥当かどうか。** 文字列 "正例 B" の有無しか見ていない。
     """
     import re
 
@@ -277,7 +311,14 @@ def check():
     if ids != list(range(1, len(S) + 1)):
         errs.append("ステップ番号が 1 からの連番でない")
 
-    # 群: 隙間なく 1..N を覆い、順に並び、空でないこと
+    # 群: ID が 1..N の一意な昇順であり、隙間なく 1..N を覆い、空でないこと
+    gids = [g[0] for g in GROUPS]
+    if len(set(gids)) != len(gids):
+        errs.append("群 ID が重複している: %s" % gids)
+    if gids != sorted(gids):
+        errs.append("群 ID が昇順でない: %s" % gids)
+    if gids != list(range(1, len(GROUPS) + 1)):
+        errs.append("群 ID が 1 からの連番でない: %s" % gids)
     covered = []
     prev_end = 0
     for gid, title, _note, a, b in GROUPS:
@@ -289,11 +330,33 @@ def check():
         prev_end = b
         covered.extend(range(a, b + 1))
         m = re.search(r"\((\d+)〜(\d+)\)", title)
-        if m and (int(m.group(1)), int(m.group(2))) != (a, b):
+        if m is None:
+            # 6 周目 `P1`: 見出し範囲を解析不能な表記へ変えると検査が素通りしていた
+            errs.append("群 %s の見出しに (a〜b) 形式の範囲が無い: %r" % (gid, title))
+        elif (int(m.group(1)), int(m.group(2))) != (a, b):
             errs.append("群 %s の見出しの範囲 (%s〜%s) が実体 (%d〜%d) と一致しない"
                         % (gid, m.group(1), m.group(2), a, b))
     if covered != ids:
         errs.append("群がステップ全体を隙間なく覆っていない")
+
+    # 各ステップの g が、自分が属する群の範囲と一致すること
+    for s in S:
+        try:
+            expected = group_of(s["id"])
+        except KeyError:
+            continue
+        if s["g"] != expected:
+            errs.append("ステップ %d の g=%s が、群範囲から導かれる %s と一致しない"
+                        % (s["id"], s["g"], expected))
+
+    # artifact と command の重複が無いこと
+    for key, label in (("a", "artifact"), ("m", "command")):
+        seen = {}
+        for s in S:
+            seen.setdefault(s[key], []).append(s["id"])
+        for value, owners in seen.items():
+            if len(owners) > 1:
+                errs.append("%s が重複している(ステップ %s): %s" % (label, owners, value))
 
     # pb: 宣言した閉じた集合と一致すること(両方向)
     actual_false = frozenset(s["id"] for s in S if not s["pb"])
