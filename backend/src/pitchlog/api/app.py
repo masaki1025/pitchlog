@@ -14,7 +14,11 @@ def create_app() -> FastAPI:
     Returns:
         例外ハンドラと静的列挙したルータを登録済みのアプリケーション。
     """
-    app = FastAPI()
+    app = FastAPI(
+        title="Pitchlog API",
+        version=meta.get_application_version(),
+        description="Pitchlog の API を提供する。",
+    )
     register_exception_handlers(app)
     for router in ROUTERS:
         app.include_router(router)

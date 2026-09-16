@@ -26,3 +26,9 @@ class HealthResponse(BaseModel):
     """ヘルスチェックの応答を表す。"""
 
     status: str
+
+
+class VersionResponse(BaseModel):
+    """アプリケーション版の応答を表す。"""
+
+    version: str
