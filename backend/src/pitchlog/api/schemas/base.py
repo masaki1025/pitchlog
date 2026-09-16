@@ -20,3 +20,9 @@ class ErrorEnvelope(BaseModel):
     """API エラー応答の封筒を表す。"""
 
     error: ErrorDetail
+
+
+class HealthResponse(BaseModel):
+    """ヘルスチェックの応答を表す。"""
+
+    status: str
