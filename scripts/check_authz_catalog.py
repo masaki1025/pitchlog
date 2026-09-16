@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
-from typing import Pattern, Sequence
+from typing import Callable, Pattern, Sequence
 
 
 @dataclass(frozen=True)
@@ -291,6 +291,15 @@ class CatalogError(Exception):
 
 
 @dataclass(frozen=True)
+class OracleSealValidationResult:
+    """Oracle seal の検証結果と履歴照合状態を保持する。"""
+
+    oracle_commit: str
+    history_status: str
+    strategy_execution: dict[str, object]
+
+
+@dataclass(frozen=True)
 class SourceItem:
     """要件書から内容非依存で採取した1行を表す。
 
@@ -545,8 +554,8 @@ def load_oracle_input_declaration(root: Path) -> tuple[dict[str, object], str]:
         or not targets
         or not all(isinstance(item, str) for item in targets)
         or len(targets) != len(set(targets))
-        or declaration["identity"] != "git_blob_digest"
-        or declaration["granularity"] != "blob"
+        or not isinstance(declaration["identity"], str)
+        or not isinstance(declaration["granularity"], str)
         or not isinstance(basis_series, str)
     ):
         raise CatalogError("oracle入力の凍結宣言が不正または実行不能")
@@ -4822,12 +4831,57 @@ def _build_oracle_seal(
     return seal
 
 
+def _compare_git_blob_identity(
+    root: Path,
+    oracle_commit: str,
+    path_text: str,
+    digest: str,
+    has_git_history: bool,
+) -> None:
+    """現在の blob と、履歴がある場合は基準 commit 上の blob を比較する。"""
+    path = (root / path_text).resolve()
+    try:
+        path.relative_to(root.resolve())
+    except ValueError as error:
+        raise CatalogError(f"{path_text}: パスがリポジトリ外") from error
+    if not path.is_file() or git_blob_digest(_read_bytes(path, path_text)) != digest:
+        raise CatalogError(f"{path_text}: oracle input blob が不一致")
+    if not has_git_history:
+        return
+    result = subprocess.run(
+        ["git", "rev-parse", f"{oracle_commit}:{path_text}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "<stderr なし>"
+        raise CatalogError(
+            f"{path_text}: oracle commit {oracle_commit} 上の blob を解決できない: "
+            f"git rev-parse stderr={stderr}"
+        )
+    if result.stdout.strip() != digest:
+        raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
+
+
+type OracleInputComparison = Callable[[Path, str, str, str, bool], None]
+
+ORACLE_INPUT_COMPARISON_STRATEGIES: dict[
+    tuple[str, str], OracleInputComparison
+] = {
+    ("git_blob_digest", "blob"): _compare_git_blob_identity,
+}
+
+
 def validate_oracle_seal(
     raw: object,
     assets: dict[str, dict[str, object]],
     paths: dict[str, str],
     root: Path,
-) -> str:
+    *,
+    allow_historyless: bool = False,
+) -> OracleSealValidationResult:
     """oracle commit、入力 blob、各資産 canonical digest を検査する。"""
     if not isinstance(raw, dict):
         raise CatalogError("oracle seal はオブジェクトでなければならない")
@@ -4855,6 +4909,19 @@ def validate_oracle_seal(
     input_declaration, declared_commit = load_oracle_input_declaration(root)
     if oracle_commit != declared_commit:
         raise CatalogError("oracle_commit が宣言の基準系列末尾と不一致")
+    identity = input_declaration["identity"]
+    granularity = input_declaration["granularity"]
+    assert isinstance(identity, str)
+    assert isinstance(granularity, str)
+    strategy_key = (identity, granularity)
+    comparison_strategy = ORACLE_INPUT_COMPARISON_STRATEGIES.get(strategy_key)
+    if comparison_strategy is None:
+        raise CatalogError(f"oracle入力の比較戦略が未登録: {strategy_key}")
+    dead_strategies = set(ORACLE_INPUT_COMPARISON_STRATEGIES) - {strategy_key}
+    if dead_strategies:
+        raise CatalogError(
+            f"oracle入力の宣言から名指しされない比較戦略がある: {sorted(dead_strategies)}"
+        )
     for name, asset in assets.items():
         context_raw = asset.get("oracle_context")
         if not isinstance(context_raw, dict) or context_raw.get("oracle_commit") != oracle_commit:
@@ -4864,6 +4931,11 @@ def validate_oracle_seal(
     input_paths: set[str] = set()
     has_git_history = (root / ".git").exists()
     if not has_git_history:
+        if not allow_historyless:
+            raise CatalogError(
+                "oracle seal: .git が無いため履歴照合できない; "
+                "履歴なし用途は --allow-historyless-oracle の明示が必要"
+            )
         print(
             "oracle seal: .git が無いため履歴照合を省略した; "
             "この実行は凍結の保証対象外である"
@@ -4897,31 +4969,15 @@ def validate_oracle_seal(
         label = f"oracle seal.input_assets[{index}]"
         _expect_keys(entry, {"path", "git_blob_digest"}, label)
         path_text = _expect_string(entry["path"], f"{label}.path")
-        path = (root / path_text).resolve()
-        try:
-            path.relative_to(root.resolve())
-        except ValueError as error:
-            raise CatalogError(f"{label}.path がリポジトリ外") from error
         digest = _expect_string(entry["git_blob_digest"], f"{label}.git_blob_digest")
-        if not path.is_file() or git_blob_digest(_read_bytes(path, path_text)) != digest:
-            raise CatalogError(f"{path_text}: oracle input blob が不一致")
+        comparison_strategy(
+            root,
+            oracle_commit,
+            path_text,
+            digest,
+            has_git_history,
+        )
         input_paths.add(path_text)
-        if has_git_history:
-            result = subprocess.run(
-                ["git", "rev-parse", f"{oracle_commit}:{path_text}"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if result.returncode != 0:
-                stderr = result.stderr.strip() or "<stderr なし>"
-                raise CatalogError(
-                    f"{path_text}: oracle commit {oracle_commit} 上の blob を解決できない: "
-                    f"git rev-parse stderr={stderr}"
-                )
-            if result.stdout.strip() != digest:
-                raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
     declared_targets = input_declaration["frozen_targets"]
     assert isinstance(declared_targets, list)
     required_input_paths = set(declared_targets)
@@ -4971,7 +5027,28 @@ def validate_oracle_seal(
     }:
         raise CatalogError("oracle の再封印が専用操作に限定されていない")
     _validate_json_array_multiplicity(raw, "oracle seal")
-    return oracle_commit
+    basis_series = input_declaration["basis_series"]
+    assert isinstance(basis_series, str)
+    execution = {
+        "frozen_targets": sorted(input_paths),
+        "identity": strategy_key[0],
+        "granularity": strategy_key[1],
+        "basis_series": basis_series,
+    }
+    print(
+        "frozen-strategy-executed="
+        + json.dumps(
+            execution,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+    return OracleSealValidationResult(
+        oracle_commit=oracle_commit,
+        history_status="verified" if has_git_history else "skipped",
+        strategy_execution=execution,
+    )
 
 
 def validate_oracle_asset_seal(
@@ -5023,6 +5100,7 @@ def validate_oracle_assets(
     implemented_test_ids: frozenset[str],
     *,
     verify_seal: bool = True,
+    allow_historyless: bool = False,
 ) -> dict[str, dict[str, object]]:
     """ステップ5の期待値・証跡・封印を相互検査する。"""
     ddl_result = validate_ddl_elements(assets["ddl_elements"], root)
@@ -5057,9 +5135,20 @@ def validate_oracle_assets(
     if len(commits) != 1:
         raise CatalogError("oracle 資産間で oracle_commit が不一致")
     if verify_seal:
-        seal_commit = validate_oracle_seal(seal, assets, paths, root)
-        if commits != {seal_commit}:
+        seal_validation = validate_oracle_seal(
+            seal,
+            assets,
+            paths,
+            root,
+            allow_historyless=allow_historyless,
+        )
+        if commits != {seal_validation.oracle_commit}:
             raise CatalogError("oracle 資産と seal の commit が不一致")
+        results["seal_validation"] = {
+            "oracle_commit": seal_validation.oracle_commit,
+            "history_status": seal_validation.history_status,
+            "strategy_execution": seal_validation.strategy_execution,
+        }
     return results
 
 
@@ -5114,6 +5203,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_VERIFICATION_EVIDENCE,
     )
     parser.add_argument("--oracle-seal", type=Path, default=DEFAULT_ORACLE_SEAL)
+    parser.add_argument(
+        "--allow-historyless-oracle",
+        action="store_true",
+        help=".git の無い用途で履歴照合の省略を明示する(凍結の検証済み扱いにはしない)",
+    )
     parser.add_argument(
         "--reseal",
         action="store_true",
@@ -5322,6 +5416,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 root,
                 implemented_test_ids,
                 verify_seal=not args.reseal_oracle,
+                allow_historyless=args.allow_historyless_oracle,
             )
             if args.reseal_oracle:
                 if not isinstance(oracle_seal, dict):
@@ -5333,7 +5428,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     root,
                 )
                 validate_oracle_seal(
-                    new_seal, oracle_assets, oracle_relative_paths, root
+                    new_seal,
+                    oracle_assets,
+                    oracle_relative_paths,
+                    root,
+                    allow_historyless=args.allow_historyless_oracle,
                 )
                 _write_json(oracle_seal_path, new_seal, "oracle seal")
     except CatalogError as error:
@@ -5377,17 +5476,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         summary += " derived-resealed"
     if args.reseal_oracle:
         summary += " oracle-resealed"
-    if oracle_result is not None:
-        input_declaration, _commit = load_oracle_input_declaration(root)
-        print(
-            "frozen-declaration-used="
-            + json.dumps(
-                input_declaration,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-        )
     print(summary)
     return 0
 

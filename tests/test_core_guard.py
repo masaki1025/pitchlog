@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 from frozen_baseline_reader import (
-    format_frozen_declaration_usage,
     load_frozen_baseline_commit,
     load_frozen_baseline_for_target,
 )
@@ -808,23 +807,57 @@ def load_base_core_areas(
     base_revision: str | None = None,
 ) -> dict[str, Any]:
     """指定リポジトリの固定基準版 core-areas.json を Git から読む。"""
+    execution: dict[str, object] | None = None
     if base_revision is None:
         target = CORE_AREAS_PATH.relative_to(REPO).as_posix()
         declaration, baseline_commit = load_frozen_baseline_for_target(root, target)
-        print(
-            "frozen-declaration-used="
-            f"{format_frozen_declaration_usage(declaration)}"
-        )
+        strategy_key = (declaration.identity, declaration.granularity)
+        strategies = {
+            ("canonical_json", "asset"): lambda: json.loads(
+                run_git(
+                    root,
+                    "show",
+                    f"{baseline_commit}:{target}",
+                ).stdout
+            )
+        }
+        strategy = strategies.get(strategy_key)
+        if strategy is None:
+            raise AssertionError(f"core areas の比較戦略が未登録: {strategy_key}")
+        dead = set(strategies) - {strategy_key}
+        if dead:
+            raise AssertionError(
+                f"core areas の宣言から名指しされない比較戦略がある: {sorted(dead)}"
+            )
+        if set(declaration.frozen_targets) != {target}:
+            raise AssertionError("core areas の比較対象が実際の読取パスと不一致")
+        value = strategy()
+        execution = {
+            "frozen_targets": [target],
+            "identity": strategy_key[0],
+            "granularity": strategy_key[1],
+            "basis_series": declaration.basis_series,
+        }
     else:
         baseline_commit = base_revision
-    value = json.loads(
-        run_git(
-            root,
-            "show",
-            f"{baseline_commit}:.claude/core-areas.json",
-        ).stdout
-    )
+        value = json.loads(
+            run_git(
+                root,
+                "show",
+                f"{baseline_commit}:.claude/core-areas.json",
+            ).stdout
+        )
     assert isinstance(value, dict)
+    if execution is not None:
+        print(
+            "frozen-strategy-executed="
+            + json.dumps(
+                execution,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     return value
 
 
@@ -990,7 +1023,7 @@ def test_core_guard_reports_the_exact_declaration_it_uses(
     """core guard が現に用いた3指定を台帳と完全一致で出力する。"""
     load_base_core_areas()
     line = capsys.readouterr().out.strip()
-    prefix = "frozen-declaration-used="
+    prefix = "frozen-strategy-executed="
     assert line.startswith(prefix)
     used = json.loads(line.removeprefix(prefix))
     ledger = json.loads(
@@ -1002,7 +1035,9 @@ def test_core_guard_reports_the_exact_declaration_it_uses(
         for declaration in ledger["declarations"].values()
         if target in declaration["frozen_targets"]
     ]
-    assert used == matches[0]
+    expected = dict(matches[0])
+    expected["frozen_targets"] = sorted(expected["frozen_targets"])
+    assert used == expected
     assert len(matches) == 1
 
 

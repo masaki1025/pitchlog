@@ -6,9 +6,10 @@ import argparse
 import hashlib
 import json
 import re
+import runpy
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
@@ -80,6 +81,7 @@ DIGEST_EDGE_VALUE_PATTERN = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 type BaselineRecord = dict[str, object]
 type BaselineHistories = dict[str, tuple[BaselineRecord, ...]]
 type ScanKey = tuple[str, str]
+type StrategyKey = tuple[str, str]
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,26 @@ class FrozenDeclaration:
 
 
 @dataclass(frozen=True)
+class FrozenStrategyExecution:
+    """比較戦略が実際に使った3指定を保持する。"""
+
+    name: str
+    frozen_targets: tuple[str, ...]
+    identity: str
+    granularity: str
+    basis_series: str
+
+    def specifications(self) -> dict[str, object]:
+        """実行中に記録した3指定を機械可読な形で返す。"""
+        return {
+            "frozen_targets": list(self.frozen_targets),
+            "identity": self.identity,
+            "granularity": self.granularity,
+            "basis_series": self.basis_series,
+        }
+
+
+@dataclass(frozen=True)
 class _FrozenCatalog:
     """検証済みの宣言と基準履歴を保持する。"""
 
@@ -116,6 +138,18 @@ class _CorpusState:
 
     anchor_path: str
     follower_paths: tuple[str, ...]
+
+
+@dataclass
+class _StrategyContext:
+    """比較戦略が共有する独立な出どころと実行結果を保持する。"""
+
+    root: Path
+    catalog: _FrozenCatalog
+    executions: list[FrozenStrategyExecution]
+    seal_path: str | None = None
+    seal: dict[str, object] | None = None
+    corpus_state: _CorpusState | None = None
 
 
 @dataclass(frozen=True)
@@ -651,73 +685,34 @@ def _enumerate_digest_edges(root: Path) -> tuple[_DigestEdge, ...]:
     return tuple(edges)
 
 
-def _version_declaration(catalog: _FrozenCatalog) -> FrozenDeclaration:
-    declarations = [
-        catalog.declarations[series]
-        for series, history in catalog.histories.items()
-        if "version" in history[0]
-    ]
-    if len(declarations) != 1:
-        raise _FrozenBaselineError("G-4: version型の宣言が一意でない")
-    return declarations[0]
-
-
-def _require_declaration_protocol(
-    declaration: FrozenDeclaration,
-    *,
-    identity: str,
-    granularity: str,
-) -> None:
-    """宣言した比較方式に対応する実装経路だけを受理する。"""
-    if (
-        declaration.identity != identity
-        or declaration.granularity != granularity
-    ):
-        raise _FrozenBaselineError(
-            f"宣言: {declaration.name} の比較方式を実行できない: "
-            f"identity={declaration.identity}, "
-            f"granularity={declaration.granularity}"
-        )
-
-
-def _oracle_seal_from_declarations(
-    root: Path,
-    catalog: _FrozenCatalog,
-) -> tuple[str, dict[str, object]]:
-    """宣言対象から oracle seal を構造で一意に導出する。"""
+def _oracle_seal_from_contracts(root: Path) -> tuple[str, dict[str, object]]:
+    """宣言とは独立に contracts の構造から oracle seal を導出する。"""
     candidates: list[tuple[str, dict[str, object]]] = []
-    targets = {
-        target
-        for declaration in catalog.declarations.values()
-        for target in declaration.frozen_targets
-        if target.startswith("contracts/") and target.endswith(".json")
-    }
-    for target in sorted(targets):
-        value = _load_json_object(root, Path(target), "宣言")
+    for path in sorted((root / CONTRACTS_RELATIVE_PATH).rglob("*.json")):
+        target = path.relative_to(root).as_posix()
+        value = _load_json_object(root, Path(target), "比較戦略")
         if "input_assets" in value and "sealed_assets" in value:
             candidates.append((target, value))
     if len(candidates) != 1:
         raise _FrozenBaselineError(
-            "宣言: input_assets と sealed_assets を持つ凍結対象が一意でない"
+            "比較戦略: input_assets と sealed_assets を持つ資産が一意でない"
         )
     return candidates[0]
 
 
-def _declaration_for_exact_targets(
-    catalog: _FrozenCatalog,
-    targets: set[str],
-    label: str,
-) -> FrozenDeclaration:
-    candidates = [
-        declaration
-        for declaration in catalog.declarations.values()
-        if set(declaration.frozen_targets) == targets
-    ]
-    if len(candidates) != 1:
+def _require_exact_frozen_targets(
+    declaration: FrozenDeclaration,
+    actual_targets: set[str],
+) -> tuple[str, ...]:
+    """宣言対象を戦略が独立に導出した集合と完全一致で比較する。"""
+    declared_targets = set(declaration.frozen_targets)
+    if declared_targets != actual_targets:
         raise _FrozenBaselineError(
-            f"宣言: {label} の frozen_targets と完全一致する宣言が一意でない"
+            f"宣言: {declaration.name}.frozen_targets が独立な出どころと不一致: "
+            f"不足={sorted(actual_targets - declared_targets)}, "
+            f"余分={sorted(declared_targets - actual_targets)}"
         )
-    return candidates[0]
+    return tuple(sorted(actual_targets))
 
 
 def _seal_target_sets(
@@ -755,37 +750,100 @@ def _seal_target_sets(
     )
 
 
-def _validate_declaration_wiring(
-    root: Path,
-    catalog: _FrozenCatalog,
-) -> tuple[str, dict[str, object]]:
-    """sealの実集合と宣言の対象集合・比較方式を完全一致で結線する。"""
-    seal_path, seal = _oracle_seal_from_declarations(root, catalog)
-    input_targets, sealed_targets = _seal_target_sets(seal_path, seal)
-    input_declaration = _declaration_for_exact_targets(
-        catalog,
-        input_targets,
-        "oracle入力",
+def _commit_history_for_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+) -> str:
+    """戦略が宣言された commit 型系列を実際に参照する。"""
+    history = context.catalog.histories[declaration.basis_series]
+    commit = history[-1].get("commit")
+    if not isinstance(commit, str):
+        raise _FrozenBaselineError(
+            f"比較戦略: {declaration.basis_series} は commit 型系列ではない"
+        )
+    return declaration.basis_series
+
+
+def _version_record_for_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+) -> tuple[str, BaselineRecord]:
+    """戦略が宣言された version 型系列を実際に参照する。"""
+    history = context.catalog.histories[declaration.basis_series]
+    if "version" not in history[-1]:
+        raise _FrozenBaselineError(
+            f"比較戦略: {declaration.basis_series} は version 型系列ではない"
+        )
+    return declaration.basis_series, history[-1]
+
+
+def _record_strategy_execution(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+    *,
+    strategy_key: StrategyKey,
+    actual_targets: tuple[str, ...],
+    basis_series: str,
+) -> None:
+    """戦略自身が実際に比較した対象と使った鍵を記録する。"""
+    context.executions.append(
+        FrozenStrategyExecution(
+            name=declaration.name,
+            frozen_targets=actual_targets,
+            identity=strategy_key[0],
+            granularity=strategy_key[1],
+            basis_series=basis_series,
+        )
     )
-    _require_declaration_protocol(
-        input_declaration,
-        identity="git_blob_digest",
-        granularity="blob",
+
+
+def _run_git_blob_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+    strategy_key: StrategyKey,
+) -> None:
+    """seal の input_assets を Git blob 同一性の比較対象にする。"""
+    seal_path, seal = _oracle_seal_from_contracts(context.root)
+    input_targets, _sealed_targets = _seal_target_sets(seal_path, seal)
+    actual_targets = _require_exact_frozen_targets(declaration, input_targets)
+    basis_series = _commit_history_for_strategy(context, declaration)
+    context.seal_path = seal_path
+    context.seal = seal
+    _record_strategy_execution(
+        context,
+        declaration,
+        strategy_key=strategy_key,
+        actual_targets=actual_targets,
+        basis_series=basis_series,
     )
-    meaning_declaration = _declaration_for_exact_targets(
-        catalog,
+
+
+def _run_oracle_meaning_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+    strategy_key: StrategyKey,
+) -> None:
+    """seal の sealed_assets と seal 自身を意味本文の比較対象にする。"""
+    seal_path, seal = _oracle_seal_from_contracts(context.root)
+    _input_targets, sealed_targets = _seal_target_sets(seal_path, seal)
+    actual_targets = _require_exact_frozen_targets(
+        declaration,
         sealed_targets | {seal_path},
-        "oracle意味本文",
     )
-    _require_declaration_protocol(
-        meaning_declaration,
-        identity="canonical_json",
-        granularity="asset_without_movable_pointers",
+    basis_series = _commit_history_for_strategy(context, declaration)
+    context.seal_path = seal_path
+    context.seal = seal
+    _record_strategy_execution(
+        context,
+        declaration,
+        strategy_key=strategy_key,
+        actual_targets=actual_targets,
+        basis_series=basis_series,
     )
-    return seal_path, seal
 
 
 def _expected_digest_edge_counts(
+    root: Path,
     catalog: _FrozenCatalog,
     corpus_state: _CorpusState,
     seal_path: str,
@@ -802,17 +860,21 @@ def _expected_digest_edge_counts(
         f"{seal_path}.sealed_assets",
         predicate="digest 辺",
     )
-    version_declaration = _version_declaration(catalog)
     expected = {
-        target: 0
-        for declaration in catalog.declarations.values()
-        for target in declaration.frozen_targets
-        if target.startswith("contracts/") and target.endswith(".json")
+        path.relative_to(root).as_posix(): 0
+        for path in (root / CONTRACTS_RELATIVE_PATH).rglob("*.json")
     }
     expected[seal_path] = len(input_assets) + len(sealed_assets)
     expected[corpus_state.anchor_path] = 1
+    version_histories = [
+        history
+        for history in catalog.histories.values()
+        if "version" in history[0]
+    ]
+    if len(version_histories) != 1:
+        raise _FrozenBaselineError("digest 辺: version 型系列が一意でない")
     expected[CATALOG_RELATIVE_PATH.as_posix()] = len(
-        catalog.histories[version_declaration.basis_series]
+        version_histories[0]
     )
     return expected
 
@@ -826,6 +888,7 @@ def _validate_digest_edge_composition(
 ) -> tuple[_DigestEdge, ...]:
     edges = _enumerate_digest_edges(root)
     expected = _expected_digest_edge_counts(
+        root,
         catalog,
         corpus_state,
         seal_path,
@@ -874,28 +937,14 @@ def _corpus_version(value: dict[str, object], location: str, predicate: str) -> 
     return version
 
 
-def _validate_corpus_state(
-    root: Path,
-    catalog: _FrozenCatalog,
-) -> _CorpusState:
-    declaration = _version_declaration(catalog)
-    _require_declaration_protocol(
-        declaration,
-        identity="canonical_sha256_and_corpus_version",
-        granularity="canonical_json_asset",
-    )
-    latest = catalog.histories[declaration.basis_series][-1]
-    ledger_version = latest["version"]
-    ledger_digest = latest["canonical_sha256"]
-    assert isinstance(ledger_version, int)
-    assert isinstance(ledger_digest, str)
-
-    assets = {
-        target: _load_json_object(root, Path(target), "G-1/G-2/G-5")
-        for target in declaration.frozen_targets
-    }
+def _derive_corpus_state(root: Path) -> tuple[_CorpusState, dict[str, dict[str, object]]]:
+    """宣言とは独立に母集合と、そのパスを名指す派生資産を導出する。"""
+    assets: dict[str, dict[str, object]] = {}
     anchors: list[str] = []
-    for target, asset in assets.items():
+    for path in sorted((root / CONTRACTS_RELATIVE_PATH).rglob("*.json")):
+        target = path.relative_to(root).as_posix()
+        asset = _load_json_object(root, Path(target), "G-1/G-2/G-5")
+        assets[target] = asset
         input_manifest = asset.get("input_manifest")
         if not isinstance(input_manifest, dict):
             continue
@@ -907,12 +956,46 @@ def _validate_corpus_state(
             anchors.append(target)
     if len(anchors) != 1:
         raise _FrozenBaselineError(
-            "G-2: 宣言対象のうち入力元 digest を持つ母集合が一意でない: "
-            f"{tuple(sorted(anchors))}"
+            "G-2: contracts から導出した母集合が一意でない: "
+            f"{tuple(anchors)}"
         )
     anchor_path = anchors[0]
-    corpus = assets[anchor_path]
-    corpus_version = _corpus_version(corpus, anchor_path, "G-1")
+    follower_paths: list[str] = []
+    for target, asset in assets.items():
+        if target == anchor_path:
+            continue
+        input_manifest = asset.get("input_manifest")
+        if isinstance(input_manifest, dict) and anchor_path in input_manifest.values():
+            follower_paths.append(target)
+    state = _CorpusState(
+        anchor_path=anchor_path,
+        follower_paths=tuple(sorted(follower_paths)),
+    )
+    selected_assets = {
+        target: assets[target]
+        for target in (state.anchor_path, *state.follower_paths)
+    }
+    return state, selected_assets
+
+
+def _run_corpus_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+    strategy_key: StrategyKey,
+) -> None:
+    """母集合の digest と、母集合を名指す派生資産の版を比較する。"""
+    corpus_state, assets = _derive_corpus_state(context.root)
+    actual_targets = _require_exact_frozen_targets(
+        declaration,
+        {corpus_state.anchor_path, *corpus_state.follower_paths},
+    )
+    basis_series, latest = _version_record_for_strategy(context, declaration)
+    ledger_version = latest["version"]
+    ledger_digest = latest["canonical_sha256"]
+    assert isinstance(ledger_version, int)
+    assert isinstance(ledger_digest, str)
+    corpus = assets[corpus_state.anchor_path]
+    corpus_version = _corpus_version(corpus, corpus_state.anchor_path, "G-1")
     if corpus_version != ledger_version:
         raise _FrozenBaselineError(
             "G-1: 母集合の corpus_version が台帳末尾の version と一致しない: "
@@ -924,10 +1007,7 @@ def _validate_corpus_state(
             "G-2: 母集合の canonical digest が台帳末尾と一致しない: "
             f"actual={actual_digest}, ledger={ledger_digest}"
         )
-    follower_paths = tuple(
-        target for target in declaration.frozen_targets if target != anchor_path
-    )
-    for relative_path in follower_paths:
+    for relative_path in corpus_state.follower_paths:
         derived = assets[relative_path]
         derived_version = _corpus_version(derived, relative_path, "G-5")
         if derived_version != corpus_version:
@@ -935,10 +1015,108 @@ def _validate_corpus_state(
                 f"G-5: {relative_path}.corpus_version が母集合と一致しない: "
                 f"derived={derived_version}, corpus={corpus_version}"
             )
-    return _CorpusState(
-        anchor_path=anchor_path,
-        follower_paths=follower_paths,
+    context.corpus_state = corpus_state
+    _record_strategy_execution(
+        context,
+        declaration,
+        strategy_key=strategy_key,
+        actual_targets=actual_targets,
+        basis_series=basis_series,
     )
+
+
+def _run_core_areas_strategy(
+    context: _StrategyContext,
+    declaration: FrozenDeclaration,
+    strategy_key: StrategyKey,
+) -> None:
+    """core_guard が実際に読む設定資産を canonical JSON の比較対象にする。"""
+    core_guard_globals = runpy.run_path(
+        str(Path(__file__).resolve().with_name("core_guard.py"))
+    )
+    core_areas_path = core_guard_globals.get("CORE_AREAS_RELATIVE_PATH")
+    if not isinstance(core_areas_path, Path):
+        raise _FrozenBaselineError(
+            "core areas 比較戦略: core_guard の読取パスを導出できない"
+        )
+    actual_targets = _require_exact_frozen_targets(
+        declaration,
+        {core_areas_path.as_posix()},
+    )
+    _load_json_object(context.root, core_areas_path, "core areas 比較戦略")
+    basis_series = _commit_history_for_strategy(context, declaration)
+    _record_strategy_execution(
+        context,
+        declaration,
+        strategy_key=strategy_key,
+        actual_targets=actual_targets,
+        basis_series=basis_series,
+    )
+
+
+type ComparisonStrategy = Callable[
+    [_StrategyContext, FrozenDeclaration, StrategyKey], None
+]
+
+COMPARISON_STRATEGIES: dict[StrategyKey, ComparisonStrategy] = {
+    ("git_blob_digest", "blob"): _run_git_blob_strategy,
+    ("canonical_json", "asset_without_movable_pointers"): (
+        _run_oracle_meaning_strategy
+    ),
+    ("canonical_json", "asset"): _run_core_areas_strategy,
+    ("canonical_sha256_and_corpus_version", "canonical_json_asset"): (
+        _run_corpus_strategy
+    ),
+}
+
+
+def _dispatch_comparison_strategies(
+    root: Path,
+    catalog: _FrozenCatalog,
+) -> _StrategyContext:
+    """宣言の鍵で比較戦略を選び、死んだ戦略と記録漏れを拒否する。"""
+    declared_keys = {
+        (declaration.identity, declaration.granularity)
+        for declaration in catalog.declarations.values()
+    }
+    registered_keys = set(COMPARISON_STRATEGIES)
+    missing = declared_keys - registered_keys
+    if missing:
+        raise _FrozenBaselineError(
+            f"比較戦略: 宣言が名指す未登録の鍵がある: {sorted(missing)}"
+        )
+    dead = registered_keys - declared_keys
+    if dead:
+        raise _FrozenBaselineError(
+            f"比較戦略: どの宣言からも名指しされない戦略がある: {sorted(dead)}"
+        )
+
+    context = _StrategyContext(root=root, catalog=catalog, executions=[])
+    for name in sorted(catalog.declarations):
+        declaration = catalog.declarations[name]
+        strategy_key = (declaration.identity, declaration.granularity)
+        COMPARISON_STRATEGIES[strategy_key](context, declaration, strategy_key)
+
+    executions_by_name = {execution.name: execution for execution in context.executions}
+    if (
+        len(executions_by_name) != len(context.executions)
+        or set(executions_by_name) != set(catalog.declarations)
+    ):
+        raise _FrozenBaselineError(
+            "比較戦略: 実行記録が宣言の exact-set と一致しない"
+        )
+    for name, declaration in catalog.declarations.items():
+        execution = executions_by_name[name]
+        if (
+            set(execution.frozen_targets) != set(declaration.frozen_targets)
+            or execution.identity != declaration.identity
+            or execution.granularity != declaration.granularity
+            or execution.basis_series != declaration.basis_series
+        ):
+            raise _FrozenBaselineError(
+                f"比較戦略: {name} の実行記録が宣言と完全一致しない"
+            )
+    return context
 
 
 def load_frozen_baseline_commit(root: Path, series: str) -> str:
@@ -1020,10 +1198,10 @@ def load_frozen_baseline_for_target(
     return declaration, commit
 
 
-def format_frozen_declaration_usage(declaration: FrozenDeclaration) -> str:
-    """検査が現に用いた3指定を機械可読な1行にする。"""
+def format_frozen_strategy_execution(execution: FrozenStrategyExecution) -> str:
+    """比較戦略の実行記録を機械可読な1行にする。"""
     return json.dumps(
-        declaration.specifications(),
+        execution.specifications(),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -1071,6 +1249,16 @@ def _validate_append_only(
             predicate = "G-3/F-4" if "version" in base_history[0] else "F-4"
             raise _FrozenBaselineError(
                 f"{predicate}: baselines.{series} の既存記録が書き換えまたは削除された"
+            )
+        base_declaration = base_catalog.declarations[series]
+        current_declaration = current_catalog.declarations[series]
+        if (
+            base_declaration.specifications()
+            != current_declaration.specifications()
+            and len(current_history) <= len(base_history)
+        ):
+            raise _FrozenBaselineError(
+                f"宣言: declarations.{series} の変更に基準記録の追記が伴っていない"
             )
 
 
@@ -1281,7 +1469,7 @@ def check_frozen_baselines(
     str,
     _ScanSummary,
     tuple[_DigestEdge, ...],
-    tuple[FrozenDeclaration, ...],
+    tuple[FrozenStrategyExecution, ...],
 ]:
     """凍結基準台帳を merge-base と現在の checkout の間で検査する。
 
@@ -1291,7 +1479,7 @@ def check_frozen_baselines(
 
     Returns:
         解決した一意な merge-base commit、ソース走査件数、digest 辺の一覧、
-        および現に用いた宣言。
+        および比較戦略が実行中に記録した3指定。
 
     Raises:
         _FrozenBaselineError: 台帳違反または判定不能がある場合。
@@ -1299,8 +1487,10 @@ def check_frozen_baselines(
     resolved_root = root.resolve()
     merge_base = _resolve_merge_base(resolved_root, base_revision)
     current_catalog = _load_current_catalog(resolved_root)
-    seal_path, seal = _validate_declaration_wiring(resolved_root, current_catalog)
-    corpus_state = _validate_corpus_state(resolved_root, current_catalog)
+    strategy_context = _dispatch_comparison_strategies(
+        resolved_root,
+        current_catalog,
+    )
     base_has_catalog = _base_has_catalog(resolved_root, merge_base)
     if base_has_catalog:
         base_catalog = _load_base_catalog(resolved_root, merge_base)
@@ -1308,18 +1498,23 @@ def check_frozen_baselines(
     else:
         _validate_initial_records(resolved_root, merge_base, current_catalog)
     summary = _validate_source_scan(resolved_root, base_has_catalog)
+    if (
+        strategy_context.seal_path is None
+        or strategy_context.seal is None
+        or strategy_context.corpus_state is None
+    ):
+        raise _FrozenBaselineError("比較戦略: digest 辺検査に必要な実行結果がない")
     digest_edges = _validate_digest_edge_composition(
         resolved_root,
         current_catalog,
-        corpus_state,
-        seal_path,
-        seal,
+        strategy_context.corpus_state,
+        strategy_context.seal_path,
+        strategy_context.seal,
     )
-    used_declarations = tuple(
-        current_catalog.declarations[name]
-        for name in sorted(current_catalog.declarations)
+    executions = tuple(
+        sorted(strategy_context.executions, key=lambda execution: execution.name)
     )
-    return merge_base, summary, digest_edges, used_declarations
+    return merge_base, summary, digest_edges, executions
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1333,7 +1528,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     try:
         args = _parse_args(argv)
-        merge_base, summary, digest_edges, declarations = check_frozen_baselines(
+        merge_base, summary, digest_edges, executions = check_frozen_baselines(
             args.root,
             args.base,
         )
@@ -1348,10 +1543,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"pending_removal={summary.pending_removals} "
         f"digest_edges={len(digest_edges)}"
     )
-    for declaration in declarations:
+    for execution in executions:
         print(
-            f"frozen-declaration-used[{declaration.name}]="
-            f"{format_frozen_declaration_usage(declaration)}"
+            f"frozen-strategy-executed[{execution.name}]="
+            f"{format_frozen_strategy_execution(execution)}"
         )
     return 0
 

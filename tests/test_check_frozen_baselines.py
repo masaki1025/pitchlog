@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -10,6 +11,7 @@ import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -30,6 +32,7 @@ MUTATION_COMPOSITION_RELATIVE_PATH = Path(
 )
 AUTHZ_CATALOG_TEST_RELATIVE_PATH = Path("tests/test_check_authz_catalog.py")
 CORE_GUARD_TEST_RELATIVE_PATH = Path("tests/test_core_guard.py")
+CORE_GUARD_SCRIPT_RELATIVE_PATH = Path("scripts/core_guard.py")
 MIGRATED_BASELINE_CONSTANTS = (
     (AUTHZ_CATALOG_RELATIVE_PATH, "ORACLE_INPUT_BASELINE_COMMIT"),
     (MUTATION_COMPOSITION_RELATIVE_PATH, "STEP2_BASE_REVISION"),
@@ -63,6 +66,7 @@ def _commit_all(root: Path, subject: str) -> str:
 def _copy_current_assets(root: Path) -> None:
     for relative_path in (
         SCRIPT_RELATIVE_PATH,
+        CORE_GUARD_SCRIPT_RELATIVE_PATH,
         CATALOG_RELATIVE_PATH,
         ALLOWLIST_RELATIVE_PATH,
         CORPUS_RELATIVE_PATH,
@@ -82,6 +86,7 @@ def _restore_tracked_assets(root: Path) -> None:
         CATALOG_RELATIVE_PATH.as_posix(),
         ALLOWLIST_RELATIVE_PATH.as_posix(),
         AUTHZ_CATALOG_RELATIVE_PATH.as_posix(),
+        CORE_GUARD_SCRIPT_RELATIVE_PATH.as_posix(),
         MUTATION_COMPOSITION_RELATIVE_PATH.as_posix(),
         AUTHZ_CATALOG_TEST_RELATIVE_PATH.as_posix(),
         CORE_GUARD_TEST_RELATIVE_PATH.as_posix(),
@@ -231,6 +236,18 @@ def _run_cli(
     )
 
 
+def _load_checker_module() -> ModuleType:
+    """比較戦略の変異テスト用に検査器を独立モジュールとして読む。"""
+    module_name = "check_frozen_baselines_strategy_test"
+    spec = importlib.util.spec_from_file_location(module_name, SCRIPT_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _base_without_catalog(root: Path) -> str:
     introductions = _git(
         root,
@@ -297,13 +314,20 @@ def test_repository_frozen_baselines_are_valid() -> None:
     assert "scan_values=4" in result.stdout
     assert "pending_removal=0" in result.stdout
     assert "digest_edges=16" in result.stdout
-    used_declarations = {}
+    strategy_executions = {}
     for line in result.stdout.splitlines():
-        match = re.fullmatch(r"frozen-declaration-used\[([^]]+)\]=(\{.*\})", line)
+        match = re.fullmatch(r"frozen-strategy-executed\[([^]]+)\]=(\{.*\})", line)
         if match is not None:
-            used_declarations[match.group(1)] = json.loads(match.group(2))
+            strategy_executions[match.group(1)] = json.loads(match.group(2))
     catalog = _read_catalog(REPOSITORY_ROOT)
-    assert used_declarations == catalog["declarations"]
+    expected_executions = {
+        name: {
+            **declaration,
+            "frozen_targets": sorted(declaration["frozen_targets"]),
+        }
+        for name, declaration in catalog["declarations"].items()
+    }
+    assert strategy_executions == expected_executions
     for relative_path in DERIVED_CORPUS_RELATIVE_PATHS:
         derived = _read_json_object(REPOSITORY_ROOT, relative_path)
         manifest = derived["input_manifest"]
@@ -359,6 +383,106 @@ def test_delegated_specifications_are_not_held_in_legacy_constants() -> None:
         SCRIPT_RELATIVE_PATH.as_posix(): [],
         MUTATION_COMPOSITION_RELATIVE_PATH.as_posix(): [],
     }
+
+
+@pytest.mark.parametrize(
+    "series",
+    ("oracle_input", "oracle_meaning", "core_areas_guard", "corpus_versions"),
+)
+def test_each_declaration_identity_dispatches_to_a_registered_strategy(
+    cloned_repository: Path,
+    series: str,
+) -> None:
+    """R-1: 4系列のidentityを未知値へ変えるとdispatchがredになる。"""
+    catalog = _read_catalog(cloned_repository)
+    catalog["declarations"][series]["identity"] = "unknown_identity"
+    _write_catalog(cloned_repository, catalog)
+
+    result = _run_cli(cloned_repository)
+
+    assert result.returncode == 1
+    assert "宣言が名指す未登録の鍵" in result.stderr
+    assert "unknown_identity" in result.stderr
+
+
+def test_unreferenced_registered_strategy_is_red(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R-1: どの宣言からも名指しされない死んだ戦略を拒否する。"""
+    checker = _load_checker_module()
+    monkeypatch.setitem(
+        checker.COMPARISON_STRATEGIES,
+        ("dead_identity", "dead_granularity"),
+        lambda _context, _declaration, _key: None,
+    )
+
+    with pytest.raises(checker._FrozenBaselineError, match="名指しされない戦略"):
+        checker.check_frozen_baselines(REPOSITORY_ROOT, "origin/develop")
+
+
+def test_disabled_strategy_recorder_leaves_no_success_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """R-2: 戦略の記録処理を無効化すると実行記録なしでredになる。"""
+    checker = _load_checker_module()
+    monkeypatch.setattr(
+        checker,
+        "_record_strategy_execution",
+        lambda _context, _declaration, **_kwargs: None,
+    )
+
+    exit_code = checker.main(
+        ["--root", str(REPOSITORY_ROOT), "--base", "origin/develop"]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.out == ""
+    assert "実行記録が宣言の exact-set と一致しない" in captured.err
+
+
+@pytest.mark.parametrize(
+    "series",
+    ("oracle_input", "oracle_meaning", "core_areas_guard", "corpus_versions"),
+)
+def test_each_declaration_target_set_matches_an_independent_source(
+    cloned_repository: Path,
+    series: str,
+) -> None:
+    """R-4: 4系列の宣言から1資産を外すと独立な集合との不一致でredになる。"""
+    catalog = _read_catalog(cloned_repository)
+    targets = catalog["declarations"][series]["frozen_targets"]
+    removed = targets.pop()
+    if not targets:
+        # core は対象が1件だけなので、旧エコー実装でも構文検査では落ちない既存資産を置く。
+        targets.append(CORPUS_RELATIVE_PATH.as_posix())
+    _write_catalog(cloned_repository, catalog)
+
+    result = _run_cli(cloned_repository)
+
+    assert result.returncode == 1
+    assert "独立な出どころと不一致" in result.stderr
+    assert removed in result.stderr
+
+
+def test_declaration_change_requires_a_baseline_append(
+    cloned_repository: Path,
+) -> None:
+    """R-3: 集合を変えない宣言変更にも基準記録の追記を要求する。"""
+    root = cloned_repository
+    base = _commit_all(root, "test: 宣言を含む台帳をbaseへ追加")
+    catalog = _read_catalog(root)
+    targets = catalog["declarations"]["oracle_input"]["frozen_targets"]
+    targets.reverse()
+    _write_catalog(root, catalog)
+    _commit_all(root, "test: 基準追記なしで宣言順を変更")
+
+    result = _run_cli(root, base)
+
+    assert result.returncode == 1
+    assert "宣言" in result.stderr
+    assert "基準記録の追記が伴っていない" in result.stderr
 
 
 def test_digest_edge_composition_accepts_appended_corpus_version(

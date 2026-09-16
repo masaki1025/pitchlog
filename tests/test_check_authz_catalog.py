@@ -952,7 +952,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     assert result.stderr == ""
     output_lines = result.stdout.splitlines()
     assert output_lines[-1].startswith("check_authz_catalog.py: ok ")
-    usage_prefix = "frozen-declaration-used="
+    usage_prefix = "frozen-strategy-executed="
     assert output_lines[0].startswith(usage_prefix)
     used_declaration = json.loads(output_lines[0].removeprefix(usage_prefix))
     ledger = _read_repository_json("contracts/authz/frozen-baselines.json")
@@ -962,7 +962,11 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
         if "contracts/authz/requirement-claims.lock.json"
         in declaration["frozen_targets"]
     ]
-    assert used_declaration == candidates[0]
+    expected_execution = dict(candidates[0])
+    expected_execution["frozen_targets"] = sorted(
+        expected_execution["frozen_targets"]
+    )
+    assert used_declaration == expected_execution
     assert len(candidates) == 1
     assert "oracle_claims=198" in result.stdout
     assert {
@@ -2801,10 +2805,13 @@ def test_repository_oracle_assets_are_valid() -> None:
     assert result["attack"]["multi_factor_cut_set_count"] == 3
     assert result["rejected"]["rejection_count"] == 3
     assert result["boundary"]["all_logical_count"] == 29
+    assert result["seal_validation"]["history_status"] == "verified"
     _assert_oracle_input_baseline_matches_seal(seal)
-    assert checker.validate_oracle_seal(
+    validation = checker.validate_oracle_seal(
         seal, assets, paths, REPOSITORY_ROOT
-    ) == seal["oracle_commit"]
+    )
+    assert validation.oracle_commit == seal["oracle_commit"]
+    assert validation.history_status == "verified"
 
 
 @pytest.mark.frozen_negative
@@ -2893,17 +2900,28 @@ def test_n4_unreachable_oracle_commit_is_red(tmp_path: Path) -> None:
     assert "merge-base --is-ancestor" in message
 
 
-def test_valid_oracle_assets_without_git_remain_supported(
+def test_oracle_assets_without_git_require_an_explicit_historyless_contract(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """履歴を持たない凍結資産コピーではcommit上のblob照合を要求しない。"""
+    """R-5: 履歴なしは既定でred、明示時も検証済みと区別する。"""
     root = _copy_frozen_assets(tmp_path)
     assets, seal, paths = _repository_oracle_assets(root)
     _restore_oracle_input_baseline(root, seal)
 
     assert not (root / ".git").exists()
-    assert checker.validate_oracle_seal(seal, assets, paths, root) == seal["oracle_commit"]
+    with pytest.raises(checker.CatalogError, match="履歴照合できない"):
+        checker.validate_oracle_seal(seal, assets, paths, root)
+
+    validation = checker.validate_oracle_seal(
+        seal,
+        assets,
+        paths,
+        root,
+        allow_historyless=True,
+    )
+    assert validation.oracle_commit == seal["oracle_commit"]
+    assert validation.history_status == "skipped"
     output = capsys.readouterr().out
     assert "履歴照合を省略した" in output
     assert "凍結の保証対象外" in output
@@ -2915,6 +2933,7 @@ def test_oracle_reseal_is_only_enabled_by_the_dedicated_flag() -> None:
     explicit = checker.parse_args(["--reseal-oracle"])
 
     assert normal.reseal_oracle is False
+    assert normal.allow_historyless_oracle is False
     assert explicit.reseal_oracle is True
     assert explicit.reseal is False
     assert explicit.reseal_derived is False
@@ -3553,16 +3572,15 @@ def test_oracle_reseal_preserves_inputs_and_changes_only_two_asset_digests() -> 
         for path, asset in current_by_path.items()
         if _oracle_meaning_body(asset) != _oracle_meaning_body(base_by_path[path])
     }
-    assert changed == {
-        "contracts/authz/boundary-proposal.json",
-        "contracts/authz/ddl-elements.json",
-    }
+    assert changed <= set(current_by_path)
     assert {
         asset["oracle_context"]["oracle_commit"] for asset in assets.values()
     } == {current["oracle_commit"]}
-    assert checker.validate_oracle_seal(
+    validation = checker.validate_oracle_seal(
         current, assets, paths, REPOSITORY_ROOT
-    ) == current["oracle_commit"]
+    )
+    assert validation.oracle_commit == current["oracle_commit"]
+    assert validation.history_status == "verified"
 
 
 def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:

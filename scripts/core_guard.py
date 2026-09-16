@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
+CORE_AREAS_RELATIVE_PATH = Path(".claude/core-areas.json")
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
 NO_CORE_PATHS_MESSAGE = (
     "コア領域の paths が未定義。設計書 6.3 の落とし込み規則に従い実装追随で登録する"
@@ -112,7 +113,7 @@ def load_core_areas(root: Path) -> CoreAreas:
     Raises:
         GuardError: 設定ファイルまたはその構造が不正な場合。
     """
-    data = load_json(root / ".claude" / "core-areas.json", "core-areas.json")
+    data = load_json(root / CORE_AREAS_RELATIVE_PATH, "core-areas.json")
     if not isinstance(data, dict):
         raise GuardError("core-areas.json のルートがオブジェクトではない")
 

@@ -57,14 +57,13 @@ class _FrozenDeclaration:
     granularity: str
     basis_series: str
 
-    def specifications(self) -> dict[str, object]:
-        """委任された3指定を台帳と同じ形で返す。"""
-        return {
-            "frozen_targets": list(self.frozen_targets),
-            "identity": self.identity,
-            "granularity": self.granularity,
-            "basis_series": self.basis_series,
-        }
+
+@dataclass(frozen=True, slots=True)
+class _OracleMeaningComparison:
+    """意味比較戦略が実際に比較した対象と差分を保持する。"""
+
+    changed_paths: frozenset[str]
+    compared_targets: tuple[str, ...]
 
 
 def _load_oracle_meaning_declaration(
@@ -125,12 +124,6 @@ def _load_oracle_meaning_declaration(
         or basis_series != name
     ):
         raise MutationCompositionError("oracle意味本文の凍結基準宣言が不正")
-    if identity != "canonical_json" or granularity != (
-        "asset_without_movable_pointers"
-    ):
-        raise MutationCompositionError(
-            "oracle意味本文の宣言した同一性・粒度を実行できない"
-        )
     history = baselines.get(basis_series)
     if not isinstance(history, list) or not history:
         raise MutationCompositionError(
@@ -165,16 +158,7 @@ def load_oracle_meaning_baseline_commit(
     Raises:
         MutationCompositionError: 台帳を読めない、系列が空、または値が不正な場合。
     """
-    declaration, commit = _load_oracle_meaning_declaration(root)
-    print(
-        "frozen-declaration-used="
-        + json.dumps(
-            declaration.specifications(),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-    )
+    _declaration, commit = _load_oracle_meaning_declaration(root)
     return commit
 
 
@@ -1257,7 +1241,7 @@ def _changed_oracle_meaning_paths(
     base_ref: str,
     current_seal: dict[str, object],
     declaration: _FrozenDeclaration,
-) -> frozenset[str]:
+) -> _OracleMeaningComparison:
     """基準からHEADへの意味差分を導出し、作業コピーがHEADと一致するか検査する。"""
     declared_paths = set(declaration.frozen_targets)
     if ORACLE_SEAL_RELATIVE_PATH not in declared_paths:
@@ -1287,7 +1271,40 @@ def _changed_oracle_meaning_paths(
         expected_body = _approved_oracle_meaning_body(base, f"base asset {path}")
         if head_body != expected_body:
             raise MutationCompositionError(f"{path}: 承認済みのoracle意味本文と不一致")
-    return frozenset(changed)
+    return _OracleMeaningComparison(
+        changed_paths=frozenset(changed),
+        compared_targets=tuple(sorted({ORACLE_SEAL_RELATIVE_PATH, *current_paths})),
+    )
+
+
+type _OracleMeaningStrategy = Callable[
+    [Path, str, dict[str, object], _FrozenDeclaration],
+    _OracleMeaningComparison,
+]
+
+_ORACLE_MEANING_COMPARISON_STRATEGIES: dict[tuple[str, str], _OracleMeaningStrategy] = {
+    ("canonical_json", "asset_without_movable_pointers"): (
+        _changed_oracle_meaning_paths
+    ),
+}
+
+
+def _oracle_meaning_strategy(
+    declaration: _FrozenDeclaration,
+) -> tuple[tuple[str, str], _OracleMeaningStrategy]:
+    """宣言の鍵で意味比較戦略を選び、死んだ戦略を拒否する。"""
+    strategy_key = (declaration.identity, declaration.granularity)
+    strategy = _ORACLE_MEANING_COMPARISON_STRATEGIES.get(strategy_key)
+    if strategy is None:
+        raise MutationCompositionError(
+            f"oracle意味本文の比較戦略が未登録: {strategy_key}"
+        )
+    dead = set(_ORACLE_MEANING_COMPARISON_STRATEGIES) - {strategy_key}
+    if dead:
+        raise MutationCompositionError(
+            f"oracle意味本文の宣言から名指しされない比較戦略がある: {sorted(dead)}"
+        )
+    return strategy_key, strategy
 
 
 def intentionally_changed_frozen_oracle_paths(
@@ -1299,12 +1316,14 @@ def intentionally_changed_frozen_oracle_paths(
     declaration, declared_commit = _load_oracle_meaning_declaration(resolved)
     baseline_commit = declared_commit if base_ref is None else base_ref
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
-    return _changed_oracle_meaning_paths(
+    _strategy_key, strategy = _oracle_meaning_strategy(declaration)
+    comparison = strategy(
         resolved,
         baseline_commit,
         current_seal,
         declaration,
     )
+    return comparison.changed_paths
 
 
 def verify_frozen_oracle_unchanged(
@@ -1314,15 +1333,7 @@ def verify_frozen_oracle_unchanged(
     """入力baselineの三者一致とoracle意味本文の固定を検査する。"""
     resolved = root.resolve()
     declaration, declared_commit = _load_oracle_meaning_declaration(resolved)
-    print(
-        "frozen-declaration-used="
-        + json.dumps(
-            declaration.specifications(),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-    )
+    strategy_key, strategy = _oracle_meaning_strategy(declaration)
     baseline_commit = declared_commit if base_ref is None else base_ref
     base_seal = _oracle_seal_at_revision(resolved, baseline_commit)
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
@@ -1332,9 +1343,24 @@ def verify_frozen_oracle_unchanged(
         raise MutationCompositionError("oracle sealの意味本文が基準版と不一致")
     _verify_oracle_input_assets(resolved, current_seal)
     _verify_current_sealed_assets(resolved, current_seal)
-    _changed_oracle_meaning_paths(
+    comparison = strategy(
         resolved,
         baseline_commit,
         current_seal,
         declaration,
+    )
+    execution = {
+        "frozen_targets": list(comparison.compared_targets),
+        "identity": strategy_key[0],
+        "granularity": strategy_key[1],
+        "basis_series": declaration.basis_series,
+    }
+    print(
+        "frozen-strategy-executed="
+        + json.dumps(
+            execution,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
     )

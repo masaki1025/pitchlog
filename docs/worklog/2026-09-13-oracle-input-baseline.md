@@ -756,3 +756,36 @@ format・ruff・ty が green、DB 除外 201 件が green。負例 inventory の
 N1〜N14 の14件で、追加した dangling commit の F-5 負例は番号を増やさず別テストとして固定した。
 `check_authz_catalog.py` と `check_frozen_baselines.py --base origin/develop` はともに exit 0、
 後者の観測値は `scan_occurrences=10 pending_removal=0 digest_edges=16` のままである。
+
+## 差し戻し修正 2 周目(7.7-6 の実装方針作り直し)
+
+前節の `frozen-declaration-used=` は、比較処理から得た証跡ではなく台帳をそのまま表示した
+エコーだった。宣言を狭めても、未知の比較方式へ変えても実処理に影響しないという敵対レビュー
+2 周目の実測を受け、設計 3-4-2-B の R-1〜R-6 に従って経路を作り直した。
+
+| 要求 | 実装と実測 |
+| --- | --- |
+| R-1 dispatch | `(identity, granularity)` を鍵に 4 比較戦略へ dispatch する registry を新設。4 系列をそれぞれ `unknown_identity` へ変える変異は全件 red。未登録鍵と、どの宣言からも参照されない追加戦略の両方を red にした |
+| R-2 実行記録 | 各戦略が独立に導出して実際に比較した対象、registry で選んだ鍵、参照した系列を `frozen-strategy-executed=` として記録する。記録関数を no-op にする変異は stdout が空のまま `実行記録が宣言の exact-set と一致しない` で red |
+| R-3 宣言変更 | base と HEAD の宣言が異なる系列は、履歴の長さが base より増えていなければ red。対象集合を変えず配列順だけを変えた変異も `基準記録の追記が伴っていない` で red |
+| R-4 独立集合 | oracle input は seal の `input_assets`、oracle meaning は `sealed_assets + seal`、corpus は母集合と `input_manifest` の参照、core areas は `core_guard.py` が実際に読む定数から導出。各系列の対象を 1 件欠かす 4 変異はすべて独立集合との不一致で red |
+| R-5 履歴なし | `validate_oracle_seal` は `.git` 無しを既定で例外にする。`--allow-historyless-oracle` 相当の明示時だけ処理を続け、戻り値の `history_status=skipped` と標準出力の `凍結の保証対象外` で検証済みと区別する。通常の Git 経路は `verified` |
+| R-6 テスト導出 | oracle meaning の正例から旧 2 パスの固定集合を削除。clone の台帳末尾を HEAD へ進めるテストは、テストソースの bytes が不変のまま差分集合 `frozenset()` と検査 green を確認した |
+
+比較戦略の出力は宣言から再構成せず、戦略の実行後にだけ生成する。現行実行では 4 系列すべてで
+出力した対象集合・鍵・基準系列が台帳と完全一致した。`check_authz_catalog.py` と backend の
+oracle meaning、core guard の基準読取もそれぞれ registry を通り、実比較後の記録を出力する。
+
+検証結果:
+
+- ルート `ruff check .` / `ty check` — **green**
+- ルート `pytest tests/` — **1387 passed**(`615.21s`)
+- `tests/test_check_frozen_baselines.py` — **33 passed**
+- 変更した authz catalog / core guard の通し — **229 passed**
+- backend `ruff format --check .` / `ruff check .` / `ty check` — **green**
+- backend `pytest --ignore=tests/db` — **201 passed**
+- 負例 inventory exact-set — **2 passed**。root の marker 実行は **14 passed**、backend の
+  N1・N2 は **2 passed**で、いずれも仕込んだ負例が非 0 / 例外になることを維持
+- `check_authz_catalog.py` — **exit 0**、比較戦略の実行記録 1 件を出力
+- `check_frozen_baselines.py --base origin/develop` — **exit 0**、比較戦略の実行記録 4 件、
+  `scan_occurrences=10 scan_pairs=6 scan_values=4 pending_removal=0 digest_edges=16`
