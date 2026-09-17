@@ -1,11 +1,5 @@
 """FastAPI アプリケーションのエントリポイント。"""
 
-from fastapi import FastAPI
+from pitchlog.api.app import create_app
 
-app = FastAPI()
-
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    """ヘルスチェックの応答を返す。"""
-    return {"status": "ok"}
+app = create_app()
