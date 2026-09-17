@@ -49,7 +49,7 @@ def test_frozen_oracle_paths_have_no_branch_diff() -> None:
 
 
 def test_frozen_oracle_exclusions_match_the_resealed_canonical_assets() -> None:
-    """ポインタを除く意味差分が承認済み2資産だけである。"""
+    """099a8fa基準からポインタを除くoracle意味差分がゼロである。"""
     base_frozen = set(frozen_oracle_paths(base_ref=STEP2_BASE_REVISION))
     current_frozen = set(frozen_oracle_paths())
     changed = intentionally_changed_frozen_oracle_paths()

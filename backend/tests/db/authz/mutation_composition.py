@@ -33,13 +33,8 @@ MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
 _BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
 _DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
-STEP2_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
-STEP2_CHANGED_CANONICAL_ASSET_PATHS = frozenset(
-    {
-        _BOUNDARY_PROPOSAL_RELATIVE_PATH,
-        _DDL_ELEMENTS_RELATIVE_PATH,
-    }
-)
+STEP2_BASE_REVISION = "099a8fa20595c25f553b46dedcaaa9660dd03c2e"
+STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = frozenset()
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -1000,7 +995,10 @@ def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
 ) -> dict[str, object]:
-    """固定基準へ承認済みの2資産の意味変更だけを適用する。"""
+    """承認済み2資産の意味変更を期待本文へ適用する。
+
+    099a8faへ畳み込み済みのため現基準ではno-opであり、分岐の削除はTSK-421で扱う。
+    """
     expected = _oracle_meaning_body(base, f"base asset {relative_path}")
     if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
         expected["proposal_status"] = "tsk_235_confirmed"
