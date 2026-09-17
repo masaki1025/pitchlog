@@ -1,6 +1,6 @@
 ---
 feature: receiving-task-closure-baseline
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-17・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -132,8 +132,8 @@ check_authz_catalog.py: 基準版に受取先置換の対象行がない
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| [`docs/README.md`](../../README.md) | **反映なし**(現時点)。**台帳へ追記するなら `/pr` のクローズ処理で本節へ宣言を足してから書く** | — |
-| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **反映なし**(現時点)。**`/pr` のクローズ処理で追記を判断する**。**既存候補「母集団を版管理の差分で導出すると、マージ後に基準が自分自身になって空洞化する」の昇格判定対象**(7 節) | PR レビュー |
+| [`docs/README.md`](../../README.md) | **台帳行の最終更新日を現行化**(台帳へ追記したため — `pr/SKILL.md` 手順 1-3 ④) | PR レビュー |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **既存候補「母集団を版管理の差分で導出すると、マージ後に基準が自分自身になって空洞化する」へ 2 例目を追記**し、**候補を 1 件新設**する(**`H-*` は採番しない・版は上げない** — 7.6-3 前段) | PR レビュー |
 | `.claude/core-areas.json` | **反映なし** — 新規パスを足さない | — |
 | `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / `docs/ops/**` | **反映なし** | — |
 | `contracts/**` | **反映なし**(**1 バイトも変えない**) | — |
