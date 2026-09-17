@@ -1,13 +1,13 @@
 ---
 feature: u01-dto-base
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-17・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3da93b75e68781e898ecf4b7e00d4d7d
 branch: feature/u01-dto-base
 created: 2026-09-17
-計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -109,8 +109,8 @@ app factory・ルータ登録機構・エラー封筒・例外ハンドラが入
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| [`docs/README.md`](../../README.md) | **反映なし**(現時点)。**台帳へ追記するなら `/pr` のクローズ処理で本節へ宣言を足してから書く** | — |
-| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **反映なし**(現時点)。**`/pr` のクローズ処理で追記を判断する**(`pr/SKILL.md` 手順 1-3)。**該当しない場合は worklog に理由を残す**。**候補「タスクカードの DoD に原典を持たない項目が混ざる」の昇格判定対象**(7 節) | PR レビュー |
+| [`docs/README.md`](../../README.md) | **台帳行の要約と最終更新日を現行化**(台帳へ追記したため — `pr/SKILL.md` 手順 1-3 ④) | PR レビュー |
+| [`docs/development/harness-evaluation.md`](../../development/harness-evaluation.md) | **`H-89` を新設**(`codex_run.py implement` のステップ表検出が、規範文書の定めていない書式を要求して正しい計画書を落とす — **追跡優先度 高**・`F9`)。あわせて**既存候補「タスクカードの DoD に、原典を持たない項目が混ざる」へ 3 件目を追記**する(**昇格条件は成立したが、分類規則が要求する制御目的の典拠が無いため `H-*` は与えない**)。**版は上げない**(7.6-3 前段) | PR レビュー |
 | `.claude/core-areas.json` | **反映なし** — **新規パスを足さない**(`api/` は既存の非コア) | — |
 | `docs/requirements/**` / `docs/design/**` / `docs/adr/**` / `docs/ops/**` | **反映なし** | — |
 | `contracts/**` | **反映なし** | — |
