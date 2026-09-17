@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
+from annotated_types import Le, Lt
 from pydantic import ValidationError
 
 from pitchlog.api.schemas.base import (
@@ -13,6 +14,8 @@ from pitchlog.api.schemas.base import (
     ErrorEnvelope,
     ErrorField,
     HealthResponse,
+    Page,
+    PageRequest,
     ReadSchema,
     Timestamp,
     VersionResponse,
@@ -164,3 +167,79 @@ def test_timestamp_rejects_naive_datetime(value: datetime | str) -> None:
     """時刻共通型がタイムゾーン情報を持たない日時を拒否することを確認する。"""
     with pytest.raises(ValidationError):
         _TimestampSchema(value=value)
+
+
+def test_page_request_limit_is_required_without_a_default() -> None:
+    """ページ要求の件数が既定値を持たない必須項目であることを確認する。"""
+    assert tuple(PageRequest.model_fields) == ("limit", "cursor")
+    assert PageRequest.model_fields["limit"].is_required()
+
+    with pytest.raises(ValidationError):
+        PageRequest.model_validate({})
+
+
+@pytest.mark.parametrize("limit", [10**3, 10**6, 10**9, 2**63 - 1])
+def test_page_request_preserves_large_limit_values(limit: int) -> None:
+    """ページ要求が標本の大きな件数を拒否も改変もせずに受理することを確認する。"""
+    request = PageRequest(limit=limit)
+
+    assert request.limit == limit
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_page_request_rejects_limit_below_one(limit: int) -> None:
+    """ページ要求が 1 未満の件数を拒否することを確認する。"""
+    with pytest.raises(ValidationError):
+        PageRequest(limit=limit)
+
+
+def test_page_request_accepts_limit_one() -> None:
+    """ページ要求が下限ちょうどの件数を受理することを確認する。"""
+    assert PageRequest(limit=1).limit == 1
+
+
+def test_page_request_limit_has_no_upper_bound_metadata() -> None:
+    """ページ要求の件数に上限を表すメタデータが無いことを確認する。"""
+    metadata = PageRequest.model_fields["limit"].metadata
+
+    assert not any(isinstance(item, (Le, Lt)) for item in metadata)
+
+
+def test_page_request_cursor_uses_none_for_no_continuation() -> None:
+    """ページ要求の継続位置が None を受理し空文字列を拒否することを確認する。"""
+    cursor = "opaque cursor /?=+"
+
+    assert PageRequest(limit=1).cursor is None
+    assert PageRequest(limit=1, cursor=None).cursor is None
+    assert PageRequest(limit=1, cursor=cursor).cursor == cursor
+    with pytest.raises(ValidationError):
+        PageRequest(limit=1, cursor="")
+
+
+def test_page_next_cursor_uses_none_for_no_continuation() -> None:
+    """ページ応答の継続位置が None を受理し空文字列を拒否することを確認する。"""
+    next_cursor = "opaque cursor /?=+"
+
+    assert Page[HealthResponse](items=[]).next_cursor is None
+    assert Page[HealthResponse](items=[], next_cursor=None).next_cursor is None
+    assert (
+        Page[HealthResponse](items=[], next_cursor=next_cursor).next_cursor
+        == next_cursor
+    )
+    with pytest.raises(ValidationError):
+        Page[HealthResponse](items=[], next_cursor="")
+
+
+def test_page_has_no_total_count_field() -> None:
+    """共通ページ応答が総件数のフィールドを持たないことを確認する。"""
+    assert tuple(Page.model_fields) == ("items", "next_cursor")
+
+
+def test_page_can_specialize_its_item_type() -> None:
+    """共通ページ応答が具体的な項目型で利用できることを確認する。"""
+    page = Page[HealthResponse].model_validate({"items": [{"status": "ok"}]})
+
+    assert page.items == [HealthResponse(status="ok")]
+    assert page.next_cursor is None
+    with pytest.raises(ValidationError):
+        Page[HealthResponse].model_validate({})

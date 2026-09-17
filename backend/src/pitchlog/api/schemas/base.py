@@ -1,9 +1,9 @@
 """API の共通スキーマを定義する。"""
 
-from typing import TypeAlias
+from typing import Generic, TypeAlias, TypeVar
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
 class BaseSchema(BaseModel):
@@ -28,6 +28,26 @@ EntityId: TypeAlias = UUID
 
 Timestamp: TypeAlias = AwareDatetime
 """タイムゾーン情報を持つ日時を表す。"""
+
+
+ItemT = TypeVar("ItemT")
+
+
+class PageRequest(BaseSchema):
+    """一覧のページ位置を要求する。
+
+    件数上限の判定と拒否は各葉の責務であり、この型は値を詰めない。
+    """
+
+    limit: int = Field(ge=1)
+    cursor: str | None = Field(default=None, min_length=1)
+
+
+class Page(BaseSchema, Generic[ItemT]):
+    """ページ単位の応答を表す。"""
+
+    items: list[ItemT]
+    next_cursor: str | None = Field(default=None, min_length=1)
 
 
 class ErrorField(BaseSchema):
