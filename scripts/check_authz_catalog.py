@@ -4005,6 +4005,23 @@ def _validate_receiving_task_mcdc_map_change(
         )
 
 
+def _receiving_task_claim_rows_for_change_closure(
+    mutant_map: dict[str, object], label: str
+) -> list[dict[str, object]]:
+    """差分閉包の分岐に使う claim 行と受取先の形状を検査する。"""
+    claim_rows = _expect_object_list(
+        mutant_map.get("claims"), f"{label} claim mutant map.claims"
+    )
+    if not claim_rows:
+        raise CatalogError(f"{label} claim mutant map.claims は空にできない")
+    for index, claim_row in enumerate(claim_rows):
+        _expect_string(
+            claim_row.get("receiving_task_id"),
+            f"{label} claim mutant map.claims[{index}].receiving_task_id",
+        )
+    return claim_rows
+
+
 def validate_receiving_task_change_closure(
     base_mutant_map: dict[str, object],
     current_mutant_map: dict[str, object],
@@ -4014,7 +4031,34 @@ def validate_receiving_task_change_closure(
     current_mcdc_map_text: str,
     changed_contract_paths: set[str],
 ) -> None:
-    """受取先置換の差分を許可パス・2資産・seal の4段で閉じる。"""
+    """受取先置換の差分を許可パス・2資産・seal の4段で閉じる。
+
+    本ゲートは緩和であって除去ではない。基準がプレースホルダの存在しない
+    コミットへずれた場合、基準版も HEAD も 0 件になり検出できない。基準の固定
+    による除去は TSK-421 の射程。
+    """
+    base_claims = _receiving_task_claim_rows_for_change_closure(
+        base_mutant_map, "基準版"
+    )
+    current_claims = _receiving_task_claim_rows_for_change_closure(
+        current_mutant_map, "現行"
+    )
+    placeholder = "TSK-270-GROUP-2"
+    if not any(
+        claim_row["receiving_task_id"] == placeholder
+        for claim_row in base_claims
+    ):
+        for index, claim_row in enumerate(base_claims):
+            _validate_receiving_task_id_syntax(
+                claim_row["receiving_task_id"],
+                f"基準版 claim mutant map.claims[{index}].receiving_task_id",
+            )
+        if any(
+            claim_row["receiving_task_id"] == placeholder
+            for claim_row in current_claims
+        ):
+            raise CatalogError("現行 claim mutant map に受取先置換の対象行が復活した")
+        return
     _validate_receiving_task_changed_paths(changed_contract_paths)
     _validate_receiving_task_mutant_map_change(base_mutant_map, current_mutant_map)
     _validate_receiving_task_oracle_seal_change(base_oracle_seal, current_oracle_seal)
