@@ -18,11 +18,10 @@ class _ValidationPayload(BaseModel):
 
 @pytest.fixture
 def error_logger() -> Generator[logging.Logger, None, None]:
-    """API エラーロガーをテスト中だけ有効にする。
+    """API エラーロガーの ``disabled`` 状態からテストを隔離する。
 
-    alembic の env.py は fileConfig を既定の disable_existing_loggers=True で呼ぶため、
-    先行するテストが本ロガーを無効化しうる。これはテスト隔離のための手当てであり、
-    env.py 側の是正は別タスクの射程である。
+    TSK-387 の各テスト冒頭の表明は隔離後にロガーが有効であることを確認し、
+    本フィクスチャは状態の退避・一時解除・復元を担う。
 
     Yields:
         テスト中だけ有効化した API エラーロガー。
