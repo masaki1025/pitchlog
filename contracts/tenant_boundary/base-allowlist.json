@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "contract_revision": 1,
+  "diff": {
+    "command": [
+      "git",
+      "diff",
+      "-U0",
+      "origin/develop...HEAD",
+      "--",
+      "backend/src"
+    ]
+  },
+  "ci": {
+    "job": "tenant-boundary-bypass",
+    "command": "uv run python scripts/check_tenant_boundary_bypass.py"
+  },
+  "inventory": {
+    "path": "contracts/tenant_boundary/db-api-inventory.json",
+    "schema_version": 1,
+    "sha256": "91ca7edfff58df9a15939db7daf71c701b16303e773041ffb1b132519b295681"
+  },
+  "allowed_symbols": [
+    {
+      "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
+      "signature": "_execute_operation(self, operation: TenantOperationToken) -> TenantOperationResult",
+      "allowed_api_ids": [
+        "SQLA_SESSION_EXECUTE",
+        "SQLA_TEXT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py"
+    }
+  ],
+  "conditions": [
+    {
+      "condition": 1,
+      "error": "TB001",
+      "patterns": [
+        "(?:^|_)can_[a-z0-9_]+$",
+        "(?:^|_)may_[a-z0-9_]+$",
+        "(?:^|_)is_allowed(?:_|$)",
+        "(?:^|_)has_permission(?:_|$)",
+        "(?:^|_)check_[a-z0-9_]*_access(?:_|$)",
+        "(?:^|_)require_role(?:_|$)",
+        "(?:^|_)assert_[a-z0-9_]*_owner(?:_|$)"
+      ]
+    },
+    {
+      "condition": 2,
+      "error": "TB002",
+      "patterns": [
+        "(?:^|_)idempotenc[a-z0-9_]*(?:_|$)",
+        "(?:^|_)idempotent_key(?:_|$)",
+        "(?:^|_)seq_no(?:_|$)",
+        "(?:^|_)sequence_no(?:_|$)",
+        "(?:^|_)tombstone(?:_|$)",
+        "(?:^|_)revision_no(?:_|$)",
+        "(?:^|_)generation(?:_|$)"
+      ]
+    },
+    {
+      "condition": 3,
+      "error": "TB003",
+      "patterns": [
+        "(?:^|_)responsible_pitcher(?:_|$)",
+        "(?:^|_)earned_run(?:_|$)",
+        "(?:^|_)at_bat_result(?:_|$)",
+        "(?:^|_)inning_state(?:_|$)",
+        "(?:^|_)rbi(?:_|$)",
+        "(?:^|_)era(?:_|$)",
+        "(?:^|_)avg(?:_|$)",
+        "(?:^|_)obp(?:_|$)",
+        "(?:^|_)slg(?:_|$)"
+      ]
+    },
+    {
+      "condition": 4,
+      "error": "TB004",
+      "patterns": [
+        "(?:^|_)invalidate[a-z0-9_]*(?:_|$)",
+        "(?:^|_)cache_clear(?:_|$)",
+        "(?:^|_)evict[a-z0-9_]*(?:_|$)",
+        "(?:^|_)purge_cache(?:_|$)",
+        "(?:^|_)(?:restored_sync|recovery_sync)(?:_|$)",
+        "(?:^|_)(?:play_correction|correct_play)(?:_|$)",
+        "(?:^|_)undo(?:_|$)",
+        "(?:^|_)(?:substitution_record|substitution_correction|change_substitution)(?:_|$)",
+        "(?:^|_)(?:game_delete|delete_game|game_restore|restore_game|game_resume|resume_game|game_lifecycle)(?:_|$)",
+        "(?:^|_)postgame_correction(?:_|$)",
+        "(?:^|_)(?:player_merge|merge_player|player_split|split_player|player_identity)(?:_|$)",
+        "(?:^|_)(?:setting_change|change_setting)(?:_|$)",
+        "(?:^|_)(?:grant_flag_change|change_grant_flag)(?:_|$)",
+        "(?:^|_)(?:leave_group|group_departure)(?:_|$)",
+        "(?:^|_)(?:end_group|group_end)(?:_|$)",
+        "(?:^|_)(?:disable_tenant|tenant_disable)(?:_|$)",
+        "(?:^|_)(?:reenable_tenant|tenant_reenable)(?:_|$)",
+        "(?:^|_)(?:roster_status_change|change_roster_status)(?:_|$)"
+      ]
+    }
+  ]
+}

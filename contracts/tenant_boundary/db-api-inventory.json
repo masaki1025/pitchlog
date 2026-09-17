@@ -1,0 +1,505 @@
+{
+  "schema_version": 1,
+  "inventory_revision": 1,
+  "closed_world": true,
+  "apis": [
+    {
+      "id": "PSYCOPG_ASYNC_CONNECTION_COMMIT",
+      "symbol": "psycopg.AsyncConnection.commit",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CONNECTION_CURSOR",
+      "symbol": "psycopg.AsyncConnection.cursor",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
+      "symbol": "psycopg.AsyncConnection.execute",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CONNECTION_ROLLBACK",
+      "symbol": "psycopg.AsyncConnection.rollback",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CURSOR_COPY",
+      "symbol": "psycopg.AsyncCursor.copy",
+      "kind": "member",
+      "receivers": ["async_cursor"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CURSOR_EXECUTE",
+      "symbol": "psycopg.AsyncCursor.execute",
+      "kind": "member",
+      "receivers": ["async_cursor"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CURSOR_EXECUTEMANY",
+      "symbol": "psycopg.AsyncCursor.executemany",
+      "kind": "member",
+      "receivers": ["async_cursor"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CURSOR_STREAM",
+      "symbol": "psycopg.AsyncCursor.stream",
+      "kind": "member",
+      "receivers": ["async_cursor"]
+    },
+    {
+      "id": "PSYCOPG_ASYNC_CONNECT",
+      "symbol": "psycopg.AsyncConnection.connect",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "PSYCOPG_CONNECT",
+      "symbol": "psycopg.connect",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "PSYCOPG_CONNECTION_COMMIT",
+      "symbol": "psycopg.Connection.commit",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_CONNECTION_CURSOR",
+      "symbol": "psycopg.Connection.cursor",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_CONNECTION_EXECUTE",
+      "symbol": "psycopg.Connection.execute",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_CONNECTION_ROLLBACK",
+      "symbol": "psycopg.Connection.rollback",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_CURSOR_COPY",
+      "symbol": "psycopg.Cursor.copy",
+      "kind": "member",
+      "receivers": ["cursor"]
+    },
+    {
+      "id": "PSYCOPG_CURSOR_EXECUTE",
+      "symbol": "psycopg.Cursor.execute",
+      "kind": "member",
+      "receivers": ["cursor"]
+    },
+    {
+      "id": "PSYCOPG_CURSOR_EXECUTEMANY",
+      "symbol": "psycopg.Cursor.executemany",
+      "kind": "member",
+      "receivers": ["cursor"]
+    },
+    {
+      "id": "PSYCOPG_CURSOR_STREAM",
+      "symbol": "psycopg.Cursor.stream",
+      "kind": "member",
+      "receivers": ["cursor"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_EXECUTE",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.execute",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_EXEC_DRIVER_SQL",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.exec_driver_sql",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_RUN_SYNC",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.run_sync",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_SCALAR",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.scalar",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_SCALARS",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.scalars",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_STREAM",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.stream",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_CONNECTION_STREAM_SCALARS",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncConnection.stream_scalars",
+      "kind": "member",
+      "receivers": ["async_connection", "async_conn"]
+    },
+    {
+      "id": "SQLA_ASYNC_ENGINE_BEGIN",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncEngine.begin",
+      "kind": "member",
+      "receivers": ["async_engine"]
+    },
+    {
+      "id": "SQLA_ASYNC_ENGINE_CONNECT",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncEngine.connect",
+      "kind": "member",
+      "receivers": ["async_engine"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_ADD",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.add",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_ADD_ALL",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.add_all",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_COMMIT",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.commit",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_DELETE",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.delete",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_EXECUTE",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.execute",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_FLUSH",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.flush",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_GET",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.get",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_GET_ONE",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.get_one",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_MERGE",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.merge",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_REFRESH",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.refresh",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_ROLLBACK",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.rollback",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_RUN_SYNC",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.run_sync",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_SCALAR",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.scalar",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_SCALARS",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.scalars",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_STREAM",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.stream",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_ASYNC_SESSION_STREAM_SCALARS",
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession.stream_scalars",
+      "kind": "member",
+      "receivers": ["async_session"]
+    },
+    {
+      "id": "SQLA_CONNECTION_BEGIN",
+      "symbol": "sqlalchemy.engine.Connection.begin",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_BEGIN_NESTED",
+      "symbol": "sqlalchemy.engine.Connection.begin_nested",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_BEGIN_TWOPHASE",
+      "symbol": "sqlalchemy.engine.Connection.begin_twophase",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_COMMIT",
+      "symbol": "sqlalchemy.engine.Connection.commit",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_EXECUTE",
+      "symbol": "sqlalchemy.engine.Connection.execute",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_EXEC_DRIVER_SQL",
+      "symbol": "sqlalchemy.engine.Connection.exec_driver_sql",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_ROLLBACK",
+      "symbol": "sqlalchemy.engine.Connection.rollback",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_SCALAR",
+      "symbol": "sqlalchemy.engine.Connection.scalar",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CONNECTION_SCALARS",
+      "symbol": "sqlalchemy.engine.Connection.scalars",
+      "kind": "member",
+      "receivers": ["connection", "conn"]
+    },
+    {
+      "id": "SQLA_CREATE_ASYNC_ENGINE",
+      "symbol": "sqlalchemy.ext.asyncio.create_async_engine",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_CREATE_ENGINE",
+      "symbol": "sqlalchemy.create_engine",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_DELETE",
+      "symbol": "sqlalchemy.delete",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_ENGINE_BEGIN",
+      "symbol": "sqlalchemy.engine.Engine.begin",
+      "kind": "member",
+      "receivers": ["engine", "db_engine"]
+    },
+    {
+      "id": "SQLA_ENGINE_CONNECT",
+      "symbol": "sqlalchemy.engine.Engine.connect",
+      "kind": "member",
+      "receivers": ["engine", "db_engine"]
+    },
+    {
+      "id": "SQLA_ENGINE_RAW_CONNECTION",
+      "symbol": "sqlalchemy.engine.Engine.raw_connection",
+      "kind": "member",
+      "receivers": ["engine", "db_engine"]
+    },
+    {
+      "id": "SQLA_INSERT",
+      "symbol": "sqlalchemy.insert",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_SELECT",
+      "symbol": "sqlalchemy.select",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_SESSION_ADD",
+      "symbol": "sqlalchemy.orm.Session.add",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_ADD_ALL",
+      "symbol": "sqlalchemy.orm.Session.add_all",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_BULK_INSERT_MAPPINGS",
+      "symbol": "sqlalchemy.orm.Session.bulk_insert_mappings",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_BULK_SAVE_OBJECTS",
+      "symbol": "sqlalchemy.orm.Session.bulk_save_objects",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_BULK_UPDATE_MAPPINGS",
+      "symbol": "sqlalchemy.orm.Session.bulk_update_mappings",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_BEGIN",
+      "symbol": "sqlalchemy.orm.Session.begin",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_BEGIN_NESTED",
+      "symbol": "sqlalchemy.orm.Session.begin_nested",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_COMMIT",
+      "symbol": "sqlalchemy.orm.Session.commit",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_CONNECTION",
+      "symbol": "sqlalchemy.orm.Session.connection",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_DELETE",
+      "symbol": "sqlalchemy.orm.Session.delete",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_EXECUTE",
+      "symbol": "sqlalchemy.orm.Session.execute",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_FLUSH",
+      "symbol": "sqlalchemy.orm.Session.flush",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_GET",
+      "symbol": "sqlalchemy.orm.Session.get",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_GET_ONE",
+      "symbol": "sqlalchemy.orm.Session.get_one",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_MERGE",
+      "symbol": "sqlalchemy.orm.Session.merge",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_QUERY",
+      "symbol": "sqlalchemy.orm.Session.query",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_PREPARE",
+      "symbol": "sqlalchemy.orm.Session.prepare",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_REFRESH",
+      "symbol": "sqlalchemy.orm.Session.refresh",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_ROLLBACK",
+      "symbol": "sqlalchemy.orm.Session.rollback",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_SCALAR",
+      "symbol": "sqlalchemy.orm.Session.scalar",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_SESSION_SCALARS",
+      "symbol": "sqlalchemy.orm.Session.scalars",
+      "kind": "member",
+      "receivers": ["session", "db_session", "_session"]
+    },
+    {
+      "id": "SQLA_TEXT",
+      "symbol": "sqlalchemy.text",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "SQLA_UPDATE",
+      "symbol": "sqlalchemy.update",
+      "kind": "function",
+      "receivers": []
+    }
+  ]
+}
