@@ -995,7 +995,10 @@ def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
 ) -> dict[str, object]:
-    """固定基準へ承認済みの2資産の意味変更だけを適用する。"""
+    """承認済み2資産の意味変更を期待本文へ適用する。
+
+    099a8faへ畳み込み済みのため現基準ではno-opであり、分岐の削除はTSK-421で扱う。
+    """
     expected = _oracle_meaning_body(base, f"base asset {relative_path}")
     if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
         expected["proposal_status"] = "tsk_235_confirmed"
