@@ -1,10 +1,13 @@
 """API スキーマの共通基底と共通型を検証する。"""
 
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 from annotated_types import Le, Lt
+from api_fixtures import create_schema_validation_test_app
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 
 from pitchlog.api.schemas.base import (
@@ -19,6 +22,15 @@ from pitchlog.api.schemas.base import (
     ReadSchema,
     Timestamp,
     VersionResponse,
+)
+
+_SCHEMA_BASE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "src"
+    / "pitchlog"
+    / "api"
+    / "schemas"
+    / "base.py"
 )
 
 
@@ -243,3 +255,79 @@ def test_page_can_specialize_its_item_type() -> None:
     assert page.next_cursor is None
     with pytest.raises(ValidationError):
         Page[HealthResponse].model_validate({})
+
+
+@pytest.mark.anyio
+async def test_validation_location_joins_nested_array_index_with_dots() -> None:
+    """配列添字を含む検証箇所がドット連結で返ることを確認する。"""
+    transport = ASGITransport(
+        app=create_schema_validation_test_app(),
+        raise_app_exceptions=False,
+    )
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/schema-validation",
+            json={"player_name": "選手", "players": [{}]},
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "error": {
+            "message": "入力に誤りがあります",
+            "fields": [{"location": "body.players.0.name"}],
+        }
+    }
+
+
+@pytest.mark.anyio
+async def test_validation_location_for_scalar_field() -> None:
+    """スカラー項目の検証箇所がドット連結で返ることを確認する。"""
+    transport = ASGITransport(
+        app=create_schema_validation_test_app(),
+        raise_app_exceptions=False,
+    )
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/schema-validation",
+            json={"players": [{"name": "選手"}]},
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "error": {
+            "message": "入力に誤りがあります",
+            "fields": [{"location": "body.player_name"}],
+        }
+    }
+
+
+@pytest.mark.anyio
+async def test_validation_response_hides_input_and_pydantic_message() -> None:
+    """検証失敗の応答が入力値と Pydantic の内部メッセージを含まないことを確認する。"""
+    toxic_value = "TOXIC-VALUE-!@#$%^&*()-+=/" * 8
+    transport = ASGITransport(
+        app=create_schema_validation_test_app(),
+        raise_app_exceptions=False,
+    )
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/schema-validation",
+            json={
+                "player_name": [toxic_value],
+                "players": [{"name": "選手"}],
+            },
+        )
+
+    assert response.status_code == 422
+    assert toxic_value not in response.text
+    assert '"input"' not in response.text
+    assert "Input should be a valid string" not in response.text
+
+
+def test_base_schema_module_has_no_logger() -> None:
+    """共通スキーマモジュールがロガーを作らないことを確認する。"""
+    source = _SCHEMA_BASE_PATH.read_text(encoding="utf-8")
+
+    assert "import logging" not in source
+    assert "from logging import" not in source
+    assert "getLogger(" not in source
