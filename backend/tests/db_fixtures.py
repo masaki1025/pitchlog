@@ -8,10 +8,10 @@ import secrets
 import subprocess
 import time
 from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 import psycopg
 import pytest
@@ -25,6 +25,80 @@ from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ROLE_CONNECTION_SUFFIX = "_connection"
 _VERIFIED_AUTHZ_ROLE_IDS = pytest.StashKey[tuple[str, ...]]()
+_SESSION_RESOURCE_REGISTRY = pytest.StashKey["_SessionResourceRegistry"]()
+_ADMIN_CONNECTION_RESOURCE = object()
+_TESTED_ROLE_CONNECTION_RESOURCE = object()
+_ResourceT = TypeVar("_ResourceT")
+
+
+@dataclass
+class _SharedSessionResource:
+    """複数の fixture 登録が共有するセッション資源。"""
+
+    value: object
+    close: Callable[[], None]
+    references: int = 0
+
+
+class _SessionResourceRegistry:
+    """同一 pytest セッション内の副作用つき資源を参照カウントする。"""
+
+    def __init__(self) -> None:
+        """空の共有資源集合を初期化する。"""
+        self._resources: dict[object, _SharedSessionResource] = {}
+
+    @contextmanager
+    def acquire(
+        self,
+        key: object,
+        factory: Callable[[], AbstractContextManager[_ResourceT]],
+    ) -> Iterator[_ResourceT]:
+        """資源を共有し、最後の参照が解放された時だけ後始末する。
+
+        Args:
+            key: 同一資源を識別するセッション内のキー。
+            factory: 最初の取得時だけ呼ぶ資源生成 factory。
+
+        Yields:
+            登録経路をまたいで共有する資源。
+        """
+        resource = self._resources.get(key)
+        if resource is None:
+            with ExitStack() as setup_stack:
+                value = setup_stack.enter_context(factory())
+                resource_stack = setup_stack.pop_all()
+            resource = _SharedSessionResource(value=value, close=resource_stack.close)
+            self._resources[key] = resource
+
+        resource.references += 1
+        try:
+            yield cast(_ResourceT, resource.value)
+        finally:
+            resource.references -= 1
+            if resource.references == 0:
+                active_resource = self._resources.pop(key)
+                if active_resource is not resource:
+                    raise AssertionError("共有セッション資源の登録が取得中に置換された")
+                resource.close()
+
+
+def _session_resource_registry(
+    request: pytest.FixtureRequest,
+) -> _SessionResourceRegistry:
+    """Pytest セッション固有の共有資源レジストリを返す。
+
+    Args:
+        request: 同一 pytest セッションを識別する fixture 要求。
+
+    Returns:
+        fixture の登録箇所をまたいで共有するレジストリ。
+    """
+    try:
+        return request.session.stash[_SESSION_RESOURCE_REGISTRY]
+    except KeyError:
+        registry = _SessionResourceRegistry()
+        request.session.stash[_SESSION_RESOURCE_REGISTRY] = registry
+        return registry
 
 
 def _load_ddl_asset() -> dict[str, object]:
@@ -171,9 +245,9 @@ def _authz_login_role_statements() -> tuple[DDLStatement, ...]:
     return statements
 
 
-@pytest.fixture(scope="session")
-def admin_connection() -> Iterator[psycopg.Connection[Any]]:
-    """管理ユーザーとして実際に認証した接続を供給する。
+@contextmanager
+def _open_admin_connection() -> Iterator[psycopg.Connection[Any]]:
+    """管理ユーザーとして実際に認証した接続を開く。
 
     Yields:
         autocommit を有効にした管理接続。
@@ -187,10 +261,30 @@ def admin_connection() -> Iterator[psycopg.Connection[Any]]:
 
 
 @pytest.fixture(scope="session")
-def tested_role_connection(
+def admin_connection(
+    request: pytest.FixtureRequest,
+) -> Iterator[psycopg.Connection[Any]]:
+    """登録箇所をまたいで共有する管理接続を供給する。
+
+    Args:
+        request: 同一 pytest セッションを識別する fixture 要求。
+
+    Yields:
+        autocommit を有効にした共有管理接続。
+    """
+    registry = _session_resource_registry(request)
+    with registry.acquire(
+        _ADMIN_CONNECTION_RESOURCE,
+        _open_admin_connection,
+    ) as connection:
+        yield connection
+
+
+@contextmanager
+def _open_tested_role_connection(
     admin_connection: psycopg.Connection[Any],
 ) -> Iterator[psycopg.Connection[Any]]:
-    """被検査ロールで新規認証した接続を供給し、ロールを後始末する。
+    """被検査ロールで新規認証した接続を開き、ロールを後始末する。
 
     Args:
         admin_connection: ロール作成と削除に用いる管理接続。
@@ -221,6 +315,28 @@ def tested_role_connection(
             connection.close()
         with admin_connection.cursor() as cursor:
             cursor.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role_name)))
+
+
+@pytest.fixture(scope="session")
+def tested_role_connection(
+    request: pytest.FixtureRequest,
+    admin_connection: psycopg.Connection[Any],
+) -> Iterator[psycopg.Connection[Any]]:
+    """登録箇所をまたいで共有する被検査ロール接続を供給する。
+
+    Args:
+        request: 同一 pytest セッションを識別する fixture 要求。
+        admin_connection: ロール作成と削除に用いる共有管理接続。
+
+    Yields:
+        被検査ロール自身を認証ユーザーとする共有接続。
+    """
+    registry = _session_resource_registry(request)
+    with registry.acquire(
+        _TESTED_ROLE_CONNECTION_RESOURCE,
+        lambda: _open_tested_role_connection(admin_connection),
+    ) as connection:
+        yield connection
 
 
 def _authenticated_identity(
