@@ -1,6 +1,6 @@
 ---
 feature: frozen-baseline-clause
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-16・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -142,11 +142,11 @@ TSK-386(PR #63)は「凍結基準を検査器のソースから追い出す」�
 | --- | --- | --- |
 | [ハーネス設計書](../../development/dev-harness-design-2026-08-07.md) | **`7.7 凍結基準の更新経路` を新設**(`v1.15 → v1.16`)| **finalize-doc**(7.6-3 **後段** — 合否条件の新設)|
 | [ドキュメント索引](../../README.md) | ハーネス設計書の版・要約・最終更新を現行化 | PR レビュー(機械強制)|
-| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **候補 5 件を新規 + 既存候補 1 件へ実測追記** + 変更履歴 1 行。**`H-*` の新規採番なし・版上げなし** | PR レビュー(7.6-3 前段)|
+| [ハーネス運用評価台帳](../../development/harness-evaluation.md) | **候補 5 件を新規 + 既存候補 2 件へ実測追記** + 変更履歴 1 行。**`H-*` の新規採番なし・版上げなし**(**宣言は「既存候補 1 件」だったが、TSK-386 の失敗の型「母集団を手で列挙」が既存候補と同機構だったため重複を避けて追記へ回した** — worklog に記録) | PR レビュー(7.6-3 前段)|
 | [データモデル設計](../../design/data-model.md) | **反映なし** | — |
 | [要件定義書](../../requirements/requirements-pitchlog-2026-07-22.md) | **反映なし** | — |
 
-**正本体系外**: `docs/features/frozen-baseline-clause/` / `docs/worklog/2026-09-16-frozen-baseline-clause.md`。
+**正本体系外だが同一 PR で更新するもの**: `docs/features/frozen-baseline-clause/` / `docs/worklog/2026-09-16-frozen-baseline-clause.md` / **`scripts/check_authz_catalog.py`**(`7.7-3` が現存の検査にも掛かるため fail-open 3 箇所・4 分岐を fail-closed へ)/ **`tests/test_check_authz_catalog.py`**(負例 4 件の追加と、`.git` 無し前提のテストの履歴つき化)。**`docs/` 以外はこの 2 本のみ**(DoD の判定条件)。
 
 ## 4. 実装方針
 
