@@ -530,6 +530,58 @@ Notion: [本タスク](https://app.notion.com/p/3dd93b75e6878176afdbccfc6ca69788
 
 **ステップ 2 完了。** 次はステップ 3(`check_authz_catalog.py` の fail-open 3 箇所・4 分岐を fail-closed へ)。
 
+## ステップ 3 — fail-open 3 箇所・4 分岐を fail-closed へ(2026-09-17)
+
+**Codex へ委任。** **自己申告は受け取らず、変異感度を自分で実測した**(TSK-386 の最大の申し送り)。
+
+### 実装(`scripts/check_authz_catalog.py`)
+
+| 分岐 | 前 | 後 |
+| --- | --- | --- |
+| seal 検証の `.git` 不在 | 履歴照合を丸ごと省略 | **`CatalogError`**(対象パス・`oracle_commit`・`<stderr なし>`)|
+| seal 検証の `rev-parse` 失敗 | `returncode == 0 and` で黙って続行 | **`CatalogError`**(対象パス・`oracle_commit`・stderr)|
+| `_verify_manifest_commit` の `.git` 不在 | そのまま `return` | **`CatalogError`**(`source_path`・`commit`・`<stderr なし>`)|
+| 同 `cat-file` 失敗 | コメント付きで `return` | **`CatalogError`**(`source_path`・`commit`・stderr)|
+
+**履歴なしを許すフラグは置いていない**(計画どおり)。**`returncode == 0 and` の残存は 0 件**(走査で確認)。
+
+### テスト(`tests/test_check_authz_catalog.py`)
+
+- **`_make_repository` が履歴つきの一時 repository を作るようにした**(入力要件書を 1 件コミットし、`input_manifest.commit` を実 SHA へ差し替え)
+- **`test_normal_validation_never_reseals_a_semantically_valid_drift` を複製から clone へ**(`.git` 除外の複製をやめた)
+- **同テストへ baseline `main() == 0` の assert と、失敗理由の assert を追加** — **「`result == 1` と seal 不変の 2 つしか観測していないので早期 red を捕まえられない」(計画レビュー 14 周目 `P1`)への対応**
+- lock 欠落テストにも期待エラー文を明示(別理由の早期 red の防止)
+
+### 変異感度の実測(**自分で回した**)
+
+**4 分岐それぞれを fail-open へ戻して、対応する負例が落ちることを確認した。**
+
+| 変異 | 対応する負例 | 結果 |
+| --- | --- | --- |
+| `rev-parse` 失敗で黙って続行へ戻す | `test_oracle_seal_is_red_when_rev_parse_fails` | **落ちた** |
+| seal 側の `.git` 不在で `continue` へ戻す | `test_oracle_seal_is_red_without_git_history` | **落ちた** |
+| `_verify_manifest_commit` の `.git` 不在で `return` へ戻す | `test_manifest_commit_is_red_without_git_history` | **落ちた** |
+| `cat-file` 失敗で `return` へ戻す | `test_manifest_commit_is_red_when_cat_file_fails` | **落ちた** |
+
+**「早期 red で通っていないか」も変異で確かめた** — **seal の digest 比較を no-op にすると
+`test_normal_validation_never_reseals_a_semantically_valid_drift` が落ちる**(`validate_oracle_seal` 側・両方同時のいずれでも)。
+**このテストは seal 比較に実際に依存しており、`.git` 不在の早期 red で素通りしていない。**
+
+**ついでに単一資産側の比較(`:4903`)も no-op にして当該テストファイル全体を回した** —
+**`test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion` と
+`test_all_expected_test_ids_reject_replacement` が落ちた**ので、**この経路にも負例がある**。
+
+**変異はすべて原本へ復元し、バイト一致を検証した。**
+
+### 検証
+
+| | |
+| --- | --- |
+| `uv run ruff check .` | **All checks passed** |
+| `uv run ty check` | **All checks passed** |
+| `uv run pytest tests/` | **1350 passed**(9 分 47 秒)|
+| 変更ファイル | **`scripts/check_authz_catalog.py` と `tests/test_check_authz_catalog.py` の 2 本のみ** |
+
 ## やったこと
 
 ## 決定
