@@ -1,6 +1,6 @@
 ---
 feature: alembic-logging-isolation
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-17・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -75,7 +75,8 @@ created: 2026-09-16
 
 ## 3. 影響する正本
 
-**すべて「反映なし」**。本修正はコードの欠陥是正であり、正本に追随を要する変更を持たない。
+**ハーネス運用評価台帳と `docs/README.md` のみ反映あり**(/pr クローズ処理での判断 — 下表末尾 2 行)。
+それ以外はすべて「反映なし」で、本修正はコードの欠陥是正であり正本に追随を要する変更を持たない。
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
@@ -86,9 +87,9 @@ created: 2026-09-16
 | `docs/adr/ADR-001〜004` | **反映なし**(ロギング方針の決定ではない) | — |
 | `.claude/core-areas.json` | **反映なし**(paths を足しも狭めもしない) | — |
 | `contracts/**` | **反映なし** | — |
-| `docs/README.md`(索引) | **反映なし**(進行中 feature の静的一覧を持たない) | — |
+| `docs/README.md`(索引) | **反映あり** — 台帳行の最終更新日を 2026-09-16 → 2026-09-17 へ現行化(進行中 feature の静的一覧は持たないため、そちらは変更なし) | PR レビュー |
 | `AGENTS.md` / `CLAUDE.md` | **反映なし** | — |
-| `docs/development/harness-evaluation.md`(台帳) | **反映なし**(見込み)。本件の知見は TSK-387 の PR #67 で記録済み。**新たな知見が出たら /pr のクローズ処理で判断し、その場合は本節へ先に宣言を追記する** | PR レビュー |
+| `docs/development/harness-evaluation.md`(台帳) | **反映あり** — 既存候補「guard 群がコマンド文字列の部分一致で誤検知する」へ **9・10 件目** / `H-39` へ **実測 1 件**(レビューへ重大度の判定基準を渡すと指摘の粒が揃う)/ **新規候補 1 件**(検証のための変異を当てる前にステージしないと、後始末の `git checkout --` が未コミットの実装を消す)。**`H-*` の新規採番なし・版は上げない**(設計書 7.6-3 前段) | PR レビュー |
 
 ## 4. 実装方針
 
