@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3dd93b75e6878147aae9d37a76665e14
 branch: fix/alembic-logging-isolation
 created: 2026-09-16
-計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -182,11 +182,22 @@ TSK-387 が置いた `assert not ...disabled` との役割分担も 1 文で書�
 **子プロセス (a) と (b) の違いは 1 点だけ**にする。
 **両方とも `runpy.run_path(env.py)` で env.py を実行し、(b) だけ引数を既定へ強制する**:
 
-- **(a)**: そのまま env.py を実行する(= `disable_existing_loggers=False` が効く経路)
-- **(b)**: **env.py を実行する前に、子プロセス内で `logging.config.fileConfig` をラップし、
-  `disable_existing_loggers` を落として既定引数で呼ぶようにする**。
-  env.py は `from logging.config import fileConfig` を**実行時に**解決するため、
-  `runpy` で読み込む前に `logging.config.fileConfig` を差し替えればラッパーが使われる
+**両群へ同一のラッパーを無条件に設置し、ラッパーが転送する値だけを変える**
+(**4 周目レビュー P1 で実装へ同期** — 当初は「(b) だけラップする」としていたが、
+それでは**ラッパー自体が非対称**になり、`logging.config.fileConfig` のモジュール状態と
+呼び出し経路が両群で違ってしまう。3 周目レビュー P0):
+
+- **(a)**: ラッパーは受け取った値を**そのまま**元の `fileConfig` へ転送する(実効値 = `False`)
+- **(b)**: ラッパーは受け取った値を**捨てて既定値**で元の `fileConfig` を呼ぶ(実効値 = `True`)
+
+env.py は `from logging.config import fileConfig` を**実行時に**解決するため、
+`runpy` で読み込む前に `logging.config.fileConfig` を差し替えればラッパーが使われる。
+
+これで両群とも **モジュール状態・呼び出し回数・呼び出し経路・戻り値・例外伝播が同一**になり、
+**生成コードの差は転送方針を決める 1 行だけ**になる。
+
+**ラッパーが実際に呼ばれたことを子プロセス内で `assert` する**(呼ばれなければ非 0 終了し、
+親の `returncode` 表明で落ちる)。
 
 **【3 周目レビュー P0 の是正】** 当初は (b) を「同じ ini を `fileConfig` の既定引数で**直接**適用した対照」
 としていたが、**これでは対照実験が単一変数にならない**。(a) は env.py 経由で
@@ -214,6 +225,7 @@ TSK-387 が置いた `assert not ...disabled` との役割分担も 1 文で書�
 | `alembic` / `sqlalchemy.engine` | `level` / `propagate` / `disabled` / `handlers` の各要素(上と同じ項目) |
 | `pitchlog.api.errors` | `disabled` |
 | `pitchlog_sentinel_disabled` | `disabled` |
+| **実効引数** | ラッパーが元の `fileConfig` へ渡した `disable_existing_loggers` の値(**4 周目レビュー P1 で追加**) |
 
 #### 親テストの表明
 
@@ -221,7 +233,7 @@ TSK-387 が置いた `assert not ...disabled` との役割分担も 1 文で書�
 | --- | --- | --- |
 | 1 | (a) の `pitchlog.api.errors` が `disabled` **でない** | 修正の直接目的 |
 | 2 | (b) の `pitchlog.api.errors` が `disabled` **である** | **内蔵の対照** — 検査が空振りでないことを、変異を待たずに示す |
-| 3 | (a) と (b) の **列挙した alembic 側項目が一致** | **引数差が alembic 側の列挙項目を変えない**(両者とも env.py を実行するため、差は引数だけ) |
+| 3 | **実効引数が (a)=`False` / (b)=`True`** であり、かつ (a) と (b) の **列挙した alembic 側項目が一致** | **引数差が alembic 側の列挙項目を変えない**。**実効引数を表明に含めることで、差が引数だけであることをテスト自身が示す**(4 周目レビュー P1 で追加) |
 | 4 | (a) の `pitchlog_sentinel_disabled` が `disabled` **でない** | **characterization test**(下記) |
 
 **表明 4 の位置づけ(2 周目レビュー P1)** — これは「望ましい仕様」ではなく
@@ -263,6 +275,8 @@ Notion タスクの DoD と同期。**カード起票時の「NFR-015 の顕在�
 - [ ] **列挙した alembic 側項目**(決定③のスキーマ)が (a)(b) で一致することを固定する
       — **「完全に一致」とは主張しない**
 - [ ] **内蔵の対照を置く** — 既定引数の適用ではアプリのロガーが無効化されることを同テストで表明する
+- [ ] **実効引数を表明する** — ラッパーが元の `fileConfig` へ渡した値が (a)=`False` / (b)=`True` で
+      あることを表明し、**差が引数だけであることをテスト自身が示す**
 - [ ] **表明 4 を characterization test として置き、落ちたときの扱いを計画書に明記してある**
 - [ ] **テストが pytest プロセスの logging 状態を汚染しない**(子プロセス実行 — 決定③)
 - [ ] **子プロセスの `returncode` を表明する**(非 0 なら `stderr` を添えて失敗させる)
