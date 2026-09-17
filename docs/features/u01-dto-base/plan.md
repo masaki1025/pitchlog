@@ -50,13 +50,13 @@ app factory・ルータ登録機構・エラー封筒・例外ハンドラが入
 
 ### やること
 
-| # | 内容 | 詳細設計 |
-| --- | --- | --- |
-| 1 | **共通基底モデル** — `pydantic.BaseModel` の直接継承をやめ、`ConfigDict` を持つ基底を置く | [design.md](design.md) 2 節 |
-| 2 | **ID の共通型** — サロゲート ID の表現を 1 箇所に集める | 同 3 節 |
-| 3 | **時刻の共通型** — aware な日時の表現を 1 箇所に集める | 同 4 節 |
-| 4 | **ページング型** — 要求と応答の**形**を置く(**値は決めない** — 下記) | 同 5 節 |
-| 5 | **バリデーション写像** — `fields` の `location` 書式(**配列添字を含む**) | 同 6 節 |
+| 内容 | 詳細設計 |
+| --- | --- |
+| **共通基底モデル** — `pydantic.BaseModel` の直接継承をやめ、`ConfigDict` を持つ基底を置く | [design.md](design.md) 2 節 |
+| **ID の共通型** — サロゲート ID の表現を 1 箇所に集める | 同 3 節 |
+| **時刻の共通型** — aware な日時の表現を 1 箇所に集める | 同 4 節 |
+| **ページング型** — 要求と応答の**形**を置く(**値は決めない** — 下記) | 同 5 節 |
+| **バリデーション写像** — `fields` の `location` 書式(**配列添字を含む**) | 同 6 節 |
 
 ### やらないこと
 
@@ -146,18 +146,18 @@ app factory・ルータ登録機構・エラー封筒・例外ハンドラが入
 **検査対象 = 本 PR が追加・変更した `backend/src/**` の行**(`git diff -U0 origin/develop...HEAD -- backend/src`)。
 **一致 0 が合格。**
 
-> **差分行への限定は必須(1 周目レビューの実測)。** **条件 3 の式は API の全文に対しては既存の `operation_id` に一致する** —
+> **差分行への限定は必須(1 周目レビューの実測)。** **条件 `C3` の式は API の全文に対しては既存の `operation_id` に一致する** —
 > **`operation` が部分文字列として `era` を含む**ため。**全文へ掛けると恒常的に red になる。**
 
-| # | 条件 | 確定した検索式 | 上流からの変更 |
+| 条件 | 内容 | 確定した検索式 | 上流からの変更 |
 | --- | --- | --- | --- |
-| **1** | 新たな認可判定を追加しない | `\b(can_\|may_\|is_allowed\|has_permission\|check_.*_access\|require_role\|assert_.*_owner)` | **上流のまま**(`:267`) |
-| **2** | 同期セマンティクスを扱わない | `\b(idempotenc\|idempotent_key\|seq_no\|sequence_no\|tombstone\|revision_no\|generation)\b` | **上流のまま**(`:270`)。**下記の注記あり** |
-| **3** | `NFR-018` の対象計算を含まない | `responsible_pitcher\|earned_run\|at_bat_result\|inning_state\|rbi\|era\|avg\|obp\|slg` | **上流のまま**(`:271`) |
-| **4** | キャッシュ無効化契約に触れない | `\b(invalidate\|cache_clear\|evict\|purge_cache)` | **上流のまま**(`:272`) |
-| **5** | テナントデータは `U-T1` の越境関数経由だけ | `\b(session\.(execute\|query\|scalars)\|select\(\|text\(\|engine\.\|raw_connection)` | **上流のまま**(`:273`) |
+| **C1** | 新たな認可判定を追加しない | `\b(can_\|may_\|is_allowed\|has_permission\|check_.*_access\|require_role\|assert_.*_owner)` | **上流のまま**(`:267`) |
+| **C2** | 同期セマンティクスを扱わない | `\b(idempotenc\|idempotent_key\|seq_no\|sequence_no\|tombstone\|revision_no\|generation)\b` | **上流のまま**(`:270`)。**下記の注記あり** |
+| **C3** | `NFR-018` の対象計算を含まない | `responsible_pitcher\|earned_run\|at_bat_result\|inning_state\|rbi\|era\|avg\|obp\|slg` | **上流のまま**(`:271`) |
+| **C4** | キャッシュ無効化契約に触れない | `\b(invalidate\|cache_clear\|evict\|purge_cache)` | **上流のまま**(`:272`) |
+| **C5** | テナントデータは `U-T1` の越境関数経由だけ | `\b(session\.(execute\|query\|scalars)\|select\(\|text\(\|engine\.\|raw_connection)` | **上流のまま**(`:273`) |
 
-> **条件 2 について — 既存の規約テストと上流契約は「広い面」と「狭い面」が別々にある(1 周目 `P0` で整理)。**
+> **条件 `C2` について — 既存の規約テストと上流契約は「広い面」と「狭い面」が別々にある(1 周目 `P0` で整理)。**
 >
 > | | 上流(`product-impl-unit-split/plan.md:270`) | 実装(`test_api_conventions.py:31-37`,`:46-66`) |
 > | --- | --- | --- |
@@ -189,9 +189,9 @@ app factory・ルータ登録機構・エラー封筒・例外ハンドラが入
 
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
-| **1** | **共通基底モデルと ID・時刻の共通型**を `schemas/base.py` へ追加する([design.md](design.md) 2〜4 節) | `[機械]` **既存 5 クラスが新基底を継承し、外形(フィールド名・型・省略時の挙動)が変わらない**(`test_api_errors.py` / `test_api_app.py` が無改造で green)・**未知フィールドを拒否する**負例・**`ReadSchema` が属性から組み立てられ `BaseSchema` は組み立てられない**ことの対の検査(**1 周目 `P1`**)・**ID 型と時刻型の正例と負例**(**naive な日時が拒否される**)・`test_api_conventions.py` が全述語 green |
-| **2** | **ページング型**を追加する([design.md](design.md) 5 節) | `[機械]` **`PageRequest` / `Page[T]` のフィールド名・必須性・「なし」の表し方が design.md 5 節どおり**・**`limit` に既定値が無い**(未指定で `ValidationError`)・**大きな値(`10**6` / `10**9`)を素通しする**(拒否も改変もしない — [design.md](design.md) 5 節の判定 2)・**`limit=0` / `-1` が `ValidationError`・`limit=1` が通る**・**`cursor` と `next_cursor` が空文字列を拒否する**・**`Page` に総件数のフィールドが無い**・経路は増えていない(述語 4 green) |
-| **3** | **バリデーション写像**を追加する([design.md](design.md) 6 節) | `[機械]` **配列添字を含む `location` が確定した書式で出る**(ボディを持つ一時アプリで実測)・**応答本文に `input`(入力値)と pydantic 内部メッセージが現れない**否定テスト・**`schemas/` に logger を置かない**・**`U-01` が定義する検証メッセージに入力値を差し込まない**(**3 面に分けた — 1 周目 `P1`**) |
+| 1 | **共通基底モデルと ID・時刻の共通型**を `schemas/base.py` へ追加する([design.md](design.md) 2〜4 節) | `[機械]` **既存 5 クラスが新基底を継承し、外形(フィールド名・型・省略時の挙動)が変わらない**(`test_api_errors.py` / `test_api_app.py` が無改造で green)・**未知フィールドを拒否する**負例・**`ReadSchema` が属性から組み立てられ `BaseSchema` は組み立てられない**ことの対の検査(**1 周目 `P1`**)・**ID 型と時刻型の正例と負例**(**naive な日時が拒否される**)・`test_api_conventions.py` が全述語 green |
+| 2 | **ページング型**を追加する([design.md](design.md) 5 節) | `[機械]` **`PageRequest` / `Page[T]` のフィールド名・必須性・「なし」の表し方が design.md 5 節どおり**・**`limit` に既定値が無い**(未指定で `ValidationError`)・**大きな値(`10**6` / `10**9`)を素通しする**(拒否も改変もしない — [design.md](design.md) 5 節の判定 2)・**`limit=0` / `-1` が `ValidationError`・`limit=1` が通る**・**`cursor` と `next_cursor` が空文字列を拒否する**・**`Page` に総件数のフィールドが無い**・経路は増えていない(述語 4 green) |
+| 3 | **バリデーション写像**を追加する([design.md](design.md) 6 節) | `[機械]` **配列添字を含む `location` が確定した書式で出る**(ボディを持つ一時アプリで実測)・**応答本文に `input`(入力値)と pydantic 内部メッセージが現れない**否定テスト・**`schemas/` に logger を置かない**・**`U-01` が定義する検証メッセージに入力値を差し込まない**(**3 面に分けた — 1 周目 `P1`**) |
 
 **変更ファイル**: `backend/src/pitchlog/api/schemas/base.py` / `backend/tests/test_api_schemas.py`(新設)/
 `backend/tests/api_fixtures.py` / `docs/features/u01-dto-base/**` / 同 worklog
