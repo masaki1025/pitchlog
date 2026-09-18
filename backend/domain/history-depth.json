@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "authorities": {
+    "historyRule": {
+      "id": "FR-006 補足",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### FR-006: 直前の操作の取り消し（undo）",
+      "verbatim": "- **補足**: 対象は常に**直前の取消可能な操作1件**。**取消可能な操作は「確定プレイ」と、FR-040 を採用した場合の「状態補正」**（**未採用なら確定プレイのみ**）とし、**undo 自身は取消可能な操作としない**（undo を undo しない）。**undo を適用した後は、取り消された操作の1つ前の取消可能な操作が次の対象になる**（例: 状態補正 → プレイ → undo は当該プレイを取り消し、続く undo は状態補正を取り消す）。それ以前の誤りは FR-007"
+    },
+    "historyCases": "ADR-003 D-11 ② 入力範囲表 状況判定行",
+    "displayParameters": "ADR-003 D-1 射程行"
+  },
+  "derivation": {
+    "requiredScenarioCases": [
+      {
+        "id": "two-confirmed-plays-two-undos",
+        "requiresFr040": false,
+        "events": [
+          "confirmed-play-a",
+          "confirmed-play-b",
+          "undo",
+          "undo"
+        ],
+        "length": 4
+      }
+    ],
+    "stackCompositionCases": [
+      {
+        "id": "top-confirmed-play",
+        "stackKinds": [
+          "confirmed-play"
+        ],
+        "minimumDepth": 1
+      },
+      {
+        "id": "top-state-correction",
+        "stackKinds": [
+          "state-correction"
+        ],
+        "minimumDepth": 1
+      },
+      {
+        "id": "top-and-second-different",
+        "stackKinds": [
+          "confirmed-play",
+          "state-correction"
+        ],
+        "minimumDepth": 2
+      },
+      {
+        "id": "all-elements-same-kind",
+        "stackKinds": [
+          "confirmed-play",
+          "confirmed-play"
+        ],
+        "minimumDepth": 2
+      }
+    ],
+    "formula": {
+      "operator": "max",
+      "operands": [
+        {
+          "cases": "requiredScenarioCases",
+          "measure": "events.length",
+          "aggregate": "max"
+        },
+        {
+          "cases": "stackCompositionCases",
+          "measure": "stackKinds.length",
+          "aggregate": "max"
+        }
+      ]
+    },
+    "result": {
+      "requiredScenarioMaximum": 4,
+      "stackCompositionMinimumDepth": 2,
+      "historyDepth": 4
+    }
+  },
+  "caseSets": {
+    "depth": [
+      {
+        "id": "empty-history",
+        "value": 0
+      },
+      {
+        "id": "one-entry",
+        "value": 1
+      },
+      {
+        "id": "two-entries",
+        "value": 2
+      },
+      {
+        "id": "guarantee-boundary",
+        "valueFrom": "historyDepth"
+      }
+    ],
+    "composition": [
+      "top-confirmed-play",
+      "top-state-correction",
+      "top-and-second-different",
+      "all-elements-same-kind"
+    ],
+    "scenarioLength": [
+      {
+        "id": "minimum",
+        "value": 1
+      },
+      {
+        "id": "two-events",
+        "value": 2
+      },
+      {
+        "id": "guarantee-boundary",
+        "valueFrom": "historyDepth"
+      },
+      {
+        "id": "outside-guarantee-boundary",
+        "valueFrom": "historyDepthPlusOne"
+      }
+    ]
+  },
+  "historyDepthPlusOne": {
+    "valueFrom": "historyDepthPlusOne",
+    "guarantees": [
+      "execute",
+      "not-rejected",
+      "not-truncated"
+    ],
+    "requiresOutputEquivalence": false
+  },
+  "valueRangeSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "principalFlags",
+      "displayPrimitiveParameters"
+    ],
+    "properties": {
+      "principalFlags": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inning",
+          "half",
+          "score",
+          "count",
+          "outs",
+          "battingOrder",
+          "runners",
+          "tiebreakActive",
+          "gameEnded"
+        ],
+        "properties": {
+          "inning": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "half": {
+            "enum": [
+              "top",
+              "bottom"
+            ]
+          },
+          "score": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "home",
+              "away"
+            ],
+            "properties": {
+              "home": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "away": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              }
+            }
+          },
+          "count": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "strikes",
+              "balls"
+            ],
+            "properties": {
+              "strikes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              },
+              "balls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            }
+          },
+          "outs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "battingOrder": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          },
+          "runners": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "first",
+              "second",
+              "third"
+            ],
+            "properties": {
+              "first": {
+                "type": "boolean"
+              },
+              "second": {
+                "type": "boolean"
+              },
+              "third": {
+                "type": "boolean"
+              }
+            }
+          },
+          "tiebreakActive": {
+            "type": "boolean"
+          },
+          "gameEnded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "displayPrimitiveParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixed-decimal",
+          "percentage",
+          "mixed-fraction",
+          "null-substitute"
+        ],
+        "properties": {
+          "fixed-decimal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scale",
+              "rounding",
+              "leadingZero",
+              "sign"
+            ],
+            "properties": {
+              "scale": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "rounding": {
+                "const": "half-up"
+              },
+              "leadingZero": {
+                "type": "boolean"
+              },
+              "sign": {
+                "const": "negative-only-hyphen-minus"
+              }
+            }
+          },
+          "percentage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scale",
+              "rounding",
+              "leadingZero",
+              "symbol"
+            ],
+            "properties": {
+              "scale": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              },
+              "rounding": {
+                "const": "half-up"
+              },
+              "leadingZero": {
+                "type": "boolean"
+              },
+              "symbol": {
+                "const": "percent"
+              }
+            }
+          },
+          "mixed-fraction": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "denominator",
+              "integerSuffix",
+              "zeroRemainder",
+              "fractionStyle"
+            ],
+            "properties": {
+              "denominator": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "integerSuffix": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zeroRemainder": {
+                "enum": [
+                  "omit-fraction",
+                  "show-zero-fraction"
+                ]
+              },
+              "fractionStyle": {
+                "const": "ascii-numerator-slash-denominator"
+              }
+            }
+          },
+          "null-substitute": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "substitute"
+            ],
+            "properties": {
+              "substitute": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "manualReview": {
+    "subject": "導出の意味レビュー",
+    "judge": "山田正輝",
+    "status": "pending"
+  }
+}

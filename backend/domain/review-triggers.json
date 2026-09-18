@@ -199,7 +199,9 @@
       ],
       "evidenceLocation": "backend/domain/history-depth.json",
       "firingCondition": "導出式が 2 つ以上の値を与える",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 10,
