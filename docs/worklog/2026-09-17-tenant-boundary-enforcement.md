@@ -37,6 +37,21 @@ branch: feature/tenant-boundary-enforcement
     `secret_guard` は exact `.env.example` を明示的に許可している(解析不能な長大コマンドが安全側で落ちただけ)
 - **TSK-424 を起票**し、製品認可面を分離(下記の決定)
 
+## 実装(2026-09-18)
+
+- /implement: 全 11 ステップを Codex へ委任(sol xhigh)。**差し戻しは 1 回**(ステップ 3 の fixture 二重登録)
+- 各ステップで実 DB を使って検証。テストの推移: 428 → 466 → 478 → 486 → 528 → 542 passed(error 0)
+- 端末固有の問題を 1 件発見: テスト用 DSN 2 本が SQLAlchemy 形式で設定されていたため
+  `backend/tests/db` が 194 errors。conftest は libpq 形式を期待する。
+  **コードの欠陥ではなく環境設定** — 恒久修正は人手が要る(設定の実値は読み書きしないため)
+- ステップ 3 の差し戻し: 平場へ fixture を明示 import すると `db/conftest.py` 側とは別登録になり、
+  セッションスコープでも setup が 2 回走る。`tested_role_connection` は `CREATE ROLE` / `DROP ROLE` の
+  副作用と「事前に存在しないこと」の前提条件を持つため、`db/` が先に走ると平場側の複製が落ちる。
+  **単独実行では表面化しない**。参照カウントで最後の解放時にだけ `DROP ROLE` する形へ是正
+- develop(PR #69 で差分閉包の是正・PR #70 で U-01 DTO 基盤)を取り込み。**衝突 0 件**
+- 取り込み後の全ゲート: ハーネス **1461 passed / 0 failed**(既知 red 7 件は解消)/
+  backend **572 passed / 0 error** / `check_authz_catalog.py` ok / 迂回検査 ok / ruff・ty green
+
 ## 未決・次の一歩
 
 - **TSK-418 の指摘は実質的に成立**(「4 つ送っている」は一部成立 — 12-8 節の TSK-317 名指しは 2 行)。
