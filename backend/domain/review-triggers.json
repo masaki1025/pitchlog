@@ -50,9 +50,11 @@
       "judge": [
         "PO"
       ],
-      "evidenceLocation": "backend/domain/vocabulary.schema.json",
+      "evidenceLocation": "docs/features/domain-calc-dsl/research.md",
       "firingCondition": "未分類 1 件",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 3,

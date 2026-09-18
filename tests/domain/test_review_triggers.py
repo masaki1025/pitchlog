@@ -220,12 +220,40 @@ def _assert_deadlines_match_last_evaluation_step(asset: dict[str, Any]) -> None:
         )
 
 
+def _assert_evaluation_records_are_valid(asset: dict[str, Any]) -> None:
+    """評価値が未評価または閉じた発火レコードであることを検査する。"""
+    for trigger in asset["triggers"]:
+        evaluation = trigger["evaluation"]
+        if evaluation is None:
+            continue
+        assert isinstance(evaluation, dict), (
+            f"トリガー {trigger['id']} の evaluation が object でない"
+        )
+        assert set(evaluation) == {"fired"}, (
+            f"トリガー {trigger['id']} の evaluation のキー集合が不正"
+        )
+        assert isinstance(evaluation["fired"], bool), (
+            f"トリガー {trigger['id']} の fired が boolean でない"
+        )
+        assert isinstance(trigger["evidenceLocation"], str) and trigger[
+            "evidenceLocation"
+        ], f"トリガー {trigger['id']} の証拠資産の置き場が空"
+
+
+def _with_all_evaluations_empty(asset: dict[str, Any]) -> dict[str, Any]:
+    """全トリガーを未評価にした検査用の写しを返す。"""
+    unevaluated = copy.deepcopy(asset)
+    for trigger in unevaluated["triggers"]:
+        trigger["evaluation"] = None
+    return unevaluated
+
+
 def _assert_all_evaluations_are_empty(asset: dict[str, Any]) -> None:
-    """全トリガーが未評価の `null` を受理することを検査する。"""
+    """検査用の写しで全トリガーが未評価であることを検査する。"""
     nonempty = {
         trigger["id"] for trigger in asset["triggers"] if trigger["evaluation"] is not None
     }
-    assert not nonempty, f"本ステップで評価済みのトリガー: {sorted(nonempty)!r}"
+    assert not nonempty, f"未評価でないトリガー: {sorted(nonempty)!r}"
 
 
 def _validate_unevaluated_registry(
@@ -239,6 +267,7 @@ def _validate_unevaluated_registry(
     _assert_evaluation_steps_exist(asset, source)
     _assert_evaluation_steps_match_derivation(asset, source)
     _assert_deadlines_match_last_evaluation_step(asset)
+    _assert_evaluation_records_are_valid(asset)
     _assert_all_evaluations_are_empty(asset)
 
 
@@ -279,8 +308,16 @@ def test_evaluation_steps_exist_and_match_title_derivation(
     _assert_evaluation_steps_match_derivation(registry, steps_source)
 
 
+def test_evaluation_records_have_closed_shape_and_evidence_location(
+    registry: dict[str, Any],
+) -> None:
+    _assert_evaluation_records_are_valid(registry)
+
+
 def test_all_trigger_evaluations_may_be_empty(registry: dict[str, Any]) -> None:
-    _assert_all_evaluations_are_empty(registry)
+    unevaluated = _with_all_evaluations_empty(registry)
+    _assert_evaluation_records_are_valid(unevaluated)
+    _assert_all_evaluations_are_empty(unevaluated)
 
 
 def test_deadlines_match_last_evaluation_steps(registry: dict[str, Any]) -> None:
@@ -290,7 +327,8 @@ def test_deadlines_match_last_evaluation_steps(registry: dict[str, Any]) -> None
 def test_all_sixteen_unevaluated_frames_are_accepted(
     registry: dict[str, Any], conditions: dict[str, Any], steps_source: dict[str, Any]
 ) -> None:
-    _validate_unevaluated_registry(registry, conditions, steps_source)
+    unevaluated = _with_all_evaluations_empty(registry)
+    _validate_unevaluated_registry(unevaluated, conditions, steps_source)
 
 
 def test_missing_trigger_is_rejected(registry: dict[str, Any]) -> None:
@@ -336,3 +374,19 @@ def test_deadline_before_last_evaluation_step_is_rejected(registry: dict[str, An
 
     with pytest.raises(AssertionError, match="トリガー 5"):
         _assert_deadlines_match_last_evaluation_step(mutated)
+
+
+def test_non_boolean_fired_value_is_rejected(registry: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(registry)
+    mutated["triggers"][0]["evaluation"] = {"fired": "yes"}
+
+    with pytest.raises(AssertionError, match="boolean"):
+        _assert_evaluation_records_are_valid(mutated)
+
+
+def test_extra_evaluation_key_is_rejected(registry: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(registry)
+    mutated["triggers"][0]["evaluation"] = {"fired": False, "note": "余分なキー"}
+
+    with pytest.raises(AssertionError, match="キー集合"):
+        _assert_evaluation_records_are_valid(mutated)
