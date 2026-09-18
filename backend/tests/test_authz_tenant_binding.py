@@ -2,14 +2,17 @@
 
 構成検査・DB 統合・故障注入・変異検査を後続ステップも本モジュールへ追加する。
 現段階では、明示 import した DB fixture の解決と共有に加え、アプリ用物理接続の
-ロール名・全属性・到達閉包・初期 GUC・トランザクション終了状態を検証する。
+ロール名・全属性・到達閉包・初期 GUC・トランザクション終了状態、および業務
+トランザクションのテナント束縛・fail-closed・Session 分離を検証する。
 """
 
 import secrets
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
+from unittest.mock import MagicMock
+from uuid import UUID
 
 import psycopg
 import pytest
@@ -25,8 +28,10 @@ from db_fixtures import (
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.pq import TransactionStatus
-from sqlalchemy import Engine
+from sqlalchemy import Connection, Engine, create_engine, event, text
 from sqlalchemy.engine import URL
+from sqlalchemy.orm import Session
+from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.authz.runtime_contract import (
     APPLICATION_ROLE_NAME,
@@ -37,6 +42,8 @@ from pitchlog.db.engine import (
     _verify_application_role_connection,
     create_database_engine,
 )
+from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
+from pitchlog.repositories.context import TenantContext
 
 # DB fixture は backend/tests/conftest.py を経由せず、平場へ明示的に再公開する。
 __all__ = (
@@ -67,6 +74,15 @@ _NAME_NEGATIVE_IDS = {
     "superuser",
     "set_role_impersonation",
 }
+_TENANT_BINDING_IDS = (
+    UUID("00000000-0000-0000-0000-000000000101"),
+    UUID("00000000-0000-0000-0000-000000000202"),
+)
+_BINDING_STATEMENT = "SELECT set_config('app.tenant_id', :tenant_id, true)"
+_PROBE_STATEMENT = (
+    "SELECT marker FROM public.tenant_binding_probe WHERE tenant_id = :tenant_id"
+)
+_CURRENT_TENANT_STATEMENT = "SELECT current_setting('app.tenant_id', true)"
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,6 +224,29 @@ def _configure_application_role_database(
         )
         cursor.execute(
             """
+            CREATE TABLE public.tenant_binding_probe (
+                tenant_id uuid PRIMARY KEY,
+                marker text NOT NULL
+            )
+            """
+        )
+        cursor.executemany(
+            """
+            INSERT INTO public.tenant_binding_probe (tenant_id, marker)
+            VALUES (%s, %s)
+            """,
+            (
+                (_TENANT_BINDING_IDS[0], "tenant-one"),
+                (_TENANT_BINDING_IDS[1], "tenant-two"),
+            ),
+        )
+        cursor.execute(
+            sql.SQL("GRANT SELECT ON public.tenant_binding_probe TO {}").format(
+                sql.Identifier(APPLICATION_ROLE_NAME)
+            )
+        )
+        cursor.execute(
+            """
             CREATE FUNCTION public.prevent_team_records_kind_update()
             RETURNS integer LANGUAGE sql AS 'SELECT 1'
             """
@@ -344,6 +383,164 @@ def _assert_duplicate_fixture_registrations_share_one_session_resource() -> None
             assert teardown_count == 0
         assert teardown_count == 0
     assert teardown_count == 1
+
+
+def test_binding_precedes_business_work_in_explicit_transaction() -> None:
+    """DB 不要の呼び出し記録で束縛と業務処理の厳密な順序を固定する。"""
+    events: list[str] = []
+    observed_statement = ""
+    observed_parameters: dict[str, object] = {}
+    context = make_tenant_context(_TENANT_BINDING_IDS[0])
+    session_mock = MagicMock(spec=Session)
+    session_mock.info = {}
+    session_mock.in_transaction.return_value = False
+
+    transaction_mock = MagicMock()
+    transaction_mock.__enter__.side_effect = lambda: events.append("transaction-enter")
+    transaction_mock.__exit__.side_effect = (
+        lambda *_arguments: events.append("transaction-exit")
+    )
+
+    def begin_transaction() -> MagicMock:
+        events.append("begin")
+        return transaction_mock
+
+    connection_mock = MagicMock(spec=Connection)
+    connection_mock.get_execution_options.return_value = {}
+    connection_mock.connection.driver_connection.autocommit = False
+
+    def acquire_connection() -> MagicMock:
+        events.append("connection-check")
+        return connection_mock
+
+    result_mock = MagicMock()
+    result_mock.scalar_one.return_value = str(context.tenant_id)
+
+    def execute_binding(
+        statement: object,
+        parameters: dict[str, object],
+    ) -> MagicMock:
+        nonlocal observed_statement, observed_parameters
+        events.append("binding-sql")
+        observed_statement = str(statement)
+        observed_parameters = parameters
+        return result_mock
+
+    session_mock.begin.side_effect = begin_transaction
+    session_mock.connection.side_effect = acquire_connection
+    session_mock.execute.side_effect = execute_binding
+
+    with _tenant_transaction(cast(Session, session_mock), context):
+        events.append("business-work")
+
+    assert events == [
+        "begin",
+        "transaction-enter",
+        "connection-check",
+        "binding-sql",
+        "business-work",
+        "transaction-exit",
+    ]
+    assert observed_statement == _BINDING_STATEMENT
+    assert observed_parameters == {"tenant_id": str(context.tenant_id)}
+
+
+def test_missing_tenant_context_emits_no_business_sql() -> None:
+    """文脈欠落時は接続も業務 SQL も開始せず fail-closed に拒否する。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            with pytest.raises(
+                TenantBindingError,
+                match="TenantContext が無い",
+            ):
+                with _tenant_transaction(
+                    session,
+                    cast(TenantContext, None),
+                ):
+                    raise AssertionError("文脈なしで業務処理へ到達した")
+            assert not session.in_transaction()
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert observed_statements == []
+
+
+def test_existing_unbound_transaction_is_rejected_without_more_sql() -> None:
+    """先行 SQL が開始した未束縛トランザクションへ後付けで参加しない。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            session.execute(text("SELECT 1"))
+            observed_statements.clear()
+            with pytest.raises(
+                TenantBindingError,
+                match="未束縛の既存トランザクション",
+            ):
+                with _tenant_transaction(
+                    session,
+                    make_tenant_context(_TENANT_BINDING_IDS[0]),
+                ):
+                    raise AssertionError("先行 SQL 後に束縛できた")
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert observed_statements == []
+
+
+def test_autocommit_session_is_rejected_before_orm_sql() -> None:
+    """transaction-local 設定を維持できない autocommit Session を拒否する。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:").execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        statement = getattr(execute_state, "statement", None)
+        observed_statements.append(str(statement))
+
+    try:
+        with Session(engine) as session:
+            event.listen(session, "do_orm_execute", observe_orm_sql)
+            with pytest.raises(TenantBindingError, match="autocommit"):
+                with _tenant_transaction(
+                    session,
+                    make_tenant_context(_TENANT_BINDING_IDS[0]),
+                ):
+                    raise AssertionError("autocommit で業務処理へ到達した")
+            event.remove(session, "do_orm_execute", observe_orm_sql)
+    finally:
+        engine.dispose()
+
+    assert observed_statements == []
 
 
 @pytest.mark.requires_db
@@ -626,3 +823,175 @@ def test_rejected_inspection_rolls_back_and_same_connection_can_be_rechecked(
 
         _verify_application_role_connection(connection)
         assert connection.info.transaction_status is TransactionStatus.IDLE
+
+
+@pytest.mark.requires_db
+def test_tenant_binding_is_first_and_local_guc_clears_after_commit(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session の業務 SQL 列先頭で束縛し、commit 後に同じ接続で消えることを見る。
+
+    ``tenant_binding_probe`` は製品 RLS を持たないテスト専用表である。この試験は
+    transaction-local GUC の寿命だけを検査し、製品ポリシーを代替検証しない。
+    """
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    context = make_tenant_context(_TENANT_BINDING_IDS[0])
+    observed_statements: list[str] = []
+    observation_window_open = False
+
+    def open_observation_window(
+        _session: Session,
+        transaction: object,
+    ) -> None:
+        nonlocal observation_window_open
+        if getattr(transaction, "parent", None) is None:
+            observation_window_open = True
+
+    def observe_orm_sql(execute_state: object) -> None:
+        if not observation_window_open:
+            return
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    try:
+        with Session(engine) as session:
+            event.listen(
+                session,
+                "after_transaction_create",
+                open_observation_window,
+            )
+            event.listen(session, "do_orm_execute", observe_orm_sql)
+            with _tenant_transaction(session, context):
+                marker = session.execute(
+                    text(_PROBE_STATEMENT),
+                    {"tenant_id": context.tenant_id},
+                ).scalar_one()
+                driver_connection = session.connection().connection.driver_connection
+            event.remove(session, "do_orm_execute", observe_orm_sql)
+            event.remove(
+                session,
+                "after_transaction_create",
+                open_observation_window,
+            )
+
+        assert marker == "tenant-one"
+        assert observed_statements == [_BINDING_STATEMENT, _PROBE_STATEMENT]
+        with engine.connect() as connection:
+            assert connection.connection.driver_connection is driver_connection
+            assert (
+                connection.exec_driver_sql(_CURRENT_TENANT_STATEMENT).scalar_one()
+                == ""
+            )
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.requires_db
+def test_same_session_rebinding_is_rejected_without_second_sql(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """一度使った Session の別テナント再束縛を SQL 発行前に拒否する。"""
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    try:
+        with Session(engine) as session:
+            event.listen(session, "do_orm_execute", observe_orm_sql)
+            with _tenant_transaction(
+                session,
+                make_tenant_context(_TENANT_BINDING_IDS[0]),
+            ):
+                pass
+            observed_statements.clear()
+
+            with pytest.raises(TenantBindingError, match="再束縛"):
+                with _tenant_transaction(
+                    session,
+                    make_tenant_context(_TENANT_BINDING_IDS[1]),
+                ):
+                    raise AssertionError("同一 Session を再束縛できた")
+            event.remove(session, "do_orm_execute", observe_orm_sql)
+    finally:
+        engine.dispose()
+
+    assert observed_statements == []
+
+
+@pytest.mark.requires_db
+def test_parallel_sessions_do_not_share_tenant_guc(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同時に開いた二つの Session が別々の transaction-local GUC を保つ。"""
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    first_context = make_tenant_context(_TENANT_BINDING_IDS[0])
+    second_context = make_tenant_context(_TENANT_BINDING_IDS[1])
+    try:
+        with Session(engine) as first_session, Session(engine) as second_session:
+            with _tenant_transaction(first_session, first_context):
+                assert first_session.scalar(text(_CURRENT_TENANT_STATEMENT)) == str(
+                    first_context.tenant_id
+                )
+                assert first_session.scalar(
+                    text(_PROBE_STATEMENT),
+                    {"tenant_id": first_context.tenant_id},
+                ) == "tenant-one"
+
+                with _tenant_transaction(second_session, second_context):
+                    assert second_session.scalar(
+                        text(_CURRENT_TENANT_STATEMENT)
+                    ) == str(second_context.tenant_id)
+                    assert second_session.scalar(
+                        text(_PROBE_STATEMENT),
+                        {"tenant_id": second_context.tenant_id},
+                    ) == "tenant-two"
+                    assert first_session.scalar(
+                        text(_CURRENT_TENANT_STATEMENT)
+                    ) == str(first_context.tenant_id)
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.requires_db
+def test_autocommit_application_session_is_rejected_before_binding_sql(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """真正性検査済み接続でも autocommit なら束縛 SQL の前に拒否する。"""
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    autocommit_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    try:
+        with Session(autocommit_engine) as session:
+            event.listen(session, "do_orm_execute", observe_orm_sql)
+            with pytest.raises(TenantBindingError, match="autocommit"):
+                with _tenant_transaction(
+                    session,
+                    make_tenant_context(_TENANT_BINDING_IDS[0]),
+                ):
+                    raise AssertionError("autocommit で束縛できた")
+            event.remove(session, "do_orm_execute", observe_orm_sql)
+    finally:
+        engine.dispose()
+
+    assert observed_statements == []

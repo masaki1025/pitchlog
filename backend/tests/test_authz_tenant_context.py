@@ -7,7 +7,7 @@ import json
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -18,6 +18,11 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ALLOWLIST_PATH = Path(
     "contracts/tenant_boundary/tenant-context-allowlist.json"
 )
+
+
+def make_tenant_context(tenant_id: UUID) -> TenantContext:
+    """生成箇所 allowlist で許可されたテスト専用経路から文脈を構築する。"""
+    return TenantContext(tenant_id)
 
 
 def _read_allowlist() -> dict[str, Any]:
@@ -67,7 +72,7 @@ def test_tenant_context_is_an_immutable_value_object() -> None:
     """TenantContext が UUID を保持する frozen 値オブジェクトであることを確認する。"""
     tenant_id = uuid4()
 
-    context = TenantContext(tenant_id)
+    context = make_tenant_context(tenant_id)
 
     assert context.tenant_id == tenant_id
     assert getattr(TenantContext, "__final__", False) is True

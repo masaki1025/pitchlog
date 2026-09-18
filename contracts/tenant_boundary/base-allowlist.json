@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 3,
+  "contract_revision": 4,
   "diff": {
     "command": [
       "git",
@@ -44,6 +44,17 @@
       "signature": "__init__(self, tenant_id: UUID) -> None",
       "allowed_api_ids": [],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/context.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.binding._tenant_transaction",
+      "signature": "_tenant_transaction(session: Session, context: TenantContext) -> Iterator[None]",
+      "allowed_api_ids": [
+        "SQLA_SESSION_BEGIN",
+        "SQLA_SESSION_CONNECTION",
+        "SQLA_SESSION_EXECUTE",
+        "SQLA_TEXT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/binding.py"
     },
     {
       "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",

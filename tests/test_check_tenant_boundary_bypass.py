@@ -351,18 +351,47 @@ def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> N
         checker._load_tenant_context_allowlist(asset)
 
 
-def test_tenant_context_product_definition_passes_bypass_scan() -> None:
-    """型定義自体が DB 到達許可なしで迂回検査を通ることを確認する。"""
+@pytest.mark.parametrize("filename", ("context.py", "binding.py"))
+def test_tenant_repository_product_definition_passes_bypass_scan(
+    filename: str,
+) -> None:
+    """型定義と正規の束縛実装が迂回検査を通ることを確認する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    source_path = REPOSITORY_ROOT / "backend/src/pitchlog/repositories/context.py"
+    relative_path = f"pitchlog/repositories/{filename}"
+    source_path = REPOSITORY_ROOT / "backend/src" / relative_path
 
     violations = checker.scan_source(
         _fixture_source(source_path),
-        path="pitchlog/repositories/context.py",
+        path=relative_path,
         contract=contract,
     )
 
     assert violations == []
+
+
+def test_tenant_binding_symbol_has_only_required_database_apis() -> None:
+    """束縛シンボルのDB到達許可を必要な4 APIだけに固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    assert isinstance(allowlist, dict)
+    allowed_symbols = allowlist["allowed_symbols"]
+    assert isinstance(allowed_symbols, list)
+    matching_rows = [
+        row
+        for row in allowed_symbols
+        if isinstance(row, dict)
+        and row.get("symbol")
+        == "pitchlog.repositories.binding._tenant_transaction"
+    ]
+
+    assert len(matching_rows) == 1
+    assert set(matching_rows[0]["allowed_api_ids"]) == {
+        "SQLA_SESSION_BEGIN",
+        "SQLA_SESSION_CONNECTION",
+        "SQLA_SESSION_EXECUTE",
+        "SQLA_TEXT",
+    }
 
 
 def test_repository_diff_is_green_before_product_code_is_added() -> None:
