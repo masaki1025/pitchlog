@@ -8,416 +8,2197 @@
     },
     "claim_mutant_map": {
       "path": "contracts/authz/claim-mutant-map.json",
-      "blob_digest": "789f29da0cbc290d2f4cfd23a6b1ba30de931dd1"
+      "blob_digest": "2a1e7cefb919af647989d58c13366e8116119bf5"
     }
   },
   "decisions": [
     {
       "decision_id": "MANAGEMENT_TARGET_GRANT_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 30, "expression_end_line": 31},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 30,
+        "expression_end_line": 31
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_GRANT_GROUP_MATCHES", "source_terms": ["target_grant.group_id = caller_membership.group_id"]}],
-      "independence_pairs": [{"condition_id": "TARGET_GRANT_GROUP_MATCHES", "test_ids": ["MCDC:MANAGEMENT_TARGET_GRANT_GROUP_MATCH:TARGET_GRANT_GROUP_MATCHES:A", "MCDC:MANAGEMENT_TARGET_GRANT_GROUP_MATCH:TARGET_GRANT_GROUP_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_GRANT_GROUP_MATCHES",
+          "source_terms": [
+            "target_grant.group_id = caller_membership.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_GRANT_GROUP_MATCHES",
+          "test_ids": [
+            "MCDC:MANAGEMENT_TARGET_GRANT_GROUP_MATCH:TARGET_GRANT_GROUP_MATCHES:A",
+            "MCDC:MANAGEMENT_TARGET_GRANT_GROUP_MATCH:TARGET_GRANT_GROUP_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_REQUESTER_CONTEXT_PRESENT",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 34, "expression_end_line": 35},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 34,
+        "expression_end_line": 35
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "source_terms": ["request_context.requester_tenant_id IS NOT NULL"]}],
-      "independence_pairs": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "test_ids": ["MCDC:MANAGEMENT_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A", "MCDC:MANAGEMENT_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "source_terms": [
+            "request_context.requester_tenant_id IS NOT NULL"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "test_ids": [
+            "MCDC:MANAGEMENT_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A",
+            "MCDC:MANAGEMENT_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_GROUP_SCOPE",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 37, "expression_end_line": 38},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 37,
+        "expression_end_line": 38
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "GROUP_ID_MATCHES", "source_terms": ["caller_membership.group_id = p_group_id"]}],
-      "independence_pairs": [{"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:MANAGEMENT_GROUP_SCOPE:GROUP_ID_MATCHES:A", "MCDC:MANAGEMENT_GROUP_SCOPE:GROUP_ID_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "caller_membership.group_id = p_group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:MANAGEMENT_GROUP_SCOPE:GROUP_ID_MATCHES:A",
+            "MCDC:MANAGEMENT_GROUP_SCOPE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 40, "expression_end_line": 43},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 40,
+        "expression_end_line": 43
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "source_terms": ["caller_membership.tenant_id = request_context.requester_tenant_id"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["caller_membership.status = 'active'"]}
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "source_terms": [
+            "caller_membership.tenant_id = request_context.requester_tenant_id"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "caller_membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "test_ids": ["MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A", "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"], "input_a": [false, true], "input_b": [true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A", "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"], "input_a": [true, false], "input_b": [true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A",
+            "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A",
+            "MCDC:MANAGEMENT_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "MANAGEMENT_ADMIN_ROLE_REQUIRED",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 45, "expression_end_line": 46},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 45,
+        "expression_end_line": 46
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CALLER_IS_ADMIN", "source_terms": ["caller_membership.group_role = 'admin'"]}],
-      "independence_pairs": [{"condition_id": "CALLER_IS_ADMIN", "test_ids": ["MCDC:MANAGEMENT_ADMIN_ROLE_REQUIRED:CALLER_IS_ADMIN:A", "MCDC:MANAGEMENT_ADMIN_ROLE_REQUIRED:CALLER_IS_ADMIN:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CALLER_IS_ADMIN",
+          "source_terms": [
+            "caller_membership.group_role = 'admin'"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CALLER_IS_ADMIN",
+          "test_ids": [
+            "MCDC:MANAGEMENT_ADMIN_ROLE_REQUIRED:CALLER_IS_ADMIN:A",
+            "MCDC:MANAGEMENT_ADMIN_ROLE_REQUIRED:CALLER_IS_ADMIN:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_TARGET_GRANT_SCOPE",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 48, "expression_end_line": 49},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 48,
+        "expression_end_line": 49
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_TENANT_MATCHES", "source_terms": ["target_grant.tenant_id = p_tenant_id"]}],
-      "independence_pairs": [{"condition_id": "TARGET_TENANT_MATCHES", "test_ids": ["MCDC:MANAGEMENT_TARGET_GRANT_SCOPE:TARGET_TENANT_MATCHES:A", "MCDC:MANAGEMENT_TARGET_GRANT_SCOPE:TARGET_TENANT_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "source_terms": [
+            "target_grant.tenant_id = p_tenant_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:MANAGEMENT_TARGET_GRANT_SCOPE:TARGET_TENANT_MATCHES:A",
+            "MCDC:MANAGEMENT_TARGET_GRANT_SCOPE:TARGET_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_EFFECT_KIND_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 51, "expression_end_line": 52},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 51,
+        "expression_end_line": 52
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "EFFECT_KIND_MATCHES", "source_terms": ["target_grant.grant_kind = p_effect_kind"]}],
-      "independence_pairs": [{"condition_id": "EFFECT_KIND_MATCHES", "test_ids": ["MCDC:MANAGEMENT_EFFECT_KIND_MATCH:EFFECT_KIND_MATCHES:A", "MCDC:MANAGEMENT_EFFECT_KIND_MATCH:EFFECT_KIND_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "EFFECT_KIND_MATCHES",
+          "source_terms": [
+            "target_grant.grant_kind = p_effect_kind"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "EFFECT_KIND_MATCHES",
+          "test_ids": [
+            "MCDC:MANAGEMENT_EFFECT_KIND_MATCH:EFFECT_KIND_MATCHES:A",
+            "MCDC:MANAGEMENT_EFFECT_KIND_MATCH:EFFECT_KIND_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "MANAGEMENT_TARGET_GRANT_ENABLED",
-      "source": {"path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql", "line": 54, "expression_end_line": 55},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/apply_representative_grant_change.sql",
+        "line": 54,
+        "expression_end_line": 55
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_GRANT_ENABLED", "source_terms": ["target_grant.enabled"]}],
-      "independence_pairs": [{"condition_id": "TARGET_GRANT_ENABLED", "test_ids": ["MCDC:MANAGEMENT_TARGET_GRANT_ENABLED:TARGET_GRANT_ENABLED:A", "MCDC:MANAGEMENT_TARGET_GRANT_ENABLED:TARGET_GRANT_ENABLED:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_GRANT_ENABLED",
+          "source_terms": [
+            "target_grant.enabled"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_GRANT_ENABLED",
+          "test_ids": [
+            "MCDC:MANAGEMENT_TARGET_GRANT_ENABLED:TARGET_GRANT_ENABLED:A",
+            "MCDC:MANAGEMENT_TARGET_GRANT_ENABLED:TARGET_GRANT_ENABLED:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_RESOURCE_GRANULARITY_ALLOWED",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 76, "expression_end_line": 77},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 76,
+        "expression_end_line": 77
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "GRANULARITY_IN_MATRIX", "source_terms": ["authorization_matrix.requested_granularity = p_granularity"]}],
-      "independence_pairs": [{"condition_id": "GRANULARITY_IN_MATRIX", "test_ids": ["MCDC:SHARED_RESOURCE_GRANULARITY_ALLOWED:GRANULARITY_IN_MATRIX:A", "MCDC:SHARED_RESOURCE_GRANULARITY_ALLOWED:GRANULARITY_IN_MATRIX:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "GRANULARITY_IN_MATRIX",
+          "source_terms": [
+            "authorization_matrix.requested_granularity = p_granularity"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "GRANULARITY_IN_MATRIX",
+          "test_ids": [
+            "MCDC:SHARED_RESOURCE_GRANULARITY_ALLOWED:GRANULARITY_IN_MATRIX:A",
+            "MCDC:SHARED_RESOURCE_GRANULARITY_ALLOWED:GRANULARITY_IN_MATRIX:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_REQUESTER_CONTEXT_PRESENT",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 79, "expression_end_line": 80},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 79,
+        "expression_end_line": 80
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "source_terms": ["request_context.requester_tenant_id IS NOT NULL"]}],
-      "independence_pairs": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "test_ids": ["MCDC:SHARED_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A", "MCDC:SHARED_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "source_terms": [
+            "request_context.requester_tenant_id IS NOT NULL"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "test_ids": [
+            "MCDC:SHARED_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A",
+            "MCDC:SHARED_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_TARGET_SET_NONEMPTY",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 82, "expression_end_line": 83},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 82,
+        "expression_end_line": 83
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_COUNT_POSITIVE", "source_terms": ["request_context.requested_target_count > 0"]}],
-      "independence_pairs": [{"condition_id": "TARGET_COUNT_POSITIVE", "test_ids": ["MCDC:SHARED_TARGET_SET_NONEMPTY:TARGET_COUNT_POSITIVE:A", "MCDC:SHARED_TARGET_SET_NONEMPTY:TARGET_COUNT_POSITIVE:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_COUNT_POSITIVE",
+          "source_terms": [
+            "request_context.requested_target_count > 0"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_COUNT_POSITIVE",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_SET_NONEMPTY:TARGET_COUNT_POSITIVE:A",
+            "MCDC:SHARED_TARGET_SET_NONEMPTY:TARGET_COUNT_POSITIVE:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_COMPARISON_LIMIT",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 85, "expression_end_line": 88},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 85,
+        "expression_end_line": 88
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_COUNT_WITHIN_LIMIT", "source_terms": ["request_context.requested_target_count <= 10"]}],
-      "independence_pairs": [{"condition_id": "TARGET_COUNT_WITHIN_LIMIT", "test_ids": ["MCDC:SHARED_COMPARISON_LIMIT:TARGET_COUNT_WITHIN_LIMIT:A", "MCDC:SHARED_COMPARISON_LIMIT:TARGET_COUNT_WITHIN_LIMIT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_COUNT_WITHIN_LIMIT",
+          "source_terms": [
+            "request_context.requested_target_count <= 10"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_COUNT_WITHIN_LIMIT",
+          "test_ids": [
+            "MCDC:SHARED_COMPARISON_LIMIT:TARGET_COUNT_WITHIN_LIMIT:A",
+            "MCDC:SHARED_COMPARISON_LIMIT:TARGET_COUNT_WITHIN_LIMIT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_TARGET_IDENTIFIER_PRESENT",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 95, "expression_end_line": 96},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 95,
+        "expression_end_line": 96
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "TARGET_IDENTIFIER_PRESENT", "source_terms": ["requested_target.target_tenant_id IS NOT NULL"]}],
-      "independence_pairs": [{"condition_id": "TARGET_IDENTIFIER_PRESENT", "test_ids": ["MCDC:SHARED_TARGET_IDENTIFIER_PRESENT:TARGET_IDENTIFIER_PRESENT:A", "MCDC:SHARED_TARGET_IDENTIFIER_PRESENT:TARGET_IDENTIFIER_PRESENT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "TARGET_IDENTIFIER_PRESENT",
+          "source_terms": [
+            "requested_target.target_tenant_id IS NOT NULL"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "TARGET_IDENTIFIER_PRESENT",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_IDENTIFIER_PRESENT:TARGET_IDENTIFIER_PRESENT:A",
+            "MCDC:SHARED_TARGET_IDENTIFIER_PRESENT:TARGET_IDENTIFIER_PRESENT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_GROUP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 105, "expression_end_line": 111},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 105,
+        "expression_end_line": 111
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["requested_group.group_id = p_group_id"]},
-        {"condition_id": "GROUP_ACTIVE", "source_terms": ["requested_group.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "requested_group.group_id = p_group_id"
+          ]
+        },
+        {
+          "condition_id": "GROUP_ACTIVE",
+          "source_terms": [
+            "requested_group.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true], "input_b": [true, true], "observed_results": [false, true]},
-        {"condition_id": "GROUP_ACTIVE", "test_ids": ["MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ACTIVE:A", "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ACTIVE:B"], "input_a": [true, false], "input_b": [true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "GROUP_ACTIVE",
+          "test_ids": [
+            "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ACTIVE:A",
+            "MCDC:SHARED_GROUP_EFFECTIVE:GROUP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 113, "expression_end_line": 121},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 113,
+        "expression_end_line": 121
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["requester_membership.group_id = p_group_id"]},
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "source_terms": ["requester_membership.tenant_id = request_guard.requester_tenant_id"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["requester_membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "requester_membership.group_id = p_group_id"
+          ]
+        },
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "source_terms": [
+            "requester_membership.tenant_id = request_guard.requester_tenant_id"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "requester_membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "test_ids": ["MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A", "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A", "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A",
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A",
+            "MCDC:SHARED_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "SHARED_TARGET_MEMBERSHIP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 123, "expression_end_line": 131},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 123,
+        "expression_end_line": 131
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["target_membership.group_id = p_group_id"]},
-        {"condition_id": "TARGET_TENANT_MATCHES", "source_terms": ["target_membership.tenant_id = requested_target.target_tenant_id"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["target_membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "target_membership.group_id = p_group_id"
+          ]
+        },
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "source_terms": [
+            "target_membership.tenant_id = requested_target.target_tenant_id"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "target_membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "TARGET_TENANT_MATCHES", "test_ids": ["MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:A", "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A", "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:A",
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A",
+            "MCDC:SHARED_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "SHARED_SELF_TENANT_EXEMPTION",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 133, "expression_end_line": 173},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 133,
+        "expression_end_line": 173
+      },
       "decision_form": "OR",
       "conditions": [
-        {"condition_id": "SELF_TENANT", "source_terms": ["requested_target.target_tenant_id = request_guard.requester_tenant_id"]},
-        {"condition_id": "BOTH_GRANT_SETS_COMPLETE", "source_terms": ["target_grant.grant_kind = required_grant.grant_kind", "requester_grant.grant_kind = required_grant.grant_kind"]}
+        {
+          "condition_id": "SELF_TENANT",
+          "source_terms": [
+            "requested_target.target_tenant_id = request_guard.requester_tenant_id"
+          ]
+        },
+        {
+          "condition_id": "BOTH_GRANT_SETS_COMPLETE",
+          "source_terms": [
+            "target_grant.grant_kind = required_grant.grant_kind",
+            "requester_grant.grant_kind = required_grant.grant_kind"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "SELF_TENANT", "test_ids": ["MCDC:SHARED_SELF_TENANT_EXEMPTION:SELF_TENANT:A", "MCDC:SHARED_SELF_TENANT_EXEMPTION:SELF_TENANT:B"], "input_a": [false, false], "input_b": [true, false], "observed_results": [false, true]},
-        {"condition_id": "BOTH_GRANT_SETS_COMPLETE", "test_ids": ["MCDC:SHARED_SELF_TENANT_EXEMPTION:BOTH_GRANT_SETS_COMPLETE:A", "MCDC:SHARED_SELF_TENANT_EXEMPTION:BOTH_GRANT_SETS_COMPLETE:B"], "input_a": [false, false], "input_b": [false, true], "observed_results": [false, true]}
+        {
+          "condition_id": "SELF_TENANT",
+          "test_ids": [
+            "MCDC:SHARED_SELF_TENANT_EXEMPTION:SELF_TENANT:A",
+            "MCDC:SHARED_SELF_TENANT_EXEMPTION:SELF_TENANT:B"
+          ],
+          "input_a": [
+            false,
+            false
+          ],
+          "input_b": [
+            true,
+            false
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "BOTH_GRANT_SETS_COMPLETE",
+          "test_ids": [
+            "MCDC:SHARED_SELF_TENANT_EXEMPTION:BOTH_GRANT_SETS_COMPLETE:A",
+            "MCDC:SHARED_SELF_TENANT_EXEMPTION:BOTH_GRANT_SETS_COMPLETE:B"
+          ],
+          "input_a": [
+            false,
+            false
+          ],
+          "input_b": [
+            false,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "SHARED_TARGET_GRANTS_COMPLETE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 137, "expression_end_line": 153},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 137,
+        "expression_end_line": 153
+      },
       "decision_form": "NOT",
-      "conditions": [{"condition_id": "MISSING_REQUIRED_TARGET_GRANT", "source_terms": ["target_grant.grant_kind = required_grant.grant_kind"]}],
-      "independence_pairs": [{"condition_id": "MISSING_REQUIRED_TARGET_GRANT", "test_ids": ["MCDC:SHARED_TARGET_GRANTS_COMPLETE:MISSING_REQUIRED_TARGET_GRANT:A", "MCDC:SHARED_TARGET_GRANTS_COMPLETE:MISSING_REQUIRED_TARGET_GRANT:B"], "input_a": [false], "input_b": [true], "observed_results": [true, false]}]
+      "conditions": [
+        {
+          "condition_id": "MISSING_REQUIRED_TARGET_GRANT",
+          "source_terms": [
+            "target_grant.grant_kind = required_grant.grant_kind"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "MISSING_REQUIRED_TARGET_GRANT",
+          "test_ids": [
+            "MCDC:SHARED_TARGET_GRANTS_COMPLETE:MISSING_REQUIRED_TARGET_GRANT:A",
+            "MCDC:SHARED_TARGET_GRANTS_COMPLETE:MISSING_REQUIRED_TARGET_GRANT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            true,
+            false
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_REQUESTER_GRANTS_COMPLETE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 155, "expression_end_line": 171},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 155,
+        "expression_end_line": 171
+      },
       "decision_form": "NOT",
-      "conditions": [{"condition_id": "MISSING_REQUIRED_REQUESTER_GRANT", "source_terms": ["requester_grant.grant_kind = required_grant.grant_kind"]}],
-      "independence_pairs": [{"condition_id": "MISSING_REQUIRED_REQUESTER_GRANT", "test_ids": ["MCDC:SHARED_REQUESTER_GRANTS_COMPLETE:MISSING_REQUIRED_REQUESTER_GRANT:A", "MCDC:SHARED_REQUESTER_GRANTS_COMPLETE:MISSING_REQUIRED_REQUESTER_GRANT:B"], "input_a": [false], "input_b": [true], "observed_results": [true, false]}]
+      "conditions": [
+        {
+          "condition_id": "MISSING_REQUIRED_REQUESTER_GRANT",
+          "source_terms": [
+            "requester_grant.grant_kind = required_grant.grant_kind"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "MISSING_REQUIRED_REQUESTER_GRANT",
+          "test_ids": [
+            "MCDC:SHARED_REQUESTER_GRANTS_COMPLETE:MISSING_REQUIRED_REQUESTER_GRANT:A",
+            "MCDC:SHARED_REQUESTER_GRANTS_COMPLETE:MISSING_REQUIRED_REQUESTER_GRANT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            true,
+            false
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_BUSINESS_ROW_TENANT_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 182, "expression_end_line": 183},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 182,
+        "expression_end_line": 183
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "BUSINESS_ROW_TENANT_MATCHES", "source_terms": ["business_row.tenant_id = authorized_target.target_tenant_id"]}],
-      "independence_pairs": [{"condition_id": "BUSINESS_ROW_TENANT_MATCHES", "test_ids": ["MCDC:SHARED_BUSINESS_ROW_TENANT_MATCH:BUSINESS_ROW_TENANT_MATCHES:A", "MCDC:SHARED_BUSINESS_ROW_TENANT_MATCH:BUSINESS_ROW_TENANT_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "BUSINESS_ROW_TENANT_MATCHES",
+          "source_terms": [
+            "business_row.tenant_id = authorized_target.target_tenant_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "BUSINESS_ROW_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_BUSINESS_ROW_TENANT_MATCH:BUSINESS_ROW_TENANT_MATCHES:A",
+            "MCDC:SHARED_BUSINESS_ROW_TENANT_MATCH:BUSINESS_ROW_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_RESOURCE_KIND_ALLOWLIST",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 185, "expression_end_line": 186},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 185,
+        "expression_end_line": 186
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "RESOURCE_KIND_MATCHES", "source_terms": ["business_row.resource_kind = authorized_target.resource_kind"]}],
-      "independence_pairs": [{"condition_id": "RESOURCE_KIND_MATCHES", "test_ids": ["MCDC:SHARED_RESOURCE_KIND_ALLOWLIST:RESOURCE_KIND_MATCHES:A", "MCDC:SHARED_RESOURCE_KIND_ALLOWLIST:RESOURCE_KIND_MATCHES:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "RESOURCE_KIND_MATCHES",
+          "source_terms": [
+            "business_row.resource_kind = authorized_target.resource_kind"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "RESOURCE_KIND_MATCHES",
+          "test_ids": [
+            "MCDC:SHARED_RESOURCE_KIND_ALLOWLIST:RESOURCE_KIND_MATCHES:A",
+            "MCDC:SHARED_RESOURCE_KIND_ALLOWLIST:RESOURCE_KIND_MATCHES:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "SHARED_SELF_OWNED_RESOURCE",
-      "source": {"path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql", "line": 188, "expression_end_line": 189},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/authorized_shared_rows.sql",
+        "line": 188,
+        "expression_end_line": 189
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "RESOURCE_SELF_OWNED", "source_terms": ["business_row.ownership_kind = 'self'"]}],
-      "independence_pairs": [{"condition_id": "RESOURCE_SELF_OWNED", "test_ids": ["MCDC:SHARED_SELF_OWNED_RESOURCE:RESOURCE_SELF_OWNED:A", "MCDC:SHARED_SELF_OWNED_RESOURCE:RESOURCE_SELF_OWNED:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "RESOURCE_SELF_OWNED",
+          "source_terms": [
+            "business_row.ownership_kind = 'self'"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "RESOURCE_SELF_OWNED",
+          "test_ids": [
+            "MCDC:SHARED_SELF_OWNED_RESOURCE:RESOURCE_SELF_OWNED:A",
+            "MCDC:SHARED_SELF_OWNED_RESOURCE:RESOURCE_SELF_OWNED:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_RESOURCE_KIND_ALLOWED",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 46, "expression_end_line": 47},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 46,
+        "expression_end_line": 47
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROL_KIND_IN_MATRIX", "source_terms": ["control_access_matrix.control_kind = p_control_kind"]}],
-      "independence_pairs": [{"condition_id": "CONTROL_KIND_IN_MATRIX", "test_ids": ["MCDC:CONTROL_RESOURCE_KIND_ALLOWED:CONTROL_KIND_IN_MATRIX:A", "MCDC:CONTROL_RESOURCE_KIND_ALLOWED:CONTROL_KIND_IN_MATRIX:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROL_KIND_IN_MATRIX",
+          "source_terms": [
+            "control_access_matrix.control_kind = p_control_kind"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROL_KIND_IN_MATRIX",
+          "test_ids": [
+            "MCDC:CONTROL_RESOURCE_KIND_ALLOWED:CONTROL_KIND_IN_MATRIX:A",
+            "MCDC:CONTROL_RESOURCE_KIND_ALLOWED:CONTROL_KIND_IN_MATRIX:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_REQUESTER_CONTEXT_PRESENT",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 49, "expression_end_line": 50},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 49,
+        "expression_end_line": 50
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "source_terms": ["request_context.requester_tenant_id IS NOT NULL"]}],
-      "independence_pairs": [{"condition_id": "REQUESTER_CONTEXT_PRESENT", "test_ids": ["MCDC:CONTROL_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A", "MCDC:CONTROL_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "source_terms": [
+            "request_context.requester_tenant_id IS NOT NULL"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "REQUESTER_CONTEXT_PRESENT",
+          "test_ids": [
+            "MCDC:CONTROL_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:A",
+            "MCDC:CONTROL_REQUESTER_CONTEXT_PRESENT:REQUESTER_CONTEXT_PRESENT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_GROUP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 52, "expression_end_line": 58},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 52,
+        "expression_end_line": 58
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["requested_group.group_id = p_group_id"]},
-        {"condition_id": "GROUP_ACTIVE", "source_terms": ["requested_group.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "requested_group.group_id = p_group_id"
+          ]
+        },
+        {
+          "condition_id": "GROUP_ACTIVE",
+          "source_terms": [
+            "requested_group.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true], "input_b": [true, true], "observed_results": [false, true]},
-        {"condition_id": "GROUP_ACTIVE", "test_ids": ["MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ACTIVE:A", "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ACTIVE:B"], "input_a": [true, false], "input_b": [true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "GROUP_ACTIVE",
+          "test_ids": [
+            "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ACTIVE:A",
+            "MCDC:CONTROL_GROUP_EFFECTIVE:GROUP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 60, "expression_end_line": 68},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 60,
+        "expression_end_line": 68
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["requester_membership.group_id = p_group_id"]},
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "source_terms": ["requester_membership.tenant_id = request_context.requester_tenant_id"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["requester_membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "requester_membership.group_id = p_group_id"
+          ]
+        },
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "source_terms": [
+            "requester_membership.tenant_id = request_context.requester_tenant_id"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "requester_membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "REQUESTER_TENANT_MATCHES", "test_ids": ["MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A", "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A", "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "REQUESTER_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:A",
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:REQUESTER_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A",
+            "MCDC:CONTROL_REQUESTER_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "CONTROL_ADMIN_ONLY_ACCESS",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 70, "expression_end_line": 82},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 70,
+        "expression_end_line": 82
+      },
       "decision_form": "CASE",
       "conditions": [
-        {"condition_id": "ADMIN_REQUIREMENT_APPLIES", "source_terms": ["control_access_matrix.admin_required"]},
-        {"condition_id": "ADMIN_MEMBERSHIP_PRESENT", "source_terms": ["admin_membership.group_role = 'admin'"]}
+        {
+          "condition_id": "ADMIN_REQUIREMENT_APPLIES",
+          "source_terms": [
+            "control_access_matrix.admin_required"
+          ]
+        },
+        {
+          "condition_id": "ADMIN_MEMBERSHIP_PRESENT",
+          "source_terms": [
+            "admin_membership.group_role = 'admin'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "ADMIN_REQUIREMENT_APPLIES", "test_ids": ["MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_REQUIREMENT_APPLIES:A", "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_REQUIREMENT_APPLIES:B"], "input_a": [false, false], "input_b": [true, false], "observed_results": [true, false]},
-        {"condition_id": "ADMIN_MEMBERSHIP_PRESENT", "test_ids": ["MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_MEMBERSHIP_PRESENT:A", "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_MEMBERSHIP_PRESENT:B"], "input_a": [true, false], "input_b": [true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "ADMIN_REQUIREMENT_APPLIES",
+          "test_ids": [
+            "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_REQUIREMENT_APPLIES:A",
+            "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_REQUIREMENT_APPLIES:B"
+          ],
+          "input_a": [
+            false,
+            false
+          ],
+          "input_b": [
+            true,
+            false
+          ],
+          "observed_results": [
+            true,
+            false
+          ]
+        },
+        {
+          "condition_id": "ADMIN_MEMBERSHIP_PRESENT",
+          "test_ids": [
+            "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_MEMBERSHIP_PRESENT:A",
+            "MCDC:CONTROL_ADMIN_ONLY_ACCESS:ADMIN_MEMBERSHIP_PRESENT:B"
+          ],
+          "input_a": [
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "CONTROL_GROUP_ROW_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 94, "expression_end_line": 95},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 94,
+        "expression_end_line": 95
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROLLED_GROUP_MATCHES_REQUEST", "source_terms": ["controlled_group.group_id = request_access.group_id"]}],
-      "independence_pairs": [{"condition_id": "CONTROLLED_GROUP_MATCHES_REQUEST", "test_ids": ["MCDC:CONTROL_GROUP_ROW_GROUP_MATCH:CONTROLLED_GROUP_MATCHES_REQUEST:A", "MCDC:CONTROL_GROUP_ROW_GROUP_MATCH:CONTROLLED_GROUP_MATCHES_REQUEST:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROLLED_GROUP_MATCHES_REQUEST",
+          "source_terms": [
+            "controlled_group.group_id = request_access.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROLLED_GROUP_MATCHES_REQUEST",
+          "test_ids": [
+            "MCDC:CONTROL_GROUP_ROW_GROUP_MATCH:CONTROLLED_GROUP_MATCHES_REQUEST:A",
+            "MCDC:CONTROL_GROUP_ROW_GROUP_MATCH:CONTROLLED_GROUP_MATCHES_REQUEST:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_MEMBER_ROW_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 110, "expression_end_line": 111},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 110,
+        "expression_end_line": 111
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST", "source_terms": ["controlled_membership.group_id = request_access.group_id"]}],
-      "independence_pairs": [{"condition_id": "CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST", "test_ids": ["MCDC:CONTROL_MEMBER_ROW_GROUP_MATCH:CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST:A", "MCDC:CONTROL_MEMBER_ROW_GROUP_MATCH:CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST",
+          "source_terms": [
+            "controlled_membership.group_id = request_access.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST",
+          "test_ids": [
+            "MCDC:CONTROL_MEMBER_ROW_GROUP_MATCH:CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST:A",
+            "MCDC:CONTROL_MEMBER_ROW_GROUP_MATCH:CONTROLLED_MEMBER_GROUP_MATCHES_REQUEST:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_MEMBER_LIST_ACTIVE_ROW",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 114, "expression_end_line": 115},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 114,
+        "expression_end_line": 115
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["controlled_membership.status = 'active'"]}],
-      "independence_pairs": [{"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:CONTROL_MEMBER_LIST_ACTIVE_ROW:MEMBERSHIP_ACTIVE:A", "MCDC:CONTROL_MEMBER_LIST_ACTIVE_ROW:MEMBERSHIP_ACTIVE:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "controlled_membership.status = 'active'"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:CONTROL_MEMBER_LIST_ACTIVE_ROW:MEMBERSHIP_ACTIVE:A",
+            "MCDC:CONTROL_MEMBER_LIST_ACTIVE_ROW:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 129, "expression_end_line": 130},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 129,
+        "expression_end_line": 130
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST", "source_terms": ["controlled_membership.group_id = request_access.group_id"]}],
-      "independence_pairs": [{"condition_id": "CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST", "test_ids": ["MCDC:CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH:CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST:A", "MCDC:CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH:CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST",
+          "source_terms": [
+            "controlled_membership.group_id = request_access.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST",
+          "test_ids": [
+            "MCDC:CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH:CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST:A",
+            "MCDC:CONTROL_ADMIN_MEMBER_ROW_GROUP_MATCH:CONTROLLED_ADMIN_MEMBER_GROUP_MATCHES_REQUEST:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_ADMIN_MEMBER_ACTIVE_ROW",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 133, "expression_end_line": 134},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 133,
+        "expression_end_line": 134
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["controlled_membership.status = 'active'"]}],
-      "independence_pairs": [{"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:CONTROL_ADMIN_MEMBER_ACTIVE_ROW:MEMBERSHIP_ACTIVE:A", "MCDC:CONTROL_ADMIN_MEMBER_ACTIVE_ROW:MEMBERSHIP_ACTIVE:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "controlled_membership.status = 'active'"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:CONTROL_ADMIN_MEMBER_ACTIVE_ROW:MEMBERSHIP_ACTIVE:A",
+            "MCDC:CONTROL_ADMIN_MEMBER_ACTIVE_ROW:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_GRANT_ROW_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 147, "expression_end_line": 148},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 147,
+        "expression_end_line": 148
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROLLED_GRANT_GROUP_MATCHES_REQUEST", "source_terms": ["controlled_grant.group_id = request_access.group_id"]}],
-      "independence_pairs": [{"condition_id": "CONTROLLED_GRANT_GROUP_MATCHES_REQUEST", "test_ids": ["MCDC:CONTROL_GRANT_ROW_GROUP_MATCH:CONTROLLED_GRANT_GROUP_MATCHES_REQUEST:A", "MCDC:CONTROL_GRANT_ROW_GROUP_MATCH:CONTROLLED_GRANT_GROUP_MATCHES_REQUEST:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROLLED_GRANT_GROUP_MATCHES_REQUEST",
+          "source_terms": [
+            "controlled_grant.group_id = request_access.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROLLED_GRANT_GROUP_MATCHES_REQUEST",
+          "test_ids": [
+            "MCDC:CONTROL_GRANT_ROW_GROUP_MATCH:CONTROLLED_GRANT_GROUP_MATCHES_REQUEST:A",
+            "MCDC:CONTROL_GRANT_ROW_GROUP_MATCH:CONTROLLED_GRANT_GROUP_MATCHES_REQUEST:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 151, "expression_end_line": 158},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 151,
+        "expression_end_line": 158
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["target_membership.group_id = controlled_grant.group_id"]},
-        {"condition_id": "TARGET_TENANT_MATCHES", "source_terms": ["target_membership.tenant_id = controlled_grant.tenant_id"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["target_membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "target_membership.group_id = controlled_grant.group_id"
+          ]
+        },
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "source_terms": [
+            "target_membership.tenant_id = controlled_grant.tenant_id"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "target_membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A", "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "TARGET_TENANT_MATCHES", "test_ids": ["MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:A", "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A", "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:A",
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "TARGET_TENANT_MATCHES",
+          "test_ids": [
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:A",
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:TARGET_TENANT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:A",
+            "MCDC:CONTROL_GRANT_TARGET_MEMBERSHIP_EFFECTIVE:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "CONTROL_INVITATION_ROW_GROUP_MATCH",
-      "source": {"path": "contracts/authz/function-bodies/functions/read_control_resources.sql", "line": 172, "expression_end_line": 173},
+      "source": {
+        "path": "contracts/authz/function-bodies/functions/read_control_resources.sql",
+        "line": 172,
+        "expression_end_line": 173
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST", "source_terms": ["controlled_invitation.group_id = request_access.group_id"]}],
-      "independence_pairs": [{"condition_id": "CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST", "test_ids": ["MCDC:CONTROL_INVITATION_ROW_GROUP_MATCH:CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST:A", "MCDC:CONTROL_INVITATION_ROW_GROUP_MATCH:CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST",
+          "source_terms": [
+            "controlled_invitation.group_id = request_access.group_id"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST",
+          "test_ids": [
+            "MCDC:CONTROL_INVITATION_ROW_GROUP_MATCH:CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST:A",
+            "MCDC:CONTROL_INVITATION_ROW_GROUP_MATCH:CONTROLLED_INVITATION_GROUP_MATCHES_REQUEST:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_BUSINESS_ROWS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_business_rows:tenant_boundary.sql", "line": 10, "expression_end_line": 18},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_business_rows:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 18
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_BUSINESS_ROWS_USING:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_BUSINESS_ROWS_USING:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_BUSINESS_ROWS_USING:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_BUSINESS_ROWS_USING:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_BUSINESS_ROWS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_business_rows:tenant_boundary.sql", "line": 21, "expression_end_line": 29},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_business_rows:tenant_boundary.sql",
+        "line": 21,
+        "expression_end_line": 29
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_BUSINESS_ROWS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_BUSINESS_ROWS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_BUSINESS_ROWS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_BUSINESS_ROWS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_GRANTS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_grants:tenant_boundary.sql", "line": 10, "expression_end_line": 18},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_grants:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 18
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_GRANTS_USING:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_GRANTS_USING:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GRANTS_USING:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_GRANTS_USING:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_GRANTS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_grants:tenant_boundary.sql", "line": 21, "expression_end_line": 29},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_grants:tenant_boundary.sql",
+        "line": 21,
+        "expression_end_line": 29
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_GRANTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_GRANTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GRANTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_GRANTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_GROUPS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_groups:tenant_boundary.sql", "line": 10, "expression_end_line": 21},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_groups:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 21
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["membership.group_id = probe_groups.group_id"]},
-        {"condition_id": "TENANT_CONTEXT_MATCHES", "source_terms": ["membership.tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "membership.group_id = probe_groups.group_id"
+          ]
+        },
+        {
+          "condition_id": "TENANT_CONTEXT_MATCHES",
+          "source_terms": [
+            "membership.tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:RLS_PROBE_GROUPS_USING:GROUP_ID_MATCHES:A", "MCDC:RLS_PROBE_GROUPS_USING:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "TENANT_CONTEXT_MATCHES", "test_ids": ["MCDC:RLS_PROBE_GROUPS_USING:TENANT_CONTEXT_MATCHES:A", "MCDC:RLS_PROBE_GROUPS_USING:TENANT_CONTEXT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:RLS_PROBE_GROUPS_USING:MEMBERSHIP_ACTIVE:A", "MCDC:RLS_PROBE_GROUPS_USING:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_USING:GROUP_ID_MATCHES:A",
+            "MCDC:RLS_PROBE_GROUPS_USING:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "TENANT_CONTEXT_MATCHES",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_USING:TENANT_CONTEXT_MATCHES:A",
+            "MCDC:RLS_PROBE_GROUPS_USING:TENANT_CONTEXT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_USING:MEMBERSHIP_ACTIVE:A",
+            "MCDC:RLS_PROBE_GROUPS_USING:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "RLS_PROBE_GROUPS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_groups:tenant_boundary.sql", "line": 24, "expression_end_line": 35},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_groups:tenant_boundary.sql",
+        "line": 24,
+        "expression_end_line": 35
+      },
       "decision_form": "AND",
       "conditions": [
-        {"condition_id": "GROUP_ID_MATCHES", "source_terms": ["membership.group_id = probe_groups.group_id"]},
-        {"condition_id": "TENANT_CONTEXT_MATCHES", "source_terms": ["membership.tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "source_terms": ["membership.status = 'active'"]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "source_terms": [
+            "membership.group_id = probe_groups.group_id"
+          ]
+        },
+        {
+          "condition_id": "TENANT_CONTEXT_MATCHES",
+          "source_terms": [
+            "membership.tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "source_terms": [
+            "membership.status = 'active'"
+          ]
+        }
       ],
       "independence_pairs": [
-        {"condition_id": "GROUP_ID_MATCHES", "test_ids": ["MCDC:RLS_PROBE_GROUPS_WITH_CHECK:GROUP_ID_MATCHES:A", "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:GROUP_ID_MATCHES:B"], "input_a": [false, true, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "TENANT_CONTEXT_MATCHES", "test_ids": ["MCDC:RLS_PROBE_GROUPS_WITH_CHECK:TENANT_CONTEXT_MATCHES:A", "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:TENANT_CONTEXT_MATCHES:B"], "input_a": [true, false, true], "input_b": [true, true, true], "observed_results": [false, true]},
-        {"condition_id": "MEMBERSHIP_ACTIVE", "test_ids": ["MCDC:RLS_PROBE_GROUPS_WITH_CHECK:MEMBERSHIP_ACTIVE:A", "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:MEMBERSHIP_ACTIVE:B"], "input_a": [true, true, false], "input_b": [true, true, true], "observed_results": [false, true]}
+        {
+          "condition_id": "GROUP_ID_MATCHES",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:GROUP_ID_MATCHES:A",
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:GROUP_ID_MATCHES:B"
+          ],
+          "input_a": [
+            false,
+            true,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "TENANT_CONTEXT_MATCHES",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:TENANT_CONTEXT_MATCHES:A",
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:TENANT_CONTEXT_MATCHES:B"
+          ],
+          "input_a": [
+            true,
+            false,
+            true
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        },
+        {
+          "condition_id": "MEMBERSHIP_ACTIVE",
+          "test_ids": [
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:MEMBERSHIP_ACTIVE:A",
+            "MCDC:RLS_PROBE_GROUPS_WITH_CHECK:MEMBERSHIP_ACTIVE:B"
+          ],
+          "input_a": [
+            true,
+            true,
+            false
+          ],
+          "input_b": [
+            true,
+            true,
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
       ]
     },
     {
       "decision_id": "RLS_PROBE_INVITATIONS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_invitations:tenant_boundary.sql", "line": 10, "expression_end_line": 18},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_invitations:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 18
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "INVITED_TENANT_MATCHES_CONTEXT", "source_terms": ["invited_tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "INVITED_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_INVITATIONS_USING:INVITED_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_INVITATIONS_USING:INVITED_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "INVITED_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "invited_tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "INVITED_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_INVITATIONS_USING:INVITED_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_INVITATIONS_USING:INVITED_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_INVITATIONS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_invitations:tenant_boundary.sql", "line": 21, "expression_end_line": 29},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_invitations:tenant_boundary.sql",
+        "line": 21,
+        "expression_end_line": 29
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "INVITED_TENANT_MATCHES_CONTEXT", "source_terms": ["invited_tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "INVITED_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_INVITATIONS_WITH_CHECK:INVITED_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_INVITATIONS_WITH_CHECK:INVITED_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "INVITED_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "invited_tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "INVITED_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_INVITATIONS_WITH_CHECK:INVITED_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_INVITATIONS_WITH_CHECK:INVITED_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_MANAGEMENT_EFFECTS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_management_effects:tenant_boundary.sql", "line": 10, "expression_end_line": 18},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_management_effects:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 18
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_USING:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_USING:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_USING:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_USING:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_management_effects:tenant_boundary.sql", "line": 21, "expression_end_line": 29},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_management_effects:tenant_boundary.sql",
+        "line": 21,
+        "expression_end_line": 29
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_MANAGEMENT_EFFECTS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_MEMBERSHIPS_USING",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_memberships:tenant_boundary.sql", "line": 10, "expression_end_line": 18},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_memberships:tenant_boundary.sql",
+        "line": 10,
+        "expression_end_line": 18
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_MEMBERSHIPS_USING:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_MEMBERSHIPS_USING:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_MEMBERSHIPS_USING:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_MEMBERSHIPS_USING:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     },
     {
       "decision_id": "RLS_PROBE_MEMBERSHIPS_WITH_CHECK",
-      "source": {"path": "contracts/authz/function-bodies/policies/POLICY:probe_memberships:tenant_boundary.sql", "line": 21, "expression_end_line": 29},
+      "source": {
+        "path": "contracts/authz/function-bodies/policies/POLICY:probe_memberships:tenant_boundary.sql",
+        "line": 21,
+        "expression_end_line": 29
+      },
       "decision_form": "ATOMIC",
-      "conditions": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "source_terms": ["tenant_id = NULLIF(", "pg_catalog.current_setting('app.tenant_id', true)"]}],
-      "independence_pairs": [{"condition_id": "ROW_TENANT_MATCHES_CONTEXT", "test_ids": ["MCDC:RLS_PROBE_MEMBERSHIPS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A", "MCDC:RLS_PROBE_MEMBERSHIPS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"], "input_a": [false], "input_b": [true], "observed_results": [false, true]}]
+      "conditions": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "source_terms": [
+            "tenant_id = NULLIF(",
+            "pg_catalog.current_setting('app.tenant_id', true)"
+          ]
+        }
+      ],
+      "independence_pairs": [
+        {
+          "condition_id": "ROW_TENANT_MATCHES_CONTEXT",
+          "test_ids": [
+            "MCDC:RLS_PROBE_MEMBERSHIPS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:A",
+            "MCDC:RLS_PROBE_MEMBERSHIPS_WITH_CHECK:ROW_TENANT_MATCHES_CONTEXT:B"
+          ],
+          "input_a": [
+            false
+          ],
+          "input_b": [
+            true
+          ],
+          "observed_results": [
+            false,
+            true
+          ]
+        }
+      ]
     }
   ]
 }

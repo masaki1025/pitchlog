@@ -14,7 +14,7 @@ from pitchlog.db.url import normalize_postgresql_url
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Base の定義後に集約モジュールを読み込み、全モデルを metadata へ登録する。
 _all_models = import_module("pitchlog.db.all_models")

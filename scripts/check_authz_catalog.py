@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
@@ -38,6 +39,7 @@ DEFAULT_HTTP_ROUTE_MATRIX_LOCK = Path("contracts/authz/http-route-matrix.lock.js
 DEFAULT_DDL_ELEMENTS = Path("contracts/authz/ddl-elements.json")
 DEFAULT_REJECTED_CONFIGS = Path("contracts/authz/rejected-configs.json")
 DEFAULT_CLAIM_MUTANT_MAP = Path("contracts/authz/claim-mutant-map.json")
+DEFAULT_MCDC_MAP = Path("contracts/authz/mcdc-map.json")
 DEFAULT_ATTACK_TREE = Path("contracts/authz/attack-tree.json")
 DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
@@ -106,6 +108,98 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
 ORACLE_INPUT_BASELINE_COMMIT = "24ef4fcc682b42b504edc1d6264d380760c54929"
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
+RECEIVING_TASK_ID_RE = re.compile(r"(?:TSK-[0-9]{3}|PENDING:(?:FR|NFR)-[0-9]{3})")
+PENDING_REQUIREMENT_REF_RE = re.compile(r"PENDING:(?P<requirement>(?:FR|NFR)-[0-9]{3})")
+REQUIREMENT_REFERENCE_HEADING_RE = re.compile(
+    r"^#### (?P<requirement>(?:FR|NFR)-[0-9]{3})(?=[:\s]|$)", re.MULTILINE
+)
+RUNTIME_HANDOFF_OWNER_PREFIX = "TSK-270.group2.runtime."
+R_A_PRIME_OVERRIDE_TARGETS = {
+    "PENDING:FR-041": frozenset(
+        {
+            "SECTION-1.1/paragraph-003",
+            "SECTION-3/table_row-004",
+            "SECTION-3/heading-001/list_item-002",
+            "SECTION-3/heading-001/list_item-003",
+            "SECTION-3/heading-001/list_item-004",
+            "SECTION-3/heading-001/list_item-005",
+            "SECTION-6.2/list_item-003",
+            "SECTION-6.4/list_item-001",
+            "SECTION-9/table_row-011",
+            "SECTION-9/table_row-012",
+            "SECTION-9/table_row-013",
+            "APPENDIX-ITEM-A-5/paragraph-003",
+            "APPENDIX-ITEM-A-5/blockquote-002",
+            "APPENDIX-ITEM-A-5/blockquote-006",
+            "APPENDIX-C/table_row-009",
+            "APPENDIX-C/table_row-010",
+        }
+    ),
+    "PENDING:FR-037": frozenset(
+        {
+            "SECTION-2.2/list_item-008",
+            "SECTION-3/table_row-002",
+            "SECTION-4.0-1/code_line-011",
+            "SECTION-4.0-3/table_row-002",
+            "APPENDIX-C/blockquote-001",
+            "NFR-012/list_item-002",
+            "NFR-012/list_item-003",
+        }
+    ),
+    "PENDING:FR-013": frozenset(
+        {
+            "SECTION-2.2/list_item-002",
+            "SECTION-3/heading-001/list_item-006",
+            "SECTION-4.0-1/code_line-003",
+            "SECTION-7.1/list_item-004",
+        }
+    ),
+    "PENDING:FR-033": frozenset(
+        {
+            "SECTION-2.2/list_item-001",
+            "SECTION-3/table_row-001",
+            "APPENDIX-C/table_row-004",
+            "APPENDIX-C/table_row-006",
+        }
+    ),
+    "PENDING:FR-036": frozenset(
+        {"NFR-011/list_item-002", "NFR-011/list_item-003"}
+    ),
+    "PENDING:FR-035": frozenset({"SECTION-2.2/list_item-012"}),
+    "PENDING:FR-039": frozenset({"SECTION-3/table_row-003"}),
+    "PENDING:FR-019": frozenset({"SECTION-9/table_row-007"}),
+    "TSK-217": frozenset(
+        {
+            "SECTION-1.1/paragraph-002",
+            "SECTION-3/heading-001/list_item-001",
+            "SECTION-4.0-2/list_item-001",
+            "NFR-010/list_item-002",
+            "NFR-010/list_item-004",
+        }
+    ),
+    "PENDING:TASK-RECOVERY": frozenset(
+        {"SECTION-8/list_item-006", "NFR-009/list_item-004"}
+    ),
+    "PENDING:TASK-REQ-LABEL": frozenset({"SECTION-4.0-3/table_row-003"}),
+}
+R_B_OWNER_CLAIM_IDS = frozenset(
+    {
+        "FR-034/heading-004/list_item-001",
+        "FR-034/list_item-004",
+        "FR-034/list_item-005",
+        "NFR-010/list_item-004",
+        "NFR-019/paragraph-001",
+        "SECTION-8/list_item-002",
+        "SECTION-1.1/paragraph-002",
+        "SECTION-3/heading-001/list_item-001",
+        "NFR-010/list_item-002",
+        "SECTION-4.0-2/list_item-001",
+    }
+)
+PENDING_TASK_ALIAS_TARGETS = {
+    "PENDING:TASK-RECOVERY": "TSK-411",
+    "PENDING:TASK-REQ-LABEL": "TSK-410",
+}
 RUNTIME_TARGET_KINDS = frozenset(
     {
         "route",
@@ -3623,6 +3717,356 @@ def _validate_required_table_privilege_targets(
             raise CatalogError(f"{pair}: F13/H-81 の必須 mutant 宣言が不足")
 
 
+def requirement_reference_ids(source_text: str) -> frozenset[str]:
+    """要件書の4階層見出しから FR / NFR の参照可能集合を導出する。"""
+    return frozenset(
+        match.group("requirement")
+        for match in REQUIREMENT_REFERENCE_HEADING_RE.finditer(source_text)
+    )
+
+
+def _validate_receiving_task_id_syntax(value: object, label: str) -> str:
+    """受取先を最終状態の閉じた文法で検査する。"""
+    receiving_task_id = _expect_string(value, label)
+    if not RECEIVING_TASK_ID_RE.fullmatch(receiving_task_id):
+        raise CatalogError(f"{label} が受取先 ID の閉じた文法に一致しない")
+    return receiving_task_id
+
+
+def _validate_receiving_task_references(
+    claim_rows: list[dict[str, object]],
+    valid_requirement_ids: frozenset[str],
+) -> None:
+    """保留参照の実在と probe の確定済み受取先を検査する。"""
+    for index, claim_row in enumerate(claim_rows):
+        label = f"claim mutant map.claims[{index}]"
+        receiving_task_id = str(claim_row["receiving_task_id"])
+        pending_match = PENDING_REQUIREMENT_REF_RE.fullmatch(receiving_task_id)
+        if pending_match is None:
+            continue
+        requirement_id = pending_match.group("requirement")
+        if requirement_id not in valid_requirement_ids:
+            raise CatalogError(
+                f"{label}.receiving_task_id が実在しない要件を参照している: "
+                f"{requirement_id}"
+            )
+        if claim_row["execution_class"] == "probe_executable":
+            raise CatalogError(f"{label}: probe_executable の受取先を保留にできない")
+
+
+def _validate_receiving_task_owner_consistency(
+    claim_rows: list[dict[str, object]],
+) -> None:
+    """同一 runtime test owner の受取先が単一値であることを検査する。"""
+    receiving_by_owner: dict[str, str] = {}
+    for index, claim_row in enumerate(claim_rows):
+        owner = claim_row["runtime_test_owner"]
+        assert isinstance(owner, dict)
+        owner_id = str(owner["id"])
+        receiving_task_id = str(claim_row["receiving_task_id"])
+        previous = receiving_by_owner.setdefault(owner_id, receiving_task_id)
+        if previous != receiving_task_id:
+            raise CatalogError(
+                f"{owner_id}: 同一 runtime test owner の受取先が一致しない"
+            )
+
+
+def _receiving_rule_override_targets() -> dict[str, str]:
+    """R-A′ override・R-B・別名解決を合成して明示割当を返す。"""
+    targets: dict[str, str] = {}
+    pending_aliases: set[str] = set()
+    for destination, owner_claim_ids in R_A_PRIME_OVERRIDE_TARGETS.items():
+        resolved_destination = PENDING_TASK_ALIAS_TARGETS.get(destination, destination)
+        if destination.startswith("PENDING:TASK-"):
+            pending_aliases.add(destination)
+        for owner_claim_id in owner_claim_ids:
+            previous = targets.setdefault(owner_claim_id, resolved_destination)
+            if previous != resolved_destination:
+                raise CatalogError(
+                    f"{owner_claim_id}: R-A′ override の受取先が重複している"
+                )
+    if pending_aliases != set(PENDING_TASK_ALIAS_TARGETS):
+        raise CatalogError("PENDING:TASK-* の別名写像が override 表と exact-set 不一致")
+    for owner_claim_id in R_B_OWNER_CLAIM_IDS:
+        previous = targets.setdefault(owner_claim_id, "TSK-217")
+        if previous != "TSK-217":
+            raise CatalogError(f"{owner_claim_id}: R-A′ と R-B の受取先が競合している")
+    return targets
+
+
+def _derive_receiving_task_targets(
+    claim_rows: list[dict[str, object]],
+) -> dict[str, str]:
+    """TSK-367 の R-A′ / R-B から対象 owner 全件の受取先を導出する。"""
+    target_rows_by_owner: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for claim_row in claim_rows:
+        owner = claim_row["runtime_test_owner"]
+        assert isinstance(owner, dict)
+        owner_id = str(owner["id"])
+        if owner_id.startswith(RUNTIME_HANDOFF_OWNER_PREFIX):
+            target_rows_by_owner[owner_id].append(claim_row)
+    if not target_rows_by_owner:
+        raise CatalogError("受取先置換の対象 owner が 0 件")
+
+    explicit_targets = _receiving_rule_override_targets()
+    contract_owner_claim_ids: set[str] = set()
+    expected_by_owner: dict[str, str] = {}
+    for owner_id, owner_rows in target_rows_by_owner.items():
+        owner_claim_id = owner_id.removeprefix(RUNTIME_HANDOFF_OWNER_PREFIX)
+        execution_classes = {str(row["execution_class"]) for row in owner_rows}
+        if execution_classes == {"probe_executable"}:
+            expected_by_owner[owner_id] = "TSK-317"
+            continue
+        if execution_classes != {"contract_only"}:
+            raise CatalogError(f"{owner_id}: owner 内で execution_class が一致しない")
+        claim_base_ids = {str(row["claim_id"]).split("#", 1)[0] for row in owner_rows}
+        if claim_base_ids != {owner_claim_id}:
+            raise CatalogError(f"{owner_id}: claim 行から導出した owner ID と一致しない")
+        contract_owner_claim_ids.add(owner_claim_id)
+        if owner_claim_id in explicit_targets:
+            expected_by_owner[owner_id] = explicit_targets[owner_claim_id]
+            continue
+        if owner_claim_id.startswith("FR-034/"):
+            expected_by_owner[owner_id] = "PENDING:FR-041"
+            continue
+        match = re.match(r"^(FR-[0-9]{3})(?:/|$)", owner_claim_id)
+        if match is None:
+            raise CatalogError(f"{owner_id}: R-A′ / R-B の受取先を導出できない")
+        expected_by_owner[owner_id] = f"PENDING:{match.group(1)}"
+
+    explicit_non_fr_ids = {
+        owner_claim_id
+        for owner_claim_id in explicit_targets
+        if not owner_claim_id.startswith("FR-")
+    }
+    actual_non_fr_ids = {
+        owner_claim_id
+        for owner_claim_id in contract_owner_claim_ids
+        if not owner_claim_id.startswith("FR-")
+    }
+    if actual_non_fr_ids != explicit_non_fr_ids:
+        missing = sorted(actual_non_fr_ids - explicit_non_fr_ids)
+        extra = sorted(explicit_non_fr_ids - actual_non_fr_ids)
+        raise CatalogError(
+            "非 FR owner と override + R-B + B_SET の和が exact-set 不一致: "
+            f"不足={missing}, 余分={extra}"
+        )
+    if not R_B_OWNER_CLAIM_IDS <= contract_owner_claim_ids:
+        missing = sorted(R_B_OWNER_CLAIM_IDS - contract_owner_claim_ids)
+        raise CatalogError(f"R-B owner が受取先母集合にない: {missing}")
+    return expected_by_owner
+
+
+def _validate_receiving_task_assignments(
+    claim_rows: list[dict[str, object]],
+) -> None:
+    """対象 owner の置換結果を規則から導出した期待値と突合する。"""
+    expected_by_owner = _derive_receiving_task_targets(claim_rows)
+    for claim_row in claim_rows:
+        owner = claim_row["runtime_test_owner"]
+        assert isinstance(owner, dict)
+        owner_id = str(owner["id"])
+        expected = expected_by_owner.get(owner_id)
+        if expected is not None and claim_row["receiving_task_id"] != expected:
+            raise CatalogError(
+                f"{owner_id}: receiving_task_id が規則の導出結果と不一致: "
+                f"期待={expected}, 実値={claim_row['receiving_task_id']}"
+            )
+
+
+def _ordered_json(value: object) -> str:
+    """JSON の配列順とオブジェクトの挿入順を保った比較文字列を返す。"""
+    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=False)
+
+
+def _validate_receiving_task_changed_paths(changed_paths: set[str]) -> None:
+    """差分閉包の段1として contracts 配下の許可パスを閉じる。"""
+    allowed_paths = {
+        str(DEFAULT_CLAIM_MUTANT_MAP),
+        str(DEFAULT_MCDC_MAP),
+        str(DEFAULT_ORACLE_SEAL),
+    }
+    forbidden = sorted(changed_paths - allowed_paths)
+    if forbidden:
+        raise CatalogError(f"受取先置換で変更できない contracts パス: {forbidden}")
+
+
+def _validate_receiving_task_mutant_map_change(
+    base: dict[str, object], current: dict[str, object]
+) -> None:
+    """差分閉包の段2として対象行の受取先以外を基準版へ固定する。"""
+    expected = copy.deepcopy(base)
+    base_claims = _expect_object_list(expected.get("claims"), "基準版 claim mutant map.claims")
+    current_claims = _expect_object_list(
+        current.get("claims"), "現行 claim mutant map.claims"
+    )
+    if len(base_claims) != len(current_claims):
+        raise CatalogError("受取先置換で claim 行の追加・削除はできない")
+    target_indexes = {
+        index
+        for index, claim_row in enumerate(base_claims)
+        if claim_row.get("receiving_task_id") == "TSK-270-GROUP-2"
+    }
+    if not target_indexes:
+        raise CatalogError("基準版に受取先置換の対象行がない")
+    for index, (expected_claim, current_claim) in enumerate(
+        zip(base_claims, current_claims, strict=True)
+    ):
+        if expected_claim.get("claim_id") != current_claim.get("claim_id"):
+            raise CatalogError("受取先置換で claim の集合・並びは変更できない")
+        if index in target_indexes:
+            expected_claim["receiving_task_id"] = current_claim.get(
+                "receiving_task_id"
+            )
+    if _ordered_json(expected) != _ordered_json(current):
+        raise CatalogError(
+            "claim mutant map は対象行の receiving_task_id 以外を変更できない"
+        )
+
+
+def _validate_receiving_task_oracle_seal_change(
+    base: dict[str, object], current: dict[str, object]
+) -> None:
+    """差分閉包の段3として claim mutant map の digest 以外を固定する。"""
+    expected = copy.deepcopy(base)
+    base_rows = _expect_object_list(expected.get("sealed_assets"), "基準版 sealed_assets")
+    current_rows = _expect_object_list(
+        current.get("sealed_assets"), "現行 sealed_assets"
+    )
+    if len(base_rows) != len(current_rows):
+        raise CatalogError("受取先置換で sealed_assets の行数は変更できない")
+    target_path = str(DEFAULT_CLAIM_MUTANT_MAP)
+    target_hits = 0
+    for expected_row, current_row in zip(base_rows, current_rows, strict=True):
+        if expected_row.get("path") != current_row.get("path"):
+            raise CatalogError("受取先置換で sealed_assets の集合・並びは変更できない")
+        if expected_row.get("path") == target_path:
+            expected_row["canonical_sha256"] = current_row.get("canonical_sha256")
+            target_hits += 1
+    if target_hits != 1:
+        raise CatalogError("claim mutant map の sealed_assets 行が exact-one でない")
+    if _ordered_json(expected) != _ordered_json(current):
+        raise CatalogError(
+            "oracle seal は claim mutant map の canonical_sha256 以外を変更できない"
+        )
+
+
+def _reject_duplicate_json_object(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    """生 JSON の object pairs から重複キーを拒否してオブジェクトを返す。"""
+    key_counts = Counter(key for key, _value in pairs)
+    duplicates = sorted(key for key, count in key_counts.items() if count > 1)
+    if duplicates:
+        raise CatalogError(f"mcdc map の JSON キーが重複している: {duplicates}")
+    return dict(pairs)
+
+
+def _reject_nonstandard_json_constant(constant: str) -> object:
+    """標準 JSON にない数値定数を、その字句を示して拒否する。"""
+    raise CatalogError(f"mcdc map の JSON に標準外の数値定数がある: {constant}")
+
+
+def _parse_unique_mcdc_map_json(text: str, label: str) -> dict[str, object]:
+    """mcdc map の生 JSON を重複キー・標準外定数を許さず解析する。"""
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_json_object,
+            parse_constant=_reject_nonstandard_json_constant,
+        )
+    except json.JSONDecodeError as error:
+        raise CatalogError(f"{label} の JSON が不正: {error}") from error
+    if not isinstance(value, dict):
+        raise CatalogError(f"{label} はオブジェクトでなければならない")
+    return value
+
+
+def _validate_receiving_task_mcdc_map_change(
+    base_text: str, current_text: str
+) -> None:
+    """差分閉包の段4として生JSONの重複と許可外変更を拒否する。"""
+    expected = copy.deepcopy(_parse_unique_mcdc_map_json(base_text, "基準版 mcdc map"))
+    current = _parse_unique_mcdc_map_json(current_text, "現行 mcdc map")
+    expected_sources = expected.get("sources")
+    current_sources = current.get("sources")
+    if not isinstance(expected_sources, dict) or not isinstance(current_sources, dict):
+        raise CatalogError("mcdc map の sources がオブジェクトでない")
+    expected_claim_source = expected_sources.get("claim_mutant_map")
+    current_claim_source = current_sources.get("claim_mutant_map")
+    if not isinstance(expected_claim_source, dict) or not isinstance(
+        current_claim_source, dict
+    ):
+        raise CatalogError("mcdc map の claim mutant map source がオブジェクトでない")
+    expected_claim_source["blob_digest"] = current_claim_source.get("blob_digest")
+    if _ordered_json(expected) != _ordered_json(current):
+        raise CatalogError(
+            "mcdc map は claim mutant map の blob_digest 以外を変更できない"
+        )
+
+
+def _receiving_task_claim_rows_for_change_closure(
+    mutant_map: dict[str, object], label: str
+) -> list[dict[str, object]]:
+    """差分閉包の分岐に使う claim 行と受取先の形状を検査する。"""
+    claim_rows = _expect_object_list(
+        mutant_map.get("claims"), f"{label} claim mutant map.claims"
+    )
+    if not claim_rows:
+        raise CatalogError(f"{label} claim mutant map.claims は空にできない")
+    for index, claim_row in enumerate(claim_rows):
+        _expect_string(
+            claim_row.get("receiving_task_id"),
+            f"{label} claim mutant map.claims[{index}].receiving_task_id",
+        )
+    return claim_rows
+
+
+def validate_receiving_task_change_closure(
+    base_mutant_map: dict[str, object],
+    current_mutant_map: dict[str, object],
+    base_oracle_seal: dict[str, object],
+    current_oracle_seal: dict[str, object],
+    base_mcdc_map_text: str,
+    current_mcdc_map_text: str,
+    changed_contract_paths: set[str],
+) -> None:
+    """受取先置換の差分を許可パス・2資産・seal の4段で閉じる。
+
+    本ゲートは緩和であって除去ではない。基準がプレースホルダの存在しない
+    コミットへずれた場合、基準版も HEAD も 0 件になり検出できない。基準の固定
+    による除去は TSK-421 の射程。
+    """
+    base_claims = _receiving_task_claim_rows_for_change_closure(
+        base_mutant_map, "基準版"
+    )
+    current_claims = _receiving_task_claim_rows_for_change_closure(
+        current_mutant_map, "現行"
+    )
+    placeholder = "TSK-270-GROUP-2"
+    if not any(
+        claim_row["receiving_task_id"] == placeholder
+        for claim_row in base_claims
+    ):
+        for index, claim_row in enumerate(base_claims):
+            _validate_receiving_task_id_syntax(
+                claim_row["receiving_task_id"],
+                f"基準版 claim mutant map.claims[{index}].receiving_task_id",
+            )
+        if any(
+            claim_row["receiving_task_id"] == placeholder
+            for claim_row in current_claims
+        ):
+            raise CatalogError("現行 claim mutant map に受取先置換の対象行が復活した")
+        return
+    _validate_receiving_task_changed_paths(changed_contract_paths)
+    _validate_receiving_task_mutant_map_change(base_mutant_map, current_mutant_map)
+    _validate_receiving_task_oracle_seal_change(base_oracle_seal, current_oracle_seal)
+    _validate_receiving_task_mcdc_map_change(
+        base_mcdc_map_text, current_mcdc_map_text
+    )
+
+
 def validate_claim_mutant_map(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -3631,8 +4075,19 @@ def validate_claim_mutant_map(
     ddl_result: dict[str, object],
     root: Path,
     implemented_test_ids: frozenset[str],
+    *,
+    valid_requirement_ids: frozenset[str] | None = None,
 ) -> dict[str, object]:
     """全 AUTH claim、2系統 mutant、kill 条件を exact-set で検査する。"""
+    if valid_requirement_ids is None:
+        requirement_bytes = _read_bytes(root / DEFAULT_REQUIREMENTS, "要件書")
+        try:
+            requirement_text = requirement_bytes.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise CatalogError(f"要件書がUTF-8でない: {error}") from error
+        valid_requirement_ids = requirement_reference_ids(requirement_text)
+    if not valid_requirement_ids:
+        raise CatalogError("要件書から FR / NFR 見出しを導出できない")
     if not isinstance(raw, dict):
         raise CatalogError("claim mutant map はオブジェクトでなければならない")
     _expect_keys(
@@ -3858,14 +4313,15 @@ def validate_claim_mutant_map(
             f"{label}.runtime_test_owner",
             implemented_test_ids,
         )
+        _validate_receiving_task_id_syntax(
+            claim_row["receiving_task_id"], f"{label}.receiving_task_id"
+        )
         runtime_required = _expect_bool(
             claim_row["runtime_kill_required"], f"{label}.runtime_kill_required"
         )
         if execution_class == "contract_only":
             if runtime_required or claim_row["runtime_evidence_kind"] != "handoff_runtime_test":
                 raise CatalogError(f"{claim_id}: contract_only に runtime kill を要求している")
-            if not _expect_string(claim_row["receiving_task_id"], f"{label}.receiving_task_id"):
-                raise CatalogError(f"{claim_id}: contract_only の受取先がない")
         elif not runtime_required or claim_row["runtime_evidence_kind"] == "schema_drift_only":
             raise CatalogError(f"{claim_id}: probe_executable の runtime kill 契約がない")
         if claim_id in claim_by_id:
@@ -3876,6 +4332,9 @@ def validate_claim_mutant_map(
         missing = sorted(expected_claim_ids - set(claim_by_id))
         unknown = sorted(set(claim_by_id) - expected_claim_ids)
         raise CatalogError(f"全 claim が exact-set 不一致: 不足={missing}, 未登録={unknown}")
+    _validate_receiving_task_references(claim_rows, valid_requirement_ids)
+    _validate_receiving_task_owner_consistency(claim_rows)
+    _validate_receiving_task_assignments(claim_rows)
 
     mutants = _expect_object_list(raw["mutants"], "claim mutant map.mutants")
     mutant_by_id: dict[str, dict[str, object]] = {}
@@ -4915,6 +5374,7 @@ def validate_oracle_assets(
     implemented_test_ids: frozenset[str],
     *,
     verify_seal: bool = True,
+    valid_requirement_ids: frozenset[str] | None = None,
 ) -> dict[str, dict[str, object]]:
     """ステップ5の期待値・証跡・封印を相互検査する。"""
     ddl_result = validate_ddl_elements(assets["ddl_elements"], root)
@@ -4927,6 +5387,7 @@ def validate_oracle_assets(
         ddl_result,
         root,
         implemented_test_ids,
+        valid_requirement_ids=valid_requirement_ids,
     )
     attack_result = validate_attack_tree(assets["attack_tree"], mutant_result, root)
     boundary_result = validate_boundary_proposal(
@@ -5074,6 +5535,103 @@ def _verify_manifest_commit(root: Path, raw: object) -> None:
         raise CatalogError("input commit 上の source blob がマニフェストと一致しない")
 
 
+def _git_text_at_revision(root: Path, revision: str, relative_path: str) -> str:
+    """指定 revision のファイル本文を Git から読む。"""
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{relative_path}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise CatalogError(
+            f"受取先差分のスナップショットを読めない: {revision}:{relative_path}: "
+            f"{result.stderr.strip()}"
+        )
+    return result.stdout
+
+
+def _git_json_at_revision(root: Path, revision: str, relative_path: str) -> dict[str, object]:
+    """指定 revision の JSON オブジェクトを Git から読む。"""
+    text = _git_text_at_revision(root, revision, relative_path)
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise CatalogError(
+            f"受取先差分のスナップショット JSON が不正: "
+            f"{revision}:{relative_path}"
+        ) from error
+    if not isinstance(value, dict):
+        raise CatalogError(
+            f"受取先差分のスナップショットがオブジェクトでない: "
+            f"{revision}:{relative_path}"
+        )
+    return value
+
+
+def _receiving_task_merge_base(root: Path) -> str:
+    """受取先差分の基準版を origin/develop と HEAD の merge-base から返す。"""
+    result = subprocess.run(
+        ["git", "merge-base", "origin/develop", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    revision = result.stdout.strip()
+    if result.returncode != 0 or not COMMIT_RE.fullmatch(revision):
+        raise CatalogError(
+            "受取先差分の merge-base を取得できない: "
+            f"{result.stderr.strip() or revision}"
+        )
+    return revision
+
+
+def _receiving_task_changed_contract_paths(
+    root: Path, base_revision: str | None = None
+) -> set[str]:
+    """merge-base と HEAD の間で変更された contracts/authz パスを返す。"""
+    revision = base_revision or _receiving_task_merge_base(root)
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            revision,
+            "HEAD",
+            "--",
+            "contracts/authz",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise CatalogError(f"受取先差分のパスを取得できない: {result.stderr.strip()}")
+    return set(result.stdout.splitlines())
+
+
+def _validate_receiving_task_repository_change_closure(
+    root: Path,
+) -> None:
+    """merge-base と HEAD の受取先差分を4段で検査する。"""
+    base_revision = _receiving_task_merge_base(root)
+    mutant_map_path = str(DEFAULT_CLAIM_MUTANT_MAP)
+    oracle_seal_path = str(DEFAULT_ORACLE_SEAL)
+    mcdc_map_path = str(DEFAULT_MCDC_MAP)
+    validate_receiving_task_change_closure(
+        _git_json_at_revision(root, base_revision, mutant_map_path),
+        _git_json_at_revision(root, "HEAD", mutant_map_path),
+        _git_json_at_revision(root, base_revision, oracle_seal_path),
+        _git_json_at_revision(root, "HEAD", oracle_seal_path),
+        _git_text_at_revision(root, base_revision, mcdc_map_path),
+        _git_text_at_revision(root, "HEAD", mcdc_map_path),
+        _receiving_task_changed_contract_paths(root, base_revision),
+    )
+
+
 def _relative_path(root: Path, path: Path, label: str) -> str:
     try:
         return path.resolve().relative_to(root.resolve()).as_posix()
@@ -5207,6 +5765,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 oracle_relative_paths[name] = _relative_path(root, asset_path, name)
             oracle_seal_path = _resolve(root, args.oracle_seal)
             oracle_seal = _read_json(oracle_seal_path, "oracle seal")
+            oracle_seal_relative_path = _relative_path(
+                root, oracle_seal_path, "oracle seal"
+            )
+            use_receiving_task_change_closure = (
+                oracle_relative_paths["claim_mutant_map"]
+                == str(DEFAULT_CLAIM_MUTANT_MAP)
+                and oracle_seal_relative_path == str(DEFAULT_ORACLE_SEAL)
+            )
+            if use_receiving_task_change_closure:
+                if not isinstance(oracle_seal, dict):
+                    raise CatalogError("oracle seal はオブジェクトでなければならない")
+                _validate_receiving_task_repository_change_closure(root)
             oracle_result = validate_oracle_assets(
                 raw,
                 derived_assets["route_registry"],
@@ -5218,6 +5788,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 root,
                 implemented_test_ids,
                 verify_seal=not args.reseal_oracle,
+                valid_requirement_ids=requirement_reference_ids(source_text),
             )
             if args.reseal_oracle:
                 if not isinstance(oracle_seal, dict):
@@ -5228,6 +5799,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     oracle_relative_paths,
                     root,
                 )
+                if use_receiving_task_change_closure:
+                    _validate_receiving_task_repository_change_closure(root)
                 validate_oracle_seal(
                     new_seal, oracle_assets, oracle_relative_paths, root
                 )
