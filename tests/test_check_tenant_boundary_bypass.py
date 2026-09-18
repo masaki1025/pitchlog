@@ -17,6 +17,17 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_tenant_boundary_bypass.py"
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
+PRODUCT_APPLICATION_PATHS = (
+    "pitchlog/authz/runtime_contract.py",
+    "pitchlog/db/engine.py",
+    "pitchlog/repositories/base.py",
+    "pitchlog/repositories/binding.py",
+    "pitchlog/repositories/cache_invalidation.py",
+    "pitchlog/repositories/context.py",
+    "pitchlog/repositories/repository_contract.py",
+    "pitchlog/repositories/tenant_context_contract.py",
+    "pitchlog/repositories/tokens.py",
+)
 EXPECTED_NEGATIVE_IDS = frozenset(
     {
         "C1_ASSERT_OWNER_SHAPES",
@@ -107,6 +118,18 @@ def _contract_digest(value: dict[str, Any]) -> str:
     return hashlib.sha256(serialized).hexdigest()
 
 
+def _changed_lines_containing(source: str, *needles: str) -> frozenset[int]:
+    """指定文字列を含む変異行を差分母集団として返す。"""
+    lines = source.splitlines()
+    changed = {
+        line_number
+        for line_number, line in enumerate(lines, start=1)
+        if any(needle in line for needle in needles)
+    }
+    assert all(any(needle in line for line in lines) for needle in needles)
+    return frozenset(changed)
+
+
 def test_positive_fixtures_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
@@ -186,8 +209,17 @@ def test_empty_baseline_and_empty_head_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     violations = checker.continuity_violations({}, {}, contract=contract)
+    population = checker._inspection_population({}, {}, contract=contract)
+    application_violations = checker._application_population_violations(
+        {},
+        {},
+        {},
+        contract=contract,
+    )
 
     assert violations == []
+    assert population == {}
+    assert application_violations == []
 
 
 def test_removing_symbol_that_existed_in_baseline_is_red() -> None:
@@ -352,16 +384,12 @@ def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> N
         checker._load_tenant_context_allowlist(asset)
 
 
-@pytest.mark.parametrize(
-    "filename",
-    ("context.py", "binding.py", "base.py", "cache_invalidation.py"),
-)
+@pytest.mark.parametrize("relative_path", PRODUCT_APPLICATION_PATHS)
 def test_tenant_repository_product_definition_passes_bypass_scan(
-    filename: str,
+    relative_path: str,
 ) -> None:
-    """型定義と正規の束縛実装が迂回検査を通ることを確認する。"""
+    """現行の製品コードそのものが全行検査を通ることを確認する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    relative_path = f"pitchlog/repositories/{filename}"
     source_path = REPOSITORY_ROOT / "backend/src" / relative_path
 
     violations = checker.scan_source(
@@ -507,10 +535,186 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     )
 
 
-def test_repository_diff_is_green_before_product_code_is_added() -> None:
+def test_repository_application_population_is_nonempty_and_green() -> None:
+    """自 PR の実差分を非空母集団として適用し一致 0 を確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    diff = checker._run_git(
+        REPOSITORY_ROOT,
+        ["diff", "-U0", "origin/develop...HEAD", "--", "backend/src"],
+    )
+    changed_lines = checker.changed_lines_from_diff(diff)
+    merge_base = checker._run_git(
+        REPOSITORY_ROOT,
+        ["merge-base", "origin/develop", "HEAD"],
+    ).strip()
+    baseline_sources = checker._git_snapshot(REPOSITORY_ROOT, merge_base)
+    head_sources = checker._git_snapshot(REPOSITORY_ROOT, "HEAD")
+    baseline_definitions, _ = checker._definitions(
+        baseline_sources,
+        contract,
+    )
+    head_definitions, _ = checker._definitions(head_sources, contract)
+    introduced_symbols = set(head_definitions) - set(baseline_definitions)
+    population = checker._inspection_population(
+        changed_lines,
+        head_sources,
+        contract=contract,
+    )
+
+    assert population
+    if introduced_symbols:
+        assert checker._has_changed_lines(changed_lines)
+        assert set(PRODUCT_APPLICATION_PATHS) <= {
+            path for path, lines in changed_lines.items() if lines
+        }
+    else:
+        assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
     violations = checker.check_repository(REPOSITORY_ROOT)
 
     assert violations == []
+
+
+def test_first_product_introduction_with_empty_population_is_red() -> None:
+    """製品シンボル導入時に三点差分が空洞化する変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/base.py"
+    head = {relative: _fixture_source(POSITIVE_ROOT / relative)}
+
+    violations = checker._application_population_violations(
+        {},
+        {},
+        head,
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB008"}
+
+
+def test_merged_head_uses_real_contract_symbols_as_nonempty_population() -> None:
+    """統合後に三点差分が空でも実製品の強制点を再検査する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/base.py"
+    head = {relative: _fixture_source(POSITIVE_ROOT / relative)}
+
+    population = checker._inspection_population({}, head, contract=contract)
+    violations = checker.scan_source(
+        head[relative],
+        path=relative,
+        changed_lines=population[relative],
+        contract=contract,
+    )
+
+    assert population[relative]
+    assert violations == []
+
+
+def test_current_product_contract_is_rechecked_after_merge() -> None:
+    """base が HEAD 自身でも実製品の強制点を再検査して通す。"""
+    violations = checker.check_repository(REPOSITORY_ROOT, base_ref="HEAD")
+
+    assert violations == []
+
+
+def test_actual_base_direct_sql_mutation_is_red() -> None:
+    """実際の基底の許可関数へ未許可の直接 SQL を足すと拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/base.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "from sqlalchemy.orm import Session",
+        "from sqlalchemy import text\nfrom sqlalchemy.orm import Session",
+        1,
+    ).replace(
+        "            execution_result = self._session.execute(\n",
+        "            self._session.execute(text(\"SELECT 1\"))\n"
+        "            execution_result = self._session.execute(\n",
+        1,
+    )
+
+    violations = checker.scan_source(
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated,
+            "from sqlalchemy import text",
+            'self._session.execute(text("SELECT 1"))',
+        ),
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB005"}
+
+
+def test_actual_binding_nonlocal_set_config_mutation_is_red() -> None:
+    """実際の束縛文を transaction-local でなくす変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/binding.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "SELECT set_config('app.tenant_id', :tenant_id, true)",
+        "SELECT set_config('app.tenant_id', :tenant_id, false)",
+        1,
+    )
+
+    violations = checker.scan_source(
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, "set_config", "false"),
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB005"}
+
+
+def test_actual_base_database_call_outside_allowed_symbol_is_red() -> None:
+    """基底でも許可シンボルの外側から DB API を呼ぶ変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/base.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "        _operation_spec(operation)\n",
+        "        self._session.execute(operation)\n"
+        "        _operation_spec(operation)\n",
+        1,
+    )
+
+    violations = checker.scan_source(
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated,
+            "self._session.execute(operation)",
+        ),
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB005"}
+
+
+def test_actual_binding_unlisted_symbol_database_call_is_red() -> None:
+    """allowlist に無い新設シンボルからの DB API 呼び出しを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/binding.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutation = """
+
+def _unlisted_database_access(session: Session) -> None:
+    session.execute(text("SELECT 1"))
+"""
+    mutated = f"{source.rstrip()}{mutation}\n"
+
+    violations = checker.scan_source(
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated,
+            "_unlisted_database_access",
+            'session.execute(text("SELECT 1"))',
+        ),
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB005"}
 
 
 def test_manifest_rows_keep_the_required_exact_shape() -> None:

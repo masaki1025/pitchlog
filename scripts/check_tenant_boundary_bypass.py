@@ -1605,6 +1605,92 @@ def _changed_source_violations(
     return sorted(violations)
 
 
+def _has_changed_lines(
+    changed_lines: Mapping[str, frozenset[int]],
+) -> bool:
+    """差分から導出した新側行が 1 行以上あるか判定する。"""
+    return any(lines for lines in changed_lines.values())
+
+
+def _contract_symbol_population(
+    head_sources: Mapping[str, str],
+    contract: Contract,
+) -> dict[str, frozenset[int]]:
+    """HEAD に実在する許可シンボルのファイルを検査母集団へ変換する。
+
+    三点差分が統合後に空になっても、製品の強制点そのものを再検査して
+    fail-open を避ける。製品シンボル導入前は空集合を返す。
+    """
+    population: dict[str, frozenset[int]] = {}
+    for path, source in sorted(head_sources.items()):
+        definitions, _ = _definitions({path: source}, contract)
+        if not definitions:
+            continue
+        population[path] = frozenset(range(1, len(source.splitlines()) + 1))
+    return population
+
+
+def _inspection_population(
+    changed_lines: Mapping[str, frozenset[int]],
+    head_sources: Mapping[str, str],
+    *,
+    contract: Contract,
+) -> dict[str, frozenset[int]]:
+    """PR 新側行または統合済み強制点から非空の検査母集団を導出する。
+
+    Args:
+        changed_lines: 三点差分から導出した新側行。
+        head_sources: HEAD の ``backend/src`` Python ソース。
+        contract: 読み合わせ済み検査契約。
+
+    Returns:
+        実際に AST 検査へ渡すファイル別行番号。
+    """
+    if _has_changed_lines(changed_lines):
+        return dict(changed_lines)
+    return _contract_symbol_population(head_sources, contract)
+
+
+def _application_population_violations(
+    changed_lines: Mapping[str, frozenset[int]],
+    baseline_sources: Mapping[str, str],
+    head_sources: Mapping[str, str],
+    *,
+    contract: Contract,
+) -> list[Violation]:
+    """製品強制点を導入した PR の検査母集団空洞化を拒否する。
+
+    Args:
+        changed_lines: 三点差分から導出した新側行。
+        baseline_sources: merge-base の ``backend/src`` スナップショット。
+        head_sources: HEAD の ``backend/src`` スナップショット。
+        contract: 読み合わせ済み検査契約。
+
+    Returns:
+        導入シンボルがあるのに新側行が 0 件なら ``TB008``、それ以外は空。
+    """
+    baseline_definitions, _ = _definitions(baseline_sources, contract)
+    head_definitions, _ = _definitions(head_sources, contract)
+    introduced_symbols = sorted(
+        set(head_definitions) - set(baseline_definitions)
+    )
+    if not introduced_symbols or _has_changed_lines(changed_lines):
+        return []
+    return [
+        Violation(
+            path="backend/src",
+            line=0,
+            condition=0,
+            code="TB008",
+            symbol=",".join(introduced_symbols),
+            message=(
+                "製品の許可シンボルを導入した PR なのに、"
+                "三点差分の検査母集団が空"
+            ),
+        )
+    ]
+
+
 def check_repository(repository_root: Path, base_ref: str = "origin/develop") -> list[Violation]:
     """リポジトリの PR 差分と基底シンボル継続性を検査する。
 
@@ -1621,12 +1707,27 @@ def check_repository(repository_root: Path, base_ref: str = "origin/develop") ->
         ["diff", "-U0", f"{base_ref}...HEAD", "--", "backend/src"],
     )
     changed_lines = changed_lines_from_diff(diff)
-    violations = _changed_source_violations(repository_root, changed_lines, contract)
     merge_base = _run_git(repository_root, ["merge-base", base_ref, "HEAD"]).strip()
+    baseline_sources = _git_snapshot(repository_root, merge_base)
+    head_sources = _git_snapshot(repository_root, "HEAD")
+    population = _inspection_population(
+        changed_lines,
+        head_sources,
+        contract=contract,
+    )
+    violations = _changed_source_violations(repository_root, population, contract)
+    violations.extend(
+        _application_population_violations(
+            changed_lines,
+            baseline_sources,
+            head_sources,
+            contract=contract,
+        )
+    )
     violations.extend(
         continuity_violations(
-            _git_snapshot(repository_root, merge_base),
-            _git_snapshot(repository_root, "HEAD"),
+            baseline_sources,
+            head_sources,
             contract=contract,
         )
     )
