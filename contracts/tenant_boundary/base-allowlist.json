@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 1,
+  "contract_revision": 2,
   "diff": {
     "command": [
       "git",
@@ -21,6 +21,24 @@
     "sha256": "91ca7edfff58df9a15939db7daf71c701b16303e773041ffb1b132519b295681"
   },
   "allowed_symbols": [
+    {
+      "symbol": "pitchlog.db.engine.create_database_engine",
+      "signature": "create_database_engine() -> Engine",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/engine.py"
+    },
+    {
+      "symbol": "pitchlog.db.engine._verify_application_role_connection",
+      "signature": "_verify_application_role_connection(connection: psycopg.Connection[Any]) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CONNECTION_ROLLBACK",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/engine/__init__.py"
+    },
     {
       "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
       "signature": "_execute_operation(self, operation: TenantOperationToken) -> TenantOperationResult",
