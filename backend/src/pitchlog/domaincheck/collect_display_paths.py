@@ -231,7 +231,14 @@ def _union_kind_values(
 ) -> set[str]:
     """OneOf の各 object が持つ `kind` の有限集合を返す。"""
     definitions = _mapping(document.get("$defs"), "$defs")
-    union = _dereference(document, definitions.get(definition_name))
+    return _union_kind_values_from_schema(document, definitions.get(definition_name))
+
+
+def _union_kind_values_from_schema(
+    document: Mapping[str, object], node: object
+) -> set[str]:
+    """指定 schema の OneOf が持つ `kind` の有限集合を返す。"""
+    union = _dereference(document, node)
     alternatives = union.get("oneOf")
     if not isinstance(alternatives, list) or not alternatives:
         return set()
@@ -248,6 +255,91 @@ def _union_kind_values(
         if values is not None:
             result.update(values)
     return result
+
+
+def _model_target_fields(
+    model: Mapping[str, object],
+) -> tuple[set[str], list[dict[str, str]]]:
+    """宣言モデルの構造化 selector から対象フィールド集合を導出する。"""
+    metadata = _mapping(model.get("x-pitchlog"), "x-pitchlog")
+    selectors = metadata.get("targetFieldSelectors")
+    if not isinstance(selectors, list) or not selectors:
+        return set(), [
+            {
+                "construct": "schema-closure",
+                "expression": "#/x-pitchlog/targetFieldSelectors",
+                "reason": "利用者可視の数値出力を選ぶ宣言が空である",
+            }
+        ]
+
+    expected_keys = {
+        "id",
+        "collection",
+        "itemSchema",
+        "fieldIdProperty",
+        "visibilityProperty",
+        "visibleValue",
+        "typeKindProperty",
+        "numericTypeKinds",
+    }
+    target_fields: set[str] = set()
+    issues: list[dict[str, str]] = []
+    for index, raw_selector in enumerate(selectors):
+        expression = f"#/x-pitchlog/targetFieldSelectors/{index}"
+        try:
+            selector = _mapping(raw_selector, expression)
+            if set(selector) != expected_keys:
+                raise CheckerExecutionError("selector のキー集合が閉じていない")
+            text_keys = expected_keys - {"numericTypeKinds"}
+            if not all(isinstance(selector.get(key), str) for key in text_keys):
+                raise CheckerExecutionError("selector の文字列フィールドが不正である")
+            numeric_kinds = selector["numericTypeKinds"]
+            if (
+                not isinstance(numeric_kinds, list)
+                or not numeric_kinds
+                or not all(isinstance(kind, str) for kind in numeric_kinds)
+                or len(set(numeric_kinds)) != len(numeric_kinds)
+            ):
+                raise CheckerExecutionError("numericTypeKinds が有限集合でない")
+
+            collection_ref = str(selector["collection"])
+            collection = _dereference(model, _resolve_ref(model, collection_ref))
+            if collection.get("type") != "array" or "items" not in collection:
+                raise CheckerExecutionError("collection が配列 schema でない")
+            item_ref = str(selector["itemSchema"])
+            item_schema = _dereference(model, _resolve_ref(model, item_ref))
+            collection_item_schema = _dereference(model, collection["items"])
+            if collection_item_schema != item_schema:
+                raise CheckerExecutionError(
+                    "collection.items と itemSchema が同じ型を指していない"
+                )
+            _property(model, item_schema, str(selector["fieldIdProperty"]))
+            visibility = _property(
+                model, item_schema, str(selector["visibilityProperty"])
+            )
+            visible_values = _finite_strings(model, visibility)
+            if visible_values is None or selector["visibleValue"] not in visible_values:
+                raise CheckerExecutionError("visibility の有限集合と選択値が整合しない")
+            type_path = str(selector["typeKindProperty"]).split(".")
+            if type_path != ["type", "kind"]:
+                raise CheckerExecutionError("型判定経路が type.kind でない")
+            field_type = _property(model, item_schema, type_path[0])
+            declared_kinds = _union_kind_values_from_schema(model, field_type)
+            if not set(numeric_kinds) <= declared_kinds:
+                raise CheckerExecutionError("数値型集合が出力型の閉包に含まれない")
+            identifier = str(selector["id"])
+            if identifier in target_fields:
+                raise CheckerExecutionError("selector id が重複している")
+            target_fields.add(identifier)
+        except CheckerExecutionError as error:
+            issues.append(
+                {
+                    "construct": "schema-closure",
+                    "expression": expression,
+                    "reason": str(error),
+                }
+            )
+    return target_fields, issues
 
 
 def _resolved_name_is_structured(document: Mapping[str, object]) -> bool:
@@ -290,37 +382,50 @@ def _named_schema_paths(document: object, token: str) -> list[str]:
 
 
 def derive_schema_closure(
-    manifest: Mapping[str, object], vocabulary: Mapping[str, object]
+    model: Mapping[str, object], vocabulary: Mapping[str, object]
 ) -> tuple[dict[str, object], list[dict[str, str]]]:
     """両 schema から利用者可視数値フィールドの閉包を導出する。
 
     Args:
-        manifest: 宣言モデルの JSON Schema。
+        model: 宣言モデルの JSON Schema。
         vocabulary: 表示語彙の JSON Schema。
 
     Returns:
         閉包と、有限集合を得られない場合の解析不能理由。
     """
-    display_bindings = _property(manifest, manifest, "displayBindings")
-    items = display_bindings.get("items")
-    if items is None:
-        raise CheckerExecutionError("displayBindings.items が存在しない")
-    display_item = _property(manifest, items, "displayItem")
-    target_fields = _finite_strings(manifest, display_item)
+    metadata = model.get("x-pitchlog")
+    if isinstance(metadata, dict) and "targetFieldSelectors" in metadata:
+        target_fields, issues = _model_target_fields(model)
+        target_root = "#/x-pitchlog/targetFieldSelectors"
+        root_name = "modelRoot"
+        rule = (
+            "出力配列・可視性・型 kind の schema を辿り、"
+            "利用者可視数値フィールドの構造的 selector を採用する"
+        )
+    else:
+        display_bindings = _property(model, model, "displayBindings")
+        items = display_bindings.get("items")
+        if items is None:
+            raise CheckerExecutionError("displayBindings.items が存在しない")
+        display_item = _property(model, items, "displayItem")
+        finite_fields = _finite_strings(model, display_item)
+        target_fields = finite_fields or set()
+        target_root = "#/properties/displayBindings/items/displayItem"
+        root_name = "manifestRoot"
+        rule = "const / enum と oneOf の参照閉包だけを有限集合として採用する"
+        issues = []
+        if finite_fields is None or not finite_fields:
+            issues.append(
+                {
+                    "construct": "schema-closure",
+                    "expression": target_root,
+                    "reason": "表示項目が有限の const / enum 閉包でない",
+                }
+            )
     numeric_forms = _union_kind_values(vocabulary, "NumericValue")
     primitives = _union_kind_values(vocabulary, "NumericPrimitive")
     atom_sources = _union_kind_values(vocabulary, "DisplayAtomSource")
 
-    issues: list[dict[str, str]] = []
-    if target_fields is None or not target_fields:
-        issues.append(
-            {
-                "construct": "schema-closure",
-                "expression": "#/properties/displayBindings/items/displayItem",
-                "reason": "表示項目が有限の const / enum 閉包でない",
-            }
-        )
-        target_fields = set()
     closed_sets = {
         "numericValueForms": sorted(numeric_forms),
         "numericPrimitives": sorted(primitives),
@@ -337,13 +442,13 @@ def derive_schema_closure(
             )
     closure = {
         "derivation": {
-            "manifestRoot": "#/properties/displayBindings/items/displayItem",
+            root_name: target_root,
             "vocabularyRoots": [
                 "#/$defs/NumericValue",
                 "#/$defs/NumericPrimitive",
                 "#/$defs/DisplayAtomSource",
             ],
-            "rule": "const / enum と oneOf の参照閉包だけを有限集合として採用する",
+            "rule": rule,
         },
         "complete": not issues,
         "targetFields": sorted(target_fields),
@@ -353,19 +458,28 @@ def derive_schema_closure(
 
 
 def _trigger_one_materials(
-    manifest: Mapping[str, object],
+    model: Mapping[str, object],
     vocabulary: Mapping[str, object],
     closure: Mapping[str, object],
 ) -> dict[str, object]:
     """PO が型語彙の表現可能性を判断する材料を返す。"""
     target_fields = closure.get("targetFields")
     has_targets = isinstance(target_fields, list) and bool(target_fields)
-    history_evidence = _named_schema_paths(manifest, "history")
-    rule_evidence = _named_schema_paths(manifest, "rules")
-    snapshot_evidence = _named_schema_paths(vocabulary, "resolvedname")
+    history_evidence = _named_schema_paths(model, "history")
+    rule_evidence = _named_schema_paths(model, "rules")
+    snapshot_evidence = [
+        *_named_schema_paths(model, "vocabularysnapshot"),
+        *_named_schema_paths(vocabulary, "resolvedname"),
+    ]
     primitives = closure.get("numericPrimitives")
     forms = closure.get("numericValueForms")
     sources = closure.get("displayAtomSources")
+    derivation = closure.get("derivation")
+    evidence_root = "#/properties/displayBindings/items/displayItem"
+    if isinstance(derivation, dict):
+        root = derivation.get("modelRoot", derivation.get("manifestRoot"))
+        if isinstance(root, str):
+            evidence_root = root
     return {
         "judge": "山田正輝",
         "status": "pending-po-evaluation",
@@ -373,7 +487,7 @@ def _trigger_one_materials(
             {
                 "construct": "scoreboard-all-fields",
                 "representable": has_targets,
-                "evidence": ["#/properties/displayBindings/items/displayItem"],
+                "evidence": [evidence_root],
             },
             {
                 "construct": "vocabulary-snapshot-map",
@@ -592,7 +706,7 @@ def _collect_file_paths(
 def collect_display_paths(
     root: Path,
     frontend: Path,
-    manifest_path: Path,
+    model_path: Path,
     vocabulary_path: Path,
 ) -> dict[str, object]:
     """Schema 閉包と frontend の表示呼出箇所を独立導出する。
@@ -600,7 +714,7 @@ def collect_display_paths(
     Args:
         root: リポジトリルート。
         frontend: 製品 frontend の source root。
-        manifest_path: 宣言モデル schema のパス。
+        model_path: 宣言モデル schema のパス。
         vocabulary_path: 表示語彙 schema のパス。
 
     Returns:
@@ -611,16 +725,16 @@ def collect_display_paths(
     """
     resolved_root = root.resolve()
     resolved_frontend = frontend.resolve()
-    resolved_manifest = manifest_path.resolve()
+    resolved_model = model_path.resolve()
     resolved_vocabulary = vocabulary_path.resolve()
     if not resolved_frontend.is_dir():
         raise CheckerExecutionError(f"frontend source root を読めない: {frontend}")
     state = _CollectionState(root=resolved_root, frontend=resolved_frontend)
-    for path in (resolved_frontend, resolved_manifest, resolved_vocabulary):
+    for path in (resolved_frontend, resolved_model, resolved_vocabulary):
         state.relative(path)
-    manifest = _schema_document(resolved_manifest)
+    model = _schema_document(resolved_model)
     vocabulary = _schema_document(resolved_vocabulary)
-    closure, closure_issues = derive_schema_closure(manifest, vocabulary)
+    closure, closure_issues = derive_schema_closure(model, vocabulary)
     files = _product_files(resolved_frontend)
     sources = {path: _read_text(path) for path in files}
     definitions = _collect_definitions(state, files, sources)
@@ -629,7 +743,7 @@ def collect_display_paths(
 
     schema_unresolved = [
         {
-            "path": state.relative(resolved_manifest),
+            "path": state.relative(resolved_model),
             **issue,
         }
         for issue in closure_issues
@@ -644,7 +758,7 @@ def collect_display_paths(
         "attemptsByKind": attempts_by_kind,
         "schemaClosure": closure,
         "trigger1AssessmentMaterials": _trigger_one_materials(
-            manifest, vocabulary, closure
+            model, vocabulary, closure
         ),
         "formatterDefinitions": [
             {
@@ -684,10 +798,17 @@ def _build_parser() -> argparse.ArgumentParser:
         default=Path(__file__).resolve().parents[4],
     )
     parser.add_argument("--frontend", type=Path, default=Path("frontend/src"))
-    parser.add_argument(
+    schema_group = parser.add_mutually_exclusive_group()
+    schema_group.add_argument(
+        "--model-schema",
+        type=Path,
+        default=Path("backend/domain/model.schema.json"),
+    )
+    schema_group.add_argument(
         "--manifest-schema",
         type=Path,
-        default=Path("backend/domain/manifest.schema.json"),
+        default=None,
+        help="旧形式の合成 fixture を検査する互換引数",
     )
     parser.add_argument(
         "--vocabulary-schema",
@@ -714,10 +835,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         arguments = _build_parser().parse_args(argv)
         root = arguments.root.resolve()
+        schema_path = arguments.manifest_schema or arguments.model_schema
         result = collect_display_paths(
             root,
             _resolve_path(root, arguments.frontend),
-            _resolve_path(root, arguments.manifest_schema),
+            _resolve_path(root, schema_path),
             _resolve_path(root, arguments.vocabulary_schema),
         )
         print(canonical_json(result), end="")

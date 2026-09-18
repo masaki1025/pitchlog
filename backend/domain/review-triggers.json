@@ -288,7 +288,9 @@
       ],
       "evidenceLocation": "backend/domain/model.schema.json",
       "firingCondition": "導出が空、またはハードコードを要する",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 14,
