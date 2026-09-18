@@ -14,7 +14,7 @@ from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -2754,6 +2754,175 @@ def test_receiving_task_rule_derivation_rejects_a_valid_but_wrong_task_id(
         checker, "_validate_receiving_task_assignments", lambda *_args: None
     )
     _validate_mutant_map(mapping)
+
+
+class _ReceivingTaskChangeClosureInputs(NamedTuple):
+    """差分閉包へ渡す7入力を型付きで保持する。"""
+
+    base_mapping: dict[str, Any]
+    current_mapping: dict[str, Any]
+    base_seal: dict[str, Any]
+    current_seal: dict[str, Any]
+    base_mcdc_map_text: str
+    current_mcdc_map_text: str
+    changed_paths: set[str]
+
+
+def _receiving_task_change_closure_inputs(
+    *, base_has_placeholder: bool
+) -> _ReceivingTaskChangeClosureInputs:
+    """差分閉包ゲート用に置換前後または置換済みの入力一式を作る。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    base_mapping = copy.deepcopy(assets["claim_mutant_map"])
+    current_mapping = copy.deepcopy(base_mapping)
+    if base_has_placeholder:
+        base_mapping["claims"][0]["receiving_task_id"] = "TSK-270-GROUP-2"
+    mcdc_map_text = _receiving_task_head_text("contracts/authz/mcdc-map.json")
+    changed_paths = {
+        str(checker.DEFAULT_CLAIM_MUTANT_MAP),
+        str(checker.DEFAULT_ORACLE_SEAL),
+        str(checker.DEFAULT_MCDC_MAP),
+    }
+    return _ReceivingTaskChangeClosureInputs(
+        base_mapping,
+        current_mapping,
+        copy.deepcopy(seal),
+        copy.deepcopy(seal),
+        mcdc_map_text,
+        mcdc_map_text,
+        changed_paths,
+    )
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected_error"),
+    [
+        ("changed_paths", "変更できない contracts パス"),
+        ("mutant_map", "対象行の receiving_task_id 以外"),
+        ("oracle_seal", "canonical_sha256 以外"),
+        ("mcdc_map", "blob_digest 以外"),
+    ],
+)
+def test_receiving_task_change_closure_gate_preserves_all_four_stages(
+    stage: str, expected_error: str
+) -> None:
+    """基準版に対象行がある場合は入口経由で段1〜4の違反を拒否する。"""
+    (
+        base_mapping,
+        current_mapping,
+        base_seal,
+        current_seal,
+        base_mcdc_map_text,
+        current_mcdc_map_text,
+        changed_paths,
+    ) = _receiving_task_change_closure_inputs(base_has_placeholder=True)
+    if stage == "changed_paths":
+        changed_paths.add("contracts/authz/unapproved.json")
+    elif stage == "mutant_map":
+        current_mapping["unapproved_leaf"] = True
+    elif stage == "oracle_seal":
+        current_seal["unapproved_leaf"] = True
+    else:
+        current_mcdc_map = json.loads(current_mcdc_map_text)
+        current_mcdc_map["unapproved_leaf"] = True
+        current_mcdc_map_text = _json_text(current_mcdc_map)
+
+    with pytest.raises(checker.CatalogError, match=expected_error):
+        checker.validate_receiving_task_change_closure(
+            base_mapping,
+            current_mapping,
+            base_seal,
+            current_seal,
+            base_mcdc_map_text,
+            current_mcdc_map_text,
+            changed_paths,
+        )
+
+
+def test_receiving_task_change_closure_gate_runs_all_stages_for_legacy_base() -> None:
+    """基準版に対象行がある正例では入口から既存4段を完走する。"""
+    checker.validate_receiving_task_change_closure(
+        *_receiving_task_change_closure_inputs(base_has_placeholder=True)
+    )
+
+
+def test_receiving_task_change_closure_gate_skips_paths_after_replacement() -> None:
+    """置換済みの両版では別 contracts/authz パスが段1に拒否されない。"""
+    inputs = _receiving_task_change_closure_inputs(base_has_placeholder=False)
+    inputs.changed_paths.add("contracts/authz/frozen-baselines.json")
+    checker.validate_receiving_task_change_closure(*inputs)
+
+
+def test_receiving_task_change_closure_gate_rejects_restored_placeholder() -> None:
+    """置換済み基準に対して HEAD へ旧プレースホルダを復活できない。"""
+    inputs = _receiving_task_change_closure_inputs(base_has_placeholder=False)
+    inputs.current_mapping["claims"][0]["receiving_task_id"] = "TSK-270-GROUP-2"
+    with pytest.raises(checker.CatalogError, match="対象行が復活"):
+        checker.validate_receiving_task_change_closure(*inputs)
+
+
+@pytest.mark.parametrize("side", ["base", "head"])
+@pytest.mark.parametrize(
+    ("invalid_kind", "invalid_claims"),
+    [
+        ("missing", None),
+        ("not_array", {}),
+        ("empty", []),
+        ("non_object", [None]),
+    ],
+)
+def test_receiving_task_change_closure_gate_rejects_invalid_claims_shape(
+    side: str, invalid_kind: str, invalid_claims: object
+) -> None:
+    """両版の claims 欠落・非配列・空配列・非オブジェクト要素を拒否する。"""
+    inputs = _receiving_task_change_closure_inputs(base_has_placeholder=False)
+    mutant_map = inputs.base_mapping if side == "base" else inputs.current_mapping
+    if invalid_kind == "missing":
+        mutant_map.pop("claims")
+    else:
+        mutant_map["claims"] = invalid_claims
+    with pytest.raises(checker.CatalogError):
+        checker.validate_receiving_task_change_closure(*inputs)
+
+
+@pytest.mark.parametrize("side", ["base", "head"])
+@pytest.mark.parametrize(
+    ("invalid_kind", "invalid_value"),
+    [
+        ("missing", None),
+        ("not_string", 270),
+        ("empty", ""),
+        ("invalid_syntax", "INVALID"),
+    ],
+)
+def test_receiving_task_change_closure_gate_rejects_invalid_receiving_task_id(
+    side: str, invalid_kind: str, invalid_value: object
+) -> None:
+    """両版の受取先欠落・非文字列・空文字列・文法外文字列を拒否する。"""
+    inputs = _receiving_task_change_closure_inputs(base_has_placeholder=False)
+    mutant_map = inputs.base_mapping if side == "base" else inputs.current_mapping
+    claim = mutant_map["claims"][0]
+    if invalid_kind == "missing":
+        claim.pop("receiving_task_id")
+    else:
+        claim["receiving_task_id"] = (
+            "TSK-270-GROUP-2"
+            if side == "head" and invalid_kind == "invalid_syntax"
+            else invalid_value
+        )
+    with pytest.raises(checker.CatalogError):
+        checker.validate_receiving_task_change_closure(*inputs)
+
+
+def test_receiving_task_change_closure_gate_bypasses_the_legacy_four_stages() -> None:
+    """同じ対象0件入力で入口は成功し、内側の段2は既存エラーになる。"""
+    inputs = _receiving_task_change_closure_inputs(base_has_placeholder=False)
+    checker.validate_receiving_task_change_closure(*inputs)
+
+    with pytest.raises(checker.CatalogError, match="基準版に受取先置換の対象行がない"):
+        checker._validate_receiving_task_mutant_map_change(
+            inputs.base_mapping, inputs.current_mapping
+        )
 
 
 def test_receiving_task_change_scope_rejects_another_contract_path(
