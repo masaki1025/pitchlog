@@ -1,0 +1,925 @@
+{
+  "version": 1,
+  "authorityCatalog": [
+    {
+      "id": "NFR-018 対象欄",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**対象**（"
+    },
+    {
+      "id": "NFR-018 (a) 実装の単一性",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**(a) 実装の単一性**"
+    },
+    {
+      "id": "NFR-018 (b) 宣言と機械判定",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**(b) 宣言と機械判定**"
+    },
+    {
+      "id": "NFR-018 (b)① 乖離検出",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**① 出所と派生物の乖離の検出**"
+    },
+    {
+      "id": "NFR-018 (b)② 差分の検出可能性",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**② 差分の検出可能性**"
+    },
+    {
+      "id": "NFR-018 (b)③ 構成の完全性",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**③ 宣言された構成の完全性**"
+    },
+    {
+      "id": "NFR-019 (a) 一致性テスト",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-019: テスト規約のCI強制",
+      "verbatim": "CIには (a) クライアント/サーバーの一致性テスト"
+    },
+    {
+      "id": "FR-006 補足",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### FR-006: 直前の操作の取り消し（undo）",
+      "verbatim": "- **補足**: 対象は常に"
+    },
+    {
+      "id": "FR-040 状態補正",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### FR-040: 状態補正イベント（v1.6追補）",
+      "verbatim": "Given 直前の操作が状態補正"
+    },
+    {
+      "id": "付録A-1 表示書式の共通規定",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "### A-1 共通規則",
+      "verbatim": "**表示書式の共通規定**"
+    },
+    {
+      "id": "NFR-023 出力エンコードの安全性",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-023: 出力エンコードの安全性（v1.7新設）",
+      "verbatim": "CSPを設定"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-SEAL",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-SEAL`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-STATE",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-STATE`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-PROGRAM",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-PROGRAM`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-GRANT",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-GRANT`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-REAPPROVAL",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-REAPPROVAL`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-NO-CLAIM",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-NO-CLAIM`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-REPORT",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-REPORT`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-SEAL-BASE",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-SEAL-BASE`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-SEAL-IMMUTABLE`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-SEAL-MONOTONE",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-SEAL-MONOTONE`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-STALL",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-STALL`"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-ACTIVATION",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "`BOOT-ACTIVATION`"
+    },
+    {
+      "id": "ADR-003 D-1 射程行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **正本の射程** |"
+    },
+    {
+      "id": "ADR-003 D-1 target matrix 行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **生成物(target matrix)** |"
+    },
+    {
+      "id": "ADR-003 D-1 生成前検査行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **生成器が生成前に検査すること** |"
+    },
+    {
+      "id": "ADR-003 D-1 置き場行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **置き場** |"
+    },
+    {
+      "id": "ADR-003 D-3 同一コミット",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-3: 正本の版と生成物の同期規則",
+      "verbatim": "生成物の再生成を同一コミットに含める"
+    },
+    {
+      "id": "ADR-003 D-6 契約分類",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-6: 正解ベクタと契約の形式・置き場・CI 配線・後続担当",
+      "verbatim": "**契約は 2 種に分かれる**"
+    },
+    {
+      "id": "ADR-003 D-7 実行契機表",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-7: 検証機構の実行契機(PR 必須 / 夜間)",
+      "verbatim": "| 検証機構 | 実行契機 | 対象 | 失敗時の扱い |"
+    },
+    {
+      "id": "ADR-003 D-11 入力範囲表",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "**保証する入力の範囲**"
+    },
+    {
+      "id": "ADR-003 D-11 3 層表 ベクタ層",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "| **網羅的な正解ベクタ + 経路一致検査** |"
+    },
+    {
+      "id": "ADR-003 D-11 3 層表 プロパティ層",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "| **プロパティテスト** |"
+    },
+    {
+      "id": "ADR-003 D-11 変異テスト規則",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "**変異テストの運用規則**"
+    },
+    {
+      "id": "ADR-003 D-11 構成の完全性",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "#### ③ 宣言された構成の完全性"
+    },
+    {
+      "id": "設計書 6.1 段階実装",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 6.1 標準サイクル（実装は計画書ゲート必須 — いきなりコーディングしない）",
+      "verbatim": "**段階実装（こまめなコミット — 2026-08-07 PO 指示）**"
+    },
+    {
+      "id": "設計書 6.3 コア領域",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 6.3 レビュー体制（論点B 解決 2026-08-07 — 確定）",
+      "verbatim": "コア領域"
+    },
+    {
+      "id": "設計書 10.1 CI ジョブ",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 10.1 ci.yml（PR 必須・NFR-019 の実体）",
+      "verbatim": "| `consistency` |"
+    },
+    {
+      "id": "設計書 10.1 BOOT-CI-MEANING",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 10.1 ci.yml（PR 必須・NFR-019 の実体）",
+      "verbatim": "`BOOT-CI-MEANING`"
+    }
+  ],
+  "steps": [
+    {
+      "stepId": 1,
+      "authorities": [
+        "ADR-003 D-1 射程行",
+        "付録A-1 表示書式の共通規定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/vocabulary.schema.json",
+        "tests/domain/test_vocabulary_schema.py"
+      ]
+    },
+    {
+      "stepId": 2,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/machine-conditions.json",
+        "tests/domain/test_machine_conditions.py"
+      ]
+    },
+    {
+      "stepId": 3,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定",
+        "設計書 6.1 段階実装"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/step-authorities.json",
+        "tests/domain/test_step_authorities.py"
+      ]
+    },
+    {
+      "stepId": 4,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/review-triggers.json",
+        "tests/domain/test_review_triggers.py"
+      ]
+    },
+    {
+      "stepId": 5,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/stopgate.py",
+        "tests/domain/test_stopgate.py"
+      ]
+    },
+    {
+      "stepId": 6,
+      "authorities": [
+        "FR-006 補足",
+        "ADR-003 D-11 入力範囲表"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/history-depth.json",
+        "tests/domain/test_history_depth.py"
+      ]
+    },
+    {
+      "stepId": 7,
+      "authorities": [
+        "ADR-003 D-11 構成の完全性",
+        "ADR-003 D-6 契約分類"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/manifest.schema.json",
+        "tests/domain/test_manifest_schema.py"
+      ]
+    },
+    {
+      "stepId": 8,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/cli.py",
+        "tests/domain/test_checker_cli.py"
+      ]
+    },
+    {
+      "stepId": 9,
+      "authorities": [
+        "NFR-018 (e) BOOT-SEAL-BASE",
+        "NFR-018 (e) BOOT-SEAL-IMMUTABLE"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/seal.py",
+        "tests/domain/test_seal.py"
+      ]
+    },
+    {
+      "stepId": 10,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/collect_entrypoints_fe.py",
+        "tests/domain/test_collect_fe.py"
+      ]
+    },
+    {
+      "stepId": 11,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/collect_entrypoints_be.py",
+        "tests/domain/test_collect_be.py"
+      ]
+    },
+    {
+      "stepId": 12,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性",
+        "付録A-1 表示書式の共通規定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/collect_display_paths.py",
+        "tests/domain/test_collect_display.py"
+      ]
+    },
+    {
+      "stepId": 13,
+      "authorities": [
+        "NFR-018 対象欄",
+        "FR-040 状態補正"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/check-sets.json",
+        "tests/domain/test_check_sets.py"
+      ]
+    },
+    {
+      "stepId": 14,
+      "authorities": [
+        "NFR-018 (e) BOOT-SEAL",
+        "NFR-018 (b)② 差分の検出可能性",
+        "ADR-003 D-11 構成の完全性"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/boot-seal.json",
+        "tests/domain/test_boot_seal_derive.py"
+      ]
+    },
+    {
+      "stepId": 15,
+      "authorities": [
+        "NFR-018 (e) BOOT-SEAL-BASE",
+        "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
+        "NFR-018 (e) BOOT-SEAL-MONOTONE"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/boot-seal.sealed.json",
+        "tests/domain/test_boot_seal.py"
+      ]
+    },
+    {
+      "stepId": 16,
+      "authorities": [
+        "NFR-018 (e) BOOT-STALL",
+        "NFR-018 (e) BOOT-REAPPROVAL"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/boot/stall.py",
+        "tests/domain/boot/test_stall.py"
+      ]
+    },
+    {
+      "stepId": 17,
+      "authorities": [
+        "NFR-018 (e) BOOT-GRANT",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/boot/phase2.py",
+        "tests/domain/boot/test_phase2.py"
+      ]
+    },
+    {
+      "stepId": 18,
+      "authorities": [
+        "NFR-018 (e) BOOT-REPORT",
+        "NFR-018 (e) BOOT-NO-CLAIM"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/boot-report.schema.json",
+        "tests/domain/boot/test_report.py"
+      ]
+    },
+    {
+      "stepId": 19,
+      "authorities": [
+        "NFR-018 (e) BOOT-SEAL",
+        "NFR-018 (e) BOOT-STATE",
+        "NFR-018 (e) BOOT-PROGRAM",
+        "NFR-018 (e) BOOT-GRANT",
+        "NFR-018 (e) BOOT-REAPPROVAL",
+        "NFR-018 (e) BOOT-NO-CLAIM",
+        "NFR-018 (e) BOOT-REPORT",
+        "NFR-018 (e) BOOT-SEAL-BASE",
+        "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
+        "NFR-018 (e) BOOT-SEAL-MONOTONE",
+        "NFR-018 (e) BOOT-STALL",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/domain/boot-clauses.json",
+        "tests/domain/boot/test_clauses.py"
+      ]
+    },
+    {
+      "stepId": 20,
+      "authorities": [
+        "NFR-018 (e) BOOT-STATE",
+        "NFR-018 (e) BOOT-PROGRAM",
+        "NFR-018 (e) BOOT-GRANT",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/boot/judge.py",
+        "tests/domain/boot/test_judge.py"
+      ]
+    },
+    {
+      "stepId": 21,
+      "authorities": [
+        "NFR-018 (e) BOOT-SEAL",
+        "NFR-018 (e) BOOT-SEAL-BASE",
+        "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
+        "NFR-018 (e) BOOT-SEAL-MONOTONE"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/tests/domain/boot/negatives/seal/",
+        "tests/domain/boot/test_negatives_seal.py"
+      ]
+    },
+    {
+      "stepId": 22,
+      "authorities": [
+        "NFR-018 (e) BOOT-STATE",
+        "NFR-018 (e) BOOT-REAPPROVAL",
+        "NFR-018 (e) BOOT-NO-CLAIM",
+        "NFR-018 (e) BOOT-REPORT",
+        "NFR-018 (e) BOOT-GRANT",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/tests/domain/boot/negatives/state/",
+        "tests/domain/boot/test_negatives_state.py"
+      ]
+    },
+    {
+      "stepId": 23,
+      "authorities": [
+        "NFR-018 (e) BOOT-PROGRAM",
+        "NFR-018 (e) BOOT-STALL",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/tests/domain/boot/positives_a/",
+        "tests/domain/boot/test_positives_a.py"
+      ]
+    },
+    {
+      "stepId": 24,
+      "authorities": [
+        "NFR-018 (e) BOOT-GRANT",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/tests/domain/boot/positives_b/",
+        "tests/domain/boot/test_positives_b.py"
+      ]
+    },
+    {
+      "stepId": 25,
+      "authorities": [
+        "NFR-018 (a) 実装の単一性",
+        "ADR-003 D-1 射程行",
+        "ADR-003 D-1 target matrix 行"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaingen/core.py",
+        "tests/domain/gen/test_core.py"
+      ]
+    },
+    {
+      "stepId": 26,
+      "authorities": [
+        "ADR-003 D-1 target matrix 行"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaingen/backends/",
+        "tests/domain/gen/test_backends.py"
+      ]
+    },
+    {
+      "stepId": 27,
+      "authorities": [
+        "ADR-003 D-1 射程行",
+        "ADR-003 D-11 3 層表 プロパティ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaingen/formatter.py",
+        "tests/domain/gen/test_formatter.py"
+      ]
+    },
+    {
+      "stepId": 28,
+      "authorities": [
+        "ADR-003 D-1 生成前検査行"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaingen/pregen_checks.py",
+        "tests/domain/gen/test_pregen.py"
+      ]
+    },
+    {
+      "stepId": 29,
+      "authorities": [
+        "ADR-003 D-1 target matrix 行",
+        "ADR-003 D-11 3 層表 ベクタ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/tests/domain/fixtures/synthetic_dsl/",
+        "tests/domain/gen/test_target_matrix.py"
+      ]
+    },
+    {
+      "stepId": 30,
+      "authorities": [
+        "ADR-003 D-11 3 層表 ベクタ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/collect_layers.py",
+        "tests/domain/test_collect_layers.py"
+      ]
+    },
+    {
+      "stepId": 31,
+      "authorities": [
+        "ADR-003 D-11 3 層表 ベクタ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/path-match.schema.json",
+        "tests/domain/test_path_match.py"
+      ]
+    },
+    {
+      "stepId": 32,
+      "authorities": [
+        "ADR-003 D-11 3 層表 ベクタ層"
+      ],
+      "requiresPositiveB": false,
+      "pathAllowlist": [
+        "backend/tests/domain/fixtures/adversarial_path/",
+        "tests/domain/test_path_adversarial.py"
+      ]
+    },
+    {
+      "stepId": 33,
+      "authorities": [
+        "ADR-003 D-6 契約分類",
+        "ADR-003 D-11 3 層表 ベクタ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/runners/vectors.py",
+        "tests/domain/runners/test_vectors.py"
+      ]
+    },
+    {
+      "stepId": 34,
+      "authorities": [
+        "ADR-003 D-11 入力範囲表"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/required-cases.json",
+        "tests/domain/runners/test_coverage_proof.py"
+      ]
+    },
+    {
+      "stepId": 35,
+      "authorities": [
+        "ADR-003 D-11 3 層表 プロパティ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/runners/properties.py",
+        "tests/domain/runners/test_invariants.py"
+      ]
+    },
+    {
+      "stepId": 36,
+      "authorities": [
+        "ADR-003 D-11 3 層表 プロパティ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/runners/equivalence.py",
+        "tests/domain/runners/test_equivalence.py"
+      ]
+    },
+    {
+      "stepId": 37,
+      "authorities": [
+        "ADR-003 D-11 3 層表 プロパティ層"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/property-catalog.json",
+        "tests/domain/runners/test_catalog_independence.py"
+      ]
+    },
+    {
+      "stepId": 38,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domainmut/engine.py",
+        "tests/domain/mut/test_engine.py"
+      ]
+    },
+    {
+      "stepId": 39,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domainmut/operators_lang.py",
+        "tests/domain/mut/test_lang_operators.py"
+      ]
+    },
+    {
+      "stepId": 40,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domainmut/operators_display.py",
+        "tests/domain/mut/test_display_operators.py"
+      ]
+    },
+    {
+      "stepId": 41,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則",
+        "ADR-003 D-7 実行契機表"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domainmut/scope.py",
+        "tests/domain/mut/test_scope.py"
+      ]
+    },
+    {
+      "stepId": 42,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/mutation-equivalents.json",
+        "tests/domain/mut/test_equivalents.py"
+      ]
+    },
+    {
+      "stepId": 43,
+      "authorities": [
+        "ADR-003 D-3 同一コミット",
+        "NFR-018 (b)① 乖離検出"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/divergence.py",
+        "tests/domain/test_divergence.py"
+      ]
+    },
+    {
+      "stepId": 44,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "frontend/.dependency-cruiser.cjs",
+        "frontend/package.json",
+        "frontend/pnpm-lock.yaml",
+        "frontend/src/lib/generated/"
+      ]
+    },
+    {
+      "stepId": 45,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性",
+        "NFR-023 出力エンコードの安全性"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "frontend/index.html",
+        "frontend/vite.config.ts",
+        "frontend/src/"
+      ]
+    },
+    {
+      "stepId": 46,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/closure_be.py",
+        "tests/domain/test_closure_be.py"
+      ]
+    },
+    {
+      "stepId": 47,
+      "authorities": [
+        "NFR-018 (b)③ 構成の完全性",
+        "ADR-003 D-11 構成の完全性",
+        "付録A-1 表示書式の共通規定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/display-binding.json",
+        "tests/domain/test_display_binding.py"
+      ]
+    },
+    {
+      "stepId": 48,
+      "authorities": [
+        "ADR-003 D-11 変異テスト規則",
+        "ADR-003 D-7 実行契機表"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "docs/features/domain-calc-dsl/mutation-cost.json",
+        "tests/domain/mut/test_cost_record.py"
+      ]
+    },
+    {
+      "stepId": 49,
+      "authorities": [
+        "NFR-018 (b) 宣言と機械判定",
+        "NFR-018 (e) BOOT-ACTIVATION"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/src/pitchlog/domaincheck/trigger_completion.py",
+        "tests/domain/test_review_triggers_complete.py"
+      ]
+    },
+    {
+      "stepId": 50,
+      "authorities": [
+        "設計書 6.1 段階実装"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "tests/test_plan_generation.py",
+        "docs/features/domain-calc-dsl/plan.md",
+        "docs/features/domain-calc-dsl/steps.json",
+        "docs/features/domain-calc-dsl/steps.py"
+      ]
+    },
+    {
+      "stepId": 51,
+      "authorities": [
+        "設計書 6.1 段階実装"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "tests/test_step_history_audit.py"
+      ]
+    },
+    {
+      "stepId": 52,
+      "authorities": [
+        "NFR-019 (a) 一致性テスト",
+        "ADR-003 D-7 実行契機表",
+        "設計書 10.1 CI ジョブ"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        ".github/workflows/ci.yml",
+        "tests/test_ci_wiring.py"
+      ]
+    },
+    {
+      "stepId": 53,
+      "authorities": [
+        "ADR-003 D-1 置き場行"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "tests/test_packaging.py"
+      ]
+    },
+    {
+      "stepId": 54,
+      "authorities": [
+        "NFR-018 (e) BOOT-ACTIVATION",
+        "設計書 10.1 CI ジョブ",
+        "設計書 10.1 BOOT-CI-MEANING"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "docs/development/github-setup.md",
+        "docs/development/dev-harness-design-2026-08-07.md",
+        "docs/README.md",
+        "tests/test_ci_wiring.py"
+      ]
+    },
+    {
+      "stepId": 55,
+      "authorities": [
+        "設計書 6.3 コア領域"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "scripts/core_guard.py",
+        "tests/test_core_guard.py"
+      ]
+    },
+    {
+      "stepId": 56,
+      "authorities": [
+        "設計書 6.3 コア領域"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        ".claude/core-areas.json",
+        "tests/test_core_guard.py"
+      ]
+    }
+  ]
+}
