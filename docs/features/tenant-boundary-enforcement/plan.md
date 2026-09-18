@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-enforcement
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-17・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -104,6 +104,7 @@ TSK-424 完了時に製品資産からの導出へ差し替える。**
 | **`.claude/core-areas.json`** | `tenant-isolation` の `paths` へ **`backend/src/pitchlog/repositories/*` + `backend/tests/db_fixtures.py`(exact path)+ 迂回検査器・allowlist・正負 fixture・検査テスト**を追加(設計書 6.3-⑤ / `dev-harness-design-2026-08-07.md:393`) | **敵対レビュー + 人間の逐行確認**(`guard_paths` 対象。**PR レビューのゲートであって、コミット単位の合格条件ではない**) |
 | **`.github/workflows/ci.yml`** | 迂回検査器だけを変更した PR でも走るジョブの配線(現行の backend フィルタは `backend/**` と `contracts/**` しか拾わない — `:176`) | PR レビュー(`tests/test_ci_wiring.py` の期待列更新を伴う) |
 | **`.env.example`** | アプリ用 DSN の記述を専用化(**値は書かない** — NFR-014)。`PITCHLOG_DATABASE_URL` の説明を「最初の物理接続時に失敗」へ同期 | PR レビュー |
+| **`docs/development/harness-evaluation.md`** | **`## 候補` へ新規 1 件 + 既存候補 2 件へ事例追記**(/pr のクローズ処理で判断)。**`H-*` の新規採番はしない・版は上げない**(7.6-3 前段) | PR レビュー |
 
 ## 4. 実装方針
 

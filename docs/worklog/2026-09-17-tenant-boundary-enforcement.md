@@ -52,6 +52,17 @@ branch: feature/tenant-boundary-enforcement
 - 取り込み後の全ゲート: ハーネス **1461 passed / 0 failed**(既知 red 7 件は解消)/
   backend **572 passed / 0 error** / `check_authz_catalog.py` ok / 迂回検査 ok / ruff・ty green
 
+## クローズ(2026-09-18)
+
+- /sync-docs: **正本への反映なし**で確定。`docs/` 配下の正本(requirements / design / adr / development / ops)の
+  差分は 0 件で、宣言外の変更も 0 件だった。`docs/README.md` は「進行中の feature」が静的一覧を持たない設計のため更新不要
+- 正本体系外で変更したのは宣言済みの 3 ファイル: `.claude/core-areas.json` / `.github/workflows/ci.yml` / 設定テンプレート
+- **ハーネス運用評価台帳へ追記した**(判断: **該当する**)。**新規候補 1 件 + 既存候補 2 件へ事例追記**。
+  `H-*` の新規採番はせず、版も上げない(7.6-3 前段)
+  - 新規: **承認済みの上流計画が割り当てた分担が計画書から落ち、敵対レビューでも 5 周目まで検出されない**
+  - 既存へ 3 例目: SQLAlchemy 形式の URL を DSN に渡す問題(**混入元が正本ではなく環境**という新事実つき)
+  - 既存へ 11 件目: guard のコマンド文字列部分一致による誤検知
+
 ## 未決・次の一歩
 
 - **TSK-418 の指摘は実質的に成立**(「4 つ送っている」は一部成立 — 12-8 節の TSK-317 名指しは 2 行)。
