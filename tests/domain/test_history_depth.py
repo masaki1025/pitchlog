@@ -110,6 +110,7 @@ def _derive_history_depth(candidate: dict[str, Any]) -> int:
         "requiredScenarioCases",
         "stackCompositionCases",
         "formula",
+        "limitations",
         "result",
     }
 
@@ -172,12 +173,72 @@ def _derive_history_depth(candidate: dict[str, Any]) -> int:
     }
     composition_minimum_depth = max(composition_depths)
     derived_depth = max(required_scenario_maximum, composition_minimum_depth)
-    assert derivation["result"] == {
-        "requiredScenarioMaximum": required_scenario_maximum,
-        "stackCompositionMinimumDepth": composition_minimum_depth,
-        "historyDepth": derived_depth,
-    }
+    assert derivation["result"] == {"historyDepthFrom": "formula"}
     return derived_depth
+
+
+def _assert_derivation_limitations(candidate: dict[str, Any]) -> None:
+    """導出が示せない範囲を 3 項目で明示していることを検査する。"""
+    derivation = candidate["derivation"]
+    limitations = derivation["limitations"]
+    expected_ids = {
+        "required-scenario-completeness",
+        "longer-required-scenario-recalculation",
+        "stack-composition-completeness",
+    }
+    assert len(limitations) == 3
+    assert {limitation["id"] for limitation in limitations} == expected_ids
+    by_id = {limitation["id"]: limitation for limitation in limitations}
+
+    scenario_limit = by_id["required-scenario-completeness"]
+    assert set(scenario_limit) == {
+        "id",
+        "exhaustivenessProven",
+        "identifiedCaseCount",
+        "authority",
+        "statement",
+    }
+    assert scenario_limit["exhaustivenessProven"] is False
+    assert scenario_limit["identifiedCaseCount"] == 1
+    assert scenario_limit["identifiedCaseCount"] == len(
+        derivation["requiredScenarioCases"]
+    )
+    assert scenario_limit["authority"] == "FR-006 補足"
+    assert "全件であることは示していない" in scenario_limit["statement"]
+
+    recalculation = by_id["longer-required-scenario-recalculation"]
+    assert set(recalculation) == {
+        "id",
+        "historyDepthStoredAsLiteral",
+        "recalculationSource",
+        "updateOperation",
+        "statement",
+    }
+    assert recalculation["historyDepthStoredAsLiteral"] is False
+    assert recalculation["recalculationSource"] == (
+        "requiredScenarioCases[].events.length"
+    )
+    assert recalculation["updateOperation"] == "append-case-only"
+    assert "自動的に再計算" in recalculation["statement"]
+
+    composition_limit = by_id["stack-composition-completeness"]
+    assert set(composition_limit) == {
+        "id",
+        "exhaustivenessProven",
+        "coveredCaseCount",
+        "provenMinimumDepth",
+        "statement",
+    }
+    assert composition_limit["exhaustivenessProven"] is False
+    assert composition_limit["coveredCaseCount"] == 4
+    assert composition_limit["coveredCaseCount"] == len(
+        derivation["stackCompositionCases"]
+    )
+    measured_depth = max(
+        len(case["stackKinds"]) for case in derivation["stackCompositionCases"]
+    )
+    assert composition_limit["provenMinimumDepth"] == measured_depth == 2
+    assert "全件であることは示していない" in composition_limit["statement"]
 
 
 def _resolved_case_value(case: dict[str, Any], history_depth: int) -> int:
@@ -323,8 +384,43 @@ def _assert_d_plus_one_contract(candidate: dict[str, Any]) -> None:
     assert _resolved_case_value(boundary_case, history_depth) == history_depth + 1
 
 
+def _assert_manual_review_shape(candidate: dict[str, Any]) -> None:
+    """手動レビューの閉じた形と状態別の必須項目を検査する。"""
+    review = candidate["manualReview"]
+    required_keys = {"subject", "judge", "status"}
+    allowed_keys = required_keys | {"date", "evidence", "condition"}
+    assert required_keys <= set(review) <= allowed_keys
+    assert isinstance(review["subject"], str) and review["subject"]
+    assert review["judge"] == "山田正輝"
+    assert review["status"] in {"pending", "approved", "rejected"}
+
+    if review["status"] == "approved":
+        assert {"date", "evidence"} <= set(review)
+    if "date" in review:
+        assert isinstance(review["date"], str)
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", review["date"])
+    if "evidence" in review:
+        assert isinstance(review["evidence"], str) and review["evidence"]
+    if "condition" in review:
+        assert isinstance(review["condition"], str) and review["condition"]
+
+
+def _assert_trigger_evaluation_shape(trigger: dict[str, Any]) -> None:
+    """トリガー評価が未評価または閉じた発火レコードであることを検査する。"""
+    evaluation = trigger["evaluation"]
+    if evaluation is None:
+        return
+    assert isinstance(evaluation, dict)
+    assert set(evaluation) == {"fired"}
+    assert isinstance(evaluation["fired"], bool)
+
+
 def test_history_depth_is_derived_from_cases_and_maximum(asset: dict[str, Any]) -> None:
     _derive_history_depth(asset)
+
+
+def test_derivation_declares_all_three_limitations(asset: dict[str, Any]) -> None:
+    _assert_derivation_limitations(asset)
 
 
 def test_all_depth_composition_and_scenario_length_cases_are_fixed(
@@ -353,25 +449,68 @@ def test_d_plus_one_only_requires_execution_without_rejection_or_truncation(
     _assert_d_plus_one_contract(asset)
 
 
-def test_manual_meaning_review_remains_pending_for_named_po(asset: dict[str, Any]) -> None:
-    assert asset["manualReview"] == {
+def test_manual_review_has_closed_shape_and_value_domain(asset: dict[str, Any]) -> None:
+    _assert_manual_review_shape(asset)
+
+
+@pytest.mark.parametrize("status", ["pending", "approved", "rejected"])
+def test_manual_review_accepts_each_valid_state(
+    asset: dict[str, Any], status: str
+) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["manualReview"] = {
         "subject": "導出の意味レビュー",
         "judge": "山田正輝",
-        "status": "pending",
+        "status": status,
     }
+    if status == "approved":
+        mutated["manualReview"].update(
+            {
+                "date": "2026-09-18",
+                "evidence": "backend/domain/history-depth.json の derivation",
+            }
+        )
+
+    _assert_manual_review_shape(mutated)
 
 
-def test_trigger_nine_records_unique_derivation_as_not_fired(
+def test_manual_review_rejects_unknown_status(asset: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["manualReview"]["status"] = "unknown"
+
+    with pytest.raises(AssertionError):
+        _assert_manual_review_shape(mutated)
+
+
+def test_manual_review_rejects_unknown_judge(asset: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["manualReview"]["judge"] = "別の判定者"
+
+    with pytest.raises(AssertionError):
+        _assert_manual_review_shape(mutated)
+
+
+def test_approved_manual_review_requires_evidence(asset: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["manualReview"]["status"] = "approved"
+    mutated["manualReview"]["date"] = "2026-09-18"
+    mutated["manualReview"].pop("evidence", None)
+
+    with pytest.raises(AssertionError):
+        _assert_manual_review_shape(mutated)
+
+
+def test_trigger_nine_evaluation_accepts_unset_and_boolean_firing_records(
     asset: dict[str, Any], triggers: dict[str, Any]
 ) -> None:
     derived_values = {_derive_history_depth(asset)}
     assert len(derived_values) == 1
     trigger_nine = next(trigger for trigger in triggers["triggers"] if trigger["id"] == 9)
     assert trigger_nine["evidenceLocation"] == "backend/domain/history-depth.json"
-    assert trigger_nine["evaluation"] == {"fired": False}
-
-    trigger_one = next(trigger for trigger in triggers["triggers"] if trigger["id"] == 1)
-    assert trigger_one["evaluation"] is None
+    for evaluation in (None, {"fired": False}, {"fired": True}):
+        mutated = copy.deepcopy(trigger_nine)
+        mutated["evaluation"] = evaluation
+        _assert_trigger_evaluation_shape(mutated)
 
 
 def test_fr040_only_lower_bound_is_rejected(asset: dict[str, Any]) -> None:
@@ -387,10 +526,40 @@ def test_literal_history_depth_disagreeing_with_cases_is_rejected(
     asset: dict[str, Any],
 ) -> None:
     mutated = copy.deepcopy(asset)
-    mutated["derivation"]["result"]["historyDepth"] += 1
+    mutated["derivation"]["result"] = {"historyDepth": 5}
 
     with pytest.raises(AssertionError):
         _derive_history_depth(mutated)
+
+
+def test_missing_derivation_limitation_is_rejected(asset: dict[str, Any]) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["derivation"]["limitations"].pop()
+
+    with pytest.raises(AssertionError):
+        _assert_derivation_limitations(mutated)
+
+
+def test_longer_required_scenario_recomputes_history_depth_to_five(
+    asset: dict[str, Any],
+) -> None:
+    mutated = copy.deepcopy(asset)
+    mutated["derivation"]["requiredScenarioCases"].append(
+        {
+            "id": "three-confirmed-plays-two-undos",
+            "requiresFr040": False,
+            "events": [
+                "confirmed-play-a",
+                "confirmed-play-b",
+                "confirmed-play-c",
+                "undo",
+                "undo",
+            ],
+            "length": 5,
+        }
+    )
+
+    assert _derive_history_depth(mutated) == 5
 
 
 def test_missing_principal_flag_range_is_rejected(asset: dict[str, Any]) -> None:

@@ -71,10 +71,31 @@
         }
       ]
     },
+    "limitations": [
+      {
+        "id": "required-scenario-completeness",
+        "exhaustivenessProven": false,
+        "identifiedCaseCount": 1,
+        "authority": "FR-006 補足",
+        "statement": "requiredScenarioCases が必須シナリオの全件であることは示していない。FR-006 補足から導ける必須シナリオとして本タスクが特定できたのは 1 件である。"
+      },
+      {
+        "id": "longer-required-scenario-recalculation",
+        "historyDepthStoredAsLiteral": false,
+        "recalculationSource": "requiredScenarioCases[].events.length",
+        "updateOperation": "append-case-only",
+        "statement": "より長い必須シナリオが見つかれば、D は導出式から自動的に再計算される。値をリテラルで持たないため、case を追加するだけで追随する。"
+      },
+      {
+        "id": "stack-composition-completeness",
+        "exhaustivenessProven": false,
+        "coveredCaseCount": 4,
+        "provenMinimumDepth": 2,
+        "statement": "stackCompositionCases の 4 件が等価分割の全件であることは示していない。示せるのは、この 4 件を覆う最小深さが 2 であることまでである。"
+      }
+    ],
     "result": {
-      "requiredScenarioMaximum": 4,
-      "stackCompositionMinimumDepth": 2,
-      "historyDepth": 4
+      "historyDepthFrom": "formula"
     }
   },
   "caseSets": {
@@ -353,6 +374,9 @@
   "manualReview": {
     "subject": "導出の意味レビュー",
     "judge": "山田正輝",
-    "status": "pending"
+    "status": "approved",
+    "date": "2026-09-18",
+    "condition": "derivation.limitations の 3 件を資産へ明記することを条件とした条件付き承認。条件は充足済み。",
+    "evidence": "backend/domain/history-depth.json の derivation"
   }
 }

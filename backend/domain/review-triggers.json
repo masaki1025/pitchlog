@@ -220,7 +220,9 @@
       ],
       "evidenceLocation": "backend/domain/manifest.schema.json",
       "firingCondition": "PO が「決められない」と判定",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 11,
@@ -239,7 +241,9 @@
       ],
       "evidenceLocation": "backend/domain/manifest.schema.json",
       "firingCondition": "分担合意が得られない",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 12,
