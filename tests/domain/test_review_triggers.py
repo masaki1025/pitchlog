@@ -361,16 +361,16 @@ def test_nonexistent_evaluation_step_is_rejected(
     registry: dict[str, Any], steps_source: dict[str, Any]
 ) -> None:
     mutated = copy.deepcopy(registry)
-    mutated["triggers"][0]["evaluationSteps"].append(57)
+    mutated["triggers"][0]["evaluationSteps"].append(58)
 
-    with pytest.raises(AssertionError, match="57"):
+    with pytest.raises(AssertionError, match="58"):
         _assert_evaluation_steps_exist(mutated, steps_source)
 
 
 def test_deadline_before_last_evaluation_step_is_rejected(registry: dict[str, Any]) -> None:
     mutated = copy.deepcopy(registry)
     trigger_five = next(trigger for trigger in mutated["triggers"] if trigger["id"] == 5)
-    trigger_five["evaluationDeadline"] = 47
+    trigger_five["evaluationDeadline"] = 48
 
     with pytest.raises(AssertionError, match="トリガー 5"):
         _assert_deadlines_match_last_evaluation_step(mutated)

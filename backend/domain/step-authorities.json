@@ -146,6 +146,12 @@
       "verbatim": "| **正本の射程** |"
     },
     {
+      "id": "ADR-003 D-1 正本の射程行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **正本の射程** |"
+    },
+    {
       "id": "ADR-003 D-1 target matrix 行",
       "source": "docs/adr/ADR-003-domain-calc-method.md",
       "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
@@ -381,6 +387,18 @@
     {
       "stepId": 13,
       "authorities": [
+        "ADR-003 D-1 正本の射程行",
+        "付録A-1 表示書式の共通規定"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "backend/domain/",
+        "tests/domain/"
+      ]
+    },
+    {
+      "stepId": 14,
+      "authorities": [
         "NFR-018 対象欄",
         "FR-040 状態補正"
       ],
@@ -391,7 +409,7 @@
       ]
     },
     {
-      "stepId": 14,
+      "stepId": 15,
       "authorities": [
         "NFR-018 (e) BOOT-SEAL",
         "NFR-018 (b)② 差分の検出可能性",
@@ -404,7 +422,7 @@
       ]
     },
     {
-      "stepId": 15,
+      "stepId": 16,
       "authorities": [
         "NFR-018 (e) BOOT-SEAL-BASE",
         "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
@@ -417,7 +435,7 @@
       ]
     },
     {
-      "stepId": 16,
+      "stepId": 17,
       "authorities": [
         "NFR-018 (e) BOOT-STALL",
         "NFR-018 (e) BOOT-REAPPROVAL"
@@ -429,7 +447,7 @@
       ]
     },
     {
-      "stepId": 17,
+      "stepId": 18,
       "authorities": [
         "NFR-018 (e) BOOT-GRANT",
         "NFR-018 (e) BOOT-ACTIVATION"
@@ -441,7 +459,7 @@
       ]
     },
     {
-      "stepId": 18,
+      "stepId": 19,
       "authorities": [
         "NFR-018 (e) BOOT-REPORT",
         "NFR-018 (e) BOOT-NO-CLAIM"
@@ -453,7 +471,7 @@
       ]
     },
     {
-      "stepId": 19,
+      "stepId": 20,
       "authorities": [
         "NFR-018 (e) BOOT-SEAL",
         "NFR-018 (e) BOOT-STATE",
@@ -475,7 +493,7 @@
       ]
     },
     {
-      "stepId": 20,
+      "stepId": 21,
       "authorities": [
         "NFR-018 (e) BOOT-STATE",
         "NFR-018 (e) BOOT-PROGRAM",
@@ -489,7 +507,7 @@
       ]
     },
     {
-      "stepId": 21,
+      "stepId": 22,
       "authorities": [
         "NFR-018 (e) BOOT-SEAL",
         "NFR-018 (e) BOOT-SEAL-BASE",
@@ -503,7 +521,7 @@
       ]
     },
     {
-      "stepId": 22,
+      "stepId": 23,
       "authorities": [
         "NFR-018 (e) BOOT-STATE",
         "NFR-018 (e) BOOT-REAPPROVAL",
@@ -519,7 +537,7 @@
       ]
     },
     {
-      "stepId": 23,
+      "stepId": 24,
       "authorities": [
         "NFR-018 (e) BOOT-PROGRAM",
         "NFR-018 (e) BOOT-STALL",
@@ -532,7 +550,7 @@
       ]
     },
     {
-      "stepId": 24,
+      "stepId": 25,
       "authorities": [
         "NFR-018 (e) BOOT-GRANT",
         "NFR-018 (e) BOOT-ACTIVATION"
@@ -544,7 +562,7 @@
       ]
     },
     {
-      "stepId": 25,
+      "stepId": 26,
       "authorities": [
         "NFR-018 (a) 実装の単一性",
         "ADR-003 D-1 射程行",
@@ -557,7 +575,7 @@
       ]
     },
     {
-      "stepId": 26,
+      "stepId": 27,
       "authorities": [
         "ADR-003 D-1 target matrix 行"
       ],
@@ -568,7 +586,7 @@
       ]
     },
     {
-      "stepId": 27,
+      "stepId": 28,
       "authorities": [
         "ADR-003 D-1 射程行",
         "ADR-003 D-11 3 層表 プロパティ層"
@@ -580,7 +598,7 @@
       ]
     },
     {
-      "stepId": 28,
+      "stepId": 29,
       "authorities": [
         "ADR-003 D-1 生成前検査行"
       ],
@@ -591,7 +609,7 @@
       ]
     },
     {
-      "stepId": 29,
+      "stepId": 30,
       "authorities": [
         "ADR-003 D-1 target matrix 行",
         "ADR-003 D-11 3 層表 ベクタ層"
@@ -603,7 +621,7 @@
       ]
     },
     {
-      "stepId": 30,
+      "stepId": 31,
       "authorities": [
         "ADR-003 D-11 3 層表 ベクタ層"
       ],
@@ -614,7 +632,7 @@
       ]
     },
     {
-      "stepId": 31,
+      "stepId": 32,
       "authorities": [
         "ADR-003 D-11 3 層表 ベクタ層"
       ],
@@ -625,7 +643,7 @@
       ]
     },
     {
-      "stepId": 32,
+      "stepId": 33,
       "authorities": [
         "ADR-003 D-11 3 層表 ベクタ層"
       ],
@@ -636,7 +654,7 @@
       ]
     },
     {
-      "stepId": 33,
+      "stepId": 34,
       "authorities": [
         "ADR-003 D-6 契約分類",
         "ADR-003 D-11 3 層表 ベクタ層"
@@ -648,7 +666,7 @@
       ]
     },
     {
-      "stepId": 34,
+      "stepId": 35,
       "authorities": [
         "ADR-003 D-11 入力範囲表"
       ],
@@ -659,7 +677,7 @@
       ]
     },
     {
-      "stepId": 35,
+      "stepId": 36,
       "authorities": [
         "ADR-003 D-11 3 層表 プロパティ層"
       ],
@@ -670,7 +688,7 @@
       ]
     },
     {
-      "stepId": 36,
+      "stepId": 37,
       "authorities": [
         "ADR-003 D-11 3 層表 プロパティ層"
       ],
@@ -681,7 +699,7 @@
       ]
     },
     {
-      "stepId": 37,
+      "stepId": 38,
       "authorities": [
         "ADR-003 D-11 3 層表 プロパティ層"
       ],
@@ -692,7 +710,7 @@
       ]
     },
     {
-      "stepId": 38,
+      "stepId": 39,
       "authorities": [
         "ADR-003 D-11 変異テスト規則"
       ],
@@ -703,7 +721,7 @@
       ]
     },
     {
-      "stepId": 39,
+      "stepId": 40,
       "authorities": [
         "ADR-003 D-11 変異テスト規則"
       ],
@@ -714,7 +732,7 @@
       ]
     },
     {
-      "stepId": 40,
+      "stepId": 41,
       "authorities": [
         "ADR-003 D-11 変異テスト規則"
       ],
@@ -725,7 +743,7 @@
       ]
     },
     {
-      "stepId": 41,
+      "stepId": 42,
       "authorities": [
         "ADR-003 D-11 変異テスト規則",
         "ADR-003 D-7 実行契機表"
@@ -737,7 +755,7 @@
       ]
     },
     {
-      "stepId": 42,
+      "stepId": 43,
       "authorities": [
         "ADR-003 D-11 変異テスト規則"
       ],
@@ -748,7 +766,7 @@
       ]
     },
     {
-      "stepId": 43,
+      "stepId": 44,
       "authorities": [
         "ADR-003 D-3 同一コミット",
         "NFR-018 (b)① 乖離検出"
@@ -760,7 +778,7 @@
       ]
     },
     {
-      "stepId": 44,
+      "stepId": 45,
       "authorities": [
         "NFR-018 (b)③ 構成の完全性",
         "ADR-003 D-11 構成の完全性"
@@ -774,7 +792,7 @@
       ]
     },
     {
-      "stepId": 45,
+      "stepId": 46,
       "authorities": [
         "NFR-018 (b)③ 構成の完全性",
         "ADR-003 D-11 構成の完全性",
@@ -788,7 +806,7 @@
       ]
     },
     {
-      "stepId": 46,
+      "stepId": 47,
       "authorities": [
         "NFR-018 (b)③ 構成の完全性",
         "ADR-003 D-11 構成の完全性"
@@ -800,7 +818,7 @@
       ]
     },
     {
-      "stepId": 47,
+      "stepId": 48,
       "authorities": [
         "NFR-018 (b)③ 構成の完全性",
         "ADR-003 D-11 構成の完全性",
@@ -813,7 +831,7 @@
       ]
     },
     {
-      "stepId": 48,
+      "stepId": 49,
       "authorities": [
         "ADR-003 D-11 変異テスト規則",
         "ADR-003 D-7 実行契機表"
@@ -825,7 +843,7 @@
       ]
     },
     {
-      "stepId": 49,
+      "stepId": 50,
       "authorities": [
         "NFR-018 (b) 宣言と機械判定",
         "NFR-018 (e) BOOT-ACTIVATION"
@@ -837,7 +855,7 @@
       ]
     },
     {
-      "stepId": 50,
+      "stepId": 51,
       "authorities": [
         "設計書 6.1 段階実装"
       ],
@@ -850,7 +868,7 @@
       ]
     },
     {
-      "stepId": 51,
+      "stepId": 52,
       "authorities": [
         "設計書 6.1 段階実装"
       ],
@@ -860,7 +878,7 @@
       ]
     },
     {
-      "stepId": 52,
+      "stepId": 53,
       "authorities": [
         "NFR-019 (a) 一致性テスト",
         "ADR-003 D-7 実行契機表",
@@ -873,7 +891,7 @@
       ]
     },
     {
-      "stepId": 53,
+      "stepId": 54,
       "authorities": [
         "ADR-003 D-1 置き場行"
       ],
@@ -885,7 +903,7 @@
       ]
     },
     {
-      "stepId": 54,
+      "stepId": 55,
       "authorities": [
         "NFR-018 (e) BOOT-ACTIVATION",
         "設計書 10.1 CI ジョブ",
@@ -900,7 +918,7 @@
       ]
     },
     {
-      "stepId": 55,
+      "stepId": 56,
       "authorities": [
         "設計書 6.3 コア領域"
       ],
@@ -911,7 +929,7 @@
       ]
     },
     {
-      "stepId": 56,
+      "stepId": 57,
       "authorities": [
         "設計書 6.3 コア領域"
       ],

@@ -172,10 +172,10 @@ def test_all_steps_machine_criteria_use_only_declared_types(
     marker = conditions["criteriaScan"]["mechanicalMarker"]
     found, mechanical_criteria = _extract_condition_type_names(steps, allowed, marker)
 
-    assert steps["expected_total"] == 56
-    assert len(steps["steps"]) == 56
-    assert mechanical_criteria == 56
-    assert sum(found.values()) == 65
+    assert steps["expected_total"] == 57
+    assert len(steps["steps"]) == 57
+    assert mechanical_criteria == 57
+    assert sum(found.values()) == 68
     assert len(found) == 10
     _assert_scanned_types_are_known(set(found), allowed)
 

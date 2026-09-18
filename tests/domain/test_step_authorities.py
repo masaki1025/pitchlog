@@ -122,15 +122,15 @@ def _assert_no_line_number_references(asset: dict[str, Any]) -> None:
 
 
 def _assert_complete_step_population(asset: dict[str, Any], source: dict[str, Any]) -> None:
-    """台帳が全 56 ステップを一度ずつ宣言することを検査する。"""
-    expected_ids = set(range(1, 57))
+    """台帳が全 57 ステップを一度ずつ宣言することを検査する。"""
+    expected_ids = set(range(1, 58))
     source_ids = [step["id"] for step in source["steps"]]
     actual_ids = [row.get("stepId") for row in asset["steps"]]
 
-    assert source["expected_total"] == 56
-    assert len(source_ids) == 56
+    assert source["expected_total"] == 57
+    assert len(source_ids) == 57
     assert set(source_ids) == expected_ids
-    assert len(asset["steps"]) == 56
+    assert len(asset["steps"]) == 57
 
     missing = expected_ids - set(actual_ids)
     unexpected = set(actual_ids) - expected_ids
@@ -196,7 +196,7 @@ def test_registry_has_no_line_number_references(registry: dict[str, Any]) -> Non
     _assert_no_line_number_references(registry)
 
 
-def test_registry_has_exactly_all_fifty_six_steps(
+def test_registry_has_exactly_all_fifty_seven_steps(
     registry: dict[str, Any], steps_source: dict[str, Any]
 ) -> None:
     _assert_complete_step_population(registry, steps_source)
@@ -247,9 +247,9 @@ def test_missing_step_is_rejected(
     registry: dict[str, Any], steps_source: dict[str, Any]
 ) -> None:
     mutated = copy.deepcopy(registry)
-    mutated["steps"] = [row for row in mutated["steps"] if row["stepId"] != 56]
+    mutated["steps"] = [row for row in mutated["steps"] if row["stepId"] != 57]
 
-    with pytest.raises(AssertionError, match="56"):
+    with pytest.raises(AssertionError, match="57"):
         _assert_complete_step_population(mutated, steps_source)
 
 

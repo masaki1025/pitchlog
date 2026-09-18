@@ -60,7 +60,7 @@ def test_fired_record_exits_two(
 ) -> None:
     asset = _all_evaluated(registry)
     asset["triggers"][0]["evaluation"] = {"fired": True}
-    result = _run_gate(_write_registry(tmp_path, asset), step=56)
+    result = _run_gate(_write_registry(tmp_path, asset), step=57)
 
     assert result.returncode == 2
 
@@ -71,7 +71,7 @@ def test_unevaluated_before_deadline_exits_zero(
     asset = _all_evaluated(registry)
     trigger_five = next(trigger for trigger in asset["triggers"] if trigger["id"] == 5)
     trigger_five["evaluation"] = None
-    result = _run_gate(_write_registry(tmp_path, asset), step=47)
+    result = _run_gate(_write_registry(tmp_path, asset), step=48)
 
     assert result.returncode == 0
 
@@ -82,7 +82,7 @@ def test_unevaluated_at_deadline_exits_zero(
     asset = _all_evaluated(registry)
     trigger_five = next(trigger for trigger in asset["triggers"] if trigger["id"] == 5)
     trigger_five["evaluation"] = None
-    result = _run_gate(_write_registry(tmp_path, asset), step=48)
+    result = _run_gate(_write_registry(tmp_path, asset), step=49)
 
     assert result.returncode == 0
 
@@ -93,7 +93,7 @@ def test_overdue_unevaluated_trigger_exits_two(
     asset = _all_evaluated(registry)
     trigger_five = next(trigger for trigger in asset["triggers"] if trigger["id"] == 5)
     trigger_five["evaluation"] = None
-    result = _run_gate(_write_registry(tmp_path, asset), step=49)
+    result = _run_gate(_write_registry(tmp_path, asset), step=50)
 
     assert result.returncode == 2
 
@@ -102,7 +102,7 @@ def test_no_firing_or_overdue_evaluation_exits_zero(
     tmp_path: Path, registry: dict[str, Any]
 ) -> None:
     asset = _all_evaluated(registry)
-    result = _run_gate(_write_registry(tmp_path, asset), step=56)
+    result = _run_gate(_write_registry(tmp_path, asset), step=57)
 
     assert result.returncode == 0
 
@@ -112,7 +112,7 @@ def test_invalid_registry_schema_exits_one(
 ) -> None:
     asset = _all_evaluated(registry)
     asset["triggers"][0]["evaluation"] = {"fired": "yes"}
-    result = _run_gate(_write_registry(tmp_path, asset), step=56)
+    result = _run_gate(_write_registry(tmp_path, asset), step=57)
 
     assert result.returncode == 1
 
