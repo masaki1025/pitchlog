@@ -1,0 +1,426 @@
+{
+  "schema_version": 1,
+  "contract_revision": 1,
+  "asset_kind": "cache_invalidation_contract",
+  "canonicalization": "json-sort-keys-utf8-v1",
+  "source_digest": "44042ef9abf61e264ea8529cc0c203b476f6d2a4129a6963e7536c46a59af907",
+  "source": {
+    "document": "docs/design/data-model.md",
+    "section": "11-2",
+    "requirements_section": "6.2"
+  },
+  "api": {
+    "kind": "pure_request_factory",
+    "provider_module": "pitchlog.repositories.cache_invalidation",
+    "factory_symbol": "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request",
+    "public_symbols": [
+      "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+      "pitchlog.repositories.cache_invalidation.AnalyticsChartSubject",
+      "pitchlog.repositories.cache_invalidation.CacheInvalidationKey",
+      "pitchlog.repositories.cache_invalidation.CacheInvalidationRequest",
+      "pitchlog.repositories.cache_invalidation.CacheInvalidationTrigger",
+      "pitchlog.repositories.cache_invalidation.CachePeriod",
+      "pitchlog.repositories.cache_invalidation.CachePropagationMode",
+      "pitchlog.repositories.cache_invalidation.CacheScope",
+      "pitchlog.repositories.cache_invalidation.MatchCacheKey",
+      "pitchlog.repositories.cache_invalidation.MatchChartSubject",
+      "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+      "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
+      "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request"
+    ],
+    "condition4_allowed_call_symbols": [
+      "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+      "pitchlog.repositories.cache_invalidation.CachePeriod",
+      "pitchlog.repositories.cache_invalidation.MatchCacheKey",
+      "pitchlog.repositories.cache_invalidation.MatchChartSubject",
+      "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+      "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
+      "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request"
+    ],
+    "owns_trigger_emission": false,
+    "writes_persistent_intents": false,
+    "tsk_424_capability_dependency": false
+  },
+  "scopes": [
+    {
+      "id": "match",
+      "ordinal": 1,
+      "source_column": "① 試合",
+      "source_label": "試合単位の集計",
+      "propagation_rule": "owner_tenant",
+      "key_variant": "match"
+    },
+    {
+      "id": "player_career",
+      "ordinal": 2,
+      "source_column": "② 選手通算",
+      "source_label": "選手単位の通算",
+      "propagation_rule": "owner_tenant",
+      "key_variant": "player_career"
+    },
+    {
+      "id": "team_aggregate",
+      "ordinal": 3,
+      "source_column": "③ チーム",
+      "source_label": "チーム単位の集計",
+      "propagation_rule": "owner_tenant",
+      "key_variant": "team_aggregate"
+    },
+    {
+      "id": "shared_aggregate",
+      "ordinal": 4,
+      "source_column": "④ 共有",
+      "source_label": "共有集計",
+      "propagation_rule": "group_effective_participants",
+      "key_variant": "shared_aggregate"
+    },
+    {
+      "id": "analytics_chart",
+      "ordinal": 5,
+      "source_column": "⑤ チャート",
+      "source_label": "分析チャート",
+      "propagation_rule": "owner_tenant",
+      "key_variant": "analytics_chart"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "restored_sync",
+      "ordinal": 1,
+      "source_label": "復帰同期",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "play_correction",
+      "ordinal": 2,
+      "source_label": "プレイ修正",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "undo",
+      "ordinal": 3,
+      "source_label": "undo",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "substitution_record_or_correction",
+      "ordinal": 4,
+      "source_label": "交代の記録 / 修正",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "game_delete_restore_or_resume",
+      "ordinal": 5,
+      "source_label": "試合の削除 / 復元 / 再開",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "postgame_correction",
+      "ordinal": 6,
+      "source_label": "終了後修正",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "player_merge_or_split",
+      "ordinal": 7,
+      "source_label": "選手統合 / 分割",
+      "scope_ids": [
+        "match",
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "setting_change",
+      "ordinal": 8,
+      "source_label": "設定値変更",
+      "scope_ids": [
+        "player_career",
+        "team_aggregate",
+        "shared_aggregate",
+        "analytics_chart"
+      ]
+    },
+    {
+      "id": "grant_flag_change",
+      "ordinal": 9,
+      "source_label": "付与フラグの変更",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    },
+    {
+      "id": "group_departure",
+      "ordinal": 10,
+      "source_label": "グループからの離脱",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    },
+    {
+      "id": "group_end",
+      "ordinal": 11,
+      "source_label": "グループの終了",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    },
+    {
+      "id": "tenant_disable",
+      "ordinal": 12,
+      "source_label": "テナントの無効化",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    },
+    {
+      "id": "tenant_reenable",
+      "ordinal": 13,
+      "source_label": "テナントの再有効化",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    },
+    {
+      "id": "roster_status_change",
+      "ordinal": 14,
+      "source_label": "選手の在籍区分の変更(FR-017)",
+      "scope_ids": [
+        "shared_aggregate"
+      ]
+    }
+  ],
+  "excluded_triggers": [
+    {
+      "id": "invitation_revocation",
+      "source_label": "招待の失効",
+      "reason": "権限の撤回ではないため"
+    }
+  ],
+  "propagation": {
+    "definition_authority": {
+      "source": "docs/design/data-model.md#11-2",
+      "exclusive": true
+    },
+    "scope_rules": {
+      "owner_tenant": {
+        "scope_ids": [
+          "match",
+          "player_career",
+          "team_aggregate",
+          "analytics_chart"
+        ],
+        "selector": "data_owner_tenant",
+        "requires_effective_participation": false
+      },
+      "group_effective_participants": {
+        "scope_ids": [
+          "shared_aggregate"
+        ],
+        "selector": "group_effective_participant_tenants"
+      }
+    },
+    "system_non_tenant_changes": {
+      "change_kinds": [
+        "system_setting",
+        "system_fixed_vocabulary"
+      ],
+      "actor": "system_administrator",
+      "has_self_tenant": false,
+      "selector": "all_tenants_holding_aggregates_with_that_input",
+      "default": "all_tenants",
+      "narrowing_predicate": null,
+      "requires_effective_participation": false
+    },
+    "participation_state_changes": {
+      "trigger_ids": [
+        "group_departure",
+        "group_end",
+        "tenant_disable",
+        "tenant_reenable"
+      ],
+      "selector": "union_of_effective_participants_before_and_after",
+      "post_state_only": false
+    }
+  },
+  "physical_key_adt": {
+    "discriminator": "kind",
+    "tenant_or_group_prefix_required": true,
+    "cross_tenant_key_deletion_path_allowed": false,
+    "variants": [
+      {
+        "kind": "match",
+        "scope_id": "match",
+        "python_type": "pitchlog.repositories.cache_invalidation.MatchCacheKey",
+        "fields": [
+          [
+            "tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "match_id",
+            "uuid.UUID"
+          ]
+        ],
+        "source_unit": "(tenant_id, 試合)"
+      },
+      {
+        "kind": "player_career",
+        "scope_id": "player_career",
+        "python_type": "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+        "fields": [
+          [
+            "tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "player_id",
+            "uuid.UUID"
+          ],
+          [
+            "period",
+            "pitchlog.repositories.cache_invalidation.CachePeriod"
+          ]
+        ],
+        "source_unit": "(tenant_id, 選手, 期間)"
+      },
+      {
+        "kind": "team_aggregate",
+        "scope_id": "team_aggregate",
+        "python_type": "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+        "fields": [
+          [
+            "tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "period",
+            "pitchlog.repositories.cache_invalidation.CachePeriod"
+          ]
+        ],
+        "source_unit": "(tenant_id, 期間)"
+      },
+      {
+        "kind": "shared_aggregate",
+        "scope_id": "shared_aggregate",
+        "python_type": "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+        "fields": [
+          [
+            "group_id",
+            "uuid.UUID"
+          ],
+          [
+            "requester_tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "target_tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "period",
+            "pitchlog.repositories.cache_invalidation.CachePeriod"
+          ]
+        ],
+        "source_unit": "(グループ, 要求元テナント, 対象テナント, 期間)"
+      },
+      {
+        "kind": "analytics_chart",
+        "scope_id": "analytics_chart",
+        "python_type": "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+        "fields": [
+          [
+            "tenant_id",
+            "uuid.UUID"
+          ],
+          [
+            "subject",
+            "pitchlog.repositories.cache_invalidation.AnalyticsChartSubject"
+          ],
+          [
+            "chart_kind",
+            "builtins.str"
+          ]
+        ],
+        "source_unit": "(tenant_id, 選手または試合, チャート種別)"
+      }
+    ]
+  },
+  "durable_intent": {
+    "required": true,
+    "storage_kind": "cache_invalidation_intent_table",
+    "rows_per_trigger": 1,
+    "same_transaction_with": "T7",
+    "uniqueness_fields": [
+      "tenant_id",
+      "intent_id"
+    ],
+    "intent_id_derivation": [
+      "target_event_v10",
+      "target_confirmed_version"
+    ],
+    "delivery_states": [
+      "pending",
+      "completed"
+    ],
+    "retry": "idempotent_until_completed",
+    "saved_result_replay_creates_duplicate": false,
+    "pending_lookup_fields": [
+      "tenant_id",
+      "delivery_state"
+    ],
+    "physical_delete": false,
+    "restoration_coordination": {
+      "delivery_may_be_deferred": true,
+      "intent_persistence_may_be_deferred": false
+    }
+  },
+  "trigger_emission": {
+    "owned_by_this_unit": false,
+    "canonical_source": "docs/design/sync-protocol.md#8-5",
+    "downstream_owners": "U-D1 and the units that own each triggering operation"
+  },
+  "preaggregation_independent": true
+}

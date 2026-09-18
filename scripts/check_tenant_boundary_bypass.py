@@ -23,6 +23,9 @@ DEFAULT_NEGATIVE_FIXTURES = Path(
 DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
     "contracts/tenant_boundary/tenant-context-allowlist.json"
 )
+DEFAULT_CACHE_INVALIDATION_CONTRACT = Path(
+    "contracts/tenant_boundary/cache-invalidation-contract.json"
+)
 EXPECTED_DIFF_COMMAND = (
     "git",
     "diff",
@@ -103,6 +106,16 @@ class TenantContextConstructionContract:
 
 
 @dataclass(frozen=True)
+class CacheInvalidationBypassContract:
+    """条件 4 で参照・呼び出しを許す単一 API 境界を表す。"""
+
+    provider_module: str
+    factory_symbol: str
+    public_symbols: frozenset[str]
+    allowed_call_symbols: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -111,6 +124,7 @@ class Contract:
     rules: tuple[ConditionRule, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
+    cache_invalidation: CacheInvalidationBypassContract
 
 
 @dataclass(frozen=True, order=True)
@@ -604,6 +618,129 @@ def _load_tenant_context_allowlist(
     )
 
 
+def _load_cache_invalidation_bypass_contract(
+    value: dict[str, Any],
+) -> CacheInvalidationBypassContract:
+    """条件 4 の許可側をキャッシュ無効化契約資産から読む。
+
+    Args:
+        value: JSON 資産から読んだオブジェクト。
+
+    Returns:
+        検証済みの条件 4 許可契約。
+
+    Raises:
+        ContractError: 資産・digest・純粋 API 境界が不正な場合。
+    """
+    _strict_keys(
+        value,
+        {
+            "schema_version",
+            "contract_revision",
+            "asset_kind",
+            "canonicalization",
+            "source_digest",
+            "source",
+            "api",
+            "scopes",
+            "triggers",
+            "excluded_triggers",
+            "propagation",
+            "physical_key_adt",
+            "durable_intent",
+            "trigger_emission",
+            "preaggregation_independent",
+        },
+        "cache-invalidation-contract.json",
+    )
+    if _integer(value["schema_version"], "cache.schema_version") != 1:
+        raise ContractError("cache.schema_version は 1 でなければならない")
+    if _integer(value["contract_revision"], "cache.contract_revision") < 1:
+        raise ContractError("cache.contract_revision は 1 以上が必要")
+    if (
+        _string(value["asset_kind"], "cache.asset_kind")
+        != "cache_invalidation_contract"
+    ):
+        raise ContractError("cache.asset_kind が固定値と不一致")
+    if (
+        _string(value["canonicalization"], "cache.canonicalization")
+        != "json-sort-keys-utf8-v1"
+    ):
+        raise ContractError("cache.canonicalization が固定値と不一致")
+
+    expected_digest = _string(value["source_digest"], "cache.source_digest")
+    digest_payload = dict(value)
+    digest_payload.pop("source_digest")
+    serialized = json.dumps(
+        digest_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    actual_digest = hashlib.sha256(serialized).hexdigest()
+    if expected_digest != actual_digest:
+        raise ContractError(
+            "キャッシュ無効化契約の封印値が不一致: "
+            f"expected={expected_digest}, actual={actual_digest}"
+        )
+
+    api = _object(value["api"], "cache.api")
+    _strict_keys(
+        api,
+        {
+            "kind",
+            "provider_module",
+            "factory_symbol",
+            "public_symbols",
+            "condition4_allowed_call_symbols",
+            "owns_trigger_emission",
+            "writes_persistent_intents",
+            "tsk_424_capability_dependency",
+        },
+        "cache.api",
+    )
+    if _string(api["kind"], "cache.api.kind") != "pure_request_factory":
+        raise ContractError("条件 4 の許可 API は純粋な要求生成器だけを許す")
+    for field in (
+        "owns_trigger_emission",
+        "writes_persistent_intents",
+        "tsk_424_capability_dependency",
+    ):
+        if api[field] is not False:
+            raise ContractError(f"cache.api.{field} は false が必要")
+
+    provider_module = _string(
+        api["provider_module"], "cache.api.provider_module"
+    )
+    public_symbols = frozenset(
+        _string_array(api["public_symbols"], "cache.api.public_symbols")
+    )
+    allowed_calls = frozenset(
+        _string_array(
+            api["condition4_allowed_call_symbols"],
+            "cache.api.condition4_allowed_call_symbols",
+        )
+    )
+    factory_symbol = _string(
+        api["factory_symbol"], "cache.api.factory_symbol"
+    )
+    if not public_symbols or not allowed_calls:
+        raise ContractError("条件 4 の公開シンボルと許可呼び出しは空にできない")
+    if allowed_calls - public_symbols or factory_symbol not in allowed_calls:
+        raise ContractError("条件 4 の許可呼び出しは公開 API の部分集合が必要")
+    if any(
+        not symbol.startswith(f"{provider_module}.")
+        for symbol in public_symbols
+    ):
+        raise ContractError("条件 4 の公開シンボルが単一 provider 外を参照")
+    return CacheInvalidationBypassContract(
+        provider_module=provider_module,
+        factory_symbol=factory_symbol,
+        public_symbols=public_symbols,
+        allowed_call_symbols=allowed_calls,
+    )
+
+
 def load_contract(repository_root: Path) -> Contract:
     """リポジトリから迂回検査契約を読む。
 
@@ -622,12 +759,18 @@ def load_contract(repository_root: Path) -> Contract:
     tenant_context_value, _ = _read_json(
         repository_root / DEFAULT_TENANT_CONTEXT_ALLOWLIST
     )
+    cache_invalidation_value, _ = _read_json(
+        repository_root / DEFAULT_CACHE_INVALIDATION_CONTRACT
+    )
     apis = _load_inventory(inventory_value)
     allowed_symbols, rules = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
     negative_fixtures = _load_negative_fixtures(negative_value)
     tenant_context = _load_tenant_context_allowlist(tenant_context_value)
+    cache_invalidation = _load_cache_invalidation_bypass_contract(
+        cache_invalidation_value
+    )
 
     declared_positive = {item.fixture for item in allowed_symbols}
     positive_root = repository_root / "tests/fixtures/tenant_boundary/positive"
@@ -660,6 +803,7 @@ def load_contract(repository_root: Path) -> Contract:
         rules=rules,
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
+        cache_invalidation=cache_invalidation,
     )
 
 
@@ -850,12 +994,34 @@ class _SourceScanner(ast.NodeVisitor):
             )
         )
 
-    def _check_identifier(self, text: str, node: ast.AST) -> None:
+    def _condition4_reference_allowed(self, text: str) -> bool:
+        """条件 4 の公開型・enum 参照に限って許可する。"""
+        boundary = self.contract.cache_invalidation
+        if text == boundary.factory_symbol:
+            return False
+        return any(
+            text == symbol or text.startswith(f"{symbol}.")
+            for symbol in boundary.public_symbols
+        )
+
+    def _check_identifier(
+        self,
+        text: str,
+        node: ast.AST,
+        *,
+        allow_condition4: bool = False,
+    ) -> None:
         if not self._is_changed(node):
             return
         candidates = {_normalize_identifier(text)}
         candidates.update(_normalize_identifier(part) for part in text.split("."))
         for rule in self.contract.rules:
+            if rule.condition == 4 and (
+                allow_condition4
+                or self.module
+                == self.contract.cache_invalidation.provider_module
+            ):
+                continue
             for candidate in candidates:
                 if any(pattern.search(candidate) for pattern in rule.patterns):
                     self._add(
@@ -981,9 +1147,40 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
         """from import のモジュール名・シンボル名・別名を照合する。"""
         if node.module is not None:
-            self._check_identifier(node.module, node)
+            provider_module = self.contract.cache_invalidation.provider_module
+            self._check_identifier(
+                node.module,
+                node,
+                allow_condition4=node.module == provider_module,
+            )
         for alias in node.names:
-            self._check_identifier(alias.name, node)
+            imported_symbol = (
+                f"{node.module}.{alias.name}"
+                if node.module is not None
+                else alias.name
+            )
+            import_is_allowed = (
+                imported_symbol
+                in self.contract.cache_invalidation.public_symbols
+            )
+            if (
+                node.module
+                == self.contract.cache_invalidation.provider_module
+                and not import_is_allowed
+                and self._is_changed(node)
+            ):
+                self._add(
+                    node,
+                    condition=4,
+                    code="TB004",
+                    symbol=imported_symbol,
+                    message="条件 4 の provider から非公開シンボルを import できない",
+                )
+            self._check_identifier(
+                imported_symbol if import_is_allowed else alias.name,
+                node,
+                allow_condition4=import_is_allowed,
+            )
             if alias.asname is not None:
                 self._check_identifier(alias.asname, node)
 
@@ -1057,23 +1254,42 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
         """名前参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or node.id
-        self._check_identifier(resolved, node)
+        self._check_identifier(
+            resolved,
+            node,
+            allow_condition4=self._condition4_reference_allowed(resolved),
+        )
 
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
         """属性参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or self._raw_expression(node) or node.attr
-        self._check_identifier(resolved, node)
+        self._check_identifier(
+            resolved,
+            node,
+            allow_condition4=self._condition4_reference_allowed(resolved),
+        )
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         """呼び出しを DB API・禁止シンボル・生成箇所へ照合する。"""
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
+        condition4_call_allowed = (
+            resolved
+            in self.contract.cache_invalidation.allowed_call_symbols
+        )
         if resolved is not None:
-            self._check_identifier(resolved, node)
+            self._check_identifier(
+                resolved,
+                node,
+                allow_condition4=condition4_call_allowed,
+            )
         self._check_db_call(node)
         self._check_set_config_call(node)
         self._check_tenant_context_call(node)
-        self.generic_visit(node)
+        if not condition4_call_allowed:
+            self.visit(node.func)
+        for argument in (*node.args, *(item.value for item in node.keywords)):
+            self.visit(argument)
 
     def visit_Constant(self, node: ast.Constant) -> None:  # noqa: N802
         """SQL 文字列中の非局所 GUC 設定を検査する。"""

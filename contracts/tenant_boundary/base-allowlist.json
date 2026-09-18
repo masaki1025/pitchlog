@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 5,
+  "contract_revision": 6,
   "diff": {
     "command": [
       "git",
@@ -111,6 +111,7 @@
       "condition": 4,
       "error": "TB004",
       "patterns": [
+        "(?:^|_)cache_invalidation(?:_|$)",
         "(?:^|_)invalidate[a-z0-9_]*(?:_|$)",
         "(?:^|_)cache_clear(?:_|$)",
         "(?:^|_)evict[a-z0-9_]*(?:_|$)",

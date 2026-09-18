@@ -178,6 +178,13 @@
       "expected_error": "TB004"
     },
     {
+      "id": "C4_DIRECT_INVALIDATION_WRITE",
+      "path": "pitchlog/services/c4_direct_invalidation_write.py",
+      "condition": 4,
+      "mutation": "葉が提供 API を経由せず無効化意図の書き込み口を追加",
+      "expected_error": "TB004"
+    },
+    {
       "id": "C4_EVICT_API",
       "path": "pitchlog/services/c4_evict_api.py",
       "condition": 4,

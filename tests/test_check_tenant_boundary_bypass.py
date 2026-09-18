@@ -43,6 +43,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C3_RESPONSIBLE_PITCHER_IMPORT",
         "C3_SLG_IMPORT",
         "C4_CACHE_CLEAR_API",
+        "C4_DIRECT_INVALIDATION_WRITE",
         "C4_EVICT_API",
         "C4_INVALIDATE_API",
         "C4_PURGE_CACHE_API",
@@ -351,7 +352,10 @@ def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> N
         checker._load_tenant_context_allowlist(asset)
 
 
-@pytest.mark.parametrize("filename", ("context.py", "binding.py", "base.py"))
+@pytest.mark.parametrize(
+    "filename",
+    ("context.py", "binding.py", "base.py", "cache_invalidation.py"),
+)
 def test_tenant_repository_product_definition_passes_bypass_scan(
     filename: str,
 ) -> None:
@@ -416,6 +420,91 @@ def test_repository_base_symbol_has_only_execute_database_api() -> None:
         "operation: TenantOperationToken) -> TenantOperationResult"
     )
     assert matching_rows[0]["allowed_api_ids"] == ["SQLA_SESSION_EXECUTE"]
+
+
+def test_condition4_allows_only_the_declared_request_api_call() -> None:
+    """葉が provider の公開型と純粋要求生成器だけを利用できる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from uuid import UUID
+
+from pitchlog.repositories.cache_invalidation import (
+    CacheInvalidationRequest,
+    CacheInvalidationTrigger,
+    CachePeriod,
+    SharedAggregateCacheKey,
+    build_cache_invalidation_request,
+)
+
+
+def request_cache_refresh(
+    group_id: UUID,
+    requester_tenant_id: UUID,
+    target_tenant_id: UUID,
+) -> CacheInvalidationRequest:
+    key = SharedAggregateCacheKey(
+        group_id,
+        requester_tenant_id,
+        target_tenant_id,
+        CachePeriod(None, None),
+    )
+    return build_cache_invalidation_request(
+        CacheInvalidationTrigger.GRANT_FLAG_CHANGE,
+        (key,),
+    )
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/cache_request.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition4_rejects_nonpublic_provider_import_and_call() -> None:
+    """provider に置いただけの非公開実装を葉が迂回利用できない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.repositories.cache_invalidation import CacheInvalidationRequest
+
+
+def request_cache_refresh() -> CacheInvalidationRequest:
+    return CacheInvalidationRequest._create(
+        trigger=None,
+        keys=(),
+        propagation_mode=None,
+        affected_tenant_ids=None,
+    )
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/cache_request.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB004"}
+
+
+def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
+    """条件 4 の許可呼び出しを物理キー構築と単一 factory に閉じる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    assert contract.cache_invalidation.allowed_call_symbols == frozenset(
+        {
+            "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+            "pitchlog.repositories.cache_invalidation.CachePeriod",
+            "pitchlog.repositories.cache_invalidation.MatchCacheKey",
+            "pitchlog.repositories.cache_invalidation.MatchChartSubject",
+            "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+            "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
+            "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+            "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+            "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request",
+        }
+    )
 
 
 def test_repository_diff_is_green_before_product_code_is_added() -> None:
