@@ -20,6 +20,9 @@ DEFAULT_ALLOWLIST = Path("contracts/tenant_boundary/base-allowlist.json")
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
+DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
+    "contracts/tenant_boundary/tenant-context-allowlist.json"
+)
 EXPECTED_DIFF_COMMAND = (
     "git",
     "diff",
@@ -30,6 +33,9 @@ EXPECTED_DIFF_COMMAND = (
 )
 EXPECTED_CI_JOB = "tenant-boundary-bypass"
 EXPECTED_CI_COMMAND = "uv run python scripts/check_tenant_boundary_bypass.py"
+EXPECTED_TENANT_CONTEXT_CONSTRUCTOR = (
+    "pitchlog.repositories.context.TenantContext"
+)
 CONDITION_IDS = frozenset({1, 2, 3, 4, 5})
 SET_TENANT_RE = re.compile(
     r"\bSET\s+(?!(?:LOCAL)\b)(?:SESSION\s+)?app\.tenant_id\b", re.IGNORECASE
@@ -85,13 +91,26 @@ class NegativeFixture:
 
 
 @dataclass(frozen=True)
+class TenantContextConstructionContract:
+    """TenantContext の構築を許可するモジュール集合を表す。"""
+
+    schema_version: int
+    contract_revision: int
+    source_digest: str
+    constructor_symbol: str
+    allowed_test_modules: frozenset[str]
+    allowed_product_modules: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Contract:
-    """検査に必要な 3 資産を読み合わせた契約を表す。"""
+    """検査に必要な資産を読み合わせた契約を表す。"""
 
     apis: tuple[ApiSpec, ...]
     allowed_symbols: tuple[AllowedSymbol, ...]
     rules: tuple[ConditionRule, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
+    tenant_context: TenantContextConstructionContract
 
 
 @dataclass(frozen=True, order=True)
@@ -481,6 +500,110 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
     return tuple(fixtures)
 
 
+def _load_tenant_context_allowlist(
+    value: dict[str, Any],
+) -> TenantContextConstructionContract:
+    """TenantContext の生成箇所 allowlist を検証して読む。
+
+    Args:
+        value: JSON 資産から読んだオブジェクト。
+
+    Returns:
+        検証済みの生成箇所契約。
+
+    Raises:
+        ContractError: 資産の形式、封印値、または初期閉鎖状態が不正な場合。
+    """
+    _strict_keys(
+        value,
+        {
+            "schema_version",
+            "contract_revision",
+            "asset_kind",
+            "canonicalization",
+            "source_digest",
+            "constructor_symbol",
+            "allowed_test_modules",
+            "allowed_product_modules",
+        },
+        "tenant-context-allowlist.json",
+    )
+    schema_version = _integer(
+        value["schema_version"], "tenant_context.schema_version"
+    )
+    if schema_version != 1:
+        raise ContractError("tenant_context.schema_version は 1 でなければならない")
+    contract_revision = _integer(
+        value["contract_revision"], "tenant_context.contract_revision"
+    )
+    if contract_revision < 1:
+        raise ContractError("tenant_context.contract_revision は 1 以上が必要")
+    if (
+        _string(value["asset_kind"], "tenant_context.asset_kind")
+        != "tenant_context_construction_allowlist"
+    ):
+        raise ContractError("tenant_context.asset_kind が固定値と不一致")
+    if (
+        _string(value["canonicalization"], "tenant_context.canonicalization")
+        != "json-sort-keys-utf8-v1"
+    ):
+        raise ContractError("tenant_context.canonicalization が固定値と不一致")
+
+    expected_digest = _string(
+        value["source_digest"], "tenant_context.source_digest"
+    )
+    digest_payload = dict(value)
+    digest_payload.pop("source_digest")
+    serialized = json.dumps(
+        digest_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    actual_digest = hashlib.sha256(serialized).hexdigest()
+    if expected_digest != actual_digest:
+        raise ContractError(
+            "TenantContext allowlist の封印値が不一致: "
+            f"expected={expected_digest}, actual={actual_digest}"
+        )
+
+    constructor_symbol = _string(
+        value["constructor_symbol"], "tenant_context.constructor_symbol"
+    )
+    if constructor_symbol != EXPECTED_TENANT_CONTEXT_CONSTRUCTOR:
+        raise ContractError("TenantContext のコンストラクタシンボルが固定値と不一致")
+    allowed_test_modules = frozenset(
+        _string_array(
+            value["allowed_test_modules"], "tenant_context.allowed_test_modules"
+        )
+    )
+    if not allowed_test_modules:
+        raise ContractError("TenantContext のテスト専用生成経路は空にできない")
+    if any(
+        module == "pitchlog" or module.startswith("pitchlog.")
+        for module in allowed_test_modules
+    ):
+        raise ContractError("テスト用 allowlist に製品モジュールを置けない")
+    allowed_product_modules = frozenset(
+        _string_array(
+            value["allowed_product_modules"],
+            "tenant_context.allowed_product_modules",
+        )
+    )
+    if allowed_product_modules:
+        raise ContractError(
+            "U-A1 / TSK-217 が未導入のため製品モジュールの生成経路は 0 件が必要"
+        )
+    return TenantContextConstructionContract(
+        schema_version=schema_version,
+        contract_revision=contract_revision,
+        source_digest=expected_digest,
+        constructor_symbol=constructor_symbol,
+        allowed_test_modules=allowed_test_modules,
+        allowed_product_modules=allowed_product_modules,
+    )
+
+
 def load_contract(repository_root: Path) -> Contract:
     """リポジトリから迂回検査契約を読む。
 
@@ -496,11 +619,15 @@ def load_contract(repository_root: Path) -> Contract:
     inventory_value, inventory_bytes = _read_json(repository_root / DEFAULT_INVENTORY)
     allowlist_value, _ = _read_json(repository_root / DEFAULT_ALLOWLIST)
     negative_value, _ = _read_json(repository_root / DEFAULT_NEGATIVE_FIXTURES)
+    tenant_context_value, _ = _read_json(
+        repository_root / DEFAULT_TENANT_CONTEXT_ALLOWLIST
+    )
     apis = _load_inventory(inventory_value)
     allowed_symbols, rules = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
     negative_fixtures = _load_negative_fixtures(negative_value)
+    tenant_context = _load_tenant_context_allowlist(tenant_context_value)
 
     declared_positive = {item.fixture for item in allowed_symbols}
     positive_root = repository_root / "tests/fixtures/tenant_boundary/positive"
@@ -532,6 +659,7 @@ def load_contract(repository_root: Path) -> Contract:
         allowed_symbols=allowed_symbols,
         rules=rules,
         negative_fixtures=negative_fixtures,
+        tenant_context=tenant_context,
     )
 
 
@@ -822,6 +950,27 @@ class _SourceScanner(ast.NodeVisitor):
                     message="transaction-local でない set_config は禁止",
                 )
 
+    def _check_tenant_context_call(self, node: ast.Call) -> None:
+        """TenantContext の構築元モジュールを閉じた集合へ照合する。"""
+        if not self._is_changed(node):
+            return
+        resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
+        if resolved != self.contract.tenant_context.constructor_symbol:
+            return
+        allowed_modules = (
+            self.contract.tenant_context.allowed_test_modules
+            | self.contract.tenant_context.allowed_product_modules
+        )
+        if self.module in allowed_modules:
+            return
+        self._add(
+            node,
+            condition=5,
+            code="TB007",
+            symbol=resolved,
+            message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
+        )
+
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
         """import のモジュール名と別名を禁止語彙へ照合する。"""
         for alias in node.names:
@@ -841,6 +990,26 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """クラス内のメソッド完全修飾名を構築する。"""
         self._check_identifier(node.name, node)
+        allowed_modules = (
+            self.contract.tenant_context.allowed_test_modules
+            | self.contract.tenant_context.allowed_product_modules
+        )
+        for base in node.bases:
+            resolved = self.aliases.resolve(base) or self._raw_expression(base)
+            if (
+                self._is_changed(base)
+                and resolved == self.contract.tenant_context.constructor_symbol
+                and self.module not in allowed_modules
+            ):
+                self._add(
+                    base,
+                    condition=5,
+                    code="TB007",
+                    symbol=resolved,
+                    message=(
+                        "TenantContext は生成箇所 allowlist 外で継承できない"
+                    ),
+                )
         self.class_stack.append(node.name)
         for decorator in node.decorator_list:
             self.visit(decorator)
@@ -897,12 +1066,13 @@ class _SourceScanner(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
-        """呼び出しを DB API と禁止シンボルへ照合する。"""
+        """呼び出しを DB API・禁止シンボル・生成箇所へ照合する。"""
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
         if resolved is not None:
             self._check_identifier(resolved, node)
         self._check_db_call(node)
         self._check_set_config_call(node)
+        self._check_tenant_context_call(node)
         self.generic_visit(node)
 
     def visit_Constant(self, node: ast.Constant) -> None:  # noqa: N802

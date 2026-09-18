@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 2,
+  "contract_revision": 3,
   "diff": {
     "command": [
       "git",
@@ -38,6 +38,12 @@
         "PSYCOPG_CURSOR_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/engine/__init__.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.context.TenantContext.__init__",
+      "signature": "__init__(self, tenant_id: UUID) -> None",
+      "allowed_api_ids": [],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/context.py"
     },
     {
       "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",

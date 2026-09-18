@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import shutil
@@ -90,6 +91,19 @@ checker = _load_checker()
 def _fixture_source(path: Path) -> str:
     """fixture を UTF-8 で読む。"""
     return path.read_text(encoding="utf-8")
+
+
+def _contract_digest(value: dict[str, Any]) -> str:
+    """source_digest 欄を除く JSON 資産の正規化 digest を計算する。"""
+    payload = dict(value)
+    payload.pop("source_digest", None)
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(serialized).hexdigest()
 
 
 def test_positive_fixtures_pass() -> None:
@@ -261,6 +275,94 @@ def load(short_name: Session) -> object:
     )
 
     assert {violation.code for violation in violations} == {"TB005"}
+
+
+def test_tenant_context_construction_from_allowlisted_module_passes() -> None:
+    """allowlist 内のテストモジュールからの構築が通ることを確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    test_module = (
+        REPOSITORY_ROOT / "backend/tests/test_authz_tenant_context.py"
+    )
+
+    violations = checker.scan_source(
+        _fixture_source(test_module),
+        path=test_module.name,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.repositories.context import TenantContext
+
+context = TenantContext(tenant_id)
+""",
+        """\
+import pitchlog.repositories.context as repository_context
+
+context = repository_context.TenantContext(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext as Context
+
+context = Context(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+
+class DerivedContext(TenantContext):
+    pass
+
+
+context = DerivedContext(tenant_id)
+""",
+    ),
+)
+def test_tenant_context_construction_outside_allowlist_is_red(source: str) -> None:
+    """import 形を変えても allowlist 外からの構築を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/api/routers/example.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB007"}
+
+
+def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:
+    """認証入口の導入前に製品モジュールを許可する変異を拒否する。"""
+    asset = json.loads(
+        (
+            REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST
+        ).read_text(encoding="utf-8")
+    )
+    assert isinstance(asset, dict)
+    asset["allowed_product_modules"] = ["pitchlog.api.routers.example"]
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError, match="製品モジュールの生成経路は 0 件"):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_tenant_context_product_definition_passes_bypass_scan() -> None:
+    """型定義自体が DB 到達許可なしで迂回検査を通ることを確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_path = REPOSITORY_ROOT / "backend/src/pitchlog/repositories/context.py"
+
+    violations = checker.scan_source(
+        _fixture_source(source_path),
+        path="pitchlog/repositories/context.py",
+        contract=contract,
+    )
+
+    assert violations == []
 
 
 def test_repository_diff_is_green_before_product_code_is_added() -> None:

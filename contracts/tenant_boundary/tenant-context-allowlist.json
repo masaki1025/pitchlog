@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "contract_revision": 1,
+  "asset_kind": "tenant_context_construction_allowlist",
+  "canonicalization": "json-sort-keys-utf8-v1",
+  "source_digest": "69b2b6ad859a901c7e7582f5f408a2af16fcbe850562b6ea79eb5a68e18fe754",
+  "constructor_symbol": "pitchlog.repositories.context.TenantContext",
+  "allowed_test_modules": [
+    "test_authz_tenant_context"
+  ],
+  "allowed_product_modules": []
+}
