@@ -64,7 +64,17 @@ research.md §6-11 が **付録A の書式全 36 件がこの 3 類 + 閉じた�
 | テスト | `backend/tests/...`(検査器の単体テストはルート `tests/`) |
 
 資産を runtime で読むなら **package-data または明示パスの契約**を定め、
-**実 wheel に含まれるファイル一覧のテスト**を置く。`backend/domain/` を `[tool.ty.src] include` へ追加する
+**実 wheel に含まれるファイル一覧のテスト**を置く。
+
+> **⚠ 2026-09-18 の再調査で是正**(research.md §7-4): **旧版はここに「`backend/domain/` を
+> `[tool.ty.src] include` へ追加する(現状 `include = ["src", "tests"]` = 対象外)」と書いていたが、
+> `ty` は Python しか検査しないため JSON 資産に `include` は要らない。**
+> **`domaincheck` / `domaingen` / `domainmut` は `src` 配下なので既存の `include` で自動的に対象。**
+> **また `package-data` も `MANIFEST.in` も現状不在であり、既存の前例
+> (`backend/src/pitchlog/authz/ddl.py` が `contracts/authz/ddl-elements.json` をリポジトリルート
+> 相対パスで読む)に倣えば `pyproject.toml` の変更は不要**である。**本タスクはこの方式を採る。**
+
+旧記述(失効): `backend/domain/` を `[tool.ty.src] include` へ追加する
 (現状 `include = ["src", "tests"]` = **対象外**)。
 
 ## 2. 機械条件の判定方法(`[機械]` から意味判断を追い出す)

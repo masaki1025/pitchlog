@@ -96,7 +96,7 @@
       "id": 1,
       "group": 1,
       "title": "**配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価**",
-      "criteria": "`[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止**",
+      "criteria": "`[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **◎ 付録 A の書式 binding の母集合を、数え方の規則とともに資産へ定義する**(**複合行〔`最速・平均球速` / `勝 / 敗 / 分` / `得点 / 失点` / `イニング別得点・失点` の 4 件〕を分解するか否かを明示し、その規則で数えた件数を `assert` する** — **独立導出**。**research.md §6-11 の「全 36 件」は §7-5 で失効させた** — **要件書に件数の記載は無く、本セッションの計測は 32 行で一致しなかった**)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止**",
       "artifact": "`backend/domain/vocabulary.schema.json`",
       "command": "`uv run pytest tests/domain/test_vocabulary_schema.py`",
       "requires_positive_b": true
@@ -482,8 +482,8 @@
     {
       "id": 44,
       "group": 9,
-      "title": "**(b)③ frontend 閉域 — 依存規則**(design.md §10-1)。**ステップ 10 の収集器の実測**と `entrypoints[]` の突合 + `dependency-cruiser` + lint による動的機構の禁止 + **`src/lib/generated/` の新設**。**トリガー 6 を評価**",
-      "criteria": "`[機械]` **実在入口と `entrypoints[]` の差 1 件で fail**(**集合差**)/ **正例・負例・解析不能例の 3 通り** / **判定不能を合格にしない** / **import graph を直接読む統合テスト** / **◎ 実在入口と `entrypoints[]` が一致したとき実際に通る**(**正例 B**)",
+      "title": "**(b)③ frontend 閉域 — 依存規則**(design.md §10-1)。**ステップ 10 の収集器の実測**と `entrypoints[]` の突合 + **`dependency-cruiser` の新規導入**(**devDependency + 設定ファイルとも不在** — research.md §7-4)+ lint による動的機構の禁止 + **`src/lib/generated/` の新設**。**トリガー 6 を評価**",
+      "criteria": "`[機械]` **実在入口と `entrypoints[]` の差 1 件で fail**(**集合差**)/ **正例・負例・解析不能例の 3 通り** / **判定不能を合格にしない** / **import graph を直接読む統合テスト** / **◎ 実在入口と `entrypoints[]` が一致したとき実際に通る**(**正例 B**) / **◎ `dependency-cruiser` が `frontend/package.json` の devDependencies に追加され、`pnpm-lock.yaml` が更新されている**(**現状 import 境界を強制するプラグインが 1 つも無い** — research.md §7-4)",
       "artifact": "`frontend/.dependency-cruiser.cjs` / `frontend/src/lib/generated/`",
       "command": "`pnpm exec depcruise --validate` + `pnpm test -- --run`",
       "requires_positive_b": true
@@ -555,7 +555,7 @@
       "id": 52,
       "group": 10,
       "title": "**CI ジョブの新設と配線**(design.md §14・§4-6)。`consistency` + 変異ジョブ(別ジョブ)の新設。**§14 の所有ジョブ分離**。**両ジョブに `timeout-minutes`**。**DB を使うジョブへ `services: postgres`**。**第 4 群 9 ステップの資産を `consistency` へ配線**",
-      "criteria": "`[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ ステップ 50・51 のテストが PR 必須ジョブ ちょうど 1 件から実行される**(**集合差**。**6 周目 `P1` の是正**: 旧版は第 4 群だけを配線対象にしており、**計画書の整合検査がローカルだけで終わる構成を排除できなかった**)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**)",
+      "criteria": "`[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **◎ `backend/tests/` を DB なしで回すジョブを作らない**(**`backend/tests/db/conftest.py` の `pytest_sessionfinish` は「通常の全件実行で DB テストが 0 件なら失敗にする」** — **`backend/tests/db/` を収集対象に含む実行でのみ有効**。**§14-1〔`services: postgres` の書き忘れ〕と同型の暗黙結合**。research.md §7-4) / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ ステップ 50・51 のテストが PR 必須ジョブ ちょうど 1 件から実行される**(**集合差**。**6 周目 `P1` の是正**: 旧版は第 4 群だけを配線対象にしており、**計画書の整合検査がローカルだけで終わる構成を排除できなかった**)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**)",
       "artifact": "`.github/workflows/ci.yml` / `tests/test_ci_wiring.py`",
       "command": "`uv run pytest tests/test_ci_wiring.py`",
       "requires_positive_b": true
@@ -564,7 +564,7 @@
       "id": 53,
       "group": 10,
       "title": "**依存・lock・`ty` の対象・coverage**。`ty` の `include` / `testpaths` / package-data + 依存と lock + **`backend/.coverage` の index 除去**",
-      "criteria": "`[機械]` **`backend/domain/` が `ty check` の対象** / **`uv sync --locked` が通る**(`TSK-343` の 3 assert を通したまま再生成)/ **`backend/.coverage` が index から消え、再生成後も untracked** / **実 wheel に含まれるファイル一覧のテスト** / **◎ `uv sync --locked` と `ty check` が実際に通る**(**正例 B**)",
+      "criteria": "`[機械]` **`domaincheck` / `domaingen` / `domainmut` が `ty check` の対象**(**`src` 配下なので既存の `include = [\"src\",\"tests\"]` で自動的に入る** — **`backend/domain/` は JSON なので `ty` の対象ではない**。research.md §7-4) / **`uv sync --locked` が通る**(`TSK-343` の 3 assert を通したまま再生成)/ **`backend/.coverage` が index から消え、再生成後も untracked** / **規範資産をリポジトリルート相対パスで読む**(**既存の前例 = `backend/src/pitchlog/authz/ddl.py` が `contracts/authz/ddl-elements.json` を同方式で読む**。**この方式なら `package-data` も `MANIFEST.in` も不要** — research.md §7-4)/ **実 wheel に含まれるファイル一覧のテスト** / **◎ `uv sync --locked` と `ty check` が実際に通る**(**正例 B**)",
       "artifact": "`backend/pyproject.toml` / `backend/uv.lock`",
       "command": "`uv sync --locked` + `uv run pytest tests/test_packaging.py`",
       "requires_positive_b": true
