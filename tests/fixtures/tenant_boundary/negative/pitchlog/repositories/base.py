@@ -1,5 +1,6 @@
 """条件 5 で基底自身も除外されないことを表す負例。"""
 
+from pitchlog.repositories.context import TenantContext  # ty: ignore
 from pitchlog.repositories.tokens import (  # ty: ignore
     TenantOperationResult,
     TenantOperationToken,
@@ -16,12 +17,14 @@ class TenantRepositoryBase:
         self._session = session
 
     def _execute_operation(
-        self, operation: TenantOperationToken
+        self,
+        context: TenantContext,
+        operation: TenantOperationToken,
     ) -> TenantOperationResult:
         """非局所の GUC 設定を混入する。"""
         self._session.execute(
             text("SELECT set_config('app.tenant_id', :tenant_id, false)"),
-            {"tenant_id": operation.tenant_id},
+            {"tenant_id": context.tenant_id},
         )
         return TenantOperationResult(rows=())
 

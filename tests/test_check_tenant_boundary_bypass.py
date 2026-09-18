@@ -351,7 +351,7 @@ def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> N
         checker._load_tenant_context_allowlist(asset)
 
 
-@pytest.mark.parametrize("filename", ("context.py", "binding.py"))
+@pytest.mark.parametrize("filename", ("context.py", "binding.py", "base.py"))
 def test_tenant_repository_product_definition_passes_bypass_scan(
     filename: str,
 ) -> None:
@@ -392,6 +392,30 @@ def test_tenant_binding_symbol_has_only_required_database_apis() -> None:
         "SQLA_SESSION_EXECUTE",
         "SQLA_TEXT",
     }
+
+
+def test_repository_base_symbol_has_only_execute_database_api() -> None:
+    """基底の非公開実行器に Session.execute だけを許可する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    assert isinstance(allowlist, dict)
+    allowed_symbols = allowlist["allowed_symbols"]
+    assert isinstance(allowed_symbols, list)
+    matching_rows = [
+        row
+        for row in allowed_symbols
+        if isinstance(row, dict)
+        and row.get("symbol")
+        == "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
+    ]
+
+    assert len(matching_rows) == 1
+    assert matching_rows[0]["signature"] == (
+        "_execute_operation(self, context: TenantContext, "
+        "operation: TenantOperationToken) -> TenantOperationResult"
+    )
+    assert matching_rows[0]["allowed_api_ids"] == ["SQLA_SESSION_EXECUTE"]
 
 
 def test_repository_diff_is_green_before_product_code_is_added() -> None:

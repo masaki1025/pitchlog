@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "contract_revision": 1,
+  "asset_kind": "tenant_repository_contract",
+  "canonicalization": "json-sort-keys-utf8-v1",
+  "source_digest": "0965b10bad728bfac10f21da27b1fd721cdc16145fc5ef41a58610f6c6a051b6",
+  "public_surface": {
+    "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
+    "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
+    "cross_tenant_function_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
+    "operation_token_type": "pitchlog.repositories.tokens.TenantOperationToken",
+    "operation_result_type": "pitchlog.repositories.tokens.TenantOperationResult",
+    "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
+  },
+  "executor": {
+    "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
+    "signature": "_execute_operation(self, context: TenantContext, operation: TenantOperationToken) -> TenantOperationResult"
+  },
+  "return_contract": {
+    "allowed_dtos": [
+      "pitchlog.repositories.tokens.TenantOperationResult"
+    ],
+    "immutable_scalar_types": [
+      "builtins.NoneType",
+      "builtins.bool",
+      "builtins.int",
+      "builtins.float",
+      "builtins.str",
+      "builtins.bytes",
+      "uuid.UUID",
+      "decimal.Decimal",
+      "datetime.date",
+      "datetime.datetime",
+      "datetime.time"
+    ],
+    "immutable_container_grammar": [
+      "tuple[T, ...]",
+      "frozenset[T]"
+    ],
+    "forbidden_types": [
+      "typing.Any",
+      "builtins.object",
+      "collections.abc.Callable",
+      "collections.abc.Iterator",
+      "collections.abc.Generator",
+      "sqlalchemy.engine.Result",
+      "sqlalchemy.engine.ScalarResult",
+      "sqlalchemy.orm.Query",
+      "sqlalchemy.orm.DeclarativeBase",
+      "sqlalchemy.sql.Executable",
+      "sqlalchemy.sql.Select",
+      "sqlalchemy.sql.schema.Table",
+      "non_frozen_dataclass"
+    ]
+  },
+  "product_capability_ids": [],
+  "product_operation_token_types": [],
+  "cross_tenant_functions": []
+}

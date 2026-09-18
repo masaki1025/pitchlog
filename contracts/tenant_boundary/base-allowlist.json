@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 4,
+  "contract_revision": 5,
   "diff": {
     "command": [
       "git",
@@ -58,10 +58,9 @@
     },
     {
       "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
-      "signature": "_execute_operation(self, operation: TenantOperationToken) -> TenantOperationResult",
+      "signature": "_execute_operation(self, context: TenantContext, operation: TenantOperationToken) -> TenantOperationResult",
       "allowed_api_ids": [
-        "SQLA_SESSION_EXECUTE",
-        "SQLA_TEXT"
+        "SQLA_SESSION_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py"
     }

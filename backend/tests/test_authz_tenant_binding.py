@@ -10,6 +10,7 @@ import secrets
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, cast
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -28,9 +29,20 @@ from db_fixtures import (
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.pq import TransactionStatus
-from sqlalchemy import Connection, Engine, create_engine, event, text
+from sqlalchemy import (
+    Connection,
+    Engine,
+    bindparam,
+    column,
+    create_engine,
+    event,
+    select,
+    table,
+    text,
+)
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.authz.runtime_contract import (
@@ -42,8 +54,14 @@ from pitchlog.db.engine import (
     _verify_application_role_connection,
     create_database_engine,
 )
+from pitchlog.repositories import base as repository_base
+from pitchlog.repositories.base import (
+    TenantRepositoryBase,
+    _TenantScopedOperation,
+)
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.tokens import TenantOperationToken
 
 # DB fixture は backend/tests/conftest.py を経由せず、平場へ明示的に再公開する。
 __all__ = (
@@ -83,6 +101,15 @@ _PROBE_STATEMENT = (
     "SELECT marker FROM public.tenant_binding_probe WHERE tenant_id = :tenant_id"
 )
 _CURRENT_TENANT_STATEMENT = "SELECT current_setting('app.tenant_id', true)"
+_TENANT_BINDING_PROBE = table(
+    "tenant_binding_probe",
+    column("tenant_id"),
+    column("marker"),
+    schema="public",
+)
+_REPOSITORY_PROBE_STATEMENT = select(
+    _TENANT_BINDING_PROBE.c.marker
+).where(_TENANT_BINDING_PROBE.c.tenant_id == bindparam("tenant_id"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +122,29 @@ class _ApplicationRoleDatabase:
     application_url: str
     role_urls: dict[str, str]
     dangerous_roles: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class _TenantBindingProbeToken(TenantOperationToken):
+    """製品 package に収載しないテスト専用 operation token。"""
+
+    @property
+    def capability_id(self) -> str:
+        """テスト専用 capability ID を返す。"""
+        return "test.tenant-binding-probe.select"
+
+
+class _TenantBindingProbeRepository(TenantRepositoryBase):
+    """テスト専用表に対して基底の二重構成を観測する具象。"""
+
+    def __init__(self, session: Session) -> None:
+        """リクエスト専用 Session を内部に保持する。"""
+        self.__session = session
+
+    @property
+    def _session(self) -> Session:
+        """基底の非公開実行器へ内部 Session を渡す。"""
+        return self.__session
 
 
 def _sqlalchemy_url(dsn: str, *, options: str | None = None) -> str:
@@ -887,6 +937,58 @@ def test_tenant_binding_is_first_and_local_guc_clears_after_commit(
             )
     finally:
         engine.dispose()
+
+
+@pytest.mark.requires_db
+def test_repository_base_binds_and_emits_explicit_tenant_predicate(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """閉じた token が束縛後に明示 tenant 条件付き SQL だけを発行する。
+
+    ``tenant_binding_probe`` は製品表でなく、この基底契約だけを検証する
+    テスト専用表である。製品 CRUD や製品 RLS の検証には用いない。
+    """
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    token = _TenantBindingProbeToken()
+    operation = _TenantScopedOperation(
+        capability_id=token.capability_id,
+        statement=cast(
+            Select[tuple[object, ...]],
+            _REPOSITORY_PROBE_STATEMENT,
+        ),
+        tenant_column=_TENANT_BINDING_PROBE.c.tenant_id,
+    )
+    monkeypatch.setattr(
+        repository_base,
+        "_OPERATION_REGISTRY",
+        MappingProxyType({_TenantBindingProbeToken: operation}),
+    )
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    try:
+        with Session(engine) as session:
+            event.listen(session, "do_orm_execute", observe_orm_sql)
+            result = _TenantBindingProbeRepository(session).execute(
+                make_tenant_context(_TENANT_BINDING_IDS[0]),
+                token,
+            )
+            event.remove(session, "do_orm_execute", observe_orm_sql)
+    finally:
+        engine.dispose()
+
+    assert observed_statements == [
+        _BINDING_STATEMENT,
+        str(_REPOSITORY_PROBE_STATEMENT),
+    ]
+    assert "tenant_id = :tenant_id" in observed_statements[1]
+    assert result.rows == (("tenant-one",),)
 
 
 @pytest.mark.requires_db
