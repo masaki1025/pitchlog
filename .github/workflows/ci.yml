@@ -107,6 +107,23 @@ jobs:
       - run: uv python install
       - run: uv run python scripts/check_nfr021_append_only.py
 
+  # テナント境界の迂回検査は検査器自身の変更でも必ず走らせる。
+  # paths filter は付けない: フィルタ自体が誤ると検査が黙って通り fail-closed に反するため。
+  # 三点差分の merge-base を解決するため fetch-depth: 0 が必須(既定の 1 では base に到達できない)。
+  tenant-boundary-bypass:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv run python scripts/check_tenant_boundary_bypass.py
+
   # 既存ジョブの workflow 発火条件を変えず、frontend ジョブだけを対象パスへ絞る。
   # contracts/ の契約ファイル変更時に frontend の型検査・テストの回帰を検出するためだけに、対象パスへ含める。
   frontend-changes:
