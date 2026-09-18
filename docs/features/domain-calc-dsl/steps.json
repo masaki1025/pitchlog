@@ -95,7 +95,7 @@
     {
       "id": 1,
       "group": 1,
-      "title": "**配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価**",
+      "title": "**配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価**(**トリガー 1 の評価期限はステップ 12** — 問う 5 項目のうち本ステップで確定するのは型語彙のみで、履歴スタック = 6 / 語彙 snapshot = 1・13 / スコアボード全欄 = 47 / 規則配列〔有限の reducer〕= 26 に分かれる。**「型語彙で表現できるか」が答えられるのは宣言モデルの閉包を導出するステップ 12** — 2026-09-18 の精査)",
       "criteria": "`[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **◎ 付録 A の書式 binding の母集合を、数え方の規則とともに資産へ定義する**(**複合行〔`最速・平均球速` / `勝 / 敗 / 分` / `得点 / 失点` / `イニング別得点・失点` の 4 件〕を分解するか否かを明示し、その規則で数えた件数を `assert` する** — **独立導出**。**research.md §6-11 の「全 36 件」は §7-5 で失効させた** — **要件書に件数の記載は無く、本セッションの計測は 32 行で一致しなかった**)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止**",
       "artifact": "`backend/domain/vocabulary.schema.json`",
       "command": "`uv run pytest tests/domain/test_vocabulary_schema.py`",
@@ -140,7 +140,7 @@
     {
       "id": 6,
       "group": 2,
-      "title": "**`D`(履歴文脈の検査上限)の導出と値域 schema**(design.md §5)。**FR-006 単独**で長さ 4 を導き、**`D` の具体値**と**深さ・構成・シナリオ長の全 case 集合**を資産へ固定。**トリガー 9 を評価**",
+      "title": "**`D`(履歴文脈の検査上限)の導出と値域 schema**(design.md §5)。**FR-006 単独**で長さ 4 を導き、**`D` の具体値**と**深さ・構成・シナリオ長の全 case 集合**を資産へ固定。**トリガー 1・9 を評価**",
       "criteria": "`[機械]` 導出が **case → 長さ → 最大値の式**として機械可読(**独立導出**)/ 典拠の**文言存在**(`FR-006 補足` の逐語)/ 主要フラグ 9 項目と表示 primitive パラメータに値域 / **`D+1` に出力同値を課していない** `[手動]` 導出の意味レビュー(判定者: 山田正輝)",
       "artifact": "`backend/domain/history-depth.json`",
       "command": "`uv run pytest tests/domain/test_history_depth.py`",
@@ -149,7 +149,7 @@
     {
       "id": 7,
       "group": 2,
-      "title": "**マニフェスト schema の凍結**(design.md §6)。**2 層 exact-set**(per-calculation **10 宣言** / トップレベル **3 宣言** = `propertyCatalog` + コンテナ + 表示対応宣言)+ **composite target**(`kind` / `components[]` / `invocation`)+ 空を許さない 5 フィールド。**トリガー 7・10・11 を評価**",
+      "title": "**マニフェスト schema の凍結**(design.md §6)。**2 層 exact-set**(per-calculation **10 宣言** / トップレベル **3 宣言** = `propertyCatalog` + コンテナ + 表示対応宣言)+ **composite target**(`kind` / `components[]` / `invocation`)+ 空を許さない 5 フィールド。**トリガー 1・7・10・11 を評価**",
       "criteria": "`[機械]` **2 層それぞれの exact-set**(**母集合計測**で 10 と 3 を固定)/ `kind` と段数の整合 / `minItems` / **provenance が条項 ID 形式**で逐語が実在(**文言存在**)/ 否定葉の存在 / **検査器より前のコミットである**(**`history_precedes`**)/ **対象 ID ごとの `vectors[]` 帰属数が `== 1`** かつ **未知契約が `== 0`** / **対象母集合が非空** / **欠落・重複・未知の 3 負例が個別に fail** / **資産内の重複を拒否する 5 種** / **◎ 正しいマニフェストが実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**5 周目 `P1` の是正**)",
       "artifact": "`backend/domain/manifest.schema.json`",
       "command": "`uv run pytest tests/domain/test_manifest_schema.py`",
@@ -194,7 +194,7 @@
     {
       "id": 12,
       "group": 2,
-      "title": "**表示経路の静的解析器**(design.md §10-3 の前半)。**製品の表示呼出箇所**を静的解析で**全列挙するだけ**。**対象集合は宣言モデル schema の閉包から機械導出**。**トリガー 13 を評価**",
+      "title": "**表示経路の静的解析器**(design.md §10-3 の前半)。**製品の表示呼出箇所**を静的解析で**全列挙するだけ**。**対象集合は宣言モデル schema の閉包から機械導出**。**トリガー 1・13 を評価**",
       "criteria": "`[機械]` **対象集合が schema 閉包から導出される**(「等」の列挙をハードコードしていない — **独立導出**)/ **母集合計測** / **解析不能例で exit 2** / **◎ 既知の表示呼出箇所が実際に列挙される**(**正例 B**)",
       "artifact": "`backend/src/pitchlog/domaincheck/collect_display_paths.py`",
       "command": "`uv run pytest tests/domain/test_collect_display.py`",

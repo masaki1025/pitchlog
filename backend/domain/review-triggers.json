@@ -12,14 +12,23 @@
     {
       "id": 1,
       "description": "履歴スタック・規則配列・語彙 snapshot map・スコアボード全欄・NumericValue / DisplayAtom の型語彙で表現できない",
-      "evaluationSteps": [1],
-      "evaluationDeadline": 1,
+      "evaluationSteps": [
+        1,
+        6,
+        7,
+        12
+      ],
+      "evaluationDeadline": 12,
       "evaluationMethod": {
-        "conditionTypeIds": ["population_measurement"],
+        "conditionTypeIds": [
+          "population_measurement"
+        ],
         "manual": "[手動]",
         "procedure": null
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/domain/vocabulary.schema.json",
       "firingCondition": "反例が 1 件でも成立",
       "evaluation": null
@@ -27,14 +36,20 @@
     {
       "id": 2,
       "description": "条件付き写像・1 対多写像が D-1 の 3 類に収まらない(数値書式は v0.2 で解消済み)",
-      "evaluationSteps": [1],
+      "evaluationSteps": [
+        1
+      ],
       "evaluationDeadline": 1,
       "evaluationMethod": {
-        "conditionTypeIds": ["population_measurement"],
+        "conditionTypeIds": [
+          "population_measurement"
+        ],
         "manual": "[手動]",
         "procedure": null
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/domain/vocabulary.schema.json",
       "firingCondition": "未分類 1 件",
       "evaluation": null
@@ -42,14 +57,20 @@
     {
       "id": 3,
       "description": "SQL 生成と表示まで生成するテスト専用 Python 参照実装を同一 DSL から意味保存できない / (β)⑦ の CASE 式 + 写像①適用受け口が成立しない",
-      "evaluationSteps": [27],
+      "evaluationSteps": [
+        27
+      ],
       "evaluationDeadline": 27,
       "evaluationMethod": {
-        "conditionTypeIds": ["population_measurement"],
+        "conditionTypeIds": [
+          "population_measurement"
+        ],
         "manual": null,
         "procedure": "全 target matrix"
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "tests/domain/gen/test_formatter.py",
       "firingCondition": "matrix の 1 区分でも生成不能",
       "evaluation": null
@@ -57,14 +78,20 @@
     {
       "id": 4,
       "description": "lossless 比較で decimal・NULL・行順・表示文字列(文字種・先頭 0・負号・剰余表記)を統一できない",
-      "evaluationSteps": [31],
+      "evaluationSteps": [
+        31
+      ],
       "evaluationDeadline": 31,
       "evaluationMethod": {
-        "conditionTypeIds": ["set_difference"],
+        "conditionTypeIds": [
+          "set_difference"
+        ],
         "manual": null,
         "procedure": null
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "tests/domain/test_path_match.py",
       "firingCondition": "正規化で吸収できない差 1 件",
       "evaluation": null
@@ -72,14 +99,20 @@
     {
       "id": 5,
       "description": "SQL / TS / 表示系の変異演算子を PR 予算内で実装できない",
-      "evaluationSteps": [39, 40, 48],
+      "evaluationSteps": [
+        39,
+        40,
+        48
+      ],
       "evaluationDeadline": 48,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": "拘束実測"
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "docs/features/domain-calc-dsl/mutation-cost.json",
       "firingCondition": "実測が 10 分 / 30 分を超過",
       "evaluation": null
@@ -87,14 +120,21 @@
     {
       "id": 6,
       "description": "入口全列挙・実行時制限・表外既定の表示対応の突合を fail-closed にできない",
-      "evaluationSteps": [44, 47],
+      "evaluationSteps": [
+        44,
+        47
+      ],
       "evaluationDeadline": 47,
       "evaluationMethod": {
-        "conditionTypeIds": ["set_difference"],
+        "conditionTypeIds": [
+          "set_difference"
+        ],
         "manual": null,
         "procedure": "解析不能例の負例"
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "tests/domain/",
       "firingCondition": "解析不能例が合格になる経路 1 件",
       "evaluation": null
@@ -102,14 +142,19 @@
     {
       "id": 7,
       "description": "FR-040 除外宣言・ADR-003 D-6 契約分類・未完成対象の段階的マージが両立しない",
-      "evaluationSteps": [7, 13],
+      "evaluationSteps": [
+        7,
+        13
+      ],
       "evaluationDeadline": 13,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": null
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "tests/domain/",
       "firingCondition": "両立を崩す具体例 1 件",
       "evaluation": null
@@ -117,14 +162,18 @@
     {
       "id": 8,
       "description": "生成器自体の保守コストが 1 名体制に見合わない(D-2 へ倒す判断は ADR-003 が先取りして否定済み — 発火時は ADR 改訂ゲートへ)",
-      "evaluationSteps": [29],
+      "evaluationSteps": [
+        29
+      ],
       "evaluationDeadline": 29,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": "実測を前提とする"
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/tests/domain/fixtures/synthetic_dsl/",
       "firingCondition": "PO の明示的な不成立判定(実測の提示なしに発火・非発火のいずれも記録できない)",
       "evaluation": null
@@ -132,14 +181,20 @@
     {
       "id": 9,
       "description": "D の履歴深さとシナリオ長が衝突する",
-      "evaluationSteps": [6],
+      "evaluationSteps": [
+        6
+      ],
       "evaluationDeadline": 6,
       "evaluationMethod": {
-        "conditionTypeIds": ["independent_derivation"],
+        "conditionTypeIds": [
+          "independent_derivation"
+        ],
         "manual": null,
         "procedure": null
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "backend/domain/history-depth.json",
       "firingCondition": "導出式が 2 つ以上の値を与える",
       "evaluation": null
@@ -147,14 +202,18 @@
     {
       "id": 10,
       "description": "propertyCatalog が「宣言の正」の列挙に無いのは階層分離の意図か不整合か決められない",
-      "evaluationSteps": [7],
+      "evaluationSteps": [
+        7
+      ],
       "evaluationDeadline": 7,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": null
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/domain/manifest.schema.json",
       "firingCondition": "PO が「決められない」と判定",
       "evaluation": null
@@ -162,14 +221,18 @@
     {
       "id": 11,
       "description": "D-6 の契約分類・配置とベクタ schema の分担が決まらない(v0.2 で schema が拡張され発火しやすくなった)",
-      "evaluationSteps": [7],
+      "evaluationSteps": [
+        7
+      ],
       "evaluationDeadline": 7,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": null
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/domain/manifest.schema.json",
       "firingCondition": "分担合意が得られない",
       "evaluation": null
@@ -177,14 +240,19 @@
     {
       "id": 12,
       "description": "変異テストの時間上限(10 分 / 30 分)を超える",
-      "evaluationSteps": [48],
+      "evaluationSteps": [
+        48
+      ],
       "evaluationDeadline": 48,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": "拘束実測の超過を機械検出し、PO が続行可否を判定する"
       },
-      "judge": ["機械", "PO"],
+      "judge": [
+        "機械",
+        "PO"
+      ],
       "evidenceLocation": "docs/features/domain-calc-dsl/mutation-cost.json",
       "firingCondition": "10 分 / 30 分の超過",
       "evaluation": null
@@ -192,14 +260,22 @@
     {
       "id": 13,
       "description": "表外既定の「対象集合 = 宣言モデル schema の閉包」を機械導出できない",
-      "evaluationSteps": [1, 12, 47],
+      "evaluationSteps": [
+        1,
+        12,
+        47
+      ],
       "evaluationDeadline": 47,
       "evaluationMethod": {
-        "conditionTypeIds": ["independent_derivation"],
+        "conditionTypeIds": [
+          "independent_derivation"
+        ],
         "manual": null,
         "procedure": null
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "backend/domain/display-binding.json",
       "firingCondition": "導出が空、またはハードコードを要する",
       "evaluation": null
@@ -207,14 +283,21 @@
     {
       "id": 14,
       "description": "composite target の値の連鎖検証を収集器が独立に計算できない",
-      "evaluationSteps": [30],
+      "evaluationSteps": [
+        30
+      ],
       "evaluationDeadline": 30,
       "evaluationMethod": {
-        "conditionTypeIds": ["generated_provenance", "set_difference"],
+        "conditionTypeIds": [
+          "generated_provenance",
+          "set_difference"
+        ],
         "manual": null,
         "procedure": null
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "tests/domain/test_collect_layers.py",
       "firingCondition": "段別 I/O を独立に得られない",
       "evaluation": null
@@ -222,14 +305,19 @@
     {
       "id": 15,
       "description": "表示系変異の kill 条件と等価変異の切り分けが実機で一意にならない",
-      "evaluationSteps": [40, 42],
+      "evaluationSteps": [
+        40,
+        42
+      ],
       "evaluationDeadline": 42,
       "evaluationMethod": {
         "conditionTypeIds": [],
         "manual": "[手動]",
         "procedure": "実機の結果を前提とする"
       },
-      "judge": ["PO"],
+      "judge": [
+        "PO"
+      ],
       "evidenceLocation": "backend/domain/mutation-equivalents.json",
       "firingCondition": "同一 mutant に 2 通りの判定が成立",
       "evaluation": null
@@ -297,11 +385,15 @@
       ],
       "evaluationDeadline": 56,
       "evaluationMethod": {
-        "conditionTypeIds": ["verbatim_presence"],
+        "conditionTypeIds": [
+          "verbatim_presence"
+        ],
         "manual": null,
         "procedure": null
       },
-      "judge": ["機械"],
+      "judge": [
+        "機械"
+      ],
       "evidenceLocation": "backend/domain/step-authorities.json",
       "firingCondition": "1 件でも実在しない",
       "evaluation": null
