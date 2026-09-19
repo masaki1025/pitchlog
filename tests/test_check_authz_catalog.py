@@ -57,9 +57,40 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def _run_git(root: Path, *arguments: str) -> str:
+    """一時repositoryでGitを実行し、成功時の標準出力を返す。"""
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip()
+
+
 def _make_repository(tmp_path: Path) -> Path:
     root = tmp_path / "repository"
     shutil.copytree(FIXTURE_ROOT, root)
+    _run_git(root, "init", "--quiet")
+    _run_git(root, "add", "--", "requirements.md")
+    _run_git(
+        root,
+        "-c",
+        "user.name=pitchlog tests",
+        "-c",
+        "user.email=pitchlog-tests@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "--message",
+        "test: 入力要件書の履歴を作成",
+    )
+    catalog = _read_catalog(root)
+    catalog["input_manifest"]["commit"] = _run_git(root, "rev-parse", "HEAD")
+    _write_catalog(root, catalog)
     return root
 
 
@@ -939,6 +970,101 @@ def test_fixture_has_a_valid_multi_layer_claim(tmp_path: Path) -> None:
     assert _run_cli(root).returncode == 0
 
 
+def test_oracle_seal_is_red_when_rev_parse_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """oracle commit 上の入力blobを解決できなければredにする。"""
+    assets, seal, paths = _repository_oracle_assets()
+    target_path = seal["input_assets"][0]["path"]
+
+    def fail_rev_parse(
+        command: list[str], **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        assert command == [
+            "git",
+            "rev-parse",
+            f"{seal['oracle_commit']}:{target_path}",
+        ]
+        return subprocess.CompletedProcess(
+            command,
+            128,
+            stdout="",
+            stderr="fatal: oracle input blob is unavailable\n",
+        )
+
+    monkeypatch.setattr(checker.subprocess, "run", fail_rev_parse)
+
+    with pytest.raises(checker.CatalogError) as captured:
+        checker.validate_oracle_seal(seal, assets, paths, REPOSITORY_ROOT)
+
+    assert target_path in str(captured.value)
+    assert "fatal: oracle input blob is unavailable" in str(captured.value)
+
+
+def test_oracle_seal_is_red_without_git_history(tmp_path: Path) -> None:
+    """oracle sealの履歴照合は.git不在をredにする。"""
+    assets, seal, paths = _repository_oracle_assets()
+    root = tmp_path / "repository"
+    for row in seal["input_assets"]:
+        source = REPOSITORY_ROOT / row["path"]
+        destination = root / row["path"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    target_path = seal["input_assets"][0]["path"]
+
+    with pytest.raises(checker.CatalogError) as captured:
+        checker.validate_oracle_seal(seal, assets, paths, root)
+
+    assert target_path in str(captured.value)
+    assert "git repository がない" in str(captured.value)
+    assert "git stderr: <stderr なし>" in str(captured.value)
+
+
+def test_manifest_commit_is_red_without_git_history(tmp_path: Path) -> None:
+    """input manifestの履歴照合は.git不在をredにする。"""
+    commit = "a" * 40
+    source_path = "requirements.md"
+    raw = {"input_manifest": {"commit": commit, "source_path": source_path}}
+
+    with pytest.raises(checker.CatalogError) as captured:
+        checker._verify_manifest_commit(tmp_path, raw)
+
+    assert commit in str(captured.value)
+    assert source_path in str(captured.value)
+    assert "git repository がない" in str(captured.value)
+    assert "git stderr: <stderr なし>" in str(captured.value)
+
+
+def test_manifest_commit_is_red_when_cat_file_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """input commitを取得できなければredにする。"""
+    commit = "a" * 40
+    source_path = "requirements.md"
+    raw = {"input_manifest": {"commit": commit, "source_path": source_path}}
+    (tmp_path / ".git").mkdir()
+
+    def fail_cat_file(
+        command: list[str], **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        assert command == ["git", "cat-file", "-e", f"{commit}^{{commit}}"]
+        return subprocess.CompletedProcess(
+            command,
+            128,
+            stdout="",
+            stderr="fatal: input commit is unavailable\n",
+        )
+
+    monkeypatch.setattr(checker.subprocess, "run", fail_cat_file)
+
+    with pytest.raises(checker.CatalogError) as captured:
+        checker._verify_manifest_commit(tmp_path, raw)
+
+    assert commit in str(captured.value)
+    assert source_path in str(captured.value)
+    assert "fatal: input commit is unavailable" in str(captured.value)
+
+
 def test_indented_table_rows_are_extracted_by_kind() -> None:
     path = FIXTURE_ROOT / "indented-tables.md"
     source_text = path.read_text(encoding="utf-8")
@@ -1450,6 +1576,7 @@ def test_normal_validation_does_not_create_a_missing_lock(tmp_path: Path) -> Non
     result = _run_cli(root)
 
     assert result.returncode == 1
+    assert "decision lockを読めない" in result.stderr
     assert not lock_path.exists()
 
 
@@ -4132,16 +4259,32 @@ def test_recursive_derivers_cover_generated_container_sequences_and_siblings() -
 
 def test_normal_validation_never_reseals_a_semantically_valid_drift(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """意味検査を通る digest 差分でも通常実行が seal を書き換えないと示す。"""
     root = tmp_path / "repository"
-    shutil.copytree(
-        REPOSITORY_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git", ".venv", ".pytest_cache", "__pycache__", ".ruff_cache"
-        ),
+    clone = subprocess.run(
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "--no-hardlinks",
+            str(REPOSITORY_ROOT),
+            str(root),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    assert clone.returncode == 0, clone.stderr
+    # clone は remote-tracking ref を運ばないため、検査器が要求する origin/develop を作る。
+    # 本テストが見るのは seal のドリフトなので、基準は HEAD でよい(受取先差分は空になる)。
+    _run_git(root, "branch", "--force", "origin/develop", "HEAD")
+    baseline_result = checker.main(["--root", str(root)])
+    baseline_output = capsys.readouterr()
+    assert baseline_result == 0, baseline_output.err
+
     evidence_path = root / "contracts/authz/verification-evidence.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     evidence["provenance"][0]["extracted_text"] += " "
@@ -4154,8 +4297,13 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     seal_before = seal_path.read_bytes()
 
     result = checker.main(["--root", str(root)])
+    output = capsys.readouterr()
 
     assert result == 1
+    assert (
+        "contracts/authz/verification-evidence.json: "
+        "canonical digest が oracle seal と不一致"
+    ) in output.err
     assert seal_path.read_bytes() == seal_before
 
 

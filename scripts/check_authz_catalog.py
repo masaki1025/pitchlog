@@ -5246,16 +5246,26 @@ def validate_oracle_seal(
         if not path.is_file() or git_blob_digest(_read_bytes(path, path_text)) != digest:
             raise CatalogError(f"{path_text}: oracle input blob が不一致")
         input_paths.add(path_text)
-        if (root / ".git").exists():
-            result = subprocess.run(
-                ["git", "rev-parse", f"{oracle_commit}:{path_text}"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=False,
+        if not (root / ".git").exists():
+            raise CatalogError(
+                f"{path_text}: oracle commit {oracle_commit} 上の blob を照合できない: "
+                "git repository がない; git stderr: <stderr なし>"
             )
-            if result.returncode == 0 and result.stdout.strip() != digest:
-                raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
+        result = subprocess.run(
+            ["git", "rev-parse", f"{oracle_commit}:{path_text}"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or "<stderr なし>"
+            raise CatalogError(
+                f"{path_text}: oracle commit {oracle_commit} 上の blob を解決できない: "
+                f"git stderr: {stderr}"
+            )
+        if result.stdout.strip() != digest:
+            raise CatalogError(f"{path_text}: oracle commit 上の blob が不一致")
     required_input_paths = {
         "contracts/authz/requirement-claims.json",
         "contracts/authz/requirement-claims.lock.json",
@@ -5493,12 +5503,13 @@ def _verify_manifest_commit(root: Path, raw: object) -> None:
         return
     commit = manifest.get("commit")
     source_path = manifest.get("source_path")
-    if (
-        not isinstance(commit, str)
-        or not isinstance(source_path, str)
-        or not (root / ".git").exists()
-    ):
+    if not isinstance(commit, str) or not isinstance(source_path, str):
         return
+    if not (root / ".git").exists():
+        raise CatalogError(
+            f"{source_path}: input manifest commit {commit} を照合できない: "
+            "git repository がない; git stderr: <stderr なし>"
+        )
     availability = subprocess.run(
         ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
         cwd=root,
@@ -5507,8 +5518,11 @@ def _verify_manifest_commit(root: Path, raw: object) -> None:
         check=False,
     )
     if availability.returncode != 0:
-        # CI の shallow checkout では入力 commit 自体が手元にない。現物は blob digest で検査する。
-        return
+        stderr = availability.stderr.strip() or "<stderr なし>"
+        raise CatalogError(
+            f"{source_path}: input manifest commit {commit} を解決できない: "
+            f"git stderr: {stderr}"
+        )
     result = subprocess.run(
         ["git", "rev-parse", f"{commit}:{source_path}"],
         cwd=root,
