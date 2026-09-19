@@ -62,7 +62,9 @@
       "negativeCaseIds": [
         "neg-grant-indeterminate-bypass"
       ],
-      "positiveCaseIds": []
+      "positiveCaseIds": [
+        "pos-b-grant-sealed-failure-merge"
+      ]
     },
     {
       "id": "BOOT-REAPPROVAL",
@@ -75,7 +77,9 @@
       "negativeCaseIds": [
         "neg-reapproval-reused-record"
       ],
-      "positiveCaseIds": []
+      "positiveCaseIds": [
+        "pos-b-reapproval-recovers-grant"
+      ]
     },
     {
       "id": "BOOT-NO-CLAIM",
@@ -170,7 +174,9 @@
       ],
       "positiveCaseIds": [
         "pos-a-program-auto-promotion",
-        "pos-a-stall-expiry"
+        "pos-a-stall-expiry",
+        "pos-b-grant-sealed-failure-merge",
+        "pos-b-reapproval-recovers-grant"
       ]
     }
   ]

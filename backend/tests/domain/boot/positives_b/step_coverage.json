@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "fixtureType": "step-positive-b-coverage",
+  "implementedThroughStep": 25,
+  "evidence": [
+    {
+      "stepId": 1,
+      "evidenceId": "pb-step-1-valid-vocabulary",
+      "testPath": "tests/domain/test_vocabulary_schema.py",
+      "testName": "test_three_display_rule_declarations_are_accepted"
+    },
+    {
+      "stepId": 5,
+      "evidenceId": "pb-step-5-open-stopgate",
+      "testPath": "tests/domain/test_stopgate.py",
+      "testName": "test_no_firing_or_overdue_evaluation_exits_zero"
+    },
+    {
+      "stepId": 7,
+      "evidenceId": "pb-step-7-valid-manifest",
+      "testPath": "tests/domain/test_manifest_schema.py",
+      "testName": "test_valid_synthetic_manifest_is_accepted"
+    },
+    {
+      "stepId": 8,
+      "evidenceId": "pb-step-8-conforming-cli",
+      "testPath": "tests/domain/test_checker_cli.py",
+      "testName": "test_conforming_asset_exits_zero"
+    },
+    {
+      "stepId": 9,
+      "evidenceId": "pb-step-9-valid-reseal",
+      "testPath": "tests/domain/test_seal.py",
+      "testName": "test_valid_reseal_updates_seal_and_subsequent_verification_passes"
+    },
+    {
+      "stepId": 10,
+      "evidenceId": "pb-step-10-real-frontend-entry",
+      "testPath": "tests/domain/test_collect_fe.py",
+      "testName": "test_real_course_input_view_is_reachable_from_production_html"
+    },
+    {
+      "stepId": 11,
+      "evidenceId": "pb-step-11-real-backend-entry",
+      "testPath": "tests/domain/test_collect_be.py",
+      "testName": "test_real_main_reaches_every_statically_declared_router"
+    },
+    {
+      "stepId": 12,
+      "evidenceId": "pb-step-12-real-display-path",
+      "testPath": "tests/domain/test_collect_display.py",
+      "testName": "test_real_formatter_definition_and_callsite_are_collected"
+    },
+    {
+      "stepId": 13,
+      "evidenceId": "pb-step-13-valid-model",
+      "testPath": "tests/domain/test_model_schema.py",
+      "testName": "test_valid_state_transition_model_is_accepted"
+    },
+    {
+      "stepId": 14,
+      "evidenceId": "pb-step-14-sealed-only-exit-zero",
+      "testPath": "tests/domain/test_check_sets.py",
+      "testName": "test_sealed_only_findings_exit_zero"
+    },
+    {
+      "stepId": 16,
+      "evidenceId": "pb-step-16-valid-boot-seal",
+      "testPath": "tests/domain/test_boot_seal.py",
+      "testName": "test_correct_set_is_sealed_and_repeated_verification_exits_zero"
+    },
+    {
+      "stepId": 17,
+      "evidenceId": "pb-step-17-valid-reapproval",
+      "testPath": "tests/domain/boot/test_stall.py",
+      "testName": "test_valid_reapproval_starts_stall_epoch"
+    },
+    {
+      "stepId": 18,
+      "evidenceId": "pb-step-18-one-phase2-target",
+      "testPath": "tests/domain/boot/test_phase2.py",
+      "testName": "test_one_complete_target_is_classified_as_phase2"
+    },
+    {
+      "stepId": 19,
+      "evidenceId": "pb-step-19-valid-report",
+      "testPath": "tests/domain/boot/test_report.py",
+      "testName": "test_correct_report_is_emitted_and_green_is_accepted"
+    },
+    {
+      "stepId": 21,
+      "evidenceId": "pb-step-21-conforming-judge",
+      "testPath": "tests/domain/boot/test_judge.py",
+      "testName": "test_all_conforming_raw_results_exit_zero"
+    },
+    {
+      "stepId": 25,
+      "evidenceId": "pb-step-25-grant-merge",
+      "testPath": "tests/domain/boot/test_positives_b.py",
+      "testName": "test_sealed_failure_change_is_actually_merged_by_grant"
+    },
+    {
+      "stepId": 25,
+      "evidenceId": "pb-step-25-reapproval-recovery",
+      "testPath": "tests/domain/boot/test_positives_b.py",
+      "testName": "test_valid_reapproval_actually_recovers_grant"
+    }
+  ]
+}
