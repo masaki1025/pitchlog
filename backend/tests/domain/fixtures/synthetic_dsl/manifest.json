@@ -1,0 +1,182 @@
+{
+  "propertyCatalog": {
+    "path": "backend/tests/domain/fixtures/synthetic_dsl/property-catalog.json",
+    "schema": "backend/tests/domain/fixtures/synthetic_dsl/property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "syntheticMatrix",
+      "source": {
+        "path": "backend/tests/domain/fixtures/synthetic_dsl/model.json",
+        "provenance": "ADR-003 D-11 構成の完全性"
+      },
+      "generated": [
+        {
+          "generatedId": "syntheticAlphaCore",
+          "path": "synthetic/generated/alpha-core.fragment",
+          "artifactKind": "python"
+        },
+        {
+          "generatedId": "syntheticAggregateSql",
+          "path": "synthetic/generated/aggregate.sql",
+          "artifactKind": "sql"
+        },
+        {
+          "generatedId": "syntheticAggregateReceiver",
+          "path": "synthetic/generated/aggregate-receiver.fragment",
+          "artifactKind": "typed-receiver"
+        },
+        {
+          "generatedId": "syntheticAggregateFormatter",
+          "path": "synthetic/generated/aggregate-formatter.fragment",
+          "artifactKind": "formatter"
+        },
+        {
+          "generatedId": "syntheticClassificationSql",
+          "path": "synthetic/generated/classification.sql",
+          "artifactKind": "sql"
+        },
+        {
+          "generatedId": "syntheticClassificationReceiver",
+          "path": "synthetic/generated/classification-receiver.fragment",
+          "artifactKind": "typed-receiver"
+        },
+        {
+          "generatedId": "syntheticMigrationCore",
+          "path": "synthetic/generated/migration-core.fragment",
+          "artifactKind": "python"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "syntheticEntrypoint",
+          "module": "synthetic/entrypoint.py",
+          "symbol": "execute",
+          "adapter": "synthetic/adapter.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "syntheticAlphaTarget",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "syntheticAlphaCore",
+          "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "invocation": {
+            "adapter": "synthetic/adapter.py",
+            "operation": "executeAlpha"
+          }
+        },
+        {
+          "directTargetId": "syntheticAggregateTarget",
+          "targetClass": "beta-1-5",
+          "kind": "composite",
+          "components": [
+            {
+              "stage": "sql",
+              "generated": "syntheticAggregateSql",
+              "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "stage": "typed-receiver",
+              "generated": "syntheticAggregateReceiver",
+              "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            {
+              "stage": "formatter",
+              "generated": "syntheticAggregateFormatter",
+              "hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            }
+          ],
+          "invocation": {
+            "adapter": "synthetic/adapter.py",
+            "operation": "executeAggregate"
+          }
+        },
+        {
+          "directTargetId": "syntheticClassificationTarget",
+          "targetClass": "beta-7",
+          "kind": "composite",
+          "components": [
+            {
+              "stage": "sql",
+              "generated": "syntheticClassificationSql",
+              "hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            },
+            {
+              "stage": "typed-receiver",
+              "generated": "syntheticClassificationReceiver",
+              "hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+            }
+          ],
+          "invocation": {
+            "adapter": "synthetic/adapter.py",
+            "operation": "executeClassification"
+          }
+        },
+        {
+          "directTargetId": "syntheticMigrationTarget",
+          "targetClass": "beta-6-8",
+          "kind": "single",
+          "generated": "syntheticMigrationCore",
+          "hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "invocation": {
+            "adapter": "synthetic/adapter.py",
+            "operation": "executeMigration"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [
+        {
+          "normalizationId": "syntheticNumericNormalization",
+          "kind": "exact-numeric-representation"
+        }
+      ],
+      "vectors": [
+        {
+          "vectorId": "syntheticVector",
+          "calculation": "syntheticMatrix",
+          "path": "backend/tests/domain/fixtures/synthetic_dsl/vector-input.json",
+          "runner": "both",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "ADR-003 D-6 契約分類"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "syntheticInvariant",
+          "propertyKind": "invariant",
+          "path": "backend/tests/domain/fixtures/synthetic_dsl/invariant.py",
+          "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+        },
+        {
+          "propertyId": "syntheticEquivalence",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domain/fixtures/synthetic_dsl/equivalence.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "syntheticMutation",
+          "target": "synthetic/generated",
+          "operators": [
+            "replace-constant"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": [
+    {
+      "displayItem": "syntheticVisibleMetric",
+      "callsite": "synthetic/entrypoint.py",
+      "formatter": "wholeNumber",
+      "provenance": "ADR-003 D-11 構成の完全性"
+    }
+  ]
+}
