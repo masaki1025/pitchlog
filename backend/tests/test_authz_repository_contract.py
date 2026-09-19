@@ -130,12 +130,8 @@ class _UnsafeReturnRepository(TenantRepositoryBase):
 
 def _read_contract() -> dict[str, Any]:
     """リポジトリ契約資産を JSON object として読む。"""
-    value = json.loads(
-        (_REPOSITORY_ROOT / _CONTRACT_PATH).read_text(encoding="utf-8")
-    )
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    value = json.loads((_REPOSITORY_ROOT / _CONTRACT_PATH).read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise AssertionError("repository contract が JSON object でない")
     return value
 
@@ -179,23 +175,17 @@ def _generated_snapshot() -> dict[str, object]:
         },
         "return_contract": {
             "allowed_dtos": list(repository_contract.ALLOWED_DTOS),
-            "immutable_scalar_types": list(
-                repository_contract.IMMUTABLE_SCALAR_TYPES
-            ),
+            "immutable_scalar_types": list(repository_contract.IMMUTABLE_SCALAR_TYPES),
             "immutable_container_grammar": list(
                 repository_contract.IMMUTABLE_CONTAINER_GRAMMAR
             ),
             "forbidden_types": list(repository_contract.FORBIDDEN_TYPES),
         },
-        "product_capability_ids": list(
-            repository_contract.PRODUCT_CAPABILITY_IDS
-        ),
+        "product_capability_ids": list(repository_contract.PRODUCT_CAPABILITY_IDS),
         "product_operation_token_types": list(
             repository_contract.PRODUCT_OPERATION_TOKEN_TYPES
         ),
-        "cross_tenant_functions": list(
-            repository_contract.CROSS_TENANT_FUNCTIONS
-        ),
+        "cross_tenant_functions": list(repository_contract.CROSS_TENANT_FUNCTIONS),
     }
 
 
@@ -244,9 +234,12 @@ def test_public_repository_surface_and_signature_are_exact() -> None:
     )
     assert public_methods == {"execute"}
     assert tuple(signature.parameters) == ("self", "context", "operation")
-    assert _public_signature_violations(
-        hints["context"], hints["operation"], hints["return"]
-    ) == set()
+    assert (
+        _public_signature_violations(
+            hints["context"], hints["operation"], hints["return"]
+        )
+        == set()
+    )
     assert getattr(TenantRepositoryBase.execute, "__final__", False) is True
 
 
@@ -494,9 +487,7 @@ def test_runtime_materializer_accepts_only_fully_materialized_values() -> None:
         ((tenant_id, "marker", (1, True), frozenset({"sealed"})),)
     )
 
-    assert result.rows == (
-        ((tenant_id, "marker", (1, True), frozenset({"sealed"}))),
-    )
+    assert result.rows == (((tenant_id, "marker", (1, True), frozenset({"sealed"}))),)
     with pytest.raises(FrozenInstanceError):
         setattr(result, "rows", ())
 

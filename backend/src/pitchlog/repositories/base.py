@@ -31,9 +31,7 @@ from pitchlog.repositories.tokens import (
 
 __all__ = ("CROSS_TENANT_FUNCTION_REGISTRY", "TenantRepositoryBase")
 
-CROSS_TENANT_FUNCTION_REGISTRY: frozenset[str] = frozenset(
-    CROSS_TENANT_FUNCTIONS
-)
+CROSS_TENANT_FUNCTION_REGISTRY: frozenset[str] = frozenset(CROSS_TENANT_FUNCTIONS)
 
 
 class _TenantOperationError(RuntimeError):
@@ -59,9 +57,9 @@ class _TenantScopedOperation:
             )
 
 
-_OPERATION_REGISTRY: Mapping[
-    type[TenantOperationToken], _TenantScopedOperation
-] = MappingProxyType({})
+_OPERATION_REGISTRY: Mapping[type[TenantOperationToken], _TenantScopedOperation] = (
+    MappingProxyType({})
+)
 
 _IMMUTABLE_SCALAR_TYPES = (
     bool,
@@ -124,9 +122,7 @@ def _materialize_rows(
 ) -> TenantOperationResult:
     """全行をトランザクション内で immutable な結果へ実体化する。"""
     return TenantOperationResult(
-        rows=tuple(
-            tuple(_materialize_value(value) for value in row) for row in rows
-        )
+        rows=tuple(tuple(_materialize_value(value) for value in row) for row in rows)
     )
 
 

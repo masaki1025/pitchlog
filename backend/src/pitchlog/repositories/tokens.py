@@ -14,9 +14,7 @@ type ImmutableScalar = (
     None | bool | int | float | str | bytes | UUID | Decimal | date | datetime | time
 )
 type ImmutableValue = (
-    ImmutableScalar
-    | tuple[ImmutableValue, ...]
-    | frozenset[ImmutableValue]
+    ImmutableScalar | tuple[ImmutableValue, ...] | frozenset[ImmutableValue]
 )
 
 

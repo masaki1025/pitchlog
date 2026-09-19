@@ -360,9 +360,7 @@ def build_cache_invalidation_request(
             effective_tenants_before,
             effective_tenants_after,
         )
-        shared_keys = (
-            key for key in keys if isinstance(key, SharedAggregateCacheKey)
-        )
+        shared_keys = (key for key in keys if isinstance(key, SharedAggregateCacheKey))
         if any(
             key.requester_tenant_id not in affected_tenant_ids
             or key.target_tenant_id not in affected_tenant_ids
@@ -371,10 +369,7 @@ def build_cache_invalidation_request(
             raise ValueError("共有キーの要求元・対象は参加変更前後の和集合が必要")
         propagation_mode = CachePropagationMode.BEFORE_AFTER_UNION
     else:
-        if (
-            effective_tenants_before is not None
-            or effective_tenants_after is not None
-        ):
+        if effective_tenants_before is not None or effective_tenants_after is not None:
             raise ValueError("参加変更以外へ変更前後の参加集合を渡してはならない")
         affected_tenant_ids = None
         propagation_mode = (

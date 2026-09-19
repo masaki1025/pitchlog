@@ -15,9 +15,7 @@ from pitchlog.repositories import tenant_context_contract
 from pitchlog.repositories.context import TenantContext
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_ALLOWLIST_PATH = Path(
-    "contracts/tenant_boundary/tenant-context-allowlist.json"
-)
+_ALLOWLIST_PATH = Path("contracts/tenant_boundary/tenant-context-allowlist.json")
 
 
 def make_tenant_context(tenant_id: UUID) -> TenantContext:
@@ -27,12 +25,8 @@ def make_tenant_context(tenant_id: UUID) -> TenantContext:
 
 def _read_allowlist() -> dict[str, Any]:
     """生成箇所 allowlist を JSON object として読む。"""
-    value = json.loads(
-        (_REPOSITORY_ROOT / _ALLOWLIST_PATH).read_text(encoding="utf-8")
-    )
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    value = json.loads((_REPOSITORY_ROOT / _ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise AssertionError("TenantContext allowlist が JSON object でない")
     return value
 
@@ -59,9 +53,7 @@ def _generated_snapshot() -> dict[str, object]:
         "canonicalization": tenant_context_contract.CANONICALIZATION,
         "source_digest": tenant_context_contract.SOURCE_DIGEST,
         "constructor_symbol": tenant_context_contract.CONSTRUCTOR_SYMBOL,
-        "allowed_test_modules": list(
-            tenant_context_contract.ALLOWED_TEST_MODULES
-        ),
+        "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
         ),

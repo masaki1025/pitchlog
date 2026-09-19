@@ -107,9 +107,9 @@ _TENANT_BINDING_PROBE = table(
     column("marker"),
     schema="public",
 )
-_REPOSITORY_PROBE_STATEMENT = select(
-    _TENANT_BINDING_PROBE.c.marker
-).where(_TENANT_BINDING_PROBE.c.tenant_id == bindparam("tenant_id"))
+_REPOSITORY_PROBE_STATEMENT = select(_TENANT_BINDING_PROBE.c.marker).where(
+    _TENANT_BINDING_PROBE.c.tenant_id == bindparam("tenant_id")
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -380,9 +380,7 @@ def _grant_memberships(
     with admin.cursor() as cursor:
         for role_name, member_name, admin_value, inherit_value, set_value in grants:
             cursor.execute(
-                sql.SQL(
-                    "GRANT {} TO {} WITH ADMIN {}, INHERIT {}, SET {}"
-                ).format(
+                sql.SQL("GRANT {} TO {} WITH ADMIN {}, INHERIT {}, SET {}").format(
                     sql.Identifier(role_name),
                     sql.Identifier(member_name),
                     sql.SQL("TRUE" if admin_value else "FALSE"),
@@ -447,8 +445,8 @@ def test_binding_precedes_business_work_in_explicit_transaction() -> None:
 
     transaction_mock = MagicMock()
     transaction_mock.__enter__.side_effect = lambda: events.append("transaction-enter")
-    transaction_mock.__exit__.side_effect = (
-        lambda *_arguments: events.append("transaction-exit")
+    transaction_mock.__exit__.side_effect = lambda *_arguments: events.append(
+        "transaction-exit"
     )
 
     def begin_transaction() -> MagicMock:
@@ -714,9 +712,7 @@ def test_each_dangerous_endpoint_category_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """危険終点5分類を資産の exact-set どおり実 DB で拒否する。"""
-    fixture_categories = {
-        category for category, _ in DANGEROUS_ENDPOINT_FIXTURES
-    }
+    fixture_categories = {category for category, _ in DANGEROUS_ENDPOINT_FIXTURES}
     assert fixture_categories == set(application_role_database.dangerous_roles)
 
     for category, fixture_id in DANGEROUS_ENDPOINT_FIXTURES:
@@ -756,9 +752,7 @@ def test_set_inherit_multihop_and_mixed_reachability_are_rejected(
     dangerous_role = _ROLE_NAMES["table_owner"]
     middle = _ROLE_NAMES["middle_one"]
     cases = {
-        "set_direct": (
-            (dangerous_role, APPLICATION_ROLE_NAME, False, False, True),
-        ),
+        "set_direct": ((dangerous_role, APPLICATION_ROLE_NAME, False, False, True),),
         "set_multihop": (
             (middle, APPLICATION_ROLE_NAME, False, False, True),
             (dangerous_role, middle, False, False, True),
@@ -807,9 +801,7 @@ def test_admin_option_is_rejected_without_set_or_inherit(
 ) -> None:
     """SET=false・INHERIT=false でも ADMIN OPTION を独立に拒否する。"""
     ordinary_role = _ROLE_NAMES["ordinary_login"]
-    grants = (
-        (ordinary_role, APPLICATION_ROLE_NAME, True, False, False),
-    )
+    grants = ((ordinary_role, APPLICATION_ROLE_NAME, True, False, False),)
     _grant_memberships(application_role_database.admin, grants)
     engine = _application_engine(
         monkeypatch,
@@ -932,8 +924,7 @@ def test_tenant_binding_is_first_and_local_guc_clears_after_commit(
         with engine.connect() as connection:
             assert connection.connection.driver_connection is driver_connection
             assert (
-                connection.exec_driver_sql(_CURRENT_TENANT_STATEMENT).scalar_one()
-                == ""
+                connection.exec_driver_sql(_CURRENT_TENANT_STATEMENT).scalar_one() == ""
             )
     finally:
         engine.dispose()
@@ -1047,22 +1038,28 @@ def test_parallel_sessions_do_not_share_tenant_guc(
                 assert first_session.scalar(text(_CURRENT_TENANT_STATEMENT)) == str(
                     first_context.tenant_id
                 )
-                assert first_session.scalar(
-                    text(_PROBE_STATEMENT),
-                    {"tenant_id": first_context.tenant_id},
-                ) == "tenant-one"
+                assert (
+                    first_session.scalar(
+                        text(_PROBE_STATEMENT),
+                        {"tenant_id": first_context.tenant_id},
+                    )
+                    == "tenant-one"
+                )
 
                 with _tenant_transaction(second_session, second_context):
                     assert second_session.scalar(
                         text(_CURRENT_TENANT_STATEMENT)
                     ) == str(second_context.tenant_id)
-                    assert second_session.scalar(
-                        text(_PROBE_STATEMENT),
-                        {"tenant_id": second_context.tenant_id},
-                    ) == "tenant-two"
-                    assert first_session.scalar(
-                        text(_CURRENT_TENANT_STATEMENT)
-                    ) == str(first_context.tenant_id)
+                    assert (
+                        second_session.scalar(
+                            text(_PROBE_STATEMENT),
+                            {"tenant_id": second_context.tenant_id},
+                        )
+                        == "tenant-two"
+                    )
+                    assert first_session.scalar(text(_CURRENT_TENANT_STATEMENT)) == str(
+                        first_context.tenant_id
+                    )
     finally:
         engine.dispose()
 

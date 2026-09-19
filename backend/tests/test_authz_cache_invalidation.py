@@ -34,13 +34,9 @@ from pitchlog.repositories.cache_invalidation import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_ASSET_PATH = Path(
-    "contracts/tenant_boundary/cache-invalidation-contract.json"
-)
+_ASSET_PATH = Path("contracts/tenant_boundary/cache-invalidation-contract.json")
 _SOURCE_PATH = Path("docs/design/data-model.md")
-_MODULE_PATH = Path(
-    "backend/src/pitchlog/repositories/cache_invalidation.py"
-)
+_MODULE_PATH = Path("backend/src/pitchlog/repositories/cache_invalidation.py")
 _TENANT_A = UUID("00000000-0000-0000-0000-000000001001")
 _TENANT_B = UUID("00000000-0000-0000-0000-000000001002")
 _TENANT_C = UUID("00000000-0000-0000-0000-000000001003")
@@ -51,9 +47,7 @@ _PLAYER_ID = UUID("00000000-0000-0000-0000-000000001006")
 
 def _read_asset() -> dict[str, Any]:
     """キャッシュ無効化契約資産を読む。"""
-    value = json.loads(
-        (_REPOSITORY_ROOT / _ASSET_PATH).read_text(encoding="utf-8")
-    )
+    value = json.loads((_REPOSITORY_ROOT / _ASSET_PATH).read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise AssertionError("キャッシュ無効化契約が JSON object でない")
     return value
@@ -123,9 +117,7 @@ def _source_matrix() -> tuple[tuple[str, ...], set[tuple[int, str, str]]]:
 
 def _asset_matrix(asset: dict[str, Any]) -> set[tuple[int, str, str]]:
     """資産の trigger×scope を正本表と同じ組へ変換する。"""
-    scope_columns = {
-        scope["id"]: scope["source_column"] for scope in asset["scopes"]
-    }
+    scope_columns = {scope["id"]: scope["source_column"] for scope in asset["scopes"]}
     return {
         (trigger["ordinal"], trigger["source_label"], scope_columns[scope_id])
         for trigger in asset["triggers"]
@@ -307,9 +299,7 @@ def test_five_physical_key_adt_variants_match_source_and_runtime() -> None:
         section,
         "| 対象範囲 | 物理的な無効化先 | 単位 |",
     )
-    source_units = {
-        _plain_markdown(row[2]).split(" — ", 1)[0] for row in physical_rows
-    }
+    source_units = {_plain_markdown(row[2]).split(" — ", 1)[0] for row in physical_rows}
     expected_types = {
         "match": MatchCacheKey,
         "player_career": PlayerCareerCacheKey,
@@ -320,10 +310,7 @@ def test_five_physical_key_adt_variants_match_source_and_runtime() -> None:
 
     assert asset["physical_key_adt"]["discriminator"] == "kind"
     assert asset["physical_key_adt"]["tenant_or_group_prefix_required"] is True
-    assert (
-        asset["physical_key_adt"]["cross_tenant_key_deletion_path_allowed"]
-        is False
-    )
+    assert asset["physical_key_adt"]["cross_tenant_key_deletion_path_allowed"] is False
     assert len(variants) == 5
     assert {variant["source_unit"] for variant in variants} == source_units
     for variant in variants:
@@ -393,8 +380,7 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
         "build_cache_invalidation_request",
     )
     expected_symbols = {
-        f"{cache_invalidation.__name__}.{name}"
-        for name in expected_names
+        f"{cache_invalidation.__name__}.{name}" for name in expected_names
     }
     signature = inspect.signature(build_cache_invalidation_request)
     hints = get_type_hints(build_cache_invalidation_request)
@@ -479,12 +465,8 @@ def test_runtime_matrix_matches_asset_and_each_missing_scope_is_red() -> None:
                 build_cache_invalidation_request(
                     trigger,
                     keys[:-1],
-                    effective_tenants_before=frozenset(
-                        {_TENANT_A, _TENANT_B}
-                    ),
-                    effective_tenants_after=frozenset(
-                        {_TENANT_A, _TENANT_B}
-                    ),
+                    effective_tenants_before=frozenset({_TENANT_A, _TENANT_B}),
+                    effective_tenants_after=frozenset({_TENANT_A, _TENANT_B}),
                 )
             else:
                 build_cache_invalidation_request(trigger, keys[:-1])
@@ -517,9 +499,7 @@ def test_participation_change_uses_before_after_union() -> None:
     )
 
     assert request.propagation_mode is CachePropagationMode.BEFORE_AFTER_UNION
-    assert request.affected_tenant_ids == frozenset(
-        {_TENANT_A, _TENANT_B, _TENANT_C}
-    )
+    assert request.affected_tenant_ids == frozenset({_TENANT_A, _TENANT_B, _TENANT_C})
     with pytest.raises(ValueError, match="前後の和集合"):
         build_cache_invalidation_request(
             CacheInvalidationTrigger.GROUP_DEPARTURE,

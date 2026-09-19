@@ -9,17 +9,13 @@ SOURCE_DIGEST = "0965b10bad728bfac10f21da27b1fd721cdc16145fc5ef41a58610f6c6a051b
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
-CROSS_TENANT_FUNCTION_ENTRY = (
-    "pitchlog.repositories.base.TenantRepositoryBase.execute"
-)
+CROSS_TENANT_FUNCTION_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
 OPERATION_TOKEN_TYPE = "pitchlog.repositories.tokens.TenantOperationToken"
 OPERATION_RESULT_TYPE = "pitchlog.repositories.tokens.TenantOperationResult"
 CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
     "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
 )
-EXECUTOR_SYMBOL = (
-    "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
-)
+EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "
     "operation: TenantOperationToken) -> TenantOperationResult"
