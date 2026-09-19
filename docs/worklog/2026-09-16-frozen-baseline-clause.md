@@ -755,6 +755,42 @@ Notion: [本タスク](https://app.notion.com/p/3dd93b75e6878176afdbccfc6ca69788
 **本タスクの計画書が影響を受けていないことを確認した** — **ステップ表は 5 行すべて素の数字で、`step_table_status` は `OK`**。
 **コミットの `(ステップ k/5)` と総数 5 が整合している。**
 
+## 差し戻し(2026-09-19)— CI 固有の欠陥。私のステップ 3 の変更が原因
+
+**ブランチ保護の適用と CI 復旧で #71 の CI が実際に回り、`harness` が落ちた。**
+
+```
+test_normal_validation_never_reseals_a_semantically_valid_drift
+check_authz_catalog.py: 受取先差分の merge-base を取得できない:
+  fatal: Not a valid object name origin/develop
+```
+
+### 原因
+
+**`git clone` は remote-tracking ref を運ばない。** **clone が新しい `refs/remotes/origin/` へ写すのは
+元 repository の `refs/heads`(local branch)だけである。**
+
+**ステップ 3 で、このテストを「`.git` 除外の複製」から「`git clone`」へ変えた**(`7.7-3` の fail-closed 化が
+履歴を要求したため)。**ローカルの worktree には `develop` が local branch として在るので clone にも
+`origin/develop` が入り、通っていた。** **CI の checkout は detached HEAD で local branch を持たないので、
+clone には `origin/develop` が入らない。** **#69 が入れた差分閉包の段 2 はその ref を要求する。**
+
+**CI の条件を手元で再現して確認した**(detached HEAD + local branch 削除 → clone → `merge-base` が同じ文言で失敗)。
+
+### これは候補⑥の 2 例目である
+
+**台帳へ入れたばかりの候補「リポジトリを clone して検査するテストは、作業ツリーではなくブランチの ref を見る」**
+**と同じ機構**である。**1 例目は「未コミットだと旧い資産を見る」、2 例目は「remote-tracking ref を運ばない」。**
+**どちらも「clone すれば元と同じものが手に入る」という思い込みが根**にある。
+
+**1 例目は嘘の red(費用)だったが、2 例目は CI だけで落ちる形なので、手元の全件 green を信じて出していた。**
+**ローカル 1394 passed は、CI と同じものを検査していなかった。**
+
+### 状態遷移
+
+**計画書 `status: in-review → active`**(6.1 差し戻しの往復)。**Notion は 差し戻し → 進行中。**
+**本コミットにステップ記法は付けない**(/pr の規約)。
+
 ## やったこと
 
 ## 決定
