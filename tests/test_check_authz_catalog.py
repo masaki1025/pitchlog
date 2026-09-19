@@ -4278,14 +4278,9 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
         check=False,
     )
     assert clone.returncode == 0, clone.stderr
-    _run_git(
-        root,
-        "fetch",
-        "--no-tags",
-        "--quiet",
-        str(REPOSITORY_ROOT),
-        "refs/remotes/origin/develop:refs/remotes/origin/develop",
-    )
+    # clone は remote-tracking ref を運ばないため、検査器が要求する origin/develop を作る。
+    # 本テストが見るのは seal のドリフトなので、基準は HEAD でよい(受取先差分は空になる)。
+    _run_git(root, "branch", "--force", "origin/develop", "HEAD")
     baseline_result = checker.main(["--root", str(root)])
     baseline_output = capsys.readouterr()
     assert baseline_result == 0, baseline_output.err
