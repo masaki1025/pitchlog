@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseId": "pos-a-program-auto-promotion",
+  "clauseIds": [
+    "BOOT-PROGRAM",
+    "BOOT-ACTIVATION"
+  ],
+  "historyType": "unresolved-count-transition",
+  "history": {
+    "activationCommit": "activation-pr",
+    "initialUnresolvedCount": 1,
+    "integrations": [
+      {
+        "commit": "last-resolution-pr",
+        "unresolvedCount": 0
+      }
+    ]
+  },
+  "boundary": null,
+  "expected": {
+    "program": "promoted",
+    "grant": "ended",
+    "unresolvedCount": 0,
+    "epoch": null
+  }
+}

@@ -47,7 +47,9 @@
       "negativeCaseIds": [
         "neg-program-declaration-only-resolution"
       ],
-      "positiveCaseIds": []
+      "positiveCaseIds": [
+        "pos-a-program-auto-promotion"
+      ]
     },
     {
       "id": "BOOT-GRANT",
@@ -151,7 +153,9 @@
       "negativeCaseIds": [
         "neg-stall-premature-expiry"
       ],
-      "positiveCaseIds": []
+      "positiveCaseIds": [
+        "pos-a-stall-expiry"
+      ]
     },
     {
       "id": "BOOT-ACTIVATION",
@@ -164,7 +168,10 @@
       "negativeCaseIds": [
         "neg-activation-presence-without-execution"
       ],
-      "positiveCaseIds": []
+      "positiveCaseIds": [
+        "pos-a-program-auto-promotion",
+        "pos-a-stall-expiry"
+      ]
     }
   ]
 }

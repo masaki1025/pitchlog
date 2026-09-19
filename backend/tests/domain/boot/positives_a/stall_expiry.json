@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseId": "pos-a-stall-expiry",
+  "clauseIds": [
+    "BOOT-STALL",
+    "BOOT-ACTIVATION"
+  ],
+  "historyType": "develop-first-parent-pr-integrations",
+  "history": {
+    "initialUnresolvedCount": 2,
+    "noProgressMergeCount": 50,
+    "ordinaryIntegrationCount": 49,
+    "finalIntegrationBranch": "long-lived-feature",
+    "featureSideMergeMessage": "develop uptake on feature"
+  },
+  "boundary": {
+    "decreasedUnresolvedCount": 1,
+    "promotedUnresolvedCount": 0
+  },
+  "expected": {
+    "expiredGrant": "expired",
+    "decreaseGrant": "active",
+    "promotionProgram": "promoted",
+    "promotionGrant": "ended"
+  }
+}
