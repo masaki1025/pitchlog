@@ -125,6 +125,72 @@ def check_groups(data, ids, errs):
     if covered != ids:
         errs.append("群がステップ全体を隙間なく覆っていない")
 
+STEP_REF = re.compile(r"ステップ\s*(\d+(?:\s*[〜~・、]\s*\d+)*)")
+DEADLINE_REF = re.compile(r"トリガー\s*(\d+)\s*の評価期限はステップ\s*(\d+)")
+TRIGGERS = Path(__file__).resolve().parents[3] / "backend/domain/review-triggers.json"
+
+
+def step_refs(text):
+    """本文中の「ステップ N」参照を (番号, 表記) の一覧で返す。"""
+    out = []
+    for m in STEP_REF.finditer(text):
+        for token in re.split(r"[〜~・、]", m.group(1)):
+            out.append((int(token.strip()), m.group(0)))
+    return out
+
+
+def check_crossrefs(data, errs):
+    """ステップ相互参照の宛先が実在し、自己参照でないことを検査する。
+
+    2026-09-19 の再発(§16 型 A)への機構。ステップ 13 を挿入した際、
+    挿入前に書かれた「ステップ N」参照 14 箇所を人手で数え落とした。
+
+    **本検査が捕まえるのは範囲外参照と自己参照だけである。**
+    当該 14 箇所のうち本検査で検出できたのは自己参照 1 件のみで、
+    残り 13 件は「実在する別のステップを指している」ため通過する。
+    意味として正しい宛先かは、参照を番号ではなく記号で持たない限り機械では
+    決まらない(§16 に記号参照化を真の是正として記録した)。
+    """
+    total = len(data["steps"])
+    for step in data["steps"]:
+        for key in ("title", "criteria"):
+            for num, token in step_refs(step[key]):
+                if not 1 <= num <= total:
+                    errs.append(
+                        "ステップ %d の %s: 参照先 %d が存在しない(総数 %d・%s)"
+                        % (step["id"], key, num, total, token)
+                    )
+                elif num == step["id"]:
+                    errs.append(
+                        "ステップ %d の %s: 自己参照(「本ステップ」と書く・%s)"
+                        % (step["id"], key, token)
+                    )
+
+
+def check_trigger_deadlines(data, errs):
+    """本文が書くトリガー評価期限を review-triggers.json と突合する。
+
+    期限の正は資産側であり、計画書本文はその写しにすぎない。
+    ステップ 1 が書く「トリガー 1 の評価期限はステップ N」は、
+    挿入で N がずれても範囲内に留まるため check_crossrefs では捕まらない。
+    """
+    if not TRIGGERS.exists():
+        errs.append("review-triggers.json が見つからない: %s" % TRIGGERS)
+        return
+    payload = json.loads(TRIGGERS.read_text(encoding="utf-8"))
+    deadlines = {str(t["id"]): str(t["evaluationDeadline"]) for t in payload["triggers"]}
+    for step in data["steps"]:
+        for key in ("title", "criteria"):
+            for tid, said in DEADLINE_REF.findall(step[key]):
+                want = deadlines.get(tid)
+                if want is None:
+                    errs.append("ステップ %d: トリガー %s が資産に無い" % (step["id"], tid))
+                elif want != said:
+                    errs.append(
+                        "ステップ %d: トリガー %s の評価期限が本文 %s・資産 %s で食い違う"
+                        % (step["id"], tid, said, want)
+                    )
+
 
 def check_duplicates(data, errs):
     """``artifact`` と ``command`` の重複を検査する。"""
@@ -152,7 +218,7 @@ def check(data):
 
     - **``requires_positive_b`` と ``pb_false`` を同時に書き換える変更。**
       どちらも同じ資産内の自己申告なので、整合したまま一緒に動かせば正しく見える。
-      → **ステップ 50 が ``pb_false`` を承認済み基準に対して封印し**(ステップ 9 の封印機構)、
+      → **ステップ 51 が ``pb_false`` を承認済み基準に対して封印し**(ステップ 9 の封印機構)、
       **当該 PR からの書き換えを無条件に fail させる**ことで閉じる。
       **比較元は固定 SHA であり当該 PR から変更できない。**
     - **合格条件の本文が意味として妥当かどうか。** 文字列 "正例 B" の有無しか見ていない。
@@ -191,6 +257,8 @@ def check(data):
                     % (step["id"], step["group"], expected)
                 )
     check_duplicates(data, errs)
+    check_crossrefs(data, errs)
+    check_trigger_deadlines(data, errs)
     return errs
 
 
