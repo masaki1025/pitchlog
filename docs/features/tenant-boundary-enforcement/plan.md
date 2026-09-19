@@ -104,6 +104,7 @@ TSK-424 完了時に製品資産からの導出へ差し替える。**
 | **`.claude/core-areas.json`** | `tenant-isolation` の `paths` へ **`backend/src/pitchlog/repositories/*` + `backend/tests/db_fixtures.py`(exact path)+ 迂回検査器・allowlist・正負 fixture・検査テスト**を追加(設計書 6.3-⑤ / `dev-harness-design-2026-08-07.md:393`) | **敵対レビュー + 人間の逐行確認**(`guard_paths` 対象。**PR レビューのゲートであって、コミット単位の合格条件ではない**) |
 | **`.github/workflows/ci.yml`** | 迂回検査器だけを変更した PR でも走るジョブの配線(現行の backend フィルタは `backend/**` と `contracts/**` しか拾わない — `:176`) | PR レビュー(`tests/test_ci_wiring.py` の期待列更新を伴う) |
 | **`.env.example`** | アプリ用 DSN の記述を専用化(**値は書かない** — NFR-014)。`PITCHLOG_DATABASE_URL` の説明を「最初の物理接続時に失敗」へ同期 | PR レビュー |
+| **`docs/development/github-setup.md`** | **3 章の Ruleset JSON の `required_status_checks` へ `{ "context": "tenant-boundary-bypass" }` を追加**(同章 `:101`「**必須ジョブの追加・削除・改名時は本書と Ruleset を同時更新する**」に従う。本 PR が当該ジョブを新設する側である)。**2 章の手続 2 の常時実行ジョブの列挙も同時更新**。**変更履歴表へ追記し、版は上げない**(実装追随の節更新 — 7.6-3 前段。`nfr021-append-only` 追加時と同じ扱い) | PR レビュー |
 | **`docs/development/harness-evaluation.md`** | **`## 候補` へ新規 1 件 + 既存候補 2 件へ事例追記**(/pr のクローズ処理で判断)。**`H-*` の新規採番はしない・版は上げない**(7.6-3 前段) | PR レビュー |
 
 ## 4. 実装方針

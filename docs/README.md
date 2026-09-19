@@ -18,7 +18,7 @@
 | [ADR-003: ドメイン計算の実現方式と契約化](adr/ADR-003-domain-calc-method.md) | **approved**(v0.3 — TSK-355: **D-7 実行契機表の 6 行へ移行状態を併記**し、**`D-13`(移行状態が帰結 1 の段階 1〜2 にまたがることの明示 — **規範を持たない**)を新設、**見直しトリガーに「移行状態が機能しないとき」を追加**。要件書 v2.9・開発ハーネス設計書 v1.15 と**単一の確定ゲートで一括検証**) | 0.3 | 2026-09-14 |
 | [ADR-004: マージゲートの適用単位と測定経路](adr/ADR-004-merge-gate-scope.md) | **approved**(v0.1 — TSK-379: TSK-378 の PO 裁定 A・B(2026-09-12)の**経緯・理由・却下した 6 案**を記録する。**規範は持たない**(所在は `data-model.md` 12-4 節と要件書 `NFR-019(b)`。**条項参照を外すと規範として読めなくなること**を自己検証条件に置いた)。上記 2 正本と**単一の確定ゲートで一括検証** → **PO 承認 2026-09-13**) | 0.1 | 2026-09-13 |
 | [オンボーディング](development/onboarding.md) | **approved**(v1.2 — 受入プロファイルの複製を要件書参照へ寄せ、2-2 節「アーキテクチャの採取」を新設〔3 値の採取・正規化表・不適合判定・arm64 実機で実測〕。敵対レビュー9周 → PO 承認) | 1.2 | 2026-08-27 |
-| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.2 — 2 章マージ手続へ実施記録の確認・base/head SHA の拘束を追加、必須 CI 一覧を 9 context へ是正。設計書 v1.12 と一括検証・PO 承認) | 1.2 | 2026-09-01 |
+| [GitHub リポジトリ設定手順](development/github-setup.md) | **approved**(v1.2 — 2 章マージ手続へ実施記録の確認・base/head SHA の拘束を追加、必須 CI 一覧を 9 context へ是正。設計書 v1.12 と一括検証・PO 承認 / **`tenant-boundary-bypass` を追加し 10 context へ**〔実装追随・版は上げない〕) | 1.2 | 2026-09-19 |
 | [NFR-021 受入証跡の運用](ops/nfr021-acceptance/README.md) | **approved**(v1.3 — ブートストラップ手順を前提 PR 第 3 号へ対応し、手順 6・7 へ 10.1 の共通順序とマージ後検査を伝播。敵対レビュー9周 → PO 承認) | 1.3 | 2026-08-27 |
 | [NFR-021 予約レコードのテンプレート](ops/nfr021-acceptance/reservation-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
 | [NFR-021 結果証跡のテンプレート(phase4)](ops/nfr021-acceptance/evidence-phase4-template.md) | **approved**(敵対レビュー6周 → PO 承認) | 1.0 | 2026-08-19 |
