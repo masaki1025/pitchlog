@@ -4278,6 +4278,14 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
         check=False,
     )
     assert clone.returncode == 0, clone.stderr
+    _run_git(
+        root,
+        "fetch",
+        "--no-tags",
+        "--quiet",
+        str(REPOSITORY_ROOT),
+        "refs/remotes/origin/develop:refs/remotes/origin/develop",
+    )
     baseline_result = checker.main(["--root", str(root)])
     baseline_output = capsys.readouterr()
     assert baseline_result == 0, baseline_output.err
