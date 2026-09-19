@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 6,
+  "contract_revision": 7,
   "diff": {
     "command": [
       "git",
@@ -18,7 +18,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "91ca7edfff58df9a15939db7daf71c701b16303e773041ffb1b132519b295681"
+    "sha256": "7c2b82a45daabcc2ffec857f9c520611785d35fa9afecdbe6d3d5ac7b656d7e2"
   },
   "allowed_symbols": [
     {

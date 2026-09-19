@@ -8,7 +8,7 @@ from dataclasses import dataclass, is_dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 from types import MappingProxyType
-from typing import final
+from typing import cast, final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ from sqlalchemy.sql.elements import (
     ColumnElement,
 )
 
-from pitchlog.repositories.binding import _tenant_transaction
+from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.repository_contract import CROSS_TENANT_FUNCTIONS
 from pitchlog.repositories.tokens import (
@@ -106,11 +106,11 @@ def _has_required_tenant_predicate(
 
 def _materialize_value(value: object) -> ImmutableValue:
     """DB 値を許可済み immutable 型へ再帰的に閉じる。"""
-    if value is None or isinstance(value, _IMMUTABLE_SCALAR_TYPES):
-        return value
-    if isinstance(value, tuple):
+    if value is None or type(value) in _IMMUTABLE_SCALAR_TYPES:
+        return cast(ImmutableValue, value)
+    if type(value) is tuple:
         return tuple(_materialize_value(item) for item in value)
-    if isinstance(value, frozenset):
+    if type(value) is frozenset:
         return frozenset(_materialize_value(item) for item in value)
     raise _TenantOperationError(
         f"実行結果に許可されていない可変または遅延型が含まれる: {type(value)!r}"
@@ -175,6 +175,8 @@ class TenantRepositoryBase(ABC):
         Raises:
             RuntimeError: token が registry に無いか結果契約に違反する場合。
         """
+        if type(context) is not TenantContext:
+            raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
         _operation_spec(operation)
         return _validated_result(self._execute_operation(context, operation))
 

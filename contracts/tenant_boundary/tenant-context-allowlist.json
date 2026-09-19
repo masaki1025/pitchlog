@@ -1,10 +1,13 @@
 {
   "schema_version": 1,
-  "contract_revision": 1,
+  "contract_revision": 2,
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "69b2b6ad859a901c7e7582f5f408a2af16fcbe850562b6ea79eb5a68e18fe754",
+  "source_digest": "fe983644362876198433daf1f9f82445aa647b12319bc57a309207eefd3143ca",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
+  "forbidden_construction_symbols": [
+    "builtins.object.__new__"
+  ],
   "allowed_test_modules": [
     "test_authz_tenant_context"
   ],

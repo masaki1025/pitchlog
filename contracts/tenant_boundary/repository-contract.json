@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "contract_revision": 1,
+  "contract_revision": 2,
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "0965b10bad728bfac10f21da27b1fd721cdc16145fc5ef41a58610f6c6a051b6",
+  "source_digest": "6b0afada8e668def23a34f48640556000cc883d57201741efea8df236c4cfb8d",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -17,6 +17,8 @@
     "signature": "_execute_operation(self, context: TenantContext, operation: TenantOperationToken) -> TenantOperationResult"
   },
   "return_contract": {
+    "scalar_type_match": "exact",
+    "container_type_match": "exact",
     "allowed_dtos": [
       "pitchlog.repositories.tokens.TenantOperationResult"
     ],

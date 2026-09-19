@@ -318,6 +318,48 @@
       "expected_error": "TB005"
     },
     {
+      "id": "C5_DYNAMIC_EVAL_EXECUTE",
+      "path": "pitchlog/services/c5_dynamic_eval_execute.py",
+      "condition": 5,
+      "mutation": "eval で session.execute を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_EXEC",
+      "path": "pitchlog/services/c5_dynamic_exec.py",
+      "condition": 5,
+      "mutation": "exec で Session.execute 呼び出しを実行する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_GETATTR_EXECUTE",
+      "path": "pitchlog/services/c5_dynamic_getattr_execute.py",
+      "condition": 5,
+      "mutation": "getattr と文字列連結で Session.execute を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_IMPORT_PSYCOPG",
+      "path": "pitchlog/services/c5_dynamic_import_psycopg.py",
+      "condition": 5,
+      "mutation": "__import__ と文字列連結で psycopg.connect を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_IMPORTLIB",
+      "path": "pitchlog/services/c5_dynamic_importlib.py",
+      "condition": 5,
+      "mutation": "importlib.import_module で psycopg を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_ENGINE_RETURN_ALIAS",
+      "path": "pitchlog/services/c5_engine_return_alias.py",
+      "condition": 5,
+      "mutation": "create_database_engine の戻り値と Connection を任意名へ別名化して SQL を実行する",
+      "expected_error": "TB005"
+    },
+    {
       "id": "C5_ENGINE_RAW_CONNECTION",
       "path": "pitchlog/services/c5_engine_raw_connection.py",
       "condition": 5,
@@ -336,6 +378,13 @@
       "path": "pitchlog/services/c5_psycopg_direct.py",
       "condition": 5,
       "mutation": "psycopg.connect を直呼びする",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_PGCONN_EXEC",
+      "path": "pitchlog/services/c5_pgconn_exec.py",
+      "condition": 5,
+      "mutation": "psycopg.pq.PGconn.exec_ を直接呼ぶ",
       "expected_error": "TB005"
     },
     {
@@ -358,6 +407,13 @@
       "condition": 5,
       "mutation": "Session.query で ORM を直呼びする",
       "expected_error": "TB005"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_NEW",
+      "path": "pitchlog/services/c5_tenant_context_object_new.py",
+      "condition": 5,
+      "mutation": "object.__new__(TenantContext) で生成箇所 allowlist を迂回する",
+      "expected_error": "TB007"
     }
   ]
 }

@@ -75,12 +75,20 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ALIAS_EXECUTE",
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
+        "C5_DYNAMIC_EVAL_EXECUTE",
+        "C5_DYNAMIC_EXEC",
+        "C5_DYNAMIC_GETATTR_EXECUTE",
+        "C5_DYNAMIC_IMPORT_PSYCOPG",
+        "C5_DYNAMIC_IMPORTLIB",
+        "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
         "C5_MULTILINE_SCALARS",
+        "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
         "C5_SET_CONFIG_FALSE",
         "C5_SET_TENANT_SQL",
         "C5_SQLALCHEMY_ORM",
+        "C5_TENANT_CONTEXT_OBJECT_NEW",
     }
 )
 
@@ -203,6 +211,115 @@ def test_api_added_outside_sealed_inventory_is_red(tmp_path: Path) -> None:
 
     with pytest.raises(checker.ContractError, match="inventory の集合が封印値と不一致"):
         checker.load_contract(repository)
+
+
+def test_low_level_execution_surface_and_receiver_origins_are_sealed() -> None:
+    """PGconn 実行面・re-export・factory 戻り型を閉集合に固定する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    pgconn_execution_symbols = {
+        api.symbol
+        for api in contract.apis
+        if api.symbol.startswith("psycopg.pq.PGconn.")
+    }
+    assert pgconn_execution_symbols == {
+        "psycopg.pq.PGconn.connect",
+        "psycopg.pq.PGconn.connect_start",
+        "psycopg.pq.PGconn.exec_",
+        "psycopg.pq.PGconn.exec_params",
+        "psycopg.pq.PGconn.exec_prepared",
+        "psycopg.pq.PGconn.send_prepare",
+        "psycopg.pq.PGconn.send_query",
+        "psycopg.pq.PGconn.send_query_params",
+        "psycopg.pq.PGconn.send_query_prepared",
+    }
+    assert contract.symbol_aliases["sqlalchemy.Engine"] == (
+        "sqlalchemy.engine.Engine"
+    )
+    factory_returns = {
+        item.symbol: item.returns for item in contract.receiver_factories
+    }
+    assert factory_returns["pitchlog.db.engine.create_database_engine"] == (
+        "sqlalchemy.engine.Engine"
+    )
+    assert factory_returns["sqlalchemy.engine.Engine.connect"] == (
+        "sqlalchemy.engine.Connection"
+    )
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_error"),
+    (
+        ('run = getattr(session, "exe" + "cute")\nrun(statement)\n', "TB005"),
+        ('eval("session.execute")(statement)\n', "TB005"),
+        (
+            'driver = __import__("psyco" + "pg")\n'
+            'getattr(driver, "connect")(url)\n',
+            "TB005",
+        ),
+        (
+            "from pitchlog.db.engine import create_database_engine\n"
+            "database = create_database_engine()\n"
+            "handle = database.connect()\n"
+            'handle.exec_driver_sql("SELECT 1")\n',
+            "TB005",
+        ),
+        (
+            "from psycopg.pq import PGconn\n"
+            "connection: PGconn\n"
+            'connection.exec_(b"SELECT 1")\n',
+            "TB005",
+        ),
+        (
+            "from pitchlog.repositories.context import TenantContext\n"
+            "object.__new__(TenantContext)\n",
+            "TB007",
+        ),
+    ),
+)
+def test_reported_dynamic_bypass_examples_are_red(
+    source: str,
+    expected_error: str,
+) -> None:
+    """敵対レビューで再現された 6 経路をそのまま拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/adversarial.py",
+        contract=contract,
+    )
+
+    assert expected_error in {violation.code for violation in violations}
+
+
+def test_session_factory_return_and_dynamic_object_new_are_red() -> None:
+    """Session factory 別名と動的 object.__new__ も閉世界検査で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    session_source = """\
+from sqlalchemy.orm import Session
+
+session_factory = Session
+handle = session_factory()
+handle.execute(statement)
+"""
+    context_source = """\
+from pitchlog.repositories.context import TenantContext
+
+getattr(object, "__new__")(TenantContext)
+"""
+
+    session_violations = checker.scan_source(
+        session_source,
+        path="pitchlog/services/session_factory_bypass.py",
+        contract=contract,
+    )
+    context_violations = checker.scan_source(
+        context_source,
+        path="pitchlog/services/context_factory_bypass.py",
+        contract=contract,
+    )
+
+    assert "TB005" in {item.code for item in session_violations}
+    assert "TB007" in {item.code for item in context_violations}
 
 
 def test_empty_baseline_and_empty_head_pass() -> None:

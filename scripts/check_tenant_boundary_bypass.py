@@ -64,6 +64,14 @@ class ApiSpec:
 
 
 @dataclass(frozen=True)
+class ReceiverFactory:
+    """DB receiver を返す factory または member API を表す。"""
+
+    symbol: str
+    returns: str
+
+
+@dataclass(frozen=True)
 class AllowedSymbol:
     """DB 到達を許可する完全修飾シンボルを表す。"""
 
@@ -101,6 +109,7 @@ class TenantContextConstructionContract:
     contract_revision: int
     source_digest: str
     constructor_symbol: str
+    forbidden_construction_symbols: frozenset[str]
     allowed_test_modules: frozenset[str]
     allowed_product_modules: frozenset[str]
 
@@ -120,6 +129,8 @@ class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
     apis: tuple[ApiSpec, ...]
+    receiver_factories: tuple[ReceiverFactory, ...]
+    symbol_aliases: Mapping[str, str]
     allowed_symbols: tuple[AllowedSymbol, ...]
     rules: tuple[ConditionRule, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
@@ -274,11 +285,20 @@ def _string_array(value: object, location: str) -> tuple[str, ...]:
     return items
 
 
-def _load_inventory(value: dict[str, Any]) -> tuple[ApiSpec, ...]:
+def _load_inventory(
+    value: dict[str, Any],
+) -> tuple[tuple[ApiSpec, ...], tuple[ReceiverFactory, ...], Mapping[str, str]]:
     """DB API inventory を検証して読む。"""
     _strict_keys(
         value,
-        {"schema_version", "inventory_revision", "closed_world", "apis"},
+        {
+            "schema_version",
+            "inventory_revision",
+            "closed_world",
+            "apis",
+            "receiver_factories",
+            "symbol_aliases",
+        },
         "db-api-inventory.json",
     )
     if _integer(value["schema_version"], "inventory.schema_version") != 1:
@@ -320,7 +340,66 @@ def _load_inventory(value: dict[str, Any]) -> tuple[ApiSpec, ...]:
     symbols = [api.symbol for api in apis]
     if len(ids) != len(set(ids)) or len(symbols) != len(set(symbols)):
         raise ContractError("inventory.apis の id と symbol はそれぞれ一意でなければならない")
-    return tuple(apis)
+
+    member_owners = {
+        api.symbol.rsplit(".", 1)[0] for api in apis if api.kind == "member"
+    }
+    receiver_factories: list[ReceiverFactory] = []
+    for index, raw in enumerate(
+        _array(value["receiver_factories"], "inventory.receiver_factories")
+    ):
+        item = _object(raw, f"inventory.receiver_factories[{index}]")
+        _strict_keys(
+            item,
+            {"symbol", "returns"},
+            f"inventory.receiver_factories[{index}]",
+        )
+        returns = _string(
+            item["returns"], f"inventory.receiver_factories[{index}].returns"
+        )
+        if returns not in member_owners:
+            raise ContractError(
+                f"inventory.receiver_factories[{index}].returns が receiver 型でない"
+            )
+        receiver_factories.append(
+            ReceiverFactory(
+                symbol=_string(
+                    item["symbol"],
+                    f"inventory.receiver_factories[{index}].symbol",
+                ),
+                returns=returns,
+            )
+        )
+    factory_symbols = [item.symbol for item in receiver_factories]
+    if not receiver_factories or len(factory_symbols) != len(set(factory_symbols)):
+        raise ContractError("receiver_factories は空にできず、symbol は一意でなければならない")
+
+    symbol_aliases: dict[str, str] = {}
+    for index, raw in enumerate(
+        _array(value["symbol_aliases"], "inventory.symbol_aliases")
+    ):
+        item = _object(raw, f"inventory.symbol_aliases[{index}]")
+        _strict_keys(
+            item,
+            {"symbol", "target"},
+            f"inventory.symbol_aliases[{index}]",
+        )
+        symbol = _string(
+            item["symbol"], f"inventory.symbol_aliases[{index}].symbol"
+        )
+        target = _string(
+            item["target"], f"inventory.symbol_aliases[{index}].target"
+        )
+        if symbol in symbol_aliases:
+            raise ContractError("inventory.symbol_aliases.symbol は一意でなければならない")
+        if target not in member_owners:
+            raise ContractError(
+                f"inventory.symbol_aliases[{index}].target が receiver 型でない"
+            )
+        symbol_aliases[symbol] = target
+    if not symbol_aliases:
+        raise ContractError("inventory.symbol_aliases は空にできない")
+    return tuple(apis), tuple(receiver_factories), symbol_aliases
 
 
 def _load_allowlist(
@@ -490,9 +569,12 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
         expected_error = _string(
             item["expected_error"], f"negative.fixtures[{index}].expected_error"
         )
-        if expected_error != f"TB00{condition}":
+        allowed_errors = {f"TB00{condition}"}
+        if condition == 5:
+            allowed_errors.add("TB007")
+        if expected_error not in allowed_errors:
             raise ContractError(
-                f"negative.fixtures[{index}].expected_error は TB00{condition} が必要"
+                f"negative.fixtures[{index}].expected_error が条件 {condition} と不一致"
             )
         fixtures.append(
             NegativeFixture(
@@ -537,6 +619,7 @@ def _load_tenant_context_allowlist(
             "canonicalization",
             "source_digest",
             "constructor_symbol",
+            "forbidden_construction_symbols",
             "allowed_test_modules",
             "allowed_product_modules",
         },
@@ -586,6 +669,16 @@ def _load_tenant_context_allowlist(
     )
     if constructor_symbol != EXPECTED_TENANT_CONTEXT_CONSTRUCTOR:
         raise ContractError("TenantContext のコンストラクタシンボルが固定値と不一致")
+    forbidden_construction_symbols = frozenset(
+        _string_array(
+            value["forbidden_construction_symbols"],
+            "tenant_context.forbidden_construction_symbols",
+        )
+    )
+    if forbidden_construction_symbols != {"builtins.object.__new__"}:
+        raise ContractError(
+            "TenantContext の禁止生成経路は builtins.object.__new__ の exact-set が必要"
+        )
     allowed_test_modules = frozenset(
         _string_array(
             value["allowed_test_modules"], "tenant_context.allowed_test_modules"
@@ -613,6 +706,7 @@ def _load_tenant_context_allowlist(
         contract_revision=contract_revision,
         source_digest=expected_digest,
         constructor_symbol=constructor_symbol,
+        forbidden_construction_symbols=forbidden_construction_symbols,
         allowed_test_modules=allowed_test_modules,
         allowed_product_modules=allowed_product_modules,
     )
@@ -762,7 +856,7 @@ def load_contract(repository_root: Path) -> Contract:
     cache_invalidation_value, _ = _read_json(
         repository_root / DEFAULT_CACHE_INVALIDATION_CONTRACT
     )
-    apis = _load_inventory(inventory_value)
+    apis, receiver_factories, symbol_aliases = _load_inventory(inventory_value)
     allowed_symbols, rules = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
@@ -799,6 +893,8 @@ def load_contract(repository_root: Path) -> Contract:
         )
     return Contract(
         apis=apis,
+        receiver_factories=receiver_factories,
+        symbol_aliases=symbol_aliases,
         allowed_symbols=allowed_symbols,
         rules=rules,
         negative_fixtures=negative_fixtures,
@@ -835,24 +931,65 @@ def _function_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     return rendered.removeprefix(prefix).removesuffix(":")
 
 
+def _constant_string(node: ast.AST) -> str | None:
+    """文字列リテラルとその ``+`` 連結を静的に畳み込む。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _constant_string(node.left)
+        right = _constant_string(node.right)
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
 class _AliasCollector(ast.NodeVisitor):
     """import と単純代入による別名を収集する。"""
 
-    def __init__(self, member_owners: Set[str]) -> None:
+    def __init__(
+        self,
+        member_owners: Set[str],
+        call_returns: Mapping[str, str],
+        symbol_aliases: Mapping[str, str],
+    ) -> None:
         self.aliases: dict[str, str] = {}
         self.member_owners = member_owners
+        self.call_returns = call_returns
+        self.symbol_aliases = symbol_aliases
+
+    def canonical(self, symbol: str) -> str:
+        """公開 re-export を inventory の標準 receiver へ寄せる。"""
+        return self.symbol_aliases.get(symbol, symbol)
 
     def resolve(self, node: ast.AST) -> str | None:
         """式を既知の完全修飾名へ解決する。"""
         if isinstance(node, ast.Name):
-            return self.aliases.get(node.id, node.id)
+            return self.canonical(self.aliases.get(node.id, node.id))
         if isinstance(node, ast.Attribute):
             parent = self.resolve(node.value)
             if parent is None:
                 return None
             qualified = f"{parent}.{node.attr}"
-            return self.aliases.get(qualified, qualified)
+            return self.canonical(self.aliases.get(qualified, qualified))
         return None
+
+    def resolve_value(self, node: ast.AST) -> str | None:
+        """別名式または既知 factory の戻り receiver 型を解決する。"""
+        resolved = self.resolve(node)
+        if resolved is not None:
+            return resolved
+        if not isinstance(node, ast.Call):
+            return None
+        called = self.resolve(node.func)
+        if called is not None and called in self.call_returns:
+            return self.call_returns[called]
+        if called not in {"getattr", "builtins.getattr"} or len(node.args) < 2:
+            return None
+        receiver = self.resolve(node.args[0])
+        attribute = _constant_string(node.args[1])
+        if receiver is None or attribute is None:
+            return None
+        return self.canonical(f"{receiver}.{attribute}")
 
     def _record_arguments(self, arguments: ast.arguments) -> None:
         """引数の型注釈から任意名の DB receiver を解決する。"""
@@ -886,9 +1023,9 @@ class _AliasCollector(ast.NodeVisitor):
             self.aliases[local_name] = f"{module}.{alias.name}".strip(".")
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
-        """単純な名前別名代入を記録する。"""
+        """名前別名と factory 戻り値の receiver 型を記録する。"""
         self.generic_visit(node.value)
-        resolved = self.resolve(node.value)
+        resolved = self.resolve_value(node.value)
         if resolved is None:
             return
         for target in node.targets:
@@ -912,7 +1049,7 @@ class _AliasCollector(ast.NodeVisitor):
         if node.value is None:
             return
         self.generic_visit(node.value)
-        resolved = self.resolve(node.value)
+        resolved = self.resolve_value(node.value)
         if resolved is not None and isinstance(node.target, ast.Name):
             self.aliases[node.target.id] = resolved
 
@@ -954,7 +1091,14 @@ class _SourceScanner(ast.NodeVisitor):
             for api in contract.apis
             if api.kind == "member"
         }
-        collector = _AliasCollector(member_owners)
+        call_returns = {
+            item.symbol: item.returns for item in contract.receiver_factories
+        }
+        collector = _AliasCollector(
+            member_owners,
+            call_returns,
+            contract.symbol_aliases,
+        )
         collector.visit(tree)
         self.aliases = collector
         self.api_by_symbol = {api.symbol: api for api in contract.apis}
@@ -1002,6 +1146,15 @@ class _SourceScanner(ast.NodeVisitor):
         return any(
             text == symbol or text.startswith(f"{symbol}.")
             for symbol in boundary.public_symbols
+        )
+
+    def _pool_connection_invalidation_allowed(self, text: str | None) -> bool:
+        """真正性違反接続の破棄をキャッシュ無効化語彙から区別する。"""
+        return bool(
+            text == "connection_record.invalidate"
+            and self.function_stack
+            and self.function_stack[-1][0]
+            == "pitchlog.db.engine._verify_application_role_on_checkout"
         )
 
     def _check_identifier(
@@ -1065,6 +1218,29 @@ class _SourceScanner(ast.NodeVisitor):
                 return api
         return None
 
+    def _matching_dynamic_member(
+        self,
+        receiver_node: ast.AST,
+        method: str,
+    ) -> ApiSpec | None:
+        """getattr の receiver と静的に畳み込んだ属性名を inventory へ照合する。"""
+        resolved_receiver = self.aliases.resolve(receiver_node)
+        raw_receiver = self._raw_expression(receiver_node)
+        for receiver in (resolved_receiver, raw_receiver):
+            if receiver is None:
+                continue
+            symbol = self.aliases.canonical(f"{receiver}.{method}")
+            if symbol in self.api_by_symbol:
+                return self.api_by_symbol[symbol]
+        resolved_name = "" if resolved_receiver is None else resolved_receiver.rsplit(".", 1)[-1]
+        raw_name = "" if raw_receiver is None else raw_receiver.rsplit(".", 1)[-1]
+        for api in self.contract.apis:
+            if api.kind != "member" or api.symbol.rsplit(".", 1)[1] != method:
+                continue
+            if resolved_name in api.receivers or raw_name in api.receivers:
+                return api
+        return None
+
     def _current_allowed_symbol(self) -> AllowedSymbol | None:
         if not self.function_stack:
             return None
@@ -1121,6 +1297,41 @@ class _SourceScanner(ast.NodeVisitor):
         if not self._is_changed(node):
             return
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
+        if resolved is None and isinstance(node.func, ast.Call):
+            dynamic_function = self.aliases.resolve(
+                node.func.func
+            ) or self._raw_expression(node.func.func)
+            if (
+                dynamic_function in {"getattr", "builtins.getattr"}
+                and len(node.func.args) >= 2
+                and (
+                    self.aliases.resolve(node.func.args[0])
+                    or self._raw_expression(node.func.args[0])
+                )
+                in {"object", "builtins.object"}
+                and _constant_string(node.func.args[1]) == "__new__"
+            ):
+                resolved = "builtins.object.__new__"
+        canonical_resolved = (
+            "builtins.object.__new__" if resolved == "object.__new__" else resolved
+        )
+        if (
+            canonical_resolved
+            in self.contract.tenant_context.forbidden_construction_symbols
+            and node.args
+        ):
+            constructed = self.aliases.resolve(node.args[0]) or self._raw_expression(
+                node.args[0]
+            )
+            if constructed == self.contract.tenant_context.constructor_symbol:
+                self._add(
+                    node,
+                    condition=5,
+                    code="TB007",
+                    symbol=f"{canonical_resolved}({constructed})",
+                    message="object.__new__ による TenantContext の生成迂回は禁止",
+                )
+            return
         if resolved != self.contract.tenant_context.constructor_symbol:
             return
         allowed_modules = (
@@ -1136,6 +1347,74 @@ class _SourceScanner(ast.NodeVisitor):
             symbol=resolved,
             message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
         )
+
+    def _check_dynamic_call(self, node: ast.Call) -> None:
+        """動的名前解決による DB API・保護型への到達を保守的に拒否する。"""
+        if not self._is_changed(node):
+            return
+        resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
+        if resolved in {
+            "eval",
+            "builtins.eval",
+            "exec",
+            "builtins.exec",
+            "__import__",
+            "builtins.__import__",
+            "importlib.import_module",
+        }:
+            self._add(
+                node,
+                condition=5,
+                code="TB005",
+                symbol=resolved,
+                message="動的評価・import による保護対象 API への到達は禁止",
+            )
+            return
+        if resolved not in {"getattr", "builtins.getattr"} or len(node.args) < 2:
+            return
+        receiver = self.aliases.resolve(node.args[0]) or self._raw_expression(
+            node.args[0]
+        )
+        method = _constant_string(node.args[1])
+        member_owners = {
+            api.symbol.rsplit(".", 1)[0]
+            for api in self.contract.apis
+            if api.kind == "member"
+        }
+        receiver_is_protected = receiver in member_owners or any(
+            receiver is not None
+            and receiver.rsplit(".", 1)[-1] in api.receivers
+            for api in self.contract.apis
+            if api.kind == "member"
+        )
+        if method is None:
+            if receiver_is_protected:
+                self._add(
+                    node,
+                    condition=5,
+                    code="TB005",
+                    symbol="getattr(<database-receiver>, <dynamic>)",
+                    message="DB receiver の動的属性解決は禁止",
+                )
+            return
+        api = self._matching_dynamic_member(node.args[0], method)
+        if api is not None:
+            self._add(
+                node,
+                condition=5,
+                code="TB005",
+                symbol=api.symbol,
+                message="getattr による DB 到達 API の動的解決は禁止",
+            )
+        constructor = self.contract.tenant_context.constructor_symbol
+        if receiver == constructor and method in {"__new__", "__init__"}:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=f"getattr({constructor}, {method})",
+                message="TenantContext の動的構築は生成箇所 allowlist を迂回する",
+            )
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
         """import のモジュール名と別名を禁止語彙へ照合する。"""
@@ -1276,6 +1555,7 @@ class _SourceScanner(ast.NodeVisitor):
         condition4_call_allowed = (
             resolved
             in self.contract.cache_invalidation.allowed_call_symbols
+            or self._pool_connection_invalidation_allowed(resolved)
         )
         if resolved is not None:
             self._check_identifier(
@@ -1286,10 +1566,33 @@ class _SourceScanner(ast.NodeVisitor):
         self._check_db_call(node)
         self._check_set_config_call(node)
         self._check_tenant_context_call(node)
+        self._check_dynamic_call(node)
         if not condition4_call_allowed:
             self.visit(node.func)
         for argument in (*node.args, *(item.value for item in node.keywords)):
             self.visit(argument)
+
+    def visit_BinOp(self, node: ast.BinOp) -> None:  # noqa: N802
+        """保護対象名を組み立てる文字列連結を拒否する。"""
+        folded = _constant_string(node)
+        if folded is not None and self._is_changed(node):
+            normalized = _normalize_identifier(folded)
+            protected_fragments = (
+                "execute",
+                "exec_driver_sql",
+                "psycopg",
+                "send_query",
+                "tenant_context",
+            )
+            if any(fragment in normalized for fragment in protected_fragments):
+                self._add(
+                    node,
+                    condition=5,
+                    code="TB005",
+                    symbol=folded,
+                    message="保護対象 API・型名の文字列連結は禁止",
+                )
+        self.generic_visit(node)
 
     def visit_Constant(self, node: ast.Constant) -> None:  # noqa: N802
         """SQL 文字列中の非局所 GUC 設定を検査する。"""

@@ -1,7 +1,139 @@
 {
   "schema_version": 1,
-  "inventory_revision": 1,
+  "inventory_revision": 2,
   "closed_world": true,
+  "receiver_factories": [
+    {
+      "symbol": "pitchlog.db.engine.create_database_engine",
+      "returns": "sqlalchemy.engine.Engine"
+    },
+    {
+      "symbol": "sqlalchemy.create_engine",
+      "returns": "sqlalchemy.engine.Engine"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.create_async_engine",
+      "returns": "sqlalchemy.ext.asyncio.AsyncEngine"
+    },
+    {
+      "symbol": "sqlalchemy.orm.Session",
+      "returns": "sqlalchemy.orm.Session"
+    },
+    {
+      "symbol": "sqlalchemy.orm.sessionmaker",
+      "returns": "sqlalchemy.orm.Session"
+    },
+    {
+      "symbol": "sqlalchemy.orm.scoped_session",
+      "returns": "sqlalchemy.orm.Session"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.AsyncSession",
+      "returns": "sqlalchemy.ext.asyncio.AsyncSession"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.async_sessionmaker",
+      "returns": "sqlalchemy.ext.asyncio.AsyncSession"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.async_scoped_session",
+      "returns": "sqlalchemy.ext.asyncio.AsyncSession"
+    },
+    {
+      "symbol": "psycopg.connect",
+      "returns": "psycopg.Connection"
+    },
+    {
+      "symbol": "psycopg.Connection.connect",
+      "returns": "psycopg.Connection"
+    },
+    {
+      "symbol": "psycopg.AsyncConnection.connect",
+      "returns": "psycopg.AsyncConnection"
+    },
+    {
+      "symbol": "psycopg.Connection.cursor",
+      "returns": "psycopg.Cursor"
+    },
+    {
+      "symbol": "psycopg.AsyncConnection.cursor",
+      "returns": "psycopg.AsyncCursor"
+    },
+    {
+      "symbol": "sqlalchemy.engine.Engine.connect",
+      "returns": "sqlalchemy.engine.Connection"
+    },
+    {
+      "symbol": "sqlalchemy.engine.Engine.begin",
+      "returns": "sqlalchemy.engine.Connection"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.AsyncEngine.connect",
+      "returns": "sqlalchemy.ext.asyncio.AsyncConnection"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.AsyncEngine.begin",
+      "returns": "sqlalchemy.ext.asyncio.AsyncConnection"
+    },
+    {
+      "symbol": "sqlalchemy.orm.Session.connection",
+      "returns": "sqlalchemy.engine.Connection"
+    },
+    {
+      "symbol": "psycopg.pq.PGconn.connect",
+      "returns": "psycopg.pq.PGconn"
+    },
+    {
+      "symbol": "psycopg.pq.PGconn.connect_start",
+      "returns": "psycopg.pq.PGconn"
+    }
+  ],
+  "symbol_aliases": [
+    {
+      "symbol": "sqlalchemy.Engine",
+      "target": "sqlalchemy.engine.Engine"
+    },
+    {
+      "symbol": "sqlalchemy.engine.base.Engine",
+      "target": "sqlalchemy.engine.Engine"
+    },
+    {
+      "symbol": "sqlalchemy.Connection",
+      "target": "sqlalchemy.engine.Connection"
+    },
+    {
+      "symbol": "sqlalchemy.engine.base.Connection",
+      "target": "sqlalchemy.engine.Connection"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.engine.AsyncEngine",
+      "target": "sqlalchemy.ext.asyncio.AsyncEngine"
+    },
+    {
+      "symbol": "sqlalchemy.ext.asyncio.engine.AsyncConnection",
+      "target": "sqlalchemy.ext.asyncio.AsyncConnection"
+    },
+    {
+      "symbol": "sqlalchemy.orm.session.Session",
+      "target": "sqlalchemy.orm.Session"
+    },
+    {
+      "symbol": "psycopg.connection.Connection",
+      "target": "psycopg.Connection"
+    },
+    {
+      "symbol": "psycopg.connection_async.AsyncConnection",
+      "target": "psycopg.AsyncConnection"
+    },
+    {
+      "symbol": "psycopg.cursor.Cursor",
+      "target": "psycopg.Cursor"
+    },
+    {
+      "symbol": "psycopg.cursor_async.AsyncCursor",
+      "target": "psycopg.AsyncCursor"
+    }
+  ],
   "apis": [
     {
       "id": "PSYCOPG_ASYNC_CONNECTION_COMMIT",
@@ -64,6 +196,12 @@
       "receivers": []
     },
     {
+      "id": "PSYCOPG_CONNECTION_CONNECT",
+      "symbol": "psycopg.Connection.connect",
+      "kind": "function",
+      "receivers": []
+    },
+    {
       "id": "PSYCOPG_CONNECTION_COMMIT",
       "symbol": "psycopg.Connection.commit",
       "kind": "member",
@@ -110,6 +248,60 @@
       "symbol": "psycopg.Cursor.stream",
       "kind": "member",
       "receivers": ["cursor"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_CONNECT",
+      "symbol": "psycopg.pq.PGconn.connect",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "PSYCOPG_PGCONN_CONNECT_START",
+      "symbol": "psycopg.pq.PGconn.connect_start",
+      "kind": "function",
+      "receivers": []
+    },
+    {
+      "id": "PSYCOPG_PGCONN_EXEC",
+      "symbol": "psycopg.pq.PGconn.exec_",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_EXEC_PARAMS",
+      "symbol": "psycopg.pq.PGconn.exec_params",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_EXEC_PREPARED",
+      "symbol": "psycopg.pq.PGconn.exec_prepared",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_SEND_PREPARE",
+      "symbol": "psycopg.pq.PGconn.send_prepare",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_SEND_QUERY",
+      "symbol": "psycopg.pq.PGconn.send_query",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_SEND_QUERY_PARAMS",
+      "symbol": "psycopg.pq.PGconn.send_query_params",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
+    },
+    {
+      "id": "PSYCOPG_PGCONN_SEND_QUERY_PREPARED",
+      "symbol": "psycopg.pq.PGconn.send_query_prepared",
+      "kind": "member",
+      "receivers": ["pgconn", "connection", "conn"]
     },
     {
       "id": "SQLA_ASYNC_CONNECTION_EXECUTE",

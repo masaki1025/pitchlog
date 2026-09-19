@@ -7,6 +7,8 @@ import inspect
 import json
 from collections.abc import Callable, Generator, Iterator
 from dataclasses import FrozenInstanceError, dataclass
+from datetime import date, datetime, time
+from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast, get_type_hints
@@ -49,7 +51,11 @@ from pitchlog.repositories.base import (
     _TenantScopedOperation,
 )
 from pitchlog.repositories.context import TenantContext
-from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
+from pitchlog.repositories.tokens import (
+    ImmutableValue,
+    TenantOperationResult,
+    TenantOperationToken,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CONTRACT_PATH = Path("contracts/tenant_boundary/repository-contract.json")
@@ -175,6 +181,8 @@ def _generated_snapshot() -> dict[str, object]:
         },
         "return_contract": {
             "allowed_dtos": list(repository_contract.ALLOWED_DTOS),
+            "scalar_type_match": repository_contract.SCALAR_TYPE_MATCH,
+            "container_type_match": repository_contract.CONTAINER_TYPE_MATCH,
             "immutable_scalar_types": list(repository_contract.IMMUTABLE_SCALAR_TYPES),
             "immutable_container_grammar": list(
                 repository_contract.IMMUTABLE_CONTAINER_GRAMMAR
@@ -282,6 +290,8 @@ def test_runtime_immutable_types_match_the_asset_exactly() -> None:
     assert repository_contract.ALLOWED_DTOS == (
         "pitchlog.repositories.tokens.TenantOperationResult",
     )
+    assert repository_contract.SCALAR_TYPE_MATCH == "exact"
+    assert repository_contract.CONTAINER_TYPE_MATCH == "exact"
     assert repository_contract.IMMUTABLE_SCALAR_TYPES == expected_scalars
     assert runtime_types == expected_scalars
     assert repository_contract.IMMUTABLE_CONTAINER_GRAMMAR == (
@@ -490,6 +500,78 @@ def test_runtime_materializer_accepts_only_fully_materialized_values() -> None:
     assert result.rows == (((tenant_id, "marker", (1, True), frozenset({"sealed"}))),)
     with pytest.raises(FrozenInstanceError):
         setattr(result, "rows", ())
+
+
+def _leaky_immutable_subclasses(handle: object) -> tuple[tuple[str, object], ...]:
+    """DB ハンドルを属性に保持する許可型サブクラスを生成する。"""
+    specifications: tuple[tuple[str, type[object], tuple[object, ...]], ...] = (
+        ("int", int, (1,)),
+        ("float", float, (1.0,)),
+        ("str", str, ("value",)),
+        ("bytes", bytes, (b"value",)),
+        ("uuid", UUID, ("00000000-0000-0000-0000-000000000909",)),
+        ("decimal", Decimal, ("1.0",)),
+        ("date", date, (2026, 9, 19)),
+        ("datetime", datetime, (2026, 9, 19, 12, 0)),
+        ("time", time, (12, 0)),
+        ("tuple", tuple, ((1, 2),)),
+        ("frozenset", frozenset, ({1, 2},)),
+    )
+    values: list[tuple[str, object]] = []
+    for name, base_type, arguments in specifications:
+        mutation_type = type(f"Leaky{name.title()}", (base_type,), {})
+        value = mutation_type(*arguments)
+        object.__setattr__(value, "database_handle", handle)
+        values.append((name, value))
+    return tuple(values)
+
+
+def test_immutable_subclasses_cannot_leak_database_handles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全サブクラス化可能型が DB ハンドルを保持しても公開されない。"""
+    statement = select(_TEST_TABLE.c.marker).where(
+        _TEST_TABLE.c.tenant_id == bindparam("tenant_id")
+    )
+    token = _RegisteredTestToken()
+    monkeypatch.setattr(
+        repository_base,
+        "_OPERATION_REGISTRY",
+        {
+            _RegisteredTestToken: _TenantScopedOperation(
+                capability_id=token.capability_id,
+                statement=cast(Select[tuple[object, ...]], statement),
+                tenant_column=_TEST_TABLE.c.tenant_id,
+            )
+        },
+    )
+    context = make_tenant_context(_repository_contract_test_tenant_id())
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    try:
+        with Session(engine) as session:
+            raw_result = session.execute(text("SELECT 1"))
+            for handle in (session, raw_result, object()):
+                for type_name, value in _leaky_immutable_subclasses(handle):
+                    with pytest.raises(
+                        _TenantOperationError,
+                        match="許可されていない",
+                    ):
+                        _materialize_rows(((value,),))
+                    with pytest.raises(
+                        _TenantOperationError,
+                        match="許可されていない",
+                    ):
+                        _UnsafeReturnRepository(
+                            TenantOperationResult(
+                                rows=cast(
+                                    tuple[tuple[ImmutableValue, ...], ...],
+                                    ((value,),),
+                                )
+                            )
+                        ).execute(context, token)
+                    assert type_name
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.parametrize(

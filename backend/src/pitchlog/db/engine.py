@@ -8,6 +8,7 @@ from typing import Any
 import psycopg
 from psycopg.pq import TransactionStatus
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 
 from pitchlog.authz.runtime_contract import (
     APPLICATION_ROLE_ATTRIBUTES,
@@ -337,14 +338,32 @@ def _verify_application_role_connection(
         )
 
 
-def _verify_application_role_on_connect(
+def _verify_application_role_on_checkout(
     dbapi_connection: object,
-    _connection_record: object,
+    connection_record: ConnectionPoolEntry,
+    _connection_proxy: PoolProxiedConnection,
 ) -> None:
-    """SQLAlchemy の物理接続イベントから真正性検査を呼び出す。"""
-    if not isinstance(dbapi_connection, psycopg.Connection):
-        raise DatabaseConfigurationError("psycopg 以外の DBAPI 接続を拒否した")
-    _verify_application_role_connection(dbapi_connection)
+    """業務利用ごとの checkout で真正性を再検査する。
+
+    カタログ照合の往復コストより、プール返却後に管理経路から変更された
+    ロール属性・所属を業務 SQL より前に拒否する安全性を優先する。失敗した
+    物理接続は再利用させず、即座にプールから排除する。
+
+    Args:
+        dbapi_connection: checkout された DBAPI 物理接続。
+        connection_record: 接続を所有するプール内レコード。
+        _connection_proxy: SQLAlchemy の checkout 接続プロキシ。
+
+    Raises:
+        DatabaseConfigurationError: 接続主体またはランタイム契約が不正な場合。
+    """
+    try:
+        if not isinstance(dbapi_connection, psycopg.Connection):
+            raise DatabaseConfigurationError("psycopg 以外の DBAPI 接続を拒否した")
+        _verify_application_role_connection(dbapi_connection)
+    except Exception as error:
+        connection_record.invalidate(error, soft=False)
+        raise
 
 
 def engine_connect_args(pooled: bool) -> dict[str, object]:
@@ -407,6 +426,9 @@ def _database_is_pooled(value: str) -> bool:
 def create_database_engine() -> Engine:
     """アプリケーション用 URL から SQLAlchemy engine を生成する。
 
+    プール済み接続も業務利用のたびに真正性を再検査する。外部管理経路による
+    ロール変更を見逃さない安全性のため、checkout ごとの往復コストを受け入れる。
+
     Returns:
         psycopg 3 を使用する同期 engine。
     """
@@ -421,5 +443,5 @@ def create_database_engine() -> Engine:
     connect_args = engine_connect_args(_database_is_pooled(pooled_value))
     normalized_url = normalize_postgresql_url(database_url)
     engine = create_engine(normalized_url, connect_args=connect_args)
-    event.listen(engine, "connect", _verify_application_role_on_connect)
+    event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine

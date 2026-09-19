@@ -53,6 +53,9 @@ def _generated_snapshot() -> dict[str, object]:
         "canonicalization": tenant_context_contract.CANONICALIZATION,
         "source_digest": tenant_context_contract.SOURCE_DIGEST,
         "constructor_symbol": tenant_context_contract.CONSTRUCTOR_SYMBOL,
+        "forbidden_construction_symbols": list(
+            tenant_context_contract.FORBIDDEN_CONSTRUCTION_SYMBOLS
+        ),
         "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
@@ -104,6 +107,7 @@ def test_product_construction_allowlist_is_empty() -> None:
         "canonicalization",
         "source_digest",
         "constructor_symbol",
+        "forbidden_construction_symbols",
         "allowed_test_modules",
         "allowed_product_modules",
     ),

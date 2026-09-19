@@ -42,6 +42,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 from sqlalchemy.sql import Select
 from test_authz_tenant_context import make_tenant_context
 
@@ -49,9 +50,11 @@ from pitchlog.authz.runtime_contract import (
     APPLICATION_ROLE_NAME,
     DANGEROUS_ENDPOINT_FIXTURES,
 )
+from pitchlog.db import engine as engine_module
 from pitchlog.db.config import DatabaseConfigurationError
 from pitchlog.db.engine import (
     _verify_application_role_connection,
+    _verify_application_role_on_checkout,
     create_database_engine,
 )
 from pitchlog.repositories import base as repository_base
@@ -372,6 +375,15 @@ def _application_engine(
     return create_database_engine()
 
 
+def _successful_checkout(engine: Engine) -> psycopg.Connection[Any]:
+    """真正性検査を通った物理接続を pool へ返して返却する。"""
+    with engine.connect() as connection:
+        raw_connection = connection.connection.driver_connection
+        assert isinstance(raw_connection, psycopg.Connection)
+        assert connection.exec_driver_sql("SELECT 1").scalar_one() == 1
+    return raw_connection
+
+
 def _grant_memberships(
     admin: psycopg.Connection[Any],
     grants: tuple[tuple[str, str, bool, bool, bool], ...],
@@ -528,6 +540,52 @@ def test_missing_tenant_context_emits_no_business_sql() -> None:
     assert observed_statements == []
 
 
+def test_public_execute_rejects_context_before_session_and_sql() -> None:
+    """公開入口は token 解決や Session 参照より先に文脈欠落を拒否する。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+    session_references = 0
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    class _SessionTrapRepository(TenantRepositoryBase):
+        """参照時に SQL を発行するテスト専用 Session trap。"""
+
+        def __init__(self, session: Session) -> None:
+            self.__session = session
+
+        @property
+        def _session(self) -> Session:
+            nonlocal session_references
+            session_references += 1
+            self.__session.execute(text("SELECT 1"))
+            return self.__session
+
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            repository = _SessionTrapRepository(session)
+            with pytest.raises(TenantBindingError, match="TenantContext が無い"):
+                repository.execute(
+                    cast(TenantContext, None),
+                    cast(TenantOperationToken, object()),
+                )
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert session_references == 0
+    assert observed_statements == []
+
+
 def test_existing_unbound_transaction_is_rejected_without_more_sql() -> None:
     """先行 SQL が開始した未束縛トランザクションへ後付けで参加しない。"""
     engine = create_engine("sqlite+pysqlite:///:memory:")
@@ -623,6 +681,136 @@ def test_application_role_is_verified_on_first_physical_connection(
             assert isinstance(raw_connection, psycopg.Connection)
             assert raw_connection.info.transaction_status is TransactionStatus.IDLE
             assert connection.exec_driver_sql("SELECT 1").scalar_one() == 1
+    finally:
+        engine.dispose()
+
+
+def test_failed_checkout_invalidates_physical_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """真正性検査に失敗した物理接続を pool から即時排除する。"""
+
+    class _FakeConnection:
+        """isinstance 判定を通すテスト専用接続。"""
+
+    expected_error = DatabaseConfigurationError("真正性違反")
+    verifier = MagicMock(side_effect=expected_error)
+    connection_record = MagicMock()
+    monkeypatch.setattr(engine_module.psycopg, "Connection", _FakeConnection)
+    monkeypatch.setattr(
+        engine_module,
+        "_verify_application_role_connection",
+        verifier,
+    )
+
+    with pytest.raises(DatabaseConfigurationError, match="真正性違反"):
+        _verify_application_role_on_checkout(
+            _FakeConnection(),
+            cast(ConnectionPoolEntry, connection_record),
+            cast(PoolProxiedConnection, object()),
+        )
+
+    connection_record.invalidate.assert_called_once_with(
+        expected_error,
+        soft=False,
+    )
+
+
+@pytest.mark.requires_db
+def test_every_role_attribute_is_rechecked_on_pooled_checkout(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """返却済み接続でも 7 属性の変更を業務 SQL より先に拒否する。"""
+    attribute_mutations = (
+        ("SUPERUSER", "NOSUPERUSER", "rolsuper"),
+        ("BYPASSRLS", "NOBYPASSRLS", "rolbypassrls"),
+        ("NOLOGIN", "LOGIN", "rolcanlogin"),
+        ("CREATEROLE", "NOCREATEROLE", "rolcreaterole"),
+        ("CREATEDB", "NOCREATEDB", "rolcreatedb"),
+        ("REPLICATION", "NOREPLICATION", "rolreplication"),
+        ("INHERIT", "NOINHERIT", "rolinherit"),
+    )
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    try:
+        for mutation, restoration, attribute_name in attribute_mutations:
+            checked_connection = _successful_checkout(engine)
+            with application_role_database.admin.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("ALTER ROLE {} {}").format(
+                        sql.Identifier(APPLICATION_ROLE_NAME),
+                        sql.SQL(mutation),
+                    )
+                )
+            business_sql_executed = False
+            try:
+                with pytest.raises(
+                    DatabaseConfigurationError,
+                    match=rf"ロール属性が不一致: {attribute_name}",
+                ):
+                    with engine.connect() as connection:
+                        business_sql_executed = True
+                        connection.exec_driver_sql("SELECT 42")
+                assert not business_sql_executed
+                assert checked_connection.closed
+            finally:
+                with application_role_database.admin.cursor() as cursor:
+                    cursor.execute(
+                        sql.SQL("ALTER ROLE {} {}").format(
+                            sql.Identifier(APPLICATION_ROLE_NAME),
+                            sql.SQL(restoration),
+                        )
+                    )
+            _successful_checkout(engine)
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.requires_db
+def test_memberships_are_rechecked_on_pooled_checkout(
+    application_role_database: _ApplicationRoleDatabase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """返却後の直接・多段・混合所属を業務 SQL より先に拒否する。"""
+    dangerous_role = _ROLE_NAMES["table_owner"]
+    middle = _ROLE_NAMES["middle_one"]
+    cases = {
+        "direct": ((dangerous_role, APPLICATION_ROLE_NAME, False, False, True),),
+        "multihop": (
+            (middle, APPLICATION_ROLE_NAME, False, False, True),
+            (dangerous_role, middle, False, False, True),
+        ),
+        "mixed": (
+            (middle, APPLICATION_ROLE_NAME, False, False, True),
+            (dangerous_role, middle, False, True, False),
+        ),
+    }
+    assert set(cases) == {"direct", "multihop", "mixed"}
+    engine = _application_engine(
+        monkeypatch,
+        application_role_database.application_url,
+    )
+    try:
+        for grants in cases.values():
+            checked_connection = _successful_checkout(engine)
+            _grant_memberships(application_role_database.admin, grants)
+            business_sql_executed = False
+            try:
+                with pytest.raises(
+                    DatabaseConfigurationError,
+                    match=rf"危険ロールへ到達可能: {dangerous_role}",
+                ):
+                    with engine.connect() as connection:
+                        business_sql_executed = True
+                        connection.exec_driver_sql("SELECT 42")
+                assert not business_sql_executed
+                assert checked_connection.closed
+            finally:
+                _revoke_memberships(application_role_database.admin, grants)
+            _successful_checkout(engine)
     finally:
         engine.dispose()
 
