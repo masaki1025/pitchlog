@@ -17,9 +17,10 @@
         6,
         7,
         12,
-        13
+        13,
+        30
       ],
-      "evaluationDeadline": 13,
+      "evaluationDeadline": 30,
       "evaluationMethod": {
         "conditionTypeIds": [
           "population_measurement"
@@ -30,9 +31,11 @@
       "judge": [
         "PO"
       ],
-      "evidenceLocation": "backend/domain/vocabulary.schema.json",
+      "evidenceLocation": "backend/domain/model.schema.json",
       "firingCondition": "反例が 1 件でも成立",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 2,

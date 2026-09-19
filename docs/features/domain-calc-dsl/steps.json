@@ -356,7 +356,7 @@
     {
       "id": 30,
       "group": 5,
-      "title": "**合成 DSL fixture と全 target matrix**。**全区分**((α) / (β)①〜⑤ の 3 段 / (β)⑦ の 2 段 / (β)⑥⑧)を合成 DSL で実行検証。**トリガー 8 を評価**",
+      "title": "**合成 DSL fixture と全 target matrix**。**全区分**((α) / (β)①〜⑤ の 3 段 / (β)⑦ の 2 段 / (β)⑥⑧)を合成 DSL で実行検証。**トリガー 1・8 を評価**(**トリガー 1 は本ステップが再評価の地点** — ステップ 13 時点の判定は「置き場がある」までで、**全区分の宣言モデルを実際に書いて生成まで通すのは本ステップが最初**。PO 裁定 2026-09-19)",
       "criteria": "`[機械]` **全 target matrix が生成される**(**母集合計測**で区分数を固定)/ `kind` と段数の整合が実機で成立 / **製品ベクタを含まない**静的検査 / **◎ 合成 DSL から全区分の生成物が実際に出力され、3 層 runner の入力として使える**(**正例 B**) `[手動]` **トリガー 8 の判定**(判定者: 山田正輝。証拠 = 生成器の行数・生成 target 数・保守手順の実測)",
       "artifact": "`backend/tests/domain/fixtures/synthetic_dsl/`",
       "command": "`uv run pytest tests/domain/gen/test_target_matrix.py`",
