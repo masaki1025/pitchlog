@@ -1,0 +1,2476 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "pitchlog.domaincheck.boot_seal_derive",
+  "sources": {
+    "requirements": {
+      "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "authorities": [
+        "NFR-018 対象欄",
+        "NFR-018 (b)①",
+        "NFR-018 (b)②",
+        "NFR-018 (b)③"
+      ]
+    },
+    "targetRule": {
+      "path": "backend/domain/check-sets.json",
+      "selector": "targetDerivation"
+    },
+    "declarationNames": {
+      "path": "backend/domain/manifest.schema.json",
+      "selectors": [
+        "properties",
+        "$defs.Calculation.properties"
+      ],
+      "authority": "ADR-003 D-11 ③ 構成の完全性"
+    }
+  },
+  "algebraicType": {
+    "constructors": [
+      {
+        "name": "declaration_absence",
+        "arguments": [
+          "target",
+          "field"
+        ]
+      },
+      {
+        "name": "mechanism_absence",
+        "arguments": [
+          "bClause"
+        ]
+      }
+    ]
+  },
+  "derivedInputs": {
+    "targets": [
+      {
+        "id": "nfr018-alpha-01",
+        "group": "alpha",
+        "ordinal": 1,
+        "name": "状況判定"
+      },
+      {
+        "id": "nfr018-alpha-02",
+        "group": "alpha",
+        "ordinal": 2,
+        "name": "入力と表示のための座標変換"
+      },
+      {
+        "id": "nfr018-alpha-03",
+        "group": "alpha",
+        "ordinal": 3,
+        "name": "捕球選手推定"
+      },
+      {
+        "id": "nfr018-alpha-04",
+        "group": "alpha",
+        "ordinal": 4,
+        "name": "終了判定"
+      },
+      {
+        "id": "nfr018-alpha-05",
+        "group": "alpha",
+        "ordinal": 5,
+        "name": "断中にクライアントで実行する成績集計の前処理"
+      },
+      {
+        "id": "nfr018-beta-01",
+        "group": "beta",
+        "ordinal": 1,
+        "name": "投手分析・打者分析・作戦分析の集計"
+      },
+      {
+        "id": "nfr018-beta-02",
+        "group": "beta",
+        "ordinal": 2,
+        "name": "カルテ掲載指標の集計"
+      },
+      {
+        "id": "nfr018-beta-03",
+        "group": "beta",
+        "ordinal": 3,
+        "name": "シーズン通算成績の集計"
+      },
+      {
+        "id": "nfr018-beta-04",
+        "group": "beta",
+        "ordinal": 4,
+        "name": "共同分析グループの共有集計"
+      },
+      {
+        "id": "nfr018-beta-05",
+        "group": "beta",
+        "ordinal": 5,
+        "name": "チーム単位の分析の集計"
+      },
+      {
+        "id": "nfr018-beta-06",
+        "group": "beta",
+        "ordinal": 6,
+        "name": "移行時の座標変換"
+      },
+      {
+        "id": "nfr018-beta-07",
+        "group": "beta",
+        "ordinal": 7,
+        "name": "打球方向の導出"
+      },
+      {
+        "id": "nfr018-beta-08",
+        "group": "beta",
+        "ordinal": 8,
+        "name": "移行時の責任投手・成績帰属の導出"
+      }
+    ],
+    "declarationFields": {
+      "perCalculation": [
+        "calculation",
+        "source",
+        "generated",
+        "entrypoints",
+        "directTargets",
+        "comparison",
+        "normalization",
+        "vectors",
+        "properties",
+        "mutation"
+      ],
+      "topLevel": [
+        "propertyCatalog",
+        "calculations",
+        "displayBindings"
+      ]
+    },
+    "bClauses": [
+      {
+        "id": "nfr018-b-1",
+        "marker": "①",
+        "ordinal": 1,
+        "name": "出所と派生物の乖離の検出"
+      },
+      {
+        "id": "nfr018-b-2",
+        "marker": "②",
+        "ordinal": 2,
+        "name": "差分の検出可能性"
+      },
+      {
+        "id": "nfr018-b-3",
+        "marker": "③",
+        "ordinal": 3,
+        "name": "宣言された構成の完全性"
+      }
+    ]
+  },
+  "counts": {
+    "total": 136,
+    "d11": 133,
+    "b": 3
+  },
+  "elements": [
+    {
+      "id": "nfr018-alpha-01/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-alpha-01/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-01",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-01,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-01",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-alpha-02/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-02",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-02,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-02",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-alpha-03/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-03",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-03,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-03",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-alpha-04/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-04",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-04,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-04",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-alpha-05/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-alpha-05",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-alpha-05,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-alpha-05",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-01/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-01",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-01,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-01",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-02/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-02",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-02,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-02",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-03/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-03",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-03,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-03",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-04/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-04",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-04,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-04",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-05/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-05",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-05,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-05",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-06/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-06",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-06,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-06",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-07/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-07",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-07,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-07",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/calculation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "calculation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,calculation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "calculation"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/source",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "source"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,source)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "source"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/generated",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "generated"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,generated)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "generated"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/entrypoints",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "entrypoints"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,entrypoints)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "entrypoints"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/directTargets",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "directTargets"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,directTargets)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "directTargets"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/comparison",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "comparison"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,comparison)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "comparison"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/normalization",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "normalization"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,normalization)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "normalization"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/vectors",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "vectors"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,vectors)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "vectors"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/properties",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "properties"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,properties)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "properties"
+      }
+    },
+    {
+      "id": "nfr018-beta-08/mutation",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "nfr018-beta-08",
+        "field": "mutation"
+      },
+      "canonicalKey": "declaration_absence(nfr018-beta-08,mutation)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "per-calculation",
+        "target": "nfr018-beta-08",
+        "field": "mutation"
+      }
+    },
+    {
+      "id": "manifest/propertyCatalog",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "manifest",
+        "field": "propertyCatalog"
+      },
+      "canonicalKey": "declaration_absence(manifest,propertyCatalog)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "top-level",
+        "target": "manifest",
+        "field": "propertyCatalog"
+      }
+    },
+    {
+      "id": "manifest/calculations",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "manifest",
+        "field": "calculations"
+      },
+      "canonicalKey": "declaration_absence(manifest,calculations)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "top-level",
+        "target": "manifest",
+        "field": "calculations"
+      }
+    },
+    {
+      "id": "manifest/displayBindings",
+      "origin": "d11",
+      "constructor": "declaration_absence",
+      "arguments": {
+        "target": "manifest",
+        "field": "displayBindings"
+      },
+      "canonicalKey": "declaration_absence(manifest,displayBindings)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "manifest-declaration",
+        "scope": "top-level",
+        "target": "manifest",
+        "field": "displayBindings"
+      }
+    },
+    {
+      "id": "nfr018-b-1/mechanism",
+      "origin": "nfr018-b",
+      "constructor": "mechanism_absence",
+      "arguments": {
+        "bClause": "nfr018-b-1"
+      },
+      "canonicalKey": "mechanism_absence(nfr018-b-1)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "nfr018-b-mechanism",
+        "bClause": "nfr018-b-1"
+      }
+    },
+    {
+      "id": "nfr018-b-2/mechanism",
+      "origin": "nfr018-b",
+      "constructor": "mechanism_absence",
+      "arguments": {
+        "bClause": "nfr018-b-2"
+      },
+      "canonicalKey": "mechanism_absence(nfr018-b-2)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "nfr018-b-mechanism",
+        "bClause": "nfr018-b-2"
+      }
+    },
+    {
+      "id": "nfr018-b-3/mechanism",
+      "origin": "nfr018-b",
+      "constructor": "mechanism_absence",
+      "arguments": {
+        "bClause": "nfr018-b-3"
+      },
+      "canonicalKey": "mechanism_absence(nfr018-b-3)",
+      "resolutionPredicate": {
+        "operator": "raw-check-conforms",
+        "check": "nfr018-b-mechanism",
+        "bClause": "nfr018-b-3"
+      }
+    }
+  ]
+}
