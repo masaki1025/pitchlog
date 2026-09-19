@@ -326,7 +326,9 @@ def _find_calls(text: str, marker: re.Pattern[str]) -> list[str | None]:
     arguments: list[str | None] = []
     for match in marker.finditer(masked):
         opening = masked.find("(", match.start(), match.end())
-        if opening < 0:
+        # str.find の不在値は -1 で直接判定する。
+        # 0 との比較はセンチネル変換の契約検査に該当するため使わない。
+        if opening == -1:
             arguments.append(None)
             continue
         closing = _balanced_end(text, opening, "(", ")")
