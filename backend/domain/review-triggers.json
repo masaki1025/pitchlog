@@ -186,7 +186,9 @@
       ],
       "evidenceLocation": "backend/tests/domain/fixtures/synthetic_dsl/",
       "firingCondition": "PO の明示的な不成立判定(実測の提示なしに発火・非発火のいずれも記録できない)",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 9,
