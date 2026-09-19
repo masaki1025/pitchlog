@@ -161,9 +161,11 @@
       "judge": [
         "PO"
       ],
-      "evidenceLocation": "tests/domain/",
+      "evidenceLocation": "backend/domain/check-sets.json",
       "firingCondition": "両立を崩す具体例 1 件",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 8,
