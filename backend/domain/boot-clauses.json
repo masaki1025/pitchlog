@@ -31,7 +31,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-STATE"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-state-second-program-termination"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -55,7 +57,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-GRANT"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-grant-indeterminate-bypass"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -66,7 +70,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-REAPPROVAL"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-reapproval-reused-record"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -77,7 +83,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-NO-CLAIM"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-no-claim-transition-satisfaction"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -140,7 +148,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-STALL"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-stall-premature-expiry"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -151,7 +161,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-ACTIVATION"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-activation-presence-without-execution"
+      ],
       "positiveCaseIds": []
     }
   ]

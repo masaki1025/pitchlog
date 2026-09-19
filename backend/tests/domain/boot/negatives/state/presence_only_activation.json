@@ -1,0 +1,37 @@
+{
+  "caseId": "neg-activation-presence-without-execution",
+  "clauseId": "BOOT-ACTIVATION",
+  "mechanism": "presence-without-execution",
+  "violation": {
+    "requirements": [
+      {
+        "kind": "mechanisms",
+        "prId": "synthetic-activation-pr",
+        "artifactPresent": true,
+        "connectedToRequiredPath": true,
+        "executed": true
+      },
+      {
+        "kind": "negatives",
+        "prId": "synthetic-activation-pr",
+        "artifactPresent": true,
+        "connectedToRequiredPath": true,
+        "executed": false
+      },
+      {
+        "kind": "promotion-and-expiry-positives",
+        "prId": "synthetic-activation-pr",
+        "artifactPresent": true,
+        "connectedToRequiredPath": true,
+        "executed": true
+      },
+      {
+        "kind": "operability-positives",
+        "prId": "synthetic-activation-pr",
+        "artifactPresent": true,
+        "connectedToRequiredPath": true,
+        "executed": true
+      }
+    ]
+  }
+}
