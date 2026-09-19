@@ -79,7 +79,9 @@
       ],
       "evidenceLocation": "tests/domain/gen/test_formatter.py",
       "firingCondition": "matrix の 1 区分でも生成不能",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 4,
