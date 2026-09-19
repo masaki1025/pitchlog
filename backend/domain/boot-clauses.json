@@ -18,7 +18,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-SEAL"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-seal-classification-exemption"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -40,7 +42,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-PROGRAM"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-program-declaration-only-resolution"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -84,7 +88,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-REPORT"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-report-missing-output"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -95,7 +101,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-SEAL-BASE"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-seal-base-merge-base"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -106,7 +114,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-SEAL-IMMUTABLE"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-seal-immutable-base-rewrite"
+      ],
       "positiveCaseIds": []
     },
     {
@@ -117,7 +127,9 @@
         "kind": "clause-violation",
         "criterionAuthority": "NFR-018 (e) BOOT-SEAL-MONOTONE"
       },
-      "negativeCaseIds": [],
+      "negativeCaseIds": [
+        "neg-seal-monotone-reappearance"
+      ],
       "positiveCaseIds": []
     },
     {

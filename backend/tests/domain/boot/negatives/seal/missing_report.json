@@ -1,0 +1,8 @@
+{
+  "caseId": "neg-report-missing-output",
+  "clauseId": "BOOT-REPORT",
+  "mechanism": "missing-report-output",
+  "violation": {
+    "emitReport": false
+  }
+}
