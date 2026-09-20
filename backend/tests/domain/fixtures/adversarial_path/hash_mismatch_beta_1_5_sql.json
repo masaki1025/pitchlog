@@ -1,0 +1,18 @@
+{
+  "fixtureId": "adversarial-beta-1-5-hash-sql",
+  "attack": "stage-hash-mismatch",
+  "targetClass": "beta-1-5",
+  "stages": [
+    "sql",
+    "typed-receiver",
+    "formatter"
+  ],
+  "mutation": {
+    "kind": "stage-hash-mismatch",
+    "stage": "sql"
+  },
+  "expected": {
+    "combinedAcceptance": false
+  },
+  "assurance": "SQL 段の提出 hash と generated 宣言の hash の差を不合格にする。"
+}
