@@ -88,11 +88,11 @@ repo: visibility public / secret_scanning enabled / push_protection enabled
 
 | # | 起票する内容 | 受ける未達 | 参照元ステップ |
 | --- | --- | --- | --- |
-| F-1 | **`scripts/setup_branch_protection.py` の新規作成**(冪等 GET→POST/PUT・重複検知・dry-run + 適用後検証) | 設計書 10.2 の**自動再現要件**(承認済み例外を切り替えた先) | ステップ 8 |
-| F-2 | **ブランチ保護の実地検証** — docs-only PR で下流 skipped がマージ可能 / 変更検知失敗時にマージがブロック の**両方を実測** | `github-setup.md` 3 章の**運用開始条件** | ステップ 4 |
-| F-3 | **ruleset へ `tenant-boundary-bypass` を追加**(**PR #72 マージ後**) | public 化の残作業(未達ではないが順序制約あり) | — |
+| **[F-1](https://app.notion.com/p/3e193b75e68781b6b0a5efb6762901d7)** | **`scripts/setup_branch_protection.py` の新規作成**(冪等 GET→POST/PUT・重複検知・dry-run + 適用後検証) | 設計書 10.2 の**自動再現要件**(承認済み例外を切り替えた先) | ステップ 8 |
+| **[F-2](https://app.notion.com/p/3e193b75e6878100980dcacbd9c80456)** | **ブランチ保護の実地検証** — docs-only PR で下流 skipped がマージ可能 / 変更検知失敗時にマージがブロック の**両方を実測** | `github-setup.md` 3 章の**運用開始条件** | ステップ 4 |
+| **[F-3](https://app.notion.com/p/3e193b75e6878145b8b7cb14488a96d7)** | **ruleset へ `tenant-boundary-bypass` を追加**(**PR #72 マージ後**) | public 化の残作業(未達ではないが順序制約あり) | — |
 
-**各件に URL・担当・完了条件を持たせ、本書と PR 本文へ記載する。**
+**起票済み(2026-09-20)。担当はいずれも PO、完了条件は各カードの DoD に記載。PR 本文へも転記する。**
 
 **NFR-019 (a)〜(d) の追跡先は後続タスクではない** — 実装期の既存タスク群を指す。**ステップ 6 でその実在カードを特定して置換する**(新規起票ではない)。
 
