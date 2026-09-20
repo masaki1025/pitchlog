@@ -12,6 +12,52 @@ branch: feature/post-public-doc-sync
 - `/investigate` — 調査サブエージェント 2 本(decision-tracer / spec-checker)+ GitHub API 実測 + 原典での裏取り → [research.md](../features/post-public-doc-sync/research.md)
 - `/plan` — 計画書を記入(7 ステップ)、`review normal` を起動
 
+## ステップ 1: gitleaks 検出の誤検知判定(2026-09-20)
+
+**実行**: 正本(`github-setup.md` 4 章)の SHA 固定イメージ `ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0…` を `--redact=100` 付きで実行。**秘匿値は本記録に含めない。**
+
+**検出は 2 件**(**メモリが持っていた「3 件」と食い違う** — 作業ツリーの `dir` スキャン結果。全履歴スキャンは下記の理由で未実施):
+
+| # | RuleID | File | Line | キー | 値の形式 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `generic-api-key` | `tests/fixtures/profile-sample/profiles/registry.json` | 25 | `pins.asset_digests.auth_catalog` | 64 桁 hex(SHA-256) |
+| 2 | `generic-api-key` | 同上 | 27 | `pins.asset_digests.auth_ddl_map` | 64 桁 hex(SHA-256) |
+
+**誤検知と判定する根拠(4 点)**:
+
+1. **値は資産から導出される内容ハッシュである。** `scripts/doc_check_profile.py:1846-1867` が `pins["asset_digests"]` を読み、`:491`・`:511` の `hashlib.sha256(...).hexdigest()` で**再計算して照合**し、不一致なら「`pins.asset_digests.<name>` が不一致です」で落とす。**再計算可能な導出値であり、秘匿を要する資格情報ではない。**
+2. **同一ファイル・同一構造の兄弟 8 件は検出されていない**(`claims`・`ddl_elements`・`product_ddl_map`・`waiting`・`forbidden`・`direct_requirements`・`expected_ids`・`baseline_digest`)。**発火の差はキー名に `auth` を含むかどうかだけ**で、値の性質によるものではない。
+3. **NFR-014 の対象は「DB接続情報・JWT署名鍵・管理者パスワード・チーム初期パスワード」の 4 種**。内容ハッシュはいずれにも該当しない。
+4. **テストフィクスチャである**(`tests/fixtures/profile-sample/`)。`test_check_doc_coverage.py`・`test_doc_check_profile.py`・`test_ci_wiring.py` 等が消費する。
+
+**全履歴スキャンの結果(人間が `!` で実行・1612 コミット走査・`ERR` なし・partial scan なし)**: **3 件**。作業ツリーの 2 件との差は、**`auth_catalog` のダイジェストが更新されて 2 つのコミットで別々に検出された**ことによる。**新しい種類の検出ではない。**
+
+| # | Commit | 日付 | Line | キー |
+| --- | --- | --- | --- | --- |
+| 1 | `5c8f52c`(資産ローダー等を追加 ステップ 28/38) | 2026-09-04 | 25 | `auth_catalog` |
+| 2 | `5c8f52c` | 2026-09-04 | 27 | `auth_ddl_map` |
+| 3 | `190fc3a`(corpus version 台帳を追加 ステップ 8/12) | 2026-09-14 | 25 | `auth_catalog`(値の更新により再検出) |
+
+**人間の判定(2026-09-20・山田正輝)**: 上記 4 点の根拠を提示し、登録方針 A / B / C を示したうえで **A(3 件を誤検知として `.gitleaksignore` へ登録)を選択**。**これをもって 3 件すべてを誤検知と判定した記録とする**(計画書 ステップ 1 の合格条件)。**真のシークレットは含まれないため、停止・失効・ローテーションの経路には入らない。**
+
+### 登録方式の限界(ステップ 2 で正本へ明記する)
+
+gitleaks の fingerprint は **`<コミット SHA>:<パス>:<ルール>:<行>`** で**コミット単位**。したがって **`.gitleaksignore` へ 3 件登録しても、当該資産のダイジェストが変わるたびに新しい fingerprint が生まれ `secrets` が再び落ちる**。実測として **2026-09-04 → 09-14 の 10 日間で 1 件増えている**。
+
+**A を選んだ判断の内訳**: B(`.gitleaks.toml` のパス単位 allowlist)は恒久的だが**正本 4 章の手続を変える**うえ `[extend] useDefault` の挙動が未確認で、**組込みルールを置換すると走査が空洞化する**リスクがある(計画のスコープ外)。C(フィクスチャのキー名変更)は発火条件を消せるが**本タスクの射程外**。**A の再発コストは「新しい fingerprint を 1 行足す」だけ**である。
+
+**→ ステップ 2 で `github-setup.md` 4 章へ「再発する」ことを明記する**(次に踏む人が同じ調査をやり直さないため)。
+
+### 未了 — 全履歴スキャンが hook に阻まれる(**本タスクの射程内の発見**)
+
+正本 `github-setup.md` 4 章が定めるローカル監査コマンドは **`docker run … gitleaks:v8.30.1 git --no-banner --no-color --redact=100 /repo`** だが、**`git_guard.py` がこれをブロックする**:
+
+> ブロック: git のグローバルオプションまたはサブコマンドを解析できませんでした。安全側で遮断します。
+
+**gitleaks の `git` サブコマンドを git コマンドと誤認**している。**approved 正本が定める手順が、同じリポジトリの hook によって実行不能**という状態。**4 章を編集する本タスクの射程内**なので、ステップ 2 で扱う。
+
+暫定として `dir` サブコマンド(作業ツリーのみ)で 2 件を同定した。**全履歴に 3 件目が存在するかは未確認** — メモリの「3 件」との差がここで説明できる可能性がある。**人間に `!` 付きで実行してもらう必要がある。**
+
 ## 台帳候補(本タスクのスコープ外 — 起票は別途)
 
 **型 1: 1 件見つけた時点で走査を止める(母集団の打ち切り)**
