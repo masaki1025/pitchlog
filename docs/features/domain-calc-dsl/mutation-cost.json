@@ -151,6 +151,250 @@
         }
       ],
       "estimatedTotalSeconds": 1.131573
+    },
+    {
+      "step": 49,
+      "schemaVersion": 1,
+      "measuredAt": "2026-09-20T14:04:27+00:00",
+      "recordSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commands",
+          "commitSha",
+          "mutantClassifications",
+          "rawLogs",
+          "runners"
+        ],
+        "properties": {
+          "rawLogs": {
+            "type": "array",
+            "minItems": 2
+          },
+          "commands": {
+            "type": "array",
+            "minItems": 2
+          },
+          "commitSha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "runners": {
+            "type": "array",
+            "minItems": 1
+          },
+          "mutantClassifications": {
+            "type": "array",
+            "minItems": 4
+          }
+        }
+      },
+      "evidence": {
+        "rawLogs": [
+          {
+            "scope": "differential",
+            "stdout": "........................................................................ [ 81%]\n................                                                         [100%]\n88 passed in 2.28s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "durationSeconds": 2.566482281021308
+          },
+          {
+            "scope": "full",
+            "stdout": "........................................................................ [ 81%]\n................                                                         [100%]\n88 passed in 1.55s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "durationSeconds": 2.006946834968403
+          }
+        ],
+        "commands": [
+          {
+            "scope": "differential",
+            "argv": [
+              ".venv/bin/python",
+              "-m",
+              "pytest",
+              "-q",
+              "tests/domain/gen/test_target_matrix.py",
+              "tests/domain/runners/test_vectors.py",
+              "tests/domain/runners/test_coverage_proof.py",
+              "tests/domain/runners/test_invariants.py",
+              "tests/domain/runners/test_equivalence.py",
+              "tests/domain/runners/test_catalog_independence.py",
+              "tests/domain/mut/test_engine.py",
+              "tests/domain/mut/test_lang_operators.py",
+              "tests/domain/mut/test_display_operators.py"
+            ],
+            "cwd": "."
+          },
+          {
+            "scope": "full",
+            "argv": [
+              ".venv/bin/python",
+              "-m",
+              "pytest",
+              "-q",
+              "tests/domain/gen/test_target_matrix.py",
+              "tests/domain/runners/test_vectors.py",
+              "tests/domain/runners/test_coverage_proof.py",
+              "tests/domain/runners/test_invariants.py",
+              "tests/domain/runners/test_equivalence.py",
+              "tests/domain/runners/test_catalog_independence.py",
+              "tests/domain/mut/test_engine.py",
+              "tests/domain/mut/test_lang_operators.py",
+              "tests/domain/mut/test_display_operators.py"
+            ],
+            "cwd": "."
+          }
+        ],
+        "commitSha": "de6da7af9d77a3fab16ae5b285b98ae4f37c17fd",
+        "runners": [
+          {
+            "id": "vectors",
+            "testPath": "tests/domain/runners/test_vectors.py"
+          },
+          {
+            "id": "coverage-proof",
+            "testPath": "tests/domain/runners/test_coverage_proof.py"
+          },
+          {
+            "id": "invariants",
+            "testPath": "tests/domain/runners/test_invariants.py"
+          },
+          {
+            "id": "equivalence",
+            "testPath": "tests/domain/runners/test_equivalence.py"
+          },
+          {
+            "id": "catalog-independence",
+            "testPath": "tests/domain/runners/test_catalog_independence.py"
+          }
+        ],
+        "mutantClassifications": [
+          {
+            "id": "python",
+            "artifactCount": 4,
+            "operatorIds": [
+              "python-language"
+            ],
+            "mutantCount": 12,
+            "mutantIds": [
+              "syntheticMatrix.syntheticAggregateReceiver.python.1",
+              "syntheticMatrix.syntheticAggregateReceiver.python.2",
+              "syntheticMatrix.syntheticAggregateReceiver.python.3",
+              "syntheticMatrix.syntheticAlphaCore.python.1",
+              "syntheticMatrix.syntheticAlphaCore.python.2",
+              "syntheticMatrix.syntheticAlphaCore.python.3",
+              "syntheticMatrix.syntheticClassificationReceiver.python.1",
+              "syntheticMatrix.syntheticClassificationReceiver.python.2",
+              "syntheticMatrix.syntheticClassificationReceiver.python.3",
+              "syntheticMatrix.syntheticMigrationCore.python.1",
+              "syntheticMatrix.syntheticMigrationCore.python.2",
+              "syntheticMatrix.syntheticMigrationCore.python.3"
+            ]
+          },
+          {
+            "id": "typescript",
+            "artifactCount": 1,
+            "operatorIds": [
+              "typescript-language"
+            ],
+            "mutantCount": 5,
+            "mutantIds": [
+              "syntheticMatrix.syntheticAlphaCore.typescript.1",
+              "syntheticMatrix.syntheticAlphaCore.typescript.2",
+              "syntheticMatrix.syntheticAlphaCore.typescript.3",
+              "syntheticMatrix.syntheticAlphaCore.typescript.4",
+              "syntheticMatrix.syntheticAlphaCore.typescript.5"
+            ]
+          },
+          {
+            "id": "sql",
+            "artifactCount": 2,
+            "operatorIds": [
+              "sql-language"
+            ],
+            "mutantCount": 1,
+            "mutantIds": [
+              "syntheticMatrix.syntheticAggregateSql.sql.1"
+            ]
+          },
+          {
+            "id": "display",
+            "artifactCount": 8,
+            "operatorIds": [
+              "display-enum-map",
+              "display-formatter-invocation",
+              "display-primitive-parameter",
+              "display-string-literal",
+              "display-template-placeholder"
+            ],
+            "mutantCount": 9,
+            "mutantIds": [
+              "syntheticMatrix.step30-display-artifacts.display-enum-map.1.displayRules-1-value-0",
+              "syntheticMatrix.step30-display-artifacts.display-enum-map.2.displayRules-1-value-1",
+              "syntheticMatrix.step30-display-artifacts.display-enum-map.3.displayRules-1-order",
+              "syntheticMatrix.step30-display-artifacts.display-formatter-invocation.1.delete-call-scale-0",
+              "syntheticMatrix.step30-display-artifacts.display-formatter-invocation.2.language-default-scale-0",
+              "syntheticMatrix.step30-display-artifacts.display-primitive-parameter.1.displayRules-0-scale",
+              "syntheticMatrix.step30-display-artifacts.display-primitive-parameter.2.displayRules-0-rounding",
+              "syntheticMatrix.step30-display-artifacts.display-primitive-parameter.3.displayRules-0-leadingZero",
+              "syntheticMatrix.step30-display-artifacts.display-template-placeholder.1.displayRules-2-delete-1"
+            ]
+          }
+        ]
+      },
+      "scopes": [
+        {
+          "id": "differential",
+          "budgetSeconds": 600,
+          "mutantCount": 27,
+          "suiteRerunSeconds": 2.566482281021308,
+          "estimatedTotalSeconds": 69.29502158757532,
+          "headroomSeconds": 530.7049784124247,
+          "headroomPercent": 88.45082973540411,
+          "withinBudget": true
+        },
+        {
+          "id": "full",
+          "budgetSeconds": 1800,
+          "mutantCount": 27,
+          "suiteRerunSeconds": 2.006946834968403,
+          "estimatedTotalSeconds": 54.18756454414688,
+          "headroomSeconds": 1745.8124354558531,
+          "headroomPercent": 96.9895797475474,
+          "withinBudget": true
+        }
+      ],
+      "syntheticSource": {
+        "modelPath": "backend/tests/domain/fixtures/synthetic_dsl/model.json",
+        "manifestPath": "backend/tests/domain/fixtures/synthetic_dsl/manifest.json",
+        "calculationIds": [
+          "syntheticMatrix"
+        ],
+        "targetClasses": [
+          "alpha",
+          "beta-1-5",
+          "beta-6-8",
+          "beta-7"
+        ],
+        "languageArtifactCount": 7,
+        "displayArtifactCount": 8,
+        "canonicalInputDigest": "sha256:ac48151676facc7cd13f046d06054423f2c82adab3e356072e223ba154bb2a73"
+      },
+      "environment": {
+        "python": "3.12.3",
+        "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-aarch64-with-glibc2.43",
+        "processor": "unknown",
+        "cpuCount": 12,
+        "node": "v24.16.0",
+        "sqlite": "3.45.1"
+      },
+      "extrapolation": {
+        "basis": "mutant-count-times-suite-rerun-seconds",
+        "syntheticCalculationCount": 1,
+        "productProjectionAvailable": false,
+        "limitation": "合成 DSL は一対象計算なので差分・全面の mutant 母数が同じ。製品対象の mutant 母数が未確定のため製品規模の数値外挿は行わない。"
+      }
     }
   ]
 }
