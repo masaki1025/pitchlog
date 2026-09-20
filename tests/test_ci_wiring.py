@@ -342,14 +342,33 @@ def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
         "prune-cache": True,
     }
     assert steps[2] == {"run": "uv python install"}
-    assert steps[3] == {"run": declared_command}
+    invocation = steps[3]
+    assert isinstance(invocation, dict), "迂回検査の実行 step が必要"
+    assert invocation.get("name") == "tenant-boundary 迂回検査"
+    assert invocation.get("env") == {"PR_BASE_REF": "${{ github.base_ref }}"}
+    run = invocation.get("run")
+    assert isinstance(run, str), "迂回検査の run script が必要"
+    run_lines = tuple(line.strip() for line in run.splitlines() if line.strip())
+    assert run_lines == (
+        'if [ -n "$PR_BASE_REF" ]; then',
+        f'{declared_command} --base-ref "origin/$PR_BASE_REF"',
+        "else",
+        declared_command,
+        "fi",
+    ), "PR 比較元の外部注入と凍結既定値への fallback が必要"
 
     command_locations = [
         (job_name, index)
         for job_name, candidate_job in jobs.items()
         if isinstance(candidate_job, dict)
         for index, step in enumerate(candidate_job.get("steps", []))
-        if isinstance(step, dict) and step.get("run") == declared_command
+        if isinstance(step, dict)
+        and isinstance((candidate_run := step.get("run")), str)
+        and any(
+            line.strip() == declared_command
+            or line.strip().startswith(f"{declared_command} ")
+            for line in candidate_run.splitlines()
+        )
     ]
     assert command_locations == [(declared_job, 3)], (
         "テナント境界迂回検査コマンドは宣言ジョブの末尾に1件だけ必要: "
@@ -1428,6 +1447,45 @@ def test_tenant_boundary_bypass_wiring_mutations_are_red(mutation: str) -> None:
         steps[-2], steps[-1] = steps[-1], steps[-2]
     else:
         jobs[f"{TENANT_BOUNDARY_JOB}-copy"] = copy.deepcopy(job)
+
+    with pytest.raises(AssertionError):
+        _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing-base-env", "missing-external-base", "missing-default-fallback"),
+)
+def test_tenant_boundary_base_ref_wiring_mutations_are_red(mutation: str) -> None:
+    """比較元の外部注入か凍結既定値への fallback を欠く配線を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    jobs = _mapping_at(mutated, ("jobs",))
+    assert isinstance(jobs, dict)
+    job = jobs[TENANT_BOUNDARY_JOB]
+    assert isinstance(job, dict)
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    invocation = steps[-1]
+    assert isinstance(invocation, dict)
+    run = invocation["run"]
+    assert isinstance(run, str)
+    declared_command = _tenant_boundary_ci_contract()[1]
+
+    if mutation == "missing-base-env":
+        del invocation["env"]
+    elif mutation == "missing-external-base":
+        invocation["run"] = run.replace(
+            f'{declared_command} --base-ref "origin/$PR_BASE_REF"',
+            declared_command,
+            1,
+        )
+    else:
+        invocation["run"] = run.replace(
+            f"else\n  {declared_command}",
+            "else\n  :",
+            1,
+        )
 
     with pytest.raises(AssertionError):
         _assert_tenant_boundary_bypass_wiring(mutated)

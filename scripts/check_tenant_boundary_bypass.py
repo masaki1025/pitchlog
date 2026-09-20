@@ -30,6 +30,10 @@ DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
 DEFAULT_CACHE_INVALIDATION_CONTRACT = Path(
     "contracts/tenant_boundary/cache-invalidation-contract.json"
 )
+# 比較元は基準の値ではなく検査の手続きに属するため、検査対象の資産には置かない。
+# 本検査器は base-allowlist.json の外部凍結対象なので、既定値を動かす変更にも
+# 識別値の更新と履歴が必要になり、資産から記録なしに自己申告する経路を作らない。
+DEFAULT_BASE_REF = "origin/develop"
 FROZEN_BASELINE_ASSETS = (
     Path("contracts/tenant_boundary/base-allowlist.json"),
     Path("contracts/tenant_boundary/cache-invalidation-contract.json"),
@@ -155,7 +159,6 @@ class Contract:
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
     diff_command: tuple[str, ...]
-    base_ref: str
 
 
 @dataclass(frozen=True, order=True)
@@ -866,7 +869,6 @@ def _load_allowlist(
     tuple[AllowedSymbol, ...],
     tuple[ConditionRule, ...],
     tuple[str, ...],
-    str,
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
     _strict_keys(
@@ -889,17 +891,18 @@ def _load_allowlist(
         raise ContractError("allowlist.contract_revision は 1 以上でなければならない")
 
     diff = _object(value["diff"], "allowlist.diff")
-    _strict_keys(diff, {"command", "base_ref"}, "allowlist.diff")
+    _strict_keys(diff, {"command"}, "allowlist.diff")
     command = _string_array(diff["command"], "allowlist.diff.command")
-    base_ref = _string(diff["base_ref"], "allowlist.diff.base_ref")
     if (
         len(command) < 6
         or command[:3] != ("git", "diff", "-U0")
-        or command[3] != f"{base_ref}...HEAD"
+        or command[3] != "{base_ref}...HEAD"
         or command[4] != "--"
         or not all(part for part in command[5:])
     ):
-        raise ContractError("diff.command は宣言した base_ref の三点差分でなければならない")
+        raise ContractError(
+            "diff.command は外部から与える base_ref の三点差分 template が必要"
+        )
 
     ci = _object(value["ci"], "allowlist.ci")
     _strict_keys(ci, {"job", "command"}, "allowlist.ci")
@@ -1006,7 +1009,7 @@ def _load_allowlist(
         )
     if {rule.condition for rule in rules} != {1, 2, 3, 4}:
         raise ContractError("conditions の条件番号は 1〜4 の exact-set でなければならない")
-    return tuple(allowed_symbols), tuple(rules), command, base_ref
+    return tuple(allowed_symbols), tuple(rules), command
 
 
 def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...]:
@@ -1386,7 +1389,7 @@ def load_contract(repository_root: Path) -> Contract:
         symbol_aliases,
         conservative_member_names,
     ) = _load_inventory(inventory_value)
-    allowed_symbols, rules, diff_command, base_ref = _load_allowlist(
+    allowed_symbols, rules, diff_command = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1431,7 +1434,6 @@ def load_contract(repository_root: Path) -> Contract:
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
         diff_command=diff_command,
-        base_ref=base_ref,
     )
 
 
@@ -3954,19 +3956,15 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
 
     Args:
         repository_root: リポジトリルート。
-        base_ref: PR の比較元。``None`` は資産の宣言値を使う。
+        base_ref: PR の比較元。``None`` は検査器の凍結された既定値を使う。
 
     Returns:
         検出した違反。
     """
     contract = load_contract(repository_root)
-    effective_base_ref = base_ref or contract.base_ref
-    diff_arguments = [
-        f"{effective_base_ref}...HEAD"
-        if item == f"{contract.base_ref}...HEAD"
-        else item
-        for item in contract.diff_command[1:]
-    ]
+    effective_base_ref = base_ref or DEFAULT_BASE_REF
+    diff_arguments = list(contract.diff_command[1:])
+    diff_arguments[2] = f"{effective_base_ref}...HEAD"
     diff = _run_git(repository_root, diff_arguments)
     changed_lines = changed_lines_from_diff(diff)
     changed_files = changed_files_from_diff(diff)

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 12,
+  "contract_revision": 13,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:12"
+        "contract_revision:13"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -42,7 +42,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "contract_revision:12"
+          "contract_revision:13"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -55,23 +55,22 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "691919bbbced74689c7e12c0c5520f40e0523c0e31ff91fc52f543a234880e45"
+            "frozen_projection_sha256": "c46cac30740449759c7a0193ddd81ee0cf4b7ccabc24f4cff067ae7791bef6f7"
           }
         },
         "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
-        "reason": "迂回検査の基準値と検査器の合否写像を同じ受理記録へ結び付け、黙った緩和を拒否するため。",
+        "reason": "迂回検査の基準値と検査器の合否写像を同じ受理記録へ結び付け、比較元を検査対象の資産から切り離して黙った空洞化を拒否するため。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
       }
     ]
   },
   "diff": {
-    "base_ref": "origin/develop",
     "command": [
       "git",
       "diff",
       "-U0",
-      "origin/develop...HEAD",
+      "{base_ref}...HEAD",
       "--",
       "backend/src"
     ]

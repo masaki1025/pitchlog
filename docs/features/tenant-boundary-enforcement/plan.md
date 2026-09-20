@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-enforcement
-status: in-review          # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active             # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-17・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -66,6 +66,7 @@ FR-034 が定めるのは越境の*結果*で、*機構*は `docs/design/data-mo
 8. **FR-019 のキャッシュ無効化契約**(**分担** — 主所有は U-D1。`../product-impl-unit-split/plan.md:216` /
    同 `design.md:91` の重複帰属表が **U-T1 の分担**と明記。**迂回検査の条件 4 が葉に禁止する以上、
    本単位が提供しないと誰も実装できない**)
+9. **迂回検査の比較元を検査対象から切り離す**(**敵対レビュー 3 周目 7A の是正** — 2026-09-21 に射程へ戻した)。**比較元は検査対象の資産が自己申告するのではなく、CI が与える**。外部から与えられない実行では**凍結された既定値**を使い、**資産が宣言することを拒否**する
 
 ### やらないこと
 
@@ -99,7 +100,7 @@ FR-034 が定めるのは越境の*結果*で、*機構*は `docs/design/data-mo
 
 | ID | 欠陥 | 影響 | 受け取り先 |
 | --- | --- | --- | --- |
-| **7A** | `contracts/tenant_boundary/base-allowlist.json` の `diff.base_ref` を `HEAD` にした変更をコミットすると、**凍結基準の比較が自己無効化される**。基準の内容を変えても迂回検査が `ok`(**別 worktree で再現済み・exit 0**)。CI は `--base-ref` を渡していない(`.github/workflows/ci.yml:125`) | **製品のテナント分離そのものは無傷**。影響するのは**統治の網**(迂回検査の基準を記録なしに緩められる) | **TSK-431 の最優先項目** |
+| ~~**7A**~~ | ~~`diff.base_ref` の自己申告~~ → **本 PR で閉じた**(2026-09-21・山田正輝の判断)。**当初「影響するのは統治の網であって製品のテナント分離ではない」と記したが、これは誤りだった。**実測: `base_ref` は凍結基準の比較だけでなく**迂回検査の母集団(どのファイルを検査するか)**も決めており、`HEAD` を宣言すると差分が空になって**検査全体が no-op** になる。**強制点を通らない直接 SQL を置いた対照実験で、`origin/develop` なら `exit 1`・`HEAD` なら `ok`** だった。**1 コミットで DoD「迂回していないことの機械検査を同梱している」が空洞化し、葉 6 本の非コア判定の前提も崩れる。**→ **比較元は CI が与える**ものとし、資産からは宣言を外した | — | **本 PR** |
 | **7B** | 7 資産のうち 6 資産が `frozen_projection.external_files` を空にしており、宣言した `pass_fail_mapping` を実装していない | `base-allowlist.json` が検査器を射影に含めるため**網自体は残る**。宣言と実装の不一致(7.7-4) | TSK-431 |
 | **7C** | `change.before/after` が変更前後の**実内容**を持たない(状態ラベルと射影 digest のみ) | 履歴から変更内容を復元できない(7.7-2 第 3 項) | TSK-431 |
 | **7D** | `FROZEN_BASELINE_ASSETS` が保護対象の資産集合そのものを決めており、HEAD 側の一覧だけを走査する | 資産の削除・移動で旧パスの履歴を検査できない | TSK-431 |

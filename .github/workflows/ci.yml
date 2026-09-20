@@ -122,7 +122,19 @@ jobs:
           enable-cache: true
           prune-cache: true
       - run: uv python install
-      - run: uv run python scripts/check_tenant_boundary_bypass.py
+      # 比較元は CI が与える(検査対象の資産に自己申告させない — 敵対レビュー 3 周目 7A)。
+      # 資産が base_ref を宣言できると HEAD を指定して差分を空にでき、検査母集団が 0 件になって
+      # 迂回検査そのものが no-op になる。pull_request 以外(develop/main への push・手動実行)は
+      # 比較対象の PR が無いため、検査器側の凍結された既定値を使う。
+      - name: tenant-boundary 迂回検査
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$PR_BASE_REF" ]; then
+            uv run python scripts/check_tenant_boundary_bypass.py --base-ref "origin/$PR_BASE_REF"
+          else
+            uv run python scripts/check_tenant_boundary_bypass.py
+          fi
 
   # 既存ジョブの workflow 発火条件を変えず、frontend ジョブだけを対象パスへ絞る。
   # contracts/ の契約ファイル変更時に frontend の型検査・テストの回帰を検出するためだけに、対象パスへ含める。

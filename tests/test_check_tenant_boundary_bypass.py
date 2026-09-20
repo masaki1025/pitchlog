@@ -255,6 +255,15 @@ def _write_test_repository_sources(
         path.write_text(source, encoding="utf-8")
 
 
+def _point_default_base_ref_at(repository: Path, commit: str) -> None:
+    """一時リポジトリの凍結既定比較元を指定 commit へ向ける。"""
+    assert checker.DEFAULT_BASE_REF == "origin/develop"
+    checker._run_git(
+        repository,
+        ["update-ref", "refs/remotes/origin/develop", commit],
+    )
+
+
 def _actual_implementation_mutation(case_id: str) -> tuple[str, str, str]:
     """既存の製品変異テストと同じ基準版・変異版を返す。"""
     if case_id == "base-direct-sql":
@@ -573,6 +582,124 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
             f"expected={fixture.expected_error}"
         )
     assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+@pytest.mark.parametrize(
+    ("declaration", "expected_error"),
+    (
+        ("base_ref", r"extra=\['base_ref'\]"),
+        ("comparison_ref", r"extra=\['comparison_ref'\]"),
+        ("concrete_command", "三点差分 template が必要"),
+    ),
+)
+def test_asset_declared_base_ref_is_contract_error_through_real_commit_cli(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    declaration: str,
+    expected_error: str,
+) -> None:
+    """比較元の自己申告と直接 SQL を同じ commit に置いても no-op にさせない。"""
+    relative = "pitchlog/services/impact_probe.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    _point_default_base_ref_at(repository, base_ref)
+    impact_probe = '''\
+from sqlalchemy.orm import Session
+
+
+def read_other_tenant(work: Session) -> object:
+    return work.execute("SELECT * FROM games")
+'''
+    _write_test_repository_sources(repository, {relative: impact_probe})
+    allowlist_path = repository / checker.DEFAULT_ALLOWLIST
+    allowlist = json.loads(allowlist_path.read_text(encoding="utf-8"))
+    assert isinstance(allowlist, dict)
+    diff_contract = allowlist["diff"]
+    assert isinstance(diff_contract, dict)
+    if declaration == "concrete_command":
+        command = diff_contract["command"]
+        assert isinstance(command, list)
+        command[3] = "HEAD...HEAD"
+    else:
+        diff_contract[declaration] = "HEAD"
+    allowlist_path.write_text(
+        json.dumps(allowlist, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _commit_test_repository(repository, "attempt self-declared base ref")
+
+    with pytest.raises(checker.ContractError, match=expected_error):
+        checker.load_contract(repository)
+    assert checker.main(["--root", str(repository)]) == 2
+    assert "tenant-boundary contract error" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("provide_base_ref", (True, False))
+def test_impact_probe_is_red_through_external_or_default_real_commit_cli(
+    tmp_path: Path,
+    provide_base_ref: bool,
+) -> None:
+    """外部指定と凍結既定値のどちらでも強制点迂回を拒否する。"""
+    relative = "pitchlog/services/impact_probe.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    _point_default_base_ref_at(repository, base_ref)
+    impact_probe = '''\
+from sqlalchemy.orm import Session
+
+
+def read_other_tenant(work: Session) -> object:
+    return work.execute("SELECT * FROM games")
+'''
+    _write_test_repository_sources(repository, {relative: impact_probe})
+    _commit_test_repository(repository, "add tenant boundary bypass")
+    selected_base_ref = base_ref if provide_base_ref else None
+    violations = checker.check_repository(
+        repository,
+        base_ref=selected_base_ref,
+    )
+    arguments = ["--root", str(repository)]
+    if selected_base_ref is not None:
+        arguments.extend(("--base-ref", selected_base_ref))
+
+    assert (relative, "TB005") in {
+        (violation.path, violation.code) for violation in violations
+    }
+    assert checker.main(arguments) == 1
+
+
+@pytest.mark.parametrize("provide_base_ref", (True, False))
+def test_safe_change_passes_external_or_default_real_commit_cli(
+    tmp_path: Path,
+    provide_base_ref: bool,
+) -> None:
+    """比較元の供給経路にかかわらず正当な変更を過剰拒否しない。"""
+    relative = "pitchlog/services/report.py"
+    baseline = 'REPORT_LABEL = "before"\n'
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    _point_default_base_ref_at(repository, base_ref)
+    _write_test_repository_sources(
+        repository,
+        {relative: baseline.replace("before", "after")},
+    )
+    _commit_test_repository(repository, "update non-database report")
+    selected_base_ref = base_ref if provide_base_ref else None
+    arguments = ["--root", str(repository)]
+    if selected_base_ref is not None:
+        arguments.extend(("--base-ref", selected_base_ref))
+
+    assert checker.check_repository(
+        repository,
+        base_ref=selected_base_ref,
+    ) == []
+    assert checker.main(arguments) == 0
 
 
 def test_reject_all_mutant_kills_positive_fixture() -> None:
@@ -2127,3 +2254,25 @@ def test_contract_declares_ci_job_without_wiring_it() -> None:
         "job": "tenant-boundary-bypass",
         "command": "uv run python scripts/check_tenant_boundary_bypass.py",
     }
+
+
+def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
+    """比較元の実値を資産へ戻さず、検査器の変更履歴対象に固定する。"""
+    allowlist: dict[str, Any] = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+
+    assert allowlist["diff"] == {
+        "command": [
+            "git",
+            "diff",
+            "-U0",
+            "{base_ref}...HEAD",
+            "--",
+            "backend/src",
+        ]
+    }
+    assert checker.DEFAULT_BASE_REF == "origin/develop"
+    assert allowlist["baseline_control"]["identity"]["frozen_projection"][
+        "external_files"
+    ] == ["scripts/check_tenant_boundary_bypass.py"]
