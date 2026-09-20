@@ -56,6 +56,10 @@ def _generated_snapshot() -> dict[str, object]:
         "forbidden_construction_symbols": list(
             tenant_context_contract.FORBIDDEN_CONSTRUCTION_SYMBOLS
         ),
+        "integrity_secret_symbol": tenant_context_contract.INTEGRITY_SECRET_SYMBOL,
+        "integrity_secret_allowed_symbols": list(
+            tenant_context_contract.INTEGRITY_SECRET_ALLOWED_SYMBOLS
+        ),
         "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
@@ -83,11 +87,21 @@ def test_tenant_context_is_an_immutable_value_object() -> None:
 
 
 def test_tenant_context_documents_unverified_authenticity_boundary() -> None:
-    """真正性を守らない境界と責任所有者が型の説明に残ることを確認する。"""
+    """完全性と真正性の境界および責任所有者が説明に残ることを確認する。"""
     documentation = TenantContext.__doc__ or ""
 
+    assert "完全性" in documentation
     assert "真正性を検査しない" in documentation
     assert "TSK-217 / U-A1" in documentation
+
+
+def test_tenant_context_integrity_proof_detects_tenant_id_tampering() -> None:
+    """Frozen を迂回した構築後の tenant_id 改竄を発行証跡で検出する。"""
+    context = make_tenant_context(uuid4())
+
+    object.__setattr__(context, "tenant_id", uuid4())
+
+    assert context._has_valid_integrity_proof() is False
 
 
 def test_generated_allowlist_matches_asset() -> None:
@@ -115,6 +129,8 @@ def test_product_construction_allowlist_is_empty() -> None:
         "source_digest",
         "constructor_symbol",
         "forbidden_construction_symbols",
+        "integrity_secret_symbol",
+        "integrity_secret_allowed_symbols",
         "allowed_test_modules",
         "allowed_product_modules",
     ),

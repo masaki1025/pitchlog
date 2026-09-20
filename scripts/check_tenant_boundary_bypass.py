@@ -10,7 +10,7 @@ import json
 import re
 import subprocess
 import sys
-from collections.abc import Iterable, Mapping, Sequence, Set
+from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,21 +35,11 @@ FROZEN_BASELINE_ASSETS = (
     Path("contracts/tenant_boundary/runtime-authz-contract.json"),
     Path("contracts/tenant_boundary/tenant-context-allowlist.json"),
 )
-EXPECTED_DIFF_COMMAND = (
-    "git",
-    "diff",
-    "-U0",
-    "origin/develop...HEAD",
-    "--",
-    "backend/src",
-)
-EXPECTED_CI_JOB = "tenant-boundary-bypass"
-EXPECTED_CI_COMMAND = "uv run python scripts/check_tenant_boundary_bypass.py"
-EXPECTED_TENANT_CONTEXT_CONSTRUCTOR = (
-    "pitchlog.repositories.context.TenantContext"
-)
+# 資産の場所だけは、その宣言を読む前に必要になる bootstrap なので残す。
+# 基準値・合否写像は各資産から読み、この一覧を第二の決定元にはしない。
 CONDITION_IDS = frozenset({1, 2, 3, 4, 5})
 PENDING_APPROVAL = "未承認(PR #72 のレビュー待ち)"
+PENDING_SOURCE_COMMIT = "PENDING_ACCEPTANCE"
 NO_BASELINE = "NO_BASELINE"
 SET_TENANT_RE = re.compile(
     r"\bSET\s+(?!(?:LOCAL)\b)(?:SESSION\s+)?app\.tenant_id\b", re.IGNORECASE
@@ -121,6 +111,8 @@ class TenantContextConstructionContract:
     source_digest: str
     constructor_symbol: str
     forbidden_construction_symbols: frozenset[str]
+    integrity_secret_symbol: str
+    integrity_secret_allowed_symbols: frozenset[str]
     allowed_test_modules: frozenset[str]
     allowed_product_modules: frozenset[str]
 
@@ -142,11 +134,14 @@ class Contract:
     apis: tuple[ApiSpec, ...]
     receiver_factories: tuple[ReceiverFactory, ...]
     symbol_aliases: Mapping[str, str]
+    conservative_member_names: frozenset[str]
     allowed_symbols: tuple[AllowedSymbol, ...]
     rules: tuple[ConditionRule, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
+    diff_command: tuple[str, ...]
+    base_ref: str
 
 
 @dataclass(frozen=True, order=True)
@@ -354,9 +349,13 @@ def _validate_baseline_control(
     )
     _strict_keys(
         projection,
-        {"included", "excluded"},
+        {"algorithm", "included", "excluded", "external_files"},
         f"{location}.identity.frozen_projection",
     )
+    if _string(projection["algorithm"], f"{location}.projection.algorithm") != (
+        "sha256-canonical-json-and-external-files-v1"
+    ):
+        raise ContractError(f"{location}: 凍結射影の algorithm が未知")
     if _string(projection["included"], f"{location}.projection.included") != (
         "all_top_level_fields"
     ):
@@ -366,6 +365,7 @@ def _validate_baseline_control(
     )
     if excluded != {"baseline_control", "source_digest"}:
         raise ContractError(f"{location}: 凍結対象から除外する metadata が不一致")
+    _string_array(projection["external_files"], f"{location}.projection.external_files")
 
     policy = _object(
         control["movement_policy"],
@@ -443,8 +443,12 @@ def _validate_baseline_control(
             entry_location,
         )
         source_commit = _string(entry["source_commit"], f"{entry_location}.source_commit")
-        if re.fullmatch(r"[0-9a-f]{7}", source_commit) is None:
-            raise ContractError(f"{entry_location}: source_commit は短縮 hash 7 桁が必要")
+        if source_commit != PENDING_SOURCE_COMMIT and re.fullmatch(
+            r"[0-9a-f]{7,40}", source_commit
+        ) is None:
+            raise ContractError(
+                f"{entry_location}: source_commit は受理待ち marker または Git hash が必要"
+            )
         if source_commit in source_commits:
             raise ContractError(f"{location}: source_commit を重複できない")
         source_commits.add(source_commit)
@@ -470,8 +474,31 @@ def _validate_baseline_control(
             {"subject", "before", "after"},
             f"{entry_location}.change",
         )
-        for field_name in ("subject", "before", "after"):
-            _string(change[field_name], f"{entry_location}.change.{field_name}")
+        _string(change["subject"], f"{entry_location}.change.subject")
+        for field_name in ("before", "after"):
+            snapshot = _object(
+                change[field_name],
+                f"{entry_location}.change.{field_name}",
+            )
+            _strict_keys(
+                snapshot,
+                {"state", "frozen_projection_sha256"},
+                f"{entry_location}.change.{field_name}",
+            )
+            state = _string(
+                snapshot["state"],
+                f"{entry_location}.change.{field_name}.state",
+            )
+            digest = _string(
+                snapshot["frozen_projection_sha256"],
+                f"{entry_location}.change.{field_name}.frozen_projection_sha256",
+            )
+            if state not in {"NO_BASELINE", "PRESENT"}:
+                raise ContractError(f"{entry_location}: 基準状態が未知")
+            if (state == "NO_BASELINE") != (digest == NO_BASELINE):
+                raise ContractError(f"{entry_location}: 基準状態と射影識別値が不一致")
+            if state == "PRESENT" and re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ContractError(f"{entry_location}: 射影 SHA-256 が不正")
         _string(entry["movement_fact"], f"{entry_location}.movement_fact")
         _string(entry["reason"], f"{entry_location}.reason")
         approved_by = _string(entry["approved_by"], f"{entry_location}.approved_by")
@@ -483,6 +510,8 @@ def _validate_baseline_control(
             r"\d{4}-\d{2}-\d{2}", approved_on
         ) is None:
             raise ContractError(f"{entry_location}: 承認日は YYYY-MM-DD が必要")
+        if source_commit == PENDING_SOURCE_COMMIT and approved_by != PENDING_APPROVAL:
+            raise ContractError(f"{entry_location}: 受理済み記録に受理待ち marker を残せない")
         history.append(entry)
         previous_new = new_identifiers
     if not history:
@@ -504,9 +533,181 @@ def _validate_history_append_only(
         raise ContractError(f"{location}: 既存の基準更新履歴は変更・削除できない")
 
 
+def _frozen_projection_sha256(
+    asset: Mapping[str, object],
+    location: str,
+    external_loader: Callable[[str], bytes],
+) -> str:
+    """資産自身の宣言どおりに凍結射影を作り SHA-256 を返す。"""
+    control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
+    identity = _object(control.get("identity"), f"{location}.identity")
+    projection = _object(
+        identity.get("frozen_projection"),
+        f"{location}.identity.frozen_projection",
+    )
+    included = _string(projection.get("included"), f"{location}.projection.included")
+    if included != "all_top_level_fields":
+        raise ContractError(f"{location}: 未対応の凍結射影 included")
+    excluded = set(
+        _string_array(projection.get("excluded"), f"{location}.projection.excluded")
+    )
+    asset_projection = {
+        key: copy.deepcopy(value)
+        for key, value in asset.items()
+        if key not in excluded
+    }
+    identity_declaration = {
+        key: copy.deepcopy(value)
+        for key, value in identity.items()
+        if key != "current_identifiers"
+    }
+    movement_policy = copy.deepcopy(
+        _object(control.get("movement_policy"), f"{location}.movement_policy")
+    )
+    external_files: list[dict[str, str]] = []
+    for path in sorted(
+        _string_array(
+            projection.get("external_files"),
+            f"{location}.projection.external_files",
+        )
+    ):
+        try:
+            source = external_loader(path)
+        except (OSError, ContractError) as error:
+            raise ContractError(
+                f"{location}: 外部凍結対象を解決できない: {path}: {error}"
+            ) from error
+        external_files.append(
+            {"path": path, "sha256": hashlib.sha256(source).hexdigest()}
+        )
+    payload = {
+        "asset": asset_projection,
+        "baseline_declaration": {
+            "identity": identity_declaration,
+            "movement_policy": movement_policy,
+        },
+        "external_files": external_files,
+    }
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(serialized).hexdigest()
+
+
+def _history_snapshot(entry: Mapping[str, object], side: str) -> tuple[str, str]:
+    """履歴行の before/after から基準状態と射影識別値を返す。"""
+    change = _object(entry.get("change"), "history.change")
+    snapshot = _object(change.get(side), f"history.change.{side}")
+    return (
+        _string(snapshot.get("state"), f"history.change.{side}.state"),
+        _string(
+            snapshot.get("frozen_projection_sha256"),
+            f"history.change.{side}.frozen_projection_sha256",
+        ),
+    )
+
+
+def _validate_baseline_transition(
+    previous_asset: Mapping[str, object] | None,
+    current_asset: Mapping[str, object],
+    location: str,
+    *,
+    previous_external_loader: Callable[[str], bytes],
+    current_external_loader: Callable[[str], bytes],
+) -> None:
+    """受理直前から直後への射影移動と履歴 1 件を結び付ける。"""
+    current_history = _validate_baseline_control(current_asset, location)
+    current_control = _object(current_asset["baseline_control"], "baseline_control")
+    current_identity = _object(current_control["identity"], "baseline_control.identity")
+    current_identifiers = _string_array(
+        current_identity["current_identifiers"],
+        "baseline_control.identity.current_identifiers",
+    )
+    current_digest = _frozen_projection_sha256(
+        current_asset,
+        location,
+        current_external_loader,
+    )
+
+    if previous_asset is None or "baseline_control" not in previous_asset:
+        if len(current_history) != 1:
+            raise ContractError(
+                f"{location}: 基準が merge-base に無い初回受理の履歴はちょうど 1 件が必要"
+            )
+        entry = current_history[0]
+        if _string_array(
+            entry["previous_baseline_identifiers"],
+            "history[0].previous_baseline_identifiers",
+        ) != (NO_BASELINE,):
+            raise ContractError(f"{location}: 初回受理の直前識別値は NO_BASELINE が必要")
+        if _string_array(
+            entry["new_baseline_identifiers"],
+            "history[0].new_baseline_identifiers",
+        ) != current_identifiers:
+            raise ContractError(f"{location}: 初回受理の新識別値が現在値と不一致")
+        if _history_snapshot(entry, "before") != (NO_BASELINE, NO_BASELINE):
+            raise ContractError(f"{location}: 初回受理の変更前実状態が不一致")
+        if _history_snapshot(entry, "after") != ("PRESENT", current_digest):
+            raise ContractError(f"{location}: 初回受理の変更後射影が実状態と不一致")
+        return
+
+    previous_history = _validate_baseline_control(previous_asset, location)
+    if (
+        len(current_history) < len(previous_history)
+        or current_history[: len(previous_history)] != previous_history
+    ):
+        raise ContractError(f"{location}: merge-base の既存履歴は変更・削除できない")
+    previous_control = _object(previous_asset["baseline_control"], "baseline_control")
+    previous_identity = _object(previous_control["identity"], "baseline_control.identity")
+    previous_identifiers = _string_array(
+        previous_identity["current_identifiers"],
+        "baseline_control.identity.current_identifiers",
+    )
+    previous_digest = _frozen_projection_sha256(
+        previous_asset,
+        location,
+        previous_external_loader,
+    )
+    added = current_history[len(previous_history) :]
+    moved = previous_digest != current_digest
+    if not moved:
+        if added:
+            raise ContractError(f"{location}: 射影が動いていない受理へ履歴を追加できない")
+        if current_identifiers != previous_identifiers:
+            raise ContractError(f"{location}: 射影不変なのに基準識別値が動いている")
+        return
+    if len(added) != 1:
+        raise ContractError(f"{location}: 射影が動いた受理には履歴をちょうど 1 件追加する")
+    if current_identifiers == previous_identifiers:
+        raise ContractError(f"{location}: 射影が動いた受理には識別値の更新が必要")
+    entry = added[0]
+    if _string_array(
+        entry["previous_baseline_identifiers"],
+        "history[-1].previous_baseline_identifiers",
+    ) != previous_identifiers:
+        raise ContractError(f"{location}: 履歴の直前識別値が実スナップショットと不一致")
+    if _string_array(
+        entry["new_baseline_identifiers"],
+        "history[-1].new_baseline_identifiers",
+    ) != current_identifiers:
+        raise ContractError(f"{location}: 履歴の新識別値が実スナップショットと不一致")
+    if _history_snapshot(entry, "before") != ("PRESENT", previous_digest):
+        raise ContractError(f"{location}: 履歴の変更前射影が実スナップショットと不一致")
+    if _history_snapshot(entry, "after") != ("PRESENT", current_digest):
+        raise ContractError(f"{location}: 履歴の変更後射影が実スナップショットと不一致")
+
+
 def _load_inventory(
     value: dict[str, Any],
-) -> tuple[tuple[ApiSpec, ...], tuple[ReceiverFactory, ...], Mapping[str, str]]:
+) -> tuple[
+    tuple[ApiSpec, ...],
+    tuple[ReceiverFactory, ...],
+    Mapping[str, str],
+    frozenset[str],
+]:
     """DB API inventory を検証して読む。"""
     _strict_keys(
         value,
@@ -517,6 +718,7 @@ def _load_inventory(
             "apis",
             "receiver_factories",
             "symbol_aliases",
+            "conservative_member_names",
             "baseline_control",
         },
         "db-api-inventory.json",
@@ -619,12 +821,37 @@ def _load_inventory(
         symbol_aliases[symbol] = target
     if not symbol_aliases:
         raise ContractError("inventory.symbol_aliases は空にできない")
-    return tuple(apis), tuple(receiver_factories), symbol_aliases
+    conservative_member_names = frozenset(
+        _string_array(
+            value["conservative_member_names"],
+            "inventory.conservative_member_names",
+        )
+    )
+    inventory_member_names = {
+        api.symbol.rsplit(".", 1)[1] for api in apis if api.kind == "member"
+    }
+    if not conservative_member_names or not (
+        conservative_member_names <= inventory_member_names
+    ):
+        raise ContractError(
+            "conservative_member_names は inventory の member 名の非空部分集合が必要"
+        )
+    return (
+        tuple(apis),
+        tuple(receiver_factories),
+        symbol_aliases,
+        conservative_member_names,
+    )
 
 
 def _load_allowlist(
     value: dict[str, Any], inventory_bytes: bytes, apis: tuple[ApiSpec, ...]
-) -> tuple[tuple[AllowedSymbol, ...], tuple[ConditionRule, ...]]:
+) -> tuple[
+    tuple[AllowedSymbol, ...],
+    tuple[ConditionRule, ...],
+    tuple[str, ...],
+    str,
+]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
     _strict_keys(
         value,
@@ -646,19 +873,22 @@ def _load_allowlist(
         raise ContractError("allowlist.contract_revision は 1 以上でなければならない")
 
     diff = _object(value["diff"], "allowlist.diff")
-    _strict_keys(diff, {"command"}, "allowlist.diff")
+    _strict_keys(diff, {"command", "base_ref"}, "allowlist.diff")
     command = _string_array(diff["command"], "allowlist.diff.command")
-    if command != EXPECTED_DIFF_COMMAND:
-        raise ContractError(
-            f"diff コマンドが固定値と不一致: expected={EXPECTED_DIFF_COMMAND}, actual={command}"
-        )
+    base_ref = _string(diff["base_ref"], "allowlist.diff.base_ref")
+    if (
+        len(command) < 6
+        or command[:3] != ("git", "diff", "-U0")
+        or command[3] != f"{base_ref}...HEAD"
+        or command[4] != "--"
+        or not all(part for part in command[5:])
+    ):
+        raise ContractError("diff.command は宣言した base_ref の三点差分でなければならない")
 
     ci = _object(value["ci"], "allowlist.ci")
     _strict_keys(ci, {"job", "command"}, "allowlist.ci")
-    if _string(ci["job"], "allowlist.ci.job") != EXPECTED_CI_JOB:
-        raise ContractError(f"CI ジョブ名は {EXPECTED_CI_JOB} でなければならない")
-    if _string(ci["command"], "allowlist.ci.command") != EXPECTED_CI_COMMAND:
-        raise ContractError(f"CI コマンドは {EXPECTED_CI_COMMAND} でなければならない")
+    _string(ci["job"], "allowlist.ci.job")
+    _string(ci["command"], "allowlist.ci.command")
 
     inventory = _object(value["inventory"], "allowlist.inventory")
     _strict_keys(
@@ -760,7 +990,7 @@ def _load_allowlist(
         )
     if {rule.condition for rule in rules} != {1, 2, 3, 4}:
         raise ContractError("conditions の条件番号は 1〜4 の exact-set でなければならない")
-    return tuple(allowed_symbols), tuple(rules)
+    return tuple(allowed_symbols), tuple(rules), command, base_ref
 
 
 def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...]:
@@ -849,6 +1079,8 @@ def _load_tenant_context_allowlist(
             "source_digest",
             "constructor_symbol",
             "forbidden_construction_symbols",
+            "integrity_secret_symbol",
+            "integrity_secret_allowed_symbols",
             "allowed_test_modules",
             "allowed_product_modules",
             "baseline_control",
@@ -897,18 +1129,30 @@ def _load_tenant_context_allowlist(
     constructor_symbol = _string(
         value["constructor_symbol"], "tenant_context.constructor_symbol"
     )
-    if constructor_symbol != EXPECTED_TENANT_CONTEXT_CONSTRUCTOR:
-        raise ContractError("TenantContext のコンストラクタシンボルが固定値と不一致")
+    if "." not in constructor_symbol:
+        raise ContractError("TenantContext のコンストラクタは完全修飾名が必要")
     forbidden_construction_symbols = frozenset(
         _string_array(
             value["forbidden_construction_symbols"],
             "tenant_context.forbidden_construction_symbols",
         )
     )
-    if forbidden_construction_symbols != {"builtins.object.__new__"}:
-        raise ContractError(
-            "TenantContext の禁止生成経路は builtins.object.__new__ の exact-set が必要"
+    if not forbidden_construction_symbols:
+        raise ContractError("TenantContext の禁止生成・改竄経路は空にできない")
+    integrity_secret_symbol = _string(
+        value["integrity_secret_symbol"],
+        "tenant_context.integrity_secret_symbol",
+    )
+    integrity_secret_allowed_symbols = frozenset(
+        _string_array(
+            value["integrity_secret_allowed_symbols"],
+            "tenant_context.integrity_secret_allowed_symbols",
         )
+    )
+    if not integrity_secret_symbol.startswith("pitchlog.") or not (
+        integrity_secret_allowed_symbols
+    ):
+        raise ContractError("発行証跡の秘密と参照許可シンボルは閉集合が必要")
     allowed_test_modules = frozenset(
         _string_array(
             value["allowed_test_modules"], "tenant_context.allowed_test_modules"
@@ -937,6 +1181,8 @@ def _load_tenant_context_allowlist(
         source_digest=expected_digest,
         constructor_symbol=constructor_symbol,
         forbidden_construction_symbols=forbidden_construction_symbols,
+        integrity_secret_symbol=integrity_secret_symbol,
+        integrity_secret_allowed_symbols=integrity_secret_allowed_symbols,
         allowed_test_modules=allowed_test_modules,
         allowed_product_modules=allowed_product_modules,
     )
@@ -1098,8 +1344,13 @@ def load_contract(repository_root: Path) -> Contract:
         if asset_path not in asset_values:
             asset_values[asset_path], _ = _read_json(repository_root / asset_path)
         _validate_baseline_control(asset_values[asset_path], asset_path.as_posix())
-    apis, receiver_factories, symbol_aliases = _load_inventory(inventory_value)
-    allowed_symbols, rules = _load_allowlist(
+    (
+        apis,
+        receiver_factories,
+        symbol_aliases,
+        conservative_member_names,
+    ) = _load_inventory(inventory_value)
+    allowed_symbols, rules, diff_command, base_ref = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1137,11 +1388,14 @@ def load_contract(repository_root: Path) -> Contract:
         apis=apis,
         receiver_factories=receiver_factories,
         symbol_aliases=symbol_aliases,
+        conservative_member_names=conservative_member_names,
         allowed_symbols=allowed_symbols,
         rules=rules,
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
+        diff_command=diff_command,
+        base_ref=base_ref,
     )
 
 
@@ -1326,6 +1580,7 @@ class _SourceScanner(ast.NodeVisitor):
         self.reject_all_db_calls = reject_all_db_calls
         self.class_stack: list[str] = []
         self.function_stack: list[tuple[str, str]] = []
+        self.safe_non_context_objects: list[set[str]] = []
         self.violations: list[Violation] = []
         self._violation_keys: set[tuple[int, int, str, str]] = set()
         member_owners = {
@@ -1344,6 +1599,15 @@ class _SourceScanner(ast.NodeVisitor):
         collector.visit(tree)
         self.aliases = collector
         self.api_by_symbol = {api.symbol: api for api in contract.apis}
+        self.member_apis_by_method: dict[str, tuple[ApiSpec, ...]] = {}
+        for api in contract.apis:
+            if api.kind != "member":
+                continue
+            method = api.symbol.rsplit(".", 1)[1]
+            self.member_apis_by_method[method] = (
+                *self.member_apis_by_method.get(method, ()),
+                api,
+            )
         self.allowed_by_symbol = {
             item.symbol: item for item in contract.allowed_symbols
         }
@@ -1492,17 +1756,28 @@ class _SourceScanner(ast.NodeVisitor):
             return None
         return allowed
 
+    def _current_symbol(self) -> str | None:
+        """現在検査中の関数・メソッドの完全修飾名を返す。"""
+        return self.function_stack[-1][0] if self.function_stack else None
+
     def _check_db_call(self, node: ast.Call) -> None:
         if not self._is_changed(node):
             return
         api = self._matching_api(node.func)
-        if api is None:
+        candidates = () if api is None else (api,)
+        if (
+            not candidates
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in self.contract.conservative_member_names
+        ):
+            candidates = self.member_apis_by_method.get(node.func.attr, ())
+        if not candidates:
             return
         allowed = self._current_allowed_symbol()
         if (
             not self.reject_all_db_calls
             and allowed is not None
-            and api.id in allowed.allowed_api_ids
+            and any(api.id in allowed.allowed_api_ids for api in candidates)
         ):
             return
         code = "TB900" if self.reject_all_db_calls else "TB005"
@@ -1515,7 +1790,7 @@ class _SourceScanner(ast.NodeVisitor):
             node,
             condition=5,
             code=code,
-            symbol=api.symbol,
+            symbol="|".join(sorted({item.symbol for item in candidates})),
             message=message,
         )
 
@@ -1554,26 +1829,83 @@ class _SourceScanner(ast.NodeVisitor):
                 and _constant_string(node.func.args[1]) == "__new__"
             ):
                 resolved = "builtins.object.__new__"
-        canonical_resolved = (
-            "builtins.object.__new__" if resolved == "object.__new__" else resolved
-        )
+        canonical_aliases = {
+            "object.__new__": "builtins.object.__new__",
+            "object.__setattr__": "builtins.object.__setattr__",
+            "type": "builtins.type",
+        }
+        canonical_resolved = canonical_aliases.get(resolved or "", resolved)
+        forbidden = self.contract.tenant_context.forbidden_construction_symbols
         if (
-            canonical_resolved
-            in self.contract.tenant_context.forbidden_construction_symbols
+            canonical_resolved == "builtins.object.__new__"
+            and canonical_resolved in forbidden
             and node.args
         ):
-            constructed = self.aliases.resolve(node.args[0]) or self._raw_expression(
-                node.args[0]
+            if (
+                isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "cls"
+                and self.class_stack
+                and ".".join([self.module, *self.class_stack])
+                != self.contract.tenant_context.constructor_symbol
+            ):
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol="builtins.object.__new__",
+                message="型を解決できない object.__new__ も TenantContext 生成迂回として拒否",
             )
-            if constructed == self.contract.tenant_context.constructor_symbol:
+            return
+        if (
+            canonical_resolved == "builtins.object.__setattr__"
+            and canonical_resolved in forbidden
+            and node.args
+        ):
+            target = node.args[0]
+            target_name = target.id if isinstance(target, ast.Name) else None
+            canonical_init = (
+                f"{self.contract.tenant_context.constructor_symbol}.__init__"
+            )
+            safe_target = bool(
+                self.safe_non_context_objects
+                and target_name in self.safe_non_context_objects[-1]
+            )
+            if self._current_symbol() == canonical_init and target_name == "self":
+                return
+            if safe_target:
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol="builtins.object.__setattr__",
+                message="正規構築箇所以外の object.__setattr__ による文脈改竄は禁止",
+            )
+            return
+        if canonical_resolved == "dataclasses.replace" and canonical_resolved in forbidden:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=canonical_resolved,
+                message="dataclasses.replace による TenantContext 複製迂回は禁止",
+            )
+            return
+        if isinstance(node.func, ast.Call):
+            factory = self.aliases.resolve(node.func.func) or self._raw_expression(
+                node.func.func
+            )
+            canonical_factory = canonical_aliases.get(factory or "", factory)
+            if canonical_factory == "builtins.type" and canonical_factory in forbidden:
                 self._add(
                     node,
                     condition=5,
                     code="TB007",
-                    symbol=f"{canonical_resolved}({constructed})",
-                    message="object.__new__ による TenantContext の生成迂回は禁止",
+                    symbol="builtins.type(...)(...)",
+                    message="type(context) による TenantContext 複製迂回は禁止",
                 )
-            return
+                return
         if resolved != self.contract.tenant_context.constructor_symbol:
             return
         allowed_modules = (
@@ -1588,6 +1920,23 @@ class _SourceScanner(ast.NodeVisitor):
             code="TB007",
             symbol=resolved,
             message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
+        )
+
+    def _check_integrity_secret_reference(self, text: str, node: ast.AST) -> None:
+        """発行証跡のプロセス秘密を許可シンボル外へ公開しない。"""
+        secret = self.contract.tenant_context.integrity_secret_symbol
+        if text not in {secret, secret.rsplit(".", 1)[1]} or not self._is_changed(node):
+            return
+        if self._current_symbol() in (
+            self.contract.tenant_context.integrity_secret_allowed_symbols
+        ):
+            return
+        self._add(
+            node,
+            condition=5,
+            code="TB007",
+            symbol=secret,
+            message="TenantContext 発行証跡の秘密は許可シンボル外から参照できない",
         )
 
     def _check_dynamic_call(self, node: ast.Call) -> None:
@@ -1618,6 +1967,15 @@ class _SourceScanner(ast.NodeVisitor):
             node.args[0]
         )
         method = _constant_string(node.args[1])
+        secret = self.contract.tenant_context.integrity_secret_symbol
+        if method == secret.rsplit(".", 1)[1]:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=secret,
+                message="getattr による TenantContext 発行証跡の秘密参照は禁止",
+            )
         member_owners = {
             api.symbol.rsplit(".", 1)[0]
             for api in self.contract.apis
@@ -1640,13 +1998,18 @@ class _SourceScanner(ast.NodeVisitor):
                 )
             return
         api = self._matching_dynamic_member(node.args[0], method)
-        if api is not None:
+        method_is_dangerous = method in self.contract.conservative_member_names
+        if api is not None or method_is_dangerous:
             self._add(
                 node,
                 condition=5,
                 code="TB005",
-                symbol=api.symbol,
-                message="getattr による DB 到達 API の動的解決は禁止",
+                symbol=(
+                    api.symbol
+                    if api is not None
+                    else f"<unknown-database-receiver>.{method}"
+                ),
+                message="getattr による危険 DB API 名の動的解決は禁止",
             )
         constructor = self.contract.tenant_context.constructor_symbol
         if receiver == constructor and method in {"__new__", "__init__"}:
@@ -1680,6 +2043,7 @@ class _SourceScanner(ast.NodeVisitor):
                 if node.module is not None
                 else alias.name
             )
+            self._check_integrity_secret_reference(imported_symbol, node)
             import_is_allowed = (
                 imported_symbol
                 in self.contract.cache_invalidation.public_symbols
@@ -1704,6 +2068,27 @@ class _SourceScanner(ast.NodeVisitor):
             )
             if alias.asname is not None:
                 self._check_identifier(alias.asname, node)
+
+    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        """非 TenantContext クラスの object.__new__ 戻り値だけを局所追跡する。"""
+        if isinstance(node.value, ast.Call):
+            resolved = self.aliases.resolve(node.value.func) or self._raw_expression(
+                node.value.func
+            )
+            if (
+                resolved in {"object.__new__", "builtins.object.__new__"}
+                and node.value.args
+                and isinstance(node.value.args[0], ast.Name)
+                and node.value.args[0].id == "cls"
+                and self.class_stack
+                and ".".join([self.module, *self.class_stack])
+                != self.contract.tenant_context.constructor_symbol
+                and self.safe_non_context_objects
+            ):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.safe_non_context_objects[-1].add(target.id)
+        self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """クラス内のメソッド完全修飾名を構築する。"""
@@ -1760,8 +2145,10 @@ class _SourceScanner(ast.NodeVisitor):
                 self._check_identifier(resolved, decorator)
             self.visit(decorator)
         self.function_stack.append((symbol, signature))
+        self.safe_non_context_objects.append(set())
         for statement in node.body:
             self.visit(statement)
+        self.safe_non_context_objects.pop()
         self.function_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
@@ -1775,6 +2162,8 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
         """名前参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or node.id
+        if isinstance(node.ctx, ast.Load):
+            self._check_integrity_secret_reference(resolved, node)
         self._check_identifier(
             resolved,
             node,
@@ -1784,6 +2173,7 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
         """属性参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or self._raw_expression(node) or node.attr
+        self._check_integrity_secret_reference(resolved, node)
         self._check_identifier(
             resolved,
             node,
@@ -2121,17 +2511,44 @@ def _validate_repository_histories(
     repository_root: Path,
     merge_base: str,
 ) -> None:
-    """merge-base に存在する履歴を現在資産の不変 prefix と照合する。"""
+    """merge-base と現在の射影・識別値・受理履歴を相互照合する。"""
     for path in FROZEN_BASELINE_ASSETS:
         previous_asset = _git_json_asset(repository_root, merge_base, path)
-        if previous_asset is None or "baseline_control" not in previous_asset:
-            continue
         current_asset, _ = _read_json(repository_root / path)
-        _validate_history_append_only(
+
+        def previous_external_loader(external_path: str) -> bytes:
+            """merge-base にある外部凍結対象を読む。"""
+            matching = _run_git(
+                repository_root,
+                ["ls-tree", "--name-only", merge_base, "--", external_path],
+            )
+            if not matching.strip():
+                raise ContractError(f"merge-base に存在しない: {external_path}")
+            return _run_git(
+                repository_root,
+                ["show", f"{merge_base}:{external_path}"],
+            ).encode("utf-8")
+
+        def current_external_loader(external_path: str) -> bytes:
+            """作業ツリーにある外部凍結対象を読む。"""
+            return (repository_root / external_path).read_bytes()
+
+        _validate_baseline_transition(
             previous_asset,
             current_asset,
             path.as_posix(),
+            previous_external_loader=previous_external_loader,
+            current_external_loader=current_external_loader,
         )
+        history = _validate_baseline_control(current_asset, path.as_posix())
+        for entry in history:
+            source_commit = _string(entry["source_commit"], "history.source_commit")
+            if source_commit == PENDING_SOURCE_COMMIT:
+                continue
+            _run_git(
+                repository_root,
+                ["rev-parse", "--verify", f"{source_commit}^{{commit}}"],
+            )
 
 
 def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
@@ -2276,23 +2693,30 @@ def _application_population_violations(
     ]
 
 
-def check_repository(repository_root: Path, base_ref: str = "origin/develop") -> list[Violation]:
+def check_repository(repository_root: Path, base_ref: str | None = None) -> list[Violation]:
     """リポジトリの PR 差分と基底シンボル継続性を検査する。
 
     Args:
         repository_root: リポジトリルート。
-        base_ref: PR の比較元。通常は ``origin/develop``。
+        base_ref: PR の比較元。``None`` は資産の宣言値を使う。
 
     Returns:
         検出した違反。
     """
     contract = load_contract(repository_root)
-    diff = _run_git(
-        repository_root,
-        ["diff", "-U0", f"{base_ref}...HEAD", "--", "backend/src"],
-    )
+    effective_base_ref = base_ref or contract.base_ref
+    diff_arguments = [
+        f"{effective_base_ref}...HEAD"
+        if item == f"{contract.base_ref}...HEAD"
+        else item
+        for item in contract.diff_command[1:]
+    ]
+    diff = _run_git(repository_root, diff_arguments)
     changed_lines = changed_lines_from_diff(diff)
-    merge_base = _run_git(repository_root, ["merge-base", base_ref, "HEAD"]).strip()
+    merge_base = _run_git(
+        repository_root,
+        ["merge-base", effective_base_ref, "HEAD"],
+    ).strip()
     _validate_repository_histories(repository_root, merge_base)
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
@@ -2340,7 +2764,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("--base-ref", default="origin/develop")
+    parser.add_argument("--base-ref")
     args = parser.parse_args(argv)
     try:
         violations = check_repository(args.root.resolve(), args.base_ref)

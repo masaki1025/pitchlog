@@ -177,6 +177,10 @@ class TenantRepositoryBase(ABC):
         """
         if type(context) is not TenantContext:
             raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
+        if not context._has_valid_integrity_proof():
+            raise TenantBindingError(
+                "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
+            )
         _operation_spec(operation)
         return _validated_result(self._execute_operation(context, operation))
 

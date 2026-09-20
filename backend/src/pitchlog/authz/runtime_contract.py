@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 1
 PROVISIONAL = True
 SUPERSEDED_BY = "contracts/authz/product/ddl-elements.json"
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "c62b191c12757b390c47e7914a2ab653093f6d03d9daa389a3d42f9ee511057a"
+SOURCE_DIGEST = "110153f46f9c4bd1fe6e3ec2c88f227371a68ece7eca0b7bfccd5bc123d557bb"
 
 
 @dataclass(frozen=True, slots=True)

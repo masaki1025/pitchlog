@@ -1,15 +1,22 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 3,
+  "fixture_set_revision": 4,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
-      "current_identifiers": ["fixture_set_revision:3"],
+      "current_identifiers": [
+        "fixture_set_revision:4"
+      ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
         "included": "all_top_level_fields",
-        "excluded": ["baseline_control", "source_digest"]
+        "excluded": [
+          "baseline_control",
+          "source_digest"
+        ],
+        "external_files": []
       }
     },
     "movement_policy": {
@@ -31,44 +38,26 @@
     },
     "history": [
       {
-        "source_commit": "004a78f",
-        "new_baseline_identifiers": ["fixture_set_revision:1"],
-        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "source_commit": "PENDING_ACCEPTANCE",
+        "new_baseline_identifiers": [
+          "fixture_set_revision:4"
+        ],
+        "previous_baseline_identifiers": [
+          "NO_BASELINE"
+        ],
         "change": {
-          "subject": "feat: 迂回検査の検査契約を資産として確定する (ステップ 1/11)",
-          "before": "基準は置かれていなかった",
-          "after": "条件1〜5の負例50件を fixture_set_revision=1 の exact-set として固定した"
+          "subject": "PR #72 の単一レビュー受理で merge-base 未設置から本資産の基準を確定する",
+          "before": {
+            "state": "NO_BASELINE",
+            "frozen_projection_sha256": "NO_BASELINE"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "f569d5fc1053fb2ae87f1d616f7502331dc7b35d6b6494d81536be5e095520a4"
+          }
         },
-        "movement_fact": "004a78f で基準を初めて設置した",
-        "reason": "後続実装がテナント境界の強制点を経由することを継続保証するための検査契約を、実装より先に資産として固定する。",
-        "approved_by": "未承認(PR #72 のレビュー待ち)",
-        "approved_on": "未承認(PR #72 のレビュー待ち)"
-      },
-      {
-        "source_commit": "0681077",
-        "new_baseline_identifiers": ["fixture_set_revision:2"],
-        "previous_baseline_identifiers": ["fixture_set_revision:1"],
-        "change": {
-          "subject": "feat: キャッシュ無効化契約の資産と要求生成 API を置く (ステップ 10/11)",
-          "before": "負例は50件で、条件4に葉の直接無効化書き込みは無かった",
-          "after": "C4_DIRECT_INVALIDATION_WRITE を追加し、負例51件・条件4は19件とした"
-        },
-        "movement_fact": "0681077 で fixture_set_revision を1から2へ動かした",
-        "reason": "迂回検査の条件 4 の許可側を「本 API の呼び出しのみ」とした。葉が直接無効化を書く負例を追加した。",
-        "approved_by": "未承認(PR #72 のレビュー待ち)",
-        "approved_on": "未承認(PR #72 のレビュー待ち)"
-      },
-      {
-        "source_commit": "baeab8c",
-        "new_baseline_identifiers": ["fixture_set_revision:3"],
-        "previous_baseline_identifiers": ["fixture_set_revision:2"],
-        "change": {
-          "subject": "fix: 敵対レビューの P0 4 件を是正する",
-          "before": "getattr・eval・exec・__import__・importlib・文字列連結、factory 戻り値、PGconn、object.__new__ の迂回負例は無かった",
-          "after": "動的参照・低水準 API・receiver alias・TenantContext allowlist 迂回の負例8件を追加した"
-        },
-        "movement_fact": "baeab8c で fixture_set_revision を2から3へ動かした",
-        "reason": "いずれも本単位が「守る」と宣言した保証に直接効くため先送りしない。",
+        "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
+        "reason": "迂回変異の exact-set を本 PR の受理後基準として初めて確定するため。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
       }
@@ -488,6 +477,48 @@
       "condition": 5,
       "mutation": "object.__new__(TenantContext) で生成箇所 allowlist を迂回する",
       "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
+      "path": "pitchlog/services/c5_context_object_setattr_untyped.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った context の tenant_id を object.__setattr__ で改竄する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_TYPE_CALL",
+      "path": "pitchlog/services/c5_context_type_call.py",
+      "condition": 5,
+      "mutation": "type(context) から TenantContext を複製する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_NEW_TYPE",
+      "path": "pitchlog/services/c5_context_object_new_type.py",
+      "condition": 5,
+      "mutation": "object.__new__(type(context)) で TenantContext を複製する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_DATACLASSES_REPLACE",
+      "path": "pitchlog/services/c5_context_dataclasses_replace.py",
+      "condition": 5,
+      "mutation": "dataclasses.replace で TenantContext の tenant_id を差し替える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_UNKNOWN_ENGINE_ARGUMENT",
+      "path": "pitchlog/services/c5_unknown_engine_argument.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った engine から connect と exec_driver_sql を呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_UNKNOWN_SESSION_ARGUMENT",
+      "path": "pitchlog/services/c5_unknown_session_argument.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った session から execute を呼ぶ",
+      "expected_error": "TB005"
     }
   ]
 }

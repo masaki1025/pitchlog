@@ -586,6 +586,121 @@ def test_public_execute_rejects_context_before_session_and_sql() -> None:
     assert observed_statements == []
 
 
+def test_public_execute_rejects_tampered_context_before_session_and_sql() -> None:
+    """公開入口は token 解決や Session 参照より先に文脈改竄を拒否する。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+    session_references = 0
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    class _SessionTrapRepository(TenantRepositoryBase):
+        """参照時に SQL を発行するテスト専用 Session trap。"""
+
+        def __init__(self, session: Session) -> None:
+            self.__session = session
+
+        @property
+        def _session(self) -> Session:
+            nonlocal session_references
+            session_references += 1
+            self.__session.execute(text("SELECT 1"))
+            return self.__session
+
+    context = make_tenant_context(UUID("00000000-0000-0000-0000-000000000301"))
+    object.__setattr__(
+        context,
+        "tenant_id",
+        UUID("00000000-0000-0000-0000-000000000302"),
+    )
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            repository = _SessionTrapRepository(session)
+            with pytest.raises(TenantBindingError, match="発行証跡が不一致"):
+                repository.execute(
+                    context,
+                    cast(TenantOperationToken, object()),
+                )
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert session_references == 0
+    assert observed_statements == []
+
+
+@pytest.mark.parametrize(
+    "tenant_id_is_set",
+    (False, True),
+    ids=("all-slots-unset", "only-tenant-id-set"),
+)
+def test_public_execute_rejects_uninitialized_context_slots(
+    tenant_id_is_set: bool,
+) -> None:
+    """object.__new__ で slot が未設定でも単一の拒否例外へ閉じる。"""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+    session_references = 0
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    class _SessionTrapRepository(TenantRepositoryBase):
+        """参照時に SQL を発行するテスト専用 Session trap。"""
+
+        def __init__(self, session: Session) -> None:
+            self.__session = session
+
+        @property
+        def _session(self) -> Session:
+            nonlocal session_references
+            session_references += 1
+            self.__session.execute(text("SELECT 1"))
+            return self.__session
+
+    context = object.__new__(TenantContext)
+    if tenant_id_is_set:
+        object.__setattr__(
+            context,
+            "tenant_id",
+            UUID("00000000-0000-0000-0000-000000000303"),
+        )
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            repository = _SessionTrapRepository(session)
+            with pytest.raises(
+                TenantBindingError,
+                match=("TenantContext の発行証跡が不一致のため業務 SQL を開始できない"),
+            ):
+                repository.execute(
+                    context,
+                    cast(TenantOperationToken, object()),
+                )
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert session_references == 0
+    assert observed_statements == []
+
+
 def test_existing_unbound_transaction_is_rejected_without_more_sql() -> None:
     """先行 SQL が開始した未束縛トランザクションへ後付けで参加しない。"""
     engine = create_engine("sqlite+pysqlite:///:memory:")

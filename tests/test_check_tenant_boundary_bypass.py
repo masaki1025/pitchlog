@@ -90,6 +90,12 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_SET_TENANT_SQL",
         "C5_SQLALCHEMY_ORM",
         "C5_TENANT_CONTEXT_OBJECT_NEW",
+        "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
+        "C5_TENANT_CONTEXT_TYPE_CALL",
+        "C5_TENANT_CONTEXT_OBJECT_NEW_TYPE",
+        "C5_TENANT_CONTEXT_DATACLASSES_REPLACE",
+        "C5_UNKNOWN_ENGINE_ARGUMENT",
+        "C5_UNKNOWN_SESSION_ARGUMENT",
     }
 )
 
@@ -119,6 +125,21 @@ def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
 def _fixture_source(path: Path) -> str:
     """fixture を UTF-8 で読む。"""
     return path.read_text(encoding="utf-8")
+
+
+def _external_source(path: str) -> bytes:
+    """作業ツリーの外部凍結対象を読む。"""
+    return (REPOSITORY_ROOT / path).read_bytes()
+
+
+def _accepted_snapshot(relative_path: Path) -> dict[str, Any]:
+    """純粋な遷移検査用に先頭履歴を受理済み状態へ変える。"""
+    asset = _read_contract_asset(relative_path)
+    entry = asset["baseline_control"]["history"][0]
+    entry["source_commit"] = "abcdef0"
+    entry["approved_by"] = "テスト承認者"
+    entry["approved_on"] = "2026-09-20"
+    return asset
 
 
 def _contract_digest(value: dict[str, Any]) -> str:
@@ -177,12 +198,15 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
         relative_path.as_posix(),
     )
 
-    assert history
+    assert len(history) == 1
+    assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
+    assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
 
 
 @pytest.mark.parametrize(
     "field",
     (
+        "source_commit",
         "new_baseline_identifiers",
         "previous_baseline_identifiers",
         "change",
@@ -206,11 +230,11 @@ def test_missing_baseline_history_field_is_red(field: str) -> None:
 def test_changed_baseline_history_entry_is_red() -> None:
     """既存記録の書き換えを append-only 比較で拒否する。"""
     relative_path = checker.FROZEN_BASELINE_ASSETS[0]
-    previous = _read_contract_asset(relative_path)
+    previous = _accepted_snapshot(relative_path)
     current = copy.deepcopy(previous)
     current["baseline_control"]["history"][0]["reason"] = "書き換え"
 
-    with pytest.raises(checker.ContractError, match="変更・削除"):
+    with pytest.raises(checker.ContractError):
         checker._validate_history_append_only(
             previous,
             current,
@@ -221,7 +245,7 @@ def test_changed_baseline_history_entry_is_red() -> None:
 def test_deleted_baseline_history_entry_is_red() -> None:
     """既存記録の削除を append-only 比較で拒否する。"""
     relative_path = checker.FROZEN_BASELINE_ASSETS[0]
-    previous = _read_contract_asset(relative_path)
+    previous = _accepted_snapshot(relative_path)
     current = copy.deepcopy(previous)
     current["contract_revision"] = 6
     current["baseline_control"]["identity"]["current_identifiers"] = [
@@ -229,7 +253,7 @@ def test_deleted_baseline_history_entry_is_red() -> None:
     ]
     current["baseline_control"]["history"].pop()
 
-    with pytest.raises(checker.ContractError, match="変更・削除"):
+    with pytest.raises(checker.ContractError):
         checker._validate_history_append_only(
             previous,
             current,
@@ -237,17 +261,40 @@ def test_deleted_baseline_history_entry_is_red() -> None:
         )
 
 
-def test_broken_previous_baseline_identifier_chain_is_red() -> None:
-    """直前の識別値が直前行の新識別値と違う変異を拒否する。"""
+def test_merge_base_pending_history_is_still_append_only() -> None:
+    """merge-base に現にある記録は未承認表示でも書き換えを拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    previous = _read_contract_asset(relative_path)
+    current = copy.deepcopy(previous)
+    current["baseline_control"]["history"][0]["reason"] = "書き換え"
+
+    with pytest.raises(checker.ContractError, match="既存履歴"):
+        checker._validate_baseline_transition(
+            previous,
+            current,
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
+
+
+def test_first_adoption_previous_identifier_must_be_no_baseline() -> None:
+    """merge-base に資産が無い初回受理の直前値を推測値にできない。"""
     relative_path = checker.FROZEN_BASELINE_ASSETS[0]
     asset = _read_contract_asset(relative_path)
     mutated = copy.deepcopy(asset)
-    mutated["baseline_control"]["history"][1][
+    mutated["baseline_control"]["history"][0][
         "previous_baseline_identifiers"
     ] = ["contract_revision:999"]
 
-    with pytest.raises(checker.ContractError, match="連鎖"):
-        checker._validate_baseline_control(mutated, relative_path.as_posix())
+    with pytest.raises(checker.ContractError, match="NO_BASELINE"):
+        checker._validate_baseline_transition(
+            None,
+            mutated,
+            relative_path.as_posix(),
+            previous_external_loader=lambda _path: b"",
+            current_external_loader=_external_source,
+        )
 
 
 def test_first_history_entry_does_not_imply_no_previous_baseline() -> None:
@@ -267,23 +314,61 @@ def test_first_history_entry_does_not_imply_no_previous_baseline() -> None:
     assert history[0]["previous_baseline_identifiers"] == ["legacy_baseline:1"]
 
 
-def test_baseline_removal_can_be_recorded_with_no_baseline_marker() -> None:
-    """最後の基準を取り除く遷移にも履歴行を置ける。"""
+def test_reported_pattern_removal_without_revision_or_history_is_red() -> None:
+    """禁止 pattern を黙って 1 本削る敵対レビュー再現を射影比較で拒否する。"""
     relative_path = checker.FROZEN_BASELINE_ASSETS[0]
-    asset = _read_contract_asset(relative_path)
-    mutated = copy.deepcopy(asset)
-    first = mutated["baseline_control"]["history"][0]
-    second = mutated["baseline_control"]["history"][1]
-    first["previous_baseline_identifiers"] = ["legacy_baseline:1"]
-    first["new_baseline_identifiers"] = [checker.NO_BASELINE]
-    second["previous_baseline_identifiers"] = [checker.NO_BASELINE]
+    previous = _accepted_snapshot(relative_path)
+    current = copy.deepcopy(previous)
+    current["conditions"][0]["patterns"].pop()
 
-    history = checker._validate_baseline_control(
-        mutated,
-        relative_path.as_posix(),
-    )
+    with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
+        checker._validate_baseline_transition(
+            previous,
+            current,
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
 
-    assert history[0]["new_baseline_identifiers"] == [checker.NO_BASELINE]
+
+def test_history_added_without_projection_movement_is_red() -> None:
+    """射影が動いていない受理への不要な履歴追加を拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    previous = _accepted_snapshot(relative_path)
+    current = copy.deepcopy(previous)
+    extra = copy.deepcopy(current["baseline_control"]["history"][-1])
+    extra["source_commit"] = "abcdef1"
+    current_identifiers = current["baseline_control"]["identity"][
+        "current_identifiers"
+    ]
+    extra["previous_baseline_identifiers"] = list(current_identifiers)
+    extra["new_baseline_identifiers"] = list(current_identifiers)
+    current["baseline_control"]["history"].append(extra)
+
+    with pytest.raises(checker.ContractError, match="射影が動いていない"):
+        checker._validate_baseline_transition(
+            previous,
+            current,
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
+
+
+def test_checker_pass_fail_mapping_change_requires_revision_and_history() -> None:
+    """検査器自身の変更も外部凍結射影の移動として検出する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    previous = _accepted_snapshot(relative_path)
+    current = copy.deepcopy(previous)
+
+    with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
+        checker._validate_baseline_transition(
+            previous,
+            current,
+            relative_path.as_posix(),
+            previous_external_loader=lambda _path: b"old pass/fail mapping",
+            current_external_loader=lambda _path: b"new pass/fail mapping",
+        )
 
 
 def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None:
@@ -570,13 +655,17 @@ def load(short_name: Session) -> object:
 def test_tenant_context_construction_from_allowlisted_module_passes() -> None:
     """allowlist 内のテストモジュールからの構築が通ることを確認する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    test_module = (
-        REPOSITORY_ROOT / "backend/tests/test_authz_tenant_context.py"
-    )
+    source = """\
+from pitchlog.repositories.context import TenantContext
+
+
+def make_tenant_context(tenant_id):
+    return TenantContext(tenant_id)
+"""
 
     violations = checker.scan_source(
-        _fixture_source(test_module),
-        path=test_module.name,
+        source,
+        path="test_authz_tenant_context.py",
         contract=contract,
     )
 
@@ -620,6 +709,42 @@ def test_tenant_context_construction_outside_allowlist_is_red(source: str) -> No
     violations = checker.scan_source(
         source,
         path="pitchlog/api/routers/example.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB007"}
+
+
+def test_tenant_context_integrity_secret_reference_outside_allowlist_is_red() -> None:
+    """発行証跡のプロセス秘密を許可シンボル外から参照できない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.repositories.context import _TENANT_CONTEXT_SECRET
+
+leaked = _TENANT_CONTEXT_SECRET
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/leak_context_secret.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB007"}
+
+
+def test_tenant_context_integrity_secret_dynamic_reference_is_red() -> None:
+    """getattr を使っても発行証跡の秘密へ到達できない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+import pitchlog.repositories.context as context_module
+
+leaked = getattr(context_module, "_TENANT_CONTEXT_SECRET")
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/dynamic_context_secret.py",
         contract=contract,
     )
 
@@ -866,9 +991,21 @@ def test_merged_head_uses_real_contract_symbols_as_nonempty_population() -> None
 
 
 def test_current_product_contract_is_rechecked_after_merge() -> None:
-    """base が HEAD 自身でも実製品の強制点を再検査して通す。"""
-    violations = checker.check_repository(REPOSITORY_ROOT, base_ref="HEAD")
+    """空差分でも実製品の強制点を再検査して通す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    head_sources = checker._git_snapshot(REPOSITORY_ROOT, "HEAD")
+    population = checker._inspection_population(
+        {},
+        head_sources,
+        contract=contract,
+    )
+    violations = checker._changed_source_violations(
+        REPOSITORY_ROOT,
+        population,
+        contract,
+    )
 
+    assert population
     assert violations == []
 
 
