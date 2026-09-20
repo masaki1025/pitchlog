@@ -64,6 +64,93 @@
         }
       ],
       "estimatedTotalSeconds": 0.519535
+    },
+    {
+      "step": 41,
+      "measuredAt": "2026-09-20",
+      "measurementCommand": "uv run pytest -q tests/domain/mut/test_display_operators.py::test_each_display_family_mutants_are_actually_killed[<family>] (各系統 5 回)",
+      "environment": {
+        "python": "3.12.3",
+        "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-aarch64-with-glibc2.43",
+        "processor": "",
+        "cpuCount": 12,
+        "node": "v24.16.0",
+        "sqlite": "3.45.1"
+      },
+      "syntheticTargets": {
+        "familyCount": 5,
+        "displayRuleCount": 6,
+        "probeCount": 8,
+        "scaleZeroProbeCount": 1
+      },
+      "operatorFamilies": [
+        {
+          "family": "string-literal",
+          "mutantCount": 2,
+          "suiteSamplesSeconds": [
+            0.226926,
+            0.197901,
+            0.206808,
+            0.216654,
+            0.225074
+          ],
+          "suiteSecondsPerMutant": 0.108327,
+          "estimatedSeconds": 0.216654
+        },
+        {
+          "family": "template-placeholder",
+          "mutantCount": 3,
+          "suiteSamplesSeconds": [
+            0.233766,
+            0.235042,
+            0.229835,
+            0.224633,
+            0.226651
+          ],
+          "suiteSecondsPerMutant": 0.07661166666666668,
+          "estimatedSeconds": 0.229835
+        },
+        {
+          "family": "enum-map",
+          "mutantCount": 3,
+          "suiteSamplesSeconds": [
+            0.215706,
+            0.22176,
+            0.214997,
+            0.220633,
+            0.222772
+          ],
+          "suiteSecondsPerMutant": 0.07354433333333334,
+          "estimatedSeconds": 0.220633
+        },
+        {
+          "family": "primitive-parameter",
+          "mutantCount": 8,
+          "suiteSamplesSeconds": [
+            0.263775,
+            0.262101,
+            0.26458,
+            0.263145,
+            0.261398
+          ],
+          "suiteSecondsPerMutant": 0.032893125,
+          "estimatedSeconds": 0.263145
+        },
+        {
+          "family": "formatter-invocation",
+          "mutantCount": 2,
+          "suiteSamplesSeconds": [
+            0.197706,
+            0.204008,
+            0.200428,
+            0.201306,
+            0.202235
+          ],
+          "suiteSecondsPerMutant": 0.100653,
+          "estimatedSeconds": 0.201306
+        }
+      ],
+      "estimatedTotalSeconds": 1.131573
     }
   ]
 }
