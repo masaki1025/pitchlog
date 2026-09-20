@@ -58,6 +58,25 @@ gitleaks の fingerprint は **`<コミット SHA>:<パス>:<ルール>:<行>`**
 
 暫定として `dir` サブコマンド(作業ツリーのみ)で 2 件を同定した。**全履歴に 3 件目が存在するかは未確認** — メモリの「3 件」との差がここで説明できる可能性がある。**人間に `!` 付きで実行してもらう必要がある。**
 
+## ステップ 2: `.gitleaksignore` 新設と 4 章の追随(2026-09-20)
+
+**ignore 機構が実際に効くことを正例で確認した**: コメント行を含む ignore ファイルを `--gitleaks-ignore-path` で与えて `dir` 走査 → **`no leaks found` / exit 0**。「パースエラーが出ない」だけでは**読まれている証明にならない**ため、抑止が働く側で確かめている。
+
+**CI 実測(計画書ステップ 2 の合格条件)**:
+
+| 項目 | 値 |
+| --- | --- |
+| run ID | **35513315849** |
+| `event` | `workflow_dispatch` ✓ |
+| `headBranch` | `feature/post-public-doc-sync` ✓ |
+| `headSha` | **`9c6a8f75eab3e1383b79e2b1e44842f19e9e354b`** ✓(コミット `9c6a8f7` = ステップ 2 の HEAD と一致) |
+| `secrets` | **success** |
+| 全 9 ジョブ | **すべて success**(`secrets` `docs-lint` `core-guard` `harness` `nfr021-append-only` `frontend-changes` `backend-changes` `frontend` `backend`) |
+
+**既定ブランチでの green ではなく、`.gitleaksignore` を含む本 feature の SHA 上で走ったことを 3 項目の照合で確認済み。**
+
+**登録した fingerprint はステップ 1 の記録と 1 対 1 で対応**(`5c8f52c`:25 / `5c8f52c`:27 / `190fc3a`:25)。
+
 ## 台帳候補(本タスクのスコープ外 — 起票は別途)
 
 **型 1: 1 件見つけた時点で走査を止める(母集団の打ち切り)**
