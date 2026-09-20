@@ -27,6 +27,15 @@ BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
 BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 STEPS_PATH = REPOSITORY_ROOT / "docs" / "features" / "domain-calc-dsl" / "steps.json"
+GITHUB_SETUP_PATH = REPOSITORY_ROOT / "docs" / "development" / "github-setup.md"
+HARNESS_DESIGN_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "development"
+    / "dev-harness-design-2026-08-07.md"
+)
+DOCS_INDEX_PATH = REPOSITORY_ROOT / "docs" / "README.md"
+ACTIVATION_EVIDENCE_MARKER = "<!-- BOOT-ACTIVATION-EVIDENCE -->"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
@@ -92,6 +101,214 @@ def _load_workflow(text: str) -> dict[str, Any]:
     workflow = yaml.safe_load(text)
     assert isinstance(workflow, dict), "ci.yml のルートはマッピングでなければならない"
     return workflow
+
+
+def _json_fence_after_marker(text: str, marker: str) -> dict[str, Any]:
+    """指定標識の直後にある JSON fenced block を読む。
+
+    Args:
+        text: Markdown 全文。
+        marker: JSON block より前に一意に現れる標識。
+
+    Returns:
+        JSON オブジェクト。
+    """
+    marker_index = text.find(marker)
+    assert marker_index >= 0, f"標識がない: {marker}"
+    fence_start = text.find("```json", marker_index)
+    assert fence_start >= 0, f"{marker}: JSON fence がない"
+    payload_start = fence_start + len("```json")
+    fence_end = text.find("```", payload_start)
+    assert fence_end >= 0, f"{marker}: JSON fence が閉じていない"
+    value = json.loads(text[payload_start:fence_end])
+    assert isinstance(value, dict), f"{marker}: JSON ルートはオブジェクトが必要"
+    return value
+
+
+def _workflow_job_categories(
+    workflow: dict[str, Any],
+) -> dict[str, frozenset[str]]:
+    """CI の依存関係から必須ジョブの 3 分類を導出する。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        常時実行・変更検知・paths filter 配下のジョブ集合。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    filtered = {name for name, job in jobs.items() if isinstance(job, dict) and "needs" in job}
+    change_detection: set[str] = set()
+    for name in filtered:
+        job = jobs[name]
+        assert isinstance(job, dict)
+        needs = job["needs"]
+        if isinstance(needs, str):
+            change_detection.add(needs)
+        else:
+            assert isinstance(needs, list)
+            assert all(isinstance(item, str) for item in needs)
+            change_detection.update(needs)
+    always = set(jobs) - filtered - change_detection
+    return {
+        "always": frozenset(always),
+        "changeDetection": frozenset(change_detection),
+        "filtered": frozenset(filtered),
+    }
+
+
+def _documented_job_categories(text: str) -> dict[str, frozenset[str]]:
+    """github-setup.md の手続 2 から必須ジョブの 3 分類を読む。"""
+    line = next(
+        (
+            item
+            for item in text.splitlines()
+            if "常時実行" in item and "変更検知" in item
+        ),
+        None,
+    )
+    assert line is not None, "必須ジョブの 3 分類がない"
+    always_match = re.search(r"常時実行 (\d+) ジョブ\((.*?)\)\+ 変更検知", line)
+    change_match = re.search(
+        r"変更検知 (\d+) ジョブ\((.*?)\)\+ \*\*paths", line
+    )
+    filtered_match = re.search(r"発火した場合の (`[^`]+` / `[^`]+`)", line)
+    assert always_match is not None
+    assert change_match is not None
+    assert filtered_match is not None
+    categories = {
+        "always": frozenset(re.findall(r"`([^`]+)`", always_match[2])),
+        "changeDetection": frozenset(
+            re.findall(r"`([^`]+)`", change_match[2])
+        ),
+        "filtered": frozenset(re.findall(r"`([^`]+)`", filtered_match[1])),
+    }
+    assert len(categories["always"]) == int(always_match[1])
+    assert len(categories["changeDetection"]) == int(change_match[1])
+    return categories
+
+
+def _required_status_contexts(ruleset: dict[str, Any]) -> tuple[str, ...]:
+    """Ruleset JSON から required status context を取り出す。"""
+    rules = ruleset.get("rules")
+    assert isinstance(rules, list)
+    status_rules = [
+        rule
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
+    ]
+    assert len(status_rules) == 1
+    parameters = status_rules[0].get("parameters")
+    assert isinstance(parameters, dict)
+    contexts = parameters.get("required_status_checks")
+    assert isinstance(contexts, list)
+    values = tuple(
+        item.get("context")
+        for item in contexts
+        if isinstance(item, dict) and isinstance(item.get("context"), str)
+    )
+    assert len(values) == len(contexts), "context を持たない required status がある"
+    return values
+
+
+def _assert_exact_keys(value: object, expected: set[str], label: str) -> dict[str, Any]:
+    """JSON オブジェクトのキー集合を exact-set で検査する。"""
+    assert isinstance(value, dict), f"{label} はオブジェクトが必要"
+    assert set(value) == expected, f"{label} のキー集合が不一致"
+    return value
+
+
+def _assert_activation_evidence(
+    evidence: dict[str, Any],
+    workflow: dict[str, Any],
+) -> None:
+    """BOOT-ACTIVATION 証跡を計画と CI の実行対象へ束縛する。"""
+    _assert_exact_keys(
+        evidence,
+        {
+            "schemaVersion",
+            "observedAt",
+            "repository",
+            "pullRequest",
+            "event",
+            "runId",
+            "jobs",
+            "expectedNonActivationFailure",
+            "previousRun",
+        },
+        "発効証跡",
+    )
+    assert evidence["schemaVersion"] == 1
+    assert evidence["observedAt"] == "2026-09-21"
+    assert evidence["repository"] == "masaki1025/pitchlog"
+    assert evidence["pullRequest"] == 74
+    assert evidence["event"] == "pull_request"
+    assert evidence["runId"] == 35529110007
+
+    jobs = _assert_exact_keys(evidence["jobs"], {"consistency", "mutation"}, "jobs")
+    consistency = _assert_exact_keys(
+        jobs["consistency"],
+        {"conclusion", "activationRequirements", "structuralAudits"},
+        "consistency 証跡",
+    )
+    mutation = _assert_exact_keys(
+        jobs["mutation"], {"conclusion"}, "mutation 証跡"
+    )
+    assert consistency["conclusion"] == "success"
+    assert mutation["conclusion"] == "success"
+
+    requirements = _assert_exact_keys(
+        consistency["activationRequirements"],
+        {
+            "mechanism",
+            "negativeCases",
+            "exceptionalTransitions",
+            "normalOperation",
+        },
+        "要求①〜④",
+    )
+    expected_requirements = {
+        "mechanism": _step_test_paths(17, 21),
+        "negativeCases": _step_test_paths(22, 23),
+        "exceptionalTransitions": _step_test_paths(24, 24),
+        "normalOperation": _step_test_paths(25, 25),
+    }
+    for requirement, expected_paths in expected_requirements.items():
+        actual = requirements[requirement]
+        assert isinstance(actual, list)
+        assert tuple(actual) == expected_paths, f"{requirement} の証跡集合が不一致"
+        for path in actual:
+            assert _selected_root_test_jobs(workflow, path) == {"consistency"}
+
+    audits = consistency["structuralAudits"]
+    assert isinstance(audits, list)
+    assert tuple(audits) == _step_test_paths(51, 52), (
+        "structuralAudits の証跡集合が不一致"
+    )
+    for path in audits:
+        assert _selected_root_test_jobs(workflow, path) == {"consistency"}
+
+    expected_failure = _assert_exact_keys(
+        evidence["expectedNonActivationFailure"],
+        {"job", "conclusion", "reasonCode"},
+        "発効外 failure",
+    )
+    assert expected_failure == {
+        "job": "core-guard",
+        "conclusion": "failure",
+        "reasonCode": "human-review-checkbox-unchecked",
+    }
+    previous = _assert_exact_keys(
+        evidence["previousRun"],
+        {"runId", "consistencyConclusion", "supersededBy"},
+        "前回 run",
+    )
+    assert previous == {
+        "runId": 35525816853,
+        "consistencyConclusion": "failure",
+        "supersededBy": 35529110007,
+    }
 
 
 def _docs_lint_commands(workflow: dict[str, Any]) -> list[str]:
@@ -2077,6 +2294,111 @@ def test_group_four_and_plan_history_audits_belong_only_to_consistency() -> None
     assert len(structural_audits) == 2
     for test_path in (*group_four, *structural_audits):
         assert _selected_root_test_jobs(workflow, test_path) == {"consistency"}
+
+
+def test_required_job_documentation_matches_the_workflow() -> None:
+    """3 分類と Ruleset context を実在する CI ジョブ集合へ同期する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    setup_text = GITHUB_SETUP_PATH.read_text(encoding="utf-8")
+    documented = _documented_job_categories(setup_text)
+    actual = _workflow_job_categories(workflow)
+    ruleset = _json_fence_after_marker(setup_text, "対象: `main`・`develop`")
+    contexts = _required_status_contexts(ruleset)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+
+    assert documented == actual
+    assert len(contexts) == len(set(contexts))
+    assert set(jobs) - set(contexts) == set()
+    assert set(contexts) - set(jobs) == set()
+    assert ruleset["name"] == "protect-main-develop"
+    assert ruleset["enforcement"] == "active"
+    assert ruleset["bypass_actors"] == []
+    status_rule = next(
+        rule
+        for rule in ruleset["rules"]
+        if rule["type"] == "required_status_checks"
+    )
+    assert status_rule["parameters"]["strict_required_status_checks_policy"] is True
+
+
+def test_required_job_documentation_detects_one_missing_context() -> None:
+    """Ruleset から 1 context 落ちれば両方向集合差が非空になる。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    setup_text = GITHUB_SETUP_PATH.read_text(encoding="utf-8")
+    ruleset = _json_fence_after_marker(setup_text, "対象: `main`・`develop`")
+    mutated = copy.deepcopy(ruleset)
+    contexts = next(
+        rule["parameters"]["required_status_checks"]
+        for rule in mutated["rules"]
+        if rule["type"] == "required_status_checks"
+    )
+    removed = "mutation"
+    contexts[:] = [item for item in contexts if item["context"] != removed]
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    actual = set(_required_status_contexts(mutated))
+
+    assert set(jobs) - actual == {removed}
+    assert actual - set(jobs) == set()
+
+
+def test_activation_evidence_binds_all_requirements_to_executed_ci_paths() -> None:
+    """実 run の要求①〜④と構造監査を CI の実行対象へ束縛する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    evidence = _json_fence_after_marker(design_text, ACTIVATION_EVIDENCE_MARKER)
+
+    _assert_activation_evidence(evidence, workflow)
+
+
+def test_missing_activation_evidence_is_red() -> None:
+    """実行証跡のない発効宣言を受理しない。"""
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    without_evidence = design_text.replace(ACTIVATION_EVIDENCE_MARKER, "", 1)
+
+    with pytest.raises(AssertionError, match="標識がない"):
+        _json_fence_after_marker(without_evidence, ACTIVATION_EVIDENCE_MARKER)
+
+
+@pytest.mark.parametrize("audit", _step_test_paths(51, 52))
+def test_each_structural_audit_is_required_by_activation_evidence(
+    audit: str,
+) -> None:
+    """ステップ 51・52 の実行証跡を 1 件ずつ必須化する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    evidence = _json_fence_after_marker(design_text, ACTIVATION_EVIDENCE_MARKER)
+    consistency = evidence["jobs"]["consistency"]
+    consistency["structuralAudits"].remove(audit)
+
+    with pytest.raises(AssertionError, match="structuralAudits|証跡集合|不一致"):
+        _assert_activation_evidence(evidence, workflow)
+
+
+def test_harness_job_table_and_document_index_are_current() -> None:
+    """10.1 の実装済み 2 ジョブと索引の最終更新日を固定する。"""
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    table = design_text.split("### 10.1 ci.yml", maxsplit=1)[1].split(
+        "- `concurrency`", maxsplit=1
+    )[0]
+    index_text = DOCS_INDEX_PATH.read_text(encoding="utf-8")
+
+    for job_name in ("consistency", "mutation"):
+        row = next(
+            (line for line in table.splitlines() if line.startswith(f"| `{job_name}` |")),
+            None,
+        )
+        assert row is not None
+        assert "TSK-235 で導入済み" in row
+    assert re.search(
+        r"\[開発ハーネス設計書\].*\| 1\.16 \| 2026-09-21 \|",
+        index_text,
+    )
+    assert re.search(
+        r"\[GitHub リポジトリ設定手順\].*\| 1\.2 \| 2026-09-21 \|",
+        index_text,
+    )
 
 
 def test_root_tests_have_exactly_one_owner_job() -> None:
