@@ -244,6 +244,65 @@ def _initialize_test_repository(
     return repository, _commit_test_repository(repository, "baseline")
 
 
+def _write_test_repository_sources(
+    repository: Path,
+    sources: dict[str, str],
+) -> None:
+    """一時リポジトリの製品ソースを変異後の内容へ更新する。"""
+    for relative, source in sources.items():
+        path = repository / "backend" / "src" / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+
+
+def _actual_implementation_mutation(case_id: str) -> tuple[str, str, str]:
+    """既存の製品変異テストと同じ基準版・変異版を返す。"""
+    if case_id == "base-direct-sql":
+        relative = "pitchlog/repositories/base.py"
+        source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+        mutated = source.replace(
+            "from sqlalchemy.orm import Session",
+            "from sqlalchemy import text\nfrom sqlalchemy.orm import Session",
+            1,
+        ).replace(
+            "            execution_result = self._session.execute(\n",
+            "            self._session.execute(text(\"SELECT 1\"))\n"
+            "            execution_result = self._session.execute(\n",
+            1,
+        )
+    elif case_id == "binding-nonlocal-set-config":
+        relative = "pitchlog/repositories/binding.py"
+        source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+        mutated = source.replace(
+            "SELECT set_config('app.tenant_id', :tenant_id, true)",
+            "SELECT set_config('app.tenant_id', :tenant_id, false)",
+            1,
+        )
+    elif case_id == "base-call-outside-allowed-symbol":
+        relative = "pitchlog/repositories/base.py"
+        source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+        mutated = source.replace(
+            "        _operation_spec(operation)\n",
+            "        self._session.execute(operation)\n"
+            "        _operation_spec(operation)\n",
+            1,
+        )
+    elif case_id == "binding-unlisted-symbol":
+        relative = "pitchlog/repositories/binding.py"
+        source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+        mutation = """
+
+def _unlisted_database_access(session: Session) -> None:
+    session.execute(text("SELECT 1"))
+"""
+        mutated = f"{source.rstrip()}{mutation}\n"
+    else:
+        raise AssertionError(f"未定義の実装変異: {case_id}")
+
+    assert mutated != source
+    return relative, source, mutated
+
+
 def test_positive_fixtures_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
@@ -472,6 +531,48 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
         observed_conditions.add(fixture.condition)
 
     assert observed_conditions == {1, 2, 3, 4, 5}
+
+
+@pytest.mark.parametrize("condition", (1, 2, 3, 4, 5))
+def test_all_negative_fixtures_are_red_through_real_commit_diff(
+    tmp_path: Path,
+    condition: int,
+) -> None:
+    """契約済み負例 68 本を条件別の実コミット列で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert {fixture.id for fixture in contract.negative_fixtures} == (
+        EXPECTED_NEGATIVE_IDS
+    )
+    fixtures = tuple(
+        fixture
+        for fixture in contract.negative_fixtures
+        if fixture.condition == condition
+    )
+    assert fixtures
+    baseline_sources = {fixture.path: "pass\n" for fixture in fixtures}
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        baseline_sources,
+    )
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+
+    mutated_sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in fixtures
+    }
+    _write_test_repository_sources(repository, mutated_sources)
+    _commit_test_repository(repository, "apply all negative fixtures")
+    violations = checker.check_repository(repository, base_ref=base_ref)
+    observed = {(violation.path, violation.code) for violation in violations}
+
+    for fixture in fixtures:
+        assert (fixture.path, fixture.expected_error) in observed, (
+            f"{fixture.id} が実コミット列で期待どおり red でない: "
+            f"expected={fixture.expected_error}"
+        )
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
 
 
 def test_reject_all_mutant_kills_positive_fixture() -> None:
@@ -767,6 +868,43 @@ def handler(work: Session) -> object:
 
     assert "TB005" in {violation.code for violation in violations}
     assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+def test_pure_rename_of_non_database_code_passes_real_commit_diff(
+    tmp_path: Path,
+) -> None:
+    """非 DB コードの純粋改名は実コミット列と CLI の経路で通す。"""
+    old_relative = "pitchlog/services/old_report.py"
+    new_relative = "pitchlog/services/new_report.py"
+    source = '''\
+class Report:
+    def execute(self) -> str:
+        return "ready"
+
+
+def render(report: Report) -> str:
+    return report.execute()
+'''
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {old_relative: source},
+    )
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+
+    checker._run_git(
+        repository,
+        [
+            "mv",
+            f"backend/src/{old_relative}",
+            f"backend/src/{new_relative}",
+        ],
+    )
+    _commit_test_repository(repository, "rename non-database report")
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
 
 
 def test_same_violation_moved_between_functions_is_red_through_real_commit_diff(
@@ -1925,6 +2063,39 @@ def _unlisted_database_access(session: Session) -> None:
     )
 
     assert {violation.code for violation in violations} == {"TB005"}
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    (
+        "base-direct-sql",
+        "binding-nonlocal-set-config",
+        "base-call-outside-allowed-symbol",
+        "binding-unlisted-symbol",
+    ),
+)
+def test_actual_implementation_mutation_is_red_through_real_commit_diff(
+    tmp_path: Path,
+    case_id: str,
+) -> None:
+    """実製品への 4 変異を実コミット列と CLI の経路で拒否する。"""
+    relative, baseline, mutated = _actual_implementation_mutation(case_id)
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+
+    _write_test_repository_sources(repository, {relative: mutated})
+    _commit_test_repository(repository, f"apply {case_id} mutation")
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert (relative, "TB005") in {
+        (violation.path, violation.code) for violation in violations
+    }
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
 
 
 def test_manifest_rows_keep_the_required_exact_shape() -> None:
