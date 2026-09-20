@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e093b75e68781a39c3ad0768fab8fac
 branch: feature/post-public-doc-sync
 created: 2026-09-19
 計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 3          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -89,7 +89,7 @@ repo: visibility public / secret_scanning enabled / push_protection enabled
 | # | 起票する内容 | 受ける未達 | 参照元ステップ |
 | --- | --- | --- | --- |
 | **[F-1](https://app.notion.com/p/3e193b75e68781b6b0a5efb6762901d7)** | **`scripts/setup_branch_protection.py` の新規作成**(冪等 GET→POST/PUT・重複検知・dry-run + 適用後検証) | 設計書 10.2 の**自動再現要件**(承認済み例外を切り替えた先) | ステップ 8 |
-| **[F-2](https://app.notion.com/p/3e193b75e6878100980dcacbd9c80456)** | **ブランチ保護の実地検証** — docs-only PR で下流 skipped がマージ可能 / 変更検知失敗時にマージがブロック の**両方を実測** | `github-setup.md` 3 章の**運用開始条件** | ステップ 4 |
+| **[F-2](https://app.notion.com/p/3e193b75e6878100980dcacbd9c80456)** | **ブランチ保護の実地検証** — docs-only PR で下流 skipped がマージ可能 / 変更検知失敗時にマージがブロック の**両方を実測** | `github-setup.md` 3 章の**運用開始条件** + **設計書 10.2 の解除条件**(発行元拘束の成立。**判断のみでは完了しない** — 成立しない場合は解除条件を引き継ぐ追跡先へ差し替えてから閉じる) | ステップ 4 |
 | **[F-3](https://app.notion.com/p/3e193b75e6878145b8b7cb14488a96d7)** | **ruleset へ `tenant-boundary-bypass` を追加**(**PR #72 マージ後**) | public 化の残作業(未達ではないが順序制約あり) | — |
 
 **起票済み(2026-09-20): F-1 = `TSK-432` / F-2 = `TSK-433` / F-3 = `TSK-434`。担当はいずれも PO、完了条件は各カードの DoD に記載。**
@@ -248,7 +248,7 @@ CLAUDE.md の役割分担は「**Git 操作・PR・ドキュメントは Claude 
 - [ ] `onboarding.md` / 台帳 **H-8(見出し・事象本文・状態ラベルとも部分対応/実地検証待ち)** / `release/SKILL.md`(**本文の旧記述が消滅**)が現況化されている
 - [ ] **`release/SKILL.md` 手順 0 の無条件中断が保持され、`P4-後` 以外でリリース経路が開いていない**
 - [ ] `docs/README.md` が現行化され、**`check_plan_docs_sync.py` が覆わない 2 ファイルを明示的に確認した**
-- [ ] **後続タスク F-1(再現スクリプト)/ F-2(実地検証)/ F-3(ruleset へ tenant-boundary-bypass)が起票され、URL・担当・完了条件が本書と PR 本文に記載されている**
+- [ ] **後続タスク F-1(再現スクリプト)/ F-2(実地検証 + 発行元拘束の成立)/ F-3(ruleset へ tenant-boundary-bypass)が起票され、URL・担当・完了条件が本書と PR 本文に記載されている**。**F-2 の完了条件に「発行元拘束の成立、または解除条件を引き継ぐ追跡先への差し替え」が含まれている**
 - [ ] **実 PR の `core-guard` が green で、PR 本文に実施記録(対象・範囲・方法)が記入されている**(ステップ 7 では判定しない — 最終 PR の条件)
 - [ ] **公開許諾・TSK-202 のいずれについても `blocked` に入っていない**(入った場合は PO 判断と再開記録があること)
 - [ ] **NFR-021: 既存証跡が期待どおり invalidating になることを最終候補 SHA で検証し、結果を PR に残した。既存 Phase 4 受入を再利用せず、リリース候補で再受入が必須である旨を明記した**
