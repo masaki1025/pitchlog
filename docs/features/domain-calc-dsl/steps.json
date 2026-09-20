@@ -494,7 +494,7 @@
       "title": "**(b)③ frontend 閉域 — 依存規則**(design.md §10-1)。**ステップ 10 の収集器の実測**と `entrypoints[]` の突合 + **`dependency-cruiser` の新規導入**(**devDependency + 設定ファイルとも不在** — research.md §7-4)+ lint による動的機構の禁止 + **`src/lib/generated/` の新設**。**トリガー 6 を評価**",
       "criteria": "`[機械]` **実在入口と `entrypoints[]` の差 1 件で fail**(**集合差**)/ **正例・負例・解析不能例の 3 通り** / **判定不能を合格にしない** / **import graph を直接読む統合テスト** / **◎ 実在入口と `entrypoints[]` が一致したとき実際に通る**(**正例 B**) / **◎ `dependency-cruiser` が `frontend/package.json` の devDependencies に追加され、`pnpm-lock.yaml` が更新されている**(**現状 import 境界を強制するプラグインが 1 つも無い** — research.md §7-4)",
       "artifact": "`frontend/.dependency-cruiser.cjs` / `frontend/src/lib/generated/`",
-      "command": "`pnpm exec depcruise --validate` + `pnpm test -- --run`",
+      "command": "`pnpm exec depcruise src --validate` + `pnpm test -- --run`",
       "requires_positive_b": true
     },
     {
