@@ -11,6 +11,7 @@ import json
 import re
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,6 +64,14 @@ class ApiSpec:
     symbol: str
     kind: str
     receivers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _ApiMatch:
+    """DB API 照合結果と、完全修飾名で確定したかを表す。"""
+
+    api: ApiSpec
+    exact: bool
 
 
 @dataclass(frozen=True)
@@ -1838,6 +1847,15 @@ class _FlowValue:
 _UNKNOWN_FLOW_VALUE = _FlowValue()
 
 
+@dataclass(frozen=True)
+class _FlowOutcome:
+    """文または文列から後続へ到達できる由来環境を表す。"""
+
+    environment: dict[str, _FlowValue] | None
+    breaks: tuple[dict[str, _FlowValue], ...] = ()
+    continues: tuple[dict[str, _FlowValue], ...] = ()
+
+
 class _FlowProvenance:
     """危険呼び出しに必要な由来だけを字句スコープと制御フロー沿いに追跡する。"""
 
@@ -1864,6 +1882,7 @@ class _FlowProvenance:
         self.receiver_kinds: dict[int, str] = {}
         self.argument_kinds: dict[tuple[int, int], str] = {}
         self.function_returns: dict[str, _FlowValue] = {}
+        self.class_members: dict[str, _FlowValue] = {}
         self.class_stack: list[str] = []
 
     def canonical(self, symbol: str) -> str:
@@ -1888,7 +1907,37 @@ class _FlowProvenance:
         if node is None:
             return _UNKNOWN_FLOW_VALUE
         if isinstance(node, ast.Subscript):
+            wrapper = self._resolve_annotation(node.value, environment).symbol
+            elements = (
+                tuple(node.slice.elts)
+                if isinstance(node.slice, ast.Tuple)
+                else (node.slice,)
+            )
+            if wrapper in {"typing.Annotated", "typing_extensions.Annotated"}:
+                return self._resolve_annotation(elements[0], environment)
+            if wrapper in {
+                "typing.Optional",
+                "typing.Union",
+                "typing_extensions.Optional",
+                "typing_extensions.Union",
+            }:
+                members = [
+                    self._resolve_annotation(element, environment)
+                    for element in elements
+                ]
+                if wrapper.endswith(".Optional"):
+                    members.append(_FlowValue("builtins.NoneType", "non_db"))
+                return self._join_annotation_members(members)
             return self._resolve_annotation(node.value, environment)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return self._join_annotation_members(
+                (
+                    self._resolve_annotation(node.left, environment),
+                    self._resolve_annotation(node.right, environment),
+                )
+            )
+        if isinstance(node, ast.Constant) and node.value is None:
+            return _FlowValue("builtins.NoneType", "non_db")
         if isinstance(node, ast.Name):
             value = environment.get(node.id, _UNKNOWN_FLOW_VALUE)
             if value.kind in {"class_non_db", "class_unknown"}:
@@ -1907,6 +1956,28 @@ class _FlowProvenance:
                 return _UNKNOWN_FLOW_VALUE
             return _FlowValue(value.symbol, self._kind_for_type(value.symbol))
         return _UNKNOWN_FLOW_VALUE
+
+    def _join_annotation_members(
+        self,
+        members: Sequence[_FlowValue],
+    ) -> _FlowValue:
+        """Union 系注釈を DB 優先・不明 fail-closed で分類する。"""
+        if any(member.kind == "db" for member in members):
+            return _FlowValue(kind="db")
+        if any(member.kind == "unknown" for member in members):
+            return _UNKNOWN_FLOW_VALUE
+        tenant_members = [
+            member for member in members if member.kind == "tenant_context"
+        ]
+        if tenant_members:
+            if all(
+                member.kind == "tenant_context"
+                or member.symbol == "builtins.NoneType"
+                for member in members
+            ):
+                return _FlowValue(self.tenant_context_symbol, "tenant_context")
+            return _UNKNOWN_FLOW_VALUE
+        return _FlowValue(kind="non_db")
 
     def _call_result(self, callable_value: _FlowValue) -> _FlowValue:
         """既知 factory・ローカルクラス・明示戻り型だけを戻り値へ伝播する。"""
@@ -1932,7 +2003,7 @@ class _FlowProvenance:
         first = values[0]
         if all(value == first for value in values):
             return first
-        if first.kind in {"db", "non_db", "tenant_context"} and all(
+        if first.kind in {"db", "non_db", "non_db_attribute", "tenant_context"} and all(
             value.kind == first.kind for value in values
         ):
             return _FlowValue(kind=first.kind)
@@ -1948,7 +2019,15 @@ class _FlowProvenance:
         if receiver.symbol is None:
             return _UNKNOWN_FLOW_VALUE, receiver
         symbol = self.canonical(f"{receiver.symbol}.{node.attr}")
-        kind = receiver.kind if receiver.kind in {"db", "non_db"} else "symbol"
+        declared = self.class_members.get(symbol)
+        if declared is not None:
+            return declared, receiver
+        if receiver.kind == "db":
+            kind = "db"
+        elif receiver.kind in {"non_db", "non_db_attribute"}:
+            kind = "non_db_attribute"
+        else:
+            kind = "symbol"
         return _FlowValue(symbol, kind), receiver
 
     def _expression(
@@ -1979,8 +2058,8 @@ class _FlowProvenance:
             for keyword in node.keywords:
                 self._expression(keyword.value, environment)
             result = self._call_result(callable_value)
-            if result.kind == "unknown" and receiver.kind in {"db", "non_db"}:
-                return _FlowValue(kind="non_db")
+            if result.kind == "unknown" and receiver.kind in {"db", "db_result"}:
+                return _FlowValue(kind="db_result")
             return result
         if isinstance(node, ast.NamedExpr):
             value = self._expression(node.value, environment)
@@ -2148,18 +2227,44 @@ class _FlowProvenance:
                 self._expression(default, environment)
         self._analyze_block(node.body, local)
 
+    def _register_class_contracts(
+        self,
+        node: ast.ClassDef,
+        environment: dict[str, _FlowValue],
+        class_symbol: str,
+    ) -> None:
+        """同ファイルの属性注釈とメソッド戻り注釈を先に登録する。"""
+        for statement in node.body:
+            if (
+                isinstance(statement, ast.AnnAssign)
+                and isinstance(statement.target, ast.Name)
+            ):
+                declared = self._resolve_annotation(
+                    statement.annotation,
+                    environment,
+                )
+                self.class_members[
+                    f"{class_symbol}.{statement.target.id}"
+                ] = declared
+                continue
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                symbol = f"{class_symbol}.{statement.name}"
+                returned = self._resolve_annotation(statement.returns, environment)
+                if returned.kind != "unknown":
+                    self.function_returns[symbol] = returned
+
     def _analyze_statement(
         self,
         node: ast.stmt,
         environment: dict[str, _FlowValue],
-    ) -> dict[str, _FlowValue]:
-        """1 文を解析し、直後の由来環境を返す。"""
+    ) -> _FlowOutcome:
+        """1 文を解析し、後続へ到達する環境とループ制御を返す。"""
         if isinstance(node, ast.Import):
             for alias in node.names:
                 local = alias.asname or alias.name.split(".")[0]
                 imported = alias.name if alias.asname else alias.name.split(".")[0]
                 environment[local] = _FlowValue(imported, "symbol")
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
             for alias in node.names:
@@ -2168,7 +2273,7 @@ class _FlowProvenance:
                 local = alias.asname or alias.name
                 symbol = self.canonical(f"{module}.{alias.name}".strip("."))
                 environment[local] = _FlowValue(symbol, "symbol")
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
             environment[node.name] = _FlowValue(symbol, "function")
@@ -2176,7 +2281,7 @@ class _FlowProvenance:
             if returned.kind != "unknown":
                 self.function_returns[symbol] = returned
             self._analyze_function(node, environment)
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.ClassDef):
             class_value = self._class_value(node, environment)
             environment[node.name] = class_value
@@ -2184,6 +2289,12 @@ class _FlowProvenance:
                 self._expression(decorator, environment)
             self.class_stack.append(node.name)
             class_environment = dict(environment)
+            if class_value.symbol is not None:
+                self._register_class_contracts(
+                    node,
+                    class_environment,
+                    class_value.symbol,
+                )
             for statement in node.body:
                 if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     self._analyze_function(
@@ -2199,17 +2310,20 @@ class _FlowProvenance:
                         ),
                     )
                 else:
-                    class_environment = self._analyze_statement(
+                    outcome = self._analyze_statement(
                         statement,
                         class_environment,
                     )
+                    if outcome.environment is None:
+                        break
+                    class_environment = outcome.environment
             self.class_stack.pop()
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.Assign):
             value = self._expression(node.value, environment)
             for target in node.targets:
                 self._assign_target(target, value, environment)
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.AnnAssign):
             annotation = self._resolve_annotation(node.annotation, environment)
             value = (
@@ -2220,30 +2334,65 @@ class _FlowProvenance:
             if value.kind == "unknown" and annotation.kind != "unknown":
                 value = annotation
             self._assign_target(node.target, value, environment)
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.AugAssign):
             self._expression(node.value, environment)
             self._assign_target(node.target, _UNKNOWN_FLOW_VALUE, environment)
-            return environment
+            return _FlowOutcome(environment)
         if isinstance(node, ast.If):
             self._expression(node.test, environment)
             body_start = dict(environment)
             self._refine_isinstance_true_branch(node.test, body_start)
             body = self._analyze_block(node.body, body_start)
             otherwise = self._analyze_block(node.orelse, dict(environment))
-            return self._join_environments((body, otherwise))
+            fallthrough = [
+                outcome.environment
+                for outcome in (body, otherwise)
+                if outcome.environment is not None
+            ]
+            return _FlowOutcome(
+                (
+                    self._join_environments(fallthrough)
+                    if fallthrough
+                    else None
+                ),
+                (*body.breaks, *otherwise.breaks),
+                (*body.continues, *otherwise.continues),
+            )
         if isinstance(node, (ast.For, ast.AsyncFor)):
             iterable = self._expression(node.iter, environment)
             body_start = dict(environment)
             self._assign_iteration_target(node.target, iterable, body_start)
             body = self._analyze_block(node.body, body_start)
-            otherwise = self._analyze_block(node.orelse, dict(environment))
-            return self._join_environments((environment, body, otherwise))
+            natural_paths = [dict(environment), *body.continues]
+            if body.environment is not None:
+                natural_paths.append(body.environment)
+            natural = self._join_environments(natural_paths)
+            otherwise = self._analyze_block(node.orelse, natural)
+            exits = [*body.breaks]
+            if otherwise.environment is not None:
+                exits.append(otherwise.environment)
+            return _FlowOutcome(
+                self._join_environments(exits) if exits else None,
+                otherwise.breaks,
+                otherwise.continues,
+            )
         if isinstance(node, ast.While):
             self._expression(node.test, environment)
             body = self._analyze_block(node.body, dict(environment))
-            otherwise = self._analyze_block(node.orelse, dict(environment))
-            return self._join_environments((environment, body, otherwise))
+            natural_paths = [dict(environment), *body.continues]
+            if body.environment is not None:
+                natural_paths.append(body.environment)
+            natural = self._join_environments(natural_paths)
+            otherwise = self._analyze_block(node.orelse, natural)
+            exits = [*body.breaks]
+            if otherwise.environment is not None:
+                exits.append(otherwise.environment)
+            return _FlowOutcome(
+                self._join_environments(exits) if exits else None,
+                otherwise.breaks,
+                otherwise.continues,
+            )
         if isinstance(node, (ast.With, ast.AsyncWith)):
             for item in node.items:
                 value = self._expression(item.context_expr, environment)
@@ -2251,38 +2400,86 @@ class _FlowProvenance:
                     self._assign_target(item.optional_vars, value, environment)
             return self._analyze_block(node.body, environment)
         if isinstance(node, ast.Try):
-            branches = [self._analyze_block(node.body, dict(environment))]
-            branches.extend(
+            body = self._analyze_block(node.body, dict(environment))
+            handlers = [
                 self._analyze_block(handler.body, dict(environment))
                 for handler in node.handlers
+            ]
+            normal = body
+            if body.environment is not None and node.orelse:
+                normal = self._analyze_block(node.orelse, body.environment)
+            candidates = [
+                outcome.environment
+                for outcome in (normal, *handlers)
+                if outcome.environment is not None
+            ]
+            joined = self._join_environments(candidates) if candidates else None
+            breaks = [*normal.breaks]
+            continues = [*normal.continues]
+            for handler in handlers:
+                breaks.extend(handler.breaks)
+                continues.extend(handler.continues)
+            if joined is None:
+                final = self._analyze_block(node.finalbody, dict(environment))
+                return _FlowOutcome(
+                    None,
+                    (*breaks, *final.breaks),
+                    (*continues, *final.continues),
+                )
+            final = self._analyze_block(node.finalbody, joined)
+            return _FlowOutcome(
+                final.environment,
+                (*breaks, *final.breaks),
+                (*continues, *final.continues),
             )
-            if node.orelse:
-                branches.append(self._analyze_block(node.orelse, dict(branches[0])))
-            joined = self._join_environments(branches)
-            return self._analyze_block(node.finalbody, joined)
         if isinstance(node, ast.Match):
             self._expression(node.subject, environment)
-            branches = [dict(environment)]
-            branches.extend(
+            branches = [
                 self._analyze_block(case.body, dict(environment))
                 for case in node.cases
+            ]
+            fallthrough = [dict(environment)]
+            fallthrough.extend(
+                outcome.environment
+                for outcome in branches
+                if outcome.environment is not None
             )
-            return self._join_environments(branches)
+            return _FlowOutcome(
+                self._join_environments(fallthrough),
+                tuple(item for outcome in branches for item in outcome.breaks),
+                tuple(item for outcome in branches for item in outcome.continues),
+            )
+        if isinstance(node, (ast.Return, ast.Raise)):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.expr):
+                    self._expression(child, environment)
+            return _FlowOutcome(None)
+        if isinstance(node, ast.Break):
+            return _FlowOutcome(None, (dict(environment),))
+        if isinstance(node, ast.Continue):
+            return _FlowOutcome(None, continues=(dict(environment),))
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
                 self._expression(child, environment)
-        return environment
+        return _FlowOutcome(environment)
 
     def _analyze_block(
         self,
         statements: Sequence[ast.stmt],
         environment: dict[str, _FlowValue],
-    ) -> dict[str, _FlowValue]:
-        """文列をソース順に解析する。"""
-        current = environment
+    ) -> _FlowOutcome:
+        """文列をソース順に解析し、終端した経路を後続から除く。"""
+        current: dict[str, _FlowValue] | None = environment
+        breaks: list[dict[str, _FlowValue]] = []
+        continues: list[dict[str, _FlowValue]] = []
         for statement in statements:
-            current = self._analyze_statement(statement, current)
-        return current
+            if current is None:
+                break
+            outcome = self._analyze_statement(statement, current)
+            current = outcome.environment
+            breaks.extend(outcome.breaks)
+            continues.extend(outcome.continues)
+        return _FlowOutcome(current, tuple(breaks), tuple(continues))
 
     def analyze(self, tree: ast.Module) -> None:
         """モジュールを解析して各呼び出し位置の由来を確定する。"""
@@ -2495,13 +2692,14 @@ class _SourceScanner(ast.NodeVisitor):
             return f"{parent}.{node.attr}"
         return None
 
-    def _matching_api(self, node: ast.AST) -> ApiSpec | None:
+    def _matching_api(self, node: ast.AST) -> _ApiMatch | None:
+        """完全修飾一致と receiver 名だけの推測を区別して返す。"""
         resolved = self.aliases.resolve(node)
         if resolved in self.api_by_symbol:
-            return self.api_by_symbol[resolved]
+            return _ApiMatch(self.api_by_symbol[resolved], True)
         raw = self._raw_expression(node)
         if raw in self.api_by_symbol:
-            return self.api_by_symbol[raw]
+            return _ApiMatch(self.api_by_symbol[raw], True)
         candidate = resolved or raw
         if candidate is None or "." not in candidate:
             return None
@@ -2514,7 +2712,7 @@ class _SourceScanner(ast.NodeVisitor):
             if api.kind != "member" or api.symbol.rsplit(".", 1)[1] != method:
                 continue
             if raw_receiver in api.receivers or resolved_receiver in api.receivers:
-                return api
+                return _ApiMatch(api, False)
         return None
 
     def _matching_dynamic_member(
@@ -2556,8 +2754,17 @@ class _SourceScanner(ast.NodeVisitor):
     def _check_db_call(self, node: ast.Call) -> None:
         if not self._is_changed(node):
             return
-        api = self._matching_api(node.func)
-        candidates = () if api is None else (api,)
+        provenance = self.flow.receiver_provenance(node)
+        flow_symbol = self.flow.callable_symbol(node)
+        flow_api = self.api_by_symbol.get(flow_symbol or "")
+        match = (
+            _ApiMatch(flow_api, True)
+            if flow_api is not None
+            else self._matching_api(node.func)
+        )
+        if match is not None and not match.exact and provenance == "non_db":
+            match = None
+        candidates = () if match is None else (match.api,)
         if (
             not candidates
             and isinstance(node.func, ast.Name)
@@ -2570,7 +2777,6 @@ class _SourceScanner(ast.NodeVisitor):
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in self.contract.conservative_member_names
         ):
-            provenance = self.flow.receiver_provenance(node)
             if provenance == "non_db":
                 return
             candidates = self.member_apis_by_method.get(node.func.attr, ())
@@ -2723,6 +2929,14 @@ class _SourceScanner(ast.NodeVisitor):
                 if (
                     node.func.attr in self.contract.conservative_member_names
                     or provenance in {"db", "non_db", "tenant_context"}
+                ):
+                    return
+                if (
+                    provenance in {"db_result", "non_db_attribute"}
+                    and node.func.attr
+                    != self.contract.tenant_context.constructor_symbol.rsplit(
+                        ".", 1
+                    )[-1]
                 ):
                     return
             self._add(
@@ -3141,6 +3355,67 @@ def scan_source(
     return sorted(scanner.violations)
 
 
+def scan_source_change(
+    baseline_source: str | None,
+    head_source: str,
+    *,
+    path: str,
+    contract: Contract,
+    changed_lines: Set[int],
+) -> list[Violation]:
+    """差分があるファイルを全行解析し、新たに生じた違反だけを返す。
+
+    由来を決める注釈・代入だけが変更された場合でも、その依存先である
+    据え置きの呼び出しを再判定する。行番号の移動は基準移動とみなさず、
+    同じ意味の違反の個数が増えたときだけ新規違反として扱う。
+
+    Args:
+        baseline_source: merge-base 側のソース。新規ファイルは ``None``。
+        head_source: 新側のソース。
+        path: source root 相対パス。
+        contract: 読み合わせ済み検査契約。
+        changed_lines: ``git diff -U0`` から得た新側行番号。
+
+    Returns:
+        基準版にはなく、新側で増えた違反。
+    """
+    if not changed_lines:
+        return []
+    baseline_violations = (
+        []
+        if baseline_source is None
+        else scan_source(
+            baseline_source,
+            path=path,
+            contract=contract,
+        )
+    )
+    head_violations = scan_source(
+        head_source,
+        path=path,
+        contract=contract,
+    )
+
+    def identity(violation: Violation) -> tuple[int, str, str, str]:
+        """行移動を除いた違反の意味上の識別値を返す。"""
+        return (
+            violation.condition,
+            violation.code,
+            violation.symbol,
+            violation.message,
+        )
+
+    remaining = Counter(identity(item) for item in baseline_violations)
+    introduced: list[Violation] = []
+    for violation in head_violations:
+        key = identity(violation)
+        if remaining[key] > 0:
+            remaining[key] -= 1
+        else:
+            introduced.append(violation)
+    return sorted(introduced)
+
+
 def scan_directory(
     source_root: Path,
     *,
@@ -3421,8 +3696,10 @@ def _changed_source_violations(
     repository_root: Path,
     changed_lines: Mapping[str, frozenset[int]],
     contract: Contract,
+    *,
+    baseline_sources: Mapping[str, str] | None = None,
 ) -> list[Violation]:
-    """HEAD の変更行に対して検査を実行する。"""
+    """変更ファイルを全行解析し、基準版から増えた違反を検出する。"""
     violations: list[Violation] = []
     for relative, lines in sorted(changed_lines.items()):
         if not lines:
@@ -3444,14 +3721,25 @@ def _changed_source_violations(
             source = path.read_text(encoding="utf-8")
         except OSError as error:
             raise ContractError(f"HEAD の変更ファイルを読めない: {path}: {error}") from error
-        violations.extend(
-            scan_source(
-                source,
-                path=relative,
-                changed_lines=lines,
-                contract=contract,
+        if baseline_sources is None:
+            violations.extend(
+                scan_source(
+                    source,
+                    path=relative,
+                    changed_lines=lines,
+                    contract=contract,
+                )
             )
-        )
+        else:
+            violations.extend(
+                scan_source_change(
+                    baseline_sources.get(relative),
+                    source,
+                    path=relative,
+                    changed_lines=lines,
+                    contract=contract,
+                )
+            )
     return sorted(violations)
 
 
@@ -3573,7 +3861,12 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         head_sources,
         contract=contract,
     )
-    violations = _changed_source_violations(repository_root, population, contract)
+    violations = _changed_source_violations(
+        repository_root,
+        population,
+        contract,
+        baseline_sources=(baseline_sources if _has_changed_lines(changed_lines) else None),
+    )
     violations.extend(
         _application_population_violations(
             changed_lines,

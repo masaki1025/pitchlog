@@ -170,6 +170,37 @@ def _changed_lines_containing(source: str, *needles: str) -> frozenset[int]:
     return frozenset(changed)
 
 
+def _scan_diff_mutation(
+    baseline: str,
+    mutated: str,
+    *,
+    path: str,
+    changed_lines: frozenset[int],
+    contract: Any,
+) -> list[Any]:
+    """差分行を入口に、基準版と変異後の全行比較を実行する。"""
+    assert changed_lines
+    assert (
+        checker.scan_source_change(
+            None,
+            baseline,
+            path=path,
+            changed_lines=frozenset(
+                range(1, len(baseline.splitlines()) + 1)
+            ),
+            contract=contract,
+        )
+        == []
+    )
+    return checker.scan_source_change(
+        baseline,
+        mutated,
+        path=path,
+        changed_lines=changed_lines,
+        contract=contract,
+    )
+
+
 def test_positive_fixtures_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
@@ -382,9 +413,12 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
     observed_conditions: set[int] = set()
     for fixture in contract.negative_fixtures:
         path = NEGATIVE_ROOT / fixture.path
-        violations = checker.scan_source(
-            _fixture_source(path),
+        source = _fixture_source(path)
+        violations = checker.scan_source_change(
+            None,
+            source,
             path=fixture.path,
+            changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
             contract=contract,
         )
         codes = {violation.code for violation in violations}
@@ -615,9 +649,18 @@ diff --git a/docs/example.md b/docs/example.md
     assert changed == {"pitchlog/example.py": frozenset({3, 4, 9})}
 
 
-def test_unchanged_forbidden_line_is_outside_diff_scope() -> None:
+def test_unchanged_preexisting_violation_is_not_reintroduced() -> None:
+    """変更ファイル全体を再走査しても基準版と同じ違反は新規扱いしない。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    source = """\
+    baseline = """\
+def can_cross_tenant() -> bool:
+    return True
+
+
+def ordinary_change() -> bool:
+    return False
+"""
+    head = """\
 def can_cross_tenant() -> bool:
     return True
 
@@ -626,8 +669,9 @@ def ordinary_change() -> bool:
     return True
 """
 
-    violations = checker.scan_source(
-        source,
+    violations = checker.scan_source_change(
+        baseline,
+        head,
         path="pitchlog/services/example.py",
         changed_lines=frozenset({6}),
         contract=contract,
@@ -829,17 +873,20 @@ class Report:
 def render(work: Report):
     return work.execute("render")
 """
-    baseline = checker.scan_source(
-        source,
-        path="pitchlog/services/report_renderer.py",
-        contract=contract,
-    )
-    assert baseline == []
-
     mutated = source.replace("Report", "Session")
-    violations = checker.scan_source(
+    changed_lines = _changed_lines_containing(
+        mutated,
+        "class Session",
+        "work: Session",
+    )
+    assert _changed_lines_containing(mutated, 'work.execute("render")').isdisjoint(
+        changed_lines
+    )
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path="pitchlog/services/report_renderer.py",
+        changed_lines=changed_lines,
         contract=contract,
     )
 
@@ -864,20 +911,19 @@ class Report:
 def render(work: Report, other, flag):
     return work.execute("render")
 """
-    baseline = checker.scan_source(
-        source,
-        path="pitchlog/services/report_rebinding.py",
-        contract=contract,
-    )
-    assert baseline == []
-
     mutated = source.replace(
         '    return work.execute("render")\n',
         f'{insertion}    return work.execute("render")\n',
     )
-    violations = checker.scan_source(
+    changed_lines = _changed_lines_containing(mutated, "work = other")
+    assert _changed_lines_containing(mutated, 'work.execute("render")').isdisjoint(
+        changed_lines
+    )
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path="pitchlog/services/report_rebinding.py",
+        changed_lines=changed_lines,
         contract=contract,
     )
 
@@ -894,21 +940,352 @@ from application.factories import ContextFactory
 def make(mod: ContextFactory, tenant_id):
     return mod.TenantContext(tenant_id)
 """
-    baseline = checker.scan_source(
-        source,
-        path="pitchlog/services/context_factory.py",
-        contract=contract,
-    )
-    assert baseline == []
-
     mutated = source.replace("mod: ContextFactory", "mod")
-    violations = checker.scan_source(
+    changed_lines = _changed_lines_containing(mutated, "def make(mod,")
+    assert _changed_lines_containing(mutated, "mod.TenantContext").isdisjoint(
+        changed_lines
+    )
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path="pitchlog/services/context_factory.py",
+        changed_lines=changed_lines,
         contract=contract,
     )
 
     assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("typing_import", "safe_annotation", "database_annotation"),
+    (
+        ("Optional", "Optional[Report]", "Optional[Session]"),
+        (
+            "Annotated",
+            'Annotated[Report, "dep"]',
+            'Annotated[Session, "dep"]',
+        ),
+        ("Union", "Union[Report, None]", "Union[Session, None]"),
+    ),
+)
+def test_database_type_inside_annotation_wrapper_mutation_is_red(
+    typing_import: str,
+    safe_annotation: str,
+    database_annotation: str,
+) -> None:
+    """標準ラッパー内の注釈だけを DB 型へ変える変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+from typing import {typing_import}
+from sqlalchemy.orm import Session
+
+
+class Report:
+    pass
+
+
+def render(work: {safe_annotation}):
+    return work.execute("render")
+'''
+    mutated = source.replace(safe_annotation, database_annotation)
+    changed_lines = _changed_lines_containing(mutated, database_annotation)
+    assert _changed_lines_containing(mutated, 'work.execute("render")').isdisjoint(
+        changed_lines
+    )
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path="pitchlog/services/wrapped_database_type.py",
+        changed_lines=changed_lines,
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("typing_import", "annotation"),
+    (
+        ("Optional", "Optional[Report]"),
+        ("Annotated", 'Annotated[Report, "dep"]'),
+        ("Union", "Union[Report, None]"),
+    ),
+)
+def test_non_database_type_inside_annotation_wrapper_passes(
+    typing_import: str,
+    annotation: str,
+) -> None:
+    """全構成型が既知の非 DB 型ならラッパー注釈を許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+from typing import {typing_import}
+
+
+class Report:
+    pass
+
+
+def render(work: {annotation}):
+    return work.execute("render")
+'''
+
+    violations = checker.scan_source_change(
+        None,
+        source,
+        path="pitchlog/services/wrapped_report.py",
+        changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_unknown_union_member_mutation_is_red() -> None:
+    """Union に未解決型が混ざる変異は非 DB 証明を失う。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from typing import Union
+
+
+class Report:
+    pass
+
+
+def render(work: Union[Report, None]):
+    return work.execute("render")
+'''
+    mutated = source.replace(
+        "Union[Report, None]",
+        "Union[Report, UnknownDependency]",
+    )
+    changed_lines = _changed_lines_containing(
+        mutated,
+        "Union[Report, UnknownDependency]",
+    )
+    assert _changed_lines_containing(mutated, 'work.execute("render")').isdisjoint(
+        changed_lines
+    )
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path="pitchlog/services/unknown_union_member.py",
+        changed_lines=changed_lines,
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+def test_database_typed_class_attribute_mutation_is_red() -> None:
+    """非 DB container の属性注釈だけを DB 型へ変える変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from sqlalchemy.orm import Session
+
+
+class Report:
+    pass
+
+
+class Dependencies:
+    database: Report
+
+
+def load(dependencies: Dependencies):
+    return dependencies.database.execute(statement)
+'''
+    mutated = source.replace("database: Report", "database: Session")
+    changed_lines = _changed_lines_containing(mutated, "database: Session")
+    assert _changed_lines_containing(
+        mutated,
+        "dependencies.database.execute",
+    ).isdisjoint(changed_lines)
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path="pitchlog/services/dependencies.py",
+        changed_lines=changed_lines,
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "use_expression",
+    (
+        "    handle = dependencies.make()\n    return handle.execute(statement)\n",
+        "    return dependencies.make().execute(statement)\n",
+    ),
+)
+def test_unresolved_method_result_mutation_is_red(use_expression: str) -> None:
+    """未解決メソッド結果は代入有無にかかわらず DB 候補として拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+class Report:
+    pass
+
+
+class Dependencies:
+    def make(self) -> Report:
+        return Report()
+
+
+def load(dependencies: Dependencies):
+{use_expression}'''
+    mutated = source.replace(" -> Report", "")
+    changed_lines = _changed_lines_containing(mutated, "def make(self):")
+    assert _changed_lines_containing(mutated, ".execute(statement)").isdisjoint(
+        changed_lines
+    )
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path="pitchlog/services/dependency_factory.py",
+        changed_lines=changed_lines,
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("receiver_name", "receiver_type", "method"),
+    (
+        ("session", "Report", "execute"),
+        ("connection", "Report", "execute"),
+        ("engine", "Pool", "connect"),
+        ("db_engine", "Pool", "connect"),
+    ),
+)
+def test_database_receiver_name_on_known_non_database_type_passes(
+    receiver_name: str,
+    receiver_type: str,
+    method: str,
+) -> None:
+    """inventory の receiver 名だけでは既知の非 DB 型を拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+class Report:
+    pass
+
+
+class Pool:
+    pass
+
+
+def use({receiver_name}: {receiver_type}):
+    return {receiver_name}.{method}()
+'''
+
+    violations = checker.scan_source_change(
+        None,
+        source,
+        path="pitchlog/services/named_non_database_receiver.py",
+        changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "terminal_branch",
+    (
+        "        return None",
+        "        raise ValueError",
+    ),
+)
+def test_terminal_if_branch_does_not_pollute_following_flow(
+    terminal_branch: str,
+) -> None:
+    """return・raise で終端した分岐を後続の由来へ合流しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+class Report:
+    pass
+
+
+def render(work: Report, other, flag):
+    if flag:
+        work = other
+{terminal_branch}
+    return work.execute("render")
+'''
+
+    violations = checker.scan_source_change(
+        None,
+        source,
+        path="pitchlog/services/terminal_branch.py",
+        changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize("loop_control", ("break", "continue"))
+def test_terminal_loop_branch_does_not_pollute_remaining_body(
+    loop_control: str,
+) -> None:
+    """break・continue で終端した分岐を同一 loop body の後続へ合流しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f'''\
+class Report:
+    pass
+
+
+def render(work: Report, other, items):
+    for item in items:
+        if item:
+            work = other
+            {loop_control}
+        work.execute("render")
+'''
+
+    violations = checker.scan_source_change(
+        None,
+        source,
+        path="pitchlog/services/terminal_loop_branch.py",
+        changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_terminal_try_branches_do_not_pollute_following_flow() -> None:
+    """try の return・raise 経路を後続へ合流しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+class Report:
+    pass
+
+
+def render(work: Report, other, flag):
+    try:
+        if flag:
+            work = other
+            return None
+    except ValueError:
+        work = other
+        raise
+    return work.execute("render")
+'''
+
+    violations = checker.scan_source_change(
+        None,
+        source,
+        path="pitchlog/services/terminal_try_branch.py",
+        changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
+        contract=contract,
+    )
+
+    assert violations == []
 
 
 def test_database_receiver_from_local_factory_return_is_red() -> None:
@@ -1263,7 +1640,8 @@ def test_actual_base_direct_sql_mutation_is_red() -> None:
         1,
     )
 
-    violations = checker.scan_source(
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path=relative,
         changed_lines=_changed_lines_containing(
@@ -1288,7 +1666,8 @@ def test_actual_binding_nonlocal_set_config_mutation_is_red() -> None:
         1,
     )
 
-    violations = checker.scan_source(
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path=relative,
         changed_lines=_changed_lines_containing(mutated, "set_config", "false"),
@@ -1310,7 +1689,8 @@ def test_actual_base_database_call_outside_allowed_symbol_is_red() -> None:
         1,
     )
 
-    violations = checker.scan_source(
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path=relative,
         changed_lines=_changed_lines_containing(
@@ -1335,7 +1715,8 @@ def _unlisted_database_access(session: Session) -> None:
 """
     mutated = f"{source.rstrip()}{mutation}\n"
 
-    violations = checker.scan_source(
+    violations = _scan_diff_mutation(
+        source,
         mutated,
         path=relative,
         changed_lines=_changed_lines_containing(
