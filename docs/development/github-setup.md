@@ -19,6 +19,18 @@ status: approved
 
 ## 1. 現状の制約(2026-08-10 実測)
 
+> **現況(2026-09-20 更新・TSK-429)**: **本節が記録する制約は 2026-09-19 に解消した。** リポジトリを **public 化**し、Ruleset **`protect-main-develop`(id `23694095`)** を `main` / `develop` へ適用済み(適用内容と API 実測値は 3 章)。**以下の箇条書きと選択肢表は 2026-08-10 時点の記録**であり、現在値ではない。
+
+**公開の根拠(2026-09-19)**
+
+- **公開対象**: 2026-09-19 時点の本リポジトリ
+- **旧リポジトリ由来物の公開許諾**: 口頭で取得済み。**範囲 = リポジトリ全体**。**条件・期限はいずれも付いていない**(2026-09-20・PO 確認)
+- **公開の実施**: PO の指示による
+- 本記録の目的は**許諾範囲を明確にすること**である — `docs/worklog/2026-08-13-req-v2-legacy-parity.md` が記録する許諾は**別リポジトリへの private ミラーへの複製**が対象であり、**本件(公開)には及ばない**
+- **個人を特定する情報は本書に記録しない**(本リポジトリは public であるため)
+
+**以下は 2026-08-10 時点の記録(履歴 — 現在値ではない)**
+
 - 本リポジトリ(`masaki1025/pitchlog`)は**個人(User)所有の private** で、所有者は Free プラン
 - この構成では **classic branch protection / Rulesets とも利用不可**。実測: `gh api repos/masaki1025/pitchlog/rulesets` → HTTP 403「Upgrade to GitHub Pro or make this repository public to enable this feature.」
 - **PO 判断(2026-08-10): ブランチ保護は後送り**とし、CI のみ先行導入する(選択肢の比較は feature 調査メモ `docs/features/ci-foundation/research.md` §5-4)
@@ -27,7 +39,7 @@ status: approved
 | 解消の選択肢 | 可否 | 備考 |
 | --- | --- | --- |
 | 所有者が GitHub Pro へアップグレード | ○(最小変更・推奨) | 個人 Pro で private の保護が有効化できる |
-| リポジトリを public 化 | △ | 受託開発の未公開ドキュメントを含むため通常不適 |
+| リポジトリを public 化 | △ | 受託開発の未公開ドキュメントを含むため通常不適 ／ **本リポジトリでは 2026-09-19 にこの選択肢を採用した**(根拠は本節冒頭。一般的な評価はここでは変更していない) |
 | Organization(Team 以上)へ移管 | △ | Org Free では解決しない。gitleaks-action が **GITLEAKS_LICENSE 必須**になる+Org の Actions ポリシー確認が必要 |
 
 ## 2. 暫定運用(保護が未適用の間 — 必須の管理手続)
