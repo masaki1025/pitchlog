@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "measurements": [
+    {
+      "step": 40,
+      "measuredAt": "2026-09-20",
+      "measurementCommand": "uv run pytest -q tests/domain/mut/test_lang_operators.py -k 'each_language_mutants_are_actually_killed and <language>' (各言語 5 回)",
+      "environment": {
+        "python": "3.12.3",
+        "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-aarch64-with-glibc2.43",
+        "processor": "",
+        "cpuCount": 12,
+        "node": "v24.16.0",
+        "sqlite": "3.45.1"
+      },
+      "syntheticTargets": {
+        "languageCount": 3,
+        "casesPerLanguage": 1,
+        "sourceBytes": {
+          "python": 38,
+          "typescript": 43,
+          "sql": 40
+        }
+      },
+      "languages": [
+        {
+          "language": "python",
+          "mutantCount": 1,
+          "suiteSamplesSeconds": [
+            0.157401,
+            0.159547,
+            0.15756,
+            0.151945,
+            0.157746
+          ],
+          "suiteSecondsPerMutant": 0.15756,
+          "estimatedSeconds": 0.15756
+        },
+        {
+          "language": "typescript",
+          "mutantCount": 1,
+          "suiteSamplesSeconds": [
+            0.210275,
+            0.206067,
+            0.205745,
+            0.200273,
+            0.203899
+          ],
+          "suiteSecondsPerMutant": 0.205745,
+          "estimatedSeconds": 0.205745
+        },
+        {
+          "language": "sql",
+          "mutantCount": 1,
+          "suiteSamplesSeconds": [
+            0.154102,
+            0.159412,
+            0.156113,
+            0.159339,
+            0.15623
+          ],
+          "suiteSecondsPerMutant": 0.15623,
+          "estimatedSeconds": 0.15623
+        }
+      ],
+      "estimatedTotalSeconds": 0.519535
+    }
+  ]
+}
