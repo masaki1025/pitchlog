@@ -201,6 +201,49 @@ def _scan_diff_mutation(
     )
 
 
+def _commit_test_repository(repository: Path, message: str) -> str:
+    """一時リポジトリの全変更をコミットして commit ID を返す。"""
+    checker._run_git(repository, ["add", "."])
+    checker._run_git(
+        repository,
+        [
+            "-c",
+            "user.name=Tenant Boundary Test",
+            "-c",
+            "user.email=tenant-boundary@example.invalid",
+            "commit",
+            "-m",
+            message,
+        ],
+    )
+    return checker._run_git(repository, ["rev-parse", "HEAD"]).strip()
+
+
+def _initialize_test_repository(
+    tmp_path: Path,
+    sources: dict[str, str],
+) -> tuple[Path, str]:
+    """実際の差分検査を行える最小 Git リポジトリを作る。"""
+    repository = tmp_path / "repository"
+    shutil.copytree(
+        REPOSITORY_ROOT / "contracts" / "tenant_boundary",
+        repository / "contracts" / "tenant_boundary",
+    )
+    shutil.copytree(
+        REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
+        repository / "tests" / "fixtures" / "tenant_boundary",
+    )
+    script_path = repository / "scripts" / SCRIPT.name
+    script_path.parent.mkdir(parents=True)
+    shutil.copy2(SCRIPT, script_path)
+    for relative, source in sources.items():
+        path = repository / "backend" / "src" / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+    checker._run_git(repository, ["init"])
+    return repository, _commit_test_repository(repository, "baseline")
+
+
 def test_positive_fixtures_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
@@ -645,8 +688,162 @@ diff --git a/docs/example.md b/docs/example.md
 """
 
     changed = checker.changed_lines_from_diff(diff)
+    changed_files = checker.changed_files_from_diff(diff)
 
     assert changed == {"pitchlog/example.py": frozenset({3, 4, 9})}
+    assert changed_files == {"pitchlog/example.py"}
+
+
+def test_pure_line_deletion_is_red_through_real_commit_diff(tmp_path: Path) -> None:
+    """新側追加行 0 の純粋削除でも ``--base-ref`` 経路で再検査する。"""
+    relative = "pitchlog/services/deletion.py"
+    baseline = '''\
+from sqlalchemy.orm import Session
+
+
+class Report:
+    pass
+
+
+def handler(work: Session, safe: Report) -> object:
+    work = safe
+    return work.execute()
+'''
+    head = baseline.replace("    work = safe\n", "")
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    source_path = repository / "backend" / "src" / relative
+    source_path.write_text(head, encoding="utf-8")
+    _commit_test_repository(repository, "remove safe rebinding")
+    diff = checker._run_git(
+        repository,
+        ["diff", "-U0", f"{base_ref}...HEAD", "--", "backend/src"],
+    )
+
+    assert checker.changed_lines_from_diff(diff) == {relative: frozenset()}
+    assert checker.changed_files_from_diff(diff) == {relative}
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert "TB005" in {violation.code for violation in violations}
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+def test_pure_rename_is_conservatively_red_through_real_commit_diff(
+    tmp_path: Path,
+) -> None:
+    """純粋改名は rename 先を新規ファイルとして ``--base-ref`` 検査する。"""
+    old_relative = "pitchlog/services/old_handler.py"
+    new_relative = "pitchlog/services/new_handler.py"
+    source = '''\
+from sqlalchemy.orm import Session
+
+
+def handler(work: Session) -> object:
+    return work.execute()
+'''
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {old_relative: source},
+    )
+    checker._run_git(
+        repository,
+        [
+            "mv",
+            f"backend/src/{old_relative}",
+            f"backend/src/{new_relative}",
+        ],
+    )
+    _commit_test_repository(repository, "rename handler")
+    diff = checker._run_git(
+        repository,
+        ["diff", "-U0", f"{base_ref}...HEAD", "--", "backend/src"],
+    )
+
+    assert checker.changed_lines_from_diff(diff) == {}
+    assert checker.changed_files_from_diff(diff) == {new_relative}
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert "TB005" in {violation.code for violation in violations}
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+def test_same_violation_moved_between_functions_is_red_through_real_commit_diff(
+    tmp_path: Path,
+) -> None:
+    """同種違反を別関数へ移しても基準版の件数で相殺させない。"""
+    relative = "pitchlog/services/moved_violation.py"
+    baseline = '''\
+from sqlalchemy.orm import Session
+
+
+def alpha(work: Session) -> object:
+    return work.execute()
+
+
+def beta(work: Session) -> object:
+    return None
+'''
+    head = baseline.replace(
+        "def alpha(work: Session) -> object:\n    return work.execute()",
+        "def alpha(work: Session) -> object:\n    return None",
+    ).replace(
+        "def beta(work: Session) -> object:\n    return None",
+        "def beta(work: Session) -> object:\n    return work.execute()",
+    )
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    source_path = repository / "backend" / "src" / relative
+    source_path.write_text(head, encoding="utf-8")
+    _commit_test_repository(repository, "move violation")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert {
+        (violation.code, violation.scope)
+        for violation in violations
+        if violation.code == "TB005"
+    } == {("TB005", "pitchlog.services.moved_violation.beta")}
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+def test_terminal_database_rebinding_stays_green_through_real_commit_diff(
+    tmp_path: Path,
+) -> None:
+    """終端分岐だけの DB 再束縛を後続の非 DB receiver へ混入させない。"""
+    relative = "pitchlog/services/terminal_rebinding.py"
+    baseline = '''\
+from sqlalchemy.orm import Session
+
+
+class Report:
+    pass
+
+
+def handler(work: Report, database: Session, flag: bool) -> object:
+    if flag:
+        return None
+    return work.execute()
+'''
+    head = baseline.replace(
+        "    if flag:\n        return None",
+        "    if flag:\n        work = database\n        return None",
+    )
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    source_path = repository / "backend" / "src" / relative
+    source_path.write_text(head, encoding="utf-8")
+    _commit_test_repository(repository, "add terminal rebinding")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert violations == []
+    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
 
 
 def test_unchanged_preexisting_violation_is_not_reintroduced() -> None:

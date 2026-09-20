@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 11,
+  "contract_revision": 12,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:11"
+        "contract_revision:12"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -42,7 +42,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "contract_revision:11"
+          "contract_revision:12"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -55,7 +55,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "12646eedae6f53a2e690317df7409387d03b09534d3f51351112cc27ab6c85ca"
+            "frozen_projection_sha256": "691919bbbced74689c7e12c0c5520f40e0523c0e31ff91fc52f543a234880e45"
           }
         },
         "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",

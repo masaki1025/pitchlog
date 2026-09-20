@@ -6,9 +6,11 @@ import argparse
 import ast
 import builtins
 import copy
+import difflib
 import hashlib
 import json
 import re
+import shlex
 import subprocess
 import sys
 from collections import Counter
@@ -166,6 +168,8 @@ class Violation:
     code: str
     symbol: str
     message: str
+    end_line: int = 0
+    scope: str = "<module>"
 
 
 def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
@@ -1504,6 +1508,7 @@ class _AliasCollector(ast.NodeVisitor):
         self.module = module
         self.class_stack: list[str] = []
         self.unresolved_database_callables: dict[str, str] = {}
+        self.direct_import_names: set[str] = set()
 
     def canonical(self, symbol: str) -> str:
         """公開 re-export を inventory の標準 receiver へ寄せる。"""
@@ -1672,6 +1677,7 @@ class _AliasCollector(ast.NodeVisitor):
         for alias in node.names:
             local_name = alias.asname or alias.name.split(".")[0]
             imported = alias.name if alias.asname else alias.name.split(".")[0]
+            self.direct_import_names.add(local_name)
             self._record_known(local_name, imported)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
@@ -1681,6 +1687,7 @@ class _AliasCollector(ast.NodeVisitor):
             if alias.name == "*":
                 continue
             local_name = alias.asname or alias.name
+            self.direct_import_names.add(local_name)
             self._record_known(
                 local_name,
                 f"{module}.{alias.name}".strip("."),
@@ -2619,6 +2626,11 @@ class _SourceScanner(ast.NodeVisitor):
         if key in self._violation_keys:
             return
         self._violation_keys.add(key)
+        scope = (
+            self.function_stack[-1][0]
+            if self.function_stack
+            else ".".join([self.module, *self.class_stack, "<module>"])
+        )
         self.violations.append(
             Violation(
                 path=self.path,
@@ -2627,6 +2639,8 @@ class _SourceScanner(ast.NodeVisitor):
                 code=code,
                 symbol=symbol,
                 message=message,
+                end_line=getattr(node, "end_lineno", line),
+                scope=scope,
             )
         )
 
@@ -2695,10 +2709,12 @@ class _SourceScanner(ast.NodeVisitor):
     def _matching_api(self, node: ast.AST) -> _ApiMatch | None:
         """完全修飾一致と receiver 名だけの推測を区別して返す。"""
         resolved = self.aliases.resolve(node)
-        if resolved in self.api_by_symbol:
-            return _ApiMatch(self.api_by_symbol[resolved], True)
         raw = self._raw_expression(node)
-        if raw in self.api_by_symbol:
+        raw_root = "" if raw is None else raw.split(".", 1)[0]
+        directly_imported = raw_root in self.aliases.direct_import_names
+        if directly_imported and resolved in self.api_by_symbol:
+            return _ApiMatch(self.api_by_symbol[resolved], True)
+        if directly_imported and raw in self.api_by_symbol:
             return _ApiMatch(self.api_by_symbol[raw], True)
         candidate = resolved or raw
         if candidate is None or "." not in candidate:
@@ -3366,21 +3382,20 @@ def scan_source_change(
     """差分があるファイルを全行解析し、新たに生じた違反だけを返す。
 
     由来を決める注釈・代入だけが変更された場合でも、その依存先である
-    据え置きの呼び出しを再判定する。行番号の移動は基準移動とみなさず、
-    同じ意味の違反の個数が増えたときだけ新規違反として扱う。
+    据え置きの呼び出しを再判定する。基準版の違反と相殺できるのは、
+    同じ所属シンボルにあり、旧新の未変更行が対応する同一 AST 範囲だけとする。
 
     Args:
         baseline_source: merge-base 側のソース。新規ファイルは ``None``。
         head_source: 新側のソース。
         path: source root 相対パス。
         contract: 読み合わせ済み検査契約。
-        changed_lines: ``git diff -U0`` から得た新側行番号。
+        changed_lines: ``git diff -U0`` から得た新側行番号。純粋削除では空。
 
     Returns:
         基準版にはなく、新側で増えた違反。
     """
-    if not changed_lines:
-        return []
+    _ = changed_lines
     baseline_violations = (
         []
         if baseline_source is None
@@ -3396,19 +3411,70 @@ def scan_source_change(
         contract=contract,
     )
 
-    def identity(violation: Violation) -> tuple[int, str, str, str]:
-        """行移動を除いた違反の意味上の識別値を返す。"""
+    def identity(
+        violation: Violation,
+        *,
+        line: int,
+        end_line: int,
+    ) -> tuple[str, int, int, int, str, str, str]:
+        """所属シンボル・対応行・違反内容を含む識別値を返す。"""
         return (
+            violation.scope,
+            line,
+            end_line,
             violation.condition,
             violation.code,
             violation.symbol,
             violation.message,
         )
 
-    remaining = Counter(identity(item) for item in baseline_violations)
+    baseline_lines = baseline_source.splitlines() if baseline_source is not None else []
+    head_lines = head_source.splitlines()
+    head_to_baseline: dict[int, int] = {}
+    matcher = difflib.SequenceMatcher(
+        None,
+        baseline_lines,
+        head_lines,
+        autojunk=False,
+    )
+    for block in matcher.get_matching_blocks():
+        for offset in range(block.size):
+            head_to_baseline[block.b + offset + 1] = block.a + offset + 1
+
+    remaining = Counter(
+        identity(
+            item,
+            line=item.line,
+            end_line=item.end_line or item.line,
+        )
+        for item in baseline_violations
+    )
     introduced: list[Violation] = []
     for violation in head_violations:
-        key = identity(violation)
+        head_end = violation.end_line or violation.line
+        mapped_span = [
+            head_to_baseline.get(line)
+            for line in range(violation.line, head_end + 1)
+        ]
+        if any(line is None for line in mapped_span):
+            introduced.append(violation)
+            continue
+        baseline_span = [int(line) for line in mapped_span if line is not None]
+        if any(
+            next_line != previous_line + 1
+            for previous_line, next_line in zip(
+                baseline_span,
+                baseline_span[1:],
+                strict=False,
+            )
+        ):
+            introduced.append(violation)
+            continue
+        key = identity(
+            violation,
+            line=baseline_span[0],
+            end_line=baseline_span[-1],
+        )
         if remaining[key] > 0:
             remaining[key] -= 1
         else:
@@ -3479,6 +3545,49 @@ def changed_lines_from_diff(diff: str) -> dict[str, frozenset[int]]:
         count = int(match.group("count") or "1")
         result[current_path].update(range(start, start + count))
     return {path: frozenset(lines) for path, lines in result.items()}
+
+
+def changed_files_from_diff(diff: str) -> frozenset[str]:
+    """``git diff`` から HEAD に残る変更ファイル集合を導出する。
+
+    新側行番号とは独立に、純粋削除で行集合が空のファイルと rename 先も
+    検査対象へ残す。ファイル自体の削除は HEAD に存在しないので除外する。
+
+    Args:
+        diff: unified diff。
+
+    Returns:
+        ``backend/src`` 相対の HEAD 側変更ファイル集合。
+    """
+
+    def relative_path(raw_path: str) -> str | None:
+        if raw_path == "/dev/null":
+            return None
+        try:
+            parsed = shlex.split(raw_path)
+        except ValueError as error:
+            raise ContractError(f"差分のパスを解釈できない: {raw_path}") from error
+        if len(parsed) != 1:
+            raise ContractError(f"差分のパス形式が不正: {raw_path}")
+        path = parsed[0].removeprefix("b/")
+        prefix = "backend/src/"
+        return path.removeprefix(prefix) if path.startswith(prefix) else None
+
+    changed: set[str] = set()
+    for line in diff.splitlines():
+        raw_path: str | None = None
+        if line.startswith("+++ "):
+            raw_path = line[4:]
+        elif line.startswith("rename to "):
+            raw_path = line.removeprefix("rename to ")
+        elif line.startswith("copy to "):
+            raw_path = line.removeprefix("copy to ")
+        if raw_path is None:
+            continue
+        relative = relative_path(raw_path)
+        if relative is not None:
+            changed.add(relative)
+    return frozenset(changed)
 
 
 class _DefinitionCollector(ast.NodeVisitor):
@@ -3694,22 +3803,20 @@ def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
 
 def _changed_source_violations(
     repository_root: Path,
-    changed_lines: Mapping[str, frozenset[int]],
+    inspection_population: Mapping[str, frozenset[int]],
     contract: Contract,
     *,
     baseline_sources: Mapping[str, str] | None = None,
 ) -> list[Violation]:
     """変更ファイルを全行解析し、基準版から増えた違反を検出する。"""
     violations: list[Violation] = []
-    for relative, lines in sorted(changed_lines.items()):
-        if not lines:
-            continue
+    for relative, lines in sorted(inspection_population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
             violations.append(
                 Violation(
                     path=f"backend/src/{relative}",
-                    line=min(lines),
+                    line=min(lines, default=0),
                     condition=0,
                     code="TB000",
                     symbol="<unsupported>",
@@ -3773,6 +3880,7 @@ def _inspection_population(
     head_sources: Mapping[str, str],
     *,
     contract: Contract,
+    changed_files: Set[str] | None = None,
 ) -> dict[str, frozenset[int]]:
     """PR 新側行または統合済み強制点から非空の検査母集団を導出する。
 
@@ -3780,12 +3888,17 @@ def _inspection_population(
         changed_lines: 三点差分から導出した新側行。
         head_sources: HEAD の ``backend/src`` Python ソース。
         contract: 読み合わせ済み検査契約。
+        changed_files: HEAD に残る変更ファイル。``None`` は行集合のキーを使う。
 
     Returns:
         実際に AST 検査へ渡すファイル別行番号。
     """
-    if _has_changed_lines(changed_lines):
-        return dict(changed_lines)
+    files = frozenset(changed_lines) if changed_files is None else frozenset(changed_files)
+    if files:
+        return {
+            path: changed_lines.get(path, frozenset())
+            for path in sorted(files)
+        }
     return _contract_symbol_population(head_sources, contract)
 
 
@@ -3795,6 +3908,7 @@ def _application_population_violations(
     head_sources: Mapping[str, str],
     *,
     contract: Contract,
+    changed_files: Set[str] | None = None,
 ) -> list[Violation]:
     """製品強制点を導入した PR の検査母集団空洞化を拒否する。
 
@@ -3803,6 +3917,7 @@ def _application_population_violations(
         baseline_sources: merge-base の ``backend/src`` スナップショット。
         head_sources: HEAD の ``backend/src`` スナップショット。
         contract: 読み合わせ済み検査契約。
+        changed_files: HEAD に残る変更ファイル。
 
     Returns:
         導入シンボルがあるのに新側行が 0 件なら ``TB008``、それ以外は空。
@@ -3812,7 +3927,12 @@ def _application_population_violations(
     introduced_symbols = sorted(
         set(head_definitions) - set(baseline_definitions)
     )
-    if not introduced_symbols or _has_changed_lines(changed_lines):
+    has_changed_files = (
+        _has_changed_lines(changed_lines)
+        if changed_files is None
+        else bool(changed_files)
+    )
+    if not introduced_symbols or has_changed_files:
         return []
     return [
         Violation(
@@ -3849,6 +3969,7 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
     ]
     diff = _run_git(repository_root, diff_arguments)
     changed_lines = changed_lines_from_diff(diff)
+    changed_files = changed_files_from_diff(diff)
     merge_base = _run_git(
         repository_root,
         ["merge-base", effective_base_ref, "HEAD"],
@@ -3860,12 +3981,13 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         changed_lines,
         head_sources,
         contract=contract,
+        changed_files=changed_files,
     )
     violations = _changed_source_violations(
         repository_root,
         population,
         contract,
-        baseline_sources=(baseline_sources if _has_changed_lines(changed_lines) else None),
+        baseline_sources=(baseline_sources if changed_files else None),
     )
     violations.extend(
         _application_population_violations(
@@ -3873,6 +3995,7 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
             baseline_sources,
             head_sources,
             contract=contract,
+            changed_files=changed_files,
         )
     )
     violations.extend(
