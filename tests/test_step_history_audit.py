@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import importlib
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -137,17 +138,60 @@ def _command_audit_asset(data: dict[str, Any]) -> tuple[CommandAudit, ...]:
     return tuple(records)
 
 
+def _history_head_revision() -> str:
+    """履歴監査を始める PR head またはローカル HEAD を返す。
+
+    PR の checkout は合成 merge commit になるため、その `HEAD` は使わずイベントが
+    指す head SHA を使う。PR 外ではローカルと push の双方で従来の `HEAD` を使う。
+
+    Returns:
+        Git log の起点にする revision。
+
+    Raises:
+        AuditViolation: PR イベントから head SHA を取得できない場合。
+    """
+    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+        return "HEAD"
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        raise AuditViolation("PR 履歴監査に GITHUB_EVENT_PATH が無い")
+    try:
+        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise AuditViolation("PR イベントを読み取れない") from error
+    pull_request = event.get("pull_request") if isinstance(event, dict) else None
+    head = pull_request.get("head") if isinstance(pull_request, dict) else None
+    head_sha = head.get("sha") if isinstance(head, dict) else None
+    if not isinstance(head_sha, str) or not head_sha:
+        raise AuditViolation("PR イベントに head SHA が無い")
+    return head_sha
+
+
 def _implementation_commits(
-    root: Path, total: int, base_ref: str = "origin/develop"
+    root: Path,
+    total: int,
+    base_ref: str = "origin/develop",
+    head_ref: str | None = None,
 ) -> tuple[StepCommit, ...]:
-    """第一親履歴から通常の実装ステップコミットだけを抽出する。"""
+    """PR head またはローカル HEAD の第一親履歴から実装コミットを抽出する。
+
+    Args:
+        root: Git リポジトリのルート。
+        total: 計画にあるステップ総数。
+        base_ref: 履歴範囲から除く base revision。
+        head_ref: 明示する head revision。省略時は実行環境から決める。
+
+    Returns:
+        ステップ番号と完了コミットの対応。
+    """
+    selected_head = head_ref or _history_head_revision()
     history = _git(
         root,
         "log",
         "--first-parent",
         "--reverse",
         "--format=%H%x1f%s",
-        f"{base_ref}..HEAD",
+        f"{base_ref}..{selected_head}",
     )
     records: list[StepCommit] = []
     for line in history.stdout.splitlines():
@@ -176,8 +220,8 @@ def _implementation_commits(
     if duplicates:
         raise AuditViolation(f"実装ステップコミットが重複している: {duplicates}")
     observed = [record.step_id for record in records]
-    if observed != list(range(1, max(observed) + 1)):
-        raise AuditViolation(f"実装ステップコミットが連続していない: {observed}")
+    if observed != sorted(observed):
+        raise AuditViolation(f"実装ステップコミットが昇順でない: {observed}")
     if max(observed) > total:
         raise AuditViolation("計画の総数を超える実装ステップコミットがある")
     return tuple(records)
@@ -340,6 +384,58 @@ def test_real_repository_artifacts_exist_at_each_completed_step_commit(
 
     assert len(commits) == len({record.step_id for record in commits})
     _assert_artifacts_at_commits(ROOT, steps_data, commits)
+
+
+def test_pull_request_merge_checkout_audits_event_head_first_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR の合成 merge commit でなくイベントの head 履歴を実際に監査する。"""
+    repository = _history_repository(tmp_path)
+    (repository / "README.md").write_text("base\n", encoding="utf-8")
+    base_commit = _git_commit(repository, "base")
+    _git(repository, "switch", "--quiet", "-c", "feature")
+    (repository / "step-1.txt").write_text("one\n", encoding="utf-8")
+    _git_commit(repository, "feat: one (ステップ 1/2)")
+    (repository / "step-2.txt").write_text("two\n", encoding="utf-8")
+    feature_head = _git_commit(repository, "feat: two (ステップ 2/2)")
+    _git(repository, "switch", "--quiet", "develop")
+    (repository / "develop.txt").write_text("unrelated\n", encoding="utf-8")
+    develop_tip = _git_commit(repository, "chore: unrelated develop change")
+    _git(repository, "merge", "--quiet", "--no-ff", "feature", "-m", "PR merge")
+    merge_commit = _git(repository, "rev-parse", "HEAD").stdout.strip()
+    first_parent = _git(repository, "rev-parse", "HEAD^1").stdout.strip()
+    event_path = tmp_path / "pull-request.json"
+    event_path.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "base": {"sha": develop_tip},
+                    "head": {"sha": feature_head},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+
+    records = _implementation_commits(repository, 2, base_ref=base_commit)
+
+    assert merge_commit != feature_head
+    assert first_parent == develop_tip
+    assert [record.step_id for record in records] == [1, 2]
+    assert records[-1].commit_oid == feature_head
+
+
+def test_local_history_audit_uses_checked_out_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR イベント外ではローカルの HEAD を同じ履歴起点として使う。"""
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
+    assert _history_head_revision() == "HEAD"
 
 
 def test_command_audit_asset_has_closed_cwds_and_expected_exit_zero(

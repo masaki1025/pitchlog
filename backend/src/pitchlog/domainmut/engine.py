@@ -323,9 +323,7 @@ def _approved_ids(
         if mutant.equivalence_claimed and mutant.mutant_id not in approved
     }
     if unrecorded_claims:
-        raise MutationEngineError(
-            f"未記録の等価扱い: {sorted(unrecorded_claims)!r}"
-        )
+        raise MutationEngineError(f"未記録の等価扱い: {sorted(unrecorded_claims)!r}")
     return approved
 
 
@@ -342,9 +340,7 @@ def _execute_mutants(
         if not isinstance(execution, MutationExecution):
             raise MutationEngineError("mutant 実行結果型が不正")
         if execution.killed and not execution.evidence:
-            raise MutationEngineError(
-                f"kill 要因が未記録: {mutant.mutant_id}"
-            )
+            raise MutationEngineError(f"kill 要因が未記録: {mutant.mutant_id}")
         if not execution.killed and execution.evidence:
             raise MutationEngineError(
                 f"生存 mutant に kill 要因がある: {mutant.mutant_id}"
@@ -361,9 +357,7 @@ def _execute_mutants(
             killed.add(mutant.mutant_id)
             if item.layer in _PROPERTY_LAYERS:
                 property_killed.add(mutant.mutant_id)
-    evidence_keys = [
-        (item.mutant_id, item.layer, item.check_id) for item in evidence
-    ]
+    evidence_keys = [(item.mutant_id, item.layer, item.check_id) for item in evidence]
     if len(evidence_keys) != len(set(evidence_keys)):
         raise MutationEngineError("kill 要因が重複")
     return tuple(evidence), frozenset(killed), frozenset(property_killed)

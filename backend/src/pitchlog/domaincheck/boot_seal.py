@@ -46,9 +46,7 @@ def _canonical_keys(value: object, label: str) -> tuple[str, ...]:
     keys: list[str] = []
     for index, element in enumerate(elements):
         if not isinstance(element, Mapping):
-            raise CheckerExecutionError(
-                f"{label}.elements[{index}] が object でない"
-            )
+            raise CheckerExecutionError(f"{label}.elements[{index}] が object でない")
         key = element.get("canonicalKey")
         if not isinstance(key, str) or not key:
             raise CheckerExecutionError(
@@ -99,9 +97,7 @@ def verify_boot_seal(root: Path) -> int:
     """
     resolved_root = root.resolve()
     if not resolved_root.is_dir():
-        raise CheckerExecutionError(
-            f"リポジトリルートを読めない: {resolved_root}"
-        )
+        raise CheckerExecutionError(f"リポジトリルートを読めない: {resolved_root}")
     derived = derive_boot_seal(resolved_root)
     sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
     assert_sealed_set_matches(derived, sealed_asset)

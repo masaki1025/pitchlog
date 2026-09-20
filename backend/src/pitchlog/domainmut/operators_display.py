@@ -115,8 +115,7 @@ def _rules(intermediate: Mapping[str, object]) -> list[dict[str, object]]:
     return [
         cast(dict[str, object], rule)
         for rule in raw_rules
-        if isinstance(rule, dict)
-        and all(isinstance(key, str) for key in rule)
+        if isinstance(rule, dict) and all(isinstance(key, str) for key in rule)
     ]
 
 
@@ -500,9 +499,7 @@ class FormatterInvocationMutationOperator:
 
 DISPLAY_OPERATORS = {
     DisplayMutationKind.STRING_LITERAL: StringLiteralMutationOperator(),
-    DisplayMutationKind.TEMPLATE_PLACEHOLDER: (
-        TemplatePlaceholderMutationOperator()
-    ),
+    DisplayMutationKind.TEMPLATE_PLACEHOLDER: (TemplatePlaceholderMutationOperator()),
     DisplayMutationKind.ENUM_MAP: EnumMapMutationOperator(),
     DisplayMutationKind.PRIMITIVE_PARAMETER: PrimitiveParameterMutationOperator(),
     DisplayMutationKind.FORMATTER_INVOCATION: FormatterInvocationMutationOperator(),
@@ -526,8 +523,7 @@ def require_display_operator_application(
     }
     if calculations and not operator_ids.intersection(_DISPLAY_OPERATOR_IDS):
         raise MutationEngineError(
-            "表示生成物を持つ対象計算に表示系演算子がない: "
-            f"{sorted(calculations)!r}"
+            f"表示生成物を持つ対象計算に表示系演算子がない: {sorted(calculations)!r}"
         )
 
 

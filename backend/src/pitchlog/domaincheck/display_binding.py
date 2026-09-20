@@ -121,9 +121,7 @@ class _ArgumentParser(argparse.ArgumentParser):
 
 def _object(value: object, label: str) -> Mapping[str, object]:
     """文字列キーの JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise DisplayBindingIndeterminate(f"{label} が object でない")
     return value
 

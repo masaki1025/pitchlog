@@ -102,9 +102,7 @@ class MatrixEvaluation:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise FormatterGenerationError(f"{label}が object でない")
     return cast(dict[str, object], value)
 
@@ -290,8 +288,9 @@ def _python_rule_branch(rule: Mapping[str, object], first: bool) -> list[str]:
     if kind == "enum-map":
         members = _array(rule.get("members"), "displayRule.members")
         mapping = {
-            _string(_object(member, "member").get("value"), "member.value"):
-            _string(_object(member, "member").get("display"), "member.display")
+            _string(_object(member, "member").get("value"), "member.value"): _string(
+                _object(member, "member").get("display"), "member.display"
+            )
             for member in members
         }
         return [*lines, f"        return {mapping!r}[value]"]
@@ -429,8 +428,9 @@ def _typescript_rule_case(rule: Mapping[str, object]) -> list[str]:
     if kind == "enum-map":
         members = _array(rule.get("members"), "displayRule.members")
         mapping = {
-            _string(_object(member, "member").get("value"), "member.value"):
-            _string(_object(member, "member").get("display"), "member.display")
+            _string(_object(member, "member").get("value"), "member.value"): _string(
+                _object(member, "member").get("display"), "member.display"
+            )
             for member in members
         }
         encoded = json.dumps(mapping, ensure_ascii=False, sort_keys=True)
@@ -448,8 +448,7 @@ def _typescript_rule_case(rule: Mapping[str, object]) -> list[str]:
             marker = json.dumps(f"{{{name}}}")
             encoded_name = json.dumps(name)
             template_lines.append(
-                f"      result = result.split({marker})"
-                f".join(atoms[{encoded_name}]);"
+                f"      result = result.split({marker}).join(atoms[{encoded_name}]);"
             )
         return [*template_lines, "      return result;"]
     raise FormatterGenerationError(f"未知の表示規則: {kind}")

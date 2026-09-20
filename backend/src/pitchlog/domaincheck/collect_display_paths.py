@@ -129,9 +129,7 @@ def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
-        raise CheckerExecutionError(
-            f"監査対象を読めない: {path}: {error}"
-        ) from error
+        raise CheckerExecutionError(f"監査対象を読めない: {path}: {error}") from error
 
 
 def _mapping(value: object, label: str) -> dict[str, object]:
@@ -593,9 +591,7 @@ def _imported_names(bindings: str) -> dict[str, str]:
             exported = parts[0]
             local = parts[2] if len(parts) == 3 and parts[1] == "as" else exported
             result[local] = exported
-    namespace = re.search(
-        r"\*\s+as\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)", bindings
-    )
+    namespace = re.search(r"\*\s+as\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)", bindings)
     if namespace is not None:
         result[namespace.group("name")] = "*"
     default_part = bindings.split(",", maxsplit=1)[0].strip()

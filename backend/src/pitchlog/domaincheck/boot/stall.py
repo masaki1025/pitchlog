@@ -310,11 +310,7 @@ def pr_integrations_after(
             "エポック開始 commit が develop の第一親上にない"
         ) from error
     positions = {oid: index for index, oid in enumerate(history.commits)}
-    return tuple(
-        oid
-        for oid in history.pr_integrations
-        if positions[oid] > start_index
-    )
+    return tuple(oid for oid in history.pr_integrations if positions[oid] > start_index)
 
 
 def measure_without_progress(

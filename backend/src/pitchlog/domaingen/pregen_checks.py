@@ -79,9 +79,7 @@ CheckFunction = Callable[
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise PregenCheckError(
             PregenReport(
                 frozenset(),
@@ -151,9 +149,7 @@ def _check_transitions(
             event_ref = _string(raw_rule.get("eventRef"))
             if event_ref is None:
                 continue
-            transitions_by_event[event_ref].append(
-                cast(dict[str, object], raw_rule)
-            )
+            transitions_by_event[event_ref].append(cast(dict[str, object], raw_rule))
         for event_id in sorted(event_ids):
             count = len(transitions_by_event[event_id])
             if count == 0:
@@ -286,9 +282,7 @@ def _expression_kind(
         if kind == "round" and expression.get("scale") != 0:
             return "numeric-value"
         return (
-            "integer"
-            if inferred and set(inferred) == {"integer"}
-            else "numeric-value"
+            "integer" if inferred and set(inferred) == {"integer"} else "numeric-value"
         )
     if isinstance(kind, str) and kind.endswith("-ref"):
         field_ref = _string(expression.get("fieldRef"))

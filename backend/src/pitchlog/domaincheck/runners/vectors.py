@@ -127,9 +127,7 @@ class VectorRunReport:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise VectorRunError(f"{label} が object でない")
     return cast(dict[str, object], value)
 
@@ -240,9 +238,7 @@ def run_vectors(
             contract.normalization_comparison,
         )
         if not normalization_matched:
-            raise VectorRunError(
-                f"生成済み正規化の出力が不一致: {case_id}"
-            )
+            raise VectorRunError(f"生成済み正規化の出力が不一致: {case_id}")
         try:
             actual = calculation.execute(case_id, normalized)
         except UnsupportedVectorCase as error:

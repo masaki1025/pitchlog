@@ -38,9 +38,7 @@ INTERMEDIATE_REPRESENTATION_SCHEMA: dict[str, object] = {
     "properties": {
         "schemaVersion": {"const": _SCHEMA_VERSION},
         "generatorVersion": {"type": "string", "minLength": 1},
-        "displayRules": {
-            "$ref": "model.schema.json#/properties/displayRules"
-        },
+        "displayRules": {"$ref": "model.schema.json#/properties/displayRules"},
         "calculations": {
             "type": "array",
             "items": {"$ref": "#/$defs/Calculation"},
@@ -58,15 +56,9 @@ INTERMEDIATE_REPRESENTATION_SCHEMA: dict[str, object] = {
                 "targets",
             ],
             "properties": {
-                "calculationId": {
-                    "$ref": "model.schema.json#/$defs/Identifier"
-                },
-                "sourceId": {
-                    "$ref": "manifest.schema.json#/$defs/AuthorityId"
-                },
-                "declaration": {
-                    "$ref": "model.schema.json#/$defs/Calculation"
-                },
+                "calculationId": {"$ref": "model.schema.json#/$defs/Identifier"},
+                "sourceId": {"$ref": "manifest.schema.json#/$defs/AuthorityId"},
+                "declaration": {"$ref": "model.schema.json#/$defs/Calculation"},
                 "targets": {
                     "type": "array",
                     "minItems": 1,
@@ -86,9 +78,7 @@ INTERMEDIATE_REPRESENTATION_SCHEMA: dict[str, object] = {
                 "invocation",
             ],
             "properties": {
-                "directTargetId": {
-                    "$ref": "manifest.schema.json#/$defs/Identifier"
-                },
+                "directTargetId": {"$ref": "manifest.schema.json#/$defs/Identifier"},
                 "targetClass": {"type": "string", "minLength": 1},
                 "kind": {"enum": ["single", "composite"]},
                 "stages": {
@@ -97,9 +87,7 @@ INTERMEDIATE_REPRESENTATION_SCHEMA: dict[str, object] = {
                     "items": {"$ref": "#/$defs/Stage"},
                     "x-uniqueBy": "generatedId",
                 },
-                "invocation": {
-                    "$ref": "manifest.schema.json#/$defs/Invocation"
-                },
+                "invocation": {"$ref": "manifest.schema.json#/$defs/Invocation"},
             },
         },
         "Stage": {
@@ -108,9 +96,7 @@ INTERMEDIATE_REPRESENTATION_SCHEMA: dict[str, object] = {
             "required": ["stage", "generatedId", "sourceHash"],
             "properties": {
                 "stage": {"type": "string", "minLength": 1},
-                "generatedId": {
-                    "$ref": "manifest.schema.json#/$defs/Identifier"
-                },
+                "generatedId": {"$ref": "manifest.schema.json#/$defs/Identifier"},
                 "sourceHash": {
                     "type": "string",
                     "pattern": _HASH_PATTERN,
@@ -158,9 +144,7 @@ class _ArgumentParser(argparse.ArgumentParser):
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise GenerationError(f"{label}が JSON object でない")
     return cast(dict[str, object], value)
 
@@ -371,8 +355,7 @@ def _validate_instance(
         stage_order = schema.get("x-stageOrder")
         if isinstance(stage_order, list):
             observed = [
-                item.get("stage") if isinstance(item, dict) else None
-                for item in value
+                item.get("stage") if isinstance(item, dict) else None for item in value
             ]
             if observed != stage_order:
                 raise GenerationError(f"{path}の段順が schema と異なる")
@@ -620,12 +603,8 @@ def generate_intermediate_representation(
         "manifest.calculations",
     )
     if set(model_calculations) != set(manifest_calculations):
-        model_only = sorted(
-            set(model_calculations) - set(manifest_calculations)
-        )
-        manifest_only = sorted(
-            set(manifest_calculations) - set(model_calculations)
-        )
+        model_only = sorted(set(model_calculations) - set(manifest_calculations))
+        manifest_only = sorted(set(manifest_calculations) - set(model_calculations))
         raise GenerationError(
             "model と manifest の calculation 集合が一致しない: "
             f"modelのみ={model_only!r}, manifestのみ={manifest_only!r}"

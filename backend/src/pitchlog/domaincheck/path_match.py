@@ -21,9 +21,7 @@ from pitchlog.domaincheck.collect_layers import (
 
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9._-]*$")
 _DECIMAL = re.compile(r"^(?P<sign>-?)(?P<whole>0|[1-9][0-9]*)\.(?P<fraction>[0-9]+)$")
-_NORMALIZATIONS = frozenset(
-    {"total-order", "exact-numeric-representation"}
-)
+_NORMALIZATIONS = frozenset({"total-order", "exact-numeric-representation"})
 _VALUE_TYPES = frozenset({"json", "exact-number", "display-string"})
 _SURFACES = frozenset({"structured-only", "structured-and-display"})
 _RUNNERS = frozenset({"pytest", "vitest"})
@@ -102,9 +100,7 @@ class FieldContract:
             raise ValueError(f"未知のフィールド role: {self.role}")
         if self.value_type not in _VALUE_TYPES:
             raise ValueError(f"未知の value type: {self.value_type}")
-        if (self.role == "display") != (
-            self.value_type == "display-string"
-        ):
+        if (self.role == "display") != (self.value_type == "display-string"):
             raise ValueError("表示 role と表示文字列型が一致しない")
         if self.value_type == "exact-number":
             if (
@@ -227,9 +223,7 @@ class PathEvidence:
                 "normalizations": sorted(self.contract.normalizations),
                 "judgments": {
                     "entrypointExecuted": self.judgments.entrypoint_executed,
-                    "directTargetExecuted": (
-                        self.judgments.direct_target_executed
-                    ),
+                    "directTargetExecuted": (self.judgments.direct_target_executed),
                     "entrypointEqualsExpected": (
                         self.judgments.entrypoint_equals_expected
                     ),
@@ -239,8 +233,7 @@ class PathEvidence:
                     "pathsEqual": self.judgments.paths_equal,
                 },
                 "differences": [
-                    difference.to_document()
-                    for difference in self.differences
+                    difference.to_document() for difference in self.differences
                 ],
             }
         )
@@ -275,18 +268,14 @@ class PathMatchReport:
             "evidence": [item.to_document() for item in self.evidence],
             "setDifference": {
                 "missing": [item.to_document() for item in self.missing],
-                "unexpected": [
-                    item.to_document() for item in self.unexpected
-                ],
+                "unexpected": [item.to_document() for item in self.unexpected],
             },
         }
 
 
 def _json_object(value: object) -> dict[str, object] | None:
     """文字列キーだけを持つ JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         return None
     return cast(dict[str, object], value)
 
@@ -393,30 +382,20 @@ def _normalize_rows(
     for row_index, raw_row in enumerate(value):
         row = _json_object(raw_row)
         if row is None:
-            differences.append(
-                Difference(route, row_index, None, "invalid-row")
-            )
+            differences.append(Difference(route, row_index, None, "invalid-row"))
             continue
         observed_fields = set(row)
         for missing in sorted(expected_fields - observed_fields):
-            differences.append(
-                Difference(route, row_index, missing, "missing-field")
-            )
+            differences.append(Difference(route, row_index, missing, "missing-field"))
         for unknown in sorted(observed_fields - expected_fields):
-            differences.append(
-                Difference(route, row_index, unknown, "unknown-field")
-            )
+            differences.append(Difference(route, row_index, unknown, "unknown-field"))
         normalized: dict[str, object] = {}
         for field_name, field in field_map.items():
             if field_name not in row:
                 continue
-            normalized_value, issue = _normalize_value(
-                row[field_name], field, unify
-            )
+            normalized_value, issue = _normalize_value(row[field_name], field, unify)
             if issue is not None:
-                differences.append(
-                    Difference(route, row_index, field_name, issue)
-                )
+                differences.append(Difference(route, row_index, field_name, issue))
             normalized[field_name] = normalized_value
         rows.append(normalized)
     if "total-order" in contract.normalizations:
@@ -437,9 +416,7 @@ def _compare_outputs(
     if left_issues or right_issues:
         return False, tuple(differences)
     if len(left_rows) != len(right_rows):
-        differences.append(
-            Difference(route, None, None, "row-count-mismatch")
-        )
+        differences.append(Difference(route, None, None, "row-count-mismatch"))
         return False, tuple(differences)
     fields = {field.field: field for field in contract.fields}
     for row_index, (left_row, right_row) in enumerate(
@@ -448,14 +425,8 @@ def _compare_outputs(
         for field_name, field in fields.items():
             if left_row[field_name] == right_row[field_name]:
                 continue
-            reason = (
-                "display-mismatch"
-                if field.role == "display"
-                else "value-mismatch"
-            )
-            differences.append(
-                Difference(route, row_index, field_name, reason)
-            )
+            reason = "display-mismatch" if field.role == "display" else "value-mismatch"
+            differences.append(Difference(route, row_index, field_name, reason))
     return not differences, tuple(differences)
 
 
@@ -479,9 +450,7 @@ def _compare_submission(
     else:
         entrypoint_equals = False
         differences.append(
-            Difference(
-                "entrypoint-expected", None, None, "missing-execution"
-            )
+            Difference("entrypoint-expected", None, None, "missing-execution")
         )
 
     if direct_target_executed:
@@ -495,9 +464,7 @@ def _compare_submission(
     else:
         direct_target_equals = False
         differences.append(
-            Difference(
-                "direct-target-expected", None, None, "missing-execution"
-            )
+            Difference("direct-target-expected", None, None, "missing-execution")
         )
 
     if entrypoint_executed and direct_target_executed:
@@ -565,9 +532,7 @@ def compare_path_set(
     for submission in sorted(submitted_items, key=lambda item: item.key):
         contract = contracts.get(submission.key.calculation)
         if contract is None:
-            raise ValueError(
-                f"比較契約が無い: {submission.key.calculation}"
-            )
+            raise ValueError(f"比較契約が無い: {submission.key.calculation}")
         evidence.append(_compare_submission(submission, contract))
     return PathMatchReport(
         requirements=required,
@@ -586,14 +551,10 @@ def submission_from_collected(
 ) -> PathSubmission:
     """ステップ 31 の収集証跡を再収集せず比較器の提出へ接続する。"""
     entrypoint = (
-        entrypoint_output
-        if evidence.judgments.entrypoint_executed
-        else _MISSING
+        entrypoint_output if evidence.judgments.entrypoint_executed else _MISSING
     )
     direct_target = (
-        direct_target_output
-        if evidence.judgments.direct_target_executed
-        else _MISSING
+        direct_target_output if evidence.judgments.direct_target_executed else _MISSING
     )
     return PathSubmission(
         key=PathKey(

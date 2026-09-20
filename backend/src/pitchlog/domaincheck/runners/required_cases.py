@@ -18,8 +18,7 @@ from typing import cast
 _AUTHORITY_ID = "ADR-003 D-11 入力範囲表"
 _ADR_SOURCE = "docs/adr/ADR-003-domain-calc-method.md"
 _ADR_SECTION = (
-    "### D-11: (b) の検査設計"
-    "(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)"
+    "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)"
 )
 _TABLE_TARGET = "(β)①〜⑤ の集計"
 _VOCABULARY_SOURCE = "backend/domain/vocabulary.schema.json"
@@ -55,9 +54,7 @@ class CoverageProof:
 
 def _mapping(value: object, label: str) -> dict[str, object]:
     """文字列キーの object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CoverageError(f"{label} が object でない")
     return cast(dict[str, object], value)
 
@@ -112,10 +109,7 @@ def _extract_axis_texts(adr_text: str) -> tuple[str, ...]:
     )
     if matched is None:
         raise CoverageError("対象行から表示 primitive の軸列挙を抽出できない")
-    axes = tuple(
-        axis.strip()
-        for axis in re.split(r"\s*/\s*", matched.group("axes"))
-    )
+    axes = tuple(axis.strip() for axis in re.split(r"\s*/\s*", matched.group("axes")))
     if not axes or any(not axis for axis in axes):
         raise CoverageError("表示 primitive の軸列挙が空または不正")
     return axes
@@ -178,9 +172,7 @@ def _axis_kind(source_text: str) -> str:
         ("オーバーフロー", "overflow"),
     )
     matched = [
-        axis_id
-        for prefix, axis_id in signatures
-        if source_text.startswith(prefix)
+        axis_id for prefix, axis_id in signatures if source_text.startswith(prefix)
     ]
     if len(matched) != 1:
         raise CoverageError(f"未知または曖昧な表示 primitive 軸: {source_text}")
@@ -223,9 +215,7 @@ def _axis_schema_pointers(
             f"#/$defs/{percentage_name}/properties/scale",
         ],
         "sign": ["#/$defs/NumericValue"],
-        "zero-denominator": [
-            "#/$defs/RationalValue/properties/denominator"
-        ],
+        "zero-denominator": ["#/$defs/RationalValue/properties/denominator"],
         "empty-aggregate": ["#/$defs/NumericValue"],
         "remainder": [
             f"#/$defs/{mixed_name}/properties/denominator",
@@ -699,15 +689,11 @@ def validate_required_case_set(asset: Mapping[str, object]) -> None:
         points = _case_points(case)
         for axis_id, partition_id in points:
             if partition_id not in axis_partitions.get(axis_id, set()):
-                raise CoverageError(
-                    f"未知の軸分割: {axis_id}.{partition_id}"
-                )
+                raise CoverageError(f"未知の軸分割: {axis_id}.{partition_id}")
         observed_points.update(points)
         by_axis = dict(points)
         if "rounding-boundary" in by_axis and "sign" in by_axis:
-            cross_pairs.append(
-                (by_axis["rounding-boundary"], by_axis["sign"])
-            )
+            cross_pairs.append((by_axis["rounding-boundary"], by_axis["sign"]))
     if len(case_ids) != len(set(case_ids)):
         raise CoverageError("要求 case ID が重複")
     expected_points = {

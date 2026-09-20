@@ -83,9 +83,7 @@ class _CollectionState:
                 f"収集対象がリポジトリ外を指している: {path}"
             ) from error
 
-    def add_metadata_issue(
-        self, construct: str, expression: str, reason: str
-    ) -> None:
+    def add_metadata_issue(self, construct: str, expression: str, reason: str) -> None:
         """プロジェクトメタデータの解析不能を記録する。"""
         self.metadata_issues.append(
             {
@@ -146,9 +144,7 @@ def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
-        raise CheckerExecutionError(
-            f"監査対象を読めない: {path}: {error}"
-        ) from error
+        raise CheckerExecutionError(f"監査対象を読めない: {path}: {error}") from error
 
 
 def _module_name(source_root: Path, path: Path) -> str:
@@ -202,9 +198,7 @@ def _binding_for_from(
     return local_name, _Binding(base, alias.name)
 
 
-def _build_bindings(
-    module: _Module, module_names: set[str]
-) -> dict[str, _Binding]:
+def _build_bindings(module: _Module, module_names: set[str]) -> dict[str, _Binding]:
     """モジュール内の import 束縛を構築する。"""
     bindings: dict[str, _Binding] = {}
     for node in module.imports:
@@ -634,9 +628,7 @@ def collect_backend_entries(
     resolved_source = source_root.resolve()
     resolved_pyproject = pyproject.resolve()
     if not resolved_source.is_dir():
-        raise CheckerExecutionError(
-            f"Python source root を読めない: {source_root}"
-        )
+        raise CheckerExecutionError(f"Python source root を読めない: {source_root}")
     if not resolved_pyproject.is_file():
         raise CheckerExecutionError(f"pyproject.toml を読めない: {pyproject}")
     state = _CollectionState(

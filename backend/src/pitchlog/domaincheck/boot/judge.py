@@ -23,9 +23,7 @@ from pitchlog.domaincheck.cli import (
 )
 
 _RAW_EVIDENCE_STAGE = "raw-unexempted-checks"
-_EVIDENCE_KEYS = frozenset(
-    {"schemaVersion", "evidenceStage", "clauseResults"}
-)
+_EVIDENCE_KEYS = frozenset({"schemaVersion", "evidenceStage", "clauseResults"})
 _RESULT_KEYS = frozenset({"clauseId", "outcome"})
 
 
@@ -142,9 +140,7 @@ def existing_mechanisms() -> ExistingMechanisms:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label}が JSON object でない")
     return cast(dict[str, object], value)
 
@@ -187,9 +183,7 @@ def _raw_outcome(
     try:
         return results[clause_id].outcome
     except KeyError as error:
-        raise CheckerExecutionError(
-            f"免除前の結果がない: {clause_id}"
-        ) from error
+        raise CheckerExecutionError(f"免除前の結果がない: {clause_id}") from error
 
 
 def _registry_entries(root: Path) -> tuple[dict[str, object], ...]:
@@ -272,9 +266,7 @@ def parse_raw_results(value: object) -> RawUnexemptedResults:
     if root.get("schemaVersion") != 1:
         raise CheckerExecutionError("judge evidence.schemaVersionが 1 でない")
     if root.get("evidenceStage") != _RAW_EVIDENCE_STAGE:
-        raise CheckerExecutionError(
-            "judge evidenceは免除前の生結果でなければならない"
-        )
+        raise CheckerExecutionError("judge evidenceは免除前の生結果でなければならない")
     raw_results = _array(root.get("clauseResults"), "clauseResults")
     results: list[RawClauseResult] = []
     for index, raw_result in enumerate(raw_results):
@@ -344,9 +336,7 @@ def judge_raw_results(
         CheckerViolation: 対応表と検出経路の集合差がある場合。
     """
     routes = build_detection_routes(root, mechanisms)
-    results_by_id = {
-        result.clause_id: result for result in raw_results.clause_results
-    }
+    results_by_id = {result.clause_id: result for result in raw_results.clause_results}
     required_ids = frozenset(route.clause_id for route in routes)
     observed_ids = frozenset(results_by_id)
     difference = exact_set_difference(required_ids, observed_ids)
@@ -356,9 +346,7 @@ def judge_raw_results(
             f"不足={sorted(difference.missing)!r}, "
             f"未登録={sorted(difference.unexpected)!r}"
         )
-    outcomes = tuple(
-        route.detector(results_by_id, route.clause_id) for route in routes
-    )
+    outcomes = tuple(route.detector(results_by_id, route.clause_id) for route in routes)
     if RawOutcome.INDETERMINATE in outcomes:
         return EXIT_INDETERMINATE
     if RawOutcome.NONCONFORMING in outcomes:

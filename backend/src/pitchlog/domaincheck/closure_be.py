@@ -136,9 +136,7 @@ class _ArgumentParser(argparse.ArgumentParser):
 
 def _object(value: object, label: str) -> Mapping[str, object]:
     """値を文字列キーの object として検査する。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise BackendClosureIndeterminate(f"{label} が object でない")
     return value
 

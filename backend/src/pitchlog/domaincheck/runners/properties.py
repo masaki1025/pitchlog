@@ -124,9 +124,7 @@ class InvariantRunReport:
 
 def _mapping(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise InvariantRunError(f"{label} が object でない")
     return cast(dict[str, object], value)
 
@@ -236,9 +234,7 @@ def validate_predicate_authorities(
             raise InvariantRunError("条項索引の ID がキーと一致しない")
         section = _authority_source(root, location)
         if location.verbatim not in section:
-            raise InvariantRunError(
-                f"条項の逐語が正本に無い: {predicate.authority_id}"
-            )
+            raise InvariantRunError(f"条項の逐語が正本に無い: {predicate.authority_id}")
 
 
 def _completed_evidence(
@@ -249,8 +245,7 @@ def _completed_evidence(
     if not collection.complete:
         reasons = sorted(item.reason for item in collection.rejected)
         raise InvariantRunError(
-            "層別収集器が実行済みと認めない証跡がある: "
-            f"{reasons!r}"
+            f"層別収集器が実行済みと認めない証跡がある: {reasons!r}"
         )
     evidence = tuple(
         item for item in collection.evidence if item.calculation == calculation
@@ -323,15 +318,13 @@ def run_invariants(
     missing_predicate_evidence = set(predicate_ids) - invariant_ids
     if missing_predicate_evidence:
         raise InvariantRunError(
-            "述語の invariant 完走証跡が無い: "
-            f"{sorted(missing_predicate_evidence)!r}"
+            f"述語の invariant 完走証跡が無い: {sorted(missing_predicate_evidence)!r}"
         )
     for predicate_id in predicate_ids:
         observed_counts = {
             item.generated_cases
             for item in evidence
-            if item.property_kind == "invariant"
-            and item.property_id == predicate_id
+            if item.property_kind == "invariant" and item.property_id == predicate_id
         }
         if observed_counts != {len(case_items)}:
             raise InvariantRunError(

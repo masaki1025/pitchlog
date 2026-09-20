@@ -156,9 +156,7 @@ class _SemanticDelta:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーの JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label}が JSON object でない")
     return cast(dict[str, object], value)
 
@@ -365,8 +363,7 @@ def classify_phase2(
         unknown_declarations = after_declarations - target_ids
         if unknown_declarations:
             raise CheckerViolation(
-                "NFR-018 柱書: 対象欄にない宣言="
-                f"{sorted(unknown_declarations)!r}"
+                f"NFR-018 柱書: 対象欄にない宣言={sorted(unknown_declarations)!r}"
             )
 
     normalised_before, baseline_empty = _normalise_before(state, before)
@@ -386,14 +383,12 @@ def classify_phase2(
     unknown = delta.changed_targets - target_ids
     if unknown:
         raise CheckerViolation(
-            "NFR-018 柱書: 未分類対象の意味差分="
-            f"{sorted(unknown)!r}"
+            f"NFR-018 柱書: 未分類対象の意味差分={sorted(unknown)!r}"
         )
     complete = delta.complete_targets
     if len(complete) >= 2:
         raise CheckerViolation(
-            "ADR-003 帰結 1 段階 2: 対象計算は 1 件ごとに追加する="
-            f"{sorted(complete)!r}"
+            f"ADR-003 帰結 1 段階 2: 対象計算は 1 件ごとに追加する={sorted(complete)!r}"
         )
     other_additions = (
         delta.generated

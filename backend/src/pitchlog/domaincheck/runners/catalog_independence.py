@@ -111,9 +111,7 @@ class IndependenceReport:
 
 def _mapping(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CatalogIndependenceError(f"{label} が object でない")
     return cast(dict[str, object], value)
 
@@ -191,8 +189,7 @@ def validate_catalog(catalog: Mapping[str, object]) -> None:
         "generatorInputAllowlist",
     )
     allowlist = [
-        _relative_path(item, "generatorInputAllowlist[]")
-        for item in raw_allowlist
+        _relative_path(item, "generatorInputAllowlist[]") for item in raw_allowlist
     ]
     if not allowlist or len(allowlist) != len(set(allowlist)):
         raise CatalogIndependenceError("generator input allowlist が空または重複")
@@ -416,9 +413,7 @@ def validate_catalog_independence(
     if catalog_path in evidence.repository_reads:
         raise CatalogIndependenceError("生成器が property catalog を読んだ")
     if catalog_path in dependency_graph.targets:
-        raise CatalogIndependenceError(
-            "生成器の依存グラフに property catalog がある"
-        )
+        raise CatalogIndependenceError("生成器の依存グラフに property catalog がある")
     report = IndependenceReport(
         accesses=evidence,
         dependency_graph=dependency_graph,

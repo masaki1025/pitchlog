@@ -75,9 +75,7 @@ class _HtmlScripts(HTMLParser):
         self._script_attributes: dict[str, str] | None = None
         self._script_parts: list[str] = []
 
-    def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, str | None]]
-    ) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         """Script または link の属性を記録する。"""
         attributes = {key: value or "" for key, value in attrs}
         if tag.casefold() == "script":
@@ -95,9 +93,7 @@ class _HtmlScripts(HTMLParser):
         """Script 要素の収集を確定する。"""
         if tag.casefold() != "script" or self._script_attributes is None:
             return
-        self.scripts.append(
-            (self._script_attributes, "".join(self._script_parts))
-        )
+        self.scripts.append((self._script_attributes, "".join(self._script_parts)))
         self._script_attributes = None
         self._script_parts = []
 
@@ -353,9 +349,7 @@ def _property_expression(text: str, property_name: str) -> str | None:
             continue
         if depth == 0 and (character.isalpha() or character in "_$"):
             end = index + 1
-            while end < len(masked) and (
-                masked[end].isalnum() or masked[end] in "_$"
-            ):
+            while end < len(masked) and (masked[end].isalnum() or masked[end] in "_$"):
                 end += 1
             name = masked[index:end]
             cursor = end
@@ -372,9 +366,7 @@ def _property_expression(text: str, property_name: str) -> str | None:
     return None
 
 
-def _object_expression(
-    text: str, property_name: str
-) -> tuple[bool, str] | None:
+def _object_expression(text: str, property_name: str) -> tuple[bool, str] | None:
     """任意位置の object プロパティについて静的可否と本文を返す。"""
     masked = _mask_javascript(text, strings=True)
     match = re.search(rf"\b{re.escape(property_name)}\s*:", masked)
@@ -452,9 +444,7 @@ def _vite_inputs(state: _CollectionState) -> list[tuple[Path, str]]:
             continue
         path = Path(relative)
         resolved = (
-            path.resolve()
-            if path.is_absolute()
-            else (state.frontend / path).resolve()
+            path.resolve() if path.is_absolute() else (state.frontend / path).resolve()
         )
         inputs.append((resolved, "vite-input"))
     return inputs
@@ -468,9 +458,7 @@ def _local_reference(specifier: str) -> bool:
 def _external_url(specifier: str) -> bool:
     """指定がリポジトリ外の URL または fragment かを返す。"""
     lowered = specifier.casefold()
-    return lowered.startswith(
-        ("http://", "https://", "//", "data:", "blob:", "#")
-    )
+    return lowered.startswith(("http://", "https://", "//", "data:", "blob:", "#"))
 
 
 def _resolve_file(base: Path, specifier: str, frontend: Path) -> Path | None:
@@ -678,9 +666,7 @@ def _scan_graph(state: _CollectionState, roots: deque[Path]) -> None:
             _scan_css(state, path, _read_text(path), roots)
 
 
-def _scan_html(
-    state: _CollectionState, html_path: Path, roots: deque[Path]
-) -> None:
+def _scan_html(state: _CollectionState, html_path: Path, roots: deque[Path]) -> None:
     """HTML の script・link とインラインコードを graph へ加える。"""
     parser = _HtmlScripts()
     parser.feed(_read_text(html_path))

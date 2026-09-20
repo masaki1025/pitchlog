@@ -25,9 +25,7 @@ from pitchlog.domaincheck.cli import (
     read_json,
 )
 
-_REQUIREMENTS_PATH = Path(
-    "docs/requirements/requirements-pitchlog-2026-07-22.md"
-)
+_REQUIREMENTS_PATH = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 _CHECK_SETS_PATH = Path("backend/domain/check-sets.json")
 _MANIFEST_SCHEMA_PATH = Path("backend/domain/manifest.schema.json")
 _BOOT_SEAL_PATH = Path("backend/domain/boot-seal.json")
@@ -49,9 +47,7 @@ _CONSTRUCTOR_ARGUMENTS = {
 
 def _mapping(value: object, label: str) -> dict[str, object]:
     """文字列キーの object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label} は object でなければならない")
     return value
 
@@ -135,9 +131,7 @@ def _without_detail(value: str) -> str:
     """列挙要素から Markdown 装飾と括弧内の説明を除く。"""
     plain = value.replace("**", "").strip()
     positions = [
-        position
-        for mark in ("（", "(")
-        if (position := plain.find(mark)) >= 0
+        position for mark in ("（", "(") if (position := plain.find(mark)) >= 0
     ]
     if positions:
         plain = plain[: min(positions)]
@@ -232,8 +226,7 @@ def derive_targets(
     alpha_body = alpha_body.split("。**NFR-019(a)", maxsplit=1)[0]
     separators = _string_list(alpha_rule.get("separators"), "alpha.separators")
     alpha_names = [
-        _without_detail(value)
-        for value in _split_top_level(alpha_body, separators)
+        _without_detail(value) for value in _split_top_level(alpha_body, separators)
     ]
 
     beta_rule = rules["beta"]
@@ -333,11 +326,7 @@ def derive_b_clauses(
     section = _section_text(requirements_text, section_heading)
     lines = section.splitlines()
     start = next(
-        (
-            index
-            for index, line in enumerate(lines)
-            if line.startswith("  - **(b) ")
-        ),
+        (index for index, line in enumerate(lines) if line.startswith("  - **(b) ")),
         None,
     )
     if start is None:
@@ -381,9 +370,7 @@ def mechanism_absence_key(b_clause: str) -> str:
     return f"{SealConstructor.MECHANISM_ABSENCE}({b_clause})"
 
 
-def _declaration_element(
-    target: str, field: str, scope: str
-) -> dict[str, object]:
+def _declaration_element(target: str, field: str, scope: str) -> dict[str, object]:
     """D-11 由来の宣言不在要素を作る。"""
     return {
         "id": f"{target}/{field}",

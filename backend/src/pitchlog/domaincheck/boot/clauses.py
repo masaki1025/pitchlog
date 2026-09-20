@@ -18,9 +18,7 @@ from pitchlog.domaincheck.cli import (
 BOOT_CLAUSES_ASSET = Path("backend/domain/boot-clauses.json")
 EXPECTED_CLAUSE_COUNT = 12
 
-_ROOT_KEYS = frozenset(
-    {"schemaVersion", "generatedBy", "derivation", "clauses"}
-)
+_ROOT_KEYS = frozenset({"schemaVersion", "generatedBy", "derivation", "clauses"})
 _DERIVATION_KEYS = frozenset(
     {
         "source",
@@ -62,9 +60,7 @@ class DerivedClause:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label}が JSON object でない")
     return cast(dict[str, object], value)
 
@@ -190,9 +186,7 @@ def derive_clauses(source_text: str, asset: object) -> tuple[DerivedClause, ...]
     for index, match in enumerate(matches):
         identifier = match.group("id")
         end = (
-            matches[index + 1].start()
-            if index + 1 < len(matches)
-            else len(subsection)
+            matches[index + 1].start() if index + 1 < len(matches) else len(subsection)
         )
         normative_text = subsection[match.start() : end].strip()
         clauses.append(
@@ -285,14 +279,10 @@ def validate_registry(source_text: str, asset: object) -> tuple[DerivedClause, .
             f"未登録={sorted(difference.unexpected)!r}, "
             f"順序一致={derived_ids == observed_ids}"
         )
-    for index, (clause, entry) in enumerate(
-        zip(derived, entries, strict=True)
-    ):
+    for index, (clause, entry) in enumerate(zip(derived, entries, strict=True)):
         verbatim = _string(entry.get("verbatim"), f"clauses[{index}].verbatim")
         if verbatim not in clause.normative_text:
-            raise CheckerViolation(
-                f"正本の条項範囲に逐語がない: {clause.identifier}"
-            )
+            raise CheckerViolation(f"正本の条項範囲に逐語がない: {clause.identifier}")
     return derived
 
 
@@ -301,9 +291,7 @@ def load_and_validate_registry(root: Path) -> tuple[DerivedClause, ...]:
     resolved_root = root.resolve()
     asset = read_json(resolved_root / BOOT_CLAUSES_ASSET)
     derivation = _derivation(asset)
-    source_path = Path(
-        _string(derivation.get("source"), "derivation.source")
-    )
+    source_path = Path(_string(derivation.get("source"), "derivation.source"))
     if source_path.is_absolute() or ".." in source_path.parts:
         raise CheckerExecutionError("derivation.sourceが安全な相対パスでない")
     try:

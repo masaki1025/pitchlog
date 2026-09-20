@@ -24,9 +24,7 @@ from pitchlog.domaincheck.cli import (
 
 _COMMIT_OID_PATTERN = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 _DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
-_SEAL_KEYS = frozenset(
-    {"schemaVersion", "assetPath", "baseCommitOid", "blobDigest"}
-)
+_SEAL_KEYS = frozenset({"schemaVersion", "assetPath", "baseCommitOid", "blobDigest"})
 
 
 class _ArgumentParser(argparse.ArgumentParser):
@@ -46,9 +44,7 @@ def _repository_path(root: Path, raw_path: Path, label: str) -> tuple[Path, str]
     """リポジトリ内の実パスと正規化した相対パスを返す。"""
     resolved_root = root.resolve()
     resolved = (
-        raw_path.resolve()
-        if raw_path.is_absolute()
-        else (root / raw_path).resolve()
+        raw_path.resolve() if raw_path.is_absolute() else (root / raw_path).resolve()
     )
     try:
         relative = resolved.relative_to(resolved_root)
@@ -68,8 +64,7 @@ def _expect_seal(raw: object) -> dict[str, object]:
         missing = sorted(_SEAL_KEYS - observed)
         unexpected = sorted(observed - _SEAL_KEYS)
         raise CheckerExecutionError(
-            f"封印レコードのキー集合が不一致: 不足={missing!r}, "
-            f"未登録={unexpected!r}"
+            f"封印レコードのキー集合が不一致: 不足={missing!r}, 未登録={unexpected!r}"
         )
     if raw["schemaVersion"] != 1 or isinstance(raw["schemaVersion"], bool):
         raise CheckerExecutionError("封印レコードの schemaVersion が 1 でない")
@@ -127,9 +122,7 @@ def _verify_commit_oid(root: Path, commit_oid: str) -> None:
         )
 
 
-def _historical_base_commit(
-    root: Path, seal_relative: str
-) -> str | None:
+def _historical_base_commit(root: Path, seal_relative: str) -> str | None:
     """封印レコードの Git 初出時に記録された固定 OID を返す。"""
     history = _run_git(
         root,
@@ -141,9 +134,7 @@ def _historical_base_commit(
     )
     if history.returncode != 0:
         raise CheckerExecutionError("封印レコードの追加履歴を確認できない")
-    introduction_commits = [
-        line for line in history.stdout.splitlines() if line
-    ]
+    introduction_commits = [line for line in history.stdout.splitlines() if line]
     if not introduction_commits:
         return None
     introduction = introduction_commits[-1]
@@ -166,8 +157,7 @@ def _assert_history_immutable(
     historical_base = _historical_base_commit(root, seal_relative)
     if historical_base is not None and current_base != historical_base:
         raise CheckerViolation(
-            "NFR-018 (e) BOOT-SEAL-IMMUTABLE: "
-            "Git 初出後に baseCommitOid が変更された"
+            "NFR-018 (e) BOOT-SEAL-IMMUTABLE: Git 初出後に baseCommitOid が変更された"
         )
 
 
@@ -233,9 +223,7 @@ def _reseal(
     if seal_path.exists():
         existing = _expect_seal(read_json(seal_path))
         _assert_fixed_fields(existing, asset_relative, base_commit)
-        _assert_history_immutable(
-            root, seal_relative, existing["baseCommitOid"]
-        )
+        _assert_history_immutable(root, seal_relative, existing["baseCommitOid"])
     _verify_commit_oid(root, base_commit)
     candidate = _expect_seal(_candidate(asset, asset_relative, base_commit))
     _verify_record(candidate, asset, asset_relative, base_commit)
@@ -276,9 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ):
             raise CheckerExecutionError("--base-commit は完全な commit OID が必要")
         asset_path, asset_relative = _repository_path(root, arguments.asset, "--asset")
-        seal_path, seal_relative = _repository_path(
-            root, arguments.seal, "--seal"
-        )
+        seal_path, seal_relative = _repository_path(root, arguments.seal, "--seal")
         if asset_path == seal_path:
             message = "--asset と --seal は別ファイルでなければならない"
             raise CheckerExecutionError(message)

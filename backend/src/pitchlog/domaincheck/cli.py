@@ -215,9 +215,7 @@ def _resolve_ref(schema: Mapping[str, object], ref: str) -> object:
 
 def _expect_schema_mapping(value: object, label: str) -> dict[str, object]:
     """JSON object の schema 節を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label}は schema object でなければならない")
     return value
 
@@ -353,9 +351,7 @@ def _format_values(values: frozenset[str]) -> str:
     return repr(sorted(values))
 
 
-def _raise_key_difference(
-    path: str, expected: set[str], observed: set[str]
-) -> None:
+def _raise_key_difference(path: str, expected: set[str], observed: set[str]) -> None:
     """厳密キー集合の双方向差分があれば不適合を送出する。"""
     difference = exact_set_difference(expected, observed)
     if not difference.matches:

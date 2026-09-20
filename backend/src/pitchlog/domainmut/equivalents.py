@@ -33,9 +33,7 @@ _TOP_LEVEL_KEYS = frozenset(
 _POLICY_KEYS = frozenset(
     {"unrecordedDisposition", "requiredJudge", "scaleZeroFormatterBypass"}
 )
-_BYPASS_KEYS = frozenset(
-    {"candidate", "requiredObservations", "decision"}
-)
+_BYPASS_KEYS = frozenset({"candidate", "requiredObservations", "decision"})
 _CANDIDATE_KEYS = frozenset(
     {"operatorId", "primitiveKind", "scale", "replacementRoute"}
 )
@@ -133,8 +131,7 @@ class ScaleZeroFormatterObservation:
             self.operator_id == "display-formatter-invocation"
             and self.primitive_kind == "fixed-decimal"
             and self.scale == 0
-            and self.replacement_route
-            == "language-default-stringification"
+            and self.replacement_route == "language-default-stringification"
         )
 
     @property
@@ -149,9 +146,7 @@ class ScaleZeroFormatterObservation:
 
 def _require_object(value: object, label: str) -> Mapping[str, object]:
     """文字列キーの object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise EquivalenceLedgerError(f"{label} が object でない")
     return cast(Mapping[str, object], value)
 
@@ -234,9 +229,7 @@ def _validate_policy(value: object) -> None:
             _OBSERVATION_KEYS,
             f"requiredObservations[{index}]",
         )
-        observation_ids.append(
-            _require_identifier(observation["id"], "observation.id")
-        )
+        observation_ids.append(_require_identifier(observation["id"], "observation.id"))
         _require_string(observation["description"], "observation.description")
     if len(observation_ids) != len(set(observation_ids)):
         raise EquivalenceLedgerError("requiredObservations の ID が重複")
@@ -329,9 +322,7 @@ def classify_scale_zero_formatter_bypass(
         EquivalenceLedgerError: 実測不成立の mutant が承認済みの場合。
     """
     approved = ledger.is_approved(observation.mutant_id)
-    measured_equivalent = (
-        observation.is_candidate and observation.observations_pass
-    )
+    measured_equivalent = observation.is_candidate and observation.observations_pass
     if approved and not measured_equivalent:
         raise EquivalenceLedgerError("実測不成立の mutant が等価承認されている")
     if approved and measured_equivalent:

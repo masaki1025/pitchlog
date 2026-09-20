@@ -94,9 +94,7 @@ class TargetExpectation:
         if len(self.stages) < minimum or (
             maximum is not None and len(self.stages) > maximum
         ):
-            raise ValueError(
-                f"{self.kind} の段数が不正: {len(self.stages)}"
-            )
+            raise ValueError(f"{self.kind} の段数が不正: {len(self.stages)}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,9 +248,7 @@ def _source_hash(content: bytes) -> str:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーの JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CollectionError(f"{label} が object でない")
     return cast(dict[str, object], value)
 
@@ -302,8 +298,7 @@ def _trace(value: object) -> dict[str, object]:
         missing = sorted(_TRACE_FIELDS - observed)
         unexpected = sorted(observed - _TRACE_FIELDS)
         raise CollectionError(
-            f"trace のキー集合が不正: missing={missing!r}, "
-            f"unexpected={unexpected!r}"
+            f"trace のキー集合が不正: missing={missing!r}, unexpected={unexpected!r}"
         )
     return trace
 
@@ -356,9 +351,7 @@ def _validate_stage_io(
 ) -> tuple[bool, bool]:
     """生成物 hash と composite の段別値連鎖を独立検証する。"""
     hashes = _object(trace.get("artifactHashes"), "trace.artifactHashes")
-    expected_hashes = {
-        stage.stage: stage.artifact_hash for stage in expectation.stages
-    }
+    expected_hashes = {stage.stage: stage.artifact_hash for stage in expectation.stages}
     hashes_valid = hashes == expected_hashes
     raw_stage_io = _array(trace.get("stageIO"), "trace.stageIO")
     if expectation.kind == "single":
@@ -381,9 +374,7 @@ def _validate_stage_io(
         current.get("output") == following.get("input")
         for current, following in zip(stage_io, stage_io[1:])
     )
-    final_matches = stage_io[-1].get("output") == trace.get(
-        "directTargetOutput"
-    )
+    final_matches = stage_io[-1].get("output") == trace.get("directTargetOutput")
     return hashes_valid, stages_match and links_match and final_matches
 
 
@@ -416,12 +407,8 @@ def _collect_one(
         trace = _trace(properties.get("trace"))
         vector = _string(trace.get("vector"), "trace.vector")
         case = _string(trace.get("case"), "trace.case")
-        entrypoint_id = _string(
-            trace.get("entrypointId"), "trace.entrypointId"
-        )
-        direct_target_id = _string(
-            trace.get("directTargetId"), "trace.directTargetId"
-        )
+        entrypoint_id = _string(trace.get("entrypointId"), "trace.entrypointId")
+        direct_target_id = _string(trace.get("directTargetId"), "trace.directTargetId")
     except CollectionError as error:
         return RejectedEvidence(test_id, f"invalid-evidence:{error}")
 
@@ -548,8 +535,7 @@ def _vitest_envelope(document: object) -> list[dict[str, object]]:
             assertions.append(
                 _object(
                     raw_assertion,
-                    f"testResults[{result_index}].assertionResults"
-                    f"[{assertion_index}]",
+                    f"testResults[{result_index}].assertionResults[{assertion_index}]",
                 )
             )
     return assertions

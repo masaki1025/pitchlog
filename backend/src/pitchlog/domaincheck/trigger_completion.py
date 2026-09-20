@@ -199,9 +199,7 @@ def validate_trigger_completion(
             f"トリガー母集合が {EXPECTED_TRIGGER_COUNT} 件でない"
         )
     applicable = frozenset(
-        state.trigger_id
-        for state in states
-        if state.evaluation_deadline <= as_of
+        state.trigger_id for state in states if state.evaluation_deadline <= as_of
     )
     evaluated = frozenset(
         state.trigger_id
@@ -215,9 +213,7 @@ def validate_trigger_completion(
         )
 
     document = stopgate._read_json_object(registry_path)
-    manual_evidence = _manual_evidence(
-        _raw_triggers(document), repository_root
-    )
+    manual_evidence = _manual_evidence(_raw_triggers(document), repository_root)
 
     # 発火判定の意味はステップ 5 の単一実装へ委ねる。
     reasons = stopgate.rejection_reasons(states, as_of)

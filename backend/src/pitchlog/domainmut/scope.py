@@ -213,17 +213,14 @@ def resolve_mutation_scope(
     changed = frozenset(
         change.calculation
         for change in change_items
-        if change.kind is ChangeKind.CALCULATION
-        and change.calculation is not None
+        if change.kind is ChangeKind.CALCULATION and change.calculation is not None
     )
     direct_triggers = frozenset(
         _DIRECT_TRIGGERS[change.kind]
         for change in change_items
         if change.kind in _DIRECT_TRIGGERS
     )
-    unresolved = not _graph_resolvable(graph) or bool(
-        changed - graph.calculations
-    )
+    unresolved = not _graph_resolvable(graph) or bool(changed - graph.calculations)
     triggers = direct_triggers
     if unresolved:
         triggers = triggers | {FullRunTrigger.UNRESOLVED}

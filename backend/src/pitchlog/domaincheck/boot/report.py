@@ -40,9 +40,7 @@ class SealedElement:
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ JSON object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CheckerExecutionError(f"{label}が JSON object でない")
     return cast(dict[str, object], value)
 
@@ -145,8 +143,7 @@ def build_boot_report(
     difference = exact_set_difference(sealed_ids, resolved)
     if difference.unexpected:
         raise CheckerViolation(
-            "封印集合にない要素を解消済みにできない="
-            f"{sorted(difference.unexpected)!r}"
+            f"封印集合にない要素を解消済みにできない={sorted(difference.unexpected)!r}"
         )
     unresolved = [
         {
@@ -186,8 +183,7 @@ def resolved_element_ids_from_phase2(
     return frozenset(
         element.identifier
         for element in _sealed_elements(sealed_asset)
-        if element.constructor == "declaration_absence"
-        and element.target_id in targets
+        if element.constructor == "declaration_absence" and element.target_id in targets
     )
 
 
@@ -227,9 +223,7 @@ def assert_report_matches(
     validate_asset(report, schema)
     expected = build_boot_report(sealed_asset, resolved_element_ids)
     if report != expected:
-        raise CheckerViolation(
-            "BOOT-REPORT が封印集合と解消済み集合の差に一致しない"
-        )
+        raise CheckerViolation("BOOT-REPORT が封印集合と解消済み集合の差に一致しない")
 
 
 def emit_boot_report(

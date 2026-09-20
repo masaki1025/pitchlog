@@ -74,9 +74,7 @@ _EVIDENCE_KEYS = frozenset(
         "mutantClassifications",
     }
 )
-_RAW_LOG_KEYS = frozenset(
-    {"scope", "stdout", "stderr", "exitCode", "durationSeconds"}
-)
+_RAW_LOG_KEYS = frozenset({"scope", "stdout", "stderr", "exitCode", "durationSeconds"})
 _COMMAND_KEYS = frozenset({"scope", "argv", "cwd"})
 _RUNNER_KEYS = frozenset({"id", "testPath"})
 _CLASSIFICATION_KEYS = frozenset(
@@ -167,9 +165,7 @@ def _read_object(path: Path) -> dict[str, object]:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise CostRecordError(f"JSON を読めない: {path}") from error
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CostRecordError(f"JSON object でない: {path}")
     return cast(dict[str, object], value)
 
@@ -285,9 +281,7 @@ def _display_inventory(
     if not isinstance(calculations, list) or not calculations:
         raise CostRecordError("合成計算が空")
     first = calculations[0]
-    if not isinstance(first, dict) or not isinstance(
-        first.get("calculationId"), str
-    ):
+    if not isinstance(first, dict) or not isinstance(first.get("calculationId"), str):
         raise CostRecordError("合成計算 ID を読めない")
     source = operators_display.DisplayMutationSource(
         intermediate=intermediate,
@@ -428,8 +422,10 @@ def _commit_sha(root: Path) -> str:
     """既存の版管理境界から現在の完全 commit OID を得る。"""
     result = _run_git(root, "rev-parse", "HEAD")
     sha = result.stdout.strip()
-    if result.returncode != 0 or len(sha) != 40 or any(
-        character not in "0123456789abcdef" for character in sha
+    if (
+        result.returncode != 0
+        or len(sha) != 40
+        or any(character not in "0123456789abcdef" for character in sha)
     ):
         raise CostRecordError("完全 commit OID を取得できない")
     return sha
@@ -479,8 +475,7 @@ def _source_record(root: Path) -> dict[str, object]:
         "modelPath": _MODEL_PATH.as_posix(),
         "manifestPath": _MANIFEST_PATH.as_posix(),
         "calculationIds": sorted(
-            cast(str, calculation["calculationId"])
-            for calculation in calculations
+            cast(str, calculation["calculationId"]) for calculation in calculations
         ),
         "targetClasses": sorted(target_classes),
         "languageArtifactCount": len(language_artifacts),
@@ -538,16 +533,14 @@ def create_measurement(
         ],
         "commitSha": _commit_sha(root),
         "runners": [
-            {"id": runner_id, "testPath": path}
-            for runner_id, path in _RUNNER_TESTS
+            {"id": runner_id, "testPath": path} for runner_id, path in _RUNNER_TESTS
         ],
         "mutantClassifications": list(inventory),
     }
     record: dict[str, object] = {
         "step": 49,
         "schemaVersion": 1,
-        "measuredAt": measured_at
-        or datetime.now(UTC).isoformat(timespec="seconds"),
+        "measuredAt": measured_at or datetime.now(UTC).isoformat(timespec="seconds"),
         "recordSchema": _RECORD_SCHEMA,
         "evidence": evidence,
         "scopes": list(scopes),
@@ -571,9 +564,7 @@ def create_measurement(
 
 def _object(value: object, label: str) -> Mapping[str, object]:
     """文字列キーの object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise CostRecordError(f"{label} が object でない")
     return cast(Mapping[str, object], value)
 
@@ -614,9 +605,7 @@ def _validate_evidence(evidence: Mapping[str, object]) -> None:
     logs = _array(evidence["rawLogs"], "rawLogs")
     commands = _array(evidence["commands"], "commands")
     runners = _array(evidence["runners"], "runners")
-    classifications = _array(
-        evidence["mutantClassifications"], "mutantClassifications"
-    )
+    classifications = _array(evidence["mutantClassifications"], "mutantClassifications")
     if len(logs) != 2 or len(commands) != 2 or not runners:
         raise CostRecordError("実測の生ログ・コマンド・runner が不足している")
     log_scopes: set[str] = set()
@@ -653,8 +642,10 @@ def _validate_evidence(evidence: Mapping[str, object]) -> None:
     if log_scopes != {"differential", "full"} or command_scopes != log_scopes:
         raise CostRecordError("生ログとコマンドの差分・全面 scope が一致しない")
     sha = evidence["commitSha"]
-    if not isinstance(sha, str) or len(sha) != 40 or any(
-        character not in "0123456789abcdef" for character in sha
+    if (
+        not isinstance(sha, str)
+        or len(sha) != 40
+        or any(character not in "0123456789abcdef" for character in sha)
     ):
         raise CostRecordError("commitSha が完全 OID でない")
     runner_ids: list[str] = []
@@ -771,9 +762,7 @@ def validate_measurement(value: object) -> None:
         raise CostRecordError("差分・全面の範囲集合が不正")
     _validate_scope(by_id["differential"], DIFF_BUDGET_SECONDS)
     _validate_scope(by_id["full"], FULL_BUDGET_SECONDS)
-    classifications = _array(
-        evidence["mutantClassifications"], "mutantClassifications"
-    )
+    classifications = _array(evidence["mutantClassifications"], "mutantClassifications")
     expected_mutants = sum(
         cast(int, _object(item, "classification")["mutantCount"])
         for item in classifications
@@ -786,9 +775,7 @@ def validate_measurement(value: object) -> None:
         scope = _object(scope_value, "scope")
         if scope["mutantCount"] != expected_mutants:
             raise CostRecordError("範囲の mutant 数が四分類の合計と一致しない")
-        if scope["suiteRerunSeconds"] != logs[cast(str, scope_id)][
-            "durationSeconds"
-        ]:
+        if scope["suiteRerunSeconds"] != logs[cast(str, scope_id)]["durationSeconds"]:
             raise CostRecordError("範囲の再実行時間が生ログと一致しない")
     _exact_keys(
         _object(measurement["syntheticSource"], "syntheticSource"),

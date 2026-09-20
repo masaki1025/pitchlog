@@ -123,9 +123,7 @@ class DivergenceSpecification:
     def all_generated_paths(self) -> frozenset[str]:
         """生成器 version 変更時に再生成する全パスを返す。"""
         return frozenset(
-            path
-            for binding in self.bindings
-            for path in binding.generated_paths
+            path for binding in self.bindings for path in binding.generated_paths
         )
 
 
@@ -316,9 +314,7 @@ def _affected_bindings(
     return tuple(
         binding
         for binding in specification.bindings
-        if changed.intersection(
-            (*binding.source_paths, *binding.generated_paths)
-        )
+        if changed.intersection((*binding.source_paths, *binding.generated_paths))
     )
 
 

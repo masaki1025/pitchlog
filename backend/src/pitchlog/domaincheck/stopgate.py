@@ -124,8 +124,7 @@ def _parse_trigger(raw: object, index: int) -> TriggerState:
     if not isinstance(evaluation_steps, list) or not evaluation_steps:
         raise StopgateExecutionError(f"{label}.evaluationStepsは空でない array である")
     step_ids = [
-        _expect_int(step_id, f"{label}.evaluationSteps")
-        for step_id in evaluation_steps
+        _expect_int(step_id, f"{label}.evaluationSteps") for step_id in evaluation_steps
     ]
     if len(step_ids) != len(set(step_ids)) or deadline != max(step_ids):
         raise StopgateExecutionError(f"{label}の評価ステップと期限が不正である")

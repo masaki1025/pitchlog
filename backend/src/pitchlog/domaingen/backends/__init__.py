@@ -29,9 +29,7 @@ _EXPECTED_STAGES = {
 
 def _object(value: object, label: str) -> dict[str, object]:
     """文字列キーだけを持つ object を返す。"""
-    if not isinstance(value, dict) or not all(
-        isinstance(key, str) for key in value
-    ):
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise BackendGenerationError(f"{label}が object でない")
     return cast(dict[str, object], value)
 
@@ -98,13 +96,9 @@ def _stage_inputs(
     expected = _EXPECTED_STAGES[target_class]
     if expected is None:
         if len(inputs) != 1:
-            raise BackendGenerationError(
-                f"{target_class} は単一段でなければならない"
-            )
+            raise BackendGenerationError(f"{target_class} は単一段でなければならない")
     elif tuple(observed_names) != expected:
-        raise BackendGenerationError(
-            f"{target_class} の段順が不正: {observed_names!r}"
-        )
+        raise BackendGenerationError(f"{target_class} の段順が不正: {observed_names!r}")
     return tuple(inputs)
 
 

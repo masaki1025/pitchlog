@@ -152,9 +152,7 @@ def _validate_target(
     """比較面と参照実装が対象区分の契約に一致することを検査する。"""
     expected_pair = comparison_pair(target.target_class)
     if (target.left_implementation, target.right_implementation) != expected_pair:
-        raise EquivalenceRunError(
-            f"{target.target_class} の比較実装種別が不正"
-        )
+        raise EquivalenceRunError(f"{target.target_class} の比較実装種別が不正")
     for label, value in (
         ("calculation", target.calculation),
         ("vector", target.vector),
