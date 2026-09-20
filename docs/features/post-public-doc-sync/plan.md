@@ -92,7 +92,9 @@ repo: visibility public / secret_scanning enabled / push_protection enabled
 | **[F-2](https://app.notion.com/p/3e193b75e6878100980dcacbd9c80456)** | **ブランチ保護の実地検証** — docs-only PR で下流 skipped がマージ可能 / 変更検知失敗時にマージがブロック の**両方を実測** | `github-setup.md` 3 章の**運用開始条件** | ステップ 4 |
 | **[F-3](https://app.notion.com/p/3e193b75e6878145b8b7cb14488a96d7)** | **ruleset へ `tenant-boundary-bypass` を追加**(**PR #72 マージ後**) | public 化の残作業(未達ではないが順序制約あり) | — |
 
-**起票済み(2026-09-20)。担当はいずれも PO、完了条件は各カードの DoD に記載。PR 本文へも転記する。**
+**起票済み(2026-09-20): F-1 = `TSK-432` / F-2 = `TSK-433` / F-3 = `TSK-434`。担当はいずれも PO、完了条件は各カードの DoD に記載。**
+
+**正本へ書くときは ID のみ**(設計書 7.4「正本は Notion を参照しない」)。**URL を書いてよいのは本書・worklog・PR 本文**(いずれも正本ではない)。
 
 **NFR-019 (a)〜(d) の追跡先は後続タスクではない** — 実装期の既存タスク群を指す。**ステップ 6 でその実在カードを特定して置換する**(新規起票ではない)。
 
@@ -221,7 +223,7 @@ CLAUDE.md の役割分担は「**Git 操作・PR・ドキュメントは Claude 
 | 1 | **gitleaks 検出 3 件の誤検知判定**。redact 済みの全履歴スキャンを実行し、各 fingerprint の **path / rule / 誤検知理由**を**秘匿値なしで** `docs/worklog/2026-09-19-post-public-doc-sync.md` へ記録する。**真のシークレットなら ignore せず停止**し人間へ上げる | 3 件それぞれに path・rule・理由が**worklog に**記録されている / 秘匿値が含まれない(`--redact=100` 使用)/ **人間が 3 件とも誤検知と判定した記録がある** |
 | 2 | **`.gitleaksignore` の新設**(理由コメント付き)と **`github-setup.md` 4 章の追随** | **本 feature の ref を指定して `workflow_dispatch` を起動**し、`secrets` が合格(exit 0・`ERR` と partial scan なし・走査対象コミットが 0 でない)/ **run ID 取得後に `event=workflow_dispatch`・`headBranch=本 feature の ref`・`headSha=記録した SHA` の 3 つを照合し、不一致または取消なら不合格とする**(`workflow_dispatch --ref` は**指定ブランチの先端**で走るため、ref と予定 SHA の記録だけでは対象 SHA で走った証明にならない)/ ref・SHA・run ID を worklog へ記録 / ignore した fingerprint がステップ 1 の記録と 1 対 1 で対応 |
 | 3 | **`github-setup.md` 1 章**: 公開の根拠を新設(停止分岐つき)・プラン制約の解消を反映・**public 行を現況へ**・選択肢表へ**個別の公開事実を追記**(一般評価は変えない) | 1 章に「Rulesets とも利用不可」「public 化 △ 通常不適」が**現在値として**残っていない / 選択肢表の一般評価が変更されていない(差分で確認)/ 公開の根拠に個人名が含まれない / **条件・期限の確認結果が記録されている**(不在の記録、または停止して PO へ上げた記録) |
-| 4 | **`github-setup.md` 2〜3 章**: NFR-019 の書き分け・**手続 5 の終了**(手続 3・4 は継続)・**2 章の見出しと導入文の是正**・**3 章の二段階記述**(設定は適用済み / 実地検証は未完)・**3 章 JSON を実設定の全現値へ**/ 変更履歴表へ追記 | **API 実測との照合**(4 節の投影表に従う): `enforcement` / 対象 refs / `pull_request` rule の全現値(**`require_extra_approval_for_unattributed_changes` を含む**)/ `strict` / 必須 9 context / `bypass_actors` が**JSON と一致** / 手続 3・4 の継続が残っている / 3 章に実地検証が未完である旨と**後続タスクの URL** がある / 2 章の見出し・導入文が現状と矛盾しない |
+| 4 | **`github-setup.md` 2〜3 章**: NFR-019 の書き分け・**手続 5 の終了**(手続 3・4 は継続)・**2 章の見出しと導入文の是正**・**3 章の二段階記述**(設定は適用済み / 実地検証は未完)・**3 章 JSON を実設定の全現値へ**/ 変更履歴表へ追記 | **API 実測との照合**(4 節の投影表に従う): `enforcement` / 対象 refs / `pull_request` rule の全現値(**`require_extra_approval_for_unattributed_changes` を含む**)/ `strict` / 必須 9 context / `bypass_actors` が**JSON と一致** / 手続 3・4 の継続が残っている / 3 章に実地検証が未完である旨と**後続タスクの ID**(Notion `TSK-433`)がある。**URL は書かない** — 設計書 7.4「正本は Notion を参照しない」 / 2 章の見出し・導入文が現状と矛盾しない |
 | 5 | **設計書の縮退記述の現況化**(**9 節**)。**6.4 リリースフローの記述は過去事実として保持** | **4 節の検証仕様の表**に従い、**9 節の本文それぞれ**について禁止文言が 0 件・期待の記述が存在する / **変更履歴表と除外対象の歴史記述は検査せず、保持されている** |
 | 6 | **(a)〜(d) の追跡先を実在カードへ解決する**(**解除はしない** — ステップ 8 へ) | 各 (a)〜(d) と後続カードの **URL・担当・DoD の対応表**が worklog に永続記録されている / **TSK-202 を何で置換したか**(または特定不能と判定した根拠)が記録されている |
 | 7 | **`onboarding.md` / 台帳 H-8 / `release/SKILL.md` の現況化** | **ファイルごとに個別検査**: `onboarding.md` と台帳は**変更履歴・状態欄**が更新されている(`release/SKILL.md` に**変更履歴表・状態欄は存在しない** — 実測)/ `release/SKILL.md` は**本文の旧記述が消滅**している / **H-8 は状態ラベルだけでなく見出し・事象本文も「部分対応/実地検証待ち」と整合** / **`release/SKILL.md` 手順 0 の無条件中断が保持され、`P4-後` 以外でリリース経路が開かない**(設計書 10.1 の安全不変条件)/ **実 PR の `core-guard` が green で PR 本文に実施記録がある** |
