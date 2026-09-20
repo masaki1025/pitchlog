@@ -174,3 +174,69 @@ branch: feature/frozen-baseline-ledger
 - **2 周目の結果待ち。**収束したら人間の承認を求める(`承認: 済` は明示承認まで書かない)
 - **`docs/features/frozen-baseline-clause/plan.md:131`** に `4011dd3..fix/oracle-input-baseline` という**誤った比較起点**が develop へマージ済みで残っている。`4011dd3` は分岐点ではなくブランチ自身の途中コミット(ステップ 3/12)で、真の merge-base は `0bc05b8`。**この切り取り方だと 7.7 条文本体 +125 行が視界から落ちる。**TSK-420 の担当タブが棚卸しタスク(正本への行番号参照の棚卸し)で拾う方針で合意済み
 - **台帳へ出す候補の型**(TSK-420 の担当タブと合意): 「**記録の欠落を推定で埋めた**」型。「測った 1 系列を全体へ広げた」型とは**対策が違う** — 前者は測る範囲を広げれば直るが、後者は記録が無いので広げようがない。必要なのは「記録が無いことを『不明』と書く」規律。**master タブ(台帳のタスクを持つ)へ渡された**。本タスクのクローズ処理でこちらからも実測つきで記録する
+
+---
+
+## 実装(2026-09-21〜)
+
+### ステップ 1/8 — draft PR の作成と退行の物差し
+
+**draft PR**: [#73](https://github.com/masaki1025/pitchlog/pull/73)。`acceptance_id` = `masaki1025/pitchlog#73` が確定した。計画書の `acceptance_id` は PR 番号から機械導出するため、**履歴を書く前に番号が要る**(5 周目 `P0-1`)。
+
+**役割分担**: draft PR の作成・worklog 記録・コミットは Claude。`tests/frozen_negatives/` と `tests/test_frozen_negative_inventory.py` と `pyproject.toml` の marker 登録は委任(CLAUDE.md の役割分担)。
+
+#### 走査ベースライン(実測・走査条件つき)
+
+```
+grep -rnoE '\b[0-9a-f]{40}\b' scripts/ tests/ backend/tests/ --include=*.py
+grep -rnoE '\b[0-9a-f]{64}\b' scripts/ tests/ backend/tests/ --include=*.py
+```
+
+| | 出現 | 一意な `(パス, 値)` 組 |
+| --- | --- | --- |
+| 40 桁 | **14** | **10**(恒久 6 + 凍結基準 4) |
+| 64 桁 | **1** | **1**(凍結基準) |
+
+**出現 14 のうち 5 出現が同一組**(`tests/test_verify_nfr021_evidence.py` の同じダミー値)。**出現回数と識別子数は別**。
+
+凍結基準 5 組の内訳(実測):
+
+| パス | 値 |
+| --- | --- |
+| `scripts/check_authz_catalog.py` | `24ef4fcc…`(**本タスクで移設**) |
+| `backend/tests/db/authz/mutation_composition.py` | `099a8fa2…` |
+| `tests/test_check_authz_catalog.py` | `56c281c4…` |
+| `tests/test_core_guard.py` | `56c281c4…` |
+| `scripts/check_docs_status.py` | `523ecfd1…`(64 桁) |
+
+#### 変異感度の実測(自分で回した)
+
+委任先の自己申告を証拠にせず、**逆向き変異を自分で入れて確かめた**。
+
+| 変異 | 対応する負例 | 結果 |
+| --- | --- | --- |
+| **母集団の導出を `session.items` 全件 → marker で絞る形へ差し替え** | `test_added_unmarked_test_is_collected_and_fails_both_checks` | **落ちた**(1 failed / 4 passed)。**他の負例は落ちていない**ので、この負例が「母集団が marker 依存でない」性質を単独で守っていることが分かる |
+
+**復元のバイト一致を検証済み**(`cmp -s` 一致)。復元後 `5 passed`。
+
+#### 実装の確認(自分で読んだ)
+
+- 母集団は **`pytest.main([..., "--collect-only"], plugins=[collector])`** と **`pytest_collection_finish` フックの `session.items`** から導出している。**AST 走査ではない**(collection と食い違う経路を作らせないための指示どおり)
+- marker は **`item.get_closest_marker()` で属性として検査**しており、**絞り込みには使っていない**
+- 期待集合は `frozenset()`(空)で、**空であること自体を明示的に assert** している
+
+#### 合格条件の判定
+
+| 条件 | 結果 |
+| --- | --- |
+| draft PR が存在し PR 番号が確定 | ✅ #73 |
+| 導出集合と期待集合が exact-set 一致(両方とも空) | ✅ |
+| **marker 無しの負例を足しても検出される** | ✅(合成ツリーで確認・上記の逆向き変異でも裏取り) |
+| marker を消した複製で red かつ足した複製でも red | ✅ |
+| 識別単位が node ID の完全一致 | ✅(接頭辞だけ一致する別 node ID で取り違えないことを負例で固定) |
+| 走査を出現と一意な組の両方でコマンド併記して記録 | ✅(上記) |
+| `uv run pytest tests/` green | ✅ **1399 passed**(21 分) |
+| `ruff check .` / `ty check` green | ✅ |
+| 差分が許可 3 パスに収まる | ✅(`pyproject.toml` は `markers` の追加のみ・`testpaths` は保持) |
+| 委任先がコミットしていない | ✅ |
+| ステップ 2 以降へ進んでいない | ✅(`contracts/` `scripts/` `backend/` `.github/` `.claude/` `docs/` に差分なし) |
