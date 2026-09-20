@@ -207,7 +207,15 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*"
       ]
     },
     {
@@ -386,7 +394,15 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*"
       ]
     }
   ]
