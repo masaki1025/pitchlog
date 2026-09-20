@@ -76,6 +76,9 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ALIAS_EXECUTE",
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
+        "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
+        "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
+        "C5_CONTEXT_UNKNOWN_FACTORY",
         "C5_DYNAMIC_EVAL_EXECUTE",
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
@@ -749,6 +752,148 @@ leaked = getattr(context_module, "_TENANT_CONTEXT_SECRET")
     )
 
     assert {violation.code for violation in violations} == {"TB007"}
+
+
+def test_known_non_database_receivers_and_unrelated_replace_pass() -> None:
+    """由来が既知の非 DB 型にある同名メソッドと DTO 複製は拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+import dataclasses
+from pitchlog.clients import ImportedClient
+
+
+class NonDatabaseClient:
+    def execute(self):
+        return None
+
+    def connect(self):
+        return None
+
+    def delete(self):
+        return None
+
+    def copy(self):
+        return None
+
+    def merge(self):
+        return None
+
+
+@dataclasses.dataclass(frozen=True)
+class FrozenDto:
+    value: int
+
+
+def use_client(client: NonDatabaseClient, dto: FrozenDto):
+    client.execute()
+    client.connect()
+    client.delete()
+    client.copy()
+    client.merge()
+    return dataclasses.replace(dto, value=2)
+
+
+def use_imported_client(client: ImportedClient):
+    client.execute()
+    client.connect()
+
+
+def make_client() -> NonDatabaseClient:
+    return NonDatabaseClient()
+
+
+client = NonDatabaseClient()
+factory_client = make_client()
+dto = FrozenDto(value=1)
+use_client(client, dto)
+factory_client.execute()
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/non_database_client.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_database_receiver_from_local_factory_return_is_red() -> None:
+    """ローカル factory の戻り型が DB receiver なら迂回を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from sqlalchemy.orm import Session
+
+
+def make_session() -> Session:
+    return Session()
+
+
+handle = make_session()
+handle.execute(statement)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/local_session_factory.py",
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+def test_imported_object_without_non_database_type_proof_is_red() -> None:
+    """import だけでは非 DB receiver と証明せず、危険メソッド名を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from application.dependencies import client
+
+client.execute(statement)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/imported_unknown_client.py",
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.repositories.context import _tenant_context_proof as derive
+
+proof_factory = derive
+proof_factory(tenant_id)
+""",
+        """\
+import pitchlog.repositories.context as context_module
+
+module_alias = context_module
+derive = module_alias._tenant_context_proof
+proof_factory = derive
+proof_factory(tenant_id)
+""",
+        """\
+def forge(factory, tenant_id):
+    return factory(tenant_id)
+""",
+    ),
+)
+def test_proof_factory_aliases_and_unresolved_callable_are_red(source: str) -> None:
+    """証跡導出の多段別名と未解決 callable を fail-closed で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/context_proof_bypass.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
 
 
 def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 4,
+  "fixture_set_revision": 5,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:4"
+        "fixture_set_revision:5"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -40,7 +40,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "fixture_set_revision:4"
+          "fixture_set_revision:5"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -53,7 +53,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "f569d5fc1053fb2ae87f1d616f7502331dc7b35d6b6494d81536be5e095520a4"
+            "frozen_projection_sha256": "6fdc311f0a0a429eef080017808edce854dbee70a06621a89712573e7d8194c1"
           }
         },
         "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
@@ -470,6 +470,27 @@
       "condition": 5,
       "mutation": "Session.query で ORM を直呼びする",
       "expected_error": "TB005"
+    },
+    {
+      "id": "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
+      "path": "pitchlog/services/c5_context_proof_direct_reference.py",
+      "condition": 5,
+      "mutation": "許可シンボル外から発行証跡の導出関数を直接参照する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
+      "path": "pitchlog/services/c5_context_proof_indirect_reference.py",
+      "condition": 5,
+      "mutation": "モジュール別名と変数への多段束縛を介して発行証跡の導出関数を参照する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_UNKNOWN_FACTORY",
+      "path": "pitchlog/services/c5_context_unknown_factory.py",
+      "condition": 5,
+      "mutation": "完全修飾名へ解決できない callable を TenantContext の生成器として呼ぶ",
+      "expected_error": "TB007"
     },
     {
       "id": "C5_TENANT_CONTEXT_OBJECT_NEW",

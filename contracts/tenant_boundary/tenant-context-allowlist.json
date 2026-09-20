@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 3,
+  "contract_revision": 4,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:3"
+        "contract_revision:4"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -40,7 +40,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "contract_revision:3"
+          "contract_revision:4"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -53,7 +53,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "359f397461f16ff9ebf9836d88af1968ed2196c161831aa94fbb514602690b92"
+            "frozen_projection_sha256": "bb203eefb31dddc0d8f618480ee9e1458c4f73f133dfc4919962829d012bdbbf"
           }
         },
         "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
@@ -65,7 +65,7 @@
   },
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "f7846cf203979efb75c7687d8b9ffe493294c753c7e6b7f62fd2de7358c901eb",
+  "source_digest": "109aec96711feb414bf851525736ba7e44d4275222c6364aab08ff1e754bf6ea",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
   "forbidden_construction_symbols": [
     "builtins.object.__new__",
@@ -76,6 +76,11 @@
   "integrity_secret_symbol": "pitchlog.repositories.context._TENANT_CONTEXT_SECRET",
   "integrity_secret_allowed_symbols": [
     "pitchlog.repositories.context._tenant_context_proof"
+  ],
+  "integrity_proof_factory_symbol": "pitchlog.repositories.context._tenant_context_proof",
+  "integrity_proof_factory_allowed_symbols": [
+    "pitchlog.repositories.context.TenantContext.__init__",
+    "pitchlog.repositories.context.TenantContext._has_valid_integrity_proof"
   ],
   "allowed_test_modules": [
     "test_authz_tenant_context"

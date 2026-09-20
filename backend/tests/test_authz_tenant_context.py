@@ -60,6 +60,12 @@ def _generated_snapshot() -> dict[str, object]:
         "integrity_secret_allowed_symbols": list(
             tenant_context_contract.INTEGRITY_SECRET_ALLOWED_SYMBOLS
         ),
+        "integrity_proof_factory_symbol": (
+            tenant_context_contract.INTEGRITY_PROOF_FACTORY_SYMBOL
+        ),
+        "integrity_proof_factory_allowed_symbols": list(
+            tenant_context_contract.INTEGRITY_PROOF_FACTORY_ALLOWED_SYMBOLS
+        ),
         "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
@@ -87,10 +93,12 @@ def test_tenant_context_is_an_immutable_value_object() -> None:
 
 
 def test_tenant_context_documents_unverified_authenticity_boundary() -> None:
-    """完全性と真正性の境界および責任所有者が説明に残ることを確認する。"""
+    """証跡の限界と真正性の責任所有者が説明に残ることを確認する。"""
     documentation = TenantContext.__doc__ or ""
 
-    assert "完全性" in documentation
+    assert "tenant_id だけを書き換え" in documentation
+    assert "同一プロセス内の攻撃者に対する信頼境界ではない" in documentation
+    assert "静的検査が" in documentation
     assert "真正性を検査しない" in documentation
     assert "TSK-217 / U-A1" in documentation
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import copy
 import hashlib
 import json
@@ -113,6 +114,8 @@ class TenantContextConstructionContract:
     forbidden_construction_symbols: frozenset[str]
     integrity_secret_symbol: str
     integrity_secret_allowed_symbols: frozenset[str]
+    integrity_proof_factory_symbol: str
+    integrity_proof_factory_allowed_symbols: frozenset[str]
     allowed_test_modules: frozenset[str]
     allowed_product_modules: frozenset[str]
 
@@ -1081,6 +1084,8 @@ def _load_tenant_context_allowlist(
             "forbidden_construction_symbols",
             "integrity_secret_symbol",
             "integrity_secret_allowed_symbols",
+            "integrity_proof_factory_symbol",
+            "integrity_proof_factory_allowed_symbols",
             "allowed_test_modules",
             "allowed_product_modules",
             "baseline_control",
@@ -1153,6 +1158,20 @@ def _load_tenant_context_allowlist(
         integrity_secret_allowed_symbols
     ):
         raise ContractError("発行証跡の秘密と参照許可シンボルは閉集合が必要")
+    integrity_proof_factory_symbol = _string(
+        value["integrity_proof_factory_symbol"],
+        "tenant_context.integrity_proof_factory_symbol",
+    )
+    integrity_proof_factory_allowed_symbols = frozenset(
+        _string_array(
+            value["integrity_proof_factory_allowed_symbols"],
+            "tenant_context.integrity_proof_factory_allowed_symbols",
+        )
+    )
+    if not integrity_proof_factory_symbol.startswith("pitchlog.") or not (
+        integrity_proof_factory_allowed_symbols
+    ):
+        raise ContractError("発行証跡の導出関数と参照許可シンボルは閉集合が必要")
     allowed_test_modules = frozenset(
         _string_array(
             value["allowed_test_modules"], "tenant_context.allowed_test_modules"
@@ -1183,6 +1202,10 @@ def _load_tenant_context_allowlist(
         forbidden_construction_symbols=forbidden_construction_symbols,
         integrity_secret_symbol=integrity_secret_symbol,
         integrity_secret_allowed_symbols=integrity_secret_allowed_symbols,
+        integrity_proof_factory_symbol=integrity_proof_factory_symbol,
+        integrity_proof_factory_allowed_symbols=(
+            integrity_proof_factory_allowed_symbols
+        ),
         allowed_test_modules=allowed_test_modules,
         allowed_product_modules=allowed_product_modules,
     )
@@ -1440,18 +1463,38 @@ def _constant_string(node: ast.AST) -> str | None:
 
 
 class _AliasCollector(ast.NodeVisitor):
-    """import と単純代入による別名を収集する。"""
+    """import・型注釈・単純代入からシンボルと receiver の由来を収集する。"""
 
     def __init__(
         self,
         member_owners: Set[str],
         call_returns: Mapping[str, str],
         symbol_aliases: Mapping[str, str],
+        conservative_member_names: frozenset[str],
+        module: str,
     ) -> None:
         self.aliases: dict[str, str] = {}
+        self.known_symbols: dict[str, str] = {
+            name: f"builtins.{name}"
+            for name, value in vars(builtins).items()
+            if callable(value)
+        }
+        self.known_receiver_kinds: dict[str, str] = {
+            name: "symbol" for name in self.known_symbols
+        }
+        self.known_class_symbols: set[str] = {
+            f"builtins.{name}"
+            for name, value in vars(builtins).items()
+            if isinstance(value, type)
+        }
+        self.function_returns: dict[str, str] = {}
         self.member_owners = member_owners
         self.call_returns = call_returns
         self.symbol_aliases = symbol_aliases
+        self.conservative_member_names = conservative_member_names
+        self.module = module
+        self.class_stack: list[str] = []
+        self.unresolved_database_callables: dict[str, str] = {}
 
     def canonical(self, symbol: str) -> str:
         """公開 re-export を inventory の標準 receiver へ寄せる。"""
@@ -1459,6 +1502,8 @@ class _AliasCollector(ast.NodeVisitor):
 
     def resolve(self, node: ast.AST) -> str | None:
         """式を既知の完全修飾名へ解決する。"""
+        if isinstance(node, ast.Subscript):
+            return self.resolve(node.value)
         if isinstance(node, ast.Name):
             return self.canonical(self.aliases.get(node.id, node.id))
         if isinstance(node, ast.Attribute):
@@ -1487,27 +1532,138 @@ class _AliasCollector(ast.NodeVisitor):
             return None
         return self.canonical(f"{receiver}.{attribute}")
 
+    def resolve_known(self, node: ast.AST) -> str | None:
+        """静的な由来が確認できる式だけを完全修飾名へ解決する。"""
+        if isinstance(node, ast.Subscript):
+            return self.resolve_known(node.value)
+        if isinstance(node, ast.Name):
+            return self.known_symbols.get(node.id)
+        if isinstance(node, ast.Attribute):
+            parent = self.resolve_known(node.value)
+            if parent is None:
+                return None
+            qualified = f"{parent}.{node.attr}"
+            return self.canonical(self.aliases.get(qualified, qualified))
+        if isinstance(node, ast.Call):
+            called = self.resolve_known(node.func)
+            if called is None:
+                return None
+            if called in self.call_returns:
+                return self.call_returns[called]
+            if called in self.known_class_symbols:
+                return called
+            return self.function_returns.get(called)
+        if isinstance(node, ast.Dict):
+            return "builtins.dict"
+        if isinstance(node, ast.List):
+            return "builtins.list"
+        if isinstance(node, ast.Set):
+            return "builtins.set"
+        if isinstance(node, ast.Tuple):
+            return "builtins.tuple"
+        if isinstance(node, ast.Constant):
+            return f"builtins.{type(node.value).__name__}"
+        return None
+
+    def receiver_provenance(
+        self,
+        node: ast.AST,
+        *,
+        tenant_context_symbol: str,
+    ) -> str:
+        """receiver を DB・TenantContext・非 DB・不明へ分類する。"""
+        resolved = self.resolve_known(node)
+        if resolved is None:
+            return "unknown"
+        canonical = self.canonical(resolved)
+        if canonical == tenant_context_symbol:
+            return "tenant_context"
+        if canonical in self.member_owners:
+            return "db"
+        if isinstance(node, ast.Name):
+            kind = self.known_receiver_kinds.get(node.id, "unknown")
+            return kind if kind in {"db", "non_db"} else "unknown"
+        if isinstance(node, ast.Call) or isinstance(
+            node,
+            (ast.Constant, ast.Dict, ast.List, ast.Set, ast.Tuple),
+        ):
+            return "non_db"
+        return "unknown"
+
+    def _record_known(
+        self,
+        local_name: str,
+        symbol: str,
+        *,
+        receiver_kind: str = "symbol",
+    ) -> None:
+        """由来を確認できたローカル名だけを記録する。"""
+        canonical = self.canonical(symbol)
+        self.aliases[local_name] = canonical
+        self.known_symbols[local_name] = canonical
+        self.known_receiver_kinds[local_name] = receiver_kind
+
+    def _receiver_kind_for_type(self, symbol: str) -> str:
+        """明示された型を DB receiver または非 DB 型へ分類する。"""
+        return "db" if self.canonical(symbol) in self.member_owners else "non_db"
+
+    def _known_value_receiver_kind(self, node: ast.AST, symbol: str) -> str:
+        """代入元の由来種別を、単なる import 済みシンボルと区別して返す。"""
+        if isinstance(node, ast.Name):
+            return self.known_receiver_kinds.get(node.id, "symbol")
+        if isinstance(node, ast.Call) or isinstance(
+            node,
+            (ast.Constant, ast.Dict, ast.List, ast.Set, ast.Tuple),
+        ):
+            return self._receiver_kind_for_type(symbol)
+        return "symbol"
+
+    def _resolve_known_value(self, node: ast.AST) -> str | None:
+        """代入値について、確認できた由来だけを返す。"""
+        return self.resolve_known(node)
+
     def _record_arguments(self, arguments: ast.arguments) -> None:
-        """引数の型注釈から任意名の DB receiver を解決する。"""
+        """引数の型注釈から任意名 receiver の由来を解決する。"""
         positional = [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
         for argument in positional:
             if argument.annotation is None:
                 continue
             resolved = self.resolve(argument.annotation)
-            if resolved is not None and resolved in self.member_owners:
-                self.aliases[argument.arg] = resolved
+            if resolved is not None and resolved not in {
+                "Any",
+                "object",
+                "builtins.object",
+                "typing.Any",
+                "typing_extensions.Any",
+            }:
+                self._record_known(
+                    argument.arg,
+                    resolved,
+                    receiver_kind=self._receiver_kind_for_type(resolved),
+                )
         for argument in (arguments.vararg, arguments.kwarg):
             if argument is None or argument.annotation is None:
                 continue
             resolved = self.resolve(argument.annotation)
-            if resolved is not None and resolved in self.member_owners:
-                self.aliases[argument.arg] = resolved
+            if resolved is not None and resolved not in {
+                "Any",
+                "object",
+                "builtins.object",
+                "typing.Any",
+                "typing_extensions.Any",
+            }:
+                self._record_known(
+                    argument.arg,
+                    resolved,
+                    receiver_kind=self._receiver_kind_for_type(resolved),
+                )
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
         """import 文のローカル名を記録する。"""
         for alias in node.names:
             local_name = alias.asname or alias.name.split(".")[0]
-            self.aliases[local_name] = alias.name
+            imported = alias.name if alias.asname else alias.name.split(".")[0]
+            self._record_known(local_name, imported)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
         """from import 文のローカル名を記録する。"""
@@ -1516,17 +1672,42 @@ class _AliasCollector(ast.NodeVisitor):
             if alias.name == "*":
                 continue
             local_name = alias.asname or alias.name
-            self.aliases[local_name] = f"{module}.{alias.name}".strip(".")
+            self._record_known(
+                local_name,
+                f"{module}.{alias.name}".strip("."),
+            )
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
         """名前別名と factory 戻り値の receiver 型を記録する。"""
         self.generic_visit(node.value)
         resolved = self.resolve_value(node.value)
-        if resolved is None:
+        known = self._resolve_known_value(node.value)
+        if resolved is None and known is None:
             return
+        resolved = known if resolved is None else resolved
+        assert resolved is not None
         for target in node.targets:
             if isinstance(target, ast.Name):
                 self.aliases[target.id] = resolved
+                if known is not None:
+                    self.known_symbols[target.id] = known
+                    self.known_receiver_kinds[target.id] = (
+                        self._known_value_receiver_kind(node.value, known)
+                    )
+                elif (
+                    isinstance(node.value, ast.Attribute)
+                    and node.value.attr in self.conservative_member_names
+                ):
+                    self.unresolved_database_callables[target.id] = (
+                        node.value.attr
+                    )
+                elif (
+                    isinstance(node.value, ast.Name)
+                    and node.value.id in self.unresolved_database_callables
+                ):
+                    self.unresolved_database_callables[target.id] = (
+                        self.unresolved_database_callables[node.value.id]
+                    )
             elif isinstance(target, ast.Attribute):
                 target_name = self.resolve(target)
                 if target_name is not None:
@@ -1534,28 +1715,113 @@ class _AliasCollector(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
         """注釈付きの単純な名前別名代入を記録する。"""
-        if node.value is None and isinstance(node.target, ast.Name):
-            resolved_annotation = self.resolve(node.annotation)
-            if (
-                resolved_annotation is not None
-                and resolved_annotation in self.member_owners
-            ):
-                self.aliases[node.target.id] = resolved_annotation
-            return
+        resolved_annotation = self.resolve(node.annotation)
+        informative_annotation = resolved_annotation not in {
+            None,
+            "Any",
+            "object",
+            "builtins.object",
+            "typing.Any",
+            "typing_extensions.Any",
+        }
+        if isinstance(node.target, ast.Name) and informative_annotation:
+            assert resolved_annotation is not None
+            self._record_known(
+                node.target.id,
+                resolved_annotation,
+                receiver_kind=self._receiver_kind_for_type(resolved_annotation),
+            )
         if node.value is None:
             return
         self.generic_visit(node.value)
+        if isinstance(node.target, ast.Name) and informative_annotation:
+            return
         resolved = self.resolve_value(node.value)
+        known = self._resolve_known_value(node.value)
+        resolved = known if resolved is None else resolved
         if resolved is not None and isinstance(node.target, ast.Name):
             self.aliases[node.target.id] = resolved
+            if known is not None:
+                self.known_symbols[node.target.id] = known
+                self.known_receiver_kinds[node.target.id] = (
+                    self._known_value_receiver_kind(node.value, known)
+                )
+
+    def _record_function_return(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        symbol: str,
+    ) -> None:
+        """ローカル factory の明示した戻り型を記録する。"""
+        if node.returns is None:
+            return
+        resolved = self.resolve(node.returns)
+        if resolved is not None and resolved not in {
+            "Any",
+            "object",
+            "builtins.object",
+            "typing.Any",
+            "typing_extensions.Any",
+        }:
+            self.function_returns[symbol] = resolved
+
+    def _record_with_items(self, items: list[ast.withitem]) -> None:
+        """context manager の既知 factory 戻り値を ``as`` 変数へ伝播する。"""
+        for item in items:
+            if not isinstance(item.optional_vars, ast.Name):
+                continue
+            known = self._resolve_known_value(item.context_expr)
+            if known is not None:
+                self._record_known(
+                    item.optional_vars.id,
+                    known,
+                    receiver_kind=self._receiver_kind_for_type(known),
+                )
+
+    def visit_With(self, node: ast.With) -> None:  # noqa: N802
+        """同期 context manager の ``as`` 変数を記録する。"""
+        self._record_with_items(node.items)
+        self.generic_visit(node)
+
+    def visit_AsyncWith(self, node: ast.AsyncWith) -> None:  # noqa: N802
+        """非同期 context manager の ``as`` 変数を記録する。"""
+        self._record_with_items(node.items)
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        """ローカルクラスとメソッドの ``self`` / ``cls`` の由来を記録する。"""
+        symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
+        self._record_known(node.name, symbol)
+        self.known_class_symbols.add(symbol)
+        self.class_stack.append(node.name)
+        self.generic_visit(node)
+        self.class_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         """同期関数の引数注釈と本体の別名を収集する。"""
+        symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
+        self._record_known(node.name, symbol)
+        self._record_function_return(node, symbol)
+        if self.class_stack and node.args.args:
+            self._record_known(
+                node.args.args[0].arg,
+                ".".join([self.module, *self.class_stack]).strip("."),
+                receiver_kind="non_db",
+            )
         self._record_arguments(node.args)
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
         """非同期関数の引数注釈と本体の別名を収集する。"""
+        symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
+        self._record_known(node.name, symbol)
+        self._record_function_return(node, symbol)
+        if self.class_stack and node.args.args:
+            self._record_known(
+                node.args.args[0].arg,
+                ".".join([self.module, *self.class_stack]).strip("."),
+                receiver_kind="non_db",
+            )
         self._record_arguments(node.args)
         self.generic_visit(node)
 
@@ -1595,6 +1861,8 @@ class _SourceScanner(ast.NodeVisitor):
             member_owners,
             call_returns,
             contract.symbol_aliases,
+            contract.conservative_member_names,
+            module,
         )
         collector.visit(tree)
         self.aliases = collector
@@ -1657,7 +1925,11 @@ class _SourceScanner(ast.NodeVisitor):
     def _pool_connection_invalidation_allowed(self, text: str | None) -> bool:
         """真正性違反接続の破棄をキャッシュ無効化語彙から区別する。"""
         return bool(
-            text == "connection_record.invalidate"
+            text
+            in {
+                "connection_record.invalidate",
+                "sqlalchemy.pool.ConnectionPoolEntry.invalidate",
+            }
             and self.function_stack
             and self.function_stack[-1][0]
             == "pitchlog.db.engine._verify_application_role_on_checkout"
@@ -1767,9 +2039,24 @@ class _SourceScanner(ast.NodeVisitor):
         candidates = () if api is None else (api,)
         if (
             not candidates
+            and isinstance(node.func, ast.Name)
+            and node.func.id in self.aliases.unresolved_database_callables
+        ):
+            method = self.aliases.unresolved_database_callables[node.func.id]
+            candidates = self.member_apis_by_method.get(method, ())
+        if (
+            not candidates
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in self.contract.conservative_member_names
         ):
+            provenance = self.aliases.receiver_provenance(
+                node.func.value,
+                tenant_context_symbol=(
+                    self.contract.tenant_context.constructor_symbol
+                ),
+            )
+            if provenance == "non_db":
+                return
             candidates = self.member_apis_by_method.get(node.func.attr, ())
         if not candidates:
             return
@@ -1884,6 +2171,18 @@ class _SourceScanner(ast.NodeVisitor):
             )
             return
         if canonical_resolved == "dataclasses.replace" and canonical_resolved in forbidden:
+            target_provenance = (
+                self.aliases.receiver_provenance(
+                    node.args[0],
+                    tenant_context_symbol=(
+                        self.contract.tenant_context.constructor_symbol
+                    ),
+                )
+                if node.args
+                else "unknown"
+            )
+            if target_provenance == "non_db":
+                return
             self._add(
                 node,
                 condition=5,
@@ -1906,7 +2205,34 @@ class _SourceScanner(ast.NodeVisitor):
                     message="type(context) による TenantContext 複製迂回は禁止",
                 )
                 return
-        if resolved != self.contract.tenant_context.constructor_symbol:
+        known_callable = self.aliases.resolve_known(node.func)
+        if known_callable is None:
+            if (
+                isinstance(node.func, ast.Attribute)
+                and (
+                    node.func.attr in self.contract.conservative_member_names
+                    or self.aliases.receiver_provenance(
+                        node.func.value,
+                        tenant_context_symbol=(
+                            self.contract.tenant_context.constructor_symbol
+                        ),
+                    )
+                    == "unknown"
+                )
+            ):
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=resolved or "<unresolved-callable>",
+                message=(
+                    "由来を完全修飾名へ解決できない callable は "
+                    "TenantContext の生成経路として拒否"
+                ),
+            )
+            return
+        if known_callable != self.contract.tenant_context.constructor_symbol:
             return
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules
@@ -1918,26 +2244,39 @@ class _SourceScanner(ast.NodeVisitor):
             node,
             condition=5,
             code="TB007",
-            symbol=resolved,
+            symbol=known_callable,
             message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
         )
 
-    def _check_integrity_secret_reference(self, text: str, node: ast.AST) -> None:
-        """発行証跡のプロセス秘密を許可シンボル外へ公開しない。"""
-        secret = self.contract.tenant_context.integrity_secret_symbol
-        if text not in {secret, secret.rsplit(".", 1)[1]} or not self._is_changed(node):
+    def _check_integrity_reference(self, text: str, node: ast.AST) -> None:
+        """発行証跡の秘密・導出関数を許可シンボル外へ公開しない。"""
+        if not self._is_changed(node):
             return
-        if self._current_symbol() in (
-            self.contract.tenant_context.integrity_secret_allowed_symbols
-        ):
-            return
-        self._add(
-            node,
-            condition=5,
-            code="TB007",
-            symbol=secret,
-            message="TenantContext 発行証跡の秘密は許可シンボル外から参照できない",
+        protected = (
+            (
+                self.contract.tenant_context.integrity_secret_symbol,
+                self.contract.tenant_context.integrity_secret_allowed_symbols,
+                "TenantContext 発行証跡の秘密は許可シンボル外から参照できない",
+            ),
+            (
+                self.contract.tenant_context.integrity_proof_factory_symbol,
+                self.contract.tenant_context.integrity_proof_factory_allowed_symbols,
+                "TenantContext 発行証跡の導出関数は許可シンボル外から参照できない",
+            ),
         )
+        for symbol, allowed_symbols, message in protected:
+            if text not in {symbol, symbol.rsplit(".", 1)[1]}:
+                continue
+            if self._current_symbol() in allowed_symbols:
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=symbol,
+                message=message,
+            )
+            return
 
     def _check_dynamic_call(self, node: ast.Call) -> None:
         """動的名前解決による DB API・保護型への到達を保守的に拒否する。"""
@@ -1968,14 +2307,20 @@ class _SourceScanner(ast.NodeVisitor):
         )
         method = _constant_string(node.args[1])
         secret = self.contract.tenant_context.integrity_secret_symbol
-        if method == secret.rsplit(".", 1)[1]:
-            self._add(
-                node,
-                condition=5,
-                code="TB007",
-                symbol=secret,
-                message="getattr による TenantContext 発行証跡の秘密参照は禁止",
-            )
+        proof_factory = self.contract.tenant_context.integrity_proof_factory_symbol
+        for symbol in (secret, proof_factory):
+            if method == symbol.rsplit(".", 1)[1]:
+                self._add(
+                    node,
+                    condition=5,
+                    code="TB007",
+                    symbol=symbol,
+                    message="getattr による TenantContext 発行証跡内部への参照は禁止",
+                )
+        provenance = self.aliases.receiver_provenance(
+            node.args[0],
+            tenant_context_symbol=self.contract.tenant_context.constructor_symbol,
+        )
         member_owners = {
             api.symbol.rsplit(".", 1)[0]
             for api in self.contract.apis
@@ -1999,7 +2344,9 @@ class _SourceScanner(ast.NodeVisitor):
             return
         api = self._matching_dynamic_member(node.args[0], method)
         method_is_dangerous = method in self.contract.conservative_member_names
-        if api is not None or method_is_dangerous:
+        if api is not None or (
+            method_is_dangerous and provenance != "non_db"
+        ):
             self._add(
                 node,
                 condition=5,
@@ -2043,7 +2390,7 @@ class _SourceScanner(ast.NodeVisitor):
                 if node.module is not None
                 else alias.name
             )
-            self._check_integrity_secret_reference(imported_symbol, node)
+            self._check_integrity_reference(imported_symbol, node)
             import_is_allowed = (
                 imported_symbol
                 in self.contract.cache_invalidation.public_symbols
@@ -2163,7 +2510,7 @@ class _SourceScanner(ast.NodeVisitor):
         """名前参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or node.id
         if isinstance(node.ctx, ast.Load):
-            self._check_integrity_secret_reference(resolved, node)
+            self._check_integrity_reference(resolved, node)
         self._check_identifier(
             resolved,
             node,
@@ -2173,7 +2520,7 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
         """属性参照を禁止語彙へ照合する。"""
         resolved = self.aliases.resolve(node) or self._raw_expression(node) or node.attr
-        self._check_integrity_secret_reference(resolved, node)
+        self._check_integrity_reference(resolved, node)
         self._check_identifier(
             resolved,
             node,
