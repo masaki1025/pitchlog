@@ -1,0 +1,27 @@
+# gitleaks 誤検知の登録(TSK-429 — 人間判定 2026-09-20・山田正輝)
+#
+# 対象: tests/fixtures/profile-sample/profiles/registry.json の
+#       pins.asset_digests.auth_catalog / auth_ddl_map(いずれも 64 桁 hex = SHA-256)
+# ルール: generic-api-key
+#
+# 誤検知と判定した根拠:
+#   1. 値は資産から導出される内容ハッシュ。scripts/doc_check_profile.py が
+#      hashlib.sha256 で再計算して照合し、不一致なら落とす(再計算可能な導出値)
+#   2. 同一ファイル・同一構造の兄弟 8 件は未検出。発火の差はキー名に
+#      "auth" を含むかどうかだけで、値の性質によるものではない
+#   3. NFR-014 の対象(DB接続情報・JWT署名鍵・管理者パスワード・
+#      チーム初期パスワード)のいずれにも該当しない
+#   4. テストフィクスチャである
+#
+# 注意 — 本ファイルは再発する:
+#   fingerprint は <コミット SHA>:<パス>:<ルール>:<行> でコミット単位のため、
+#   当該資産のダイジェストが更新されるたびに新しい fingerprint が生まれる。
+#   実測: 2026-09-04 → 2026-09-14 の 10 日間で 1 件増加した(下記 3 件目)。
+#   恒久対処ではないことを github-setup.md 4 章に明記している。
+
+# 5c8f52c: 資産ローダー・join/normalize・構造抽出器・集合宣言とサンプル一式を追加(2026-09-04)
+5c8f52c7b8ba027698d1c279af6fa7b2d2d429dc:tests/fixtures/profile-sample/profiles/registry.json:generic-api-key:25
+5c8f52c7b8ba027698d1c279af6fa7b2d2d429dc:tests/fixtures/profile-sample/profiles/registry.json:generic-api-key:27
+
+# 190fc3a: corpus version 台帳と版照合を追加(2026-09-14)— auth_catalog の値が更新され再検出
+190fc3a45a8e9d337a28553bfeac00711ed7ad0c:tests/fixtures/profile-sample/profiles/registry.json:generic-api-key:25

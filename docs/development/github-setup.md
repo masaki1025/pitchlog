@@ -135,6 +135,10 @@ docker run --rm -v "$repo_root":/repo \
 - 合格条件: exit 0 に加えて、出力に `ERR`・partial scan がなく、走査対象コミットが 0 でないこと
 - 検出時の扱い: **誤検知**のみ人間確認の上 `.gitleaksignore` に理由コメント付きで登録 / **真のシークレット**は作業を停止し、失効・ローテーション・履歴対処を人間が判断する(NFR-014)。記録(worklog 等)に秘匿値を書かない
 
+- **`.gitleaksignore` の現況(2026-09-20・TSK-429)**: **登録済み 3 件**。いずれも `tests/fixtures/profile-sample/profiles/registry.json` の `pins.asset_digests.auth_catalog` / `auth_ddl_map`(ルール `generic-api-key`)で、**値は資産から導出される SHA-256 の内容ハッシュ**(`scripts/doc_check_profile.py` が再計算して照合する)。**人間確認済みの誤検知**であり NFR-014 の対象 4 種のいずれにも該当しない。判定の根拠と全文は当該ファイルの冒頭コメントにある。
+- **本方式は恒久対処ではない(再発する)**: gitleaks の fingerprint は **`<コミット SHA>:<パス>:<ルール>:<行>`** で**コミット単位**のため、**当該資産のダイジェストが更新されるたびに新しい fingerprint が生まれ `secrets` が再び落ちる**。**実測: 2026-09-04 → 2026-09-14 の 10 日間で 1 件増加した**(同じ `auth_catalog` が値の更新により別 fingerprint として再検出)。**その都度 1 行追加する運用とする**。恒久化にはパス単位の allowlist(`.gitleaks.toml`)が要るが、**独自 config は組込みルールセットを置換しうる**ため、走査の空洞化を招かないことの確認を前提とする(未実施)。
+- **ローカル監査は git モードで行う**: `.gitleaksignore` に登録した fingerprint は**コミット SHA を含む git モードの形式**であり、`dir` サブコマンド(作業ツリーのみ)の fingerprint とは**形式が異なるため一致しない**。`dir` での確認時に上記 3 件が検出されるのは想定どおりで、CI(git モード)では抑止される。
+
 ## 5. GitHub Secrets
 
 - 現状の CI が要求する追加 Secret は**なし**(`GITHUB_TOKEN` は Actions が自動提供。gitleaks-action は個人所有リポジトリではライセンスキー不要)
