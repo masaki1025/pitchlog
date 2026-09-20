@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "authorityId": "ADR-003 D-11 変異テスト規則",
+  "operatingPolicy": {
+    "unrecordedDisposition": "non-equivalent",
+    "requiredJudge": "PO",
+    "scaleZeroFormatterBypass": {
+      "candidate": {
+        "operatorId": "display-formatter-invocation",
+        "primitiveKind": "fixed-decimal",
+        "scale": 0,
+        "replacementRoute": "language-default-stringification"
+      },
+      "requiredObservations": [
+        {
+          "id": "all-required-cases-executed",
+          "description": "要求 case の全件で formatter と置換経路を実行する"
+        },
+        {
+          "id": "outputs-exactly-equal",
+          "description": "全 case の formatter 出力と置換経路の出力が完全一致する"
+        },
+        {
+          "id": "valid-kill-evidence-absent",
+          "description": "hash 検査以外の有効な kill 証跡が存在しない"
+        }
+      ],
+      "decision": {
+        "equivalentWhen": "all-observations-pass-and-po-entry-exists",
+        "nonEquivalentWhen": "any-observation-fails-or-po-entry-absent"
+      }
+    }
+  },
+  "entries": []
+}
