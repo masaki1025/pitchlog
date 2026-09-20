@@ -76,7 +76,7 @@ status: approved
 
 再開トリガー: 1 章の選択肢のいずれかが実施されたとき。適用は **Rulesets** を推奨(新設に適する — 積層・bypass 管理・閲覧性)。
 
-**Ruleset を有効化しても防げるのは「直接 push・force push・削除」と「PR を経ないマージ」まで。**(**「必須チェックの欠落・failure のままのマージ」は防げていない** — 必須チェックの**発行元が未拘束**(`integration_id` 未指定)のため、**同名の成功 status を立てれば失敗・未実行のままマージできる**。2 章と設計書 10.2 を参照)検査ロジック自体の改変(2 章の循環参照)は防げない** — **2 章の管理手続のうち、コア領域 ∪ guard_paths への人間逐行確認(手続 3・4)は、base 側検査への分離(別タスク)が完了するまで保護有効化後も継続する**(**手続 5 は `strict_required_status_checks_policy: true` の適用で終了できる** — 同 policy が base 最新化を強制するため)。
+**Ruleset を有効化しても防げるのは「直接 push・force push・削除」と「PR を経ないマージ」まで。** **「必須チェックの欠落・failure のままのマージ」は防げていない** — 必須チェックの**発行元が未拘束**(`integration_id` 未指定)のため、**同名の成功 status を立てれば失敗・未実行のままマージできる**(2 章と設計書 10.2 を参照)。**検査ロジック自体の改変(2 章の循環参照)も防げない** — したがって 2 章の手続 3・4(コア領域 ∪ guard_paths の人間逐行確認)は継続する。
 
 前提条件:
 
@@ -141,7 +141,12 @@ gh api "repos/masaki1025/pitchlog/rulesets?includes_parents=false&targets=branch
 gh api repos/masaki1025/pitchlog/rulesets -H "X-GitHub-Api-Version: 2026-03-10" --input ruleset.json
 # 3b) 1 件見つかった → 更新(PUT)。複数見つかった場合は停止して手動確認
 gh api -X PUT repos/masaki1025/pitchlog/rulesets/<id> -H "X-GitHub-Api-Version: 2026-03-10" --input ruleset.json
-# 4) 適用後検証: 両ブランチに全ルールが効いていることを確認
+# 4) 適用後検証: 両ブランチに適用対象となるルールが列挙されることを確認
+#    【限界・2026-09-21 追記】gh ruleset check は「そのブランチに適用されるルールの一覧」を
+#    表示するだけであり、push / merge が実際に拒否されることも、必須チェックの発行元が
+#    拘束されていることも実証しない(存在しないブランチ名でも実行できる)。
+#    拒否動作の実証は TSK-433(実地検証)、発行元拘束は同タスクの完了条件 ③ が担う。
+#    本コマンドの合格をもって「保護が効いている」と判定しないこと。
 gh ruleset check main -R masaki1025/pitchlog
 gh ruleset check develop -R masaki1025/pitchlog
 ```
