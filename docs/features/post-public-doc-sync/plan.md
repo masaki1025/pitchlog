@@ -1,6 +1,6 @@
 ---
 feature: post-public-doc-sync
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認:  済(2026-09-20・山田正輝)               # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -106,7 +106,7 @@ repo: visibility public / secret_scanning enabled / push_protection enabled
 | `docs/development/dev-harness-design-2026-08-07.md`(approved v1.16) | **縮退記述 9 箇所の現況化 + 歴史的記述 1 箇所の保持**(2.3 継承表 / 6.2 三重の強制 / 6.3 縮退注記 / 10.1 マージ条件 / 10.1 Phase 4-5 追随 / 10.1 残余リスク / 12.1 脅威対策表 / 12.2 横断まとめ / 13 章 Phase 3。**6.4 リリースフローの「保護未適用中の管理手続」は過去事実なので保持**)| **PR レビュー**(事実・状態の追随) |
 | 同上 | **解除の 2 原則の新設**(形式的な充足で解除しない / 範囲は当該記録が明示した対象に限る)**— 手続の詳細は `TSK-435` へ送り出し** / **10.2 の承認済み例外(期限付き)を解除し新しい未達へ切替**(自動再現要件の未達状態は継続)/ **10.1 の排他区間の存続の確定**。**リスク受容記録は解除しない** | **`/finalize-doc`(7.3 確定ゲート)** |
 | `docs/development/onboarding.md`(approved v1.2) | ブランチ保護が未適用である旨の記述を現況化 / 変更履歴表へ追記 | **PR レビュー** |
-| `docs/development/harness-evaluation.md`(approved) | **H-8 を「部分対応/実地検証待ち」へ**(「解決」とは書けない)/ 変更履歴表へ追記 | **PR レビュー** |
+| `docs/development/harness-evaluation.md`(approved) | **H-68 へ 4 例目を追記**(確定ゲートが 12 回・42 件を要した実測と、**7.3-6 の裁定の選択肢に「実装時確定への送り出し」が明示されていない**という対応案)/ **H-8 を「部分対応/実地検証待ち」へ**(「解決」とは書けない)/ 変更履歴表へ追記 | **PR レビュー** |
 | `docs/README.md`(索引) | 上記 4 正本の版・状態行を現行化 | **PR レビュー** |
 | `.claude/skills/release/SKILL.md` | 「ブランチ保護が使えないため機構では強制できない」を現況化(設計書 10.1 残余リスクと**対で動かす**) | **PR レビュー**。**`guard_paths` のため `core-guard` が発火し、PR に逐行確認のチェックが要る** |
 | `.gitleaksignore`(**新設**) | 誤検知 3 件を**理由コメント付き**で登録 | **PR レビュー**(正本ではない) |
