@@ -258,6 +258,7 @@ NEW_CORE_PATH_CHANGES = (
     "frontend/src/lib/format.ts",
     "backend/conftest.py",
 )
+DOMAIN_CALC_AREA_IDS = ("game-state", "data-migration")
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
     ".github/workflows/ci.yml",
@@ -1492,6 +1493,81 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     used_revision = core_guard.verify_area_path_baseline(root, base_sha, head_sha)
 
     assert used_revision == base_sha
+
+
+def test_area_registration() -> None:
+    """宣言済み追加層を対象 2 領域だけへ登録したことを検査する。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    head_sha = run_git(REPO, "rev-parse", "HEAD").stdout.strip()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
+    baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
+    baseline_areas = {area["id"]: area for area in baseline["areas"]}
+    stationary_ids = set(areas) - set(DOMAIN_CALC_AREA_IDS)
+
+    assert set(core_guard.AREA_PATH_ADDITIONS) == set(DOMAIN_CALC_AREA_IDS)
+    assert len(stationary_ids) == 3
+    for area_id in DOMAIN_CALC_AREA_IDS:
+        additions = core_guard.AREA_PATH_ADDITIONS[area_id]
+        assert tuple(areas[area_id]["paths"][-len(additions) :]) == additions
+    for area_id in stationary_ids:
+        assert areas[area_id]["paths"] == baseline_areas[area_id]["paths"]
+    core_guard.validate_area_path_layers(baseline, configuration)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+)
+def test_future_domain_calc_file_is_covered_by_each_registered_glob(
+    pattern: str,
+) -> None:
+    """各 glob が将来追加される下位ファイルも自動的に覆うと示す。"""
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    future_path = f"{pattern.removesuffix('*')}future/nested_probe.py"
+
+    for area_id in DOMAIN_CALC_AREA_IDS:
+        patterns = areas[area_id]["paths"]
+        assert any(fnmatch.fnmatchcase(future_path, item) for item in patterns)
+        without_glob = [item for item in patterns if item != pattern]
+        assert not any(
+            fnmatch.fnmatchcase(future_path, item) for item in without_glob
+        ), f"{area_id} で {pattern} を除いても将来ファイルが被覆されている"
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+)
+def test_each_domain_calc_glob_change_triggers_guard(
+    tmp_path: Path,
+    pattern: str,
+) -> None:
+    """各追加 glob 配下の新規パス変更で core-guard が発火する。"""
+    future_path = f"{pattern.removesuffix('*')}future/nested_probe.py"
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, future_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert future_path in result.stderr
+
+
+def test_domain_calc_adjacent_path_does_not_trigger_guard(tmp_path: Path) -> None:
+    """登録対象外の隣接パス変更では core-guard が発火しない。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    path = "backend/src/pitchlog/domain_other/future_probe.py"
+    base_sha, head_sha = commit_change(root, path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_database_tests_have_the_same_area_ownership_as_migrations() -> None:
