@@ -85,7 +85,72 @@ jobs:
       - run: uv sync --locked --dev
       - run: uv run ruff check .
       - run: uv run ty check
-      - run: uv run pytest -c pyproject.toml tests/
+      - run: >-
+          uv run pytest -c pyproject.toml tests/
+          --ignore=tests/domain/boot
+          --ignore=tests/domain/mut
+          --ignore=tests/test_plan_generation.py
+          --ignore=tests/test_step_history_audit.py
+
+  # NFR-018 (e) BOOT-ACTIVATION の機構・負例・正例と、計画・履歴監査を常時実行する。
+  # harness の単体テストとは所有を分け、同じテストを二重実行しない。
+  consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - run: >-
+          uv run pytest -c pyproject.toml
+          tests/domain/boot/
+          tests/test_plan_generation.py
+          tests/test_step_history_audit.py
+
+  # 変異処理内部の 10 分・30 分制限とは別に、ジョブ自体にも上限を持たせる。
+  # SQL 変異は実 PostgreSQL を使うため backend と同じ image を先に取得する。
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: pitchlog_ci_admin
+          POSTGRES_PASSWORD: pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: pitchlog_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U pitchlog_ci_admin -d pitchlog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+    env:
+      PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_MIGRATION_DATABASE_URL: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - run: uv run pytest -c pyproject.toml tests/domain/mut/
 
   # NFR-021 受入証跡の append-only 統合時検査(設計書 10.1「試行の排他と採番」)。
   # paths filter は付けない: フィルタ自体が誤ると検査が黙って通り fail-closed に反するため。

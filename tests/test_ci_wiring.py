@@ -26,6 +26,7 @@ EXPECTATIONS_PATH = (
 BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
 BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
+STEPS_PATH = REPOSITORY_ROOT / "docs" / "features" / "domain-calc-dsl" / "steps.json"
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
@@ -46,9 +47,43 @@ CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
         "frontend-changes",
         "backend-changes",
         "backend",
+        "consistency",
+        "mutation",
     }
 )
 CHECKOUT_JOBS_WITHOUT_FETCH_DEPTH_ZERO = frozenset({"docs-lint", "frontend"})
+LEGACY_JOB_IDS = frozenset(
+    {
+        "secrets",
+        "docs-lint",
+        "core-guard",
+        "harness",
+        "nfr021-append-only",
+        "frontend-changes",
+        "backend-changes",
+        "frontend",
+        "backend",
+    }
+)
+NEW_JOB_IDS = frozenset({"consistency", "mutation"})
+CONSISTENCY_TIMEOUT_MINUTES = 20
+MUTATION_TIMEOUT_MINUTES = 40
+HARNESS_PYTEST_COMMAND = (
+    "uv run pytest -c pyproject.toml tests/ "
+    "--ignore=tests/domain/boot "
+    "--ignore=tests/domain/mut "
+    "--ignore=tests/test_plan_generation.py "
+    "--ignore=tests/test_step_history_audit.py"
+)
+CONSISTENCY_PYTEST_COMMAND = (
+    "uv run pytest -c pyproject.toml "
+    "tests/domain/boot/ "
+    "tests/test_plan_generation.py "
+    "tests/test_step_history_audit.py"
+)
+MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
+# 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 106
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -131,6 +166,23 @@ def _harness_job(workflow: dict[str, Any]) -> dict[str, Any]:
     harness = jobs.get("harness")
     assert isinstance(harness, dict), "harness ジョブが必要"
     return harness
+
+
+def _named_job(workflow: dict[str, Any], name: str) -> dict[str, Any]:
+    """workflow から名前でジョブを取得する。
+
+    Args:
+        workflow: CI workflow の構造。
+        name: 取得するジョブ ID。
+
+    Returns:
+        指定したジョブのマッピング。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    job = jobs.get(name)
+    assert isinstance(job, dict), f"{name} ジョブが必要"
+    return job
 
 
 def _mapping_at(node: object, path: NodePath) -> Any:
@@ -472,6 +524,27 @@ def _harness_commands(harness: dict[str, Any]) -> list[str]:
     ]
 
 
+def _pytest_commands(job: dict[str, Any]) -> list[str]:
+    """ジョブが直接起動する pytest コマンドを返す。
+
+    Args:
+        job: CI ジョブの構造。
+
+    Returns:
+        token として ``pytest`` を含む run コマンド。
+    """
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return []
+    return [
+        command
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and "pytest" in shlex.split(command)
+    ]
+
+
 def _compose_database(compose: dict[str, Any]) -> dict[str, Any]:
     """開発用 Compose の db サービスを取得する。
 
@@ -635,6 +708,69 @@ def _workflow_from_ci_contract_tree(
         options_path,
         _render_service_options(options),
     )
+    return mutated
+
+
+def _ci_contract_tree(workflow: dict[str, Any]) -> dict[str, Any]:
+    """既存 DB 配線と新設ジョブを含む CI 契約木を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        全葉変異の対象となる JSON 互換木。
+    """
+    harness_commands = _pytest_commands(_harness_job(workflow))
+    assert len(harness_commands) == 1, "harness の pytest は 1 回でなければならない"
+    return {
+        "backend": _backend_ci_contract_tree(_backend_job(workflow)),
+        "harness": {"pytest": harness_commands[0]},
+        "consistency": copy.deepcopy(_named_job(workflow, "consistency")),
+        "mutation": copy.deepcopy(_named_job(workflow, "mutation")),
+    }
+
+
+def _workflow_from_contract_tree(
+    workflow: dict[str, Any], tree: dict[str, Any]
+) -> dict[str, Any]:
+    """一般化した CI 契約木を workflow へ戻す。
+
+    Args:
+        workflow: 変異前の workflow。
+        tree: 変異済みの CI 契約木。
+
+    Returns:
+        静的検査へ渡せる workflow のコピー。
+    """
+    backend_tree = tree.get("backend")
+    assert isinstance(backend_tree, dict)
+    mutated = _workflow_from_ci_contract_tree(workflow, backend_tree)
+    jobs = mutated.get("jobs")
+    assert isinstance(jobs, dict)
+
+    harness_tree = tree.get("harness")
+    assert isinstance(harness_tree, dict)
+    replacement = harness_tree.get("pytest")
+    harness = _harness_job(mutated)
+    steps = harness.get("steps")
+    assert isinstance(steps, list)
+    replaced = 0
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        command = step.get("run")
+        if isinstance(command, str) and "pytest" in shlex.split(command):
+            if replacement is None:
+                step.pop("run")
+            else:
+                step["run"] = replacement
+            replaced += 1
+    assert replaced == 1
+
+    for job_name in NEW_JOB_IDS:
+        replacement_job = tree.get(job_name)
+        assert isinstance(replacement_job, dict)
+        jobs[job_name] = copy.deepcopy(replacement_job)
     return mutated
 
 
@@ -869,6 +1005,267 @@ def _ci_wiring_errors(
     if len(pytest_commands) != single_command["expected_backend_pytest_invocation_count"]:
         errors.append("pytest の実行回数が期待値と一致しない")
     return errors
+
+
+def _expected_new_job_steps(
+    workflow: dict[str, Any], pytest_command: str
+) -> list[dict[str, Any]]:
+    """harness と同じ準備を行う新設ジョブの期待 steps を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+        pytest_command: 所有する pytest コマンド。
+
+    Returns:
+        checkout・uv 準備・所有テスト実行の厳密な配列。
+    """
+    harness_steps = _harness_job(workflow).get("steps")
+    assert isinstance(harness_steps, list)
+    assert len(harness_steps) >= 4
+    return [
+        *copy.deepcopy(harness_steps[:4]),
+        {"run": pytest_command},
+    ]
+
+
+def _job_invokes_backend_tests(job_name: str, job: dict[str, Any]) -> bool:
+    """ジョブが PostgreSQL を要する backend テストを起動するか判定する。
+
+    SQL 生成物を含む変異スイートは設計上 PostgreSQL を使うため、専用ジョブも
+    backend 全件実行と同じ DB 利用ジョブとして扱う。
+
+    Args:
+        job_name: ジョブ ID。
+        job: CI ジョブの構造。
+
+    Returns:
+        DB image を事前取得すべきテストを起動する場合は真。
+    """
+    if job_name == "mutation":
+        return True
+    job_directory = _mapping_at(job, ("defaults", "run", "working-directory"))
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        command = step.get("run")
+        if not isinstance(command, str):
+            continue
+        tokens = shlex.split(command)
+        if "pytest" not in tokens:
+            continue
+        step_directory = step.get("working-directory", job_directory)
+        if isinstance(step_directory, str) and (
+            step_directory == "backend" or step_directory.startswith("backend/")
+        ):
+            return True
+        if any(
+            token == "backend" or token.startswith("backend/tests") for token in tokens
+        ):
+            return True
+    return False
+
+
+def _domain_ci_wiring_errors(
+    workflow: dict[str, Any],
+    expectations: dict[str, Any],
+    compose: dict[str, Any],
+) -> list[str]:
+    """ドメイン計算ジョブの所有・予算・DB 配線違反を返す。
+
+    Args:
+        workflow: 検査対象 workflow。
+        expectations: 凍結済み DB 環境期待値。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        検出した違反。空配列なら契約を満たす。
+    """
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return ["ci.yml に jobs がない"]
+    errors: list[str] = []
+    job_ids = {name for name in jobs if isinstance(name, str)}
+    if not LEGACY_JOB_IDS <= job_ids:
+        errors.append("既存 9 ジョブがすべて維持されていない")
+    if not NEW_JOB_IDS <= job_ids:
+        errors.append("consistency と mutation が揃っていない")
+
+    try:
+        _assert_checkout_fetch_depth_contract(workflow)
+    except AssertionError as exc:
+        errors.append(str(exc))
+
+    harness = jobs.get("harness")
+    backend = jobs.get("backend")
+    if not isinstance(harness, dict) or not isinstance(backend, dict):
+        return [*errors, "harness または backend ジョブがない"]
+    expected_harness_commands = [
+        "uv python install",
+        "uv sync --locked --dev",
+        "uv run ruff check .",
+        "uv run ty check",
+        HARNESS_PYTEST_COMMAND,
+    ]
+    if _harness_commands(harness) != expected_harness_commands:
+        errors.append("harness の単体テスト所有または既存検査コマンドが不正")
+
+    expected_jobs: dict[str, dict[str, Any]] = {
+        "consistency": {
+            "runs-on": harness.get("runs-on"),
+            "timeout-minutes": CONSISTENCY_TIMEOUT_MINUTES,
+            "steps": _expected_new_job_steps(workflow, CONSISTENCY_PYTEST_COMMAND),
+        },
+        "mutation": {
+            "runs-on": harness.get("runs-on"),
+            "timeout-minutes": MUTATION_TIMEOUT_MINUTES,
+            "services": copy.deepcopy(backend.get("services")),
+            "env": copy.deepcopy(backend.get("env")),
+            "steps": _expected_new_job_steps(workflow, MUTATION_PYTEST_COMMAND),
+        },
+    }
+    for job_name, expected_job in expected_jobs.items():
+        if jobs.get(job_name) != expected_job:
+            errors.append(f"{job_name} の契約木が期待値と一致しない")
+
+    compose_database = _compose_database(compose)
+    expected_image = expectations["database_environment"]["image"]["expected"]
+    compose_image = compose_database.get("image")
+    for job_name, candidate in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(candidate, dict):
+            continue
+        if not _job_invokes_backend_tests(job_name, candidate):
+            continue
+        service = _mapping_at(candidate, ("services", "postgres"))
+        if not isinstance(service, dict):
+            errors.append(f"{job_name} は DB テストを呼ぶが postgres service がない")
+            continue
+        if service.get("image") != expected_image or service.get("image") != compose_image:
+            errors.append(f"{job_name} の postgres image が 3 者一致しない")
+    return errors
+
+
+def _combined_ci_wiring_errors(
+    workflow: dict[str, Any],
+    expectations: dict[str, Any],
+    compose: dict[str, Any],
+) -> list[str]:
+    """既存契約とドメイン計算ジョブ契約の違反をまとめる。
+
+    Args:
+        workflow: 検査対象 workflow。
+        expectations: 凍結済み DB 環境期待値。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        両検査が検出した違反。
+    """
+    return [
+        *_ci_wiring_errors(workflow, expectations, compose),
+        *_domain_ci_wiring_errors(workflow, expectations, compose),
+    ]
+
+
+def _pytest_selection(command: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """pytest コマンドから対象と除外対象を得る。
+
+    Args:
+        command: ``pytest`` を含む run コマンド。
+
+    Returns:
+        ``(選択 path, ignore path)`` の組。
+    """
+    tokens = shlex.split(command)
+    pytest_index = tokens.index("pytest")
+    selectors: list[str] = []
+    ignored: list[str] = []
+    index = pytest_index + 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "-c":
+            index += 2
+            continue
+        if token.startswith("--ignore="):
+            ignored.append(token.split("=", maxsplit=1)[1].rstrip("/"))
+        elif not token.startswith("-"):
+            selectors.append(token.rstrip("/"))
+        index += 1
+    return tuple(selectors), tuple(ignored)
+
+
+def _selector_contains(selector: str, test_path: str) -> bool:
+    """pytest の path selector がテストファイルを含むか返す。"""
+    return test_path == selector or test_path.startswith(f"{selector}/")
+
+
+def _selected_root_test_jobs(
+    workflow: dict[str, Any], test_path: str
+) -> set[str]:
+    """指定したルートテストを直接所有するジョブ集合を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+        test_path: リポジトリルートからのテスト path。
+
+    Returns:
+        対象に含み、かつ ignore していないジョブ ID 集合。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    selected: set[str] = set()
+    for job_name, job in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(job, dict):
+            continue
+        job_directory = _mapping_at(job, ("defaults", "run", "working-directory"))
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            command = step.get("run")
+            if not isinstance(command, str) or "pytest" not in shlex.split(command):
+                continue
+            working_directory = step.get("working-directory", job_directory)
+            if working_directory not in (None, "."):
+                continue
+            selectors, ignored = _pytest_selection(command)
+            if any(_selector_contains(path, test_path) for path in ignored):
+                continue
+            if any(_selector_contains(path, test_path) for path in selectors):
+                selected.add(job_name)
+    return selected
+
+
+def _step_test_paths(first: int, last: int) -> tuple[str, ...]:
+    """steps.json の指定範囲から pytest 対象 path を導出する。
+
+    Args:
+        first: 最初のステップ ID。
+        last: 最後のステップ ID。
+
+    Returns:
+        各ステップの command が指すテスト path。
+    """
+    source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
+    steps = source.get("steps")
+    assert isinstance(steps, list)
+    paths: list[str] = []
+    for step in steps:
+        if not isinstance(step, dict) or not first <= step.get("id", 0) <= last:
+            continue
+        command = step.get("command")
+        assert isinstance(command, str)
+        test_paths = [
+            token
+            for token in shlex.split(command.strip("`"))
+            if token.startswith("tests/")
+        ]
+        assert len(test_paths) == 1
+        paths.append(test_paths[0])
+    return tuple(paths)
 
 
 def _derive_asset_actuals(
@@ -1567,7 +1964,7 @@ def test_pytest_commands_and_working_directories_are_exact() -> None:
         for command in _harness_commands(harness)
         if "pytest" in shlex.split(command)
     ]
-    assert harness_pytest_commands == ["uv run pytest -c pyproject.toml tests/"]
+    assert harness_pytest_commands == [HARNESS_PYTEST_COMMAND]
 
     assert _mapping_at(harness, ("defaults", "run", "working-directory")) is None
     harness_steps = harness.get("steps")
@@ -1590,6 +1987,113 @@ def test_backend_postgres_wiring_matches_asset_and_development_database() -> Non
         _load_expectations(),
         _load_yaml_mapping(COMPOSE_PATH),
     ) == []
+
+
+def test_database_jobs_match_asset_and_development_database() -> None:
+    """DB 利用ジョブすべての PostgreSQL image を 3 者一致させる。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    assert _combined_ci_wiring_errors(
+        workflow,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    ) == []
+
+
+def test_new_jobs_accept_valid_wiring_with_explicit_timeouts() -> None:
+    """所有分離・DB 配線・二段目の時間上限を持つ実配線を受理する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert _domain_ci_wiring_errors(
+        workflow,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    ) == []
+    assert (
+        _named_job(workflow, "consistency")["timeout-minutes"]
+        == CONSISTENCY_TIMEOUT_MINUTES
+    )
+    assert _named_job(workflow, "mutation")["timeout-minutes"] == MUTATION_TIMEOUT_MINUTES
+
+
+def test_missing_postgres_service_from_new_db_job_is_red() -> None:
+    """新設した DB 利用ジョブの postgres service 書き忘れを拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    _named_job(mutated, "mutation").pop("services")
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "mutation は DB テストを呼ぶが postgres service がない" in errors
+
+
+def test_services_less_job_cannot_invoke_backend_tests() -> None:
+    """service を持たないジョブから backend テストを呼ぶ経路を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    consistency = _named_job(mutated, "consistency")
+    steps = consistency.get("steps")
+    assert isinstance(steps, list)
+    steps[-1] = {"run": "uv run pytest backend/tests/"}
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "consistency は DB テストを呼ぶが postgres service がない" in errors
+
+
+def test_all_database_job_images_match_the_three_sources() -> None:
+    """DB 利用ジョブごとに image の 3 者一致を要求する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    mutation_service = _mapping_at(
+        _named_job(mutated, "mutation"), ("services", "postgres")
+    )
+    assert isinstance(mutation_service, dict)
+    mutation_service["image"] = "postgres:16.0-bookworm"
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "mutation の postgres image が 3 者一致しない" in errors
+
+
+def test_group_four_and_plan_history_audits_belong_only_to_consistency() -> None:
+    """第 4 群とステップ 51・52 を consistency だけへ配線する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    group_four = _step_test_paths(17, 25)
+    structural_audits = _step_test_paths(51, 52)
+
+    assert len(group_four) == 9
+    assert len(structural_audits) == 2
+    for test_path in (*group_four, *structural_audits):
+        assert _selected_root_test_jobs(workflow, test_path) == {"consistency"}
+
+
+def test_root_tests_have_exactly_one_owner_job() -> None:
+    """ルート pytest の同一テストを複数ジョブで直接実行しない。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    test_paths = sorted(
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in (REPOSITORY_ROOT / "tests").rglob("test_*.py")
+    )
+    violations = {
+        path: sorted(_selected_root_test_jobs(workflow, path))
+        for path in test_paths
+        if len(_selected_root_test_jobs(workflow, path)) != 1
+    }
+
+    assert test_paths
+    assert violations == {}
 
 
 @pytest.mark.parametrize(
@@ -1656,12 +2160,14 @@ def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     expectations = _load_expectations()
     compose = _load_yaml_mapping(COMPOSE_PATH)
-    contract_tree = _backend_ci_contract_tree(_backend_job(workflow))
+    contract_tree = _ci_contract_tree(workflow)
     leaf_paths = _leaf_paths(contract_tree)
     escaped: list[str] = []
+    attempts = 0
 
     for path in leaf_paths:
         for operation in ("value", "deletion"):
+            attempts += 1
             mutated_tree = copy.deepcopy(contract_tree)
             if operation == "value":
                 current = _mapping_at(mutated_tree, path)
@@ -1672,14 +2178,14 @@ def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
                 )
             else:
                 _delete_node_at(mutated_tree, path)
-            mutated_workflow = _workflow_from_ci_contract_tree(
+            mutated_workflow = _workflow_from_contract_tree(
                 workflow,
                 mutated_tree,
             )
-            if not _ci_wiring_errors(mutated_workflow, expectations, compose):
+            if not _combined_ci_wiring_errors(mutated_workflow, expectations, compose):
                 escaped.append(f"{operation}:{_format_path(path)}")
 
-    assert leaf_paths, "CI 契約ブロックの葉が 1 件もない"
+    assert attempts == EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS
     assert escaped == [], f"CI 配線変異がすり抜けた: {escaped}"
 
 
