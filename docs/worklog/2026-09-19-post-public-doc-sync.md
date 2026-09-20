@@ -351,6 +351,39 @@ gitleaks の fingerprint は **`<コミット SHA>:<パス>:<ルール>:<行>`**
 
 (以下、反映周ごとに追記)
 
+## ステップ 9: 索引の現行化と、機械検査が覆わないファイルの明示的確認(2026-09-21)
+
+**索引(`docs/README.md`)はステップ 8 の approved 化の中で更新済み。** 本ステップでは**突合と、機械検査の射程外にあるファイルの目視確認**を行った。
+
+### 機械検査の射程外(計画書 4 節の是正どおり)
+
+`check_plan_docs_sync.py` の対象は **`docs/**/*.md`** で、**`.md` 以外は `suffix` で除外**される。したがって次の 2 ファイルは**同スクリプトが一切見ない**:
+
+| ファイル | 射程外の理由 | 目視確認の結果 |
+| --- | --- | --- |
+| `.gitleaksignore` | **`.md` ではない**(ルート直下) | **fingerprint 3 件・理由コメント 22 行**。3 件はステップ 1 の判定記録と 1 対 1(`5c8f52c`:25 / `5c8f52c`:27 / `190fc3a`:25) |
+| `.claude/skills/release/SKILL.md` | **`docs/` 配下ではない** | 旧記述(「ブランチ保護が使えないため機構では強制できない」)が消滅し、**排他区間の存続**へ書き換わっている。**手順 0 の無条件中断は保持**(機械確認: 1 件) |
+
+### 索引 vs frontmatter の突合
+
+| 正本 | frontmatter | 索引の版 | 最終更新 |
+| --- | --- | --- | --- |
+| 設計書 | `approved` | **1.17** | 2026-09-21 |
+| `github-setup.md` | `approved` | 1.2 | 2026-09-21 |
+| `onboarding.md` | `approved` | 1.2 | 2026-09-21 |
+| 台帳 | `approved` | 1.0 | 2026-09-21 |
+
+### 検査
+
+| 検査 | 結果 |
+| --- | --- |
+| `check_docs_status.py` | **合格** |
+| `check_plan_docs_sync.py` | **合格** |
+| `doc_check_invariants.py` | **合格** |
+| `uv run ruff check .` | **All checks passed** |
+| `uv run ty check` | **All checks passed** |
+| `uv run pytest tests/` | **1394 passed**(634.89s) |
+
 ## 台帳候補(本タスクのスコープ外 — 起票は別途)
 
 **型 1: 1 件見つけた時点で走査を止める(母集団の打ち切り)**
