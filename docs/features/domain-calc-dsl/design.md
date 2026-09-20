@@ -1216,6 +1216,14 @@ v0.2 では **formatter を含めて生成されていること**まで検査対
 pytest(JUnit XML の `properties`)/ Vitest(reporter JSON)から実行証跡を採取。
 **skip・xfail・todo・0 ケース生成を「実行済み」に数えない**(4 通りを個別に fail)。
 **5 項目を欠くテストも数えない**(5 通りを個別に fail)。**実行証跡の生成元も負例で検査する。**
+
+**◎ 5 項目の中身**(2026-09-20 追記 — 本節は件数だけを書いており、実装時に原文へ当たり直した):
+`calculation` / `propertyId` / `propertyKind` / `generatedCases` / `status` の 5 つ。
+典拠は **`ADR-003` D-11 ③ プロパティ層の証跡スキーマ**の逐語
+「各テストは `calculation` / `propertyId` / `propertyKind` / `generatedCases` / `status` を
+機械可読に出力する」「**この 5 項目を出力しないテストは「実行済み」に数えない**」。
+**§7-1 の 6 次元要求集合 `(calculation, vector, case, runner, entrypointId, directTargetId)` とは別物**
+(6 次元は経路一致検査の要求集合、5 項目はプロパティ層の証跡 schema)。**混同しない。**
 composite を持つ対象計算では**段別 I/O を必須入力とする**(§7-2)。
 
 ### 8-6. DB を使う runner の運用上の罠(TSK-317 からの申し送り 2026-09-10)

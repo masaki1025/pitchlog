@@ -321,7 +321,9 @@
       ],
       "evidenceLocation": "tests/domain/test_collect_layers.py",
       "firingCondition": "段別 I/O を独立に得られない",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 15,
