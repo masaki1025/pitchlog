@@ -197,6 +197,13 @@ def _generated_snapshot() -> dict[str, object]:
     }
 
 
+def _asset_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
+    """更新履歴を除く生成対象フィールドを返す。"""
+    snapshot = dict(asset)
+    snapshot.pop("baseline_control", None)
+    return snapshot
+
+
 def _public_signature_violations(
     context_type: object,
     operation_type: object,
@@ -219,7 +226,7 @@ def test_generated_repository_contract_matches_asset() -> None:
 
     assert repository_contract.SOURCE_ASSET == _CONTRACT_PATH.as_posix()
     assert asset["source_digest"] == _asset_digest(asset)
-    assert _generated_snapshot() == asset
+    assert _generated_snapshot() == _asset_snapshot(asset)
 
 
 def test_public_repository_surface_and_signature_are_exact() -> None:
@@ -595,4 +602,4 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
     generated = _generated_snapshot()
     generated[field] = object()
 
-    assert generated != _read_contract()
+    assert generated != _asset_snapshot(_read_contract())

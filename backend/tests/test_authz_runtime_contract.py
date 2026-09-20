@@ -88,6 +88,7 @@ def _generated_snapshot() -> dict[str, object]:
     """生成モジュールの公開契約を JSON と比較できる形へ変換する。"""
     return {
         "schema_version": runtime_contract.SCHEMA_VERSION,
+        "runtime_contract_revision": runtime_contract.RUNTIME_CONTRACT_REVISION,
         "provisional": runtime_contract.PROVISIONAL,
         "superseded_by": runtime_contract.SUPERSEDED_BY,
         "source_digest": runtime_contract.SOURCE_DIGEST,
@@ -113,6 +114,7 @@ def _asset_snapshot(asset: dict[str, Any]) -> dict[str, object]:
     """資産から生成対象のフィールドだけを抜き出す。"""
     return {
         "schema_version": asset["schema_version"],
+        "runtime_contract_revision": asset["runtime_contract_revision"],
         "provisional": asset["provisional"],
         "superseded_by": asset["superseded_by"],
         "source_digest": asset["source_digest"],
@@ -231,6 +233,7 @@ def test_product_asset_rejects_provisional_asset_and_generated_reference() -> No
     "field",
     (
         "schema_version",
+        "runtime_contract_revision",
         "provisional",
         "superseded_by",
         "source_digest",

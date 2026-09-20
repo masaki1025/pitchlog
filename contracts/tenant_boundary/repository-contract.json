@@ -1,9 +1,68 @@
 {
   "schema_version": 1,
   "contract_revision": 2,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": ["contract_revision:2"],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "included": "all_top_level_fields",
+        "excluded": ["baseline_control", "source_digest"]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [
+      {
+        "source_commit": "f59ea48",
+        "new_baseline_identifiers": ["contract_revision:1"],
+        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "change": {
+          "subject": "feat: 越境関数経由のリポジトリ基底を置く (ステップ 9/11)",
+          "before": "基準は置かれていなかった",
+          "after": "閉じた operation token 入口、空の越境関数 registry、許可 DTO と immutable 型文法を rev=1 として固定した"
+        },
+        "movement_fact": "f59ea48 で基準を初めて設置した",
+        "reason": "公開面を文脈束縛・実行器の token 入口・空の越境関数 registry の 3 つに限る。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "baeab8c",
+        "new_baseline_identifiers": ["contract_revision:2"],
+        "previous_baseline_identifiers": ["contract_revision:1"],
+        "change": {
+          "subject": "fix: 敵対レビューの P0 4 件を是正する",
+          "before": "許可 scalar と container のサブクラスを除外する型一致規則は明示されていなかった",
+          "after": "scalar_type_match と container_type_match を exact として固定した"
+        },
+        "movement_fact": "baeab8c で contract_revision を1から2へ動かした",
+        "reason": "いずれも本単位が「守る」と宣言した保証に直接効くため先送りしない。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      }
+    ]
+  },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "6b0afada8e668def23a34f48640556000cc883d57201741efea8df236c4cfb8d",
+  "source_digest": "0d2f4a0fdfc799a4b5ab06ddda78f7594615d7f5afaf36fc4d4f08b8cd0d6aa9",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",

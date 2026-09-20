@@ -105,6 +105,7 @@ TSK-424 完了時に製品資産からの導出へ差し替える。**
 | **`.github/workflows/ci.yml`** | 迂回検査器だけを変更した PR でも走るジョブの配線(現行の backend フィルタは `backend/**` と `contracts/**` しか拾わない — `:176`) | PR レビュー(`tests/test_ci_wiring.py` の期待列更新を伴う) |
 | **`.env.example`** | アプリ用 DSN の記述を専用化(**値は書かない** — NFR-014)。`PITCHLOG_DATABASE_URL` の説明を「最初の物理接続時に失敗」へ同期 | PR レビュー |
 | **`docs/development/github-setup.md`** | **3 章の Ruleset JSON の `required_status_checks` へ `{ "context": "tenant-boundary-bypass" }` を追加**(同章 `:101`「**必須ジョブの追加・削除・改名時は本書と Ruleset を同時更新する**」に従う。本 PR が当該ジョブを新設する側である)。**2 章の手続 2 の常時実行ジョブの列挙も同時更新**。**変更履歴表へ追記し、版は上げない**(実装追随の節更新 — 7.6-3 前段。`nfr021-append-only` 追加時と同じ扱い) | PR レビュー |
+| **`contracts/tenant_boundary/*`(7 資産)** | **設計書 7.7-2(凍結基準の更新経路)への追随**。各資産へ**追記のみの更新履歴**を持たせる(① 新しい基準の識別値 ② 直前の基準の識別値 ③ 何を変えたか〔変更前後の内容〕④ 動かした事実・理由・承認者・承認日)。**7.7 は本 PR の進行中に develop へ入った**(`5e9ffd9`)ため、取り込みにより適用対象になった。**7.7-1 と 7.7-3 は実測で充足済み**(基準は資産側・検査器へ digest 直書き 0 件・CI 条件で `exit 2`)| PR レビュー |
 | **`docs/README.md`** | **索引の `github-setup.md` 行を現行化**(必須 CI 一覧が「9 context」のままだと実態とずれるため「10 context へ」を追記し最終更新日を更新)。**版は上げない** | PR レビュー |
 | **`docs/development/harness-evaluation.md`** | **`## 候補` へ新規 1 件 + 既存候補 2 件へ事例追記**(/pr のクローズ処理で判断)。**`H-*` の新規採番はしない・版は上げない**(7.6-3 前段) | PR レビュー |
 

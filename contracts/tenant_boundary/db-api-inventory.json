@@ -1,6 +1,65 @@
 {
   "schema_version": 1,
   "inventory_revision": 2,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "inventory_revision",
+      "current_identifiers": ["inventory_revision:2"],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "included": "all_top_level_fields",
+        "excluded": ["baseline_control", "source_digest"]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [
+      {
+        "source_commit": "004a78f",
+        "new_baseline_identifiers": ["inventory_revision:1"],
+        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "change": {
+          "subject": "feat: 迂回検査の検査契約を資産として確定する (ステップ 1/11)",
+          "before": "基準は置かれていなかった",
+          "after": "SQLAlchemy と psycopg の DB 到達 API 31件を inventory_revision=1 の閉集合として固定した"
+        },
+        "movement_fact": "004a78f で基準を初めて設置した",
+        "reason": "後続実装がテナント境界の強制点を経由することを継続保証するための検査契約を、実装より先に資産として固定する。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "baeab8c",
+        "new_baseline_identifiers": ["inventory_revision:2"],
+        "previous_baseline_identifiers": ["inventory_revision:1"],
+        "change": {
+          "subject": "fix: 敵対レビューの P0 4 件を是正する",
+          "before": "DB 到達 API の直接呼び出しだけを列挙し、receiver factory・re-export・psycopg.pq.PGconn の実行面は無かった",
+          "after": "receiver factory 10件、re-export 2件、PGconn.exec_・send_query 系と Connection.connect を含む低水準実行 API を追加した"
+        },
+        "movement_fact": "baeab8c で inventory_revision を1から2へ動かした",
+        "reason": "いずれも本単位が「守る」と宣言した保証に直接効くため先送りしない。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      }
+    ]
+  },
   "closed_world": true,
   "receiver_factories": [
     {

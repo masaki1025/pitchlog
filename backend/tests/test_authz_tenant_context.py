@@ -63,6 +63,13 @@ def _generated_snapshot() -> dict[str, object]:
     }
 
 
+def _asset_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
+    """更新履歴を除く生成対象フィールドを返す。"""
+    snapshot = dict(asset)
+    snapshot.pop("baseline_control", None)
+    return snapshot
+
+
 def test_tenant_context_is_an_immutable_value_object() -> None:
     """TenantContext が UUID を保持する frozen 値オブジェクトであることを確認する。"""
     tenant_id = uuid4()
@@ -89,7 +96,7 @@ def test_generated_allowlist_matches_asset() -> None:
 
     assert tenant_context_contract.SOURCE_ASSET == _ALLOWLIST_PATH.as_posix()
     assert asset["source_digest"] == _asset_digest(asset)
-    assert _generated_snapshot() == asset
+    assert _generated_snapshot() == _asset_snapshot(asset)
 
 
 def test_product_construction_allowlist_is_empty() -> None:
@@ -117,4 +124,4 @@ def test_each_stale_generated_allowlist_field_is_red(field: str) -> None:
     generated = _generated_snapshot()
     generated[field] = object()
 
-    assert generated != _read_allowlist()
+    assert generated != _asset_snapshot(_read_allowlist())

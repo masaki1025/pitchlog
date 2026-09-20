@@ -1,9 +1,54 @@
 {
   "schema_version": 1,
   "contract_revision": 1,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": ["contract_revision:1"],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "included": "all_top_level_fields",
+        "excluded": ["baseline_control", "source_digest"]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [
+      {
+        "source_commit": "0681077",
+        "new_baseline_identifiers": ["contract_revision:1"],
+        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "change": {
+          "subject": "feat: キャッシュ無効化契約の資産と要求生成 API を置く (ステップ 10/11)",
+          "before": "基準は置かれていなかった",
+          "after": "14トリガー×5範囲、波及規則、5種類の物理キー、永続化と再試行、純粋な要求生成 API を rev=1 として固定した"
+        },
+        "movement_fact": "0681077 で基準を初めて設置した",
+        "reason": "迂回検査の条件 4 が葉に「キャッシュ無効化契約に触れない」を課すため、本単位が提供しないと誰も実装できない。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      }
+    ]
+  },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "44042ef9abf61e264ea8529cc0c203b476f6d2a4129a6963e7536c46a59af907",
+  "source_digest": "d6673b5a99065af4af0e56b50a550ae256f180b432f03e04932e4d28f9ef3e0b",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",

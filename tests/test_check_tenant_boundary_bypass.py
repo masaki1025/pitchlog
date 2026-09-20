@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib.util
 import json
@@ -108,6 +109,13 @@ def _load_checker() -> ModuleType:
 checker = _load_checker()
 
 
+def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
+    """テナント境界の契約資産を JSON object として読む。"""
+    value = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
 def _fixture_source(path: Path) -> str:
     """fixture を UTF-8 で読む。"""
     return path.read_text(encoding="utf-8")
@@ -144,6 +152,138 @@ def test_positive_fixtures_pass() -> None:
     violations = checker.scan_directory(POSITIVE_ROOT, contract=contract)
 
     assert violations == []
+
+
+def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
+    """tenant_boundary 配下の 7 資産を履歴検査から漏らさない。"""
+    asset_root = REPOSITORY_ROOT / "contracts" / "tenant_boundary"
+    actual = {
+        path.relative_to(REPOSITORY_ROOT)
+        for path in asset_root.glob("*.json")
+    }
+
+    assert actual == set(checker.FROZEN_BASELINE_ASSETS)
+
+
+@pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)
+def test_every_frozen_baseline_asset_has_a_valid_chained_history(
+    relative_path: Path,
+) -> None:
+    """7 資産の識別宣言・4 項目・直前値の連鎖を検査する。"""
+    asset = _read_contract_asset(relative_path)
+
+    history = checker._validate_baseline_control(
+        asset,
+        relative_path.as_posix(),
+    )
+
+    assert history
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "new_baseline_identifiers",
+        "previous_baseline_identifiers",
+        "change",
+        "movement_fact",
+        "reason",
+        "approved_by",
+        "approved_on",
+    ),
+)
+def test_missing_baseline_history_field_is_red(field: str) -> None:
+    """7.7-2 の必須記録を 1 項目でも省く変異を拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    asset = _read_contract_asset(relative_path)
+    mutated = copy.deepcopy(asset)
+    del mutated["baseline_control"]["history"][0][field]
+
+    with pytest.raises(checker.ContractError):
+        checker._validate_baseline_control(mutated, relative_path.as_posix())
+
+
+def test_changed_baseline_history_entry_is_red() -> None:
+    """既存記録の書き換えを append-only 比較で拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    previous = _read_contract_asset(relative_path)
+    current = copy.deepcopy(previous)
+    current["baseline_control"]["history"][0]["reason"] = "書き換え"
+
+    with pytest.raises(checker.ContractError, match="変更・削除"):
+        checker._validate_history_append_only(
+            previous,
+            current,
+            relative_path.as_posix(),
+        )
+
+
+def test_deleted_baseline_history_entry_is_red() -> None:
+    """既存記録の削除を append-only 比較で拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    previous = _read_contract_asset(relative_path)
+    current = copy.deepcopy(previous)
+    current["contract_revision"] = 6
+    current["baseline_control"]["identity"]["current_identifiers"] = [
+        "contract_revision:6"
+    ]
+    current["baseline_control"]["history"].pop()
+
+    with pytest.raises(checker.ContractError, match="変更・削除"):
+        checker._validate_history_append_only(
+            previous,
+            current,
+            relative_path.as_posix(),
+        )
+
+
+def test_broken_previous_baseline_identifier_chain_is_red() -> None:
+    """直前の識別値が直前行の新識別値と違う変異を拒否する。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    asset = _read_contract_asset(relative_path)
+    mutated = copy.deepcopy(asset)
+    mutated["baseline_control"]["history"][1][
+        "previous_baseline_identifiers"
+    ] = ["contract_revision:999"]
+
+    with pytest.raises(checker.ContractError, match="連鎖"):
+        checker._validate_baseline_control(mutated, relative_path.as_posix())
+
+
+def test_first_history_entry_does_not_imply_no_previous_baseline() -> None:
+    """履歴の先頭という理由だけで直前基準なしと推定しない。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    asset = _read_contract_asset(relative_path)
+    mutated = copy.deepcopy(asset)
+    mutated["baseline_control"]["history"][0][
+        "previous_baseline_identifiers"
+    ] = ["legacy_baseline:1"]
+
+    history = checker._validate_baseline_control(
+        mutated,
+        relative_path.as_posix(),
+    )
+
+    assert history[0]["previous_baseline_identifiers"] == ["legacy_baseline:1"]
+
+
+def test_baseline_removal_can_be_recorded_with_no_baseline_marker() -> None:
+    """最後の基準を取り除く遷移にも履歴行を置ける。"""
+    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    asset = _read_contract_asset(relative_path)
+    mutated = copy.deepcopy(asset)
+    first = mutated["baseline_control"]["history"][0]
+    second = mutated["baseline_control"]["history"][1]
+    first["previous_baseline_identifiers"] = ["legacy_baseline:1"]
+    first["new_baseline_identifiers"] = [checker.NO_BASELINE]
+    second["previous_baseline_identifiers"] = [checker.NO_BASELINE]
+
+    history = checker._validate_baseline_control(
+        mutated,
+        relative_path.as_posix(),
+    )
+
+    assert history[0]["new_baseline_identifiers"] == [checker.NO_BASELINE]
 
 
 def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None:

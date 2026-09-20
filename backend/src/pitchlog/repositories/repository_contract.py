@@ -5,7 +5,7 @@ CONTRACT_REVISION = 2
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "6b0afada8e668def23a34f48640556000cc883d57201741efea8df236c4cfb8d"
+SOURCE_DIGEST = "0d2f4a0fdfc799a4b5ab06ddda78f7594615d7f5afaf36fc4d4f08b8cd0d6aa9"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"

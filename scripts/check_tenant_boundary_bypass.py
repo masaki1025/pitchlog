@@ -26,6 +26,15 @@ DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
 DEFAULT_CACHE_INVALIDATION_CONTRACT = Path(
     "contracts/tenant_boundary/cache-invalidation-contract.json"
 )
+FROZEN_BASELINE_ASSETS = (
+    Path("contracts/tenant_boundary/base-allowlist.json"),
+    Path("contracts/tenant_boundary/cache-invalidation-contract.json"),
+    Path("contracts/tenant_boundary/db-api-inventory.json"),
+    Path("contracts/tenant_boundary/negative-fixtures.json"),
+    Path("contracts/tenant_boundary/repository-contract.json"),
+    Path("contracts/tenant_boundary/runtime-authz-contract.json"),
+    Path("contracts/tenant_boundary/tenant-context-allowlist.json"),
+)
 EXPECTED_DIFF_COMMAND = (
     "git",
     "diff",
@@ -40,6 +49,8 @@ EXPECTED_TENANT_CONTEXT_CONSTRUCTOR = (
     "pitchlog.repositories.context.TenantContext"
 )
 CONDITION_IDS = frozenset({1, 2, 3, 4, 5})
+PENDING_APPROVAL = "未承認(PR #72 のレビュー待ち)"
+NO_BASELINE = "NO_BASELINE"
 SET_TENANT_RE = re.compile(
     r"\bSET\s+(?!(?:LOCAL)\b)(?:SESSION\s+)?app\.tenant_id\b", re.IGNORECASE
 )
@@ -285,6 +296,214 @@ def _string_array(value: object, location: str) -> tuple[str, ...]:
     return items
 
 
+def _validate_baseline_control(
+    asset: Mapping[str, object],
+    location: str,
+) -> tuple[Mapping[str, object], ...]:
+    """7.7-2 の基準識別・更新履歴・連鎖を検証する。
+
+    Args:
+        asset: 基準と履歴を持つ契約資産。
+        location: エラー表示用の資産パス。
+
+    Returns:
+        append-only 比較に使う検証済み履歴。
+
+    Raises:
+        ContractError: 宣言、必須項目、承認状態、または連鎖が不正な場合。
+    """
+    control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
+    _strict_keys(
+        control,
+        {"identity", "movement_policy", "history"},
+        f"{location}.baseline_control",
+    )
+    identity = _object(control["identity"], f"{location}.baseline_control.identity")
+    _strict_keys(
+        identity,
+        {
+            "scheme",
+            "field",
+            "current_identifiers",
+            "no_baseline_marker",
+            "frozen_projection",
+        },
+        f"{location}.baseline_control.identity",
+    )
+    if _string(identity["scheme"], f"{location}.identity.scheme") != (
+        "integer_revision_field"
+    ):
+        raise ContractError(f"{location}: 基準識別方式が未知")
+    field = _string(identity["field"], f"{location}.identity.field")
+    revision = _integer(asset.get(field), f"{location}.{field}")
+    current_identifiers = _string_array(
+        identity["current_identifiers"],
+        f"{location}.identity.current_identifiers",
+    )
+    if current_identifiers != (f"{field}:{revision}",):
+        raise ContractError(f"{location}: 現在の基準識別値が revision field と不一致")
+    no_baseline_marker = _string(
+        identity["no_baseline_marker"],
+        f"{location}.identity.no_baseline_marker",
+    )
+    if no_baseline_marker != NO_BASELINE:
+        raise ContractError(f"{location}: 基準未設置 marker が固定値と不一致")
+    projection = _object(
+        identity["frozen_projection"],
+        f"{location}.identity.frozen_projection",
+    )
+    _strict_keys(
+        projection,
+        {"included", "excluded"},
+        f"{location}.identity.frozen_projection",
+    )
+    if _string(projection["included"], f"{location}.projection.included") != (
+        "all_top_level_fields"
+    ):
+        raise ContractError(f"{location}: 凍結対象の included が固定値と不一致")
+    excluded = frozenset(
+        _string_array(projection["excluded"], f"{location}.projection.excluded")
+    )
+    if excluded != {"baseline_control", "source_digest"}:
+        raise ContractError(f"{location}: 凍結対象から除外する metadata が不一致")
+
+    policy = _object(
+        control["movement_policy"],
+        f"{location}.baseline_control.movement_policy",
+    )
+    _strict_keys(
+        policy,
+        {
+            "acceptance_unit",
+            "previous_state",
+            "new_state",
+            "intermediate_commits_are_records",
+            "movement_triggers",
+            "affected_baselines",
+            "history_append_only",
+        },
+        f"{location}.baseline_control.movement_policy",
+    )
+    if _string(policy["acceptance_unit"], f"{location}.policy.acceptance_unit") != (
+        "single_review_acceptance"
+    ):
+        raise ContractError(f"{location}: 受理単位が固定値と不一致")
+    if _string(policy["previous_state"], f"{location}.policy.previous_state") != (
+        "state_immediately_before_review_acceptance"
+    ):
+        raise ContractError(f"{location}: 直前状態の算出方法が不一致")
+    if _string(policy["new_state"], f"{location}.policy.new_state") != (
+        "state_immediately_after_review_acceptance"
+    ):
+        raise ContractError(f"{location}: 直後状態の算出方法が不一致")
+    if policy["intermediate_commits_are_records"] is not False:
+        raise ContractError(f"{location}: 途中コミットを履歴行に数えてはならない")
+    required_triggers = {
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping",
+    }
+    declared_triggers = set(
+        _string_array(
+            policy["movement_triggers"],
+            f"{location}.policy.movement_triggers",
+        )
+    )
+    if not required_triggers <= declared_triggers:
+        raise ContractError(f"{location}: 基準を動かす条件が下限を満たさない")
+    if _string(policy["affected_baselines"], f"{location}.policy.affected_baselines") != (
+        "all_baselines_matching_any_declared_trigger"
+    ):
+        raise ContractError(f"{location}: 行為の対象となる基準規則が不一致")
+    if policy["history_append_only"] is not True:
+        raise ContractError(f"{location}: 履歴は追記専用でなければならない")
+
+    history: list[Mapping[str, object]] = []
+    previous_new: tuple[str, ...] | None = None
+    source_commits: set[str] = set()
+    for index, raw in enumerate(_array(control["history"], f"{location}.history")):
+        entry_location = f"{location}.history[{index}]"
+        entry = _object(raw, entry_location)
+        _strict_keys(
+            entry,
+            {
+                "source_commit",
+                "new_baseline_identifiers",
+                "previous_baseline_identifiers",
+                "change",
+                "movement_fact",
+                "reason",
+                "approved_by",
+                "approved_on",
+            },
+            entry_location,
+        )
+        source_commit = _string(entry["source_commit"], f"{entry_location}.source_commit")
+        if re.fullmatch(r"[0-9a-f]{7}", source_commit) is None:
+            raise ContractError(f"{entry_location}: source_commit は短縮 hash 7 桁が必要")
+        if source_commit in source_commits:
+            raise ContractError(f"{location}: source_commit を重複できない")
+        source_commits.add(source_commit)
+        new_identifiers = _string_array(
+            entry["new_baseline_identifiers"],
+            f"{entry_location}.new_baseline_identifiers",
+        )
+        previous_identifiers = _string_array(
+            entry["previous_baseline_identifiers"],
+            f"{entry_location}.previous_baseline_identifiers",
+        )
+        if not new_identifiers or not previous_identifiers:
+            raise ContractError(f"{entry_location}: 新旧の基準識別値は空にできない")
+        if NO_BASELINE in new_identifiers and new_identifiers != (NO_BASELINE,):
+            raise ContractError(f"{entry_location}: 新基準の未設置 marker は単独値が必要")
+        if NO_BASELINE in previous_identifiers and previous_identifiers != (NO_BASELINE,):
+            raise ContractError(f"{entry_location}: 直前基準の未設置 marker は単独値が必要")
+        if previous_new is not None and previous_identifiers != previous_new:
+            raise ContractError(f"{entry_location}: 直前の基準識別値の連鎖が切れている")
+        change = _object(entry["change"], f"{entry_location}.change")
+        _strict_keys(
+            change,
+            {"subject", "before", "after"},
+            f"{entry_location}.change",
+        )
+        for field_name in ("subject", "before", "after"):
+            _string(change[field_name], f"{entry_location}.change.{field_name}")
+        _string(entry["movement_fact"], f"{entry_location}.movement_fact")
+        _string(entry["reason"], f"{entry_location}.reason")
+        approved_by = _string(entry["approved_by"], f"{entry_location}.approved_by")
+        approved_on = _string(entry["approved_on"], f"{entry_location}.approved_on")
+        pending_values = {approved_by == PENDING_APPROVAL, approved_on == PENDING_APPROVAL}
+        if len(pending_values) != 1:
+            raise ContractError(f"{entry_location}: 承認者と承認日は同時に確定する")
+        if approved_on != PENDING_APPROVAL and re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}", approved_on
+        ) is None:
+            raise ContractError(f"{entry_location}: 承認日は YYYY-MM-DD が必要")
+        history.append(entry)
+        previous_new = new_identifiers
+    if not history:
+        raise ContractError(f"{location}: 更新履歴は空にできない")
+    if previous_new != current_identifiers:
+        raise ContractError(f"{location}: 履歴末尾と現在の基準識別値が不一致")
+    return tuple(history)
+
+
+def _validate_history_append_only(
+    previous_asset: Mapping[str, object],
+    current_asset: Mapping[str, object],
+    location: str,
+) -> None:
+    """比較元の履歴が現在資産の不変 prefix であることを検証する。"""
+    previous = _validate_baseline_control(previous_asset, location)
+    current = _validate_baseline_control(current_asset, location)
+    if len(current) < len(previous) or current[: len(previous)] != previous:
+        raise ContractError(f"{location}: 既存の基準更新履歴は変更・削除できない")
+
+
 def _load_inventory(
     value: dict[str, Any],
 ) -> tuple[tuple[ApiSpec, ...], tuple[ReceiverFactory, ...], Mapping[str, str]]:
@@ -298,6 +517,7 @@ def _load_inventory(
             "apis",
             "receiver_factories",
             "symbol_aliases",
+            "baseline_control",
         },
         "db-api-inventory.json",
     )
@@ -416,6 +636,7 @@ def _load_allowlist(
             "inventory",
             "allowed_symbols",
             "conditions",
+            "baseline_control",
         },
         "base-allowlist.json",
     )
@@ -546,11 +767,19 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
     """負例 fixture の全数表を検証して読む。"""
     _strict_keys(
         value,
-        {"schema_version", "fixture_root", "fixtures"},
+        {
+            "schema_version",
+            "fixture_set_revision",
+            "fixture_root",
+            "fixtures",
+            "baseline_control",
+        },
         "negative-fixtures.json",
     )
     if _integer(value["schema_version"], "negative.schema_version") != 1:
         raise ContractError("negative.schema_version は 1 でなければならない")
+    if _integer(value["fixture_set_revision"], "negative.fixture_set_revision") < 1:
+        raise ContractError("negative.fixture_set_revision は 1 以上が必要")
     if _string(value["fixture_root"], "negative.fixture_root") != (
         "tests/fixtures/tenant_boundary/negative"
     ):
@@ -622,6 +851,7 @@ def _load_tenant_context_allowlist(
             "forbidden_construction_symbols",
             "allowed_test_modules",
             "allowed_product_modules",
+            "baseline_control",
         },
         "tenant-context-allowlist.json",
     )
@@ -744,6 +974,7 @@ def _load_cache_invalidation_bypass_contract(
             "durable_intent",
             "trigger_emission",
             "preaggregation_independent",
+            "baseline_control",
         },
         "cache-invalidation-contract.json",
     )
@@ -856,6 +1087,17 @@ def load_contract(repository_root: Path) -> Contract:
     cache_invalidation_value, _ = _read_json(
         repository_root / DEFAULT_CACHE_INVALIDATION_CONTRACT
     )
+    asset_values: dict[Path, dict[str, Any]] = {
+        DEFAULT_INVENTORY: inventory_value,
+        DEFAULT_ALLOWLIST: allowlist_value,
+        DEFAULT_NEGATIVE_FIXTURES: negative_value,
+        DEFAULT_TENANT_CONTEXT_ALLOWLIST: tenant_context_value,
+        DEFAULT_CACHE_INVALIDATION_CONTRACT: cache_invalidation_value,
+    }
+    for asset_path in FROZEN_BASELINE_ASSETS:
+        if asset_path not in asset_values:
+            asset_values[asset_path], _ = _read_json(repository_root / asset_path)
+        _validate_baseline_control(asset_values[asset_path], asset_path.as_posix())
     apis, receiver_factories, symbol_aliases = _load_inventory(inventory_value)
     allowed_symbols, rules = _load_allowlist(
         allowlist_value, inventory_bytes, apis
@@ -1852,6 +2094,46 @@ def _run_git(repository_root: Path, arguments: Sequence[str]) -> str:
     return result.stdout
 
 
+def _git_json_asset(
+    repository_root: Path,
+    revision: str,
+    path: Path,
+) -> dict[str, Any] | None:
+    """指定 revision に存在する JSON 資産を読む。存在しなければ None を返す。"""
+    object_name = f"{revision}:{path.as_posix()}"
+    matching_path = _run_git(
+        repository_root,
+        ["ls-tree", "--name-only", revision, "--", path.as_posix()],
+    )
+    if not matching_path.strip():
+        return None
+    source = _run_git(repository_root, ["show", object_name])
+    try:
+        value = json.loads(source)
+    except json.JSONDecodeError as error:
+        raise ContractError(f"比較元の契約資産が JSON でない: {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise ContractError(f"比較元の契約資産ルートがオブジェクトでない: {path}")
+    return value
+
+
+def _validate_repository_histories(
+    repository_root: Path,
+    merge_base: str,
+) -> None:
+    """merge-base に存在する履歴を現在資産の不変 prefix と照合する。"""
+    for path in FROZEN_BASELINE_ASSETS:
+        previous_asset = _git_json_asset(repository_root, merge_base, path)
+        if previous_asset is None or "baseline_control" not in previous_asset:
+            continue
+        current_asset, _ = _read_json(repository_root / path)
+        _validate_history_append_only(
+            previous_asset,
+            current_asset,
+            path.as_posix(),
+        )
+
+
 def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
     """指定 revision の backend/src Python ソースを読む。"""
     names = _run_git(
@@ -2011,6 +2293,7 @@ def check_repository(repository_root: Path, base_ref: str = "origin/develop") ->
     )
     changed_lines = changed_lines_from_diff(diff)
     merge_base = _run_git(repository_root, ["merge-base", base_ref, "HEAD"]).strip()
+    _validate_repository_histories(repository_root, merge_base)
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
     population = _inspection_population(

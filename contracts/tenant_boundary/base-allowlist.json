@@ -1,6 +1,135 @@
 {
   "schema_version": 1,
   "contract_revision": 7,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": ["contract_revision:7"],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "included": "all_top_level_fields",
+        "excluded": ["baseline_control", "source_digest"]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [
+      {
+        "source_commit": "004a78f",
+        "new_baseline_identifiers": ["contract_revision:1"],
+        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "change": {
+          "subject": "feat: 迂回検査の検査契約を資産として確定する (ステップ 1/11)",
+          "before": "基準は置かれていなかった",
+          "after": "TenantRepositoryBase._execute_operation の署名と SQLA_SESSION_EXECUTE・SQLA_TEXT、CI、差分導出、条件1〜4を rev=1 として固定"
+        },
+        "movement_fact": "004a78f で基準を初めて設置した",
+        "reason": "後続実装がテナント境界の強制点を経由することを継続保証するための検査契約を、実装より先に資産として固定する。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "cb0020c",
+        "new_baseline_identifiers": ["contract_revision:2"],
+        "previous_baseline_identifiers": ["contract_revision:1"],
+        "change": {
+          "subject": "feat: アプリ用ロール接続の真正性を最初の物理接続で検査する (ステップ 6/11)",
+          "before": "許可シンボルは TenantRepositoryBase._execute_operation だけだった",
+          "after": "create_database_engine と _verify_application_role_connection を API 単位で追加した"
+        },
+        "movement_fact": "cb0020c で contract_revision を1から2へ動かした",
+        "reason": "contracts/tenant_boundary/base-allowlist.json は contract_revision を 1 から 2 へ上げ、シンボル単位・API 単位で狭く許可した(集合の変更は明示的な改訂として扱う設計どおり)。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "08f9c32",
+        "new_baseline_identifiers": ["contract_revision:3"],
+        "previous_baseline_identifiers": ["contract_revision:2"],
+        "change": {
+          "subject": "feat: TenantContext と生成箇所 allowlist を置く (ステップ 7/11)",
+          "before": "TenantContext の生成シンボル契約は無かった",
+          "after": "TenantContext.__init__ を allowed_api_ids 空の許可シンボルとして追加した"
+        },
+        "movement_fact": "08f9c32 で contract_revision を2から3へ動かした",
+        "reason": "docstring だけを防壁にしない。下流の U-M1 等は U-A1(認証)を待たず U-T1 に直接依存するため、文章の申し送りでは漏れる。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "23b7803",
+        "new_baseline_identifiers": ["contract_revision:4"],
+        "previous_baseline_identifiers": ["contract_revision:3"],
+        "change": {
+          "subject": "feat: テナント文脈の束縛とアプリ層 fail-closed を実装する (ステップ 8/11)",
+          "before": "文脈束縛 API の DB 到達許可は無かった",
+          "after": "_tenant_transaction に SQLA_SESSION_BEGIN・CONNECTION・EXECUTE・SQLA_TEXT の4 APIを許可した"
+        },
+        "movement_fact": "23b7803 で contract_revision を3から4へ動かした",
+        "reason": "本単位が持つのはアプリ層の fail-closed である: TenantContext が無ければ業務 SQL を 1 文も発行せず TenantBindingError を送出する。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "f59ea48",
+        "new_baseline_identifiers": ["contract_revision:5"],
+        "previous_baseline_identifiers": ["contract_revision:4"],
+        "change": {
+          "subject": "feat: 越境関数経由のリポジトリ基底を置く (ステップ 9/11)",
+          "before": "_execute_operation(self, operation) で SQLA_SESSION_EXECUTE・SQLA_TEXT を許可していた",
+          "after": "_execute_operation(self, context, operation) へ変更し、許可 API を SQLA_SESSION_EXECUTE だけへ絞った"
+        },
+        "movement_fact": "f59ea48 で contract_revision を4から5へ動かした",
+        "reason": "公開面を文脈束縛・実行器の token 入口・空の越境関数 registry の 3 つに限る。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "0681077",
+        "new_baseline_identifiers": ["contract_revision:6"],
+        "previous_baseline_identifiers": ["contract_revision:5"],
+        "change": {
+          "subject": "feat: キャッシュ無効化契約の資産と要求生成 API を置く (ステップ 10/11)",
+          "before": "条件4に cache_invalidation の禁止パターンは無かった",
+          "after": "条件4へ cache_invalidation の禁止パターンを追加した"
+        },
+        "movement_fact": "0681077 で contract_revision を5から6へ動かした",
+        "reason": "迂回検査の条件 4 が葉に「キャッシュ無効化契約に触れない」を課すため、本単位が提供しないと誰も実装できない。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "baeab8c",
+        "new_baseline_identifiers": ["contract_revision:7"],
+        "previous_baseline_identifiers": ["contract_revision:6"],
+        "change": {
+          "subject": "fix: 敵対レビューの P0 4 件を是正する",
+          "before": "inventory SHA-256 は 91ca7edfff58df9a15939db7daf71c701b16303e773041ffb1b132519b295681 だった",
+          "after": "低水準 API・receiver factory・re-export と更新履歴を含む inventory の SHA-256 b4d38a47b45cc7246cefabebc394441fe12d89b1847ee3d99f6bedc62a9c72ab へ更新した"
+        },
+        "movement_fact": "baeab8c で contract_revision を6から7へ動かした",
+        "reason": "いずれも本単位が「守る」と宣言した保証に直接効くため先送りしない。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      }
+    ]
+  },
   "diff": {
     "command": [
       "git",
@@ -18,7 +147,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "7c2b82a45daabcc2ffec857f9c520611785d35fa9afecdbe6d3d5ac7b656d7e2"
+    "sha256": "b4d38a47b45cc7246cefabebc394441fe12d89b1847ee3d99f6bedc62a9c72ab"
   },
   "allowed_symbols": [
     {
