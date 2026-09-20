@@ -430,7 +430,9 @@
       ],
       "evidenceLocation": "backend/domain/step-authorities.json",
       "firingCondition": "1 件でも実在しない",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     }
   ]
 }
