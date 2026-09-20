@@ -1303,6 +1303,38 @@ def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
     _assert_checkout_fetch_depth_contract(workflow)
 
 
+def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
+    """凍結基準のイベント別コマンドが完全履歴のharnessだけで走る。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    jobs = _mapping_at(workflow, ("jobs",))
+    assert isinstance(jobs, dict)
+    assert len(jobs) == 9
+    harness = _harness_job(workflow)
+    checkout = _checkout_step("harness", harness)
+    assert _mapping_at(checkout, ("with", "fetch-depth")) == 0
+    steps = _mapping_at(harness, ("steps",))
+    assert isinstance(steps, list)
+    frozen_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and "scripts/check_frozen_baselines.py" in command
+    ]
+    assert frozen_steps == [
+        {
+            "name": "Check frozen baseline acceptance",
+            "if": "github.event_name == 'pull_request'",
+            "run": "uv run python scripts/check_frozen_baselines.py --acceptance",
+        },
+        {
+            "name": "Check frozen baseline invariants",
+            "if": "github.event_name != 'pull_request'",
+            "run": "uv run python scripts/check_frozen_baselines.py --invariants-only",
+        },
+    ]
+
+
 def test_checkout_fetch_depth_rejects_step_three_rollback() -> None:
     """harness の完全履歴設定を外すと拒否する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))

@@ -37,8 +37,35 @@ def _object_without_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, An
     return result
 
 
+def parse_frozen_baseline_ledger(data: bytes, source: str) -> dict[str, Any]:
+    """凍結基準台帳の生bytesを重複キーを許さずパースする。
+
+    Args:
+        data: 台帳の生bytes。
+        source: エラー表示に使う台帳の由来。
+
+    Returns:
+        パース済みのトップレベルオブジェクト。
+
+    Raises:
+        FrozenBaselineError: JSONが壊れているかトップレベルがobjectでない場合。
+    """
+    try:
+        value = json.loads(
+            data,
+            object_pairs_hook=_object_without_duplicate_keys,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise FrozenBaselineError(f"台帳JSONを解析できない: {source}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise FrozenBaselineError(
+            f"台帳のトップレベルはobjectでなければならない: {source}"
+        )
+    return value
+
+
 def load_frozen_baseline_ledger(path: Path) -> dict[str, Any]:
-    """凍結基準台帳を重複キーを許さず読み取る。
+    """凍結基準台帳ファイルを読み取ってパースする。
 
     Args:
         path: 読み取る台帳ファイル。
@@ -50,16 +77,7 @@ def load_frozen_baseline_ledger(path: Path) -> dict[str, Any]:
         FrozenBaselineError: JSONが壊れているかトップレベルがobjectでない場合。
         OSError: 台帳を読み取れない場合。
     """
-    try:
-        value = json.loads(
-            path.read_bytes(),
-            object_pairs_hook=_object_without_duplicate_keys,
-        )
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise FrozenBaselineError(f"台帳JSONを解析できない: {exc}") from exc
-    if not isinstance(value, dict):
-        raise FrozenBaselineError("台帳のトップレベルはobjectでなければならない")
-    return value
+    return parse_frozen_baseline_ledger(path.read_bytes(), str(path))
 
 
 def _split_target(target: str) -> tuple[str, str]:

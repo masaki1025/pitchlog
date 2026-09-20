@@ -42,11 +42,11 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "64e3447c4e09e5ec59f430676f8288edbc03289f6be1f1238b992626046da01a"
+        "sha256": "d8d3fd16de43247a608f593428f0c2ad2c8597f96c154f2695d19df2ee6c384a"
       },
       {
         "path": "scripts/frozen_baselines.py",
-        "sha256": "1551156be501a1e14524b010a60ac219090bdd8872aca0753e77e98570945dc7"
+        "sha256": "a394ad7714838aa48f383c763bbb62e89ddd73a0d696fce0c71fda54cceabfff"
       }
     ],
     "strategy_keys": [

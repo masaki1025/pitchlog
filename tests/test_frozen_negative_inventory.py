@@ -28,6 +28,14 @@ EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset(
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_absent_prior_identity_with_values_is_red",
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_new_identity_different_from_derived_value_is_red",
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_impossible_approval_date_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_non_develop_event_does_not_enter_acceptance_transition",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_first_parent_different_from_event_base_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_second_parent_different_from_event_head_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_rewritten_existing_history_record_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_deleted_existing_history_record_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_same_length_history_replacement_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_second_bootstrap_after_missing_base_ledger_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_missing_inputs_and_dangling_identity_are_red",
     }
 )
 
@@ -122,9 +130,9 @@ def _write_synthetic_test(root: Path, filename: str, source: str) -> None:
     (directory / filename).write_text(source, encoding="utf-8")
 
 
-def test_repository_inventory_matches_expected_set_of_fourteen() -> None:
-    """期待集合が明示した14件で実母集団とも一致する。"""
-    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 14
+def test_repository_inventory_matches_expected_set_of_twenty_two() -> None:
+    """期待集合が明示した22件で実母集団とも一致する。"""
+    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 22
 
     inventory = _collect_frozen_negative_inventory(REPOSITORY_ROOT)
 
