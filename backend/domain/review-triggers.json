@@ -102,7 +102,9 @@
       ],
       "evidenceLocation": "tests/domain/test_path_match.py",
       "firingCondition": "正規化で吸収できない差 1 件",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 5,
