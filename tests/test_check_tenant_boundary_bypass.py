@@ -818,6 +818,99 @@ factory_client.execute()
     assert violations == []
 
 
+def test_local_database_type_name_shadow_mutation_is_red() -> None:
+    """安全なローカル型が DB 型名を shadow する変異だけを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class Report:
+    pass
+
+
+def render(work: Report):
+    return work.execute("render")
+"""
+    baseline = checker.scan_source(
+        source,
+        path="pitchlog/services/report_renderer.py",
+        contract=contract,
+    )
+    assert baseline == []
+
+    mutated = source.replace("Report", "Session")
+    violations = checker.scan_source(
+        mutated,
+        path="pitchlog/services/report_renderer.py",
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "insertion",
+    (
+        "    work = other\n",
+        "    if flag:\n        work = other\n",
+    ),
+)
+def test_non_database_receiver_rebinding_mutation_is_red(insertion: str) -> None:
+    """非 DB 注釈を未解決値で上書きする直線・分岐変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class Report:
+    pass
+
+
+def render(work: Report, other, flag):
+    return work.execute("render")
+"""
+    baseline = checker.scan_source(
+        source,
+        path="pitchlog/services/report_rebinding.py",
+        contract=contract,
+    )
+    assert baseline == []
+
+    mutated = source.replace(
+        '    return work.execute("render")\n',
+        f'{insertion}    return work.execute("render")\n',
+    )
+    violations = checker.scan_source(
+        mutated,
+        path="pitchlog/services/report_rebinding.py",
+        contract=contract,
+    )
+
+    assert "TB005" in {violation.code for violation in violations}
+
+
+def test_unresolved_attribute_constructor_mutation_is_red() -> None:
+    """receiver の型証明を外した属性 callable 変異を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from application.factories import ContextFactory
+
+
+def make(mod: ContextFactory, tenant_id):
+    return mod.TenantContext(tenant_id)
+"""
+    baseline = checker.scan_source(
+        source,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+    assert baseline == []
+
+    mutated = source.replace("mod: ContextFactory", "mod")
+    violations = checker.scan_source(
+        mutated,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
 def test_database_receiver_from_local_factory_return_is_red() -> None:
     """ローカル factory の戻り型が DB receiver なら迂回を拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
