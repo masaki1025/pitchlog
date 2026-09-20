@@ -240,3 +240,63 @@ grep -rnoE '\b[0-9a-f]{64}\b' scripts/ tests/ backend/tests/ --include=*.py
 | 差分が許可 3 パスに収まる | ✅(`pyproject.toml` は `markers` の追加のみ・`testpaths` は保持) |
 | 委任先がコミットしていない | ✅ |
 | ステップ 2 以降へ進んでいない | ✅(`contracts/` `scripts/` `backend/` `.github/` `.claude/` `docs/` に差分なし) |
+
+### ステップ 2/8 — 台帳と検査器の器(git 非依存)
+
+**成果物**: `contracts/authz/frozen-baselines.json`(台帳・SHA-256 `dec4e1fb…`)/ `contracts/authz/frozen-baselines.schema.json` / `scripts/frozen_baselines.py`(リーダ + 戦略 + registry)/ `scripts/check_frozen_baselines.py`(検査器)/ `tests/frozen_negatives/test_frozen_baseline_ledger.py`(負例 14 件)/ inventory の期待集合を 0 → 14 件へ更新。
+
+台帳のトップレベルは **8 キー**(`schema_version` / `asset_kind` / `acceptance` / `movement_rules` / `implementation_bindings` / `placements` / `declarations` / `history`)。`frozen_targets` は **7 件**(seal の `#/oracle_commit` + 6 資産の `#/oracle_context/oracle_commit` — すべて `24ef4fcc…` であることを実測で確認)。
+
+#### 戦略のシグネチャ(自分で読んで確認)
+
+```python
+def literal_commit_string_at_json_pointer(
+    materials: Mapping[str, bytes],
+    targets: Sequence[str],
+) -> tuple[IdentityValue, ...]:
+```
+
+**本体は `materials` と `targets` しか参照していない。**台帳・リポジトリルート・VCS 参照・registry への経路が無い。これが 1〜5 周目を通じた最大の論点(前任は宣言を引数で受け取り、その値を記録へ書き戻していた)。
+
+#### 変異感度の実測(自分で回した)
+
+委任先の自己申告(14 変異の表)を証拠にせず、**逆向き変異を 2 つ自分で入れた**。
+
+| 変異 | 対応する負例 | 結果 |
+| --- | --- | --- |
+| **識別値の照合を無効化**(`if new_state["present"] is not True or actual_new != …:` → `if False:`) | `test_new_identity_different_from_derived_value_is_red` | **ちょうど 1 件が落ち、他 13 件は通った**。照合を守る負例が単独で特定できている |
+| **戦略を `return ()` へ**(**PR #63 が 3 周連続で通した形**) | — | **検査器が red**: `history.oracle_input.new_identity が戦略の導出値と不一致`。**前任の失敗モードが検出される** |
+
+**復元のバイト一致を検証済み**(`cmp -s` で 2 ファイルとも一致)。台帳の SHA-256 も原本値 `dec4e1fb796b1d8e20d273cd7f20d69e103ee5873dec8199dca77160e444fa56` へ戻ることを確認。
+
+#### 実測で分かったこと — `implementation_bindings` が実装の変異を先に捕まえる
+
+最初に検査器を変異させたとき、**負例 14 件が全部落ちた**。原因を追うと baseline green assert の段階で:
+
+```
+frozen-baselines: ERROR: implementation_bindings の code_assets の sha256 が不一致:
+  scripts/check_frozen_baselines.py
+```
+
+**検査器自身のソースが `code_assets` に登録されているため、変異した瞬間に digest 不一致で止まる。**3 周目 `P0-4`(「`identity` の文字列を据え置いたまま戦略の解釈を変えられる」)への対策が、意図どおり働いている。
+
+> **運用上の摩擦(記録)**: この保守的な binding のため、**実装の変異試験には digest の更新が対で要る**。変異 → digest 再計算 → 実行 → 復元 → digest 再計算、の 5 手順になる。設計の代償であり、意図した挙動。後続タスクの変異試験でも同じ手順が要る。
+
+#### 合格条件の判定
+
+| 条件 | 結果 |
+| --- | --- |
+| 検査器が作業ツリーに対して exit 0 | ✅ `frozen-baselines: OK` |
+| 初期記録の識別値がソース定数と逐語一致することを機械が照合(**検査器に値を書かない**) | ✅(`placement_change.before` の `python_assignment` locator からソースを読んで抽出) |
+| 未知 `aspect`・未知 `identity` が red | ✅ N3 / N4 |
+| `movement_rules` の各項目を 1 つずつ削除・縮小する負例が red | ✅ N5〜N8(`universal_lower_bound` の縮小 = N6) |
+| `code_assets` の digest を変えると red | ✅ N9(**さらに上記の実測で実地にも確認**) |
+| `placement_change` の記録値が導出と食い違うと red | ✅ N10 / N11 |
+| 「履歴が無い」と「直前が無い」の混同が red | ✅ N12 |
+| `prior_identity`/`new_identity`/`moved` が導出値と食い違うと red | ✅ N13(**逆向き変異でも裏取り**) |
+| 負例 14 件で inventory が exact-set 一致 | ✅ |
+| `uv run pytest tests/` green | ✅ **1413 passed**(13:40) |
+| `ruff check .` / `ty check` green | ✅ |
+| 差分が許可範囲 | ✅ **`scripts/check_authz_catalog.py` は無変更**(移設はステップ 5) |
+| git を呼んでいない | ✅(ステップ 3 の範囲) |
+| 委任先がコミットしていない / ステップ 3 以降へ進んでいない | ✅ |

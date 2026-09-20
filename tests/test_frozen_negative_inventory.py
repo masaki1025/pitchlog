@@ -12,7 +12,24 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FROZEN_NEGATIVE_DIRECTORY = Path("tests/frozen_negatives")
 FROZEN_NEGATIVE_MARKER = "frozen_negative"
 
-EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset()
+EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset(
+    {
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_unknown_top_level_key_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_missing_top_level_key_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_unknown_change_aspect_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_identity_without_registered_strategy_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_removed_movement_trigger_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_reduced_universal_lower_bound_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_additional_target_for_unknown_trigger_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_missing_self_change_rule_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_changed_code_asset_digest_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_before_locator_with_missing_symbol_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_missing_placement_change_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_absent_prior_identity_with_values_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_new_identity_different_from_derived_value_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_impossible_approval_date_is_red",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -105,9 +122,9 @@ def _write_synthetic_test(root: Path, filename: str, source: str) -> None:
     (directory / filename).write_text(source, encoding="utf-8")
 
 
-def test_repository_inventory_matches_explicitly_empty_expected_set() -> None:
-    """現ステップの期待集合が明示的に空で実母集団とも一致する。"""
-    assert EXPECTED_FROZEN_NEGATIVE_NODE_IDS == frozenset()
+def test_repository_inventory_matches_expected_set_of_fourteen() -> None:
+    """期待集合が明示した14件で実母集団とも一致する。"""
+    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 14
 
     inventory = _collect_frozen_negative_inventory(REPOSITORY_ROOT)
 

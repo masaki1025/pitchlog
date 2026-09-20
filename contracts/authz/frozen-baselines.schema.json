@@ -1,0 +1,796 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/authz/frozen-baselines.schema.json",
+  "title": "Pitchlog frozen baseline ledger",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "asset_kind",
+    "acceptance",
+    "movement_rules",
+    "implementation_bindings",
+    "placements",
+    "declarations",
+    "history"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "asset_kind": {
+      "type": "string",
+      "const": "frozen_baselines"
+    },
+    "acceptance": {
+      "$ref": "#/definitions/acceptance"
+    },
+    "movement_rules": {
+      "$ref": "#/definitions/movement_rules"
+    },
+    "implementation_bindings": {
+      "$ref": "#/definitions/implementation_bindings"
+    },
+    "placements": {
+      "type": "object",
+      "required": [
+        "oracle_input"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "oracle_input": {
+          "$ref": "#/definitions/locator_array"
+        }
+      }
+    },
+    "declarations": {
+      "type": "object",
+      "required": [
+        "oracle_input"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "oracle_input": {
+          "$ref": "#/definitions/declaration"
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/history_record"
+      }
+    }
+  },
+  "definitions": {
+    "absent": {
+      "type": "object",
+      "required": [
+        "absent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "required": [
+        "unit",
+        "base_ref",
+        "prior_state",
+        "posterior_state",
+        "parent_check",
+        "acceptance_id_source",
+        "self_reference"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "type": "string",
+          "const": "pull_request"
+        },
+        "base_ref": {
+          "type": "string",
+          "const": "develop"
+        },
+        "prior_state": {
+          "type": "string",
+          "const": "event.pull_request.base.sha"
+        },
+        "posterior_state": {
+          "type": "string",
+          "const": "checkout_head"
+        },
+        "parent_check": {
+          "type": "object",
+          "required": [
+            "first",
+            "second"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "first": {
+              "type": "string",
+              "const": "base.sha"
+            },
+            "second": {
+              "type": "string",
+              "const": "head.sha"
+            }
+          }
+        },
+        "acceptance_id_source": {
+          "type": "string",
+          "const": "repository_and_pr_number"
+        },
+        "self_reference": {
+          "type": "string",
+          "const": "none"
+        }
+      }
+    },
+    "movement_rules": {
+      "type": "object",
+      "required": [
+        "triggers",
+        "universal_lower_bound",
+        "additional_targets",
+        "self_change"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "triggers": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "value_change",
+              "replacement",
+              "addition",
+              "removal",
+              "location_change",
+              "first_placement",
+              "rule_self_change"
+            ]
+          }
+        },
+        "universal_lower_bound": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "set",
+              "value",
+              "placement",
+              "target_correspondence",
+              "identity_interpretation"
+            ]
+          }
+        },
+        "additional_targets": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "value_change",
+              "replacement",
+              "addition",
+              "removal",
+              "location_change",
+              "first_placement",
+              "rule_self_change"
+            ]
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "properties": {}
+        },
+        "self_change": {
+          "type": "object",
+          "required": [
+            "trigger",
+            "targets"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "trigger": {
+              "type": "string",
+              "const": "rule_self_change"
+            },
+            "targets": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "const": "*"
+              }
+            }
+          }
+        }
+      }
+    },
+    "code_asset": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^#]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "implementation_bindings": {
+      "type": "object",
+      "required": [
+        "code_assets",
+        "strategy_keys",
+        "registry"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code_assets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/code_asset"
+          }
+        },
+        "strategy_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*$"
+          }
+        },
+        "registry": {
+          "type": "object",
+          "required": [
+            "path",
+            "symbol"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^#]+$"
+            },
+            "symbol": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          }
+        }
+      }
+    },
+    "python_assignment_locator": {
+      "type": "object",
+      "required": [
+        "kind",
+        "path",
+        "symbol"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "python_assignment"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^#]+$"
+        },
+        "symbol": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        }
+      }
+    },
+    "ledger_series_locator": {
+      "type": "object",
+      "required": [
+        "kind",
+        "path",
+        "series"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "ledger_series"
+        },
+        "path": {
+          "type": "string",
+          "const": "contracts/authz/frozen-baselines.json"
+        },
+        "series": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "locator": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/python_assignment_locator"
+        },
+        {
+          "$ref": "#/definitions/ledger_series_locator"
+        }
+      ]
+    },
+    "locator_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/locator"
+      }
+    },
+    "frozen_targets": {
+      "type": "array",
+      "uniqueItems": true,
+      "const": [
+        "contracts/authz/oracle-seal.lock.json#/oracle_commit",
+        "contracts/authz/attack-tree.json#/oracle_context/oracle_commit",
+        "contracts/authz/boundary-proposal.json#/oracle_context/oracle_commit",
+        "contracts/authz/claim-mutant-map.json#/oracle_context/oracle_commit",
+        "contracts/authz/ddl-elements.json#/oracle_context/oracle_commit",
+        "contracts/authz/rejected-configs.json#/oracle_context/oracle_commit",
+        "contracts/authz/verification-evidence.json#/oracle_context/oracle_commit"
+      ],
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^#]+#/.*$"
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "required": [
+        "frozen_targets",
+        "identity",
+        "granularity",
+        "basis_series"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "frozen_targets": {
+          "$ref": "#/definitions/frozen_targets"
+        },
+        "identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "granularity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis_series": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "identity_value": {
+      "type": "object",
+      "required": [
+        "kind",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "literal_commit_string"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "identity_state": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "present",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "present": {
+              "type": "boolean",
+              "const": true
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/identity_value"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "present",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "present": {
+              "type": "boolean",
+              "const": false
+            },
+            "values": {
+              "type": "array",
+              "maxItems": 0,
+              "items": {
+                "$ref": "#/definitions/identity_value"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "string_or_absent": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "$ref": "#/definitions/absent"
+        }
+      ]
+    },
+    "targets_or_absent": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/frozen_targets"
+        },
+        {
+          "$ref": "#/definitions/absent"
+        }
+      ]
+    },
+    "acceptance_or_absent": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/acceptance"
+        },
+        {
+          "$ref": "#/definitions/absent"
+        }
+      ]
+    },
+    "movement_rules_or_absent": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/movement_rules"
+        },
+        {
+          "$ref": "#/definitions/absent"
+        }
+      ]
+    },
+    "implementation_bindings_or_absent": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/implementation_bindings"
+        },
+        {
+          "$ref": "#/definitions/absent"
+        }
+      ]
+    },
+    "change_frozen_targets": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "frozen_targets"
+        },
+        "before": {
+          "$ref": "#/definitions/targets_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/targets_or_absent"
+        }
+      }
+    },
+    "change_identity": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "identity"
+        },
+        "before": {
+          "$ref": "#/definitions/string_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/string_or_absent"
+        }
+      }
+    },
+    "change_granularity": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "granularity"
+        },
+        "before": {
+          "$ref": "#/definitions/string_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/string_or_absent"
+        }
+      }
+    },
+    "change_basis_series": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "basis_series"
+        },
+        "before": {
+          "$ref": "#/definitions/string_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/string_or_absent"
+        }
+      }
+    },
+    "change_movement_rules": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "movement_rules"
+        },
+        "before": {
+          "$ref": "#/definitions/movement_rules_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/movement_rules_or_absent"
+        }
+      }
+    },
+    "change_implementation_bindings": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "implementation_bindings"
+        },
+        "before": {
+          "$ref": "#/definitions/implementation_bindings_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/implementation_bindings_or_absent"
+        }
+      }
+    },
+    "change_acceptance": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "acceptance"
+        },
+        "before": {
+          "$ref": "#/definitions/acceptance_or_absent"
+        },
+        "after": {
+          "$ref": "#/definitions/acceptance_or_absent"
+        }
+      }
+    },
+    "change_series_retired": {
+      "type": "object",
+      "required": [
+        "aspect",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "const": "series_retired"
+        },
+        "before": {
+          "$ref": "#/definitions/declaration"
+        },
+        "after": {
+          "$ref": "#/definitions/absent"
+        }
+      }
+    },
+    "change": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/change_frozen_targets"
+        },
+        {
+          "$ref": "#/definitions/change_identity"
+        },
+        {
+          "$ref": "#/definitions/change_granularity"
+        },
+        {
+          "$ref": "#/definitions/change_basis_series"
+        },
+        {
+          "$ref": "#/definitions/change_movement_rules"
+        },
+        {
+          "$ref": "#/definitions/change_implementation_bindings"
+        },
+        {
+          "$ref": "#/definitions/change_acceptance"
+        },
+        {
+          "$ref": "#/definitions/change_series_retired"
+        }
+      ]
+    },
+    "placement_change": {
+      "type": "object",
+      "required": [
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "before": {
+          "$ref": "#/definitions/locator_array"
+        },
+        "after": {
+          "$ref": "#/definitions/locator_array"
+        }
+      }
+    },
+    "history_record": {
+      "type": "object",
+      "required": [
+        "acceptance_id",
+        "series",
+        "new_identity",
+        "prior_identity",
+        "changes",
+        "placement_change",
+        "moved",
+        "reason",
+        "approved_by",
+        "approved_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_id": {
+          "type": "string",
+          "pattern": "^[^/]+/[^#]+#[1-9][0-9]*$"
+        },
+        "series": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_identity": {
+          "$ref": "#/definitions/identity_state"
+        },
+        "prior_identity": {
+          "$ref": "#/definitions/identity_state"
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/change"
+          }
+        },
+        "placement_change": {
+          "$ref": "#/definitions/placement_change"
+        },
+        "moved": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      }
+    }
+  }
+}
