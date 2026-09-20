@@ -300,3 +300,102 @@ frozen-baselines: ERROR: implementation_bindings の code_assets の sha256 が�
 | 差分が許可範囲 | ✅ **`scripts/check_authz_catalog.py` は無変更**(移設はステップ 5) |
 | git を呼んでいない | ✅(ステップ 3 の範囲) |
 | 委任先がコミットしていない / ステップ 3 以降へ進んでいない | ✅ |
+
+### ステップ 3/8 — 受理遷移検査・bootstrap・CI 結線(git 依存の導入点)
+
+**成果物**: `scripts/check_frozen_baselines.py` に `--acceptance` を追加 / `scripts/frozen_baselines.py` の台帳パースを bytes 経路へ切り出し / `.github/workflows/ci.yml` の harness ジョブへ 2 step 結線 / `tests/test_ci_wiring.py` に結線の不変条件 / `tests/frozen_negatives/test_frozen_baseline_acceptance.py`(負例 8 件 N15〜N22)/ inventory の期待集合を 14 → 22 件へ。
+
+コミット `1f5d905`。**1422 passed**(15:05)・`ruff check .` / `ty check` green。
+
+#### 設計上の要点(実装を読んで確認したもの)
+
+| 論点 | 実装 |
+| --- | --- |
+| **戦略のシグネチャ**(1〜5 周目の最大の論点) | **無改変**。変更は台帳パースの bytes 切り出しのみで、**base 側も同じ重複キー拒否パーサを通る**ようになった(base だけ緩く読む穴が塞がった) |
+| **親の照合が何を保証するか** | `:1323-1324` に「保証するのは event と checkout の整合だけ / base の最新性は `github-setup.md:39` の三点一致手続が担い、台帳は保証しない」とコメント。**台帳が base 最新性を保証すると書いていない** |
+| **bootstrap の自己参照** | `_bootstrap_expected_state()` は **`code_assets` の digest だけ実行時に再計算**し、**パス集合 `CODE_ASSET_PATHS` は検査器側の定数**。検査器自身の digest を検査器へ書くと不動点になるため、この切り分け以外に成立する形がない。束ねるファイルの増減は閉じており、浮くのは digest 値だけ |
+| **2 回目の bootstrap** | `BOOTSTRAP_ACCEPTANCE_ID = "masaki1025/pitchlog#73"` 固定。別 PR 番号では必ず red |
+| **追記のみ** | base 履歴が head 履歴の**逐語 prefix** であることを検査(件数比較より強い)。同数置換は専用メッセージ |
+| **到達可能性** | `--is-ancestor` の戻り値 **1(到達不能)と他の非 0(確かめられない)を区別して両方 red** |
+| **イベント別** | skip ではなく**コマンドの選択**。`if:` 2 つが互いの否定形で、どのイベントでも必ず一方が走る |
+
+#### 逆向き変異の実測(委任先の自己申告は使っていない)
+
+| 入れた変異 | 落ちた負例 | 意味 |
+| --- | --- | --- |
+| 追記のみを**件数比較だけへ緩める**(計画書が名指し) | **N18 と N20 のちょうど 2 件**(N19 は件数検査が拾うので通る) | 一括で落ちない = **早期 red で通っていない** |
+| 到達可能性を **`cat-file -e` だけへ戻す**(前任 `F-5` の誤り) | **N22 のちょうど 1 件** | **前任の失敗モードが検出される** |
+| **第 1 親の照合を無効化** | **N16 のちょうど 1 件**。しかも**別の理由で red になったためメッセージ逐語 assert が落ちた** | 「red になったか」ではなく「**正しい理由で red か**」を区別できている |
+
+3 回とも**復元のバイト一致**を確認(`mutate.py` で digest 追随も機械化 — ステップ 2 で実測した 5 手順の摩擦への対処)。
+
+あわせて、脱出走査で見つかった `_precheck_history` の裸 `return` / `continue` が穴でないことを**実験で確認した**(`history` を object へ・`history[0]` を非 dict へ、いずれも下流の schema 検査が red)。
+
+#### CI 条件の手元再現(全段)
+
+前任がローカル green / CI red を踏んだ 2 段構造を**実際に再現**した:
+
+- **(A)** detached HEAD・local branch **0 件** を assert
+- **(B)** その workspace を `clone` すると **`origin/develop` が解決できない**ことを明示的に確認
+- 合成マージ HEAD を**コミットした状態で**作成(`--no-commit` は嘘の red を出す)。第 1 親 = `5e9ffd9` / 第 2 親 = `17594aa` を実測一致
+
+| 経路 | 結果 |
+| --- | --- |
+| `pull_request` + `base.ref=develop` → `--acceptance` | exit 0。bootstrap の 2 行を出力 |
+| `base.ref=main` | 受理検査に入らず exit 0(**理由を明示** — 黙って skip していない) |
+| `GITHUB_EVENT_PATH` なし | exit 1 |
+| 2 回目の bootstrap(PR 番号違い) | exit 1 |
+| `push` → `--invariants-only` | exit 0 |
+
+出力文言は要求どおりで、**「機械的に循環を切った」とも「マージ後は到達しない」とも書いていない**。正確な表現「台帳を含む base SHA で新たに評価される develop 宛 PR では到達しない」が出る。
+
+#### 既知の限界 — ステップ 6 へ送る
+
+> 台帳は **`target_correspondence`**(対象と値の対応)を `universal_lower_bound` = 「変われば必ず記録を要する軸」として宣言している。しかし識別値の照合は `frozenset[IdentityValue]` 同士で、**`IdentityValue` は `(kind, value)` しか持たず対象を持たない**(`check_frozen_baselines.py:526` で戦略の順序つき tuple を `frozenset` へ畳んでいる)。**この軸の変化を観測できない。**
+>
+> `universal_lower_bound` は**軸名の exact-set として宣言が検査されるだけ**で、軸を観測する機構はない(`:394`)。
+>
+> `oracle_input` では**空虚**である — 7 対象すべてが同値なので対応を変えようがなく、**現時点ではこの穴を構成することすらできない**(値を変えれば集合が変わり検知される)。加えて `check_authz_catalog.py:5231-5232`・`:5409-5411` が 7 箇所の一致を別途要求している。
+>
+> **多値系列が入るステップ 6(`oracle_meaning`)・7(`authz_step2_base` = commit 1 + blob digest N)で宣言と機構の食い違いになる。**同 `kind` の digest どうしを対象間で入れ替えても集合が変わらない。
+>
+> **読んで確かめた事実であり、実測はステップ 6 まで構成できない。**ステップ 6 の依頼文へ「対象と値の対応が照合に入っているか」を明示的に入れる。直すと台帳スキーマ(`_identity_values` の重複禁止・「7 対象 1 値」の記録形)へ波及する。
+
+#### 合格条件の判定
+
+| 条件 | 結果 |
+| --- | --- |
+| 負例 +8(計 22)で inventory が exact-set 一致 | ✅ |
+| 受理遷移検査の経路に `skip` / `pass` / `neutral` が 0 件 | ✅ **自分で AST 走査**(13 関数)。裸 `return` 1 件は実験で穴でないと確認 |
+| `base.ref != develop` で受理検査が走らない | ✅ CI 再現で実測 |
+| 2 回目の台帳不在が red | ✅ CI 再現で実測 |
+| 必須チェック 9 件のまま | ✅ `test_ci_wiring.py` が `len(jobs) == 9` を固定 |
+| `test_checkout_fetch_depth_is_exact_for_every_job` が無改訂で green | ✅ 差分に削除行なし |
+| CI 条件の手元再現を全段実行 | ✅ 上表 5 経路 |
+| `uv run pytest tests/` / `ruff check .` / `ty check` green | ✅ **1422 passed**(15:05) |
+| 差分が許可範囲 | ✅ `check_authz_catalog.py` / `backend/` / `.claude/` / `docs/` は無変更。台帳の差分は digest 2 件のみ |
+| 委任先がコミットしていない / ステップ 4 以降へ進んでいない | ✅ |
+| **人間の逐行確認①(暫定)** | ⏳ **未実施** — 突合シートを機械生成して提示済み |
+
+#### 差し戻し修正 — 負例が凍結基準を直書きしていた
+
+**逐行確認のゲートで待つ間に走査ベースラインを測り直して発見した**(委任先の申告ではない)。40 桁 hex の一意な `(パス,値)` 組が **10 → 11 件**へ増えており、**増えた 1 件が移設対象の凍結基準と同値**だった。
+
+`tests/frozen_negatives/test_frozen_baseline_acceptance.py` が `OLD_IDENTITY = "24ef4fcc…"` と**いま台帳へ移設中の凍結基準そのもの**を直書きしていた。これは実資産をコピーして合成値へ置き換えるときの**検索語**で、**`bytes.replace()` は一致しなければ黙って何もしない**。基準が進んだとき(それを可能にすることが本タスクの目的)この定数が古いままだと、負例は合成値ではなく**実値のまま** fixture を組み、**何も言わずに別のものを試験する**。**7.7-3 の fail-closed に反する経路が物差し自身の中にあった。**
+
+修正: 識別値を台帳の `oracle_input.new_identity` から実行時導出 / 識別値を**含むべき 9 ファイル**と**含まないべき 3 ファイル**を明示し排他性・網羅性を module 階層で assert / 置換の有無が分類と一致しない場合を**両方向で red**(期待側 0 件・非期待側で出現・未分類パス・同値置換)。**負例は 22 件のまま**。
+
+自分で実測: 台帳の識別値を 1 文字変えると `contracts/authz/oracle-seal.lock.json: 台帳導出識別値が1回以上必要です: occurrences=0` で落ちる。**baseline green assert より前に発火**しており no-op が検出される。復元のバイト一致を確認。
+
+#### 走査ベースラインの数え直し(ステップ 4 へ引き継ぐ)
+
+計画書のステップ 4 は「40 桁 14 → 10」「登録数 **15**(恒久 10 + `pending_removal` 5)」としているが、これは**出現数と組数が混在した数**である。計画書自身が識別単位を `(パス, 値)` の組と定めているので、**組数に統一する**。
+
+| 幅 | 出現 | 一意な `(パス,値)` 組 | 内訳 |
+| --- | --- | --- | --- |
+| 40 桁 | 14 | **10** | 凍結基準 **4** + 非凍結 6(すべて nfr021 系の合成フィクスチャ) |
+| 64 桁 | 1 | **1** | 凍結基準 1(`check_docs_status.py:63`) |
+
+→ **登録数 11(恒久 6 + `pending_removal` 5)**。終端は 40 桁 **10 → 6** / 64 桁 **1 → 0**。
+
+前任が「3 件と数えて 1 件見落とした」のと同じ層の問題なので、**ステップ 4 の依頼文では組数に統一する**。

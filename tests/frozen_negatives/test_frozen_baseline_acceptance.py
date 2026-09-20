@@ -17,7 +17,6 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_frozen_baselines.py"
 LEDGER_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
-OLD_IDENTITY = "24ef4fcc682b42b504edc1d6264d380760c54929"
 TARGET_PATHS = (
     "contracts/authz/oracle-seal.lock.json",
     "contracts/authz/attack-tree.json",
@@ -33,6 +32,20 @@ NEW_ASSET_PATHS = (
     "contracts/authz/frozen-baselines.schema.json",
     "scripts/check_frozen_baselines.py",
     "scripts/frozen_baselines.py",
+)
+IDENTITY_BEARING_PATHS = frozenset(
+    (*BASE_SOURCE_PATHS, LEDGER_RELATIVE_PATH.as_posix())
+)
+IDENTITY_FREE_PATHS = frozenset(
+    {
+        "contracts/authz/frozen-baselines.schema.json",
+        "scripts/check_frozen_baselines.py",
+        "scripts/frozen_baselines.py",
+    }
+)
+assert IDENTITY_BEARING_PATHS.isdisjoint(IDENTITY_FREE_PATHS)
+assert IDENTITY_BEARING_PATHS | IDENTITY_FREE_PATHS == frozenset(
+    (*BASE_SOURCE_PATHS, *NEW_ASSET_PATHS)
 )
 MUTATION_GUARD_PATHS = tuple(
     REPOSITORY_ROOT / path
@@ -93,14 +106,63 @@ def _git_sha(root: Path, revision: str) -> str:
     return sha
 
 
+def _ledger_oracle_input_identity() -> str:
+    """実台帳のoracle_input系列から最新の識別値を導出する。"""
+    ledger = json.loads(
+        (REPOSITORY_ROOT / LEDGER_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    assert isinstance(ledger, dict)
+    history = ledger.get("history")
+    assert isinstance(history, list)
+    assert all(isinstance(record, dict) for record in history)
+    records = [record for record in history if record.get("series") == "oracle_input"]
+    assert records, "台帳にoracle_input系列の履歴が必要です"
+
+    new_identity = records[-1].get("new_identity")
+    assert isinstance(new_identity, dict)
+    assert new_identity.get("present") is True
+    values = new_identity.get("values")
+    assert isinstance(values, list)
+    assert len(values) == 1
+    identity = values[0]
+    assert isinstance(identity, dict)
+    assert identity.get("kind") == "literal_commit_string"
+    value = identity.get("value")
+    assert isinstance(value, str)
+    assert len(value) == 40
+    assert set(value) <= set("0123456789abcdef")
+    return value
+
+
 def _copy_with_identity(root: Path, path_text: str, identity: str) -> None:
     """実資産を合成repositoryへコピーしcommit識別値だけを置換する。"""
     source = REPOSITORY_ROOT / path_text
     destination = root / path_text
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(
-        source.read_bytes().replace(OLD_IDENTITY.encode(), identity.encode())
+    source_bytes = source.read_bytes()
+    recorded_identity = _ledger_oracle_input_identity().encode()
+    replacement = identity.encode()
+    occurrence_count = source_bytes.count(recorded_identity)
+    classified_paths = IDENTITY_BEARING_PATHS | IDENTITY_FREE_PATHS
+    assert path_text in classified_paths, f"識別値の有無が未分類です: {path_text}"
+    if path_text in IDENTITY_BEARING_PATHS:
+        assert occurrence_count >= 1, (
+            f"{path_text}: 台帳導出識別値が1回以上必要です: "
+            f"occurrences={occurrence_count}"
+        )
+        assert replacement != recorded_identity, (
+            f"{path_text}: 置換後の識別値が台帳導出識別値と同一です"
+        )
+    else:
+        assert occurrence_count == 0, (
+            f"{path_text}: 台帳導出識別値を含まないはずです: "
+            f"occurrences={occurrence_count}"
+        )
+    replaced_bytes = source_bytes.replace(recorded_identity, replacement)
+    assert (replaced_bytes != source_bytes) == (path_text in IDENTITY_BEARING_PATHS), (
+        f"{path_text}: 識別値置換の実行結果がパス分類と一致しません"
     )
+    destination.write_bytes(replaced_bytes)
 
 
 def _read_ledger(root: Path) -> dict[str, Any]:
