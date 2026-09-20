@@ -12,6 +12,13 @@
     24,
     33
   ],
+  "history_order_exceptions": [
+    {
+      "stepId": 55,
+      "afterStepId": 57,
+      "reason": "ステップ 55 は、ステップ 56・57 を含むブランチを push して PR の実 CI を実行した証跡が合格条件に必要なため、ステップ 57 の後に実施した。"
+    }
+  ],
   "groups": [
     {
       "id": 1,

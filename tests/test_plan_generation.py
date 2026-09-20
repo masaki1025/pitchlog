@@ -182,7 +182,7 @@ def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 def _feature_status_repository(tmp_path: Path, plan: str, total: int) -> Path:
-    """実計画書と最小の実装履歴を持つ feature リポジトリを作る。"""
+    """active の fixture 計画書と最小の実装履歴を持つリポジトリを作る。"""
     repository = tmp_path / "feature-status-repository"
     repository.mkdir()
     _git(repository, "init", "--quiet", "--initial-branch", "develop")
@@ -206,6 +206,18 @@ def _feature_status_repository(tmp_path: Path, plan: str, total: int) -> Path:
         f"test: 最初の実装 (ステップ 1/{total})",
     )
     return repository
+
+
+def _active_plan_fixture(plan: str) -> str:
+    """実計画書の可変な現在状態に依存しない active の写しを作る。"""
+    active, replacements = re.subn(
+        r"(?m)^status:\s*(?:active|in-review)(\s*(?:#.*)?)$",
+        r"status: active\1",
+        plan,
+        count=1,
+    )
+    assert replacements == 1, "fixture の status を active に固定できない"
+    return active
 
 
 def _assert_pb_false_sealed(data: dict[str, Any]) -> None:
@@ -395,12 +407,13 @@ def test_simultaneous_pb_flag_and_pb_false_change_is_rejected_by_seal(
         _assert_pb_false_sealed(changed)
 
 
-def test_feature_status_reads_every_step_from_the_real_plan(
+def test_feature_status_reads_every_step_from_active_plan_fixture(
     tmp_path: Path, plan_text: str, steps_data: dict[str, Any]
 ) -> None:
-    parsed = FEATURE_STATUS_MODULE.parse_step_table(plan_text)
+    active_plan = _active_plan_fixture(plan_text)
+    parsed = FEATURE_STATUS_MODULE.parse_step_table(active_plan)
     total = int(steps_data["expected_total"])
-    repository = _feature_status_repository(tmp_path, plan_text, total)
+    repository = _feature_status_repository(tmp_path, active_plan, total)
     result = subprocess.run(
         [
             sys.executable,
@@ -428,8 +441,11 @@ def test_feature_status_reads_every_step_from_the_real_plan(
 def test_markdown_group_heading_splits_feature_status_table_and_fails(
     plan_text: str, steps_data: dict[str, Any]
 ) -> None:
+    active_plan = _active_plan_fixture(plan_text)
     first_group = f"**{steps_data['groups'][0]['title']}**"
-    changed = plan_text.replace(first_group, f"#### {steps_data['groups'][0]['title']}", 1)
+    changed = active_plan.replace(
+        first_group, f"#### {steps_data['groups'][0]['title']}", 1
+    )
     parsed = FEATURE_STATUS_MODULE.parse_step_table(changed)
 
     assert parsed.valid is False

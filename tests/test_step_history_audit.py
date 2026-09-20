@@ -66,6 +66,15 @@ class CommandAudit:
     expected_exit: int
 
 
+@dataclass(frozen=True)
+class HistoryOrderException:
+    """段階実装の順序を意図的に入れ替えた宣言を表す。"""
+
+    step_id: int
+    after_step_id: int
+    reason: str
+
+
 def _load_backend_module(name: str) -> ModuleType:
     """backend の既存モジュールを動的に読み込む。"""
     if str(BACKEND_SRC) not in sys.path:
@@ -138,6 +147,81 @@ def _command_audit_asset(data: dict[str, Any]) -> tuple[CommandAudit, ...]:
     return tuple(records)
 
 
+def _history_order_exceptions(
+    data: dict[str, Any],
+) -> tuple[HistoryOrderException, ...]:
+    """単一定義から履歴順序の例外を厳密な形で読む。
+
+    Args:
+        data: ``steps.json`` の内容。
+
+    Returns:
+        宣言された順序例外。
+
+    Raises:
+        AuditViolation: キー、型、値域、理由が不正な場合。
+    """
+    raw_exceptions = data.get("history_order_exceptions")
+    if not isinstance(raw_exceptions, list):
+        raise AuditViolation("history_order_exceptions が配列でない")
+    total = int(data["expected_total"])
+    exceptions: list[HistoryOrderException] = []
+    for index, raw in enumerate(raw_exceptions):
+        if not isinstance(raw, dict) or set(raw) != {
+            "stepId",
+            "afterStepId",
+            "reason",
+        }:
+            raise AuditViolation(f"順序例外 {index} のキー集合が不正")
+        step_id = raw["stepId"]
+        after_step_id = raw["afterStepId"]
+        reason = raw["reason"]
+        if not isinstance(step_id, int) or not isinstance(after_step_id, int):
+            raise AuditViolation(f"順序例外 {index} のステップ ID が整数でない")
+        if not 1 <= step_id < after_step_id <= total:
+            raise AuditViolation(f"順序例外 {index} のステップ ID が値域外")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AuditViolation(f"順序例外 {index} に理由がない")
+        exceptions.append(
+            HistoryOrderException(
+                step_id=step_id,
+                after_step_id=after_step_id,
+                reason=reason,
+            )
+        )
+    counts = Counter(exception.step_id for exception in exceptions)
+    duplicates = sorted(step_id for step_id, count in counts.items() if count != 1)
+    if duplicates:
+        raise AuditViolation(f"順序例外の対象ステップが重複している: {duplicates}")
+    return tuple(exceptions)
+
+
+def _assert_declared_step_order(
+    records: Iterable[StepCommit],
+    exceptions: Iterable[HistoryOrderException],
+) -> None:
+    """実履歴が昇順、または宣言から一意に導いた順序か検査する。"""
+    observed = [record.step_id for record in records]
+    declared = tuple(exceptions)
+    expected = sorted(observed)
+    for exception in declared:
+        if exception.step_id not in expected or exception.after_step_id not in expected:
+            raise AuditViolation(
+                "宣言した順序例外のステップが実履歴にない: "
+                f"step={exception.step_id} after={exception.after_step_id}"
+            )
+        expected.remove(exception.step_id)
+        insertion = expected.index(exception.after_step_id) + 1
+        expected.insert(insertion, exception.step_id)
+    if observed == expected:
+        return
+    if not declared:
+        raise AuditViolation(f"実装ステップコミットが昇順でない: {observed}")
+    raise AuditViolation(
+        f"宣言した順序例外と実履歴が一致しない: actual={observed} expected={expected}"
+    )
+
+
 def _history_head_revision() -> str:
     """履歴監査を始める PR head またはローカル HEAD を返す。
 
@@ -172,6 +256,7 @@ def _implementation_commits(
     total: int,
     base_ref: str = "origin/develop",
     head_ref: str | None = None,
+    order_exceptions: Iterable[HistoryOrderException] = (),
 ) -> tuple[StepCommit, ...]:
     """PR head またはローカル HEAD の第一親履歴から実装コミットを抽出する。
 
@@ -180,6 +265,7 @@ def _implementation_commits(
         total: 計画にあるステップ総数。
         base_ref: 履歴範囲から除く base revision。
         head_ref: 明示する head revision。省略時は実行環境から決める。
+        order_exceptions: 単一定義が宣言する順序例外。
 
     Returns:
         ステップ番号と完了コミットの対応。
@@ -220,8 +306,7 @@ def _implementation_commits(
     if duplicates:
         raise AuditViolation(f"実装ステップコミットが重複している: {duplicates}")
     observed = [record.step_id for record in records]
-    if observed != sorted(observed):
-        raise AuditViolation(f"実装ステップコミットが昇順でない: {observed}")
+    _assert_declared_step_order(records, order_exceptions)
     if max(observed) > total:
         raise AuditViolation("計画の総数を超える実装ステップコミットがある")
     return tuple(records)
@@ -380,10 +465,49 @@ def test_real_repository_artifacts_exist_at_each_completed_step_commit(
     steps_data: dict[str, Any],
 ) -> None:
     total = int(steps_data["expected_total"])
-    commits = _implementation_commits(ROOT, total)
+    exceptions = _history_order_exceptions(steps_data)
+    commits = _implementation_commits(ROOT, total, order_exceptions=exceptions)
 
     assert len(commits) == len({record.step_id for record in commits})
     _assert_artifacts_at_commits(ROOT, steps_data, commits)
+
+
+def test_undeclared_step_order_violation_is_rejected(tmp_path: Path) -> None:
+    """宣言の無い逆順コミットは従来どおり拒否する。"""
+    repository = _history_repository(tmp_path)
+    (repository / "base.txt").write_text("base\n", encoding="utf-8")
+    base_commit = _git_commit(repository, "base")
+    for step_id in (2, 1):
+        (repository / f"step-{step_id}.txt").write_text("step\n", encoding="utf-8")
+        _git_commit(repository, f"feat: step (ステップ {step_id}/2)")
+
+    with pytest.raises(AuditViolation, match="昇順でない"):
+        _implementation_commits(repository, 2, base_ref=base_commit)
+
+
+def test_declared_order_that_disagrees_with_history_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """宣言があっても実履歴が宣言どおりでなければ拒否する。"""
+    repository = _history_repository(tmp_path)
+    (repository / "base.txt").write_text("base\n", encoding="utf-8")
+    base_commit = _git_commit(repository, "base")
+    for step_id in (1, 2):
+        (repository / f"step-{step_id}.txt").write_text("step\n", encoding="utf-8")
+        _git_commit(repository, f"feat: step (ステップ {step_id}/2)")
+    declaration = HistoryOrderException(
+        step_id=1,
+        after_step_id=2,
+        reason="後段の実行証跡が必要なため。",
+    )
+
+    with pytest.raises(AuditViolation, match="宣言した順序例外と実履歴が一致しない"):
+        _implementation_commits(
+            repository,
+            2,
+            base_ref=base_commit,
+            order_exceptions=(declaration,),
+        )
 
 
 def test_pull_request_merge_checkout_audits_event_head_first_parent(
