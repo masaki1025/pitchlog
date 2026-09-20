@@ -52,6 +52,17 @@ EXPECTED_JOB_ORDER = (
     "backend-changes",
     "backend",
 )
+EXPECTED_CONDITIONAL_JOBS = {
+    "frontend": (
+        "github.event_name == 'workflow_dispatch' || "
+        "needs.frontend-changes.outputs.frontend == 'true'"
+    ),
+    "backend": (
+        "github.event_name == 'workflow_dispatch' || "
+        "needs.backend-changes.outputs.backend == 'true'"
+    ),
+}
+SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
 # source_commit 検査や三点差分へ推移した先にあるため、ジョブ名を列挙する。
 # 片方だけでは新設ジョブが素通りするので、あり・なしの両集合を exact-set 固定する。
@@ -298,6 +309,38 @@ def _assert_checkout_fetch_depth_contract(
     )
 
 
+def _assert_no_silent_disable_controls(workflow: dict[str, Any]) -> None:
+    """必須ジョブと全ステップのスキップ・失敗黙殺属性を拒否する。
+
+    Args:
+        workflow: CI workflow の構造。
+    """
+    jobs = _mapping_at(workflow, ("jobs",))
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    assert tuple(jobs) == EXPECTED_JOB_ORDER, "必須ジョブの exact-set が不一致"
+    for job_name, job in jobs.items():
+        assert isinstance(job, dict), f"{job_name} ジョブはマッピングが必要"
+        assert "continue-on-error" not in job, (
+            f"{job_name} ジョブで失敗を黙殺してはならない"
+        )
+        expected_if = EXPECTED_CONDITIONAL_JOBS.get(job_name)
+        if expected_if is None:
+            assert "if" not in job, f"{job_name} ジョブを条件付きにしてはならない"
+        else:
+            assert job.get("if") == expected_if, (
+                f"{job_name} ジョブの既存発火条件を変更してはならない"
+            )
+        steps = job.get("steps")
+        assert isinstance(steps, list), f"{job_name}.steps は配列が必要"
+        for index, step in enumerate(steps):
+            assert isinstance(step, dict), f"{job_name}.steps[{index}] はマッピングが必要"
+            forbidden = SILENT_DISABLE_STEP_KEYS & set(step)
+            assert not forbidden, (
+                f"{job_name}.steps[{index}] に無効化属性がある: "
+                f"{sorted(forbidden)}"
+            )
+
+
 def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
     """テナント境界迂回検査の常時実行ジョブを exact に検査する。
 
@@ -344,6 +387,9 @@ def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
     assert steps[2] == {"run": "uv python install"}
     invocation = steps[3]
     assert isinstance(invocation, dict), "迂回検査の実行 step が必要"
+    assert set(invocation) == {"name", "env", "run"}, (
+        "迂回検査の実行 step に未宣言属性を追加してはならない"
+    )
     assert invocation.get("name") == "tenant-boundary 迂回検査"
     assert invocation.get("env") == {"PR_BASE_REF": "${{ github.base_ref }}"}
     run = invocation.get("run")
@@ -375,6 +421,7 @@ def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
         f"actual={command_locations!r}"
     )
     _assert_checkout_fetch_depth_contract(workflow)
+    _assert_no_silent_disable_controls(workflow)
 
 
 def _leaf_paths(node: object, path: NodePath = ()) -> list[NodePath]:
@@ -1489,6 +1536,77 @@ def test_tenant_boundary_base_ref_wiring_mutations_are_red(mutation: str) -> Non
 
     with pytest.raises(AssertionError):
         _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    (
+        ("continue-on-error", True),
+        ("if", False),
+        ("shell", "bash {0} || true"),
+    ),
+)
+def test_tenant_boundary_invocation_disable_attributes_are_red(
+    attribute: str,
+    value: object,
+) -> None:
+    """迂回検査 step へのスキップ・失敗黙殺属性を exact-set で拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    invocation = _mapping_at(
+        mutated,
+        ("jobs", TENANT_BOUNDARY_JOB, "steps", 3),
+    )
+    assert isinstance(invocation, dict)
+    invocation[attribute] = value
+
+    with pytest.raises(AssertionError, match="未宣言属性"):
+        _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+def test_all_required_jobs_and_steps_reject_silent_disable_controls() -> None:
+    """現行の全必須ジョブ・全ステップに無効化属性が無いことを確認する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    _assert_no_silent_disable_controls(workflow)
+
+
+@pytest.mark.parametrize(
+    ("scope", "attribute"),
+    (
+        ("other-step", "continue-on-error"),
+        ("other-step", "if"),
+        ("other-step", "shell"),
+        ("unconditional-job", "continue-on-error"),
+        ("unconditional-job", "if"),
+        ("conditional-job", "continue-on-error"),
+        ("conditional-job", "if"),
+    ),
+)
+def test_other_required_execution_disable_attributes_are_red(
+    scope: str,
+    attribute: str,
+) -> None:
+    """他ジョブでもステップ・ジョブ単位の無効化を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    jobs = _mapping_at(mutated, ("jobs",))
+    assert isinstance(jobs, dict)
+    if scope == "other-step":
+        target = _mapping_at(jobs, ("harness", "steps", 6))
+    elif scope == "unconditional-job":
+        target = jobs["harness"]
+    else:
+        target = jobs["backend"]
+    assert isinstance(target, dict)
+    target[attribute] = {
+        "if": False,
+        "continue-on-error": True,
+        "shell": "bash {0} || true",
+    }[attribute]
+
+    with pytest.raises(AssertionError):
+        _assert_no_silent_disable_controls(mutated)
 
 
 def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
