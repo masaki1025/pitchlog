@@ -145,9 +145,11 @@
       "judge": [
         "機械"
       ],
-      "evidenceLocation": "tests/domain/",
+      "evidenceLocation": "tests/domain/test_display_binding.py",
       "firingCondition": "解析不能例が合格になる経路 1 件",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 7,
@@ -297,7 +299,7 @@
       "judge": [
         "機械"
       ],
-      "evidenceLocation": "backend/domain/model.schema.json",
+      "evidenceLocation": "tests/domain/test_display_binding.py",
       "firingCondition": "導出が空、またはハードコードを要する",
       "evaluation": {
         "fired": false
