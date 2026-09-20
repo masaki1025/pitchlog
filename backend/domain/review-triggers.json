@@ -345,7 +345,9 @@
       ],
       "evidenceLocation": "backend/domain/mutation-equivalents.json",
       "firingCondition": "同一 mutant に 2 通りの判定が成立",
-      "evaluation": null
+      "evaluation": {
+        "fired": false
+      }
     },
     {
       "id": 16,
