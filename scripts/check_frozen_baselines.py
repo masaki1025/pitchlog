@@ -29,6 +29,16 @@ from frozen_baselines import (
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 LEDGER_PATH = Path("contracts/authz/frozen-baselines.json")
 SCHEMA_PATH = Path("contracts/authz/frozen-baselines.schema.json")
+SCAN_SOURCE_ROOTS: Final[tuple[str, ...]] = ("scripts", "tests", "backend/tests")
+SCAN_ALLOWLIST_ROOT_KEYS: Final[frozenset[str]] = frozenset(
+    {"schema_version", "asset_kind", "entries"}
+)
+SCAN_ALLOWLIST_ENTRY_KEYS: Final[frozenset[str]] = frozenset(
+    {"path", "value", "reason", "pending_removal"}
+)
+SCAN_ALLOWLIST_ASSET_KIND = "frozen_baseline_scan_allowlist"
+SCAN_VALUE_PATTERN = re.compile(r"\b(?:[0-9a-f]{64}|[0-9a-f]{40})\b")
+SCAN_ALLOWLIST_VALUE_PATTERN = re.compile(r"(?:[0-9a-f]{64}|[0-9a-f]{40})")
 
 TOP_LEVEL_KEYS: Final[frozenset[str]] = frozenset(
     {
@@ -117,6 +127,62 @@ BOOTSTRAP_TARGETS: Final[tuple[str, ...]] = (
 
 class FrozenBaselineCheckError(ValueError):
     """凍結基準台帳の不変条件違反を表す。"""
+
+
+@dataclass(frozen=True, order=True)
+class _ScanKey:
+    """走査候補をパスと値の組で識別する。"""
+
+    path: str
+    value: str
+
+
+@dataclass(frozen=True)
+class _ScanAllowlistEntry:
+    """走査allow-listの1エントリを保持する。"""
+
+    path: str
+    value: str
+    reason: str
+    pending_removal: bool
+
+    @property
+    def key(self) -> _ScanKey:
+        """エントリの識別単位であるパスと値の組を返す。"""
+        return _ScanKey(self.path, self.value)
+
+
+@dataclass(frozen=True)
+class _SourceScan:
+    """本文走査の出現回数と一意な組を保持する。"""
+
+    occurrences: int
+    pairs: frozenset[_ScanKey]
+
+
+# 初回だけ許す債務は検査器側で閉じ、headの申告を期待値にしない。
+# 値を分割して、検査器自身が走査候補を新設する自己参照を避ける。
+BOOTSTRAP_PENDING_REMOVAL_KEYS: Final[frozenset[_ScanKey]] = frozenset(
+    {
+        _ScanKey(
+            "backend/tests/db/authz/mutation_composition.py",
+            "099a8fa20595c25f553b46de" + "dcaaa9660dd03c2e",
+        ),
+        _ScanKey(
+            "scripts/check_docs_status.py",
+            "523ecfd1db94c0c494b9b722b05cf4b3"
+            + "c7d4562a1a6f2648fd9b76d5074a8e52",
+        ),
+        _ScanKey(
+            "tests/test_check_authz_catalog.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+        _ScanKey(
+            "tests/test_core_guard.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -1361,6 +1427,232 @@ def check_acceptance(root: Path, ledger_path: Path) -> tuple[str, ...]:
     return ()
 
 
+def _is_scan_source_path(path_text: str) -> bool:
+    """相対パスが走査母集団のPythonファイルか返す。"""
+    pure_path = PurePosixPath(path_text)
+    if (
+        pure_path.is_absolute()
+        or pure_path.as_posix() != path_text
+        or ".." in pure_path.parts
+        or pure_path.suffix != ".py"
+    ):
+        return False
+    return pure_path.parts[:1] in {("scripts",), ("tests",)} or pure_path.parts[
+        :2
+    ] == ("backend", "tests")
+
+
+def _parse_scan_allowlist(data: bytes, source: str) -> tuple[_ScanAllowlistEntry, ...]:
+    """合成fixtureの走査allow-listをexact-schemaで解析する。"""
+    try:
+        raw_allowlist = parse_frozen_baseline_ledger(data, source)
+    except FrozenBaselineError as exc:
+        raise FrozenBaselineCheckError(f"allow-listを解析できない: {exc}") from exc
+    _check_exact_keys(raw_allowlist, SCAN_ALLOWLIST_ROOT_KEYS, "allow-list")
+    if raw_allowlist["schema_version"] != 1 or isinstance(
+        raw_allowlist["schema_version"], bool
+    ):
+        raise FrozenBaselineCheckError("allow-list.schema_version は1でなければならない")
+    if raw_allowlist["asset_kind"] != SCAN_ALLOWLIST_ASSET_KIND:
+        raise FrozenBaselineCheckError(
+            "allow-list.asset_kind は frozen_baseline_scan_allowlist でなければならない"
+        )
+
+    entries: list[_ScanAllowlistEntry] = []
+    seen: set[_ScanKey] = set()
+    for index, raw_entry in enumerate(
+        _expect_list(raw_allowlist["entries"], "allow-list.entries")
+    ):
+        label = f"allow-list.entries[{index}]"
+        entry = _expect_object(raw_entry, label)
+        _check_exact_keys(entry, SCAN_ALLOWLIST_ENTRY_KEYS, label)
+        path_text = entry["path"]
+        if not isinstance(path_text, str) or not _is_scan_source_path(path_text):
+            raise FrozenBaselineCheckError(
+                f"{label}.path が走査母集団の相対Pythonパスでない"
+            )
+        value = entry["value"]
+        if (
+            not isinstance(value, str)
+            or SCAN_ALLOWLIST_VALUE_PATTERN.fullmatch(value) is None
+        ):
+            raise FrozenBaselineCheckError(
+                f"{label}.value が40桁または64桁の小文字hexでない"
+            )
+        reason = entry["reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            raise FrozenBaselineCheckError(f"{label}.reason が空である")
+        pending_removal = entry["pending_removal"]
+        if not isinstance(pending_removal, bool):
+            raise FrozenBaselineCheckError(f"{label}.pending_removal が真偽値でない")
+        parsed_entry = _ScanAllowlistEntry(
+            path=path_text,
+            value=value,
+            reason=reason,
+            pending_removal=pending_removal,
+        )
+        if parsed_entry.key in seen:
+            raise FrozenBaselineCheckError(
+                "allow-listの(path, value)が重複している: "
+                f"{_format_scan_keys({parsed_entry.key})}"
+            )
+        seen.add(parsed_entry.key)
+        entries.append(parsed_entry)
+    return tuple(entries)
+
+
+def _scan_python_sources(root: Path) -> _SourceScan:
+    """3母集団の全Python本文から40桁・64桁hexを部分一致で走査する。"""
+    pairs: set[_ScanKey] = set()
+    occurrences = 0
+    for source_root in SCAN_SOURCE_ROOTS:
+        directory = root / source_root
+        if not directory.is_dir() or directory.is_symlink():
+            raise FrozenBaselineCheckError(
+                f"走査母集団のdirectoryを読めない: {source_root}"
+            )
+        for path in sorted(directory.rglob("*.py")):
+            relative_path = path.relative_to(root).as_posix()
+            if path.is_symlink() or not path.is_file():
+                raise FrozenBaselineCheckError(
+                    f"走査母集団の通常ファイルでない: {relative_path}"
+                )
+            try:
+                source = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                raise FrozenBaselineCheckError(
+                    f"走査母集団をUTF-8で読めない: {relative_path}: {exc}"
+                ) from exc
+            for match in SCAN_VALUE_PATTERN.finditer(source):
+                pairs.add(_ScanKey(relative_path, match.group(0)))
+                occurrences += 1
+    return _SourceScan(occurrences=occurrences, pairs=frozenset(pairs))
+
+
+def _format_scan_keys(keys: set[_ScanKey] | frozenset[_ScanKey]) -> str:
+    """走査キー集合を安定したエラー表示へ変換する。"""
+    return "[" + ", ".join(f"({key.path}, {key.value})" for key in sorted(keys)) + "]"
+
+
+def _check_scan_matches_allowlist(
+    scan: _SourceScan,
+    entries: tuple[_ScanAllowlistEntry, ...],
+) -> None:
+    """走査結果とallow-listを(path, value)の双方向exact-setで照合する。"""
+    declared = frozenset(entry.key for entry in entries)
+    unlisted = scan.pairs - declared
+    if unlisted:
+        raise FrozenBaselineCheckError(
+            "走査で見つかったがallow-listにない(path, value): "
+            f"{_format_scan_keys(unlisted)}"
+        )
+    stale = declared - scan.pairs
+    if stale:
+        raise FrozenBaselineCheckError(
+            "allow-listにあるが走査で見つからない(path, value): "
+            f"{_format_scan_keys(stale)}"
+        )
+
+
+def _check_scan_allowlist_transition(
+    *,
+    base_ledger_present: bool,
+    base_entries: tuple[_ScanAllowlistEntry, ...] | None,
+    head_entries: tuple[_ScanAllowlistEntry, ...],
+) -> None:
+    """bootstrapまたは通常規則でallow-listの遷移を検査する。"""
+    if not base_ledger_present and base_entries is None:
+        pending = frozenset(
+            entry.key for entry in head_entries if entry.pending_removal
+        )
+        if pending != BOOTSTRAP_PENDING_REMOVAL_KEYS:
+            raise FrozenBaselineCheckError(
+                "allow-list bootstrapのpending_removal exact-setが不一致: "
+                f"不足={_format_scan_keys(BOOTSTRAP_PENDING_REMOVAL_KEYS - pending)}; "
+                f"過剰={_format_scan_keys(pending - BOOTSTRAP_PENDING_REMOVAL_KEYS)}"
+            )
+        return
+    if base_entries is None:
+        raise FrozenBaselineCheckError(
+            "allow-list通常規則: baseに台帳があるのにallow-listがない"
+        )
+
+    base_by_key = {entry.key: entry for entry in base_entries}
+    head_by_key = {entry.key: entry for entry in head_entries}
+    additions = frozenset(head_by_key.keys() - base_by_key.keys())
+    if additions:
+        raise FrozenBaselineCheckError(
+            "allow-list通常規則: エントリ追加は禁止: "
+            f"{_format_scan_keys(additions)}"
+        )
+    for key in sorted(base_by_key.keys() & head_by_key.keys()):
+        before = base_by_key[key]
+        after = head_by_key[key]
+        if not before.pending_removal and after.pending_removal:
+            raise FrozenBaselineCheckError(
+                "allow-list通常規則: pending_removal false→trueは禁止: "
+                f"{_format_scan_keys({key})}"
+            )
+        if before.pending_removal and not after.pending_removal:
+            raise FrozenBaselineCheckError(
+                "allow-list通常規則: pending_removal true→falseは禁止: "
+                f"{_format_scan_keys({key})}"
+            )
+        if before.reason != after.reason:
+            raise FrozenBaselineCheckError(
+                "allow-list通常規則: reason変更は禁止: "
+                f"{_format_scan_keys({key})}"
+            )
+    # pending_removalの除去期限は機械保証しない。除去は後続タスクの管理統制が担う。
+
+
+def check_synthetic_source_scan(
+    root: Path,
+    head_allowlist_path: Path,
+    *,
+    base_allowlist_path: Path | None,
+    base_ledger_present: bool,
+) -> _SourceScan:
+    """合成fixtureだけで走査とallow-list遷移規則を検査する。
+
+    Args:
+        root: scripts、tests、backend/testsを持つ合成fixtureのルート。
+        head_allowlist_path: final head相当の合成allow-list。
+        base_allowlist_path: base相当の合成allow-list。初回はNone。
+        base_ledger_present: baseに台帳が存在するか。
+
+    Returns:
+        出現回数と一意な(path, value)組を持つ走査結果。
+
+    Raises:
+        FrozenBaselineCheckError: 走査、schema、遷移のいずれかが不正な場合。
+        OSError: 合成allow-listを読み取れない場合。
+    """
+    resolved_root = root.resolve()
+    if resolved_root == REPOSITORY_ROOT.resolve():
+        raise FrozenBaselineCheckError(
+            "実リポジトリに対する走査はステップ5まで未結線"
+        )
+    head_entries = _parse_scan_allowlist(
+        head_allowlist_path.read_bytes(), str(head_allowlist_path)
+    )
+    base_entries = (
+        None
+        if base_allowlist_path is None
+        else _parse_scan_allowlist(
+            base_allowlist_path.read_bytes(), str(base_allowlist_path)
+        )
+    )
+    scan = _scan_python_sources(resolved_root)
+    _check_scan_matches_allowlist(scan, head_entries)
+    _check_scan_allowlist_transition(
+        base_ledger_present=base_ledger_present,
+        base_entries=base_entries,
+        head_entries=head_entries,
+    )
+    return scan
+
+
 def check_invariants(root: Path, ledger_path: Path) -> None:
     """作業ツリーだけを使って凍結基準台帳の不変条件を検査する。
 
@@ -1383,12 +1675,29 @@ def check_invariants(root: Path, ledger_path: Path) -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     """イベント別の凍結基準検査を選択するCLI parserを作る。"""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "走査母集団は scripts/、tests/、backend/tests/ 配下の *.py で、"
+            "本文中の40桁・64桁小文字hexを対象とします。ステップ4では"
+            "実リポジトリに対する走査はまだ結線しておらず、"
+            "--scan-fixture は合成fixture専用です。pending_removalの除去は"
+            "後続タスクによる管理統制です。"
+        ),
+    )
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--invariants-only", action="store_true")
     modes.add_argument("--acceptance", action="store_true")
+    modes.add_argument(
+        "--scan-fixture",
+        type=Path,
+        metavar="HEAD_ALLOWLIST",
+        help="合成fixture上だけで走査とallow-list遷移を検査する",
+    )
     parser.add_argument("--root", type=Path, default=REPOSITORY_ROOT)
     parser.add_argument("--ledger", type=Path)
+    parser.add_argument("--base-scan-allowlist", type=Path)
+    parser.add_argument("--base-ledger-present", action="store_true")
     return parser
 
 
@@ -1398,8 +1707,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     root = args.root.resolve()
     ledger_path = args.ledger if args.ledger is not None else root / LEDGER_PATH
     try:
-        check_invariants(root, ledger_path)
-        messages = check_acceptance(root, ledger_path) if args.acceptance else ()
+        if args.scan_fixture is not None:
+            scan = check_synthetic_source_scan(
+                root,
+                args.scan_fixture,
+                base_allowlist_path=args.base_scan_allowlist,
+                base_ledger_present=args.base_ledger_present,
+            )
+            messages = (
+                "frozen-baselines: synthetic scan fixture OK: "
+                f"occurrences={scan.occurrences}; pairs={len(scan.pairs)}",
+                "frozen-baselines: 実リポジトリに対する走査は"
+                "ステップ5まで未結線",
+            )
+        else:
+            if args.base_scan_allowlist is not None or args.base_ledger_present:
+                raise FrozenBaselineCheckError(
+                    "scan fixture用引数は--scan-fixtureなしでは使えない"
+                )
+            check_invariants(root, ledger_path)
+            messages = check_acceptance(root, ledger_path) if args.acceptance else ()
     except (FrozenBaselineCheckError, FrozenBaselineError, OSError) as exc:
         print(f"frozen-baselines: ERROR: {exc}", file=sys.stderr)
         return 1

@@ -249,6 +249,59 @@
         }
       }
     },
+    "scan_allowlist_entry": {
+      "type": "object",
+      "required": [
+        "path",
+        "value",
+        "reason",
+        "pending_removal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?:scripts|tests|backend/tests)/(?!.*(?:^|/)\\.\\.(?:/|$)).*\\.py$"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pending_removal": {
+          "type": "boolean"
+        }
+      }
+    },
+    "scan_allowlist": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "asset_kind",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "asset_kind": {
+          "type": "string",
+          "const": "frozen_baseline_scan_allowlist"
+        },
+        "entries": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/scan_allowlist_entry"
+          }
+        }
+      }
+    },
     "implementation_bindings": {
       "type": "object",
       "required": [
