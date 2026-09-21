@@ -131,7 +131,9 @@ date: 2026-09-20
 
 **更新が必要な 20 ファイル**: 要件書 / `requirement-claims.json` + `.lock` / `route-registry.json` + `.lock` / `auth-catalog.json` + `.lock` / `http-route-matrix.json` + `.lock`(ここまで oracle 入力 8 件)/ `oracle-seal.lock.json` / 封印 6 資産(`ddl-elements` `rejected-configs` `claim-mutant-map` `attack-tree` `boundary-proposal` `verification-evidence`)/ **第 2 階層 3 件**(`mcdc-map` `failure-injection-points` `shared-preconditions`)/ `scripts/check_authz_catalog.py`(定数 1 行)。
 
-**`shared-preconditions.json` は台帳 `H-85` の記述に無い 1 件**(`harness-evaluation.md:766-772,788-792` に見当たらない)。**`H-85` へ追記する価値がある。**
+> **訂正(2026-09-21・ステップ 4 完了後に再検証)**: ここに「**`shared-preconditions.json` は台帳 `H-85` の記述に無い 1 件**」と書いていたが**誤り**。`H-85` 本文は更新ファイル 20 の内訳として **`shared-preconditions` を明記している**(`harness-evaluation.md` の `H-85` 節・「更新ファイル **20**(母集合 + lock + 派生 3 + 各 lock + shared-preconditions + oracle 6 + seal + 下流 2 + 定数 + tests)」)。調査時に引用した行範囲(`:766-772,788-792`)の**外**にあったため見落とした。
+>
+> したがって**本調査の 20 ファイルは新発見ではなく `H-85` 本文の追認**である。**`H-85` へ「記述に無い 1 件」として追記してはならない。**
 
 **最小 3 コミットの構造的下限**:
 
@@ -252,7 +254,7 @@ date: 2026-09-20
 4. **`ORACLE_INPUT_BASELINE_COMMIT` の台帳化で人手レビュー強制が失われる。** 台帳ファイルを `core-areas.json` の `guard_paths` へ入れるかの判断が要る
 5. **CI の fresh clone で `oracle_commit` がどこまで到達可能である必要があるか未検証。** 「push 済みの ref から到達可能」までは効くと推測したが実 CI で未確認
 6. **要件書の ID 集合が動く改訂の連鎖は未実験**(本調査は散文 1 文字のみ)。`req-universe.json` / `check_doc_coverage.py` / `citation-map-*.json` が加わることは確実だが順序と完全集合は未確定
-7. **`shared-preconditions.json` が `H-85` の記述に無い。** 台帳へ追記する価値がある
+7. ~~**`shared-preconditions.json` が `H-85` の記述に無い。** 台帳へ追記する価値がある~~ → **取り下げ(2026-09-21)**。`H-85` 本文に記述がある(上記「訂正」を参照)。**ステップ 8 の `H-85` 追記からこの 1 件を外すこと。**
 8. **5 件目の直書き候補**(`check_docs_status.py:63` の 64 桁 digest)と `ci.yml` の action pin 19 件を射程に含めるか
 9. **[A] のブランチと worktree は資料として保存する。削除しないこと**(`design.md` の失敗記録・実装 38 ファイルはレビューを通っている)
 10. **実験用クローン [P]** は `<scratchpad>/probe` に残してある。再現・追試に使える
