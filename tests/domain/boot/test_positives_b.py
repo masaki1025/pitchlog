@@ -6,6 +6,7 @@ import ast
 import copy
 import importlib
 import json
+import re
 import subprocess
 import sys
 from collections.abc import Collection, Mapping
@@ -20,6 +21,7 @@ BACKEND_SRC = ROOT / "backend/src"
 POSITIVE_DIR = ROOT / "backend/tests/domain/boot/positives_b"
 CLAUSES_ASSET = ROOT / "backend/domain/boot-clauses.json"
 STEP_AUTHORITIES = ROOT / "backend/domain/step-authorities.json"
+STEPS_SINGLE_SOURCE = ROOT / "docs/features/domain-calc-dsl/steps.json"
 BOOT_SEAL_ASSET = ROOT / "backend/domain/boot-seal.json"
 CHECK_SETS_ASSET = ROOT / "backend/domain/check-sets.json"
 POSITIVE_FIXTURES = tuple(sorted(POSITIVE_DIR.glob("*.json")))
@@ -65,7 +67,7 @@ _KEYS_BY_TYPE = {
         {
             "schemaVersion",
             "fixtureType",
-            "implementedThroughStep",
+            "coverageScope",
             "evidence",
         }
     ),
@@ -440,21 +442,43 @@ def test_positive_b_evidence_references_existing_test_functions() -> None:
         assert frozenset(item) == _EVIDENCE_KEYS
         path = Path(item["testPath"])
         assert not path.is_absolute() and ".." not in path.parts
-        tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
-        function_names = {
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-        }
-        assert item["testName"] in function_names
+        source = (ROOT / path).read_text(encoding="utf-8")
+        if path.suffix == ".py":
+            tree = ast.parse(source)
+            names = {
+                node.name
+                for node in ast.walk(tree)
+                if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+            }
+            assert item["testName"] in names, item
+        else:
+            # frontend の正例 B は Vitest の `it('<名前>'` として書かれている。
+            # Python として parse できないので、宣言された名前が実在することを
+            # 同じ強さで要求する(存在しなければ fail)。
+            names = set(re.findall(r"it\(\s*'([^']+)'", source))
+            assert item["testName"] in names, item
         evidence_ids.append(item["evidenceId"])
     assert len(evidence_ids) == len(set(evidence_ids))
 
 
-def test_positive_b_coverage_passes_for_steps_one_through_twenty_five() -> None:
+def _all_target_steps() -> frozenset[int]:
+    """単一の定義が持つ総数から対象ステップの全体集合を作る。
+
+    旧版は fixture 側の ``implementedThroughStep`` を打ち切り点にしており、
+    **25 のまま更新されず 26〜57 の正例 B が一度も突合されなかった**
+    (敵対レビュー 2026-09-21 の指摘)。自己申告の打ち切り点は持たない。
+
+    Returns:
+        1 から ``expected_total`` までのステップ番号。
+    """
+    data = json.loads(STEPS_SINGLE_SOURCE.read_text(encoding="utf-8"))
+    return frozenset(range(1, int(data["expected_total"]) + 1))
+
+
+def test_positive_b_coverage_passes_for_every_step_in_the_single_source() -> None:
     coverage = _coverage_fixture()
     registry = json.loads(STEP_AUTHORITIES.read_text(encoding="utf-8"))
-    target_steps = frozenset(range(1, coverage["implementedThroughStep"] + 1))
+    target_steps = _all_target_steps()
 
     _assert_positive_b_coverage(target_steps, registry["steps"], coverage["evidence"])
 
@@ -462,7 +486,7 @@ def test_positive_b_coverage_passes_for_steps_one_through_twenty_five() -> None:
 def test_missing_positive_b_for_required_step_fails_set_difference() -> None:
     coverage = _coverage_fixture()
     registry = json.loads(STEP_AUTHORITIES.read_text(encoding="utf-8"))
-    target_steps = frozenset(range(1, coverage["implementedThroughStep"] + 1))
+    target_steps = _all_target_steps()
     required_step = next(
         row["stepId"]
         for row in registry["steps"]
@@ -479,7 +503,7 @@ def test_missing_positive_b_for_required_step_fails_set_difference() -> None:
 def test_positive_b_for_nonrequired_step_fails_reverse_difference() -> None:
     coverage = _coverage_fixture()
     registry = json.loads(STEP_AUTHORITIES.read_text(encoding="utf-8"))
-    target_steps = frozenset(range(1, coverage["implementedThroughStep"] + 1))
+    target_steps = _all_target_steps()
     nonrequired_step = next(
         row["stepId"]
         for row in registry["steps"]

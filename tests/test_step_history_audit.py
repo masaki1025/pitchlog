@@ -37,6 +37,17 @@ EXPECTED_COMMAND_EXIT = 0
 SELF_RECURSIVE_COMMAND = "uv run pytest tests/test_step_history_audit.py"
 COMMAND_EXECUTION_EXCLUSIONS = frozenset({SELF_RECURSIVE_COMMAND})
 
+# 走査件数の証跡。`exit 0` は「異常終了しなかった」でしかなく、対象を 1 件も見ずに
+# 終わったコマンドと区別できない(ステップ 45 で `depcruise --validate` が対象省略のまま
+# usage を表示して `exit 0` になった実例)。そこで各コマンドへ「何件を見たか」が出力に
+# 現れることを要求し、件数 0 を不合格にする。
+SCOPE_EVIDENCE_PATTERN = re.compile(r"(\d+)\s+(?:passed|modules)")
+# 走査件数を出力しないコマンドは、代わりに「観測できる副作用」で非空虚を示す。
+SIDE_EFFECT_EVIDENCE: dict[str, str] = {
+    "uv sync --locked": "Resolved",
+    "uv run python scripts/check_docs_status.py": "",
+}
+
 CODE_SPAN_PATTERN = re.compile(r"`([^`]+)`")
 IMPLEMENTATION_TOKEN_PATTERN = re.compile(
     r"(?:\(|（)ステップ\s+([1-9]\d*)(?:/([1-9]\d*))?(?:\)|）)"
@@ -124,7 +135,10 @@ def _command_cwd(command: str) -> str:
     """閉じた規則でコマンドの cwd を決める。"""
     if command.startswith("pnpm "):
         return FRONTEND_CWD
-    if command == "uv sync --locked" or command == "uv run pytest tests/test_packaging.py":
+    # `uv sync --locked` は backend のロックを対象にするので backend で実行する。
+    # 一方 `tests/` 配下のテストはすべてリポジトリルートにあり、backend で走らせると
+    # 収集 0 件のまま pytest が usage エラー(exit 4)になる。実走して初めて判明した。
+    if command == "uv sync --locked":
         return BACKEND_CWD
     if command.startswith("uv run "):
         return ROOT_CWD
@@ -412,6 +426,40 @@ def _execute_commands(root: Path, records: Iterable[CommandAudit]) -> None:
                 f"command の exit が不一致: step={record.step_id} "
                 f"expected={record.expected_exit} actual={result.returncode}"
             )
+        _assert_scope_evidence(record, result.stdout + result.stderr)
+
+
+def _assert_scope_evidence(record: CommandAudit, output: str) -> None:
+    """コマンドが実際に 1 件以上を走査したことを出力から要求する。
+
+    `exit 0` だけでは、対象を 1 件も見ずに終わったコマンドと区別できない。
+
+    Args:
+        record: 実行したコマンドの監査レコード。
+        output: 標準出力と標準エラーを連結したもの。
+
+    Raises:
+        AuditViolation: 走査件数が出力に現れないか 0 件の場合。
+    """
+    if record.command in SIDE_EFFECT_EVIDENCE:
+        marker = SIDE_EFFECT_EVIDENCE[record.command]
+        if marker and marker not in output:
+            raise AuditViolation(
+                f"command の副作用証跡が出力に無い: step={record.step_id} "
+                f"command={record.command}"
+            )
+        return
+    counts = [int(value) for value in SCOPE_EVIDENCE_PATTERN.findall(output)]
+    if not counts:
+        raise AuditViolation(
+            f"command の走査件数が出力に現れない: step={record.step_id} "
+            f"command={record.command}"
+        )
+    if max(counts) <= 0:
+        raise AuditViolation(
+            f"command が 1 件も走査していない: step={record.step_id} "
+            f"command={record.command}"
+        )
 
 
 def _git_commit(root: Path, subject: str) -> str:
@@ -454,11 +502,59 @@ def _write_synthetic_steps(root: Path, data: dict[str, Any]) -> None:
 
 def _python_marker_command(marker: str) -> str:
     """実行された cwd に印を残す短い Python コマンドを返す。"""
+    # 走査件数の証跡も併せて出す。実コマンドへ課す要求を合成コマンドだけ免除すると、
+    # 証跡検査そのものが合成側で一度も働かなくなる。
     program = (
         "from pathlib import Path; "
-        f"Path({marker!r}).write_text('executed', encoding='utf-8')"
+        f"Path({marker!r}).write_text('executed', encoding='utf-8'); "
+        "print('1 passed')"
     )
     return f"{shlex.quote(sys.executable)} -c {shlex.quote(program)}"
+
+
+def test_real_repository_commands_actually_run_and_report_nonempty_scope(
+    steps_data: dict[str, Any],
+) -> None:
+    """実リポジトリの全 command を実プロセスで起動し、非空虚であることを要求する。
+
+    合成コマンドだけを起動していた旧版は、`exit 0` で何も走査しない実コマンドを
+    再導入しても検知できなかった(敵対レビュー 2026-09-21 の指摘)。実測では
+    本ステップ自身を除く全 command が 2 分程度で完走するため、実走を避ける理由が無い。
+    """
+    records = _command_audit_asset(steps_data)
+    executable = tuple(
+        record
+        for record in records
+        if record.command not in COMMAND_EXECUTION_EXCLUSIONS
+    )
+    assert executable, "実行対象のコマンドが 1 件も無い"
+    assert len(executable) < len(records), "自己再帰するコマンドが除外されていない"
+    _execute_commands(ROOT, executable)
+
+
+def test_command_reporting_no_scope_count_is_rejected() -> None:
+    """走査件数を出力しないコマンドが不合格になることを示す。"""
+    silent = CommandAudit(
+        step_id=1,
+        command=f"{shlex.quote(sys.executable)} -c {shlex.quote('pass')}",
+        cwd=ROOT_CWD,
+        expected_exit=0,
+    )
+    with pytest.raises(AuditViolation):
+        _execute_commands(ROOT, (silent,))
+
+
+def test_command_reporting_zero_scope_count_is_rejected() -> None:
+    """走査件数 0 を報告するコマンドが不合格になることを示す。"""
+    program = "print('0 passed')"
+    empty = CommandAudit(
+        step_id=1,
+        command=f"{shlex.quote(sys.executable)} -c {shlex.quote(program)}",
+        cwd=ROOT_CWD,
+        expected_exit=0,
+    )
+    with pytest.raises(AuditViolation):
+        _execute_commands(ROOT, (empty,))
 
 
 def test_real_repository_artifacts_exist_at_each_completed_step_commit(
