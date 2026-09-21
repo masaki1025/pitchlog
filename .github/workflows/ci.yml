@@ -108,6 +108,13 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv sync --locked --dev
+      # BOOT-REPORT は「出力のない緑は本規定の充足とみなさない」と定めるので、
+      # 検査器の単体テストとは別に、実状態に対して毎回出力させる。
+      - run: uv run python -m pitchlog.domaincheck.boot.report --root .
+        working-directory: backend
+        env:
+          PYTHONPATH: src
+      - run: test -f backend/domain/boot-report.json
       - run: >-
           uv run pytest -c pyproject.toml
           tests/domain/boot/

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -276,3 +277,33 @@ def accept_transition_green(
     sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
     assert_report_matches(sealed_asset, resolved_element_ids, report, schema)
     return _object(report, "boot-report")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """未解消レポートを出力し、走査件数を標準出力へ書く。
+
+    Args:
+        argv: CLI 引数。`None` ならプロセス引数を使う。
+
+    Returns:
+        0 = 出力成功。2 = 判定不能(fail-closed)。
+    """
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument("--root", default=".", help="リポジトリルート")
+    try:
+        arguments = parser.parse_args(argv)
+        path = emit_boot_report(Path(arguments.root), ())
+        report = read_json(path)
+        mapping = _object(report, "boot-report")
+        count = mapping.get("unresolvedCount")
+        # 走査件数を出力へ出す。`exit 0` だけでは、1 件も見ずに終わった実行と
+        # 区別できない(ステップ 45 の空振り事故と同じ形)。
+        print(f"BOOT-REPORT emitted: {count} unresolved -> {path}")
+    except (CheckerExecutionError, CheckerViolation) as error:
+        print(f"判定不能: {error}")
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

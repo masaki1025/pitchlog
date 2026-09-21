@@ -92,7 +92,7 @@ CONSISTENCY_PYTEST_COMMAND = (
 )
 MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
 # 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
-EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 106
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 114
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -1224,23 +1224,40 @@ def _ci_wiring_errors(
     return errors
 
 
+# `BOOT-REPORT` は「出力のない緑は本規定の充足とみなさない」と定めるので、
+# `consistency` だけは所有テストの前に実状態への出力とその存在確認を挟む。
+# 期待値へ明示することで、この 2 step を黙って外せないようにする。
+BOOT_REPORT_EMIT_STEPS: tuple[dict[str, Any], ...] = (
+    {
+        "run": "uv run python -m pitchlog.domaincheck.boot.report --root .",
+        "working-directory": "backend",
+        "env": {"PYTHONPATH": "src"},
+    },
+    {"run": "test -f backend/domain/boot-report.json"},
+)
+
+
 def _expected_new_job_steps(
-    workflow: dict[str, Any], pytest_command: str
+    workflow: dict[str, Any],
+    pytest_command: str,
+    extra_steps: tuple[dict[str, Any], ...] = (),
 ) -> list[dict[str, Any]]:
     """harness と同じ準備を行う新設ジョブの期待 steps を返す。
 
     Args:
         workflow: CI workflow の構造。
         pytest_command: 所有する pytest コマンド。
+        extra_steps: 所有テストの前に挟む固有の step。
 
     Returns:
-        checkout・uv 準備・所有テスト実行の厳密な配列。
+        checkout・uv 準備・固有 step・所有テスト実行の厳密な配列。
     """
     harness_steps = _harness_job(workflow).get("steps")
     assert isinstance(harness_steps, list)
     assert len(harness_steps) >= 4
     return [
         *copy.deepcopy(harness_steps[:4]),
+        *copy.deepcopy(list(extra_steps)),
         {"run": pytest_command},
     ]
 
@@ -1333,7 +1350,9 @@ def _domain_ci_wiring_errors(
         "consistency": {
             "runs-on": harness.get("runs-on"),
             "timeout-minutes": CONSISTENCY_TIMEOUT_MINUTES,
-            "steps": _expected_new_job_steps(workflow, CONSISTENCY_PYTEST_COMMAND),
+            "steps": _expected_new_job_steps(
+                workflow, CONSISTENCY_PYTEST_COMMAND, BOOT_REPORT_EMIT_STEPS
+            ),
         },
         "mutation": {
             "runs-on": harness.get("runs-on"),
@@ -2646,3 +2665,55 @@ dependencies = [
     errors = _orm_stack_dependency_errors(project, lock)
 
     assert expected_error in errors
+
+
+def _consistency_run_steps(workflow: dict[str, Any]) -> list[str]:
+    """`consistency` ジョブが実行する `run` の一覧を返す。"""
+    job = workflow["jobs"]["consistency"]
+    return [
+        str(step["run"])
+        for step in job["steps"]
+        if isinstance(step, dict) and "run" in step
+    ]
+
+
+def test_consistency_emits_boot_report_against_the_real_state() -> None:
+    """未解消レポートが実状態に対して毎回出力されることを要求する。
+
+    `BOOT-REPORT` は「未解消要素の一覧を機械可読な形式で出力」することを求め、
+    「**出力のない緑は本規定の充足とみなさない**」と定める。検査器の単体テストが
+    通るだけでは出力は生まれない(敵対レビュー 2026-09-21 の指摘)。
+    """
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    runs = _consistency_run_steps(workflow)
+
+    emitters = [run for run in runs if "domaincheck.boot.report" in run]
+    assert len(emitters) == 1, runs
+    guards = [run for run in runs if "boot-report.json" in run and "test -f" in run]
+    assert len(guards) == 1, runs
+
+
+def test_removing_the_boot_report_emitter_is_detected() -> None:
+    """出力の配線を外すと検出されることを負例で示す。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["consistency"]
+    job["steps"] = [
+        step
+        for step in job["steps"]
+        if not (isinstance(step, dict) and "domaincheck.boot.report" in str(step.get("run", "")))
+    ]
+
+    runs = _consistency_run_steps(workflow)
+    assert not [run for run in runs if "domaincheck.boot.report" in run]
+
+
+def test_boot_report_output_is_not_tracked_in_the_repository() -> None:
+    """生成物が正本リポジトリへ取り込まれないことを要求する。"""
+    tracked = subprocess.run(
+        ["git", "ls-files", "backend/domain/boot-report.json"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert tracked.stdout.strip() == "", "BOOT-REPORT の出力が追跡対象になっている"
