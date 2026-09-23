@@ -103,8 +103,13 @@ def _raw_triggers(document: Mapping[str, object]) -> tuple[dict[str, object], ..
     return tuple(rows)
 
 
-def _is_allowed_location(location: str) -> bool:
-    """証拠パスが許可された三閉域の内側なら真を返す。"""
+def _is_within_allowed_roots(location: str) -> bool:
+    """証拠パスが許可された三閉域の内側なら真を返す。
+
+    権限の判定ではなくパスの所在判定である。`is_allowed` を含む名前は
+    テナント境界の規約が「権限判定を自前で書く形」として禁じるため使わない
+    (`tenant-boundary-bypass` 条件 1)。
+    """
     candidate = PurePosixPath(location)
     if candidate.is_absolute() or ".." in candidate.parts:
         return False
@@ -119,7 +124,7 @@ def _is_allowed_location(location: str) -> bool:
 
 def _resolve_evidence(root: Path, location: object, trigger_id: int) -> Path:
     """Allowlist 内で実在し、リポジトリ外へ出ない証拠を返す。"""
-    if not isinstance(location, str) or not _is_allowed_location(location):
+    if not isinstance(location, str) or not _is_within_allowed_roots(location):
         raise EvidenceLocationError(
             f"トリガー {trigger_id} の証拠パスが allowlist 外: {location!r}"
         )
