@@ -93,7 +93,7 @@ created: 2026-09-20
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| `docs/development/harness-evaluation.md` | **`H-85` へ実測追記**(`shared-preconditions.json` が記述に無い 1 件 / 連鎖 20 ファイル・最小 3 コミット / **本タスクの台帳化では 2 段は消えない**)+ **候補の新規追記**(射程外の受け取り先 / 「**記録の欠落を推定で埋めた**」型)+ 変更履歴 1 行。**`H-*` 新規採番なし・版上げなし** | PR レビュー |
+| `docs/development/harness-evaluation.md` | **`H-85` へ実測追記 1 件**(**本タスクの台帳化では 2 段は消えない** — 強制しているのは `input_manifest.commit` と `oracle_commit` という資産側の 2 ポインタ)+ **候補 4 件の新規追記**(射程外 6 論点の受け取り先 / 並行ブランチの CI 契約追加で先行設計が後から抵触する / 行番号引用が行ずれと用語違いで二重に外れる / 台帳へ追記する「新発見」が本文にすでにある)+ 変更履歴 1 行。**`H-*` 新規採番なし・版上げなし**<br>**【訂正 2026-09-21】**当初は追記 3 件を予定していたが、クローズ処理前の再検証で **「`shared-preconditions.json` が記述に無い」は誤り**と判明し(`H-85` 本文が更新ファイル 20 の内訳として明記済み)、**「連鎖 20 ファイル・最小 3 コミット」も新発見ではなく本文の追認**だったため、**実測追記は 1 件へ縮小**した。経緯は `research.md` の訂正と `harness-evaluation.md` の候補③に記録。 | PR レビュー |
 | `docs/README.md` | 台帳行を現行化 | PR レビュー |
 | 設計書 / 要件書 / `data-model.md` / `sync-protocol.md` / ADR-001 / ADR-004 / 改善台帳 / `github-setup.md` | **反映なし** | — |
 
@@ -101,7 +101,7 @@ created: 2026-09-20
 
 | 分類 | パス |
 | --- | --- |
-| **新設** | `contracts/authz/frozen-baselines.json` / `scripts/frozen_baselines.py`(リーダ)/ `scripts/check_frozen_baselines.py` / `scripts/frozen-baseline-scan-allowlist.json` / `tests/frozen_negatives/` / `tests/test_frozen_negative_inventory.py` |
+| **新設** | `contracts/authz/frozen-baselines.json` / **`contracts/authz/frozen-baselines.schema.json`** / `scripts/frozen_baselines.py`(リーダ)/ `scripts/check_frozen_baselines.py` / `scripts/frozen-baseline-scan-allowlist.json` / `tests/frozen_negatives/` / `tests/test_frozen_negative_inventory.py` / **`tests/frozen_scan_fixtures.py`** / **`tests/test_frozen_scan_rules.py`** / **`tests/test_frozen_baseline_declarations.py`**<br>**【現行化 2026-09-24】**太字の 4 件は実装中の判断で増えたもので、**射程は広げていない** — スキーマの外出し(ステップ 2)/ 合成 fixture ヘルパの重複解消と正常系の分離(ステップ 4 の差し戻し)/ 宣言 4 要素の感度(ステップ 5)。 |
 | **改修** | `scripts/check_authz_catalog.py`(`:109` 削除・`:4984`)/ `tests/test_ci_wiring.py` / `.github/workflows/ci.yml`(harness ジョブへ結線のみ)/ **`.claude/core-areas.json`**(**6.3-⑤ の敵対レビュー + 人間承認の対象。`check_plan_docs_sync` の除外対象なので機械突合されない**)/ `pyproject.toml` |
 | **作業文書** | `docs/features/frozen-baseline-ledger/{plan,research}.md` / `docs/worklog/2026-09-20-frozen-baseline-ledger.md` |
 
