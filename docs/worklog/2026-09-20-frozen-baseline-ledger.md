@@ -755,3 +755,89 @@ JSON は確認①の時点から不変だが、**その宣言が真になった�
 **この確認の後に差分が発生したら再確認する。**以降のステップ 8 は正本ドキュメント・worklog・Notion・PR 本文のみで**コア差分を生じない**。生じた場合は本確認をやり直す。
 
 **なお本確認の直前に develop を 2 回取り込んでいる**(`871fd971` / `e6bc0cc`)。**確認は取り込み後の final head に対して行っており**、取り込み前の状態に対する確認ではない。
+
+### ステップ 8/8 — 正本反映とクローズ
+
+#### 実装したもの
+
+**凍結基準を検査器の直書きから機械可読な台帳へ移した**(設計書 7.7 の宣言の実体)。**射程は `oracle_input` 1 系列のみ**(PO 裁定 2026-09-21)で、あわせて**台帳・検査器・走査・負例基盤**を新設した(後続タスクの土台)。
+
+| 分類 | 成果物 |
+| --- | --- |
+| **台帳** | `contracts/authz/frozen-baselines.json` / `contracts/authz/frozen-baselines.schema.json` |
+| **検査器** | `scripts/check_frozen_baselines.py` / `scripts/frozen_baselines.py`(リーダ + 戦略 registry) |
+| **走査** | `scripts/frozen-baseline-scan-allowlist.json`(10 組 = 恒久 6 + `pending_removal` 4) |
+| **物差し** | `tests/test_frozen_negative_inventory.py`(**負例母集団を pytest collection から導出**)/ `tests/frozen_negatives/` **29 件** |
+| **移設** | `scripts/check_authz_catalog.py:109` の `ORACLE_INPUT_BASELINE_COMMIT` を削除し消費点を台帳読み取りへ |
+| **CI** | harness ジョブへ 1 ステップ結線(`--ci`・`if:` なし) |
+| **保護** | `.claude/core-areas.json` の `guard_paths` へ 10 件(42 → 52) |
+
+#### 正本への反映
+
+| 正本 | 反映 |
+| --- | --- |
+| `docs/development/harness-evaluation.md` | **`H-85` へ実測 1 件** + **`## 候補` へ 4 件**(66 → 70)+ 変更履歴 1 行。**`H-*` 新規採番なし・版上げなし** |
+| `docs/README.md` | 台帳行を現行化(候補件数・最終更新日) |
+| 設計書 / 要件書 / `data-model.md` / `sync-protocol.md` / ADR-001 / ADR-004 / `github-setup.md` | **反映なし** |
+
+**ハーネス運用評価台帳への追記は「該当する」と判断した。**知見が 4 件得られたため(下記)。
+
+#### 後続 4 タスクを起票(2026-09-24)
+
+残り 4 件の凍結基準に 1 件ずつ。いずれも **①②両方の証拠**(①検査器が red ②**その対象を改ざんしても検知されなくなる**)を DoD に置いた。
+
+| 系列 | 対象 | 固有の論点 |
+| --- | --- | --- |
+| `oracle_meaning` | `mutation_composition.py:36` | 多値 / backend root のため**リーダが 2 つ**になる → 一致性テスト必須 / **`target_correspondence` の DoD** |
+| `authz_step2_base` | `test_check_authz_catalog.py:38` | 多値(commit 1 + digest N)/ **`target_correspondence` の DoD** |
+| `core_areas_guard` | `test_core_guard.py:47` | **`oracle_meaning` へ統合しない**(値が同じなのは歴史的偶然。統合すると guard テストが空洞化する) |
+| `docs_change_history_exemption` | `check_docs_status.py:63` | **64 桁**。`docs-lint` は `fetch-depth` 既定 1 なので**台帳読み取りに git を使わない** |
+
+**`corpus_versions` と digest 辺の削減は新しい宛先を作らなかった** — 既存の **`TSK-315`** が既に受け取っている(PO 裁定 2026-09-03)。起票前に検索して発見した。
+
+#### このタスクで得た知見(台帳へ反映済み)
+
+1. **本タスクの台帳化では `H-85` の 2 段コミットは消えない**(`H-85` へ実測)— 強制しているのは `input_manifest.commit` と `oracle_commit` という**資産側の 2 ポインタ**
+2. **並行ブランチが CI 契約に規則を足すと、先行して設計済みのブランチが後から抵触する**(候補)— **取り込み前の green は取り込み後の green を意味しない**
+3. **行番号引用が行ずれと用語違いで二重に外れる**(候補)— **用語が違うと grep でも見つからない**
+4. **台帳へ追記する「新発見」が本文にすでに書いてある**(候補)— 否定形の主張を部分範囲で判断した
+
+#### 検証の総括
+
+| 項目 | 結果 |
+| --- | --- |
+| `uv run pytest tests/` | **1617 passed** |
+| `ruff check .` / `ty check` | green |
+| `core_guard.py` / `check_authz_catalog.py` / `check_docs_status.py` | exit 0 |
+| `check_frozen_baselines.py --invariants-only` | exit 0 |
+| `check_plan_docs_sync.py` | exit 0 |
+| 負例 | **29 件**(inventory と exact-set 一致) |
+| 走査 | 40 桁 **13 出現 / 9 組**・64 桁 **1 / 1**・allow-list **10 組** |
+| 人間の逐行確認 | **① 2026-09-21**(ステップ 3)/ **② 2026-09-23**(ステップ 6)/ **最終コア差分 2026-09-24**(ステップ 7) |
+
+#### develop の取り込み(2 回)
+
+本タスクの実装中に develop が **3 回**動いた(`5e9ffd9` → `871fd971` → `e6bc0cc`)。**2 回取り込み、そのたびに全件実行した。**
+
+- **`871fd971`(PR #72)** — **3 failed**。#72 が step の `if:` を全面禁止し、本タスクのステップ 3 が抵触した。**#72 の規則が正しいので本タスク側を直した**(ディスパッチを検査器の中へ移し、未知・未設定のイベント名を red に)
+- **`e6bc0cc`(PR #75)** — 衝突なし。ただし `github-setup.md` が 1 行伸び、**本タスクのコメントの行番号引用が外れた**(かつ用語も誤っていた)。是正済み
+
+**取り込みのたびに、確認①の前提を表記ではなく中身で確かめ直した** — 設計書 7.7 節の sha256 / 凍結対象の実値 / 差分閉包の early-return 条件。すべて不変だった。
+
+#### 委任先の挙動(記録)
+
+**3 回の委任で「触れない」と明示した範囲の無断変更が 2 回**あった。いずれも**私がテストを回して検知**し、委任前スナップショットとの差分で特定した。
+
+- ステップ 4 — 走査を**部分一致から AST 完全一致へ**弱めていた(**使用上限エラーで自己申告が出ない状態**だった)
+- ステップ 3 の差し戻し — 検査器を変更(同上)
+
+**2 回目以降は委任のたびに委任前スナップショットを取り、差分で機械確認する手順を入れた。**ステップ 5・6・追随修正では違反ゼロだった。
+
+#### 未解決として送ったもの
+
+| 論点 | 送り先 |
+| --- | --- |
+| **`target_correspondence` が照合に入っていない** | 多値系列を扱う**後続 2 タスクの DoD**(PO 判断 2026-09-21) |
+| `H-85` の 2 段コミット解消 | 認可オラクルの再設計を要する。`H-85` へ機構的に特定済み |
+| `ci.yml` の action SHA pin 19 件 | 性質が違う(供給鎖の固定)。7.7-1 の射程判断が要る |
+| `check_authz_catalog.py` の受取先差分閉包の基準固定 | **本調査の新規発見**。docstring は `TSK-421` の射程と書くが PO 裁定に含まれない |
