@@ -153,7 +153,8 @@ date: 2026-09-24
 | **`tenant_id` はあるが FK なし** | `idempotency_ledger`、`invalidation_intents` |
 | **`tenant_id` を持たず、親経由でテナントに属する** | `tenant_credentials`(→ `tenant_auth_subjects`) |
 | **制御資源**(テナント横断・cross_tenant FK) | `analysis_groups`、`group_memberships`(`tenant_id` あり・TenantMixin あり)、`sharing_grants`、`group_invitations` |
-| **全体共有(読み取り)** | `rule_sets`、`game_type_rule_defaults`、`system_vocabularies`、`admin_vocabularies`、`system_settings` |
+| **全体共有(読み取り)** | `game_type_rule_defaults`、`system_vocabularies`、`admin_vocabularies`、`system_settings` |
+| **所有が混在する規則資源(直接アクセス不可)** | `rule_sets`(全体既定とチームの大会規則が同じ表に入り、所有者の列が無い)・`tournament_rule_assignments`(任意の規則セットを結べる)— 計画レビュー 6 周目で訂正。design.md 1-6 |
 | **管理者経路** | `admin_credentials`、`admin_sessions`、`admin_operation_logs`(`tenant_id` は NULL 可。mixin は使わず直接宣言 — `tenant_isolation/models.py:673`) |
 | **認証前グローバル可変** | `rate_limit_counters` |
 | **移行専用(テナントなし)** | `migration_runs`、`migration_quarantine`、`migration_resolution_reports`、`migration_warning_reports` |

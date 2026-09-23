@@ -10,7 +10,7 @@ date: 2026-09-24
 入力は U-T1 の詳細設計 `../tenant-boundary-enforcement/design.md` の 2〜4 節・7 節・9 節である。
 **本書はそれを正本と実測で検証し直し、本単位の設計として確定する**。U-T1 の記述を是正した箇所は、各節に明記する。
 
-**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
+**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。7 周目(P0 3 / P1 2 / P2 2)の反映は【7 周目】。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
 
 ## 1. 許可プロファイル
 
@@ -27,7 +27,7 @@ date: 2026-09-24
 | --- | --- | --- | --- |
 | **`tenant_owned`** | `ENABLE` + `FORCE` | `FOR ALL`。`USING` と `WITH CHECK` の両方に `TENANT(tenant_id)` | `SELECT` / `INSERT` / `UPDATE` |
 | **`self_tenant_row`** | `ENABLE` + `FORCE` | `FOR SELECT USING TENANT(id)` のみ | `SELECT` のみ |
-| **`effective_group_control`** | `ENABLE` + `FORCE` | `FOR SELECT`。述語は正本 3-0 節の「実効グループ ∧ 実効参加」(1-3) | `SELECT` のみ(書き込みは U-C1 の管理関数)。**秘密の列を持つ表(`group_invitations` の `code_hash`)は、秘密の列を除いた列単位の `SELECT`** |
+| **`effective_group_control`** | `ENABLE` + `FORCE` | `FOR SELECT`。述語は正本 3-0 節の「実効グループ ∧ 実効参加」(1-3) | **与えない**。読み取りは U-C2 の制限関数、書き込みは U-C1 の管理関数だけ(1-3)【7 周目 7-P0-1】 |
 | **`global_read_only`** | `ENABLE` + `FORCE` | `FOR SELECT USING (true)` のみ | `SELECT` のみ |
 | **`function_only`** | `ENABLE` + `FORCE` | **置かない** | **与えない**(期待は `42501`) |
 
@@ -66,11 +66,22 @@ date: 2026-09-24
 | 所有者 | `pitchlog_shared_fn_owner`(`NOLOGIN` + `BYPASSRLS`)。関数の中の読み取りは RLS を迂回するので、再帰しない |
 | 所有者の表権限 | **`BYPASSRLS` は RLS を迂回するだけで、表の権限は与えない**。所有者に与える権限を **`{表, 列, 権限}` の機械可読な exact-set** として資産に置き、`pg_attribute.attacl` まで検査する: `public` の `USAGE` / `tenants`(`id`・`enabled`)・`analysis_groups`(`id`・`status`)・`group_memberships`(`group_id`・`tenant_id`・`role`・`status`)の**列単位の `SELECT`**。**表単位の `SELECT` を与える・使わない列を 1 つ足す・必要な列を 1 つ欠く変異を、それぞれ red にする**【2 周目 2-P1-1・3 周目 3-P1-4】 |
 | 属性 | `SECURITY DEFINER` / `STABLE` / `SET search_path = pg_catalog, pg_temp`(`pg_temp` を末尾に明示 — REJ-003)/ 本文の表参照はすべてスキーマ修飾 |
-| ACL | 作成と同じトランザクションで `REVOKE ALL ... FROM PUBLIC` → `GRANT EXECUTE ... TO pitchlog_app`(`data-model.md:242`) |
-| スキーマ | `authz_private`(所有者 `pitchlog_shared_fn_owner`。`pitchlog_app` には `USAGE` のみ・`CREATE` は誰にも与えない) |
+| ACL | 作成と同じトランザクションで `REVOKE ALL ... FROM PUBLIC`(`data-model.md:242`)。**`pitchlog_app` にも `EXECUTE` を与えない**(アプリ用ロールは制御資源の表に直接触れないので、ポリシーを評価する場面が無い) |
+| スキーマ | `authz_private`(所有者 `pitchlog_shared_fn_owner`。`pitchlog_app` にも何も与えない。`CREATE` は誰にも与えない) |
 | 存在の秘匿 | 参加していないグループと、存在しないグループは、どちらも `false` を返す。**戻り値から存在を推測できない**(FR-034 の 404 と同じ性質) |
 
-**表ごとのポリシー**(すべて `FOR SELECT TO pitchlog_app`):
+**なぜアプリ用ロールに直接の `SELECT` を与えないか**【7 周目 7-P0-1】: 正本の読み取りの粒度(`data-model.md:463-471`)は、行だけでなく**列と、対象の行の状態**にも及ぶ。
+
+- 一般のメンバーには、他のメンバーの**テナント名だけ**を見せる。参加日時と役割は `admin` だけに見せる
+- 離脱したメンバーの参加行と付与は見せない
+
+ポリシーが判定できるのは「要求元が実効参加しているか」だけで、この 2 つは表せない。**直接の `SELECT` を残すと、U-C2 の制限関数を作っても、アプリ用ロールが表を直接読んで列の制限を迂回できる**。
+→ **4 表とも、アプリ用ロールには表の権限を与えない**。読み取りは U-C2 の制限関数(`BYPASSRLS` の所有者で動く)に一本化する。
+
+**それでもポリシーを置く理由**: 正本 3-5 節は、制御資源の RLS を「実効グループ ∧ 実効参加」の形と定めている。将来、直接の読み取りを開く単位が現れたときに、**行の制限が最初から効いている**ようにするためである。
+直接の読み取りを開くには、表分類の改訂(コア領域の逐行確認)と、列と対象の行の制限の設計が要る。capability カタログにも載せない(10 節)。
+
+**表ごとのポリシー**(すべて `FOR SELECT TO pitchlog_app`。**アプリ用ロールに表の権限が無い間は評価されない**。試験では、試験専用のロールに試験の中だけで `SELECT` と `EXECUTE` を与えて述語を確かめる — 6-2):
 
 | 表 | `USING` |
 | --- | --- |
@@ -79,7 +90,7 @@ date: 2026-09-24
 | `sharing_grants` | `EXISTS (参加行 m WHERE m.id = membership_id AND tenant_has_effective_membership(m.group_id, false))` — 参加行の読み取りも同じポリシーに従う |
 | `group_invitations` | `tenant_has_effective_membership(group_id, true)`(招待は `admin` のみ — `data-model.md:470`) |
 
-- **列の粒度**(メンバー一覧はテナント名のみ、参加日時と役割は `admin` のみ — `:463-471`)は、行ポリシーでは表せない。さらに、**他の参加テナントの名前は `tenants`(`self_tenant_row`)からは読めない**。→ **制御情報の読み取りは、U-C2 が持つ制限関数**(probe の `read_control_resources` に当たる)が、要求元の実効参加を確かめたうえで、テナント名と `admin` だけに見せる列を返す。本単位は行の可視性までを持つ
+- **列の粒度**(メンバー一覧はテナント名のみ、参加日時と役割は `admin` のみ — `:463-471`)は、行ポリシーでは表せない。さらに、**他の参加テナントの名前は `tenants`(`self_tenant_row`)からは読めない**。→ **制御情報の読み取りは、U-C2 が持つ制限関数**(probe の `read_control_resources` に当たる)が、要求元の実効参加を確かめたうえで、テナント名と `admin` だけに見せる列を返す。本単位は、アプリ用ロールが 4 表に直接触れないことと、ポリシーの述語までを持つ
 - **スキーマの欠落**: 正本はグループの名称を求める(`:453`)が、`analysis_groups` に名称の列が無い(`contracts/db/schema-manifest.json:945-963`)。グループ作成を持つ **U-C1** へ申し送る【6 周目 6-P0-2】
 - **この関数は越境関数(記録・集計を返す経路)ではなく、ポリシーの述語の一部**である。U-T1 plan `:86` が「製品 RLS の述語構造は TSK-424」と定めた範囲に入る
 - 本関数を置くので、**最低要求 ②(`PUBLIC` が実行できない)と ③(`search_path` の乗っ取りが効かない)が本単位にも掛かる**。6 節で試験する
@@ -101,7 +112,7 @@ date: 2026-09-24
 
 **`self_tenant_row`(1 表)**: `tenants` — `direct`(`SELECT` のみ)。書き込みは管理経路(**U-A2**)の関数。
 
-**`effective_group_control`(4 表)**: `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` — 読み取りは `direct`(`SELECT` のみ)、書き込みは **U-C1** の管理関数。**`group_invitations` は `code_hash` を除いた列単位の `SELECT`**(招待コードのハッシュは、受諾の照合を行う U-C1 の関数だけが読む)。
+**`effective_group_control`(4 表)**: `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` — **アプリ用ロールには表の権限を与えない**。読み取りは **U-C2** の制限関数、書き込みは **U-C1** の管理関数。正本 3-5 節の RLS ポリシーは置く(1-3)。
 
 **`global_read_only`(4 表)**: `game_type_rule_defaults` / `system_vocabularies` / `admin_vocabularies` / `system_settings` — `direct`(`SELECT` のみ)。書き込みは **U-A2** の関数。`game_type_rule_defaults` から読めるのは規則セットの ID までで、規則の中身は `rule_sets` の関数経由で読む
 
@@ -150,6 +161,7 @@ date: 2026-09-24
 | --- | --- | --- |
 | **非テナント(全体共有)** | `game_type_rule_defaults` / `system_vocabularies` / `admin_vocabularies` / `system_settings` | 3-4 節の全数表の `➖` の行と、10-3・10-4・10-5 節の「テナントに属さない」(`:386`・`:394`・`:1941`・`:1954`・`:1963`)。**`rule_sets` は入れない**(1-6) |
 | **制御資源** | `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` | 3-5 節のエンティティ表(グループ / 参加 / 付与 / 招待 — `:451-461`) |
+| **所有が混在する規則資源** | `rule_sets` / `tournament_rule_assignments` | 6-5 節の規則の表(`:1280-1289` — 「試合区分デフォルト」と「大会名に紐づく規則」) |
 | **秘密の列** | `tenant_credentials.password_hash` / `admin_credentials.password_hash` / `group_invitations.code_hash` / 認証トークン・セッションの識別子 | 8-2・8-3 節の認証情報と、3-5 節の「コードのハッシュ」(`:456`)・「コード本体は発行時に一度だけ表示」(`:470`)【6 周目 6-P2-1】 |
 
 - 事実の表と列が manifest に実在することも検査する
@@ -161,7 +173,8 @@ date: 2026-09-24
 | --- | --- |
 | `tenant_owned` | manifest で `tenant_id` 列を持つ ∧ 秘密の列を持たない ∧ 露出の事実で「非テナント」「制御資源」でない |
 | `self_tenant_row` | `tenants` のみ |
-| `effective_group_control` | **露出の事実で「制御資源」とされた 4 表だけ**。秘密の列は列 ACL で除く |
+| `effective_group_control` | **露出の事実で「制御資源」とされた 4 表だけ** |
+| (共通) | **露出の事実で「所有が混在する規則資源」とされた表は `function_only` だけ**(`rule_sets`・`tournament_rule_assignments`。典拠: 6-5 節の「試合区分デフォルト — システム管理者が管理」と「大会名に紐づく規則 — チームが設定可能」が同じ規則セットの表を参照すること — 1-6)【7 周目 7-P0-2】 |
 | `global_read_only` | **露出の事実で「非テナント」とされた表だけ** ∧ manifest で `tenant_id` 列を持たない ∧ 秘密の列を持たない |
 | `function_only` | 条件なし(常に割り当ててよい) |
 
@@ -339,17 +352,19 @@ probe の適用器は、手順ごとに commit している(`backend/src/pitchlo
 
 → **製品の適用は、ロールの作成を含めて全体を 1 トランザクションで行う**。手順は次の順に固定する:
 
-1. ロールを作る(`pitchlog_app`・関数所有ロール 2 つ)
-2. DB とスキーマの ACL(`public` の `CREATE` の剥奪・`USAGE`)。`authz_private` スキーマを作り、所有者を `pitchlog_shared_fn_owner` にする
-3. 全 45 表の `ENABLE` / `FORCE`
-4. ポリシー
-5. 表 ACL と列 ACL
-6. トリガ関数 33 個の `PUBLIC` 剥奪
-7. 補助関数の作成・所有者の移動・関数 ACL(作成と同じトランザクションで `PUBLIC` から剥奪 — `data-model.md:242`)
+1. ロールを作り、7 属性を正規化する(`pitchlog_app`・関数所有ロール 2 つ。`pitchlog_owner` は属性の正規化だけ)
+2. DB とスキーマの ACL(`PUBLIC` の `CONNECT`・`TEMPORARY`・`public` の `USAGE`・`CREATE` の剥奪と、期待集合の付与)。`authz_private` スキーマを作り、所有者を `pitchlog_shared_fn_owner` にする
+3. **補助関数**を作り、所有者を移し、所有者の列単位の権限を与え、関数 ACL(`PUBLIC` から剥奪)を整える。**ポリシーより先に作る**(ポリシーが補助関数を参照するため)
+4. 全 45 表の `ENABLE` / `FORCE`
+5. ポリシー
+6. 表 ACL と列 ACL
+7. トリガ関数 33 個の `PUBLIC` 剥奪
+
+【7 周目 7-P0-3】6 周目までの手順は、ポリシーを補助関数より先に作っていたため、初回の適用が失敗した。
 
 - **適用主体は `SET ROLE` を使わない**。**commit 後と rollback 後の両方**で、同じ接続の `current_user = session_user` を検査する
 - **適用後の `pg_auth_members` に、製品ロールに接する辺が 0 本**(2-2)
-- **失敗点**(R-5): 手順 1 の直後 / 手順 3 の直後 / 手順 4 の直後 / 手順 5 の途中 / 手順 7 の所有者の移動の直後。**どこで失敗しても、カタログが適用前と 1 要素も変わらない**
+- **失敗点**(R-5): 手順 1 の直後 / **手順 3 の補助関数の作成の直後** / 手順 4 の直後 / **手順 5 のポリシーの作成の直後** / 手順 6 の途中。**どこで失敗しても、カタログが適用前と 1 要素も変わらない**
 - **変異**: 手順を 2 つのトランザクションに分ける(途中の commit)と red / 製品ロールへの辺を 1 本足すと red
 
 【1 周目 1-P0-3・2 周目 2-P1-6・3 周目 3-P1-2】2 周目までの案(superuser でない provisioner が `SET LOCAL ROLE` と一時の辺で所有者の権限を借りる)は、`BYPASSRLS` を付ける権限と、スキーマ作成の権限が成立していなかった。
@@ -358,7 +373,7 @@ probe の適用器は、手順ごとに commit している(`backend/src/pitchlo
 
 - **二重適用**: 製品 DDL を 2 回適用しても、2 回目の後のカタログが 1 回目と同じになる(収束する)
 - **往復**: 製品 DDL の適用 → **製品 DDL の取り外し(unapply)** → `alembic downgrade base` → `alembic upgrade head` → 製品 DDL の再適用。**取り外しを先に行うのは、補助関数などの製品のオブジェクトが migration の表に依存しているため**である(SQL 標準の本文の関数は参照先の表への依存を記録するので、そのままでは migration の `DROP TABLE` が失敗する)【6 周目 6-P1-2】
-- **取り外し**: 適用の逆順(補助関数 → `authz_private` → 関数 ACL → 表 ACL → ポリシー → `FORCE` / `ENABLE` → スキーマと DB の ACL → ロール)を、適用と同じく 1 トランザクションで行う。**取り外しの後のカタログが、製品 DDL の適用前と一致する**ことと、途中の失敗で何も変わらないことを検査する**再適用後のカタログが、初回の適用後と一致する**
+- **取り外し**: 適用の逆順(トリガ関数の `PUBLIC` の `EXECUTE` を戻す → 表 ACL と列 ACL → **ポリシー** → `FORCE` / `ENABLE` → **補助関数** → `authz_private` → DB とスキーマの ACL を適用前へ戻す → ロールの削除〔`pitchlog_app`・関数所有ロール 2 つ。**`pitchlog_owner` は削除しない**〕)を、適用と同じく 1 トランザクションで行う。**ポリシーを補助関数より先に落とす**(依存の向き)。失敗点は、ポリシーの削除の直後と、補助関数の削除の直後に置く【7 周目 7-P0-3】。**取り外しの後のカタログが、製品 DDL の適用前と一致する**ことと、途中の失敗で何も変わらないことを検査する**再適用後のカタログが、初回の適用後と一致する**
 - **往復の途中(再 upgrade の直後)は、表に RLS もポリシーも無い**。この区間を non-serving として扱う運用契約(authz の適用が済むまで、アプリ用ロールの接続を受けない)は、**実環境の手順を持つ TSK-344 へ申し送る**
 - 既存の往復試験(`backend/tests/db/test_migration_round_trip.py:53`)は変えない。製品 DDL を含む往復は別の試験として足す
 
@@ -417,7 +432,9 @@ U-T1 design 3-3(`:263-284`)の方針を引き継ぐ。**資産指定オブジェ
 | `self_tenant_row`: 自テナントの行 / 他テナントの行 / `UPDATE` | 1 行 / 0 行 / `42501` |
 | `global_read_only`: `SELECT` / `INSERT` | 読める / `42501` |
 | `function_only` 13 表: `SELECT` | **`42501`(0 行ではない** — U-T1 design `:148-150`) |
-| `effective_group_control`: 正負行列(U-T1 design 9 節 #4) | 下表 |
+| `effective_group_control`: `pitchlog_app` で 4 表を `SELECT` | **`42501`**(表の権限が無い — 7 周目 7-P0-1) |
+| `effective_group_control`: `pitchlog_app` で補助関数を呼ぶ | **`42501`**(`EXECUTE` が無い) |
+| `effective_group_control`: ポリシーの述語の正負行列(U-T1 design 9 節 #4) | 下表。**試験専用のロールに、試験の中だけで 4 表の `SELECT` と補助関数の `EXECUTE` を与えて確かめる** |
 
 **`effective_group_control` の正負行列**(4 表 × 状態):
 
@@ -438,9 +455,9 @@ U-T1 design 3-3(`:263-284`)の方針を引き継ぐ。**資産指定オブジェ
 | トリガ関数 | `PUBLIC` 剥奪後も、アプリ用ロールの書き込みでトリガが発火する |
 | FORCE | `pitchlog_owner` で接続しても、ポリシーに従う(未束縛で 0 行) |
 | 危険終点(R-2・2-2) | `pitchlog_app` から `SET` / `INHERIT` / `ADMIN` で到達できるロールと、危険ロールの交差が空 |
-| **最低要求 ②** | `PUBLIC` と、信頼しない `LOGIN` ロールが補助関数の実効の `EXECUTE` を持たない。**例外は関数所有者・`pitchlog_app`・環境入力の superuser**(負例の母集合から除く)【5 周目 5-P1-1】 |
+| **最低要求 ②** | `PUBLIC` と、信頼しない `LOGIN` ロール(`pitchlog_app` を含む)が補助関数の実効の `EXECUTE` を持たない。**例外は関数所有者と環境入力の superuser**(負例の母集合から除く)【5 周目 5-P1-1・7 周目 7-P0-1】 |
 | **最低要求 ③** | ① `pitchlog_app` は一時表を作れない(DB の `TEMPORARY` が無い — 2-1。`42501`)② `TEMPORARY` を持つ試験専用のロールで、一時スキーマに補助関数の参照先と同名の表を作り、そのロールの接続で補助関数を呼んでも結果が変わらない(`search_path` の固定の検査。試験専用のロールには試験の中だけで `EXECUTE` を与える) |
-| 最低要求 ④ | 対象(共有集計の越境関数)が本単位に無い。**`pitchlog_app` が `EXECUTE` できる `SECURITY DEFINER` 関数が、補助関数 1 個だけ**であることを表明する。各単位が関数を足すと red になり、④ の試験を足すよう促す |
+| 最低要求 ④ | 対象(共有集計の越境関数)が本単位に無い。**`pitchlog_app` が `EXECUTE` できる `SECURITY DEFINER` 関数が 0 件**であることを表明する。各単位が関数を足すと red になり、④ の試験を足すよう促す |
 
 **変異**(すべて red): 1 表のポリシーを外す / `FORCE` を外す / `WITH CHECK` を `true` にする / `function_only` の表に `SELECT` を与える / 補助関数から「実効グループ」の条件を外す / 補助関数から「参加テナントが有効」の条件を外す / 補助関数の `search_path` から `pg_temp` の明示を外す / 補助関数を `PUBLIC` に `EXECUTE` させる。
 
@@ -485,9 +502,10 @@ U-T1 design 2-5 が「持ち主がいない」として本単位へ引き取っ�
 - **例外は置かない**。`write_targets` は、この導出集合と **exact-set**(表 ID と権限の組)で一致しなければ red
 - **必要な権限の行列を、manifest から導いて固定する**(上限だけでなく下限も閉じる — 6 周目 6-P0-3):
   - 19 表すべてに `INSERT`(移行が行を作る — 正本 12-3 の不変条件 1)と `SELECT`(冪等性と検証のため)
-  - **`retired_at` 列を持つ表と `migration_runs`** に `UPDATE`(退役と、バッチの状態の更新 — 不変条件 2・3)
+  - **`UPDATE` は列単位**にする(`{表, 列, 権限}` の行列)。`retired_at` 列を持つ表は **`UPDATE(retired_at)` だけ**。`migration_runs` は、manifest の `immutability.allowed_update_columns` に挙がった列だけ(バッチの状態の更新 — 不変条件 2・3)。**表単位の `UPDATE` は与えない**(`BYPASSRLS` の移行ロールが、他バッチ・他テナントの行の中身〔`lineup_memories.lineup`・`medical_notes.content` など〕を書き換えられるため)【7 周目 7-P1-1】
   - これ以外の権限は持たない。**`DELETE` / `TRUNCATE` / `REFERENCES` / `TRIGGER` を足す変異で red**。**必要な権限を 1 つ外す変異でも red**
   - **正例**: 使い捨てクラスタで、資産どおりに作ったロールが、19 表それぞれへの最小の `INSERT` と `SELECT` と、`UPDATE` を要する表の `retired_at` の更新を実際に通す
+  - **負例**: `lineup_memories.lineup`・`medical_notes.content` など、`retired_at` 以外の列の `UPDATE` が `42501`
   - TSK-349 の実行器の契約で必要な権限が増えたら、本資産を改訂する(改訂はコア領域の逐行確認の対象)
 - **監査の表(`admin_operation_logs`)は含めない**。監査を書くのは移行実行器の管理接続であり、その設計は TSK-349 が持つ
 
@@ -571,11 +589,11 @@ U-T1 は、**製品の capability を TSK-424 の出力契約に含める**と�
 
 | | 内容 | 持ち主 |
 | --- | --- | --- |
-| **capability の記述**(カタログ) | 表分類から導いた、**開けてよい操作の閉じた一覧**。`contracts/authz/product/capability-catalog.json` に置く。1 行 = (capability ID, 表 ID, 操作種別 `read` / `insert` / `update`)。**`direct` の表だけ**が載る。`effective_group_control` の表は `read` だけ。`function_only` の表は 1 つも載らない | **本単位** |
+| **capability の記述**(カタログ) | 表分類から導いた、**開けてよい操作の閉じた一覧**。`contracts/authz/product/capability-catalog.json` に置く。1 行 = (capability ID, 表 ID, 操作種別 `read` / `insert` / `update`)。**`direct` の表だけ**が載る。`effective_group_control` と `function_only` の表は 1 つも載らない(アプリ用ロールが直接触れないので) | **本単位** |
 | **capability の登録**(公開 registry) | `PRODUCT_CAPABILITY_IDS` などへ登録して、実際に操作を開くこと(`backend/src/pitchlog/repositories/repository_contract.py:57-59`) | **経路を持つ単位**(U-01・U-M1・U-D1 ほか)。本単位は空のまま残す |
 
 - カタログは表分類から**生成器で導出**し、導出結果と資産の一致を検査する(手で書かない)
-- **登録できるのは、カタログに載っている capability だけ**にする検査を本単位で置く。カタログに無い capability を登録する変異で red(`function_only` の表を対象にしたもの・`effective_group_control` の表への書き込みを含む)
+- **登録できるのは、カタログに載っている capability だけ**にする検査を本単位で置く。カタログに無い capability を登録する変異で red(`function_only` と `effective_group_control` の表を対象にしたものを含む)
 - 検査は**試験の中だけで仮の登録を作って確かめる**。製品のパッケージには登録しない
 - U-T1 の「順序依存は 1 点だけ」(`../tenant-boundary-enforcement/plan.md:113-118`)とは矛盾しない。U-T1 が待っていたのは期待ロール名と保護対象(9 節)である
 
