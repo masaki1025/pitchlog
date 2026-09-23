@@ -31,6 +31,7 @@ CLAUSES = importlib.import_module("pitchlog.domaincheck.boot.clauses")
 JUDGE = importlib.import_module("pitchlog.domaincheck.boot.judge")
 PHASE2 = importlib.import_module("pitchlog.domaincheck.boot.phase2")
 STALL = importlib.import_module("pitchlog.domaincheck.boot.stall")
+ENGINE = importlib.import_module("pitchlog.domainmut.engine")
 
 _KEYS_BY_TYPE = {
     "grant-merge": frozenset(
@@ -69,6 +70,7 @@ _KEYS_BY_TYPE = {
             "fixtureType",
             "coverageScope",
             "evidence",
+            "verification",
         }
     ),
 }
@@ -85,6 +87,43 @@ class _ReapprovalRepository:
     activation: str
     expiry: str
     approval: str
+
+
+@dataclass(frozen=True, slots=True)
+class _RepresentativeIncrementOperator:
+    """代表 deny-all 実測で一つの mutant を生成する。"""
+
+    operator_id: str = "positive-b-representative-increment"
+
+    def generate(self, target: Any) -> Any:
+        """整数の合成対象を一つ増加させる。"""
+        mutant = ENGINE.Mutant(
+            mutant_id=f"{target.calculation}.{target.target_id}.increment",
+            calculation=target.calculation,
+            target_id=target.target_id,
+            operator_id=self.operator_id,
+            mutated=target.source + 1,
+        )
+        return ENGINE.MutationGeneration(mutants=(mutant,), unsupported=())
+
+
+@dataclass(frozen=True, slots=True)
+class _RepresentativeMutationExecutor:
+    """通常時は kill し、deny-all 変異時は全 mutant を拒否する。"""
+
+    deny_all: bool
+
+    def execute(self, mutant: Any) -> Any:
+        """プロパティ層の実行結果を返す。"""
+        if self.deny_all:
+            return ENGINE.MutationExecution(killed=False, evidence=())
+        evidence = ENGINE.KillEvidence(
+            mutant_id=mutant.mutant_id,
+            calculation=mutant.calculation,
+            layer=ENGINE.KillLayer.PROPERTY_INVARIANT,
+            check_id="positive-b-representative-property",
+        )
+        return ENGINE.MutationExecution(killed=True, evidence=(evidence,))
 
 
 def _load_fixture(path: Path) -> dict[str, Any]:
@@ -435,6 +474,68 @@ def test_deny_all_breaks_the_reapproval_normal_operation(tmp_path: Path) -> None
         )
 
 
+def test_deny_all_breaks_representative_mutation_normal_operation() -> None:
+    """ステップ39の通常動作も deny-all で落ちることを実測する。"""
+    target = ENGINE.SyntheticMutationTarget(
+        calculation="positiveBRepresentative",
+        target_id="integerTarget",
+        source=1,
+    )
+    operator = _RepresentativeIncrementOperator()
+    report = ENGINE.run_mutations(
+        targets=(target,),
+        operators=(operator,),
+        executor=_RepresentativeMutationExecutor(deny_all=False),
+    )
+    assert report.complete
+
+    with pytest.raises(ENGINE.MutationEngineError, match="変異判定が不合格"):
+        ENGINE.run_mutations(
+            targets=(target,),
+            operators=(operator,),
+            executor=_RepresentativeMutationExecutor(deny_all=True),
+        )
+
+
+def _assert_python_positive_shape(
+    tree: ast.AST,
+    test_name: str,
+    evidence: Mapping[str, object],
+) -> None:
+    """選択された Python テストが拒否側でない構造を持つと確認する。"""
+    function = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == test_name
+    )
+    pytest_raises = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "pytest"
+        and node.func.attr == "raises"
+    ]
+    assert pytest_raises == [], evidence
+    assertion_helpers = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and (
+            isinstance(node.func, ast.Name)
+            and any(
+                marker in node.func.id
+                for marker in ("assert", "validate", "require")
+            )
+        )
+    ]
+    assert any(isinstance(node, ast.Assert) for node in ast.walk(function)) or (
+        assertion_helpers
+    ), evidence
+
+
 def test_positive_b_evidence_references_existing_test_functions() -> None:
     coverage = _coverage_fixture()
     evidence_ids: list[str] = []
@@ -451,14 +552,64 @@ def test_positive_b_evidence_references_existing_test_functions() -> None:
                 if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
             }
             assert item["testName"] in names, item
+            _assert_python_positive_shape(tree, item["testName"], item)
         else:
             # frontend の正例 B は Vitest の `it('<名前>'` として書かれている。
             # Python として parse できないので、宣言された名前が実在することを
             # 同じ強さで要求する(存在しなければ fail)。
             names = set(re.findall(r"it\(\s*'([^']+)'", source))
             assert item["testName"] in names, item
+            selected = item["testName"]
+            declaration = source.split(f"it('{selected}'", maxsplit=1)[1]
+            body = declaration.split("\n  })", maxsplit=1)[0]
+            assert "toThrow" not in body and "expect(" in body, item
         evidence_ids.append(item["evidenceId"])
     assert len(evidence_ids) == len(set(evidence_ids))
+
+
+# 正例 B は「通るべきものが実際に通る」ことを示す検査であり、拒否側の負例ではない。
+# 名前が実在することしか見ていなかったため、ステップ 47 に負例
+# (`test_zero_scan_cannot_be_reported_as_conforming`)を登録したまま通っていた
+# (敵対レビュー 2 周目 2026-09-23)。否定を表す語を機械的に拒否する。
+NEGATIVE_NAME_MARKERS = (
+    "rejected",
+    "rejects",
+    "is_red",
+    "cannot",
+    "fails_",
+    "_fails",
+    "raises",
+    "violation",
+)
+
+
+def test_positive_b_evidence_does_not_point_at_a_negative_case() -> None:
+    """正例 B の証跡に拒否側の検査名が混ざっていないことを要求する。"""
+    coverage = _coverage_fixture()
+    offenders = [
+        item
+        for item in coverage["evidence"]
+        if any(marker in item["testName"] for marker in NEGATIVE_NAME_MARKERS)
+    ]
+    assert offenders == [], offenders
+
+
+def test_positive_b_verification_records_measured_scope_and_limit() -> None:
+    """実測範囲と、残りを構造検査までとする限界を資産へ固定する。"""
+    coverage = _coverage_fixture()
+    verification = coverage["verification"]
+    required_steps = {
+        item["stepId"] for item in coverage["evidence"]
+    }
+
+    assert set(verification) == {
+        "structuralEvidenceStepCount",
+        "denyAllMeasuredStepIds",
+        "limitation",
+    }
+    assert verification["structuralEvidenceStepCount"] == len(required_steps)
+    assert verification["denyAllMeasuredStepIds"] == [25, 39]
+    assert "完全に証明されたとは主張しない" in verification["limitation"]
 
 
 def _all_target_steps() -> frozenset[int]:

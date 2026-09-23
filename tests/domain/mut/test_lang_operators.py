@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import math
-import sqlite3
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -91,14 +91,47 @@ def _typescript_result(code: str) -> object:
 
 
 def _sql_result(code: str) -> object:
-    """SQLiteの合成表にSQLを実行して全行を返す。"""
-    with sqlite3.connect(":memory:") as connection:
-        connection.execute("CREATE TABLE samples(value INTEGER NOT NULL)")
-        connection.executemany(
-            "INSERT INTO samples(value) VALUES (?)",
+    """実 PostgreSQL の一時表にSQLを実行して全行を返す。"""
+    dsn = os.environ.get("PITCHLOG_TEST_ADMIN_DSN")
+    if not dsn:
+        pytest.fail(
+            "SQL 変異は PITCHLOG_TEST_ADMIN_DSN の実 PostgreSQL が必須(判定不能)"
+        )
+    # SQLAlchemy 形式の driver 接尾辞は psycopg の conninfo ではないため除く。
+    connection_dsn = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+    script = """
+import json
+import sys
+
+import psycopg
+
+dsn, statement = sys.argv[1:3]
+with psycopg.connect(dsn) as connection:
+    with connection.cursor() as cursor:
+        cursor.execute("CREATE TEMP TABLE samples(value INTEGER NOT NULL)")
+        cursor.executemany(
+            "INSERT INTO samples(value) VALUES (%s)",
             [(2,), (3,), (5,)],
         )
-        return connection.execute(code).fetchall()
+        cursor.execute(statement)
+        print(json.dumps(cursor.fetchall()))
+"""
+    result = subprocess.run(
+        [
+            str(ROOT / "backend/.venv/bin/python"),
+            "-c",
+            script,
+            connection_dsn,
+            code,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode:
+        pytest.fail(f"SQL 変異を実 PostgreSQL で判定できない: {result.stderr}")
+    return json.loads(result.stdout)
 
 
 def _execute(language: Any, code: str) -> object:
@@ -198,6 +231,29 @@ def test_each_language_mutants_are_actually_killed(language: Any) -> None:
     assert result.generated
     assert result.killed == result.generated
     assert result.property_killed == result.generated
+
+
+def test_sql_mutation_without_postgres_dsn_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DSN が無い SQL 変異を skip や SQLite fallback へ倒さない。"""
+    monkeypatch.delenv("PITCHLOG_TEST_ADMIN_DSN", raising=False)
+
+    with pytest.raises(pytest.fail.Exception, match="実 PostgreSQL が必須"):
+        _sql_result(SOURCES[OPERATORS.Language.SQL])
+
+
+def test_sql_mutation_with_unreachable_postgres_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """無効 DSN でも SQLite へ迂回せず判定不能にする。"""
+    monkeypatch.setenv(
+        "PITCHLOG_TEST_ADMIN_DSN",
+        "postgresql://invalid:invalid@127.0.0.1:1/unreachable?connect_timeout=1",
+    )
+
+    with pytest.raises(pytest.fail.Exception, match="実 PostgreSQL で判定できない"):
+        _sql_result(SOURCES[OPERATORS.Language.SQL])
 
 
 def test_mutation_cost_record_has_measured_shape_not_fixed_values() -> None:

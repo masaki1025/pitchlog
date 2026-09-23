@@ -112,9 +112,9 @@
     },
     {
       "stepId": 27,
-      "evidenceId": "pb-step-27-test-generated-artifacts-are-wrapper-onl",
+      "evidenceId": "pb-step-27-three-language-generation",
       "testPath": "tests/domain/gen/test_backends.py",
-      "testName": "test_generated_artifacts_are_wrapper_only"
+      "testName": "test_valid_intermediate_outputs_all_three_languages"
     },
     {
       "stepId": 28,
@@ -124,9 +124,9 @@
     },
     {
       "stepId": 29,
-      "evidenceId": "pb-step-29-test-removing-each-check-allows-its-inva",
+      "evidenceId": "pb-step-29-valid-pregen",
       "testPath": "tests/domain/gen/test_pregen.py",
-      "testName": "test_removing_each_check_allows_its_invalid_declaration_to_generate"
+      "testName": "test_valid_declaration_passes_all_checks_and_reaches_generation"
     },
     {
       "stepId": 30,
@@ -208,9 +208,9 @@
     },
     {
       "stepId": 44,
-      "evidenceId": "pb-step-44-test-generator-version-change-requires-e",
+      "evidenceId": "pb-step-44-source-generated-same-commit",
       "testPath": "tests/domain/test_divergence.py",
-      "testName": "test_generator_version_change_requires_every_generated_artifact"
+      "testName": "test_source_and_generated_artifacts_in_same_commit_pass"
     },
     {
       "stepId": 45,
@@ -226,9 +226,9 @@
     },
     {
       "stepId": 47,
-      "evidenceId": "pb-step-47-test-zero-scan-cannot-be-reported-as-con",
+      "evidenceId": "pb-step-47-matching-declarations-pass",
       "testPath": "tests/domain/test_closure_be.py",
-      "testName": "test_zero_scan_cannot_be_reported_as_conforming"
+      "testName": "test_matching_declarations_pass_with_nonempty_measured_scan"
     },
     {
       "stepId": 48,
@@ -244,9 +244,9 @@
     },
     {
       "stepId": 50,
-      "evidenceId": "pb-step-50-test-all-evaluated-nonfiring-copy-passes",
+      "evidenceId": "pb-step-50-recorded-evaluations-measured",
       "testPath": "tests/domain/test_review_triggers_complete.py",
-      "testName": "test_all_evaluated_nonfiring_copy_passes_at_final_deadline"
+      "testName": "test_recorded_evaluations_match_machine_measurements_and_po_evidence"
     },
     {
       "stepId": 51,
@@ -262,9 +262,9 @@
     },
     {
       "stepId": 53,
-      "evidenceId": "pb-step-53-test-new-jobs-accept-valid-wiring-with-e",
+      "evidenceId": "pb-step-53-historical-new-jobs-green",
       "testPath": "tests/test_ci_wiring.py",
-      "testName": "test_new_jobs_accept_valid_wiring_with_explicit_timeouts"
+      "testName": "test_historical_activation_evidence_records_both_new_jobs_green"
     },
     {
       "stepId": 54,
@@ -274,9 +274,9 @@
     },
     {
       "stepId": 55,
-      "evidenceId": "pb-step-55-activation-evidence",
+      "evidenceId": "pb-step-55-current-head-activation-evidence",
       "testPath": "tests/test_ci_wiring.py",
-      "testName": "test_activation_evidence_binds_all_requirements_to_executed_ci_paths"
+      "testName": "test_current_head_activation_evidence_is_emitted_and_verified"
     },
     {
       "stepId": 56,
@@ -291,5 +291,13 @@
       "testName": "test_area_registration"
     }
   ],
-  "coverageScope": "docs/features/domain-calc-dsl/steps.json の expected_total から全数を取る(自己申告の打ち切り点を持たない)"
+  "coverageScope": "docs/features/domain-calc-dsl/steps.json の expected_total から全数を取る(自己申告の打ち切り点を持たない)",
+  "verification": {
+    "structuralEvidenceStepCount": 47,
+    "denyAllMeasuredStepIds": [
+      25,
+      39
+    ],
+    "limitation": "全47ステップは選択関数の AST と実行で存在・成功側の主張・pytest.raises 不使用を検査する。deny-all 変異の実測は代表2ステップ(25・39)に限り、残る45ステップの意味が名前だけで完全に証明されたとは主張しない。"
+  }
 }

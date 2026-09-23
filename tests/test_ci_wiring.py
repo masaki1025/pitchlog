@@ -5,6 +5,7 @@
 """
 
 import copy
+import importlib
 import json
 import re
 import shlex
@@ -18,6 +19,9 @@ import pytest
 import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_SRC = REPOSITORY_ROOT / "backend/src"
+sys.path.insert(0, str(BACKEND_SRC))
+ACTIVATION = importlib.import_module("pitchlog.domaincheck.activation_evidence")
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
 EXPECTATIONS_PATH = (
@@ -91,8 +95,9 @@ CONSISTENCY_PYTEST_COMMAND = (
     "tests/test_step_history_audit.py"
 )
 MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
+MUTATION_BACKEND_SYNC_STEP = ({"run": "uv sync --project backend --locked --dev"},)
 # 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
-EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 114
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 124
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -222,6 +227,7 @@ def _assert_exact_keys(value: object, expected: set[str], label: str) -> dict[st
 def _assert_activation_evidence(
     evidence: dict[str, Any],
     workflow: dict[str, Any],
+    expected_head_sha: str,
 ) -> None:
     """BOOT-ACTIVATION 証跡を計画と CI の実行対象へ束縛する。"""
     _assert_exact_keys(
@@ -233,6 +239,8 @@ def _assert_activation_evidence(
             "pullRequest",
             "event",
             "runId",
+            "headSha",
+            "verificationLimit",
             "jobs",
             "expectedNonActivationFailure",
             "previousRun",
@@ -245,6 +253,9 @@ def _assert_activation_evidence(
     assert evidence["pullRequest"] == 74
     assert evidence["event"] == "pull_request"
     assert evidence["runId"] == 35529110007
+    assert evidence["headSha"] == expected_head_sha
+    assert "GitHub 上で各 job が success" in evidence["verificationLimit"]
+    assert "機械で再確認したとは主張しない" in evidence["verificationLimit"]
 
     jobs = _assert_exact_keys(evidence["jobs"], {"consistency", "mutation"}, "jobs")
     consistency = _assert_exact_keys(
@@ -1229,11 +1240,28 @@ def _ci_wiring_errors(
 # 期待値へ明示することで、この 2 step を黙って外せないようにする。
 BOOT_REPORT_EMIT_STEPS: tuple[dict[str, Any], ...] = (
     {
-        "run": "uv run python -m pitchlog.domaincheck.boot.report --root .",
-        "working-directory": "backend",
-        "env": {"PYTHONPATH": "src"},
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            "--root . --output /tmp/boot-activation-runtime.json "
+            '--run-id "${{ github.run_id }}" --event "${{ github.event_name }}"'
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
     },
-    {"run": "test -f backend/domain/boot-report.json"},
+    {
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            "--root . --output /tmp/boot-activation-runtime.json --verify"
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": "uv run python -m pitchlog.domaincheck.boot.report --root .",
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": "uv run python -m pitchlog.domaincheck.boot.report --root . --verify",
+        "env": {"PYTHONPATH": "backend/src"},
+    },
 )
 
 
@@ -1359,7 +1387,11 @@ def _domain_ci_wiring_errors(
             "timeout-minutes": MUTATION_TIMEOUT_MINUTES,
             "services": copy.deepcopy(backend.get("services")),
             "env": copy.deepcopy(backend.get("env")),
-            "steps": _expected_new_job_steps(workflow, MUTATION_PYTEST_COMMAND),
+            "steps": _expected_new_job_steps(
+                workflow,
+                MUTATION_PYTEST_COMMAND,
+                MUTATION_BACKEND_SYNC_STEP,
+            ),
         },
     }
     for job_name, expected_job in expected_jobs.items():
@@ -2362,13 +2394,55 @@ def test_required_job_documentation_detects_one_missing_context() -> None:
     assert actual - set(jobs) == set()
 
 
-def test_activation_evidence_binds_all_requirements_to_executed_ci_paths() -> None:
-    """実 run の要求①〜④と構造監査を CI の実行対象へ束縛する。"""
+def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
+    """実 run の要求①〜④と両新設 job の success 記録を検査する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
     evidence = _json_fence_after_marker(design_text, ACTIVATION_EVIDENCE_MARKER)
 
-    _assert_activation_evidence(evidence, workflow)
+    _assert_activation_evidence(
+        evidence,
+        workflow,
+        "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+    )
+
+
+def test_current_head_activation_evidence_is_emitted_and_verified() -> None:
+    """現在 HEAD に束縛した証跡が実際に通る。"""
+    evidence = ACTIVATION.build_runtime_evidence(
+        REPOSITORY_ROOT,
+        run_id="local-positive",
+        event="local",
+    )
+
+    ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, evidence)
+    assert evidence["headSha"] == ACTIVATION.current_head_oid(REPOSITORY_ROOT)
+
+
+def test_stale_activation_head_is_rejected() -> None:
+    """現在 HEAD と異なる古い実行証跡を受理しない。"""
+    evidence = ACTIVATION.build_runtime_evidence(
+        REPOSITORY_ROOT,
+        run_id="local-stale-negative",
+        event="local",
+    )
+    stale = copy.deepcopy(evidence)
+    stale["headSha"] = "0" * 40
+    with pytest.raises(ACTIVATION.CheckerViolation, match="現在 HEAD"):
+        ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, stale)
+
+
+def test_consistency_wires_current_head_activation_verification() -> None:
+    """consistency が実行時証跡を作成し、同じ HEAD で再検証する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    runs = _consistency_run_steps(workflow)
+    activation_runs = [
+        command for command in runs if "domaincheck.activation_evidence" in command
+    ]
+
+    assert len(activation_runs) == 2
+    assert any("--verify" not in command for command in activation_runs)
+    assert any("--verify" in command for command in activation_runs)
 
 
 def test_missing_activation_evidence_is_red() -> None:
@@ -2392,7 +2466,11 @@ def test_each_structural_audit_is_required_by_activation_evidence(
     consistency["structuralAudits"].remove(audit)
 
     with pytest.raises(AssertionError, match="structuralAudits|証跡集合|不一致"):
-        _assert_activation_evidence(evidence, workflow)
+        _assert_activation_evidence(
+            evidence,
+            workflow,
+            "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+        )
 
 
 def test_harness_job_table_and_document_index_are_current() -> None:
@@ -2687,9 +2765,17 @@ def test_consistency_emits_boot_report_against_the_real_state() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     runs = _consistency_run_steps(workflow)
 
-    emitters = [run for run in runs if "domaincheck.boot.report" in run]
+    emitters = [
+        run
+        for run in runs
+        if "domaincheck.boot.report" in run and "--verify" not in run
+    ]
     assert len(emitters) == 1, runs
-    guards = [run for run in runs if "boot-report.json" in run and "test -f" in run]
+    guards = [
+        run
+        for run in runs
+        if "domaincheck.boot.report" in run and "--verify" in run
+    ]
     assert len(guards) == 1, runs
 
 

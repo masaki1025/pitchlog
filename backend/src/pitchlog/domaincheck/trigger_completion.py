@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import cast
 
-from pitchlog.domaincheck import stopgate
+from pitchlog.domaincheck import stopgate, trigger_evaluation
 
 EXPECTED_TRIGGER_COUNT = 16
 EXPECTED_MANUAL_EVIDENCE_COUNT = 9
@@ -174,6 +174,8 @@ def validate_trigger_completion(
     registry_path: Path,
     repository_root: Path,
     as_of_step: int,
+    *,
+    evaluation_evidence_path: Path | None = None,
 ) -> CompletionReport:
     """基準ステップまでの評価・証拠・停止状態を検査する。
 
@@ -181,6 +183,7 @@ def validate_trigger_completion(
         registry_path: `review-triggers.json` のパス。
         repository_root: 証拠パスを解決するリポジトリルート。
         as_of_step: 期限がこの値以下の評価を必須とする基準ステップ。
+        evaluation_evidence_path: 評価の独立実測と PO 決定を持つ証拠資産。
 
     Returns:
         期限内完了・証拠実在・非発火を確認した結果。
@@ -214,6 +217,12 @@ def validate_trigger_completion(
 
     document = stopgate._read_json_object(registry_path)
     manual_evidence = _manual_evidence(_raw_triggers(document), repository_root)
+    trigger_evaluation.validate_recorded_evaluations(
+        document,
+        repository_root,
+        evidence_path=evaluation_evidence_path,
+        trigger_ids=evaluated,
+    )
 
     # 発火判定の意味はステップ 5 の単一実装へ委ねる。
     reasons = stopgate.rejection_reasons(states, as_of)

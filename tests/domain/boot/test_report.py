@@ -6,6 +6,7 @@ import ast
 import importlib
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ BACKEND_SRC = ROOT / "backend/src"
 REPORT_SOURCE = BACKEND_SRC / "pitchlog/domaincheck/boot/report.py"
 SCHEMA_PATH = ROOT / "backend/domain/boot-report.schema.json"
 BOOT_SEAL_PATH = ROOT / "backend/domain/boot-seal.json"
+CHECK_SETS_PATH = ROOT / "backend/domain/check-sets.json"
 
 sys.path.insert(0, str(BACKEND_SRC))
 REPORT = importlib.import_module("pitchlog.domaincheck.boot.report")
@@ -42,6 +44,28 @@ def _copy_assets(root: Path) -> None:
     domain.mkdir(parents=True)
     shutil.copy2(SCHEMA_PATH, domain / SCHEMA_PATH.name)
     shutil.copy2(BOOT_SEAL_PATH, domain / BOOT_SEAL_PATH.name)
+
+
+def _initialise_runtime_repository(root: Path) -> None:
+    """実状態測定用に Git 履歴と対象導出資産を用意する。"""
+    _copy_assets(root)
+    shutil.copy2(CHECK_SETS_PATH, root / "backend/domain/check-sets.json")
+    commands = (
+        ("init", "--quiet"),
+        ("config", "user.name", "BOOT Report Test"),
+        ("config", "user.email", "boot-report@example.invalid"),
+        ("add", "."),
+        ("commit", "--quiet", "-m", "fixture base"),
+    )
+    for command in commands:
+        result = subprocess.run(
+            ["git", *command],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
 
 
 def _resolved_ids(sealed_asset: dict[str, Any]) -> frozenset[str]:
@@ -75,16 +99,19 @@ def test_schema_and_implementation_have_the_same_exact_key_sets(
 ) -> None:
     item = schema["properties"]["unresolvedElements"]["items"]
     meaning = schema["properties"]["transitionMeaning"]
+    provenance = schema["properties"]["provenance"]
     report = _report(sealed_asset, frozenset())
     schema_sets = (
         frozenset(schema["required"]),
         frozenset(item["required"]),
         frozenset(meaning["required"]),
+        frozenset(provenance["required"]),
     )
     implementation_sets = (
         frozenset(report),
         frozenset(report["unresolvedElements"][0]),
         frozenset(report["transitionMeaning"]),
+        frozenset(report["provenance"]),
     )
 
     assert schema_sets == implementation_sets
@@ -94,6 +121,7 @@ def test_schema_and_implementation_have_the_same_exact_key_sets(
     assert schema["additionalProperties"] is False
     assert item["additionalProperties"] is False
     assert meaning["additionalProperties"] is False
+    assert provenance["additionalProperties"] is False
     assert schema["properties"]["unresolvedCount"]["minimum"] == 0
 
 
@@ -169,23 +197,23 @@ def test_wrong_count_is_rejected_even_when_list_is_unchanged(
         REPORT.assert_report_matches(sealed_asset, resolved, changed, schema)
 
 
-def test_report_does_not_rerun_raw_checks() -> None:
+def test_report_measures_resolution_through_phase2_instead_of_fixing_empty() -> None:
     tree = ast.parse(REPORT_SOURCE.read_text(encoding="utf-8"))
-    imported_modules = {
-        node.module
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module is not None
-    }
     called_names = {
-        node.func.id
+        node.func.attr
         for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
     }
 
-    assert "subprocess" not in imported_modules
-    assert all("collect_" not in module for module in imported_modules)
-    assert "classify_phase2" not in called_names
-    assert "evaluate_phase2" not in called_names
+    assert "evaluate_phase2" in called_names
+    main = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "main"
+    )
+    assert not any(
+        isinstance(node, ast.Tuple) and not node.elts for node in ast.walk(main)
+    )
 
 
 def test_declaration_only_phase2_change_resolves_no_elements(
@@ -263,3 +291,47 @@ def test_green_rejects_report_for_a_different_resolved_set(
 
     with pytest.raises(REPORT.CheckerViolation, match="集合の差に一致しない"):
         REPORT.accept_transition_green(tmp_path, _resolved_ids(sealed_asset))
+
+
+def test_actual_measurement_records_head_and_input_digests(tmp_path: Path) -> None:
+    """実状態からの出力が HEAD と封印・解消証跡の digest を持つ。"""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _initialise_runtime_repository(repository)
+
+    output = REPORT.emit_boot_report(repository)
+    report = json.loads(output.read_text(encoding="utf-8"))
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    assert report["provenance"]["commitOid"] == head
+    assert report["provenance"]["inputDigest"].startswith("sha256:")
+    assert report["provenance"]["sealedSetDigest"].startswith("sha256:")
+    assert report["provenance"]["resolutionEvidenceDigest"].startswith("sha256:")
+    assert REPORT.accept_transition_green(repository)["provenance"] == report["provenance"]
+
+
+def test_old_report_is_rejected_after_head_advances(tmp_path: Path) -> None:
+    """古い HEAD で生成した出力を残したまま次の commit を通せない。"""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _initialise_runtime_repository(repository)
+    REPORT.emit_boot_report(repository)
+    (repository / "head-advanced.txt").write_text("new head\n", encoding="utf-8")
+    for command in (("add", "head-advanced.txt"), ("commit", "--quiet", "-m", "advance")):
+        result = subprocess.run(
+            ["git", *command],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+    with pytest.raises(REPORT.CheckerViolation, match="一致しない"):
+        REPORT.accept_transition_green(repository)
