@@ -45,16 +45,12 @@ IMPLEMENTED_ORACLE_TEST_ID = (
 
 
 def _load_checker() -> Any:
-    """同階層の台帳リーダを解決してテスト対象をモジュールとして読む。"""
+    """テスト対象をパス指定のモジュールとして読む。"""
     spec = importlib.util.spec_from_file_location("check_authz_catalog_under_test", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    sys.path.insert(0, str(SCRIPT.parent))
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.pop(0)
+    spec.loader.exec_module(module)
     return module
 
 

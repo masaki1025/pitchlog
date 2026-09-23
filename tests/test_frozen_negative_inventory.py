@@ -28,7 +28,8 @@ EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset(
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_absent_prior_identity_with_values_is_red",
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_new_identity_different_from_derived_value_is_red",
         "tests/frozen_negatives/test_frozen_baseline_ledger.py::test_impossible_approval_date_is_red",
-        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_non_develop_event_does_not_enter_acceptance_transition",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_non_develop_event_with_broken_environment_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_unresolvable_sha_and_non_merge_head_are_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_first_parent_different_from_event_base_is_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_second_parent_different_from_event_head_is_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_rewritten_existing_history_record_is_red",
@@ -137,9 +138,9 @@ def _write_synthetic_test(root: Path, filename: str, source: str) -> None:
     (directory / filename).write_text(source, encoding="utf-8")
 
 
-def test_repository_inventory_matches_expected_set_of_twenty_nine() -> None:
-    """期待集合が明示した29件で実母集団とも一致する。"""
-    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 29
+def test_repository_inventory_matches_expected_set_of_thirty() -> None:
+    """期待集合が明示した30件で実母集団とも一致する。"""
+    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 30
 
     inventory = _collect_frozen_negative_inventory(REPOSITORY_ROOT)
 

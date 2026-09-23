@@ -1406,21 +1406,20 @@ def check_acceptance(root: Path, ledger_path: Path) -> tuple[str, ...]:
         FrozenBaselineCheckError: event、git状態、遷移のいずれかが不正な場合。
     """
     event = _read_pull_request_event()
+    if not (root / ".git").exists():
+        raise FrozenBaselineCheckError("受理遷移検査には .git が必要")
+    base_sha = _resolve_commit(root, event.base_sha, "event.pull_request.base.sha")
+    head_sha = _resolve_commit(root, event.head_sha, "event.pull_request.head.sha")
     if event.base_ref != "develop":
         return (
             "frozen-baselines: acceptance not evaluated: "
             f"pull_request.base.ref={event.base_ref!r} は develop でない",
         )
-    if not (root / ".git").exists():
-        raise FrozenBaselineCheckError("受理遷移検査には .git が必要")
     parents = _head_parents(root)
     if len(parents) != 2:
-        return (
-            "frozen-baselines: acceptance not evaluated: "
-            f"HEAD は2親のsynthetic mergeでない: parents={len(parents)}",
+        raise FrozenBaselineCheckError(
+            f"HEAD は2親のsynthetic mergeでない: parents={len(parents)}"
         )
-    base_sha = _resolve_commit(root, event.base_sha, "event.pull_request.base.sha")
-    head_sha = _resolve_commit(root, event.head_sha, "event.pull_request.head.sha")
     # この親照合が保証するのはeventとcheckoutの整合だけである。
     # baseの最新性はgithub-setup.md 2章 手続2の「base SHA の 3 点一致と head の拘束」が
     # 担い、台帳は保証しない(行番号は他PRのマージでずれるため節で指す)。
@@ -1811,6 +1810,8 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=(
             "走査母集団は scripts/、tests/、backend/tests/ 配下の *.py で、"
             "本文中の40桁・64桁小文字hexを対象とします。"
+            "非保証: 隣接文字列連結など、ソース上に連続して現れない形で"
+            "再構成された定数は走査できません。"
             "--invariants-onlyと--acceptanceと--ciは実リポジトリを走査し、"
             "--scan-fixtureは合成fixture専用です。pending_removalの除去は"
             "後続タスクによる管理統制です。"

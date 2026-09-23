@@ -443,23 +443,55 @@ def _assert_red(
 
 
 @pytest.mark.frozen_negative
-def test_non_develop_event_does_not_enter_acceptance_transition(tmp_path: Path) -> None:
-    """N15: develop以外のPRは内部不変量だけで終了する。"""
+def test_non_develop_event_with_broken_environment_is_red(tmp_path: Path) -> None:
+    """非develop向けPRでもSHA解決不能とgit欠落を拒否する。"""
     fixture = _build_repository(tmp_path / "repository")
     _assert_normal_baseline_green(fixture)
     event = _read_event(fixture)
-    event["pull_request"]["base"] = {"ref": "release", "sha": "0" * 40}
-    event["pull_request"]["head"] = {"sha": "f" * 40}
+    event["pull_request"]["base"]["ref"] = "release"
+    event["pull_request"]["base"]["sha"] = "0" * 40
     _write_event(fixture, event)
-
-    result = _run_acceptance(fixture)
-    assert result.returncode == 0
-    assert result.stdout == (
-        "frozen-baselines: acceptance not evaluated: "
-        "pull_request.base.ref='release' は develop でない\n"
-        "frozen-baselines: OK\n"
+    _assert_red(
+        fixture,
+        "event.pull_request.base.sha をcommitとして解決できない: " + "0" * 40,
     )
-    assert result.stderr == ""
+
+    event["pull_request"]["base"]["sha"] = fixture.base_sha
+    event["pull_request"]["head"]["sha"] = "f" * 40
+    _write_event(fixture, event)
+    _assert_red(
+        fixture,
+        "event.pull_request.head.sha をcommitとして解決できない: " + "f" * 40,
+    )
+
+    event["pull_request"]["head"]["sha"] = fixture.head_sha
+    _write_event(fixture, event)
+    git_directory = fixture.root / ".git"
+    hidden_git_directory = fixture.root / ".git-hidden"
+    git_directory.rename(hidden_git_directory)
+    try:
+        _assert_red(fixture, "受理遷移検査には .git が必要")
+    finally:
+        hidden_git_directory.rename(git_directory)
+
+
+@pytest.mark.frozen_negative
+def test_unresolvable_sha_and_non_merge_head_are_red(tmp_path: Path) -> None:
+    """develop向けPRのSHA解決不能と2親でないHEADを拒否する。"""
+    fixture = _build_repository(tmp_path / "repository")
+    _assert_normal_baseline_green(fixture)
+    event = _read_event(fixture)
+    event["pull_request"]["base"]["sha"] = "0" * 40
+    _write_event(fixture, event)
+    _assert_red(
+        fixture,
+        "event.pull_request.base.sha をcommitとして解決できない: " + "0" * 40,
+    )
+
+    event["pull_request"]["base"]["sha"] = fixture.base_sha
+    _write_event(fixture, event)
+    _git(fixture.root, "checkout", "--detach", fixture.head_sha)
+    _assert_red(fixture, "HEAD は2親のsynthetic mergeでない: parents=1")
 
 
 @pytest.mark.frozen_negative

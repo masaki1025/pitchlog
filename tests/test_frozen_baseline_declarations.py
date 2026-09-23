@@ -6,7 +6,7 @@ import copy
 import importlib
 import json
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -94,18 +94,51 @@ def _current_identities(
     }
 
 
-def _synthetic_declaration(identity: str, granularity: str) -> dict[str, Any]:
-    """戦略dispatchだけに必要な単一系列の合成宣言を作る。"""
+def _synthetic_dispatch_ledger(
+    first_key: tuple[str, str],
+    second_key: tuple[str, str],
+) -> dict[str, Any]:
+    """2系列が2戦略を使うdispatch検査用の合成宣言を作る。"""
     return {
         "declarations": {
-            "candidate": {
+            "first": {
                 "frozen_targets": ["tests/material.json#/value"],
-                "identity": identity,
-                "granularity": granularity,
-                "basis_series": "candidate",
-            }
+                "identity": first_key[0],
+                "granularity": first_key[1],
+                "basis_series": "first",
+            },
+            "second": {
+                "frozen_targets": ["tests/material.json#/value"],
+                "identity": second_key[0],
+                "granularity": second_key[1],
+                "basis_series": "second",
+            },
         }
     }
+
+
+def _tagged_strategy(
+    result_kind: str,
+    final_character: str,
+) -> Callable[[Mapping[str, bytes], Sequence[str]], tuple[Any, ...]]:
+    """JSON pointer戦略の結果へ合成registry用の差を付ける。"""
+
+    def strategy(
+        materials: Mapping[str, bytes],
+        targets: Sequence[str],
+    ) -> tuple[Any, ...]:
+        values = frozen_baselines.literal_commit_string_at_json_pointer(
+            materials, targets
+        )
+        return tuple(
+            frozen_baselines.IdentityValue(
+                kind=result_kind,
+                value=value.value[:-1] + final_character,
+            )
+            for value in values
+        )
+
+    return strategy
 
 
 def test_frozen_targets_select_the_material_population(tmp_path: Path) -> None:
@@ -140,41 +173,35 @@ def test_frozen_targets_select_the_material_population(tmp_path: Path) -> None:
 
 
 def test_identity_switch_selects_a_different_injected_strategy(tmp_path: Path) -> None:
-    """identity切替で合成registryの比較方法が変わり判定がredになる。"""
+    """identity宣言だけの交換で固定registryの導出結果も交換される。"""
     root = tmp_path / "repository"
     material = root / "tests/material.json"
     material.parent.mkdir(parents=True)
     material.write_text(json.dumps({"value": "a" * 40}), encoding="utf-8")
+    first_key = ("literal_commit_string", "json_pointer_value")
+    second_key = ("alternate_commit_string", "json_pointer_value")
+    strategy_registry = {
+        first_key: _tagged_strategy("literal_commit_string", "a"),
+        second_key: _tagged_strategy("alternate_commit_string", "a"),
+    }
+    baseline_ledger = _synthetic_dispatch_ledger(first_key, second_key)
+    switched_ledger = copy.deepcopy(baseline_ledger)
+    switched_ledger["declarations"]["first"]["identity"] = second_key[0]
+    switched_ledger["declarations"]["second"]["identity"] = first_key[0]
 
     baseline = checker._derive_current_identities(
-        root,
-        _synthetic_declaration("literal_commit_string", "json_pointer_value"),
-        frozen_baselines.COMPARISON_STRATEGIES,
-    )["candidate"]
-
-    def alternate_identity(
-        materials: Mapping[str, bytes],
-        targets: Sequence[str],
-    ) -> tuple[Any, ...]:
-        values = frozen_baselines.literal_commit_string_at_json_pointer(
-            materials, targets
-        )
-        return tuple(
-            frozen_baselines.IdentityValue(
-                kind="alternate_commit_string",
-                value=value.value,
-            )
-            for value in values
-        )
-
+        root, baseline_ledger, strategy_registry
+    )
     switched = checker._derive_current_identities(
-        root,
-        _synthetic_declaration("alternate_commit_string", "json_pointer_value"),
-        {("alternate_commit_string", "json_pointer_value"): alternate_identity},
-    )["candidate"]
+        root, switched_ledger, strategy_registry
+    )
+
+    assert baseline["first"] != baseline["second"]
+    assert switched["first"] == baseline["second"]
+    assert switched["second"] == baseline["first"]
     checker._check_basis_correspondence(
         _basis_ledger("accepted"),
-        _current_identities(baseline),
+        _current_identities(baseline["first"]),
     )
     with pytest.raises(
         checker.FrozenBaselineCheckError,
@@ -182,9 +209,8 @@ def test_identity_switch_selects_a_different_injected_strategy(tmp_path: Path) -
     ):
         checker._check_basis_correspondence(
             _basis_ledger("accepted"),
-            _current_identities(switched),
+            _current_identities(switched["first"]),
         )
-    assert switched != baseline
     assert set(frozen_baselines.COMPARISON_STRATEGIES) == {
         ("literal_commit_string", "json_pointer_value")
     }
@@ -193,44 +219,35 @@ def test_identity_switch_selects_a_different_injected_strategy(tmp_path: Path) -
 def test_granularity_switch_reverses_the_correspondence_result(
     tmp_path: Path,
 ) -> None:
-    """granularity切替で同じ素材の判定がgreenからredへ反転する。"""
+    """granularity宣言だけの交換で固定registryの導出結果も交換される。"""
     root = tmp_path / "repository"
     material = root / "tests/material.json"
     material.parent.mkdir(parents=True)
     material.write_text(json.dumps({"value": "a" * 40}), encoding="utf-8")
+    first_key = ("literal_commit_string", "json_pointer_value")
+    second_key = ("literal_commit_string", "reversed_pointer_value")
+    strategy_registry = {
+        first_key: _tagged_strategy("literal_commit_string", "a"),
+        second_key: _tagged_strategy("literal_commit_string", "b"),
+    }
+    baseline_ledger = _synthetic_dispatch_ledger(first_key, second_key)
+    switched_ledger = copy.deepcopy(baseline_ledger)
+    switched_ledger["declarations"]["first"]["granularity"] = second_key[1]
+    switched_ledger["declarations"]["second"]["granularity"] = first_key[1]
+
     baseline = checker._derive_current_identities(
-        root,
-        _synthetic_declaration("literal_commit_string", "json_pointer_value"),
-        frozen_baselines.COMPARISON_STRATEGIES,
-    )["candidate"]
-
-    def changed_granularity(
-        materials: Mapping[str, bytes],
-        targets: Sequence[str],
-    ) -> tuple[Any, ...]:
-        values = frozen_baselines.literal_commit_string_at_json_pointer(
-            materials, targets
-        )
-        return tuple(
-            frozen_baselines.IdentityValue(
-                kind=value.kind,
-                value=value.value[:-1] + "c",
-            )
-            for value in values
-        )
-
+        root, baseline_ledger, strategy_registry
+    )
     switched = checker._derive_current_identities(
-        root,
-        _synthetic_declaration("literal_commit_string", "reversed_pointer_value"),
-        {
-            ("literal_commit_string", "reversed_pointer_value"): (
-                changed_granularity
-            )
-        },
-    )["candidate"]
+        root, switched_ledger, strategy_registry
+    )
+
+    assert baseline["first"] != baseline["second"]
+    assert switched["first"] == baseline["second"]
+    assert switched["second"] == baseline["first"]
     checker._check_basis_correspondence(
         _basis_ledger("accepted"),
-        _current_identities(baseline),
+        _current_identities(baseline["first"]),
     )
     with pytest.raises(
         checker.FrozenBaselineCheckError,
@@ -238,9 +255,8 @@ def test_granularity_switch_reverses_the_correspondence_result(
     ):
         checker._check_basis_correspondence(
             _basis_ledger("accepted"),
-            _current_identities(switched),
+            _current_identities(switched["first"]),
         )
-    assert switched != baseline
 
 
 def test_basis_series_switch_implicitly_rebases_the_expected_identity() -> None:

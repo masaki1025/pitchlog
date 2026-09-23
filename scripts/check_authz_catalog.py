@@ -15,7 +15,15 @@ from itertools import combinations
 from pathlib import Path
 from typing import Pattern, Sequence
 
-from frozen_baselines import FrozenBaselineError, load_latest_series_identity
+# このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+from frozen_baselines import (  # noqa: E402
+    FrozenBaselineError,
+    load_latest_series_identity,
+)
 
 
 @dataclass(frozen=True)
