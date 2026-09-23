@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "fixtureType": "step-positive-b-coverage",
+  "evidence": [
+    {
+      "stepId": 1,
+      "evidenceId": "pb-step-1-valid-vocabulary",
+      "testPath": "tests/domain/test_vocabulary_schema.py",
+      "testName": "test_three_display_rule_declarations_are_accepted"
+    },
+    {
+      "stepId": 5,
+      "evidenceId": "pb-step-5-open-stopgate",
+      "testPath": "tests/domain/test_stopgate.py",
+      "testName": "test_no_firing_or_overdue_evaluation_exits_zero"
+    },
+    {
+      "stepId": 7,
+      "evidenceId": "pb-step-7-valid-manifest",
+      "testPath": "tests/domain/test_manifest_schema.py",
+      "testName": "test_valid_synthetic_manifest_is_accepted"
+    },
+    {
+      "stepId": 8,
+      "evidenceId": "pb-step-8-conforming-cli",
+      "testPath": "tests/domain/test_checker_cli.py",
+      "testName": "test_conforming_asset_exits_zero"
+    },
+    {
+      "stepId": 9,
+      "evidenceId": "pb-step-9-valid-reseal",
+      "testPath": "tests/domain/test_seal.py",
+      "testName": "test_valid_reseal_updates_seal_and_subsequent_verification_passes"
+    },
+    {
+      "stepId": 10,
+      "evidenceId": "pb-step-10-real-frontend-entry",
+      "testPath": "tests/domain/test_collect_fe.py",
+      "testName": "test_real_course_input_view_is_reachable_from_production_html"
+    },
+    {
+      "stepId": 11,
+      "evidenceId": "pb-step-11-real-backend-entry",
+      "testPath": "tests/domain/test_collect_be.py",
+      "testName": "test_real_main_reaches_every_statically_declared_router"
+    },
+    {
+      "stepId": 12,
+      "evidenceId": "pb-step-12-real-display-path",
+      "testPath": "tests/domain/test_collect_display.py",
+      "testName": "test_real_formatter_definition_and_callsite_are_collected"
+    },
+    {
+      "stepId": 13,
+      "evidenceId": "pb-step-13-valid-model",
+      "testPath": "tests/domain/test_model_schema.py",
+      "testName": "test_valid_state_transition_model_is_accepted"
+    },
+    {
+      "stepId": 14,
+      "evidenceId": "pb-step-14-sealed-only-exit-zero",
+      "testPath": "tests/domain/test_check_sets.py",
+      "testName": "test_sealed_only_findings_exit_zero"
+    },
+    {
+      "stepId": 16,
+      "evidenceId": "pb-step-16-valid-boot-seal",
+      "testPath": "tests/domain/test_boot_seal.py",
+      "testName": "test_correct_set_is_sealed_and_repeated_verification_exits_zero"
+    },
+    {
+      "stepId": 17,
+      "evidenceId": "pb-step-17-valid-reapproval",
+      "testPath": "tests/domain/boot/test_stall.py",
+      "testName": "test_valid_reapproval_starts_stall_epoch"
+    },
+    {
+      "stepId": 18,
+      "evidenceId": "pb-step-18-one-phase2-target",
+      "testPath": "tests/domain/boot/test_phase2.py",
+      "testName": "test_one_complete_target_is_classified_as_phase2"
+    },
+    {
+      "stepId": 19,
+      "evidenceId": "pb-step-19-valid-report",
+      "testPath": "tests/domain/boot/test_report.py",
+      "testName": "test_correct_report_is_emitted_and_green_is_accepted"
+    },
+    {
+      "stepId": 21,
+      "evidenceId": "pb-step-21-conforming-judge",
+      "testPath": "tests/domain/boot/test_judge.py",
+      "testName": "test_all_conforming_raw_results_exit_zero"
+    },
+    {
+      "stepId": 25,
+      "evidenceId": "pb-step-25-grant-merge",
+      "testPath": "tests/domain/boot/test_positives_b.py",
+      "testName": "test_sealed_failure_change_is_actually_merged_by_grant"
+    },
+    {
+      "stepId": 25,
+      "evidenceId": "pb-step-25-reapproval-recovery",
+      "testPath": "tests/domain/boot/test_positives_b.py",
+      "testName": "test_valid_reapproval_actually_recovers_grant"
+    },
+    {
+      "stepId": 26,
+      "evidenceId": "pb-step-26-test-valid-model-generates-language-inde",
+      "testPath": "tests/domain/gen/test_core.py",
+      "testName": "test_valid_model_generates_language_independent_intermediate"
+    },
+    {
+      "stepId": 27,
+      "evidenceId": "pb-step-27-three-language-generation",
+      "testPath": "tests/domain/gen/test_backends.py",
+      "testName": "test_valid_intermediate_outputs_all_three_languages"
+    },
+    {
+      "stepId": 28,
+      "evidenceId": "pb-step-28-test-alpha-python-typescript-and-referen",
+      "testPath": "tests/domain/gen/test_formatter.py",
+      "testName": "test_alpha_python_typescript_and_reference_return_same_display"
+    },
+    {
+      "stepId": 29,
+      "evidenceId": "pb-step-29-valid-pregen",
+      "testPath": "tests/domain/gen/test_pregen.py",
+      "testName": "test_valid_declaration_passes_all_checks_and_reaches_generation"
+    },
+    {
+      "stepId": 30,
+      "evidenceId": "pb-step-30-test-generated-artifacts-form-inputs-for",
+      "testPath": "tests/domain/gen/test_target_matrix.py",
+      "testName": "test_generated_artifacts_form_inputs_for_all_three_runner_layers"
+    },
+    {
+      "stepId": 31,
+      "evidenceId": "pb-step-31-test-real-pytest-junit-output-is-counted",
+      "testPath": "tests/domain/test_collect_layers.py",
+      "testName": "test_real_pytest_junit_output_is_counted_with_provenance"
+    },
+    {
+      "stepId": 32,
+      "evidenceId": "pb-step-32-test-valid-evidence-actually-passes-all-",
+      "testPath": "tests/domain/test_path_match.py",
+      "testName": "test_valid_evidence_actually_passes_all_five_judgments"
+    },
+    {
+      "stepId": 34,
+      "evidenceId": "pb-step-34-test-valid-vector-consumes-every-case-an",
+      "testPath": "tests/domain/runners/test_vectors.py",
+      "testName": "test_valid_vector_consumes_every_case_and_reaches_calculation"
+    },
+    {
+      "stepId": 35,
+      "evidenceId": "pb-step-35-test-all-required-cases-run-and-prove-co",
+      "testPath": "tests/domain/runners/test_coverage_proof.py",
+      "testName": "test_all_required_cases_run_and_prove_complete_coverage"
+    },
+    {
+      "stepId": 36,
+      "evidenceId": "pb-step-36-test-valid-generated-cases-complete-ever",
+      "testPath": "tests/domain/runners/test_invariants.py",
+      "testName": "test_valid_generated_cases_complete_every_predicate"
+    },
+    {
+      "stepId": 37,
+      "evidenceId": "pb-step-37-test-equivalent-implementations-pass-all",
+      "testPath": "tests/domain/runners/test_equivalence.py",
+      "testName": "test_equivalent_implementations_pass_all_four_surfaces"
+    },
+    {
+      "stepId": 38,
+      "evidenceId": "pb-step-38-test-generator-completes-with-only-allow",
+      "testPath": "tests/domain/runners/test_catalog_independence.py",
+      "testName": "test_generator_completes_with_only_allowlisted_reads"
+    },
+    {
+      "stepId": 39,
+      "evidenceId": "pb-step-39-test-real-mutant-is-generated-and-killed",
+      "testPath": "tests/domain/mut/test_engine.py",
+      "testName": "test_real_mutant_is_generated_and_killed_by_property_layer"
+    },
+    {
+      "stepId": 40,
+      "evidenceId": "pb-step-40-test-each-language-mutants-are-actually-",
+      "testPath": "tests/domain/mut/test_lang_operators.py",
+      "testName": "test_each_language_mutants_are_actually_killed"
+    },
+    {
+      "stepId": 41,
+      "evidenceId": "pb-step-41-test-each-display-family-mutants-are-act",
+      "testPath": "tests/domain/mut/test_display_operators.py",
+      "testName": "test_each_display_family_mutants_are_actually_killed"
+    },
+    {
+      "stepId": 42,
+      "evidenceId": "pb-step-42-test-exact-internal-budget-is-still-acce",
+      "testPath": "tests/domain/mut/test_scope.py",
+      "testName": "test_exact_internal_budget_is_still_accepted"
+    },
+    {
+      "stepId": 43,
+      "evidenceId": "pb-step-43-test-recorded-equivalent-is-excluded-fro",
+      "testPath": "tests/domain/mut/test_equivalents.py",
+      "testName": "test_recorded_equivalent_is_excluded_from_kill_requirement"
+    },
+    {
+      "stepId": 44,
+      "evidenceId": "pb-step-44-source-generated-same-commit",
+      "testPath": "tests/domain/test_divergence.py",
+      "testName": "test_source_and_generated_artifacts_in_same_commit_pass"
+    },
+    {
+      "stepId": 45,
+      "evidenceId": "pb-step-45-frontend-positive",
+      "testPath": "frontend/src/testing/entrypointClosure.spec.ts",
+      "testName": "収集器の実測と entrypoints[] が一致すれば通る"
+    },
+    {
+      "stepId": 46,
+      "evidenceId": "pb-step-46-frontend-positive",
+      "testPath": "frontend/src/testing/buildClosure.spec.ts",
+      "testName": "外部参照の無い build 出力を正の走査件数で受理する"
+    },
+    {
+      "stepId": 47,
+      "evidenceId": "pb-step-47-matching-declarations-pass",
+      "testPath": "tests/domain/test_closure_be.py",
+      "testName": "test_matching_declarations_pass_with_nonempty_measured_scan"
+    },
+    {
+      "stepId": 48,
+      "evidenceId": "pb-step-48-test-matching-target-callsite-and-genera",
+      "testPath": "tests/domain/test_display_binding.py",
+      "testName": "test_matching_target_callsite_and_generated_formatter_pass"
+    },
+    {
+      "stepId": 49,
+      "evidenceId": "pb-step-49-test-actual-measurement-is-generated-and",
+      "testPath": "tests/domain/mut/test_cost_record.py",
+      "testName": "test_actual_measurement_is_generated_and_passes_both_budgets"
+    },
+    {
+      "stepId": 50,
+      "evidenceId": "pb-step-50-recorded-evaluations-measured",
+      "testPath": "tests/domain/test_review_triggers_complete.py",
+      "testName": "test_recorded_evaluations_match_machine_measurements_and_po_evidence"
+    },
+    {
+      "stepId": 51,
+      "evidenceId": "pb-step-51-test-generated-steps-and-dod-match-plan-",
+      "testPath": "tests/test_plan_generation.py",
+      "testName": "test_generated_steps_and_dod_match_plan_exactly"
+    },
+    {
+      "stepId": 52,
+      "evidenceId": "pb-step-52-test-real-repository-commands-actually-r",
+      "testPath": "tests/test_step_history_audit.py",
+      "testName": "test_history_owned_commands_actually_run_and_report_nonempty_scope"
+    },
+    {
+      "stepId": 53,
+      "evidenceId": "pb-step-53-historical-new-jobs-green",
+      "testPath": "tests/test_ci_wiring.py",
+      "testName": "test_historical_activation_evidence_records_both_new_jobs_green"
+    },
+    {
+      "stepId": 54,
+      "evidenceId": "pb-step-54-test-locked-sync-and-ty-check-actually-s",
+      "testPath": "tests/test_packaging.py",
+      "testName": "test_locked_sync_and_ty_check_actually_succeed"
+    },
+    {
+      "stepId": 55,
+      "evidenceId": "pb-step-55-current-head-activation-evidence",
+      "testPath": "tests/test_ci_wiring.py",
+      "testName": "test_current_head_activation_evidence_is_emitted_after_command_and_verified"
+    },
+    {
+      "stepId": 56,
+      "evidenceId": "pb-step-56-test-registered-addition-layer-passes-in",
+      "testPath": "tests/test_core_guard.py",
+      "testName": "test_registered_addition_layer_passes_in_a_separate_commit"
+    },
+    {
+      "stepId": 57,
+      "evidenceId": "pb-step-57-test-area-registration",
+      "testPath": "tests/test_core_guard.py",
+      "testName": "test_area_registration"
+    }
+  ],
+  "coverageScope": "docs/features/domain-calc-dsl/steps.json の expected_total から全数を取る(自己申告の打ち切り点を持たない)",
+  "verification": {
+    "structuralEvidenceStepCount": 47,
+    "denyAllMeasuredStepIds": [
+      25,
+      39
+    ],
+    "limitation": "全47ステップは選択関数の AST と実行で存在・成功側の主張・pytest.raises 不使用を検査する。deny-all 変異の実測は代表2ステップ(25・39)に限り、残る45ステップの意味が名前だけで完全に証明されたとは主張しない。"
+  }
+}

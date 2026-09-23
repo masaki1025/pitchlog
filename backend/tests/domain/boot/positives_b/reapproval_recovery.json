@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "fixtureType": "reapproval-recovery",
+  "caseId": "pos-b-reapproval-recovers-grant",
+  "clauseIds": [
+    "BOOT-REAPPROVAL",
+    "BOOT-ACTIVATION"
+  ],
+  "record": {
+    "path": "approvals/valid.json",
+    "approvalId": "positive-b-reapproval",
+    "approver": "山田正輝"
+  },
+  "expected": {
+    "grant": "active",
+    "epochReason": "reapproval",
+    "mergeCount": 0
+  }
+}

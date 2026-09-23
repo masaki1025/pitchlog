@@ -5,6 +5,7 @@
 """
 
 import copy
+import importlib
 import json
 import re
 import shlex
@@ -18,6 +19,9 @@ import pytest
 import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_SRC = REPOSITORY_ROOT / "backend/src"
+sys.path.insert(0, str(BACKEND_SRC))
+ACTIVATION = importlib.import_module("pitchlog.domaincheck.activation_evidence")
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
 EXPECTATIONS_PATH = (
@@ -26,6 +30,16 @@ EXPECTATIONS_PATH = (
 BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
 BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
+STEPS_PATH = REPOSITORY_ROOT / "docs" / "features" / "domain-calc-dsl" / "steps.json"
+GITHUB_SETUP_PATH = REPOSITORY_ROOT / "docs" / "development" / "github-setup.md"
+HARNESS_DESIGN_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "development"
+    / "dev-harness-design-2026-08-07.md"
+)
+DOCS_INDEX_PATH = REPOSITORY_ROOT / "docs" / "README.md"
+ACTIVATION_EVIDENCE_MARKER = "<!-- BOOT-ACTIVATION-EVIDENCE -->"
 DB_FIXTURES_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db_fixtures.py"
 TENANT_BOUNDARY_ALLOWLIST_PATH = (
     REPOSITORY_ROOT / "contracts" / "tenant_boundary" / "base-allowlist.json"
@@ -45,6 +59,8 @@ EXPECTED_JOB_ORDER = (
     "docs-lint",
     "core-guard",
     "harness",
+    "consistency",
+    "mutation",
     "nfr021-append-only",
     TENANT_BOUNDARY_JOB,
     "frontend-changes",
@@ -76,9 +92,53 @@ CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
         "frontend-changes",
         "backend-changes",
         "backend",
+        "consistency",
+        "mutation",
     }
 )
 CHECKOUT_JOBS_WITHOUT_FETCH_DEPTH_ZERO = frozenset({"docs-lint", "frontend"})
+LEGACY_JOB_IDS = frozenset(
+    {
+        "secrets",
+        "docs-lint",
+        "core-guard",
+        "harness",
+        "nfr021-append-only",
+        "frontend-changes",
+        "backend-changes",
+        "frontend",
+        "backend",
+    }
+)
+NEW_JOB_IDS = frozenset({"consistency", "mutation"})
+CONSISTENCY_TIMEOUT_MINUTES = 20
+MUTATION_TIMEOUT_MINUTES = 40
+HARNESS_PYTEST_COMMAND = (
+    "uv run pytest -c pyproject.toml tests/ "
+    "--ignore=tests/domain/boot "
+    "--ignore=tests/domain/mut "
+    "--ignore=tests/test_plan_generation.py "
+    "--ignore=tests/test_step_history_audit.py"
+)
+CONSISTENCY_PYTEST_COMMAND = (
+    "uv run pytest -c pyproject.toml "
+    "tests/domain/boot/ "
+    "tests/test_plan_generation.py "
+    "tests/test_step_history_audit.py"
+)
+MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
+MUTATION_BACKEND_SYNC_STEP = ({"run": "uv sync --project backend --locked --dev"},)
+ACTIVATION_EVIDENCE_PATH = "/tmp/boot-activation-runtime.json"
+ACTIVATION_UPLOAD_STEP = {
+    "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "with": {
+        "name": "boot-activation-evidence",
+        "path": ACTIVATION_EVIDENCE_PATH,
+        "if-no-files-found": "error",
+    },
+}
+# 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 130
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -87,6 +147,220 @@ def _load_workflow(text: str) -> dict[str, Any]:
     workflow = yaml.safe_load(text)
     assert isinstance(workflow, dict), "ci.yml のルートはマッピングでなければならない"
     return workflow
+
+
+def _json_fence_after_marker(text: str, marker: str) -> dict[str, Any]:
+    """指定標識の直後にある JSON fenced block を読む。
+
+    Args:
+        text: Markdown 全文。
+        marker: JSON block より前に一意に現れる標識。
+
+    Returns:
+        JSON オブジェクト。
+    """
+    marker_index = text.find(marker)
+    assert marker_index >= 0, f"標識がない: {marker}"
+    fence_start = text.find("```json", marker_index)
+    assert fence_start >= 0, f"{marker}: JSON fence がない"
+    payload_start = fence_start + len("```json")
+    fence_end = text.find("```", payload_start)
+    assert fence_end >= 0, f"{marker}: JSON fence が閉じていない"
+    value = json.loads(text[payload_start:fence_end])
+    assert isinstance(value, dict), f"{marker}: JSON ルートはオブジェクトが必要"
+    return value
+
+
+def _workflow_job_categories(
+    workflow: dict[str, Any],
+) -> dict[str, frozenset[str]]:
+    """CI の依存関係から必須ジョブの 3 分類を導出する。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        常時実行・変更検知・paths filter 配下のジョブ集合。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    filtered = {name for name, job in jobs.items() if isinstance(job, dict) and "needs" in job}
+    change_detection: set[str] = set()
+    for name in filtered:
+        job = jobs[name]
+        assert isinstance(job, dict)
+        needs = job["needs"]
+        if isinstance(needs, str):
+            change_detection.add(needs)
+        else:
+            assert isinstance(needs, list)
+            assert all(isinstance(item, str) for item in needs)
+            change_detection.update(needs)
+    always = set(jobs) - filtered - change_detection
+    return {
+        "always": frozenset(always),
+        "changeDetection": frozenset(change_detection),
+        "filtered": frozenset(filtered),
+    }
+
+
+def _documented_job_categories(text: str) -> dict[str, frozenset[str]]:
+    """github-setup.md の手続 2 から必須ジョブの 3 分類を読む。"""
+    line = next(
+        (
+            item
+            for item in text.splitlines()
+            if "常時実行" in item and "変更検知" in item
+        ),
+        None,
+    )
+    assert line is not None, "必須ジョブの 3 分類がない"
+    always_match = re.search(r"常時実行 (\d+) ジョブ\((.*?)\)\+ 変更検知", line)
+    change_match = re.search(
+        r"変更検知 (\d+) ジョブ\((.*?)\)\+ \*\*paths", line
+    )
+    filtered_match = re.search(r"発火した場合の (`[^`]+` / `[^`]+`)", line)
+    assert always_match is not None
+    assert change_match is not None
+    assert filtered_match is not None
+    categories = {
+        "always": frozenset(re.findall(r"`([^`]+)`", always_match[2])),
+        "changeDetection": frozenset(
+            re.findall(r"`([^`]+)`", change_match[2])
+        ),
+        "filtered": frozenset(re.findall(r"`([^`]+)`", filtered_match[1])),
+    }
+    assert len(categories["always"]) == int(always_match[1])
+    assert len(categories["changeDetection"]) == int(change_match[1])
+    return categories
+
+
+def _required_status_contexts(ruleset: dict[str, Any]) -> tuple[str, ...]:
+    """Ruleset JSON から required status context を取り出す。"""
+    rules = ruleset.get("rules")
+    assert isinstance(rules, list)
+    status_rules = [
+        rule
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
+    ]
+    assert len(status_rules) == 1
+    parameters = status_rules[0].get("parameters")
+    assert isinstance(parameters, dict)
+    contexts = parameters.get("required_status_checks")
+    assert isinstance(contexts, list)
+    values = tuple(
+        item.get("context")
+        for item in contexts
+        if isinstance(item, dict) and isinstance(item.get("context"), str)
+    )
+    assert len(values) == len(contexts), "context を持たない required status がある"
+    return values
+
+
+def _assert_exact_keys(value: object, expected: set[str], label: str) -> dict[str, Any]:
+    """JSON オブジェクトのキー集合を exact-set で検査する。"""
+    assert isinstance(value, dict), f"{label} はオブジェクトが必要"
+    assert set(value) == expected, f"{label} のキー集合が不一致"
+    return value
+
+
+def _assert_activation_evidence(
+    evidence: dict[str, Any],
+    workflow: dict[str, Any],
+    expected_head_sha: str,
+) -> None:
+    """BOOT-ACTIVATION 証跡を計画と CI の実行対象へ束縛する。"""
+    _assert_exact_keys(
+        evidence,
+        {
+            "schemaVersion",
+            "observedAt",
+            "repository",
+            "pullRequest",
+            "event",
+            "runId",
+            "headSha",
+            "verificationLimit",
+            "jobs",
+            "expectedNonActivationFailure",
+            "previousRun",
+        },
+        "発効証跡",
+    )
+    assert evidence["schemaVersion"] == 1
+    assert evidence["observedAt"] == "2026-09-21"
+    assert evidence["repository"] == "masaki1025/pitchlog"
+    assert evidence["pullRequest"] == 74
+    assert evidence["event"] == "pull_request"
+    assert evidence["runId"] == 35529110007
+    assert evidence["headSha"] == expected_head_sha
+    assert "GitHub 上で各 job が success" in evidence["verificationLimit"]
+    assert "機械で再確認したとは主張しない" in evidence["verificationLimit"]
+
+    jobs = _assert_exact_keys(evidence["jobs"], {"consistency", "mutation"}, "jobs")
+    consistency = _assert_exact_keys(
+        jobs["consistency"],
+        {"conclusion", "activationRequirements", "structuralAudits"},
+        "consistency 証跡",
+    )
+    mutation = _assert_exact_keys(
+        jobs["mutation"], {"conclusion"}, "mutation 証跡"
+    )
+    assert consistency["conclusion"] == "success"
+    assert mutation["conclusion"] == "success"
+
+    requirements = _assert_exact_keys(
+        consistency["activationRequirements"],
+        {
+            "mechanism",
+            "negativeCases",
+            "exceptionalTransitions",
+            "normalOperation",
+        },
+        "要求①〜④",
+    )
+    expected_requirements = {
+        "mechanism": _step_test_paths(17, 21),
+        "negativeCases": _step_test_paths(22, 23),
+        "exceptionalTransitions": _step_test_paths(24, 24),
+        "normalOperation": _step_test_paths(25, 25),
+    }
+    for requirement, expected_paths in expected_requirements.items():
+        actual = requirements[requirement]
+        assert isinstance(actual, list)
+        assert tuple(actual) == expected_paths, f"{requirement} の証跡集合が不一致"
+        for path in actual:
+            assert _selected_root_test_jobs(workflow, path) == {"consistency"}
+
+    audits = consistency["structuralAudits"]
+    assert isinstance(audits, list)
+    assert tuple(audits) == _step_test_paths(51, 52), (
+        "structuralAudits の証跡集合が不一致"
+    )
+    for path in audits:
+        assert _selected_root_test_jobs(workflow, path) == {"consistency"}
+
+    expected_failure = _assert_exact_keys(
+        evidence["expectedNonActivationFailure"],
+        {"job", "conclusion", "reasonCode"},
+        "発効外 failure",
+    )
+    assert expected_failure == {
+        "job": "core-guard",
+        "conclusion": "failure",
+        "reasonCode": "human-review-checkbox-unchecked",
+    }
+    previous = _assert_exact_keys(
+        evidence["previousRun"],
+        {"runId", "consistencyConclusion", "supersededBy"},
+        "前回 run",
+    )
+    assert previous == {
+        "runId": 35525816853,
+        "consistencyConclusion": "failure",
+        "supersededBy": 35529110007,
+    }
 
 
 def _docs_lint_commands(workflow: dict[str, Any]) -> list[str]:
@@ -178,6 +452,23 @@ def _harness_job(workflow: dict[str, Any]) -> dict[str, Any]:
     harness = jobs.get("harness")
     assert isinstance(harness, dict), "harness ジョブが必要"
     return harness
+
+
+def _named_job(workflow: dict[str, Any], name: str) -> dict[str, Any]:
+    """workflow から名前でジョブを取得する。
+
+    Args:
+        workflow: CI workflow の構造。
+        name: 取得するジョブ ID。
+
+    Returns:
+        指定したジョブのマッピング。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    job = jobs.get(name)
+    assert isinstance(job, dict), f"{name} ジョブが必要"
+    return job
 
 
 def _mapping_at(node: object, path: NodePath) -> Any:
@@ -634,6 +925,27 @@ def _harness_commands(harness: dict[str, Any]) -> list[str]:
     ]
 
 
+def _pytest_commands(job: dict[str, Any]) -> list[str]:
+    """ジョブが直接起動する pytest コマンドを返す。
+
+    Args:
+        job: CI ジョブの構造。
+
+    Returns:
+        token として ``pytest`` を含む run コマンド。
+    """
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return []
+    return [
+        command
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and "pytest" in shlex.split(command)
+    ]
+
+
 def _compose_database(compose: dict[str, Any]) -> dict[str, Any]:
     """開発用 Compose の db サービスを取得する。
 
@@ -797,6 +1109,69 @@ def _workflow_from_ci_contract_tree(
         options_path,
         _render_service_options(options),
     )
+    return mutated
+
+
+def _ci_contract_tree(workflow: dict[str, Any]) -> dict[str, Any]:
+    """既存 DB 配線と新設ジョブを含む CI 契約木を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+
+    Returns:
+        全葉変異の対象となる JSON 互換木。
+    """
+    harness_commands = _pytest_commands(_harness_job(workflow))
+    assert len(harness_commands) == 1, "harness の pytest は 1 回でなければならない"
+    return {
+        "backend": _backend_ci_contract_tree(_backend_job(workflow)),
+        "harness": {"pytest": harness_commands[0]},
+        "consistency": copy.deepcopy(_named_job(workflow, "consistency")),
+        "mutation": copy.deepcopy(_named_job(workflow, "mutation")),
+    }
+
+
+def _workflow_from_contract_tree(
+    workflow: dict[str, Any], tree: dict[str, Any]
+) -> dict[str, Any]:
+    """一般化した CI 契約木を workflow へ戻す。
+
+    Args:
+        workflow: 変異前の workflow。
+        tree: 変異済みの CI 契約木。
+
+    Returns:
+        静的検査へ渡せる workflow のコピー。
+    """
+    backend_tree = tree.get("backend")
+    assert isinstance(backend_tree, dict)
+    mutated = _workflow_from_ci_contract_tree(workflow, backend_tree)
+    jobs = mutated.get("jobs")
+    assert isinstance(jobs, dict)
+
+    harness_tree = tree.get("harness")
+    assert isinstance(harness_tree, dict)
+    replacement = harness_tree.get("pytest")
+    harness = _harness_job(mutated)
+    steps = harness.get("steps")
+    assert isinstance(steps, list)
+    replaced = 0
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        command = step.get("run")
+        if isinstance(command, str) and "pytest" in shlex.split(command):
+            if replacement is None:
+                step.pop("run")
+            else:
+                step["run"] = replacement
+            replaced += 1
+    assert replaced == 1
+
+    for job_name in NEW_JOB_IDS:
+        replacement_job = tree.get(job_name)
+        assert isinstance(replacement_job, dict)
+        jobs[job_name] = copy.deepcopy(replacement_job)
     return mutated
 
 
@@ -1031,6 +1406,449 @@ def _ci_wiring_errors(
     if len(pytest_commands) != single_command["expected_backend_pytest_invocation_count"]:
         errors.append("pytest の実行回数が期待値と一致しない")
     return errors
+
+
+# `BOOT-REPORT` と BOOT-ACTIVATION の実行後証跡を consistency の厳密な契約木へ含める。
+CONSISTENCY_EXTRA_STEPS: tuple[dict[str, Any], ...] = (
+    {
+        "run": "uv run python -m pitchlog.domaincheck.boot.report --root .",
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": "uv run python -m pitchlog.domaincheck.boot.report --root . --verify",
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            f"--root . --output {ACTIVATION_EVIDENCE_PATH} "
+            '--run-id "${{ github.run_id }}" --event "${{ github.event_name }}" '
+            f'--execute-command "{CONSISTENCY_PYTEST_COMMAND}"'
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            f"--root . --output {ACTIVATION_EVIDENCE_PATH} --verify "
+            f'--expected-command "{CONSISTENCY_PYTEST_COMMAND}"'
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    ACTIVATION_UPLOAD_STEP,
+)
+
+
+def _expected_new_job_steps(
+    workflow: dict[str, Any],
+    pytest_command: str,
+    extra_steps: tuple[dict[str, Any], ...] = (),
+    *,
+    direct_pytest: bool = True,
+) -> list[dict[str, Any]]:
+    """harness と同じ準備を行う新設ジョブの期待 steps を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+        pytest_command: 所有する pytest コマンド。
+        extra_steps: 所有テストの前に挟む固有の step。
+        direct_pytest: pytest を直接起動する step を末尾へ加えるか。
+
+    Returns:
+        checkout・uv 準備・固有 step・所有テスト実行の厳密な配列。
+    """
+    harness_steps = _harness_job(workflow).get("steps")
+    assert isinstance(harness_steps, list)
+    assert len(harness_steps) >= 4
+    expected = [
+        *copy.deepcopy(harness_steps[:4]),
+        *copy.deepcopy(list(extra_steps)),
+    ]
+    if direct_pytest:
+        expected.append({"run": pytest_command})
+    return expected
+
+
+def _job_invokes_backend_tests(job_name: str, job: dict[str, Any]) -> bool:
+    """ジョブが PostgreSQL を要する backend テストを起動するか判定する。
+
+    SQL 生成物を含む変異スイートは設計上 PostgreSQL を使うため、専用ジョブも
+    backend 全件実行と同じ DB 利用ジョブとして扱う。
+
+    Args:
+        job_name: ジョブ ID。
+        job: CI ジョブの構造。
+
+    Returns:
+        DB image を事前取得すべきテストを起動する場合は真。
+    """
+    if job_name == "mutation":
+        return True
+    job_directory = _mapping_at(job, ("defaults", "run", "working-directory"))
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        command = step.get("run")
+        if not isinstance(command, str):
+            continue
+        tokens = shlex.split(command)
+        if "pytest" not in tokens:
+            continue
+        step_directory = step.get("working-directory", job_directory)
+        if isinstance(step_directory, str) and (
+            step_directory == "backend" or step_directory.startswith("backend/")
+        ):
+            return True
+        if any(
+            token == "backend" or token.startswith("backend/tests") for token in tokens
+        ):
+            return True
+    return False
+
+
+def _domain_ci_wiring_errors(
+    workflow: dict[str, Any],
+    expectations: dict[str, Any],
+    compose: dict[str, Any],
+) -> list[str]:
+    """ドメイン計算ジョブの所有・予算・DB 配線違反を返す。
+
+    Args:
+        workflow: 検査対象 workflow。
+        expectations: 凍結済み DB 環境期待値。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        検出した違反。空配列なら契約を満たす。
+    """
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return ["ci.yml に jobs がない"]
+    errors: list[str] = []
+    job_ids = {name for name in jobs if isinstance(name, str)}
+    if not LEGACY_JOB_IDS <= job_ids:
+        errors.append("既存 9 ジョブがすべて維持されていない")
+    if not NEW_JOB_IDS <= job_ids:
+        errors.append("consistency と mutation が揃っていない")
+
+    try:
+        _assert_checkout_fetch_depth_contract(workflow)
+    except AssertionError as exc:
+        errors.append(str(exc))
+
+    harness = jobs.get("harness")
+    backend = jobs.get("backend")
+    if not isinstance(harness, dict) or not isinstance(backend, dict):
+        return [*errors, "harness または backend ジョブがない"]
+    expected_harness_commands = [
+        "uv python install",
+        "uv sync --locked --dev",
+        "uv run ruff check .",
+        "uv run ty check",
+        HARNESS_PYTEST_COMMAND,
+    ]
+    if _harness_commands(harness) != expected_harness_commands:
+        errors.append("harness の単体テスト所有または既存検査コマンドが不正")
+
+    expected_jobs: dict[str, dict[str, Any]] = {
+        "consistency": {
+            "runs-on": harness.get("runs-on"),
+            "timeout-minutes": CONSISTENCY_TIMEOUT_MINUTES,
+            "steps": _expected_new_job_steps(
+                workflow,
+                CONSISTENCY_PYTEST_COMMAND,
+                CONSISTENCY_EXTRA_STEPS,
+                direct_pytest=False,
+            ),
+        },
+        "mutation": {
+            "runs-on": harness.get("runs-on"),
+            "timeout-minutes": MUTATION_TIMEOUT_MINUTES,
+            "services": copy.deepcopy(backend.get("services")),
+            "env": copy.deepcopy(backend.get("env")),
+            "steps": _expected_new_job_steps(
+                workflow,
+                MUTATION_PYTEST_COMMAND,
+                MUTATION_BACKEND_SYNC_STEP,
+            ),
+        },
+    }
+    for job_name, expected_job in expected_jobs.items():
+        if jobs.get(job_name) != expected_job:
+            errors.append(f"{job_name} の契約木が期待値と一致しない")
+
+    compose_database = _compose_database(compose)
+    expected_image = expectations["database_environment"]["image"]["expected"]
+    compose_image = compose_database.get("image")
+    for job_name, candidate in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(candidate, dict):
+            continue
+        if not _job_invokes_backend_tests(job_name, candidate):
+            continue
+        service = _mapping_at(candidate, ("services", "postgres"))
+        if not isinstance(service, dict):
+            errors.append(f"{job_name} は DB テストを呼ぶが postgres service がない")
+            continue
+        if service.get("image") != expected_image or service.get("image") != compose_image:
+            errors.append(f"{job_name} の postgres image が 3 者一致しない")
+    return errors
+
+
+def _combined_ci_wiring_errors(
+    workflow: dict[str, Any],
+    expectations: dict[str, Any],
+    compose: dict[str, Any],
+) -> list[str]:
+    """既存契約とドメイン計算ジョブ契約の違反をまとめる。
+
+    Args:
+        workflow: 検査対象 workflow。
+        expectations: 凍結済み DB 環境期待値。
+        compose: 開発 DB の Compose 設定。
+
+    Returns:
+        両検査が検出した違反。
+    """
+    return [
+        *_ci_wiring_errors(workflow, expectations, compose),
+        *_domain_ci_wiring_errors(workflow, expectations, compose),
+    ]
+
+
+def _pytest_selection(command: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """pytest コマンドから対象と除外対象を得る。
+
+    Args:
+        command: ``pytest`` を含む run コマンド。
+
+    Returns:
+        ``(選択 path, ignore path)`` の組。
+    """
+    tokens = shlex.split(command)
+    pytest_index = tokens.index("pytest")
+    selectors: list[str] = []
+    ignored: list[str] = []
+    index = pytest_index + 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "-c":
+            index += 2
+            continue
+        if token.startswith("--ignore="):
+            ignored.append(token.split("=", maxsplit=1)[1].rstrip("/"))
+        elif not token.startswith("-"):
+            selectors.append(token.rstrip("/"))
+        index += 1
+    return tuple(selectors), tuple(ignored)
+
+
+def _selector_contains(selector: str, test_path: str) -> bool:
+    """pytest の path selector がテストファイルを含むか返す。"""
+    return test_path == selector or test_path.startswith(f"{selector}/")
+
+
+def _executed_commands(command: str) -> tuple[str, ...]:
+    """CI step 自身と、発効証跡器が実際に起動する内側 command を返す。"""
+    tokens = shlex.split(command)
+    nested = [
+        tokens[index + 1]
+        for index, token in enumerate(tokens[:-1])
+        if token == "--execute-command"
+    ]
+    return (command, *nested)
+
+
+def _selected_root_test_jobs(
+    workflow: dict[str, Any], test_path: str
+) -> set[str]:
+    """指定したルートテストを直接所有するジョブ集合を返す。
+
+    Args:
+        workflow: CI workflow の構造。
+        test_path: リポジトリルートからのテスト path。
+
+    Returns:
+        対象に含み、かつ ignore していないジョブ ID 集合。
+    """
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    selected: set[str] = set()
+    for job_name, job in jobs.items():
+        if not isinstance(job_name, str) or not isinstance(job, dict):
+            continue
+        job_directory = _mapping_at(job, ("defaults", "run", "working-directory"))
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            command = step.get("run")
+            if not isinstance(command, str):
+                continue
+            working_directory = step.get("working-directory", job_directory)
+            if working_directory not in (None, "."):
+                continue
+            for executed in _executed_commands(command):
+                if "pytest" not in shlex.split(executed):
+                    continue
+                selectors, ignored = _pytest_selection(executed)
+                if any(_selector_contains(path, test_path) for path in ignored):
+                    continue
+                if any(_selector_contains(path, test_path) for path in selectors):
+                    selected.add(job_name)
+    return selected
+
+
+def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
+    """全 step command の宣言所有と CI の実 selector を双方向に突合する。"""
+    source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
+    steps = {int(step["id"]): step for step in source["steps"]}
+    policy = source.get("command_execution_ownership")
+    if not isinstance(policy, dict):
+        return ["command_execution_ownership が無い"]
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return ["workflow.jobs が無い"]
+    errors: list[str] = []
+    actual = {
+        (step_id, command)
+        for step_id, step in steps.items()
+        for command in re.findall(r"`([^`]+)`", str(step.get("command", "")))
+    }
+    ci_rows: list[tuple[int, str, str]] = []
+    groups = policy.get("ciOwnedSingleCommandSteps")
+    if not isinstance(groups, list):
+        return ["ciOwnedSingleCommandSteps が配列でない"]
+    for group in groups:
+        if not isinstance(group, dict):
+            errors.append("単一 command 所有が object でない")
+            continue
+        owner = group.get("ownerJob")
+        step_ids = group.get("stepIds")
+        if not isinstance(owner, str) or not isinstance(step_ids, list):
+            errors.append("単一 command 所有の型が不正")
+            continue
+        for step_id in step_ids:
+            step = steps.get(step_id) if isinstance(step_id, int) else None
+            commands = (
+                re.findall(r"`([^`]+)`", str(step.get("command", "")))
+                if isinstance(step, dict)
+                else []
+            )
+            if len(commands) != 1:
+                errors.append(f"ステップ {step_id} が単一 command でない")
+                continue
+            ci_rows.append((step_id, commands[0], owner))
+    overrides = policy.get("ciOwnedCommandOverrides")
+    if not isinstance(overrides, list):
+        return ["ciOwnedCommandOverrides が配列でない"]
+    for row in overrides:
+        if not isinstance(row, dict):
+            errors.append("command 所有上書きが object でない")
+            continue
+        step_id = row.get("stepId")
+        command = row.get("command")
+        owner = row.get("ownerJob")
+        if (
+            not isinstance(step_id, int)
+            or not isinstance(command, str)
+            or not isinstance(owner, str)
+        ):
+            errors.append("command 所有上書きの型が不正")
+            continue
+        ci_rows.append((step_id, command, owner))
+    history_rows = policy.get("historyRunnerCommands")
+    if not isinstance(history_rows, list):
+        return ["historyRunnerCommands が配列でない"]
+    history = {
+        (row.get("stepId"), row.get("command"))
+        for row in history_rows
+        if isinstance(row, dict)
+        and isinstance(row.get("stepId"), int)
+        and isinstance(row.get("command"), str)
+    }
+    ci_identities = [(step_id, command) for step_id, command, _ in ci_rows]
+    ci_set = set(ci_identities)
+    if len(ci_identities) != len(ci_set):
+        errors.append("CI command 所有宣言が重複している")
+    if ci_set & history:
+        errors.append("CI と履歴が同じ command を二重所有している")
+    if ci_set | history != actual:
+        errors.append(
+            "command 所有が実 command と双方向不一致: "
+            f"不足={sorted(actual - ci_set - history)}, "
+            f"未知={sorted((ci_set | history) - actual)}"
+        )
+
+    def owners_for(command: str) -> set[str]:
+        """CI 上で command を包含または完全一致実行する job を返す。"""
+        if "pytest" in shlex.split(command):
+            selectors, _ = _pytest_selection(command)
+            if not selectors:
+                return set()
+            selected = [
+                _selected_root_test_jobs(workflow, path) for path in selectors
+            ]
+            return set.intersection(*selected) if selected else set()
+        return {
+            job_name
+            for job_name, job in jobs.items()
+            if isinstance(job_name, str)
+            and isinstance(job, dict)
+            and any(
+                isinstance(item, dict) and item.get("run") == command
+                for item in job.get("steps", [])
+            )
+        }
+
+    for step_id, command, owner in ci_rows:
+        selected_jobs = owners_for(command)
+        if selected_jobs != {owner}:
+            errors.append(
+                f"ステップ {step_id} の command 所有が不一致: "
+                f"declared={owner} actual={sorted(selected_jobs)}"
+            )
+    for step_id, command in history:
+        selected_jobs = owners_for(command)
+        if selected_jobs:
+            errors.append(
+                f"履歴所有 command が CI でも実行される: step={step_id} "
+                f"jobs={sorted(selected_jobs)}"
+            )
+    return errors
+
+
+def _step_test_paths(first: int, last: int) -> tuple[str, ...]:
+    """steps.json の指定範囲から pytest 対象 path を導出する。
+
+    Args:
+        first: 最初のステップ ID。
+        last: 最後のステップ ID。
+
+    Returns:
+        各ステップの command が指すテスト path。
+    """
+    source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
+    steps = source.get("steps")
+    assert isinstance(steps, list)
+    paths: list[str] = []
+    for step in steps:
+        if not isinstance(step, dict) or not first <= step.get("id", 0) <= last:
+            continue
+        command = step.get("command")
+        assert isinstance(command, str)
+        test_paths = [
+            token
+            for token in shlex.split(command.strip("`"))
+            if token.startswith("tests/")
+        ]
+        assert len(test_paths) == 1
+        paths.append(test_paths[0])
+    return tuple(paths)
 
 
 def _derive_asset_actuals(
@@ -1879,7 +2697,7 @@ def test_pytest_commands_and_working_directories_are_exact() -> None:
         for command in _harness_commands(harness)
         if "pytest" in shlex.split(command)
     ]
-    assert harness_pytest_commands == ["uv run pytest -c pyproject.toml tests/"]
+    assert harness_pytest_commands == [HARNESS_PYTEST_COMMAND]
 
     assert _mapping_at(harness, ("defaults", "run", "working-directory")) is None
     harness_steps = harness.get("steps")
@@ -1902,6 +2720,496 @@ def test_backend_postgres_wiring_matches_asset_and_development_database() -> Non
         _load_expectations(),
         _load_yaml_mapping(COMPOSE_PATH),
     ) == []
+
+
+def test_database_jobs_match_asset_and_development_database() -> None:
+    """DB 利用ジョブすべての PostgreSQL image を 3 者一致させる。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    assert _combined_ci_wiring_errors(
+        workflow,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    ) == []
+
+
+def test_new_jobs_accept_valid_wiring_with_explicit_timeouts() -> None:
+    """所有分離・DB 配線・二段目の時間上限を持つ実配線を受理する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert _domain_ci_wiring_errors(
+        workflow,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    ) == []
+    assert (
+        _named_job(workflow, "consistency")["timeout-minutes"]
+        == CONSISTENCY_TIMEOUT_MINUTES
+    )
+    assert _named_job(workflow, "mutation")["timeout-minutes"] == MUTATION_TIMEOUT_MINUTES
+
+
+def test_missing_postgres_service_from_new_db_job_is_red() -> None:
+    """新設した DB 利用ジョブの postgres service 書き忘れを拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    _named_job(mutated, "mutation").pop("services")
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "mutation は DB テストを呼ぶが postgres service がない" in errors
+
+
+def test_services_less_job_cannot_invoke_backend_tests() -> None:
+    """service を持たないジョブから backend テストを呼ぶ経路を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    consistency = _named_job(mutated, "consistency")
+    steps = consistency.get("steps")
+    assert isinstance(steps, list)
+    steps[-1] = {"run": "uv run pytest backend/tests/"}
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "consistency は DB テストを呼ぶが postgres service がない" in errors
+
+
+def test_all_database_job_images_match_the_three_sources() -> None:
+    """DB 利用ジョブごとに image の 3 者一致を要求する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    mutation_service = _mapping_at(
+        _named_job(mutated, "mutation"), ("services", "postgres")
+    )
+    assert isinstance(mutation_service, dict)
+    mutation_service["image"] = "postgres:16.0-bookworm"
+
+    errors = _domain_ci_wiring_errors(
+        mutated,
+        _load_expectations(),
+        _load_yaml_mapping(COMPOSE_PATH),
+    )
+
+    assert "mutation の postgres image が 3 者一致しない" in errors
+
+
+def test_group_four_and_plan_history_audits_belong_only_to_consistency() -> None:
+    """第 4 群とステップ 51・52 を consistency だけへ配線する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    group_four = _step_test_paths(17, 25)
+    structural_audits = _step_test_paths(51, 52)
+
+    assert len(group_four) == 9
+    assert len(structural_audits) == 2
+    for test_path in (*group_four, *structural_audits):
+        assert _selected_root_test_jobs(workflow, test_path) == {"consistency"}
+
+
+def test_required_job_documentation_matches_the_workflow() -> None:
+    """3 分類と Ruleset context を実在する CI ジョブ集合へ同期する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    setup_text = GITHUB_SETUP_PATH.read_text(encoding="utf-8")
+    documented = _documented_job_categories(setup_text)
+    actual = _workflow_job_categories(workflow)
+    ruleset = _json_fence_after_marker(setup_text, "対象: `main`・`develop`")
+    contexts = _required_status_contexts(ruleset)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+
+    assert documented == actual
+    assert len(contexts) == len(set(contexts))
+    assert set(jobs) - set(contexts) == set()
+    assert set(contexts) - set(jobs) == set()
+    assert ruleset["name"] == "protect-main-develop"
+    assert ruleset["enforcement"] == "active"
+    assert ruleset["bypass_actors"] == []
+    status_rule = next(
+        rule
+        for rule in ruleset["rules"]
+        if rule["type"] == "required_status_checks"
+    )
+    assert status_rule["parameters"]["strict_required_status_checks_policy"] is True
+
+
+def test_required_job_documentation_detects_one_missing_context() -> None:
+    """Ruleset から 1 context 落ちれば両方向集合差が非空になる。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    setup_text = GITHUB_SETUP_PATH.read_text(encoding="utf-8")
+    ruleset = _json_fence_after_marker(setup_text, "対象: `main`・`develop`")
+    mutated = copy.deepcopy(ruleset)
+    contexts = next(
+        rule["parameters"]["required_status_checks"]
+        for rule in mutated["rules"]
+        if rule["type"] == "required_status_checks"
+    )
+    removed = "mutation"
+    contexts[:] = [item for item in contexts if item["context"] != removed]
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    actual = set(_required_status_contexts(mutated))
+
+    assert set(jobs) - actual == {removed}
+    assert actual - set(jobs) == set()
+
+
+def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
+    """実 run の要求①〜④と両新設 job の success 記録を検査する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    evidence = _json_fence_after_marker(design_text, ACTIVATION_EVIDENCE_MARKER)
+
+    _assert_activation_evidence(
+        evidence,
+        workflow,
+        "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+    )
+
+
+def test_current_head_activation_evidence_is_emitted_after_command_and_verified() -> None:
+    """成功 command と現在 HEAD に束縛した証跡が実際に通る。"""
+    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
+    evidence = ACTIVATION.build_runtime_evidence(
+        REPOSITORY_ROOT,
+        run_id="123",
+        event="workflow_dispatch",
+        executions=executions,
+    )
+
+    ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, evidence, (command,))
+    assert evidence["headSha"] == ACTIVATION.current_head_oid(REPOSITORY_ROOT)
+    assert evidence["executions"][0]["exitCode"] == 0
+    assert evidence["executionDigest"].startswith("sha256:")
+
+
+def _write_activation_selector_fixture(root: Path, relative: str, body: str) -> None:
+    """発効証跡の selector 計測に使う最小 pytest ファイルを書く。"""
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def test_activation_evidence_records_each_pytest_selector_count(
+    tmp_path: Path,
+) -> None:
+    """一括 pytest の各 selector が収集・実行 1 件以上と記録される。"""
+    selectors = (
+        "tests/domain/boot/",
+        "tests/test_plan_generation.py",
+        "tests/test_step_history_audit.py",
+    )
+    for index, selector in enumerate(selectors):
+        relative = (
+            f"{selector}test_boot.py" if selector.endswith("/") else selector
+        )
+        _write_activation_selector_fixture(
+            tmp_path,
+            relative,
+            f"def test_selector_{index}():\n    assert True\n",
+        )
+    command = f"{sys.executable} -m pytest -q {' '.join(selectors)}"
+
+    executions = ACTIVATION.execute_commands(tmp_path, (command,))
+
+    assert [item["selector"] for item in executions[0]["selectors"]] == list(
+        selectors
+    )
+    assert all(item["collectedCount"] == 1 for item in executions[0]["selectors"])
+    assert all(item["executedCount"] == 1 for item in executions[0]["selectors"])
+
+
+def test_activation_evidence_rejects_zero_count_structural_selector(
+    tmp_path: Path,
+) -> None:
+    """boot だけ実行できても計画・履歴 selector が 0 件なら拒否する。"""
+    _write_activation_selector_fixture(
+        tmp_path,
+        "tests/domain/boot/test_boot.py",
+        "def test_boot():\n    assert True\n",
+    )
+    _write_activation_selector_fixture(tmp_path, "tests/test_plan_generation.py", "")
+    _write_activation_selector_fixture(
+        tmp_path, "tests/test_step_history_audit.py", ""
+    )
+    command = (
+        f"{sys.executable} -m pytest -q tests/domain/boot/ "
+        "tests/test_plan_generation.py tests/test_step_history_audit.py"
+    )
+
+    with pytest.raises(ACTIVATION.CheckerViolation, match="1 件以上収集できない"):
+        ACTIVATION.execute_commands(tmp_path, (command,))
+
+
+def test_stale_activation_head_is_rejected() -> None:
+    """現在 HEAD と異なる古い実行証跡を受理しない。"""
+    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
+    evidence = ACTIVATION.build_runtime_evidence(
+        REPOSITORY_ROOT,
+        run_id="124",
+        event="workflow_dispatch",
+        executions=executions,
+    )
+    stale = copy.deepcopy(evidence)
+    stale["headSha"] = "0" * 40
+    with pytest.raises(ACTIVATION.CheckerViolation, match="現在 HEAD"):
+        ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, stale, (command,))
+
+
+def test_failed_activation_command_creates_no_evidence(tmp_path: Path) -> None:
+    """対象 command が落ちた場合は証跡を生成しない。"""
+    output = tmp_path / "activation.json"
+    command = f'{sys.executable} -c "raise SystemExit(7)"'
+
+    result = ACTIVATION.main(
+        [
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--output",
+            str(output),
+            "--run-id",
+            "125",
+            "--event",
+            "workflow_dispatch",
+            "--execute-command",
+            command,
+        ]
+    )
+
+    assert result == 2
+    assert not output.exists()
+
+
+def test_consistency_wires_current_head_activation_verification() -> None:
+    """consistency が対象実行後に証跡を作り、検証・保存する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["consistency"]["steps"]
+    runs = _consistency_run_steps(workflow)
+    activation_runs = [
+        command for command in runs if "domaincheck.activation_evidence" in command
+    ]
+    execute_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "--execute-command" in str(step.get("run", ""))
+    )
+    verify_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "activation_evidence" in str(step.get("run", ""))
+        and "--verify" in str(step.get("run", ""))
+    )
+    upload_index = next(
+        index
+        for index, step in enumerate(steps)
+        if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+    )
+
+    assert len(activation_runs) == 2
+    assert any("--execute-command" in command for command in activation_runs)
+    assert any("--verify" in command for command in activation_runs)
+    assert execute_index < verify_index < upload_index
+    assert CONSISTENCY_PYTEST_COMMAND in activation_runs[0]
+
+
+def test_missing_activation_evidence_is_red() -> None:
+    """実行証跡のない発効宣言を受理しない。"""
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    without_evidence = design_text.replace(ACTIVATION_EVIDENCE_MARKER, "", 1)
+
+    with pytest.raises(AssertionError, match="標識がない"):
+        _json_fence_after_marker(without_evidence, ACTIVATION_EVIDENCE_MARKER)
+
+
+@pytest.mark.parametrize("audit", _step_test_paths(51, 52))
+def test_each_structural_audit_is_required_by_activation_evidence(
+    audit: str,
+) -> None:
+    """ステップ 51・52 の実行証跡を 1 件ずつ必須化する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    evidence = _json_fence_after_marker(design_text, ACTIVATION_EVIDENCE_MARKER)
+    consistency = evidence["jobs"]["consistency"]
+    consistency["structuralAudits"].remove(audit)
+
+    with pytest.raises(AssertionError, match="structuralAudits|証跡集合|不一致"):
+        _assert_activation_evidence(
+            evidence,
+            workflow,
+            "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+        )
+
+
+def _latest_change_log_version(path: Path) -> str:
+    """正本の変更履歴表から現行版を読む。
+
+    索引が追随しているかを見るために、期待値を正本自身から導く。
+    版を検査側へ書き写すと、他タスクの改訂で黙って落ちる。
+
+    Args:
+        path: 正本のパス。
+
+    Returns:
+        変更履歴の先頭行が示す版。
+    """
+    # 変更履歴表は「新しい行が上」とは限らない(同一版で複数行が並ぶ・
+    # 取り込みで順序が混ざる)。先頭行ではなく最大版を現行版とする。
+    # 節番号を版と読まないよう、`| 版 | 日付 |` の形に限って拾う。
+    versions: list[tuple[int, ...]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.match(
+            r"\|\s*\**([0-9]+\.[0-9]+)\**\s*\|\s*[0-9]{4}-[0-9]{2}-[0-9]{2}\s*\|",
+            line,
+        )
+        if match:
+            versions.append(tuple(int(part) for part in match.group(1).split(".")))
+    if not versions:
+        raise AssertionError(f"変更履歴の版を読めない: {path}")
+    return ".".join(str(part) for part in max(versions))
+
+
+def _document_index_version(index_text: str, label: str) -> str:
+    """文書索引の表から指定文書の「版」列だけを返す。"""
+    lines = index_text.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith("|"):
+            continue
+        headers = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if "文書" not in headers or "版" not in headers:
+            continue
+        document_column = headers.index("文書")
+        version_column = headers.index("版")
+        for row in lines[index + 2 :]:
+            if not row.startswith("|"):
+                break
+            cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            if len(cells) != len(headers):
+                raise AssertionError("文書索引表の列数が不正")
+            if f"[{label}]" in cells[document_column]:
+                return cells[version_column]
+    raise AssertionError(f"文書索引の版列を読めない: {label}")
+
+
+def _assert_document_index_version(
+    index_text: str, label: str, expected: str
+) -> None:
+    """索引の版列が正本の現行版と完全一致することを検査する。"""
+    actual = _document_index_version(index_text, label)
+    assert actual == expected, (label, expected, actual)
+
+
+def test_harness_job_table_and_document_index_are_current() -> None:
+    """10.1 の実装済み 2 ジョブと索引の最終更新日を固定する。"""
+    design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
+    table = design_text.split("### 10.1 ci.yml", maxsplit=1)[1].split(
+        "- `concurrency`", maxsplit=1
+    )[0]
+    index_text = DOCS_INDEX_PATH.read_text(encoding="utf-8")
+
+    for job_name in ("consistency", "mutation"):
+        row = next(
+            (line for line in table.splitlines() if line.startswith(f"| `{job_name}` |")),
+            None,
+        )
+        assert row is not None
+        assert "TSK-235 で導入済み" in row
+    # 版と日付を決め打ちすると、他タスクが正本を改訂した瞬間に落ちる
+    # (実際 develop が設計書を v1.16 → v1.17 へ上げて落ちた)。
+    # 正本自身の変更履歴から現行版を導き、索引がそれに追随しているかを見る。
+    for label, path in (
+        ("開発ハーネス設計書", HARNESS_DESIGN_PATH),
+        ("GitHub リポジトリ設定手順", GITHUB_SETUP_PATH),
+    ):
+        canon_version = _latest_change_log_version(path)
+        _assert_document_index_version(index_text, label, canon_version)
+
+
+def test_document_index_rejects_stale_version_column_with_current_description(
+) -> None:
+    """説明欄に現行版が残っていても版列だけ古ければ拒否する。"""
+    index_text = DOCS_INDEX_PATH.read_text(encoding="utf-8")
+    label = "開発ハーネス設計書"
+    expected = _latest_change_log_version(HARNESS_DESIGN_PATH)
+    lines = index_text.splitlines()
+    row_index = next(
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("|") and f"[{label}]" in line
+    )
+    cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
+    assert expected in cells[1], "負例は説明欄に現行版を残さなければならない"
+    cells[2] = "0.0"
+    lines[row_index] = "| " + " | ".join(cells) + " |"
+    mutated = "\n".join(lines)
+
+    with pytest.raises(AssertionError):
+        _assert_document_index_version(mutated, label, expected)
+
+
+def test_root_tests_have_exactly_one_owner_job() -> None:
+    """ルート pytest の同一テストを複数ジョブで直接実行しない。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    test_paths = sorted(
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in (REPOSITORY_ROOT / "tests").rglob("test_*.py")
+    )
+    violations = {
+        path: sorted(_selected_root_test_jobs(workflow, path))
+        for path in test_paths
+        if len(_selected_root_test_jobs(workflow, path)) != 1
+    }
+
+    assert test_paths
+    assert violations == {}
+
+
+def test_every_step_command_has_exactly_one_ci_or_history_owner() -> None:
+    """全 command の CI・履歴所有を双方向集合差で示す。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert _history_command_owner_errors(workflow) == []
+
+
+def test_history_command_exclusion_without_owner_execution_is_red() -> None:
+    """所有先から command を外して「除外=未検査」にすると不合格にする。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    frontend = workflow["jobs"]["frontend"]
+    frontend["steps"] = [
+        step
+        for step in frontend["steps"]
+        if step.get("run") != "pnpm run build"
+    ]
+
+    assert any("command 所有が不一致" in error for error in _history_command_owner_errors(workflow))
+
+
+def test_history_owned_command_also_executed_by_ci_is_red() -> None:
+    """未除外 command を別ジョブでも実行する逆向きの二重所有を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    workflow["jobs"]["harness"]["steps"].append({"run": "uv sync --locked"})
+
+    assert any(
+        "履歴所有 command が CI でも実行される" in error
+        for error in _history_command_owner_errors(workflow)
+    )
+
+
+def test_consistency_does_not_prepare_other_job_runtimes() -> None:
+    """所有分離後の consistency に Node や PostgreSQL の準備を持ち込まない。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    consistency = workflow["jobs"]["consistency"]
+    serialized = json.dumps(consistency, ensure_ascii=False)
+
+    assert "mise-action" not in serialized
+    assert "pnpm install" not in serialized
+    assert "services" not in consistency
 
 
 @pytest.mark.parametrize(
@@ -1968,12 +3276,14 @@ def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     expectations = _load_expectations()
     compose = _load_yaml_mapping(COMPOSE_PATH)
-    contract_tree = _backend_ci_contract_tree(_backend_job(workflow))
+    contract_tree = _ci_contract_tree(workflow)
     leaf_paths = _leaf_paths(contract_tree)
     escaped: list[str] = []
+    attempts = 0
 
     for path in leaf_paths:
         for operation in ("value", "deletion"):
+            attempts += 1
             mutated_tree = copy.deepcopy(contract_tree)
             if operation == "value":
                 current = _mapping_at(mutated_tree, path)
@@ -1984,14 +3294,14 @@ def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:
                 )
             else:
                 _delete_node_at(mutated_tree, path)
-            mutated_workflow = _workflow_from_ci_contract_tree(
+            mutated_workflow = _workflow_from_contract_tree(
                 workflow,
                 mutated_tree,
             )
-            if not _ci_wiring_errors(mutated_workflow, expectations, compose):
+            if not _combined_ci_wiring_errors(mutated_workflow, expectations, compose):
                 escaped.append(f"{operation}:{_format_path(path)}")
 
-    assert leaf_paths, "CI 契約ブロックの葉が 1 件もない"
+    assert attempts == EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS
     assert escaped == [], f"CI 配線変異がすり抜けた: {escaped}"
 
 
@@ -2130,3 +3440,63 @@ dependencies = [
     errors = _orm_stack_dependency_errors(project, lock)
 
     assert expected_error in errors
+
+
+def _consistency_run_steps(workflow: dict[str, Any]) -> list[str]:
+    """`consistency` ジョブが実行する `run` の一覧を返す。"""
+    job = workflow["jobs"]["consistency"]
+    return [
+        str(step["run"])
+        for step in job["steps"]
+        if isinstance(step, dict) and "run" in step
+    ]
+
+
+def test_consistency_emits_boot_report_against_the_real_state() -> None:
+    """未解消レポートが実状態に対して毎回出力されることを要求する。
+
+    `BOOT-REPORT` は「未解消要素の一覧を機械可読な形式で出力」することを求め、
+    「**出力のない緑は本規定の充足とみなさない**」と定める。検査器の単体テストが
+    通るだけでは出力は生まれない(敵対レビュー 2026-09-21 の指摘)。
+    """
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    runs = _consistency_run_steps(workflow)
+
+    emitters = [
+        run
+        for run in runs
+        if "domaincheck.boot.report" in run and "--verify" not in run
+    ]
+    assert len(emitters) == 1, runs
+    guards = [
+        run
+        for run in runs
+        if "domaincheck.boot.report" in run and "--verify" in run
+    ]
+    assert len(guards) == 1, runs
+
+
+def test_removing_the_boot_report_emitter_is_detected() -> None:
+    """出力の配線を外すと検出されることを負例で示す。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["consistency"]
+    job["steps"] = [
+        step
+        for step in job["steps"]
+        if not (isinstance(step, dict) and "domaincheck.boot.report" in str(step.get("run", "")))
+    ]
+
+    runs = _consistency_run_steps(workflow)
+    assert not [run for run in runs if "domaincheck.boot.report" in run]
+
+
+def test_boot_report_output_is_not_tracked_in_the_repository() -> None:
+    """生成物が正本リポジトリへ取り込まれないことを要求する。"""
+    tracked = subprocess.run(
+        ["git", "ls-files", "backend/domain/boot-report.json"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert tracked.stdout.strip() == "", "BOOT-REPORT の出力が追跡対象になっている"

@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-stall-premature-expiry",
+  "clauseId": "BOOT-STALL",
+  "mechanism": "premature-stall-expiry",
+  "violation": {
+    "mergeCount": 49,
+    "claimsExpired": true
+  }
+}

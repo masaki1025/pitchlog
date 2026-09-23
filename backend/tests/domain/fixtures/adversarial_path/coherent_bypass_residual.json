@@ -1,0 +1,18 @@
+{
+  "fixtureId": "adversarial-coherent-bypass-residual",
+  "attack": "coherent-bypass-residual",
+  "targetClass": "beta-1-5",
+  "stages": [
+    "sql",
+    "typed-receiver",
+    "formatter"
+  ],
+  "mutation": {
+    "kind": "coherent-bypass-residual",
+    "stage": "typed-receiver"
+  },
+  "expected": {
+    "combinedAcceptance": true
+  },
+  "assurance": "整合する値と現行 hash を提出した恣意的迂回は保証範囲外であり、明示的に不検出として記録する。"
+}

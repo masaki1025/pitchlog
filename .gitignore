@@ -28,3 +28,6 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+# BOOT-REPORT は CI が毎回出力する生成物。正本リポジトリへ取り込まない。
+backend/domain/boot-report.json

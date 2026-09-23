@@ -1,0 +1,18 @@
+{
+  "fixtureId": "adversarial-stage-chain-mismatch",
+  "attack": "stage-chain-mismatch",
+  "targetClass": "beta-1-5",
+  "stages": [
+    "sql",
+    "typed-receiver",
+    "formatter"
+  ],
+  "mutation": {
+    "kind": "stage-chain-mismatch",
+    "stage": "typed-receiver"
+  },
+  "expected": {
+    "combinedAcceptance": false
+  },
+  "assurance": "前段出力と次段入力が異なる提出を不合格にする。"
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "fixtureType": "implementation-policy",
+  "policyId": "deny-all",
+  "allowGrantMerge": false,
+  "allowReapproval": false
+}

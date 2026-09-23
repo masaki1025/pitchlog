@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/schemas/domain/manifest.schema.json",
+  "title": "ドメイン計算マニフェスト",
+  "description": "ADR-003 D-11 ③ 構成の完全性が定める宣言モデルを凍結する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "propertyCatalog",
+    "calculations",
+    "displayBindings"
+  ],
+  "properties": {
+    "propertyCatalog": {
+      "$ref": "#/$defs/PropertyCatalog"
+    },
+    "calculations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Calculation"
+      },
+      "x-uniqueBy": "calculation"
+    },
+    "displayBindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DisplayBinding"
+      },
+      "x-uniqueBy": "displayItem"
+    }
+  },
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "RepositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "ContentHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "AuthorityId": {
+      "type": "string",
+      "pattern": "^(?!.*:[0-9])(?:NFR-[0-9]{3}(?: .+)?|FR-[0-9]{3}(?: .+)?|付録[A-Z](?:-[0-9]+)? .+|ADR-[0-9]{3} D-[0-9]+ .+|設計書 [0-9]+(?:\\.[0-9]+)*(?: .+)?)$"
+    },
+    "PropertyCatalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "schema",
+        "provenance"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "schema": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    },
+    "Calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calculation",
+        "source",
+        "generated",
+        "entrypoints",
+        "directTargets",
+        "comparison",
+        "normalization",
+        "vectors",
+        "properties",
+        "mutation"
+      ],
+      "properties": {
+        "calculation": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "generated": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GeneratedArtifact"
+          },
+          "x-uniqueBy": "generatedId"
+        },
+        "entrypoints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Entrypoint"
+          },
+          "x-uniqueBy": "entrypointId"
+        },
+        "directTargets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/DirectTarget"
+          }
+        },
+        "comparison": {
+          "$ref": "#/$defs/Comparison"
+        },
+        "normalization": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Normalization"
+          }
+        },
+        "vectors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/VectorRegistration"
+          },
+          "x-uniqueBy": "vectorId"
+        },
+        "properties": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/PropertyRegistration"
+          },
+          "x-uniqueBy": "propertyId"
+        },
+        "mutation": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/MutationProfile"
+          }
+        }
+      }
+    },
+    "Source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "provenance"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    },
+    "GeneratedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generatedId",
+        "path",
+        "artifactKind"
+      ],
+      "properties": {
+        "generatedId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "path": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "artifactKind": {
+          "enum": [
+            "python",
+            "typescript",
+            "sql",
+            "typed-receiver",
+            "formatter"
+          ]
+        }
+      }
+    },
+    "Entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypointId",
+        "module",
+        "symbol",
+        "adapter"
+      ],
+      "properties": {
+        "entrypointId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "module": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "symbol": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "adapter": {
+          "$ref": "#/$defs/RepositoryPath"
+        }
+      }
+    },
+    "DirectTarget": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SingleTarget"
+        },
+        {
+          "$ref": "#/$defs/ThreeStageCompositeTarget"
+        },
+        {
+          "$ref": "#/$defs/TwoStageCompositeTarget"
+        }
+      ]
+    },
+    "SingleTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directTargetId",
+        "targetClass",
+        "kind",
+        "generated",
+        "hash",
+        "invocation"
+      ],
+      "properties": {
+        "directTargetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "targetClass": {
+          "enum": [
+            "alpha",
+            "beta-6-8"
+          ]
+        },
+        "kind": {
+          "const": "single"
+        },
+        "generated": {
+          "$ref": "#/$defs/Identifier",
+          "x-referenceTo": "generated[].generatedId"
+        },
+        "hash": {
+          "$ref": "#/$defs/ContentHash"
+        },
+        "invocation": {
+          "$ref": "#/$defs/Invocation"
+        }
+      }
+    },
+    "ThreeStageCompositeTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directTargetId",
+        "targetClass",
+        "kind",
+        "components",
+        "invocation"
+      ],
+      "properties": {
+        "directTargetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "targetClass": {
+          "const": "beta-1-5"
+        },
+        "kind": {
+          "const": "composite"
+        },
+        "components": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/Component"
+          },
+          "x-stageOrder": [
+            "sql",
+            "typed-receiver",
+            "formatter"
+          ],
+          "x-uniqueBy": "generated"
+        },
+        "invocation": {
+          "$ref": "#/$defs/Invocation"
+        }
+      }
+    },
+    "TwoStageCompositeTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directTargetId",
+        "targetClass",
+        "kind",
+        "components",
+        "invocation"
+      ],
+      "properties": {
+        "directTargetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "targetClass": {
+          "const": "beta-7"
+        },
+        "kind": {
+          "const": "composite"
+        },
+        "components": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/Component"
+          },
+          "x-stageOrder": [
+            "sql",
+            "typed-receiver"
+          ],
+          "x-uniqueBy": "generated"
+        },
+        "invocation": {
+          "$ref": "#/$defs/Invocation"
+        }
+      }
+    },
+    "Component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "generated",
+        "hash"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "sql",
+            "typed-receiver",
+            "formatter"
+          ]
+        },
+        "generated": {
+          "$ref": "#/$defs/Identifier",
+          "x-referenceTo": "generated[].generatedId"
+        },
+        "hash": {
+          "$ref": "#/$defs/ContentHash"
+        }
+      }
+    },
+    "Invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "operation"
+      ],
+      "properties": {
+        "adapter": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "operation": {
+          "$ref": "#/$defs/Identifier"
+        }
+      }
+    },
+    "Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "const": "lossless"
+        }
+      }
+    },
+    "Normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalizationId",
+        "kind"
+      ],
+      "properties": {
+        "normalizationId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "kind": {
+          "enum": [
+            "total-order",
+            "exact-numeric-representation"
+          ]
+        }
+      }
+    },
+    "VectorRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vectorId",
+        "calculation",
+        "path",
+        "runner",
+        "expectedValueSchema",
+        "provenance"
+      ],
+      "properties": {
+        "vectorId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "calculation": {
+          "$ref": "#/$defs/Identifier",
+          "x-equalsParent": "calculation"
+        },
+        "path": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "runner": {
+          "enum": [
+            "pytest",
+            "vitest",
+            "both"
+          ]
+        },
+        "expectedValueSchema": {
+          "const": "#/$defs/ExpectedValue"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    },
+    "ExpectedValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected",
+        "comparison",
+        "provenance"
+      ],
+      "properties": {
+        "expected": true,
+        "comparison": {
+          "enum": [
+            "exact",
+            "lossless"
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    },
+    "PropertyRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "propertyId",
+        "propertyKind",
+        "path",
+        "provenance"
+      ],
+      "properties": {
+        "propertyId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "propertyKind": {
+          "enum": [
+            "invariant",
+            "equivalence"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    },
+    "MutationProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutationId",
+        "target",
+        "operators"
+      ],
+      "properties": {
+        "mutationId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "target": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "operators": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "DisplayBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayItem",
+        "callsite",
+        "formatter",
+        "provenance"
+      ],
+      "properties": {
+        "displayItem": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "callsite": {
+          "$ref": "#/$defs/RepositoryPath"
+        },
+        "formatter": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "provenance": {
+          "$ref": "#/$defs/AuthorityId"
+        }
+      }
+    }
+  },
+  "x-authorityCatalog": [
+    {
+      "id": "ADR-003 D-11 構成の完全性",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "#### ③ 宣言された構成の完全性"
+    },
+    {
+      "id": "ADR-003 D-11 3 層表 プロパティ層",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+      "verbatim": "| **プロパティテスト** |"
+    },
+    {
+      "id": "ADR-003 D-6 契約分類",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-6: 正解ベクタと契約の形式・置き場・CI 配線・後続担当",
+      "verbatim": "**契約は 2 種に分かれる**"
+    },
+    {
+      "id": "NFR-018 (b)② 差分の検出可能性",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "**② 差分の検出可能性**"
+    }
+  ],
+  "x-expectations": {
+    "perCalculationExactSet": {
+      "expected": [
+        "calculation",
+        "source",
+        "generated",
+        "entrypoints",
+        "directTargets",
+        "comparison",
+        "normalization",
+        "vectors",
+        "properties",
+        "mutation"
+      ],
+      "comparison": "exact-set",
+      "provenance": "ADR-003 D-11 構成の完全性"
+    },
+    "topLevelExactSet": {
+      "expected": [
+        "propertyCatalog",
+        "calculations",
+        "displayBindings"
+      ],
+      "comparison": "exact-set",
+      "provenance": "ADR-003 D-11 構成の完全性"
+    },
+    "expectedValueExactSet": {
+      "expected": [
+        "expected",
+        "comparison",
+        "provenance"
+      ],
+      "comparison": "exact-set",
+      "provenance": "NFR-018 (b)② 差分の検出可能性"
+    },
+    "compositeComponentMinimum": {
+      "expected": 2,
+      "comparison": "minimum",
+      "provenance": "ADR-003 D-11 構成の完全性"
+    },
+    "targetStageCounts": {
+      "expected": {
+        "alpha": 1,
+        "beta-1-5": 3,
+        "beta-7": 2,
+        "beta-6-8": 1
+      },
+      "comparison": "equals",
+      "provenance": "ADR-003 D-11 構成の完全性"
+    },
+    "vectorOwnership": {
+      "expected": {
+        "perCalculation": 1,
+        "unknownContracts": 0
+      },
+      "comparison": "equals",
+      "provenance": "ADR-003 D-6 契約分類"
+    },
+    "calculationPopulation": {
+      "expected": 1,
+      "comparison": "minimum",
+      "provenance": "ADR-003 D-6 契約分類"
+    }
+  },
+  "x-triggerAssessmentMaterials": {
+    "trigger10": {
+      "treatment": "intentional-top-level-separation",
+      "schemaLocation": "#/properties/propertyCatalog",
+      "basis": "ADR-003 D-11 3 層表 プロパティ層",
+      "reason": "propertyCatalog は対象計算ごとの properties[] ではなくトップレベルで登録する。"
+    },
+    "trigger11": {
+      "manifestRequires": [
+        "対象計算 ID とベクタ契約を vectors[] で 1 対 1 に登録する",
+        "契約パスと適用 runner を宣言する",
+        "各期待値を #/$defs/ExpectedValue の exact-set に拘束する"
+      ],
+      "delegatesToContracts": [
+        "cases[] の入力と期待値の実データ",
+        "対象計算ごとのベクタ schema と case 集合",
+        "TSK-236〜TSK-239 による製品対象別 DSL 正本"
+      ],
+      "basis": "ADR-003 D-6 契約分類"
+    }
+  },
+  "x-historyPrecedes": {
+    "beforePath": "backend/domain/manifest.schema.json",
+    "afterPath": "backend/src/pitchlog/domaincheck/cli.py",
+    "method": "history_precedes",
+    "sameCommitAllowed": false
+  }
+}

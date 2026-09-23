@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-seal-base-merge-base",
+  "clauseId": "BOOT-SEAL-BASE",
+  "mechanism": "merge-base-comparison",
+  "violation": {
+    "forbiddenSubcommand": "merge-base",
+    "allowedSubcommand": "rev-parse"
+  }
+}

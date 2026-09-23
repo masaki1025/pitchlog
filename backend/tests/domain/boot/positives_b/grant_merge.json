@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "fixtureType": "grant-merge",
+  "caseId": "pos-b-grant-sealed-failure-merge",
+  "clauseIds": [
+    "BOOT-GRANT",
+    "BOOT-ACTIVATION"
+  ],
+  "findingSource": "backend/domain/boot-seal.json#elements",
+  "semanticChange": "no-phase2-target-added",
+  "expected": {
+    "mergeAllowed": true,
+    "candidateMerged": true
+  }
+}

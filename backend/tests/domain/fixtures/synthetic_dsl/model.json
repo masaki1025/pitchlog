@@ -1,0 +1,412 @@
+{
+  "schemaVersion": 1,
+  "calculations": [
+    {
+      "calculationId": "syntheticMatrix",
+      "inputs": [
+        {
+          "fieldId": "labelSnapshot",
+          "type": {
+            "kind": "vocabulary-snapshot",
+            "valueSchema": "#/$defs/VocabularySnapshot"
+          },
+          "nullable": false,
+          "range": null,
+          "unit": null,
+          "scale": null
+        },
+        {
+          "fieldId": "increment",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 9
+            }
+          },
+          "unit": "unit",
+          "scale": 0
+        }
+      ],
+      "states": [
+        {
+          "stateId": "panelState",
+          "fields": [
+            {
+              "fieldId": "leftValue",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 999
+                }
+              },
+              "unit": "unit",
+              "scale": 0
+            },
+            {
+              "fieldId": "auditTrail",
+              "type": {
+                "kind": "history-stack",
+                "valueSchema": "#/$defs/HistoryStack"
+              },
+              "nullable": false,
+              "range": null,
+              "unit": null,
+              "scale": null
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "advance",
+          "fields": [
+            {
+              "fieldId": "amount",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 9
+                }
+              },
+              "unit": "unit",
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "guard",
+          "ruleId": "nonnegativeAmount",
+          "expression": {
+            "kind": "comparison",
+            "operator": "greater-than-or-equal",
+            "left": {
+              "kind": "event-ref",
+              "fieldRef": "amount"
+            },
+            "right": {
+              "kind": "numeric-literal",
+              "value": {
+                "kind": "integer",
+                "value": 0
+              }
+            }
+          }
+        },
+        {
+          "kind": "transition",
+          "ruleId": "applyAdvance",
+          "eventRef": "advance",
+          "guardRefs": [
+            "nonnegativeAmount"
+          ],
+          "nextState": [
+            {
+              "fieldRef": "leftValue",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "leftValue"
+                  },
+                  {
+                    "kind": "event-ref",
+                    "fieldRef": "amount"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "reducer",
+          "ruleId": "sumSeries",
+          "sourceRef": "syntheticSeries",
+          "maximumItems": 16,
+          "initial": {
+            "kind": "integer",
+            "value": 0
+          },
+          "expression": {
+            "kind": "arithmetic",
+            "operator": "add",
+            "operands": [
+              {
+                "kind": "accumulator-ref",
+                "fieldRef": "accumulator"
+              },
+              {
+                "kind": "item-ref",
+                "fieldRef": "item"
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "periodIndex",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": "period",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "phaseCode",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "left",
+              "right"
+            ]
+          },
+          "nullable": false,
+          "range": null,
+          "unit": null,
+          "scale": null,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "leftTotal",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 999
+            }
+          },
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "rightTotal",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 999
+            }
+          },
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "counterPrimary",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 9
+            }
+          },
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "counterSecondary",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 9
+            }
+          },
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "remainingUnits",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 9
+            }
+          },
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "sequenceIndex",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": "position",
+          "scale": 0,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "occupancyCode",
+          "type": {
+            "kind": "enum",
+            "values": [
+              "clear",
+              "occupied"
+            ]
+          },
+          "nullable": false,
+          "range": null,
+          "unit": null,
+          "scale": null,
+          "visibility": "user-visible"
+        },
+        {
+          "fieldId": "visibleMetric",
+          "type": {
+            "kind": "numeric-value",
+            "valueSchema": "vocabulary.schema.json#/$defs/NumericValue"
+          },
+          "nullable": true,
+          "range": null,
+          "unit": "unit",
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": [
+        "wholeNumber",
+        "phaseName",
+        "metricTemplate"
+      ]
+    }
+  ],
+  "displayRules": [
+    {
+      "kind": "numeric-primitive",
+      "id": "wholeNumber",
+      "primitive": {
+        "kind": "fixed-decimal",
+        "scale": 0,
+        "rounding": "half-up",
+        "leadingZero": true,
+        "sign": "negative-only-hyphen-minus"
+      }
+    },
+    {
+      "kind": "enum-map",
+      "id": "phaseName",
+      "enumId": "syntheticPhase",
+      "stability": "stable",
+      "managedBy": "system",
+      "members": [
+        {
+          "value": "left",
+          "display": "L"
+        },
+        {
+          "value": "right",
+          "display": "R"
+        }
+      ]
+    },
+    {
+      "kind": "template",
+      "id": "metricTemplate",
+      "pattern": "{value}",
+      "placeholders": {
+        "value": {
+          "type": "DisplayAtom",
+          "source": {
+            "kind": "numeric-primitive-output",
+            "primitiveId": "wholeNumber",
+            "value": {
+              "kind": "integer",
+              "value": 0
+            }
+          }
+        }
+      }
+    }
+  ]
+}

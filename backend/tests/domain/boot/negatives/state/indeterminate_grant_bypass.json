@@ -1,0 +1,8 @@
+{
+  "caseId": "neg-grant-indeterminate-bypass",
+  "clauseId": "BOOT-GRANT",
+  "mechanism": "indeterminate-not-phase2",
+  "violation": {
+    "claimsPhase2": false
+  }
+}

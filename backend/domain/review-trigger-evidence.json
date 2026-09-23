@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 2,
+  "poEvaluationLimit": "機械が保証するのは判定者・判定日・発火値の記録と証拠内容 digest の不変性までであり、PO の判断内容そのものの正しさは機械では決められない。",
+  "machineEvaluationLimit": "機械が保証するのはトリガー ID ごとに固定した pytest node の名前・実在・収集件数・実行件数と、その合否が評価記録へ一致することまでである。固定名のテスト本体の意味が発火条件を正しく評価することは任意コードの意味判定に帰着するため保証範囲外であり、コードレビューを要する。",
+  "machineEvaluations": [
+    {
+      "triggerId": 3,
+      "testNodes": [
+        "tests/domain/gen/test_formatter.py::test_alpha_python_typescript_and_reference_return_same_display",
+        "tests/domain/gen/test_formatter.py::test_beta_seven_enum_map_receiver_and_reference_agree",
+        "tests/domain/gen/test_formatter.py::test_all_target_matrix_classes_are_actually_generated"
+      ]
+    },
+    {
+      "triggerId": 4,
+      "testNodes": [
+        "tests/domain/test_path_match.py::test_allowed_lossless_normalizations_pass_all_trigger_four_axes",
+        "tests/domain/test_path_match.py::test_display_string_variations_are_not_normalized"
+      ]
+    },
+    {
+      "triggerId": 6,
+      "testNodes": [
+        "tests/domain/test_collect_fe.py::test_dynamic_worker_is_reported_as_indeterminate",
+        "tests/domain/test_closure_be.py::test_unresolved_dynamic_import_is_fail_closed",
+        "tests/domain/test_display_binding.py::test_unresolved_display_path_is_fail_closed"
+      ]
+    },
+    {
+      "triggerId": 9,
+      "testNodes": [
+        "tests/domain/test_history_depth.py::test_history_depth_is_derived_from_cases_and_maximum"
+      ]
+    },
+    {
+      "triggerId": 12,
+      "testNodes": [
+        "tests/domain/mut/test_cost_record.py::test_recorded_scopes_recompute_product_and_budget_decision"
+      ]
+    },
+    {
+      "triggerId": 13,
+      "testNodes": [
+        "tests/domain/test_display_binding.py::test_schema_selector_addition_changes_target_closure_without_code_list",
+        "tests/domain/test_display_binding.py::test_matching_target_callsite_and_generated_formatter_pass"
+      ]
+    },
+    {
+      "triggerId": 14,
+      "testNodes": [
+        "tests/domain/test_collect_layers.py::test_collector_computes_chain_instead_of_accepting_adapter_claim",
+        "tests/domain/test_collect_layers.py::test_real_pytest_junit_output_is_counted_with_provenance"
+      ]
+    },
+    {
+      "triggerId": 16,
+      "testNodes": [
+        "tests/domain/test_step_authorities.py::test_all_authorities_exist_verbatim_in_canonical_sources",
+        "tests/domain/test_step_authorities.py::test_registry_has_exactly_all_fifty_seven_steps"
+      ]
+    }
+  ],
+  "manualDecisions": [
+    {
+      "triggerId": 1,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-19",
+      "fired": false,
+      "evidenceLocation": "backend/domain/model.schema.json",
+      "evidenceDigest": "sha256:3724d5a486861ccf1199f633b031ee75639ba4089a22737828b368717ada8f57"
+    },
+    {
+      "triggerId": 2,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-18",
+      "fired": false,
+      "evidenceLocation": "docs/features/domain-calc-dsl/research.md",
+      "evidenceDigest": "sha256:ace25100f862001e29661e4cd993ec5a4e4e71fea4b2fd0c294c7a3ede129b5f"
+    },
+    {
+      "triggerId": 5,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-21",
+      "fired": false,
+      "evidenceLocation": "docs/features/domain-calc-dsl/mutation-cost.json",
+      "evidenceDigest": "sha256:b37197ffb18fa706b10b0c3631a1d57ece21ab575eb0ef97560a1d82cc3e296b"
+    },
+    {
+      "triggerId": 7,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-19",
+      "fired": false,
+      "evidenceLocation": "backend/domain/check-sets.json",
+      "evidenceDigest": "sha256:c6bf9beeb86325c759f56abb50af060bf62b48323e50f9c1c1cfe5704cc7c18b"
+    },
+    {
+      "triggerId": 8,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-19",
+      "fired": false,
+      "evidenceLocation": "backend/tests/domain/fixtures/synthetic_dsl/",
+      "evidenceDigest": "sha256:dcd3dba3d5962e4d12da9a6a092d73ab0e35009859f0ac42f6ed5ce0fc72698e"
+    },
+    {
+      "triggerId": 10,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-18",
+      "fired": false,
+      "evidenceLocation": "backend/domain/manifest.schema.json",
+      "evidenceDigest": "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98"
+    },
+    {
+      "triggerId": 11,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-18",
+      "fired": false,
+      "evidenceLocation": "backend/domain/manifest.schema.json",
+      "evidenceDigest": "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98"
+    },
+    {
+      "triggerId": 12,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-21",
+      "fired": false,
+      "evidenceLocation": "docs/features/domain-calc-dsl/mutation-cost.json",
+      "evidenceDigest": "sha256:b37197ffb18fa706b10b0c3631a1d57ece21ab575eb0ef97560a1d82cc3e296b"
+    },
+    {
+      "triggerId": 15,
+      "judge": "山田正輝",
+      "decisionDate": "2026-09-20",
+      "fired": false,
+      "evidenceLocation": "backend/domain/mutation-equivalents.json",
+      "evidenceDigest": "sha256:7ffc133f0658b2ab840fbf3577ed99233cea6c4e56a027c8a0794962598defe7"
+    }
+  ]
+}

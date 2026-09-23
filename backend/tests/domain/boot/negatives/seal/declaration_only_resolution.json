@@ -1,0 +1,8 @@
+{
+  "caseId": "neg-program-declaration-only-resolution",
+  "clauseId": "BOOT-PROGRAM",
+  "mechanism": "declaration-only-resolution",
+  "violation": {
+    "claimsResolution": true
+  }
+}

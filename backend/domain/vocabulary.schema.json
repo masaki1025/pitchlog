@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/schemas/domain/vocabulary.schema.json",
+  "title": "ドメイン計算 DSL 表示語彙",
+  "description": "ADR-003 D-1 表示規則 3 類を閉じた宣言モデルとして定義する。",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/EnumDisplayMap"
+    },
+    {
+      "$ref": "#/$defs/DisplayTemplate"
+    },
+    {
+      "$ref": "#/$defs/NumericDisplayPrimitive"
+    }
+  ],
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "EnumDisplayMap": {
+      "description": "管理者管理でない安定した enum から表示名への写像。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "enumId",
+        "stability",
+        "managedBy",
+        "members"
+      ],
+      "properties": {
+        "kind": {
+          "const": "enum-map"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "enumId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "stability": {
+          "const": "stable"
+        },
+        "managedBy": {
+          "const": "system"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/EnumDisplayMapMember"
+          }
+        }
+      }
+    },
+    "EnumDisplayMapMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "display"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "DisplayTemplate": {
+      "description": "DisplayAtom のプレースホルダ差し込みだけを行うテンプレート。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "pattern",
+        "placeholders"
+      ],
+      "properties": {
+        "kind": {
+          "const": "template"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "pattern": {
+          "type": "string",
+          "pattern": "^(?:[^{}]|\\{[A-Za-z][A-Za-z0-9_.-]*\\})*$"
+        },
+        "placeholders": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/DisplayAtom"
+          }
+        }
+      }
+    },
+    "DisplayAtom": {
+      "description": "言語既定の文字列化や文字列操作を持たない不透明な表示型。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "source"
+      ],
+      "properties": {
+        "type": {
+          "const": "DisplayAtom"
+        },
+        "source": {
+          "$ref": "#/$defs/DisplayAtomSource"
+        }
+      }
+    },
+    "DisplayAtomSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NumericPrimitiveOutput"
+        },
+        {
+          "$ref": "#/$defs/EnumMapOutput"
+        },
+        {
+          "$ref": "#/$defs/ResolvedName"
+        }
+      ]
+    },
+    "NumericPrimitiveOutput": {
+      "description": "数値表示 primitive が NumericValue から生成する DisplayAtom。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "primitiveId",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "numeric-primitive-output"
+        },
+        "primitiveId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "#/$defs/NumericValue"
+        }
+      }
+    },
+    "EnumMapOutput": {
+      "description": "enum 表示名写像の結果として生成する DisplayAtom。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "mapId",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "enum-map-output"
+        },
+        "mapId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ResolvedName": {
+      "description": "管理者管理語彙を ID で参照解決した名称の DisplayAtom。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "vocabularyId",
+        "entityId"
+      ],
+      "properties": {
+        "kind": {
+          "const": "resolved-name"
+        },
+        "vocabularyId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "entityId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "NumericDisplayPrimitive": {
+      "description": "宣言時に全パラメータを固定する数値表示 primitive。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "primitive"
+      ],
+      "properties": {
+        "kind": {
+          "const": "numeric-primitive"
+        },
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "primitive": {
+          "$ref": "#/$defs/NumericPrimitive"
+        }
+      }
+    },
+    "NumericPrimitive": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FixedDecimal"
+        },
+        {
+          "$ref": "#/$defs/Percentage"
+        },
+        {
+          "$ref": "#/$defs/MixedFraction"
+        },
+        {
+          "$ref": "#/$defs/NullSubstitute"
+        }
+      ]
+    },
+    "FixedDecimal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "scale",
+        "rounding",
+        "leadingZero",
+        "sign"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fixed-decimal"
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "rounding": {
+          "const": "half-up"
+        },
+        "leadingZero": {
+          "type": "boolean"
+        },
+        "sign": {
+          "const": "negative-only-hyphen-minus"
+        }
+      }
+    },
+    "Percentage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "scale",
+        "rounding",
+        "leadingZero",
+        "symbol"
+      ],
+      "properties": {
+        "kind": {
+          "const": "percentage"
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "rounding": {
+          "const": "half-up"
+        },
+        "leadingZero": {
+          "type": "boolean"
+        },
+        "symbol": {
+          "const": "percent"
+        }
+      }
+    },
+    "MixedFraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "denominator",
+        "integerSuffix",
+        "zeroRemainder",
+        "fractionStyle"
+      ],
+      "properties": {
+        "kind": {
+          "const": "mixed-fraction"
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "integerSuffix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "zeroRemainder": {
+          "enum": [
+            "omit-fraction",
+            "show-zero-fraction"
+          ]
+        },
+        "fractionStyle": {
+          "const": "ascii-numerator-slash-denominator"
+        }
+      }
+    },
+    "NullSubstitute": {
+      "description": "nullable 値の値部分だけを代替し、周囲のテンプレートは変更しない。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "substitute"
+      ],
+      "properties": {
+        "kind": {
+          "const": "null-substitute"
+        },
+        "substitute": {
+          "type": "string"
+        }
+      }
+    },
+    "NumericValue": {
+      "description": "整数・exact decimal・有理数の 3 形と null に閉じた構造化数値。",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/IntegerValue"
+        },
+        {
+          "$ref": "#/$defs/ExactDecimalValue"
+        },
+        {
+          "$ref": "#/$defs/RationalValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "IntegerValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      }
+    },
+    "ExactDecimalValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "exact-decimal"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)\\.[0-9]+$"
+        }
+      }
+    },
+    "RationalValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "kind": {
+          "const": "rational"
+        },
+        "numerator": {
+          "type": "integer"
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "x-pitchlog": {
+    "authorities": [
+      "ADR-003 D-1 正本の射程行",
+      "ADR-003 D-1 生成前検査行",
+      "要件書 付録A-1 表示書式の共通規定"
+    ],
+    "closedSets": {
+      "displayRuleKinds": [
+        "enum-map",
+        "template",
+        "numeric-primitive"
+      ],
+      "numericValueForms": [
+        "integer",
+        "exact-decimal",
+        "rational"
+      ],
+      "displayAtomSources": [
+        "numeric-primitive-output",
+        "enum-map-output",
+        "resolved-name"
+      ],
+      "numericPrimitives": [
+        "fixed-decimal",
+        "percentage",
+        "mixed-fraction",
+        "null-substitute"
+      ]
+    },
+    "appendixABindingPopulation": {
+      "authority": "要件書 付録A 表示書式列",
+      "sections": [
+        "A-2",
+        "A-2b",
+        "A-3",
+        "A-4",
+        "A-5"
+      ],
+      "rowInclusionRule": "表示書式列が ADR-003 D-1 の表示規則を指定する行を 1 binding とし、表示書式なしを明記した行は除外する。",
+      "compositeRowPolicy": "複合行は表示書式列内の閉じた合成を 1 binding として扱い、分解しない。",
+      "splitCompositeRows": false,
+      "compositeRows": [
+        "最速・平均球速",
+        "勝 / 敗 / 分",
+        "得点 / 失点",
+        "イニング別得点・失点"
+      ]
+    }
+  }
+}

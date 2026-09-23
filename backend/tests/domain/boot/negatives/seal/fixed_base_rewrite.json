@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-seal-immutable-base-rewrite",
+  "clauseId": "BOOT-SEAL-IMMUTABLE",
+  "mechanism": "fixed-base-rewrite",
+  "violation": {
+    "assetPath": "domain/asset.json",
+    "sealPath": "domain/asset.sealed.json"
+  }
+}
