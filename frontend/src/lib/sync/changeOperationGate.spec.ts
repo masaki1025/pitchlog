@@ -41,10 +41,27 @@ function endedRequest(): ChangeOperationGateRequest {
 function confirmedInjections(): Required<ChangeOperationGateInjections> {
   return {
     resolveOnline: () => true,
-    resolveUnsentQueueEmpty: () => true,
+    resolveUnsentAndActionRequiredCountsZero: () => true,
     v12Binding: () => true,
     recoveryGeneration: () => true,
   }
+}
+
+/**
+ * FR-007 の修正許可条件④を表す注入値をキュー状態別の件数から作る。
+ *
+ * Args:
+ *   counts: `未送信`・`要操作`・`退避済み`の件数。
+ *
+ * Returns:
+ *   `未送信`と`要操作`がともに 0 件の場合だけ `true`。`退避済み`は判定に用いない。
+ */
+function queueConditionInjection(counts: {
+  readonly unsent: number
+  readonly actionRequired: number
+  readonly evacuated: number
+}): () => boolean {
+  return () => counts.unsent === 0 && counts.actionRequired === 0
 }
 
 describe('changeOperationGate', () => {
@@ -65,15 +82,6 @@ describe('changeOperationGate', () => {
       },
       expectedResult: REQUEST_BOUNDARY_RESULT.B9,
     },
-    {
-      prerequisite: '未同期キュー空',
-      injections: {
-        ...confirmedInjections(),
-        resolveUnsentQueueEmpty: () => false,
-      },
-      expectedResult:
-        CHANGE_OPERATION_GATE_RESULT.UNSENT_QUEUE_NOT_EMPTY_OR_UNCONFIRMED,
-    },
   ])('進行中は $prerequisite の単独不成立を拒否する', (testCase) => {
     expect(
       checkChangeOperationGate(inProgressRequest(), testCase.injections),
@@ -86,20 +94,54 @@ describe('changeOperationGate', () => {
     ).toEqual({ ok: true })
   })
 
-  it('終了後はキュー非空・記録権証明なしでもオンラインなら許可する', () => {
-    const resolveUnsentQueueEmpty = vi.fn(() => false)
+  it('未送信 0 件でも要操作が残る進行中修正を拒否する', () => {
+    const resolveUnsentAndActionRequiredCountsZero = queueConditionInjection({
+      unsent: 0,
+      actionRequired: 1,
+      evacuated: 0,
+    })
+
+    expect(
+      checkChangeOperationGate(inProgressRequest(), {
+        ...confirmedInjections(),
+        resolveUnsentAndActionRequiredCountsZero,
+      }),
+    ).toEqual({
+      ok: false,
+      result:
+        CHANGE_OPERATION_GATE_RESULT.UNSENT_OR_ACTION_REQUIRED_EVENTS_PRESENT_OR_UNCONFIRMED,
+    })
+  })
+
+  it('未送信 0 件・要操作 0 件なら退避済みだけが残っても進行中修正を許可する', () => {
+    const resolveUnsentAndActionRequiredCountsZero = queueConditionInjection({
+      unsent: 0,
+      actionRequired: 0,
+      evacuated: 1,
+    })
+
+    expect(
+      checkChangeOperationGate(inProgressRequest(), {
+        ...confirmedInjections(),
+        resolveUnsentAndActionRequiredCountsZero,
+      }),
+    ).toEqual({ ok: true })
+  })
+
+  it('終了後は未送信・要操作が残り記録権証明がなくてもオンラインなら許可する', () => {
+    const resolveUnsentAndActionRequiredCountsZero = vi.fn(() => false)
     const v12Binding = vi.fn<V12BindingVerifier>(() => false)
     const recoveryGeneration = vi.fn<RecoveryGenerationVerifier>(() => true)
 
     expect(
       checkChangeOperationGate(endedRequest(), {
         resolveOnline: () => true,
-        resolveUnsentQueueEmpty,
+        resolveUnsentAndActionRequiredCountsZero,
         v12Binding,
         recoveryGeneration,
       }),
     ).toEqual({ ok: true })
-    expect(resolveUnsentQueueEmpty).not.toHaveBeenCalled()
+    expect(resolveUnsentAndActionRequiredCountsZero).not.toHaveBeenCalled()
     expect(v12Binding).not.toHaveBeenCalled()
     expect(recoveryGeneration).toHaveBeenCalledOnce()
   })
@@ -128,7 +170,7 @@ describe('changeOperationGate', () => {
     expect(
       checkChangeOperationGate(request, {
         resolveOnline: () => true,
-        resolveUnsentQueueEmpty: () => true,
+        resolveUnsentAndActionRequiredCountsZero: () => true,
         v12Binding,
         recoveryGeneration: () => false,
       }),
@@ -140,13 +182,13 @@ describe('changeOperationGate', () => {
     {
       injection: 'オンライン判定',
       injections: {
-        resolveUnsentQueueEmpty: () => true,
+        resolveUnsentAndActionRequiredCountsZero: () => true,
         v12Binding: () => true,
         recoveryGeneration: () => true,
       },
     },
     {
-      injection: 'キュー状態',
+      injection: '未送信・要操作の件数条件',
       injections: {
         resolveOnline: () => true,
         v12Binding: () => true,
@@ -157,7 +199,7 @@ describe('changeOperationGate', () => {
       injection: '記録権 verifier',
       injections: {
         resolveOnline: () => true,
-        resolveUnsentQueueEmpty: () => true,
+        resolveUnsentAndActionRequiredCountsZero: () => true,
         recoveryGeneration: () => true,
       },
     },
@@ -165,7 +207,7 @@ describe('changeOperationGate', () => {
       injection: '復旧世代 verifier',
       injections: {
         resolveOnline: () => true,
-        resolveUnsentQueueEmpty: () => true,
+        resolveUnsentAndActionRequiredCountsZero: () => true,
         v12Binding: () => true,
       },
     },
@@ -178,7 +220,7 @@ describe('changeOperationGate', () => {
     ).toBe(false)
   })
 
-  it.each(['オンライン判定', 'キュー状態'] as const)(
+  it.each(['オンライン判定', '未送信・要操作の件数条件'] as const)(
     '%sの例外も fail-closed で拒否する',
     (name) => {
       const throwingResolver = () => {
@@ -192,7 +234,7 @@ describe('changeOperationGate', () => {
             }
           : {
               ...confirmedInjections(),
-              resolveUnsentQueueEmpty: throwingResolver,
+              resolveUnsentAndActionRequiredCountsZero: throwingResolver,
             }
 
       expect(checkChangeOperationGate(inProgressRequest(), injections).ok).toBe(
