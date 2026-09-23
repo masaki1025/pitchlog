@@ -265,6 +265,36 @@ def test_machine_trigger_rejects_pytest_option_instead_of_node_id(
         )
 
 
+def test_machine_trigger_rejects_unrelated_test_in_allowed_file(
+    tmp_path: Path,
+) -> None:
+    """許可ファイル内でも固定した評価テスト以外への差し替えを拒否する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    evidence["machineEvaluations"][0]["testNodes"][0] = (
+        "tests/domain/gen/test_formatter.py::"
+        "test_reference_implementations_have_regenerable_provenance"
+    )
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="評価 node が固定対応",
+    ):
+        COMPLETION.validate_trigger_completion(
+            REGISTRY_PATH,
+            ROOT,
+            as_of_step=57,
+            evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
+
+
+def test_machine_evaluation_semantic_limit_is_explicit() -> None:
+    """固定 node のテスト本体の意味は機械保証外であると明記する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+
+    assert "テスト本体の意味" in evidence["machineEvaluationLimit"]
+    assert "保証範囲外" in evidence["machineEvaluationLimit"]
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -285,6 +315,25 @@ def test_po_decision_requires_named_judge_and_date(
     with pytest.raises(
         COMPLETION.trigger_evaluation.TriggerEvaluationError,
         match=message,
+    ):
+        COMPLETION.validate_trigger_completion(
+            REGISTRY_PATH,
+            ROOT,
+            as_of_step=57,
+            evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
+
+
+def test_duplicate_manual_decision_id_is_rejected(tmp_path: Path) -> None:
+    """矛盾する PO 決定を前置きして後勝ちにする経路を拒否する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    duplicate = copy.deepcopy(evidence["manualDecisions"][0])
+    duplicate["fired"] = not duplicate["fired"]
+    evidence["manualDecisions"].insert(0, duplicate)
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="manualDecisions.*重複",
     ):
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,

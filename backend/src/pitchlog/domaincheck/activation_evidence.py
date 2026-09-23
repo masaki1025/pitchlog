@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shlex
 import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
@@ -26,13 +29,17 @@ _KEYS = frozenset(
         "limit",
     }
 )
-_EXECUTION_KEYS = frozenset({"command", "cwd", "exitCode", "outputDigest"})
+_EXECUTION_KEYS = frozenset({"command", "cwd", "exitCode", "outputDigest", "selectors"})
+_SELECTOR_KEYS = frozenset({"selector", "collectedCount", "executedCount"})
 _EVENTS = frozenset({"pull_request", "push", "workflow_dispatch"})
-_MACHINE_GUARANTEE = "recorded-commands-exited-zero-at-recorded-head"
+_MACHINE_GUARANTEE = (
+    "recorded-commands-and-each-pytest-selector-executed-at-recorded-head"
+)
 _LIMIT = (
     "ネットワークを使わないため GitHub の check suite conclusion は機械検証できない。"
-    "機械が保証するのは列挙した command を実際に起動し、exit 0 と出力 digest を得た後に"
-    "証跡を作り、その head SHA が検査中の HEAD と一致することまでである。"
+    "機械が保証するのは列挙した command を実際に起動し、pytest は selector ごとの収集・"
+    "実行件数が 1 以上であること、exit 0 と出力 digest を得た後に証跡を作り、その head "
+    "SHA が検査中の HEAD と一致することまでである。"
     "GitHub 上の job conclusion と並列 job の success は人間が run を確認する。"
 )
 
@@ -69,6 +76,87 @@ def _execution_digest(executions: object) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def _pytest_parts(command: str) -> tuple[list[str], tuple[str, ...]] | None:
+    """Pytest command を runner/options と path selector に分ける。
+
+    pytest の option を selector と誤認しないよう閉じた構文だけを受理する。
+    発効対象 command では ``-c`` だけが値を取る option である。
+    """
+    tokens = shlex.split(command)
+    try:
+        pytest_index = tokens.index("pytest")
+    except ValueError:
+        return None
+    base = tokens[: pytest_index + 1]
+    selectors: list[str] = []
+    index = pytest_index + 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "-c":
+            if index + 1 >= len(tokens):
+                raise CheckerExecutionError("pytest -c の値が無い")
+            base.extend(tokens[index : index + 2])
+            index += 2
+            continue
+        if token.startswith("-"):
+            base.append(token)
+        else:
+            selectors.append(token)
+        index += 1
+    if not selectors:
+        raise CheckerExecutionError("pytest command に selector が無い")
+    return base, tuple(selectors)
+
+
+def _collected_count(root: Path, base: Sequence[str], selector: str) -> int:
+    """一 selector を実際に collect して件数を返す。"""
+    result = subprocess.run(
+        [*base, "--collect-only", "-q", selector],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    node_count = sum(
+        1
+        for line in result.stdout.splitlines()
+        if "::test_" in line and not line.lstrip().startswith("<")
+    )
+    file_count = sum(
+        int(match.group(1))
+        for line in result.stdout.splitlines()
+        if (match := re.fullmatch(r".+\.py:\s+([1-9]\d*)", line.strip()))
+    )
+    count = node_count or file_count
+    if result.returncode != 0 or count < 1:
+        raise CheckerViolation(f"pytest selector を 1 件以上収集できない: {selector}")
+    return count
+
+
+def _executed_counts(junit_path: Path, selectors: Sequence[str]) -> dict[str, int]:
+    """JUnit XML から selector ごとの非 skip 実行件数を返す。"""
+    try:
+        root = ET.parse(junit_path).getroot()
+    except (OSError, ET.ParseError) as error:
+        raise CheckerExecutionError("pytest の JUnit XML を読めない") from error
+    counts = {selector: 0 for selector in selectors}
+    for testcase in root.iter("testcase"):
+        if testcase.find("skipped") is not None:
+            continue
+        file_name = testcase.attrib.get("file", "").replace("\\", "/")
+        if not file_name:
+            class_name = testcase.attrib.get("classname", "")
+            file_name = class_name.replace(".", "/") + ".py"
+        for selector in selectors:
+            path = selector.split("::", maxsplit=1)[0].rstrip("/")
+            if file_name == path or file_name.startswith(f"{path}/"):
+                counts[selector] += 1
+    missing = sorted(selector for selector, count in counts.items() if count < 1)
+    if missing:
+        raise CheckerViolation(f"pytest selector の実行件数が 0: {missing!r}")
+    return counts
+
+
 def execute_commands(root: Path, commands: Sequence[str]) -> list[dict[str, object]]:
     """対象 command を実際に起動し、全件成功後の証跡材料を返す。
 
@@ -87,9 +175,23 @@ def execute_commands(root: Path, commands: Sequence[str]) -> list[dict[str, obje
         raise CheckerExecutionError("実行対象 command 集合が空または不正")
     executions: list[dict[str, object]] = []
     for command in commands:
+        pytest_parts = _pytest_parts(command)
+        selector_records: list[dict[str, object]] = []
+        run_tokens = shlex.split(command)
+        temporary: tempfile.TemporaryDirectory[str] | None = None
+        junit_path: Path | None = None
+        if pytest_parts is not None:
+            base, selectors = pytest_parts
+            collected = {
+                selector: _collected_count(root, base, selector)
+                for selector in selectors
+            }
+            temporary = tempfile.TemporaryDirectory(prefix="pitchlog-activation-")
+            junit_path = Path(temporary.name) / "junit.xml"
+            run_tokens.append(f"--junitxml={junit_path}")
         try:
             result = subprocess.run(
-                shlex.split(command),
+                run_tokens,
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -99,11 +201,27 @@ def execute_commands(root: Path, commands: Sequence[str]) -> list[dict[str, obje
             raise CheckerExecutionError(f"command を起動できない: {command}") from error
         print(result.stdout, end="")
         print(result.stderr, end="")
-        if result.returncode != 0:
+        if result.returncode:
+            if temporary is not None:
+                temporary.cleanup()
             raise CheckerViolation(
                 f"BOOT-ACTIVATION 対象 command が失敗: "
                 f"exit={result.returncode} command={command}"
             )
+        if pytest_parts is not None:
+            assert junit_path is not None
+            _, selectors = pytest_parts
+            executed = _executed_counts(junit_path, selectors)
+            selector_records = [
+                {
+                    "selector": selector,
+                    "collectedCount": collected[selector],
+                    "executedCount": executed[selector],
+                }
+                for selector in selectors
+            ]
+        if temporary is not None:
+            temporary.cleanup()
         output = {"stdout": result.stdout, "stderr": result.stderr}
         executions.append(
             {
@@ -111,6 +229,7 @@ def execute_commands(root: Path, commands: Sequence[str]) -> list[dict[str, obje
                 "cwd": ".",
                 "exitCode": result.returncode,
                 "outputDigest": _execution_digest(output),
+                "selectors": selector_records,
             }
         )
     return executions
@@ -127,7 +246,7 @@ def build_runtime_evidence(
     measured = list(executions)
     _validate_executions(measured)
     return {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "runId": run_id,
         "event": event,
         "headSha": current_head_oid(root),
@@ -154,6 +273,40 @@ def _validate_executions(executions: object) -> list[dict[str, object]]:
         digest = value.get("outputDigest")
         if not isinstance(digest, str) or not digest.startswith("sha256:"):
             raise CheckerViolation(f"実行結果 {index} の出力 digest が不正")
+        selectors = value.get("selectors")
+        if not isinstance(selectors, list):
+            raise CheckerViolation(f"実行結果 {index} の selectors が配列でない")
+        checked_selectors: list[str] = []
+        for selector_index, raw_selector in enumerate(selectors):
+            if (
+                not isinstance(raw_selector, dict)
+                or set(raw_selector) != _SELECTOR_KEYS
+            ):
+                raise CheckerViolation(
+                    f"実行結果 {index} の selector {selector_index} が不正"
+                )
+            selector = raw_selector.get("selector")
+            collected = raw_selector.get("collectedCount")
+            executed = raw_selector.get("executedCount")
+            if not isinstance(selector, str) or not selector:
+                raise CheckerViolation(f"実行結果 {index} の selector が不正")
+            if (
+                not isinstance(collected, int)
+                or isinstance(collected, bool)
+                or collected < 1
+                or not isinstance(executed, int)
+                or isinstance(executed, bool)
+                or executed < 1
+            ):
+                raise CheckerViolation(f"実行結果 {index} の selector 件数が 1 未満")
+            checked_selectors.append(selector)
+        command = cast(str, value["command"])
+        parsed = _pytest_parts(command)
+        expected_selectors = [] if parsed is None else list(parsed[1])
+        if checked_selectors != expected_selectors:
+            raise CheckerViolation(
+                f"実行結果 {index} の selector 集合が command と不一致"
+            )
         checked.append(value)
     commands = [cast(str, value["command"]) for value in checked]
     if len(commands) != len(set(commands)):
@@ -170,7 +323,7 @@ def validate_runtime_evidence(
     if not isinstance(evidence, dict) or set(evidence) != _KEYS:
         raise CheckerViolation("BOOT-ACTIVATION 実行証跡のキー集合が不正")
     value = cast(dict[str, object], evidence)
-    if value.get("schemaVersion") != 2:
+    if value.get("schemaVersion") != 3:
         raise CheckerViolation("BOOT-ACTIVATION 実行証跡の版が不正")
     if value.get("headSha") != current_head_oid(root):
         raise CheckerViolation("BOOT-ACTIVATION 実行証跡が現在 HEAD と一致しない")

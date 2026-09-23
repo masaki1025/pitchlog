@@ -1704,60 +1704,121 @@ def _selected_root_test_jobs(
 
 
 def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
-    """履歴監査から除外した全 command に一意な CI 所有があるか返す。"""
+    """全 step command の宣言所有と CI の実 selector を双方向に突合する。"""
     source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
     steps = {int(step["id"]): step for step in source["steps"]}
-    exclusions = source.get("command_execution_exclusions")
-    if not isinstance(exclusions, list) or not exclusions:
-        return ["command_execution_exclusions が空"]
+    policy = source.get("command_execution_ownership")
+    if not isinstance(policy, dict):
+        return ["command_execution_ownership が無い"]
     jobs = workflow.get("jobs")
     if not isinstance(jobs, dict):
         return ["workflow.jobs が無い"]
     errors: list[str] = []
-    identities: list[tuple[int, str]] = []
-    for exclusion in exclusions:
-        if not isinstance(exclusion, dict):
-            errors.append("command 所有宣言が object でない")
+    actual = {
+        (step_id, command)
+        for step_id, step in steps.items()
+        for command in re.findall(r"`([^`]+)`", str(step.get("command", "")))
+    }
+    ci_rows: list[tuple[int, str, str]] = []
+    groups = policy.get("ciOwnedSingleCommandSteps")
+    if not isinstance(groups, list):
+        return ["ciOwnedSingleCommandSteps が配列でない"]
+    for group in groups:
+        if not isinstance(group, dict):
+            errors.append("単一 command 所有が object でない")
             continue
-        step_id = exclusion.get("stepId")
-        command = exclusion.get("command")
-        owner = exclusion.get("ownerJob")
-        if not isinstance(step_id, int) or not isinstance(command, str):
-            errors.append("command 所有宣言の identity が不正")
+        owner = group.get("ownerJob")
+        step_ids = group.get("stepIds")
+        if not isinstance(owner, str) or not isinstance(step_ids, list):
+            errors.append("単一 command 所有の型が不正")
             continue
-        identities.append((step_id, command))
-        step = steps.get(step_id)
-        declared_commands = (
-            re.findall(r"`([^`]+)`", str(step.get("command", "")))
-            if isinstance(step, dict)
-            else []
+        for step_id in step_ids:
+            step = steps.get(step_id) if isinstance(step_id, int) else None
+            commands = (
+                re.findall(r"`([^`]+)`", str(step.get("command", "")))
+                if isinstance(step, dict)
+                else []
+            )
+            if len(commands) != 1:
+                errors.append(f"ステップ {step_id} が単一 command でない")
+                continue
+            ci_rows.append((step_id, commands[0], owner))
+    overrides = policy.get("ciOwnedCommandOverrides")
+    if not isinstance(overrides, list):
+        return ["ciOwnedCommandOverrides が配列でない"]
+    for row in overrides:
+        if not isinstance(row, dict):
+            errors.append("command 所有上書きが object でない")
+            continue
+        step_id = row.get("stepId")
+        command = row.get("command")
+        owner = row.get("ownerJob")
+        if (
+            not isinstance(step_id, int)
+            or not isinstance(command, str)
+            or not isinstance(owner, str)
+        ):
+            errors.append("command 所有上書きの型が不正")
+            continue
+        ci_rows.append((step_id, command, owner))
+    history_rows = policy.get("historyRunnerCommands")
+    if not isinstance(history_rows, list):
+        return ["historyRunnerCommands が配列でない"]
+    history = {
+        (row.get("stepId"), row.get("command"))
+        for row in history_rows
+        if isinstance(row, dict)
+        and isinstance(row.get("stepId"), int)
+        and isinstance(row.get("command"), str)
+    }
+    ci_identities = [(step_id, command) for step_id, command, _ in ci_rows]
+    ci_set = set(ci_identities)
+    if len(ci_identities) != len(ci_set):
+        errors.append("CI command 所有宣言が重複している")
+    if ci_set & history:
+        errors.append("CI と履歴が同じ command を二重所有している")
+    if ci_set | history != actual:
+        errors.append(
+            "command 所有が実 command と双方向不一致: "
+            f"不足={sorted(actual - ci_set - history)}, "
+            f"未知={sorted((ci_set | history) - actual)}"
         )
-        if command not in declared_commands:
-            errors.append(f"ステップ {step_id} に存在しない command の所有宣言")
-            continue
-        if not isinstance(owner, str) or owner not in jobs:
-            errors.append(f"ステップ {step_id} の owner job が実在しない")
-            continue
+
+    def owners_for(command: str) -> set[str]:
+        """CI 上で command を包含または完全一致実行する job を返す。"""
         if "pytest" in shlex.split(command):
             selectors, _ = _pytest_selection(command)
-            selected_jobs = set().union(
-                *(_selected_root_test_jobs(workflow, path) for path in selectors)
+            if not selectors:
+                return set()
+            selected = [
+                _selected_root_test_jobs(workflow, path) for path in selectors
+            ]
+            return set.intersection(*selected) if selected else set()
+        return {
+            job_name
+            for job_name, job in jobs.items()
+            if isinstance(job_name, str)
+            and isinstance(job, dict)
+            and any(
+                isinstance(item, dict) and item.get("run") == command
+                for item in job.get("steps", [])
             )
-            if selected_jobs != {owner}:
-                errors.append(
-                    f"ステップ {step_id} の pytest 所有が不一致: {sorted(selected_jobs)}"
-                )
-            continue
-        owner_job = jobs[owner]
-        owner_runs = {
-            str(item["run"])
-            for item in owner_job.get("steps", [])
-            if isinstance(item, dict) and "run" in item
         }
-        if command not in owner_runs:
-            errors.append(f"ステップ {step_id} の command を {owner} が実走しない")
-    if len(identities) != len(set(identities)):
-        errors.append("command 所有宣言が重複している")
+
+    for step_id, command, owner in ci_rows:
+        selected_jobs = owners_for(command)
+        if selected_jobs != {owner}:
+            errors.append(
+                f"ステップ {step_id} の command 所有が不一致: "
+                f"declared={owner} actual={sorted(selected_jobs)}"
+            )
+    for step_id, command in history:
+        selected_jobs = owners_for(command)
+        if selected_jobs:
+            errors.append(
+                f"履歴所有 command が CI でも実行される: step={step_id} "
+                f"jobs={sorted(selected_jobs)}"
+            )
     return errors
 
 
@@ -2828,6 +2889,64 @@ def test_current_head_activation_evidence_is_emitted_after_command_and_verified(
     assert evidence["executionDigest"].startswith("sha256:")
 
 
+def _write_activation_selector_fixture(root: Path, relative: str, body: str) -> None:
+    """発効証跡の selector 計測に使う最小 pytest ファイルを書く。"""
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def test_activation_evidence_records_each_pytest_selector_count(
+    tmp_path: Path,
+) -> None:
+    """一括 pytest の各 selector が収集・実行 1 件以上と記録される。"""
+    selectors = (
+        "tests/domain/boot/",
+        "tests/test_plan_generation.py",
+        "tests/test_step_history_audit.py",
+    )
+    for index, selector in enumerate(selectors):
+        relative = (
+            f"{selector}test_boot.py" if selector.endswith("/") else selector
+        )
+        _write_activation_selector_fixture(
+            tmp_path,
+            relative,
+            f"def test_selector_{index}():\n    assert True\n",
+        )
+    command = f"{sys.executable} -m pytest -q {' '.join(selectors)}"
+
+    executions = ACTIVATION.execute_commands(tmp_path, (command,))
+
+    assert [item["selector"] for item in executions[0]["selectors"]] == list(
+        selectors
+    )
+    assert all(item["collectedCount"] == 1 for item in executions[0]["selectors"])
+    assert all(item["executedCount"] == 1 for item in executions[0]["selectors"])
+
+
+def test_activation_evidence_rejects_zero_count_structural_selector(
+    tmp_path: Path,
+) -> None:
+    """boot だけ実行できても計画・履歴 selector が 0 件なら拒否する。"""
+    _write_activation_selector_fixture(
+        tmp_path,
+        "tests/domain/boot/test_boot.py",
+        "def test_boot():\n    assert True\n",
+    )
+    _write_activation_selector_fixture(tmp_path, "tests/test_plan_generation.py", "")
+    _write_activation_selector_fixture(
+        tmp_path, "tests/test_step_history_audit.py", ""
+    )
+    command = (
+        f"{sys.executable} -m pytest -q tests/domain/boot/ "
+        "tests/test_plan_generation.py tests/test_step_history_audit.py"
+    )
+
+    with pytest.raises(ACTIVATION.CheckerViolation, match="1 件以上収集できない"):
+        ACTIVATION.execute_commands(tmp_path, (command,))
+
+
 def test_stale_activation_head_is_rejected() -> None:
     """現在 HEAD と異なる古い実行証跡を受理しない。"""
     command = f'{sys.executable} -c "print(\'1 passed\')"'
@@ -2956,6 +3075,36 @@ def _latest_change_log_version(path: Path) -> str:
     return ".".join(str(part) for part in max(versions))
 
 
+def _document_index_version(index_text: str, label: str) -> str:
+    """文書索引の表から指定文書の「版」列だけを返す。"""
+    lines = index_text.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith("|"):
+            continue
+        headers = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if "文書" not in headers or "版" not in headers:
+            continue
+        document_column = headers.index("文書")
+        version_column = headers.index("版")
+        for row in lines[index + 2 :]:
+            if not row.startswith("|"):
+                break
+            cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            if len(cells) != len(headers):
+                raise AssertionError("文書索引表の列数が不正")
+            if f"[{label}]" in cells[document_column]:
+                return cells[version_column]
+    raise AssertionError(f"文書索引の版列を読めない: {label}")
+
+
+def _assert_document_index_version(
+    index_text: str, label: str, expected: str
+) -> None:
+    """索引の版列が正本の現行版と完全一致することを検査する。"""
+    actual = _document_index_version(index_text, label)
+    assert actual == expected, (label, expected, actual)
+
+
 def test_harness_job_table_and_document_index_are_current() -> None:
     """10.1 の実装済み 2 ジョブと索引の最終更新日を固定する。"""
     design_text = HARNESS_DESIGN_PATH.read_text(encoding="utf-8")
@@ -2979,12 +3128,29 @@ def test_harness_job_table_and_document_index_are_current() -> None:
         ("GitHub リポジトリ設定手順", GITHUB_SETUP_PATH),
     ):
         canon_version = _latest_change_log_version(path)
-        index_row = next(
-            (line for line in index_text.splitlines() if f"[{label}]" in line),
-            None,
-        )
-        assert index_row is not None, label
-        assert canon_version in index_row, (label, canon_version)
+        _assert_document_index_version(index_text, label, canon_version)
+
+
+def test_document_index_rejects_stale_version_column_with_current_description(
+) -> None:
+    """説明欄に現行版が残っていても版列だけ古ければ拒否する。"""
+    index_text = DOCS_INDEX_PATH.read_text(encoding="utf-8")
+    label = "開発ハーネス設計書"
+    expected = _latest_change_log_version(HARNESS_DESIGN_PATH)
+    lines = index_text.splitlines()
+    row_index = next(
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("|") and f"[{label}]" in line
+    )
+    cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
+    assert expected in cells[1], "負例は説明欄に現行版を残さなければならない"
+    cells[2] = "0.0"
+    lines[row_index] = "| " + " | ".join(cells) + " |"
+    mutated = "\n".join(lines)
+
+    with pytest.raises(AssertionError):
+        _assert_document_index_version(mutated, label, expected)
 
 
 def test_root_tests_have_exactly_one_owner_job() -> None:
@@ -3004,8 +3170,8 @@ def test_root_tests_have_exactly_one_owner_job() -> None:
     assert violations == {}
 
 
-def test_history_command_exclusions_have_exact_ci_owners() -> None:
-    """履歴監査の全除外が別ジョブで一度は実走されることを集合差で示す。"""
+def test_every_step_command_has_exactly_one_ci_or_history_owner() -> None:
+    """全 command の CI・履歴所有を双方向集合差で示す。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
     assert _history_command_owner_errors(workflow) == []
@@ -3021,8 +3187,16 @@ def test_history_command_exclusion_without_owner_execution_is_red() -> None:
         if step.get("run") != "pnpm run build"
     ]
 
+    assert any("command 所有が不一致" in error for error in _history_command_owner_errors(workflow))
+
+
+def test_history_owned_command_also_executed_by_ci_is_red() -> None:
+    """未除外 command を別ジョブでも実行する逆向きの二重所有を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    workflow["jobs"]["harness"]["steps"].append({"run": "uv sync --locked"})
+
     assert any(
-        "command を frontend が実走しない" in error
+        "履歴所有 command が CI でも実行される" in error
         for error in _history_command_owner_errors(workflow)
     )
 

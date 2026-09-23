@@ -258,7 +258,7 @@
       "stepId": 52,
       "evidenceId": "pb-step-52-test-real-repository-commands-actually-r",
       "testPath": "tests/test_step_history_audit.py",
-      "testName": "test_real_repository_commands_actually_run_and_report_nonempty_scope"
+      "testName": "test_history_owned_commands_actually_run_and_report_nonempty_scope"
     },
     {
       "stepId": 53,
