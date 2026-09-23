@@ -83,6 +83,7 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv sync --locked --dev
+      - run: uv run python scripts/check_frozen_baselines.py --ci
       - run: uv run ruff check .
       - run: uv run ty check
       - run: uv run pytest -c pyproject.toml tests/
