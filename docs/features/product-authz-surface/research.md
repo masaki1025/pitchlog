@@ -202,13 +202,13 @@ date: 2026-09-24
 
 ### 5. 移行バッチ用ロール
 
-- **書き込み先の正**は 12-3 節の不変条件 1「そのバッチが作った行のすべて」(`data-model.md:295`・`:2367`)。**閉じた表集合ではないので、そのままでは exact-set にできない**。design.md は「機械可読資産で閉じ、正本記述との対応を検査する」と申し送っている(`:233-236`)
+- **書き込み先の正**は 12-3 節の不変条件 1「そのバッチが作った行のすべて」(`data-model.md:295`・`:2367`)。**閉じた表集合ではないので、そのままでは exact-set にできない**。U-T1 の design.md は「機械可読資産で閉じ、正本記述との対応を検査する」と申し送っている(`../tenant-boundary-enforcement/design.md:233-236`)
 - 物理的な材料: `import_batch_id` を持つ 18 表と `migration_runs`。ただし、**この集合から次の 2 表が漏れる**:
   - `event_slots`: `import_batch_id` を持たない(`schema-manifest.json:287-298`、`migration_retirement: 持たない`、**原典確認済み**)。それでも `operation_events` が FK で参照する(:340)ので、**バッチはスロット行も INSERT する必要がある**。これは正本 12-3 の不変条件 1(移行が作る行はすべて取り込みバッチ識別子を持つ — `data-model.md:2367`)とスキーマの食い違いである。`medical_note_versions` も識別子を持たないが、`medical_notes` を参照する子表であり `event_slots` と同じ形ではない。移行がこの表に行を作るかどうかは正本から読み取れない(計画レビュー 1 周目 1-P0-7 で訂正)
   - `admin_operation_logs`: 監査先だが `import_batch_id` を持たない(:849)
 - **テナント横断**: バッチは `tenants` 行そのものを作る(ファンアウト 5 手順 — `data-model.md:1376-1384`、`tenants.import_batch_id` — manifest :36)。書き込み先には、`tenant_id` を持たない表(隔離・レポート・バッチ)も含まれる
 - **繰り返し有効化できる形が要る**: 何度でもやり直せる(要件書 `:788`)。やり直しは退役し、新しいバッチ識別子で再投入する(`data-model.md:2361-2372`)。段階移行も否定していない(`:304`)。`migration_runs` は `completed_at` と `retired_at` を別に持つ
-- 実運用の移行実行(FR-038)は本タスクの射程外(`design.md:237`)。旧 DB は読むだけ(要件書 `:788`)
+- 実運用の移行実行(FR-038)は本タスクの射程外(`../tenant-boundary-enforcement/design.md:237`)。旧 DB は読むだけ(要件書 `:788`)
 
 ## 未解決・申し送り(/plan で扱う。★ は人間の裁定が要る)
 
