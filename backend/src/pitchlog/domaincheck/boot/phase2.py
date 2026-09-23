@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -182,11 +183,16 @@ def _positive_integer(value: object, label: str) -> int:
     return value
 
 
-def load_target_universe(root: Path) -> TargetUniverse:
+def load_target_universe(
+    root: Path,
+    *,
+    read_asset: Callable[[Path], object] = read_json,
+) -> TargetUniverse:
     """封印資産と対象導出規則から母集合を読む。
 
     Args:
         root: リポジトリルート。
+        read_asset: 読み取った規範資産を呼出側が観測できる JSON reader。
 
     Returns:
         要件書対象欄に由来する安定 ID と名称の母集合。
@@ -194,8 +200,8 @@ def load_target_universe(root: Path) -> TargetUniverse:
     Raises:
         CheckerExecutionError: 資産の形または導出元の接続が不正な場合。
     """
-    boot_seal = _object(read_json(root / _BOOT_SEAL_ASSET), "boot-seal")
-    check_sets = _object(read_json(root / _CHECK_SETS_ASSET), "check-sets")
+    boot_seal = _object(read_asset(root / _BOOT_SEAL_ASSET), "boot-seal")
+    check_sets = _object(read_asset(root / _CHECK_SETS_ASSET), "check-sets")
     sources = _object(boot_seal.get("sources"), "boot-seal.sources")
     target_rule = _object(
         sources.get("targetRule"),
@@ -416,6 +422,8 @@ def evaluate_phase2(
     state: StallState,
     before: SemanticSnapshot,
     after: SemanticSnapshot,
+    *,
+    read_asset: Callable[[Path], object] = read_json,
 ) -> Phase2Decision:
     """資産から母集合を読み、PR の意味差分を判定する。
 
@@ -424,8 +432,14 @@ def evaluate_phase2(
         state: ステップ 17 が定義する状態。
         before: PR 適用前の意味実測。
         after: PR 適用後の意味実測。
+        read_asset: 読み取った規範資産を呼出側が観測できる JSON reader。
 
     Returns:
         対象単位の段階 2 判定。
     """
-    return classify_phase2(state, load_target_universe(root), before, after)
+    return classify_phase2(
+        state,
+        load_target_universe(root, read_asset=read_asset),
+        before,
+        after,
+    )

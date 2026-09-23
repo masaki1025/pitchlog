@@ -96,8 +96,17 @@ CONSISTENCY_PYTEST_COMMAND = (
 )
 MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
 MUTATION_BACKEND_SYNC_STEP = ({"run": "uv sync --project backend --locked --dev"},)
+ACTIVATION_EVIDENCE_PATH = "/tmp/boot-activation-runtime.json"
+ACTIVATION_UPLOAD_STEP = {
+    "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "with": {
+        "name": "boot-activation-evidence",
+        "path": ACTIVATION_EVIDENCE_PATH,
+        "if-no-files-found": "error",
+    },
+}
 # 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
-EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 138
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 130
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -1235,39 +1244,8 @@ def _ci_wiring_errors(
     return errors
 
 
-# `BOOT-REPORT` は「出力のない緑は本規定の充足とみなさない」と定めるので、
-# `consistency` だけは所有テストの前に実状態への出力とその存在確認を挟む。
-# 期待値へ明示することで、この 2 step を黙って外せないようにする。
-# ステップ 52 の履歴監査は全 command を実走し、ステップ 45・46 が pnpm を使う。
-# frontend ジョブと同じ Node 準備を consistency にも持たせる必要があり、
-# 期待値へ明示することで黙って外せないようにする。
-CONSISTENCY_NODE_SETUP_STEPS: tuple[dict[str, Any], ...] = (
-    {
-        "uses": (
-            "jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518"
-        ),
-        "with": {"version": "2026.8.6", "install": True, "cache": False},
-    },
-    {"run": "corepack enable"},
-    {"run": "pnpm install --frozen-lockfile", "working-directory": "frontend"},
-)
-
-BOOT_REPORT_EMIT_STEPS: tuple[dict[str, Any], ...] = (
-    {
-        "run": (
-            "uv run python -m pitchlog.domaincheck.activation_evidence "
-            "--root . --output /tmp/boot-activation-runtime.json "
-            '--run-id "${{ github.run_id }}" --event "${{ github.event_name }}"'
-        ),
-        "env": {"PYTHONPATH": "backend/src"},
-    },
-    {
-        "run": (
-            "uv run python -m pitchlog.domaincheck.activation_evidence "
-            "--root . --output /tmp/boot-activation-runtime.json --verify"
-        ),
-        "env": {"PYTHONPATH": "backend/src"},
-    },
+# `BOOT-REPORT` と BOOT-ACTIVATION の実行後証跡を consistency の厳密な契約木へ含める。
+CONSISTENCY_EXTRA_STEPS: tuple[dict[str, Any], ...] = (
     {
         "run": "uv run python -m pitchlog.domaincheck.boot.report --root .",
         "env": {"PYTHONPATH": "backend/src"},
@@ -1276,6 +1254,24 @@ BOOT_REPORT_EMIT_STEPS: tuple[dict[str, Any], ...] = (
         "run": "uv run python -m pitchlog.domaincheck.boot.report --root . --verify",
         "env": {"PYTHONPATH": "backend/src"},
     },
+    {
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            f"--root . --output {ACTIVATION_EVIDENCE_PATH} "
+            '--run-id "${{ github.run_id }}" --event "${{ github.event_name }}" '
+            f'--execute-command "{CONSISTENCY_PYTEST_COMMAND}"'
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    {
+        "run": (
+            "uv run python -m pitchlog.domaincheck.activation_evidence "
+            f"--root . --output {ACTIVATION_EVIDENCE_PATH} --verify "
+            f'--expected-command "{CONSISTENCY_PYTEST_COMMAND}"'
+        ),
+        "env": {"PYTHONPATH": "backend/src"},
+    },
+    ACTIVATION_UPLOAD_STEP,
 )
 
 
@@ -1283,6 +1279,8 @@ def _expected_new_job_steps(
     workflow: dict[str, Any],
     pytest_command: str,
     extra_steps: tuple[dict[str, Any], ...] = (),
+    *,
+    direct_pytest: bool = True,
 ) -> list[dict[str, Any]]:
     """harness と同じ準備を行う新設ジョブの期待 steps を返す。
 
@@ -1290,6 +1288,7 @@ def _expected_new_job_steps(
         workflow: CI workflow の構造。
         pytest_command: 所有する pytest コマンド。
         extra_steps: 所有テストの前に挟む固有の step。
+        direct_pytest: pytest を直接起動する step を末尾へ加えるか。
 
     Returns:
         checkout・uv 準備・固有 step・所有テスト実行の厳密な配列。
@@ -1297,11 +1296,13 @@ def _expected_new_job_steps(
     harness_steps = _harness_job(workflow).get("steps")
     assert isinstance(harness_steps, list)
     assert len(harness_steps) >= 4
-    return [
+    expected = [
         *copy.deepcopy(harness_steps[:4]),
         *copy.deepcopy(list(extra_steps)),
-        {"run": pytest_command},
     ]
+    if direct_pytest:
+        expected.append({"run": pytest_command})
+    return expected
 
 
 def _job_invokes_backend_tests(job_name: str, job: dict[str, Any]) -> bool:
@@ -1395,9 +1396,8 @@ def _domain_ci_wiring_errors(
             "steps": _expected_new_job_steps(
                 workflow,
                 CONSISTENCY_PYTEST_COMMAND,
-                BOOT_REPORT_EMIT_STEPS[:2]
-                + CONSISTENCY_NODE_SETUP_STEPS
-                + BOOT_REPORT_EMIT_STEPS[2:],
+                CONSISTENCY_EXTRA_STEPS,
+                direct_pytest=False,
             ),
         },
         "mutation": {
@@ -1486,6 +1486,17 @@ def _selector_contains(selector: str, test_path: str) -> bool:
     return test_path == selector or test_path.startswith(f"{selector}/")
 
 
+def _executed_commands(command: str) -> tuple[str, ...]:
+    """CI step 自身と、発効証跡器が実際に起動する内側 command を返す。"""
+    tokens = shlex.split(command)
+    nested = [
+        tokens[index + 1]
+        for index, token in enumerate(tokens[:-1])
+        if token == "--execute-command"
+    ]
+    return (command, *nested)
+
+
 def _selected_root_test_jobs(
     workflow: dict[str, Any], test_path: str
 ) -> set[str]:
@@ -1512,17 +1523,78 @@ def _selected_root_test_jobs(
             if not isinstance(step, dict):
                 continue
             command = step.get("run")
-            if not isinstance(command, str) or "pytest" not in shlex.split(command):
+            if not isinstance(command, str):
                 continue
             working_directory = step.get("working-directory", job_directory)
             if working_directory not in (None, "."):
                 continue
-            selectors, ignored = _pytest_selection(command)
-            if any(_selector_contains(path, test_path) for path in ignored):
-                continue
-            if any(_selector_contains(path, test_path) for path in selectors):
-                selected.add(job_name)
+            for executed in _executed_commands(command):
+                if "pytest" not in shlex.split(executed):
+                    continue
+                selectors, ignored = _pytest_selection(executed)
+                if any(_selector_contains(path, test_path) for path in ignored):
+                    continue
+                if any(_selector_contains(path, test_path) for path in selectors):
+                    selected.add(job_name)
     return selected
+
+
+def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
+    """履歴監査から除外した全 command に一意な CI 所有があるか返す。"""
+    source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
+    steps = {int(step["id"]): step for step in source["steps"]}
+    exclusions = source.get("command_execution_exclusions")
+    if not isinstance(exclusions, list) or not exclusions:
+        return ["command_execution_exclusions が空"]
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return ["workflow.jobs が無い"]
+    errors: list[str] = []
+    identities: list[tuple[int, str]] = []
+    for exclusion in exclusions:
+        if not isinstance(exclusion, dict):
+            errors.append("command 所有宣言が object でない")
+            continue
+        step_id = exclusion.get("stepId")
+        command = exclusion.get("command")
+        owner = exclusion.get("ownerJob")
+        if not isinstance(step_id, int) or not isinstance(command, str):
+            errors.append("command 所有宣言の identity が不正")
+            continue
+        identities.append((step_id, command))
+        step = steps.get(step_id)
+        declared_commands = (
+            re.findall(r"`([^`]+)`", str(step.get("command", "")))
+            if isinstance(step, dict)
+            else []
+        )
+        if command not in declared_commands:
+            errors.append(f"ステップ {step_id} に存在しない command の所有宣言")
+            continue
+        if not isinstance(owner, str) or owner not in jobs:
+            errors.append(f"ステップ {step_id} の owner job が実在しない")
+            continue
+        if "pytest" in shlex.split(command):
+            selectors, _ = _pytest_selection(command)
+            selected_jobs = set().union(
+                *(_selected_root_test_jobs(workflow, path) for path in selectors)
+            )
+            if selected_jobs != {owner}:
+                errors.append(
+                    f"ステップ {step_id} の pytest 所有が不一致: {sorted(selected_jobs)}"
+                )
+            continue
+        owner_job = jobs[owner]
+        owner_runs = {
+            str(item["run"])
+            for item in owner_job.get("steps", [])
+            if isinstance(item, dict) and "run" in item
+        }
+        if command not in owner_runs:
+            errors.append(f"ステップ {step_id} の command を {owner} が実走しない")
+    if len(identities) != len(set(identities)):
+        errors.append("command 所有宣言が重複している")
+    return errors
 
 
 def _step_test_paths(first: int, last: int) -> tuple[str, ...]:
@@ -2425,42 +2497,93 @@ def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
     )
 
 
-def test_current_head_activation_evidence_is_emitted_and_verified() -> None:
-    """現在 HEAD に束縛した証跡が実際に通る。"""
+def test_current_head_activation_evidence_is_emitted_after_command_and_verified() -> None:
+    """成功 command と現在 HEAD に束縛した証跡が実際に通る。"""
+    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
     evidence = ACTIVATION.build_runtime_evidence(
         REPOSITORY_ROOT,
-        run_id="local-positive",
-        event="local",
+        run_id="123",
+        event="workflow_dispatch",
+        executions=executions,
     )
 
-    ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, evidence)
+    ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, evidence, (command,))
     assert evidence["headSha"] == ACTIVATION.current_head_oid(REPOSITORY_ROOT)
+    assert evidence["executions"][0]["exitCode"] == 0
+    assert evidence["executionDigest"].startswith("sha256:")
 
 
 def test_stale_activation_head_is_rejected() -> None:
     """現在 HEAD と異なる古い実行証跡を受理しない。"""
+    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
     evidence = ACTIVATION.build_runtime_evidence(
         REPOSITORY_ROOT,
-        run_id="local-stale-negative",
-        event="local",
+        run_id="124",
+        event="workflow_dispatch",
+        executions=executions,
     )
     stale = copy.deepcopy(evidence)
     stale["headSha"] = "0" * 40
     with pytest.raises(ACTIVATION.CheckerViolation, match="現在 HEAD"):
-        ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, stale)
+        ACTIVATION.validate_runtime_evidence(REPOSITORY_ROOT, stale, (command,))
+
+
+def test_failed_activation_command_creates_no_evidence(tmp_path: Path) -> None:
+    """対象 command が落ちた場合は証跡を生成しない。"""
+    output = tmp_path / "activation.json"
+    command = f'{sys.executable} -c "raise SystemExit(7)"'
+
+    result = ACTIVATION.main(
+        [
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--output",
+            str(output),
+            "--run-id",
+            "125",
+            "--event",
+            "workflow_dispatch",
+            "--execute-command",
+            command,
+        ]
+    )
+
+    assert result == 2
+    assert not output.exists()
 
 
 def test_consistency_wires_current_head_activation_verification() -> None:
-    """consistency が実行時証跡を作成し、同じ HEAD で再検証する。"""
+    """consistency が対象実行後に証跡を作り、検証・保存する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["consistency"]["steps"]
     runs = _consistency_run_steps(workflow)
     activation_runs = [
         command for command in runs if "domaincheck.activation_evidence" in command
     ]
+    execute_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "--execute-command" in str(step.get("run", ""))
+    )
+    verify_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "activation_evidence" in str(step.get("run", ""))
+        and "--verify" in str(step.get("run", ""))
+    )
+    upload_index = next(
+        index
+        for index, step in enumerate(steps)
+        if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+    )
 
     assert len(activation_runs) == 2
-    assert any("--verify" not in command for command in activation_runs)
+    assert any("--execute-command" in command for command in activation_runs)
     assert any("--verify" in command for command in activation_runs)
+    assert execute_index < verify_index < upload_index
+    assert CONSISTENCY_PYTEST_COMMAND in activation_runs[0]
 
 
 def test_missing_activation_evidence_is_red() -> None:
@@ -2531,6 +2654,40 @@ def test_root_tests_have_exactly_one_owner_job() -> None:
 
     assert test_paths
     assert violations == {}
+
+
+def test_history_command_exclusions_have_exact_ci_owners() -> None:
+    """履歴監査の全除外が別ジョブで一度は実走されることを集合差で示す。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert _history_command_owner_errors(workflow) == []
+
+
+def test_history_command_exclusion_without_owner_execution_is_red() -> None:
+    """所有先から command を外して「除外=未検査」にすると不合格にする。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    frontend = workflow["jobs"]["frontend"]
+    frontend["steps"] = [
+        step
+        for step in frontend["steps"]
+        if step.get("run") != "pnpm run build"
+    ]
+
+    assert any(
+        "command を frontend が実走しない" in error
+        for error in _history_command_owner_errors(workflow)
+    )
+
+
+def test_consistency_does_not_prepare_other_job_runtimes() -> None:
+    """所有分離後の consistency に Node や PostgreSQL の準備を持ち込まない。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    consistency = workflow["jobs"]["consistency"]
+    serialized = json.dumps(consistency, ensure_ascii=False)
+
+    assert "mise-action" not in serialized
+    assert "pnpm install" not in serialized
+    assert "services" not in consistency
 
 
 @pytest.mark.parametrize(

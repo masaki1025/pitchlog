@@ -246,6 +246,25 @@ def test_machine_trigger_cannot_be_marked_without_measured_condition(
         )
 
 
+def test_machine_trigger_rejects_pytest_option_instead_of_node_id(
+    tmp_path: Path,
+) -> None:
+    """`--version` で 0 件評価のまま非発火にできない。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    evidence["machineEvaluations"][0]["testNodes"] = ["--version"]
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="path::test_function",
+    ):
+        COMPLETION.validate_trigger_completion(
+            REGISTRY_PATH,
+            ROOT,
+            as_of_step=57,
+            evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

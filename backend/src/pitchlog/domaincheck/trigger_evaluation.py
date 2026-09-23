@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
+import tempfile
+import xml.etree.ElementTree as ET
 from collections.abc import Collection, Mapping
 from datetime import date
 from functools import cache
@@ -29,6 +32,26 @@ _MANUAL_KEYS = frozenset(
         "evidenceDigest",
     }
 )
+_NODE_ID = re.compile(
+    r"(?P<path>tests/(?:[A-Za-z0-9_-]+/)*test_[A-Za-z0-9_]+\.py)"
+    r"::(?P<function>test_[A-Za-z0-9_]+)"
+)
+_MACHINE_TRIGGER_FILES: dict[int, frozenset[str]] = {
+    3: frozenset({"tests/domain/gen/test_formatter.py"}),
+    4: frozenset({"tests/domain/test_path_match.py"}),
+    6: frozenset(
+        {
+            "tests/domain/test_collect_fe.py",
+            "tests/domain/test_closure_be.py",
+            "tests/domain/test_display_binding.py",
+        }
+    ),
+    9: frozenset({"tests/domain/test_history_depth.py"}),
+    12: frozenset({"tests/domain/mut/test_cost_record.py"}),
+    13: frozenset({"tests/domain/test_display_binding.py"}),
+    14: frozenset({"tests/domain/test_collect_layers.py"}),
+    16: frozenset({"tests/domain/test_step_authorities.py"}),
+}
 
 
 class TriggerEvaluationError(CheckerExecutionError):
@@ -104,15 +127,94 @@ def evidence_digest(root: Path, location: str) -> str:
 
 @cache
 def _run_test_nodes(root_text: str, nodes: tuple[str, ...]) -> bool:
-    """発火条件に対応する独立テストを実行し、失敗があれば発火とする。"""
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", *nodes],
-        cwd=Path(root_text),
+    """Node を収集・実行し、assertion failure があれば発火とする。"""
+    root = Path(root_text)
+    collected = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", *nodes],
+        cwd=root,
         capture_output=True,
         text=True,
         check=False,
     )
-    return result.returncode != 0
+    collected_count = sum(
+        1 for line in collected.stdout.splitlines() if _NODE_ID.fullmatch(line.strip())
+    )
+    if collected.returncode != 0 or collected_count < 1:
+        raise TriggerEvaluationError(
+            "機械トリガーの pytest node を 1 件以上収集できない"
+        )
+    with tempfile.TemporaryDirectory(prefix="pitchlog-trigger-") as directory:
+        junit_path = Path(directory) / "junit.xml"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                f"--junitxml={junit_path}",
+                *nodes,
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        try:
+            junit = ET.parse(junit_path).getroot()
+            suites = (
+                [junit]
+                if junit.tag == "testsuite"
+                else list(junit.findall("testsuite"))
+            )
+            executed_count = sum(
+                int(suite.attrib.get("tests", "0")) for suite in suites
+            )
+        except (OSError, ET.ParseError, ValueError) as error:
+            raise TriggerEvaluationError(
+                "機械トリガーの pytest 実行件数を読めない"
+            ) from error
+    if executed_count < 1:
+        raise TriggerEvaluationError("機械トリガーを 1 件も実行していない")
+    if result.returncode not in {0, 1}:
+        raise TriggerEvaluationError(
+            f"機械トリガーの pytest が判定不能: exit={result.returncode}"
+        )
+    return result.returncode == 1
+
+
+def _validated_machine_nodes(
+    root: Path,
+    trigger_id: int,
+    raw_nodes: object,
+) -> tuple[str, ...]:
+    """Node ID 文法・対象ファイル・関数実在を閉じて返す。"""
+    nodes_raw = _array(raw_nodes, "machine.testNodes")
+    if not nodes_raw or not all(isinstance(node, str) for node in nodes_raw):
+        raise TriggerEvaluationError("machine.testNodes が空または文字列でない")
+    nodes = tuple(cast(list[str], nodes_raw))
+    matches = [_NODE_ID.fullmatch(node) for node in nodes]
+    if any(match is None for match in matches):
+        raise TriggerEvaluationError(
+            "machine.testNodes は path::test_function 形式でなければならない"
+        )
+    paths = frozenset(match.group("path") for match in matches if match is not None)
+    expected_paths = _MACHINE_TRIGGER_FILES.get(trigger_id)
+    if expected_paths is None or paths != expected_paths:
+        raise TriggerEvaluationError(
+            f"トリガー {trigger_id} の対象ファイルが固定対応と違う"
+        )
+    for node, match in zip(nodes, matches, strict=True):
+        assert match is not None
+        path = root / match.group("path")
+        if not path.is_file():
+            raise TriggerEvaluationError(f"pytest node のファイルが実在しない: {node}")
+        source = path.read_text(encoding="utf-8")
+        function_pattern = rf"^def {re.escape(match.group('function'))}\("
+        if re.search(function_pattern, source, re.MULTILINE) is None:
+            raise TriggerEvaluationError(f"pytest node の関数が実在しない: {node}")
+    if len(nodes) != len(set(nodes)):
+        raise TriggerEvaluationError("machine.testNodes が重複している")
+    return nodes
 
 
 def _evaluation_fired(row: Mapping[str, object]) -> bool | None:
@@ -180,12 +282,15 @@ def validate_recorded_evaluations(
         if set(item) != _MACHINE_KEYS:
             raise TriggerEvaluationError("machineEvaluations のキー集合が不正")
         identifier = _trigger_id(item.get("triggerId"), "machine.triggerId")
-        nodes_raw = _array(item.get("testNodes"), "machine.testNodes")
-        if not nodes_raw or not all(
-            isinstance(node, str) and node for node in nodes_raw
-        ):
-            raise TriggerEvaluationError("machine.testNodes が空または不正")
-        machine_by_id[identifier] = tuple(cast(list[str], nodes_raw))
+        if identifier in machine_by_id:
+            raise TriggerEvaluationError(
+                "machineEvaluations の triggerId が重複している"
+            )
+        machine_by_id[identifier] = _validated_machine_nodes(
+            root,
+            identifier,
+            item.get("testNodes"),
+        )
     expected_machine = {
         identifier for identifier, row in by_id.items() if "機械" in _judges(row)
     }
