@@ -518,3 +518,75 @@ frozen-baselines: ERROR: implementation_bindings の code_assets の sha256 が�
 | `uv run pytest tests/` / `ruff check .` / `ty check` green | ✅ **1431 passed** |
 | 差分が許可範囲 | ✅ `check_authz_catalog.py` / `check_docs_status.py` / `.github/` / `backend/` / `.claude/` / `docs/` は無変更。台帳の差分は digest のみ |
 | production の allow-list を作っていない | ✅ |
+
+### ステップ 5/8 — 移設(`oracle_input`)と走査の実結線
+
+**本タスクの中心。前任の PR #63 が 3 周連続で `P0` を出した箇所。**
+
+**成果物**: `scripts/check_authz_catalog.py:109` の `ORACLE_INPUT_BASELINE_COMMIT` を削除し、消費点(現 `:5014`)を台帳読み取りへ / `scripts/frozen_baselines.py` に `load_latest_series_identity` を追加 / 走査を実リポジトリへ結線 / **`scripts/frozen-baseline-scan-allowlist.json` を新設(10 組)** / `tests/test_frozen_baseline_declarations.py`(宣言 4 要素の感度)。
+
+**1436 passed**(9:55)・`ruff check .` / `ty check` green・`check_authz_catalog.py` exit 0・`check_frozen_baselines.py --invariants-only` exit 0。
+
+#### 核心 — 宣言が挙動を選択している証拠(自分で再現した)
+
+前任の失敗の機構的実体は「**戦略関数が期待値を知っていたので、no-op でも期待値を返せた**」ことだった。依頼文に「**①検査器が red になるだけでは証拠にならない。②その対象を改ざんしても検知されなくなることまで示せ**」と明記し、**②を委任先の申告ではなく自分で再現した**。
+
+戦略関数を直接呼び、素材の片方を改ざんして導出集合を比較した:
+
+| 宣言の状態 | `boundary-proposal.json` を改ざん | 導出集合 |
+| --- | --- | --- |
+| **全 7 対象を宣言** | あり | `{24ef4fcc}` → **`{00000000, 24ef4fcc}`** = **検知** |
+| **その 1 件を宣言から外す** | あり | `{24ef4fcc}` → `{24ef4fcc}` = **検知されない** |
+
+> **戦略が期待値を知っているだけなら、この非対称は生じない。**宣言が監視対象を実際に選択している。**前任の失敗モードが構造的に排除されている。**
+
+#### 逆向き変異(自分で 3 種・復元はいずれもバイト一致)
+
+| 入れた変異 | 結果 |
+| --- | --- |
+| 台帳の識別値を `24ef…` → `04ef…` | `check_authz_catalog.py` **exit 1**「boundary proposal の oracle_commit が基準版と不一致」。復元後 exit 0 |
+| **台帳読み取りを 40 桁定数へ戻す** | **走査が red** —「走査で見つかったが allow-list にない: `(scripts/check_authz_catalog.py, 24ef4fcc…)`」。**直書きの復活を走査が捕まえる** |
+| 消費点の比較を `if False` へ | 既存テスト **ちょうど 1 件**(`test_boundary_proposal_base_leaves_follow_the_approved_classification`)が失敗。**早期 red で通っていない** |
+
+#### `identity` / `granularity` / `basis_series` — 合成 fixture で感度
+
+production は **1 系列・1 strategy** しかなく別の有効値が存在しない(4 周目 `P1-2`)。依頼文で「**production の `COMPARISON_STRATEGIES` を増やすな**(増やすと `implementation_bindings.strategy_keys` の exact-set が変わり規範状態の変更になる)/ 増やすしかないと判断したら実装せず報告せよ」と制約した。
+
+**制約は守られた**(自分で確認): production の registry は 1 件のまま、台帳の `strategy_keys` も 1 件のまま。合成テストは**複製へ注入**し、さらに **production が汚れていないことをテスト自身が assert** している。
+
+#### allow-list — 委任前に自分で導出した表と完全一致
+
+委任前に `(パス, 値)` の組で分類した表と、生成された allow-list を 1 行ずつ突合した。**10 組すべて一致**(恒久 6 + `pending_removal` 4・パスと値とも)。
+
+**恒久 6 組**はすべて nfr021 系の合成ダミー値。**`tests/test_verify_nfr021_evidence.py` は同一値が 5 出現で 1 組**なので、識別単位を組にしていないと必ず数がずれる(前任が取り違えた層)。
+
+**走査の終端**: 40 桁 **13 出現 / 9 組**・64 桁 **1 / 1** — 計画書の終端値と一致。
+
+#### 台帳の差分が digest のみで `history` を増やしていない件(妥当と判断)
+
+`implementation_bindings.code_assets` の digest だけが動き、`history` へ記録を足していない。**妥当**と判断した根拠:
+
+- `implementation_bindings` は**凍結基準ではなく実ファイルを写す binding** で、検査器が**再計算して照合する**。記録は独立した主張を持たない
+- 構造(束ねるファイルの集合 `CODE_ASSET_PATHS`)は**検査器側の定数**なので、増減は閉じている
+- `movement_rules.triggers` のどれにも当たらない
+- 本 PR は base に台帳が無い**初回 bootstrap** であり、同一 `(acceptance_id, series)` の追記は一意制約に反する
+
+#### 範囲の確認(前回の scope 違反を受けた手順)
+
+`backend/` / `.github/` / `.claude/` / `docs/` / `scripts/check_docs_status.py` はすべて**無変更**。`contracts/authz/` は台帳のみで**既存 8 資産の再封印なし**(= 新たな 2 段コミット区間を持ち込んでいない)。`AUTHZ_STEP2_BASE_REVISION` も動いていない。
+
+**リーダは 1 本のみ**(`frozen_baselines.load_latest_series_identity`)。NFR-018 の重複実装なし。
+
+#### 合格条件の判定
+
+| 条件 | 結果 |
+| --- | --- |
+| `check_authz_catalog.py` exit 0 | ✅ |
+| 走査 40 桁 13 出現 / 9 組・allow-list 10 組(恒久 6 + pending 4) | ✅ **独立導出と完全一致** |
+| 台帳の値を誤った値へ変えると red | ✅ 実測 |
+| **宣言の 4 要素すべてに独立した変異** | ✅ `frozen_targets` は**①②両方を自分で再現**/ 他 3 つは合成 fixture |
+| 消費点を no-op へ変異させると既存負例が落ちる | ✅ ちょうど 1 件 |
+| 台帳読み取りを定数へ戻すと走査が red | ✅ 実測 |
+| 負例 28 件のまま | ✅ |
+| `uv run pytest tests/` / `ruff` / `ty` green | ✅ **1436 passed** |
+| production の戦略 registry が 1 件のまま | ✅ |

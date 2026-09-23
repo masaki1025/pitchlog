@@ -19,6 +19,7 @@ from typing import Any, Final
 
 from frozen_baselines import (
     COMPARISON_STRATEGIES,
+    ComparisonStrategy,
     FrozenBaselineError,
     IdentityValue,
     collect_materials,
@@ -29,6 +30,7 @@ from frozen_baselines import (
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 LEDGER_PATH = Path("contracts/authz/frozen-baselines.json")
 SCHEMA_PATH = Path("contracts/authz/frozen-baselines.schema.json")
+SCAN_ALLOWLIST_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 SCAN_SOURCE_ROOTS: Final[tuple[str, ...]] = ("scripts", "tests", "backend/tests")
 SCAN_ALLOWLIST_ROOT_KEYS: Final[frozenset[str]] = frozenset(
     {"schema_version", "asset_kind", "entries"}
@@ -157,6 +159,8 @@ class _SourceScan:
     """本文走査の出現回数と一意な組を保持する。"""
 
     occurrences: int
+    occurrences_40: int
+    occurrences_64: int
     pairs: frozenset[_ScanKey]
 
 
@@ -605,8 +609,10 @@ def _latest_history_by_series(ledger: dict[str, Any]) -> dict[str, dict[str, Any
 def _derive_current_identities(
     root: Path,
     ledger: dict[str, Any],
+    strategies: Mapping[tuple[str, str], ComparisonStrategy] | None = None,
 ) -> dict[str, frozenset[IdentityValue]]:
-    """宣言から素材を収集しregistry戦略で現在の識別値を導出する。"""
+    """宣言から素材を収集し指定registry戦略で現在の識別値を導出する。"""
+    strategy_registry = COMPARISON_STRATEGIES if strategies is None else strategies
     declarations = _expect_object(ledger["declarations"], "declarations")
     used_strategy_keys: set[tuple[str, str]] = set()
     derived: dict[str, frozenset[IdentityValue]] = {}
@@ -618,7 +624,7 @@ def _derive_current_identities(
                 f"declarations.{series}.basis_series が未知系列を参照している: {basis_series}"
             )
         strategy_key = (str(declaration["identity"]), str(declaration["granularity"]))
-        strategy = COMPARISON_STRATEGIES.get(strategy_key)
+        strategy = strategy_registry.get(strategy_key)
         if strategy is None:
             raise FrozenBaselineCheckError(
                 f"declarations.{series} の identity/granularity に戦略がない: "
@@ -637,7 +643,7 @@ def _derive_current_identities(
             raise FrozenBaselineCheckError(message) from exc
         derived[series] = frozenset(strategy_values)
 
-    unused = set(COMPARISON_STRATEGIES) - used_strategy_keys
+    unused = set(strategy_registry) - used_strategy_keys
     if unused:
         formatted = sorted(f"{identity}/{granularity}" for identity, granularity in unused)
         raise FrozenBaselineCheckError(f"どの宣言からも参照されない戦略がある: {formatted!r}")
@@ -694,7 +700,6 @@ def _expected_ledger_placement(series: str) -> list[dict[str, str]]:
 
 
 def _check_derived_history_values(
-    root: Path,
     ledger: dict[str, Any],
     current_identities: dict[str, frozenset[IdentityValue]],
 ) -> None:
@@ -716,19 +721,11 @@ def _check_derived_history_values(
             records[0]["placement_change"], f"history.{series}[0].placement_change"
         )
         first_before = first_placement["before"]
-        legacy_locator = _expect_object(
-            _expect_list(first_before, f"history.{series}[0].placement_change.before")[0],
-            f"history.{series}[0].placement_change.before[0]",
-        )
-        prior_value = _extract_python_string_assignment(root, legacy_locator)
         expected_before = LEGACY_PLACEMENTS.get(series)
         if first_before != expected_before:
             raise FrozenBaselineCheckError(
                 f"history.{series}.placement_change.before が導出値と不一致"
             )
-        expected_prior = frozenset(
-            {IdentityValue(kind="literal_commit_string", value=prior_value)}
-        )
         previous_after: Any = None
         previous_new: dict[str, Any] | None = None
         for record_index, record in enumerate(records):
@@ -747,9 +744,11 @@ def _check_derived_history_values(
                     prior_state["values"],
                     f"history.{series}[0].prior_identity.values",
                 )
-                if prior_state["present"] is not True or actual_prior != expected_prior:
+                # 移設後の作業ツリーにはbeforeの定数が存在しない。初回priorと
+                # base treeの定数の一致はacceptance bootstrapで機械照合する。
+                if prior_state["present"] is not True or not actual_prior:
                     raise FrozenBaselineCheckError(
-                        f"history.{series}.prior_identity が移設元ソースの導出値と不一致"
+                        f"history.{series}.prior_identity が存在する識別値でない"
                     )
             else:
                 if before != previous_after:
@@ -785,9 +784,45 @@ def _check_derived_history_values(
         actual_new = _identity_values(
             previous_new["values"], f"history.{series}.new_identity.values"
         )
-        if previous_new["present"] is not True or actual_new != current_identities[series]:
+        if previous_new["present"] is not True or not actual_new:
             raise FrozenBaselineCheckError(
-                f"history.{series}.new_identity が戦略の導出値と不一致"
+                f"history.{series}.new_identity が存在する識別値でない"
+            )
+
+    _check_basis_correspondence(ledger, current_identities)
+
+
+def _check_basis_correspondence(
+    ledger: dict[str, Any],
+    current_identities: Mapping[str, frozenset[IdentityValue]],
+) -> None:
+    """各宣言の導出値をbasis系列の履歴末尾と照合する。"""
+    declarations = _expect_object(ledger["declarations"], "declarations")
+    latest = _latest_history_by_series(ledger)
+    for series, raw_declaration in declarations.items():
+        declaration = _expect_object(raw_declaration, f"declarations.{series}")
+        basis_series = str(declaration["basis_series"])
+        basis_record = latest.get(basis_series)
+        if basis_record is None:
+            raise FrozenBaselineCheckError(
+                f"declarations.{series}.basis_series の履歴がない: {basis_series}"
+            )
+        basis_state = _expect_object(
+            basis_record["new_identity"],
+            f"history.{basis_series}.new_identity",
+        )
+        basis_values = _identity_values(
+            basis_state["values"],
+            f"history.{basis_series}.new_identity.values",
+        )
+        if basis_state["present"] is not True or current_identities[series] != basis_values:
+            if basis_series == series:
+                raise FrozenBaselineCheckError(
+                    f"history.{series}.new_identity が戦略の導出値と不一致"
+                )
+            raise FrozenBaselineCheckError(
+                f"declarations.{series} の導出値がbasis_series={basis_series}の"
+                "履歴末尾と不一致"
             )
 
 
@@ -1400,6 +1435,11 @@ def check_acceptance(root: Path, ledger_path: Path) -> tuple[str, ...]:
     head_ledger = load_frozen_baseline_ledger(ledger_path)
     current_identities = _derive_current_identities(root, head_ledger)
     base_entry = _git_tree_entry(root, base_sha, LEDGER_PATH.as_posix())
+    _check_acceptance_scan_transition(
+        root,
+        base_sha,
+        base_ledger_present=base_entry is not None,
+    )
     if base_entry is None:
         # head側の検査器を実行する循環は残る。初回の信頼根は人間の逐行確認である。
         _check_bootstrap(root, base_sha, event, head_ledger)
@@ -1443,7 +1483,7 @@ def _is_scan_source_path(path_text: str) -> bool:
 
 
 def _parse_scan_allowlist(data: bytes, source: str) -> tuple[_ScanAllowlistEntry, ...]:
-    """合成fixtureの走査allow-listをexact-schemaで解析する。"""
+    """走査allow-listをexact-schemaで解析する。"""
     try:
         raw_allowlist = parse_frozen_baseline_ledger(data, source)
     except FrozenBaselineError as exc:
@@ -1505,6 +1545,8 @@ def _scan_python_sources(root: Path) -> _SourceScan:
     """3母集団の全Python本文から40桁・64桁hexを部分一致で走査する。"""
     pairs: set[_ScanKey] = set()
     occurrences = 0
+    occurrences_40 = 0
+    occurrences_64 = 0
     for source_root in SCAN_SOURCE_ROOTS:
         directory = root / source_root
         if not directory.is_dir() or directory.is_symlink():
@@ -1524,9 +1566,19 @@ def _scan_python_sources(root: Path) -> _SourceScan:
                     f"走査母集団をUTF-8で読めない: {relative_path}: {exc}"
                 ) from exc
             for match in SCAN_VALUE_PATTERN.finditer(source):
-                pairs.add(_ScanKey(relative_path, match.group(0)))
+                value = match.group(0)
+                pairs.add(_ScanKey(relative_path, value))
                 occurrences += 1
-    return _SourceScan(occurrences=occurrences, pairs=frozenset(pairs))
+                if len(value) == 40:
+                    occurrences_40 += 1
+                else:
+                    occurrences_64 += 1
+    return _SourceScan(
+        occurrences=occurrences,
+        occurrences_40=occurrences_40,
+        occurrences_64=occurrences_64,
+        pairs=frozenset(pairs),
+    )
 
 
 def _format_scan_keys(keys: set[_ScanKey] | frozenset[_ScanKey]) -> str:
@@ -1572,6 +1624,10 @@ def _check_scan_allowlist_transition(
                 f"過剰={_format_scan_keys(pending - BOOTSTRAP_PENDING_REMOVAL_KEYS)}"
             )
         return
+    if not base_ledger_present:
+        raise FrozenBaselineCheckError(
+            "allow-list通常規則: baseに台帳がないのにallow-listがある"
+        )
     if base_entries is None:
         raise FrozenBaselineCheckError(
             "allow-list通常規則: baseに台帳があるのにallow-listがない"
@@ -1631,7 +1687,7 @@ def check_synthetic_source_scan(
     resolved_root = root.resolve()
     if resolved_root == REPOSITORY_ROOT.resolve():
         raise FrozenBaselineCheckError(
-            "実リポジトリに対する走査はステップ5まで未結線"
+            "実リポジトリの走査は--invariants-onlyまたは--acceptanceを使う"
         )
     head_entries = _parse_scan_allowlist(
         head_allowlist_path.read_bytes(), str(head_allowlist_path)
@@ -1653,6 +1709,62 @@ def check_synthetic_source_scan(
     return scan
 
 
+def _load_worktree_scan_allowlist(root: Path) -> tuple[_ScanAllowlistEntry, ...]:
+    """作業ツリーのproduction allow-listを読み取る。"""
+    path = root / SCAN_ALLOWLIST_PATH
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        raise FrozenBaselineCheckError(
+            f"production allow-listを読めない: {SCAN_ALLOWLIST_PATH.as_posix()}: {exc}"
+        ) from exc
+    return _parse_scan_allowlist(data, str(path))
+
+
+def check_repository_source_scan(root: Path) -> _SourceScan:
+    """実リポジトリのPython本文走査をproduction allow-listと照合する。
+
+    Args:
+        root: scripts、tests、backend/testsを持つリポジトリルート。
+
+    Returns:
+        出現回数と一意な(path, value)組を持つ走査結果。
+
+    Raises:
+        FrozenBaselineCheckError: 走査またはallow-listが不正な場合。
+    """
+    entries = _load_worktree_scan_allowlist(root)
+    scan = _scan_python_sources(root)
+    _check_scan_matches_allowlist(scan, entries)
+    return scan
+
+
+def _check_acceptance_scan_transition(
+    root: Path,
+    base_sha: str,
+    *,
+    base_ledger_present: bool,
+) -> None:
+    """base treeと作業ツリーのproduction allow-list遷移を検査する。"""
+    head_entries = _load_worktree_scan_allowlist(root)
+    base_allowlist_entry = _git_tree_entry(
+        root,
+        base_sha,
+        SCAN_ALLOWLIST_PATH.as_posix(),
+    )
+    base_entries = None
+    if base_allowlist_entry is not None:
+        base_entries = _parse_scan_allowlist(
+            _git_file_bytes(root, base_sha, SCAN_ALLOWLIST_PATH.as_posix()),
+            f"{base_sha}:{SCAN_ALLOWLIST_PATH.as_posix()}",
+        )
+    _check_scan_allowlist_transition(
+        base_ledger_present=base_ledger_present,
+        base_entries=base_entries,
+        head_entries=head_entries,
+    )
+
+
 def check_invariants(root: Path, ledger_path: Path) -> None:
     """作業ツリーだけを使って凍結基準台帳の不変条件を検査する。
 
@@ -1669,8 +1781,9 @@ def check_invariants(root: Path, ledger_path: Path) -> None:
     _check_ledger_structure(root, ledger)
     _check_implementation_bindings(root, ledger)
     current_identities = _derive_current_identities(root, ledger)
-    _check_derived_history_values(root, ledger, current_identities)
+    _check_derived_history_values(ledger, current_identities)
     _check_replay(ledger)
+    check_repository_source_scan(root)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -1679,9 +1792,9 @@ def _build_parser() -> argparse.ArgumentParser:
         description=__doc__,
         epilog=(
             "走査母集団は scripts/、tests/、backend/tests/ 配下の *.py で、"
-            "本文中の40桁・64桁小文字hexを対象とします。ステップ4では"
-            "実リポジトリに対する走査はまだ結線しておらず、"
-            "--scan-fixture は合成fixture専用です。pending_removalの除去は"
+            "本文中の40桁・64桁小文字hexを対象とします。"
+            "--invariants-onlyと--acceptanceは実リポジトリを走査し、"
+            "--scan-fixtureは合成fixture専用です。pending_removalの除去は"
             "後続タスクによる管理統制です。"
         ),
     )
@@ -1717,8 +1830,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             messages = (
                 "frozen-baselines: synthetic scan fixture OK: "
                 f"occurrences={scan.occurrences}; pairs={len(scan.pairs)}",
-                "frozen-baselines: 実リポジトリに対する走査は"
-                "ステップ5まで未結線",
             )
         else:
             if args.base_scan_allowlist is not None or args.base_ledger_present:

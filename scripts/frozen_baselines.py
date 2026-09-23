@@ -80,6 +80,58 @@ def load_frozen_baseline_ledger(path: Path) -> dict[str, Any]:
     return parse_frozen_baseline_ledger(path.read_bytes(), str(path))
 
 
+def load_latest_series_identity(path: Path, series: str) -> tuple[IdentityValue, ...]:
+    """台帳の系列履歴末尾から現在の識別値を読み取る。
+
+    Args:
+        path: 読み取る台帳ファイル。
+        series: 読み取る系列名。
+
+    Returns:
+        履歴末尾の順序を保った識別値。
+
+    Raises:
+        FrozenBaselineError: 系列履歴または識別値の形が不正な場合。
+        OSError: 台帳を読み取れない場合。
+    """
+    ledger = load_frozen_baseline_ledger(path)
+    history = ledger.get("history")
+    if not isinstance(history, list):
+        raise FrozenBaselineError("台帳のhistoryがarrayでない")
+    matching_records: list[dict[str, Any]] = []
+    for index, record in enumerate(history):
+        if not isinstance(record, dict):
+            raise FrozenBaselineError(f"台帳のhistory[{index}]がobjectでない")
+        if record.get("series") == series:
+            matching_records.append(record)
+    if not matching_records:
+        raise FrozenBaselineError(f"台帳に系列履歴がない: {series}")
+
+    new_identity = matching_records[-1].get("new_identity")
+    if not isinstance(new_identity, dict) or set(new_identity) != {"present", "values"}:
+        raise FrozenBaselineError(f"系列のnew_identityの形が不正: {series}")
+    values = new_identity["values"]
+    if new_identity["present"] is not True or not isinstance(values, list) or not values:
+        raise FrozenBaselineError(f"系列の現在識別値が存在しない: {series}")
+
+    identities: list[IdentityValue] = []
+    for index, raw_value in enumerate(values):
+        if not isinstance(raw_value, dict) or set(raw_value) != {"kind", "value"}:
+            raise FrozenBaselineError(
+                f"系列のnew_identity.values[{index}]の形が不正: {series}"
+            )
+        kind = raw_value["kind"]
+        value = raw_value["value"]
+        if not isinstance(kind, str) or not isinstance(value, str):
+            raise FrozenBaselineError(
+                f"系列のnew_identity.values[{index}]が文字列でない: {series}"
+            )
+        identities.append(IdentityValue(kind=kind, value=value))
+    if len(identities) != len(set(identities)):
+        raise FrozenBaselineError(f"系列の現在識別値が重複している: {series}")
+    return tuple(identities)
+
+
 def _split_target(target: str) -> tuple[str, str]:
     """pointer付きlocatorをファイルパスとJSON pointerへ分割する。"""
     path, separator, pointer = target.partition("#")

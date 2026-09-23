@@ -45,12 +45,16 @@ IMPLEMENTED_ORACLE_TEST_ID = (
 
 
 def _load_checker() -> Any:
-    """テスト対象を sys.path の変更なしでモジュールとして読む。"""
+    """同階層の台帳リーダを解決してテスト対象をモジュールとして読む。"""
     spec = importlib.util.spec_from_file_location("check_authz_catalog_under_test", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(SCRIPT.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
     return module
 
 
@@ -3780,8 +3784,11 @@ def test_boundary_and_review_ids_reject_duplicate_rows_before_folding(
         _validate_boundary_asset(mutated)
 
 
-def test_boundary_proposal_base_leaves_follow_the_approved_classification() -> None:
-    """可動ポインタを除く全葉を変更・不変・削除へ分ける。"""
+def test_boundary_proposal_base_leaves_follow_the_approved_classification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全葉の分類と台帳から読む可動ポインタの基準を閉じる。"""
     base = _base_json("contracts/authz/boundary-proposal.json")
     current = _read_repository_json("contracts/authz/boundary-proposal.json")
     seal = _read_repository_json(f"contracts/authz/{ORACLE_SEAL_FILE}")
@@ -3814,6 +3821,36 @@ def test_boundary_proposal_base_leaves_follow_the_approved_classification() -> N
     unexpected["unapproved_leaf"] = True
     with pytest.raises(checker.CatalogError):
         _validate_boundary_asset(unexpected)
+
+    ledger = _read_repository_json("contracts/authz/frozen-baselines.json")
+    ledger["history"][-1]["new_identity"]["values"][0]["value"] = "0" * 40
+    ledger_path = tmp_path / "contracts/authz/frozen-baselines.json"
+    ledger_path.parent.mkdir(parents=True)
+    ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    derived_assets, _locks, _paths = _repository_derived_assets()
+    monkeypatch.setattr(
+        checker,
+        "_validate_oracle_provenance",
+        lambda *_args: frozenset(
+            {
+                "PLAN-AUTHORIZED-BUSINESS-ROWS",
+                "PLAN-NO-HANDWRITTEN-AGGREGATION",
+                "PLAN-BOUNDARY-PROPOSAL-ONLY",
+            }
+        ),
+    )
+    with pytest.raises(
+        checker.CatalogError,
+        match="boundary proposal の oracle_commit が基準版と不一致",
+    ):
+        checker.validate_boundary_proposal(
+            current,
+            derived_assets["auth_catalog"],
+            tmp_path,
+        )
 
 
 def test_s5_mutations_pass_when_the_decision_check_is_removed(

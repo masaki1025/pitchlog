@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "asset_kind": "frozen_baseline_scan_allowlist",
+  "entries": [
+    {
+      "path": "backend/tests/db/authz/mutation_composition.py",
+      "value": "099a8fa20595c25f553b46dedcaaa9660dd03c2e",
+      "reason": "認可mutation合成fixtureの基準値。後続タスクで台帳系列へ移設する",
+      "pending_removal": true
+    },
+    {
+      "path": "scripts/check_docs_status.py",
+      "value": "523ecfd1db94c0c494b9b722b05cf4b3c7d4562a1a6f2648fd9b76d5074a8e52",
+      "reason": "変更履歴免除digest。後続タスクで台帳系列へ移設する",
+      "pending_removal": true
+    },
+    {
+      "path": "tests/test_check_authz_catalog.py",
+      "value": "56c281c409e972927940fad830aa38352df32f1e",
+      "reason": "認可台帳の差分fixture基準値。後続タスクで台帳系列へ移設する",
+      "pending_removal": true
+    },
+    {
+      "path": "tests/test_core_guard.py",
+      "value": "56c281c409e972927940fad830aa38352df32f1e",
+      "reason": "core guardの差分fixture基準値。後続タスクで台帳系列へ移設する",
+      "pending_removal": true
+    },
+    {
+      "path": "tests/test_nfr021_append_only.py",
+      "value": "0123456789abcdef0123456789abcdef01234567",
+      "reason": "NFR-021追記専用検査の合成ダミー値",
+      "pending_removal": false
+    },
+    {
+      "path": "tests/test_nfr021_append_only.py",
+      "value": "89abcdef0123456789abcdef0123456789abcdef",
+      "reason": "NFR-021追記専用検査の合成ダミー値",
+      "pending_removal": false
+    },
+    {
+      "path": "tests/test_verify_nfr021_evidence.py",
+      "value": "0123456789abcdef0123456789abcdef01234567",
+      "reason": "NFR-021証跡検査の合成ダミー値",
+      "pending_removal": false
+    },
+    {
+      "path": "tests/test_verify_nfr021_evidence.py",
+      "value": "76543210fedcba987654321076543210fedcba98",
+      "reason": "NFR-021証跡検査の合成ダミー値",
+      "pending_removal": false
+    },
+    {
+      "path": "tests/test_verify_nfr021_evidence.py",
+      "value": "89abcdef0123456789abcdef0123456789abcdef",
+      "reason": "NFR-021証跡検査の合成ダミー値",
+      "pending_removal": false
+    },
+    {
+      "path": "tests/test_verify_nfr021_evidence.py",
+      "value": "fedcba9876543210fedcba9876543210fedcba98",
+      "reason": "NFR-021証跡検査の合成ダミー値",
+      "pending_removal": false
+    }
+  ]
+}

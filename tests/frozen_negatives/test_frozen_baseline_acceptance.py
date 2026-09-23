@@ -17,6 +17,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_frozen_baselines.py"
 LEDGER_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
+SCAN_ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
 TARGET_PATHS = (
     "contracts/authz/oracle-seal.lock.json",
     "contracts/authz/attack-tree.json",
@@ -32,15 +33,18 @@ NEW_ASSET_PATHS = (
     "contracts/authz/frozen-baselines.schema.json",
     "scripts/check_frozen_baselines.py",
     "scripts/frozen_baselines.py",
+    "scripts/frozen-baseline-scan-allowlist.json",
 )
 IDENTITY_BEARING_PATHS = frozenset(
-    (*BASE_SOURCE_PATHS, LEDGER_RELATIVE_PATH.as_posix())
+    (*TARGET_PATHS, LEDGER_RELATIVE_PATH.as_posix())
 )
 IDENTITY_FREE_PATHS = frozenset(
     {
+        "scripts/check_authz_catalog.py",
         "contracts/authz/frozen-baselines.schema.json",
         "scripts/check_frozen_baselines.py",
         "scripts/frozen_baselines.py",
+        "scripts/frozen-baseline-scan-allowlist.json",
     }
 )
 assert IDENTITY_BEARING_PATHS.isdisjoint(IDENTITY_FREE_PATHS)
@@ -180,16 +184,79 @@ def _write_ledger(root: Path, ledger: dict[str, Any]) -> None:
     )
 
 
-def _copy_base_sources(root: Path, identity: str) -> None:
+def _copy_base_sources(
+    root: Path,
+    identity: str,
+    *,
+    include_legacy_assignment: bool,
+) -> None:
     """base treeに存在する旧ソースと対象JSONをコピーする。"""
     for path_text in BASE_SOURCE_PATHS:
         _copy_with_identity(root, path_text, identity)
+    if include_legacy_assignment:
+        source_path = root / "scripts/check_authz_catalog.py"
+        with source_path.open("a", encoding="utf-8") as source:
+            source.write(f'\nORACLE_INPUT_BASELINE_COMMIT = "{identity}"\n')
 
 
 def _copy_new_assets(root: Path, identity: str) -> None:
     """headで新設される台帳・schema・検査コードをコピーする。"""
     for path_text in NEW_ASSET_PATHS:
+        if path_text == SCAN_ALLOWLIST_RELATIVE_PATH.as_posix():
+            continue
         _copy_with_identity(root, path_text, identity)
+    _write_acceptance_scan_assets(root)
+
+
+def _write_acceptance_scan_assets(root: Path) -> None:
+    """受理遷移fixtureへbootstrap対象4組とallow-listを書く。"""
+    pending_pairs = (
+        (
+            "backend/tests/db/authz/mutation_composition.py",
+            "099a8fa20595c25f553b46de" + "dcaaa9660dd03c2e",
+        ),
+        (
+            "scripts/check_docs_status.py",
+            "523ecfd1db94c0c494b9b722b05cf4b3"
+            + "c7d4562a1a6f2648fd9b76d5074a8e52",
+        ),
+        (
+            "tests/test_check_authz_catalog.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+        (
+            "tests/test_core_guard.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+    )
+    entries: list[dict[str, Any]] = []
+    for path_text, value in pending_pairs:
+        source_path = root / path_text
+        source_path.parent.mkdir(parents=True, exist_ok=True)
+        source_path.write_text(f'VALUE = "{value}"\n', encoding="utf-8")
+        entries.append(
+            {
+                "path": path_text,
+                "value": value,
+                "reason": f"受理遷移の合成fixture: {path_text}",
+                "pending_removal": True,
+            }
+        )
+    allowlist_path = root / SCAN_ALLOWLIST_RELATIVE_PATH
+    allowlist_path.parent.mkdir(parents=True, exist_ok=True)
+    allowlist_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "asset_kind": "frozen_baseline_scan_allowlist",
+                "entries": entries,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def _add_noop_history_record(ledger: dict[str, Any]) -> None:
@@ -251,7 +318,11 @@ def _build_repository(
         ).stdout.strip()
         assert len(identity_sha) == 40
 
-    _copy_base_sources(root, identity_sha)
+    _copy_base_sources(
+        root,
+        identity_sha,
+        include_legacy_assignment=bootstrap,
+    )
     if not bootstrap:
         _copy_new_assets(root, identity_sha)
         if base_mutation is not None:
@@ -264,6 +335,7 @@ def _build_repository(
 
     _git(root, "checkout", "-b", "feature")
     if bootstrap:
+        _copy_with_identity(root, "scripts/check_authz_catalog.py", identity_sha)
         _copy_new_assets(root, identity_sha)
     (root / "head-marker.txt").write_text("head\n", encoding="utf-8")
     if head_mutation is not None:

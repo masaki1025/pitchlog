@@ -114,7 +114,7 @@ def assert_synthetic_scan_green(
     base_allowlist: Path | None = None,
     base_ledger_present: bool = False,
 ) -> None:
-    """合成fixture走査の件数と未結線表示を含む成功を表明する。"""
+    """合成fixture走査の件数を含む成功を表明する。"""
     result = run_synthetic_scan(
         root,
         head_allowlist,
@@ -125,7 +125,6 @@ def assert_synthetic_scan_green(
     assert result.stdout == (
         "frozen-baselines: synthetic scan fixture OK: "
         f"occurrences={occurrences}; pairs={pairs}\n"
-        "frozen-baselines: 実リポジトリに対する走査はステップ5まで未結線\n"
         "frozen-baselines: OK\n"
     )
     assert result.stderr == ""

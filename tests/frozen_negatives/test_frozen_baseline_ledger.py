@@ -222,8 +222,7 @@ def test_before_locator_with_missing_symbol_is_red(copied_ledger: Path) -> None:
 
     _assert_red(
         copied_ledger,
-        "placement_change.before の python_assignment が一意に実在しない: "
-        "scripts/check_authz_catalog.py:MISSING_FROZEN_BASELINE",
+        "history.oracle_input.placement_change.before が導出値と不一致",
     )
 
 
