@@ -353,7 +353,13 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "backend/src/pitchlog/repositories/*",
+        "backend/tests/db_fixtures.py",
+        "scripts/check_tenant_boundary_bypass.py",
+        "contracts/tenant_boundary/*",
+        "tests/fixtures/tenant_boundary/*",
+        "tests/test_check_tenant_boundary_bypass.py"
       ]
     },
     {
