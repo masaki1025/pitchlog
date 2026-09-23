@@ -592,7 +592,9 @@ def test_undeclared_step_order_violation_is_rejected(tmp_path: Path) -> None:
         _git_commit(repository, f"feat: step (ステップ {step_id}/2)")
 
     with pytest.raises(AuditViolation, match="昇順でない"):
-        _implementation_commits(repository, 2, base_ref=base_commit)
+        _implementation_commits(
+            repository, 2, base_ref=base_commit, head_ref="HEAD"
+        )
 
 
 def test_declared_order_that_disagrees_with_history_is_rejected(
@@ -616,6 +618,7 @@ def test_declared_order_that_disagrees_with_history_is_rejected(
             repository,
             2,
             base_ref=base_commit,
+            head_ref="HEAD",
             order_exceptions=(declaration,),
         )
 
@@ -654,6 +657,7 @@ def test_pull_request_merge_checkout_audits_event_head_first_parent(
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
 
+    # ここは「PR イベントの head を起点に辿る」ことの検証なので head_ref を渡さない。
     records = _implementation_commits(repository, 2, base_ref=base_commit)
 
     assert merge_commit != feature_head

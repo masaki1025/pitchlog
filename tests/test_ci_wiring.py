@@ -97,7 +97,7 @@ CONSISTENCY_PYTEST_COMMAND = (
 MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
 MUTATION_BACKEND_SYNC_STEP = ({"run": "uv sync --project backend --locked --dev"},)
 # 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
-EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 124
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 138
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -1238,6 +1238,20 @@ def _ci_wiring_errors(
 # `BOOT-REPORT` は「出力のない緑は本規定の充足とみなさない」と定めるので、
 # `consistency` だけは所有テストの前に実状態への出力とその存在確認を挟む。
 # 期待値へ明示することで、この 2 step を黙って外せないようにする。
+# ステップ 52 の履歴監査は全 command を実走し、ステップ 45・46 が pnpm を使う。
+# frontend ジョブと同じ Node 準備を consistency にも持たせる必要があり、
+# 期待値へ明示することで黙って外せないようにする。
+CONSISTENCY_NODE_SETUP_STEPS: tuple[dict[str, Any], ...] = (
+    {
+        "uses": (
+            "jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518"
+        ),
+        "with": {"version": "2026.8.6", "install": True, "cache": False},
+    },
+    {"run": "corepack enable"},
+    {"run": "pnpm install --frozen-lockfile", "working-directory": "frontend"},
+)
+
 BOOT_REPORT_EMIT_STEPS: tuple[dict[str, Any], ...] = (
     {
         "run": (
@@ -1379,7 +1393,11 @@ def _domain_ci_wiring_errors(
             "runs-on": harness.get("runs-on"),
             "timeout-minutes": CONSISTENCY_TIMEOUT_MINUTES,
             "steps": _expected_new_job_steps(
-                workflow, CONSISTENCY_PYTEST_COMMAND, BOOT_REPORT_EMIT_STEPS
+                workflow,
+                CONSISTENCY_PYTEST_COMMAND,
+                BOOT_REPORT_EMIT_STEPS[:2]
+                + CONSISTENCY_NODE_SETUP_STEPS
+                + BOOT_REPORT_EMIT_STEPS[2:],
             ),
         },
         "mutation": {
