@@ -10,7 +10,7 @@ date: 2026-09-24
 入力は U-T1 の詳細設計 `../tenant-boundary-enforcement/design.md` の 2〜4 節・7 節・9 節である。
 **本書はそれを正本と実測で検証し直し、本単位の設計として確定する**。U-T1 の記述を是正した箇所は、各節に明記する。
 
-**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】で、表分類の固定 oracle を取りやめて、manifest の事実から安全性を保証する形に改めた(1-5)。
+**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
 
 ## 1. 許可プロファイル
 
@@ -115,54 +115,72 @@ date: 2026-09-24
 
 合計は 24 + 1 + 4 + 5 + 11 = **45**。
 
-### 1-5. 表分類の合格述語 — 「どの割り当てを選んでも漏れない」ことを事実から保証する
+### 1-5. 表分類の合格述語 — 露出の事実を正本の文言に結び付け、残余は人間の逐行確認が持つ
 
 **分類資産そのものを正解にすると、誤った割り当てで自己充足する**(1 周目 1-P0-2)。
 例: `admin_credentials` を `global_read_only` に移すと、DDL も実 DB 試験もその分類から期待値を導くので、全部 green になる。
 
-→ **安全性の期待値を、分類資産ではなく manifest の事実から導く**。
-各プロファイルに「その表に割り当ててよい条件」を、manifest の列と FK だけで判定できる形で置く。
-**この条件を満たす限り、どのプロファイルを選んでも、他テナントの行と秘密の列はアプリ用ロールから読めない**。
-分類の誤りで起きうるのは「必要な読み書きができない」(機能が狭まる)ことだけで、越境は起きない。
+**方針(人間の判断 2026-09-24)**: どんな機械検査でも、**同じ PR の中で分類と判定基準を両方弱める変更**は止められない。
+→ 機械検査は「**分類だけ・判定基準だけの単独の変更を検出する多重防御**」と位置づける。**複数の決定元を同時に弱める変更は、コア領域の人間の逐行確認が止める**(残余リスクとして受容 — 本節末)。
 
-| プロファイル | 割り当ててよい条件(manifest の事実) | この条件で保証されること |
+#### 1-5-a. 露出の事実の資産
+
+**`contracts/authz/product/exposure-facts.json`** に、表と列の「露出の事実」を置く。分類資産とは別の決定元である。
+**各事実は、正本 `docs/design/data-model.md` の文言を典拠として引用する**。検査器は、**引用した文言が正本に一字一句そのまま存在すること**を確かめる。
+正本は approved で、改訂には確定ゲート(7.3)が要る。したがって、**正本を変えずに事実だけを弱めることはできない**。
+
+| 事実の種類 | 対象 | 典拠にする正本の文言(例) |
 | --- | --- | --- |
-| `tenant_owned` | `tenant_id` 列を持つ ∧ 秘密の列を持たない | 行は自テナントに限られる(述語 `TENANT(tenant_id)`) |
-| `self_tenant_row` | `tenants` のみ | 行は自テナントの 1 行に限られる |
-| `effective_group_control` | manifest で `cross_tenant: true` の FK を持つか、その参照先である ∧ 表が `tenants` ではない | 行は実効参加のグループに限られる。秘密の列は列 ACL で除く |
-| `global_read_only` | `tenant_id` 列を持たない ∧ **テナントの行を参照する FK を持たない** ∧ **テナントの行から参照されない** ∧ 秘密の列を持たない | テナントに属する情報を含まない |
-| `function_only` | 条件なし(常に割り当ててよい) | アプリ用ロールは何も読めない |
+| **非テナント(全体共有)** | `rule_sets` / `game_type_rule_defaults` / `system_vocabularies` / `admin_vocabularies` / `system_settings` | 3-4 節の全数表の `➖` の行と、10-3・10-4・10-5 節の「テナントに属さない」(`:386`・`:394`・`:1941`・`:1954`・`:1963`) |
+| **制御資源** | `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` | 3-5 節のエンティティ表(グループ / 参加 / 付与 / 招待 — `:451-461`) |
+| **秘密の列** | `tenant_credentials.password_hash` / `admin_credentials.password_hash` / `group_invitations.code_hash` / 認証トークン・セッションの識別子 | 8-2・8-3 節の認証情報と、3-5 節の「コードのハッシュ」(`:461`) |
 
-**秘密の列**: 閉じた列挙で持つ。**manifest の全列を 1 度走査して、判定の理由を 1 列ずつ記録した一覧**にする(例: `password_hash` / `code_hash` / 認証トークン・セッションの識別子)。
-**秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**。
-秘密の列を持つ表にアプリの読み取りを許すときは、**秘密の列を除いた列単位の `SELECT`** にする(`group_invitations`)。
-新しい列が manifest に足されたら、その列が一覧に入っているか「秘密ではない」と記録されているかのどちらかでなければ red(**既定の判定を持たない**)。
+- 事実の表と列が manifest に実在することも検査する
+- 典拠の引用が 1 件でも正本に見つからなければ不合格(fail-closed)
 
-ほかの合格述語:
+#### 1-5-b. 割り当ての条件
 
+| プロファイル | 割り当ててよい条件 |
+| --- | --- |
+| `tenant_owned` | manifest で `tenant_id` 列を持つ ∧ 秘密の列を持たない ∧ 露出の事実で「非テナント」「制御資源」でない |
+| `self_tenant_row` | `tenants` のみ |
+| `effective_group_control` | **露出の事実で「制御資源」とされた 4 表だけ**。秘密の列は列 ACL で除く |
+| `global_read_only` | **露出の事実で「非テナント」とされた表だけ** ∧ manifest で `tenant_id` 列を持たない ∧ 秘密の列を持たない |
+| `function_only` | 条件なし(常に割り当ててよい) |
+
+- **秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**(10 節の ACL と照合する。ACL の変異はステップ 9 で試す)
 - 母集合 = `Base.metadata` の全表 = manifest の全表。割り当て資産と**両方向 exact-set**(未割り当て 0・重複 0・存在しない表 0)。**既定のプロファイルを持たない**
-- `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `U-C1` / `migration_batch`)が必須
+- `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `migration_batch`)が必須
+- **正例**: 1-4 の 45 表の割り当てがすべての条件を満たす(ステップ 4 の合格条件)
 
-**変異**(すべて red): `admin_credentials → global_read_only`(秘密の列)/ `tenant_credentials → tenant_owned`(`tenant_id` が無い)/ `analysis_groups → tenant_owned` / `game_type_rule_defaults` にテナントの行への FK を足して `global_read_only` のまま / 表を 1 つ未割り当てにする / モデルを 1 つ足す / manifest に列を 1 つ足して秘密の判定を記録しない / `group_invitations` に表単位の `SELECT` を与える / `function_only` の `access_path.reason` を消す。
+【5 周目 5-P0-1・5-P0-3・5-P0-4】4 周目の案は manifest の構造(列と FK)だけで判定していた。そのため、`cross_tenant` の FK を持つ `admin_operation_logs` を制御資源として扱えた。生の行を持つ `migration_quarantine` も全体共有として扱えた。逆に、テナントの表から参照される語彙を全体共有にできなかった。
 
-**意図の保護**(「この表はこのプロファイル」という設計の意図)は、**安全性の検査の対象にしない**。分類資産はコア領域の paths に入り(`.claude/core-areas.json:295`)、人間の逐行確認の対象である。
-機能に関わる割り当て(例: `global_read_only` の 5 表を `function_only` にすると通常機能が止まる)は、6 節の実 DB 試験と、帯 2・帯 3 の単位の試験が表に出す。
+#### 1-5-c. 変異(分類資産だけで完結するもの — ステップ 4)
 
-【1 周目 1-P0-2・2 周目 2-P0-1・3 周目 3-P0-2・4 周目 4-P0-1・4-P0-2・4-P1-1】2〜4 周目の案は、1-4 の割り当てを固定 oracle として凍結し、設計書 7.7 の基準の更新経路(追記のみの履歴・比較元・受理の単位)に載せていた。
-周を追うごとに 7.7 への適合の指摘が増えた(資産の中の鎖には外部の基準点が無い・受理の単位が 1 行為 1 記録になっていない・凍結対象の宣言が無い)。
-**安全性はこの節の条件だけで保証できるので、oracle とその検査器・CI の変更を取りやめた**。7.7 の凍結基準は本単位に置かない。
+すべて red:
 
-## 2. 製品ロール
+- `admin_credentials → global_read_only`
+- `tenant_credentials → tenant_owned`
+- `analysis_groups → tenant_owned`
+- `admin_operation_logs → effective_group_control`
+- `migration_quarantine → global_read_only`
+- `rate_limit_counters → global_read_only`
+- 表を 1 つ未割り当てにする
+- モデルを 1 つ足す
+- `function_only` の `access_path.reason` を消す
+- **露出の事実の典拠の引用を、正本に無い文言に書き換える**
+- **露出の事実から `password_hash` を消し、同時に `admin_credentials` を `global_read_only` にする**(`global_read_only` は「非テナント」の事実を要求するが、`admin_credentials` にはその事実が無い)
 
-正本の 5 ロール(`data-model.md:206-212`)を、次の形で資産に置く。**パスワードは資産に書かない**(NFR-014)。
+【5 周目 5-P0-2・5-P1-2】
 
-| ロール | 資産上の名前 | 属性 | 作る主体 |
-| --- | --- | --- | --- |
-| マイグレーション用(表の所有者・**DB の所有者**) | `pitchlog_owner` | `LOGIN` / `NOSUPERUSER` / `NOBYPASSRLS` / `NOCREATEROLE` / `NOCREATEDB` | 外部の適用主体(2-3) |
-| アプリ用 | `pitchlog_app`(U-T1 の暫定名 `runtime_contract.py:26` を踏襲) | `LOGIN` / `NOSUPERUSER` / `NOBYPASSRLS` / `NOCREATEROLE` / `NOCREATEDB` / `NOREPLICATION` / `NOINHERIT` | 製品 DDL |
-| 共有関数所有用 | `pitchlog_shared_fn_owner` | `NOLOGIN` / `BYPASSRLS` | 製品 DDL。**所有する関数は補助関数 1 つ**(1-3) |
-| 管理関数所有用 | `pitchlog_management_fn_owner` | `NOLOGIN` / `BYPASSRLS` | 製品 DDL。**所有する関数は 0 件** |
-| 移行バッチ用 | **名前は固定しない**(TSK-349 が決める。資産は role kind `migration_batch` として形だけを持つ — 8-2) | `LOGIN` / `BYPASSRLS`・期間限定 | **定常の資産には含めない** |
+#### 1-5-d. 受容した残余リスク
+
+**分類資産・露出の事実・ACL の 3 つを同じ PR で整合的に弱める変更**は、機械検査では止められない。例: 正本にある無関係な文言を引用して「非テナント」の事実を捏造し、分類と ACL も合わせて変える。
+
+→ **止めるのは、コア領域の人間の逐行確認**である(`contracts/authz/*` はコア領域の paths — `.claude/core-areas.json:295`)。
+**人間の判断(2026-09-24)でこの残余を受容した**。PR の本文には、3 つの資産のどれかを変えたときに、逐行確認で見る観点(露出の事実の典拠が、その表の意味を本当に述べているか)を明記する。
+
+【1 周目 1-P0-2 ほか、2〜5 周目の関連指摘】2〜4 周目は、固定 oracle を 7.7 の凍結基準として扱った。4 周目は、manifest の構造だけで判定した。どちらも自己充足を機械だけで閉じようとして、新しい欠陥を生んだ。
 
 ### 2-0. ロールの属性はすべて肯否で固定し、適用のたびに正規化する
 
@@ -196,7 +214,7 @@ PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し
 | `public` スキーマ | `pitchlog_owner`(`pg_database_owner` 経由) | `pitchlog_app`: `USAGE` / `pitchlog_shared_fn_owner`: `USAGE`。**`PUBLIC` の `USAGE` と `CREATE` は剥奪する** |
 | `authz_private` スキーマ | `pitchlog_shared_fn_owner` | `pitchlog_app`: `USAGE`。`PUBLIC` には何も与えない |
 
-- **`TEMPORARY` を誰にも与えない**ので、アプリ用ロールは一時表を作れない。一時スキーマを使う `search_path` の乗っ取り(REJ-003)は、補助関数の `search_path` の固定に加えて、ここでも閉じる
+- **所有者以外への `TEMPORARY` は、明示の付与も実効の権限も 0 件**(DB の所有者 `pitchlog_owner` の暗黙の権限と superuser は除く)。したがってアプリ用ロールは一時表を作れない【5 周目 5-P2-2】。一時スキーマを使う `search_path` の乗っ取り(REJ-003)は、補助関数の `search_path` の固定に加えて、ここでも閉じる
 - 変異(すべて red): DB に `PUBLIC` の `CONNECT` を戻す / `pitchlog_app` に DB の `CREATE` か `TEMPORARY` を与える / `public` に `PUBLIC` の `USAGE` を戻す / `authz_private` に `CREATE` を与える / `pitchlog_app` から DB の `CONNECT` を外す(接続できなくなることで検出)
 
 【1 周目 1-P1-2】
@@ -234,6 +252,7 @@ PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し
 
 ```
 contracts/authz/product/table-classification.json        全 45 表の物理プロファイルと到達経路(1 節)
+contracts/authz/product/exposure-facts.json              露出の事実(非テナント・制御資源・秘密の列)。正本の文言を典拠に引く(1-5-a)
 contracts/authz/product/capability-catalog.json          capability の記述(10 節)
 contracts/authz/product/ddl-elements.staged.json          製品 DDL 要素(PR A の間の置き場。3-2)
 contracts/authz/product/function-bodies/                  製品側の SQL 本体と manifest.json
@@ -399,7 +418,7 @@ U-T1 design 3-3(`:263-284`)の方針を引き継ぐ。**資産指定オブジェ
 | トリガ関数 | `PUBLIC` 剥奪後も、アプリ用ロールの書き込みでトリガが発火する |
 | FORCE | `pitchlog_owner` で接続しても、ポリシーに従う(未束縛で 0 行) |
 | 危険終点(R-2・2-2) | `pitchlog_app` から `SET` / `INHERIT` / `ADMIN` で到達できるロールと、危険ロールの交差が空 |
-| **最低要求 ②** | `PUBLIC`(と、`pitchlog_app` 以外のロール)が補助関数を `EXECUTE` できない |
+| **最低要求 ②** | `PUBLIC` と、信頼しない `LOGIN` ロールが補助関数の実効の `EXECUTE` を持たない。**例外は関数所有者・`pitchlog_app`・環境入力の superuser**(負例の母集合から除く)【5 周目 5-P1-1】 |
 | **最低要求 ③** | ① `pitchlog_app` は一時表を作れない(DB の `TEMPORARY` が無い — 2-1。`42501`)② `TEMPORARY` を持つ試験専用のロールで、一時スキーマに補助関数の参照先と同名の表を作り、そのロールの接続で補助関数を呼んでも結果が変わらない(`search_path` の固定の検査。試験専用のロールには試験の中だけで `EXECUTE` を与える) |
 | 最低要求 ④ | 対象(共有集計の越境関数)が本単位に無い。**`pitchlog_app` が `EXECUTE` できる `SECURITY DEFINER` 関数が、補助関数 1 個だけ**であることを表明する。各単位が関数を足すと red になり、④ の試験を足すよう促す |
 
@@ -424,7 +443,7 @@ U-T1 design 2-1(`:76-95`)を引き継ぐ。
 | `probe_schema_only` | schema / table / policy | probe 専用の器(`probe_data` / `probe_business_rows` など) |
 | `product_only` | 製品側の全種別 | probe に対応物が無い製品要素(45 表・トリガ関数 33 個・補助関数など) |
 
-- `read_control_resources`(`contracts/authz/ddl-elements.json:353`)は **`superseded_by_product_design`**(置き換え先: 制御資源 4 表の RLS ポリシーと、U-C2 のアプリ層の列制御)。**U-C2 に越境関数を割り当てない**(`../product-impl-unit-split/plan.md:226`・`../tenant-boundary-enforcement/design.md:575-580` と一致させる)【3 周目 3-P1-6】
+- `read_control_resources`(`contracts/authz/ddl-elements.json:353`)は **`superseded_by_product_design`**(**置き換え先の ID = 制御資源 4 表の `POLICY:*` 4 件と、`pitchlog_app` の 4 表への `SELECT` の `acl_privilege` 4 件**。U-C2 のアプリ層の列制御は資産の外にあるので、置き換え先の ID には含めない)。**U-C2 に越境関数を割り当てない**【5 周目 5-P1-3】(`../product-impl-unit-split/plan.md:226`・`../tenant-boundary-enforcement/design.md:575-580` と一致させる)【3 周目 3-P1-6】
 - **写像資産を正とし、TSK-250 の予告資産 `scripts/design_relations/product-ddl-map-data-model.json` は本資産から導出する**。TSK-250 の計画書(`../data-model-canonical/plan.md:253`)への申し送りを、PR 本文と Notion に記録する
 
 ## 8. 移行バッチ用ロール — 本単位は「形」と「定常の不変条件」まで
@@ -465,7 +484,7 @@ U-T1 design 2-5 が「持ち主がいない」として本単位へ引き取っ�
 | アプリから到達しない | **このロールに接する `pg_auth_members` の辺(入る辺も出る辺も)が 0 本**。どのロールからも、`SET` / `INHERIT` / `ADMIN` のどの option でも到達しない。**無関係な `LOGIN` ロールから辺を足す変異・外部の適用主体から辺を足す変異で、それぞれ red**【3 周目 3-P1-3】 |
 | DDL を持たない | `pg_class.relowner` / `pg_proc.proowner` / `pg_namespace.nspowner` / `pg_database.datdba` のどれにも現れない |
 | 書き込み先の限定 | 表 ACL が `write_targets` と exact-set。スキーマの ACL は `public` の `USAGE` のみ。DB の ACL は `CONNECT` のみ。**製品スキーマ(`public`・`authz_private`)の利用者定義の関数を、1 つも実行できない**(直接の `GRANT`・`PUBLIC` 経由・既定の権限経由のどれでも。`has_function_privilege` で実効の `EXECUTE` を検査する)。`SECURITY DEFINER` の関数を実行できると、その所有者の権限で `write_targets` の外へ書けるため【4 周目 4-P0-3】 |
-| (属性) | `LOGIN` / `BYPASSRLS` / `NOSUPERUSER` / `NOCREATEROLE` / `NOCREATEDB` / `NOREPLICATION` |
+| (属性) | 7 属性の exact-set(2-0 の表): `LOGIN` / `BYPASSRLS` / `NOSUPERUSER` / `NOCREATEROLE` / `NOCREATEDB` / `NOREPLICATION` / **`NOINHERIT`**【5 周目 5-P2-1】 |
 
 **関数の実行の変異**(すべて red): 移行バッチ用ロールに、`write_targets` の外の表へ書く試験用の `SECURITY DEFINER` 関数の `EXECUTE` を直接与える / `PUBLIC` に `EXECUTE` を戻す / 既定の権限(`ALTER DEFAULT PRIVILEGES`)で `EXECUTE` が付くようにする【4 周目 4-P0-3】。
 
@@ -508,7 +527,8 @@ TSK-349 の旧 DoD のうち「凍結 probe 資産への追加と `--reseal-orac
 1. `contracts/authz/product/ddl-elements.staged.json` を `git mv` で `contracts/authz/product/ddl-elements.json` へ移し、`runtime_contract` オブジェクト(8 フィールド)を足す。値は製品資産から導出する
 2. 生成器で `backend/src/pitchlog/authz/runtime_contract.py` を作り直す(`PROVISIONAL = False` / `SOURCE_ASSET` = 製品資産 / `SUPERSEDED_BY = None`)
 3. 暫定資産 `contracts/tenant_boundary/runtime-authz-contract.json` を削除する。設計書 7.7-1(値をソースに残さない)・7.7-2(削除の記録を追記のみで残す)に従う
-4. 削除記録では、暫定資産の履歴にある `PENDING_ACCEPTANCE` と「未承認(PR #72 のレビュー待ち)」を**変更前の値としてそのまま**記録する。事実として「PR #72 のマージ後も受理値へ更新されていなかった」と書く。**値を書き換えてから削除することはしない**
+4. **履歴の生存先**: 暫定資産の `baseline_control.history` を、**削除しない資産へ引き継ぐ**(製品資産 `ddl-elements.json` の `runtime_contract` に、前身の履歴として丸ごと移す)。そのうえで、削除の記録を 1 件だけ追記する。**TSK-431 が直した検査器が、base の旧資産の履歴と HEAD の引き継いだ履歴を exact に突き合わせること**を、PR B の合格条件にする【5 周目 5-P1-4】
+5. 削除記録では、暫定資産の履歴にある `PENDING_ACCEPTANCE` と「未承認(PR #72 のレビュー待ち)」を**変更前の値としてそのまま**記録する。事実として「PR #72 のマージ後も受理値へ更新されていなかった」と書く。**値を書き換えてから削除することはしない**
 
 **TSK-431 を待つ理由**: 暫定資産の削除は、凍結基準を動かす行為である(7.7-1)。削除記録を検査する機構が無い(既知欠陥 **7D**)。**7D を開けたまま削除はしない**。
 
@@ -553,7 +573,8 @@ U-T1 は、**製品の capability を TSK-424 の出力契約に含める**と�
 | **TSK-382** | 本単位は、**製品トラフィックを受ける配備先には適用しない**。SP-06(12-9)・12-4 の non-serving 宣言・12-6 の受け取り先表の**どれも変えない**。「実スキーマ」の意味も定義しない(TSK-382 の判断を先取りしない)【1 周目 1-P2-1】 |
 | **TSK-431** | 本計画(PR A)は TSK-431 と衝突しない(`scripts/check_tenant_boundary_bypass.py` と `contracts/tenant_boundary/*.json` に触れない)。PR B が TSK-431 のマージを待つ |
 | **TSK-349** | 移行バッチ用ロールのライフサイクルの**実行**(退役・接続監査・孤児回収・同時実行・状態の収束)と、`event_slots` の食い違いの解消の窓口。本単位の資産(8-1・8-2)を入力として使う。申し送りは 8-4 |
-| **U-A1 / U-A2 / U-C1 / U-C2 / U-C3** | 越境関数と、その ACL・`search_path`・関数所有ロールへの所有の付与は各単位が持つ。本単位は補助関数 1 個だけを持ち、「それ以外の `SECURITY DEFINER` 関数は 0 件」を試験で表明する(6-3) |
+| **U-A1 / U-A2 / U-C1 / U-C3** | 越境関数と、その ACL・`search_path`・関数所有ロールへの所有の付与は各単位が持つ(U-A1 = 認証・レート制限、U-A2 = 管理経路、U-C1 = グループ管理、U-C3 = 共有出力)。本単位は補助関数 1 個だけを持ち、「それ以外の `SECURITY DEFINER` 関数は 0 件」を試験で表明する(6-3) |
+| **U-C2** | **越境関数の所有者ではない**。制御資源の列の粒度の制限(テナント名のみ・`admin` のみの列)を、アプリ層で持つ(1-3) |
 | **U-M1 / U-D1 ほか帯 2** | capability カタログ(PR A)に載っている capability だけを登録できる(10 節)。アプリ層の実装は先に着手できる |
 | **TSK-250** | 写像資産は本単位が正。TSK-250 の予告資産は導出側(7 節) |
 | **スキーマを持つ単位** | 8-1 の `event_slots` の取り込みバッチ識別子の欠落(窓口は TSK-349) |
