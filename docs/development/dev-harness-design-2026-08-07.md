@@ -856,6 +856,8 @@ python .claude/scripts/codex_run.py review <normal|adversarial> -    # レビュ
   "pullRequest": 74,
   "event": "pull_request",
   "runId": 35529110007,
+  "headSha": "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+  "verificationLimit": "ネットワークを使わない検査は head SHA とローカル履歴・CI 配線の一致までを保証する。GitHub 上で各 job が success だったことは、この run を人間が確認した記録であり、API を使わず機械で再確認したとは主張しない。",
   "jobs": {
     "consistency": {
       "conclusion": "success",

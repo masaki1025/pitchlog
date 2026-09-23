@@ -9,17 +9,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+from pitchlog.domaincheck.boot import phase2, stall
 from pitchlog.domaincheck.boot.phase2 import Phase2Decision
 from pitchlog.domaincheck.cli import (
     CheckerExecutionError,
     CheckerViolation,
+    canonical_hash,
     exact_set_difference,
     read_json,
     validate_asset,
 )
+from pitchlog.domaincheck.seal import _run_git
 
 BOOT_SEAL_ASSET = Path("backend/domain/boot-seal.json")
 BOOT_REPORT_SCHEMA = Path("backend/domain/boot-report.schema.json")
+MANIFEST_ASSET = Path("backend/domain/manifest.json")
+_SYNTHETIC_COMMIT_OID = "0" * 40
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,15 +126,126 @@ def _transition_meaning() -> dict[str, object]:
     }
 
 
+def _head_commit_oid(root: Path) -> str:
+    """現在木を指す完全な commit OID を Git から実測する。"""
+    result = _run_git(root, "rev-parse", "--verify", "HEAD^{commit}")
+    oid = result.stdout.strip()
+    if (
+        result.returncode != 0
+        or len(oid) != 40
+        or any(character not in "0123456789abcdef" for character in oid)
+    ):
+        raise CheckerExecutionError("BOOT-REPORT の HEAD commit OID を実測できない")
+    return oid
+
+
+def _head_or_synthetic_oid(root: Path) -> str:
+    """合成入力 API だけは Git 履歴のない単体 fixture を許す。"""
+    result = _run_git(root, "rev-parse", "--verify", "HEAD^{commit}")
+    if result.returncode != 0:
+        return _SYNTHETIC_COMMIT_OID
+    oid = result.stdout.strip()
+    if len(oid) != 40 or any(character not in "0123456789abcdef" for character in oid):
+        raise CheckerExecutionError("合成 BOOT-REPORT の commit OID が不正")
+    return oid
+
+
+def _resolution_evidence(
+    resolved_element_ids: Collection[str],
+    *,
+    source: str,
+    manifest_present: bool,
+    phase2_status: str,
+    resolution_target_ids: Collection[str] = (),
+) -> dict[str, object]:
+    """解消済み集合を得た判定経路を digest 入力として固定する。"""
+    return {
+        "source": source,
+        "manifestPath": MANIFEST_ASSET.as_posix(),
+        "manifestPresent": manifest_present,
+        "phase2Status": phase2_status,
+        "resolutionTargetIds": sorted(resolution_target_ids),
+        "resolvedElementIds": sorted(resolved_element_ids),
+    }
+
+
+def measure_resolved_element_ids(
+    root: Path,
+    sealed_asset: object,
+    commit_oid: str,
+) -> tuple[frozenset[str], dict[str, object]]:
+    """実在資産をステップ18の判定経路へ渡して解消済み集合を実測する。
+
+    現時点では製品マニフェストが未作成なので、実在確認から空の意味
+    スナップショットを作り、段階2判定器が 0 件と測る。マニフェストが
+    存在する段階で収集器が未接続なら、空へ倒さず判定不能にする。
+
+    Args:
+        root: リポジトリルート。
+        sealed_asset: 検査済みの封印集合。
+        commit_oid: 実測対象の HEAD commit OID。
+
+    Returns:
+        解消済み要素 ID と、その導出を再計算できる入力記録。
+
+    Raises:
+        CheckerExecutionError: 実在するマニフェストを意味証跡へ変換できない場合。
+    """
+    manifest_path = root / MANIFEST_ASSET
+    if manifest_path.exists():
+        raise CheckerExecutionError(
+            "製品マニフェストは実在するが BOOT 解消判定の意味証跡を収集できない"
+        )
+    state = stall.activate(
+        stall.defined_state(len(_sealed_elements(sealed_asset))),
+        commit_oid,
+    )
+    empty = phase2.SemanticSnapshot.empty()
+    decision = phase2.evaluate_phase2(root, state, empty, empty)
+    resolved = resolved_element_ids_from_phase2(sealed_asset, decision)
+    evidence = _resolution_evidence(
+        resolved,
+        source="phase2.evaluate_phase2",
+        manifest_present=False,
+        phase2_status=decision.status.value,
+        resolution_target_ids=decision.resolution_target_ids,
+    )
+    return resolved, evidence
+
+
+def _provenance(
+    sealed_asset: object,
+    commit_oid: str,
+    resolution_evidence: object,
+) -> dict[str, object]:
+    """HEAD と全入力を canonical digest へ束縛する provenance を返す。"""
+    return {
+        "commitOid": commit_oid,
+        "inputDigest": canonical_hash(
+            {
+                "sealedSet": sealed_asset,
+                "resolutionEvidence": resolution_evidence,
+            }
+        ),
+        "sealedSetDigest": canonical_hash(sealed_asset),
+        "resolutionEvidenceDigest": canonical_hash(resolution_evidence),
+    }
+
+
 def build_boot_report(
     sealed_asset: object,
     resolved_element_ids: Collection[str],
+    *,
+    commit_oid: str = _SYNTHETIC_COMMIT_OID,
+    resolution_evidence: object | None = None,
 ) -> dict[str, object]:
     """封印集合と解消済み集合の差から未解消一覧を一度だけ導出する。
 
     Args:
         sealed_asset: `backend/domain/boot-seal.json` の内容。
         resolved_element_ids: 生の検査で解消成立を確認済みの要素 ID。
+        commit_oid: レポートを生成した完全な commit OID。
+        resolution_evidence: 解消済み集合を導いた機械可読な入力記録。
 
     Returns:
         一覧から件数を算出した BOOT-REPORT。
@@ -154,10 +270,21 @@ def build_boot_report(
         for element in elements
         if element.identifier not in resolved
     ]
+    evidence = (
+        _resolution_evidence(
+            resolved,
+            source="explicit-test-input",
+            manifest_present=False,
+            phase2_status="synthetic",
+        )
+        if resolution_evidence is None
+        else resolution_evidence
+    )
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "reportType": "boot-unresolved-elements",
         "sealedSet": BOOT_SEAL_ASSET.as_posix(),
+        "provenance": _provenance(sealed_asset, commit_oid, evidence),
         "unresolvedCount": len(unresolved),
         "unresolvedElements": unresolved,
         "transitionMeaning": _transition_meaning(),
@@ -219,17 +346,25 @@ def assert_report_matches(
     resolved_element_ids: Collection[str],
     report: object,
     schema: object,
+    *,
+    commit_oid: str = _SYNTHETIC_COMMIT_OID,
+    resolution_evidence: object | None = None,
 ) -> None:
     """Schema と封印集合差の双方にレポートが一致することを要求する。"""
     validate_asset(report, schema)
-    expected = build_boot_report(sealed_asset, resolved_element_ids)
+    expected = build_boot_report(
+        sealed_asset,
+        resolved_element_ids,
+        commit_oid=commit_oid,
+        resolution_evidence=resolution_evidence,
+    )
     if report != expected:
         raise CheckerViolation("BOOT-REPORT が封印集合と解消済み集合の差に一致しない")
 
 
 def emit_boot_report(
     root: Path,
-    resolved_element_ids: Collection[str],
+    resolved_element_ids: Collection[str] | None = None,
 ) -> Path:
     """固定ファイル名へ未解消要素レポートを実際に出力する。
 
@@ -243,7 +378,28 @@ def emit_boot_report(
     resolved_root = root.resolve()
     schema = read_json(resolved_root / BOOT_REPORT_SCHEMA)
     sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
-    report = build_boot_report(sealed_asset, resolved_element_ids)
+    if resolved_element_ids is None:
+        commit_oid = _head_commit_oid(resolved_root)
+        resolved, evidence = measure_resolved_element_ids(
+            resolved_root,
+            sealed_asset,
+            commit_oid,
+        )
+    else:
+        commit_oid = _head_or_synthetic_oid(resolved_root)
+        resolved = _resolved_ids(resolved_element_ids)
+        evidence = _resolution_evidence(
+            resolved,
+            source="explicit-test-input",
+            manifest_present=(resolved_root / MANIFEST_ASSET).exists(),
+            phase2_status="synthetic",
+        )
+    report = build_boot_report(
+        sealed_asset,
+        resolved,
+        commit_oid=commit_oid,
+        resolution_evidence=evidence,
+    )
     validate_asset(report, schema)
     destination = resolved_root / _schema_output_path(schema)
     _write_report(destination, report)
@@ -252,7 +408,7 @@ def emit_boot_report(
 
 def accept_transition_green(
     root: Path,
-    resolved_element_ids: Collection[str],
+    resolved_element_ids: Collection[str] | None = None,
 ) -> dict[str, object]:
     """出力済みレポートを含む移行状態の緑だけを受理する。
 
@@ -273,9 +429,32 @@ def accept_transition_green(
         raise CheckerViolation(
             "NFR-018 (e) BOOT-REPORT: 出力のない緑は本規定の充足とみなさない"
         )
-    report = read_json(report_path)
     sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
-    assert_report_matches(sealed_asset, resolved_element_ids, report, schema)
+    if resolved_element_ids is None:
+        commit_oid = _head_commit_oid(resolved_root)
+        resolved, evidence = measure_resolved_element_ids(
+            resolved_root,
+            sealed_asset,
+            commit_oid,
+        )
+    else:
+        commit_oid = _head_or_synthetic_oid(resolved_root)
+        resolved = _resolved_ids(resolved_element_ids)
+        evidence = _resolution_evidence(
+            resolved,
+            source="explicit-test-input",
+            manifest_present=(resolved_root / MANIFEST_ASSET).exists(),
+            phase2_status="synthetic",
+        )
+    report = read_json(report_path)
+    assert_report_matches(
+        sealed_asset,
+        resolved,
+        report,
+        schema,
+        commit_oid=commit_oid,
+        resolution_evidence=evidence,
+    )
     return _object(report, "boot-report")
 
 
@@ -290,10 +469,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument("--root", default=".", help="リポジトリルート")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="既存出力が現在 HEAD と実測入力に一致することだけを検査する",
+    )
     try:
         arguments = parser.parse_args(argv)
-        path = emit_boot_report(Path(arguments.root), ())
-        report = read_json(path)
+        root = Path(arguments.root)
+        if arguments.verify:
+            report = accept_transition_green(root)
+            schema = read_json(root.resolve() / BOOT_REPORT_SCHEMA)
+            path = root.resolve() / _schema_output_path(schema)
+        else:
+            path = emit_boot_report(root)
+            report = read_json(path)
         mapping = _object(report, "boot-report")
         count = mapping.get("unresolvedCount")
         # 走査件数を出力へ出す。`exit 0` だけでは、1 件も見ずに終わった実行と

@@ -41,11 +41,20 @@ COMMAND_EXECUTION_EXCLUSIONS = frozenset({SELF_RECURSIVE_COMMAND})
 # 終わったコマンドと区別できない(ステップ 45 で `depcruise --validate` が対象省略のまま
 # usage を表示して `exit 0` になった実例)。そこで各コマンドへ「何件を見たか」が出力に
 # 現れることを要求し、件数 0 を不合格にする。
+#
+# **保証範囲外(明示)**: 何も走査せずに件数だけを print するコマンドは通る。
+# 実測で確認済み(`print('999 passed')` が通る)。**これを塞ぐには出力が実際の走査に
+# 由来することの証明が要り、任意コードの意味判定に帰着するため保証しない。**
+# `ADR-003` D-11 ③ が「恣意的に整合する値を提出する迂回の完全排除は保証範囲外」と
+# 定めたのと同じ形。**「空振りを検出する」とは書かない** — 検出できるのは
+# 「件数を出力しない」「0 件と出力する」の 2 形だけである。
 SCOPE_EVIDENCE_PATTERN = re.compile(r"(\d+)\s+(?:passed|modules)")
 # 走査件数を出力しないコマンドは、代わりに「観測できる副作用」で非空虚を示す。
+# 免除は「必ず出力に現れる文字列」を伴う場合だけ許す。空文字を許すと出力も副作用も
+# 見ずに return してしまい、no-op へ差し替えても通る(敵対レビュー 2 周目 P1-4)。
 SIDE_EFFECT_EVIDENCE: dict[str, str] = {
     "uv sync --locked": "Resolved",
-    "uv run python scripts/check_docs_status.py": "",
+    "uv run python scripts/check_docs_status.py": "docs-status",
 }
 
 CODE_SPAN_PATTERN = re.compile(r"`([^`]+)`")
@@ -443,7 +452,12 @@ def _assert_scope_evidence(record: CommandAudit, output: str) -> None:
     """
     if record.command in SIDE_EFFECT_EVIDENCE:
         marker = SIDE_EFFECT_EVIDENCE[record.command]
-        if marker and marker not in output:
+        if not marker:
+            raise AuditViolation(
+                f"免除の marker が空である: step={record.step_id} "
+                f"command={record.command}"
+            )
+        if marker not in output:
             raise AuditViolation(
                 f"command の副作用証跡が出力に無い: step={record.step_id} "
                 f"command={record.command}"
@@ -798,3 +812,25 @@ def test_all_synthetic_commands_actually_exit_zero_in_declared_cwds(
     for record in records:
         marker = f"executed-{record.cwd.replace('.', 'root')}.txt"
         assert (tmp_path / record.cwd / marker).read_text(encoding="utf-8") == "executed"
+
+
+def test_fabricated_scope_count_is_documented_as_out_of_scope() -> None:
+    """件数を偽装するコマンドが通ることを、保証範囲外として明示的に記録する。
+
+    塞ぐには出力が実際の走査に由来することの証明が要り、任意コードの意味判定に
+    帰着するため保証しない。`ADR-003` D-11 ③ の恣意的迂回と同じ扱い。
+    **通ってしまうことを正直に記録する**(ステップ 33 の 5 番目の fixture と同じ形)。
+    """
+    program = "print('999 passed')"
+    fabricated = CommandAudit(
+        step_id=1,
+        command=f"{shlex.quote(sys.executable)} -c {shlex.quote(program)}",
+        cwd=ROOT_CWD,
+        expected_exit=0,
+    )
+
+    _execute_commands(ROOT, (fabricated,))
+
+    source = Path(__file__).read_text(encoding="utf-8")
+    assert "保証範囲外(明示)" in source
+    assert "「空振りを検出する」とは書かない" in source

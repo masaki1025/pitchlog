@@ -67,6 +67,11 @@ def _default_registry_path() -> Path:
     return backend_root / "domain/review-triggers.json"
 
 
+def _default_repository_root() -> Path:
+    """モジュール配置からリポジトリルートを返す。"""
+    return Path(__file__).resolve().parents[4]
+
+
 def _expect_int(value: object, label: str) -> int:
     """真偽値型を除く正の整数を受理する。"""
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
@@ -232,6 +237,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         arguments = _build_parser().parse_args(argv)
         states = load_trigger_states(arguments.registry)
+        if arguments.registry.resolve() == _default_registry_path().resolve():
+            # 実資産では `fired` の自己申告だけを信用せず、全機械判定を再実行し、
+            # PO 判定を日付・判定者・証拠 digest へ束縛する。
+            from pitchlog.domaincheck import trigger_evaluation
+
+            document = _read_json_object(arguments.registry)
+            evaluated = {
+                state.trigger_id
+                for state in states
+                if state.fired is not None
+                and state.evaluation_deadline <= arguments.step
+            }
+            try:
+                trigger_evaluation.validate_recorded_evaluations(
+                    document,
+                    _default_repository_root(),
+                    trigger_ids=evaluated,
+                )
+            except trigger_evaluation.TriggerEvaluationError as error:
+                raise StopgateExecutionError(str(error)) from error
         reasons = rejection_reasons(states, arguments.step)
     except StopgateExecutionError as error:
         print(f"停止ゲートを実行できません: {error}", file=sys.stderr)

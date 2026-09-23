@@ -14,6 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND_SRC = ROOT / "backend/src"
 REGISTRY_PATH = ROOT / "backend/domain/review-triggers.json"
+EVIDENCE_PATH = ROOT / "backend/domain/review-trigger-evidence.json"
 
 sys.path.insert(0, str(BACKEND_SRC))
 COMPLETION = importlib.import_module(
@@ -37,6 +38,13 @@ def _write_registry(tmp_path: Path, registry: dict[str, Any]) -> Path:
         json.dumps(registry, ensure_ascii=False),
         encoding="utf-8",
     )
+    return path
+
+
+def _write_evidence(tmp_path: Path, evidence: dict[str, Any]) -> Path:
+    """変更した評価証拠を一時 JSON へ書く。"""
+    path = tmp_path / "review-trigger-evidence.json"
+    path.write_text(json.dumps(evidence, ensure_ascii=False), encoding="utf-8")
     return path
 
 
@@ -193,6 +201,11 @@ def test_fired_record_is_rejected_by_existing_stopgate(
         "rejection_reasons",
         observing_rejection_reasons,
     )
+    monkeypatch.setattr(
+        COMPLETION.trigger_evaluation,
+        "validate_recorded_evaluations",
+        lambda *args, **kwargs: None,
+    )
 
     with pytest.raises(COMPLETION.FiredTriggerError, match="発火済み"):
         COMPLETION.validate_trigger_completion(
@@ -203,19 +216,77 @@ def test_fired_record_is_rejected_by_existing_stopgate(
     assert called == [51]
 
 
-def test_all_evaluated_nonfiring_copy_passes_at_final_deadline(
-    registry: dict[str, Any], tmp_path: Path
-) -> None:
-    """全枠を非発火で評価済みにした写しが最終期限で実際に通る。"""
-    asset = copy.deepcopy(registry)
-    for trigger in asset["triggers"]:
-        trigger["evaluation"] = {"fired": False}
-
+def test_recorded_evaluations_match_machine_measurements_and_po_evidence() -> None:
+    """実記録が機械の再実測と PO の日付付き証拠へ一致すれば通る。"""
     report = COMPLETION.validate_trigger_completion(
-        _write_registry(tmp_path, asset),
+        REGISTRY_PATH,
         ROOT,
         as_of_step=57,
     )
 
     assert report.applicable_trigger_ids == report.evaluated_trigger_ids
     assert len(report.applicable_trigger_ids) == report.trigger_count == 16
+
+
+def test_machine_trigger_cannot_be_marked_without_measured_condition(
+    registry: dict[str, Any], tmp_path: Path
+) -> None:
+    """機械実測が非発火なのに発火と自己申告した記録を拒否する。"""
+    asset = copy.deepcopy(registry)
+    _trigger(asset, 3)["evaluation"] = {"fired": True}
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="機械実測",
+    ):
+        COMPLETION.validate_trigger_completion(
+            _write_registry(tmp_path, asset),
+            ROOT,
+            as_of_step=57,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("judge", "別の判定者", "PO 判定者"),
+        ("decisionDate", "not-a-date", "判定日"),
+    ],
+)
+def test_po_decision_requires_named_judge_and_date(
+    field: str,
+    value: str,
+    message: str,
+    tmp_path: Path,
+) -> None:
+    """PO 判定の判定者・判定日をそれぞれ必須化する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    evidence["manualDecisions"][0][field] = value
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match=message,
+    ):
+        COMPLETION.validate_trigger_completion(
+            REGISTRY_PATH,
+            ROOT,
+            as_of_step=57,
+            evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
+
+
+def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
+    """PO が見た証拠と異なる digest の自己申告を拒否する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    evidence["manualDecisions"][0]["evidenceDigest"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="digest",
+    ):
+        COMPLETION.validate_trigger_completion(
+            REGISTRY_PATH,
+            ROOT,
+            as_of_step=57,
+            evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
