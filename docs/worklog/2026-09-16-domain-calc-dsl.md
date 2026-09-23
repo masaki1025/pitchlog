@@ -315,3 +315,22 @@ core_guard: core-areas.json と基線定義を同一コミットで変更して�
 - **ruleset へ `consistency` / `mutation` を適用(10 → 12 context)** — CI 緑を確認してから(PO 判断 2026-09-20)。
   **適用手順の実行は人間が行う**(PO 決定 2026-09-24)
 - **Notion の見積 13pt → 40pt**
+
+### 本 PR がマージ後に全タスクへ持ち込む新規制約
+
+**`scripts/core_guard.py` の `verify_area_path_baseline()` は本 PR が新設するもの**である
+(`origin/develop` には存在しない — 実測: develop 側の `core_guard.py` に
+`verify_area_path_baseline` も「基線定義」も 0 件、差分 +244/-2 行)。
+**マージ後は全タスクに次の制約が掛かる。**
+
+> **`.claude/core-areas.json` と、`scripts/core_guard.py` / `tests/test_core_guard.py` を
+> 同一コミットで変更してはならない。**
+
+- **理由**: 定義とその固定を 1 コミットで動かせると、レビューで両方を同時に緩められる
+- **効き方**: 検査は `rev-list <merge-base>..<head>` で**PR 範囲の全コミットを 1 つずつ**見る。
+  **後から revert しても打ち消せない**
+- **踏んだ場合の復旧**: **当該コミットの分割(履歴の書き換え)しかない**。
+  さらに **force-push は `git_guard.py` が機構的に拒否する**ので、**人間の操作が要る**
+- **該当しそうなタスク**: **U-A1(TSK-399)** — DoD に
+  「`core-areas.json` への paths 登録を本 PR で行う(6.3 規則⑤)」がある。
+  登録と、その登録を固定するテストは**別コミットに分ける**こと
