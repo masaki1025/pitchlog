@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
@@ -42,6 +42,35 @@ class SealedElement:
     canonical_key: str
     constructor: str
     target_id: str | None
+
+
+@dataclass(slots=True)
+class InputAssetCollector:
+    """実行中に読んだ JSON 資産を path と内容 digest へ収集する。"""
+
+    root: Path
+    _records: dict[str, str] = field(default_factory=dict)
+
+    def read_json(self, path: Path) -> object:
+        """JSON を読み、実際に読んだ相対 path と canonical digest を記録する。"""
+        resolved_root = self.root.resolve()
+        resolved = path.resolve()
+        try:
+            relative = resolved.relative_to(resolved_root).as_posix()
+        except ValueError as error:
+            raise CheckerExecutionError(f"入力資産がリポジトリ外: {path}") from error
+        value = read_json(resolved)
+        self._records[relative] = canonical_hash(value)
+        return value
+
+    def records(self) -> tuple[dict[str, str], ...]:
+        """読取順に依存しない入力資産レコードを返す。"""
+        if not self._records:
+            raise CheckerExecutionError("BOOT-REPORT の入力資産を 1 件も読んでいない")
+        return tuple(
+            {"path": path, "digest": digest}
+            for path, digest in sorted(self._records.items())
+        )
 
 
 def _object(value: object, label: str) -> dict[str, object]:
@@ -173,6 +202,8 @@ def measure_resolved_element_ids(
     root: Path,
     sealed_asset: object,
     commit_oid: str,
+    *,
+    input_collector: InputAssetCollector,
 ) -> tuple[frozenset[str], dict[str, object]]:
     """実在資産をステップ18の判定経路へ渡して解消済み集合を実測する。
 
@@ -184,6 +215,7 @@ def measure_resolved_element_ids(
         root: リポジトリルート。
         sealed_asset: 検査済みの封印集合。
         commit_oid: 実測対象の HEAD commit OID。
+        input_collector: 判定経路が読む全 JSON 資産の収集器。
 
     Returns:
         解消済み要素 ID と、その導出を再計算できる入力記録。
@@ -201,7 +233,13 @@ def measure_resolved_element_ids(
         commit_oid,
     )
     empty = phase2.SemanticSnapshot.empty()
-    decision = phase2.evaluate_phase2(root, state, empty, empty)
+    decision = phase2.evaluate_phase2(
+        root,
+        state,
+        empty,
+        empty,
+        read_asset=input_collector.read_json,
+    )
     resolved = resolved_element_ids_from_phase2(sealed_asset, decision)
     evidence = _resolution_evidence(
         resolved,
@@ -217,16 +255,19 @@ def _provenance(
     sealed_asset: object,
     commit_oid: str,
     resolution_evidence: object,
+    input_files: Sequence[dict[str, str]],
 ) -> dict[str, object]:
     """HEAD と全入力を canonical digest へ束縛する provenance を返す。"""
+    files = list(input_files)
     return {
         "commitOid": commit_oid,
         "inputDigest": canonical_hash(
             {
-                "sealedSet": sealed_asset,
+                "inputFiles": files,
                 "resolutionEvidence": resolution_evidence,
             }
         ),
+        "inputFiles": files,
         "sealedSetDigest": canonical_hash(sealed_asset),
         "resolutionEvidenceDigest": canonical_hash(resolution_evidence),
     }
@@ -238,6 +279,7 @@ def build_boot_report(
     *,
     commit_oid: str = _SYNTHETIC_COMMIT_OID,
     resolution_evidence: object | None = None,
+    input_files: Sequence[dict[str, str]] | None = None,
 ) -> dict[str, object]:
     """封印集合と解消済み集合の差から未解消一覧を一度だけ導出する。
 
@@ -246,6 +288,7 @@ def build_boot_report(
         resolved_element_ids: 生の検査で解消成立を確認済みの要素 ID。
         commit_oid: レポートを生成した完全な commit OID。
         resolution_evidence: 解消済み集合を導いた機械可読な入力記録。
+        input_files: 実行中に読んだ全 JSON 資産の path と digest。
 
     Returns:
         一覧から件数を算出した BOOT-REPORT。
@@ -280,11 +323,26 @@ def build_boot_report(
         if resolution_evidence is None
         else resolution_evidence
     )
+    files = (
+        (
+            {
+                "path": BOOT_SEAL_ASSET.as_posix(),
+                "digest": canonical_hash(sealed_asset),
+            },
+        )
+        if input_files is None
+        else tuple(input_files)
+    )
     return {
         "schemaVersion": 2,
         "reportType": "boot-unresolved-elements",
         "sealedSet": BOOT_SEAL_ASSET.as_posix(),
-        "provenance": _provenance(sealed_asset, commit_oid, evidence),
+        "provenance": _provenance(
+            sealed_asset,
+            commit_oid,
+            evidence,
+            files,
+        ),
         "unresolvedCount": len(unresolved),
         "unresolvedElements": unresolved,
         "transitionMeaning": _transition_meaning(),
@@ -349,6 +407,7 @@ def assert_report_matches(
     *,
     commit_oid: str = _SYNTHETIC_COMMIT_OID,
     resolution_evidence: object | None = None,
+    input_files: Sequence[dict[str, str]] | None = None,
 ) -> None:
     """Schema と封印集合差の双方にレポートが一致することを要求する。"""
     validate_asset(report, schema)
@@ -357,6 +416,7 @@ def assert_report_matches(
         resolved_element_ids,
         commit_oid=commit_oid,
         resolution_evidence=resolution_evidence,
+        input_files=input_files,
     )
     if report != expected:
         raise CheckerViolation("BOOT-REPORT が封印集合と解消済み集合の差に一致しない")
@@ -376,14 +436,16 @@ def emit_boot_report(
         出力したレポートの絶対パス。
     """
     resolved_root = root.resolve()
-    schema = read_json(resolved_root / BOOT_REPORT_SCHEMA)
-    sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
+    collector = InputAssetCollector(resolved_root)
+    schema = collector.read_json(resolved_root / BOOT_REPORT_SCHEMA)
+    sealed_asset = collector.read_json(resolved_root / BOOT_SEAL_ASSET)
     if resolved_element_ids is None:
         commit_oid = _head_commit_oid(resolved_root)
         resolved, evidence = measure_resolved_element_ids(
             resolved_root,
             sealed_asset,
             commit_oid,
+            input_collector=collector,
         )
     else:
         commit_oid = _head_or_synthetic_oid(resolved_root)
@@ -399,6 +461,7 @@ def emit_boot_report(
         resolved,
         commit_oid=commit_oid,
         resolution_evidence=evidence,
+        input_files=collector.records(),
     )
     validate_asset(report, schema)
     destination = resolved_root / _schema_output_path(schema)
@@ -423,19 +486,21 @@ def accept_transition_green(
         CheckerViolation: 出力が無い、または集合差と一致しない場合。
     """
     resolved_root = root.resolve()
-    schema = read_json(resolved_root / BOOT_REPORT_SCHEMA)
+    collector = InputAssetCollector(resolved_root)
+    schema = collector.read_json(resolved_root / BOOT_REPORT_SCHEMA)
     report_path = resolved_root / _schema_output_path(schema)
     if not report_path.is_file():
         raise CheckerViolation(
             "NFR-018 (e) BOOT-REPORT: 出力のない緑は本規定の充足とみなさない"
         )
-    sealed_asset = read_json(resolved_root / BOOT_SEAL_ASSET)
+    sealed_asset = collector.read_json(resolved_root / BOOT_SEAL_ASSET)
     if resolved_element_ids is None:
         commit_oid = _head_commit_oid(resolved_root)
         resolved, evidence = measure_resolved_element_ids(
             resolved_root,
             sealed_asset,
             commit_oid,
+            input_collector=collector,
         )
     else:
         commit_oid = _head_or_synthetic_oid(resolved_root)
@@ -454,6 +519,7 @@ def accept_transition_green(
         schema,
         commit_oid=commit_oid,
         resolution_evidence=evidence,
+        input_files=collector.records(),
     )
     return _object(report, "boot-report")
 

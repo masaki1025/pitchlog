@@ -100,28 +100,34 @@ def test_schema_and_implementation_have_the_same_exact_key_sets(
     item = schema["properties"]["unresolvedElements"]["items"]
     meaning = schema["properties"]["transitionMeaning"]
     provenance = schema["properties"]["provenance"]
+    input_item = provenance["properties"]["inputFiles"]["items"]
     report = _report(sealed_asset, frozenset())
     schema_sets = (
         frozenset(schema["required"]),
         frozenset(item["required"]),
         frozenset(meaning["required"]),
         frozenset(provenance["required"]),
+        frozenset(input_item["required"]),
     )
     implementation_sets = (
         frozenset(report),
         frozenset(report["unresolvedElements"][0]),
         frozenset(report["transitionMeaning"]),
         frozenset(report["provenance"]),
+        frozenset(report["provenance"]["inputFiles"][0]),
     )
 
     assert schema_sets == implementation_sets
     assert frozenset(schema["properties"]) == schema_sets[0]
     assert frozenset(item["properties"]) == schema_sets[1]
     assert frozenset(meaning["properties"]) == schema_sets[2]
+    assert frozenset(provenance["properties"]) == schema_sets[3]
+    assert frozenset(input_item["properties"]) == schema_sets[4]
     assert schema["additionalProperties"] is False
     assert item["additionalProperties"] is False
     assert meaning["additionalProperties"] is False
     assert provenance["additionalProperties"] is False
+    assert input_item["additionalProperties"] is False
     assert schema["properties"]["unresolvedCount"]["minimum"] == 0
 
 
@@ -313,6 +319,13 @@ def test_actual_measurement_records_head_and_input_digests(tmp_path: Path) -> No
     assert report["provenance"]["inputDigest"].startswith("sha256:")
     assert report["provenance"]["sealedSetDigest"].startswith("sha256:")
     assert report["provenance"]["resolutionEvidenceDigest"].startswith("sha256:")
+    assert {
+        item["path"] for item in report["provenance"]["inputFiles"]
+    } == {
+        "backend/domain/boot-report.schema.json",
+        "backend/domain/boot-seal.json",
+        "backend/domain/check-sets.json",
+    }
     assert REPORT.accept_transition_green(repository)["provenance"] == report["provenance"]
 
 
@@ -332,6 +345,30 @@ def test_old_report_is_rejected_after_head_advances(tmp_path: Path) -> None:
             check=False,
         )
         assert result.returncode == 0, result.stderr
+
+    with pytest.raises(REPORT.CheckerViolation, match="一致しない"):
+        REPORT.accept_transition_green(repository)
+
+
+def test_unused_check_set_change_invalidates_existing_report(tmp_path: Path) -> None:
+    """縮約結果が同じでも、実際に読んだ入力の変更は古い出力を拒否する。"""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _initialise_runtime_repository(repository)
+    REPORT.emit_boot_report(repository)
+    path = repository / "backend/domain/check-sets.json"
+    check_sets = json.loads(path.read_text(encoding="utf-8"))
+    check_sets["targetDerivation"]["groups"].append(
+        {
+            "id": "unused-review-negative",
+            "marker": "未使用",
+            "syntax": "unused",
+        }
+    )
+    path.write_text(
+        json.dumps(check_sets, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     with pytest.raises(REPORT.CheckerViolation, match="一致しない"):
         REPORT.accept_transition_green(repository)

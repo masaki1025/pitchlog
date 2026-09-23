@@ -19,6 +19,86 @@
       "reason": "ステップ 55 は、ステップ 56・57 を含むブランチを push して PR の実 CI を実行した証跡が合格条件に必要なため、ステップ 57 の後に実施した。"
     }
   ],
+  "command_execution_exclusions": [
+    {
+      "stepId": 10,
+      "command": "uv run pytest tests/domain/test_collect_fe.py",
+      "ownerJob": "harness",
+      "reason": "ルートの frontend 収集器テストは harness が tests/ の一部として実走するため。"
+    },
+    {
+      "stepId": 10,
+      "command": "pnpm test -- --run",
+      "ownerJob": "frontend",
+      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
+    },
+    {
+      "stepId": 39,
+      "command": "uv run pytest tests/domain/mut/test_engine.py",
+      "ownerJob": "mutation",
+      "reason": "変異エンジンは PostgreSQL を持つ mutation が変異スイートの一部として実走するため。"
+    },
+    {
+      "stepId": 40,
+      "command": "uv run pytest tests/domain/mut/test_lang_operators.py",
+      "ownerJob": "mutation",
+      "reason": "SQL を含む言語別変異は PostgreSQL を持つ mutation が実走するため。"
+    },
+    {
+      "stepId": 41,
+      "command": "uv run pytest tests/domain/mut/test_display_operators.py",
+      "ownerJob": "mutation",
+      "reason": "表示系変異は mutation が変異スイートの一部として実走するため。"
+    },
+    {
+      "stepId": 42,
+      "command": "uv run pytest tests/domain/mut/test_scope.py",
+      "ownerJob": "mutation",
+      "reason": "変異の影響範囲検査は mutation が変異スイートの一部として実走するため。"
+    },
+    {
+      "stepId": 43,
+      "command": "uv run pytest tests/domain/mut/test_equivalents.py",
+      "ownerJob": "mutation",
+      "reason": "等価変異台帳検査は mutation が変異スイートの一部として実走するため。"
+    },
+    {
+      "stepId": 45,
+      "command": "pnpm exec depcruise src --validate",
+      "ownerJob": "frontend",
+      "reason": "frontend の依存閉域検査は frontend が実走するため。"
+    },
+    {
+      "stepId": 45,
+      "command": "pnpm test -- --run",
+      "ownerJob": "frontend",
+      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
+    },
+    {
+      "stepId": 46,
+      "command": "pnpm run build",
+      "ownerJob": "frontend",
+      "reason": "production build は frontend が実走するため。"
+    },
+    {
+      "stepId": 46,
+      "command": "pnpm test -- --run",
+      "ownerJob": "frontend",
+      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
+    },
+    {
+      "stepId": 49,
+      "command": "uv run pytest tests/domain/mut/test_cost_record.py",
+      "ownerJob": "mutation",
+      "reason": "変異コストの拘束実測は PostgreSQL を持つ mutation が実走するため。"
+    },
+    {
+      "stepId": 52,
+      "command": "uv run pytest tests/test_step_history_audit.py",
+      "ownerJob": "consistency",
+      "reason": "履歴監査自身は consistency の外側から一度だけ起動し、自己再帰を防ぐため。"
+    }
+  ],
   "groups": [
     {
       "id": 1,

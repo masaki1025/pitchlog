@@ -276,7 +276,7 @@
       "stepId": 55,
       "evidenceId": "pb-step-55-current-head-activation-evidence",
       "testPath": "tests/test_ci_wiring.py",
-      "testName": "test_current_head_activation_evidence_is_emitted_and_verified"
+      "testName": "test_current_head_activation_evidence_is_emitted_after_command_and_verified"
     },
     {
       "stepId": 56,

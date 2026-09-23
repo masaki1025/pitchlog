@@ -35,7 +35,7 @@ FRONTEND_CWD = "frontend"
 COMMAND_CWD_ALLOWLIST = frozenset({ROOT_CWD, BACKEND_CWD, FRONTEND_CWD})
 EXPECTED_COMMAND_EXIT = 0
 SELF_RECURSIVE_COMMAND = "uv run pytest tests/test_step_history_audit.py"
-COMMAND_EXECUTION_EXCLUSIONS = frozenset({SELF_RECURSIVE_COMMAND})
+COMMAND_OWNER_JOBS = frozenset({"harness", "frontend", "mutation", "consistency"})
 
 # 走査件数の証跡。`exit 0` は「異常終了しなかった」でしかなく、対象を 1 件も見ずに
 # 終わったコマンドと区別できない(ステップ 45 で `depcruise --validate` が対象省略のまま
@@ -84,6 +84,16 @@ class CommandAudit:
     command: str
     cwd: str
     expected_exit: int
+
+
+@dataclass(frozen=True)
+class CommandExecutionExclusion:
+    """別ジョブが一度だけ実走する command の所有宣言を表す。"""
+
+    step_id: int
+    command: str
+    owner_job: str
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -168,6 +178,43 @@ def _command_audit_asset(data: dict[str, Any]) -> tuple[CommandAudit, ...]:
                 )
             )
     return tuple(records)
+
+
+def _command_execution_exclusions(
+    data: dict[str, Any],
+) -> tuple[CommandExecutionExclusion, ...]:
+    """単一定義から command の実走所有宣言を厳密に読む。"""
+    raw_exclusions = data.get("command_execution_exclusions")
+    if not isinstance(raw_exclusions, list) or not raw_exclusions:
+        raise AuditViolation("command_execution_exclusions が空でない配列でない")
+    exclusions: list[CommandExecutionExclusion] = []
+    for index, raw in enumerate(raw_exclusions):
+        if not isinstance(raw, dict) or set(raw) != {
+            "stepId",
+            "command",
+            "ownerJob",
+            "reason",
+        }:
+            raise AuditViolation(f"command 除外 {index} のキー集合が不正")
+        step_id = raw["stepId"]
+        command = raw["command"]
+        owner_job = raw["ownerJob"]
+        reason = raw["reason"]
+        if not isinstance(step_id, int) or isinstance(step_id, bool) or step_id < 1:
+            raise AuditViolation(f"command 除外 {index} の stepId が不正")
+        if not isinstance(command, str) or not command:
+            raise AuditViolation(f"command 除外 {index} の command が不正")
+        if owner_job not in COMMAND_OWNER_JOBS:
+            raise AuditViolation(f"command 除外 {index} の ownerJob が不正")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AuditViolation(f"command 除外 {index} に理由が無い")
+        exclusions.append(
+            CommandExecutionExclusion(step_id, command, owner_job, reason)
+        )
+    identities = [(item.step_id, item.command) for item in exclusions]
+    if len(identities) != len(set(identities)):
+        raise AuditViolation("command 除外の stepId と command が重複している")
+    return tuple(exclusions)
 
 
 def _history_order_exceptions(
@@ -383,12 +430,22 @@ def _assert_artifacts_at_commits(
                 )
 
 
-def _commands_for_execution(records: Iterable[CommandAudit]) -> tuple[CommandAudit, ...]:
-    """自己再帰するコマンドを実行対象から構造的に除外する。"""
+def _commands_for_execution(
+    records: Iterable[CommandAudit],
+    exclusions: Iterable[CommandExecutionExclusion],
+) -> tuple[CommandAudit, ...]:
+    """別ジョブの所有宣言と一致する command だけを実走対象から除外する。"""
+    all_records = tuple(records)
+    declared = tuple(exclusions)
+    available = Counter((record.step_id, record.command) for record in all_records)
+    excluded = {(item.step_id, item.command) for item in declared}
+    missing = sorted(identity for identity in excluded if available[identity] != 1)
+    if missing:
+        raise AuditViolation(f"所有宣言と実 command が一対一でない: {missing}")
     return tuple(
         record
-        for record in records
-        if record.command not in COMMAND_EXECUTION_EXCLUSIONS
+        for record in all_records
+        if (record.step_id, record.command) not in excluded
     )
 
 
@@ -529,20 +586,16 @@ def _python_marker_command(marker: str) -> str:
 def test_real_repository_commands_actually_run_and_report_nonempty_scope(
     steps_data: dict[str, Any],
 ) -> None:
-    """実リポジトリの全 command を実プロセスで起動し、非空虚であることを要求する。
+    """当該ジョブ所有の command を実プロセスで起動し、非空虚とする。
 
-    合成コマンドだけを起動していた旧版は、`exit 0` で何も走査しない実コマンドを
-    再導入しても検知できなかった(敵対レビュー 2026-09-21 の指摘)。実測では
-    本ステップ自身を除く全 command が 2 分程度で完走するため、実走を避ける理由が無い。
+    他ジョブ所有の command は単一定義の宣言と CI 配線を別検査で突合し、ここで
+    二重実行しない。宣言に無い command は従来どおり全件を実走する。
     """
     records = _command_audit_asset(steps_data)
-    executable = tuple(
-        record
-        for record in records
-        if record.command not in COMMAND_EXECUTION_EXCLUSIONS
-    )
+    exclusions = _command_execution_exclusions(steps_data)
+    executable = _commands_for_execution(records, exclusions)
     assert executable, "実行対象のコマンドが 1 件も無い"
-    assert len(executable) < len(records), "自己再帰するコマンドが除外されていない"
+    assert len(executable) == len(records) - len(exclusions)
     _execute_commands(ROOT, executable)
 
 
@@ -708,10 +761,16 @@ def test_self_recursive_command_is_excluded_from_execution_asset(
     steps_data: dict[str, Any],
 ) -> None:
     records = _command_audit_asset(steps_data)
-    selected = _commands_for_execution(records)
+    exclusions = _command_execution_exclusions(steps_data)
+    selected = _commands_for_execution(records, exclusions)
 
     assert any(record.command == SELF_RECURSIVE_COMMAND for record in records)
-    assert len(selected) == len(records) - len(COMMAND_EXECUTION_EXCLUSIONS)
+    assert any(
+        item.command == SELF_RECURSIVE_COMMAND
+        and item.owner_job == "consistency"
+        for item in exclusions
+    )
+    assert len(selected) == len(records) - len(exclusions)
     _assert_no_self_recursive_command(selected)
 
 
@@ -731,12 +790,46 @@ def test_self_recursion_exclusion_exists_in_executable_ast() -> None:
         and any(isinstance(operator, ast.NotIn) for operator in node.ops)
         and any(
             isinstance(comparator, ast.Name)
-            and comparator.id == "COMMAND_EXECUTION_EXCLUSIONS"
+            and comparator.id == "excluded"
             for comparator in node.comparators
         )
     ]
 
     assert len(exclusions) == 1
+
+
+def test_undeclared_command_exclusion_is_rejected(
+    steps_data: dict[str, Any],
+) -> None:
+    """実 command に無い除外を宣言して監査範囲を縮められない。"""
+    records = _command_audit_asset(steps_data)
+    exclusions = (
+        *_command_execution_exclusions(steps_data),
+        CommandExecutionExclusion(
+            1,
+            "uv run pytest tests/not-declared.py",
+            "harness",
+            "宣言に無い除外の負例。",
+        ),
+    )
+
+    with pytest.raises(AuditViolation, match="一対一でない"):
+        _commands_for_execution(records, exclusions)
+
+
+def test_removing_declared_exclusion_restores_command_to_execution(
+    steps_data: dict[str, Any],
+) -> None:
+    """除外宣言と実装の不一致が command を黙って消さないことを示す。"""
+    records = _command_audit_asset(steps_data)
+    exclusions = _command_execution_exclusions(steps_data)
+    removed = exclusions[0]
+    selected = _commands_for_execution(records, exclusions[1:])
+
+    assert any(
+        record.step_id == removed.step_id and record.command == removed.command
+        for record in selected
+    )
 
 
 def test_artifact_added_after_step_commit_does_not_satisfy_history(
