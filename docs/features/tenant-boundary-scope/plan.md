@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e493b75e68781cb819ce706fa3252b1
 branch: fix/tenant-boundary-scope
 created: 2026-09-24
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -113,51 +113,100 @@ TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
 **TB007 だけが名前ゲートを持たず `provenance` 単独で拒否している。**
 → **TB007 を TB005 と同じ形へ揃える。**
 
-#### 提案する規則
+#### 提案する規則(計画レビュー 1 周目 P0 の反映後)
 
-条件 5 の `TenantContext` 生成経路の拒否を、次の 4 つに限定する。
+条件 5 の `TenantContext` 生成経路の拒否を、次の 5 つに限定する。
 
 | # | 条件 | 現行との差 |
 | --- | --- | --- |
 | (i) | 完全修飾名が `constructor_symbol` に解決され、モジュール allowlist 外 | **変更なし**(`:2972-2980`) |
-| (ii) | 資産の `forbidden_construction_symbols` に一致(`object.__new__` / `__setattr__` / `type` / `dataclasses.replace`) | **変更なし**(`:2865-2926`) |
+| (ii) | 資産の `forbidden_construction_symbols` に一致 | **変更なし**(`:2865-2926`) |
 | (iii) | **callable が属性式でない**(`f(...)` / `tbl[k](...)` / `expr()(...)` / `getattr(...)(...)`)かつ解決不能 | 現行の**部分集合** |
-| (iv) | **属性呼び出しで、属性名が `constructor_symbol` の末尾名に一致**(`*.TenantContext(...)`) | **provenance に関係なく拒否(強化)** |
+| (iv) | **末尾名が `constructor_symbol` の末尾名に一致**する呼び出し — **属性呼び出しでも裸の名前でも**、provenance に関係なく | **強化**(1 周目 P0) |
+| (v) | **再輸出写像で `constructor_symbol` へ解決される呼び出し** | **新設**(1 周目 P0) |
 
-**解決不能な属性呼び出しで、属性名が `TenantContext` でないものは拒否しない。**
+**解決不能な属性呼び出しで、末尾名が `TenantContext` でも再輸出でもないものは拒否しない。**
 
-#### (iii) の既定値を変えない理由
+#### 再輸出写像(1 周目 P0 の是正の中心)
 
-68 負例のうち**未解決 callable 分岐を通るのは `C5_CONTEXT_UNKNOWN_FACTORY` ただ 1 件**で、中身は
-`def forge_context(factory, tenant_id): return factory(tenant_id)` = **裸の名前で呼ぶ形**である。
+**検査器は既に `_git_snapshot` で `backend/src` の全ファイルを読んでいる**(`:3976-3977`)。
+同じスナップショットから「**モジュール → 輸出名 → 起源シンボル**」の写像を作り、
+façade 再輸出を解決する。
 
-**「名前が読めない callable を呼ぶ」= 間接化そのもので、呼び出し側のコードが自分で選んだ形。**
-一方「メソッド名は読めるが receiver の型が読めない」は、**呼び出し側が選んだのではなく解決器が届かなかっただけ**。
-前者を fail-closed、後者を fail-open にするのが、**保証の単位を「読み取れる名前」に置く**設計である。
-→ **この負例は無改変で赤のまま。** 合成モジュールを足す必要はない。
+```python
+# pitchlog/repositories/__init__.py
+from pitchlog.repositories.context import TenantContext
+# 利用側 — 現在も提案 (iii)(iv) 単独でも素通りする
+from pitchlog.repositories import TenantContext
+def make(tenant_id): return TenantContext(tenant_id)
+```
+
+- **これは現行でも検出されていない既存の穴**であり、本ステップは**厳しくする側**である
+- **他ファイルを読むが型推論ではない** — `ast.ImportFrom` の名前を追うだけで、
+  不動点反復も値の型の推定も要らない。**再輸出の連鎖は深さ上限を置いて打ち切り、
+  打ち切った先は fail-closed(解決不能として (iii) の扱い)**にする
+- 別名クラス(`Alias = TenantContext`)と再輸出経由のサブクラス化も同じ写像で解決する
+
+#### (iii) の既定値を変えない理由(1 周目 P0 で正当化を差し替えた)
+
+**当初は「裸の名前呼び出し = 呼び出し側が選んだ意図的な間接化」と論じていたが、これは誤りだった。**
+レビューの反証: `Regenerator`(`domaincheck/divergence.py:180`)と
+`Clock = Callable[[], float]`(`domainmut/scope.py:242`)は**普通の型付き `Callable`** であり、
+意図的な間接化ではない。逆に `registry[k].make_context(t)` は**明示的な間接化なのに属性呼び出しなので通る**。
+
+**差し替えた根拠**: (iii) を fail-closed に保つのは**原理ではなく、負例が現に守っている範囲を落とさないため**である
+(`C5_CONTEXT_UNKNOWN_FACTORY` が `factory(t)` を赤に保つ)。
+**この非対称は恣意的であることを認め、保証外の宣言(下記)へそのまま書く。**
 
 #### 宣言する保証単位(検査器 docstring・`design.md` 6-0・PR 本文の三箇所へ同文)
 
 > **条件 5(`TenantContext` 生成経路)の保証単位は「構築に使われる名前が読み取れること」である。
 > 型の解決可否は保証の条件にしない。**
-> 赤にするもの: (i) 完全修飾名が構築シンボルに解決される呼び出し / (ii) 資産が列挙する禁止構築シンボル /
-> (iii) 名前が読み取れない callable(属性式でない呼び出し)/ (iv) 属性名が構築シンボル末尾名に一致する呼び出し。
-> **守らないもの(6-0 の「守らないもの」へ追加)**: 別名で再輸出された生成関数を、
-> `TenantContext` 以外の属性名で呼ぶこと。**これは人間の逐行レビューが見る対象とし、静的検査の保証外とする。**
+> 赤にするもの: (i) 完全修飾名が構築シンボルに解決される / (ii) 資産が列挙する禁止構築シンボル /
+> (iii) 名前が読み取れない callable(属性式でない呼び出し)/ (iv) **末尾名が構築シンボル末尾名に一致**(属性でも裸の名前でも)/
+> (v) **再輸出写像で構築シンボルへ解決される**。
+> **守らないもの(6-0 の「守らないもの」へ追加。人間承認の対象)**:
+> **`registry[k].make_context(t)` のように、構築シンボル以外の属性名で、
+> 再輸出写像でも解決できない callable を経由した構築。**
+> **(iii) と (iv)(v) の非対称は原理ではなく、既存負例が守る範囲を落とさないための線である。**
 
-### 4-2. 条件 2(TB002・110 件)
+### 4-2. 条件 2(TB002・110 件)— 広く保ち、別の軸で裁定する
 
-**`(?:^|_)generation(?:_|$)` → `(?:^|_)generation_no(?:_|$)`**(`contracts/tenant_boundary/base-allowlist.json`)
+#### 当初案は撤回した(計画レビュー 1 周目 P1)
 
-- **根拠**: 条件 2 の他 6 パターンはいずれも**契約名そのもの**で、**`generation` だけが一般語**だった。
-  FR-013(`requirements-pitchlog-2026-07-22.md:321`)は「記録権には**世代番号**を持たせ」と書いており、
-  **`seq_no` / `revision_no` と同じ `_no` 形が契約名の自然形**
-- **条件 2 はこの検査器の脅威モデルのどの項目にも対応していない**(research.md §3)。
-  由来は上流分割計画の「**面を混ぜない**」規律(`product-impl-unit-split/plan.md:270` `:258`)で、
-  対応するコア領域は**同期プロトコル**行。**テナント分離の防御ではない**
-- **実測**(検査器の `_normalize_identifier` をそのまま使って照合): **110 件 → 0 件**。
-  `pitchlog.sync.contracts.generation_no` は**赤のまま**
-- 既存負例 `C2_GENERATION_IMPORT` は `generation` を import しており緑になるので、`generation_no` 化する
+当初は `(?:^|_)generation(?:_|$)` → `(?:^|_)generation_no(?:_|$)` へ絞る案だった。**実測で否定された。**
+
+`develop` の TB002 **26 件中 14 件が `RecordingGeneration`**
+(`backend/src/pitchlog/db/recording_rights/models.py:153` ほか)= **D4「記録権世代」の実モデルそのもの**で、
+**絞り込むとこれが黙って消える**。実際の列名も **`generation`** であって `generation_no` ではない。
+**FR-013「世代番号」から `_no` 形を推論したのは誤り**だった。
+
+**これは台帳の既知失敗型**(`harness-evaluation.md:2520-2524`「母集団を狭めて本物と偽装の併存が通った」)。
+**feature ブランチの 110 件が 0 になることだけを測り、現行の検査が何を捕まえているかを測っていなかった。**
+
+#### 採る形 — 候補は広く、裁定は exact-set で fail-closed
+
+台帳の対応案(`:2522`)「**候補は意図的に広く取り(部分一致でよい)、
+そのうえで同一性を別の assertion で主張する**」の 2 段にする。
+
+1. **候補**: `generation` を含む 7 パターンは**そのまま**。1 文字も狭めない
+2. **裁定**: 候補に入った**完全修飾シンボル**のうち、**同期セマンティクスの契約ではないと裁定したもの**を
+   資産へ **exact-set** で列挙する。**列挙に無いものは red**(fail-closed)
+
+- **新しいシンボルが候補に入ったら、裁定されるまで red** — **狭める方向の部分一致ではない**
+- 裁定の単位は**完全修飾シンボル**(`pitchlog.domaingen.core.GenerationError` など)。
+  **パスやパッケージの接頭辞では裁定しない**(`design.md:470` のシンボル粒度に揃える)
+- 裁定には**理由**を必須にする(「コード生成の `Generation` であり同期の世代ではない」)
+- **負例で両側を固定する**: `RecordingGeneration` が**赤のまま**であること /
+  裁定済みシンボルが緑であること / **裁定に無い新しい `*Generation` が赤**であること
+
+#### 裸の名前の扱い(未解決)
+
+実測の 110 件には**裸の局所変数 `generation` / `missing_generation` が 9 件**ある
+(`domainmut/engine.py:262` ほか。`MutationGeneration` を受ける局所変数)。
+**完全修飾シンボルが無いので exact-set で裁定できない。**
+→ **実装時に決める**: 局所束縛の由来が裁定済みシンボルなら裁定を継承する / 裸の名前は候補から外す /
+  当該変数名を product 側で変える。**どれも通り抜けを生むので、選んだ案を保証外の一覧へ書く。**
 
 ### 4-3. 通り抜けるもの(PR 本文へ全件そのまま載せる)
 
@@ -214,7 +263,8 @@ TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
 | **新** `C5_CONTEXT_IN_DICT_COMPREHENSION` | `{k: v for k, v in TenantContext(t).items()}` | D5 |
 | **新** `C5_CONTEXT_IN_SUBSCRIPT_TARGET` | `store[TenantContext(t)] = 1` | D5 |
 | **新** `C5_CONTEXT_RELATIVE_IMPORT` | `from .context import TenantContext` → `TenantContext(t)` | D6 |
-| **新(機械)** 全行センサス回帰 | `backend/src` 全行スキャンで **TB005 137 / TB002 26 / TB004 15** が変化しない | D7 |
+| **新(機械)** センサス回帰(**exact-set**) | `path` / `line` / `scope` / `code` / `symbol` / `message` の**期待差分を exact-set で固定**する。件数一致では「真陽性が 1 件消え偽陽性が 1 件増えた」交換を検出できない(1 周目 P1) | D7 |
+| **新(機械)** **CI の実経路**での回帰 | `scan_directory` ではなく **`scan_source_change` + 実コミット列 + `check_repository`**(`:3376` `:3964-3989`)。**全文走査と CI 経路を取り違えて「閉じた」と誤判定した前例がある**(`docs/worklog/2026-09-17-tenant-boundary-enforcement.md:144-148`) | D7 |
 | **新(機械)** 訪問漏れ 0 の不変条件 | 任意ソースの全 `ast.Call` が `flow.callable_symbols` に登録済み | D5 |
 
 **負例は資産に載せる**(単体テストで済ませると「exact-set の負例」という宣言力を失い、両建ての証拠として弱い)。
@@ -237,32 +287,56 @@ TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
 | `negative-fixtures.json` | 新規負例 4 件で `fixtures` が変わる | `fixture_set_revision` 5→6、同上 |
 | 他 5 資産 | 変更しない | **履歴も識別値も触ってはならない**(`:678-680`) |
 
+#### ★ `tenant-context-allowlist.json` の扱い(計画レビュー 1 周目 P1)
+
+**同資産も `pass_fail_mapping` を movement trigger として宣言している**
+(`contracts/tenant_boundary/tenant-context-allowlist.json:22-37`)。
+本タスクは**条件 5 の合否写像を直接変える**ので、宣言上は基準が動く。
+
+**しかし同資産の `external_files` は空**(各資産 `:19`)なので、**機械的には射影が動かない** —
+これは **TSK-431 の既知欠陥 7B**(`docs/features/tenant-boundary-enforcement/plan.md:99-107`)である。
+
+**人間の判断(2026-09-24)= 本タスクで裁定する**:
+- **`tenant-context-allowlist.json` の履歴は足さない**(射影が動かないので足すと red — `:678-680`)
+- **宣言と実装の不一致が本タスクの写像変更で初めて実害として表に出る**ことを **PR 本文へ明記**する
+- **TSK-431 へ申し送る**(7B の優先度材料。別セッションへ通知済み)
+
 `movement_policy.movement_triggers` に **`pass_fail_mapping`** が含まれる
 → **射程変更は「基準を動かす」に当たる**ので `movement_fact` に明記する。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-**厳しくする側(1〜3)を緩和(4)より先に入れる。凍結更新(8)は必ず最後。**
+**厳しくする側(1〜4)を緩和(5)より先に入れる。凍結更新(9)は必ず最後。**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **flow の網羅性を閉じる**: `_expression` へ `ast.DictComp` を追加、`_assign_target`(`:2138-2156`)が `Subscript` / `Attribute` / `Starred` 代入先の内側の式を評価する | `[機械]` 新テスト「任意ソースの全 `ast.Call` が `callable_symbols` に登録済み」green・新負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` が red・**全行センサスで TB005 137 / TB002 26 / TB004 15 が不変** `[手動]` flow の意味論変更が TB005 側を緩めていないことをセンサス差分で確認 |
-| 2 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作る単一ヘルパーを追加し、`:2277` / `:2508` / `:1685`(必要なら `:3111`)で使う | `[機械]` 新負例 `C5_CONTEXT_RELATIVE_IMPORT` が red・**`backend/src` の検出件数が完全不変**(相対 import が 0 件なので差分 0 でなければ実装が誤っている) `[手動]` 「名前解決であり型推論ではない」根拠をコミットメッセージへ記載 |
-| 3 | **`attr == TenantContext` を provenance 非依存で拒否(強化)**: `:2946-2952` の第 1 免除節へ属性名チェックを入れる。既存テスト `test_unresolved_attribute_constructor_mutation_is_red`(`:1395`)を**両側 red を主張する形**へ書き換える | `[機械]` 新負例 `C5_CONTEXT_ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` が red・**センサスで TB007 が増える方向のみ** `[手動]` **逐行確認必須**。書き換え前後の主張内容の差を PR 本文へ明記 |
-| 4 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 68+4 件が exact-set で全 red・正例全 green・**`feature/domain-calc-dsl` で TB007 が約 7 件へ**・センサスで TB001〜TB006 不変 `[手動]` 宣言文が docstring / `design.md` / PR 本文で同文 |
-| 5 | **条件 2 のパターン絞り込み**と `C2_GENERATION_IMPORT` の `generation_no` 化 | `[機械]` 条件 2 の負例 7 本が red・`GenerationError` / `MutationGeneration` 系が緑・**`feature/domain-calc-dsl` で TB002 が 0 件** |
-| 6 | **残る約 7 件の裁定を申し送りへ**: `replacement()` / `_CHECKS[k](...)` / `Callable` 別名 / `dataclasses.replace` の内訳と、TSK-235 側での書き換え案を worklog と PR 本文へ | `[手動]` 7 件の全件が位置・形・性質つきで列挙されている |
-| 7 | **`tenant-boundary-enforcement/design.md` 6-0 へ保証単位を追補**(宣言文 + 「守らないもの」1 行) | `[手動]` 6-0 の既存の線引きと矛盾しないこと |
-| 8 | **凍結基準の受理(最後)**: 2 資産の `contract_revision` / `fixture_set_revision` と履歴 1 件ずつ。射影 SHA は算出値を貼る | `[機械]` `check_tenant_boundary_bypass.py` exit 0・`test_every_frozen_baseline_asset_has_a_valid_chained_history` / `test_checker_pass_fail_mapping_change_requires_revision_and_history` green `[手動]` **コア領域の逐行確認**(設計書 `:377`) |
+| 1 | **センサスの土台**: `path`/`line`/`scope`/`code`/`symbol`/`message` の **exact-set** を取る回帰テストと、**CI の実経路(`scan_source_change` + 実コミット列 + `check_repository`)**を通す回帰テストを置く。**検査器のロジックは 1 行も変えない** | `[機械]` 現行 develop に対して exact-set が固定できる・CI 経路のテストが green `[手動]` 全文走査と CI 経路の両方を通していること |
+| 2 | **flow の網羅性を閉じる**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価 | `[機械]` 「全 `ast.Call` が `callable_symbols` に登録済み」green・新負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` red・**ステップ 1 の exact-set が TB001〜TB006 について不変** |
+| 3 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作るヘルパーを `:2277` / `:2508` / `:1685` で使う | `[機械]` 新負例 `C5_CONTEXT_RELATIVE_IMPORT` red・**exact-set が完全不変**(相対 import が 0 件なので差分が出たら実装が誤っている) |
+| 4 | **(iv)(v) を入れる(強化)**: 末尾名一致を**属性でも裸の名前でも** provenance 非依存で拒否 + **再輸出写像**で構築シンボルへ解決される呼び出しを拒否。既存テスト `test_unresolved_attribute_constructor_mutation_is_red`(`:1395`)を**両側 red**へ書き換え(`scan_source` で個別に red を確認する形) | `[機械]` 新負例 `C5_CONTEXT_ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` / `C5_CONTEXT_REEXPORT_FACADE` / `C5_CONTEXT_REEXPORT_SUBCLASS` red・**exact-set で TB007 が増える方向のみ** `[手動]` **逐行確認必須**。書き換え前後の主張の差を PR 本文へ |
+| 5 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が約 7 件へ**・exact-set で TB001〜TB006 不変 `[手動]` 宣言文が 3 箇所で同文 |
+| 6 | **条件 2 の裁定機構**: 候補パターンは変えず、**裁定済みシンボルの exact-set 資産**(理由必須)を新設し、未登録は red。裸の名前の扱いを決めて保証外へ明記 | `[機械]` **`RecordingGeneration` 14 件が赤のまま**・裁定済みシンボルが緑・**裁定に無い新しい `*Generation` が赤**・統合 worktree で TB002 が 0 件 |
+| 7 | **残る約 7 件の裁定を申し送りへ**: 位置・形・性質つきで全件列挙し、TSK-235 側での書き換え案を worklog と PR 本文へ | `[手動]` 7 件全件が列挙され、**真の脆弱性でないことの根拠**が付いている |
+| 8 | **文書**: `tenant-boundary-enforcement/design.md` 6-0 へ保証単位と「守らないもの」を追補。**`tenant-context-allowlist.json` の 7B 不一致**を PR 本文へ明記し TSK-431 へ申し送る。**Notion の DoD を正式更新** | `[手動]` 6-0 の既存の線引きと矛盾しない・DoD の変更が Notion に反映されている |
+| 9 | **凍結基準の受理(最後)**: `base-allowlist.json` と `negative-fixtures.json` の識別値と履歴 1 件ずつ。射影 SHA は算出値を貼る | `[機械]` `check_tenant_boundary_bypass.py` exit 0・`test_every_frozen_baseline_asset_has_a_valid_chained_history` / `test_checker_pass_fail_mapping_change_requires_revision_and_history` green `[手動]` **コア領域の逐行確認**(設計書 `:377`) |
+
+**効果測定の環境**: TSK-235 の worktree で**旧スクリプトをそのまま実行しても新写像は検証できない**。
+**統合用の一時 worktree**(現行 contract + 現行 checker + TSK-235 の `backend/src`)を作って測る。手順を worklog へ残す。
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] 条件 5・条件 2 の射程が判定され、**保証単位が宣言文として 3 箇所へ同文で置かれている**
-- [ ] `feature/domain-calc-dsl` で **719 → 約 7 件**。**残りは TSK-235 側で書き換える申し送りが出ている**
-- [ ] **何が通り抜けうるか**が PR 本文に明記されている(4-3 の P1〜P11 + 自己申告の弱点)
-- [ ] **両建てが入っている**: flow の網羅性 / 相対 import の絶対化 / `attr == TenantContext` の強化
+**Notion の DoD「検出 0 件」は本計画で正式に更新する**(人間の判断 2026-09-24):
+**TSK-440 で約 7 件まで下げ、TSK-235 側の書き換えで 0 件にする**。依存関係を Notion へ明記する。
+
+- [ ] 条件 5 の保証単位が**宣言文として 3 箇所へ同文**で置かれている
+- [ ] **再輸出・別名・再輸出経由のサブクラス**が負例で赤になる(1 周目 P0 の是正)
+- [ ] 統合 worktree で **TB007 約 7 件 / TB002 0 件**。**残りは TSK-235 側の書き換え申し送りが出ている**
+- [ ] **通り抜けるもの**が PR 本文に全件明記されている(**(iii) と (iv)(v) の非対称が原理でないことを含む**)
 - [ ] **落ちてはいけないもの D1〜D7** が負例で守られている
-- [ ] **全行センサスで TB001〜TB006 の件数が 1 件も減っていない**
+- [ ] **exact-set のセンサス**(`path`/`line`/`scope`/`code`/`symbol`/`message`)で TB001〜TB006 が不変。
+      **CI の実経路(`scan_source_change` + `check_repository`)でも確認している**
+- [ ] **条件 2 は候補を狭めていない**。`RecordingGeneration` が赤のまま
+- [ ] **`tenant-context-allowlist.json` の 7B 不一致**が PR 本文に明記され TSK-431 へ申し送られている
 - [ ] `contract_revision` / `fixture_set_revision` と sha256 inventory が整合している
 - [ ] pytest / ruff / ty green
 - [ ] **コア領域(テナント分離)** → sol xhigh・敵対レビュー + **人間の逐行確認**
