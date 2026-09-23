@@ -17,7 +17,7 @@ date: 2026-09-24
 
 ## 結論(要約)
 
-- **全 45 表の所属は 6 通りに分かれる**。`tenant_id` を持つ表は 29、持たない表は 16。U-T1 の案 P1〜P5 では覆えない表が実在する(`tenant_credentials`・`rate_limit_counters`・`tenants`・`migration_*` 系など)。表ごとの所属を列挙した記述は正本に無い。したがって**表の固定は本タスクの計画で行い、正本に反しない形にする**(4-1)
+- **全 45 表の所属は 6 通りに分かれる**。`tenant_id` を持つ表は 28、持たない表は 17(manifest の列から数え直した値。Explore の報告は 29 で誤り)。U-T1 の案 P1〜P5 では覆えない表が実在する(`tenant_credentials`・`rate_limit_counters`・`tenants`・`migration_*` 系など)。表ごとの所属を列挙した記述は正本に無い。したがって**表の固定は本タスクの計画で行い、正本に反しない形にする**(4-1)
 - **製品資産は `contracts/authz/product/` へ新設し、probe 資産は 1 バイトも触らない**。ツールチェーンは 5 箇所以上で probe のパスと scope を固定している。特に `_validate_ddl_scope` が `product_schema: False` 以外を拒否するので、**一般化しないと製品資産は検査を通らない**(4-3)
 - **U-T1 との往復契約は、テストの形で既に固まっている**。製品資産を置いた時点で、次の 3 つを同時に満たさないと red になる。① 製品資産に `runtime_contract` オブジェクト(8 フィールド)がある ② 生成モジュールが `PROVISIONAL=False` で、`SUPERSEDED_BY` が `None` ③ 暫定資産 `contracts/tenant_boundary/runtime-authz-contract.json` を削除した。③は、TSK-431 が持つ既知欠陥 7D(削除した資産の履歴を検査できない)にぶつかる(4-4)
 - **人間の裁定が要る論点が 4 つある**: ① 移行ロールの所有が TSK-349 と TSK-424 に二重で、方式も正反対 ② SP-06 と 12-4 の字面衝突(所有は TSK-382)を踏まない線引き ③ 移行ロールの書き込み先 exact-set の閉じ方 ④ 正本 3-2 節の監査根拠(NFR-012)を直すかどうか(6 節)
