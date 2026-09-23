@@ -10,7 +10,7 @@ date: 2026-09-24
 入力は U-T1 の詳細設計 `../tenant-boundary-enforcement/design.md` の 2〜4 節・7 節・9 節である。
 **本書はそれを正本と実測で検証し直し、本単位の設計として確定する**。U-T1 の記述を是正した箇所は、各節に明記する。
 
-**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。
+**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。
 
 ## 1. 許可プロファイル
 
@@ -27,7 +27,7 @@ date: 2026-09-24
 | --- | --- | --- | --- |
 | **`tenant_owned`** | `ENABLE` + `FORCE` | `FOR ALL`。`USING` と `WITH CHECK` の両方に `TENANT(tenant_id)` | `SELECT` / `INSERT` / `UPDATE` |
 | **`self_tenant_row`** | `ENABLE` + `FORCE` | `FOR SELECT USING TENANT(id)` のみ | `SELECT` のみ |
-| **`effective_group_control`** | `ENABLE` + `FORCE` | `FOR SELECT`。述語は正本 3-0 節の「実効グループ ∧ 実効参加」(1-3) | `SELECT` のみ(書き込みは U-C1 の管理関数) |
+| **`effective_group_control`** | `ENABLE` + `FORCE` | `FOR SELECT`。述語は正本 3-0 節の「実効グループ ∧ 実効参加」(1-3) | `SELECT` のみ(書き込みは U-C1 の管理関数)。**秘密の列を持つ表(`group_invitations` の `code_hash`)は、秘密の列を除いた列単位の `SELECT`** |
 | **`global_read_only`** | `ENABLE` + `FORCE` | `FOR SELECT USING (true)` のみ | `SELECT` のみ |
 | **`function_only`** | `ENABLE` + `FORCE` | **置かない** | **与えない**(期待は `42501`) |
 
@@ -64,7 +64,7 @@ date: 2026-09-24
 | 関数 | `authz_private.tenant_has_effective_membership(p_group_id uuid, p_require_admin boolean) RETURNS boolean`。**真偽値だけを返す**(行も列も返さない) |
 | 判定 | 呼び出し元テナント(`app.tenant_id`)が、グループ `p_group_id` に**実効参加**している(参加行が `active` ∧ 参加テナントが有効)∧ そのグループが**実効グループ**(`active`)。`p_require_admin` が真なら、さらに役割が `admin` |
 | 所有者 | `pitchlog_shared_fn_owner`(`NOLOGIN` + `BYPASSRLS`)。関数の中の読み取りは RLS を迂回するので、再帰しない |
-| 所有者の表権限 | **`BYPASSRLS` は RLS を迂回するだけで、表の権限は与えない**。所有者に次だけを与え、exact-set で検査する: `public` の `USAGE` / `tenants`・`analysis_groups`・`group_memberships` の `SELECT`(列は判定に使う列に限る)。**過剰な表・過剰な権限・1 件の欠落を、それぞれ変異で red にする**【2 周目 2-P1-1】 |
+| 所有者の表権限 | **`BYPASSRLS` は RLS を迂回するだけで、表の権限は与えない**。所有者に与える権限を **`{表, 列, 権限}` の機械可読な exact-set** として資産に置き、`pg_attribute.attacl` まで検査する: `public` の `USAGE` / `tenants`(`id`・`enabled`)・`analysis_groups`(`id`・`status`)・`group_memberships`(`group_id`・`tenant_id`・`role`・`status`)の**列単位の `SELECT`**。**表単位の `SELECT` を与える・使わない列を 1 つ足す・必要な列を 1 つ欠く変異を、それぞれ red にする**【2 周目 2-P1-1・3 周目 3-P1-4】 |
 | 属性 | `SECURITY DEFINER` / `STABLE` / `SET search_path = pg_catalog, pg_temp`(`pg_temp` を末尾に明示 — REJ-003)/ 本文の表参照はすべてスキーマ修飾 |
 | ACL | 作成と同じトランザクションで `REVOKE ALL ... FROM PUBLIC` → `GRANT EXECUTE ... TO pitchlog_app`(`data-model.md:242`) |
 | スキーマ | `authz_private`(所有者 `pitchlog_shared_fn_owner`。`pitchlog_app` には `USAGE` のみ・`CREATE` は誰にも与えない) |
@@ -100,7 +100,7 @@ date: 2026-09-24
 
 **`self_tenant_row`(1 表)**: `tenants` — `direct`(`SELECT` のみ)。書き込みは管理経路(**U-A2**)の関数。
 
-**`effective_group_control`(4 表)**: `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` — 読み取りは `direct`(`SELECT` のみ)、書き込みは **U-C1** の管理関数。
+**`effective_group_control`(4 表)**: `analysis_groups` / `group_memberships` / `sharing_grants` / `group_invitations` — 読み取りは `direct`(`SELECT` のみ)、書き込みは **U-C1** の管理関数。**`group_invitations` は `code_hash` を除いた列単位の `SELECT`**(招待コードのハッシュは、受諾の照合を行う U-C1 の関数だけが読む)。
 
 **`global_read_only`(5 表)**: `rule_sets` / `game_type_rule_defaults` / `system_vocabularies` / `admin_vocabularies` / `system_settings` — `direct`(`SELECT` のみ)。書き込みは **U-A2** の関数。
 
@@ -123,18 +123,20 @@ date: 2026-09-24
 
 1. **固定 oracle**: 1-4 の割り当て表を、**検査器から独立した機械可読の凍結資産** `contracts/authz/product/table-classification.oracle.json` に置く。分類資産はこの oracle と exact-map で一致しなければ red。
    - **設計書 7.7 に従う**: oracle は凍結基準である。**検査器のソースには値を直書きしない**(7.7-1)。oracle を動かすときは、**追記のみの履歴**(新旧の識別値・変えた表とその前後のプロファイル・事実・理由・承認者・承認日 — 7.7-2)を oracle 自身に残す。履歴を確かめられないときは不合格(7.7-3)
-   - **履歴なしの変更を、比較元の ref を使わずに検出する**: 履歴の各項目は、その変更の後の割り当て全体の digest と、**直前の項目の digest**(鎖)を持つ。**現在の割り当ての digest が、履歴の最後の項目の digest と一致しなければ red**。比較元を資産や CI の引数に頼らないので、TSK-431 の 7A(比較元の自己申告)の形の穴を作らない
-   - 検査: 分類資産だけを変える変異で red(oracle と不一致)/ **oracle だけを履歴なしで変える変異で red**(digest 不一致)/ oracle と分類資産を両方変え、履歴を足さない変異で red / 履歴の途中の項目を消す・書き換える変異で red(鎖が切れる)。**末尾の項目を消して割り当ても戻す操作は、比較元なしでは検出できない**(直前の承認済み状態へ戻るだけで、誤分類は通せない)。この限界を残余として記録する
+   - **直前の状態は、CI が与える比較元から取る**(7.7-4 が資産に委ねた「直前の状態の算出方法」を、ここで確定する)。比較元は **PR イベントの base の SHA**(`GITHUB_EVENT_PATH`)で、**資産からは読まない**(TSK-431 の 7A — 比較元の自己申告 — の形の穴を作らない)。ローカル実行では `--base` と `--head` の両方の指定を必須にする。既存の `scripts/check_nfr021_append_only.py`(`:85-99`)と同じ解決方法をとる
+   - **検査**: ① base の oracle の履歴が、HEAD の oracle の履歴の**先頭部分と 1 バイトも違わない**(追記のみ — 7.7-2)② base と HEAD で割り当てが違えば、HEAD に**新しい履歴の項目が 1 件以上**あり、その項目が変えた表と前後のプロファイルが、実際の差分と exact-set で一致する ③ 比較元を解決できないときは不合格(7.7-3)
+   - **検査器は新設の `scripts/check_authz_product_oracle.py`**。CI では、既存の必須ジョブ `harness` に 1 ステップとして足す(**新しいジョブにはしない** — ruleset の必須チェックの変更が要らないように)。`tests/test_ci_wiring.py` には、このステップの期待値を**追記するだけ**とする
+   - 変異(使い捨ての git リポジトリで試す): 分類資産だけを変える / oracle だけを履歴なしで変える / 両方を変えて履歴を足さない / **履歴の途中の項目を書き換え、後続をすべて作り直す** / 履歴の末尾を消す / 比較元を与えない — **すべて red**
    - これで、誤分類を通すには「oracle の履歴に承認者と理由を書く」ことが必要になり、レビューで必ず見える(7.7-4 のとおり、承認の真正性そのものは保証しない)
-   - 【2 周目 2-P0-1】旧案は oracle を試験モジュールの定数として持ち、7.7-1 の直書き禁止に反していた
+   - 【2 周目 2-P0-1・3 周目 3-P0-2】1 周目の案は oracle を試験モジュールの定数として持ち、7.7-1 の直書き禁止に反していた。2 周目の案(資産の中の digest の鎖)は外部の基準点が無く、履歴を書き換えて鎖を作り直すと検出できなかった
 2. **意味の不変条件**(manifest の事実から導く。分類資産を見ない):
    - `tenant_id` 列を持たない表は `tenant_owned` にできない
-   - **秘密の列を持つ表は `function_only` でなければならない**。秘密の列は閉じた列挙で持つ(`password_hash` / `code_hash` など — manifest を走査して列挙を確定する)
+   - **秘密の列に対して、アプリ用ロールが `SELECT` を持たない**(表単位の `SELECT` も、その列の列単位の `SELECT` も)。秘密の列を持つ表にアプリ用ロールの読み取りを許すときは、**秘密の列を除いた列単位の `SELECT`** にする。秘密の列は閉じた列挙で持つ(`password_hash` / `code_hash` など — manifest を走査して列挙を確定する)
    - `global_read_only` にできるのは、`tenant_id` 列を持たず、かつ秘密の列を持たない表だけ
    - `effective_group_control` にできるのは、manifest で `cross_tenant: true` の FK を持つか、その参照先である表だけ
    - `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `U-C1` / `U-C2` / `migration_batch`)が必須
 
-**変異**(すべて red): `admin_credentials → global_read_only` / `tenant_auth_subjects → tenant_owned` / 制御資源の表 → `tenant_owned` / 表を 1 つ未割り当てにする / モデルを 1 つ足す / 秘密の列の列挙から 1 つ消す。
+**変異**(すべて red): `admin_credentials → global_read_only` / `tenant_auth_subjects → tenant_owned` / 制御資源の表 → `tenant_owned` / 表を 1 つ未割り当てにする / モデルを 1 つ足す / 秘密の列の列挙から 1 つ消す / **`group_invitations` に表単位の `SELECT` を与える**(`code_hash` が読める — 3 周目 3-P0-1)。
 
 【1 周目 1-P0-2】旧案は分類資産だけを正解にしていた。
 
@@ -144,38 +146,47 @@ date: 2026-09-24
 
 | ロール | 資産上の名前 | 属性 | 作る主体 |
 | --- | --- | --- | --- |
-| マイグレーション用(表の所有者・**DB の所有者**) | `pitchlog_owner` | `LOGIN` / `NOSUPERUSER` / `NOBYPASSRLS` / `NOCREATEROLE` / `NOCREATEDB` | **外部の手順**(試験では fixture)。資産には期待属性を宣言し、カタログ検査の対象にする |
+| マイグレーション用(表の所有者・**DB の所有者**) | `pitchlog_owner` | `LOGIN` / `NOSUPERUSER` / `NOBYPASSRLS` / `NOCREATEROLE` / `NOCREATEDB` | 外部の適用主体(2-3) |
 | アプリ用 | `pitchlog_app`(U-T1 の暫定名 `runtime_contract.py:26` を踏襲) | `LOGIN` / `NOSUPERUSER` / `NOBYPASSRLS` / `NOCREATEROLE` / `NOCREATEDB` / `NOREPLICATION` / `NOINHERIT` | 製品 DDL |
 | 共有関数所有用 | `pitchlog_shared_fn_owner` | `NOLOGIN` / `BYPASSRLS` | 製品 DDL。**所有する関数は補助関数 1 つ**(1-3) |
 | 管理関数所有用 | `pitchlog_management_fn_owner` | `NOLOGIN` / `BYPASSRLS` | 製品 DDL。**所有する関数は 0 件** |
-| 移行バッチ用 | `pitchlog_migration_batch` | `LOGIN` / `BYPASSRLS`・**期間限定・`VALID UNTIL`** | **定常の資産には含めない**。ライフサイクル資産(8 節)だけが有効化する |
+| 移行バッチ用 | **名前は固定しない**(TSK-349 が決める。資産は role kind `migration_batch` として形だけを持つ — 8-2) | `LOGIN` / `BYPASSRLS`・期間限定 | **定常の資産には含めない** |
 
 ### 2-1. DB と `public` スキーマの所有
 
 PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し、DB の所有者がそれを管理する。
 
-→ **DB の所有者を `pitchlog_owner` にする**(`CREATE DATABASE ... OWNER pitchlog_owner` — 外部の手順)。
+→ **DB の所有者を `pitchlog_owner` にする**(`CREATE DATABASE ... OWNER pitchlog_owner` — 外部の適用主体)。
 `pitchlog_owner` は `public` に表と関数を作れる(migration)。
 製品 DDL は、`public` の `CREATE` を `PUBLIC` から明示的に剥奪し、`pitchlog_app` に `USAGE` だけを与える。
-**DB・スキーマの所有者と、スキーマの ACL の最終状態を exact-set で検査する**。
+**DB・スキーマの所有者と、DB とスキーマの ACL の最終状態を exact-set で検査する**。
 
-【1 周目 1-P1-2】旧案は DB とスキーマの所有者が未定義で、マイグレーション用ロールを `NOLOGIN` としながら「その権限で接続する」と書いていた。
+【1 周目 1-P1-2】
 
-### 2-2. ロールの membership — `ADMIN OPTION` まで検査する
+### 2-2. ロールの membership — 製品ロールに接する辺は 0 本
 
-`pg_auth_members` の 3 つの option(`admin_option` / `set_option` / `inherit_option`)を、**辺ごとに exact-set で検査する**。
+**正本は、関数所有ロールについて「`NOLOGIN` + 誰にも `GRANT` しない」を唯一の経路と定める**(`data-model.md:223-233`)。
+これをすべての製品ロールに広げる:
 
-- **製品ロール(`pitchlog_app`・関数所有ロール・`pitchlog_owner`)から出る辺は 0 本**。`SET` / `INHERIT` / `ADMIN` の**どの option も持たない**。`ADMIN OPTION` だけの辺でも、自分へ membership を付け直せば `SET ROLE` できるので、**`ADMIN` だけを残す変異で red** にする
-- **provisioner は外部の特権主体として宣言する**(probe の `external_provisioner` と同じ位置づけ)。ロールを作り、再適用し、退役させるのが provisioner の仕事なので、**製品ロールへの `ADMIN OPTION` の辺を持つ**。これを隠さず、**資産に「恒久の特権主体と、その辺の集合」として宣言し、exact-set で検査する**:
-  - provisioner から各製品ロールへの辺は **`ADMIN` のみ(`SET` と `INHERIT` は偽)**
-  - **provisioner へ入る辺は 0 本**(どの製品ロールからも provisioner に到達できない)
-  - `SET` / `INHERIT` の辺は、適用のトランザクションの中だけに存在する一時の辺で、commit 後に残れば red
-- 危険ロールの定義は `rolsuper` ∨ `rolbypassrls` ∨ 保護対象の所有者。**「恒久の特権主体」の許可集合を資産に宣言し、LOGIN できる危険ロールの集合がこの許可集合と exact-set で一致すること**を検査する(使い捨てクラスタでは bootstrap の superuser と provisioner)
-- probe の適用器は `SET` と `INHERIT` だけを剥奪し、`ADMIN` を残している(`backend/src/pitchlog/authz/provisioning.py:627`)。製品では、その `ADMIN` の辺を**宣言された恒久の辺**として扱い、宣言に無い `ADMIN` の辺を red にする
+- **`pg_auth_members` のうち、製品ロール(`pitchlog_owner`・`pitchlog_app`・関数所有ロール 2 つ)を `roleid` か `member` に含む行が 0 件**。`admin_option` / `set_option` / `inherit_option` の**どの option の辺も**持たない
+- **`ADMIN OPTION` だけの辺も 0 本**。`ADMIN` があれば、別の `LOGIN` ロールを作って `SET` 付きで付与し直せる。**`ADMIN` だけを足す変異で red**
+- **恒久の特権主体の許可集合**を資産に宣言する。**LOGIN できる危険ロール**(`rolsuper` ∨ `rolbypassrls` ∨ 保護対象の所有者)**の集合が、この許可集合と exact-set で一致すること**を検査する
+  - 許可集合 = **外部の適用主体(superuser)** と **`pitchlog_owner`**(DB と表の所有者なので危険ロールに当たる。LOGIN するのは migration のときだけで、アプリ用の接続経路では U-T1 の真正性検査が拒否する — `backend/src/pitchlog/db/engine.py:159`)
+  - 移行バッチ用ロールは、定常では許可集合に入らない(8-3)
 
-【2 周目 2-P1-5 の一部】旧案の「provisioner からの辺も 0 本」は、再適用(4-3)と両立しなかった。
+【2 周目 2-P1-5・3 周目 3-P0-3】2 周目の案(provisioner に恒久の `ADMIN` 辺を持たせる)は、正本の「誰にも `GRANT` しない」に反し、`CREATEROLE` と `ADMIN` の組み合わせで関数所有ロールへ到達する経路を作っていた。
 
-【1 周目 1-P0-4】
+### 2-3. 外部の適用主体
+
+**製品 DDL は、外部の適用主体(superuser)が 1 トランザクションで適用する**。
+
+- 理由: 関数所有ロールに `BYPASSRLS` を付けられるのは、superuser か、自分が `BYPASSRLS` を持つロールだけである(PostgreSQL 17 `ALTER ROLE`)。superuser でない provisioner を使うと、provisioner 自身に `BYPASSRLS` を持たせるか、製品ロールへの恒久の辺を残すことになる(2 周目の案の欠陥)。**どちらも製品ロールの外に危険な到達経路を増やす**
+- superuser は表の所有者でなくても `ALTER TABLE`・`CREATE POLICY` を実行でき、スキーマと関数の所有者も移せる。**membership の辺を 1 本も作らずに適用できる**
+- **superuser で試験すると権限の欠落が隠れる**、という懸念(2 周目 2-P1-2)への答え: superuser は DDL を適用するだけで、**製品の振る舞いの試験はすべて `pitchlog_app` と `pitchlog_owner`(superuser ではない)の接続で行う**。補助関数は実行時に所有者 `pitchlog_shared_fn_owner` の権限で動くので、所有者の権限の欠落は `pitchlog_app` からの試験で表に出る
+- 実環境で誰が適用主体になるかは、TSK-344(実スキーマへの適用)の射程である。本単位は「superuser 相当の外部主体が、1 トランザクションで適用する」ことを契約として固定する
+- probe の適用器は、superuser でない provisioner を使っている(`contracts/authz/ddl-elements.json:39-45`)。**probe は provisioner の到達性そのものを検証する目的だった**(TSK-317)。製品は検証済みの構成を置く層なので、この形を踏襲しない
+
+【3 周目 3-P0-3・3-P1-1・3-P1-2】
 
 ## 3. 製品 authz DDL 資産の形と置き場
 
@@ -183,10 +194,12 @@ PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し
 
 ```
 contracts/authz/product/table-classification.json        全 45 表の物理プロファイルと到達経路(1 節)
+contracts/authz/product/table-classification.oracle.json 表分類の固定 oracle(7.7 に従う凍結資産 — 1-5)
+contracts/authz/product/capability-catalog.json          capability の記述(10 節)
 contracts/authz/product/ddl-elements.staged.json          製品 DDL 要素(PR A の間の置き場。3-2)
 contracts/authz/product/function-bodies/                  製品側の SQL 本体と manifest.json
 contracts/authz/product/probe-product-map.json            probe 原子要素 ↔ 製品原子要素(7 節)
-contracts/authz/product/migration-batch-lifecycle.json    移行バッチ用ロールのライフサイクル(8 節)
+contracts/authz/product/migration-batch-role.json         移行バッチ用ロールの書き込み先と、有効な間の形(8 節)
 ```
 
 - **probe 資産(`contracts/authz/` 直下)は 1 バイトも触らない**(封印 — `contracts/authz/oracle-seal.lock.json:40-88`)
@@ -235,35 +248,34 @@ migration は `public` にトリガ関数を 33 個作る(`runtime_contract.py:8
 
 **migration の外で、migration の後に適用する**(裁定 A-2・`D7`)。
 
-1. 使い捨てクラスタを作る(`backend/tests/db_fixtures.py:555-615` と同じ形)。クラスタの初期管理ユーザー(superuser)は **bootstrap にだけ使う**
-2. bootstrap: superuser が **provisioner**(`LOGIN` + `CREATEROLE`・superuser ではない)を作る。provisioner が `pitchlog_owner` を作る。superuser が DB を `OWNER pitchlog_owner` で作る(2-1)。**以後、superuser は使わない**
+1. 使い捨てクラスタを作る(`backend/tests/db_fixtures.py:555-615` と同じ形)。クラスタの初期管理ユーザー(superuser)を **外部の適用主体**とする(2-3)
+2. 適用主体が `pitchlog_owner` を作り、DB を `OWNER pitchlog_owner` で作る(2-1)
 3. `pitchlog_owner` で接続して `alembic upgrade head`
-4. provisioner で接続して**製品 authz DDL を適用する**(4-2)
-5. カタログ検査と実 DB 試験(6 節)
+4. 適用主体で接続して**製品 authz DDL を 1 トランザクションで適用する**(4-2)
+5. カタログ検査と実 DB 試験(6 節)。**振る舞いの試験は `pitchlog_app` と `pitchlog_owner` の接続で行う**
 
 ### 4-2. 1 トランザクションで適用する
 
 probe の適用器は、手順ごとに commit している(`backend/src/pitchlog/authz/provisioning.py:491` ほか 4 箇所)。
-これは probe が表そのものを作るためだった。**製品の適用対象は migration が作った既存の表**なので、この制約が無い。
+これは probe が表そのものを作り、superuser でない provisioner の到達性を段階的に確かめるためだった。
+**製品の適用対象は migration が作った既存の表で、適用主体は superuser**(2-3)なので、この制約が無い。
 
-→ **製品の適用は、ロールの作成を含めて全体を 1 トランザクションで行う**。
+→ **製品の適用は、ロールの作成を含めて全体を 1 トランザクションで行う**。手順は次の順に固定する:
 
-- provisioner は **superuser ではない**(probe の provisioner と同じ `LOGIN` + `CREATEROLE` — `contracts/authz/ddl-elements.json:39`)。superuser で試すと、権限の欠落が隠れるため
-- 表の所有者でないと `ALTER TABLE` も `CREATE POLICY` もできない。provisioner は**トランザクションの中で `SET LOCAL ROLE`** を使う。**`SET LOCAL` は commit / rollback で必ず戻る**。通常の `SET ROLE` は commit 後もセッションに残るので使わない
-- **1 トランザクションの中の順序を固定する**(`pitchlog_owner` は `NOCREATEROLE` なので、その権限のままでは membership を回収できない):
-  1. ロールを作る。**PostgreSQL 16 以降、superuser でない作成者には、作ったロールへの `ADMIN OPTION` つき membership が自動で付く**。これが 2-2 で宣言する恒久の `ADMIN` の辺になる
-  2. 一時の辺を張る: `GRANT pitchlog_owner TO provisioner WITH SET TRUE, INHERIT FALSE, ADMIN FALSE`。補助関数とスキーマの所有者を移すため、`pitchlog_shared_fn_owner` にも同じ形の辺を張る(**一時の辺は資産に列挙した 2 本だけ**)
-  3. `SET LOCAL ROLE pitchlog_owner` → 表の `ENABLE` / `FORCE`・ポリシー・表 ACL・トリガ関数の `PUBLIC` 剥奪
-  4. `RESET ROLE`
-  5. 補助関数とスキーマの作成と所有者の移動(`pitchlog_shared_fn_owner` へ)・関数 ACL
-  6. **一時の辺の `SET` を外す**(`REVOKE SET OPTION FOR ...`)。provisioner に残るのは、2-2 で宣言した `ADMIN` のみの辺だけ
-- **commit 後と rollback 後の両方**で、同じ接続の `current_user = session_user = provisioner` を検査する(`backend/src/pitchlog/db/engine.py:138` と同じ観点)。**適用後の `pg_auth_members` が、2-2 の宣言と exact-set で一致する**
-- 【2 周目 2-P1-6】旧案は `RESET ROLE` の位置と一時の辺の列挙が無かった
-- **commit 後と rollback 後の両方**で、同じ接続の `current_user = session_user = provisioner` を検査する(`backend/src/pitchlog/db/engine.py:138` と同じ観点)
-- **失敗点**(R-5 と、ロール切り替えの前後): ロール作成の直後 / `SET LOCAL ROLE` の直後 / ポリシー作成の直後 / ACL 正規化の途中 / `RESET ROLE` の直後 / membership の `REVOKE` の直前。**どこで失敗しても、カタログが適用前と 1 要素も変わらない**
-- **変異**: `SET LOCAL ROLE` を `SET ROLE` に変えると red(commit 後の `current_user` 検査で落ちる)/ `RESET ROLE` を省くと red / 一時の辺の `SET` を 1 本残すと red / 宣言に無い `ADMIN` の辺を 1 本足すと red / 製品ロールから出る辺を 1 本足すと red
+1. ロールを作る(`pitchlog_app`・関数所有ロール 2 つ)
+2. DB とスキーマの ACL(`public` の `CREATE` の剥奪・`USAGE`)。`authz_private` スキーマを作り、所有者を `pitchlog_shared_fn_owner` にする
+3. 全 45 表の `ENABLE` / `FORCE`
+4. ポリシー
+5. 表 ACL と列 ACL
+6. トリガ関数 33 個の `PUBLIC` 剥奪
+7. 補助関数の作成・所有者の移動・関数 ACL(作成と同じトランザクションで `PUBLIC` から剥奪 — `data-model.md:242`)
 
-【1 周目 1-P0-3】
+- **適用主体は `SET ROLE` を使わない**。**commit 後と rollback 後の両方**で、同じ接続の `current_user = session_user` を検査する
+- **適用後の `pg_auth_members` に、製品ロールに接する辺が 0 本**(2-2)
+- **失敗点**(R-5): 手順 1 の直後 / 手順 3 の直後 / 手順 4 の直後 / 手順 5 の途中 / 手順 7 の所有者の移動の直後。**どこで失敗しても、カタログが適用前と 1 要素も変わらない**
+- **変異**: 手順を 2 つのトランザクションに分ける(途中の commit)と red / 製品ロールへの辺を 1 本足すと red
+
+【1 周目 1-P0-3・2 周目 2-P1-6・3 周目 3-P1-2】2 周目までの案(superuser でない provisioner が `SET LOCAL ROLE` と一時の辺で所有者の権限を借りる)は、`BYPASSRLS` を付ける権限と、スキーマ作成の権限が成立していなかった。
 
 ### 4-3. 再適用と migration の往復
 
@@ -365,13 +377,14 @@ U-T1 design 2-1(`:76-95`)を引き継ぐ。
 | コード | 使える原子要素の種別 | 意味 |
 | --- | --- | --- |
 | `test_only_role` | role | 試験専用(`outsider_role` / `management_caller`) |
-| `external_provisioner` | role | 外部の手順が用意する(`provisioner`) |
+| `external_provisioner` | role | 外部の手順が用意する(`provisioner`)。製品では外部の適用主体(2-3)に相当する |
+| `superseded_by_product_design` | function / acl_privilege | 製品の設計で別の仕組みに置き換えた(`read_control_resources` → 制御資源の直接の RLS と U-C2 のアプリ層の列制御 — 1-3)。**置き換え先を必須の欄として持つ** |
 | `deferred_to_owning_unit` | function / acl_privilege | 所有単位が足す(`owner_unit` 必須: U-C1 / U-C2 / U-C3 / U-A2) |
 | `forbidden_by_canon` | acl_privilege | 正本が禁じる(`app_role` の `DELETE` — `data-model.md:209`) |
 | `probe_schema_only` | schema / table / policy | probe 専用の器(`probe_data` / `probe_business_rows` など) |
 | `product_only` | 製品側の全種別 | probe に対応物が無い製品要素(45 表・トリガ関数 33 個・補助関数など) |
 
-- `read_control_resources`(`contracts/authz/ddl-elements.json:353`)は `deferred_to_owning_unit` / `owner_unit: U-C2`
+- `read_control_resources`(`contracts/authz/ddl-elements.json:353`)は **`superseded_by_product_design`**(置き換え先: 制御資源 4 表の RLS ポリシーと、U-C2 のアプリ層の列制御)。**U-C2 に越境関数を割り当てない**(`../product-impl-unit-split/plan.md:226`・`../tenant-boundary-enforcement/design.md:575-580` と一致させる)【3 周目 3-P1-6】
 - **写像資産を正とし、TSK-250 の予告資産 `scripts/design_relations/product-ddl-map-data-model.json` は本資産から導出する**。TSK-250 の計画書(`../data-model-canonical/plan.md:253`)への申し送りを、PR 本文と Notion に記録する
 
 ## 8. 移行バッチ用ロール — 本単位は「形」と「定常の不変条件」まで
@@ -404,11 +417,12 @@ U-T1 design 2-5 が「持ち主がいない」として本単位へ引き取っ�
 ### 8-2. 有効化したときの形
 
 資産 `migration-batch-role.json` に、有効な間のロールの形を宣言する。**名前は固定しない**(同時実行の制御は TSK-349 の射程なので、名前の付け方も TSK-349 が決める)。
+**形の検査は、呼び出し元が渡したロールの OID を対象にし、名前に依存しない**(TSK-349 がどんな名前を採っても検査が効く)【3 周目 3-P1-8】。
 本単位は、**資産どおりに作ったロールが次を満たすこと**を使い捨てクラスタで検査する:
 
 | 正本の条件(`data-model.md:290-297`) | 有効な間の形 |
 | --- | --- |
-| アプリから到達しない | `pitchlog_app`・関数所有ロール・`pitchlog_owner` から、`SET` / `INHERIT` / `ADMIN` のどの辺でも到達しない。**このロールから出る辺も 0 本** |
+| アプリから到達しない | **このロールに接する `pg_auth_members` の辺(入る辺も出る辺も)が 0 本**。どのロールからも、`SET` / `INHERIT` / `ADMIN` のどの option でも到達しない。**無関係な `LOGIN` ロールから辺を足す変異・外部の適用主体から辺を足す変異で、それぞれ red**【3 周目 3-P1-3】 |
 | DDL を持たない | `pg_class.relowner` / `pg_proc.proowner` / `pg_namespace.nspowner` / `pg_database.datdba` のどれにも現れない |
 | 書き込み先の限定 | 表 ACL が `write_targets` と exact-set。スキーマの ACL は `public` の `USAGE` のみ |
 | (属性) | `LOGIN` / `BYPASSRLS` / `NOSUPERUSER` / `NOCREATEROLE` / `NOCREATEDB` / `NOREPLICATION` |
@@ -420,7 +434,7 @@ U-T1 design 2-5 が「持ち主がいない」として本単位へ引き取っ�
 **移行を行っていない定常状態**では、次が成り立つ。**カタログ検査に入れ、成り立たなければ不合格**(fail-closed):
 
 - 資産の形(8-2)をもつロール — **`BYPASSRLS` を持つ `LOGIN` のロールのうち、恒久の特権主体として宣言されていないもの** — が **0 件**
-- 恒久の特権主体の許可集合(2-2)は資産に宣言する。**大域の「`LOGIN` + `BYPASSRLS` が 0 件」とはしない**(正当な provisioner を誤検出するため)
+- 恒久の特権主体の許可集合(2-2)は資産に宣言する。**大域の「`LOGIN` + `BYPASSRLS` が 0 件」とはしない**(正当な外部の適用主体を誤検出するため)
 
 TSK-349 は、移行の区間の前後でこの検査が合格すること(区間の外にロールが残っていないこと)を、自分の合格条件に使う。
 
@@ -438,6 +452,7 @@ TSK-349 は、移行の区間の前後でこの検査が合格すること(区�
 | 同時実行: run ID ごとの一意なロール名か、クラスタの advisory lock と一意な active-run 制約 | 2-P1-4 |
 | 孤児の検出は、run ID から作ったロールの OID を記録し、そのロールの不存在または完全な硬化を直接検査する(本単位の 8-3 は、その外側の網) | 2-P1-5 |
 | `event_slots` の取り込みバッチ識別子の欠落(8-1) | 1-P0-7 |
+| **旧カルテの移行で `medical_note_versions` に行を作るかの確定**。作るなら、取り込みバッチ識別子の不変条件と本資産の `write_targets` を先に改訂する。作らないなら、移行実行器の試験で 0 件を保証する | 3-P1-5 |
 | **FR-038 の移行実行器が、本単位の `migration-batch-role.json` を読んで書き込み先と形を決めること**を、TSK-349 の合格条件にする | 1-P1-6 |
 
 TSK-349 の旧 DoD のうち「凍結 probe 資産への追加と `--reseal-oracle`」は採らない(probe と製品は別の層 — `data-model.md:537`)。
