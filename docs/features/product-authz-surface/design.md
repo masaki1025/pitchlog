@@ -10,7 +10,7 @@ date: 2026-09-24
 入力は U-T1 の詳細設計 `../tenant-boundary-enforcement/design.md` の 2〜4 節・7 節・9 節である。
 **本書はそれを正本と実測で検証し直し、本単位の設計として確定する**。U-T1 の記述を是正した箇所は、各節に明記する。
 
-**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。7 周目(P0 3 / P1 2 / P2 2)の反映は【7 周目】。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
+**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。7 周目(P0 3 / P1 2 / P2 2)の反映は【7 周目】。8 周目は「条件付き可」(P0 0 / P1 3 / P2 2)で、その条件の反映は【8 周目】。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
 
 ## 1. 許可プロファイル
 
@@ -81,7 +81,7 @@ date: 2026-09-24
 **それでもポリシーを置く理由**: 正本 3-5 節は、制御資源の RLS を「実効グループ ∧ 実効参加」の形と定めている。将来、直接の読み取りを開く単位が現れたときに、**行の制限が最初から効いている**ようにするためである。
 直接の読み取りを開くには、表分類の改訂(コア領域の逐行確認)と、列と対象の行の制限の設計が要る。capability カタログにも載せない(10 節)。
 
-**表ごとのポリシー**(すべて `FOR SELECT TO pitchlog_app`。**アプリ用ロールに表の権限が無い間は評価されない**。試験では、試験専用のロールに試験の中だけで `SELECT` と `EXECUTE` を与えて述語を確かめる — 6-2):
+**表ごとのポリシー**(すべて `FOR SELECT TO pitchlog_app`。**アプリ用ロールに表の権限が無い間は評価されない**。試験では、rollback するトランザクションの中で `pitchlog_app` に一時的に権限を与えて述語を確かめる — 6-2):
 
 | 表 | `USING` |
 | --- | --- |
@@ -178,7 +178,7 @@ date: 2026-09-24
 | `global_read_only` | **露出の事実で「非テナント」とされた表だけ** ∧ manifest で `tenant_id` 列を持たない ∧ 秘密の列を持たない |
 | `function_only` | 条件なし(常に割り当ててよい) |
 
-- **秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**(10 節の ACL と照合する。ACL の変異はステップ 9 で試す)
+- **秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**(10 節の ACL と照合する。ACL の変異はステップ 10 で試す)
 - 母集合 = `Base.metadata` の全表 = manifest の全表。割り当て資産と**両方向 exact-set**(未割り当て 0・重複 0・存在しない表 0)。**既定のプロファイルを持たない**
 - `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `U-G1` / `migration_batch`)が必須
 - **正例**: 1-4 の 45 表の割り当てがすべての条件を満たす(ステップ 4 の合格条件)
@@ -244,10 +244,10 @@ PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し
 | --- | --- | --- |
 | DB | `pitchlog_owner` | `pitchlog_app`: `CONNECT`。**`PUBLIC` の `CONNECT` と `TEMPORARY` は剥奪する**(PostgreSQL の既定では付いている)。移行バッチ用ロールの `CONNECT` は有効な間だけ(8-2) |
 | `public` スキーマ | `pitchlog_owner`(`pg_database_owner` 経由) | `pitchlog_app`: `USAGE` / `pitchlog_shared_fn_owner`: `USAGE`。**`PUBLIC` の `USAGE` と `CREATE` は剥奪する** |
-| `authz_private` スキーマ | `pitchlog_shared_fn_owner` | `pitchlog_app`: `USAGE`。`PUBLIC` には何も与えない |
+| `authz_private` スキーマ | `pitchlog_shared_fn_owner` | **何も与えない**(`pitchlog_app` にも `PUBLIC` にも。アプリ用ロールは補助関数を呼ばない — 1-3)【8 周目 8-P1-1】 |
 
 - **所有者以外への `TEMPORARY` は、明示の付与も実効の権限も 0 件**(DB の所有者 `pitchlog_owner` の暗黙の権限と superuser は除く)。したがってアプリ用ロールは一時表を作れない【5 周目 5-P2-2】。一時スキーマを使う `search_path` の乗っ取り(REJ-003)は、補助関数の `search_path` の固定に加えて、ここでも閉じる
-- 変異(すべて red): DB に `PUBLIC` の `CONNECT` を戻す / `pitchlog_app` に DB の `CREATE` か `TEMPORARY` を与える / `public` に `PUBLIC` の `USAGE` を戻す / `authz_private` に `CREATE` を与える / `pitchlog_app` から DB の `CONNECT` を外す(接続できなくなることで検出)
+- 変異(すべて red): DB に `PUBLIC` の `CONNECT` を戻す / `pitchlog_app` に DB の `CREATE` か `TEMPORARY` を与える / `public` に `PUBLIC` の `USAGE` を戻す / `authz_private` に `CREATE` を与える / **`pitchlog_app` に `authz_private` の `USAGE` を与える** / `pitchlog_app` から DB の `CONNECT` を外す(接続できなくなることで検出)
 
 【1 周目 1-P1-2】
 
@@ -373,6 +373,7 @@ probe の適用器は、手順ごとに commit している(`backend/src/pitchlo
 
 - **二重適用**: 製品 DDL を 2 回適用しても、2 回目の後のカタログが 1 回目と同じになる(収束する)
 - **往復**: 製品 DDL の適用 → **製品 DDL の取り外し(unapply)** → `alembic downgrade base` → `alembic upgrade head` → 製品 DDL の再適用。**取り外しを先に行うのは、補助関数などの製品のオブジェクトが migration の表に依存しているため**である(SQL 標準の本文の関数は参照先の表への依存を記録するので、そのままでは migration の `DROP TABLE` が失敗する)【6 周目 6-P1-2】
+- **適用前の状態の前提**: fixture は、`pitchlog_owner` を **2-0 の 7 属性どおりに作ってから**、適用前のカタログを記録する。危険な属性からの正規化の試験は**別のケース**とし、そのケースでは取り外しの前後の一致を求めない(取り外しで危険な属性を戻すことはしない)【8 周目 8-P2-2】
 - **取り外し**: 適用の逆順(トリガ関数の `PUBLIC` の `EXECUTE` を戻す → 表 ACL と列 ACL → **ポリシー** → `FORCE` / `ENABLE` → **補助関数** → `authz_private` → DB とスキーマの ACL を適用前へ戻す → ロールの削除〔`pitchlog_app`・関数所有ロール 2 つ。**`pitchlog_owner` は削除しない**〕)を、適用と同じく 1 トランザクションで行う。**ポリシーを補助関数より先に落とす**(依存の向き)。失敗点は、ポリシーの削除の直後と、補助関数の削除の直後に置く【7 周目 7-P0-3】。**取り外しの後のカタログが、製品 DDL の適用前と一致する**ことと、途中の失敗で何も変わらないことを検査する**再適用後のカタログが、初回の適用後と一致する**
 - **往復の途中(再 upgrade の直後)は、表に RLS もポリシーも無い**。この区間を non-serving として扱う運用契約(authz の適用が済むまで、アプリ用ロールの接続を受けない)は、**実環境の手順を持つ TSK-344 へ申し送る**
 - 既存の往復試験(`backend/tests/db/test_migration_round_trip.py:53`)は変えない。製品 DDL を含む往復は別の試験として足す
@@ -407,7 +408,8 @@ U-T1 design 3-3(`:263-284`)の方針を引き継ぐ。**資産指定オブジェ
 
 - **既存の `test_*.py` は差分 0 行**
 - 変えてよい既存ファイルは、上表の 6 部品と `backend/tests/db_fixtures.py`・`backend/tests/db/conftest.py`(再エクスポートを足すだけ)に限る。**各ステップの合格条件に、そのステップで変える既存ファイルを列挙する**
-- **既定値を probe にして、既存テストを無改変で green に保つ**
+- **既定値を probe にして、既存テストを無改変で green に保つ**。これが保証するのは**既存の回帰試験が観測する範囲の維持**であって、変更前との完全な一致ではない。**spec で分岐させた probe 固有の検査を一覧にし、各分岐を誤って無効にした変異(probe spec でその検査が走らなくなる)を新しい試験で red にする**【8 周目 8-P2-1】
+- ステップ 2・3 の spec の汎化は、**試験の中で組み立てた、probe ではない試験用の spec** で確かめる。**本物の `PRODUCT_SPEC` を使う双方向の負例**(製品資産を probe spec で読むと拒否・その逆)は、`PRODUCT_SPEC` を作るステップで置く【8 周目 8-P1-3】
 - **spec の取り違えを red にする**負例: 製品資産を probe spec で読むと scope 不一致で拒否、その逆も同じ。**「probe で試験して green にする」抜け道**を塞ぐ(U-T1 design `:280-281`)
 
 ## 6. 実 DB 試験
@@ -434,7 +436,7 @@ U-T1 design 3-3(`:263-284`)の方針を引き継ぐ。**資産指定オブジェ
 | `function_only` 13 表: `SELECT` | **`42501`(0 行ではない** — U-T1 design `:148-150`) |
 | `effective_group_control`: `pitchlog_app` で 4 表を `SELECT` | **`42501`**(表の権限が無い — 7 周目 7-P0-1) |
 | `effective_group_control`: `pitchlog_app` で補助関数を呼ぶ | **`42501`**(`EXECUTE` が無い) |
-| `effective_group_control`: ポリシーの述語の正負行列(U-T1 design 9 節 #4) | 下表。**試験専用のロールに、試験の中だけで 4 表の `SELECT` と補助関数の `EXECUTE` を与えて確かめる** |
+| `effective_group_control`: ポリシーの述語の正負行列(U-T1 design 9 節 #4) | 下表。ポリシーは `TO pitchlog_app` なので、**rollback する試験のトランザクションの中で、`pitchlog_app` 自身に 4 表の `SELECT`・`authz_private` の `USAGE`・補助関数の `EXECUTE` を一時的に与えて**確かめる。**rollback の後に、カタログが exact-set に戻っていること**(与えた権限が残っていないこと)を検査する【8 周目 8-P1-2】 |
 
 **`effective_group_control` の正負行列**(4 表 × 状態):
 
