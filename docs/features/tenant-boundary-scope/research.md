@@ -210,3 +210,102 @@ pitchlog.db.sync_protocol.models / pitchlog.db.tenant_isolation.models
 5. **`design.md` 6-0 は正本ではない。** 射程を動かすなら、
    **その線引きを正本へ上げるべきか**が論点になる(U-T1 の worklog `:162-163` が
    「脅威モデルの線引きは人間の判断事項として残す」としている)。
+
+## 追補(2026-09-24・設計検討で追加した実測)
+
+### 13. 相対 import は `backend/src` に 0 件
+
+`ast.ImportFrom` で `level > 0` を全 85 ファイル走査 → **0 件**。3 パッケージにも 0 件。
+→ **719 件のうち相対 import 由来は 0 件。**
+調査 §2 の「検査器は相対 import を解決していない」は事実だが、
+**これを誤検知の原因と見るのは誤り**だった(当初の計画はこの誤りの上に立っていた)。
+
+なお相対 import は解決されなくても `None` にはならない。`:2277` が `f"{module}.{alias.name}"` を作るので
+`from .x import Y` は `"x.Y"` という**誤った非 None シンボル**になり、`non_db` に落ちて**免除される側**へ倒れる。
+→ **相対 import 未対応は誤検知の原因ではなく、見逃しの原因**である。
+
+### 14. TB007 609 件の分岐別・構文形別
+
+| 発火分岐 | 件数 |
+| --- | --- |
+| 未解決 callable 分岐(`:2960-2971`) | **607** |
+| `dataclasses.replace` 専用分岐(`:2913-2926`) | **2**(`operators_display.py:469,479`) |
+
+| `node.func` の構文形 | 件数 |
+| --- | --- |
+| `ast.Attribute` | **599** |
+| `ast.Name` | 9 |
+| `ast.Subscript` | 1 |
+
+- **属性名が `TenantContext` のものは 0 件**
+- **receiver の provenance は 609 件すべて `unknown`**
+- 上位属性名: `get` 148 / `resolve` 52 / `group` 41 / `strip` 29 / `start` 24 / `as_posix` 23 …
+
+### 15. 未解決の第一損失点(なぜ `unknown` に落ちたか)
+
+| 原因 | 件数 |
+| --- | --- |
+| **stdlib / 3rd-party の戻り型が不明**(`re.compile` 92 / `pathlib.Path` 43 …) | **320** |
+| 既知コンテナの要素型が不明(反復変数) | 124 |
+| 添字結果(`x[i]`) | 48 |
+| 組み込み型のメソッド戻り値 | 27 |
+| 引数注釈が `object` / `Any` / ローカル別名 | 18 |
+| 自パッケージの他モジュール関数の戻り型 | 17 |
+| `/` 演算子結果・組み込み関数戻り値・合流不能ほか | 45 |
+| **相対 import 由来** | **0** |
+
+→ **他ファイル・外部ライブラリの戻り型が 61%**。**単一ファイル解析の原理的な外側**にある。
+
+### 16. 免除機構は事実上機能していない
+
+リポジトリ全体の未解決属性呼び出しは **813 件**。免除されたのは **14 件(1.7%)**
+(`non_db` 10 / `db_result` 3 / `non_db_attribute` 1)。**799 件(98.3%)が拒否**。
+
+### 17. ★ develop に既に 185 件の TB007 が潜んでいる
+
+`develop` の `backend/src` を**全行スキャン**した結果(自分で実測):
+
+```
+TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
+```
+
+**差分方式(`scan_source_change`)が基準版の違反を相殺しているので見えていないだけ**であり、
+**`authz` を触る PR が出た時点で表に出る。**
+→ **新設パッケージだけの問題ではない。**
+
+### 18. TB005 は名前駆動、TB007 だけが違う
+
+`_check_db_call`(`:2772-2820`)は**属性名が inventory の member 名集合に入らない限り一切発火しない**。
+`provenance` は「名前が一致した中でさらに `non_db` なら免除」という**二次的な絞り**。
+**TB007 だけが名前ゲートを持たず `provenance` 単独で拒否している**(設計の一貫性の欠落)。
+
+### 19. 凍結基準の受理単位(手続の順序に効く)
+
+`contracts/tenant_boundary/base-allowlist.json:25-28`:
+
+```json
+"acceptance_unit": "single_review_acceptance",
+"intermediate_commits_are_records": false,
+```
+
+→ **途中コミットで凍結射影検査が赤になるのは資産自身の宣言上許容**。**履歴は受理時点で 1 件にまとめる。**
+→ **凍結更新を途中のステップに置いてはならない**(後続で検査器を 1 行でも触ると射影 SHA が合わなくなる)。
+
+### 20. 既存テストの 1 本は書き換えが要る
+
+`tests/test_check_tenant_boundary_bypass.py:1395` の
+`test_unresolved_attribute_constructor_mutation_is_red` は `mod.TenantContext(tenant_id)` を使い、
+**注釈を外す変異で赤になること**を主張している。
+`attr == TenantContext` を provenance 非依存で拒否すると**注釈ありの基準版も赤**になり、
+差分方式の相殺で `scan_source_change` が空になる。
+→ **「両側 red」を主張する形へ書き換えが必要。**
+
+### 21. 当初案(到達可能性レジーム)を捨てた理由
+
+実測で 2 点。
+
+1. **辺の張り方で結論が反転する。** 「`pkg` と `pkg.name` の両方へ張る」(広い側)にすると、
+   `from pitchlog.domainmut import operators_lang` が**ルートパッケージ `pitchlog` への辺**を生む。
+   `pitchlog/__init__.py` は **docstring 1 行**なのに **48 モジュールが触る hub** になり、
+   **無向到達が 3 パッケージ 44 件中 43 件を引き戻す**(dotted 優先なら 0/44)。
+2. **潜在 185 件が残る。** `authz` / `api` / `db` は anchor 側(レジーム A)なので消えない。
