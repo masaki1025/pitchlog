@@ -2098,8 +2098,9 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | **U-10** | **DI4(D1 付き経路の未使用 D5 = V12・prefix・内容検査対象)のバックエンド実装への受け取り記録**。DI1・DI5・I1・B3a と同じく、サーバー側の適用へ伝播させる | **規則自体は本書で確定しており、欠けているのは実装側の受け取り記録である**。本書はバックエンドの実装計画を確定しない | **実装計画**(バックエンド) |
 | **U-11** | **イベントが時刻属性を持つことを定めた条文が要件書に無い**(4-3) | 要件に受け皿がなく、設計が単独で規範化すると要件の創出になる。部分的に接触するのは要件書の G-2 の測定方法・6.1 の P3 受理結果(`accepted_at`)・付録D の 88 列だけで、いずれも種別限定または外部契約であり、全イベントの属性を定めていない | **TSK-327**(要件書改訂 — イベントが時刻属性を持つことの条文化) |
 | **U-12** | **6-5 の監査規則は「サーバー側のログには記録する」「管理者は追跡できる」を無条件に要求する([FR-035](../requirements/requirements-pitchlog-2026-07-22.md#FR-035))が、記録先である[6.1/管理者操作ログ（Should）](../requirements/requirements-pitchlog-2026-07-22.md#6.1/管理者操作ログ（Should）)は **Should** である。**未採用時に監査が何によって成立するかが定まらない** | **未採用を許すなら監査を条件化し、監査を必須とするなら記録先を Must にする方式判断**が要る。いずれも要件側の裁定であり本書では決められない(本改訂で顕在化した既存の緊張であり、本改訂が作ったものではない) | **TSK-328**(要件書改訂 — 監査規則の無条件要求と管理者操作ログ Should の衝突) |
-| **U-13** | **部分成功したイベントを同期済みへ遷移できない**。7-2 の遷移表は「未送信 → 同期済み」を**`B1` に限定**するが、同じ 7-2 が「**D1 付きキュー遷移の根拠は A5 だけである**」と定める。**A5 はイベント単位の結果**であり `B2`/`B3` より前のイベントは確定できるため、**拒否より前のイベントが未送信のまま残る** | **再送量・同期件数の通知・キュー空判定の実装が一意にならない**。**キュー状態遷移は同期の中核**であり、関係マニフェスト・2-5 宣言表・クライアント実装まで波及するため、**本改訂の射程では決めない**(v0.1 から存在する既存欠陥) | **TSK-329**(v0.1 由来のキュー遷移の矛盾 2 件) |
-| **U-14** | **保存済みの退避結果の再掲が `B1` と `B4` に分岐する**。6-3 と 7-2 は「保存済みの退避を A5 で再掲する **`B1`** のイベント」という経路を明記するが、7-1・ACK 消失後の再送手順・故障系シナリオは一貫して「**保存済み P4 退避は同じ `B4` を返す**」と規定する。**バッチ構成等による選択規則がない** | **`B1` の同期件数通知**と**`B4` の記録権不一致通知・`D3` 扱い**の**どちらを実装するかが決まらない方式判断**であり、十分な分析を要する(v0.1 から存在する既存欠陥) | **TSK-329**(v0.1 由来のキュー遷移の矛盾 2 件) |
+| **U-15** | **同期の通知契約の確定と実装**。同期件数の母数 / FR-012 の「何球分」と Q5 の換算 / B4 混在時の部分成功件数 / 各境界結果の通知列のパラメータ集合と 8-3 との軸の分離 / B1〜B3 で再掲された A5「退避」の顕在化の文面 / Q5 の件数がバッチ分割で変わる問題 / Q5・③-b・退避顕在化の発火(**排他ではなく同時発火しうる別軸**) | **同期経路のサーバー実装がまだ無く**、通知のパラメータ集合を確定させても検証できない。通知 ID の集合はクライアント実装側で exact-set 固定されており、**正本の語彙だけでは表現できない** | **TSK-441**(https://app.notion.com/p/3e493b75e68781a09230e4ddea5b0438 — 同期の通知契約の確定と実装) |
+
+**DI5 は変更しない。** DI5 の右辺「外部は D1 昇順の最初の B2・B3」は段階 ⑥ の走査結果を述べたものであり、B4 は段階 ⑤ で確定して段階 ⑥ の走査に入らないため DI5 の射程外である。U-14 の決定はこの意味を変えない。
 
 #### 残存リスク
 
@@ -2119,10 +2120,10 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | **要件改訂タスク** | U-3(要件側) |
 | **TSK-327**(要件書改訂 — イベントが時刻属性を持つことの条文化) | U-11 |
 | **TSK-328**(要件書改訂 — 監査規則の無条件要求と管理者操作ログ Should の衝突) | U-12 |
-| **TSK-329**(v0.1 由来のキュー遷移の矛盾 2 件) | U-13・U-14 |
 | **移行仕様タスク** | **調査上の申し送り(非規範)**: 同じ旧リポジトリ `Baseball_Scoring` develop・`ed6a20f` 時点を対象とする原典間に、未裁定の矛盾が 3 件ある。① `data-layer.md` は全 12 テーブル(`docs/legacy/research/data-layer.md:15-17`)だが、`baseball-scoring-db-structure.md` は 13 テーブル(`docs/legacy/baseball-scoring-db-structure.md:13-18`)。② 前者は外部キーに `ON DELETE CASCADE` は一切ない(`docs/legacy/research/data-layer.md:21`)が、後者は `game_lineup_snapshot` に唯一の `ON DELETE CASCADE` がある(`docs/legacy/baseball-scoring-db-structure.md:177`)。③ 前者は PostgreSQL 接続プールを `SimpleConnectionPool(1, 3)` とする(`docs/legacy/research/data-layer.md:247-252`)が、後者は `ThreadedConnectionPool` の min1/max10 とする(`docs/legacy/baseball-scoring-db-structure.md:18`)。両資料の対象リビジョンは `docs/legacy/research/README.md:3` と `docs/legacy/baseball-scoring-db-structure.md:3`、移行における資料の優先規定は `docs/legacy/research/README.md:36` に記録されているが、**本書は 3 件を裁定しない**。また、旧列名 `プレイの番号` に UNIQUE 制約がなく重複し得ることは確認できる(`docs/legacy/research/data-layer.md:402`)一方、**欠番があり得るかは原典から確認できず不明**である。原典の再検証と移行規則の決定は移行仕様タスクが担い、これらを**本書の同期規則の結論には用いない** |
 | **実装計画** | 10-1 の (B) 8 件 + U-5・U-8(実装側) + U-10(DI4 のバックエンド実装) + RR-3 の NFR-015 表示/ログ。RR-3 を回収する新機構は作らない |
 | **NFR-009 の復旧手順**(運用) | U-4(起動時刻・担当者・端末回収順・復元調整の解除判断・回収対象端末の指定・再実行・エスカレーション) + RR-2(復元前の受理済みイベントを正史へ戻す判断と手順) + RR-3(I6 未保護窓の注意・顕在化)。本書は正史へ戻す規則を持たず、同期側ではフェンス・端末永続化済み保持物の退避・閲覧/書き出し・未回収/期限切れ欠落 0・新 D4(D3 = 0)開始を終端条件とする |
+| **TSK-441**(https://app.notion.com/p/3e493b75e68781a09230e4ddea5b0438 — 同期の通知契約の確定と実装) | U-15(同期件数・何球分換算・境界結果別パラメータ・8-3 との軸の分離・退避顕在化・バッチ分割・通知発火の確定と実装) |
 
 ### 11-5. 意味照合台帳
 
@@ -2486,16 +2487,16 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 11-4/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 11-4/残存リスク/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | NFR-015 | 支持 |  |
 | 11-4/r11 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-035 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 2 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 3.2 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/research/data-layer.md | legacy | 3.2 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 2 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/research/README.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 2 | docs/legacy/research/README.md | legacy | document | 支持 |  |
-| 11-4/受け取り先ごとの整理/r8 | 1 | docs/legacy/research/data-layer.md | legacy | 6 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/research/data-layer.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | 3.2 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 3.2 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/baseball-scoring-db-structure.md | legacy | 1 | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/README.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/baseball-scoring-db-structure.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 2 | docs/legacy/research/README.md | legacy | document | 支持 |  |
+| 11-4/受け取り先ごとの整理/r7 | 1 | docs/legacy/research/data-layer.md | legacy | 6 | 支持 |  |
 
 ## 12. 検証記録
 
