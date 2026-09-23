@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "fixture_set_revision": 5,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "fixture_set_revision",
+      "current_identifiers": [
+        "fixture_set_revision:5"
+      ],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
+        "included": "all_top_level_fields",
+        "excluded": [
+          "baseline_control",
+          "source_digest"
+        ],
+        "external_files": []
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [
+      {
+        "source_commit": "PENDING_ACCEPTANCE",
+        "new_baseline_identifiers": [
+          "fixture_set_revision:5"
+        ],
+        "previous_baseline_identifiers": [
+          "NO_BASELINE"
+        ],
+        "change": {
+          "subject": "PR #72 の単一レビュー受理で merge-base 未設置から本資産の基準を確定する",
+          "before": {
+            "state": "NO_BASELINE",
+            "frozen_projection_sha256": "NO_BASELINE"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "6fdc311f0a0a429eef080017808edce854dbee70a06621a89712573e7d8194c1"
+          }
+        },
+        "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
+        "reason": "迂回変異の exact-set を本 PR の受理後基準として初めて確定するため。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      }
+    ]
+  },
+  "fixture_root": "tests/fixtures/tenant_boundary/negative",
+  "fixtures": [
+    {
+      "id": "C5_BASE_INTERNAL_MUTATIONS",
+      "path": "pitchlog/repositories/base.py",
+      "condition": 5,
+      "mutation": "許可基底の内側へ set_config(..., false) と未許可関数の直 SQL を追加",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C1_ASSERT_OWNER_SHAPES",
+      "path": "pitchlog/services/c1_assert_owner_shapes.py",
+      "condition": 1,
+      "mutation": "assert_*_owner のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_CAN_SHAPES",
+      "path": "pitchlog/services/c1_can_shapes.py",
+      "condition": 1,
+      "mutation": "can_* のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_CHECK_ACCESS_SHAPES",
+      "path": "pitchlog/services/c1_check_access_shapes.py",
+      "condition": 1,
+      "mutation": "check_*_access のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_HAS_PERMISSION_SHAPES",
+      "path": "pitchlog/services/c1_has_permission_shapes.py",
+      "condition": 1,
+      "mutation": "has_permission のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_IS_ALLOWED_SHAPES",
+      "path": "pitchlog/services/c1_is_allowed_shapes.py",
+      "condition": 1,
+      "mutation": "is_allowed のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_MAY_SHAPES",
+      "path": "pitchlog/services/c1_may_shapes.py",
+      "condition": 1,
+      "mutation": "may_* のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C1_REQUIRE_ROLE_SHAPES",
+      "path": "pitchlog/services/c1_require_role_shapes.py",
+      "condition": 1,
+      "mutation": "require_role のデコレータ形・メソッド形・モジュール関数形",
+      "expected_error": "TB001"
+    },
+    {
+      "id": "C2_GENERATION_IMPORT",
+      "path": "pitchlog/services/c2_generation_import.py",
+      "condition": 2,
+      "mutation": "世代契約を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_IDEMPOTENCY_KEY_IMPORT",
+      "path": "pitchlog/services/c2_idempotency_key_import.py",
+      "condition": 2,
+      "mutation": "idempotency_key を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_IDEMPOTENT_KEY_IMPORT",
+      "path": "pitchlog/services/c2_idempotent_key_import.py",
+      "condition": 2,
+      "mutation": "idempotent_key を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_REVISION_NO_IMPORT",
+      "path": "pitchlog/services/c2_revision_no_import.py",
+      "condition": 2,
+      "mutation": "改訂番号契約を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_SEQ_NO_IMPORT",
+      "path": "pitchlog/services/c2_seq_no_import.py",
+      "condition": 2,
+      "mutation": "短縮連番契約を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_SEQUENCE_NO_IMPORT",
+      "path": "pitchlog/services/c2_sequence_no_import.py",
+      "condition": 2,
+      "mutation": "連番契約を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_TOMBSTONE_IMPORT",
+      "path": "pitchlog/services/c2_tombstone_import.py",
+      "condition": 2,
+      "mutation": "墓標契約を import",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C3_AT_BAT_RESULT_IMPORT",
+      "path": "pitchlog/services/c3_at_bat_result_import.py",
+      "condition": 3,
+      "mutation": "at_bat_result 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_AVG_IMPORT",
+      "path": "pitchlog/services/c3_avg_import.py",
+      "condition": 3,
+      "mutation": "avg 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_EARNED_RUN_IMPORT",
+      "path": "pitchlog/services/c3_earned_run_import.py",
+      "condition": 3,
+      "mutation": "earned_run 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_ERA_IMPORT",
+      "path": "pitchlog/services/c3_era_import.py",
+      "condition": 3,
+      "mutation": "era 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_INNING_STATE_IMPORT",
+      "path": "pitchlog/services/c3_inning_state_import.py",
+      "condition": 3,
+      "mutation": "inning_state 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_OBP_IMPORT",
+      "path": "pitchlog/services/c3_obp_import.py",
+      "condition": 3,
+      "mutation": "obp 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_RBI_IMPORT",
+      "path": "pitchlog/services/c3_rbi_import.py",
+      "condition": 3,
+      "mutation": "rbi 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_RESPONSIBLE_PITCHER_IMPORT",
+      "path": "pitchlog/services/c3_responsible_pitcher_import.py",
+      "condition": 3,
+      "mutation": "responsible_pitcher 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C3_SLG_IMPORT",
+      "path": "pitchlog/services/c3_slg_import.py",
+      "condition": 3,
+      "mutation": "slg 契約を import",
+      "expected_error": "TB003"
+    },
+    {
+      "id": "C4_CACHE_CLEAR_API",
+      "path": "pitchlog/services/c4_cache_clear_api.py",
+      "condition": 4,
+      "mutation": "cache_clear API を追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_DIRECT_INVALIDATION_WRITE",
+      "path": "pitchlog/services/c4_direct_invalidation_write.py",
+      "condition": 4,
+      "mutation": "葉が提供 API を経由せず無効化意図の書き込み口を追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_EVICT_API",
+      "path": "pitchlog/services/c4_evict_api.py",
+      "condition": 4,
+      "mutation": "evict API を追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_INVALIDATE_API",
+      "path": "pitchlog/services/c4_invalidate_api.py",
+      "condition": 4,
+      "mutation": "invalidate API を追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_PURGE_CACHE_API",
+      "path": "pitchlog/services/c4_purge_cache_api.py",
+      "condition": 4,
+      "mutation": "purge_cache API を追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_CORRECT_PLAY",
+      "path": "pitchlog/services/c4_trigger_correct_play.py",
+      "condition": 4,
+      "mutation": "プレイ修正トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_DISABLE_TENANT",
+      "path": "pitchlog/services/c4_trigger_disable_tenant.py",
+      "condition": 4,
+      "mutation": "テナント無効化トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_END_GROUP",
+      "path": "pitchlog/services/c4_trigger_end_group.py",
+      "condition": 4,
+      "mutation": "グループ終了トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_GAME_LIFECYCLE",
+      "path": "pitchlog/services/c4_trigger_game_lifecycle.py",
+      "condition": 4,
+      "mutation": "試合削除・復元・再開トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_GRANT_FLAG",
+      "path": "pitchlog/services/c4_trigger_grant_flag.py",
+      "condition": 4,
+      "mutation": "付与フラグ変更トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_LEAVE_GROUP",
+      "path": "pitchlog/services/c4_trigger_leave_group.py",
+      "condition": 4,
+      "mutation": "グループ離脱トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_PLAYER_IDENTITY",
+      "path": "pitchlog/services/c4_trigger_player_identity.py",
+      "condition": 4,
+      "mutation": "選手統合・分割トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_POSTGAME_CORRECTION",
+      "path": "pitchlog/services/c4_trigger_postgame_correction.py",
+      "condition": 4,
+      "mutation": "終了後修正トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_REENABLE_TENANT",
+      "path": "pitchlog/services/c4_trigger_reenable_tenant.py",
+      "condition": 4,
+      "mutation": "テナント再有効化トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_RESTORED_SYNC",
+      "path": "pitchlog/services/c4_trigger_restored_sync.py",
+      "condition": 4,
+      "mutation": "復帰同期トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_ROSTER_STATUS",
+      "path": "pitchlog/services/c4_trigger_roster_status.py",
+      "condition": 4,
+      "mutation": "選手在籍区分変更トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_SETTING",
+      "path": "pitchlog/services/c4_trigger_setting.py",
+      "condition": 4,
+      "mutation": "設定値変更トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_SUBSTITUTION",
+      "path": "pitchlog/services/c4_trigger_substitution.py",
+      "condition": 4,
+      "mutation": "交代記録・修正トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C4_TRIGGER_UNDO",
+      "path": "pitchlog/services/c4_trigger_undo.py",
+      "condition": 4,
+      "mutation": "undo トリガーを追加",
+      "expected_error": "TB004"
+    },
+    {
+      "id": "C5_ALIAS_EXECUTE",
+      "path": "pitchlog/services/c5_alias_execute.py",
+      "condition": 5,
+      "mutation": "Session.execute をローカル alias 経由で呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_ASYNC_SESSION",
+      "path": "pitchlog/services/c5_async_session.py",
+      "condition": 5,
+      "mutation": "AsyncSession.execute を await する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_EVAL_EXECUTE",
+      "path": "pitchlog/services/c5_dynamic_eval_execute.py",
+      "condition": 5,
+      "mutation": "eval で session.execute を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_EXEC",
+      "path": "pitchlog/services/c5_dynamic_exec.py",
+      "condition": 5,
+      "mutation": "exec で Session.execute 呼び出しを実行する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_GETATTR_EXECUTE",
+      "path": "pitchlog/services/c5_dynamic_getattr_execute.py",
+      "condition": 5,
+      "mutation": "getattr と文字列連結で Session.execute を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_IMPORT_PSYCOPG",
+      "path": "pitchlog/services/c5_dynamic_import_psycopg.py",
+      "condition": 5,
+      "mutation": "__import__ と文字列連結で psycopg.connect を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_DYNAMIC_IMPORTLIB",
+      "path": "pitchlog/services/c5_dynamic_importlib.py",
+      "condition": 5,
+      "mutation": "importlib.import_module で psycopg を解決する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_ENGINE_RETURN_ALIAS",
+      "path": "pitchlog/services/c5_engine_return_alias.py",
+      "condition": 5,
+      "mutation": "create_database_engine の戻り値と Connection を任意名へ別名化して SQL を実行する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_ENGINE_RAW_CONNECTION",
+      "path": "pitchlog/services/c5_engine_raw_connection.py",
+      "condition": 5,
+      "mutation": "Engine.raw_connection を呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_MULTILINE_SCALARS",
+      "path": "pitchlog/services/c5_multiline_scalars.py",
+      "condition": 5,
+      "mutation": "Session.scalars を複数行で呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_PSYCOPG_DIRECT",
+      "path": "pitchlog/services/c5_psycopg_direct.py",
+      "condition": 5,
+      "mutation": "psycopg.connect を直呼びする",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_PGCONN_EXEC",
+      "path": "pitchlog/services/c5_pgconn_exec.py",
+      "condition": 5,
+      "mutation": "psycopg.pq.PGconn.exec_ を直接呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_SET_CONFIG_FALSE",
+      "path": "pitchlog/services/c5_set_config_false.py",
+      "condition": 5,
+      "mutation": "set_config の is_local に false を渡す",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_SET_TENANT_SQL",
+      "path": "pitchlog/services/c5_set_tenant_sql.py",
+      "condition": 5,
+      "mutation": "SET app.tenant_id を発行する",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_SQLALCHEMY_ORM",
+      "path": "pitchlog/services/c5_sqlalchemy_orm.py",
+      "condition": 5,
+      "mutation": "Session.query で ORM を直呼びする",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
+      "path": "pitchlog/services/c5_context_proof_direct_reference.py",
+      "condition": 5,
+      "mutation": "許可シンボル外から発行証跡の導出関数を直接参照する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
+      "path": "pitchlog/services/c5_context_proof_indirect_reference.py",
+      "condition": 5,
+      "mutation": "モジュール別名と変数への多段束縛を介して発行証跡の導出関数を参照する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_UNKNOWN_FACTORY",
+      "path": "pitchlog/services/c5_context_unknown_factory.py",
+      "condition": 5,
+      "mutation": "完全修飾名へ解決できない callable を TenantContext の生成器として呼ぶ",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_NEW",
+      "path": "pitchlog/services/c5_tenant_context_object_new.py",
+      "condition": 5,
+      "mutation": "object.__new__(TenantContext) で生成箇所 allowlist を迂回する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
+      "path": "pitchlog/services/c5_context_object_setattr_untyped.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った context の tenant_id を object.__setattr__ で改竄する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_TYPE_CALL",
+      "path": "pitchlog/services/c5_context_type_call.py",
+      "condition": 5,
+      "mutation": "type(context) から TenantContext を複製する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_OBJECT_NEW_TYPE",
+      "path": "pitchlog/services/c5_context_object_new_type.py",
+      "condition": 5,
+      "mutation": "object.__new__(type(context)) で TenantContext を複製する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_DATACLASSES_REPLACE",
+      "path": "pitchlog/services/c5_context_dataclasses_replace.py",
+      "condition": 5,
+      "mutation": "dataclasses.replace で TenantContext の tenant_id を差し替える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_UNKNOWN_ENGINE_ARGUMENT",
+      "path": "pitchlog/services/c5_unknown_engine_argument.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った engine から connect と exec_driver_sql を呼ぶ",
+      "expected_error": "TB005"
+    },
+    {
+      "id": "C5_UNKNOWN_SESSION_ARGUMENT",
+      "path": "pitchlog/services/c5_unknown_session_argument.py",
+      "condition": 5,
+      "mutation": "import なしで受け取った session から execute を呼ぶ",
+      "expected_error": "TB005"
+    }
+  ]
+}
