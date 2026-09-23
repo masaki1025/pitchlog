@@ -1422,7 +1422,8 @@ def check_acceptance(root: Path, ledger_path: Path) -> tuple[str, ...]:
     base_sha = _resolve_commit(root, event.base_sha, "event.pull_request.base.sha")
     head_sha = _resolve_commit(root, event.head_sha, "event.pull_request.head.sha")
     # この親照合が保証するのはeventとcheckoutの整合だけである。
-    # baseの最新性はgithub-setup.md:39の三点一致手続が担い、台帳は保証しない。
+    # baseの最新性はgithub-setup.md 2章 手続2の「base SHA の 3 点一致と head の拘束」が
+    # 担い、台帳は保証しない(行番号は他PRのマージでずれるため節で指す)。
     if parents[0] != base_sha:
         raise FrozenBaselineCheckError(
             f"HEADの第1親がbase.shaと不一致: 期待={base_sha}; 実際={parents[0]}"
@@ -1786,6 +1787,23 @@ def check_invariants(root: Path, ledger_path: Path) -> None:
     check_repository_source_scan(root)
 
 
+def _ci_requests_acceptance() -> bool:
+    """CIイベント名から受理遷移検査を実行するか決める。
+
+    Raises:
+        FrozenBaselineCheckError: イベント名が未設定または未対応の場合。
+    """
+    event_name = os.environ.get("GITHUB_EVENT_NAME")
+    if event_name == "pull_request":
+        return True
+    if event_name in {"push", "workflow_dispatch"}:
+        return False
+    rendered = "<未設定>" if event_name is None else repr(event_name)
+    raise FrozenBaselineCheckError(
+        f"GITHUB_EVENT_NAME が未設定または未対応: {rendered}"
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """イベント別の凍結基準検査を選択するCLI parserを作る。"""
     parser = argparse.ArgumentParser(
@@ -1793,7 +1811,7 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=(
             "走査母集団は scripts/、tests/、backend/tests/ 配下の *.py で、"
             "本文中の40桁・64桁小文字hexを対象とします。"
-            "--invariants-onlyと--acceptanceは実リポジトリを走査し、"
+            "--invariants-onlyと--acceptanceと--ciは実リポジトリを走査し、"
             "--scan-fixtureは合成fixture専用です。pending_removalの除去は"
             "後続タスクによる管理統制です。"
         ),
@@ -1801,6 +1819,11 @@ def _build_parser() -> argparse.ArgumentParser:
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--invariants-only", action="store_true")
     modes.add_argument("--acceptance", action="store_true")
+    modes.add_argument(
+        "--ci",
+        action="store_true",
+        help="GITHUB_EVENT_NAMEに応じて不変量検査か受理遷移検査を実行する",
+    )
     modes.add_argument(
         "--scan-fixture",
         type=Path,
@@ -1836,8 +1859,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise FrozenBaselineCheckError(
                     "scan fixture用引数は--scan-fixtureなしでは使えない"
                 )
+            acceptance_requested = (
+                _ci_requests_acceptance() if args.ci else args.acceptance
+            )
             check_invariants(root, ledger_path)
-            messages = check_acceptance(root, ledger_path) if args.acceptance else ()
+            messages = (
+                check_acceptance(root, ledger_path) if acceptance_requested else ()
+            )
     except (FrozenBaselineCheckError, FrozenBaselineError, OSError) as exc:
         print(f"frozen-baselines: ERROR: {exc}", file=sys.stderr)
         return 1

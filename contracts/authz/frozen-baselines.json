@@ -42,7 +42,7 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "04b2ff49f5c58a08067a0c6854398a49d0bcc346862931ee3ca53b13d04c4856"
+        "sha256": "ad0b307a59bbe6d2fce9ad14d26cc7a90bcf65a735351c45b30664958c809689"
       },
       {
         "path": "scripts/frozen_baselines.py",

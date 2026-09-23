@@ -42,6 +42,7 @@ EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset(
         "tests/frozen_negatives/test_frozen_baseline_scan.py::test_permanent_entry_cannot_become_pending_is_red",
         "tests/frozen_negatives/test_frozen_baseline_scan.py::test_pending_entry_cannot_become_permanent_is_red",
         "tests/frozen_negatives/test_frozen_baseline_scan.py::test_embedded_docstring_and_fstring_values_are_red",
+        "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py::test_ci_dispatch_missing_and_unknown_event_names_are_red",
     }
 )
 
@@ -136,9 +137,9 @@ def _write_synthetic_test(root: Path, filename: str, source: str) -> None:
     (directory / filename).write_text(source, encoding="utf-8")
 
 
-def test_repository_inventory_matches_expected_set_of_twenty_eight() -> None:
-    """期待集合が明示した28件で実母集団とも一致する。"""
-    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 28
+def test_repository_inventory_matches_expected_set_of_twenty_nine() -> None:
+    """期待集合が明示した29件で実母集団とも一致する。"""
+    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 29
 
     inventory = _collect_frozen_negative_inventory(REPOSITORY_ROOT)
 

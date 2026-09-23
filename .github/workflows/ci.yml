@@ -83,12 +83,7 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv sync --locked --dev
-      - name: Check frozen baseline acceptance
-        if: github.event_name == 'pull_request'
-        run: uv run python scripts/check_frozen_baselines.py --acceptance
-      - name: Check frozen baseline invariants
-        if: github.event_name != 'pull_request'
-        run: uv run python scripts/check_frozen_baselines.py --invariants-only
+      - run: uv run python scripts/check_frozen_baselines.py --ci
       - run: uv run ruff check .
       - run: uv run ty check
       - run: uv run pytest -c pyproject.toml tests/

@@ -1616,11 +1616,11 @@ def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
 
 
 def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
-    """凍結基準のイベント別コマンドが完全履歴のharnessだけで走る。"""
+    """凍結基準のCIディスパッチが完全履歴のharnessだけで走る。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     jobs = _mapping_at(workflow, ("jobs",))
     assert isinstance(jobs, dict)
-    assert len(jobs) == 9
+    assert tuple(jobs) == EXPECTED_JOB_ORDER
     harness = _harness_job(workflow)
     checkout = _checkout_step("harness", harness)
     assert _mapping_at(checkout, ("with", "fetch-depth")) == 0
@@ -1634,16 +1634,7 @@ def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
         and "scripts/check_frozen_baselines.py" in command
     ]
     assert frozen_steps == [
-        {
-            "name": "Check frozen baseline acceptance",
-            "if": "github.event_name == 'pull_request'",
-            "run": "uv run python scripts/check_frozen_baselines.py --acceptance",
-        },
-        {
-            "name": "Check frozen baseline invariants",
-            "if": "github.event_name != 'pull_request'",
-            "run": "uv run python scripts/check_frozen_baselines.py --invariants-only",
-        },
+        {"run": "uv run python scripts/check_frozen_baselines.py --ci"}
     ]
 
 
