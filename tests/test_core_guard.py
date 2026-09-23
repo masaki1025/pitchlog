@@ -115,6 +115,35 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     AUTHZ_BACKEND_TEST_PATTERN,
     *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
+TENANT_BOUNDARY_AREA_PATH_CASES = (
+    (
+        "backend/src/pitchlog/repositories/*",
+        "backend/src/pitchlog/repositories/base.py",
+    ),
+    ("backend/tests/db_fixtures.py", "backend/tests/db_fixtures.py"),
+    (
+        "scripts/check_tenant_boundary_bypass.py",
+        "scripts/check_tenant_boundary_bypass.py",
+    ),
+    (
+        "contracts/tenant_boundary/*",
+        "contracts/tenant_boundary/nested/future.json",
+    ),
+    (
+        "tests/fixtures/tenant_boundary/*",
+        "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py",
+    ),
+    (
+        "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_check_tenant_boundary_bypass.py",
+    ),
+)
+TENANT_BOUNDARY_AREA_PATH_ADDITIONS = tuple(
+    pattern for pattern, _ in TENANT_BOUNDARY_AREA_PATH_CASES
+)
+TENANT_BOUNDARY_CORE_PATHS = tuple(
+    path for _, path in TENANT_BOUNDARY_AREA_PATH_CASES
+)
 RECEPTION_INPUT_AREA_IDS = ("sync-protocol", "recording-rights")
 RECEPTION_INPUT_AREA_PATHS = (
     "frontend/src/lib/sync/receptionInput.spec.ts",
@@ -434,6 +463,7 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
         "frontend/src/lib/sync/restoreAdjustmentGate.ts",
         *ORM_SCHEMA_MIGRATION_AREA_PATHS["tenant-isolation"],
+        *TENANT_BOUNDARY_AREA_PATH_ADDITIONS,
     ],
     "data-migration": [
         DATA_MODEL_DOCUMENT_PATH,
@@ -450,6 +480,7 @@ NEW_CORE_PATH_CHANGES = (
     "frontend/src/lib/courseInputView.ts",
     "frontend/src/lib/format.ts",
     "backend/conftest.py",
+    *TENANT_BOUNDARY_CORE_PATHS,
 )
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
@@ -1376,6 +1407,57 @@ def test_each_authz_tenant_pattern_matches_a_tracked_file(pattern: str):
         path for path in tracked_files if fnmatch.fnmatchcase(path, pattern)
     ]
     assert matches, f"実在する追跡ファイルに一致しないパターン: {pattern}"
+
+
+@pytest.mark.parametrize(
+    ("pattern", "path"),
+    TENANT_BOUNDARY_AREA_PATH_CASES,
+    ids=TENANT_BOUNDARY_AREA_PATH_ADDITIONS,
+)
+def test_each_tenant_boundary_path_matches_tenant_isolation(
+    pattern: str,
+    path: str,
+) -> None:
+    """強制点を変え得る各パスを tenant 領域の paths だけで検出する。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert pattern in tenant_area["paths"]
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    assert core_guard.matched_paths([path], tenant_only) == [path]
+
+
+@pytest.mark.parametrize(
+    ("pattern", "path"),
+    TENANT_BOUNDARY_AREA_PATH_CASES,
+    ids=TENANT_BOUNDARY_AREA_PATH_ADDITIONS,
+)
+def test_each_tenant_boundary_path_removal_is_red(
+    pattern: str,
+    path: str,
+) -> None:
+    """各追加パターンを外すと対応パスのコア判定が red になる。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+    )
+    tenant_area["paths"].remove(pattern)
+    core_guard = load_core_guard_module()
+    tenant_only = core_guard.CoreAreas(
+        path_patterns=tuple(tenant_area["paths"]),
+        guard_paths=frozenset(),
+    )
+
+    with pytest.raises(AssertionError, match="コア判定から外れた"):
+        assert core_guard.matched_paths([path], tenant_only) == [path], (
+            f"コア判定から外れた: {path}"
+        )
 
 
 @pytest.mark.parametrize("area_id", RECEPTION_INPUT_AREA_IDS)

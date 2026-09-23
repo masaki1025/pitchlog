@@ -26,6 +26,10 @@ EXPECTATIONS_PATH = (
 BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
 BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
+DB_FIXTURES_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db_fixtures.py"
+TENANT_BOUNDARY_ALLOWLIST_PATH = (
+    REPOSITORY_ROOT / "contracts" / "tenant_boundary" / "base-allowlist.json"
+)
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
@@ -34,6 +38,31 @@ ALEMBIC_CI_COMMANDS = (
     "uv run alembic check",
 )
 CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
+TENANT_BOUNDARY_JOB = "tenant-boundary-bypass"
+TENANT_BOUNDARY_COMMAND = "uv run python scripts/check_tenant_boundary_bypass.py"
+EXPECTED_JOB_ORDER = (
+    "secrets",
+    "docs-lint",
+    "core-guard",
+    "harness",
+    "nfr021-append-only",
+    TENANT_BOUNDARY_JOB,
+    "frontend-changes",
+    "frontend",
+    "backend-changes",
+    "backend",
+)
+EXPECTED_CONDITIONAL_JOBS = {
+    "frontend": (
+        "github.event_name == 'workflow_dispatch' || "
+        "needs.frontend-changes.outputs.frontend == 'true'"
+    ),
+    "backend": (
+        "github.event_name == 'workflow_dispatch' || "
+        "needs.backend-changes.outputs.backend == 'true'"
+    ),
+}
+SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
 # source_commit 検査や三点差分へ推移した先にあるため、ジョブ名を列挙する。
 # 片方だけでは新設ジョブが素通りするので、あり・なしの両集合を exact-set 固定する。
@@ -43,6 +72,7 @@ CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
         "core-guard",
         "harness",
         "nfr021-append-only",
+        TENANT_BOUNDARY_JOB,
         "frontend-changes",
         "backend-changes",
         "backend",
@@ -99,6 +129,23 @@ def _load_expectations() -> dict[str, Any]:
     loaded = json.loads(EXPECTATIONS_PATH.read_text(encoding="utf-8"))
     assert isinstance(loaded, dict)
     return loaded
+
+
+def _tenant_boundary_ci_contract() -> tuple[str, str]:
+    """テナント境界 allowlist から CI 宣言を取得する。
+
+    Returns:
+        宣言されたジョブ名と実行コマンド。
+    """
+    loaded = json.loads(TENANT_BOUNDARY_ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict), "base allowlist は JSON object が必要"
+    ci = loaded.get("ci")
+    assert isinstance(ci, dict), "base allowlist に ci 宣言が必要"
+    job = ci.get("job")
+    command = ci.get("command")
+    assert isinstance(job, str) and job, "ci.job は空でない文字列が必要"
+    assert isinstance(command, str) and command, "ci.command は空でない文字列が必要"
+    return job, command
 
 
 def _backend_job(workflow: dict[str, Any]) -> dict[str, Any]:
@@ -260,6 +307,121 @@ def _assert_checkout_fetch_depth_contract(
         f"actual={sorted(observed_without)}, "
         f"expected={sorted(without_fetch_depth_zero)}"
     )
+
+
+def _assert_no_silent_disable_controls(workflow: dict[str, Any]) -> None:
+    """必須ジョブと全ステップのスキップ・失敗黙殺属性を拒否する。
+
+    Args:
+        workflow: CI workflow の構造。
+    """
+    jobs = _mapping_at(workflow, ("jobs",))
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    assert tuple(jobs) == EXPECTED_JOB_ORDER, "必須ジョブの exact-set が不一致"
+    for job_name, job in jobs.items():
+        assert isinstance(job, dict), f"{job_name} ジョブはマッピングが必要"
+        assert "continue-on-error" not in job, (
+            f"{job_name} ジョブで失敗を黙殺してはならない"
+        )
+        expected_if = EXPECTED_CONDITIONAL_JOBS.get(job_name)
+        if expected_if is None:
+            assert "if" not in job, f"{job_name} ジョブを条件付きにしてはならない"
+        else:
+            assert job.get("if") == expected_if, (
+                f"{job_name} ジョブの既存発火条件を変更してはならない"
+            )
+        steps = job.get("steps")
+        assert isinstance(steps, list), f"{job_name}.steps は配列が必要"
+        for index, step in enumerate(steps):
+            assert isinstance(step, dict), f"{job_name}.steps[{index}] はマッピングが必要"
+            forbidden = SILENT_DISABLE_STEP_KEYS & set(step)
+            assert not forbidden, (
+                f"{job_name}.steps[{index}] に無効化属性がある: "
+                f"{sorted(forbidden)}"
+            )
+
+
+def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
+    """テナント境界迂回検査の常時実行ジョブを exact に検査する。
+
+    Args:
+        workflow: CI workflow の構造。
+    """
+    declared_job, declared_command = _tenant_boundary_ci_contract()
+    assert (declared_job, declared_command) == (
+        TENANT_BOUNDARY_JOB,
+        TENANT_BOUNDARY_COMMAND,
+    ), "allowlist の CI 宣言が期待値と一致しない"
+
+    jobs = _mapping_at(workflow, ("jobs",))
+    assert isinstance(jobs, dict), "ci.yml に jobs が必要"
+    assert tuple(jobs) == EXPECTED_JOB_ORDER, (
+        f"CI ジョブ列が期待順と一致しない: actual={tuple(jobs)!r}, "
+        f"expected={EXPECTED_JOB_ORDER!r}"
+    )
+    job = jobs.get(declared_job)
+    assert isinstance(job, dict), f"{declared_job} ジョブが必要"
+    assert set(job) == {"runs-on", "steps"}, (
+        f"{declared_job} に発火制御や未宣言設定を追加してはならない"
+    )
+    assert job.get("runs-on") == "ubuntu-latest"
+
+    steps = job.get("steps")
+    assert isinstance(steps, list), f"{declared_job}.steps は配列が必要"
+    assert len(steps) == 4, f"{declared_job}.steps は4件の固定列が必要"
+    checkout = _checkout_step(declared_job, job)
+    assert steps[0] is checkout, "checkout は迂回検査ジョブの先頭が必要"
+    assert _mapping_at(checkout, ("with", "fetch-depth")) == 0
+
+    setup_uv = steps[1]
+    assert isinstance(setup_uv, dict), "setup-uv step が必要"
+    setup_uv_uses = setup_uv.get("uses")
+    assert isinstance(setup_uv_uses, str) and re.fullmatch(
+        r"astral-sh/setup-uv@[0-9a-f]{40}", setup_uv_uses
+    ), "setup-uv は40桁SHA固定が必要"
+    assert setup_uv.get("with") == {
+        "version": "0.8.13",
+        "enable-cache": True,
+        "prune-cache": True,
+    }
+    assert steps[2] == {"run": "uv python install"}
+    invocation = steps[3]
+    assert isinstance(invocation, dict), "迂回検査の実行 step が必要"
+    assert set(invocation) == {"name", "env", "run"}, (
+        "迂回検査の実行 step に未宣言属性を追加してはならない"
+    )
+    assert invocation.get("name") == "tenant-boundary 迂回検査"
+    assert invocation.get("env") == {"PR_BASE_REF": "${{ github.base_ref }}"}
+    run = invocation.get("run")
+    assert isinstance(run, str), "迂回検査の run script が必要"
+    run_lines = tuple(line.strip() for line in run.splitlines() if line.strip())
+    assert run_lines == (
+        'if [ -n "$PR_BASE_REF" ]; then',
+        f'{declared_command} --base-ref "origin/$PR_BASE_REF"',
+        "else",
+        declared_command,
+        "fi",
+    ), "PR 比較元の外部注入と凍結既定値への fallback が必要"
+
+    command_locations = [
+        (job_name, index)
+        for job_name, candidate_job in jobs.items()
+        if isinstance(candidate_job, dict)
+        for index, step in enumerate(candidate_job.get("steps", []))
+        if isinstance(step, dict)
+        and isinstance((candidate_run := step.get("run")), str)
+        and any(
+            line.strip() == declared_command
+            or line.strip().startswith(f"{declared_command} ")
+            for line in candidate_run.splitlines()
+        )
+    ]
+    assert command_locations == [(declared_job, 3)], (
+        "テナント境界迂回検査コマンドは宣言ジョブの末尾に1件だけ必要: "
+        f"actual={command_locations!r}"
+    )
+    _assert_checkout_fetch_depth_contract(workflow)
+    _assert_no_silent_disable_controls(workflow)
 
 
 def _leaf_paths(node: object, path: NodePath = ()) -> list[NodePath]:
@@ -910,6 +1072,9 @@ def _derive_asset_actuals(
     marker_entries = marker_config["tool"]["pytest"]["ini_options"]["markers"]
     marker_name = str(marker_entries[0]).split(":", maxsplit=1)[0]
     conftest_text = DB_CONFTEST_PATH.read_text(encoding="utf-8")
+    fixture_contract_text = "\n".join(
+        (conftest_text, DB_FIXTURES_PATH.read_text(encoding="utf-8"))
+    )
     job_environment = backend["env"]
     assert isinstance(job_environment, dict)
     admin_names = [name for name in job_environment if "ADMIN" in name]
@@ -1025,7 +1190,7 @@ def _derive_asset_actuals(
         ): len(pytest_commands),
         ("test_execution", "missing_dsn_policy", "expected"): "fail",
         ("test_execution", "missing_dsn_policy", "skip_allowed"): (
-            "pytest.skip" in conftest_text
+            "pytest.skip" in fixture_contract_text
         ),
         ("test_execution", "missing_dsn_policy", "comparison"): exact,
         ("dsn_environment_variables", "admin_connection", "expected_name"): (
@@ -1060,7 +1225,9 @@ def _derive_asset_actuals(
             "dsn_environment_variables",
             "separation",
             "role_identity_check_required",
-        ): all(token in conftest_text for token in ("session_user", "current_user")),
+        ): all(
+            token in fixture_contract_text for token in ("session_user", "current_user")
+        ),
     }
     return actuals
 
@@ -1295,6 +1462,151 @@ def test_frontend_paths_filter_includes_sync_protocol_oracle() -> None:
     frontend_paths = parsed_filter.get("frontend")
     assert isinstance(frontend_paths, list), "frontend filter は配列が必要"
     assert "scripts/design_relations/sync-protocol.json" in frontend_paths
+
+
+def test_tenant_boundary_bypass_job_matches_declared_contract() -> None:
+    """allowlist 宣言どおりの常時実行ジョブが一意に配線される。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    _assert_tenant_boundary_bypass_wiring(workflow)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "duplicate", "wrong-order", "additional-job"),
+)
+def test_tenant_boundary_bypass_wiring_mutations_are_red(mutation: str) -> None:
+    """欠落・重複・順序違い・別ジョブ追加をすべて拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    jobs = _mapping_at(mutated, ("jobs",))
+    assert isinstance(jobs, dict)
+    job = jobs.get(TENANT_BOUNDARY_JOB)
+    assert isinstance(job, dict)
+    steps = job.get("steps")
+    assert isinstance(steps, list)
+
+    if mutation == "missing":
+        del jobs[TENANT_BOUNDARY_JOB]
+    elif mutation == "duplicate":
+        steps.append(copy.deepcopy(steps[-1]))
+    elif mutation == "wrong-order":
+        steps[-2], steps[-1] = steps[-1], steps[-2]
+    else:
+        jobs[f"{TENANT_BOUNDARY_JOB}-copy"] = copy.deepcopy(job)
+
+    with pytest.raises(AssertionError):
+        _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing-base-env", "missing-external-base", "missing-default-fallback"),
+)
+def test_tenant_boundary_base_ref_wiring_mutations_are_red(mutation: str) -> None:
+    """比較元の外部注入か凍結既定値への fallback を欠く配線を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    jobs = _mapping_at(mutated, ("jobs",))
+    assert isinstance(jobs, dict)
+    job = jobs[TENANT_BOUNDARY_JOB]
+    assert isinstance(job, dict)
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    invocation = steps[-1]
+    assert isinstance(invocation, dict)
+    run = invocation["run"]
+    assert isinstance(run, str)
+    declared_command = _tenant_boundary_ci_contract()[1]
+
+    if mutation == "missing-base-env":
+        del invocation["env"]
+    elif mutation == "missing-external-base":
+        invocation["run"] = run.replace(
+            f'{declared_command} --base-ref "origin/$PR_BASE_REF"',
+            declared_command,
+            1,
+        )
+    else:
+        invocation["run"] = run.replace(
+            f"else\n  {declared_command}",
+            "else\n  :",
+            1,
+        )
+
+    with pytest.raises(AssertionError):
+        _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    (
+        ("continue-on-error", True),
+        ("if", False),
+        ("shell", "bash {0} || true"),
+    ),
+)
+def test_tenant_boundary_invocation_disable_attributes_are_red(
+    attribute: str,
+    value: object,
+) -> None:
+    """迂回検査 step へのスキップ・失敗黙殺属性を exact-set で拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    invocation = _mapping_at(
+        mutated,
+        ("jobs", TENANT_BOUNDARY_JOB, "steps", 3),
+    )
+    assert isinstance(invocation, dict)
+    invocation[attribute] = value
+
+    with pytest.raises(AssertionError, match="未宣言属性"):
+        _assert_tenant_boundary_bypass_wiring(mutated)
+
+
+def test_all_required_jobs_and_steps_reject_silent_disable_controls() -> None:
+    """現行の全必須ジョブ・全ステップに無効化属性が無いことを確認する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    _assert_no_silent_disable_controls(workflow)
+
+
+@pytest.mark.parametrize(
+    ("scope", "attribute"),
+    (
+        ("other-step", "continue-on-error"),
+        ("other-step", "if"),
+        ("other-step", "shell"),
+        ("unconditional-job", "continue-on-error"),
+        ("unconditional-job", "if"),
+        ("conditional-job", "continue-on-error"),
+        ("conditional-job", "if"),
+    ),
+)
+def test_other_required_execution_disable_attributes_are_red(
+    scope: str,
+    attribute: str,
+) -> None:
+    """他ジョブでもステップ・ジョブ単位の無効化を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    jobs = _mapping_at(mutated, ("jobs",))
+    assert isinstance(jobs, dict)
+    if scope == "other-step":
+        target = _mapping_at(jobs, ("harness", "steps", 6))
+    elif scope == "unconditional-job":
+        target = jobs["harness"]
+    else:
+        target = jobs["backend"]
+    assert isinstance(target, dict)
+    target[attribute] = {
+        "if": False,
+        "continue-on-error": True,
+        "shell": "bash {0} || true",
+    }[attribute]
+
+    with pytest.raises(AssertionError):
+        _assert_no_silent_disable_controls(mutated)
 
 
 def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
