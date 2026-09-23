@@ -204,7 +204,7 @@ date: 2026-09-24
 
 - **書き込み先の正**は 12-3 節の不変条件 1「そのバッチが作った行のすべて」(`data-model.md:295`・`:2367`)。**閉じた表集合ではないので、そのままでは exact-set にできない**。design.md は「機械可読資産で閉じ、正本記述との対応を検査する」と申し送っている(`:233-236`)
 - 物理的な材料: `import_batch_id` を持つ 18 表と `migration_runs`。ただし、**この集合から次の 2 表が漏れる**:
-  - `event_slots`: `import_batch_id` を持たない(`schema-manifest.json:287-298`、`migration_retirement: 持たない`、**原典確認済み**)。それでも `operation_events` が FK で参照する(:340)ので、**バッチはスロット行も INSERT する必要がある**。`medical_note_versions` も同じ形
+  - `event_slots`: `import_batch_id` を持たない(`schema-manifest.json:287-298`、`migration_retirement: 持たない`、**原典確認済み**)。それでも `operation_events` が FK で参照する(:340)ので、**バッチはスロット行も INSERT する必要がある**。これは正本 12-3 の不変条件 1(移行が作る行はすべて取り込みバッチ識別子を持つ — `data-model.md:2367`)とスキーマの食い違いである。`medical_note_versions` も識別子を持たないが、`medical_notes` を参照する子表であり `event_slots` と同じ形ではない。移行がこの表に行を作るかどうかは正本から読み取れない(計画レビュー 1 周目 1-P0-7 で訂正)
   - `admin_operation_logs`: 監査先だが `import_batch_id` を持たない(:849)
 - **テナント横断**: バッチは `tenants` 行そのものを作る(ファンアウト 5 手順 — `data-model.md:1376-1384`、`tenants.import_batch_id` — manifest :36)。書き込み先には、`tenant_id` を持たない表(隔離・レポート・バッチ)も含まれる
 - **繰り返し有効化できる形が要る**: 何度でもやり直せる(要件書 `:788`)。やり直しは退役し、新しいバッチ識別子で再投入する(`data-model.md:2361-2372`)。段階移行も否定していない(`:304`)。`migration_runs` は `completed_at` と `retired_at` を別に持つ
@@ -214,7 +214,7 @@ date: 2026-09-24
 
 1. ★ **移行ロールの所有が二重で、方式が正反対** — TSK-349(Notion「未着手」)の DoD は「**凍結 probe 資産へ移行ロールを追加し、`--reseal-oracle` を回す**」。TSK-424 の DoD は「**probe 資産の差分 0 行**」。TSK-349 の開始条件「移行バッチの実装が存在する」は満たされていない。U-T1 / TSK-424 側の文書に TSK-349 への言及は 0 件(`docs/features/pg-authz-verification-g3/design.md:376-378`、TSK-349 カード)。→ 案: TSK-424 が製品資産側で持ち、TSK-349 を取り下げるか吸収する。または TSK-424 から外して TSK-349 に残す
 2. ★ **SP-06 と 12-4 の字面衝突(所有は TSK-382)を踏まない線引き** — 全表 ENABLE+FORCE を製品資産として確定すると、SP-06 の実体が先に立つ(`docs/adr/ADR-004-merge-gate-scope.md:44`)。本タスクは「資産と使い捨てクラスタでの検査」にとどまり、実スキーマへは適用しない。それで射程を踏まないと言えるかを計画で明記し、踏むなら PO の裁定を取る
-3. ★ **移行ロールの書き込み先 exact-set の閉じ方** — `import_batch_id` を持つ表から導出するなら、`event_slots`・`medical_note_versions`・`admin_operation_logs` の扱いを決める必要がある(5 節)
+3. ★ **移行ロールの書き込み先 exact-set の閉じ方** — `import_batch_id` を持つ表から導出するなら、`event_slots`・`medical_note_versions`・`admin_operation_logs` の扱いを決める必要がある(5 節)。→ **決着(計画レビュー 1 周目)**: 導出集合と完全一致・例外なし。監査は手順の側が書く。食い違いは申し送る(design.md 8-1・8-2)
 4. ★ **正本 3-2 節 `:296` の監査根拠** — 正本は NFR-012 を引くが、U-T1 design は根拠を裁定 A-3 に是正済み(`design.md:215`・`:535`)。正本の引用を直すなら、7.6 の決定表でゲートを判定する
 5. **認可が未決の表の分類** — `tenants` / `rate_limit_counters` / `migration_*` 4 表 / `admin_operation_logs` / FK なしの 2 表。正本に記載が無いので、計画の 45 表の表で決めて敵対レビューにかける(4-1・1-5)。`rate_limit_counters` の認証前アクセスは、default-deny とぶつかる
 6. **暫定資産の削除と 7D** — 二状態テストのせいで削除は避けられない。7D(TSK-431)が閉じる前に削除する場合、履歴の検査をどう担保するか、TSK-431 との順序を決める(4-4)
