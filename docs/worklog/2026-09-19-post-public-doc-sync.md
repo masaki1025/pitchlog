@@ -487,7 +487,9 @@ gitleaks の fingerprint は **`<コミット SHA>:<パス>:<ルール>:<行>`**
 **#72 のマージで偽になった本 PR の記述を訂正した(3 件)**:
 
 1. **3 章 二段階記述①** — 「下記 JSON は 2026-09-20 に GitHub API で実測した全現値と**一致する**」は、#72 が JSON へ 1 件追加したことで**偽になった**。「実測値へ `tenant-boundary-bypass` を加えたもの/同 context は未適用」へ改めた
-2. **3 章へ実測を追記** — **実 Ruleset(id `23694095`)は 2026-09-23 時点で 9 context のままで `tenant-boundary-bypass` は未適用**(`gh api` で実測)。**同ジョブは現に必須チェックではなく、失敗しても走らなくてもマージを阻止しない**。JSON は「適用すべき状態」であり実設定と一致していないことを明記した
+2. **3 章へ実測を追記** — **実 Ruleset(id `23694095`)は 2026-09-23 時点で 9 context のままで `tenant-boundary-bypass` は未適用**(`gh api` で実測)。**同ジョブは現に必須チェックではなく、失敗しても走らなくてもマージを阻止しない**状態だった
+
+   **→ 2026-09-24 に適用した(PO 指示)。** 適用前に**正本 JSON と実 Ruleset を全項目で突合**し、**差分が `tenant-boundary-bypass` の 1 件だけ**であることを確認してから `PUT /repos/masaki1025/pitchlog/rulesets/23694095` を実行(`conditions` / `bypass_actors: []` / `strict_required_status_checks_policy` / `require_extra_approval_for_unattributed_changes` / `allowed_merge_methods` はいずれも一致)。適用後の実測 = **必須 10 context**・`enforcement: active`・`bypass_actors: []`・`current_user_can_bypass: never`。**`integration_id` は追加分を含め全 10 context とも未指定**なので、**設計書 10.2 のリスク受容を解除しない結論は変わらない**。3 章の二段階記述①と同時更新の項を実態へ書き戻した
 3. **件数を本文から外した** — `github-setup.md` の「`integration_id` は未指定(**9 context** とも)」と設計書 10.2 の「必須 **9 context** とも」を、いずれも「**全 context とも**」へ。**件数を書くと必須ジョブが増えるたびに古くなる**ため(本件がその 1 例目)。`integration_id` は追加される context も含めて未指定であることを実測で確認したので、**10.2 のリスク受容を解除しない結論は変わらない**
 
 **台帳候補(本タスクのスコープ外 — 起票は別途)**:

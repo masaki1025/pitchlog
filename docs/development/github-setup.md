@@ -70,7 +70,7 @@ status: approved
 
 > **現況(2026-09-20 更新・TSK-429)— 二段階で読むこと**
 >
-> 1. **Ruleset 設定の適用: 完了。ただし本書と実設定の一致は未了。** `protect-main-develop`(id **`23694095`**)を `main` / `develop` へ適用済み。**下記 JSON は 2026-09-20 に GitHub API で実測した全現値へ、U-T1 が必須化した `tenant-boundary-bypass` を加えたものである** — **同 context は 2026-09-23 時点で実 Ruleset へ未適用**(下の「本書と Ruleset の同時更新が未了である」を見よ)。
+> 1. **Ruleset 設定の適用: 完了。** `protect-main-develop`(id **`23694095`**)を `main` / `develop` へ適用済み。**下記 JSON は 2026-09-24 に GitHub API で実測した全現値と一致する**(必須 **10 context**)。
 > 2. **運用の実地検証と発行元拘束: 未完。** 本節が下で要求する「docs-only PR で下流 skipped がマージ可能」「変更検知ジョブ失敗時にマージがブロック」の**両方の実測は未実施**である。→ 後続タスク **Notion `TSK-433`「ブランチ保護の実地検証」**(担当: PO / **完了条件 = ①両方の実測 PR URL の記録 ②本節の二段階記述の解消 ③設計書 10.2 の解除条件である「必須チェックの発行元が拘束されていること」の成立 ④直 push・force push・ブランチ削除・PR を経ないマージの 4 経路が実際に拒否されることの負例試験**(`gh ruleset check` は拒否を実証しないため)。
 >    **【安全条件・必須】この試験は「拒否されなければ保護ブランチが実際に更新・削除される」性質を持つ。** 次をすべて満たさない限り実施しない:
 >    - **`main` / `develop` を対象にしない。** 検証専用リポジトリ、または**同一の Ruleset を適用した使い捨てブランチ**を対象とし、**同一性(適用されている rule 集合が一致すること)を API 実測で立証する**
@@ -136,7 +136,7 @@ status: approved
 - `bypass_actors: []` = 管理者にも適用(ただし**所有者は設定自体を変更できる**ため、所有者からも逃れられない保護にはならない — 残余リスクとして記録)
 - `required_approving_review_count: 0` の理由: 現状 1 人開発のため(レビューの実体は設計書 6.3 の反対側 AI レビュー + 人間確認)。チーム化したら引き上げる
 - **必須チェックの `context` は「status check context 名」**であり、現状は ci.yml の job id と一致する(`name:` 未指定・matrix なしのため)。**適用前に実 PR の Checks 表示で実際の context 名を再確認**すること。必須ジョブの**追加・削除・改名時は本書と Ruleset を同時更新**する(v1.2 で `frontend` / `backend` に加え**変更検知ジョブ `frontend-changes` / `backend-changes` も追加** — GitHub は skipped の check run を required の充足として扱うため、**上流の変更検知ジョブが失敗すると下流が skipped になりマージを阻止しない**〔[GitHub Docs: Troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)〕。常時実行の変更検知ジョブを required に含めることでこの経路を塞ぐ。**適用時に docs-only PR で下流 skipped がマージ可能となること・変更検知失敗時にマージがブロックされることの両方を実測確認**してから運用する)。可能なら各 context に GitHub Actions の `integration_id` を指定する(未指定だと任意ソースの同名 status を受け入れる)
-- **本書と Ruleset の同時更新が未了である(2026-09-23 実測)**: 上の JSON は `tenant-boundary-bypass` を含む **10 context** だが、**実 Ruleset(id `23694095`)は 9 context のままで `tenant-boundary-bypass` は未適用**である(`gh api repos/masaki1025/pitchlog/rulesets/23694095` で実測)。**したがって同ジョブは現に必須チェックではなく、失敗しても・走らなくてもマージを阻止しない。** 上の JSON は**適用すべき状態**であり、適用するまで本書と実設定は一致しない。**適用は上の「適用手順(冪等)」による**(→ `TSK-433` の実地検証の前提)
+- **同時更新は 1 PR 分遅れて成立した(実測の記録)**: `tenant-boundary-bypass` は **PR #72 のマージ(2026-09-23)で本書へ入ったが、実 Ruleset へは 2026-09-24 に適用**された。その間、**同ジョブは必須チェックではなく、失敗しても走らなくてもマージを阻止しない状態だった**(`gh api` で実測)。**本書の更新と Ruleset の適用は別の操作であり、前者だけが PR のマージで自動的に進む。** 分岐を検出する機械検査は無いので、**必須ジョブを増減する PR では上の「適用手順(冪等)」の実行までを 1 つの作業として扱う**
 
 適用手順(冪等):
 
