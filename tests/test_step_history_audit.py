@@ -35,7 +35,9 @@ FRONTEND_CWD = "frontend"
 COMMAND_CWD_ALLOWLIST = frozenset({ROOT_CWD, BACKEND_CWD, FRONTEND_CWD})
 EXPECTED_COMMAND_EXIT = 0
 SELF_RECURSIVE_COMMAND = "uv run pytest tests/test_step_history_audit.py"
-COMMAND_OWNER_JOBS = frozenset({"harness", "frontend", "mutation", "consistency"})
+COMMAND_OWNER_JOBS = frozenset(
+    {"harness", "frontend", "mutation", "consistency", "docs-lint"}
+)
 
 # 走査件数の証跡。`exit 0` は「異常終了しなかった」でしかなく、対象を 1 件も見ずに
 # 終わったコマンドと区別できない(ステップ 45 で `depcruise --validate` が対象省略のまま
@@ -94,6 +96,17 @@ class CommandExecutionExclusion:
     command: str
     owner_job: str
     reason: str
+
+
+@dataclass(frozen=True)
+class CommandExecutionOwnership:
+    """全 step command の一意な実走所有を表す。"""
+
+    ci_owned: tuple[CommandExecutionExclusion, ...]
+    history_owned: frozenset[tuple[int, str]]
+    reason: str
+    machine_guarantee: str
+    limit: str
 
 
 @dataclass(frozen=True)
@@ -180,41 +193,138 @@ def _command_audit_asset(data: dict[str, Any]) -> tuple[CommandAudit, ...]:
     return tuple(records)
 
 
-def _command_execution_exclusions(
-    data: dict[str, Any],
-) -> tuple[CommandExecutionExclusion, ...]:
-    """単一定義から command の実走所有宣言を厳密に読む。"""
-    raw_exclusions = data.get("command_execution_exclusions")
-    if not isinstance(raw_exclusions, list) or not raw_exclusions:
-        raise AuditViolation("command_execution_exclusions が空でない配列でない")
-    exclusions: list[CommandExecutionExclusion] = []
-    for index, raw in enumerate(raw_exclusions):
+def _command_execution_policy(data: dict[str, Any]) -> CommandExecutionOwnership:
+    """単一定義から全 command の CI・履歴所有を厳密に読む。"""
+    raw_policy = data.get("command_execution_ownership")
+    if not isinstance(raw_policy, dict) or set(raw_policy) != {
+        "mode",
+        "reason",
+        "machineGuarantee",
+        "limit",
+        "ciOwnedSingleCommandSteps",
+        "ciOwnedCommandOverrides",
+        "historyRunnerCommands",
+    }:
+        raise AuditViolation("command_execution_ownership のキー集合が不正")
+    if raw_policy["mode"] != "ci-owner-only-with-history-exceptions":
+        raise AuditViolation("command 実走所有の mode が不正")
+    for key in ("reason", "machineGuarantee", "limit"):
+        if not isinstance(raw_policy[key], str) or not raw_policy[key].strip():
+            raise AuditViolation(f"command 実走所有の {key} が空")
+    if "保証範囲外" not in raw_policy["limit"]:
+        raise AuditViolation("command 実走所有の保証限界が明記されていない")
+
+    records = _command_audit_asset(data)
+    by_step: dict[int, tuple[CommandAudit, ...]] = {}
+    for step_id in {record.step_id for record in records}:
+        by_step[step_id] = tuple(
+            record for record in records if record.step_id == step_id
+        )
+    ci_owned: list[CommandExecutionExclusion] = []
+    raw_groups = raw_policy["ciOwnedSingleCommandSteps"]
+    if not isinstance(raw_groups, list) or not raw_groups:
+        raise AuditViolation("ciOwnedSingleCommandSteps が空でない配列でない")
+    for index, raw in enumerate(raw_groups):
+        if not isinstance(raw, dict) or set(raw) != {
+            "ownerJob",
+            "stepIds",
+            "reason",
+        }:
+            raise AuditViolation(f"単一 command 所有 {index} のキー集合が不正")
+        owner = raw["ownerJob"]
+        step_ids = raw["stepIds"]
+        reason = raw["reason"]
+        if owner not in COMMAND_OWNER_JOBS:
+            raise AuditViolation(f"単一 command 所有 {index} の ownerJob が不正")
+        if not isinstance(step_ids, list) or not step_ids:
+            raise AuditViolation(f"単一 command 所有 {index} の stepIds が不正")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AuditViolation(f"単一 command 所有 {index} の理由が無い")
+        for step_id in step_ids:
+            if not isinstance(step_id, int) or isinstance(step_id, bool):
+                raise AuditViolation(f"単一 command 所有 {index} の stepId が不正")
+            commands = by_step.get(step_id, ())
+            if len(commands) != 1:
+                raise AuditViolation(
+                    f"ステップ {step_id} は単一 command 所有へ宣言できない"
+                )
+            ci_owned.append(
+                CommandExecutionExclusion(step_id, commands[0].command, owner, reason)
+            )
+
+    raw_overrides = raw_policy["ciOwnedCommandOverrides"]
+    if not isinstance(raw_overrides, list) or not raw_overrides:
+        raise AuditViolation("ciOwnedCommandOverrides が空でない配列でない")
+    for index, raw in enumerate(raw_overrides):
         if not isinstance(raw, dict) or set(raw) != {
             "stepId",
             "command",
             "ownerJob",
             "reason",
         }:
-            raise AuditViolation(f"command 除外 {index} のキー集合が不正")
+            raise AuditViolation(f"command 所有上書き {index} のキー集合が不正")
         step_id = raw["stepId"]
         command = raw["command"]
-        owner_job = raw["ownerJob"]
+        owner = raw["ownerJob"]
         reason = raw["reason"]
-        if not isinstance(step_id, int) or isinstance(step_id, bool) or step_id < 1:
-            raise AuditViolation(f"command 除外 {index} の stepId が不正")
+        if not isinstance(step_id, int) or isinstance(step_id, bool):
+            raise AuditViolation(f"command 所有上書き {index} の stepId が不正")
         if not isinstance(command, str) or not command:
-            raise AuditViolation(f"command 除外 {index} の command が不正")
-        if owner_job not in COMMAND_OWNER_JOBS:
-            raise AuditViolation(f"command 除外 {index} の ownerJob が不正")
+            raise AuditViolation(f"command 所有上書き {index} の command が不正")
+        if owner not in COMMAND_OWNER_JOBS:
+            raise AuditViolation(f"command 所有上書き {index} の ownerJob が不正")
         if not isinstance(reason, str) or not reason.strip():
-            raise AuditViolation(f"command 除外 {index} に理由が無い")
-        exclusions.append(
-            CommandExecutionExclusion(step_id, command, owner_job, reason)
+            raise AuditViolation(f"command 所有上書き {index} の理由が無い")
+        ci_owned.append(CommandExecutionExclusion(step_id, command, owner, reason))
+
+    raw_history = raw_policy["historyRunnerCommands"]
+    if not isinstance(raw_history, list) or not raw_history:
+        raise AuditViolation("historyRunnerCommands が空でない配列でない")
+    history_owned: list[tuple[int, str]] = []
+    for index, raw in enumerate(raw_history):
+        if not isinstance(raw, dict) or set(raw) != {"stepId", "command", "reason"}:
+            raise AuditViolation(f"履歴所有 command {index} のキー集合が不正")
+        step_id = raw["stepId"]
+        command = raw["command"]
+        reason = raw["reason"]
+        if not isinstance(step_id, int) or isinstance(step_id, bool):
+            raise AuditViolation(f"履歴所有 command {index} の stepId が不正")
+        if not isinstance(command, str) or not command:
+            raise AuditViolation(f"履歴所有 command {index} の command が不正")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AuditViolation(f"履歴所有 command {index} の理由が無い")
+        history_owned.append((step_id, command))
+
+    actual = {(record.step_id, record.command) for record in records}
+    ci_identities = [(item.step_id, item.command) for item in ci_owned]
+    if len(ci_identities) != len(set(ci_identities)):
+        raise AuditViolation("CI 所有 command が重複している")
+    if len(history_owned) != len(set(history_owned)):
+        raise AuditViolation("履歴所有 command が重複している")
+    ci_set = set(ci_identities)
+    history_set = set(history_owned)
+    if ci_set & history_set:
+        raise AuditViolation("同じ command が CI と履歴の両方に所有されている")
+    if ci_set | history_set != actual:
+        raise AuditViolation(
+            "command 所有集合が実 command と不一致: "
+            f"不足={sorted(actual - ci_set - history_set)!r}, "
+            f"未知={sorted((ci_set | history_set) - actual)!r}"
         )
-    identities = [(item.step_id, item.command) for item in exclusions]
-    if len(identities) != len(set(identities)):
-        raise AuditViolation("command 除外の stepId と command が重複している")
-    return tuple(exclusions)
+    return CommandExecutionOwnership(
+        ci_owned=tuple(ci_owned),
+        history_owned=frozenset(history_owned),
+        reason=raw_policy["reason"],
+        machine_guarantee=raw_policy["machineGuarantee"],
+        limit=raw_policy["limit"],
+    )
+
+
+def _command_execution_exclusions(
+    data: dict[str, Any],
+) -> tuple[CommandExecutionExclusion, ...]:
+    """CI 所有のため履歴監査で再実行しない command を返す。"""
+    return _command_execution_policy(data).ci_owned
 
 
 def _history_order_exceptions(
@@ -583,19 +693,21 @@ def _python_marker_command(marker: str) -> str:
     return f"{shlex.quote(sys.executable)} -c {shlex.quote(program)}"
 
 
-def test_real_repository_commands_actually_run_and_report_nonempty_scope(
+def test_history_owned_commands_actually_run_and_report_nonempty_scope(
     steps_data: dict[str, Any],
 ) -> None:
-    """当該ジョブ所有の command を実プロセスで起動し、非空虚とする。
+    """履歴所有の command だけを実プロセスで起動し、非空虚とする。
 
-    他ジョブ所有の command は単一定義の宣言と CI 配線を別検査で突合し、ここで
-    二重実行しない。宣言に無い command は従来どおり全件を実走する。
+    CI 所有の command は単一定義の宣言と CI 配線を別検査で双方向に突合し、
+    ここでは二重実行しない。
     """
     records = _command_audit_asset(steps_data)
-    exclusions = _command_execution_exclusions(steps_data)
-    executable = _commands_for_execution(records, exclusions)
+    policy = _command_execution_policy(steps_data)
+    executable = _commands_for_execution(records, policy.ci_owned)
     assert executable, "実行対象のコマンドが 1 件も無い"
-    assert len(executable) == len(records) - len(exclusions)
+    assert {
+        (record.step_id, record.command) for record in executable
+    } == policy.history_owned
     _execute_commands(ROOT, executable)
 
 
@@ -772,6 +884,36 @@ def test_self_recursive_command_is_excluded_from_execution_asset(
     )
     assert len(selected) == len(records) - len(exclusions)
     _assert_no_self_recursive_command(selected)
+
+
+def test_command_ownership_is_a_disjoint_complete_partition(
+    steps_data: dict[str, Any],
+) -> None:
+    """全 command が CI または履歴へ一意に所有され、限界も明記される。"""
+    records = _command_audit_asset(steps_data)
+    policy = _command_execution_policy(steps_data)
+    actual = {(record.step_id, record.command) for record in records}
+    ci_owned = {(item.step_id, item.command) for item in policy.ci_owned}
+
+    assert ci_owned.isdisjoint(policy.history_owned)
+    assert ci_owned | policy.history_owned == actual
+    assert "静的" in policy.machine_guarantee
+    assert "保証範囲外" in policy.limit
+    assert "GitHub" in policy.limit
+
+
+def test_command_ownership_missing_one_ci_command_is_rejected(
+    steps_data: dict[str, Any],
+) -> None:
+    """CI 所有宣言から一件を落として未宣言除外にすることを拒否する。"""
+    mutated = json.loads(json.dumps(steps_data, ensure_ascii=False))
+    groups = mutated["command_execution_ownership"][
+        "ciOwnedSingleCommandSteps"
+    ]
+    groups[0]["stepIds"].pop()
+
+    with pytest.raises(AuditViolation, match="command 所有集合"):
+        _command_execution_policy(mutated)
 
 
 def test_self_recursion_exclusion_exists_in_executable_ast() -> None:

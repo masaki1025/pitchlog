@@ -19,86 +19,92 @@
       "reason": "ステップ 55 は、ステップ 56・57 を含むブランチを push して PR の実 CI を実行した証跡が合格条件に必要なため、ステップ 57 の後に実施した。"
     }
   ],
-  "command_execution_exclusions": [
-    {
-      "stepId": 10,
-      "command": "uv run pytest tests/domain/test_collect_fe.py",
-      "ownerJob": "harness",
-      "reason": "ルートの frontend 収集器テストは harness が tests/ の一部として実走するため。"
-    },
-    {
-      "stepId": 10,
-      "command": "pnpm test -- --run",
-      "ownerJob": "frontend",
-      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
-    },
-    {
-      "stepId": 39,
-      "command": "uv run pytest tests/domain/mut/test_engine.py",
-      "ownerJob": "mutation",
-      "reason": "変異エンジンは PostgreSQL を持つ mutation が変異スイートの一部として実走するため。"
-    },
-    {
-      "stepId": 40,
-      "command": "uv run pytest tests/domain/mut/test_lang_operators.py",
-      "ownerJob": "mutation",
-      "reason": "SQL を含む言語別変異は PostgreSQL を持つ mutation が実走するため。"
-    },
-    {
-      "stepId": 41,
-      "command": "uv run pytest tests/domain/mut/test_display_operators.py",
-      "ownerJob": "mutation",
-      "reason": "表示系変異は mutation が変異スイートの一部として実走するため。"
-    },
-    {
-      "stepId": 42,
-      "command": "uv run pytest tests/domain/mut/test_scope.py",
-      "ownerJob": "mutation",
-      "reason": "変異の影響範囲検査は mutation が変異スイートの一部として実走するため。"
-    },
-    {
-      "stepId": 43,
-      "command": "uv run pytest tests/domain/mut/test_equivalents.py",
-      "ownerJob": "mutation",
-      "reason": "等価変異台帳検査は mutation が変異スイートの一部として実走するため。"
-    },
-    {
-      "stepId": 45,
-      "command": "pnpm exec depcruise src --validate",
-      "ownerJob": "frontend",
-      "reason": "frontend の依存閉域検査は frontend が実走するため。"
-    },
-    {
-      "stepId": 45,
-      "command": "pnpm test -- --run",
-      "ownerJob": "frontend",
-      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
-    },
-    {
-      "stepId": 46,
-      "command": "pnpm run build",
-      "ownerJob": "frontend",
-      "reason": "production build は frontend が実走するため。"
-    },
-    {
-      "stepId": 46,
-      "command": "pnpm test -- --run",
-      "ownerJob": "frontend",
-      "reason": "Vitest 全件は frontend が一度だけ実走するため。"
-    },
-    {
-      "stepId": 49,
-      "command": "uv run pytest tests/domain/mut/test_cost_record.py",
-      "ownerJob": "mutation",
-      "reason": "変異コストの拘束実測は PostgreSQL を持つ mutation が実走するため。"
-    },
-    {
-      "stepId": 52,
-      "command": "uv run pytest tests/test_step_history_audit.py",
-      "ownerJob": "consistency",
-      "reason": "履歴監査自身は consistency の外側から一度だけ起動し、自己再帰を防ぐため。"
-    }
-  ],
+  "command_execution_ownership": {
+    "mode": "ci-owner-only-with-history-exceptions",
+    "reason": "ステップ command を履歴監査でも再実行すると、同じテストを所有ジョブと二重実行し、PostgreSQL・Node など他ジョブ専用の実行環境を consistency へ越境させる。全 command を CI 所有または履歴所有へ一意に分割し、実走は所有先だけで行う。",
+    "machineGuarantee": "steps[].command の各 code span は CI 所有または履歴所有のどちらか一方へ過不足なく帰属し、CI 所有 command は ci.yml の指定ジョブの selector または完全一致 command に含まれることを静的に検査する。履歴所有 command は履歴監査が subprocess で実走する。",
+    "limit": "CI workflow の静的な所有・包含と履歴所有 command のローカル実走までは保証するが、GitHub 上で各所有ジョブが実際に起動し success になったことはオフラインでは保証しない。広い pytest selector が各テストの意味を実行したことの証明も任意コードの意味判定に帰着するため保証範囲外であり、実 run の確認を要する。",
+    "ciOwnedSingleCommandSteps": [
+      {
+        "ownerJob": "harness",
+        "stepIds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 44, 47, 48, 50, 53, 56, 57],
+        "reason": "harness の tests/ selector が boot・mutation・計画・履歴監査を除くルートテストを一度だけ実走する。"
+      },
+      {
+        "ownerJob": "consistency",
+        "stepIds": [17, 18, 19, 20, 21, 22, 23, 24, 25, 51, 52],
+        "reason": "consistency が boot 9 ステップと計画・履歴監査を一括 command の個別 selector として実走する。"
+      },
+      {
+        "ownerJob": "mutation",
+        "stepIds": [39, 40, 41, 42, 43, 49],
+        "reason": "PostgreSQL を持つ mutation が変異スイートを一度だけ実走する。"
+      }
+    ],
+    "ciOwnedCommandOverrides": [
+      {
+        "stepId": 10,
+        "command": "uv run pytest tests/domain/test_collect_fe.py",
+        "ownerJob": "harness",
+        "reason": "frontend 収集器のルートテストは harness が実走する。"
+      },
+      {
+        "stepId": 10,
+        "command": "pnpm test -- --run",
+        "ownerJob": "frontend",
+        "reason": "Vitest 全件は frontend が実走する。"
+      },
+      {
+        "stepId": 45,
+        "command": "pnpm exec depcruise src --validate",
+        "ownerJob": "frontend",
+        "reason": "frontend の依存閉域検査は frontend が実走する。"
+      },
+      {
+        "stepId": 45,
+        "command": "pnpm test -- --run",
+        "ownerJob": "frontend",
+        "reason": "Vitest 全件は frontend が実走する。"
+      },
+      {
+        "stepId": 46,
+        "command": "pnpm run build",
+        "ownerJob": "frontend",
+        "reason": "production build は frontend が実走する。"
+      },
+      {
+        "stepId": 46,
+        "command": "pnpm test -- --run",
+        "ownerJob": "frontend",
+        "reason": "Vitest 全件は frontend が実走する。"
+      },
+      {
+        "stepId": 54,
+        "command": "uv run pytest tests/test_packaging.py",
+        "ownerJob": "harness",
+        "reason": "packaging テストは harness が実走する。"
+      },
+      {
+        "stepId": 55,
+        "command": "uv run pytest tests/test_ci_wiring.py",
+        "ownerJob": "harness",
+        "reason": "CI 配線テストは harness が実走する。"
+      },
+      {
+        "stepId": 55,
+        "command": "uv run python scripts/check_docs_status.py",
+        "ownerJob": "docs-lint",
+        "reason": "文書状態検査は docs-lint が実走する。"
+      }
+    ],
+    "historyRunnerCommands": [
+      {
+        "stepId": 54,
+        "command": "uv sync --locked",
+        "reason": "CI は開発依存を含む別 command `uv sync --locked --dev` を実行するため、計画書の完全一致 command は履歴監査が実走する。"
+      }
+    ]
+  },
   "groups": [
     {
       "id": 1,

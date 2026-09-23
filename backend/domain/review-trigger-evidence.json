@@ -1,6 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "poEvaluationLimit": "機械が保証するのは判定者・判定日・発火値の記録と証拠内容 digest の不変性までであり、PO の判断内容そのものの正しさは機械では決められない。",
+  "machineEvaluationLimit": "機械が保証するのはトリガー ID ごとに固定した pytest node の名前・実在・収集件数・実行件数と、その合否が評価記録へ一致することまでである。固定名のテスト本体の意味が発火条件を正しく評価することは任意コードの意味判定に帰着するため保証範囲外であり、コードレビューを要する。",
   "machineEvaluations": [
     {
       "triggerId": 3,

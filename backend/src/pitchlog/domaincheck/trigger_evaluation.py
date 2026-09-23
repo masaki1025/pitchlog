@@ -19,7 +19,13 @@ from pitchlog.domaincheck.cli import CheckerExecutionError
 
 EVIDENCE_ASSET = Path("backend/domain/review-trigger-evidence.json")
 _TOP_KEYS = frozenset(
-    {"schemaVersion", "poEvaluationLimit", "machineEvaluations", "manualDecisions"}
+    {
+        "schemaVersion",
+        "poEvaluationLimit",
+        "machineEvaluationLimit",
+        "machineEvaluations",
+        "manualDecisions",
+    }
 )
 _MACHINE_KEYS = frozenset({"triggerId", "testNodes"})
 _MANUAL_KEYS = frozenset(
@@ -36,21 +42,55 @@ _NODE_ID = re.compile(
     r"(?P<path>tests/(?:[A-Za-z0-9_-]+/)*test_[A-Za-z0-9_]+\.py)"
     r"::(?P<function>test_[A-Za-z0-9_]+)"
 )
-_MACHINE_TRIGGER_FILES: dict[int, frozenset[str]] = {
-    3: frozenset({"tests/domain/gen/test_formatter.py"}),
-    4: frozenset({"tests/domain/test_path_match.py"}),
-    6: frozenset(
-        {
-            "tests/domain/test_collect_fe.py",
-            "tests/domain/test_closure_be.py",
-            "tests/domain/test_display_binding.py",
-        }
+_MACHINE_TRIGGER_NODES: dict[int, tuple[str, ...]] = {
+    3: (
+        "tests/domain/gen/test_formatter.py::"
+        "test_alpha_python_typescript_and_reference_return_same_display",
+        "tests/domain/gen/test_formatter.py::"
+        "test_beta_seven_enum_map_receiver_and_reference_agree",
+        "tests/domain/gen/test_formatter.py::"
+        "test_all_target_matrix_classes_are_actually_generated",
     ),
-    9: frozenset({"tests/domain/test_history_depth.py"}),
-    12: frozenset({"tests/domain/mut/test_cost_record.py"}),
-    13: frozenset({"tests/domain/test_display_binding.py"}),
-    14: frozenset({"tests/domain/test_collect_layers.py"}),
-    16: frozenset({"tests/domain/test_step_authorities.py"}),
+    4: (
+        "tests/domain/test_path_match.py::"
+        "test_allowed_lossless_normalizations_pass_all_trigger_four_axes",
+        "tests/domain/test_path_match.py::"
+        "test_display_string_variations_are_not_normalized",
+    ),
+    6: (
+        "tests/domain/test_collect_fe.py::"
+        "test_dynamic_worker_is_reported_as_indeterminate",
+        "tests/domain/test_closure_be.py::"
+        "test_unresolved_dynamic_import_is_fail_closed",
+        "tests/domain/test_display_binding.py::"
+        "test_unresolved_display_path_is_fail_closed",
+    ),
+    9: (
+        "tests/domain/test_history_depth.py::"
+        "test_history_depth_is_derived_from_cases_and_maximum",
+    ),
+    12: (
+        "tests/domain/mut/test_cost_record.py::"
+        "test_recorded_scopes_recompute_product_and_budget_decision",
+    ),
+    13: (
+        "tests/domain/test_display_binding.py::"
+        "test_schema_selector_addition_changes_target_closure_without_code_list",
+        "tests/domain/test_display_binding.py::"
+        "test_matching_target_callsite_and_generated_formatter_pass",
+    ),
+    14: (
+        "tests/domain/test_collect_layers.py::"
+        "test_collector_computes_chain_instead_of_accepting_adapter_claim",
+        "tests/domain/test_collect_layers.py::"
+        "test_real_pytest_junit_output_is_counted_with_provenance",
+    ),
+    16: (
+        "tests/domain/test_step_authorities.py::"
+        "test_all_authorities_exist_verbatim_in_canonical_sources",
+        "tests/domain/test_step_authorities.py::"
+        "test_registry_has_exactly_all_fifty_seven_steps",
+    ),
 }
 
 
@@ -197,11 +237,10 @@ def _validated_machine_nodes(
         raise TriggerEvaluationError(
             "machine.testNodes は path::test_function 形式でなければならない"
         )
-    paths = frozenset(match.group("path") for match in matches if match is not None)
-    expected_paths = _MACHINE_TRIGGER_FILES.get(trigger_id)
-    if expected_paths is None or paths != expected_paths:
+    expected_nodes = _MACHINE_TRIGGER_NODES.get(trigger_id)
+    if expected_nodes is None or nodes != expected_nodes:
         raise TriggerEvaluationError(
-            f"トリガー {trigger_id} の対象ファイルが固定対応と違う"
+            f"トリガー {trigger_id} の評価 node が固定対応と違う"
         )
     for node, match in zip(nodes, matches, strict=True):
         assert match is not None
@@ -257,11 +296,18 @@ def validate_recorded_evaluations(
     root = repository_root.resolve()
     evidence_file = evidence_path or root / EVIDENCE_ASSET
     evidence = _read_json(evidence_file)
-    if set(evidence) != _TOP_KEYS or evidence.get("schemaVersion") != 1:
+    if set(evidence) != _TOP_KEYS or evidence.get("schemaVersion") != 2:
         raise TriggerEvaluationError("評価証拠のトップレベルが不正")
     limit = evidence.get("poEvaluationLimit")
     if not isinstance(limit, str) or "判断内容そのもの" not in limit:
         raise TriggerEvaluationError("PO 評価の機械保証限界が明記されていない")
+    machine_limit = evidence.get("machineEvaluationLimit")
+    if (
+        not isinstance(machine_limit, str)
+        or "テスト本体の意味" not in machine_limit
+        or "保証範囲外" not in machine_limit
+    ):
+        raise TriggerEvaluationError("機械評価の意味保証限界が明記されていない")
 
     raw_rows = _array(registry.get("triggers"), "triggers")
     rows = [
@@ -308,6 +354,8 @@ def validate_recorded_evaluations(
         if set(item) != _MANUAL_KEYS:
             raise TriggerEvaluationError("manualDecisions のキー集合が不正")
         identifier = _trigger_id(item.get("triggerId"), "manual.triggerId")
+        if identifier in manual_by_id:
+            raise TriggerEvaluationError("manualDecisions の triggerId が重複している")
         manual_by_id[identifier] = item
     expected_manual = {
         identifier for identifier, row in by_id.items() if "PO" in _judges(row)
