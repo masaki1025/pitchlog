@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 1,
+  "runtime_contract_revision": 2,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:1"
+        "runtime_contract_revision:2"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -16,7 +16,11 @@
           "baseline_control",
           "source_digest"
         ],
-        "external_files": []
+        "external_files": [
+          "scripts/check_tenant_boundary_bypass.py",
+          "scripts/frozen_history.py",
+          ".github/workflows/ci.yml"
+        ]
       }
     },
     "movement_policy": {
@@ -36,6 +40,7 @@
       "affected_baselines": "all_baselines_matching_any_declared_trigger",
       "history_append_only": true
     },
+    "history_authority": false,
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
@@ -67,7 +72,7 @@
   "provisional": true,
   "superseded_by": "contracts/authz/product/ddl-elements.json",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "110153f46f9c4bd1fe6e3ec2c88f227371a68ece7eca0b7bfccd5bc123d557bb",
+  "source_digest": "c0efbd695a0d9ad24a5ec6d4a32396e88bef429301bff9ec844419bc1afc5bc5",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {

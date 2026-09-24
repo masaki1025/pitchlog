@@ -233,9 +233,14 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
-    script_path = repository / "scripts" / SCRIPT.name
-    script_path.parent.mkdir(parents=True)
-    shutil.copy2(SCRIPT, script_path)
+    for relative_path in (
+        Path("scripts/check_tenant_boundary_bypass.py"),
+        Path("scripts/frozen_history.py"),
+        Path(".github/workflows/ci.yml"),
+    ):
+        destination = repository / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -253,6 +258,41 @@ def _write_test_repository_sources(
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(source, encoding="utf-8")
+
+
+def _mutate_single_authority_history(repository: Path, mutation: str) -> None:
+    """実資産コピーへ単一 authority 規約の負例を 1 つだけ入れる。"""
+    authority_path = repository / checker.DEFAULT_ALLOWLIST
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    assert isinstance(authority, dict)
+    authority_history = authority["baseline_control"]["history"]
+    v2_record = copy.deepcopy(authority_history[-1])
+    if mutation == "missing-record":
+        authority_history.pop()
+    elif mutation == "identifier-stays":
+        authority["contract_revision"] = 13
+        authority["baseline_control"]["identity"]["current_identifiers"] = [
+            "contract_revision:13"
+        ]
+    elif mutation == "duplicate-acceptance":
+        authority_history.append(v2_record)
+    elif mutation == "non-authority-append":
+        non_authority_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
+        non_authority = json.loads(non_authority_path.read_text(encoding="utf-8"))
+        assert isinstance(non_authority, dict)
+        non_authority["baseline_control"]["history"].append(v2_record)
+        non_authority["source_digest"] = _contract_digest(non_authority)
+        non_authority_path.write_text(
+            json.dumps(non_authority, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return
+    else:
+        raise AssertionError(f"未知の authority 履歴変異: {mutation}")
+    authority_path.write_text(
+        json.dumps(authority, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _point_default_base_ref_at(repository: Path, commit: str) -> None:
@@ -331,6 +371,37 @@ def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
     assert actual == set(checker.FROZEN_BASELINE_ASSETS)
 
 
+def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
+    """7 資産すべてが同じ 3 実装を凍結し、authority が 1 件だけである。"""
+    expected_external_files = [
+        "scripts/check_tenant_boundary_bypass.py",
+        "scripts/frozen_history.py",
+        ".github/workflows/ci.yml",
+    ]
+    authorities: list[Path] = []
+    for relative_path in checker.FROZEN_BASELINE_ASSETS:
+        asset = _read_contract_asset(relative_path)
+        control = asset["baseline_control"]
+        assert control["identity"]["frozen_projection"]["external_files"] == (
+            expected_external_files
+        )
+        if control["history_authority"]:
+            authorities.append(relative_path)
+
+    assert authorities == [checker.DEFAULT_ALLOWLIST]
+
+
+def test_checker_forces_pr_mode_before_repository_evaluation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR event 欠落を検査器結線後も不変量モードへ fallback させない。"""
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
+    with pytest.raises(checker.ContractError, match="GITHUB_EVENT_PATH"):
+        checker.check_repository(REPOSITORY_ROOT)
+
+
 @pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
@@ -343,7 +414,8 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
         relative_path.as_posix(),
     )
 
-    assert len(history) == 1
+    expected_length = 2 if asset["baseline_control"]["history_authority"] else 1
+    assert len(history) == expected_length
     assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
     assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
 
@@ -363,7 +435,7 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
 )
 def test_missing_baseline_history_field_is_red(field: str) -> None:
     """7.7-2 の必須記録を 1 項目でも省く変異を拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
     asset = _read_contract_asset(relative_path)
     mutated = copy.deepcopy(asset)
     del mutated["baseline_control"]["history"][0][field]
@@ -374,7 +446,7 @@ def test_missing_baseline_history_field_is_red(field: str) -> None:
 
 def test_changed_baseline_history_entry_is_red() -> None:
     """既存記録の書き換えを append-only 比較で拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
     previous = _accepted_snapshot(relative_path)
     current = copy.deepcopy(previous)
     current["baseline_control"]["history"][0]["reason"] = "書き換え"
@@ -425,7 +497,7 @@ def test_merge_base_pending_history_is_still_append_only() -> None:
 
 def test_first_adoption_previous_identifier_must_be_no_baseline() -> None:
     """merge-base に資産が無い初回受理の直前値を推測値にできない。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
     asset = _read_contract_asset(relative_path)
     mutated = copy.deepcopy(asset)
     mutated["baseline_control"]["history"][0][
@@ -478,16 +550,16 @@ def test_reported_pattern_removal_without_revision_or_history_is_red() -> None:
 
 def test_history_added_without_projection_movement_is_red() -> None:
     """射影が動いていない受理への不要な履歴追加を拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
     previous = _accepted_snapshot(relative_path)
     current = copy.deepcopy(previous)
     extra = copy.deepcopy(current["baseline_control"]["history"][-1])
     extra["source_commit"] = "abcdef1"
-    current_identifiers = current["baseline_control"]["identity"][
-        "current_identifiers"
+    last_identifiers = current["baseline_control"]["history"][-1][
+        "new_baseline_identifiers"
     ]
-    extra["previous_baseline_identifiers"] = list(current_identifiers)
-    extra["new_baseline_identifiers"] = list(current_identifiers)
+    extra["previous_baseline_identifiers"] = list(last_identifiers)
+    extra["new_baseline_identifiers"] = list(last_identifiers)
     current["baseline_control"]["history"].append(extra)
 
     with pytest.raises(checker.ContractError, match="射影が動いていない"):
@@ -514,6 +586,28 @@ def test_checker_pass_fail_mapping_change_requires_revision_and_history() -> Non
             previous_external_loader=lambda _path: b"old pass/fail mapping",
             current_external_loader=lambda _path: b"new pass/fail mapping",
         )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-record",
+        "identifier-stays",
+        "non-authority-append",
+        "duplicate-acceptance",
+    ),
+)
+def test_single_authority_acceptance_mutation_is_red_on_real_asset_copy(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """実資産コピーで単一記録・識別値・追記先・受理 ID の規約を守る。"""
+    repository, base_ref = _initialize_test_repository(tmp_path, {})
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    _mutate_single_authority_history(repository, mutation)
+
+    with pytest.raises(checker.ContractError):
+        checker.check_repository(repository, base_ref=base_ref)
 
 
 def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None:
@@ -2275,4 +2369,8 @@ def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
     assert checker.DEFAULT_BASE_REF == "origin/develop"
     assert allowlist["baseline_control"]["identity"]["frozen_projection"][
         "external_files"
-    ] == ["scripts/check_tenant_boundary_bypass.py"]
+    ] == [
+        "scripts/check_tenant_boundary_bypass.py",
+        "scripts/frozen_history.py",
+        ".github/workflows/ci.yml",
+    ]

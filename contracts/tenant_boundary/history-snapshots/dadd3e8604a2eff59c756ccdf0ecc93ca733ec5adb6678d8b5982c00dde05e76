@@ -13,19 +13,11 @@ import re
 import shlex
 import subprocess
 import sys
-import tempfile
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-# このファイルは importlib でパス指定ロードされるため、同階層 import を解決する。
-_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
-if _SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPTS_DIR)
-
-import frozen_history  # noqa: E402
 
 DEFAULT_INVENTORY = Path("contracts/tenant_boundary/db-api-inventory.json")
 DEFAULT_ALLOWLIST = Path("contracts/tenant_boundary/base-allowlist.json")
@@ -337,11 +329,9 @@ def _validate_baseline_control(
     control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
     _strict_keys(
         control,
-        {"identity", "movement_policy", "history", "history_authority"},
+        {"identity", "movement_policy", "history"},
         f"{location}.baseline_control",
     )
-    if type(control["history_authority"]) is not bool:
-        raise ContractError(f"{location}: history_authority は bool が必要")
     identity = _object(control["identity"], f"{location}.baseline_control.identity")
     _strict_keys(
         identity,
@@ -457,39 +447,6 @@ def _validate_baseline_control(
     for index, raw in enumerate(_array(control["history"], f"{location}.history")):
         entry_location = f"{location}.history[{index}]"
         entry = _object(raw, entry_location)
-        if "record_schema_version" in entry:
-            if entry.get("record_schema_version") != 2:
-                raise ContractError(f"{entry_location}: v2 以外の明示版は不正")
-            _strict_keys(
-                entry,
-                {
-                    "record_schema_version",
-                    "acceptance_id",
-                    "new_baseline_identifiers",
-                    "previous_baseline_identifiers",
-                    "change",
-                    "movement_fact",
-                    "reason",
-                    "approved_by",
-                    "approved_on",
-                },
-                entry_location,
-            )
-            _string_array(
-                entry["new_baseline_identifiers"],
-                f"{entry_location}.new_baseline_identifiers",
-            )
-            _string_array(
-                entry["previous_baseline_identifiers"],
-                f"{entry_location}.previous_baseline_identifiers",
-            )
-            _string(entry["acceptance_id"], f"{entry_location}.acceptance_id")
-            _string(entry["movement_fact"], f"{entry_location}.movement_fact")
-            _string(entry["reason"], f"{entry_location}.reason")
-            _string(entry["approved_by"], f"{entry_location}.approved_by")
-            _string(entry["approved_on"], f"{entry_location}.approved_on")
-            history.append(entry)
-            continue
         _strict_keys(
             entry,
             {
@@ -578,6 +535,8 @@ def _validate_baseline_control(
         previous_new = new_identifiers
     if not history:
         raise ContractError(f"{location}: 更新履歴は空にできない")
+    if previous_new != current_identifiers:
+        raise ContractError(f"{location}: 履歴末尾と現在の基準識別値が不一致")
     return tuple(history)
 
 
@@ -3782,120 +3741,41 @@ def _git_json_asset(
     return value
 
 
-def _asset_external_files(asset: Mapping[str, object], location: str) -> tuple[str, ...]:
-    """資産宣言から外部凍結対象を取得する。"""
-    control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
-    identity = _object(control.get("identity"), f"{location}.identity")
-    projection = _object(
-        identity.get("frozen_projection"),
-        f"{location}.identity.frozen_projection",
-    )
-    return _string_array(
-        projection.get("external_files"),
-        f"{location}.identity.frozen_projection.external_files",
-    )
-
-
-def _materialize_git_snapshots(
-    repository_root: Path,
-    revision: str,
-    destination: Path,
-) -> None:
-    """比較元 revision の content-addressed snapshot 群を一時領域へ復元する。"""
-    snapshot_directory = "contracts/tenant_boundary/history-snapshots"
-    names = _run_git(
-        repository_root,
-        ["ls-tree", "-r", "--name-only", revision, "--", snapshot_directory],
-    )
-    destination.mkdir(parents=True, exist_ok=True)
-    for name in names.splitlines():
-        relative_name = Path(name).relative_to(snapshot_directory)
-        if len(relative_name.parts) != 1:
-            raise ContractError("history-snapshots は直下の通常ファイルだけを許可する")
-        content = _run_git(repository_root, ["show", f"{revision}:{name}"])
-        (destination / relative_name).write_bytes(content.encode("utf-8"))
-
-
 def _validate_repository_histories(
     repository_root: Path,
-    comparison_revision: str,
+    merge_base: str,
 ) -> None:
-    """比較元と HEAD の 7 資産を単一 authority 履歴として照合する。"""
-    previous_assets: dict[str, object] = {}
-    current_assets: dict[str, object] = {}
+    """merge-base と現在の射影・識別値・受理履歴を相互照合する。"""
     for path in FROZEN_BASELINE_ASSETS:
-        previous_asset = _git_json_asset(repository_root, comparison_revision, path)
-        if previous_asset is None:
-            raise ContractError(f"比較元の契約資産を取得できない: {path}")
+        previous_asset = _git_json_asset(repository_root, merge_base, path)
         current_asset, _ = _read_json(repository_root / path)
-        previous_assets[path.as_posix()] = previous_asset
-        current_assets[path.as_posix()] = current_asset
 
-    previous_external_paths = {
-        external_path
-        for asset_name, asset in previous_assets.items()
-        for external_path in _asset_external_files(
-            _object(asset, asset_name),
-            asset_name,
-        )
-    }
-    current_external_paths = {
-        external_path
-        for asset_name, asset in current_assets.items()
-        for external_path in _asset_external_files(
-            _object(asset, asset_name),
-            asset_name,
-        )
-    }
-    previous_implementations = {
-        path: _run_git(
-            repository_root,
-            ["show", f"{comparison_revision}:{path}"],
-        ).encode("utf-8")
-        for path in sorted(previous_external_paths)
-    }
-    try:
-        current_implementations = {
-            path: (repository_root / path).read_bytes()
-            for path in sorted(current_external_paths)
-        }
-    except OSError as error:
-        raise ContractError(f"外部凍結対象を解決できない: {error}") from error
-
-    parent_line = _run_git(
-        repository_root,
-        ["rev-list", "--parents", "-n", "1", "HEAD"],
-    ).split()
-    head_parents = tuple(parent_line[1:])
-    with tempfile.TemporaryDirectory(prefix="tenant-boundary-base-snapshots-") as raw:
-        base_snapshot_root = Path(raw)
-        _materialize_git_snapshots(
-            repository_root,
-            comparison_revision,
-            base_snapshot_root,
-        )
-        try:
-            frozen_history.validate_repository_histories(
-                previous_assets,
-                current_assets,
-                base_implementations=previous_implementations,
-                head_implementations=current_implementations,
-                base_snapshot_root=base_snapshot_root,
-                head_snapshot_root=(
-                    repository_root
-                    / "contracts/tenant_boundary/history-snapshots"
-                ),
-                head_parents=head_parents,
+        def previous_external_loader(external_path: str) -> bytes:
+            """merge-base にある外部凍結対象を読む。"""
+            matching = _run_git(
+                repository_root,
+                ["ls-tree", "--name-only", merge_base, "--", external_path],
             )
-        except frozen_history.ContractError as error:
-            raise ContractError(str(error)) from error
+            if not matching.strip():
+                raise ContractError(f"merge-base に存在しない: {external_path}")
+            return _run_git(
+                repository_root,
+                ["show", f"{merge_base}:{external_path}"],
+            ).encode("utf-8")
 
-    for path, raw_asset in current_assets.items():
-        current_asset = _object(raw_asset, path)
-        history = _validate_baseline_control(current_asset, path)
+        def current_external_loader(external_path: str) -> bytes:
+            """作業ツリーにある外部凍結対象を読む。"""
+            return (repository_root / external_path).read_bytes()
+
+        _validate_baseline_transition(
+            previous_asset,
+            current_asset,
+            path.as_posix(),
+            previous_external_loader=previous_external_loader,
+            current_external_loader=current_external_loader,
+        )
+        history = _validate_baseline_control(current_asset, path.as_posix())
         for entry in history:
-            if "source_commit" not in entry:
-                continue
             source_commit = _string(entry["source_commit"], "history.source_commit")
             if source_commit == PENDING_SOURCE_COMMIT:
                 continue
@@ -4082,17 +3962,7 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         検出した違反。
     """
     contract = load_contract(repository_root)
-    try:
-        evaluation_context = frozen_history.resolve_evaluation_context()
-    except frozen_history.ContractError as error:
-        raise ContractError(str(error)) from error
-    if evaluation_context.mode is frozen_history.EvaluationMode.PR_ACCEPTANCE:
-        pull_request = evaluation_context.pull_request
-        if pull_request is None:
-            raise ContractError("PR 受理モードの event 情報が無い")
-        effective_base_ref = pull_request.base_sha
-    else:
-        effective_base_ref = base_ref or DEFAULT_BASE_REF
+    effective_base_ref = base_ref or DEFAULT_BASE_REF
     diff_arguments = list(contract.diff_command[1:])
     diff_arguments[2] = f"{effective_base_ref}...HEAD"
     diff = _run_git(repository_root, diff_arguments)
@@ -4102,7 +3972,7 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         repository_root,
         ["merge-base", effective_base_ref, "HEAD"],
     ).strip()
-    _validate_repository_histories(repository_root, effective_base_ref)
+    _validate_repository_histories(repository_root, merge_base)
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
     population = _inspection_population(
