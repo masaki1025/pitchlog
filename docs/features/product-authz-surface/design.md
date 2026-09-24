@@ -165,7 +165,7 @@ date: 2026-09-24
 | **管理者専用** | `admin_credentials` / `admin_sessions` / `admin_operation_logs` | 8-2-A 節の管理者資格情報・管理者セッション(`:1534-1543` — 「テナント参照を持たないことが要点」「管理者経路はテナント文脈を持たない」)と、8-4 節の管理者操作ログ(`:1643`)【11 周目 11-P0-1】 |
 | **認証前専用** | `tenant_auth_subjects` / `tenant_credentials` / `tenant_tokens` / `rate_limit_counters` | 8-2・8-3 節の認証主体・認証情報・トークンと、8-6 節のレート制限(`:1704-1720`)【11 周目 11-P0-1】 |
 | **移行専用** | `migration_runs` / `migration_quarantine` / `migration_resolution_reports` / `migration_warning_reports` | 12-3 節の移行バッチと隔離領域(`:1969-1981`・`:2361-2373`)【11 周目 11-P0-1】 |
-| **秘密の列** | `tenant_credentials.password_hash` / `admin_credentials.password_hash` / `group_invitations.code_hash` / 認証トークン・セッションの識別子 | 8-2・8-3 節の認証情報と、3-5 節の「コードのハッシュ」(`:456`)・「コード本体は発行時に一度だけ表示」(`:470`)【6 周目 6-P2-1】 |
+| **秘密の列** | `tenant_credentials.password_hash` / `admin_credentials.password_hash` / `group_invitations.code_hash`(**実装後の敵対レビュー 1 周目 P2 で訂正**: 当初は「認証トークン・セッションの識別子」〔`tenant_tokens.id`・`admin_sessions.id`〕も挙げていたが、**正本はトークンの提示形式を定めておらず**〔8-2-A・8-3 節〕、ID が提示される秘密だという典拠が無いので**取り除いた**。2 表は「管理者専用」「認証前専用」の事実で `function_only` のままで、アプリ用ロールの ACL も無い。**トークンの提示形式と秘密性の確定は U-A1**) | 8-2・8-3 節の認証情報と、3-5 節の「コードのハッシュ」(`:456`)・「コード本体は発行時に一度だけ表示」(`:470`)【6 周目 6-P2-1】 |
 
 - 事実の表と列が manifest に実在することも検査する
 - 典拠の引用が 1 件でも正本に見つからなければ不合格(fail-closed)

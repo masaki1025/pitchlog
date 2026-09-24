@@ -258,25 +258,6 @@
               "quote": "**コード本体は発行時に一度だけ表示し、以後は表示しない**(ハッシュ保存)"
             }
           ]
-        },
-        {
-          "table": "tenant_tokens",
-          "column": "id",
-          "reason": "通常トークンの提示値を識別する bearer 資格情報である。",
-          "evidence": [
-            {
-              "section": "8-3",
-              "quote": "### 8-3. トークン・セッション(NFR-011・FR-036)"
-            }
-          ]
-        },
-        {
-          "table": "admin_sessions",
-          "column": "id",
-          "reason": "管理者セッションの提示値を識別する bearer 資格情報である。",
-          "evidence": [
-            {"section": "8-2-A", "quote": "**管理者セッション**を別表に置く"}
-          ]
         }
       ]
     }

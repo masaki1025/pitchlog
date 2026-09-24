@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -26,6 +26,9 @@ _EXPOSURE_FACTS_PATH = (
 )
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
 _DATA_MODEL_PATH = _REPOSITORY_ROOT / "docs" / "design" / "data-model.md"
+_PRODUCT_DDL_PATH = (
+    _REPOSITORY_ROOT / "contracts" / "authz" / "product" / "ddl-elements.staged.json"
+)
 
 _EXPECTED_PROFILES = {
     "tenant_owned": {
@@ -121,8 +124,6 @@ _EXPECTED_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
     ("admin_credentials", "password_hash"),
     ("group_invitations", "code_hash"),
-    ("tenant_tokens", "id"),
-    ("admin_sessions", "id"),
 }
 _PROFILE_MUTATIONS = (
     ("admin_credentials", "global_read_only"),
@@ -136,6 +137,7 @@ _PROFILE_MUTATIONS = (
     ("admin_operation_logs", "tenant_owned"),
     ("admin_operation_logs", "global_read_only"),
     ("tenant_auth_subjects", "tenant_owned"),
+    ("tenant_tokens", "tenant_owned"),
 )
 
 
@@ -351,7 +353,6 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
         for table_name, column_names in manifest_columns.items()
         for column_name in column_names
         if column_name in {"password_hash", "code_hash"}
-        or (table_name in {"tenant_tokens", "admin_sessions"} and column_name == "id")
     }
 
     assert actual_table_facts == _EXPECTED_FACT_TABLES
@@ -369,6 +370,51 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
         for table_name, column_name in actual_secret_columns
     )
     assert all(entry["reason"] for entry in secret_entries)
+
+
+def test_removed_unsubstantiated_secret_ids_do_not_change_access_boundaries(
+    documents: tuple[
+        dict[str, Any],
+        dict[str, Any],
+        dict[str, Any],
+        str,
+        frozenset[str],
+    ],
+) -> None:
+    """典拠のない秘密列を除いても対象表の分類と ACL を閉じたままにする。"""
+    classification, exposure_facts, _manifest, _data_model, _models = documents
+    target_tables = {"tenant_tokens", "admin_sessions"}
+    secret_entries = _fact_for_kind(exposure_facts, "secret_column")["entries"]
+    secret_columns = {(entry["table"], entry["column"]) for entry in secret_entries}
+
+    assert target_tables.isdisjoint(table for table, _column in secret_columns)
+    assert all(
+        _row_for_table(classification, table_name)["profile"] == "function_only"
+        for table_name in target_tables
+    )
+    assert "tenant_tokens" in {
+        entry["table"]
+        for entry in _fact_for_kind(exposure_facts, "pre_auth_only")["entries"]
+    }
+    assert "admin_sessions" in {
+        entry["table"]
+        for entry in _fact_for_kind(exposure_facts, "admin_only")["entries"]
+    }
+
+    product_ddl = cast(dict[str, Any], load_json_object(_PRODUCT_DDL_PATH))
+    app_table_acl_targets = {
+        row["object_id"]
+        for row in product_ddl["acl_expectations"]
+        if row["grantee_role_id"] == "pitchlog_app"
+    }
+    app_column_acl_targets = {
+        row["object_id"]
+        for row in product_ddl["column_acl_expectations"]
+        if row["grantee_role_id"] == "pitchlog_app"
+    }
+
+    assert target_tables.isdisjoint(app_table_acl_targets)
+    assert target_tables.isdisjoint(app_column_acl_targets)
 
 
 def test_every_evidence_quote_exists_verbatim_in_canonical_source(
