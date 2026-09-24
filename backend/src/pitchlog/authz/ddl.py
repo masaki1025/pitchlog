@@ -10,7 +10,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
+from pitchlog.authz.asset_spec import (
+    PROBE_SPEC,
+    AuthzAssetSpec,
+    asset_scope_validation_error,
+)
 
 DDL_ELEMENTS_PATH = PROBE_SPEC.ddl_elements_path
 BODY_MANIFEST_PATH = PROBE_SPEC.body_manifest_path
@@ -72,16 +76,9 @@ def _validate_asset_scope(
 ) -> None:
     """DDL 要素資産の scope が指定された資産種別と一致するか検査する。"""
     scope = ddl_elements[spec.scope_field] if spec.scope_field in ddl_elements else None
-    if not isinstance(scope, dict):
-        raise AuthzDDLGenerationError("DDL要素資産のscopeはobjectでなければならない")
-    status = (
-        scope[spec.scope_status_field] if spec.scope_status_field in scope else None
-    )
-    if status != spec.allowed_scope_status:
-        raise AuthzDDLGenerationError(
-            "DDL要素資産のscope.statusが資産指定と一致しない: "
-            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
-        )
+    validation_error = asset_scope_validation_error(scope, spec)
+    if validation_error is not None:
+        raise AuthzDDLGenerationError(f"DDL要素資産の{validation_error}")
 
 
 def _validate_function_bodies(

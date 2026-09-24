@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 from typing import Literal
 
 type AuthzAssetKind = Literal["probe", "product"]
+type AuthzScopeValue = str | bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,8 @@ class AuthzAssetSpec:
         asset_kind: probe または product の閉じた資産種別。
         element_sections: 要素種別と配列・ID列の不変な対応。
         operation_handlers: 適用器が許可する操作種別と処理関数の対応。
+        exact_scope_items: scope object に要求するキーと値の完全な対応。None は
+            status 以外に追加の制約を課さない。
     """
 
     asset_root: PurePosixPath
@@ -68,6 +71,7 @@ class AuthzAssetSpec:
     asset_kind: AuthzAssetKind
     element_sections: tuple[AuthzElementSectionSpec, ...]
     operation_handlers: tuple[AuthzOperationHandlerSpec, ...]
+    exact_scope_items: tuple[tuple[str, AuthzScopeValue], ...] | None = None
 
     def __post_init__(self) -> None:
         """パス・列挙・要素対応を fail-closed に検証する。"""
@@ -104,6 +108,28 @@ class AuthzAssetSpec:
             raise ValueError("scopeのフィールド名は空にできない")
         if not self.allowed_scope_status:
             raise ValueError("許可するscope値は空にできない")
+        if self.exact_scope_items is not None:
+            scope_names = tuple(name for name, _ in self.exact_scope_items)
+            if not scope_names or len(scope_names) != len(set(scope_names)):
+                raise ValueError(
+                    "scopeの完全指定は空にできず、キーは一意である必要がある"
+                )
+            if not all(scope_names):
+                raise ValueError("scopeの完全指定に空のキーは使えない")
+            if not all(
+                isinstance(value, (str, bool)) and value != ""
+                for _, value in self.exact_scope_items
+            ):
+                raise ValueError("scopeの完全指定の値は空でない文字列か真偽値に限る")
+            status_values = tuple(
+                value
+                for name, value in self.exact_scope_items
+                if name == self.scope_status_field
+            )
+            if status_values != (self.allowed_scope_status,):
+                raise ValueError(
+                    "scopeの完全指定は許可するstatusをちょうど1つ含む必要がある"
+                )
         if not self.element_sections:
             raise ValueError("要素セクション指定は空にできない")
         if self.asset_kind == "probe" and not self.operation_handlers:
@@ -121,6 +147,59 @@ class AuthzAssetSpec:
         )
         if len(operation_kinds) != len(set(operation_kinds)):
             raise ValueError("操作種別は一意でなければならない")
+
+
+def asset_scope_validation_error(
+    scope: object,
+    spec: AuthzAssetSpec,
+) -> str | None:
+    """Scope object を資産指定の単一契約で検査する。
+
+    Args:
+        scope: DDL 要素資産から読んだ scope 値。
+        spec: 許可する status と、必要なら object 全体の完全指定。
+
+    Returns:
+        違反理由。契約を満たす場合は None。
+    """
+    if not isinstance(scope, dict):
+        return "scopeはobjectでなければならない"
+    status = (
+        scope[spec.scope_status_field] if spec.scope_status_field in scope else None
+    )
+    if status != spec.allowed_scope_status:
+        return (
+            "scope.statusが資産指定と一致しない: "
+            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
+        )
+    if spec.exact_scope_items is None:
+        return None
+
+    for name, expected in spec.exact_scope_items:
+        if name not in scope:
+            return f"scopeのキー集合が資産指定と一致しない: 不足={name!r}"
+        actual = scope[name]
+        if expected is True or expected is False:
+            if actual is not expected:
+                return (
+                    f"scope.{name}が資産指定と一致しない: "
+                    f"期待={expected!r}, 実際={actual!r}"
+                )
+        elif actual != expected:
+            return (
+                f"scope.{name}が資産指定と一致しない: "
+                f"期待={expected!r}, 実際={actual!r}"
+            )
+
+    for actual_name in scope:
+        declared = False
+        for expected_name, _ in spec.exact_scope_items:
+            if actual_name == expected_name:
+                declared = True
+                break
+        if not declared:
+            return f"scopeのキー集合が資産指定と一致しない: 許可外={actual_name!r}"
+    return None
 
 
 PROBE_SPEC = AuthzAssetSpec(
@@ -212,4 +291,8 @@ PRODUCT_SPEC = AuthzAssetSpec(
         ),
     ),
     operation_handlers=(),
+    exact_scope_items=(
+        ("status", "product_configuration"),
+        ("product_schema", True),
+    ),
 )

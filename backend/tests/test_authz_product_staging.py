@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from pitchlog.authz import ddl as authz_ddl
 from pitchlog.authz import runtime_contract
 from pitchlog.authz.asset_spec import PROBE_SPEC, PRODUCT_SPEC, AuthzAssetSpec
 from pitchlog.authz.ddl import AuthzDDLGenerationError, generate_authz_ddl
@@ -64,10 +65,12 @@ def _run_body_checker(
     spec: AuthzAssetSpec,
 ) -> subprocess.CompletedProcess[str]:
     """指定資産について body 検査 CLI を実行する。"""
+    copied_checker = root / spec.body_checker_path
+    checker_path = copied_checker if copied_checker.is_file() else _BODY_CHECKER
     return subprocess.run(
         [
             sys.executable,
-            str(_BODY_CHECKER),
+            str(checker_path),
             "--root",
             str(root),
             "--asset-spec",
@@ -102,10 +105,11 @@ def _copy_asset_to_spec_paths(
             destination_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source_path, destination_path)
 
-    checker_destination = root / destination_spec.body_checker_path
-    checker_destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(_BODY_CHECKER, checker_destination)
-    shutil.copy2(_CATALOG_CHECKER, checker_destination.parent / _CATALOG_CHECKER.name)
+    shutil.copytree(
+        _REPOSITORY_ROOT / "scripts",
+        root / "scripts",
+        dirs_exist_ok=True,
+    )
 
 
 def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
@@ -122,6 +126,11 @@ def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
     )
     assert PRODUCT_SPEC.allowed_scope_status == "product_configuration"
     assert PRODUCT_SPEC.allowed_scope_status != PROBE_SPEC.allowed_scope_status
+    assert PRODUCT_SPEC.exact_scope_items == (
+        ("status", "product_configuration"),
+        ("product_schema", True),
+    )
+    assert PROBE_SPEC.exact_scope_items is None
     assert PRODUCT_SPEC.asset_kind == "product"
     assert PRODUCT_SPEC.operation_handlers == ()
 
@@ -174,6 +183,56 @@ def test_product_assets_are_accepted_by_all_three_readers() -> None:
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": 4,
     }
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error_fragment"),
+    [
+        pytest.param("missing", "キー集合", id="missing-product-schema"),
+        pytest.param("false", "scope.product_schema", id="false-product-schema"),
+        pytest.param("string", "scope.product_schema", id="string-product-schema"),
+        pytest.param("extra", "キー集合", id="unexpected-key"),
+    ],
+)
+def test_product_scope_shape_mutations_are_rejected_by_all_three_readers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    error_fragment: str,
+) -> None:
+    """製品scopeの欠落・異型・偽値・余分なキーを3経路で拒否する。"""
+    root = tmp_path / mutation
+    _copy_asset_to_spec_paths(root, PRODUCT_SPEC, PRODUCT_SPEC)
+    ddl_path = root / PRODUCT_SPEC.ddl_elements_path
+    asset = _read_json_object(ddl_path)
+    scope = asset[PRODUCT_SPEC.scope_field]
+    assert isinstance(scope, dict)
+    if mutation == "missing":
+        del scope["product_schema"]
+    elif mutation == "false":
+        scope["product_schema"] = False
+    elif mutation == "string":
+        scope["product_schema"] = "true"
+    else:
+        scope["unexpected"] = True
+    ddl_path.write_text(
+        json.dumps(asset, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    def skip_body_validation(_root: Path, _spec: AuthzAssetSpec) -> None:
+        """生成器自身のscope検査へ到達するためbody検査だけを省略する。"""
+
+    monkeypatch.setattr(authz_ddl, "_validate_function_bodies", skip_body_validation)
+    with pytest.raises(AuthzDDLGenerationError, match=error_fragment):
+        authz_ddl.generate_authz_ddl(root, PRODUCT_SPEC)
+
+    body_result = _run_body_checker(root, PRODUCT_SPEC)
+    assert body_result.returncode == 2
+    assert error_fragment in body_result.stderr
+
+    with pytest.raises(_catalog_checker.CatalogError, match=error_fragment):
+        _catalog_checker.validate_ddl_elements(asset, root, PRODUCT_SPEC)
 
 
 @pytest.mark.parametrize(

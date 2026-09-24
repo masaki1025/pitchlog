@@ -25,6 +25,7 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PROBE_SPEC,
     PRODUCT_SPEC,
     AuthzAssetSpec,
+    asset_scope_validation_error,
 )
 from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     CONTROL_PROFILE,
@@ -3066,14 +3067,11 @@ def _validate_ddl_scope(
     _probe_check_tracker: _ProbeOnlyCheckTracker | None = None,
 ) -> None:
     """Scope の種別値を spec と照合し、probe の閉じた4値も検査する。"""
-    if not isinstance(raw, dict):
+    validation_error = asset_scope_validation_error(raw, spec)
+    if validation_error is not None:
+        raise CatalogError(f"DDL manifest.{validation_error}")
+    if not isinstance(raw, dict):  # pragma: no cover - 共通検査が先に拒否する。
         raise CatalogError("DDL manifest.scope はオブジェクトでなければならない")
-    status = raw.get(spec.scope_status_field)
-    if status != spec.allowed_scope_status:
-        raise CatalogError(
-            "DDL manifest.scope が資産指定と一致しない: "
-            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
-        )
 
     tracker = _probe_check_tracker or _ProbeOnlyCheckTracker(spec)
 

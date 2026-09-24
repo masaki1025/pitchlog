@@ -19,6 +19,7 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PROBE_SPEC,
     PRODUCT_SPEC,
     AuthzAssetSpec,
+    asset_scope_validation_error,
 )
 
 try:
@@ -200,16 +201,9 @@ def _parse_manifest(
 
 def _validate_scope(raw: dict[str, object], spec: AuthzAssetSpec) -> None:
     """DDL 要素資産の scope が資産指定と一致することを検査する。"""
-    scope = _expect_object(raw.get(spec.scope_field), "ddl-elements.scope")
-    status = _expect_string(
-        scope.get(spec.scope_status_field),
-        "ddl-elements.scope.status",
-    )
-    if status != spec.allowed_scope_status:
-        raise FunctionBodyCheckError(
-            "ddl-elements.scope.statusが資産指定と一致しない: "
-            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
-        )
+    validation_error = asset_scope_validation_error(raw.get(spec.scope_field), spec)
+    if validation_error is not None:
+        raise FunctionBodyCheckError(f"ddl-elements.{validation_error}")
 
 
 def _expected_elements(
