@@ -1,7 +1,7 @@
 ---
 feature: um1-player-roster-opponent
 status: active
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7
