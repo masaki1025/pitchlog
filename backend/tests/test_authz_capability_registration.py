@@ -33,7 +33,7 @@ from sqlalchemy.sql.elements import ClauseElement, UnaryExpression
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.sql.selectable import CTE, Select
 from sqlalchemy.sql.sqltypes import TableValueType
-from sqlalchemy.types import UserDefinedType
+from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 from pitchlog.authz.capability_registration import (
     CapabilityRegistrationError,
@@ -65,6 +65,13 @@ class _CompileOption(ExecutableOption):
 
 class _OpaqueType(UserDefinedType[Any]):
     """独自コンパイルを持ち得る試験用 SQL 型。"""
+
+
+class _OpaqueTypeDecorator(TypeDecorator[str]):
+    """DML 対象列から独自コンパイルを差し込める試験用 SQL 型。"""
+
+    impl = Text
+    cache_ok = True
 
 
 @pytest.fixture(scope="module")
@@ -427,6 +434,38 @@ def _state_mutation_registration(
             Column("id", Text(), insert_sentinel=True),
         )
         statement = insert(unsafe_table)
+    elif mutation_name == "insert-target-unsafe-column-name":
+        unsafe_table = Table(
+            "games",
+            MetaData(),
+            Column(quoted_name("id /* opaque */", quote=False), Text()),
+        )
+        statement = insert(unsafe_table).values(
+            {"id /* opaque */": bindparam("game_id")}
+        )
+    elif mutation_name == "insert-target-custom-column-type":
+        unsafe_table = Table(
+            "games",
+            MetaData(),
+            Column("id", _OpaqueTypeDecorator()),
+        )
+        statement = insert(unsafe_table).values(id=bindparam("game_id"))
+    elif mutation_name == "update-target-unsafe-column-name":
+        unsafe_table = Table(
+            "games",
+            MetaData(),
+            Column(quoted_name("id /* opaque */", quote=False), Text()),
+        )
+        statement = update(unsafe_table).values(
+            {"id /* opaque */": bindparam("game_id")}
+        )
+    elif mutation_name == "update-target-custom-column-type":
+        unsafe_table = Table(
+            "games",
+            MetaData(),
+            Column("id", _OpaqueTypeDecorator()),
+        )
+        statement = update(unsafe_table).values(id=bindparam("game_id"))
     elif mutation_name == "update-ordered-values":
         statement = update(games).ordered_values(
             (games.c.status, bindparam("status")),
@@ -551,7 +590,7 @@ def _state_mutation_registration(
         "insert"
         if mutation_name.startswith("insert-")
         else "update"
-        if mutation_name in {"update-ordered-values", "dml-hint"}
+        if mutation_name.startswith("update-") or mutation_name == "dml-hint"
         else "read"
     )
     return (_Registration(f"CAP:games:{operation}", statement),)
@@ -677,6 +716,26 @@ _STATE_MUTATIONS = (
         "insert-column-sentinel",
         "Table column insert_sentinel",
         id="insert-column-sentinel",
+    ),
+    pytest.param(
+        "insert-target-unsafe-column-name",
+        "Column.name",
+        id="insert-target-unsafe-column-name",
+    ),
+    pytest.param(
+        "insert-target-custom-column-type",
+        "標準外のSQL型",
+        id="insert-target-custom-column-type",
+    ),
+    pytest.param(
+        "update-target-unsafe-column-name",
+        "Column.name",
+        id="update-target-unsafe-column-name",
+    ),
+    pytest.param(
+        "update-target-custom-column-type",
+        "標準外のSQL型",
+        id="update-target-custom-column-type",
     ),
     pytest.param(
         "update-ordered-values",

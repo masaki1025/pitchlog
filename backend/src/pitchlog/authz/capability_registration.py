@@ -1,7 +1,8 @@
 """Capability 登録とカタログの対応を SQLAlchemy 式木だけで検査する。
 
-保証対象は SQLAlchemy の公開 API で組み立てた文と、そのインスタンス状態までとする。
-型の書き換えや SQLAlchemy 自体の改変は保証しない。
+保証対象は SQLAlchemy の公開 API で組み立てた文と登録 ID の対応とする。
+私的属性・型（クラス）・SQLAlchemy 自体の書き換えと監査外の版は保証せず、
+インスタンス状態の検査は多重防御として行う。
 """
 
 from __future__ import annotations
@@ -116,8 +117,9 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 # - sql/functions.py の FunctionElement / Function
 # - sql/elements.py の Label._traverse_internals / Label.element と
 #   ColumnClause._from_objects、sql/compiler.py の visit_label
-# - sql/selectable.py の SelectState._get_froms / FromClause.c、sql/crud.py の
-#   Table.columns / Table.c 参照
+# - sql/selectable.py の SelectState._get_froms / FromClause.c
+# - sql/dml.py の DML 対象 Table の走査と、sql/crud.py の _get_crud_params
+#   679行付近にある stmt.table.columns および全列の名前・型の参照
 # - sql/functions.py の FunctionElement.clauses
 # - sql/base.py の Executable.execution_options / DialectKWArgs
 # - sql/crud.py の _get_crud_params(表の列 default / onupdate・sentinel・
@@ -735,6 +737,29 @@ def _validate_sql_type(
         _reject_node_state(label, "Uuid型の追加状態", violations)
 
 
+def _validate_column_definition(
+    column: object,
+    label: str,
+    violations: list[str],
+) -> None:
+    """列の具象型・識別子・SQL 型を SELECT と DML で共通検査する。"""
+    column_class = column.__class__
+    if column_class is not Column:
+        _reject_node_state(
+            label,
+            f"標準外のColumn型 {column_class.__module__}.{column_class.__name__}",
+            violations,
+        )
+        return
+
+    standard_column = cast(Column[Any], column)
+    if standard_column.is_literal:
+        _reject_node_state(label, "Column.is_literal", violations)
+    if not _identifier_is_safe(standard_column.name):
+        _reject_node_state(label, "Column.name", violations)
+    _validate_sql_type(standard_column.type, label, violations)
+
+
 def _validate_common_node_state(
     node: ClauseElement,
     node_type: type[object],
@@ -950,7 +975,6 @@ def _validate_node_state(
         BinaryExpression,
         BindParameter,
         BooleanClauseList,
-        Column,
         Exists,
         False_,
         Function,
@@ -998,10 +1022,7 @@ def _validate_node_state(
     elif node_type is BindParameter or node_type is _OffsetLimitParam:
         _validate_bind_state(state_node, label, violations)
     elif node_type is Column:
-        if state_node.is_literal:
-            _reject_node_state(label, "Column.is_literal", violations)
-        if not _identifier_is_safe(state_node.name):
-            _reject_node_state(label, "Column.name", violations)
+        _validate_column_definition(state_node, label, violations)
     elif node_type is Function:
         _validate_executable_state(state_node, label, violations)
         if state_node._with_ordinality:
@@ -1049,6 +1070,7 @@ def _validate_node_state(
         if state_node._autoincrement_column is not None:
             _reject_node_state(label, "Table autoincrement column", violations)
         for column in state_node.columns:
+            _validate_column_definition(column, label, violations)
             if column.default is not None or column.onupdate is not None:
                 _reject_node_state(
                     label,
