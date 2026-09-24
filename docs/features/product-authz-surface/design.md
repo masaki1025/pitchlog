@@ -124,7 +124,7 @@ date: 2026-09-24
 | `rate_limit_counters` | `pre_context_global_mutable`(1-2) | U-A1 |
 | `admin_credentials` / `admin_sessions` / `admin_operation_logs` | `admin_path`(`data-model.md:1543`) | U-A2 |
 | `migration_runs` / `migration_quarantine` / `migration_resolution_reports` / `migration_warning_reports` | `migration_batch_only`(8 節) | 移行バッチ用ロール(TSK-349) |
-| `rule_sets` / `tournament_rule_assignments` | `mixed_ownership_rules`(1-6) | FR-014 の所有単位(**単位分割計画に未掲載** — 候補は U-G1。1-6) |
+| `rule_sets` / `tournament_rule_assignments` | `mixed_ownership_rules`(1-6) | **U-X1(凍結中)**(FR-014 の主所有 — `../product-impl-unit-split/plan.md:234`。PO 決定 2026-09-24) |
 
 合計は 23 + 1 + 4 + 4 + 13 = **45**。
 
@@ -136,8 +136,8 @@ date: 2026-09-24
 - **`rule_sets` を `global_read_only` にすると、全テナントが他チームの大会規則を読める**(越境)。`tenant_owned` にもできない(`tenant_id` が無い)
 - **`tournament_rule_assignments` を `tenant_owned` にすると、自テナントの割り当てに他テナントの規則セットの ID を結べる**。これで他チームの規則を自分の大会に使えてしまう
 - → 2 表とも **`function_only`**。規則を読む・大会へ結ぶ経路は、FR-014 を持つ単位の関数が「全体既定か、要求元テナントが割り当てた規則だけ」を返す形で用意する
-- **スキーマの欠落**(`rule_sets` に帰属の列が無い)は、FR-014 の所有単位へ申し送る。帰属の列が入れば、`rule_sets` を「全体既定は全員が読め、大会規則は自テナントだけが読める」ポリシーへ改訂できる
-- **FR-014 の所有単位は、単位分割計画に載っていない**。規則の解決とスナップショットを試合へ書く処理(`data-model.md:1289-1291`)は試合ライフサイクルにあるので、**候補は U-G1**。確定は単位分割の持ち主へ依頼する(plan.md 2 節の申し送り)
+- **スキーマの欠落**(`rule_sets` に帰属の列が無い)は、FR-014 の主所有の U-X1 へ申し送る。帰属の列が入れば、`rule_sets` を「全体既定は全員が読め、大会規則は自テナントだけが読める」ポリシーへ改訂できる
+- **FR-014 の主所有は U-X1(状況計算核・帯 4 で凍結中)**(`../product-impl-unit-split/plan.md:234`。表は `FR-014` ではなく裸の番号 `014` で列挙している)。**PO 決定(2026-09-24)で U-X1 のままとし、単位の再定義はしない**。したがって、規則を読む・大会へ結ぶ関数と帰属の列は、**帯 4 の解凍後に U-X1 が足す**。それまでは、規則セットへはどの経路からも直接届かない(function_only なので安全側)。U-X1 のカードに申し送りを記録した。【訂正 2026-09-24】旧版は「単位分割計画に載っていない・候補は U-G1」と書いていたが、`FR-014` の文字列だけで検索した誤りだった
 - **実 DB 試験**: テナント A と B がそれぞれ大会規則を作る。`pitchlog_app` は `rule_sets` と `tournament_rule_assignments` をどちらも読めない(`42501`)
 - 露出の事実(1-5-a)では、`rule_sets` を「非テナント」にしない。**正本の文言が「テナントに属さない」としているのは試合区分デフォルトだけ**である
 
@@ -183,7 +183,7 @@ date: 2026-09-24
 
 - **秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**(10 節の ACL と照合する。ACL の変異は plan.md のステップ 11 で試す)
 - 母集合 = `Base.metadata` の全表 = manifest の全表。割り当て資産と**両方向 exact-set**(未割り当て 0・重複 0・存在しない表 0)。**既定のプロファイルを持たない**
-- `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `U-G1` / `migration_batch`)が必須
+- `function_only` の表は `access_path.reason` と所有単位(閉じた列挙: `U-A1` / `U-A2` / `U-X1` / `migration_batch`)が必須
 - **正例**: 1-4 の 45 表の割り当てがすべての条件を満たす(plan.md のステップ 1 の合格条件)
 
 【5 周目 5-P0-1・5-P0-3・5-P0-4】4 周目の案は manifest の構造(列と FK)だけで判定していた。そのため、`cross_tenant` の FK を持つ `admin_operation_logs` を制御資源として扱えた。生の行を持つ `migration_quarantine` も全体共有として扱えた。逆に、テナントの表から参照される語彙を全体共有にできなかった。
@@ -623,7 +623,7 @@ U-T1 は、**製品の capability を TSK-424 の出力契約に含める**と�
 
 | 箇所 | 変更 | ゲート |
 | --- | --- | --- |
-| `data-model.md` 12-8(`:2844-2846`) | TSK-317 行を**分割**する。**PR A1 の段階では、A1 が置いた範囲だけを「確定・未発効」と書く** = 表分類・露出の事実・capability カタログ・製品 DDL の静的資産(TSK-424 PR A1)。**適用・実 DB 検査・移行ロールの資産・写像は確定と書かない** = TSK-424 PR A2(残件 — 7C の後)。A2 のマージで追記する【10 周目 10-P0-1】。ほかの残件: 移行ロールのライフサイクルの実行 = TSK-349 / 越境関数と最低要求 ②③④ の残り = U-C1 / U-C3 / U-A2 / 認証・レート制限の関数(`function_only` の 4 表への到達経路)= U-A1 / 制御情報の読み取りの制限関数と列の粒度の制限 = U-C2 / 規則セットの関数と `rule_sets` の帰属の列 = FR-014 の到達経路の所有タスク / `analysis_groups` の名称の列 = U-C1 / 実スキーマでの再実行 = TSK-344 / ランタイム契約の切り替え = PR B のタスク / Session の供給 = PR C のタスク。**タスクは Notion の ID で記録する**。**「解消済み」にしない** | 7.6-3 前段(実装追随の節更新)→ PR レビュー |
+| `data-model.md` 12-8(`:2844-2846`) | TSK-317 行を**分割**する。**PR A1 の段階では、A1 が置いた範囲だけを「確定・未発効」と書く** = 表分類・露出の事実・capability カタログ・製品 DDL の静的資産(TSK-424 PR A1)。**適用・実 DB 検査・移行ロールの資産・写像は確定と書かない** = TSK-424 PR A2(残件 — 7C の後)。A2 のマージで追記する【10 周目 10-P0-1】。ほかの残件: 移行ロールのライフサイクルの実行 = TSK-349 / 越境関数と最低要求 ②③④ の残り = U-C1 / U-C3 / U-A2 / 認証・レート制限の関数(`function_only` の 4 表への到達経路)= U-A1 / 制御情報の読み取りの制限関数と列の粒度の制限 = U-C2 / 規則セットの関数と `rule_sets` の帰属の列 = U-X1(凍結中 — FR-014 の主所有) / `analysis_groups` の名称の列 = U-C1 / 実スキーマでの再実行 = TSK-344 / ランタイム契約の切り替え = PR B のタスク / Session の供給 = PR C のタスク。**タスクは Notion の ID で記録する**。**「解消済み」にしない** | 7.6-3 前段(実装追随の節更新)→ PR レビュー |
 | `data-model.md` 変更履歴 | 上を 1 行で追記する。版は上げない | 同上 |
 | `docs/README.md` | 索引の現行化 | 同上 |
 
