@@ -548,5 +548,191 @@
         "element_type": "acl_expectation",
         "element_id": "ACL:system_settings:pitchlog_app"
       }
+,
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_admin_credentials_id_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_admin_credentials_id_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_admin_operation_logs_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_admin_operation_logs_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_admin_sessions_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_admin_sessions_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_admin_vocabularies_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_admin_vocabularies_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_analysis_groups_id_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_analysis_groups_id_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_evacuated_event_originals_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_evacuated_event_originals_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_event_slots_key_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_event_slots_key_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_game_lineups_entries_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_game_lineups_entries_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_group_invitations_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_group_invitations_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_group_memberships_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_group_memberships_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_idempotency_ledger_result_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_idempotency_ledger_result_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_invalidation_intents_target_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_invalidation_intents_target_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_medical_note_versions_content_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_medical_note_versions_content_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_medical_notes_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_medical_notes_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_migrated_final_lineups_source_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_migrated_final_lineups_source_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_migration_quarantine_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_migration_quarantine_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_migration_resolution_reports_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_migration_resolution_reports_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_migration_runs_source_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_migration_runs_source_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_migration_warning_reports_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_migration_warning_reports_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_operation_events_content_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_operation_events_content_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_pdf_export_records_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_pdf_export_records_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_play_rows_projection_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_play_rows_projection_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_player_merge_events_content_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_player_merge_events_content_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_player_move_records_mutation().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_player_move_records_mutation()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_players_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_players_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_rate_limit_counters_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_rate_limit_counters_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_rejected_event_originals_content_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_rejected_event_originals_content_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_sharing_grants_membership_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_sharing_grants_membership_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_system_settings_key_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_system_settings_key_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_system_vocabularies_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_system_vocabularies_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_team_records_kind_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_team_records_kind_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_temporary_player_id_mappings_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_temporary_player_id_mappings_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_tenant_auth_subjects_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_tenant_auth_subjects_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_tenant_credentials_subject_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_tenant_credentials_subject_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_tenant_tokens_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_tenant_tokens_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_tenant_vocabularies_identity_update().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:prevent_tenant_vocabularies_identity_update()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_recording_generations_updates().sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:protect_recording_generations_updates()"
+      }
   ]
 }

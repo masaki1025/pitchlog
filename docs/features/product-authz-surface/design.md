@@ -343,6 +343,8 @@ probe の `function-bodies/manifest.json` は、各 body の `source_commit` と
 
 ### 3-4. migration が作る関数の ACL
 
+**【実装時の訂正 2026-09-24 — PR A1 ステップ 12】** 本節と 6 節の「33 個」は、暫定資産 `runtime_contract.py` の `PROTECTED_FUNCTIONS` の件数を写したもので、**migration が作る実物は 37 個**だった(0015・0016・0017・0024 の 4 関数が暫定資産から漏れている)。**製品資産は migration の実物 37 個を正とする**。暫定資産との差の 4 個は `provisional_contract_gap` の理由付きの追加分として宣言する(3-2 の未発効状態の照合の「宣言済みの追加分」に入る)。暫定資産(凍結基準)は PR A1 では変えず、漏れは PR B(TSK-443)へ申し送った
+
 migration は `public` にトリガ関数を 33 個作る(`runtime_contract.py:85-119`)。PostgreSQL は関数の既定の `EXECUTE` を `PUBLIC` に与える。
 
 - **33 個すべてから `PUBLIC` の `EXECUTE` を剥奪する**。`CREATE TRIGGER` の時点では関数の `EXECUTE` が要るが、**発火時には見ない**。migration は `pitchlog_owner` で作るので、所有者の `EXECUTE` は残り、再作成(downgrade → upgrade)にも支障が無い

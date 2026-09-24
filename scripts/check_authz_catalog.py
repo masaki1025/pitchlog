@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import copy
 import hashlib
 import json
@@ -25,6 +26,11 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PRODUCT_SPEC,
     AuthzAssetSpec,
 )
+from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
+    build_product_function_acl_declaration,
+    generate_product_function_acl_sql,
+    product_function_id,
+)
 from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     DIRECT_ACL_PROFILES,
     DIRECT_POLICY_PROFILES,
@@ -38,6 +44,9 @@ from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[un
 )
 from pitchlog.authz.product_table_rls import (  # noqa: E402  # ty: ignore[unresolved-import]
     generate_product_table_rls_sql,
+)
+from pitchlog.authz.runtime_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
+    PROTECTED_FUNCTIONS,
 )
 
 # このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
@@ -131,6 +140,35 @@ PRODUCT_TABLE_CLASSIFICATION = Path(
 )
 PRODUCT_EXPOSURE_FACTS = Path(PRODUCT_SPEC.asset_root / "exposure-facts.json")
 PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
+PRODUCT_MIGRATION_VERSIONS = Path("backend/migrations/versions")
+MIGRATION_FUNCTION_RE = re.compile(
+    r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
+    r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
+    r"\s*\((?P<identity_args>[^)]*)\)",
+    re.IGNORECASE,
+)
+PRODUCT_PROVISIONAL_FUNCTION_GAPS = {
+    (
+        "public",
+        "prevent_invalidation_intents_target_update",
+        "",
+    ): "0015_invalidation_intents",
+    (
+        "public",
+        "prevent_migration_quarantine_mutation",
+        "",
+    ): "0016_migration_quarantine",
+    (
+        "public",
+        "prevent_migrated_final_lineups_source_update",
+        "",
+    ): "0017_migrated_final_lineups",
+    (
+        "public",
+        "prevent_players_identity_update",
+        "",
+    ): "0024_players_identity_trigger",
+}
 
 PRODUCT_ROLE_ATTRIBUTE_NAMES = frozenset(
     {
@@ -3599,6 +3637,186 @@ def _validate_product_table_access_expectations(
     _validate_product_access_bodies(root, expected_policies, expected_acls)
 
 
+def _migration_string_constants(tree: ast.Module) -> dict[str, str]:
+    """Migrationモジュール直下の文字列定数を安全に読む。"""
+    constants: dict[str, str] = {}
+    for node in tree.body:
+        if (
+            not isinstance(node, ast.Assign)
+            or len(node.targets) != 1
+            or not isinstance(node.targets[0], ast.Name)
+        ):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(value, str):
+            constants[node.targets[0].id] = value
+    return constants
+
+
+def _product_migration_functions(
+    root: Path,
+) -> dict[tuple[str, str, str], frozenset[str]]:
+    """MigrationのCREATE FUNCTION実体から物理識別子を導出する。"""
+    migration_root = root / PRODUCT_MIGRATION_VERSIONS
+    if not migration_root.is_dir():
+        raise CatalogError(f"migration versionsディレクトリがない: {migration_root}")
+    origins: defaultdict[tuple[str, str, str], set[str]] = defaultdict(set)
+    migration_paths = sorted(migration_root.glob("*.py"))
+    if not migration_paths:
+        raise CatalogError("migration versionsにPythonファイルがない")
+    for path in migration_paths:
+        source = _read_text(path, f"migration[{path.name}]")
+        try:
+            tree = ast.parse(source, filename=str(path))
+        except SyntaxError as error:
+            raise CatalogError(f"migrationを構文解析できない: {path}: {error}") from error
+        constants = _migration_string_constants(tree)
+        matches = tuple(MIGRATION_FUNCTION_RE.finditer(source))
+        marker_count = len(
+            re.findall(
+                r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\b",
+                source,
+                flags=re.IGNORECASE,
+            )
+        )
+        if len(matches) != marker_count:
+            raise CatalogError(f"migrationのCREATE FUNCTIONを完全に解析できない: {path}")
+        for match in matches:
+            target = match.group("target")
+            if target.startswith("{"):
+                constant_name = target[1:-1]
+                if constant_name not in constants:
+                    raise CatalogError(
+                        f"migrationの関数名定数を解決できない: {path}:{target}"
+                    )
+                target = constants[constant_name]
+            if "." in target:
+                schema_name, function_name = target.split(".", maxsplit=1)
+            else:
+                schema_name, function_name = "public", target
+            identity_args = " ".join(match.group("identity_args").split())
+            try:
+                product_function_id(schema_name, function_name, identity_args)
+            except ValueError as error:
+                raise CatalogError(
+                    f"migrationの関数物理識別子が不正: {path}:{target}"
+                ) from error
+            origins[(schema_name, function_name, identity_args)].add(path.stem)
+    return {physical_id: frozenset(revisions) for physical_id, revisions in origins.items()}
+
+
+def _expected_provisional_function_additions() -> dict[str, dict[str, object]]:
+    """承認済みの暫定契約漏れ4件を理由付き宣言へ変換する。"""
+    expected: dict[str, dict[str, object]] = {}
+    for physical_id, revision in PRODUCT_PROVISIONAL_FUNCTION_GAPS.items():
+        schema_name, function_name, identity_args = physical_id
+        addition_id = product_function_id(
+            schema_name,
+            function_name,
+            identity_args,
+        )
+        expected[addition_id] = {
+            "addition_id": addition_id,
+            "object_kind": "function",
+            "schema_name": schema_name,
+            "object_name": function_name,
+            "identity_args": identity_args,
+            "reason": "provisional_contract_gap",
+            "detail": (
+                f"migration {revision}で追加され、暫定資産が追随していない"
+            ),
+            "migration_revision": revision,
+        }
+    return expected
+
+
+def _validate_product_function_acl_bodies(
+    root: Path,
+    expected_functions: dict[str, dict[str, object]],
+) -> None:
+    """37関数のACL bodyを生成器の出力へ照合する。"""
+    function_paths = _product_body_paths(root, "function")
+    if set(function_paths) != set(expected_functions):
+        raise CatalogError("関数ACL bodyがmigrationの37関数とexact-set不一致")
+    for function_id, declaration in expected_functions.items():
+        expected_path = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/functions/{function_id}.sql"
+        )
+        if function_paths[function_id] != expected_path:
+            raise CatalogError(f"{function_id}のbody manifest対応が不正")
+        schema_name = str(declaration["schema_name"])
+        function_name = str(declaration["function_name"])
+        identity_args = str(declaration["identity_args"])
+        body = _read_text(root / expected_path, f"関数ACL body[{function_id}]")
+        if body != generate_product_function_acl_sql(
+            schema_name,
+            function_name,
+            identity_args,
+        ):
+            raise CatalogError(f"{function_id}のPUBLIC EXECUTE剥奪が生成結果と不一致")
+
+
+def _validate_product_function_acl_expectations(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """Migration 37関数と暫定契約差分4件をexact-setで検査する。"""
+    # 既存の過去ステップの単体試験はmigrationを複製しない。実リポジトリでは
+    # versionsディレクトリが必須であり、ここを省略できない。
+    if not (root / PRODUCT_MIGRATION_VERSIONS).is_dir():
+        return
+    migration_origins = _product_migration_functions(root)
+    migration_functions = frozenset(migration_origins)
+    provisional_functions = frozenset(
+        (str(schema), str(name), str(identity_args))
+        for schema, name, identity_args in PROTECTED_FUNCTIONS
+    )
+    declared_gaps = frozenset(PRODUCT_PROVISIONAL_FUNCTION_GAPS)
+    if len(provisional_functions) != 33:
+        raise CatalogError("暫定ランタイム契約の関数集合が33件でない")
+    if len(migration_functions) != 37:
+        raise CatalogError("migration由来のトリガ関数集合が37件でない")
+    if (
+        provisional_functions - migration_functions
+        or migration_functions - provisional_functions != declared_gaps
+    ):
+        raise CatalogError("migrationと暫定契約の差が宣言済み4関数と一致しない")
+    for physical_id, revision in PRODUCT_PROVISIONAL_FUNCTION_GAPS.items():
+        if revision not in migration_origins[physical_id]:
+            raise CatalogError(
+                f"暫定契約漏れのmigration由来が不一致: {physical_id}: {revision}"
+            )
+
+    expected_functions: dict[str, dict[str, object]] = {}
+    for schema_name, function_name, identity_args in migration_functions:
+        declaration = build_product_function_acl_declaration(
+            schema_name,
+            function_name,
+            identity_args,
+        )
+        expected_functions[str(declaration["function_id"])] = declaration
+    functions = _product_declarations_by_id(
+        raw["functions"],
+        "function_id",
+        "製品DDL manifest.functions",
+    )
+    if functions != expected_functions:
+        raise CatalogError("製品関数ACL宣言がmigrationの37関数とexact-set不一致")
+
+    expected_additions = _expected_provisional_function_additions()
+    additions = _product_declarations_by_id(
+        raw["provisional_contract_additions"],
+        "addition_id",
+        "製品DDL manifest.provisional_contract_additions",
+    )
+    if additions != expected_additions:
+        raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
+    _validate_product_function_acl_bodies(root, expected_functions)
+
+
 def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]:
     """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
     if not isinstance(raw, dict):
@@ -3613,6 +3831,7 @@ def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]
             "roles",
             "permanent_privileged_role_ids",
             "membership_edges",
+            "provisional_contract_additions",
             "databases",
             "schemas",
             "tables",
@@ -3671,6 +3890,7 @@ def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]
     _validate_product_schema_expectations(raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
     _validate_product_table_access_expectations(raw, root)
+    _validate_product_function_acl_expectations(raw, root)
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": len(roles_by_id),

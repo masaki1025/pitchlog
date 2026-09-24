@@ -139,6 +139,8 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 - **TSK-431 とは衝突しない**(`scripts/check_tenant_boundary_bypass.py`・`contracts/tenant_boundary/*`・`.github/workflows/`・`tests/test_ci_wiring.py` に触れない)
 - **U-T1 の後続単位との衝突面**は `contracts/authz/product/`
 
+**実装時の訂正(2026-09-24)**: ステップ 12 の「トリガ関数 33 個」は暫定資産の件数で、migration の実物は 37 個だった。製品資産は 37 個を正とし、差の 4 個を暫定資産の漏れとして理由付きで宣言する(design.md 3-4 の訂正)。暫定資産は変えない(PR B = TSK-443 へ申し送り)
+
 **正本の追随**(3 節)は、ステップ 13 の後に /sync-docs で行い、PR A1 に含める(Claude が書く。委任しない — 設計書 7.6-2)。
 
 ### PR A2 へ引き渡す内容(別タスク・別ブランチ・別計画書 — TSK-431 の 7C の後)
