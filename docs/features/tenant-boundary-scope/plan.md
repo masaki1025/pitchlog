@@ -324,7 +324,7 @@ context = Context(tenant_id)
 | D2 | **属性名が `TenantContext` である呼び出し — receiver の型が既知であっても** |
 | D3 | 資産が列挙する禁止構築シンボル 4 種 |
 | D4 | 発行証跡 `_tenant_context_proof` / `_TENANT_CONTEXT_SECRET` の許可シンボル外参照 |
-| D5 | **全 `ast.Call` が flow に登録され、かつ実際に検査判定を通ったこと**。`_visit_function`(`:3222`)が **デフォルト引数・注釈・戻り注釈を訪問していない**ため、`def run(context=TenantContext(...))` が**現行で 0 件**(実測)。class keyword・match guard・`TryStar` も含めて全構文を対象にする(2 周目 P0-4) |
+| D5 | **全 `ast.Call` が flow に登録され、かつ実際に検査判定を通ったこと**。`_visit_function`(`:3222`)が **デフォルト引数・注釈・戻り注釈を訪問していない**ため、`def run(context=TenantContext(...))` が**現行で 0 件 → 是正後 TB007**(実測)。**develop への波及は 0 件**(実測)。class keyword・match guard・`TryStar` も含めて全構文を対象にする(2 周目 P0-4) |
 | D6 | 相対 import で書かれた `TenantContext` が構築シンボルとして解決されること |
 | D7 | **条件 1〜4 および TB005 / TB006 の検出件数が 1 件も減らないこと** |
 
@@ -389,7 +389,7 @@ context = Context(tenant_id)
 | # | ステップ(何を作るか) | 合格条件 |
 | --- | --- | --- |
 | 1 | **センサスの土台**: `Counter(path, scope, code, symbol, message)`(**絶対 `line` を含めない**)で比較する回帰と、**CI の実経路(`scan_source_change` + 実コミット列 + `check_repository`)**の回帰を置く。**永続 golden は置かず、旧 checker と新 checker を同一ソースへ当てて差分を取る**。**検査器のロジックは 1 行も変えない** | `[機械]` 現行 develop で差分 0・CI 経路のテスト green |
-| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3222`)がデフォルト引数・注釈・戻り注釈を訪問する。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**現行は 0 件**)・不変条件「全 `ast.Call` が **flow 登録済みかつ検査判定を通った**」green・**センサスで TB001〜TB006 が増える方向のみ** |
+| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・不変条件「全 `ast.Call` が **flow 登録済みかつ検査判定を通った**」green・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
 | 3 | **flow の網羅性**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価 | `[機械]` 負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` red・**センサスが TB001〜TB006 について不変** |
 | 4 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作るヘルパーを `:2277` / `:2508` / `:1685` で使う | `[機械]` 負例 `C5_CONTEXT_RELATIVE_IMPORT` red・**センサス完全不変**(相対 import が 0 件なので差分が出たら実装が誤り) |
 | 5 | **(iv)(v) を入れる(強化)**: 末尾名一致を属性でも裸の名前でも provenance 非依存で拒否 + **再輸出写像を「可能な起源集合 + unresolved」で持つ**(集合に構築シンボルがあれば赤 / 深さ上限・star・曖昧分岐は裸名でも属性でも赤)。既存テスト `:1395` を**両側 red**へ書き換え | `[機械]` 負例 `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)` — (iv) で捕まらない名前**)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` が red・**センサスで TB007 が増える方向のみ** `[手動]` **逐行確認必須** |
