@@ -1,168 +1,191 @@
 ---
 feature: um1-player-roster-opponent
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active
 承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
-worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
+worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7
 branch: feature/um1-player-roster-opponent
 created: 2026-09-24
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
-実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
-反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
+計画レビュー周回: 1        # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)の反映を含む
+確定ゲート周回: 0
+実行方式: 通常
+反映周コミット: 適用
 ---
 
 # 実装計画書: U-M1 選手・在籍・対戦相手チーム
 
 ## 1. 背景・目的
 
-**Notion**: [TSK-393 U-M1 選手・在籍・対戦相手チーム](https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7)
-**出所**: TSK-363 / [`../product-impl-unit-split/plan.md`](../product-impl-unit-split/plan.md)(承認済 2026-09-13)`:212`
-**計画段階の調査**: [research.md](research.md) — 調査サブエージェント 3 本 + 当方の原典実測。**本書の判断根拠は同メモを正とし、内容をここへ複製しない**(設計書 7.1-1)
+**Notion**: [TSK-393](https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7)
+**出所**: TSK-363 / [`../product-impl-unit-split/plan.md`](../product-impl-unit-split/plan.md)`:212`(承認済 2026-09-13)
+**調査メモ**: [research.md](research.md) — **典拠集**(正本ではない。`docs/features/` は作業ディレクトリ)。
+本書が事実を述べるときは**正本を直接引く**。research.md は調査の経緯をたどるための索引として参照する。
 
-**U-M1 は pitchlog 最初の製品コードになる。** 主所有 FR は次の 4 件:
+U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分担先なしの単独主所有**
+([`../product-impl-unit-split/design.md`](../product-impl-unit-split/design.md)`:75` 帰属表 / `:86-92` 分担表に U-M1 の行なし)。
 
 | FR | 必須度 | 要求の骨子 |
 | --- | --- | --- |
-| [FR-015](../../requirements/requirements-pitchlog-2026-07-22.md#FR-015) 選手の登録 | Must | 不変の内部 ID / 名前・投・打 / **背番号は任意**・**一意制約を張らない**(同番号は警告のみ・OB 番号は再利用可)/ 記録時点の背番号で過去試合を表示 / 断中のその場登録 / **入部年度・学年を持たない** |
-| [FR-017](../../requirements/requirements-pitchlog-2026-07-22.md#FR-017) 在籍ステータス管理 | Must(区分 3 つ)/ ラベルは Should | 現役・その他・OB の 3 区分固定 / **全区分可逆** / 一括変更は**プレビュー→確認→実行** / **対戦相手チームレコードの選手にも適用** / 変更はキャッシュ無効化トリガー |
-| [FR-018](../../requirements/requirements-pitchlog-2026-07-22.md#FR-018) 誤登録選手のセルフ削除 | **Should** | プレイ紐づけゼロ → **非表示化(ゴミ箱 UI を経ない)** / 紐づく選手は **OB 化へ誘導** / **紐づけ判定と削除が同一トランザクション** / **進行中(未終了)試合があると削除不可** |
-| [FR-039](../../requirements/requirements-pitchlog-2026-07-22.md#FR-039) 対戦相手チームレコード | Must | テナント内レコード・**テナント間で共有されない** / 試合作成を中断せずその場登録 / **類似名は重複警告** / **試合・選手が紐づくチームは削除不可でリネームへ誘導** / **付与によらず 404** |
+| [FR-015](../../requirements/requirements-pitchlog-2026-07-22.md#FR-015)(`:356-364`) | Must | 不変の内部 ID / 名前・投・打 / 背番号は任意・**一意制約を張らない**(同番号は**警告のみで登録続行可**)/ **記録時点の背番号で過去試合を表示** / **試合画面を離れずその場登録**(断中は一時 UUID → 同期時に正式 ID へ置換)/ 入部年度・学年を持たない |
+| [FR-017](../../requirements/requirements-pitchlog-2026-07-22.md#FR-017)(`:374-383`) | Must(区分 3 つ)/ ラベルは Should | 3 区分固定 / **OB は候補から完全除外** / **「その他」は初期表示に出ないが明示操作で選択可** / **全区分可逆** / 一括変更は**プレビュー→確認→実行** / **相手チームレコードの選手にも適用** / **カルテ・試合準備画面からも変更できる** / **初期ラベル同梱** / 変更はキャッシュ無効化トリガー |
+| [FR-018](../../requirements/requirements-pitchlog-2026-07-22.md#FR-018)(`:385-392`) | **Should** | プレイ紐づけゼロ → **確認の上で非表示化**(ゴミ箱 UI を経ない)/ 紐づく選手は **OB 化へ誘導** / **競合挿入を含めて紐づけ判定と削除が同一トランザクション** / **進行中(未終了)試合があると削除不可で OB 化へ誘導** |
+| [FR-039](../../requirements/requirements-pitchlog-2026-07-22.md#FR-039)(`:405-414`) | Must | テナント内レコード・テナント間で共有されない / **試合作成を中断せず登録・選択** / **類似名は重複警告(意図的なら登録可)** / **試合または選手が紐づくチームは削除不可でリネームへ誘導** / **付与によらず 404** |
 
-### 着手時点の与件が覆った点(調査の結論)
+### 着手時点の与件が覆った点
 
 > **U-M1 はコア領域(機械判定で確定)であり、降格条件は存在しない。**
-> Notion カードの「コア判定(機械): 非コア」「降格条件: 6.3 の確定ゲートで (i) が確定すること」は、
+> Notion カードの「コア判定(機械): 非コア」「降格条件: 6.3 の確定ゲートで (i) が確定すること」は
 > [`../product-impl-unit-split/plan.md`](../product-impl-unit-split/plan.md)`:292-315`【承認後の是正】より前のスナップショット。
 > **TSK-394 でも同一記述を確認済み**(葉 6 本が同型と見られる)。カード一括訂正の要否は PO 判断。
 
-> **U-T1 の公開面は空で、現時点では DB に 1 行も到達できない。**
-> 正本の依存は「U-T1」だけだが、**実効依存に TSK-424 を含む**(research.md 3-1)。
+> **U-T1 の公開面は空で、現時点では DB に到達できない。** 実効依存に **TSK-424** を含む(4 節)。
 
 ## 2. スコープ
 
-**方針(人間の判断・2026-09-24)**: **ギリギリまで実装し、マージだけ外部タスク待ちにする。**
-1 本の PR にまとめ、**第 1 群を実装して draft PR を開き**、外部依存が着地したら第 2 群を足してマージする。
+### やること
 
-### やること — 第 1 群(本計画で実装する。**経路を開かない**ので CI は green のまま)
+- **バックエンド実装** — 選手・在籍区分・対戦相手チームレコードの HTTP 入口とリポジトリ操作、越境テスト
+- **自 FR の UI 設計正本を書く**([`../product-impl-unit-split/plan.md`](../product-impl-unit-split/plan.md)`:60`「API / UI / データモデルの設計正本を書く = 各単位のタスク」)
+- **`.claude/core-areas.json` への paths 登録**(同 `:61`「**各核単位が自 PR で行う**」)
 
-- 選手・チームレコードの **DTO**(`backend/src/pitchlog/api/schemas/roster.py` 新設)
-- **operation token 型**の定義(`backend/src/pitchlog/repositories/roster_tokens.py` 新設 — **registry へは登録しない**)
-- **単体テストが唯一の呼び出し元**(`backend/tests/test_roster_schemas.py` 新設)
-- 経路表・命名・ページング上限・在籍区分キーの確定 → [design.md](design.md)
+### やらないこと
 
-### やること — 第 2 群(外部依存の着地後、本 PR に追記してマージ)
+| 項目 | 理由・送り先 |
+| --- | --- |
+| **フロントエンド実装(Vue)と Vitest** | **正本が帰属を定めていない。**`../product-impl-unit-split/` の plan.md・design.md に「フロントエンド」「Vitest」「Vue」の語が **1 件も無い**(実測)。`:60` が各単位へ送るのは **UI の「設計正本」**であって実装ではない。**受け皿が正本上空席**である事実を 8 節で申し送る |
+| **`system_vocabularies` の seed と在籍区分キーの値の決定** | **別タスクへ切り出す**(8 節)。migration は **5 領域すべてのコア paths** で、契約 3(`:181`)の「2 領域以上は例外として明示列挙」に **U-M1 は含まれない**。コミットを分けても PR の変更 path は変わらない。値は U-M2・U-C 系も使う**共有語彙** |
+| スタメンの記憶・復元(FR-016) | **U-M2** |
+| 試合作成時の相手チーム選択(FR-001) | **U-G1** |
+| 試合の削除とゴミ箱(FR-019) | **U-D1** |
+| キャッシュ無効化**契約** | **U-T1**(**発火点のみ U-M1** — 同書が「発火は各トリガー所有単位が負う」と申し送り) |
+| 選手統合・分割(FR-035/037) | **U-A2** |
+| 移行のファンアウト・在籍棚卸し・名寄せ(FR-038) | **U-X5** |
 
-registry 登録 / セッション供給 / `route-registry.json` + `http-route-matrix.json` + lock / ルータ実装と `ROUTERS` 登録 /
-`backend/tests/test_api_conventions.py:135` の期待値更新(述語 4)/ 越境テスト / FR-018 の削除ガード / `system_vocabularies` の seed
+### 契約 4 — 主所有 FR × 5 コア領域の突合(`:182` が各単位へ要求)
 
-### やらないこと(所有者が別 — research.md 1-3)
+| FR | 同期プロトコル | 状況計算 | 記録権 | テナント分離 | データ移行 |
+| --- | --- | --- | --- | --- | --- |
+| **FR-015** | **触れる** — 断中の一時 ID → 正式 ID の置換。**機構は U-S1 が持つ**(下記) | 触れない | 触れない | **触れる** — 選手はテナントデータ。全出力経路の越境 | **触れる** — 88 列 63-71 が「移行時に使用」。**機構は U-X5** |
+| **FR-017** | 触れない | 触れない | 触れない | **触れる** — 在籍区分の変更が**キャッシュ無効化トリガー 14**(共有集計のみ) | **触れる** — 移行後の在籍棚卸し。**機構は U-X5** |
+| **FR-018** | 触れない(下記の判定) | 触れない | 触れない | **触れる** — 削除もテナント境界内 | 触れない |
+| **FR-039** | 触れない | 触れない | 触れない | **触れる** — 第三者データは**付与によらず 404**(要件書 `:641`) | **触れる** — チームのファンアウト複製。**機構は U-X5** |
 
-スタメンの記憶・復元(**U-M2**)/ 試合作成時の相手チーム選択(**U-G1**)/ 試合の削除とゴミ箱(**U-D1**)/
-キャッシュ無効化**契約**(**U-T1** — 発火点のみ U-M1)/ 選手統合・分割(**U-A2**)/ 移行のファンアウト・在籍棚卸し・名寄せ(**U-X5**)
+**FR-018 が同期プロトコルに触れないことの判定**(条文の逐語読解):
+受入基準(要件書 `:392`)の条件は「**当該チームに進行中(未終了)の試合が存在する**」という**状態の問い合わせ**であり、
+括弧内の「断中端末の未同期キューが当該選手を参照している可能性があり、サーバー側のトランザクションでは検知できないため」は
+**この保守的な規則を採った理由の説明**である。**未同期キューを読む機構は要求されていない。**
+必要なのは ① プレイ紐づけゼロの判定 ② 進行中試合の存在判定 ③ ①②と削除の同一トランザクション化 の 3 つで、いずれも読み取りで閉じる。
 
-### 面が切れていない箇所(単位分割の分担表に行が無い — 契約 4 `:182` に従い本書で明示する)
-
-**FR-015 の第 4 受入基準**(断中の一時 UUID → 同期時にサーバーが正式 ID を確定・参照を置換)は
-[`../../design/sync-protocol.md`](../../design/sync-protocol.md) が 4-4「一時 ID → 正式 ID の置換契約」C1〜C4(`:367-378`)・
-参加区分「6 選手のその場登録」(`:589`)・ACK 保証 A4(`:923`)・原子境界 T6(`:1198`)として**同期側の契約に組み込んでいる**。
-**面の切り方**: **一時 ID の発行・置換の機構は U-S1 が持ち、U-M1 は「サーバーが確定した正式 ID で選手を作る」側だけを持つ。**
-U-M1 は同期セマンティクスの語彙(べき等キー・連番・墓標/改訂)を 1 語も持たない(4 節の条件②)。
+**FR-015 の同期面の帰属** — `../product-impl-unit-split/design.md:86-92` の分担表に FR-015 の行が無く、
+`../product-impl-unit-split/plan.md:240-252` の「面が切れなかったときの手順」も**対象を FR-007/010/011/019 に限定している**ため、
+**FR-015 はその手順の適用対象外**である。したがって本書は手順を代用せず、**8 節で人間の判断を仰ぐ**。
+正本上 FR-015 は依然 **U-M1 の単独主所有**であり、帰属表を更新しない限り U-S1 へ移らない。
 
 ## 3. 影響する正本
 
-| 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
+| 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| `docs/design/data-model.md` | **反映なし**(7 章の既決事項に従うのみ。再決定しない) | — |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
-| `docs/adr/` | **新設なし**(既決の制約の適用であり新しい決定を持たない。U-T1 と同じ判断) | — |
-| `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **第 2 群で追記**(値域拡張の可否は TSK-346 / TSK-380 待ち — 4 節 R4) | PR レビュー |
-| `docs/features/um1-player-roster-opponent/design.md` | **新設**(D1〜D6 の暫定規約) | PR レビュー |
+| `docs/design/data-model.md` / 要件書 / `docs/adr/` | **反映なし**(既決事項に従うのみ。再決定しない) | — |
+| **`.claude/core-areas.json`** | **paths を追加**(越境テスト・新規リポジトリ)。`:61` が「各核単位が自 PR で行う」と定める。**6.3-⑤ の敵対レビュー + 人間承認の対象** | PR レビュー(6.3-⑤) |
+| `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **追記**(`route_kind` 値域の決定が要る — 4 節) | PR レビュー |
+| `contracts/tenant_boundary/repository-contract.json` | **capability 登録**。**`FROZEN_BASELINE_ASSETS` の 1 つ**(`scripts/check_tenant_boundary_bypass.py:41`)なので**設計書 7.7-2 の記録が要る** | 7.7 の更新経路 |
+| `docs/features/um1-player-roster-opponent/design.md` | **新設**(暫定規約・入口表・DTO 定義) | PR レビュー |
 
 ## 4. 実装方針
 
-**重さ分類 = コア領域**。根拠は **fail-closed の既定ではなく機械判定の確定**:
-入口を開く → `route_id` の付与が正本の要求([`../../design/data-model.md`](../../design/data-model.md)`:2454`) →
-`contracts/authz/*` を編集 → `.claude/core-areas.json:307`(`tenant-isolation`)に一致。
-→ **sol xhigh・敵対レビュー・人間の逐行確認が必須**(降格の道は無い)。
+**重さ分類 = コア領域**(機械判定の確定。降格の道は無い)。詳細設計は [design.md](design.md) を正とし本節で複製しない。
 
-詳細設計(経路表・DTO 定義・命名・暫定規約 D1〜D6)は [design.md](design.md) を正とし、本節では複製しない。
+### 外部依存(**すべて着地しないと入口を開けない**)
 
-### 実測で確定した「進めない壁」(第 2 群が外部待ちになる理由)
+| # | 要るもの | 所有 | 状態 |
+| --- | --- | --- | --- |
+| 1 | **capability カタログ**(`contracts/authz/product/capability-catalog.json`) | **TSK-424 PR A** ステップ 21 | 計画レビュー中 |
+| 2 | **capability の登録** | **U-M1 自身** | **凍結基準を動かす**(上記 3 節)→ 7.7-2 の記録 + **TSK-431 との順序調整** |
+| 3 | **Session 供給**(`TenantRepositoryBase._session`) | **TSK-424 PR C** | 未着手(PO 裁定 2026-09-24)。**供給形式は U-M1 で決めない** |
+| 4 | **RLS DDL の実スキーマ適用**(12-4 通過条件①) | **TSK-344** | 未着手。**`backend/migrations` に `CREATE POLICY`/`CREATE ROLE`/`ROW LEVEL SECURITY` が 0 件**(実測) |
+| 5 | **`route_kind` の値域決定** | **空席** | `route-registry.json` と `http-route-matrix.json` は exact-set(`scripts/check_authz_catalog.py:2437-2442`)。`route_kinds` は検査器の定数 `ROUTE_KINDS`(同 `:92`)に固定で、**選手 CRUD を表す種別が無い**。**TSK-380 の射程は既存 37 経路の `test_owner` 再割り当てであって値域拡張ではない** |
+| 6 | **`TenantContext` の生成** | **U-A1**(ブロック中) | `repositories/context.py:26`「テナント ID が認証済み主体のものであることは API 層(TSK-217 / U-A1)の責務」 |
+| 7 | **在籍区分キーの値と seed** | **別タスク**(8 節) | 未起票 |
 
-| 壁 | 機構(実測) | 解除の所有者 |
-| --- | --- | --- |
-| **capability / operation registry** | `repositories/base.py:58-60` が `MappingProxyType({})`、`repository_contract.py:57-59` が 3 つとも `()`。**`backend/tests/test_authz_repository_contract.py:261` が「空であること」を assert**(docstring:「TSK-424 と所有単位の実装前は製品操作と越境関数を一件も開かない。」)。`repository_contract.py` は `contracts/tenant_boundary/repository-contract.json` からの**生成モジュール**(`SOURCE_DIGEST`)で手編集できない | **TSK-424** |
-| **セッション供給** | `repositories/binding.py:38` の `_tenant_transaction(session, context)` は Session を引数で要求。**`backend/src` に `sessionmaker`/`Session(` が 0 件**。作る手段が `contracts/tenant_boundary/base-allowlist.json` の 5 シンボルに無い → 葉が作れば **TB005** | **未定**(誰も持っていない) |
-| **RLS DDL(12-4 ゲート条件①)** | **`backend/migrations` に `CREATE POLICY`/`CREATE ROLE`/`ROW LEVEL SECURITY` が 0 件** | **TSK-344** |
-| **認可経路レジストリの値域** | `route-registry.json` と `http-route-matrix.json` は **exact-set**(`scripts/check_authz_catalog.py:2437-2442`)で片側追加は必ず red。`route_kinds` は `{legacy_route, shared_data, control_read, management_operation}` の閉じた値域で、**検査器の定数 `ROUTE_KINDS`(同 `:92`)に固定**。**選手 CRUD を表す種別が存在しない** | **TSK-346 / TSK-380** |
-| **`TenantContext` の生成** | `repositories/context.py:26`「テナント ID が認証済み主体のものであることは **API 層(TSK-217 / U-A1)の責務**」 | **U-A1**(ブロック中) |
+**製品 operation token 型は TSK-424 の着地前に定義しない。**
+[`../tenant-boundary-enforcement/plan.md`](../tenant-boundary-enforcement/plan.md)`:174`(ステップ 9)が
+「**製品 capability 集合と越境関数 registry は初期値ともに空集合**とし…**製品表操作は TSK-424 の表分類から生成する capability を受けて初めて有効化する**」と定め、
+同 [`design.md`](../tenant-boundary-enforcement/design.md)`:321` が「**ステップ 9 の製品 capability も TSK-424 の出力契約に含める**」と定めているため、
+先行定義すると型名・capability ID が生成物と分岐する。
 
-### 非コアで通せる 5 条件 — **本単位には適用されない**が「面を混ぜない」規律として守る
+### 非コアで通せる 5 条件 — 本単位には適用されないが「面を混ぜない」規律として守る
 
-[`../product-impl-unit-split/plan.md`](../product-impl-unit-split/plan.md)`:254-258` が
-「**対象(承認後の是正で 9 → 3): `U-00`/`U-01`/`U-02` の器 3 本だけ。葉 6 本は機械判定でコアが確定したので、本節の条件では通せない。
-ただし 5 条件そのものは葉の計画書でも『面を混ぜない』規律として有効なので、下表は残す。**」と定めている。
-
+`../product-impl-unit-split/plan.md:254-258` が「**葉 6 本は機械判定でコアが確定したので本節の条件では通せない。
+ただし 5 条件そのものは葉の計画書でも『面を混ぜない』規律として有効なので下表は残す。**」と定める。
 **検査対象 = `git diff -U0 origin/develop...HEAD -- backend/src` の追加行。各式の一致 0 が合格。**
-上流の「候補」を**そのまま確定**する(現時点の差分に実測で一致 0 を確認できるため)。
 
-| # | 条件 | 確定した検索式(**一致 0 が合格**) | 許可側 |
+| # | 条件 | 確定した検索式 | 許可側 |
 | --- | --- | --- | --- |
 | 1 | 新たな認可判定を追加しない | `\b(can_\|may_\|is_allowed\|has_permission\|check_.*_access\|require_role\|assert_.*_owner)` | U-T1 の公開関数の呼び出しのみ |
 | 2 | 同期セマンティクスを扱わない | `\b(idempotenc\|idempotent_key\|seq_no\|sequence_no\|tombstone\|revision_no\|generation)\b` | — |
 | 3 | NFR-018 の対象計算を含まない | `responsible_pitcher\|earned_run\|at_bat_result\|inning_state\|rbi\|era\|avg\|obp\|slg` | — |
-| 4 | キャッシュ無効化契約に触れない | `\b(invalidate\|cache_clear\|evict\|purge_cache)` | `pitchlog.repositories.cache_invalidation` の公開シンボルのみ(第 2 群) |
+| 4 | キャッシュ無効化契約に触れない | `\b(invalidate\|cache_clear\|evict\|purge_cache)` | `pitchlog.repositories.cache_invalidation` の公開シンボルの import / 参照 / 呼び出しのみ |
 | 5 | テナントデータは U-T1 の越境関数経由だけ | `\b(session\.(execute\|query\|scalars)\|select\(\|text\(\|engine\.\|raw_connection)` | U-T1 のリポジトリ基底の継承・呼び出しのみ |
 
-**条件 3 の注意**(U-01 の先例 `../u01-dto-base/plan.md:150`): `era` は `operation` の部分文字列に一致する。
-**差分行限定**で当て、語境界を守る。
+**条件 3 の注意**: `era` は `operation` の部分文字列に一致する(`../u01-dto-base/plan.md:150` の先例)。**差分行限定**で当てる。
+**条件 4 の注意**: `_normalize_identifier`(`scripts/check_tenant_boundary_bypass.py:1440-1445`)が**最後に `.lower()` する**ため、
+**`ROSTER_STATUS_CHANGE` という大文字の識別子も TB004 に一致する**。
+→ **`from pitchlog.repositories.cache_invalidation import CacheInvalidationTrigger` して `.ROSTER_STATUS_CHANGE` を参照する。
+文字列リテラルも同名の自前定数も書かない。**(救済経路 = `allow_condition4`・同 `:3118`・`:3250`・`:3260`)
 
-### 面が切れなかったときの手順(`../product-impl-unit-split/plan.md:240-252` — DoD に入れることを同書が要求)
+### 実装ステップ(コミット単位 — 設計書 6.1)
 
-面が切れないと判明したら ① 本書に事実と典拠を書く ② 相手単位の所有者を特定する
-③ **切り直しではなく「どちらが持つか」を人間へ上げる** ④ 決定を本書と相手単位の計画書の双方へ記録する。
-
-### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
-
-**第 2 群を後から同じ表へ追記するため、ステップ記法に `/<N>` を書かない**
-(表の総数と不一致になると現在地導出が「不整合」に落ちる — 設計書 6.1 の厳密文法③)。
+**着手は外部依存 1・3・4・5・7 の着地後**(`/implement` は承認済み計画書を要求するが、**着地前に着手しない**ことを本書の拘束とする)。
+**総数を確定できないため、ステップ記法に `/<N>` を書かない**(設計書 6.1 の厳密文法③)。
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **選手・チームレコードの DTO を追加する** — `backend/src/pitchlog/api/schemas/roster.py` を新設し、`TeamRecordCreate`/`TeamRecordRead`/`PlayerCreate`/`PlayerUpdate`/`PlayerRead` を定義する。`BaseSchema`/`ReadSchema`/`EntityId`/`Timestamp` を再利用する | `backend/tests/test_roster_schemas.py` が green。背番号が任意で空文字を拒否すること・`PlayerUpdate` が `team_record_id` を含まないこと(R3)をテストで確認。`ruff check` / `ruff format --check` / `ty check` が green |
-| 2 | **一覧要求の DTO にページ上限を課す** — 同ファイルに `PlayerListRequest(PageRequest)` を定義し、`limit` の上限 200 を強制する(D1)。`Page[PlayerRead]` を応答型として定義する | 上限超過が `ValidationError`、境界値 200 と下限 1 が通ることをテストで確認。`Page` の `next_cursor` が空文字を拒否することを確認。上記 3 コマンドが green |
-| 3 | **operation token 型を追加する** — `backend/src/pitchlog/repositories/roster_tokens.py` を新設し、選手・チームレコードの操作 token を frozen dataclass(`slots=True`)で定義する。**registry へは登録しない** | token が `TenantOperationToken` の部分型で frozen/slots であること・`capability_id` が D6 の形式であることをテストで確認。**`test_authz_repository_contract.py` が引き続き green**(registry が空のまま)。`scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` の新規違反が 0 件 |
+| 1 | **`.claude/core-areas.json` へ本単位の paths を登録する** — 越境テストと新規リポジトリのパスを `tenant-isolation` へ追加する。**`scripts/core_guard.py` / `tests/test_core_guard.py` を同一コミットに入れない**(#74 の `verify_area_path_baseline()` がチェック欄の検査より前に例外を投げるため) | `core-guard` が green。6.3-⑤ の審査対象として PR に明示されている |
+| 2 | **DTO を追加する** — `backend/src/pitchlog/api/schemas/roster.py`。[design.md](design.md) 3 節の全 DTO(`PlayerStatusPreview` を含む)を定義する | `backend/tests/test_roster_schemas.py` が green。値域・省略と明示 null の区別・空配列と重複 ID の扱いをテストで確認。`ruff check` / `ruff format --check` / `ty check` green |
+| 3 | **入口の契約資産を追記する** — `route-registry.json` と `http-route-matrix.json`(+ lock 再封印)へ本単位の入口を登録する。**既存行の `test_owner` は書き換えない**。新規行の `test_owner.status` は **`planned`** とする | `uv run pytest -c pyproject.toml tests/test_check_authz_catalog.py` が green。registry と matrix が exact-set で一致 |
+| 4 | **リポジトリと operation token を追加する** — TSK-424 の capability カタログから token 型を導き、registry へ登録する。**7.7-2 の記録**を同時に行う | `test_authz_repository_contract.py` が更新後の契約で green。凍結基準の記録が 7.7-2 の様式を満たす |
+| 5 | **選手の入口を開く** — 作成・一覧・取得・更新。`ROUTERS` へ登録し、`test_api_conventions.py` の述語 4(経路数)の期待値を更新する | `test_roster_boundary.py` の当該入口ぶんが green(認可行列どおりに通り行列外は 404)。`/health` `/version` を含む既存テストが green |
+| 6 | **在籍区分の入口を開く** — プレビューと適用。**キャッシュ無効化の発火点**を `CacheInvalidationTrigger.ROSTER_STATUS_CHANGE` で置く | 在籍区分変更後に共有集計のキャッシュが失効することを受入テストで確認(要件書 `:996`) |
+| 7 | **選手の削除ガードを実装する**(FR-018) — 紐づけゼロ判定・進行中試合の存在判定・同一トランザクション化 | 競合挿入を含む同時実行テストで、判定後に紐づいた場合に失敗すること・進行中試合があると拒否されることを確認 |
+| 8 | **対戦相手チームレコードの入口を開く**(FR-039) — 作成・一覧・更新・削除。類似名の警告と削除拒否の誘導 | 試合または選手が紐づくチームの削除が拒否されること・類似名が警告で登録続行できることを確認 |
+
+**第 2 群を後から足すときの再承認**: 本表へステップを追加する場合は、**追加分について敵対レビューと人間承認を再度受ける**。
+承認済みステップの続きとして無審査で追加しない。
 
 ## 5. DoD(受け入れ基準)
 
-Notion カードの DoD と同期。**第 2 群の項目は着地後に確認する**(本 PR のマージ条件)。
+### 主所有 FR の受入基準(要件書の条文と 1 対 1)
 
+- [ ] **FR-015**: 同番号の警告が出て**警告後も登録を続行できる** / **記録時点の背番号**で過去試合が表示される(**正本はイベント側** — `data-model.md:1430-1462`。本単位は選手側に当時値を持たせないことの確認に留まる) / **試合画面を離れずに登録できる**(UI 設計正本を書く) / 内部 ID が不変 / 入部年度・学年を持たない
+- [ ] **FR-017**: **OB が候補から完全除外** / **「その他」は初期表示に出ないが明示操作で選択可** / **全区分可逆** / **プレビュー→確認→実行** / **相手チームレコードの選手にも適用** / **カルテ・試合準備画面からも変更できる**(UI 設計正本)/ **初期ラベル同梱**(別タスクの seed と整合)/ **キャッシュ無効化が発火する**
+- [ ] **FR-018**: **確認 UI** / **OB 化へ誘導** / **競合挿入を含む同一トランザクション** / **進行中試合があると拒否して誘導**
+- [ ] **FR-039**: **試合作成を中断しない登録・選択** / **類似名の警告** / **試合または選手が紐づくチームの削除拒否とリネーム誘導** / **付与によらず 404**
+
+### 横断要求(`../product-impl-unit-split/design.md:109-121` が「破っていない」として入れることを要求)
+
+- [ ] **物理削除しない** / **テナント分離を全機能に適用** / **自動エスケープ**(NFR-023)
+- [ ] **趣旨の宣言** / **テナントの用語定義**に反していない
 - [ ] **一覧はページングする**(NFR-005 — 全件読み込み型の集計を書かない)
-- [ ] **削除は論理削除**(要件書 4.0-2。`Player`/`TeamRecord` とも `DeletionLifecycle.HIDDEN`)
-- [ ] **経路表**(method / path / request DTO / response DTO / 既定拒否 / 越境テストのファイル)を [design.md](design.md) に書く
-- [ ] **NFR-019 の越境テスト**を自経路ぶん持つ(裁定 C)— **第 2 群**
-- [ ] **`backend/tests/conftest.py` の差分が 0 行**(`.claude/core-areas.json:326` の `backend/*conftest.py` に一致するため。fixture は `backend/tests/api_fixtures.py` へ置き明示 import する — U-00 の先例 `test_api_errors.py:7`)
-- [ ] **`test_authz*` の命名を使わない**(同 `:319` に一致するため)
+- [ ] **NFR-019**: pytest を伴う。**越境テストは FR-034 の認可行列で合否判定**(要件書 `:933`)
+
+### 機構
+
+- [ ] **`backend/tests/conftest.py` の差分が 0 行**(`.claude/core-areas.json:326` の `backend/*conftest.py` に一致するため。fixture は `backend/tests/api_fixtures.py` へ置き明示 import — U-00 の先例 `test_api_errors.py:7`)
+- [ ] **`test_authz*` の命名を使わない**(同 `:319` に一致するため。**越境テストは名前ではなく paths 登録でコア化する** — 3 節)
+- [ ] **5 条件すべてに一致 0**(4 節の式で実測)
 - [ ] pytest / ruff / **ruff format** / ty green
-- [ ] 横断要求: **物理削除しない** / **テナント分離を全機能に適用** / **自動エスケープ**(NFR-023 — 選手名・チーム名・在籍ラベルは自由入力の発生源)
-- [ ] **5 条件すべてに一致 0**(4 節の確定した検索式で実測)
-- [ ] **面が切れなかったときの手順**を踏んだ(FR-015 第 4 受入基準 — 2 節に記録済み)
+- [ ] **契約 4 の 5 領域突合**(2 節)を書いた
 
 ## 6. テスト計画
 
-**第 1 群**(NFR-019 の「単体」):
-
 | 対象 | 種別 | ファイル | 確認すること |
 | --- | --- | --- | --- |
-| DTO のバリデーション | 単体 | `backend/tests/test_roster_schemas.py` | 背番号が任意・空文字拒否 / `extra="forbid"` が効く / `PlayerUpdate` が未分類列を含まない(R3)/ 在籍区分キーが D4 の 3 値 |
-| ページ上限 | 単体 | 同上 | `limit` の上限 200・下限 1 の境界 / `cursor`・`next_cursor` の空文字拒否 |
-| operation token | 単体 | 同上 | frozen/slots / `capability_id` の形式 / registry が空のままであること |
-
-**第 2 群**(NFR-019 の「越境」): 自経路ぶんの越境テストを**同一 PR** に含める(裁定 C・[`../../design/data-model.md`](../../design/data-model.md)`:2532`)。
-合否は「越境が 1 件でもあれば fail」ではなく **「FR-034 の認可行列どおりに通り、行列外はすべて 404」** で判定する(要件書 `:933`)。
-`test_authz*` を使えないため、**ファイル名は `backend/tests/test_roster_boundary.py` とする**(命名の衝突回避 — D5)。
+| DTO のバリデーション | 単体 | `backend/tests/test_roster_schemas.py` | 値域 / `extra="forbid"` / PATCH の省略と明示 null / bulk の空配列・重複 ID / ページ上限の境界 |
+| 越境 | 越境 | `backend/tests/test_roster_boundary.py` | **認可行列どおりに通り、行列外はすべて 404**。**API 直叩きを含む**(`data-model.md:2532` — 入口を開く PR は同一 PR に外から直接叩くテストを含む) |
+| 在籍区分変更後のキャッシュ失効 | 受入 | 同上 | **OB 化した選手が共有結果に現れない**(要件書 `:933` の (b) 列挙) |
+| 削除の競合 | 故障系 | 同上 | 判定後に紐づいた場合に失敗する / 進行中試合があると拒否 |
+| 同番号の警告後の登録続行 | 受入 | 同上 | 警告が出たうえで登録できる |
 
 **実行手順**(`backend/` で。CI と同じ順 — `.github/workflows/ci.yml:255-262`):
 
@@ -174,18 +197,26 @@ uv run ty check
 uv run pytest -c pyproject.toml
 ```
 
-**迂回検査は実装スケルトンの段階で当てる**(別タスクが 719 件出している — 後から直すと破綻する):
-
-```
-uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop
-```
+**迂回検査は実装スケルトンの段階で当てる**:
+`uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop`
 
 ## 7. リスク
 
 | # | リスク | 対応 |
 | --- | --- | --- |
-| **R1** | 第 2 群の解除に**外部所有者が 4 者**(TSK-424 / TSK-344 / TSK-346・TSK-380 / セッション供給の未定所有者)。1 つでも動かないとマージできず draft PR が長期滞留する | 第 1 群を独立して検証可能な形に保つ。滞留が長引いたら第 1 群の単独マージを人間へ提案する |
-| **R2** | `test_owner.status: "implemented"` は**ハーネス側 `tests/` の pytest node ID** としか照合されない(`scripts/check_authz_catalog.py:2674-2685`)。`backend/tests/...` を書くと red | 第 2 群では **`planned` 止まり**にする |
-| **R3** | `players.team_record_id` は immutability の protected / allowed いずれにも入らない**未分類列**(handoff `TSK-372`)。所属チーム変更の可否がコードから読めない | **`PlayerUpdate` の更新対象に含めない**。必要になったら TSK-372 へ上げる |
-| **R4** | `system_vocabularies` に **seed が存在しない**(migrations に `bulk_insert`/`INSERT INTO` が 0 件)。選手を作るには `roster_status_key` の FK 先が要る | seed は migration = **5 領域すべてのコア paths**。**第 2 群で独立したコミット**に切る |
-| **R5** | API 層は `api/**` の全ソース連結に対する部分一致検査を受け、**`Session`・`generation` を docstring・コメント含め 1 文字も書けない**(`backend/tests/test_api_conventions.py:22-37`) | D5 で命名を先に固定する。ステップ 1 の合格条件に含める |
+| **R1** | 入口を開くのに**外部所有者が 5 者**(TSK-424 PR A / PR C・TSK-344・`route_kind` 値域の**空席**・**U-A1**(ブロック中)・在籍区分キーの別タスク)。1 つでも動かないとマージできない | 着地状況を /pr の前に再確認する。空席の所有者は 8 節で人間へ上げる |
+| **R2** | `test_owner.status: "implemented"` は**ハーネス側 `tests/` の node ID** としか照合されない(`scripts/check_authz_catalog.py:2674-2685`) | 新規行は **`planned` 止まり**(ステップ 3 の合格条件) |
+| **R3** | `players.team_record_id` は immutability の**未分類列**(handoff `TSK-372`)。所属チーム変更の可否がコードから読めない | `PlayerUpdate` の更新対象に含めない。必要になれば TSK-372 へ上げる |
+| **R4** | **capability 登録は凍結基準を動かす**(`repository-contract.json` が `FROZEN_BASELINE_ASSETS`)。**TSK-431 が同じファイル群を触る** | ステップ 4 で **7.7-2 の記録**を同時に行い、TSK-431 と順序を調整する |
+| **R5** | API 層は `api/**` の**全ソース連結**に対する部分一致検査を受け、**`Session`・`generation` を docstring・コメント含め書けない**(`backend/tests/test_api_conventions.py:22-37`)。**TB004 は AST 上の識別子検査**で範囲が異なる(`scripts/check_tenant_boundary_bypass.py:2672`) | [design.md](design.md) D5 で 2 つの検査を**分けて**記述し、命名を実装前に固定する |
+| **R6** | **`core-areas.json` を編集する**ため **#74 の `verify_area_path_baseline()`** が掛かる。`core_guard.py` / `test_core_guard.py` と同一コミットにすると、**後から revert しても打ち消せず force-push も `git_guard.py` が拒否する** | ステップ 1 を**単独コミット**にする(合格条件に明記) |
+
+## 8. 人間の判断を仰ぐ事項
+
+| # | 事項 | 本書の扱い |
+| --- | --- | --- |
+| **1** | **フロントエンド実装の帰属** — 単位分割の正本に「フロントエンド」「Vitest」「Vue」の語が **1 件も無い**(実測)。`:60` が各単位へ送るのは **UI の「設計正本」**であって実装ではない。**FR-015/017/018/039 の UI 面の受け皿が正本上空席** | **U-M1 は射程外**として線を引いた。受け皿の決定を仰ぐ |
+| **2** | **FR-015 の同期面の帰属** — 分担表に FR-015 の行が無く、「面が切れなかったときの手順」の対象外。正本上は **U-M1 の単独主所有**のまま | 帰属表を更新せずに U-S1 へ移さない。判断を仰ぐ |
+| **3** | **`route_kind` の値域決定の所有者** — `TSK-380` の射程は既存 37 経路の `test_owner` 再割り当てであり、**値域拡張は空席** | 空席として明示。所有者の指名を仰ぐ |
+| **4** | **在籍区分キーの値と seed の別タスク起票** — `active` のみ `data-model.md:524` に典拠。`other`/`ob` はリポジトリ内に文字列が存在しない。seed は **5 領域すべてのコア paths** で契約 3 の例外に U-M1 は含まれない | 別タスクへ切り出す前提で本書から外した。起票の可否を仰ぐ |
+| **5** | **Notion カードのコア判定が正本より古い** — **葉 6 本すべてが同型**と見られる(TSK-394 で確認) | TSK-393 のカードには訂正コメントを入れる。**他タスクのカードには触れない** |
