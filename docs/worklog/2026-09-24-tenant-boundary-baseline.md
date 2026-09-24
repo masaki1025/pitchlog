@@ -257,3 +257,49 @@ symbol: `sqlalchemy.text` 64 / `psycopg.Cursor.execute` 35 / `psycopg.Connection
 
 1. **PR 本文のチェックボックス** — `core_guard` が `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` を要求する。**これを満たすまで CI は red のまま**
 2. **`scripts/frozen_history.py` が `.claude/core-areas.json` のどのパターンにも該当しない**(実測)。`tests/test_frozen_history.py` も同様。**本 PR がこの穴を作った** — `frozen_history.py` は tenant 分離の凍結更新判定を丸ごと担うのに、変更が `core_guard` の人間確認要求を素通りする。**登録は設計書 6.3 規則⑤の人間判断**なので、本 PR へ含めるか別タスクへ送るかを決める必要がある
+
+### 確認対象の現行化(CI 是正後)
+
+**シート冒頭の `対象= e62aced..7f22075` は `6d36a07` までに更新する。** ステップ 9 の逐行確認は下記を対象とする。
+
+- **対象=** `fix/tenant-boundary-baseline` の `e62aced..6d36a07`
+- **範囲=** **逐行確認の中心は `4b05a09`(ステップ 7)と `6d36a07`(その是正)** — 検査器を触る 2 コミット。他は未結線の追加・テスト・証跡
+- **方法=** 本シートの 3 節を目視で突合し、PR 本文のチェックボックスへ記入する
+
+### CI で出た実欠陥 2 件(`6d36a07` で是正)
+
+**どちらもローカルの `uv run pytest tests/` だけでは出ない差だった。**
+
+| # | 欠陥 | 原因 | 是正 |
+| --- | --- | --- | --- |
+| **1** | CI の `harness` で **10 件 fail**。`fatal: Invalid symmetric difference expression e62aced...HEAD` | `check_repository` が PR 受理モードのとき**引数の `base_ref` を無条件に捨てて `pull_request.base_sha` を使っていた**。一時リポジトリを検査するテストは自分の commit を渡すので、そこに無い develop の commit を参照して git が落ちた。**ローカルは `GITHUB_EVENT_NAME` が無く不変量モードなのでこの経路を通らない** | **イベントの適用範囲を `GITHUB_WORKSPACE` と同一のリポジトリに限定**。同一 workspace で**イベントと食い違う明示 `base_ref` は拒否**(自分で base を選び直す経路を開かない)。**別のリポジトリルートにはイベントを適用しない**。あわせて**評価コンテキストを履歴検査まで引き渡し、環境変数を再読して PR モードへ戻る経路を消した** |
+| **2** | CI の `backend` で `contract_revision: 2 != 3` / `source_digest` 不一致 | `repository_contract.py` / `tenant_context_contract.py` / `runtime_contract.py` は**いずれも `contracts/tenant_boundary/` の資産からの生成モジュール**。ステップ 7 で資産を繰り上げたのに**生成物が旧版のまま**だった。**委任先が `backend/` のテストを回していなかった** | **3 件を資産から生成し直した**。**資産側は変えていない**(生成物を資産へ合わせるのであって逆ではない) |
+
+**`6d36a07` は検査器と `frozen_history.py` を触るので射影が動く。** **新しい記録は足さず**(1 受理 1 記録)、**既存 v2 記録の `change.after` の snapshot 参照を実内容へ合わせ直した**。
+
+- **旧 snapshot 4 件は不変**、**新 snapshot 2 件を追記**(計 6 件。全件で「ファイル名 == 内容の sha256」が成立)
+- **識別値・記録件数・`external_files`・`history_authority` は 7 資産すべてで変えていない**(機械確認済み)
+
+### DB テストを実機で実行した(委任先では未実行)
+
+委任先の sandbox は Docker API へ接続できず **DB 必須 211 件が未実行**だった。**使い捨ての PostgreSQL 17.11-bookworm を別ポートで立てて自分で回した**(開発 DB と `.env` には触れていない)。
+
+| 対象 | 結果 |
+| --- | --- |
+| `backend/` `uv run pytest` | **585 passed**(DB 必須 211 件を含む) |
+| `backend/` `ruff check` / `ruff format --check` / `ty check` | green |
+| ルート `uv run pytest tests/` | **1760 passed** |
+| ルート `ruff check .` / `ty check` | green |
+| `uv run python scripts/check_tenant_boundary_bypass.py` | `tenant-boundary bypass check: ok` |
+
+**罠 1 件**: `db_fixtures.py` の被検査ロール fixture は**ロールを自前で作り、事前に存在すると fail-closed で落ちる**。CI の DSN を真似て `pitchlog_test_role` を先に作ったら 211 件が error になった。**事前に作らないのが正しい**。使い捨てコンテナは削除済みで、開発 DB にロールの残滓が無いことも確認した。
+
+### CI の最終状態(`6d36a07`)
+
+| ジョブ | 結果 |
+| --- | --- |
+| `tenant-boundary-bypass` | **pass**(PR 受理モードで実走 — DoD の D4 項目) |
+| `harness` | **pass**(10m34s) |
+| `backend` | **pass**(7m20s) |
+| `frontend` / `docs-lint` / `secrets` / `nfr021-append-only` / `backend-changes` / `frontend-changes` | pass |
+| **`core-guard`** | **fail — 本逐行確認の完了を待っている**(PR 本文のチェックボックス) |
