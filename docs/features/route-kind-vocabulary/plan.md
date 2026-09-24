@@ -118,7 +118,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **`operation` の値域** | **`{read, insert, update}`**(閉じた集合) | **削除は論理削除**(要件書 4.0-2)なので `update` に含まれる。**`delete` を値域に置かない**ことで物理削除の経路を構造的に作れなくする |
 | **`origin`** | **`design` を強制**(`legacy_route` が `requirement` を強制するのと同型 — `:2131-2132`) | 要件書に製品 CRUD 経路の条項が無い(research.md 2 節)。**強制することで「design のときだけ provenance を見る」現行構造の穴が塞がる** |
 | **`route_id` の導出規則** | **`ROUTE:RECORD:<資源>:<OPERATION>`**。末尾が `operation` と**大文字小文字を無視して一致**すること | `shared_data` が 3 軸から `route_id` を導出して照合する形(`:2140-2166`)と同型 |
-| **`provenance_ids`** | **専用 ID `PLAN-TSK446-TENANT-OWNED-DATA` を含むこと**を強制 | 既存 provenance(`PLAN-STEP4-LEGACY-DENY`)の流用を塞ぐ。**`design_provenance` の `path` に本計画書を指す前例がある**(`route-registry.json:78-84` の唯一の行が `docs/features/pg-authz-verification/plan.md`) |
+| **`provenance_ids`** | **専用 ID `PLAN-TSK446-RECORD-AND-AGGREGATE` を含むこと**を強制 | 既存 provenance(`PLAN-STEP4-LEGACY-DENY`)の流用を塞ぐ。**`design_provenance` の `path` に本計画書を指す前例がある**(`route-registry.json:78-84` の唯一の行が `docs/features/pg-authz-verification/plan.md`) |
 | **`disposition`** | **既存の `conditional` へ写す** | **新値を作らない**。ただし理由は「404/403 を決めるから」ではない(**1 周目 P1-2 の是正** — `disposition` は HTTP status を決めていない。`:2395` の閉じた値域と `route_kind` の対応しか検査しない)。**新値は `http-route-matrix.json` の `route_dispositions` の exact-set(`:2397-2400`)も動かす**ため、**変更面を最小に保つ**のが理由 |
 | **名前** | **`record_and_aggregate`**(**裁定済 2026-09-24**) | 要件書 `:849`「**制御資源は記録・集計とは別のクラスである**」— **要件書が制御資源と対置してクラス名として使う唯一の語**。既存の `control_read` / `management_operation` と**同じ軸で並ぶ**。**`tenant_owned_data` を採らなかった理由**: 424 の表分類のプロファイル名 `tenant_owned` と語彙が結びつき、**表の RLS プロファイルと経路分類を混同しうる**(1 周目 P1-1)うえ、**424 側の分類変更で意味が変わりうる**ため「本タスクは 424 と独立」という前提と矛盾する |
 
@@ -143,6 +143,11 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 ### 4-3. 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 **TSK-312 の前例に倣い「テスト先行」で進める**。**総数が変わりうるため `/<N>` を書かない**。
+
+> **【2 周目の是正】各ステップの合格判定は「全件実行」で行う。**
+> 2 周目の敵対レビューで、当方が絞り込み実行(`-k`)しか回していなかったため
+> **34 本の red を見落としていた**ことが判明した(想定 2 本に対し実測 36 failed)。
+> **差分が最小であることの確認は、その帰結の確認にならない。**
 **各ステップ終了時の期待失敗集合を明示する**(**1 周目 P0-4 の是正** — 途中のステップで全件 green は時系列上ありえない)。
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
@@ -152,6 +157,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | 3 | **検査器と資産を対で更新する** — 4-2 の 1〜7・9 と、`route-registry.json` + `tests/fixtures/authz_claims/route-registry.json` の `enums.route_kinds` | ステップ 2 の 6 種が **green**。**期待失敗**: `test_repository_derived_assets_are_valid`(lock 未更新のため)と `test_repository_oracle_assets_are_valid`(seal 未更新のため)は **red のまま**。**これ以外に red が無いこと**を全件実行で確認する |
 | 4 | **派生 lock を再封印する** — `--reseal-derived --skip-oracle`。**fixture の lock は CLI が触らないので手で作り直す** | `route-registry.lock.json` の **`entries` と `aggregate_decision_digest` が変更前と完全一致**し、**`asset_digest` だけが変わる**(**1 周目 P1-4 の是正** — 件数だけでは判定不変を証明しない)。**期待失敗**: `test_repository_oracle_assets_are_valid` は red のまま |
 | 5 | **oracle の内容を追随させ、人間の確認を受ける** — 前段コミットの SHA を **7 箇所の `oracle_commit`**(seal 1 + oracle 資産 6)へ差し替える。**この時点で敵対レビューと人間確認を受ける**(前例の順序は「**内容追随 → commit 差し替え → レビュー → reseal**」— `docs/worklog/2026-09-03-authz-claims-corpus.md:67`) | 差分が人間に確認されている。**まだ reseal しない** |
+| 5b | **oracle 外の digest 連鎖を更新する**(**2 周目 P1-4 の是正**)— `oracle_commit` の差し替えで `ddl-elements.json` と `claim-mutant-map.json` の blob が変わるため、それらを参照する **`failure-injection-points.json`** と **`mcdc-map.json`** の記録 digest を再計算する。**`--reseal-oracle` はこの 2 資産を更新しない** | `scripts/check_failure_injection_points.py` と `scripts/check_mcdc_map.py` が green |
 | 6 | **凍結基準の履歴を追記し、oracle を再封印する** — `frozen-baselines.json` の `history` へ **10 キーすべて**を持つ 1 レコード(`acceptance_id` / `series` / `new_identity` / `prior_identity` / `changes` / `placement_change` / `moved` / `reason` / `approved_by` / `approved_at`。**純粋な SHA 移動でも `changes` は最低 1 件・`placement_change` は no-op・`moved: false` が要る**)→ `--reseal-oracle` | `uv run python scripts/check_authz_catalog.py` が green。**`uv run python scripts/check_frozen_baselines.py --invariants-only`** が green(**mode 指定が必須** — 無指定は argparse error)。**全件 green はここで初めて成立する** |
 
 ## 5. DoD(受け入れ基準)

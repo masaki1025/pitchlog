@@ -1907,6 +1907,20 @@ def _validate_claim_dispositions(
     return dispositions_by_key
 
 
+def _validate_record_and_aggregate_route_ids(
+    route_by_id: dict[str, dict[str, object]],
+) -> None:
+    """record_and_aggregate route が未登録であることを検査する。"""
+    actual_route_ids = frozenset(
+        route_id
+        for route_id, route in route_by_id.items()
+        if route["route_kind"] == "record_and_aggregate"
+    )
+    expected_route_ids: frozenset[str] = frozenset()
+    if actual_route_ids != expected_route_ids:
+        raise CatalogError("record_and_aggregate route が空集合と exact-set 不一致")
+
+
 def validate_route_registry(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -2216,14 +2230,7 @@ def validate_route_registry(
         operation_ids
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
-    actual_record_route_ids = frozenset(
-        route_id
-        for route_id, route in route_by_id.items()
-        if route["route_kind"] == "record_and_aggregate"
-    )
-    expected_record_route_ids: frozenset[str] = frozenset()
-    if actual_record_route_ids != expected_record_route_ids:
-        raise CatalogError("record_and_aggregate route が空集合と exact-set 不一致")
+    _validate_record_and_aggregate_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
         source_claim_ids = route["source_claim_ids"]
