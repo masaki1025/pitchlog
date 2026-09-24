@@ -21,6 +21,21 @@
       "path": "contracts/authz/product/function-bodies/roles/pitchlog_management_fn_owner.sql",
       "element_type": "role",
       "element_id": "pitchlog_management_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/databases/current_database.sql",
+      "element_type": "database",
+      "element_id": "current_database"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/public.sql",
+      "element_type": "schema",
+      "element_id": "public"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/authz_private.sql",
+      "element_type": "schema",
+      "element_id": "authz_private"
     }
   ]
 }

@@ -166,10 +166,11 @@ def _read_verified_body_entries(
 
 def _section_element_ids(
     rows: object,
+    id_field: str,
     expected_ids: set[str],
     label: str,
 ) -> tuple[str, ...]:
-    """資産セクションから宣言 ID を順序付きで導出する。"""
+    """Spec指定のID列から宣言IDを順序付きで読む。"""
     if not isinstance(rows, list):
         raise AuthzDDLGenerationError(f"{label}はarrayでなければならない")
     if not rows:
@@ -178,35 +179,23 @@ def _section_element_ids(
         raise AuthzDDLGenerationError(f"{label}の全要素はobjectでなければならない")
 
     row_objects = [row for row in rows if isinstance(row, dict)]
-    common_keys = set(row_objects[0])
-    for row in row_objects[1:]:
-        common_keys.intersection_update(row)
-    candidates: list[tuple[str, ...]] = []
-    for key in common_keys:
-        values = tuple(row[key] for row in row_objects)
-        if (
-            all(isinstance(value, str) and value for value in values)
-            and len(set(values)) == len(values)
-            and set(values) <= expected_ids
-        ):
-            candidates.append(
-                tuple(value for value in values if isinstance(value, str))
-            )
-    if len(candidates) != 1:
-        raise AuthzDDLGenerationError(f"{label}の要素ID列を一意に導出できない")
-    return candidates[0]
-
-
-def _asset_section_name(element_type: str) -> str:
-    """Manifest の単数形種別から資産セクション名を導出する。"""
-    if element_type.endswith("y") and element_type[-2:-1] not in "aeiou":
-        return f"{element_type[:-1]}ies"
-    return f"{element_type}s"
+    values = tuple(row[id_field] if id_field in row else None for row in row_objects)
+    if not all(isinstance(value, str) and value for value in values):
+        raise AuthzDDLGenerationError(
+            f"{label}.{id_field}は空でない文字列でなければならない"
+        )
+    declared_ids = tuple(value for value in values if isinstance(value, str))
+    if len(declared_ids) != len(set(declared_ids)):
+        raise AuthzDDLGenerationError(f"{label}.{id_field}が重複している")
+    if not set(declared_ids) <= expected_ids:
+        raise AuthzDDLGenerationError(f"{label}.{id_field}がmanifestにないIDを含む")
+    return declared_ids
 
 
 def _assemble_statements(
     ddl_elements: dict[str, object],
     entries: tuple[_BodyEntry, ...],
+    spec: AuthzAssetSpec = PROBE_SPEC,
 ) -> tuple[DDLStatement, ...]:
     """DDL 資産の宣言順に manifest body を並べる。"""
     entries_by_type: defaultdict[str, list[_BodyEntry]] = defaultdict(list)
@@ -214,9 +203,19 @@ def _assemble_statements(
         entries_by_type[entry.element_type].append(entry)
 
     section_positions = {name: index for index, name in enumerate(ddl_elements)}
+    sections_by_type = {
+        section.element_type: section for section in spec.element_sections
+    }
     element_positions: dict[tuple[str, str], tuple[int, int]] = {}
     for element_type, typed_entries in entries_by_type.items():
-        section_name = _asset_section_name(element_type)
+        section = (
+            sections_by_type[element_type] if element_type in sections_by_type else None
+        )
+        if section is None:
+            raise AuthzDDLGenerationError(
+                f"manifest種別が資産指定にない: {element_type}"
+            )
+        section_name = section.section_name
         if section_name not in section_positions:
             raise AuthzDDLGenerationError(
                 f"DDL要素資産にmanifest種別のセクションがない: {element_type}"
@@ -224,6 +223,7 @@ def _assemble_statements(
         expected_ids = {entry.element_id for entry in typed_entries}
         declared_ids = _section_element_ids(
             ddl_elements[section_name],
+            section.id_field,
             expected_ids,
             f"ddl-elements.{section_name}",
         )
@@ -272,4 +272,4 @@ def generate_authz_ddl(
     entries = _read_verified_body_entries(root, spec)
     ddl_elements = _read_json_object(root / spec.ddl_elements_path, "ddl-elements")
     _validate_asset_scope(ddl_elements, spec)
-    return _assemble_statements(ddl_elements, entries)
+    return _assemble_statements(ddl_elements, entries, spec)

@@ -56,7 +56,115 @@
     "pitchlog_owner"
   ],
   "membership_edges": [],
-  "schemas": [],
+  "databases": [
+    {
+      "database_id": "current_database",
+      "name_expression": "current_database()",
+      "owner": "pitchlog_owner",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CONNECT",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CONNECT",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "TEMPORARY",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "TEMPORARY",
+          "grantable": false
+        }
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "schema_id": "public",
+      "schema_name": "public",
+      "creation": "existing",
+      "owner": "pitchlog_owner",
+      "ownership_path": "pg_database_owner",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_shared_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_shared_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "authz_private",
+      "schema_name": "authz_private",
+      "creation": "product_ddl",
+      "owner": "pitchlog_shared_fn_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    }
+  ],
   "tables": [],
   "predicates": [],
   "policies": [],

@@ -134,8 +134,11 @@ def _statement_by_role(
     statements: tuple[DDLStatement, ...],
 ) -> dict[str, DDLStatement]:
     """生成結果をロールIDで一意に引ける形へ変換する。"""
-    result = {statement.element_id: statement for statement in statements}
-    assert len(result) == len(statements)
+    role_statements = tuple(
+        statement for statement in statements if statement.element_type == "role"
+    )
+    result = {statement.element_id: statement for statement in role_statements}
+    assert len(result) == len(role_statements)
     return result
 
 

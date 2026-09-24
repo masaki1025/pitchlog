@@ -184,6 +184,9 @@ PRODUCT_SPEC = AuthzAssetSpec(
     scope_status_field="status",
     allowed_scope_status="product_configuration",
     asset_kind="product",
-    element_sections=PROBE_SPEC.element_sections,
+    element_sections=(
+        *PROBE_SPEC.element_sections,
+        AuthzElementSectionSpec("database", "databases", "database_id"),
+    ),
     operation_handlers=(),
 )

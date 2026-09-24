@@ -166,6 +166,58 @@ PRODUCT_ROLE_EXPECTATIONS: dict[str, dict[str, object]] = {
         "inherit": False,
     },
 }
+PRODUCT_DATABASE_EXPECTATIONS: dict[str, dict[str, object]] = {
+    "current_database": {
+        "name_expression": "current_database()",
+        "owner": "pitchlog_owner",
+        "acl_expectations": frozenset({("pitchlog_app", "CONNECT", False)}),
+        "revoked_acl_expectations": frozenset(
+            {
+                ("PUBLIC", "CONNECT", False),
+                ("PUBLIC", "TEMPORARY", False),
+                ("pitchlog_app", "CREATE", False),
+                ("pitchlog_app", "TEMPORARY", False),
+            }
+        ),
+    }
+}
+PRODUCT_SCHEMA_EXPECTATIONS: dict[str, dict[str, object]] = {
+    "public": {
+        "schema_name": "public",
+        "creation": "existing",
+        "owner": "pitchlog_owner",
+        "ownership_path": "pg_database_owner",
+        "acl_expectations": frozenset(
+            {
+                ("pitchlog_app", "USAGE", False),
+                ("pitchlog_shared_fn_owner", "USAGE", False),
+            }
+        ),
+        "revoked_acl_expectations": frozenset(
+            {
+                ("PUBLIC", "USAGE", False),
+                ("PUBLIC", "CREATE", False),
+                ("pitchlog_app", "CREATE", False),
+                ("pitchlog_shared_fn_owner", "CREATE", False),
+            }
+        ),
+    },
+    "authz_private": {
+        "schema_name": "authz_private",
+        "creation": "product_ddl",
+        "owner": "pitchlog_shared_fn_owner",
+        "ownership_path": "direct",
+        "acl_expectations": frozenset(),
+        "revoked_acl_expectations": frozenset(
+            {
+                ("PUBLIC", "USAGE", False),
+                ("PUBLIC", "CREATE", False),
+                ("pitchlog_app", "USAGE", False),
+                ("pitchlog_app", "CREATE", False),
+            }
+        ),
+    },
+}
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -3012,8 +3064,136 @@ def validate_ddl_elements(
     return result
 
 
+def _product_acl_expectation_set(
+    value: object,
+    label: str,
+) -> frozenset[tuple[str, str, bool]]:
+    """製品ACL宣言を3要素の閉集合として解釈する。"""
+    if not isinstance(value, list):
+        raise CatalogError(f"{label}は配列でなければならない")
+    expectations: list[tuple[str, str, bool]] = []
+    for index, entry_value in enumerate(value):
+        entry_label = f"{label}[{index}]"
+        if not isinstance(entry_value, dict):
+            raise CatalogError(f"{entry_label}はオブジェクトでなければならない")
+        _expect_keys(
+            entry_value,
+            {"grantee", "privilege", "grantable"},
+            entry_label,
+        )
+        grantee = _expect_string(entry_value["grantee"], f"{entry_label}.grantee")
+        privilege = _expect_string(
+            entry_value["privilege"],
+            f"{entry_label}.privilege",
+        )
+        grantable = entry_value["grantable"]
+        if not isinstance(grantable, bool):
+            raise CatalogError(f"{entry_label}.grantableは真偽値でなければならない")
+        expectations.append((grantee, privilege, grantable))
+    if len(expectations) != len(set(expectations)):
+        raise CatalogError(f"{label}に重複がある")
+    return frozenset(expectations)
+
+
+def _validate_product_database_expectations(value: object) -> None:
+    """製品DBの所有者とACLをdesign.md 2-1へ照合する。"""
+    if not isinstance(value, list):
+        raise CatalogError("製品DDL manifest.databasesは配列でなければならない")
+    actual: dict[str, dict[str, object]] = {}
+    for index, row_value in enumerate(value):
+        label = f"製品DDL manifest.databases[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            row_value,
+            {
+                "database_id",
+                "name_expression",
+                "owner",
+                "acl_expectations",
+                "revoked_acl_expectations",
+            },
+            label,
+        )
+        database_id = _expect_string(
+            row_value["database_id"],
+            f"{label}.database_id",
+        )
+        if database_id in actual:
+            raise CatalogError(f"{label}.database_idが重複している: {database_id}")
+        actual[database_id] = {
+            "name_expression": _expect_string(
+                row_value["name_expression"],
+                f"{label}.name_expression",
+            ),
+            "owner": _expect_string(row_value["owner"], f"{label}.owner"),
+            "acl_expectations": _product_acl_expectation_set(
+                row_value["acl_expectations"],
+                f"{label}.acl_expectations",
+            ),
+            "revoked_acl_expectations": _product_acl_expectation_set(
+                row_value["revoked_acl_expectations"],
+                f"{label}.revoked_acl_expectations",
+            ),
+        }
+    if actual != PRODUCT_DATABASE_EXPECTATIONS:
+        raise CatalogError("製品DBの所有者またはACLがdesign.md 2-1と一致しない")
+
+
+def _validate_product_schema_expectations(value: object) -> None:
+    """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
+    if not isinstance(value, list):
+        raise CatalogError("製品DDL manifest.schemasは配列でなければならない")
+    actual: dict[str, dict[str, object]] = {}
+    for index, row_value in enumerate(value):
+        label = f"製品DDL manifest.schemas[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            row_value,
+            {
+                "schema_id",
+                "schema_name",
+                "creation",
+                "owner",
+                "ownership_path",
+                "acl_expectations",
+                "revoked_acl_expectations",
+            },
+            label,
+        )
+        schema_id = _expect_string(row_value["schema_id"], f"{label}.schema_id")
+        if schema_id in actual:
+            raise CatalogError(f"{label}.schema_idが重複している: {schema_id}")
+        actual[schema_id] = {
+            "schema_name": _expect_string(
+                row_value["schema_name"],
+                f"{label}.schema_name",
+            ),
+            "creation": _expect_string(
+                row_value["creation"],
+                f"{label}.creation",
+            ),
+            "owner": _expect_string(row_value["owner"], f"{label}.owner"),
+            "ownership_path": _expect_string(
+                row_value["ownership_path"],
+                f"{label}.ownership_path",
+            ),
+            "acl_expectations": _product_acl_expectation_set(
+                row_value["acl_expectations"],
+                f"{label}.acl_expectations",
+            ),
+            "revoked_acl_expectations": _product_acl_expectation_set(
+                row_value["revoked_acl_expectations"],
+                f"{label}.revoked_acl_expectations",
+            ),
+        }
+    if actual != PRODUCT_SCHEMA_EXPECTATIONS:
+        raise CatalogError("製品スキーマの所有者またはACLがdesign.md 2-1と一致しない")
+
+
 def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
-    """製品ロールと到達経路の宣言を設計上の閉集合と照合する。"""
+    """製品ロール・DB・スキーマの宣言を設計上の閉集合と照合する。"""
     if not isinstance(raw, dict):
         raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
     _expect_keys(
@@ -3026,6 +3206,7 @@ def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
             "roles",
             "permanent_privileged_role_ids",
             "membership_edges",
+            "databases",
             "schemas",
             "tables",
             "predicates",
@@ -3079,6 +3260,8 @@ def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
     memberships = raw["membership_edges"]
     if memberships != []:
         raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
+    _validate_product_database_expectations(raw["databases"])
+    _validate_product_schema_expectations(raw["schemas"])
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": len(roles_by_id),
