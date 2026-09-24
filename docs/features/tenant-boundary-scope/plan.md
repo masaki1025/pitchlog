@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e493b75e68781cb819ce706fa3252b1
 branch: fix/tenant-boundary-scope
 created: 2026-09-24
-計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -201,8 +201,9 @@ context = Context(tenant_id)
 
 #### 宣言する保証単位(**共通の逐語文を 1 つ固定し、4 箇所へそのまま置く**)
 
-**★ 5 周目 P1-1 の是正**: 従来は 6-0 用・1-1 用に別々の完成文を書いていたが、
-**それでは「同文」にならない**。**下の 1 文を逐語で 4 箇所(検査器 docstring / `design.md` 6-0 /
+**★ 5 周目 P1-1 / 6 周目 P1-2 の是正**: 従来は 6-0 用・1-1 用に別々の完成文を書いていたが、
+**それでは「同文」にならない**。**共通逐語の対象は下の引用ブロック全体**((i)〜(v) と「守らないもの」を含む)。
+**これを逐語で 4 箇所(検査器 docstring / `design.md` 6-0 /
 同 1-1(`:58`)/ PR 本文)へ置く**。各所の文脈説明は**この 1 文の前後に足す**(1 文自体は変えない)。
 **4 箇所の突合はステップ 10(文書を書くステップ)で行う** — ステップ 6 は docstring しか触らないので、
 そこで「4 箇所で同文」を合格条件にすると実行順として成立しない。
@@ -245,14 +246,15 @@ context = Context(tenant_id)
 (`scripts/core_guard.py:200` `:274`)。**実際の逐行確認は運用統制**である。これも明記する。
 
 - **これは 6.3-⑤「paths の追加・削除・縮小は敵対レビュー + 人間承認の対象」に当たる**
-- **`design.md` 6-0 の既存 bullet を「置換」する**(3 周目 P0-2 — 例外を後置するだけでは
-  継続保証の原文と保証単位が二重化する)。**完成文を計画で固定する**:
+- **`design.md` 6-0 の既存 bullet を「置換」する**(3 周目 P0-2)。
+  **置換後の本体は上記の共通逐語ブロック((i)〜(v) と「守らないもの」を含む引用全体)そのもの**とし、
+  下の 1 文は**その前に置く文脈説明**である(6 周目 P1-2):
 
   > **守るもの(置換後)**: **変更ファイル内で構築に使われる名前を読み取れる範囲**において、
   > **宣言済みの条件 (i)〜(v) が対象とする構築経路**について、不注意・知識の欠落・
   > リファクタリングによる漂流を止めること。**名前を読み取れない範囲は「守らないもの」に従う。**
 
-- **`design.md:58`(1-1「allowlist 外からの構築は検査で red」)も完成文で置換する**:
+- **`design.md:58`(1-1)も同じ共通逐語ブロックで置換する**。下の 1 文は**その後に置く文脈説明**である:
 
   > **allowlist 外からの構築は、条件 (i)〜(v) が名前を読み取れる範囲において検査で red になる。**
   > **読み取れない範囲のうち `backend/src/pitchlog/{api,services}/**` は人間の逐行確認が担う。**
@@ -396,7 +398,7 @@ context = Context(tenant_id)
 | **新** `C5_CONTEXT_RELATIVE_IMPORT` | `from .context import TenantContext` → `TenantContext(t)` | D6 |
 | **新(機械)** センサス回帰 | **`path` / `line` / `end_line` / `scope` / `code` / `symbol` / `message` の exact-set**。**永続 golden を置かず、旧 checker と新 checker を同一ソースへ当てて差分を取る**ので、**行番号は旧・新で同じ**であり「無関係な行移動でずれる」問題は起きない(3 周目 P1-2 — 2 周目に `line` を外した理由は同一ソース比較と矛盾していた)。**未管理の凍結基準にもならない** | D7 |
 | **新(機械)** **CI の実経路**での回帰 | `scan_directory` ではなく **`scan_source_change` + 実コミット列 + `check_repository`**(`:3376` `:3964-3989`)。**全文走査と CI 経路を取り違えて「閉じた」と誤判定した前例がある**(`docs/worklog/2026-09-17-tenant-boundary-enforcement.md:144-148`) | D7 |
-| **新(機械)** **構文マトリクス**(全位置 1 件ずつ) | 各構文位置について **flow 登録**と **scanner 判定**の両方を記録し、**判定済み `ast.Call` の ID を突き合わせる**(3 周目 P1-3)。現行の実測値: | D5 |
+| **新(機械)** **検査器の不変条件**(3 集合一致・`ContractError` → exit 2) | 各構文位置について **flow 登録**と **scanner 判定**の両方を記録し、**判定済み `ast.Call` の ID を突き合わせる**(3 周目 P1-3)。現行の実測値: | D5 |
 
 **負例は資産に載せる**(単体テストで済ませると「exact-set の負例」という宣言力を失い、両建ての証拠として弱い)。
 → `negative-fixtures.json` の `fixture_set_revision` が動き、**2 つ目の資産の履歴 1 件が機械的に要求される**。
@@ -415,7 +417,7 @@ context = Context(tenant_id)
 | 資産 | 動く理由 | 要求 |
 | --- | --- | --- |
 | `base-allowlist.json` | `external_files` に検査器本体(`:19-21`)。1 行で動く | `contract_revision` 13→14、`current_identifiers` 更新、履歴**ちょうど 1 件** |
-| `negative-fixtures.json` | **新規負例 17 件**で `fixtures` が変わる(内訳: 再輸出系 9 = façade / サブクラス / 深さ上限 / star / 循環 / 自己参照 / 条件分岐 / 欠落モジュール / 未対応の静的代入、PEP 695 型境界 2、訪問位置 4 = デフォルト引数 / `DictComp` / 添字代入先 / 相対 import、ほか 2 = 属性名一致 / 許可シンボルのデフォルト捕捉) | `fixture_set_revision` 5→6、同上 |
+| `negative-fixtures.json` | **新規負例 22 件**で `fixtures` が変わる(内訳: 再輸出系 9 = façade / サブクラス / 深さ上限 / star / 循環 / 自己参照 / 条件分岐 / 欠落モジュール / 未対応の静的代入、PEP 695 型境界 2、訪問位置 9 = デフォルト引数 / `DictComp` / 添字代入先 / 相対 import / lambda default / annotated assignment / class base / except handler type / 終端文の後、ほか 2 = 属性名一致 / 許可シンボルのデフォルト捕捉) | `fixture_set_revision` 5→6、同上 |
 | 他 5 資産 | 変更しない | **履歴も識別値も触ってはならない**(`:678-680`) |
 
 **条件 2 の裁定 exact-set は新資産を作らず `base-allowlist.json` へ内包する**(2 周目 P1-2)。
@@ -441,13 +443,13 @@ context = Context(tenant_id)
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-**厳しくする側(1〜5)を緩和(6)より先に入れる。凍結更新(10)は必ず最後。**
+**厳しくする側(1〜5)を緩和(6)より先に入れる。凍結更新(ステップ 12)は必ず最後。**
 
 | # | ステップ(何を作るか) | 合格条件 |
 | --- | --- | --- |
 | 1 | **センサスの土台**: **`path`/`line`/`end_line`/`scope`/`code`/`symbol`/`message` の exact-set** で比較する回帰と、**CI の実経路(`scan_source_change` + 実コミット列 + `check_repository`)**の回帰を置く。**永続 golden は置かず、旧 checker と新 checker を同一ソースへ当てて差分を取る**。**検査器のロジックは 1 行も変えない** | `[機械]` 現行 develop で差分 0・CI 経路のテスト green |
-| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**・**検査器の不変条件**(走査するすべての入力 AST で `ast.walk` の Call ID 集合 = flow 登録集合 = scanner 判定集合。**不一致は検査器自体を red**)が green・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
-| 3 | **flow の網羅性**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価 | `[機械]` 負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` red・**センサスが TB001〜TB006 について不変** |
+| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**(**不変条件の green 判定はステップ 3 末尾で行う** — 現 HEAD で既に **実 Call 2,261 / scanner 到達 2,261 / flow 登録 2,249 = 12 件の差**があり〔レビュア実測〕、`DictComp` 等の flow 修正を入れるまで green にならないため)・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
+| 3 | **flow の網羅性を閉じ、不変条件を green にする**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価、**lambda default・annotated assignment・class base・`except`/`except*` の handler type・終端文の後**(`:2484`)、**match guard**(`:2444`)、**`TryStar`**(`:2411`)。**5 周目の探針 5 件に対応する flow 修正はここで入れる** | `[機械]` **不変条件が green**(3 集合一致)・負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` / `..._IN_LAMBDA_DEFAULT` / `..._IN_ANNOTATED_ASSIGNMENT` / `..._IN_CLASS_BASE` / `..._IN_EXCEPTION_HANDLER_TYPE` / `..._AFTER_TERMINATOR` red・**センサスが TB001〜TB006 について不変** |
 | 4 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作るヘルパーを `:2277` / `:2508` / `:1685` で使う | `[機械]` 負例 `C5_CONTEXT_RELATIVE_IMPORT` red・**センサス完全不変**(相対 import が 0 件なので差分が出たら実装が誤り) |
 | 5 | **(iv)(v) を入れる(強化)**: 末尾名一致を属性でも裸の名前でも provenance 非依存で拒否 + **再輸出写像を「可能な起源集合 + unresolved」で持つ**(集合に構築シンボルがあれば赤 / 深さ上限・star・曖昧分岐は裸名でも属性でも赤)。既存テスト `:1395` を**両側 red**へ書き換え | `[機械]` 負例 `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)` — (iv) で捕まらない名前**)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` が red・**センサスで TB007 が増える方向のみ** `[手動]` **逐行確認必須** |
 | 6 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が約 7 件へ** `[手動]` docstring の文が**共通逐語文と一致**していること(**4 箇所の突合はステップ 10**) |
@@ -504,9 +506,23 @@ NFR-019 の種別では**単体**(検査器自身のテスト)。ランタイム
 
 → **検査器の中へ不変条件を置く**:
 
-> **走査するすべての入力 AST について、`ast.walk(tree)` から得た `ast.Call` の ID 集合と、
-> flow が登録した集合・scanner が判定した集合が一致すること。
-> 一致しなければ検査器自体を red にする**(`TB000` 相当の「検査不能」として扱う)。
+> **`scan_source` が正常に parse した同一の `tree` について、`scanner.visit(tree)` 完了直後に
+> ① `ast.walk(tree)` の `ast.Call` ID ② `flow.callable_symbols` のキー
+> ③ `_check_tenant_context_call` へ実際に到達した Call ID の 3 集合が一致すること。**
+> **一致しなければ `ContractError` として伝播させ、exit 2(判定不能)にする。**
+
+**★ 通常の `Violation`(`TB000`)にしてはいけない**(6 周目 P0-1)。
+`scan_source_change` は baseline と head を**同じ `scan_source`** で検査し(`:3401` `:3410`)、
+**同一行・scope・code・symbol・message の違反を相殺する**(`:3446` `:3475`)。
+→ **同じ未登録 Call が baseline / head の双方にあると相殺されて消える。**
+→ **baseline 側だけの不一致は head 違反の走査対象にならず、やはり消える。**
+**visitor の通常のリファクタリング・注釈変更・別行の編集で再現する漂流経路**であり、
+「不一致なら検査器自体を red」という保証を満たさない。
+
+**exit 契約**: 通常の違反は exit 1、`ContractError` は **exit 2**(`:4031`)。
+**不変条件の不一致は exit 2 側に載せ、相殺の外へ出す。**
+**負例**: baseline と head が**同じ不一致を持つ**ケースで、
+**`scan_source_change` / `check_repository` / CLI がいずれも非 0** になること。
 
 **これなら、将来 Python に新しい構文位置が増えても自動的に検出される。**
 下の表は**例示であって母集団ではない**(実測値は残すが、**被覆の根拠にはしない**)。
