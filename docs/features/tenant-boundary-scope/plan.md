@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e493b75e68781cb819ce706fa3252b1
 branch: fix/tenant-boundary-scope
 created: 2026-09-24
-計画レビュー周回: 6        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 7        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -448,20 +448,20 @@ context = Context(tenant_id)
 | # | ステップ(何を作るか) | 合格条件 |
 | --- | --- | --- |
 | 1 | **センサスの土台**: **`path`/`line`/`end_line`/`scope`/`code`/`symbol`/`message` の exact-set** で比較する回帰と、**CI の実経路(`scan_source_change` + 実コミット列 + `check_repository`)**の回帰を置く。**永続 golden は置かず、旧 checker と新 checker を同一ソースへ当てて差分を取る**。**検査器のロジックは 1 行も変えない** | `[機械]` 現行 develop で差分 0・CI 経路のテスト green |
-| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**(**不変条件の green 判定はステップ 3 末尾で行う** — 現 HEAD で既に差があり、`DictComp` 等の flow 修正を入れるまで green にならないため)
+| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・**関数とクラスの `type_params`**(PEP 695)も scanner 側の訪問対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**(**不変条件の green 判定はステップ 3 末尾で行う** — 現 HEAD で既に差があり、`DictComp` 等の flow 修正を入れるまで green にならないため)
 
 **実測(レビュアと自分で独立に一致)**: `backend/src` 全体で **実 Call 2,261 / flow 登録 2,249 = 差 12 件**。
 内訳は **`pitchlog/authz/catalog.py` 10 / `pitchlog/authz/ddl.py` 1 /
 `pitchlog/db/sync_protocol/event_kinds.py` 1**(自分の計測で特定)。
 → **ステップ 3 の合格条件は「差 12 → 0」**であり、**この 3 ファイルが実際の検証対象**になる。・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
-| 3 | **flow の網羅性を閉じ、不変条件を green にする**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価、**lambda default・annotated assignment・class base・`except`/`except*` の handler type・終端文の後**(`:2484`)、**match guard**(`:2444`)、**`TryStar`**(`:2411`)。**5 周目の探針 5 件に対応する flow 修正はここで入れる** | `[機械]` **不変条件が green**(3 集合一致)・負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` / `..._IN_LAMBDA_DEFAULT` / `..._IN_ANNOTATED_ASSIGNMENT` / `..._IN_CLASS_BASE` / `..._IN_EXCEPTION_HANDLER_TYPE` / `..._AFTER_TERMINATOR` red・**センサスが TB001〜TB006 について不変** |
+| 3 | **flow の網羅性を閉じ、不変条件を green にする**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価、**lambda default・annotated assignment・class base・`except`/`except*` の handler type・終端文の後**(`:2484`)、**match guard**(`:2444`)、**`TryStar`**(`:2411`)、**関数・クラスの `type_params`**(PEP 695)。**5 周目の探針 5 件に対応する flow 修正はここで入れる** | `[機械]` **不変条件が green**(3 集合一致)・負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` / `..._IN_LAMBDA_DEFAULT` / `..._IN_ANNOTATED_ASSIGNMENT` / `..._IN_CLASS_BASE` / `..._IN_EXCEPTION_HANDLER_TYPE` / `..._AFTER_TERMINATOR` red・**センサスが TB001〜TB006 について不変** |
 | 4 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作るヘルパーを `:2277` / `:2508` / `:1685` で使う | `[機械]` 負例 `C5_CONTEXT_RELATIVE_IMPORT` red・**センサス完全不変**(相対 import が 0 件なので差分が出たら実装が誤り) |
 | 5 | **(iv)(v) を入れる(強化)**: 末尾名一致を属性でも裸の名前でも provenance 非依存で拒否 + **再輸出写像を「可能な起源集合 + unresolved」で持つ**(集合に構築シンボルがあれば赤 / 深さ上限・star・曖昧分岐は裸名でも属性でも赤)。既存テスト `:1395` を**両側 red**へ書き換え | `[機械]` 負例 `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)` — (iv) で捕まらない名前**)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` が red・**センサスで TB007 が増える方向のみ** `[手動]` **逐行確認必須** |
 | 6 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が約 7 件へ** `[手動]` docstring の文が**共通逐語文と一致**していること(**4 箇所の突合はステップ 10**) |
 | 7 | **条件 2 の裁定機構**: 候補パターンは**変えず**、**裁定済みシンボルの exact-set を `base-allowlist.json` へ内包**(理由必須)。未登録は red。**裸の局所変数 7 件は裁定せず TSK-235 側で改名**(候補集合には触らない) | `[機械]` **`RecordingGeneration` 14 件が赤のまま**・裁定済み(完全修飾 94 + 裸のクラス名 9)が緑・**裁定に無い新しい `*Generation` が赤**。**統合 worktree の TB002 = 0 は TSK-235 の改名後に成立する**ので、本タスクでは **7 件が残ることを合格条件にする** |
 | 8 | **コア paths の拡大(第 1 段)**: `tests/test_core_guard.py` の area paths exact-set(`:1566`)へ `backend/src/pitchlog/api/**` と `backend/src/pitchlog/services/**` を**先に**足す。**`core-areas.json` はまだ触らない** | `[機械]` テストが**まだ red**(実体が無いため)。**この 1 コミットは意図的に red で、次のステップで green になる**ことを PR 本文へ明記 |
 | 9 | **コア paths の拡大(第 2 段)**: `.claude/core-areas.json` の tenant-isolation へ **`api/**` と `services/**` の両方**を追加。**`core_guard.py` / `test_core_guard.py` と同一コミットにしない**(PR #74 が持ち込む共変更禁止) | `[機械]` `matched_paths()` が**両パスを検出する正例**と、**どちらかを外すと red になる負例**・`test_core_guard.py` が green `[手動]` **6.3-⑤ の敵対レビュー + 人間承認** |
-| 10 | **保証縮小の正式化(文書)**: `design.md` 6-0 の**該当 bullet を共通逐語文で置換**・**1-1(`:58`)を同じ共通逐語文で置換**。**PR 本文にも同じ 1 文を置く** | `[手動]` **4 箇所(docstring / 6-0 / 1-1 / PR 本文)の 1 文が逐語で一致**すること・6-0 と 1-1 が矛盾しないこと |
+| 10 | **保証縮小の正式化(文書)**: `design.md` 6-0 の**該当 bullet を共通逐語文で置換**・**1-1(`:58`)を同じ共通逐語文で置換**。**PR 本文にも同じ引用ブロックを置く** | `[手動]` **4 箇所(docstring / 6-0 / 1-1 / PR 本文)の引用ブロックが逐語で一致**すること・6-0 と 1-1 が矛盾しないこと |
 | 11 | **申し送り**: 残る TB007 約 7 件と条件 2 の局所変数 7 件を位置・形・性質つきで列挙し TSK-235 へ。**Notion の DoD を正式更新** | `[手動]` 全件列挙・**真の脆弱性でない根拠**つき・DoD が Notion に反映 |
 | 12 | **凍結基準の受理(最後)**: `base-allowlist.json`(`contract_revision` 13→14)と `negative-fixtures.json`(`fixture_set_revision` 5→6)に履歴 1 件ずつ | `[機械]` `check_tenant_boundary_bypass.py` exit 0・凍結系テスト green `[手動]` **コア領域の逐行確認**(設計書 `:377`) |
 
@@ -526,8 +526,14 @@ NFR-019 の種別では**単体**(検査器自身のテスト)。ランタイム
 
 **exit 契約**: 通常の違反は exit 1、`ContractError` は **exit 2**(`:4031`)。
 **不変条件の不一致は exit 2 側に載せ、相殺の外へ出す。**
-**負例**: baseline と head が**同じ不一致を持つ**ケースで、
-**`scan_source_change` / `check_repository` / CLI がいずれも非 0** になること。
+**負例(期待値を型どおり固定する — 7 周目 P1-2)**:
+baseline と head が**同じ不一致を持つ**ケースで、
+
+| 対象 | 期待 |
+| --- | --- |
+| `scan_source_change` | **`ContractError` を送出**(終了コードは返さない) |
+| `check_repository` | **`ContractError` を送出** |
+| `main` / subprocess | **exit が ちょうど 2** |
 
 **これなら、将来 Python に新しい構文位置が増えても自動的に検出される。**
 下の表は**例示であって母集団ではない**(実測値は残すが、**被覆の根拠にはしない**)。
