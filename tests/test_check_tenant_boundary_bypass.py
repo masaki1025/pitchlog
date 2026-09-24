@@ -77,6 +77,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ALIAS_EXECUTE",
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
+        "C5_CONTEXT_IN_DEFAULT_ARG",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
         "C5_CONTEXT_UNKNOWN_FACTORY",
@@ -90,6 +91,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_MULTILINE_SCALARS",
         "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
+        "C5_SECRET_IN_DEFAULT_CAPTURE",
         "C5_SET_CONFIG_FALSE",
         "C5_SET_TENANT_SQL",
         "C5_SQLALCHEMY_ORM",
@@ -661,12 +663,38 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
     assert observed_conditions == {1, 2, 3, 4, 5}
 
 
+def test_integrity_secret_default_is_checked_before_allowed_function_scope() -> None:
+    """秘密の default capture を許可シンボルの本体免除へ混入させない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = _fixture_source(
+        NEGATIVE_ROOT
+        / "pitchlog/services/c5_secret_in_default_capture.py"
+    )
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/repositories/context.py",
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol, violation.scope)
+        for violation in violations
+    ] == [
+        (
+            "TB007",
+            "pitchlog.repositories.context._TENANT_CONTEXT_SECRET",
+            "pitchlog.repositories.context.<module>",
+        )
+    ]
+
+
 @pytest.mark.parametrize("condition", (1, 2, 3, 4, 5))
 def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 68 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 70 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS

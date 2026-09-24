@@ -472,6 +472,13 @@
       "expected_error": "TB005"
     },
     {
+      "id": "C5_CONTEXT_IN_DEFAULT_ARG",
+      "path": "pitchlog/services/c5_context_in_default_arg.py",
+      "condition": 5,
+      "mutation": "関数のデフォルト引数で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
       "path": "pitchlog/services/c5_context_proof_direct_reference.py",
       "condition": 5,
@@ -490,6 +497,13 @@
       "path": "pitchlog/services/c5_context_unknown_factory.py",
       "condition": 5,
       "mutation": "完全修飾名へ解決できない callable を TenantContext の生成器として呼ぶ",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_SECRET_IN_DEFAULT_CAPTURE",
+      "path": "pitchlog/services/c5_secret_in_default_capture.py",
+      "condition": 5,
+      "mutation": "許可シンボルのデフォルト引数で発行証跡の秘密を捕捉する",
       "expected_error": "TB007"
     },
     {

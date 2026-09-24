@@ -3193,6 +3193,10 @@ class _SourceScanner(ast.NodeVisitor):
                         "TenantContext は生成箇所 allowlist 外で継承できない"
                     ),
                 )
+        for keyword in node.keywords:
+            self.visit(keyword)
+        for type_param in node.type_params:
+            self.visit(type_param)
         self.class_stack.append(node.name)
         for decorator in node.decorator_list:
             self.visit(decorator)
@@ -3224,6 +3228,23 @@ class _SourceScanner(ast.NodeVisitor):
             if resolved is not None:
                 self._check_identifier(resolved, decorator)
             self.visit(decorator)
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+        arguments = (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        for argument in arguments:
+            if argument is not None and argument.annotation is not None:
+                self.visit(argument.annotation)
+        if node.returns is not None:
+            self.visit(node.returns)
+        for type_param in node.type_params:
+            self.visit(type_param)
         self.function_stack.append((symbol, signature))
         self.safe_non_context_objects.append(set())
         for statement in node.body:
