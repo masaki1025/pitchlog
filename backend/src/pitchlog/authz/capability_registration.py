@@ -101,6 +101,10 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 #   _GetChildrenTraversal(visitor.iterate が子として返す状態)
 # - engine/base.py の Connection._execute_clauseelement が呼ぶ
 #   _execute_on_connection / _compile_w_cache
+# - sql/elements.py の ClauseElement._compile_w_cache がインスタンスから読む
+#   _compiler / _generate_cache_key
+# - sql/cache_key.py の HasCacheKey._generate_cache_key と
+#   MemoizedHasCacheKey のインスタンスメソッドキャッシュ
 # - sql/selectable.py の HasPrefixes / HasSuffixes / HasHints / Select / CTE
 # - sql/dml.py の Insert / Update
 # - sql/elements.py の BindParameter / BinaryExpression / UnaryExpression
@@ -112,9 +116,12 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 # - sql/compiler.py の visit_select / visit_insert / visit_update /
 #   visit_binary / visit_unary / visit_function
 #
-# 非子状態を型ごとに exact-set で列挙し、SQLAlchemy の版が変わった場合は
-# 再監査するまで拒否する。識別子は SQLAlchemy が引用する標準状態、型は下の
-# 組み込み型だけを許す。それ以外の状態は各検査関数で空・None・標準値へ閉じる。
+# 正常な3登録を検査した後の遅延生成キーと、標準的な JOIN・サブクエリ・CTE
+# などの構築例が持つキーを型ごとに採取し、下の instance exact-set へ固定した。
+# 許可型の MRO に値を持つ __slots__ はなく、空の __slots__ だけであった。
+# SQLAlchemy の版が変わった場合は再監査するまで拒否する。識別子は SQLAlchemy
+# が引用する標準状態、型は下の組み込み型だけを許す。それ以外の状態は各検査
+# 関数で空・None・標準値へ閉じる。
 _AUDITED_SQLALCHEMY_VERSION = "2.0.52"
 _TRAVERSED_CHILD_KINDS = (
     InternalTraversal.dp_clauseelement,
@@ -263,16 +270,190 @@ _EXPECTED_SQL_TYPE_AFFINITIES: dict[type[object], type[object]] = {
     Uuid: Uuid,
 }
 _SQL_TYPE_MEMOIZED_STATE_KEYS = ("_type_affinity", "_variant_mapping")
-_FORBIDDEN_INSTANCE_HOOKS = (
-    "get_children",
-    "_traverse_internals",
-    "_generated_get_children_traversal",
-    "_compiler_dispatch",
-    "_compile_state_factory",
-    "_compile_w_cache",
-    "_execute_on_connection",
-    "_execute_on_scalar",
-)
+_ALLOWED_INSTANCE_STATE_KEYS: dict[type[object], frozenset[str]] = {
+    Alias: frozenset({"_orig_name", "element", "name"}),
+    BinaryExpression: frozenset(
+        {
+            "_is_implicitly_boolean",
+            "_orig",
+            "_propagate_attrs",
+            "left",
+            "modifiers",
+            "negate",
+            "operator",
+            "right",
+            "type",
+        }
+    ),
+    BindParameter: frozenset(
+        {
+            "_identifying_key",
+            "_is_clone_of",
+            "_orig_key",
+            "callable",
+            "expand_op",
+            "expanding",
+            "isoutparam",
+            "key",
+            "literal_execute",
+            "required",
+            "type",
+            "unique",
+            "value",
+        }
+    ),
+    BooleanClauseList: frozenset(
+        {"_is_implicitly_boolean", "clauses", "group", "operator", "type"}
+    ),
+    ClauseList: frozenset(
+        {
+            "_is_implicitly_boolean",
+            "_text_converter_role",
+            "clauses",
+            "group",
+            "group_contents",
+            "operator",
+        }
+    ),
+    Column: frozenset(
+        {
+            "_creation_order",
+            "_from_objects",
+            "_insert_sentinel",
+            "_memoized_keys",
+            "_omit_from_statements",
+            "_proxies",
+            "_user_defined_nullable",
+            "autoincrement",
+            "base_columns",
+            "comment",
+            "comparator",
+            "computed",
+            "constraints",
+            "default",
+            "description",
+            "dispatch",
+            "doc",
+            "foreign_keys",
+            "identity",
+            "index",
+            "is_literal",
+            "key",
+            "name",
+            "nullable",
+            "onupdate",
+            "primary_key",
+            "proxy_set",
+            "server_default",
+            "server_onupdate",
+            "system",
+            "table",
+            "type",
+            "unique",
+        }
+    ),
+    CTE: frozenset(
+        {
+            "_cte_alias",
+            "_orig_name",
+            "_restates",
+            "element",
+            "name",
+            "nesting",
+            "recursive",
+        }
+    ),
+    Exists: frozenset({"_propagate_attrs", "element", "modifier", "operator", "type"}),
+    False_: frozenset({"description", "proxy_set", "type"}),
+    Function: frozenset(
+        {
+            "_has_args",
+            "_memoized_keys",
+            "clause_expr",
+            "clauses",
+            "name",
+            "packagenames",
+            "type",
+        }
+    ),
+    Grouping: frozenset({"_propagate_attrs", "element", "type"}),
+    Insert: frozenset({"_values", "dialect_options", "table"}),
+    Join: frozenset({"full", "isouter", "left", "onclause", "right"}),
+    Label: frozenset(
+        {
+            "_element",
+            "_memoized_keys",
+            "_proxies",
+            "_tq_key_label",
+            "_tq_label",
+            "element",
+            "key",
+            "name",
+            "type",
+        }
+    ),
+    Null: frozenset({"description", "proxy_set", "type"}),
+    ScalarSelect: frozenset({"_propagate_attrs", "element", "type"}),
+    Select: frozenset(
+        {
+            "_fetch_clause",
+            "_fetch_clause_options",
+            "_from_obj",
+            "_independent_ctes",
+            "_independent_ctes_opts",
+            "_label_style",
+            "_limit_clause",
+            "_order_by_clauses",
+            "_raw_columns",
+            "_where_criteria",
+            "dialect_options",
+        }
+    ),
+    Subquery: frozenset({"_orig_name", "element", "name"}),
+    Table: frozenset(
+        {
+            "_columns",
+            "_extra_dependencies",
+            "_prefixes",
+            "_sentinel_column",
+            "c",
+            "comment",
+            "constraints",
+            "description",
+            "dispatch",
+            "foreign_keys",
+            "fullname",
+            "implicit_returning",
+            "indexes",
+            "metadata",
+            "name",
+            "primary_key",
+            "schema",
+        }
+    ),
+    True_: frozenset({"description", "proxy_set", "type"}),
+    UnaryExpression: frozenset(
+        {"_propagate_attrs", "element", "modifier", "operator", "type"}
+    ),
+    Update: frozenset({"_values", "_where_criteria", "dialect_options", "table"}),
+    _OffsetLimitParam: frozenset(
+        {
+            "_identifying_key",
+            "_key_is_anon",
+            "_orig_key",
+            "callable",
+            "expand_op",
+            "expanding",
+            "isoutparam",
+            "key",
+            "literal_execute",
+            "required",
+            "type",
+            "unique",
+            "value",
+        }
+    ),
+}
 
 
 class CapabilityRegistration(Protocol):
@@ -537,6 +718,7 @@ def _validate_sql_type(
 
 def _validate_common_node_state(
     node: ClauseElement,
+    node_type: type[object],
     label: str,
     violations: list[str],
 ) -> None:
@@ -545,13 +727,22 @@ def _validate_common_node_state(
         _reject_node_state(label, "_annotations", violations)
     if node._propagate_attrs:
         _reject_node_state(label, "_propagate_attrs", violations)
+    if node_type not in _ALLOWED_INSTANCE_STATE_KEYS:
+        _reject_node_state(
+            label,
+            f"instance状態を未監査の型 {node_type.__name__}",
+            violations,
+        )
+        return
     try:
         instance_state = node.__dict__
     except AttributeError:
-        instance_state = {}
-    for hook_name in _FORBIDDEN_INSTANCE_HOOKS:
-        if hook_name in instance_state:
-            _reject_node_state(label, f"instance {hook_name}", violations)
+        _reject_node_state(label, "instance __dict__の欠落", violations)
+        return
+    allowed_state_keys = _ALLOWED_INSTANCE_STATE_KEYS[node_type]
+    for state_key in instance_state:
+        if state_key not in allowed_state_keys:
+            _reject_node_state(label, f"未許可のinstance {state_key}", violations)
 
 
 def _validate_executable_state(
@@ -687,7 +878,7 @@ def _validate_node_state(
 ) -> None:
     """許可ノードについて式木外のコンパイル影響状態を検査する。"""
     _validate_traversal_contract(node_type, label, violations)
-    _validate_common_node_state(node, label, violations)
+    _validate_common_node_state(node, node_type, label, violations)
     state_node = cast(Any, node)
 
     if node_type in {

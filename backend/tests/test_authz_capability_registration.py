@@ -488,6 +488,15 @@ def _state_mutation_registration(
     elif mutation_name == "compiler-dispatch":
         statement = _read_statement(games)
         cast(Any, statement)._compiler_dispatch = lambda *_args, **_kwargs: "evil"
+    elif mutation_name == "compiler-hook":
+        statement = _read_statement(games)
+        cast(Any, statement)._compiler = lambda *_args, **_kwargs: "evil"
+    elif mutation_name == "generate-cache-key-hook":
+        statement = _read_statement(games)
+        cast(Any, statement)._generate_cache_key = lambda: None
+    elif mutation_name == "arbitrary-instance-state":
+        statement = _read_statement(games)
+        cast(Any, statement).reviewer_chosen_attribute = "opaque"
     elif mutation_name == "get-children-hook":
         statement = _read_statement(games)
         cast(Any, statement).get_children = lambda **_kwargs: ()
@@ -679,8 +688,23 @@ _STATE_MUTATIONS = (
     pytest.param("annotations", "_annotations", id="annotations"),
     pytest.param(
         "compiler-dispatch",
-        "instance _compiler_dispatch",
+        "未許可のinstance _compiler_dispatch",
         id="compiler-dispatch",
+    ),
+    pytest.param(
+        "compiler-hook",
+        "未許可のinstance _compiler",
+        id="compiler-hook",
+    ),
+    pytest.param(
+        "generate-cache-key-hook",
+        "未許可のinstance _generate_cache_key",
+        id="generate-cache-key-hook",
+    ),
+    pytest.param(
+        "arbitrary-instance-state",
+        "未許可のinstance reviewer_chosen_attribute",
+        id="arbitrary-instance-state",
     ),
     pytest.param(
         "get-children-hook",
