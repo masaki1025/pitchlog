@@ -404,7 +404,7 @@ context = Context(tenant_id)
 | 資産 | 動く理由 | 要求 |
 | --- | --- | --- |
 | `base-allowlist.json` | `external_files` に検査器本体(`:19-21`)。1 行で動く | `contract_revision` 13→14、`current_identifiers` 更新、履歴**ちょうど 1 件** |
-| `negative-fixtures.json` | **新規負例 8 件以上**(再輸出 façade / 再輸出サブクラス / 別名 / 深さ上限 / star 連鎖 / デフォルト引数 / 属性名一致 / 相対 import)で `fixtures` が変わる | `fixture_set_revision` 5→6、同上 |
+| `negative-fixtures.json` | **新規負例 17 件**で `fixtures` が変わる(内訳: 再輸出系 9 = façade / サブクラス / 深さ上限 / star / 循環 / 自己参照 / 条件分岐 / 欠落モジュール / 未対応の静的代入、PEP 695 型境界 2、訪問位置 4 = デフォルト引数 / `DictComp` / 添字代入先 / 相対 import、ほか 2 = 属性名一致 / 許可シンボルのデフォルト捕捉) | `fixture_set_revision` 5→6、同上 |
 | 他 5 資産 | 変更しない | **履歴も識別値も触ってはならない**(`:678-680`) |
 
 **条件 2 の裁定 exact-set は新資産を作らず `base-allowlist.json` へ内包する**(2 周目 P1-2)。
@@ -461,8 +461,8 @@ context = Context(tenant_id)
       body だけ push 後。**訪問順序の差を検出する負例**がある
 - [ ] **baseline/head の写像が分離されている** — 遷移負例(実コミット列)で TB007 になることと、
       「façade だけ変更・consumer 無変更は保証外で green」の両方が固定されている
-- [ ] **`unresolved` は原因を問わず赤**。循環・自己参照・条件分岐・star の負例と、
-      **別モジュールの同名 `Context` の正例**がある
+- [ ] **`unresolved` は原因を問わず赤**。循環・自己参照・条件分岐・star・欠落モジュール・未対応代入の負例と、
+      **別モジュールの同名 `Context` が緑であることの単体テスト**がある
 - [ ] **構文マトリクス**(デフォルト引数・注釈・class keyword・match guard・`TryStar`)が
       **flow 登録と scanner 判定の両方**で埋まっている
 - [ ] **現行バグの是正**: デフォルト引数内の構築が red になる(**現行は 0 件**)
@@ -529,7 +529,7 @@ scanner(`:3173` `:3205`)も flow(`:2220` `:2294`)も `type_params` を訪問し�
 | `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)`** — (iv) で捕まらない名前)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._REEXPORT_CYCLE` / `..._REEXPORT_SELF_REFERENCE` / `..._REEXPORT_CONDITIONAL` / `..._REEXPORT_MISSING_MODULE` / `..._REEXPORT_UNSUPPORTED_ASSIGN` | 負例 fixture | 同上。**宣言した unresolved の原因を全件覆う**(4 周目 P1-1) |
 | `C5_CONTEXT_IN_FUNCTION_TYPE_BOUND` / `C5_CONTEXT_IN_CLASS_TYPE_BOUND`(**PEP 695**) | 負例 fixture | 同上 |
 | `C5_CONTEXT_ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` / `..._IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` / `..._RELATIVE_IMPORT` | 負例 fixture | 同上 |
-| **正例**: 別モジュールの無関係な同名 `Context`(完全修飾キーで閉じられることを示す) | 正例 fixture | `tests/fixtures/tenant_boundary/positive/` |
+| **別モジュールの無関係な同名 `Context` が緑であること** | **単体テスト**(`scan_source` を直接呼ぶ) | `tests/test_check_tenant_boundary_bypass.py` |
 | **`C2_GENERATION_IMPORT` は変更しない**(候補を狭めないため赤のまま) | 負例 fixture | — |
 
 ### 6-3. 条件 2 のセンサスはマージ順で自己矛盾する(3 周目 P1-4)
@@ -540,6 +540,12 @@ scanner(`:3173` `:3205`)も flow(`:2220` `:2294`)も `type_params` を訪問し�
 → **2 段に分ける**:
 1. **条件 2 候補の raw 集合が不変**であることを別に検査する(**候補を狭めていないことの証明**)
 2. **裁定後の red 集合は、期待差分 103 件を明示**する(裁定した分だけが緑になる)
+
+**★ 正例 fixture は追加できない。** `load_contract`(`:1401-1411`)が
+**正例 fixture 集合と `allowed_symbols[].fixture` の exact-set 一致**を強制するので、
+**正例を 1 件足すには `allowed_symbols` を 1 件足す**ことになる
+(= 許可する DB 到達シンボルを増やす意味の変更)。**本タスクの射程ではない。**
+→ **「緑であること」の確認は単体テストで行う。**
 
 **既存 68 負例・正例 5 件は exact-set で守られている**ので、増減はすべて資産と同時更新する。
 `EXPECTED_NEGATIVE_IDS`(`:32`)も同時に更新する。
