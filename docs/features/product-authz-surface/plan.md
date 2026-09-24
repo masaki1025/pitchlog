@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3de93b75e6878172a4b4d2f6edd663fc
 branch: feature/product-authz-surface
 created: 2026-09-24
-計画レビュー周回: 11        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 12        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -74,7 +74,7 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 | **SP-06・12-4 の non-serving 宣言・12-6 の受け取り先表・3-5 節の述語の変更** | 変えない(★2・★6) |
 | **`scripts/check_tenant_boundary_bypass.py` と `contracts/tenant_boundary/*` の変更** | 触れない(TSK-431・PR A2・PR B の射程) |
 | **`backend/pyproject.toml` / `uv.lock` / `backend/tests/conftest.py` の変更** | 変えない(差分 0 行) |
-| **Session の供給**(`TenantRepositoryBase._session` を満たす手段) | **TSK-424 の PR C**(PO 裁定 2026-09-24。別の計画書・別ブランチ。PR A と並行できる。U-T1 の基底の公開面の exact-set と、束縛文の順序を守る) |
+| **Session の供給**(`TenantRepositoryBase._session` を満たす手段) | **TSK-424 の PR C**(PO 裁定 2026-09-24。別の計画書・別ブランチ。`allowed_symbols` を足すので TSK-431 の 7C の後。PR A2 と並行できる。U-T1 の基底の公開面の exact-set と、束縛文の順序を守る) |
 | **HTTP の入口を開くこと** | 開かない。12-4 の判定記録には「対象入口なし」と書く(`data-model.md:2534`) |
 
 ## 3. 影響する正本
@@ -114,31 +114,32 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 **本計画は PR A1 だけを扱う**(人間の判断 2026-09-24 で PR A を A1 / A2 に分けた。A1 と A2 を 1 本の計画書・1 本のブランチで扱うと、A1 のマージ後に進捗の導出が欠番になり、A1 単独の DoD も立たない — 10 周目 10-P1-1)。
 **A1 のどのステップも、`backend/src` の DB 呼び出しの違反を増やさない**(迂回検査を `--base-ref origin/develop` で走らせて green)。
 
+**ステップ 1 を始める前の外部の前提**(承認の後に済ませる — 12 周目 12-P2-1): ① PR A2・PR B・PR C・3-2 節の典拠の訂正の Notion タスクを起票し、ID を得る(ステップ 7 の `pending_switch` が PR B のタスク ID を使う)② **FR-014 の到達経路の所有単位を確定する**(ステップ 1 の `function_only` の所有単位の閉じた列挙に使う)。**U-G1 以外に決まったら、ステップ 1 の前に design.md の 1-4・1-6 と所有単位の列挙を改訂する**
+
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **表分類資産 `table-classification.json`** と**露出の事実の資産 `exposure-facts.json`**(正本の文言を典拠に引く。事実は 7 種: 非テナント・制御資源・所有が混在する規則資源・管理者専用・認証前専用・移行専用・秘密の列)・割り当ての条件の検査(design.md 1-4・1-5) | **正例**: 1-4 の 45 表の割り当てが全条件を満たす。母集合は `Base.metadata` と manifest の両方から導き、両者の一致も検査。**露出の事実の典拠の引用がすべて正本 `data-model.md` に一字一句存在する**。事実の表と列が manifest に実在する。**変異で red**(design.md 1-5-c): `admin_credentials → global_read_only` / `tenant_credentials → tenant_owned` / `analysis_groups → tenant_owned` / `admin_operation_logs → effective_group_control` / `migration_quarantine → global_read_only` / `rate_limit_counters → global_read_only` / **`rule_sets → global_read_only`** / **`tournament_rule_assignments → tenant_owned`**(露出の事実「所有が混在する規則資源」で拒否 — 7 周目 7-P0-2)/ 未割り当て / モデルの追加 / `access_path.reason` を消す / 典拠の引用を正本に無い文言に書き換える / 露出の事実から `password_hash` を消し同時に `admin_credentials` を `global_read_only` にする / **`admin_operation_logs → tenant_owned`・`admin_operation_logs → global_read_only`**(「管理者専用」)/ **`tenant_auth_subjects → tenant_owned`**(「認証前専用」)/ **件数を保つ入れ替え**(露出の事実の無い表を `function_only` にする — 11 周目 11-P0-1)|
 | 2 | **capability カタログ `capability-catalog.json`** の導出(design.md 10 節)。**ステップ 1 の表分類を入力にする**(1 → 2) | カタログが表分類から生成器で導出され、導出結果と一致(手書きの変更で red)。`direct` の表だけが載り、`effective_group_control` と `function_only` は 0 件。**capability ID と `(表 ID, 操作種別)` が 1 対 1**(ID の重複・同じ組への 2 つの ID で red)。**1 つの capability は 1 つの表の 1 つの操作だけを表す** |
-| 3 | **capability の登録の検査**(design.md 10 節)。登録の集合そのものは空のまま | 登録された operation token の文(`statement`)を解析し、**文が参照する表の集合(FROM・JOIN・サブクエリのすべて)が、ID に結び付いた 1 つの表とちょうど一致**し、コマンドが ID の操作種別と一致することを確かめる。**変異で red**: カタログに無い ID を登録する / 正しい ID を別の表の文に付け替える / 別の操作に付け替える / **正しい主表に、宣言していない表の JOIN を足す** / **宣言していない表を参照するサブクエリを足す** / ID を重複させる / **正しい表の文に、ユーザー定義のスカラー関数の呼び出しを足す** / **表を返すユーザー定義関数を足す**(`pg_catalog` の組み込み関数だけを許す — 11 周目 11-P1-2)(試験の中だけで仮に登録する — 製品のパッケージには収載しない)。`backend/src/pitchlog/repositories/repository_contract.py:57-59` の 3 集合が空のまま。**変える既存ファイルは無い**(検査は新しい試験と、`backend/src` の外の検査モジュールに置く。`backend/src` に置く場合も DB 呼び出しは持たない) |
+| 3 | **capability の登録の検査**(design.md 10 節)。登録の集合そのものは空のまま | 登録された operation token の文(`statement`)を解析し、**文が参照する表の集合(FROM・JOIN・サブクエリのすべて)が、ID に結び付いた 1 つの表とちょうど一致**し、コマンドが ID の操作種別と一致することを確かめる。**変異で red**: カタログに無い ID を登録する / 正しい ID を別の表の文に付け替える / 別の操作に付け替える / **正しい主表に、宣言していない表の JOIN を足す** / **宣言していない表を参照するサブクエリを足す** / ID を重複させる / **正しい表の文に、ユーザー定義のスカラー関数の呼び出しを足す** / **表を返すユーザー定義関数を足す**(`pg_catalog` の組み込み関数だけを許す — 11 周目 11-P1-2)/ **`literal_column('authz_private.evil()')` などの不透明な SQL 断片を足す** / **参照されない INSERT・UPDATE・DELETE の CTE を足す**(許す SQLAlchemy のノードの型は閉じた集合 — 12 周目 12-P1-2)(試験の中だけで仮に登録する — 製品のパッケージには収載しない)。`backend/src/pitchlog/repositories/repository_contract.py:57-59` の 3 集合が空のまま。**変える既存ファイルは無い**(検査は新しい試験と、`backend/src` の外の検査モジュールに置く。`backend/src` に置く場合も DB 呼び出しは持たない) |
 | 4 | **資産指定オブジェクト `AuthzAssetSpec` と `PROBE_SPEC`**(`backend/src/pitchlog/authz/asset_spec.py` を新設)。生成器 `ddl.py` と body 検査器 `scripts/check_authz_function_bodies.py` が spec を受け取る。既定は `PROBE_SPEC` | 変える既存ファイルは `ddl.py` と `check_authz_function_bodies.py` だけ。`backend` と `harness` の pytest がすべて green。`ddl.py` の AST 検査(`backend/tests/test_authz_ddl.py:181`)が green のまま。**spec の取り違えで red**: probe 以外の scope 値を `PROBE_SPEC` で読むと拒否。probe 資産の差分 0 行 |
 | 5 | **適用器・DB カタログ検査・DB fixture を spec 対応にする**(`provisioning.py` / `catalog.py` / `backend/tests/db_fixtures.py`)。操作種別の閉じた集合を spec ごとに持つ | 変える既存ファイルは上の 3 つだけ(`backend/tests/db/conftest.py` は変えない — 製品の fixture と再エクスポートは PR A2 で足す — 10 周目 10-P1-3)。**迂回検査が green**(`backend/src` の DB 呼び出しの違反が増えていない)。既存の DB 試験がすべて green。**操作種別の集合が spec ごとに閉じている**(試験の中で組み立てた、probe ではない試験用の spec で確かめる。本物の `PRODUCT_SPEC` での双方向の負例は `PRODUCT_SPEC` を作るステップで置く — 8 周目 8-P1-3)。`requires_db` の収集件数が減っていない |
 | 6 | **静的検査 `scripts/check_authz_catalog.py` の scope 検査を spec 対応にする**。probe 固有の閉じた検査は probe spec のときだけ走らせる | 変える既存ファイルは `check_authz_catalog.py` だけ。既存の `tests/test_check_authz_*.py` が差分 0 行で green。**試験用の非 probe spec で probe 資産を読むと拒否・probe spec で非 probe の scope の資産を読むと拒否**(本物の `PRODUCT_SPEC` での負例は後のステップ)。**既定の呼び出しと、`PROBE_SPEC` を明示した呼び出しの出力が byte 一致**する。**既存の回帰試験の観測範囲を維持する**(差分 0 行の既存試験が green)。**spec で分岐させた probe 固有の検査の一覧**を持ち、**各分岐を誤って無効にする変異で red**(8 周目 8-P2-1)。新しい凍結基準は置かない |
-| 7 | **`PRODUCT_SPEC` と、未発効の第三状態**: `ddl-elements.staged.json` の骨組み(scope・`pending_switch`)と、新設の試験 `backend/tests/test_authz_product_staging.py`(design.md 3-2) | **本物の `PRODUCT_SPEC` での双方向の負例**(製品資産を `PROBE_SPEC` で読むと拒否・probe 資産を `PRODUCT_SPEC` で読むと拒否 — 8 周目 8-P1-3)。未発効状態の検査が green(最終パス `ddl-elements.json` が無い / ランタイムは暫定のまま / `pending_switch` がタスク ID を持つ)。**staged と最終パスが両方あると red**。既存の `test_authz_runtime_contract.py` の差分 0 行 |
-| 8 | **製品 DDL 資産(1)ロールと membership の宣言**: ロール 3 種の作成・**全製品ロールの 7 属性の肯否**(design.md 2-0)・**恒久の特権主体の許可集合の製品固定部分**(`pitchlog_owner`)・**製品ロールに接する辺 0 本の宣言**(design.md 2・2-2) | `PRODUCT_SPEC` で生成器・body 検査器・静的検査が green(**manifest は未封印のまま構造の検査だけ** — 封印はステップ 14)。**変異で red**: `pitchlog_app` に `BYPASSRLS` を足す / 関数所有ロールに `LOGIN` を足す / 宣言から属性を 1 つ消す / 製品ロールへの辺を宣言に足す。資産に `password` と接続文字列が 0 件 |
-| 9 | **製品 DDL 資産(2)DB とスキーマの所有と ACL**: DB・`public`・`authz_private` の期待集合(design.md 2-1 の表)。`PUBLIC` の DB の `CONNECT`・`TEMPORARY` と `public` の `USAGE`・`CREATE` の剥奪 | 静的検査が green(**manifest は未封印のまま構造の検査だけ** — 封印はステップ 14)。**変異で red**: DB に `PUBLIC` の `CONNECT` を戻す / `pitchlog_app` に DB の `CREATE` か `TEMPORARY` を与える / `public` に `PUBLIC` の `USAGE` を戻す / `public` の `CREATE` の剥奪を消す / `authz_private` に `CREATE` を与える / **`pitchlog_app` に `authz_private` の `USAGE` を与える**(何も与えないのが正 — 8 周目 8-P1-1) |
-| 10 | **製品 DDL 資産(3)全 45 表の `ENABLE` + `FORCE`** | 静的検査が green(**manifest は未封印のまま構造の検査だけ** — 封印はステップ 14)。表分類と一致(45 表すべて)。**変異で red**: 1 表の `FORCE` を外す / 1 表の `ENABLE` を外す |
+| 7 | **`PRODUCT_SPEC` と、未発効の第三状態**: `ddl-elements.staged.json` の骨組み(scope・`pending_switch`)と、新設の試験 `backend/tests/test_authz_product_staging.py`(design.md 3-2) | **この時点の未発効状態の検査は、状態・パス・`pending_switch` だけを見る**(保護対象の exact-set はステップ 13 — 12 周目 12-P1-1)。**本物の `PRODUCT_SPEC` での双方向の負例**(製品資産を `PROBE_SPEC` で読むと拒否・probe 資産を `PRODUCT_SPEC` で読むと拒否 — 8 周目 8-P1-3)。未発効状態の検査が green(最終パス `ddl-elements.json` が無い / ランタイムは暫定のまま / `pending_switch` がタスク ID を持つ)。**staged と最終パスが両方あると red**。既存の `test_authz_runtime_contract.py` の差分 0 行 |
+| 8 | **製品 DDL 資産(1)ロールと membership の宣言**: ロール 3 種の作成・**全製品ロールの 7 属性の肯否**(design.md 2-0)・**恒久の特権主体の許可集合の製品固定部分**(`pitchlog_owner`)・**製品ロールに接する辺 0 本の宣言**(design.md 2・2-2) | `PRODUCT_SPEC` で生成器・body 検査器・静的検査が green(`PRODUCT_SPEC` の manifest は要素とパスの対応表で、凍結しない — design.md 3-2-a)。**変異で red**: `pitchlog_app` に `BYPASSRLS` を足す / 関数所有ロールに `LOGIN` を足す / 宣言から属性を 1 つ消す / 製品ロールへの辺を宣言に足す。資産に `password` と接続文字列が 0 件 |
+| 9 | **製品 DDL 資産(2)DB とスキーマの所有と ACL**: DB・`public`・`authz_private` の期待集合(design.md 2-1 の表)。`PUBLIC` の DB の `CONNECT`・`TEMPORARY` と `public` の `USAGE`・`CREATE` の剥奪 | 静的検査が green(`PRODUCT_SPEC` の manifest は要素とパスの対応表で、凍結しない — design.md 3-2-a)。**変異で red**: DB に `PUBLIC` の `CONNECT` を戻す / `pitchlog_app` に DB の `CREATE` か `TEMPORARY` を与える / `public` に `PUBLIC` の `USAGE` を戻す / `public` の `CREATE` の剥奪を消す / `authz_private` に `CREATE` を与える / **`pitchlog_app` に `authz_private` の `USAGE` を与える**(何も与えないのが正 — 8 周目 8-P1-1) |
+| 10 | **製品 DDL 資産(3)全 45 表の `ENABLE` + `FORCE`** | 静的検査が green(`PRODUCT_SPEC` の manifest は要素とパスの対応表で、凍結しない — design.md 3-2-a)。表分類と一致(45 表すべて)。**変異で red**: 1 表の `FORCE` を外す / 1 表の `ENABLE` を外す |
 | 11 | **製品 DDL 資産(4)表のポリシーと表 ACL・列 ACL**: `tenant_owned` 23 表・`self_tenant_row`・`global_read_only` のポリシー(述語は 1 要素から展開し、展開結果を固定)・表 ACL(**制御資源 4 表にはアプリ用ロールの権限を与えない**) | **作成済みの 3 プロファイル(`tenant_owned`・`self_tenant_row`・`global_read_only`)について**、表分類と DDL の一致を静的に検査(プロファイルごとのポリシーの有無・ACL・コマンド・roles・`USING`・`WITH CHECK` の exact-set。**プロファイルから DDL への対応は、プロファイルの定義〔design.md 1-1〕から導く**)。**全 5 プロファイルの exact-set はステップ 13 で初めて要求する**(6 周目 6-P1-4)。**変異で red**: ポリシーを 1 本消す / `WITH CHECK` を消す / `DELETE` を足す / `function_only` の表に ACL を足す / `::UUID` を `::BIGINT` に変える / 展開結果を手で書き換える(digest 不一致)/ **制御資源 4 表のどれかに `pitchlog_app` の `SELECT` を与える** / 露出の事実で秘密とされた列に、どれか 1 つでもアプリ用ロールの `SELECT` を与える |
-| 12 | **製品 DDL 資産(5)トリガ関数 33 個の `PUBLIC` 剥奪**(design.md 3-4) | 静的検査が green(**manifest は未封印のまま構造の検査だけ** — 封印はステップ 14)。33 個が関数 ACL の exact-set に入っている。**変異で red**: 1 個の剥奪を消す |
-| 13 | **製品 DDL 資産(6)制御資源の補助関数とポリシー**(design.md 1-3): `authz_private.tenant_has_effective_membership`・4 表のポリシー・関数 ACL・**所有者の `{表, 列, 権限}` の exact-set** | 静的検査が green(**manifest は未封印のまま構造の検査だけ** — 封印はステップ 14)。**全 5 プロファイルについて、表分類と DDL の exact-set が成り立つ**(ここで初めて要求する)。**関数の属性が exact**: `SECURITY DEFINER` / `STABLE` / 所有者 `pitchlog_shared_fn_owner` / `search_path` の末尾に `pg_temp` / 本文の表参照がすべてスキーマ修飾 / `PUBLIC` からの剥奪が作成と同じトランザクション / **`pitchlog_app` に `EXECUTE` を与えない**。**変異で red**: `pg_temp` の明示を外す / `PUBLIC` に `EXECUTE` を与える / `pitchlog_app` に `EXECUTE` を与える / 「実効グループ」「参加テナントが有効」「`admin`」の条件を 1 つずつ外す / 所有者に表単位の `SELECT` を与える・使わない列を 1 つ足す・必要な列を 1 つ欠く |
-| 14 | **製品の body manifest の封印**(design.md 3-2-a)。ステップ 13 までで足したすべての body について、`source_commit` にステップ 13 のコミットの SHA を、blob digest を書く | body 検査器が**封印済みの manifest**で green。**未封印の要素が 1 件も残っていない**。**変異で red**: 封印の後に body を 1 バイト変える / `source_commit` を body が存在しないコミットにする / 未封印の要素を 1 件残す。変える既存ファイルは無い(manifest は本単位の新設資産)|
+| 12 | **製品 DDL 資産(5)トリガ関数 33 個の `PUBLIC` 剥奪**(design.md 3-4) | 静的検査が green(`PRODUCT_SPEC` の manifest は要素とパスの対応表で、凍結しない — design.md 3-2-a)。33 個が関数 ACL の exact-set に入っている。**変異で red**: 1 個の剥奪を消す |
+| 13 | **製品 DDL 資産(6)制御資源の補助関数とポリシー**(design.md 1-3): `authz_private.tenant_has_effective_membership`・4 表のポリシー・関数 ACL・**所有者の `{表, 列, 権限}` の exact-set** | 静的検査が green。**staged 資産から導いた保護対象が、暫定資産の保護対象 ∪ 宣言済みの追加分と exact-set**(未発効状態の検査の完成 — 12 周目 12-P1-1)。**`PRODUCT_SPEC` の manifest・body ファイル・DDL 要素資産の 3 者が exact-set で対応し、manifest に `source_commit` が無い**(design.md 3-2-a)(`PRODUCT_SPEC` の manifest は要素とパスの対応表で、凍結しない — design.md 3-2-a)。**全 5 プロファイルについて、表分類と DDL の exact-set が成り立つ**(ここで初めて要求する)。**関数の属性が exact**: `SECURITY DEFINER` / `STABLE` / 所有者 `pitchlog_shared_fn_owner` / `search_path` の末尾に `pg_temp` / 本文の表参照がすべてスキーマ修飾 / `PUBLIC` からの剥奪が作成と同じトランザクション / **`pitchlog_app` に `EXECUTE` を与えない**。**変異で red**: `pg_temp` の明示を外す / `PUBLIC` に `EXECUTE` を与える / `pitchlog_app` に `EXECUTE` を与える / 「実効グループ」「参加テナントが有効」「`admin`」の条件を 1 つずつ外す / 所有者に表単位の `SELECT` を与える・使わない列を 1 つ足す・必要な列を 1 つ欠く |
 
 **ステップの順序と並行性**:
 
 - **ステップは番号順にコミットする**(進捗の導出が `1..最大値` の欠番を不整合とするため — 11 周目 11-P1-3)。**帯 2 へ早く渡す表分類 → capability カタログ → 登録の検査を、ステップ 1〜3 に置いた**(spec を使わないので、spec の汎化〔4〜6〕より先にできる)
-- 7 → 8 → … → 14 は順に依存する(7 は 1〜6 の後)。14(封印)は 8〜13 のすべての body がそろった後
+- 7 → 8 → … → 13 は順に依存する(7 は 1〜6 の後)
 - **TSK-431 とは衝突しない**(`scripts/check_tenant_boundary_bypass.py`・`contracts/tenant_boundary/*`・`.github/workflows/`・`tests/test_ci_wiring.py` に触れない)
 - **U-T1 の後続単位との衝突面**は `contracts/authz/product/`
 
-**正本の追随**(3 節)は、ステップ 14 の後に /sync-docs で行い、PR A1 に含める(Claude が書く。委任しない — 設計書 7.6-2)。
+**正本の追随**(3 節)は、ステップ 13 の後に /sync-docs で行い、PR A1 に含める(Claude が書く。委任しない — 設計書 7.6-2)。
 
 ### PR A2 へ引き渡す内容(別タスク・別ブランチ・別計画書 — TSK-431 の 7C の後)
 
@@ -164,7 +165,7 @@ A2 に入るのは次の内容で、本計画の旧版(コミット 96d4132 の 
 - [ ] **全 45 表に物理プロファイルが排他で割り当てられ、未割り当てが 0 件**(母集合は `Base.metadata` から導出。割り当ては明示メタデータ。**全表が、露出の事実と manifest で判定する割り当て条件を満たす**)。**プロファイルは 5 種で確定**し、カードが求めた「親表経由」「認証前グローバル可変」は `function_only` の到達経路の理由として記録した(★5)
 - [ ] **露出の事実の典拠がすべて正本に実在する**。残余リスク(★10)と逐行確認の観点を PR 本文に書いた
 - [ ] **capability カタログが表分類から導出されている**。ID と `(表, 操作)` が 1 対 1。登録の集合は空のままで、カタログに無い ID・別の表や別の操作への付け替え・宣言していない表の JOIN やサブクエリは red になる
-- [ ] **製品 DDL 資産(staged)が静的検査で確定している**: 全表が `ENABLE` + `FORCE`・全 5 プロファイルで `{プロファイル, ACL, コマンド, roles, USING, WITH CHECK}` が exact-set・制御資源 4 表のポリシーと補助関数の属性・アプリ用ロールは制御資源に直接触れない・秘密の列はアプリ用ロールの `SELECT` の対象外・全製品ロールの 7 属性が肯否で固定・DB とスキーマの ACL が期待集合と exact-set・製品ロールに接する membership の辺が 0 本の宣言
+- [ ] **製品 DDL 資産(staged)が静的検査で確定している**(SQL 本体は凍結しない。manifest は要素とパスの対応表 — design.md 3-2-a): 全表が `ENABLE` + `FORCE`・全 5 プロファイルで `{プロファイル, ACL, コマンド, roles, USING, WITH CHECK}` が exact-set・制御資源 4 表のポリシーと補助関数の属性・アプリ用ロールは制御資源に直接触れない・秘密の列はアプリ用ロールの `SELECT` の対象外・全製品ロールの 7 属性が肯否で固定・DB とスキーマの ACL が期待集合と exact-set・製品ロールに接する membership の辺が 0 本の宣言
 - [ ] **PR A1 の段階が「未発効」の第三状態として検査されている**(staged と最終パスの二重は red)。`contracts/authz/product/ddl-elements.json`(最終パス)が無い
 - [ ] **spec の汎化が既存の回帰試験の観測範囲を保ち**、spec の分岐を無効にする変異が red。本物の `PRODUCT_SPEC` での双方向の負例がある
 - [ ] **迂回検査が green**(`backend/src` の DB 呼び出しの違反が増えていない)
@@ -182,7 +183,7 @@ A2 に入るのは次の内容で、本計画の旧版(コミット 96d4132 の 
 
 | NFR-019 の種別 | 足すもの(PR A1) | ステップ |
 | --- | --- | --- |
-| **単体** | 資産指定オブジェクトと spec の取り違え・spec の分岐の変異・表分類の割り当て条件と露出の事実(典拠の実在)・capability カタログと登録の検査(参照する表の集合)・未発効状態・ロール属性・DB とスキーマの ACL・DDL 資産と表分類の一致・補助関数の属性と所有者の列権限 | 1〜14 |
+| **単体** | 資産指定オブジェクトと spec の取り違え・spec の分岐の変異・表分類の割り当て条件と露出の事実(典拠の実在)・capability カタログと登録の検査(参照する表の集合)・未発効状態・ロール属性・DB とスキーマの ACL・DDL 資産と表分類の一致・補助関数の属性と所有者の列権限 | 1〜13 |
 | **一致性** | 述語の展開結果と要素の digest・capability カタログと表分類の一致 | 2・11 |
 | **越境**(NFR-019(b) の DB 層) | **PR A2**(実 DB 試験 — 最低要求 ①②③・`WITH CHECK`・`function_only` の `42501`・制御資源の正負行列) | — |
 | **故障系** | **PR A2**(適用の原子性・`current_user`・不正 UUID) | — |

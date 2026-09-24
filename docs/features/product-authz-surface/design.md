@@ -10,7 +10,7 @@ date: 2026-09-24
 入力は U-T1 の詳細設計 `../tenant-boundary-enforcement/design.md` の 2〜4 節・7 節・9 節である。
 **本書はそれを正本と実測で検証し直し、本単位の設計として確定する**。U-T1 の記述を是正した箇所は、各節に明記する。
 
-**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。7 周目(P0 3 / P1 2 / P2 2)の反映は【7 周目】。10 周目の後、11 周目(P0 1 / P1 4 / P2 2)の反映は【11 周目】。8 周目は「条件付き可」(P0 0 / P1 3 / P2 2)で、その条件の反映は【8 周目】。9 周目(P0 0 / P1 5 / P2 1)の反映は【9 周目】。10 周目(P0 1 / P1 5 / P2 2)の反映は【10 周目】で、**plan.md を PR A1 だけの計画書にし、A2 を別の計画書へ切り出した**(本書は TSK-424 全体の設計の正として共有する)。9 周目では、あわせて PR A を A1 / A2 に分けた(人間の判断 2026-09-24 — 迂回検査の `allowed_symbols` が凍結基準で、TSK-431 の 7C を待つため)。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
+**改訂履歴**: 計画レビュー 1 周目(P0 7 / P1 8 / P2 2)と 2 周目(P0 6 / P1 7 / P2 2)の反映。各節末の【1 周目】【2 周目】が、その周で直した点である。2 周目の後、移行バッチ用ロールの実行側を TSK-349 へ切り出した(人間の判断 2026-09-24 — 8 節)。3 周目(P0 3 / P1 8)の反映は【3 周目】。4 周目(P0 3 / P1 6 / P2 3)の反映は【4 周目】。6 周目(P0 3 / P1 4 / P2 2)の反映は【6 周目】。7 周目(P0 3 / P1 2 / P2 2)の反映は【7 周目】。10 周目の後、11 周目(P0 1 / P1 4 / P2 2)の反映は【11 周目】、12 周目(P0 2 / P1 2 / P2 3)の反映は【12 周目】(製品の SQL 本体は凍結しない方針に改めた — 3-2-a)。8 周目は「条件付き可」(P0 0 / P1 3 / P2 2)で、その条件の反映は【8 周目】。9 周目(P0 0 / P1 5 / P2 1)の反映は【9 周目】。10 周目(P0 1 / P1 5 / P2 2)の反映は【10 周目】で、**plan.md を PR A1 だけの計画書にし、A2 を別の計画書へ切り出した**(本書は TSK-424 全体の設計の正として共有する)。9 周目では、あわせて PR A を A1 / A2 に分けた(人間の判断 2026-09-24 — 迂回検査の `allowed_symbols` が凍結基準で、TSK-431 の 7C を待つため)。5 周目(P0 4 / P1 4 / P2 2)の後、人間の判断(2026-09-24)で、表分類の自己充足の残余を受容し、露出の事実を正本の文言に結び付ける形で確定した(1-5)。
 
 ## 1. 許可プロファイル
 
@@ -179,7 +179,7 @@ date: 2026-09-24
 | `effective_group_control` | **露出の事実で「制御資源」とされた 4 表だけ** |
 | (共通) | **露出の事実で「所有が混在する規則資源」「管理者専用」「認証前専用」「移行専用」のどれかとされた表は `function_only` だけ**(11 周目 11-P0-1)。**`function_only` の表は、このどれかの事実を持つことを必須にする**(事実の無い表を `function_only` にすると red — 分類の入れ替えで件数を保つ抜け道を塞ぐ)。「所有が混在する規則資源」の典拠は(`rule_sets`・`tournament_rule_assignments`。典拠: 6-5 節の「試合区分デフォルト — システム管理者が管理」と「大会名に紐づく規則 — チームが設定可能」が同じ規則セットの表を参照すること — 1-6)【7 周目 7-P0-2】 |
 | `global_read_only` | **露出の事実で「非テナント」とされた表だけ** ∧ manifest で `tenant_id` 列を持たない ∧ 秘密の列を持たない |
-| `function_only` | 条件なし(常に割り当ててよい) |
+| `function_only` | **下の共通の条件を満たすこと**(追加の条件は無い)。共通の条件はすべてのプロファイルに論理積で掛かる【12 周目 12-P0-1】 |
 
 - **秘密の列に対して、アプリ用ロールは表単位の `SELECT` も、その列の列単位の `SELECT` も持たない**(10 節の ACL と照合する。ACL の変異は plan.md のステップ 11 で試す)
 - 母集合 = `Base.metadata` の全表 = manifest の全表。割り当て資産と**両方向 exact-set**(未割り当て 0・重複 0・存在しない表 0)。**既定のプロファイルを持たない**
@@ -290,10 +290,10 @@ PostgreSQL 17 では、`public` スキーマは `pg_database_owner` が所有し
 
 ```
 contracts/authz/product/table-classification.json        全 45 表の物理プロファイルと到達経路(1 節)
-contracts/authz/product/exposure-facts.json              露出の事実(非テナント・制御資源・秘密の列)。正本の文言を典拠に引く(1-5-a)
+contracts/authz/product/exposure-facts.json              露出の事実 7 種(非テナント・制御資源・所有が混在する規則資源・管理者専用・認証前専用・移行専用・秘密の列)。正本の文言を典拠に引く(1-5-a)
 contracts/authz/product/capability-catalog.json          capability の記述(10 節)
 contracts/authz/product/ddl-elements.staged.json          製品 DDL 要素(PR A1 から PR B までの置き場。3-2)
-contracts/authz/product/function-bodies/                  製品側の SQL 本体と manifest.json
+contracts/authz/product/function-bodies/                  製品側の SQL 本体と manifest.json(要素とパスの対応表。**凍結しない** — 3-2-a)
 contracts/authz/product/probe-product-map.json            probe 原子要素 ↔ 製品原子要素(7 節)
 contracts/authz/product/migration-batch-role.json         移行バッチ用ロールの書き込み先と、有効な間の形(8 節)
 ```
@@ -314,7 +314,7 @@ U-T1 の二状態テストは、**`contracts/authz/product/ddl-elements.json` �
 | 状態 | 条件 | 検査(新設 `backend/tests/test_authz_product_staging.py`) |
 | --- | --- | --- |
 | 暫定 | staged 無し ∧ 最終無し | 既存の二状態テストのとおり |
-| **未発効(PR A1 の後、PR B の前)** | **staged 有り ∧ 最終無し** | ランタイムは暫定のまま(`PROVISIONAL = True`)。**staged 資産の宣言 `pending_switch` が、切り替えを行うタスクの ID を持つ**。staged 資産から導いた保護対象が、**暫定資産の保護対象 ∪ 宣言済みの追加分**(`authz_private` スキーマと補助関数 1 個)と exact-set で一致する(切り替え時に保護対象が黙って変わらない) |
+| **未発効(PR A1 の後、PR B の前)** | **staged 有り ∧ 最終無し** | ランタイムは暫定のまま(`PROVISIONAL = True`)。**staged 資産の宣言 `pending_switch` が、切り替えを行うタスクの ID を持つ**。**staged 資産から導いた保護対象が、暫定資産の保護対象 ∪ 宣言済みの追加分(`authz_private` スキーマと補助関数 1 個)と exact-set で一致する**(切り替え時に保護対象が黙って変わらない)。**この照合は、すべての DDL 要素がそろった後(plan.md のステップ 13)で初めて要求する**。それより前の未発効状態の検査は、状態・パス・`pending_switch` だけを見る【12 周目 12-P1-1】 |
 | 製品 | staged 無し ∧ 最終有り | 既存の二状態テストのとおり(PR B の後) |
 | **不正** | **staged 有り ∧ 最終有り** | **red**(二重の正本) |
 
@@ -323,15 +323,17 @@ U-T1 の二状態テストは、**`contracts/authz/product/ddl-elements.json` �
 
 【1 周目 1-P1-1・2 周目 2-P0-2】
 
-### 3-2-a. 製品の body manifest の封印は独立したステップで行う【11 周目 11-P1-1】
+### 3-2-a. 製品の SQL 本体は凍結しない — manifest は要素とパスの対応表にとどめる【11 周目 11-P1-1・12 周目 12-P0-2】
 
-probe と同じく、製品の `function-bodies/manifest.json` も、各 body の **`source_commit`(その body がすでに存在するコミットの SHA)と blob digest** を持つ(`scripts/check_authz_function_bodies.py:130-177`・`:258-335`)。
-同じコミットで body と manifest を足すと、そのコミットの SHA を事前に書けない。
+probe の `function-bodies/manifest.json` は、各 body の `source_commit` と blob digest を持ち、**oracle の凍結**(TSK-317 の第 1 群)のために本体を封印している(`scripts/check_authz_function_bodies.py:130-177`・`:258-335`)。
+製品の SQL 本体に同じ封印を掛けると、**新しい凍結基準**を置くことになり、設計書 7.7 の宣言・追記のみの履歴・受理の単位が要る(11 周目の案は、この扱いを定めないまま封印のステップを置いていた)。
 
-→ **body を足すステップ(ロール・スキーマ・表・ポリシー・ACL・補助関数)では、manifest を「未封印」の状態で置き、構造の検査だけを行う**。
-**すべての body を足した後に「製品の body manifest の封印」を独立したステップとして置き**、直前のステップのコミットの SHA を `source_commit` に書く。
-- 未封印の状態は、**PR A1 の最終状態では許さない**(封印のステップの後、未封印が残っていれば red)
-- 封印の後に body を 1 バイトでも変えると、digest の不一致で red
+→ **製品の SQL 本体は凍結しない**。製品の DDL は、所有単位が関数を足すたびに改訂される資産であり、「変わらない」ことを主張する理由が無い。**正しさは意味の検査で担保する**: 表分類・露出の事実との exact-set(静的検査)と、PR A2 の実 DB 試験。
+
+- **製品の manifest** は、`{要素の種別, 要素 ID, パス}` の対応表だけを持つ(`source_commit`・blob digest を持たない)。`PRODUCT_SPEC` の body 検査器は、**manifest と body ファイルと DDL 要素資産の 3 者が exact-set で対応すること**だけを検査する
+- **probe の manifest の形は変えない**(`PROBE_SPEC` のときは従来どおり `source_commit` と digest を検査する)
+- **述語の展開結果**(3-3)は、生成器の出力と資産の一致で検査する(digest は「生成物が古い」ことの検出に使い、凍結の基準にはしない)
+- **変異**(すべて red): manifest に無い body ファイルを足す / body の無い要素を manifest に載せる / 要素 ID とパスの対応を入れ替える / `PRODUCT_SPEC` の manifest に `source_commit` を書く(凍結の基準を黙って持ち込ませない)
 
 ### 3-3. ポリシーの本体
 
@@ -607,7 +609,7 @@ U-T1 は、**製品の capability を TSK-424 の出力契約に含める**と�
 
 | | 内容 | 持ち主 |
 | --- | --- | --- |
-| **capability の記述**(カタログ) | 表分類から導いた、**開けてよい操作の閉じた一覧**。`contracts/authz/product/capability-catalog.json` に置く。1 行 = (capability ID, 表 ID, 操作種別 `read` / `insert` / `update`)。**capability ID と `(表 ID, 操作種別)` は 1 対 1**(全単射)。**1 つの capability は 1 つの表の 1 つの操作だけを表す**。登録された文が参照する表の集合(FROM・JOIN・サブクエリのすべて)は、その 1 表とちょうど一致しなければならない【10 周目 10-P1-2】。**文の中でユーザー定義関数を呼ばない**(SELECT 句・WHERE 句・表を返す関数のどれでも。`pg_catalog` の組み込み関数だけを許す)。越境は `SECURITY DEFINER` の関数だけに分けてあるので(U-T1 design `:416-421`)、直接の capability の文に関数を混ぜると、その経路を迂回できるため【11 周目 11-P1-2】。**`direct` の表だけ**が載る。`effective_group_control` と `function_only` の表は 1 つも載らない(アプリ用ロールが直接触れないので) | **本単位** |
+| **capability の記述**(カタログ) | 表分類から導いた、**開けてよい操作の閉じた一覧**。`contracts/authz/product/capability-catalog.json` に置く。1 行 = (capability ID, 表 ID, 操作種別 `read` / `insert` / `update`)。**capability ID と `(表 ID, 操作種別)` は 1 対 1**(全単射)。**1 つの capability は 1 つの表の 1 つの操作だけを表す**。登録された文が参照する表の集合(FROM・JOIN・サブクエリのすべて)は、その 1 表とちょうど一致しなければならない【10 周目 10-P1-2】。**文の中でユーザー定義関数を呼ばない**(SELECT 句・WHERE 句・表を返す関数のどれでも。`pg_catalog` の組み込み関数だけを許す)。越境は `SECURITY DEFINER` の関数だけに分けてあるので(U-T1 design `:416-421`)、直接の capability の文に関数を混ぜると、その経路を迂回できるため【11 周目 11-P1-2】。**文の検査は、許す SQLAlchemy のノードの型を閉じた集合で持つ**(表・列・比較・論理演算・束縛パラメタ・`pg_catalog` の組み込み関数・並べ替え・件数の制限など)。**`text()`・`literal_column()` などの不透明な SQL 断片は拒否する**。**CTE は再帰的にたどり、読み取りの capability の中の DML の CTE(`add_cte()` を含む)を拒否する**。変異: 正しい表に `literal_column('authz_private.evil()')` を足す / 参照されない INSERT・UPDATE・DELETE の CTE を足す【12 周目 12-P1-2】。**`direct` の表だけ**が載る。`effective_group_control` と `function_only` の表は 1 つも載らない(アプリ用ロールが直接触れないので) | **本単位** |
 | **capability の登録**(公開 registry) | `PRODUCT_CAPABILITY_IDS` などへ登録して、実際に操作を開くこと(`backend/src/pitchlog/repositories/repository_contract.py:57-59`) | **経路を持つ単位**(U-01・U-M1・U-D1 ほか)。本単位は空のまま残す |
 
 - カタログは表分類から**生成器で導出**し、導出結果と資産の一致を検査する(手で書かない)
