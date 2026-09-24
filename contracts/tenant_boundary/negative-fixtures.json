@@ -521,6 +521,13 @@
       "expected_error": "TB007"
     },
     {
+      "id": "C5_CONTEXT_RELATIVE_IMPORT",
+      "path": "pitchlog/repositories/c5_context_relative_import.py",
+      "condition": 5,
+      "mutation": "同一 package から相対 import した TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
       "path": "pitchlog/services/c5_context_in_subscript_target.py",
       "condition": 5,

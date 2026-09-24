@@ -85,6 +85,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_DICT_COMPREHENSION",
         "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
         "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+        "C5_CONTEXT_RELATIVE_IMPORT",
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
@@ -300,6 +301,26 @@ def _call_coverage_sets(
 
 
 checker = _load_checker()
+
+
+def test_relative_import_from_init_uses_current_package_as_base() -> None:
+    """__init__.py の相対 import は親でなく自パッケージを基点にする。"""
+    assert checker._absolute_import_from_module(
+        current_module="pitchlog.repositories",
+        current_is_package=True,
+        imported_module="context",
+        level=1,
+    ) == "pitchlog.repositories.context"
+
+
+def test_relative_import_with_level_greater_than_one_ascends_packages() -> None:
+    """level > 1 は現在モジュールの親パッケージからさらに上へ遡る。"""
+    assert checker._absolute_import_from_module(
+        current_module="pitchlog.services.handlers.command",
+        current_is_package=False,
+        imported_module="repositories.context",
+        level=3,
+    ) == "pitchlog.repositories.context"
 
 
 def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
@@ -924,12 +945,35 @@ def test_integrity_secret_default_is_checked_before_allowed_function_scope() -> 
     ]
 
 
+def test_relative_tenant_context_import_is_resolved_and_red() -> None:
+    """同一 package の相対 import も絶対 constructor として拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative_path = "pitchlog/repositories/c5_context_relative_import.py"
+    source = _fixture_source(NEGATIVE_ROOT / relative_path)
+
+    violations = checker.scan_source(
+        source,
+        path=relative_path,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [
+        (
+            "TB007",
+            "pitchlog.repositories.context.TenantContext",
+        )
+    ]
+
+
 @pytest.mark.parametrize("condition", (1, 2, 3, 4, 5))
 def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 77 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 78 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS

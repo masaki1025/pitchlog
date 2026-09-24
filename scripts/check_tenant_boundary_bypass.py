@@ -1455,6 +1455,32 @@ def _module_name(path: str) -> str:
     return ".".join(parts)
 
 
+def _absolute_import_from_module(
+    *,
+    current_module: str,
+    current_is_package: bool,
+    imported_module: str | None,
+    level: int,
+) -> str | None:
+    """現在のモジュールと相対 level から import 元の絶対名を返す。"""
+    if level == 0:
+        return imported_module
+    if level < 0 or not current_module:
+        return None
+
+    package_parts = current_module.split(".")
+    if not current_is_package:
+        package_parts.pop()
+    parents_to_drop = level - 1
+    if not package_parts or parents_to_drop >= len(package_parts):
+        return None
+    if parents_to_drop:
+        package_parts = package_parts[:-parents_to_drop]
+    if imported_module:
+        package_parts.extend(imported_module.split("."))
+    return ".".join(package_parts)
+
+
 def _function_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     """関数定義を整形非依存の署名文字列へ変換する。"""
     clone = copy.copy(node)
@@ -1487,6 +1513,7 @@ class _AliasCollector(ast.NodeVisitor):
         symbol_aliases: Mapping[str, str],
         conservative_member_names: frozenset[str],
         module: str,
+        module_is_package: bool,
     ) -> None:
         self.aliases: dict[str, str] = {}
         self.known_symbols: dict[str, str] = {
@@ -1508,6 +1535,7 @@ class _AliasCollector(ast.NodeVisitor):
         self.symbol_aliases = symbol_aliases
         self.conservative_member_names = conservative_member_names
         self.module = module
+        self.module_is_package = module_is_package
         self.class_stack: list[str] = []
         self.unresolved_database_callables: dict[str, str] = {}
         self.direct_import_names: set[str] = set()
@@ -1684,15 +1712,22 @@ class _AliasCollector(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
         """from import 文のローカル名を記録する。"""
-        module = node.module or ""
+        module = _absolute_import_from_module(
+            current_module=self.module,
+            current_is_package=self.module_is_package,
+            imported_module=node.module,
+            level=node.level,
+        )
         for alias in node.names:
             if alias.name == "*":
                 continue
             local_name = alias.asname or alias.name
             self.direct_import_names.add(local_name)
+            if module is None:
+                continue
             self._record_known(
                 local_name,
-                f"{module}.{alias.name}".strip("."),
+                f"{module}.{alias.name}",
             )
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
@@ -1872,6 +1907,7 @@ class _FlowProvenance:
         self,
         *,
         module: str,
+        module_is_package: bool,
         member_owners: Set[str],
         receiver_names: Set[str],
         call_returns: Mapping[str, str],
@@ -1879,6 +1915,7 @@ class _FlowProvenance:
         tenant_context_symbol: str,
     ) -> None:
         self.module = module
+        self.module_is_package = module_is_package
         self.member_owners = member_owners
         self.database_type_names = {
             *(owner.rsplit(".", 1)[-1] for owner in member_owners),
@@ -2325,13 +2362,21 @@ class _FlowProvenance:
                 environment[local] = _FlowValue(imported, "symbol")
             return _FlowOutcome(environment)
         if isinstance(node, ast.ImportFrom):
-            module = node.module or ""
+            module = _absolute_import_from_module(
+                current_module=self.module,
+                current_is_package=self.module_is_package,
+                imported_module=node.module,
+                level=node.level,
+            )
             for alias in node.names:
                 if alias.name == "*":
                     continue
                 local = alias.asname or alias.name
-                symbol = self.canonical(f"{module}.{alias.name}".strip("."))
-                environment[local] = _FlowValue(symbol, "symbol")
+                if module is None:
+                    environment[local] = _UNKNOWN_FLOW_VALUE
+                else:
+                    symbol = self.canonical(f"{module}.{alias.name}")
+                    environment[local] = _FlowValue(symbol, "symbol")
             return _FlowOutcome(environment)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
@@ -2578,15 +2623,21 @@ class _FlowProvenance:
                     )
                     builtins_environment[local] = _FlowValue(imported, "symbol")
             elif isinstance(statement, ast.ImportFrom):
-                module = statement.module or ""
+                module = _absolute_import_from_module(
+                    current_module=self.module,
+                    current_is_package=self.module_is_package,
+                    imported_module=statement.module,
+                    level=statement.level,
+                )
                 for alias in statement.names:
                     if alias.name == "*":
                         continue
                     local = alias.asname or alias.name
-                    symbol = self.canonical(
-                        f"{module}.{alias.name}".strip(".")
-                    )
-                    builtins_environment[local] = _FlowValue(symbol, "symbol")
+                    if module is None:
+                        builtins_environment[local] = _UNKNOWN_FLOW_VALUE
+                    else:
+                        symbol = self.canonical(f"{module}.{alias.name}")
+                        builtins_environment[local] = _FlowValue(symbol, "symbol")
         for statement in tree.body:
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 symbol = f"{self.module}.{statement.name}".strip(".")
@@ -2624,6 +2675,7 @@ class _SourceScanner(ast.NodeVisitor):
     ) -> None:
         self.path = path
         self.module = module
+        self.module_is_package = Path(path).stem == "__init__"
         self.changed_lines = changed_lines
         self.contract = contract
         self.reject_all_db_calls = reject_all_db_calls
@@ -2647,6 +2699,7 @@ class _SourceScanner(ast.NodeVisitor):
             contract.symbol_aliases,
             contract.conservative_member_names,
             module,
+            self.module_is_package,
         )
         collector.visit(tree)
         self.aliases = collector
@@ -2658,6 +2711,7 @@ class _SourceScanner(ast.NodeVisitor):
         }
         flow = _FlowProvenance(
             module=module,
+            module_is_package=self.module_is_package,
             member_owners=member_owners,
             receiver_names=receiver_names,
             call_returns=call_returns,
@@ -3224,17 +3278,23 @@ class _SourceScanner(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
         """from import のモジュール名・シンボル名・別名を照合する。"""
-        if node.module is not None:
-            provider_module = self.contract.cache_invalidation.provider_module
+        provider_module = self.contract.cache_invalidation.provider_module
+        imported_module = _absolute_import_from_module(
+            current_module=self.module,
+            current_is_package=self.module_is_package,
+            imported_module=node.module,
+            level=node.level,
+        )
+        if imported_module is not None:
             self._check_identifier(
-                node.module,
+                imported_module,
                 node,
-                allow_condition4=node.module == provider_module,
+                allow_condition4=imported_module == provider_module,
             )
         for alias in node.names:
             imported_symbol = (
-                f"{node.module}.{alias.name}"
-                if node.module is not None
+                f"{imported_module}.{alias.name}"
+                if imported_module is not None
                 else alias.name
             )
             self._check_integrity_reference(imported_symbol, node)
@@ -3243,8 +3303,7 @@ class _SourceScanner(ast.NodeVisitor):
                 in self.contract.cache_invalidation.public_symbols
             )
             if (
-                node.module
-                == self.contract.cache_invalidation.provider_module
+                imported_module == provider_module
                 and not import_is_allowed
                 and self._is_changed(node)
             ):
