@@ -4665,6 +4665,14 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
                 "contracts/authz/route-registry.lock.json",
             }
         ),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+                "contracts/authz/auth-catalog.json",
+                "contracts/authz/auth-catalog.lock.json",
+            }
+        ),
     )
     assert worktree_drift in allowed_input_drifts
     assert commit_drift in allowed_input_drifts
