@@ -36,6 +36,231 @@
       "path": "contracts/authz/product/function-bodies/schemas/authz_private.sql",
       "element_type": "schema",
       "element_id": "authz_private"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tenants.sql",
+      "element_type": "table",
+      "element_id": "tenants"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/team_records.sql",
+      "element_type": "table",
+      "element_id": "team_records"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/players.sql",
+      "element_type": "table",
+      "element_id": "players"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/games.sql",
+      "element_type": "table",
+      "element_id": "games"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/lineup_memories.sql",
+      "element_type": "table",
+      "element_id": "lineup_memories"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/game_lineups.sql",
+      "element_type": "table",
+      "element_id": "game_lineups"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/participation_intervals.sql",
+      "element_type": "table",
+      "element_id": "participation_intervals"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/rule_sets.sql",
+      "element_type": "table",
+      "element_id": "rule_sets"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/game_type_rule_defaults.sql",
+      "element_type": "table",
+      "element_id": "game_type_rule_defaults"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tournament_rule_assignments.sql",
+      "element_type": "table",
+      "element_id": "tournament_rule_assignments"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/event_slots.sql",
+      "element_type": "table",
+      "element_id": "event_slots"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/operation_events.sql",
+      "element_type": "table",
+      "element_id": "operation_events"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/play_rows.sql",
+      "element_type": "table",
+      "element_id": "play_rows"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/play_runners.sql",
+      "element_type": "table",
+      "element_id": "play_runners"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/temporary_player_id_mappings.sql",
+      "element_type": "table",
+      "element_id": "temporary_player_id_mappings"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/idempotency_ledger.sql",
+      "element_type": "table",
+      "element_id": "idempotency_ledger"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/rejected_event_originals.sql",
+      "element_type": "table",
+      "element_id": "rejected_event_originals"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/evacuated_event_originals.sql",
+      "element_type": "table",
+      "element_id": "evacuated_event_originals"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/recording_generations.sql",
+      "element_type": "table",
+      "element_id": "recording_generations"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/medical_notes.sql",
+      "element_type": "table",
+      "element_id": "medical_notes"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/medical_note_versions.sql",
+      "element_type": "table",
+      "element_id": "medical_note_versions"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/pdf_export_records.sql",
+      "element_type": "table",
+      "element_id": "pdf_export_records"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/system_vocabularies.sql",
+      "element_type": "table",
+      "element_id": "system_vocabularies"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/admin_vocabularies.sql",
+      "element_type": "table",
+      "element_id": "admin_vocabularies"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tenant_vocabularies.sql",
+      "element_type": "table",
+      "element_id": "tenant_vocabularies"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/system_settings.sql",
+      "element_type": "table",
+      "element_id": "system_settings"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tenant_auth_subjects.sql",
+      "element_type": "table",
+      "element_id": "tenant_auth_subjects"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tenant_credentials.sql",
+      "element_type": "table",
+      "element_id": "tenant_credentials"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/admin_credentials.sql",
+      "element_type": "table",
+      "element_id": "admin_credentials"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/admin_sessions.sql",
+      "element_type": "table",
+      "element_id": "admin_sessions"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/tenant_tokens.sql",
+      "element_type": "table",
+      "element_id": "tenant_tokens"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/admin_operation_logs.sql",
+      "element_type": "table",
+      "element_id": "admin_operation_logs"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/player_merge_events.sql",
+      "element_type": "table",
+      "element_id": "player_merge_events"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/player_move_records.sql",
+      "element_type": "table",
+      "element_id": "player_move_records"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/rate_limit_counters.sql",
+      "element_type": "table",
+      "element_id": "rate_limit_counters"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/analysis_groups.sql",
+      "element_type": "table",
+      "element_id": "analysis_groups"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/group_memberships.sql",
+      "element_type": "table",
+      "element_id": "group_memberships"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/sharing_grants.sql",
+      "element_type": "table",
+      "element_id": "sharing_grants"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/group_invitations.sql",
+      "element_type": "table",
+      "element_id": "group_invitations"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/invalidation_intents.sql",
+      "element_type": "table",
+      "element_id": "invalidation_intents"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/migration_quarantine.sql",
+      "element_type": "table",
+      "element_id": "migration_quarantine"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/migrated_final_lineups.sql",
+      "element_type": "table",
+      "element_id": "migrated_final_lineups"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/migration_runs.sql",
+      "element_type": "table",
+      "element_id": "migration_runs"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/migration_resolution_reports.sql",
+      "element_type": "table",
+      "element_id": "migration_resolution_reports"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/migration_warning_reports.sql",
+      "element_type": "table",
+      "element_id": "migration_warning_reports"
     }
   ]
 }

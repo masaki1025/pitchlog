@@ -25,6 +25,9 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PRODUCT_SPEC,
     AuthzAssetSpec,
 )
+from pitchlog.authz.product_table_rls import (  # noqa: E402  # ty: ignore[unresolved-import]
+    generate_product_table_rls_sql,
+)
 
 # このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
@@ -112,6 +115,10 @@ DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
 ASSET_SPECS = {"probe": PROBE_SPEC, "product": PRODUCT_SPEC}
+PRODUCT_TABLE_CLASSIFICATION = Path(
+    PRODUCT_SPEC.asset_root / "table-classification.json"
+)
+PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
 
 PRODUCT_ROLE_ATTRIBUTE_NAMES = frozenset(
     {
@@ -3051,7 +3058,7 @@ def validate_ddl_elements(
             _probe_check_tracker=tracker,
         )
     if spec == PRODUCT_SPEC:
-        return _validate_product_ddl_elements(raw)
+        return _validate_product_ddl_elements(raw, root)
     result = tracker.run(
         "ddl_elements_closed_world",
         lambda: _validate_probe_ddl_elements(raw, root),
@@ -3192,8 +3199,132 @@ def _validate_product_schema_expectations(value: object) -> None:
         raise CatalogError("製品スキーマの所有者またはACLがdesign.md 2-1と一致しない")
 
 
-def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
-    """製品ロール・DB・スキーマの宣言を設計上の閉集合と照合する。"""
+def _product_table_universe(root: Path) -> frozenset[str]:
+    """Schema manifestと表分類から一致する45表の母集合を返す。"""
+    manifest = _read_json(root / PRODUCT_SCHEMA_MANIFEST, "schema manifest")
+    if not isinstance(manifest, dict):
+        raise CatalogError("schema manifestはオブジェクトでなければならない")
+    manifest_rows = manifest.get("tables")
+    if not isinstance(manifest_rows, list):
+        raise CatalogError("schema manifest.tablesは配列でなければならない")
+    manifest_names: list[str] = []
+    for index, row_value in enumerate(manifest_rows):
+        label = f"schema manifest.tables[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        manifest_names.append(_expect_string(row_value.get("name"), f"{label}.name"))
+    if len(manifest_names) != len(set(manifest_names)):
+        raise CatalogError("schema manifest.tablesに表名の重複がある")
+
+    classification = _read_json(
+        root / PRODUCT_TABLE_CLASSIFICATION,
+        "table-classification",
+    )
+    if not isinstance(classification, dict):
+        raise CatalogError("table-classificationはオブジェクトでなければならない")
+    classification_rows = classification.get("tables")
+    if not isinstance(classification_rows, list):
+        raise CatalogError("table-classification.tablesは配列でなければならない")
+    classified_names: list[str] = []
+    for index, row_value in enumerate(classification_rows):
+        label = f"table-classification.tables[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        classified_names.append(
+            _expect_string(row_value.get("table"), f"{label}.table")
+        )
+    if len(classified_names) != len(set(classified_names)):
+        raise CatalogError("table-classification.tablesに表名の重複がある")
+
+    manifest_set = frozenset(manifest_names)
+    classification_set = frozenset(classified_names)
+    if manifest_set != classification_set or len(manifest_set) != 45:
+        raise CatalogError("schema manifestと表分類の45表がexact-set不一致")
+    return manifest_set
+
+
+def _validate_product_table_bodies(
+    root: Path,
+    expected_tables: frozenset[str],
+) -> None:
+    """製品manifestの表対応と全RLS SQLを生成結果へ照合する。"""
+    manifest = _read_json(root / PRODUCT_SPEC.body_manifest_path, "body manifest")
+    if not isinstance(manifest, dict):
+        raise CatalogError("body manifestはオブジェクトでなければならない")
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        raise CatalogError("body manifest.entriesは配列でなければならない")
+    table_paths: dict[str, str] = {}
+    for index, entry_value in enumerate(entries):
+        if not isinstance(entry_value, dict):
+            raise CatalogError(
+                f"body manifest.entries[{index}]はオブジェクトでなければならない"
+            )
+        if entry_value.get("element_type") != "table":
+            continue
+        label = f"body manifest.entries[{index}]"
+        _expect_keys(
+            entry_value,
+            {"path", "element_type", "element_id"},
+            label,
+        )
+        table_id = _expect_string(entry_value["element_id"], f"{label}.element_id")
+        path_text = _expect_string(entry_value["path"], f"{label}.path")
+        expected_path = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/tables/{table_id}.sql"
+        )
+        if path_text != expected_path or table_id in table_paths:
+            raise CatalogError(f"{label}の表IDとpathの対応が不正")
+        table_paths[table_id] = path_text
+    if set(table_paths) != set(expected_tables):
+        raise CatalogError("body manifestの表要素が45表とexact-set不一致")
+    for table_id, path_text in table_paths.items():
+        body = _read_text(root / path_text, f"表RLS body[{table_id}]")
+        try:
+            expected_body = generate_product_table_rls_sql(table_id)
+        except ValueError as error:
+            raise CatalogError(f"表RLS bodyの識別子が不正: {table_id}") from error
+        if body != expected_body:
+            raise CatalogError(f"{table_id}のENABLEまたはFORCE SQLが生成結果と不一致")
+
+
+def _validate_product_table_expectations(value: object, root: Path) -> None:
+    """全45表のENABLEとFORCE宣言を2つの母集合へ照合する。"""
+    if not isinstance(value, list):
+        raise CatalogError("製品DDL manifest.tablesは配列でなければならない")
+    expected_tables = _product_table_universe(root)
+    declared_tables: set[str] = set()
+    for index, row_value in enumerate(value):
+        label = f"製品DDL manifest.tables[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(
+            row_value,
+            {
+                "table_id",
+                "schema_name",
+                "enable_row_level_security",
+                "force_row_level_security",
+            },
+            label,
+        )
+        table_id = _expect_string(row_value["table_id"], f"{label}.table_id")
+        if table_id in declared_tables:
+            raise CatalogError(f"{label}.table_idが重複している: {table_id}")
+        declared_tables.add(table_id)
+        if (
+            row_value["schema_name"] != "public"
+            or row_value["enable_row_level_security"] is not True
+            or row_value["force_row_level_security"] is not True
+        ):
+            raise CatalogError(f"{table_id}のpublicスキーマまたはENABLE/FORCE宣言が不正")
+    if declared_tables != set(expected_tables):
+        raise CatalogError("製品DDLの表宣言が45表とexact-set不一致")
+    _validate_product_table_bodies(root, expected_tables)
+
+
+def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]:
+    """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
     if not isinstance(raw, dict):
         raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
     _expect_keys(
@@ -3262,6 +3393,7 @@ def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
         raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(raw["schemas"])
+    _validate_product_table_expectations(raw["tables"], root)
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": len(roles_by_id),

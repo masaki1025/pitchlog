@@ -165,7 +165,278 @@
       ]
     }
   ],
-  "tables": [],
+  "tables": [
+    {
+      "table_id": "tenants",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "team_records",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "players",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "games",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "lineup_memories",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "game_lineups",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "participation_intervals",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "rule_sets",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "game_type_rule_defaults",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "tournament_rule_assignments",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "event_slots",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "operation_events",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "play_rows",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "play_runners",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "temporary_player_id_mappings",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "idempotency_ledger",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "rejected_event_originals",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "evacuated_event_originals",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "recording_generations",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "medical_notes",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "medical_note_versions",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "pdf_export_records",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "system_vocabularies",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "admin_vocabularies",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "tenant_vocabularies",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "system_settings",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "tenant_auth_subjects",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "tenant_credentials",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "admin_credentials",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "admin_sessions",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "tenant_tokens",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "admin_operation_logs",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "player_merge_events",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "player_move_records",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "rate_limit_counters",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "analysis_groups",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "group_memberships",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "sharing_grants",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "group_invitations",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "invalidation_intents",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "migration_quarantine",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "migrated_final_lineups",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "migration_runs",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "migration_resolution_reports",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "migration_warning_reports",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    }
+  ],
   "predicates": [],
   "policies": [],
   "functions": [],
