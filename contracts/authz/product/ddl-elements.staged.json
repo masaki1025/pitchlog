@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_product_ddl_manifest",
+  "scope": {
+    "status": "product_configuration",
+    "product_schema": true
+  },
+  "pending_switch": "TSK-443",
+  "roles": [],
+  "schemas": [],
+  "tables": [],
+  "predicates": [],
+  "policies": [],
+  "functions": [],
+  "acl_expectations": [],
+  "column_acl_expectations": []
+}

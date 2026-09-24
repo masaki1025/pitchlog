@@ -103,8 +103,8 @@ class AuthzAssetSpec:
             raise ValueError("許可するscope値は空にできない")
         if not self.element_sections:
             raise ValueError("要素セクション指定は空にできない")
-        if not self.operation_handlers:
-            raise ValueError("操作種別と処理関数の対応は空にできない")
+        if self.asset_kind == "probe" and not self.operation_handlers:
+            raise ValueError("probeの操作種別と処理関数の対応は空にできない")
         dimensions = (
             tuple(section.element_type for section in self.element_sections),
             tuple(section.section_name for section in self.element_sections),
@@ -169,4 +169,21 @@ PROBE_SPEC = AuthzAssetSpec(
             "_close_set_path",
         ),
     ),
+)
+
+
+PRODUCT_SPEC = AuthzAssetSpec(
+    asset_root=PurePosixPath("contracts/authz/product"),
+    ddl_elements_path=PurePosixPath("contracts/authz/product/ddl-elements.staged.json"),
+    body_manifest_path=PurePosixPath(
+        "contracts/authz/product/function-bodies/manifest.json"
+    ),
+    body_directory=PurePosixPath("contracts/authz/product/function-bodies"),
+    body_checker_path=PurePosixPath("scripts/check_authz_function_bodies.py"),
+    scope_field="scope",
+    scope_status_field="status",
+    allowed_scope_status="product_configuration",
+    asset_kind="product",
+    element_sections=PROBE_SPEC.element_sections,
+    operation_handlers=(),
 )

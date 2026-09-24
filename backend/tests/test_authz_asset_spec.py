@@ -9,8 +9,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-from pitchlog.authz import asset_spec
-from pitchlog.authz.asset_spec import PROBE_SPEC
+from pitchlog.authz.asset_spec import PROBE_SPEC, PRODUCT_SPEC
 from pitchlog.authz.ddl import (
     AuthzDDLGenerationError,
     DDLStatement,
@@ -70,7 +69,7 @@ def _run_body_checker(
 
 
 def test_probe_spec_is_the_immutable_current_probe_asset() -> None:
-    """PROBE_SPEC が現行 probe の全配置と scope を不変値で表す。"""
+    """PROBE_SPEC が製品値と重ならず現行probeを不変に表す。"""
     assert PROBE_SPEC.asset_root == PurePosixPath("contracts/authz")
     assert PROBE_SPEC.ddl_elements_path == PurePosixPath(
         "contracts/authz/ddl-elements.json"
@@ -81,7 +80,12 @@ def test_probe_spec_is_the_immutable_current_probe_asset() -> None:
     assert PROBE_SPEC.body_directory == PurePosixPath("contracts/authz/function-bodies")
     assert PROBE_SPEC.allowed_scope_status == "verified_probe_configuration"
     assert PROBE_SPEC.asset_kind == "probe"
-    assert not hasattr(asset_spec, "PRODUCT_SPEC")
+    assert PROBE_SPEC.asset_root != PRODUCT_SPEC.asset_root
+    assert PROBE_SPEC.ddl_elements_path != PRODUCT_SPEC.ddl_elements_path
+    assert PROBE_SPEC.body_manifest_path != PRODUCT_SPEC.body_manifest_path
+    assert PROBE_SPEC.body_directory != PRODUCT_SPEC.body_directory
+    assert PROBE_SPEC.allowed_scope_status != PRODUCT_SPEC.allowed_scope_status
+    assert PROBE_SPEC.asset_kind != PRODUCT_SPEC.asset_kind
 
     with pytest.raises(FrozenInstanceError):
         setattr(PROBE_SPEC, "allowed_scope_status", "product_configuration")
@@ -106,9 +110,9 @@ def test_default_and_explicit_probe_body_checker_outputs_are_byte_identical() ->
     assert default_result.stderr == explicit_result.stderr
 
 
-def test_body_checker_cli_rejects_unavailable_product_spec() -> None:
-    """ステップ 4 の CLI は未定義の product 指定を受け付けない。"""
-    result = subprocess.run(
+def test_body_checker_cli_accepts_only_the_closed_asset_spec_set() -> None:
+    """Body検査CLIはprobeとproductだけを受理して未知の値を拒否する。"""
+    product_result = subprocess.run(
         [
             sys.executable,
             str(_BODY_CHECKER_PATH),
@@ -121,9 +125,25 @@ def test_body_checker_cli_rejects_unavailable_product_spec() -> None:
         capture_output=True,
         check=False,
     )
+    unknown_result = subprocess.run(
+        [
+            sys.executable,
+            str(_BODY_CHECKER_PATH),
+            "--root",
+            str(_REPOSITORY_ROOT),
+            "--asset-spec",
+            "unknown",
+        ],
+        cwd=_REPOSITORY_ROOT,
+        capture_output=True,
+        check=False,
+    )
 
-    assert result.returncode == 2
-    assert b"invalid choice" in result.stderr
+    assert product_result.returncode == 0
+    assert product_result.stdout == b"authz-function-bodies: OK\n"
+    assert product_result.stderr == b""
+    assert unknown_result.returncode == 2
+    assert b"invalid choice" in unknown_result.stderr
 
 
 def test_probe_spec_rejects_asset_with_non_probe_scope(

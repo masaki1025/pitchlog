@@ -10,9 +10,9 @@ from pathlib import Path, PurePosixPath
 import db_fixtures
 import pytest
 
-from pitchlog.authz import asset_spec
 from pitchlog.authz.asset_spec import (
     PROBE_SPEC,
+    PRODUCT_SPEC,
     AuthzAssetSpec,
     AuthzOperationHandlerSpec,
 )
@@ -138,7 +138,12 @@ def test_db_fixture_loader_uses_the_given_spec_path(
     assert db_fixtures._load_ddl_asset(_TEST_SPEC) == expected
 
 
-def test_product_spec_is_not_defined_in_step_five() -> None:
-    """試験用 spec を製品の正規 spec として公開していないことを確かめる。"""
+def test_product_spec_has_an_independent_empty_operation_kind_set() -> None:
+    """製品specの空集合へprobeの操作種別が混入していないことを確かめる。"""
     assert isinstance(_TEST_SPEC, AuthzAssetSpec)
-    assert not hasattr(asset_spec, "PRODUCT_SPEC")
+    assert isinstance(PRODUCT_SPEC, AuthzAssetSpec)
+    assert PRODUCT_SPEC.operation_handlers == ()
+    assert _operation_handlers_for(PRODUCT_SPEC) == {}
+    assert set(_operation_handlers_for(PRODUCT_SPEC)).isdisjoint(
+        _operation_handlers_for(PROBE_SPEC)
+    )

@@ -17,6 +17,7 @@ sys.path.insert(0, str(_BACKEND_SOURCE_ROOT))
 
 from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-import]
     PROBE_SPEC,
+    PRODUCT_SPEC,
     AuthzAssetSpec,
 )
 
@@ -38,7 +39,7 @@ ELEMENT_SECTIONS = {
     section.element_type: (section.section_name, section.id_field)
     for section in PROBE_SPEC.element_sections
 }
-ASSET_SPECS = {"probe": PROBE_SPEC}
+ASSET_SPECS = {"probe": PROBE_SPEC, "product": PRODUCT_SPEC}
 
 
 class FunctionBodyCheckError(Exception):
@@ -50,7 +51,7 @@ class ManifestEntry:
     """manifest の body 1 件を表す。"""
 
     path: str
-    blob_digest: str
+    blob_digest: str | None
     element_type: str
     element_id: str
 
@@ -136,14 +137,17 @@ def _parse_manifest(
     raw: object,
     root: Path,
     spec: AuthzAssetSpec,
-) -> tuple[str, tuple[ManifestEntry, ...]]:
+) -> tuple[str | None, tuple[ManifestEntry, ...]]:
     """manifest を厳密に解釈する。"""
     manifest = _expect_object(raw, "body manifest")
-    _expect_keys(
-        manifest,
-        {"schema_version", "asset_kind", "source_commit", "entries"},
-        "body manifest",
-    )
+    if spec.asset_kind == "product" and "source_commit" in manifest:
+        raise FunctionBodyCheckError(
+            "製品のbody manifestにsource_commitを持たせてはならない"
+        )
+    expected_manifest_keys = {"schema_version", "asset_kind", "entries"}
+    if spec.asset_kind == "probe":
+        expected_manifest_keys.add("source_commit")
+    _expect_keys(manifest, expected_manifest_keys, "body manifest")
     if (
         manifest["schema_version"] != 1
         or manifest["asset_kind"] != "authz_function_body_manifest"
@@ -151,11 +155,13 @@ def _parse_manifest(
         raise FunctionBodyCheckError(
             "body manifestのschema_versionまたはasset_kindが不正"
         )
-    source_commit = _expect_string(
-        manifest["source_commit"], "body manifest.source_commit"
-    )
-    if not COMMIT_RE.fullmatch(source_commit):
-        raise FunctionBodyCheckError("body manifest.source_commitがcommit SHAでない")
+    source_commit: str | None = None
+    if spec.asset_kind == "probe":
+        source_commit = _expect_string(
+            manifest["source_commit"], "body manifest.source_commit"
+        )
+        if not COMMIT_RE.fullmatch(source_commit):
+            raise FunctionBodyCheckError("body manifest.source_commitがcommit SHAでない")
 
     entries: list[ManifestEntry] = []
     for index, raw_entry in enumerate(
@@ -163,11 +169,10 @@ def _parse_manifest(
     ):
         label = f"body manifest.entries[{index}]"
         entry = _expect_object(raw_entry, label)
-        _expect_keys(
-            entry,
-            {"path", "blob_digest", "element_type", "element_id"},
-            label,
-        )
+        expected_entry_keys = {"path", "element_type", "element_id"}
+        if spec.asset_kind == "probe":
+            expected_entry_keys.add("blob_digest")
+        _expect_keys(entry, expected_entry_keys, label)
         path_text = _expect_string(entry["path"], f"{label}.path")
         _validate_relative_path(
             path_text,
@@ -175,9 +180,11 @@ def _parse_manifest(
             spec.body_directory,
             f"{label}.path",
         )
-        digest = _expect_string(entry["blob_digest"], f"{label}.blob_digest")
-        if not BLOB_DIGEST_RE.fullmatch(digest):
-            raise FunctionBodyCheckError(f"{label}.blob_digestがblob SHA-1でない")
+        digest: str | None = None
+        if spec.asset_kind == "probe":
+            digest = _expect_string(entry["blob_digest"], f"{label}.blob_digest")
+            if not BLOB_DIGEST_RE.fullmatch(digest):
+                raise FunctionBodyCheckError(f"{label}.blob_digestがblob SHA-1でない")
         element_type = _expect_string(entry["element_type"], f"{label}.element_type")
         element_id = _expect_string(entry["element_id"], f"{label}.element_id")
         entries.append(
@@ -307,12 +314,15 @@ def validate_repository(
     actual_paths = _actual_body_paths(root, spec)
     findings: list[str] = []
 
-    commit_result = _run_git(
-        root,
-        ["rev-parse", "--verify", f"{source_commit}^{{commit}}"],
-    )
-    if commit_result.returncode != 0:
-        raise FunctionBodyCheckError(f"source_commitを解決できない: {source_commit}")
+    if source_commit is not None:
+        commit_result = _run_git(
+            root,
+            ["rev-parse", "--verify", f"{source_commit}^{{commit}}"],
+        )
+        if commit_result.returncode != 0:
+            raise FunctionBodyCheckError(
+                f"source_commitを解決できない: {source_commit}"
+            )
 
     path_counts = Counter(entry.path for entry in entries)
     for path_text, count in sorted(path_counts.items()):
@@ -352,7 +362,10 @@ def validate_repository(
             findings.append(f"{entry.path}: 現bodyファイルがない")
         else:
             data = _read_bytes(path, entry.path)
-            if git_blob_digest(data) != entry.blob_digest:
+            if (
+                entry.blob_digest is not None
+                and git_blob_digest(data) != entry.blob_digest
+            ):
                 findings.append(f"{entry.path}: 現bodyのblob digestが不一致")
             text = _read_text(path, entry.path)
             element_types = ELEMENT_TYPE_RE.findall(text)
@@ -365,16 +378,18 @@ def validate_repository(
             ):
                 findings.append(f"{entry.path}: ELEMENTヘッダーがmanifestと不一致")
 
-        revision_result = _run_git(
-            root,
-            ["rev-parse", f"{source_commit}:{entry.path}"],
-        )
-        if revision_result.returncode != 0:
-            findings.append(f"{entry.path}: source_commit上のblobを解決できない")
-        elif revision_result.stdout.strip() != entry.blob_digest:
-            findings.append(f"{entry.path}: source_commit上のblob digestが不一致")
+        if source_commit is not None:
+            revision_result = _run_git(
+                root,
+                ["rev-parse", f"{source_commit}:{entry.path}"],
+            )
+            if revision_result.returncode != 0:
+                findings.append(f"{entry.path}: source_commit上のblobを解決できない")
+            elif revision_result.stdout.strip() != entry.blob_digest:
+                findings.append(f"{entry.path}: source_commit上のblob digestが不一致")
 
-    findings.extend(_validate_decisions(root, actual_paths))
+    if spec.asset_kind == "probe":
+        findings.extend(_validate_decisions(root, actual_paths))
     return tuple(findings)
 
 

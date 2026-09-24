@@ -22,6 +22,7 @@ sys.path.insert(0, str(_BACKEND_SOURCE_ROOT))
 
 from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-import]
     PROBE_SPEC,
+    PRODUCT_SPEC,
     AuthzAssetSpec,
 )
 
@@ -110,7 +111,7 @@ DEFAULT_ATTACK_TREE = Path("contracts/authz/attack-tree.json")
 DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
-ASSET_SPECS = {"probe": PROBE_SPEC}
+ASSET_SPECS = {"probe": PROBE_SPEC, "product": PRODUCT_SPEC}
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -5693,7 +5694,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=Path,
         default=DEFAULT_HTTP_ROUTE_MATRIX_LOCK,
     )
-    parser.add_argument("--ddl-elements", type=Path, default=DEFAULT_DDL_ELEMENTS)
+    parser.add_argument("--ddl-elements", type=Path)
     parser.add_argument(
         "--rejected-configs", type=Path, default=DEFAULT_REJECTED_CONFIGS
     )
@@ -5988,8 +5989,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     _write_json(lock_paths[name], lock, f"{name} decision lock")
         oracle_result: dict[str, dict[str, object]] | None = None
         if not args.skip_oracle:
+            ddl_elements_argument = args.ddl_elements or Path(
+                asset_spec.ddl_elements_path
+            )
             oracle_path_args = {
-                "ddl_elements": args.ddl_elements,
+                "ddl_elements": ddl_elements_argument,
                 "rejected_configs": args.rejected_configs,
                 "claim_mutant_map": args.claim_mutant_map,
                 "attack_tree": args.attack_tree,
@@ -6071,7 +6075,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f" db_claims={catalog_result['db_claim_count']}"
             f" routes={len(route_by_id)} cells={matrix_result['cell_count']}"
         )
-    if oracle_result is not None:
+    if oracle_result is not None and "mutants" in oracle_result:
         mutant_result = oracle_result["mutants"]
         attack_result = oracle_result["attack"]
         execution_counts = mutant_result["execution_counts"]
