@@ -661,13 +661,13 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "3bab40813e14dfdcb0035dea31b5ca4786c43ef2fbe2fee59dbfcf35924fef82",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3bab40813e14dfdcb0035dea31b5ca4786c43ef2fbe2fee59dbfcf35924fef82"
+                "sha256": "1cfd6169843deff1427b122c41843231e8671dc1ac500c0cfac1f7dd5fe85203",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1cfd6169843deff1427b122c41843231e8671dc1ac500c0cfac1f7dd5fe85203"
               },
               {
                 "path": "scripts/frozen_history.py",
-                "sha256": "361a9de2238c00ee3517c783f92bfb97912241e5300d3e669dc7076fa37e3cb9",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/361a9de2238c00ee3517c783f92bfb97912241e5300d3e669dc7076fa37e3cb9"
+                "sha256": "a5cd3967a457120ada983a2ffc83544fe19bce4d428aa22c199d3b0972d7eb23",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a5cd3967a457120ada983a2ffc83544fe19bce4d428aa22c199d3b0972d7eb23"
               }
             ]
           }

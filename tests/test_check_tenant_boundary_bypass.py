@@ -273,6 +273,33 @@ def _write_test_repository_sources(
         path.write_text(source, encoding="utf-8")
 
 
+def _set_pull_request_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    event_path: Path,
+    *,
+    workspace: Path,
+    base_sha: str,
+    head_sha: str,
+) -> None:
+    """指定 workspace の PR event を環境変数へ設定する。"""
+    event_path.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "masaki1025/pitchlog"},
+                "pull_request": {
+                    "number": 78,
+                    "base": {"ref": "develop", "sha": base_sha},
+                    "head": {"sha": head_sha},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+
 def _mutate_single_authority_history(repository: Path, mutation: str) -> None:
     """実資産コピーへ単一 authority 規約の負例を 1 つだけ入れる。"""
     authority_path = repository / checker.DEFAULT_ALLOWLIST
@@ -413,6 +440,79 @@ def test_checker_forces_pr_mode_before_repository_evaluation(
 
     with pytest.raises(checker.ContractError, match="GITHUB_EVENT_PATH"):
         checker.check_repository(REPOSITORY_ROOT)
+
+
+def test_pr_workspace_rejects_explicit_base_ref_that_differs_from_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """event 対象リポジトリでは比較元を明示指定で選び直せない。"""
+    repository, event_base = _initialize_test_repository(tmp_path, {})
+    (repository / "marker.txt").write_text("different base\n", encoding="utf-8")
+    explicit_base = _commit_test_repository(repository, "different base")
+    _set_pull_request_environment(
+        monkeypatch,
+        tmp_path / "event.json",
+        workspace=repository,
+        base_sha=event_base,
+        head_sha=explicit_base,
+    )
+
+    with pytest.raises(checker.ContractError, match="base.sha と不一致"):
+        checker._resolve_repository_evaluation(repository, explicit_base)
+
+
+def test_pr_workspace_uses_event_base_when_base_ref_is_omitted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """event 対象リポジトリの比較元を event の base.sha に固定する。"""
+    repository, event_base = _initialize_test_repository(tmp_path, {})
+    _set_pull_request_environment(
+        monkeypatch,
+        tmp_path / "event.json",
+        workspace=repository,
+        base_sha=event_base,
+        head_sha=event_base,
+    )
+
+    context, effective_base = checker._resolve_repository_evaluation(
+        repository,
+        None,
+    )
+
+    assert context.mode is checker.frozen_history.EvaluationMode.PR_ACCEPTANCE
+    assert effective_base == event_base
+
+
+def test_pr_event_does_not_override_explicit_base_for_another_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """event と無関係な一時リポジトリは自身の比較元で不変量検査する。"""
+    event_repository, event_base = _initialize_test_repository(
+        tmp_path / "event",
+        {},
+    )
+    inspected_repository, inspected_base = _initialize_test_repository(
+        tmp_path / "inspected",
+        {},
+    )
+    _set_pull_request_environment(
+        monkeypatch,
+        tmp_path / "event.json",
+        workspace=event_repository,
+        base_sha=event_base,
+        head_sha=event_base,
+    )
+
+    assert (
+        checker.check_repository(
+            inspected_repository,
+            base_ref=inspected_base,
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)
