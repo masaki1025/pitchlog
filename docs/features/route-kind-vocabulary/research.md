@@ -107,7 +107,15 @@ date: 2026-09-24
 | 5 | 同 `:2411-2416` | **`disposition_by_kind` — dict の直参照**。同上 |
 | 6 | 同 `:2254` | `route_scopes[].route_kinds ⊆ ROUTE_KINDS` の**部分集合判定**。何もしなくても green |
 
-**→ 当方の計画書 4 節「参照点 4 箇所」は過少。6 箇所が正。**
+**さらに検査器の外にも 2 箇所ある**(2 本目の調査 — 実測で裏取り):
+
+| # | 場所 | 挙動 |
+| --- | --- | --- |
+| 7 | `backend/tests/db/authz/mutation_execution.py:897-909` の **`class_by_route_kind`** | 未知 kind は **`MutationContractError`**(「probe 関数へ写像できない route kind」)。**値域を足すだけなら発火しない**が、新種別の route が `claim-mutant-map` の `runtime_target` に現れた瞬間に red |
+| 8 | `scripts/check_authz_catalog.py:5026-5031` の `boundary-proposal.json` の責務 **exact-set**(`{SHARED-AUTHORIZED-ROWS, CONTROL-READS, REPRESENTATIVE-MANAGEMENT}`) | route_kind 2〜4 の鏡像。**第 4 の責務を足すと oracle 資産の変更**になり `ORACLE_STEP5_REREVIEW` が発火する |
+
+**→ 当方の計画書 4 節「参照点 4 箇所」は過少。検査器内で 6・外を含めて 8 箇所。**
+**7 と 8 は「発火させない」ことを DoD に書いて境界を明示する。**
 
 #### 必須キーは exact-set の裏返し
 
@@ -189,10 +197,14 @@ date: 2026-09-24
 
 > **→ 本タスクの `docs/features/route-kind-vocabulary/plan.md` に決定文を逐語で書き、それを `extracted_text` として引く形が前例どおりになる。正本の改訂は要らない。**
 
-**落とし穴 2 件**:
-- **`legacy_route` 以外で design origin を使うと現状 `KeyError`** — `:2089` が `route["provenance_ids"]` を読むが、
-  そのキーが許可されるのは `legacy_route` だけ(`:2068-2075`)。**新種別の必須キー表に `provenance_ids` を含めること**が前提
-- **`design` origin の route は現在 1 本も存在しない**(`contracts/authz/` 内で `"origin": "design"` は 0 件)。**未実証の経路**
+**⚠ ただし `origin: "design"` は現行スキーマでは「デッドな値域」である**(2 本目の調査 — 実測で裏取り):
+
+- `:2089` が `route["provenance_ids"]` を読むが、**そのキーが許可されるのは `legacy_route` だけ**(`:2068-2075`)
+- 一方 **`legacy_route` は `origin: requirement` 強制**(`:2129-2132`)
+- **→ 現行のどの種別でも `design` origin は成立しない。**実在も 0 件
+
+**したがって新種別で design origin を使うなら、必須キー表に `provenance_ids` を含める設計が前提**になる。
+これは「デッドだった値域を初めて生かす」変更であり、**計画書で明示的に扱う**。
 
 ### 4-3. 凍結基準を動かす承認手順(記録されている逐語)
 
@@ -215,8 +227,31 @@ oracle は「**内容追随 → commit 差し替え(最終形確定)→ レビ�
 
 ### 5. 前例 — TSK-312 ステップ 6(2026-09-03)
 
-**`route_kind` 自体の拡張前例は無い。**`route_classes` / `resource_kinds` / `channels` の拡張記録も **0 件**。
-最も近いのは **`claim_dispositions` の新設**(`docs/worklog/2026-09-03-authz-claims-corpus.md:146-147`)。
+**`route_kind` 自体の拡張前例は無い**が、**閉じた値域を広げた前例は実在する**(2 本目の調査で判明 — 当方の初稿の「前例なし」は誤り)。
+
+#### 前例 A: `operation_ids` を 7 → 8 に広げた(人間裁定 D-4・2026-09-09)
+
+**資産の形**(実測 — `contracts/authz/boundary-proposal.json` の `pending_human_reviews[]`):
+
+```json
+{ "review_id": "PENDING-MANAGEMENT-COMMAND-COUNT",
+  "status": "human_decided",
+  "frozen_value": 8,
+  "alternative_value": 7,
+  "affected_ids_if_changed": ["issue_invitation", "revoke_invitation",
+    "ROUTE:MANAGEMENT:ISSUE_INVITATION", "HTTP:ROUTE:MANAGEMENT:ISSUE_INVITATION",
+    "FR-041/list_item-006#issue-permission", "..."],
+  "oracle_change_action": "return_to_step_5_and_re_review" }
+```
+
+**運用の型**: ① 起票時に**保留中の裁定**として oracle へ明記し、**変わる場合の影響 ID を先に列挙**する
+② 人間裁定で `frozen_value` を確定(`status: human_decided`)
+③ **要件の数え方と実装の数え方がずれるなら「1:N 写像」を明示**して両立させる
+(要件書は「7 操作」・資産は 8 ID。裁定 D-4 =「frozen 値を確定として承認(8 と 29)+ 要件の『7 操作』との 1:N 写像を明示」)
+
+**→ 本タスクも「新種別を足す/足さない」を `pending_human_reviews` の形で残すのが前例に沿う。**
+
+#### 前例 B: `claim_dispositions` の新設(`docs/worklog/2026-09-03-authz-claims-corpus.md:146-147`)。
 **なぞるべき手順の型**:
 
 1. **テスト先行** — 負例フィクスチャを先に置き red を実出力つきで確認 → 実装 → green
@@ -240,7 +275,7 @@ oracle は「**内容追随 → commit 差し替え(最終形確定)→ レビ�
 | --- | --- | --- |
 | **TSK-346**(API 契約の正本) | **踏まない。ただし条件つき** — `route_kind` は path / method を持たない**論理経路の種別**(`data-model.md:2441-2443`)。**必須キーに `http_method` / `path` / `expected_status`(404 か 403 か)を含めると射程を踏む** | `ADR-004:45`・`:154`(射程侵犯の判定)/ `product-impl-unit-split/plan.md:499-500` |
 | **TSK-380**(`test_owner` 再割り当て) | **踏まない**。「付与と再割り当ては別の操作」が明文化済み。**条件: 既存 37 行の `test_owner` に 1 文字も触れないこと** | `ADR-004:46` / `product-impl-unit-split/plan.md:519` |
-| **TSK-424** | **独立性の根拠がリポ内に無い** — 当方の計画書 7 節「424 は `route-registry.json` に触らない」は、**リポ内に典拠が存在しない**(Notion カードと 424 のブランチが出所)。**典拠として 424 の計画書か Notion カードを明記する必要がある** | `docs/worklog/2026-09-17-tenant-boundary-enforcement.md:70-73` が唯一の言及 |
+| **TSK-424** | **⚠ 射程に「authz ツールチェーンの一般化」が含まれる**(`tenant-boundary-enforcement/plan.md:75`)。`check_authz_catalog.py` の値域拡張は**広義にはこれに触れうる**。→ 計画書で「**本タスクは `ROUTE_KINDS` の語彙だけ。`contracts/authz/product/` にも capability にも触れない**」と明示宣言する。なお同 `:87`「製品表向けの汎用 CRUD の公開は TSK-424 の表分類が確定するまで公開しない」は、**語彙を決めることは「公開」ではない**ので抵触しない。あわせて**独立性の根拠がリポ内に無い** — 当方の計画書 7 節「424 は `route-registry.json` に触らない」は、**リポ内に典拠が存在しない**(Notion カードと 424 のブランチが出所)。**典拠として 424 の計画書か Notion カードを明記する必要がある** | `docs/worklog/2026-09-17-tenant-boundary-enforcement.md:70-73` が唯一の言及 |
 | **TSK-383**(「入口を開く」の機械判定) | **表裏になりうる**。本タスクは「**route の種別**」であって「**claim の到達経路種別**」ではない、という線を計画書で引く | `ADR-004:43` / `contract-only-runtime-handoff/research.md:255-258` |
 
 ### 7. 当方の計画書の事実誤認(本メモで訂正)
