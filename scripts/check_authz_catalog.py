@@ -25,6 +25,17 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PRODUCT_SPEC,
     AuthzAssetSpec,
 )
+from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[unresolved-import]
+    DIRECT_ACL_PROFILES,
+    DIRECT_POLICY_PROFILES,
+    TENANT_PREDICATE_ID,
+    build_product_policy_declaration,
+    build_product_predicate_declaration,
+    build_product_table_acl_declaration,
+    generate_product_policy_sql,
+    generate_product_predicate_sql,
+    generate_product_table_acl_sql,
+)
 from pitchlog.authz.product_table_rls import (  # noqa: E402  # ty: ignore[unresolved-import]
     generate_product_table_rls_sql,
 )
@@ -118,6 +129,7 @@ ASSET_SPECS = {"probe": PROBE_SPEC, "product": PRODUCT_SPEC}
 PRODUCT_TABLE_CLASSIFICATION = Path(
     PRODUCT_SPEC.asset_root / "table-classification.json"
 )
+PRODUCT_EXPOSURE_FACTS = Path(PRODUCT_SPEC.asset_root / "exposure-facts.json")
 PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
 
 PRODUCT_ROLE_ATTRIBUTE_NAMES = frozenset(
@@ -3243,6 +3255,81 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     return manifest_set
 
 
+def _product_table_profiles(root: Path) -> dict[str, str]:
+    """表分類から全45表の物理プロファイルを一意に読む。"""
+    classification = _read_json(
+        root / PRODUCT_TABLE_CLASSIFICATION,
+        "table-classification",
+    )
+    if not isinstance(classification, dict):
+        raise CatalogError("table-classificationはオブジェクトでなければならない")
+    rows = classification.get("tables")
+    if not isinstance(rows, list):
+        raise CatalogError("table-classification.tablesは配列でなければならない")
+    allowed_profiles = {
+        "tenant_owned",
+        "self_tenant_row",
+        "effective_group_control",
+        "global_read_only",
+        "function_only",
+    }
+    profiles: dict[str, str] = {}
+    for index, row_value in enumerate(rows):
+        label = f"table-classification.tables[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        table_id = _expect_string(row_value.get("table"), f"{label}.table")
+        profile = _expect_string(row_value.get("profile"), f"{label}.profile")
+        if profile not in allowed_profiles:
+            raise CatalogError(f"{label}.profileが閉じた集合にない: {profile}")
+        if table_id in profiles:
+            raise CatalogError(f"{label}.tableが重複している: {table_id}")
+        profiles[table_id] = profile
+    if set(profiles) != set(_product_table_universe(root)):
+        raise CatalogError("表分類のプロファイル写像が45表とexact-set不一致")
+    return profiles
+
+
+def _product_secret_columns(root: Path) -> frozenset[tuple[str, str]]:
+    """露出の事実から秘密列の閉集合を読む。"""
+    facts_asset = _read_json(root / PRODUCT_EXPOSURE_FACTS, "exposure-facts")
+    if not isinstance(facts_asset, dict):
+        raise CatalogError("exposure-factsはオブジェクトでなければならない")
+    facts = facts_asset.get("facts")
+    if not isinstance(facts, list):
+        raise CatalogError("exposure-facts.factsは配列でなければならない")
+    secret_fact_rows: list[dict[str, object]] = []
+    for index, fact_value in enumerate(facts):
+        label = f"exposure-facts.facts[{index}]"
+        if not isinstance(fact_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        if fact_value.get("kind") != "secret_column":
+            continue
+        entries = fact_value.get("entries")
+        if not isinstance(entries, list):
+            raise CatalogError(f"{label}.entriesは配列でなければならない")
+        for entry_value in entries:
+            if not isinstance(entry_value, dict):
+                raise CatalogError(f"{label}.entriesはオブジェクト配列でなければならない")
+            secret_fact_rows.append(entry_value)
+    if not secret_fact_rows:
+        raise CatalogError("exposure-factsに秘密列の事実がない")
+    secret_columns: list[tuple[str, str]] = []
+    for index, row in enumerate(secret_fact_rows):
+        table_id = _expect_string(
+            row.get("table"),
+            f"secret_column.entries[{index}].table",
+        )
+        column_id = _expect_string(
+            row.get("column"),
+            f"secret_column.entries[{index}].column",
+        )
+        secret_columns.append((table_id, column_id))
+    if len(secret_columns) != len(set(secret_columns)):
+        raise CatalogError("exposure-factsの秘密列に重複がある")
+    return frozenset(secret_columns)
+
+
 def _validate_product_table_bodies(
     root: Path,
     expected_tables: frozenset[str],
@@ -3323,6 +3410,195 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
     _validate_product_table_bodies(root, expected_tables)
 
 
+def _product_declarations_by_id(
+    value: object,
+    id_field: str,
+    label: str,
+) -> dict[str, dict[str, object]]:
+    """製品DDLの宣言配列をIDで一意に引ける形へ変換する。"""
+    if not isinstance(value, list):
+        raise CatalogError(f"{label}は配列でなければならない")
+    declarations: dict[str, dict[str, object]] = {}
+    for index, row_value in enumerate(value):
+        row_label = f"{label}[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{row_label}はオブジェクトでなければならない")
+        element_id = _expect_string(row_value.get(id_field), f"{row_label}.{id_field}")
+        if element_id in declarations:
+            raise CatalogError(f"{row_label}.{id_field}が重複している: {element_id}")
+        declarations[element_id] = row_value
+    return declarations
+
+
+def _product_body_paths(root: Path, element_type: str) -> dict[str, str]:
+    """製品body manifestから指定種別のIDとパスを読む。"""
+    manifest = _read_json(root / PRODUCT_SPEC.body_manifest_path, "body manifest")
+    if not isinstance(manifest, dict):
+        raise CatalogError("body manifestはオブジェクトでなければならない")
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        raise CatalogError("body manifest.entriesは配列でなければならない")
+    paths: dict[str, str] = {}
+    for index, entry_value in enumerate(entries):
+        if not isinstance(entry_value, dict):
+            raise CatalogError(
+                f"body manifest.entries[{index}]はオブジェクトでなければならない"
+            )
+        if entry_value.get("element_type") != element_type:
+            continue
+        label = f"body manifest.entries[{index}]"
+        _expect_keys(entry_value, {"path", "element_type", "element_id"}, label)
+        element_id = _expect_string(entry_value["element_id"], f"{label}.element_id")
+        path_text = _expect_string(entry_value["path"], f"{label}.path")
+        if element_id in paths:
+            raise CatalogError(f"{label}.element_idが重複している: {element_id}")
+        paths[element_id] = path_text
+    return paths
+
+
+def _validate_product_access_bodies(
+    root: Path,
+    expected_policies: dict[str, dict[str, object]],
+    expected_acls: dict[str, dict[str, object]],
+) -> None:
+    """述語・ポリシー・表ACLのbodyを生成器の出力へ照合する。"""
+    predicate_paths = _product_body_paths(root, "predicate")
+    expected_predicate_path = (
+        f"{PRODUCT_SPEC.body_directory.as_posix()}/predicates/"
+        f"{TENANT_PREDICATE_ID}.sql"
+    )
+    if predicate_paths != {TENANT_PREDICATE_ID: expected_predicate_path}:
+        raise CatalogError("TENANT述語のbody manifest対応が不正")
+    predicate_body = _read_text(
+        root / expected_predicate_path,
+        "TENANT述語body",
+    )
+    if predicate_body != generate_product_predicate_sql():
+        raise CatalogError("TENANT述語bodyが生成結果と不一致")
+
+    policy_paths = _product_body_paths(root, "policy")
+    if set(policy_paths) != set(expected_policies):
+        raise CatalogError("ポリシーbodyが直接アクセス表とexact-set不一致")
+    for policy_id, declaration in expected_policies.items():
+        table_id = str(declaration["table_id"])
+        profile = str(declaration["profile"])
+        expected_path = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/policies/{policy_id}.sql"
+        )
+        if policy_paths[policy_id] != expected_path:
+            raise CatalogError(f"{policy_id}のbody manifest対応が不正")
+        body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
+        if body != generate_product_policy_sql(table_id, profile):
+            raise CatalogError(f"{policy_id}の展開結果が生成器と不一致")
+
+    acl_paths = _product_body_paths(root, "acl_expectation")
+    if set(acl_paths) != set(expected_acls):
+        raise CatalogError("表ACL bodyが直接アクセス表とexact-set不一致")
+    for acl_id, declaration in expected_acls.items():
+        table_id = str(declaration["object_id"])
+        profile = str(declaration["profile"])
+        expected_path = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/acl_expectations/{acl_id}.sql"
+        )
+        if acl_paths[acl_id] != expected_path:
+            raise CatalogError(f"{acl_id}のbody manifest対応が不正")
+        body = _read_text(root / expected_path, f"表ACL body[{acl_id}]")
+        if body != generate_product_table_acl_sql(table_id, profile):
+            raise CatalogError(f"{acl_id}のSQLが生成結果と不一致")
+
+
+def _validate_secret_column_acl(
+    table_acls: dict[str, dict[str, object]],
+    column_acl_value: object,
+    root: Path,
+) -> None:
+    """秘密列へpitchlog_appのSELECT経路が無いことを検査する。"""
+    secret_columns = _product_secret_columns(root)
+    secret_tables = {table_id for table_id, _ in secret_columns}
+    for declaration in table_acls.values():
+        privileges = declaration.get("privilege_ids")
+        if (
+            declaration.get("grantee_role_id") == "pitchlog_app"
+            and declaration.get("object_id") in secret_tables
+            and isinstance(privileges, list)
+            and "SELECT" in privileges
+        ):
+            raise CatalogError("秘密列を持つ表にpitchlog_appの表単位SELECTがある")
+    if not isinstance(column_acl_value, list):
+        raise CatalogError("製品DDL manifest.column_acl_expectationsは配列でなければならない")
+    for index, row_value in enumerate(column_acl_value):
+        label = f"製品DDL manifest.column_acl_expectations[{index}]"
+        if not isinstance(row_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        table_id = row_value.get("object_id")
+        column_id = row_value.get("column_id")
+        privileges = row_value.get("privilege_ids")
+        if (
+            row_value.get("grantee_role_id") == "pitchlog_app"
+            and (table_id, column_id) in secret_columns
+            and isinstance(privileges, list)
+            and "SELECT" in privileges
+        ):
+            raise CatalogError("秘密列にpitchlog_appの列単位SELECTがある")
+    if column_acl_value:
+        raise CatalogError("ステップ11の製品列ACL宣言は空でなければならない")
+
+
+def _validate_product_table_access_expectations(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """3直接プロファイルのポリシーと表ACLを設計へ照合する。"""
+    profiles = _product_table_profiles(root)
+    expected_predicate = build_product_predicate_declaration()
+    predicates = _product_declarations_by_id(
+        raw["predicates"],
+        "predicate_id",
+        "製品DDL manifest.predicates",
+    )
+    if predicates != {TENANT_PREDICATE_ID: expected_predicate}:
+        raise CatalogError("TENANT(c)の単一述語要素がdesign.md 1-1と一致しない")
+
+    expected_policies: dict[str, dict[str, object]] = {}
+    expected_acls: dict[str, dict[str, object]] = {}
+    for table_id, profile in profiles.items():
+        if profile in DIRECT_POLICY_PROFILES:
+            policy = build_product_policy_declaration(table_id, profile)
+            expected_policies[str(policy["policy_id"])] = policy
+        if profile in DIRECT_ACL_PROFILES:
+            acl = build_product_table_acl_declaration(table_id, profile)
+            expected_acls[str(acl["acl_id"])] = acl
+
+    policies = _product_declarations_by_id(
+        raw["policies"],
+        "policy_id",
+        "製品DDL manifest.policies",
+    )
+    if policies != expected_policies:
+        raise CatalogError("直接アクセス3プロファイルのポリシー宣言が不正")
+    table_acls = _product_declarations_by_id(
+        raw["acl_expectations"],
+        "acl_id",
+        "製品DDL manifest.acl_expectations",
+    )
+    if table_acls != expected_acls:
+        raise CatalogError("製品表ACLが3プロファイルの定義と一致しない")
+    if raw["column_acl_expectations"] != []:
+        if (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+            _validate_secret_column_acl(
+                table_acls,
+                raw["column_acl_expectations"],
+                root,
+            )
+        raise CatalogError("ステップ11の製品列ACL宣言は空でなければならない")
+    # 既存の表RLS単体試験は表bodyだけを複製する。実資産を持つ通常の
+    # リポジトリでは、露出の事実と全生成bodyの照合を省略できない。
+    if not (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+        return
+    _validate_secret_column_acl(table_acls, raw["column_acl_expectations"], root)
+    _validate_product_access_bodies(root, expected_policies, expected_acls)
+
+
 def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]:
     """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
     if not isinstance(raw, dict):
@@ -3394,6 +3670,7 @@ def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
+    _validate_product_table_access_expectations(raw, root)
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": len(roles_by_id),
