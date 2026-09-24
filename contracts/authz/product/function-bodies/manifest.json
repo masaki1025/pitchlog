@@ -733,6 +733,71 @@
         "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_recording_generations_updates().sql",
         "element_type": "function",
         "element_id": "FUNCTION:public:protect_recording_generations_updates()"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/policies/POLICY:analysis_groups:effective_group_control.sql",
+        "element_type": "policy",
+        "element_id": "POLICY:analysis_groups:effective_group_control"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/policies/POLICY:group_memberships:effective_group_control.sql",
+        "element_type": "policy",
+        "element_id": "POLICY:group_memberships:effective_group_control"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/policies/POLICY:sharing_grants:effective_group_control.sql",
+        "element_type": "policy",
+        "element_id": "POLICY:sharing_grants:effective_group_control"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/policies/POLICY:group_invitations:effective_group_control.sql",
+        "element_type": "policy",
+        "element_id": "POLICY:group_invitations:effective_group_control"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean).sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:id:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:tenants:id:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:enabled:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:tenants:enabled:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:analysis_groups:id:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:analysis_groups:id:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:analysis_groups:status:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:analysis_groups:status:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:group_memberships:group_id:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:group_memberships:group_id:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:group_memberships:tenant_id:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:group_memberships:tenant_id:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:group_memberships:role:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:group_memberships:role:pitchlog_shared_fn_owner"
+      },
+      {
+        "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:group_memberships:status:pitchlog_shared_fn_owner.sql",
+        "element_type": "column_acl_expectation",
+        "element_id": "COLUMN-ACL:public:group_memberships:status:pitchlog_shared_fn_owner"
       }
   ]
 }

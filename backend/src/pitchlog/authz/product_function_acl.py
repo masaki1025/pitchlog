@@ -32,12 +32,12 @@ def product_function_id(
         スキーマ・名前・引数を含む一意な要素ID。
 
     Raises:
-        ValueError: 識別子が不正、または本ステップに引数付き関数が現れた場合。
+        ValueError: 識別子または製品資産で許可しない引数列が現れた場合。
     """
     _require_identifier(schema_name, "関数スキーマ識別子")
     _require_identifier(function_name, "関数名識別子")
-    if identity_args:
-        raise ValueError("ステップ12のmigrationトリガ関数は引数を持てない")
+    if identity_args not in {"", "uuid, boolean"}:
+        raise ValueError(f"製品関数のidentity_argsが閉集合にない: {identity_args!r}")
     return f"FUNCTION:{schema_name}:{function_name}({identity_args})"
 
 

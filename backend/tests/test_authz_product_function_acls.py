@@ -131,12 +131,22 @@ def _mutate_add_unknown_function(asset: dict[str, Any]) -> None:
 
 def _mutate_remove_function(asset: dict[str, Any]) -> None:
     """Migration関数の宣言を1件消す。"""
-    asset["functions"].pop()
+    index = next(
+        index
+        for index, row in enumerate(asset["functions"])
+        if row["function_kind"] == "migration_trigger"
+    )
+    asset["functions"].pop(index)
 
 
 def _mutate_remove_gap(asset: dict[str, Any]) -> None:
     """暫定契約の宣言済み追加分を1件消す。"""
-    asset["provisional_contract_additions"].pop()
+    index = next(
+        index
+        for index, row in enumerate(asset["provisional_contract_additions"])
+        if row["reason"] == "provisional_contract_gap"
+    )
+    asset["provisional_contract_additions"].pop(index)
 
 
 def _mutate_add_reasonless_gap(asset: dict[str, Any]) -> None:
@@ -177,7 +187,11 @@ def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
     for physical_id, revision in _EXPECTED_GAPS.items():
         assert revision in migration_origins[physical_id]
 
-    functions = _function_rows(asset)
+    functions = {
+        function_id: row
+        for function_id, row in _function_rows(asset).items()
+        if row["function_kind"] == "migration_trigger"
+    }
     expected_ids = {
         product_function_id(schema_name, function_name, identity_args)
         for schema_name, function_name, identity_args in migration_functions
@@ -200,7 +214,11 @@ def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
             str(row["identity_args"]),
         )
 
-    additions = asset["provisional_contract_additions"]
+    additions = [
+        row
+        for row in asset["provisional_contract_additions"]
+        if row["reason"] == "provisional_contract_gap"
+    ]
     assert isinstance(additions, list) and len(additions) == 4
     assert {
         (
@@ -216,7 +234,7 @@ def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
     function_sql = {
         statement.element_id: statement.sql
         for statement in statements
-        if statement.element_type == "function"
+        if statement.element_type == "function" and statement.element_id in expected_ids
     }
     assert set(function_sql) == expected_ids
     for row in functions.values():

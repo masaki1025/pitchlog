@@ -26,6 +26,20 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     PRODUCT_SPEC,
     AuthzAssetSpec,
 )
+from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
+    CONTROL_PROFILE,
+    HELPER_DEPENDENCY_COLUMNS,
+    HELPER_FUNCTION_ID,
+    HELPER_NAME,
+    HELPER_OWNER_ROLE_ID,
+    HELPER_SCHEMA,
+    build_control_policy_declaration,
+    build_helper_column_acl_declaration,
+    build_membership_helper_declaration,
+    generate_control_policy_sql,
+    generate_helper_column_acl_sql,
+    generate_membership_helper_sql,
+)
 from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
     build_product_function_acl_declaration,
     generate_product_function_acl_sql,
@@ -141,6 +155,9 @@ PRODUCT_TABLE_CLASSIFICATION = Path(
 PRODUCT_EXPOSURE_FACTS = Path(PRODUCT_SPEC.asset_root / "exposure-facts.json")
 PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
 PRODUCT_MIGRATION_VERSIONS = Path("backend/migrations/versions")
+PROVISIONAL_RUNTIME_CONTRACT = Path(
+    "contracts/tenant_boundary/runtime-authz-contract.json"
+)
 MIGRATION_FUNCTION_RE = re.compile(
     r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
     r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
@@ -3368,6 +3385,37 @@ def _product_secret_columns(root: Path) -> frozenset[tuple[str, str]]:
     return frozenset(secret_columns)
 
 
+def _product_manifest_columns(root: Path) -> frozenset[tuple[str, str]]:
+    """Schema manifestから全表列の物理識別子を読む。"""
+    manifest = _read_json(root / PRODUCT_SCHEMA_MANIFEST, "schema manifest")
+    if not isinstance(manifest, dict):
+        raise CatalogError("schema manifestはオブジェクトでなければならない")
+    table_rows = manifest.get("tables")
+    if not isinstance(table_rows, list):
+        raise CatalogError("schema manifest.tablesは配列でなければならない")
+    columns: list[tuple[str, str]] = []
+    for table_index, table_value in enumerate(table_rows):
+        table_label = f"schema manifest.tables[{table_index}]"
+        if not isinstance(table_value, dict):
+            raise CatalogError(f"{table_label}はオブジェクトでなければならない")
+        table_id = _expect_string(table_value.get("name"), f"{table_label}.name")
+        column_rows = table_value.get("columns")
+        if not isinstance(column_rows, list):
+            raise CatalogError(f"{table_label}.columnsは配列でなければならない")
+        for column_index, column_value in enumerate(column_rows):
+            column_label = f"{table_label}.columns[{column_index}]"
+            if not isinstance(column_value, dict):
+                raise CatalogError(f"{column_label}はオブジェクトでなければならない")
+            column_id = _expect_string(
+                column_value.get("name"),
+                f"{column_label}.name",
+            )
+            columns.append((table_id, column_id))
+    if len(columns) != len(set(columns)):
+        raise CatalogError("schema manifestの表列識別子が重複している")
+    return frozenset(columns)
+
+
 def _validate_product_table_bodies(
     root: Path,
     expected_tables: frozenset[str],
@@ -3516,7 +3564,7 @@ def _validate_product_access_bodies(
 
     policy_paths = _product_body_paths(root, "policy")
     if set(policy_paths) != set(expected_policies):
-        raise CatalogError("ポリシーbodyが直接アクセス表とexact-set不一致")
+        raise CatalogError("ポリシーbodyが5プロファイルの期待集合と不一致")
     for policy_id, declaration in expected_policies.items():
         table_id = str(declaration["table_id"])
         profile = str(declaration["profile"])
@@ -3526,7 +3574,12 @@ def _validate_product_access_bodies(
         if policy_paths[policy_id] != expected_path:
             raise CatalogError(f"{policy_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
-        if body != generate_product_policy_sql(table_id, profile):
+        expected_body = (
+            generate_control_policy_sql(table_id)
+            if profile == CONTROL_PROFILE
+            else generate_product_policy_sql(table_id, profile)
+        )
+        if body != expected_body:
             raise CatalogError(f"{policy_id}の展開結果が生成器と不一致")
 
     acl_paths = _product_body_paths(root, "acl_expectation")
@@ -3578,15 +3631,13 @@ def _validate_secret_column_acl(
             and "SELECT" in privileges
         ):
             raise CatalogError("秘密列にpitchlog_appの列単位SELECTがある")
-    if column_acl_value:
-        raise CatalogError("ステップ11の製品列ACL宣言は空でなければならない")
 
 
 def _validate_product_table_access_expectations(
     raw: dict[str, object],
     root: Path,
 ) -> None:
-    """3直接プロファイルのポリシーと表ACLを設計へ照合する。"""
+    """全5プロファイルのポリシーと表ACLを設計へ照合する。"""
     profiles = _product_table_profiles(root)
     expected_predicate = build_product_predicate_declaration()
     predicates = _product_declarations_by_id(
@@ -3603,6 +3654,9 @@ def _validate_product_table_access_expectations(
         if profile in DIRECT_POLICY_PROFILES:
             policy = build_product_policy_declaration(table_id, profile)
             expected_policies[str(policy["policy_id"])] = policy
+        elif profile == CONTROL_PROFILE:
+            policy = build_control_policy_declaration(table_id)
+            expected_policies[str(policy["policy_id"])] = policy
         if profile in DIRECT_ACL_PROFILES:
             acl = build_product_table_acl_declaration(table_id, profile)
             expected_acls[str(acl["acl_id"])] = acl
@@ -3613,28 +3667,109 @@ def _validate_product_table_access_expectations(
         "製品DDL manifest.policies",
     )
     if policies != expected_policies:
-        raise CatalogError("直接アクセス3プロファイルのポリシー宣言が不正")
+        raise CatalogError("全5プロファイルのポリシー宣言が不正")
     table_acls = _product_declarations_by_id(
         raw["acl_expectations"],
         "acl_id",
         "製品DDL manifest.acl_expectations",
     )
     if table_acls != expected_acls:
-        raise CatalogError("製品表ACLが3プロファイルの定義と一致しない")
-    if raw["column_acl_expectations"] != []:
-        if (root / PRODUCT_SPEC.ddl_elements_path).is_file():
-            _validate_secret_column_acl(
-                table_acls,
-                raw["column_acl_expectations"],
-                root,
-            )
-        raise CatalogError("ステップ11の製品列ACL宣言は空でなければならない")
+        raise CatalogError("製品表ACLが全5プロファイルの定義と一致しない")
     # 既存の表RLS単体試験は表bodyだけを複製する。実資産を持つ通常の
     # リポジトリでは、露出の事実と全生成bodyの照合を省略できない。
     if not (root / PRODUCT_SPEC.ddl_elements_path).is_file():
         return
     _validate_secret_column_acl(table_acls, raw["column_acl_expectations"], root)
     _validate_product_access_bodies(root, expected_policies, expected_acls)
+
+
+def _expected_helper_column_acls() -> dict[str, dict[str, object]]:
+    """補助関数所有者に必要な列SELECTの閉集合を返す。"""
+    expectations: dict[str, dict[str, object]] = {}
+    for table_id, column_id in HELPER_DEPENDENCY_COLUMNS:
+        declaration = build_helper_column_acl_declaration(table_id, column_id)
+        expectations[str(declaration["expectation_id"])] = declaration
+    return expectations
+
+
+def _validate_membership_helper_bodies(
+    root: Path,
+    expected_column_acls: dict[str, dict[str, object]],
+) -> None:
+    """補助関数と所有者の列ACL bodyを生成結果へ照合する。"""
+    function_paths = _product_body_paths(root, "function")
+    expected_function_path = (
+        f"{PRODUCT_SPEC.body_directory.as_posix()}/functions/"
+        f"{HELPER_FUNCTION_ID}.sql"
+    )
+    if function_paths.get(HELPER_FUNCTION_ID) != expected_function_path:
+        raise CatalogError("実効参加補助関数のbody manifest対応が不正")
+    function_body = _read_text(
+        root / expected_function_path,
+        "実効参加補助関数body",
+    )
+    if function_body != generate_membership_helper_sql():
+        raise CatalogError("実効参加補助関数bodyが生成結果と不一致")
+
+    column_acl_paths = _product_body_paths(root, "column_acl_expectation")
+    if set(column_acl_paths) != set(expected_column_acls):
+        raise CatalogError("補助関数所有者の列ACL bodyがexact-set不一致")
+    for expectation_id, declaration in expected_column_acls.items():
+        table_id = str(declaration["object_id"])
+        column_id = str(declaration["column_id"])
+        expected_path = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/column_acl_expectations/"
+            f"{expectation_id}.sql"
+        )
+        if column_acl_paths[expectation_id] != expected_path:
+            raise CatalogError(f"{expectation_id}のbody manifest対応が不正")
+        body = _read_text(root / expected_path, f"列ACL body[{expectation_id}]")
+        if body != generate_helper_column_acl_sql(table_id, column_id):
+            raise CatalogError(f"{expectation_id}のSQLが生成結果と不一致")
+
+
+def _validate_product_membership_helper(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """実効参加補助関数の属性・ACL・依存列をexact-setで検査する。"""
+    functions = _product_declarations_by_id(
+        raw["functions"],
+        "function_id",
+        "製品DDL manifest.functions",
+    )
+    expected_function = build_membership_helper_declaration()
+    if functions.get(HELPER_FUNCTION_ID) != expected_function:
+        raise CatalogError("実効参加補助関数の属性またはEXECUTE ACLが不正")
+
+    expected_column_acls = _expected_helper_column_acls()
+    column_acls = _product_declarations_by_id(
+        raw["column_acl_expectations"],
+        "expectation_id",
+        "製品DDL manifest.column_acl_expectations",
+    )
+    if column_acls != expected_column_acls:
+        raise CatalogError("補助関数所有者の列SELECTがexact-set不一致")
+    manifest_columns = _product_manifest_columns(root)
+    if not set(HELPER_DEPENDENCY_COLUMNS) <= set(manifest_columns):
+        raise CatalogError("補助関数の依存列がschema manifestに存在しない")
+
+    table_acls = _product_declarations_by_id(
+        raw["acl_expectations"],
+        "acl_id",
+        "製品DDL manifest.acl_expectations",
+    )
+    for declaration in table_acls.values():
+        privileges = declaration.get("privilege_ids")
+        if (
+            declaration.get("grantee_role_id") == HELPER_OWNER_ROLE_ID
+            and isinstance(privileges, list)
+            and "SELECT" in privileges
+        ):
+            raise CatalogError("補助関数所有者に表単位のSELECTを与えている")
+    if not (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+        return
+    _validate_membership_helper_bodies(root, expected_column_acls)
 
 
 def _migration_string_constants(tree: ast.Module) -> dict[str, str]:
@@ -3739,8 +3874,8 @@ def _validate_product_function_acl_bodies(
 ) -> None:
     """37関数のACL bodyを生成器の出力へ照合する。"""
     function_paths = _product_body_paths(root, "function")
-    if set(function_paths) != set(expected_functions):
-        raise CatalogError("関数ACL bodyがmigrationの37関数とexact-set不一致")
+    if not set(expected_functions) <= set(function_paths):
+        raise CatalogError("関数ACL bodyにmigrationの37関数がそろっていない")
     for function_id, declaration in expected_functions.items():
         expected_path = (
             f"{PRODUCT_SPEC.body_directory.as_posix()}/functions/{function_id}.sql"
@@ -3798,23 +3933,265 @@ def _validate_product_function_acl_expectations(
             identity_args,
         )
         expected_functions[str(declaration["function_id"])] = declaration
-    functions = _product_declarations_by_id(
+    all_functions = _product_declarations_by_id(
         raw["functions"],
         "function_id",
         "製品DDL manifest.functions",
     )
+    functions = {
+        function_id: declaration
+        for function_id, declaration in all_functions.items()
+        if declaration.get("function_kind") == "migration_trigger"
+    }
     if functions != expected_functions:
         raise CatalogError("製品関数ACL宣言がmigrationの37関数とexact-set不一致")
 
     expected_additions = _expected_provisional_function_additions()
+    all_additions = _product_declarations_by_id(
+        raw["provisional_contract_additions"],
+        "addition_id",
+        "製品DDL manifest.provisional_contract_additions",
+    )
+    additions = {
+        addition_id: declaration
+        for addition_id, declaration in all_additions.items()
+        if declaration.get("reason") == "provisional_contract_gap"
+    }
+    if additions != expected_additions:
+        raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
+    _validate_product_function_acl_bodies(root, expected_functions)
+
+
+def _expected_product_provisional_additions() -> dict[str, dict[str, object]]:
+    """未発効資産が暫定契約へ足す保護対象の閉集合を返す。"""
+    additions = _expected_provisional_function_additions()
+    additions["SCHEMA:authz_private"] = {
+        "addition_id": "SCHEMA:authz_private",
+        "object_kind": "schema",
+        "schema_name": "authz_private",
+        "reason": "product_authz_private",
+        "detail": "製品認可の補助関数をアプリ用ロールから隔離するスキーマ",
+    }
+    additions[HELPER_FUNCTION_ID] = {
+        "addition_id": HELPER_FUNCTION_ID,
+        "object_kind": "function",
+        "schema_name": HELPER_SCHEMA,
+        "object_name": HELPER_NAME,
+        "identity_args": "uuid, boolean",
+        "reason": "product_authz_helper",
+        "detail": "制御資源のRLSで実効グループと実効参加を再帰せず判定する補助関数",
+    }
+    return additions
+
+
+def _protected_object_sets(
+    protected: object,
+    label: str,
+) -> tuple[
+    frozenset[str],
+    frozenset[tuple[str, str]],
+    frozenset[tuple[str, str, str]],
+]:
+    """保護対象の3物理集合を厳密な型で読む。"""
+    if not isinstance(protected, dict):
+        raise CatalogError(f"{label}はオブジェクトでなければならない")
+    _expect_keys(protected, {"schemas", "tables", "functions"}, label)
+    schema_values = protected["schemas"]
+    table_values = protected["tables"]
+    function_values = protected["functions"]
+    if not isinstance(schema_values, list):
+        raise CatalogError(f"{label}.schemasは配列でなければならない")
+    schemas = frozenset(
+        _expect_string(value, f"{label}.schemas") for value in schema_values
+    )
+    tables: set[tuple[str, str]] = set()
+    if not isinstance(table_values, list):
+        raise CatalogError(f"{label}.tablesは配列でなければならない")
+    for index, value in enumerate(table_values):
+        if (
+            not isinstance(value, list)
+            or len(value) != 2
+            or not all(isinstance(part, str) and part for part in value)
+        ):
+            raise CatalogError(f"{label}.tables[{index}]の物理識別子が不正")
+        tables.add((value[0], value[1]))
+    functions: set[tuple[str, str, str]] = set()
+    if not isinstance(function_values, list):
+        raise CatalogError(f"{label}.functionsは配列でなければならない")
+    for index, value in enumerate(function_values):
+        if (
+            not isinstance(value, list)
+            or len(value) != 3
+            or not all(isinstance(part, str) for part in value)
+            or not value[0]
+            or not value[1]
+        ):
+            raise CatalogError(f"{label}.functions[{index}]の物理識別子が不正")
+        functions.add((value[0], value[1], value[2]))
+    if (
+        len(schemas) != len(schema_values)
+        or len(tables) != len(table_values)
+        or len(functions) != len(function_values)
+    ):
+        raise CatalogError(f"{label}の保護対象に重複がある")
+    return schemas, frozenset(tables), frozenset(functions)
+
+
+def _validate_product_protected_targets(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """Staged保護対象を暫定契約と宣言済み追加分の和へ照合する。"""
+    contract = _read_json(
+        root / PROVISIONAL_RUNTIME_CONTRACT,
+        "暫定ランタイム契約",
+    )
+    if not isinstance(contract, dict):
+        raise CatalogError("暫定ランタイム契約はオブジェクトでなければならない")
+    provisional_sets = _protected_object_sets(
+        contract.get("protected_objects"),
+        "暫定ランタイム契約.protected_objects",
+    )
     additions = _product_declarations_by_id(
         raw["provisional_contract_additions"],
         "addition_id",
         "製品DDL manifest.provisional_contract_additions",
     )
+    expected_additions = _expected_product_provisional_additions()
     if additions != expected_additions:
-        raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
-    _validate_product_function_acl_bodies(root, expected_functions)
+        raise CatalogError("未発効資産の宣言済み追加分が閉集合と一致しない")
+
+    added_schemas: set[str] = set()
+    added_functions: set[tuple[str, str, str]] = set()
+    for addition in additions.values():
+        if addition["object_kind"] == "schema":
+            added_schemas.add(str(addition["schema_name"]))
+        elif addition["object_kind"] == "function":
+            added_functions.add(
+                (
+                    str(addition["schema_name"]),
+                    str(addition["object_name"]),
+                    str(addition["identity_args"]),
+                )
+            )
+        else:  # pragma: no cover - exact宣言照合後の防御。
+            raise CatalogError("宣言済み追加分の物理種別が不正")
+
+    schemas = _product_declarations_by_id(
+        raw["schemas"],
+        "schema_id",
+        "製品DDL manifest.schemas",
+    )
+    tables = _product_declarations_by_id(
+        raw["tables"],
+        "table_id",
+        "製品DDL manifest.tables",
+    )
+    functions = _product_declarations_by_id(
+        raw["functions"],
+        "function_id",
+        "製品DDL manifest.functions",
+    )
+    staged_sets = (
+        frozenset(str(row["schema_name"]) for row in schemas.values()),
+        frozenset(
+            (str(row["schema_name"]), str(row["table_id"]))
+            for row in tables.values()
+        ),
+        frozenset(
+            (
+                str(row["schema_name"]),
+                str(row["function_name"]),
+                str(row["identity_args"]),
+            )
+            for row in functions.values()
+        ),
+    )
+    expected_sets = (
+        provisional_sets[0] | frozenset(added_schemas),
+        provisional_sets[1],
+        provisional_sets[2] | frozenset(added_functions),
+    )
+    if staged_sets != expected_sets:
+        raise CatalogError(
+            "staged保護対象が暫定契約と宣言済み追加分の和に一致しない"
+        )
+
+
+def _validate_product_asset_correspondence(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """製品DDL要素・manifest・bodyファイルを三方向exact-setで照合する。"""
+    manifest = _read_json(root / PRODUCT_SPEC.body_manifest_path, "body manifest")
+    if not isinstance(manifest, dict):
+        raise CatalogError("body manifestはオブジェクトでなければならない")
+    _expect_keys(
+        manifest,
+        {"schema_version", "asset_kind", "entries"},
+        "製品body manifest",
+    )
+    if (
+        manifest["schema_version"] != 1
+        or manifest["asset_kind"] != "authz_function_body_manifest"
+    ):
+        raise CatalogError("製品body manifestの版または種別が不正")
+    entries = manifest["entries"]
+    if not isinstance(entries, list):
+        raise CatalogError("製品body manifest.entriesは配列でなければならない")
+
+    declared_elements: set[tuple[str, str]] = set()
+    for section in PRODUCT_SPEC.element_sections:
+        rows = raw.get(section.section_name)
+        if not isinstance(rows, list):
+            raise CatalogError(
+                f"製品DDL manifest.{section.section_name}は配列でなければならない"
+            )
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                raise CatalogError(
+                    f"製品DDL manifest.{section.section_name}[{index}]が不正"
+                )
+            element_id = _expect_string(
+                row.get(section.id_field),
+                f"製品DDL manifest.{section.section_name}[{index}].{section.id_field}",
+            )
+            element = (section.element_type, element_id)
+            if element in declared_elements:
+                raise CatalogError(f"製品DDL要素が重複している: {element}")
+            declared_elements.add(element)
+
+    manifest_elements: set[tuple[str, str]] = set()
+    manifest_paths: set[str] = set()
+    for index, entry in enumerate(entries):
+        label = f"製品body manifest.entries[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(entry, {"path", "element_type", "element_id"}, label)
+        element_type = _expect_string(entry["element_type"], f"{label}.element_type")
+        element_id = _expect_string(entry["element_id"], f"{label}.element_id")
+        path_text = _expect_string(entry["path"], f"{label}.path")
+        element = (element_type, element_id)
+        if element in manifest_elements or path_text in manifest_paths:
+            raise CatalogError("製品body manifestの要素またはpathが重複している")
+        manifest_elements.add(element)
+        manifest_paths.add(path_text)
+        body_text = _read_text(root / path_text, f"製品body[{path_text}]")
+        expected_header = (
+            f"-- ELEMENT-TYPE: {element_type}\n"
+            f"-- ELEMENT-ID: {element_id}\n"
+        )
+        if not body_text.startswith(expected_header):
+            raise CatalogError(f"{path_text}のELEMENTヘッダーがmanifestと不一致")
+
+    body_root = root / PRODUCT_SPEC.body_directory
+    actual_paths = {
+        path.relative_to(root).as_posix()
+        for path in body_root.rglob("*")
+        if path.is_file() and path != root / PRODUCT_SPEC.body_manifest_path
+    }
+    if declared_elements != manifest_elements or manifest_paths != actual_paths:
+        raise CatalogError("製品DDL要素・manifest・bodyファイルがexact-set不一致")
 
 
 def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]:
@@ -3891,6 +4268,11 @@ def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]
     _validate_product_table_expectations(raw["tables"], root)
     _validate_product_table_access_expectations(raw, root)
     _validate_product_function_acl_expectations(raw, root)
+    _validate_product_membership_helper(raw, root)
+    if (root / PROVISIONAL_RUNTIME_CONTRACT).is_file():
+        _validate_product_protected_targets(raw, root)
+    if (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+        _validate_product_asset_correspondence(raw, root)
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
         "product_role_count": len(roles_by_id),

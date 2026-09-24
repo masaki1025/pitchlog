@@ -96,6 +96,22 @@
       "reason": "provisional_contract_gap",
       "detail": "migration 0024_players_identity_triggerで追加され、暫定資産が追随していない",
       "migration_revision": "0024_players_identity_trigger"
+    },
+    {
+      "addition_id": "SCHEMA:authz_private",
+      "object_kind": "schema",
+      "schema_name": "authz_private",
+      "reason": "product_authz_private",
+      "detail": "製品認可の補助関数をアプリ用ロールから隔離するスキーマ"
+    },
+    {
+      "addition_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "object_kind": "function",
+      "schema_name": "authz_private",
+      "object_name": "tenant_has_effective_membership",
+      "identity_args": "uuid, boolean",
+      "reason": "product_authz_helper",
+      "detail": "制御資源のRLSで実効グループと実効参加を再帰せず判定する補助関数"
     }
   ],
   "databases": [
@@ -935,6 +951,70 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:analysis_groups:effective_group_control",
+      "table_id": "analysis_groups",
+      "profile": "effective_group_control",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_app"
+      ],
+      "using_predicate_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "using_column": null,
+      "using_expression": "authz_private.tenant_has_effective_membership(id, false)",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:group_memberships:effective_group_control",
+      "table_id": "group_memberships",
+      "profile": "effective_group_control",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_app"
+      ],
+      "using_predicate_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "using_column": null,
+      "using_expression": "authz_private.tenant_has_effective_membership(group_id, false)",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:sharing_grants:effective_group_control",
+      "table_id": "sharing_grants",
+      "profile": "effective_group_control",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_app"
+      ],
+      "using_predicate_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "using_column": null,
+      "using_expression": "EXISTS (SELECT 1 FROM public.group_memberships AS membership WHERE membership.id = sharing_grants.membership_id AND authz_private.tenant_has_effective_membership(membership.group_id, false))",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:group_invitations:effective_group_control",
+      "table_id": "group_invitations",
+      "profile": "effective_group_control",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_app"
+      ],
+      "using_predicate_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "using_column": null,
+      "using_expression": "authz_private.tenant_has_effective_membership(group_id, true)",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
     }
   ],
   "functions": [
@@ -1714,6 +1794,35 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
+      "schema_name": "authz_private",
+      "function_name": "tenant_has_effective_membership",
+      "identity_args": "uuid, boolean",
+      "function_kind": "rls_helper",
+      "owner_role_id": "pitchlog_shared_fn_owner",
+      "language": "sql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "stable",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
@@ -2100,5 +2209,110 @@
       "grant_option": false
     }
   ],
-  "column_acl_expectations": []
+  "column_acl_expectations": [
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:id:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "id",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:enabled:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "enabled",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:analysis_groups:id:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "analysis_groups",
+      "column_id": "id",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:analysis_groups:status:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "analysis_groups",
+      "column_id": "status",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:group_memberships:group_id:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "group_memberships",
+      "column_id": "group_id",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:group_memberships:tenant_id:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "group_memberships",
+      "column_id": "tenant_id",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:group_memberships:role:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "group_memberships",
+      "column_id": "role",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:group_memberships:status:pitchlog_shared_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "group_memberships",
+      "column_id": "status",
+      "grantee_role_id": "pitchlog_shared_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    }
+  ]
 }

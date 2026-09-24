@@ -185,8 +185,23 @@ PRODUCT_SPEC = AuthzAssetSpec(
     allowed_scope_status="product_configuration",
     asset_kind="product",
     element_sections=(
-        *PROBE_SPEC.element_sections,
+        AuthzElementSectionSpec("role", "roles", "role_id"),
         AuthzElementSectionSpec("database", "databases", "database_id"),
+        AuthzElementSectionSpec("schema", "schemas", "schema_id"),
+        AuthzElementSectionSpec("function", "functions", "function_id"),
+        AuthzElementSectionSpec("table", "tables", "table_id"),
+        AuthzElementSectionSpec("predicate", "predicates", "predicate_id"),
+        AuthzElementSectionSpec("policy", "policies", "policy_id"),
+        AuthzElementSectionSpec(
+            "acl_expectation",
+            "acl_expectations",
+            "acl_id",
+        ),
+        AuthzElementSectionSpec(
+            "column_acl_expectation",
+            "column_acl_expectations",
+            "expectation_id",
+        ),
     ),
     operation_handlers=(),
 )

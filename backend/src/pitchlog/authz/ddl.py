@@ -202,7 +202,10 @@ def _assemble_statements(
     for entry in entries:
         entries_by_type[entry.element_type].append(entry)
 
-    section_positions = {name: index for index, name in enumerate(ddl_elements)}
+    section_positions = {
+        section.section_name: index
+        for index, section in enumerate(spec.element_sections)
+    }
     sections_by_type = {
         section.element_type: section for section in spec.element_sections
     }

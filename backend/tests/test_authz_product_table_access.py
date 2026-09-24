@@ -15,6 +15,11 @@ import pytest
 
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import generate_authz_ddl
+from pitchlog.authz.product_control_access import (
+    CONTROL_PROFILE,
+    HELPER_FUNCTION_ID,
+    generate_control_policy_sql,
+)
 from pitchlog.authz.product_table_access import (
     TENANT_PREDICATE_ID,
     TENANT_PREDICATE_TEMPLATE,
@@ -224,8 +229,8 @@ def _mutate_secret_table_acl(asset: dict[str, Any]) -> None:
     )
 
 
-def test_product_policies_and_table_acls_match_three_direct_profiles() -> None:
-    """3プロファイルのポリシー・ACL・展開SQLが設計へ一致する。"""
+def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
+    """全5プロファイルのポリシー・ACL・展開SQLが設計へ一致する。"""
     asset = _product_asset()
     _validate_product_asset(asset)
     profiles = _table_profiles()
@@ -235,7 +240,12 @@ def test_product_policies_and_table_acls_match_three_direct_profiles() -> None:
         table_id for table_id, profile in profiles.items() if profile in _PROFILE_RULES
     }
     assert len(direct_tables) == 28
-    assert set(policies) == set(table_acls) == direct_tables
+    control_tables = {
+        table_id for table_id, profile in profiles.items() if profile == CONTROL_PROFILE
+    }
+    assert len(control_tables) == 4
+    assert set(policies) == direct_tables | control_tables
+    assert set(table_acls) == direct_tables
 
     predicates = asset["predicates"]
     assert predicates == [
@@ -252,6 +262,15 @@ def test_product_policies_and_table_acls_match_three_direct_profiles() -> None:
     assert predicates[0]["expression_template"] == TENANT_PREDICATE_TEMPLATE
 
     for table_id, profile in profiles.items():
+        if profile == CONTROL_PROFILE:
+            assert table_id in policies
+            assert table_id not in table_acls
+            policy = policies[table_id]
+            assert policy["command"] == "SELECT"
+            assert policy["role_ids"] == ["pitchlog_app"]
+            assert policy["using_predicate_id"] == HELPER_FUNCTION_ID
+            assert policy["with_check_expression"] is None
+            continue
         if profile not in _PROFILE_RULES:
             assert table_id not in policies
             assert table_id not in table_acls
@@ -273,7 +292,12 @@ def test_product_policies_and_table_acls_match_three_direct_profiles() -> None:
     secret_columns = _secret_columns()
     secret_tables = {table_id for table_id, _ in secret_columns}
     assert secret_tables.isdisjoint(table_acls)
-    assert asset["column_acl_expectations"] == []
+    assert not any(
+        row["grantee_role_id"] == "pitchlog_app"
+        and (row["object_id"], row["column_id"]) in secret_columns
+        and "SELECT" in row["privilege_ids"]
+        for row in asset["column_acl_expectations"]
+    )
 
     statements = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     actual_sql = {
@@ -291,6 +315,10 @@ def test_product_policies_and_table_acls_match_three_direct_profiles() -> None:
         )
         expected_sql[("acl_expectation", f"ACL:{table_id}:pitchlog_app")] = (
             generate_product_table_acl_sql(table_id, profile)
+        )
+    for table_id in control_tables:
+        expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
+            generate_control_policy_sql(table_id)
         )
     assert actual_sql == expected_sql
 
