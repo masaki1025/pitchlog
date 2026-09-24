@@ -21,27 +21,15 @@ _OPERATION_HANDLERS = {
     operation.operation_kind: operation.handler_name
     for operation in PROBE_SPEC.operation_handlers
 }
-_CREATE_OWNER = next(
-    kind for kind, handler in _OPERATION_HANDLERS.items() if handler == "_create_roles"
-)
-_OPEN_SET_PATH = next(
-    kind for kind, handler in _OPERATION_HANDLERS.items() if handler == "_open_set_path"
-)
-_ASSIGN_OBJECTS = next(
-    kind
-    for kind, handler in _OPERATION_HANDLERS.items()
-    if handler == "_assign_objects"
-)
-_CLOSE_FUNCTION_ACL = next(
-    kind
-    for kind, handler in _OPERATION_HANDLERS.items()
-    if handler == "_close_function_acl"
-)
-_CLOSE_SET_PATH = next(
-    kind
-    for kind, handler in _OPERATION_HANDLERS.items()
-    if handler == "_close_set_path"
-)
+_OPERATION_KINDS_BY_HANDLER = {
+    operation.handler_name: operation.operation_kind
+    for operation in PROBE_SPEC.operation_handlers
+}
+_CREATE_OWNER = _OPERATION_KINDS_BY_HANDLER["_create_roles"]
+_OPEN_SET_PATH = _OPERATION_KINDS_BY_HANDLER["_open_set_path"]
+_ASSIGN_OBJECTS = _OPERATION_KINDS_BY_HANDLER["_assign_objects"]
+_CLOSE_FUNCTION_ACL = _OPERATION_KINDS_BY_HANDLER["_close_function_acl"]
+_CLOSE_SET_PATH = _OPERATION_KINDS_BY_HANDLER["_close_set_path"]
 _ALTER_FUNCTION_RE = re.compile(r"(?m)^ALTER FUNCTION\b")
 _REVOKE_FUNCTION_RE = re.compile(r"(?m)^REVOKE ALL PRIVILEGES\b")
 _CREATE_FUNCTION_RE = re.compile(r"(?m)^CREATE FUNCTION\b")
