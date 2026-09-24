@@ -12,33 +12,33 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Sequence
 
+_BACKEND_SOURCE_ROOT = Path(__file__).resolve().parents[1] / "backend" / "src"
+sys.path.insert(0, str(_BACKEND_SOURCE_ROOT))
+
+from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-import]
+    PROBE_SPEC,
+    AuthzAssetSpec,
+)
+
 try:
     from check_authz_catalog import git_blob_digest
 except ModuleNotFoundError:  # pragma: no cover - モジュールとして読む場合だけ通る。
     from scripts.check_authz_catalog import git_blob_digest
 
 
-BODY_DIRECTORY = PurePosixPath("contracts/authz/function-bodies")
-MANIFEST_PATH = BODY_DIRECTORY / "manifest.json"
-DDL_ELEMENTS_PATH = PurePosixPath("contracts/authz/ddl-elements.json")
+BODY_DIRECTORY = PROBE_SPEC.body_directory
+MANIFEST_PATH = PROBE_SPEC.body_manifest_path
+DDL_ELEMENTS_PATH = PROBE_SPEC.ddl_elements_path
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 BLOB_DIGEST_RE = re.compile(r"^[0-9a-f]{40}$")
 DECISION_RE = re.compile(r"^[ \t]*-- DECISION: ([A-Z0-9_-]+)$")
 ELEMENT_TYPE_RE = re.compile(r"^-- ELEMENT-TYPE: ([a-z_]+)$", re.MULTILINE)
 ELEMENT_ID_RE = re.compile(r"^-- ELEMENT-ID: (.+)$", re.MULTILINE)
 ELEMENT_SECTIONS = {
-    "role": ("roles", "role_id"),
-    "schema": ("schemas", "schema_id"),
-    "table": ("tables", "table_id"),
-    "predicate": ("predicates", "predicate_id"),
-    "policy": ("policies", "policy_id"),
-    "function": ("functions", "function_id"),
-    "acl_expectation": ("acl_expectations", "acl_id"),
-    "column_acl_expectation": (
-        "column_acl_expectations",
-        "expectation_id",
-    ),
+    section.element_type: (section.section_name, section.id_field)
+    for section in PROBE_SPEC.element_sections
 }
+ASSET_SPECS = {"probe": PROBE_SPEC}
 
 
 class FunctionBodyCheckError(Exception):
@@ -109,7 +109,12 @@ def _expect_keys(value: dict[str, object], expected: set[str], label: str) -> No
         raise FunctionBodyCheckError(f"{label}のkey集合が不正")
 
 
-def _validate_relative_path(path_text: str, root: Path, label: str) -> None:
+def _validate_relative_path(
+    path_text: str,
+    root: Path,
+    body_directory: PurePosixPath,
+    label: str,
+) -> None:
     """manifest のパスが body ディレクトリ内の正規相対パスか検査する。"""
     pure_path = PurePosixPath(path_text)
     if pure_path.is_absolute() or pure_path.as_posix() != path_text:
@@ -117,7 +122,7 @@ def _validate_relative_path(path_text: str, root: Path, label: str) -> None:
     if any(part in {"", ".", ".."} for part in pure_path.parts):
         raise FunctionBodyCheckError(f"{label}に不正なパス要素がある")
     try:
-        pure_path.relative_to(BODY_DIRECTORY)
+        pure_path.relative_to(body_directory)
     except ValueError as error:
         raise FunctionBodyCheckError(f"{label}がbodyディレクトリ外を指す") from error
     resolved = (root / path_text).resolve()
@@ -127,7 +132,11 @@ def _validate_relative_path(path_text: str, root: Path, label: str) -> None:
         raise FunctionBodyCheckError(f"{label}がリポジトリ外を指す") from error
 
 
-def _parse_manifest(raw: object, root: Path) -> tuple[str, tuple[ManifestEntry, ...]]:
+def _parse_manifest(
+    raw: object,
+    root: Path,
+    spec: AuthzAssetSpec,
+) -> tuple[str, tuple[ManifestEntry, ...]]:
     """manifest を厳密に解釈する。"""
     manifest = _expect_object(raw, "body manifest")
     _expect_keys(
@@ -160,7 +169,12 @@ def _parse_manifest(raw: object, root: Path) -> tuple[str, tuple[ManifestEntry, 
             label,
         )
         path_text = _expect_string(entry["path"], f"{label}.path")
-        _validate_relative_path(path_text, root, f"{label}.path")
+        _validate_relative_path(
+            path_text,
+            root,
+            spec.body_directory,
+            f"{label}.path",
+        )
         digest = _expect_string(entry["blob_digest"], f"{label}.blob_digest")
         if not BLOB_DIGEST_RE.fullmatch(digest):
             raise FunctionBodyCheckError(f"{label}.blob_digestがblob SHA-1でない")
@@ -177,12 +191,31 @@ def _parse_manifest(raw: object, root: Path) -> tuple[str, tuple[ManifestEntry, 
     return source_commit, tuple(entries)
 
 
-def _expected_elements(raw: object) -> set[tuple[str, str]]:
+def _validate_scope(raw: dict[str, object], spec: AuthzAssetSpec) -> None:
+    """DDL 要素資産の scope が資産指定と一致することを検査する。"""
+    scope = _expect_object(raw.get(spec.scope_field), "ddl-elements.scope")
+    status = _expect_string(
+        scope.get(spec.scope_status_field),
+        "ddl-elements.scope.status",
+    )
+    if status != spec.allowed_scope_status:
+        raise FunctionBodyCheckError(
+            "ddl-elements.scope.statusが資産指定と一致しない: "
+            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
+        )
+
+
+def _expected_elements(
+    raw: dict[str, object],
+    spec: AuthzAssetSpec,
+) -> set[tuple[str, str]]:
     """DDL 要素資産から種別とIDの期待集合を導出する。"""
-    ddl_elements = _expect_object(raw, "ddl-elements")
     expected: set[tuple[str, str]] = set()
-    for element_type, (section_name, id_field) in ELEMENT_SECTIONS.items():
-        rows = _expect_list(ddl_elements.get(section_name), f"ddl-elements.{section_name}")
+    for section in spec.element_sections:
+        element_type = section.element_type
+        section_name = section.section_name
+        id_field = section.id_field
+        rows = _expect_list(raw.get(section_name), f"ddl-elements.{section_name}")
         for index, raw_row in enumerate(rows):
             label = f"ddl-elements.{section_name}[{index}]"
             row = _expect_object(raw_row, label)
@@ -194,12 +227,12 @@ def _expected_elements(raw: object) -> set[tuple[str, str]]:
     return expected
 
 
-def _actual_body_paths(root: Path) -> set[str]:
+def _actual_body_paths(root: Path, spec: AuthzAssetSpec) -> set[str]:
     """manifest 自身を除く現bodyファイル集合を再帰採取する。"""
-    body_root = root / BODY_DIRECTORY
+    body_root = root / spec.body_directory
     if not body_root.is_dir():
         raise FunctionBodyCheckError(f"bodyディレクトリがない: {body_root}")
-    manifest_path = (root / MANIFEST_PATH).resolve()
+    manifest_path = (root / spec.body_manifest_path).resolve()
     paths: set[str] = set()
     for path in body_root.rglob("*"):
         if path.is_symlink():
@@ -255,16 +288,23 @@ def _validate_decisions(root: Path, actual_paths: set[str]) -> list[str]:
     return findings
 
 
-def validate_repository(root: Path) -> tuple[str, ...]:
-    """リポジトリのbody manifestと静的契約を検査する。"""
+def validate_repository(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[str, ...]:
+    """指定された資産のbody manifestと静的契約を検査する。"""
     root = root.resolve()
     if not root.is_dir():
         raise FunctionBodyCheckError(f"リポジトリルートがない: {root}")
-    manifest_raw = _read_json(root / MANIFEST_PATH, "body manifest")
-    ddl_raw = _read_json(root / DDL_ELEMENTS_PATH, "ddl-elements")
-    source_commit, entries = _parse_manifest(manifest_raw, root)
-    expected_elements = _expected_elements(ddl_raw)
-    actual_paths = _actual_body_paths(root)
+    manifest_raw = _read_json(root / spec.body_manifest_path, "body manifest")
+    ddl_raw = _expect_object(
+        _read_json(root / spec.ddl_elements_path, "ddl-elements"),
+        "ddl-elements",
+    )
+    _validate_scope(ddl_raw, spec)
+    source_commit, entries = _parse_manifest(manifest_raw, root, spec)
+    expected_elements = _expected_elements(ddl_raw, spec)
+    actual_paths = _actual_body_paths(root, spec)
     findings: list[str] = []
 
     commit_result = _run_git(
@@ -279,7 +319,7 @@ def validate_repository(root: Path) -> tuple[str, ...]:
         if count > 1:
             findings.append(f"manifest pathが重複: {path_text}")
     manifest_paths = set(path_counts)
-    manifest_relative_path = MANIFEST_PATH.as_posix()
+    manifest_relative_path = spec.body_manifest_path.as_posix()
     if manifest_relative_path in manifest_paths:
         findings.append("manifest.json自身をentriesに含めている")
     missing_paths = actual_paths - manifest_paths
@@ -342,6 +382,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """コマンドライン引数を解釈する。"""
     parser = argparse.ArgumentParser(description="認可関数bodyを静的照合する")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="リポジトリルート")
+    parser.add_argument(
+        "--asset-spec",
+        choices=tuple(ASSET_SPECS),
+        default="probe",
+        help="検査する認可資産の種類",
+    )
     return parser.parse_args(argv)
 
 
@@ -349,7 +395,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """静的照合を実行して終了コードを返す。"""
     try:
         args = parse_args(argv)
-        findings = validate_repository(args.root)
+        findings = validate_repository(args.root, ASSET_SPECS[args.asset_spec])
     except FunctionBodyCheckError as error:
         print(f"authz-function-bodies: 入力不正: {error}", file=sys.stderr)
         return 2

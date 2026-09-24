@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-DDL_ELEMENTS_PATH = PurePosixPath("contracts/authz/ddl-elements.json")
-BODY_MANIFEST_PATH = PurePosixPath("contracts/authz/function-bodies/manifest.json")
-BODY_CHECKER_PATH = PurePosixPath("scripts/check_authz_function_bodies.py")
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
+
+DDL_ELEMENTS_PATH = PROBE_SPEC.ddl_elements_path
+BODY_MANIFEST_PATH = PROBE_SPEC.body_manifest_path
+BODY_CHECKER_PATH = PROBE_SPEC.body_checker_path
 
 
 class AuthzDDLGenerationError(Exception):
@@ -63,18 +66,53 @@ def _expect_string(value: object, label: str) -> str:
     return value
 
 
-def _validate_function_bodies(root: Path) -> None:
+def _validate_asset_scope(
+    ddl_elements: dict[str, object],
+    spec: AuthzAssetSpec,
+) -> None:
+    """DDL 要素資産の scope が指定された資産種別と一致するか検査する。"""
+    scope = ddl_elements[spec.scope_field] if spec.scope_field in ddl_elements else None
+    if not isinstance(scope, dict):
+        raise AuthzDDLGenerationError("DDL要素資産のscopeはobjectでなければならない")
+    status = (
+        scope[spec.scope_status_field] if spec.scope_status_field in scope else None
+    )
+    if status != spec.allowed_scope_status:
+        raise AuthzDDLGenerationError(
+            "DDL要素資産のscope.statusが資産指定と一致しない: "
+            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
+        )
+
+
+def _validate_function_bodies(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> None:
     """ステップ 2 の静的照合器で body と manifest を検証する。"""
-    checker_path = root / BODY_CHECKER_PATH
+    checker_path = root / spec.body_checker_path
     if not checker_path.is_file():
         raise AuthzDDLGenerationError(f"body静的照合器がない: {checker_path}")
+    arguments = [sys.executable, str(checker_path), "--root", str(root)]
+    if spec != PROBE_SPEC:
+        arguments.extend(("--asset-spec", spec.asset_kind))
+    environment = dict(os.environ)
+    source_root = Path(__file__).parents[2]
+    inherited_python_path = (
+        environment["PYTHONPATH"] if "PYTHONPATH" in environment else None
+    )
+    environment["PYTHONPATH"] = (
+        f"{source_root}{os.pathsep}{inherited_python_path}"
+        if inherited_python_path
+        else str(source_root)
+    )
     try:
         result = subprocess.run(
-            [sys.executable, str(checker_path), "--root", str(root)],
+            arguments,
             cwd=root,
             capture_output=True,
             text=True,
             check=False,
+            env=environment,
         )
     except OSError as error:
         raise AuthzDDLGenerationError(
@@ -85,10 +123,13 @@ def _validate_function_bodies(root: Path) -> None:
         raise AuthzDDLGenerationError(f"body静的照合に失敗した: {detail}")
 
 
-def _read_verified_body_entries(root: Path) -> tuple[_BodyEntry, ...]:
+def _read_verified_body_entries(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[_BodyEntry, ...]:
     """静的照合済み manifest から digest 一致 body だけを読む。"""
-    _validate_function_bodies(root)
-    manifest = _read_json_object(root / BODY_MANIFEST_PATH, "body manifest")
+    _validate_function_bodies(root, spec)
+    manifest = _read_json_object(root / spec.body_manifest_path, "body manifest")
     raw_entries = manifest.get("entries")
     if not isinstance(raw_entries, list):
         raise AuthzDDLGenerationError("body manifest.entriesはarrayでなければならない")
@@ -209,11 +250,15 @@ def _assemble_statements(
     )
 
 
-def generate_authz_ddl(root: Path) -> tuple[DDLStatement, ...]:
+def generate_authz_ddl(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[DDLStatement, ...]:
     """認可資産から要素 ID 付きの適用可能な SQL 列を生成する。
 
     Args:
         root: ``contracts/authz`` と静的照合器を含むリポジトリルート。
+        spec: 読み取る認可資産と許可する scope の指定。
 
     Returns:
         ``ddl-elements.json`` の依存順で並んだ SQL 単位。
@@ -224,6 +269,7 @@ def generate_authz_ddl(root: Path) -> tuple[DDLStatement, ...]:
     root = root.resolve()
     if not root.is_dir():
         raise AuthzDDLGenerationError(f"リポジトリルートがない: {root}")
-    entries = _read_verified_body_entries(root)
-    ddl_elements = _read_json_object(root / DDL_ELEMENTS_PATH, "ddl-elements")
+    entries = _read_verified_body_entries(root, spec)
+    ddl_elements = _read_json_object(root / spec.ddl_elements_path, "ddl-elements")
+    _validate_asset_scope(ddl_elements, spec)
     return _assemble_statements(ddl_elements, entries)
