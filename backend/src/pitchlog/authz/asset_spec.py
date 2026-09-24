@@ -16,11 +16,14 @@ class AuthzElementSectionSpec:
     element_type: str
     section_name: str
     id_field: str
+    position: int
 
     def __post_init__(self) -> None:
         """対応を構成する値が空でないことを保証する。"""
         if not self.element_type or not self.section_name or not self.id_field:
             raise ValueError("要素セクション指定の値は空にできない")
+        if self.position < 0:
+            raise ValueError("要素セクション指定の位置は負にできない")
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +112,7 @@ class AuthzAssetSpec:
             tuple(section.element_type for section in self.element_sections),
             tuple(section.section_name for section in self.element_sections),
             tuple(section.id_field for section in self.element_sections),
+            tuple(section.position for section in self.element_sections),
         )
         if any(len(values) != len(set(values)) for values in dimensions):
             raise ValueError("要素セクション指定の各次元は一意でなければならない")
@@ -130,21 +134,23 @@ PROBE_SPEC = AuthzAssetSpec(
     allowed_scope_status="verified_probe_configuration",
     asset_kind="probe",
     element_sections=(
-        AuthzElementSectionSpec("role", "roles", "role_id"),
-        AuthzElementSectionSpec("schema", "schemas", "schema_id"),
-        AuthzElementSectionSpec("table", "tables", "table_id"),
-        AuthzElementSectionSpec("predicate", "predicates", "predicate_id"),
-        AuthzElementSectionSpec("policy", "policies", "policy_id"),
-        AuthzElementSectionSpec("function", "functions", "function_id"),
+        AuthzElementSectionSpec("role", "roles", "role_id", position=0),
+        AuthzElementSectionSpec("schema", "schemas", "schema_id", position=1),
+        AuthzElementSectionSpec("table", "tables", "table_id", position=2),
+        AuthzElementSectionSpec("predicate", "predicates", "predicate_id", position=3),
+        AuthzElementSectionSpec("policy", "policies", "policy_id", position=4),
+        AuthzElementSectionSpec("function", "functions", "function_id", position=5),
         AuthzElementSectionSpec(
             "acl_expectation",
             "acl_expectations",
             "acl_id",
+            position=6,
         ),
         AuthzElementSectionSpec(
             "column_acl_expectation",
             "column_acl_expectations",
             "expectation_id",
+            position=7,
         ),
     ),
     operation_handlers=(
@@ -185,22 +191,24 @@ PRODUCT_SPEC = AuthzAssetSpec(
     allowed_scope_status="product_configuration",
     asset_kind="product",
     element_sections=(
-        AuthzElementSectionSpec("role", "roles", "role_id"),
-        AuthzElementSectionSpec("database", "databases", "database_id"),
-        AuthzElementSectionSpec("schema", "schemas", "schema_id"),
-        AuthzElementSectionSpec("function", "functions", "function_id"),
-        AuthzElementSectionSpec("table", "tables", "table_id"),
-        AuthzElementSectionSpec("predicate", "predicates", "predicate_id"),
-        AuthzElementSectionSpec("policy", "policies", "policy_id"),
+        AuthzElementSectionSpec("role", "roles", "role_id", position=0),
+        AuthzElementSectionSpec("database", "databases", "database_id", position=1),
+        AuthzElementSectionSpec("schema", "schemas", "schema_id", position=2),
+        AuthzElementSectionSpec("function", "functions", "function_id", position=3),
+        AuthzElementSectionSpec("table", "tables", "table_id", position=4),
+        AuthzElementSectionSpec("predicate", "predicates", "predicate_id", position=5),
+        AuthzElementSectionSpec("policy", "policies", "policy_id", position=6),
         AuthzElementSectionSpec(
             "acl_expectation",
             "acl_expectations",
             "acl_id",
+            position=7,
         ),
         AuthzElementSectionSpec(
             "column_acl_expectation",
             "column_acl_expectations",
             "expectation_id",
+            position=8,
         ),
     ),
     operation_handlers=(),

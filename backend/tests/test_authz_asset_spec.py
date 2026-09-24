@@ -91,6 +91,37 @@ def test_probe_spec_is_the_immutable_current_probe_asset() -> None:
         setattr(PROBE_SPEC, "allowed_scope_status", "product_configuration")
 
 
+def test_element_section_positions_are_explicit_and_asset_specific() -> None:
+    """Probeと製品が各要素セクションの生成順を明示する。"""
+    assert tuple(
+        (section.section_name, section.position)
+        for section in PROBE_SPEC.element_sections
+    ) == (
+        ("roles", 0),
+        ("schemas", 1),
+        ("tables", 2),
+        ("predicates", 3),
+        ("policies", 4),
+        ("functions", 5),
+        ("acl_expectations", 6),
+        ("column_acl_expectations", 7),
+    )
+    assert tuple(
+        (section.section_name, section.position)
+        for section in PRODUCT_SPEC.element_sections
+    ) == (
+        ("roles", 0),
+        ("databases", 1),
+        ("schemas", 2),
+        ("functions", 3),
+        ("tables", 4),
+        ("predicates", 5),
+        ("policies", 6),
+        ("acl_expectations", 7),
+        ("column_acl_expectations", 8),
+    )
+
+
 def test_default_and_explicit_probe_generator_outputs_are_byte_identical() -> None:
     """生成器の既定値と明示した PROBE_SPEC の出力が byte 一致する。"""
     default_output = generate_authz_ddl(_REPOSITORY_ROOT)

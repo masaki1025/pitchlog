@@ -203,8 +203,7 @@ def _assemble_statements(
         entries_by_type[entry.element_type].append(entry)
 
     section_positions = {
-        section.section_name: index
-        for index, section in enumerate(spec.element_sections)
+        section.section_name: section.position for section in spec.element_sections
     }
     sections_by_type = {
         section.element_type: section for section in spec.element_sections
