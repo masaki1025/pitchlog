@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e493b75e68781cb819ce706fa3252b1
 branch: fix/tenant-boundary-scope
 created: 2026-09-24
-計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 5        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -156,7 +156,12 @@ TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
   自己参照 / 欠落モジュール / 未対応の静的代入**。
   (「(iii) 扱い」にすると属性呼び出しが fail-closed にならないため、原因別の扱いにしない)
 - **完全修飾された絶対モジュールをキーにする**ので、**別モジュールの無関係な同名 `Context` は閉じられる**
-  (正例で固定する)
+  (**単体テストで固定する** — 正例 fixture は `allowed_symbols` と exact-set で縛られていて追加できない)
+- **★ 「欠落モジュール」の境界を定める**(5 周目 P1-3):
+  - **外部モジュール(stdlib / third-party)= 写像に無いのが正常**。**終端起源として扱い、unresolved にしない**
+    (しないと通常の import が大量に red になる)
+  - **`pitchlog.*` のモジュールが写像に無い = 欠落**。**unresolved = red**
+  - **両側にテストを置く**(外部 import が緑 / 欠落した `pitchlog.*` が赤)
 - `import module` + `Context = module.TenantContext` のような **`ImportFrom` 以外の静的再輸出**も写像へ入れる
 - `importlib.import_module` は**既に TB005 が拒否する**(`:3022`)ので (v) の射程外
 
@@ -194,7 +199,13 @@ context = Context(tenant_id)
 (`C5_CONTEXT_UNKNOWN_FACTORY` が `factory(t)` を赤に保つ)。
 **この非対称は恣意的であることを認め、保証外の宣言(下記)へそのまま書く。**
 
-#### 宣言する保証単位(**4 箇所へ同文** — 検査器 docstring / `design.md` 6-0 / 同 1-1(`:58`)/ PR 本文)
+#### 宣言する保証単位(**共通の逐語文を 1 つ固定し、4 箇所へそのまま置く**)
+
+**★ 5 周目 P1-1 の是正**: 従来は 6-0 用・1-1 用に別々の完成文を書いていたが、
+**それでは「同文」にならない**。**下の 1 文を逐語で 4 箇所(検査器 docstring / `design.md` 6-0 /
+同 1-1(`:58`)/ PR 本文)へ置く**。各所の文脈説明は**この 1 文の前後に足す**(1 文自体は変えない)。
+**4 箇所の突合はステップ 10(文書を書くステップ)で行う** — ステップ 6 は docstring しか触らないので、
+そこで「4 箇所で同文」を合格条件にすると実行順として成立しない。
 
 > **条件 5(`TenantContext` 生成経路)の保証単位は「構築に使われる名前が、
 > 変更ファイル内で読み取れること」である。型の解決可否は保証の条件にしない。**
@@ -435,15 +446,15 @@ context = Context(tenant_id)
 | # | ステップ(何を作るか) | 合格条件 |
 | --- | --- | --- |
 | 1 | **センサスの土台**: **`path`/`line`/`end_line`/`scope`/`code`/`symbol`/`message` の exact-set** で比較する回帰と、**CI の実経路(`scan_source_change` + 実コミット列 + `check_repository`)**の回帰を置く。**永続 golden は置かず、旧 checker と新 checker を同一ソースへ当てて差分を取る**。**検査器のロジックは 1 行も変えない** | `[機械]` 現行 develop で差分 0・CI 経路のテスト green |
-| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**・不変条件「全 `ast.Call` が **flow 登録済みかつ検査判定を通った**」green・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
+| 2 | **検査 visitor の訪問漏れを閉じる(現行バグの是正)**: `_visit_function`(`:3205-3231`)が **`node.args` のデフォルト値・kw デフォルト・引数注釈と `node.returns`** を訪問する(現行は `decorator_list` と `body` のみ)。**★ decorator・defaults・annotations・returns は `function_stack` の push 前に訪問し、body だけを push 後に訪問する**(3 周目 P0-3。デフォルト値は関数本体ではなく**定義が置かれた外側のスコープ**。push 後に訪問すると許可シンボル免除(`:3003`)が漏れ、`def _tenant_context_proof(x=_TENANT_CONTEXT_SECRET)` が **0 件**になる)。class keyword・match guard・`TryStar` も対象へ | `[機械]` 負例 `C5_CONTEXT_IN_DEFAULT_ARG` が red(**実測: 現行 0 件 → 是正後 TB007**)・**負例 `C5_SECRET_IN_DEFAULT_CAPTURE`(許可シンボルのデフォルト捕捉)で訪問順序の差を検出**・**検査器の不変条件**(走査するすべての入力 AST で `ast.walk` の Call ID 集合 = flow 登録集合 = scanner 判定集合。**不一致は検査器自体を red**)が green・**実測で develop への波及は増分 0 件・減分 0 件**(363 件のまま)なので、**センサスが完全不変であることを合格条件にする** |
 | 3 | **flow の網羅性**: `_expression` へ `ast.DictComp`、`_assign_target`(`:2138-2156`)が `Subscript`/`Attribute`/`Starred` 代入先の内側を評価 | `[機械]` 負例 `C5_CONTEXT_IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` red・**センサスが TB001〜TB006 について不変** |
 | 4 | **相対 import の絶対化**: `level` と自モジュール名から絶対名を作るヘルパーを `:2277` / `:2508` / `:1685` で使う | `[機械]` 負例 `C5_CONTEXT_RELATIVE_IMPORT` red・**センサス完全不変**(相対 import が 0 件なので差分が出たら実装が誤り) |
 | 5 | **(iv)(v) を入れる(強化)**: 末尾名一致を属性でも裸の名前でも provenance 非依存で拒否 + **再輸出写像を「可能な起源集合 + unresolved」で持つ**(集合に構築シンボルがあれば赤 / 深さ上限・star・曖昧分岐は裸名でも属性でも赤)。既存テスト `:1395` を**両側 red**へ書き換え | `[機械]` 負例 `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)` — (iv) で捕まらない名前**)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` が red・**センサスで TB007 が増える方向のみ** `[手動]` **逐行確認必須** |
-| 6 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が約 7 件へ** `[手動]` 宣言文が 4 箇所で同文 |
+| 6 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が約 7 件へ** `[手動]` docstring の文が**共通逐語文と一致**していること(**4 箇所の突合はステップ 10**) |
 | 7 | **条件 2 の裁定機構**: 候補パターンは**変えず**、**裁定済みシンボルの exact-set を `base-allowlist.json` へ内包**(理由必須)。未登録は red。**裸の局所変数 7 件は裁定せず TSK-235 側で改名**(候補集合には触らない) | `[機械]` **`RecordingGeneration` 14 件が赤のまま**・裁定済み(完全修飾 94 + 裸のクラス名 9)が緑・**裁定に無い新しい `*Generation` が赤**。**統合 worktree の TB002 = 0 は TSK-235 の改名後に成立する**ので、本タスクでは **7 件が残ることを合格条件にする** |
 | 8 | **コア paths の拡大(第 1 段)**: `tests/test_core_guard.py` の area paths exact-set(`:1566`)へ `backend/src/pitchlog/api/**` と `backend/src/pitchlog/services/**` を**先に**足す。**`core-areas.json` はまだ触らない** | `[機械]` テストが**まだ red**(実体が無いため)。**この 1 コミットは意図的に red で、次のステップで green になる**ことを PR 本文へ明記 |
 | 9 | **コア paths の拡大(第 2 段)**: `.claude/core-areas.json` の tenant-isolation へ **`api/**` と `services/**` の両方**を追加。**`core_guard.py` / `test_core_guard.py` と同一コミットにしない**(PR #74 が持ち込む共変更禁止) | `[機械]` `matched_paths()` が**両パスを検出する正例**と、**どちらかを外すと red になる負例**・`test_core_guard.py` が green `[手動]` **6.3-⑤ の敵対レビュー + 人間承認** |
-| 10 | **保証縮小の正式化(文書)**: `design.md` 6-0 の**該当 bullet を完成文で置換**・**1-1(`:58`)を完成文で置換**。**同文を置くのは 4 箇所**(検査器 docstring / 6-0 / 1-1 / PR 本文) | `[手動]` 6-0 と 1-1 が矛盾しないこと・**4 箇所が同文**であること |
+| 10 | **保証縮小の正式化(文書)**: `design.md` 6-0 の**該当 bullet を共通逐語文で置換**・**1-1(`:58`)を同じ共通逐語文で置換**。**PR 本文にも同じ 1 文を置く** | `[手動]` **4 箇所(docstring / 6-0 / 1-1 / PR 本文)の 1 文が逐語で一致**すること・6-0 と 1-1 が矛盾しないこと |
 | 11 | **申し送り**: 残る TB007 約 7 件と条件 2 の局所変数 7 件を位置・形・性質つきで列挙し TSK-235 へ。**Notion の DoD を正式更新** | `[手動]` 全件列挙・**真の脆弱性でない根拠**つき・DoD が Notion に反映 |
 | 12 | **凍結基準の受理(最後)**: `base-allowlist.json`(`contract_revision` 13→14)と `negative-fixtures.json`(`fixture_set_revision` 5→6)に履歴 1 件ずつ | `[機械]` `check_tenant_boundary_bypass.py` exit 0・凍結系テスト green `[手動]` **コア領域の逐行確認**(設計書 `:377`) |
 
@@ -484,37 +495,45 @@ context = Context(tenant_id)
 
 NFR-019 の種別では**単体**(検査器自身のテスト)。ランタイムの越境テストは本タスクの射程外。
 
-### 6-1. 構文マトリクス(3 周目 P1-3)
+### 6-1. 全 `ast.Call` の被覆は「列挙」ではなく「検査器自身の不変条件」で示す(5 周目 P0-1)
 
-**本文とステップ 2 は「flow 登録済み かつ 検査判定を通った」を要求する。テスト条件もそれに揃える。**
-**全位置を 1 件ずつ持つマトリクス**を置き、**独立に `ast.walk(tree)` から得た全 `ast.Call` 集合に対して
-`expected == flow_ids == scanner_ids` を要求する**(4 周目 P0-2 — scanner と flow の相互比較だけでは
-**両 visitor が同じ位置を取り逃がす場合**を防げない)。
+**★ 構文位置を列挙しても被覆は証明できない。**
+**列挙した fixture の木に対する `ast.walk` 三者一致は、その fixture に含まれない位置を証明しない。**
+これは台帳の既知失敗型「**母集団を人が列挙する検査は、射程が動くたびに黙って古くなる**」
+(`docs/development/harness-evaluation.md:2442`)そのものである。
 
-| 構文位置 | 現行の検出(自分で実測) | 是正後 |
+→ **検査器の中へ不変条件を置く**:
+
+> **走査するすべての入力 AST について、`ast.walk(tree)` から得た `ast.Call` の ID 集合と、
+> flow が登録した集合・scanner が判定した集合が一致すること。
+> 一致しなければ検査器自体を red にする**(`TB000` 相当の「検査不能」として扱う)。
+
+**これなら、将来 Python に新しい構文位置が増えても自動的に検出される。**
+下の表は**例示であって母集団ではない**(実測値は残すが、**被覆の根拠にはしない**)。
+
+#### 実測(2026-09-24・自分で計測)
+
+| 構文位置 | scanner 判定 | **flow 登録** |
 | --- | --- | --- |
-| **デフォルト引数** | **0 件 ← 見逃し** | TB007 |
-| **引数注釈** | **0 件 ← 見逃し** | TB007 |
-| **戻り注釈** | **0 件 ← 見逃し** | TB007 |
-| **class keyword**(`metaclass=`) | **0 件 ← 見逃し** | TB007 |
-| **関数の type param bound**(PEP 695 `def run[T: ...]`) | **0 件 ← 見逃し** | TB007 |
-| **クラスの type param bound**(`class C[T: ...]`) | **0 件 ← 見逃し** | TB007 |
-| `type` 文の bound | TB007 | TB007 |
-| match guard | TB007 | TB007(**flow 側は未評価 — `:2444`**) |
-| `TryStar` 本体 | TB007 | TB007(**`Try` 分岐が `ast.Try` 限定 — `:2411`**) |
-| `DictComp` の `iter` | TB007(**未訪問 → `None` → 偶然**) | TB007(**訪問して判定**) |
-| 添字代入先の内側 | TB007(**同上**) | TB007(**同上**) |
+| 関数本体(対照) | TB007 | **○** |
+| デフォルト引数 | **0 件** | ○ |
+| 引数注釈 / 戻り注釈 | **0 件** | — |
+| class keyword(`metaclass=`) | **0 件** | — |
+| 関数・クラスの type param bound(PEP 695) | **0 件** | — |
+| **lambda default** | TB007 | **× 未登録** |
+| **annotated assignment の annotation** | TB007 | **× 未登録** |
+| **class base** | TB007 | **× 未登録** |
+| **`except` / `except*` の handler type** | TB007 | **× 未登録** |
+| **終端文(`return` 等)の後の Call** | TB007 | **× 未登録** |
+| match guard / `TryStar` 本体 | TB007 | **×**(`:2444` / `:2411`) |
+| `DictComp` の `iter` / 添字代入先 | TB007(**未訪問 → `None` の偶然**) | × |
 
-**見逃しは 6 位置**(デフォルト引数・引数注釈・戻り注釈・class keyword・**関数とクラスの type param bound**)。
-**backend は Python 3.12 固定**(`backend/pyproject.toml:4` `:31`)なので **PEP 695 は実際に書ける**。
-scanner(`:3173` `:3205`)も flow(`:2220` `:2294`)も `type_params` を訪問していない。
-**後半 4 位置は現行でも TB007 が出るが、`DictComp` と添字代入先は「未訪問で `None` に落ちた偶然」**であり、
-**緩和すると本当に抜ける**(ステップ 3 で訪問して判定する形へ変える)。
-**match guard と `TryStar` は scanner が判定しているが flow が評価していない**ので、
-**provenance が常に `unknown`** になる。両方を直す。
+**scanner が判定していても flow が登録していない位置は、provenance が常に `unknown`** になる。
+**既定値を緩和すると、そこが素通りする。**
 
-**flow 側も match guard を評価していない**(`:2444`)し、**`Try` 分岐は `ast.Try` に限定**されている(`:2411`)。
-**両方を直す。**
+**計測上の注意(自分が踏んだ)**: `callable_symbols` は `id(node)` で引くので、
+**別々に `ast.parse` した木と比べると全件「未登録」に見える**。
+**scanner が実際に使った木**で比べること。
 
 ### 6-2. 追加するもの
 
@@ -528,6 +547,7 @@ scanner(`:3173` `:3205`)も flow(`:2220` `:2294`)も `type_params` を訪問し�
 | `C5_CONTEXT_IN_DEFAULT_ARG` / `C5_SECRET_IN_DEFAULT_CAPTURE`(**訪問順序の差を検出**) | 負例 fixture | `tests/fixtures/tenant_boundary/negative/` |
 | `C5_CONTEXT_REEXPORT_FACADE`(**`Context(t)`** — (iv) で捕まらない名前)/ `..._REEXPORT_SUBCLASS` / `..._REEXPORT_DEPTH_LIMIT` / `..._REEXPORT_STAR` / `..._REEXPORT_CYCLE` / `..._REEXPORT_SELF_REFERENCE` / `..._REEXPORT_CONDITIONAL` / `..._REEXPORT_MISSING_MODULE` / `..._REEXPORT_UNSUPPORTED_ASSIGN` | 負例 fixture | 同上。**宣言した unresolved の原因を全件覆う**(4 周目 P1-1) |
 | `C5_CONTEXT_IN_FUNCTION_TYPE_BOUND` / `C5_CONTEXT_IN_CLASS_TYPE_BOUND`(**PEP 695**) | 負例 fixture | 同上 |
+| `C5_CONTEXT_IN_LAMBDA_DEFAULT` / `..._IN_ANNOTATED_ASSIGNMENT` / `..._IN_CLASS_BASE` / `..._IN_EXCEPTION_HANDLER_TYPE` / `..._AFTER_TERMINATOR` | 負例 fixture | 同上(5 周目 P0-1 の探針) |
 | `C5_CONTEXT_ATTRIBUTE_NAME_ON_KNOWN_RECEIVER` / `..._IN_DICT_COMPREHENSION` / `..._IN_SUBSCRIPT_TARGET` / `..._RELATIVE_IMPORT` | 負例 fixture | 同上 |
 | **別モジュールの無関係な同名 `Context` が緑であること** | **単体テスト**(`scan_source` を直接呼ぶ) | `tests/test_check_tenant_boundary_bypass.py` |
 | **`C2_GENERATION_IMPORT` は変更しない**(候補を狭めないため赤のまま) | 負例 fixture | — |
