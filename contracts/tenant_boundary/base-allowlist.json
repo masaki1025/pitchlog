@@ -129,6 +129,28 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py"
     }
   ],
+  "condition_2_adjudications": [
+    {
+      "symbol": "pitchlog.domaincheck.runners.catalog_independence.TracedGeneration",
+      "reason": "ドメイン計算カタログの独立性検査で使う追跡世代であり、同期プロトコルの世代ではない"
+    },
+    {
+      "symbol": "pitchlog.domaingen.backends.common.BackendGenerationError",
+      "reason": "ドメイン計算のコード生成 backend が送出する例外型であり、同期プロトコルの世代ではない"
+    },
+    {
+      "symbol": "pitchlog.domaingen.core.GenerationError",
+      "reason": "ドメイン計算のコード生成が送出する例外型であり、同期プロトコルの世代ではない"
+    },
+    {
+      "symbol": "pitchlog.domaingen.formatter.FormatterGenerationError",
+      "reason": "ドメイン計算の表示コード生成が送出する例外型であり、同期プロトコルの世代ではない"
+    },
+    {
+      "symbol": "pitchlog.domainmut.engine.MutationGeneration",
+      "reason": "ドメイン計算 DSL の変異生成結果であり、同期プロトコルの世代ではない"
+    }
+  ],
   "conditions": [
     {
       "condition": 1,

@@ -123,6 +123,14 @@ class ConditionRule:
 
 
 @dataclass(frozen=True)
+class Condition2Adjudication:
+    """条件 2 の候補から非同期セマンティクスと裁定したシンボルを表す。"""
+
+    symbol: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class NegativeFixture:
     """負例 fixture の契約行を表す。"""
 
@@ -170,6 +178,7 @@ class Contract:
     conservative_member_names: frozenset[str]
     allowed_symbols: tuple[AllowedSymbol, ...]
     rules: tuple[ConditionRule, ...]
+    condition2_adjudications: tuple[Condition2Adjudication, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
@@ -883,6 +892,7 @@ def _load_allowlist(
 ) -> tuple[
     tuple[AllowedSymbol, ...],
     tuple[ConditionRule, ...],
+    tuple[Condition2Adjudication, ...],
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -896,6 +906,7 @@ def _load_allowlist(
             "inventory",
             "allowed_symbols",
             "conditions",
+            "condition_2_adjudications",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -987,6 +998,46 @@ def _load_allowlist(
     if len(fixtures) != len(set(fixtures)):
         raise ContractError("allowed_symbols.fixture は一意でなければならない")
 
+    condition2_adjudications: list[Condition2Adjudication] = []
+    for index, raw in enumerate(
+        _array(
+            value["condition_2_adjudications"],
+            "allowlist.condition_2_adjudications",
+        )
+    ):
+        item = _object(raw, f"allowlist.condition_2_adjudications[{index}]")
+        _strict_keys(
+            item,
+            {"symbol", "reason"},
+            f"allowlist.condition_2_adjudications[{index}]",
+        )
+        symbol = _string(
+            item["symbol"],
+            f"allowlist.condition_2_adjudications[{index}].symbol",
+        )
+        if "." not in symbol or not all(
+            part.isidentifier() for part in symbol.split(".")
+        ):
+            raise ContractError(
+                "condition_2_adjudications.symbol は完全修飾シンボルが必要"
+            )
+        condition2_adjudications.append(
+            Condition2Adjudication(
+                symbol=symbol,
+                reason=_string(
+                    item["reason"],
+                    f"allowlist.condition_2_adjudications[{index}].reason",
+                ),
+            )
+        )
+    adjudicated_symbols = [item.symbol for item in condition2_adjudications]
+    if not condition2_adjudications or len(adjudicated_symbols) != len(
+        set(adjudicated_symbols)
+    ):
+        raise ContractError(
+            "condition_2_adjudications は空にできず、symbol は一意でなければならない"
+        )
+
     rules: list[ConditionRule] = []
     conditions = _array(value["conditions"], "allowlist.conditions")
     for index, raw in enumerate(conditions):
@@ -1024,7 +1075,28 @@ def _load_allowlist(
         )
     if {rule.condition for rule in rules} != {1, 2, 3, 4}:
         raise ContractError("conditions の条件番号は 1〜4 の exact-set でなければならない")
-    return tuple(allowed_symbols), tuple(rules), command
+    condition2_rule = next(rule for rule in rules if rule.condition == 2)
+    for adjudication in condition2_adjudications:
+        candidates = {_normalize_identifier(adjudication.symbol)}
+        candidates.update(
+            _normalize_identifier(part)
+            for part in adjudication.symbol.split(".")
+        )
+        if not any(
+            pattern.search(candidate)
+            for candidate in candidates
+            for pattern in condition2_rule.patterns
+        ):
+            raise ContractError(
+                "condition_2_adjudications.symbol は条件 2 の候補でなければならない: "
+                f"{adjudication.symbol}"
+            )
+    return (
+        tuple(allowed_symbols),
+        tuple(rules),
+        tuple(condition2_adjudications),
+        command,
+    )
 
 
 def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...]:
@@ -1404,7 +1476,7 @@ def load_contract(repository_root: Path) -> Contract:
         symbol_aliases,
         conservative_member_names,
     ) = _load_inventory(inventory_value)
-    allowed_symbols, rules, diff_command = _load_allowlist(
+    allowed_symbols, rules, condition2_adjudications, diff_command = _load_allowlist(
         allowlist_value, inventory_bytes, apis
     )
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1445,6 +1517,7 @@ def load_contract(repository_root: Path) -> Contract:
         conservative_member_names=conservative_member_names,
         allowed_symbols=allowed_symbols,
         rules=rules,
+        condition2_adjudications=condition2_adjudications,
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
@@ -3102,6 +3175,12 @@ class _SourceScanner(ast.NodeVisitor):
         self.allowed_by_symbol = {
             item.symbol: item for item in contract.allowed_symbols
         }
+        self.condition2_adjudicated_symbols = frozenset(
+            item.symbol for item in contract.condition2_adjudications
+        )
+        self.condition2_patterns = next(
+            rule.patterns for rule in contract.rules if rule.condition == 2
+        )
 
     def _validate_call_coverage(self, tree: ast.Module) -> None:
         """AST・flow・scanner の Call 集合が同一であることを検証する。"""
@@ -3212,12 +3291,19 @@ class _SourceScanner(ast.NodeVisitor):
         node: ast.AST,
         *,
         allow_condition4: bool = False,
+        condition2_symbol: str | None = None,
     ) -> None:
         if not self._is_changed(node):
             return
         candidates = {_normalize_identifier(text)}
         candidates.update(_normalize_identifier(part) for part in text.split("."))
         for rule in self.contract.rules:
+            if (
+                rule.condition == 2
+                and (condition2_symbol or text)
+                in self.condition2_adjudicated_symbols
+            ):
+                continue
             if rule.condition == 4 and (
                 allow_condition4
                 or self.module
@@ -3234,6 +3320,16 @@ class _SourceScanner(ast.NodeVisitor):
                         message=f"条件 {rule.condition} の禁止シンボルを検出",
                     )
                     break
+
+    def _is_condition2_candidate(self, text: str) -> bool:
+        """文字列が変更不能な条件 2 パターンの候補に入るか返す。"""
+        candidates = {_normalize_identifier(text)}
+        candidates.update(_normalize_identifier(part) for part in text.split("."))
+        return any(
+            pattern.search(candidate)
+            for candidate in candidates
+            for pattern in self.condition2_patterns
+        )
 
     def _raw_expression(self, node: ast.AST) -> str | None:
         if isinstance(node, ast.Name):
@@ -3808,6 +3904,7 @@ class _SourceScanner(ast.NodeVisitor):
                 imported_symbol if import_is_allowed else alias.name,
                 node,
                 allow_condition4=import_is_allowed,
+                condition2_symbol=imported_symbol,
             )
             if alias.asname is not None:
                 self._check_identifier(alias.asname, node)
@@ -3835,7 +3932,14 @@ class _SourceScanner(ast.NodeVisitor):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """クラス内のメソッド完全修飾名を構築する。"""
-        self._check_identifier(node.name, node)
+        class_symbol = ".".join(
+            [self.module, *self.class_stack, node.name]
+        ).strip(".")
+        self._check_identifier(
+            node.name,
+            node,
+            condition2_symbol=class_symbol,
+        )
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules
             | self.contract.tenant_context.allowed_product_modules
@@ -3952,10 +4056,19 @@ class _SourceScanner(ast.NodeVisitor):
         resolved = self.aliases.resolve(node) or node.id
         if isinstance(node.ctx, ast.Load):
             self._check_integrity_reference(resolved, node)
+        condition2_symbol = (
+            node.id if self._is_condition2_candidate(node.id) else resolved
+        )
+        if node.id in self.aliases.direct_import_names or (
+            node.id[:1].isupper()
+            and resolved in self.aliases.known_class_symbols
+        ):
+            condition2_symbol = resolved
         self._check_identifier(
             resolved,
             node,
             allow_condition4=self._condition4_reference_allowed(resolved),
+            condition2_symbol=condition2_symbol,
         )
 
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802

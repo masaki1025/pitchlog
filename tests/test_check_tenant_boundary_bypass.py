@@ -134,6 +134,37 @@ class TenantContext:
 
 CensusIdentity = tuple[str, int, int, str, str, str, str]
 
+EXPECTED_CONDITION_2_PATTERNS = (
+    "(?:^|_)idempotenc[a-z0-9_]*(?:_|$)",
+    "(?:^|_)idempotent_key(?:_|$)",
+    "(?:^|_)seq_no(?:_|$)",
+    "(?:^|_)sequence_no(?:_|$)",
+    "(?:^|_)tombstone(?:_|$)",
+    "(?:^|_)revision_no(?:_|$)",
+    "(?:^|_)generation(?:_|$)",
+)
+EXPECTED_CONDITION_2_ADJUDICATIONS = {
+    "pitchlog.domaincheck.runners.catalog_independence.TracedGeneration": (
+        "ドメイン計算カタログの独立性検査で使う追跡世代であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.backends.common.BackendGenerationError": (
+        "ドメイン計算のコード生成 backend が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.core.GenerationError": (
+        "ドメイン計算のコード生成が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.formatter.FormatterGenerationError": (
+        "ドメイン計算の表示コード生成が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domainmut.engine.MutationGeneration": (
+        "ドメイン計算 DSL の変異生成結果であり、同期プロトコルの世代ではない"
+    ),
+}
+
 _FLOW_OMISSION_RUNNER = r"""
 import ast
 import importlib.util
@@ -251,6 +282,7 @@ def _compare_checker_census(
     *,
     repository_root: Path,
     source_root: Path,
+    reference_repository_root: Path | None = None,
 ) -> tuple[frozenset[CensusIdentity], frozenset[CensusIdentity]]:
     """merge-base 版から作業ツリー版への違反集合の増減を返す。
 
@@ -260,7 +292,7 @@ def _compare_checker_census(
     """
     reference = _checker_census(
         reference_checker,
-        repository_root=repository_root,
+        repository_root=reference_repository_root or repository_root,
         source_root=source_root,
     )
     candidate = _checker_census(
@@ -269,6 +301,27 @@ def _compare_checker_census(
         source_root=source_root,
     )
     return candidate - reference, reference - candidate
+
+
+def _prepare_reference_contract_root(destination: Path) -> Path:
+    """旧 checker が読める裁定導入前スキーマの契約 root を一時作成する。"""
+    contract_root = destination / "contracts" / "tenant_boundary"
+    shutil.copytree(
+        REPOSITORY_ROOT / "contracts" / "tenant_boundary",
+        contract_root,
+    )
+    allowlist_path = destination / checker.DEFAULT_ALLOWLIST
+    allowlist = json.loads(allowlist_path.read_text(encoding="utf-8"))
+    assert isinstance(allowlist, dict)
+    del allowlist["condition_2_adjudications"]
+    allowlist_path.write_text(
+        json.dumps(allowlist, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    fixture_root = destination / "tests" / "fixtures" / "tenant_boundary"
+    shutil.copytree(POSITIVE_ROOT, fixture_root / "positive")
+    shutil.copytree(NEGATIVE_ROOT, fixture_root / "negative")
+    return destination
 
 
 def _assert_removed_tb007_matches_declared_relaxations(
@@ -627,11 +680,14 @@ def _unlisted_database_access(session: Session) -> None:
 
 
 def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
-    """既定値反転のセンサス差分が意図した TB007 の減少だけと固定する。"""
+    """センサス差分を宣言済みの TB002・TB007 の減少だけに固定する。"""
     merge_base = _resolve_merge_base("origin/develop", "HEAD")
     baseline_checker = _load_checker_from_revision(
         merge_base,
         tmp_path / "check_tenant_boundary_bypass_merge_base.py",
+    )
+    reference_repository_root = _prepare_reference_contract_root(
+        tmp_path / "reference_repository"
     )
 
     added, removed = _compare_checker_census(
@@ -639,12 +695,151 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
         checker,
         repository_root=REPOSITORY_ROOT,
         source_root=REPOSITORY_ROOT / "backend" / "src",
+        reference_repository_root=reference_repository_root,
     )
 
     assert added == frozenset()
     assert removed
-    assert {identity[4] for identity in removed} == {"TB007"}
-    _assert_removed_tb007_matches_declared_relaxations(removed)
+    assert {identity[4] for identity in removed} <= {"TB002", "TB007"}
+    removed_tb007 = frozenset(
+        identity for identity in removed if identity[4] == "TB007"
+    )
+    assert removed_tb007
+    _assert_removed_tb007_matches_declared_relaxations(removed_tb007)
+    adjudicated_symbols = set(EXPECTED_CONDITION_2_ADJUDICATIONS)
+    adjudicated_names = {
+        symbol.rsplit(".", 1)[-1] for symbol in adjudicated_symbols
+    }
+    assert {
+        identity[5]
+        for identity in removed
+        if identity[4] == "TB002"
+    } <= adjudicated_symbols | adjudicated_names
+
+
+def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
+    """広い候補7本と理由付き裁定5件を資産どおり固定する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    condition2 = next(rule for rule in contract.rules if rule.condition == 2)
+
+    assert tuple(pattern.pattern for pattern in condition2.patterns) == (
+        EXPECTED_CONDITION_2_PATTERNS
+    )
+    assert {
+        item.symbol: item.reason
+        for item in contract.condition2_adjudications
+    } == EXPECTED_CONDITION_2_ADJUDICATIONS
+
+
+def test_condition_2_adjudication_requires_a_reason() -> None:
+    """裁定理由を欠く資産を読み込み時に拒否する。"""
+    allowlist = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    del allowlist["condition_2_adjudications"][0]["reason"]
+    inventory, inventory_bytes = checker._read_json(
+        REPOSITORY_ROOT / checker.DEFAULT_INVENTORY
+    )
+    apis, _, _, _ = checker._load_inventory(inventory)
+
+    with pytest.raises(checker.ContractError, match=r"missing=\['reason'\]"):
+        checker._load_allowlist(allowlist, inventory_bytes, apis)
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    tuple(sorted(EXPECTED_CONDITION_2_ADJUDICATIONS)),
+)
+def test_condition_2_adjudicated_symbols_are_green(symbol: str) -> None:
+    """完全修飾参照と同一モジュールの裸クラス名を同じ裁定で許可する。"""
+    module, class_name = symbol.rsplit(".", 1)
+    path = f"{module.replace('.', '/')}.py"
+    source = f"""\
+class {class_name}:
+    pass
+
+
+value = {class_name}()
+"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_adjudicated_import_is_green() -> None:
+    """別モジュールからの裸の import 名も完全修飾した裁定へ照合する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.domaingen.core import GenerationError
+
+error_type = GenerationError
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/generation_errors.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_unadjudicated_generation_is_red() -> None:
+    """裁定に無い新しい Generation シンボルを fail-closed で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class FutureGeneration:
+    pass
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domaingen/future.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_condition_2_local_generation_variable_is_not_adjudicated() -> None:
+    """型が既知でも裸の局所変数 generation は裁定せず拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class MutationGeneration:
+    pass
+
+
+generation: MutationGeneration
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domainmut/engine.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_recording_generation_remains_red_in_product_tree() -> None:
+    """記録権世代の実モデル14件を条件2の候補として維持する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    path = "pitchlog/db/recording_rights/models.py"
+
+    violations = checker.scan_source(
+        _fixture_source(source_root / path),
+        path=path,
+        contract=contract,
+    )
+    condition2 = [violation for violation in violations if violation.code == "TB002"]
+
+    assert len(condition2) == 14
+    assert all("RecordingGeneration" in item.symbol for item in condition2)
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
