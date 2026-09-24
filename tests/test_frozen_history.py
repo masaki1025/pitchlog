@@ -77,7 +77,10 @@ def _v2_case(tmp_path: Path) -> tuple[dict[str, Any], Any]:
                 },
             }
         },
-        "movement_policy": {"history_append_only": True},
+        "movement_policy": {
+            "history_append_only": True,
+            "movement_triggers": sorted(parser.REQUIRED_MOVEMENT_TRIGGERS),
+        },
         "external_snapshots": copy.deepcopy(external_snapshots),
     }
     after: dict[str, Any] = copy.deepcopy(before)
@@ -280,6 +283,68 @@ def _evaluation_case(tmp_path: Path) -> tuple[dict[str, Any], Any, Any, Any]:
     )
     evaluation = parser.derive_role_separated_evaluation(base, head)
     return record, base, head, evaluation
+
+
+def _frozen_asset(
+    name: str,
+    *,
+    declaration_location: str | None = None,
+) -> Any:
+    """普遍下限 5 軸の実状態を持つ合成資産を作る。"""
+    return parser.FrozenAssetState(
+        declaration_location=(
+            declaration_location
+            or f"contracts/tenant_boundary/{name}.json#/baseline_declaration"
+        ),
+        declaration={
+            "identity": {
+                "scheme": "revision_field",
+                "field": "contract_revision",
+                "current_identifiers": [f"{name}:13"],
+                "no_baseline_marker": "NO_BASELINE",
+                "frozen_projection": {
+                    "external_files": [f"scripts/{name}.py"],
+                },
+            }
+        },
+    )
+
+
+def _repository_movement_case() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """movement のない比較元・HEAD 資産と比較元 policy を作る。"""
+    base_assets = {"asset-a": _frozen_asset("asset-a")}
+    head_assets = copy.deepcopy(base_assets)
+    movement_policy = {
+        "movement_triggers": sorted(parser.REQUIRED_MOVEMENT_TRIGGERS),
+    }
+    return base_assets, head_assets, movement_policy
+
+
+def _mutate_movement_axis(head_assets: dict[str, Any], token: str) -> None:
+    """指定 token に対応する実状態だけを変異させる。"""
+    if token == "baseline_set":
+        head_assets["asset-b"] = _frozen_asset("asset-b")
+        return
+    asset = head_assets["asset-a"]
+    if token == "declaration_location":
+        head_assets["asset-a"] = parser.FrozenAssetState(
+            declaration_location=(
+                "contracts/tenant_boundary/moved/asset-a.json#/baseline_declaration"
+            ),
+            declaration=asset.declaration,
+        )
+        return
+    identity = asset.declaration["identity"]
+    if token == "baseline_value":
+        identity["current_identifiers"] = ["asset-a:14"]
+    elif token == "frozen_target_mapping":
+        identity["frozen_projection"]["external_files"] = ["scripts/moved-a.py"]
+    elif token == "identity_granularity":
+        identity["scheme"] = "compound_key"
+    elif token == "identifier_interpretation":
+        identity["no_baseline_marker"] = "BASELINE_ABSENT"
+    else:
+        raise AssertionError(f"未知のテスト用 token: {token}")
 
 
 def _write_pull_request_event(
@@ -710,6 +775,142 @@ def test_different_pr_has_different_acceptance_id(
     assert second is not None
 
     assert first.acceptance_id != second.acceptance_id
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+    ],
+)
+def test_actual_axis_change_requires_movement_record(token: str) -> None:
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+    unchanged = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+    assert unchanged.moved is False
+    parser.validate_movement_record_requirement(unchanged, 0)
+    _mutate_movement_axis(head_assets, token)
+
+    changed = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+
+    assert changed.triggered_tokens == frozenset({token})
+    assert changed.moved is True
+    with pytest.raises(parser.ContractError, match="movement と追記 record 件数が不一致"):
+        parser.validate_movement_record_requirement(changed, 0)
+    parser.validate_movement_record_requirement(changed, 1)
+
+
+@pytest.mark.parametrize(
+    "missing_token",
+    [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+    ],
+)
+def test_missing_required_trigger_is_rejected_after_valid_baseline(
+    missing_token: str,
+) -> None:
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+    assert not parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    ).moved
+    movement_policy["movement_triggers"].remove(missing_token)
+
+    with pytest.raises(parser.ContractError, match="普遍下限が不足"):
+        parser.evaluate_repository_movement(
+            base_assets,
+            head_assets,
+            movement_policy,
+        )
+
+
+def test_extra_base_declared_trigger_does_not_restrict_transition() -> None:
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+    movement_policy["movement_triggers"].append("pass_fail_mapping")
+    unchanged = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+    assert unchanged.declared_triggers > parser.REQUIRED_MOVEMENT_TRIGGERS
+    _mutate_movement_axis(head_assets, "baseline_value")
+
+    changed = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+
+    assert changed.triggered_tokens == frozenset({"baseline_value"})
+    parser.validate_movement_record_requirement(changed, 1)
+
+
+def test_required_movement_trigger_constant_has_exact_universal_lower_bound() -> None:
+    assert parser.REQUIRED_MOVEMENT_TRIGGERS == frozenset(
+        {
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+        }
+    )
+
+
+def test_deleted_base_asset_is_rejected_after_valid_baseline() -> None:
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+    assert not parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    ).moved
+    del head_assets["asset-a"]
+
+    with pytest.raises(parser.ContractError, match="比較元に存在した資産を削除できない"):
+        parser.evaluate_repository_movement(
+            base_assets,
+            head_assets,
+            movement_policy,
+        )
+
+
+def test_scan_targets_are_union_of_base_and_head_assets() -> None:
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+    unchanged = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+    assert unchanged.scanned_assets == ("asset-a",)
+    head_assets["asset-b"] = _frozen_asset("asset-b")
+
+    changed = parser.evaluate_repository_movement(
+        base_assets,
+        head_assets,
+        movement_policy,
+    )
+
+    assert changed.scanned_assets == ("asset-a", "asset-b")
+    assert changed.triggered_tokens == frozenset({"baseline_set"})
 
 
 def test_no_history_authority_is_rejected_after_valid_baseline() -> None:

@@ -15,6 +15,16 @@ from pathlib import Path
 from typing import Any
 
 ASPECT_NAMES = frozenset({"declaration", "movement_policy", "external_snapshots"})
+REQUIRED_MOVEMENT_TRIGGERS = frozenset(
+    {
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+    }
+)
 SNAPSHOT_REF_PREFIX = "contracts/tenant_boundary/history-snapshots/"
 RESERVED_APPROVAL_TOKENS = frozenset(
     {"PENDING", "TODO", "TBD", "未承認", "未定", "レビュー待ち"}
@@ -88,6 +98,39 @@ class RoleSeparatedEvaluation:
     targets: tuple[str, ...]
     transition: V2Transition
     moved: bool
+
+
+@dataclass(frozen=True)
+class FrozenAssetState:
+    """movement 判定に使う 1 資産の実状態を表す。
+
+    Attributes:
+        declaration_location: 基準宣言が置かれている安定した位置。
+        declaration: 当該位置にある基準宣言の実内容。
+    """
+
+    declaration_location: str
+    declaration: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class RepositoryMovementEvaluation:
+    """比較元と HEAD の資産集合から導出した movement を表す。
+
+    Attributes:
+        scanned_assets: 比較元側と HEAD 側の和集合として走査した資産名。
+        declared_triggers: 比較元が宣言した trigger。下限外の値も保持する。
+        triggered_tokens: 実状態の差分から発火した普遍下限 token。
+    """
+
+    scanned_assets: tuple[str, ...]
+    declared_triggers: frozenset[str]
+    triggered_tokens: frozenset[str]
+
+    @property
+    def moved(self) -> bool:
+        """実状態に movement があるかを返す。"""
+        return bool(self.triggered_tokens)
 
 
 class EvaluationMode(StrEnum):
@@ -209,6 +252,10 @@ def derive_role_separated_evaluation(
         ContractError: 対象宣言が不正、HEAD が対象を縮小した、または対象実装が
             解決できない場合。
     """
+    _declared_movement_triggers(
+        base.movement_policy,
+        "比較元.movement_policy",
+    )
     base_targets = _declared_target_paths(base.declaration, "比較元.declaration")
     head_targets = _declared_target_paths(head.declaration, "HEAD.declaration")
     removed = sorted(set(base_targets) - set(head_targets))
@@ -245,6 +292,104 @@ def derive_role_separated_evaluation(
         transition=transition,
         moved=bool(derive_aspects(before, after)),
     )
+
+
+def evaluate_repository_movement(
+    base_assets: Mapping[str, FrozenAssetState],
+    head_assets: Mapping[str, FrozenAssetState],
+    base_movement_policy: Mapping[str, Any],
+) -> RepositoryMovementEvaluation:
+    """比較元の trigger 宣言を決定元として資産の実状態を比較する。
+
+    走査対象は比較元側と HEAD 側の資産集合の和集合とする。比較元にあった
+    資産の削除は、その記録形式を決めずに不合格とする。HEAD に追加された
+    資産も構造を検査し、資産集合の movement として扱う。
+
+    Args:
+        base_assets: 比較元の資産名から実状態へのマップ。
+        head_assets: HEAD の資産名から実状態へのマップ。
+        base_movement_policy: 比較元が宣言した movement policy。
+
+    Returns:
+        和集合の走査結果と実差分から導出した movement。
+
+    Raises:
+        ContractError: 比較元の trigger 宣言または資産の実状態が不正か、
+            比較元にあった資産が HEAD から削除された場合。
+    """
+    declared_triggers = _declared_movement_triggers(
+        base_movement_policy,
+        "比較元.movement_policy",
+    )
+    base_names = set(base_assets)
+    head_names = set(head_assets)
+    scanned_assets = tuple(sorted(base_names | head_names))
+    deleted_assets = sorted(base_names - head_names)
+    if deleted_assets:
+        raise ContractError(f"比較元に存在した資産を削除できない: {deleted_assets}")
+
+    triggered_tokens: set[str] = set()
+    if base_names != head_names:
+        triggered_tokens.add("baseline_set")
+
+    for asset_name in scanned_assets:
+        head_axes = _movement_axis_values(
+            head_assets[asset_name],
+            f"HEAD.{asset_name}",
+        )
+        if asset_name not in base_assets:
+            continue
+        base_axes = _movement_axis_values(
+            base_assets[asset_name],
+            f"比較元.{asset_name}",
+        )
+        triggered_tokens.update(
+            token
+            for token in REQUIRED_MOVEMENT_TRIGGERS - {"baseline_set"}
+            if not _json_deep_equal(base_axes[token], head_axes[token])
+        )
+
+    return RepositoryMovementEvaluation(
+        scanned_assets=scanned_assets,
+        declared_triggers=declared_triggers,
+        triggered_tokens=frozenset(triggered_tokens),
+    )
+
+
+def validate_movement_record_requirement(
+    evaluation: RepositoryMovementEvaluation,
+    appended_record_count: int,
+) -> None:
+    """movement の有無と追記 record 件数が一致することを検査する。
+
+    Args:
+        evaluation: 資産の実状態から導出した movement。
+        appended_record_count: 比較元 prefix より後ろの record 件数。
+
+    Raises:
+        ContractError: movement に対して record が不足または過剰な場合。
+    """
+    _validate_movement_record_count(
+        evaluation.moved,
+        appended_record_count,
+        "repository.history",
+    )
+
+
+def _validate_movement_record_count(
+    moved: bool,
+    appended_record_count: int,
+    location: str,
+) -> None:
+    """movement と追記 record 件数の対応を一箇所で検査する。"""
+    if type(appended_record_count) is not int or appended_record_count < 0:
+        raise ContractError("追記 record 件数は 0 以上の整数が必要")
+    expected_count = 1 if moved else 0
+    if appended_record_count != expected_count:
+        raise ContractError(
+            f"{location}: movement と追記 record 件数が不一致: "
+            f"moved={moved}, records={appended_record_count}"
+        )
 
 
 def resolve_evaluation_context() -> EvaluationContext:
@@ -308,12 +453,11 @@ def validate_current_history(
     base_records = _history_array(base_history, f"比較元.{location}")
     head_records = _history_array(head_history, f"HEAD.{location}")
     appended_count = len(head_records) - len(base_records)
-    expected_count = 1 if evaluation.moved else 0
-    if appended_count != expected_count:
-        raise ContractError(
-            f"{location}: movement と追記 record 件数が不一致: "
-            f"moved={evaluation.moved}, records={appended_count}"
-        )
+    _validate_movement_record_count(
+        evaluation.moved,
+        appended_count,
+        location,
+    )
 
     transitions = (evaluation.transition,) if evaluation.moved else ()
     records = parse_history(
@@ -378,6 +522,94 @@ def derive_aspects(
         for aspect in ASPECT_NAMES
         if not _json_deep_equal(before[aspect], after[aspect])
     )
+
+
+def _declared_movement_triggers(
+    movement_policy: Mapping[str, Any],
+    location: str,
+) -> frozenset[str]:
+    """比較元宣言から trigger を取得し、普遍下限を検査する。"""
+    raw_triggers = _array(
+        movement_policy.get("movement_triggers"),
+        f"{location}.movement_triggers",
+    )
+    triggers = frozenset(
+        _nonempty_string(trigger, f"{location}.movement_triggers[]")
+        for trigger in raw_triggers
+    )
+    if len(triggers) != len(raw_triggers):
+        raise ContractError(f"{location}.movement_triggers: 値を重複できない")
+    missing = REQUIRED_MOVEMENT_TRIGGERS - triggers
+    if missing:
+        raise ContractError(
+            f"{location}.movement_triggers: 普遍下限が不足: {sorted(missing)}"
+        )
+    return triggers
+
+
+def _movement_axis_values(
+    asset: FrozenAssetState,
+    location: str,
+) -> dict[str, object]:
+    """資産の実内容から普遍下限 5 軸の比較値を取り出す。"""
+    if not isinstance(asset, FrozenAssetState):
+        raise ContractError(f"{location}: FrozenAssetState が必要")
+    declaration_location = _nonempty_string(
+        asset.declaration_location,
+        f"{location}.declaration_location",
+    )
+    declaration = _mapping(asset.declaration, f"{location}.declaration")
+    identity = _mapping(
+        declaration.get("identity"),
+        f"{location}.declaration.identity",
+    )
+    current_identifiers = _nonempty_string_array(
+        identity.get("current_identifiers"),
+        f"{location}.declaration.identity.current_identifiers",
+    )
+    scheme = _nonempty_string(
+        identity.get("scheme"),
+        f"{location}.declaration.identity.scheme",
+    )
+    field = _nonempty_string(
+        identity.get("field"),
+        f"{location}.declaration.identity.field",
+    )
+    no_baseline_marker = _nonempty_string(
+        identity.get("no_baseline_marker"),
+        f"{location}.declaration.identity.no_baseline_marker",
+    )
+    projection = _mapping(
+        identity.get("frozen_projection"),
+        f"{location}.declaration.identity.frozen_projection",
+    )
+    external_files = tuple(
+        _nonempty_string(
+            path,
+            f"{location}.declaration.identity.frozen_projection.external_files[]",
+        )
+        for path in _array(
+            projection.get("external_files"),
+            f"{location}.declaration.identity.frozen_projection.external_files",
+        )
+    )
+    if not external_files:
+        raise ContractError(
+            f"{location}.declaration.identity.frozen_projection.external_files: "
+            "空にできない"
+        )
+    if len(external_files) != len(set(external_files)):
+        raise ContractError(
+            f"{location}.declaration.identity.frozen_projection.external_files: "
+            "値を重複できない"
+        )
+    return {
+        "baseline_value": current_identifiers,
+        "declaration_location": declaration_location,
+        "frozen_target_mapping": external_files,
+        "identity_granularity": (scheme, field),
+        "identifier_interpretation": no_baseline_marker,
+    }
 
 
 def _declared_target_paths(
