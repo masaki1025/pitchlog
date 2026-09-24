@@ -2,9 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import hashlib
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
 from typing import Any
+
+ASPECT_NAMES = frozenset({"declaration", "movement_policy", "external_snapshots"})
+SNAPSHOT_REF_PREFIX = "contracts/tenant_boundary/history-snapshots/"
+RESERVED_APPROVAL_TOKENS = frozenset(
+    {"PENDING", "TODO", "TBD", "未承認", "未定", "レビュー待ち"}
+)
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_ACCEPTANCE_ID_RE = re.compile(r"[^/#\s]+/[^/#\s]+#[1-9][0-9]*")
+_REPOSITORY_FULL_NAME_RE = re.compile(r"[^/#\s]+/[^/#\s]+")
 
 
 class ContractError(ValueError):
@@ -24,29 +37,47 @@ class HistoryRecord:
     value: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class V2Transition:
+    """v2 record と照合する受理前後の実内容を表す。
+
+    Attributes:
+        before: 比較元から得た受理前の実内容。
+        after: HEAD から得た受理後の実内容。
+        base_snapshot_root: 比較元の snapshot ディレクトリ。
+        head_snapshot_root: HEAD の snapshot ディレクトリ。
+    """
+
+    before: Mapping[str, Any]
+    after: Mapping[str, Any]
+    base_snapshot_root: Path
+    head_snapshot_root: Path
+
+
 def parse_history(
     base_history: object,
     head_history: object,
     *,
+    v2_transitions: Sequence[V2Transition] = (),
     location: str = "baseline_control.history",
 ) -> tuple[HistoryRecord, ...]:
     """比較元 prefix を保護し、HEAD の履歴 record の版を確定する。
 
     比較元の履歴はその時点の信頼根として扱い、HEAD の同じ位置にある生 JSON
     値との同一性だけを検査する。比較元 prefix より後ろでは、明示的な v2
-    record だけを受理する。v2 のフィールド検査はこの関数では行わない。
+    record だけを受理し、対応する実内容と snapshot に照らして内容を検査する。
 
     Args:
         base_history: 比較元資産の history。
         head_history: HEAD 資産の history。
+        v2_transitions: 追記された v2 record と同じ順序の実遷移。
         location: エラー表示用の位置。
 
     Returns:
         schema 版を確定した HEAD の履歴 record。
 
     Raises:
-        ContractError: 履歴が配列でない、prefix が一致しない、または追記 record
-            が明示的な v2 でない場合。
+        ContractError: 履歴、prefix、v2 の版または内容が不正な場合。
     """
     base_records = _history_array(base_history, f"比較元.{location}")
     head_records = _history_array(head_history, f"HEAD.{location}")
@@ -62,6 +93,7 @@ def parse_history(
         record = _record_object(raw_record, f"{location}[{index}]")
         parsed.append(HistoryRecord(schema_version=1, value=record))
 
+    appended_records: list[tuple[int, Mapping[str, Any]]] = []
     for index, raw_record in enumerate(head_records[prefix_length:], start=prefix_length):
         record_location = f"{location}[{index}]"
         record = _record_object(raw_record, record_location)
@@ -72,9 +104,67 @@ def parse_history(
             raise ContractError(
                 f"{record_location}: prefix 以後は record_schema_version 2 が必要"
             )
+        appended_records.append((index, record))
+
+    if len(v2_transitions) != len(appended_records):
+        raise ContractError(
+            f"{location}: v2 record と実遷移の件数が不一致: "
+            f"records={len(appended_records)}, transitions={len(v2_transitions)}"
+        )
+    for (index, record), transition in zip(
+        appended_records,
+        v2_transitions,
+        strict=True,
+    ):
+        _validate_v2_record(record, transition, f"{location}[{index}]")
         parsed.append(HistoryRecord(schema_version=2, value=record))
 
     return tuple(parsed)
+
+
+def derive_acceptance_id(repository_full_name: str, pull_request_number: int) -> str:
+    """リポジトリ名と PR 番号から受理 ID を導出する。
+
+    Args:
+        repository_full_name: `owner/repository` 形式のリポジトリ完全名。
+        pull_request_number: 正の PR 番号。
+
+    Returns:
+        `{repository.full_name}#{pull_request.number}` 形式の受理 ID。
+
+    Raises:
+        ContractError: リポジトリ名または PR 番号が不正な場合。
+    """
+    if _REPOSITORY_FULL_NAME_RE.fullmatch(repository_full_name) is None:
+        raise ContractError("repository.full_name は owner/repository 形式が必要")
+    if type(pull_request_number) is not int or pull_request_number <= 0:
+        raise ContractError("pull_request.number は正の整数が必要")
+    return f"{repository_full_name}#{pull_request_number}"
+
+
+def derive_aspects(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+) -> frozenset[str]:
+    """受理前後の実内容から変更された aspect を導出する。
+
+    Args:
+        before: 比較元から得た受理前の実内容。
+        after: HEAD から得た受理後の実内容。
+
+    Returns:
+        実際に変更された aspect の集合。
+
+    Raises:
+        ContractError: 実内容のキー集合が不正な場合。
+    """
+    _strict_keys(before, ASPECT_NAMES, "before")
+    _strict_keys(after, ASPECT_NAMES, "after")
+    return frozenset(
+        aspect
+        for aspect in ASPECT_NAMES
+        if not _json_deep_equal(before[aspect], after[aspect])
+    )
 
 
 def validate_history_authority(assets: Mapping[str, object]) -> str:
@@ -108,6 +198,268 @@ def validate_history_authority(assets: Mapping[str, object]) -> str:
             f"actual={len(authorities)}"
         )
     return authorities[0]
+
+
+def _validate_v2_record(
+    record: Mapping[str, Any],
+    transition: V2Transition,
+    location: str,
+) -> None:
+    """v2 record を実遷移と content-addressed snapshot に照らして検査する。"""
+    _strict_keys(
+        record,
+        {
+            "record_schema_version",
+            "acceptance_id",
+            "new_baseline_identifiers",
+            "previous_baseline_identifiers",
+            "change",
+            "movement_fact",
+            "reason",
+            "approved_by",
+            "approved_on",
+        },
+        location,
+    )
+    _validate_acceptance_id(record["acceptance_id"], f"{location}.acceptance_id")
+    _nonempty_string_array(
+        record["new_baseline_identifiers"],
+        f"{location}.new_baseline_identifiers",
+    )
+    _nonempty_string_array(
+        record["previous_baseline_identifiers"],
+        f"{location}.previous_baseline_identifiers",
+    )
+    _nonempty_string(record["movement_fact"], f"{location}.movement_fact")
+    _nonempty_string(record["reason"], f"{location}.reason")
+    approved_by = _nonempty_string(record["approved_by"], f"{location}.approved_by")
+    approved_on = _nonempty_string(record["approved_on"], f"{location}.approved_on")
+    _reject_reserved_marker(approved_by, f"{location}.approved_by")
+    _reject_reserved_marker(approved_on, f"{location}.approved_on")
+    _validate_iso_date(approved_on, f"{location}.approved_on")
+
+    base_snapshots = _read_snapshot_directory(
+        transition.base_snapshot_root,
+        f"{location}.base_snapshots",
+    )
+    head_snapshots = _read_snapshot_directory(
+        transition.head_snapshot_root,
+        f"{location}.head_snapshots",
+    )
+    _validate_snapshot_append_only(base_snapshots, head_snapshots, location)
+
+    change = _mapping(record["change"], f"{location}.change")
+    _strict_keys(change, {"subject", "aspect", "before", "after"}, f"{location}.change")
+    _nonempty_string(change["subject"], f"{location}.change.subject")
+    recorded_before = _snapshot_state(
+        change["before"],
+        base_snapshots,
+        f"{location}.change.before",
+    )
+    recorded_after = _snapshot_state(
+        change["after"],
+        head_snapshots,
+        f"{location}.change.after",
+    )
+    actual_before = _snapshot_state(
+        transition.before,
+        base_snapshots,
+        f"{location}.actual.before",
+    )
+    actual_after = _snapshot_state(
+        transition.after,
+        head_snapshots,
+        f"{location}.actual.after",
+    )
+    if not _json_deep_equal(recorded_before, actual_before):
+        raise ContractError(f"{location}.change.before: 比較元の実内容と不一致")
+    if not _json_deep_equal(recorded_after, actual_after):
+        raise ContractError(f"{location}.change.after: HEAD の実内容と不一致")
+
+    declared_aspects = _aspect_set(change["aspect"], f"{location}.change.aspect")
+    actual_aspects = derive_aspects(actual_before, actual_after)
+    if declared_aspects != actual_aspects:
+        raise ContractError(
+            f"{location}.change.aspect: 実差分と不一致: "
+            f"declared={sorted(declared_aspects)}, actual={sorted(actual_aspects)}"
+        )
+
+
+def _snapshot_state(
+    value: object,
+    snapshots: Mapping[str, bytes],
+    location: str,
+) -> Mapping[str, Any]:
+    """変更前後の実内容と snapshot 参照を検査する。"""
+    state = _mapping(value, location)
+    _strict_keys(state, ASPECT_NAMES, location)
+    _mapping(state["declaration"], f"{location}.declaration")
+    _mapping(state["movement_policy"], f"{location}.movement_policy")
+    _external_snapshots(
+        state["external_snapshots"],
+        snapshots,
+        f"{location}.external_snapshots",
+    )
+    return state
+
+
+def _external_snapshots(
+    value: object,
+    snapshots: Mapping[str, bytes],
+    location: str,
+) -> tuple[Mapping[str, Any], ...]:
+    """順序付き外部 snapshot 列の形式と参照先を検査する。"""
+    items = _array(value, location)
+    parsed: list[Mapping[str, Any]] = []
+    paths: set[str] = set()
+    for index, raw_item in enumerate(items):
+        item_location = f"{location}[{index}]"
+        item = _mapping(raw_item, item_location)
+        _strict_keys(item, {"path", "sha256", "snapshot_ref"}, item_location)
+        path = _nonempty_string(item["path"], f"{item_location}.path")
+        digest = _nonempty_string(item["sha256"], f"{item_location}.sha256")
+        snapshot_ref = _nonempty_string(
+            item["snapshot_ref"],
+            f"{item_location}.snapshot_ref",
+        )
+        if _SHA256_RE.fullmatch(digest) is None:
+            raise ContractError(f"{item_location}.sha256: SHA-256 が不正")
+        expected_ref = f"{SNAPSHOT_REF_PREFIX}{digest}"
+        if snapshot_ref != expected_ref:
+            raise ContractError(
+                f"{item_location}.snapshot_ref: sha256 と末尾セグメントが不一致"
+            )
+        if digest not in snapshots:
+            raise ContractError(f"{item_location}.snapshot_ref: snapshot を解決できない")
+        if path in paths:
+            raise ContractError(f"{location}: path を重複できない: {path}")
+        paths.add(path)
+        parsed.append(item)
+    return tuple(parsed)
+
+
+def _read_snapshot_directory(root: Path, location: str) -> dict[str, bytes]:
+    """snapshot ディレクトリを読み、各ファイル名と内容ハッシュを照合する。"""
+    if not root.exists():
+        return {}
+    if not root.is_dir():
+        raise ContractError(f"{location}: snapshot の置き場はディレクトリが必要")
+    snapshots: dict[str, bytes] = {}
+    try:
+        entries = sorted(root.iterdir(), key=lambda path: path.name)
+    except OSError as error:
+        raise ContractError(f"{location}: snapshot ディレクトリを読めない: {error}") from error
+    for path in entries:
+        if path.is_symlink() or not path.is_file():
+            raise ContractError(f"{location}: snapshot には通常ファイルだけを置ける: {path.name}")
+        if _SHA256_RE.fullmatch(path.name) is None:
+            raise ContractError(f"{location}: snapshot ファイル名が SHA-256 でない: {path.name}")
+        try:
+            content = path.read_bytes()
+        except OSError as error:
+            raise ContractError(f"{location}: snapshot を読めない: {path.name}: {error}") from error
+        actual_digest = hashlib.sha256(content).hexdigest()
+        if actual_digest != path.name:
+            raise ContractError(f"{location}: snapshot の内容とファイル名が不一致: {path.name}")
+        snapshots[path.name] = content
+    return snapshots
+
+
+def _validate_snapshot_append_only(
+    base_snapshots: Mapping[str, bytes],
+    head_snapshots: Mapping[str, bytes],
+    location: str,
+) -> None:
+    """比較元の snapshot が HEAD で変更・削除されていないことを検査する。"""
+    deleted = sorted(set(base_snapshots) - set(head_snapshots))
+    if deleted:
+        raise ContractError(f"{location}: 既存 snapshot を削除できない: {deleted}")
+    changed = sorted(
+        digest
+        for digest, content in base_snapshots.items()
+        if head_snapshots[digest] != content
+    )
+    if changed:
+        raise ContractError(f"{location}: 既存 snapshot を変更できない: {changed}")
+
+
+def _validate_acceptance_id(value: object, location: str) -> str:
+    """受理 ID が owner/repository#正の整数形式であることを検査する。"""
+    acceptance_id = _nonempty_string(value, location)
+    if _ACCEPTANCE_ID_RE.fullmatch(acceptance_id) is None:
+        raise ContractError(f"{location}: owner/repository#正の整数 形式が必要")
+    return acceptance_id
+
+
+def _validate_iso_date(value: str, location: str) -> None:
+    """値が実在する拡張 ISO 8601 日付であることを検査する。"""
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        raise ContractError(f"{location}: YYYY-MM-DD 形式が必要")
+    try:
+        date.fromisoformat(value)
+    except ValueError as error:
+        raise ContractError(f"{location}: 実在する ISO 8601 日付が必要") from error
+
+
+def _reject_reserved_marker(value: str, location: str) -> None:
+    """受理前の予約 marker を拒否する。"""
+    comparable = value.strip().upper()
+    if any(token in comparable for token in RESERVED_APPROVAL_TOKENS):
+        raise ContractError(f"{location}: 予約 marker を使用できない")
+
+
+def _aspect_set(value: object, location: str) -> frozenset[str]:
+    """重複のない既知 aspect の集合を取得する。"""
+    items = _array(value, location)
+    aspects = frozenset(
+        _nonempty_string(item, f"{location}[]") for item in items
+    )
+    if len(aspects) != len(items):
+        raise ContractError(f"{location}: aspect を重複できない")
+    if not aspects <= ASPECT_NAMES:
+        raise ContractError(f"{location}: 未知の aspect がある: {sorted(aspects - ASPECT_NAMES)}")
+    return aspects
+
+
+def _strict_keys(
+    value: Mapping[str, Any],
+    expected: set[str] | frozenset[str],
+    location: str,
+) -> None:
+    """object のキー集合を exact-set で検査する。"""
+    actual = set(value)
+    if actual != set(expected):
+        raise ContractError(
+            f"{location}: キー集合が不一致: "
+            f"missing={sorted(set(expected) - actual)}, "
+            f"extra={sorted(actual - set(expected))}"
+        )
+
+
+def _nonempty_string(value: object, location: str) -> str:
+    """空白だけでない文字列を取得する。"""
+    if not isinstance(value, str) or not value.strip():
+        raise ContractError(f"{location}: 空白だけでない文字列が必要")
+    return value
+
+
+def _nonempty_string_array(value: object, location: str) -> tuple[str, ...]:
+    """空でなく重複のない文字列配列を取得する。"""
+    items = tuple(
+        _nonempty_string(item, f"{location}[]") for item in _array(value, location)
+    )
+    if not items:
+        raise ContractError(f"{location}: 空にできない")
+    if len(items) != len(set(items)):
+        raise ContractError(f"{location}: 値を重複できない")
+    return items
+
+
+def _array(value: object, location: str) -> list[object]:
+    """配列を取得する。"""
+    if not isinstance(value, list):
+        raise ContractError(f"{location}: 配列が必要")
+    return value
 
 
 def _history_array(value: object, location: str) -> list[object]:
