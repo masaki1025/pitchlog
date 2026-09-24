@@ -95,6 +95,12 @@ def _copy_asset_to_spec_paths(
     destination_manifest = root / destination_spec.body_manifest_path
     destination_manifest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_manifest, destination_manifest)
+    source_body_directory = _REPOSITORY_ROOT / source_spec.body_directory
+    for source_path in source_body_directory.rglob("*"):
+        if source_path.is_file() and source_path != source_manifest:
+            destination_path = root / source_path.relative_to(_REPOSITORY_ROOT)
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, destination_path)
 
     checker_destination = root / destination_spec.body_checker_path
     checker_destination.parent.mkdir(parents=True, exist_ok=True)
@@ -102,7 +108,7 @@ def _copy_asset_to_spec_paths(
     shutil.copy2(_CATALOG_CHECKER, checker_destination.parent / _CATALOG_CHECKER.name)
 
 
-def test_product_spec_and_unfrozen_empty_assets_are_explicit() -> None:
+def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
     """製品の配置・scope・空の操作集合と非凍結manifestを固定する。"""
     assert PRODUCT_SPEC.asset_root == Path("contracts/authz/product")
     assert PRODUCT_SPEC.ddl_elements_path == Path(
@@ -121,7 +127,12 @@ def test_product_spec_and_unfrozen_empty_assets_are_explicit() -> None:
 
     manifest = _read_json_object(_REPOSITORY_ROOT / PRODUCT_SPEC.body_manifest_path)
     assert set(manifest) == {"schema_version", "asset_kind", "entries"}
-    assert manifest["entries"] == []
+    entries = manifest["entries"]
+    assert isinstance(entries, list)
+    assert all(
+        isinstance(entry, dict) and set(entry) == {"path", "element_type", "element_id"}
+        for entry in entries
+    )
 
 
 def test_repository_is_in_the_explicit_unactivated_product_state() -> None:
@@ -147,9 +158,9 @@ def test_staged_and_final_product_paths_cannot_coexist(tmp_path: Path) -> None:
         _staged_asset(tmp_path)
 
 
-def test_product_empty_assets_are_accepted_by_all_three_readers() -> None:
-    """製品の空の対応表を生成器・body検査器・静的検査が受理する。"""
-    assert generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC) == ()
+def test_product_assets_are_accepted_by_all_three_readers() -> None:
+    """製品の非凍結対応表を生成器・body検査器・静的検査が受理する。"""
+    assert generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
 
     body_result = _run_body_checker(_REPOSITORY_ROOT, PRODUCT_SPEC)
     assert body_result.returncode == 0, body_result.stderr
@@ -159,7 +170,10 @@ def test_product_empty_assets_are_accepted_by_all_three_readers() -> None:
         product_asset,
         _REPOSITORY_ROOT,
         PRODUCT_SPEC,
-    ) == {"scope_status": PRODUCT_SPEC.allowed_scope_status}
+    ) == {
+        "scope_status": PRODUCT_SPEC.allowed_scope_status,
+        "product_role_count": 4,
+    }
 
 
 @pytest.mark.parametrize(
@@ -198,7 +212,7 @@ def test_product_manifest_rejects_source_commit(tmp_path: Path) -> None:
     """製品manifestへ凍結基準を持ち込む変異を両読取経路で拒否する。"""
     root = tmp_path / "source-commit-mutation"
     _copy_asset_to_spec_paths(root, PRODUCT_SPEC, PRODUCT_SPEC)
-    assert generate_authz_ddl(root, PRODUCT_SPEC) == ()
+    assert generate_authz_ddl(root, PRODUCT_SPEC)
     baseline = _run_body_checker(root, PRODUCT_SPEC)
     assert baseline.returncode == 0, baseline.stderr
 

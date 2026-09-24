@@ -1,5 +1,26 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_function_body_manifest",
-  "entries": []
+  "entries": [
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_app.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_shared_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_shared_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_management_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_management_fn_owner"
+    }
+  ]
 }

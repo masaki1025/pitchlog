@@ -113,6 +113,60 @@ DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
 ASSET_SPECS = {"probe": PROBE_SPEC, "product": PRODUCT_SPEC}
 
+PRODUCT_ROLE_ATTRIBUTE_NAMES = frozenset(
+    {
+        "superuser",
+        "bypass_rls",
+        "login",
+        "create_role",
+        "create_db",
+        "replication",
+        "inherit",
+    }
+)
+PRODUCT_ROLE_EXPECTATIONS: dict[str, dict[str, object]] = {
+    "pitchlog_owner": {
+        "creation": "external_applicator",
+        "superuser": False,
+        "bypass_rls": False,
+        "login": True,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+    "pitchlog_app": {
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": False,
+        "login": True,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+    "pitchlog_shared_fn_owner": {
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": True,
+        "login": False,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+    "pitchlog_management_fn_owner": {
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": True,
+        "login": False,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+}
+
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
 TEST_STATUSES = frozenset({"planned", "implemented"})
@@ -2930,7 +2984,7 @@ def validate_ddl_elements(
     *,
     _probe_check_tracker: _ProbeOnlyCheckTracker | None = None,
 ) -> dict[str, object]:
-    """Scope を常に検査し、probe のときだけ既存の閉世界を検査する。"""
+    """Scope と資産種別ごとの閉世界を検査する。"""
     if not isinstance(raw, dict):
         raise CatalogError("DDL manifest はオブジェクトでなければならない")
     tracker = _probe_check_tracker or _ProbeOnlyCheckTracker(spec)
@@ -2944,6 +2998,8 @@ def validate_ddl_elements(
             spec,
             _probe_check_tracker=tracker,
         )
+    if spec == PRODUCT_SPEC:
+        return _validate_product_ddl_elements(raw)
     result = tracker.run(
         "ddl_elements_closed_world",
         lambda: _validate_probe_ddl_elements(raw, root),
@@ -2954,6 +3010,79 @@ def validate_ddl_elements(
     if not isinstance(result, dict):
         raise CatalogError("probe DDL要素検査の結果がオブジェクトでない")
     return result
+
+
+def _validate_product_ddl_elements(raw: object) -> dict[str, object]:
+    """製品ロールと到達経路の宣言を設計上の閉集合と照合する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
+    _expect_keys(
+        raw,
+        {
+            "schema_version",
+            "asset_kind",
+            "scope",
+            "pending_switch",
+            "roles",
+            "permanent_privileged_role_ids",
+            "membership_edges",
+            "schemas",
+            "tables",
+            "predicates",
+            "policies",
+            "functions",
+            "acl_expectations",
+            "column_acl_expectations",
+        },
+        "製品DDL manifest",
+    )
+    if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_product_ddl_manifest":
+        raise CatalogError("製品DDL manifestのschema_versionまたはasset_kindが不正")
+
+    roles = raw["roles"]
+    if not isinstance(roles, list):
+        raise CatalogError("製品DDL manifest.rolesは配列でなければならない")
+    roles_by_id: dict[str, dict[str, object]] = {}
+    expected_role_keys = {"role_id", "creation"} | PRODUCT_ROLE_ATTRIBUTE_NAMES
+    for index, role_value in enumerate(roles):
+        label = f"製品DDL manifest.roles[{index}]"
+        if not isinstance(role_value, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(role_value, set(expected_role_keys), label)
+        role_id = _expect_string(role_value["role_id"], f"{label}.role_id")
+        if role_id in roles_by_id:
+            raise CatalogError(f"{label}.role_idが重複している: {role_id}")
+        if any(
+            not isinstance(role_value[attribute], bool)
+            for attribute in PRODUCT_ROLE_ATTRIBUTE_NAMES
+        ):
+            raise CatalogError(f"{label}の7属性は真偽値でなければならない")
+        roles_by_id[role_id] = role_value
+
+    if set(roles_by_id) != set(PRODUCT_ROLE_EXPECTATIONS):
+        raise CatalogError("製品ロール集合がdesign.md 2-0と一致しない")
+    for role_id, expected in PRODUCT_ROLE_EXPECTATIONS.items():
+        actual = {
+            key: value
+            for key, value in roles_by_id[role_id].items()
+            if key != "role_id"
+        }
+        if actual != expected:
+            raise CatalogError(f"{role_id}の作成主体または7属性が不正")
+
+    privileged_role_ids = _expect_string_list(
+        raw["permanent_privileged_role_ids"],
+        "製品DDL manifest.permanent_privileged_role_ids",
+    )
+    if privileged_role_ids != ["pitchlog_owner"]:
+        raise CatalogError("恒久の特権主体の製品固定部分が不正")
+    memberships = raw["membership_edges"]
+    if memberships != []:
+        raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
+    return {
+        "scope_status": PRODUCT_SPEC.allowed_scope_status,
+        "product_role_count": len(roles_by_id),
+    }
 
 
 def _validate_probe_ddl_elements(raw: object, root: Path) -> dict[str, object]:

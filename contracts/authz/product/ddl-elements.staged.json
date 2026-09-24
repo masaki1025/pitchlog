@@ -6,7 +6,56 @@
     "product_schema": true
   },
   "pending_switch": "TSK-443",
-  "roles": [],
+  "roles": [
+    {
+      "role_id": "pitchlog_owner",
+      "creation": "external_applicator",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": true,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_app",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": true,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_shared_fn_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": true,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_management_fn_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": true,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    }
+  ],
+  "permanent_privileged_role_ids": [
+    "pitchlog_owner"
+  ],
+  "membership_edges": [],
   "schemas": [],
   "tables": [],
   "predicates": [],
