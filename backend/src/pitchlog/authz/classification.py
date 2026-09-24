@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import cast
 
 PROFILE_NAMES = frozenset(
     {
@@ -77,7 +78,7 @@ def load_json_object(path: Path) -> dict[str, object]:
         ) from error
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise ProductClassificationError((f"JSON資産がobjectではない: {path}",))
-    return {key: item for key, item in value.items() if isinstance(key, str)}
+    return cast(dict[str, object], value)
 
 
 def _object_rows(
@@ -97,10 +98,13 @@ def _object_rows(
         ):
             violations.append(f"{row_label}は文字列キーのobjectでなければならない")
             continue
-        rows.append(
-            {key: item for key, item in raw_row.items() if isinstance(key, str)}
-        )
+        rows.append(cast(dict[str, object], raw_row))
     return tuple(rows)
+
+
+def _optional(value: Mapping[str, object], key: str) -> object:
+    """Mapping の省略可能な値をメソッド呼び出しなしで返す。"""
+    return value[key] if key in value else None
 
 
 def _require_exact_keys(
@@ -136,16 +140,20 @@ def _manifest_columns(
     """Manifest の全表と列を重複なく読み取る。"""
     result: dict[str, frozenset[str]] = {}
     for index, table_row in enumerate(
-        _object_rows(manifest.get("tables"), "manifest.tables", violations)
+        _object_rows(_optional(manifest, "tables"), "manifest.tables", violations)
     ):
         label = f"manifest.tables[{index}]"
-        table_name = _required_text(table_row.get("name"), f"{label}.name", violations)
+        table_name = _required_text(
+            _optional(table_row, "name"), f"{label}.name", violations
+        )
         column_names: list[str] = []
         for column_index, column_row in enumerate(
-            _object_rows(table_row.get("columns"), f"{label}.columns", violations)
+            _object_rows(
+                _optional(table_row, "columns"), f"{label}.columns", violations
+            )
         ):
             column_name = _required_text(
-                column_row.get("name"),
+                _optional(column_row, "name"),
                 f"{label}.columns[{column_index}].name",
                 violations,
             )
@@ -175,18 +183,24 @@ def _classification_profiles(
         "table-classification",
         violations,
     )
-    if classification.get("schema_version") != 1:
+    if _optional(classification, "schema_version") != 1:
         violations.append("table-classification.schema_versionは1でなければならない")
 
     profiles: dict[str, str] = {}
     for index, row in enumerate(
         _object_rows(
-            classification.get("tables"), "table-classification.tables", violations
+            _optional(classification, "tables"),
+            "table-classification.tables",
+            violations,
         )
     ):
         label = f"table-classification.tables[{index}]"
-        table_name = _required_text(row.get("table"), f"{label}.table", violations)
-        profile = _required_text(row.get("profile"), f"{label}.profile", violations)
+        table_name = _required_text(
+            _optional(row, "table"), f"{label}.table", violations
+        )
+        profile = _required_text(
+            _optional(row, "profile"), f"{label}.profile", violations
+        )
         if profile not in PROFILE_NAMES:
             violations.append(f"{label}.profileが閉じた列挙にない: {profile!r}")
         is_function_only = profile == "function_only"
@@ -197,17 +211,13 @@ def _classification_profiles(
         )
         _require_exact_keys(row, expected_keys, label, violations)
         if is_function_only:
-            access_path = row.get("access_path")
+            access_path = _optional(row, "access_path")
             if not isinstance(access_path, dict) or not all(
                 isinstance(key, str) for key in access_path
             ):
                 violations.append(f"{label}.access_pathはobjectでなければならない")
             else:
-                normalized_access_path = {
-                    key: item
-                    for key, item in access_path.items()
-                    if isinstance(key, str)
-                }
+                normalized_access_path = cast(dict[str, object], access_path)
                 _require_exact_keys(
                     normalized_access_path,
                     frozenset({"reason", "owner_unit"}),
@@ -215,12 +225,12 @@ def _classification_profiles(
                     violations,
                 )
                 _required_text(
-                    normalized_access_path.get("reason"),
+                    _optional(normalized_access_path, "reason"),
                     f"{label}.access_path.reason",
                     violations,
                 )
                 owner_unit = _required_text(
-                    normalized_access_path.get("owner_unit"),
+                    _optional(normalized_access_path, "owner_unit"),
                     f"{label}.access_path.owner_unit",
                     violations,
                 )
@@ -266,8 +276,12 @@ def _validate_evidence(
             evidence_label,
             violations,
         )
-        _required_text(row.get("section"), f"{evidence_label}.section", violations)
-        quote = _required_text(row.get("quote"), f"{evidence_label}.quote", violations)
+        _required_text(
+            _optional(row, "section"), f"{evidence_label}.section", violations
+        )
+        quote = _required_text(
+            _optional(row, "quote"), f"{evidence_label}.quote", violations
+        )
         if quote is not None and quote not in canonical_source:
             violations.append(f"{evidence_label}.quoteが正本に一字一句存在しない")
 
@@ -285,9 +299,9 @@ def _exposure_fact_sets(
         "exposure-facts",
         violations,
     )
-    if exposure_facts.get("schema_version") != 1:
+    if _optional(exposure_facts, "schema_version") != 1:
         violations.append("exposure-facts.schema_versionは1でなければならない")
-    if exposure_facts.get("canonical_source") != CANONICAL_SOURCE_PATH:
+    if _optional(exposure_facts, "canonical_source") != CANONICAL_SOURCE_PATH:
         violations.append(
             "exposure-facts.canonical_sourceは"
             f"{CANONICAL_SOURCE_PATH!r}でなければならない"
@@ -299,11 +313,15 @@ def _exposure_fact_sets(
     secret_columns: set[tuple[str, str]] = set()
     seen_kinds: set[str] = set()
     for fact_index, fact in enumerate(
-        _object_rows(exposure_facts.get("facts"), "exposure-facts.facts", violations)
+        _object_rows(
+            _optional(exposure_facts, "facts"),
+            "exposure-facts.facts",
+            violations,
+        )
     ):
         label = f"exposure-facts.facts[{fact_index}]"
         _require_exact_keys(fact, frozenset({"kind", "entries"}), label, violations)
-        kind = _required_text(fact.get("kind"), f"{label}.kind", violations)
+        kind = _required_text(_optional(fact, "kind"), f"{label}.kind", violations)
         if kind not in FACT_KINDS:
             violations.append(f"{label}.kindが閉じた列挙にない: {kind!r}")
             continue
@@ -312,7 +330,9 @@ def _exposure_fact_sets(
             continue
         seen_kinds.add(kind)
 
-        entries = _object_rows(fact.get("entries"), f"{label}.entries", violations)
+        entries = _object_rows(
+            _optional(fact, "entries"), f"{label}.entries", violations
+        )
         if not entries:
             violations.append(f"{label}.entriesには事実が1件以上必要")
         for entry_index, entry in enumerate(entries):
@@ -324,11 +344,13 @@ def _exposure_fact_sets(
             )
             _require_exact_keys(entry, expected_keys, entry_label, violations)
             table_name = _required_text(
-                entry.get("table"), f"{entry_label}.table", violations
+                _optional(entry, "table"), f"{entry_label}.table", violations
             )
-            _required_text(entry.get("reason"), f"{entry_label}.reason", violations)
+            _required_text(
+                _optional(entry, "reason"), f"{entry_label}.reason", violations
+            )
             _validate_evidence(
-                entry.get("evidence"),
+                _optional(entry, "evidence"),
                 f"{entry_label}.evidence",
                 canonical_source,
                 violations,
@@ -342,11 +364,11 @@ def _exposure_fact_sets(
             if kind != "secret_column":
                 if table_name in table_facts[kind]:
                     violations.append(f"{label}.entriesに表の重複がある: {table_name}")
-                table_facts[kind].add(table_name)
+                table_facts[kind] = table_facts[kind] | {table_name}
                 continue
 
             column_name = _required_text(
-                entry.get("column"), f"{entry_label}.column", violations
+                _optional(entry, "column"), f"{entry_label}.column", violations
             )
             if column_name is None:
                 continue
@@ -368,7 +390,7 @@ def _exposure_fact_sets(
             f"期待={sorted(FACT_KINDS)}, 実際={sorted(seen_kinds)}"
         )
     return (
-        {kind: frozenset(tables) for kind, tables in table_facts.items()},
+        {kind: frozenset(table_facts[kind]) for kind in table_facts},
         frozenset(secret_columns),
     )
 
