@@ -107,6 +107,18 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | 5 | **`route_kind` の値域決定** | **空席** | `route-registry.json` と `http-route-matrix.json` は exact-set(`scripts/check_authz_catalog.py:2437-2442`)。`route_kinds` は検査器の定数 `ROUTE_KINDS`(同 `:92`)に固定で、**選手 CRUD を表す種別が無い**。**TSK-380 の射程は既存 37 経路の `test_owner` 再割り当てであって値域拡張ではない** |
 | 6 | **`TenantContext` の生成** | **U-A1**(ブロック中) | `repositories/context.py:26`「テナント ID が認証済み主体のものであることは API 層(TSK-217 / U-A1)の責務」 |
 | 7 | **在籍区分キーの値と seed** | **別タスク**(8 節) | 未起票 |
+| 8 | **複数表の不変条件の実行単位** — 入口 **#7**(FR-018 の削除ガード)・**#11**(FR-039 の削除ガード)・**#6**(FR-017 の一括変更)は**複数表にまたがる判定を 1 トランザクションで**行う必要がある | **TSK-444(PR C)** | 未着手。**2026-09-24 に当方の指摘を受けて射程へ取り込まれた** |
+| 9 | **無効化意図の ID 導出規則と原子性の錨** — `contracts/tenant_boundary/cache-invalidation-contract.json` の `durable_intent` は `intent_id_derivation: ["target_event_v10","target_confirmed_version"]` と `same_transaction_with: "T7"` を**トリガー別の分岐なしで 14 件すべてに掛けており**、**イベント由来でない 7 トリガー**(在籍区分の変更を含む)に適用できない | **TSK-447** | 未着手。**U-M1 側で暫定規約を決めない**(他のトリガー所有単位と割れるため) |
+
+> **【承認後の追記 — 2026-09-24】** 上表の **8・9 は承認(2026-09-24)後に判明した外部依存**である。
+> **射程・DoD・実装ステップは変えていない**(依存の記録のみ)。
+>
+> **経緯**: `TenantRepositoryBase._execute_operation` は `_tenant_transaction` の中で 1 文だけ実行し、
+> `repositories/binding.py` が「**同一 Session へテナント文脈を再束縛できない**」を課すため、
+> **同一 Session では `execute()` を 2 回呼べない**(実測)。
+> 一方 TSK-424 の capability カタログ(74 件・`CAP:<table>:<operation>`)は **1 operation = 1 表**を強制する。
+> この 2 つが重なると **FR-018 と FR-039 の削除ガードが構造的に実装できない**。
+> **TSK-444 が実行単位を、TSK-447 が意図 ID と原子性の錨を引き取った**(2026-09-24・セッション間の調整)。
 
 **製品 operation token 型は TSK-424 の着地前に定義しない。**
 [`../tenant-boundary-enforcement/plan.md`](../tenant-boundary-enforcement/plan.md)`:174`(ステップ 9)が
