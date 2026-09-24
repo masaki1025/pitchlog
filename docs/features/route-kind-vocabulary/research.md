@@ -249,7 +249,10 @@ oracle は「**内容追随 → commit 差し替え(最終形確定)→ レビ�
 ③ **要件の数え方と実装の数え方がずれるなら「1:N 写像」を明示**して両立させる
 (要件書は「7 操作」・資産は 8 ID。裁定 D-4 =「frozen 値を確定として承認(8 と 29)+ 要件の『7 操作』との 1:N 写像を明示」)
 
-**→ 本タスクも「新種別を足す/足さない」を `pending_human_reviews` の形で残すのが前例に沿う。**
+**⚠ ただし本タスクでは同じ形を使えない**(1 周目の敵対レビューが実測で確認):
+`scripts/check_authz_catalog.py:4918` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、
+**3 件目を足すと `CatalogError: 保留中の人間裁定2件が exact-set 不一致`** になる。
+**→ 裁定は計画書の承認そのものと PR 本文に残す。**
 
 #### 前例 B: `claim_dispositions` の新設(`docs/worklog/2026-09-03-authz-claims-corpus.md:146-147`)。
 **なぞるべき手順の型**:
