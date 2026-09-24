@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
+import json
+import os
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +56,69 @@ class V2Transition:
     after: Mapping[str, Any]
     base_snapshot_root: Path
     head_snapshot_root: Path
+
+
+@dataclass(frozen=True)
+class EvaluationSide:
+    """一方の revision にある宣言・定義・実装を表す。
+
+    Attributes:
+        declaration: 当該 revision の基準宣言の内容。
+        movement_policy: 当該 revision の movement policy の内容。
+        implementations: 外部実装のパスから内容へのマップ。
+        snapshot_root: 当該 revision の snapshot ディレクトリ。
+    """
+
+    declaration: Mapping[str, Any]
+    movement_policy: Mapping[str, Any]
+    implementations: Mapping[str, bytes]
+    snapshot_root: Path
+
+
+@dataclass(frozen=True)
+class RoleSeparatedEvaluation:
+    """比較元の宣言を決定元として導出した遷移を表す。
+
+    Attributes:
+        targets: 比較元の宣言から得た検査対象。
+        transition: 比較元から before、HEAD から after を作った実遷移。
+        moved: 実遷移が基準移動を含むか。
+    """
+
+    targets: tuple[str, ...]
+    transition: V2Transition
+    moved: bool
+
+
+class EvaluationMode(StrEnum):
+    """凍結履歴の評価モードを表す。"""
+
+    INVARIANT = "invariant"
+    PR_ACCEPTANCE = "pr_acceptance"
+
+
+@dataclass(frozen=True)
+class PullRequestEvent:
+    """PR 受理モードに必要な GitHub event 情報を表す。"""
+
+    repository_full_name: str
+    number: int
+    base_ref: str
+    base_sha: str
+    head_sha: str
+
+    @property
+    def acceptance_id(self) -> str:
+        """event から安定した受理 ID を導出する。"""
+        return derive_acceptance_id(self.repository_full_name, self.number)
+
+
+@dataclass(frozen=True)
+class EvaluationContext:
+    """環境から強制した評価モードと PR event を表す。"""
+
+    mode: EvaluationMode
+    pull_request: PullRequestEvent | None
 
 
 def parse_history(
@@ -122,6 +189,152 @@ def parse_history(
     return tuple(parsed)
 
 
+def derive_role_separated_evaluation(
+    base: EvaluationSide,
+    head: EvaluationSide,
+) -> RoleSeparatedEvaluation:
+    """比較元と HEAD の役割を混ぜずに実遷移を導出する。
+
+    対象集合は比較元の宣言だけから決める。before は比較元の定義と実装、
+    after は HEAD の定義と実装から作り、HEAD の宣言による対象縮小を拒否する。
+
+    Args:
+        base: 比較元の宣言・定義・実装。
+        head: HEAD の宣言・定義・実装。
+
+    Returns:
+        役割を分離して導出した評価結果。
+
+    Raises:
+        ContractError: 対象宣言が不正、HEAD が対象を縮小した、または対象実装が
+            解決できない場合。
+    """
+    base_targets = _declared_target_paths(base.declaration, "比較元.declaration")
+    head_targets = _declared_target_paths(head.declaration, "HEAD.declaration")
+    removed = sorted(set(base_targets) - set(head_targets))
+    if removed:
+        raise ContractError(f"HEAD の宣言で比較元の対象集合を縮小できない: {removed}")
+
+    before = {
+        "declaration": copy.deepcopy(dict(base.declaration)),
+        "movement_policy": copy.deepcopy(dict(base.movement_policy)),
+        "external_snapshots": _implementation_snapshots(
+            base_targets,
+            base.implementations,
+            "比較元.implementations",
+        ),
+    }
+    after = {
+        "declaration": copy.deepcopy(dict(head.declaration)),
+        "movement_policy": copy.deepcopy(dict(head.movement_policy)),
+        # HEAD が対象を自己縮小できないよう、ここでも比較元の対象集合を使う。
+        "external_snapshots": _implementation_snapshots(
+            base_targets,
+            head.implementations,
+            "HEAD.implementations",
+        ),
+    }
+    transition = V2Transition(
+        before=before,
+        after=after,
+        base_snapshot_root=base.snapshot_root,
+        head_snapshot_root=head.snapshot_root,
+    )
+    return RoleSeparatedEvaluation(
+        targets=base_targets,
+        transition=transition,
+        moved=bool(derive_aspects(before, after)),
+    )
+
+
+def resolve_evaluation_context() -> EvaluationContext:
+    """環境変数から評価モードを強制し、必要なら PR event を読む。
+
+    `GITHUB_EVENT_NAME` が `pull_request` の場合は、event 情報の不足を理由に
+    不変量モードへ落とさず必ず例外にする。それ以外は不変量モードとする。
+
+    Returns:
+        強制された評価コンテキスト。
+
+    Raises:
+        ContractError: PR コンテキストで event 情報を完全に読めない場合。
+    """
+    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+        return EvaluationContext(EvaluationMode.INVARIANT, None)
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path is None or not event_path.strip():
+        raise ContractError("PR コンテキストでは GITHUB_EVENT_PATH が必要")
+    return EvaluationContext(
+        EvaluationMode.PR_ACCEPTANCE,
+        _read_pull_request_event(Path(event_path)),
+    )
+
+
+def validate_current_history(
+    base_history: object,
+    head_history: object,
+    *,
+    evaluation: RoleSeparatedEvaluation | None = None,
+    head_parents: Sequence[str] = (),
+    location: str = "baseline_control.history",
+) -> tuple[HistoryRecord, ...]:
+    """強制されたモードで履歴の不変量または PR 受理を検査する。
+
+    Args:
+        base_history: 比較元資産の history。
+        head_history: HEAD 資産の history。
+        evaluation: 役割分担に従って導出した実遷移。
+        head_parents: PR 受理対象 HEAD の親 SHA。第一親、第二親の順。
+        location: エラー表示用の位置。
+
+    Returns:
+        検証済みの履歴 record。
+
+    Raises:
+        ContractError: PR event、merge 親、遷移、記録、または acceptance ID が
+            不正な場合。
+    """
+    context = resolve_evaluation_context()
+    if context.mode is EvaluationMode.INVARIANT:
+        return parse_history(base_history, head_history, location=location)
+
+    event = context.pull_request
+    if event is None:
+        raise ContractError("PR 受理モードの event 情報が無い")
+    _validate_pull_request_merge(event, head_parents)
+    if evaluation is None:
+        raise ContractError("PR 受理モードでは実遷移の評価結果が必要")
+
+    base_records = _history_array(base_history, f"比較元.{location}")
+    head_records = _history_array(head_history, f"HEAD.{location}")
+    appended_count = len(head_records) - len(base_records)
+    expected_count = 1 if evaluation.moved else 0
+    if appended_count != expected_count:
+        raise ContractError(
+            f"{location}: movement と追記 record 件数が不一致: "
+            f"moved={evaluation.moved}, records={appended_count}"
+        )
+
+    transitions = (evaluation.transition,) if evaluation.moved else ()
+    records = parse_history(
+        base_history,
+        head_history,
+        v2_transitions=transitions,
+        location=location,
+    )
+    if evaluation.moved:
+        record = records[-1].value
+        actual_acceptance_id = _validate_acceptance_id(
+            record.get("acceptance_id"),
+            f"{location}[-1].acceptance_id",
+        )
+        if actual_acceptance_id != event.acceptance_id:
+            raise ContractError(
+                f"{location}[-1].acceptance_id: GitHub event からの導出値と不一致"
+            )
+    return records
+
+
 def derive_acceptance_id(repository_full_name: str, pull_request_number: int) -> str:
     """リポジトリ名と PR 番号から受理 ID を導出する。
 
@@ -165,6 +378,103 @@ def derive_aspects(
         for aspect in ASPECT_NAMES
         if not _json_deep_equal(before[aspect], after[aspect])
     )
+
+
+def _declared_target_paths(
+    declaration: Mapping[str, Any],
+    location: str,
+) -> tuple[str, ...]:
+    """基準宣言から順序付き外部実装対象を取得する。"""
+    identity = _mapping(declaration.get("identity"), f"{location}.identity")
+    projection = _mapping(
+        identity.get("frozen_projection"),
+        f"{location}.identity.frozen_projection",
+    )
+    raw_targets = _array(
+        projection.get("external_files"),
+        f"{location}.identity.frozen_projection.external_files",
+    )
+    targets = tuple(
+        _nonempty_string(
+            item,
+            f"{location}.identity.frozen_projection.external_files[]",
+        )
+        for item in raw_targets
+    )
+    if not targets:
+        raise ContractError(f"{location}: external_files は空にできない")
+    if len(targets) != len(set(targets)):
+        raise ContractError(f"{location}: external_files を重複できない")
+    return targets
+
+
+def _implementation_snapshots(
+    targets: Sequence[str],
+    implementations: Mapping[str, bytes],
+    location: str,
+) -> list[dict[str, str]]:
+    """決定済み対象集合について実装内容から snapshot 参照を導出する。"""
+    snapshots: list[dict[str, str]] = []
+    for path in targets:
+        try:
+            content = implementations[path]
+        except KeyError as error:
+            raise ContractError(f"{location}: 対象実装を解決できない: {path}") from error
+        if not isinstance(content, bytes):
+            raise ContractError(f"{location}: 実装内容は bytes が必要: {path}")
+        digest = hashlib.sha256(content).hexdigest()
+        snapshots.append(
+            {
+                "path": path,
+                "sha256": digest,
+                "snapshot_ref": f"{SNAPSHOT_REF_PREFIX}{digest}",
+            }
+        )
+    return snapshots
+
+
+def _read_pull_request_event(path: Path) -> PullRequestEvent:
+    """GitHub の pull_request event を fail-closed で読む。"""
+    try:
+        raw_event = json.loads(path.read_bytes())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ContractError(f"PR event を読めない: {path}: {error}") from error
+    event = _mapping(raw_event, "github_event")
+    repository = _mapping(event.get("repository"), "github_event.repository")
+    pull_request = _mapping(event.get("pull_request"), "github_event.pull_request")
+    base = _mapping(pull_request.get("base"), "github_event.pull_request.base")
+    head = _mapping(pull_request.get("head"), "github_event.pull_request.head")
+    repository_full_name = _nonempty_string(
+        repository.get("full_name"),
+        "github_event.repository.full_name",
+    )
+    number = pull_request.get("number")
+    # 導出関数へ渡す前にも bool を整数として受けない。
+    if type(number) is not int or number <= 0:
+        raise ContractError("github_event.pull_request.number: 正の整数が必要")
+    derive_acceptance_id(repository_full_name, number)
+    return PullRequestEvent(
+        repository_full_name=repository_full_name,
+        number=number,
+        base_ref=_nonempty_string(base.get("ref"), "github_event.pull_request.base.ref"),
+        base_sha=_nonempty_string(base.get("sha"), "github_event.pull_request.base.sha"),
+        head_sha=_nonempty_string(head.get("sha"), "github_event.pull_request.head.sha"),
+    )
+
+
+def _validate_pull_request_merge(
+    event: PullRequestEvent,
+    head_parents: Sequence[str],
+) -> None:
+    """PR 受理対象の base と二親 merge の形を検査する。"""
+    if event.base_ref != "develop":
+        raise ContractError("PR 受理モードでは base.ref == develop が必要")
+    if len(head_parents) != 2:
+        raise ContractError("PR 受理モードの HEAD は 2 親が必要")
+    if head_parents[0] != event.base_sha:
+        raise ContractError("PR 受理モードの第一親は base.sha と一致する必要がある")
+    if head_parents[1] != event.head_sha:
+        raise ContractError("PR 受理モードの第二親は head.sha と一致する必要がある")
 
 
 def validate_history_authority(assets: Mapping[str, object]) -> str:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -67,7 +68,15 @@ def _v2_case(tmp_path: Path) -> tuple[dict[str, Any], Any]:
         _snapshot_entry(head_root, external_path, content)
 
     before: dict[str, Any] = {
-        "declaration": {"identity": {"scheme": "revision_field", "revision": 1}},
+        "declaration": {
+            "identity": {
+                "scheme": "revision_field",
+                "revision": 1,
+                "frozen_projection": {
+                    "external_files": ["scripts/a.py", "scripts/b.py"]
+                },
+            }
+        },
         "movement_policy": {"history_append_only": True},
         "external_snapshots": copy.deepcopy(external_snapshots),
     }
@@ -248,6 +257,80 @@ def _parse_v2(record: dict[str, Any], transition: Any) -> tuple[Any, ...]:
     base = _base_history()
     head = [*copy.deepcopy(base), record]
     return parser.parse_history(base, head, v2_transitions=[transition])
+
+
+def _evaluation_case(tmp_path: Path) -> tuple[dict[str, Any], Any, Any, Any]:
+    """役割分担の検査に使う比較元・HEAD・導出結果を作る。"""
+    record, transition = _v2_case(tmp_path)
+    implementations = {
+        "scripts/a.py": b"alpha\n",
+        "scripts/b.py": b"beta\n",
+    }
+    base = parser.EvaluationSide(
+        declaration=copy.deepcopy(transition.before["declaration"]),
+        movement_policy=copy.deepcopy(transition.before["movement_policy"]),
+        implementations=copy.deepcopy(implementations),
+        snapshot_root=transition.base_snapshot_root,
+    )
+    head = parser.EvaluationSide(
+        declaration=copy.deepcopy(transition.after["declaration"]),
+        movement_policy=copy.deepcopy(transition.after["movement_policy"]),
+        implementations=copy.deepcopy(implementations),
+        snapshot_root=transition.head_snapshot_root,
+    )
+    evaluation = parser.derive_role_separated_evaluation(base, head)
+    return record, base, head, evaluation
+
+
+def _write_pull_request_event(
+    path: Path,
+    *,
+    number: int = 431,
+    base_ref: str = "develop",
+    base_sha: str = "base-sha",
+    head_sha: str = "head-sha",
+    action: str = "synchronize",
+) -> None:
+    """合成 GitHub pull_request event を書く。"""
+    path.write_text(
+        json.dumps(
+            {
+                "action": action,
+                "repository": {"full_name": "openai/pitchlog"},
+                "pull_request": {
+                    "number": number,
+                    "base": {"ref": base_ref, "sha": base_sha},
+                    "head": {"sha": head_sha},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _enable_pull_request_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    **event_overrides: Any,
+) -> Path:
+    """monkeypatch で合成 PR コンテキストを有効にする。"""
+    event_path = tmp_path / "event.json"
+    _write_pull_request_event(event_path, **event_overrides)
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+    return event_path
+
+
+def _validate_pr_case(record: dict[str, Any], evaluation: Any) -> tuple[Any, ...]:
+    """合成 PR の正常な二親 merge と履歴を検査する。"""
+    base_history = _base_history()
+    head_history = [*copy.deepcopy(base_history), record]
+    return parser.validate_current_history(
+        base_history,
+        head_history,
+        evaluation=evaluation,
+        head_parents=("base-sha", "head-sha"),
+    )
 
 
 def _delete_nested(value: dict[str, Any], path: tuple[str, ...]) -> None:
@@ -462,6 +545,171 @@ def test_source_commit_is_rejected_in_v2_after_valid_baseline(tmp_path: Path) ->
 
     with pytest.raises(parser.ContractError, match="キー集合が不一致"):
         _parse_v2(record, transition)
+
+
+def test_head_definition_change_cannot_skip_movement_record(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    record, _, _, evaluation = _evaluation_case(tmp_path)
+    _enable_pull_request_mode(monkeypatch, tmp_path)
+    assert evaluation.moved is True
+    assert _validate_pr_case(record, evaluation)
+    base_history = _base_history()
+    head_without_record = copy.deepcopy(base_history)
+
+    with pytest.raises(parser.ContractError, match="movement と追記 record 件数が不一致"):
+        parser.validate_current_history(
+            base_history,
+            head_without_record,
+            evaluation=evaluation,
+            head_parents=("base-sha", "head-sha"),
+        )
+
+
+def test_before_and_after_use_their_own_definitions_and_implementations(
+    tmp_path: Path,
+) -> None:
+    _, base, head, _ = _evaluation_case(tmp_path)
+    changed_implementations = dict(head.implementations)
+    changed_implementations["scripts/a.py"] = b"head-alpha\n"
+    changed_head = parser.EvaluationSide(
+        declaration=head.declaration,
+        movement_policy=head.movement_policy,
+        implementations=changed_implementations,
+        snapshot_root=head.snapshot_root,
+    )
+
+    evaluation = parser.derive_role_separated_evaluation(base, changed_head)
+
+    assert evaluation.transition.before["declaration"] == base.declaration
+    assert evaluation.transition.after["declaration"] == head.declaration
+    assert evaluation.transition.before["external_snapshots"][0]["sha256"] == hashlib.sha256(
+        base.implementations["scripts/a.py"]
+    ).hexdigest()
+    assert evaluation.transition.after["external_snapshots"][0]["sha256"] == hashlib.sha256(
+        changed_implementations["scripts/a.py"]
+    ).hexdigest()
+
+
+def test_head_declaration_cannot_shrink_base_target_set(tmp_path: Path) -> None:
+    _, base, head, evaluation = _evaluation_case(tmp_path)
+    assert evaluation.targets == ("scripts/a.py", "scripts/b.py")
+    shrunk_declaration = copy.deepcopy(head.declaration)
+    shrunk_declaration["identity"]["frozen_projection"]["external_files"] = [
+        "scripts/a.py"
+    ]
+    shrunk_head = parser.EvaluationSide(
+        declaration=shrunk_declaration,
+        movement_policy=head.movement_policy,
+        implementations=head.implementations,
+        snapshot_root=head.snapshot_root,
+    )
+
+    with pytest.raises(parser.ContractError, match="対象集合を縮小できない"):
+        parser.derive_role_separated_evaluation(base, shrunk_head)
+
+
+def test_pr_context_without_event_path_does_not_fallback_to_invariant(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _enable_pull_request_mode(monkeypatch, tmp_path)
+    assert parser.resolve_evaluation_context().mode is parser.EvaluationMode.PR_ACCEPTANCE
+    monkeypatch.delenv("GITHUB_EVENT_PATH")
+
+    with pytest.raises(parser.ContractError, match="GITHUB_EVENT_PATH"):
+        parser.resolve_evaluation_context()
+
+
+@pytest.mark.parametrize(
+    "broken_condition",
+    ["base-ref", "single-parent", "first-parent", "second-parent"],
+)
+def test_broken_pr_merge_condition_is_rejected_after_valid_baseline(
+    broken_condition: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    record, _, _, evaluation = _evaluation_case(tmp_path)
+    event_path = _enable_pull_request_mode(monkeypatch, tmp_path)
+    assert _validate_pr_case(record, evaluation)
+    parents = ("base-sha", "head-sha")
+    if broken_condition == "base-ref":
+        _write_pull_request_event(event_path, base_ref="main")
+    elif broken_condition == "single-parent":
+        parents = ("base-sha",)
+    elif broken_condition == "first-parent":
+        parents = ("other-base", "head-sha")
+    else:
+        parents = ("base-sha", "other-head")
+    base_history = _base_history()
+    head_history = [*copy.deepcopy(base_history), record]
+
+    with pytest.raises(parser.ContractError):
+        parser.validate_current_history(
+            base_history,
+            head_history,
+            evaluation=evaluation,
+            head_parents=parents,
+        )
+
+
+def test_event_acceptance_id_mismatch_is_rejected_after_valid_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    record, _, _, evaluation = _evaluation_case(tmp_path)
+    _enable_pull_request_mode(monkeypatch, tmp_path)
+    assert _validate_pr_case(record, evaluation)
+    record["acceptance_id"] = "openai/pitchlog#432"
+
+    with pytest.raises(parser.ContractError, match="GitHub event からの導出値と不一致"):
+        _validate_pr_case(record, evaluation)
+
+
+@pytest.mark.parametrize("event_name", ["push", "workflow_dispatch", None])
+def test_non_pr_context_forces_invariant_mode(
+    event_name: str | None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+    if event_name is not None:
+        monkeypatch.setenv("GITHUB_EVENT_NAME", event_name)
+
+    context = parser.resolve_evaluation_context()
+
+    assert context.mode is parser.EvaluationMode.INVARIANT
+    assert context.pull_request is None
+
+
+def test_same_pr_rerun_and_reopen_keep_acceptance_id(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    event_path = _enable_pull_request_mode(monkeypatch, tmp_path, action="synchronize")
+    first = parser.resolve_evaluation_context().pull_request
+    assert first is not None
+    _write_pull_request_event(event_path, action="reopened")
+    reopened = parser.resolve_evaluation_context().pull_request
+    assert reopened is not None
+
+    assert first.acceptance_id == reopened.acceptance_id == "openai/pitchlog#431"
+
+
+def test_different_pr_has_different_acceptance_id(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    event_path = _enable_pull_request_mode(monkeypatch, tmp_path, number=431)
+    first = parser.resolve_evaluation_context().pull_request
+    assert first is not None
+    _write_pull_request_event(event_path, number=432)
+    second = parser.resolve_evaluation_context().pull_request
+    assert second is not None
+
+    assert first.acceptance_id != second.acceptance_id
 
 
 def test_no_history_authority_is_rejected_after_valid_baseline() -> None:
