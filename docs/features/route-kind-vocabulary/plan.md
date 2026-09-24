@@ -1,7 +1,7 @@
 ---
 feature: route-kind-vocabulary
 status: active
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3e593b75e68781c9b811e86543960c6d
@@ -117,10 +117,10 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **必須キー** | 共通 4(`route_id` / `route_kind` / `origin` / `source_claim_ids`)+ **`provenance_ids`** + **`operation`** | `operation` の値域は**正本に根拠がある** — `../../design/data-model.md:2468-2474`「入口の到達性は〈主体 × 資源 × 操作〉の 3 軸で比べる」で、**操作の値域は逐語で「読取 / 追加 / 更新 / 削除」** |
 | **`operation` の値域** | **`{read, insert, update}`**(閉じた集合) | **削除は論理削除**(要件書 4.0-2)なので `update` に含まれる。**`delete` を値域に置かない**ことで物理削除の経路を構造的に作れなくする |
 | **`origin`** | **`design` を強制**(`legacy_route` が `requirement` を強制するのと同型 — `:2131-2132`) | 要件書に製品 CRUD 経路の条項が無い(research.md 2 節)。**強制することで「design のときだけ provenance を見る」現行構造の穴が塞がる** |
-| **`route_id` の導出規則** | **`ROUTE:TENANT:<資源>:<OPERATION>`**。末尾が `operation` と**大文字小文字を無視して一致**すること | `shared_data` が 3 軸から `route_id` を導出して照合する形(`:2140-2166`)と同型 |
+| **`route_id` の導出規則** | **`ROUTE:RECORD:<資源>:<OPERATION>`**。末尾が `operation` と**大文字小文字を無視して一致**すること | `shared_data` が 3 軸から `route_id` を導出して照合する形(`:2140-2166`)と同型 |
 | **`provenance_ids`** | **専用 ID `PLAN-TSK446-TENANT-OWNED-DATA` を含むこと**を強制 | 既存 provenance(`PLAN-STEP4-LEGACY-DENY`)の流用を塞ぐ。**`design_provenance` の `path` に本計画書を指す前例がある**(`route-registry.json:78-84` の唯一の行が `docs/features/pg-authz-verification/plan.md`) |
 | **`disposition`** | **既存の `conditional` へ写す** | **新値を作らない**。ただし理由は「404/403 を決めるから」ではない(**1 周目 P1-2 の是正** — `disposition` は HTTP status を決めていない。`:2395` の閉じた値域と `route_kind` の対応しか検査しない)。**新値は `http-route-matrix.json` の `route_dispositions` の exact-set(`:2397-2400`)も動かす**ため、**変更面を最小に保つ**のが理由 |
-| **名前** | **`tenant_owned_data`**(代替: `record_and_aggregate`) | 「**自テナント所有**」は要件書 `:130` の用語定義の語。**⚠ 1 周目 P1-1**: 424 の表分類のプロファイル名 `tenant_owned` と語彙が揃う一方、**表の RLS プロファイルと経路分類を混同しうる**。代替の `record_and_aggregate` は要件書 `:849`「**制御資源は記録・集計とは別のクラスである**」から引ける。**裁定事項 1**(8 節) |
+| **名前** | **`record_and_aggregate`**(**裁定済 2026-09-24**) | 要件書 `:849`「**制御資源は記録・集計とは別のクラスである**」— **要件書が制御資源と対置してクラス名として使う唯一の語**。既存の `control_read` / `management_operation` と**同じ軸で並ぶ**。**`tenant_owned_data` を採らなかった理由**: 424 の表分類のプロファイル名 `tenant_owned` と語彙が結びつき、**表の RLS プロファイルと経路分類を混同しうる**(1 周目 P1-1)うえ、**424 側の分類変更で意味が変わりうる**ため「本タスクは 424 と独立」という前提と矛盾する |
 
 ### 4-2. 検査器の変更箇所(**1 周目 P1-3 の是正** — 初稿の「6 箇所」は不正確)
 
@@ -133,7 +133,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | 1 | `scripts/check_authz_catalog.py:92` | `ROUTE_KINDS` へ 1 値追加 |
 | 2 | 同 `:1973-1976` | `enums.route_kinds` との **frozenset 完全一致**(資産側と対で更新) |
 | 3 | 同 `:2068-2075` | **`expected_keys_by_kind` へ行を追加**(足し忘れると素の `KeyError`) |
-| 4 | 同 `:2085-2092` の直後 | **新設**: `route_kind == "tenant_owned_data"` なら `origin == "design"` 強制 |
+| 4 | 同 `:2085-2092` の直後 | **新設**: `route_kind == "record_and_aggregate"` なら `origin == "design"` 強制 |
 | 5 | 同 `:2112-2117` の直後 | **新設**: `operation` の値域検査・`route_id` の導出照合・専用 provenance の包含検査 |
 | 6 | 同 `:2177-2185` の直後 | **新設**: 新種別の exact-set(**経路 0 件なので空集合と照合**) |
 | 7 | 同 `:2411-2416` | **`disposition_by_kind` へ行を追加**(足し忘れると素の `KeyError`) |
@@ -198,21 +198,20 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 
 **外部依存は無い。**`TSK-424` とも `TSK-344` とも `TSK-431` とも**独立に進められる**。
 
-**⚠ ただし名前を `tenant_owned_data` にする場合**(裁定 1)、**424 の表分類のプロファイル名と語彙が結びつく**。
-**424 側の分類変更で意味が変わりうる**(1 周目 P1-1)。**独立を優先するなら代替名を採る。**
+**名前を `record_and_aggregate` に確定したことで、424 の表分類との語彙の結びつきは解消した**(裁定 1・2026-09-24)。
 
 **マージ順序**: **本タスク → 製品 CRUD の入口を開く各単位**。どちらも `route-registry.json` を触り、
 `route-registry.json` と `http-route-matrix.json` は exact-set のため。
 
-## 8. 人間の裁定が要る事項(**1 周目 P0-2 の是正** — 4 件では足りず 5 件に分けた)
+## 8. 人間の裁定(**すべて 2026-09-24 に確定**)
 
-| # | 事項 | 本書の提案 | 代替 |
+| # | 事項 | **裁定** | 採らなかった案と理由 |
 | --- | --- | --- | --- |
-| **1** | **新種別の名前** | **`tenant_owned_data`** | **`record_and_aggregate`**(要件書 `:849` が制御資源と対置する唯一のクラス名。**424 との語彙の結びつきを避けられる**) |
-| **2** | **必須キー体系** | 共通 4 + `provenance_ids` + **`operation`**(値域 `{read, insert, update}`) | `operation` を持たせず `route_id` の導出規則だけで識別する |
-| **3** | **`origin`** | **`design` を強制** | `requirement` を許し、要件主張との結線を要求する |
-| **4** | **`disposition`** | **既存の `conditional` へ写す** | 新値を作る(**`route_dispositions` の exact-set も動く**) |
-| **5** | **3 scope への対応** | **`SCOPE:ALL_LOGICAL` に入れる**(「論理経路の全体」の意味を保つ)。`SCOPE:DATA_READ` と `SCOPE:CONTROL` は**触らない** | `DATA_READ` にも入れる(製品 CRUD は読み取りを含むため)/ どこにも入れない |
+| **1** | **新種別の名前** | **`record_and_aggregate`** | `tenant_owned_data` — **424 の表分類のプロファイル名と語彙が結びつき、表の RLS プロファイルと経路分類を混同しうる**(1 周目 P1-1)。**「424 と独立」という本タスクの前提とも矛盾する** |
+| **2** | **必須キー体系** | 共通 4(`route_id` / `route_kind` / `origin` / `source_claim_ids`)+ **`provenance_ids`** + **`operation`** | `operation` を持たせない案 — **最小形は機械的に判定できない**ことが 1 周目の実測で示された(P0-1) |
+| **3** | **`origin`** | **`design` を強制** | `requirement` を許す案 — 要件書に製品 CRUD 経路の条項が無く、**強制しないと「design のときだけ provenance を見る」現行構造の穴が塞がらない** |
+| **4** | **`disposition`** | **既存の `conditional` へ写す** | 新値を作る案 — **`route_dispositions` の exact-set(`:2397-2400`)も動き、変更面が広がる** |
+| **5** | **3 scope への対応** | **`SCOPE:ALL_LOGICAL` に入れる。`SCOPE:DATA_READ` と `SCOPE:CONTROL` は触らない** | `DATA_READ` にも入れる案 / どこにも入れない案 — 前者は**読み取り以外の operation も含むため正確に写せない**、後者は**「論理経路の全体」の読みが黙って壊れる** |
 
-**裁定の残し方**: **`boundary-proposal.json` には書けない**(`pending_human_reviews` は既存 2 ID の exact-set)。
-**本計画書の承認そのものが裁定の記録**とし、PR 本文へも転記する。
+**裁定の記録先**: **`boundary-proposal.json` には書けない**(`pending_human_reviews` は既存 2 ID の exact-set。
+1 周目の敵対レビューが実測で確認)。**本計画書の承認そのものが裁定の記録**であり、PR 本文へも転記する。
