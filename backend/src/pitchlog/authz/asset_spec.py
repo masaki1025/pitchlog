@@ -24,6 +24,19 @@ class AuthzElementSectionSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class AuthzOperationHandlerSpec:
+    """適用器の操作種別と処理関数の対応を表す。"""
+
+    operation_kind: str
+    handler_name: str
+
+    def __post_init__(self) -> None:
+        """操作種別と処理関数名が空でないことを保証する。"""
+        if not self.operation_kind or not self.handler_name:
+            raise ValueError("操作種別と処理関数名は空にできない")
+
+
+@dataclass(frozen=True, slots=True)
 class AuthzAssetSpec:
     """認可資産の配置と許可する意味を束ねる不変値。
 
@@ -38,6 +51,7 @@ class AuthzAssetSpec:
         allowed_scope_status: DDL 要素ファイルで許可する scope.status。
         asset_kind: probe または product の閉じた資産種別。
         element_sections: 要素種別と配列・ID列の不変な対応。
+        operation_handlers: 適用器が許可する操作種別と処理関数の対応。
     """
 
     asset_root: PurePosixPath
@@ -50,6 +64,7 @@ class AuthzAssetSpec:
     allowed_scope_status: str
     asset_kind: AuthzAssetKind
     element_sections: tuple[AuthzElementSectionSpec, ...]
+    operation_handlers: tuple[AuthzOperationHandlerSpec, ...]
 
     def __post_init__(self) -> None:
         """パス・列挙・要素対応を fail-closed に検証する。"""
@@ -88,6 +103,8 @@ class AuthzAssetSpec:
             raise ValueError("許可するscope値は空にできない")
         if not self.element_sections:
             raise ValueError("要素セクション指定は空にできない")
+        if not self.operation_handlers:
+            raise ValueError("操作種別と処理関数の対応は空にできない")
         dimensions = (
             tuple(section.element_type for section in self.element_sections),
             tuple(section.section_name for section in self.element_sections),
@@ -95,6 +112,11 @@ class AuthzAssetSpec:
         )
         if any(len(values) != len(set(values)) for values in dimensions):
             raise ValueError("要素セクション指定の各次元は一意でなければならない")
+        operation_kinds = tuple(
+            operation.operation_kind for operation in self.operation_handlers
+        )
+        if len(operation_kinds) != len(set(operation_kinds)):
+            raise ValueError("操作種別は一意でなければならない")
 
 
 PROBE_SPEC = AuthzAssetSpec(
@@ -123,6 +145,28 @@ PROBE_SPEC = AuthzAssetSpec(
             "column_acl_expectation",
             "column_acl_expectations",
             "expectation_id",
+        ),
+    ),
+    operation_handlers=(
+        AuthzOperationHandlerSpec(
+            "create_no_login_bypass_owner",
+            "_create_roles",
+        ),
+        AuthzOperationHandlerSpec(
+            "temporarily_grant_set_membership",
+            "_open_set_path",
+        ),
+        AuthzOperationHandlerSpec(
+            "create_and_assign_owned_objects",
+            "_assign_objects",
+        ),
+        AuthzOperationHandlerSpec(
+            "revoke_public_and_grant_named_execute",
+            "_close_function_acl",
+        ),
+        AuthzOperationHandlerSpec(
+            "revoke_temporary_membership",
+            "_close_set_path",
         ),
     ),
 )
