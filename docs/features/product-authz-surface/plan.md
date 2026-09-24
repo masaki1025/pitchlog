@@ -144,7 +144,8 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 **実装後の敵対レビューに伴う人間の判断(2026-09-24・山田正輝)**:
 
 - **不変条件「`contracts/authz/` 直下の probe 資産の差分 0 行」の宣言つきの例外**: 正本の追随(3 節)で `data-model.md` が変わると、`contracts/authz/shared-preconditions.json` の `git_blob_digest`(`mapping_target` の 1 行)の取り直しが機械的に要る(`scripts/check_shared_preconditions.py`)。このファイルは封印(`oracle-seal.lock.json`)の対象外で、封印は動かない。**この 1 行に限り例外として受容する**(前例 0cf994f)。あわせて `contracts/db/schema-manifest.json` の `canonical_source.sha256` も取り直す(`contracts/authz/` の外)。**ほかの probe 資産は引き続き差分 0 行**
-- **露出の事実「秘密の列」に残る 3 件(`tenant_credentials.password_hash`・`admin_credentials.password_hash`・`group_invitations.code_hash`)は残余として受容する**: 正本の引用はハッシュでの保存までしか述べず、アプリ用ロールへの非露出は保存形式からの推論である。3 表は別の事実で `function_only` または制御資源(アプリ用ロールの ACL 無し)に分類済みで、露出は無い。★10 と同じく**逐行確認の観点**として PR 本文に載せ、正本へ非露出を明記する改訂は別タスクで起票する。なお `tenant_tokens.id`・`admin_sessions.id` は典拠が無いので露出の事実から除いた(トークンの提示形式の確定は U-A1)
+- **露出の事実「秘密の列」に残る 3 件(`tenant_credentials.password_hash`・`admin_credentials.password_hash`・`group_invitations.code_hash`)は残余として受容する**: 正本の引用はハッシュでの保存までしか述べず、アプリ用ロールへの非露出は保存形式からの推論である。3 表は別の事実で `function_only` または制御資源(アプリ用ロールの ACL 無し)に分類済みで、露出は無い。★10 と同じく**逐行確認の観点**として PR 本文に載せ、正本へ非露出を明記する改訂は **TSK-453** で起票した。なお `tenant_tokens.id`・`admin_sessions.id` は典拠が無いので露出の事実から除いた(トークンの提示形式の確定は U-A1 — カードへ申し送り済み)
+- **capability の登録の検査の保証範囲を宣言して打ち切る**(実装後の敵対レビュー 3 周目の後): 公開 API で組み立てた文とそのインスタンスの状態までを閉じ、型の書き換え・SQLAlchemy 自体の改変は保証の外(design.md 10 節)
 
 **正本の追随**(3 節)は、ステップ 13 の後に /sync-docs で行い、PR A1 に含める(Claude が書く。委任しない — 設計書 7.6-2)。
 
