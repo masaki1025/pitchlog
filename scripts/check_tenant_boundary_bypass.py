@@ -2086,6 +2086,24 @@ class _FlowProvenance:
             return _FlowValue(f"builtins.{type_name}", "non_db", elements)
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
+        if isinstance(node, ast.DictComp):
+            # 従来評価済みの key/value は保ち、新規位置だけ fail-closed で覆う。
+            coverage_environment: dict[str, _FlowValue] = {}
+            for generator in node.generators:
+                iterable = self._expression(
+                    generator.iter,
+                    coverage_environment,
+                )
+                self._assign_iteration_target(
+                    generator.target,
+                    iterable,
+                    coverage_environment,
+                )
+                for condition in generator.ifs:
+                    self._expression(condition, coverage_environment)
+            self._expression(node.key, environment)
+            self._expression(node.value, environment)
+            return _UNKNOWN_FLOW_VALUE
         if isinstance(node, (ast.GeneratorExp, ast.ListComp, ast.SetComp)):
             local = dict(environment)
             for generator in node.generators:
@@ -2099,6 +2117,14 @@ class _FlowProvenance:
             if isinstance(node, ast.SetComp):
                 return _FlowValue("builtins.set", "non_db", (element,))
             return _FlowValue("builtins.generator", "non_db", (element,))
+        if isinstance(node, ast.Lambda):
+            for default in (*node.args.defaults, *node.args.kw_defaults):
+                if default is not None:
+                    self._expression(default, environment)
+            local = dict(environment)
+            self._bind_arguments(node.args, local)
+            self._expression(node.body, local)
+            return _FlowValue(kind="function")
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
                 self._expression(child, environment)
@@ -2144,6 +2170,16 @@ class _FlowProvenance:
         """代入先を更新し、未解決値なら以前の証明を破棄する。"""
         if isinstance(target, ast.Name):
             environment[target.id] = value
+            return
+        if isinstance(target, ast.Starred):
+            self._assign_target(target.value, value, environment)
+            return
+        if isinstance(target, ast.Attribute):
+            self._expression(target.value, {})
+            return
+        if isinstance(target, ast.Subscript):
+            self._expression(target.value, {})
+            self._expression(target.slice, {})
             return
         if isinstance(target, (ast.Tuple, ast.List)):
             if len(value.elements) == len(target.elts):
@@ -2234,6 +2270,20 @@ class _FlowProvenance:
         for default in (*node.args.defaults, *node.args.kw_defaults):
             if default is not None:
                 self._expression(default, environment)
+        arguments = (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        for argument in arguments:
+            if argument is not None and argument.annotation is not None:
+                self._expression(argument.annotation, environment)
+        if node.returns is not None:
+            self._expression(node.returns, environment)
+        for type_param in node.type_params:
+            self._expression(type_param, environment)
         self._analyze_block(node.body, local)
 
     def _register_class_contracts(
@@ -2292,12 +2342,18 @@ class _FlowProvenance:
             self._analyze_function(node, environment)
             return _FlowOutcome(environment)
         if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                self._expression(base, environment)
+            for keyword in node.keywords:
+                self._expression(keyword.value, environment)
+            for type_param in node.type_params:
+                self._expression(type_param, environment)
             class_value = self._class_value(node, environment)
             environment[node.name] = class_value
             for decorator in node.decorator_list:
                 self._expression(decorator, environment)
             self.class_stack.append(node.name)
-            class_environment = dict(environment)
+            class_environment: dict[str, _FlowValue] | None = dict(environment)
             if class_value.symbol is not None:
                 self._register_class_contracts(
                     node,
@@ -2305,10 +2361,15 @@ class _FlowProvenance:
                     class_value.symbol,
                 )
             for statement in node.body:
+                statement_environment = (
+                    class_environment
+                    if class_environment is not None
+                    else {}
+                )
                 if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     self._analyze_function(
                         statement,
-                        class_environment,
+                        statement_environment,
                         self_value=_FlowValue(
                             class_value.symbol,
                             (
@@ -2321,11 +2382,10 @@ class _FlowProvenance:
                 else:
                     outcome = self._analyze_statement(
                         statement,
-                        class_environment,
+                        statement_environment,
                     )
-                    if outcome.environment is None:
-                        break
-                    class_environment = outcome.environment
+                    if class_environment is not None:
+                        class_environment = outcome.environment
             self.class_stack.pop()
             return _FlowOutcome(environment)
         if isinstance(node, ast.Assign):
@@ -2334,6 +2394,7 @@ class _FlowProvenance:
                 self._assign_target(target, value, environment)
             return _FlowOutcome(environment)
         if isinstance(node, ast.AnnAssign):
+            self._expression(node.annotation, environment)
             annotation = self._resolve_annotation(node.annotation, environment)
             value = (
                 self._expression(node.value, environment)
@@ -2408,12 +2469,18 @@ class _FlowProvenance:
                 if item.optional_vars is not None:
                     self._assign_target(item.optional_vars, value, environment)
             return self._analyze_block(node.body, environment)
-        if isinstance(node, ast.Try):
+        if isinstance(node, (ast.Try, ast.TryStar)):
             body = self._analyze_block(node.body, dict(environment))
-            handlers = [
-                self._analyze_block(handler.body, dict(environment))
-                for handler in node.handlers
-            ]
+            handlers: list[_FlowOutcome] = []
+            for handler in node.handlers:
+                handler_environment = dict(environment)
+                if handler.type is not None:
+                    self._expression(handler.type, handler_environment)
+                if handler.name is not None:
+                    handler_environment[handler.name] = _UNKNOWN_FLOW_VALUE
+                handlers.append(
+                    self._analyze_block(handler.body, handler_environment)
+                )
             normal = body
             if body.environment is not None and node.orelse:
                 normal = self._analyze_block(node.orelse, body.environment)
@@ -2443,10 +2510,14 @@ class _FlowProvenance:
             )
         if isinstance(node, ast.Match):
             self._expression(node.subject, environment)
-            branches = [
-                self._analyze_block(case.body, dict(environment))
-                for case in node.cases
-            ]
+            branches: list[_FlowOutcome] = []
+            for case in node.cases:
+                case_environment = dict(environment)
+                if case.guard is not None:
+                    self._expression(case.guard, case_environment)
+                branches.append(
+                    self._analyze_block(case.body, case_environment)
+                )
             fallthrough = [dict(environment)]
             fallthrough.extend(
                 outcome.environment
@@ -2477,13 +2548,14 @@ class _FlowProvenance:
         statements: Sequence[ast.stmt],
         environment: dict[str, _FlowValue],
     ) -> _FlowOutcome:
-        """文列をソース順に解析し、終端した経路を後続から除く。"""
+        """文列をソース順に解析し、終端後も不明由来で Call を採取する。"""
         current: dict[str, _FlowValue] | None = environment
         breaks: list[dict[str, _FlowValue]] = []
         continues: list[dict[str, _FlowValue]] = []
         for statement in statements:
             if current is None:
-                break
+                self._analyze_statement(statement, {})
+                continue
             outcome = self._analyze_statement(statement, current)
             current = outcome.environment
             breaks.extend(outcome.breaks)
@@ -2560,6 +2632,7 @@ class _SourceScanner(ast.NodeVisitor):
         self.safe_non_context_objects: list[set[str]] = []
         self.violations: list[Violation] = []
         self._violation_keys: set[tuple[int, int, str, str]] = set()
+        self.checked_call_ids: set[int] = set()
         member_owners = {
             api.symbol.rsplit(".", 1)[0]
             for api in contract.apis
@@ -2606,6 +2679,47 @@ class _SourceScanner(ast.NodeVisitor):
         self.allowed_by_symbol = {
             item.symbol: item for item in contract.allowed_symbols
         }
+
+    def _validate_call_coverage(self, tree: ast.Module) -> None:
+        """AST・flow・scanner の Call 集合が同一であることを検証する。"""
+        calls = {
+            id(node): node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+        }
+        ast_call_ids = frozenset(calls)
+        flow_callable_ids = frozenset(self.flow.callable_symbols)
+        flow_receiver_ids = frozenset(self.flow.receiver_kinds)
+        scanner_call_ids = frozenset(self.checked_call_ids)
+        if (
+            ast_call_ids
+            == flow_callable_ids
+            == flow_receiver_ids
+            == scanner_call_ids
+        ):
+            return
+
+        def locations(call_ids: frozenset[int]) -> list[str]:
+            """Call ID 集合を安定したソース位置へ変換する。"""
+            return sorted(
+                f"{calls[call_id].lineno}:{calls[call_id].col_offset}"
+                for call_id in call_ids
+                if call_id in calls
+            )
+
+        raise ContractError(
+            f"{self.path}: Call 被覆不変条件が不一致: "
+            f"ast={len(ast_call_ids)}, "
+            f"flow_callable={len(flow_callable_ids)}, "
+            f"flow_receiver={len(flow_receiver_ids)}, "
+            f"scanner={len(scanner_call_ids)}, "
+            f"flow_missing={locations(ast_call_ids - flow_callable_ids)}, "
+            f"flow_extra={len(flow_callable_ids - ast_call_ids)}, "
+            f"receiver_missing={locations(ast_call_ids - flow_receiver_ids)}, "
+            f"receiver_extra={len(flow_receiver_ids - ast_call_ids)}, "
+            f"scanner_missing={locations(ast_call_ids - scanner_call_ids)}, "
+            f"scanner_extra={len(scanner_call_ids - ast_call_ids)}"
+        )
 
     def _is_changed(self, node: ast.AST) -> bool:
         if self.changed_lines is None:
@@ -3284,6 +3398,7 @@ class _SourceScanner(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         """呼び出しを DB API・禁止シンボル・生成箇所へ照合する。"""
+        self.checked_call_ids.add(id(node))
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
         condition4_call_allowed = (
             resolved
@@ -3391,6 +3506,7 @@ def scan_source(
         reject_all_db_calls=reject_all_db_calls,
     )
     scanner.visit(tree)
+    scanner._validate_call_coverage(tree)
     return sorted(scanner.violations)
 
 

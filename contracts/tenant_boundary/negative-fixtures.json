@@ -472,10 +472,59 @@
       "expected_error": "TB005"
     },
     {
+      "id": "C5_CONTEXT_AFTER_TERMINATOR",
+      "path": "pitchlog/services/c5_context_after_terminator.py",
+      "condition": 5,
+      "mutation": "終端文より後で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_CONTEXT_IN_DEFAULT_ARG",
       "path": "pitchlog/services/c5_context_in_default_arg.py",
       "condition": 5,
       "mutation": "関数のデフォルト引数で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_ANNOTATED_ASSIGNMENT",
+      "path": "pitchlog/services/c5_context_in_annotated_assignment.py",
+      "condition": 5,
+      "mutation": "注釈付き代入の annotation で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_CLASS_BASE",
+      "path": "pitchlog/services/c5_context_in_class_base.py",
+      "condition": 5,
+      "mutation": "class base で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_DICT_COMPREHENSION",
+      "path": "pitchlog/services/c5_context_in_dict_comprehension.py",
+      "condition": 5,
+      "mutation": "辞書内包表記の generator 条件で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
+      "path": "pitchlog/services/c5_context_in_exception_handler_type.py",
+      "condition": 5,
+      "mutation": "例外 handler type で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+      "path": "pitchlog/services/c5_context_in_lambda_default.py",
+      "condition": 5,
+      "mutation": "lambda のデフォルト引数で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
+      "path": "pitchlog/services/c5_context_in_subscript_target.py",
+      "condition": 5,
+      "mutation": "添字代入先で TenantContext を構築する",
       "expected_error": "TB007"
     },
     {

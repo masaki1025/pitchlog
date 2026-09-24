@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import importlib.util
@@ -77,7 +78,14 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ALIAS_EXECUTE",
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
+        "C5_CONTEXT_AFTER_TERMINATOR",
+        "C5_CONTEXT_IN_ANNOTATED_ASSIGNMENT",
+        "C5_CONTEXT_IN_CLASS_BASE",
         "C5_CONTEXT_IN_DEFAULT_ARG",
+        "C5_CONTEXT_IN_DICT_COMPREHENSION",
+        "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
+        "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+        "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
         "C5_CONTEXT_UNKNOWN_FACTORY",
@@ -106,6 +114,33 @@ EXPECTED_NEGATIVE_IDS = frozenset(
 )
 
 CensusIdentity = tuple[str, int, int, str, str, str, str]
+
+_FLOW_OMISSION_RUNNER = r"""
+import ast
+import importlib.util
+import sys
+
+script = sys.argv[1]
+spec = importlib.util.spec_from_file_location(
+    "check_tenant_boundary_bypass_flow_omission",
+    script,
+)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+original_expression = module._FlowProvenance._expression
+
+
+def omit_call_registration(self, node, environment):
+    if isinstance(node, ast.Call):
+        return module._UNKNOWN_FLOW_VALUE
+    return original_expression(self, node, environment)
+
+
+module._FlowProvenance._expression = omit_call_registration
+raise SystemExit(module.main(sys.argv[2:]))
+"""
 
 
 def _load_checker_module(path: Path, module_name: str) -> ModuleType:
@@ -215,6 +250,53 @@ def _compare_checker_census(
         source_root=source_root,
     )
     return candidate - reference, reference - candidate
+
+
+def _omit_flow_call_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """不変条件の負例用に flow の Call 登録だけを意図的に落とす。"""
+    original_expression = checker._FlowProvenance._expression
+
+    def omit_call_registration(
+        self: Any,
+        node: ast.AST,
+        environment: dict[str, Any],
+    ) -> Any:
+        if isinstance(node, ast.Call):
+            return checker._UNKNOWN_FLOW_VALUE
+        return original_expression(self, node, environment)
+
+    monkeypatch.setattr(
+        checker._FlowProvenance,
+        "_expression",
+        omit_call_registration,
+    )
+
+
+def _call_coverage_sets(
+    source: str,
+    *,
+    path: str,
+    contract: Any,
+) -> tuple[frozenset[int], frozenset[int], frozenset[int], frozenset[int]]:
+    """同じ AST に対する Call の4登録集合を返す。"""
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    scanner.visit(tree)
+    return (
+        frozenset(
+            id(node) for node in ast.walk(tree) if isinstance(node, ast.Call)
+        ),
+        frozenset(scanner.flow.callable_symbols),
+        frozenset(scanner.flow.receiver_kinds),
+        frozenset(scanner.checked_call_ids),
+    )
 
 
 checker = _load_checker()
@@ -431,6 +513,159 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
 
     assert added == frozenset()
     assert removed == frozenset()
+
+
+def test_product_call_coverage_sets_are_complete() -> None:
+    """製品 tree の全 Call が flow と scanner の両方へ登録される。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    totals = [0, 0, 0, 0]
+
+    for source_path in sorted(source_root.rglob("*.py")):
+        relative = source_path.relative_to(source_root).as_posix()
+        coverage = _call_coverage_sets(
+            _fixture_source(source_path),
+            path=relative,
+            contract=contract,
+        )
+        assert coverage[0] == coverage[1] == coverage[2] == coverage[3], relative
+        for index, call_ids in enumerate(coverage):
+            totals[index] += len(call_ids)
+
+    assert totals == [2261, 2261, 2261, 2261]
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+def assign(factory, values):
+    factory().item, *factory().rest = values
+""",
+        """\
+def select(value, factory):
+    match value:
+        case _ if factory():
+            return None
+""",
+        """\
+try:
+    pass
+except* factory():
+    pass
+""",
+        """\
+def run[T: factory()](value: annotate()) -> returns():
+    return value
+""",
+        """\
+class Example[T: bound()](metaclass=factory()):
+    pass
+""",
+    ),
+)
+def test_additional_call_positions_satisfy_coverage_invariant(
+    source: str,
+) -> None:
+    """構文マトリクス上の Call を flow と scanner の双方で覆う。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/coverage_matrix.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize("omitted_layer", ("flow", "scanner"))
+def test_call_coverage_invariant_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    omitted_layer: str,
+) -> None:
+    """flow または scanner の訪問漏れを ContractError にする。"""
+    if omitted_layer == "flow":
+        _omit_flow_call_registration(monkeypatch)
+    else:
+
+        def omit_scanner_call(self: Any, node: ast.Call) -> None:
+            _ = (self, node)
+
+        monkeypatch.setattr(
+            checker._SourceScanner,
+            "visit_Call",
+            omit_scanner_call,
+        )
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.scan_source(
+            "def run(factory):\n    return factory()\n",
+            path="pitchlog/services/coverage_probe.py",
+            contract=contract,
+        )
+
+
+def test_call_coverage_mismatch_is_not_cancelled_across_entrypoints(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """基準版と新側に同じ訪問漏れがあっても判定不能を相殺しない。"""
+    relative = "pitchlog/services/coverage_probe.py"
+    baseline = """\
+def run(factory):
+    return factory()
+
+
+marker = 0
+"""
+    head = baseline.replace("marker = 0", "marker = 1")
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    _write_test_repository_sources(repository, {relative: head})
+    _commit_test_repository(repository, "change unrelated marker")
+    contract = checker.load_contract(repository)
+    _omit_flow_call_registration(monkeypatch)
+
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.scan_source_change(
+            baseline,
+            head,
+            path=relative,
+            changed_lines=frozenset({5}),
+            contract=contract,
+        )
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.check_repository(repository, base_ref=base_ref)
+
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 2
+    assert "Call 被覆不変条件" in capsys.readouterr().err
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            _FLOW_OMISSION_RUNNER,
+            str(repository / "scripts" / SCRIPT.name),
+            "--root",
+            str(repository),
+            "--base-ref",
+            base_ref,
+        ],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "Call 被覆不変条件" in result.stderr
 
 
 def test_positive_fixtures_pass() -> None:
@@ -694,7 +929,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 70 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 77 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
