@@ -6,6 +6,8 @@ date: 2026-09-24
 
 # 調査メモ: TSK-424 製品認可面の確定
 
+**表記**: 本書で `design.md` とだけ書いた典拠は、U-T1 の `../tenant-boundary-enforcement/design.md` を指す(本調査は TSK-424 の design.md より前に書いた)。TSK-424 の設計は [design.md](./design.md) が正。
+
 調査方法: /investigate で 4 本を並列に実施した(spec-checker / decision-tracer / Explore〔コード実測〕/ legacy-analyst〔移行制約〕)。エージェント間の食い違いと主要な主張は、原典を直接読んで裁定した(本文の「**原典確認済み**」)。対象は develop `e6bc0cc`。
 
 ## 問い
@@ -69,7 +71,7 @@ date: 2026-09-24
 | probe↔製品写像 | 正本は「別の層」とだけ書く。写像そのものの記載は無く、矛盾もしない | `:537` |
 | 移行ロールの「5 条件」 | 正本の表は **6 行**(期間限定 / アプリから到達しない / DDL を持たない / 書き込み先の限定 / 監査 / 検査対象)。**実質の条件が 5 つ、6 行目は検査の手続き**と読む(**原典確認済み**)。計画では 6 行すべてを対応づける | `:288-297` |
 | 使い捨てクラスタで green | 12-4 の「実スキーマ」の定義は正本に無い。「再実行」は TSK-344 なので、**作成と初回実行は TSK-424 の側**(4-5) | `:2846`・`design.md:335-345` |
-| 12-8 の記録 | 追随が必要。**TSK-317 行を「解消済み」にせず**、残件・所有者・発効条件を明記する | `design.md:583-586` |
+| 12-8 の記録 | 追随が必要。**TSK-317 行を「解消済み」にせず**、残件・所有者・発効条件を明記する | `../tenant-boundary-enforcement/design.md:583-586` |
 | probe 差分 0 行 / pyproject・uv.lock・conftest 差分 0 行 | 矛盾しない(どちらもコア領域の paths に含まれる) | `.claude/core-areas.json:295`・`:312-314` |
 
 #### 1-5. tenant_id を持たない表について正本が定めていること
@@ -95,7 +97,7 @@ date: 2026-09-24
 | 裁定 A-3(2026-09-08) | 移行ロールの 6 行の条件(1-4) | `data-model.md:268-306` |
 | 裁定 A-2 → `D7` | migration の `CREATE POLICY` / `CREATE ROLE` / `ALTER ROLE` を 0 件に保つ。**製品 DDL は migration の外で適用する** | `data-model.md:2846`、`docs/features/orm-schema-migration/plan.md:848` |
 | ADR-004(2026-09-13) | 入口単位で判定する。入口を開かない PR には空の要求が掛かる。判定の記録は省けない | `docs/adr/ADR-004-merge-gate-scope.md:79-82` |
-| 単位分割(2026-09-13) | 越境関数の本体・ACL・search_path は U-C1/U-C2/U-C3/U-A2 が持つ。本タスクは「空であること」を宣言として持つ | `docs/features/product-impl-unit-split/plan.md:224-227`、`design.md:286-294` |
+| 単位分割(2026-09-13) | 越境関数の本体・ACL・search_path は U-C1/U-C2/U-C3/U-A2 が持つ。本タスクは「空であること」を宣言として持つ | `docs/features/product-impl-unit-split/plan.md:224-227`、`../tenant-boundary-enforcement/design.md:286-294` |
 | TSK-418 の取り込みと撤回・TSK-424 の分離(2026-09-17) | TSK-418 の「やること 1・2」(実装入力の名指し・写像規則)は TSK-424 が引き受ける | `docs/worklog/2026-09-17-tenant-boundary-enforcement.md:27-31`・`:70-73` |
 | U-T1 計画レビュー 5・6 周目 | 製品 RLS の述語構造・未束縛 SQL が 0 行・不正 UUID の `22P02` は TSK-424 の受入条件。**物理識別子(schema, table, function identity_args)で出す**。capability も出力契約に含める | `tenant-boundary-enforcement/plan.md:86`、`design.md:310-325` |
 
@@ -183,7 +185,7 @@ date: 2026-09-24
 | 呼び出し元 | `backend/tests/db/` の authz 系 10 ファイル・`mutation_*.py` | probe 名の直書きは `mutation_execution.py` に 25 箇所、`test_authz_precondition_matrix.py` に 15 箇所 |
 | 写像の射影 | `scripts/check_design_propagation.py:1109-1150` | `product_schema` が false のとき `product_ddl_map` を必須にする。本番の対応資産は無い |
 
-**方針(design.md 3-3 の申し送り)**: 資産指定オブジェクトで一般化する。既定値を probe 構成にし、既存テストは無改変で green を保つ。
+**方針(U-T1 の design.md 3-3 の申し送り。TSK-424 では design.md 5 節)**: 資産指定オブジェクトで一般化する。既定値を probe 構成にし、既存テストは無改変で green を保つ。
 
 #### 4-4. U-T1 の暫定定義と往復契約(テストが強制する形)
 
