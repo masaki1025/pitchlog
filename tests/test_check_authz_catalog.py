@@ -1730,6 +1730,286 @@ def test_legacy_routes_require_requirement_origin_and_source_claims() -> None:
     assert failures == []
 
 
+RECORD_AND_AGGREGATE_KIND = "record_and_aggregate"
+RECORD_AND_AGGREGATE_PROVENANCE_ID = "PLAN-TSK446-RECORD-AND-AGGREGATE"
+
+
+def _record_and_aggregate_registry() -> tuple[dict[str, Any], dict[str, Any]]:
+    """新種別の正常な route をメモリ上の repository 資産へ追加する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    if RECORD_AND_AGGREGATE_KIND not in registry["enums"]["route_kinds"]:
+        registry["enums"]["route_kinds"].append(RECORD_AND_AGGREGATE_KIND)
+    if not any(
+        entry["provenance_id"] == RECORD_AND_AGGREGATE_PROVENANCE_ID
+        for entry in registry["design_provenance"]
+    ):
+        registry["design_provenance"].append(
+            {
+                "provenance_id": RECORD_AND_AGGREGATE_PROVENANCE_ID,
+                "path": "docs/features/route-kind-vocabulary/plan.md",
+                "extracted_text": "record_and_aggregate",
+            }
+        )
+    registry["routes"].append(
+        {
+            "route_id": "ROUTE:RECORD:fixture:READ",
+            "route_kind": RECORD_AND_AGGREGATE_KIND,
+            "origin": "design",
+            "source_claim_ids": [],
+            "provenance_ids": [RECORD_AND_AGGREGATE_PROVENANCE_ID],
+            "operation": "read",
+        }
+    )
+    return registry, requirement_catalog
+
+
+def _record_and_aggregate_route(registry: dict[str, Any]) -> dict[str, Any]:
+    """メモリ上の registry から新種別の route を返す。"""
+    return next(
+        route
+        for route in registry["routes"]
+        if route["route_kind"] == RECORD_AND_AGGREGATE_KIND
+    )
+
+
+def _validate_record_and_aggregate_registry(
+    registry: dict[str, Any], requirement_catalog: dict[str, Any]
+) -> dict[str, object]:
+    """新種別を追加した repository 資産を検査する。"""
+    return checker.validate_route_registry(
+        registry,
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID}),
+    )
+
+
+def _enable_record_and_aggregate_kind(monkeypatch: pytest.MonkeyPatch) -> None:
+    """後段の負例へ到達するため新種別を値域へ一時追加する。"""
+    monkeypatch.setattr(
+        checker,
+        "ROUTE_KINDS",
+        checker.ROUTE_KINDS | frozenset({RECORD_AND_AGGREGATE_KIND}),
+    )
+
+
+def test_record_and_aggregate_route_requires_operation_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の必須キーを一つ欠く route を拒否する。"""
+    _enable_record_and_aggregate_kind(monkeypatch)
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {"operation": "キー不一致: 不足="}
+    failures: list[tuple[str, str]] = []
+
+    for missing_key, expected_error in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated).pop(missing_key)
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if expected_error not in str(error):
+                failures.append((missing_key, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((missing_key, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((missing_key, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_all_route_kind_values_reject_an_unregistered_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """資産から列挙した全 route_kind を許可外値へ変えて red にする。"""
+    _enable_record_and_aggregate_kind(monkeypatch)
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    failures: list[tuple[str, str]] = []
+    escaped: list[tuple[str | int, ...]] = []
+    attempts = 0
+
+    try:
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    except Exception as error:  # noqa: BLE001 - 未実装箇所の例外型も収集する
+        failures.append(
+            (
+                "正常なrecord_and_aggregate",
+                f"{type(error).__name__}: {error}",
+            )
+        )
+
+    kind_paths = [
+        path
+        for path in _iter_leaf_paths(registry["routes"])
+        if path[-1] == "route_kind"
+    ]
+    for path in kind_paths:
+        mutated = copy.deepcopy(registry)
+        parent, key = _parent_and_key(mutated["routes"], path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        parent[key] = "unregistered_route_kind"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if "route_kindが閉じた値域にない" not in str(error):
+                failures.append((str(path), str(error)))
+        except Exception as error:  # noqa: BLE001 - 未実装箇所の例外型も収集する
+            failures.append((str(path), f"{type(error).__name__}: {error}"))
+        else:
+            escaped.append(path)
+        attempts += 1
+
+    assert attempts == len(kind_paths)
+    assert failures == []
+    assert escaped == []
+
+
+def test_record_and_aggregate_route_requires_design_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別を requirement origin に差し替えた route を拒否する。"""
+    _enable_record_and_aggregate_kind(monkeypatch)
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {
+        "requirement_origin": {
+            "origin": "requirement",
+            "source_claim_ids": ["FR-034/heading-001/table_row-015"],
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        route["origin"] = case["origin"]
+        route["source_claim_ids"] = case["source_claim_ids"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_id_must_match_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の operation と一致しない route_id を拒否する。"""
+    _enable_record_and_aggregate_kind(monkeypatch)
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {"operation_mismatch": "ROUTE:RECORD:fixture:INSERT"}
+    failures: list[tuple[str, str]] = []
+
+    for case_name, route_id in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["route_id"] = route_id
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_requires_dedicated_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別で既存 legacy provenance を流用した route を拒否する。"""
+    _enable_record_and_aggregate_kind(monkeypatch)
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {"legacy_provenance": ["PLAN-STEP4-LEGACY-DENY"]}
+    failures: list[tuple[str, str]] = []
+
+    for case_name, provenance_ids in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["provenance_ids"] = provenance_ids
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_route_kind_tables_reject_missing_mapping_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """値域にだけ存在する種別を素の KeyError ではなく CatalogError にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented,
+    )
+    unmapped_kind = "unmapped_route_kind"
+    monkeypatch.setattr(
+        checker,
+        "ROUTE_KINDS",
+        checker.ROUTE_KINDS | frozenset({unmapped_kind}),
+    )
+
+    registry_without_mapping = copy.deepcopy(assets["route_registry"])
+    registry_without_mapping["enums"]["route_kinds"].append(unmapped_kind)
+    registry_without_mapping["routes"].append(
+        {
+            "route_id": "ROUTE:UNMAPPED",
+            "route_kind": unmapped_kind,
+            "origin": "design",
+            "source_claim_ids": [],
+        }
+    )
+    matrix_registry_result = copy.deepcopy(registry_result)
+    matrix_route_id = assets["http_matrix"]["routes"][0]["route_id"]
+    matrix_registry_result["route_by_id"][matrix_route_id]["route_kind"] = (
+        unmapped_kind
+    )
+
+    cases: dict[str, Callable[[], object]] = {
+        "expected_keys_by_kind": lambda: checker.validate_route_registry(
+            registry_without_mapping,
+            requirement_catalog,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+        "disposition_by_kind": lambda: checker.validate_http_route_matrix(
+            assets["http_matrix"],
+            matrix_registry_result,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, validate in cases.items():
+        try:
+            validate()
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError を失敗として収集する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
 def _ddl_elements_semantics_fixture() -> dict[str, Any]:
     """ステップ7の最小 DDL fixture を返す。"""
     return json.loads(
