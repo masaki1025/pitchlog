@@ -1,6 +1,6 @@
 ---
 feature: sync-queue-transition-defects
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -92,6 +92,7 @@ created: 2026-09-24
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(本タスクは設計正本の内部矛盾の解消であり、要件の改訂を伴わない — research.md 2 節で「要件は方式を決めていない」ことを確認済み) | — |
 | `docs/adr/` | **反映なし**(同期プロトコルの方式判断は ADR ではなく正本 11-4 の受け取り先表で運用されている — research.md 5 節) | — |
 | `docs/improvements-from-baseball-scoring.md` | **反映なし**(改善台帳の既決事項を変更しない) | — |
+| `docs/development/harness-evaluation.md` | **`H-22` へ実測を追記**(確定ゲート 12 周・同族 5 例・母集団を数えて打ち切り判定)+ **`## 候補` へ 1 件**(伝播契約が要求する重複は個別是正を構造的に阻む)+ 変更履歴に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 | `docs/ops/` | **反映なし** | — |
 
