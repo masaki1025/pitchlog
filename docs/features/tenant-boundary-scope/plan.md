@@ -420,6 +420,23 @@ context = Context(tenant_id)
 | `negative-fixtures.json` | **新規負例 22 件**で `fixtures` が変わる(内訳: 再輸出系 9 = façade / サブクラス / 深さ上限 / star / 循環 / 自己参照 / 条件分岐 / 欠落モジュール / 未対応の静的代入、PEP 695 型境界 2、訪問位置 9 = デフォルト引数 / `DictComp` / 添字代入先 / 相対 import / lambda default / annotated assignment / class base / except handler type / 終端文の後、ほか 2 = 属性名一致 / 許可シンボルのデフォルト捕捉) | `fixture_set_revision` 5→6、同上 |
 | 他 5 資産 | 変更しない | **履歴も識別値も触ってはならない**(`:678-680`) |
 
+#### ★ マージ順による凍結対象の変化(TSK-431 との調整・2026-09-24)
+
+**TSK-431 の 7B は、`scripts/check_tenant_boundary_bypass.py` を 7 資産すべての
+`external_files` へ入れる**(現在は `base-allowlist.json` の 1 件だけ)。
+さらに **新規 `scripts/frozen_history.py` と `.github/workflows/ci.yml` も 7 資産の `external_files`** へ入る。
+
+| マージ順 | 本タスクの凍結手続 |
+| --- | --- |
+| **TSK-440 が先**(推奨) | **2 資産のまま**(`base-allowlist.json` / `negative-fixtures.json`)。431 側が 440 後の検査器を凍結するだけ |
+| TSK-431 が先 | **7 資産すべての識別値更新と履歴記録**が要る |
+
+**別セッション(TSK-431 担当)から「440 を先に出して構わない」と回答を得ている**
+(同タスクは人間承認待ちで、承認後も draft PR から始まる)。
+**順序は固定しない**が、**先に出せるなら本タスクを先に出す**。
+`added` は merge-base 相対であり `strict_required_status_checks_policy: true` なので、
+**どちらの順でも後発がリベースを強制されるだけ**で、機構上の問題は起きない。
+
 **条件 2 の裁定 exact-set は新資産を作らず `base-allowlist.json` へ内包する**(2 周目 P1-2)。
 新ファイルにすると **8 資産目として `FROZEN_BASELINE_ASSETS` の exact-set 更新と初回履歴**が要り
 (`tests/test_check_tenant_boundary_bypass.py:323`)、受理対象がもう 1 つ増えるため。
