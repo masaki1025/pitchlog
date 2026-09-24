@@ -142,3 +142,118 @@ symbol: `sqlalchemy.text` 64 / `psycopg.Cursor.execute` 35 / `psycopg.Connection
 - [x] **worklog に 3 件が典拠つきで記録されている** — 上記「カードの現況化」
 - [x] **計画書と設計書に行番号参照が 0 件**
 - [x] **送り出し 4 項目それぞれに受取タスク ID が対応付いた表がある** — TSK-448 / 449 / 450 / 451
+
+## ステップ 2〜8(2026-09-24)
+
+### 実装コミット
+
+| ステップ | コミット | 中身 |
+| --- | --- | --- |
+| 1 | `86e089b` | draft PR #78・送り出し 4 件の起票・カードの現況化 |
+| 2 | `0ad3eb1` | 版付き履歴 record の parser(未結線) |
+| 3 | `195ff6e` | v2 の内容保存と機械導出した aspect の照合(未結線) |
+| 4 | `870a7ac` | 評価の役割分担と PR 受理モードの強制(未結線) |
+| 5 | `ef8959f` | 普遍下限の一般則と比較元側 ∪ HEAD 側の走査(未結線) |
+| 6 | `98fb04a` | fail-closed の網羅と HEAD 側 fallback の不在証明(未結線) |
+| **7** | **`4b05a09`** | **結線・`external_files`・`history_authority`・記録と識別値(検査器を触る唯一のコミット)** |
+| 8 | `7f22075` | 変異テストの `[0]` 固定を解消し 7 資産 parametrize |
+
+**ステップ 2〜6 では検査器を 1 バイトも触っていない**(各コミットで `git status` により確認)。
+
+### 差し戻し 2 件(委任先の報告ではなくコードを検証して発見)
+
+| ステップ | 指摘 | 実測 |
+| --- | --- | --- |
+| **2** | `_json_deep_equal` が int と float を数値として等価に扱い、**prefix の `13` を `13.0` に書き換えると素通り**した | `baseline_control` は `frozen_projection.excluded` に入るので履歴は射影の sha256 に含まれない。**prefix の deep-equal が比較元を守る唯一の機構**であり、数値型の差で素通りできると記録なしに既存履歴を書き換える経路になる。型一致まで要求する形へ是正 |
+| **3** | 予約 marker 検査が **strip + upper の完全一致**で、`未承認(PR #78 のレビュー待ち)` と `TODO: 後で` が素通りした | 既存 v1 記録の `approved_by` は実際に `未承認(PR #72 のレビュー待ち)`。**この行をコピーして PR 番号だけ書き換える形が最も起きやすい**。包含判定へ是正し、`山田正輝` が誤検出されないことも確認 |
+
+**既知の過剰検出**: 承認者名が予約語(`未定` など)を部分文字列として含むと拒否される。**受理せず拒否する側の誤り**なので fail-closed の方向として許容する。
+
+### 私の誤り 1 件(訂正)
+
+ステップ 7 の記録を見て「**`aspect` / `declaration` / `movement_policy` / `external_snapshots` が無く D3 が骨抜き**」と判断したが、**誤り**。これらは `change` の 1 段下に入っていた(`change = {subject, aspect, before, after}`、`before`/`after` が 3 キーを持つ)。**実内容との deep-equal と `aspect` の機械導出・exact-set 照合はいずれも効いている**。トップレベルのキーだけを見たのが原因。
+
+## ステップ 9 — 人間の逐行確認(突合シート)
+
+### 確認対象(SHA 固定)
+
+- **対象=** `fix/tenant-boundary-baseline` の `e62aced..7f22075`(develop からの全差分)
+- **範囲=** うち**逐行確認の中心は `4b05a09`(ステップ 7)** — 検査器を触る唯一のコミット。他 7 コミットは未結線の追加とテスト
+- **方法=** 本シートの 3 節それぞれを目視で突合し、**PR 本文のチェックボックスへ記入**する
+
+**確認後の差分は worklog 等の証跡ファイルに限る**(最終 HEAD SHA を書くと自己参照になるため — 5 周目 `P1`)。
+
+### 1. 7 資産の `external_files` の exact-set
+
+**期待する exact-set(順序込み)**:
+
+1. `scripts/check_tenant_boundary_bypass.py`
+2. `scripts/frozen_history.py`
+3. `.github/workflows/ci.yml`
+
+| 資産 | `external_files` | `history_authority` | 識別値(新) | 識別値(旧) |
+| --- | --- | --- | --- | --- |
+| `base-allowlist.json` | **一致** | `true` | `contract_revision:14` | `contract_revision:13` |
+| `cache-invalidation-contract.json` | **一致** | `false` | `contract_revision:2` | `contract_revision:1` |
+| `db-api-inventory.json` | **一致** | `false` | `inventory_revision:4` | `inventory_revision:3` |
+| `negative-fixtures.json` | **一致** | `false` | `fixture_set_revision:6` | `fixture_set_revision:5` |
+| `repository-contract.json` | **一致** | `false` | `contract_revision:3` | `contract_revision:2` |
+| `runtime-authz-contract.json` | **一致** | `false` | `runtime_contract_revision:2` | `runtime_contract_revision:1` |
+| `tenant-context-allowlist.json` | **一致** | `false` | `contract_revision:5` | `contract_revision:4` |
+
+**変更前は `base-allowlist.json` だけが `["scripts/check_tenant_boundary_bypass.py"]` を持ち、他 6 資産は空だった**(7B の実害)。
+
+**`history_authority: true` はちょうど 1 件。記録も `base-allowlist.json` にだけ 1 件追記されている**(他 6 資産の history 件数は 1 件のまま)。
+
+**既存 7 記録の生 JSON は 1 バイトも変わっていない**(7 資産すべてで prefix 不変を機械確認済み)。
+
+### 2. モード結線
+
+| 確認項目 | 実装 |
+| --- | --- |
+| モードの決定元 | `frozen_history.resolve_evaluation_context()` が **`GITHUB_EVENT_NAME` を読む**。workflow の指定に従わない |
+| PR コンテキストでの fallback | **無い**。`GITHUB_EVENT_PATH` が無い・読めない・キーが足りない場合は**例外**。不変量モードへ落ちない |
+| PR 受理モードの条件 | `base.ref == develop` / HEAD が 2 親 / 第一親 == `base.sha` / 第二親 == `head.sha` / 遷移と記録 / `acceptance_id` の照合 |
+| 不変量モード | `push` / `workflow_dispatch` / ローカル。遷移と `acceptance_id` を検査しない |
+| `ci.yml` の扱い | **7 資産の `external_files` に含めた**(内容は変更していない)。workflow を書き換えて不変量モードだけを走らせる経路を射影で観測する |
+| 実 CI での実走 | **draft PR #78 の `tenant-boundary-bypass` ジョブが PR コンテキストで pass**(合成 fixture だけで満たしていない — DoD の D4 項目) |
+
+### 3. D1〜D6 の実装対応
+
+| 裁定 | 実装 | 確認の勘所 |
+| --- | --- | --- |
+| **D1** 単一検査・1 記録 | `validate_repository_histories` / `validate_history_authority` / `_validate_movement_record_count` | **`history_authority: true` が 0 件・2 件でも red**。**authority 以外へ追記すると red**。**同一受理で 2 件足すと red** |
+| **D2** 版付き schema | `parse_history` / `_json_deep_equal` | **prefix は生 JSON 値の deep-equal で、数値の型一致まで要求**。prefix 以後は明示 v2 のみ |
+| **D3** content-addressed snapshot | `_validate_v2_record` / `_snapshot_state` / `_validate_snapshot_append_only` | `change.before` / `change.after` が **内容そのもの**を持ち、実遷移と deep-equal。**`aspect` は実差分から機械導出して exact-set 照合**。snapshot は追記専用 |
+| **D4** 役割分担とモード強制 | `derive_role_separated_evaluation` / `resolve_evaluation_context` | **`after` の `external_snapshots` も比較元の対象集合で作る** — HEAD が自分の宣言で対象を縮小して自己申告する経路を塞ぐ |
+| **D5** 普遍下限と 7D の最小限 | `REQUIRED_MOVEMENT_TRIGGERS` / `_movement_axis_values` / `evaluate_repository_movement` | **実装定数は 6 token ちょうど**。下限外は比較元宣言から取る。**6 token それぞれを実状態へ写像**(字面ではない)。**走査は比較元側 ∪ HEAD 側**で、比較元にあって HEAD に無い資産は red |
+| **D6** 実装の隔離 | コミット履歴 | **ステップ 2〜6 のどのコミットでも検査器が 1 バイトも変わっていない** |
+
+### snapshot の内容照合(機械確認済み)
+
+| snapshot | 内容 | 照合結果 |
+| --- | --- | --- |
+| `dadd3e8604a2…` | `before`: develop 版の `check_tenant_boundary_bypass.py` | **develop の実内容と sha256 一致** |
+| `3bab40813e14…` | `after`: HEAD 版の `check_tenant_boundary_bypass.py` | **HEAD の実内容と sha256 一致** |
+| `361a9de2238c…` | `after`: HEAD 版の `frozen_history.py` | **HEAD の実内容と sha256 一致** |
+| `47d436cef5f1…` | `after`: HEAD 版の `ci.yml` | **HEAD の実内容と sha256 一致** |
+
+**4 ファイルすべてで「ファイル名 == 内容の sha256」が成立**(content-addressed)。
+
+**申告 `aspect` = `["declaration", "external_snapshots"]`。** `movement_policy` は入っていない — `history_authority` は `movement_policy` の兄弟であり `movement_policy` 自体は変えていないため、実差分と整合する。
+
+### ゲートの状態
+
+| ゲート | 結果 |
+| --- | --- |
+| `uv run pytest tests/` | **1757 passed** |
+| `uv run ruff check .` | green |
+| `uv run ty check` | green |
+| `uv run python scripts/check_tenant_boundary_bypass.py` | `tenant-boundary bypass check: ok` |
+| CI `tenant-boundary-bypass`(PR コンテキスト) | **pass** |
+| CI `core-guard` | **fail — 本逐行確認の完了を待っている**(PR 本文のチェックボックス) |
+
+### 人間の判断が要る 2 件(私は手を付けていない)
+
+1. **PR 本文のチェックボックス** — `core_guard` が `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` を要求する。**これを満たすまで CI は red のまま**
+2. **`scripts/frozen_history.py` が `.claude/core-areas.json` のどのパターンにも該当しない**(実測)。`tests/test_frozen_history.py` も同様。**本 PR がこの穴を作った** — `frozen_history.py` は tenant 分離の凍結更新判定を丸ごと担うのに、変更が `core_guard` の人間確認要求を素通りする。**登録は設計書 6.3 規則⑤の人間判断**なので、本 PR へ含めるか別タスクへ送るかを決める必要がある
