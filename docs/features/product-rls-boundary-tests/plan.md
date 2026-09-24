@@ -64,16 +64,50 @@ TSK-381 の調査成果は [research-dod-revision.md](research-dod-revision.md)(
 
 ## 2. スコープ
 
+**本タスクの実体**(1 節の訂正より): **TSK-424 が作った製品 authz 資産と試験を、実スキーマに対して適用・再実行し、12-4 の判定を記録する。**
+
 ### やること
+
+1. **製品スキーマとロールを同居させる試験環境を用意する** — 既存の `provisioned_catalog` は **probe 資産専用**(実測)。
+   `disposable_postgres_cluster` + `alembic upgrade head` + **製品 authz DDL の適用**を組んだ fixture を新設する
+2. **実スキーマへの適用経路を通す** — **本番適用経路が存在しない**(`apply_authz_ddl` の呼び出しは
+   すべて `backend/tests/` から・製品コードからは 0 件 — 実測)。424 PR A2 の適用器を実スキーマに対して実行できる形にする
+3. **最低要求 4 件を実スキーマに対して再実行する**(`../../design/data-model.md:2530`)
+4. **12-4 の判定を PR へ記録する**(同 `:2534` の 4 項目。**入口を開かないので「対象入口なし」と書く**)
+5. **DoD を現行化する** — TSK-381 の成果([research-dod-revision.md](research-dod-revision.md))を反映。
+   **DoD 2・4・5・6 が変わり、追随不要なのは DoD 3 だけ**(PO 裁定により**本タスクの PR の中で行う**)
 
 ### やらないこと
 
-## 3. 影響する正本
+| 項目 | 行き先 | 典拠 |
+| --- | --- | --- |
+| **製品 authz DDL 資産の作成**(`contracts/authz/product/*`)・**表分類**・**capability カタログ** | **TSK-424 PR A1** | `../tenant-boundary-enforcement/design.md:253-258` |
+| **適用器の一般化・probe↔製品写像・使い捨てクラスタでの初回試験**(= 越境テストの**作成と初回実行**) | **TSK-424 PR A2** | 同 `:335-345` |
+| **`backend/migrations/` への RLS / ロール DDL の追加** | **しない**(差分 0 行) | 同 `:327-333` / `../orm-schema-migration/plan.md:848` の `D7` |
+| **越境関数の本体・ACL・`search_path`**(最低要求 ②③④ の関数側) | **U-C1 / U-C3 / U-A2** | 同 `design.md:575-581` |
+| **`SP-06` と 12-4 の字面衝突の解消**・**non-serving 第 1 項に終期を与える作業** | **TSK-382** | `../../adr/ADR-004-merge-gate-scope.md:44` |
+| **`data-model.md` 12-8 節の実装追随** | **TSK-424** | `../tenant-boundary-enforcement/plan.md:79`・`:125` |
+| **HTTP の入口を開くこと** | **開かない**(判定記録は「対象入口なし」) | `../../design/data-model.md:2534` |
 
-<!-- この feature が更新・新設すべき正本を列挙。「反映なし」の場合も明示する(空欄禁止) -->
+### 本書が置く前提(7 節の裁定が出たら差し替える)
+
+- **前提 A**: 製品テーブル向けの越境テストは **TSK-424 PR A2 が作る**。本タスクはそれを実スキーマで再実行する。
+  **424 が作らないと判明した場合は 7 節 #1 の裁定へ戻す**
+- **前提 B**: **認証テーブルの RLS は本タスクが持つ** — RLS は表ごとのプロファイルで一括適用するものであり、
+  表を分けると 45 表のうち認証テーブルだけ別経路という例外ができるため。**決定記録は存在しない**(7 節 #2)
+- **前提 C**: 最低要求 4 件のうち **本タスクが持つのは「実スキーマでの再実行と判定」**であり、
+  **関数側の実装は持たない**(7 節 #3)
+
+## 3. 影響する正本
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
+| `docs/design/data-model.md` | **反映なし**。12-4 の定義は変えない(**4 件の文言は変えない** — `:2531`)。**12-8 節の実装追随は TSK-424 の射程** | — |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
+| `docs/adr/` | **新設なし**(既決の制約の実行であり新しい決定を持たない) | — |
+| **`.claude/core-areas.json`** | **paths を追加**(新設する試験環境と越境テストのパス)。`../product-impl-unit-split/plan.md:61`「**各核単位が自 PR で行う**」 | PR レビュー(6.3-⑤) |
+| `contracts/authz/product/*` | **変更しない**(TSK-424 の資産を**読むだけ**) | — |
+| **Notion カード TSK-344 の DoD** | **現行化する**(PO 裁定 — カードは正本ではない) | — |
 
 ## 4. 実装方針
 
@@ -84,9 +118,14 @@ TSK-381 の調査成果は [research-dod-revision.md](research-dod-revision.md)(
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
+**着手は TSK-424 PR A1 と PR A2 の着地後**(8 節)。**総数が変わりうるためステップ記法に `/<N>` を書かない**(設計書 6.1 の厳密文法③)。
+
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-|   |   |   |
+| 1 | **製品スキーマとロールを同居させる試験環境を追加する** — `backend/tests/db_fixtures.py` へ、`disposable_postgres_cluster` に `alembic upgrade head` を当て、そのうえで **TSK-424 の製品 authz 資産**を `apply_authz_ddl` で適用する fixture を足す。**`backend/tests/conftest.py` は触らない** | 新 fixture を使う最小テストが green。`requires_db` マーカー付き・`backend/tests/db/` 配下(`environment-expectations.json:146-194` の制約)。**`backend/tests/conftest.py` の差分 0 行** |
+| 2 | **実スキーマへの適用経路を通す** — 製品資産に対する `apply_authz_ddl` の実行が成功し、`inspect_authz_catalog` が資産と一致すること | カタログ検査が green(ポリシーの `command` / `role_ids` / `policy_mode` / `USING` / `WITH CHECK` の exact 照合)。**適用が冪等**であること |
+| 3 | **最低要求 4 件を実スキーマに対して再実行する** — ① アプリ用ロールが関数を経由せず他テナント行を読めない ② `PUBLIC` が越境関数を実行できない ③ `search_path` の乗っ取りが効かない ④ 対象側が非共有なら要求元が付与していても返らない | 4 件すべて green。**期待 SQLSTATE**(`WITH CHECK` 違反 = `42501` / P5 アクセス = `42501` / 不正 UUID = `22P02` / `USING` で見えない = 0 行)で判定する |
+| 4 | **12-4 の判定記録を出力する** — 誰が・いつ・どの実スキーマに対して green を確認したか・**どの入口について判定したか**(**「対象入口なし」**)を PR 本文へ出せる形にする | 記録の 4 項目が揃っている。**項目を省いていない**(`../../design/data-model.md:2534`) |
 
 ## 5. DoD(受け入れ基準)
 
@@ -102,7 +141,36 @@ TSK-381 の調査成果は [research-dod-revision.md](research-dod-revision.md)(
 
 ## 6. テスト計画
 
-<!-- NFR-019 のどのテスト種別(単体・一致性・越境・E2E・故障系)に何を足すか -->
+**NFR-019 の「越境」に当たる。**合否は「越境が 1 件でもあれば fail」ではなく
+**「FR-034 の認可行列どおりに通り、行列外はすべて 404」**で判定する(要件書 `:933`)。
+ただし**本タスクは HTTP 入口を持たない**ので、判定は **DB 層(ロール・関数 ACL・`search_path`)**で行う
+(最低要求 4 件は HTTP 経路への要求を 1 件も含まない — `../../design/data-model.md:2531`)。
+
+| 対象 | 種別 | ファイル | 確認すること |
+| --- | --- | --- | --- |
+| 製品スキーマへの authz DDL 適用 | 故障系 + 正例 | `backend/tests/db/test_product_authz_application.py`(新設) | 適用の成功・冪等性・カタログ照合の一致 |
+| 最低要求 ① | 越境 | `backend/tests/db/test_product_boundary.py`(新設) | アプリ用ロールが関数を経由せず他テナント行を読めない(**0 行**) |
+| 最低要求 ② | 越境 | 同上 | `PUBLIC` が越境関数を実行できない(**`42501`**) |
+| 最低要求 ③ | 越境 | 同上 | `search_path` の乗っ取りが効かない(`pg_temp` が末尾に 1 回) |
+| 最低要求 ④ | 越境 | 同上 | 対象側が非共有なら要求元が付与していても返らない |
+| `WITH CHECK` | 越境 | 同上 | 越境 `INSERT` と `tenant_id` 書換 `UPDATE` が **`42501`** |
+| P5 `app_denied` | 越境 | 同上 | `AdminCredential` 等へのアクセスが **`42501`**(「0 行」ではない) |
+
+**`test_authz*` の命名を使わない** — `.claude/core-areas.json:319` の `backend/tests/test_authz*.py` に一致して
+**偶発的に**コア判定へ入るため。**意図的な paths 登録は 3 節のとおり自 PR で行う**。
+
+**実行手順**(`backend/` で。CI と同じ順 — `.github/workflows/ci.yml:255-262`):
+
+```
+docker compose up -d
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check
+uv run pytest -c pyproject.toml            # DB 必須テストの 0 件収集・0 件実行は TESTS_FAILED になる
+```
+
+**pytest の呼び出しは 1 回のまま**(`environment-expectations.json:146-194` が
+`marker_selection_argument_allowed: false` / `expected_backend_pytest_invocation_count: 1` を固定)。
 
 ## 7. 人間の裁定が要る事項
 
