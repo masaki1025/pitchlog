@@ -141,6 +141,11 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 
 **実装時の訂正(2026-09-24)**: ステップ 12 の「トリガ関数 33 個」は暫定資産の件数で、migration の実物は 37 個だった。製品資産は 37 個を正とし、差の 4 個を暫定資産の漏れとして理由付きで宣言する(design.md 3-4 の訂正)。暫定資産は変えない(PR B = TSK-443 へ申し送り)
 
+**実装後の敵対レビューに伴う人間の判断(2026-09-24・山田正輝)**:
+
+- **不変条件「`contracts/authz/` 直下の probe 資産の差分 0 行」の宣言つきの例外**: 正本の追随(3 節)で `data-model.md` が変わると、`contracts/authz/shared-preconditions.json` の `git_blob_digest`(`mapping_target` の 1 行)の取り直しが機械的に要る(`scripts/check_shared_preconditions.py`)。このファイルは封印(`oracle-seal.lock.json`)の対象外で、封印は動かない。**この 1 行に限り例外として受容する**(前例 0cf994f)。あわせて `contracts/db/schema-manifest.json` の `canonical_source.sha256` も取り直す(`contracts/authz/` の外)。**ほかの probe 資産は引き続き差分 0 行**
+- **露出の事実「秘密の列」に残る 3 件(`tenant_credentials.password_hash`・`admin_credentials.password_hash`・`group_invitations.code_hash`)は残余として受容する**: 正本の引用はハッシュでの保存までしか述べず、アプリ用ロールへの非露出は保存形式からの推論である。3 表は別の事実で `function_only` または制御資源(アプリ用ロールの ACL 無し)に分類済みで、露出は無い。★10 と同じく**逐行確認の観点**として PR 本文に載せ、正本へ非露出を明記する改訂は別タスクで起票する。なお `tenant_tokens.id`・`admin_sessions.id` は典拠が無いので露出の事実から除いた(トークンの提示形式の確定は U-A1)
+
 **正本の追随**(3 節)は、ステップ 13 の後に /sync-docs で行い、PR A1 に含める(Claude が書く。委任しない — 設計書 7.6-2)。
 
 ### PR A2 へ引き渡す内容(別タスク・別ブランチ・別計画書 — TSK-431 の 7C の後)
