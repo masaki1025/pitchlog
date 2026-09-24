@@ -10,10 +10,20 @@ import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from itertools import combinations
 from pathlib import Path
-from typing import Pattern, Sequence
+from typing import Pattern, Sequence, cast
+
+_BACKEND_SOURCE_ROOT = Path(__file__).resolve().parents[1] / "backend" / "src"
+sys.path.insert(0, str(_BACKEND_SOURCE_ROOT))
+
+from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-import]
+    PROBE_SPEC,
+    AuthzAssetSpec,
+)
 
 # このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
@@ -37,6 +47,52 @@ class RequiredTablePrivilegeTarget:
     cut_set_id_template: str
 
 
+PROBE_ONLY_CHECKS = (
+    "ddl_scope_exact",
+    "ddl_elements_closed_world",
+    "rejected_configs_closed_world",
+    # RequiredTablePrivilegeTarget と ORACLE_EXECUTION_CLASSES を含む閉世界。
+    "claim_mutant_map_closed_world",
+    "attack_tree_closed_world",
+    "boundary_proposal_closed_world",
+    "verification_evidence_closed_world",
+    "oracle_asset_multiplicity",
+    "oracle_commit_and_seal",
+)
+
+
+@dataclass
+class _ProbeOnlyCheckTracker:
+    """Spec ごとの probe 固有検査の実行集合を fail-closed に記録する。"""
+
+    spec: AuthzAssetSpec
+    executed_check_ids: set[str] = dataclass_field(default_factory=set)
+
+    def run(self, check_id: str, check: Callable[[], object]) -> object | None:
+        """一覧にある検査を probe のときだけ実行して記録する。"""
+        if check_id not in PROBE_ONLY_CHECKS:
+            raise CatalogError(f"probe固有検査が一覧にない: {check_id}")
+        if self.spec != PROBE_SPEC:
+            return None
+        self.executed_check_ids.add(check_id)
+        return check()
+
+    def require(self, check_ids: frozenset[str]) -> None:
+        """対象境界で必要な probe 固有検査がすべて走ったことを要求する。"""
+        unknown = check_ids - frozenset(PROBE_ONLY_CHECKS)
+        if unknown:
+            raise CatalogError(
+                f"probe固有検査の要求が一覧にない: {sorted(unknown)}"
+            )
+        expected = check_ids if self.spec == PROBE_SPEC else frozenset()
+        actual = self.executed_check_ids & check_ids
+        if actual != expected:
+            raise CatalogError(
+                "probe固有検査の実行集合が不完全: "
+                f"期待={sorted(expected)}, 実際={sorted(actual)}"
+            )
+
+
 DEFAULT_REQUIREMENTS = Path("docs/requirements/requirements-pitchlog-2026-07-22.md")
 DEFAULT_CLAIMS = Path("contracts/authz/requirement-claims.json")
 DEFAULT_LOCK = Path("contracts/authz/requirement-claims.lock.json")
@@ -46,7 +102,7 @@ DEFAULT_AUTH_CATALOG = Path("contracts/authz/auth-catalog.json")
 DEFAULT_AUTH_CATALOG_LOCK = Path("contracts/authz/auth-catalog.lock.json")
 DEFAULT_HTTP_ROUTE_MATRIX = Path("contracts/authz/http-route-matrix.json")
 DEFAULT_HTTP_ROUTE_MATRIX_LOCK = Path("contracts/authz/http-route-matrix.lock.json")
-DEFAULT_DDL_ELEMENTS = Path("contracts/authz/ddl-elements.json")
+DEFAULT_DDL_ELEMENTS = Path(PROBE_SPEC.ddl_elements_path)
 DEFAULT_REJECTED_CONFIGS = Path("contracts/authz/rejected-configs.json")
 DEFAULT_CLAIM_MUTANT_MAP = Path("contracts/authz/claim-mutant-map.json")
 DEFAULT_MCDC_MAP = Path("contracts/authz/mcdc-map.json")
@@ -54,6 +110,7 @@ DEFAULT_ATTACK_TREE = Path("contracts/authz/attack-tree.json")
 DEFAULT_BOUNDARY_PROPOSAL = Path("contracts/authz/boundary-proposal.json")
 DEFAULT_VERIFICATION_EVIDENCE = Path("contracts/authz/verification-evidence.json")
 DEFAULT_ORACLE_SEAL = Path("contracts/authz/oracle-seal.lock.json")
+ASSET_SPECS = {"probe": PROBE_SPEC}
 
 CLASSIFICATIONS = frozenset({"auth_claim", "out_of_scope"})
 DECIDABLE_LOCATIONS = frozenset({"db", "http", "cache"})
@@ -2821,30 +2878,84 @@ def _validate_referenced_provenance(
         raise CatalogError(f"{label}が逐語典拠の閉集合にない")
 
 
-def _validate_ddl_scope(raw: object) -> None:
-    """実機確認済み probe 構成の閉じた scope を検査する。"""
+def _validate_ddl_scope(
+    raw: object,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+    *,
+    _probe_check_tracker: _ProbeOnlyCheckTracker | None = None,
+) -> None:
+    """Scope の種別値を spec と照合し、probe の閉じた4値も検査する。"""
     if not isinstance(raw, dict):
         raise CatalogError("DDL manifest.scope はオブジェクトでなければならない")
-    _expect_keys(
-        raw,
-        {
-            "status",
-            "product_schema",
-            "contains_sql_body",
-            "second_group_approval_required",
-        },
-        "DDL manifest.scope",
+    status = raw.get(spec.scope_status_field)
+    if status != spec.allowed_scope_status:
+        raise CatalogError(
+            "DDL manifest.scope が資産指定と一致しない: "
+            f"期待={spec.allowed_scope_status!r}, 実際={status!r}"
+        )
+
+    tracker = _probe_check_tracker or _ProbeOnlyCheckTracker(spec)
+
+    def validate_probe_scope() -> None:
+        """実機確認済み probe scope の4値を exact に検査する。"""
+        _expect_keys(
+            raw,
+            {
+                "status",
+                "product_schema",
+                "contains_sql_body",
+                "second_group_approval_required",
+            },
+            "DDL manifest.scope",
+        )
+        if raw != {
+            "status": "verified_probe_configuration",
+            "product_schema": False,
+            "contains_sql_body": False,
+            "second_group_approval_required": False,
+        }:
+            raise CatalogError(
+                "DDL manifest が実機確認済み probe の範囲を越えている"
+            )
+
+    tracker.run("ddl_scope_exact", validate_probe_scope)
+    tracker.require(frozenset({"ddl_scope_exact"}))
+
+
+def validate_ddl_elements(
+    raw: object,
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+    *,
+    _probe_check_tracker: _ProbeOnlyCheckTracker | None = None,
+) -> dict[str, object]:
+    """Scope を常に検査し、probe のときだけ既存の閉世界を検査する。"""
+    if not isinstance(raw, dict):
+        raise CatalogError("DDL manifest はオブジェクトでなければならない")
+    tracker = _probe_check_tracker or _ProbeOnlyCheckTracker(spec)
+    scope = raw.get(spec.scope_field)
+    if spec == PROBE_SPEC and _probe_check_tracker is None:
+        # 既存テストが差し替える1引数の検査関数との互換性を維持する。
+        _validate_ddl_scope(scope)
+    else:
+        _validate_ddl_scope(
+            scope,
+            spec,
+            _probe_check_tracker=tracker,
+        )
+    result = tracker.run(
+        "ddl_elements_closed_world",
+        lambda: _validate_probe_ddl_elements(raw, root),
     )
-    if raw != {
-        "status": "verified_probe_configuration",
-        "product_schema": False,
-        "contains_sql_body": False,
-        "second_group_approval_required": False,
-    }:
-        raise CatalogError("DDL manifest が実機確認済み probe の範囲を越えている")
+    tracker.require(frozenset({"ddl_elements_closed_world"}))
+    if result is None:
+        return {"scope_status": spec.allowed_scope_status}
+    if not isinstance(result, dict):
+        raise CatalogError("probe DDL要素検査の結果がオブジェクトでない")
+    return result
 
 
-def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
+def _validate_probe_ddl_elements(raw: object, root: Path) -> dict[str, object]:
     """第2群向けの宣言的 DDL 要素だけを検査する。"""
     if not isinstance(raw, dict):
         raise CatalogError("DDL manifest はオブジェクトでなければならない")
@@ -2876,7 +2987,6 @@ def validate_ddl_elements(raw: object, root: Path) -> dict[str, object]:
         raise CatalogError("DDL manifest の schema_version または asset_kind が不正")
     oracle_commit = _validate_oracle_context(raw["oracle_context"], "DDL manifest")
     _validate_oracle_provenance(raw["provenance"], root, "DDL manifest")
-    _validate_ddl_scope(raw["scope"])
     enums = raw["enums"]
     if not isinstance(enums, dict):
         raise CatalogError("DDL manifest.enums はオブジェクトでなければならない")
@@ -5413,44 +5523,133 @@ def validate_oracle_assets(
     *,
     verify_seal: bool = True,
     valid_requirement_ids: frozenset[str] | None = None,
+    spec: AuthzAssetSpec = PROBE_SPEC,
 ) -> dict[str, dict[str, object]]:
-    """ステップ5の期待値・証跡・封印を相互検査する。"""
-    ddl_result = validate_ddl_elements(assets["ddl_elements"], root)
-    rejected_result = validate_rejected_configs(assets["rejected_configs"], root)
-    mutant_result = validate_claim_mutant_map(
-        assets["claim_mutant_map"],
+    """Scope を常に検査し、probe のときだけ既存 oracle を相互検査する。"""
+    tracker = _ProbeOnlyCheckTracker(spec)
+    ddl_result = validate_ddl_elements(
+        assets["ddl_elements"],
+        root,
+        spec,
+        _probe_check_tracker=tracker,
+    )
+    result = _validate_spec_oracle_assets(
         requirement_catalog,
         route_registry,
+        auth_catalog,
         http_matrix,
-        ddl_result,
+        assets,
+        seal,
+        paths,
         root,
         implemented_test_ids,
+        ddl_result,
+        tracker,
+        verify_seal=verify_seal,
         valid_requirement_ids=valid_requirement_ids,
     )
-    attack_result = validate_attack_tree(assets["attack_tree"], mutant_result, root)
-    boundary_result = validate_boundary_proposal(
-        assets["boundary_proposal"], auth_catalog, root
+    tracker.require(frozenset(PROBE_ONLY_CHECKS))
+    return result
+
+
+def _validate_spec_oracle_assets(
+    requirement_catalog: dict[str, object],
+    route_registry: dict[str, object],
+    auth_catalog: dict[str, object],
+    http_matrix: dict[str, object],
+    assets: dict[str, dict[str, object]],
+    seal: object,
+    paths: dict[str, str],
+    root: Path,
+    implemented_test_ids: frozenset[str],
+    ddl_result: dict[str, object],
+    tracker: _ProbeOnlyCheckTracker,
+    *,
+    verify_seal: bool,
+    valid_requirement_ids: frozenset[str] | None,
+) -> dict[str, dict[str, object]]:
+    """Spec の分岐に従い probe 固有の oracle 検査だけを実行する。"""
+    rejected_result = tracker.run(
+        "rejected_configs_closed_world",
+        lambda: validate_rejected_configs(assets["rejected_configs"], root),
     )
-    evidence_result = validate_verification_evidence(
-        assets["verification_evidence"], root
+    mutant_result = tracker.run(
+        "claim_mutant_map_closed_world",
+        lambda: validate_claim_mutant_map(
+            assets["claim_mutant_map"],
+            requirement_catalog,
+            route_registry,
+            http_matrix,
+            ddl_result,
+            root,
+            implemented_test_ids,
+            valid_requirement_ids=valid_requirement_ids,
+        ),
     )
-    for name, asset in assets.items():
-        _validate_json_array_multiplicity(asset, paths[name])
+    attack_result = tracker.run(
+        "attack_tree_closed_world",
+        lambda: validate_attack_tree(
+            assets["attack_tree"],
+            mutant_result if isinstance(mutant_result, dict) else {},
+            root,
+        ),
+    )
+    boundary_result = tracker.run(
+        "boundary_proposal_closed_world",
+        lambda: validate_boundary_proposal(
+            assets["boundary_proposal"],
+            auth_catalog,
+            root,
+        ),
+    )
+    evidence_result = tracker.run(
+        "verification_evidence_closed_world",
+        lambda: validate_verification_evidence(
+            assets["verification_evidence"],
+            root,
+        ),
+    )
+
+    def validate_multiplicity() -> None:
+        """全 probe oracle 資産の配列多重度を検査する。"""
+        for name, asset in assets.items():
+            _validate_json_array_multiplicity(asset, paths[name])
+
+    tracker.run("oracle_asset_multiplicity", validate_multiplicity)
+    if tracker.spec != PROBE_SPEC:
+        tracker.run("oracle_commit_and_seal", lambda: None)
+        return {"ddl": ddl_result}
+    if not all(
+        isinstance(result, dict)
+        for result in (
+            rejected_result,
+            mutant_result,
+            attack_result,
+            boundary_result,
+            evidence_result,
+        )
+    ):
+        raise CatalogError("probe oracle検査の結果がオブジェクトでない")
     results: dict[str, dict[str, object]] = {
         "ddl": ddl_result,
-        "rejected": rejected_result,
-        "mutants": mutant_result,
-        "attack": attack_result,
-        "boundary": boundary_result,
-        "evidence": evidence_result,
+        "rejected": cast(dict[str, object], rejected_result),
+        "mutants": cast(dict[str, object], mutant_result),
+        "attack": cast(dict[str, object], attack_result),
+        "boundary": cast(dict[str, object], boundary_result),
+        "evidence": cast(dict[str, object], evidence_result),
     }
-    commits = {str(result["oracle_commit"]) for result in results.values()}
-    if len(commits) != 1:
-        raise CatalogError("oracle 資産間で oracle_commit が不一致")
-    if verify_seal:
-        seal_commit = validate_oracle_seal(seal, assets, paths, root)
-        if commits != {seal_commit}:
-            raise CatalogError("oracle 資産と seal の commit が不一致")
+
+    def validate_commit_and_seal() -> None:
+        """Probe oracle の commit と既存 seal を相互検査する。"""
+        commits = {str(result["oracle_commit"]) for result in results.values()}
+        if len(commits) != 1:
+            raise CatalogError("oracle 資産間で oracle_commit が不一致")
+        if verify_seal:
+            seal_commit = validate_oracle_seal(seal, assets, paths, root)
+            if commits != {seal_commit}:
+                raise CatalogError("oracle 資産と seal の commit が不一致")
+
+    tracker.run("oracle_commit_and_seal", validate_commit_and_seal)
     return results
 
 
@@ -5469,6 +5668,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(description="認可要件主張母集合を全数検査する")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="リポジトリルート")
+    parser.add_argument(
+        "--asset-spec",
+        choices=tuple(ASSET_SPECS),
+        default="probe",
+        help="検査する認可資産の種類",
+    )
     parser.add_argument("--requirements", type=Path, default=DEFAULT_REQUIREMENTS)
     parser.add_argument("--claims", type=Path, default=DEFAULT_CLAIMS)
     parser.add_argument("--lock", type=Path, default=DEFAULT_LOCK)
@@ -5699,6 +5904,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     try:
         args = parse_args(argv)
+        asset_spec = ASSET_SPECS[args.asset_spec]
         reseal_count = sum(
             (bool(args.reseal), bool(args.reseal_derived), bool(args.reseal_oracle))
         )
@@ -5827,6 +6033,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 implemented_test_ids,
                 verify_seal=not args.reseal_oracle,
                 valid_requirement_ids=requirement_reference_ids(source_text),
+                spec=asset_spec,
             )
             if args.reseal_oracle:
                 if not isinstance(oracle_seal, dict):
