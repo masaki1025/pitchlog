@@ -1,4 +1,8 @@
-"""Capability 登録とカタログの対応を SQLAlchemy 式木だけで検査する。"""
+"""Capability 登録とカタログの対応を SQLAlchemy 式木だけで検査する。
+
+保証対象は SQLAlchemy の公開 API で組み立てた文と、そのインスタンス状態までとする。
+型の書き換えや SQLAlchemy 自体の改変は保証しない。
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,7 @@ from typing import Any, Protocol, cast
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import operators, visitors
+from sqlalchemy.sql.base import ReadOnlyColumnCollection
 from sqlalchemy.sql.dml import Delete, Insert, Update
 from sqlalchemy.sql.elements import (
     BinaryExpression,
@@ -109,6 +114,11 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 # - sql/dml.py の Insert / Update
 # - sql/elements.py の BindParameter / BinaryExpression / UnaryExpression
 # - sql/functions.py の FunctionElement / Function
+# - sql/elements.py の Label._traverse_internals / Label.element と
+#   ColumnClause._from_objects、sql/compiler.py の visit_label
+# - sql/selectable.py の SelectState._get_froms / FromClause.c、sql/crud.py の
+#   Table.columns / Table.c 参照
+# - sql/functions.py の FunctionElement.clauses
 # - sql/base.py の Executable.execution_options / DialectKWArgs
 # - sql/crud.py の _get_crud_params(表の列 default / onupdate・sentinel・
 #   implicit_returning・_supplemental_returning)
@@ -122,6 +132,15 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 # SQLAlchemy の版が変わった場合は再監査するまで拒否する。識別子は SQLAlchemy
 # が引用する標準状態、型は下の組み込み型だけを許す。それ以外の状態は各検査
 # 関数で空・None・標準値へ閉じる。
+#
+# 許可キー中の導出キャッシュを再監査し、SQL 構造または本検査の判定元と別経路に
+# なる次の4組を同一性検査の対象とした。
+# - Label.element <- _element: 走査・cache key は _element、compiler は element
+# - Column._from_objects <- table: 走査は table、SelectState は _from_objects
+# - Table.c <- _columns: canonical列は _columns、CRUD compiler は columns / c
+# - Function.clauses <- clause_expr.element: compiler は clause_expr、本検査は clauses
+# comparator・description・proxy集合・label名など、ほかの memoized 許可キーには、
+# 受理する標準label styleで別の走査元からSQL構造を差し替える同形の組はなかった。
 _AUDITED_SQLALCHEMY_VERSION = "2.0.52"
 _TRAVERSED_CHILD_KINDS = (
     InternalTraversal.dp_clauseelement,
@@ -743,6 +762,52 @@ def _validate_common_node_state(
     for state_key in instance_state:
         if state_key not in allowed_state_keys:
             _reject_node_state(label, f"未許可のinstance {state_key}", violations)
+    _validate_derived_cache_state(
+        node_type,
+        instance_state,
+        label,
+        violations,
+    )
+
+
+def _validate_derived_cache_state(
+    node_type: type[object],
+    instance_state: dict[str, Any],
+    label: str,
+    violations: list[str],
+) -> None:
+    """走査元と別に保持される導出キャッシュを正規の同一オブジェクトへ閉じる。"""
+    if node_type is Label and "element" in instance_state:
+        if instance_state["element"] is not instance_state["_element"]:
+            _reject_node_state(label, "導出cache Label.element", violations)
+    elif node_type is Function and "clauses" in instance_state:
+        clause_expression = instance_state["clause_expr"]
+        if instance_state["clauses"] is not clause_expression.element:
+            _reject_node_state(label, "導出cache Function.clauses", violations)
+    elif node_type is Column and "_from_objects" in instance_state:
+        source_table = instance_state["table"]
+        cached_from_objects = instance_state["_from_objects"]
+        cache_is_canonical = cached_from_objects.__class__ is list
+        if cache_is_canonical and source_table is None:
+            cache_is_canonical = not cached_from_objects
+        elif cache_is_canonical:
+            matched_source = False
+            for cached_from_object in cached_from_objects:
+                if matched_source or cached_from_object is not source_table:
+                    cache_is_canonical = False
+                    break
+                matched_source = True
+            if not matched_source:
+                cache_is_canonical = False
+        if not cache_is_canonical:
+            _reject_node_state(label, "導出cache Column._from_objects", violations)
+    elif node_type is Table and "c" in instance_state:
+        cached_columns = instance_state["c"]
+        if (
+            cached_columns.__class__ is not ReadOnlyColumnCollection
+            or cached_columns._parent is not instance_state["_columns"]
+        ):
+            _reject_node_state(label, "導出cache Table.c", violations)
 
 
 def _validate_executable_state(

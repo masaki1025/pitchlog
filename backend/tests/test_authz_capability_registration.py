@@ -497,6 +497,32 @@ def _state_mutation_registration(
     elif mutation_name == "arbitrary-instance-state":
         statement = _read_statement(games)
         cast(Any, statement).reviewer_chosen_attribute = "opaque"
+    elif mutation_name == "label-element-cache":
+        label = func.pg_catalog.lower(games.c.game_number_label).label("game_number")
+        assert label.element is label._element
+        cast(Any, label).element = games.c.status
+        statement = select(games.c.id, label)
+    elif mutation_name == "function-clauses-cache":
+        function = func.pg_catalog.lower(games.c.game_number_label)
+        other_function = func.pg_catalog.lower(games.c.status)
+        assert function.clauses is function.clause_expr.element
+        cast(Any, function).clauses = other_function.clauses
+        statement = select(games.c.id, function)
+    elif mutation_name == "column-from-objects-cache":
+        metadata = MetaData()
+        local_games = Table("games", metadata, Column("id", Text()))
+        local_players = Table("players", metadata, Column("id", Text()))
+        selected_column = local_games.c.id
+        assert selected_column._from_objects == [local_games]
+        cast(Any, selected_column)._from_objects = [local_players]
+        statement = select(selected_column)
+    elif mutation_name == "insert-table-columns-cache":
+        metadata = MetaData()
+        local_games = Table("games", metadata, Column("id", Text()))
+        local_players = Table("players", metadata, Column("id", Text()))
+        statement = insert(local_games).values(id=bindparam("game_id"))
+        assert local_games.c._parent is local_games._columns
+        cast(Any, local_games).c = local_players.c
     elif mutation_name == "get-children-hook":
         statement = _read_statement(games)
         cast(Any, statement).get_children = lambda **_kwargs: ()
@@ -705,6 +731,26 @@ _STATE_MUTATIONS = (
         "arbitrary-instance-state",
         "未許可のinstance reviewer_chosen_attribute",
         id="arbitrary-instance-state",
+    ),
+    pytest.param(
+        "label-element-cache",
+        "導出cache Label.element",
+        id="label-element-cache",
+    ),
+    pytest.param(
+        "function-clauses-cache",
+        "導出cache Function.clauses",
+        id="function-clauses-cache",
+    ),
+    pytest.param(
+        "column-from-objects-cache",
+        "導出cache Column._from_objects",
+        id="column-from-objects-cache",
+    ),
+    pytest.param(
+        "insert-table-columns-cache",
+        "導出cache Table.c",
+        id="table-columns-cache",
     ),
     pytest.param(
         "get-children-hook",
