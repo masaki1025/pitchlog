@@ -6,7 +6,9 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -404,6 +406,263 @@ def _delete_nested(value: dict[str, Any], path: tuple[str, ...]) -> None:
     for key in path[:-1]:
         target = target[key]
     del target[path[-1]]
+
+
+def _transition_request(transition: Any) -> dict[str, Any]:
+    """V2Transition を CLI request の JSON 値へ変換する。"""
+    return {
+        "before": copy.deepcopy(transition.before),
+        "after": copy.deepcopy(transition.after),
+        "base_snapshot_root": str(transition.base_snapshot_root),
+        "head_snapshot_root": str(transition.head_snapshot_root),
+    }
+
+
+def _evaluation_request(evaluation: Any) -> dict[str, Any]:
+    """RoleSeparatedEvaluation を CLI request の JSON 値へ変換する。"""
+    return {
+        "targets": list(evaluation.targets),
+        "transition": _transition_request(evaluation.transition),
+        "moved": evaluation.moved,
+    }
+
+
+def _write_cli_request(path: Path, request: dict[str, Any]) -> None:
+    """合成 CLI request を JSON ファイルへ書く。"""
+    path.write_text(json.dumps(request), encoding="utf-8")
+
+
+def _v2_cli_request(tmp_path: Path) -> dict[str, Any]:
+    """正常な v2 履歴検査の CLI request を作る。"""
+    record, transition = _v2_case(tmp_path / "v2")
+    base_history = _base_history()
+    return {
+        "check": "history",
+        "base_history": base_history,
+        "head_history": [*copy.deepcopy(base_history), record],
+        "v2_transitions": [_transition_request(transition)],
+    }
+
+
+def _current_history_cli_request(tmp_path: Path) -> dict[str, Any]:
+    """正常な PR 受理履歴検査の CLI request を作る。"""
+    record, _, _, evaluation = _evaluation_case(tmp_path / "current")
+    base_history = _base_history()
+    return {
+        "check": "current_history",
+        "base_history": base_history,
+        "head_history": [*copy.deepcopy(base_history), record],
+        "evaluation": _evaluation_request(evaluation),
+        "head_parents": ["base-sha", "head-sha"],
+    }
+
+
+def _role_cli_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[dict[str, Any], dict[str, Path]]:
+    """正常な比較元・HEAD 宣言取得の CLI request を作る。"""
+    _enable_pull_request_mode(monkeypatch, tmp_path)
+    base_root = tmp_path / "base-repository"
+    head_root = tmp_path / "head-repository"
+    for root in (base_root, head_root):
+        scripts = root / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "a.py").write_bytes(b"alpha\n")
+    asset = {
+        "baseline_control": {
+            "identity": {
+                "scheme": "revision_field",
+                "field": "contract_revision",
+                "current_identifiers": ["contract_revision:13"],
+                "no_baseline_marker": "NO_BASELINE",
+                "frozen_projection": {"external_files": ["scripts/a.py"]},
+            },
+            "movement_policy": {
+                "movement_triggers": sorted(parser.REQUIRED_MOVEMENT_TRIGGERS),
+            },
+        }
+    }
+    base_asset = tmp_path / "base-asset.json"
+    head_asset = tmp_path / "head-asset.json"
+    base_asset.write_text(json.dumps(asset), encoding="utf-8")
+    head_asset.write_text(json.dumps(asset), encoding="utf-8")
+    paths = {
+        "base_asset": base_asset,
+        "head_asset": head_asset,
+        "base_external": base_root / "scripts" / "a.py",
+    }
+    return (
+        {
+            "check": "role_evaluation",
+            "base_asset_path": str(base_asset),
+            "head_asset_path": str(head_asset),
+            "base_repository_root": str(base_root),
+            "head_repository_root": str(head_root),
+            "base_snapshot_root": str(tmp_path / "base-snapshots"),
+            "head_snapshot_root": str(tmp_path / "head-snapshots"),
+        },
+        paths,
+    )
+
+
+def _repository_cli_request() -> dict[str, Any]:
+    """正常な資産集合 movement 検査の CLI request を作る。"""
+    base_assets, head_assets, movement_policy = _repository_movement_case()
+
+    def encode(assets: dict[str, Any]) -> dict[str, Any]:
+        return {
+            name: {
+                "declaration_location": state.declaration_location,
+                "declaration": copy.deepcopy(state.declaration),
+            }
+            for name, state in assets.items()
+        }
+
+    return {
+        "check": "repository_movement",
+        "base_assets": encode(base_assets),
+        "head_assets": encode(head_assets),
+        "base_movement_policy": movement_policy,
+        "appended_record_count": 0,
+    }
+
+
+def _prepare_fail_closed_cli_case(
+    case: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Callable[[], None]]:
+    """設計書 7 節の各失敗点について正常入力と変異操作を作る。"""
+    request_path = tmp_path / "request.json"
+
+    def rewrite(request: dict[str, Any]) -> Callable[[], None]:
+        def apply() -> None:
+            _write_cli_request(request_path, request)
+
+        return apply
+
+    if case in {"01-base-declaration", "13-external-target", "14-no-head-fallback"}:
+        request, paths = _role_cli_request(tmp_path, monkeypatch)
+        if case == "01-base-declaration":
+
+            def mutate() -> None:
+                paths["base_asset"].write_text("{broken", encoding="utf-8")
+
+        elif case == "13-external-target":
+
+            def mutate() -> None:
+                paths["base_external"].unlink()
+
+        else:
+
+            def mutate() -> None:
+                paths["base_asset"].unlink()
+
+    elif case in {"02-pr-event", "10-acceptance-id", "11-pr-merge-shape"}:
+        _enable_pull_request_mode(monkeypatch, tmp_path)
+        request = _current_history_cli_request(tmp_path)
+        if case == "02-pr-event":
+
+            def mutate() -> None:
+                monkeypatch.delenv("GITHUB_EVENT_PATH")
+
+        elif case == "10-acceptance-id":
+            request["head_history"][-1]["acceptance_id"] = "openai/pitchlog#999"
+            mutate = rewrite(request)
+        else:
+            request["head_parents"] = ["base-sha"]
+            mutate = rewrite(request)
+    elif case in {
+        "03-unknown-version",
+        "04-version-required",
+        "05-prefix-deep-equal",
+        "07-snapshot",
+        "08-aspect",
+        "09-v2-approval",
+    }:
+        request = _v2_cli_request(tmp_path)
+        record = request["head_history"][-1]
+        if case == "03-unknown-version":
+            record["record_schema_version"] = 3
+        elif case == "04-version-required":
+            del record["record_schema_version"]
+        elif case == "05-prefix-deep-equal":
+            request["head_history"][0]["reason"] = "changed"
+        elif case == "07-snapshot":
+            missing_digest = "0" * 64
+            for state in (
+                record["change"]["after"],
+                request["v2_transitions"][0]["after"],
+            ):
+                snapshot = state["external_snapshots"][0]
+                snapshot["sha256"] = missing_digest
+                snapshot["snapshot_ref"] = (
+                    "contracts/tenant_boundary/history-snapshots/"
+                    f"{missing_digest}"
+                )
+        elif case == "08-aspect":
+            record["change"]["aspect"] = []
+        else:
+            record["approved_by"] = "TODO: 後で"
+        mutate = rewrite(request)
+    elif case == "06-history-authority":
+        assets = _asset_map()
+        request = {"check": "history_authority", "assets": assets}
+        assets["asset-0.json"]["baseline_control"]["history_authority"] = False
+        mutate = rewrite(request)
+    elif case == "12-deleted-base-asset":
+        request = _repository_cli_request()
+        del request["head_assets"]["asset-a"]
+        mutate = rewrite(request)
+    else:
+        raise AssertionError(f"未知の fail-closed case: {case}")
+
+    # 変異前の request を正常系として固定し、変異は呼び出し後にだけ反映する。
+    if request_path.exists():
+        raise AssertionError(f"request が先に作成されている: {request_path}")
+    if case in {
+        "03-unknown-version",
+        "04-version-required",
+        "05-prefix-deep-equal",
+        "06-history-authority",
+        "07-snapshot",
+        "08-aspect",
+        "09-v2-approval",
+        "10-acceptance-id",
+        "11-pr-merge-shape",
+        "12-deleted-base-asset",
+    }:
+        # 上記 case は request object を先に変異したため、正常系を作り直す。
+        if case in {
+            "03-unknown-version",
+            "04-version-required",
+            "05-prefix-deep-equal",
+            "07-snapshot",
+            "08-aspect",
+            "09-v2-approval",
+        }:
+            good_request = _v2_cli_request(tmp_path / "good")
+        elif case == "06-history-authority":
+            good_request = {"check": "history_authority", "assets": _asset_map()}
+        elif case in {"10-acceptance-id", "11-pr-merge-shape"}:
+            good_request = _current_history_cli_request(tmp_path / "good")
+        else:
+            good_request = _repository_cli_request()
+    else:
+        good_request = request
+    _write_cli_request(request_path, good_request)
+    return request_path, mutate
+
+
+def _run_frozen_history_cli(request_path: Path) -> subprocess.CompletedProcess[str]:
+    """実プロセスとして frozen_history.py の CLI を実行する。"""
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), str(request_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_acceptance_id_is_derived_from_repository_and_pull_request() -> None:
@@ -911,6 +1170,126 @@ def test_scan_targets_are_union_of_base_and_head_assets() -> None:
 
     assert changed.scanned_assets == ("asset-a", "asset-b")
     assert changed.triggered_tokens == frozenset({"baseline_set"})
+
+
+def test_cli_returns_zero_for_valid_input(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    history = _base_history()
+    _write_cli_request(
+        request_path,
+        {
+            "check": "history",
+            "base_history": history,
+            "head_history": copy.deepcopy(history),
+        },
+    )
+
+    result = _run_frozen_history_cli(request_path)
+
+    assert result.returncode == 0, result.stderr
+    assert "frozen-history: ok" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param("01-base-declaration", id="01-base-declaration-unreadable"),
+        pytest.param("02-pr-event", id="02-pr-event-unavailable"),
+        pytest.param("03-unknown-version", id="03-record-schema-version-unknown"),
+        pytest.param("04-version-required", id="04-version-missing-or-v1"),
+        pytest.param("05-prefix-deep-equal", id="05-prefix-not-deep-equal"),
+        pytest.param("06-history-authority", id="06-history-authority-not-unique"),
+        pytest.param("07-snapshot", id="07-snapshot-unresolvable-or-mutated"),
+        pytest.param("08-aspect", id="08-aspect-not-exact-set"),
+        pytest.param("09-v2-approval", id="09-v2-approval-invalid"),
+        pytest.param("10-acceptance-id", id="10-acceptance-id-mismatch"),
+        pytest.param("11-pr-merge-shape", id="11-pr-merge-condition-mismatch"),
+        pytest.param("12-deleted-base-asset", id="12-base-asset-deleted"),
+        pytest.param("13-external-target", id="13-external-target-unresolvable"),
+        pytest.param("14-no-head-fallback", id="14-no-head-only-fallback"),
+    ],
+)
+def test_all_design_failures_exit_nonzero_and_differ_from_success(
+    case: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """設計書 7 節の 14 行を個別ケースとして実 CLI の終了値へ写す。"""
+    request_path, mutate = _prepare_fail_closed_cli_case(
+        case,
+        tmp_path,
+        monkeypatch,
+    )
+    accepted = _run_frozen_history_cli(request_path)
+    assert accepted.returncode == 0, accepted.stderr
+    mutate()
+
+    rejected = _run_frozen_history_cli(request_path)
+
+    assert rejected.returncode != 0
+    assert rejected.returncode != accepted.returncode
+    assert "frozen-history:" in rejected.stderr
+
+
+@pytest.mark.parametrize("failure", ["missing", "broken-json", "missing-key"])
+def test_base_acquisition_failure_never_falls_back_to_valid_head(
+    failure: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正常な HEAD があっても比較元の取得不能を代替せず拒否することを証明する。"""
+    request, paths = _role_cli_request(tmp_path, monkeypatch)
+    arguments = {
+        "base_asset_path": Path(request["base_asset_path"]),
+        "head_asset_path": Path(request["head_asset_path"]),
+        "base_repository_root": Path(request["base_repository_root"]),
+        "head_repository_root": Path(request["head_repository_root"]),
+        "base_snapshot_root": Path(request["base_snapshot_root"]),
+        "head_snapshot_root": Path(request["head_snapshot_root"]),
+    }
+    assert parser.load_pr_role_separated_evaluation(**arguments)
+    if failure == "missing":
+        paths["base_asset"].unlink()
+    elif failure == "broken-json":
+        paths["base_asset"].write_text("{broken", encoding="utf-8")
+    else:
+        paths["base_asset"].write_text(
+            json.dumps(
+                {
+                    "baseline_control": {
+                        "movement_policy": {
+                            "movement_triggers": sorted(
+                                parser.REQUIRED_MOVEMENT_TRIGGERS
+                            )
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    with pytest.raises(parser.ContractError, match="比較元"):
+        parser.load_pr_role_separated_evaluation(**arguments)
+
+
+def test_unexpected_exception_is_mapped_to_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    request_path = tmp_path / "request.json"
+    _write_cli_request(
+        request_path,
+        {"check": "history", "base_history": [], "head_history": []},
+    )
+
+    def raise_unexpected(_: object) -> None:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(parser, "_execute_cli_request", raise_unexpected)
+
+    assert parser.main([str(request_path)]) == 2
+    assert "unexpected error" in capsys.readouterr().err
 
 
 def test_no_history_authority_is_rejected_after_valid_baseline() -> None:

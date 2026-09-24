@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
 import os
 import re
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -292,6 +294,55 @@ def derive_role_separated_evaluation(
         transition=transition,
         moved=bool(derive_aspects(before, after)),
     )
+
+
+def load_pr_role_separated_evaluation(
+    *,
+    base_asset_path: Path,
+    head_asset_path: Path,
+    base_repository_root: Path,
+    head_repository_root: Path,
+    base_snapshot_root: Path,
+    head_snapshot_root: Path,
+) -> RoleSeparatedEvaluation:
+    """PR 受理用の比較元・HEAD 実状態をファイルから取得する。
+
+    比較元の資産と外部実装を必ず先に取得し、失敗時は HEAD を読む前に
+    不合格とする。比較元の取得不能を HEAD の値で補う経路は持たない。
+
+    Args:
+        base_asset_path: 比較元の資産 JSON ファイル。
+        head_asset_path: HEAD の資産 JSON ファイル。
+        base_repository_root: 比較元の外部実装を解決するルート。
+        head_repository_root: HEAD の外部実装を解決するルート。
+        base_snapshot_root: 比較元の snapshot ディレクトリ。
+        head_snapshot_root: HEAD の snapshot ディレクトリ。
+
+    Returns:
+        比較元と HEAD の役割を分離して導出した評価結果。
+
+    Raises:
+        ContractError: PR コンテキストでないか、比較元または HEAD の宣言・
+            外部凍結対象を取得できない場合。
+    """
+    context = resolve_evaluation_context()
+    if context.mode is not EvaluationMode.PR_ACCEPTANCE:
+        raise ContractError("比較元宣言の取得は PR 受理モードでのみ実行できる")
+
+    # 比較元を先に確定し、取得不能時に HEAD へ進む余地を作らない。
+    base = _read_evaluation_side(
+        base_asset_path,
+        base_repository_root,
+        base_snapshot_root,
+        "比較元",
+    )
+    head = _read_evaluation_side(
+        head_asset_path,
+        head_repository_root,
+        head_snapshot_root,
+        "HEAD",
+    )
+    return derive_role_separated_evaluation(base, head)
 
 
 def evaluate_repository_movement(
@@ -610,6 +661,66 @@ def _movement_axis_values(
         "identity_granularity": (scheme, field),
         "identifier_interpretation": no_baseline_marker,
     }
+
+
+def _read_evaluation_side(
+    asset_path: Path,
+    repository_root: Path,
+    snapshot_root: Path,
+    location: str,
+) -> EvaluationSide:
+    """一方の資産宣言と宣言が指す外部実装を取得する。"""
+    asset = _read_json_mapping(asset_path, f"{location}.asset")
+    control = _mapping(
+        asset.get("baseline_control"),
+        f"{location}.asset.baseline_control",
+    )
+    identity = _mapping(
+        control.get("identity"),
+        f"{location}.asset.baseline_control.identity",
+    )
+    movement_policy = _mapping(
+        control.get("movement_policy"),
+        f"{location}.asset.baseline_control.movement_policy",
+    )
+    declaration = {"identity": copy.deepcopy(dict(identity))}
+    targets = _declared_target_paths(declaration, f"{location}.declaration")
+    implementations = _read_external_implementations(
+        repository_root,
+        targets,
+        f"{location}.implementations",
+    )
+    return EvaluationSide(
+        declaration=declaration,
+        movement_policy=copy.deepcopy(dict(movement_policy)),
+        implementations=implementations,
+        snapshot_root=snapshot_root,
+    )
+
+
+def _read_external_implementations(
+    repository_root: Path,
+    targets: Sequence[str],
+    location: str,
+) -> dict[str, bytes]:
+    """宣言された外部凍結対象を repository root 配下から解決する。"""
+    root = repository_root.resolve()
+    implementations: dict[str, bytes] = {}
+    for target in targets:
+        candidate = (root / target).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError as error:
+            raise ContractError(
+                f"{location}: 外部凍結対象が repository root 外を指す: {target}"
+            ) from error
+        try:
+            implementations[target] = candidate.read_bytes()
+        except OSError as error:
+            raise ContractError(
+                f"{location}: 外部凍結対象を解決できない: {target}: {error}"
+            ) from error
+    return implementations
 
 
 def _declared_target_paths(
@@ -1041,3 +1152,196 @@ def _json_deep_equal(left: object, right: object) -> bool:
     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
         return type(left) is type(right) and left == right
     return type(left) is type(right) and left == right
+
+
+def _read_json_mapping(path: Path, location: str) -> Mapping[str, Any]:
+    """JSON ファイルを読み、object として取得する。"""
+    try:
+        value = json.loads(path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ContractError(f"{location}: JSON を読めない: {path}: {error}") from error
+    return _mapping(value, location)
+
+
+def _request_path(value: object, location: str) -> Path:
+    """CLI request から空でないファイルパスを取得する。"""
+    return Path(_nonempty_string(value, location))
+
+
+def _transition_from_request(value: object, location: str) -> V2Transition:
+    """CLI request から v2 の実遷移を復元する。"""
+    transition = _mapping(value, location)
+    return V2Transition(
+        before=_mapping(transition.get("before"), f"{location}.before"),
+        after=_mapping(transition.get("after"), f"{location}.after"),
+        base_snapshot_root=_request_path(
+            transition.get("base_snapshot_root"),
+            f"{location}.base_snapshot_root",
+        ),
+        head_snapshot_root=_request_path(
+            transition.get("head_snapshot_root"),
+            f"{location}.head_snapshot_root",
+        ),
+    )
+
+
+def _evaluation_from_request(value: object, location: str) -> RoleSeparatedEvaluation:
+    """CLI request から役割分担済みの評価結果を復元する。"""
+    evaluation = _mapping(value, location)
+    targets = tuple(
+        _nonempty_string(target, f"{location}.targets[]")
+        for target in _array(evaluation.get("targets"), f"{location}.targets")
+    )
+    moved = evaluation.get("moved")
+    if type(moved) is not bool:
+        raise ContractError(f"{location}.moved: bool が必要")
+    return RoleSeparatedEvaluation(
+        targets=targets,
+        transition=_transition_from_request(
+            evaluation.get("transition"),
+            f"{location}.transition",
+        ),
+        moved=moved,
+    )
+
+
+def _asset_states_from_request(
+    value: object,
+    location: str,
+) -> dict[str, FrozenAssetState]:
+    """CLI request から資産集合の実状態を復元する。"""
+    raw_assets = _mapping(value, location)
+    assets: dict[str, FrozenAssetState] = {}
+    for asset_name, raw_asset in raw_assets.items():
+        asset = _mapping(raw_asset, f"{location}.{asset_name}")
+        assets[asset_name] = FrozenAssetState(
+            declaration_location=_nonempty_string(
+                asset.get("declaration_location"),
+                f"{location}.{asset_name}.declaration_location",
+            ),
+            declaration=_mapping(
+                asset.get("declaration"),
+                f"{location}.{asset_name}.declaration",
+            ),
+        )
+    return assets
+
+
+def _execute_cli_request(request: Mapping[str, Any]) -> None:
+    """CLI request で指定された凍結履歴検査を実行する。"""
+    check = _nonempty_string(request.get("check"), "request.check")
+    if check == "history":
+        raw_transitions = _array(
+            request.get("v2_transitions", []),
+            "request.v2_transitions",
+        )
+        transitions = tuple(
+            _transition_from_request(value, f"request.v2_transitions[{index}]")
+            for index, value in enumerate(raw_transitions)
+        )
+        parse_history(
+            request.get("base_history"),
+            request.get("head_history"),
+            v2_transitions=transitions,
+        )
+        return
+    if check == "history_authority":
+        validate_history_authority(
+            _mapping(request.get("assets"), "request.assets")
+        )
+        return
+    if check == "current_history":
+        raw_parents = _array(request.get("head_parents"), "request.head_parents")
+        parents = tuple(
+            _nonempty_string(parent, "request.head_parents[]")
+            for parent in raw_parents
+        )
+        validate_current_history(
+            request.get("base_history"),
+            request.get("head_history"),
+            evaluation=_evaluation_from_request(
+                request.get("evaluation"),
+                "request.evaluation",
+            ),
+            head_parents=parents,
+        )
+        return
+    if check == "repository_movement":
+        evaluation = evaluate_repository_movement(
+            _asset_states_from_request(
+                request.get("base_assets"),
+                "request.base_assets",
+            ),
+            _asset_states_from_request(
+                request.get("head_assets"),
+                "request.head_assets",
+            ),
+            _mapping(
+                request.get("base_movement_policy"),
+                "request.base_movement_policy",
+            ),
+        )
+        record_count = request.get("appended_record_count", 0)
+        if type(record_count) is not int:
+            raise ContractError("request.appended_record_count: 整数が必要")
+        validate_movement_record_requirement(evaluation, record_count)
+        return
+    if check == "role_evaluation":
+        load_pr_role_separated_evaluation(
+            base_asset_path=_request_path(
+                request.get("base_asset_path"),
+                "request.base_asset_path",
+            ),
+            head_asset_path=_request_path(
+                request.get("head_asset_path"),
+                "request.head_asset_path",
+            ),
+            base_repository_root=_request_path(
+                request.get("base_repository_root"),
+                "request.base_repository_root",
+            ),
+            head_repository_root=_request_path(
+                request.get("head_repository_root"),
+                "request.head_repository_root",
+            ),
+            base_snapshot_root=_request_path(
+                request.get("base_snapshot_root"),
+                "request.base_snapshot_root",
+            ),
+            head_snapshot_root=_request_path(
+                request.get("head_snapshot_root"),
+                "request.head_snapshot_root",
+            ),
+        )
+        return
+    raise ContractError(f"request.check: 未知の検査: {check}")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """JSON request の検査結果をプロセス終了コードへ写す。
+
+    Args:
+        argv: コマンドライン引数。``None`` は ``sys.argv`` を使う。
+
+    Returns:
+        合格は 0、契約不整合は 1、想定外の失敗は 2。
+    """
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument("request", type=Path, help="合成検査 request の JSON ファイル")
+    args = cli.parse_args(argv)
+    try:
+        request = _read_json_mapping(args.request, "request")
+        _execute_cli_request(request)
+    except ContractError as error:
+        print(f"frozen-history: contract error: {error}", file=sys.stderr)
+        return 1
+    except Exception as error:  # noqa: BLE001
+        # 想定外の失敗も合格へ倒さず、ContractError と区別できる非 zero にする。
+        print(f"frozen-history: unexpected error: {error}", file=sys.stderr)
+        return 2
+    print("frozen-history: ok")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
