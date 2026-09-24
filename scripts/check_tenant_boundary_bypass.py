@@ -1481,6 +1481,355 @@ def _absolute_import_from_module(
     return ".".join(package_parts)
 
 
+_MAX_REEXPORT_DEPTH = 8
+_WILDCARD_EXPORT = "*"
+
+
+@dataclass(frozen=True)
+class _ExportResolution:
+    """再輸出名が到達しうる終端起源と解決不能状態を表す。"""
+
+    origins: frozenset[str] = frozenset()
+    unresolved: bool = False
+
+
+@dataclass(frozen=True)
+class _ExportReference:
+    """再輸出の参照先を表す。terminal はそれ以上追跡しない起源を示す。"""
+
+    module: str
+    name: str
+    terminal: bool = False
+
+    @property
+    def symbol(self) -> str:
+        """参照先を完全修飾名へ整形する。"""
+        return f"{self.module}.{self.name}".strip(".")
+
+
+@dataclass(frozen=True)
+class _RawExport:
+    """解決前の再輸出参照集合を表す。"""
+
+    references: frozenset[_ExportReference] = frozenset()
+    unresolved: bool = False
+
+
+def _static_export_reference(
+    node: ast.AST,
+    *,
+    current_module: str,
+    module_aliases: Mapping[str, str],
+) -> _ExportReference | None:
+    """静的な名前・module 属性式を再輸出参照へ変換する。"""
+    if isinstance(node, ast.Name):
+        imported_module = module_aliases.get(node.id)
+        if imported_module is not None:
+            return _ExportReference(imported_module, "", terminal=True)
+        return _ExportReference(current_module, node.id)
+    if not isinstance(node, ast.Attribute):
+        return None
+    attributes: list[str] = []
+    current: ast.AST = node
+    while isinstance(current, ast.Attribute):
+        attributes.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    imported_module = module_aliases.get(current.id)
+    if imported_module is None:
+        return None
+    attributes.reverse()
+    return _ExportReference(
+        ".".join([imported_module, *attributes[:-1]]),
+        attributes[-1],
+    )
+
+
+def _unknown_compound_exports(node: ast.AST) -> set[str]:
+    """未対応の複合文がトップレベルへ束縛しうる名前を返す。"""
+    names: set[str] = set()
+    for child in ast.walk(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(child.name)
+        elif isinstance(child, ast.Import):
+            names.update(
+                alias.asname or alias.name.split(".")[0]
+                for alias in child.names
+            )
+        elif isinstance(child, ast.ImportFrom):
+            names.update(
+                alias.asname or alias.name
+                for alias in child.names
+                if alias.name != "*"
+            )
+        elif isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+            names.add(child.id)
+    return names
+
+
+def _raw_module_exports(
+    tree: ast.Module,
+    *,
+    module: str,
+    module_is_package: bool,
+    initial: Mapping[str, _RawExport] | None = None,
+) -> dict[str, _RawExport]:
+    """1 モジュールのトップレベル束縛を未解決の再輸出グラフへ変換する。"""
+    bindings = dict(initial or {})
+    module_aliases: dict[str, str] = {}
+
+    def process_block(
+        statements: Sequence[ast.stmt],
+        target_bindings: dict[str, _RawExport],
+        target_aliases: dict[str, str],
+    ) -> None:
+        for statement in statements:
+            if isinstance(statement, ast.Import):
+                for alias in statement.names:
+                    local = alias.asname or alias.name.split(".")[0]
+                    imported = alias.name if alias.asname else alias.name.split(".")[0]
+                    target_aliases[local] = imported
+                    target_bindings[local] = _RawExport(
+                        frozenset(
+                            {_ExportReference(imported, "", terminal=True)}
+                        )
+                    )
+                continue
+            if isinstance(statement, ast.ImportFrom):
+                provider = _absolute_import_from_module(
+                    current_module=module,
+                    current_is_package=module_is_package,
+                    imported_module=statement.module,
+                    level=statement.level,
+                )
+                for alias in statement.names:
+                    if alias.name == "*":
+                        target_bindings[_WILDCARD_EXPORT] = _RawExport(
+                            unresolved=True
+                        )
+                        continue
+                    local = alias.asname or alias.name
+                    target_aliases.pop(local, None)
+                    if provider is None:
+                        target_bindings[local] = _RawExport(unresolved=True)
+                    else:
+                        target_bindings[local] = _RawExport(
+                            frozenset({_ExportReference(provider, alias.name)})
+                        )
+                continue
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                target_aliases.pop(statement.name, None)
+                target_bindings[statement.name] = _RawExport(
+                    frozenset(
+                        {
+                            _ExportReference(
+                                module,
+                                statement.name,
+                                terminal=True,
+                            )
+                        }
+                    )
+                )
+                continue
+            if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+                value = statement.value
+                targets: Sequence[ast.expr]
+                if isinstance(statement, ast.Assign):
+                    targets = statement.targets
+                else:
+                    targets = (statement.target,)
+                reference = (
+                    None
+                    if value is None
+                    else _static_export_reference(
+                        value,
+                        current_module=module,
+                        module_aliases=target_aliases,
+                    )
+                )
+                for target in targets:
+                    if not isinstance(target, ast.Name):
+                        continue
+                    target_aliases.pop(target.id, None)
+                    target_bindings[target.id] = (
+                        _RawExport(unresolved=True)
+                        if reference is None
+                        else _RawExport(frozenset({reference}))
+                    )
+                continue
+            if isinstance(statement, ast.If):
+                before_bindings = dict(target_bindings)
+                branches: list[
+                    tuple[dict[str, _RawExport], dict[str, str]]
+                ] = []
+                bodies = [statement.body]
+                if statement.orelse:
+                    bodies.append(statement.orelse)
+                else:
+                    bodies.append([])
+                for body in bodies:
+                    branch_bindings = dict(before_bindings)
+                    branch_aliases = dict(target_aliases)
+                    process_block(body, branch_bindings, branch_aliases)
+                    branches.append((branch_bindings, branch_aliases))
+                changed_names = {
+                    name
+                    for branch_bindings, _ in branches
+                    for name in set(before_bindings) | set(branch_bindings)
+                    if branch_bindings.get(name) != before_bindings.get(name)
+                }
+                for name in changed_names:
+                    references = frozenset(
+                        reference
+                        for branch_bindings, _ in branches
+                        for reference in branch_bindings.get(
+                            name,
+                            _RawExport(unresolved=True),
+                        ).references
+                    )
+                    target_bindings[name] = _RawExport(
+                        references,
+                        unresolved=True,
+                    )
+                    target_aliases.pop(name, None)
+                if any(
+                    _WILDCARD_EXPORT in branch_bindings
+                    for branch_bindings, _ in branches
+                ):
+                    target_bindings[_WILDCARD_EXPORT] = _RawExport(
+                        unresolved=True
+                    )
+                continue
+            if isinstance(
+                statement,
+                (ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith,
+                 ast.Try, ast.TryStar, ast.Match),
+            ):
+                for name in _unknown_compound_exports(statement):
+                    target_aliases.pop(name, None)
+                    target_bindings[name] = _RawExport(unresolved=True)
+                if any(
+                    isinstance(child, ast.ImportFrom)
+                    and any(alias.name == "*" for alias in child.names)
+                    for child in ast.walk(statement)
+                ):
+                    target_bindings[_WILDCARD_EXPORT] = _RawExport(
+                        unresolved=True
+                    )
+
+    process_block(tree.body, bindings, module_aliases)
+    return bindings
+
+
+def _build_reexport_map(
+    sources: Mapping[str, str],
+) -> dict[str, dict[str, _ExportResolution]]:
+    """snapshot 全体からモジュール別の再輸出起源写像を構築する。"""
+    raw_modules: dict[str, dict[str, _RawExport]] = {}
+    for path, source in sorted(sources.items()):
+        module = _module_name(path)
+        if not module:
+            continue
+        try:
+            tree = ast.parse(source, filename=path)
+        except SyntaxError:
+            raw_modules.setdefault(module, {})[_WILDCARD_EXPORT] = _RawExport(
+                unresolved=True
+            )
+            continue
+        raw_modules[module] = _raw_module_exports(
+            tree,
+            module=module,
+            module_is_package=Path(path).stem == "__init__",
+            initial=raw_modules.get(module),
+        )
+
+    def resolve(
+        module: str,
+        name: str,
+        *,
+        depth: int,
+        visiting: frozenset[tuple[str, str]],
+    ) -> _ExportResolution:
+        key = (module, name)
+        if depth > _MAX_REEXPORT_DEPTH or key in visiting:
+            return _ExportResolution(unresolved=True)
+        bindings = raw_modules.get(module)
+        if bindings is None:
+            if module == "pitchlog" or module.startswith("pitchlog."):
+                return _ExportResolution(unresolved=True)
+            return _ExportResolution(frozenset({f"{module}.{name}".strip(".")}))
+        binding = bindings.get(name)
+        if binding is None:
+            return _ExportResolution(unresolved=True)
+        origins: set[str] = set()
+        unresolved = binding.unresolved
+        next_visiting = visiting | {key}
+        for reference in binding.references:
+            if reference.terminal:
+                origins.add(reference.symbol)
+                continue
+            resolution = resolve(
+                reference.module,
+                reference.name,
+                depth=depth + 1,
+                visiting=next_visiting,
+            )
+            origins.update(resolution.origins)
+            unresolved = unresolved or resolution.unresolved
+        return _ExportResolution(frozenset(origins), unresolved)
+
+    return {
+        module: {
+            name: (
+                _ExportResolution(unresolved=True)
+                if name == _WILDCARD_EXPORT
+                else resolve(
+                    module,
+                    name,
+                    depth=0,
+                    visiting=frozenset(),
+                )
+            )
+            for name in bindings
+        }
+        for module, bindings in raw_modules.items()
+    }
+
+
+def _lookup_reexport_symbol(
+    symbol: str,
+    *,
+    current_module: str,
+    reexport_map: Mapping[str, Mapping[str, _ExportResolution]] | None,
+) -> _ExportResolution | None:
+    """完全修飾名または現在モジュールの裸名を再輸出写像へ照合する。
+
+    ``reexport_map`` が ``None`` の単一 source 検査では (v) を適用しない。
+    本番の repository 検査は snapshot ごとの写像を必ず供給する。
+    """
+    if reexport_map is None:
+        return None
+    if "." not in symbol:
+        exports = reexport_map.get(current_module)
+        if exports is None:
+            return None
+        return exports.get(symbol) or exports.get(_WILDCARD_EXPORT)
+    for module in sorted(reexport_map, key=len, reverse=True):
+        prefix = f"{module}."
+        if not symbol.startswith(prefix):
+            continue
+        export_name = symbol.removeprefix(prefix)
+        if "." in export_name:
+            return None
+        exports = reexport_map[module]
+        return exports.get(export_name) or exports.get(_WILDCARD_EXPORT)
+    if symbol.startswith("pitchlog."):
+        return _ExportResolution(unresolved=True)
+    return None
+
+
 def _function_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     """関数定義を整形非依存の署名文字列へ変換する。"""
     clone = copy.copy(node)
@@ -2672,6 +3021,10 @@ class _SourceScanner(ast.NodeVisitor):
         changed_lines: Set[int] | None,
         contract: Contract,
         reject_all_db_calls: bool,
+        reexport_map: Mapping[
+            str,
+            Mapping[str, _ExportResolution],
+        ] | None = None,
     ) -> None:
         self.path = path
         self.module = module
@@ -2679,6 +3032,7 @@ class _SourceScanner(ast.NodeVisitor):
         self.changed_lines = changed_lines
         self.contract = contract
         self.reject_all_db_calls = reject_all_db_calls
+        self.reexport_map = reexport_map
         self.class_stack: list[str] = []
         self.function_stack: list[tuple[str, str]] = []
         self.safe_non_context_objects: list[set[str]] = []
@@ -2875,6 +3229,77 @@ class _SourceScanner(ast.NodeVisitor):
                 return None
             return f"{parent}.{node.attr}"
         return None
+
+    def _reexport_resolution(
+        self,
+        node: ast.AST,
+        resolved: str | None,
+    ) -> _ExportResolution | None:
+        """式の局所 export 名と解決済み名を再輸出写像へ照合する。"""
+        candidates: list[str] = []
+        if isinstance(node, ast.Name):
+            candidates.append(node.id)
+        if resolved is not None and resolved not in candidates:
+            candidates.append(resolved)
+        resolutions = [
+            resolution
+            for candidate in candidates
+            if (
+                resolution := _lookup_reexport_symbol(
+                    candidate,
+                    current_module=self.module,
+                    reexport_map=self.reexport_map,
+                )
+            )
+            is not None
+        ]
+        if not resolutions:
+            return None
+        return _ExportResolution(
+            frozenset(
+                origin
+                for resolution in resolutions
+                for origin in resolution.origins
+            ),
+            any(resolution.unresolved for resolution in resolutions),
+        )
+
+    def _reject_reexport_call(
+        self,
+        node: ast.Call,
+        *,
+        resolved: str | None,
+        callable_name: str | None,
+        resolution: _ExportResolution | None,
+        allowed_modules: Set[str],
+    ) -> bool:
+        """危険または解決不能な再輸出 callable を拒否したか返す。"""
+        if resolution is None:
+            return False
+        if resolution.unresolved:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=resolved or callable_name or "<unresolved-reexport>",
+                message="再輸出 callable の起源を一意に解決できない",
+            )
+            return True
+        if (
+            self.contract.tenant_context.constructor_symbol
+            not in resolution.origins
+        ):
+            return False
+        if self.module in allowed_modules:
+            return True
+        self._add(
+            node,
+            condition=5,
+            code="TB007",
+            symbol=resolved or callable_name or "<tenant-context-reexport>",
+            message="再輸出経由の TenantContext 構築は許可されない",
+        )
+        return True
 
     def _matching_api(self, node: ast.AST) -> _ApiMatch | None:
         """完全修飾一致と receiver 名だけの推測を区別して返す。"""
@@ -3109,6 +3534,37 @@ class _SourceScanner(ast.NodeVisitor):
                 )
                 return
         known_callable = self.flow.callable_symbol(node)
+        allowed_modules = (
+            self.contract.tenant_context.allowed_test_modules
+            | self.contract.tenant_context.allowed_product_modules
+        )
+        if (
+            known_callable == self.contract.tenant_context.constructor_symbol
+            and self.module in allowed_modules
+        ):
+            return
+        constructor_name = (
+            self.contract.tenant_context.constructor_symbol.rsplit(".", 1)[-1]
+        )
+        callable_name = (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else None
+        )
+        if callable_name == constructor_name:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=callable_name,
+                message=(
+                    "TenantContext と同名の callable は由来種別に関係なく拒否"
+                ),
+            )
+            return
+        reexport = self._reexport_resolution(node.func, resolved)
         if known_callable is None:
             if isinstance(node.func, ast.Attribute):
                 provenance = self.flow.receiver_provenance(node)
@@ -3116,6 +3572,13 @@ class _SourceScanner(ast.NodeVisitor):
                     node.func.attr in self.contract.conservative_member_names
                     or provenance in {"db", "non_db", "tenant_context"}
                 ):
+                    self._reject_reexport_call(
+                        node,
+                        resolved=resolved,
+                        callable_name=callable_name,
+                        resolution=reexport,
+                        allowed_modules=allowed_modules,
+                    )
                     return
                 if (
                     provenance in {"db_result", "non_db_attribute"}
@@ -3124,6 +3587,13 @@ class _SourceScanner(ast.NodeVisitor):
                         ".", 1
                     )[-1]
                 ):
+                    self._reject_reexport_call(
+                        node,
+                        resolved=resolved,
+                        callable_name=callable_name,
+                        resolution=reexport,
+                        allowed_modules=allowed_modules,
+                    )
                     return
             self._add(
                 node,
@@ -3136,12 +3606,16 @@ class _SourceScanner(ast.NodeVisitor):
                 ),
             )
             return
+        if self._reject_reexport_call(
+            node,
+            resolved=resolved,
+            callable_name=callable_name,
+            resolution=reexport,
+            allowed_modules=allowed_modules,
+        ):
+            return
         if known_callable != self.contract.tenant_context.constructor_symbol:
             return
-        allowed_modules = (
-            self.contract.tenant_context.allowed_test_modules
-            | self.contract.tenant_context.allowed_product_modules
-        )
         if self.module in allowed_modules:
             return
         self._add(
@@ -3352,6 +3826,30 @@ class _SourceScanner(ast.NodeVisitor):
         )
         for base in node.bases:
             resolved = self.aliases.resolve(base) or self._raw_expression(base)
+            reexport = self._reexport_resolution(base, resolved)
+            if (
+                self._is_changed(base)
+                and reexport is not None
+                and (
+                    reexport.unresolved
+                    or self.contract.tenant_context.constructor_symbol
+                    in reexport.origins
+                )
+                and (
+                    reexport.unresolved
+                    or self.module not in allowed_modules
+                )
+            ):
+                self._add(
+                    base,
+                    condition=5,
+                    code="TB007",
+                    symbol=resolved or "<unresolved-reexport>",
+                    message=(
+                        "再輸出経由または起源不明の TenantContext 継承は禁止"
+                    ),
+                )
+                continue
             if (
                 self._is_changed(base)
                 and resolved == self.contract.tenant_context.constructor_symbol
@@ -3530,6 +4028,10 @@ def scan_source(
     contract: Contract,
     changed_lines: Set[int] | None = None,
     reject_all_db_calls: bool = False,
+    reexport_map: Mapping[
+        str,
+        Mapping[str, _ExportResolution],
+    ] | None = None,
 ) -> list[Violation]:
     """1 つの Python ソースを検査する。
 
@@ -3539,6 +4041,8 @@ def scan_source(
         contract: 読み合わせ済み検査契約。
         changed_lines: 検査する新側行番号。``None`` は全行。
         reject_all_db_calls: 正例の実効性を測る全拒否変異を有効にするか。
+        reexport_map: 同じ snapshot から作ったモジュール別再輸出写像。
+            ``None`` なら再輸出規則 (v) は適用しない。
 
     Returns:
         検出した違反。構文エラーも fail-closed の違反として返す。
@@ -3563,6 +4067,7 @@ def scan_source(
         changed_lines=changed_lines,
         contract=contract,
         reject_all_db_calls=reject_all_db_calls,
+        reexport_map=reexport_map,
     )
     scanner.visit(tree)
     scanner._validate_call_coverage(tree)
@@ -3576,6 +4081,14 @@ def scan_source_change(
     path: str,
     contract: Contract,
     changed_lines: Set[int],
+    baseline_reexport_map: Mapping[
+        str,
+        Mapping[str, _ExportResolution],
+    ] | None = None,
+    head_reexport_map: Mapping[
+        str,
+        Mapping[str, _ExportResolution],
+    ] | None = None,
 ) -> list[Violation]:
     """差分があるファイルを全行解析し、新たに生じた違反だけを返す。
 
@@ -3589,6 +4102,10 @@ def scan_source_change(
         path: source root 相対パス。
         contract: 読み合わせ済み検査契約。
         changed_lines: ``git diff -U0`` から得た新側行番号。純粋削除では空。
+        baseline_reexport_map: merge-base snapshot だけから作った再輸出写像。
+            ``None`` なら baseline 側へ再輸出規則 (v) は適用しない。
+        head_reexport_map: HEAD snapshot だけから作った再輸出写像。
+            ``None`` なら HEAD 側へ再輸出規則 (v) は適用しない。
 
     Returns:
         基準版にはなく、新側で増えた違反。
@@ -3601,12 +4118,14 @@ def scan_source_change(
             baseline_source,
             path=path,
             contract=contract,
+            reexport_map=baseline_reexport_map,
         )
     )
     head_violations = scan_source(
         head_source,
         path=path,
         contract=contract,
+        reexport_map=head_reexport_map,
     )
 
     def identity(
@@ -4005,8 +4524,17 @@ def _changed_source_violations(
     contract: Contract,
     *,
     baseline_sources: Mapping[str, str] | None = None,
+    head_sources: Mapping[str, str] | None = None,
 ) -> list[Violation]:
     """変更ファイルを全行解析し、基準版から増えた違反を検出する。"""
+    if head_sources is None:
+        head_sources = _git_snapshot(repository_root, "HEAD")
+    head_reexport_map = _build_reexport_map(head_sources)
+    baseline_reexport_map = (
+        None
+        if baseline_sources is None
+        else _build_reexport_map(baseline_sources)
+    )
     violations: list[Violation] = []
     for relative, lines in sorted(inspection_population.items()):
         path = repository_root / "backend/src" / relative
@@ -4033,6 +4561,7 @@ def _changed_source_violations(
                     path=relative,
                     changed_lines=lines,
                     contract=contract,
+                    reexport_map=head_reexport_map,
                 )
             )
         else:
@@ -4043,6 +4572,8 @@ def _changed_source_violations(
                     path=relative,
                     changed_lines=lines,
                     contract=contract,
+                    baseline_reexport_map=baseline_reexport_map,
+                    head_reexport_map=head_reexport_map,
                 )
             )
     return sorted(violations)
@@ -4182,6 +4713,7 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         population,
         contract,
         baseline_sources=(baseline_sources if changed_files else None),
+        head_sources=head_sources,
     )
     violations.extend(
         _application_population_violations(

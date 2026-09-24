@@ -528,6 +528,69 @@
       "expected_error": "TB007"
     },
     {
+      "id": "C5_CONTEXT_REEXPORT_FACADE",
+      "path": "pitchlog/services/c5_context_reexport_facade.py",
+      "condition": 5,
+      "mutation": "façade が再輸出した別名 Context から TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_SUBCLASS",
+      "path": "pitchlog/services/c5_context_reexport_subclass.py",
+      "condition": 5,
+      "mutation": "façade が再輸出した別名 Context を継承する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+      "path": "pitchlog/services/c5_context_reexport_depth_limit.py",
+      "condition": 5,
+      "mutation": "再輸出別名の追跡深さ上限を超える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_STAR",
+      "path": "pitchlog/services/c5_context_reexport_star.py",
+      "condition": 5,
+      "mutation": "star import 由来で起源不明の Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_CYCLE",
+      "path": "pitchlog/services/c5_context_reexport_cycle.py",
+      "condition": 5,
+      "mutation": "循環する再輸出別名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+      "path": "pitchlog/services/c5_context_reexport_self_reference.py",
+      "condition": 5,
+      "mutation": "自己参照する再輸出別名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_CONDITIONAL",
+      "path": "pitchlog/services/c5_context_reexport_conditional.py",
+      "condition": 5,
+      "mutation": "条件分岐で複数起源を持つ再輸出名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+      "path": "pitchlog/services/c5_context_reexport_missing_module.py",
+      "condition": 5,
+      "mutation": "欠落した pitchlog モジュール由来の Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+      "path": "pitchlog/services/c5_context_reexport_unsupported_assign.py",
+      "condition": 5,
+      "mutation": "未対応の静的代入で作った Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
       "path": "pitchlog/services/c5_context_in_subscript_target.py",
       "condition": 5,

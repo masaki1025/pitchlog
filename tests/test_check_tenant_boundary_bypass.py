@@ -86,6 +86,15 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
         "C5_CONTEXT_IN_LAMBDA_DEFAULT",
         "C5_CONTEXT_RELATIVE_IMPORT",
+        "C5_CONTEXT_REEXPORT_CONDITIONAL",
+        "C5_CONTEXT_REEXPORT_CYCLE",
+        "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+        "C5_CONTEXT_REEXPORT_FACADE",
+        "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+        "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+        "C5_CONTEXT_REEXPORT_STAR",
+        "C5_CONTEXT_REEXPORT_SUBCLASS",
+        "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
@@ -113,6 +122,15 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_UNKNOWN_SESSION_ARGUMENT",
     }
 )
+REEXPORT_SUPPORT_SOURCES = {
+    "pitchlog/repositories/context.py": '''\
+"""再輸出写像テスト用の canonical constructor。"""
+
+
+class TenantContext:
+    """再輸出起源の終端となる型。"""
+''',
+}
 
 CensusIdentity = tuple[str, int, int, str, str, str, str]
 
@@ -518,7 +536,7 @@ def _unlisted_database_access(session: Session) -> None:
 
 
 def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
-    """現行検査器の全文走査結果が分岐元から増減していないことを固定する。"""
+    """強化後のセンサス差分が TB007 の増加だけであることを固定する。"""
     merge_base = _resolve_merge_base("origin/develop", "HEAD")
     baseline_checker = _load_checker_from_revision(
         merge_base,
@@ -532,8 +550,8 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
         source_root=REPOSITORY_ROOT / "backend" / "src",
     )
 
-    assert added == frozenset()
     assert removed == frozenset()
+    assert {identity[4] for identity in added} <= {"TB007"}
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
@@ -897,17 +915,24 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
     contract = checker.load_contract(REPOSITORY_ROOT)
     fixture_ids = {fixture.id for fixture in contract.negative_fixtures}
     assert fixture_ids == EXPECTED_NEGATIVE_IDS
+    fixture_sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | fixture_sources
+    )
 
     observed_conditions: set[int] = set()
     for fixture in contract.negative_fixtures:
-        path = NEGATIVE_ROOT / fixture.path
-        source = _fixture_source(path)
+        source = fixture_sources[fixture.path]
         violations = checker.scan_source_change(
             None,
             source,
             path=fixture.path,
             changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
             contract=contract,
+            head_reexport_map=reexport_map,
         )
         codes = {violation.code for violation in violations}
         assert fixture.expected_error in codes, (
@@ -963,9 +988,204 @@ def test_relative_tenant_context_import_is_resolved_and_red() -> None:
     ] == [
         (
             "TB007",
-            "pitchlog.repositories.context.TenantContext",
+            "TenantContext",
         )
     ]
+
+
+@pytest.mark.parametrize(
+    "fixture_id",
+    (
+        "C5_CONTEXT_REEXPORT_FACADE",
+        "C5_CONTEXT_REEXPORT_SUBCLASS",
+    ),
+)
+def test_reexport_fixture_resolves_to_tenant_context_origin(
+    fixture_id: str,
+) -> None:
+    """別名 Context の façade と継承元が canonical 起源へ到達する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | sources
+    )
+    fixture = next(
+        fixture
+        for fixture in contract.negative_fixtures
+        if fixture.id == fixture_id
+    )
+
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(fixture.path),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is False
+    assert contract.tenant_context.constructor_symbol in resolution.origins
+
+
+@pytest.mark.parametrize(
+    "fixture_id",
+    (
+        "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+        "C5_CONTEXT_REEXPORT_STAR",
+        "C5_CONTEXT_REEXPORT_CYCLE",
+        "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+        "C5_CONTEXT_REEXPORT_CONDITIONAL",
+        "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+        "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+    ),
+)
+def test_reexport_fixture_records_each_unresolved_cause(
+    fixture_id: str,
+) -> None:
+    """宣言した7種類の解決不能原因を unresolved へ集約する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | sources
+    )
+    fixture = next(
+        fixture
+        for fixture in contract.negative_fixtures
+        if fixture.id == fixture_id
+    )
+
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(fixture.path),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is True
+    if fixture_id == "C5_CONTEXT_REEXPORT_CONDITIONAL":
+        assert resolution.origins == frozenset(
+            {"external.first.Context", "external.second.Context"}
+        )
+
+
+def test_absent_external_reexport_modules_are_safe_terminal_origins() -> None:
+    """写像に無い stdlib・third-party module を欠落扱いしない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/services/external_reexports.py"
+    source = '''\
+from pathlib import Context as StdlibContext
+from third_party.facade import Context as ThirdPartyContext
+
+stdlib_context = StdlibContext("tenant")
+third_party_context = ThirdPartyContext("tenant")
+'''
+    reexport_map = checker._build_reexport_map({relative: source})
+
+    for export_name in ("StdlibContext", "ThirdPartyContext"):
+        resolution = checker._lookup_reexport_symbol(
+            export_name,
+            current_module=checker._module_name(relative),
+            reexport_map=reexport_map,
+        )
+        assert resolution is not None
+        assert resolution.unresolved is False
+
+    assert checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+        reexport_map=reexport_map,
+    ) == []
+
+
+def test_import_module_static_reexport_resolves_to_tenant_context() -> None:
+    """import module と属性代入から作る再輸出も canonical 起源へ辿る。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    facade = "pitchlog/services/static_facade.py"
+    consumer = "pitchlog/services/static_consumer.py"
+    sources = {
+        **REEXPORT_SUPPORT_SOURCES,
+        facade: '''\
+import pitchlog.repositories.context as context_module
+
+Context = context_module.TenantContext
+''',
+        consumer: '''\
+from pitchlog.services.static_facade import Context
+
+context = Context("tenant")
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(facade),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is False
+    assert contract.tenant_context.constructor_symbol in resolution.origins
+    assert "TB007" in {
+        violation.code
+        for violation in checker.scan_source(
+            sources[consumer],
+            path=consumer,
+            contract=contract,
+            reexport_map=reexport_map,
+        )
+    }
+
+
+def test_bare_tenant_context_suffix_is_red_for_external_callable() -> None:
+    """裸の TenantContext 末尾名も既知の外部起源で免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/services/external_tenant_context.py"
+    source = '''\
+from external.facade import TenantContext
+
+context = TenantContext("tenant")
+'''
+
+    violations = checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol) for violation in violations
+    ] == [("TB007", "TenantContext")]
+
+
+def test_unrelated_internal_context_reexport_stays_green() -> None:
+    """別モジュールで定義された無関係な同名 Context を拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    consumer = "pitchlog/services/safe_consumer.py"
+    sources = {
+        "pitchlog/services/safe_context.py": '''\
+class Context:
+    pass
+''',
+        consumer: '''\
+from pitchlog.services.safe_context import Context
+
+context = Context()
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+
+    assert checker.scan_source(
+        sources[consumer],
+        path=consumer,
+        contract=contract,
+        reexport_map=reexport_map,
+    ) == []
 
 
 @pytest.mark.parametrize("condition", (1, 2, 3, 4, 5))
@@ -973,7 +1193,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 78 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 87 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -984,7 +1204,10 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
         if fixture.condition == condition
     )
     assert fixtures
-    baseline_sources = {fixture.path: "pass\n" for fixture in fixtures}
+    baseline_sources = {
+        **REEXPORT_SUPPORT_SOURCES,
+        **{fixture.path: "pass\n" for fixture in fixtures},
+    }
     repository, base_ref = _initialize_test_repository(
         tmp_path,
         baseline_sources,
@@ -1052,6 +1275,140 @@ def read_other_tenant(work: Session) -> object:
 
     assert result.returncode == 1, result.stdout + result.stderr
     assert "TB005" in result.stderr
+
+
+def test_repository_uses_separate_baseline_and_head_reexport_maps(
+    tmp_path: Path,
+) -> None:
+    """façade と consumer の複合変更を HEAD 写像だけで相殺させない。"""
+    facade = "pitchlog/services/context_facade.py"
+    consumer = "pitchlog/services/context_consumer.py"
+    baseline_facade = "from external.facade import Context\n"
+    head_facade = (
+        "from pitchlog.repositories.context import "
+        "TenantContext as Context\n"
+    )
+    baseline_consumer = '''\
+from pitchlog.services.context_facade import Context
+
+marker = "before"
+
+
+def build(tenant_id):
+    return Context(tenant_id)
+'''
+    head_consumer = baseline_consumer.replace('marker = "before"', 'marker = "after"')
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {
+            **REEXPORT_SUPPORT_SOURCES,
+            facade: baseline_facade,
+            consumer: baseline_consumer,
+        },
+    )
+
+    _write_test_repository_sources(
+        repository,
+        {facade: head_facade, consumer: head_consumer},
+    )
+    _commit_test_repository(repository, "change facade and consumer marker")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert (consumer, "TB007") in {
+        (violation.path, violation.code) for violation in violations
+    }
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 1
+
+
+def test_repository_always_supplies_reexport_maps_to_source_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """本番経路が baseline/head の再輸出写像を必ず供給する。"""
+    relative = "pitchlog/services/missing_context_consumer.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    head = '''\
+from pitchlog.missing.module import Context
+
+context = Context("tenant")
+'''
+    _write_test_repository_sources(repository, {relative: head})
+    _commit_test_repository(repository, "add missing internal reexport")
+    observed_maps: list[tuple[object, object]] = []
+    original_scan_source_change = checker.scan_source_change
+
+    def record_reexport_maps(*args: Any, **kwargs: Any) -> list[Any]:
+        observed_maps.append(
+            (
+                kwargs.get("baseline_reexport_map"),
+                kwargs.get("head_reexport_map"),
+            )
+        )
+        return original_scan_source_change(*args, **kwargs)
+
+    monkeypatch.setattr(
+        checker,
+        "scan_source_change",
+        record_reexport_maps,
+    )
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert observed_maps
+    assert all(
+        baseline_map is not None
+        and head_map is not None
+        and baseline_map is not head_map
+        for baseline_map, head_map in observed_maps
+    )
+    assert (relative, "TB007") in {
+        (violation.path, violation.code) for violation in violations
+    }
+
+
+def test_repository_does_not_expand_population_to_unchanged_consumer(
+    tmp_path: Path,
+) -> None:
+    """façade だけの変更では保証外の無変更 consumer を走査しない。"""
+    facade = "pitchlog/services/context_facade.py"
+    consumer = "pitchlog/services/context_consumer.py"
+    consumer_source = '''\
+from pitchlog.services.context_facade import Context
+
+
+def build(tenant_id):
+    return Context(tenant_id)
+'''
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {
+            **REEXPORT_SUPPORT_SOURCES,
+            facade: "from external.facade import Context\n",
+            consumer: consumer_source,
+        },
+    )
+
+    _write_test_repository_sources(
+        repository,
+        {
+            facade: (
+                "from pitchlog.repositories.context import "
+                "TenantContext as Context\n"
+            )
+        },
+    )
+    _commit_test_repository(repository, "change only facade")
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 0
 
 
 @pytest.mark.parametrize(
@@ -1862,8 +2219,8 @@ def render(work: Report, other, flag):
     assert "TB005" in {violation.code for violation in violations}
 
 
-def test_unresolved_attribute_constructor_mutation_is_red() -> None:
-    """receiver の型証明を外した属性 callable 変異を拒否する。"""
+def test_attribute_constructor_name_is_red_with_or_without_annotation() -> None:
+    """TenantContext 末尾名を receiver provenance に関係なく拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 from application.factories import ContextFactory
@@ -1877,7 +2234,17 @@ def make(mod: ContextFactory, tenant_id):
     assert _changed_lines_containing(mutated, "mod.TenantContext").isdisjoint(
         changed_lines
     )
-    violations = _scan_diff_mutation(
+    baseline_violations = checker.scan_source(
+        source,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+    head_violations = checker.scan_source(
+        mutated,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+    change_violations = checker.scan_source_change(
         source,
         mutated,
         path="pitchlog/services/context_factory.py",
@@ -1885,7 +2252,9 @@ def make(mod: ContextFactory, tenant_id):
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert "TB007" in {violation.code for violation in baseline_violations}
+    assert "TB007" in {violation.code for violation in head_violations}
+    assert change_violations == []
 
 
 @pytest.mark.parametrize(
@@ -2677,9 +3046,11 @@ def test_actual_implementation_mutation_is_red_through_real_commit_diff(
 ) -> None:
     """実製品への 4 変異を実コミット列と CLI の経路で拒否する。"""
     relative, baseline, mutated = _actual_implementation_mutation(case_id)
+    baseline_sources = checker._git_snapshot(REPOSITORY_ROOT, "HEAD")
+    baseline_sources[relative] = baseline
     repository, base_ref = _initialize_test_repository(
         tmp_path,
-        {relative: baseline},
+        baseline_sources,
     )
 
     assert checker.check_repository(repository, base_ref=base_ref) == []
