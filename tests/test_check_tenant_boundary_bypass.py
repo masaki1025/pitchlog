@@ -271,6 +271,97 @@ def _compare_checker_census(
     return candidate - reference, reference - candidate
 
 
+def _assert_removed_tb007_matches_declared_relaxations(
+    removed: frozenset[CensusIdentity],
+) -> None:
+    """減分が (iii) の宣言範囲への緩和だけで説明できると示す。"""
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    sources = {
+        path.relative_to(source_root).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(source_root.rglob("*.py"))
+    }
+    reexport_map = checker._build_reexport_map(sources)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    scanners: dict[str, tuple[ast.Module, Any]] = {}
+
+    for identity in removed:
+        path, line, end_line, _, code, symbol, _ = identity
+        assert code == "TB007"
+        if path not in scanners:
+            tree = ast.parse(sources[path], filename=path)
+            scanner = checker._SourceScanner(
+                path=path,
+                module=checker._module_name(path),
+                tree=tree,
+                changed_lines=None,
+                contract=contract,
+                reject_all_db_calls=False,
+                reexport_map=reexport_map,
+            )
+            scanner.visit(tree)
+            scanner._validate_call_coverage(tree)
+            scanners[path] = (tree, scanner)
+        tree, scanner = scanners[path]
+
+        matching_calls: list[ast.Call] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if node.lineno != line or node.end_lineno != end_line:
+                continue
+            resolved = scanner.aliases.resolve(
+                node.func
+            ) or scanner._raw_expression(node.func)
+            if symbol == "<unresolved-callable>" or symbol == resolved:
+                matching_calls.append(node)
+
+        assert matching_calls, identity
+        explanations = []
+        for node in matching_calls:
+            constructor_name = contract.tenant_context.constructor_symbol.rsplit(
+                ".", 1
+            )[-1]
+            callable_name = (
+                node.func.id
+                if isinstance(node.func, ast.Name)
+                else node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else None
+            )
+            if callable_name == constructor_name:
+                continue
+            resolved = scanner.aliases.resolve(
+                node.func
+            ) or scanner._raw_expression(node.func)
+            reexport = scanner._reexport_resolution(node.func, resolved)
+            if reexport is not None and (
+                reexport.unresolved
+                or contract.tenant_context.constructor_symbol in reexport.origins
+            ):
+                continue
+            if (
+                isinstance(node.func, ast.Attribute)
+                and scanner.flow.callable_symbol(node) is None
+            ):
+                explanations.append(node)
+                continue
+            alias_resolved = scanner.aliases.resolve(node.func)
+            known_alias_callable = (
+                scanner.aliases.resolve_known(node.func)
+                if isinstance(node.func, ast.Name) and alias_resolved is not None
+                else None
+            )
+            if (
+                known_alias_callable is not None
+                and scanner.aliases.canonical(known_alias_callable)
+                != contract.tenant_context.constructor_symbol
+                and scanner.flow.callable_symbol(node) is None
+            ):
+                explanations.append(node)
+
+        assert explanations, identity
+
+
 def _omit_flow_call_registration(monkeypatch: pytest.MonkeyPatch) -> None:
     """不変条件の負例用に flow の Call 登録だけを意図的に落とす。"""
     original_expression = checker._FlowProvenance._expression
@@ -536,7 +627,7 @@ def _unlisted_database_access(session: Session) -> None:
 
 
 def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
-    """強化後のセンサス差分が TB007 の増加だけであることを固定する。"""
+    """既定値反転のセンサス差分が意図した TB007 の減少だけと固定する。"""
     merge_base = _resolve_merge_base("origin/develop", "HEAD")
     baseline_checker = _load_checker_from_revision(
         merge_base,
@@ -550,8 +641,10 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
         source_root=REPOSITORY_ROOT / "backend" / "src",
     )
 
-    assert removed == frozenset()
-    assert {identity[4] for identity in added} <= {"TB007"}
+    assert added == frozenset()
+    assert removed
+    assert {identity[4] for identity in removed} == {"TB007"}
+    _assert_removed_tb007_matches_declared_relaxations(removed)
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
@@ -2149,6 +2242,158 @@ factory_client.execute()
     )
 
     assert violations == []
+
+
+def test_unresolved_non_constructor_attribute_call_passes() -> None:
+    """構築名でない未解決属性 callable は保証外として拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def build(registry, key, tenant_id):
+    return registry[key].make_context(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/context_registry.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_known_builtin_bare_calls_pass_when_flow_cannot_resolve_them() -> None:
+    """別名表で既知の組み込み裸呼び出しは (iii) の対象外とする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def normalize(value):
+    return value
+    str(value)
+    enumerate(value)
+    dict(value)
+"""
+    path = "pitchlog/services/builtin_calls.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+
+    assert {
+        node.func.id: scanner.aliases.known_symbols.get(node.func.id)
+        for node in calls
+        if isinstance(node.func, ast.Name)
+    } == {
+        "str": "builtins.str",
+        "enumerate": "builtins.enumerate",
+        "dict": "builtins.dict",
+    }
+    assert all(scanner.flow.callable_symbol(node) is None for node in calls)
+
+    scanner.visit(tree)
+    scanner._validate_call_coverage(tree)
+
+    assert scanner.violations == []
+
+
+def test_parameter_bare_call_remains_red() -> None:
+    """known_symbols に無い callable パラメータは引き続き拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def forge_context(factory, tenant_id):
+    return factory(tenant_id)
+"""
+    path = "pitchlog/services/parameter_factory.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+
+    assert "factory" not in scanner.aliases.known_symbols
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [("TB007", "factory")]
+
+
+def test_unregistered_bare_text_call_remains_red() -> None:
+    """別名表へ登録されていない裸名は生テキストだけで解決済みにしない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = "context = missing_factory(tenant_id)\n"
+    path = "pitchlog/services/unregistered_factory.py"
+    tree = ast.parse(source, filename=path)
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+
+    assert scanner.aliases.resolve(call.func) == "missing_factory"
+    assert "missing_factory" not in scanner.aliases.known_symbols
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [("TB007", "missing_factory")]
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "value",
+        "value: TenantContext",
+    ),
+)
+def test_dataclasses_replace_with_unknown_or_context_target_is_red(
+    target: str,
+) -> None:
+    """dataclasses.replace は第1引数が未注釈でも文脈型注釈でも拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f"""\
+import dataclasses
+from pitchlog.repositories.context import TenantContext
+
+
+def clone({target}):
+    return dataclasses.replace(value, enabled=True)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/dto_clone.py",
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [("TB007", "dataclasses.replace")]
 
 
 def test_local_database_type_name_shadow_mutation_is_red() -> None:

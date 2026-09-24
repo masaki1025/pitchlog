@@ -1,4 +1,19 @@
-"""テナント境界の迂回を AST と import 境界で検査する。"""
+"""テナント境界の迂回を AST と import 境界で検査する。
+
+条件 5(TenantContext 生成経路)の保証単位は「構築に使われる名前が、
+変更ファイル内で読み取れること」である。型の解決可否は保証の条件にしない。
+赤にするもの: (i) 完全修飾名が構築シンボルに解決される / (ii) 資産が列挙する禁止構築シンボル /
+(iii) 名前が読み取れない callable(属性式でない呼び出し)/ (iv) 末尾名が構築シンボル末尾名に一致
+(属性でも裸の名前でも)/ (v) 再輸出写像の可能な起源集合に構築シンボルが含まれる、
+または内部再輸出の解決が unresolved(深さ上限 / star / 条件分岐 / 循環 / 自己参照 /
+欠落した pitchlog.* モジュール / 未対応の静的代入)。
+
+守らないもの(正式に縮小する — 人間承認の対象):
+1. 再輸出元だけを変更し、利用側を変更しない漂流。CI の母集団が変更ファイルに限られるため
+2. registry[k].make_context(t) のように、構築シンボル以外の属性名で、
+   再輸出写像でも解決できない callable を経由した構築
+3. (iii) と (iv)(v) の非対称は原理ではなく、既存負例が守る範囲を落とさないための線である
+"""
 
 from __future__ import annotations
 
@@ -3567,34 +3582,35 @@ class _SourceScanner(ast.NodeVisitor):
         reexport = self._reexport_resolution(node.func, resolved)
         if known_callable is None:
             if isinstance(node.func, ast.Attribute):
-                provenance = self.flow.receiver_provenance(node)
-                if (
-                    node.func.attr in self.contract.conservative_member_names
-                    or provenance in {"db", "non_db", "tenant_context"}
-                ):
-                    self._reject_reexport_call(
-                        node,
-                        resolved=resolved,
-                        callable_name=callable_name,
-                        resolution=reexport,
-                        allowed_modules=allowed_modules,
-                    )
-                    return
-                if (
-                    provenance in {"db_result", "non_db_attribute"}
-                    and node.func.attr
-                    != self.contract.tenant_context.constructor_symbol.rsplit(
-                        ".", 1
-                    )[-1]
-                ):
-                    self._reject_reexport_call(
-                        node,
-                        resolved=resolved,
-                        callable_name=callable_name,
-                        resolution=reexport,
-                        allowed_modules=allowed_modules,
-                    )
-                    return
+                self._reject_reexport_call(
+                    node,
+                    resolved=resolved,
+                    callable_name=callable_name,
+                    resolution=reexport,
+                    allowed_modules=allowed_modules,
+                )
+                return
+            alias_resolved = self.aliases.resolve(node.func)
+            # resolve() は未知の裸名も生テキストで返す。known_symbols を読む
+            # resolve_known() でも解決できた Name だけを既知 callable とする。
+            known_alias_callable = (
+                self.aliases.resolve_known(node.func)
+                if isinstance(node.func, ast.Name) and alias_resolved is not None
+                else None
+            )
+            if (
+                known_alias_callable is not None
+                and self.aliases.canonical(known_alias_callable)
+                != self.contract.tenant_context.constructor_symbol
+            ):
+                self._reject_reexport_call(
+                    node,
+                    resolved=resolved,
+                    callable_name=callable_name,
+                    resolution=reexport,
+                    allowed_modules=allowed_modules,
+                )
+                return
             self._add(
                 node,
                 condition=5,
