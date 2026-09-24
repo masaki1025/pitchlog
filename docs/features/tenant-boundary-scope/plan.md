@@ -619,7 +619,12 @@ baseline と head が**同じ不一致を持つ**ケースで、
 
 ### そのほか
 
-- **同期単位へ**: D4「記録権世代」の欄名(実装は `generation`)と条件 2 の語彙を突き合わせること
+- **同期単位へ**: D4「記録権世代」の欄名と条件 2 の語彙を突き合わせること。
+  **同期プロトコル正本 v0.4(2026-09-24 approved)は D4 の「物理形式は本書で決めず、
+  10-1 の論点 17 から実装計画へ送る」と明記している**(`docs/design/sync-protocol.md:32`)。
+  → **欄名は未確定**であり、**条件 2 の候補を狭めない判断は正本と整合している**。
+  なお現行の実装は `backend/src/pitchlog/db/recording_rights/models.py` が
+  `RecordingGeneration` と列名 `generation` を使っている(**正本が未確定なので暫定**)
 - **TSK-431 へ**: `tenant-context-allowlist.json` の 7B 不一致(通知済み)
 - **TSK-235 へ**: 残る TB007 約 7 件 + 条件 2 の裸の局所変数 7 件の書き換え
 - **新規タスクの起票が要る**: **`TenantContext` の発行と registry 登録を専用モジュールへ封じ込め、
