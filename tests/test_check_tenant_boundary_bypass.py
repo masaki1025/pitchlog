@@ -117,6 +117,11 @@ def _load_checker() -> ModuleType:
 
 checker = _load_checker()
 
+FROZEN_BASELINE_ASSET_CASES = tuple(
+    pytest.param(relative_path, id=relative_path.name)
+    for relative_path in checker.FROZEN_BASELINE_ASSETS
+)
+
 
 def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
     """テナント境界の契約資産を JSON object として読む。"""
@@ -133,6 +138,14 @@ def _fixture_source(path: Path) -> str:
 def _external_source(path: str) -> bytes:
     """作業ツリーの外部凍結対象を読む。"""
     return (REPOSITORY_ROOT / path).read_bytes()
+
+
+def _external_source_with_checker_mutation(path: str) -> bytes:
+    """検査器だけを変異させた外部凍結対象を返す。"""
+    source = _external_source(path)
+    if path == "scripts/check_tenant_boundary_bypass.py":
+        return source + b"\n# step 8 mutation\n"
+    return source
 
 
 def _accepted_snapshot(relative_path: Path) -> dict[str, Any]:
@@ -459,14 +472,24 @@ def test_changed_baseline_history_entry_is_red() -> None:
         )
 
 
-def test_deleted_baseline_history_entry_is_red() -> None:
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_deleted_baseline_history_entry_is_red(relative_path: Path) -> None:
     """既存記録の削除を append-only 比較で拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
     previous = _accepted_snapshot(relative_path)
+    assert (
+        checker._validate_history_append_only(
+            previous,
+            copy.deepcopy(previous),
+            relative_path.as_posix(),
+        )
+        is None
+    )
     current = copy.deepcopy(previous)
-    current["contract_revision"] = 6
+    identity = current["baseline_control"]["identity"]
+    identifier_field = identity["field"]
+    current[identifier_field] += 1
     current["baseline_control"]["identity"]["current_identifiers"] = [
-        "contract_revision:6"
+        f"{identifier_field}:{current[identifier_field]}"
     ]
     current["baseline_control"]["history"].pop()
 
@@ -478,10 +501,20 @@ def test_deleted_baseline_history_entry_is_red() -> None:
         )
 
 
-def test_merge_base_pending_history_is_still_append_only() -> None:
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_merge_base_pending_history_is_still_append_only(relative_path: Path) -> None:
     """merge-base に現にある記録は未承認表示でも書き換えを拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
     previous = _read_contract_asset(relative_path)
+    assert (
+        checker._validate_baseline_transition(
+            previous,
+            copy.deepcopy(previous),
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
+        is None
+    )
     current = copy.deepcopy(previous)
     current["baseline_control"]["history"][0]["reason"] = "書き換え"
 
@@ -514,10 +547,13 @@ def test_first_adoption_previous_identifier_must_be_no_baseline() -> None:
         )
 
 
-def test_first_history_entry_does_not_imply_no_previous_baseline() -> None:
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_first_history_entry_does_not_imply_no_previous_baseline(
+    relative_path: Path,
+) -> None:
     """履歴の先頭という理由だけで直前基準なしと推定しない。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
     asset = _read_contract_asset(relative_path)
+    assert checker._validate_baseline_control(asset, relative_path.as_posix())
     mutated = copy.deepcopy(asset)
     mutated["baseline_control"]["history"][0][
         "previous_baseline_identifiers"
@@ -531,12 +567,27 @@ def test_first_history_entry_does_not_imply_no_previous_baseline() -> None:
     assert history[0]["previous_baseline_identifiers"] == ["legacy_baseline:1"]
 
 
-def test_reported_pattern_removal_without_revision_or_history_is_red() -> None:
-    """禁止 pattern を黙って 1 本削る敵対レビュー再現を射影比較で拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_reported_pattern_removal_without_revision_or_history_is_red(
+    relative_path: Path,
+) -> None:
+    """履歴なしの凍結内容変更を射影比較で拒否する。"""
     previous = _accepted_snapshot(relative_path)
+    assert (
+        checker._validate_baseline_transition(
+            previous,
+            copy.deepcopy(previous),
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
+        is None
+    )
     current = copy.deepcopy(previous)
-    current["conditions"][0]["patterns"].pop()
+    if relative_path == checker.DEFAULT_ALLOWLIST:
+        current["conditions"][0]["patterns"].pop()
+    else:
+        current["step_8_projection_mutation"] = True
 
     with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
         checker._validate_baseline_transition(
@@ -572,19 +623,32 @@ def test_history_added_without_projection_movement_is_red() -> None:
         )
 
 
-def test_checker_pass_fail_mapping_change_requires_revision_and_history() -> None:
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_checker_pass_fail_mapping_change_requires_revision_and_history(
+    relative_path: Path,
+) -> None:
     """検査器自身の変更も外部凍結射影の移動として検出する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[0]
     previous = _accepted_snapshot(relative_path)
     current = copy.deepcopy(previous)
+
+    assert (
+        checker._validate_baseline_transition(
+            previous,
+            current,
+            relative_path.as_posix(),
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source,
+        )
+        is None
+    )
 
     with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
         checker._validate_baseline_transition(
             previous,
             current,
             relative_path.as_posix(),
-            previous_external_loader=lambda _path: b"old pass/fail mapping",
-            current_external_loader=lambda _path: b"new pass/fail mapping",
+            previous_external_loader=_external_source,
+            current_external_loader=_external_source_with_checker_mutation,
         )
 
 
