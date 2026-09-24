@@ -15,6 +15,16 @@ from itertools import combinations
 from pathlib import Path
 from typing import Pattern, Sequence
 
+# このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+from frozen_baselines import (  # noqa: E402
+    FrozenBaselineError,
+    load_latest_series_identity,
+)
+
 
 @dataclass(frozen=True)
 class RequiredTablePrivilegeTarget:
@@ -106,7 +116,7 @@ FORBIDDEN_EVACUATED_IMPORT_TERMS = (
     "IMPORT_EVACUATED_EVENT",
 )
 ORACLE_CHANGE_POLICY_ID = "ORACLE_STEP5_REREVIEW"
-ORACLE_INPUT_BASELINE_COMMIT = "24ef4fcc682b42b504edc1d6264d380760c54929"
+FROZEN_BASELINE_LEDGER_PATH = Path("contracts/authz/frozen-baselines.json")
 ORACLE_EXECUTION_CLASSES = frozenset({"probe_executable", "contract_only"})
 RECEIVING_TASK_ID_RE = re.compile(r"(?:TSK-[0-9]{3}|PENDING:(?:FR|NFR)-[0-9]{3})")
 PENDING_REQUIREMENT_REF_RE = re.compile(r"PENDING:(?P<requirement>(?:FR|NFR)-[0-9]{3})")
@@ -2746,6 +2756,34 @@ def _validate_oracle_context(raw: object, label: str) -> str:
     return commit
 
 
+def _load_oracle_input_baseline_commit(root: Path) -> str:
+    """台帳リーダを介してoracle_input系列の単一commit値を返す。
+
+    Args:
+        root: 台帳パスを解決するリポジトリルート。
+
+    Returns:
+        oracle_input系列の履歴末尾にあるcommit識別値。
+
+    Raises:
+        CatalogError: 台帳を読めないか識別値の形が不正な場合。
+    """
+    try:
+        identities = load_latest_series_identity(
+            root / FROZEN_BASELINE_LEDGER_PATH,
+            "oracle_input",
+        )
+    except (FrozenBaselineError, OSError) as exc:
+        raise CatalogError(f"凍結基準台帳のoracle_inputを読めない: {exc}") from exc
+    if (
+        len(identities) != 1
+        or identities[0].kind != "literal_commit_string"
+        or COMMIT_RE.fullmatch(identities[0].value) is None
+    ):
+        raise CatalogError("凍結基準台帳のoracle_inputが単一commit識別値でない")
+    return identities[0].value
+
+
 def _validate_oracle_provenance(
     raw: object, root: Path, label: str
 ) -> frozenset[str]:
@@ -4981,7 +5019,7 @@ def validate_boundary_proposal(
         "PLAN-BOUNDARY-PROPOSAL-ONLY",
     }:
         raise CatalogError("boundary proposal の provenance が exact-set 不一致")
-    if oracle_commit != ORACLE_INPUT_BASELINE_COMMIT:
+    if oracle_commit != _load_oracle_input_baseline_commit(root):
         raise CatalogError("boundary proposal の oracle_commit が基準版と不一致")
     boundaries = _expect_object_list(raw["boundaries"], "boundaries")
     boundary_by_id = _index_unique_object_rows(boundaries, "boundary_id", "boundaries")
