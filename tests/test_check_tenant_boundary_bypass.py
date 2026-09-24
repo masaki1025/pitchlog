@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -102,17 +103,116 @@ EXPECTED_NEGATIVE_IDS = frozenset(
     }
 )
 
+CensusIdentity = tuple[str, int, int, str, str, str, str]
 
-def _load_checker() -> ModuleType:
-    """検査器をリポジトリの import 設定に依存せず読む。"""
+
+def _load_checker_module(path: Path, module_name: str) -> ModuleType:
+    """検査器を指定した別モジュールとして読む。"""
     spec = importlib.util.spec_from_file_location(
-        "check_tenant_boundary_bypass_under_test", SCRIPT
+        module_name,
+        path,
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _load_checker() -> ModuleType:
+    """検査器をリポジトリの import 設定に依存せず読む。"""
+    return _load_checker_module(
+        SCRIPT,
+        "check_tenant_boundary_bypass_under_test",
+    )
+
+
+def _resolve_merge_base(base_ref: str, head_ref: str) -> str:
+    """比較元と HEAD の merge-base を解決し、取れなければ検査を失敗させる。"""
+    result = subprocess.run(
+        ["git", "merge-base", base_ref, head_ref],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "stderr なし"
+        raise AssertionError(
+            f"{base_ref} と {head_ref} の merge-base を解決できない: {detail}"
+        )
+    merge_base = result.stdout.strip()
+    if not merge_base:
+        raise AssertionError(
+            f"{base_ref} と {head_ref} の merge-base が空"
+        )
+    return merge_base
+
+
+def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
+    """VCS 上の検査器を一時ファイルへ取り出して別モジュールとして読む。"""
+    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{relative_script}"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    destination.write_bytes(result.stdout)
+    digest = hashlib.sha256(result.stdout).hexdigest()
+    return _load_checker_module(
+        destination,
+        f"check_tenant_boundary_bypass_{digest}",
+    )
+
+
+def _checker_census(
+    checker_module: ModuleType,
+    *,
+    repository_root: Path,
+    source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """検査器の全文走査結果を比較用の exact-set にする。"""
+    contract = checker_module.load_contract(repository_root)
+    violations = checker_module.scan_directory(source_root, contract=contract)
+    return frozenset(
+        (
+            violation.path,
+            violation.line,
+            violation.end_line,
+            violation.scope,
+            violation.code,
+            violation.symbol,
+            violation.message,
+        )
+        for violation in violations
+    )
+
+
+def _compare_checker_census(
+    reference_checker: ModuleType,
+    candidate_checker: ModuleType,
+    *,
+    repository_root: Path,
+    source_root: Path,
+) -> tuple[frozenset[CensusIdentity], frozenset[CensusIdentity]]:
+    """merge-base 版から作業ツリー版への違反集合の増減を返す。
+
+    この比較が証明するのは、両版が ``source_root`` にある現在の
+    ``backend/src`` へ出す違反集合が同じこと、またはその差が期待どおりであること。
+    現在のツリーに存在しない構文やコードへの挙動は証明せず、将来のコードは覆わない。
+    """
+    reference = _checker_census(
+        reference_checker,
+        repository_root=repository_root,
+        source_root=source_root,
+    )
+    candidate = _checker_census(
+        candidate_checker,
+        repository_root=repository_root,
+        source_root=source_root,
+    )
+    return candidate - reference, reference - candidate
 
 
 checker = _load_checker()
@@ -310,6 +410,25 @@ def _unlisted_database_access(session: Session) -> None:
 
     assert mutated != source
     return relative, source, mutated
+
+
+def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
+    """現行検査器の全文走査結果が分岐元から増減していないことを固定する。"""
+    merge_base = _resolve_merge_base("origin/develop", "HEAD")
+    baseline_checker = _load_checker_from_revision(
+        merge_base,
+        tmp_path / "check_tenant_boundary_bypass_merge_base.py",
+    )
+
+    added, removed = _compare_checker_census(
+        baseline_checker,
+        checker,
+        repository_root=REPOSITORY_ROOT,
+        source_root=REPOSITORY_ROOT / "backend" / "src",
+    )
+
+    assert added == frozenset()
+    assert removed == frozenset()
 
 
 def test_positive_fixtures_pass() -> None:
@@ -582,6 +701,50 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
             f"expected={fixture.expected_error}"
         )
     assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+
+
+def test_ci_path_detects_committed_bypass_and_cli_exits_one(
+    tmp_path: Path,
+) -> None:
+    """実コミット差分を check_repository と subprocess の CLI から検査する。"""
+    relative = "pitchlog/services/ci_probe.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    bypass = '''\
+from sqlalchemy.orm import Session
+
+
+def read_other_tenant(work: Session) -> object:
+    return work.execute("SELECT * FROM games")
+'''
+    _write_test_repository_sources(repository, {relative: bypass})
+    _commit_test_repository(repository, "add tenant boundary bypass")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert (relative, "TB005") in {
+        (violation.path, violation.code) for violation in violations
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repository / "scripts" / SCRIPT.name),
+            "--root",
+            str(repository),
+            "--base-ref",
+            base_ref,
+        ],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "TB005" in result.stderr
 
 
 @pytest.mark.parametrize(
