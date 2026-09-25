@@ -1,6 +1,6 @@
 ---
 feature: product-authz-surface
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域           # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -84,7 +84,7 @@ TSK-424 全体は、**全 45 表の許可プロファイル・製品 authz DDL �
 | `docs/design/data-model.md` 12-8 節(`:2844-2846`) | TSK-317 行を分割し、TSK-424 PR A1(**表分類・露出の事実・capability カタログ・製品 DDL の静的資産は確定・未発効**。適用・実 DB 検査・移行ロール・写像は**確定と書かない**)/ TSK-424 PR A2(適用器・実 DB 検査・移行ロールの資産・写像 — 残件)/ TSK-349(移行ロールのライフサイクルの実行 — 残件)/ 3-2 節の典拠の訂正タスク(残件)/ U-C1・U-C2・U-C3・U-A2(越境関数と最低要求 ②③④ の残り — 残件)/ U-A1(認証・レート制限の関数 — 残件)/ U-C2(制御情報の読み取りの制限関数 — 残件)/ U-X1(規則セットの関数と帰属の列 — 残件・凍結中)/ TSK-344(実スキーマでの再実行 — 残件)/ PR B のタスク(ランタイム契約の切り替え — 残件)/ PR C のタスク(Session の供給 — 残件)に割り当てる。**「解消済み」にしない** | PR レビュー(7.6-3 前段・実装追随の節更新) |
 | `docs/design/data-model.md` 変更履歴 | 上を追記する。**版は上げない** | PR レビュー(同上) |
 | `docs/README.md` | `data-model.md` の行の最終更新日と変更の概要を、12-8 の追随に合わせて現行化する(README は正本の版と状態の索引であり、contracts の資産は載せない — 11 周目 11-P2-2) | PR レビュー |
-| `docs/development/harness-evaluation.md` `## 候補` | 既存候補「『すべての抜け道』を条文の閉じた一覧で捉えようとすると…終わらない」へ **5 例目**を追記し、変更履歴に 1 行追記する。**版は上げない**(`/pr` のクローズ処理で判断 — 7.6-3 前段) | PR レビュー |
+| `docs/development/harness-evaluation.md` `## 候補` | 既存候補「『すべての抜け道』を条文の閉じた一覧で捉えようとすると…終わらない」へ **5 例目**、「検証コマンドを人が選ぶと…差分が黙って残る」へ **5 例目**を追記し、変更履歴に 1 行追記する。**版は上げない**(`/pr` のクローズ処理で判断 — 7.6-3 前段) | PR レビュー |
 | `docs/README.md`(台帳の行) | 台帳の行の最終更新日と概要を現行化する | PR レビュー |
 | `docs/design/data-model.md` 3-2 / 3-5 / 12-4 / 12-6 / 12-9 | **反映なし**(★2・★4・★6) | — |
 | `docs/requirements/` | **反映なし** | — |
