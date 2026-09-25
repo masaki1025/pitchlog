@@ -78,18 +78,50 @@ FAILED tests/test_check_authz_catalog.py::test_route_kind_tables_reject_missing_
 **欠落変異の確認**(`_check_history_append_only` / `_check_bootstrap` / `_check_basis_correspondence` を
 それぞれ無効化すると対応する負例が期待する red を得られない)で実証済み。
 
+## ステップ 8 — P0-1 の是正(2026-09-25)
+
+**当初の推奨(`changes` に `value` aspect を足す)は実測で覆した。**
+`changes` は**台帳文書そのものの replay ログ**であり、`_check_replay` が `changes[]` と
+`placement_change` を fold して**規範状態 5 つ**(`acceptance` / `movement_rules` /
+`implementation_bindings` / `placements` / `declarations`)と一致するかを検査する
+(`scripts/check_frozen_baselines.py:975-983`)。**`value` には fold 先の状態が無い。**
+
+そこで **`changes` の空を許し**(schema `minItems: 1` → `0`)、
+**レコードが必ず何かを主張すること**を補償不変条件 2 つで強制した:
+
+- **A**: `changes` が空なら `prior_identity != new_identity`
+- **B**: change entry は `before != after`(**no-op entry を塞ぐ** — 今回の虚偽記録の形そのもの)
+
+`history[1].changes` は、検査器を編集したことで動いた `implementation_bindings` の
+**実変更 1 件**になった(虚偽の `frozen_targets` 同値 entry は除去)。
+
+### 検査器の自己保護に気づいた点(申し送り)
+
+**台帳は `implementation_bindings.code_assets` で検査器の sha256 を固定している。**
+そのため `check_frozen_baselines.py` に欠落変異を入れると、**目的の検査ではなく
+sha256 検査が先に鳴る**。欠落変異の確認をするときは、**台帳の sha256 も変異後の値へ
+揃えてから実行する**必要がある。この手順で `_check_history_append_only` を無効化し、
+ステップ 7 で直した削除検査・同数置換検査の負例 2 本が**期待する red を得られなくなる**ことを確認した
+(= ステップ 7・8 の fixture 変更は保護を緩めていない)。
+
+**全件実行 1631 passed / red 0。**
+
 ## 未決(人間の手が要る 2 点)
 
-1. **凍結基準台帳が「値の移動」を表現できない**(3 周目 P0-1)。
+1. **ステップ 8 の射程拡大を認めた記録**。`scripts/check_frozen_baselines.py` は `guard_paths` であり、
+   本計画書が「やらないこと」に入れていた。**この射程拡大を認めた記録は人間が自分の手で残す**
+   (当方は取得元のない承認記録を書かない — `docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)。
+   ~~**凍結基準台帳が「値の移動」を表現できない**(3 周目 P0-1)。~~ **ステップ 8 で是正済み。**
+   以下は経緯の記録:
    台帳自身は `movement_rules.triggers` に **`value_change`** を挙げ、
    `universal_lower_bound` に **`value`** を必須軸として挙げているが、
    `CHANGE_ASPECTS`(`scripts/check_frozen_baselines.py:77`)の 8 種は
    **`declarations` の 4 フィールド + 台帳自体の 4 事項**であり、**値の移動に対応する `aspect` が無い**。
    schema は `changes` に最低 1 件を要求するため、現状は `frozen_targets` の before/after 同値という
    **変わっていないものを変更として書いた**記録になっている。
-   → **推奨**: TSK-421(台帳所有者)へ起票したうえで、`changes` に `value` aspect を足す。
-   **`check_frozen_baselines.py` は `guard_paths` かつ本計画書の「やらないこと」に入っているため、
-   射程拡大には人間の明示承認が要る**
+   **このとき出した「`changes` に `value` aspect を足す」という推奨は誤りだった** —
+   `changes` の実体が replay ログであることを後から実測して判明した(上のステップ 8 を見ること)。
+   **一般の欠陥(値の移動を宣言そのものとして記録できない件)は TSK-421 へ申し送る。**
 2. **`approved_by` / `approved_at` の出所**(3 周目 P0-2)。現在の値は当方の推定であり、
    「**承認者・承認日は取得元を明記して逐語転記する。取得不能なら停止する**」
    (`docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)に反する。
