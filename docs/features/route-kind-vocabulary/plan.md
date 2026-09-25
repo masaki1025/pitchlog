@@ -158,9 +158,21 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | 4 | **派生 lock を再封印する** — `--reseal-derived --skip-oracle`。**fixture の lock は CLI が触らないので手で作り直す** | `route-registry.lock.json` の **`entries` と `aggregate_decision_digest` が変更前と完全一致**し、**`asset_digest` だけが変わる**(**1 周目 P1-4 の是正** — 件数だけでは判定不変を証明しない)。**期待失敗**: `test_repository_oracle_assets_are_valid` は red のまま |
 | 5 | **oracle の内容を追随させ、人間の確認を受ける** — 前段コミットの SHA を **7 箇所の `oracle_commit`**(seal 1 + oracle 資産 6)へ差し替える。**この時点で敵対レビューと人間確認を受ける**(前例の順序は「**内容追随 → commit 差し替え → レビュー → reseal**」— `docs/worklog/2026-09-03-authz-claims-corpus.md:67`) | 差分が人間に確認されている。**まだ reseal しない** |
 | 5b | **oracle 外の digest 連鎖を更新する**(**2 周目 P1-4 の是正**)— `oracle_commit` の差し替えで `ddl-elements.json` と `claim-mutant-map.json` の blob が変わるため、それらを参照する **`failure-injection-points.json`** と **`mcdc-map.json`** の記録 digest を再計算する。**`--reseal-oracle` はこの 2 資産を更新しない** | `scripts/check_failure_injection_points.py` と `scripts/check_mcdc_map.py` が green |
-| 6 | **凍結基準の履歴を追記し、oracle を再封印する** — `frozen-baselines.json` の `history` へ **10 キーすべて**を持つ 1 レコード(`acceptance_id` / `series` / `new_identity` / `prior_identity` / `changes` / `placement_change` / `moved` / `reason` / `approved_by` / `approved_at`。**純粋な SHA 移動でも `changes` は最低 1 件・`placement_change` は no-op・`moved: false` が要る**)→ `--reseal-oracle` | `uv run python scripts/check_authz_catalog.py` が green。**`uv run python scripts/check_frozen_baselines.py --invariants-only`** が green(**mode 指定が必須** — 無指定は argparse error)。**全件 green はここで初めて成立する** |
+| 6 | **凍結基準の履歴を追記し、oracle を再封印する**(**この行の「`changes` は最低 1 件」はステップ 8 で見直した** — 3 周目 P0-1)— `frozen-baselines.json` の `history` へ **10 キーすべて**を持つ 1 レコード(`acceptance_id` / `series` / `new_identity` / `prior_identity` / `changes` / `placement_change` / `moved` / `reason` / `approved_by` / `approved_at`。**純粋な SHA 移動でも `changes` は最低 1 件・`placement_change` は no-op・`moved: false` が要る**)→ `--reseal-oracle` | `uv run python scripts/check_authz_catalog.py` が green。**`uv run python scripts/check_frozen_baselines.py --invariants-only`** が green(**mode 指定が必須** — 無指定は argparse error)。**全件 green はここで初めて成立する** |
 
 | 7 | **凍結基準の負例テストを履歴長に一般化する**(**承認後の追加 — 2026-09-25 に人間が判断**)— ステップ 6 で `history` が 2 件になった結果、`tests/frozen_negatives/` の 4 本が落ちた。**台帳の保護は機能しており**(変異は検出されて red)、落ちたのは**期待するエラー文と件数が「履歴 1 件」を前提に直書きされていた**ため。**本タスクが台帳の初回の値移動**であり、履歴が 2 件になったのは今回が初めてなので露呈した | 全件実行で **red 0 件**。**欠落変異の確認** — `_check_history_append_only` / `_check_bootstrap` / `_check_basis_correspondence` をそれぞれ無効化すると対応する負例が期待する red を得られないこと |
+
+| 8 | **台帳が「純粋な値の移動」を表現できるようにする**(**射程拡大 — 下の注記を見ること**)— `changes` は**台帳文書の replay ログ**であり(`scripts/check_frozen_baselines.py:975-983` が規範状態 5 つ〔`acceptance` / `movement_rules` / `implementation_bindings` / `placements` / `declarations`〕と fold の一致を検査する)、**値の移動に対応する aspect は構造上存在しない**。値の移動は `prior_identity` / `new_identity` が担う。よって **`changes` の空を許し**、代わりに**レコードが必ず何かを主張すること**を補償不変条件で強制する | ① `changes` が空で `prior_identity != new_identity` のレコードが green ② `changes` が空で `prior_identity == new_identity` のレコードが red ③ **`before == after` の no-op change entry が red** ④ 全件実行で red 0 件 |
+
+> **【射程拡大 — 記録待ち】ステップ 8 は承認済み計画に無く、「やらないこと」に入れていた
+> `scripts/check_frozen_baselines.py`(`guard_paths`)と `frozen-baselines.schema.json` を触る。**
+> **3 周目の敵対レビュー P0-1** — 台帳が純粋な値の移動を表現できず、当方の記録が
+> 「変わっていないものを変更として書いた」形になっていた — の是正。
+> **この射程拡大を認めた記録は、人間が本 PR か worklog へ自分の手で残す**
+> (当方は取得元のない承認記録を書かない — `docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)。
+> **検査器を編集すると `implementation_bindings.code_assets` の sha256 が動く**ため、
+> `history[1].changes` は**その変更を記した truthful な 1 件**になる(虚偽の `frozen_targets` 同値 entry は除去する)。
+> **一般の欠陥としては TSK-421(台帳所有者)へ申し送る。**
 
 > **【承認後の追加 — 2026-09-25】ステップ 7 は承認済み計画に無い。**
 > `tests/frozen_negatives/*` は **`guard_paths`** であり、**直さないと本 PR が green にならない**ため、
@@ -183,6 +195,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
       **`oracle_context.oracle_commit` は凍結対象 7 箇所の 1 つとして更新する**(**3 周目 P1-3 の是正** — 旧文面「ファイルに触れていない」は 4-2 の 7 箇所差し替えと矛盾していた)
 - [ ] **`mutation_execution.py` の `class_by_route_kind` を発火させていない**
 - [ ] **凍結基準の履歴が 10 キーすべてを持つ**
+- [ ] **凍結基準の履歴の `changes` に `before == after` の no-op entry が無い**(**3 周目 P0-1 の是正**)
 - [ ] **oracle 差分の敵対レビュー + 人間確認**を **reseal の前**に受けた
 - [ ] pytest / ruff / ty green
 - [ ] 横断要求: 物理削除しない / テナント分離を全機能に適用 / 自動エスケープ
