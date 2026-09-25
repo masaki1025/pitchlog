@@ -79,7 +79,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "9ead8e3ef186aa335c8d01f067281dd8362aa31451fb72cce4ded9b30d59f017"
+            "frozen_projection_sha256": "e162a711e99e06481c17e5fe6b5e401e6c0e0aa78a198ae09b8f92def6838ded"
           }
         },
         "movement_fact": "movement_policy.movement_triggers に pass_fail_mapping が含まれるため、条件 5 の未解決 callable の既定値を名前駆動へ揃え、条件 2 に裁定 exact-set を置き、検査 visitor と flow の訪問漏れを閉じたことによる合否写像の変更が基準の移動に当たる。",

@@ -49,6 +49,10 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_STAR",
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_WALRUS",
         "C2_GENERATION_IMPORT",
+        "C2_GENERATION_ARGUMENT_NAME",
+        "C2_GENERATION_ATTRIBUTE_ASSIGNMENT",
+        "C2_GENERATION_KEYWORD_ARGUMENT",
+        "C2_GENERATION_MATCH_KEYWORD",
         "C2_IDEMPOTENCY_KEY_IMPORT",
         "C2_IDEMPOTENT_KEY_IMPORT",
         "C2_REVISION_NO_IMPORT",
@@ -87,12 +91,17 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
         "C5_CONTEXT_AFTER_TERMINATOR",
+        "C5_CONTEXT_CONDITIONAL_ALIAS_CLASS_BASE",
+        "C5_CONTEXT_CONDITIONAL_ALIAS_CLOSURE",
+        "C5_CONTEXT_CONTAINER_SUBSCRIPT",
         "C5_CONTEXT_IN_ANNOTATED_ASSIGNMENT",
         "C5_CONTEXT_IN_CLASS_BASE",
         "C5_CONTEXT_IN_DEFAULT_ARG",
         "C5_CONTEXT_IN_DICT_COMPREHENSION",
         "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
         "C5_CONTEXT_IN_FUNCTION_IMPORT",
+        "C5_CONTEXT_IF_ELSE_ORIGIN_MERGE",
+        "C5_CONTEXT_IFEXP_ORIGIN_MERGE",
         "C5_CONTEXT_IN_LAMBDA_DEFAULT",
         "C5_CONTEXT_IN_LOCAL_ALIAS",
         "C5_CONTEXT_RELATIVE_IMPORT",
@@ -105,6 +114,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_REEXPORT_STAR",
         "C5_CONTEXT_REEXPORT_SUBCLASS",
         "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+        "C5_CONTEXT_MATCH_ORIGIN_MERGE",
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
@@ -128,6 +138,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_TENANT_CONTEXT_OBJECT_NEW",
         "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
         "C5_TENANT_CONTEXT_TYPE_CALL",
+        "C5_CONTEXT_TRY_EXCEPT_ORIGIN_MERGE",
         "C5_TENANT_CONTEXT_OBJECT_NEW_TYPE",
         "C5_TENANT_CONTEXT_DATACLASSES_REPLACE",
         "C5_UNKNOWN_ENGINE_ARGUMENT",
@@ -768,11 +779,22 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
     adjudicated_names = {
         symbol.rsplit(".", 1)[-1] for symbol in adjudicated_symbols
     }
-    assert {
-        identity[5]
-        for identity in removed
-        if identity[4] == "TB002"
-    } <= adjudicated_symbols | adjudicated_names
+    current_census = _checker_census(
+        checker,
+        repository_root=REPOSITORY_ROOT,
+        source_root=REPOSITORY_ROOT / "backend" / "src",
+    )
+    for identity in removed:
+        if identity[4] != "TB002" or identity[5] in (
+            adjudicated_symbols | adjudicated_names
+        ):
+            continue
+        assert any(
+            current[0] == identity[0]
+            and current[1] == identity[1]
+            and current[4] == "TB002"
+            for current in current_census
+        )
 
 
 def test_condition_5_scope_declaration_is_verbatim_in_design() -> None:
@@ -898,6 +920,51 @@ def use(GenerationError):
     assert {violation.code for violation in violations} == {"TB002"}
 
 
+@pytest.mark.parametrize(
+    "source",
+    (
+        "def use(generation, /):\n    return 1\n",
+        "def use(generation):\n    return 1\n",
+        "def use(*, generation):\n    return 1\n",
+        "def use(*generation):\n    return 1\n",
+        "def use(**generation):\n    return 1\n",
+        "use = lambda generation: 1\n",
+    ),
+    ids=(
+        "positional-only",
+        "positional-or-keyword",
+        "keyword-only",
+        "variadic-positional",
+        "variadic-keyword",
+        "lambda",
+    ),
+)
+def test_condition_2_argument_names_are_syntactic_candidates(source: str) -> None:
+    """未使用でも全種類の ast.arg.arg を条件 2 の候補にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/generation_argument.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_unmatched_argument_name_is_green() -> None:
+    """条件 2 の候補に一致しない未使用引数は拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "def use(other):\n    return 1\n",
+        path="pitchlog/services/ordinary_argument.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
 def test_condition_2_unadjudicated_generation_is_red() -> None:
     """裁定に無い新しい Generation シンボルを fail-closed で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -936,7 +1003,7 @@ generation: MutationGeneration
 
 
 def test_recording_generation_remains_red_in_product_tree() -> None:
-    """記録権世代の実モデル14件を条件2の候補として維持する。"""
+    """記録権世代の実モデル参照4行を条件2の候補として維持する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source_root = REPOSITORY_ROOT / "backend" / "src"
     path = "pitchlog/db/recording_rights/models.py"
@@ -948,10 +1015,12 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     )
     condition2 = [violation for violation in violations if violation.code == "TB002"]
 
-    recording_generation = [
-        item for item in condition2 if "RecordingGeneration" in item.symbol
-    ]
-    assert len(recording_generation) == 14
+    recording_generation_lines = {
+        item.line
+        for item in condition2
+        if "RecordingGeneration" in item.symbol
+    }
+    assert recording_generation_lines == {153, 246, 247, 248}
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
@@ -976,6 +1045,58 @@ def test_product_call_coverage_sets_are_complete() -> None:
     # その 2 つだけを固定する。各ファイルの一致は上のループが既に検証している。
     assert totals[0] > 0
     assert len(set(totals)) == 1
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    (
+        "c5_context_ifexp_origin_merge.py",
+        "c5_context_if_else_origin_merge.py",
+        "c5_context_try_except_origin_merge.py",
+        "c5_context_match_origin_merge.py",
+        "c5_context_container_subscript.py",
+        "c5_context_conditional_alias_closure.py",
+        "c5_context_conditional_alias_class_base.py",
+    ),
+)
+def test_flow_preserves_tenant_context_in_possible_origin_sets(
+    fixture_name: str,
+) -> None:
+    """合流・コンテナ・閉包・基底を越えて構築起源を保持する。"""
+    relative = f"pitchlog/services/{fixture_name}"
+    source = _fixture_source(NEGATIVE_ROOT / relative)
+    tree = ast.parse(source, filename=relative)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    scanner = checker._SourceScanner(
+        path=relative,
+        module=checker._module_name(relative),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    constructor = contract.tenant_context.constructor_symbol
+
+    call_origins = (
+        scanner.flow.callable_value(node).origins
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    )
+    base_origins = (
+        scanner.flow.class_base_value(node).origins
+        for node in ast.walk(tree)
+    )
+    assert any(constructor in origins for origins in call_origins) or any(
+        constructor in origins for origins in base_origins
+    )
+
+    violations = checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+    )
+    assert "TB007" in {violation.code for violation in violations}
 
 
 @pytest.mark.parametrize(
@@ -1396,7 +1517,7 @@ def test_relative_tenant_context_import_is_resolved_and_red() -> None:
     ] == [
         (
             "TB007",
-            "TenantContext",
+            "pitchlog.repositories.context.TenantContext",
         )
     ]
 
@@ -1601,7 +1722,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 99 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 110 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS

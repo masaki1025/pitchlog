@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-scope
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -293,7 +293,7 @@ context = Context(tenant_id)
 | 6 | **既定値の反転(本丸)**: `:2960-2971` を 4-1 の (iii)(iv)(v) へ置換。検査器 docstring へ保証単位の宣言文 | `[機械]` 負例 exact-set が全 red・正例全 green・**統合 worktree で TB007 が減る**(実測: 794 → 4) `[手動]` docstring の文が**共通逐語文と一致**していること(**4 箇所の突合はステップ 8**) |
 | 7 | **条件 2 の裁定機構**: 候補パターンは**変えず**、**裁定済みシンボルの exact-set を `base-allowlist.json` へ内包**(理由必須)。未登録は red。**裸の局所変数 7 件は裁定せず TSK-235 側で改名**(候補集合には触らない) | `[機械]` **`RecordingGeneration` 14 件が赤のまま**・裁定済み(完全修飾 94 + 裸のクラス名 9)が緑・**裁定に無い新しい `*Generation` が赤**。**統合 worktree の TB002 = 0 は TSK-235 の改名後に成立する**ので、本タスクでは **TSK-235 固有分が残ることを合格条件にする**(実測: 146 → 35。うち develop 由来 26 + TSK-235 固有 9) |
 | 8 | **保証縮小の正式化(文書)**: `design.md` 6-0 の**該当 bullet を共通逐語文で置換**・**1-1(`:58`)を同じ共通逐語文で置換**。**PR 本文にも同じ引用ブロックを置く** | `[手動]` **4 箇所(docstring / 6-0 / 1-1 / PR 本文)の引用ブロックが逐語で一致**すること・6-0 と 1-1 が矛盾しないこと |
-| 9 | **申し送り**: 残る **TB007 3 件と TB002 9 件**(いずれも TSK-235 固有)を位置・形・性質つきで列挙し TSK-235 へ。**封じ込めタスクを DoD 付きで起票**。**Notion の DoD を正式更新** | `[手動]` 全件列挙・**真の脆弱性でない根拠**つき・DoD が Notion に反映 |
+| 9 | **申し送り**: 残る **TB007 3 件と TB002 7 件**(いずれも TSK-235 固有。**敵対レビュー 4 周目の是正で候補名と裁定シンボルを分離した結果 9 → 7 件へ減った**)を位置・形・性質つきで列挙し TSK-235 へ。**封じ込めタスクを DoD 付きで起票**。**Notion の DoD を正式更新** | `[手動]` 全件列挙・**真の脆弱性でない根拠**つき・DoD が Notion に反映 |
 | 10 | **凍結基準の受理(最後)**: `base-allowlist.json`(`contract_revision` 13→14)と `negative-fixtures.json`(`fixture_set_revision` 5→6)に履歴 1 件ずつ | `[機械]` `check_tenant_boundary_bypass.py` exit 0・凍結系テスト green `[手動]` **コア領域の逐行確認**(設計書 `:377`) |
 
 **効果測定の環境**: **統合用の一時 worktree**(現行 contract + 現行 checker + TSK-235 の `backend/src`)を作って測る。手順を worklog へ残す。
@@ -339,8 +339,8 @@ context = Context(tenant_id)
       **flow 登録と scanner 判定の両方**で埋まっている
 - [ ] **現行バグの是正**: デフォルト引数内の構築が red になる(**現行は 0 件**)
 - [ ] 再輸出 façade(**`Context(t)` — (iv) で捕まらない名前**)・サブクラス・深さ上限・star が負例で red
-- [ ] 統合 worktree で **TB007 794 → 3 / TB002 146 → 35**(TB004・TB005 は不変)。**当初 4 件としていたが、敵対レビュー 2 周目を受けた射程の裁定(2026-09-26)で「引数・局所変数として外から渡された callable を経由した構築」を保証範囲外としたため、develop 由来の 1 件(`authz/provisioning.py:457` の `handler`)が外れて 3 件になった。**
-      **TSK-235 固有の残件(TB007 3 件 / TB002 9 件)の申し送りが出ている**
+- [ ] 統合 worktree で **TB007 794 → 3 / TB002 146 → 37**(TB004・TB005 は不変)。**当初 4 件としていたが、敵対レビュー 2 周目を受けた射程の裁定(2026-09-26)で「引数・局所変数として外から渡された callable を経由した構築」を保証範囲外としたため、develop 由来の 1 件(`authz/provisioning.py:457` の `handler`)が外れて 3 件になった。**
+      **TSK-235 固有の残件(TB007 3 件 / TB002 7 件 = 計 10 件)の申し送りが出ている**
 - [ ] **通り抜けるもの**が PR 本文に全件明記されている(**再輸出元だけの変更・registry 経由・非対称が原理でないこと**を含む)
 - [ ] **落ちてはいけないもの D1〜D7** が負例で守られている
 - [ ] **センサス**(`path`/`line`/`end_line`/`scope`/`code`/`symbol`/`message` の exact-set・永続 golden 無し)で

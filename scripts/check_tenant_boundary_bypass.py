@@ -2323,14 +2323,23 @@ class _AliasCollector(ast.NodeVisitor):
 
 @dataclass(frozen=True)
 class _FlowValue:
-    """あるソース位置での値の由来を表す。"""
+    """値の可能な起源集合・未解決性・外部入力性を保持する。"""
 
     symbol: str | None = None
     kind: str = "unknown"
     elements: tuple[_FlowValue, ...] = ()
+    origins: frozenset[str] = frozenset()
+    unresolved: bool = False
+    external_input: bool = False
+
+    def __post_init__(self) -> None:
+        """単一起源の既存生成箇所を起源集合へ自動的に反映する。"""
+        if self.symbol is not None and not self.origins:
+            object.__setattr__(self, "origins", frozenset({self.symbol}))
 
 
-_UNKNOWN_FLOW_VALUE = _FlowValue()
+_UNKNOWN_FLOW_VALUE = _FlowValue(unresolved=True)
+_EXTERNAL_INPUT_FLOW_VALUE = _FlowValue(external_input=True)
 
 
 @dataclass(frozen=True)
@@ -2481,8 +2490,8 @@ class _LexicalCallClassifier(ast.NodeVisitor):
             node.args.kwarg,
         )
         for argument in arguments:
-            if argument is not None and argument.annotation is not None:
-                self.visit(argument.annotation)
+            if argument is not None:
+                self.visit(argument)
         if node.returns is not None:
             self.visit(node.returns)
         for type_param in node.type_params:
@@ -2641,10 +2650,12 @@ class _FlowProvenance:
         self.symbol_aliases = symbol_aliases
         self.tenant_context_symbol = tenant_context_symbol
         self.callable_symbols: dict[int, str | None] = {}
+        self.callable_values: dict[int, _FlowValue] = {}
         self.receiver_kinds: dict[int, str] = {}
         self.argument_kinds: dict[tuple[int, int], str] = {}
         self.function_returns: dict[str, _FlowValue] = {}
         self.class_members: dict[str, _FlowValue] = {}
+        self.class_base_values: dict[int, _FlowValue] = {}
         self.class_stack: list[str] = []
 
     def canonical(self, symbol: str) -> str:
@@ -2704,19 +2715,47 @@ class _FlowProvenance:
             value = environment.get(node.id, _UNKNOWN_FLOW_VALUE)
             if value.kind in {"class_non_db", "class_unknown"}:
                 kind = "non_db" if value.kind == "class_non_db" else "unknown"
-                return _FlowValue(value.symbol, kind)
+                return _FlowValue(
+                    value.symbol,
+                    kind,
+                    origins=value.origins,
+                    unresolved=value.unresolved,
+                    external_input=value.external_input,
+                )
             if value.symbol is None or value.symbol in {
                 "typing.Any",
                 "typing_extensions.Any",
                 "builtins.object",
             }:
-                return _UNKNOWN_FLOW_VALUE
-            return _FlowValue(value.symbol, self._kind_for_type(value.symbol))
+                return _FlowValue(
+                    kind="unknown",
+                    origins=value.origins,
+                    unresolved=value.unresolved,
+                    external_input=value.external_input,
+                )
+            return _FlowValue(
+                value.symbol,
+                self._kind_for_type(value.symbol),
+                origins=value.origins,
+                unresolved=value.unresolved,
+                external_input=value.external_input,
+            )
         if isinstance(node, ast.Attribute):
             value = self._expression(node, dict(environment))
             if value.symbol is None:
-                return _UNKNOWN_FLOW_VALUE
-            return _FlowValue(value.symbol, self._kind_for_type(value.symbol))
+                return _FlowValue(
+                    kind="unknown",
+                    origins=value.origins,
+                    unresolved=value.unresolved,
+                    external_input=value.external_input,
+                )
+            return _FlowValue(
+                value.symbol,
+                self._kind_for_type(value.symbol),
+                origins=value.origins,
+                unresolved=value.unresolved,
+                external_input=value.external_input,
+            )
         return _UNKNOWN_FLOW_VALUE
 
     def _join_annotation_members(
@@ -2724,10 +2763,16 @@ class _FlowProvenance:
         members: Sequence[_FlowValue],
     ) -> _FlowValue:
         """Union 系注釈を DB 優先・不明 fail-closed で分類する。"""
+        joined = self._joined_value(members)
         if any(member.kind == "db" for member in members):
-            return _FlowValue(kind="db")
+            return _FlowValue(
+                kind="db",
+                origins=joined.origins,
+                unresolved=joined.unresolved,
+                external_input=joined.external_input,
+            )
         if any(member.kind == "unknown" for member in members):
-            return _UNKNOWN_FLOW_VALUE
+            return joined
         tenant_members = [
             member for member in members if member.kind == "tenant_context"
         ]
@@ -2737,9 +2782,20 @@ class _FlowProvenance:
                 or member.symbol == "builtins.NoneType"
                 for member in members
             ):
-                return _FlowValue(self.tenant_context_symbol, "tenant_context")
-            return _UNKNOWN_FLOW_VALUE
-        return _FlowValue(kind="non_db")
+                return _FlowValue(
+                    self.tenant_context_symbol,
+                    "tenant_context",
+                    origins=joined.origins,
+                    unresolved=joined.unresolved,
+                    external_input=joined.external_input,
+                )
+            return joined
+        return _FlowValue(
+            kind="non_db",
+            origins=joined.origins,
+            unresolved=joined.unresolved,
+            external_input=joined.external_input,
+        )
 
     def _call_result(self, callable_value: _FlowValue) -> _FlowValue:
         """既知 factory・ローカルクラス・明示戻り型だけを戻り値へ伝播する。"""
@@ -2750,7 +2806,12 @@ class _FlowProvenance:
         if callable_value.kind == "class_non_db":
             return _FlowValue(symbol, "non_db")
         if callable_value.kind == "class_unknown":
-            return _UNKNOWN_FLOW_VALUE
+            return _FlowValue(
+                kind="unknown",
+                origins=callable_value.origins,
+                unresolved=True,
+                external_input=callable_value.external_input,
+            )
         if symbol is not None and symbol in self.function_returns:
             return self.function_returns[symbol]
         if symbol is not None and symbol.startswith("builtins."):
@@ -2758,18 +2819,42 @@ class _FlowProvenance:
             value = vars(builtins).get(builtin_name)
             if isinstance(value, type):
                 return _FlowValue(symbol, "non_db")
-        return _UNKNOWN_FLOW_VALUE
+        # 既知 callable の未注釈戻り値は実行時に外から受け取る値として扱う。
+        # 可能な起源に TenantContext がある場合は呼び出し側で先に拒否される。
+        return _EXTERNAL_INPUT_FLOW_VALUE
 
     def _joined_value(self, values: Sequence[_FlowValue]) -> _FlowValue:
-        """同一値または同じ封印済み種別だけを合流後へ残す。"""
+        """分岐の可能な起源を失わず、種別だけを保守的に合流する。"""
+        if not values:
+            return _UNKNOWN_FLOW_VALUE
         first = values[0]
         if all(value == first for value in values):
             return first
-        if first.kind in {"db", "non_db", "non_db_attribute", "tenant_context"} and all(
-            value.kind == first.kind for value in values
-        ):
-            return _FlowValue(kind=first.kind)
-        return _UNKNOWN_FLOW_VALUE
+        kinds = {value.kind for value in values}
+        kind = (
+            first.kind
+            if len(kinds) == 1
+            and first.kind
+            in {"db", "non_db", "non_db_attribute", "tenant_context"}
+            else "unknown"
+        )
+        symbols = {value.symbol for value in values}
+        symbol = symbols.pop() if len(symbols) == 1 else None
+        elements = (
+            first.elements
+            if all(value.elements == first.elements for value in values)
+            else ()
+        )
+        return _FlowValue(
+            symbol,
+            kind,
+            elements,
+            origins=frozenset(
+                origin for value in values for origin in value.origins
+            ),
+            unresolved=any(value.unresolved for value in values),
+            external_input=any(value.external_input for value in values),
+        )
 
     def _attribute_value(
         self,
@@ -2779,7 +2864,17 @@ class _FlowProvenance:
         """属性と receiver を一度だけ評価して返す。"""
         receiver = self._expression(node.value, environment)
         if receiver.symbol is None:
-            return _UNKNOWN_FLOW_VALUE, receiver
+            return (
+                _FlowValue(
+                    kind="unknown",
+                    origins=frozenset(
+                        f"{origin}.{node.attr}" for origin in receiver.origins
+                    ),
+                    unresolved=receiver.unresolved,
+                    external_input=receiver.external_input,
+                ),
+                receiver,
+            )
         symbol = self.canonical(f"{receiver.symbol}.{node.attr}")
         declared = self.class_members.get(symbol)
         if declared is not None:
@@ -2813,6 +2908,7 @@ class _FlowProvenance:
             else:
                 callable_value = self._expression(node.func, environment)
             self.callable_symbols[id(node)] = callable_value.symbol
+            self.callable_values[id(node)] = callable_value
             self.receiver_kinds[id(node)] = receiver.kind
             for index, argument in enumerate(node.args):
                 argument_value = self._expression(argument, environment)
@@ -2828,17 +2924,52 @@ class _FlowProvenance:
             self._assign_target(node.target, value, environment)
             return value
         if isinstance(node, ast.Dict):
+            elements: list[_FlowValue] = []
             for key, value in zip(node.keys, node.values, strict=True):
                 if key is not None:
                     self._expression(key, environment)
-                self._expression(value, environment)
-            return _FlowValue("builtins.dict", "non_db")
+                elements.append(self._expression(value, environment))
+            return _FlowValue(
+                "builtins.dict",
+                "non_db",
+                tuple(elements),
+            )
         if isinstance(node, (ast.List, ast.Set, ast.Tuple)):
             elements = tuple(self._expression(item, environment) for item in node.elts)
             type_name = type(node).__name__.lower()
             return _FlowValue(f"builtins.{type_name}", "non_db", elements)
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
+        if isinstance(node, ast.Subscript):
+            container = self._expression(node.value, environment)
+            self._expression(node.slice, environment)
+            if not container.elements:
+                return _FlowValue(
+                    kind="unknown",
+                    origins=container.origins,
+                    unresolved=True,
+                    external_input=container.external_input,
+                )
+            if (
+                isinstance(node.slice, ast.Constant)
+                and isinstance(node.slice.value, int)
+            ):
+                index = node.slice.value
+                if -len(container.elements) <= index < len(container.elements):
+                    return container.elements[index]
+            return self._joined_value(container.elements)
+        if isinstance(node, ast.IfExp):
+            self._expression(node.test, environment)
+            return self._joined_value(
+                (
+                    self._expression(node.body, dict(environment)),
+                    self._expression(node.orelse, dict(environment)),
+                )
+            )
+        if isinstance(node, ast.BoolOp):
+            return self._joined_value(
+                tuple(self._expression(value, environment) for value in node.values)
+            )
         if isinstance(node, ast.DictComp):
             # 従来評価済みの key/value は保ち、新規位置だけ fail-closed で覆う。
             coverage_environment: dict[str, _FlowValue] = {}
@@ -2963,10 +3094,32 @@ class _FlowProvenance:
         symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
         if node.name in self.database_type_names:
             return _FlowValue(symbol, "class_unknown")
-        for base in node.bases:
-            resolved = self._resolve_annotation(base, environment)
-            if resolved.kind in {"unknown", "db", "tenant_context"}:
-                return _FlowValue(symbol, "class_unknown")
+        base_values = [self._expression(base, environment) for base in node.bases]
+        for base, resolved in zip(node.bases, base_values, strict=True):
+            self.class_base_values[id(base)] = resolved
+        if any(
+            resolved.kind in {"unknown", "db", "tenant_context"}
+            or self.tenant_context_symbol in resolved.origins
+            for resolved in base_values
+        ):
+            return _FlowValue(
+                symbol,
+                "class_unknown",
+                origins=frozenset(
+                    {
+                        symbol,
+                        *(
+                            origin
+                            for resolved in base_values
+                            for origin in resolved.origins
+                        ),
+                    }
+                ),
+                unresolved=any(value.unresolved for value in base_values),
+                external_input=any(
+                    value.external_input for value in base_values
+                ),
+            )
         return _FlowValue(symbol, "class_non_db")
 
     def _bind_arguments(
@@ -2980,15 +3133,39 @@ class _FlowProvenance:
         annotations = annotation_environment or environment
         positional = [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
         for argument in positional:
-            environment[argument.arg] = self._resolve_annotation(
+            resolved = self._resolve_annotation(
                 argument.annotation,
                 annotations,
             )
+            environment[argument.arg] = (
+                _EXTERNAL_INPUT_FLOW_VALUE
+                if resolved == _UNKNOWN_FLOW_VALUE
+                else _FlowValue(
+                    resolved.symbol,
+                    resolved.kind,
+                    resolved.elements,
+                    origins=resolved.origins,
+                    unresolved=resolved.unresolved,
+                    external_input=True,
+                )
+            )
         for argument in (arguments.vararg, arguments.kwarg):
             if argument is not None:
-                environment[argument.arg] = self._resolve_annotation(
+                resolved = self._resolve_annotation(
                     argument.annotation,
                     annotations,
+                )
+                environment[argument.arg] = (
+                    _EXTERNAL_INPUT_FLOW_VALUE
+                    if resolved == _UNKNOWN_FLOW_VALUE
+                    else _FlowValue(
+                        resolved.symbol,
+                        resolved.kind,
+                        resolved.elements,
+                        origins=resolved.origins,
+                        unresolved=resolved.unresolved,
+                        external_input=True,
+                    )
                 )
 
     def _refine_isinstance_true_branch(
@@ -3111,8 +3288,6 @@ class _FlowProvenance:
             self._analyze_function(node, environment)
             return _FlowOutcome(environment)
         if isinstance(node, ast.ClassDef):
-            for base in node.bases:
-                self._expression(base, environment)
             for keyword in node.keywords:
                 self._expression(keyword.value, environment)
             for type_param in node.type_params:
@@ -3384,6 +3559,14 @@ class _FlowProvenance:
         """呼び出し時点で解決できた callable シンボルを返す。"""
         return self.callable_symbols.get(id(node))
 
+    def callable_value(self, node: ast.Call) -> _FlowValue:
+        """呼び出し時点の可能な起源集合と外部入力性を返す。"""
+        return self.callable_values.get(id(node), _UNKNOWN_FLOW_VALUE)
+
+    def class_base_value(self, node: ast.AST) -> _FlowValue:
+        """クラス基底式の可能な起源集合と外部入力性を返す。"""
+        return self.class_base_values.get(id(node), _UNKNOWN_FLOW_VALUE)
+
 
 class _SourceScanner(ast.NodeVisitor):
     """1 モジュールの変更行を検査する。"""
@@ -3589,10 +3772,13 @@ class _SourceScanner(ast.NodeVisitor):
         allow_condition4: bool = False,
         condition2_candidate: str | None = None,
         condition2_symbol: str | None = None,
+        condition2_only: bool = False,
     ) -> None:
         if not self._is_changed(node):
             return
         for rule in self.contract.rules:
+            if condition2_only and rule.condition != 2:
+                continue
             candidate_text = (
                 condition2_candidate
                 if rule.condition == 2 and condition2_candidate is not None
@@ -3657,6 +3843,35 @@ class _SourceScanner(ast.NodeVisitor):
     ) -> str:
         """条件 2 の候補を Store / Load とも構文上の裸名から得る。"""
         return node.id
+
+    def _condition2_symbol_for_attribute(
+        self,
+        node: ast.Attribute,
+        resolved: str,
+    ) -> str:
+        """receiver が再束縛されていない属性だけを裁定用に解決する。"""
+        root: ast.AST = node.value
+        while isinstance(root, (ast.Attribute, ast.Subscript)):
+            root = root.value
+        if not isinstance(root, ast.Name):
+            return node.attr
+        if (
+            self.module_bindings.has_star_import
+            or root.id in self.module_bindings.condition2_names
+            or id(root) in self.lexically_bound_name_ids
+        ):
+            return node.attr
+        return resolved
+
+    def _check_condition2_syntax(self, name: str, node: ast.AST) -> None:
+        """別名解決を使わず、構文上の identifier を条件 2 へ照合する。"""
+        self._check_identifier(
+            name,
+            node,
+            condition2_candidate=name,
+            condition2_symbol=name,
+            condition2_only=True,
+        )
 
     def _is_condition2_candidate(self, text: str) -> bool:
         """文字列が変更不能な条件 2 パターンの候補に入るか返す。"""
@@ -3994,13 +4209,32 @@ class _SourceScanner(ast.NodeVisitor):
                 )
                 return
         rebound_bare_name = globally_rebound_callable
-        known_callable = (
-            None if rebound_bare_name else self.flow.callable_symbol(node)
+        callable_value = (
+            _UNKNOWN_FLOW_VALUE
+            if rebound_bare_name
+            else self.flow.callable_value(node)
         )
+        known_callable = callable_value.symbol
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules
             | self.contract.tenant_context.allowed_product_modules
         )
+        if (
+            self.contract.tenant_context.constructor_symbol
+            in callable_value.origins
+        ):
+            if self.module in allowed_modules:
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=self.contract.tenant_context.constructor_symbol,
+                message=(
+                    "可能な callable 起源に TenantContext が含まれるため拒否"
+                ),
+            )
+            return
         if (
             known_callable == self.contract.tenant_context.constructor_symbol
             and self.module in allowed_modules
@@ -4042,10 +4276,13 @@ class _SourceScanner(ast.NodeVisitor):
                     allowed_modules=allowed_modules,
                 )
                 return
-            # 引数・局所変数・クロージャ変数として外から渡された callable は
-            # 保証外。ただし静的に解決できる局所 import / alias はここより前の
-            # (i)(iv)(v) と既知 callable の経路で判定する。
-            if lexically_bound_callable and not globally_rebound_callable:
+            # 起源集合を分岐・コンテナ・閉包まで保持し、TenantContext 起源が無く
+            # 未解決でもない外部入力だけを保証外 callable として免除する。
+            if (
+                lexically_bound_callable
+                and callable_value.external_input
+                and not callable_value.unresolved
+            ):
                 return
             alias_resolved = self.aliases.resolve(node.func)
             # resolve() は未知の裸名も生テキストで返す。known_symbols を読む
@@ -4308,8 +4545,25 @@ class _SourceScanner(ast.NodeVisitor):
             | self.contract.tenant_context.allowed_product_modules
         )
         for base in node.bases:
+            flow_base = self.flow.class_base_value(base)
             resolved = self.aliases.resolve(base) or self._raw_expression(base)
             reexport = self._reexport_resolution(base, resolved)
+            if (
+                self._is_changed(base)
+                and self.contract.tenant_context.constructor_symbol
+                in flow_base.origins
+                and self.module not in allowed_modules
+            ):
+                self._add(
+                    base,
+                    condition=5,
+                    code="TB007",
+                    symbol=self.contract.tenant_context.constructor_symbol,
+                    message=(
+                        "可能なクラス基底起源に TenantContext が含まれるため拒否"
+                    ),
+                )
+                continue
             if (
                 self._is_changed(base)
                 and reexport is not None
@@ -4393,8 +4647,8 @@ class _SourceScanner(ast.NodeVisitor):
             node.args.kwarg,
         )
         for argument in arguments:
-            if argument is not None and argument.annotation is not None:
-                self.visit(argument.annotation)
+            if argument is not None:
+                self.visit(argument)
         if node.returns is not None:
             self.visit(node.returns)
         for type_param in node.type_params:
@@ -4413,6 +4667,12 @@ class _SourceScanner(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
         """非同期関数のシンボル・署名・本体を検査する。"""
         self._visit_function(node)
+
+    def visit_arg(self, node: ast.arg) -> None:
+        """引数名を条件 2 の構文候補として照合する。"""
+        self._check_condition2_syntax(node.arg, node)
+        if node.annotation is not None:
+            self.visit(node.annotation)
 
     def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
         """名前参照を禁止語彙へ照合する。"""
@@ -4435,7 +4695,42 @@ class _SourceScanner(ast.NodeVisitor):
             resolved,
             node,
             allow_condition4=self._condition4_reference_allowed(resolved),
+            condition2_candidate=node.attr,
+            condition2_symbol=self._condition2_symbol_for_attribute(
+                node,
+                resolved,
+            ),
         )
+        self.generic_visit(node)
+
+    def visit_keyword(self, node: ast.keyword) -> None:
+        """呼び出し・class keyword 名を条件 2 の構文候補として照合する。"""
+        if node.arg is not None:
+            self._check_condition2_syntax(node.arg, node)
+        self.visit(node.value)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:  # noqa: N802
+        """match capture 名を条件 2 の構文候補として照合する。"""
+        if node.name is not None:
+            self._check_condition2_syntax(node.name, node)
+        if node.pattern is not None:
+            self.visit(node.pattern)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:  # noqa: N802
+        """star capture 名を条件 2 の構文候補として照合する。"""
+        if node.name is not None:
+            self._check_condition2_syntax(node.name, node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:  # noqa: N802
+        """mapping rest capture 名を条件 2 の構文候補として照合する。"""
+        if node.rest is not None:
+            self._check_condition2_syntax(node.rest, node)
+        self.generic_visit(node)
+
+    def visit_MatchClass(self, node: ast.MatchClass) -> None:  # noqa: N802
+        """class pattern の keyword 名を条件 2 の構文候補として照合する。"""
+        for name in node.kwd_attrs:
+            self._check_condition2_syntax(name, node)
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
@@ -4475,8 +4770,10 @@ class _SourceScanner(ast.NodeVisitor):
         self._check_dynamic_call(node)
         if not condition4_call_allowed:
             self.visit(node.func)
-        for argument in (*node.args, *(item.value for item in node.keywords)):
+        for argument in node.args:
             self.visit(argument)
+        for keyword in node.keywords:
+            self.visit(keyword)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:  # noqa: N802
         """保護対象名を組み立てる文字列連結を拒否する。"""
