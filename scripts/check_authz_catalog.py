@@ -329,7 +329,13 @@ ROUTE_CLASSES = frozenset({"shared_screen", "shared_aggregate_export"})
 RESOURCE_KINDS = frozenset({"team_metrics", "team_summary", "player_metrics"})
 CHANNELS = frozenset({"screen", "export"})
 ROUTE_KINDS = frozenset(
-    {"legacy_route", "shared_data", "control_read", "management_operation"}
+    {
+        "legacy_route",
+        "shared_data",
+        "control_read",
+        "management_operation",
+        "record_and_aggregate",
+    }
 )
 CLAIM_DISPOSITION_LOCATIONS = frozenset({"cache", "http"})
 CLAIM_DISPOSITIONS = frozenset({"out_of_registry", "routed"})
@@ -2140,6 +2146,20 @@ def _validate_claim_dispositions(
     return dispositions_by_key
 
 
+def _validate_record_and_aggregate_route_ids(
+    route_by_id: dict[str, dict[str, object]],
+) -> None:
+    """record_and_aggregate route が未登録であることを検査する。"""
+    actual_route_ids = frozenset(
+        route_id
+        for route_id, route in route_by_id.items()
+        if route["route_kind"] == "record_and_aggregate"
+    )
+    expected_route_ids: frozenset[str] = frozenset()
+    if actual_route_ids != expected_route_ids:
+        raise CatalogError("record_and_aggregate route が空集合と exact-set 不一致")
+
+
 def validate_route_registry(
     raw: object,
     requirement_catalog: dict[str, object],
@@ -2296,22 +2316,24 @@ def validate_route_registry(
         raise CatalogError("routes は配列でなければならない")
     route_by_id: dict[str, dict[str, object]] = {}
     origin_counts: Counter[str] = Counter()
+    common_keys = {"route_id", "route_kind", "origin", "source_claim_ids"}
+    expected_keys_by_kind = {
+        "legacy_route": common_keys
+        | {"route_class", "channel", "expected_default", "provenance_ids"},
+        "shared_data": common_keys | {"route_class", "resource_kind", "channel"},
+        "control_read": common_keys | {"control_read_id", "access_requirement"},
+        "management_operation": common_keys | {"operation_id"},
+        "record_and_aggregate": common_keys | {"provenance_ids", "operation"},
+    }
+    if frozenset(expected_keys_by_kind) != ROUTE_KINDS:
+        raise CatalogError("ROUTE_KINDS と expected_keys_by_kind が不一致")
     for index, route in enumerate(routes):
         label = f"routes[{index}]"
         if not isinstance(route, dict):
             raise CatalogError(f"{label}はオブジェクトでなければならない")
-        common_keys = {"route_id", "route_kind", "origin", "source_claim_ids"}
         route_kind = _expect_closed_value(
             route.get("route_kind"), ROUTE_KINDS, f"{label}.route_kind"
         )
-        expected_keys_by_kind = {
-            "legacy_route": common_keys
-            | {"route_class", "channel", "expected_default", "provenance_ids"},
-            "shared_data": common_keys
-            | {"route_class", "resource_kind", "channel"},
-            "control_read": common_keys | {"control_read_id", "access_requirement"},
-            "management_operation": common_keys | {"operation_id"},
-        }
         _expect_keys(route, expected_keys_by_kind[route_kind], label)
         route_id = _expect_string(route["route_id"], f"{label}.route_id")
         origin = _expect_closed_value(route["origin"], ORIGINS, f"{label}.origin")
@@ -2329,6 +2351,8 @@ def validate_route_registry(
             )
             if not route_provenance or not route_provenance <= provenance_ids:
                 raise CatalogError(f"{route_id}: design provenance が閉じていない")
+        if route_kind == "record_and_aggregate" and origin != "design":
+            raise CatalogError(f"{route_id}: record_and_aggregate route は design origin が必要")
         origin_counts[origin] += 1
         if "route_class" in route:
             _expect_closed_value(route["route_class"], ROUTE_CLASSES, f"{label}.route_class")
@@ -2354,6 +2378,29 @@ def validate_route_registry(
                 raise CatalogError(f"{route_id}: operation_id が management contract にない")
             if operation_by_id[str(operation_id)]["route_id"] != route_id:
                 raise CatalogError(f"{route_id}: operation の route_id が不一致")
+        if route_kind == "record_and_aggregate":
+            operation = _expect_closed_value(
+                route["operation"],
+                frozenset({"read", "insert", "update"}),
+                f"{label}.operation",
+            )
+            route_id_parts = route_id.split(":")
+            if (
+                len(route_id_parts) != 4
+                or route_id_parts[:2] != ["ROUTE", "RECORD"]
+                or not route_id_parts[2]
+                or route_id_parts[-1].casefold() != operation.casefold()
+            ):
+                raise CatalogError(
+                    f"{route_id}: record_and_aggregate route_id が導出規則と不一致"
+                )
+            route_provenance = frozenset(
+                _expect_string_list(route["provenance_ids"], f"{label}.provenance_ids")
+            )
+            if "PLAN-TSK446-RECORD-AND-AGGREGATE" not in route_provenance:
+                raise CatalogError(
+                    f"{route_id}: record_and_aggregate route は専用 provenance が必要"
+                )
         if route_id in route_by_id:
             raise CatalogError(f"route_id が重複している: {route_id}")
         route_by_id[route_id] = route
@@ -2422,6 +2469,7 @@ def validate_route_registry(
         operation_ids
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
+    _validate_record_and_aggregate_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
         source_claim_ids = route["source_claim_ids"]
@@ -2652,7 +2700,10 @@ def validate_http_route_matrix(
         "shared_data": "product_cell",
         "control_read": "conditional",
         "management_operation": "conditional",
+        "record_and_aggregate": "conditional",
     }
+    if frozenset(disposition_by_kind) != ROUTE_KINDS:
+        raise CatalogError("ROUTE_KINDS と disposition_by_kind が不一致")
     for index, entry in enumerate(matrix_routes):
         label = f"HTTP matrix.routes[{index}]"
         if not isinstance(entry, dict):

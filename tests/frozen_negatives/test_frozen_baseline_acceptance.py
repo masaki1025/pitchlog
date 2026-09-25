@@ -259,10 +259,13 @@ def _write_acceptance_scan_assets(root: Path) -> None:
     )
 
 
-def _add_noop_history_record(ledger: dict[str, Any]) -> None:
-    """通常遷移の削除検査用に有効な2件目の履歴を追加する。"""
+def _add_history_record_for_deletion(ledger: dict[str, Any]) -> None:
+    """削除検査のbaseへ実変更を主張する有効な履歴を追加する。"""
     previous = ledger["history"][-1]
-    acceptance = copy.deepcopy(ledger["acceptance"])
+    before_rules = copy.deepcopy(ledger["movement_rules"])
+    after_rules = copy.deepcopy(before_rules)
+    after_rules["additional_targets"]["value_change"] = ["oracle_input"]
+    ledger["movement_rules"] = copy.deepcopy(after_rules)
     placement = copy.deepcopy(ledger["placements"]["oracle_input"])
     ledger["history"].append(
         {
@@ -272,9 +275,9 @@ def _add_noop_history_record(ledger: dict[str, Any]) -> None:
             "prior_identity": copy.deepcopy(previous["new_identity"]),
             "changes": [
                 {
-                    "aspect": "acceptance",
-                    "before": acceptance,
-                    "after": copy.deepcopy(acceptance),
+                    "aspect": "movement_rules",
+                    "before": before_rules,
+                    "after": after_rules,
                 }
             ],
             "placement_change": {
@@ -282,11 +285,42 @@ def _add_noop_history_record(ledger: dict[str, Any]) -> None:
                 "after": copy.deepcopy(placement),
             },
             "moved": False,
-            "reason": "追記のみ検査の合成base記録",
+            "reason": "削除検査の合成base記録",
             "approved_by": "山田正輝",
             "approved_at": "2026-09-21",
         }
     )
+
+
+def _append_history_claim_record(
+    ledger: dict[str, Any],
+    *,
+    acceptance_id: str,
+    changes: list[dict[str, Any]],
+    reason: str,
+) -> int:
+    """直前状態と連続する履歴主張を末尾へ追加し、そのindexを返す。"""
+    previous = ledger["history"][-1]
+    identity = copy.deepcopy(previous["new_identity"])
+    placement = copy.deepcopy(previous["placement_change"]["after"])
+    ledger["history"].append(
+        {
+            "acceptance_id": acceptance_id,
+            "series": previous["series"],
+            "new_identity": copy.deepcopy(identity),
+            "prior_identity": copy.deepcopy(identity),
+            "changes": changes,
+            "placement_change": {
+                "before": copy.deepcopy(placement),
+                "after": copy.deepcopy(placement),
+            },
+            "moved": False,
+            "reason": reason,
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-25",
+        }
+    )
+    return len(ledger["history"]) - 1
 
 
 def _build_repository(
@@ -416,6 +450,11 @@ def _assert_normal_baseline_green(fixture: _AcceptanceFixture) -> None:
     assert result.stderr == ""
 
 
+def _assert_baseline_green(fixture: _AcceptanceFixture) -> None:
+    """履歴主張テストの変異前fixtureがgreenであることを表明する。"""
+    _assert_normal_baseline_green(fixture)
+
+
 def _assert_bootstrap_baseline_green(fixture: _AcceptanceFixture) -> None:
     """初回bootstrap fixtureが明示メッセージ付きでgreenであることを表明する。"""
     result = _run_acceptance(fixture)
@@ -543,49 +582,81 @@ def test_rewritten_existing_history_record_is_red(tmp_path: Path) -> None:
 
 @pytest.mark.frozen_negative
 def test_deleted_existing_history_record_is_red(tmp_path: Path) -> None:
-    """N19: baseにある有効な既存履歴の削除を拒否する。"""
+    """N19: 直前の連鎖を保つため末尾を選び、既存履歴の削除を拒否する。"""
     fixture = _build_repository(tmp_path / "baseline")
     _assert_normal_baseline_green(fixture)
+    base_history_length: int | None = None
+    head_history_length: int | None = None
+
+    def add_base_record(ledger: dict[str, Any]) -> None:
+        nonlocal base_history_length
+        _add_history_record_for_deletion(ledger)
+        base_history_length = len(ledger["history"])
 
     def remove_last(ledger: dict[str, Any]) -> None:
+        nonlocal head_history_length
+        change = ledger["history"][-1]["changes"][0]
+        assert change["aspect"] == "movement_rules"
+        ledger["movement_rules"] = copy.deepcopy(change["before"])
         ledger["history"].pop()
+        head_history_length = len(ledger["history"])
 
     mutant = _build_repository(
         tmp_path / "mutant",
-        base_mutation=_add_noop_history_record,
+        base_mutation=add_base_record,
         head_mutation=remove_last,
     )
-    _assert_red(mutant, "historyの既存記録が削除された: base=2; head=1")
+    assert base_history_length is not None and head_history_length is not None
+    assert head_history_length == base_history_length - 1
+    _assert_red(
+        mutant,
+        "historyの既存記録が削除された: "
+        f"base={base_history_length}; head={head_history_length}",
+    )
 
 
 @pytest.mark.frozen_negative
 def test_same_length_history_replacement_is_red(tmp_path: Path) -> None:
-    """N20: 件数を維持した履歴recordの置換を拒否する。"""
+    """N20: 前段の連鎖を保つため末尾を選び、同数の履歴置換を拒否する。"""
     fixture = _build_repository(tmp_path / "baseline")
     _assert_normal_baseline_green(fixture)
+    replaced_index: int | None = None
 
     def replace_record(ledger: dict[str, Any]) -> None:
-        replacement = copy.deepcopy(ledger["history"].pop(0))
+        nonlocal replaced_index
+        replaced_index = len(ledger["history"]) - 1
+        replacement = copy.deepcopy(ledger["history"].pop())
         replacement["acceptance_id"] = "masaki1025/pitchlog#999"
         ledger["history"].append(replacement)
 
     mutant = _build_repository(tmp_path / "mutant", head_mutation=replace_record)
-    _assert_red(mutant, "historyの同数置換を検出した: index=0")
+    assert replaced_index is not None
+    _assert_red(mutant, f"historyの同数置換を検出した: index={replaced_index}")
 
 
 @pytest.mark.frozen_negative
 def test_second_bootstrap_after_missing_base_ledger_is_red(tmp_path: Path) -> None:
-    """N21: 初回ID以外でbase台帳不在経路へ入ることを拒否する。"""
+    """N21: 初回記録だけを再構成し、別IDでのbootstrap反復を拒否する。"""
+
+    def retain_initial_bootstrap_record(ledger: dict[str, Any]) -> None:
+        initial_record = copy.deepcopy(ledger["history"][0])
+        current_identity = copy.deepcopy(ledger["history"][-1]["new_identity"])
+        initial_record["new_identity"] = current_identity
+        initial_record["prior_identity"] = copy.deepcopy(current_identity)
+        ledger["history"] = [initial_record]
+
     fixture = _build_repository(
         tmp_path / "baseline",
         bootstrap=True,
         pull_request_number=73,
+        head_mutation=retain_initial_bootstrap_record,
     )
     _assert_bootstrap_baseline_green(fixture)
     mutant = _build_repository(
         tmp_path / "mutant",
         bootstrap=True,
         pull_request_number=74,
+        head_mutation=retain_initial_bootstrap_record,
     )
 
     _assert_red(
@@ -631,3 +702,216 @@ def test_missing_inputs_and_dangling_identity_are_red(tmp_path: Path) -> None:
         dangling,
         f"識別値commitがHEADから到達不能: {dangling.identity_sha}",
     )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_unchanged_identity_is_red(tmp_path: Path) -> None:
+    """N23: identityも規範状態も変えない空の履歴レコードを拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_empty_claim(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[],
+            reason="空の履歴レコードを拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_empty_claim,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}]: changes が空で識別値も配置も動かず、"
+        "何も主張していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_noop_history_change_is_red(tmp_path: Path) -> None:
+    """N24: 規範状態を変えない同値の change entry を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_noop_change(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        acceptance = copy.deepcopy(ledger["acceptance"])
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[
+                {
+                    "aspect": "acceptance",
+                    "before": copy.deepcopy(acceptance),
+                    "after": copy.deepcopy(acceptance),
+                }
+            ],
+            reason="同値の change entry を拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_noop_change,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}].changes[0]: "
+        "before と after が意味上同一で、何も変更していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_reordered_history_change_is_red(tmp_path: Path) -> None:
+    """N25: 順序に意味のないlistの並べ替えだけを変更として拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_reordered_change(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        before_rules = copy.deepcopy(ledger["movement_rules"])
+        after_rules = copy.deepcopy(before_rules)
+        after_rules["triggers"] = list(reversed(after_rules["triggers"]))
+        assert before_rules != after_rules
+        ledger["movement_rules"] = copy.deepcopy(after_rules)
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[
+                {
+                    "aspect": "movement_rules",
+                    "before": before_rules,
+                    "after": after_rules,
+                }
+            ],
+            reason="triggers の並べ替えだけを変更と数えない負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_reordered_change,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}].changes[0]: "
+        "before と after が意味上同一で、何も変更していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_moved_identity_is_green(tmp_path: Path) -> None:
+    """identity移動と純粋な配置移動では空のchangesを受理する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def remove_document_changes(ledger: dict[str, Any]) -> None:
+        record = ledger["history"][-1]
+        assert record["prior_identity"] != record["new_identity"]
+        record["changes"] = []
+
+    pure_value_move = _build_repository(
+        tmp_path / "pure-value-move",
+        base_mutation=remove_document_changes,
+    )
+    _assert_baseline_green(pure_value_move)
+
+    def split_initial_record_for_pure_placement(ledger: dict[str, Any]) -> None:
+        placement_record = ledger["history"][0]
+        document_change_record = copy.deepcopy(placement_record)
+        legacy_placement = copy.deepcopy(placement_record["placement_change"]["before"])
+        document_change_record["acceptance_id"] = "masaki1025/pitchlog#72"
+        document_change_record["placement_change"]["after"] = copy.deepcopy(
+            legacy_placement
+        )
+        document_change_record["moved"] = False
+        document_change_record["reason"] = "台帳文書の規範状態だけを導入する合成記録"
+        placement_record["changes"] = []
+        assert placement_record["prior_identity"] == placement_record["new_identity"]
+        assert (
+            placement_record["placement_change"]["before"]
+            != placement_record["placement_change"]["after"]
+        )
+        assert placement_record["moved"] is True
+        ledger["history"].insert(0, document_change_record)
+
+    pure_placement_move = _build_repository(
+        tmp_path / "pure-placement-move",
+        base_mutation=split_initial_record_for_pure_placement,
+    )
+    _assert_baseline_green(pure_placement_move)
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_reordered_placement_is_green(tmp_path: Path) -> None:
+    """locator配列の順序変更を履歴導出と同じraw equalityで移動と数える。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def split_initial_record_for_reordered_placement(
+        ledger: dict[str, Any],
+    ) -> None:
+        initial_record = ledger["history"][0]
+        document_change_record = copy.deepcopy(initial_record)
+        reordered_placement_record = copy.deepcopy(initial_record)
+        final_placement_record = copy.deepcopy(initial_record)
+        legacy_placement = copy.deepcopy(initial_record["placement_change"]["before"])
+        ledger_placement = copy.deepcopy(initial_record["placement_change"]["after"])
+        combined_placement = [*legacy_placement, *ledger_placement]
+        reversed_placement = list(reversed(combined_placement))
+
+        document_change_record["acceptance_id"] = "masaki1025/pitchlog#71"
+        document_change_record["placement_change"]["after"] = copy.deepcopy(
+            combined_placement
+        )
+        document_change_record["moved"] = True
+        document_change_record["reason"] = "台帳文書と複数locator配置を導入する合成記録"
+
+        reordered_placement_record["acceptance_id"] = "masaki1025/pitchlog#72"
+        reordered_placement_record["changes"] = []
+        reordered_placement_record["placement_change"] = {
+            "before": copy.deepcopy(combined_placement),
+            "after": copy.deepcopy(reversed_placement),
+        }
+        reordered_placement_record["moved"] = True
+        reordered_placement_record["reason"] = "locator配列の順序だけを変える純粋配置移動"
+
+        final_placement_record["changes"] = []
+        final_placement_record["placement_change"] = {
+            "before": copy.deepcopy(reversed_placement),
+            "after": copy.deepcopy(ledger_placement),
+        }
+        final_placement_record["moved"] = True
+        final_placement_record["reason"] = "複数locator配置から台帳系列へ移動する合成記録"
+
+        assert (
+            reordered_placement_record["prior_identity"]
+            == reordered_placement_record["new_identity"]
+        )
+        assert (
+            reordered_placement_record["placement_change"]["before"]
+            == list(
+                reversed(
+                    reordered_placement_record["placement_change"]["after"]
+                )
+            )
+        )
+        assert reordered_placement_record["moved"] is True
+        ledger["history"][0:1] = [
+            document_change_record,
+            reordered_placement_record,
+            final_placement_record,
+        ]
+
+    reordered_placement = _build_repository(
+        tmp_path / "reordered-placement",
+        base_mutation=split_initial_record_for_reordered_placement,
+    )
+    _assert_baseline_green(reordered_placement)

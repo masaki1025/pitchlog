@@ -42,7 +42,7 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+        "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
       },
       {
         "path": "scripts/frozen_baselines.py",
@@ -155,6 +155,91 @@
       "reason": "凍結基準を検査器の直書き定数から台帳系列へ移設するため",
       "approved_by": "山田正輝",
       "approved_at": "2026-09-21"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#77",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "70621e330610f214416aa7a1b067acf7b941f8c0"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "24ef4fcc682b42b504edc1d6264d380760c54929"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "aspect": "implementation_bindings",
+          "before": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          },
+          "after": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          }
+        }
+      ],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "TSK-446 で route_kind へ record_and_aggregate を足したため、oracle 入力資産 route-registry.json と auth-catalog.json の内容が変わり、入力 baseline の commit を更新する必要があるため。承認の取得元: 2026-09-25 の Claude Code セッションでの発話(逐語「承認するから入れてくれない?」)。PR masaki1025/pitchlog#77 には本記録の時点で review・comment がいずれも 0 件であり、GitHub 側の機械可読な承認記録は存在しない",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-09-25"
     }
   ]
 }
