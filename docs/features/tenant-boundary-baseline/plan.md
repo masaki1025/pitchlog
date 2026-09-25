@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-baseline
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -67,7 +67,15 @@ created: 2026-09-24
 | `docs/development/dev-harness-design-2026-08-07.md`(7.7) | **反映なし** — 条文は変えない。本タスクは条文への適合であって改訂ではない | — |
 | `docs/design/data-model.md` | **反映なし** | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
-| `docs/development/harness-evaluation.md` | **`## 候補` へ追記の判断は /pr のクローズ処理で行う**(本計画では確定しない) | PR レビュー |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 1 件追記 + 既存候補 1 件へ 5 例目 + 変更履歴表へ 1 行**(`/pr` のクローズ処理で確定。**版は上げない** — 7.6-3 前段) | PR レビュー |
+| `docs/README.md` | **台帳行の最終更新日を現行化**(2026-09-24 → 2026-09-25) | PR レビュー |
+
+**正本体系外だが同一 PR で更新するもの**
+
+| ファイル | 変更内容 | 理由 |
+| --- | --- | --- |
+| `.claude/core-areas.json` | `tenant-isolation` 領域へ `scripts/frozen_history.py` と `tests/test_frozen_history.py` を追加 | **本 PR が作った穴**(新設ファイルがコア領域のどのパターンにも該当しない)。**計画スコープ外の逸脱として worklog・コミット・PR 本文に記録済み** |
+| `tests/test_core_guard.py` | `TENANT_BOUNDARY_AREA_PATH_CASES` へ同じ 2 件を同順で追加 | 上記の期待集合が人手の列挙で、順序まで比較するため |
 
 **正本の新設・版繰り上げはない。**
 
