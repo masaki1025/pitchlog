@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import importlib.util
 import json
 import shutil
 import sys
+from collections import deque
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -1129,7 +1131,12 @@ def test_implementation_constants_contain_only_universal_triggers() -> None:
         )
 
 
-def _add_synthetic_frozen_asset(repository: Path) -> Path:
+def _add_synthetic_frozen_asset(
+    repository: Path,
+    *,
+    external_file: str | None = None,
+    additional_trigger: str | None = "pass_fail_mapping",
+) -> Path:
     """新規凍結資産をauthorityでない初回状態として追加する。"""
     source_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
     asset = json.loads(source_path.read_text(encoding="utf-8"))
@@ -1139,10 +1146,150 @@ def _add_synthetic_frozen_asset(repository: Path) -> Path:
     ]
     asset["baseline_control"]["history"] = []
     asset["baseline_control"]["history_authority"] = False
+    triggers = sorted(checker.frozen_history.REQUIRED_MOVEMENT_TRIGGERS)
+    if additional_trigger is not None:
+        triggers.append(additional_trigger)
+    asset["baseline_control"]["movement_policy"]["movement_triggers"] = triggers
+    if external_file is not None:
+        external_path = repository / external_file
+        external_path.parent.mkdir(parents=True, exist_ok=True)
+        external_path.write_text("initial external implementation\n", encoding="utf-8")
+        asset["baseline_control"]["identity"]["frozen_projection"][
+            "external_files"
+        ] = [external_file]
     asset["source_digest"] = _contract_digest(asset)
     path = repository / "contracts/tenant_boundary/synthetic-contract.json"
     _write_contract_asset(path, asset)
     return path
+
+
+@pytest.mark.parametrize(
+    ("additional_trigger", "expects_record"),
+    [
+        pytest.param("custom_mapping", True, id="declared"),
+        pytest.param(None, False, id="not-declared"),
+    ],
+)
+def test_additional_trigger_declaration_changes_production_movement_decision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    additional_trigger: str | None,
+    expects_record: bool,
+) -> None:
+    """同じ外部実体変異の記録要求が比較元triggerの有無で変わる。"""
+    repository, original_base = _initialize_test_repository(tmp_path, {})
+    external_file = "scripts/synthetic-pass-fail.py"
+    _add_synthetic_frozen_asset(
+        repository,
+        external_file=external_file,
+        additional_trigger=additional_trigger,
+    )
+    _append_current_repository_transition_record(
+        repository,
+        original_base,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    comparison_base = _commit_test_repository(repository, "synthetic trigger baseline")
+    assert _check_test_repository(repository, original_base) == []
+
+    (repository / external_file).write_text(
+        "changed external implementation\n",
+        encoding="utf-8",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        comparison_base,
+        monkeypatch,
+        tmp_path / f"additional-trigger-{additional_trigger}.json",
+        number=80,
+    )
+
+    if expects_record:
+        with pytest.raises(checker.ContractError, match="movement.*record"):
+            checker.check_repository(repository)
+    else:
+        assert checker.check_repository(repository) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "marker"),
+    [
+        pytest.param("movement_fact", "PENDING", id="movement-fact"),
+        pytest.param("reason", "TODO: 後で", id="reason"),
+    ],
+)
+def test_reserved_record_description_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    marker: str,
+) -> None:
+    """正しい遷移内容でも事実・理由の予約markerを本番入口で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    _bump_asset_revision(asset)
+    _write_contract_asset(asset_path, asset)
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    authority = json.loads(asset_path.read_text(encoding="utf-8"))
+    authority["baseline_control"]["history"][-1][field] = marker
+    _write_contract_asset(asset_path, authority)
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / f"reserved-{field}.json",
+        number=79,
+    )
+
+    with pytest.raises(checker.ContractError, match="予約 marker"):
+        checker.check_repository(repository)
+
+
+def test_real_record_descriptions_pass_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """現在の受理記録にある日本語の事実・理由を誤検出しない。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    _bump_asset_revision(asset)
+    _write_contract_asset(asset_path, asset)
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    authority = json.loads(asset_path.read_text(encoding="utf-8"))
+    record = authority["baseline_control"]["history"][-1]
+    current_record = authority["baseline_control"]["history"][-2]
+    record["movement_fact"] = current_record["movement_fact"]
+    record["reason"] = current_record["reason"]
+    _write_contract_asset(asset_path, authority)
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "real-record-descriptions.json",
+        number=79,
+    )
+
+    assert checker.check_repository(repository) == []
 
 
 def test_added_asset_with_single_record_passes_production_check(
@@ -1299,6 +1446,76 @@ def test_production_check_uses_shared_safe_external_loader(
         "load_pr_role_separated_evaluation",
     ):
         assert not hasattr(checker.frozen_history, obsolete)
+
+
+def test_public_function_production_reachability_and_movement_result_usage() -> None:
+    """公開関数の本番到達性とmovement評価値の非破棄をASTで証明する。"""
+    module_paths = {
+        "checker": REPOSITORY_ROOT / "scripts/check_tenant_boundary_bypass.py",
+        "frozen_history": REPOSITORY_ROOT / "scripts/frozen_history.py",
+    }
+    trees = {
+        module: ast.parse(path.read_text(encoding="utf-8"))
+        for module, path in module_paths.items()
+    }
+    functions = {
+        f"{module}.{node.name}": node
+        for module, tree in trees.items()
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    def resolve(module: str, call: ast.Call) -> str | None:
+        if isinstance(call.func, ast.Name):
+            candidate = f"{module}.{call.func.id}"
+            return candidate if candidate in functions else None
+        if (
+            module == "checker"
+            and isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "frozen_history"
+        ):
+            candidate = f"frozen_history.{call.func.attr}"
+            return candidate if candidate in functions else None
+        return None
+
+    edges = {name: set() for name in functions}
+    discarded_movement_results: list[tuple[str, int]] = []
+    for caller, function in functions.items():
+        module = caller.split(".", 1)[0]
+        for node in ast.walk(function):
+            if isinstance(node, ast.Call):
+                callee = resolve(module, node)
+                if callee is not None:
+                    edges[caller].add(callee)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                if resolve(module, node.value) == (
+                    "frozen_history.evaluate_repository_movement"
+                ):
+                    discarded_movement_results.append((caller, node.lineno))
+
+    reachable = {"checker.check_repository"}
+    pending = deque(reachable)
+    while pending:
+        caller = pending.popleft()
+        for callee in edges[caller]:
+            if callee not in reachable:
+                reachable.add(callee)
+                pending.append(callee)
+
+    public_functions = {
+        name for name in functions if not name.split(".", 1)[1].startswith("_")
+    }
+    # check_repository から逆方向に辟れない CLI 入口と、テスト用 API。
+    expected_non_production = {
+        "checker.main",
+        "checker.scan_directory",
+        "frozen_history.main",
+    }
+
+    assert public_functions - reachable == expected_non_production
+    assert "frozen_history.validate_movement_record_requirement" in reachable
+    assert discarded_movement_results == []
 
 
 @pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)

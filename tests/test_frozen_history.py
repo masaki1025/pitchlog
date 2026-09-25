@@ -732,9 +732,11 @@ def test_reordered_external_snapshots_are_rejected_after_valid_baseline(tmp_path
         pytest.param("approved_by", "TODO: 後で", id="todo-with-description"),
         pytest.param("approved_by", "pending review", id="lowercase-pending"),
         pytest.param("approved_on", "承認日 TBD", id="tbd-approval-date"),
+        pytest.param("movement_fact", "PENDING", id="pending-movement-fact"),
+        pytest.param("reason", "TODO: 後で", id="todo-reason"),
     ],
 )
-def test_reserved_approval_marker_is_rejected_after_valid_baseline(
+def test_reserved_v2_marker_is_rejected_after_valid_baseline(
     field: str,
     marker: str,
     tmp_path: Path,
@@ -747,13 +749,28 @@ def test_reserved_approval_marker_is_rejected_after_valid_baseline(
         _parse_v2(record, transition)
 
 
-def test_real_approver_and_valid_date_are_not_reserved_markers(tmp_path: Path) -> None:
+def test_real_v2_descriptions_approver_and_date_are_not_reserved_markers(
+    tmp_path: Path,
+) -> None:
     record, transition = _v2_case(tmp_path)
     assert _parse_v2(record, transition)
     record["approved_by"] = "山田正輝"
     record["approved_on"] = "2026-09-24"
+    record["movement_fact"] = "外部実装の内容が受理前から変更された。"
+    record["reason"] = "テナント境界の新しい判定規則を反映するため。"
 
     assert _parse_v2(record, transition)
+
+
+def test_future_v2_string_field_is_checked_for_reserved_marker_by_default(
+    tmp_path: Path,
+) -> None:
+    """将来追加される文字列欄も明示除外しない限り予約markerを拒否する。"""
+    record, _ = _v2_case(tmp_path)
+    record["future_description"] = "TODO: schema 拡張時に記述する"
+
+    with pytest.raises(parser.ContractError, match="future_description.*予約 marker"):
+        parser._reject_v2_reserved_markers(record, "history[0]")
 
 
 @pytest.mark.parametrize("invalid_approver", ["", " ", "\t\n"])
