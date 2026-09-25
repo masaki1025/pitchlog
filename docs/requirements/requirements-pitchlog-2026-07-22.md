@@ -1341,6 +1341,25 @@ additionalProperties: false
 - `runner-event`は打者の打席に影響しないため、3値を上表のとおり固定する。盗塁・牽制・暴投／捕逸等の走者イベントは、打者のカウントも打席の成否も変更しない。
 - `secondary-result`（打撃結果2・特殊プレイ）は、PB／WP／ボーク等のように打者の行き先を決めない場合があるため、`batterDestination.kind`に`not-applicable`を許す。
 
+**交差制約**:
+
+次の8件を、列どうしの値に適用する交差制約とする。負例欄は、当該制約を満たす有効な基準行へ適用する変異fixtureであり、記載していない列は基準行の値を維持する。各負例は対応するIDでfailしなければならない。
+
+| ID | 述語 | 負例（基準行からの変異値） |
+| --- | --- | --- |
+| `XC-01` | `eventKind = runner-event`なら`batterDestination.kind = not-applicable` | `eventKind: "runner-event"`に対して`batterDestination: {kind: "continue"}` |
+| `XC-02` | `precondition`が当該塁の走者不在を含むなら、その塁の`Adv.modality = not-applicable` | `precondition`が一塁走者不在を含む行で`runnerDefaultAdvance.first: {modality: "hold", destination: null}` |
+| `XC-03` | `Adv.modality ∈ {hold, not-applicable}`なら`destination = null` | `runnerDefaultAdvance.first: {modality: "hold", destination: 2}` |
+| `XC-04` | `outEffect.count = outEffect.targets.length` | `outEffect: {count: 2, targets: ["batter"]}` |
+| `XC-05` | `eventKind = runner-event`なら`countEffect.strikes.kind = unchanged`かつ`countEffect.balls.kind = unchanged` | `eventKind: "runner-event"`に対して`countEffect: {strikes: {kind: "delta", value: 1}, balls: {kind: "unchanged"}}` |
+| `XC-06` | `batterDestination.kind = continue`なら`plateAppearanceEnded = false` | `batterDestination: {kind: "continue"}`に対して`plateAppearanceEnded: true` |
+| `XC-07` | **双方向**: `plateAppearanceEnded = not-applicable` ⇔ `eventKind = runner-event` | `eventKind: "batting-result"`に対して`plateAppearanceEnded: "not-applicable"` |
+| `XC-08` | `Adv.destination`は起点塁別の到達可能集合、すなわち`first → {2,3,4}`、`second → {3,4}`、`third → {4}`に含まれなければならない | `runnerDefaultAdvance.third: {modality: "optional", destination: 2}` |
+
+`XC-05`と`XC-07`は上記の`eventKind`別allowlistと意図的に重ねて検査する。allowlistは3列の合法な組合せの集合を検査し、交差制約は列の値どうしの個別の含意を検査するため、両者の重複は検査粒度の異なる多重防御である。
+
+`XC-09`は付録E-1の交差制約ではない。これは`undoRows[]`の`guaranteeMode = liveness-only`を`D`+1の行だけに許す制約であり、`guaranteeMode`を持たない付録E-1の10列には適用しない。`XC-09`は`undoRows[]`の制約としてADR-003 D-8が定める。
+
 **共通の閉じた型**:
 
 `Predicate`は次のunionだけから成る有限のJSON木とする。`and`/`or`/`not`を再帰節、`eq`/`gte`/`lte`/`in`を停止節とし、全ての経路は停止節で終わらなければならない。演算子ごとに示したプロパティ以外を持てず、`args`のarityを固定する。
