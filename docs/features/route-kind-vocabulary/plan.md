@@ -1,6 +1,6 @@
 ---
 feature: route-kind-vocabulary
-status: active
+status: in-review
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域
 worktree: ../../..
