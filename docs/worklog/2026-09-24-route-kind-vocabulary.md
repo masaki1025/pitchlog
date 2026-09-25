@@ -162,3 +162,38 @@ sha256 検査が先に鳴る**。欠落変異の確認をするときは、**台
 > **申し送り**: 台帳は追記のみで書き換え不可なので、この記録は残る。
 > **次に凍結基準を動かすときは、PR の Approve を先に取ってから台帳へ入れるほうが、
 > 第三者が後から検証できる**。
+
+## 結果サマリ(/pr クローズ処理・2026-09-25)
+
+**実装したもの**: `route_kind` に **`record_and_aggregate`** を足した。**語彙だけで、経路は 1 本も足していない**
+(`routes` は 37 件のまま・`entries` と `aggregate_decision_digest` は merge-base と完全一致)。
+
+既存 4 種と同じ **「値域 + 種別別検査 + exact-set」の 3 点セット**を持たせた:
+
+| 検査 | 内容 |
+| --- | --- |
+| 値域 | `ROUTE_KINDS` へ 1 値追加(4 → 5) |
+| 必須キー | `expected_keys_by_kind` = 共通 4 + `provenance_ids` + `operation` |
+| `origin` | **`design` を強制**(`legacy_route` が `requirement` を強制するのと同型) |
+| `route_id` | **導出規則 `ROUTE:RECORD:<資源>:<操作>`** と一致すること |
+| provenance | **専用 ID `PLAN-TSK446-RECORD-AND-AGGREGATE`** を含むこと |
+| `operation` | **`{read, insert, update}` に閉じる**(`delete` を外して物理削除経路を構造的に塞ぐ) |
+| 対応表 | `ROUTE_KINDS` / `expected_keys_by_kind` / `disposition_by_kind` の不整合が **`CatalogError`** |
+
+**正本への反映**: `contracts/authz/route-registry.json`(+ lock)/ `auth-catalog.json`(+ lock)/
+`oracle-seal.lock.json` と oracle 資産 6 本の `oracle_commit` / `frozen-baselines.json` の `history`(2 件目)/
+`frozen-baselines.schema.json`(`changes.minItems` 1 → 0)/ ハーネス運用評価台帳(候補 4 件)/ `docs/README.md`。
+**要件書・`data-model.md`・ADR への反映はなし**(いずれにも `route_kind` の語が 0 件)。
+
+**副産物**: **凍結基準台帳の初回の「値の移動」**になり、台帳が値の移動を表現できない欠陥が露見した(ステップ 8 で是正)。
+`tests/frozen_negatives/` の 4 本が「履歴 1 件」を前提に直書きされていたことも露見した(ステップ 7 で一般化)。
+
+**テスト**: 全件実行 **1631 passed / red 0**。`ruff check` / `ty check` green。
+`check_authz_catalog.py` ok(`routes=37 cells=12` — **判定不変**)。`check_frozen_baselines.py --invariants-only` OK。
+
+**敵対レビュー 3 周**(計画 1 周・実装 2 周)。3 周目の P0 2 件 / P1 4 件はすべて反映済み。
+**4 周目(最終確認)は PR 作成後に回す。**
+
+**申し送り**: **台帳が「宣言そのものとしての値の移動」を記録できない一般の欠陥は TSK-421 へ**。
+`changes` は台帳文書の replay ログなので、値の移動に対応する `aspect` を足すと fold 先の状態が無い。
+本タスクは `changes` の空を許す形で回避したが、**設計としての整理は台帳所有者の判断**である。

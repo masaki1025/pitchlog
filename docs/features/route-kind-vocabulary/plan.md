@@ -1,6 +1,6 @@
 ---
 feature: route-kind-vocabulary
-status: active
+status: in-review
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域
 worktree: ../../..
@@ -96,6 +96,11 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **`contracts/authz/oracle-seal.lock.json`** | `input_assets` の digest と `oracle_commit` | **人間レビュー必須**(`reseal_policy.human_review_required: true`) |
 | **oracle 資産 6 本の `oracle_context.oracle_commit`** | 新しいコミット SHA へ差し替え | 同上 |
 | **`contracts/authz/frozen-baselines.json`** | `history` へ 1 レコード(**10 キー必須** — 4 節) | **人間承認が schema レベルで強制** |
+| **`contracts/authz/frozen-baselines.schema.json`** | `history_record.changes` の `minItems` を `1` → `0`(ステップ 8) | PR レビュー(`contracts/authz/*` = `tenant-isolation` のコア) |
+| **`docs/development/harness-evaluation.md`**(ハーネス運用評価台帳) | **`## 候補` へ 4 件追記**(検査器の自己保護と欠落変異 / 絞り込み実行での合格判定 / コミットを伴わないステップ / 承認記録と安全分類器)。**`H-*` の新規採番なし・版は上げない**(7.6-3 前段) | PR レビュー |
+| **`docs/README.md`** | 台帳行の最終更新日を現行化 | PR レビュー |
+
+**正本体系外だが同一 PR で更新するもの**: `scripts/check_authz_catalog.py` / `scripts/check_frozen_baselines.py`(`guard_paths`)/ `tests/` 配下。
 
 ## 4. 実装方針
 
