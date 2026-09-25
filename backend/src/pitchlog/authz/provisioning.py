@@ -14,20 +14,22 @@ import psycopg
 from psycopg import sql
 from psycopg.pq import TransactionStatus
 
-from pitchlog.authz.ddl import DDL_ELEMENTS_PATH, DDLStatement, generate_authz_ddl
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
+from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 
-_CREATE_OWNER = "create_no_login_bypass_owner"
-_OPEN_SET_PATH = "temporarily_grant_set_membership"
-_ASSIGN_OBJECTS = "create_and_assign_owned_objects"
-_CLOSE_FUNCTION_ACL = "revoke_public_and_grant_named_execute"
-_CLOSE_SET_PATH = "revoke_temporary_membership"
 _OPERATION_HANDLERS = {
-    _ASSIGN_OBJECTS: "_assign_objects",
-    _CLOSE_SET_PATH: "_close_set_path",
-    _CREATE_OWNER: "_create_roles",
-    _CLOSE_FUNCTION_ACL: "_close_function_acl",
-    _OPEN_SET_PATH: "_open_set_path",
+    operation.operation_kind: operation.handler_name
+    for operation in PROBE_SPEC.operation_handlers
 }
+_OPERATION_KINDS_BY_HANDLER = {
+    operation.handler_name: operation.operation_kind
+    for operation in PROBE_SPEC.operation_handlers
+}
+_CREATE_OWNER = _OPERATION_KINDS_BY_HANDLER["_create_roles"]
+_OPEN_SET_PATH = _OPERATION_KINDS_BY_HANDLER["_open_set_path"]
+_ASSIGN_OBJECTS = _OPERATION_KINDS_BY_HANDLER["_assign_objects"]
+_CLOSE_FUNCTION_ACL = _OPERATION_KINDS_BY_HANDLER["_close_function_acl"]
+_CLOSE_SET_PATH = _OPERATION_KINDS_BY_HANDLER["_close_set_path"]
 _ALTER_FUNCTION_RE = re.compile(r"(?m)^ALTER FUNCTION\b")
 _REVOKE_FUNCTION_RE = re.compile(r"(?m)^REVOKE ALL PRIVILEGES\b")
 _CREATE_FUNCTION_RE = re.compile(r"(?m)^CREATE FUNCTION\b")
@@ -251,7 +253,20 @@ def _validate_external_prerequisites(
         )
 
 
-def _ordered_steps(asset: dict[str, object]) -> tuple[_ProvisioningStep, ...]:
+def _operation_handlers_for(spec: AuthzAssetSpec) -> dict[str, str]:
+    """資産指定が閉じた操作種別と処理関数の対応を返す。"""
+    if spec == PROBE_SPEC:
+        return _OPERATION_HANDLERS
+    return {
+        operation.operation_kind: operation.handler_name
+        for operation in spec.operation_handlers
+    }
+
+
+def _ordered_steps(
+    asset: dict[str, object],
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[_ProvisioningStep, ...]:
     """資産の sequence から provisioning 手順の実行順を導出する。"""
     claim = asset.get("provisioning_claim")
     if not isinstance(claim, dict):
@@ -282,7 +297,8 @@ def _ordered_steps(asset: dict[str, object]) -> tuple[_ProvisioningStep, ...]:
         raise ProvisioningError("provisioning sequenceが1始まりの連番でない")
     if len({step.step_id for step in steps}) != len(steps):
         raise ProvisioningError("provisioning step_idが重複している")
-    if any(step.operation_kind not in _OPERATION_HANDLERS for step in steps):
+    operation_handlers = _operation_handlers_for(spec)
+    if any(step.operation_kind not in operation_handlers for step in steps):
         raise ProvisioningError("未対応のprovisioning operation_kindがある")
 
     boundaries = _object_rows(asset, "transaction_boundaries")
@@ -415,6 +431,7 @@ class _Application:
         statements: tuple[DDLStatement, ...],
         on_function_created: Callable[[DDLStatement], None] | None,
         faults: _ProvisioningFaults,
+        operation_handlers: dict[str, str],
     ) -> None:
         """適用に必要な接続・資産・SQL・観測フックを保持する。"""
         self.connection = connection
@@ -422,6 +439,7 @@ class _Application:
         self.statements = statements
         self.on_function_created = on_function_created
         self.faults = faults
+        self.operation_handlers = operation_handlers
         self.recorder = _CheckpointRecorder()
         self.pending_function_revokes: list[tuple[DDLStatement, str]] = []
         self.roles = _object_rows(asset, "roles")
@@ -452,7 +470,7 @@ class _Application:
         """Sequence 順の手順を operation_kind で dispatch する。"""
         try:
             for step in steps:
-                handler_name = _OPERATION_HANDLERS[step.operation_kind]
+                handler_name = self.operation_handlers[step.operation_kind]
                 handler = getattr(self, handler_name)
                 handler(step)
         except ProvisioningError:
@@ -655,6 +673,7 @@ def _apply_authz_ddl(
     connection: psycopg.Connection[Any],
     root: Path,
     *,
+    spec: AuthzAssetSpec = PROBE_SPEC,
     on_function_created: Callable[[DDLStatement], None] | None = None,
     faults: _ProvisioningFaults | None = None,
 ) -> ProvisioningResult:
@@ -665,11 +684,14 @@ def _apply_authz_ddl(
         raise ProvisioningError("部分原子性のためautocommit無効の接続が必要")
     if connection.info.transaction_status != TransactionStatus.IDLE:
         raise ProvisioningError("未完了transactionを持つ接続ではprovisioningできない")
-    asset = _read_json_object(root.resolve() / DDL_ELEMENTS_PATH, "ddl-elements")
-    steps = _ordered_steps(asset)
+    asset = _read_json_object(
+        root.resolve() / spec.ddl_elements_path,
+        "ddl-elements",
+    )
+    steps = _ordered_steps(asset) if spec == PROBE_SPEC else _ordered_steps(asset, spec)
     _validate_external_prerequisites(connection, _external_provisioner(asset))
     try:
-        statements = generate_authz_ddl(root)
+        statements = generate_authz_ddl(root, spec)
     except Exception as error:
         raise ProvisioningError(f"DDLを生成できない: {error}") from error
     application = _Application(
@@ -678,6 +700,7 @@ def _apply_authz_ddl(
         statements,
         on_function_created,
         faults or _ProvisioningFaults(),
+        _operation_handlers_for(spec),
     )
     return application.run(steps)
 
@@ -685,12 +708,14 @@ def _apply_authz_ddl(
 def apply_authz_ddl(
     connection: psycopg.Connection[Any],
     root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
 ) -> ProvisioningResult:
     """資産順に認可 DDL を適用し、checkpoint ログを返す。
 
     Args:
         connection: external_provisioner で直接認証した autocommit 無効の接続。
         root: 認可資産を含むリポジトリルート。
+        spec: 読み取る資産と許可する操作種別の指定。
 
     Returns:
         実行順の checkpoint ログを保持する結果。
@@ -698,4 +723,4 @@ def apply_authz_ddl(
     Raises:
         ProvisioningError: 資産不正または SQL 適用失敗の場合。
     """
-    return _apply_authz_ddl(connection, root)
+    return _apply_authz_ddl(connection, root, spec=spec)

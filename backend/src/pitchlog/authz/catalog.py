@@ -11,8 +11,8 @@ from typing import Any, LiteralString
 
 import psycopg
 
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
 from pitchlog.authz.ddl import (
-    DDL_ELEMENTS_PATH,
     AuthzDDLGenerationError,
     DDLStatement,
     generate_authz_ddl,
@@ -460,6 +460,7 @@ def _sealed_reference_function_definitions(
     target_connection: psycopg.Connection[Any],
     reference_connection: psycopg.Connection[Any],
     functions: tuple[dict[str, object], ...],
+    spec: AuthzAssetSpec,
 ) -> tuple[
     dict[tuple[str, str], DDLStatement],
     dict[tuple[str, str], str],
@@ -470,7 +471,7 @@ def _sealed_reference_function_definitions(
     manifest 現物・source commit 二段照合を必須にする。
     """
     try:
-        generated = generate_authz_ddl(root)
+        generated = generate_authz_ddl(root, spec)
     except AuthzDDLGenerationError as error:
         raise CatalogCheckError(
             f"封印済みfunction bodyを検証できない: {error}",
@@ -1401,6 +1402,7 @@ def inspect_authz_catalog(
     root: Path,
     *,
     reference_connection: psycopg.Connection[Any],
+    spec: AuthzAssetSpec = PROBE_SPEC,
 ) -> CatalogReport:
     """実 PostgreSQL カタログを資産期待値と照合する。
 
@@ -1413,6 +1415,7 @@ def inspect_authz_catalog(
         root: ``contracts/authz`` を含むリポジトリルート。
         reference_connection: 同じクラスタの別 database に封印済み DDL だけを
             適用した参照接続。
+        spec: 読み取る認可資産と許可する scope の指定。
 
     Returns:
         実施した検査 ID と全不一致を保持するレポート。
@@ -1421,7 +1424,7 @@ def inspect_authz_catalog(
         CatalogCheckError: 資産不正、body 封印違反、またはカタログ観測失敗。
     """
     root = root.resolve()
-    asset = _read_json_object(root / DDL_ELEMENTS_PATH, "ddl-elements")
+    asset = _read_json_object(root / spec.ddl_elements_path, "ddl-elements")
     report = _ReportBuilder()
     try:
         functions = _rows(asset, "functions")
@@ -1430,6 +1433,7 @@ def inspect_authz_catalog(
             connection,
             reference_connection,
             functions,
+            spec,
         )
         _check_policies(connection, asset, statements, report)
         _check_functions(

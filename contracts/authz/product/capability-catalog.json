@@ -1,0 +1,376 @@
+{
+  "schema_version": 1,
+  "source_classification": "contracts/authz/product/table-classification.json",
+  "capabilities": [
+    {
+      "capability_id": "CAP:admin_vocabularies:read",
+      "table_id": "admin_vocabularies",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:evacuated_event_originals:read",
+      "table_id": "evacuated_event_originals",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:evacuated_event_originals:insert",
+      "table_id": "evacuated_event_originals",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:evacuated_event_originals:update",
+      "table_id": "evacuated_event_originals",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:event_slots:read",
+      "table_id": "event_slots",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:event_slots:insert",
+      "table_id": "event_slots",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:event_slots:update",
+      "table_id": "event_slots",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:game_lineups:read",
+      "table_id": "game_lineups",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:game_lineups:insert",
+      "table_id": "game_lineups",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:game_lineups:update",
+      "table_id": "game_lineups",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:game_type_rule_defaults:read",
+      "table_id": "game_type_rule_defaults",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:games:read",
+      "table_id": "games",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:games:insert",
+      "table_id": "games",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:games:update",
+      "table_id": "games",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:idempotency_ledger:read",
+      "table_id": "idempotency_ledger",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:idempotency_ledger:insert",
+      "table_id": "idempotency_ledger",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:idempotency_ledger:update",
+      "table_id": "idempotency_ledger",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:invalidation_intents:read",
+      "table_id": "invalidation_intents",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:invalidation_intents:insert",
+      "table_id": "invalidation_intents",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:invalidation_intents:update",
+      "table_id": "invalidation_intents",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:lineup_memories:read",
+      "table_id": "lineup_memories",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:lineup_memories:insert",
+      "table_id": "lineup_memories",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:lineup_memories:update",
+      "table_id": "lineup_memories",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:medical_note_versions:read",
+      "table_id": "medical_note_versions",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:medical_note_versions:insert",
+      "table_id": "medical_note_versions",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:medical_note_versions:update",
+      "table_id": "medical_note_versions",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:medical_notes:read",
+      "table_id": "medical_notes",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:medical_notes:insert",
+      "table_id": "medical_notes",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:medical_notes:update",
+      "table_id": "medical_notes",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:migrated_final_lineups:read",
+      "table_id": "migrated_final_lineups",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:migrated_final_lineups:insert",
+      "table_id": "migrated_final_lineups",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:migrated_final_lineups:update",
+      "table_id": "migrated_final_lineups",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:operation_events:read",
+      "table_id": "operation_events",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:operation_events:insert",
+      "table_id": "operation_events",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:operation_events:update",
+      "table_id": "operation_events",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:participation_intervals:read",
+      "table_id": "participation_intervals",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:participation_intervals:insert",
+      "table_id": "participation_intervals",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:participation_intervals:update",
+      "table_id": "participation_intervals",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:pdf_export_records:read",
+      "table_id": "pdf_export_records",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:pdf_export_records:insert",
+      "table_id": "pdf_export_records",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:pdf_export_records:update",
+      "table_id": "pdf_export_records",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:play_rows:read",
+      "table_id": "play_rows",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:play_rows:insert",
+      "table_id": "play_rows",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:play_rows:update",
+      "table_id": "play_rows",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:play_runners:read",
+      "table_id": "play_runners",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:play_runners:insert",
+      "table_id": "play_runners",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:play_runners:update",
+      "table_id": "play_runners",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:player_merge_events:read",
+      "table_id": "player_merge_events",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:player_merge_events:insert",
+      "table_id": "player_merge_events",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:player_merge_events:update",
+      "table_id": "player_merge_events",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:player_move_records:read",
+      "table_id": "player_move_records",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:player_move_records:insert",
+      "table_id": "player_move_records",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:player_move_records:update",
+      "table_id": "player_move_records",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:players:read",
+      "table_id": "players",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:players:insert",
+      "table_id": "players",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:players:update",
+      "table_id": "players",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:recording_generations:read",
+      "table_id": "recording_generations",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:recording_generations:insert",
+      "table_id": "recording_generations",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:recording_generations:update",
+      "table_id": "recording_generations",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:rejected_event_originals:read",
+      "table_id": "rejected_event_originals",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:rejected_event_originals:insert",
+      "table_id": "rejected_event_originals",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:rejected_event_originals:update",
+      "table_id": "rejected_event_originals",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:system_settings:read",
+      "table_id": "system_settings",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:system_vocabularies:read",
+      "table_id": "system_vocabularies",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:team_records:read",
+      "table_id": "team_records",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:team_records:insert",
+      "table_id": "team_records",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:team_records:update",
+      "table_id": "team_records",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:temporary_player_id_mappings:read",
+      "table_id": "temporary_player_id_mappings",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:temporary_player_id_mappings:insert",
+      "table_id": "temporary_player_id_mappings",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:temporary_player_id_mappings:update",
+      "table_id": "temporary_player_id_mappings",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:tenant_vocabularies:read",
+      "table_id": "tenant_vocabularies",
+      "operation": "read"
+    },
+    {
+      "capability_id": "CAP:tenant_vocabularies:insert",
+      "table_id": "tenant_vocabularies",
+      "operation": "insert"
+    },
+    {
+      "capability_id": "CAP:tenant_vocabularies:update",
+      "table_id": "tenant_vocabularies",
+      "operation": "update"
+    },
+    {
+      "capability_id": "CAP:tenants:read",
+      "table_id": "tenants",
+      "operation": "read"
+    }
+  ]
+}

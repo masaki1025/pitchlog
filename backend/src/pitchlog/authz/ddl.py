@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-DDL_ELEMENTS_PATH = PurePosixPath("contracts/authz/ddl-elements.json")
-BODY_MANIFEST_PATH = PurePosixPath("contracts/authz/function-bodies/manifest.json")
-BODY_CHECKER_PATH = PurePosixPath("scripts/check_authz_function_bodies.py")
+from pitchlog.authz.asset_spec import (
+    PROBE_SPEC,
+    AuthzAssetSpec,
+    asset_scope_validation_error,
+)
+
+DDL_ELEMENTS_PATH = PROBE_SPEC.ddl_elements_path
+BODY_MANIFEST_PATH = PROBE_SPEC.body_manifest_path
+BODY_CHECKER_PATH = PROBE_SPEC.body_checker_path
 
 
 class AuthzDDLGenerationError(Exception):
@@ -63,18 +70,46 @@ def _expect_string(value: object, label: str) -> str:
     return value
 
 
-def _validate_function_bodies(root: Path) -> None:
+def _validate_asset_scope(
+    ddl_elements: dict[str, object],
+    spec: AuthzAssetSpec,
+) -> None:
+    """DDL 要素資産の scope が指定された資産種別と一致するか検査する。"""
+    scope = ddl_elements[spec.scope_field] if spec.scope_field in ddl_elements else None
+    validation_error = asset_scope_validation_error(scope, spec)
+    if validation_error is not None:
+        raise AuthzDDLGenerationError(f"DDL要素資産の{validation_error}")
+
+
+def _validate_function_bodies(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> None:
     """ステップ 2 の静的照合器で body と manifest を検証する。"""
-    checker_path = root / BODY_CHECKER_PATH
+    checker_path = root / spec.body_checker_path
     if not checker_path.is_file():
         raise AuthzDDLGenerationError(f"body静的照合器がない: {checker_path}")
+    arguments = [sys.executable, str(checker_path), "--root", str(root)]
+    if spec != PROBE_SPEC:
+        arguments.extend(("--asset-spec", spec.asset_kind))
+    environment = dict(os.environ)
+    source_root = Path(__file__).parents[2]
+    inherited_python_path = (
+        environment["PYTHONPATH"] if "PYTHONPATH" in environment else None
+    )
+    environment["PYTHONPATH"] = (
+        f"{source_root}{os.pathsep}{inherited_python_path}"
+        if inherited_python_path
+        else str(source_root)
+    )
     try:
         result = subprocess.run(
-            [sys.executable, str(checker_path), "--root", str(root)],
+            arguments,
             cwd=root,
             capture_output=True,
             text=True,
             check=False,
+            env=environment,
         )
     except OSError as error:
         raise AuthzDDLGenerationError(
@@ -85,10 +120,13 @@ def _validate_function_bodies(root: Path) -> None:
         raise AuthzDDLGenerationError(f"body静的照合に失敗した: {detail}")
 
 
-def _read_verified_body_entries(root: Path) -> tuple[_BodyEntry, ...]:
+def _read_verified_body_entries(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[_BodyEntry, ...]:
     """静的照合済み manifest から digest 一致 body だけを読む。"""
-    _validate_function_bodies(root)
-    manifest = _read_json_object(root / BODY_MANIFEST_PATH, "body manifest")
+    _validate_function_bodies(root, spec)
+    manifest = _read_json_object(root / spec.body_manifest_path, "body manifest")
     raw_entries = manifest.get("entries")
     if not isinstance(raw_entries, list):
         raise AuthzDDLGenerationError("body manifest.entriesはarrayでなければならない")
@@ -125,10 +163,11 @@ def _read_verified_body_entries(root: Path) -> tuple[_BodyEntry, ...]:
 
 def _section_element_ids(
     rows: object,
+    id_field: str,
     expected_ids: set[str],
     label: str,
 ) -> tuple[str, ...]:
-    """資産セクションから宣言 ID を順序付きで導出する。"""
+    """Spec指定のID列から宣言IDを順序付きで読む。"""
     if not isinstance(rows, list):
         raise AuthzDDLGenerationError(f"{label}はarrayでなければならない")
     if not rows:
@@ -137,45 +176,45 @@ def _section_element_ids(
         raise AuthzDDLGenerationError(f"{label}の全要素はobjectでなければならない")
 
     row_objects = [row for row in rows if isinstance(row, dict)]
-    common_keys = set(row_objects[0])
-    for row in row_objects[1:]:
-        common_keys.intersection_update(row)
-    candidates: list[tuple[str, ...]] = []
-    for key in common_keys:
-        values = tuple(row[key] for row in row_objects)
-        if (
-            all(isinstance(value, str) and value for value in values)
-            and len(set(values)) == len(values)
-            and set(values) <= expected_ids
-        ):
-            candidates.append(
-                tuple(value for value in values if isinstance(value, str))
-            )
-    if len(candidates) != 1:
-        raise AuthzDDLGenerationError(f"{label}の要素ID列を一意に導出できない")
-    return candidates[0]
-
-
-def _asset_section_name(element_type: str) -> str:
-    """Manifest の単数形種別から資産セクション名を導出する。"""
-    if element_type.endswith("y") and element_type[-2:-1] not in "aeiou":
-        return f"{element_type[:-1]}ies"
-    return f"{element_type}s"
+    values = tuple(row[id_field] if id_field in row else None for row in row_objects)
+    if not all(isinstance(value, str) and value for value in values):
+        raise AuthzDDLGenerationError(
+            f"{label}.{id_field}は空でない文字列でなければならない"
+        )
+    declared_ids = tuple(value for value in values if isinstance(value, str))
+    if len(declared_ids) != len(set(declared_ids)):
+        raise AuthzDDLGenerationError(f"{label}.{id_field}が重複している")
+    if not set(declared_ids) <= expected_ids:
+        raise AuthzDDLGenerationError(f"{label}.{id_field}がmanifestにないIDを含む")
+    return declared_ids
 
 
 def _assemble_statements(
     ddl_elements: dict[str, object],
     entries: tuple[_BodyEntry, ...],
+    spec: AuthzAssetSpec = PROBE_SPEC,
 ) -> tuple[DDLStatement, ...]:
     """DDL 資産の宣言順に manifest body を並べる。"""
     entries_by_type: defaultdict[str, list[_BodyEntry]] = defaultdict(list)
     for entry in entries:
         entries_by_type[entry.element_type].append(entry)
 
-    section_positions = {name: index for index, name in enumerate(ddl_elements)}
+    section_positions = {
+        section.section_name: section.position for section in spec.element_sections
+    }
+    sections_by_type = {
+        section.element_type: section for section in spec.element_sections
+    }
     element_positions: dict[tuple[str, str], tuple[int, int]] = {}
     for element_type, typed_entries in entries_by_type.items():
-        section_name = _asset_section_name(element_type)
+        section = (
+            sections_by_type[element_type] if element_type in sections_by_type else None
+        )
+        if section is None:
+            raise AuthzDDLGenerationError(
+                f"manifest種別が資産指定にない: {element_type}"
+            )
+        section_name = section.section_name
         if section_name not in section_positions:
             raise AuthzDDLGenerationError(
                 f"DDL要素資産にmanifest種別のセクションがない: {element_type}"
@@ -183,6 +222,7 @@ def _assemble_statements(
         expected_ids = {entry.element_id for entry in typed_entries}
         declared_ids = _section_element_ids(
             ddl_elements[section_name],
+            section.id_field,
             expected_ids,
             f"ddl-elements.{section_name}",
         )
@@ -209,11 +249,15 @@ def _assemble_statements(
     )
 
 
-def generate_authz_ddl(root: Path) -> tuple[DDLStatement, ...]:
+def generate_authz_ddl(
+    root: Path,
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[DDLStatement, ...]:
     """認可資産から要素 ID 付きの適用可能な SQL 列を生成する。
 
     Args:
         root: ``contracts/authz`` と静的照合器を含むリポジトリルート。
+        spec: 読み取る認可資産と許可する scope の指定。
 
     Returns:
         ``ddl-elements.json`` の依存順で並んだ SQL 単位。
@@ -224,6 +268,7 @@ def generate_authz_ddl(root: Path) -> tuple[DDLStatement, ...]:
     root = root.resolve()
     if not root.is_dir():
         raise AuthzDDLGenerationError(f"リポジトリルートがない: {root}")
-    entries = _read_verified_body_entries(root)
-    ddl_elements = _read_json_object(root / DDL_ELEMENTS_PATH, "ddl-elements")
-    return _assemble_statements(ddl_elements, entries)
+    entries = _read_verified_body_entries(root, spec)
+    ddl_elements = _read_json_object(root / spec.ddl_elements_path, "ddl-elements")
+    _validate_asset_scope(ddl_elements, spec)
+    return _assemble_statements(ddl_elements, entries, spec)

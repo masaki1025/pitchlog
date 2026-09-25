@@ -1,0 +1,7 @@
+-- ELEMENT-TYPE: table
+-- ELEMENT-ID: games
+
+ALTER TABLE public.games
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.games
+    FORCE ROW LEVEL SECURITY;
