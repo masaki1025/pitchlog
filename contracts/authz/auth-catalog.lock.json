@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "606b35b9816e380420bbe7daa4c38ac701614610c558bb002f9fb46cb5bb8248",
-  "entry_count": 187,
-  "aggregate_decision_digest": "479b4a6ea8e0cf5ac4c71e5d5aa6adeb3353cfb515c2063a771fae05f333e8d3",
+  "asset_digest": "09b8c906483215738d5fb58e5e81fe7e0f673ed9ff1dfdb466a2d8e1ed695780",
+  "entry_count": 188,
+  "aggregate_decision_digest": "255b28fc1631200ada6aa5db41bff826f1e8d173ec4815bbcea0ae061e26403d",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",
@@ -3311,7 +3311,7 @@
         "origin": "requirement",
         "layer": "operation_authorization",
         "db_basis_rule_id": "DB_MUTATION_GUARD",
-        "source_text_digest": "b5f153bc63609fd1fcbfddde73fc2bf0f189c0db430e1feea0c359269a06b4d1",
+        "source_text_digest": "51c55b869cf9f226c32f63b849dd2cfbe8ec617a1ad1d039312fd00f86253178",
         "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3322,7 +3322,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "1d6acf4ebc7c6d22ef527f83eff030c5c8afafe291cb34db8df547f9dd976ba9"
+      "decision_digest": "c4b134c24f4afe81915e864985e587601ec1eb02a52d07b345d2194c36d4710b"
     },
     {
       "entry_id": "catalog:CATALOG:FR-037/list_item-008",
@@ -3332,7 +3332,7 @@
         "origin": "requirement",
         "layer": "operation_authorization",
         "db_basis_rule_id": "DB_MUTATION_GUARD",
-        "source_text_digest": "fcc34d1c5ead8f9361d08de7d311d27af34aadbf70e4322ff94f1dfd9528a872",
+        "source_text_digest": "b5f153bc63609fd1fcbfddde73fc2bf0f189c0db430e1feea0c359269a06b4d1",
         "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3343,7 +3343,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "9df8c9a132188b0b4f3aadb084b0aff09cab175a87867a99f085f9f5ea8f8c65"
+      "decision_digest": "8e17ada920d6493284349cd353c8522a80f4a7b297b641361d6a2c2a55ded9d0"
     },
     {
       "entry_id": "catalog:CATALOG:FR-037/list_item-009",
@@ -3353,7 +3353,7 @@
         "origin": "requirement",
         "layer": "operation_authorization",
         "db_basis_rule_id": "DB_MUTATION_GUARD",
-        "source_text_digest": "2d62e7cb7c5900055ba49ea01e3d14cec07b0546e29e5b13789e001951272057",
+        "source_text_digest": "fcc34d1c5ead8f9361d08de7d311d27af34aadbf70e4322ff94f1dfd9528a872",
         "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3364,7 +3364,28 @@
           "status": "planned"
         }
       },
-      "decision_digest": "e381dfa4ca0a15e6e2009d1a3f985ef9ed5788a96a52fa7c65b9359863a09812"
+      "decision_digest": "4abf20ec03ffd76a89ee07a07ab2723c9d838944bbdfd5012744f48c6e198a11"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-037/list_item-010",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-037/list_item-010",
+        "requirement_claim_id": "FR-037/list_item-010",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "2d62e7cb7c5900055ba49ea01e3d14cec07b0546e29e5b13789e001951272057",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-270.step4.FR-037/list_item-010.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "43db0874c0ca0685a50270db871fca54ca731b4ed2788742b7e34bd57f104fae"
     },
     {
       "entry_id": "catalog:CATALOG:NFR-009/list_item-004",

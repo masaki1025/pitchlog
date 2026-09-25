@@ -3798,6 +3798,27 @@
       "contract_only_reason_code": "route_universe_pending"
     },
     {
+      "claim_id": "FR-037/list_item-010",
+      "claim_origin": "requirement",
+      "execution_class": "contract_only",
+      "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+      "mutant_ids": [
+        "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION"
+      ],
+      "schema_drift_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+        "status": "implemented"
+      },
+      "runtime_test_owner": {
+        "id": "TSK-270.group2.runtime.FR-037/list_item-010",
+        "status": "planned"
+      },
+      "runtime_kill_required": false,
+      "runtime_evidence_kind": "handoff_runtime_test",
+      "receiving_task_id": "PENDING:FR-037",
+      "contract_only_reason_code": "route_universe_pending"
+    },
+    {
       "claim_id": "NFR-009/list_item-004",
       "claim_origin": "requirement",
       "execution_class": "contract_only",
@@ -8338,6 +8359,29 @@
       "requires_disposable_cluster": false,
       "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
       "runtime_test_id": "TSK-270.group2.runtime.FR-037/list_item-009",
+      "runtime_kill_waiver_reason": "contract_only_handoff",
+      "expected_positive_outcome": "handoff",
+      "positive_kill_required": false,
+      "positive_case_scope_id": null
+    },
+    {
+      "mutant_id": "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION",
+      "axis": "authorization_predicate",
+      "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+      "decision_form": "CLAIM_DECISION",
+      "claim_ids": [
+        "FR-037/list_item-010"
+      ],
+      "target_element_ids": [
+        "FR-037/list_item-010"
+      ],
+      "expected_application_outcome": "applies",
+      "expected_drift_outcome": "red",
+      "expected_runtime_outcome": "handoff",
+      "runtime_kill_required": false,
+      "requires_disposable_cluster": false,
+      "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+      "runtime_test_id": "TSK-270.group2.runtime.FR-037/list_item-010",
       "runtime_kill_waiver_reason": "contract_only_handoff",
       "expected_positive_outcome": "handoff",
       "positive_kill_required": false,
