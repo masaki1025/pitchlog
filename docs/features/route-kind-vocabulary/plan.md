@@ -20,13 +20,20 @@ created: 2026-09-24
 **Notion**: [TSK-446](https://app.notion.com/p/3e593b75e68781c9b811e86543960c6d)(優先度 **高**)
 **計画段階の調査**: [research.md](research.md)(調査サブエージェント 3 本 + 当方の原典実測)。**本書が事実を述べるときは正本・資産を直接引く**
 
+> **【行番号の基準 — 4 周目 P1-2 の是正】**
+> **本書がコードへ与える行番号は、断りのない限り merge-base `bf8ba5b` 時点のものである。**
+> **本 PR 自身がこれらの行を動かす**ため、HEAD へ追随させると改訂のたびに古くなる
+> (台帳の候補「正本の行番号引用は、その正本自身を編集した瞬間に書き手自身の手で古くなる」と同型)。
+> **確認は `git show bf8ba5b:<path>` で行う。**
+> 当初 7 箇所を HEAD へ追随させたが、**残りと不整合になった**ため merge-base へ揃え直した。
+
 [`../../design/data-model.md`](../../design/data-model.md)`:2454` が
 「同ファイル(`contracts/authz/http-route-matrix.json`)に `route_id` を持たない HTTP の入口を開く PR は、
 **同一 PR でその入口へ `route_id` を与える**」と要求する。ところが実測で:
 
 | 事実 | 典拠 |
 | --- | --- |
-| `route-registry.json` と `http-route-matrix.json` は **exact-set**。片側だけの追加は必ず red | `scripts/check_authz_catalog.py:2488-2492` |
+| `route-registry.json` と `http-route-matrix.json` は **exact-set**。片側だけの追加は必ず red | `scripts/check_authz_catalog.py:2437-2442` |
 | `route_kind` は **4 値**に固定。**正は検査器の定数 `ROUTE_KINDS`** | 同 `:92` |
 | **製品 CRUD を表す種別が存在しない** | 実測(`legacy_route` 13 / `shared_data` 12 / `management_operation` 8 / `control_read` 4) |
 | **所有者を定めた記録が存在しない** | 全文探索 0 件。`TSK-380` の射程は既存 37 経路の `test_owner` 再割り当て([`../../adr/ADR-004-merge-gate-scope.md`](../../adr/ADR-004-merge-gate-scope.md)`:46`) |
@@ -83,7 +90,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **path / method / 404 vs 403 の決着** | **TSK-346** | 同 `:45`。**新種別の必須キーに `http_method` / `path` / `expected_status` を含めない** |
 | **`contracts/authz/product/` と capability** | **TSK-424** | 同タスクの射程に「authz ツールチェーンの一般化」が含まれる。**本タスクは `ROUTE_KINDS` の語彙だけ**と宣言する |
 | **`claim` の到達経路種別の機械判定** | **TSK-383** | 本タスクは「**route の種別**」であって「**claim の到達経路種別**」ではない |
-| **`boundary-proposal.json` への裁定の追記** | **しない**(下記) | `scripts/check_authz_catalog.py:4970-4974` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、**3 件目を足すと `CatalogError`**(1 周目の敵対レビューが実測で確認)。**裁定は本計画書と PR 本文に残す** |
+| **`boundary-proposal.json` への裁定の追記** | **しない**(下記) | `scripts/check_authz_catalog.py:4919-4923` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、**3 件目を足すと `CatalogError`**(1 周目の敵対レビューが実測で確認)。**裁定は本計画書と PR 本文に残す** |
 | **`mutation_execution.py` の `class_by_route_kind` への追加** | **しない**(発火させない) | 新種別の route が `claim-mutant-map` の `runtime_target` に現れない限り発火しない |
 
 ## 3. 影響する正本
@@ -131,7 +138,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 
 **`ROUTE_KINDS` の直接参照は 4 箇所**だが、**種別別の分岐と exact-set を含めると変更面はもっと広い**。
 初稿が「外 2 箇所」とした `boundary-proposal.json` の責務 exact-set は**同じ検査器内**であり、
-**`route_kind` の直接参照ではない**。代わりに **`pending_human_reviews` の exact-set(`:4970-4974`)が漏れていた**(2 節で「触らない」と決めた)。
+**`route_kind` の直接参照ではない**。代わりに **`pending_human_reviews` の exact-set(`:4919-4923`)が漏れていた**(2 節で「触らない」と決めた)。
 
 | # | 場所 | 変更内容 |
 | --- | --- | --- |

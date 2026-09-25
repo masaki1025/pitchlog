@@ -49,7 +49,12 @@ FAILED tests/test_check_authz_catalog.py::test_route_kind_tables_reject_missing_
 ('operation_mismatch', "KeyError: 'record_and_aggregate'")
 ('legacy_provenance', "KeyError: 'record_and_aggregate'")
 ('expected_keys_by_kind', "KeyError: 'unmapped_route_kind'")
+('disposition_by_kind', "KeyError: 'unmapped_route_kind'")
 ```
+
+**6 本目は `failures` が 2 件**である(**4 周目 P1-3 の是正** — 当初は `--tb=line` の
+要約が先頭 1 件しか出さないのに気づかず、`expected_keys_by_kind` だけを写していた。
+`-vv -o addopts=` で全文を出して確認した)。
 
 `expected_keys_by_kind` と `disposition_by_kind` に新種別の行が無いため素の `KeyError` になる。
 **ステップ 3 でこれを `CatalogError` へ変える**のが実装の主眼。

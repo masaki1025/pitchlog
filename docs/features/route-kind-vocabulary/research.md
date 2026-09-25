@@ -6,6 +6,11 @@ date: 2026-09-24
 
 # 調査メモ: 製品 CRUD 経路の route_kind 値域を決める(TSK-446)
 
+> **【行番号の基準 — 4 周目 P1-2 の是正】**
+> **本書がコードへ与える行番号は、断りのない限り merge-base `bf8ba5b` 時点のものである。**
+> 本書は**着手時点のコードを記述した調査メモ**であり、**本 PR 自身がこれらの行を動かす**。
+> **確認は `git show bf8ba5b:<path>` で行う。**
+
 ## 問い
 
 1. **4 値をこう切った理由**は何か。**「製品 CRUD を含めない」と決めた記録**はあるか
@@ -112,7 +117,7 @@ date: 2026-09-24
 | # | 場所 | 挙動 |
 | --- | --- | --- |
 | 7 | `backend/tests/db/authz/mutation_execution.py:897-909` の **`class_by_route_kind`** | 未知 kind は **`MutationContractError`**(「probe 関数へ写像できない route kind」)。**値域を足すだけなら発火しない**が、新種別の route が `claim-mutant-map` の `runtime_target` に現れた瞬間に red |
-| 8 | `scripts/check_authz_catalog.py:5077-5082` の `boundary-proposal.json` の責務 **exact-set**(`{SHARED-AUTHORIZED-ROWS, CONTROL-READS, REPRESENTATIVE-MANAGEMENT}`) | route_kind 2〜4 の鏡像。**第 4 の責務を足すと oracle 資産の変更**になり `ORACLE_STEP5_REREVIEW` が発火する |
+| 8 | `scripts/check_authz_catalog.py:5026-5031` の `boundary-proposal.json` の責務 **exact-set**(`{SHARED-AUTHORIZED-ROWS, CONTROL-READS, REPRESENTATIVE-MANAGEMENT}`) | route_kind 2〜4 の鏡像。**第 4 の責務を足すと oracle 資産の変更**になり `ORACLE_STEP5_REREVIEW` が発火する |
 
 **→ 当方の計画書 4 節「参照点 4 箇所」は過少。検査器内で 6・外を含めて 8 箇所。**
 **7 と 8 は「発火させない」ことを DoD に書いて境界を明示する。**
@@ -147,10 +152,10 @@ date: 2026-09-24
 
 `validate_oracle_seal` は `route-registry.json` について **2 つの digest 検査**を行う:
 
-- `:5335` — **作業ツリー**の blob digest が seal の記載と一致
-- `:5344-5357` — **`git rev-parse <oracle_commit>:contracts/authz/route-registry.json`** の blob が同じ digest
+- `:5284` — **作業ツリー**の blob digest が seal の記載と一致
+- `:5292-5306` — **`git rev-parse <oracle_commit>:contracts/authz/route-registry.json`** の blob が同じ digest
 
-`--reseal-oracle` は作業ツリーから digest を再計算する(`:5267`)が、**再計算後にそのまま `validate_oracle_seal` を呼ぶ**(`:5893`)。
+`--reseal-oracle` は作業ツリーから digest を再計算する(`:5216`)が、**再計算後にそのまま `validate_oracle_seal` を呼ぶ**(`:5842-5844`)。
 
 > **したがって `route-registry.json` を変えたら、`oracle_commit` を「新しい内容を含むコミット」へ進めない限り、`--reseal-oracle` 自体が失敗する。**
 
@@ -161,7 +166,7 @@ date: 2026-09-24
 **既存の履歴 1 件(PR #73)は値の移設であって値の変更ではない**(`prior` と `new` が同一 commit)。
 **→ 「`oracle_commit` の値そのものを動かす」のは本タスクが台帳上の初回になる。**
 
-さらに `check_authz_catalog.py:5073-5074` が `boundary-proposal.json` の `oracle_commit` を
+さらに `check_authz_catalog.py:5022-5023` が `boundary-proposal.json` の `oracle_commit` を
 台帳の `oracle_input` 系列と一致させることを要求する → **台帳を先に動かさないと checker が通らない順序依存**がある。
 
 #### 連鎖(`route-registry.json` を変えたとき)
@@ -250,7 +255,7 @@ oracle は「**内容追随 → commit 差し替え(最終形確定)→ レビ�
 (要件書は「7 操作」・資産は 8 ID。裁定 D-4 =「frozen 値を確定として承認(8 と 29)+ 要件の『7 操作』との 1:N 写像を明示」)
 
 **⚠ ただし本タスクでは同じ形を使えない**(1 周目の敵対レビューが実測で確認):
-`scripts/check_authz_catalog.py:4970-4974` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、
+`scripts/check_authz_catalog.py:4919-4923` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、
 **3 件目を足すと `CatalogError: 保留中の人間裁定2件が exact-set 不一致`** になる。
 **→ 裁定は計画書の承認そのものと PR 本文に残す。**
 
