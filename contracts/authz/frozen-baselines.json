@@ -237,7 +237,7 @@
         ]
       },
       "moved": false,
-      "reason": "TSK-446 で route_kind へ record_and_aggregate を足したため、oracle 入力資産 route-registry.json と auth-catalog.json の内容が変わり、入力 baseline の commit を更新する必要があるため",
+      "reason": "TSK-446 で route_kind へ record_and_aggregate を足したため、oracle 入力資産 route-registry.json と auth-catalog.json の内容が変わり、入力 baseline の commit を更新する必要があるため。承認の取得元: 2026-09-25 の Claude Code セッションでの発話(逐語「承認するから入れてくれない?」)。PR masaki1025/pitchlog#77 には本記録の時点で review・comment がいずれも 0 件であり、GitHub 側の機械可読な承認記録は存在しない",
       "approved_by": "山田正輝",
       "approved_at": "2026-09-25"
     }
