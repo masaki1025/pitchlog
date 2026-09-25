@@ -108,9 +108,8 @@ sha256 検査が先に鳴る**。欠落変異の確認をするときは、**台
 
 ## 未決(人間の手が要る 2 点)
 
-1. **ステップ 8 の射程拡大を認めた記録**。`scripts/check_frozen_baselines.py` は `guard_paths` であり、
-   本計画書が「やらないこと」に入れていた。**この射程拡大を認めた記録は人間が自分の手で残す**
-   (当方は取得元のない承認記録を書かない — `docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)。
+1. ~~**ステップ 8 の射程拡大を認めた記録**~~ → **記録済み(下記)。**
+   `scripts/check_frozen_baselines.py` は `guard_paths` であり、本計画書が「やらないこと」に入れていた。
    ~~**凍結基準台帳が「値の移動」を表現できない**(3 周目 P0-1)。~~ **ステップ 8 で是正済み。**
    以下は経緯の記録:
    台帳自身は `movement_rules.triggers` に **`value_change`** を挙げ、
@@ -127,3 +126,20 @@ sha256 検査が先に鳴る**。欠落変異の確認をするときは、**台
    (`docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)に反する。
    → **推奨**: PR #77 の Approve レビューを出所にし、`gh api` の結果から逐語転記する
    (`acceptance_id` が既に `masaki1025/pitchlog#77` で、同じ受理単位から機械的に引ける)
+
+## 射程拡大の記録(ステップ 8)
+
+**逐語**:
+
+> ステップ 8 の射程拡大を認める
+
+- **取得元**: 本セッション(Claude Code)での人間の発話
+- **日付**: 2026-09-25
+- **対象**: ステップ 8 が `scripts/check_frozen_baselines.py`(`guard_paths`)と
+  `contracts/authz/frozen-baselines.schema.json` を触ること。
+  本計画書が「やらないこと」に入れていた範囲の拡大
+- **記録者**: Claude(発話の逐語転記。**言い換えていない**)
+
+> **これは凍結基準台帳の `approved_by` / `approved_at` の出所には使わない。**
+> 台帳が求めるのは**値の移動そのものの受理**であり、射程拡大の許諾とは別の事柄である。
+> **P0-2 は未解決のまま**(上記「未決」2)。

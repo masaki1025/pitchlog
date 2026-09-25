@@ -168,8 +168,9 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 > `scripts/check_frozen_baselines.py`(`guard_paths`)と `frozen-baselines.schema.json` を触る。**
 > **3 周目の敵対レビュー P0-1** — 台帳が純粋な値の移動を表現できず、当方の記録が
 > 「変わっていないものを変更として書いた」形になっていた — の是正。
-> **この射程拡大を認めた記録は、人間が本 PR か worklog へ自分の手で残す**
-> (当方は取得元のない承認記録を書かない — `docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)。
+> **この射程拡大を認めた記録は `docs/worklog/2026-09-24-route-kind-vocabulary.md` の
+> 「射程拡大の記録(ステップ 8)」に逐語で残した**(取得元 = 本セッションでの人間の発話・2026-09-25)。
+> **これは凍結基準台帳の `approved_by` / `approved_at` の出所には使わない** — 別の事柄である。
 > **検査器を編集すると `implementation_bindings.code_assets` の sha256 が動く**ため、
 > `history[1].changes` は**その変更を記した truthful な 1 件**になる(虚偽の `frozen_targets` 同値 entry は除去する)。
 > **一般の欠陥としては TSK-421(台帳所有者)へ申し送る。**
