@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "56d4857aacd7010d3efb5c44158ae228c11af22c1dc58b0b0d751b901314fbf5",
-  "entry_count": 230,
-  "aggregate_decision_digest": "a21419b93ecae5c27bd88a0312f325259256c4eca4b8d1b625c32bdda79647c1",
+  "asset_digest": "42ab21f175f753299ab6e155a2aef47af149473723f84140d396a73b7c1645e2",
+  "entry_count": 231,
+  "aggregate_decision_digest": "497a30b2634d2f6667f88720485593e96b4e3cd396d314e453d6b8bee4f39d60",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -1960,6 +1960,16 @@
         "reason_code": "design_pending_task"
       },
       "decision_digest": "11de8969e4943b5785f849e3f3f7c74fb41430fe99772b06908e4762fbbdbdf2"
+    },
+    {
+      "entry_id": "claim_disposition:FR-037/list_item-010:http",
+      "decision": {
+        "source_id": "FR-037/list_item-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "4bff6986f62f929f96c5409a729773abd6205b4bce80b47060ec002f45829dec"
     },
     {
       "entry_id": "claim_disposition:FR-039/list_item-004:http",

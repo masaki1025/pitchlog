@@ -3,9 +3,9 @@
   "asset_kind": "authz_catalog",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "75f86b349b39c44d346759d2386587e880107341",
+    "requirement_claims_blob_digest": "4b161ecd34666c9f70c2ba1bd845ebdeeda412d6",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "268b855bc65bbbdfdc933e65d3ff80a59c73da4b"
+    "requirement_claims_lock_blob_digest": "97cc3166e158977b1fa512b0a617f7526a011daf"
   },
   "origins": [
     "requirement",
@@ -2713,7 +2713,7 @@
       "origin": "requirement",
       "layer": "operation_authorization",
       "db_basis_rule_id": "DB_MUTATION_GUARD",
-      "source_text_digest": "b5f153bc63609fd1fcbfddde73fc2bf0f189c0db430e1feea0c359269a06b4d1",
+      "source_text_digest": "51c55b869cf9f226c32f63b849dd2cfbe8ec617a1ad1d039312fd00f86253178",
       "route_scope_id": "SCOPE:CONTROL",
       "catalog_test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -2730,7 +2730,7 @@
       "origin": "requirement",
       "layer": "operation_authorization",
       "db_basis_rule_id": "DB_MUTATION_GUARD",
-      "source_text_digest": "fcc34d1c5ead8f9361d08de7d311d27af34aadbf70e4322ff94f1dfd9528a872",
+      "source_text_digest": "b5f153bc63609fd1fcbfddde73fc2bf0f189c0db430e1feea0c359269a06b4d1",
       "route_scope_id": "SCOPE:CONTROL",
       "catalog_test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -2747,7 +2747,7 @@
       "origin": "requirement",
       "layer": "operation_authorization",
       "db_basis_rule_id": "DB_MUTATION_GUARD",
-      "source_text_digest": "2d62e7cb7c5900055ba49ea01e3d14cec07b0546e29e5b13789e001951272057",
+      "source_text_digest": "fcc34d1c5ead8f9361d08de7d311d27af34aadbf70e4322ff94f1dfd9528a872",
       "route_scope_id": "SCOPE:CONTROL",
       "catalog_test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -2755,6 +2755,23 @@
       },
       "enforcement_test_owner": {
         "id": "TSK-270.step4.FR-037/list_item-009.db",
+        "status": "planned"
+      }
+    },
+    {
+      "catalog_entry_id": "CATALOG:FR-037/list_item-010",
+      "requirement_claim_id": "FR-037/list_item-010",
+      "origin": "requirement",
+      "layer": "operation_authorization",
+      "db_basis_rule_id": "DB_MUTATION_GUARD",
+      "source_text_digest": "2d62e7cb7c5900055ba49ea01e3d14cec07b0546e29e5b13789e001951272057",
+      "route_scope_id": "SCOPE:CONTROL",
+      "catalog_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+        "status": "implemented"
+      },
+      "enforcement_test_owner": {
+        "id": "TSK-270.step4.FR-037/list_item-010.db",
         "status": "planned"
       }
     },

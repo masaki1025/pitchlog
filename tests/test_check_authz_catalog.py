@@ -953,7 +953,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1083 auth_claim=184 out_of_scope=899" in result.stdout
+    assert "total=1363 auth_claim=185 out_of_scope=1178" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1470,8 +1470,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 899
-    assert attempts == 899
+    assert len(out_claims) == 1178
+    assert attempts == 1178
     assert escaped == []
 
 
@@ -2274,7 +2274,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 187
+    assert result["catalog"]["db_claim_count"] == 188
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )
