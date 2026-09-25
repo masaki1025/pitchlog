@@ -847,3 +847,71 @@ def test_empty_changes_with_moved_identity_is_green(tmp_path: Path) -> None:
         base_mutation=split_initial_record_for_pure_placement,
     )
     _assert_baseline_green(pure_placement_move)
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_reordered_placement_is_green(tmp_path: Path) -> None:
+    """locator配列の順序変更を履歴導出と同じraw equalityで移動と数える。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def split_initial_record_for_reordered_placement(
+        ledger: dict[str, Any],
+    ) -> None:
+        initial_record = ledger["history"][0]
+        document_change_record = copy.deepcopy(initial_record)
+        reordered_placement_record = copy.deepcopy(initial_record)
+        final_placement_record = copy.deepcopy(initial_record)
+        legacy_placement = copy.deepcopy(initial_record["placement_change"]["before"])
+        ledger_placement = copy.deepcopy(initial_record["placement_change"]["after"])
+        combined_placement = [*legacy_placement, *ledger_placement]
+        reversed_placement = list(reversed(combined_placement))
+
+        document_change_record["acceptance_id"] = "masaki1025/pitchlog#71"
+        document_change_record["placement_change"]["after"] = copy.deepcopy(
+            combined_placement
+        )
+        document_change_record["moved"] = True
+        document_change_record["reason"] = "台帳文書と複数locator配置を導入する合成記録"
+
+        reordered_placement_record["acceptance_id"] = "masaki1025/pitchlog#72"
+        reordered_placement_record["changes"] = []
+        reordered_placement_record["placement_change"] = {
+            "before": copy.deepcopy(combined_placement),
+            "after": copy.deepcopy(reversed_placement),
+        }
+        reordered_placement_record["moved"] = True
+        reordered_placement_record["reason"] = "locator配列の順序だけを変える純粋配置移動"
+
+        final_placement_record["changes"] = []
+        final_placement_record["placement_change"] = {
+            "before": copy.deepcopy(reversed_placement),
+            "after": copy.deepcopy(ledger_placement),
+        }
+        final_placement_record["moved"] = True
+        final_placement_record["reason"] = "複数locator配置から台帳系列へ移動する合成記録"
+
+        assert (
+            reordered_placement_record["prior_identity"]
+            == reordered_placement_record["new_identity"]
+        )
+        assert (
+            reordered_placement_record["placement_change"]["before"]
+            == list(
+                reversed(
+                    reordered_placement_record["placement_change"]["after"]
+                )
+            )
+        )
+        assert reordered_placement_record["moved"] is True
+        ledger["history"][0:1] = [
+            document_change_record,
+            reordered_placement_record,
+            final_placement_record,
+        ]
+
+    reordered_placement = _build_repository(
+        tmp_path / "reordered-placement",
+        base_mutation=split_initial_record_for_reordered_placement,
+    )
+    _assert_baseline_green(reordered_placement)

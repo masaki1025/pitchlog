@@ -392,10 +392,9 @@ def _check_exact_keys(value: Mapping[str, Any], expected: frozenset[str], label:
 
 
 def _normalize_unordered_json(value: Any) -> Any:
-    """台帳の順序非依存なJSON値を再帰的な決定的正規形へ変換する。
+    """changesの順序非依存なJSON値を再帰的な決定的正規形へ変換する。
 
-    台帳内のlistは順序に意味を持たず、code_assetsの順序は別の検査がpath昇順を
-    強制する。そのため、dictはキー順、listは正規化済み要素のJSON表現順に揃える。
+    dictはキー順、listは正規化済み要素のJSON表現順に揃える。
     """
     if isinstance(value, dict):
         return {
@@ -433,12 +432,8 @@ def _check_empty_changes_move_identity(
         and "after" in placement_change
     ):
         return
-    identity_moved = _normalize_unordered_json(
-        prior_identity
-    ) != _normalize_unordered_json(new_identity)
-    placement_moved = _normalize_unordered_json(
-        placement_change["before"]
-    ) != _normalize_unordered_json(placement_change["after"])
+    identity_moved = prior_identity != new_identity
+    placement_moved = placement_change["before"] != placement_change["after"]
     if not identity_moved and not placement_moved:
         raise FrozenBaselineCheckError(
             f"history[{record_index}]: changes が空で識別値も配置も動かず、"
@@ -451,8 +446,11 @@ def _check_history_change_is_effective(
 ) -> None:
     """changes entry が意味上の規範状態変更を主張していることを検査する。
 
-    台帳内のlistは順序に意味を持たないため、再帰的な決定的正規形へ変換して
-    比較する。これにより、listの並べ替えだけを実変更として扱わない。
+    changesのaspectは台帳文書の8事項に閉じている。そのlistは順序に意味を持たず、
+    movement_rules.triggersとuniversal_lower_boundはfrozenset、declarations配下の
+    frozen_targetsの導出値もfrozensetで扱う。implementation_bindings.code_assetsは
+    別検査がpath昇順を強制するため、再帰的な正規形で比較してよい。
+    placement_changeはchangesのaspectではなく射程外とする。
     """
     if (
         "before" in change
