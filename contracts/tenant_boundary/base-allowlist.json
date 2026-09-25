@@ -79,11 +79,11 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "9cce96f3049ca8716d15d22834ccf518c01a82533b4bdfcdfadeda4a290fdbf8"
+            "frozen_projection_sha256": "b06c8ea926a80ccc66d09362eb108d72e3ad7fdc960be6f730d93ff92df3d181"
           }
         },
         "movement_fact": "movement_policy.movement_triggers に pass_fail_mapping が含まれるため、条件 5 の未解決 callable の既定値を名前駆動へ揃え、条件 2 に裁定 exact-set を置き、検査 visitor と flow の訪問漏れを閉じたことによる合否写像の変更が基準の移動に当たる。",
-        "reason": "TSK-440 で条件 5 の保証単位の明文化および条件 2 の裁定集合の導入により合否写像が動いたため。射程を狭めた側と厳しくした側を同一の受理記録へ結び付け、狭めただけの受理を作れなくするため。承認者欄の marker「未承認(PR #72 のレビュー待ち)」は機構上の定数であり、本エントリの出所として PR #72 を指すものではない。",
+        "reason": "TSK-440 で条件 5 の保証単位の明文化および条件 2 の裁定集合の導入により合否写像が動いたため。本受理では、射程を狭めた変更と厳しくした変更を同じ射影へ同時に記録した。両者の釣り合いが取れているかどうかは人間のレビュー事項である。承認者欄の marker「未承認(PR #72 のレビュー待ち)」は機構上の定数であり、本エントリの出所として PR #72 を指すものではない。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
       }

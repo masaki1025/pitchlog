@@ -376,4 +376,3 @@ after (SHA-256): 3c87625c462b46580f5f8f538875efb1f0fb6310a04b9f81b85b776410fdbd2
 
 **承認する場合**、契約資産 2 件の `approved_by` / `approved_on` を
 未承認 marker から実名と日付へ更新する作業が残る(**本 PR では行っていない**)。
-

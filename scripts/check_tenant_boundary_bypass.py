@@ -2337,6 +2337,203 @@ class _FlowOutcome:
     continues: tuple[dict[str, _FlowValue], ...] = ()
 
 
+def _target_names(target: ast.AST) -> set[str]:
+    """代入・反復 target が束縛する裸名を返す。"""
+    if isinstance(target, ast.Name):
+        return {target.id}
+    if isinstance(target, ast.Starred):
+        return _target_names(target.value)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return set().union(*(_target_names(item) for item in target.elts))
+    return set()
+
+
+class _FunctionBindingCollector(ast.NodeVisitor):
+    """入れ子の実行スコープへ入らず、関数ローカル束縛を列挙する。"""
+
+    def __init__(self) -> None:
+        self.local_names: set[str] = set()
+        self.global_names: set[str] = set()
+        self.nonlocal_names: set[str] = set()
+
+    def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
+        """Store / Del の裸名をローカル束縛として記録する。"""
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.local_names.add(node.id)
+
+    def visit_Global(self, node: ast.Global) -> None:  # noqa: N802
+        """global 宣言名をモジュール束縛へ戻す。"""
+        self.global_names.update(node.names)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:  # noqa: N802
+        """nonlocal 宣言名を外側の字句束縛として記録する。"""
+        self.nonlocal_names.update(node.names)
+
+    def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+        """import が現在関数へ作る名前を記録する。"""
+        self.local_names.update(
+            alias.asname or alias.name.split(".")[0] for alias in node.names
+        )
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+        """from import が現在関数へ作る名前を記録する。"""
+        self.local_names.update(
+            alias.asname or alias.name
+            for alias in node.names
+            if alias.name != "*"
+        )
+
+    def _visit_callable_definition(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
+        """定義名と外側で評価される式だけを現在スコープへ反映する。"""
+        self.local_names.add(node.name)
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+        arguments = (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        for argument in arguments:
+            if argument is not None and argument.annotation is not None:
+                self.visit(argument.annotation)
+        if node.returns is not None:
+            self.visit(node.returns)
+        for type_param in node.type_params:
+            self.visit(type_param)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        """入れ子関数の本体へ入らず定義時の束縛だけを記録する。"""
+        self._visit_callable_definition(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        """入れ子 async 関数の本体へ入らず定義時の束縛だけを記録する。"""
+        self._visit_callable_definition(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: N802
+        """lambda 本体へ入らず外側で評価される既定値だけを見る。"""
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        """クラス本体へ入らず定義名と外側評価式だけを記録する。"""
+        self.local_names.add(node.name)
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        for type_param in node.type_params:
+            self.visit(type_param)
+
+    def _visit_comprehension(
+        self,
+        generators: Sequence[ast.comprehension],
+        expressions: Sequence[ast.expr],
+    ) -> None:
+        """内包 target を除き、外側へ束縛する walrus だけを拾う。"""
+        for generator in generators:
+            self.visit(generator.iter)
+            for condition in generator.ifs:
+                self.visit(condition)
+        for expression in expressions:
+            self.visit(expression)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:  # noqa: N802
+        """辞書内包の target を関数ローカルへ混入させない。"""
+        self._visit_comprehension(node.generators, (node.key, node.value))
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: N802
+        """リスト内包の target を関数ローカルへ混入させない。"""
+        self._visit_comprehension(node.generators, (node.elt,))
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:  # noqa: N802
+        """集合内包の target を関数ローカルへ混入させない。"""
+        self._visit_comprehension(node.generators, (node.elt,))
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:  # noqa: N802
+        """生成内包の target を関数ローカルへ混入させない。"""
+        self._visit_comprehension(node.generators, (node.elt,))
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:  # noqa: N802
+        """except ... as の文字列名も関数ローカルへ含める。"""
+        if node.name is not None:
+            self.local_names.add(node.name)
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:  # noqa: N802
+        """match capture 名を関数ローカルへ含める。"""
+        if node.name is not None:
+            self.local_names.add(node.name)
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:  # noqa: N802
+        """match star capture 名を関数ローカルへ含める。"""
+        if node.name is not None:
+            self.local_names.add(node.name)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:  # noqa: N802
+        """match mapping rest 名を関数ローカルへ含める。"""
+        if node.rest is not None:
+            self.local_names.add(node.rest)
+        self.generic_visit(node)
+
+
+def _function_scope_bindings(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """関数の字句束縛名と global 宣言名を返す。"""
+    collector = _FunctionBindingCollector()
+    for statement in node.body:
+        collector.visit(statement)
+    arguments = {
+        argument.arg
+        for argument in (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        if argument is not None
+    }
+    # global は module binding を使い、nonlocal は外側の字句 binding として
+    # module-wide import の免除を使わず fail-closed にする。
+    bound = (
+        collector.local_names
+        | collector.nonlocal_names
+        | arguments
+    ) - collector.global_names
+    return frozenset(bound), frozenset(collector.global_names)
+
+
+def _lambda_scope_bindings(node: ast.Lambda) -> frozenset[str]:
+    """lambda の引数と walrus target を字句束縛として返す。"""
+    collector = _FunctionBindingCollector()
+    collector.visit(node.body)
+    arguments = {
+        argument.arg
+        for argument in (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        if argument is not None
+    }
+    return frozenset(collector.local_names | arguments)
+
+
 class _FlowProvenance:
     """危険呼び出しに必要な由来だけを字句スコープと制御フロー沿いに追跡する。"""
 
@@ -2364,6 +2561,11 @@ class _FlowProvenance:
         self.callable_symbols: dict[int, str | None] = {}
         self.receiver_kinds: dict[int, str] = {}
         self.argument_kinds: dict[tuple[int, int], str] = {}
+        self.name_values: dict[int, _FlowValue] = {}
+        self.lexically_bound_name_ids: set[int] = set()
+        self.coverage_only_name_ids: set[int] = set()
+        self.coverage_only_depth = 0
+        self.lexical_scopes: list[tuple[set[str], frozenset[str]]] = []
         self.function_returns: dict[str, _FlowValue] = {}
         self.class_members: dict[str, _FlowValue] = {}
         self.class_stack: list[str] = []
@@ -2520,7 +2722,17 @@ class _FlowProvenance:
     ) -> _FlowValue:
         """式を評価順に走査し、呼び出し位置の由来を記録する。"""
         if isinstance(node, ast.Name):
-            return environment.get(node.id, _UNKNOWN_FLOW_VALUE)
+            value = environment.get(node.id, _UNKNOWN_FLOW_VALUE)
+            self.name_values[id(node)] = value
+            if self.coverage_only_depth:
+                self.coverage_only_name_ids.add(id(node))
+            for bound_names, global_names in reversed(self.lexical_scopes):
+                if node.id in global_names:
+                    break
+                if node.id in bound_names:
+                    self.lexically_bound_name_ids.add(id(node))
+                    break
+            return value
         if isinstance(node, ast.Attribute):
             value, _ = self._attribute_value(node, environment)
             return value
@@ -2560,32 +2772,31 @@ class _FlowProvenance:
             return _FlowValue(f"builtins.{type_name}", "non_db", elements)
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
-        if isinstance(node, ast.DictComp):
-            # 従来評価済みの key/value は保ち、新規位置だけ fail-closed で覆う。
-            coverage_environment: dict[str, _FlowValue] = {}
-            for generator in node.generators:
-                iterable = self._expression(
-                    generator.iter,
-                    coverage_environment,
-                )
-                self._assign_iteration_target(
-                    generator.target,
-                    iterable,
-                    coverage_environment,
-                )
-                for condition in generator.ifs:
-                    self._expression(condition, coverage_environment)
-            self._expression(node.key, environment)
-            self._expression(node.value, environment)
-            return _UNKNOWN_FLOW_VALUE
-        if isinstance(node, (ast.GeneratorExp, ast.ListComp, ast.SetComp)):
+        if isinstance(
+            node,
+            (ast.DictComp, ast.GeneratorExp, ast.ListComp, ast.SetComp),
+        ):
             local = dict(environment)
-            for generator in node.generators:
-                iterable = self._expression(generator.iter, local)
-                self._assign_iteration_target(generator.target, iterable, local)
-                for condition in generator.ifs:
-                    self._expression(condition, local)
-            element = self._expression(node.elt, local)
+            comprehension_names: set[str] = set()
+            self.lexical_scopes.append((comprehension_names, frozenset()))
+            try:
+                for generator in node.generators:
+                    iterable = self._expression(generator.iter, local)
+                    comprehension_names.update(_target_names(generator.target))
+                    self._assign_iteration_target(
+                        generator.target,
+                        iterable,
+                        local,
+                    )
+                    for condition in generator.ifs:
+                        self._expression(condition, local)
+                if isinstance(node, ast.DictComp):
+                    self._expression(node.key, local)
+                    self._expression(node.value, local)
+                    return _UNKNOWN_FLOW_VALUE
+                element = self._expression(node.elt, local)
+            finally:
+                self.lexical_scopes.pop()
             if isinstance(node, ast.ListComp):
                 return _FlowValue("builtins.list", "non_db", (element,))
             if isinstance(node, ast.SetComp):
@@ -2596,8 +2807,15 @@ class _FlowProvenance:
                 if default is not None:
                     self._expression(default, environment)
             local = dict(environment)
+            bindings = _lambda_scope_bindings(node)
+            for name in bindings:
+                local[name] = _UNKNOWN_FLOW_VALUE
             self._bind_arguments(node.args, local)
-            self._expression(node.body, local)
+            self.lexical_scopes.append((set(bindings), frozenset()))
+            try:
+                self._expression(node.body, local)
+            finally:
+                self.lexical_scopes.pop()
             return _FlowValue(kind="function")
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
@@ -2694,19 +2912,22 @@ class _FlowProvenance:
         self,
         arguments: ast.arguments,
         environment: dict[str, _FlowValue],
+        *,
+        annotation_environment: Mapping[str, _FlowValue] | None = None,
     ) -> None:
         """関数引数を注釈時点の由来へ束縛する。"""
+        annotations = annotation_environment or environment
         positional = [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
         for argument in positional:
             environment[argument.arg] = self._resolve_annotation(
                 argument.annotation,
-                environment,
+                annotations,
             )
         for argument in (arguments.vararg, arguments.kwarg):
             if argument is not None:
                 environment[argument.arg] = self._resolve_annotation(
                     argument.annotation,
-                    environment,
+                    annotations,
                 )
 
     def _refine_isinstance_true_branch(
@@ -2736,7 +2957,14 @@ class _FlowProvenance:
     ) -> None:
         """外側を書き換えず関数の字句スコープを解析する。"""
         local = dict(environment)
-        self._bind_arguments(node.args, local)
+        bindings, global_names = _function_scope_bindings(node)
+        for name in bindings:
+            local[name] = _UNKNOWN_FLOW_VALUE
+        self._bind_arguments(
+            node.args,
+            local,
+            annotation_environment=environment,
+        )
         if self_value is not None and node.args.args:
             local[node.args.args[0].arg] = self_value
         for decorator in node.decorator_list:
@@ -2758,7 +2986,11 @@ class _FlowProvenance:
             self._expression(node.returns, environment)
         for type_param in node.type_params:
             self._expression(type_param, environment)
-        self._analyze_block(node.body, local)
+        self.lexical_scopes.append((set(bindings), global_names))
+        try:
+            self._analyze_block(node.body, local)
+        finally:
+            self.lexical_scopes.pop()
 
     def _register_class_contracts(
         self,
@@ -3036,7 +3268,11 @@ class _FlowProvenance:
         continues: list[dict[str, _FlowValue]] = []
         for statement in statements:
             if current is None:
-                self._analyze_statement(statement, {})
+                self.coverage_only_depth += 1
+                try:
+                    self._analyze_statement(statement, {})
+                finally:
+                    self.coverage_only_depth -= 1
                 continue
             outcome = self._analyze_statement(statement, current)
             current = outcome.environment
@@ -3095,6 +3331,18 @@ class _FlowProvenance:
     def callable_symbol(self, node: ast.Call) -> str | None:
         """呼び出し時点で解決できた callable シンボルを返す。"""
         return self.callable_symbols.get(id(node))
+
+    def name_value(self, node: ast.Name) -> _FlowValue | None:
+        """名前の使用位置で flow が確認した字句 binding を返す。"""
+        return self.name_values.get(id(node))
+
+    def is_lexically_bound_name(self, node: ast.Name) -> bool:
+        """名前が module ではなく内側の字句スコープで束縛されるか返す。"""
+        return id(node) in self.lexically_bound_name_ids
+
+    def is_coverage_only_name(self, node: ast.Name) -> bool:
+        """終端後の Call 被覆だけのため空環境で評価した名前か返す。"""
+        return id(node) in self.coverage_only_name_ids
 
 
 class _SourceScanner(ast.NodeVisitor):
@@ -3675,7 +3923,15 @@ class _SourceScanner(ast.NodeVisitor):
                 ),
             )
             return
-        reexport = self._reexport_resolution(node.func, resolved)
+        lexically_bound_name = (
+            isinstance(node.func, ast.Name)
+            and self.flow.is_lexically_bound_name(node.func)
+        )
+        reexport = (
+            None
+            if lexically_bound_name
+            else self._reexport_resolution(node.func, resolved)
+        )
         if known_callable is None:
             if isinstance(node.func, ast.Attribute):
                 self._reject_reexport_call(
@@ -3689,11 +3945,20 @@ class _SourceScanner(ast.NodeVisitor):
             alias_resolved = self.aliases.resolve(node.func)
             # resolve() は未知の裸名も生テキストで返す。known_symbols を読む
             # resolve_known() でも解決できた Name だけを既知 callable とする。
-            known_alias_callable = (
-                self.aliases.resolve_known(node.func)
-                if isinstance(node.func, ast.Name) and alias_resolved is not None
-                else None
-            )
+            known_alias_callable: str | None = None
+            if (
+                isinstance(node.func, ast.Name)
+                and alias_resolved is not None
+                and not lexically_bound_name
+            ):
+                candidate = self.aliases.resolve_known(node.func)
+                flow_value = self.flow.name_value(node.func)
+                if flow_value is None or (
+                    candidate is not None
+                    and candidate.startswith("builtins.")
+                    and self.flow.is_coverage_only_name(node.func)
+                ):
+                    known_alias_callable = candidate
             if (
                 known_alias_callable is not None
                 and self.aliases.canonical(known_alias_callable)
@@ -4059,11 +4324,20 @@ class _SourceScanner(ast.NodeVisitor):
         condition2_symbol = (
             node.id if self._is_condition2_candidate(node.id) else resolved
         )
-        if node.id in self.aliases.direct_import_names or (
-            node.id[:1].isupper()
-            and resolved in self.aliases.known_class_symbols
-        ):
-            condition2_symbol = resolved
+        flow_value = self.flow.name_value(node)
+        if flow_value is not None:
+            if (
+                flow_value.symbol is not None
+                and flow_value.kind
+                in {"symbol", "function", "class_non_db", "class_unknown"}
+            ):
+                condition2_symbol = self.aliases.canonical(flow_value.symbol)
+        elif not self.flow.is_lexically_bound_name(node):
+            if node.id in self.aliases.direct_import_names or (
+                node.id[:1].isupper()
+                and resolved in self.aliases.known_class_symbols
+            ):
+                condition2_symbol = resolved
         self._check_identifier(
             resolved,
             node,

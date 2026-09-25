@@ -77,11 +77,11 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "3c87625c462b46580f5f8f538875efb1f0fb6310a04b9f81b85b776410fdbd26"
+            "frozen_projection_sha256": "8c0b5527713b4125ef7b4cf79fe07ab087f69453c932a332b26accdda05f9ebd"
           }
         },
         "movement_fact": "movement_policy.movement_triggers に pass_fail_mapping が含まれるため、検査 visitor と flow の訪問漏れ、相対 import、再輸出、条件 2 の裁定、および条件 5 の名前駆動境界を検証する負例 exact-set の変更が基準の移動に当たる。",
-        "reason": "TSK-440 で条件 5 の保証単位の明文化および条件 2 の裁定集合の導入により合否写像が動いたため。射程を狭めた側と厳しくした側を同一の受理記録へ結び付け、狭めただけの受理を作れなくするため。承認者欄の marker「未承認(PR #72 のレビュー待ち)」は機構上の定数であり、本エントリの出所として PR #72 を指すものではない。",
+        "reason": "TSK-440 で条件 5 の保証単位の明文化および条件 2 の裁定集合の導入により合否写像が動いたため。本受理では、射程を狭めた変更と厳しくした変更を同じ射影へ同時に記録した。両者の釣り合いが取れているかどうかは人間のレビュー事項である。承認者欄の marker「未承認(PR #72 のレビュー待ち)」は機構上の定数であり、本エントリの出所として PR #72 を指すものではない。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
       }
@@ -697,6 +697,20 @@
       "condition": 5,
       "mutation": "import なしで受け取った session から execute を呼ぶ",
       "expected_error": "TB005"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_parameter.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の引数を裸名参照して裁定 exact-set を迂回する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C5_IMPORT_SHADOWED_BY_PARAMETER",
+      "path": "pitchlog/services/c5_import_shadowed_by_parameter.py",
+      "condition": 5,
+      "mutation": "import と同名の callable 引数を呼び出して既知シンボル免除を迂回する",
+      "expected_error": "TB007"
     }
   ]
 }

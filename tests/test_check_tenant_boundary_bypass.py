@@ -41,6 +41,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C1_MAY_SHAPES",
         "C1_REQUIRE_ROLE_SHAPES",
         "C2_GENERATION_IMPORT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
         "C2_IDEMPOTENCY_KEY_IMPORT",
         "C2_IDEMPOTENT_KEY_IMPORT",
         "C2_REVISION_NO_IMPORT",
@@ -106,6 +107,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
+        "C5_IMPORT_SHADOWED_BY_PARAMETER",
         "C5_MULTILINE_SCALARS",
         "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
@@ -392,9 +394,17 @@ def _assert_removed_tb007_matches_declared_relaxations(
                 or contract.tenant_context.constructor_symbol in reexport.origins
             ):
                 continue
+            known_callable = scanner.flow.callable_symbol(node)
+            if (
+                known_callable is not None
+                and known_callable
+                != contract.tenant_context.constructor_symbol
+            ):
+                explanations.append(node)
+                continue
             if (
                 isinstance(node.func, ast.Attribute)
-                and scanner.flow.callable_symbol(node) is None
+                and known_callable is None
             ):
                 explanations.append(node)
                 continue
@@ -408,7 +418,7 @@ def _assert_removed_tb007_matches_declared_relaxations(
                 known_alias_callable is not None
                 and scanner.aliases.canonical(known_alias_callable)
                 != contract.tenant_context.constructor_symbol
-                and scanner.flow.callable_symbol(node) is None
+                and known_callable is None
             ):
                 explanations.append(node)
 
@@ -813,6 +823,26 @@ error_type = GenerationError
     )
 
     assert violations == []
+
+
+def test_condition_2_adjudicated_import_shadowed_by_parameter_is_red() -> None:
+    """裁定済み import と同名でも字句引数なら裁定せず拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(GenerationError):
+    return GenerationError
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_generation_error.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
 
 
 def test_condition_2_unadjudicated_generation_is_red() -> None:
@@ -1511,7 +1541,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 87 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 89 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -2523,6 +2553,224 @@ def normalize(value):
     scanner._validate_call_coverage(tree)
 
     assert scanner.violations == []
+
+
+def test_imported_non_constructor_bare_call_without_shadow_is_green() -> None:
+    """使用位置が import binding に結び付く対照Bを green に保つ。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/imported_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from external.helpers import safe
+
+
+def build(safe, tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(safe, /, tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, *, safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, *safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, **safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+build = lambda safe, tenant_id: safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factory, tenant_id):
+    safe = factory
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(other, tenant_id):
+    safe += other
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factory, tenant_id):
+    return (safe := factory)(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factories, tenant_id):
+    for safe in factories:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(manager, tenant_id):
+    with manager as safe:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    try:
+        raise RuntimeError
+    except RuntimeError as safe:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factories, tenant_id):
+    return [safe(tenant_id) for safe in factories]
+""",
+    ),
+    ids=(
+        "argument",
+        "positional-only-argument",
+        "keyword-only-argument",
+        "variadic-argument",
+        "variadic-keyword-argument",
+        "lambda-argument",
+        "assignment",
+        "augmented-assignment",
+        "walrus",
+        "for-target",
+        "with-as",
+        "except-as",
+        "comprehension-target",
+    ),
+)
+def test_import_name_shadowed_by_lexical_binding_is_red(source: str) -> None:
+    """各字句 binding が module-wide import 免除を無効にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_safe_factory.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+def test_local_reimport_reestablishes_known_callable_binding() -> None:
+    """使用位置より前の局所 re-import に確実に結び付く名前は green にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.first import safe
+
+
+def build(tenant_id):
+    from external.second import safe
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/reimported_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_nonlocal_does_not_reuse_module_import_exemption() -> None:
+    """nonlocal は外側の字句 binding とし module import の免除を使わない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def outer(factory, tenant_id):
+    safe = factory
+
+    def build():
+        nonlocal safe
+        return safe(tenant_id)
+
+    return build()
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/nonlocal_safe_factory.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+def test_global_keeps_module_import_exemption() -> None:
+    """global 宣言は module import binding を参照するため green にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    global safe
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/global_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
 
 
 def test_parameter_bare_call_remains_red() -> None:
