@@ -89,7 +89,7 @@ FAILED tests/test_check_authz_catalog.py::test_route_kind_tables_reject_missing_
 `changes` は**台帳文書そのものの replay ログ**であり、`_check_replay` が `changes[]` と
 `placement_change` を fold して**規範状態 5 つ**(`acceptance` / `movement_rules` /
 `implementation_bindings` / `placements` / `declarations`)と一致するかを検査する
-(`scripts/check_frozen_baselines.py:975-983`)。**`value` には fold 先の状態が無い。**
+(`scripts/check_frozen_baselines.py:973-983`)。**`value` には fold 先の状態が無い。**
 
 そこで **`changes` の空を許し**(schema `minItems: 1` → `0`)、
 **レコードが必ず何かを主張すること**を補償不変条件 2 つで強制した:
@@ -202,3 +202,67 @@ sha256 検査が先に鳴る**。欠落変異の確認をするときは、**台
 **申し送り**: **台帳が「宣言そのものとしての値の移動」を記録できない一般の欠陥は TSK-421 へ**。
 `changes` は台帳文書の replay ログなので、値の移動に対応する `aspect` を足すと fold 先の状態が無い。
 本タスクは `changes` の空を許す形で回避したが、**設計としての整理は台帳所有者の判断**である。
+
+## 敵対レビュー 5 周目(2026-09-26)
+
+**判定: 否決(P0 2 件 / P1 2 件 / P2 1 件)。** 指摘はすべて当方で裏を取った。
+
+### P0-1 は本タスクの射程外 — TSK-421 へ申し送る
+
+レビュアーは **`implementation_bindings.registry` の記録が、実際に使われる registry object と
+一致することを機械検査していない**ことを示した。合成 PR で `registry` を
+`scripts/frozen_baselines.py:COMPARISON_STRATEGIES` から
+`scripts/check_frozen_baselines.py:CODE_ASSET_PATHS` へ差し替え、その before/after を
+非空 `changes` として追記したところ、**`--acceptance` が exit 0** になった。
+
+原因は **symbol の存在検査が字面だけ**(`_module_defines_symbol`)で、
+**実際の strategy key 検査と識別値導出は import 済みの `COMPARISON_STRATEGIES` を直接使う**こと。
+
+**当方の実測**: **本 PR は `_check_implementation_bindings` と registry symbol の検査に 1 行も触れていない**
+(`git diff bf8ba5b..HEAD -- scripts/check_frozen_baselines.py` を `registry` / `implementation_bindings` /
+`COMPARISON` で絞ると **0 行**)。**merge-base から存在する穴**である。
+
+→ **射程外として TSK-421(台帳所有者)へ申し送る。**
+ただし**ステップ 8・9 が掲げた「レコードが必ず何かを主張する」という約束は、この穴がある限り完全には果たせない**。
+**本 PR が保証するのは「`changes` が空なら識別値か配置が動いていること」と
+「change entry の before / after が意味上異なること」までである。**
+
+### P1-1 はステップ 10 で是正
+
+**ステップ 9 の正規化が広すぎた。** `placement_change` の locator 配列まで正規化したため、
+**同じ台帳の同じ配列を検査器が 2 つの規則で比べる**状態になっていた。
+
+| 場所 | 比較規則 |
+| --- | --- |
+| 履歴導出(`moved` の決定・`:841`) | **raw equality** |
+| 不変条件 A(`:440-441`) | **正規化してから比較** |
+
+`[A, B] → [B, A]` の配置変更で、**導出側は `moved: true`・不変条件 A は「配置も動いていない」**となり、
+**4 周目 P1-1 の再発**になる。ステップ 10 で**配置と識別値の比較を raw equality へ戻した**。
+
+### P1-2 は 3 件を是正
+
+| 旧 | 新 | 理由 |
+| --- | --- | --- |
+| `check_frozen_baselines.py:795-816` | **`:818-825`** | 旧は値を取り出す途中まで。現在値との比較はここ |
+| 同 `:1009-1023`・`:1304-1342`・`:1395-1412` | **`:1413-1433`** | 旧は event 値の読取・受理 batch の fold・関数冒頭。`base.ref == develop` と親照合はここ |
+| 同 `:975-983` | **`:973-983`** | 規範状態 5 件のうち `acceptance`(`:974`)が範囲外だった |
+
+### P2-1 は当方の記述の誤り
+
+台帳の候補①に「**負例テストは red になったことしか見ない**」と書いたが**事実と違った**。
+共通 helper `_assert_red` は **returncode だけでなく stdout が空であることと stderr の完全一致**まで
+検査する(`tests/frozen_negatives/test_frozen_baseline_acceptance.py:471-481`)。
+したがって sha256 エラーが先に出れば、**対象の負例は「誤った理由で通る」のではなくテスト失敗になる**。
+**正確には「変異が対象の検査へ一度も届かず、変異試験そのものが未成立になる」**である。台帳と索引を訂正した。
+
+### P0-2 は 3 周連続で同じ判定
+
+**3 周目・4 周目・5 周目のすべてで P0**。5 周目は満たす条件を具体的に挙げた:
+
+- **PR #77 の `APPROVED` review の `user.login` と `submitted_at` を機械可読な出所として転記する**
+- 実名を使うなら、login と実名の対応も一次資料で示す
+- または、発話者の認証済み identity とイベント timestamp を含むセッション記録を出所にする
+- **取得できなければ規律どおり停止する**
+
+**当方は 4 度目の推奨として、PR #77 への Approve を求める。**

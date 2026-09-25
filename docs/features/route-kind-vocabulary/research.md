@@ -160,7 +160,7 @@ date: 2026-09-24
 > **したがって `route-registry.json` を変えたら、`oracle_commit` を「新しい内容を含むコミット」へ進めない限り、`--reseal-oracle` 自体が失敗する。**
 
 そして `oracle_commit` は `frozen-baselines.json` の `oracle_input` が凍結しており、
-`scripts/check_frozen_baselines.py:795-816` が**現在値と `history` 末尾の `new_identity` の一致**を検査するため、
+`scripts/check_frozen_baselines.py:818-825` が**現在値と `history` 末尾の `new_identity` の一致**を検査するため(**5 周目 P1-2 の是正** — 旧引用 `:795-816` は値を取り出す途中まで)、
 **`history` へ 1 レコード追記(`acceptance_id` = `<repo>#<PR番号>` / `approved_by` / `approved_at`)が必須**。
 
 **既存の履歴 1 件(PR #73)は値の移設であって値の変更ではない**(`prior` と `new` が同一 commit)。
@@ -224,7 +224,7 @@ date: 2026-09-24
 
 **承認者・承認日は取得元を明記して逐語転記する。取得不能なら停止する**(`docs/worklog/2026-09-20-frozen-baseline-ledger.md:63`)。
 CI が受理遷移を機械検査する(`base.ref == develop` の限定・`base.sha`/`head.sha` の親照合 —
-`scripts/check_frozen_baselines.py:1009-1023`・`:1304-1342`・`:1395-1412`)。
+`scripts/check_frozen_baselines.py:1413-1433`。**5 周目 P1-2 の是正** — 旧引用 `:1009-1023` は event 値の読取、`:1304-1342` は受理 batch の fold、`:1395-1412` は関数冒頭と SHA 解決だった)。
 
 **reseal の実行順**(TSK-312 の前例 — `docs/worklog/2026-09-03-authz-claims-corpus.md:51`・`:67`):
 ①`--reseal --skip-derived --skip-oracle` ②派生更新 ③`--reseal-derived --skip-oracle` →
