@@ -26,7 +26,7 @@ created: 2026-09-24
 
 | 事実 | 典拠 |
 | --- | --- |
-| `route-registry.json` と `http-route-matrix.json` は **exact-set**。片側だけの追加は必ず red | `scripts/check_authz_catalog.py:2437-2442` |
+| `route-registry.json` と `http-route-matrix.json` は **exact-set**。片側だけの追加は必ず red | `scripts/check_authz_catalog.py:2488-2492` |
 | `route_kind` は **4 値**に固定。**正は検査器の定数 `ROUTE_KINDS`** | 同 `:92` |
 | **製品 CRUD を表す種別が存在しない** | 実測(`legacy_route` 13 / `shared_data` 12 / `management_operation` 8 / `control_read` 4) |
 | **所有者を定めた記録が存在しない** | 全文探索 0 件。`TSK-380` の射程は既存 37 経路の `test_owner` 再割り当て([`../../adr/ADR-004-merge-gate-scope.md`](../../adr/ADR-004-merge-gate-scope.md)`:46`) |
@@ -83,7 +83,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **path / method / 404 vs 403 の決着** | **TSK-346** | 同 `:45`。**新種別の必須キーに `http_method` / `path` / `expected_status` を含めない** |
 | **`contracts/authz/product/` と capability** | **TSK-424** | 同タスクの射程に「authz ツールチェーンの一般化」が含まれる。**本タスクは `ROUTE_KINDS` の語彙だけ**と宣言する |
 | **`claim` の到達経路種別の機械判定** | **TSK-383** | 本タスクは「**route の種別**」であって「**claim の到達経路種別**」ではない |
-| **`boundary-proposal.json` への裁定の追記** | **しない**(下記) | `scripts/check_authz_catalog.py:4918` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、**3 件目を足すと `CatalogError`**(1 周目の敵対レビューが実測で確認)。**裁定は本計画書と PR 本文に残す** |
+| **`boundary-proposal.json` への裁定の追記** | **しない**(下記) | `scripts/check_authz_catalog.py:4970-4974` が `pending_human_reviews` を**既存 2 ID の exact-set**で固定しており、**3 件目を足すと `CatalogError`**(1 周目の敵対レビューが実測で確認)。**裁定は本計画書と PR 本文に残す** |
 | **`mutation_execution.py` の `class_by_route_kind` への追加** | **しない**(発火させない) | 新種別の route が `claim-mutant-map` の `runtime_target` に現れない限り発火しない |
 
 ## 3. 影響する正本
@@ -118,7 +118,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | **`operation` の値域** | **`{read, insert, update}`**(閉じた集合) | **削除は論理削除**(要件書 4.0-2)なので `update` に含まれる。**`delete` を値域に置かない**ことで物理削除の経路を構造的に作れなくする |
 | **`origin`** | **`design` を強制**(`legacy_route` が `requirement` を強制するのと同型 — `:2131-2132`) | 要件書に製品 CRUD 経路の条項が無い(research.md 2 節)。**強制することで「design のときだけ provenance を見る」現行構造の穴が塞がる** |
 | **`route_id` の導出規則** | **`ROUTE:RECORD:<資源>:<OPERATION>`**。末尾が `operation` と**大文字小文字を無視して一致**すること | `shared_data` が 3 軸から `route_id` を導出して照合する形(`:2140-2166`)と同型 |
-| **`provenance_ids`** | **専用 ID `PLAN-TSK446-RECORD-AND-AGGREGATE` を含むこと**を強制 | 既存 provenance(`PLAN-STEP4-LEGACY-DENY`)の流用を塞ぐ。**`design_provenance` の `path` に本計画書を指す前例がある**(`route-registry.json:78-84` の唯一の行が `docs/features/pg-authz-verification/plan.md`) |
+| **`provenance_ids`** | **専用 ID `PLAN-TSK446-RECORD-AND-AGGREGATE` を含むこと**を強制 | 既存 provenance(`PLAN-STEP4-LEGACY-DENY`)の流用を塞ぐ。**`design_provenance` の `path` に本計画書を指す前例がある**(`route-registry.json:79-84` の**既存の 1 行**が `docs/features/pg-authz-verification/plan.md` を指す。**本タスクで 2 行目を足した**) |
 | **`disposition`** | **既存の `conditional` へ写す** | **新値を作らない**。ただし理由は「404/403 を決めるから」ではない(**1 周目 P1-2 の是正** — `disposition` は HTTP status を決めていない。`:2395` の閉じた値域と `route_kind` の対応しか検査しない)。**新値は `http-route-matrix.json` の `route_dispositions` の exact-set(`:2397-2400`)も動かす**ため、**変更面を最小に保つ**のが理由 |
 | **名前** | **`record_and_aggregate`**(**裁定済 2026-09-24**) | 要件書 `:849`「**制御資源は記録・集計とは別のクラスである**」— **要件書が制御資源と対置してクラス名として使う唯一の語**。既存の `control_read` / `management_operation` と**同じ軸で並ぶ**。**`tenant_owned_data` を採らなかった理由**: 424 の表分類のプロファイル名 `tenant_owned` と語彙が結びつき、**表の RLS プロファイルと経路分類を混同しうる**(1 周目 P1-1)うえ、**424 側の分類変更で意味が変わりうる**ため「本タスクは 424 と独立」という前提と矛盾する |
 
@@ -126,7 +126,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 
 **`ROUTE_KINDS` の直接参照は 4 箇所**だが、**種別別の分岐と exact-set を含めると変更面はもっと広い**。
 初稿が「外 2 箇所」とした `boundary-proposal.json` の責務 exact-set は**同じ検査器内**であり、
-**`route_kind` の直接参照ではない**。代わりに **`pending_human_reviews` の exact-set(`:4918`)が漏れていた**(2 節で「触らない」と決めた)。
+**`route_kind` の直接参照ではない**。代わりに **`pending_human_reviews` の exact-set(`:4970-4974`)が漏れていた**(2 節で「触らない」と決めた)。
 
 | # | 場所 | 変更内容 |
 | --- | --- | --- |
@@ -179,7 +179,8 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 - [ ] **fixture の lock** を手で作り直した
 - [ ] **`routes` を 1 件も増やしていない**
 - [ ] **既存の判定が変わらない** — route registry / auth catalog / HTTP matrix の **`entries` と `aggregate_decision_digest` が変更前と完全一致**する(件数だけで済ませない)
-- [ ] **`boundary-proposal.json` に触れていない**(`pending_human_reviews` は既存 2 ID の exact-set)
+- [ ] **`boundary-proposal.json` の `pending_human_reviews` を変更しない**(既存 2 ID の exact-set)。
+      **`oracle_context.oracle_commit` は凍結対象 7 箇所の 1 つとして更新する**(**3 周目 P1-3 の是正** — 旧文面「ファイルに触れていない」は 4-2 の 7 箇所差し替えと矛盾していた)
 - [ ] **`mutation_execution.py` の `class_by_route_kind` を発火させていない**
 - [ ] **凍結基準の履歴が 10 キーすべてを持つ**
 - [ ] **oracle 差分の敵対レビュー + 人間確認**を **reseal の前**に受けた
@@ -198,6 +199,7 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 | `route_id` が導出規則に合わない | 負例 | 同上 |
 | 専用 provenance を含まない | 負例 | 同上 |
 | `ROUTE_KINDS` と `expected_keys_by_kind` / `disposition_by_kind` の不整合 | 負例 | **素の `KeyError` ではなく `CatalogError`** |
+| `operation` の許可外値(`delete` / `upsert`) | 負例 | **`operationが閉じた値域にない`** で red(**3 周目 P1-1 の是正** — 許可集合へ `delete` を足す変異を捕まえるテストが無かった。`delete` を外すのは**物理削除経路を構造的に塞ぐ**ため) |
 | 既存 37 経路・187 catalog entries・12 cells | 回帰 | **`entries` と `aggregate_decision_digest` が完全一致** |
 
 **負例の型**(**1 周目 P0-6 の是正** — 初稿は型 B の説明を誤っていた):
