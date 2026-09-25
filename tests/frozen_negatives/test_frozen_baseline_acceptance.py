@@ -543,49 +543,78 @@ def test_rewritten_existing_history_record_is_red(tmp_path: Path) -> None:
 
 @pytest.mark.frozen_negative
 def test_deleted_existing_history_record_is_red(tmp_path: Path) -> None:
-    """N19: baseにある有効な既存履歴の削除を拒否する。"""
+    """N19: 直前の連鎖を保つため末尾を選び、既存履歴の削除を拒否する。"""
     fixture = _build_repository(tmp_path / "baseline")
     _assert_normal_baseline_green(fixture)
+    base_history_length: int | None = None
+    head_history_length: int | None = None
+
+    def add_base_record(ledger: dict[str, Any]) -> None:
+        nonlocal base_history_length
+        _add_noop_history_record(ledger)
+        base_history_length = len(ledger["history"])
 
     def remove_last(ledger: dict[str, Any]) -> None:
+        nonlocal head_history_length
         ledger["history"].pop()
+        head_history_length = len(ledger["history"])
 
     mutant = _build_repository(
         tmp_path / "mutant",
-        base_mutation=_add_noop_history_record,
+        base_mutation=add_base_record,
         head_mutation=remove_last,
     )
-    _assert_red(mutant, "historyの既存記録が削除された: base=2; head=1")
+    assert base_history_length is not None and head_history_length is not None
+    assert head_history_length == base_history_length - 1
+    _assert_red(
+        mutant,
+        "historyの既存記録が削除された: "
+        f"base={base_history_length}; head={head_history_length}",
+    )
 
 
 @pytest.mark.frozen_negative
 def test_same_length_history_replacement_is_red(tmp_path: Path) -> None:
-    """N20: 件数を維持した履歴recordの置換を拒否する。"""
+    """N20: 前段の連鎖を保つため末尾を選び、同数の履歴置換を拒否する。"""
     fixture = _build_repository(tmp_path / "baseline")
     _assert_normal_baseline_green(fixture)
+    replaced_index: int | None = None
 
     def replace_record(ledger: dict[str, Any]) -> None:
-        replacement = copy.deepcopy(ledger["history"].pop(0))
+        nonlocal replaced_index
+        replaced_index = len(ledger["history"]) - 1
+        replacement = copy.deepcopy(ledger["history"].pop())
         replacement["acceptance_id"] = "masaki1025/pitchlog#999"
         ledger["history"].append(replacement)
 
     mutant = _build_repository(tmp_path / "mutant", head_mutation=replace_record)
-    _assert_red(mutant, "historyの同数置換を検出した: index=0")
+    assert replaced_index is not None
+    _assert_red(mutant, f"historyの同数置換を検出した: index={replaced_index}")
 
 
 @pytest.mark.frozen_negative
 def test_second_bootstrap_after_missing_base_ledger_is_red(tmp_path: Path) -> None:
-    """N21: 初回ID以外でbase台帳不在経路へ入ることを拒否する。"""
+    """N21: 初回記録だけを再構成し、別IDでのbootstrap反復を拒否する。"""
+
+    def retain_initial_bootstrap_record(ledger: dict[str, Any]) -> None:
+        initial_record = copy.deepcopy(ledger["history"][0])
+        current_identity = copy.deepcopy(ledger["history"][-1]["new_identity"])
+        initial_record["new_identity"] = current_identity
+        initial_record["prior_identity"] = copy.deepcopy(current_identity)
+        ledger["history"] = [initial_record]
+
     fixture = _build_repository(
         tmp_path / "baseline",
         bootstrap=True,
         pull_request_number=73,
+        head_mutation=retain_initial_bootstrap_record,
     )
     _assert_bootstrap_baseline_green(fixture)
     mutant = _build_repository(
         tmp_path / "mutant",
         bootstrap=True,
         pull_request_number=74,
+        head_mutation=retain_initial_bootstrap_record,
     )
 
     _assert_red(
