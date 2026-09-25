@@ -13,8 +13,8 @@ import {
 
 export const CHANGE_OPERATION_GATE_RESULT = {
   ONLINE_NOT_CONFIRMED: 'online-not-confirmed',
-  UNSENT_QUEUE_NOT_EMPTY_OR_UNCONFIRMED:
-    'unsent-queue-not-empty-or-unconfirmed',
+  UNSENT_OR_ACTION_REQUIRED_EVENTS_PRESENT_OR_UNCONFIRMED:
+    'unsent-or-action-required-events-present-or-unconfirmed',
 } as const
 
 export type ChangeOperationGateRejection =
@@ -28,7 +28,14 @@ export type ChangeOperationGateRequest = Extract<
 
 export type ChangeOperationGateInjections = Readonly<{
   resolveOnline?: () => boolean | undefined
-  resolveUnsentQueueEmpty?: () => boolean | undefined
+  /**
+   * 進行中修正について FR-007 の修正許可条件④を確認する。
+   *
+   * `true` は `未送信` が 0 件かつ `要操作` が 0 件であることを表す。
+   * `要操作` は現世代の正史へ入る予定の未解決イベントなので含める。
+   * `退避済み` は現世代の正史へ適用されないため含めない。
+   */
+  resolveUnsentAndActionRequiredCountsZero?: () => boolean | undefined
   v12Binding?: V12BindingVerifier
   recoveryGeneration?: RecoveryGenerationVerifier
 }>
@@ -55,7 +62,7 @@ function confirmPrerequisite(
  *
  * Args:
  *   request: 進行中または終了後の変更操作要求。
- *   injections: オンライン、未同期キュー、記録権、復旧世代の検査器。
+ *   injections: オンライン、未送信・要操作の件数、記録権、復旧世代の検査器。
  *
  * Returns:
  *   すべての適用対象前提を満たす場合だけ成功となる判定結果。
@@ -73,12 +80,12 @@ export function checkChangeOperationGate(
 
   if (
     request.p3State === P3_REQUEST_STATE.IN_PROGRESS &&
-    !confirmPrerequisite(injections.resolveUnsentQueueEmpty)
+    !confirmPrerequisite(injections.resolveUnsentAndActionRequiredCountsZero)
   ) {
     return {
       ok: false,
       result:
-        CHANGE_OPERATION_GATE_RESULT.UNSENT_QUEUE_NOT_EMPTY_OR_UNCONFIRMED,
+        CHANGE_OPERATION_GATE_RESULT.UNSENT_OR_ACTION_REQUIRED_EVENTS_PRESENT_OR_UNCONFIRMED,
     }
   }
 
