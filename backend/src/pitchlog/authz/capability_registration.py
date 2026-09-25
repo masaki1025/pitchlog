@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from types import FunctionType
 from typing import Any, Protocol, cast
 
 import sqlalchemy
@@ -61,6 +62,7 @@ from sqlalchemy.sql.sqltypes import (
     _Binary,
 )
 from sqlalchemy.sql.visitors import InternalTraversal
+from sqlalchemy.util.langhelpers import HasMemoized, _memoized_property
 
 _CATALOG_SCHEMA_VERSION = 1
 _CATALOG_OPERATIONS = frozenset({"read", "insert", "update"})
@@ -111,6 +113,8 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 #   _compiler / _generate_cache_key
 # - sql/cache_key.py の HasCacheKey._generate_cache_key と
 #   MemoizedHasCacheKey のインスタンスメソッドキャッシュ
+# - util/langhelpers.py の _memoized_property・HasMemoized.memoized_attribute・
+#   memoized_instancemethod と、その bookkeeping 用 frozenset
 # - sql/selectable.py の HasPrefixes / HasSuffixes / HasHints / Select / CTE
 # - sql/dml.py の Insert / Update
 # - sql/elements.py の BindParameter / BinaryExpression / UnaryExpression
@@ -128,8 +132,9 @@ _ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
 # - sql/compiler.py の visit_select / visit_insert / visit_update /
 #   visit_binary / visit_unary / visit_function
 #
-# 正常な3登録を検査した後の遅延生成キーと、標準的な JOIN・サブクエリ・CTE
-# などの構築例が持つキーを型ごとに採取し、下の instance exact-set へ固定した。
+# 正常な3登録と、標準的な JOIN・サブクエリ・CTE などの構築例が持つ通常状態を
+# 型ごとの instance exact-set へ固定した。コンパイル等で後から生成される cache は、
+# 名前を列挙せず、許可型の MRO にある上記の記述子・memoized method から導出する。
 # 許可型の MRO に値を持つ __slots__ はなく、空の __slots__ だけであった。
 # SQLAlchemy の版が変わった場合は再監査するまで拒否する。識別子は SQLAlchemy
 # が引用する標準状態、型は下の組み込み型だけを許す。それ以外の状態は各検査
@@ -290,7 +295,7 @@ _EXPECTED_SQL_TYPE_AFFINITIES: dict[type[object], type[object]] = {
     Text: String,
     Uuid: Uuid,
 }
-_SQL_TYPE_MEMOIZED_STATE_KEYS = ("_type_affinity", "_variant_mapping")
+_ALLOWED_SQL_TYPE_COMMON_STATE_KEYS = ("_variant_mapping",)
 _ALLOWED_INSTANCE_STATE_KEYS: dict[type[object], frozenset[str]] = {
     Alias: frozenset({"_orig_name", "element", "name"}),
     BinaryExpression: frozenset(
@@ -653,6 +658,49 @@ def _identifier_is_safe(value: object) -> bool:
     return True
 
 
+def _class_declares_lazy_cache(
+    concrete_class: type[object],
+    state_name: str,
+    state_value: object,
+) -> bool:
+    """MRO 上の SQLAlchemy 宣言から正規の遅延 cache 状態か判定する。"""
+    for declaring_class in concrete_class.__mro__:
+        class_state = declaring_class.__dict__
+        if state_name not in class_state:
+            continue
+        declared_attribute = class_state[state_name]
+        if _memoized_property in declared_attribute.__class__.__mro__:
+            return True
+
+        if declared_attribute.__class__ is FunctionType:
+            memoized_method = cast(Any, declared_attribute)
+            method_code = memoized_method.__code__
+            decorator = HasMemoized.__dict__["memoized_instancemethod"]
+            if (
+                method_code.co_name == "oneshot"
+                and method_code.co_filename == decorator.__func__.__code__.co_filename
+                and method_code.co_freevars == ("fn",)
+                and "__wrapped__" in memoized_method.__dict__
+            ):
+                cached_method = cast(Any, state_value)
+                return (
+                    cached_method.__class__ is FunctionType
+                    and cached_method.__code__.co_name == "memo"
+                    and cached_method.__code__.co_filename == method_code.co_filename
+                    and cached_method.__code__.co_freevars == ("result",)
+                    and cached_method.__name__ == state_name
+                )
+
+        if declaring_class is HasMemoized:
+            return (
+                declared_attribute.__class__ is frozenset
+                and not declared_attribute
+                and state_value.__class__ is frozenset
+            )
+        return False
+    return False
+
+
 def _validate_traversal_contract(
     node_type: type[object],
     label: str,
@@ -692,7 +740,12 @@ def _validate_sql_type(
     for state_key in standard_type.__dict__:
         if (
             state_key not in allowed_state_keys
-            and state_key not in _SQL_TYPE_MEMOIZED_STATE_KEYS
+            and state_key not in _ALLOWED_SQL_TYPE_COMMON_STATE_KEYS
+            and not _class_declares_lazy_cache(
+                type_class,
+                state_key,
+                standard_type.__dict__[state_key],
+            )
         ):
             _reject_node_state(label, f"SQL型の未許可状態 {state_key}", violations)
     if (
@@ -785,7 +838,11 @@ def _validate_common_node_state(
         return
     allowed_state_keys = _ALLOWED_INSTANCE_STATE_KEYS[node_type]
     for state_key in instance_state:
-        if state_key not in allowed_state_keys:
+        if state_key not in allowed_state_keys and not _class_declares_lazy_cache(
+            node_type,
+            state_key,
+            instance_state[state_key],
+        ):
             _reject_node_state(label, f"未許可のinstance {state_key}", violations)
     _validate_derived_cache_state(
         node_type,

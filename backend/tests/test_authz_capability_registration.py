@@ -11,6 +11,7 @@ import pytest
 import sqlalchemy
 from sqlalchemy import (
     Column,
+    DateTime,
     Integer,
     MetaData,
     SelectLabelStyle,
@@ -26,6 +27,7 @@ from sqlalchemy import (
     true,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import operators, quoted_name
 from sqlalchemy.sql.base import ExecutableOption
@@ -208,6 +210,31 @@ def test_valid_registrations_match_catalog(
     validate_capability_registrations(
         catalog=catalog,
         registrations=_valid_registrations(games),
+    )
+
+
+def test_valid_registrations_allow_sqlalchemy_lazy_caches(
+    catalog: dict[str, Any],
+    tables: tuple[Table, Table],
+) -> None:
+    """コンパイルと cache key 生成後の正規の遅延 cache を許す。"""
+    games, _players = tables
+    registrations = _valid_registrations(games)
+    _ = games.c.scheduled_at + bindparam(
+        "other_scheduled_at",
+        type_=DateTime(timezone=True),
+    )
+    dialect = postgresql.dialect()
+    for registration in registrations:
+        registration.statement.compile(dialect=dialect)
+        registration.statement._generate_cache_key()
+
+    assert "_expression_adaptations" in games.c.scheduled_at.type.__dict__
+    assert "_static_cache_key" in games.c.id.type.__dict__
+    assert "_generate_cache_key" in registrations[0].statement.__dict__
+    validate_capability_registrations(
+        catalog=catalog,
+        registrations=registrations,
     )
 
 
