@@ -39,6 +39,7 @@ EXPECTED_FROZEN_NEGATIVE_NODE_IDS: Final[frozenset[str]] = frozenset(
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_missing_inputs_and_dangling_identity_are_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_empty_changes_with_unchanged_identity_is_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_noop_history_change_is_red",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_reordered_history_change_is_red",
         "tests/frozen_negatives/test_frozen_baseline_acceptance.py::test_empty_changes_with_moved_identity_is_green",
         "tests/frozen_negatives/test_frozen_baseline_scan.py::test_added_allowlist_entry_is_red",
         "tests/frozen_negatives/test_frozen_baseline_scan.py::test_changed_allowlist_value_is_red",
@@ -141,9 +142,9 @@ def _write_synthetic_test(root: Path, filename: str, source: str) -> None:
     (directory / filename).write_text(source, encoding="utf-8")
 
 
-def test_repository_inventory_matches_expected_set_of_thirty_three() -> None:
-    """期待集合が明示した33件で実母集団とも一致する。"""
-    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 33
+def test_repository_inventory_matches_expected_set_of_thirty_four() -> None:
+    """期待集合が明示した34件で実母集団とも一致する。"""
+    assert len(EXPECTED_FROZEN_NEGATIVE_NODE_IDS) == 34
 
     inventory = _collect_frozen_negative_inventory(REPOSITORY_ROOT)
 

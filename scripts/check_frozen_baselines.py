@@ -391,37 +391,78 @@ def _check_exact_keys(value: Mapping[str, Any], expected: frozenset[str], label:
         )
 
 
+def _normalize_unordered_json(value: Any) -> Any:
+    """台帳の順序非依存なJSON値を再帰的な決定的正規形へ変換する。
+
+    台帳内のlistは順序に意味を持たず、code_assetsの順序は別の検査がpath昇順を
+    強制する。そのため、dictはキー順、listは正規化済み要素のJSON表現順に揃える。
+    """
+    if isinstance(value, dict):
+        return {
+            key: _normalize_unordered_json(value[key])
+            for key in sorted(value)
+        }
+    if isinstance(value, list):
+        normalized_items = [_normalize_unordered_json(item) for item in value]
+        return sorted(
+            normalized_items,
+            key=lambda item: json.dumps(
+                item,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+    return value
+
+
 def _check_empty_changes_move_identity(
     record: dict[str, Any], record_index: int, changes: list[Any]
 ) -> None:
-    """changes が空なら識別値の移動を主張していることを検査する。"""
+    """changes が空なら識別値か配置の移動を主張していることを検査する。"""
     if changes:
         return
     prior_identity = record.get("prior_identity")
     new_identity = record.get("new_identity")
-    if (
+    placement_change = record.get("placement_change")
+    if not (
         isinstance(prior_identity, dict)
         and isinstance(new_identity, dict)
-        and prior_identity == new_identity
+        and isinstance(placement_change, dict)
+        and "before" in placement_change
+        and "after" in placement_change
     ):
+        return
+    identity_moved = _normalize_unordered_json(
+        prior_identity
+    ) != _normalize_unordered_json(new_identity)
+    placement_moved = _normalize_unordered_json(
+        placement_change["before"]
+    ) != _normalize_unordered_json(placement_change["after"])
+    if not identity_moved and not placement_moved:
         raise FrozenBaselineCheckError(
-            f"history[{record_index}]: changes が空なら "
-            "prior_identity と new_identity は異ならなければならない"
+            f"history[{record_index}]: changes が空で識別値も配置も動かず、"
+            "何も主張していない"
         )
 
 
 def _check_history_change_is_effective(
     change: dict[str, Any], record_index: int, change_index: int
 ) -> None:
-    """changes entry が規範状態の実変更を主張していることを検査する。"""
+    """changes entry が意味上の規範状態変更を主張していることを検査する。
+
+    台帳内のlistは順序に意味を持たないため、再帰的な決定的正規形へ変換して
+    比較する。これにより、listの並べ替えだけを実変更として扱わない。
+    """
     if (
         "before" in change
         and "after" in change
-        and change["before"] == change["after"]
+        and _normalize_unordered_json(change["before"])
+        == _normalize_unordered_json(change["after"])
     ):
         raise FrozenBaselineCheckError(
             f"history[{record_index}].changes[{change_index}]: "
-            "before と after は異ならなければならない"
+            "before と after が意味上同一で、何も変更していない"
         )
 
 
