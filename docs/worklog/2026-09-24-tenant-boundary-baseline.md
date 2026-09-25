@@ -400,3 +400,81 @@ symbol: `sqlalchemy.text` 64 / `psycopg.Cursor.execute` 35 / `psycopg.Connection
 3. **6 token それぞれが実状態へ写像され、字面の変異で代替されていないか**(D5 — 5 周目 `P0-3` の是正)
 4. **1 受理 1 記録が崩れる経路が無いか**(D1 — authority 以外への追記・同一受理で 2 件)
 5. **`design.md` 8 節の 5 項目が、実装が実際に保証していない範囲と一致しているか**
+
+## 実装の敵対レビュー 1〜4 周(2026-09-25〜26)
+
+| 周 | 指摘 | うち新種 | P0 | 判定 |
+| --- | ---: | ---: | ---: | --- |
+| 1 | 5 | 5 | **3** | マージ不可 |
+| 2 | 4 | 4 | 1 | マージ不可 |
+| 3 | 3 | 2 | 2(うち 1 件は前周の是正未完) | マージ不可 |
+| **4** | 2 | 2 | **0** | マージ不可(P1・P2 のみ) |
+
+**P0 が 4 周目で 0 になったため、PO 判断で打ち切り。5 周目は回さない。**
+
+### 3 周連続で出た型 — 「関数は正しいが本番経路がその結果を使っていない」
+
+| 周 | 該当 | 中身 |
+| --- | --- | --- |
+| 1 | `P0-1` | **既存の検査を結線から外した**。`_validate_baseline_transition` が develop では本番から呼ばれていたのに、結線でテスト専用になった。**契約本文を変えて宣言と履歴を据え置くと `moved == false`** になり、**develop なら red だった変更が green** になっていた |
+| 1 | `P0-2` | **union 走査が死んだコード**。比較元と HEAD の資産マップをどちらも HEAD の定数から作っており、`evaluate_repository_movement` が本番から一度も呼ばれない(**比較元列挙が定数依存だったこと自体は develop 由来** — TSK-440 セッションの指摘で訂正) |
+| 2 | `P1` | **union 評価の結果を呼出し元が捨てていた**。HEAD 側だけの資産追加を `baseline_set` movement として返すのに、直後の `base_names != head_names` で無条件拒否 |
+| 3 | `P0-1` | **`evaluate_repository_movement` の戻り値を束縛していなかった**。`moved` を `derive_aspects` から別途再計算しており、**比較元が宣言した trigger が判定を一切変えなかった** |
+
+**毎周この型を名指しで禁じ、「本番 `check_repository` 経路を通る変異テストで示せ」と指示していたにもかかわらず 3 周連続で出た。** 4 周目の是正指示では、個別の是正の前に**全公開関数の本番到達性の列挙**と**戻り値を捨てている呼び出しの全件確認**を要求した。
+
+**有効だった判定基準**: **機構を壊す変異を入れて、本番経路テストが落ちるかを見る。** 落ちなければ結線されていない。**関数を直接呼ぶテストは、この 4 件をどれも捕まえられなかった。** TSK-440 セッションは同じ基準を自ら適用し、4 機構すべてが落ちることを実測している。
+
+### 各周の主な是正
+
+| 周 | 是正 |
+| --- | --- |
+| 1 | 7 資産の完全な凍結射影を content-addressed snapshot として記録へ含め本番検査へ復帰 / 比較元を `git ls-tree` で独立列挙し union 走査 / `GITHUB_WORKSPACE` による PR モード降格の廃止 / 影響資産の識別値更新を必須化 / 識別値を資産ごとの map へ |
+| 2 | `required_triggers` を `frozen_history` の単一実装へ集約し実装側の `pass_fail_mapping` を削除 / HEAD 側への資産追加を受理 / 相対パス・symlink・Git blob 種別の検査 / 到達不能な旧経路を削除し `_read_external_implementations` を本番へ結線 |
+| 3 | `movement_evaluation` を束縛し `moved` と `affected_assets` に使用 / 予約 marker の走査を**除外リスト方式**へ(record 全体の文字列を再帰走査し、明示した機械値だけ除外) |
+| 4 | **未実施**(Codex のサービス障害で停止。下記) |
+
+### 4 周目に残った 2 件(是正待ち)
+
+| 重さ | 中身 |
+| --- | --- |
+| **P1** | **不変量モードが設計の範囲を超えて検査している**。`_validate_latest_v2_state` が最新 v2 の `after` と現在の完全状態を無条件比較するため、**PR 受理モードで正当に合格した遷移が、マージ後の develop への `push` で不合格になりうる**。`design.md` 4 節は不変量モードを「資産の構造・履歴の内部整合・prefix の deep-equal」に限定している。**現時点では発火しない**(7 資産すべてが全 token を宣言しているため)が、**このリポジトリは過去に同型でdevelop と全子ブランチを止めている** |
+| **P2** | **予約語の部分一致が自然文を過剰検出する**。走査対象を `movement_fact` / `reason` / `change.subject` へ広げたため、**`未定義` が `未定` に、`suspending` が `PENDING` に当たる**(実測)。**以前「fail-closed 側だから許容」と判断したが、対象が自然文へ広がった時点でその判断は成立しなくなった** |
+
+## Codex のサービス障害による停止(2026-09-26 07:52〜)
+
+**4 周目の是正を投げた直後から、`codex_run.py` の全呼び出しが 401 で失敗した。**
+
+```
+ERROR: Reconnecting... 1/5 〜 5/5
+warning: Falling back from WebSockets to HTTPS transport.
+ERROR: unexpected status 401 Unauthorized: Incorrect API key provided: sk-svcac…fvMA
+url: https://chatgpt.com/backend-api/codex/responses
+```
+
+**4 セッション(TSK-236 / TSK-431 / TSK-440 / 他)で同時発生し、キー接頭辞まで同一。** ユーザーの連絡により **Codex 側のサービス障害**と確定した。
+
+**ローカル調査の結果(値は読んでいない)**: 環境変数 `OPENAI_API_KEY` などは未設定 / `~/.codex/auth.json` の `OPENAI_API_KEY` は null で `last_refresh` は成功 / `config.toml` 2 種にキーなし / **Claude Code のシェルスナップショットに `OPENAI_*` の文字列は 0 回**。**探す対象が最初から存在しなかった。**
+
+**本セッションが出した決め手 2 つ**:
+
+1. **使用上限は 401 ではなく専用メッセージで出る**(00:47 に実際に当たったログ: `You've hit your usage limit ... try again at Sep 30th`)。これにより「上限超過が別資格情報へフォールバックしている」という仮説が早期に潰れた
+2. **最後の成功時刻 07:37:53**(4 周目レビューの完了)と `auth.json` の mtime 07:54 により、**発生窓が 14 分に締まった**
+
+**あわせて `grep` がシェル関数として壊れる症状も出たが、別系統と判明した。** Claude Code のシェルスナップショットが `grep` を関数で置き換えて同梱の `ugrep` へ委譲しており、そのバイナリが無い環境でフォールバックが効ききらない。**スナップショットは 2 日前(2026-09-24 00:42)のもので 401 とは無関係。** 回避は `/usr/bin/grep`(本セッションは python 読みへ切り替えた)。
+
+**被害はゼロ。** 失敗した委任は 1 バイトも書いておらず、作業ツリーは変更 0 件。
+
+## CI の沈黙とその原因(2026-09-25〜26)
+
+**`ae7530c` 以降の 3 push で CI が 1 つも走っていなかった。**
+
+**原因は PR #78 が develop とコンフリクトしていたこと**(`mergeable=CONFLICTING` / `state=DIRTY`)。**GitHub は `refs/pull/78/merge` を作れないと `pull_request` の workflow を起動しない。** 同じリポジトリの PR #80 が走っていたのは、そちらが衝突していなかったため。
+
+**衝突は `docs/README.md` と `docs/development/harness-evaluation.md` の 2 ファイルのみ**で、**実装の衝突はゼロ**(develop 側は `contracts/tenant_boundary/*`・検査器・`frozen_history.py`・`core-areas.json` を一切触っていない)。
+
+**内容の衝突が 1 件**: **TSK-424 PR A1 が同じ候補「検証コマンドを人が選ぶ」へ 5 例目を追記していた**ため、本タスクの分を **6 例目へ繰り下げ**、索引の候補数を **77 件**へ更新した。
+
+**取り込み後、`mergeable=MERGEABLE` になり CI が復活。** **`core-guard` 以外すべて pass**(`tenant-boundary-bypass` は **PR 受理モードで実走して pass** — DoD の D4 項目を現行 HEAD で充足)。
+
+**教訓**: **CI が「走っていない」ことと「通っていない」ことは別**である。`gh pr checks` は前者を `no checks reported` としか言わない。**push のたびに run が作られたかを確認する必要がある。**
