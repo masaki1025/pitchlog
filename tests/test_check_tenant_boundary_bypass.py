@@ -40,8 +40,10 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C1_IS_ALLOWED_SHAPES",
         "C1_MAY_SHAPES",
         "C1_REQUIRE_ROLE_SHAPES",
-        "C2_GENERATION_IMPORT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_ASSIGNMENT",
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_WALRUS",
+        "C2_GENERATION_IMPORT",
         "C2_IDEMPOTENCY_KEY_IMPORT",
         "C2_IDEMPOTENT_KEY_IMPORT",
         "C2_REVISION_NO_IMPORT",
@@ -99,7 +101,6 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
-        "C5_CONTEXT_UNKNOWN_FACTORY",
         "C5_DYNAMIC_EVAL_EXECUTE",
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
@@ -107,7 +108,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
-        "C5_IMPORT_SHADOWED_BY_PARAMETER",
+        "C5_IMPORT_REBOUND_BY_GLOBAL_WRITER",
         "C5_MULTILINE_SCALARS",
         "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
@@ -373,6 +374,12 @@ def _assert_removed_tb007_matches_declared_relaxations(
         assert matching_calls, identity
         explanations = []
         for node in matching_calls:
+            if (
+                isinstance(node.func, ast.Name)
+                and id(node.func) in scanner.lexically_bound_name_ids
+            ):
+                explanations.append(node)
+                continue
             constructor_name = contract.tenant_context.constructor_symbol.rsplit(
                 ".", 1
             )[-1]
@@ -754,6 +761,18 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
     } <= adjudicated_symbols | adjudicated_names
 
 
+def test_condition_5_scope_declaration_is_verbatim_in_design() -> None:
+    """検査器の保証宣言が設計書 1-1 / 6-0 と逐語一致する。"""
+    module_docstring = checker.__doc__
+    assert module_docstring is not None
+    declaration = module_docstring.split("\n\n", 1)[1]
+    design = (
+        REPOSITORY_ROOT / "docs/features/tenant-boundary-enforcement/design.md"
+    ).read_text(encoding="utf-8")
+
+    assert design.count(declaration) == 2
+
+
 def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
     """広い候補7本と理由付き裁定5件を資産どおり固定する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -924,36 +943,37 @@ def test_product_call_coverage_sets_are_complete() -> None:
 
 
 @pytest.mark.parametrize(
-    "source",
+    ("source", "expected_tb007"),
     (
-        """\
+        ("""\
 def assign(factory, values):
     factory().item, *factory().rest = values
-""",
-        """\
+""", False),
+        ("""\
 def select(value, factory):
     match value:
         case _ if factory():
             return None
-""",
-        """\
+""", False),
+        ("""\
 try:
     pass
 except* factory():
     pass
-""",
-        """\
+""", True),
+        ("""\
 def run[T: factory()](value: annotate()) -> returns():
     return value
-""",
-        """\
+""", True),
+        ("""\
 class Example[T: bound()](metaclass=factory()):
     pass
-""",
+""", True),
     ),
 )
 def test_additional_call_positions_satisfy_coverage_invariant(
     source: str,
+    expected_tb007: bool,
 ) -> None:
     """構文マトリクス上の Call を flow と scanner の双方で覆う。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -964,7 +984,7 @@ def test_additional_call_positions_satisfy_coverage_invariant(
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
 
 
 @pytest.mark.parametrize("omitted_layer", ("flow", "scanner"))
@@ -1545,7 +1565,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 89 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 90 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -2644,7 +2664,8 @@ from external.helpers import safe
 
 
 def build(factory, tenant_id):
-    return (safe := factory)(tenant_id)
+    (safe := factory)
+    return safe(tenant_id)
 """,
         """\
 from external.helpers import safe
@@ -2696,8 +2717,8 @@ def build(factories, tenant_id):
         "comprehension-target",
     ),
 )
-def test_import_name_shadowed_by_lexical_binding_is_red(source: str) -> None:
-    """各字句 binding が module-wide import 免除を無効にする。"""
+def test_lexically_bound_bare_callable_is_green(source: str) -> None:
+    """関数内の字句束縛 callable は条件 5 の保証範囲外として許可する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     violations = checker.scan_source(
@@ -2706,11 +2727,11 @@ def test_import_name_shadowed_by_lexical_binding_is_red(source: str) -> None:
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert violations == []
 
 
-def test_local_reimport_reestablishes_known_callable_binding() -> None:
-    """使用位置より前の局所 re-import に確実に結び付く名前は green にする。"""
+def test_local_reimport_is_a_lexically_bound_callable() -> None:
+    """関数内 re-import の裸名呼び出しも保証範囲外として許可する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 from external.first import safe
@@ -2730,8 +2751,8 @@ def build(tenant_id):
     assert violations == []
 
 
-def test_nonlocal_does_not_reuse_module_import_exemption() -> None:
-    """nonlocal は外側の字句 binding とし module import の免除を使わない。"""
+def test_nonlocal_callable_is_a_lexical_closure_binding() -> None:
+    """nonlocal の裸名呼び出しもクロージャ変数として許可する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 from external.helpers import safe
@@ -2753,11 +2774,11 @@ def outer(factory, tenant_id):
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert violations == []
 
 
 def test_global_keeps_module_import_exemption() -> None:
-    """global 宣言は module import binding を参照するため green にする。"""
+    """writer の無い global 宣言は再束縛ではないため green にする。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 from external.helpers import safe
@@ -2777,8 +2798,168 @@ def build(tenant_id):
     assert violations == []
 
 
-def test_parameter_bare_call_remains_red() -> None:
-    """known_symbols に無い callable パラメータは引き続き拒否する。"""
+@pytest.mark.parametrize(
+    ("source", "expected_code"),
+    (
+        (
+            """\
+from external.helpers import safe
+
+
+def build(safe: safe, tenant_id):
+    return safe(tenant_id)
+""",
+            None,
+        ),
+        (
+            """\
+from external.helpers import safe as imported_safe
+
+
+def outer(factory, tenant_id):
+    safe = imported_safe
+
+    def build():
+        return safe(tenant_id)
+
+    safe = factory
+    return build
+""",
+            None,
+        ),
+        (
+            """\
+from external.helpers import safe
+
+
+def replace(factory):
+    global safe
+    safe = factory
+
+
+def build(tenant_id):
+    global safe
+    return safe(tenant_id)
+""",
+            "TB007",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    GenerationError = other
+    return GenerationError
+""",
+            "TB002",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    GenerationError: object = other
+    return GenerationError
+""",
+            "TB002",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    return (GenerationError := other)
+""",
+            "TB002",
+        ),
+    ),
+    ids=(
+        "annotated-parameter",
+        "late-binding-closure",
+        "global-writer",
+        "condition2-assignment",
+        "condition2-walrus",
+        "condition2-annotated-assignment",
+    ),
+)
+def test_scope_boundary_for_callable_and_condition2_rebinding(
+    source: str,
+    expected_code: str | None,
+) -> None:
+    """字句 callable は許可し、global と条件 2 の再束縛は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/rebound_name.py",
+        contract=contract,
+    )
+
+    if expected_code is None:
+        assert violations == []
+    else:
+        assert expected_code in {violation.code for violation in violations}
+
+
+def test_class_attribute_is_not_a_method_closure_binding() -> None:
+    """メソッド本体の裸名は同名クラス属性でなく module import を参照する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+class C:
+    safe = lambda value: value
+
+    def build(self, tenant_id):
+        return safe(tenant_id)
+"""
+    path = "pitchlog/services/class_attribute_control.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+
+    assert scanner.flow.callable_symbol(call) == "external.helpers.safe"
+    assert checker.scan_source(source, path=path, contract=contract) == []
+
+
+def test_subscript_assignment_target_uses_current_flow_environment() -> None:
+    """添字代入先の builtin 呼び出しを空環境由来の未知に落とさない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def update(values, index, value):
+    values[str(index)] = value
+"""
+    path = "pitchlog/services/subscript_assignment.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+
+    assert scanner.flow.callable_symbol(call) == "builtins.str"
+    assert checker.scan_source(source, path=path, contract=contract) == []
+
+
+def test_parameter_bare_call_is_outside_condition_5_scope() -> None:
+    """known_symbols に無い callable 引数も保証範囲外として許可する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 def forge_context(factory, tenant_id):
@@ -2803,10 +2984,7 @@ def forge_context(factory, tenant_id):
         contract=contract,
     )
 
-    assert [
-        (violation.code, violation.symbol)
-        for violation in violations
-    ] == [("TB007", "factory")]
+    assert violations == []
 
 
 def test_unregistered_bare_text_call_remains_red() -> None:
@@ -3354,30 +3532,33 @@ client.execute(statement)
 
 
 @pytest.mark.parametrize(
-    "source",
+    ("source", "expected_tb007"),
     (
-        """\
+        ("""\
 from pitchlog.repositories.context import _tenant_context_proof as derive
 
 proof_factory = derive
 proof_factory(tenant_id)
-""",
-        """\
+""", True),
+        ("""\
 import pitchlog.repositories.context as context_module
 
 module_alias = context_module
 derive = module_alias._tenant_context_proof
 proof_factory = derive
 proof_factory(tenant_id)
-""",
-        """\
+""", True),
+        ("""\
 def forge(factory, tenant_id):
     return factory(tenant_id)
-""",
+""", False),
     ),
 )
-def test_proof_factory_aliases_and_unresolved_callable_are_red(source: str) -> None:
-    """証跡導出の多段別名と未解決 callable を fail-closed で拒否する。"""
+def test_proof_factory_aliases_and_lexical_callable_scope(
+    source: str,
+    expected_tb007: bool,
+) -> None:
+    """証跡導出の別名は拒否し、字句 callable は保証範囲外とする。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     violations = checker.scan_source(
@@ -3386,7 +3567,7 @@ def test_proof_factory_aliases_and_unresolved_callable_are_red(source: str) -> N
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
 
 
 def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:

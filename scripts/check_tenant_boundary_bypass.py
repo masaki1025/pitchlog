@@ -13,6 +13,9 @@
 2. registry[k].make_context(t) のように、構築シンボル以外の属性名で、
    再輸出写像でも解決できない callable を経由した構築
 3. (iii) と (iv)(v) の非対称は原理ではなく、既存負例が守る範囲を落とさないための線である
+4. 引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
+   依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
+   機械的に通らなくなるため。
 """
 
 from __future__ import annotations
@@ -22,11 +25,13 @@ import ast
 import builtins
 import copy
 import difflib
+import dis
 import hashlib
 import json
 import re
 import shlex
 import subprocess
+import symtable
 import sys
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
@@ -2337,58 +2342,115 @@ class _FlowOutcome:
     continues: tuple[dict[str, _FlowValue], ...] = ()
 
 
-def _target_names(target: ast.AST) -> set[str]:
-    """代入・反復 target が束縛する裸名を返す。"""
-    if isinstance(target, ast.Name):
-        return {target.id}
-    if isinstance(target, ast.Starred):
-        return _target_names(target.value)
-    if isinstance(target, (ast.Tuple, ast.List)):
-        return set().union(*(_target_names(item) for item in target.elts))
-    return set()
+@dataclass(frozen=True)
+class _ModuleBindings:
+    """module-wide の別名解決を無効にする再束縛名を表す。"""
+
+    global_names: frozenset[str]
+    condition2_names: frozenset[str]
 
 
-class _FunctionBindingCollector(ast.NodeVisitor):
-    """入れ子の実行スコープへ入らず、関数ローカル束縛を列挙する。"""
+def _module_bindings(source: str, path: str) -> _ModuleBindings:
+    """構文の種類を列挙せず、コンパイラのシンボル表から再束縛名を得る。
 
-    def __init__(self) -> None:
-        self.local_names: set[str] = set()
-        self.global_names: set[str] = set()
-        self.nonlocal_names: set[str] = set()
+    ``global`` / ``nonlocal`` は宣言だけなら再束縛とせず、実際の writer を
+    シンボル表の ``is_assigned()`` で検出する。クラス名前空間のローカル名は
+    メソッドの閉包ではないため callable 判定から除き、条件 2 の裁定だけを
+    fail-closed にする。クラス配下の関数・lambda の束縛は通常どおり含める。
+    """
+    table = symtable.symtable(source, path, "exec")
+    module_code = compile(source, path, "exec")
+    module_operations = Counter(
+        instruction.argval
+        for instruction in dis.get_instructions(module_code)
+        if instruction.opname
+        in {"STORE_NAME", "STORE_GLOBAL", "DELETE_NAME", "DELETE_GLOBAL"}
+        and isinstance(instruction.argval, str)
+    )
+    module_rebindings = {
+        name for name, count in module_operations.items() if count > 1
+    }
+    global_names = set(module_rebindings)
+    condition2_names = set(module_rebindings)
+    condition2_names.update(
+        symbol.get_name()
+        for symbol in table.get_symbols()
+        if symbol.is_annotated()
+    )
 
-    def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
-        """Store / Del の裸名をローカル束縛として記録する。"""
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            self.local_names.add(node.id)
+    def collect(scope: symtable.SymbolTable) -> None:
+        for symbol in scope.get_symbols():
+            rebound = (
+                symbol.is_parameter()
+                or symbol.is_imported()
+                or symbol.is_assigned()
+            )
+            if not rebound:
+                continue
+            condition2_names.add(symbol.get_name())
+            if symbol.is_global() and symbol.is_assigned():
+                global_names.add(symbol.get_name())
+        for child in scope.get_children():
+            collect(child)
 
-    def visit_Global(self, node: ast.Global) -> None:  # noqa: N802
-        """global 宣言名をモジュール束縛へ戻す。"""
-        self.global_names.update(node.names)
+    for child in table.get_children():
+        collect(child)
+    return _ModuleBindings(
+        global_names=frozenset(global_names),
+        condition2_names=frozenset(condition2_names),
+    )
 
-    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:  # noqa: N802
-        """nonlocal 宣言名を外側の字句束縛として記録する。"""
-        self.nonlocal_names.update(node.names)
 
-    def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
-        """import が現在関数へ作る名前を記録する。"""
-        self.local_names.update(
-            alias.asname or alias.name.split(".")[0] for alias in node.names
-        )
+class _LexicalCallClassifier(ast.NodeVisitor):
+    """裸名が実際に参照する字句束縛をコンパイラの表から特定する。"""
 
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
-        """from import が現在関数へ作る名前を記録する。"""
-        self.local_names.update(
-            alias.asname or alias.name
-            for alias in node.names
-            if alias.name != "*"
-        )
+    def __init__(self, table: symtable.SymbolTable) -> None:
+        self.scope_stack = [table]
+        self.used_children: dict[symtable.SymbolTable, set[int]] = {}
+        self.comprehension_names: list[set[str]] = []
+        self.lexical_name_ids: set[int] = set()
 
-    def _visit_callable_definition(
+    def _take_child(
+        self,
+        expected_type: str,
+        expected_name: str,
+        *,
+        required: bool,
+    ) -> symtable.SymbolTable | None:
+        """現在の表から AST と対応する未使用の子スコープを得る。"""
+        parent = self.scope_stack[-1]
+        children = parent.get_children()
+        used = self.used_children.setdefault(parent, set())
+        for index, child in enumerate(children):
+            if index in used or child.get_name() != expected_name:
+                continue
+            candidate = child
+            if child.get_type() == "type parameter":
+                candidate = next(
+                    (
+                        nested
+                        for nested in child.get_children()
+                        if nested.get_type() == expected_type
+                        and nested.get_name() == expected_name
+                    ),
+                    child,
+                )
+            if candidate.get_type() != expected_type:
+                continue
+            used.add(index)
+            return candidate
+        if required:
+            raise ContractError(
+                "字句スコープと AST の対応を解決できない: "
+                f"{expected_type} {expected_name}"
+            )
+        return None
+
+    def _visit_function(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
     ) -> None:
-        """定義名と外側で評価される式だけを現在スコープへ反映する。"""
-        self.local_names.add(node.name)
+        """定義時の式は外側、本体は関数のシンボル表で訪問する。"""
         for decorator in node.decorator_list:
             self.visit(decorator)
         for default in (*node.args.defaults, *node.args.kw_defaults):
@@ -2408,24 +2470,23 @@ class _FunctionBindingCollector(ast.NodeVisitor):
             self.visit(node.returns)
         for type_param in node.type_params:
             self.visit(type_param)
+        scope = self._take_child("function", node.name, required=True)
+        assert scope is not None
+        self.scope_stack.append(scope)
+        for statement in node.body:
+            self.visit(statement)
+        self.scope_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-        """入れ子関数の本体へ入らず定義時の束縛だけを記録する。"""
-        self._visit_callable_definition(node)
+        """同期関数の定義式と本体を別スコープで訪問する。"""
+        self._visit_function(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
-        """入れ子 async 関数の本体へ入らず定義時の束縛だけを記録する。"""
-        self._visit_callable_definition(node)
-
-    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: N802
-        """lambda 本体へ入らず外側で評価される既定値だけを見る。"""
-        for default in (*node.args.defaults, *node.args.kw_defaults):
-            if default is not None:
-                self.visit(default)
+        """非同期関数の定義式と本体を別スコープで訪問する。"""
+        self._visit_function(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-        """クラス本体へ入らず定義名と外側評価式だけを記録する。"""
-        self.local_names.add(node.name)
+        """クラス本体を独立名前空間として訪問する。"""
         for decorator in node.decorator_list:
             self.visit(decorator)
         for base in node.bases:
@@ -2434,104 +2495,108 @@ class _FunctionBindingCollector(ast.NodeVisitor):
             self.visit(keyword.value)
         for type_param in node.type_params:
             self.visit(type_param)
+        scope = self._take_child("class", node.name, required=True)
+        assert scope is not None
+        self.scope_stack.append(scope)
+        for statement in node.body:
+            self.visit(statement)
+        self.scope_stack.pop()
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: N802
+        """lambda の既定値を外側、本体を lambda スコープで訪問する。"""
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+        scope = self._take_child("function", "lambda", required=True)
+        assert scope is not None
+        self.scope_stack.append(scope)
+        self.visit(node.body)
+        self.scope_stack.pop()
+
+    @staticmethod
+    def _target_names(target: ast.AST) -> set[str]:
+        """内包表記 target が束縛する裸名を返す。"""
+        return {
+            child.id
+            for child in ast.walk(target)
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store)
+        }
 
     def _visit_comprehension(
         self,
-        generators: Sequence[ast.comprehension],
+        node: ast.DictComp | ast.GeneratorExp | ast.ListComp | ast.SetComp,
         expressions: Sequence[ast.expr],
     ) -> None:
-        """内包 target を除き、外側へ束縛する walrus だけを拾う。"""
-        for generator in generators:
+        """内包 target の有効範囲を評価順に反映する。"""
+        first, *remaining = node.generators
+        self.visit(first.iter)
+        scope = self._take_child(
+            "function",
+            "genexpr" if isinstance(node, ast.GeneratorExp) else type(node).__name__.lower(),
+            required=isinstance(node, ast.GeneratorExp),
+        )
+        if scope is not None:
+            self.scope_stack.append(scope)
+        names = self._target_names(first.target)
+        self.comprehension_names.append(names)
+        self.visit(first.target)
+        for condition in first.ifs:
+            self.visit(condition)
+        for generator in remaining:
             self.visit(generator.iter)
+            names.update(self._target_names(generator.target))
+            self.visit(generator.target)
             for condition in generator.ifs:
                 self.visit(condition)
         for expression in expressions:
             self.visit(expression)
+        self.comprehension_names.pop()
+        if scope is not None:
+            self.scope_stack.pop()
 
     def visit_DictComp(self, node: ast.DictComp) -> None:  # noqa: N802
-        """辞書内包の target を関数ローカルへ混入させない。"""
-        self._visit_comprehension(node.generators, (node.key, node.value))
-
-    def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: N802
-        """リスト内包の target を関数ローカルへ混入させない。"""
-        self._visit_comprehension(node.generators, (node.elt,))
-
-    def visit_SetComp(self, node: ast.SetComp) -> None:  # noqa: N802
-        """集合内包の target を関数ローカルへ混入させない。"""
-        self._visit_comprehension(node.generators, (node.elt,))
+        """辞書内包の字句束縛を訪問する。"""
+        self._visit_comprehension(node, (node.key, node.value))
 
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:  # noqa: N802
-        """生成内包の target を関数ローカルへ混入させない。"""
-        self._visit_comprehension(node.generators, (node.elt,))
+        """生成内包の字句束縛を訪問する。"""
+        self._visit_comprehension(node, (node.elt,))
 
-    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:  # noqa: N802
-        """except ... as の文字列名も関数ローカルへ含める。"""
-        if node.name is not None:
-            self.local_names.add(node.name)
-        self.generic_visit(node)
+    def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: N802
+        """リスト内包の字句束縛を訪問する。"""
+        self._visit_comprehension(node, (node.elt,))
 
-    def visit_MatchAs(self, node: ast.MatchAs) -> None:  # noqa: N802
-        """match capture 名を関数ローカルへ含める。"""
-        if node.name is not None:
-            self.local_names.add(node.name)
-        self.generic_visit(node)
+    def visit_SetComp(self, node: ast.SetComp) -> None:  # noqa: N802
+        """集合内包の字句束縛を訪問する。"""
+        self._visit_comprehension(node, (node.elt,))
 
-    def visit_MatchStar(self, node: ast.MatchStar) -> None:  # noqa: N802
-        """match star capture 名を関数ローカルへ含める。"""
-        if node.name is not None:
-            self.local_names.add(node.name)
-
-    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:  # noqa: N802
-        """match mapping rest 名を関数ローカルへ含める。"""
-        if node.rest is not None:
-            self.local_names.add(node.rest)
-        self.generic_visit(node)
-
-
-def _function_scope_bindings(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> tuple[frozenset[str], frozenset[str]]:
-    """関数の字句束縛名と global 宣言名を返す。"""
-    collector = _FunctionBindingCollector()
-    for statement in node.body:
-        collector.visit(statement)
-    arguments = {
-        argument.arg
-        for argument in (
-            *node.args.posonlyargs,
-            *node.args.args,
-            *node.args.kwonlyargs,
-            node.args.vararg,
-            node.args.kwarg,
-        )
-        if argument is not None
-    }
-    # global は module binding を使い、nonlocal は外側の字句 binding として
-    # module-wide import の免除を使わず fail-closed にする。
-    bound = (
-        collector.local_names
-        | collector.nonlocal_names
-        | arguments
-    ) - collector.global_names
-    return frozenset(bound), frozenset(collector.global_names)
+    def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
+        """Load が module でなく字句束縛へ解決される場合だけ記録する。"""
+        if not isinstance(node.ctx, ast.Load):
+            return
+        if any(node.id in names for names in self.comprehension_names):
+            self.lexical_name_ids.add(id(node))
+            return
+        scope = self.scope_stack[-1]
+        if scope.get_type() != "function":
+            return
+        try:
+            symbol = scope.lookup(node.id)
+        except KeyError:
+            return
+        if not symbol.is_global():
+            self.lexical_name_ids.add(id(node))
 
 
-def _lambda_scope_bindings(node: ast.Lambda) -> frozenset[str]:
-    """lambda の引数と walrus target を字句束縛として返す。"""
-    collector = _FunctionBindingCollector()
-    collector.visit(node.body)
-    arguments = {
-        argument.arg
-        for argument in (
-            *node.args.posonlyargs,
-            *node.args.args,
-            *node.args.kwonlyargs,
-            node.args.vararg,
-            node.args.kwarg,
-        )
-        if argument is not None
-    }
-    return frozenset(collector.local_names | arguments)
+def _lexically_bound_name_ids(
+    tree: ast.Module,
+    source: str,
+    path: str,
+) -> frozenset[int]:
+    """関数・lambda・内包表記の字句束縛を参照する Name ID を返す。"""
+    classifier = _LexicalCallClassifier(symtable.symtable(source, path, "exec"))
+    classifier.visit(tree)
+    return frozenset(classifier.lexical_name_ids)
 
 
 class _FlowProvenance:
@@ -2561,11 +2626,6 @@ class _FlowProvenance:
         self.callable_symbols: dict[int, str | None] = {}
         self.receiver_kinds: dict[int, str] = {}
         self.argument_kinds: dict[tuple[int, int], str] = {}
-        self.name_values: dict[int, _FlowValue] = {}
-        self.lexically_bound_name_ids: set[int] = set()
-        self.coverage_only_name_ids: set[int] = set()
-        self.coverage_only_depth = 0
-        self.lexical_scopes: list[tuple[set[str], frozenset[str]]] = []
         self.function_returns: dict[str, _FlowValue] = {}
         self.class_members: dict[str, _FlowValue] = {}
         self.class_stack: list[str] = []
@@ -2722,17 +2782,7 @@ class _FlowProvenance:
     ) -> _FlowValue:
         """式を評価順に走査し、呼び出し位置の由来を記録する。"""
         if isinstance(node, ast.Name):
-            value = environment.get(node.id, _UNKNOWN_FLOW_VALUE)
-            self.name_values[id(node)] = value
-            if self.coverage_only_depth:
-                self.coverage_only_name_ids.add(id(node))
-            for bound_names, global_names in reversed(self.lexical_scopes):
-                if node.id in global_names:
-                    break
-                if node.id in bound_names:
-                    self.lexically_bound_name_ids.add(id(node))
-                    break
-            return value
+            return environment.get(node.id, _UNKNOWN_FLOW_VALUE)
         if isinstance(node, ast.Attribute):
             value, _ = self._attribute_value(node, environment)
             return value
@@ -2772,31 +2822,32 @@ class _FlowProvenance:
             return _FlowValue(f"builtins.{type_name}", "non_db", elements)
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
-        if isinstance(
-            node,
-            (ast.DictComp, ast.GeneratorExp, ast.ListComp, ast.SetComp),
-        ):
+        if isinstance(node, ast.DictComp):
+            # 従来評価済みの key/value は保ち、新規位置だけ fail-closed で覆う。
+            coverage_environment: dict[str, _FlowValue] = {}
+            for generator in node.generators:
+                iterable = self._expression(
+                    generator.iter,
+                    coverage_environment,
+                )
+                self._assign_iteration_target(
+                    generator.target,
+                    iterable,
+                    coverage_environment,
+                )
+                for condition in generator.ifs:
+                    self._expression(condition, coverage_environment)
+            self._expression(node.key, environment)
+            self._expression(node.value, environment)
+            return _UNKNOWN_FLOW_VALUE
+        if isinstance(node, (ast.GeneratorExp, ast.ListComp, ast.SetComp)):
             local = dict(environment)
-            comprehension_names: set[str] = set()
-            self.lexical_scopes.append((comprehension_names, frozenset()))
-            try:
-                for generator in node.generators:
-                    iterable = self._expression(generator.iter, local)
-                    comprehension_names.update(_target_names(generator.target))
-                    self._assign_iteration_target(
-                        generator.target,
-                        iterable,
-                        local,
-                    )
-                    for condition in generator.ifs:
-                        self._expression(condition, local)
-                if isinstance(node, ast.DictComp):
-                    self._expression(node.key, local)
-                    self._expression(node.value, local)
-                    return _UNKNOWN_FLOW_VALUE
-                element = self._expression(node.elt, local)
-            finally:
-                self.lexical_scopes.pop()
+            for generator in node.generators:
+                iterable = self._expression(generator.iter, local)
+                self._assign_iteration_target(generator.target, iterable, local)
+                for condition in generator.ifs:
+                    self._expression(condition, local)
+            element = self._expression(node.elt, local)
             if isinstance(node, ast.ListComp):
                 return _FlowValue("builtins.list", "non_db", (element,))
             if isinstance(node, ast.SetComp):
@@ -2807,15 +2858,8 @@ class _FlowProvenance:
                 if default is not None:
                     self._expression(default, environment)
             local = dict(environment)
-            bindings = _lambda_scope_bindings(node)
-            for name in bindings:
-                local[name] = _UNKNOWN_FLOW_VALUE
             self._bind_arguments(node.args, local)
-            self.lexical_scopes.append((set(bindings), frozenset()))
-            try:
-                self._expression(node.body, local)
-            finally:
-                self.lexical_scopes.pop()
+            self._expression(node.body, local)
             return _FlowValue(kind="function")
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
@@ -2867,11 +2911,11 @@ class _FlowProvenance:
             self._assign_target(target.value, value, environment)
             return
         if isinstance(target, ast.Attribute):
-            self._expression(target.value, {})
+            self._expression(target.value, environment)
             return
         if isinstance(target, ast.Subscript):
-            self._expression(target.value, {})
-            self._expression(target.slice, {})
+            self._expression(target.value, environment)
+            self._expression(target.slice, environment)
             return
         if isinstance(target, (ast.Tuple, ast.List)):
             if len(value.elements) == len(target.elts):
@@ -2954,12 +2998,10 @@ class _FlowProvenance:
         environment: dict[str, _FlowValue],
         *,
         self_value: _FlowValue | None = None,
+        body_environment: dict[str, _FlowValue] | None = None,
     ) -> None:
-        """外側を書き換えず関数の字句スコープを解析する。"""
-        local = dict(environment)
-        bindings, global_names = _function_scope_bindings(node)
-        for name in bindings:
-            local[name] = _UNKNOWN_FLOW_VALUE
+        """定義式と本体の環境を分け、外側を書き換えず解析する。"""
+        local = dict(body_environment if body_environment is not None else environment)
         self._bind_arguments(
             node.args,
             local,
@@ -2986,11 +3028,7 @@ class _FlowProvenance:
             self._expression(node.returns, environment)
         for type_param in node.type_params:
             self._expression(type_param, environment)
-        self.lexical_scopes.append((set(bindings), global_names))
-        try:
-            self._analyze_block(node.body, local)
-        finally:
-            self.lexical_scopes.pop()
+        self._analyze_block(node.body, local)
 
     def _register_class_contracts(
         self,
@@ -3084,6 +3122,7 @@ class _FlowProvenance:
                     self._analyze_function(
                         statement,
                         statement_environment,
+                        body_environment=environment,
                         self_value=_FlowValue(
                             class_value.symbol,
                             (
@@ -3268,11 +3307,7 @@ class _FlowProvenance:
         continues: list[dict[str, _FlowValue]] = []
         for statement in statements:
             if current is None:
-                self.coverage_only_depth += 1
-                try:
-                    self._analyze_statement(statement, {})
-                finally:
-                    self.coverage_only_depth -= 1
+                self._analyze_statement(statement, {})
                 continue
             outcome = self._analyze_statement(statement, current)
             current = outcome.environment
@@ -3332,18 +3367,6 @@ class _FlowProvenance:
         """呼び出し時点で解決できた callable シンボルを返す。"""
         return self.callable_symbols.get(id(node))
 
-    def name_value(self, node: ast.Name) -> _FlowValue | None:
-        """名前の使用位置で flow が確認した字句 binding を返す。"""
-        return self.name_values.get(id(node))
-
-    def is_lexically_bound_name(self, node: ast.Name) -> bool:
-        """名前が module ではなく内側の字句スコープで束縛されるか返す。"""
-        return id(node) in self.lexically_bound_name_ids
-
-    def is_coverage_only_name(self, node: ast.Name) -> bool:
-        """終端後の Call 被覆だけのため空環境で評価した名前か返す。"""
-        return id(node) in self.coverage_only_name_ids
-
 
 class _SourceScanner(ast.NodeVisitor):
     """1 モジュールの変更行を検査する。"""
@@ -3354,6 +3377,7 @@ class _SourceScanner(ast.NodeVisitor):
         path: str,
         module: str,
         tree: ast.Module,
+        source: str | None = None,
         changed_lines: Set[int] | None,
         contract: Contract,
         reject_all_db_calls: bool,
@@ -3369,6 +3393,13 @@ class _SourceScanner(ast.NodeVisitor):
         self.contract = contract
         self.reject_all_db_calls = reject_all_db_calls
         self.reexport_map = reexport_map
+        binding_source = source if source is not None else ast.unparse(tree)
+        self.module_bindings = _module_bindings(binding_source, path)
+        self.lexically_bound_name_ids = _lexically_bound_name_ids(
+            tree,
+            binding_source,
+            path,
+        )
         self.class_stack: list[str] = []
         self.function_stack: list[tuple[str, str]] = []
         self.safe_non_context_objects: list[set[str]] = []
@@ -3539,13 +3570,22 @@ class _SourceScanner(ast.NodeVisitor):
         node: ast.AST,
         *,
         allow_condition4: bool = False,
+        condition2_candidate: str | None = None,
         condition2_symbol: str | None = None,
     ) -> None:
         if not self._is_changed(node):
             return
-        candidates = {_normalize_identifier(text)}
-        candidates.update(_normalize_identifier(part) for part in text.split("."))
         for rule in self.contract.rules:
+            candidate_text = (
+                condition2_candidate
+                if rule.condition == 2 and condition2_candidate is not None
+                else text
+            )
+            candidates = {_normalize_identifier(candidate_text)}
+            candidates.update(
+                _normalize_identifier(part)
+                for part in candidate_text.split(".")
+            )
             if (
                 rule.condition == 2
                 and (condition2_symbol or text)
@@ -3568,6 +3608,38 @@ class _SourceScanner(ast.NodeVisitor):
                         message=f"条件 {rule.condition} の禁止シンボルを検出",
                     )
                     break
+
+    def _condition2_symbol_for_name(
+        self,
+        node: ast.Name,
+        resolved: str,
+    ) -> str:
+        """裸名候補を、再束縛が無い場合だけ裁定用シンボルへ解決する。"""
+        if node.id in self.module_bindings.condition2_names:
+            return node.id
+        if not self._is_condition2_candidate(node.id):
+            return resolved
+        if node.id in self.aliases.direct_import_names or (
+            node.id[:1].isupper()
+            and resolved in self.aliases.known_class_symbols
+        ):
+            return resolved
+        return node.id
+
+    def _condition2_candidate_for_name(
+        self,
+        node: ast.Name,
+    ) -> str | None:
+        """クラス属性の代入先を除き、候補を構文上の裸名から得る。"""
+        if (
+            self.class_stack
+            and not self.function_stack
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            return None
+        if node.id in self.module_bindings.condition2_names:
+            return node.id
+        return None
 
     def _is_condition2_candidate(self, text: str) -> bool:
         """文字列が変更不能な条件 2 パターンの候補に入るか返す。"""
@@ -3792,6 +3864,16 @@ class _SourceScanner(ast.NodeVisitor):
         """TenantContext の構築元モジュールを閉じた集合へ照合する。"""
         if not self._is_changed(node):
             return
+        lexically_bound_callable = (
+            isinstance(node.func, ast.Name)
+            and id(node.func) in self.lexically_bound_name_ids
+        )
+        globally_rebound_callable = (
+            isinstance(node.func, ast.Name)
+            and node.func.id in self.module_bindings.global_names
+        )
+        if lexically_bound_callable and not globally_rebound_callable:
+            return
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
         if resolved is None and isinstance(node.func, ast.Call):
             dynamic_function = self.aliases.resolve(
@@ -3892,7 +3974,10 @@ class _SourceScanner(ast.NodeVisitor):
                     message="type(context) による TenantContext 複製迂回は禁止",
                 )
                 return
-        known_callable = self.flow.callable_symbol(node)
+        rebound_bare_name = globally_rebound_callable
+        known_callable = (
+            None if rebound_bare_name else self.flow.callable_symbol(node)
+        )
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules
             | self.contract.tenant_context.allowed_product_modules
@@ -3923,13 +4008,9 @@ class _SourceScanner(ast.NodeVisitor):
                 ),
             )
             return
-        lexically_bound_name = (
-            isinstance(node.func, ast.Name)
-            and self.flow.is_lexically_bound_name(node.func)
-        )
         reexport = (
             None
-            if lexically_bound_name
+            if rebound_bare_name
             else self._reexport_resolution(node.func, resolved)
         )
         if known_callable is None:
@@ -3949,16 +4030,9 @@ class _SourceScanner(ast.NodeVisitor):
             if (
                 isinstance(node.func, ast.Name)
                 and alias_resolved is not None
-                and not lexically_bound_name
+                and not rebound_bare_name
             ):
-                candidate = self.aliases.resolve_known(node.func)
-                flow_value = self.flow.name_value(node.func)
-                if flow_value is None or (
-                    candidate is not None
-                    and candidate.startswith("builtins.")
-                    and self.flow.is_coverage_only_name(node.func)
-                ):
-                    known_alias_callable = candidate
+                known_alias_callable = self.aliases.resolve_known(node.func)
             if (
                 known_alias_callable is not None
                 and self.aliases.canonical(known_alias_callable)
@@ -4321,28 +4395,12 @@ class _SourceScanner(ast.NodeVisitor):
         resolved = self.aliases.resolve(node) or node.id
         if isinstance(node.ctx, ast.Load):
             self._check_integrity_reference(resolved, node)
-        condition2_symbol = (
-            node.id if self._is_condition2_candidate(node.id) else resolved
-        )
-        flow_value = self.flow.name_value(node)
-        if flow_value is not None:
-            if (
-                flow_value.symbol is not None
-                and flow_value.kind
-                in {"symbol", "function", "class_non_db", "class_unknown"}
-            ):
-                condition2_symbol = self.aliases.canonical(flow_value.symbol)
-        elif not self.flow.is_lexically_bound_name(node):
-            if node.id in self.aliases.direct_import_names or (
-                node.id[:1].isupper()
-                and resolved in self.aliases.known_class_symbols
-            ):
-                condition2_symbol = resolved
         self._check_identifier(
             resolved,
             node,
             allow_condition4=self._condition4_reference_allowed(resolved),
-            condition2_symbol=condition2_symbol,
+            condition2_candidate=self._condition2_candidate_for_name(node),
+            condition2_symbol=self._condition2_symbol_for_name(node, resolved),
         )
 
     def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
@@ -4366,10 +4424,26 @@ class _SourceScanner(ast.NodeVisitor):
             or self._pool_connection_invalidation_allowed(resolved)
         )
         if resolved is not None:
+            condition2_name = (
+                node.func if isinstance(node.func, ast.Name) else None
+            )
             self._check_identifier(
                 resolved,
                 node,
                 allow_condition4=condition4_call_allowed,
+                condition2_candidate=(
+                    condition2_name.id
+                    if condition2_name is not None
+                    else None
+                ),
+                condition2_symbol=(
+                    self._condition2_symbol_for_name(
+                        condition2_name,
+                        resolved,
+                    )
+                    if condition2_name is not None
+                    else None
+                ),
             )
         self._check_db_call(node)
         self._check_set_config_call(node)
@@ -4467,6 +4541,7 @@ def scan_source(
         path=path,
         module=_module_name(path),
         tree=tree,
+        source=source,
         changed_lines=changed_lines,
         contract=contract,
         reject_all_db_calls=reject_all_db_calls,
