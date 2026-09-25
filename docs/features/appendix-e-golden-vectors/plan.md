@@ -141,15 +141,19 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 ### ステップ 1〜16 のあいだ `pytest tests/` は red になる(既知)
 
 **要件書を 1 文字でも変えると authz 系の blob digest 凍結が発火する**(台帳 `H-85`)。
-`test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_requirements_file` と
-`test_check_shared_preconditions.py::test_repository_shared_preconditions_are_valid` が
-「`git_blob_digest` が現ファイルと不一致」で落ちる。
+次の **3 件**が「`git_blob_digest` が現ファイルと不一致」で落ちる。
+
+- `test_check_authz_catalog.py::test_repository_catalog_covers_the_entire_requirements_file`
+- `test_check_authz_catalog.py::test_normal_validation_never_reseals_a_semantically_valid_drift`
+  (**リポジトリを clone した基準状態の検査**が同じ digest 不一致で落ちるため。
+  **ステップ 13 の後の全走行で判明** — 当初 2 件と書いていたのは数え漏れ)
+- `test_check_shared_preconditions.py::test_repository_shared_preconditions_are_valid`
 
 **これは機構が設計どおり動いているもので、凍結を緩めてはならない**
 (台帳: 「oracle 先行固定は『検査が正本に合わせられる』ことを防ぐ正しい規律」)。
 → **ステップ 17 でまとめて追随させ、そこで緑に戻す**。
 ステップ 1〜16 の各コミットでは **`check_docs_status.py` / docs-lint / lychee** を合格条件とし、
-**`pytest tests/` の当該 2 件の red は既知として許容**する(それ以外の red は許容しない)。
+**`pytest tests/` の当該 3 件の red は既知として許容**する(それ以外の red は許容しない)。
 
 ### ステップ外の手続き
 
