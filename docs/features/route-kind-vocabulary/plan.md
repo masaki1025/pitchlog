@@ -1,6 +1,6 @@
 ---
 feature: route-kind-vocabulary
-status: in-review
+status: active
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域
 worktree: ../../..
@@ -169,7 +169,13 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 
 | 8 | **台帳が「純粋な値の移動」を表現できるようにする**(**射程拡大 — 下の注記を見ること**)— `changes` は**台帳文書の replay ログ**であり(`scripts/check_frozen_baselines.py:975-983` が規範状態 5 つ〔`acceptance` / `movement_rules` / `implementation_bindings` / `placements` / `declarations`〕と fold の一致を検査する)、**値の移動に対応する aspect は構造上存在しない**。値の移動は `prior_identity` / `new_identity` が担う。よって **`changes` の空を許し**、代わりに**レコードが必ず何かを主張すること**を補償不変条件で強制する | ① `changes` が空で `prior_identity != new_identity` のレコードが green ② `changes` が空で `prior_identity == new_identity` のレコードが red ③ **`before == after` の no-op change entry が red** ④ 全件実行で red 0 件 |
 
-> **【射程拡大 — 記録待ち】ステップ 8 は承認済み計画に無く、「やらないこと」に入れていた
+| 9 | **補償不変条件を、意味の水準へ直す**(**4 周目の敵対レビュー P0-1・P1-1 の是正**)— ステップ 8 の不変条件は**生の equality しか見ていなかった**。**A** は `changes` が空のとき identity の移動しか認めず、**純粋な配置移動という正当な記録を拒否する**。**B** は `movement_rules.triggers` を**逆順にしただけ**のレコードを通す(検査器自身は `frozenset` として評価するので**意味上 no-op**)。台帳のどのリストも**順序に意味を持たない**ことを実測した(`triggers` / `universal_lower_bound` / `frozen_targets` は `frozenset` 化・`code_assets` は昇順強制)ので、**正規化してから比較する** | ① `triggers` を逆順にしただけのレコードが **red** ② **純粋な配置移動**(`changes` 空・identity 同値・`placement_change.before != after`・`moved: true`)が **green** ③ ステップ 8 の負例 2 本と正例 1 本が**維持されている** ④ 全件実行で red 0 件 |
+
+> **【4 周目の是正 — 2026-09-26】ステップ 9 はステップ 8 の不備を直すもので、射程は同じ。**
+> **ステップ 8 の「レコードが必ず何かを主張する」という約束が、生の equality では成立していなかった。**
+> 検査器を再編集するので **`implementation_bindings.code_assets` の sha256 と `history[1].changes` の `after` も追随する**。
+
+> **【射程拡大 — 記録済み】ステップ 8 は承認済み計画に無く、「やらないこと」に入れていた
 > `scripts/check_frozen_baselines.py`(`guard_paths`)と `frozen-baselines.schema.json` を触る。**
 > **3 周目の敵対レビュー P0-1** — 台帳が純粋な値の移動を表現できず、当方の記録が
 > 「変わっていないものを変更として書いた」形になっていた — の是正。
