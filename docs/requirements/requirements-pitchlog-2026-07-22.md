@@ -1285,7 +1285,7 @@ FR-031 の CSV は「88列互換フォーマット（付録D）の**全プレイ
 | 打者の行き先 | 打席続行／出塁（到達塁）／アウト／得点 |
 | 走者の既定進塁 | 各塁走者の既定の動き（強制進塁・任意進塁・停止。手動上書き可 — FR-003） |
 | アウト効果 | 増えるアウト数と対象（打者/走者） |
-| 成績計上フラグ | 下表「成績計上フラグの閉じた外延」に列挙する22フラグの計上有無。表にないフラグは認めない |
+| 成績計上フラグ | 下表「成績計上フラグの閉じた外延」に列挙する23フラグの計上有無。表にないフラグは認めない |
 | 特記 | 第3アウトを作らない等の例外規則 |
 
 **10列のexact型**:
@@ -1321,14 +1321,14 @@ additionalProperties: false
 | 6 | 打者の行き先 | `batterDestination` | `{kind: "continue" \| "out" \| "score" \| "not-applicable"}`または`{kind: "reach", base: 1..3}` |
 | 7 | 走者の既定進塁 | `runnerDefaultAdvance` | `{first: Adv, second: Adv, third: Adv}`。`Adv = {modality: enum["forced", "optional", "hold", "not-applicable"], destination: 1..4 \| null}`。`forced`/`optional` ⇔ `destination != null`、`hold`/`not-applicable` ⇔ `destination = null`の双方向制約を持つ。起点塁別の到達可能集合は`first → {2,3,4}`、`second → {3,4}`、`third → {4}` |
 | 8 | アウト効果 | `outEffect` | `{count: 0..3, targets: [Target]}`。`Target = "batter" \| {runner: 1..3}`。`count`と`targets`の長さは一致し、`count: 0`では`targets`を空配列とする |
-| 9 | 成績計上フラグ | `statFlags` | 直下の「成績計上フラグの閉じた外延」の第1列を完全なキー集合とするオブジェクト。22キーを全てrequiredの`boolean`とし、未知キーを拒否する |
+| 9 | 成績計上フラグ | `statFlags` | 直下の「成績計上フラグの閉じた外延」の第1列を完全なキー集合とするオブジェクト。23キーを全てrequiredの`boolean`とし、未知キーを拒否する |
 | 10 | 特記 | `remarks` | `string`。10列のうち自由記述を許す唯一の列 |
 
 **列2「結果ID・表示名」の読み替え**: 列名は「結果ID・表示名」のままとするが、マトリクスの行が持つのは語彙シードへのID参照である`resultId`だけとし、表示名は行に保持しない。**表示名は語彙シードが正**であり、付録D-4「語彙の初期値」が定めるシードデータから`resultId`によって参照解決する。`resultId`は当該語彙シードのIDとして実在しなければならず、実在しないIDは参照整合違反としてfailとする。
 
 マトリクスは「1行 = 結果 × 前提条件」であり、前提条件が異なれば同じ`resultId`が複数行に現れる。各行に表示名を重複保持すると、同一IDの行どうしに異なる表示名を設定できてしまうため、表示名の正を語彙シード1箇所に集約し、同一IDの表示名不一致を構造的に防ぐ。
 
-`CountEffect`の`strikes`と`balls`、`RunnerDefaultAdvance`の`first`・`second`・`third`、`OutEffect`の`count`と`targets`、オブジェクト形の`Target`の`runner`、および`StatFlags`の22キーは、それぞれ省略不可とする。`resultId`と後述の`axisId`は参照先に拘束された識別子であり、自由記述ではない。
+`CountEffect`の`strikes`と`balls`、`RunnerDefaultAdvance`の`first`・`second`・`third`、`OutEffect`の`count`と`targets`、オブジェクト形の`Target`の`runner`、および`StatFlags`の23キーは、それぞれ省略不可とする。`resultId`と後述の`axisId`は参照先に拘束された識別子であり、自由記述ではない。
 
 **`eventKind`別の合法組合せ**:
 
@@ -1388,7 +1388,7 @@ Literal = integer | boolean | string
 StateEffect = {
   stateFields:      {<比較面の各フィールド>: FieldEffect},
   scoreboard:       {<全欄>: FieldEffect},
-  statFlags:        {<22フラグ>: FieldEffect},
+  statFlags:        {<23フラグ>: FieldEffect},
   historyAndResult: {history: FieldEffect, operationResult: FieldEffect}
 }
 
@@ -1398,11 +1398,13 @@ FieldEffect =
   | {kind: "delta", value: integer}
 ```
 
-`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の22キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
+`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
 
 **成績計上フラグの閉じた外延**:
 
-次の22フラグを完全な集合とし、各フラグは当該遷移をその計数へ算入するかを表す。複数アウト・複数得点・塁打数の数量は、それぞれ「アウト効果」・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しない。
+次の23フラグを完全な集合とし、各フラグは当該遷移をその計数へ算入するかを表す。複数アウト・複数得点・塁打数の数量は、それぞれ「アウト効果」・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しない。
+
+この外延は、付録A-2・A-2b・A-3・A-3b・A-5、FR-020（スコアボードのH/E/K/B）およびFR-022（当日集計9項目）が要求する計数項目の和集合とする。当初の導出元にはFR-020がなく、失策は付録Aの指標にもFR-022の当日集計項目にも現れないため、`失策`フラグが外延から漏れていた。本是正ではFR-020を導出元へ加え、そのE欄に必要な`失策`を追加する。
 
 | フラグ | 計上対象 | 要求元 |
 | --- | --- | --- |
@@ -1414,6 +1416,7 @@ FieldEffect =
 | 被安打 | 投手へ被安打を算入する | A-2「被安打」「被打率」「WHIP」 |
 | 被本塁打 | 投手へ被本塁打を算入する | A-2「被本塁打」「FIP」 |
 | 失点 | 責任投手と守備側チームへ失点を算入する | A-2「失点」／A-5「得点 / 失点」「イニング別得点・失点」 |
+| 失策 | 守備側の野手へ失策を算入する | FR-020「E」（スコアボードの失策欄） |
 | 打席 | 打者へ打席を算入する | A-3「打数」「出塁率」／FR-022「打席数」 |
 | 打数 | 打者へ打数を算入する | A-2「被打率」の被打数／A-3「打数」「打率」「出塁率」「長打率」「コース別打率マップ」／A-5「チーム打率」「チーム出塁率」「チーム長打率」／FR-022「打数」 |
 | 安打 | 打者へ安打を算入する | A-3「打率」「出塁率」「コース別打率マップ」／A-5「チーム打率」「チーム出塁率」／FR-022「安打」 |
@@ -1448,6 +1451,7 @@ FR-022 が列挙する9項目は、別実装で数え直さず、次の対応で
 **帰属と導出元の境界**:
 
 - `失点`フラグが保持するのは「この遷移で失点を計上するか」の真偽だけである。失点数と帰属先は、生還した各走者が状態として保持する「出塁させた投手（責任投手）」から導出し、フラグに投手IDを重複保持しない（A-2「走者の責任投手」）。
+- `失策`フラグが保持するのは「この遷移で失策を計上するか」の真偽だけである。どの野手の失策かはイベントのpayload（エラー選手）から導出し、フラグに野手IDを重複保持しない。
 - A-2の最速・平均球速とA-2bの球速分布・球速推移は、投球イベントに記録された球速値を入力とし、欠損の有無を同値のフラグとして重複保持しない。A-2bの被打球分布は結果IDと打球座標を入力とする。したがって、A-2bは上表の外延へ専用フラグを追加しない。
 - A-3のコース別打率マップは上表の`打数`・`安打`と結果球の座標を入力とし、打球方向は結果IDと打球座標を入力とする。座標と方向区分を同値のフラグとして重複保持しない。
 - A-3bはA-2・A-2b・A-3の指標集合を参照するため、上表の外延へ専用フラグを追加しない。
