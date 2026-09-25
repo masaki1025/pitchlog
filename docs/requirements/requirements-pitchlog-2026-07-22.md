@@ -1324,6 +1324,10 @@ additionalProperties: false
 | 9 | 成績計上フラグ | `statFlags` | 直下の「成績計上フラグの閉じた外延」の第1列を完全なキー集合とするオブジェクト。22キーを全てrequiredの`boolean`とし、未知キーを拒否する |
 | 10 | 特記 | `remarks` | `string`。10列のうち自由記述を許す唯一の列 |
 
+**列2「結果ID・表示名」の読み替え**: 列名は「結果ID・表示名」のままとするが、マトリクスの行が持つのは語彙シードへのID参照である`resultId`だけとし、表示名は行に保持しない。**表示名は語彙シードが正**であり、付録D-4「語彙の初期値」が定めるシードデータから`resultId`によって参照解決する。`resultId`は当該語彙シードのIDとして実在しなければならず、実在しないIDは参照整合違反としてfailとする。
+
+マトリクスは「1行 = 結果 × 前提条件」であり、前提条件が異なれば同じ`resultId`が複数行に現れる。各行に表示名を重複保持すると、同一IDの行どうしに異なる表示名を設定できてしまうため、表示名の正を語彙シード1箇所に集約し、同一IDの表示名不一致を構造的に防ぐ。
+
 `CountEffect`の`strikes`と`balls`、`RunnerDefaultAdvance`の`first`・`second`・`third`、`OutEffect`の`count`と`targets`、オブジェクト形の`Target`の`runner`、および`StatFlags`の22キーは、それぞれ省略不可とする。`resultId`と後述の`axisId`は参照先に拘束された識別子であり、自由記述ではない。
 
 **`eventKind`別の合法組合せ**:
