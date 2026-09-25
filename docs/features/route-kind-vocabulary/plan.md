@@ -152,13 +152,20 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **draft PR を先に作り、番号を確定する** — 凍結基準の `acceptance_id` は `<repo>#<PR番号>` から機械導出するため(`docs/worklog/2026-09-20-frozen-baseline-ledger.md:152`「**ステップ 1 で draft PR を先に作って番号を確定する**」) | PR 番号が確定している。**ステップ記法を付けない**(実装コミットではない) |
+| 1 | **draft PR を先に作り、番号を確定し、本計画書へ記録する** — 凍結基準の `acceptance_id` は `<repo>#<PR番号>` から機械導出するため(`docs/worklog/2026-09-20-frozen-baseline-ledger.md:152`「**ステップ 1 で draft PR を先に作って番号を確定する**」)。**確定した番号 = `masaki1025/pitchlog#77`** を下記へ記録する | PR 番号が確定し、**本計画書に記録されている**(リポジトリに成果物を残すため — 当初は「コミットを作らない」としていたが、**`feature_status.py` がステップ 1 を欠番と判定**した) |
 | 2 | **負例テストを先に置く** — ① 必須キー欠落 ② 未登録の `route_kind` 値 ③ `origin != design` ④ `route_id` が導出規則に合わない ⑤ 専用 provenance を含まない ⑥ `ROUTE_KINDS` と `expected_keys_by_kind` の不整合 | **6 種すべてが red**。red の出力を worklog へ実出力つきで残す。**期待失敗集合を先に完全列挙して固定**する |
 | 3 | **検査器と資産を対で更新する** — 4-2 の 1〜7・9 と、`route-registry.json` + `tests/fixtures/authz_claims/route-registry.json` の `enums.route_kinds` | ステップ 2 の 6 種が **green**。**期待失敗**: `test_repository_derived_assets_are_valid`(lock 未更新のため)と `test_repository_oracle_assets_are_valid`(seal 未更新のため)は **red のまま**。**これ以外に red が無いこと**を全件実行で確認する |
 | 4 | **派生 lock を再封印する** — `--reseal-derived --skip-oracle`。**fixture の lock は CLI が触らないので手で作り直す** | `route-registry.lock.json` の **`entries` と `aggregate_decision_digest` が変更前と完全一致**し、**`asset_digest` だけが変わる**(**1 周目 P1-4 の是正** — 件数だけでは判定不変を証明しない)。**期待失敗**: `test_repository_oracle_assets_are_valid` は red のまま |
 | 5 | **oracle の内容を追随させ、人間の確認を受ける** — 前段コミットの SHA を **7 箇所の `oracle_commit`**(seal 1 + oracle 資産 6)へ差し替える。**この時点で敵対レビューと人間確認を受ける**(前例の順序は「**内容追随 → commit 差し替え → レビュー → reseal**」— `docs/worklog/2026-09-03-authz-claims-corpus.md:67`) | 差分が人間に確認されている。**まだ reseal しない** |
 | 5b | **oracle 外の digest 連鎖を更新する**(**2 周目 P1-4 の是正**)— `oracle_commit` の差し替えで `ddl-elements.json` と `claim-mutant-map.json` の blob が変わるため、それらを参照する **`failure-injection-points.json`** と **`mcdc-map.json`** の記録 digest を再計算する。**`--reseal-oracle` はこの 2 資産を更新しない** | `scripts/check_failure_injection_points.py` と `scripts/check_mcdc_map.py` が green |
 | 6 | **凍結基準の履歴を追記し、oracle を再封印する** — `frozen-baselines.json` の `history` へ **10 キーすべて**を持つ 1 レコード(`acceptance_id` / `series` / `new_identity` / `prior_identity` / `changes` / `placement_change` / `moved` / `reason` / `approved_by` / `approved_at`。**純粋な SHA 移動でも `changes` は最低 1 件・`placement_change` は no-op・`moved: false` が要る**)→ `--reseal-oracle` | `uv run python scripts/check_authz_catalog.py` が green。**`uv run python scripts/check_frozen_baselines.py --invariants-only`** が green(**mode 指定が必須** — 無指定は argparse error)。**全件 green はここで初めて成立する** |
+
+| 7 | **凍結基準の負例テストを履歴長に一般化する**(**承認後の追加 — 2026-09-25 に人間が判断**)— ステップ 6 で `history` が 2 件になった結果、`tests/frozen_negatives/` の 4 本が落ちた。**台帳の保護は機能しており**(変異は検出されて red)、落ちたのは**期待するエラー文と件数が「履歴 1 件」を前提に直書きされていた**ため。**本タスクが台帳の初回の値移動**であり、履歴が 2 件になったのは今回が初めてなので露呈した | 全件実行で **red 0 件**。**欠落変異の確認** — `_check_history_append_only` / `_check_bootstrap` / `_check_basis_correspondence` をそれぞれ無効化すると対応する負例が期待する red を得られないこと |
+
+> **【承認後の追加 — 2026-09-25】ステップ 7 は承認済み計画に無い。**
+> `tests/frozen_negatives/*` は **`guard_paths`** であり、**直さないと本 PR が green にならない**ため、
+> 本 PR で扱うことを人間が判断した。**検査器(`check_frozen_baselines.py` / `frozen_baselines.py`)は触らない。**
+> **保護を弱めていないことを欠落変異の確認で実証する**ことを合格条件に置いた。
 
 ## 5. DoD(受け入れ基準)
 
@@ -199,6 +206,11 @@ route registry / auth catalog / HTTP matrix の **entries と `aggregate_decisio
 キー削除の負例は新規に作る。
 
 **`-x` を使わず全件実行する**(期待失敗集合の完全列挙 — `docs/features/authz-claims-corpus/plan.md:70`)。
+
+## 6-2. ステップ 1 の記録
+
+**draft PR: [masaki1025/pitchlog#77](https://github.com/masaki1025/pitchlog/pull/77)**
+→ 凍結基準の `acceptance_id` = **`masaki1025/pitchlog#77`**(ステップ 6 で `frozen-baselines.json` の `history` へ記録済み)
 
 ## 7. 依存・前提
 
