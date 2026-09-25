@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-scope
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -83,8 +83,8 @@ TB007 185(authz 172 / api 9 / db 4)/ TB005 137 / TB002 26 / TB004 15
 | `docs/design/sync-protocol.md` | **反映なし**(条件 2 の語彙確定は同期単位へ申し送る) | — |
 | `docs/design/data-model.md` / `docs/adr/**` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**(6.3 の境界定義表は動かさない) | — |
-| `docs/development/harness-evaluation.md` | 既存候補へ実測を追記(クローズ処理で判断) | PR レビュー |
-| `docs/README.md` | 上記を反映した場合の最終更新日 | PR レビュー |
+| `docs/development/harness-evaluation.md` | **既存候補「母集団を人が列挙する検査」へ 20・21 件目** + **`## 候補` へ新設 2 件**(本番経路への未結線 / 時点の事実の焼き込み)+ 変更履歴表へ 1 行。**`H-*` の新規採番なし・版は上げない**(7.6-3 前段) | PR レビュー |
+| `docs/README.md` | 台帳行の最終更新日を現行化 | PR レビュー |
 
 **`docs/features/tenant-boundary-enforcement/design.md` は正本ではない**(feature 設計書)。
 
