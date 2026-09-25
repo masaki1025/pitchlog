@@ -391,6 +391,40 @@ def _check_exact_keys(value: Mapping[str, Any], expected: frozenset[str], label:
         )
 
 
+def _check_empty_changes_move_identity(
+    record: dict[str, Any], record_index: int, changes: list[Any]
+) -> None:
+    """changes が空なら識別値の移動を主張していることを検査する。"""
+    if changes:
+        return
+    prior_identity = record.get("prior_identity")
+    new_identity = record.get("new_identity")
+    if (
+        isinstance(prior_identity, dict)
+        and isinstance(new_identity, dict)
+        and prior_identity == new_identity
+    ):
+        raise FrozenBaselineCheckError(
+            f"history[{record_index}]: changes が空なら "
+            "prior_identity と new_identity は異ならなければならない"
+        )
+
+
+def _check_history_change_is_effective(
+    change: dict[str, Any], record_index: int, change_index: int
+) -> None:
+    """changes entry が規範状態の実変更を主張していることを検査する。"""
+    if (
+        "before" in change
+        and "after" in change
+        and change["before"] == change["after"]
+    ):
+        raise FrozenBaselineCheckError(
+            f"history[{record_index}].changes[{change_index}]: "
+            "before と after は異ならなければならない"
+        )
+
+
 def _precheck_history(ledger: dict[str, Any]) -> None:
     """schema検査より先に履歴のfail-closed条件を明確なエラーへする。"""
     history = ledger.get("history")
@@ -405,9 +439,13 @@ def _precheck_history(ledger: dict[str, Any]) -> None:
             )
         raw_changes = raw_record.get("changes")
         if isinstance(raw_changes, list):
+            _check_empty_changes_move_identity(raw_record, record_index, raw_changes)
             for change_index, raw_change in enumerate(raw_changes):
                 if not isinstance(raw_change, dict):
                     continue
+                _check_history_change_is_effective(
+                    raw_change, record_index, change_index
+                )
                 aspect = raw_change.get("aspect")
                 if isinstance(aspect, str) and aspect not in CHANGE_ASPECTS:
                     raise FrozenBaselineCheckError(

@@ -259,10 +259,13 @@ def _write_acceptance_scan_assets(root: Path) -> None:
     )
 
 
-def _add_noop_history_record(ledger: dict[str, Any]) -> None:
-    """通常遷移の削除検査用に有効な2件目の履歴を追加する。"""
+def _add_history_record_for_deletion(ledger: dict[str, Any]) -> None:
+    """削除検査のbaseへ実変更を主張する有効な履歴を追加する。"""
     previous = ledger["history"][-1]
-    acceptance = copy.deepcopy(ledger["acceptance"])
+    before_rules = copy.deepcopy(ledger["movement_rules"])
+    after_rules = copy.deepcopy(before_rules)
+    after_rules["additional_targets"]["value_change"] = ["oracle_input"]
+    ledger["movement_rules"] = copy.deepcopy(after_rules)
     placement = copy.deepcopy(ledger["placements"]["oracle_input"])
     ledger["history"].append(
         {
@@ -272,9 +275,9 @@ def _add_noop_history_record(ledger: dict[str, Any]) -> None:
             "prior_identity": copy.deepcopy(previous["new_identity"]),
             "changes": [
                 {
-                    "aspect": "acceptance",
-                    "before": acceptance,
-                    "after": copy.deepcopy(acceptance),
+                    "aspect": "movement_rules",
+                    "before": before_rules,
+                    "after": after_rules,
                 }
             ],
             "placement_change": {
@@ -282,11 +285,42 @@ def _add_noop_history_record(ledger: dict[str, Any]) -> None:
                 "after": copy.deepcopy(placement),
             },
             "moved": False,
-            "reason": "追記のみ検査の合成base記録",
+            "reason": "削除検査の合成base記録",
             "approved_by": "山田正輝",
             "approved_at": "2026-09-21",
         }
     )
+
+
+def _append_history_claim_record(
+    ledger: dict[str, Any],
+    *,
+    acceptance_id: str,
+    changes: list[dict[str, Any]],
+    reason: str,
+) -> int:
+    """直前状態と連続する履歴主張を末尾へ追加し、そのindexを返す。"""
+    previous = ledger["history"][-1]
+    identity = copy.deepcopy(previous["new_identity"])
+    placement = copy.deepcopy(previous["placement_change"]["after"])
+    ledger["history"].append(
+        {
+            "acceptance_id": acceptance_id,
+            "series": previous["series"],
+            "new_identity": copy.deepcopy(identity),
+            "prior_identity": copy.deepcopy(identity),
+            "changes": changes,
+            "placement_change": {
+                "before": copy.deepcopy(placement),
+                "after": copy.deepcopy(placement),
+            },
+            "moved": False,
+            "reason": reason,
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-25",
+        }
+    )
+    return len(ledger["history"]) - 1
 
 
 def _build_repository(
@@ -414,6 +448,11 @@ def _assert_normal_baseline_green(fixture: _AcceptanceFixture) -> None:
     assert result.returncode == 0
     assert result.stdout == "frozen-baselines: OK\n"
     assert result.stderr == ""
+
+
+def _assert_baseline_green(fixture: _AcceptanceFixture) -> None:
+    """履歴主張テストの変異前fixtureがgreenであることを表明する。"""
+    _assert_normal_baseline_green(fixture)
 
 
 def _assert_bootstrap_baseline_green(fixture: _AcceptanceFixture) -> None:
@@ -551,11 +590,14 @@ def test_deleted_existing_history_record_is_red(tmp_path: Path) -> None:
 
     def add_base_record(ledger: dict[str, Any]) -> None:
         nonlocal base_history_length
-        _add_noop_history_record(ledger)
+        _add_history_record_for_deletion(ledger)
         base_history_length = len(ledger["history"])
 
     def remove_last(ledger: dict[str, Any]) -> None:
         nonlocal head_history_length
+        change = ledger["history"][-1]["changes"][0]
+        assert change["aspect"] == "movement_rules"
+        ledger["movement_rules"] = copy.deepcopy(change["before"])
         ledger["history"].pop()
         head_history_length = len(ledger["history"])
 
@@ -660,3 +702,84 @@ def test_missing_inputs_and_dangling_identity_are_red(tmp_path: Path) -> None:
         dangling,
         f"識別値commitがHEADから到達不能: {dangling.identity_sha}",
     )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_unchanged_identity_is_red(tmp_path: Path) -> None:
+    """N23: identityも規範状態も変えない空の履歴レコードを拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_empty_claim(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#999",
+            changes=[],
+            reason="空の履歴レコードを拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_empty_claim,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}]: changes が空なら "
+        "prior_identity と new_identity は異ならなければならない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_noop_history_change_is_red(tmp_path: Path) -> None:
+    """N24: 規範状態を変えない同値の change entry を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_noop_change(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        acceptance = copy.deepcopy(ledger["acceptance"])
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#998",
+            changes=[
+                {
+                    "aspect": "acceptance",
+                    "before": copy.deepcopy(acceptance),
+                    "after": copy.deepcopy(acceptance),
+                }
+            ],
+            reason="同値の change entry を拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_noop_change,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}].changes[0]: "
+        "before と after は異ならなければならない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_moved_identity_is_green(tmp_path: Path) -> None:
+    """identity が移動するレコードでは空の changes を受理する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def remove_document_changes(ledger: dict[str, Any]) -> None:
+        record = ledger["history"][-1]
+        assert record["prior_identity"] != record["new_identity"]
+        record["changes"] = []
+
+    pure_value_move = _build_repository(
+        tmp_path / "pure-value-move",
+        base_mutation=remove_document_changes,
+    )
+    _assert_baseline_green(pure_value_move)

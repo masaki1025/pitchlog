@@ -42,7 +42,7 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+        "sha256": "9a890e2e1dd7d7519328e69c44f7be06806a1c14165784651826dec35d5c1503"
       },
       {
         "path": "scripts/frozen_baselines.py",
@@ -179,25 +179,45 @@
       },
       "changes": [
         {
-          "aspect": "frozen_targets",
-          "before": [
-            "contracts/authz/oracle-seal.lock.json#/oracle_commit",
-            "contracts/authz/attack-tree.json#/oracle_context/oracle_commit",
-            "contracts/authz/boundary-proposal.json#/oracle_context/oracle_commit",
-            "contracts/authz/claim-mutant-map.json#/oracle_context/oracle_commit",
-            "contracts/authz/ddl-elements.json#/oracle_context/oracle_commit",
-            "contracts/authz/rejected-configs.json#/oracle_context/oracle_commit",
-            "contracts/authz/verification-evidence.json#/oracle_context/oracle_commit"
-          ],
-          "after": [
-            "contracts/authz/oracle-seal.lock.json#/oracle_commit",
-            "contracts/authz/attack-tree.json#/oracle_context/oracle_commit",
-            "contracts/authz/boundary-proposal.json#/oracle_context/oracle_commit",
-            "contracts/authz/claim-mutant-map.json#/oracle_context/oracle_commit",
-            "contracts/authz/ddl-elements.json#/oracle_context/oracle_commit",
-            "contracts/authz/rejected-configs.json#/oracle_context/oracle_commit",
-            "contracts/authz/verification-evidence.json#/oracle_context/oracle_commit"
-          ]
+          "aspect": "implementation_bindings",
+          "before": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          },
+          "after": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "9a890e2e1dd7d7519328e69c44f7be06806a1c14165784651826dec35d5c1503"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          }
         }
       ],
       "placement_change": {
