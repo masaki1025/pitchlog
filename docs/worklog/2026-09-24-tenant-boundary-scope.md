@@ -166,3 +166,35 @@ TB002 9 件は**変数名の変更**で消える。TB007 3 件は**直接呼び�
 ステップ表の解析からその行だけ落ちていた**(`STEP_ROW_RE` は閉じの `|` を要求する)。
 **これは本コミットで是正した。** 表の総数が 10 と正しく読めるようになった結果、
 上の `/12` 不一致が表面化した。
+
+### 本番経路への結線を変異で確認した(2026-09-25)
+
+**TSK-431 から「関数は正しいが本番経路へ結線されていない」型の P0 が 2 件出たとの連絡を受けた。**
+**「関数を直接呼ぶテストでは 1 件も捕まらない」**という指摘なので、
+本 PR が新設した 4 機構について同じ型がないかを**変異で測った**。
+検査器へ変異を 1 件ずつ入れ、`tests/test_check_tenant_boundary_bypass.py` の 173 件を回した。
+
+| 変異 | 壊した機構 | 落ちた本番経路テスト | 落ちた専用テスト | 計 |
+| --- | --- | --- | --- | --- |
+| M1 | 再輸出写像を常に未供給扱い((v) 無効) | `..._real_commit_diff[5]` / `..._population_is_nonempty_and_green` / `..._always_supplies_reexport_maps_to_source_change` | 2 件 | 6 |
+| M2 | 相対 import の `level` を常に 0 | `..._population_is_nonempty_and_green` | 2 件 | 3 |
+| M3 | Call 被覆の不変条件を無効化 | `..._population_is_nonempty_and_green` | 3 件 | 4 |
+| M4 | 条件 2 の裁定を全シンボルへ拡大 | `..._real_commit_diff[2]` / `..._population_is_nonempty_and_green` | 5 件 | 7 |
+
+**4 機構とも本番経路に結線されている。** 結線されていなければ、関数本体を壊しても
+本番経路のテストは緑のままになる。**M4 では「落ちてはいけないもの」を守る
+`test_recording_generation_remains_red_in_product_tree` と
+`test_condition_2_unadjudicated_generation_is_red` が両方落ちた** — 裁定を広げた瞬間に赤が出る。
+
+### develop 由来の既存欠陥を 1 件確認した(本 PR の射程外)
+
+**TSK-431 の P0-2「比較元と HEAD の資産マップをどちらも HEAD の `FROZEN_BASELINE_ASSETS` から
+作っていた」は、431 の結線に起因するものではなく develop に既にある構造である。**
+
+- merge-base `e62aced` の検査器も `:3749` で `FROZEN_BASELINE_ASSETS` だけをループしている
+  (現 HEAD では `:4593`)
+- `test_frozen_baseline_asset_paths_are_an_exact_set` は
+  **実ファイル集合と定数の等式**を見るだけなので、**定数と実ファイルから同時に消せば一致して通る**
+
+**つまり資産を 1 件まるごと凍結検査の外へ出す経路がテストでも捕まらない。**
+**TSK-431 が `git ls-tree` による比較元の独立列挙で是正済み**なので本 PR では触らない。
