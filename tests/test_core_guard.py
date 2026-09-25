@@ -448,6 +448,8 @@ EXPECTED_AREA_PATHS = {
         "scripts/check_authz_catalog.py",
         "tests/test_check_authz_catalog.py",
         *AUTHZ_TENANT_AREA_PATH_ADDITIONS,
+        "backend/src/pitchlog/api/**",
+        "backend/src/pitchlog/services/**",
         "tests/fixtures/authz_claims/*",
         "backend/tests/db/*",
         "backend/pyproject.toml",
