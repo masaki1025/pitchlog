@@ -1326,6 +1326,21 @@ additionalProperties: false
 
 `CountEffect`の`strikes`と`balls`、`RunnerDefaultAdvance`の`first`・`second`・`third`、`OutEffect`の`count`と`targets`、オブジェクト形の`Target`の`runner`、および`StatFlags`の22キーは、それぞれ省略不可とする。`resultId`と後述の`axisId`は参照先に拘束された識別子であり、自由記述ではない。
 
+**`eventKind`別の合法組合せ**:
+
+次の表を合法な組合せの完全なallowlistとし、表にない組合せは全てfailとする。
+
+| `eventKind` | `countEffect` | `plateAppearanceEnded` | `batterDestination.kind` |
+| --- | --- | --- | --- |
+| `batting-result` | 任意 | `true` \| `false` | `continue` \| `reach` \| `out` \| `score` |
+| `secondary-result` | `unchanged` \| `delta` | `true` \| `false` | `continue` \| `reach` \| `not-applicable` |
+| **`runner-event`** | **`unchanged`固定** | **`not-applicable`固定** | **`not-applicable`固定** |
+
+`countEffect`欄の許可集合は、`strikes`と`balls`の両方の`Effect.kind`へ適用する。「任意」はそれぞれ`delta`・`reset`・`unchanged`のいずれも許すことを表し、`unchanged | delta`はそれぞれをその2値に限定し、`unchanged`固定は両方を`unchanged`とする。
+
+- `runner-event`は打者の打席に影響しないため、3値を上表のとおり固定する。盗塁・牽制・暴投／捕逸等の走者イベントは、打者のカウントも打席の成否も変更しない。
+- `secondary-result`（打撃結果2・特殊プレイ）は、PB／WP／ボーク等のように打者の行き先を決めない場合があるため、`batterDestination.kind`に`not-applicable`を許す。
+
 **共通の閉じた型**:
 
 `Predicate`は次のunionだけから成る有限のJSON木とする。`and`/`or`/`not`を再帰節、`eq`/`gte`/`lte`/`in`を停止節とし、全ての経路は停止節で終わらなければならない。演算子ごとに示したプロパティ以外を持てず、`args`のarityを固定する。
