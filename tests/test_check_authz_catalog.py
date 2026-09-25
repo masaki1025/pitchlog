@@ -1928,6 +1928,45 @@ def test_record_and_aggregate_route_id_must_match_operation(
     assert failures == []
 
 
+def test_record_and_aggregate_route_rejects_unregistered_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """閉値域だけを検査するため route_id 末尾も揃え、delete 等を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "delete": {
+            "operation": "delete",
+            "expected_error": "operationが閉じた値域にない: delete",
+        },
+        "upsert": {
+            "operation": "upsert",
+            "expected_error": "operationが閉じた値域にない: upsert",
+        },
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        operation = case["operation"]
+        route["operation"] = operation
+        route["route_id"] = f"ROUTE:RECORD:fixture:{operation.upper()}"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 例外型も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
 def test_record_and_aggregate_route_requires_dedicated_provenance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
