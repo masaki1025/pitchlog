@@ -303,3 +303,48 @@ symbol: `sqlalchemy.text` 64 / `psycopg.Cursor.execute` 35 / `psycopg.Connection
 | `backend` | **pass**(7m20s) |
 | `frontend` / `docs-lint` / `secrets` / `nfr021-append-only` / `backend-changes` / `frontend-changes` | pass |
 | **`core-guard`** | **fail — 本逐行確認の完了を待っている**(PR 本文のチェックボックス) |
+
+## ステップ 10(2026-09-25)
+
+### 計画スコープ外の変更 1 件(逸脱として記録 — 計画改訂の申し送りへ)
+
+**`.claude/core-areas.json` の `tenant-isolation` 領域へ 2 件を追加した。**
+
+- `scripts/frozen_history.py`
+- `tests/test_frozen_history.py`
+
+**理由**: **本 PR がこの穴を作った**。`frozen_history.py` は tenant 分離の凍結更新判定を丸ごと担うのに、**core-areas の 315 パターンのいずれにも該当せず `guard_paths` にも無かった**(実測)。**今後の変更が `core_guard` の人間確認要求を素通りする。**
+
+**本 PR に含めた判断の根拠**: 穴を作ったのが本 PR であり、かつ **本 PR は既に逐行確認ゲートを通るので、ここで閉じても追加のゲートコストが無い**。別タスクへ送ると、その間 `frozen_history.py` の変更が無検査で通る期間ができる。
+
+**置き場の選択**: `guard_paths` ではなく **領域の `paths`** にした。`scripts/check_tenant_boundary_bypass.py` と `tests/test_check_tenant_boundary_bypass.py` が同領域にあり、**`frozen_history.py` はその helper** だから。`scripts/frozen_baselines.py` が `guard_paths` にある前例もあるが、そちらは領域に属さない凍結基盤の検査経路。
+
+**追加不要だったもの**: `contracts/tenant_boundary/history-snapshots/` は **既存の `contracts/tenant_boundary/*` で覆われている**。`core_guard.matched_paths` は `fnmatch.fnmatchcase` を使うので **`*` が `/` を越える**(実測で確認)。
+
+### 付随して落ちた 2 件と追随
+
+| テスト | 原因 | 対応 |
+| --- | --- | --- |
+| `test_core_guard.py::test_actual_core_area_paths_are_exact_expected_set` | **期待集合が人手の列挙**(`TENANT_BOUNDARY_AREA_PATH_CASES`)で、`EXPECTED_AREA_PATHS` が**列の順序まで比較**する | **同じ順序で 2 件を追加** |
+| `test_doc_check_profile.py::test_propagation_checker_and_claude_files_are_unchanged` | `git diff HEAD -- .claude/` が空であることを要求する。**未コミットの `.claude/` 変更**で落ちていた | **コミットで解消**(内容の問題ではない) |
+
+**観察**: 期待集合の人手列挙は、本日 TSK-440 のセッションと共有した「**母集団を人が列挙する検査は射程が動くと黙って古くなる**」の一例そのもの。**本 PR の射程外なので直していない**が、運用評価台帳の候補として `/pr` のクローズ処理で検討する。
+
+### PR 本文へ転記した内容(ステップ 10 の合格条件)
+
+- **`design.md` 8 節の 5 項目**を**同じ順序で**そのまま転記した(転記件数を機械確認: 5 件)
+- **送り出し 4 件と受取タスク ID の対応表**(TSK-448 / 449 / 450 / 451)
+- **計画スコープ外の変更 1 件**を逸脱として明記
+- **逐行確認のチェックボックス**(未チェック — **人間が入れる欄**。私は書かない)
+
+### 最終ゲート
+
+| ゲート | 結果 |
+| --- | --- |
+| ルート `uv run pytest tests/` | **1766 passed** |
+| ルート `uv run ruff check .` / `uv run ty check` | green |
+| `backend/` `uv run pytest` | **585 passed**(DB 必須 211 件を含む・実機の PostgreSQL 17.11) |
+| `backend/` `ruff check` / `ruff format --check` / `ty check` | green |
+| `uv run python scripts/check_tenant_boundary_bypass.py` | `tenant-boundary bypass check: ok` |
+
+**残りは人間の逐行確認 1 件のみ。** `core_guard` はそれを待って red のまま。
