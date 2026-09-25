@@ -1288,6 +1288,80 @@ FR-031 の CSV は「88列互換フォーマット（付録D）の**全プレイ
 | 成績計上フラグ | 下表「成績計上フラグの閉じた外延」に列挙する22フラグの計上有無。表にないフラグは認めない |
 | 特記 | 第3アウトを作らない等の例外規則 |
 
+**10列のexact型**:
+
+マトリクスの各行は次の10キーを**全てrequired**として持ち、行オブジェクトは`additionalProperties: false`とする。以下に示す全てのオブジェクトおよびunionの各オブジェクトも、記載したプロパティを全てrequiredとし、`additionalProperties: false`とする。
+
+```
+MatrixRow = {
+  eventKind: EventKind,
+  resultId: string,
+  precondition: Predicate,
+  countEffect: CountEffect,
+  plateAppearanceEnded: boolean | "not-applicable",
+  batterDestination: BatterDestination,
+  runnerDefaultAdvance: RunnerDefaultAdvance,
+  outEffect: OutEffect,
+  statFlags: StatFlags,
+  remarks: string
+}
+required = [eventKind, resultId, precondition, countEffect,
+            plateAppearanceEnded, batterDestination, runnerDefaultAdvance,
+            outEffect, statFlags, remarks]
+additionalProperties: false
+```
+
+| # | 既存の列名 | JSONキー | exact型 |
+| --- | --- | --- | --- |
+| 1 | イベント種別 | `eventKind` | `enum["batting-result", "secondary-result", "runner-event"]` |
+| 2 | 結果ID・表示名 | `resultId` | `string`。語彙シードのIDとして参照整合を必須とする。表示名は行に保持せず、語彙シードを正として参照解決する |
+| 3 | 前提条件 | `precondition` | 下記の閉じた再帰型`Predicate` |
+| 4 | カウント効果 | `countEffect` | `{strikes: Effect, balls: Effect}`。`Effect = {kind: "delta", value: integer} \| {kind: "reset"} \| {kind: "unchanged"}`。`reset`と`unchanged`は`value`を持たない。`delta.value`は`strikes`では0..2、`balls`では0..3 |
+| 5 | 打席の終了 | `plateAppearanceEnded` | `boolean \| enum["not-applicable"]` |
+| 6 | 打者の行き先 | `batterDestination` | `{kind: "continue" \| "out" \| "score" \| "not-applicable"}`または`{kind: "reach", base: 1..3}` |
+| 7 | 走者の既定進塁 | `runnerDefaultAdvance` | `{first: Adv, second: Adv, third: Adv}`。`Adv = {modality: enum["forced", "optional", "hold", "not-applicable"], destination: 1..4 \| null}`。`forced`/`optional` ⇔ `destination != null`、`hold`/`not-applicable` ⇔ `destination = null`の双方向制約を持つ。起点塁別の到達可能集合は`first → {2,3,4}`、`second → {3,4}`、`third → {4}` |
+| 8 | アウト効果 | `outEffect` | `{count: 0..3, targets: [Target]}`。`Target = "batter" \| {runner: 1..3}`。`count`と`targets`の長さは一致し、`count: 0`では`targets`を空配列とする |
+| 9 | 成績計上フラグ | `statFlags` | 直下の「成績計上フラグの閉じた外延」の第1列を完全なキー集合とするオブジェクト。22キーを全てrequiredの`boolean`とし、未知キーを拒否する |
+| 10 | 特記 | `remarks` | `string`。10列のうち自由記述を許す唯一の列 |
+
+`CountEffect`の`strikes`と`balls`、`RunnerDefaultAdvance`の`first`・`second`・`third`、`OutEffect`の`count`と`targets`、オブジェクト形の`Target`の`runner`、および`StatFlags`の22キーは、それぞれ省略不可とする。`resultId`と後述の`axisId`は参照先に拘束された識別子であり、自由記述ではない。
+
+**共通の閉じた型**:
+
+`Predicate`は次のunionだけから成る有限のJSON木とする。`and`/`or`/`not`を再帰節、`eq`/`gte`/`lte`/`in`を停止節とし、全ての経路は停止節で終わらなければならない。演算子ごとに示したプロパティ以外を持てず、`args`のarityを固定する。
+
+```
+Predicate =
+  | {op: "and" | "or",  args: [Predicate, ...]}        // arity >= 2
+  | {op: "not",         args: [Predicate]}             // arity == 1
+  | {op: "eq" | "gte" | "lte", axisId: string, value: Literal}
+  | {op: "in",          axisId: string, values: [Literal, ...]} // 非空
+
+Literal = integer | boolean | string
+```
+
+- `axisId`は入力軸descriptorの軸IDとして実在しなければならない。
+- `value`と`values`の各要素は、型と値域の両方が当該軸の分類・値集合に適合しなければならない。`Literal`が`string`の場合は当該軸のenum値だけを許す。
+- `and`と`or`では`op`と`args`、`not`では`op`と`args`、`eq`・`gte`・`lte`では`op`・`axisId`・`value`、`in`では`op`・`axisId`・`values`を全てrequiredとする。各variantは`additionalProperties: false`とする。
+
+`StateEffect`は操作イベント行とundo行が比較面4面へ与える影響を表す共通型とし、次の形に閉じる。
+
+```
+StateEffect = {
+  stateFields:      {<比較面の各フィールド>: FieldEffect},
+  scoreboard:       {<全欄>: FieldEffect},
+  statFlags:        {<22フラグ>: FieldEffect},
+  historyAndResult: {history: FieldEffect, operationResult: FieldEffect}
+}
+
+FieldEffect =
+  | {kind: "unchanged"}
+  | {kind: "set", value: <当該フィールドの型>}
+  | {kind: "delta", value: integer}
+```
+
+`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の22キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
+
 **成績計上フラグの閉じた外延**:
 
 次の22フラグを完全な集合とし、各フラグは当該遷移をその計数へ算入するかを表す。複数アウト・複数得点・塁打数の数量は、それぞれ「アウト効果」・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しない。
