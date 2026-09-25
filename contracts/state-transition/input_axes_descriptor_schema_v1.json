@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/input_axes_descriptor_schema_v1.json",
+  "title": "Pitchlog input axes descriptor v1",
+  "version": "input_axes_descriptor_schema_v1",
+  "type": "object",
+  "required": [
+    "descriptorId",
+    "version",
+    "digest",
+    "digestSpec",
+    "stateTransitionAxes",
+    "gameEndAxes",
+    "nonCoverageFields",
+    "projectionRules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "descriptorId": {
+      "type": "string",
+      "const": "pitchlog.input-axes"
+    },
+    "version": {
+      "type": "string",
+      "const": "input_axes_descriptor_v1"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "digestSpec": {
+      "$ref": "#/$defs/digestSpec"
+    },
+    "stateTransitionAxes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/axis"
+      }
+    },
+    "gameEndAxes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/axis"
+      }
+    },
+    "nonCoverageFields": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonCoverageField"
+      }
+    },
+    "projectionRules": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/projectionRule"
+      }
+    }
+  },
+  "$defs": {
+    "digestSpec": {
+      "type": "object",
+      "required": [
+        "excludedJsonPointers",
+        "canonicalization",
+        "encoding",
+        "hashAlgorithm",
+        "stage1ExternalReferences",
+        "stage2DigestRule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "excludedJsonPointers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "const": "/digest"
+          }
+        },
+        "canonicalization": {
+          "type": "string",
+          "const": "RFC8785"
+        },
+        "encoding": {
+          "type": "string",
+          "const": "UTF-8"
+        },
+        "hashAlgorithm": {
+          "type": "string",
+          "const": "SHA-256"
+        },
+        "stage1ExternalReferences": {
+          "type": "string",
+          "const": "forbidden"
+        },
+        "stage2DigestRule": {
+          "type": "string",
+          "const": "json-pointer-plus-content-hash-transitive"
+        }
+      }
+    },
+    "descriptorValue": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "finiteEnumerableAxis": {
+      "type": "object",
+      "required": [
+        "axisId",
+        "sourceClauseId",
+        "classification",
+        "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axisId": {
+          "$ref": "#/$defs/axisId"
+        },
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "classification": {
+          "$ref": "#/$defs/axisClassification",
+          "const": "finite-enumerable"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/descriptorValue"
+          }
+        }
+      }
+    },
+    "boundaryPartitionAxis": {
+      "type": "object",
+      "required": [
+        "axisId",
+        "sourceClauseId",
+        "classification",
+        "boundaryValues"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axisId": {
+          "$ref": "#/$defs/axisId"
+        },
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "classification": {
+          "$ref": "#/$defs/axisClassification",
+          "const": "boundary-partition"
+        },
+        "boundaryValues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/descriptorValue"
+          }
+        }
+      }
+    },
+    "nonFiniteAxis": {
+      "type": "object",
+      "required": [
+        "axisId",
+        "sourceClauseId",
+        "classification",
+        "nonFiniteReason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axisId": {
+          "$ref": "#/$defs/axisId"
+        },
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "classification": {
+          "$ref": "#/$defs/axisClassification",
+          "const": "non-finite"
+        },
+        "nonFiniteReason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "axis": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/finiteEnumerableAxis"
+        },
+        {
+          "$ref": "#/$defs/boundaryPartitionAxis"
+        },
+        {
+          "$ref": "#/$defs/nonFiniteAxis"
+        }
+      ]
+    },
+    "axisClassification": {
+      "type": "string",
+      "enum": [
+        "finite-enumerable",
+        "boundary-partition",
+        "non-finite"
+      ]
+    },
+    "axisId": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*$"
+    },
+    "sourceClauseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonCoverageField": {
+      "type": "object",
+      "required": [
+        "fieldId",
+        "sourceClauseId",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*$"
+        },
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "projectionRule": {
+      "type": "object",
+      "required": [
+        "ruleId",
+        "sourceClauseId",
+        "sourceKind",
+        "jsonSchemaKeywords",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*$"
+        },
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "finite-enumerable",
+            "boundary-partition",
+            "non-finite",
+            "non-coverage-field",
+            "descriptor-identity"
+          ]
+        },
+        "jsonSchemaKeywords": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

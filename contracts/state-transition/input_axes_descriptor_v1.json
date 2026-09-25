@@ -1,0 +1,19 @@
+{
+  "descriptorId": "pitchlog.input-axes",
+  "version": "input_axes_descriptor_v1",
+  "digest": "sha256:1e4308622eba1592f6c8c4022dee445f32e4fdb2aafba3cb950f5b6e23e1b3da",
+  "digestSpec": {
+    "excludedJsonPointers": [
+      "/digest"
+    ],
+    "canonicalization": "RFC8785",
+    "encoding": "UTF-8",
+    "hashAlgorithm": "SHA-256",
+    "stage1ExternalReferences": "forbidden",
+    "stage2DigestRule": "json-pointer-plus-content-hash-transitive"
+  },
+  "stateTransitionAxes": [],
+  "gameEndAxes": [],
+  "nonCoverageFields": [],
+  "projectionRules": []
+}
