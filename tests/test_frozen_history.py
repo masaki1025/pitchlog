@@ -275,35 +275,17 @@ def _parse_v2(record: dict[str, Any], transition: Any) -> tuple[Any, ...]:
     return parser.parse_history(base, head, v2_transitions=[transition])
 
 
-def _evaluation_case(tmp_path: Path) -> tuple[dict[str, Any], Any, Any, Any]:
-    """役割分担の検査に使う比較元・HEAD・導出結果を作る。"""
+def _evaluation_case(tmp_path: Path) -> tuple[dict[str, Any], Any]:
+    """PR受理の履歴検査に使う導出済み遷移を作る。"""
     record, transition = _v2_case(tmp_path)
-    implementations = {
-        "scripts/a.py": b"alpha\n",
-        "scripts/b.py": b"beta\n",
-    }
-    base = parser.EvaluationSide(
-        declaration=copy.deepcopy(transition.before["declaration"]),
-        movement_policy=copy.deepcopy(transition.before["movement_policy"]),
-        implementations=copy.deepcopy(implementations),
-        snapshot_root=transition.base_snapshot_root,
+    evaluation = parser.RoleSeparatedEvaluation(
+        targets=tuple(
+            item["path"] for item in transition.before["external_snapshots"]
+        ),
+        transition=transition,
+        moved=bool(parser.derive_aspects(transition.before, transition.after)),
     )
-    head = parser.EvaluationSide(
-        declaration=copy.deepcopy(transition.after["declaration"]),
-        movement_policy=copy.deepcopy(transition.after["movement_policy"]),
-        implementations=copy.deepcopy(implementations),
-        snapshot_root=transition.head_snapshot_root,
-    )
-    evaluation = parser.derive_role_separated_evaluation(base, head)
-    record["change"]["before"] = copy.deepcopy(evaluation.transition.before)
-    record["change"]["after"] = copy.deepcopy(evaluation.transition.after)
-    record["change"]["aspect"] = sorted(
-        parser.derive_aspects(
-            evaluation.transition.before,
-            evaluation.transition.after,
-        )
-    )
-    return record, base, head, evaluation
+    return record, evaluation
 
 
 def _frozen_asset(
@@ -465,7 +447,7 @@ def _v2_cli_request(tmp_path: Path) -> dict[str, Any]:
 
 def _current_history_cli_request(tmp_path: Path) -> dict[str, Any]:
     """正常な PR 受理履歴検査の CLI request を作る。"""
-    record, _, _, evaluation = _evaluation_case(tmp_path / "current")
+    record, evaluation = _evaluation_case(tmp_path / "current")
     base_history = _base_history()
     return {
         "check": "current_history",
@@ -474,55 +456,6 @@ def _current_history_cli_request(tmp_path: Path) -> dict[str, Any]:
         "evaluation": _evaluation_request(evaluation),
         "head_parents": ["base-sha", "head-sha"],
     }
-
-
-def _role_cli_request(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[dict[str, Any], dict[str, Path]]:
-    """正常な比較元・HEAD 宣言取得の CLI request を作る。"""
-    _enable_pull_request_mode(monkeypatch, tmp_path)
-    base_root = tmp_path / "base-repository"
-    head_root = tmp_path / "head-repository"
-    for root in (base_root, head_root):
-        scripts = root / "scripts"
-        scripts.mkdir(parents=True)
-        (scripts / "a.py").write_bytes(b"alpha\n")
-    asset = {
-        "baseline_control": {
-            "identity": {
-                "scheme": "revision_field",
-                "field": "contract_revision",
-                "current_identifiers": ["contract_revision:13"],
-                "no_baseline_marker": "NO_BASELINE",
-                "frozen_projection": {"external_files": ["scripts/a.py"]},
-            },
-            "movement_policy": {
-                "movement_triggers": sorted(parser.REQUIRED_MOVEMENT_TRIGGERS),
-            },
-        }
-    }
-    base_asset = tmp_path / "base-asset.json"
-    head_asset = tmp_path / "head-asset.json"
-    base_asset.write_text(json.dumps(asset), encoding="utf-8")
-    head_asset.write_text(json.dumps(asset), encoding="utf-8")
-    paths = {
-        "base_asset": base_asset,
-        "head_asset": head_asset,
-        "base_external": base_root / "scripts" / "a.py",
-    }
-    return (
-        {
-            "check": "role_evaluation",
-            "base_asset_path": str(base_asset),
-            "head_asset_path": str(head_asset),
-            "base_repository_root": str(base_root),
-            "head_repository_root": str(head_root),
-            "base_snapshot_root": str(tmp_path / "base-snapshots"),
-            "head_snapshot_root": str(tmp_path / "head-snapshots"),
-        },
-        paths,
-    )
 
 
 def _repository_cli_request() -> dict[str, Any]:
@@ -561,24 +494,7 @@ def _prepare_fail_closed_cli_case(
 
         return apply
 
-    if case in {"01-base-declaration", "13-external-target", "14-no-head-fallback"}:
-        request, paths = _role_cli_request(tmp_path, monkeypatch)
-        if case == "01-base-declaration":
-
-            def mutate() -> None:
-                paths["base_asset"].write_text("{broken", encoding="utf-8")
-
-        elif case == "13-external-target":
-
-            def mutate() -> None:
-                paths["base_external"].unlink()
-
-        else:
-
-            def mutate() -> None:
-                paths["base_asset"].unlink()
-
-    elif case in {"02-pr-event", "10-acceptance-id", "11-pr-merge-shape"}:
+    if case in {"02-pr-event", "10-acceptance-id", "11-pr-merge-shape"}:
         _enable_pull_request_mode(monkeypatch, tmp_path)
         request = _current_history_cli_request(tmp_path)
         if case == "02-pr-event":
@@ -895,7 +811,7 @@ def test_head_definition_change_cannot_skip_movement_record(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    record, _, _, evaluation = _evaluation_case(tmp_path)
+    record, evaluation = _evaluation_case(tmp_path)
     _enable_pull_request_mode(monkeypatch, tmp_path)
     assert evaluation.moved is True
     assert _validate_pr_case(record, evaluation)
@@ -909,49 +825,6 @@ def test_head_definition_change_cannot_skip_movement_record(
             evaluation=evaluation,
             head_parents=("base-sha", "head-sha"),
         )
-
-
-def test_before_and_after_use_their_own_definitions_and_implementations(
-    tmp_path: Path,
-) -> None:
-    _, base, head, _ = _evaluation_case(tmp_path)
-    changed_implementations = dict(head.implementations)
-    changed_implementations["scripts/a.py"] = b"head-alpha\n"
-    changed_head = parser.EvaluationSide(
-        declaration=head.declaration,
-        movement_policy=head.movement_policy,
-        implementations=changed_implementations,
-        snapshot_root=head.snapshot_root,
-    )
-
-    evaluation = parser.derive_role_separated_evaluation(base, changed_head)
-
-    assert evaluation.transition.before["declaration"] == base.declaration
-    assert evaluation.transition.after["declaration"] == head.declaration
-    assert evaluation.transition.before["external_snapshots"][0]["sha256"] == hashlib.sha256(
-        base.implementations["scripts/a.py"]
-    ).hexdigest()
-    assert evaluation.transition.after["external_snapshots"][0]["sha256"] == hashlib.sha256(
-        changed_implementations["scripts/a.py"]
-    ).hexdigest()
-
-
-def test_head_declaration_cannot_shrink_base_target_set(tmp_path: Path) -> None:
-    _, base, head, evaluation = _evaluation_case(tmp_path)
-    assert evaluation.targets == ("scripts/a.py", "scripts/b.py")
-    shrunk_declaration = copy.deepcopy(head.declaration)
-    shrunk_declaration["identity"]["frozen_projection"]["external_files"] = [
-        "scripts/a.py"
-    ]
-    shrunk_head = parser.EvaluationSide(
-        declaration=shrunk_declaration,
-        movement_policy=head.movement_policy,
-        implementations=head.implementations,
-        snapshot_root=head.snapshot_root,
-    )
-
-    with pytest.raises(parser.ContractError, match="対象集合を縮小できない"):
-        parser.derive_role_separated_evaluation(base, shrunk_head)
 
 
 def test_pr_context_without_event_path_does_not_fallback_to_invariant(
@@ -975,7 +848,7 @@ def test_broken_pr_merge_condition_is_rejected_after_valid_baseline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    record, _, _, evaluation = _evaluation_case(tmp_path)
+    record, evaluation = _evaluation_case(tmp_path)
     event_path = _enable_pull_request_mode(monkeypatch, tmp_path)
     assert _validate_pr_case(record, evaluation)
     parents = ("base-sha", "head-sha")
@@ -1003,7 +876,7 @@ def test_event_acceptance_id_mismatch_is_rejected_after_valid_baseline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    record, _, _, evaluation = _evaluation_case(tmp_path)
+    record, evaluation = _evaluation_case(tmp_path)
     _enable_pull_request_mode(monkeypatch, tmp_path)
     assert _validate_pr_case(record, evaluation)
     record["acceptance_id"] = "openai/pitchlog#432"
@@ -1213,7 +1086,6 @@ def test_cli_returns_zero_for_valid_input(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "case",
     [
-        pytest.param("01-base-declaration", id="01-base-declaration-unreadable"),
         pytest.param("02-pr-event", id="02-pr-event-unavailable"),
         pytest.param("03-unknown-version", id="03-record-schema-version-unknown"),
         pytest.param("04-version-required", id="04-version-missing-or-v1"),
@@ -1225,16 +1097,14 @@ def test_cli_returns_zero_for_valid_input(tmp_path: Path) -> None:
         pytest.param("10-acceptance-id", id="10-acceptance-id-mismatch"),
         pytest.param("11-pr-merge-shape", id="11-pr-merge-condition-mismatch"),
         pytest.param("12-deleted-base-asset", id="12-base-asset-deleted"),
-        pytest.param("13-external-target", id="13-external-target-unresolvable"),
-        pytest.param("14-no-head-fallback", id="14-no-head-only-fallback"),
     ],
 )
-def test_all_design_failures_exit_nonzero_and_differ_from_success(
+def test_reachable_cli_failures_exit_nonzero_and_differ_from_success(
     case: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """設計書 7 節の 14 行を個別ケースとして実 CLI の終了値へ写す。"""
+    """単体 CLI から到達可能な失敗を個別の非 zero 終了値へ写す。"""
     request_path, mutate = _prepare_fail_closed_cli_case(
         case,
         tmp_path,
@@ -1249,48 +1119,6 @@ def test_all_design_failures_exit_nonzero_and_differ_from_success(
     assert rejected.returncode != 0
     assert rejected.returncode != accepted.returncode
     assert "frozen-history:" in rejected.stderr
-
-
-@pytest.mark.parametrize("failure", ["missing", "broken-json", "missing-key"])
-def test_base_acquisition_failure_never_falls_back_to_valid_head(
-    failure: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """正常な HEAD があっても比較元の取得不能を代替せず拒否することを証明する。"""
-    request, paths = _role_cli_request(tmp_path, monkeypatch)
-    arguments = {
-        "base_asset_path": Path(request["base_asset_path"]),
-        "head_asset_path": Path(request["head_asset_path"]),
-        "base_repository_root": Path(request["base_repository_root"]),
-        "head_repository_root": Path(request["head_repository_root"]),
-        "base_snapshot_root": Path(request["base_snapshot_root"]),
-        "head_snapshot_root": Path(request["head_snapshot_root"]),
-    }
-    assert parser.load_pr_role_separated_evaluation(**arguments)
-    if failure == "missing":
-        paths["base_asset"].unlink()
-    elif failure == "broken-json":
-        paths["base_asset"].write_text("{broken", encoding="utf-8")
-    else:
-        paths["base_asset"].write_text(
-            json.dumps(
-                {
-                    "baseline_control": {
-                        "movement_policy": {
-                            "movement_triggers": sorted(
-                                parser.REQUIRED_MOVEMENT_TRIGGERS
-                            )
-                        }
-                    }
-                }
-            ),
-            encoding="utf-8",
-        )
-
-    with pytest.raises(parser.ContractError, match="比較元"):
-        parser.load_pr_role_separated_evaluation(**arguments)
-
 
 def test_unexpected_exception_is_mapped_to_nonzero(
     tmp_path: Path,

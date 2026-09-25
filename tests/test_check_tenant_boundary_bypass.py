@@ -163,29 +163,6 @@ def _fixture_source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _external_source(path: str) -> bytes:
-    """作業ツリーの外部凍結対象を読む。"""
-    return (REPOSITORY_ROOT / path).read_bytes()
-
-
-def _external_source_with_checker_mutation(path: str) -> bytes:
-    """検査器だけを変異させた外部凍結対象を返す。"""
-    source = _external_source(path)
-    if path == "scripts/check_tenant_boundary_bypass.py":
-        return source + b"\n# step 8 mutation\n"
-    return source
-
-
-def _accepted_snapshot(relative_path: Path) -> dict[str, Any]:
-    """純粋な遷移検査用に先頭履歴を受理済み状態へ変える。"""
-    asset = _read_contract_asset(relative_path)
-    entry = asset["baseline_control"]["history"][0]
-    entry["source_commit"] = "abcdef0"
-    entry["approved_by"] = "テスト承認者"
-    entry["approved_on"] = "2026-09-20"
-    return asset
-
-
 def _contract_digest(value: dict[str, Any]) -> str:
     """source_digest 欄を除く JSON 資産の正規化 digest を計算する。"""
     payload = dict(value)
@@ -569,8 +546,12 @@ def _append_current_repository_transition_record(
                 for name, component in sorted(head_components.items())
             },
             "previous_baseline_identifiers": {
-                name: list(component.current_identifiers)
-                for name, component in sorted(base_components.items())
+                name: (
+                    list(base_components[name].current_identifiers)
+                    if name in base_components
+                    else ["NO_BASELINE"]
+                )
+                for name in sorted(head_components)
             },
             "change": {
                 "subject": "敵対レビュー用の合成遷移",
@@ -588,6 +569,24 @@ def _append_current_repository_transition_record(
     )
     authority_path.write_text(
         json.dumps(authority_asset, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _bump_asset_revision(asset: dict[str, Any]) -> None:
+    """合成遷移の資産識別値を1つ繰り上げる。"""
+    identity = asset["baseline_control"]["identity"]
+    field = identity["field"]
+    asset[field] += 1
+    identity["current_identifiers"] = [f"{field}:{asset[field]}"]
+    if "source_digest" in asset:
+        asset["source_digest"] = _contract_digest(asset)
+
+
+def _write_contract_asset(path: Path, asset: dict[str, Any]) -> None:
+    """変異した契約資産を安定したJSON表示で書く。"""
+    path.write_text(
+        json.dumps(asset, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -997,6 +996,311 @@ def test_same_asset_duplicate_identifier_is_red_through_production_check(
         checker.check_repository(repository)
 
 
+def test_transition_passes_when_base_declares_only_universal_triggers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元の6下限だけを決定元とした遷移を本番入口で受理する。"""
+    repository, original_base = _initialize_test_repository(tmp_path, {})
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    triggers = asset["baseline_control"]["movement_policy"]["movement_triggers"]
+    triggers.remove("pass_fail_mapping")
+    _bump_asset_revision(asset)
+    _write_contract_asset(asset_path, asset)
+    _append_current_repository_transition_record(
+        repository,
+        original_base,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    comparison_base = _commit_test_repository(repository, "six universal triggers")
+    assert _check_test_repository(repository, original_base) == []
+
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    asset["baseline_control"]["movement_policy"]["movement_triggers"].append(
+        "review_mapping"
+    )
+    _bump_asset_revision(asset)
+    _write_contract_asset(asset_path, asset)
+    _append_current_repository_transition_record(
+        repository,
+        comparison_base,
+        acceptance_id="masaki1025/pitchlog#80",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        comparison_base,
+        monkeypatch,
+        tmp_path / "six-trigger-event.json",
+        number=80,
+    )
+
+    assert checker.check_repository(repository) == []
+
+
+@pytest.mark.parametrize("mutation", ["delete", "replace"])
+def test_optional_trigger_change_with_record_passes_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    """下限外triggerの削除・差し替えを正しい単一記録とともに受理する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    triggers = asset["baseline_control"]["movement_policy"]["movement_triggers"]
+    index = triggers.index("pass_fail_mapping")
+    if mutation == "delete":
+        triggers.pop(index)
+    else:
+        triggers[index] = "review_mapping"
+    _bump_asset_revision(asset)
+    _write_contract_asset(asset_path, asset)
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / f"optional-trigger-{mutation}.json",
+        number=79,
+    )
+
+    assert checker.check_repository(repository) == []
+
+
+@pytest.mark.parametrize(
+    "missing_trigger",
+    sorted(checker.frozen_history.REQUIRED_MOVEMENT_TRIGGERS),
+)
+def test_missing_universal_trigger_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    missing_trigger: str,
+) -> None:
+    """普遍下限6tokenのいずれを欠いても本番入口で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    asset["baseline_control"]["movement_policy"]["movement_triggers"].remove(
+        missing_trigger
+    )
+    _write_contract_asset(asset_path, asset)
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / f"missing-{missing_trigger}.json",
+        number=78,
+    )
+
+    with pytest.raises(checker.ContractError, match="普遍下限"):
+        checker.check_repository(repository)
+
+
+def test_implementation_constants_contain_only_universal_triggers() -> None:
+    """実装の決定元に下限外triggerが残っていないことを固定する。"""
+    assert checker.frozen_history.REQUIRED_MOVEMENT_TRIGGERS == {
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+    }
+    for relative_path in (
+        Path("scripts/check_tenant_boundary_bypass.py"),
+        Path("scripts/frozen_history.py"),
+    ):
+        assert "pass_fail_mapping" not in (REPOSITORY_ROOT / relative_path).read_text(
+            encoding="utf-8"
+        )
+
+
+def _add_synthetic_frozen_asset(repository: Path) -> Path:
+    """新規凍結資産をauthorityでない初回状態として追加する。"""
+    source_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
+    asset = json.loads(source_path.read_text(encoding="utf-8"))
+    asset["contract_revision"] = 1
+    asset["baseline_control"]["identity"]["current_identifiers"] = [
+        "contract_revision:1"
+    ]
+    asset["baseline_control"]["history"] = []
+    asset["baseline_control"]["history_authority"] = False
+    asset["source_digest"] = _contract_digest(asset)
+    path = repository / "contracts/tenant_boundary/synthetic-contract.json"
+    _write_contract_asset(path, asset)
+    return path
+
+
+def test_added_asset_with_single_record_passes_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HEADだけの資産をbaseline_set遷移と単一記録で受理する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    _add_synthetic_frozen_asset(repository)
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "added-asset-event.json",
+        number=79,
+    )
+
+    assert checker.check_repository(repository) == []
+
+
+def test_added_asset_without_record_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HEADだけの資産追加に単一記録が無ければ拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    _add_synthetic_frozen_asset(repository)
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "recordless-added-asset-event.json",
+        number=78,
+    )
+
+    with pytest.raises(checker.ContractError, match="movement.*record"):
+        checker.check_repository(repository)
+
+
+@pytest.mark.parametrize("target", ["asset", "external", "snapshot-root"])
+def test_symlink_boundary_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+) -> None:
+    """資産・外部対象・snapshot置き場のsymlinkを本番入口で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    if target == "asset":
+        path = repository / checker.DEFAULT_ALLOWLIST
+        replacement = repository / "linked-assets/base-allowlist.json"
+        replacement.parent.mkdir()
+        path.replace(replacement)
+        path.symlink_to("../../linked-assets/base-allowlist.json")
+    elif target == "external":
+        path = repository / "scripts/frozen_history.py"
+        replacement = repository / "scripts/frozen_history-copy.py"
+        path.replace(replacement)
+        path.symlink_to("frozen_history-copy.py")
+    else:
+        path = repository / "contracts/tenant_boundary/history-snapshots"
+        replacement = repository / "contracts/tenant_boundary/snapshots-copy"
+        path.replace(replacement)
+        path.symlink_to("snapshots-copy", target_is_directory=True)
+    if target != "snapshot-root":
+        _seal_pull_request_worktree(
+            repository,
+            base_ref,
+            monkeypatch,
+            tmp_path / f"symlink-{target}.json",
+            number=78,
+        )
+
+    with pytest.raises(checker.ContractError, match="symlink|blob"):
+        checker.check_repository(repository)
+
+
+@pytest.mark.parametrize("invalid_path", ["../outside.py", "/tmp/outside.py"])
+def test_non_repository_relative_external_path_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    invalid_path: str,
+) -> None:
+    """.. と絶対パスの外部凍結対象を本番入口で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    asset_path = repository / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    asset["baseline_control"]["identity"]["frozen_projection"][
+        "external_files"
+    ].append(invalid_path)
+    _write_contract_asset(asset_path, asset)
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "invalid-external-path.json",
+        number=78,
+    )
+
+    with pytest.raises(checker.ContractError, match="repository相対パス"):
+        checker.check_repository(repository)
+
+
+def test_production_check_uses_shared_safe_external_loader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """安全な外部対象loaderが本番check_repositoryから到達可能と証明する。"""
+    repository, _ = _initialize_pull_request_repository(tmp_path, monkeypatch)
+    original = checker.frozen_history._read_external_implementations
+    calls = 0
+
+    def observe(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        checker.frozen_history,
+        "_read_external_implementations",
+        observe,
+    )
+
+    assert checker.check_repository(repository) == []
+    assert calls == 1
+    for obsolete in (
+        "_validate_history_append_only",
+        "_validate_baseline_transition",
+    ):
+        assert not hasattr(checker, obsolete)
+    for obsolete in (
+        "derive_role_separated_evaluation",
+        "load_pr_role_separated_evaluation",
+    ):
+        assert not hasattr(checker.frozen_history, obsolete)
+
+
 @pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
@@ -1039,96 +1343,6 @@ def test_missing_baseline_history_field_is_red(field: str) -> None:
         checker._validate_baseline_control(mutated, relative_path.as_posix())
 
 
-def test_changed_baseline_history_entry_is_red() -> None:
-    """既存記録の書き換えを append-only 比較で拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
-    previous = _accepted_snapshot(relative_path)
-    current = copy.deepcopy(previous)
-    current["baseline_control"]["history"][0]["reason"] = "書き換え"
-
-    with pytest.raises(checker.ContractError):
-        checker._validate_history_append_only(
-            previous,
-            current,
-            relative_path.as_posix(),
-        )
-
-
-@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
-def test_deleted_baseline_history_entry_is_red(relative_path: Path) -> None:
-    """既存記録の削除を append-only 比較で拒否する。"""
-    previous = _accepted_snapshot(relative_path)
-    assert (
-        checker._validate_history_append_only(
-            previous,
-            copy.deepcopy(previous),
-            relative_path.as_posix(),
-        )
-        is None
-    )
-    current = copy.deepcopy(previous)
-    identity = current["baseline_control"]["identity"]
-    identifier_field = identity["field"]
-    current[identifier_field] += 1
-    current["baseline_control"]["identity"]["current_identifiers"] = [
-        f"{identifier_field}:{current[identifier_field]}"
-    ]
-    current["baseline_control"]["history"].pop()
-
-    with pytest.raises(checker.ContractError):
-        checker._validate_history_append_only(
-            previous,
-            current,
-            relative_path.as_posix(),
-        )
-
-
-@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
-def test_merge_base_pending_history_is_still_append_only(relative_path: Path) -> None:
-    """merge-base に現にある記録は未承認表示でも書き換えを拒否する。"""
-    previous = _read_contract_asset(relative_path)
-    assert (
-        checker._validate_baseline_transition(
-            previous,
-            copy.deepcopy(previous),
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-        is None
-    )
-    current = copy.deepcopy(previous)
-    current["baseline_control"]["history"][0]["reason"] = "書き換え"
-
-    with pytest.raises(checker.ContractError, match="既存履歴"):
-        checker._validate_baseline_transition(
-            previous,
-            current,
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-
-
-def test_first_adoption_previous_identifier_must_be_no_baseline() -> None:
-    """merge-base に資産が無い初回受理の直前値を推測値にできない。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
-    asset = _read_contract_asset(relative_path)
-    mutated = copy.deepcopy(asset)
-    mutated["baseline_control"]["history"][0][
-        "previous_baseline_identifiers"
-    ] = ["contract_revision:999"]
-
-    with pytest.raises(checker.ContractError, match="NO_BASELINE"):
-        checker._validate_baseline_transition(
-            None,
-            mutated,
-            relative_path.as_posix(),
-            previous_external_loader=lambda _path: b"",
-            current_external_loader=_external_source,
-        )
-
-
 @pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
 def test_first_history_entry_does_not_imply_no_previous_baseline(
     relative_path: Path,
@@ -1147,91 +1361,6 @@ def test_first_history_entry_does_not_imply_no_previous_baseline(
     )
 
     assert history[0]["previous_baseline_identifiers"] == ["legacy_baseline:1"]
-
-
-@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
-def test_reported_pattern_removal_without_revision_or_history_is_red(
-    relative_path: Path,
-) -> None:
-    """履歴なしの凍結内容変更を射影比較で拒否する。"""
-    previous = _accepted_snapshot(relative_path)
-    assert (
-        checker._validate_baseline_transition(
-            previous,
-            copy.deepcopy(previous),
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-        is None
-    )
-    current = copy.deepcopy(previous)
-    if relative_path == checker.DEFAULT_ALLOWLIST:
-        current["conditions"][0]["patterns"].pop()
-    else:
-        current["step_8_projection_mutation"] = True
-
-    with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
-        checker._validate_baseline_transition(
-            previous,
-            current,
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-
-
-def test_history_added_without_projection_movement_is_red() -> None:
-    """射影が動いていない受理への不要な履歴追加を拒否する。"""
-    relative_path = checker.FROZEN_BASELINE_ASSETS[1]
-    previous = _accepted_snapshot(relative_path)
-    current = copy.deepcopy(previous)
-    extra = copy.deepcopy(current["baseline_control"]["history"][-1])
-    extra["source_commit"] = "abcdef1"
-    last_identifiers = current["baseline_control"]["history"][-1][
-        "new_baseline_identifiers"
-    ]
-    extra["previous_baseline_identifiers"] = list(last_identifiers)
-    extra["new_baseline_identifiers"] = list(last_identifiers)
-    current["baseline_control"]["history"].append(extra)
-
-    with pytest.raises(checker.ContractError, match="射影が動いていない"):
-        checker._validate_baseline_transition(
-            previous,
-            current,
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-
-
-@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
-def test_checker_pass_fail_mapping_change_requires_revision_and_history(
-    relative_path: Path,
-) -> None:
-    """検査器自身の変更も外部凍結射影の移動として検出する。"""
-    previous = _accepted_snapshot(relative_path)
-    current = copy.deepcopy(previous)
-
-    assert (
-        checker._validate_baseline_transition(
-            previous,
-            current,
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source,
-        )
-        is None
-    )
-
-    with pytest.raises(checker.ContractError, match="ちょうど 1 件"):
-        checker._validate_baseline_transition(
-            previous,
-            current,
-            relative_path.as_posix(),
-            previous_external_loader=_external_source,
-            current_external_loader=_external_source_with_checker_mutation,
-        )
 
 
 @pytest.mark.parametrize(
