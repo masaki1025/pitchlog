@@ -353,6 +353,41 @@ status: approved
 
 **比較する出力は、当該計算の結果を利用者へ見せる条項が定める全項目**とする(要件書 NFR-019(a))。**旧システムのリプレイ恒等式に倣い、比較は行 × フィールド単位で行い、不一致は例外を投げず全件をリストで返す**(最初の 1 件で止めない)。
 
+**`operationRows[]` / `undoRows[]` の閉じた列構成**: 両配列の各行は、以下に列挙した列を**すべて required**とし、行および行内のオブジェクトはすべて **`additionalProperties: false`** とする。未知の列、必須列の欠落、enum 外の値は fail とする。要件書付録E-1の `Predicate` と `StateEffect` を参照し、D-8では再定義しない。
+
+**`operationRows[]`**:
+
+| 列 | 閉じた型 |
+| --- | --- |
+| `operationKind` | `enum["substitution","tiebreak-start","game-end-declaration","adhoc-registration"]`。D-6と同じく、**FR-040採用時に限り `"state-correction"` を加える** |
+| `clauseId` | `string`。`operationKind` の典拠である実在する FR の条文 ID として参照整合を必須とする(`substitution` = FR-011 / `tiebreak-start` = FR-009 / `game-end-declaration` = FR-010 / `adhoc-registration` = FR-015 / `state-correction` = FR-040) |
+| `payloadShape` | 当該操作の payload を定める JSON Schema。payload は `type: "object"` とし、許可する全フィールドを `properties` に列挙し、そのうち必須のフィールドを `required` に列挙して **`additionalProperties: false`** とする。未知フィールド、型不一致、必須フィールド欠落は fail とする |
+| `precondition` | 要件書付録E-1の **`Predicate`**(述語 AST)と同型。`axisId` の参照整合、arity、値型・値域も同型の制約に従う |
+| `stateEffect` | 要件書付録E-1の閉じた **`StateEffect`**。比較面の全フィールドを required とし、非影響面は `{kind: "unchanged"}` とする |
+| `historyEffect` | `{pushes: boolean, kind: string \| null}`。`pushes` と `kind` は required、**`pushes = false` ⇔ `kind = null`**、`pushes = true` ⇔ `kind` はD-6が定める閉じた集合(`"confirmed-play"`、FR-040採用時のみ `"state-correction"`)に実在する履歴種別 ID とし、**`additionalProperties: false`** |
+| `operationResult` | `enum["applied","rejected-precondition","rejected-invalid-payload"]` |
+| `remarks` | `string`。**自由記述を許す唯一の列** |
+
+`payloadShape` が定める payload の各文字列は enum 値または参照 ID 等の構造化値とし、自由記述には用いない。`clauseId` と `historyEffect.kind` も識別子であって自由記述ではない。
+
+**`undoRows[]`**:
+
+| 列 | 閉じた型 |
+| --- | --- |
+| `targetKind` | `enum["confirmed-play"]`。**FR-040採用時に限り `"state-correction"` を加える**。`"undo"` は含めず、**undo を undo しないことを不変条件**とする |
+| `precondition` | 要件書付録E-1の **`Predicate`** と同型で、履歴文脈の深さ・先頭の種別を判定する述語。`axisId` はD-11の入力軸 descriptor に実在する履歴文脈軸に限る |
+| `stateEffect` | 要件書付録E-1の閉じた **`StateEffect`**。対象操作の差分を逆適用し、非影響面は `{kind: "unchanged"}` とする |
+| `historyEffect` | `{pops: 0 \| 1}`。`pops` は required、**`additionalProperties: false`** |
+| `operationResult` | `enum["applied","nothing-to-undo"]` |
+| `guaranteeMode` | `enum["full-equality","liveness-only"]`。`liveness-only` の許可条件は `XC-09` に従う |
+| `remarks` | `string`。**自由記述を許す唯一の列** |
+
+**閉じた規範行型の件数**: 常設の型は、`operationKind` で識別する 4 種(`substitution` / `tiebreak-start` / `game-end-declaration` / `adhoc-registration`)と `undoRows[]` の 1 種の**計 5 種**であり、計画書の「5 種」と一致する。FR-040採用時は、同じ閉じた `operationRows[]` の列構成を使う条件付きの `state-correction` が第 6 の受理バリアントとして加わるが、FR-040未採用時は存在しない。各バリアントの payload、`historyEffect`、および行オブジェクトも上記のとおり閉じる。参照する `Predicate` / `StateEffect` はこの件数に重複計上しない。
+
+**`XC-09`(`undoRows[]` の交差制約)**: `guaranteeMode = "liveness-only"` は、履歴文脈の深さが **`D`+1** の行だけに許す。深さが `D` 以下の行は `guaranteeMode = "full-equality"` でなければならない。**負例**: 他の全列が妥当でも、履歴深さ `D`・`targetKind = "confirmed-play"` の行に `guaranteeMode = "liveness-only"` を置いた場合は `XC-09` 違反として fail とする。
+
+**既存比較面を縮小しない**: 次表の既存 5 対象について定めた入力・出力・比較単位は、本規範行層の追加によって削除・省略・部分集合化してはならない。比較面からの除外または実質的な縮小には要件書 NFR-019(a) の改訂を要し、改訂のない欠落・未知・判定不能は fail とする。`operationRows[]` / `undoRows[]` の `stateEffect` は、次表の状況判定が既に比較対象とする状態欄・スコアボード全欄・成績計上フラグ全欄・履歴文脈・操作結果を**すべて保持**し、非影響面も `unchanged` として比較する。
+
 | 対象 | 入力 | 出力 | 比較単位 |
 | --- | --- | --- | --- |
 | 状況判定 | **事前状態 + 履歴文脈 + 次イベント 1 件**(シナリオ case はイベント列 — D-6。**語彙スナップショットは取らない** — 状況判定の出力は状態欄・成績計上フラグ・履歴文脈であり**表示名・表示値を含まないため**。**表外既定(要件書 A-1)のスコアボード数値等の表示は、書式列を持つ指標と同一の生成 formatter〔fixed-decimal scale=0〕を通し、状況判定ベクタの比較面に表示値を加えない〔v0.2・PO 裁定 2026-09-03〕。担保の機構は 3 つ**: ①生成前検査〔言語既定の文字列化を生成物に出さない — D-1〕②構成検査〔(b)③ — **A-1 が列挙する表外既定の表示項目ごとに、製品表示呼出箇所が生成 formatter を参照することを静的に検査し、formatter を経由しない表示経路を fail とする**〕③変異検査〔表示系変異演算子で **formatter 自体の実効性**を担保する(パラメータ変異等 — D-11)。**formatter 呼出の削除・言語既定の文字列化への置換は、scale=0 の整数表示では出力が同一になり得る(等価変異)ため、表外既定の項目ごとの kill 要件とはしない** — 迂回・非経由経路の検出は②の構成検査が担う〕**) | 回・表裏・得点・S/B・アウト・打順・走者、**およびスコアボードの全欄**、**ならびに成績計上フラグの全欄**(付録E-1 の打席・打数・安打等 — 付録E は「状態自動更新**と成績計上**の正」であり、状態表示だけでは対象計算を覆えない)、**および遷移後の履歴文脈(取消可能な操作のスタック — 種別と差分)**、**ならびに操作結果**(**適用された / 取り消す対象が無い** 等の、利用者へ示す結果の区分 — FR-006 が空履歴の undo に「取り消す対象が無いことを利用者へ示す」ことを課しているため。**構造化値であり、文言は表示規則が解決する**) | フィールド単位の完全一致(**状態欄・成績計上フラグ・履歴文脈・操作結果のすべて**)+ 不変条件(S≤2・B≤3・アウト≤2) |
