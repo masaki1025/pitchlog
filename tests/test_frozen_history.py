@@ -68,6 +68,10 @@ def _v2_case(tmp_path: Path) -> tuple[dict[str, Any], Any]:
     ):
         external_snapshots.append(_snapshot_entry(base_root, external_path, content))
         _snapshot_entry(head_root, external_path, content)
+    asset_snapshots = [
+        _snapshot_entry(base_root, "contracts/asset-a.json", b'{"asset":"a"}')
+    ]
+    _snapshot_entry(head_root, "contracts/asset-a.json", b'{"asset":"a"}')
 
     before: dict[str, Any] = {
         "declaration": {
@@ -84,14 +88,21 @@ def _v2_case(tmp_path: Path) -> tuple[dict[str, Any], Any]:
             "movement_triggers": sorted(parser.REQUIRED_MOVEMENT_TRIGGERS),
         },
         "external_snapshots": copy.deepcopy(external_snapshots),
+        "asset_snapshots": copy.deepcopy(asset_snapshots),
     }
     after: dict[str, Any] = copy.deepcopy(before)
     after["declaration"]["identity"]["revision"] = 2
     record = {
         "record_schema_version": 2,
         "acceptance_id": "openai/pitchlog#431",
-        "new_baseline_identifiers": ["asset-a:2", "asset-b:2"],
-        "previous_baseline_identifiers": ["asset-a:1", "asset-b:1"],
+        "new_baseline_identifiers": {
+            "contracts/asset-a.json": ["contract_revision:2"],
+            "contracts/asset-b.json": ["contract_revision:2"],
+        },
+        "previous_baseline_identifiers": {
+            "contracts/asset-a.json": ["contract_revision:1"],
+            "contracts/asset-b.json": ["contract_revision:1"],
+        },
         "change": {
             "subject": "tenant_boundary frozen baselines",
             "aspect": ["declaration"],
@@ -284,6 +295,14 @@ def _evaluation_case(tmp_path: Path) -> tuple[dict[str, Any], Any, Any, Any]:
         snapshot_root=transition.head_snapshot_root,
     )
     evaluation = parser.derive_role_separated_evaluation(base, head)
+    record["change"]["before"] = copy.deepcopy(evaluation.transition.before)
+    record["change"]["after"] = copy.deepcopy(evaluation.transition.after)
+    record["change"]["aspect"] = sorted(
+        parser.derive_aspects(
+            evaluation.transition.before,
+            evaluation.transition.after,
+        )
+    )
     return record, base, head, evaluation
 
 
@@ -762,6 +781,7 @@ def test_mismatched_aspect_is_rejected_after_valid_baseline(
         pytest.param(("change", "after", "declaration"), id="declaration"),
         pytest.param(("change", "after", "movement_policy"), id="movement-policy"),
         pytest.param(("change", "after", "external_snapshots"), id="external-snapshots"),
+        pytest.param(("change", "after", "asset_snapshots"), id="asset-snapshots"),
     ],
 )
 def test_missing_required_v2_field_is_rejected_after_valid_baseline(

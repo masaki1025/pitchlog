@@ -116,11 +116,39 @@ def _load_checker() -> ModuleType:
 
 
 checker = _load_checker()
+INVARIANT_CONTEXT = checker.frozen_history.EvaluationContext(
+    checker.frozen_history.EvaluationMode.INVARIANT,
+    None,
+)
 
 FROZEN_BASELINE_ASSET_CASES = tuple(
     pytest.param(relative_path, id=relative_path.name)
     for relative_path in checker.FROZEN_BASELINE_ASSETS
 )
+
+
+def _check_test_repository(
+    repository: Path,
+    base_ref: str | None = None,
+) -> list[Any]:
+    """一時リポジトリを明示した不変量コンテキストで検査する。"""
+    return checker.check_repository(
+        repository,
+        base_ref=base_ref,
+        evaluation_context=INVARIANT_CONTEXT,
+    )
+
+
+def _test_repository_exit_code(
+    repository: Path,
+    base_ref: str | None = None,
+) -> int:
+    """明示コンテキストの一時リポジトリ検査をCLI相当の終了値へ写す。"""
+    try:
+        violations = _check_test_repository(repository, base_ref)
+    except checker.ContractError:
+        return 2
+    return 1 if violations else 0
 
 
 def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
@@ -280,6 +308,7 @@ def _set_pull_request_environment(
     workspace: Path,
     base_sha: str,
     head_sha: str,
+    number: int = 78,
 ) -> None:
     """指定 workspace の PR event を環境変数へ設定する。"""
     event_path.write_text(
@@ -287,7 +316,7 @@ def _set_pull_request_environment(
             {
                 "repository": {"full_name": "masaki1025/pitchlog"},
                 "pull_request": {
-                    "number": 78,
+                    "number": number,
                     "base": {"ref": "develop", "sha": base_sha},
                     "head": {"sha": head_sha},
                 },
@@ -298,6 +327,269 @@ def _set_pull_request_environment(
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+
+def _initialize_pull_request_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    number: int = 78,
+) -> tuple[Path, str]:
+    """本番のPR受理経路を通せる二親mergeの一時リポジトリを作る。"""
+    repository, base_sha = _initialize_test_repository(tmp_path, {})
+    (repository / "pull-request-marker.txt").write_text(
+        "pull request head\n",
+        encoding="utf-8",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_sha,
+        monkeypatch,
+        tmp_path / "pull-request-event.json",
+        number=number,
+    )
+    return repository, base_sha
+
+
+def _seal_pull_request_worktree(
+    repository: Path,
+    base_sha: str,
+    monkeypatch: pytest.MonkeyPatch,
+    event_path: Path,
+    *,
+    number: int,
+) -> None:
+    """作業ツリーをPR headと二親mergeへ封入しeventを更新する。"""
+    checker._run_git(repository, ["add", "."])
+    tree_sha = checker._run_git(repository, ["write-tree"]).strip()
+    head_sha = checker._run_git(
+        repository,
+        [
+            "-c",
+            "user.name=Tenant Boundary Test",
+            "-c",
+            "user.email=tenant-boundary@example.invalid",
+            "commit-tree",
+            tree_sha,
+            "-p",
+            base_sha,
+            "-m",
+            "pull request head",
+        ],
+    ).strip()
+    merge_sha = checker._run_git(
+        repository,
+        [
+            "-c",
+            "user.name=Tenant Boundary Test",
+            "-c",
+            "user.email=tenant-boundary@example.invalid",
+            "commit-tree",
+            tree_sha,
+            "-p",
+            base_sha,
+            "-p",
+            head_sha,
+            "-m",
+            "merge pull request",
+        ],
+    ).strip()
+    checker._run_git(repository, ["checkout", "--detach", merge_sha])
+    _set_pull_request_environment(
+        monkeypatch,
+        event_path,
+        workspace=repository,
+        base_sha=base_sha,
+        head_sha=head_sha,
+        number=number,
+    )
+
+
+def _repository_transition_sides(
+    repository: Path,
+    base_ref: str,
+) -> tuple[
+    dict[str, object],
+    dict[str, object],
+    dict[str, bytes],
+    dict[str, bytes],
+]:
+    """一時リポジトリの比較元と作業ツリーから履歴遷移の両側を読む。"""
+    base_assets: dict[str, object] = {}
+    head_assets: dict[str, object] = {}
+    for path in checker._git_tenant_boundary_assets(repository, base_ref):
+        asset = checker._git_json_asset(repository, base_ref, path)
+        assert asset is not None
+        base_assets[path.as_posix()] = asset
+    for path in checker._head_tenant_boundary_assets(repository):
+        asset, _ = checker._read_json(repository / path)
+        head_assets[path.as_posix()] = asset
+
+    base_targets = {
+        target
+        for path, raw_asset in base_assets.items()
+        for target in checker._asset_external_files(raw_asset, path)
+    }
+    head_targets = {
+        target
+        for path, raw_asset in head_assets.items()
+        for target in checker._asset_external_files(raw_asset, path)
+    }
+    base_implementations = {
+        path: checker._run_git(
+            repository,
+            ["show", f"{base_ref}:{path}"],
+        ).encode("utf-8")
+        for path in sorted(base_targets)
+    }
+    head_implementations = {
+        path: (repository / path).read_bytes() for path in sorted(head_targets)
+    }
+    return (
+        base_assets,
+        head_assets,
+        base_implementations,
+        head_implementations,
+    )
+
+
+def _write_content_snapshot(repository: Path, content: bytes) -> None:
+    """一時コピーへ内容アドレス付きsnapshotを追記する。"""
+    digest = hashlib.sha256(content).hexdigest()
+    path = repository / "contracts/tenant_boundary/history-snapshots" / digest
+    if path.exists():
+        assert path.read_bytes() == content
+        return
+    path.write_bytes(content)
+
+
+def _append_current_repository_transition_record(
+    repository: Path,
+    base_ref: str,
+    *,
+    acceptance_id: str,
+) -> None:
+    """一時コピーの実差分からauthorityへ正しいv2記録を1件追記する。"""
+    (
+        base_assets,
+        head_assets,
+        base_implementations,
+        head_implementations,
+    ) = _repository_transition_sides(repository, base_ref)
+    base_components = checker.frozen_history._repository_components(
+        base_assets,
+        "比較元",
+        allow_undeclared_authority=True,
+    )
+    head_components = checker.frozen_history._repository_components(
+        head_assets,
+        "HEAD",
+    )
+    base_asset_snapshots, base_projection_contents = (
+        checker.frozen_history._asset_projection_snapshots(
+            base_assets,
+            base_implementations,
+            "比較元",
+        )
+    )
+    head_asset_snapshots, head_projection_contents = (
+        checker.frozen_history._asset_projection_snapshots(
+            head_assets,
+            head_implementations,
+            "HEAD",
+        )
+    )
+    base_targets = tuple(
+        sorted(
+            {
+                target
+                for component in base_components.values()
+                for target in component.external_files
+            }
+        )
+    )
+    head_targets = tuple(
+        sorted(
+            {
+                target
+                for component in head_components.values()
+                for target in component.external_files
+            }
+        )
+    )
+    before = {
+        "declaration": {
+            name: base_components[name].declaration
+            for name in sorted(base_components)
+        },
+        "movement_policy": {
+            name: base_components[name].movement_policy
+            for name in sorted(base_components)
+        },
+        "external_snapshots": checker.frozen_history._implementation_snapshots(
+            base_targets,
+            base_implementations,
+            "比較元.implementations",
+        ),
+        "asset_snapshots": base_asset_snapshots,
+    }
+    after = {
+        "declaration": {
+            name: head_components[name].declaration
+            for name in sorted(head_components)
+        },
+        "movement_policy": {
+            name: head_components[name].movement_policy
+            for name in sorted(head_components)
+        },
+        "external_snapshots": checker.frozen_history._implementation_snapshots(
+            head_targets,
+            head_implementations,
+            "HEAD.implementations",
+        ),
+        "asset_snapshots": head_asset_snapshots,
+    }
+    for content in (
+        *base_implementations.values(),
+        *head_implementations.values(),
+        *base_projection_contents.values(),
+        *head_projection_contents.values(),
+    ):
+        _write_content_snapshot(repository, content)
+
+    authority = checker.frozen_history.validate_history_authority(head_assets)
+    authority_path = repository / authority
+    authority_asset = json.loads(authority_path.read_text(encoding="utf-8"))
+    authority_asset["baseline_control"]["history"].append(
+        {
+            "record_schema_version": 2,
+            "acceptance_id": acceptance_id,
+            "new_baseline_identifiers": {
+                name: list(component.current_identifiers)
+                for name, component in sorted(head_components.items())
+            },
+            "previous_baseline_identifiers": {
+                name: list(component.current_identifiers)
+                for name, component in sorted(base_components.items())
+            },
+            "change": {
+                "subject": "敵対レビュー用の合成遷移",
+                "aspect": sorted(
+                    checker.frozen_history.derive_aspects(before, after)
+                ),
+                "before": before,
+                "after": after,
+            },
+            "movement_fact": "合成fixtureの実状態を変更した。",
+            "reason": "本番経路の識別値規約を検証するため。",
+            "approved_by": "山田正輝",
+            "approved_on": "2026-09-24",
+        }
+    )
+    authority_path.write_text(
+        json.dumps(authority_asset, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _mutate_single_authority_history(repository: Path, mutation: str) -> None:
@@ -459,14 +751,36 @@ def test_pr_workspace_rejects_explicit_base_ref_that_differs_from_event(
     )
 
     with pytest.raises(checker.ContractError, match="base.sha と不一致"):
-        checker._resolve_repository_evaluation(repository, explicit_base)
+        checker.check_repository(repository, base_ref=explicit_base)
 
 
-def test_pr_workspace_uses_event_base_when_base_ref_is_omitted(
+def test_pr_mode_is_not_downgraded_for_different_workspace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """event 対象リポジトリの比較元を event の base.sha に固定する。"""
+    """workspaceが別パスでも本番経路はPR受理モードを強制する。"""
+    repository, event_base = _initialize_test_repository(tmp_path, {})
+    other_workspace = tmp_path / "other-workspace"
+    other_workspace.mkdir()
+    _set_pull_request_environment(
+        monkeypatch,
+        tmp_path / "event.json",
+        workspace=other_workspace,
+        base_sha=event_base,
+        head_sha=event_base,
+    )
+
+    with pytest.raises(checker.ContractError, match="2 親"):
+        checker.check_repository(repository)
+
+
+@pytest.mark.parametrize("workspace_value", [None, ""], ids=["unset", "empty"])
+def test_pr_mode_is_not_downgraded_without_workspace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_value: str | None,
+) -> None:
+    """workspaceが未設定・空でも本番経路を不変量モードへ落とさない。"""
     repository, event_base = _initialize_test_repository(tmp_path, {})
     _set_pull_request_environment(
         monkeypatch,
@@ -475,44 +789,212 @@ def test_pr_workspace_uses_event_base_when_base_ref_is_omitted(
         base_sha=event_base,
         head_sha=event_base,
     )
+    if workspace_value is None:
+        monkeypatch.delenv("GITHUB_WORKSPACE")
+    else:
+        monkeypatch.setenv("GITHUB_WORKSPACE", workspace_value)
 
-    context, effective_base = checker._resolve_repository_evaluation(
-        repository,
-        None,
-    )
-
-    assert context.mode is checker.frozen_history.EvaluationMode.PR_ACCEPTANCE
-    assert effective_base == event_base
+    with pytest.raises(checker.ContractError, match="2 親"):
+        checker.check_repository(repository)
 
 
-def test_pr_event_does_not_override_explicit_base_for_another_repository(
+def test_temporary_repository_uses_explicit_invariant_context(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """event と無関係な一時リポジトリは自身の比較元で不変量検査する。"""
-    event_repository, event_base = _initialize_test_repository(
-        tmp_path / "event",
-        {},
-    )
-    inspected_repository, inspected_base = _initialize_test_repository(
-        tmp_path / "inspected",
-        {},
-    )
+    """一時リポジトリは環境降格でなく専用APIへの明示注入で検査する。"""
+    repository, base_ref = _initialize_test_repository(tmp_path, {})
     _set_pull_request_environment(
         monkeypatch,
         tmp_path / "event.json",
-        workspace=event_repository,
-        base_sha=event_base,
-        head_sha=event_base,
+        workspace=tmp_path,
+        base_sha="event-base",
+        head_sha="event-head",
     )
 
-    assert (
-        checker.check_repository(
-            inspected_repository,
-            base_ref=inspected_base,
-        )
-        == []
+    assert _check_test_repository(repository, base_ref) == []
+
+
+@pytest.mark.parametrize("relative_path", FROZEN_BASELINE_ASSET_CASES)
+def test_asset_body_mutation_is_red_through_production_repository_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: Path,
+) -> None:
+    """7資産の本文だけの変異を本番の完全射影検査で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
     )
+    assert checker.check_repository(repository) == []
+    loaded_contract = checker.load_contract(repository)
+    asset_path = repository / relative_path
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    declaration = copy.deepcopy(asset["baseline_control"])
+    history = copy.deepcopy(declaration["history"])
+    asset["adversarial_asset_body_mutation"] = relative_path.name
+    asset_path.write_text(
+        json.dumps(asset, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "mutated-event.json",
+        number=78,
+    )
+    # 本文以外を固定し、load_contractより後段の履歴結線を直接観測する。
+    monkeypatch.setattr(checker, "load_contract", lambda _root: loaded_contract)
+
+    with pytest.raises(checker.ContractError, match="movement.*record"):
+        checker.check_repository(repository)
+
+    mutated = json.loads(asset_path.read_text(encoding="utf-8"))
+    assert mutated["baseline_control"] == declaration
+    assert mutated["baseline_control"]["history"] == history
+
+
+def test_deleted_asset_and_bootstrap_entry_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """定数と実ファイルを同時縮小しても比較元集合の走査で拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    deleted = Path("contracts/tenant_boundary/runtime-authz-contract.json")
+    monkeypatch.setattr(
+        checker,
+        "FROZEN_BASELINE_ASSETS",
+        tuple(path for path in checker.FROZEN_BASELINE_ASSETS if path != deleted),
+    )
+    (repository / deleted).unlink()
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "deleted-event.json",
+        number=78,
+    )
+    original = checker.frozen_history.evaluate_repository_movement
+    called = False
+
+    def observe_evaluation(*args: object, **kwargs: object) -> object:
+        nonlocal called
+        called = True
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        checker.frozen_history,
+        "evaluate_repository_movement",
+        observe_evaluation,
+    )
+
+    with pytest.raises(checker.ContractError, match="資産を削除できない"):
+        checker.check_repository(repository)
+    assert called
+
+
+def test_affected_asset_requires_identifier_change_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正しい記録を足しても影響資産の識別値据え置きを拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    checker_path = repository / "scripts/check_tenant_boundary_bypass.py"
+    checker_path.write_bytes(checker_path.read_bytes() + b"\n# identifier stays\n")
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "identifier-stays-event.json",
+        number=79,
+    )
+
+    with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
+        checker.check_repository(repository)
+
+
+def test_cross_asset_duplicate_identifier_passes_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """資産パスが異なれば同じ識別値を持つ正当な遷移を受理する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=79,
+    )
+    assert checker.check_repository(repository) == []
+    cache_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
+    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    cache["contract_revision"] = 3
+    cache["baseline_control"]["identity"]["current_identifiers"] = [
+        "contract_revision:3"
+    ]
+    cache["source_digest"] = _contract_digest(cache)
+    cache_path.write_text(
+        json.dumps(cache, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#79",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "cross-asset-duplicate-event.json",
+        number=79,
+    )
+
+    assert checker.check_repository(repository) == []
+
+
+def test_same_asset_duplicate_identifier_is_red_through_production_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同一資産内の識別値重複は本番入口で引き続き拒否する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+    )
+    assert checker.check_repository(repository) == []
+    cache_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
+    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    identifiers = cache["baseline_control"]["identity"]["current_identifiers"]
+    identifiers.append(identifiers[0])
+    cache["source_digest"] = _contract_digest(cache)
+    cache_path.write_text(
+        json.dumps(cache, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "same-asset-duplicate-event.json",
+        number=78,
+    )
+
+    with pytest.raises(checker.ContractError, match="重複"):
+        checker.check_repository(repository)
 
 
 @pytest.mark.parametrize("relative_path", checker.FROZEN_BASELINE_ASSETS)
@@ -767,11 +1249,11 @@ def test_single_authority_acceptance_mutation_is_red_on_real_asset_copy(
 ) -> None:
     """実資産コピーで単一記録・識別値・追記先・受理 ID の規約を守る。"""
     repository, base_ref = _initialize_test_repository(tmp_path, {})
-    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert _check_test_repository(repository, base_ref) == []
     _mutate_single_authority_history(repository, mutation)
 
     with pytest.raises(checker.ContractError):
-        checker.check_repository(repository, base_ref=base_ref)
+        _check_test_repository(repository, base_ref)
 
 
 def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None:
@@ -822,8 +1304,8 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
         baseline_sources,
     )
 
-    assert checker.check_repository(repository, base_ref=base_ref) == []
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+    assert _check_test_repository(repository, base_ref) == []
+    assert _test_repository_exit_code(repository, base_ref) == 0
 
     mutated_sources = {
         fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
@@ -831,7 +1313,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     }
     _write_test_repository_sources(repository, mutated_sources)
     _commit_test_repository(repository, "apply all negative fixtures")
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
     observed = {(violation.path, violation.code) for violation in violations}
 
     for fixture in fixtures:
@@ -839,7 +1321,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
             f"{fixture.id} が実コミット列で期待どおり red でない: "
             f"expected={fixture.expected_error}"
         )
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+    assert _test_repository_exit_code(repository, base_ref) == 1
 
 
 @pytest.mark.parametrize(
@@ -890,8 +1372,8 @@ def read_other_tenant(work: Session) -> object:
 
     with pytest.raises(checker.ContractError, match=expected_error):
         checker.load_contract(repository)
-    assert checker.main(["--root", str(repository)]) == 2
-    assert "tenant-boundary contract error" in capsys.readouterr().err
+    assert _test_repository_exit_code(repository) == 2
+    assert capsys.readouterr().err == ""
 
 
 @pytest.mark.parametrize("provide_base_ref", (True, False))
@@ -916,18 +1398,12 @@ def read_other_tenant(work: Session) -> object:
     _write_test_repository_sources(repository, {relative: impact_probe})
     _commit_test_repository(repository, "add tenant boundary bypass")
     selected_base_ref = base_ref if provide_base_ref else None
-    violations = checker.check_repository(
-        repository,
-        base_ref=selected_base_ref,
-    )
-    arguments = ["--root", str(repository)]
-    if selected_base_ref is not None:
-        arguments.extend(("--base-ref", selected_base_ref))
+    violations = _check_test_repository(repository, selected_base_ref)
 
     assert (relative, "TB005") in {
         (violation.path, violation.code) for violation in violations
     }
-    assert checker.main(arguments) == 1
+    assert _test_repository_exit_code(repository, selected_base_ref) == 1
 
 
 @pytest.mark.parametrize("provide_base_ref", (True, False))
@@ -949,15 +1425,8 @@ def test_safe_change_passes_external_or_default_real_commit_cli(
     )
     _commit_test_repository(repository, "update non-database report")
     selected_base_ref = base_ref if provide_base_ref else None
-    arguments = ["--root", str(repository)]
-    if selected_base_ref is not None:
-        arguments.extend(("--base-ref", selected_base_ref))
-
-    assert checker.check_repository(
-        repository,
-        base_ref=selected_base_ref,
-    ) == []
-    assert checker.main(arguments) == 0
+    assert _check_test_repository(repository, selected_base_ref) == []
+    assert _test_repository_exit_code(repository, selected_base_ref) == 0
 
 
 def test_reject_all_mutant_kills_positive_fixture() -> None:
@@ -1210,10 +1679,10 @@ def handler(work: Session, safe: Report) -> object:
 
     assert checker.changed_lines_from_diff(diff) == {relative: frozenset()}
     assert checker.changed_files_from_diff(diff) == {relative}
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
 
     assert "TB005" in {violation.code for violation in violations}
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+    assert _test_repository_exit_code(repository, base_ref) == 1
 
 
 def test_pure_rename_is_conservatively_red_through_real_commit_diff(
@@ -1249,10 +1718,10 @@ def handler(work: Session) -> object:
 
     assert checker.changed_lines_from_diff(diff) == {}
     assert checker.changed_files_from_diff(diff) == {new_relative}
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
 
     assert "TB005" in {violation.code for violation in violations}
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+    assert _test_repository_exit_code(repository, base_ref) == 1
 
 
 def test_pure_rename_of_non_database_code_passes_real_commit_diff(
@@ -1275,8 +1744,8 @@ def render(report: Report) -> str:
         {old_relative: source},
     )
 
-    assert checker.check_repository(repository, base_ref=base_ref) == []
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+    assert _check_test_repository(repository, base_ref) == []
+    assert _test_repository_exit_code(repository, base_ref) == 0
 
     checker._run_git(
         repository,
@@ -1288,8 +1757,8 @@ def render(report: Report) -> str:
     )
     _commit_test_repository(repository, "rename non-database report")
 
-    assert checker.check_repository(repository, base_ref=base_ref) == []
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+    assert _check_test_repository(repository, base_ref) == []
+    assert _test_repository_exit_code(repository, base_ref) == 0
 
 
 def test_same_violation_moved_between_functions_is_red_through_real_commit_diff(
@@ -1323,14 +1792,14 @@ def beta(work: Session) -> object:
     source_path.write_text(head, encoding="utf-8")
     _commit_test_repository(repository, "move violation")
 
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
 
     assert {
         (violation.code, violation.scope)
         for violation in violations
         if violation.code == "TB005"
     } == {("TB005", "pitchlog.services.moved_violation.beta")}
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+    assert _test_repository_exit_code(repository, base_ref) == 1
 
 
 def test_terminal_database_rebinding_stays_green_through_real_commit_diff(
@@ -1363,10 +1832,10 @@ def handler(work: Report, database: Session, flag: bool) -> object:
     source_path.write_text(head, encoding="utf-8")
     _commit_test_repository(repository, "add terminal rebinding")
 
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
 
     assert violations == []
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+    assert _test_repository_exit_code(repository, base_ref) == 0
 
 
 def test_unchanged_preexisting_violation_is_not_reintroduced() -> None:
@@ -2470,17 +2939,17 @@ def test_actual_implementation_mutation_is_red_through_real_commit_diff(
         {relative: baseline},
     )
 
-    assert checker.check_repository(repository, base_ref=base_ref) == []
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 0
+    assert _check_test_repository(repository, base_ref) == []
+    assert _test_repository_exit_code(repository, base_ref) == 0
 
     _write_test_repository_sources(repository, {relative: mutated})
     _commit_test_repository(repository, f"apply {case_id} mutation")
-    violations = checker.check_repository(repository, base_ref=base_ref)
+    violations = _check_test_repository(repository, base_ref)
 
     assert (relative, "TB005") in {
         (violation.path, violation.code) for violation in violations
     }
-    assert checker.main(["--root", str(repository), "--base-ref", base_ref]) == 1
+    assert _test_repository_exit_code(repository, base_ref) == 1
 
 
 def test_manifest_rows_keep_the_required_exact_shape() -> None:
