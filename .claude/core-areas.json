@@ -319,8 +319,6 @@
         "backend/tests/test_authz*.py",
         "backend/tests/wording_scan.py",
         "backend/tests/test_wording_scan.py",
-        "backend/src/pitchlog/api/**",
-        "backend/src/pitchlog/services/**",
         "tests/fixtures/authz_claims/*",
         "backend/tests/db/*",
         "backend/pyproject.toml",
