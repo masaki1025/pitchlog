@@ -1306,7 +1306,7 @@ P3 は **W3・W3-a・W3-c・W4** に従い、D1 と prefix を持たず、全要
 | # | 規則 | 典拠 |
 | --- | --- | --- |
 | **S1** | **正本は DB の 1 系統のみ**。断中のクライアント計算は**暫定**であり、**復帰同期時のサーバー再計算が確定記録**。要件書の[ブロック3](../requirements/requirements-pitchlog-2026-07-22.md#ブロック3)が定めるスコアボード・当日成績・球種分布も、この確定記録から更新する | [4.0-2](../requirements/requirements-pitchlog-2026-07-22.md#4.0-2)・[FR-020](../requirements/requirements-pitchlog-2026-07-22.md#FR-020)・[FR-021](../requirements/requirements-pitchlog-2026-07-22.md#FR-021)・[FR-022](../requirements/requirements-pitchlog-2026-07-22.md#FR-022)・[FR-023](../requirements/requirements-pitchlog-2026-07-22.md#FR-023)・[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)(クライアントとサーバーの計算乖離を解消する確定境界であり、二重実装を許す根拠にはしない) |
-| **S2** | サーバーは**イベント列を入力順に再計算・検証**する。**状況判定の正解は [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) のスキーマに従う付録E の全表(シードデータ)であり、[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) はその代表例にすぎない** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1)・[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) |
+| **S2** | サーバーは**イベント列を入力順に再計算・検証**する。**状況判定の正は ADR-003 D-6 で登録された状況判定ベクタ全体**(`matrixRows[]` / `operationRows[]` / `undoRows[]` / `mustOperationCoverage` / `requiredSet` / `cases[]`)とする。規範行の内訳は、① [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) 準拠の毎球入力の結果値・10 列を持つ `matrixRows[]`、② FR-009・FR-010・FR-011・FR-015を典拠とする非毎球操作の `operationRows[]` と、FR-006を典拠とする `undoRows[]`、の**2 層**である。`cases[]` はこの規範行から展開される派生物であり、状態効果の正は各規範行とその典拠条文に置く。**ADR-003 D-8 は `operationRows[]` / `undoRows[]` の列構成、および入力・出力・比較面を参照するためだけに用い、状態効果そのものの正とはしない**。[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) は第1層の代表例にすぎない | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1)・[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2)・[FR-006](../requirements/requirements-pitchlog-2026-07-22.md#FR-006)・[FR-009](../requirements/requirements-pitchlog-2026-07-22.md#FR-009)・[FR-010](../requirements/requirements-pitchlog-2026-07-22.md#FR-010)・[FR-011](../requirements/requirements-pitchlog-2026-07-22.md#FR-011)・[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)・ADR-003 D-6・D-8 |
 | **S3** | **サーバー結果が確定記録**となる | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
 | **S4** | クライアント表示と差異があれば**補正し、操作者に通知する**(**黙って直さない**) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[NFR-015](../requirements/requirements-pitchlog-2026-07-22.md#NFR-015) |
 
@@ -1585,7 +1585,7 @@ NFR-009 は「**復元後の手順**」として、「バックアップから�
 
 ### 10-2. NFR-019(c)(d) の観点
 
-要件書の[8](../requirements/requirements-pitchlog-2026-07-22.md#8) 完了条件・リリース判定基準は、4 章・5 章の Must 要件が受入基準を満たすことをリリース可の条件に置く([8章DoD/1](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/1))。**本節が定めるテスト観点が対応するのは [8章DoD/2](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/2)(CI 全グリーン)のうち NFR-019 の (c) E2E 主要分岐と (d) 同期故障系の部分に限る。同 DoD はほかに (a) 一致性・(b) 越境・NFR-023 の 4 経路 XSS 回帰・NFR-018(b) の機械検査も必須とするが、それらは本節の射程外である。** **[8章DoD/3](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/3)(実戦リハーサル)が必須とするのは、開発者以外の記録者が利用ガイドのみで 実試合 1 試合を完走し、並行記録との照合で欠損・誤りゼロを確認し、通信断シナリオを含めることであって、(d) が列挙するクラッシュ注入・墓標の適用・複数タブの単一書き手競合を実機で再現することではない。本節の (d) は机上の故障系テストとして別に成立する。**(a) 一致性テストの正解ベクタは [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) のスキーマに従う付録E の全表(シードデータ)であり、[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) はその代表例にすぎない**。[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)が挙げるクライアントとサーバーの計算乖離は (a) と NFR-018 の検査で抑止し、[要件書の R-5](../requirements/requirements-pitchlog-2026-07-22.md#R-5)が挙げる通信断機構の実地未検証は (c) の通信断 E2E と 8 章の実戦リハーサルの両方で緩和する。**本節の故障系テストは実地検証を置き換えない。** 要件書は CI に含めるテストとして **(c) 主要分岐の E2E テスト**と **(d) 同期プロトコルの故障系テスト**を挙げる([NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019))。
+要件書の[8](../requirements/requirements-pitchlog-2026-07-22.md#8) 完了条件・リリース判定基準は、4 章・5 章の Must 要件が受入基準を満たすことをリリース可の条件に置く([8章DoD/1](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/1))。**本節が定めるテスト観点が対応するのは [8章DoD/2](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/2)(CI 全グリーン)のうち NFR-019 の (c) E2E 主要分岐と (d) 同期故障系の部分に限る。同 DoD はほかに (a) 一致性・(b) 越境・NFR-023 の 4 経路 XSS 回帰・NFR-018(b) の機械検査も必須とするが、それらは本節の射程外である。** **[8章DoD/3](../requirements/requirements-pitchlog-2026-07-22.md#8章DoD/3)(実戦リハーサル)が必須とするのは、開発者以外の記録者が利用ガイドのみで 実試合 1 試合を完走し、並行記録との照合で欠損・誤りゼロを確認し、通信断シナリオを含めることであって、(d) が列挙するクラッシュ注入・墓標の適用・複数タブの単一書き手競合を実機で再現することではない。本節の (d) は机上の故障系テストとして別に成立する。**(a) 一致性テストの状況判定の正は、8-2 の S2 と同じく ADR-003 D-6 で登録された状況判定ベクタ全体である。規範行の内訳は、① [付録E/E-1](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-1) 準拠の `matrixRows[]`、② [FR-009](../requirements/requirements-pitchlog-2026-07-22.md#FR-009)・[FR-010](../requirements/requirements-pitchlog-2026-07-22.md#FR-010)・[FR-011](../requirements/requirements-pitchlog-2026-07-22.md#FR-011)・[FR-015](../requirements/requirements-pitchlog-2026-07-22.md#FR-015)を典拠とする `operationRows[]` と [FR-006](../requirements/requirements-pitchlog-2026-07-22.md#FR-006)を典拠とする `undoRows[]`、の2層である。ADR-003 D-8 は後者の列構成と入力・出力・比較面の参照に限定し、状態効果の正は規範行と典拠条文に置く。[付録E/E-2](../requirements/requirements-pitchlog-2026-07-22.md#付録E/E-2) は第1層の代表例にすぎない**。[要件書の R-3](../requirements/requirements-pitchlog-2026-07-22.md#R-3)が挙げるクライアントとサーバーの計算乖離は (a) と NFR-018 の検査で抑止し、[要件書の R-5](../requirements/requirements-pitchlog-2026-07-22.md#R-5)が挙げる通信断機構の実地未検証は (c) の通信断 E2E と 8 章の実戦リハーサルの両方で緩和する。**本節の故障系テストは実地検証を置き換えない。** 要件書は CI に含めるテストとして **(c) 主要分岐の E2E テスト**と **(d) 同期プロトコルの故障系テスト**を挙げる([NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019))。
 
 - **(c)**: 「タイブレーク・コールド・引き分け・終了後修正→再集計・交代フルセット・**通信断→復帰同期**・**記録権の通常/緊急引き継ぎと退避経路**」
 - **(d)**: 「**墓標/改訂の適用**・**サーバー適用の原子性(クラッシュ注入)**・**複数タブの単一書き手競合**」に加え、**NFR-019(d)/E5 のフリーズ後の再選出・待機中入力の非受理・永続追記失敗**
@@ -1877,16 +1877,16 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | FR-003 | 境界として参照 | 4-3 |
 | FR-004 | 境界として参照 | 4-3 |
 | FR-005 | 境界として参照 | 5-5・5-6 |
-| FR-006 | 同期側で決める | 7-6 |
+| FR-006 | 同期側で決める | 7-6・8-2・10-2 |
 | FR-007 | 同期側で決める | 4-3-A・5-3・5-5・8-5・10-2 |
 | FR-008 | 同期側で決める | 4-3-A・9-3 |
-| FR-009 | 同期側で決める | 5-5 |
-| FR-010 | 同期側で決める | 7-5 |
-| FR-011 | 同期側で決める | 4-3-A・5-5・8-5・10-2 |
+| FR-009 | 同期側で決める | 5-5・8-2・10-2 |
+| FR-010 | 同期側で決める | 7-5・8-2・10-2 |
+| FR-011 | 同期側で決める | 4-3-A・5-5・8-2・8-5・10-2 |
 | FR-012 | 同期側で決める | 2-1・4〜9 |
 | FR-013 | 同期側で決める | 2-1・6・9 |
 | FR-014 | 境界として参照 | 5-6 |
-| FR-015 | 同期側で決める | 4-4・5-5 |
+| FR-015 | 同期側で決める | 4-4・5-5・8-2・10-2 |
 | FR-016 | 対象外 | 当該条は同期プロトコルの意味規則を定めないため対象外 |
 | FR-017 | 対象外 | 在籍区分の変更は TSK-250 が正本化する無効化マトリクスのトリガーであり、同期側が発火させるトリガーではなく、同期プロトコルの決定または入力ではないため対象外 |
 | FR-018 | 対象外 | 当該条は同期プロトコルの意味規則を定めないため対象外 |
@@ -2391,6 +2391,11 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 8 | 支持 |  |
 | 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 付録E/E-1 | 支持 |  |
 | 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 付録E/E-2 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-009 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-010 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-011 | 支持 |  |
+| 10-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-015 | 支持 |  |
 | 11-2/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 6.1 | 支持 |  |
 | 4-1/p2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 4.0 | 支持 |  |
 | 5-5/イベント種別ごとの参加区分/p1 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 4.0-1 | 支持 |  |
@@ -2401,6 +2406,11 @@ B3 の分岐は、データモデルでも次の対応を保つ。
 | 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 付録E/E-2 | 支持 |  |
 | 8-2/r2 | 2 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 付録E/E-1 | 支持 |  |
 | 8-2/r2 | 2 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | 付録E/E-2 | 支持 |  |
+| 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-006 | 支持 |  |
+| 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-009 | 支持 |  |
+| 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-010 | 支持 |  |
+| 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-011 | 支持 |  |
+| 8-2/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-015 | 支持 |  |
 | 7-7/r2 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
 | 7-7/r3 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-013 | 支持 |  |
 | 7-7/r4 | 1 | docs/requirements/requirements-pitchlog-2026-07-22.md | 要件 | FR-012 | 支持 |  |
