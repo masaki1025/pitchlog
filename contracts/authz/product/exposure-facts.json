@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "canonical_source": "docs/design/data-model.md",
+  "facts": [
+    {
+      "kind": "non_tenant",
+      "entries": [
+        {
+          "table": "game_type_rule_defaults",
+          "reason": "試合区分デフォルトはシステム管理者が管理する全体共有資源である。",
+          "evidence": [
+            {
+              "section": "10-5",
+              "quote": "| 試合区分デフォルト | システム管理者が管理。**テナントに属さない** |"
+            }
+          ]
+        },
+        {
+          "table": "system_vocabularies",
+          "reason": "システム固定の語彙層はテナントに属さない。",
+          "evidence": [
+            {
+              "section": "10-3",
+              "quote": "システム固定・管理者管理の層は**テナントに属さない**"
+            }
+          ]
+        },
+        {
+          "table": "admin_vocabularies",
+          "reason": "管理者管理の語彙層はテナントに属さない。",
+          "evidence": [
+            {
+              "section": "10-3",
+              "quote": "システム固定・管理者管理の層は**テナントに属さない**"
+            }
+          ]
+        },
+        {
+          "table": "system_settings",
+          "reason": "システム設定値はシステム管理者が管理する全体共有資源である。",
+          "evidence": [
+            {
+              "section": "10-4",
+              "quote": "**テナントに属さない**(システム管理者が管理)。一意制約はキー名でグローバル"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "control_resource",
+      "entries": [
+        {
+          "table": "analysis_groups",
+          "reason": "共同分析グループの制御資源である。",
+          "evidence": [
+            {"section": "3-5", "quote": "| **グループ** | 状態(`active` / 終了。"}
+          ]
+        },
+        {
+          "table": "group_memberships",
+          "reason": "グループ参加の制御資源である。",
+          "evidence": [
+            {"section": "3-5", "quote": "| **参加** | グループ / テナント / 役割"}
+          ]
+        },
+        {
+          "table": "sharing_grants",
+          "reason": "参加行に対する共有付与の制御資源である。",
+          "evidence": [
+            {"section": "3-5", "quote": "| **付与** | **参加行**"}
+          ]
+        },
+        {
+          "table": "group_invitations",
+          "reason": "グループ招待の制御資源である。",
+          "evidence": [
+            {"section": "3-5", "quote": "| **招待** | グループ / **コードのハッシュ**"}
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "mixed_ownership_rule_resource",
+      "entries": [
+        {
+          "table": "rule_sets",
+          "reason": "全体既定とテナント所有の大会規則が同じ規則セットを参照する。",
+          "evidence": [
+            {
+              "section": "6-5",
+              "quote": "| **試合区分デフォルト** | システム管理者が管理(FR-037) |"
+            },
+            {
+              "section": "6-5",
+              "quote": "| **大会名に紐づく規則** | チームが設定可能 |"
+            }
+          ]
+        },
+        {
+          "table": "tournament_rule_assignments",
+          "reason": "テナント所有の大会規則を規則セットへ結ぶ資源である。",
+          "evidence": [
+            {
+              "section": "6-5",
+              "quote": "| **試合区分デフォルト** | システム管理者が管理(FR-037) |"
+            },
+            {
+              "section": "6-5",
+              "quote": "| **大会名に紐づく規則** | チームが設定可能 |"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "admin_only",
+      "entries": [
+        {
+          "table": "admin_credentials",
+          "reason": "システム管理者の資格情報は一般利用と別系統である。",
+          "evidence": [
+            {"section": "8-2-A", "quote": "**管理者資格情報**を別表に置く"}
+          ]
+        },
+        {
+          "table": "admin_sessions",
+          "reason": "システム管理者のセッションは一般利用と別系統である。",
+          "evidence": [
+            {"section": "8-2-A", "quote": "**管理者セッション**を別表に置く"}
+          ]
+        },
+        {
+          "table": "admin_operation_logs",
+          "reason": "システム管理者の操作だけを記録する監査資源である。",
+          "evidence": [
+            {
+              "section": "要件書 6.1 との突合",
+              "quote": "**日時・操作種別・対象**を持つ。**テナントに属さない**(システム管理者の操作)。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pre_auth_only",
+      "entries": [
+        {
+          "table": "tenant_auth_subjects",
+          "reason": "テナント文脈を確立する前に認証主体を解決する資源である。",
+          "evidence": [
+            {"section": "8-2", "quote": "「認証主体 1 : 認証情報 1」"}
+          ]
+        },
+        {
+          "table": "tenant_credentials",
+          "reason": "テナント文脈を確立する認証で使う資格情報である。",
+          "evidence": [
+            {
+              "section": "8-2",
+              "quote": "**認証情報をテナントの列に直付けせず別表にする**"
+            }
+          ]
+        },
+        {
+          "table": "tenant_tokens",
+          "reason": "テナント文脈を確立するトークン検証で使う資源である。",
+          "evidence": [
+            {"section": "8-1", "quote": "**トークン検証(セッション確立)**"}
+          ]
+        },
+        {
+          "table": "rate_limit_counters",
+          "reason": "認証前の横断状態であり業務データの経路から分離する。",
+          "evidence": [
+            {
+              "section": "8-6",
+              "quote": "高頻度更新なので**プレイ行や集計対象と同じアクセス経路に混ぜない**"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "migration_only",
+      "entries": [
+        {
+          "table": "migration_runs",
+          "reason": "移行の取り込みバッチと退役を管理する資源である。",
+          "evidence": [
+            {"section": "10-6", "quote": "**バッチ単位で退役させられる形**にする"}
+          ]
+        },
+        {
+          "table": "migration_quarantine",
+          "reason": "移行できない原本を保全する隔離資源である。",
+          "evidence": [
+            {
+              "section": "10-6",
+              "quote": "| **隔離領域** | 新スキーマの制約(参照整合等)を満たせず取り込めない行を**原本のまま保全**する |"
+            }
+          ]
+        },
+        {
+          "table": "migration_resolution_reports",
+          "reason": "移行時の名寄せ不能行と制約違反行を扱う資源である。",
+          "evidence": [
+            {
+              "section": "10-6",
+              "quote": "| **解決レポート** | 名寄せ不能行・制約違反行の列挙(人が対処する) |"
+            }
+          ]
+        },
+        {
+          "table": "migration_warning_reports",
+          "reason": "移行時の不整合と補正を可視化する資源である。",
+          "evidence": [
+            {
+              "section": "10-6",
+              "quote": "| **警告レポート** | 不整合行・クランプ・**交代のあった試合** |"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "secret_column",
+      "entries": [
+        {
+          "table": "tenant_credentials",
+          "column": "password_hash",
+          "reason": "パスワードの検証材料であり、平文と同様に直接露出させない。",
+          "evidence": [
+            {
+              "section": "8-2",
+              "quote": "| ハッシュ | **ソルト付き bcrypt**。平文・可逆形式で保持しない(**P-23**) |"
+            }
+          ]
+        },
+        {
+          "table": "admin_credentials",
+          "column": "password_hash",
+          "reason": "管理者パスワードの検証材料であり、一般利用経路へ露出させない。",
+          "evidence": [
+            {
+              "section": "8-2-A",
+              "quote": "**管理者資格情報**を別表に置く(ソルト付き bcrypt・**世代**・変更日時は 8-2 節と同じ形)"
+            }
+          ]
+        },
+        {
+          "table": "group_invitations",
+          "column": "code_hash",
+          "reason": "招待コードの検証材料であり、コード本体と同様に直接露出させない。",
+          "evidence": [
+            {
+              "section": "3-5",
+              "quote": "**コード本体は発行時に一度だけ表示し、以後は表示しない**(ハッシュ保存)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
