@@ -41,7 +41,12 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C1_MAY_SHAPES",
         "C1_REQUIRE_ROLE_SHAPES",
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_ASSIGNMENT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_CLASS_ASSIGNMENT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_EXCEPT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MATCH",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MODULE_ASSIGNMENT",
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_STAR",
         "C2_ADJUDICATED_IMPORT_SHADOWED_BY_WALRUS",
         "C2_GENERATION_IMPORT",
         "C2_IDEMPOTENCY_KEY_IMPORT",
@@ -87,7 +92,9 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_DEFAULT_ARG",
         "C5_CONTEXT_IN_DICT_COMPREHENSION",
         "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
+        "C5_CONTEXT_IN_FUNCTION_IMPORT",
         "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+        "C5_CONTEXT_IN_LOCAL_ALIAS",
         "C5_CONTEXT_RELATIVE_IMPORT",
         "C5_CONTEXT_REEXPORT_CONDITIONAL",
         "C5_CONTEXT_REEXPORT_CYCLE",
@@ -108,7 +115,9 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
+        "C5_IMPORT_REBOUND_BY_GLOBAL_IMPORT",
         "C5_IMPORT_REBOUND_BY_GLOBAL_WRITER",
+        "C5_IMPORT_REBOUND_BY_STAR",
         "C5_MULTILINE_SCALARS",
         "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
@@ -153,6 +162,10 @@ EXPECTED_CONDITION_2_ADJUDICATIONS = {
     ),
     "pitchlog.domaingen.backends.common.BackendGenerationError": (
         "ドメイン計算のコード生成 backend が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.core.EXIT_GENERATION_FAILED": (
+        "ドメイン計算のコード生成が失敗したことを表す終了コードの定数であり、"
         "同期プロトコルの世代ではない"
     ),
     "pitchlog.domaingen.core.GenerationError": (
@@ -724,7 +737,7 @@ def _unlisted_database_access(session: Session) -> None:
 
 
 def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
-    """センサス差分を宣言済みの TB002・TB007 の減少だけに固定する。"""
+    """センサス差分を今回変更した TB002・TB007 の写像だけに固定する。"""
     merge_base = _resolve_merge_base("origin/develop", "HEAD")
     baseline_checker = _load_checker_from_revision(
         merge_base,
@@ -742,7 +755,8 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
         reference_repository_root=reference_repository_root,
     )
 
-    assert added == frozenset()
+    assert added
+    assert {identity[4] for identity in added} <= {"TB002", "TB007"}
     assert removed
     assert {identity[4] for identity in removed} <= {"TB002", "TB007"}
     removed_tb007 = frozenset(
@@ -774,7 +788,7 @@ def test_condition_5_scope_declaration_is_verbatim_in_design() -> None:
 
 
 def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
-    """広い候補7本と理由付き裁定5件を資産どおり固定する。"""
+    """広い候補7本と理由付き裁定6件を資産どおり固定する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     condition2 = next(rule for rule in contract.rules if rule.condition == 2)
 
@@ -838,6 +852,26 @@ error_type = GenerationError
     violations = checker.scan_source(
         source,
         path="pitchlog/services/generation_errors.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_adjudicated_module_constant_is_green() -> None:
+    """再束縛のない module 定数を完全修飾した裁定へ照合する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+EXIT_GENERATION_FAILED = 1
+
+
+def main():
+    return EXIT_GENERATION_FAILED
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domaingen/core.py",
         contract=contract,
     )
 
@@ -914,8 +948,10 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     )
     condition2 = [violation for violation in violations if violation.code == "TB002"]
 
-    assert len(condition2) == 14
-    assert all("RecordingGeneration" in item.symbol for item in condition2)
+    recording_generation = [
+        item for item in condition2 if "RecordingGeneration" in item.symbol
+    ]
+    assert len(recording_generation) == 14
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
@@ -1565,7 +1601,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 90 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 99 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -2597,6 +2633,130 @@ def build(tenant_id):
     )
 
     assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+def build(tenant_id):
+    from pitchlog.repositories.context import TenantContext
+    return TenantContext(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+
+def build(tenant_id):
+    constructor = TenantContext
+    derived_constructor = constructor
+    return derived_constructor(tenant_id)
+""",
+        """\
+from external.first import safe
+
+
+def replace():
+    global safe
+    from external.second import safe
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.first import safe
+
+
+def replace(factory):
+    global safe
+    safe = factory
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+""",
+    ),
+    ids=(
+        "function-import",
+        "local-static-alias",
+        "global-import-writer",
+        "global-assignment-writer",
+    ),
+)
+def test_static_constructor_and_global_callable_rebinding_are_red(
+    source: str,
+) -> None:
+    """静的 constructor と module writer は字句 callable の免除へ入れない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/rebound_constructor.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.domaingen.core import GenerationError
+GenerationError = object()
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+class Shadow:
+    GenerationError = object()
+""",
+        """\
+from external.overrides import *
+from pitchlog.domaingen.core import GenerationError
+observed = GenerationError
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use():
+    try:
+        raise RuntimeError
+    except RuntimeError as GenerationError:
+        return GenerationError
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(value):
+    match value:
+        case GenerationError:
+            return GenerationError
+""",
+    ),
+    ids=(
+        "module-assignment",
+        "class-assignment",
+        "star-import",
+        "except-as",
+        "match-capture",
+    ),
+)
+def test_condition_2_syntactic_binding_routes_are_red(source: str) -> None:
+    """条件 2 は Store / Load の構文名を常に候補にして裁定迂回を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_generation_error.py",
+        contract=contract,
+    )
+
+    assert "TB002" in {violation.code for violation in violations}
 
 
 @pytest.mark.parametrize(

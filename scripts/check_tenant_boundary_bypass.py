@@ -2348,13 +2348,15 @@ class _ModuleBindings:
 
     global_names: frozenset[str]
     condition2_names: frozenset[str]
+    defined_names: frozenset[str]
+    has_star_import: bool
 
 
 def _module_bindings(source: str, path: str) -> _ModuleBindings:
     """構文の種類を列挙せず、コンパイラのシンボル表から再束縛名を得る。
 
-    ``global`` / ``nonlocal`` は宣言だけなら再束縛とせず、実際の writer を
-    シンボル表の ``is_assigned()`` で検出する。クラス名前空間のローカル名は
+    ``global`` / ``nonlocal`` は宣言だけなら再束縛とせず、代入または import の
+    writer をシンボル表で検出する。クラス名前空間のローカル名は
     メソッドの閉包ではないため callable 判定から除き、条件 2 の裁定だけを
     fail-closed にする。クラス配下の関数・lambda の束縛は通常どおり含める。
     """
@@ -2369,6 +2371,13 @@ def _module_bindings(source: str, path: str) -> _ModuleBindings:
     )
     module_rebindings = {
         name for name, count in module_operations.items() if count > 1
+    }
+    module_defined_names = {
+        symbol.get_name()
+        for symbol in table.get_symbols()
+        if symbol.is_assigned()
+        and not symbol.is_imported()
+        and module_operations[symbol.get_name()] == 1
     }
     global_names = set(module_rebindings)
     condition2_names = set(module_rebindings)
@@ -2388,7 +2397,9 @@ def _module_bindings(source: str, path: str) -> _ModuleBindings:
             if not rebound:
                 continue
             condition2_names.add(symbol.get_name())
-            if symbol.is_global() and symbol.is_assigned():
+            if symbol.is_global() and (
+                symbol.is_assigned() or symbol.is_imported()
+            ):
                 global_names.add(symbol.get_name())
         for child in scope.get_children():
             collect(child)
@@ -2398,6 +2409,12 @@ def _module_bindings(source: str, path: str) -> _ModuleBindings:
     return _ModuleBindings(
         global_names=frozenset(global_names),
         condition2_names=frozenset(condition2_names),
+        defined_names=frozenset(module_defined_names),
+        has_star_import=any(
+            isinstance(node, ast.ImportFrom)
+            and any(alias.name == "*" for alias in node.names)
+            for node in ast.walk(ast.parse(source, filename=path))
+        ),
     )
 
 
@@ -3615,8 +3632,16 @@ class _SourceScanner(ast.NodeVisitor):
         resolved: str,
     ) -> str:
         """裸名候補を、再束縛が無い場合だけ裁定用シンボルへ解決する。"""
-        if node.id in self.module_bindings.condition2_names:
+        if (
+            self.module_bindings.has_star_import
+            or node.id in self.module_bindings.condition2_names
+        ):
             return node.id
+        if (
+            node.id in self.module_bindings.defined_names
+            and id(node) not in self.lexically_bound_name_ids
+        ):
+            return f"{self.module}.{node.id}"
         if not self._is_condition2_candidate(node.id):
             return resolved
         if node.id in self.aliases.direct_import_names or (
@@ -3629,17 +3654,9 @@ class _SourceScanner(ast.NodeVisitor):
     def _condition2_candidate_for_name(
         self,
         node: ast.Name,
-    ) -> str | None:
-        """クラス属性の代入先を除き、候補を構文上の裸名から得る。"""
-        if (
-            self.class_stack
-            and not self.function_stack
-            and isinstance(node.ctx, (ast.Store, ast.Del))
-        ):
-            return None
-        if node.id in self.module_bindings.condition2_names:
-            return node.id
-        return None
+    ) -> str:
+        """条件 2 の候補を Store / Load とも構文上の裸名から得る。"""
+        return node.id
 
     def _is_condition2_candidate(self, text: str) -> bool:
         """文字列が変更不能な条件 2 パターンの候補に入るか返す。"""
@@ -3870,10 +3887,12 @@ class _SourceScanner(ast.NodeVisitor):
         )
         globally_rebound_callable = (
             isinstance(node.func, ast.Name)
-            and node.func.id in self.module_bindings.global_names
+            and not lexically_bound_callable
+            and (
+                self.module_bindings.has_star_import
+                or node.func.id in self.module_bindings.global_names
+            )
         )
-        if lexically_bound_callable and not globally_rebound_callable:
-            return
         resolved = self.aliases.resolve(node.func) or self._raw_expression(node.func)
         if resolved is None and isinstance(node.func, ast.Call):
             dynamic_function = self.aliases.resolve(
@@ -4022,6 +4041,11 @@ class _SourceScanner(ast.NodeVisitor):
                     resolution=reexport,
                     allowed_modules=allowed_modules,
                 )
+                return
+            # 引数・局所変数・クロージャ変数として外から渡された callable は
+            # 保証外。ただし静的に解決できる局所 import / alias はここより前の
+            # (i)(iv)(v) と既知 callable の経路で判定する。
+            if lexically_bound_callable and not globally_rebound_callable:
                 return
             alias_resolved = self.aliases.resolve(node.func)
             # resolve() は未知の裸名も生テキストで返す。known_symbols を読む

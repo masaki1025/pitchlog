@@ -1,6 +1,6 @@
 ---
 feature: tenant-boundary-scope
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -199,6 +199,13 @@ context = Context(tenant_id)
 (`C5_CONTEXT_UNKNOWN_FACTORY` が `factory(t)` を赤に保つ)。
 **この非対称は恣意的であることを認め、保証外の宣言(下記)へそのまま書く。**
 
+**★ 射程の裁定(2026-09-26)による更新**: **上の根拠のうち
+`C5_CONTEXT_UNKNOWN_FACTORY` に関する部分は失効した。**
+同 fixture(`def forge_context(factory, t): return factory(t)`)は
+**「守らないもの 4」に該当するため緑になり、負例 exact-set から外した**
+(削除ではなく、正例テストで「保証範囲外なので緑」を固定している)。
+**したがって develop の既存 68 件のうち赤を保つのは 67 件である。**
+
 #### 宣言する保証単位(**共通の逐語文を 1 つ固定し、4 箇所へそのまま置く**)
 
 **★ 5 周目 P1-1 / 6 周目 P1-2 の是正**: 従来は 6-0 用・1-1 用に別々の完成文を書いていたが、
@@ -221,6 +228,9 @@ context = Context(tenant_id)
 > 2. **`registry[k].make_context(t)` のように、構築シンボル以外の属性名で、
 >    再輸出写像でも解決できない callable を経由した構築**
 > 3. **(iii) と (iv)(v) の非対称は原理ではなく、既存負例が守る範囲を落とさないための線である**
+> 4. **引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
+>    依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
+>    機械的に通らなくなるため。**(**射程の裁定 2026-09-26 で追加**)
 
 ### 4-6. 保証縮小に代償は付かない(2026-09-25・6.3-⑤ の敵対レビューで確定)
 
