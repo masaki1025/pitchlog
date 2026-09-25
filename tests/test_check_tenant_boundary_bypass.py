@@ -512,6 +512,22 @@ def _accepted_snapshot(relative_path: Path) -> dict[str, Any]:
     return asset
 
 
+def _first_adoption_snapshot(relative_path: Path) -> dict[str, Any]:
+    """現在資産から初回受理時点の識別値と先頭履歴だけを取り出す。"""
+    asset = _read_contract_asset(relative_path)
+    control = asset["baseline_control"]
+    identity = control["identity"]
+    first_entry = control["history"][0]
+    current_identifiers = list(first_entry["new_baseline_identifiers"])
+    control["history"] = [first_entry]
+    identity["current_identifiers"] = current_identifiers
+    revision_field = identity["field"]
+    identifier_field, revision = current_identifiers[0].split(":", maxsplit=1)
+    assert identifier_field == revision_field
+    asset[revision_field] = int(revision)
+    return asset
+
+
 def _contract_digest(value: dict[str, Any]) -> str:
     """source_digest 欄を除く JSON 資産の正規化 digest を計算する。"""
     payload = dict(value)
@@ -608,6 +624,17 @@ def _initialize_test_repository(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(source, encoding="utf-8")
     checker._run_git(repository, ["init"])
+    source_commits = {
+        entry["source_commit"]
+        for relative_path in checker.FROZEN_BASELINE_ASSETS
+        for entry in _read_contract_asset(relative_path)["baseline_control"]["history"]
+        if entry["source_commit"] != checker.PENDING_SOURCE_COMMIT
+    }
+    for source_commit in sorted(source_commits):
+        checker._run_git(
+            repository,
+            ["fetch", "--no-tags", str(REPOSITORY_ROOT), source_commit],
+        )
     return repository, _commit_test_repository(repository, "baseline")
 
 
@@ -1018,7 +1045,7 @@ def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
 ) -> None:
-    """7 資産の識別宣言・4 項目・直前値の連鎖を検査する。"""
+    """初回受理と末尾識別値を検査し、先頭の pending 状態だけを固定する。"""
     asset = _read_contract_asset(relative_path)
 
     history = checker._validate_baseline_control(
@@ -1026,9 +1053,12 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
         relative_path.as_posix(),
     )
 
-    assert len(history) == 1
+    assert history
     assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
     assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
+    assert history[-1]["new_baseline_identifiers"] == asset["baseline_control"][
+        "identity"
+    ]["current_identifiers"]
 
 
 @pytest.mark.parametrize(
@@ -1109,7 +1139,7 @@ def test_merge_base_pending_history_is_still_append_only() -> None:
 def test_first_adoption_previous_identifier_must_be_no_baseline() -> None:
     """merge-base に資産が無い初回受理の直前値を推測値にできない。"""
     relative_path = checker.FROZEN_BASELINE_ASSETS[0]
-    asset = _read_contract_asset(relative_path)
+    asset = _first_adoption_snapshot(relative_path)
     mutated = copy.deepcopy(asset)
     mutated["baseline_control"]["history"][0][
         "previous_baseline_identifiers"

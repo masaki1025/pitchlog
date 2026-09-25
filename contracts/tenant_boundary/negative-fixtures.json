@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 5,
+  "fixture_set_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:5"
+        "fixture_set_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -58,6 +58,30 @@
         },
         "movement_fact": "merge-base には当該資産も受理済み履歴も無く、本受理後に現在の凍結射影を初めて置く。",
         "reason": "迂回変異の exact-set を本 PR の受理後基準として初めて確定するため。",
+        "approved_by": "未承認(PR #72 のレビュー待ち)",
+        "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "0db250c7996e72ba05c249a5cd1ea962f2bc4ea3",
+        "new_baseline_identifiers": [
+          "fixture_set_revision:6"
+        ],
+        "previous_baseline_identifiers": [
+          "fixture_set_revision:5"
+        ],
+        "change": {
+          "subject": "TSK-440 の単一レビュー受理で、条件 5 の未解決 callable の既定値を名前駆動へ揃え、条件 2 に裁定 exact-set を置き、検査 visitor と flow の訪問漏れを閉じる",
+          "before": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "6fdc311f0a0a429eef080017808edce854dbee70a06621a89712573e7d8194c1"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "3c87625c462b46580f5f8f538875efb1f0fb6310a04b9f81b85b776410fdbd26"
+          }
+        },
+        "movement_fact": "movement_policy.movement_triggers に pass_fail_mapping が含まれるため、検査 visitor と flow の訪問漏れ、相対 import、再輸出、条件 2 の裁定、および条件 5 の名前駆動境界を検証する負例 exact-set の変更が基準の移動に当たる。",
+        "reason": "TSK-440 で条件 5 の保証単位の明文化および条件 2 の裁定集合の導入により合否写像が動いたため。射程を狭めた側と厳しくした側を同一の受理記録へ結び付け、狭めただけの受理を作れなくするため。承認者欄の marker「未承認(PR #72 のレビュー待ち)」は機構上の定数であり、本エントリの出所として PR #72 を指すものではない。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
       }
