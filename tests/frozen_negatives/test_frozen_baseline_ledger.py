@@ -260,8 +260,10 @@ def test_new_identity_different_from_derived_value_is_red(copied_ledger: Path) -
     """N13: new identityの1文字改ざんを導出照合で拒否する。"""
     _assert_baseline_green(copied_ledger)
     ledger = _read_ledger(copied_ledger)
-    value = ledger["history"][0]["new_identity"]["values"][0]["value"]
-    ledger["history"][0]["new_identity"]["values"][0]["value"] = "0" + value[1:]
+    latest_record = ledger["history"][-1]
+    value = latest_record["new_identity"]["values"][0]["value"]
+    replacement = "0" if value[0] != "0" else "1"
+    latest_record["new_identity"]["values"][0]["value"] = replacement + value[1:]
     _write_ledger(copied_ledger, ledger)
 
     _assert_red(

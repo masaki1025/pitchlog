@@ -184,6 +184,56 @@ def _write_ledger(root: Path, ledger: dict[str, Any]) -> None:
     )
 
 
+def _history_count_at(root: Path, revision: str) -> int:
+    """revisionが指す台帳の履歴件数を導出する。"""
+    source = _git(
+        root,
+        "show",
+        f"{revision}:{LEDGER_RELATIVE_PATH.as_posix()}",
+    ).stdout
+    ledger = json.loads(source)
+    assert isinstance(ledger, dict)
+    history = ledger.get("history")
+    assert isinstance(history, list)
+    return len(history)
+
+
+def _prepare_bootstrap_history(ledger: dict[str, Any], identity: str) -> None:
+    """現在台帳から初回bootstrap時点の1件だけを復元する。"""
+    history = ledger.get("history")
+    assert isinstance(history, list)
+    assert history
+    initial_record = copy.deepcopy(history[0])
+    for field in ("new_identity", "prior_identity"):
+        identity_state = initial_record[field]
+        assert isinstance(identity_state, dict)
+        values = identity_state.get("values")
+        assert isinstance(values, list)
+        assert len(values) == 1
+        value = values[0]
+        assert isinstance(value, dict)
+        assert value.get("kind") == "literal_commit_string"
+        value["value"] = identity
+    ledger["history"] = [initial_record]
+
+
+def _initial_acceptance() -> tuple[str, int]:
+    """実台帳の初回受理IDとPR番号を導出する。"""
+    ledger = _read_ledger(REPOSITORY_ROOT)
+    history = ledger.get("history")
+    assert isinstance(history, list)
+    assert history
+    initial_record = history[0]
+    assert isinstance(initial_record, dict)
+    acceptance_id = initial_record.get("acceptance_id")
+    assert isinstance(acceptance_id, str)
+    repository, separator, number = acceptance_id.rpartition("#")
+    assert repository == "masaki1025/pitchlog"
+    assert separator == "#"
+    assert number.isdigit()
+    return acceptance_id, int(number)
+
+
 def _copy_base_sources(
     root: Path,
     identity: str,
@@ -337,6 +387,9 @@ def _build_repository(
     if bootstrap:
         _copy_with_identity(root, "scripts/check_authz_catalog.py", identity_sha)
         _copy_new_assets(root, identity_sha)
+        ledger = _read_ledger(root)
+        _prepare_bootstrap_history(ledger, identity_sha)
+        _write_ledger(root, ledger)
     (root / "head-marker.txt").write_text("head\n", encoding="utf-8")
     if head_mutation is not None:
         ledger = _read_ledger(root)
@@ -555,7 +608,12 @@ def test_deleted_existing_history_record_is_red(tmp_path: Path) -> None:
         base_mutation=_add_noop_history_record,
         head_mutation=remove_last,
     )
-    _assert_red(mutant, "historyの既存記録が削除された: base=2; head=1")
+    base_count = _history_count_at(mutant.root, mutant.base_sha)
+    head_count = _history_count_at(mutant.root, mutant.head_sha)
+    _assert_red(
+        mutant,
+        f"historyの既存記録が削除された: base={base_count}; head={head_count}",
+    )
 
 
 @pytest.mark.frozen_negative
@@ -563,35 +621,45 @@ def test_same_length_history_replacement_is_red(tmp_path: Path) -> None:
     """N20: 件数を維持した履歴recordの置換を拒否する。"""
     fixture = _build_repository(tmp_path / "baseline")
     _assert_normal_baseline_green(fixture)
+    replaced_indexes: list[int] = []
 
     def replace_record(ledger: dict[str, Any]) -> None:
-        replacement = copy.deepcopy(ledger["history"].pop(0))
+        replacement_index = len(ledger["history"]) - 1
+        replaced_indexes.append(replacement_index)
+        replacement = copy.deepcopy(ledger["history"].pop())
         replacement["acceptance_id"] = "masaki1025/pitchlog#999"
         ledger["history"].append(replacement)
 
     mutant = _build_repository(tmp_path / "mutant", head_mutation=replace_record)
-    _assert_red(mutant, "historyの同数置換を検出した: index=0")
+    assert len(replaced_indexes) == 1
+    _assert_red(
+        mutant,
+        f"historyの同数置換を検出した: index={replaced_indexes[0]}",
+    )
 
 
 @pytest.mark.frozen_negative
 def test_second_bootstrap_after_missing_base_ledger_is_red(tmp_path: Path) -> None:
     """N21: 初回ID以外でbase台帳不在経路へ入ることを拒否する。"""
+    initial_acceptance_id, initial_pull_request_number = _initial_acceptance()
     fixture = _build_repository(
         tmp_path / "baseline",
         bootstrap=True,
-        pull_request_number=73,
+        pull_request_number=initial_pull_request_number,
     )
     _assert_bootstrap_baseline_green(fixture)
+    second_pull_request_number = initial_pull_request_number + 1
     mutant = _build_repository(
         tmp_path / "mutant",
         bootstrap=True,
-        pull_request_number=74,
+        pull_request_number=second_pull_request_number,
     )
 
     _assert_red(
         mutant,
         "bootstrap: base台帳不在を許す初回acceptance_idと不一致: "
-        "期待=masaki1025/pitchlog#73; 実際=masaki1025/pitchlog#74",
+        f"期待={initial_acceptance_id}; "
+        f"実際=masaki1025/pitchlog#{second_pull_request_number}",
     )
 
 

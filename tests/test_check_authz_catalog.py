@@ -2194,7 +2194,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"contract_only": 165, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
 
 
@@ -3647,10 +3647,10 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"contract_only": 165, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 205, "configuration": 24, "r8_provisioning": 2}
+        {"authorization_predicate": 206, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
@@ -4808,7 +4808,7 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
 
     assert reasons == Counter(
             {
-                "contract_only_handoff": 173,
+                "contract_only_handoff": 174,
                 "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,

@@ -155,6 +155,77 @@
       "reason": "凍結基準を検査器の直書き定数から台帳系列へ移設するため",
       "approved_by": "山田正輝",
       "approved_at": "2026-09-21"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#81",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "0e51c31b9e8731c6f9c19a343c6d9f431822d0e3"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "24ef4fcc682b42b504edc1d6264d380760c54929"
+          }
+        ]
+      },
+      "changes": [
+        {
+          "aspect": "acceptance",
+          "before": {
+            "unit": "pull_request",
+            "base_ref": "develop",
+            "prior_state": "event.pull_request.base.sha",
+            "posterior_state": "checkout_head",
+            "parent_check": {
+              "first": "base.sha",
+              "second": "head.sha"
+            },
+            "acceptance_id_source": "repository_and_pr_number",
+            "self_reference": "none"
+          },
+          "after": {
+            "unit": "pull_request",
+            "base_ref": "develop",
+            "prior_state": "event.pull_request.base.sha",
+            "posterior_state": "checkout_head",
+            "parent_check": {
+              "first": "base.sha",
+              "second": "head.sha"
+            },
+            "acceptance_id_source": "repository_and_pr_number",
+            "self_reference": "none"
+          }
+        }
+      ],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "要件書改訂へ追随した認可oracle入力資産を第1段コミットへ再封印するため",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-09-26"
     }
   ]
 }
