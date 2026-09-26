@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEVELOP_REPOSITORY_ROOT = Path("/home/ymdms/projects/pitchlog")
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_tenant_boundary_bypass.py"
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
@@ -328,6 +329,291 @@ def _compare_checker_census(
         source_root=source_root,
     )
     return candidate - reference, reference - candidate
+
+
+def _insert_generated_use(template: str, use: str) -> str:
+    """生成テンプレートの marker 位置へ同じ字下げで利用形を差し込む。"""
+    marker = "__USE__"
+    marker_index = template.index(marker)
+    line_start = template.rfind("\n", 0, marker_index) + 1
+    indentation = template[line_start:marker_index]
+    assert not indentation.strip()
+    replacement = "\n".join(
+        f"{indentation}{line}" if line else ""
+        for line in use.splitlines()
+    )
+    return template.replace(f"{indentation}{marker}", replacement, 1)
+
+
+def _tenant_context_provenance_corpus() -> tuple[tuple[str, str], ...]:
+    """入手経路・事前束縛・利用形・match pattern の直積を作る。"""
+    routes = {
+        "direct-assignment": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = TenantContext
+    __USE__
+""",
+        "if-expression": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__flag, tenant_id):
+    factory = TenantContext if flag else safe
+    __USE__
+""",
+        "if-else": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__flag, tenant_id):
+    if flag:
+        factory = TenantContext
+    else:
+        factory = safe
+    __USE__
+""",
+        "try-except": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__tenant_id):
+    try:
+        factory = TenantContext
+    except RuntimeError:
+        factory = safe
+    __USE__
+""",
+        "list-subscript": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = [TenantContext][0]
+    __USE__
+""",
+        "dict-get": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = {"context": TenantContext}.get("context")
+    __USE__
+""",
+        "tuple-unpack": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory, = (TenantContext,)
+    __USE__
+""",
+        "walrus": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    if factory := TenantContext:
+        __USE__
+""",
+        "local-function-return": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    def acquire():
+        return TenantContext
+    factory = acquire()
+    __USE__
+""",
+        "lambda-return": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    acquire = lambda: TenantContext
+    factory = acquire()
+    __USE__
+""",
+        "comprehension": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = [item for item in (TenantContext,)][0]
+    __USE__
+""",
+        "with-as": """\
+from contextlib import nullcontext
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    with nullcontext(TenantContext) as factory:
+        __USE__
+""",
+        "for-target": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    for factory in (TenantContext,):
+        __USE__
+""",
+        "except-as": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    try:
+        raise RuntimeError
+    except TenantContext as factory:
+        __USE__
+""",
+        "argument-default": """\
+from pitchlog.repositories.context import TenantContext
+
+def acquire(factory=TenantContext):
+    return factory
+
+def build(__PREBOUND__tenant_id):
+    factory = acquire()
+    __USE__
+""",
+        "function-import": """\
+def build(__PREBOUND__tenant_id):
+    from pitchlog.repositories.context import TenantContext as factory
+    __USE__
+""",
+        "local-alias": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    imported = TenantContext
+    factory = imported
+    __USE__
+""",
+        "global-rebinding": """\
+from pitchlog.repositories.context import TenantContext
+
+global_factory = TenantContext
+
+def replace(other):
+    global global_factory
+    global_factory = other
+
+def build(__PREBOUND__tenant_id):
+    factory = global_factory
+    __USE__
+""",
+        "star-import": """\
+from pitchlog.repositories.context import *
+
+def build(__PREBOUND__tenant_id):
+    factory = TenantContext
+    __USE__
+""",
+    }
+    uses = {
+        "direct-call": "return factory(tenant_id)",
+        "class-base": "class Forged(factory):\n    pass\nreturn Forged",
+        "closure-call": (
+            "def invoke():\n    return factory(tenant_id)\nreturn invoke()"
+        ),
+        "attribute-call": "return factory.TenantContext(tenant_id)",
+    }
+    prebindings = {
+        "unbound": "",
+        "prebound": "factory, ",
+    }
+    corpus = [
+        (
+            f"{binding_id}/{route_id}/{use_id}",
+            _insert_generated_use(
+                template.replace("__PREBOUND__", prebinding),
+                use,
+            ),
+        )
+        for binding_id, prebinding in prebindings.items()
+        for route_id, template in routes.items()
+        for use_id, use in uses.items()
+    ]
+    match_patterns = {
+        "scalar": ("", "TenantContext", "factory", "factory", ""),
+        "sequence": ("", "[TenantContext]", "[factory]", "factory", ""),
+        "mapping": (
+            "",
+            '{"k": TenantContext}',
+            '{"k": factory}',
+            "factory",
+            "",
+        ),
+        "class": (
+            """\
+class SomeClass:
+    def __init__(self, attr):
+        self.attr = attr
+
+""",
+            "SomeClass(TenantContext)",
+            "SomeClass(attr=factory)",
+            "factory",
+            "",
+        ),
+        "as": ("", "[TenantContext]", "[_] as factory", "factory", ""),
+        "or": (
+            "",
+            '[TenantContext] if flag else {"k": TenantContext}',
+            '[factory] | {"k": factory}',
+            "factory",
+            "flag, ",
+        ),
+        "star": ("", "[TenantContext]", "[*factory]", "factory[0]", ""),
+    }
+    for binding_id, prebinding in prebindings.items():
+        for pattern_id, (
+            preamble,
+            subject,
+            pattern,
+            target,
+            extra_arguments,
+        ) in match_patterns.items():
+            template = f"""\
+from pitchlog.repositories.context import TenantContext
+
+{preamble}def build({prebinding}{extra_arguments}tenant_id):
+    match {subject}:
+        case {pattern}:
+            __USE__
+"""
+            target_uses = {
+                "direct-call": f"return {target}(tenant_id)",
+                "class-base": (
+                    f"class Forged({target}):\n    pass\nreturn Forged"
+                ),
+                "closure-call": (
+                    f"def invoke():\n    return {target}(tenant_id)\n"
+                    "return invoke()"
+                ),
+                "attribute-call": f"return {target}.TenantContext(tenant_id)",
+            }
+            corpus.extend(
+                (
+                    f"{binding_id}/match-{pattern_id}/{use_id}",
+                    _insert_generated_use(template, use),
+                )
+                for use_id, use in target_uses.items()
+            )
+    case_ids = [case_id for case_id, _ in corpus]
+    assert len(case_ids) == len(set(case_ids))
+    return tuple(corpus)
+
+
+def _source_is_tb007_red(
+    checker_module: ModuleType,
+    contract: Any,
+    source: str,
+) -> bool:
+    """生成ソースが指定 checker で条件 5 の red になるか返す。"""
+    return any(
+        violation.code == "TB007"
+        for violation in checker_module.scan_source(
+            source,
+            path="pitchlog/services/generated_provenance_case.py",
+            contract=contract,
+        )
+    )
 
 
 def _prepare_reference_contract_root(destination: Path) -> Path:
@@ -795,6 +1081,84 @@ def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
             and current[4] == "TB002"
             for current in current_census
         )
+
+
+def test_generated_provenance_corpus_never_weakens_develop(
+    tmp_path: Path,
+) -> None:
+    """生成経路について develop が red なら HEAD も必ず red にする。"""
+    develop_checker = _load_checker_from_revision(
+        "origin/develop",
+        tmp_path / "check_tenant_boundary_bypass_develop.py",
+    )
+    assert DEVELOP_REPOSITORY_ROOT.is_dir(), (
+        "develop checker の契約資産を読むメインツリーが存在しない: "
+        f"{DEVELOP_REPOSITORY_ROOT}"
+    )
+    develop_contract = develop_checker.load_contract(DEVELOP_REPOSITORY_ROOT)
+    head_contract = checker.load_contract(REPOSITORY_ROOT)
+    outcomes: list[tuple[str, bool, bool]] = []
+    for case_id, source in _tenant_context_provenance_corpus():
+        develop_red = _source_is_tb007_red(
+            develop_checker,
+            develop_contract,
+            source,
+        )
+        head_red = _source_is_tb007_red(checker, head_contract, source)
+        outcomes.append((case_id, develop_red, head_red))
+
+    weakened = [
+        case_id
+        for case_id, develop_red, head_red in outcomes
+        if develop_red and not head_red
+    ]
+    assert not weakened, (
+        "develop では TB007 だが HEAD で green になる生成経路: "
+        + ", ".join(weakened)
+    )
+
+
+def test_dynamic_method_on_known_non_db_receiver_is_green() -> None:
+    """既知の非 DB instance から得た動的 method は過剰拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class Runner:
+    def run(self, handler_name):
+        handler = getattr(self, handler_name)
+        return handler()
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/dynamic_handler.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    (
+        "unbound/dict-get/direct-call",
+        "unbound/local-function-return/direct-call",
+        "unbound/argument-default/direct-call",
+        "unbound/match-scalar/direct-call",
+        "unbound/dict-get/class-base",
+        "unbound/local-function-return/class-base",
+        "unbound/argument-default/class-base",
+        "prebound/match-sequence/direct-call",
+        "prebound/match-sequence/closure-call",
+        "prebound/match-mapping/direct-call",
+        "prebound/match-mapping/closure-call",
+    ),
+)
+def test_previously_weakened_provenance_routes_are_red(case_id: str) -> None:
+    """前版比較で見つかった経路を HEAD 単独でも TB007 に固定する。"""
+    source = dict(_tenant_context_provenance_corpus())[case_id]
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    assert _source_is_tb007_red(checker, contract, source)
 
 
 def test_condition_5_scope_declaration_is_verbatim_in_design() -> None:

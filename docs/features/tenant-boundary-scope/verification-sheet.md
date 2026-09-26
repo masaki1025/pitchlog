@@ -90,6 +90,8 @@ date: 2026-09-25
 4. 引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
    依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
    機械的に通らなくなるため。
+5. 未対応の式を経由して構築シンボルの起源が失われる経路。
+   完全な解には制御フロー解析が要るため、別タスクで扱う。
 ```
 
 | # | 判定事項 | 判定 |
@@ -105,24 +107,24 @@ date: 2026-09-25
 
 ## B. 条件 5 の判定本体(逐行)
 
-### B-1 `_check_tenant_context_call` のブロック分解(`scripts/check_tenant_boundary_bypass.py:4095-4339`)
+### B-1 `_check_tenant_context_call` のブロック分解(`scripts/check_tenant_boundary_bypass.py:4371-4615`)
 
 **出所**: S5 = ステップ 5(強化) / S6 = ステップ 6(**緩和**) / 既存 = 本 PR 以前
 
 | 行 | 出所 | 何を判定するか | 注意 | 判定 |
 | --- | --- | --- | --- | --- |
-| `4097-4098` | 既存 | 変更ファイル以外は見ない | CI の母集団が変更ファイルに限られる。**「守らないもの 1」の直接の原因** | ☐ |
-| `4099-4110` | **裁定** | **由来の判定**(「守らないもの 4」の実装本体) | **引数・由来不明な局所値・クロージャ値は免除**。**関数内 import と静的に解決できる局所 alias は免除しない**(3 周目 P0-1 の是正) | ☐ |
-| `4111-4134` | 既存 | callable 名の解決 | `getattr` 経由の `object.__new__` を正規名へ畳む | ☐ |
-| `4135-4155` | 既存 | 禁止シンボル `object.__new__` | `cls` が構築シンボル自身でなければ **無罪** | ☐ |
-| `4156-4180` | 既存 | 禁止シンボル `object.__setattr__` | `__init__` 内の `self` と safe target は **無罪** | ☐ |
-| `4181-4201` | 既存 | 禁止シンボル `dataclasses.replace` | **`non_db` のときだけ無罪**。`unknown` は免除しない(ステップ 6 の差し戻し 1 で是正) | ☐ |
-| `4202-4210` | 既存 | 禁止シンボル `type(x)(...)` | — | ☐ |
-| `4211-4242` | **裁定** | **`global` 再束縛は不明扱い** | **`global` は字句束縛ではなくモジュール全体で静的に追える**ので赤のまま。**`import` writer と star import も再束縛に含む**(3 周目 P0-2 の是正) | ☐ |
-| `4243-4263` | S5 | **(iv) 末尾名一致** | 属性でも裸の名前でも、由来種別に関係なく赤。**強化側** | ☐ |
-| `4264-4268` | **裁定** | 再輸出写像の解決 | **`global` 再束縛された名前には写像を引かない** | ☐ |
-| `4269-4320` | **S6** | **緩和の核心** — 由来不明の callable | 属性式は `_reject_reexport_call` の**戻り値を見ずに return**(再輸出写像に載らなければ無罪) | ☐ |
-| `4321-4339` | 既存 | **(v)** 再輸出写像で判定 → 構築シンボルでなければ無罪 | ここは戻り値を見る。**上の属性式経路との非対称が「守らないもの 3」** | ☐ |
+| `4373-4374` | 既存 | 変更ファイル以外は見ない | CI の母集団が変更ファイルに限られる。**「守らないもの 1」の直接の原因** | ☐ |
+| `4375-4386` | **裁定** | **由来の判定**(「守らないもの 4」の実装本体) | **引数・由来不明な局所値・クロージャ値は免除**。**関数内 import と静的に解決できる局所 alias は免除しない**(3 周目 P0-1 の是正) | ☐ |
+| `4387-4410` | 既存 | callable 名の解決 | `getattr` 経由の `object.__new__` を正規名へ畳む | ☐ |
+| `4411-4431` | 既存 | 禁止シンボル `object.__new__` | `cls` が構築シンボル自身でなければ **無罪** | ☐ |
+| `4432-4456` | 既存 | 禁止シンボル `object.__setattr__` | `__init__` 内の `self` と safe target は **無罪** | ☐ |
+| `4457-4477` | 既存 | 禁止シンボル `dataclasses.replace` | **`non_db` のときだけ無罪**。`unknown` は免除しない(ステップ 6 の差し戻し 1 で是正) | ☐ |
+| `4478-4486` | 既存 | 禁止シンボル `type(x)(...)` | — | ☐ |
+| `4487-4518` | **裁定** | **`global` 再束縛は不明扱い** | **`global` は字句束縛ではなくモジュール全体で静的に追える**ので赤のまま。**`import` writer と star import も再束縛に含む**(3 周目 P0-2 の是正) | ☐ |
+| `4519-4539` | S5 | **(iv) 末尾名一致** | 属性でも裸の名前でも、由来種別に関係なく赤。**強化側** | ☐ |
+| `4540-4544` | **裁定** | 再輸出写像の解決 | **`global` 再束縛された名前には写像を引かない** | ☐ |
+| `4545-4596` | **S6** | **緩和の核心** — 由来不明の callable | 属性式は `_reject_reexport_call` の**戻り値を見ずに return**(再輸出写像に載らなければ無罪) | ☐ |
+| `4597-4615` | 既存 | **(v)** 再輸出写像で判定 → 構築シンボルでなければ無罪 | ここは戻り値を見る。**上の属性式経路との非対称が「守らないもの 3」** | ☐ |
 
 ### B-2 緩和の核心(変更前後の全文 — 条件 5 で「赤を減らす」変更はここだけ)
 
@@ -163,196 +165,196 @@ date: 2026-09-25
  2970              return
 ```
 
-**由来の判定**(`scripts/check_tenant_boundary_bypass.py:4099-4110` — 「守らないもの 4」の実装本体):
+**由来の判定**(`scripts/check_tenant_boundary_bypass.py:4375-4386` — 「守らないもの 4」の実装本体):
 
 ```python
- 4099          lexically_bound_callable = (
- 4100              isinstance(node.func, ast.Name)
- 4101              and id(node.func) in self.lexically_bound_name_ids
- 4102          )
- 4103          globally_rebound_callable = (
- 4104              isinstance(node.func, ast.Name)
- 4105              and not lexically_bound_callable
- 4106              and (
- 4107                  self.module_bindings.has_star_import
- 4108                  or node.func.id in self.module_bindings.global_names
- 4109              )
- 4110          )
+ 4375          lexically_bound_callable = (
+ 4376              isinstance(node.func, ast.Name)
+ 4377              and id(node.func) in self.lexically_bound_name_ids
+ 4378          )
+ 4379          globally_rebound_callable = (
+ 4380              isinstance(node.func, ast.Name)
+ 4381              and not lexically_bound_callable
+ 4382              and (
+ 4383                  self.module_bindings.has_star_import
+ 4384                  or node.func.id in self.module_bindings.global_names
+ 4385              )
+ 4386          )
 ```
 
-**緩和の核心**(`scripts/check_tenant_boundary_bypass.py:4211-4339`):
+**緩和の核心**(`scripts/check_tenant_boundary_bypass.py:4487-4615`):
 
 ```python
- 4211          rebound_bare_name = globally_rebound_callable
- 4212          callable_value = (
- 4213              _UNKNOWN_FLOW_VALUE
- 4214              if rebound_bare_name
- 4215              else self.flow.callable_value(node)
- 4216          )
- 4217          known_callable = callable_value.symbol
- 4218          allowed_modules = (
- 4219              self.contract.tenant_context.allowed_test_modules
- 4220              | self.contract.tenant_context.allowed_product_modules
- 4221          )
- 4222          if (
- 4223              self.contract.tenant_context.constructor_symbol
- 4224              in callable_value.origins
- 4225          ):
- 4226              if self.module in allowed_modules:
- 4227                  return
- 4228              self._add(
- 4229                  node,
- 4230                  condition=5,
- 4231                  code="TB007",
- 4232                  symbol=self.contract.tenant_context.constructor_symbol,
- 4233                  message=(
- 4234                      "可能な callable 起源に TenantContext が含まれるため拒否"
- 4235                  ),
- 4236              )
- 4237              return
- 4238          if (
- 4239              known_callable == self.contract.tenant_context.constructor_symbol
- 4240              and self.module in allowed_modules
- 4241          ):
- 4242              return
- 4243          constructor_name = (
- 4244              self.contract.tenant_context.constructor_symbol.rsplit(".", 1)[-1]
- 4245          )
- 4246          callable_name = (
- 4247              node.func.id
- 4248              if isinstance(node.func, ast.Name)
- 4249              else node.func.attr
- 4250              if isinstance(node.func, ast.Attribute)
- 4251              else None
- 4252          )
- 4253          if callable_name == constructor_name:
- 4254              self._add(
- 4255                  node,
- 4256                  condition=5,
- 4257                  code="TB007",
- 4258                  symbol=callable_name,
- 4259                  message=(
- 4260                      "TenantContext と同名の callable は由来種別に関係なく拒否"
- 4261                  ),
- 4262              )
- 4263              return
- 4264          reexport = (
- 4265              None
- 4266              if rebound_bare_name
- 4267              else self._reexport_resolution(node.func, resolved)
- 4268          )
- 4269          if known_callable is None:
- 4270              if isinstance(node.func, ast.Attribute):
- 4271                  self._reject_reexport_call(
- 4272                      node,
- 4273                      resolved=resolved,
- 4274                      callable_name=callable_name,
- 4275                      resolution=reexport,
- 4276                      allowed_modules=allowed_modules,
- 4277                  )
- 4278                  return
- 4279              # 起源集合を分岐・コンテナ・閉包まで保持し、TenantContext 起源が無く
- 4280              # 未解決でもない外部入力だけを保証外 callable として免除する。
- 4281              if (
- 4282                  lexically_bound_callable
- 4283                  and callable_value.external_input
- 4284                  and not callable_value.unresolved
- 4285              ):
- 4286                  return
- 4287              alias_resolved = self.aliases.resolve(node.func)
- 4288              # resolve() は未知の裸名も生テキストで返す。known_symbols を読む
- 4289              # resolve_known() でも解決できた Name だけを既知 callable とする。
- 4290              known_alias_callable: str | None = None
- 4291              if (
- 4292                  isinstance(node.func, ast.Name)
- 4293                  and alias_resolved is not None
- 4294                  and not rebound_bare_name
- 4295              ):
- 4296                  known_alias_callable = self.aliases.resolve_known(node.func)
- 4297              if (
- 4298                  known_alias_callable is not None
- 4299                  and self.aliases.canonical(known_alias_callable)
- 4300                  != self.contract.tenant_context.constructor_symbol
- 4301              ):
- 4302                  self._reject_reexport_call(
- 4303                      node,
- 4304                      resolved=resolved,
- 4305                      callable_name=callable_name,
- 4306                      resolution=reexport,
- 4307                      allowed_modules=allowed_modules,
- 4308                  )
- 4309                  return
- 4310              self._add(
- 4311                  node,
- 4312                  condition=5,
- 4313                  code="TB007",
- 4314                  symbol=resolved or "<unresolved-callable>",
- 4315                  message=(
- 4316                      "由来を完全修飾名へ解決できない callable は "
- 4317                      "TenantContext の生成経路として拒否"
- 4318                  ),
- 4319              )
- 4320              return
- 4321          if self._reject_reexport_call(
- 4322              node,
- 4323              resolved=resolved,
- 4324              callable_name=callable_name,
- 4325              resolution=reexport,
- 4326              allowed_modules=allowed_modules,
- 4327          ):
- 4328              return
- 4329          if known_callable != self.contract.tenant_context.constructor_symbol:
- 4330              return
- 4331          if self.module in allowed_modules:
- 4332              return
- 4333          self._add(
- 4334              node,
- 4335              condition=5,
- 4336              code="TB007",
- 4337              symbol=known_callable,
- 4338              message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
- 4339          )
+ 4487          rebound_bare_name = globally_rebound_callable
+ 4488          callable_value = (
+ 4489              _UNKNOWN_FLOW_VALUE
+ 4490              if rebound_bare_name
+ 4491              else self.flow.callable_value(node)
+ 4492          )
+ 4493          known_callable = callable_value.symbol
+ 4494          allowed_modules = (
+ 4495              self.contract.tenant_context.allowed_test_modules
+ 4496              | self.contract.tenant_context.allowed_product_modules
+ 4497          )
+ 4498          if (
+ 4499              self.contract.tenant_context.constructor_symbol
+ 4500              in callable_value.origins
+ 4501          ):
+ 4502              if self.module in allowed_modules:
+ 4503                  return
+ 4504              self._add(
+ 4505                  node,
+ 4506                  condition=5,
+ 4507                  code="TB007",
+ 4508                  symbol=self.contract.tenant_context.constructor_symbol,
+ 4509                  message=(
+ 4510                      "可能な callable 起源に TenantContext が含まれるため拒否"
+ 4511                  ),
+ 4512              )
+ 4513              return
+ 4514          if (
+ 4515              known_callable == self.contract.tenant_context.constructor_symbol
+ 4516              and self.module in allowed_modules
+ 4517          ):
+ 4518              return
+ 4519          constructor_name = (
+ 4520              self.contract.tenant_context.constructor_symbol.rsplit(".", 1)[-1]
+ 4521          )
+ 4522          callable_name = (
+ 4523              node.func.id
+ 4524              if isinstance(node.func, ast.Name)
+ 4525              else node.func.attr
+ 4526              if isinstance(node.func, ast.Attribute)
+ 4527              else None
+ 4528          )
+ 4529          if callable_name == constructor_name:
+ 4530              self._add(
+ 4531                  node,
+ 4532                  condition=5,
+ 4533                  code="TB007",
+ 4534                  symbol=callable_name,
+ 4535                  message=(
+ 4536                      "TenantContext と同名の callable は由来種別に関係なく拒否"
+ 4537                  ),
+ 4538              )
+ 4539              return
+ 4540          reexport = (
+ 4541              None
+ 4542              if rebound_bare_name
+ 4543              else self._reexport_resolution(node.func, resolved)
+ 4544          )
+ 4545          if known_callable is None:
+ 4546              if isinstance(node.func, ast.Attribute):
+ 4547                  self._reject_reexport_call(
+ 4548                      node,
+ 4549                      resolved=resolved,
+ 4550                      callable_name=callable_name,
+ 4551                      resolution=reexport,
+ 4552                      allowed_modules=allowed_modules,
+ 4553                  )
+ 4554                  return
+ 4555              # 起源集合を分岐・コンテナ・閉包まで保持し、TenantContext 起源が無く
+ 4556              # 未解決でもない外部入力だけを保証外 callable として免除する。
+ 4557              if (
+ 4558                  lexically_bound_callable
+ 4559                  and callable_value.external_input
+ 4560                  and not callable_value.unresolved
+ 4561              ):
+ 4562                  return
+ 4563              alias_resolved = self.aliases.resolve(node.func)
+ 4564              # resolve() は未知の裸名も生テキストで返す。known_symbols を読む
+ 4565              # resolve_known() でも解決できた Name だけを既知 callable とする。
+ 4566              known_alias_callable: str | None = None
+ 4567              if (
+ 4568                  isinstance(node.func, ast.Name)
+ 4569                  and alias_resolved is not None
+ 4570                  and not rebound_bare_name
+ 4571              ):
+ 4572                  known_alias_callable = self.aliases.resolve_known(node.func)
+ 4573              if (
+ 4574                  known_alias_callable is not None
+ 4575                  and self.aliases.canonical(known_alias_callable)
+ 4576                  != self.contract.tenant_context.constructor_symbol
+ 4577              ):
+ 4578                  self._reject_reexport_call(
+ 4579                      node,
+ 4580                      resolved=resolved,
+ 4581                      callable_name=callable_name,
+ 4582                      resolution=reexport,
+ 4583                      allowed_modules=allowed_modules,
+ 4584                  )
+ 4585                  return
+ 4586              self._add(
+ 4587                  node,
+ 4588                  condition=5,
+ 4589                  code="TB007",
+ 4590                  symbol=resolved or "<unresolved-callable>",
+ 4591                  message=(
+ 4592                      "由来を完全修飾名へ解決できない callable は "
+ 4593                      "TenantContext の生成経路として拒否"
+ 4594                  ),
+ 4595              )
+ 4596              return
+ 4597          if self._reject_reexport_call(
+ 4598              node,
+ 4599              resolved=resolved,
+ 4600              callable_name=callable_name,
+ 4601              resolution=reexport,
+ 4602              allowed_modules=allowed_modules,
+ 4603          ):
+ 4604              return
+ 4605          if known_callable != self.contract.tenant_context.constructor_symbol:
+ 4606              return
+ 4607          if self.module in allowed_modules:
+ 4608              return
+ 4609          self._add(
+ 4610              node,
+ 4611              condition=5,
+ 4612              code="TB007",
+ 4613              symbol=known_callable,
+ 4614              message="TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
+ 4615          )
 ```
 
-**委ねられる先**(`scripts/check_tenant_boundary_bypass.py:3930-3965` — 本 PR がステップ 5 で新設):
+**委ねられる先**(`scripts/check_tenant_boundary_bypass.py:4206-4241` — 本 PR がステップ 5 で新設):
 
 ```python
- 3930      def _reject_reexport_call(
- 3931          self,
- 3932          node: ast.Call,
- 3933          *,
- 3934          resolved: str | None,
- 3935          callable_name: str | None,
- 3936          resolution: _ExportResolution | None,
- 3937          allowed_modules: Set[str],
- 3938      ) -> bool:
- 3939          """危険または解決不能な再輸出 callable を拒否したか返す。"""
- 3940          if resolution is None:
- 3941              return False
- 3942          if resolution.unresolved:
- 3943              self._add(
- 3944                  node,
- 3945                  condition=5,
- 3946                  code="TB007",
- 3947                  symbol=resolved or callable_name or "<unresolved-reexport>",
- 3948                  message="再輸出 callable の起源を一意に解決できない",
- 3949              )
- 3950              return True
- 3951          if (
- 3952              self.contract.tenant_context.constructor_symbol
- 3953              not in resolution.origins
- 3954          ):
- 3955              return False
- 3956          if self.module in allowed_modules:
- 3957              return True
- 3958          self._add(
- 3959              node,
- 3960              condition=5,
- 3961              code="TB007",
- 3962              symbol=resolved or callable_name or "<tenant-context-reexport>",
- 3963              message="再輸出経由の TenantContext 構築は許可されない",
- 3964          )
- 3965          return True
+ 4206      def _reject_reexport_call(
+ 4207          self,
+ 4208          node: ast.Call,
+ 4209          *,
+ 4210          resolved: str | None,
+ 4211          callable_name: str | None,
+ 4212          resolution: _ExportResolution | None,
+ 4213          allowed_modules: Set[str],
+ 4214      ) -> bool:
+ 4215          """危険または解決不能な再輸出 callable を拒否したか返す。"""
+ 4216          if resolution is None:
+ 4217              return False
+ 4218          if resolution.unresolved:
+ 4219              self._add(
+ 4220                  node,
+ 4221                  condition=5,
+ 4222                  code="TB007",
+ 4223                  symbol=resolved or callable_name or "<unresolved-reexport>",
+ 4224                  message="再輸出 callable の起源を一意に解決できない",
+ 4225              )
+ 4226              return True
+ 4227          if (
+ 4228              self.contract.tenant_context.constructor_symbol
+ 4229              not in resolution.origins
+ 4230          ):
+ 4231              return False
+ 4232          if self.module in allowed_modules:
+ 4233              return True
+ 4234          self._add(
+ 4235              node,
+ 4236              condition=5,
+ 4237              code="TB007",
+ 4238              symbol=resolved or callable_name or "<tenant-context-reexport>",
+ 4239              message="再輸出経由の TenantContext 構築は許可されない",
+ 4240          )
+ 4241          return True
 ```
 
 
@@ -377,22 +379,22 @@ date: 2026-09-25
 
 | 行 | 出所 | 関数 | 検出内容 | 宣言 | 判定 |
 | --- | --- | --- | --- | --- | --- |
-| `3946` |  | `_reject_reexport_call` | 再輸出 callable の起源を一意に解決できない | (v) | ☐ |
-| `3961` |  | `_reject_reexport_call` | 再輸出経由の TenantContext 構築は許可されない | (v) | ☐ |
-| `4150` |  | `_check_tenant_context_call` | 型を解決できない object.__new__ も TenantContext 生成迂回として拒否 | (ii) | ☐ |
-| `4176` |  | `_check_tenant_context_call` | 正規構築箇所以外の object.__setattr__ による文脈改竄は禁止 | (ii) | ☐ |
-| `4192` |  | `_check_tenant_context_call` | dataclasses.replace による TenantContext 複製迂回は禁止 | (ii) | ☐ |
-| `4206` |  | `_check_tenant_context_call` | type(context) による TenantContext 複製迂回は禁止 | (ii) | ☐ |
-| `4231` |  | `_check_tenant_context_call` | 可能な callable 起源に TenantContext が含まれるため拒否 | — | ☐ |
-| `4257` |  | `_check_tenant_context_call` | TenantContext と同名の callable は由来種別に関係なく拒否 | (iv) | ☐ |
-| `4313` |  | `_check_tenant_context_call` | 由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否 | (iii) | ☐ |
-| `4336` |  | `_check_tenant_context_call` | TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる | (i) | ☐ |
-| `4365` |  | `_check_integrity_reference` | message | — | ☐ |
-| `4406` |  | `_check_dynamic_call` | getattr による TenantContext 発行証跡内部への参照は禁止 | — | ☐ |
-| `4453` |  | `_check_dynamic_call` | TenantContext の動的構築は生成箇所 allowlist を迂回する | — | ☐ |
-| `4560` |  | `visit_ClassDef` | 可能なクラス基底起源に TenantContext が含まれるため拒否 | — | ☐ |
-| `4583` |  | `visit_ClassDef` | 再輸出経由または起源不明の TenantContext 継承は禁止 | (v) | ☐ |
-| `4598` |  | `visit_ClassDef` | TenantContext は生成箇所 allowlist 外で継承できない | (i) | ☐ |
+| `4222` |  | `_reject_reexport_call` | 再輸出 callable の起源を一意に解決できない | (v) | ☐ |
+| `4237` |  | `_reject_reexport_call` | 再輸出経由の TenantContext 構築は許可されない | (v) | ☐ |
+| `4426` |  | `_check_tenant_context_call` | 型を解決できない object.__new__ も TenantContext 生成迂回として拒否 | (ii) | ☐ |
+| `4452` |  | `_check_tenant_context_call` | 正規構築箇所以外の object.__setattr__ による文脈改竄は禁止 | (ii) | ☐ |
+| `4468` |  | `_check_tenant_context_call` | dataclasses.replace による TenantContext 複製迂回は禁止 | (ii) | ☐ |
+| `4482` |  | `_check_tenant_context_call` | type(context) による TenantContext 複製迂回は禁止 | (ii) | ☐ |
+| `4507` |  | `_check_tenant_context_call` | 可能な callable 起源に TenantContext が含まれるため拒否 | — | ☐ |
+| `4533` |  | `_check_tenant_context_call` | TenantContext と同名の callable は由来種別に関係なく拒否 | (iv) | ☐ |
+| `4589` |  | `_check_tenant_context_call` | 由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否 | (iii) | ☐ |
+| `4612` |  | `_check_tenant_context_call` | TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる | (i) | ☐ |
+| `4641` |  | `_check_integrity_reference` | message | — | ☐ |
+| `4682` |  | `_check_dynamic_call` | getattr による TenantContext 発行証跡内部への参照は禁止 | — | ☐ |
+| `4729` |  | `_check_dynamic_call` | TenantContext の動的構築は生成箇所 allowlist を迂回する | — | ☐ |
+| `4836` |  | `visit_ClassDef` | 可能なクラス基底起源に TenantContext が含まれるため拒否 | — | ☐ |
+| `4859` |  | `visit_ClassDef` | 再輸出経由または起源不明の TenantContext 継承は禁止 | (v) | ☐ |
+| `4874` |  | `visit_ClassDef` | TenantContext は生成箇所 allowlist 外で継承できない | (i) | ☐ |
 
 ## C. 条件 2 の裁定(全数 6 件)
 
@@ -483,7 +485,7 @@ reason         : TSK-440 で条件 5 の保証単位の明文化および条件 
 approved_by    : 未承認(PR #72 のレビュー待ち)
 approved_on    : 未承認(PR #72 のレビュー待ち)
 before(SHA-256): c46cac30740449759c7a0193ddd81ee0cf4b7ccabc24f4cff067ae7791bef6f7
-after (SHA-256): e162a711e99e06481c17e5fe6b5e401e6c0e0aa78a198ae09b8f92def6838ded
+after (SHA-256): 1f268abf209c18f9045a202533d6ea639491777960d3615d8df7df71d1d6d1a8
 ```
 
 ### `contracts/tenant_boundary/negative-fixtures.json`(fixture_set_revision 5 → 6)

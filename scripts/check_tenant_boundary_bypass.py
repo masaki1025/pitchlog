@@ -16,6 +16,8 @@
 4. 引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
    依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
    機械的に通らなくなるため。
+5. 未対応の式を経由して構築シンボルの起源が失われる経路。
+   完全な解には制御フロー解析が要るため、別タスクで扱う。
 """
 
 from __future__ import annotations
@@ -2654,6 +2656,7 @@ class _FlowProvenance:
         self.receiver_kinds: dict[int, str] = {}
         self.argument_kinds: dict[tuple[int, int], str] = {}
         self.function_returns: dict[str, _FlowValue] = {}
+        self.return_value_stack: list[list[_FlowValue]] = []
         self.class_members: dict[str, _FlowValue] = {}
         self.class_base_values: dict[int, _FlowValue] = {}
         self.class_stack: list[str] = []
@@ -2814,14 +2817,16 @@ class _FlowProvenance:
             )
         if symbol is not None and symbol in self.function_returns:
             return self.function_returns[symbol]
+        if callable_value.kind == "function" and callable_value.elements:
+            return self._joined_value(callable_value.elements)
         if symbol is not None and symbol.startswith("builtins."):
             builtin_name = symbol.rsplit(".", 1)[-1]
             value = vars(builtins).get(builtin_name)
             if isinstance(value, type):
                 return _FlowValue(symbol, "non_db")
-        # 既知 callable の未注釈戻り値は実行時に外から受け取る値として扱う。
-        # 可能な起源に TenantContext がある場合は呼び出し側で先に拒否される。
-        return _EXTERNAL_INPUT_FLOW_VALUE
+        # callable の由来が既知でも未対応の戻り値は外部入力とは限らない。
+        # 起源を証明できない値として扱い、後段を fail-closed に保つ。
+        return _UNKNOWN_FLOW_VALUE
 
     def _joined_value(self, values: Sequence[_FlowValue]) -> _FlowValue:
         """分岐の可能な起源を失わず、種別だけを保守的に合流する。"""
@@ -2854,6 +2859,29 @@ class _FlowProvenance:
             ),
             unresolved=any(value.unresolved for value in values),
             external_input=any(value.external_input for value in values),
+        )
+
+    def _return_summary(
+        self,
+        values: Sequence[_FlowValue],
+        *,
+        declared: _FlowValue | None = None,
+    ) -> _FlowValue:
+        """実 return は起源だけを要約し、安全な戻り型は注釈からのみ得る。"""
+        actual = self._joined_value(values)
+        if declared is None:
+            return _FlowValue(
+                origins=actual.origins,
+                unresolved=actual.unresolved,
+                external_input=actual.external_input,
+            )
+        return _FlowValue(
+            declared.symbol,
+            declared.kind,
+            declared.elements,
+            origins=declared.origins | actual.origins,
+            unresolved=declared.unresolved or actual.unresolved,
+            external_input=declared.external_input or actual.external_input,
         )
 
     def _attribute_value(
@@ -2910,12 +2938,54 @@ class _FlowProvenance:
             self.callable_symbols[id(node)] = callable_value.symbol
             self.callable_values[id(node)] = callable_value
             self.receiver_kinds[id(node)] = receiver.kind
+            argument_values: list[_FlowValue] = []
             for index, argument in enumerate(node.args):
                 argument_value = self._expression(argument, environment)
+                argument_values.append(argument_value)
                 self.argument_kinds[(id(node), index)] = argument_value.kind
             for keyword in node.keywords:
                 self._expression(keyword.value, environment)
-            result = self._call_result(callable_value)
+            if (
+                callable_value.symbol == "builtins.getattr"
+                and argument_values
+                and argument_values[0].kind
+                in {"non_db", "non_db_attribute", "class_non_db"}
+            ):
+                target = argument_values[0]
+                result = _FlowValue(
+                    f"{target.symbol or '<non-db>'}.<dynamic-attribute>",
+                    "non_db_attribute",
+                    origins=target.origins,
+                    unresolved=target.unresolved,
+                    external_input=target.external_input,
+                )
+            elif callable_value.symbol == "builtins.dict.get" and receiver.elements:
+                candidates = [*receiver.elements]
+                if len(argument_values) >= 2:
+                    candidates.append(argument_values[1])
+                result = self._joined_value(candidates)
+            else:
+                result = self._call_result(callable_value)
+            if callable_value.kind in {"class_non_db", "class_unknown"}:
+                result = _FlowValue(
+                    result.symbol,
+                    result.kind,
+                    tuple(argument_values),
+                    origins=frozenset(
+                        {
+                            *result.origins,
+                            *(
+                                origin
+                                for value in argument_values
+                                for origin in value.origins
+                            ),
+                        }
+                    ),
+                    unresolved=result.unresolved
+                    or any(value.unresolved for value in argument_values),
+                    external_input=result.external_input
+                    or any(value.external_input for value in argument_values),
+                )
             if result.kind == "unknown" and receiver.kind in {"db", "db_result"}:
                 return _FlowValue(kind="db_result")
             return result
@@ -2933,11 +3003,32 @@ class _FlowProvenance:
                 "builtins.dict",
                 "non_db",
                 tuple(elements),
+                origins=frozenset(
+                    {
+                        "builtins.dict",
+                        *(origin for value in elements for origin in value.origins),
+                    }
+                ),
+                unresolved=any(value.unresolved for value in elements),
+                external_input=any(value.external_input for value in elements),
             )
         if isinstance(node, (ast.List, ast.Set, ast.Tuple)):
             elements = tuple(self._expression(item, environment) for item in node.elts)
             type_name = type(node).__name__.lower()
-            return _FlowValue(f"builtins.{type_name}", "non_db", elements)
+            symbol = f"builtins.{type_name}"
+            return _FlowValue(
+                symbol,
+                "non_db",
+                elements,
+                origins=frozenset(
+                    {
+                        symbol,
+                        *(origin for value in elements for origin in value.origins),
+                    }
+                ),
+                unresolved=any(value.unresolved for value in elements),
+                external_input=any(value.external_input for value in elements),
+            )
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
         if isinstance(node, ast.Subscript):
@@ -2997,18 +3088,44 @@ class _FlowProvenance:
                     self._expression(condition, local)
             element = self._expression(node.elt, local)
             if isinstance(node, ast.ListComp):
-                return _FlowValue("builtins.list", "non_db", (element,))
+                return _FlowValue(
+                    "builtins.list",
+                    "non_db",
+                    (element,),
+                    origins=frozenset({"builtins.list", *element.origins}),
+                    unresolved=element.unresolved,
+                    external_input=element.external_input,
+                )
             if isinstance(node, ast.SetComp):
-                return _FlowValue("builtins.set", "non_db", (element,))
-            return _FlowValue("builtins.generator", "non_db", (element,))
+                return _FlowValue(
+                    "builtins.set",
+                    "non_db",
+                    (element,),
+                    origins=frozenset({"builtins.set", *element.origins}),
+                    unresolved=element.unresolved,
+                    external_input=element.external_input,
+                )
+            return _FlowValue(
+                "builtins.generator",
+                "non_db",
+                (element,),
+                origins=frozenset({"builtins.generator", *element.origins}),
+                unresolved=element.unresolved,
+                external_input=element.external_input,
+            )
         if isinstance(node, ast.Lambda):
-            for default in (*node.args.defaults, *node.args.kw_defaults):
-                if default is not None:
-                    self._expression(default, environment)
+            default_values = self._argument_default_values(node.args, environment)
             local = dict(environment)
-            self._bind_arguments(node.args, local)
-            self._expression(node.body, local)
-            return _FlowValue(kind="function")
+            self._bind_arguments(
+                node.args,
+                local,
+                default_values=default_values,
+            )
+            returned = self._expression(node.body, local)
+            return _FlowValue(
+                kind="function",
+                elements=(self._return_summary((returned,)),),
+            )
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.expr):
                 self._expression(child, environment)
@@ -3128,16 +3245,18 @@ class _FlowProvenance:
         environment: dict[str, _FlowValue],
         *,
         annotation_environment: Mapping[str, _FlowValue] | None = None,
+        default_values: Mapping[str, _FlowValue] | None = None,
     ) -> None:
-        """関数引数を注釈時点の由来へ束縛する。"""
+        """関数引数を外部入力と既定値の可能な起源へ束縛する。"""
         annotations = annotation_environment or environment
+        defaults = default_values or {}
         positional = [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
         for argument in positional:
             resolved = self._resolve_annotation(
                 argument.annotation,
                 annotations,
             )
-            environment[argument.arg] = (
+            external = (
                 _EXTERNAL_INPUT_FLOW_VALUE
                 if resolved == _UNKNOWN_FLOW_VALUE
                 else _FlowValue(
@@ -3148,6 +3267,11 @@ class _FlowProvenance:
                     unresolved=resolved.unresolved,
                     external_input=True,
                 )
+            )
+            environment[argument.arg] = (
+                self._joined_value((external, defaults[argument.arg]))
+                if argument.arg in defaults
+                else external
             )
         for argument in (arguments.vararg, arguments.kwarg):
             if argument is not None:
@@ -3168,6 +3292,31 @@ class _FlowProvenance:
                     )
                 )
 
+    def _argument_default_values(
+        self,
+        arguments: ast.arguments,
+        environment: dict[str, _FlowValue],
+    ) -> dict[str, _FlowValue]:
+        """定義時環境で評価した既定値を対応する引数名へ割り当てる。"""
+        values: dict[str, _FlowValue] = {}
+        positional = [*arguments.posonlyargs, *arguments.args]
+        if arguments.defaults:
+            default_arguments = positional[-len(arguments.defaults) :]
+            for argument, default in zip(
+                default_arguments,
+                arguments.defaults,
+                strict=True,
+            ):
+                values[argument.arg] = self._expression(default, environment)
+        for argument, default in zip(
+            arguments.kwonlyargs,
+            arguments.kw_defaults,
+            strict=True,
+        ):
+            if default is not None:
+                values[argument.arg] = self._expression(default, environment)
+        return values
+
     def _refine_isinstance_true_branch(
         self,
         test: ast.AST,
@@ -3186,6 +3335,103 @@ class _FlowProvenance:
         if refined.kind != "unknown":
             environment[test.args[0].id] = refined
 
+    def _bind_match_pattern(
+        self,
+        pattern: ast.pattern,
+        subject: _FlowValue,
+        environment: dict[str, _FlowValue],
+    ) -> None:
+        """pattern の捕捉名へ subject の可能な起源を保守的に伝播する。"""
+        def sequence_value(values: Sequence[_FlowValue]) -> _FlowValue:
+            """star capture 用に要素列と全起源を保持した list 値を作る。"""
+            return _FlowValue(
+                "builtins.list",
+                "non_db",
+                tuple(values),
+                origins=frozenset(
+                    {
+                        "builtins.list",
+                        *(origin for value in values for origin in value.origins),
+                    }
+                ),
+                unresolved=any(value.unresolved for value in values),
+                external_input=any(value.external_input for value in values),
+            )
+
+        if isinstance(pattern, ast.MatchAs):
+            if pattern.pattern is not None:
+                self._bind_match_pattern(pattern.pattern, subject, environment)
+            if pattern.name is not None:
+                environment[pattern.name] = subject
+            return
+        if isinstance(pattern, ast.MatchStar):
+            if pattern.name is not None:
+                environment[pattern.name] = (
+                    sequence_value(subject.elements)
+                    if subject.elements
+                    else subject
+                )
+            return
+        if isinstance(pattern, ast.MatchMapping):
+            captured_values = (
+                subject.elements
+                if len(subject.elements) == len(pattern.patterns)
+                else tuple(subject for _ in pattern.patterns)
+            )
+            for child, captured in zip(
+                pattern.patterns,
+                captured_values,
+                strict=True,
+            ):
+                self._bind_match_pattern(child, captured, environment)
+            if pattern.rest is not None:
+                environment[pattern.rest] = subject
+            return
+        if isinstance(pattern, ast.MatchSequence):
+            values = subject.elements
+            star_index = next(
+                (
+                    index
+                    for index, child in enumerate(pattern.patterns)
+                    if isinstance(child, ast.MatchStar)
+                ),
+                None,
+            )
+            for index, child in enumerate(pattern.patterns):
+                captured = subject
+                if values:
+                    if index == star_index:
+                        assert star_index is not None
+                        trailing = len(pattern.patterns) - star_index - 1
+                        stop = len(values) - trailing if trailing else len(values)
+                        captured = sequence_value(values[star_index:stop])
+                    elif star_index is None or index < star_index:
+                        if index < len(values):
+                            captured = values[index]
+                    else:
+                        trailing_index = len(values) - (len(pattern.patterns) - index)
+                        if 0 <= trailing_index < len(values):
+                            captured = values[trailing_index]
+                self._bind_match_pattern(child, captured, environment)
+            return
+        if isinstance(pattern, ast.MatchClass):
+            children = (*pattern.patterns, *pattern.kwd_patterns)
+            captured_values = (
+                subject.elements
+                if len(subject.elements) == len(children)
+                else tuple(subject for _ in children)
+            )
+            for child, captured in zip(children, captured_values, strict=True):
+                self._bind_match_pattern(child, captured, environment)
+            return
+        if isinstance(pattern, ast.MatchOr):
+            branch_environments: list[dict[str, _FlowValue]] = []
+            for child in pattern.patterns:
+                branch = dict(environment)
+                self._bind_match_pattern(child, subject, branch)
+                branch_environments.append(branch)
+            environment.update(self._join_environments(branch_environments))
+
     def _analyze_function(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -3196,18 +3442,17 @@ class _FlowProvenance:
     ) -> None:
         """定義式と本体の環境を分け、外側を書き換えず解析する。"""
         local = dict(body_environment if body_environment is not None else environment)
+        default_values = self._argument_default_values(node.args, environment)
         self._bind_arguments(
             node.args,
             local,
             annotation_environment=environment,
+            default_values=default_values,
         )
         if self_value is not None and node.args.args:
             local[node.args.args[0].arg] = self_value
         for decorator in node.decorator_list:
             self._expression(decorator, environment)
-        for default in (*node.args.defaults, *node.args.kw_defaults):
-            if default is not None:
-                self._expression(default, environment)
         arguments = (
             *node.args.posonlyargs,
             *node.args.args,
@@ -3222,7 +3467,16 @@ class _FlowProvenance:
             self._expression(node.returns, environment)
         for type_param in node.type_params:
             self._expression(type_param, environment)
+        symbol = ".".join([self.module, *self.class_stack, node.name]).strip(".")
+        self.return_value_stack.append([])
         self._analyze_block(node.body, local)
+        returned_values = self.return_value_stack.pop()
+        if returned_values:
+            declared = self.function_returns.get(symbol)
+            self.function_returns[symbol] = self._return_summary(
+                returned_values,
+                declared=declared,
+            )
 
     def _register_class_contracts(
         self,
@@ -3419,10 +3673,18 @@ class _FlowProvenance:
             handlers: list[_FlowOutcome] = []
             for handler in node.handlers:
                 handler_environment = dict(environment)
+                handler_type = _UNKNOWN_FLOW_VALUE
                 if handler.type is not None:
-                    self._expression(handler.type, handler_environment)
+                    handler_type = self._expression(
+                        handler.type,
+                        handler_environment,
+                    )
                 if handler.name is not None:
-                    handler_environment[handler.name] = _UNKNOWN_FLOW_VALUE
+                    handler_environment[handler.name] = _FlowValue(
+                        origins=handler_type.origins,
+                        unresolved=handler_type.unresolved,
+                        external_input=handler_type.external_input,
+                    )
                 handlers.append(
                     self._analyze_block(handler.body, handler_environment)
                 )
@@ -3454,10 +3716,15 @@ class _FlowProvenance:
                 (*continues, *final.continues),
             )
         if isinstance(node, ast.Match):
-            self._expression(node.subject, environment)
+            subject = self._expression(node.subject, environment)
             branches: list[_FlowOutcome] = []
             for case in node.cases:
                 case_environment = dict(environment)
+                self._bind_match_pattern(
+                    case.pattern,
+                    subject,
+                    case_environment,
+                )
                 if case.guard is not None:
                     self._expression(case.guard, case_environment)
                 branches.append(
@@ -3474,7 +3741,16 @@ class _FlowProvenance:
                 tuple(item for outcome in branches for item in outcome.breaks),
                 tuple(item for outcome in branches for item in outcome.continues),
             )
-        if isinstance(node, (ast.Return, ast.Raise)):
+        if isinstance(node, ast.Return):
+            returned = (
+                self._expression(node.value, environment)
+                if node.value is not None
+                else _FlowValue("builtins.NoneType", "non_db")
+            )
+            if self.return_value_stack:
+                self.return_value_stack[-1].append(returned)
+            return _FlowOutcome(None)
+        if isinstance(node, ast.Raise):
             for child in ast.iter_child_nodes(node):
                 if isinstance(child, ast.expr):
                     self._expression(child, environment)
