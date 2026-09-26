@@ -361,9 +361,11 @@
         "backend/src/pitchlog/repositories/*",
         "backend/tests/db_fixtures.py",
         "scripts/check_tenant_boundary_bypass.py",
+        "scripts/frozen_history.py",
         "contracts/tenant_boundary/*",
         "tests/fixtures/tenant_boundary/*",
-        "tests/test_check_tenant_boundary_bypass.py"
+        "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_frozen_history.py"
       ]
     },
     {
