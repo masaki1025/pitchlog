@@ -153,7 +153,7 @@ scripts/frozen_history.py:1521    approved_by は非空・approved_on は実在�
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **承認記録の出所を確定し、リポジトリへ記録する** — **人間が決めた出所**(7 節 #2)を worklog へ逐語で残す | worklog に**逐語転記できる出所**がある。`frozen_history.py:39-41` の予約 marker に当たらない |
+| 1 | **draft PR を開いて番号を確定し、承認記録の出所を worklog へ記録する**(**承認後の追記 — 2026-09-26**。凍結基準の v2 記録は `acceptance_id` = `<repo>#<PR番号>`〔`base-allowlist.json:72` の実例〕を要求するので、**番号がステップ 4 より前に確定している必要がある**。承認コメントの投稿先も同じ PR) | PR 番号が確定し**本計画書に記録**されている。worklog に**人間の裁定(7-2)が逐語で**残り、`frozen_history.py:39-41` の予約 marker に当たらない |
 | 2 | **負例テストを先に置く** — ① 束縛が先頭でない ② **`TenantContext` を混ぜる口が無いこと**(`run` の署名が token だけ — **2 周目 P0-1 の是正**。「混在を試す」負例は公開 API では構成できないので、**構成できないことを固定する**)③ 未登録・偽造 token ④ 中止の例外でロールバックされない ⑤ 戻り値に `Result` / ORM instance が混ざった ⑥ **close されない** | **6 種すべてが red**。red の出力を worklog へ**実出力つきで**残す |
 | 3 | **トランザクション単位を追加する** — `backend/src/pitchlog/repositories/transaction.py`(新設)。**Session の生成・束縛・commit/rollback・close を所有する** | ステップ 2 の 6 種が **green**。**期待失敗**: `allowed_symbols` 未登録による **TB005**(**`session.begin()` と `.execute()` を呼ぶため** — **2 周目 P1-2 の是正**。初稿は「factory 未登録で TB005」と書いたが、**純粋に `Session` を返すだけなら違反 0 件**だった)。**`repository-contract.json` 未更新による契約テストの red** |
 | 4 | **契約資産・生成モジュール・契約テスト・正例 fixture・凍結履歴を 1 コミットで更新する**(4-2 — 分離できない) — `repository-contract.json` → digest → `repository_contract.py`(4-4 の順序)、**`test_authz_repository_contract.py:158` の `_generated_snapshot()` の固定辞書**(**2 周目 P1-3 の是正**)、`base-allowlist.json` の `allowed_symbols` + `contract_revision`、`tests/fixtures/tenant_boundary/positive/`、**v2 履歴を 1 件**(承認記録はステップ 1 の出所から逐語転記) | `scripts/check_tenant_boundary_bypass.py` が green。`scripts/frozen_history.py` の検査が green。**ここで初めて全件 green が成立しうる** |
@@ -245,6 +245,10 @@ uv run pytest -c pyproject.toml --cov
 **確定した方式**: **本 PR へのコメントを出所とする。**
 自分の PR にも書け、**`user.login`(認証済み発信者)と `created_at`(GitHub 側のタイムスタンプ)が機械可読**で、
 本文に**氏名・日付・対象**を含められる。
+
+**PR 番号**: **`masaki1025/pitchlog#82`**(ステップ 1 で確定・draft)。
+凍結基準 v2 記録の `acceptance_id` はここから機械導出する
+(導出式は `{repository.full_name}#{pull_request.number}` — `../tenant-boundary-baseline/plan.md:111`)。
 
 **手順**(ステップ 4 の直前):
 
