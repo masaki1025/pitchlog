@@ -99,11 +99,14 @@ def load_json(path: Path, label: str) -> object:
         raise DescriptorCheckError(f"{label}がJSONでない: {path}: {error}") from error
 
 
-def load_source_clause_ids(root: Path) -> frozenset[str]:
-    """要件書とADRの構造から実在する由来条文IDを抽出する。
+def load_clause_ids_from_paths(
+    root: Path, source_clause_paths: Sequence[PurePosixPath]
+) -> frozenset[str]:
+    """指定した正本の構造から実在する条文IDを抽出する。
 
     Args:
         root: リポジトリルート。
+        source_clause_paths: 条文IDを抽出する正本のリポジトリ相対パス。
 
     Returns:
         見出しIDと付録の番号付き項目IDの集合。
@@ -112,7 +115,7 @@ def load_source_clause_ids(root: Path) -> frozenset[str]:
         DescriptorCheckError: 正本を読めない場合、またはIDを抽出できない場合。
     """
     clause_ids: set[str] = set()
-    for relative_path in SOURCE_CLAUSE_PATHS:
+    for relative_path in source_clause_paths:
         path = root / relative_path
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
@@ -148,6 +151,11 @@ def load_source_clause_ids(root: Path) -> frozenset[str]:
     if not clause_ids:
         raise DescriptorCheckError("由来条文IDを正本から抽出できない")
     return frozenset(clause_ids)
+
+
+def load_source_clause_ids(root: Path) -> frozenset[str]:
+    """要件書とADRの構造から実在する由来条文IDを抽出する。"""
+    return load_clause_ids_from_paths(root, SOURCE_CLAUSE_PATHS)
 
 
 def _expect_object(value: object, label: str) -> dict[str, Any]:

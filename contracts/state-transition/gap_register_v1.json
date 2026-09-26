@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "version": "gap_register_v1",
+  "gaps": [
+    {
+      "gapId": "GAP-01",
+      "state": "open",
+      "clauseIds": [
+        "FR-020"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-02",
+      "state": "open",
+      "clauseIds": [
+        "E-1"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-03",
+      "state": "open",
+      "clauseIds": [
+        "F-1"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-04",
+      "state": "open",
+      "clauseIds": [
+        "F-1"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-05",
+      "state": "open",
+      "clauseIds": [
+        "FR-020",
+        "FR-005"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-06",
+      "state": "open",
+      "clauseIds": [
+        "A-1",
+        "FR-003"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-07",
+      "state": "open",
+      "clauseIds": [
+        "E-1",
+        "FR-004"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-08",
+      "state": "open",
+      "clauseIds": [
+        "E-2",
+        "A-2"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-09",
+      "state": "open",
+      "clauseIds": [
+        "A-3"
+      ],
+      "branchIds": [],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    }
+  ]
+}
