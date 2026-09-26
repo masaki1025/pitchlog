@@ -85,7 +85,7 @@ created: 2026-09-26
 | **`docs/development/harness-evaluation.md`** | **`## 候補` へ追記**: 既存候補「並行ブランチが CI 契約に規則を足すと、先行して設計済みのブランチが後から抵触する」へ **2 例目**(append-only 台帳の prefix が動く型)+ **新設 1 件**(マージ後に必ず赤になるテストの是正タスクは、同型のうち「新シンボルを足すブランチだけで出る」ものを自分の CI で踏めない)。**変更履歴表に 1 行追記**。**`H-*` の採番なし・版は上げない**(7.6-3 前段) | PR レビュー(7.6-3 前段) |
 | `docs/README.md` | **台帳行の最終更新日を現行化**(正本の新設・版繰り上げは無い) | PR レビュー |
 
-**正本体系外だが同一 PR で更新するもの**: `backend/src/pitchlog/repositories/transaction.py`(新設)・`repository_contract.py`(生成モジュール)・`tests/fixtures/tenant_boundary/positive/*`・`backend/tests/*`。
+**正本体系外だが同一 PR で更新するもの**: `docs/features/tenant-session-supply/verification-sheet.md`(**新設** — 設計書 6.3 の逐行確認を支援する機械生成シート)・`backend/src/pitchlog/repositories/transaction.py`(新設)・`repository_contract.py`(生成モジュール)・`tests/fixtures/tenant_boundary/positive/*`・`backend/tests/*`。
 
 **実装で動いた宣言(2026-09-26 の追随)**:
 
