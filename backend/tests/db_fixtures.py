@@ -464,12 +464,17 @@ class ProductCatalogSnapshot:
 
     roles: tuple[tuple[object, ...], ...]
     database: tuple[tuple[object, ...], ...]
+    database_acl: tuple[tuple[object, ...], ...]
     schemas: tuple[tuple[object, ...], ...]
+    schema_acl: tuple[tuple[object, ...], ...]
     relations: tuple[tuple[object, ...], ...]
+    relation_acl: tuple[tuple[object, ...], ...]
     policies: tuple[tuple[object, ...], ...]
     functions: tuple[tuple[object, ...], ...]
+    function_acl: tuple[tuple[object, ...], ...]
     memberships: tuple[tuple[object, ...], ...]
     columns: tuple[tuple[object, ...], ...]
+    column_acl: tuple[tuple[object, ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -713,28 +718,65 @@ def _snapshot_product_catalog(
         database = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT database.datname, owner.rolname, database.datacl::text
+            SELECT database.datname, owner.rolname
             FROM pg_catalog.pg_database AS database
             JOIN pg_catalog.pg_roles AS owner ON owner.oid = database.datdba
             WHERE database.datname = pg_catalog.current_database()
             """,
         )
+        database_acl = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT DISTINCT database.datname,
+                   COALESCE(grantee.rolname, 'PUBLIC'),
+                   privilege.privilege_type, privilege.is_grantable
+            FROM pg_catalog.pg_database AS database
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+                COALESCE(
+                    database.datacl,
+                    pg_catalog.acldefault('d', database.datdba)
+                )
+            ) AS privilege
+            LEFT JOIN pg_catalog.pg_roles AS grantee
+              ON grantee.oid = privilege.grantee
+            WHERE database.datname = pg_catalog.current_database()
+            ORDER BY 1, 2, 3, 4
+            """,
+        )
         schemas = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT namespace.nspname, owner.rolname, namespace.nspacl::text
+            SELECT namespace.nspname, owner.rolname
             FROM pg_catalog.pg_namespace AS namespace
             JOIN pg_catalog.pg_roles AS owner ON owner.oid = namespace.nspowner
             WHERE namespace.nspname IN ('public', 'authz_private')
             ORDER BY namespace.nspname
             """,
         )
+        schema_acl = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT DISTINCT namespace.nspname,
+                   COALESCE(grantee.rolname, 'PUBLIC'),
+                   privilege.privilege_type, privilege.is_grantable
+            FROM pg_catalog.pg_namespace AS namespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+                COALESCE(
+                    namespace.nspacl,
+                    pg_catalog.acldefault('n', namespace.nspowner)
+                )
+            ) AS privilege
+            LEFT JOIN pg_catalog.pg_roles AS grantee
+              ON grantee.oid = privilege.grantee
+            WHERE namespace.nspname IN ('public', 'authz_private')
+            ORDER BY 1, 2, 3, 4
+            """,
+        )
         relations = _fetch_snapshot_rows(
             cursor,
             """
             SELECT relation.relname, relation.relkind, owner.rolname,
-                   relation.relrowsecurity, relation.relforcerowsecurity,
-                   relation.relacl::text
+                   relation.relrowsecurity, relation.relforcerowsecurity
             FROM pg_catalog.pg_class AS relation
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
@@ -742,6 +784,28 @@ def _snapshot_product_catalog(
             WHERE namespace.nspname = 'public'
               AND relation.relkind IN ('r', 'p', 'v', 'm', 'S')
             ORDER BY relation.relname, relation.relkind
+            """,
+        )
+        relation_acl = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT DISTINCT relation.relname, relation.relkind,
+                   COALESCE(grantee.rolname, 'PUBLIC'),
+                   privilege.privilege_type, privilege.is_grantable
+            FROM pg_catalog.pg_class AS relation
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+                COALESCE(
+                    relation.relacl,
+                    pg_catalog.acldefault('r', relation.relowner)
+                )
+            ) AS privilege
+            LEFT JOIN pg_catalog.pg_roles AS grantee
+              ON grantee.oid = privilege.grantee
+            WHERE namespace.nspname = 'public'
+              AND relation.relkind IN ('r', 'p')
+            ORDER BY 1, 2, 3, 4, 5
             """,
         )
         policies = _fetch_snapshot_rows(
@@ -764,8 +828,7 @@ def _snapshot_product_catalog(
             """
             SELECT namespace.nspname, procedure.proname,
                    pg_catalog.pg_get_function_identity_arguments(procedure.oid),
-                   owner.rolname, procedure.prosecdef, procedure.proacl::text,
-                   procedure.proconfig::text
+                   owner.rolname, procedure.prosecdef, procedure.proconfig::text
             FROM pg_catalog.pg_proc AS procedure
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = procedure.pronamespace
@@ -773,6 +836,30 @@ def _snapshot_product_catalog(
             WHERE namespace.nspname IN ('public', 'authz_private')
             ORDER BY namespace.nspname, procedure.proname,
                      pg_catalog.pg_get_function_identity_arguments(procedure.oid)
+            """,
+        )
+        function_acl = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT DISTINCT namespace.nspname, procedure.proname,
+                   pg_catalog.pg_get_function_identity_arguments(procedure.oid),
+                   COALESCE(grantee.rolname, 'PUBLIC'),
+                   privilege.privilege_type, privilege.is_grantable
+            FROM pg_catalog.pg_proc AS procedure
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = procedure.pronamespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+                COALESCE(
+                    procedure.proacl,
+                    pg_catalog.acldefault('f', procedure.proowner)
+                )
+            ) AS privilege
+            LEFT JOIN pg_catalog.pg_roles AS grantee
+              ON grantee.oid = privilege.grantee
+            WHERE namespace.nspname IN ('public', 'authz_private')
+            ORDER BY 1, 2,
+                     pg_catalog.pg_get_function_identity_arguments(procedure.oid),
+                     4, 5, 6
             """,
         )
         memberships = _fetch_snapshot_rows(
@@ -792,7 +879,7 @@ def _snapshot_product_catalog(
         columns = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT relation.relname, attribute.attname, attribute.attacl::text
+            SELECT relation.relname, attribute.attname
             FROM pg_catalog.pg_attribute AS attribute
             JOIN pg_catalog.pg_class AS relation
               ON relation.oid = attribute.attrelid
@@ -804,15 +891,40 @@ def _snapshot_product_catalog(
             ORDER BY relation.relname, attribute.attnum
             """,
         )
+        column_acl = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT DISTINCT relation.relname, attribute.attname,
+                   COALESCE(grantee.rolname, 'PUBLIC'),
+                   privilege.privilege_type, privilege.is_grantable
+            FROM pg_catalog.pg_attribute AS attribute
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = attribute.attrelid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
+            LEFT JOIN pg_catalog.pg_roles AS grantee
+              ON grantee.oid = privilege.grantee
+            WHERE namespace.nspname = 'public'
+              AND attribute.attnum > 0
+              AND NOT attribute.attisdropped
+            ORDER BY 1, 2, 3, 4, 5
+            """,
+        )
     return ProductCatalogSnapshot(
         roles=roles,
         database=database,
+        database_acl=database_acl,
         schemas=schemas,
+        schema_acl=schema_acl,
         relations=relations,
+        relation_acl=relation_acl,
         policies=policies,
         functions=functions,
+        function_acl=function_acl,
         memberships=memberships,
         columns=columns,
+        column_acl=column_acl,
     )
 
 
