@@ -87,7 +87,7 @@ def test_repository_three_way_parity_is_green() -> None:
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
-    """64分岐を軸の支援対象37件と理由付き対象外27件へ漏れなく分ける。"""
+    """65分岐を軸の支援対象37件と理由付き対象外28件へ漏れなく分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
     expected_covered = {
         *(f"COLD-{number:02d}" for number in range(1, 10)),
@@ -98,10 +98,10 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         *(f"RBI-{number:02d}" for number in range(2, 6)),
     }
 
-    assert len(report.requirement_branch_ids) == 64
+    assert len(report.requirement_branch_ids) == 65
     assert report.covered_branch_ids == expected_covered
     assert len(report.covered_branch_ids) == 37
-    assert len(report.excluded_branch_ids) == 27
+    assert len(report.excluded_branch_ids) == 28
     assert {f"req:{item}" for item in report.covered_branch_ids} <= (
         report.descriptor_supporting_clause_ids
     )

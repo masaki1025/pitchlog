@@ -92,7 +92,7 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
         f"XC-{number:02d}": (
             "規範行の列間交差制約であり、単独の入力軸ではない"
         )
-        for number in range(1, 13)
+        for number in range(1, 14)
     },
 }
 
