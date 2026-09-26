@@ -8,9 +8,14 @@ from typing import final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 
 from pitchlog.db.engine import create_database_engine
-from pitchlog.repositories.base import _materialize_rows, _operation_spec
+from pitchlog.repositories.base import (
+    _materialize_rows,
+    _operation_spec,
+    _TenantOperationError,
+)
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import (
@@ -102,6 +107,10 @@ class _TenantTransaction:
             )
 
         spec = _operation_spec(operation)
+        if not isinstance(spec.statement, Select):
+            raise _TenantOperationError(
+                "トランザクション operation は Select だけを実行できる"
+            )
         session, _ = runtime
         execution_result = session.execute(
             spec.statement,
@@ -161,12 +170,15 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
                 exit_stack,
                 _tenant_transaction(session, self._context),
             )
-        except BaseException:
+        except BaseException as primary_error:
             expired_key = state_key if handle is None else handle._expire()
             runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
             self._handle = None
             runtime_session = session if runtime is None else runtime[0]
-            runtime_session.close()
+            try:
+                runtime_session.close()
+            except BaseException as close_error:
+                raise primary_error from close_error
             raise
         if handle is None:
             raise RuntimeError("トランザクションハンドルを生成できない")
@@ -199,14 +211,26 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             raise RuntimeError("トランザクションハンドルの実行状態が既に失効している")
         session, exit_stack = runtime
         try:
-            return ExitStack.__exit__(
+            exit_result = ExitStack.__exit__(
                 exit_stack,
                 exception_type,
                 exception,
                 traceback,
             )
-        finally:
+        except BaseException as primary_error:
+            try:
+                session.close()
+            except BaseException as close_error:
+                raise primary_error from close_error
+            raise
+
+        try:
             session.close()
+        except BaseException as close_error:
+            if exception is not None and not exit_result:
+                raise exception.with_traceback(traceback) from close_error
+            raise
+        return exit_result
 
 
 def tenant_transaction_scope(

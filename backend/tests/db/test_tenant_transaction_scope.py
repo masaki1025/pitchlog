@@ -19,10 +19,13 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from sqlalchemy import (
+    Column,
     Engine,
+    MetaData,
     Result,
     ScalarResult,
     String,
+    Table,
     Uuid,
     bindparam,
     column,
@@ -67,11 +70,18 @@ _PROBE_TABLE = table(
 _READ_STATEMENT = select(_PROBE_TABLE.c.marker).where(
     _PROBE_TABLE.c.tenant_id == bindparam("tenant_id")
 )
+_WRITE_PROBE_TABLE = Table(
+    "tenant_transaction_probe",
+    MetaData(),
+    Column("tenant_id", Uuid, key="tenant_scope"),
+    Column("marker", String),
+    schema="public",
+)
 _WRITE_STATEMENT = (
-    update(_PROBE_TABLE)
-    .where(_PROBE_TABLE.c.tenant_id == bindparam("tenant_id"))
+    update(_WRITE_PROBE_TABLE)
+    .where(_WRITE_PROBE_TABLE.c.tenant_scope == bindparam("tenant_id"))
     .values(marker="changed")
-    .returning(_PROBE_TABLE.c.marker)
+    .returning(_WRITE_PROBE_TABLE.c.marker)
 )
 
 
@@ -149,6 +159,10 @@ class _AbortTransaction(RuntimeError):
 
 class _ScopeEntryFailure(RuntimeError):
     """ハンドル生成後の scope 開始失敗を表すテスト専用例外。"""
+
+
+class _SessionCloseFailure(RuntimeError):
+    """元例外と同時に発生させる Session close の失敗。"""
 
 
 def _transaction_module() -> ModuleType:
@@ -293,7 +307,7 @@ def _write_operation() -> _TenantScopedOperation:
     return _TenantScopedOperation(
         capability_id=token.capability_id,
         statement=cast(Select[tuple[object, ...]], _WRITE_STATEMENT),
-        tenant_column=_PROBE_TABLE.c.tenant_id,
+        tenant_column=_WRITE_PROBE_TABLE.c.tenant_scope,
     )
 
 
@@ -303,7 +317,10 @@ def _orm_read_operation() -> _TenantScopedOperation:
     return _TenantScopedOperation(
         capability_id=token.capability_id,
         statement=cast(Select[tuple[object, ...]], _ORM_READ_STATEMENT),
-        tenant_column=cast(ColumnElement[object], _ProbeOrmRow.tenant_id),
+        tenant_column=cast(
+            ColumnElement[object],
+            _ProbeOrmRow.__table__.c.tenant_id,
+        ),
     )
 
 
@@ -677,6 +694,43 @@ def test_unregistered_and_forged_tokens_use_existing_rejection_path(
             )
 
 
+def test_non_select_operation_is_rejected_before_execute(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Select へ cast された Update を実行前に拒否して行を変更しない。"""
+    transaction = _transaction_module()
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(
+            repository_base,
+            "_OPERATION_REGISTRY",
+            MappingProxyType({_WriteProbeToken: _write_operation()}),
+        )
+        event.listen(Session, "do_orm_execute", observe_orm_sql)
+        try:
+            with pytest.raises(_TenantOperationError, match="Select だけ"):
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as handle:
+                    statements_after_binding = len(observed_statements)
+                    handle.run(_WriteProbeToken())
+        finally:
+            event.remove(Session, "do_orm_execute", observe_orm_sql)
+
+        assert _marker(database.admin_engine) == "original"
+
+    assert observed_statements[:statements_after_binding] == [_BINDING_STATEMENT]
+    assert observed_statements[statements_after_binding:] == []
+
+
 def test_abort_exception_rolls_back_and_closes(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -800,6 +854,68 @@ def test_run_never_returns_database_backed_or_lazy_values(
         )
 
 
+def test_run_rejects_attached_orm_value(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """接続中の ORM instance を DTO に残さず rollback・close する。"""
+    transaction = _transaction_module()
+    created_sessions: list[_OrmResultObservedSession] = []
+    lifecycle: list[str] = []
+
+    class _OrmResultObservedSession(Session):
+        """ORM 値の拒否後に close された Session を観測する。"""
+
+        close_calls: int
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            self.close_calls = 0
+            created_sessions.append(self)
+
+        def close(self) -> None:
+            """Close 呼び出しを記録して通常の解放処理へ委譲する。"""
+            self.close_calls += 1
+            lifecycle.append("close")
+            super().close()
+
+    def observe_rollback(session: Session) -> None:
+        del session
+        lifecycle.append("rollback")
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _OrmResultObservedSession)
+        monkeypatch.setattr(
+            repository_base,
+            "_OPERATION_REGISTRY",
+            MappingProxyType({_OrmReadProbeToken: _orm_read_operation()}),
+        )
+        event.listen(_OrmResultObservedSession, "after_rollback", observe_rollback)
+        try:
+            with pytest.raises(
+                _TenantOperationError,
+                match="_ProbeOrmRow",
+            ):
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as handle:
+                    handle.run(_OrmReadProbeToken())
+        finally:
+            event.remove(
+                _OrmResultObservedSession,
+                "after_rollback",
+                observe_rollback,
+            )
+
+    assert len(created_sessions) == 1
+    assert created_sessions[0].close_calls == 1
+    assert lifecycle == ["rollback", "close"]
+
+
 def test_scope_closes_session_after_success_and_exception(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -849,6 +965,121 @@ def test_scope_closes_session_after_success_and_exception(
 
     assert len(created_sessions) == 2
     assert [session.close_calls for session in created_sessions] == [1, 1]
+
+
+def test_transaction_exit_precedes_close(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正常・例外終了とも transaction exit のあとに一度だけ close する。"""
+    transaction = _transaction_module()
+    created_sessions: list[_LifecycleObservedSession] = []
+
+    class _LifecycleObservedSession(Session):
+        """Transaction event と close の順序を Session ごとに保持する。"""
+
+        lifecycle: list[str]
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            self.lifecycle = []
+            created_sessions.append(self)
+
+        def close(self) -> None:
+            """Close の位置を記録して通常の解放処理へ委譲する。"""
+            self.lifecycle.append("close")
+            super().close()
+
+    def observe_commit(session: Session) -> None:
+        cast(_LifecycleObservedSession, session).lifecycle.append("commit")
+
+    def observe_rollback(session: Session) -> None:
+        cast(_LifecycleObservedSession, session).lifecycle.append("rollback")
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _LifecycleObservedSession)
+        monkeypatch.setattr(
+            repository_base,
+            "_OPERATION_REGISTRY",
+            MappingProxyType({_ReadProbeToken: _read_operation()}),
+        )
+        event.listen(_LifecycleObservedSession, "after_commit", observe_commit)
+        event.listen(_LifecycleObservedSession, "after_rollback", observe_rollback)
+        try:
+            with transaction.tenant_transaction_scope(
+                make_tenant_context(_TENANT_ID)
+            ) as handle:
+                handle.run(_ReadProbeToken())
+
+            with pytest.raises(_AbortTransaction, match="例外終了"):
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as handle:
+                    handle.run(_ReadProbeToken())
+                    raise _AbortTransaction("例外終了")
+        finally:
+            event.remove(_LifecycleObservedSession, "after_commit", observe_commit)
+            event.remove(
+                _LifecycleObservedSession,
+                "after_rollback",
+                observe_rollback,
+            )
+
+    assert [session.lifecycle for session in created_sessions] == [
+        ["commit", "close"],
+        ["rollback", "close"],
+    ]
+
+
+def test_close_failure_preserves_primary_exception(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Close も失敗したとき元例外を主例外、close 失敗を原因として残す。"""
+    transaction = _transaction_module()
+    lifecycle: list[str] = []
+
+    class _CloseFailingSession(Session):
+        """通常の解放後に close 失敗を発生させる Session。"""
+
+        def close(self) -> None:
+            """解放を行った事実を残してテスト専用例外を送出する。"""
+            lifecycle.append("close")
+            super().close()
+            raise _SessionCloseFailure("Session close 失敗")
+
+    def observe_rollback(session: Session) -> None:
+        del session
+        lifecycle.append("rollback")
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _CloseFailingSession)
+        monkeypatch.setattr(
+            repository_base,
+            "_OPERATION_REGISTRY",
+            MappingProxyType({_ReadProbeToken: _read_operation()}),
+        )
+        event.listen(_CloseFailingSession, "after_rollback", observe_rollback)
+        try:
+            with pytest.raises(_AbortTransaction, match="主例外") as caught:
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as handle:
+                    handle.run(_ReadProbeToken())
+                    raise _AbortTransaction("主例外")
+        finally:
+            event.remove(_CloseFailingSession, "after_rollback", observe_rollback)
+
+    assert lifecycle == ["rollback", "close"]
+    assert isinstance(caught.value.__cause__, _SessionCloseFailure)
+    assert str(caught.value.__cause__) == "Session close 失敗"
 
 
 def test_handle_cannot_run_after_scope_exit(
