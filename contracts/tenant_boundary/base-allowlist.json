@@ -2250,8 +2250,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "089aa8c1f9421de72032970cd3081405f003b3cef308f8251305e1b5a42aa75e",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/089aa8c1f9421de72032970cd3081405f003b3cef308f8251305e1b5a42aa75e"
+                "sha256": "0afbccb822846e8e819f0d4465a380075fd50362f487d94e8e712a095d20a046",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0afbccb822846e8e819f0d4465a380075fd50362f487d94e8e712a095d20a046"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -2270,8 +2270,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "b9adda761023d67afe5ea3568fed9c78f8a67499a22f0ac32248d3377e3e34d6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b9adda761023d67afe5ea3568fed9c78f8a67499a22f0ac32248d3377e3e34d6"
+                "sha256": "3a9d398a2d4c88efb14dc5bbe1d140f9b0a5c41139f518ad5f134ba1be9af305",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3a9d398a2d4c88efb14dc5bbe1d140f9b0a5c41139f518ad5f134ba1be9af305"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -2286,8 +2286,8 @@
             ]
           }
         },
-        "movement_fact": "repository-contract の公開面へトランザクションスコープ入口と操作ハンドル型を追加し、base-allowlist の allowed_symbols へ Session.execute を囲む TenantTransaction.run だけを追加したため、両資産の宣言と凍結射影が動いた。",
-        "reason": "取得元 API repos/masaki1025/pitchlog/issues/82/comments。1 件目 comment id 5844655199 (created_at 2026-09-26T08:36:30Z) は対象シンボル名を誤っており、2 件目が訂正である。有効な承認は comment id 5844686316 (created_at 2026-09-26T08:41:56Z, user.login masaki1025) で、DB 呼び出し Session.execute を囲む pitchlog.repositories.transaction.TenantTransaction.run の追加を承認している。",
+        "movement_fact": "repository-contract の公開面へトランザクションスコープ入口だけを追加し、base-allowlist の allowed_symbols へ Session.execute を囲む非公開 _TenantTransaction.run だけを追加したため、両資産の宣言と凍結射影が動いた。",
+        "reason": "取得元 API repos/masaki1025/pitchlog/issues/82/comments。1 通目 comment id 5844655199 (created_at 2026-09-26T08:36:30Z) は tenant_transaction_scope を対象として取り違えたため差し替えた。2 通目 comment id 5844686316 (created_at 2026-09-26T08:41:56Z) は pitchlog.repositories.transaction.TenantTransaction.run を承認したが、コア領域の敵対レビュー P0-1 により公開コンストラクタから束縛を迂回できることが判明し、ハンドルを非公開化したため差し替えた。3 通目 comment id 5846446071 (created_at 2026-09-26T12:56:08Z, user.login masaki1025) が有効な承認で、pitchlog.repositories.transaction._TenantTransaction.run を allowed_symbols へ追加し、repository-contract.json の public_surface から transaction_handle_type を削除して transaction_scope_entry だけを宣言することを承認している。",
         "approved_by": "山田正輝",
         "approved_on": "2026-09-26"
       }
@@ -2357,7 +2357,7 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py"
     },
     {
-      "symbol": "pitchlog.repositories.transaction.TenantTransaction.run",
+      "symbol": "pitchlog.repositories.transaction._TenantTransaction.run",
       "signature": "run(self, operation: TenantOperationToken) -> TenantOperationResult",
       "allowed_api_ids": [
         "SQLA_SESSION_EXECUTE"

@@ -5,7 +5,7 @@ CONTRACT_REVISION = 6
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "dce7ae1d6149f8615745ca292c9cb8c63e619e7f3c82394c7b955b16980d8ad0"
+SOURCE_DIGEST = "db918963f8ccef259c278947a978a419c98f80141780760dd69571caed5e70eb"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -16,7 +16,6 @@ CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
     "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
 )
 TRANSACTION_SCOPE_ENTRY = "pitchlog.repositories.transaction.tenant_transaction_scope"
-TRANSACTION_HANDLE_TYPE = "pitchlog.repositories.transaction.TenantTransaction"
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "

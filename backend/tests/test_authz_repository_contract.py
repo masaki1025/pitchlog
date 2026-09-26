@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import inspect
 import json
 from collections.abc import Callable, Generator, Iterator
@@ -11,7 +12,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, cast, get_type_hints
+from typing import Any, cast, get_args, get_origin, get_type_hints
 from uuid import UUID
 
 import pytest
@@ -59,6 +60,7 @@ from pitchlog.repositories.tokens import (
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CONTRACT_PATH = Path("contracts/tenant_boundary/repository-contract.json")
+_ALLOWLIST_PATH = Path("contracts/tenant_boundary/base-allowlist.json")
 _TEST_TABLE = table(
     "repository_contract_probe",
     column("tenant_id"),
@@ -142,6 +144,81 @@ def _read_contract() -> dict[str, Any]:
     return value
 
 
+def _read_allowlist() -> dict[str, Any]:
+    """DB API 許可シンボル資産を JSON object として読む。"""
+    value = json.loads((_REPOSITORY_ROOT / _ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        raise AssertionError("base allowlist が JSON object でない")
+    return value
+
+
+def _resolve_symbol(symbol: str) -> object:
+    """完全修飾名を import 可能な最長 module と属性列へ分けて解決する。"""
+    parts = symbol.split(".")
+    for module_size in range(len(parts), 0, -1):
+        module_name = ".".join(parts[:module_size])
+        try:
+            value: object = importlib.import_module(module_name)
+        except ModuleNotFoundError as error:
+            if error.name is not None and not module_name.startswith(error.name):
+                raise
+            continue
+        for attribute in parts[module_size:]:
+            value = getattr(value, attribute)
+        return value
+    raise AssertionError(f"実装シンボルを解決できない: {symbol}")
+
+
+def _annotation_name(annotation: object) -> str:
+    """実行時型注釈を契約資産の短い表記へ正規化する。"""
+    if annotation is None or annotation is type(None):
+        return "None"
+    if annotation is Any:
+        return "Any"
+    if isinstance(annotation, str):
+        return annotation
+    origin = get_origin(annotation)
+    if origin is not None:
+        arguments = ", ".join(_annotation_name(item) for item in get_args(annotation))
+        name = getattr(origin, "__name__", str(origin))
+        module = getattr(origin, "__module__", "")
+        if module == "psycopg":
+            name = f"{module}.{name}"
+        return f"{name}[{arguments}]"
+    name = getattr(annotation, "__name__", None)
+    if isinstance(name, str):
+        return name
+    raise AssertionError(f"契約署名へ変換できない型注釈: {annotation!r}")
+
+
+def _runtime_signature(value: object) -> str:
+    """解決済み callable の名前・引数・戻り値を契約表記へ変換する。"""
+    if not callable(value):
+        raise AssertionError(f"契約署名の対象が callable でない: {value!r}")
+    callable_value = cast(Callable[..., object], value)
+    signature = inspect.signature(callable_value)
+    hints = get_type_hints(callable_value)
+    parameters: list[str] = []
+    for parameter in signature.parameters.values():
+        rendered = parameter.name
+        annotation = hints.get(parameter.name, parameter.annotation)
+        if annotation is not inspect.Parameter.empty:
+            rendered += f": {_annotation_name(annotation)}"
+        if parameter.default is not inspect.Parameter.empty:
+            rendered += f" = {parameter.default!r}"
+        parameters.append(rendered)
+    return_annotation = hints.get("return", signature.return_annotation)
+    return_name = (
+        ""
+        if return_annotation is inspect.Signature.empty
+        else f" -> {_annotation_name(return_annotation)}"
+    )
+    name = getattr(callable_value, "__name__", None)
+    if not isinstance(name, str):
+        raise AssertionError(f"callable 名を取得できない: {value!r}")
+    return f"{name}({', '.join(parameters)}){return_name}"
+
+
 def _asset_digest(asset: dict[str, Any]) -> str:
     """source_digest を除く正規化 digest を計算する。"""
     payload = dict(asset)
@@ -175,7 +252,6 @@ def _generated_snapshot() -> dict[str, object]:
                 repository_contract.CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL
             ),
             "transaction_scope_entry": repository_contract.TRANSACTION_SCOPE_ENTRY,
-            "transaction_handle_type": repository_contract.TRANSACTION_HANDLE_TYPE,
         },
         "executor": {
             "symbol": repository_contract.EXECUTOR_SYMBOL,
@@ -229,6 +305,72 @@ def test_generated_repository_contract_matches_asset() -> None:
     assert repository_contract.SOURCE_ASSET == _CONTRACT_PATH.as_posix()
     assert asset["source_digest"] == _asset_digest(asset)
     assert _generated_snapshot() == _asset_snapshot(asset)
+
+
+def test_declared_repository_symbols_resolve() -> None:
+    """公開面と DB API 許可対象の全宣言が実装オブジェクトへ解決できる。"""
+    contract = _read_contract()
+    allowlist = _read_allowlist()
+    declared_symbols = (
+        *contract["public_surface"].values(),
+        *(item["symbol"] for item in allowlist["allowed_symbols"]),
+    )
+
+    resolved = {symbol: _resolve_symbol(symbol) for symbol in declared_symbols}
+
+    assert set(resolved) == set(declared_symbols)
+
+
+def test_allowed_repository_symbol_signatures_match_runtime() -> None:
+    """DB API 許可シンボルの実装署名を資産と exact 一致させる。"""
+    allowlist = _read_allowlist()
+
+    actual = {
+        item["symbol"]: _runtime_signature(_resolve_symbol(item["symbol"]))
+        for item in allowlist["allowed_symbols"]
+    }
+    expected = {
+        item["symbol"]: item["signature"] for item in allowlist["allowed_symbols"]
+    }
+
+    assert actual == expected
+
+
+def test_generated_repository_constant_surface_is_exact() -> None:
+    """生成モジュールへ契約外の旧定数を残さない。"""
+    expected = {
+        "ALLOWED_DTOS",
+        "ASSET_KIND",
+        "CANONICALIZATION",
+        "CONTAINER_TYPE_MATCH",
+        "CONTEXT_BINDING_ENTRY",
+        "CONTRACT_REVISION",
+        "CROSS_TENANT_FUNCTIONS",
+        "CROSS_TENANT_FUNCTION_ENTRY",
+        "CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL",
+        "EXECUTOR_SIGNATURE",
+        "EXECUTOR_SYMBOL",
+        "FORBIDDEN_TYPES",
+        "IMMUTABLE_CONTAINER_GRAMMAR",
+        "IMMUTABLE_SCALAR_TYPES",
+        "OPERATION_RESULT_TYPE",
+        "OPERATION_TOKEN_TYPE",
+        "PRODUCT_CAPABILITY_IDS",
+        "PRODUCT_OPERATION_TOKEN_TYPES",
+        "REPOSITORY_TYPE",
+        "SCALAR_TYPE_MATCH",
+        "SCHEMA_VERSION",
+        "SOURCE_ASSET",
+        "SOURCE_DIGEST",
+        "TRANSACTION_SCOPE_ENTRY",
+    }
+    actual = {
+        name
+        for name in vars(repository_contract)
+        if name.isupper() and not name.startswith("_")
+    }
+
+    assert actual == expected
 
 
 def test_public_repository_surface_and_signature_are_exact() -> None:

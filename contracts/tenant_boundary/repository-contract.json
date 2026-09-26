@@ -70,7 +70,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "dce7ae1d6149f8615745ca292c9cb8c63e619e7f3c82394c7b955b16980d8ad0",
+  "source_digest": "db918963f8ccef259c278947a978a419c98f80141780760dd69571caed5e70eb",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -78,8 +78,7 @@
     "operation_token_type": "pitchlog.repositories.tokens.TenantOperationToken",
     "operation_result_type": "pitchlog.repositories.tokens.TenantOperationResult",
     "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY",
-    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope",
-    "transaction_handle_type": "pitchlog.repositories.transaction.TenantTransaction"
+    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope"
   },
   "executor": {
     "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
