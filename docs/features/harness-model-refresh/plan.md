@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
 branch: feature/harness-model-refresh
 created: 2026-09-26
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -46,13 +46,13 @@ created: 2026-09-26
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | `docs/adr/ADR-001-codex-model-selection.md` | **v1.1**: 決定表を固定構文(4 節)の 8 行で GPT-6 世代へ再設計(PO 確定案)・文脈(CLI 0.157.x のカタログ・料金・利用枠の重み〔代理指標〕・ベンチマーク〔未照合分は明示〕・移行前ベースライン)・理由(欠陥コスト論の GPT-6 世代への読み替え)・帰結(見直しトリガーに「実測期間終了時の再判定」「品質下限の巻き戻し条件」を追加・Ultra は対話専用・Fast 不使用・決定表の固定構文をテストが読む旨)・変更履歴行。approved 化後、ステップ 4 で実機検証の追随行(版は上げない) | **finalize-doc**(ADR-001 v1.1 + 設計書 v1.18 を単一ゲート)+ 追随行は PR レビュー |
-| `docs/development/dev-harness-design-2026-08-07.md` | **v1.18**: 8.1 に主セッション推奨設定を新設・8.1 `:662` の「Opus 5 固定」を更新 / 8.5 実行既定を `claude-opus-5-5`・`effort: high`(`effortLevel` 併記廃止・定義例 `:744` 修正)/ 9.4 表を ADR-001 v1.1 と同期 + 「実機検証 = 0.157.x」+ `:826` のエイリアス注記を GPT-6 世代へ / 6.1 `:322`・9.2 `:792` の「terra medium」・8.4 `:704` の「terra high」を「ADR-001 の該当行」参照へ / 射程宣言・変更履歴行 | **finalize-doc**(同上) |
+| `docs/development/dev-harness-design-2026-08-07.md` | **v1.18**: 8.1 に主セッション推奨設定を新設・8.1 `:662` の「Opus 5 固定」を更新 / 8.5 実行既定を `claude-opus-5-5`・`effort: high`(`effortLevel` 併記廃止・定義例 `:744` 修正)/ 9.4 の表の再掲を廃止(7.1-1)し ADR-001 参照 + 注記(固定構文・同期テスト・CLI 0.157.x 以上とラッパーの版検査・`probe`)+ `:826` のエイリアス注記を GPT-6 世代へ / 6.1 `:322`・9.2 `:792` の「terra medium」・8.4 `:704` の「terra high」を「ADR-001 の該当行」参照へ / 8.4 `/setup-dev` 行に版の下限(Claude Code 2.1.280・Codex CLI 0.157.0)/ 射程宣言・変更履歴行 | **finalize-doc**(同上) |
 | `docs/README.md` | ADR-001・設計書の版・状態・最終更新の現行化(起案時 in-review・承認時 approved・追随行の 3 回) | PR レビュー |
 | `docs/development/harness-evaluation.md` | **反映なし**(現時点)。`/pr` クローズ処理で台帳追記に該当すると判断した場合は、**先に本表へ宣言を追記してから**反映する(`.claude/skills/pr/SKILL.md` 1-3)。該当しなければ worklog に「台帳への追記なし」と理由を残す | — |
 | 要件書・ADR-002〜004・onboarding.md・github-setup.md・`.claude/skills/{pr,plan}/SKILL.md` | **反映なし** | — |
 | `.claude/skills/finalize-doc/SKILL.md` | **案 A: 反映なし / 案 B: `:15` の括弧書きを新値へ**(guard_paths — 逐行確認・実施記録行) | 案 B のとき PR レビュー + 逐行確認 |
 
-**正本体系外だが同一 PR で更新するもの**: `.claude/scripts/codex_run.py`・`tests/test_codex_run.py`(同期テスト・経路テストの追加)・`tests/test_agents_frontmatter.py`(新規)・`.claude/agents/{spec-checker,legacy-analyst,decision-tracer}.md`・`CLAUDE.md`(`:30`・`:35`)・`.claude/skills/{implement,research}/SKILL.md`・`.claude/settings.json`(PO 判断③が可の場合のみ)・`docs/features/harness-model-refresh/{plan,research}.md`・worklog
+**正本体系外だが同一 PR で更新するもの**: `.claude/scripts/codex_run.py`・`tests/test_codex_run.py`(同期テスト・経路テストの追加)・`tests/test_agents_frontmatter.py`(新規)・`.claude/agents/{spec-checker,legacy-analyst,decision-tracer}.md`・`CLAUDE.md`(`:30`・`:35`)・`.claude/skills/{implement,research,setup-dev}/SKILL.md`(setup-dev は版下限の確認手順)・`.claude/settings.json`(PO 判断③が可の場合のみ — `model`・`modelSettings`・`env.CLAUDE_CODE_DISABLE_FAST_MODE` の 3 キー)・`docs/features/harness-model-refresh/{plan,research}.md`・worklog
 
 ## 4. 実装方針
 
@@ -68,8 +68,8 @@ created: 2026-09-26
 
 | 選択案 | 阻止条件 0 で確認する `(model, effort)` | ステップ 4 のスモーク期待値(選択後の定数) | スモーク不成立の継続判断 | 追加で対象に入るファイル |
 | --- | --- | --- | --- | --- |
-| 案 A | `gpt-6-sol` × {medium, high, xhigh, max}・`gpt-6-luna` × {xhigh} | `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-sol`, xhigh) | 対応表を変えるなら **ADR-001 v1.2**(astra 昇格を含む)を起案し新規の確定ゲート | なし |
-| 案 B | 案 A の集合 + `gpt-6-astra` × {medium} | `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-astra`, medium) | **PO 再裁定**(sol xhigh へ戻す / astra の effort 変更 等)→ ADR-001 v1.2 + 新規の確定ゲート | `.claude/skills/finalize-doc/SKILL.md:15`(guard_paths — 逐行確認・実施記録行) |
+| 案 A | `gpt-6-sol` × {medium, high, xhigh, max}・`gpt-6-luna` × {xhigh} | `probe` で上記 5 組すべて + 本番様式で `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-sol`, xhigh) | 対応表を変えるなら **ADR-001 v1.2**(astra 昇格を含む)を起案し新規の確定ゲート | なし |
+| 案 B | 案 A の集合 + `gpt-6-astra` × {medium} | `probe` で全組 + 本番様式で `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-astra`, medium) | **PO 再裁定**(sol xhigh へ戻す / astra の effort 変更 等)→ ADR-001 v1.2 + 新規の確定ゲート | `.claude/skills/finalize-doc/SKILL.md:15`(guard_paths — 逐行確認・実施記録行) |
 
 ### PO 判断事項(**確定 2026-09-27・徳光 尋弥: ① 案 A ② effort 据え置き ③ 機構化する** — 以下は判断材料として保存)
 
@@ -96,13 +96,13 @@ created: 2026-09-26
   - **適用対象**: 本リポジトリを開く**全開発者の新規セッション**(共有設定 — 設計書 8.1。`~/.claude/settings.json` の `"model": "fable[1m]"` より優先される)
   - **上書き手段**: セッション内 `/model`(Fable への昇格・相談役)/ `.claude/settings.local.json`(個人の恒久上書き・gitignore 済み)
   - **effort = high の根拠**: Opus 5.5 の既定は medium で、トップレベル `effortLevel` は Opus 5.5 に効かない(✔ B-1)。現行の主セッションは Fable xhigh で運用しており、まず **high** で品質の連続性を取り、medium への引き下げは実測期間の後に判定する(Codex の推奨は medium — B-1)。**`modelSettings` 内の `effortLevel` キーは Claude Code の settings.json の正式な形**であり、agents frontmatter で廃止する `effortLevel` とは別物(前者は残す)
-  - **副作用の統制**: `permissions`・`hooks` ブロックは**差分不変**(ステップ 2 の合格条件で `git diff` が `model`・`modelSettings` の 2 キー追加のみであることを確認)。`tests/test_hooks.py` のフック実在検査が引き続き緑
+  - **副作用の統制**: `permissions`・`hooks` ブロックは**差分不変**(ステップ 2 の合格条件で `git diff` が `model`・`modelSettings`・`env` の 3 キー追加のみであることを確認)。`tests/test_hooks.py` のフック実在検査が引き続き緑。**確定ゲート 1 周目で追加**: Fast mode は `/fast` の ON が次セッションへ持続するため、共有設定の `env` に `CLAUDE_CODE_DISABLE_FAST_MODE=1` を置いて機構的に無効化する(公式 fast-mode)。優先順位は managed → 起動時 CLI/環境変数 → local → 共有 → 利用者(公式)。前提 = Claude Code 2.1.280 以上(Opus 5.5 の最低版 — `/setup-dev` で確認)
   - **機構化しない場合**: 8.1 の推奨記述のみとし、`.claude/settings.json` は触らない(3 節の宣言から外す)
 
 ### ADR-001 v1.1 の決定表の固定構文(同期テストが読む — ステップ 1・3 で共有)
 
 - 位置: `## 決定` 見出しの直下にある最初の Markdown 表。ヘッダ行は `| 作業 | モデル(明示 ID 固定) | effort |` に固定
-- 行: **ちょうど 8 行**。「作業」セルは上表の行キー 8 個と**完全一致**(括弧内の補足はテンプレの説明として本文側に置き、セルには含めない)。「モデル」セルは **code span ちょうど 1 個**(中身がモデル ID)。「effort」セルは `low` / `medium` / `high` / `xhigh` / `max` の**トークン 1 個**(太字・注記なし。注記は表の下の箇条書きへ)
+- 行: **ちょうど 8 行を記載順に各 1 回**。「作業」セルは上表の行キー 8 個と**完全一致**(括弧内の補足はテンプレの説明として本文側に置き、セルには含めない)。「モデル」セルは **code span ちょうど 1 個**(中身がモデル ID)。「effort」セルは `low` / `medium` / `high` / `xhigh` / `max` の**いずれか 1 トークン**(太字・注記なし。注記は表の下の箇条書きへ)。この構文は ADR-001 本文にも同文で置く(正本の恒久文法 — 確定ゲート 1 周目 P1)
 - 行キー → ラッパー定数の対応: 通常実装 → `MODEL_MAP["通常"]` / 軽微な修正 → `MODEL_MAP["軽微"]` / コア領域の実装 → `MODEL_MAP["コア領域"]` / 機械的軽作業 → `MODEL_MAP["機械的軽作業"]` / 一次コードレビュー → `REVIEW_NORMAL` / 敵対レビュー・コア領域 PR・正本確定ゲート → `REVIEW_ADVERSARIAL` / Web 調査 → `RESEARCH` / Web 調査(深い技術検証 `--deep`) → `RESEARCH_DEEP`
 - 設計書 9.4 は同じ 8 行を再掲する(意味一致を目視で確認。テストは ADR-001 のみを読む)
 
@@ -110,13 +110,13 @@ created: 2026-09-26
 
 | 対象 | 残ってはいけないもの(`grep -P`) | 許容するもの |
 | --- | --- | --- |
-| 設計書(変更履歴表の版行 `^\| \*{0,2}\d+\.\d+` を除く全文) | `gpt-5\.6`・`\bterra\b`・`claude-opus-5(?!-5)`・`Opus 5(?![.\d])`・`effortLevel`(**8.1 の主セッション既定にある settings.json の `modelSettings.*.effortLevel` の 1 箇所は除く** — settings の正式キー。ステップ 1 で明確化) | `gpt-6-luna`(機械的軽作業行)・`gpt-6-sol`・`gpt-6-astra`・`claude-opus-5-5`・「Opus 5.5」・8.1 の settings.json 記述 |
+| 設計書(変更履歴表の版行 `^\| \*{0,2}\d+\.\d+` を除く全文) | `gpt-5\.6`・`\bterra\b`・`claude-opus-5(?!-5)`・`Opus 5(?![.\d])`・`effortLevel`(**除外 2 箇所**: 8.1 の主セッション既定にある settings.json の `modelSettings.*.effortLevel`〔settings の正式キー〕と、8.5 の「v1.17 まで誤って併記していた未知キー `effortLevel`」〔廃止の経緯を名指しする記述 — 確定ゲート 1 周目 P2〕) | `gpt-6-luna`(機械的軽作業行)・`gpt-6-sol`・`gpt-6-astra`・`claude-opus-5-5`・「Opus 5.5」・8.1 の settings.json 記述 |
 | ADR-001 の決定節(`## 決定` 〜 次の `## `) | `gpt-5\.6` | 文脈・変更履歴に残す過去事実(`gpt-5.6-*` の旧表要約・旧単価) |
 | `.claude/agents/*.md` | `effortLevel`・`claude-opus-5(?!-5)` | `effort: high` |
 | `CLAUDE.md` | `gpt-5\.6`・`sol xhigh`・`Opus 5(?![.\d])` | 「Opus 5.5」・「ADR-001 の該当行」参照 |
 | `.claude/skills/{implement,research}/SKILL.md` | `\bterra\b`・`sol xhigh`・`gpt-5\.6` | — |
 | `.claude/skills/finalize-doc/SKILL.md` | (案 A: 検査対象外 — 触らない)/(案 B: `sol xhigh`) | 案 A の `sol xhigh`(gpt-6-sol xhigh と整合) |
-| `.claude/settings.json` | `git diff` に `model`・`modelSettings` 以外のキー変更 | `modelSettings.claude-opus-5-5.effortLevel`(正式な形) |
+| `.claude/settings.json` | `git diff` に `model`・`modelSettings`・`env`(`CLAUDE_CODE_DISABLE_FAST_MODE` のみ)以外のキー変更 | `modelSettings.claude-opus-5-5.effortLevel`(正式な形)・`env.CLAUDE_CODE_DISABLE_FAST_MODE = "1"` |
 
 ### 起案値(PO 判断①を案 A・③を機構化とした場合)
 
@@ -136,11 +136,11 @@ created: 2026-09-26
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **ADR-001 v1.1 + 設計書 v1.18 の起案(単一コミット = 確定ゲート開始)**(Claude): ADR-001 = frontmatter `status: in-review`・変更履歴 v1.1 行(in-review・射程宣言)・決定表を固定構文の 8 行で PO 確定案に書き換え・文脈/理由/帰結の更新(旧表は変更履歴に要約保存)/ 設計書 = frontmatter `status: in-review`・変更履歴 v1.18 行(in-review・射程宣言)・8.1 新設段落と `:662`・8.5 実行既定と定義例・9.4 表と `:826`・6.1 `:322`・8.4 `:704`・9.2 `:792` の同期 / `docs/README.md` の 2 行を in-review へ / worklog に **適用版(7.3 の版数 + 条文コミット SHA)の暫定記録** | `uv run python scripts/check_docs_status.py` exit 0 / ADR-001 の決定表が固定構文(ヘッダ・8 行キー・code span 1 個・effort トークン 1 個)を満たす(目視)/ 「旧記述の残存検査」表の設計書・ADR-001 の行が 0 件 / 9.4 表の 8 行が ADR-001 の決定表と意味一致(目視)/ 単一コミットに 2 正本・索引・worklog が含まれる(`git show --stat`) |
+| 1 | **ADR-001 v1.1 + 設計書 v1.18 の起案(単一コミット = 確定ゲート開始)**(Claude): ADR-001 = frontmatter `status: in-review`・変更履歴 v1.1 行(in-review・射程宣言)・決定表を固定構文の 8 行で PO 確定案に書き換え・文脈/理由/帰結の更新(旧表は変更履歴に要約保存)/ 設計書 = frontmatter `status: in-review`・変更履歴 v1.18 行(in-review・射程宣言)・8.1 新設段落と `:662`・8.5 実行既定と定義例・9.4 表と `:826`・6.1 `:322`・8.4 `:704`・9.2 `:792` の同期 / `docs/README.md` の 2 行を in-review へ / worklog に **適用版(7.3 の版数 + 条文コミット SHA)の暫定記録** | `uv run python scripts/check_docs_status.py` exit 0 / ADR-001 の決定表が固定構文(ヘッダ・8 行キー・code span 1 個・effort トークン 1 個)を満たす(目視)/ 「旧記述の残存検査」表の設計書・ADR-001 の行が 0 件 / 9.4 に値の再掲が無く ADR-001 への参照のみ(目視)/ 単一コミットに 2 正本・索引・worklog が含まれる(`git show --stat`) |
 | — | **/finalize-doc**(ADR-001 v1.1 + 設計書 v1.18 の単一ゲート。現行ラッパー = `gpt-5.6-sol` xhigh。反映周コミットはステップ記法なし)→ approved 化・索引現行化 | 7.3-2 の収束・PO 承認・`check_docs_status.py` exit 0 |
-| 2 | **Claude 側設定・文書の同期**(Claude — コードには触れない): `.claude/agents/*.md` を `model: claude-opus-5-5`・`effort: high`(`effortLevel` 行削除)/ `CLAUDE.md:30` の「実装は sol xhigh」を「ADR-001 の『コア領域の実装』行のモデル・effort」参照へ・`:35` を「Opus 5.5・effort high」へ / `.claude/skills/{implement,research}/SKILL.md` の旧モデル名(`:50`・`:8`)を「ラッパーが ADR-001 どおりに固定」へ一般化(案 B なら `finalize-doc/SKILL.md:15` も — 逐行確認)/ `.claude/settings.json` に `model`・`modelSettings`(PO 判断③が機構化の場合) | 「旧記述の残存検査」表の agents・CLAUDE.md・skills・settings.json の行がすべて満たされる / `uv run pytest -c pyproject.toml tests/` green(既存テストのみ — `test_hooks.py` のフック実在検査を含む)/ 人間が新規セッションで `/model` の表示が `claude-opus-5-5`・effort high であることを確認し worklog に記録 |
-| 3 | **ラッパーの対応表更新 + テスト 3 群**(Codex): `codex_run.py` の 5 定数を approved の ADR-001 v1.1 へ更新 / `tests/test_codex_run.py` に ① 固定構文で ADR-001 の決定表を読み(`## 決定` 直下の最初の表・ヘッダ固定・8 行キー・code span 1 個・effort トークン 1 個)、行キー → 定数の対応表で `(model, effort)` を照合する同期テスト ② 負例 4 種(モデル不一致・effort 不一致・行キー欠落・構文違反〔code span 2 個 / 未知の effort トークン〕を一時的な表文字列で検出)③ 経路テスト(`run_codex` を差し替え、`implement`〔重さ 4 分類〕・`fast`・`research`・`research --deep`・`review normal`・`review adversarial` の各経路が期待する `-m <model>` と `-c model_reasoning_effort=<effort>` を組み立てることを既存の fixture 方式で検証)/ `tests/test_agents_frontmatter.py` を新設(3 ファイルの `model` = `claude-opus-5-5`・`effort` = `high`・`effortLevel` 不在・`tools` = Read, Grep, Glob — ステップ 2 の状態を固定) | `uv run pytest -c pyproject.toml tests/` green・`uv run ruff check .`・`uv run ty check` green / 負例 4 種が実際に落ちることをテスト内で確認 / 定数に旧 ID `gpt-5.6-*` が残らない(`grep -P 'gpt-5\.6' .claude/scripts/codex_run.py` = 0) |
-| 4 | **実機検証と記録**(Claude): `codex_run.py review normal` と `review adversarial` を短い依頼文(判定行の様式を指定)でスモーク実行し、導出表の期待値(選択案の `REVIEW_NORMAL` / `REVIEW_ADVERSARIAL`)で受理されることを確認 / 遮断・判定行なしなら安全語彙で 1 回だけ再実行 / 結果(版・日付・コマンド・受理・判定行・遮断の有無・再実行の有無)を worklog に記録 / 成立時: ADR-001 v1.1 の変更履歴へ「実機検証 0.157.x・受理確認」の追随行(版は上げない・7.6-3 前段・frontmatter は approved のまま)を追加し `docs/README.md` の最終更新を現行化 / **不成立時: 「順序と差し戻し経路」のとおり revert を含めて同じステップの 1 コミット `(ステップ 4/4 不成立・巻き戻し)` にし PR を停止** | 成立: 2 経路とも exit 0・**判定行あり・遮断なし**(再実行を含めて可)・`check_docs_status.py` exit 0 / 不成立: revert 後に `uv run pytest -c pyproject.toml tests/` green(旧状態へ戻っている)・worklog に両試行の記録・PO への報告 |
+| 2 | **Claude 側設定・文書の同期**(Claude — コードには触れない): `.claude/agents/*.md` を `model: claude-opus-5-5`・`effort: high`(`effortLevel` 行削除)/ `CLAUDE.md:30` の「実装は sol xhigh」を「ADR-001 の『コア領域の実装』行のモデル・effort」参照へ・`:35` を「Opus 5.5・effort high 固定」へ・**主セッションの共有既定(Opus 5.5・high・Fable への一時昇格条件・Fast 禁止)を追記**(設計書 8.1 の CLAUDE.md 項目)/ `.claude/skills/{implement,research}/SKILL.md` の旧モデル名(`:50`・`:8`)を「ラッパーが ADR-001 どおりに固定」へ一般化(案 B なら `finalize-doc/SKILL.md:15` も — 逐行確認)/ `.claude/skills/setup-dev/SKILL.md` に版の下限確認(Claude Code 2.1.280・Codex CLI 0.157.0)の手順を追加 / `.claude/settings.json` に `model`・`modelSettings`・`env.CLAUDE_CODE_DISABLE_FAST_MODE`(PO 判断③が機構化の場合) | 「旧記述の残存検査」表の agents・CLAUDE.md・skills・settings.json の行がすべて満たされる / `uv run pytest -c pyproject.toml tests/` green(既存テストのみ — `test_hooks.py` のフック実在検査を含む)/ 人間が新規セッションで `/model` の表示が `claude-opus-5-5`・effort high、`/fast` が無効(disabled)であることを確認し worklog に記録 |
+| 3 | **ラッパーの対応表更新 + 版検査 + `probe` + テスト**(Codex): `codex_run.py` の 5 定数を approved の ADR-001 v1.1 へ更新 / **起動前の Codex 版検査**(`codex --version` を解析し 0.157.0 未満・解析不能なら fail-closed で停止し onboarding 1-6 の更新手順を示す — 全モードに適用)/ **read-only の `probe` モード**(ADR-001 の決定表に現れる一意な `(model, effort)` 組を列挙し、各組で短い依頼文を `exec` 経路に流して受理・応答を表示。sandbox は `read-only`・web_search は `cached`)/ `tests/test_codex_run.py` に ① 固定構文で ADR-001 の決定表を読み(`## 決定` 直下の最初の表・ヘッダ固定・8 行キー・code span 1 個・effort トークン 1 個)、行キー → 定数の対応表で `(model, effort)` を照合する同期テスト ② 負例 4 種(モデル不一致・effort 不一致・行キー欠落・構文違反〔code span 2 個 / 未知の effort トークン〕を一時的な表文字列で検出)③ 経路テスト(`run_codex` を差し替え、`implement`〔重さ 4 分類〕・`fast`・`research`・`research --deep`・`review normal`・`review adversarial`・`probe` の各経路が期待する `-m <model>` と `-c model_reasoning_effort=<effort>` を組み立てることを既存の fixture 方式で検証)④ 版検査テスト(`codex --version` の出力を差し替え、0.157.1 は通過・0.153.4 は停止・解析不能は停止の 3 例)/ `tests/test_agents_frontmatter.py` を新設(3 ファイルの `model` = `claude-opus-5-5`・`effort` = `high`・`effortLevel` 不在・`tools` = Read, Grep, Glob — ステップ 2 の状態を固定) | `uv run pytest -c pyproject.toml tests/` green・`uv run ruff check .`・`uv run ty check` green / 負例 4 種が実際に落ちることをテスト内で確認 / 定数に旧 ID `gpt-5.6-*` が残らない(`grep -P 'gpt-5\.6' .claude/scripts/codex_run.py` = 0) |
+| 4 | **実機検証と記録**(Claude): `codex_run.py probe` で決定表の全 5 組の受理を確認し、続けて `review normal` と `review adversarial` を本番様式の短い依頼文(判定行を指定)でスモーク実行し、導出表の期待値(選択案の `REVIEW_NORMAL` / `REVIEW_ADVERSARIAL`)で受理と判定行を確認 / 遮断・判定行なしなら安全語彙で 1 回だけ再実行 / 結果(版・日付・コマンド・受理・判定行・遮断の有無・再実行の有無)を worklog に記録 / 成立時: ADR-001 v1.1 の変更履歴へ「実機検証 0.157.x・受理確認」の追随行(版は上げない・7.6-3 前段・frontmatter は approved のまま)を追加し `docs/README.md` の最終更新を現行化 / **不成立時: 「順序と差し戻し経路」のとおり revert を含めて同じステップの 1 コミット `(ステップ 4/4 不成立・巻き戻し)` にし PR を停止** | 成立: `probe` の 5 組すべて受理・2 経路とも exit 0・**判定行あり・遮断なし**(再実行を含めて可)・`check_docs_status.py` exit 0 / 不成立: revert 後に `uv run pytest -c pyproject.toml tests/` green(旧状態へ戻っている)・worklog に両試行の記録・PO への報告 |
 
 ## 5. DoD(受け入れ基準)
 
@@ -151,7 +151,7 @@ created: 2026-09-26
 
 ## 6. テスト計画
 
-- **単体(ハーネス・pytest — すべて Codex がステップ 3 で追加)**: ① ADR-001 決定表 ↔ `codex_run.py` 定数の同期テスト(4 節の固定構文で抽出。字面・バイト一致に依存しない)+ 負例 4 種(モデル不一致・effort 不一致・行キー欠落・構文違反)② ラッパー各経路(`implement` 4 分類・`fast`・`research`・`--deep`・`review normal`・`review adversarial`)が期待引数を組み立てる経路テスト(`run_codex` の差し替え)③ `.claude/agents/*.md` frontmatter の固定テスト ④ `tests/` 全件の回帰(件数は CI の harness ジョブの実行結果を正とする。`test_hooks.py` の settings.json フック実在検査を含む)
+- **単体(ハーネス・pytest — すべて Codex がステップ 3 で追加)**: ① ADR-001 決定表 ↔ `codex_run.py` 定数の同期テスト(4 節の固定構文で抽出。字面・バイト一致に依存しない)+ 負例 4 種(モデル不一致・effort 不一致・行キー欠落・構文違反)② ラッパー各経路(`implement` 4 分類・`fast`・`research`・`--deep`・`review normal`・`review adversarial`・`probe`)が期待引数を組み立てる経路テスト(`run_codex` の差し替え)+ Codex 版検査の 3 例(通過・旧版停止・解析不能停止)③ `.claude/agents/*.md` frontmatter の固定テスト ④ `tests/` 全件の回帰(件数は CI の harness ジョブの実行結果を正とする。`test_hooks.py` の settings.json フック実在検査を含む)
 - **文書検査(CI docs-lint)**: `check_docs_status.py`(frontmatter 3 行・索引の版一致)・lychee(リンク)・`check_design_propagation.py`・`check_doc_coverage.py` が緑
 - **設定差分(手動・ステップ 2)**: `.claude/settings.json` の差分が `model`・`modelSettings` のみ / 新規セッションでの実効 model・effort を人間が確認
 - **実機(手動・ステップ 4 と確定ゲート)**: ラッパー経由の `review normal` / `review adversarial` のスモークで受理・判定行・遮断なしを確認。遮断時は安全語彙で 1 回再実行、両方不成立で revert を含むステップ 4 コミット + PR 停止(「順序と差し戻し経路」)
