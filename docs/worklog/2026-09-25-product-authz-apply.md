@@ -64,3 +64,9 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 - **未確定(ステップ 2 の着手時に実測で決める)**: 440 で 7 資産が動いたのは、7 資産が共有する `external_files`(検査器)を 440 が変えたためと読める。**A2 が変えるのは `base-allowlist.json` の `allowed_symbols` だけで外部ファイルに触れない**ので、射影が動くのは `base-allowlist.json` だけの可能性がある。**検査器を走らせて、識別値の更新が要る資産の集合を実測で確定する**
 - **7 資産すべてが要る場合は計画の改訂が要る**: 識別値を写した配布モジュール 3 つ(`backend/src/pitchlog/repositories/tenant_context_contract.py`・`repositories/repository_contract.py`・`authz/runtime_contract.py` — revision と source_digest の完全一致が必要)も更新が要り、計画 4 節の不変条件「`runtime_contract.py` の差分 0 行」とステップ 2 の「変える既存ファイル」に反する → **改訂して承認を取り直してから**進める
 - **CI でだけ落ちる型 2 つ**: ① 配布モジュールとの不同期は、リポジトリルートの pytest では collect されず(`No module named 'pitchlog'`)、**`backend/` で回さないと見えない** ② 合成リポジトリへ `check_repository` を呼ぶ試験が `GITHUB_EVENT_PATH` などを消していないと、**CI では PR 受理モードに入って落ちる**(再現: `GITHUB_EVENT_PATH=<合成 event> GITHUB_WORKSPACE=<repo> GITHUB_REPOSITORY=masaki1025/pitchlog GITHUB_BASE_REF=develop GITHUB_EVENT_NAME=pull_request uv run pytest …`)。440 はどちらも検査器と契約資産に触れず、試験の側だけで解いた(触ると受理記録の `after` がずれて書き直し → 孤児 snapshot)
+
+## #80 のマージ後(2026-09-26)
+
+- PR #80(TSK-440)が `1a404101` でマージ → origin/develop へ rebase(HEAD が #80 を含む)。変わった迂回検査器で ok・凍結基準の不変量 OK・backend の非 DB 588 passed。`contract_revision` は 16
+- **識別値の更新が要る資産の実測**(使い捨ての worktree・一時ブランチ。push せず、記録と snapshot は書かず、片付け済み): `allowed_symbols` に 1 記号を足して検査器を回すと、求められた順に ①「射影が動いた資産は識別値の更新が必要: **base-allowlist.json だけ**」② revision field と `current_identifiers` を 17 に揃えよ ③「履歴末尾と 7 資産の識別値が不一致」(= v2 記録が要る)。**ほかの 6 資産の識別値の更新は求められなかった**。配布モジュール 3 つ(写しているのは別の資産)も影響なし(backend の非 DB 588 passed)
+- → **A2 は `base-allowlist.json` の `contract_revision` と `current_identifiers` を 16 → 17 にし、v2 記録 1 件(7 資産の識別値の map — 6 資産は現値のまま)を足す**。440 で 7 資産が動いたのは共有の外部ファイル(検査器)を変えたため。**計画の改訂は不要**(`runtime_contract.py` などに触れない)
