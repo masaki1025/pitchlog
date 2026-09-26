@@ -2832,14 +2832,14 @@ def test_transition_passes_when_base_declares_only_universal_triggers(
     _append_current_repository_transition_record(
         repository,
         comparison_base,
-        acceptance_id="masaki1025/pitchlog#80",
+        acceptance_id="masaki1025/pitchlog#81",
     )
     _seal_pull_request_worktree(
         repository,
         comparison_base,
         monkeypatch,
         tmp_path / "six-trigger-event.json",
-        number=80,
+        number=81,
     )
 
     assert checker.check_repository(repository) == []
@@ -3006,7 +3006,7 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         comparison_base,
         monkeypatch,
         tmp_path / f"additional-trigger-{additional_trigger}.json",
-        number=80,
+        number=81,
     )
     if expects_record:
         with pytest.raises(checker.ContractError, match="movement.*record"):
@@ -3017,14 +3017,14 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         _append_current_repository_transition_record(
             repository,
             comparison_base,
-            acceptance_id="masaki1025/pitchlog#80",
+            acceptance_id="masaki1025/pitchlog#81",
         )
         _seal_pull_request_worktree(
             repository,
             comparison_base,
             monkeypatch,
             tmp_path / "additional-trigger-recorded.json",
-            number=80,
+            number=81,
         )
 
     assert checker.check_repository(repository) == []
@@ -5998,8 +5998,8 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     )
 
 
-def test_unaccepted_repository_application_population_is_nonempty_and_red() -> None:
-    """自 PR の実差分を走査し、未受理の射影移動を fail-closed にする。"""
+def test_repository_application_population_is_nonempty_and_green() -> None:
+    """自 PR の実差分を走査し、受理済みの射影移動が green になることを示す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     diff = checker._run_git(
         REPOSITORY_ROOT,
@@ -6032,8 +6032,7 @@ def test_unaccepted_repository_application_population_is_nonempty_and_red() -> N
         }
     else:
         assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
-    with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
-        checker.check_repository(REPOSITORY_ROOT)
+    assert checker.check_repository(REPOSITORY_ROOT) == []
 
 
 def test_first_product_introduction_with_empty_population_is_red() -> None:

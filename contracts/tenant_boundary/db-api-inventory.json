@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "inventory_revision": 5,
+  "inventory_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "inventory_revision",
       "current_identifiers": [
-        "inventory_revision:5"
+        "inventory_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {

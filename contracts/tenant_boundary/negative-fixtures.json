@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 7,
+  "fixture_set_revision": 8,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:7"
+        "fixture_set_revision:8"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
