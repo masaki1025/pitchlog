@@ -12,6 +12,7 @@ date: 2026-09-26
 | 周 | 変えたこと |
 | --- | --- |
 | 1 周目 | **D3(論理キー)を取り下げ**(前提が誤り)。**D5(実装の隔離)を新設**。論理履歴・正規化規則・構造的抽出・閾値を確定 |
+| 実装ステップ 1 | **TSK-440 の実受理から 2 件を取り込んだ**(2026-09-26)— **runner の環境変数の隔離**(CI では実 PR の event と突き合わされる)と **S5 は `backend/` で回さないと観測できない**(root pytest では collect されない)。**現況の実測値は分岐点のものと明示**(440 マージ後に再測する) |
 | 8 周目 | **S6 に authority 履歴件数(2 → 3)の更新を許可**。**S7 を新設**(`.claude/core-areas.json` への登録と `tests/test_core_guard.py` の exact-set 同期 — 設計書 6.3)。**あわせてステップ 1 に「変更対象の網羅リストを機械的に得る」を追加**し、この種の挙げ漏れを計画の予測ではなく実測で閉じる |
 | 7 周目 | **S3 の項目 2 を「トップレベル revision field と `current_identifiers` の同期更新」へ**(P1 — 7 資産すべてが `integer_revision_field` 方式で、据え置いても更新しても red だった)。**既存テストの exact-list を変更対象へ追加**(P1) |
 | 6 周目 | **S3 に派生更新を許可**(P1 — `external_files` の変更が 4 資産の `source_digest`・`base-allowlist` の `inventory.sha256`・3 つの生成モジュールへ波及する。**実測で確認**) |
@@ -123,7 +124,9 @@ authority.history[*]  (record_schema_version == 2 のものだけ)
 
 ### 1-3. 閾値(値と根拠)
 
-| 量 | 現況(実測 2026-09-26) | 閾値 | 根拠 |
+**現況の値は本ブランチの分岐点 `b4ae7394` での実測である。** **TSK-440 がマージされると比較元が変わる**(440 の実測: **55 件 / 1,853,842 バイト・孤児は 29 件 / 1,021,201 バイトのまま**)。**孤児は base-relative なので閾値は影響を受けないが、絶対値の 2 閾値に対する余裕は再測する。**
+
+| 量 | 分岐点での現況(実測 2026-09-26) | 閾値 | 根拠 |
 | --- | --- | --- | --- |
 | **`history-snapshots/` の件数** | **47 件** | **500 件** | **1 受理あたりの新規 snapshot は `現役資産数(7) + 変更された一意 external digest 数` で、`external_files` は現況 3・ステップ 5 後は 4**。**11 件 / 受理**。**受理 40 回分 + 現況 = 487 件**に余裕を見て 500。**これは「現行 4 external files・現行サイズを前提にした約 40 回分の計画予算」であって上限の証明ではない**(`external_files` の件数にも各 snapshot のサイズにも上限が無いので、1 回の受理だけで到達しうる) |
 | **同ディレクトリの総バイト数** | **1,540,497 バイト** | **33,554,432 バイト(32 MiB)** | **現況の 1 受理あたり増分は約 0.5 MB。40 受理で +20 MB**。**容量予算として 32 MiB を置き、超えたら閾値の見直しを強制する**(**同じく上限の証明ではない**) |
@@ -370,6 +373,32 @@ check_tenant_boundary_bypass.py  ──┬──> frozen_archive.py ──> froz
 - **同一の合成リポジトリについて、二親 merge と一致する GitHub event(`base.ref` / `base.sha` / `head.sha` / `repository.full_name` / `pull_request.number`)を作る**
 - **各版の CLI(`check_tenant_boundary_bypass.py`)を PR 受理モードで呼ぶ runner を fixture に固定する**
 - **不変量モードを注入して代用しない**(PR 受理固有の実遷移照合を通らないため)
+- **合成リポジトリを使う間、実 CI の GitHub 環境変数を隔離する**(**TSK-440 の実受理で判明** — 2026-09-26)
+
+#### 環境変数の隔離(**ローカル green / CI red を防ぐ**)
+
+**`resolve_evaluation_context()` は `GITHUB_EVENT_NAME` ほかの環境変数を読む。** **ローカルには event が無いので不変量モードになって通るが、CI では実 PR の event と突き合わされ、「PR workspace の明示 base_ref が event の base.sha と不一致」で落ちる。**
+
+**適用範囲を 2 つに分ける**(**一律に消すと runner 自身が動かなくなる** — TSK-440 の実受理で判明・2026-09-26)。
+
+| 対象 | 扱い |
+| --- | --- |
+| **合成リポジトリを使うが PR 受理モードを検査しないテスト** | **共通の仕組みで、関係する環境変数を実行中だけ一律に消す**(`GITHUB_EVENT_PATH` / `GITHUB_WORKSPACE` / `GITHUB_REPOSITORY` / `GITHUB_BASE_REF` / `GITHUB_EVENT_NAME`) |
+| **本ステップの runner**(**PR 受理モードそのものを検査する**) | **一律消去の例外とし、runner が自分で合成 event を setenv する**。**実 CI の値を読まず、runner が組み立てた値だけを使う** |
+
+**隔離の適用範囲を実装前に決めること。** **後から一律に消すと、`不変量モードで代用しない`(本節の合格条件)と衝突する。**
+
+#### CI 相当のローカル再現(**合格条件**)
+
+**合成 event は `pull_request.number` / `base.ref` / `base.sha` / `head.sha` / `repository.full_name` を入れただけのもので足りる**(TSK-440 が確認済み)。
+
+```
+GITHUB_EVENT_PATH=<合成 event JSON> GITHUB_WORKSPACE=<repo> \
+GITHUB_REPOSITORY=masaki1025/pitchlog GITHUB_BASE_REF=develop \
+GITHUB_EVENT_NAME=pull_request uv run pytest tests/... -q
+```
+
+**環境変数を設定しない状態と設定した状態の両方で回し、どちらも green になること**を合格条件とする。
 
 ### 6-3. 比較ケース manifest(**exact-set・11 件**)
 
@@ -449,6 +478,8 @@ backend/src/pitchlog/repositories/tenant_context_contract.py
 ```
 
 **許可されるのは、対応する資産と一致する版・digest の更新だけ。** **本体の論理に差分があれば red。**
+
+**S5 はリポジトリルートの pytest では観測できない**(`ModuleNotFoundError: No module named 'pitchlog'` で collect されない)。**`backend/` ディレクトリで回す必要がある**(**TSK-440 の実受理で判明** — 2026-09-26)。**識別値を 7 資産すべて上げると、この 3 モジュールが取り残されて CI で落ちる。**
 
 #### S6 が対象とする既存テスト(敵対レビュー 7 周目 P1)
 
