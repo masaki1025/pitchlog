@@ -17,24 +17,47 @@ from pitchlog.repositories.tokens import (
     TenantOperationToken,
 )
 
-__all__ = ("TenantTransaction", "tenant_transaction_scope")
+__all__ = ("tenant_transaction_scope",)
+
+_HANDLE_CREATION_TOKEN = object()
+_TransactionRuntime = tuple[Session, ExitStack]
+_TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
 
 
 @final
-class TenantTransaction:
+class _TenantTransaction:
     """束縛済み Session 上で閉じた operation token だけを実行する。"""
 
-    __slots__ = ("_session", "_context")
+    __slots__ = ("_state_key", "_context")
 
-    def __init__(self, session: Session, context: TenantContext) -> None:
-        """トランザクション内だけで使う Session と文脈を保持する。
+    def __init__(
+        self,
+        context: TenantContext,
+        state_key: object,
+        creation_token: object,
+    ) -> None:
+        """Scope が発行した実行状態への不透明キーと文脈を保持する。
 
         Args:
-            session: テナント文脈を束縛済みの Session。
             context: スコープ生成時に受け取ったテナント文脈。
+            state_key: モジュール私有レジストリ上の実行状態キー。
+            creation_token: Scope だけが渡すモジュール私有センチネル。
+
+        Raises:
+            RuntimeError: Scope 外からの生成、または未登録状態を検出した場合。
         """
-        self._session = session
+        if creation_token is not _HANDLE_CREATION_TOKEN:
+            raise RuntimeError("トランザクションハンドルは scope だけが生成できる")
+        if state_key not in _TRANSACTION_RUNTIMES:
+            raise RuntimeError("scope が登録していない実行状態から生成できない")
+        self._state_key: object | None = state_key
         self._context = context
+
+    def _expire(self) -> object | None:
+        """実行状態との対応を破棄し、ハンドルを永久に失効させる。"""
+        state_key = self._state_key
+        self._state_key = None
+        return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
         """登録済み operation を実行して不変な行集合を返す。
@@ -46,10 +69,20 @@ class TenantTransaction:
             トランザクション内で完全実体化した immutable な結果。
 
         Raises:
-            RuntimeError: token が registry に無いか結果契約に違反する場合。
+            RuntimeError: ハンドルが失効済み、token が registry に無い、または
+                結果契約に違反する場合。
         """
+        state_key = self._state_key
+        if state_key is None:
+            raise RuntimeError("トランザクションハンドルは失効している")
+        runtime = _TRANSACTION_RUNTIMES.get(state_key)
+        if runtime is None:
+            self._state_key = None
+            raise RuntimeError("トランザクションハンドルは失効している")
+
         spec = _operation_spec(operation)
-        execution_result = self._session.execute(
+        session, _ = runtime
+        execution_result = session.execute(
             spec.statement,
             {"tenant_id": self._context.tenant_id},
         )
@@ -57,10 +90,10 @@ class TenantTransaction:
         return _materialize_rows(rows)
 
 
-class _TenantTransactionScope(AbstractContextManager[TenantTransaction]):
+class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_exit_stack", "_session")
+    __slots__ = ("_context", "_handle")
 
     def __init__(self, context: TenantContext) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
@@ -69,35 +102,42 @@ class _TenantTransactionScope(AbstractContextManager[TenantTransaction]):
             context: API 層から引き渡されたテナント文脈。
         """
         self._context = context
-        self._exit_stack: ExitStack | None = None
-        self._session: Session | None = None
+        self._handle: _TenantTransaction | None = None
 
-    def __enter__(self) -> TenantTransaction:
+    def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
 
         Returns:
-            束縛済み Session だけを内部保持する操作ハンドル。
+            Session を公開せず、束縛済み実行状態だけを参照する操作ハンドル。
         """
-        if self._session is not None or self._exit_stack is not None:
+        if self._handle is not None:
             raise RuntimeError("同じトランザクションスコープへ再入できない")
 
         session = Session(create_database_engine())
         exit_stack = ExitStack()
-        handle = TenantTransaction(session, self._context)
-        self._session = session
-        self._exit_stack = exit_stack
+        state_key = object()
+        _TRANSACTION_RUNTIMES[state_key] = (session, exit_stack)
+        handle: _TenantTransaction | None = None
         try:
+            handle = _TenantTransaction(
+                self._context,
+                state_key,
+                _HANDLE_CREATION_TOKEN,
+            )
+            self._handle = handle
             ExitStack.enter_context(
                 exit_stack,
                 _tenant_transaction(session, self._context),
             )
         except BaseException:
-            try:
-                session.close()
-            finally:
-                self._exit_stack = None
-                self._session = None
+            expired_key = state_key if handle is None else handle._expire()
+            runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+            self._handle = None
+            runtime_session = session if runtime is None else runtime[0]
+            runtime_session.close()
             raise
+        if handle is None:
+            raise RuntimeError("トランザクションハンドルを生成できない")
         return handle
 
     def __exit__(
@@ -116,11 +156,16 @@ class _TenantTransactionScope(AbstractContextManager[TenantTransaction]):
         Returns:
             既存トランザクション境界の例外伝播判定。
         """
-        session = self._session
-        exit_stack = self._exit_stack
-        if session is None or exit_stack is None:
+        handle = self._handle
+        if handle is None:
             raise RuntimeError("開始していないトランザクションスコープを終了できない")
 
+        expired_key = handle._expire()
+        self._handle = None
+        runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+        if runtime is None:
+            raise RuntimeError("トランザクションハンドルの実行状態が既に失効している")
+        session, exit_stack = runtime
         try:
             return ExitStack.__exit__(
                 exit_stack,
@@ -129,16 +174,12 @@ class _TenantTransactionScope(AbstractContextManager[TenantTransaction]):
                 traceback,
             )
         finally:
-            try:
-                session.close()
-            finally:
-                self._exit_stack = None
-                self._session = None
+            session.close()
 
 
 def tenant_transaction_scope(
     context: TenantContext,
-) -> AbstractContextManager[TenantTransaction]:
+) -> AbstractContextManager[_TenantTransaction]:
     """テナント文脈を一度だけ受け取るトランザクション単位を返す。
 
     Args:
