@@ -259,10 +259,10 @@ def generate_mutants(
     unsupported: list[UnsupportedLocation] = []
     for target in target_items:
         for operator in operator_items:
-            generation = operator.generate(target)
-            if not isinstance(generation, MutationGeneration):
+            operator_output = operator.generate(target)
+            if not isinstance(operator_output, MutationGeneration):
                 raise MutationEngineError("演算子の生成結果型が不正")
-            for location in generation.unsupported:
+            for location in operator_output.unsupported:
                 if (
                     location.calculation != target.calculation
                     or location.target_id != target.target_id
@@ -270,7 +270,7 @@ def generate_mutants(
                 ):
                     raise MutationEngineError("未対応箇所の帰属が不正")
                 unsupported.append(location)
-            for mutant in generation.mutants:
+            for mutant in operator_output.mutants:
                 if (
                     mutant.calculation != target.calculation
                     or mutant.target_id != target.target_id
@@ -288,14 +288,14 @@ def generate_mutants(
     if len(mutant_ids) != len(set(mutant_ids)):
         raise MutationEngineError("mutant ID が重複")
     calculation_ids = frozenset(target.calculation for target in target_items)
-    missing_generation = sorted(
+    calculations_without_mutants = sorted(
         calculation
         for calculation in calculation_ids
         if not any(mutant.calculation == calculation for mutant in mutants)
     )
-    if missing_generation:
+    if calculations_without_mutants:
         raise MutationEngineError(
-            f"生成変異 0 の対象計算がある: {missing_generation!r}"
+            f"生成変異 0 の対象計算がある: {calculations_without_mutants!r}"
         )
     return MutationBatch(
         target_ids=frozenset(target.target_id for target in target_items),
