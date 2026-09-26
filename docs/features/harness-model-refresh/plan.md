@@ -1,7 +1,7 @@
 ---
 feature: harness-model-refresh
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-27・徳光 尋弥)   # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
@@ -71,7 +71,7 @@ created: 2026-09-26
 | 案 A | `gpt-6-sol` × {medium, high, xhigh, max}・`gpt-6-luna` × {xhigh} | `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-sol`, xhigh) | 対応表を変えるなら **ADR-001 v1.2**(astra 昇格を含む)を起案し新規の確定ゲート | なし |
 | 案 B | 案 A の集合 + `gpt-6-astra` × {medium} | `REVIEW_NORMAL` = (`gpt-6-sol`, max)/ `REVIEW_ADVERSARIAL` = (`gpt-6-astra`, medium) | **PO 再裁定**(sol xhigh へ戻す / astra の effort 変更 等)→ ADR-001 v1.2 + 新規の確定ゲート | `.claude/skills/finalize-doc/SKILL.md:15`(guard_paths — 逐行確認・実施記録行) |
 
-### PO 判断事項(承認時に明示的に確定する — 計画レビュー前の暫定値は推奨案)
+### PO 判断事項(**確定 2026-09-27・徳光 尋弥: ① 案 A ② effort 据え置き ③ 機構化する** — 以下は判断材料として保存)
 
 **① Codex 対応表**(2 案とも 8 行すべてを定義。推奨 = 案 A。行キーは下記「決定表の固定構文」と一致させる):
 
