@@ -51,3 +51,9 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 4. **snapshot は追記のみ・現在 47 件**(`_validate_snapshot_append_only`・ファイル名 = 内容の SHA-256)。`asset_snapshots` は 7 件・`external_snapshots` は 3 件で、既存で解決できないものだけ追記する
 5. **7C のレビューで 3 周連続した型: 「関数は正しいが本番経路がその結果を使っていない」**。関数を直接呼ぶ試験は 4 件とも捕まえられず、**機構を壊す変異を入れて本番経路の試験が落ちるか**が有効だった → `product_provisioning`・`product_catalog` の試験で同じ型に注意する(詳細: `docs/worklog/2026-09-24-tenant-boundary-baseline.md`)
 6. `contract_revision` = マージ時点の develop の値 +1(#80 が先なら 16 → 17)
+
+## TSK-440 の取り込み結果の共有(2026-09-26・448master 経由)
+
+- #80 は 7C を取り込み v2 へ適合済み・7 周目の敵対レビュー中。マージできたら 424 へ一報の予定。**識別値は develop 15 → #80 が 16 → A2 が 17** で先方と一致
+- **検査器を単独ファイルとして読むと `ModuleNotFoundError`**(7C で `frozen_history.py` を import するため)。A2 は検査器に触れず前版比較もしないので直接は当たらない。A1 の `test_authz_product_staging.py` は `scripts/` を丸ごと写す形へ直してある
+- **孤児 snapshot に注意**: 記録を作り直すと、前の試行の snapshot が参照を失い、追記のみの検査(`_validate_snapshot_append_only`)のせいで回収できない(431 で 29 件・約 1MB)。→ **ステップ 2 の snapshot と記録は、承認が取れて内容が固まってから 1 回だけ書く**。`change.before` と `change.after` の snapshot はどちらも HEAD 側で解決されるので、**記録と同じコミットで両方追記する**。**ステップ 2 の後に `base-allowlist.json` を動かす他の PR が develop に入ると、rebase で記録を作り直すことになる** — その時点でマージ順を人間に確認する
