@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:dbeab9a758ed40498578d25337879c880767db991b43c7cb46da960c5ffd982e",
+  "digest": "sha256:4449e150e4834f97548d4d3af393b3632851c9daa44fd3099572a4ad734a2e02",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -472,5 +472,175 @@
       "schemaRetention": "required-by-projection"
     }
   ],
-  "projectionRules": []
+  "projectionRules": [
+    {
+      "ruleId": "projection.finiteEnumerable",
+      "sourceClauseId": "D-11",
+      "sourceKind": "finite-enumerable",
+      "targetIds": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "event.operationKind",
+        "event.perPitch.kind",
+        "event.perPitch.resultId",
+        "event.perPitch.runnerEventPayload"
+      ],
+      "projectionMode": "exact-enum",
+      "jsonSchemaKeywords": [
+        "enum",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "values-exact-set",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "有限列挙軸のvaluesをenumへ射影し、axisId・分類・値集合をexact-set比較する"
+    },
+    {
+      "ruleId": "projection.boundaryPartition",
+      "sourceClauseId": "D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "state.inning",
+        "state.score",
+        "history.depth",
+        "history.composition",
+        "history.scenarioLength"
+      ],
+      "projectionMode": "boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "境界値は代表coverage座標であり受理値のenumではないため必須注釈へ射影し、境界集合をexact-set比較する"
+    },
+    {
+      "ruleId": "projection.boundedBoundaryPartition",
+      "sourceClauseId": "D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "gameEnd.regulationInnings",
+        "gameEnd.coldConditions",
+        "gameEnd.extensionLimit",
+        "gameEnd.tiebreak"
+      ],
+      "projectionMode": "bounded-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "minimum",
+        "maximum",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-invalid-boundary-values",
+        "x-pitchlog-coverage-bounds"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "range-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "coverageBoundsの各整数次元をminimum・maximumへ、正負の境界集合を必須注釈へ射影して値域と集合を一致比較する"
+    },
+    {
+      "ruleId": "projection.nonFinite",
+      "sourceClauseId": "D-11",
+      "sourceKind": "non-finite",
+      "targetIds": [],
+      "projectionMode": "open-domain-with-reason",
+      "jsonSchemaKeywords": [
+        "type",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-non-finite-reason"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "non-finite-reason-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "非有限軸はenumや有限境界へ縮小せず実値の型と非有限理由を必須注釈へ射影する。現版に該当軸はない"
+    },
+    {
+      "ruleId": "projection.nonCoverageField",
+      "sourceClauseId": "D-11",
+      "sourceKind": "non-coverage-field",
+      "targetIds": [
+        "dh",
+        "tiebreak.runnerPlacement",
+        "tiebreak.leadoffRule"
+      ],
+      "projectionMode": "required-schema-property",
+      "jsonSchemaKeywords": [
+        "properties",
+        "required",
+        "x-pitchlog-non-coverage-field",
+        "x-pitchlog-non-coverage-reason"
+      ],
+      "parityChecks": [
+        "field-id-exact",
+        "reason-exact",
+        "schema-retention-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "coverage件数には加えず、fieldId・除外理由とともにschemaのrequired propertyへ必ず保持する"
+    },
+    {
+      "ruleId": "projection.descriptorIdentity",
+      "sourceClauseId": "D-11",
+      "sourceKind": "descriptor-identity",
+      "targetIds": [
+        "descriptorId",
+        "version",
+        "digest"
+      ],
+      "projectionMode": "descriptor-identity-binding",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-descriptor-id",
+        "x-pitchlog-descriptor-version",
+        "x-pitchlog-descriptor-digest"
+      ],
+      "parityChecks": [
+        "descriptor-identity-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "派生schemaへdescriptorId・version・digestを固定し、1項目でも不一致ならmanifest登録を拒否する"
+    }
+  ]
 }

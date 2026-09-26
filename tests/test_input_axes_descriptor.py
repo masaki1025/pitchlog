@@ -154,20 +154,17 @@ def test_each_closed_axis_shape_is_accepted(
 def test_changing_only_source_clause_id_changes_digest_and_is_red() -> None:
     """由来条文IDだけの差し替えを保存済みdigestとの不一致で拒否する。"""
     descriptor = _descriptor()
-    descriptor["stateTransitionAxes"] = [
-        {
-            "axisId": "digest.sourceClauseProbe",
-            "sourceClauseId": "FR-009",
-            "classification": "finite-enumerable",
-            "values": ["D"],
-        }
-    ]
     _with_digest(descriptor)
     baseline_digest = descriptor["digest"]
     _validate(descriptor)
 
     changed = copy.deepcopy(descriptor)
-    changed["stateTransitionAxes"][0]["sourceClauseId"] = "FR-010"
+    axis = next(
+        axis
+        for axis in changed["stateTransitionAxes"]
+        if axis["axisId"] == "state.tiebreakActive"
+    )
+    axis["sourceClauseId"] = "FR-010"
     changed_digest = checker.compute_descriptor_digest(changed)
 
     assert changed_digest != baseline_digest
@@ -486,8 +483,104 @@ def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:
     assert "DRAW-03" in axis["supportingClauseIds"]
 
 
-def test_stage1_descriptor_keeps_projection_rules_empty_and_has_no_forbidden_dependency() -> None:
-    """ステップ26を先取りせずhistory-depthや外部ファイルを参照しない。"""
+def test_projection_rules_cover_every_axis_and_non_coverage_field_exactly_once() -> None:
+    """全軸と非coverage項目が分類一致する射影規則へ一意に帰属する。"""
+    descriptor = _descriptor()
+    expected_targets = {
+        axis["axisId"]
+        for collection_name in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection_name]
+    } | {field["fieldId"] for field in descriptor["nonCoverageFields"]}
+    projected_targets = [
+        target_id
+        for rule in descriptor["projectionRules"]
+        if rule["sourceKind"] != "descriptor-identity"
+        for target_id in rule["targetIds"]
+    ]
+
+    assert len(projected_targets) == len(set(projected_targets))
+    assert set(projected_targets) == expected_targets
+    assert all(
+        rule["verificationStage"] == "stage2-descriptorParity"
+        and rule["mismatchAction"] == "manifest-registration-denied"
+        and rule["undecidableAction"] == "fail"
+        for rule in descriptor["projectionRules"]
+    )
+
+
+def test_projection_modes_preserve_descriptor_semantics() -> None:
+    """列挙・境界・非有限・非coverageを縮小せずschema表現へ対応づける。"""
+    descriptor = _descriptor()
+    rules = {rule["ruleId"]: rule for rule in descriptor["projectionRules"]}
+
+    assert rules["projection.finiteEnumerable"]["projectionMode"] == "exact-enum"
+    assert "enum" in rules["projection.finiteEnumerable"]["jsonSchemaKeywords"]
+    assert (
+        rules["projection.boundaryPartition"]["projectionMode"]
+        == "boundary-annotations"
+    )
+    assert "enum" not in rules["projection.boundaryPartition"]["jsonSchemaKeywords"]
+    assert (
+        rules["projection.boundedBoundaryPartition"]["projectionMode"]
+        == "bounded-boundary-annotations"
+    )
+    assert {"minimum", "maximum"} <= set(
+        rules["projection.boundedBoundaryPartition"]["jsonSchemaKeywords"]
+    )
+    assert rules["projection.nonFinite"]["targetIds"] == []
+    assert (
+        rules["projection.nonFinite"]["projectionMode"]
+        == "open-domain-with-reason"
+    )
+    assert "x-pitchlog-non-finite-reason" in rules["projection.nonFinite"][
+        "jsonSchemaKeywords"
+    ]
+    assert (
+        rules["projection.nonCoverageField"]["projectionMode"]
+        == "required-schema-property"
+    )
+    assert {"properties", "required"} <= set(
+        rules["projection.nonCoverageField"]["jsonSchemaKeywords"]
+    )
+
+
+def test_descriptor_identity_binding_is_exact_and_blocks_manifest_registration() -> None:
+    """派生schemaがdescriptorId・version・digestを完全一致で参照する条件を持つ。"""
+    descriptor = _descriptor()
+    rule = next(
+        rule
+        for rule in descriptor["projectionRules"]
+        if rule["sourceKind"] == "descriptor-identity"
+    )
+
+    assert set(rule["targetIds"]) == {"descriptorId", "version", "digest"}
+    assert rule["parityChecks"] == [
+        "descriptor-identity-exact",
+        "no-extra-or-missing-targets",
+    ]
+    assert rule["mismatchAction"] == "manifest-registration-denied"
+
+
+def test_uncovered_axis_is_undecidable_and_red() -> None:
+    """射影規則から軸を1件落とすと判定不能としてfail-closedに拒否する。"""
+    descriptor = _descriptor()
+    rule = next(
+        rule
+        for rule in descriptor["projectionRules"]
+        if rule["ruleId"] == "projection.finiteEnumerable"
+    )
+    rule["targetIds"].remove("state.half")
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="射影判定不能: .*覆い漏れ",
+    ):
+        _validate(descriptor)
+
+
+def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() -> None:
+    """段階2の射影条件だけを宣言しhistory-depthや外部ファイルを参照しない。"""
     descriptor = _descriptor()
     raw_text = DESCRIPTOR_PATH.read_text(encoding="utf-8")
 
@@ -495,7 +588,7 @@ def test_stage1_descriptor_keeps_projection_rules_empty_and_has_no_forbidden_dep
     assert len(descriptor["gameEndAxes"]) == 4
     assert len(descriptor["nonCoverageFields"]) == 3
     assert descriptor["gameEndCombinationRules"]
-    assert descriptor["projectionRules"] == []
+    assert len(descriptor["projectionRules"]) == 6
     assert descriptor["digestSpec"]["stage1ExternalReferences"] == "forbidden"
     assert set(checker.SOURCE_CLAUSE_PATHS) == {
         Path("docs/requirements/requirements-pitchlog-2026-07-22.md"),
