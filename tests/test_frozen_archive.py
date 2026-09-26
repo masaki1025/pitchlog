@@ -473,3 +473,84 @@ def test_base_and_head_use_different_histories_and_snapshot_sets(
         orphan_count=1,
         orphan_bytes=12,
     )
+
+
+def test_current_archive_has_no_unreferenced_new_snapshot() -> None:
+    """現況を同じ比較元とHEADへ渡すと新規参照不変量を満たす。"""
+    comparison = archive.validate_snapshot_archive(
+        _current_history(),
+        _current_history(),
+        base_snapshot_root=SNAPSHOT_ROOT,
+        head_snapshot_root=SNAPSHOT_ROOT,
+    )
+
+    assert comparison.head.snapshot_count == 55
+    assert comparison.head.snapshot_bytes == 1_853_842
+    assert comparison.head.orphan_count == 29
+    assert comparison.head.orphan_bytes == 1_021_201
+
+
+def test_recreated_record_rejects_previous_attempt_until_snapshot_is_removed(
+    tmp_path: Path,
+) -> None:
+    """同一受理の作り直しで残った前試行snapshotを拒否し、除去後は受理する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    base_root.mkdir()
+    first_attempt = _write_snapshot(head_root, b"first acceptance attempt\n")
+    first_history = _v2_history(_snapshot_item(first_attempt))
+
+    initial = archive.validate_snapshot_archive(
+        _v2_history(),
+        first_history,
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert initial.head.orphan_count == 0
+
+    second_attempt = _write_snapshot(head_root, b"second acceptance attempt\n")
+    recreated_history = _v2_history(_snapshot_item(second_attempt))
+    with pytest.raises(
+        archive.ContractError,
+        match="新規 snapshot が履歴から参照されていない",
+    ):
+        archive.validate_snapshot_archive(
+            _v2_history(),
+            recreated_history,
+            base_snapshot_root=base_root,
+            head_snapshot_root=head_root,
+        )
+
+    (head_root / first_attempt).unlink()
+    cleaned = archive.validate_snapshot_archive(
+        _v2_history(),
+        recreated_history,
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert cleaned.head.snapshot_count == 1
+    assert cleaned.head.orphan_count == 0
+
+
+def test_orphan_already_in_base_is_grandfathered_by_new_snapshot_invariant(
+    tmp_path: Path,
+) -> None:
+    """比較元にすでに存在する孤児を新規snapshotとして拒否しない。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    grandfathered = b"grandfathered orphan\n"
+    assert _write_snapshot(base_root, grandfathered) == _write_snapshot(
+        head_root,
+        grandfathered,
+    )
+    current = _write_snapshot(head_root, b"current referenced snapshot\n")
+
+    comparison = archive.validate_snapshot_archive(
+        _v2_history(),
+        _v2_history(_snapshot_item(current)),
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+
+    assert comparison.base.orphan_count == 1
+    assert comparison.head.orphan_count == 1

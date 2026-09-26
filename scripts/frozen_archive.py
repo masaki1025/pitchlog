@@ -304,3 +304,59 @@ def validate_snapshot_archive_limits(
         )
 
     return SnapshotArchiveComparison(base=base, head=head)
+
+
+def validate_snapshot_archive(
+    base_history: object,
+    head_history: object,
+    *,
+    base_snapshot_root: Path,
+    head_snapshot_root: Path,
+) -> SnapshotArchiveComparison:
+    """新規 snapshot の参照包含と archive の量を検証する。
+
+    比較元に存在しない HEAD の snapshot は、HEAD の v2 履歴から構造的に
+    参照されていなければならない。比較元にすでに存在する孤児は対象外とし、
+    量の検査は既存の ``validate_snapshot_archive_limits`` に委譲する。
+
+    Args:
+        base_history: 比較元 authority の ``baseline_control.history``。
+        head_history: HEAD authority の ``baseline_control.history``。
+        base_snapshot_root: 比較元の ``history-snapshots`` ディレクトリ。
+        head_snapshot_root: HEAD の ``history-snapshots`` ディレクトリ。
+
+    Returns:
+        比較元と HEAD をそれぞれ独立に測定した集計値。
+
+    Raises:
+        ContractError: HEAD の新規 snapshot に参照漏れがあるか、量の検査に
+            違反する場合。
+    """
+    base_snapshots = frozen_history._read_snapshot_directory(
+        base_snapshot_root,
+        "比較元 baseline_control.history.snapshots",
+    )
+    head_snapshots = frozen_history._read_snapshot_directory(
+        head_snapshot_root,
+        "HEAD baseline_control.history.snapshots",
+    )
+    head_references = extract_referenced_snapshot_names(
+        head_history,
+        head_snapshot_root,
+        location="HEAD baseline_control.history",
+    )
+    unreferenced_new = sorted(
+        (set(head_snapshots) - set(base_snapshots)) - head_references
+    )
+    if unreferenced_new:
+        raise ContractError(
+            "HEAD の新規 snapshot が履歴から参照されていない: "
+            f"{unreferenced_new}"
+        )
+
+    return validate_snapshot_archive_limits(
+        base_history,
+        head_history,
+        base_snapshot_root=base_snapshot_root,
+        head_snapshot_root=head_snapshot_root,
+    )
