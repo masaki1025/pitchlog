@@ -21,17 +21,21 @@ from pitchlog.authz.runtime_contract_generator import (
 )
 from pitchlog.authz.runtime_contract_state import (
     GENERATED_MODULE,
+    PRODUCT_ASSET,
     RUNTIME_CONTRACT_ASSET,
+    STAGED_PRODUCT_ASSET,
     RuntimeContractError,
+    RuntimeContractState,
     asset_digest,
     compare_staged_protected_objects,
     derive_runtime_contract_fields,
+    evaluate_repository,
     render_runtime_contract,
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ENGINE_MODULE = Path("backend/src/pitchlog/db/engine.py")
-_STAGED_PRODUCT_ASSET = Path("contracts/authz/product/ddl-elements.staged.json")
+_STAGED_PRODUCT_ASSET = STAGED_PRODUCT_ASSET
 
 
 def _read_asset(repository_root: Path) -> dict[str, Any]:
@@ -39,6 +43,13 @@ def _read_asset(repository_root: Path) -> dict[str, Any]:
     value = json.loads(
         (repository_root / RUNTIME_CONTRACT_ASSET).read_text(encoding="utf-8")
     )
+    assert isinstance(value, dict)
+    return cast(dict[str, Any], value)
+
+
+def _read_copied_json(repository_root: Path, relative_path: Path) -> dict[str, Any]:
+    """試験用リポジトリの JSON object を読む。"""
+    value = json.loads((repository_root / relative_path).read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return cast(dict[str, Any], value)
 
@@ -79,6 +90,91 @@ def _copy_repository(tmp_path: Path) -> Path:
     return repository_root
 
 
+def _copy_pending_repository(tmp_path: Path) -> Path:
+    """現在の未発効状態に必要な資産を複製する。"""
+    repository_root = _copy_repository(tmp_path)
+    staged_target = repository_root / STAGED_PRODUCT_ASSET
+    staged_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_REPOSITORY_ROOT / STAGED_PRODUCT_ASSET, staged_target)
+    return repository_root
+
+
+def _write_repository_json(
+    repository_root: Path,
+    relative_path: Path,
+    value: dict[str, Any],
+) -> None:
+    """試験用リポジトリの指定パスへ JSON object を書く。"""
+    target = repository_root / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _replace_module_constant(source: str, name: str, value_source: str) -> str:
+    """生成モジュールの単純代入定数を1件だけ置き換える。"""
+    lines = source.splitlines(keepends=True)
+    matching = [
+        index for index, line in enumerate(lines) if line.startswith(f"{name} = ")
+    ]
+    assert len(matching) == 1
+    index = matching[0]
+    newline = "\n" if lines[index].endswith("\n") else ""
+    lines[index] = f"{name} = {value_source}{newline}"
+    return "".join(lines)
+
+
+def _write_module_source(repository_root: Path, source: str) -> None:
+    """試験用リポジトリの生成モジュールを書く。"""
+    (repository_root / GENERATED_MODULE).write_text(source, encoding="utf-8")
+
+
+def _synchronize_with_lifecycle_overrides(
+    repository_root: Path,
+    asset: dict[str, Any],
+    overrides: dict[str, str],
+) -> None:
+    """資産と生成物を同期し、指定したライフサイクル定数だけ差し替える。"""
+    asset["source_digest"] = asset_digest(asset)
+    _write_asset(repository_root, asset)
+    source = render_runtime_contract(asset)
+    for name, value_source in overrides.items():
+        source = _replace_module_constant(source, name, value_source)
+    _write_module_source(repository_root, source)
+
+
+def _copy_product_repository(tmp_path: Path) -> Path:
+    """Switch を使わず、試験用の正しい製品状態を組み立てる。"""
+    repository_root = _copy_pending_repository(tmp_path)
+    staged_path = repository_root / STAGED_PRODUCT_ASSET
+    product_path = repository_root / PRODUCT_ASSET
+    product_asset = _read_repository_json(STAGED_PRODUCT_ASSET)
+    product_asset.pop("pending_switch")
+    product_asset.pop("provisional_contract_additions")
+    _write_repository_json(repository_root, PRODUCT_ASSET, product_asset)
+    staged_path.unlink()
+
+    runtime_asset = _read_asset(repository_root)
+    runtime_asset["runtime_contract_revision"] += 1
+    baseline = cast(dict[str, Any], runtime_asset["baseline_control"])
+    identity = cast(dict[str, Any], baseline["identity"])
+    identity["current_identifiers"] = [
+        f"runtime_contract_revision:{runtime_asset['runtime_contract_revision']}"
+    ]
+    runtime_asset["provisional"] = False
+    runtime_asset.pop("superseded_by")
+    runtime_asset["derived_from"] = PRODUCT_ASSET.as_posix()
+    derived = derive_runtime_contract_fields(product_asset, runtime_asset)
+    application_role = cast(dict[str, Any], runtime_asset["application_role"])
+    application_role["attributes"] = derived["application_role"]["attributes"]
+    runtime_asset["protected_objects"] = derived["protected_objects"]
+    _synchronize_repository(repository_root, runtime_asset)
+    assert product_path.is_file()
+    return repository_root
+
+
 def _synchronize_repository(repository_root: Path, asset: dict[str, Any]) -> None:
     """変異以外の digest と生成モジュールを同期する。"""
     asset["source_digest"] = asset_digest(asset)
@@ -95,6 +191,17 @@ def _assert_check_result(repository_root: Path, expected: set[str]) -> None:
     assert main(["check"], repository_root=repository_root) == (1 if expected else 0)
 
 
+def _assert_evaluation(
+    repository_root: Path,
+    expected_state: RuntimeContractState,
+    expected_violations: set[str],
+) -> None:
+    """共有入口の状態と違反 ID を exact に確認する。"""
+    state, violations = evaluate_repository(repository_root)
+    assert state is expected_state
+    assert violations == expected_violations
+
+
 def _mutate_fixture_missing(fixtures: list[dict[str, str]]) -> None:
     """危険終点 fixture を 1 件落とす。"""
     fixtures.pop()
@@ -108,6 +215,212 @@ def _mutate_fixture_duplicate(fixtures: list[dict[str, str]]) -> None:
 def _mutate_fixture_id(fixtures: list[dict[str, str]]) -> None:
     """危険終点 fixture の ID だけを変える。"""
     fixtures[0]["fixture_id"] = "DANGER_CHANGED"
+
+
+def _apply_provisional_mutation(repository_root: Path, mutation: str) -> None:
+    """暫定・未発効述語の独立変異を適用する。"""
+    asset = _read_asset(repository_root)
+    module_path = repository_root / GENERATED_MODULE
+    source = module_path.read_text(encoding="utf-8")
+    if mutation == "t1-provisional-false":
+        asset["provisional"] = False
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"PROVISIONAL": "True"},
+        )
+    elif mutation == "t2-superseded-missing":
+        asset.pop("superseded_by")
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"SUPERSEDED_BY": json.dumps(PRODUCT_ASSET.as_posix())},
+        )
+    elif mutation == "t2-superseded-other":
+        asset["superseded_by"] = "contracts/authz/product/other.json"
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"SUPERSEDED_BY": json.dumps(PRODUCT_ASSET.as_posix())},
+        )
+    elif mutation == "t3-derived-added":
+        asset["derived_from"] = PRODUCT_ASSET.as_posix()
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"DERIVED_FROM": "None"},
+        )
+    elif mutation == "t4-module-provisional-false":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "PROVISIONAL", "False"),
+        )
+    elif mutation == "t5-module-source-other":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(
+                source,
+                "SOURCE_ASSET",
+                json.dumps("contracts/tenant_boundary/other.json"),
+            ),
+        )
+    elif mutation == "t6-module-superseded-none":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "SUPERSEDED_BY", "None"),
+        )
+    elif mutation == "t7-module-derived-final":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(
+                source,
+                "DERIVED_FROM",
+                json.dumps(PRODUCT_ASSET.as_posix()),
+            ),
+        )
+    elif mutation == "t8-module-protected-table":
+        _write_module_source(
+            repository_root,
+            source.replace(
+                '("public", "tenants"),',
+                '("public", "changed_tenants"),',
+                1,
+            ),
+        )
+    elif mutation == "t8-module-revision":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "RUNTIME_CONTRACT_REVISION", "999"),
+        )
+    elif mutation == "t8-module-digest":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "SOURCE_DIGEST", json.dumps("stale")),
+        )
+    else:
+        raise AssertionError(f"未知の暫定変異: {mutation}")
+
+
+def _apply_product_mutation(repository_root: Path, mutation: str) -> None:
+    """製品述語の独立変異を適用する。"""
+    asset = _read_asset(repository_root)
+    product_asset = _read_copied_json(repository_root, PRODUCT_ASSET)
+    source = (repository_root / GENERATED_MODULE).read_text(encoding="utf-8")
+    if mutation == "p1-provisional-true":
+        asset["provisional"] = True
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"PROVISIONAL": "False"},
+        )
+    elif mutation == "p2-superseded-null":
+        asset["superseded_by"] = None
+        _synchronize_repository(repository_root, asset)
+    elif mutation == "p2-superseded-old":
+        asset["superseded_by"] = PRODUCT_ASSET.as_posix()
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"SUPERSEDED_BY": "None"},
+        )
+    elif mutation in {"p3-derived-staged", "p3-derived-other", "p3-derived-missing"}:
+        if mutation == "p3-derived-staged":
+            asset["derived_from"] = STAGED_PRODUCT_ASSET.as_posix()
+        elif mutation == "p3-derived-other":
+            asset["derived_from"] = "contracts/authz/product/other.json"
+        else:
+            asset.pop("derived_from")
+        _synchronize_with_lifecycle_overrides(
+            repository_root,
+            asset,
+            {"DERIVED_FROM": json.dumps(PRODUCT_ASSET.as_posix())},
+        )
+    elif mutation.startswith("p4-"):
+        application_role = cast(dict[str, Any], asset["application_role"])
+        attributes = cast(dict[str, bool], application_role["attributes"])
+        protected = cast(dict[str, list[Any]], asset["protected_objects"])
+        if mutation == "p4-function-missing":
+            protected["functions"].pop()
+        elif mutation == "p4-function-added":
+            protected["functions"].append(["public", "unexpected_function", ""])
+        elif mutation == "p4-provisional-functions":
+            provisional = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+            provisional_protected = cast(
+                dict[str, list[Any]], provisional["protected_objects"]
+            )
+            protected["functions"] = copy.deepcopy(provisional_protected["functions"])
+        elif mutation == "p4-attribute":
+            attributes["rolcanlogin"] = not attributes["rolcanlogin"]
+        elif mutation == "p4-public-schema-only":
+            protected["schemas"] = ["public"]
+        else:
+            raise AssertionError(f"未知の P4 変異: {mutation}")
+        _synchronize_repository(repository_root, asset)
+    elif mutation == "p5-pending-switch":
+        product_asset["pending_switch"] = "TSK-443"
+        _write_repository_json(repository_root, PRODUCT_ASSET, product_asset)
+    elif mutation == "p6-provisional-additions":
+        staged = _read_repository_json(STAGED_PRODUCT_ASSET)
+        product_asset["provisional_contract_additions"] = staged[
+            "provisional_contract_additions"
+        ]
+        _write_repository_json(repository_root, PRODUCT_ASSET, product_asset)
+    elif mutation == "p7-module-provisional-true":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "PROVISIONAL", "True"),
+        )
+    elif mutation == "p8-module-superseded-old":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(
+                source,
+                "SUPERSEDED_BY",
+                json.dumps(PRODUCT_ASSET.as_posix()),
+            ),
+        )
+    elif mutation in {"p9-module-source-final", "p9-module-source-staged"}:
+        path = PRODUCT_ASSET if mutation.endswith("final") else STAGED_PRODUCT_ASSET
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(
+                source,
+                "SOURCE_ASSET",
+                json.dumps(path.as_posix()),
+            ),
+        )
+    elif mutation in {"p10-module-derived-staged", "p10-module-derived-none"}:
+        value_source = (
+            json.dumps(STAGED_PRODUCT_ASSET.as_posix())
+            if mutation.endswith("staged")
+            else "None"
+        )
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "DERIVED_FROM", value_source),
+        )
+    elif mutation == "p11-module-protected-old":
+        provisional = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+        module_asset = copy.deepcopy(asset)
+        module_asset["protected_objects"] = copy.deepcopy(
+            provisional["protected_objects"]
+        )
+        _write_module_source(
+            repository_root,
+            render_runtime_contract(module_asset),
+        )
+    elif mutation == "p11-module-revision":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "RUNTIME_CONTRACT_REVISION", "999"),
+        )
+    elif mutation == "p11-module-digest":
+        _write_module_source(
+            repository_root,
+            _replace_module_constant(source, "SOURCE_DIGEST", json.dumps("stale")),
+        )
+    else:
+        raise AssertionError(f"未知の製品変異: {mutation}")
 
 
 def _imported_modules(path: Path) -> set[str]:
@@ -281,18 +594,69 @@ def test_rendered_source_matches_generated_module_byte_for_byte() -> None:
 
 def test_check_succeeds_for_current_repository() -> None:
     """現在のリポジトリで check が成功することを確認する。"""
+    _assert_evaluation(_REPOSITORY_ROOT, RuntimeContractState.PENDING, set())
     _assert_check_result(_REPOSITORY_ROOT, set())
 
 
-def test_d1_rejects_missing_asset_exactly(tmp_path: Path) -> None:
-    """D1 が資産の欠落だけを報告することを確認する。"""
+def test_provisional_state_is_green(tmp_path: Path) -> None:
+    """Staged と最終資産が無い正しい暫定状態が green になることを確認する。"""
     repository_root = _copy_repository(tmp_path)
-    (repository_root / RUNTIME_CONTRACT_ASSET).unlink()
 
-    _assert_check_result(repository_root, {"PROVISIONAL_ASSET_MISSING"})
+    _assert_evaluation(repository_root, RuntimeContractState.PROVISIONAL, set())
 
 
-@pytest.mark.parametrize("role_name", ("pitchlog_owner", "pitchlog_shared_fn_owner"))
+def test_product_state_is_green(tmp_path: Path) -> None:
+    """試験 helper で組み立てた正しい製品状態が green になることを確認する。"""
+    repository_root = _copy_product_repository(tmp_path)
+
+    _assert_evaluation(repository_root, RuntimeContractState.PRODUCT, set())
+    _assert_check_result(repository_root, set())
+
+
+def test_both_product_assets_are_invalid(tmp_path: Path) -> None:
+    """Staged と最終資産の併存を単一の違反 ID で拒否する。"""
+    repository_root = _copy_pending_repository(tmp_path)
+    shutil.copy2(
+        repository_root / STAGED_PRODUCT_ASSET,
+        repository_root / PRODUCT_ASSET,
+    )
+
+    _assert_evaluation(
+        repository_root,
+        RuntimeContractState.INVALID,
+        {"BOTH_STAGED_AND_FINAL"},
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "renamed"),
+    ids=("d1-asset-missing", "d1-asset-renamed"),
+)
+def test_d1_rejects_each_missing_asset_mutation_exactly(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """D1 が資産の欠落と改名を同じ ID だけで報告する。"""
+    repository_root = _copy_repository(tmp_path)
+    asset_path = repository_root / RUNTIME_CONTRACT_ASSET
+    if mutation == "missing":
+        asset_path.unlink()
+    else:
+        asset_path.rename(asset_path.with_suffix(".renamed.json"))
+
+    _assert_evaluation(
+        repository_root,
+        RuntimeContractState.PROVISIONAL,
+        {"PROVISIONAL_ASSET_MISSING"},
+    )
+
+
+@pytest.mark.parametrize(
+    "role_name",
+    ("pitchlog_owner", "pitchlog_shared_fn_owner"),
+    ids=("d2-pitchlog-owner", "d2-shared-fn-owner"),
+)
 def test_d2_rejects_each_declared_role_name_exactly(
     tmp_path: Path, role_name: str
 ) -> None:
@@ -313,6 +677,7 @@ def test_d2_rejects_each_declared_role_name_exactly(
         ("asset_kind", "changed_runtime_contract"),
         ("canonicalization", "changed-canonicalization"),
     ),
+    ids=("d3-schema-version", "d3-asset-kind", "d3-canonicalization"),
 )
 def test_d3_rejects_each_fixed_value_exactly(
     tmp_path: Path, field: str, value: object
@@ -329,7 +694,7 @@ def test_d3_rejects_each_fixed_value_exactly(
 @pytest.mark.parametrize(
     "mutate",
     (_mutate_fixture_missing, _mutate_fixture_duplicate, _mutate_fixture_id),
-    ids=("missing", "duplicate", "fixture-id"),
+    ids=("d4-missing", "d4-duplicate", "d4-fixture-id"),
 )
 def test_d4_rejects_each_dangerous_fixture_mutation_exactly(
     tmp_path: Path,
@@ -345,28 +710,171 @@ def test_d4_rejects_each_dangerous_fixture_mutation_exactly(
     _assert_check_result(repository_root, {"DANGEROUS_FIXTURES_MISMATCH"})
 
 
-def test_d5_rejects_identifier_mismatch_exactly(tmp_path: Path) -> None:
-    """D5 が識別値の変異だけを報告することを確認する。"""
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        ("identifier", {"IDENTIFIER_MISMATCH"}),
+        ("digest", {"SOURCE_DIGEST_STALE"}),
+    ),
+    ids=("d5-identifier", "d5-source-digest"),
+)
+def test_d5_rejects_each_identity_mutation_exactly(
+    tmp_path: Path,
+    mutation: str,
+    expected: set[str],
+) -> None:
+    """D5 が識別値と digest の変異を対応する ID だけで報告する。"""
     repository_root = _copy_repository(tmp_path)
     asset = _read_asset(repository_root)
     baseline = cast(dict[str, Any], asset["baseline_control"])
     identity = cast(dict[str, Any], baseline["identity"])
-    identity["current_identifiers"] = ["runtime_contract_revision:999"]
-    _synchronize_repository(repository_root, asset)
+    if mutation == "identifier":
+        identity["current_identifiers"] = ["runtime_contract_revision:999"]
+        _synchronize_repository(repository_root, asset)
+    else:
+        identity["no_baseline_marker"] = "CHANGED_BASELINE"
+        _write_asset(repository_root, asset)
 
-    _assert_check_result(repository_root, {"IDENTIFIER_MISMATCH"})
+    _assert_check_result(repository_root, expected)
 
 
-def test_d5_rejects_stale_source_digest_exactly(tmp_path: Path) -> None:
-    """D5 が古い source digest だけを報告することを確認する。"""
-    repository_root = _copy_repository(tmp_path)
-    asset = _read_asset(repository_root)
-    baseline = cast(dict[str, Any], asset["baseline_control"])
-    identity = cast(dict[str, Any], baseline["identity"])
-    identity["no_baseline_marker"] = "CHANGED_BASELINE"
-    _write_asset(repository_root, asset)
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        ("t1-provisional-false", {"PROVISIONAL_FLAG_MISSING"}),
+        ("t2-superseded-missing", {"SUPERSEDED_BY_MISMATCH"}),
+        ("t2-superseded-other", {"SUPERSEDED_BY_MISMATCH"}),
+        ("t3-derived-added", {"DERIVED_FROM_BEFORE_SWITCH"}),
+        ("t4-module-provisional-false", {"GENERATED_MODULE_IS_NOT_PROVISIONAL"}),
+        ("t5-module-source-other", {"GENERATED_MODULE_SOURCE_MISMATCH"}),
+        (
+            "t6-module-superseded-none",
+            {"GENERATED_MODULE_SUPERSEDED_BY_MISMATCH"},
+        ),
+        (
+            "t7-module-derived-final",
+            {"GENERATED_MODULE_DERIVED_FROM_MISMATCH"},
+        ),
+        ("t8-module-protected-table", {"GENERATED_MODULE_STALE"}),
+        ("t8-module-revision", {"GENERATED_MODULE_STALE"}),
+        ("t8-module-digest", {"GENERATED_MODULE_STALE"}),
+    ),
+    ids=(
+        "t1-provisional-false",
+        "t2-superseded-missing",
+        "t2-superseded-other",
+        "t3-derived-added",
+        "t4-module-provisional-false",
+        "t5-module-source-other",
+        "t6-module-superseded-none",
+        "t7-module-derived-final",
+        "t8-module-protected-table",
+        "t8-module-revision",
+        "t8-module-digest",
+    ),
+)
+def test_each_provisional_predicate_mutation_is_exact(
+    tmp_path: Path,
+    mutation: str,
+    expected: set[str],
+) -> None:
+    """T1〜T8 の各変異が対応する違反 ID だけを返すことを確認する。"""
+    repository_root = _copy_pending_repository(tmp_path)
+    _apply_provisional_mutation(repository_root, mutation)
 
-    _assert_check_result(repository_root, {"SOURCE_DIGEST_STALE"})
+    _assert_evaluation(repository_root, RuntimeContractState.PENDING, expected)
+
+
+@pytest.mark.parametrize(
+    "removed_index",
+    (-1,),
+    ids=("u1-addition-missing",),
+)
+def test_u1_rejects_one_missing_provisional_addition_exactly(
+    tmp_path: Path,
+    removed_index: int,
+) -> None:
+    """U1 が追加宣言1件の欠落だけを報告することを確認する。"""
+    repository_root = _copy_pending_repository(tmp_path)
+    staged = _read_repository_json(STAGED_PRODUCT_ASSET)
+    additions = cast(list[dict[str, Any]], staged["provisional_contract_additions"])
+    additions.pop(removed_index)
+    _write_repository_json(repository_root, STAGED_PRODUCT_ASSET, staged)
+
+    _assert_evaluation(
+        repository_root,
+        RuntimeContractState.PENDING,
+        {"STAGED_PROTECTED_SET_MISMATCH"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        ("p1-provisional-true", {"PROVISIONAL_REMAINS"}),
+        ("p2-superseded-null", {"SUPERSEDED_BY_REMAINS"}),
+        ("p2-superseded-old", {"SUPERSEDED_BY_REMAINS"}),
+        ("p3-derived-staged", {"DERIVED_FROM_MISMATCH"}),
+        ("p3-derived-other", {"DERIVED_FROM_MISMATCH"}),
+        ("p3-derived-missing", {"DERIVED_FROM_MISMATCH"}),
+        ("p4-function-missing", {"DERIVED_FIELDS_STALE"}),
+        ("p4-function-added", {"DERIVED_FIELDS_STALE"}),
+        ("p4-provisional-functions", {"DERIVED_FIELDS_STALE"}),
+        ("p4-attribute", {"DERIVED_FIELDS_STALE"}),
+        ("p4-public-schema-only", {"DERIVED_FIELDS_STALE"}),
+        ("p5-pending-switch", {"PENDING_SWITCH_REMAINS"}),
+        ("p6-provisional-additions", {"PROVISIONAL_ADDITIONS_REMAIN"}),
+        ("p7-module-provisional-true", {"GENERATED_MODULE_IS_PROVISIONAL"}),
+        ("p8-module-superseded-old", {"GENERATED_MODULE_HAS_SUPERSEDED_BY"}),
+        ("p9-module-source-final", {"GENERATED_MODULE_SOURCE_MISMATCH"}),
+        ("p9-module-source-staged", {"GENERATED_MODULE_SOURCE_MISMATCH"}),
+        (
+            "p10-module-derived-staged",
+            {"GENERATED_MODULE_DERIVED_FROM_MISMATCH"},
+        ),
+        (
+            "p10-module-derived-none",
+            {"GENERATED_MODULE_DERIVED_FROM_MISMATCH"},
+        ),
+        ("p11-module-protected-old", {"GENERATED_MODULE_STALE"}),
+        ("p11-module-revision", {"GENERATED_MODULE_STALE"}),
+        ("p11-module-digest", {"GENERATED_MODULE_STALE"}),
+    ),
+    ids=(
+        "p1-provisional-true",
+        "p2-superseded-null",
+        "p2-superseded-old",
+        "p3-derived-staged",
+        "p3-derived-other",
+        "p3-derived-missing",
+        "p4-function-missing",
+        "p4-function-added",
+        "p4-provisional-functions",
+        "p4-attribute",
+        "p4-public-schema-only",
+        "p5-pending-switch",
+        "p6-provisional-additions",
+        "p7-module-provisional-true",
+        "p8-module-superseded-old",
+        "p9-module-source-final",
+        "p9-module-source-staged",
+        "p10-module-derived-staged",
+        "p10-module-derived-none",
+        "p11-module-protected-old",
+        "p11-module-revision",
+        "p11-module-digest",
+    ),
+)
+def test_each_product_predicate_mutation_is_exact(
+    tmp_path: Path,
+    mutation: str,
+    expected: set[str],
+) -> None:
+    """P1〜P11 の各変異が対応する違反 ID だけを返すことを確認する。"""
+    repository_root = _copy_product_repository(tmp_path)
+    _apply_product_mutation(repository_root, mutation)
+
+    _assert_evaluation(repository_root, RuntimeContractState.PRODUCT, expected)
 
 
 def test_generated_module_staleness_is_reported_with_unified_diff(

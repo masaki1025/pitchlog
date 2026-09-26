@@ -13,9 +13,9 @@ from pathlib import Path
 from pitchlog.authz.runtime_contract_state import (
     GENERATED_MODULE,
     RUNTIME_CONTRACT_ASSET,
+    evaluate_repository,
     read_json_object,
     render_runtime_contract,
-    runtime_contract_violations,
 )
 
 
@@ -46,13 +46,8 @@ def check_repository(repository_root: Path) -> set[str]:
     Returns:
         違反 ID の集合。
     """
-    asset_path = repository_root / RUNTIME_CONTRACT_ASSET
-    asset = read_json_object(asset_path) if asset_path.is_file() else None
-    module_path = repository_root / GENERATED_MODULE
-    module_source = (
-        module_path.read_text(encoding="utf-8") if module_path.is_file() else None
-    )
-    return runtime_contract_violations(asset, module_source)
+    _, violations = evaluate_repository(repository_root)
+    return violations
 
 
 def render_repository(repository_root: Path) -> bool:

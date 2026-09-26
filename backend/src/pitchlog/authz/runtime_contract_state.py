@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import TypedDict, cast
 
 RUNTIME_CONTRACT_ASSET = Path("contracts/tenant_boundary/runtime-authz-contract.json")
 GENERATED_MODULE = Path("backend/src/pitchlog/authz/runtime_contract.py")
+STAGED_PRODUCT_ASSET = Path("contracts/authz/product/ddl-elements.staged.json")
+PRODUCT_ASSET = Path("contracts/authz/product/ddl-elements.json")
 
 _EXPECTED_ROLE_NAME = "pitchlog_app"
 _EXPECTED_ASSET_KIND = "tenant_boundary_runtime_authz_contract"
@@ -39,11 +43,24 @@ _PRODUCT_ROLE_KEYS = {
     "creation",
     *(product_name for product_name, _ in _ROLE_ATTRIBUTE_MAPPING),
 }
+_LIFECYCLE_CONSTANT_NAMES = frozenset(
+    {"PROVISIONAL", "SUPERSEDED_BY", "SOURCE_ASSET", "DERIVED_FROM"}
+)
+_MISSING = object()
 
 JsonObject = dict[str, object]
 type AssetSource = Path | Mapping[str, object]
 type TableIdentifier = tuple[str, str]
 type FunctionIdentifier = tuple[str, str, str]
+
+
+class RuntimeContractState(StrEnum):
+    """ランタイム契約と製品資産の切り替え状態。"""
+
+    PROVISIONAL = "provisional"
+    PENDING = "pending"
+    PRODUCT = "product"
+    INVALID = "invalid"
 
 
 class DerivedApplicationRole(TypedDict):
@@ -220,6 +237,74 @@ def compare_staged_protected_objects(
     )
 
 
+def evaluate_repository(
+    repository_root: Path,
+) -> tuple[RuntimeContractState, set[str]]:
+    """リポジトリの状態を判定し、その状態の全述語を評価する。
+
+    状態の判定はこの入口にだけ置く。生成モジュールは import せず、ソースの
+    代入文からライフサイクル定数を読む。
+
+    Args:
+        repository_root: 検査するリポジトリのルート。
+
+    Returns:
+        4状態のいずれかと、違反 ID の集合。
+    """
+    staged_path = repository_root / STAGED_PRODUCT_ASSET
+    product_path = repository_root / PRODUCT_ASSET
+    staged_exists = staged_path.is_file()
+    product_exists = product_path.is_file()
+    if staged_exists and product_exists:
+        return RuntimeContractState.INVALID, {"BOTH_STAGED_AND_FINAL"}
+    if product_exists:
+        state = RuntimeContractState.PRODUCT
+    elif staged_exists:
+        state = RuntimeContractState.PENDING
+    else:
+        state = RuntimeContractState.PROVISIONAL
+
+    asset_path = repository_root / RUNTIME_CONTRACT_ASSET
+    asset = read_json_object(asset_path) if asset_path.is_file() else None
+    violations = declaration_violations(asset)
+    if asset is None:
+        return state, violations
+
+    module_path = repository_root / GENERATED_MODULE
+    module_source = (
+        module_path.read_text(encoding="utf-8") if module_path.is_file() else ""
+    )
+    constants = _generated_constant_values(module_source)
+    if state in (RuntimeContractState.PROVISIONAL, RuntimeContractState.PENDING):
+        violations.update(
+            _provisional_violations(
+                asset,
+                module_source,
+                constants,
+            )
+        )
+        if state is RuntimeContractState.PENDING:
+            try:
+                comparison = compare_staged_protected_objects(staged_path, asset)
+            except (OSError, ValueError):
+                violations.add("STAGED_PROTECTED_SET_MISMATCH")
+            else:
+                if not comparison.matches:
+                    violations.add("STAGED_PROTECTED_SET_MISMATCH")
+        return state, violations
+
+    product_asset = read_json_object(product_path)
+    violations.update(
+        _product_violations(
+            asset,
+            product_asset,
+            module_source,
+            constants,
+        )
+    )
+    return state, violations
+
+
 def declaration_violations(asset: Mapping[str, object] | None) -> set[str]:
     """全状態に共通する宣言 D1〜D5 の違反 ID を返す。
 
@@ -275,29 +360,63 @@ def declaration_violations(asset: Mapping[str, object] | None) -> set[str]:
     return violations
 
 
-def runtime_contract_violations(
-    asset: Mapping[str, object] | None,
-    generated_module_source: str | None,
+def _provisional_violations(
+    asset: Mapping[str, object],
+    module_source: str,
+    constants: Mapping[str, object],
 ) -> set[str]:
-    """宣言と生成モジュールの違反 ID を返す。
+    """暫定・未発効状態の T1〜T8 を評価する。"""
+    violations: set[str] = set()
+    if asset.get("provisional") is not True:
+        violations.add("PROVISIONAL_FLAG_MISSING")
+    if asset.get("superseded_by") != PRODUCT_ASSET.as_posix():
+        violations.add("SUPERSEDED_BY_MISMATCH")
+    if "derived_from" in asset:
+        violations.add("DERIVED_FROM_BEFORE_SWITCH")
 
-    Args:
-        asset: ランタイム契約の資産。資産が無い場合は ``None``。
-        generated_module_source: 現在の生成モジュール。無い場合は ``None``。
-
-    Returns:
-        違反 ID の集合。
-    """
-    violations = declaration_violations(asset)
-    if asset is None:
-        return violations
-
-    try:
-        expected_source = render_runtime_contract(asset)
-    except RuntimeContractError:
+    if constants.get("PROVISIONAL", _MISSING) is not True:
+        violations.add("GENERATED_MODULE_IS_NOT_PROVISIONAL")
+    if constants.get("SOURCE_ASSET", _MISSING) != RUNTIME_CONTRACT_ASSET.as_posix():
+        violations.add("GENERATED_MODULE_SOURCE_MISMATCH")
+    if constants.get("SUPERSEDED_BY", _MISSING) != PRODUCT_ASSET.as_posix():
+        violations.add("GENERATED_MODULE_SUPERSEDED_BY_MISMATCH")
+    if constants.get("DERIVED_FROM", _MISSING) is not None:
+        violations.add("GENERATED_MODULE_DERIVED_FROM_MISMATCH")
+    if _generated_module_is_stale(asset, module_source):
         violations.add("GENERATED_MODULE_STALE")
-        return violations
-    if generated_module_source != expected_source:
+    return violations
+
+
+def _product_violations(
+    asset: Mapping[str, object],
+    product_asset: Mapping[str, object],
+    module_source: str,
+    constants: Mapping[str, object],
+) -> set[str]:
+    """製品状態の P1〜P11 を評価する。"""
+    violations: set[str] = set()
+    if asset.get("provisional") is not False:
+        violations.add("PROVISIONAL_REMAINS")
+    if "superseded_by" in asset:
+        violations.add("SUPERSEDED_BY_REMAINS")
+    if asset.get("derived_from") != PRODUCT_ASSET.as_posix():
+        violations.add("DERIVED_FROM_MISMATCH")
+    if not _derived_fields_match(asset, product_asset):
+        violations.add("DERIVED_FIELDS_STALE")
+    if "pending_switch" in product_asset:
+        violations.add("PENDING_SWITCH_REMAINS")
+    if "provisional_contract_additions" in product_asset:
+        violations.add("PROVISIONAL_ADDITIONS_REMAIN")
+
+    if constants.get("PROVISIONAL", _MISSING) is not False:
+        violations.add("GENERATED_MODULE_IS_PROVISIONAL")
+    if constants.get("SUPERSEDED_BY", _MISSING) is not None:
+        violations.add("GENERATED_MODULE_HAS_SUPERSEDED_BY")
+    if constants.get("SOURCE_ASSET", _MISSING) != RUNTIME_CONTRACT_ASSET.as_posix():
+        violations.add("GENERATED_MODULE_SOURCE_MISMATCH")
+    if constants.get("DERIVED_FROM", _MISSING) != PRODUCT_ASSET.as_posix():
+        violations.add("GENERATED_MODULE_DERIVED_FROM_MISMATCH")
+    if _generated_module_is_stale(asset, module_source):
         violations.add("GENERATED_MODULE_STALE")
     return violations
 
@@ -305,8 +424,8 @@ def runtime_contract_violations(
 def render_runtime_contract(asset: Mapping[str, object]) -> str:
     """資産からランタイム契約モジュールのソース文字列を描画する。
 
-    一覧は資産に記録された順序を保つ。ステップ 1 の暫定状態では
-    ``DERIVED_FROM`` は常に ``None`` とする。
+    一覧は資産に記録された順序を保つ。``derived_from`` または
+    ``superseded_by`` が無い場合、対応する定数を ``None`` とする。
 
     Args:
         asset: ランタイム契約の資産。
@@ -321,6 +440,7 @@ def render_runtime_contract(asset: Mapping[str, object]) -> str:
     revision = _integer(asset, "runtime_contract_revision")
     provisional = _boolean(asset, "provisional")
     superseded_by = _optional_string(asset.get("superseded_by"), "superseded_by")
+    derived_from = _optional_string(asset.get("derived_from"), "derived_from")
     source_digest = _string(asset, "source_digest")
 
     application_role = _required_mapping(asset, "application_role")
@@ -347,7 +467,7 @@ def render_runtime_contract(asset: Mapping[str, object]) -> str:
         f"SUPERSEDED_BY = {_python_string_or_none(superseded_by)}",
         f'SOURCE_ASSET = "{RUNTIME_CONTRACT_ASSET.as_posix()}"',
         f"SOURCE_DIGEST = {_python_string(source_digest)}",
-        "DERIVED_FROM = None",
+        f"DERIVED_FROM = {_python_string_or_none(derived_from)}",
         "",
         "",
         "@dataclass(frozen=True, slots=True)",
@@ -382,6 +502,81 @@ def render_runtime_contract(asset: Mapping[str, object]) -> str:
     lines.extend(f"    {_render_row(row)}," for row in fixtures)
     lines.extend([")", ""])
     return "\n".join(lines)
+
+
+def _generated_constant_values(source: str) -> dict[str, object]:
+    """生成モジュールのライフサイクル定数を import せずに読む。"""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return {}
+    values: dict[str, object] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or target.id not in (
+            _LIFECYCLE_CONSTANT_NAMES
+        ):
+            continue
+        try:
+            values[target.id] = ast.literal_eval(node.value)
+        except (ValueError, TypeError):
+            values[target.id] = _MISSING
+    return values
+
+
+def _generated_module_is_stale(asset: Mapping[str, object], module_source: str) -> bool:
+    """ライフサイクル定数以外の生成差分があれば ``True`` を返す。"""
+    try:
+        expected = render_runtime_contract(asset)
+    except RuntimeContractError:
+        return True
+    return _source_without_lifecycle_assignments(module_source) != (
+        _source_without_lifecycle_assignments(expected)
+    )
+
+
+def _source_without_lifecycle_assignments(source: str) -> str:
+    """二重報告を避けるためライフサイクル定数の代入行を除く。"""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return source
+    excluded_lines: set[int] = set()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or target.id not in (
+            _LIFECYCLE_CONSTANT_NAMES
+        ):
+            continue
+        end_lineno = node.end_lineno or node.lineno
+        excluded_lines.update(range(node.lineno - 1, end_lineno))
+    return "".join(
+        line
+        for index, line in enumerate(source.splitlines(keepends=True))
+        if index not in excluded_lines
+    )
+
+
+def _derived_fields_match(
+    asset: Mapping[str, object], product_asset: Mapping[str, object]
+) -> bool:
+    """製品資産から導いた欄がランタイム契約と exact に一致するか返す。"""
+    try:
+        derived = derive_runtime_contract_fields(product_asset, asset)
+    except (OSError, ValueError):
+        return False
+    application_role = _mapping(asset.get("application_role"))
+    protected_objects = _mapping(asset.get("protected_objects"))
+    if application_role is None or protected_objects is None:
+        return False
+    return (
+        application_role.get("attributes") == derived["application_role"]["attributes"]
+        and protected_objects == derived["protected_objects"]
+    )
 
 
 def _asset_mapping(source: AssetSource, label: str) -> Mapping[str, object]:
