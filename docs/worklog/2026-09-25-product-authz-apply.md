@@ -33,3 +33,10 @@ branch: feature/product-authz-apply
 - **関門 1**: PR #78(7C)がマージ(`b4ae739`・下調べと同じ head `20ef5fd`)→ origin/develop へ rebase し、HEAD がマージコミットを含むことを確認。7C 版の検査器で迂回検査 ok・凍結基準の不変量 OK。**関門 2**: 記録形式は下調べどおりで、計画の改訂は不要。Codex はサービス障害から復旧(疎通確認 OK)
 - **順序の判断(人間 2026-09-26)**: PR #80(TSK-440)がまだ OPEN で、#80 も A2 も `base-allowlist.json` に凍結基準の記録を足す(後からマージする側が記録を作り直す)→ **ステップ 1 だけ先に進め、ステップ 2 以降は #80 のマージ後**
 - **ステップ 1**(7ea87953): `application-steps.json`(適用 7 手順・逆順の取り外し・製品専用の操作種別)と `AuthzAssetSpec.application_steps_path` と静的検査。Codex が委任の前に「A1 の試験 `test_authz_product_staging.py` も `operation_handlers == ()` を表明しているのに変更許可に無い」と範囲の矛盾を報告 → **`operation_handlers` は空のまま残し(probe の適用器では製品資産を適用できない性質を保つ)、製品の操作種別は `AuthzAssetSpec` の別フィールドに持たせる**方針にして、既存の試験に触れずに収めた。コミット後の迂回検査で TB007 が 2 件(`Path.is_absolute`・`Path.relative_to`)→ 是正して amend(A1 に続き 3 回目 — **Codex の「迂回検査 green」は未コミットの報告なので当てにならない**。コミット後に必ず走らせる)
+
+## master セッションとの重複(2026-09-26)
+
+- 431 を終えた master セッションが、次の最短路として TSK-442 に着手し、同じ worktree でステップ 1 を Codex へ重ねて委任していた(着手前の `feature_status.py` が 0/11 だった時点の 1 点確認)。こちらの連絡で気づいて委任を停止し、**未コミットの差分 4 ファイルを残したまま判断をこちらへ委ねた**
+- 対処: こちらの作業は 5384eabe で全部コミット済みだった(作業ツリーはクリーン)ので、差分は master の委任のものだけ。master の退避パッチが現差分と一致することを確かめ、こちらの scratchpad にも控えてから破棄した。差分の中身は A1 の試験の `operation_handlers == ()` の表明を消す方針で、こちらのステップ 1 が採らなかった形だった
+- master のコミット **c04339d1 は残す**(関門 2 の照合を実形式で書き足し・research.md の行番号の陳腐化を節名・関数名へ・テスト計画の表頭の限定語の是正)。ただし 2 点を直した: ① **`contract_revision` は「マージ時点の develop の値 +1」**(#80 が先なら 16 → 17。master の書き足しは #80 の前の値だった)② **history-snapshots は無条件で必須**(7C の実装者の実測を正とする) — 上の「関門 2 の下調べ」の「新しい history-snapshot は要らない見込み」は**誤り**
+- 知見: **同じ worktree を別のセッションが持っているかは `git worktree list` では分からない**。着手前の 1 点確認では重複を防げない(master の指摘)

@@ -175,7 +175,7 @@ change / movement_fact / reason / approved_by / approved_on
 
 `_asset_baseline_value_content` = **資産本文から `baseline_control` と `source_digest` を除いた全 top-level フィールド**の正規化 JSON。**`allowed_symbols` はこの範囲に入る**ので、**記号を 2 件足せば `baseline_value` 軸が発火し `moved = True`**。
 
-**帰結**: v2 記録 1 件が必須・`base-allowlist.json` の `contract_revision` を **15 → 16** へ繰り上げる。
+**帰結**: v2 記録 1 件が必須・`base-allowlist.json` の `contract_revision` を (マージ時点の develop の値)+1 — **PR #80 が先にマージされる前提では 16 → 17**(#80 が (マージ時点の develop の値)+1(#80 が先なら 16 → 17) にする) へ繰り上げる。
 
 **`aspect` の見込み**: `declaration`(`current_identifiers` が動く)と `asset_snapshots`(当該資産の射影が動く)の 2 つ。`movement_policy` と `external_snapshots` は不変。**ただし実値は検査器に出させて確認すること。**
 
@@ -215,7 +215,7 @@ scripts/frozen_history.py
 3. **`history-snapshots/<sha256>` は無条件で必須**。**既存 47 件は 1 つも変更・削除しない**(上記 4)
 4. **`approved_by` / `approved_on` に予約語を書けない**。**実在の承認者名と ISO 日付**(上記 5)
 5. **合格は PR の CI(PR 受理モード)で確認する。ローカルの不変量モードでは不足**(上記 6)
-6. **`contract_revision` を 15 → 16**(上記 7)
+6. **`contract_revision` を (マージ時点の develop の値)+1(#80 が先なら 16 → 17)**(上記 7)
 
 ---
 
