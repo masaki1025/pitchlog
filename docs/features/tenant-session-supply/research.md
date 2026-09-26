@@ -68,7 +68,7 @@ assert observed_statements == [_BINDING_STATEMENT, _PROBE_STATEMENT]   # :1226
 | --- | --- |
 | 要件書 `:303`(FR-012) | べき等キー記録・イベント保存・prefix 更新・状態遷移が**単一の DB トランザクションで確定する** |
 | 要件書 `:391`(FR-018) | **紐づけ判定と削除が同一トランザクション**で行われ、**判定後に紐づいた場合は失敗する** |
-| `docs/design/data-model.md:1757-1759`(FR-041) | **上限検査の前にグループ行を排他ロックし、挿入まで保持**(`SELECT ... FOR UPDATE` 相当)**または `SERIALIZABLE` + 再試行** |
+| `docs/design/data-model.md:1757-1759`(**FR-041 — 9-1 節**) | **上限検査の前にグループ行を排他ロックし、挿入まで保持**(`SELECT ... FOR UPDATE` 相当)**または `SERIALIZABLE` + 再試行**。**この二択は FR-041 のものであり、FR-018(11-1 節)へ転用してはならない**(**1 周目 P0-1** — 初稿の計画書が転用していた) |
 | `docs/design/sync-protocol.md:1258-1264` | **P2 = T1・T2・T3・T4・T5・T6 の 6 要素**を 1 トランザクション |
 
 **要件書で「同一トランザクション」の語が現れるのは `:391` の 1 行だけ**(spec-checker の全文検索)。
@@ -77,7 +77,7 @@ assert observed_statements == [_BINDING_STATEMENT, _PROBE_STATEMENT]   # :1226
 
 #### 3-1. 「同一トランザクションの規定は `T7` だけ」は**正本全体としては誤り**
 
-`docs/design/data-model.md` の「同一トランザクション」は **18 行**存在する。
+`docs/design/data-model.md` の「同一トランザクション」は **20 行**存在する(**1 周目の典拠監査で 18 → 20 へ訂正**)。
 とくに **TSK-444 の直接の対象である FR-018 の不変条件が `:2030` に明記**されている(逐語):
 
 > | **同一トランザクション** | **紐づけ判定と削除を同一トランザクションで行い、判定後に紐づいた場合は失敗**する(FR-018) | **本書で決める** |
@@ -203,7 +203,13 @@ scripts/frozen_history.py:1521     approved_by は非空・approved_on は実在
 `db-api-inventory.json`(触ると allowlist の `inventory.sha256` も更新必須)/
 `tests/fixtures/tenant_boundary/positive/**`(許可シンボル 1 つにつき fixture 1 本)
 
-**確実に red になる既存テスト**: `test_authz_repository_contract.py:242-245`・`:250`・`:269-271` /
-`test_authz_capability_registration.py:1022-1027` /
-`tests/test_check_tenant_boundary_bypass.py:23-33`(`PRODUCT_APPLICATION_PATHS`)・`:644-682`(literal アンカー)・
-`:2965-3012`(署名 exact)
+**red になる既存テスト**(**1 周目の典拠監査で訂正** — 初稿は「確実に red」と書いたが、
+**空集合系は計画どおり空のままなら green で通る**):
+
+| テスト | red になる条件 |
+| --- | --- |
+| `test_authz_repository_contract.py:242-245`・`:250` | **公開面を増やしたとき**(本タスクは増やすので red) |
+| `tests/test_check_tenant_boundary_bypass.py:644-682` | **`base.py` の literal アンカーが消えたとき**(本タスクは消すので red) |
+| `tests/test_check_tenant_boundary_bypass.py:2965-3012` | **許可シンボルの署名が契約と食い違うとき** |
+| `test_authz_repository_contract.py:269-271` / `test_authz_capability_registration.py:1022-1027` | **`PRODUCT_*` を空でなくしたとき**。本タスクは**空のまま残すので green のまま** |
+| `tests/test_check_tenant_boundary_bypass.py:23-33`(`PRODUCT_APPLICATION_PATHS`) | **新規ファイルとの exact-set 検査ではない**。新規許可シンボルを導入した PR で**全要素が差分に含まれること**を要求する形 |
