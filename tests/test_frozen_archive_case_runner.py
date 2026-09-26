@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 import sys
-from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 
@@ -95,6 +94,7 @@ def test_each_case_builds_matching_two_parent_merge_and_event(
         monkeypatch,
     )
     event = json.loads(prepared.event_path.read_text(encoding="utf-8"))
+    pull_request_number = event["pull_request"]["number"]
     parents = runner._git(
         prepared.repository,
         ["rev-list", "--parents", "-n", "1", "HEAD"],
@@ -103,7 +103,7 @@ def test_each_case_builds_matching_two_parent_merge_and_event(
     assert event == {
         "repository": {"full_name": "masaki1025/pitchlog"},
         "pull_request": {
-            "number": 83,
+            "number": pull_request_number,
             "base": {"ref": "develop", "sha": prepared.base_sha},
             "head": {"sha": prepared.head_sha},
         },
@@ -113,6 +113,43 @@ def test_each_case_builds_matching_two_parent_merge_and_event(
         prepared.base_sha,
         prepared.head_sha,
     ]
+
+    if getattr(definition, "action") in runner.RECORD_APPENDING_ACTIONS:
+        base_authority = json.loads(
+            runner._git(
+                prepared.repository,
+                [
+                    "show",
+                    f"{prepared.base_sha}:contracts/tenant_boundary/"
+                    "base-allowlist.json",
+                ],
+            ).stdout
+        )
+        head_authority = json.loads(
+            runner._git(
+                prepared.repository,
+                [
+                    "show",
+                    f"{prepared.head_sha}:contracts/tenant_boundary/"
+                    "base-allowlist.json",
+                ],
+            ).stdout
+        )
+        acceptance_id = f"masaki1025/pitchlog#{pull_request_number}"
+        assert acceptance_id not in {
+            record.get("acceptance_id")
+            for record in base_authority["baseline_control"]["history"]
+        }
+        assert (
+            head_authority["baseline_control"]["history"][-1][
+                "acceptance_id"
+            ]
+            == acceptance_id
+        )
+    else:
+        assert pull_request_number == 83
+
+
 def test_runner_calls_real_cli_in_pull_request_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -181,15 +218,11 @@ def test_current_checker_accepts_distinct_referenced_snapshot_sets(
 ) -> None:
     """比較元と HEAD の異なる集合を別々に算出して正しい追記を受理する。"""
     definition = MANIFEST.cases[1]
-    next_acceptance_manifest = replace(
-        MANIFEST,
-        pull_request_number=MANIFEST.pull_request_number + 1,
-    )
     prepared = runner.prepare_case(
         definition,
         tmp_path,
         REPOSITORY_ROOT,
-        next_acceptance_manifest,
+        MANIFEST,
         monkeypatch,
     )
 

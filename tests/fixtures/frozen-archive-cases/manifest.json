@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "comparison_revision": "b4ae7394a6ca038c8ea90ad9ddea40e00165ba7b",
+  "comparison_revision": "1a4041018c0b00fc0a86c11bec5ba0a38c3f2070",
   "repository_full_name": "masaki1025/pitchlog",
   "pull_request_number": 83,
   "cases": [
@@ -9,90 +9,160 @@
       "name": "unchanged-acceptance",
       "description": "変更なしの受理（現行の正例をそのまま再現）",
       "action": "unchanged",
-      "expected": {"previous": "green", "current": "green"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 2,
       "name": "recorded-movement",
       "description": "通常の movement と正しい v2 記録",
       "action": "recorded_movement",
-      "expected": {"previous": "green", "current": "green"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 3,
       "name": "unchanged-identifier",
       "description": "movement を記録するが影響資産の識別値を据え置く",
       "action": "unchanged_identifier",
-      "expected": {"previous": "red", "current": "red"},
-      "recorded_exit_codes": {"previous": 2, "current": null}
+      "expected": {
+        "previous": "red",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 2,
+        "current": null
+      }
     },
     {
       "id": 4,
       "name": "new-orphan-snapshot",
       "description": "HEAD に参照されない content-addressed snapshot を 1 件追加する",
       "action": "new_orphan_snapshot",
-      "expected": {"previous": "green", "current": "red"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 5,
       "name": "snapshot-count-over-limit",
       "description": "HEAD の snapshot 総件数を 501 件にする",
       "action": "snapshot_count_over_limit",
-      "parameters": {"target_snapshot_count": 501},
-      "expected": {"previous": "green", "current": "red"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "parameters": {
+        "target_snapshot_count": 501
+      },
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 6,
       "name": "snapshot-bytes-over-limit",
       "description": "HEAD の snapshot 総バイト数を 32 MiB より 1 バイト多くする",
       "action": "snapshot_bytes_over_limit",
-      "parameters": {"target_snapshot_bytes": 33554433},
-      "expected": {"previous": "green", "current": "red"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "parameters": {
+        "target_snapshot_bytes": 33554433
+      },
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 7,
       "name": "noncanonical-existing-reference",
       "description": "比較元と HEAD の同じ既存 v2 prefix に prefix 違いの参照値を置く",
       "action": "noncanonical_existing_reference",
-      "expected": {"previous": "green", "current": "red"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 8,
       "name": "noncanonical-appended-reference",
       "description": "追記 v2 record の snapshot_ref を非正規にする",
       "action": "noncanonical_appended_reference",
-      "expected": {"previous": "red", "current": "red"},
-      "recorded_exit_codes": {"previous": 2, "current": null}
+      "expected": {
+        "previous": "red",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 2,
+        "current": null
+      }
     },
     {
       "id": 9,
       "name": "grandfathered-orphans",
       "description": "比較元から存在する現況 29 件の孤児 snapshot を保持する",
       "action": "unchanged",
-      "expected": {"previous": "green", "current": "green"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 10,
       "name": "mixed-v1-v2-history",
       "description": "一意参照 18 件を持つ現行の v1・v2 混在履歴を保持する",
       "action": "unchanged",
-      "expected": {"previous": "green", "current": "green"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     },
     {
       "id": 11,
       "name": "missing-existing-v2-reference",
       "description": "比較元と HEAD の同じ既存 v2 prefix から snapshot_ref を欠落させる",
       "action": "missing_existing_v2_reference",
-      "expected": {"previous": "green", "current": "red"},
-      "recorded_exit_codes": {"previous": 0, "current": null}
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
     }
   ]
 }

@@ -46,6 +46,13 @@ EXPECTED_ACTIONS = frozenset(
         "missing_existing_v2_reference",
     }
 )
+RECORD_APPENDING_ACTIONS = frozenset(
+    {
+        "recorded_movement",
+        "unchanged_identifier",
+        "noncanonical_appended_reference",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -480,6 +487,50 @@ def _event_and_merge(
     return base_sha, head_sha, parent_line[0]
 
 
+def _pull_request_number_for_case(
+    definition: CaseDefinition,
+    repository: Path,
+    helpers: ModuleType,
+    manifest: Manifest,
+) -> int:
+    """記録追記ケースへ比較元履歴で未使用の PR 番号を割り当てる。
+
+    Args:
+        definition: 構築する比較ケース。
+        repository: 比較元の契約資産を持つ合成リポジトリ。
+        helpers: 既存テストからロードした補助モジュール。
+        manifest: 比較 corpus の固定情報。
+
+    Returns:
+        event と追記記録の双方へ設定する PR 番号。
+    """
+    if definition.action not in RECORD_APPENDING_ACTIONS:
+        return manifest.pull_request_number
+
+    authority_path = repository / helpers.checker.DEFAULT_ALLOWLIST
+    authority = _read_json_object(authority_path)
+    control = _object(authority["baseline_control"], "baseline_control")
+    history = control["history"]
+    if not isinstance(history, list):
+        raise ValueError("baseline_control.history は配列が必要")
+    acceptance_ids: set[str] = set()
+    for index, raw_record in enumerate(history):
+        location = f"baseline_control.history[{index}]"
+        record = _object(raw_record, location)
+        if "acceptance_id" not in record:
+            continue
+        acceptance_ids.add(
+            _string(record["acceptance_id"], f"{location}.acceptance_id")
+        )
+    pull_request_number = manifest.pull_request_number
+    while (
+        f"{manifest.repository_full_name}#{pull_request_number}"
+        in acceptance_ids
+    ):
+        pull_request_number += 1
+    return pull_request_number
+
+
 def prepare_case(
     definition: CaseDefinition,
     destination: Path,
@@ -514,9 +565,13 @@ def prepare_case(
             repository,
             f"case {definition.id} comparison base",
         )
-    acceptance_id = (
-        f"{manifest.repository_full_name}#{manifest.pull_request_number}"
+    pull_request_number = _pull_request_number_for_case(
+        definition,
+        repository,
+        helpers,
+        manifest,
     )
+    acceptance_id = f"{manifest.repository_full_name}#{pull_request_number}"
     _apply_case_action(
         definition,
         repository,
@@ -530,7 +585,7 @@ def prepare_case(
         base_sha,
         monkeypatch,
         event_path,
-        number=manifest.pull_request_number,
+        number=pull_request_number,
     )
     actual_base, head_sha, merge_sha = _event_and_merge(
         repository,
@@ -546,7 +601,7 @@ def prepare_case(
     base = _object(pull_request["base"], "github_event.pull_request.base")
     if (
         event_repository.get("full_name") != manifest.repository_full_name
-        or pull_request.get("number") != manifest.pull_request_number
+        or pull_request.get("number") != pull_request_number
         or base.get("ref") != "develop"
         or actual_base != base_sha
     ):
