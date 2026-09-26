@@ -71,6 +71,33 @@ def _rewrite_descriptor(
     return descriptor
 
 
+def _remove_normative_branch_row(text: str, branch_id: str) -> str:
+    """規範表の先頭セルで識別した分岐定義行を1件だけ除く。"""
+    kept_lines: list[str] = []
+    removed_count = 0
+    for line in text.splitlines():
+        match = descriptor_checker.STABLE_TABLE_CLAUSE_PATTERN.match(line)
+        if match is not None and match.group("clause_id") == branch_id:
+            removed_count += 1
+            continue
+        kept_lines.append(line)
+    assert removed_count == 1
+    return "\n".join(kept_lines) + "\n"
+
+
+def _remove_single_line_containing(text: str, marker: str) -> str:
+    """指定した機械可読markerを持つ行を1件だけ除く。"""
+    kept_lines: list[str] = []
+    removed_count = 0
+    for line in text.splitlines():
+        if marker in line:
+            removed_count += 1
+            continue
+        kept_lines.append(line)
+    assert removed_count == 1
+    return "\n".join(kept_lines) + "\n"
+
+
 def test_repository_three_way_parity_is_green() -> None:
     """実資産の3点突合が成功する。"""
     result = subprocess.run(
@@ -87,7 +114,7 @@ def test_repository_three_way_parity_is_green() -> None:
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
-    """65分岐を軸の支援対象37件と理由付き対象外28件へ漏れなく分ける。"""
+    """規範表の64分岐を支援対象37件と理由付き対象外27件へ分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
     expected_covered = {
         *(f"COLD-{number:02d}" for number in range(1, 10)),
@@ -98,10 +125,11 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         *(f"RBI-{number:02d}" for number in range(2, 6)),
     }
 
-    assert len(report.requirement_branch_ids) == 65
+    assert report.requirement_branch_ids == checker.EXPECTED_REQUIREMENT_BRANCH_IDS
+    assert len(report.requirement_branch_ids) == 64
     assert report.covered_branch_ids == expected_covered
     assert len(report.covered_branch_ids) == 37
-    assert len(report.excluded_branch_ids) == 28
+    assert len(report.excluded_branch_ids) == 27
     assert {f"req:{item}" for item in report.covered_branch_ids} <= (
         report.descriptor_supporting_clause_ids
     )
@@ -111,6 +139,22 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
     )
     assert report.covered_branch_ids.isdisjoint(report.excluded_branch_ids)
     assert all(checker.BRANCH_COVERAGE_EXCLUSIONS.values())
+
+
+def test_xc09_is_the_only_non_definition_mention_and_is_owned_by_adr_d8() -> None:
+    """旧全文集合との差はXC-09だけで、D-8固有制約として帰属する。"""
+    report = checker.validate_three_way_parity(REPOSITORY_ROOT)
+    requirements_text = (REPOSITORY_ROOT / checker.REQUIREMENTS_PATH).read_text(
+        encoding="utf-8"
+    )
+
+    assert len(checker.extract_requirement_branch_mentions(requirements_text)) == 65
+    assert report.non_definition_branch_mentions == {"XC-09"}
+    assert report.adr_d8_constraint_ids == {"XC-09"}
+    assert report.requirement_constraint_owners == {
+        "XC-09": ("D-8", "undoRows[]")
+    }
+    assert report.requirement_constraint_exclusions == {"XC-09": "E-1"}
 
 
 def test_d11_machine_readable_structure_is_exact_and_asymmetric() -> None:
@@ -161,9 +205,126 @@ def test_requirements_only_drift_is_red_after_digest_recalculation(
 
     with pytest.raises(
         checker.ThreeWayParityError,
-        match=r"descriptorの軸から参照されない必須分岐ID.*COLD-10",
+        match=r"要件書の規範表にある分岐IDがexact-set不一致.*COLD-10",
     ):
         checker.validate_three_way_parity(root)
+
+
+def test_cold09_normative_row_removal_is_red_even_if_other_mentions_remain(
+    tmp_path: Path,
+) -> None:
+    """COLD-09規範行だけを消し履歴等に言及が残っても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.REQUIREMENTS_PATH
+    text = path.read_text(encoding="utf-8")
+    drifted = _remove_normative_branch_row(text, "COLD-09")
+    assert "`COLD-09`" in drifted
+    path.write_text(drifted, encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"規範表にある分岐IDがexact-set不一致.*COLD-09",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_xc13_normative_row_removal_is_red_even_if_other_mentions_remain(
+    tmp_path: Path,
+) -> None:
+    """XC-13原則行だけを消し履歴等に言及が残っても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.REQUIREMENTS_PATH
+    text = path.read_text(encoding="utf-8")
+    drifted = _remove_normative_branch_row(text, "XC-13")
+    assert "`XC-13`" in drifted
+    path.write_text(drifted, encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"規範表にある分岐IDがexact-set不一致.*XC-13",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_xc13_principle_marker_removal_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """XC-13行を残して導出原則IDだけを消しても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.REQUIREMENTS_PATH
+    text = path.read_text(encoding="utf-8")
+    marker = f"`{checker.XC13_PRINCIPLE_MARKER}`"
+    assert text.count(marker) == 1
+    path.write_text(text.replace(marker, "導出原則", 1), encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"XC-13規範行に成績計上フラグ導出原則の機械可読IDが無い",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_adr_d8_xc09_definition_removal_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """D-8のXC-09定義を消し他の言及が残っても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.ADR_PATH
+    text = path.read_text(encoding="utf-8")
+    drifted = _remove_single_line_containing(text, "`constraint:XC-09`")
+    assert "`XC-09`" in drifted
+    path.write_text(drifted, encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"D-8固有の制約定義IDがexact-set不一致.*XC-09",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_requirement_xc09_ownership_removal_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """E-1のXC-09帰属を消し他の言及が残っても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.REQUIREMENTS_PATH
+    text = path.read_text(encoding="utf-8")
+    marker = "`constraint-owner:XC-09:adr:D-8:undoRows[]`"
+    drifted = _remove_single_line_containing(text, marker)
+    assert "`XC-09`" in drifted
+    path.write_text(drifted, encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"E-1の外部制約帰属がexact-set不一致.*XC-09",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_requirement_xc09_exclusion_removal_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """E-1表からXC-09を除外する宣言を消しても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.REQUIREMENTS_PATH
+    text = path.read_text(encoding="utf-8")
+    marker = "`constraint-exclusion:XC-09:req:E-1`"
+    drifted = text.replace(marker, "外部制約除外", 1)
+    assert drifted != text
+    path.write_text(drifted, encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"E-1の外部制約除外がexact-set不一致.*XC-09",
+    ):
+        checker.validate_three_way_parity(root)
+
 
 def test_adr_only_drift_is_red_after_digest_recalculation(tmp_path: Path) -> None:
     """D-11から名指しコレクションを1件落とすとdigestが正しくても拒否する。"""

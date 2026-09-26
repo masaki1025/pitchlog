@@ -22,24 +22,40 @@ ADR_PATH = PurePosixPath("docs/adr/ADR-003-domain-calc-method.md")
 DESCRIPTOR_PATH = descriptor_checker.DESCRIPTOR_PATH
 SCHEMA_PATH = descriptor_checker.SCHEMA_PATH
 
-BRANCH_FAMILIES = (
-    "COLD",
-    "DRAW",
-    "XMARK",
-    "OUT3",
-    "ADV",
-    "INT",
-    "SO",
-    "RBI",
-    "XC",
+EXPECTED_REQUIREMENT_BRANCH_IDS = frozenset(
+    {
+        *(f"COLD-{number:02d}" for number in range(1, 10)),
+        *(f"DRAW-{number:02d}" for number in range(1, 11)),
+        *(f"XMARK-{number:02d}" for number in range(1, 4)),
+        *(f"OUT3-{number:02d}" for number in range(1, 6)),
+        *(f"ADV-{number:02d}" for number in range(1, 5)),
+        *(f"INT-{number:02d}" for number in range(1, 8)),
+        *(f"SO-{number:02d}" for number in range(1, 6)),
+        *(f"RBI-{number:02d}" for number in range(1, 10)),
+        *(f"XC-{number:02d}" for number in (*range(1, 9), *range(10, 14))),
+    }
 )
-BRANCH_ID_PATTERN = re.compile(
-    r"`(?P<branch_id>(?:"
-    + "|".join(BRANCH_FAMILIES)
-    + r")-\d{2})`"
+BRANCH_MENTION_PATTERN = re.compile(
+    r"`(?P<branch_id>(?:COLD|DRAW|XMARK|OUT3|ADV|INT|SO|RBI|XC)-\d{2})`"
 )
+EXPECTED_NON_DEFINITION_BRANCH_MENTIONS = frozenset({"XC-09"})
+XC13_PRINCIPLE_MARKER = "principle:stat-flags-derived-not-arbitrary"
 ADR_DECISION_HEADING_PATTERN = re.compile(r"^###\s+(?P<decision_id>D-\d+):")
+REQUIREMENT_CLAUSE_HEADING_PATTERN = re.compile(
+    r"^###\s+(?P<clause_id>[A-Z]-\d+[a-z]?)(?=[:\s])"
+)
 CODE_COLLECTION_PATTERN = re.compile(r"`(?P<collection>[A-Za-z][A-Za-z0-9]+\[\])`")
+ADR_CONSTRAINT_MARKER_PATTERN = re.compile(
+    r"`constraint:(?P<constraint_id>XC-\d{2})`"
+)
+REQUIREMENT_CONSTRAINT_OWNER_PATTERN = re.compile(
+    r"`constraint-owner:(?P<constraint_id>XC-\d{2}):"
+    r"adr:(?P<decision_id>D-\d+):(?P<layer>[A-Za-z][A-Za-z0-9]+\[\])`"
+)
+REQUIREMENT_CONSTRAINT_EXCLUSION_PATTERN = re.compile(
+    r"`constraint-exclusion:(?P<constraint_id>XC-\d{2}):"
+    r"req:(?P<clause_id>[A-Z]-\d+[a-z]?)`"
+)
 STAGE2_CONSTRAINT_ID_PATTERN = re.compile(
     r"`stage2-constraint:(?P<constraint>[a-z][a-z0-9-]+)`"
 )
@@ -65,6 +81,11 @@ D12_REQUIRED_CODE_LITERALS = frozenset(
         "gap_register_v<N>.json",
     }
 )
+EXPECTED_ADR_D8_CONSTRAINT_IDS = frozenset({"XC-09"})
+EXPECTED_REQUIREMENT_CONSTRAINT_OWNERS = {
+    "XC-09": ("D-8", "undoRows[]"),
+}
+EXPECTED_REQUIREMENT_CONSTRAINT_EXCLUSIONS = {"XC-09": "E-1"}
 
 BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
     "DRAW-04": (
@@ -92,7 +113,7 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
         f"XC-{number:02d}": (
             "規範行の列間交差制約であり、単独の入力軸ではない"
         )
-        for number in range(1, 13)
+        for number in (*range(1, 9), *range(10, 13))
     },
     "XC-13": (
         "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は"
@@ -115,6 +136,10 @@ class ParityReport:
     requirement_branch_ids: frozenset[str]
     covered_branch_ids: frozenset[str]
     excluded_branch_ids: frozenset[str]
+    non_definition_branch_mentions: frozenset[str]
+    adr_d8_constraint_ids: frozenset[str]
+    requirement_constraint_owners: Mapping[str, tuple[str, str]]
+    requirement_constraint_exclusions: Mapping[str, str]
     d11_collection_ids: frozenset[str]
     d11_stage2_constraint_classes: frozenset[str]
 
@@ -127,11 +152,71 @@ def _read_text(path: Path, label: str) -> str:
         raise ThreeWayParityError(f"{label}をUTF-8で読めない: {path}: {error}") from error
 
 
+def extract_requirement_branch_rows(text: str) -> dict[str, str]:
+    """要件書の規範表の先頭セルから分岐定義行を決定的に抽出する。"""
+    rows: dict[str, str] = {}
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        match = descriptor_checker.STABLE_TABLE_CLAUSE_PATTERN.match(line)
+        if match is None:
+            continue
+        branch_id = match.group("clause_id")
+        if branch_id in rows:
+            raise ThreeWayParityError(
+                f"要件書の規範表で分岐IDが重複している: {branch_id} "
+                f"(2件目={line_number}行)"
+            )
+        rows[branch_id] = line
+    return rows
+
+
 def extract_requirement_branch_ids(text: str) -> frozenset[str]:
-    """要件書のコード表記から閉じた分岐IDを決定的に抽出する。"""
+    """要件書の規範表から閉じた分岐IDを抽出する。"""
+    return frozenset(extract_requirement_branch_rows(text))
+
+
+def extract_requirement_branch_mentions(text: str) -> frozenset[str]:
+    """移行差分の監査専用に要件書中の全分岐ID言及を抽出する。"""
     return frozenset(
-        match.group("branch_id") for match in BRANCH_ID_PATTERN.finditer(text)
+        match.group("branch_id") for match in BRANCH_MENTION_PATTERN.finditer(text)
     )
+
+
+def _validate_requirement_branch_definitions(text: str) -> frozenset[str]:
+    """規範表の分岐exact-setとXC-13の機械可読な原則IDを検証する。"""
+    rows = extract_requirement_branch_rows(text)
+    actual_ids = frozenset(rows)
+    if actual_ids != EXPECTED_REQUIREMENT_BRANCH_IDS:
+        missing = sorted(EXPECTED_REQUIREMENT_BRANCH_IDS - actual_ids)
+        unexpected = sorted(actual_ids - EXPECTED_REQUIREMENT_BRANCH_IDS)
+        raise ThreeWayParityError(
+            "要件書の規範表にある分岐IDがexact-set不一致: "
+            f"missing={missing!r}; unexpected={unexpected!r}"
+        )
+
+    xc13_markers = extract_code_literals(rows["XC-13"])
+    if XC13_PRINCIPLE_MARKER not in xc13_markers:
+        raise ThreeWayParityError(
+            "XC-13規範行に成績計上フラグ導出原則の機械可読IDが無い: "
+            f"{XC13_PRINCIPLE_MARKER}"
+        )
+    return actual_ids
+
+
+def extract_requirement_clause_section(text: str, clause_id: str) -> str:
+    """要件書の第3階層の条文IDから当該節だけを抽出する。"""
+    lines = text.splitlines()
+    start: int | None = None
+    for index, line in enumerate(lines):
+        heading = REQUIREMENT_CLAUSE_HEADING_PATTERN.match(line)
+        if heading is None:
+            continue
+        if start is not None:
+            return "\n".join(lines[start:index])
+        if heading.group("clause_id") == clause_id:
+            start = index
+    if start is not None:
+        return "\n".join(lines[start:])
+    raise ThreeWayParityError(f"要件書の条文IDが実在しない: {clause_id}")
 
 
 def extract_adr_decision_section(text: str, decision_id: str) -> str:
@@ -149,6 +234,71 @@ def extract_adr_decision_section(text: str, decision_id: str) -> str:
     if start is not None:
         return "\n".join(lines[start:])
     raise ThreeWayParityError(f"ADRの決定IDが実在しない: {decision_id}")
+
+
+def _validate_xc09_definition_and_ownership(
+    requirements_text: str, adr_text: str
+) -> tuple[frozenset[str], dict[str, tuple[str, str]], dict[str, str]]:
+    """D-8のXC-09定義とE-1からの外部帰属をexact-setで突合する。"""
+    d8_section = extract_adr_decision_section(adr_text, "D-8")
+    adr_matches = list(ADR_CONSTRAINT_MARKER_PATTERN.finditer(d8_section))
+    adr_constraint_ids = frozenset(
+        match.group("constraint_id") for match in adr_matches
+    )
+    if len(adr_matches) != len(adr_constraint_ids):
+        raise ThreeWayParityError("D-8の制約定義IDが重複している")
+    if adr_constraint_ids != EXPECTED_ADR_D8_CONSTRAINT_IDS:
+        raise ThreeWayParityError(
+            "D-8固有の制約定義IDがexact-set不一致: "
+            f"expected={sorted(EXPECTED_ADR_D8_CONSTRAINT_IDS)!r}; "
+            f"actual={sorted(adr_constraint_ids)!r}"
+        )
+
+    e1_section = extract_requirement_clause_section(requirements_text, "E-1")
+    owner_matches = list(REQUIREMENT_CONSTRAINT_OWNER_PATTERN.finditer(e1_section))
+    owners: dict[str, tuple[str, str]] = {}
+    for match in owner_matches:
+        constraint_id = match.group("constraint_id")
+        if constraint_id in owners:
+            raise ThreeWayParityError(
+                f"E-1の外部制約帰属IDが重複している: {constraint_id}"
+            )
+        owners[constraint_id] = (
+            match.group("decision_id"),
+            match.group("layer"),
+        )
+    if owners != EXPECTED_REQUIREMENT_CONSTRAINT_OWNERS:
+        raise ThreeWayParityError(
+            "E-1の外部制約帰属がexact-set不一致: "
+            f"expected={EXPECTED_REQUIREMENT_CONSTRAINT_OWNERS!r}; actual={owners!r}"
+        )
+    if frozenset(owners) != adr_constraint_ids:
+        raise ThreeWayParityError(
+            "E-1から帰属させた制約IDとD-8の定義IDが一致しない"
+        )
+
+    exclusion_matches = list(
+        REQUIREMENT_CONSTRAINT_EXCLUSION_PATTERN.finditer(e1_section)
+    )
+    exclusions: dict[str, str] = {}
+    for match in exclusion_matches:
+        constraint_id = match.group("constraint_id")
+        if constraint_id in exclusions:
+            raise ThreeWayParityError(
+                f"E-1の外部制約除外IDが重複している: {constraint_id}"
+            )
+        exclusions[constraint_id] = match.group("clause_id")
+    if exclusions != EXPECTED_REQUIREMENT_CONSTRAINT_EXCLUSIONS:
+        raise ThreeWayParityError(
+            "E-1の外部制約除外がexact-set不一致: "
+            f"expected={EXPECTED_REQUIREMENT_CONSTRAINT_EXCLUSIONS!r}; "
+            f"actual={exclusions!r}"
+        )
+    if frozenset(exclusions) != adr_constraint_ids:
+        raise ThreeWayParityError(
+            "E-1から除外した制約IDとD-8の定義IDが一致しない"
+        )
+    return adr_constraint_ids, owners, exclusions
 
 
 def extract_d11_collection_ids(adr_text: str) -> frozenset[str]:
@@ -339,9 +489,23 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     adr_text = _read_text(root / ADR_PATH, "ADR-003")
     descriptor, schema = _load_descriptor_assets(root)
 
-    branch_ids = extract_requirement_branch_ids(requirements_text)
-    if not branch_ids:
-        raise ThreeWayParityError("要件書から分岐IDを抽出できない")
+    branch_ids = _validate_requirement_branch_definitions(requirements_text)
+    non_definition_branch_mentions = (
+        extract_requirement_branch_mentions(requirements_text) - branch_ids
+    )
+    if non_definition_branch_mentions != EXPECTED_NON_DEFINITION_BRANCH_MENTIONS:
+        raise ThreeWayParityError(
+            "要件書の全文言及集合と規範表定義集合の差がexact-set不一致: "
+            f"expected={sorted(EXPECTED_NON_DEFINITION_BRANCH_MENTIONS)!r}; "
+            f"actual={sorted(non_definition_branch_mentions)!r}"
+        )
+    (
+        adr_d8_constraint_ids,
+        requirement_constraint_owners,
+        requirement_constraint_exclusions,
+    ) = (
+        _validate_xc09_definition_and_ownership(requirements_text, adr_text)
+    )
     source_clause_ids = frozenset(
         set(descriptor_checker.load_source_clause_ids(root))
         | {f"req:{branch_id}" for branch_id in branch_ids}
@@ -375,6 +539,10 @@ def validate_three_way_parity(root: Path) -> ParityReport:
         requirement_branch_ids=branch_ids,
         covered_branch_ids=covered_ids,
         excluded_branch_ids=excluded_ids,
+        non_definition_branch_mentions=non_definition_branch_mentions,
+        adr_d8_constraint_ids=adr_d8_constraint_ids,
+        requirement_constraint_owners=requirement_constraint_owners,
+        requirement_constraint_exclusions=requirement_constraint_exclusions,
         d11_collection_ids=d11_collection_ids,
         d11_stage2_constraint_classes=d11_stage2_constraint_classes,
     )

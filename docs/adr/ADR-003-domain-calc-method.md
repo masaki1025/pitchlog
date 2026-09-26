@@ -394,7 +394,7 @@ FR-040に依存する値は、descriptor の条件付きメンバーとして`FR
 
 **閉じた規範行型の件数**: 常設の型は、`operationKind` で識別する 4 種(`substitution` / `tiebreak-start` / `game-end-declaration` / `adhoc-registration`)と `undoRows[]` の 1 種の**計 5 種**であり、計画書の「5 種」と一致する。FR-040採用時は、同じ閉じた `operationRows[]` の列構成を使う条件付きの `state-correction` が第 6 の受理バリアントとして加わるが、FR-040未採用時は存在しない。各バリアントの payload、`historyEffect`、および行オブジェクトも上記のとおり閉じる。参照する `Predicate` / `StateEffect` はこの件数に重複計上しない。
 
-**`XC-09`(`undoRows[]` の交差制約)**: `guaranteeMode = "liveness-only"` は、履歴文脈の深さが **`D`+1** の行だけに許す。深さが `D` 以下の行は `guaranteeMode = "full-equality"` でなければならない。**負例**: 他の全列が妥当でも、履歴深さ `D`・`targetKind = "confirmed-play"` の行に `guaranteeMode = "liveness-only"` を置いた場合は `XC-09` 違反として fail とする。
+**`XC-09`(`undoRows[]` の交差制約・定義ID `constraint:XC-09`)**: `guaranteeMode = "liveness-only"` は、履歴文脈の深さが **`D`+1** の行だけに許す。深さが `D` 以下の行は `guaranteeMode = "full-equality"` でなければならない。**負例**: 他の全列が妥当でも、履歴深さ `D`・`targetKind = "confirmed-play"` の行に `guaranteeMode = "liveness-only"` を置いた場合は `XC-09` 違反として fail とする。
 
 **既存比較面を縮小しない**: 次表の既存 5 対象について定めた入力・出力・比較単位は、本規範行層の追加によって削除・省略・部分集合化してはならない。比較面からの除外または実質的な縮小には要件書 NFR-019(a) の改訂を要し、改訂のない欠落・未知・判定不能は fail とする。`operationRows[]` / `undoRows[]` の `stateEffect` は、次表の状況判定が既に比較対象とする状態欄・スコアボード全欄・成績計上フラグ全欄・履歴文脈・操作結果を**すべて保持**し、非影響面も `unchanged` として比較する。
 

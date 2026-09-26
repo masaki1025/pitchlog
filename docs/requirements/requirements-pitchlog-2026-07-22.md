@@ -1412,7 +1412,7 @@ additionalProperties: false
 
 **交差制約**:
 
-次の12件（`XC-01`〜`XC-08`、`XC-10`〜`XC-13`）を、列どうしの値に適用する交差制約とする。`XC-09`は後述のとおり`undoRows[]`の制約であり、本表には含めない。負例欄は、当該制約を満たす有効な基準行へ適用する変異fixtureであり、記載していない列は基準行の値を維持する。各負例は対応するIDでfailしなければならない。
+次の12件（`XC-01`〜`XC-08`、`XC-10`〜`XC-13`）を、列どうしの値に適用する交差制約とする。外部制約除外ID `constraint-exclusion:XC-09:req:E-1` のとおり、`XC-09`は後述の`undoRows[]`の制約であり、本表には含めない。負例欄は、当該制約を満たす有効な基準行へ適用する変異fixtureであり、記載していない列は基準行の値を維持する。各負例は対応するIDでfailしなければならない。
 
 `XC-02`と`XC-12`が共用する**走者存在判定**を次の1規則に定め、個別制約で別の判定を作らない。起点塁`b`ごとに、`state.runners`の合法値8件のうち、他の入力軸に少なくとも1つの割当てを与えたとき`precondition`の`Predicate`を真にできる値を射影し、当該塁の存在状態の集合を求める。集合が`{不在}`だけなら`runnerPresence(precondition, b) = absent`、`{在塁}`だけなら`present`とする。集合が空、`{不在, 在塁}`の両方を含む、軸参照が未解決、または集合を決定不能な行はfailとする。すなわち、1行の`precondition`は各起点塁の走者存在を一意に定めなければならず、不在側または在塁側へ推測してはならない。
 
@@ -1429,7 +1429,7 @@ additionalProperties: false
 | `XC-10` | **双方向**: `batterDestination.kind = out` ⇔ `"batter" ∈ outEffect.targets`。したがって、`batterDestination.kind = not-applicable`に固定される`runner-event`の`outEffect.targets`へ`"batter"`を含めてはならない | 行き先からアウト対象への違反: `batterDestination: {kind: "out"}`に対して`outEffect: {count: 0, targets: []}`。アウト対象から行き先への違反: `eventKind: "runner-event"`・`batterDestination: {kind: "not-applicable"}`に対して`outEffect: {count: 1, targets: ["batter"]}` |
 | `XC-11` | `precondition`が許す事前アウト数の最大値を`maxOuts(precondition)`とすると、`maxOuts(precondition) + outEffect.count <= 3`でなければならない。事前アウト数を一意に定めない述語も、その述語が許すすべての事前アウト数で第3アウトを超えないよう最大値で判定する | 一意な場合: `precondition`が`state.outs = 2`を許す行で`outEffect.count = 2`。範囲の場合: `precondition`が`state.outs ∈ {0,1}`を許す行で`outEffect.count = 3`（最大値1との合計が4） |
 | `XC-12` | 共通の走者存在判定が`runnerPresence(precondition, b) = absent`なら、`outEffect.targets`へ`{runner: b}`を含めてはならない | `runnerPresence(precondition, first) = absent`の`runner-event`行で`outEffect: {count: 1, targets: [{runner: 1}]}` |
-| `XC-13` | `statFlags`の23キーは、行の他の列と`precondition`が参照する入力から導出し、独立した手入力または規範上の任意値としてはならない。23キーごとの導出元・必要十分条件、その導出に必要な第3アウト種別（打者走者の一塁到達前／フォースアウト／先行走者のアピールアウト）および記録員判断の入力契約は、ADR-003 D-11の「本ADRが確定する範囲と、実装へ送り出す範囲」に従い段階2で実機とともに確定する。段階2の導出表と負例が揃うまでは、本制約を機械保証済みと判定してはならない | 同一の行・入力に対して`statFlags`だけを任意に反転した値を受け入れる実装は、本原則および段階2で確定する導出表に違反するためfail |
+| `XC-13` | 原則ID `principle:stat-flags-derived-not-arbitrary`: `statFlags`の23キーは、行の他の列と`precondition`が参照する入力から導出し、独立した手入力または規範上の任意値としてはならない。23キーごとの導出元・必要十分条件、その導出に必要な第3アウト種別（打者走者の一塁到達前／フォースアウト／先行走者のアピールアウト）および記録員判断の入力契約は、ADR-003 D-11の「本ADRが確定する範囲と、実装へ送り出す範囲」に従い段階2で実機とともに確定する。段階2の導出表と負例が揃うまでは、本制約を機械保証済みと判定してはならない | 同一の行・入力に対して`statFlags`だけを任意に反転した値を受け入れる実装は、本原則および段階2で確定する導出表に違反するためfail |
 
 `XC-06`のカウント規則は`secondary-result`だけでなく`batting-result`にも適用する。`batting-result`もallowlist上は`countEffect`が任意であり、同じ規則がなければ打席終了時に`unchanged`／`delta`、または打席継続時に`reset`を選べるためである。`runner-event`は打席に影響せず、allowlistと`XC-05`／`XC-07`により`countEffect.*.kind = unchanged`かつ`plateAppearanceEnded = not-applicable`へ固定されるため、`XC-06`の対象外とする。
 
@@ -1439,7 +1439,7 @@ additionalProperties: false
 
 `XC-05`と`XC-07`は上記の`eventKind`別allowlistと意図的に重ねて検査する。allowlistは3列の合法な組合せの集合を検査し、交差制約は列の値どうしの個別の含意を検査するため、両者の重複は検査粒度の異なる多重防御である。
 
-`XC-09`は付録E-1の交差制約ではない。これは`undoRows[]`の`guaranteeMode = liveness-only`を`D`+1の行だけに許す制約であり、`guaranteeMode`を持たない付録E-1の10列には適用しない。`XC-09`は`undoRows[]`の制約としてADR-003 D-8が定める。
+`XC-09`は付録E-1の交差制約ではない。これは`undoRows[]`の`guaranteeMode = liveness-only`を`D`+1の行だけに許す制約であり、`guaranteeMode`を持たない付録E-1の10列には適用しない。外部制約帰属ID `constraint-owner:XC-09:adr:D-8:undoRows[]` のとおり、`XC-09`は`undoRows[]`の制約としてADR-003 D-8が定める。
 
 **走者の既定進塁の判定（典拠: 公認野球規則「FORCE PLAY」の定義・5.06）**:
 

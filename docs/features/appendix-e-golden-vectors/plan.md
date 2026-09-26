@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3c193b75e6878156882ddd1c59b808f5
 branch: feature/appendix-e-golden-vectors
 created: 2026-09-24
 計画レビュー周回: 9        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 6          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 7          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -105,8 +105,8 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
-| **要件書** | 付録E-1(境界 / **全 10 列の exact 型** / **交差制約 `XC-*`** / 表示名の読み替え)/ **定義の穴 9 件** / 管理者語彙の二段階ゲート / NFR-018(b)②。**版繰り上げ** | **finalize-doc** |
-| **ADR-003** | **D-11**(規範行駆動 + **descriptor を両段階を通した唯一の正**とし schema を派生物に + **射影規則**)/ **D-6** / **D-8** / **D-12**。**版繰り上げ** | **finalize-doc**(同一ゲート) |
+| **要件書**(`docs/requirements/requirements-pitchlog-2026-07-22.md`) | 付録E-1(境界 / **全 10 列の exact 型** / **交差制約 `XC-*`** / 表示名の読み替え)/ **定義の穴 9 件** / 管理者語彙の二段階ゲート / NFR-018(b)②。**版繰り上げ** | **finalize-doc** |
+| **ADR-003**(`docs/adr/ADR-003-domain-calc-method.md`) | **D-11**(規範行駆動 + **descriptor を両段階を通した唯一の正**とし schema を派生物に + **射影規則**)/ **D-6** / **D-8** / **D-12**。**版繰り上げ** | **finalize-doc**(同一ゲート) |
 | **`docs/design/sync-protocol.md`** | :1309 / :1588 の正を「D-6 で登録された状況判定ベクタ全体」へ。**版繰り上げ** | **finalize-doc**(同一ゲート) |
 | **`docs/development/harness-evaluation.md`** | 候補 (10) → **`H-90`** + 変更履歴 1 行。**`docs/README.md` の台帳行と同一コミット** | **PR レビュー** |
 | **`contracts/README.md`** / **`docs/README.md`** | 索引の追加と現行化 | **PR レビュー** |
