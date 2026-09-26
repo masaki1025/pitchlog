@@ -45,6 +45,8 @@ from pitchlog.repositories.base import (
     _TenantOperationError,
     _TenantScopedOperation,
 )
+from pitchlog.repositories.binding import TenantBindingError
+from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import (
     TenantOperationResult,
     TenantOperationToken,
@@ -423,6 +425,133 @@ def test_binding_statement_is_first_for_multiple_operations(
     ]
 
 
+def test_scope_rejects_tampered_context_before_session_creation(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """改竄済み文脈を Session 生成と SQL 発行より前に拒否する。"""
+    transaction = _transaction_module()
+    created_sessions: list[Session] = []
+    observed_statements: list[str] = []
+
+    class _PreflightObservedSession(Session):
+        """入口検査より前に Session が生成されないことを観測する。"""
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            created_sessions.append(self)
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    context = make_tenant_context(_TENANT_ID)
+    object.__setattr__(
+        context,
+        "tenant_id",
+        UUID("00000000-0000-0000-0000-000000000445"),
+    )
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _PreflightObservedSession)
+        event.listen(Session, "do_orm_execute", observe_orm_sql)
+        try:
+            with pytest.raises(TenantBindingError, match="発行証跡が不一致"):
+                with transaction.tenant_transaction_scope(context):
+                    pytest.fail("改竄済み文脈で scope 本体へ到達した")
+        finally:
+            event.remove(Session, "do_orm_execute", observe_orm_sql)
+
+    assert created_sessions == []
+    assert observed_statements == []
+
+
+def test_scope_rejects_non_exact_tenant_context_subclass(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """TenantContext の派生型を exact 型検査で Session 生成前に拒否する。"""
+    transaction = _transaction_module()
+    created_sessions: list[Session] = []
+    observed_statements: list[str] = []
+
+    class _PreflightObservedSession(Session):
+        """入口検査より前に Session が生成されないことを観測する。"""
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            created_sessions.append(self)
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    derived_type = type(
+        "_DerivedTenantContext",
+        (cast(type[Any], TenantContext),),
+        {},
+    )
+    derived_context = cast(TenantContext, derived_type(_TENANT_ID))
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _PreflightObservedSession)
+        event.listen(Session, "do_orm_execute", observe_orm_sql)
+        try:
+            with pytest.raises(TenantBindingError, match="TenantContext が無い"):
+                with transaction.tenant_transaction_scope(derived_context):
+                    pytest.fail("TenantContext 派生型で scope 本体へ到達した")
+        finally:
+            event.remove(Session, "do_orm_execute", observe_orm_sql)
+
+    assert created_sessions == []
+    assert observed_statements == []
+
+
+def test_run_rejects_context_changed_after_binding(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """束縛後に改竄された文脈を operation SQL の発行前に拒否する。"""
+    transaction = _transaction_module()
+    observed_statements: list[str] = []
+
+    def observe_orm_sql(execute_state: object) -> None:
+        observed_statements.append(str(getattr(execute_state, "statement", "")))
+
+    context = make_tenant_context(_TENANT_ID)
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(
+            repository_base,
+            "_OPERATION_REGISTRY",
+            MappingProxyType({_ReadProbeToken: _read_operation()}),
+        )
+        event.listen(Session, "do_orm_execute", observe_orm_sql)
+        try:
+            with transaction.tenant_transaction_scope(context) as handle:
+                statements_after_binding = len(observed_statements)
+                object.__setattr__(
+                    context,
+                    "tenant_id",
+                    UUID("00000000-0000-0000-0000-000000000445"),
+                )
+                with pytest.raises(TenantBindingError, match="発行証跡が不一致"):
+                    handle.run(_ReadProbeToken())
+        finally:
+            event.remove(Session, "do_orm_execute", observe_orm_sql)
+
+    assert observed_statements[:statements_after_binding] == [_BINDING_STATEMENT]
+    assert observed_statements[statements_after_binding:] == []
+
+
 def test_run_signature_has_no_second_tenant_context() -> None:
     """Run が operation だけを受け、別文脈を混ぜる口を公開しない。"""
     transaction = _transaction_module()
@@ -440,7 +569,12 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         "return": TenantOperationResult,
     }
     assert declared_methods == {"__init__", "_expire", "run"}
-    assert handle_type.__slots__ == ("_state_key", "_context")
+    assert handle_type.__slots__ == (
+        "_state_key",
+        "_context",
+        "_bound_tenant_id",
+        "_bound_integrity_proof",
+    )
     assert getattr(handle_type, "__final__", False) is True
 
 
@@ -468,9 +602,15 @@ def test_transaction_handle_is_not_publicly_constructible() -> None:
         arbitrary_session.close()
 
     with pytest.raises(RuntimeError, match="scope だけが生成"):
-        constructor(context, object(), object())
+        constructor(context, object(), _TENANT_ID, b"proof", object())
     with pytest.raises(RuntimeError, match="登録していない実行状態"):
-        constructor(context, object(), transaction._HANDLE_CREATION_TOKEN)
+        constructor(
+            context,
+            object(),
+            _TENANT_ID,
+            b"proof",
+            transaction._HANDLE_CREATION_TOKEN,
+        )
 
 
 def test_transaction_handle_does_not_expose_session(

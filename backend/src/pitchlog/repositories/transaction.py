@@ -5,12 +5,13 @@ from __future__ import annotations
 from contextlib import AbstractContextManager, ExitStack
 from types import TracebackType
 from typing import final
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from pitchlog.db.engine import create_database_engine
 from pitchlog.repositories.base import _materialize_rows, _operation_spec
-from pitchlog.repositories.binding import _tenant_transaction
+from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import (
     TenantOperationResult,
@@ -28,12 +29,19 @@ _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
 class _TenantTransaction:
     """束縛済み Session 上で閉じた operation token だけを実行する。"""
 
-    __slots__ = ("_state_key", "_context")
+    __slots__ = (
+        "_state_key",
+        "_context",
+        "_bound_tenant_id",
+        "_bound_integrity_proof",
+    )
 
     def __init__(
         self,
         context: TenantContext,
         state_key: object,
+        bound_tenant_id: UUID,
+        bound_integrity_proof: bytes,
         creation_token: object,
     ) -> None:
         """Scope が発行した実行状態への不透明キーと文脈を保持する。
@@ -41,6 +49,8 @@ class _TenantTransaction:
         Args:
             context: スコープ生成時に受け取ったテナント文脈。
             state_key: モジュール私有レジストリ上の実行状態キー。
+            bound_tenant_id: 束縛時点で固定したテナント ID。
+            bound_integrity_proof: 束縛時点で固定した発行証跡。
             creation_token: Scope だけが渡すモジュール私有センチネル。
 
         Raises:
@@ -52,6 +62,8 @@ class _TenantTransaction:
             raise RuntimeError("scope が登録していない実行状態から生成できない")
         self._state_key: object | None = state_key
         self._context = context
+        self._bound_tenant_id = bound_tenant_id
+        self._bound_integrity_proof = bound_integrity_proof
 
     def _expire(self) -> object | None:
         """実行状態との対応を破棄し、ハンドルを永久に失効させる。"""
@@ -79,12 +91,21 @@ class _TenantTransaction:
         if runtime is None:
             self._state_key = None
             raise RuntimeError("トランザクションハンドルは失効している")
+        if (
+            type(self._context) is not TenantContext
+            or self._context.tenant_id != self._bound_tenant_id
+            or self._context._integrity_proof != self._bound_integrity_proof
+            or not self._context._has_valid_integrity_proof()
+        ):
+            raise TenantBindingError(
+                "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
+            )
 
         spec = _operation_spec(operation)
         session, _ = runtime
         execution_result = session.execute(
             spec.statement,
-            {"tenant_id": self._context.tenant_id},
+            {"tenant_id": self._bound_tenant_id},
         )
         rows = tuple(tuple(row) for row in execution_result)
         return _materialize_rows(rows)
@@ -112,6 +133,15 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         if self._handle is not None:
             raise RuntimeError("同じトランザクションスコープへ再入できない")
+        if type(self._context) is not TenantContext:
+            raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
+        if not self._context._has_valid_integrity_proof():
+            raise TenantBindingError(
+                "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
+            )
+
+        bound_tenant_id = self._context.tenant_id
+        bound_integrity_proof = self._context._integrity_proof
 
         session = Session(create_database_engine())
         exit_stack = ExitStack()
@@ -122,6 +152,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             handle = _TenantTransaction(
                 self._context,
                 state_key,
+                bound_tenant_id,
+                bound_integrity_proof,
                 _HANDLE_CREATION_TOKEN,
             )
             self._handle = handle
