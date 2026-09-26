@@ -11,19 +11,30 @@ from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import Any, LiteralString, TypeVar, cast
 
 import psycopg
 import pytest
+from alembic import command
+from alembic.config import Config
 from db.environment_contract import load_expectations
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from sqlalchemy.engine import URL
 
-from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
+from pitchlog.authz.asset_spec import (
+    PROBE_SPEC,
+    PRODUCT_SPEC,
+    AuthzAssetSpec,
+    ProductApplicationSteps,
+    load_product_application_steps,
+)
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
+from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
 _ROLE_CONNECTION_SUFFIX = "_connection"
 _VERIFIED_AUTHZ_ROLE_IDS = pytest.StashKey[tuple[str, ...]]()
 _SESSION_RESOURCE_REGISTRY = pytest.StashKey["_SessionResourceRegistry"]()
@@ -447,6 +458,34 @@ class ProvisionedCatalog:
     provisioning_result: ProvisioningResult
 
 
+@dataclass(frozen=True, slots=True)
+class ProductCatalogSnapshot:
+    """製品 DDL の前後比較に使う PostgreSQL カタログの記録。"""
+
+    roles: tuple[tuple[object, ...], ...]
+    database: tuple[tuple[object, ...], ...]
+    schemas: tuple[tuple[object, ...], ...]
+    relations: tuple[tuple[object, ...], ...]
+    policies: tuple[tuple[object, ...], ...]
+    functions: tuple[tuple[object, ...], ...]
+    memberships: tuple[tuple[object, ...], ...]
+    columns: tuple[tuple[object, ...], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ProvisionedProductCatalog:
+    """migration 後に製品認可 DDL を適用した使い捨て構成を保持する。"""
+
+    cluster: DisposablePostgres
+    applicator: psycopg.Connection[Any]
+    observer: psycopg.Connection[Any]
+    owner_dsn: str
+    asset: dict[str, object]
+    statements: tuple[DDLStatement, ...]
+    application_steps: ProductApplicationSteps
+    pre_application_catalog: ProductCatalogSnapshot
+
+
 def _run_docker(
     *arguments: str, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
@@ -629,6 +668,237 @@ def disposable_postgres_cluster() -> Callable[
             _run_docker("rm", "--force", container_name, check=False)
 
     return factory
+
+
+def _product_role_ids(asset: dict[str, object]) -> tuple[str, ...]:
+    """製品資産からカタログ追跡対象のロール ID を得る。"""
+    role_ids: list[str] = []
+    for row in _asset_rows(asset, "roles"):
+        role_id = row.get("role_id")
+        if not isinstance(role_id, str) or not role_id:
+            raise AssertionError("製品ロールの role_id は空でない文字列が必要")
+        role_ids.append(role_id)
+    if len(role_ids) != len(set(role_ids)):
+        raise AssertionError("製品ロールの role_id が重複している")
+    return tuple(role_ids)
+
+
+def _fetch_snapshot_rows(
+    cursor: psycopg.Cursor[Any],
+    query: LiteralString,
+    params: tuple[object, ...] = (),
+) -> tuple[tuple[object, ...], ...]:
+    """カタログ比較用の問い合わせ結果を不変な行列へ変換する。"""
+    cursor.execute(query, params)
+    return tuple(tuple(row) for row in cursor.fetchall())
+
+
+def _snapshot_product_catalog(
+    connection: psycopg.Connection[Any],
+    role_ids: tuple[str, ...],
+) -> ProductCatalogSnapshot:
+    """製品 DDL が変更し得るカタログを安定した順序で記録する。"""
+    with connection.cursor() as cursor:
+        roles = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT rolname, rolsuper, rolbypassrls, rolcanlogin, rolcreaterole,
+                   rolcreatedb, rolreplication, rolinherit
+            FROM pg_catalog.pg_roles
+            WHERE rolname = ANY(%s)
+            ORDER BY rolname
+            """,
+            (list(role_ids),),
+        )
+        database = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT database.datname, owner.rolname, database.datacl::text
+            FROM pg_catalog.pg_database AS database
+            JOIN pg_catalog.pg_roles AS owner ON owner.oid = database.datdba
+            WHERE database.datname = pg_catalog.current_database()
+            """,
+        )
+        schemas = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT namespace.nspname, owner.rolname, namespace.nspacl::text
+            FROM pg_catalog.pg_namespace AS namespace
+            JOIN pg_catalog.pg_roles AS owner ON owner.oid = namespace.nspowner
+            WHERE namespace.nspname IN ('public', 'authz_private')
+            ORDER BY namespace.nspname
+            """,
+        )
+        relations = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT relation.relname, relation.relkind, owner.rolname,
+                   relation.relrowsecurity, relation.relforcerowsecurity,
+                   relation.relacl::text
+            FROM pg_catalog.pg_class AS relation
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            JOIN pg_catalog.pg_roles AS owner ON owner.oid = relation.relowner
+            WHERE namespace.nspname = 'public'
+              AND relation.relkind IN ('r', 'p', 'v', 'm', 'S')
+            ORDER BY relation.relname, relation.relkind
+            """,
+        )
+        policies = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT namespace.nspname, relation.relname, policy.polname,
+                   policy.polcmd, policy.polpermissive,
+                   pg_catalog.pg_get_expr(policy.polqual, policy.polrelid),
+                   pg_catalog.pg_get_expr(policy.polwithcheck, policy.polrelid)
+            FROM pg_catalog.pg_policy AS policy
+            JOIN pg_catalog.pg_class AS relation ON relation.oid = policy.polrelid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname IN ('public', 'authz_private')
+            ORDER BY namespace.nspname, relation.relname, policy.polname
+            """,
+        )
+        functions = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT namespace.nspname, procedure.proname,
+                   pg_catalog.pg_get_function_identity_arguments(procedure.oid),
+                   owner.rolname, procedure.prosecdef, procedure.proacl::text,
+                   procedure.proconfig::text
+            FROM pg_catalog.pg_proc AS procedure
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = procedure.pronamespace
+            JOIN pg_catalog.pg_roles AS owner ON owner.oid = procedure.proowner
+            WHERE namespace.nspname IN ('public', 'authz_private')
+            ORDER BY namespace.nspname, procedure.proname,
+                     pg_catalog.pg_get_function_identity_arguments(procedure.oid)
+            """,
+        )
+        memberships = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT granted.rolname, member.rolname, membership.admin_option,
+                   membership.inherit_option, membership.set_option
+            FROM pg_catalog.pg_auth_members AS membership
+            JOIN pg_catalog.pg_roles AS granted
+              ON granted.oid = membership.roleid
+            JOIN pg_catalog.pg_roles AS member ON member.oid = membership.member
+            WHERE granted.rolname = ANY(%s) OR member.rolname = ANY(%s)
+            ORDER BY granted.rolname, member.rolname
+            """,
+            (list(role_ids), list(role_ids)),
+        )
+        columns = _fetch_snapshot_rows(
+            cursor,
+            """
+            SELECT relation.relname, attribute.attname, attribute.attacl::text
+            FROM pg_catalog.pg_attribute AS attribute
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = attribute.attrelid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname = 'public'
+              AND attribute.attnum > 0
+              AND NOT attribute.attisdropped
+            ORDER BY relation.relname, attribute.attnum
+            """,
+        )
+    return ProductCatalogSnapshot(
+        roles=roles,
+        database=database,
+        schemas=schemas,
+        relations=relations,
+        policies=policies,
+        functions=functions,
+        memberships=memberships,
+        columns=columns,
+    )
+
+
+def _product_migration_url(dsn: str) -> str:
+    """Libpq conninfo を Alembic が受け付ける PostgreSQL URL に変換する。"""
+    parameters = conninfo_to_dict(dsn)
+    required = {key: parameters.get(key) for key in ("host", "port", "dbname", "user")}
+    if any(value is None for value in required.values()):
+        raise AssertionError("製品 migration DSN に接続先情報が不足している")
+    password = parameters.get("password")
+    return URL.create(
+        "postgresql",
+        username=str(required["user"]),
+        password=None if password is None else str(password),
+        host=str(required["host"]),
+        port=int(str(required["port"])),
+        database=str(required["dbname"]),
+    ).render_as_string(hide_password=False)
+
+
+@pytest.fixture
+def provisioned_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ProvisionedProductCatalog]:
+    """Migration 後の製品認可を外部 superuser で適用して供給する。"""
+    spec = PRODUCT_SPEC
+    asset = _load_ddl_asset(spec)
+    statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
+    application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
+    role_ids = _product_role_ids(asset)
+    with disposable_postgres_cluster() as cluster:
+        owner_password = secrets.token_urlsafe(24)
+        product_database = "pitchlog_product"
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as cluster_admin:
+            with cluster_admin.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL(
+                        """
+                        CREATE ROLE pitchlog_owner WITH
+                            NOSUPERUSER NOBYPASSRLS LOGIN NOCREATEROLE
+                            NOCREATEDB NOREPLICATION NOINHERIT PASSWORD {}
+                        """
+                    ).format(sql.Literal(owner_password))
+                )
+                cursor.execute(
+                    sql.SQL("CREATE DATABASE {} OWNER pitchlog_owner").format(
+                        sql.Identifier(product_database)
+                    )
+                )
+
+        applicator_dsn = make_conninfo(
+            cluster.admin_dsn,
+            dbname=product_database,
+        )
+        owner_dsn = make_conninfo(
+            cluster.role_dsn_template,
+            dbname=product_database,
+            user="pitchlog_owner",
+            password=owner_password,
+        )
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL",
+            _product_migration_url(owner_dsn),
+        )
+        command.upgrade(Config(str(_BACKEND_ROOT / "alembic.ini")), "head")
+
+        with (
+            psycopg.connect(applicator_dsn) as applicator,
+            psycopg.connect(applicator_dsn) as observer,
+        ):
+            pre_application_catalog = _snapshot_product_catalog(observer, role_ids)
+            observer.rollback()
+            apply_product_authz_ddl(applicator)
+            yield ProvisionedProductCatalog(
+                cluster=cluster,
+                applicator=applicator,
+                observer=observer,
+                owner_dsn=owner_dsn,
+                asset=asset,
+                statements=statements,
+                application_steps=application_steps,
+                pre_application_catalog=pre_application_catalog,
+            )
 
 
 @pytest.fixture
