@@ -139,12 +139,14 @@ EXPECTED_STAGE2_CONSTRAINT_CLASSES = frozenset(
         "reference-integrity",
         "mutual-exclusion",
         "state-transition-axis-combinations",
+        "payload-string-policy-reconciliation",
     }
 )
 EXPECTED_STAGE2_REQUIRED_ARTIFACTS = frozenset(
     {
         "closed-payload-schemas",
         "state-transition-axis-combination-rules",
+        "payload-string-policy-reconciliation-rule",
         "negative-fixtures",
     }
 )

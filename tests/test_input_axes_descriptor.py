@@ -407,6 +407,21 @@ def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> Non
     assert declaration["axisCombinationScope"] == "all-state-transition-axes"
 
 
+def test_stage2_string_policy_reconciliation_cannot_be_omitted() -> None:
+    """D-8とFR-015の文字列規定の整合宣言を落とすとfailする。"""
+    descriptor = _descriptor()
+    descriptor["stage2ExternalConstraints"]["constraintClasses"].remove(
+        "payload-string-policy-reconciliation"
+    )
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="段階2へ委任した制約種別がexact-set不一致",
+    ):
+        _validate(descriptor)
+
+
 def test_fr040_conditional_members_cannot_drift_independently() -> None:
     """状態補正の操作種別・payload・履歴構成を同じ採用条件へ拘束する。"""
     descriptor = _descriptor()

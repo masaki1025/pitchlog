@@ -40,6 +40,9 @@ BRANCH_ID_PATTERN = re.compile(
 )
 ADR_DECISION_HEADING_PATTERN = re.compile(r"^###\s+(?P<decision_id>D-\d+):")
 CODE_COLLECTION_PATTERN = re.compile(r"`(?P<collection>[A-Za-z][A-Za-z0-9]+\[\])`")
+STAGE2_CONSTRAINT_ID_PATTERN = re.compile(
+    r"`stage2-constraint:(?P<constraint>[a-z][a-z0-9-]+)`"
+)
 CONTRACT_FILENAME_PATTERN = re.compile(
     r"^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\.json$"
 )
@@ -89,7 +92,7 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
         f"XC-{number:02d}": (
             "規範行の列間交差制約であり、単独の入力軸ではない"
         )
-        for number in range(1, 10)
+        for number in range(1, 13)
     },
 }
 
@@ -109,6 +112,7 @@ class ParityReport:
     covered_branch_ids: frozenset[str]
     excluded_branch_ids: frozenset[str]
     d11_collection_ids: frozenset[str]
+    d11_stage2_constraint_classes: frozenset[str]
 
 
 def _read_text(path: Path, label: str) -> str:
@@ -150,6 +154,15 @@ def extract_d11_collection_ids(adr_text: str) -> frozenset[str]:
         match.group("collection")
         for match in CODE_COLLECTION_PATTERN.finditer(section)
         if match.group("collection") in D11_COLLECTION_KEYS
+    )
+
+
+def extract_d11_stage2_constraint_classes(adr_text: str) -> frozenset[str]:
+    """D-11の機械可読IDから段階2へ委任する制約クラスを抽出する。"""
+    section = extract_adr_decision_section(adr_text, "D-11")
+    return frozenset(
+        match.group("constraint")
+        for match in STAGE2_CONSTRAINT_ID_PATTERN.finditer(section)
     )
 
 
@@ -262,6 +275,34 @@ def _validate_d11_structure(
     return collection_ids
 
 
+def _validate_d11_stage2_constraints(
+    adr_text: str, descriptor: Mapping[str, Any]
+) -> frozenset[str]:
+    """D-11とdescriptorの段階2委任制約クラスをexact-setで突合する。"""
+    adr_classes = extract_d11_stage2_constraint_classes(adr_text)
+    if not adr_classes:
+        raise ThreeWayParityError(
+            "D-11から段階2委任制約クラスの機械可読IDを抽出できない"
+        )
+    declaration = descriptor.get("stage2ExternalConstraints")
+    if not isinstance(declaration, dict):
+        raise ThreeWayParityError("descriptorにstage2ExternalConstraintsが無い")
+    descriptor_classes_value = declaration.get("constraintClasses")
+    if not isinstance(descriptor_classes_value, list) or not all(
+        isinstance(item, str) for item in descriptor_classes_value
+    ):
+        raise ThreeWayParityError(
+            "descriptorのstage2ExternalConstraints.constraintClassesが文字列配列でない"
+        )
+    descriptor_classes = frozenset(descriptor_classes_value)
+    if descriptor_classes != adr_classes:
+        raise ThreeWayParityError(
+            "D-11とdescriptorの段階2委任制約クラスがexact-set不一致: "
+            f"adr={sorted(adr_classes)!r}; descriptor={sorted(descriptor_classes)!r}"
+        )
+    return adr_classes
+
+
 def _validate_d12_location(adr_text: str, descriptor: Mapping[str, Any]) -> None:
     """D-12の機械可読な領域・命名IDとdescriptorのパスを突合する。"""
     section = extract_adr_decision_section(adr_text, "D-12")
@@ -318,6 +359,9 @@ def validate_three_way_parity(root: Path) -> ParityReport:
         branch_ids, descriptor_supporting_clause_ids
     )
     d11_collection_ids = _validate_d11_structure(adr_text, descriptor)
+    d11_stage2_constraint_classes = _validate_d11_stage2_constraints(
+        adr_text, descriptor
+    )
     _validate_d12_location(adr_text, descriptor)
 
     return ParityReport(
@@ -328,6 +372,7 @@ def validate_three_way_parity(root: Path) -> ParityReport:
         covered_branch_ids=covered_ids,
         excluded_branch_ids=excluded_ids,
         d11_collection_ids=d11_collection_ids,
+        d11_stage2_constraint_classes=d11_stage2_constraint_classes,
     )
 
 

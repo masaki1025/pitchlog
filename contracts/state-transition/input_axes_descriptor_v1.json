@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:881be3bffefad9da7209592fc955fe4e7923408b3242584203dba687d603a7fc",
+  "digest": "sha256:61b7b1fbf90a022cd417e711b75e6fd46bb642f75e771e13b317b95b7697a3fb",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -26,16 +26,18 @@
       "field-uniqueness",
       "reference-integrity",
       "mutual-exclusion",
-      "state-transition-axis-combinations"
+      "state-transition-axis-combinations",
+      "payload-string-policy-reconciliation"
     ],
     "axisCombinationScope": "all-state-transition-axes",
     "resolutionStage": "stage2-vector-and-checker-implementation",
     "requiredArtifacts": [
       "closed-payload-schemas",
       "state-transition-axis-combination-rules",
+      "payload-string-policy-reconciliation-rule",
       "negative-fixtures"
     ],
-    "reason": "ADR-003 D-11の既存委任条項を適用し、payload内部の一意性・参照整合・相反排除と状態遷移軸の軸間組合せ規則は、ベクタと検査基盤を実機で整備する段階2で確定する"
+    "reason": "ADR-003 D-11の既存委任条項を適用し、payload内部の一意性・参照整合・相反排除、状態遷移軸の軸間組合せ規則、およびD-8の文字列規定とFR-015の任意選手名との整合は、ベクタと検査基盤を実機で整備する段階2で確定する"
   },
   "stateTransitionAxes": [
     {

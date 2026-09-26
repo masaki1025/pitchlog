@@ -152,7 +152,8 @@
               "field-uniqueness",
               "reference-integrity",
               "mutual-exclusion",
-              "state-transition-axis-combinations"
+              "state-transition-axis-combinations",
+              "payload-string-policy-reconciliation"
             ]
           }
         },
@@ -164,13 +165,14 @@
         },
         "requiredArtifacts": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 4,
+          "maxItems": 4,
           "uniqueItems": true,
           "items": {
             "enum": [
               "closed-payload-schemas",
               "state-transition-axis-combination-rules",
+              "payload-string-policy-reconciliation-rule",
               "negative-fixtures"
             ]
           }

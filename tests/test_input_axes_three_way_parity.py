@@ -87,7 +87,7 @@ def test_repository_three_way_parity_is_green() -> None:
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
-    """61分岐を軸の支援対象37件と理由付き対象外24件へ漏れなく分ける。"""
+    """64分岐を軸の支援対象37件と理由付き対象外27件へ漏れなく分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
     expected_covered = {
         *(f"COLD-{number:02d}" for number in range(1, 10)),
@@ -98,10 +98,10 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         *(f"RBI-{number:02d}" for number in range(2, 6)),
     }
 
-    assert len(report.requirement_branch_ids) == 61
+    assert len(report.requirement_branch_ids) == 64
     assert report.covered_branch_ids == expected_covered
     assert len(report.covered_branch_ids) == 37
-    assert len(report.excluded_branch_ids) == 24
+    assert len(report.excluded_branch_ids) == 27
     assert {f"req:{item}" for item in report.covered_branch_ids} <= (
         report.descriptor_supporting_clause_ids
     )
@@ -123,6 +123,15 @@ def test_d11_machine_readable_structure_is_exact_and_asymmetric() -> None:
         "projectionRules[]",
     }
     assert "stateTransitionAxes[]" not in report.d11_collection_ids
+
+
+def test_d11_stage2_constraint_classes_match_descriptor_exactly() -> None:
+    """D-11とdescriptorの段階2委任制約クラスが同じexact-setである。"""
+    report = checker.validate_three_way_parity(REPOSITORY_ROOT)
+
+    assert report.d11_stage2_constraint_classes == (
+        descriptor_checker.EXPECTED_STAGE2_CONSTRAINT_CLASSES
+    )
 
 
 def test_d12_machine_readable_path_and_filename_literals_are_present() -> None:
@@ -175,6 +184,28 @@ def test_adr_only_drift_is_red_after_digest_recalculation(tmp_path: Path) -> Non
     with pytest.raises(
         checker.ThreeWayParityError,
         match=r"D-11のdescriptorコレクションIDがexact-set不一致",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_adr_stage2_constraint_omission_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """D-11だけから延期制約を1件落とすとdigestを合わせても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.ADR_PATH
+    text = path.read_text(encoding="utf-8")
+    marker = "`stage2-constraint:payload-string-policy-reconciliation`"
+    assert text.count(marker) == 1
+    path.write_text(
+        text.replace(marker, "`payload-string-policy-reconciliation`", 1),
+        encoding="utf-8",
+    )
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"段階2委任制約クラスがexact-set不一致.*payload-string-policy-reconciliation",
     ):
         checker.validate_three_way_parity(root)
 
