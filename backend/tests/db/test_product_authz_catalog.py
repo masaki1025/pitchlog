@@ -5,18 +5,27 @@ from __future__ import annotations
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from psycopg import sql
 
 from pitchlog.authz.product_catalog import (
     ProductCatalogReport,
     inspect_product_authz_catalog,
 )
+from pitchlog.authz.product_provisioning import (
+    apply_product_authz_ddl,
+    unapply_product_authz_ddl,
+)
 
 from .conftest import ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _bootstrap_superuser_oid(catalog: ProvisionedProductCatalog) -> int:
@@ -256,3 +265,37 @@ def test_security_definer_trigger_function_is_red(
     finally:
         catalog.observer.rollback()
         _alter_function_security(catalog, schema_name, function_name, "INVOKER")
+
+
+def test_null_trigger_function_acl_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """Migration が作り直した NULL ACL の PUBLIC EXECUTE を拒否する。"""
+    catalog = provisioned_product_catalog
+    schema_name, function_name = _migration_trigger_function(catalog)
+    unapply_product_authz_ddl(catalog.applicator)
+    try:
+        config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+        with catalog.observer.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT routine.proacl IS NULL
+                FROM pg_catalog.pg_proc AS routine
+                JOIN pg_catalog.pg_namespace AS namespace
+                  ON namespace.oid = routine.pronamespace
+                WHERE namespace.nspname = %s
+                  AND routine.proname = %s
+                  AND routine.pronargs = 0
+                """,
+                (schema_name, function_name),
+            )
+            row = cursor.fetchone()
+        catalog.observer.rollback()
+        assert row == (True,)
+        _assert_red(catalog, "PRODUCT-CATALOG:FUNCTION-ACL")
+    finally:
+        catalog.observer.rollback()
+        apply_product_authz_ddl(catalog.applicator)

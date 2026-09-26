@@ -45,7 +45,12 @@ _DATABASE_ACL_QUERY: LiteralString = """
 SELECT COALESCE(grantee.rolname, 'PUBLIC'), privilege.privilege_type,
        privilege.is_grantable
 FROM pg_catalog.pg_database AS database
-CROSS JOIN LATERAL pg_catalog.aclexplode(database.datacl) AS privilege
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        database.datacl,
+        pg_catalog.acldefault('d', database.datdba)
+    )
+) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE database.datname = pg_catalog.current_database()
   AND privilege.grantee <> database.datdba
@@ -71,7 +76,12 @@ _SCHEMA_ACL_QUERY: LiteralString = """
 SELECT namespace.nspname, COALESCE(grantee.rolname, 'PUBLIC'),
        privilege.privilege_type, privilege.is_grantable
 FROM pg_catalog.pg_namespace AS namespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(namespace.nspacl) AS privilege
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        namespace.nspacl,
+        pg_catalog.acldefault('n', namespace.nspowner)
+    )
+) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
   AND privilege.grantee <> namespace.nspowner
@@ -155,7 +165,12 @@ SELECT namespace.nspname, relation.relname,
        privilege.is_grantable
 FROM pg_catalog.pg_class AS relation
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(relation.relacl) AS privilege
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        relation.relacl,
+        pg_catalog.acldefault('r', relation.relowner)
+    )
+) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
   AND relation.relname = ANY(%s)
@@ -201,7 +216,12 @@ SELECT namespace.nspname, routine.proname,
        privilege.is_grantable
 FROM pg_catalog.pg_proc AS routine
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(routine.proacl) AS privilege
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        routine.proacl,
+        pg_catalog.acldefault('f', routine.proowner)
+    )
+) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
   AND routine.proname = ANY(%s)

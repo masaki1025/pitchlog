@@ -348,6 +348,63 @@ def test_function_queries_compare_argument_types_without_argument_names() -> Non
     assert "pg_get_function_identity_arguments" not in function_acl_query
 
 
+@pytest.mark.parametrize(
+    ("query_id", "acl_column", "object_kind", "owner_column"),
+    [
+        pytest.param(
+            CatalogQueryId.DATABASE_ACL,
+            "database.datacl",
+            "d",
+            "database.datdba",
+            id="database",
+        ),
+        pytest.param(
+            CatalogQueryId.SCHEMA_ACL,
+            "namespace.nspacl",
+            "n",
+            "namespace.nspowner",
+            id="schema",
+        ),
+        pytest.param(
+            CatalogQueryId.TABLE_ACL,
+            "relation.relacl",
+            "r",
+            "relation.relowner",
+            id="table",
+        ),
+        pytest.param(
+            CatalogQueryId.FUNCTION_ACL,
+            "routine.proacl",
+            "f",
+            "routine.proowner",
+            id="function",
+        ),
+    ],
+)
+def test_null_object_acl_is_expanded_from_postgresql_defaults(
+    query_id: CatalogQueryId,
+    acl_column: str,
+    object_kind: str,
+    owner_column: str,
+) -> None:
+    """NULL の object ACL は owner 別の PostgreSQL 既定値として観測する。"""
+    query = " ".join(product_catalog._query_for_id(query_id).split())
+
+    assert (
+        "pg_catalog.aclexplode( COALESCE( "
+        f"{acl_column}, pg_catalog.acldefault('{object_kind}', {owner_column}) ) )"
+        in query
+    )
+
+
+def test_null_column_acl_remains_no_column_level_grant() -> None:
+    """列 ACL の NULL は既定値を展開せず、列単位付与なしとして観測する。"""
+    query = product_catalog._query_for_id(CatalogQueryId.COLUMN_ACL)
+
+    assert "pg_catalog.aclexplode(attribute.attacl)" in query
+    assert "acldefault" not in query
+
+
 class _UnknownQueryId(Enum):
     """閉じた列挙外の問い合わせ ID を表す試験用の型。"""
 
@@ -519,6 +576,30 @@ def test_security_definer_trigger_is_red_through_public_inspection(
 
     assert not report.ok
     assert "PRODUCT-CATALOG:TRIGGER-SECURITY-INVOKER" in {
+        violation.check_id for violation in report.violations
+    }
+
+
+def test_default_public_execute_on_trigger_function_is_red(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NULL ACL から展開された trigger 関数の PUBLIC EXECUTE を拒否する。"""
+    privileged_role_oid = 900
+    rows_by_query = _raw_catalog_rows(privileged_role_oid)
+    expectations = product_catalog._load_product_expectations()
+    trigger_key = expectations.trigger_function_keys[0]
+    rows_by_query[CatalogQueryId.FUNCTION_ACL].append(
+        (*trigger_key, "PUBLIC", "EXECUTE", False)
+    )
+    _install_catalog_rows(monkeypatch, rows_by_query)
+
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({privileged_role_oid}),
+    )
+
+    assert not report.ok
+    assert "PRODUCT-CATALOG:FUNCTION-ACL" in {
         violation.check_id for violation in report.violations
     }
 
