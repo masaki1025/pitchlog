@@ -1,13 +1,15 @@
 """Codex 実行の唯一の許可経路(設計書 12.1 / 敵対レビュー P0-2 対応)。
 
 生の `codex exec` は codex_guard フックが遮断する。本ラッパーが
-計画書の plan status(implement のみ・active 必須)と承認状態・実行場所(worktree)・sandbox・モデル対応表(ADR-001)を検証・固定する。
+計画書の plan status(implement / fast の active 必須)と承認状態・実行場所(worktree)・sandbox・
+ADR-001 v1.1 のモデル対応表を検証・固定する。
 
 使い方:
   python .claude/scripts/codex_run.py implement <plan.md> [--resume] [-]   # 実装(status: active かつ承認済み計画書必須)
   python .claude/scripts/codex_run.py fast [-]                             # 軽微 fast path(6.1。人間の事前OK前提)
   python .claude/scripts/codex_run.py research [--deep] [-]                # Web調査(read-only + live search)
   python .claude/scripts/codex_run.py review <normal|adversarial> [-]      # レビュー(read-only。差分指定はプロンプトに書く)
+  python .claude/scripts/codex_run.py probe                                 # 対応表の全組を read-only で受理確認
 
 プロンプトは末尾引数 `-` で stdin から渡す(クォート事故防止)。
 ネットワーク有効化は PITCHLOG_ALLOW_NET=1 + PITCHLOG_NET_REASON="理由"(必須 — 人間へ報告済みであること)。
@@ -27,24 +29,43 @@ try:
 except Exception:
     pass
 
-# ADR-001 モデル対応表(明示 ID 固定)
+# ADR-001 v1.1 モデル対応表(明示 ID 固定)
 MODEL_MAP = {
-    "軽微": ("gpt-5.6-terra", "medium"),
-    "通常": ("gpt-5.6-terra", "max"),
-    "コア領域": ("gpt-5.6-sol", "xhigh"),
-    "機械的軽作業": ("gpt-5.6-luna", "xhigh"),
+    "軽微": ("gpt-6-sol", "medium"),
+    "通常": ("gpt-6-sol", "max"),
+    "コア領域": ("gpt-6-sol", "xhigh"),
+    "機械的軽作業": ("gpt-6-luna", "xhigh"),
 }
-RESEARCH = ("gpt-5.6-terra", "high")
-RESEARCH_DEEP = ("gpt-5.6-sol", "xhigh")
-REVIEW_NORMAL = ("gpt-5.6-terra", "max")
-REVIEW_ADVERSARIAL = ("gpt-5.6-sol", "xhigh")
+RESEARCH = ("gpt-6-sol", "high")
+RESEARCH_DEEP = ("gpt-6-sol", "xhigh")
+REVIEW_NORMAL = ("gpt-6-sol", "max")
+REVIEW_ADVERSARIAL = ("gpt-6-sol", "xhigh")
 
 WORKTREES_DIRNAME = "pitchlog-worktrees"
+FRONTMATTER_LIMIT = 8 * 1024
+MINIMUM_CODEX_VERSION = (0, 157, 0)
+PROBE_PROMPT = "ツールを使わず OK とだけ返答してください。"
 
 # `codex_run.py` ↔ `scripts/feature_status.py:301-307` の相互参照:
 # status 判定は同じ手順・正規表現リテラルを維持する。両スクリプトの独立性のため import は共有しない。
 STATUS_CANDIDATE_RE = re.compile(r"^status\s*:")
 STATUS_LINE_RE = re.compile(r"^status:\s*(active|in-review)(?:\s+#.*)?$")
+CODEX_VERSION_LINE_RE = re.compile(
+    r"^codex(?:-cli)?[ \t]+v?(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)(?:[ \t].*)?$"
+)
+MACHINE_READ_FRONTMATTER_KEYS = frozenset(
+    {
+        "status",
+        "承認",
+        "worktree",
+        "branch",
+        "重さ分類",
+        "計画レビュー周回",
+        "確定ゲート周回",
+        "実行方式",
+        "反映周コミット",
+    }
+)
 HEADING_RE = re.compile(r"^[ \t]{0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$")
 HEADING_NUMBER_RE = re.compile(
     r"^(?:(?:\(\s*\d+(?:[-.]\d+)*\s*\)|（\s*\d+(?:[-.]\d+)*\s*）)"
@@ -242,6 +263,85 @@ def require_active_plan_status(frontmatter_body: str) -> None:
         )
 
 
+def parse_fast_frontmatter_body(body: str) -> dict[str, str] | None:
+    """fast 用 frontmatter 本文を feature_status.py と同じ規則で解析する。
+
+    Args:
+        body: 開閉デリミタを除いた frontmatter 本文。
+
+    Returns:
+        機構読取キーの重複がなく、厳密な status 行を持つ値の辞書。不正時は
+        ``None``。
+    """
+    lines = body.splitlines()
+    status_lines = [line for line in lines if STATUS_CANDIDATE_RE.match(line)]
+    if len(status_lines) != 1 or STATUS_LINE_RE.fullmatch(status_lines[0]) is None:
+        return None
+
+    values: dict[str, str] = {}
+    seen_machine_keys: set[str] = set()
+    for line in lines:
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        normalized_key = key.strip()
+        if normalized_key in MACHINE_READ_FRONTMATTER_KEYS:
+            if normalized_key in seen_machine_keys:
+                return None
+            seen_machine_keys.add(normalized_key)
+        values[normalized_key] = value.split("#", 1)[0].strip()
+    return values
+
+
+def parse_fast_frontmatter_bytes(data: bytes) -> dict[str, str] | None:
+    """8 KiB 上限内の fast 用 frontmatter を切り詰めずに解析する。
+
+    Args:
+        data: plan 先頭から読んだバイト列。
+
+    Returns:
+        有効な frontmatter の値。不正な開始・非閉止・上限超過・UTF-8 不正は
+        ``None``。
+    """
+    lines = data.splitlines(keepends=True)
+    if not lines:
+        return None
+
+    consumed = len(lines[0])
+    if consumed > FRONTMATTER_LIMIT or lines[0].rstrip(b"\r\n").strip() != b"---":
+        return None
+
+    body: list[bytes] = []
+    for line in lines[1:]:
+        consumed += len(line)
+        if consumed > FRONTMATTER_LIMIT:
+            return None
+        if line.rstrip(b"\r\n").strip() == b"---":
+            try:
+                return parse_fast_frontmatter_body(b"".join(body).decode("utf-8"))
+            except UnicodeDecodeError:
+                return None
+        body.append(line)
+    return None
+
+
+def read_fast_frontmatter(path: Path) -> dict[str, str] | None:
+    """fast 用 plan の frontmatter だけを安全上限付きで読む。
+
+    Args:
+        path: 読み取る plan.md のパス。
+
+    Returns:
+        有効な frontmatter の値。読み取り失敗も ``None`` として返す。
+    """
+    try:
+        with path.open("rb") as source:
+            data = source.read(FRONTMATTER_LIMIT + 1)
+    except Exception:
+        return None
+    return parse_fast_frontmatter_bytes(data)
+
+
 def session_file(plan: Path) -> Path:
     return plan.parent / ".codex-session"
 
@@ -306,6 +406,57 @@ def resolve_codex() -> list[str]:
     if exe.lower().endswith((".cmd", ".bat")):
         return ["cmd", "/c", exe]
     return [exe]
+
+
+def codex_version_text() -> str:
+    """解決済みの Codex CLI から ``--version`` の標準出力を取得する。
+
+    Returns:
+        正常終了した場合の標準出力。取得・実行に失敗した場合は空文字列。
+    """
+    try:
+        completed = subprocess.run(
+            [*resolve_codex(), "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+        )
+    except Exception:
+        return ""
+    return completed.stdout if completed.returncode == 0 else ""
+
+
+def parsed_codex_version(version_text: str) -> tuple[int, int, int] | None:
+    """Codex CLI の版出力を比較用の 3 要素タプルへ変換する。
+
+    Args:
+        version_text: ``codex --version`` の標準出力。
+
+    Returns:
+        ``(major, minor, patch)``。想定外の出力では ``None``。
+    """
+    for line in version_text.splitlines():
+        match = CODEX_VERSION_LINE_RE.fullmatch(line.strip())
+        if match is not None:
+            return tuple(int(match.group(name)) for name in ("major", "minor", "patch"))
+    return None
+
+
+def require_supported_codex_version() -> None:
+    """Codex CLI が ADR-001 の運用下限を満たすことを fail-closed で確認する。"""
+    version = parsed_codex_version(codex_version_text())
+    update_instruction = (
+        "docs/development/onboarding.md の 1-6 に従い、Codex CLI のインストーラを再実行"
+        "して更新してください"
+    )
+    if version is None:
+        die(f"Codex CLI の版を解析できません。{update_instruction}")
+    if version < MINIMUM_CODEX_VERSION:
+        actual = ".".join(str(part) for part in version)
+        required = ".".join(str(part) for part in MINIMUM_CODEX_VERSION)
+        die(f"Codex CLI {actual} は下限 {required} 未満です。{update_instruction}")
 
 
 def run_codex(argv: list[str], prompt: str, capture_session_to: Path | None = None) -> int:
@@ -384,9 +535,13 @@ def cmd_implement(args: list[str]) -> int:
     wt = (plan.parent / worktree).resolve() if worktree and not Path(worktree).is_absolute() else Path(worktree)
     if not worktree or not wt.is_dir() or wt.parent.name != WORKTREES_DIRNAME:
         die(f"worktree が不正({worktree})。/task-start が設定した {WORKTREES_DIRNAME} **直下**のパスが必要(設計書 12.1 — 部分文字列でなく親ディレクトリ名で判定)")
-    weight = fm.get("重さ分類", "通常")
+    weight = fm.get("重さ分類")
     if weight not in MODEL_MAP:
-        die(f"重さ分類が不正: {weight}(軽微/通常/コア領域/機械的軽作業)")
+        display_weight = weight if weight else "未設定"
+        die(
+            "重さ分類が不正または未設定: "
+            f"{display_weight}(軽微/通常/コア領域/機械的軽作業 のいずれかが必須)"
+        )
     plan_text = plan.read_text(encoding="utf-8")
     table_status = step_table_status(plan_text)
     if table_status in {StepTableStatus.NO_TABLE, StepTableStatus.NO_FILLED_ROW}:
@@ -438,6 +593,52 @@ def cmd_fast(args: list[str]) -> int:
     if not re.fullmatch(r"(?:feature|fix)/\S+", wb):
         die(f"fast は feature/*・fix/* の worktree でのみ実行可(現在: {wb} — 設計書 6.1/6.2)")
     require_same_repo(cwd)
+
+    prefix, separator, slug = wb.partition("/")
+    if prefix not in {"feature", "fix"} or not separator or not slug or "/" in slug:
+        die(
+            "fast は feature/<slug>・fix/<slug> の worktree でのみ実行可"
+            f"(現在: {wb} — 設計書 6.1/6.2)"
+        )
+
+    plan = cwd / "docs" / "features" / slug / "plan.md"
+    if not plan.is_file():
+        die(f"fast 用の正規位置の計画書が見つからない: {plan}")
+    frontmatter = read_fast_frontmatter(plan)
+    if frontmatter is None:
+        die(
+            "fast 用の正規位置の計画書 frontmatter が不正または読めない"
+            "(開始/閉止区切り、8 KiB、UTF-8、status、機構読取キー重複を確認)"
+        )
+
+    plans_root = cwd / "docs" / "features"
+    for candidate in plans_root.glob("*/plan.md"):
+        if candidate == plan:
+            continue
+        candidate_frontmatter = read_fast_frontmatter(candidate)
+        if candidate_frontmatter is None:
+            die(
+                "fast 用計画書の一意性を確認できない: "
+                f"別位置の計画書を読めないか frontmatter が不正: {candidate}"
+            )
+        if candidate_frontmatter.get("branch") == wb:
+            die(
+                "fast 用計画書が一意でない: "
+                f"同じ branch {wb} を持つ別位置の計画書がある: {candidate}"
+            )
+
+    if frontmatter.get("branch") != wb:
+        die(
+            "fast 用計画書の branch が現在のブランチと一致しない: "
+            f"{frontmatter.get('branch') or '未設定'} != {wb}"
+        )
+    if frontmatter.get("status") != "active":
+        die("fast は計画書の status: active が必須(in-review を含む不一致は不可)")
+    if frontmatter.get("重さ分類") != "軽微":
+        die("fast は計画書の重さ分類: 軽微 が必須")
+    if frontmatter.get("実行方式") != "fast":
+        die("fast は計画書の実行方式: fast が必須")
+
     model, effort = MODEL_MAP["軽微"]
     prompt = read_prompt(args)
     return run_codex(["exec", "-s", "workspace-write", "-m", model,
@@ -489,10 +690,57 @@ def cmd_review(args: list[str]) -> int:
                       "-c", 'web_search="cached"', *security_overrides(may_allow_net=False)], prompt)
 
 
+def configured_model_pairs() -> tuple[tuple[str, str], ...]:
+    """ADR-001 のラッパー定数に現れる一意なモデル・effort 組を返す。
+
+    Returns:
+        定数の定義順を保った重複なしの ``(model, effort)`` 組。
+    """
+    pairs = [*MODEL_MAP.values(), RESEARCH, RESEARCH_DEEP, REVIEW_NORMAL, REVIEW_ADVERSARIAL]
+    unique_pairs: list[tuple[str, str]] = []
+    for pair in pairs:
+        if pair not in unique_pairs:
+            unique_pairs.append(pair)
+    return tuple(unique_pairs)
+
+
+def cmd_probe(args: list[str]) -> int:
+    """対応表の全一意なモデル・effort 組を read-only で受理確認する。"""
+    if args:
+        die("probe は引数を受け取らない(stdin も読まない)")
+
+    failed = False
+    for model, effort in configured_model_pairs():
+        exit_code = run_codex(
+            [
+                "exec",
+                "--skip-git-repo-check",
+                "-s",
+                "read-only",
+                "-m",
+                model,
+                "-c",
+                f"model_reasoning_effort={effort}",
+                "-c",
+                'web_search="cached"',
+                *security_overrides(may_allow_net=False),
+            ],
+            PROBE_PROMPT,
+        )
+        print(
+            f"codex_run: probe {model} / {effort} の終了コード: {exit_code}",
+            file=sys.stderr,
+        )
+        if exit_code != 0:
+            failed = True
+    return 1 if failed else 0
+
+
 def main() -> int:
     if len(sys.argv) < 2:
-        die("モード(implement/fast/research/review)が必要")
+        die("モード(implement/fast/research/review/probe)が必要")
     mode, rest = sys.argv[1], sys.argv[2:]
+    require_supported_codex_version()
     if mode == "implement":
         return cmd_implement(rest)
     if mode == "fast":
@@ -501,6 +749,8 @@ def main() -> int:
         return cmd_research(rest)
     if mode == "review":
         return cmd_review(rest)
+    if mode == "probe":
+        return cmd_probe(rest)
     die(f"不明なモード: {mode}")
     return 2
 

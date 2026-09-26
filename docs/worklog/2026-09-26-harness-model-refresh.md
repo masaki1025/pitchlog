@@ -295,7 +295,15 @@ branch: feature/harness-model-refresh
 - skills: `implement`(fast path 全 3 条件 + `重さ分類: 軽微`・`実行方式: fast` の一括更新・ラッパーの 3 値検査)/ `research`(ADR 行参照)/ `finalize-doc:15`(ADR 行参照 — **guard_paths**: PR で逐行確認・実施記録行・SHA 拘束マージ)/ `setup-dev`(版の下限 Claude Code 2.1.280・Codex CLI 0.157.0)/ `plan`(`重さ分類` の必須置換と優先順位)
 - `docs/development/templates/plan-template.md`: `重さ分類` を空値へ
 - `.claude/settings.json`: `model`・`modelSettings.claude-opus-5-5.effortLevel = high`・`env.CLAUDE_CODE_DISABLE_FAST_MODE = "1"` の 3 キー追加(`permissions`・`hooks` 不変 — `git diff` で確認)
+- 受入検査: 残存検査 0 件(許容 = settings.json の `modelSettings.effortLevel`)・settings.json 妥当・agents frontmatter 一致 / ハーネス pytest 1,925 件中 2 件赤 — ① `test_doc_check_profile.py::test_propagation_checker_and_claude_files_are_unchanged` は「`.claude/` に未コミット差分が無いこと」の検査で、コミット後(7e5f39a8)に再実行して緑 ② `test_check_tenant_boundary_bypass.py::test_checker_census_matches_merge_base` は **develop のメインツリーでも赤の既知事象**(TSK-460「マージすると必ず赤になるテストを直す」進行中)— 本タスク起因ではない
 - 合格条件の残: **人間が新規セッションで実効値を確認**(managed / `--model` / `ANTHROPIC_MODEL` / `settings.local.json` の有無を記録し、高優先層が無ければ `/model` = `claude-opus-5-5`・effort high・`/fast` = disabled)— 本セッションは `fable[1m]` 起動のままなので**次回起動時に確認して追記する**
+
+### ステップ 3(2026-09-27)— ラッパーの対応表更新 + 版検査 + probe + fast の 3 値検査 + テスト(Codex 委任・gpt-5.6-terra max・244K tok)
+
+- `codex_run.py implement`(旧表の terra max で実行 — 新表への切替は本ステップの成果)。変更 = `.claude/scripts/codex_run.py`(+276/-13)・`tests/test_codex_run.py`(+666)・`tests/test_agents_frontmatter.py`(新規)
+- 実装: 定数を ADR-001 v1.1 の表へ(`gpt-5.6` 残存 0)/ 全モード共通の Codex 版検査(`codex --version` を解析し 0.157.0 未満・解析不能は fail-closed)/ `重さ分類` の必須化 / `fast` の正規位置計画書と frontmatter 厳密判定(非閉止・8 KiB・UTF-8・厳密 status・機構読取キー重複)・同一 branch の別位置計画書・`status: active`/`重さ分類: 軽微`/`実行方式: fast` の 3 値 / `probe`(内蔵固定短文・stdin 未読・read-only・cached)
+- Claude 一次レビュー(反対側): 差分は計画のステップ 3 の範囲内。fast の一意性検査は「別位置の計画書が読めない・frontmatter 不正」でも停止する(計画の負例より厳しい fail-closed — 全計画書は CI の `check_docs_status` を通っているため実害なし)。probe は `security_overrides(may_allow_net=False)` を含み、`workspace-write`・`live` を含まない
+- 受入: `pytest tests/test_codex_run.py tests/test_agents_frontmatter.py` 70 passed / `ruff check` / `ty check` 緑 / 全体回帰(Codex 実行)1971 passed・1 failed(`test_propagation_checker_and_claude_files_are_unchanged` — 未コミット差分の検知で、コミット後に緑)・TSK-460 の既知赤は除外
 
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
