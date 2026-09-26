@@ -61,6 +61,17 @@ branch: feature/harness-model-refresh
 
 - frontmatter `計画レビュー周回` を 2 へ
 
+### 計画レビュー 3 周目(`review normal`・terra max・280K tok・判定 = 否決 P0×1 / P1×2 / P2×1)— 全件採用
+
+| # | 重大度 | 要旨 | 採否・反映 |
+| --- | --- | --- | --- |
+| 1 | P0 | grep の合格条件が意図して残す値(`gpt-6-luna`・settings.json の `modelSettings.*.effortLevel`・案 A の finalize-doc の `sol xhigh`)まで禁止し、`Opus 5`/`claude-opus-5` の 5.5 除外が正規表現になっていない | 採用: 「旧記述の残存検査」表を新設(パス別・`grep -P` の正規表現・許容するもの) |
+| 2 | P1 | スモーク不成立時の revert を各 1 コミットにすると無記法の実装コミットになり現在地導出が「不明」へ縮退 | 採用: `git revert --no-commit` で作業ツリーへ戻し、worklog と合わせて `(ステップ 4/4 不成立・巻き戻し)` の 1 コミットへ |
+| 3 | P1 | Claude 担当のステップに新規 Python テストが含まれ、Claude 直接コード時の `review normal` が無い | 採用: ステップ 2 = Claude(設定・文書のみ)/ ステップ 3 = Codex(ラッパー + テスト 3 群)へ分離・順序入替 |
+| 4 | P2 | `tests/` を「32 ファイル」と固定(件数を書かない規範に反する・実数は 35) | 採用: 「全件(件数は CI 実行結果が正)」へ |
+
+- frontmatter `計画レビュー周回` を 3 へ。レビュアの所見: 導出表・固定構文・案 B の伝播・ステップ 1 の単一コミット化・`—` 行の扱いは規範と実装に整合
+
 ## 決定
 
 ## 未決・次の一歩
