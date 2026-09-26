@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_product_failure_injection_points",
+  "source_asset": {
+    "path": "contracts/authz/product/application-steps.json",
+    "git_blob_digest": "05dac896d88988ebed4529d880ac2d2b7283b8a0"
+  },
+  "injection_points": [
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-ROLES",
+      "operation": "apply",
+      "step_id": "PRODUCT-APPLY-01-ROLES",
+      "sequence": 1,
+      "operation_kind": "product_apply_roles",
+      "checkpoint_id": "product:1:after",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-HELPER-FUNCTION-CREATION",
+      "operation": "apply",
+      "step_id": "PRODUCT-APPLY-03-HELPER-FUNCTIONS",
+      "sequence": 3,
+      "operation_kind": "product_apply_helper_functions",
+      "checkpoint_id": "product:3:after_helper_function_creation",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-TABLE-RLS",
+      "operation": "apply",
+      "step_id": "PRODUCT-APPLY-04-TABLE-RLS",
+      "sequence": 4,
+      "operation_kind": "product_apply_table_rls",
+      "checkpoint_id": "product:4:after",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-POLICY-CREATION",
+      "operation": "apply",
+      "step_id": "PRODUCT-APPLY-05-POLICIES",
+      "sequence": 5,
+      "operation_kind": "product_apply_policies",
+      "checkpoint_id": "product:5:after_policy_creation",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:DURING-TABLE-AND-COLUMN-ACLS",
+      "operation": "apply",
+      "step_id": "PRODUCT-APPLY-06-TABLE-AND-COLUMN-ACLS",
+      "sequence": 6,
+      "operation_kind": "product_apply_table_and_column_acls",
+      "checkpoint_id": "product:6:during",
+      "position_rule": {
+        "position": "after_statement",
+        "statement_ordinal_within_step": 1,
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    }
+  ]
+}
