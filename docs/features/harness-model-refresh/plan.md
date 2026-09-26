@@ -37,6 +37,7 @@ created: 2026-09-26
 - `gpt-6-luna` の新規用途追加(機械的軽作業は 5.6-luna → 6-luna の ID 置換のみ)
 - 要件書・`requirements-draft-pitchlog.md` の編集(C-5)
 - **guard_paths に該当するスキルの編集**: `.claude/skills/pr/SKILL.md`(guard_paths — モデル名を含まないため変更不要。`plan/SKILL.md` は guard_paths ではないが、同じくモデル名を含まないため変更不要)。`.claude/skills/finalize-doc/SKILL.md:15` の「ADR-001 どおり sol xhigh」は、**案 A では `gpt-6-sol` xhigh となり字義どおり整合するため触らない**(古い括弧書きの精密化は次に guard_paths を触る PR へ送る)。**案 B を採る場合のみ対象に戻し**、guard_paths として人間の逐行確認・PR の実施記録行を付ける(4 節の導出表)
+- **実装(コーディング)の Claude 側(Opus 5.5)への移管 — 別タスク**(PO 合意 2026-09-27): 品質面では Opus 5.5 で足りる(公式値 Terminal-Bench 4.0 66.4%・FrontierCode v1.1 54.4% — research.md B-1)が、① Codex は ChatGPT 側・Claude Code は Max 側と**利用枠が別財布**で、実装まで Max 枠へ寄せると本タスクの目的(上限内で長く働く)に反する ② 計画書ゲートの機械検証(承認・status・worktree・sandbox)は `codex_run.py implement` 側にあり、Claude 直実装を既定にするには Edit/Write への計画ゲートのフック新設が先 ③ 設計書 3 章・6.1・6.3・ADR-001 の役割分担の改訂を伴う。**当面は現行の例外経路(Claude 直実装 → `codex_run.py review normal` 必須 — CLAUDE.md)を Opus 5.5 で使う**(Codex の強制終了時・小さな修正)。既定化の判断は Opus 5.5 化後の Max 枠の実測(4 節の実測期間)を見てから
 - 使用量プロファイル集計の `scripts/` 化・`autoCompactWindow` の実測比較・調査前 `git fetch` の導線明文化(後続タスク候補 — research.md 末尾)
 - Codex CLI の更新そのもの(開発者の環境作業。**阻止条件 0** として人間が実施する — onboarding 1-6 のインストーラを再実行)
 
