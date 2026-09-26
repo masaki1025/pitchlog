@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 7,
+  "fixture_set_revision": 8,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:7"
+        "fixture_set_revision:8"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -477,6 +477,132 @@
       "expected_error": "TB005"
     },
     {
+      "id": "C5_CONTEXT_AFTER_TERMINATOR",
+      "path": "pitchlog/services/c5_context_after_terminator.py",
+      "condition": 5,
+      "mutation": "終端文より後で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_DEFAULT_ARG",
+      "path": "pitchlog/services/c5_context_in_default_arg.py",
+      "condition": 5,
+      "mutation": "関数のデフォルト引数で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_ANNOTATED_ASSIGNMENT",
+      "path": "pitchlog/services/c5_context_in_annotated_assignment.py",
+      "condition": 5,
+      "mutation": "注釈付き代入の annotation で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_CLASS_BASE",
+      "path": "pitchlog/services/c5_context_in_class_base.py",
+      "condition": 5,
+      "mutation": "class base で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_DICT_COMPREHENSION",
+      "path": "pitchlog/services/c5_context_in_dict_comprehension.py",
+      "condition": 5,
+      "mutation": "辞書内包表記の generator 条件で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
+      "path": "pitchlog/services/c5_context_in_exception_handler_type.py",
+      "condition": 5,
+      "mutation": "例外 handler type で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+      "path": "pitchlog/services/c5_context_in_lambda_default.py",
+      "condition": 5,
+      "mutation": "lambda のデフォルト引数で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_RELATIVE_IMPORT",
+      "path": "pitchlog/repositories/c5_context_relative_import.py",
+      "condition": 5,
+      "mutation": "同一 package から相対 import した TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_FACADE",
+      "path": "pitchlog/services/c5_context_reexport_facade.py",
+      "condition": 5,
+      "mutation": "façade が再輸出した別名 Context から TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_SUBCLASS",
+      "path": "pitchlog/services/c5_context_reexport_subclass.py",
+      "condition": 5,
+      "mutation": "façade が再輸出した別名 Context を継承する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+      "path": "pitchlog/services/c5_context_reexport_depth_limit.py",
+      "condition": 5,
+      "mutation": "再輸出別名の追跡深さ上限を超える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_STAR",
+      "path": "pitchlog/services/c5_context_reexport_star.py",
+      "condition": 5,
+      "mutation": "star import 由来で起源不明の Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_CYCLE",
+      "path": "pitchlog/services/c5_context_reexport_cycle.py",
+      "condition": 5,
+      "mutation": "循環する再輸出別名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+      "path": "pitchlog/services/c5_context_reexport_self_reference.py",
+      "condition": 5,
+      "mutation": "自己参照する再輸出別名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_CONDITIONAL",
+      "path": "pitchlog/services/c5_context_reexport_conditional.py",
+      "condition": 5,
+      "mutation": "条件分岐で複数起源を持つ再輸出名を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+      "path": "pitchlog/services/c5_context_reexport_missing_module.py",
+      "condition": 5,
+      "mutation": "欠落した pitchlog モジュール由来の Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+      "path": "pitchlog/services/c5_context_reexport_unsupported_assign.py",
+      "condition": 5,
+      "mutation": "未対応の静的代入で作った Context を呼び出す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
+      "path": "pitchlog/services/c5_context_in_subscript_target.py",
+      "condition": 5,
+      "mutation": "添字代入先で TenantContext を構築する",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
       "path": "pitchlog/services/c5_context_proof_direct_reference.py",
       "condition": 5,
@@ -491,10 +617,10 @@
       "expected_error": "TB007"
     },
     {
-      "id": "C5_CONTEXT_UNKNOWN_FACTORY",
-      "path": "pitchlog/services/c5_context_unknown_factory.py",
+      "id": "C5_SECRET_IN_DEFAULT_CAPTURE",
+      "path": "pitchlog/services/c5_secret_in_default_capture.py",
       "condition": 5,
-      "mutation": "完全修飾名へ解決できない callable を TenantContext の生成器として呼ぶ",
+      "mutation": "許可シンボルのデフォルト引数で発行証跡の秘密を捕捉する",
       "expected_error": "TB007"
     },
     {
@@ -545,6 +671,188 @@
       "condition": 5,
       "mutation": "import なしで受け取った session から execute を呼ぶ",
       "expected_error": "TB005"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_parameter.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の引数を裸名参照して裁定 exact-set を迂回する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C5_IMPORT_REBOUND_BY_GLOBAL_WRITER",
+      "path": "pitchlog/services/c5_import_rebound_by_global_writer.py",
+      "condition": 5,
+      "mutation": "別関数の global writer で import 由来の callable を差し替える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_ASSIGNMENT",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_assignment.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の局所代入を裁定 exact-set で免除する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_WALRUS",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_walrus.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の walrus target を裁定 exact-set で免除する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C5_CONTEXT_IN_FUNCTION_IMPORT",
+      "path": "pitchlog/services/c5_context_in_function_import.py",
+      "condition": 5,
+      "mutation": "関数内 import へ移した TenantContext 構築を字句束縛の免除で迂回する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IN_LOCAL_ALIAS",
+      "path": "pitchlog/services/c5_context_in_local_alias.py",
+      "condition": 5,
+      "mutation": "TenantContext の静的な局所 alias を字句束縛の免除で迂回する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_IMPORT_REBOUND_BY_GLOBAL_IMPORT",
+      "path": "pitchlog/services/c5_import_rebound_by_global_import.py",
+      "condition": 5,
+      "mutation": "別関数の global import writer で import 由来 callable を差し替える",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_IMPORT_REBOUND_BY_STAR",
+      "path": "pitchlog/services/c5_import_rebound_by_star.py",
+      "condition": 5,
+      "mutation": "star import で module callable の起源を不確定にする",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MODULE_ASSIGNMENT",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_module_assignment.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の module 代入を裁定 exact-set で免除する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_CLASS_ASSIGNMENT",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_class_assignment.py",
+      "condition": 2,
+      "mutation": "裁定済み import と同名の class 代入を裁定 exact-set で免除する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_STAR",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_star.py",
+      "condition": 2,
+      "mutation": "star import による裁定済み import 名の上書きを裁定 exact-set で免除する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_EXCEPT",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_except.py",
+      "condition": 2,
+      "mutation": "except as で裁定済み import 名を上書きして裁定 exact-set を迂回する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MATCH",
+      "path": "pitchlog/services/c2_adjudicated_import_shadowed_by_match.py",
+      "condition": 2,
+      "mutation": "match capture で裁定済み import 名を上書きして裁定 exact-set を迂回する",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C5_CONTEXT_IFEXP_ORIGIN_MERGE",
+      "path": "pitchlog/services/c5_context_ifexp_origin_merge.py",
+      "condition": 5,
+      "mutation": "IfExp で安全 callable と合流させて TenantContext 起源を消す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_IF_ELSE_ORIGIN_MERGE",
+      "path": "pitchlog/services/c5_context_if_else_origin_merge.py",
+      "condition": 5,
+      "mutation": "if-else の分岐代入で TenantContext 起源を消す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_TRY_EXCEPT_ORIGIN_MERGE",
+      "path": "pitchlog/services/c5_context_try_except_origin_merge.py",
+      "condition": 5,
+      "mutation": "try-except の分岐代入で TenantContext 起源を消す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_MATCH_ORIGIN_MERGE",
+      "path": "pitchlog/services/c5_context_match_origin_merge.py",
+      "condition": 5,
+      "mutation": "match の分岐代入で TenantContext 起源を消す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_CONTAINER_SUBSCRIPT",
+      "path": "pitchlog/services/c5_context_container_subscript.py",
+      "condition": 5,
+      "mutation": "コンテナと添字参照を経由して TenantContext 起源を隠す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_CONDITIONAL_ALIAS_CLOSURE",
+      "path": "pitchlog/services/c5_context_conditional_alias_closure.py",
+      "condition": 5,
+      "mutation": "条件付き alias をクロージャへ渡して TenantContext 起源を隠す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_CONDITIONAL_ALIAS_CLASS_BASE",
+      "path": "pitchlog/services/c5_context_conditional_alias_class_base.py",
+      "condition": 5,
+      "mutation": "条件付き alias を関数内 class の基底にして TenantContext 起源を隠す",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C2_GENERATION_ATTRIBUTE_ASSIGNMENT",
+      "path": "pitchlog/services/c2_generation_attribute_assignment.py",
+      "condition": 2,
+      "mutation": "属性代入の構文名 generation を条件 2 候補から外す",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_GENERATION_KEYWORD_ARGUMENT",
+      "path": "pitchlog/services/c2_generation_keyword_argument.py",
+      "condition": 2,
+      "mutation": "keyword 引数の構文名 generation を条件 2 候補から外す",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_GENERATION_ARGUMENT_NAME",
+      "path": "pitchlog/services/c2_generation_argument_name.py",
+      "condition": 2,
+      "mutation": "ast.arg の構文名 generation を条件 2 候補から外す",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C2_GENERATION_MATCH_KEYWORD",
+      "path": "pitchlog/services/c2_generation_match_keyword.py",
+      "condition": 2,
+      "mutation": "match keyword pattern の構文名 generation を条件 2 候補から外す",
+      "expected_error": "TB002"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_DIRECT_NEW",
+      "path": "pitchlog/services/c5_context_direct_new.py",
+      "condition": 5,
+      "mutation": "TenantContext.__new__ を直接呼んで constructor 検査を迂回する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_TENANT_CONTEXT_DIRECT_INIT",
+      "path": "pitchlog/services/c5_context_direct_init.py",
+      "condition": 5,
+      "mutation": "TenantContext.__init__ を既存 object へ直接適用する",
+      "expected_error": "TB007"
     }
   ]
 }
