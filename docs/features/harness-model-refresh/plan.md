@@ -110,7 +110,7 @@ created: 2026-09-26
 
 | 対象 | 残ってはいけないもの(`grep -P`) | 許容するもの |
 | --- | --- | --- |
-| 設計書(変更履歴表の版行 `^\| \*{0,2}\d+\.\d+` を除く全文) | `gpt-5\.6`・`\bterra\b`・`claude-opus-5(?!-5)`・`Opus 5(?![.\d])`・`effortLevel` | `gpt-6-luna`(機械的軽作業行)・`gpt-6-sol`・`gpt-6-astra`・`claude-opus-5-5`・「Opus 5.5」 |
+| 設計書(変更履歴表の版行 `^\| \*{0,2}\d+\.\d+` を除く全文) | `gpt-5\.6`・`\bterra\b`・`claude-opus-5(?!-5)`・`Opus 5(?![.\d])`・`effortLevel`(**8.1 の主セッション既定にある settings.json の `modelSettings.*.effortLevel` の 1 箇所は除く** — settings の正式キー。ステップ 1 で明確化) | `gpt-6-luna`(機械的軽作業行)・`gpt-6-sol`・`gpt-6-astra`・`claude-opus-5-5`・「Opus 5.5」・8.1 の settings.json 記述 |
 | ADR-001 の決定節(`## 決定` 〜 次の `## `) | `gpt-5\.6` | 文脈・変更履歴に残す過去事実(`gpt-5.6-*` の旧表要約・旧単価) |
 | `.claude/agents/*.md` | `effortLevel`・`claude-opus-5(?!-5)` | `effort: high` |
 | `CLAUDE.md` | `gpt-5\.6`・`sol xhigh`・`Opus 5(?![.\d])` | 「Opus 5.5」・「ADR-001 の該当行」参照 |

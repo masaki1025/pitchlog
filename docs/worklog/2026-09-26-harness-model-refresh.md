@@ -77,6 +77,33 @@ branch: feature/harness-model-refresh
 - P2 1 件を採用: 2 節・4 節で `plan/SKILL.md` を guard_paths 該当と書いていた誤りを訂正(該当は `pr`・`finalize-doc` のみ — `.claude/core-areas.json`)。反映を伴うため `計画レビュー周回` を 4 へ
 - 計画レビューの合計: 4 周・指摘 19 件(P0 5 / P1 12 / P2 2)・全件採用・不採用 0 件。Codex 消費(terra max)= 340K + 268K + 280K + 258K ≈ 1.15M トークン
 
+### 阻止条件 0(2026-09-27)— 成立
+
+- 人間(徳光)が Codex CLI を **0.157.1** へ更新(`codex --version`)。ラッパー経由の `review normal`(5.6-terra max・応答「OK」・14,868 tok)を 1 回走らせてカタログを再取得
+- `~/.codex/models_cache.json`(fetched_at 2026-09-26T15:13Z・client_version 0.157.1・9 モデル): **`gpt-6-sol`**(effort low/medium/high/xhigh/max/ultra・既定 medium・"Workhorse model for coding and everyday work.")/ **`gpt-6-luna`**(low/medium/high/xhigh/max・既定 medium・"Fast and affordable model for easier tasks.")/ `gpt-6-astra`(変更なし)。gpt-5.6 の 3 tier も引き続き掲載
+- 案 A の導出表の全組 — `gpt-6-sol` × {medium, high, xhigh, max}・`gpt-6-luna` × {xhigh} — を**カタログで確認** → ステップ 1 へ進める
+
+### ステップ 1(2026-09-27)— ADR-001 v1.1 + 設計書 v1.18 を単一コミットで起案(確定ゲート開始)
+
+- ADR-001: frontmatter `in-review`・v1.1 行(射程宣言つき)・文脈を v1.1(調査結果・ベースライン)と v1.0(当時の前提)に分けて保存・決定表を**固定構文 8 行**(案 A)・理由 6 点・帰結(同期テスト・CLI 前提・実測期間・巻き戻し条件・見直しトリガー)
+- 設計書: frontmatter `in-review`・v1.18 行(射程宣言つき)・6.1 `:322`・8.1 `:662` + 主セッション既定の新設・8.4 `:704`・8.5 実行既定 + 定義例・9.2 `:792`・9.4 見出し/表 8 行/注記 3 点
+- `docs/README.md`: 設計書 1.18・ADR-001 1.1 を in-review へ
+
+## 確定ゲートの適用版(設計書 7.3-1 — 暫定記録)
+
+**対象**: `docs/adr/ADR-001-codex-model-selection.md` の **`v1.0 → v1.1`** と `docs/development/dev-harness-design-2026-08-07.md` の **`v1.17 → v1.18`**(**単一の確定ゲート**として一括検証 — 7.3-1「複数正本の一括検証は単一のゲート」。適用版の記録は本表 1 件のみ)。
+
+| 項目 | 値 |
+| --- | --- |
+| **適用版(7.3 の版数)** | **1.17** |
+| **条文コミット SHA** | **`ab72a58afe448133196f83d7ea5d3a7c8d47055d`** |
+| 根拠 | **in-review 化コミットの第一親**(= 計画承認コミット)。同コミット時点で 7.3 は設計書 `v1.17` の approved 状態で収録されている(7.3 の条文自体は v1.12 以降不変) |
+| 記録日 | 2026-09-27 |
+
+**本改訂は 7.3 自身を変更しない**ので、直前 approved 版がそのまま適用版になる。
+**本記録は暫定であり、初回敵対レビュー実行時点で異なっていれば更新してから開始する。**
+**当該ゲートはこの版で最後まで運用し、途中で切り替えない。** 敵対レビューは**現行ラッパー(`gpt-5.6-sol` xhigh)**で回す(ADR-001 v1.0 の帰結・計画書 4 節「順序」)。
+
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
 
