@@ -20,6 +20,9 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
+RUNTIME_CONTRACT_SUPPORT = (
+    REPOSITORY_ROOT / "backend" / "tests" / "runtime_contract_repository.py"
+)
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "authz_claims"
 DERIVED_ASSET_FILES = {
     "route_registry": "route-registry.json",
@@ -55,6 +58,22 @@ def _load_checker() -> Any:
 
 
 checker = _load_checker()
+
+
+def _load_runtime_contract_support() -> Any:
+    """Backend と共有する製品状態の複製 helper を読む。"""
+    spec = importlib.util.spec_from_file_location(
+        "runtime_contract_repository_for_catalog_tests",
+        RUNTIME_CONTRACT_SUPPORT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+runtime_contract_support = _load_runtime_contract_support()
 
 
 def _run_git(root: Path, *arguments: str) -> str:
@@ -174,6 +193,214 @@ def _read_repository_json(relative_path: str) -> dict[str, Any]:
     raw = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
     return raw
+
+
+def _read_json_at(root: Path, relative_path: Path) -> dict[str, Any]:
+    """指定した試験用リポジトリの JSON オブジェクトを読む。"""
+    raw = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    return raw
+
+
+def _write_json_at(root: Path, relative_path: Path, value: dict[str, Any]) -> None:
+    """指定した試験用リポジトリへ JSON オブジェクトを書く。"""
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _copy_product_catalog_repository(tmp_path: Path) -> Path:
+    """共有 helper の製品状態へ検査器が読む補助資産を複製する。"""
+    root = runtime_contract_support.copy_product_repository(
+        REPOSITORY_ROOT,
+        tmp_path / "product-repository",
+    )
+    source_product_root = REPOSITORY_ROOT / checker.PRODUCT_SPEC.asset_root
+    for source in source_product_root.rglob("*"):
+        if not source.is_file() or source.name in {
+            checker.STAGED_PRODUCT_ASSET.name,
+            checker.PRODUCT_ASSET.name,
+        }:
+            continue
+        destination = root / source.relative_to(REPOSITORY_ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    shutil.copytree(
+        REPOSITORY_ROOT / checker.PRODUCT_MIGRATION_VERSIONS,
+        root / checker.PRODUCT_MIGRATION_VERSIONS,
+        dirs_exist_ok=True,
+    )
+    schema_manifest = Path("contracts/db/schema-manifest.json")
+    _write_json_at(
+        root,
+        schema_manifest,
+        _read_json_at(REPOSITORY_ROOT, schema_manifest),
+    )
+    return root
+
+
+def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
+    """最終パスと製品化したランタイム契約を検査器が受理する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    state = checker._runtime_contract_state(root)
+    product_path = checker._product_ddl_elements_path(state)
+    assert product_path == checker.PRODUCT_ASSET
+
+    result = checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert result == {
+        "scope_status": checker.PRODUCT_SPEC.allowed_scope_status,
+        "product_role_count": 4,
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("pending-switch", "provisional-additions", "protected-function"),
+)
+def test_product_runtime_contract_mutations_are_rejected(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """製品状態に残した暫定欄と保護関数のずれを拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    product_asset = _read_json_at(root, checker.PRODUCT_ASSET)
+    expected_error = "キー不一致"
+    if mutation == "pending-switch":
+        product_asset["pending_switch"] = "TSK-443"
+    elif mutation == "provisional-additions":
+        staged = _read_json_at(REPOSITORY_ROOT, checker.STAGED_PRODUCT_ASSET)
+        product_asset["provisional_contract_additions"] = staged[
+            "provisional_contract_additions"
+        ]
+    else:
+        runtime_asset = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        protected = runtime_asset["protected_objects"]
+        assert isinstance(protected, dict)
+        functions = protected["functions"]
+        assert isinstance(functions, list)
+        functions.pop()
+        functions.append(["public", "changed_protected_function", ""])
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+        expected_error = "最終資産の導出値と一致しない"
+
+    with pytest.raises(checker.CatalogError, match=expected_error):
+        checker.validate_ddl_elements(
+            product_asset,
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_pending_state_always_runs_only_pending_protected_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未発効状態で未発効用の保護対象照合だけが必ず走る。"""
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, root)
+
+    def record_final(raw: dict[str, object], root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    checker.validate_ddl_elements(
+        _read_json_at(REPOSITORY_ROOT, checker.STAGED_PRODUCT_ASSET),
+        REPOSITORY_ROOT,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["pending"]
+
+
+def test_product_state_always_runs_only_final_protected_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """製品状態で製品用の保護対象照合だけが必ず走る。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, repository_root)
+
+    def record_final(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, repository_root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["product"]
+
+
+def test_invalid_runtime_contract_state_is_catalog_error(tmp_path: Path) -> None:
+    """Staged と最終パスが併存する不正状態を CatalogError にする。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    staged_path = root / checker.STAGED_PRODUCT_ASSET
+    staged_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / checker.STAGED_PRODUCT_ASSET, staged_path)
+
+    with pytest.raises(checker.CatalogError, match="BOTH_STAGED_AND_FINAL"):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_provisional_state_has_no_product_ddl_path(tmp_path: Path) -> None:
+    """暫定状態では製品 DDL manifest の検査対象パスを選ばない。"""
+    root = tmp_path / "provisional-repository"
+    for relative_path in (
+        checker.RUNTIME_CONTRACT_ASSET,
+        Path("backend/src/pitchlog/authz/runtime_contract.py"),
+    ):
+        destination = root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+
+    state = checker._runtime_contract_state(root)
+
+    assert state is checker.RuntimeContractState.PROVISIONAL
+    assert checker._product_ddl_elements_path(state) is None
 
 
 def _repository_derived_assets() -> tuple[

@@ -110,6 +110,18 @@ def _copy_asset_to_spec_paths(
         root / "scripts",
         dirs_exist_ok=True,
     )
+    package_root = Path("backend/src/pitchlog")
+    package_destination = root / package_root
+    package_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        _REPOSITORY_ROOT / package_root / "__init__.py",
+        package_destination / "__init__.py",
+    )
+    shutil.copytree(
+        _REPOSITORY_ROOT / package_root / "authz",
+        package_destination / "authz",
+        dirs_exist_ok=True,
+    )
 
 
 def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:

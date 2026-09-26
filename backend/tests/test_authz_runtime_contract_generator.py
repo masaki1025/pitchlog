@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from runtime_contract_repository import copy_product_repository
 
 from pitchlog.authz.runtime_contract_generator import (
     check_repository,
@@ -147,32 +148,7 @@ def _synchronize_with_lifecycle_overrides(
 
 def _copy_product_repository(tmp_path: Path) -> Path:
     """Switch を使わず、試験用の正しい製品状態を組み立てる。"""
-    repository_root = _copy_pending_repository(tmp_path)
-    staged_path = repository_root / STAGED_PRODUCT_ASSET
-    product_path = repository_root / PRODUCT_ASSET
-    product_asset = _read_repository_json(STAGED_PRODUCT_ASSET)
-    product_asset.pop("pending_switch")
-    product_asset.pop("provisional_contract_additions")
-    _write_repository_json(repository_root, PRODUCT_ASSET, product_asset)
-    staged_path.unlink()
-
-    runtime_asset = _read_asset(repository_root)
-    runtime_asset["runtime_contract_revision"] += 1
-    baseline = cast(dict[str, Any], runtime_asset["baseline_control"])
-    identity = cast(dict[str, Any], baseline["identity"])
-    identity["current_identifiers"] = [
-        f"runtime_contract_revision:{runtime_asset['runtime_contract_revision']}"
-    ]
-    runtime_asset["provisional"] = False
-    runtime_asset.pop("superseded_by")
-    runtime_asset["derived_from"] = PRODUCT_ASSET.as_posix()
-    derived = derive_runtime_contract_fields(product_asset, runtime_asset)
-    application_role = cast(dict[str, Any], runtime_asset["application_role"])
-    application_role["attributes"] = derived["application_role"]["attributes"]
-    runtime_asset["protected_objects"] = derived["protected_objects"]
-    _synchronize_repository(repository_root, runtime_asset)
-    assert product_path.is_file()
-    return repository_root
+    return copy_product_repository(_REPOSITORY_ROOT, tmp_path / "repository")
 
 
 def _synchronize_repository(repository_root: Path, asset: dict[str, Any]) -> None:
