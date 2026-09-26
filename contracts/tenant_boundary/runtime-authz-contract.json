@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 4,
+  "runtime_contract_revision": 5,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:4"
+        "runtime_contract_revision:5"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -19,6 +19,7 @@
         "external_files": [
           "scripts/check_tenant_boundary_bypass.py",
           "scripts/frozen_history.py",
+          "scripts/frozen_archive.py",
           ".github/workflows/ci.yml"
         ]
       }
@@ -72,7 +73,7 @@
   "provisional": true,
   "superseded_by": "contracts/authz/product/ddl-elements.json",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "f234b585be6bd6146908c739411fa029f62a8df81e1723e003c6fe5c9afce8f8",
+  "source_digest": "c3ff59a4bdb846f3266929f87745d6eb0c59a7d768c00c69b05dd033f8a5a0aa",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {

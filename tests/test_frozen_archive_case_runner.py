@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 
@@ -153,3 +154,102 @@ def test_runner_calls_real_cli_in_pull_request_mode(
         assert result.exit_code == 0
         assert result.matches
         assert result.stdout == "tenant-boundary bypass check: ok"
+
+
+def _snapshot_names_at(repository: Path, revision: str) -> frozenset[str]:
+    """指定 revision に存在する履歴 snapshot 名を返す。"""
+    result = runner._git(
+        repository,
+        [
+            "ls-tree",
+            "-r",
+            "--name-only",
+            revision,
+            "--",
+            runner.HISTORY_SNAPSHOT_DIRECTORY.as_posix(),
+        ],
+    )
+    assert result.returncode == 0, result.stderr
+    return frozenset(
+        Path(line).name for line in result.stdout.splitlines() if line
+    )
+
+
+def test_current_checker_accepts_distinct_referenced_snapshot_sets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と HEAD の異なる集合を別々に算出して正しい追記を受理する。"""
+    definition = MANIFEST.cases[1]
+    next_acceptance_manifest = replace(
+        MANIFEST,
+        pull_request_number=MANIFEST.pull_request_number + 1,
+    )
+    prepared = runner.prepare_case(
+        definition,
+        tmp_path,
+        REPOSITORY_ROOT,
+        next_acceptance_manifest,
+        monkeypatch,
+    )
+
+    assert _snapshot_names_at(
+        prepared.repository,
+        prepared.base_sha,
+    ) != _snapshot_names_at(prepared.repository, prepared.head_sha)
+
+    result = runner.run_checker(
+        prepared,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.matches
+
+
+@pytest.mark.parametrize("case_id", [4, 5, 6, 7])
+def test_current_checker_rejects_archive_mutations_through_production_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: int,
+) -> None:
+    """本番 PR 受理経路で孤児・閾値超過・非正規参照を拒否する。"""
+    definition = MANIFEST.cases[case_id - 1]
+    prepared = runner.prepare_case(
+        definition,
+        tmp_path,
+        REPOSITORY_ROOT,
+        MANIFEST,
+        monkeypatch,
+    )
+
+    result = runner.run_checker(
+        prepared,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+
+    assert result.exit_code != 0
+    assert result.matches, result.stderr
+
+
+def test_current_checker_grandfathers_base_orphans(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元から存在する孤児29件を本番 PR 受理経路で grandfather する。"""
+    definition = MANIFEST.cases[8]
+    prepared = runner.prepare_case(
+        definition,
+        tmp_path,
+        REPOSITORY_ROOT,
+        MANIFEST,
+        monkeypatch,
+    )
+
+    result = runner.run_checker(
+        prepared,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.matches

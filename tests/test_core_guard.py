@@ -128,6 +128,7 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "scripts/check_tenant_boundary_bypass.py",
     ),
     ("scripts/frozen_history.py", "scripts/frozen_history.py"),
+    ("scripts/frozen_archive.py", "scripts/frozen_archive.py"),
     (
         "contracts/tenant_boundary/*",
         "contracts/tenant_boundary/nested/future.json",
@@ -137,9 +138,14 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py",
     ),
     (
+        "tests/fixtures/frozen-archive-cases/*",
+        "tests/fixtures/frozen-archive-cases/manifest.json",
+    ),
+    (
         "tests/test_check_tenant_boundary_bypass.py",
         "tests/test_check_tenant_boundary_bypass.py",
     ),
+    ("tests/test_frozen_archive.py", "tests/test_frozen_archive.py"),
     ("tests/test_frozen_history.py", "tests/test_frozen_history.py"),
 )
 TENANT_BOUNDARY_AREA_PATH_ADDITIONS = tuple(

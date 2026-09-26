@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 4,
+  "contract_revision": 5,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:4"
+        "contract_revision:5"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -19,6 +19,7 @@
         "external_files": [
           "scripts/check_tenant_boundary_bypass.py",
           "scripts/frozen_history.py",
+          "scripts/frozen_archive.py",
           ".github/workflows/ci.yml"
         ]
       }
@@ -70,7 +71,7 @@
   },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "2044b6cf199c1ce109a94729e2ffb7a0799dd0d88d7a37d9943919a334433e4b",
+  "source_digest": "bca636456310c586ebe8766d092e540ced5948620c23b3018cfbf63a717a5495",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",

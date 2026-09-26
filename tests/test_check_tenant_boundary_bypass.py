@@ -1324,6 +1324,7 @@ def _initialize_test_repository(
     for relative_path in (
         Path("scripts/check_tenant_boundary_bypass.py"),
         Path("scripts/frozen_history.py"),
+        Path("scripts/frozen_archive.py"),
         Path(".github/workflows/ci.yml"),
     ):
         destination = repository / relative_path
@@ -2510,6 +2511,7 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
     expected_external_files = [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]
     authorities: list[Path] = []
@@ -3369,6 +3371,7 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
     authority = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
     authority_history = authority["baseline_control"]["history"]
+    assert len(authority_history) == 4
     latest_record = authority_history[-1]
     assert latest_record["record_schema_version"] == 2
     latest_identifiers = latest_record["new_baseline_identifiers"][
@@ -6291,5 +6294,6 @@ def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
     ] == [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]
