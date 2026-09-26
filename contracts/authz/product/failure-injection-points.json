@@ -81,6 +81,36 @@
       "comparison_targets": [
         "product_catalog"
       ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-POLICY-DROP",
+      "operation": "unapply",
+      "step_id": "PRODUCT-UNAPPLY-03-POLICIES",
+      "sequence": 3,
+      "operation_kind": "product_unapply_policies",
+      "checkpoint_id": "product:3:after_policy_drop",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
+    },
+    {
+      "injection_point_id": "PRODUCT-FAILURE-INJECTION:AFTER-HELPER-FUNCTION-DROP",
+      "operation": "unapply",
+      "step_id": "PRODUCT-UNAPPLY-05-HELPER-FUNCTIONS",
+      "sequence": 5,
+      "operation_kind": "product_unapply_helper_functions",
+      "checkpoint_id": "product:5:after_helper_function_drop",
+      "position_rule": {
+        "position": "after_step",
+        "failure_boundary": "after_current_transaction_rollback"
+      },
+      "comparison_targets": [
+        "product_catalog"
+      ]
     }
   ]
 }

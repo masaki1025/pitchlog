@@ -31,7 +31,15 @@ _POINT_KEYS = {
     "position_rule",
     "comparison_targets",
 }
-_EXPECTED_SEQUENCES = (1, 3, 4, 5, 6)
+_EXPECTED_POINTS = (
+    ("apply", 1),
+    ("apply", 3),
+    ("apply", 4),
+    ("apply", 5),
+    ("apply", 6),
+    ("unapply", 3),
+    ("unapply", 5),
+)
 
 
 def _json_object(path: Path) -> dict[str, object]:
@@ -69,11 +77,11 @@ def _git_blob_digest(data: bytes) -> str:
     return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
 
 
-def _actual_apply_checkpoints() -> tuple[tuple[int, str], ...]:
-    """正規の適用計画に対して適用器が返す全記録点を列挙する。"""
-    _, statements = product_provisioning._build_operation_statements(
-        ProductOperation.APPLY
-    )
+def _actual_operation_checkpoints(
+    operation: ProductOperation,
+) -> tuple[tuple[int, str], ...]:
+    """正規の操作計画に対して適用器が返す全記録点を列挙する。"""
+    _, statements = product_provisioning._build_operation_statements(operation)
     checkpoints: list[tuple[int, str]] = []
     for sequence in range(1, 8):
         statement_count = sum(
@@ -81,7 +89,7 @@ def _actual_apply_checkpoints() -> tuple[tuple[int, str], ...]:
         )
         for statement_number in range(1, statement_count + 1):
             checkpoint_id = product_provisioning._checkpoint_id(
-                ProductOperation.APPLY,
+                operation,
                 sequence,
                 statement_number,
                 statement_count,
@@ -114,24 +122,30 @@ def _validate_failure_injection_asset(
     ), "application-steps.json の Git blob digest が一致しない"
 
     application_steps = _json_object(_APPLICATION_STEPS_PATH)
-    step_rows = _object_rows(
-        application_steps.get("application_steps"),
-        "application_steps",
-    )
-    step_by_sequence = {
-        _positive_int(row.get("sequence"), "application_steps.sequence"): row
-        for row in step_rows
-    }
-    assert len(step_by_sequence) == len(step_rows)
+    steps_by_operation: dict[str, dict[int, dict[str, object]]] = {}
+    for operation, section_name in (
+        ("apply", "application_steps"),
+        ("unapply", "unapplication_steps"),
+    ):
+        step_rows = _object_rows(application_steps.get(section_name), section_name)
+        step_by_sequence = {
+            _positive_int(row.get("sequence"), f"{section_name}.sequence"): row
+            for row in step_rows
+        }
+        assert len(step_by_sequence) == len(step_rows)
+        steps_by_operation[operation] = step_by_sequence
 
     points = _object_rows(document.get("injection_points"), "injection_points")
-    assert len(points) == 5
+    assert len(points) == 7
     assert (
         tuple(
-            _positive_int(point.get("sequence"), "injection_points.sequence")
+            (
+                _text(point.get("operation"), "injection_points.operation"),
+                _positive_int(point.get("sequence"), "injection_points.sequence"),
+            )
             for point in points
         )
-        == _EXPECTED_SEQUENCES
+        == _EXPECTED_POINTS
     )
     assert len(
         {
@@ -145,34 +159,43 @@ def _validate_failure_injection_asset(
 
     for point in points:
         assert set(point) == _POINT_KEYS
-        assert point["operation"] == "apply"
+        operation = _text(point["operation"], "injection_points.operation")
+        assert operation in {"apply", "unapply"}
         sequence = _positive_int(point["sequence"], "injection_points.sequence")
-        step = step_by_sequence[sequence]
+        step = steps_by_operation[operation][sequence]
         assert point["step_id"] == step.get("step_id")
         assert point["operation_kind"] == step.get("operation_kind")
         assert point["comparison_targets"] == ["product_catalog"]
 
         position_rule = point["position_rule"]
         assert isinstance(position_rule, dict)
-        expected_position = "after_statement" if sequence == 6 else "after_step"
+        expected_position = (
+            "after_statement"
+            if operation == "apply" and sequence == 6
+            else "after_step"
+        )
         expected_keys = {"position", "failure_boundary"}
-        if sequence == 6:
+        if operation == "apply" and sequence == 6:
             expected_keys.add("statement_ordinal_within_step")
             assert position_rule["statement_ordinal_within_step"] == 1
         assert set(position_rule) == expected_keys
         assert position_rule["position"] == expected_position
         assert position_rule["failure_boundary"] == "after_current_transaction_rollback"
 
-    expected_checkpoints = tuple(
-        (
-            _positive_int(point["sequence"], "injection_points.sequence"),
-            _text(point["checkpoint_id"], "checkpoint_id"),
+    for operation in ProductOperation:
+        operation_points = tuple(
+            point for point in points if point["operation"] == operation.value
         )
-        for point in points
-    )
-    assert _actual_apply_checkpoints() == expected_checkpoints, (
-        "故障注入点の記録点が適用器と一致しない"
-    )
+        expected_checkpoints = tuple(
+            (
+                _positive_int(point["sequence"], "injection_points.sequence"),
+                _text(point["checkpoint_id"], "checkpoint_id"),
+            )
+            for point in operation_points
+        )
+        assert _actual_operation_checkpoints(operation) == expected_checkpoints, (
+            "故障注入点の記録点が適用器と一致しない"
+        )
     return points
 
 
@@ -210,11 +233,11 @@ def _validate_single_transaction_source(source: str) -> None:
 
 
 def test_failure_injection_asset_matches_steps_digest_and_checkpoints() -> None:
-    """適用側5点が手順資産の digest と実際の記録点へ一致する。"""
+    """適用5点・取り外し2点が手順資産と実記録点へ一致する。"""
     points = _validate_failure_injection_asset()
 
-    assert all(point["operation"] == "apply" for point in points)
-    assert not any("unapply" in str(point["checkpoint_id"]) for point in points)
+    assert sum(point["operation"] == "apply" for point in points) == 5
+    assert sum(point["operation"] == "unapply" for point in points) == 2
 
 
 def test_changed_application_steps_digest_is_red() -> None:
@@ -228,11 +251,18 @@ def test_changed_application_steps_digest_is_red() -> None:
         _validate_failure_injection_asset(asset)
 
 
+@pytest.mark.parametrize(
+    "removed_checkpoint",
+    (
+        "product:3:after_helper_function_creation",
+        "product:3:after_policy_drop",
+    ),
+)
 def test_removing_one_real_checkpoint_is_red(
     monkeypatch: pytest.MonkeyPatch,
+    removed_checkpoint: str,
 ) -> None:
-    """適用器から資産指定の記録点を 1 つ消す変異を拒否する。"""
-    removed_checkpoint = "product:3:after_helper_function_creation"
+    """適用または取り外しの実記録点を 1 つ消す変異を拒否する。"""
     original = product_provisioning._checkpoint_id
 
     def without_one_checkpoint(

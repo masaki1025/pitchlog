@@ -1,4 +1,4 @@
-"""製品適用の各故障注入点で transaction の原子性を検証する。"""
+"""製品適用・取り外しの故障注入点で transaction の原子性を検証する。"""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from db_fixtures import _product_role_ids, _snapshot_product_catalog
 from psycopg.pq import TransactionStatus
 
 from pitchlog.authz import product_provisioning
@@ -13,9 +14,12 @@ from pitchlog.authz.product_catalog import (
     ProductCatalogReport,
     inspect_product_authz_catalog,
 )
-from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+from pitchlog.authz.product_provisioning import (
+    apply_product_authz_ddl,
+    unapply_product_authz_ddl,
+)
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import ProductCatalogSnapshot, ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
@@ -90,6 +94,20 @@ def _observe_product_catalog(
         assert catalog.observer.info.transaction_status is TransactionStatus.IDLE
 
 
+def _snapshot_catalog(
+    catalog: ProvisionedProductCatalog,
+) -> ProductCatalogSnapshot:
+    """製品が変更し得る実カタログを記録して transaction を閉じる。"""
+    try:
+        return _snapshot_product_catalog(
+            catalog.observer,
+            _product_role_ids(catalog.asset),
+        )
+    finally:
+        catalog.observer.rollback()
+        assert catalog.observer.info.transaction_status is TransactionStatus.IDLE
+
+
 def _assert_subject_restored_after_rollback(
     catalog: ProvisionedProductCatalog,
 ) -> None:
@@ -105,17 +123,23 @@ def _assert_subject_restored_after_rollback(
 
 
 @pytest.mark.parametrize("injection_point", _injection_points(), ids=_point_id)
-def test_apply_failure_rolls_back_the_complete_product_catalog(
+def test_operation_failure_rolls_back_the_complete_product_catalog(
     provisioned_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     injection_point: dict[str, object],
 ) -> None:
-    """5 点の故障前 A・rollback 後 B・再適用後 C が一致する。"""
+    """適用5点・取り外し2点の A・rollback 後 B・再適用後 C が一致する。"""
     catalog = provisioned_product_catalog
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
     state_a = _observe_product_catalog(catalog, privileged_role_oid)
+    snapshot_a = _snapshot_catalog(catalog)
     assert state_a.ok
 
+    operation = _text(injection_point.get("operation"), "operation")
+    assert operation in {"apply", "unapply"}
+    run_operation = (
+        apply_product_authz_ddl if operation == "apply" else unapply_product_authz_ddl
+    )
     checkpoint_id = _text(injection_point.get("checkpoint_id"), "checkpoint_id")
     sequence = _positive_int(injection_point.get("sequence"), "sequence")
     recorded_checkpoints: list[str] = []
@@ -137,7 +161,7 @@ def test_apply_failure_rolls_back_the_complete_product_catalog(
             fail_at_asset_checkpoint,
         )
         with pytest.raises(_InjectedProductCheckpointFailure):
-            apply_product_authz_ddl(catalog.applicator)
+            run_operation(catalog.applicator)
 
     assert injected_checkpoints == [checkpoint_id]
     assert checkpoint_id in recorded_checkpoints
@@ -145,10 +169,14 @@ def test_apply_failure_rolls_back_the_complete_product_catalog(
     _assert_subject_restored_after_rollback(catalog)
 
     state_b = _observe_product_catalog(catalog, privileged_role_oid)
+    snapshot_b = _snapshot_catalog(catalog)
     assert state_b.ok
     assert state_b == state_a
+    assert snapshot_b == snapshot_a
 
     apply_product_authz_ddl(catalog.applicator)
     state_c = _observe_product_catalog(catalog, privileged_role_oid)
+    snapshot_c = _snapshot_catalog(catalog)
     assert state_c.ok
     assert state_c == state_a
+    assert snapshot_c == snapshot_a
