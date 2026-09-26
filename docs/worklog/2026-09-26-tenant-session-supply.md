@@ -97,3 +97,66 @@ scripts/frozen_history.py:1521    approved_by は非空・approved_on は実在�
 ```
 
 **プレースホルダは書けない。** TSK-446 で 3 周連続 P0 になった論点が、機構で塞がれている。
+
+## 承認記録の取得(ステップ 4 の前提・2026-09-26)
+
+**PR #82 のコメントから取得した。推定値はゼロ。**
+
+| 項目 | 値 | 出所 |
+| --- | --- | --- |
+| API | `repos/masaki1025/pitchlog/issues/82/comments` | `gh api` |
+| comment id | `5844655199` | 同上 |
+| `user.login` | `masaki1025` | 同上(**認証済み発信者**) |
+| `created_at` | `2026-09-26T08:36:30Z` | 同上(**GitHub 側のタイムスタンプ**) |
+
+**本文(逐語)**:
+
+> 凍結基準 base-allowlist.json の allowed_symbols へ pitchlog.repositories.transaction.tenant_transaction_scope を追加することを承認する。承認者: 山田正輝。承認日: 2026-09-26。
+
+**台帳へ入れる値**(**すべて本文からの逐語転記**):
+
+- `approved_by`: **`山田正輝`**
+- `approved_on`: **`2026-09-26`**
+- `reason`: 上の API パス・comment id・`created_at` を出所として明記する
+
+### TSK-446 との差
+
+TSK-446 では出所が取れず、**敵対レビューが 3 周連続で P0** を出し、最終的に
+「P0 を承知でマージする」という人間の判断で決着した。原因は
+**PR の自己承認を GitHub が拒否する**ことで、`APPROVED` review を出所にできなかったこと。
+
+**本タスクは計画段階(7-2)で PR コメントを出所と決め、ステップ 4 の前に実際に取得した。**
+**推定値が 1 つも無い状態で凍結基準を動かせる。**
+
+### 承認対象の訂正(2026-09-26)
+
+**1 件目の承認は対象シンボル名を誤っていた。** 当方が文面を下書きした際、
+**どのシンボルを `allowed_symbols` へ登録するかを実測していなかった**ことが原因である。
+
+**実測**: 迂回検査は **DB 呼び出しを囲む関数**と許可シンボルを突き合わせる。
+
+```
+backend/src/pitchlog/repositories/transaction.py:52  self._session.execute(...)
+  → 囲む関数は TenantTransaction.run(:39)
+backend/src/pitchlog/repositories/transaction.py:96・:133  session.close()
+  → sqlalchemy.orm.Session.close は db-api-inventory.json に未登録(実測)→ 許可不要
+```
+
+→ **登録すべきは `TenantTransaction.run`。`tenant_transaction_scope` は DB API を直接呼ばないので不要。**
+
+| 項目 | 1 件目 | **2 件目(有効)** |
+| --- | --- | --- |
+| comment id | `5844655199` | **`5844686316`** |
+| `created_at` | `2026-09-26T08:36:30Z` | **`2026-09-26T08:41:56Z`** |
+| 対象 | `tenant_transaction_scope`(**誤り**) | **`TenantTransaction.run`** |
+
+**2 件目の本文(逐語)**:
+
+> 訂正。凍結基準 base-allowlist.json の allowed_symbols へ追加する対象は pitchlog.repositories.transaction.TenantTransaction.run である。先の承認で tenant_transaction_scope と書いたのは誤りで、DB 呼び出し(Session.execute)を囲む関数が run であるため。tenant_transaction_scope の登録は不要。承認者: 山田正輝。承認日: 2026-09-26。
+
+**台帳へ入れる値**: `approved_by` = **`山田正輝`** / `approved_on` = **`2026-09-26`**(**2 件目の本文から逐語**)。
+`reason` には**両方の comment id と `created_at`** を書き、**1 件目が対象を誤っていた経緯**も残す。
+
+> **Codex は承認対象を勝手に読み替えず、停止して報告した。** 当方が委任プロンプトへ
+> 「足りないと分かったら報告して止まること。勝手に inventory を触らない」と書いた歯止めが効いた。
+> **黙って登録していたら、承認と実態の食い違いがマージまで残っていた。**
