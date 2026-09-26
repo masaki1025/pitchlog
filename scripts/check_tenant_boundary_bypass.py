@@ -33,11 +33,19 @@ import shlex
 import subprocess
 import symtable
 import sys
+import tempfile
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping, Sequence, Set
+from collections.abc import Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+# このファイルは importlib でパス指定ロードされるため、同階層 import を解決する。
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+import frozen_history  # noqa: E402
 
 DEFAULT_INVENTORY = Path("contracts/tenant_boundary/db-api-inventory.json")
 DEFAULT_ALLOWLIST = Path("contracts/tenant_boundary/base-allowlist.json")
@@ -339,6 +347,25 @@ def _string_array(value: object, location: str) -> tuple[str, ...]:
     return items
 
 
+def _identifier_map(
+    value: object,
+    location: str,
+) -> dict[str, tuple[str, ...]]:
+    """資産パスから資産内で一意な識別値列へのmapを取得する。"""
+    raw_map = _object(value, location)
+    if not raw_map:
+        raise ContractError(f"{location}: 空にできない")
+    identifiers: dict[str, tuple[str, ...]] = {}
+    for asset_path, raw_identifiers in raw_map.items():
+        if not asset_path:
+            raise ContractError(f"{location}: 資産パスは空にできない")
+        parsed = _string_array(raw_identifiers, f"{location}.{asset_path}")
+        if not parsed:
+            raise ContractError(f"{location}.{asset_path}: 空にできない")
+        identifiers[asset_path] = parsed
+    return identifiers
+
+
 def _validate_baseline_control(
     asset: Mapping[str, object],
     location: str,
@@ -358,9 +385,11 @@ def _validate_baseline_control(
     control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
     _strict_keys(
         control,
-        {"identity", "movement_policy", "history"},
+        {"identity", "movement_policy", "history", "history_authority"},
         f"{location}.baseline_control",
     )
+    if type(control["history_authority"]) is not bool:
+        raise ContractError(f"{location}: history_authority は bool が必要")
     identity = _object(control["identity"], f"{location}.baseline_control.identity")
     _strict_keys(
         identity,
@@ -446,23 +475,13 @@ def _validate_baseline_control(
         raise ContractError(f"{location}: 直後状態の算出方法が不一致")
     if policy["intermediate_commits_are_records"] is not False:
         raise ContractError(f"{location}: 途中コミットを履歴行に数えてはならない")
-    required_triggers = {
-        "baseline_set",
-        "baseline_value",
-        "declaration_location",
-        "frozen_target_mapping",
-        "identity_granularity",
-        "identifier_interpretation",
-        "pass_fail_mapping",
-    }
-    declared_triggers = set(
-        _string_array(
-            policy["movement_triggers"],
-            f"{location}.policy.movement_triggers",
+    try:
+        frozen_history.validate_movement_triggers(
+            policy,
+            f"{location}.policy",
         )
-    )
-    if not required_triggers <= declared_triggers:
-        raise ContractError(f"{location}: 基準を動かす条件が下限を満たさない")
+    except frozen_history.ContractError as error:
+        raise ContractError(str(error)) from error
     if _string(policy["affected_baselines"], f"{location}.policy.affected_baselines") != (
         "all_baselines_matching_any_declared_trigger"
     ):
@@ -476,6 +495,39 @@ def _validate_baseline_control(
     for index, raw in enumerate(_array(control["history"], f"{location}.history")):
         entry_location = f"{location}.history[{index}]"
         entry = _object(raw, entry_location)
+        if "record_schema_version" in entry:
+            if entry.get("record_schema_version") != 2:
+                raise ContractError(f"{entry_location}: v2 以外の明示版は不正")
+            _strict_keys(
+                entry,
+                {
+                    "record_schema_version",
+                    "acceptance_id",
+                    "new_baseline_identifiers",
+                    "previous_baseline_identifiers",
+                    "change",
+                    "movement_fact",
+                    "reason",
+                    "approved_by",
+                    "approved_on",
+                },
+                entry_location,
+            )
+            _identifier_map(
+                entry["new_baseline_identifiers"],
+                f"{entry_location}.new_baseline_identifiers",
+            )
+            _identifier_map(
+                entry["previous_baseline_identifiers"],
+                f"{entry_location}.previous_baseline_identifiers",
+            )
+            _string(entry["acceptance_id"], f"{entry_location}.acceptance_id")
+            _string(entry["movement_fact"], f"{entry_location}.movement_fact")
+            _string(entry["reason"], f"{entry_location}.reason")
+            _string(entry["approved_by"], f"{entry_location}.approved_by")
+            _string(entry["approved_on"], f"{entry_location}.approved_on")
+            history.append(entry)
+            continue
         _strict_keys(
             entry,
             {
@@ -562,190 +614,9 @@ def _validate_baseline_control(
             raise ContractError(f"{entry_location}: 受理済み記録に受理待ち marker を残せない")
         history.append(entry)
         previous_new = new_identifiers
-    if not history:
+    if not history and control["history_authority"] is not False:
         raise ContractError(f"{location}: 更新履歴は空にできない")
-    if previous_new != current_identifiers:
-        raise ContractError(f"{location}: 履歴末尾と現在の基準識別値が不一致")
     return tuple(history)
-
-
-def _validate_history_append_only(
-    previous_asset: Mapping[str, object],
-    current_asset: Mapping[str, object],
-    location: str,
-) -> None:
-    """比較元の履歴が現在資産の不変 prefix であることを検証する。"""
-    previous = _validate_baseline_control(previous_asset, location)
-    current = _validate_baseline_control(current_asset, location)
-    if len(current) < len(previous) or current[: len(previous)] != previous:
-        raise ContractError(f"{location}: 既存の基準更新履歴は変更・削除できない")
-
-
-def _frozen_projection_sha256(
-    asset: Mapping[str, object],
-    location: str,
-    external_loader: Callable[[str], bytes],
-) -> str:
-    """資産自身の宣言どおりに凍結射影を作り SHA-256 を返す。"""
-    control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
-    identity = _object(control.get("identity"), f"{location}.identity")
-    projection = _object(
-        identity.get("frozen_projection"),
-        f"{location}.identity.frozen_projection",
-    )
-    included = _string(projection.get("included"), f"{location}.projection.included")
-    if included != "all_top_level_fields":
-        raise ContractError(f"{location}: 未対応の凍結射影 included")
-    excluded = set(
-        _string_array(projection.get("excluded"), f"{location}.projection.excluded")
-    )
-    asset_projection = {
-        key: copy.deepcopy(value)
-        for key, value in asset.items()
-        if key not in excluded
-    }
-    identity_declaration = {
-        key: copy.deepcopy(value)
-        for key, value in identity.items()
-        if key != "current_identifiers"
-    }
-    movement_policy = copy.deepcopy(
-        _object(control.get("movement_policy"), f"{location}.movement_policy")
-    )
-    external_files: list[dict[str, str]] = []
-    for path in sorted(
-        _string_array(
-            projection.get("external_files"),
-            f"{location}.projection.external_files",
-        )
-    ):
-        try:
-            source = external_loader(path)
-        except (OSError, ContractError) as error:
-            raise ContractError(
-                f"{location}: 外部凍結対象を解決できない: {path}: {error}"
-            ) from error
-        external_files.append(
-            {"path": path, "sha256": hashlib.sha256(source).hexdigest()}
-        )
-    payload = {
-        "asset": asset_projection,
-        "baseline_declaration": {
-            "identity": identity_declaration,
-            "movement_policy": movement_policy,
-        },
-        "external_files": external_files,
-    }
-    serialized = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(serialized).hexdigest()
-
-
-def _history_snapshot(entry: Mapping[str, object], side: str) -> tuple[str, str]:
-    """履歴行の before/after から基準状態と射影識別値を返す。"""
-    change = _object(entry.get("change"), "history.change")
-    snapshot = _object(change.get(side), f"history.change.{side}")
-    return (
-        _string(snapshot.get("state"), f"history.change.{side}.state"),
-        _string(
-            snapshot.get("frozen_projection_sha256"),
-            f"history.change.{side}.frozen_projection_sha256",
-        ),
-    )
-
-
-def _validate_baseline_transition(
-    previous_asset: Mapping[str, object] | None,
-    current_asset: Mapping[str, object],
-    location: str,
-    *,
-    previous_external_loader: Callable[[str], bytes],
-    current_external_loader: Callable[[str], bytes],
-) -> None:
-    """受理直前から直後への射影移動と履歴 1 件を結び付ける。"""
-    current_history = _validate_baseline_control(current_asset, location)
-    current_control = _object(current_asset["baseline_control"], "baseline_control")
-    current_identity = _object(current_control["identity"], "baseline_control.identity")
-    current_identifiers = _string_array(
-        current_identity["current_identifiers"],
-        "baseline_control.identity.current_identifiers",
-    )
-    current_digest = _frozen_projection_sha256(
-        current_asset,
-        location,
-        current_external_loader,
-    )
-
-    if previous_asset is None or "baseline_control" not in previous_asset:
-        if len(current_history) != 1:
-            raise ContractError(
-                f"{location}: 基準が merge-base に無い初回受理の履歴はちょうど 1 件が必要"
-            )
-        entry = current_history[0]
-        if _string_array(
-            entry["previous_baseline_identifiers"],
-            "history[0].previous_baseline_identifiers",
-        ) != (NO_BASELINE,):
-            raise ContractError(f"{location}: 初回受理の直前識別値は NO_BASELINE が必要")
-        if _string_array(
-            entry["new_baseline_identifiers"],
-            "history[0].new_baseline_identifiers",
-        ) != current_identifiers:
-            raise ContractError(f"{location}: 初回受理の新識別値が現在値と不一致")
-        if _history_snapshot(entry, "before") != (NO_BASELINE, NO_BASELINE):
-            raise ContractError(f"{location}: 初回受理の変更前実状態が不一致")
-        if _history_snapshot(entry, "after") != ("PRESENT", current_digest):
-            raise ContractError(f"{location}: 初回受理の変更後射影が実状態と不一致")
-        return
-
-    previous_history = _validate_baseline_control(previous_asset, location)
-    if (
-        len(current_history) < len(previous_history)
-        or current_history[: len(previous_history)] != previous_history
-    ):
-        raise ContractError(f"{location}: merge-base の既存履歴は変更・削除できない")
-    previous_control = _object(previous_asset["baseline_control"], "baseline_control")
-    previous_identity = _object(previous_control["identity"], "baseline_control.identity")
-    previous_identifiers = _string_array(
-        previous_identity["current_identifiers"],
-        "baseline_control.identity.current_identifiers",
-    )
-    previous_digest = _frozen_projection_sha256(
-        previous_asset,
-        location,
-        previous_external_loader,
-    )
-    added = current_history[len(previous_history) :]
-    moved = previous_digest != current_digest
-    if not moved:
-        if added:
-            raise ContractError(f"{location}: 射影が動いていない受理へ履歴を追加できない")
-        if current_identifiers != previous_identifiers:
-            raise ContractError(f"{location}: 射影不変なのに基準識別値が動いている")
-        return
-    if len(added) != 1:
-        raise ContractError(f"{location}: 射影が動いた受理には履歴をちょうど 1 件追加する")
-    if current_identifiers == previous_identifiers:
-        raise ContractError(f"{location}: 射影が動いた受理には識別値の更新が必要")
-    entry = added[0]
-    if _string_array(
-        entry["previous_baseline_identifiers"],
-        "history[-1].previous_baseline_identifiers",
-    ) != previous_identifiers:
-        raise ContractError(f"{location}: 履歴の直前識別値が実スナップショットと不一致")
-    if _string_array(
-        entry["new_baseline_identifiers"],
-        "history[-1].new_baseline_identifiers",
-    ) != current_identifiers:
-        raise ContractError(f"{location}: 履歴の新識別値が実スナップショットと不一致")
-    if _history_snapshot(entry, "before") != ("PRESENT", previous_digest):
-        raise ContractError(f"{location}: 履歴の変更前射影が実スナップショットと不一致")
-    if _history_snapshot(entry, "after") != ("PRESENT", current_digest):
-        raise ContractError(f"{location}: 履歴の変更後射影が実スナップショットと不一致")
 
 
 def _load_inventory(
@@ -5631,11 +5502,7 @@ def _git_json_asset(
 ) -> dict[str, Any] | None:
     """指定 revision に存在する JSON 資産を読む。存在しなければ None を返す。"""
     object_name = f"{revision}:{path.as_posix()}"
-    matching_path = _run_git(
-        repository_root,
-        ["ls-tree", "--name-only", revision, "--", path.as_posix()],
-    )
-    if not matching_path.strip():
+    if not _git_regular_blob(repository_root, revision, path, required=False):
         return None
     source = _run_git(repository_root, ["show", object_name])
     try:
@@ -5647,41 +5514,281 @@ def _git_json_asset(
     return value
 
 
+def _git_regular_blob(
+    repository_root: Path,
+    revision: str,
+    path: Path,
+    *,
+    required: bool = True,
+) -> bool:
+    """Git tree上のパスが通常blobであることを検査する。"""
+    output = _run_git(
+        repository_root,
+        ["--literal-pathspecs", "ls-tree", revision, "--", path.as_posix()],
+    ).strip()
+    if not output:
+        if required:
+            raise ContractError(f"Git treeに通常ファイルが無い: {revision}:{path}")
+        return False
+    metadata, separator, actual_path = output.partition("\t")
+    fields = metadata.split()
+    if (
+        separator != "\t"
+        or actual_path != path.as_posix()
+        or len(fields) != 3
+        or fields[0] not in {"100644", "100755"}
+        or fields[1] != "blob"
+    ):
+        raise ContractError(f"Git treeの通常blobが必要: {revision}:{path}")
+    return True
+
+
+def _asset_external_files(asset: Mapping[str, object], location: str) -> tuple[str, ...]:
+    """資産宣言から外部凍結対象を取得する。"""
+    control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
+    identity = _object(control.get("identity"), f"{location}.identity")
+    projection = _object(
+        identity.get("frozen_projection"),
+        f"{location}.identity.frozen_projection",
+    )
+    external_files = _string_array(
+        projection.get("external_files"),
+        f"{location}.identity.frozen_projection.external_files",
+    )
+    try:
+        return tuple(
+            frozen_history.validate_repository_relative_path(
+                path,
+                f"{location}.identity.frozen_projection.external_files[]",
+            ).as_posix()
+            for path in external_files
+        )
+    except frozen_history.ContractError as error:
+        raise ContractError(str(error)) from error
+
+
+def _materialize_git_snapshots(
+    repository_root: Path,
+    revision: str,
+    destination: Path,
+) -> None:
+    """比較元 revision の content-addressed snapshot 群を一時領域へ復元する。"""
+    snapshot_directory = "contracts/tenant_boundary/history-snapshots"
+    entries = _run_git(
+        repository_root,
+        ["ls-tree", "-r", revision, "--", snapshot_directory],
+    )
+    destination.mkdir(parents=True, exist_ok=True)
+    for entry in entries.splitlines():
+        metadata, separator, name = entry.partition("\t")
+        fields = metadata.split()
+        if (
+            separator != "\t"
+            or len(fields) != 3
+            or fields[0] not in {"100644", "100755"}
+            or fields[1] != "blob"
+        ):
+            raise ContractError(f"比較元snapshotは通常blobが必要: {name}")
+        relative_name = Path(name).relative_to(snapshot_directory)
+        if len(relative_name.parts) != 1:
+            raise ContractError("history-snapshots は直下の通常ファイルだけを許可する")
+        content = _run_git(repository_root, ["show", f"{revision}:{name}"])
+        (destination / relative_name).write_bytes(content.encode("utf-8"))
+
+
+def _validate_git_tree_directory_regular_blobs(
+    repository_root: Path,
+    revision: str,
+    directory: str,
+) -> None:
+    """Git tree内の指定ディレクトリを通常blobだけに限定する。"""
+    entries = _run_git(
+        repository_root,
+        ["ls-tree", "-r", revision, "--", directory],
+    )
+    for entry in entries.splitlines():
+        metadata, separator, name = entry.partition("\t")
+        fields = metadata.split()
+        if (
+            separator != "\t"
+            or len(fields) != 3
+            or fields[0] not in {"100644", "100755"}
+            or fields[1] != "blob"
+        ):
+            raise ContractError(f"Git treeの通常blobが必要: {revision}:{name}")
+
+
+def _git_tenant_boundary_assets(
+    repository_root: Path,
+    revision: str,
+) -> tuple[Path, ...]:
+    """比較元revisionのtenant_boundary JSON資産を独立列挙する。"""
+    asset_root = Path("contracts/tenant_boundary")
+    entries = _run_git(
+        repository_root,
+        ["ls-tree", "-r", revision, "--", asset_root.as_posix()],
+    )
+    assets: list[Path] = []
+    for entry in entries.splitlines():
+        metadata, separator, raw_name = entry.partition("\t")
+        path = Path(raw_name)
+        if path.parent != asset_root or path.suffix != ".json":
+            continue
+        fields = metadata.split()
+        if (
+            separator != "\t"
+            or len(fields) != 3
+            or fields[0] not in {"100644", "100755"}
+            or fields[1] != "blob"
+        ):
+            raise ContractError(f"比較元の契約資産は通常blobが必要: {path}")
+        assets.append(path)
+    return tuple(sorted(assets))
+
+
+def _head_tenant_boundary_assets(repository_root: Path) -> tuple[Path, ...]:
+    """HEAD作業ツリーのtenant_boundary JSON資産を実ファイルから列挙する。"""
+    try:
+        asset_root = frozen_history.validate_repository_directory(
+            repository_root,
+            "contracts/tenant_boundary",
+            "HEAD.contracts/tenant_boundary",
+        )
+        assets: list[Path] = []
+        for path in asset_root.iterdir():
+            if path.suffix != ".json":
+                continue
+            relative_path = path.relative_to(repository_root)
+            frozen_history.read_repository_file(
+                repository_root,
+                relative_path.as_posix(),
+                f"HEAD.{relative_path.as_posix()}",
+            )
+            _git_regular_blob(
+                repository_root,
+                "HEAD",
+                relative_path,
+                required=False,
+            )
+            assets.append(relative_path)
+        return tuple(sorted(assets))
+    except (OSError, frozen_history.ContractError) as error:
+        raise ContractError(f"HEAD の契約資産集合を列挙できない: {error}") from error
+
+
 def _validate_repository_histories(
     repository_root: Path,
-    merge_base: str,
+    comparison_revision: str,
+    evaluation_context: frozen_history.EvaluationContext,
 ) -> None:
-    """merge-base と現在の射影・識別値・受理履歴を相互照合する。"""
-    for path in FROZEN_BASELINE_ASSETS:
-        previous_asset = _git_json_asset(repository_root, merge_base, path)
+    """比較元と HEAD の 7 資産を単一 authority 履歴として照合する。"""
+    previous_assets: dict[str, object] = {}
+    current_assets: dict[str, object] = {}
+    previous_paths = _git_tenant_boundary_assets(
+        repository_root,
+        comparison_revision,
+    )
+    current_paths = _head_tenant_boundary_assets(repository_root)
+    for path in previous_paths:
+        previous_asset = _git_json_asset(repository_root, comparison_revision, path)
+        if previous_asset is None:
+            raise ContractError(f"比較元の契約資産を取得できない: {path}")
+        previous_assets[path.as_posix()] = previous_asset
+    for path in current_paths:
         current_asset, _ = _read_json(repository_root / path)
+        _validate_baseline_control(current_asset, path.as_posix())
+        current_assets[path.as_posix()] = current_asset
 
-        def previous_external_loader(external_path: str) -> bytes:
-            """merge-base にある外部凍結対象を読む。"""
-            matching = _run_git(
-                repository_root,
-                ["ls-tree", "--name-only", merge_base, "--", external_path],
-            )
-            if not matching.strip():
-                raise ContractError(f"merge-base に存在しない: {external_path}")
-            return _run_git(
-                repository_root,
-                ["show", f"{merge_base}:{external_path}"],
-            ).encode("utf-8")
-
-        def current_external_loader(external_path: str) -> bytes:
-            """作業ツリーにある外部凍結対象を読む。"""
-            return (repository_root / external_path).read_bytes()
-
-        _validate_baseline_transition(
-            previous_asset,
-            current_asset,
-            path.as_posix(),
-            previous_external_loader=previous_external_loader,
-            current_external_loader=current_external_loader,
+    previous_external_paths = {
+        external_path
+        for asset_name, asset in previous_assets.items()
+        for external_path in _asset_external_files(
+            _object(asset, asset_name),
+            asset_name,
         )
-        history = _validate_baseline_control(current_asset, path.as_posix())
+    }
+    current_external_paths = {
+        external_path
+        for asset_name, asset in current_assets.items()
+        for external_path in _asset_external_files(
+            _object(asset, asset_name),
+            asset_name,
+        )
+    }
+    previous_implementations: dict[str, bytes] = {}
+    for path in sorted(previous_external_paths):
+        _git_regular_blob(
+            repository_root,
+            comparison_revision,
+            Path(path),
+        )
+        previous_implementations[path] = _run_git(
+            repository_root,
+            ["show", f"{comparison_revision}:{path}"],
+        ).encode("utf-8")
+    try:
+        current_implementations = frozen_history._read_external_implementations(
+            repository_root,
+            tuple(sorted(current_external_paths)),
+            "HEAD.external_files",
+        )
+        for path in sorted(current_external_paths):
+            _git_regular_blob(
+                repository_root,
+                "HEAD",
+                Path(path),
+                required=False,
+            )
+    except (OSError, frozen_history.ContractError) as error:
+        raise ContractError(f"外部凍結対象を解決できない: {error}") from error
+
+    snapshot_directory = "contracts/tenant_boundary/history-snapshots"
+    try:
+        head_snapshot_root = frozen_history.validate_repository_directory(
+            repository_root,
+            snapshot_directory,
+            "HEAD.history-snapshots",
+        )
+    except frozen_history.ContractError as error:
+        raise ContractError(str(error)) from error
+    _validate_git_tree_directory_regular_blobs(
+        repository_root,
+        "HEAD",
+        snapshot_directory,
+    )
+
+    parent_line = _run_git(
+        repository_root,
+        ["rev-list", "--parents", "-n", "1", "HEAD"],
+    ).split()
+    head_parents = tuple(parent_line[1:])
+    with tempfile.TemporaryDirectory(prefix="tenant-boundary-base-snapshots-") as raw:
+        base_snapshot_root = Path(raw)
+        _materialize_git_snapshots(
+            repository_root,
+            comparison_revision,
+            base_snapshot_root,
+        )
+        try:
+            frozen_history.validate_repository_histories(
+                previous_assets,
+                current_assets,
+                base_implementations=previous_implementations,
+                head_implementations=current_implementations,
+                base_snapshot_root=base_snapshot_root,
+                head_snapshot_root=head_snapshot_root,
+                head_parents=head_parents,
+                evaluation_context=evaluation_context,
+            )
+        except frozen_history.ContractError as error:
+            raise ContractError(str(error)) from error
+
+    for path, raw_asset in current_assets.items():
+        current_asset = _object(raw_asset, path)
+        history = _validate_baseline_control(current_asset, path)
         for entry in history:
+            if "source_commit" not in entry:
+                continue
             source_commit = _string(entry["source_commit"], "history.source_commit")
             if source_commit == PENDING_SOURCE_COMMIT:
                 continue
@@ -5869,18 +5976,73 @@ def _application_population_violations(
     ]
 
 
-def check_repository(repository_root: Path, base_ref: str | None = None) -> list[Violation]:
+def _resolve_repository_evaluation(
+    repository_root: Path,
+    base_ref: str | None,
+    evaluation_context: frozen_history.EvaluationContext | None = None,
+) -> tuple[frozen_history.EvaluationContext, str]:
+    """明示注入または環境強制で評価コンテキストと比較元を確定する。
+
+    Args:
+        repository_root: 検査対象のリポジトリルート。
+        base_ref: 呼び出し元が指定した比較元。
+        evaluation_context: テスト等が明示注入する評価コンテキスト。
+            ``None`` の本番経路は環境変数から強制する。
+
+    Returns:
+        検査対象へ適用する評価コンテキストと比較元 revision。
+
+    Raises:
+        ContractError: PR event または明示比較元が不正な場合。
+    """
+    if evaluation_context is None:
+        try:
+            context = frozen_history.resolve_evaluation_context()
+        except frozen_history.ContractError as error:
+            raise ContractError(str(error)) from error
+    else:
+        context = evaluation_context
+    if context.mode is frozen_history.EvaluationMode.INVARIANT:
+        return context, base_ref or DEFAULT_BASE_REF
+
+    pull_request = context.pull_request
+    if pull_request is None:
+        raise ContractError("PR 受理モードの event 情報が無い")
+    if base_ref is not None:
+        explicit_base_sha = _run_git(
+            repository_root,
+            ["rev-parse", "--verify", f"{base_ref}^{{commit}}"],
+        ).strip()
+        if explicit_base_sha != pull_request.base_sha:
+            raise ContractError(
+                "PR workspace の明示 base_ref が event の base.sha と不一致"
+            )
+    return context, pull_request.base_sha
+
+
+def check_repository(
+    repository_root: Path,
+    base_ref: str | None = None,
+    *,
+    evaluation_context: frozen_history.EvaluationContext | None = None,
+) -> list[Violation]:
     """リポジトリの PR 差分と基底シンボル継続性を検査する。
 
     Args:
         repository_root: リポジトリルート。
         base_ref: PR の比較元。``None`` は検査器の凍結された既定値を使う。
+        evaluation_context: テスト等が明示注入する評価コンテキスト。
+            ``None`` の本番経路は環境変数から強制する。
 
     Returns:
         検出した違反。
     """
     contract = load_contract(repository_root)
-    effective_base_ref = base_ref or DEFAULT_BASE_REF
+    evaluation_context, effective_base_ref = _resolve_repository_evaluation(
+        repository_root,
+        base_ref,
+        evaluation_context,
+    )
     diff_arguments = list(contract.diff_command[1:])
     diff_arguments[2] = f"{effective_base_ref}...HEAD"
     diff = _run_git(repository_root, diff_arguments)
@@ -5890,7 +6052,11 @@ def check_repository(repository_root: Path, base_ref: str | None = None) -> list
         repository_root,
         ["merge-base", effective_base_ref, "HEAD"],
     ).strip()
-    _validate_repository_histories(repository_root, merge_base)
+    _validate_repository_histories(
+        repository_root,
+        effective_base_ref,
+        evaluation_context,
+    )
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
     population = _inspection_population(

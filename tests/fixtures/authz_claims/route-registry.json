@@ -16,7 +16,8 @@
       "legacy_route",
       "shared_data",
       "control_read",
-      "management_operation"
+      "management_operation",
+      "record_and_aggregate"
     ],
     "route_classes": [
       "shared_screen",

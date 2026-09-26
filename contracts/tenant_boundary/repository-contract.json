@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 2,
+  "contract_revision": 4,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:2"
+        "contract_revision:4"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -16,7 +16,11 @@
           "baseline_control",
           "source_digest"
         ],
-        "external_files": []
+        "external_files": [
+          "scripts/check_tenant_boundary_bypass.py",
+          "scripts/frozen_history.py",
+          ".github/workflows/ci.yml"
+        ]
       }
     },
     "movement_policy": {
@@ -36,6 +40,7 @@
       "affected_baselines": "all_baselines_matching_any_declared_trigger",
       "history_append_only": true
     },
+    "history_authority": false,
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
@@ -65,7 +70,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "0d9f2d298754a649742a8dd5be98601a7ba44a7f95126e4b5236f96cc8eb0323",
+  "source_digest": "b18517fa2a9cf38a2494d697ca920fd8bce53118debdd3834c770de5336957cf",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",

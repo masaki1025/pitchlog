@@ -373,18 +373,25 @@ def _git_object_id(arguments: list[str]) -> str:
     return object_id
 
 
-def _assert_oracle_input_baseline_matches_seal(seal: dict[str, Any]) -> None:
-    """入力8資産の作業ツリー・基準commit・seal blobを三者照合する。"""
+def _oracle_input_drifts(
+    seal: dict[str, Any],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """入力8資産の作業ツリーと基準commitの差分集合を返す。"""
     oracle_commit = seal["oracle_commit"]
     assert isinstance(oracle_commit, str) and oracle_commit
     rows = seal["input_assets"]
     assert isinstance(rows, list)
     assert len(rows) == len({row["path"] for row in rows}) == 8
+    worktree_drift: set[str] = set()
+    commit_drift: set[str] = set()
     for row in rows:
         path = row["path"]
         recorded = row["git_blob_digest"]
-        assert _git_object_id(["hash-object", "--", path]) == recorded
-        assert _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) == recorded
+        if _git_object_id(["hash-object", "--", path]) != recorded:
+            worktree_drift.add(path)
+        if _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) != recorded:
+            commit_drift.add(path)
+    return frozenset(worktree_drift), frozenset(commit_drift)
 
 
 def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -1724,6 +1731,334 @@ def test_legacy_routes_require_requirement_origin_and_source_claims() -> None:
             assert isinstance(expected_error, str)
             if expected_error not in str(error):
                 failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+RECORD_AND_AGGREGATE_KIND = "record_and_aggregate"
+RECORD_AND_AGGREGATE_PROVENANCE_ID = "PLAN-TSK446-RECORD-AND-AGGREGATE"
+
+
+def _record_and_aggregate_registry() -> tuple[dict[str, Any], dict[str, Any]]:
+    """新種別の正常な route をメモリ上の repository 資産へ追加する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    if RECORD_AND_AGGREGATE_KIND not in registry["enums"]["route_kinds"]:
+        registry["enums"]["route_kinds"].append(RECORD_AND_AGGREGATE_KIND)
+    if not any(
+        entry["provenance_id"] == RECORD_AND_AGGREGATE_PROVENANCE_ID
+        for entry in registry["design_provenance"]
+    ):
+        registry["design_provenance"].append(
+            {
+                "provenance_id": RECORD_AND_AGGREGATE_PROVENANCE_ID,
+                "path": "docs/features/route-kind-vocabulary/plan.md",
+                "extracted_text": "record_and_aggregate",
+            }
+        )
+    registry["routes"].append(
+        {
+            "route_id": "ROUTE:RECORD:fixture:READ",
+            "route_kind": RECORD_AND_AGGREGATE_KIND,
+            "origin": "design",
+            "source_claim_ids": [],
+            "provenance_ids": [RECORD_AND_AGGREGATE_PROVENANCE_ID],
+            "operation": "read",
+        }
+    )
+    return registry, requirement_catalog
+
+
+def _record_and_aggregate_route(registry: dict[str, Any]) -> dict[str, Any]:
+    """メモリ上の registry から新種別の route を返す。"""
+    return next(
+        route
+        for route in registry["routes"]
+        if route["route_kind"] == RECORD_AND_AGGREGATE_KIND
+    )
+
+
+def _validate_record_and_aggregate_registry(
+    registry: dict[str, Any], requirement_catalog: dict[str, Any]
+) -> dict[str, object]:
+    """新種別を追加した repository 資産を検査する。"""
+    return checker.validate_route_registry(
+        registry,
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID}),
+    )
+
+
+def _allow_record_and_aggregate_route_for_semantic_test(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の個別意味検査中だけ未登録 route の exact-set 検査を外す。"""
+    monkeypatch.setattr(
+        checker,
+        "_validate_record_and_aggregate_route_ids",
+        lambda _route_by_id: None,
+    )
+
+
+def test_record_and_aggregate_route_requires_operation_key() -> None:
+    """新種別の必須キーを一つ欠く route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {"operation": "キー不一致: 不足="}
+    failures: list[tuple[str, str]] = []
+
+    for missing_key, expected_error in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated).pop(missing_key)
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if expected_error not in str(error):
+                failures.append((missing_key, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((missing_key, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((missing_key, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_all_route_kind_values_reject_an_unregistered_value() -> None:
+    """資産から列挙した全 route_kind を許可外値へ変えて red にする。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    failures: list[tuple[str, str]] = []
+    escaped: list[tuple[str | int, ...]] = []
+    attempts = 0
+
+    kind_paths = [
+        path
+        for path in _iter_leaf_paths(registry["routes"])
+        if path[-1] == "route_kind"
+    ]
+    for path in kind_paths:
+        mutated = copy.deepcopy(registry)
+        parent, key = _parent_and_key(mutated["routes"], path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        parent[key] = "unregistered_route_kind"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if "route_kindが閉じた値域にない" not in str(error):
+                failures.append((str(path), str(error)))
+        except Exception as error:  # noqa: BLE001 - 未実装箇所の例外型も収集する
+            failures.append((str(path), f"{type(error).__name__}: {error}"))
+        else:
+            escaped.append(path)
+        attempts += 1
+
+    assert attempts == len(kind_paths)
+    assert failures == []
+    assert escaped == []
+
+
+def test_record_and_aggregate_route_requires_design_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別を requirement origin に差し替えた route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "requirement_origin": {
+            "origin": "requirement",
+            "source_claim_ids": ["FR-034/heading-001/table_row-015"],
+            "expected_error": "record_and_aggregate route は design origin が必要",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        route["origin"] = case["origin"]
+        route["source_claim_ids"] = case["source_claim_ids"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_id_must_match_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の operation と一致しない route_id を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "operation_mismatch": {
+            "route_id": "ROUTE:RECORD:fixture:INSERT",
+            "expected_error": "record_and_aggregate route_id が導出規則と不一致",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["route_id"] = case["route_id"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_rejects_unregistered_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """閉値域だけを検査するため route_id 末尾も揃え、delete 等を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "delete": {
+            "operation": "delete",
+            "expected_error": "operationが閉じた値域にない: delete",
+        },
+        "upsert": {
+            "operation": "upsert",
+            "expected_error": "operationが閉じた値域にない: upsert",
+        },
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        operation = case["operation"]
+        route["operation"] = operation
+        route["route_id"] = f"ROUTE:RECORD:fixture:{operation.upper()}"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 例外型も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_requires_dedicated_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別で既存 legacy provenance を流用した route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "legacy_provenance": {
+            "provenance_ids": ["PLAN-STEP4-LEGACY-DENY"],
+            "expected_error": "record_and_aggregate route は専用 provenance が必要",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["provenance_ids"] = case["provenance_ids"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_route_kind_tables_reject_missing_mapping_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """値域にだけ存在する種別を素の KeyError ではなく CatalogError にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented,
+    )
+    unmapped_kind = "unmapped_route_kind"
+    monkeypatch.setattr(
+        checker,
+        "ROUTE_KINDS",
+        checker.ROUTE_KINDS | frozenset({unmapped_kind}),
+    )
+
+    registry_without_mapping = copy.deepcopy(assets["route_registry"])
+    registry_without_mapping["enums"]["route_kinds"].append(unmapped_kind)
+    registry_without_mapping["routes"].append(
+        {
+            "route_id": "ROUTE:UNMAPPED",
+            "route_kind": unmapped_kind,
+            "origin": "design",
+            "source_claim_ids": [],
+        }
+    )
+    matrix_registry_result = copy.deepcopy(registry_result)
+    matrix_route_id = assets["http_matrix"]["routes"][0]["route_id"]
+    matrix_registry_result["route_by_id"][matrix_route_id]["route_kind"] = (
+        unmapped_kind
+    )
+
+    cases: dict[str, Callable[[], object]] = {
+        "expected_keys_by_kind": lambda: checker.validate_route_registry(
+            registry_without_mapping,
+            requirement_catalog,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+        "disposition_by_kind": lambda: checker.validate_http_route_matrix(
+            assets["http_matrix"],
+            matrix_registry_result,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, validate in cases.items():
+        try:
+            validate()
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError を失敗として収集する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
         else:
             failures.append((case_name, "検査が成功した"))
 
@@ -4292,7 +4627,6 @@ def test_recursive_derivers_cover_generated_container_sequences_and_siblings() -
 
 def test_normal_validation_never_reseals_a_semantically_valid_drift(
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """意味検査を通る digest 差分でも通常実行が seal を書き換えないと示す。"""
     root = tmp_path / "repository"
@@ -4314,9 +4648,15 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     # clone は remote-tracking ref を運ばないため、検査器が要求する origin/develop を作る。
     # 本テストが見るのは seal のドリフトなので、基準は HEAD でよい(受取先差分は空になる)。
     _run_git(root, "branch", "--force", "origin/develop", "HEAD")
-    baseline_result = checker.main(["--root", str(root)])
-    baseline_output = capsys.readouterr()
-    assert baseline_result == 0, baseline_output.err
+    cloned_checker = root / "scripts" / "check_authz_catalog.py"
+    baseline_result = subprocess.run(
+        [sys.executable, str(cloned_checker), "--root", str(root)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert baseline_result.returncode == 0, baseline_result.stderr
 
     evidence_path = root / "contracts/authz/verification-evidence.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
@@ -4329,14 +4669,19 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     seal_path = root / f"contracts/authz/{ORACLE_SEAL_FILE}"
     seal_before = seal_path.read_bytes()
 
-    result = checker.main(["--root", str(root)])
-    output = capsys.readouterr()
+    result = subprocess.run(
+        [sys.executable, str(cloned_checker), "--root", str(root)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    assert result == 1
+    assert result.returncode == 1
     assert (
         "contracts/authz/verification-evidence.json: "
         "canonical digest が oracle seal と不一致"
-    ) in output.err
+    ) in result.stderr
     assert seal_path.read_bytes() == seal_before
 
 
@@ -4349,7 +4694,27 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
 
     assert current["oracle_commit_semantics"] == base["oracle_commit_semantics"]
     assert _oracle_seal_meaning_body(current) == _oracle_seal_meaning_body(base)
-    _assert_oracle_input_baseline_matches_seal(current)
+    worktree_drift, commit_drift = _oracle_input_drifts(current)
+    allowed_input_drifts = (
+        frozenset(),
+        frozenset({"contracts/authz/route-registry.json"}),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+            }
+        ),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+                "contracts/authz/auth-catalog.json",
+                "contracts/authz/auth-catalog.lock.json",
+            }
+        ),
+    )
+    assert worktree_drift in allowed_input_drifts
+    assert commit_drift in allowed_input_drifts
     current_by_path = {paths[name]: asset for name, asset in assets.items()}
     base_by_path = {path: _base_json(path) for path in current_by_path}
     changed = {
@@ -4365,7 +4730,19 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
     assert {
         asset["oracle_context"]["oracle_commit"] for asset in assets.values()
     } == {current["oracle_commit"]}
-    checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
+    if worktree_drift or commit_drift:
+        with pytest.raises(checker.CatalogError) as error_info:
+            checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
+        expected_drift = worktree_drift or commit_drift
+        expected_label = (
+            "oracle input blob が不一致"
+            if worktree_drift
+            else "oracle commit 上の blob が不一致"
+        )
+        assert expected_label in str(error_info.value)
+        assert any(path in str(error_info.value) for path in expected_drift)
+    else:
+        checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 
 def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:

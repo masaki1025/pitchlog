@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 4,
+  "contract_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:4"
+        "contract_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -16,7 +16,11 @@
           "baseline_control",
           "source_digest"
         ],
-        "external_files": []
+        "external_files": [
+          "scripts/check_tenant_boundary_bypass.py",
+          "scripts/frozen_history.py",
+          ".github/workflows/ci.yml"
+        ]
       }
     },
     "movement_policy": {
@@ -36,6 +40,7 @@
       "affected_baselines": "all_baselines_matching_any_declared_trigger",
       "history_append_only": true
     },
+    "history_authority": false,
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
@@ -65,7 +70,7 @@
   },
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "109aec96711feb414bf851525736ba7e44d4275222c6364aab08ff1e754bf6ea",
+  "source_digest": "b5f9c914fc60016deb5a0872820cca4e24cb2c13eb3958e82ffc10e91b20c84b",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
   "forbidden_construction_symbols": [
     "builtins.object.__new__",
