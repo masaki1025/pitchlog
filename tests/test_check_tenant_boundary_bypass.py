@@ -942,9 +942,22 @@ def test_cross_asset_duplicate_identifier_passes_production_check(
     assert checker.check_repository(repository) == []
     cache_path = repository / checker.DEFAULT_CACHE_INVALIDATION_CONTRACT
     cache = json.loads(cache_path.read_text(encoding="utf-8"))
-    cache["contract_revision"] = 3
+    repository_contract_path = next(
+        path
+        for path in checker.FROZEN_BASELINE_ASSETS
+        if path.name == "repository-contract.json"
+    )
+    repository_contract = json.loads(
+        (repository / repository_contract_path).read_text(encoding="utf-8")
+    )
+    duplicate_identifier = repository_contract["baseline_control"]["identity"][
+        "current_identifiers"
+    ][0]
+    identifier_field, identifier_value = duplicate_identifier.split(":", 1)
+    assert identifier_field == "contract_revision"
+    cache["contract_revision"] = int(identifier_value)
     cache["baseline_control"]["identity"]["current_identifiers"] = [
-        "contract_revision:3"
+        duplicate_identifier
     ]
     cache["source_digest"] = _contract_digest(cache)
     cache_path.write_text(
@@ -1179,7 +1192,7 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
     """同じ外部実体変異の記録要求が比較元triggerの有無で変わる。"""
     repository, original_base = _initialize_test_repository(tmp_path, {})
     external_file = "scripts/synthetic-pass-fail.py"
-    _add_synthetic_frozen_asset(
+    synthetic_asset_path = _add_synthetic_frozen_asset(
         repository,
         external_file=external_file,
         additional_trigger=additional_trigger,
@@ -1203,12 +1216,27 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         tmp_path / f"additional-trigger-{additional_trigger}.json",
         number=80,
     )
-
     if expects_record:
         with pytest.raises(checker.ContractError, match="movement.*record"):
             checker.check_repository(repository)
-    else:
-        assert checker.check_repository(repository) == []
+        synthetic_asset = json.loads(synthetic_asset_path.read_text(encoding="utf-8"))
+        _bump_asset_revision(synthetic_asset)
+        _write_contract_asset(synthetic_asset_path, synthetic_asset)
+        _append_current_repository_transition_record(
+            repository,
+            comparison_base,
+            acceptance_id="masaki1025/pitchlog#80",
+        )
+        _seal_pull_request_worktree(
+            repository,
+            comparison_base,
+            monkeypatch,
+            tmp_path / "additional-trigger-recorded.json",
+            number=80,
+        )
+
+    assert checker.check_repository(repository) == []
+    assert _check_test_repository(repository, comparison_base) == []
 
 
 @pytest.mark.parametrize(
@@ -1259,7 +1287,7 @@ def test_real_record_descriptions_pass_production_check(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """現在の受理記録にある日本語の事実・理由を誤検出しない。"""
+    """現在の受理記録にある自然文3欄を誤検出しない。"""
     repository, base_ref = _initialize_pull_request_repository(
         tmp_path,
         monkeypatch,
@@ -1280,6 +1308,7 @@ def test_real_record_descriptions_pass_production_check(
     current_record = authority["baseline_control"]["history"][-2]
     record["movement_fact"] = current_record["movement_fact"]
     record["reason"] = current_record["reason"]
+    record["change"]["subject"] = current_record["change"]["subject"]
     _write_contract_asset(asset_path, authority)
     _seal_pull_request_worktree(
         repository,

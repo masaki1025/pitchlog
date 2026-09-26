@@ -722,28 +722,36 @@ def test_reordered_external_snapshots_are_rejected_after_valid_baseline(tmp_path
 
 
 @pytest.mark.parametrize(
-    ("field", "marker"),
+    ("field_path", "marker"),
     [
         pytest.param(
-            "approved_by",
+            ("approved_by",),
             "未承認(PR #78 のレビュー待ち)",
             id="copied-unapproved-marker",
         ),
-        pytest.param("approved_by", "TODO: 後で", id="todo-with-description"),
-        pytest.param("approved_by", "pending review", id="lowercase-pending"),
-        pytest.param("approved_on", "承認日 TBD", id="tbd-approval-date"),
-        pytest.param("movement_fact", "PENDING", id="pending-movement-fact"),
-        pytest.param("reason", "TODO: 後で", id="todo-reason"),
+        pytest.param(("approved_by",), "TODO: 後で", id="todo-with-description"),
+        pytest.param(("approved_by",), "pending review", id="lowercase-pending"),
+        pytest.param(("approved_on",), "承認日 TBD", id="tbd-approval-date"),
+        pytest.param(
+            ("movement_fact",),
+            "PENDING_ACCEPTANCE",
+            id="pending-acceptance",
+        ),
+        pytest.param(("reason",), "TODO: 後で", id="todo-reason"),
+        pytest.param(("change", "subject"), "TBD", id="subject"),
     ],
 )
 def test_reserved_v2_marker_is_rejected_after_valid_baseline(
-    field: str,
+    field_path: tuple[str, ...],
     marker: str,
     tmp_path: Path,
 ) -> None:
     record, transition = _v2_case(tmp_path)
     assert _parse_v2(record, transition)
-    record[field] = marker
+    target = record
+    for field in field_path[:-1]:
+        target = target[field]
+    target[field_path[-1]] = marker
 
     with pytest.raises(parser.ContractError, match="予約 marker"):
         _parse_v2(record, transition)
@@ -756,8 +764,9 @@ def test_real_v2_descriptions_approver_and_date_are_not_reserved_markers(
     assert _parse_v2(record, transition)
     record["approved_by"] = "山田正輝"
     record["approved_on"] = "2026-09-24"
-    record["movement_fact"] = "外部実装の内容が受理前から変更された。"
-    record["reason"] = "テナント境界の新しい判定規則を反映するため。"
+    record["movement_fact"] = "未定義動作を拒否するため。"
+    record["reason"] = "suspending a stale check"
+    record["change"]["subject"] = "通常の日本語説明"
 
     assert _parse_v2(record, transition)
 

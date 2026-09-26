@@ -441,6 +441,13 @@ symbol: `sqlalchemy.text` 64 / `psycopg.Cursor.execute` 35 / `psycopg.Connection
 | **P1** | **不変量モードが設計の範囲を超えて検査している**。`_validate_latest_v2_state` が最新 v2 の `after` と現在の完全状態を無条件比較するため、**PR 受理モードで正当に合格した遷移が、マージ後の develop への `push` で不合格になりうる**。`design.md` 4 節は不変量モードを「資産の構造・履歴の内部整合・prefix の deep-equal」に限定している。**現時点では発火しない**(7 資産すべてが全 token を宣言しているため)が、**このリポジトリは過去に同型でdevelop と全子ブランチを止めている** |
 | **P2** | **予約語の部分一致が自然文を過剰検出する**。走査対象を `movement_fact` / `reason` / `change.subject` へ広げたため、**`未定義` が `未定` に、`suspending` が `PENDING` に当たる**(実測)。**以前「fail-closed 側だから許容」と判断したが、対象が自然文へ広がった時点でその判断は成立しなくなった** |
 
+### 4 周目の最終是正(2026-09-26)
+
+- **P1 は選択肢 (a) を採用した。** `design.md` 4 節の記述どおり、不変量モードは資産構造・履歴自身の内部整合・prefix の deep-equal だけを検査する。最新 v2 の `after` と現在の完全状態を照合する `_validate_latest_v2_state` は削除した。PR 受理モードの実遷移・記録・識別値・`acceptance_id` の検査は変更していない。
+- **P2 は完全一致・Unicode の語境界を伴う一致・既知の暫定値形式だけを拒否する形へ限定した。** `_` は `PENDING_ACCEPTANCE` の区切りとして扱い、Unicode の隣接英数字は語の一部として扱うため、`未定義` と `suspending` は拒否しない。
+- 下限外 trigger を宣言する場合・しない場合の双方で、PR 受理モードを通った同一状態が不変量モードでも green になる本番入口テストを追加した。宣言ありでは記録と識別値更新を引き続き必須とし、PR 受理モードを弱めていない。
+- 新しい履歴は足さず、既存 v2 記録 1 件を更新した。`approved_by: 山田正輝` / `approved_on: 2026-09-24` / `acceptance_id: masaki1025/pitchlog#78` は維持し、既存 v1 記録の生 JSON と既存 snapshot は変更していない。
+
 ## Codex のサービス障害による停止(2026-09-26 07:52〜)
 
 **4 周目の是正を投げた直後から、`codex_run.py` の全呼び出しが 401 で失敗した。**
