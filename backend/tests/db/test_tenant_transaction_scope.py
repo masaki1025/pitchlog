@@ -609,3 +609,67 @@ def test_scope_closes_session_after_success_and_exception(
 
     assert len(created_sessions) == 2
     assert [session.close_calls for session in created_sessions] == [1, 1]
+
+
+def test_scope_factory_creates_distinct_sessions_for_each_context(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scope ごとに新しい Session を生成し、異なる文脈間で共有しない。"""
+    transaction = _transaction_module()
+    created_sessions: list[_FactoryObservedSession] = []
+    lifecycle: list[tuple[str, Session]] = []
+
+    class _FactoryObservedSession(Session):
+        """生成順と close 順を強参照つきで観測する Session。"""
+
+        close_calls: int
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            self.close_calls = 0
+            created_sessions.append(self)
+            lifecycle.append(("created", self))
+
+        def close(self) -> None:
+            """Close 呼び出しを記録して通常の解放処理へ委譲する。"""
+            self.close_calls += 1
+            lifecycle.append(("closed", self))
+            super().close()
+
+    first_context = make_tenant_context(_TENANT_ID)
+    second_context = make_tenant_context(UUID("00000000-0000-0000-0000-000000000445"))
+
+    with _transaction_database(disposable_postgres_cluster) as database:
+        _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _FactoryObservedSession)
+
+        with transaction.tenant_transaction_scope(first_context):
+            assert len(created_sessions) == 1
+            first_session = created_sessions[0]
+            assert first_session.close_calls == 0
+
+        assert first_session.close_calls == 1
+        assert lifecycle == [
+            ("created", first_session),
+            ("closed", first_session),
+        ]
+
+        with transaction.tenant_transaction_scope(second_context):
+            assert len(created_sessions) == 2
+            second_session = created_sessions[1]
+            assert second_session is not first_session
+            assert first_session.close_calls == 1
+            assert second_session.close_calls == 0
+
+        assert second_session.close_calls == 1
+
+    assert lifecycle == [
+        ("created", first_session),
+        ("closed", first_session),
+        ("created", second_session),
+        ("closed", second_session),
+    ]
