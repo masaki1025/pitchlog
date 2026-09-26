@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
 branch: feature/harness-model-refresh
 created: 2026-09-26
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 10         # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 11         # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -60,7 +60,7 @@ created: 2026-09-26
 
 ### 阻止条件 0(コミットなし — ステップ 1 の前に人間 + Claude で確認)
 
-1. 人間が Codex CLI を **0.157.x 以上**へ更新する(GPT-6 Sol/Luna の `minimal_client_version` = 0.155.0・カタログ追加は 0.157.0 — research.md B-3)
+1. 人間が Codex CLI を **0.157.x 以上**へ更新する(GPT-6 Sol/Luna の `minimal_client_version` = 0.155.0。カタログ追加は公式変更履歴で 0.156.1 hotfix・GitHub リリースノートで 0.157.0 — research.md B-3。運用下限は本機確認済みの 0.157.0)
 2. Claude が `~/.codex/models_cache.json`(更新後に再取得されたもの)で、**PO が選択した案の導出表(下記)に含まれる全 `(model, effort)`** について slug の存在と `supported_reasoning_levels` への effort の包含を確認し、版・fetched_at とともに worklog へ記録する
 3. **1 組でも確認できなければ対応表を書き換えず停止**し(ステップ 1 にも進まない)、PO へ報告する(ロールアウト条件・ワークスペース条件で提供されない可能性があるため)
 
