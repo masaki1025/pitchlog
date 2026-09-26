@@ -220,6 +220,7 @@ def _raw_catalog_rows(
             (owner_oid, "pitchlog_owner"),
             (privileged_role_oid, "external_superuser"),
         ],
+        CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS: [],
     }
 
 
@@ -436,7 +437,7 @@ def test_unknown_or_string_query_id_is_red_without_a_db_call(
 def test_public_inspection_is_green_for_asset_exact_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """全 13 問い合わせが資産期待値と一致すると公開検査が green になる。"""
+    """定常状態の全問い合わせが資産期待値と一致すると green になる。"""
     privileged_role_oid = 900
     rows_by_query = _raw_catalog_rows(privileged_role_oid)
     calls = _install_catalog_rows(monkeypatch, rows_by_query)
@@ -448,8 +449,23 @@ def test_public_inspection_is_green_for_asset_exact_rows(
 
     assert report.ok
     assert report.violations == ()
-    assert calls == list(CatalogQueryId)
-    assert len(report.checked_ids) == 14
+    assert calls == [
+        CatalogQueryId.ROLES,
+        CatalogQueryId.DATABASE,
+        CatalogQueryId.DATABASE_ACL,
+        CatalogQueryId.SCHEMAS,
+        CatalogQueryId.SCHEMA_ACL,
+        CatalogQueryId.TABLES,
+        CatalogQueryId.POLICIES,
+        CatalogQueryId.TABLE_ACL,
+        CatalogQueryId.COLUMN_ACL,
+        CatalogQueryId.FUNCTIONS,
+        CatalogQueryId.FUNCTION_ACL,
+        CatalogQueryId.MEMBERSHIPS,
+        CatalogQueryId.DANGEROUS_LOGIN_ROLES,
+        CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
+    ]
+    assert len(report.checked_ids) == 15
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -529,6 +545,13 @@ def test_unqualified_public_relation_in_policy_is_red(
             ),
             "PRODUCT-CATALOG:DANGEROUS-LOGIN-ROLES",
             id="unlisted-superuser",
+        ),
+        pytest.param(
+            lambda rows: rows[CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS].append(
+                (903, "leftover_migration_role")
+            ),
+            "PRODUCT-CATALOG:UNAUTHORIZED-LOGIN-BYPASSRLS",
+            id="leftover-login-bypassrls",
         ),
     ],
 )

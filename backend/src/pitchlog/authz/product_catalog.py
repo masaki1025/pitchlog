@@ -18,6 +18,10 @@ from pitchlog.authz.asset_spec import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
+_MIGRATION_BATCH_ROLE_PATH = (
+    _REPOSITORY_ROOT / "contracts/authz/product/migration-batch-role.json"
+)
+_SCHEMA_MANIFEST_PATH = _REPOSITORY_ROOT / "contracts/db/schema-manifest.json"
 _SQL_TOKEN_RE = re.compile(
     r"'(?:''|[^'])*'|\$[a-zA-Z_0-9]*\$|::|<=|>=|<>|!=|:=|=>|"
     r"[a-zA-Z_][a-zA-Z_0-9$]*|\d+(?:\.\d+)?|[-+*/%=<>,.\[\]()]"
@@ -281,6 +285,109 @@ WHERE role.rolcanlogin
 ORDER BY role.oid
 """
 
+_UNAUTHORIZED_LOGIN_BYPASSRLS_QUERY: LiteralString = """
+SELECT role.oid, role.rolname
+FROM pg_catalog.pg_roles AS role
+WHERE role.rolcanlogin
+  AND role.rolbypassrls
+  AND NOT (role.oid = ANY(%s::pg_catalog.oid[]))
+  AND NOT (role.rolname = ANY(%s))
+ORDER BY role.oid
+"""
+
+_MIGRATION_BATCH_ROLE_QUERY: LiteralString = """
+SELECT role.rolsuper, role.rolbypassrls, role.rolcanlogin,
+       role.rolcreaterole, role.rolcreatedb, role.rolreplication,
+       role.rolinherit
+FROM pg_catalog.pg_roles AS role
+WHERE role.oid = %s::pg_catalog.oid
+"""
+
+_MIGRATION_BATCH_MEMBERSHIPS_QUERY: LiteralString = """
+SELECT membership.roleid, membership.member, membership.grantor,
+       membership.admin_option, membership.inherit_option,
+       membership.set_option
+FROM pg_catalog.pg_auth_members AS membership
+WHERE membership.roleid = %s::pg_catalog.oid
+   OR membership.member = %s::pg_catalog.oid
+ORDER BY membership.roleid, membership.member, membership.grantor
+"""
+
+_MIGRATION_BATCH_OWNERSHIP_QUERY: LiteralString = """
+SELECT 'database', '', database.datname, ''
+FROM pg_catalog.pg_database AS database
+WHERE database.datdba = %s::pg_catalog.oid
+UNION ALL
+SELECT 'schema', namespace.nspname, '', ''
+FROM pg_catalog.pg_namespace AS namespace
+WHERE namespace.nspowner = %s::pg_catalog.oid
+UNION ALL
+SELECT 'relation', namespace.nspname, relation.relname, relation.relkind::text
+FROM pg_catalog.pg_class AS relation
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE relation.relowner = %s::pg_catalog.oid
+UNION ALL
+SELECT 'function', namespace.nspname, routine.proname,
+       pg_catalog.oidvectortypes(routine.proargtypes)
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+WHERE routine.proowner = %s::pg_catalog.oid
+ORDER BY 1, 2, 3, 4
+"""
+
+_MIGRATION_BATCH_TABLE_ACL_QUERY: LiteralString = """
+SELECT namespace.nspname, relation.relname, '' AS column_name,
+       privilege.privilege_type, privilege.is_grantable
+FROM pg_catalog.pg_class AS relation
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(relation.relacl) AS privilege
+WHERE relation.relkind IN ('r', 'p')
+  AND privilege.grantee = %s::pg_catalog.oid
+UNION ALL
+SELECT namespace.nspname, relation.relname, attribute.attname,
+       privilege.privilege_type, privilege.is_grantable
+FROM pg_catalog.pg_attribute AS attribute
+JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
+WHERE relation.relkind IN ('r', 'p')
+  AND attribute.attnum > 0
+  AND NOT attribute.attisdropped
+  AND privilege.grantee = %s::pg_catalog.oid
+ORDER BY 1, 2, 3, 4, 5
+"""
+
+_MIGRATION_BATCH_SCHEMA_ACL_QUERY: LiteralString = """
+SELECT namespace.nspname, privilege.privilege_type, privilege.is_grantable
+FROM pg_catalog.pg_namespace AS namespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(namespace.nspacl) AS privilege
+WHERE privilege.grantee = %s::pg_catalog.oid
+ORDER BY 1, 2, 3
+"""
+
+_MIGRATION_BATCH_DATABASE_ACL_QUERY: LiteralString = """
+SELECT privilege.privilege_type, privilege.is_grantable
+FROM pg_catalog.pg_database AS database
+CROSS JOIN LATERAL pg_catalog.aclexplode(database.datacl) AS privilege
+WHERE database.datname = pg_catalog.current_database()
+  AND privilege.grantee = %s::pg_catalog.oid
+ORDER BY 1, 2
+"""
+
+_MIGRATION_BATCH_FUNCTION_EXECUTE_QUERY: LiteralString = """
+SELECT namespace.nspname, routine.proname,
+       pg_catalog.oidvectortypes(routine.proargtypes)
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+WHERE namespace.nspname = ANY(%s)
+  AND pg_catalog.has_function_privilege(
+      %s::pg_catalog.oid,
+      routine.oid,
+      'EXECUTE'
+  )
+ORDER BY 1, 2, 3
+"""
+
 
 class ProductCatalogError(RuntimeError):
     """製品カタログの入力または観測を安全に検査できないことを表す。"""
@@ -302,6 +409,14 @@ class CatalogQueryId(Enum):
     FUNCTION_ACL = "function_acl"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
+    UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
+    MIGRATION_BATCH_ROLE = "migration_batch_role"
+    MIGRATION_BATCH_MEMBERSHIPS = "migration_batch_memberships"
+    MIGRATION_BATCH_OWNERSHIP = "migration_batch_ownership"
+    MIGRATION_BATCH_TABLE_ACL = "migration_batch_table_acl"
+    MIGRATION_BATCH_SCHEMA_ACL = "migration_batch_schema_acl"
+    MIGRATION_BATCH_DATABASE_ACL = "migration_batch_database_acl"
+    MIGRATION_BATCH_FUNCTION_EXECUTE = "migration_batch_function_execute"
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,6 +455,7 @@ class _ProductExpectations:
 
     application_steps: ProductApplicationSteps
     role_ids: tuple[str, ...]
+    permanent_privileged_role_ids: tuple[str, ...]
     roles: tuple[tuple[object, ...], ...]
     database_owner: str
     database_acl: tuple[tuple[object, ...], ...]
@@ -355,6 +471,17 @@ class _ProductExpectations:
     functions: tuple[tuple[object, ...], ...]
     function_acl: tuple[tuple[object, ...], ...]
     trigger_function_keys: tuple[tuple[str, str, str], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _MigrationBatchExpectations:
+    """移行バッチ用ロール資産と manifest 由来の exact-set 期待値。"""
+
+    write_targets: tuple[str, ...]
+    permissions: tuple[tuple[str, str, str, str, bool], ...]
+    attributes: tuple[bool, bool, bool, bool, bool, bool, bool]
+    database_acl: tuple[tuple[str, bool], ...]
+    schema_acl: tuple[tuple[str, str, bool], ...]
 
 
 class _ReportBuilder:
@@ -527,6 +654,227 @@ def _load_product_asset() -> dict[str, object]:
     return value
 
 
+def _load_json_object(path: Path, label: str) -> dict[str, object]:
+    """固定パスの JSON object を fail-closed に読む。"""
+    try:
+        with open(path, encoding="utf-8") as asset_file:
+            value = json.load(asset_file)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ProductCatalogError(f"{label}を読めない: {error}") from error
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        raise ProductCatalogError(f"{label}は JSON object が必要")
+    return value
+
+
+def _manifest_migration_permissions(
+    manifest: dict[str, object],
+) -> tuple[tuple[str, ...], tuple[tuple[str, str, str, str, bool], ...]]:
+    """Manifest の事実から移行対象 19 表と必要権限を導出する。"""
+    raw_tables = manifest["tables"] if "tables" in manifest else None
+    if not isinstance(raw_tables, list) or not all(
+        isinstance(table, dict) for table in raw_tables
+    ):
+        raise ProductCatalogError("schema-manifest.tables は object 配列が必要")
+
+    write_targets: list[str] = []
+    permissions: list[tuple[str, str, str, str, bool]] = []
+    for raw_table in raw_tables:
+        if not isinstance(raw_table, dict):
+            continue
+        table_name = _text(raw_table, "name", "schema-manifest.tables")
+        raw_columns = raw_table["columns"] if "columns" in raw_table else None
+        if not isinstance(raw_columns, list) or not all(
+            isinstance(column, dict) for column in raw_columns
+        ):
+            raise ProductCatalogError(f"{table_name}.columns は object 配列が必要")
+        column_names = tuple(
+            _text(column, "name", f"{table_name}.columns")
+            for column in raw_columns
+            if isinstance(column, dict)
+        )
+        if "import_batch_id" not in column_names and table_name != "migration_runs":
+            continue
+
+        write_targets.append(table_name)
+        permissions.append(("public", table_name, "", "INSERT", False))
+        permissions.append(("public", table_name, "", "SELECT", False))
+        update_columns: tuple[str, ...] = ()
+        if table_name == "migration_runs":
+            immutability = (
+                raw_table["immutability"] if "immutability" in raw_table else None
+            )
+            if not isinstance(immutability, dict):
+                raise ProductCatalogError("migration_runs.immutability が不正")
+            raw_updates = (
+                immutability["allowed_update_columns"]
+                if "allowed_update_columns" in immutability
+                else None
+            )
+            if not isinstance(raw_updates, list) or not all(
+                isinstance(column, str) and column for column in raw_updates
+            ):
+                raise ProductCatalogError(
+                    "migration_runs の allowed_update_columns が不正"
+                )
+            update_columns = tuple(raw_updates)
+        elif "retired_at" in column_names:
+            update_columns = ("retired_at",)
+        for column_name in update_columns:
+            if column_name not in column_names:
+                raise ProductCatalogError(
+                    f"UPDATE 対象列が manifest に無い: {table_name}.{column_name}"
+                )
+            permissions.append(("public", table_name, column_name, "UPDATE", False))
+
+    if len(write_targets) != 19 or len(write_targets) != len(set(write_targets)):
+        raise ProductCatalogError(
+            f"manifest 由来の移行対象が 19 表でない: {len(write_targets)}"
+        )
+    return tuple(write_targets), tuple(sorted(permissions))
+
+
+def _migration_batch_expectations_from_documents(
+    asset: dict[str, object],
+    manifest: dict[str, object],
+) -> _MigrationBatchExpectations:
+    """移行ロール資産を manifest 由来の集合と exact-set 検証する。"""
+    expected_targets, expected_permissions = _manifest_migration_permissions(manifest)
+    if asset.get("schema_version") != 1:
+        raise ProductCatalogError("migration-batch-role.schema_version が不正")
+    if asset.get("asset_kind") != "product_migration_batch_role":
+        raise ProductCatalogError("migration-batch-role.asset_kind が不正")
+    if asset.get("scope") != "product":
+        raise ProductCatalogError("migration-batch-role.scope が不正")
+
+    write_targets = _strings(asset, "write_targets", "migration-batch-role")
+    if set(write_targets) != set(expected_targets):
+        raise ProductCatalogError("write_targets が manifest 由来の 19 表と一致しない")
+
+    raw_permissions = asset["permissions"] if "permissions" in asset else None
+    if not isinstance(raw_permissions, list) or not all(
+        isinstance(permission, dict) for permission in raw_permissions
+    ):
+        raise ProductCatalogError(
+            "migration-batch-role.permissions は object 配列が必要"
+        )
+    permissions: list[tuple[str, str, str, str, bool]] = []
+    for permission in raw_permissions:
+        if not isinstance(permission, dict):
+            continue
+        table_name = _text(permission, "table_id", "permissions")
+        raw_column = permission["column_id"] if "column_id" in permission else None
+        if raw_column is not None and (
+            not isinstance(raw_column, str) or not raw_column
+        ):
+            raise ProductCatalogError("permissions.column_id が不正")
+        privilege = _text(permission, "privilege", "permissions").upper()
+        grantable = _boolean(permission, "grantable", "permissions")
+        permissions.append(
+            (
+                "public",
+                table_name,
+                "" if raw_column is None else raw_column,
+                privilege,
+                grantable,
+            )
+        )
+    normalized_permissions = tuple(sorted(permissions))
+    if len(normalized_permissions) != len(set(normalized_permissions)):
+        raise ProductCatalogError("migration-batch-role.permissions が重複している")
+    if normalized_permissions != expected_permissions:
+        raise ProductCatalogError("permissions が manifest 由来の必要権限と一致しない")
+
+    raw_shape = asset["active_role_shape"] if "active_role_shape" in asset else None
+    if not isinstance(raw_shape, dict):
+        raise ProductCatalogError("active_role_shape は object が必要")
+    attributes = raw_shape["attributes"] if "attributes" in raw_shape else None
+    if not isinstance(attributes, dict):
+        raise ProductCatalogError("active_role_shape.attributes は object が必要")
+    attribute_names = {
+        "superuser",
+        "bypass_rls",
+        "login",
+        "create_role",
+        "create_db",
+        "replication",
+        "inherit",
+    }
+    if set(attributes) != attribute_names:
+        raise ProductCatalogError("移行ロールの 7 属性が exact-set でない")
+    role_attributes = (
+        _boolean(attributes, "superuser", "attributes"),
+        _boolean(attributes, "bypass_rls", "attributes"),
+        _boolean(attributes, "login", "attributes"),
+        _boolean(attributes, "create_role", "attributes"),
+        _boolean(attributes, "create_db", "attributes"),
+        _boolean(attributes, "replication", "attributes"),
+        _boolean(attributes, "inherit", "attributes"),
+    )
+    if role_attributes != (False, True, True, False, False, False, False):
+        raise ProductCatalogError("移行ロールの 7 属性が設計値と一致しない")
+    if raw_shape.get("membership_edges") != []:
+        raise ProductCatalogError("移行ロールに接する membership 辺は 0 本が必要")
+    if raw_shape.get("ownership") != []:
+        raise ProductCatalogError("移行ロールの所有対象は 0 件が必要")
+    if raw_shape.get("function_execute") != []:
+        raise ProductCatalogError("移行ロールの関数 EXECUTE は 0 件が必要")
+
+    raw_database_acl = (
+        raw_shape["database_acl"] if "database_acl" in raw_shape else None
+    )
+    if not isinstance(raw_database_acl, list) or not all(
+        isinstance(entry, dict) for entry in raw_database_acl
+    ):
+        raise ProductCatalogError("active_role_shape.database_acl が不正")
+    database_acl = tuple(
+        sorted(
+            (
+                _text(entry, "privilege", "database_acl").upper(),
+                _boolean(entry, "grantable", "database_acl"),
+            )
+            for entry in raw_database_acl
+            if isinstance(entry, dict)
+        )
+    )
+    if database_acl != (("CONNECT", False),):
+        raise ProductCatalogError("移行ロールの DB ACL は CONNECT だけが必要")
+
+    raw_schema_acl = raw_shape["schema_acl"] if "schema_acl" in raw_shape else None
+    if not isinstance(raw_schema_acl, list) or not all(
+        isinstance(entry, dict) for entry in raw_schema_acl
+    ):
+        raise ProductCatalogError("active_role_shape.schema_acl が不正")
+    schema_acl = tuple(
+        sorted(
+            (
+                _text(entry, "schema_name", "schema_acl"),
+                _text(entry, "privilege", "schema_acl").upper(),
+                _boolean(entry, "grantable", "schema_acl"),
+            )
+            for entry in raw_schema_acl
+            if isinstance(entry, dict)
+        )
+    )
+    if schema_acl != (("public", "USAGE", False),):
+        raise ProductCatalogError("移行ロールの schema ACL は public USAGE だけが必要")
+
+    return _MigrationBatchExpectations(
+        write_targets=tuple(sorted(write_targets)),
+        permissions=expected_permissions,
+        attributes=role_attributes,
+        database_acl=database_acl,
+        schema_acl=schema_acl,
+    )
+
+
+def _load_migration_batch_expectations() -> _MigrationBatchExpectations:
+    """正規資産と manifest から移行バッチ用ロールの期待値を読む。"""
+    return _migration_batch_expectations_from_documents(
+        _load_json_object(_MIGRATION_BATCH_ROLE_PATH, "migration-batch-role 資産"),
+        _load_json_object(_SCHEMA_MANIFEST_PATH, "schema manifest"),
+    )
+
+
 def _load_product_expectations() -> _ProductExpectations:
     """Staged 資産と適用手順資産から exact-set 期待値を導出する。"""
     asset = _load_product_asset()
@@ -551,6 +899,18 @@ def _load_product_expectations() -> _ProductExpectations:
     role_ids = tuple(row[0] for row in roles if isinstance(row[0], str))
     if len(role_ids) != len(set(role_ids)):
         raise ProductCatalogError("製品ロール ID が重複している")
+    raw_permanent_role_ids = (
+        asset["permanent_privileged_role_ids"]
+        if "permanent_privileged_role_ids" in asset
+        else None
+    )
+    if not isinstance(raw_permanent_role_ids, list) or not all(
+        isinstance(role_id, str) and role_id for role_id in raw_permanent_role_ids
+    ):
+        raise ProductCatalogError("恒久の特権主体 ID は文字列配列が必要")
+    permanent_privileged_role_ids = tuple(raw_permanent_role_ids)
+    if set(permanent_privileged_role_ids) - set(role_ids):
+        raise ProductCatalogError("恒久の特権主体が製品ロール集合の外にある")
     membership_edges = (
         asset["membership_edges"] if "membership_edges" in asset else None
     )
@@ -683,6 +1043,7 @@ def _load_product_expectations() -> _ProductExpectations:
     return _ProductExpectations(
         application_steps=application_steps,
         role_ids=role_ids,
+        permanent_privileged_role_ids=permanent_privileged_role_ids,
         roles=roles,
         database_owner=database_owner,
         database_acl=database_acl,
@@ -703,6 +1064,7 @@ def _load_product_expectations() -> _ProductExpectations:
 
 def _catalog_requests(
     expectations: _ProductExpectations,
+    privileged_role_oids: frozenset[int],
 ) -> tuple[_CatalogRequest, ...]:
     """全問い合わせ ID と資産由来の束縛値を固定順で返す。"""
     schemas = list(expectations.schema_names)
@@ -725,6 +1087,41 @@ def _catalog_requests(
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
             (schemas, schemas, tables, schemas, functions),
+        ),
+        _CatalogRequest(
+            CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
+            (
+                list(privileged_role_oids),
+                list(expectations.permanent_privileged_role_ids),
+            ),
+        ),
+    )
+
+
+def _migration_batch_catalog_requests(
+    role_oid: int,
+) -> tuple[_CatalogRequest, ...]:
+    """渡された OID の有効な間の形を観測する問い合わせを返す。"""
+    product_schemas = ["public", "authz_private"]
+    return (
+        _CatalogRequest(CatalogQueryId.MIGRATION_BATCH_ROLE, (role_oid,)),
+        _CatalogRequest(
+            CatalogQueryId.MIGRATION_BATCH_MEMBERSHIPS,
+            (role_oid, role_oid),
+        ),
+        _CatalogRequest(
+            CatalogQueryId.MIGRATION_BATCH_OWNERSHIP,
+            (role_oid, role_oid, role_oid, role_oid),
+        ),
+        _CatalogRequest(
+            CatalogQueryId.MIGRATION_BATCH_TABLE_ACL,
+            (role_oid, role_oid),
+        ),
+        _CatalogRequest(CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL, (role_oid,)),
+        _CatalogRequest(CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL, (role_oid,)),
+        _CatalogRequest(
+            CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE,
+            (product_schemas, role_oid),
         ),
     )
 
@@ -757,6 +1154,22 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _MEMBERSHIPS_QUERY
     if query_id is CatalogQueryId.DANGEROUS_LOGIN_ROLES:
         return _DANGEROUS_LOGIN_ROLES_QUERY
+    if query_id is CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS:
+        return _UNAUTHORIZED_LOGIN_BYPASSRLS_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_ROLE:
+        return _MIGRATION_BATCH_ROLE_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_MEMBERSHIPS:
+        return _MIGRATION_BATCH_MEMBERSHIPS_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_OWNERSHIP:
+        return _MIGRATION_BATCH_OWNERSHIP_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_TABLE_ACL:
+        return _MIGRATION_BATCH_TABLE_ACL_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL:
+        return _MIGRATION_BATCH_SCHEMA_ACL_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL:
+        return _MIGRATION_BATCH_DATABASE_ACL_QUERY
+    if query_id is CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE:
+        return _MIGRATION_BATCH_FUNCTION_EXECUTE_QUERY
     raise ProductCatalogError(f"未知の製品カタログ問い合わせ ID: {query_id!r}")
 
 
@@ -961,6 +1374,112 @@ def _actual_memberships(
     )
 
 
+def _actual_migration_batch_role(
+    rows: tuple[tuple[object, ...], ...],
+) -> tuple[bool, bool, bool, bool, bool, bool, bool] | None:
+    """OID で選んだ移行ロールの 7 属性を返す。"""
+    if len(rows) != 1 or len(rows[0]) != 7:
+        return None
+    return (
+        bool(rows[0][0]),
+        bool(rows[0][1]),
+        bool(rows[0][2]),
+        bool(rows[0][3]),
+        bool(rows[0][4]),
+        bool(rows[0][5]),
+        bool(rows[0][6]),
+    )
+
+
+def _actual_migration_batch_permissions(
+    rows: tuple[tuple[object, ...], ...],
+) -> tuple[tuple[str, str, str, str, bool], ...]:
+    """移行ロールの表・列 ACL を資産の権限行列へ正規化する。"""
+    return tuple(
+        sorted(
+            (
+                str(row[0]),
+                str(row[1]),
+                str(row[2]),
+                str(row[3]).upper(),
+                bool(row[4]),
+            )
+            for row in rows
+        )
+    )
+
+
+def _actual_migration_batch_schema_acl(
+    rows: tuple[tuple[object, ...], ...],
+) -> tuple[tuple[str, str, bool], ...]:
+    """移行ロールへ直接付与された schema ACL を正規化する。"""
+    return tuple(
+        sorted((str(row[0]), str(row[1]).upper(), bool(row[2])) for row in rows)
+    )
+
+
+def _actual_migration_batch_database_acl(
+    rows: tuple[tuple[object, ...], ...],
+) -> tuple[tuple[str, bool], ...]:
+    """移行ロールへ直接付与された現在 DB の ACL を正規化する。"""
+    return tuple(sorted((str(row[0]).upper(), bool(row[1])) for row in rows))
+
+
+def _migration_batch_report(
+    observations: tuple[tuple[CatalogQueryId, tuple[tuple[object, ...], ...]], ...],
+    expectations: _MigrationBatchExpectations,
+) -> ProductCatalogReport:
+    """有効な間の移行バッチ用ロールの形を exact-set 照合する。"""
+    report = _ReportBuilder()
+    report.compare(
+        "MIGRATION-BATCH:ATTRIBUTES",
+        expectations.attributes,
+        _actual_migration_batch_role(
+            _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_ROLE)
+        ),
+    )
+    report.compare(
+        "MIGRATION-BATCH:MEMBERSHIPS",
+        (),
+        _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_MEMBERSHIPS),
+    )
+    report.compare(
+        "MIGRATION-BATCH:OWNERSHIP",
+        (),
+        _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_OWNERSHIP),
+    )
+    report.compare(
+        "MIGRATION-BATCH:TABLE-ACL",
+        expectations.permissions,
+        _actual_migration_batch_permissions(
+            _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_TABLE_ACL)
+        ),
+    )
+    report.compare(
+        "MIGRATION-BATCH:SCHEMA-ACL",
+        expectations.schema_acl,
+        _actual_migration_batch_schema_acl(
+            _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL)
+        ),
+    )
+    report.compare(
+        "MIGRATION-BATCH:DATABASE-ACL",
+        expectations.database_acl,
+        _actual_migration_batch_database_acl(
+            _observed_rows(observations, CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL)
+        ),
+    )
+    report.compare(
+        "MIGRATION-BATCH:FUNCTION-EXECUTE",
+        (),
+        _observed_rows(
+            observations,
+            CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE,
+        ),
+    )
+    return report.build()
+
+
 def _validate_privileged_role_oids(privileged_role_oids: frozenset[int]) -> None:
     """環境入力の superuser OID 集合を fail-closed に検証する。"""
     if not isinstance(privileged_role_oids, frozenset) or not privileged_role_oids:
@@ -972,17 +1491,32 @@ def _validate_privileged_role_oids(privileged_role_oids: frozenset[int]) -> None
         raise ProductCatalogError("privileged_role_oids は正の整数だけを許可する")
 
 
+def _validate_role_oid(role_oid: int) -> None:
+    """検査対象ロールの OID を fail-closed に検証する。"""
+    if not isinstance(role_oid, int) or isinstance(role_oid, bool) or role_oid <= 0:
+        raise ProductCatalogError("role_oid は正の整数が必要")
+
+
 def inspect_product_authz_catalog(
     connection: psycopg.Connection[Any],
     *,
     privileged_role_oids: frozenset[int],
+    _migration_batch_role_oid: int | None = None,
 ) -> ProductCatalogReport:
     """実カタログを製品資産と exact-set 照合する。"""
     _validate_privileged_role_oids(privileged_role_oids)
-    expectations = _load_product_expectations()
+    if _migration_batch_role_oid is None:
+        product_expectations = _load_product_expectations()
+        requests = _catalog_requests(product_expectations, privileged_role_oids)
+        migration_expectations = None
+    else:
+        _validate_role_oid(_migration_batch_role_oid)
+        product_expectations = None
+        requests = _migration_batch_catalog_requests(_migration_batch_role_oid)
+        migration_expectations = _load_migration_batch_expectations()
     observations: list[tuple[CatalogQueryId, tuple[tuple[object, ...], ...]]] = []
     try:
-        for request in _catalog_requests(expectations):
+        for request in requests:
             rows = _fetch_catalog_rows(
                 connection,
                 request.query_id,
@@ -993,6 +1527,11 @@ def inspect_product_authz_catalog(
         raise ProductCatalogError(f"製品カタログを観測できない: {error}") from error
 
     frozen_observations = tuple(observations)
+    if migration_expectations is not None:
+        return _migration_batch_report(frozen_observations, migration_expectations)
+    if product_expectations is None:
+        raise ProductCatalogError("製品カタログ期待値が無い")
+    expectations = product_expectations
     role_rows = _observed_rows(frozen_observations, CatalogQueryId.ROLES)
     function_rows = _observed_rows(frozen_observations, CatalogQueryId.FUNCTIONS)
     report = _ReportBuilder()
@@ -1096,4 +1635,26 @@ def inspect_product_authz_catalog(
         expected_dangerous_oids,
         actual_dangerous_oids,
     )
+    report.compare(
+        "PRODUCT-CATALOG:UNAUTHORIZED-LOGIN-BYPASSRLS",
+        (),
+        _observed_rows(
+            frozen_observations,
+            CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
+        ),
+    )
     return report.build()
+
+
+def inspect_migration_batch_role_catalog(
+    connection: psycopg.Connection[Any],
+    *,
+    role_oid: int,
+) -> ProductCatalogReport:
+    """渡された OID の移行バッチ用ロールが有効時の形を満たすか調べる。"""
+    _validate_role_oid(role_oid)
+    return inspect_product_authz_catalog(
+        connection,
+        privileged_role_oids=frozenset({role_oid}),
+        _migration_batch_role_oid=role_oid,
+    )
