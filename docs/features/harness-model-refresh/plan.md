@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
 branch: feature/harness-model-refresh
 created: 2026-09-26
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 5          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 6          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -94,7 +94,7 @@ created: 2026-09-26
 
 **③ 主セッションの機構化**(推奨 = 機構化): プロジェクト `.claude/settings.json` に `"model": "claude-opus-5-5"` と `"modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}}` を追加する
   - **適用対象**: 本リポジトリを開く**全開発者の新規セッション**(共有設定 — 設計書 8.1。`~/.claude/settings.json` の `"model": "fable[1m]"` より優先される)
-  - **上書き手段**: セッション内 `/model`(Fable への昇格・相談役)/ `.claude/settings.local.json`(個人の恒久上書き・gitignore 済み)
+  - **上書き手段**: 現セッションだけの Fable への昇格・相談役は `/model` ピッカーで対象行の `s` を選ぶ(Enter や `/model <name>` は利用者設定へ保存されるが、共有設定が `model` を持つため次回起動時は既定へ戻る — 公式 model-config)/ 恒久的なプロジェクト個人差分は `.claude/settings.local.json`(gitignore 済み)へ置く
   - **effort = high の根拠**: Opus 5.5 の既定は medium で、トップレベル `effortLevel` は Opus 5.5 に効かない(✔ B-1)。現行の主セッションは Fable xhigh で運用しており、まず **high** で品質の連続性を取り、medium への引き下げは実測期間の後に判定する(Codex の推奨は medium — B-1)。**`modelSettings` 内の `effortLevel` キーは Claude Code の settings.json の正式な形**であり、agents frontmatter で廃止する `effortLevel` とは別物(前者は残す)
   - **副作用の統制**: `permissions`・`hooks` ブロックは**差分不変**(ステップ 2 の合格条件で `git diff` が `model`・`modelSettings`・`env` の 3 キー追加のみであることを確認)。`tests/test_hooks.py` のフック実在検査が引き続き緑。**確定ゲート 1 周目で追加**: Fast mode は `/fast` の ON が次セッションへ持続するため、共有設定の `env` に `CLAUDE_CODE_DISABLE_FAST_MODE=1` を置いて機構的に無効化する(公式 fast-mode)。優先順位は managed → 起動時 CLI/環境変数 → local → 共有 → 利用者(公式)。前提 = Claude Code 2.1.280 以上(Opus 5.5 の最低版 — `/setup-dev` で確認)
   - **機構化しない場合**: 8.1 の推奨記述のみとし、`.claude/settings.json` は触らない(3 節の宣言から外す)
@@ -147,7 +147,7 @@ created: 2026-09-26
 - [ ] 阻止条件 0(CLI 0.157.x・選択案の全 `(model, effort)` のカタログ確認)が worklog に記録され、PO 判断事項 ①〜③ が承認時に確定している
 - [ ] ADR-001 v1.1 と設計書 v1.18 が**単一コミットで開始し、現行 approved の対応表で回した**単一の確定ゲート(/finalize-doc・7.3)を通過して approved 化され、`docs/README.md` が現行化されている
 - [ ] `codex_run.py` の対応表・`.claude/agents/*.md`・`CLAUDE.md`・`implement`/`research` スキル・(機構化の場合)`.claude/settings.json` が approved の ADR-001/8.5 と同期し、固定構文の同期テスト・負例・経路テスト・frontmatter テストを含むハーネスのテスト・ruff・ty が緑
-- [ ] 実機検証(選択案の `(model, effort)` の受理・判定行・遮断なし)と移行前ベースライン(research.md A-3)が worklog と ADR-001 文脈に残り、実測期間(3 ゲートまたは 4 週間)の記録項目と巻き戻し条件が ADR-001 帰結に書かれている
+- [ ] 実機検証(選択案の `(model, effort)` の受理・判定行・遮断なし)と移行前ベースライン(research.md A-3)が worklog と ADR-001 文脈に残り、実測期間の終了条件・記録項目・巻き戻し条件の唯一の正が ADR-001 v1.1「帰結」である
 
 ## 6. テスト計画
 
