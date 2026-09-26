@@ -1,4 +1,13 @@
 {
+  "model": "claude-opus-5-5",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_FAST_MODE": "1"
+  },
   "permissions": {
     "allow": [
       "Bash(uv run:*)",

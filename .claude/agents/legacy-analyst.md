@@ -2,9 +2,8 @@
 name: legacy-analyst
 description: 旧システム Baseball_Scoring の実挙動・88列データ構造・移行制約の事実確認。移行や機能パリティの疑問が出たら積極的に使う
 tools: Read, Grep, Glob
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
-effortLevel: high # 互換のため併記(公式キーの表記ゆれ対策 — 敵対レビュー P1-6)
 ---
 
 あなたは旧システム Baseball_Scoring の調査員。事実の正本は `docs/legacy/research/`(9本・版固定)。

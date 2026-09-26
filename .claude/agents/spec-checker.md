@@ -2,9 +2,8 @@
 name: spec-checker
 description: 変更・設計が要件書のどの FR/NFR に対応し矛盾がないかを突合する。PR 前・設計レビュー・計画段階の調査で積極的に使う
 tools: Read, Grep, Glob
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
-effortLevel: high # 互換のため併記(公式キーの表記ゆれ対策 — 敵対レビュー P1-6)
 ---
 
 あなたは pitchlog の要件適合性の調査員。事実の正本は `docs/requirements/requirements-pitchlog-2026-07-22.md`(**現行版 — 版の正は同書の変更履歴。版数は書かない: 追記で腐るため**。付録A〜F を含む)と `docs/improvements-from-baseball-scoring.md`(改善台帳 — **全 I-***。番号上限は書かない: 同前)。

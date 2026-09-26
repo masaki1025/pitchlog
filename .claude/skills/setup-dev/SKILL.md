@@ -11,6 +11,8 @@ disable-model-invocation: true
 
 git / uv / **python**(PATH 必須 — 無いと hooks の保護が fail-open する) / docker / codex / gh / node の `--version` を確認。欠けるものは `docs/development/onboarding.md` の導入手順を案内する。
 
+**版の下限**(設計書 8.1 / 9.4): Claude Code は `claude --version` が **2.1.280 以上**(Opus 5.5 の最低版)、Codex CLI は `codex --version` が **0.157.0 以上**(GPT-6 Sol/Luna — ラッパー `codex_run.py` も起動前に検査し未達なら停止する)。未達なら `claude update` / onboarding 1-6 のインストーラで更新してから先へ進む。
+
 続けて hooks の正負テストを実行する: `uv run pytest tests/`(全グリーンでなければ保護が機能していない — 修正するまで作業を始めない)。
 
 ## 2. Codex 設定確認

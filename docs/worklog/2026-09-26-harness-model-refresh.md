@@ -288,6 +288,15 @@ branch: feature/harness-model-refresh
 **ゲート集計**: レビュー実行 18 回(全文 6・差分 12)・反映 13 周・指摘 48 件(P0 0 / P1 39 / P2 9)**全件採用・不採用 0**・7.3-6 エスカレーション 2 回(PO 裁定 = 続行指示 ×2)・6 周警告 1 回(PO 判断 = 続行)・様式不備 1 件(4 周目第 3 指摘 — 推定分類で採用・運用判断を記録)。Codex 消費(sol xhigh)≈ **4.70M トークン**(全文周 6 回 ≈ 2.87M・差分周 12 回 ≈ 1.83M)。適用版 = 7.3 v1.17(条文 SHA ab72a58a)で最後まで運用・切替なし
 - **PO 承認(2026-09-27・徳光 尋弥)** → ADR-001 v1.1・設計書 v1.18 を **approved 化**(frontmatter・変更履歴の通過行・`docs/README.md`)。次 = ステップ 2(Claude 側設定・文書の同期)
 
+### ステップ 2(2026-09-27)— Claude 側設定・文書の同期(Claude が直接編集・コードには触れない)
+
+- `.claude/agents/{spec-checker,legacy-analyst,decision-tracer}.md`: `model: claude-opus-5-5`・`effort: high`・未知キー `effortLevel` 行を削除
+- `CLAUDE.md`: コア領域の実装モデルを ADR-001 の行参照へ / 調査サブエージェントを Opus 5.5 へ / 「主セッションの既定(設計書 8.1)」節を新設
+- skills: `implement`(fast path 全 3 条件 + `重さ分類: 軽微`・`実行方式: fast` の一括更新・ラッパーの 3 値検査)/ `research`(ADR 行参照)/ `finalize-doc:15`(ADR 行参照 — **guard_paths**: PR で逐行確認・実施記録行・SHA 拘束マージ)/ `setup-dev`(版の下限 Claude Code 2.1.280・Codex CLI 0.157.0)/ `plan`(`重さ分類` の必須置換と優先順位)
+- `docs/development/templates/plan-template.md`: `重さ分類` を空値へ
+- `.claude/settings.json`: `model`・`modelSettings.claude-opus-5-5.effortLevel = high`・`env.CLAUDE_CODE_DISABLE_FAST_MODE = "1"` の 3 キー追加(`permissions`・`hooks` 不変 — `git diff` で確認)
+- 合格条件の残: **人間が新規セッションで実効値を確認**(managed / `--model` / `ANTHROPIC_MODEL` / `settings.local.json` の有無を記録し、高優先層が無ければ `/model` = `claude-opus-5-5`・effort high・`/fast` = disabled)— 本セッションは `fable[1m]` 起動のままなので**次回起動時に確認して追記する**
+
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
 
