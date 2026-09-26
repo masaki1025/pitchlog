@@ -485,3 +485,115 @@ url: https://chatgpt.com/backend-api/codex/responses
 **取り込み後、`mergeable=MERGEABLE` になり CI が復活。** **`core-guard` 以外すべて pass**(`tenant-boundary-bypass` は **PR 受理モードで実走して pass** — DoD の D4 項目を現行 HEAD で充足)。
 
 **教訓**: **CI が「走っていない」ことと「通っていない」ことは別**である。`gh pr checks` は前者を `no checks reported` としか言わない。**push のたびに run が作られたかを確認する必要がある。**
+
+## ステップ 9 — 人間の逐行確認(最終版・2026-09-26)
+
+**これが確認対象の最終版である。** 先行する 2 つのシート(`6d36a07` 版・その現行化)は**経過の記録として残す**が、**確認の対象は本節**とする。
+
+### 確認対象(SHA 固定)
+
+- **対象=** `fix/tenant-boundary-baseline` の `origin/develop..98ab504e`
+- **範囲=** **検査器(`scripts/check_tenant_boundary_bypass.py` / `scripts/frozen_history.py`)を触った 5 コミット**
+
+| コミット | 中身 |
+| --- | --- |
+| `4b05a09` | **結線・`external_files`・`history_authority`・記録**(検査器を触る最初のコミット) |
+| `6d36a07` | PR event の適用範囲の限定・生成契約 3 件の追随 |
+| `a960542` | **1 周目の P0 3 件・P1 2 件** |
+| `3528d0e` | **2 周目の新種 4 件** |
+| `56b9ad5` | **3 周目の P0 2 件** |
+| `98ab504` | **4 周目の P1・P2**(最終) |
+
+- **方法=** 本節の 3 表を目視で突合し、**PR 本文のチェックボックスへ記入**する
+
+**確認後の差分は worklog 等の証跡ファイルに限る。**
+
+### 1. 7 資産の `external_files` の exact-set
+
+**期待する exact-set(順序込み)**
+
+1. `scripts/check_tenant_boundary_bypass.py`
+2. `scripts/frozen_history.py`
+3. `.github/workflows/ci.yml`
+
+| 資産 | `external_files` | `history_authority` | 識別値(新) |
+| --- | --- | --- | --- |
+| `base-allowlist.json` | **一致** | `true` | `contract_revision:15` |
+| `cache-invalidation-contract.json` | **一致** | `false` | `contract_revision:3` |
+| `db-api-inventory.json` | **一致** | `false` | `inventory_revision:5` |
+| `negative-fixtures.json` | **一致** | `false` | `fixture_set_revision:7` |
+| `repository-contract.json` | **一致** | `false` | `contract_revision:4` |
+| `runtime-authz-contract.json` | **一致** | `false` | `runtime_contract_revision:3` |
+| `tenant-context-allowlist.json` | **一致** | `false` | `contract_revision:6` |
+
+**変更前は `base-allowlist.json` だけが 1 件を持ち、他 6 資産は空だった**(7B の実害)。
+
+**`history_authority: true` はちょうど 1 件。記録は `base-allowlist.json` にだけ 2 件(v1 1 + v2 1)**で、他 6 資産は 1 件のまま。**既存 v1 記録の生 JSON は 7 資産すべてで不変。**
+
+**snapshot は 47 件で、全件が content-addressed**(ファイル名 == 内容の sha256・不一致 0 件)。
+
+### 2. モード結線
+
+| 確認項目 | 実装 |
+| --- | --- |
+| モードの決定元 | `resolve_evaluation_context()` が **`GITHUB_EVENT_NAME` を読む**。workflow の指定に従わない |
+| PR コンテキストでの fallback | **無い**。イベント情報が欠ければ例外。**`GITHUB_WORKSPACE` による降格も廃止済み**(3 周目 P0-3) |
+| PR 受理モード | `base.ref == develop` / HEAD が 2 親 / 第一親 == `base.sha` / 第二親 == `head.sha` / 遷移と記録 / `acceptance_id` の照合 |
+| **不変量モード** | **資産の構造・履歴の内部整合・prefix の deep-equal のみ**(4 周目 P1 で `design.md` 4 節の範囲へ戻した) |
+| `ci.yml` | **7 資産の `external_files` に含む**(内容は未変更) |
+| 実 CI での実走 | **PR #78 の `tenant-boundary-bypass` が PR 受理モードで pass** |
+
+**不変量モードを狭めた結果、ローカル実行では資産本体の変異を検出しない。** 検出は **PR 受理モードの担当**で、`test_asset_body_mutation_is_red_through_production_repository_check` が **7 資産すべてで red** になることを確認済み。**develop への直接 push は絶対規則で禁じられており、変更は必ず PR を通る。**
+
+### 3. D1〜D6 の実装対応
+
+| 裁定 | 実装 | 確認の勘所 |
+| --- | --- | --- |
+| **D1** 単一検査・1 記録 | `validate_repository_histories` / `validate_history_authority` / `_validate_movement_record_count` | authority が 0 件・2 件で red。authority 以外への追記で red。同一受理で 2 件足すと red |
+| **D2** 版付き schema | `parse_history` / `_json_deep_equal` | prefix は**生 JSON 値の deep-equal で数値の型一致まで要求**。prefix 以後は明示 v2 のみ |
+| **D3** content-addressed snapshot | `_validate_v2_record` / `_snapshot_state` / `_validate_snapshot_append_only` / `frozen_projection_content` | `change.before` / `after` が**内容そのもの**を持ち実遷移と deep-equal。**`aspect` は実差分から機械導出して exact-set 照合**。**7 資産の完全な射影を `asset_snapshots` として含む**(1 周目 P0-1)。snapshot は追記専用 |
+| **D4** 役割分担とモード強制 | `derive_role_separated_evaluation` / `resolve_evaluation_context` / `_resolve_repository_evaluation` | **`after` の `external_snapshots` も比較元の対象集合で作る**。**PR 環境なら root にかかわらず PR 受理モードを強制** |
+| **D5** 普遍下限と 7D の最小限 | `REQUIRED_MOVEMENT_TRIGGERS` / `_movement_axis_values` / `evaluate_repository_movement` | **実装定数は 6 token ちょうど**(`pass_fail_mapping` は 0 件)。**下限外は比較元宣言から取り、`movement_evaluation` が実際に `moved` を決める**(3 周目 P0-1)。**走査は比較元側 ∪ HEAD 側**で、`git ls-tree` により**比較元を HEAD の定数に依存せず独立列挙**(1 周目 P0-2) |
+| **D6** 実装の隔離 | コミット履歴 | **ステップ 2〜6 のどのコミットでも検査器が 1 バイトも変わっていない** |
+
+### 4. 予約 marker の判定(4 周目 P2 の是正・実測)
+
+| 入力 | 結果 |
+| --- | --- |
+| `未定義動作を拒否するため。` | **受理**(`未定` を含むが語境界で区別) |
+| `suspending a stale check` | **受理**(`PENDING` を含むが語境界で区別) |
+| `通常の日本語説明` / `山田正輝` / `2026-09-24` | 受理 |
+| `未承認(PR #78 のレビュー待ち)` | 拒否 |
+| `TODO: 後で` / `pending review` / `承認日 TBD` / `PENDING_ACCEPTANCE` | 拒否 |
+
+**走査対象は record 全体の文字列**(除外リスト方式)。**掛ける欄の列挙ではないので、新しい文字列フィールドを足すと既定で検査が掛かる。**
+
+### 5. ゲート(最終)
+
+| ゲート | 結果 |
+| --- | --- |
+| ルート `uv run pytest tests/` | **1802 passed** |
+| ルート `ruff check` / `ty check` | green |
+| **`backend/` `uv run pytest`** | **792 passed**(**DB 必須分を含む・実機の PostgreSQL 17.11**) |
+| `backend/` `ruff check` / `ruff format --check` / `ty check` | green |
+| `uv run python scripts/check_tenant_boundary_bypass.py` | ok |
+| CI | **`core-guard` 以外すべて pass** |
+
+### 6. 敵対レビューの収束
+
+| 周 | 指摘 | 新種 | P0 |
+| --- | ---: | ---: | ---: |
+| 1 | 5 | 5 | **3** |
+| 2 | 4 | 4 | 1 |
+| 3 | 3 | 2 | 2 |
+| **4** | 2 | 2 | **0** |
+
+**P0 = 0 で PO 判断により打ち切り。5 周目は回していない。**
+
+### 7. マージ前に必ず残る作業
+
+**TSK-440(PR #80)が先にマージされる合意**のため、**その後に本ブランチをリベースし、記録の識別値を作り直す**必要がある。
+
+- **440 は `base-allowlist.json` を `contract_revision:13 → 14`、`negative-fixtures.json` を `fixture_set_revision:5 → 6` へ動かす**(TSK-440 セッションの実測)
+- 本記録は `previous` を **13 / 5** としているため、**440 マージ後は一致しなくなる**
+- **記録 1 件の値と snapshot の再生成のみ**で、機構の変更は伴わない
