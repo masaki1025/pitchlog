@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
 branch: feature/harness-model-refresh
 created: 2026-09-26
 計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 9          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 10         # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -151,7 +151,7 @@ created: 2026-09-26
 
 ## 6. テスト計画
 
-- **単体(ハーネス・pytest — すべて Codex がステップ 3 で追加)**: ① ADR-001 決定表 ↔ `codex_run.py` 定数の同期テスト(4 節の固定構文で抽出。字面・バイト一致に依存しない)+ 負例 6 種(モデル不一致・effort 不一致・行キー欠落・構文違反・行順逆転・行キー重複)② ラッパー各経路(`implement` 4 分類・`fast`・`research`・`--deep`・`review normal`・`review adversarial`・`probe`)が期待引数を組み立てる経路テスト(`run_codex` の差し替え)+ Codex 版検査の 3 例(通過・旧版停止・解析不能停止)+ `重さ分類` の fail-closed(欠落・空値・不正値)+ `fast` の正規位置計画書と 2 キーの検査(計画書なし・読取不能・frontmatter 不正(非閉止・8 KiB 超過・UTF-8 不正・厳密 status 不適合 — `feature_status.py` と同じ判定)・機構読取キーの重複(全機構読取キーをパラメータ化)・`branch` 不一致・同一 branch を持つ別位置の計画書・`status: active`・`重さ分類: 軽微`・`実行方式: fast` の 3 値の欠落/空値/不一致(`status: in-review` を含む) — 各項目に負例 1 例以上)+ `probe` の固定短文・stdin 未読・sandbox / 検索設定の検査 ③ `.claude/agents/*.md` frontmatter の固定テスト ④ `tests/` 全件の回帰(件数は CI の harness ジョブの実行結果を正とする。`test_hooks.py` の settings.json フック実在検査を含む)
+- **単体(ハーネス・pytest — すべて Codex がステップ 3 で追加)**: ① ADR-001 決定表 ↔ `codex_run.py` 定数の同期テスト(4 節の固定構文で抽出。字面・バイト一致に依存しない)+ 負例 6 種(モデル不一致・effort 不一致・行キー欠落・構文違反・行順逆転・行キー重複)② ラッパー各経路(`implement` 4 分類・`fast`・`research`・`--deep`・`review normal`・`review adversarial`・`probe`)が期待引数を組み立てる経路テスト(`run_codex` の差し替え)+ Codex 版検査の 3 例(通過・旧版停止・解析不能停止)+ `重さ分類` の fail-closed(欠落・空値・不正値)+ `fast` の正規位置計画書に対する `status: active`・`重さ分類: 軽微`・`実行方式: fast` の 3 値検査(計画書なし・読取不能・frontmatter 不正(非閉止・8 KiB 超過・UTF-8 不正・厳密 status 不適合 — `feature_status.py` と同じ判定)・機構読取キーの重複(全機構読取キーをパラメータ化)・`branch` 不一致・同一 branch を持つ別位置の計画書・`status: active`・`重さ分類: 軽微`・`実行方式: fast` の 3 値の欠落/空値/不一致(`status: in-review` を含む) — 各項目に負例 1 例以上)+ `probe` の固定短文・stdin 未読・sandbox / 検索設定の検査 ③ `.claude/agents/*.md` frontmatter の固定テスト ④ `tests/` 全件の回帰(件数は CI の harness ジョブの実行結果を正とする。`test_hooks.py` の settings.json フック実在検査を含む)
 - **文書検査(CI docs-lint)**: `check_docs_status.py`(frontmatter 3 行・索引の版一致)・lychee(リンク)・`check_design_propagation.py`・`check_doc_coverage.py` が緑
 - **設定差分(手動・ステップ 2)**: `.claude/settings.json` の追加差分が `model`・`modelSettings`・`env.CLAUDE_CODE_DISABLE_FAST_MODE` の 3 項目だけで、既存 `permissions`・`hooks` が不変であることを確認する。新規セッションでは managed 設定・起動時指定・`settings.local.json` の有無と実効値を記録し、高優先層が無い場合のみ Opus 5.5・effort high・`/fast` disabled を合格条件とする。高優先層がある場合は由来と共有設定 3 項目の存在を確認する
 - **実機(手動・ステップ 4 と確定ゲート)**: `probe` で決定表の全 5 組の受理を確認し、続けてラッパー経由の `review normal` / `review adversarial` のスモークで受理・判定行・遮断なしを確認。遮断時は安全語彙で 1 回再実行、両方不成立で revert を含むステップ 4 コミット + PR 停止(「順序と差し戻し経路」)
