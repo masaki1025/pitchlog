@@ -70,3 +70,11 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 - PR #80(TSK-440)が `1a404101` でマージ → origin/develop へ rebase(HEAD が #80 を含む)。変わった迂回検査器で ok・凍結基準の不変量 OK・backend の非 DB 588 passed。`contract_revision` は 16
 - **識別値の更新が要る資産の実測**(使い捨ての worktree・一時ブランチ。push せず、記録と snapshot は書かず、片付け済み): `allowed_symbols` に 1 記号を足して検査器を回すと、求められた順に ①「射影が動いた資産は識別値の更新が必要: **base-allowlist.json だけ**」② revision field と `current_identifiers` を 17 に揃えよ ③「履歴末尾と 7 資産の識別値が不一致」(= v2 記録が要る)。**ほかの 6 資産の識別値の更新は求められなかった**。配布モジュール 3 つ(写しているのは別の資産)も影響なし(backend の非 DB 588 passed)
 - → **A2 は `base-allowlist.json` の `contract_revision` と `current_identifiers` を 16 → 17 にし、v2 記録 1 件(7 資産の識別値の map — 6 資産は現値のまま)を足す**。440 で 7 資産が動いたのは共有の外部ファイル(検査器)を変えたため。**計画の改訂は不要**(`runtime_contract.py` などに触れない)
+
+## ステップ 2・3(2026-09-26)
+
+- **draft PR #84** を作成(人間の OK のあと)。`acceptance_id = masaki1025/pitchlog#84`
+- **ステップ 2**(664dde6f): Codex に記号 2 件・正例 fixture・試験と **v2 記録の下書き**だけを作らせ(`aspect` は検査器のエラーから得た `["asset_snapshots","declaration"]`)、**人間が記録の中身を承認**(2026-09-26・山田正輝)してから、記録 1 件と新規 snapshot 1 件を 1 回だけ書いた(snapshot の SHA-256 = ファイル名を独立に確認・孤児 0)。**PR #84 の CI(PR 受理モード)で tenant-boundary-bypass が pass** — 記録が本番の検査で受理された。harness の赤は develop 側の既存の census の 1 件だけ、core-guard は逐行確認待ち
+- **ステップ 3**(4024bd69): 適用器と取り外し・fixture `provisioned_product_catalog`。Codex のサンドボックスは Docker と DB に届かないので、DB 試験は Claude が回した(3 passed)。**コミット後の迂回検査で TB007 は出なかった**(委任文で「変更したファイルに検査器の走査関数を直接当てて違反 0 件を確かめる」と指示した)
+- **共有の開発 DB の衝突**: 最初の DB 試験が「被検査ロール `pitchlog_test_role` がテスト開始前から存在する」で fail-closed。既存の試験も同じ理由で止まった → **別の worktree(`feature-tenant-session-supply`)が backend の全試験を実行中**で、そのロールが見えていただけ(残骸ではない)。消さずに相手の終了を待ってから流し、3 passed。**開発 DB は複数セッションで共有しているので、DB 試験が準備で止まったら、残骸と決めつけて消す前に他の pytest の実行を確かめる**(消すと相手の試験を壊す)
+- 手元の `gh` は `gh pr checks --json` に対応していない(CI 待ちのループが抜けられなかった)。表形式の出力を読む
