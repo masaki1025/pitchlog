@@ -461,13 +461,14 @@ class FormatterInvocationMutationOperator:
         if source is None:
             return MutationGeneration((), ())
         scale = _invocation_scale(source)
+        formatter_invocation: FormatterInvocation = source.invocation
         raw_source = _changed_source(
             source,
             source.intermediate,
             DisplayMutationKind.FORMATTER_INVOCATION,
             f"delete-call-scale-{scale}",
             invocation=replace(
-                source.invocation,
+                formatter_invocation,
                 route=FormatterRoute.RAW_VALUE,
             ),
         )
@@ -477,7 +478,7 @@ class FormatterInvocationMutationOperator:
             DisplayMutationKind.FORMATTER_INVOCATION,
             f"language-default-scale-{scale}",
             invocation=replace(
-                source.invocation,
+                formatter_invocation,
                 route=FormatterRoute.LANGUAGE_DEFAULT,
             ),
         )
