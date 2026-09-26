@@ -16,6 +16,9 @@
 4. 引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
    依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
    機械的に通らなくなるため。
+5. 実行時プロトコルが任意コードで値を変換・格納し、変更ファイルの AST に
+   構築シンボルから callable までの起源関係が現れない経路。
+   有限の構文軸による完全性は主張せず、残余は別タスクで扱う。
 """
 
 from __future__ import annotations
@@ -2202,6 +2205,7 @@ class _FlowValue:
     origins: frozenset[str] = frozenset()
     unresolved: bool = False
     external_input: bool = False
+    storage_ids: frozenset[int] = frozenset()
 
     def __post_init__(self) -> None:
         """単一起源の既存生成箇所を起源集合へ自動的に反映する。"""
@@ -2211,6 +2215,15 @@ class _FlowValue:
 
 _UNKNOWN_FLOW_VALUE = _FlowValue(unresolved=True)
 _EXTERNAL_INPUT_FLOW_VALUE = _FlowValue(external_input=True)
+
+
+@dataclass(frozen=True)
+class _StorageState:
+    """別名間で共有する可変格納域の保守的な状態を表す。"""
+
+    origins: frozenset[str] = frozenset()
+    unresolved: bool = False
+    external_input: bool = False
 
 
 @dataclass(frozen=True)
@@ -2529,6 +2542,64 @@ class _FlowProvenance:
         self.class_members: dict[str, _FlowValue] = {}
         self.class_base_values: dict[int, _FlowValue] = {}
         self.class_stack: list[str] = []
+        self.storage_states: dict[int, _StorageState] = {}
+        self.next_storage_id = 1
+
+    def _with_new_storage(self, value: _FlowValue) -> _FlowValue:
+        """新しい可変格納域を割り当て、以後の別名で同じ状態を共有する。"""
+        storage_id = self.next_storage_id
+        self.next_storage_id += 1
+        self.storage_states[storage_id] = _StorageState(
+            origins=value.origins,
+            unresolved=value.unresolved,
+            external_input=value.external_input,
+        )
+        return _FlowValue(
+            value.symbol,
+            value.kind,
+            value.elements,
+            origins=value.origins,
+            unresolved=value.unresolved,
+            external_input=value.external_input,
+            storage_ids=frozenset({storage_id}),
+        )
+
+    def _current_storage_value(self, value: _FlowValue) -> _FlowValue:
+        """共有格納域の最新状態を任意の別名から見える値へ合流する。"""
+        states = [
+            self.storage_states[storage_id]
+            for storage_id in value.storage_ids
+            if storage_id in self.storage_states
+        ]
+        if not states:
+            return value
+        return _FlowValue(
+            value.symbol,
+            value.kind,
+            value.elements,
+            origins=value.origins
+            | frozenset(origin for state in states for origin in state.origins),
+            unresolved=value.unresolved
+            or any(state.unresolved for state in states),
+            external_input=value.external_input
+            or any(state.external_input for state in states),
+            storage_ids=value.storage_ids,
+        )
+
+    def _mutate_storage_value(
+        self,
+        storage: _FlowValue,
+        written: _FlowValue,
+    ) -> None:
+        """格納域への任意の変更を全別名へ fail-closed で反映する。"""
+        for storage_id in storage.storage_ids:
+            previous = self.storage_states.get(storage_id, _StorageState())
+            self.storage_states[storage_id] = _StorageState(
+                origins=previous.origins | written.origins,
+                unresolved=True,
+                external_input=previous.external_input
+                or written.external_input,
+            )
 
     def canonical(self, symbol: str) -> str:
         """inventory が宣言した re-export を標準シンボルへ寄せる。"""
@@ -2728,6 +2799,11 @@ class _FlowProvenance:
             ),
             unresolved=any(value.unresolved for value in values),
             external_input=any(value.external_input for value in values),
+            storage_ids=frozenset(
+                storage_id
+                for value in values
+                for storage_id in value.storage_ids
+            ),
         )
 
     def _return_summary(
@@ -2743,6 +2819,7 @@ class _FlowProvenance:
                 origins=actual.origins,
                 unresolved=actual.unresolved,
                 external_input=actual.external_input,
+                storage_ids=actual.storage_ids,
             )
         return _FlowValue(
             declared.symbol,
@@ -2751,6 +2828,7 @@ class _FlowProvenance:
             origins=declared.origins | actual.origins,
             unresolved=declared.unresolved or actual.unresolved,
             external_input=declared.external_input or actual.external_input,
+            storage_ids=declared.storage_ids | actual.storage_ids,
         )
 
     def _attribute_value(
@@ -2760,6 +2838,10 @@ class _FlowProvenance:
     ) -> tuple[_FlowValue, _FlowValue]:
         """属性と receiver を一度だけ評価して返す。"""
         receiver = self._expression(node.value, environment)
+        constructor_class_lineage = (
+            receiver.kind == "symbol"
+            and self.tenant_context_symbol in receiver.origins
+        )
         if receiver.unresolved:
             return (
                 _FlowValue(
@@ -2774,7 +2856,17 @@ class _FlowProvenance:
                 _FlowValue(
                     kind="unknown",
                     origins=frozenset(
-                        f"{origin}.{node.attr}" for origin in receiver.origins
+                        {
+                            *(
+                                receiver.origins
+                                if constructor_class_lineage
+                                else ()
+                            ),
+                            *(
+                                f"{origin}.{node.attr}"
+                                for origin in receiver.origins
+                            ),
+                        }
                     ),
                     unresolved=receiver.unresolved,
                     external_input=receiver.external_input,
@@ -2791,7 +2883,20 @@ class _FlowProvenance:
             kind = "non_db_attribute"
         else:
             kind = "symbol"
-        return _FlowValue(symbol, kind), receiver
+        return (
+            _FlowValue(
+                symbol,
+                kind,
+                origins=(
+                    receiver.origins | frozenset({symbol})
+                    if constructor_class_lineage
+                    else frozenset({symbol})
+                ),
+                unresolved=receiver.unresolved,
+                external_input=receiver.external_input,
+            ),
+            receiver,
+        )
 
     def _expression(
         self,
@@ -2800,7 +2905,9 @@ class _FlowProvenance:
     ) -> _FlowValue:
         """式を評価順に走査し、呼び出し位置の由来を記録する。"""
         if isinstance(node, ast.Name):
-            return environment.get(node.id, _UNKNOWN_FLOW_VALUE)
+            return self._current_storage_value(
+                environment.get(node.id, _UNKNOWN_FLOW_VALUE)
+            )
         if isinstance(node, ast.Attribute):
             value, _ = self._attribute_value(node, environment)
             return value
@@ -2821,26 +2928,24 @@ class _FlowProvenance:
                 argument_value = self._expression(argument, environment)
                 argument_values.append(argument_value)
                 self.argument_kinds[(id(node), index)] = argument_value.kind
-            for keyword in node.keywords:
+            keyword_values = [
                 self._expression(keyword.value, environment)
-            if (
-                isinstance(node.func, ast.Attribute)
-                and node.func.attr
-                in {
-                    "append",
-                    "extend",
-                    "insert",
-                    "update",
-                    "setdefault",
-                    "__setitem__",
-                }
+                for keyword in node.keywords
+            ]
+            written = self._joined_value((*argument_values, *keyword_values))
+            # 可変格納域の method 名を列挙しない。格納域を receiver とする
+            # 属性呼び出しは、未知の method も含め一律に変更とみなす。
+            if isinstance(node.func, ast.Attribute) and receiver.storage_ids:
+                self._mutate_storage_value(receiver, written)
+            # operator.setitem のように格納域を関数へ渡す経路も、既知の
+            # builtins 以外は変更し得る境界として全引数を保守的に無効化する。
+            if not (
+                callable_value.symbol is not None
+                and callable_value.symbol.startswith("builtins.")
             ):
-                written = self._joined_value(argument_values)
-                self._invalidate_storage(
-                    node.func.value,
-                    written,
-                    environment,
-                )
+                for argument_value in (*argument_values, *keyword_values):
+                    if argument_value.storage_ids:
+                        self._mutate_storage_value(argument_value, written)
             if (
                 callable_value.symbol == "builtins.getattr"
                 and argument_values
@@ -2866,21 +2971,27 @@ class _FlowProvenance:
                 result = _FlowValue(
                     result.symbol,
                     result.kind,
-                    tuple(argument_values),
+                    tuple((*argument_values, *keyword_values)),
                     origins=frozenset(
                         {
                             *result.origins,
                             *(
                                 origin
-                                for value in argument_values
+                                for value in (*argument_values, *keyword_values)
                                 for origin in value.origins
                             ),
                         }
                     ),
                     unresolved=result.unresolved
-                    or any(value.unresolved for value in argument_values),
+                    or any(
+                        value.unresolved
+                        for value in (*argument_values, *keyword_values)
+                    ),
                     external_input=result.external_input
-                    or any(value.external_input for value in argument_values),
+                    or any(
+                        value.external_input
+                        for value in (*argument_values, *keyword_values)
+                    ),
                 )
             if result.kind == "unknown" and receiver.kind in {"db", "db_result"}:
                 return _FlowValue(kind="db_result")
@@ -2895,7 +3006,7 @@ class _FlowProvenance:
                 if key is not None:
                     self._expression(key, environment)
                 elements.append(self._expression(value, environment))
-            return _FlowValue(
+            return self._with_new_storage(_FlowValue(
                 "builtins.dict",
                 "non_db",
                 tuple(elements),
@@ -2907,12 +3018,12 @@ class _FlowProvenance:
                 ),
                 unresolved=any(value.unresolved for value in elements),
                 external_input=any(value.external_input for value in elements),
-            )
+            ))
         if isinstance(node, (ast.List, ast.Set, ast.Tuple)):
             elements = tuple(self._expression(item, environment) for item in node.elts)
             type_name = type(node).__name__.lower()
             symbol = f"builtins.{type_name}"
-            return _FlowValue(
+            value = _FlowValue(
                 symbol,
                 "non_db",
                 elements,
@@ -2925,11 +3036,18 @@ class _FlowProvenance:
                 unresolved=any(value.unresolved for value in elements),
                 external_input=any(value.external_input for value in elements),
             )
+            return (
+                value
+                if isinstance(node, ast.Tuple)
+                else self._with_new_storage(value)
+            )
         if isinstance(node, ast.Constant):
             return _FlowValue(f"builtins.{type(node.value).__name__}", "non_db")
         if isinstance(node, ast.Subscript):
             container = self._expression(node.value, environment)
             self._expression(node.slice, environment)
+            if container.unresolved:
+                return self._unresolved_from(container)
             if not container.elements:
                 if (
                     not container.unresolved
@@ -2990,23 +3108,23 @@ class _FlowProvenance:
                     self._expression(condition, local)
             element = self._expression(node.elt, local)
             if isinstance(node, ast.ListComp):
-                return _FlowValue(
+                return self._with_new_storage(_FlowValue(
                     "builtins.list",
                     "non_db",
                     (element,),
                     origins=frozenset({"builtins.list", *element.origins}),
                     unresolved=element.unresolved,
                     external_input=element.external_input,
-                )
+                ))
             if isinstance(node, ast.SetComp):
-                return _FlowValue(
+                return self._with_new_storage(_FlowValue(
                     "builtins.set",
                     "non_db",
                     (element,),
                     origins=frozenset({"builtins.set", *element.origins}),
                     unresolved=element.unresolved,
                     external_input=element.external_input,
-                )
+                ))
             return _FlowValue(
                 "builtins.generator",
                 "non_db",
@@ -3040,7 +3158,7 @@ class _FlowProvenance:
         environment: dict[str, _FlowValue],
     ) -> None:
         """既知 tuple 列から内包表記の分割代入を保守的に導出する。"""
-        if not iterable.elements:
+        if iterable.unresolved or not iterable.elements:
             self._assign_target(
                 target,
                 self._unresolved_from(iterable),
@@ -3079,6 +3197,7 @@ class _FlowProvenance:
             origins=value.origins,
             unresolved=True,
             external_input=value.external_input,
+            storage_ids=value.storage_ids,
         )
 
     @staticmethod
@@ -3095,11 +3214,14 @@ class _FlowProvenance:
         written: _FlowValue,
         environment: dict[str, _FlowValue],
     ) -> None:
-        """可変格納域の既知要素を破棄し、書込値を含む可能起源だけ残す。"""
+        """可変格納域の既知要素を破棄し、全別名へ変更を反映する。"""
         root = self._storage_root_name(storage)
         if root is None or root not in environment:
             return
-        previous = environment[root]
+        previous = self._current_storage_value(environment[root])
+        if previous.storage_ids:
+            self._mutate_storage_value(previous, written)
+            return
         environment[root] = _FlowValue(
             previous.symbol,
             previous.kind,
@@ -3550,6 +3672,17 @@ class _FlowProvenance:
         if isinstance(node, ast.AugAssign):
             self._expression(node.value, environment)
             self._assign_target(node.target, _UNKNOWN_FLOW_VALUE, environment)
+            return _FlowOutcome(environment)
+        if isinstance(node, ast.Delete):
+            for target in node.targets:
+                if isinstance(target, (ast.Attribute, ast.Subscript)):
+                    self._invalidate_storage(
+                        target.value,
+                        _UNKNOWN_FLOW_VALUE,
+                        environment,
+                    )
+                else:
+                    self._expression(target, environment)
             return _FlowOutcome(environment)
         if isinstance(node, ast.If):
             self._expression(node.test, environment)
@@ -4543,6 +4676,10 @@ class _SourceScanner(ast.NodeVisitor):
                 isinstance(node.func, ast.Name)
                 and alias_resolved is not None
                 and not rebound_bare_name
+                and (
+                    not lexically_bound_callable
+                    or not callable_value.storage_ids
+                )
             ):
                 known_alias_callable = self.aliases.resolve_known(node.func)
             if (
