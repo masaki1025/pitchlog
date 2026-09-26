@@ -1,6 +1,6 @@
 ---
 feature: harness-model-refresh
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-27・徳光 尋弥)   # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -48,7 +48,7 @@ created: 2026-09-26
 | `docs/adr/ADR-001-codex-model-selection.md` | **v1.1**: 決定表を固定構文(4 節)の 8 行で GPT-6 世代へ再設計(PO 確定案)・文脈(CLI 0.157.x のカタログ・料金・利用枠の重み〔代理指標〕・ベンチマーク〔未照合分は明示〕・移行前ベースライン)・理由(欠陥コスト論の GPT-6 世代への読み替え)・帰結(見直しトリガーに「実測期間終了時の再判定」「品質下限の巻き戻し条件」を追加・Ultra は対話専用・Fast 不使用・決定表の固定構文をテストが読む旨)・変更履歴行。approved 化後、ステップ 4 で実機検証の追随行(版は上げない) | **finalize-doc**(ADR-001 v1.1 + 設計書 v1.18 を単一ゲート)+ 追随行は PR レビュー |
 | `docs/development/dev-harness-design-2026-08-07.md` | **v1.18**: 8.1 に主セッション推奨設定を新設・8.1 `:662` の「Opus 5 固定」を更新 / 8.5 実行既定を `claude-opus-5-5`・`effort: high`(`effortLevel` 併記廃止・定義例 `:744` 修正)/ 9.4 の表の再掲を廃止(7.1-1)し ADR-001 参照 + 注記(固定構文・同期テスト・CLI 0.157.x 以上とラッパーの版検査・`probe`)+ `:826` のエイリアス注記を GPT-6 世代へ / 6.1 `:322`・9.2 `:792` の「terra medium」・8.4 `:704` の「terra high」を「ADR-001 の該当行」参照へ / 8.4 `/setup-dev` 行に版の下限(Claude Code 2.1.280・Codex CLI 0.157.0)/ 射程宣言・変更履歴行 | **finalize-doc**(同上) |
 | `docs/README.md` | ADR-001・設計書の版・状態・最終更新の現行化(起案時 in-review・承認時 approved・追随行の 3 回) | PR レビュー |
-| `docs/development/harness-evaluation.md` | **反映なし**(現時点)。`/pr` クローズ処理で台帳追記に該当すると判断した場合は、**先に本表へ宣言を追記してから**反映する(`.claude/skills/pr/SKILL.md` 1-3)。該当しなければ worklog に「台帳への追記なし」と理由を残す | — |
+| `docs/development/harness-evaluation.md` | `/pr` クローズ処理(2026-09-27)で該当と判断 → **`## 候補` へ 2 件追記**(版は上げない — 7.6-3 前段): ① 確定ゲートの全文周で非起因の 1 件が繰り返し出て往復が 5 回続いた実測と、差分周の小さな母集団で起因過半エスカレーションが機械的に発火した実測 ② ADR-001 v1.1 の実測期間(モデル世代更新の効果測定)の追跡。変更履歴 1 行・README の台帳行を現行化 | PR レビュー |
 | 要件書・ADR-002〜004・onboarding.md・github-setup.md・`.claude/skills/pr/SKILL.md` | **反映なし** | — |
 | `.claude/skills/finalize-doc/SKILL.md` | `:15` の括弧書きを「ラッパーが ADR-001『敵対レビュー・コア領域 PR・正本確定ゲート』行どおりに固定」へ(guard_paths — 逐行確認・実施記録行・SHA 拘束マージ) | PR レビュー + 逐行確認 |
 

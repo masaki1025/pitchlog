@@ -314,6 +314,15 @@ branch: feature/harness-model-refresh
 - 安全分類器の遮断(flagged / safeguard / blocked): **0 件**。再実行なし。版検査は 0.157.1 で通過(3 経路とも起動)
 - 成立 → ADR-001 の変更履歴へ**版を上げない追随行**(7.6-3 前段)を追加・`docs/README.md` の ADR-001 行に追随の注記。frontmatter は approved のまま
 
+### /pr クローズ処理(2026-09-27)
+
+- 計画書を `status: in-review` へ。worklog を締める(本節)
+- **台帳(harness-evaluation.md)への追記を判断 → 該当**: `## 候補` へ 3 件(確定ゲートの全文周往復 / 起因過半の機械発火 / モデル世代更新の効果測定の追跡)。計画書 3 節へ宣言を先に追記 → 台帳の変更履歴 1 行(版は上げない)→ README の台帳行を現行化(同一コミット)
+- **結果サマリ**: 実装 = ステップ 4 本(正本起案 → 確定ゲート 18 回で approved → Claude 側設定・文書の同期 → ラッパー定数・版検査・probe・fast 3 値検査・テスト〔Codex〕→ 実機検証)。正本反映 = ADR-001 v1.1(approved・追随行 1 行)・設計書 v1.18(approved)・README。機構 = `codex_run.py`(GPT-6 表・版検査・probe・fast 3 値・重さ分類必須)・agents(Opus 5.5・high)・CLAUDE.md・skills(implement/research/finalize-doc/setup-dev/plan)・plan-template・settings.json(Opus 5.5・high・Fast 無効)。テスト = 70 件追加(同期・負例・経路・版検査・fast・frontmatter)
+- **guard_paths 該当**: `.claude/skills/finalize-doc/SKILL.md:15`(1 行)→ PR に逐行確認チェックと実施記録行を付与(値は人間が記入)。コア領域 paths の該当なし
+- **人間に残る確認**: ① 新規セッションでの実効値(`/model` = claude-opus-5-5・effort high・`/fast` disabled — 高優先層の有無を記録)② finalize-doc SKILL の逐行確認(PR 作成者以外 — 恒久規則)③ 実測期間の開始 = 本 PR の develop マージ日
+- **次の一歩**: /pr(push → PR 作成 → Notion 確認待ち)→ 反対側レビュー(Codex 実装分は Claude 一次レビュー済み・文書分は確定ゲート済み)→ 人間マージ(SHA 拘束)→ /task-done
+
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
 
@@ -321,6 +330,6 @@ branch: feature/harness-model-refresh
 
 ## 未決・次の一歩
 
-- 承認後の前提作業(人間): Codex CLI を 0.157.x へ更新(阻止条件 0)
-- 承認後の順序: 阻止条件 0 の確認 → ステップ 1(2 正本の起案・単一コミット)→ /finalize-doc(現行ラッパー 5.6-sol xhigh)→ ステップ 2〜4 → /sync-docs → /pr
+- /pr → PR レビュー(finalize-doc SKILL の逐行確認は PR 作成者以外)→ 人間マージ → /task-done。マージ日 = ADR-001 v1.1 実測期間の開始日
+- 新規セッションでの実効値確認(ステップ 2 の残)を次回起動時に worklog へ追記
 - 未照合の典拠(openai.com・help.openai.com の 4 ページ)は CLI 更新後のカタログ実機確認で ID・effort を裏付ける
