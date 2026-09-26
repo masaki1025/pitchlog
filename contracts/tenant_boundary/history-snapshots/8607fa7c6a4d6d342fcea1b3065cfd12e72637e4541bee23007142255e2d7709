@@ -5919,20 +5919,20 @@ def _validate_repository_histories(
                 evaluation_context=evaluation_context,
             )
             frozen_archive.validate_snapshot_archive(
-                _validate_baseline_control(
+                _object(
                     _object(
                         previous_assets[DEFAULT_ALLOWLIST.as_posix()],
                         f"比較元.{DEFAULT_ALLOWLIST.as_posix()}",
-                    ),
-                    f"比較元.{DEFAULT_ALLOWLIST.as_posix()}",
-                ),
-                _validate_baseline_control(
+                    ).get("baseline_control"),
+                    f"比較元.{DEFAULT_ALLOWLIST.as_posix()}.baseline_control",
+                ).get("history"),
+                _object(
                     _object(
                         current_assets[DEFAULT_ALLOWLIST.as_posix()],
                         f"HEAD.{DEFAULT_ALLOWLIST.as_posix()}",
-                    ),
-                    f"HEAD.{DEFAULT_ALLOWLIST.as_posix()}",
-                ),
+                    ).get("baseline_control"),
+                    f"HEAD.{DEFAULT_ALLOWLIST.as_posix()}.baseline_control",
+                ).get("history"),
                 base_snapshot_root=base_snapshot_root,
                 head_snapshot_root=head_snapshot_root,
             )

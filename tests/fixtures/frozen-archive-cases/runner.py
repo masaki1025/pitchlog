@@ -6,6 +6,7 @@ import argparse
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -608,6 +609,110 @@ def prepare_case(
         raise ValueError("GitHub event の PR 受理情報が manifest と不一致")
     return PreparedCase(
         definition=definition,
+        repository=repository,
+        event_path=event_path,
+        base_sha=base_sha,
+        head_sha=head_sha,
+        merge_sha=merge_sha,
+    )
+
+
+def prepare_current_repository_acceptance(
+    destination: Path,
+    source_root: Path,
+    manifest: Manifest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> PreparedCase:
+    """実比較元から現行作業木への PR 受理用リポジトリを作る。
+
+    Args:
+        destination: 一時 clone を置く作業ディレクトリ。
+        source_root: 現行作業木を持つ実リポジトリ。
+        manifest: 比較元 revision と PR 識別値を持つ manifest。
+        monkeypatch: event 環境を一時設定する pytest 補助。
+
+    Returns:
+        実比較元と現行作業木の tree を封入した PR 受理用リポジトリ。
+    """
+    helpers = _load_repository_helpers(source_root)
+    repository = destination / "repository"
+    destination.mkdir(parents=True, exist_ok=True)
+    clone = _git(
+        destination,
+        [
+            "clone",
+            "--quiet",
+            "--no-checkout",
+            "--shared",
+            str(source_root),
+            str(repository),
+        ],
+    )
+    if clone.returncode != 0:
+        raise RuntimeError(f"実リポジトリを clone できない: {clone.stderr.strip()}")
+    checkout = _git(
+        repository,
+        ["checkout", "--quiet", "--detach", manifest.comparison_revision],
+    )
+    if checkout.returncode != 0:
+        raise RuntimeError(
+            f"実比較元を checkout できない: {checkout.stderr.strip()}"
+        )
+
+    patch = _git(
+        source_root,
+        ["diff", "--binary", "--full-index", manifest.comparison_revision, "--"],
+    )
+    if patch.returncode != 0:
+        raise RuntimeError(f"現行作業木の差分を読めない: {patch.stderr.strip()}")
+    applied = subprocess.run(
+        ["git", "apply", "--index", "--binary", "-"],
+        cwd=repository,
+        input=patch.stdout,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if applied.returncode != 0:
+        raise RuntimeError(
+            f"現行作業木の差分を適用できない: {applied.stderr.strip()}"
+        )
+
+    untracked = _git(
+        source_root,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+    )
+    if untracked.returncode != 0:
+        raise RuntimeError(
+            f"現行作業木の未追跡一覧を読めない: {untracked.stderr.strip()}"
+        )
+    for raw_path in untracked.stdout.split("\0"):
+        if not raw_path:
+            continue
+        relative_path = Path(raw_path)
+        source = source_root / relative_path
+        target = repository / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_symlink():
+            target.symlink_to(os.readlink(source))
+        else:
+            shutil.copy2(source, target)
+
+    event_path = destination / "pull-request-event.json"
+    helpers._seal_pull_request_worktree(
+        repository,
+        manifest.comparison_revision,
+        monkeypatch,
+        event_path,
+        number=manifest.pull_request_number,
+    )
+    base_sha, head_sha, merge_sha = _event_and_merge(
+        repository,
+        event_path,
+        helpers,
+    )
+    return PreparedCase(
+        definition=manifest.cases[0],
         repository=repository,
         event_path=event_path,
         base_sha=base_sha,

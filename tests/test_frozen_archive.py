@@ -328,7 +328,7 @@ def test_current_archive_metrics_are_within_limits() -> None:
 
     expected = archive.SnapshotArchiveMetrics(
         snapshot_count=64,
-        snapshot_bytes=2_181_430,
+        snapshot_bytes=2_181_504,
         orphan_count=29,
         orphan_bytes=1_021_201,
     )
@@ -510,7 +510,7 @@ def test_current_archive_has_no_unreferenced_new_snapshot() -> None:
     )
 
     assert comparison.head.snapshot_count == 64
-    assert comparison.head.snapshot_bytes == 2_181_430
+    assert comparison.head.snapshot_bytes == 2_181_504
     assert comparison.head.orphan_count == 29
     assert comparison.head.orphan_bytes == 1_021_201
 

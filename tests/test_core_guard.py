@@ -146,6 +146,10 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "tests/test_check_tenant_boundary_bypass.py",
     ),
     ("tests/test_frozen_archive.py", "tests/test_frozen_archive.py"),
+    (
+        "tests/test_frozen_archive_case_runner.py",
+        "tests/test_frozen_archive_case_runner.py",
+    ),
     ("tests/test_frozen_history.py", "tests/test_frozen_history.py"),
 )
 TENANT_BOUNDARY_AREA_PATH_ADDITIONS = tuple(

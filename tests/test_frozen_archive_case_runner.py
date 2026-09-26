@@ -193,6 +193,29 @@ def test_runner_calls_real_cli_in_pull_request_mode(
         assert result.stdout == "tenant-boundary bypass check: ok"
 
 
+def test_current_checker_accepts_actual_repository_transition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実比較元から現行作業木への遷移を PR 受理モードで照合する。"""
+    prepared = runner.prepare_current_repository_acceptance(
+        tmp_path,
+        REPOSITORY_ROOT,
+        MANIFEST,
+        monkeypatch,
+    )
+
+    assert prepared.base_sha == MANIFEST.comparison_revision
+    result = runner.run_checker(
+        prepared,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.matches
+    assert result.stdout == "tenant-boundary bypass check: ok"
+
+
 def _snapshot_names_at(repository: Path, revision: str) -> frozenset[str]:
     """指定 revision に存在する履歴 snapshot 名を返す。"""
     result = runner._git(
