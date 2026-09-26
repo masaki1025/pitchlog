@@ -139,6 +139,9 @@
         "sourceClauseId": {
           "$ref": "#/$defs/sourceClauseId"
         },
+        "supportingClauseIds": {
+          "$ref": "#/$defs/supportingClauseIds"
+        },
         "classification": {
           "$ref": "#/$defs/axisClassification",
           "const": "finite-enumerable"
@@ -169,6 +172,9 @@
         "sourceClauseId": {
           "$ref": "#/$defs/sourceClauseId"
         },
+        "supportingClauseIds": {
+          "$ref": "#/$defs/supportingClauseIds"
+        },
         "classification": {
           "$ref": "#/$defs/axisClassification",
           "const": "boundary-partition"
@@ -198,6 +204,9 @@
         },
         "sourceClauseId": {
           "$ref": "#/$defs/sourceClauseId"
+        },
+        "supportingClauseIds": {
+          "$ref": "#/$defs/supportingClauseIds"
         },
         "classification": {
           "$ref": "#/$defs/axisClassification",
@@ -237,6 +246,14 @@
     "sourceClauseId": {
       "type": "string",
       "minLength": 1
+    },
+    "supportingClauseIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sourceClauseId"
+      }
     },
     "nonCoverageField": {
       "type": "object",

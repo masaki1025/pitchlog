@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:1e4308622eba1592f6c8c4022dee445f32e4fdb2aafba3cb950f5b6e23e1b3da",
+  "digest": "sha256:b62aa9810b34555bd5038b543e8a01b0e1e60923b12cea5f64314a7784b13825",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -12,7 +12,283 @@
     "stage1ExternalReferences": "forbidden",
     "stage2DigestRule": "json-pointer-plus-content-hash-transitive"
   },
-  "stateTransitionAxes": [],
+  "stateTransitionAxes": [
+    {
+      "axisId": "state.half",
+      "sourceClauseId": "FR-005",
+      "classification": "finite-enumerable",
+      "values": [
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "axisId": "state.count.strikes",
+      "sourceClauseId": "E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "axisId": "state.count.balls",
+      "sourceClauseId": "E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "axisId": "state.outs",
+      "sourceClauseId": "FR-005",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "axisId": "state.runners",
+      "sourceClauseId": "E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        "empty",
+        "first",
+        "second",
+        "third",
+        "first-second",
+        "first-third",
+        "second-third",
+        "loaded"
+      ]
+    },
+    {
+      "axisId": "state.battingOrder",
+      "sourceClauseId": "FR-005",
+      "supportingClauseIds": [
+        "FR-001"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "axisId": "state.tiebreakActive",
+      "sourceClauseId": "FR-009",
+      "classification": "finite-enumerable",
+      "values": [
+        false,
+        true
+      ]
+    },
+    {
+      "axisId": "state.gameEnded",
+      "sourceClauseId": "FR-010",
+      "classification": "finite-enumerable",
+      "values": [
+        false,
+        true
+      ]
+    },
+    {
+      "axisId": "state.inning",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "COLD-01",
+        "COLD-02",
+        "COLD-03",
+        "COLD-04",
+        "COLD-05",
+        "COLD-06",
+        "DRAW-07",
+        "DRAW-08",
+        "DRAW-09",
+        "DRAW-10",
+        "XMARK-01",
+        "XMARK-02",
+        "XMARK-03"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        1,
+        "N-1",
+        "N",
+        "N+1",
+        "R-1",
+        "R",
+        "R+1",
+        "L-1",
+        "L",
+        "L+1"
+      ]
+    },
+    {
+      "axisId": "state.score",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "FR-020",
+        "COLD-02",
+        "COLD-03",
+        "COLD-04",
+        "COLD-05",
+        "COLD-06",
+        "DRAW-05",
+        "DRAW-06",
+        "DRAW-09",
+        "DRAW-10",
+        "XMARK-01",
+        "XMARK-02"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "away-lead:M+1",
+        "away-lead:M",
+        "away-lead:M-1",
+        "tie",
+        "home-lead:M-1",
+        "home-lead:M",
+        "home-lead:M+1"
+      ]
+    },
+    {
+      "axisId": "event.operationKind",
+      "sourceClauseId": "4.0-4",
+      "classification": "finite-enumerable",
+      "values": [
+        "per-pitch",
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "undo"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.kind",
+      "sourceClauseId": "E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        "batting-result",
+        "secondary-result",
+        "runner-event"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.resultId",
+      "sourceClauseId": "D-4",
+      "supportingClauseIds": [
+        "4.0-3"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "見逃し",
+        "空振り",
+        "ファール",
+        "ボール",
+        "単打",
+        "二塁打",
+        "三塁打",
+        "本塁打",
+        "凡打死",
+        "併殺打",
+        "ライナー併殺",
+        "凡打出塁",
+        "ファールフライ",
+        "エラー",
+        "野手選択",
+        "犠打",
+        "犠飛",
+        "犠打失策",
+        "見逃し三振",
+        "空振り三振",
+        "振り逃げ",
+        "K3",
+        "三振ゲッツー",
+        "四球",
+        "死球",
+        "申告敬遠",
+        "PB",
+        "WP",
+        "守備妨害",
+        "打撃妨害",
+        "走塁妨害",
+        "ボーク",
+        "ピッチクロック違反"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.runnerEventPayload",
+      "sourceClauseId": "FR-004",
+      "classification": "finite-enumerable",
+      "values": [
+        "盗塁",
+        "牽制",
+        "暴投",
+        "捕逸",
+        "ボーク",
+        "エラー",
+        "複数走者の同時進塁"
+      ]
+    },
+    {
+      "axisId": "history.depth",
+      "sourceClauseId": "D-11",
+      "supportingClauseIds": [
+        "FR-006"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        0,
+        1,
+        2,
+        "D"
+      ]
+    },
+    {
+      "axisId": "history.composition",
+      "sourceClauseId": "D-11",
+      "supportingClauseIds": [
+        "FR-006",
+        "FR-040"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "top-confirmed-play",
+        "top-state-correction",
+        "top-two-different",
+        "all-same"
+      ]
+    },
+    {
+      "axisId": "history.scenarioLength",
+      "sourceClauseId": "D-11",
+      "supportingClauseIds": [
+        "FR-006"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        1,
+        2,
+        "D",
+        "D+1"
+      ]
+    }
+  ],
   "gameEndAxes": [],
   "nonCoverageFields": [],
   "projectionRules": []

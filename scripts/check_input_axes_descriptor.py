@@ -17,6 +17,10 @@ DESCRIPTOR_PATH = PurePosixPath(
 SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/input_axes_descriptor_schema_v1.json"
 )
+SOURCE_CLAUSE_PATHS = (
+    PurePosixPath("docs/requirements/requirements-pitchlog-2026-07-22.md"),
+    PurePosixPath("docs/adr/ADR-003-domain-calc-method.md"),
+)
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 EXPECTED_TOP_LEVEL_FIELDS = frozenset(
     {
@@ -33,6 +37,14 @@ EXPECTED_TOP_LEVEL_FIELDS = frozenset(
 SAFE_INTEGER_LIMIT = 9_007_199_254_740_991
 FORBIDDEN_STAGE1_REFERENCE_KEYS = frozenset(
     {"$ref", "externalRef", "externalReference", "externalReferences"}
+)
+CLAUSE_HEADING_PATTERN = re.compile(
+    r"^#{2,6}\s+(?P<clause_id>(?:FR|NFR)-\d+|\d+\.\d+-\d+|[A-Z]-\d+[a-z]?)(?=[:\s])"
+)
+APPENDIX_HEADING_PATTERN = re.compile(r"^##\s+付録(?P<letter>[A-Z]):")
+APPENDIX_ITEM_PATTERN = re.compile(r"^(?P<number>\d+)\.\s+")
+STABLE_TABLE_CLAUSE_PATTERN = re.compile(
+    r"^\s*\|\s*`(?P<clause_id>(?:COLD|DRAW|XMARK)-\d+)`\s*\|"
 )
 
 
@@ -71,6 +83,57 @@ def load_json(path: Path, label: str) -> object:
         return json.loads(text, object_pairs_hook=_reject_duplicate_keys)
     except json.JSONDecodeError as error:
         raise DescriptorCheckError(f"{label}がJSONでない: {path}: {error}") from error
+
+
+def load_source_clause_ids(root: Path) -> frozenset[str]:
+    """要件書とADRの構造から実在する由来条文IDを抽出する。
+
+    Args:
+        root: リポジトリルート。
+
+    Returns:
+        見出しIDと付録の番号付き項目IDの集合。
+
+    Raises:
+        DescriptorCheckError: 正本を読めない場合、またはIDを抽出できない場合。
+    """
+    clause_ids: set[str] = set()
+    for relative_path in SOURCE_CLAUSE_PATHS:
+        path = root / relative_path
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError) as error:
+            raise DescriptorCheckError(
+                f"由来条文の正本をUTF-8で読めない: {path}: {error}"
+            ) from error
+
+        appendix_letter: str | None = None
+        for line in lines:
+            heading = CLAUSE_HEADING_PATTERN.match(line)
+            if heading is not None:
+                clause_ids.add(heading.group("clause_id"))
+            stable_table_clause = STABLE_TABLE_CLAUSE_PATTERN.match(line)
+            if stable_table_clause is not None:
+                clause_ids.add(stable_table_clause.group("clause_id"))
+
+            appendix_heading = APPENDIX_HEADING_PATTERN.match(line)
+            if appendix_heading is not None:
+                appendix_letter = appendix_heading.group("letter")
+                continue
+            if line.startswith("## "):
+                appendix_letter = None
+                continue
+            if appendix_letter is None:
+                continue
+            appendix_item = APPENDIX_ITEM_PATTERN.match(line)
+            if appendix_item is not None:
+                clause_ids.add(
+                    f"{appendix_letter}-{int(appendix_item.group('number'))}"
+                )
+
+    if not clause_ids:
+        raise DescriptorCheckError("由来条文IDを正本から抽出できない")
+    return frozenset(clause_ids)
 
 
 def _expect_object(value: object, label: str) -> dict[str, Any]:
@@ -327,6 +390,7 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "nonCoverageField",
         "projectionRule",
         "digestSpec",
+        "supportingClauseIds",
     }
     if not required_definitions <= set(definitions):
         missing = sorted(required_definitions - set(definitions))
@@ -346,14 +410,72 @@ def _walk_for_stage1_external_references(value: object, path: str = "$") -> None
             _walk_for_stage1_external_references(child, f"{path}[{index}]")
 
 
+def _validate_source_clause_ids(
+    descriptor: Mapping[str, Any], source_clause_ids: frozenset[str]
+) -> None:
+    """全入力軸の一次・補助典拠が正本に実在することを検証する。"""
+    for collection_name in ("stateTransitionAxes", "gameEndAxes"):
+        axes = descriptor.get(collection_name)
+        if not isinstance(axes, list):
+            continue
+        for index, axis_value in enumerate(axes):
+            if not isinstance(axis_value, dict):
+                continue
+            cited_ids: list[object] = [axis_value.get("sourceClauseId")]
+            supporting = axis_value.get("supportingClauseIds", [])
+            if isinstance(supporting, list):
+                cited_ids.extend(supporting)
+            for clause_id in cited_ids:
+                if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+                    raise DescriptorCheckError(
+                        "由来条文IDが正本に実在しない: "
+                        f"{collection_name}[{index}]: {clause_id}"
+                    )
+
+
+def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
+    """軸から展開すべきcoverage座標の件数を返す。
+
+    `non-finite`は理由だけではcoverage座標を生まないため0件とする。無限領域は
+    `boundary-partition`として境界値・等価分割を明示してから登録しなければならない。
+    """
+    classification = axis.get("classification")
+    if classification == "finite-enumerable":
+        values = axis.get("values")
+        return len(values) if isinstance(values, list) else 0
+    if classification == "boundary-partition":
+        values = axis.get("boundaryValues")
+        return len(values) if isinstance(values, list) else 0
+    return 0
+
+
+def _validate_coverage_obligations(descriptor: Mapping[str, Any]) -> None:
+    """全入力軸が1件以上のcoverage義務を生成することを検証する。"""
+    for collection_name in ("stateTransitionAxes", "gameEndAxes"):
+        axes = descriptor.get(collection_name)
+        if not isinstance(axes, list):
+            continue
+        for index, axis_value in enumerate(axes):
+            if not isinstance(axis_value, dict):
+                continue
+            if coverage_obligation_count(axis_value) == 0:
+                axis_id = axis_value.get("axisId", f"index={index}")
+                raise DescriptorCheckError(
+                    f"coverage義務が0件の入力軸がある: {collection_name}: {axis_id}"
+                )
+
+
 def validate_descriptor_document(
-    descriptor: Mapping[str, Any], schema: Mapping[str, Any]
+    descriptor: Mapping[str, Any],
+    schema: Mapping[str, Any],
+    source_clause_ids: frozenset[str],
 ) -> None:
     """descriptorのschema・段階1制約・digestを検証する。
 
     Args:
         descriptor: 検証対象descriptor。
         schema: descriptor用JSON Schema。
+        source_clause_ids: 正本から抽出した実在条文ID。
 
     Raises:
         DescriptorCheckError: いずれかの検証に失敗した場合。
@@ -361,6 +483,8 @@ def validate_descriptor_document(
     _validate_schema_contract(schema)
     _validate_instance(descriptor, schema, schema, "$")
     _walk_for_stage1_external_references(descriptor)
+    _validate_source_clause_ids(descriptor, source_clause_ids)
+    _validate_coverage_obligations(descriptor)
     if "history-depth.json" in _canonical_json_text(descriptor):
         raise DescriptorCheckError("descriptorはhistory-depth.jsonを参照してはならない")
     expected_digest = compute_descriptor_digest(descriptor)
@@ -384,7 +508,8 @@ def check_repository(root: Path) -> None:
         load_json(root / SCHEMA_PATH, "入力軸descriptor schema"),
         "入力軸descriptor schema",
     )
-    validate_descriptor_document(descriptor, schema)
+    source_clause_ids = load_source_clause_ids(root)
+    validate_descriptor_document(descriptor, schema, source_clause_ids)
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
