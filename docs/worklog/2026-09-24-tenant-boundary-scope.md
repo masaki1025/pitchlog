@@ -944,3 +944,68 @@ import するようになった**ため、単独ファイルとして読み込�
 | 既存孤児(431 由来) | 29 | 1,021,201 |
 
 **440 は孤児を 1 件も増やしていない。** TSK-448 の閾値設定へ共有する。
+
+## CI で 2 ジョブが落ちた — どちらもローカルで見えない型(2026-09-26)
+
+**受理後の CI(run 36219014878)で `tenant-boundary-bypass` は success になったが、
+`backend` と `harness` が落ちた。** **どちらもローカルでは green だった。**
+
+### backend 3 件 — 配布モジュールとの不同期
+
+**`backend/src/pitchlog/**` に、契約資産と同じ内容を持つ配布モジュールがあり、
+完全一致(`revision` と `source_digest`)を要求されている。**
+**識別値を 7 資産すべて上げた結果、3 モジュールが取り残された。**
+
+| モジュール | revision |
+| --- | --- |
+| `tenant_context_contract.py` | 6 → **7** |
+| `repository_contract.py` | 4 → **5** |
+| `runtime_contract.py` | 3 → **4** |
+
+**★ 本セッションは backend のテストを一度も回していなかった。**
+`backend/` ディレクトリで実行する必要があり、**リポジトリルートからでは
+`ModuleNotFoundError: No module named 'pitchlog'` で collect すらされない。**
+**CI で初めて露見した。** **以後は backend も必ず回す。**
+
+### harness 5 件 — CI の環境変数で PR 受理モードに入る
+
+失敗したのは**合成リポジトリへ `check_repository` を呼ぶ型**のテストで、
+**CI の `GITHUB_EVENT_PATH` などを消していない**ため PR 受理モードへ入り、
+**実 PR の event と突き合わされて落ちた**。
+
+    ContractError: PR workspace の明示 base_ref が event の base.sha と不一致
+
+**ローカルには event が無いので不変量モードになり通ってしまう。**
+**TSK-424 が警告していた「ローカルでは合否を先取りできない」の実例**である。
+
+**是正**: 個別に `delenv` を足すのではなく、**合成リポジトリを使うテストの実行中だけ
+関係する `GITHUB_*` を消す共通の仕組み**で解いた。
+**PR 受理モードを検査するテストは例外として自分で `setenv` する**ので、その 2 箇所は壊していない。
+
+**検証**: **CI 相当の環境変数を設定した状態でローカル実行**し、293 passed を確認した。
+
+    GITHUB_EVENT_PATH=<合成 event> GITHUB_WORKSPACE=<repo> \
+    GITHUB_REPOSITORY=masaki1025/pitchlog GITHUB_BASE_REF=develop \
+    GITHUB_EVENT_NAME=pull_request uv run pytest tests/test_check_tenant_boundary_bypass.py -q
+
+### 検査器と資産は 1 バイトも触っていない
+
+**触ると受理記録の `after` がずれ、記録を書き直して孤児が出る。**
+委任時に「検査器と資産を変更しないこと。変えないと解けない場合は変更せずに報告すること」と
+明示し、**テスト側だけで解いた**。**孤児は増えていない。**
+
+| 層 | 結果 |
+| --- | --- |
+| harness `pytest tests/` | **1925 passed** |
+| **backend `pytest -m "not requires_db"`** | **581 passed** |
+| CI 相当環境での tenant_boundary テスト | **293 passed** |
+| 迂回検査 CLI | exit 0 |
+
+### 台帳へ足す候補
+
+**⑩ ローカルで green・CI で red になる型が 2 つ同時に出た。**
+**① 実行ディレクトリが違うと collect すらされないテスト層があり、
+その層を一度も回していなかった**(backend)。
+**② CI にだけ存在する環境変数がテストの実行経路を変える**(harness)。
+**どちらも「ローカルの全件 green」を合格条件にしていると見えない。**
+**対策は「CI と同じ条件をローカルで作って回す」ことで、②は環境変数を設定して再現できた。**

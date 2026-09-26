@@ -1280,6 +1280,15 @@ def _scan_diff_mutation(
     )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_github_evaluation_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """外部 CI の PR event を除き、PR 経路は各テストで明示構成する。"""
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
+
 def _commit_test_repository(repository: Path, message: str) -> str:
     """一時リポジトリの全変更をコミットして commit ID を返す。"""
     checker._run_git(repository, ["add", "."])
