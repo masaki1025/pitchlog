@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 from collections import deque
 from pathlib import Path
@@ -40,7 +41,19 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C1_IS_ALLOWED_SHAPES",
         "C1_MAY_SHAPES",
         "C1_REQUIRE_ROLE_SHAPES",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_ASSIGNMENT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_CLASS_ASSIGNMENT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_EXCEPT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MATCH",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_MODULE_ASSIGNMENT",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_PARAMETER",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_STAR",
+        "C2_ADJUDICATED_IMPORT_SHADOWED_BY_WALRUS",
         "C2_GENERATION_IMPORT",
+        "C2_GENERATION_ARGUMENT_NAME",
+        "C2_GENERATION_ATTRIBUTE_ASSIGNMENT",
+        "C2_GENERATION_KEYWORD_ARGUMENT",
+        "C2_GENERATION_MATCH_KEYWORD",
         "C2_IDEMPOTENCY_KEY_IMPORT",
         "C2_IDEMPOTENT_KEY_IMPORT",
         "C2_REVISION_NO_IMPORT",
@@ -78,9 +91,34 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ALIAS_EXECUTE",
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
+        "C5_CONTEXT_AFTER_TERMINATOR",
+        "C5_CONTEXT_CONDITIONAL_ALIAS_CLASS_BASE",
+        "C5_CONTEXT_CONDITIONAL_ALIAS_CLOSURE",
+        "C5_CONTEXT_CONTAINER_SUBSCRIPT",
+        "C5_CONTEXT_IN_ANNOTATED_ASSIGNMENT",
+        "C5_CONTEXT_IN_CLASS_BASE",
+        "C5_CONTEXT_IN_DEFAULT_ARG",
+        "C5_CONTEXT_IN_DICT_COMPREHENSION",
+        "C5_CONTEXT_IN_EXCEPTION_HANDLER_TYPE",
+        "C5_CONTEXT_IN_FUNCTION_IMPORT",
+        "C5_CONTEXT_IF_ELSE_ORIGIN_MERGE",
+        "C5_CONTEXT_IFEXP_ORIGIN_MERGE",
+        "C5_CONTEXT_IN_LAMBDA_DEFAULT",
+        "C5_CONTEXT_IN_LOCAL_ALIAS",
+        "C5_CONTEXT_RELATIVE_IMPORT",
+        "C5_CONTEXT_REEXPORT_CONDITIONAL",
+        "C5_CONTEXT_REEXPORT_CYCLE",
+        "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+        "C5_CONTEXT_REEXPORT_FACADE",
+        "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+        "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+        "C5_CONTEXT_REEXPORT_STAR",
+        "C5_CONTEXT_REEXPORT_SUBCLASS",
+        "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+        "C5_CONTEXT_MATCH_ORIGIN_MERGE",
+        "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
-        "C5_CONTEXT_UNKNOWN_FACTORY",
         "C5_DYNAMIC_EVAL_EXECUTE",
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
@@ -88,33 +126,1034 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
+        "C5_IMPORT_REBOUND_BY_GLOBAL_IMPORT",
+        "C5_IMPORT_REBOUND_BY_GLOBAL_WRITER",
+        "C5_IMPORT_REBOUND_BY_STAR",
         "C5_MULTILINE_SCALARS",
         "C5_PGCONN_EXEC",
         "C5_PSYCOPG_DIRECT",
+        "C5_SECRET_IN_DEFAULT_CAPTURE",
         "C5_SET_CONFIG_FALSE",
         "C5_SET_TENANT_SQL",
         "C5_SQLALCHEMY_ORM",
         "C5_TENANT_CONTEXT_OBJECT_NEW",
+        "C5_TENANT_CONTEXT_DIRECT_INIT",
+        "C5_TENANT_CONTEXT_DIRECT_NEW",
         "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
         "C5_TENANT_CONTEXT_TYPE_CALL",
+        "C5_CONTEXT_TRY_EXCEPT_ORIGIN_MERGE",
         "C5_TENANT_CONTEXT_OBJECT_NEW_TYPE",
         "C5_TENANT_CONTEXT_DATACLASSES_REPLACE",
         "C5_UNKNOWN_ENGINE_ARGUMENT",
         "C5_UNKNOWN_SESSION_ARGUMENT",
     }
 )
+REEXPORT_SUPPORT_SOURCES = {
+    "pitchlog/repositories/context.py": '''\
+"""再輸出写像テスト用の canonical constructor。"""
 
 
-def _load_checker() -> ModuleType:
-    """検査器をリポジトリの import 設定に依存せず読む。"""
+class TenantContext:
+    """再輸出起源の終端となる型。"""
+''',
+}
+
+CensusIdentity = tuple[str, int, int, str, str, str, str]
+
+EXPECTED_CONDITION_2_PATTERNS = (
+    "(?:^|_)idempotenc[a-z0-9_]*(?:_|$)",
+    "(?:^|_)idempotent_key(?:_|$)",
+    "(?:^|_)seq_no(?:_|$)",
+    "(?:^|_)sequence_no(?:_|$)",
+    "(?:^|_)tombstone(?:_|$)",
+    "(?:^|_)revision_no(?:_|$)",
+    "(?:^|_)generation(?:_|$)",
+)
+EXPECTED_CONDITION_2_ADJUDICATIONS = {
+    "pitchlog.domaincheck.runners.catalog_independence.TracedGeneration": (
+        "ドメイン計算カタログの独立性検査で使う追跡世代であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.backends.common.BackendGenerationError": (
+        "ドメイン計算のコード生成 backend が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.core.EXIT_GENERATION_FAILED": (
+        "ドメイン計算のコード生成が失敗したことを表す終了コードの定数であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.core.GenerationError": (
+        "ドメイン計算のコード生成が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domaingen.formatter.FormatterGenerationError": (
+        "ドメイン計算の表示コード生成が送出する例外型であり、"
+        "同期プロトコルの世代ではない"
+    ),
+    "pitchlog.domainmut.engine.MutationGeneration": (
+        "ドメイン計算 DSL の変異生成結果であり、同期プロトコルの世代ではない"
+    ),
+}
+
+_FLOW_OMISSION_RUNNER = r"""
+import ast
+import importlib.util
+import sys
+
+script = sys.argv[1]
+spec = importlib.util.spec_from_file_location(
+    "check_tenant_boundary_bypass_flow_omission",
+    script,
+)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+original_expression = module._FlowProvenance._expression
+
+
+def omit_call_registration(self, node, environment):
+    if isinstance(node, ast.Call):
+        return module._UNKNOWN_FLOW_VALUE
+    return original_expression(self, node, environment)
+
+
+module._FlowProvenance._expression = omit_call_registration
+raise SystemExit(module.main(sys.argv[2:]))
+"""
+
+
+def _load_checker_module(path: Path, module_name: str) -> ModuleType:
+    """検査器を指定した別モジュールとして読む。"""
     spec = importlib.util.spec_from_file_location(
-        "check_tenant_boundary_bypass_under_test", SCRIPT
+        module_name,
+        path,
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _load_checker() -> ModuleType:
+    """検査器をリポジトリの import 設定に依存せず読む。"""
+    return _load_checker_module(
+        SCRIPT,
+        "check_tenant_boundary_bypass_under_test",
+    )
+
+
+def _resolve_merge_base(base_ref: str, head_ref: str) -> str:
+    """比較元と HEAD の merge-base を解決し、取れなければ検査を失敗させる。"""
+    result = subprocess.run(
+        ["git", "merge-base", base_ref, head_ref],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "stderr なし"
+        raise AssertionError(
+            f"{base_ref} と {head_ref} の merge-base を解決できない: {detail}"
+        )
+    merge_base = result.stdout.strip()
+    if not merge_base:
+        raise AssertionError(
+            f"{base_ref} と {head_ref} の merge-base が空"
+        )
+    return merge_base
+
+
+def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
+    """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
+    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{relative_script}"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    scripts_directory = destination.parent / f"{destination.stem}_scripts"
+    scripts_directory.mkdir()
+    extracted_checker = scripts_directory / SCRIPT.name
+    extracted_checker.write_bytes(result.stdout)
+    dependency = "scripts/frozen_history.py"
+    dependency_result = subprocess.run(
+        ["git", "show", f"{revision}:{dependency}"],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if dependency_result.returncode == 0:
+        (scripts_directory / "frozen_history.py").write_bytes(
+            dependency_result.stdout
+        )
+    digest = hashlib.sha256(result.stdout).hexdigest()
+    previous_dependency = sys.modules.pop("frozen_history", None)
+    previous_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(scripts_directory))
+        return _load_checker_module(
+            extracted_checker,
+            f"check_tenant_boundary_bypass_{digest}",
+        )
+    finally:
+        sys.path[:] = previous_path
+        sys.modules.pop("frozen_history", None)
+        if previous_dependency is not None:
+            sys.modules["frozen_history"] = previous_dependency
+
+
+def _develop_contract_root(destination: Path) -> Path:
+    """develop worktree を git から探し、無ければ同 revision を一時展開する。"""
+    listing = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    worktree: Path | None = None
+    for block in listing.strip().split("\n\n"):
+        fields = dict(
+            line.split(" ", 1)
+            for line in block.splitlines()
+            if " " in line
+        )
+        if fields.get("branch") == "refs/heads/develop":
+            candidate = Path(fields["worktree"])
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=candidate,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            reference = subprocess.run(
+                ["git", "rev-parse", "origin/develop"],
+                cwd=REPOSITORY_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if head == reference:
+                worktree = candidate
+                break
+    if worktree is not None:
+        return worktree
+
+    return _materialize_contract_root("origin/develop", destination)
+
+
+def _materialize_contract_root(revision: str, destination: Path) -> Path:
+    """指定 revision の契約資産と fixture を git show で一時展開する。"""
+    names = subprocess.run(
+        [
+            "git",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            revision,
+            "--",
+            "contracts/tenant_boundary",
+            "tests/fixtures/tenant_boundary",
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    for relative in names:
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = subprocess.run(
+            ["git", "show", f"{revision}:{relative}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        target.write_bytes(content)
+    return destination
+
+
+def _checker_census(
+    checker_module: ModuleType,
+    *,
+    repository_root: Path,
+    source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """検査器の全文走査結果を比較用の exact-set にする。"""
+    contract = checker_module.load_contract(repository_root)
+    violations = checker_module.scan_directory(source_root, contract=contract)
+    return frozenset(
+        (
+            violation.path,
+            violation.line,
+            violation.end_line,
+            violation.scope,
+            violation.code,
+            violation.symbol,
+            violation.message,
+        )
+        for violation in violations
+    )
+
+
+def _compare_checker_census(
+    reference_checker: ModuleType,
+    candidate_checker: ModuleType,
+    *,
+    repository_root: Path,
+    source_root: Path,
+    reference_repository_root: Path | None = None,
+) -> tuple[frozenset[CensusIdentity], frozenset[CensusIdentity]]:
+    """merge-base 版から作業ツリー版への違反集合の増減を返す。
+
+    この比較が証明するのは、両版が ``source_root`` にある現在の
+    ``backend/src`` へ出す違反集合が同じこと、またはその差が期待どおりであること。
+    現在のツリーに存在しない構文やコードへの挙動は証明せず、将来のコードは覆わない。
+    """
+    reference = _checker_census(
+        reference_checker,
+        repository_root=reference_repository_root or repository_root,
+        source_root=source_root,
+    )
+    candidate = _checker_census(
+        candidate_checker,
+        repository_root=repository_root,
+        source_root=source_root,
+    )
+    return candidate - reference, reference - candidate
+
+
+def _insert_generated_use(template: str, use: str) -> str:
+    """生成テンプレートの marker 位置へ同じ字下げで利用形を差し込む。"""
+    marker = "__USE__"
+    marker_index = template.index(marker)
+    line_start = template.rfind("\n", 0, marker_index) + 1
+    indentation = template[line_start:marker_index]
+    assert not indentation.strip()
+    replacement = "\n".join(
+        f"{indentation}{line}" if line else ""
+        for line in use.splitlines()
+    )
+    return template.replace(f"{indentation}{marker}", replacement, 1)
+
+
+def _tenant_context_provenance_corpus() -> tuple[tuple[str, str], ...]:
+    """起源・別名格納域・match・callable 取得方式の各軸を直積する。"""
+    routes = {
+        "direct-assignment": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = TenantContext
+    __USE__
+""",
+        "if-expression": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__flag, tenant_id):
+    factory = TenantContext if flag else safe
+    __USE__
+""",
+        "if-else": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__flag, tenant_id):
+    if flag:
+        factory = TenantContext
+    else:
+        factory = safe
+    __USE__
+""",
+        "try-except": """\
+from pitchlog.repositories.context import TenantContext
+from external.helpers import safe
+
+def build(__PREBOUND__tenant_id):
+    try:
+        factory = TenantContext
+    except RuntimeError:
+        factory = safe
+    __USE__
+""",
+        "list-subscript": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = [TenantContext][0]
+    __USE__
+""",
+        "dict-get": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = {"context": TenantContext}.get("context")
+    __USE__
+""",
+        "tuple-unpack": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory, = (TenantContext,)
+    __USE__
+""",
+        "walrus": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    if factory := TenantContext:
+        __USE__
+""",
+        "local-function-return": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    def acquire():
+        return TenantContext
+    factory = acquire()
+    __USE__
+""",
+        "lambda-return": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    acquire = lambda: TenantContext
+    factory = acquire()
+    __USE__
+""",
+        "comprehension": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    factory = [item for item in (TenantContext,)][0]
+    __USE__
+""",
+        "with-as": """\
+from contextlib import nullcontext
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    with nullcontext(TenantContext) as factory:
+        __USE__
+""",
+        "for-target": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    for factory in (TenantContext,):
+        __USE__
+""",
+        "except-as": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    try:
+        raise RuntimeError
+    except TenantContext as factory:
+        __USE__
+""",
+        "argument-default": """\
+from pitchlog.repositories.context import TenantContext
+
+def acquire(factory=TenantContext):
+    return factory
+
+def build(__PREBOUND__tenant_id):
+    factory = acquire()
+    __USE__
+""",
+        "function-import": """\
+def build(__PREBOUND__tenant_id):
+    from pitchlog.repositories.context import TenantContext as factory
+    __USE__
+""",
+        "local-alias": """\
+from pitchlog.repositories.context import TenantContext
+
+def build(__PREBOUND__tenant_id):
+    imported = TenantContext
+    factory = imported
+    __USE__
+""",
+        "global-rebinding": """\
+from pitchlog.repositories.context import TenantContext
+
+global_factory = TenantContext
+
+def replace(other):
+    global global_factory
+    global_factory = other
+
+def build(__PREBOUND__tenant_id):
+    factory = global_factory
+    __USE__
+""",
+        "star-import": """\
+from pitchlog.repositories.context import *
+
+def build(__PREBOUND__tenant_id):
+    factory = TenantContext
+    __USE__
+""",
+    }
+    uses = {
+        "direct-call": "return factory(tenant_id)",
+        "class-base": "class Forged(factory):\n    pass\nreturn Forged",
+        "closure-call": (
+            "def invoke():\n    return factory(tenant_id)\nreturn invoke()"
+        ),
+        "attribute-call": "return factory.TenantContext(tenant_id)",
+    }
+    prebindings = {
+        "unbound": "",
+        "prebound": "factory, ",
+    }
+    corpus = [
+        (
+            f"{binding_id}/{route_id}/{use_id}",
+            _insert_generated_use(
+                template.replace("__PREBOUND__", prebinding),
+                use,
+            ),
+        )
+        for binding_id, prebinding in prebindings.items()
+        for route_id, template in routes.items()
+        for use_id, use in uses.items()
+    ]
+    match_patterns = {
+        "scalar": ("", "TenantContext", "factory", "factory", ""),
+        "sequence": ("", "[TenantContext]", "[factory]", "factory", ""),
+        "mapping": (
+            "",
+            '{"k": TenantContext}',
+            '{"k": factory}',
+            "factory",
+            "",
+        ),
+        "class": (
+            """\
+class SomeClass:
+    def __init__(self, attr):
+        self.attr = attr
+
+""",
+            "SomeClass(TenantContext)",
+            "SomeClass(attr=factory)",
+            "factory",
+            "",
+        ),
+        "as": ("", "[TenantContext]", "[_] as factory", "factory", ""),
+        "or": (
+            "",
+            '[TenantContext] if flag else {"k": TenantContext}',
+            '[factory] | {"k": factory}',
+            "factory",
+            "flag, ",
+        ),
+        "star": ("", "[TenantContext]", "[*factory]", "factory[0]", ""),
+    }
+    for binding_id, prebinding in prebindings.items():
+        for pattern_id, (
+            preamble,
+            subject,
+            pattern,
+            target,
+            extra_arguments,
+        ) in match_patterns.items():
+            template = f"""\
+from pitchlog.repositories.context import TenantContext
+
+{preamble}def build({prebinding}{extra_arguments}tenant_id):
+    match {subject}:
+        case {pattern}:
+            __USE__
+"""
+            target_uses = {
+                "direct-call": f"return {target}(tenant_id)",
+                "class-base": (
+                    f"class Forged({target}):\n    pass\nreturn Forged"
+                ),
+                "closure-call": (
+                    f"def invoke():\n    return {target}(tenant_id)\n"
+                    "return invoke()"
+                ),
+                "attribute-call": f"return {target}.TenantContext(tenant_id)",
+            }
+            corpus.extend(
+                (
+                    f"{binding_id}/match-{pattern_id}/{use_id}",
+                    _insert_generated_use(template, use),
+                )
+                for use_id, use in target_uses.items()
+            )
+
+    mutable_containers = {
+        "list": {
+            "safe": "[safe]",
+            "dangerous": "[TenantContext]",
+            "empty": "[]",
+        },
+        "dict": {
+            "safe": '{"k": safe}',
+            "dangerous": '{"k": TenantContext}',
+            "empty": "{}",
+        },
+    }
+    mutable_updates = {
+        "append": "__WRITE__.append(TenantContext)",
+        "extend": "__WRITE__.extend([TenantContext])",
+        "insert": "__WRITE__.insert(0, TenantContext)",
+        "update": '__WRITE__.update({"k": TenantContext})',
+        "setdefault": '__WRITE__.setdefault("k", TenantContext)',
+        "attribute": "__WRITE__.factory = TenantContext",
+        "reverse": "__WRITE__.reverse()",
+        "sort": "__WRITE__.sort()",
+        "delete": "del __WRITE__[__KEY__]",
+        "operator-setitem": (
+            "operator.setitem(__WRITE__, __KEY__, TenantContext)"
+        ),
+    }
+    storage_aliases = {
+        "same-name": ("", "store", "store"),
+        "alias-write": ("alias = store", "alias", "store"),
+    }
+    corpus.extend(
+        (
+            f"mutable/{container_id}/{initial_id}/{alias_id}/{update_id}/{read_id}",
+            _insert_generated_use(
+                f"""\
+import operator
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    store = {initial}
+    {alias_setup}
+    {update}
+    __USE__
+""",
+                read.replace("__READ__", read_name),
+            ),
+        )
+        for container_id, initials in mutable_containers.items()
+        for initial_id, initial in initials.items()
+        for alias_id, (
+            alias_setup,
+            write_name,
+            read_name,
+        ) in storage_aliases.items()
+        for update_id, update in {
+            "subscript": (
+                "__WRITE__[0] = TenantContext"
+                if container_id == "list"
+                else '__WRITE__["k"] = TenantContext'
+            ),
+            **mutable_updates,
+        }.items()
+        if not (
+            update_id in {"append", "extend", "insert", "reverse", "sort"}
+            and container_id == "dict"
+        )
+        if not (
+            update_id in {"update", "setdefault"}
+            and container_id == "list"
+        )
+        for read_id, read in {
+            "subscript": (
+                "factory = __READ__[0]\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else 'factory = __READ__["k"]\nreturn factory(tenant_id)'
+            ),
+            "next-iter": (
+                "factory = next(iter(__READ__))\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else (
+                    "factory = next(iter(__READ__.values()))\n"
+                    "return factory(tenant_id)"
+                )
+            ),
+            "unpack": (
+                "factory, *_ = __READ__\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else (
+                    "factory, *_ = __READ__.values()\nreturn factory(tenant_id)"
+                )
+            ),
+            "for": (
+                "for factory in __READ__:\n"
+                "    return factory(tenant_id)\nreturn None"
+                if container_id == "list"
+                else (
+                    "for factory in __READ__.values():\n"
+                    "    return factory(tenant_id)\nreturn None"
+                )
+            ),
+        }.items()
+        for update in (
+            update.replace("__WRITE__", write_name).replace(
+                "__KEY__",
+                "0" if container_id == "list" else '"k"',
+            ),
+        )
+    )
+
+    match_implementations = {
+        "builtin": {
+            channel: ("[TenantContext, safe]", "[safe, TenantContext]")
+            for channel in ("positional", "keyword", "mixed")
+        },
+        "dataclass": {
+            "positional": (
+                "DataPair(TenantContext, safe)",
+                "DataPair(safe, TenantContext)",
+            ),
+            "keyword": (
+                "DataPair(left=TenantContext, right=safe)",
+                "DataPair(left=safe, right=TenantContext)",
+            ),
+            "mixed": (
+                "DataPair(TenantContext, right=safe)",
+                "DataPair(safe, right=TenantContext)",
+            ),
+        },
+        "match-args": {
+            "positional": (
+                "Pair(TenantContext, safe)",
+                "Pair(safe, TenantContext)",
+            ),
+            "keyword": (
+                "Pair(left=TenantContext, right=safe)",
+                "Pair(left=safe, right=TenantContext)",
+            ),
+            "mixed": (
+                "Pair(TenantContext, right=safe)",
+                "Pair(safe, right=TenantContext)",
+            ),
+        },
+        "custom-sequence": {
+            "positional": (
+                "CustomSequence(TenantContext, safe)",
+                "CustomSequence(safe, TenantContext)",
+            ),
+            "keyword": (
+                "CustomSequence(left=TenantContext, right=safe)",
+                "CustomSequence(left=safe, right=TenantContext)",
+            ),
+            "mixed": (
+                "CustomSequence(TenantContext, right=safe)",
+                "CustomSequence(safe, right=TenantContext)",
+            ),
+        },
+        "custom-mapping": {
+            "positional": (
+                "CustomMapping(TenantContext, safe)",
+                "CustomMapping(safe, TenantContext)",
+            ),
+            "keyword": (
+                "CustomMapping(left=TenantContext, right=safe)",
+                "CustomMapping(left=safe, right=TenantContext)",
+            ),
+            "mixed": (
+                "CustomMapping(TenantContext, right=safe)",
+                "CustomMapping(safe, right=TenantContext)",
+            ),
+        },
+    }
+    match_orders = {
+        "positional": 0,
+        "keyword": 1,
+        "mixed": 0,
+    }
+    semantic_patterns = {
+        "sequence": {
+            "positional": "[factory, _]",
+            "keyword": "[_, factory]",
+            "mixed": "[factory, *_]",
+        },
+        "mapping": {
+            "positional": '{"left": factory, "right": _}',
+            "keyword": '{"right": _, "left": factory}',
+            "mixed": '{"left": factory, **rest}',
+        },
+        "class": {
+            "positional": "Pair(factory, _)",
+            "keyword": "Pair(right=_, left=factory)",
+            "mixed": "Pair(factory, right=_)",
+        },
+    }
+    match_preamble = """\
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pitchlog.repositories.context import TenantContext
+
+@dataclass
+class DataPair:
+    left: object
+    right: object
+
+class Pair:
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class CustomSequence(Sequence):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, index):
+        return (self.left, self.right)[index]
+
+class CustomMapping(Mapping):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def __iter__(self):
+        return iter(("left", "right"))
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, key):
+        return {"left": self.left, "right": self.right}[key]
+
+def safe(value):
+    return value
+"""
+    corpus.extend(
+        (
+            f"match-semantics/{implementation_id}/{channel_id}/{order_id}/{pattern_id}",
+            f"""\
+{match_preamble}
+def build(factory, tenant_id):
+    value = {subjects[subject_index]}
+    match value:
+        case {patterns[order_id]}:
+            return factory(tenant_id)
+""",
+        )
+        for implementation_id, channels in match_implementations.items()
+        for channel_id, subjects in channels.items()
+        for order_id, subject_index in match_orders.items()
+        for pattern_id, patterns in semantic_patterns.items()
+    )
+
+    construction_methods = {
+        "direct": "return TenantContext(tenant_id)",
+        "new-direct-attribute": "return TenantContext.__new__(TenantContext)",
+        "new-getattr": (
+            'return getattr(TenantContext, "__new__")(TenantContext)'
+        ),
+        "new-class-dict": (
+            'return TenantContext.__dict__["__new__"](TenantContext)'
+        ),
+        "mro-subscript": "return TenantContext.__mro__[0](tenant_id)",
+        "init": "TenantContext.__init__(target, tenant_id)\nreturn target",
+        "type": "return type(target)(tenant_id)",
+        "copy": "return copy.copy(target)",
+        "dataclasses-replace": (
+            "return dataclasses.replace(target, tenant_id=tenant_id)"
+        ),
+    }
+    corpus.extend(
+        (
+            f"construction/{method_id}",
+            f"""\
+import copy
+import dataclasses
+from pitchlog.repositories.context import TenantContext
+
+def build(target: TenantContext, tenant_id):
+    {method.replace(chr(10), chr(10) + '    ')}
+""",
+        )
+        for method_id, method in construction_methods.items()
+    )
+    case_ids = [case_id for case_id, _ in corpus]
+    assert len(case_ids) == len(set(case_ids))
+    return tuple(corpus)
+
+
+def _source_is_tb007_red(
+    checker_module: ModuleType,
+    contract: Any,
+    source: str,
+) -> bool:
+    """生成ソースが指定 checker で条件 5 の red になるか返す。"""
+    return any(
+        violation.code == "TB007"
+        for violation in checker_module.scan_source(
+            source,
+            path="pitchlog/services/generated_provenance_case.py",
+            contract=contract,
+        )
+    )
+
+
+def _assert_removed_tb007_matches_declared_relaxations(
+    removed: frozenset[CensusIdentity],
+) -> None:
+    """減分が (iii) の宣言範囲への緩和だけで説明できると示す。"""
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    sources = {
+        path.relative_to(source_root).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(source_root.rglob("*.py"))
+    }
+    reexport_map = checker._build_reexport_map(sources)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    scanners: dict[str, tuple[ast.Module, Any]] = {}
+
+    for identity in removed:
+        path, line, end_line, _, code, symbol, _ = identity
+        assert code == "TB007"
+        if path not in scanners:
+            tree = ast.parse(sources[path], filename=path)
+            scanner = checker._SourceScanner(
+                path=path,
+                module=checker._module_name(path),
+                tree=tree,
+                changed_lines=None,
+                contract=contract,
+                reject_all_db_calls=False,
+                reexport_map=reexport_map,
+            )
+            scanner.visit(tree)
+            scanner._validate_call_coverage(tree)
+            scanners[path] = (tree, scanner)
+        tree, scanner = scanners[path]
+
+        matching_calls: list[ast.Call] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if node.lineno != line or node.end_lineno != end_line:
+                continue
+            resolved = scanner.aliases.resolve(
+                node.func
+            ) or scanner._raw_expression(node.func)
+            if symbol == "<unresolved-callable>" or symbol == resolved:
+                matching_calls.append(node)
+
+        assert matching_calls, identity
+        explanations = []
+        for node in matching_calls:
+            if (
+                isinstance(node.func, ast.Name)
+                and id(node.func) in scanner.lexically_bound_name_ids
+            ):
+                explanations.append(node)
+                continue
+            constructor_name = contract.tenant_context.constructor_symbol.rsplit(
+                ".", 1
+            )[-1]
+            callable_name = (
+                node.func.id
+                if isinstance(node.func, ast.Name)
+                else node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else None
+            )
+            if callable_name == constructor_name:
+                continue
+            resolved = scanner.aliases.resolve(
+                node.func
+            ) or scanner._raw_expression(node.func)
+            reexport = scanner._reexport_resolution(node.func, resolved)
+            if reexport is not None and (
+                reexport.unresolved
+                or contract.tenant_context.constructor_symbol in reexport.origins
+            ):
+                continue
+            known_callable = scanner.flow.callable_symbol(node)
+            if (
+                known_callable is not None
+                and known_callable
+                != contract.tenant_context.constructor_symbol
+            ):
+                explanations.append(node)
+                continue
+            if (
+                isinstance(node.func, ast.Attribute)
+                and known_callable is None
+            ):
+                explanations.append(node)
+                continue
+            alias_resolved = scanner.aliases.resolve(node.func)
+            known_alias_callable = (
+                scanner.aliases.resolve_known(node.func)
+                if isinstance(node.func, ast.Name) and alias_resolved is not None
+                else None
+            )
+            if (
+                known_alias_callable is not None
+                and scanner.aliases.canonical(known_alias_callable)
+                != contract.tenant_context.constructor_symbol
+                and known_callable is None
+            ):
+                explanations.append(node)
+
+        assert explanations, identity
+
+
+def _omit_flow_call_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """不変条件の負例用に flow の Call 登録だけを意図的に落とす。"""
+    original_expression = checker._FlowProvenance._expression
+
+    def omit_call_registration(
+        self: Any,
+        node: ast.AST,
+        environment: dict[str, Any],
+    ) -> Any:
+        if isinstance(node, ast.Call):
+            return checker._UNKNOWN_FLOW_VALUE
+        return original_expression(self, node, environment)
+
+    monkeypatch.setattr(
+        checker._FlowProvenance,
+        "_expression",
+        omit_call_registration,
+    )
+
+
+def _call_coverage_sets(
+    source: str,
+    *,
+    path: str,
+    contract: Any,
+) -> tuple[frozenset[int], frozenset[int], frozenset[int], frozenset[int]]:
+    """同じ AST に対する Call の4登録集合を返す。"""
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    scanner.visit(tree)
+    return (
+        frozenset(
+            id(node) for node in ast.walk(tree) if isinstance(node, ast.Call)
+        ),
+        frozenset(scanner.flow.callable_symbols),
+        frozenset(scanner.flow.receiver_kinds),
+        frozenset(scanner.checked_call_ids),
+    )
 
 
 checker = _load_checker()
@@ -151,6 +1190,26 @@ def _test_repository_exit_code(
     except checker.ContractError:
         return 2
     return 1 if violations else 0
+
+
+def test_relative_import_from_init_uses_current_package_as_base() -> None:
+    """__init__.py の相対 import は親でなく自パッケージを基点にする。"""
+    assert checker._absolute_import_from_module(
+        current_module="pitchlog.repositories",
+        current_is_package=True,
+        imported_module="context",
+        level=1,
+    ) == "pitchlog.repositories.context"
+
+
+def test_relative_import_with_level_greater_than_one_ascends_packages() -> None:
+    """level > 1 は現在モジュールの親パッケージからさらに上へ遡る。"""
+    assert checker._absolute_import_from_module(
+        current_module="pitchlog.services.handlers.command",
+        current_is_package=False,
+        imported_module="repositories.context",
+        level=3,
+    ) == "pitchlog.repositories.context"
 
 
 def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
@@ -219,6 +1278,15 @@ def _scan_diff_mutation(
         changed_lines=changed_lines,
         contract=contract,
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_github_evaluation_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """外部 CI の PR event を除き、PR 経路は各テストで明示構成する。"""
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
 
 
 def _commit_test_repository(repository: Path, message: str) -> str:
@@ -685,6 +1753,739 @@ def _unlisted_database_access(session: Session) -> None:
     return relative, source, mutated
 
 
+def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
+    """センサス差分を今回変更した TB002・TB007 の写像だけに固定する。"""
+    merge_base = _resolve_merge_base("origin/develop", "HEAD")
+    baseline_checker = _load_checker_from_revision(
+        merge_base,
+        tmp_path / "check_tenant_boundary_bypass_merge_base.py",
+    )
+    reference_repository_root = _materialize_contract_root(
+        merge_base,
+        tmp_path / "reference_repository",
+    )
+
+    added, removed = _compare_checker_census(
+        baseline_checker,
+        checker,
+        repository_root=REPOSITORY_ROOT,
+        source_root=REPOSITORY_ROOT / "backend" / "src",
+        reference_repository_root=reference_repository_root,
+    )
+
+    assert added
+    assert {identity[4] for identity in added} <= {"TB002", "TB007"}
+    assert removed
+    assert {identity[4] for identity in removed} <= {"TB002", "TB007"}
+    removed_tb007 = frozenset(
+        identity for identity in removed if identity[4] == "TB007"
+    )
+    assert removed_tb007
+    _assert_removed_tb007_matches_declared_relaxations(removed_tb007)
+    adjudicated_symbols = set(EXPECTED_CONDITION_2_ADJUDICATIONS)
+    adjudicated_names = {
+        symbol.rsplit(".", 1)[-1] for symbol in adjudicated_symbols
+    }
+    current_census = _checker_census(
+        checker,
+        repository_root=REPOSITORY_ROOT,
+        source_root=REPOSITORY_ROOT / "backend" / "src",
+    )
+    for identity in removed:
+        if identity[4] != "TB002" or identity[5] in (
+            adjudicated_symbols | adjudicated_names
+        ):
+            continue
+        assert any(
+            current[0] == identity[0]
+            and current[1] == identity[1]
+            and current[4] == "TB002"
+            for current in current_census
+        )
+
+
+def test_generated_provenance_corpus_never_weakens_develop(
+    tmp_path: Path,
+) -> None:
+    """生成経路について develop が red なら HEAD も必ず red にする。"""
+    develop_checker = _load_checker_from_revision(
+        "origin/develop",
+        tmp_path / "check_tenant_boundary_bypass_develop.py",
+    )
+    develop_contract = develop_checker.load_contract(
+        _develop_contract_root(tmp_path / "develop-contract-root")
+    )
+    head_contract = checker.load_contract(REPOSITORY_ROOT)
+    outcomes: list[tuple[str, bool, bool]] = []
+    for case_id, source in _tenant_context_provenance_corpus():
+        develop_red = _source_is_tb007_red(
+            develop_checker,
+            develop_contract,
+            source,
+        )
+        head_red = _source_is_tb007_red(checker, head_contract, source)
+        outcomes.append((case_id, develop_red, head_red))
+
+    weakened = [
+        case_id
+        for case_id, develop_red, head_red in outcomes
+        if develop_red and not head_red
+    ]
+    assert not weakened, (
+        "develop では TB007 だが HEAD で green になる生成経路: "
+        + ", ".join(weakened)
+    )
+
+
+def test_dynamic_method_on_known_non_db_receiver_is_green() -> None:
+    """既知の非 DB instance から得た動的 method は過剰拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class Runner:
+    def run(self, handler_name):
+        handler = getattr(self, handler_name)
+        return handler()
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/dynamic_handler.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    factories = [safe]
+    factories[0] = TenantContext
+    factory = factories[0]
+    return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    registry = {"k": safe}
+    registry["k"] = TenantContext
+    return registry["k"](tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+class Pair:
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+def build(factory, tenant_id):
+    value = Pair(TenantContext, safe)
+    match value:
+        case Pair(right=_, left=factory):
+            return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build():
+    return TenantContext.__new__(TenantContext)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build(target, tenant_id):
+    TenantContext.__init__(target, tenant_id)
+    return target
+""",
+    ),
+    ids=(
+        "list-subscript-replacement",
+        "dict-subscript-replacement",
+        "match-class-keyword-reordering",
+        "direct-new",
+        "direct-init",
+    ),
+)
+def test_review_round_6_reproductions_are_red(source: str) -> None:
+    """6 周目の P0 再現形をすべて TB007 に固定する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/review_round_6.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    store = [safe]
+    alias = store
+    alias[0] = TenantContext
+    factory = store[0]
+    return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+class Pair:
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+def safe(value):
+    return value
+
+def build(factory, tenant_id):
+    value = Pair(left=TenantContext, right=safe)
+    match value:
+        case Pair(right=_, left=factory):
+            return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build(tenant_id):
+    return TenantContext.__dict__["__new__"](TenantContext)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build(tenant_id):
+    return TenantContext.__mro__[0](tenant_id)
+""",
+    ),
+    ids=(
+        "storage-alias",
+        "match-class-keyword-channel",
+        "constructor-class-dict",
+        "constructor-mro",
+    ),
+)
+def test_review_round_7_reproductions_are_red(source: str) -> None:
+    """7 周目の P0 再現形を取得方式の列挙に依存せず TB007 にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/review_round_7.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+def test_copy_copy_of_known_non_context_value_is_green() -> None:
+    """copy.copy は第1引数が非 TenantContext と証明できれば許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+import copy
+
+class Value:
+    pass
+
+def clone(value: Value):
+    return copy.copy(value)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/value_copy.py",
+        contract=contract,
+    )
+
+    assert "TB007" not in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "case_id",
+    (
+        "unbound/dict-get/direct-call",
+        "unbound/local-function-return/direct-call",
+        "unbound/argument-default/direct-call",
+        "unbound/match-scalar/direct-call",
+        "unbound/dict-get/class-base",
+        "unbound/local-function-return/class-base",
+        "unbound/argument-default/class-base",
+        "prebound/match-sequence/direct-call",
+        "prebound/match-sequence/closure-call",
+        "prebound/match-mapping/direct-call",
+        "prebound/match-mapping/closure-call",
+    ),
+)
+def test_previously_weakened_provenance_routes_are_red(case_id: str) -> None:
+    """前版比較で見つかった経路を HEAD 単独でも TB007 に固定する。"""
+    source = dict(_tenant_context_provenance_corpus())[case_id]
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    assert _source_is_tb007_red(checker, contract, source)
+
+
+def test_condition_5_scope_declaration_is_verbatim_in_design() -> None:
+    """検査器の保証宣言が設計書 1-1 / 6-0 と逐語一致する。"""
+    module_docstring = checker.__doc__
+    assert module_docstring is not None
+    declaration = module_docstring.split("\n\n", 1)[1]
+    design = (
+        REPOSITORY_ROOT / "docs/features/tenant-boundary-enforcement/design.md"
+    ).read_text(encoding="utf-8")
+
+    assert design.count(declaration) == 2
+
+
+def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
+    """広い候補7本と理由付き裁定6件を資産どおり固定する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    condition2 = next(rule for rule in contract.rules if rule.condition == 2)
+
+    assert tuple(pattern.pattern for pattern in condition2.patterns) == (
+        EXPECTED_CONDITION_2_PATTERNS
+    )
+    assert {
+        item.symbol: item.reason
+        for item in contract.condition2_adjudications
+    } == EXPECTED_CONDITION_2_ADJUDICATIONS
+
+
+def test_condition_2_adjudication_requires_a_reason() -> None:
+    """裁定理由を欠く資産を読み込み時に拒否する。"""
+    allowlist = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    del allowlist["condition_2_adjudications"][0]["reason"]
+    inventory, inventory_bytes = checker._read_json(
+        REPOSITORY_ROOT / checker.DEFAULT_INVENTORY
+    )
+    apis, _, _, _ = checker._load_inventory(inventory)
+
+    with pytest.raises(checker.ContractError, match=r"missing=\['reason'\]"):
+        checker._load_allowlist(allowlist, inventory_bytes, apis)
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    tuple(sorted(EXPECTED_CONDITION_2_ADJUDICATIONS)),
+)
+def test_condition_2_adjudicated_symbols_are_green(symbol: str) -> None:
+    """完全修飾参照と同一モジュールの裸クラス名を同じ裁定で許可する。"""
+    module, class_name = symbol.rsplit(".", 1)
+    path = f"{module.replace('.', '/')}.py"
+    source = f"""\
+class {class_name}:
+    pass
+
+
+value = {class_name}()
+"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_adjudicated_import_is_green() -> None:
+    """別モジュールからの裸の import 名も完全修飾した裁定へ照合する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.domaingen.core import GenerationError
+
+error_type = GenerationError
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/generation_errors.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_adjudicated_module_constant_is_green() -> None:
+    """再束縛のない module 定数を完全修飾した裁定へ照合する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+EXIT_GENERATION_FAILED = 1
+
+
+def main():
+    return EXIT_GENERATION_FAILED
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domaingen/core.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_adjudicated_import_shadowed_by_parameter_is_red() -> None:
+    """裁定済み import と同名でも字句引数なら裁定せず拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(GenerationError):
+    return GenerationError
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_generation_error.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "def use(generation, /):\n    return 1\n",
+        "def use(generation):\n    return 1\n",
+        "def use(*, generation):\n    return 1\n",
+        "def use(*generation):\n    return 1\n",
+        "def use(**generation):\n    return 1\n",
+        "use = lambda generation: 1\n",
+    ),
+    ids=(
+        "positional-only",
+        "positional-or-keyword",
+        "keyword-only",
+        "variadic-positional",
+        "variadic-keyword",
+        "lambda",
+    ),
+)
+def test_condition_2_argument_names_are_syntactic_candidates(source: str) -> None:
+    """未使用でも全種類の ast.arg.arg を条件 2 の候補にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/generation_argument.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_unmatched_argument_name_is_green() -> None:
+    """条件 2 の候補に一致しない未使用引数は拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "def use(other):\n    return 1\n",
+        path="pitchlog/services/ordinary_argument.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_unadjudicated_generation_is_red() -> None:
+    """裁定に無い新しい Generation シンボルを fail-closed で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class FutureGeneration:
+    pass
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domaingen/future.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_condition_2_local_generation_variable_is_not_adjudicated() -> None:
+    """型が既知でも裸の局所変数 generation は裁定せず拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+class MutationGeneration:
+    pass
+
+
+generation: MutationGeneration
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/domainmut/engine.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+def test_recording_generation_remains_red_in_product_tree() -> None:
+    """記録権世代の実モデル参照4行を条件2の候補として維持する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    path = "pitchlog/db/recording_rights/models.py"
+
+    violations = checker.scan_source(
+        _fixture_source(source_root / path),
+        path=path,
+        contract=contract,
+    )
+    condition2 = [violation for violation in violations if violation.code == "TB002"]
+
+    recording_generation_lines = {
+        item.line
+        for item in condition2
+        if "RecordingGeneration" in item.symbol
+    }
+    assert recording_generation_lines == {153, 246, 247, 248}
+
+
+def test_product_call_coverage_sets_are_complete() -> None:
+    """製品 tree の全 Call が flow と scanner の両方へ登録される。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_root = REPOSITORY_ROOT / "backend" / "src"
+    totals = [0, 0, 0, 0]
+
+    for source_path in sorted(source_root.rglob("*.py")):
+        relative = source_path.relative_to(source_root).as_posix()
+        coverage = _call_coverage_sets(
+            _fixture_source(source_path),
+            path=relative,
+            contract=contract,
+        )
+        assert coverage[0] == coverage[1] == coverage[2] == coverage[3], relative
+        for index, call_ids in enumerate(coverage):
+            totals[index] += len(call_ids)
+
+    # 総数のべた書きは develop 側の変更で古くなる(実際 2261 -> 2874 で落ちた)。
+    # 守りたいのは「母集団が空でない」ことと「4 集合が全ファイルで一致する」ことなので、
+    # その 2 つだけを固定する。各ファイルの一致は上のループが既に検証している。
+    assert totals[0] > 0
+    assert len(set(totals)) == 1
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    (
+        "c5_context_ifexp_origin_merge.py",
+        "c5_context_if_else_origin_merge.py",
+        "c5_context_try_except_origin_merge.py",
+        "c5_context_match_origin_merge.py",
+        "c5_context_container_subscript.py",
+        "c5_context_conditional_alias_closure.py",
+        "c5_context_conditional_alias_class_base.py",
+    ),
+)
+def test_flow_preserves_tenant_context_in_possible_origin_sets(
+    fixture_name: str,
+) -> None:
+    """合流・コンテナ・閉包・基底を越えて構築起源を保持する。"""
+    relative = f"pitchlog/services/{fixture_name}"
+    source = _fixture_source(NEGATIVE_ROOT / relative)
+    tree = ast.parse(source, filename=relative)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    scanner = checker._SourceScanner(
+        path=relative,
+        module=checker._module_name(relative),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    constructor = contract.tenant_context.constructor_symbol
+
+    call_origins = (
+        scanner.flow.callable_value(node).origins
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    )
+    base_origins = (
+        scanner.flow.class_base_value(node).origins
+        for node in ast.walk(tree)
+    )
+    assert any(constructor in origins for origins in call_origins) or any(
+        constructor in origins for origins in base_origins
+    )
+
+    violations = checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+    )
+    assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_tb007"),
+    (
+        ("""\
+def assign(factory, values):
+    factory().item, *factory().rest = values
+""", False),
+        ("""\
+def select(value, factory):
+    match value:
+        case _ if factory():
+            return None
+""", False),
+        ("""\
+try:
+    pass
+except* factory():
+    pass
+""", True),
+        ("""\
+def run[T: factory()](value: annotate()) -> returns():
+    return value
+""", True),
+        ("""\
+class Example[T: bound()](metaclass=factory()):
+    pass
+""", True),
+    ),
+)
+def test_additional_call_positions_satisfy_coverage_invariant(
+    source: str,
+    expected_tb007: bool,
+) -> None:
+    """構文マトリクス上の Call を flow と scanner の双方で覆う。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/coverage_matrix.py",
+        contract=contract,
+    )
+
+    assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
+
+
+@pytest.mark.parametrize("omitted_layer", ("flow", "scanner"))
+def test_call_coverage_invariant_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    omitted_layer: str,
+) -> None:
+    """flow または scanner の訪問漏れを ContractError にする。"""
+    if omitted_layer == "flow":
+        _omit_flow_call_registration(monkeypatch)
+    else:
+
+        def omit_scanner_call(self: Any, node: ast.Call) -> None:
+            _ = (self, node)
+
+        monkeypatch.setattr(
+            checker._SourceScanner,
+            "visit_Call",
+            omit_scanner_call,
+        )
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.scan_source(
+            "def run(factory):\n    return factory()\n",
+            path="pitchlog/services/coverage_probe.py",
+            contract=contract,
+        )
+
+
+def test_call_coverage_mismatch_is_not_cancelled_across_entrypoints(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """基準版と新側に同じ訪問漏れがあっても判定不能を相殺しない。"""
+    relative = "pitchlog/services/coverage_probe.py"
+    baseline = """\
+def run(factory):
+    return factory()
+
+
+marker = 0
+"""
+    head = baseline.replace("marker = 0", "marker = 1")
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: baseline},
+    )
+    _write_test_repository_sources(repository, {relative: head})
+    _commit_test_repository(repository, "change unrelated marker")
+    contract = checker.load_contract(repository)
+    _omit_flow_call_registration(monkeypatch)
+
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.scan_source_change(
+            baseline,
+            head,
+            path=relative,
+            changed_lines=frozenset({5}),
+            contract=contract,
+        )
+    with pytest.raises(checker.ContractError, match="Call 被覆不変条件"):
+        checker.check_repository(repository, base_ref=base_ref)
+
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 2
+    assert "Call 被覆不変条件" in capsys.readouterr().err
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            _FLOW_OMISSION_RUNNER,
+            str(repository / "scripts" / SCRIPT.name),
+            "--root",
+            str(repository),
+            "--base-ref",
+            base_ref,
+        ],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "Call 被覆不変条件" in result.stderr
+
+
 def test_positive_fixtures_pass() -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
 
@@ -1040,14 +2841,14 @@ def test_transition_passes_when_base_declares_only_universal_triggers(
     _append_current_repository_transition_record(
         repository,
         comparison_base,
-        acceptance_id="masaki1025/pitchlog#80",
+        acceptance_id="masaki1025/pitchlog#81",
     )
     _seal_pull_request_worktree(
         repository,
         comparison_base,
         monkeypatch,
         tmp_path / "six-trigger-event.json",
-        number=80,
+        number=81,
     )
 
     assert checker.check_repository(repository) == []
@@ -1214,7 +3015,7 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         comparison_base,
         monkeypatch,
         tmp_path / f"additional-trigger-{additional_trigger}.json",
-        number=80,
+        number=81,
     )
     if expects_record:
         with pytest.raises(checker.ContractError, match="movement.*record"):
@@ -1225,14 +3026,14 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         _append_current_repository_transition_record(
             repository,
             comparison_base,
-            acceptance_id="masaki1025/pitchlog#80",
+            acceptance_id="masaki1025/pitchlog#81",
         )
         _seal_pull_request_worktree(
             repository,
             comparison_base,
             monkeypatch,
             tmp_path / "additional-trigger-recorded.json",
-            number=80,
+            number=81,
         )
 
     assert checker.check_repository(repository) == []
@@ -1551,18 +3352,29 @@ def test_public_function_production_reachability_and_movement_result_usage() -> 
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
 ) -> None:
-    """7 資産の識別宣言・4 項目・直前値の連鎖を検査する。"""
+    """初回 v1 の pending と、末尾から導く現行識別値を固定する。"""
     asset = _read_contract_asset(relative_path)
+    control = asset["baseline_control"]
 
     history = checker._validate_baseline_control(
         asset,
         relative_path.as_posix(),
     )
 
-    expected_length = 2 if asset["baseline_control"]["history_authority"] else 1
-    assert len(history) == expected_length
+    assert history
+    assert len(history) == len(control["history"])
+    has_v2_record = any(entry.get("record_schema_version") == 2 for entry in history)
+    assert has_v2_record is control["history_authority"]
     assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
     assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
+    authority = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    authority_history = authority["baseline_control"]["history"]
+    latest_record = authority_history[-1]
+    assert latest_record["record_schema_version"] == 2
+    latest_identifiers = latest_record["new_baseline_identifiers"][
+        relative_path.as_posix()
+    ]
+    assert latest_identifiers == control["identity"]["current_identifiers"]
 
 
 @pytest.mark.parametrize(
@@ -1635,17 +3447,24 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
     contract = checker.load_contract(REPOSITORY_ROOT)
     fixture_ids = {fixture.id for fixture in contract.negative_fixtures}
     assert fixture_ids == EXPECTED_NEGATIVE_IDS
+    fixture_sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | fixture_sources
+    )
 
     observed_conditions: set[int] = set()
     for fixture in contract.negative_fixtures:
-        path = NEGATIVE_ROOT / fixture.path
-        source = _fixture_source(path)
+        source = fixture_sources[fixture.path]
         violations = checker.scan_source_change(
             None,
             source,
             path=fixture.path,
             changed_lines=frozenset(range(1, len(source.splitlines()) + 1)),
             contract=contract,
+            head_reexport_map=reexport_map,
         )
         codes = {violation.code for violation in violations}
         assert fixture.expected_error in codes, (
@@ -1657,12 +3476,256 @@ def test_negative_fixture_ids_are_an_exact_set_and_each_fixture_is_red() -> None
     assert observed_conditions == {1, 2, 3, 4, 5}
 
 
+def test_integrity_secret_default_is_checked_before_allowed_function_scope() -> None:
+    """秘密の default capture を許可シンボルの本体免除へ混入させない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = _fixture_source(
+        NEGATIVE_ROOT
+        / "pitchlog/services/c5_secret_in_default_capture.py"
+    )
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/repositories/context.py",
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol, violation.scope)
+        for violation in violations
+    ] == [
+        (
+            "TB007",
+            "pitchlog.repositories.context._TENANT_CONTEXT_SECRET",
+            "pitchlog.repositories.context.<module>",
+        )
+    ]
+
+
+def test_relative_tenant_context_import_is_resolved_and_red() -> None:
+    """同一 package の相対 import も絶対 constructor として拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative_path = "pitchlog/repositories/c5_context_relative_import.py"
+    source = _fixture_source(NEGATIVE_ROOT / relative_path)
+
+    violations = checker.scan_source(
+        source,
+        path=relative_path,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [
+        (
+            "TB007",
+            "pitchlog.repositories.context.TenantContext",
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "fixture_id",
+    (
+        "C5_CONTEXT_REEXPORT_FACADE",
+        "C5_CONTEXT_REEXPORT_SUBCLASS",
+    ),
+)
+def test_reexport_fixture_resolves_to_tenant_context_origin(
+    fixture_id: str,
+) -> None:
+    """別名 Context の façade と継承元が canonical 起源へ到達する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | sources
+    )
+    fixture = next(
+        fixture
+        for fixture in contract.negative_fixtures
+        if fixture.id == fixture_id
+    )
+
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(fixture.path),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is False
+    assert contract.tenant_context.constructor_symbol in resolution.origins
+
+
+@pytest.mark.parametrize(
+    "fixture_id",
+    (
+        "C5_CONTEXT_REEXPORT_DEPTH_LIMIT",
+        "C5_CONTEXT_REEXPORT_STAR",
+        "C5_CONTEXT_REEXPORT_CYCLE",
+        "C5_CONTEXT_REEXPORT_SELF_REFERENCE",
+        "C5_CONTEXT_REEXPORT_CONDITIONAL",
+        "C5_CONTEXT_REEXPORT_MISSING_MODULE",
+        "C5_CONTEXT_REEXPORT_UNSUPPORTED_ASSIGN",
+    ),
+)
+def test_reexport_fixture_records_each_unresolved_cause(
+    fixture_id: str,
+) -> None:
+    """宣言した7種類の解決不能原因を unresolved へ集約する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    sources = {
+        fixture.path: _fixture_source(NEGATIVE_ROOT / fixture.path)
+        for fixture in contract.negative_fixtures
+    }
+    reexport_map = checker._build_reexport_map(
+        REEXPORT_SUPPORT_SOURCES | sources
+    )
+    fixture = next(
+        fixture
+        for fixture in contract.negative_fixtures
+        if fixture.id == fixture_id
+    )
+
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(fixture.path),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is True
+    if fixture_id == "C5_CONTEXT_REEXPORT_CONDITIONAL":
+        assert resolution.origins == frozenset(
+            {"external.first.Context", "external.second.Context"}
+        )
+
+
+def test_absent_external_reexport_modules_are_safe_terminal_origins() -> None:
+    """写像に無い stdlib・third-party module を欠落扱いしない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/services/external_reexports.py"
+    source = '''\
+from pathlib import Context as StdlibContext
+from third_party.facade import Context as ThirdPartyContext
+
+stdlib_context = StdlibContext("tenant")
+third_party_context = ThirdPartyContext("tenant")
+'''
+    reexport_map = checker._build_reexport_map({relative: source})
+
+    for export_name in ("StdlibContext", "ThirdPartyContext"):
+        resolution = checker._lookup_reexport_symbol(
+            export_name,
+            current_module=checker._module_name(relative),
+            reexport_map=reexport_map,
+        )
+        assert resolution is not None
+        assert resolution.unresolved is False
+
+    assert checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+        reexport_map=reexport_map,
+    ) == []
+
+
+def test_import_module_static_reexport_resolves_to_tenant_context() -> None:
+    """import module と属性代入から作る再輸出も canonical 起源へ辿る。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    facade = "pitchlog/services/static_facade.py"
+    consumer = "pitchlog/services/static_consumer.py"
+    sources = {
+        **REEXPORT_SUPPORT_SOURCES,
+        facade: '''\
+import pitchlog.repositories.context as context_module
+
+Context = context_module.TenantContext
+''',
+        consumer: '''\
+from pitchlog.services.static_facade import Context
+
+context = Context("tenant")
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+    resolution = checker._lookup_reexport_symbol(
+        "Context",
+        current_module=checker._module_name(facade),
+        reexport_map=reexport_map,
+    )
+
+    assert resolution is not None
+    assert resolution.unresolved is False
+    assert contract.tenant_context.constructor_symbol in resolution.origins
+    assert "TB007" in {
+        violation.code
+        for violation in checker.scan_source(
+            sources[consumer],
+            path=consumer,
+            contract=contract,
+            reexport_map=reexport_map,
+        )
+    }
+
+
+def test_bare_tenant_context_suffix_is_red_for_external_callable() -> None:
+    """裸の TenantContext 末尾名も既知の外部起源で免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/services/external_tenant_context.py"
+    source = '''\
+from external.facade import TenantContext
+
+context = TenantContext("tenant")
+'''
+
+    violations = checker.scan_source(
+        source,
+        path=relative,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol) for violation in violations
+    ] == [("TB007", "TenantContext")]
+
+
+def test_unrelated_internal_context_reexport_stays_green() -> None:
+    """別モジュールで定義された無関係な同名 Context を拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    consumer = "pitchlog/services/safe_consumer.py"
+    sources = {
+        "pitchlog/services/safe_context.py": '''\
+class Context:
+    pass
+''',
+        consumer: '''\
+from pitchlog.services.safe_context import Context
+
+context = Context()
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+
+    assert checker.scan_source(
+        sources[consumer],
+        path=consumer,
+        contract=contract,
+        reexport_map=reexport_map,
+    ) == []
+
+
 @pytest.mark.parametrize("condition", (1, 2, 3, 4, 5))
 def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 68 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例 110 本を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -1673,7 +3736,10 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
         if fixture.condition == condition
     )
     assert fixtures
-    baseline_sources = {fixture.path: "pass\n" for fixture in fixtures}
+    baseline_sources = {
+        **REEXPORT_SUPPORT_SOURCES,
+        **{fixture.path: "pass\n" for fixture in fixtures},
+    }
     repository, base_ref = _initialize_test_repository(
         tmp_path,
         baseline_sources,
@@ -1697,6 +3763,184 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
             f"expected={fixture.expected_error}"
         )
     assert _test_repository_exit_code(repository, base_ref) == 1
+
+
+def test_ci_path_detects_committed_bypass_and_cli_exits_one(
+    tmp_path: Path,
+) -> None:
+    """実コミット差分を check_repository と subprocess の CLI から検査する。"""
+    relative = "pitchlog/services/ci_probe.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    bypass = '''\
+from sqlalchemy.orm import Session
+
+
+def read_other_tenant(work: Session) -> object:
+    return work.execute("SELECT * FROM games")
+'''
+    _write_test_repository_sources(repository, {relative: bypass})
+    _commit_test_repository(repository, "add tenant boundary bypass")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert (relative, "TB005") in {
+        (violation.path, violation.code) for violation in violations
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repository / "scripts" / SCRIPT.name),
+            "--root",
+            str(repository),
+            "--base-ref",
+            base_ref,
+        ],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "TB005" in result.stderr
+
+
+def test_repository_uses_separate_baseline_and_head_reexport_maps(
+    tmp_path: Path,
+) -> None:
+    """façade と consumer の複合変更を HEAD 写像だけで相殺させない。"""
+    facade = "pitchlog/services/context_facade.py"
+    consumer = "pitchlog/services/context_consumer.py"
+    baseline_facade = "from external.facade import Context\n"
+    head_facade = (
+        "from pitchlog.repositories.context import "
+        "TenantContext as Context\n"
+    )
+    baseline_consumer = '''\
+from pitchlog.services.context_facade import Context
+
+marker = "before"
+
+
+def build(tenant_id):
+    return Context(tenant_id)
+'''
+    head_consumer = baseline_consumer.replace('marker = "before"', 'marker = "after"')
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {
+            **REEXPORT_SUPPORT_SOURCES,
+            facade: baseline_facade,
+            consumer: baseline_consumer,
+        },
+    )
+
+    _write_test_repository_sources(
+        repository,
+        {facade: head_facade, consumer: head_consumer},
+    )
+    _commit_test_repository(repository, "change facade and consumer marker")
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert (consumer, "TB007") in {
+        (violation.path, violation.code) for violation in violations
+    }
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 1
+
+
+def test_repository_always_supplies_reexport_maps_to_source_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """本番経路が baseline/head の再輸出写像を必ず供給する。"""
+    relative = "pitchlog/services/missing_context_consumer.py"
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {relative: "pass\n"},
+    )
+    head = '''\
+from pitchlog.missing.module import Context
+
+context = Context("tenant")
+'''
+    _write_test_repository_sources(repository, {relative: head})
+    _commit_test_repository(repository, "add missing internal reexport")
+    observed_maps: list[tuple[object, object]] = []
+    original_scan_source_change = checker.scan_source_change
+
+    def record_reexport_maps(*args: Any, **kwargs: Any) -> list[Any]:
+        observed_maps.append(
+            (
+                kwargs.get("baseline_reexport_map"),
+                kwargs.get("head_reexport_map"),
+            )
+        )
+        return original_scan_source_change(*args, **kwargs)
+
+    monkeypatch.setattr(
+        checker,
+        "scan_source_change",
+        record_reexport_maps,
+    )
+
+    violations = checker.check_repository(repository, base_ref=base_ref)
+
+    assert observed_maps
+    assert all(
+        baseline_map is not None
+        and head_map is not None
+        and baseline_map is not head_map
+        for baseline_map, head_map in observed_maps
+    )
+    assert (relative, "TB007") in {
+        (violation.path, violation.code) for violation in violations
+    }
+
+
+def test_repository_does_not_expand_population_to_unchanged_consumer(
+    tmp_path: Path,
+) -> None:
+    """façade だけの変更では保証外の無変更 consumer を走査しない。"""
+    facade = "pitchlog/services/context_facade.py"
+    consumer = "pitchlog/services/context_consumer.py"
+    consumer_source = '''\
+from pitchlog.services.context_facade import Context
+
+
+def build(tenant_id):
+    return Context(tenant_id)
+'''
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        {
+            **REEXPORT_SUPPORT_SOURCES,
+            facade: "from external.facade import Context\n",
+            consumer: consumer_source,
+        },
+    )
+
+    _write_test_repository_sources(
+        repository,
+        {
+            facade: (
+                "from pitchlog.repositories.context import "
+                "TenantContext as Context\n"
+            )
+        },
+    )
+    _commit_test_repository(repository, "change only facade")
+
+    assert checker.check_repository(repository, base_ref=base_ref) == []
+    assert checker.main(
+        ["--root", str(repository), "--base-ref", base_ref]
+    ) == 0
 
 
 @pytest.mark.parametrize(
@@ -2426,6 +4670,658 @@ factory_client.execute()
     assert violations == []
 
 
+def test_unresolved_non_constructor_attribute_call_passes() -> None:
+    """構築名でない未解決属性 callable は保証外として拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def build(registry, key, tenant_id):
+    return registry[key].make_context(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/context_registry.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_known_builtin_bare_calls_pass_when_flow_cannot_resolve_them() -> None:
+    """別名表で既知の組み込み裸呼び出しは (iii) の対象外とする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def normalize(value):
+    return value
+    str(value)
+    enumerate(value)
+    dict(value)
+"""
+    path = "pitchlog/services/builtin_calls.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+
+    assert {
+        node.func.id: scanner.aliases.known_symbols.get(node.func.id)
+        for node in calls
+        if isinstance(node.func, ast.Name)
+    } == {
+        "str": "builtins.str",
+        "enumerate": "builtins.enumerate",
+        "dict": "builtins.dict",
+    }
+    assert all(scanner.flow.callable_symbol(node) is None for node in calls)
+
+    scanner.visit(tree)
+    scanner._validate_call_coverage(tree)
+
+    assert scanner.violations == []
+
+
+def test_imported_non_constructor_bare_call_without_shadow_is_green() -> None:
+    """使用位置が import binding に結び付く対照Bを green に保つ。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/imported_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+def build(tenant_id):
+    from pitchlog.repositories.context import TenantContext
+    return TenantContext(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+
+def build(tenant_id):
+    constructor = TenantContext
+    derived_constructor = constructor
+    return derived_constructor(tenant_id)
+""",
+        """\
+from external.first import safe
+
+
+def replace():
+    global safe
+    from external.second import safe
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.first import safe
+
+
+def replace(factory):
+    global safe
+    safe = factory
+
+
+def build(tenant_id):
+    return safe(tenant_id)
+""",
+    ),
+    ids=(
+        "function-import",
+        "local-static-alias",
+        "global-import-writer",
+        "global-assignment-writer",
+    ),
+)
+def test_static_constructor_and_global_callable_rebinding_are_red(
+    source: str,
+) -> None:
+    """静的 constructor と module writer は字句 callable の免除へ入れない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/rebound_constructor.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.domaingen.core import GenerationError
+GenerationError = object()
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+class Shadow:
+    GenerationError = object()
+""",
+        """\
+from external.overrides import *
+from pitchlog.domaingen.core import GenerationError
+observed = GenerationError
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use():
+    try:
+        raise RuntimeError
+    except RuntimeError as GenerationError:
+        return GenerationError
+""",
+        """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(value):
+    match value:
+        case GenerationError:
+            return GenerationError
+""",
+    ),
+    ids=(
+        "module-assignment",
+        "class-assignment",
+        "star-import",
+        "except-as",
+        "match-capture",
+    ),
+)
+def test_condition_2_syntactic_binding_routes_are_red(source: str) -> None:
+    """条件 2 は Store / Load の構文名を常に候補にして裁定迂回を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_generation_error.py",
+        contract=contract,
+    )
+
+    assert "TB002" in {violation.code for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from external.helpers import safe
+
+
+def build(safe, tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(safe, /, tenant_id):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, *, safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, *safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id, **safe):
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+build = lambda safe, tenant_id: safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factory, tenant_id):
+    safe = factory
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(other, tenant_id):
+    safe += other
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factory, tenant_id):
+    (safe := factory)
+    return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factories, tenant_id):
+    for safe in factories:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(manager, tenant_id):
+    with manager as safe:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    try:
+        raise RuntimeError
+    except RuntimeError as safe:
+        return safe(tenant_id)
+""",
+        """\
+from external.helpers import safe
+
+
+def build(factories, tenant_id):
+    return [safe(tenant_id) for safe in factories]
+""",
+    ),
+    ids=(
+        "argument",
+        "positional-only-argument",
+        "keyword-only-argument",
+        "variadic-argument",
+        "variadic-keyword-argument",
+        "lambda-argument",
+        "assignment",
+        "augmented-assignment",
+        "walrus",
+        "for-target",
+        "with-as",
+        "except-as",
+        "comprehension-target",
+    ),
+)
+def test_lexically_bound_bare_callable_is_green(source: str) -> None:
+    """関数内の字句束縛 callable は条件 5 の保証範囲外として許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/shadowed_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_local_reimport_is_a_lexically_bound_callable() -> None:
+    """関数内 re-import の裸名呼び出しも保証範囲外として許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.first import safe
+
+
+def build(tenant_id):
+    from external.second import safe
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/reimported_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_nonlocal_callable_is_a_lexical_closure_binding() -> None:
+    """nonlocal の裸名呼び出しもクロージャ変数として許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def outer(factory, tenant_id):
+    safe = factory
+
+    def build():
+        nonlocal safe
+        return safe(tenant_id)
+
+    return build()
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/nonlocal_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_global_keeps_module_import_exemption() -> None:
+    """writer の無い global 宣言は再束縛ではないため green にする。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+def build(tenant_id):
+    global safe
+    return safe(tenant_id)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/global_safe_factory.py",
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_code"),
+    (
+        (
+            """\
+from external.helpers import safe
+
+
+def build(safe: safe, tenant_id):
+    return safe(tenant_id)
+""",
+            None,
+        ),
+        (
+            """\
+from external.helpers import safe as imported_safe
+
+
+def outer(factory, tenant_id):
+    safe = imported_safe
+
+    def build():
+        return safe(tenant_id)
+
+    safe = factory
+    return build
+""",
+            None,
+        ),
+        (
+            """\
+from external.helpers import safe
+
+
+def replace(factory):
+    global safe
+    safe = factory
+
+
+def build(tenant_id):
+    global safe
+    return safe(tenant_id)
+""",
+            "TB007",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    GenerationError = other
+    return GenerationError
+""",
+            "TB002",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    GenerationError: object = other
+    return GenerationError
+""",
+            "TB002",
+        ),
+        (
+            """\
+from pitchlog.domaingen.core import GenerationError
+
+
+def use(other):
+    return (GenerationError := other)
+""",
+            "TB002",
+        ),
+    ),
+    ids=(
+        "annotated-parameter",
+        "late-binding-closure",
+        "global-writer",
+        "condition2-assignment",
+        "condition2-walrus",
+        "condition2-annotated-assignment",
+    ),
+)
+def test_scope_boundary_for_callable_and_condition2_rebinding(
+    source: str,
+    expected_code: str | None,
+) -> None:
+    """字句 callable は許可し、global と条件 2 の再束縛は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/rebound_name.py",
+        contract=contract,
+    )
+
+    if expected_code is None:
+        assert violations == []
+    else:
+        assert expected_code in {violation.code for violation in violations}
+
+
+def test_class_attribute_is_not_a_method_closure_binding() -> None:
+    """メソッド本体の裸名は同名クラス属性でなく module import を参照する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+from external.helpers import safe
+
+
+class C:
+    safe = lambda value: value
+
+    def build(self, tenant_id):
+        return safe(tenant_id)
+"""
+    path = "pitchlog/services/class_attribute_control.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+
+    assert scanner.flow.callable_symbol(call) == "external.helpers.safe"
+    assert checker.scan_source(source, path=path, contract=contract) == []
+
+
+def test_subscript_assignment_target_uses_current_flow_environment() -> None:
+    """添字代入先の builtin 呼び出しを空環境由来の未知に落とさない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def update(values, index, value):
+    values[str(index)] = value
+"""
+    path = "pitchlog/services/subscript_assignment.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        source=source,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+
+    assert scanner.flow.callable_symbol(call) == "builtins.str"
+    assert checker.scan_source(source, path=path, contract=contract) == []
+
+
+def test_parameter_bare_call_is_outside_condition_5_scope() -> None:
+    """known_symbols に無い callable 引数も保証範囲外として許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+def forge_context(factory, tenant_id):
+    return factory(tenant_id)
+"""
+    path = "pitchlog/services/parameter_factory.py"
+    tree = ast.parse(source, filename=path)
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+
+    assert "factory" not in scanner.aliases.known_symbols
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_unregistered_bare_text_call_remains_red() -> None:
+    """別名表へ登録されていない裸名は生テキストだけで解決済みにしない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = "context = missing_factory(tenant_id)\n"
+    path = "pitchlog/services/unregistered_factory.py"
+    tree = ast.parse(source, filename=path)
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
+    scanner = checker._SourceScanner(
+        path=path,
+        module=checker._module_name(path),
+        tree=tree,
+        changed_lines=None,
+        contract=contract,
+        reject_all_db_calls=False,
+    )
+
+    assert scanner.aliases.resolve(call.func) == "missing_factory"
+    assert "missing_factory" not in scanner.aliases.known_symbols
+
+    violations = checker.scan_source(
+        source,
+        path=path,
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [("TB007", "missing_factory")]
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "value",
+        "value: TenantContext",
+    ),
+)
+def test_dataclasses_replace_with_unknown_or_context_target_is_red(
+    target: str,
+) -> None:
+    """dataclasses.replace は第1引数が未注釈でも文脈型注釈でも拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = f"""\
+import dataclasses
+from pitchlog.repositories.context import TenantContext
+
+
+def clone({target}):
+    return dataclasses.replace(value, enabled=True)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/dto_clone.py",
+        contract=contract,
+    )
+
+    assert [
+        (violation.code, violation.symbol)
+        for violation in violations
+    ] == [("TB007", "dataclasses.replace")]
+
+
 def test_local_database_type_name_shadow_mutation_is_red() -> None:
     """安全なローカル型が DB 型名を shadow する変異だけを拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -2494,8 +5390,8 @@ def render(work: Report, other, flag):
     assert "TB005" in {violation.code for violation in violations}
 
 
-def test_unresolved_attribute_constructor_mutation_is_red() -> None:
-    """receiver の型証明を外した属性 callable 変異を拒否する。"""
+def test_attribute_constructor_name_is_red_with_or_without_annotation() -> None:
+    """TenantContext 末尾名を receiver provenance に関係なく拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = """\
 from application.factories import ContextFactory
@@ -2509,7 +5405,17 @@ def make(mod: ContextFactory, tenant_id):
     assert _changed_lines_containing(mutated, "mod.TenantContext").isdisjoint(
         changed_lines
     )
-    violations = _scan_diff_mutation(
+    baseline_violations = checker.scan_source(
+        source,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+    head_violations = checker.scan_source(
+        mutated,
+        path="pitchlog/services/context_factory.py",
+        contract=contract,
+    )
+    change_violations = checker.scan_source_change(
         source,
         mutated,
         path="pitchlog/services/context_factory.py",
@@ -2517,7 +5423,9 @@ def make(mod: ContextFactory, tenant_id):
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert "TB007" in {violation.code for violation in baseline_violations}
+    assert "TB007" in {violation.code for violation in head_violations}
+    assert change_violations == []
 
 
 @pytest.mark.parametrize(
@@ -2895,30 +5803,33 @@ client.execute(statement)
 
 
 @pytest.mark.parametrize(
-    "source",
+    ("source", "expected_tb007"),
     (
-        """\
+        ("""\
 from pitchlog.repositories.context import _tenant_context_proof as derive
 
 proof_factory = derive
 proof_factory(tenant_id)
-""",
-        """\
+""", True),
+        ("""\
 import pitchlog.repositories.context as context_module
 
 module_alias = context_module
 derive = module_alias._tenant_context_proof
 proof_factory = derive
 proof_factory(tenant_id)
-""",
-        """\
+""", True),
+        ("""\
 def forge(factory, tenant_id):
     return factory(tenant_id)
-""",
+""", False),
     ),
 )
-def test_proof_factory_aliases_and_unresolved_callable_are_red(source: str) -> None:
-    """証跡導出の多段別名と未解決 callable を fail-closed で拒否する。"""
+def test_proof_factory_aliases_and_lexical_callable_scope(
+    source: str,
+    expected_tb007: bool,
+) -> None:
+    """証跡導出の別名は拒否し、字句 callable は保証範囲外とする。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     violations = checker.scan_source(
@@ -2927,7 +5838,7 @@ def test_proof_factory_aliases_and_unresolved_callable_are_red(source: str) -> N
         contract=contract,
     )
 
-    assert "TB007" in {violation.code for violation in violations}
+    assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
 
 
 def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:
@@ -3097,7 +6008,7 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
 
 
 def test_repository_application_population_is_nonempty_and_green() -> None:
-    """自 PR の実差分を非空母集団として適用し一致 0 を確認する。"""
+    """自 PR の実差分を走査し、受理済みの射影移動が green になることを示す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     diff = checker._run_git(
         REPOSITORY_ROOT,
@@ -3130,9 +6041,7 @@ def test_repository_application_population_is_nonempty_and_green() -> None:
         }
     else:
         assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
-    violations = checker.check_repository(REPOSITORY_ROOT)
-
-    assert violations == []
+    assert checker.check_repository(REPOSITORY_ROOT) == []
 
 
 def test_first_product_introduction_with_empty_population_is_red() -> None:
@@ -3309,9 +6218,11 @@ def test_actual_implementation_mutation_is_red_through_real_commit_diff(
 ) -> None:
     """実製品への 4 変異を実コミット列と CLI の経路で拒否する。"""
     relative, baseline, mutated = _actual_implementation_mutation(case_id)
+    baseline_sources = checker._git_snapshot(REPOSITORY_ROOT, "HEAD")
+    baseline_sources[relative] = baseline
     repository, base_ref = _initialize_test_repository(
         tmp_path,
-        {relative: baseline},
+        baseline_sources,
     )
 
     assert _check_test_repository(repository, base_ref) == []
