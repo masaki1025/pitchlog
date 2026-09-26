@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e593b75e687817eb0caec8f93d11be5
 branch: feature/tenant-session-supply
 created: 2026-09-26
-計画レビュー周回: 1        # 敵対レビュー 1 周目(判定 否決・P0 3 / P1 6 / P2 0)の反映を含む
+計画レビュー周回: 2        # 1 周目(否決・P0 3 / P1 6)と 2 周目(否決・P0 3 / P1 5 / P2 1)の反映を含む
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -48,9 +48,9 @@ created: 2026-09-26
 
 ### やること
 
-1. **`_session` を満たす Session の供給**を製品コードへ置く(**factory** — [design.md](design.md) 2 節)
-2. **束縛済みのトランザクションの中で、複数の登録済み operation を実行する単位**を提供する
-   (**前段の結果を見て後段を中止できる形** — [design.md](design.md) 3-2)
+1. **トランザクション単位を製品コードへ置く** — `tenant_transaction_scope(context)` と `TenantTransaction.run(token)`
+   ([design.md](design.md) 3-1)。**Session の生成・束縛・commit/rollback・close をこの単位が所有する**
+2. **前段の結果を見て後段を中止できる形**にする([design.md](design.md) 3-5)
 3. **`allowed_symbols`(凍結基準)への追加**を 7.7-2 に適合する v2 形式で記録する
 4. **`repository-contract.json` の `public_surface`** の変更を反映する
 
@@ -58,8 +58,10 @@ created: 2026-09-26
 
 | 項目 | 行き先・理由 |
 | --- | --- |
-| **FR-018 の並行性**(「判定後に紐づいた場合は失敗する」を成立させる機構) | **射程外。単位を跨ぐ設計判断として別に扱う**(**1 周目 P0-1 の是正** — 詳細は [design.md](design.md) 5 節)。**`SERIALIZABLE` でも `FOR UPDATE` でも成立しない**。成立には**紐づけを作る側(同期適用経路)が選手の `hidden_at` を読む**ことが要る。**受け取り先の起票が要る**(7 節) |
-| **分離レベル・再試行の方針** | **射程外**(上の帰結)。ただし**後から入れられる形**にする — 供給を factory にする([design.md](design.md) 2-1・6 節) |
+| **FR-018 の並行性**(「判定後に紐づいた場合は失敗する」を成立させる機構) | **射程外。単位を跨ぐ設計判断として別に扱う**(**1 周目 P0-1 の是正** — 詳細は [design.md](design.md) 5 節)。**`SERIALIZABLE` でも `FOR UPDATE` でも成立しない**。成立には**紐づけを作る側、または DB の制約 / trigger が、選手の非表示状態を検証して拒否する**ことが要る(**2 周目 P1-1 の是正** — 手段は読み取りに限らない)。**対象は `players` を参照する全列**に及ぶ。**受け取り先の起票が要る**(7 節) |
+| **分離レベル・再試行の方針** | **射程外**(上の帰結)。制約は [design.md](design.md) 6 節へ申し送る |
+| **`Session` を返す関数を作ること** | **作らない**(**2 周目 P0-2 の是正**)。`return Session(engine)` だけの関数は**迂回検査に 1 件も引っかからない**(生の Session を戻り値で漏らす経路を検出する検査が無い)。**トランザクション単位が内部で生成し close する** |
+| **`base.py` の変更** | **1 行も触らない**(**2 周目 P0-1 の是正** — [design.md](design.md) 3-4)。公開面 exact-set と変異テストの literal アンカーが動かない |
 | **FR-018 / FR-039 / FR-017 の述語 SQL と入口** | **U-M1(TSK-393)**。FR-015/017/018/039 の主所有は U-M1(`../product-impl-unit-split/design.md:75`) |
 | **capability の登録**(`PRODUCT_CAPABILITY_IDS` を空でなくする) | **経路を持つ単位**(`../product-authz-surface/plan.md:42` ★7)。本タスクは空のまま残す |
 | **`insert` / `update` の operation token の登録形式** | **登録する単位が registry と一緒に定める**(`../product-authz-surface/design.md:618`) |
@@ -76,8 +78,8 @@ created: 2026-09-26
 | `docs/design/data-model.md` | **反映なし**。3-3 節の規律(`:318-327`)を**守る側**であり変えない | — |
 | `docs/design/sync-protocol.md` | **反映なし** | — |
 | `docs/adr/` | **新設なし**。既決の制約の実装であり新しい決定を持たない | — |
-| **`contracts/tenant_boundary/repository-contract.json`** | `public_surface` へトランザクション単位の入口を追加。`contract_revision` `4` → `5`・`source_digest` 更新 | **コア領域**(`tenant-isolation`)→ 敵対レビュー + 人間の逐行確認 |
-| **`contracts/tenant_boundary/base-allowlist.json`** | `allowed_symbols` へ供給 factory とトランザクション単位を追加。`contract_revision` `15` → `16`。**v2 履歴を 1 件追記**(**7 資産の単一検査の authority**) | **凍結基準**(7.7)+ 同上 |
+| **`contracts/tenant_boundary/repository-contract.json`** | `public_surface` へ **`transaction_scope_entry`(`pitchlog.repositories.transaction.tenant_transaction_scope`)と `transaction_handle_type`(`...TenantTransaction`)** を追加。`contract_revision` `4` → `5`・`source_digest` 更新 | **コア領域**(`tenant-isolation`)→ 敵対レビュー + 人間の逐行確認 |
+| **`contracts/tenant_boundary/base-allowlist.json`** | `allowed_symbols` へ **`tenant_transaction_scope`** を追加。`contract_revision` `15` → `16`。**v2 履歴を 1 件追記**(**7 資産の単一検査の authority**) | **凍結基準**(7.7)+ 同上 |
 | **`contracts/tenant_boundary/history-snapshots/`** | v2 記録の content-addressed snapshot を追加(追記専用) | 同上 |
 | `contracts/tenant_boundary/db-api-inventory.json` | **反映なし**(4-1 の裁定 7 — 触らない) | — |
 | `docs/README.md` | **反映なし**(正本の新設・版繰り上げが無い) | — |
@@ -113,17 +115,14 @@ created: 2026-09-26
 → **7 資産は単一検査で `base-allowlist.json` が authority**、かつ**同一受理で 2 件追記は red**
 (`../tenant-boundary-baseline/plan.md:115`)なので、**資産の変更と履歴の追記は 1 ステップに収める**。
 
-### 4-3. 【要注意】変異テストが実ソースを literal で参照している
+### 4-3. 【2 周目で解消】変異テストの literal アンカーは壊れない
 
-`tests/test_check_tenant_boundary_bypass.py:644-652` は **`backend/src` の実ソースを文字列置換**して変異を作る:
+`tests/test_check_tenant_boundary_bypass.py:644-652` は **`backend/src` の実ソースを文字列置換**して変異を作り、
+`"            execution_result = self._session.execute(\n"` などをアンカーにしている。
 
-```python
-source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
-mutated = source.replace("            execution_result = self._session.execute(\n", ...)
-```
-
-**アンカー文字列が消えた時点で `assert mutated != source` が red になる。**
-`base.py` を触るステップと**同じコミット**で更新する(**1 周目 P1-2** — 後続ステップへ分離できない)。
+**本タスクは `base.py` を 1 行も変更しない**([design.md](design.md) 3-4)ので、**アンカーは壊れない**。
+初稿は `base.py` の `_execute_operation` を書き換える前提だったため、
+「ステップ 4 と同じコミットでアンカーを更新する」としていた。**その必要が無くなった。**
 
 ### 4-4. 生成モジュールの更新順序(**1 周目 P1-4 の是正**)
 
@@ -154,19 +153,19 @@ scripts/frozen_history.py:1521    approved_by は非空・approved_on は実在�
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **承認記録の出所を確定し、リポジトリへ記録する** — `allowed_symbols` を動かす前提。worklog へ取得元・方式を書く | worklog に**逐語転記できる出所**が記録されている。`frozen_history.py:39-41` の予約 marker に当たらない形 |
-| 2 | **負例テストを先に置く** — ① 束縛が先頭でない ② 未登録 token を混ぜた ③ 同一トランザクションへ異なる `TenantContext` を混ぜた ④ 中止の例外でロールバックされない ⑤ 戻り値に `Result` / ORM instance が混ざった | **5 種すべてが red**。red の出力を worklog へ**実出力つきで**残す(TSK-446 の 3 周目 P1-4 の教訓) |
-| 3 | **Session 供給 factory を追加する** — `backend/src/pitchlog/repositories/session.py`(新設)。`__all__` へ出さない | factory の単体テストが green(**呼ぶたびに別の `Session`**)。**期待失敗**: `allowed_symbols` 未登録による **TB005** と、ステップ 2 の 5 種は **red のまま** |
-| 4 | **トランザクション単位を追加し、変異テストの literal アンカーを同時に更新する**(4-3 — 分離できない) | ステップ 2 の 5 種が **green**。変異テストの `assert mutated != source` が成立する。**期待失敗**: 公開面 exact-set(`test_authz_repository_contract.py:250`)と **TB005** は **red のまま** |
-| 5 | **契約資産・生成モジュール・正例 fixture・凍結履歴を 1 コミットで更新する**(4-2 — 分離できない) — `repository-contract.json` → digest → `repository_contract.py`(4-4 の順序)、`base-allowlist.json` の `allowed_symbols` + `contract_revision`、`tests/fixtures/tenant_boundary/positive/`、**v2 履歴を 1 件**(承認記録はステップ 1 の出所から逐語転記) | `scripts/check_tenant_boundary_bypass.py` が green。`scripts/frozen_history.py` の検査が green。**ここで初めて全件 green が成立しうる** |
-| 6 | **越境テストと故障系テストを足す** — 6 節 | 全件実行で **red 0 件**。**欠落変異の確認** — 各検査を無効化すると対応する負例が期待する red を失う |
+| 1 | **承認記録の出所を確定し、リポジトリへ記録する** — **人間が決めた出所**(7 節 #2)を worklog へ逐語で残す | worklog に**逐語転記できる出所**がある。`frozen_history.py:39-41` の予約 marker に当たらない |
+| 2 | **負例テストを先に置く** — ① 束縛が先頭でない ② **`TenantContext` を混ぜる口が無いこと**(`run` の署名が token だけ — **2 周目 P0-1 の是正**。「混在を試す」負例は公開 API では構成できないので、**構成できないことを固定する**)③ 未登録・偽造 token ④ 中止の例外でロールバックされない ⑤ 戻り値に `Result` / ORM instance が混ざった ⑥ **close されない** | **6 種すべてが red**。red の出力を worklog へ**実出力つきで**残す |
+| 3 | **トランザクション単位を追加する** — `backend/src/pitchlog/repositories/transaction.py`(新設)。**Session の生成・束縛・commit/rollback・close を所有する** | ステップ 2 の 6 種が **green**。**期待失敗**: `allowed_symbols` 未登録による **TB005**(**`session.begin()` と `.execute()` を呼ぶため** — **2 周目 P1-2 の是正**。初稿は「factory 未登録で TB005」と書いたが、**純粋に `Session` を返すだけなら違反 0 件**だった)。**`repository-contract.json` 未更新による契約テストの red** |
+| 4 | **契約資産・生成モジュール・契約テスト・正例 fixture・凍結履歴を 1 コミットで更新する**(4-2 — 分離できない) — `repository-contract.json` → digest → `repository_contract.py`(4-4 の順序)、**`test_authz_repository_contract.py:158` の `_generated_snapshot()` の固定辞書**(**2 周目 P1-3 の是正**)、`base-allowlist.json` の `allowed_symbols` + `contract_revision`、`tests/fixtures/tenant_boundary/positive/`、**v2 履歴を 1 件**(承認記録はステップ 1 の出所から逐語転記) | `scripts/check_tenant_boundary_bypass.py` が green。`scripts/frozen_history.py` の検査が green。**ここで初めて全件 green が成立しうる** |
+| 5 | **故障系テストと欠落変異の確認を足す** — 6 節 | 全件実行で **red 0 件**。**各検査を無効化すると対応する負例が期待する red を失う** |
 
 ## 5. DoD(受け入れ基準)
 
 ### 5-1. 機械で判定する
 
-- [ ] **`_session` を満たす供給**が製品コードにあり、**`__all__` へ出していない**
-- [ ] **factory は呼ぶたびに別の `Session` を返す**(再試行を後から入れられる形 — [design.md](design.md) 2-1)
+- [ ] **`Session` を返す関数を 1 つも作っていない**(**2 周目 P0-2 の是正**)。生成・close は**トランザクション単位の内部**
+- [ ] **トランザクション終了時に `Session` が close されている**(接続・identity map を解放する)
+- [ ] **`base.py` の差分 0 行**([design.md](design.md) 3-4)
 - [ ] **束縛済みのトランザクションの中で、複数の登録済み operation を実行できる**(**テスト専用 registry で検証** — **1 周目 P0-2 の是正**。製品 registry は空のままなので製品経路では検証できない)
 - [ ] **前段の結果を見て後段を中止でき、中止するとロールバックされる**
 - [ ] **業務トランザクションの発行 SQL 列の先頭が束縛文**である(SQL observer で観測)
@@ -182,7 +181,7 @@ scripts/frozen_history.py:1521    approved_by は非空・approved_on は実在�
 
 - [ ] **`allowed_symbols` の追加が 7.7-2 に適合している** — **承認記録の取得元を worklog に明記**し、**台帳へ逐語転記**した(**機械は非空・日付・予約 marker しか見ない** — 逐語一致は人間が確認する。**1 周目 P1-5 の是正**)
 - [ ] **コア領域の逐行確認**(設計書 6.3)— **PR 本文の「実施記録: 対象= 範囲= 方法=」に記入**する
-- [ ] **横断要求を破っていない** — **物理削除しない**(本タスクは DELETE 文を 1 つも持たない。`git diff` に `DELETE` が現れないことで確認)/ テナント分離(上の機械判定で代替)/ 自動エスケープ(本タスクは出力経路を持たない)
+- [ ] **横断要求を破っていない** — **物理削除しない** — **`git diff` の字面ではなく**(**2 周目 P1-5 の是正** — `delete(...)` や `Session.delete(...)` を捕まえられない)、**`db-api-inventory.json` の `SQLA_SESSION_DELETE` を含む DB API ID が新シンボルの `allowed_api_ids` に入っていないこと**で確認する。**結果は PR 本文の「実施記録」へ書く**/ テナント分離(上の機械判定で代替)/ 自動エスケープ(本タスクは出力経路を持たない)
 
 ## 6. テスト計画
 
@@ -222,5 +221,35 @@ uv run pytest -c pyproject.toml --cov
 
 | # | 事項 | 状態 |
 | --- | --- | --- |
-| **1** | **FR-018 の並行性の受け取り先** — **`SERIALIZABLE` でも `FOR UPDATE` でも成立せず**、**紐づけを作る側(同期適用経路)が選手の `hidden_at` を読む**必要がある([design.md](design.md) 5 節)。**U-M1 単独でも閉じない** | **未決**。**新規タスクの起票が要る**と見ている |
-| **2** | **承認記録の出所**(ステップ 1)— TSK-446 で 3 周連続 P0 になった論点。**TSK-458 が規律そのものを扱う**が、本タスクは待たずに個別に決められる | **未決**。着手前に確定させる |
+| **1** | **FR-018 の並行性の受け取り先の起票**(**2 周目 P1-1 の是正** — 初稿は「新規タスクが要る」とだけ書いて ID も受け入れ条件も無かった) | **未決**。下記の受け入れ条件で起票する判断を仰ぐ |
+| **2** | **凍結基準の承認記録の出所**(**2 周目 P0-3**)— **当方は外部の人間承認を自己決定できない**。ステップ 1 は出所が決まらないと開始直後に停止する | **未決**。**計画承認と同時に決める必要がある** |
+
+### 7-1. 受け取り先タスクの受け入れ条件(#1)
+
+**射程**: **`players` を参照する全列**について、**選手が非表示のときに紐づけを作れない**ことを保証する機構を決める。
+
+- **対象列の全数**: `PlayRow.batter_id` / `pitcher_id` / `catcher_id`(**いずれも ForeignKey を持たない素の `Uuid` 列** —
+  `backend/src/pitchlog/db/game_state/models.py:618`・`:633`・`:638`)、`play_runners` 系ほか。**全数の列挙から始める**
+- **手段は読み取りに限らない** — 紐づけ生成側の検証 / DB 制約 / trigger のいずれでもよい
+- **所有の候補**: 紐づけを作るのは**同期適用経路**。**U-M1 単独では閉じない**
+- **DoD**: 「削除と同時に別端末がプレイを記録 / 削除確定 / **判定後に紐づいた場合は失敗する**」
+  (要件書 `:391`)が、**実 DB の 2 接続で再現する試験**で確かめられること
+
+### 7-2. 承認記録の出所(#2)
+
+**TSK-446 の実績**: PR の自己承認は GitHub が拒否する(`Can not approve your own pull request`)。
+**成立した代替**: **PR コメント** — 自分の PR にも書け、`user.login`(認証済み発信者)と
+`created_at`(GitHub 側のタイムスタンプ)が機械可読で、本文に**氏名・日付・対象**を含められる。
+
+**提案**: ステップ 4 の直前に、**本 PR へ次の形のコメントを人間が投稿する**:
+
+```
+凍結基準 base-allowlist.json の allowed_symbols へ
+pitchlog.repositories.transaction.tenant_transaction_scope を追加することを承認する。
+承認者: <氏名>。承認日: <YYYY-MM-DD>。
+```
+
+当方は `gh api repos/<owner>/<repo>/issues/<PR>/comments` から**逐語転記**し、
+`reason` に API パスと `created_at` を出所として書く。**推定値を 1 つも入れない。**
+
+**規律そのものの見直しは TSK-458** が扱うが、**本タスクは待たずに個別に決められる**。

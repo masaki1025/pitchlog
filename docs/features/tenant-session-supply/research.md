@@ -188,14 +188,15 @@ scripts/frozen_history.py:1521     approved_by は非空・approved_on は実在
 | --- | --- | --- |
 | U-1 | **`_session` を満たす具体的な供給形** | 所有だけが決まっている(`docs/worklog/2026-09-24-product-authz-surface.md:19`)。**方式を定めた条文は無い** |
 | U-2 | **複数 operation を束ねる公開 API の形** | U-T1 は「公開面が exact-set」「token だけを受ける署名」を要求するが、**メソッドの個数・形は定めていない** |
-| U-3 | **行ロックか `SERIALIZABLE` か** | `docs/design/data-model.md:1760`「**どちらを採るかは実装の判断**」 |
+| ~~U-3~~ | ~~行ロックか `SERIALIZABLE` か~~ | **【計画 1 周目 P0-1 で射程外へ】** `data-model.md:1760` の二択は **9-1 節(FR-041)の裁定**であり FR-018 のものではない |
 | U-4 | **分離レベルの既定値・リトライ方針** | **言及なし**(ADR・設計正本・D-* のいずれにも無い) |
 | U-5 | **savepoint / `begin_nested` の採否** | **言及なし**(`db-api-inventory.json:883` に API 登録があるだけ) |
-| U-6 | **FR-018 の述語 SQL とロックを誰が決めるか** | `data-model.md:2033`「**具体的なロック方式・SQL は実装計画へ送る**」— **委譲先が U-M1 か本タスクかは正本に無い** |
+| ~~U-6~~ | ~~FR-018 の述語 SQL とロックを誰が決めるか~~ | **【計画 1 周目で裁定】** 述語 SQL と入口は **U-M1**。**並行性の機構は射程外**([plan.md](plan.md) 7-1 の受け取り先へ) |
 
 ## 触ることになるもの
 
-**必ず触る**: `repositories/base.py` / `repositories/binding.py` / **新規の Session 供給モジュール**
+**必ず触る**(**計画 2 周目で改訂**): **`repositories/transaction.py`(新設)のみ**。
+**`base.py` と `binding.py` は 1 行も触らない**([plan.md](plan.md) 4-3・[design.md](design.md) 3-4)
 
 **契約資産**: `base-allowlist.json`(`allowed_symbols` + `contract_revision` + 履歴)/
 `repository-contract.json`(`public_surface` + `source_digest` + `contract_revision`)/
