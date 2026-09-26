@@ -40,3 +40,14 @@ branch: feature/product-authz-apply
 - 対処: こちらの作業は 5384eabe で全部コミット済みだった(作業ツリーはクリーン)ので、差分は master の委任のものだけ。master の退避パッチが現差分と一致することを確かめ、こちらの scratchpad にも控えてから破棄した。差分の中身は A1 の試験の `operation_handlers == ()` の表明を消す方針で、こちらのステップ 1 が採らなかった形だった
 - master のコミット **c04339d1 は残す**(関門 2 の照合を実形式で書き足し・research.md の行番号の陳腐化を節名・関数名へ・テスト計画の表頭の限定語の是正)。ただし 2 点を直した: ① **`contract_revision` は「マージ時点の develop の値 +1」**(#80 が先なら 16 → 17。master の書き足しは #80 の前の値だった)② **history-snapshots は無条件で必須**(7C の実装者の実測を正とする) — 上の「関門 2 の下調べ」の「新しい history-snapshot は要らない見込み」は**誤り**
 - 知見: **同じ worktree を別のセッションが持っているかは `git worktree list` では分からない**。着手前の 1 点確認では重複を防げない(master の指摘)
+
+## 7C の実装者(master セッション)からの申し送り(2026-09-26 — ステップ 2 以降で使う)
+
+master は人間の判断で 442 から完全に手を引いた(Codex の残存プロセス 0・副作用なしを確認済み)。7C の記録形式について:
+
+1. **仕様の原典は実装**: `scripts/frozen_history.py` の `_validate_v2_record`(必須キーの exact-set・`change` と `before`/`after` の 4 キー)/ `_validate_repository_identifier_record`(7 資産分の識別値 map が実 `current_identifiers` と完全一致・射影が動いた `integer_revision_field` 資産の更新を強制)/ `_reject_v2_reserved_markers`(除外リスト方式で記録全体の文字列を再帰走査)。**7C の design.md の D1〜D6 は裁定で、レビューで実装が動いた箇所がある**
+2. **ローカルは必ず不変量モード**(`resolve_evaluation_context` が `GITHUB_EVENT_NAME == "pull_request"` のときだけ PR 受理モード)。実内容の突合・`acceptance_id`・movement と記録件数の一致・merge 形状は **PR の CI でしか走らない** → ステップ 2 の合格は PR の CI で確かめる
+3. **`aspect` は手で書くとずれる**(`derive_aspects` と exact 一致)→ 先に検査器を走らせ、エラーメッセージから正しい値を得る
+4. **snapshot は追記のみ・現在 47 件**(`_validate_snapshot_append_only`・ファイル名 = 内容の SHA-256)。`asset_snapshots` は 7 件・`external_snapshots` は 3 件で、既存で解決できないものだけ追記する
+5. **7C のレビューで 3 周連続した型: 「関数は正しいが本番経路がその結果を使っていない」**。関数を直接呼ぶ試験は 4 件とも捕まえられず、**機構を壊す変異を入れて本番経路の試験が落ちるか**が有効だった → `product_provisioning`・`product_catalog` の試験で同じ型に注意する(詳細: `docs/worklog/2026-09-24-tenant-boundary-baseline.md`)
+6. `contract_revision` = マージ時点の develop の値 +1(#80 が先なら 16 → 17)
