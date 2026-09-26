@@ -32,6 +32,7 @@ EXPECTED_TOP_LEVEL_FIELDS = frozenset(
         "version",
         "digest",
         "digestSpec",
+        "stage2ExternalConstraints",
         "stateTransitionAxes",
         "gameEndAxes",
         "gameEndCombinationRules",
@@ -64,11 +65,103 @@ EXPECTED_F1_RULE_FIELDS = frozenset(
 EXPECTED_NON_COVERAGE_FIELDS = frozenset(
     {"dh", "tiebreak.runnerPlacement", "tiebreak.leadoffRule"}
 )
-EXPECTED_STRUCTURED_AXIS_IDS = frozenset(
+EXPECTED_EXACT_STRUCTURED_AXIS_IDS = frozenset(
+    {
+        "event.perPitch.thirdOutTimingByRunner",
+    }
+)
+EXPECTED_DEFERRED_STRUCTURED_AXIS_KINDS = {
+    "event.operationPayload": "tagged-operation-payload",
+    "event.perPitch.runnerEventPayload": "runner-keyed-event-payload",
+    "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+    "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
+    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
+}
+EXPECTED_DEFERRED_STRUCTURED_AXIS_DIMENSIONS = {
+    "event.operationPayload": (
+        "operation-kind",
+        "operation-payload",
+    ),
+    "event.perPitch.runnerEventPayload": (
+        "event-kind",
+        "runner-identity",
+        "outcome",
+        "destination",
+        "out-kind",
+    ),
+    "event.perPitch.interferenceRuling": (
+        "interference-kind",
+        "adopted-result",
+        "target-identity",
+        "awarded-or-return-destination",
+    ),
+    "event.perPitch.rbi.runnerContinuityByRunner": (
+        "runner-identity",
+        "continuity-observation",
+    ),
+    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": (
+        "runner-identity",
+        "would-score-without-error",
+    ),
+}
+EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS = {
+    "event.operationPayload": frozenset(
+        {
+            "not-applicable",
+            "substitution",
+            "tiebreak-start",
+            "game-end-declaration",
+            "adhoc-registration",
+            "state-correction",
+        }
+    ),
+    "event.perPitch.runnerEventPayload": frozenset(
+        {"not-applicable", "runner-event"}
+    ),
+    "event.perPitch.interferenceRuling": frozenset(
+        {
+            "not-required",
+            "batting-interference",
+            "obstruction",
+            "offensive-interference",
+        }
+    ),
+    "event.perPitch.rbi.runnerContinuityByRunner": frozenset(
+        {"not-required", "observed"}
+    ),
+    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": frozenset(
+        {"not-required", "observed"}
+    ),
+}
+EXPECTED_STAGE2_CONSTRAINT_CLASSES = frozenset(
+    {
+        "field-uniqueness",
+        "reference-integrity",
+        "mutual-exclusion",
+        "state-transition-axis-combinations",
+    }
+)
+EXPECTED_STAGE2_REQUIRED_ARTIFACTS = frozenset(
+    {
+        "closed-payload-schemas",
+        "state-transition-axis-combination-rules",
+        "negative-fixtures",
+    }
+)
+EXPECTED_OPERATION_PAYLOAD_VARIANTS = frozenset(
+    {
+        "not-applicable",
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction",
+    }
+)
+EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS = frozenset(
     {
         "event.operationPayload",
         "event.perPitch.runnerEventPayload",
-        "event.perPitch.thirdOutTimingByRunner",
         "event.perPitch.interferenceRuling",
         "event.perPitch.rbi.runnerContinuityByRunner",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
@@ -436,11 +529,13 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "nonCoverageField",
         "projectionRule",
         "digestSpec",
+        "stage2ExternalConstraints",
         "supportingClauseIds",
         "ruleFieldId",
         "coverageBound",
         "conditionalValues",
         "valueSchema",
+        "representationCapability",
         "gameEndCombinationRules",
     }
     if not required_definitions <= set(definitions):
@@ -523,6 +618,15 @@ def _validate_source_clause_ids(
                 f"gameEndCombinationRules: {clause_id}"
             )
 
+    stage2_constraints = descriptor.get("stage2ExternalConstraints")
+    if isinstance(stage2_constraints, dict):
+        clause_id = stage2_constraints.get("sourceClauseId")
+        if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+            raise DescriptorCheckError(
+                "由来条文IDが正本に実在しない: "
+                f"stage2ExternalConstraints: {clause_id}"
+            )
+
     projection_rules = descriptor.get("projectionRules")
     if isinstance(projection_rules, list):
         for index, rule_value in enumerate(projection_rules):
@@ -569,7 +673,7 @@ def _walk_embedded_value_schema(value: object, path: str) -> None:
 
 
 def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
-    """走者別写像・裁定・payloadの全構造化入力軸を検証する。"""
+    """段階1で閉じる構造と段階2へ委任する表現能力を区別して検証する。"""
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
         return
@@ -578,10 +682,10 @@ def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
         for axis in axes
         if isinstance(axis, dict) and "valueSchema" in axis
     }
-    if frozenset(structured_axes) != EXPECTED_STRUCTURED_AXIS_IDS:
+    if frozenset(structured_axes) != EXPECTED_EXACT_STRUCTURED_AXIS_IDS:
         raise DescriptorCheckError(
-            "構造化入力軸がexact-set不一致: "
-            f"expected={sorted(EXPECTED_STRUCTURED_AXIS_IDS)!r}; "
+            "段階1で閉じる構造化入力軸がexact-set不一致: "
+            f"expected={sorted(EXPECTED_EXACT_STRUCTURED_AXIS_IDS)!r}; "
             f"actual={sorted(structured_axes)!r}"
         )
     for axis_id, axis in structured_axes.items():
@@ -593,6 +697,78 @@ def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
                 f"valueSchemaのdialectがDraft 2020-12でない: {axis_id}"
             )
         _walk_embedded_value_schema(value_schema, f"{axis_id}.valueSchema")
+
+    deferred_axes = {
+        axis.get("axisId"): axis
+        for axis in axes
+        if isinstance(axis, dict) and "representationCapability" in axis
+    }
+    if frozenset(deferred_axes) != EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS:
+        raise DescriptorCheckError(
+            "段階2へ委任する構造化入力軸がexact-set不一致: "
+            f"expected={sorted(EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS)!r}; "
+            f"actual={sorted(deferred_axes)!r}"
+        )
+    for axis_id, axis in deferred_axes.items():
+        if "valueSchema" in axis:
+            raise DescriptorCheckError(
+                f"段階2へ委任したpayload内部制約をvalueSchemaで保証してはならない: {axis_id}"
+            )
+        capability = axis.get("representationCapability")
+        if not isinstance(capability, dict):
+            raise DescriptorCheckError(f"表現能力宣言がobjectでない: {axis_id}")
+        expected_kind = EXPECTED_DEFERRED_STRUCTURED_AXIS_KINDS[axis_id]
+        if capability.get("kind") != expected_kind:
+            raise DescriptorCheckError(
+                f"表現能力のkindが一致しない: {axis_id}: expected={expected_kind}"
+            )
+        dimensions = capability.get("dimensions")
+        if dimensions != list(EXPECTED_DEFERRED_STRUCTURED_AXIS_DIMENSIONS[axis_id]):
+            raise DescriptorCheckError(
+                f"表現能力のdimensionsがexact-set不一致: {axis_id}"
+            )
+        variant_tags = capability.get("variantTags")
+        if not isinstance(variant_tags, list) or frozenset(variant_tags) != (
+            EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS[axis_id]
+        ):
+            if axis_id == "event.operationPayload":
+                raise DescriptorCheckError(
+                    "状態補正payload variantを含む操作payloadのタグ集合が"
+                    "構造上exact-set不一致"
+                )
+            raise DescriptorCheckError(
+                f"表現能力のvariantTagsがexact-set不一致: {axis_id}"
+            )
+
+
+def _validate_stage2_external_constraints(descriptor: Mapping[str, Any]) -> None:
+    """payload内部制約と状態遷移の軸間規則の段階2委任を検証する。"""
+    declaration = descriptor.get("stage2ExternalConstraints")
+    if not isinstance(declaration, dict):
+        raise DescriptorCheckError("stage2ExternalConstraintsがobjectでない")
+    if declaration.get("status") != "deferred":
+        raise DescriptorCheckError("段階2外部制約の状態がdeferredでない")
+    if declaration.get("sourceClauseId") != "adr:D-11":
+        raise DescriptorCheckError("段階2外部制約がADR-003 D-11を参照していない")
+    if (
+        frozenset(declaration.get("payloadAxisIds", []))
+        != EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+    ):
+        raise DescriptorCheckError("段階2へ委任した入力軸がexact-set不一致")
+    if (
+        frozenset(declaration.get("constraintClasses", []))
+        != EXPECTED_STAGE2_CONSTRAINT_CLASSES
+    ):
+        raise DescriptorCheckError("段階2へ委任した制約種別がexact-set不一致")
+    if (
+        frozenset(declaration.get("requiredArtifacts", []))
+        != EXPECTED_STAGE2_REQUIRED_ARTIFACTS
+    ):
+        raise DescriptorCheckError("段階2で必須の成果物がexact-set不一致")
+    if declaration.get("resolutionStage") != "stage2-vector-and-checker-implementation":
+        raise DescriptorCheckError("段階2外部制約の解決時点が一致しない")
+    if declaration.get("axisCombinationScope") != "all-state-transition-axes":
+        raise DescriptorCheckError("段階2へ委任した軸間組合せ規則の対象が全状態遷移軸でない")
 
 
 def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
@@ -636,10 +812,18 @@ def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
                 f"FR-040条件付き値が軸の値集合にない: {axis_id}"
             )
     operation_payload = axes_by_id.get("event.operationPayload")
-    if not isinstance(operation_payload, dict) or '"state-correction"' not in _canonical_json_text(
-        operation_payload.get("valueSchema")
+    capability = (
+        operation_payload.get("representationCapability")
+        if isinstance(operation_payload, dict)
+        else None
+    )
+    variant_tags = capability.get("variantTags") if isinstance(capability, dict) else None
+    if not isinstance(variant_tags, list) or (
+        frozenset(variant_tags) != EXPECTED_OPERATION_PAYLOAD_VARIANTS
     ):
-        raise DescriptorCheckError("状態補正payload variantがvalueSchemaにない")
+        raise DescriptorCheckError(
+            "状態補正payload variantを含む操作payloadのタグ集合が構造上exact-set不一致"
+        )
 
 
 def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
@@ -918,9 +1102,13 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
                     "bounded-boundary-annotations"
                     if "coverageBounds" in axis
                     else (
-                        "structured-boundary-annotations"
-                        if "valueSchema" in axis
-                        else "boundary-annotations"
+                        "deferred-structured-boundary-annotations"
+                        if "representationCapability" in axis
+                        else (
+                            "structured-boundary-annotations"
+                            if "valueSchema" in axis
+                            else "boundary-annotations"
+                        )
                     )
                 )
                 if projection_mode != expected_mode:
@@ -995,6 +1183,18 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
                 raise DescriptorCheckError(
                     f"射影判定不能: 構造化入力のvalueSchema拘束が不足している: {rule_id}"
                 )
+        if rule.get("projectionMode") == "deferred-structured-boundary-annotations":
+            if not {
+                "x-pitchlog-representation-capability",
+                "x-pitchlog-stage2-external-constraints",
+            } <= keyword_set or not {
+                "representation-capability-exact",
+                "stage2-delegation-exact",
+            } <= parity_set:
+                raise DescriptorCheckError(
+                    "射影判定不能: 段階2へ委任した構造化入力の"
+                    f"表現能力・委任条件の拘束が不足している: {rule_id}"
+                )
         if rule.get("undecidableAction") != "fail":
             raise DescriptorCheckError(
                 f"射影判定不能: fail-closedでない規則がある: {rule_id}"
@@ -1031,6 +1231,7 @@ def validate_descriptor_document(
     _walk_for_stage1_external_references(descriptor)
     _validate_source_clause_ids(descriptor, source_clause_ids)
     _validate_structured_input_axes(descriptor)
+    _validate_stage2_external_constraints(descriptor)
     _validate_fr040_conditionals(descriptor)
     _validate_coverage_obligations(descriptor)
     _validate_game_end_contract(descriptor)

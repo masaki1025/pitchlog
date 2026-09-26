@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:72a48d8fc7185be7eb1c0586da6d3cdb65a9684b15f2ea8d1da2e58f16a17023",
+  "digest": "sha256:881be3bffefad9da7209592fc955fe4e7923408b3242584203dba687d603a7fc",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -11,6 +11,31 @@
     "hashAlgorithm": "SHA-256",
     "stage1ExternalReferences": "forbidden",
     "stage2DigestRule": "json-pointer-plus-content-hash-transitive"
+  },
+  "stage2ExternalConstraints": {
+    "status": "deferred",
+    "sourceClauseId": "adr:D-11",
+    "payloadAxisIds": [
+      "event.operationPayload",
+      "event.perPitch.runnerEventPayload",
+      "event.perPitch.interferenceRuling",
+      "event.perPitch.rbi.runnerContinuityByRunner",
+      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+    ],
+    "constraintClasses": [
+      "field-uniqueness",
+      "reference-integrity",
+      "mutual-exclusion",
+      "state-transition-axis-combinations"
+    ],
+    "axisCombinationScope": "all-state-transition-axes",
+    "resolutionStage": "stage2-vector-and-checker-implementation",
+    "requiredArtifacts": [
+      "closed-payload-schemas",
+      "state-transition-axis-combination-rules",
+      "negative-fixtures"
+    ],
+    "reason": "ADR-003 D-11の既存委任条項を適用し、payload内部の一意性・参照整合・相反排除と状態遷移軸の軸間組合せ規則は、ベクタと検査基盤を実機で整備する段階2で確定する"
   },
   "stateTransitionAxes": [
     {
@@ -215,124 +240,21 @@
           "whenState": "adopted"
         }
       ],
-      "valueSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "oneOf": [
-          {
-            "type": "object",
-            "required": ["kind"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "not-applicable"}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "changes"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "substitution"},
-              "changes": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 10,
-                "uniqueItems": true,
-                "x-pitchlog-uniqueBy": "lineupSlot",
-                "items": {
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "required": ["lineupSlot", "outgoingPlayerId", "incomingPlayerId", "defensivePosition"],
-                      "additionalProperties": false,
-                      "properties": {
-                        "lineupSlot": {"type": "integer", "minimum": 1, "maximum": 10},
-                        "outgoingPlayerId": {"type": ["string", "null"]},
-                        "incomingPlayerId": {"type": "string", "minLength": 1},
-                        "defensivePosition": {"type": "string", "minLength": 1}
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "inning", "runnerPlacement", "leadoffBatterId"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "tiebreak-start"},
-              "inning": {"type": "integer", "minimum": 1},
-              "runnerPlacement": {
-                "type": "object",
-                "minProperties": 1,
-                "additionalProperties": false,
-                "properties": {
-                  "first": {"type": "string", "minLength": 1},
-                  "second": {"type": "string", "minLength": 1},
-                  "third": {"type": "string", "minLength": 1}
-                }
-              },
-              "leadoffBatterId": {"type": "string", "minLength": 1}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "reason"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "game-end-declaration"},
-              "reason": {"type": "string", "minLength": 1}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "playerId", "teamId", "displayName", "throws", "bats", "uniformNumber"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "adhoc-registration"},
-              "playerId": {"type": "string", "minLength": 1},
-              "teamId": {"type": "string", "minLength": 1},
-              "displayName": {"type": "string", "minLength": 1},
-              "throws": {"enum": ["right", "left"]},
-              "bats": {"enum": ["right", "left", "switch"]},
-              "uniformNumber": {"type": ["string", "null"]}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "state"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "state-correction"},
-              "state": {
-                "type": "object",
-                "required": ["inning", "half", "awayScore", "homeScore", "strikes", "balls", "outs", "battingOrder", "runners"],
-                "additionalProperties": false,
-                "properties": {
-                  "inning": {"type": "integer", "minimum": 1},
-                  "half": {"enum": ["top", "bottom"]},
-                  "awayScore": {"type": "integer", "minimum": 0},
-                  "homeScore": {"type": "integer", "minimum": 0},
-                  "strikes": {"type": "integer", "minimum": 0, "maximum": 2},
-                  "balls": {"type": "integer", "minimum": 0, "maximum": 3},
-                  "outs": {"type": "integer", "minimum": 0, "maximum": 2},
-                  "battingOrder": {"type": "integer", "minimum": 1, "maximum": 9},
-                  "runners": {
-                    "type": "object",
-                    "required": ["first", "second", "third"],
-                    "additionalProperties": false,
-                    "properties": {
-                      "first": {"type": ["string", "null"]},
-                      "second": {"type": ["string", "null"]},
-                      "third": {"type": ["string", "null"]}
-                    }
-                  }
-                }
-              }
-            }
-          }
-        ]
+      "representationCapability": {
+        "kind": "tagged-operation-payload",
+        "dimensions": [
+          "operation-kind",
+          "operation-payload"
+        ],
+        "variantTags": [
+          "not-applicable",
+          "substitution",
+          "tiebreak-start",
+          "game-end-declaration",
+          "adhoc-registration",
+          "state-correction"
+        ],
+        "description": "操作種別ごとのpayloadをタグ付きで区別できる。内部フィールドの一意性・参照整合・相反排除はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -400,71 +322,20 @@
         "single-runner-hold",
         "multiple-runner-mixed-outcomes"
       ],
-      "valueSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "oneOf": [
-          {
-            "type": "object",
-            "required": ["kind"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "not-applicable"}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "eventType", "runners"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "runner-event"},
-              "eventType": {"enum": ["steal", "pickoff", "wild-pitch", "passed-ball", "balk", "error", "simultaneous-advance"]},
-              "runners": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 3,
-                "uniqueItems": true,
-                "x-pitchlog-uniqueBy": "runner",
-                "items": {
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "required": ["runner", "outcome", "destination", "outKind"],
-                      "additionalProperties": false,
-                      "properties": {
-                        "runner": {"enum": ["first", "second", "third"]},
-                        "outcome": {"const": "safe-advance"},
-                        "destination": {"type": "integer", "minimum": 2, "maximum": 4},
-                        "outKind": {"type": "null"}
-                      }
-                    },
-                    {
-                      "type": "object",
-                      "required": ["runner", "outcome", "destination", "outKind"],
-                      "additionalProperties": false,
-                      "properties": {
-                        "runner": {"enum": ["first", "second", "third"]},
-                        "outcome": {"const": "out"},
-                        "destination": {"type": "integer", "minimum": 1, "maximum": 4},
-                        "outKind": {"enum": ["caught-stealing", "picked-off", "other"]}
-                      }
-                    },
-                    {
-                      "type": "object",
-                      "required": ["runner", "outcome", "destination", "outKind"],
-                      "additionalProperties": false,
-                      "properties": {
-                        "runner": {"enum": ["first", "second", "third"]},
-                        "outcome": {"const": "hold"},
-                        "destination": {"type": "null"},
-                        "outKind": {"type": "null"}
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        ]
+      "representationCapability": {
+        "kind": "runner-keyed-event-payload",
+        "dimensions": [
+          "event-kind",
+          "runner-identity",
+          "outcome",
+          "destination",
+          "out-kind"
+        ],
+        "variantTags": [
+          "not-applicable",
+          "runner-event"
+        ],
+        "description": "同一イベント内で走者別に結果・到達塁・アウト種別を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -519,85 +390,21 @@
         "offensive-interference:batter-included-with-out-targets-and-return-bases",
         "offensive-interference:runner-only-with-out-targets-and-return-bases"
       ],
-      "valueSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "oneOf": [
-          {
-            "type": "object",
-            "required": ["kind"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "not-required"}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "adoptedResult"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "batting-interference"},
-              "adoptedResult": {"const": "penalty-award"}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "adoptedResult", "resultId"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "batting-interference"},
-              "adoptedResult": {"const": "play-result"},
-              "resultId": {"type": "string", "minLength": 1}
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "playType", "awardedDestinations", "outTargets"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "obstruction"},
-              "playType": {"enum": ["play-on-obstructed-runner", "no-play-on-obstructed-runner"]},
-              "awardedDestinations": {
-                "type": "object",
-                "minProperties": 1,
-                "additionalProperties": false,
-                "properties": {
-                  "batter": {"type": "integer", "minimum": 1, "maximum": 4},
-                  "first": {"type": "integer", "minimum": 2, "maximum": 4},
-                  "second": {"type": "integer", "minimum": 3, "maximum": 4},
-                  "third": {"const": 4}
-                }
-              },
-              "outTargets": {
-                "type": "array",
-                "uniqueItems": true,
-                "items": {"enum": ["batter", "first", "second", "third"]}
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": ["kind", "outTargets", "returnBases"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": {"const": "offensive-interference"},
-              "outTargets": {
-                "type": "array",
-                "minItems": 1,
-                "uniqueItems": true,
-                "items": {"enum": ["batter", "first", "second", "third"]}
-              },
-              "returnBases": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "first": {"const": 1},
-                  "second": {"type": "integer", "minimum": 1, "maximum": 2},
-                  "third": {"type": "integer", "minimum": 1, "maximum": 3}
-                }
-              }
-            }
-          }
-        ]
+      "representationCapability": {
+        "kind": "tagged-targeted-ruling",
+        "dimensions": [
+          "interference-kind",
+          "adopted-result",
+          "target-identity",
+          "awarded-or-return-destination"
+        ],
+        "variantTags": [
+          "not-required",
+          "batting-interference",
+          "obstruction",
+          "offensive-interference"
+        ],
+        "description": "妨害種別ごとに採用結果と対象別の授与塁・アウト対象・帰塁先を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -627,17 +434,17 @@
         "single-runner-stopped-and-restarted",
         "multiple-runners-mixed-continuity"
       ],
-      "valueSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "batter": {"enum": ["kept-running", "stopped-and-restarted"]},
-          "first": {"enum": ["kept-running", "stopped-and-restarted"]},
-          "second": {"enum": ["kept-running", "stopped-and-restarted"]},
-          "third": {"enum": ["kept-running", "stopped-and-restarted"]}
-        },
-        "description": "空objectはRBI-03・RBI-04の判定入力を要求しないことを表す"
+      "representationCapability": {
+        "kind": "runner-keyed-observation",
+        "dimensions": [
+          "runner-identity",
+          "continuity-observation"
+        ],
+        "variantTags": [
+          "not-required",
+          "observed"
+        ],
+        "description": "生還候補走者ごとに走り続けたか停止後に再開したかを表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -653,17 +460,17 @@
         "single-runner-would-not-score",
         "multiple-runners-mixed-ruling"
       ],
-      "valueSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "batter": {"type": "boolean"},
-          "first": {"type": "boolean"},
-          "second": {"type": "boolean"},
-          "third": {"type": "boolean"}
-        },
-        "description": "空objectはRBI-05の判定入力を要求しないことを表す"
+      "representationCapability": {
+        "kind": "runner-keyed-observation",
+        "dimensions": [
+          "runner-identity",
+          "would-score-without-error"
+        ],
+        "variantTags": [
+          "not-required",
+          "observed"
+        ],
+        "description": "生還候補走者ごとに失策がなくても得点できたかを表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -981,12 +788,7 @@
       "sourceClauseId": "adr:D-11",
       "sourceKind": "boundary-partition",
       "targetIds": [
-        "event.operationPayload",
-        "event.perPitch.runnerEventPayload",
-        "event.perPitch.thirdOutTimingByRunner",
-        "event.perPitch.interferenceRuling",
-        "event.perPitch.rbi.runnerContinuityByRunner",
-        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+        "event.perPitch.thirdOutTimingByRunner"
       ],
       "projectionMode": "structured-boundary-annotations",
       "jsonSchemaKeywords": [
@@ -1007,7 +809,41 @@
       "verificationStage": "stage2-descriptorParity",
       "mismatchAction": "manifest-registration-denied",
       "undecidableAction": "fail",
-      "description": "構造化入力は境界集合に加えて閉じたvalueSchemaと条件付きメンバーを射影し、走者別写像・タグ付きpayload・FR-040条件をexact比較する"
+      "description": "第3アウト時機の走者別写像は境界集合に加えて閉じたvalueSchemaを射影し、段階1でexact比較する"
+    },
+    {
+      "ruleId": "projection.deferredStructuredBoundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "event.operationPayload",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+      ],
+      "projectionMode": "deferred-structured-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-representation-capability",
+        "x-pitchlog-stage2-external-constraints",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "representation-capability-exact",
+        "stage2-delegation-exact",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "段階1では走者別・対象別・タグ付き入力を表現できる能力と境界集合だけを射影する。payload内部の一意性・参照整合・相反排除と状態遷移軸の組合せ規則はstage2ExternalConstraintsの成果物で閉じる"
     },
     {
       "ruleId": "projection.boundedBoundaryPartition",

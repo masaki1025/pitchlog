@@ -353,8 +353,8 @@ def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
     ) == 4
 
 
-def test_structured_inputs_are_closed_and_keep_runner_or_target_identity() -> None:
-    """構造化入力が走者別写像・対象payloadを閉じたschemaで保持する。"""
+def test_structured_inputs_separate_stage1_schema_from_stage2_capability() -> None:
+    """段階1で閉じる写像と段階2へ送る表現能力を混同しない。"""
     axes = {
         axis["axisId"]: axis for axis in _descriptor()["stateTransitionAxes"]
     }
@@ -362,7 +362,7 @@ def test_structured_inputs_are_closed_and_keep_runner_or_target_identity() -> No
     structured_axes = {
         axis_id for axis_id, axis in axes.items() if "valueSchema" in axis
     }
-    assert structured_axes == checker.EXPECTED_STRUCTURED_AXIS_IDS
+    assert structured_axes == checker.EXPECTED_EXACT_STRUCTURED_AXIS_IDS
     assert (
         axes["event.perPitch.thirdOutTimingByRunner"]["valueSchema"][
             "additionalProperties"
@@ -372,11 +372,39 @@ def test_structured_inputs_are_closed_and_keep_runner_or_target_identity() -> No
     assert set(
         axes["event.perPitch.thirdOutTimingByRunner"]["valueSchema"]["properties"]
     ) == {"batter", "first", "second", "third"}
-    runner_items = axes["event.perPitch.runnerEventPayload"]["valueSchema"][
-        "oneOf"
-    ][1]["properties"]["runners"]
-    assert runner_items["x-pitchlog-uniqueBy"] == "runner"
-    assert axes["event.operationPayload"]["valueSchema"]["oneOf"]
+    deferred_axes = {
+        axis_id
+        for axis_id, axis in axes.items()
+        if "representationCapability" in axis
+    }
+    assert deferred_axes == checker.EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+    assert all("valueSchema" not in axes[axis_id] for axis_id in deferred_axes)
+    assert axes["event.perPitch.runnerEventPayload"]["representationCapability"][
+        "dimensions"
+    ] == ["event-kind", "runner-identity", "outcome", "destination", "out-kind"]
+    assert "target-identity" in axes["event.perPitch.interferenceRuling"][
+        "representationCapability"
+    ]["dimensions"]
+
+
+def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> None:
+    """保証しない内部制約を宣言し、段階2の必須成果物まで閉じる。"""
+    declaration = _descriptor()["stage2ExternalConstraints"]
+
+    assert (
+        set(declaration["payloadAxisIds"])
+        == checker.EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+    )
+    assert (
+        set(declaration["constraintClasses"])
+        == checker.EXPECTED_STAGE2_CONSTRAINT_CLASSES
+    )
+    assert (
+        set(declaration["requiredArtifacts"])
+        == checker.EXPECTED_STAGE2_REQUIRED_ARTIFACTS
+    )
+    assert declaration["sourceClauseId"] == "adr:D-11"
+    assert declaration["axisCombinationScope"] == "all-state-transition-axes"
 
 
 def test_fr040_conditional_members_cannot_drift_independently() -> None:
@@ -391,6 +419,26 @@ def test_fr040_conditional_members_cannot_drift_independently() -> None:
     _with_digest(descriptor)
 
     with pytest.raises(checker.DescriptorCheckError, match="FR-040採用条件が一致しない"):
+        _validate(descriptor)
+
+
+def test_fr040_payload_variant_is_checked_structurally_not_by_text_search() -> None:
+    """実variantを消して説明文だけにstate-correctionを残す迂回を拒否する。"""
+    descriptor = _descriptor()
+    payload_axis = next(
+        axis
+        for axis in descriptor["stateTransitionAxes"]
+        if axis["axisId"] == "event.operationPayload"
+    )
+    capability = payload_axis["representationCapability"]
+    capability["variantTags"].remove("state-correction")
+    capability["description"] = "state-correction は説明文にだけ残っている"
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="状態補正payload variantを含む操作payloadのタグ集合が構造上exact-set不一致",
+    ):
         _validate(descriptor)
 
 
@@ -693,6 +741,22 @@ def test_projection_modes_preserve_descriptor_semantics() -> None:
     )
     assert "enum" not in rules["projection.boundaryPartition"]["jsonSchemaKeywords"]
     assert (
+        rules["projection.structuredBoundaryPartition"]["targetIds"]
+        == ["event.perPitch.thirdOutTimingByRunner"]
+    )
+    assert (
+        rules["projection.deferredStructuredBoundaryPartition"]["projectionMode"]
+        == "deferred-structured-boundary-annotations"
+    )
+    assert {
+        "x-pitchlog-representation-capability",
+        "x-pitchlog-stage2-external-constraints",
+    } <= set(
+        rules["projection.deferredStructuredBoundaryPartition"][
+            "jsonSchemaKeywords"
+        ]
+    )
+    assert (
         rules["projection.boundedBoundaryPartition"]["projectionMode"]
         == "bounded-boundary-annotations"
     )
@@ -760,7 +824,8 @@ def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() 
     assert len(descriptor["gameEndAxes"]) == 4
     assert len(descriptor["nonCoverageFields"]) == 3
     assert descriptor["gameEndCombinationRules"]
-    assert len(descriptor["projectionRules"]) == 7
+    assert len(descriptor["projectionRules"]) == 8
+    assert descriptor["stage2ExternalConstraints"]["status"] == "deferred"
     assert descriptor["digestSpec"]["stage1ExternalReferences"] == "forbidden"
     assert set(checker.SOURCE_CLAUSE_PATHS) == {
         Path("docs/requirements/requirements-pitchlog-2026-07-22.md"),
