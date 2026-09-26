@@ -17,7 +17,6 @@ from typing import Any
 import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-DEVELOP_REPOSITORY_ROOT = Path("/home/ymdms/projects/pitchlog")
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_tenant_boundary_bypass.py"
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
@@ -137,6 +136,8 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_SET_TENANT_SQL",
         "C5_SQLALCHEMY_ORM",
         "C5_TENANT_CONTEXT_OBJECT_NEW",
+        "C5_TENANT_CONTEXT_DIRECT_INIT",
+        "C5_TENANT_CONTEXT_DIRECT_NEW",
         "C5_TENANT_CONTEXT_OBJECT_SETATTR_UNTYPED",
         "C5_TENANT_CONTEXT_TYPE_CALL",
         "C5_CONTEXT_TRY_EXCEPT_ORIGIN_MERGE",
@@ -274,11 +275,89 @@ def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
         capture_output=True,
     )
     destination.write_bytes(result.stdout)
+    dependency = "scripts/frozen_history.py"
+    dependency_result = subprocess.run(
+        ["git", "show", f"{revision}:{dependency}"],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if dependency_result.returncode == 0:
+        (destination.parent / "frozen_history.py").write_bytes(
+            dependency_result.stdout
+        )
     digest = hashlib.sha256(result.stdout).hexdigest()
     return _load_checker_module(
         destination,
         f"check_tenant_boundary_bypass_{digest}",
     )
+
+
+def _develop_contract_root(destination: Path) -> Path:
+    """develop worktree を git から探し、無ければ同 revision を一時展開する。"""
+    listing = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    worktree: Path | None = None
+    for block in listing.strip().split("\n\n"):
+        fields = dict(
+            line.split(" ", 1)
+            for line in block.splitlines()
+            if " " in line
+        )
+        if fields.get("branch") == "refs/heads/develop":
+            candidate = Path(fields["worktree"])
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=candidate,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            reference = subprocess.run(
+                ["git", "rev-parse", "origin/develop"],
+                cwd=REPOSITORY_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if head == reference:
+                worktree = candidate
+                break
+    if worktree is not None:
+        return worktree
+
+    names = subprocess.run(
+        [
+            "git",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "origin/develop",
+            "--",
+            "contracts/tenant_boundary",
+            "tests/fixtures/tenant_boundary",
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    for relative in names:
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = subprocess.run(
+            ["git", "show", f"origin/develop:{relative}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        target.write_bytes(content)
+    return destination
 
 
 def _checker_census(
@@ -595,6 +674,202 @@ from pitchlog.repositories.context import TenantContext
                 )
                 for use_id, use in target_uses.items()
             )
+
+    mutable_containers = {
+        "list": {
+            "safe": "[safe]",
+            "dangerous": "[TenantContext]",
+            "empty": "[]",
+        },
+        "dict": {
+            "safe": '{"k": safe}',
+            "dangerous": '{"k": TenantContext}',
+            "empty": "{}",
+        },
+    }
+    mutable_updates = {
+        "append": "store.append(TenantContext)",
+        "extend": "store.extend([TenantContext])",
+        "insert": "store.insert(0, TenantContext)",
+        "update": 'store.update({"k": TenantContext})',
+        "setdefault": 'store.setdefault("k", TenantContext)',
+        "attribute": "store.factory = TenantContext",
+    }
+    corpus.extend(
+        (
+            f"mutable/{container_id}/{initial_id}/{update_id}/{read_id}",
+            _insert_generated_use(
+                f"""\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    store = {initial}
+    {update}
+    __USE__
+""",
+                read,
+            ),
+        )
+        for container_id, initials in mutable_containers.items()
+        for initial_id, initial in initials.items()
+        for update_id, update in {
+            "subscript": (
+                "store[0] = TenantContext"
+                if container_id == "list"
+                else 'store["k"] = TenantContext'
+            ),
+            **mutable_updates,
+        }.items()
+        for read_id, read in {
+            "subscript": (
+                "factory = store[0]\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else 'factory = store["k"]\nreturn factory(tenant_id)'
+            ),
+            "next-iter": (
+                "factory = next(iter(store))\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else (
+                    "factory = next(iter(store.values()))\n"
+                    "return factory(tenant_id)"
+                )
+            ),
+            "unpack": (
+                "factory, *_ = store\nreturn factory(tenant_id)"
+                if container_id == "list"
+                else (
+                    "factory, *_ = store.values()\nreturn factory(tenant_id)"
+                )
+            ),
+            "for": (
+                "for factory in store:\n"
+                "    return factory(tenant_id)\nreturn None"
+                if container_id == "list"
+                else (
+                    "for factory in store.values():\n"
+                    "    return factory(tenant_id)\nreturn None"
+                )
+            ),
+        }.items()
+    )
+
+    match_implementations = {
+        "builtin": (
+            "[TenantContext, safe]",
+            "[safe, TenantContext]",
+        ),
+        "dataclass": (
+            "DataPair(TenantContext, safe)",
+            "DataPair(safe, TenantContext)",
+        ),
+        "match-args": (
+            "Pair(TenantContext, safe)",
+            "Pair(safe, TenantContext)",
+        ),
+        "custom-sequence": (
+            "CustomSequence(TenantContext, safe)",
+            "CustomSequence(safe, TenantContext)",
+        ),
+        "custom-mapping": (
+            "CustomMapping(TenantContext, safe)",
+            "CustomMapping(safe, TenantContext)",
+        ),
+    }
+    match_orders = {
+        "positional": 0,
+        "keyword": 1,
+        "mixed": 0,
+    }
+    semantic_patterns = {
+        "sequence": {
+            "positional": "[factory, _]",
+            "keyword": "[_, factory]",
+            "mixed": "[factory, *_]",
+        },
+        "mapping": {
+            "positional": '{"left": factory, "right": _}',
+            "keyword": '{"right": _, "left": factory}',
+            "mixed": '{"left": factory, **rest}',
+        },
+        "class": {
+            "positional": "Pair(factory, _)",
+            "keyword": "Pair(right=_, left=factory)",
+            "mixed": "Pair(factory, right=_)",
+        },
+    }
+    match_preamble = """\
+from dataclasses import dataclass
+from pitchlog.repositories.context import TenantContext
+
+@dataclass
+class DataPair:
+    left: object
+    right: object
+
+class Pair:
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class CustomSequence:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class CustomMapping:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+def safe(value):
+    return value
+"""
+    corpus.extend(
+        (
+            f"match-semantics/{implementation_id}/{order_id}/{pattern_id}",
+            f"""\
+{match_preamble}
+def build(factory, tenant_id):
+    value = {subjects[subject_index]}
+    match value:
+        case {patterns[order_id]}:
+            return factory(tenant_id)
+""",
+        )
+        for implementation_id, subjects in match_implementations.items()
+        for order_id, subject_index in match_orders.items()
+        for pattern_id, patterns in semantic_patterns.items()
+    )
+
+    construction_methods = {
+        "direct": "return TenantContext(tenant_id)",
+        "new": "return TenantContext.__new__(TenantContext)",
+        "init": "TenantContext.__init__(target, tenant_id)\nreturn target",
+        "type": "return type(target)(tenant_id)",
+        "copy": "return copy.copy(target)",
+        "dataclasses-replace": (
+            "return dataclasses.replace(target, tenant_id=tenant_id)"
+        ),
+    }
+    corpus.extend(
+        (
+            f"construction/{method_id}",
+            f"""\
+import copy
+import dataclasses
+from pitchlog.repositories.context import TenantContext
+
+def build(target: TenantContext, tenant_id):
+    {method.replace(chr(10), chr(10) + '    ')}
+""",
+        )
+        for method_id, method in construction_methods.items()
+    )
     case_ids = [case_id for case_id, _ in corpus]
     assert len(case_ids) == len(set(case_ids))
     return tuple(corpus)
@@ -1091,11 +1366,9 @@ def test_generated_provenance_corpus_never_weakens_develop(
         "origin/develop",
         tmp_path / "check_tenant_boundary_bypass_develop.py",
     )
-    assert DEVELOP_REPOSITORY_ROOT.is_dir(), (
-        "develop checker の契約資産を読むメインツリーが存在しない: "
-        f"{DEVELOP_REPOSITORY_ROOT}"
+    develop_contract = develop_checker.load_contract(
+        _develop_contract_root(tmp_path / "develop-contract-root")
     )
-    develop_contract = develop_checker.load_contract(DEVELOP_REPOSITORY_ROOT)
     head_contract = checker.load_contract(REPOSITORY_ROOT)
     outcomes: list[tuple[str, bool, bool]] = []
     for case_id, source in _tenant_context_provenance_corpus():
@@ -1135,6 +1408,108 @@ class Runner:
     )
 
     assert violations == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    factories = [safe]
+    factories[0] = TenantContext
+    factory = factories[0]
+    return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+def build(tenant_id):
+    registry = {"k": safe}
+    registry["k"] = TenantContext
+    return registry["k"](tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def safe(value):
+    return value
+
+class Pair:
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+def build(factory, tenant_id):
+    value = Pair(TenantContext, safe)
+    match value:
+        case Pair(right=_, left=factory):
+            return factory(tenant_id)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build():
+    return TenantContext.__new__(TenantContext)
+""",
+        """\
+from pitchlog.repositories.context import TenantContext
+
+def build(target, tenant_id):
+    TenantContext.__init__(target, tenant_id)
+    return target
+""",
+    ),
+    ids=(
+        "list-subscript-replacement",
+        "dict-subscript-replacement",
+        "match-class-keyword-reordering",
+        "direct-new",
+        "direct-init",
+    ),
+)
+def test_review_round_6_reproductions_are_red(source: str) -> None:
+    """6 周目の P0 再現形をすべて TB007 に固定する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/review_round_6.py",
+        contract=contract,
+    )
+
+    assert "TB007" in {violation.code for violation in violations}
+
+
+def test_copy_copy_of_known_non_context_value_is_green() -> None:
+    """copy.copy は第1引数が非 TenantContext と証明できれば許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = """\
+import copy
+
+class Value:
+    pass
+
+def clone(value: Value):
+    return copy.copy(value)
+"""
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/value_copy.py",
+        contract=contract,
+    )
+
+    assert "TB007" not in {violation.code for violation in violations}
 
 
 @pytest.mark.parametrize(

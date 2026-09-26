@@ -16,8 +16,6 @@
 4. 引数・局所変数・クロージャ変数として外から渡された callable を経由した構築。
    依存性注入は型注釈でも由来を確定できず、赤にすると通常の設計パターンが
    機械的に通らなくなるため。
-5. 未対応の式を経由して構築シンボルの起源が失われる経路。
-   完全な解には制御フロー解析が要るため、別タスクで扱う。
 """
 
 from __future__ import annotations
@@ -2891,6 +2889,15 @@ class _FlowProvenance:
     ) -> tuple[_FlowValue, _FlowValue]:
         """属性と receiver を一度だけ評価して返す。"""
         receiver = self._expression(node.value, environment)
+        if receiver.unresolved:
+            return (
+                _FlowValue(
+                    origins=receiver.origins,
+                    unresolved=True,
+                    external_input=receiver.external_input,
+                ),
+                receiver,
+            )
         if receiver.symbol is None:
             return (
                 _FlowValue(
@@ -2945,6 +2952,24 @@ class _FlowProvenance:
                 self.argument_kinds[(id(node), index)] = argument_value.kind
             for keyword in node.keywords:
                 self._expression(keyword.value, environment)
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {
+                    "append",
+                    "extend",
+                    "insert",
+                    "update",
+                    "setdefault",
+                    "__setitem__",
+                }
+            ):
+                written = self._joined_value(argument_values)
+                self._invalidate_storage(
+                    node.func.value,
+                    written,
+                    environment,
+                )
             if (
                 callable_value.symbol == "builtins.getattr"
                 and argument_values
@@ -3035,6 +3060,12 @@ class _FlowProvenance:
             container = self._expression(node.value, environment)
             self._expression(node.slice, environment)
             if not container.elements:
+                if (
+                    not container.unresolved
+                    and container.symbol is not None
+                    and container.kind == "symbol"
+                ):
+                    return container
                 return _FlowValue(
                     kind="unknown",
                     origins=container.origins,
@@ -3139,13 +3170,21 @@ class _FlowProvenance:
     ) -> None:
         """既知 tuple 列から内包表記の分割代入を保守的に導出する。"""
         if not iterable.elements:
-            self._assign_target(target, _UNKNOWN_FLOW_VALUE, environment)
+            self._assign_target(
+                target,
+                self._unresolved_from(iterable),
+                environment,
+            )
             return
         if isinstance(target, (ast.Tuple, ast.List)):
             columns: list[list[_FlowValue]] = [[] for _ in target.elts]
             for element in iterable.elements:
                 if len(element.elements) != len(target.elts):
-                    self._assign_target(target, _UNKNOWN_FLOW_VALUE, environment)
+                    self._assign_target(
+                        target,
+                        self._unresolved_from(iterable),
+                        environment,
+                    )
                     return
                 for index, item in enumerate(element.elements):
                     columns[index].append(item)
@@ -3160,6 +3199,42 @@ class _FlowProvenance:
             target,
             self._joined_value(iterable.elements),
             environment,
+        )
+
+    @staticmethod
+    def _unresolved_from(value: _FlowValue) -> _FlowValue:
+        """既知起源を保持したまま値の精密な形だけを不明へ倒す。"""
+        return _FlowValue(
+            origins=value.origins,
+            unresolved=True,
+            external_input=value.external_input,
+        )
+
+    @staticmethod
+    def _storage_root_name(node: ast.AST) -> str | None:
+        """属性・添字の格納域を保持する最外の裸名を返す。"""
+        current = node
+        while isinstance(current, (ast.Attribute, ast.Subscript)):
+            current = current.value
+        return current.id if isinstance(current, ast.Name) else None
+
+    def _invalidate_storage(
+        self,
+        storage: ast.AST,
+        written: _FlowValue,
+        environment: dict[str, _FlowValue],
+    ) -> None:
+        """可変格納域の既知要素を破棄し、書込値を含む可能起源だけ残す。"""
+        root = self._storage_root_name(storage)
+        if root is None or root not in environment:
+            return
+        previous = environment[root]
+        environment[root] = _FlowValue(
+            previous.symbol,
+            previous.kind,
+            origins=previous.origins | written.origins,
+            unresolved=True,
+            external_input=previous.external_input or written.external_input,
         )
 
     def _assign_target(
@@ -3177,10 +3252,12 @@ class _FlowProvenance:
             return
         if isinstance(target, ast.Attribute):
             self._expression(target.value, environment)
+            self._invalidate_storage(target.value, value, environment)
             return
         if isinstance(target, ast.Subscript):
             self._expression(target.value, environment)
             self._expression(target.slice, environment)
+            self._invalidate_storage(target.value, value, environment)
             return
         if isinstance(target, (ast.Tuple, ast.List)):
             if len(value.elements) == len(target.elts):
@@ -3188,7 +3265,11 @@ class _FlowProvenance:
                     self._assign_target(item, element, environment)
             else:
                 for item in target.elts:
-                    self._assign_target(item, _UNKNOWN_FLOW_VALUE, environment)
+                    self._assign_target(
+                        item,
+                        self._unresolved_from(value),
+                        environment,
+                    )
 
     def _join_environments(
         self,
@@ -3369,26 +3450,22 @@ class _FlowProvenance:
                 environment[pattern.name] = (
                     sequence_value(subject.elements)
                     if subject.elements
+                    and subject.symbol in {"builtins.list", "builtins.tuple"}
                     else subject
                 )
             return
         if isinstance(pattern, ast.MatchMapping):
-            captured_values = (
-                subject.elements
-                if len(subject.elements) == len(pattern.patterns)
-                else tuple(subject for _ in pattern.patterns)
-            )
-            for child, captured in zip(
-                pattern.patterns,
-                captured_values,
-                strict=True,
-            ):
-                self._bind_match_pattern(child, captured, environment)
+            for child in pattern.patterns:
+                self._bind_match_pattern(child, subject, environment)
             if pattern.rest is not None:
                 environment[pattern.rest] = subject
             return
         if isinstance(pattern, ast.MatchSequence):
-            values = subject.elements
+            values = (
+                subject.elements
+                if subject.symbol in {"builtins.list", "builtins.tuple"}
+                else ()
+            )
             star_index = next(
                 (
                     index
@@ -3416,13 +3493,8 @@ class _FlowProvenance:
             return
         if isinstance(pattern, ast.MatchClass):
             children = (*pattern.patterns, *pattern.kwd_patterns)
-            captured_values = (
-                subject.elements
-                if len(subject.elements) == len(children)
-                else tuple(subject for _ in children)
-            )
-            for child, captured in zip(children, captured_values, strict=True):
-                self._bind_match_pattern(child, captured, environment)
+            for child in children:
+                self._bind_match_pattern(child, subject, environment)
             return
         if isinstance(pattern, ast.MatchOr):
             branch_environments: list[dict[str, _FlowValue]] = []
@@ -4407,6 +4479,22 @@ class _SourceScanner(ast.NodeVisitor):
         }
         canonical_resolved = canonical_aliases.get(resolved or "", resolved)
         forbidden = self.contract.tenant_context.forbidden_construction_symbols
+        constructor_lifecycle_symbols = {
+            f"{self.contract.tenant_context.constructor_symbol}.__new__",
+            f"{self.contract.tenant_context.constructor_symbol}.__init__",
+        }
+        if canonical_resolved in constructor_lifecycle_symbols:
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=canonical_resolved,
+                message=(
+                    "TenantContext の __new__ / __init__ 直接呼び出しによる "
+                    "構築迂回は禁止"
+                ),
+            )
+            return
         if (
             canonical_resolved == "builtins.object.__new__"
             and canonical_resolved in forbidden
@@ -4468,6 +4556,22 @@ class _SourceScanner(ast.NodeVisitor):
                 code="TB007",
                 symbol=canonical_resolved,
                 message="dataclasses.replace による TenantContext 複製迂回は禁止",
+            )
+            return
+        if canonical_resolved == "copy.copy":
+            target_provenance = (
+                self.flow.argument_provenance(node, 0)
+                if node.args
+                else "unknown"
+            )
+            if target_provenance == "non_db":
+                return
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=canonical_resolved,
+                message="copy.copy による TenantContext 複製迂回は禁止",
             )
             return
         if isinstance(node.func, ast.Call):
@@ -4837,6 +4941,18 @@ class _SourceScanner(ast.NodeVisitor):
                     symbol=self.contract.tenant_context.constructor_symbol,
                     message=(
                         "可能なクラス基底起源に TenantContext が含まれるため拒否"
+                    ),
+                )
+                continue
+            if self._is_changed(base) and flow_base.unresolved:
+                self._add(
+                    base,
+                    condition=5,
+                    code="TB007",
+                    symbol=resolved or "<unresolved-class-base>",
+                    message=(
+                        "起源を解決できない class base は "
+                        "TenantContext 継承迂回として拒否"
                     ),
                 )
                 continue
