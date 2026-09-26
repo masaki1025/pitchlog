@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import shutil
@@ -15,6 +16,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_input_axes_three_way_parity.py"
 DESCRIPTOR_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_input_axes_descriptor.py"
+FREEZE_SCRIPT = REPOSITORY_ROOT / "scripts" / "state_transition_freeze.py"
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -27,6 +29,7 @@ def _load_module(name: str, path: Path) -> Any:
     return module
 
 
+_load_module("state_transition_freeze", FREEZE_SCRIPT)
 descriptor_checker = _load_module(
     "check_input_axes_descriptor", DESCRIPTOR_SCRIPT
 )
@@ -38,6 +41,25 @@ ASSET_PATHS = (
     checker.DESCRIPTOR_PATH,
     checker.SCHEMA_PATH,
 )
+
+
+def _descriptor() -> dict[str, Any]:
+    """リポジトリのdescriptorを読む。"""
+    value = json.loads(
+        (REPOSITORY_ROOT / checker.DESCRIPTOR_PATH).read_text(encoding="utf-8")
+    )
+    assert isinstance(value, dict)
+    return value
+
+
+def _criteria() -> Any:
+    """資産側宣言から3点突合基準を読む。"""
+    return checker.load_parity_criteria(_descriptor())
+
+
+def _descriptor_criteria() -> Any:
+    """資産側宣言からdescriptor検査基準を読む。"""
+    return descriptor_checker.load_descriptor_criteria(_descriptor())
 
 
 def _copy_fixture_root(tmp_path: Path) -> Path:
@@ -69,6 +91,26 @@ def _rewrite_descriptor(
         descriptor
     )
     return descriptor
+
+
+def _synchronize_unaccepted_freeze_record(descriptor: dict[str, Any]) -> None:
+    """同一PR内の未受理基準変更を既存の単一履歴レコードへ反映する。"""
+    declaration = descriptor[checker.freeze_checker.FREEZE_FIELD]
+    criteria = declaration["criteria"]
+    history = declaration["history"]
+    assert len(history) == 1
+    record = history[0]
+    record["newIdentity"] = {
+        "present": True,
+        "values": checker.freeze_checker.current_identities(criteria),
+    }
+    changes = {change["criterionId"]: change for change in record["changes"]}
+    assert set(changes) == set(criteria)
+    for criterion_id, value in criteria.items():
+        changes[criterion_id]["after"] = {
+            "present": True,
+            "value": copy.deepcopy(value),
+        }
 
 
 def _remove_normative_branch_row(text: str, branch_id: str) -> str:
@@ -116,20 +158,13 @@ def test_repository_three_way_parity_is_green() -> None:
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
     """規範表の64分岐を支援対象37件と理由付き対象外27件へ分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
-    expected_covered = {
-        *(f"COLD-{number:02d}" for number in range(1, 10)),
-        *(f"DRAW-{number:02d}" for number in range(1, 11) if number != 4),
-        *(f"XMARK-{number:02d}" for number in range(1, 4)),
-        *(f"OUT3-{number:02d}" for number in range(1, 6)),
-        *(f"INT-{number:02d}" for number in range(1, 8)),
-        *(f"RBI-{number:02d}" for number in range(2, 6)),
-    }
+    criteria = _criteria()
+    expected_covered = criteria.requirement_branch_ids - frozenset(
+        criteria.branch_coverage_exclusions
+    )
 
-    assert report.requirement_branch_ids == checker.EXPECTED_REQUIREMENT_BRANCH_IDS
-    assert len(report.requirement_branch_ids) == 64
+    assert report.requirement_branch_ids == criteria.requirement_branch_ids
     assert report.covered_branch_ids == expected_covered
-    assert len(report.covered_branch_ids) == 37
-    assert len(report.excluded_branch_ids) == 27
     assert {f"req:{item}" for item in report.covered_branch_ids} <= (
         report.descriptor_supporting_clause_ids
     )
@@ -138,7 +173,7 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         == report.requirement_branch_ids
     )
     assert report.covered_branch_ids.isdisjoint(report.excluded_branch_ids)
-    assert all(checker.BRANCH_COVERAGE_EXCLUSIONS.values())
+    assert all(criteria.branch_coverage_exclusions.values())
 
 
 def test_xc09_is_the_only_non_definition_mention_and_is_owned_by_adr_d8() -> None:
@@ -174,7 +209,7 @@ def test_d11_stage2_constraint_classes_match_descriptor_exactly() -> None:
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
 
     assert report.d11_stage2_constraint_classes == (
-        descriptor_checker.EXPECTED_STAGE2_CONSTRAINT_CLASSES
+        _descriptor_criteria().stage2_constraint_classes
     )
 
 
@@ -183,12 +218,72 @@ def test_d12_machine_readable_path_and_filename_literals_are_present() -> None:
     adr_text = (REPOSITORY_ROOT / checker.ADR_PATH).read_text(encoding="utf-8")
     section = checker.extract_adr_decision_section(adr_text, "D-12")
 
-    assert checker.D12_REQUIRED_CODE_LITERALS <= checker.extract_code_literals(section)
+    assert _criteria().d12_required_code_literals <= checker.extract_code_literals(
+        section
+    )
     assert checker.DESCRIPTOR_PATH.parts == (
         "contracts",
         "state-transition",
         "input_axes_descriptor_v1.json",
     )
+
+
+def test_d12_freeze_baseline_ids_match_descriptor_exactly() -> None:
+    """凍結基準の置き場・系列IDをD-12と資産側宣言で双方向突合する。"""
+    adr_text = (REPOSITORY_ROOT / checker.ADR_PATH).read_text(encoding="utf-8")
+    section = checker.extract_adr_decision_section(adr_text, "D-12")
+    declared = frozenset(
+        literal
+        for literal in _criteria().d12_required_code_literals
+        if checker.D12_FREEZE_BASELINE_ID_PATTERN.fullmatch(literal) is not None
+    )
+
+    assert declared == {
+        "freeze-baseline-field:freezeBaseline",
+        "freeze-baseline-series:state-transition-contract-checks",
+    }
+    assert checker.extract_d12_freeze_baseline_ids(section) == declared
+
+
+def test_d12_freeze_baseline_id_removal_from_adr_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """D-12だけから凍結基準IDを消すとdescriptorのdigestを合わせても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+    path = root / checker.ADR_PATH
+    text = path.read_text(encoding="utf-8")
+    marker = "`freeze-baseline-field:freezeBaseline`"
+    assert text.count(marker) == 1
+    path.write_text(text.replace(marker, "凍結基準フィールドID", 1), encoding="utf-8")
+    _rewrite_descriptor(root)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"freezeBaseline宣言IDがexact-set不一致",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_d12_freeze_baseline_id_removal_from_descriptor_is_red_after_reseal(
+    tmp_path: Path,
+) -> None:
+    """資産側だけからIDを消し単一履歴とdigestを追随させても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+
+    def mutate(descriptor: dict[str, Any]) -> None:
+        literals = descriptor["freezeBaseline"]["criteria"]["threeWayParity"][
+            "d12RequiredCodeLiterals"
+        ]
+        literals.remove("freeze-baseline-field:freezeBaseline")
+        _synchronize_unaccepted_freeze_record(descriptor)
+
+    _rewrite_descriptor(root, mutate)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"freezeBaseline宣言IDがexact-set不一致",
+    ):
+        checker.validate_three_way_parity(root)
 
 
 def test_requirements_only_drift_is_red_after_digest_recalculation(
@@ -255,14 +350,14 @@ def test_xc13_principle_marker_removal_is_red_after_digest_recalculation(
     root = _copy_fixture_root(tmp_path)
     path = root / checker.REQUIREMENTS_PATH
     text = path.read_text(encoding="utf-8")
-    marker = f"`{checker.XC13_PRINCIPLE_MARKER}`"
+    marker = f"`{_criteria().principle_markers['XC-13']}`"
     assert text.count(marker) == 1
     path.write_text(text.replace(marker, "導出原則", 1), encoding="utf-8")
     _rewrite_descriptor(root)
 
     with pytest.raises(
         checker.ThreeWayParityError,
-        match=r"XC-13規範行に成績計上フラグ導出原則の機械可読IDが無い",
+        match=r"XC-13規範行に凍結した原則IDが無い",
     ):
         checker.validate_three_way_parity(root)
 

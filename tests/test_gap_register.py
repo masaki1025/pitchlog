@@ -18,6 +18,7 @@ DESCRIPTOR_SCRIPT = REPOSITORY_ROOT / "scripts" / "check_input_axes_descriptor.p
 PARITY_SCRIPT = (
     REPOSITORY_ROOT / "scripts" / "check_input_axes_three_way_parity.py"
 )
+FREEZE_SCRIPT = REPOSITORY_ROOT / "scripts" / "state_transition_freeze.py"
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -30,6 +31,7 @@ def _load_module(name: str, path: Path) -> Any:
     return module
 
 
+_load_module("state_transition_freeze", FREEZE_SCRIPT)
 _load_module("check_input_axes_descriptor", DESCRIPTOR_SCRIPT)
 _load_module("check_input_axes_three_way_parity", PARITY_SCRIPT)
 checker = _load_module("check_gap_register_under_test", SCRIPT)
@@ -43,10 +45,24 @@ def _register() -> dict[str, Any]:
     return value
 
 
+def _criteria() -> Any:
+    """資産側宣言からgap register検査基準を読む。"""
+    descriptor = json.loads(
+        (
+            REPOSITORY_ROOT
+            / checker.clause_id_source.DESCRIPTOR_PATH
+        ).read_text(encoding="utf-8")
+    )
+    assert isinstance(descriptor, dict)
+    return checker.load_gap_criteria(descriptor)
+
+
 def _validate(document: dict[str, Any]) -> None:
     """要件書から抽出した実在条文IDで文書を検証する。"""
     checker.validate_gap_register_document(
-        document, checker.load_requirement_clause_ids(REPOSITORY_ROOT)
+        document,
+        checker.load_requirement_clause_ids(REPOSITORY_ROOT),
+        _criteria(),
     )
 
 
@@ -140,9 +156,13 @@ def test_state_progression_is_one_way() -> None:
     resolved_document = copy.deepcopy(open_document)
     resolved_document["gaps"][0]["state"] = "resolved"
 
-    checker.validate_state_progression(open_document, resolved_document)
+    checker.validate_state_progression(
+        open_document, resolved_document, _criteria()
+    )
     with pytest.raises(checker.GapRegisterError, match="resolvedからopenへの逆遷移"):
-        checker.validate_state_progression(resolved_document, open_document)
+        checker.validate_state_progression(
+            resolved_document, open_document, _criteria()
+        )
 
 
 def test_register_path_and_version_follow_d12_naming() -> None:

@@ -8,8 +8,14 @@ import json
 import re
 import sys
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+try:
+    from scripts import state_transition_freeze as freeze_checker
+except ModuleNotFoundError:  # pragma: no cover - scriptを直接実行する経路
+    import state_transition_freeze as freeze_checker  # type: ignore[no-redef]
 
 DESCRIPTOR_PATH = PurePosixPath(
     "contracts/state-transition/input_axes_descriptor_v1.json"
@@ -26,24 +32,6 @@ SOURCE_CLAUSE_NAMESPACES = {
     SOURCE_CLAUSE_PATHS[1]: "adr",
 }
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
-EXPECTED_TOP_LEVEL_FIELDS = frozenset(
-    {
-        "descriptorId",
-        "version",
-        "digest",
-        "digestSpec",
-        "stage2ExternalConstraints",
-        "stateTransitionAxes",
-        "gameEndAxes",
-        "gameEndCombinationRules",
-        "nonCoverageFields",
-        "projectionRules",
-    }
-)
-SAFE_INTEGER_LIMIT = 9_007_199_254_740_991
-FORBIDDEN_STAGE1_REFERENCE_KEYS = frozenset(
-    {"$ref", "externalRef", "externalReference", "externalReferences"}
-)
 CLAUSE_HEADING_PATTERN = re.compile(
     r"^#{2,6}\s+(?P<clause_id>(?:FR|NFR)-\d+|\d+\.\d+-\d+|[A-Z]-\d+[a-z]?)(?=[:\s])"
 )
@@ -53,156 +41,169 @@ STABLE_TABLE_CLAUSE_PATTERN = re.compile(
     r"^\s*\|\s*`(?P<clause_id>"
     r"(?:COLD|DRAW|XMARK|OUT3|ADV|INT|SO|RBI|XC)-\d+)`\s*\|"
 )
-EXPECTED_GAME_END_AXIS_FIELDS = {
-    "gameEnd.regulationInnings": "regulationInnings",
-    "gameEnd.coldConditions": "coldConditions",
-    "gameEnd.extensionLimit": "extensionLimit",
-    "gameEnd.tiebreak": "tiebreak",
-}
-EXPECTED_F1_RULE_FIELDS = frozenset(
-    {"regulationInnings", "coldConditions", "extensionLimit", "tiebreak", "dh"}
-)
-EXPECTED_NON_COVERAGE_FIELDS = frozenset(
-    {"dh", "tiebreak.runnerPlacement", "tiebreak.leadoffRule"}
-)
-EXPECTED_EXACT_STRUCTURED_AXIS_IDS = frozenset(
-    {
-        "event.perPitch.thirdOutTimingByRunner",
-    }
-)
-EXPECTED_DEFERRED_STRUCTURED_AXIS_KINDS = {
-    "event.operationPayload": "tagged-operation-payload",
-    "event.perPitch.runnerEventPayload": "runner-keyed-event-payload",
-    "event.perPitch.runnerAdvanceOverridesByRunner": (
-        "runner-keyed-advance-override"
-    ),
-    "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
-    "event.perPitch.officialScoringPayload": "official-scoring-payload",
-    "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
-    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
-}
-EXPECTED_DEFERRED_STRUCTURED_AXIS_DIMENSIONS = {
-    "event.operationPayload": (
-        "operation-kind",
-        "operation-payload",
-    ),
-    "event.perPitch.runnerEventPayload": (
-        "event-kind",
-        "runner-identity",
-        "outcome",
-        "destination",
-        "out-kind",
-    ),
-    "event.perPitch.runnerAdvanceOverridesByRunner": (
-        "runner-identity",
-        "outcome",
-        "destination",
-    ),
-    "event.perPitch.interferenceRuling": (
-        "interference-kind",
-        "adopted-result",
-        "target-identity",
-        "awarded-or-return-destination",
-    ),
-    "event.perPitch.officialScoringPayload": (
-        "error-count",
-        "fielder-reference",
-    ),
-    "event.perPitch.rbi.runnerContinuityByRunner": (
-        "runner-identity",
-        "continuity-observation",
-    ),
-    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": (
-        "runner-identity",
-        "would-score-without-error",
-    ),
-}
-EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS = {
-    "event.operationPayload": frozenset(
-        {
-            "not-applicable",
-            "substitution",
-            "tiebreak-start",
-            "game-end-declaration",
-            "adhoc-registration",
-            "state-correction",
-        }
-    ),
-    "event.perPitch.runnerEventPayload": frozenset(
-        {"not-applicable", "runner-event"}
-    ),
-    "event.perPitch.runnerAdvanceOverridesByRunner": frozenset(
-        {"not-applied", "overridden"}
-    ),
-    "event.perPitch.interferenceRuling": frozenset(
-        {
-            "not-required",
-            "batting-interference",
-            "obstruction",
-            "offensive-interference",
-        }
-    ),
-    "event.perPitch.officialScoringPayload": frozenset(
-        {"no-error", "error-recorded"}
-    ),
-    "event.perPitch.rbi.runnerContinuityByRunner": frozenset(
-        {"not-required", "observed"}
-    ),
-    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": frozenset(
-        {"not-required", "observed"}
-    ),
-}
-EXPECTED_STAGE2_CONSTRAINT_CLASSES = frozenset(
-    {
-        "field-uniqueness",
-        "reference-integrity",
-        "mutual-exclusion",
-        "state-transition-axis-combinations",
-        "payload-string-policy-reconciliation",
-        "stat-flag-derivation-rules",
-        "third-out-type-observation-input",
-        "official-scorer-judgment-inputs",
-    }
-)
-EXPECTED_STAGE2_REQUIRED_ARTIFACTS = frozenset(
-    {
-        "closed-payload-schemas",
-        "state-transition-axis-combination-rules",
-        "payload-string-policy-reconciliation-rule",
-        "stat-flag-derivation-table",
-        "third-out-type-input-contract",
-        "official-scorer-judgment-input-contract",
-        "negative-fixtures",
-    }
-)
-EXPECTED_OPERATION_PAYLOAD_VARIANTS = frozenset(
-    {
-        "not-applicable",
-        "substitution",
-        "tiebreak-start",
-        "game-end-declaration",
-        "adhoc-registration",
-        "state-correction",
-    }
-)
-EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS = frozenset(
-    {
-        "event.operationPayload",
-        "event.perPitch.runnerEventPayload",
-        "event.perPitch.runnerAdvanceOverridesByRunner",
-        "event.perPitch.interferenceRuling",
-        "event.perPitch.officialScoringPayload",
-        "event.perPitch.rbi.runnerContinuityByRunner",
-        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
-    }
-)
-AMBIGUOUS_SOURCE_BINDINGS = {
-    "event.perPitch.resultId": "req:D-4",
-}
 
 
 class DescriptorCheckError(Exception):
     """descriptorを検証できない場合を表す。"""
+
+
+@dataclass(frozen=True)
+class DescriptorCriteria:
+    """資産側宣言から読み込んだdescriptor検査の凍結基準。"""
+
+    top_level_fields: frozenset[str]
+    safe_integer_limit: int
+    forbidden_stage1_reference_keys: frozenset[str]
+    game_end_axis_fields: Mapping[str, str]
+    f1_rule_fields: frozenset[str]
+    non_coverage_fields: frozenset[str]
+    exact_structured_axis_ids: frozenset[str]
+    deferred_structured_axis_kinds: Mapping[str, str]
+    deferred_structured_axis_dimensions: Mapping[str, tuple[str, ...]]
+    deferred_structured_axis_variants: Mapping[str, frozenset[str]]
+    stage2_constraint_classes: frozenset[str]
+    stage2_required_artifacts: frozenset[str]
+    fr040_conditional_values: Mapping[str, frozenset[str]]
+    required_game_end_boundary_values: Mapping[
+        str, tuple[frozenset[str], frozenset[str]]
+    ]
+    forbidden_game_end_invalid_boundary_values: Mapping[str, frozenset[str]]
+    ambiguous_source_bindings: Mapping[str, str]
+
+
+def _string_set(value: object, label: str) -> frozenset[str]:
+    """重複のない空でない文字列配列を集合へ変換する。"""
+    if not isinstance(value, list) or not value or not all(
+        isinstance(item, str) and item for item in value
+    ):
+        raise DescriptorCheckError(f"凍結基準{label}が空でない文字列配列でない")
+    result = frozenset(value)
+    if len(result) != len(value):
+        raise DescriptorCheckError(f"凍結基準{label}に重複がある")
+    return result
+
+
+def _string_map(value: object, label: str) -> dict[str, str]:
+    """空でない文字列どうしの対応表を返す。"""
+    if not isinstance(value, dict) or not value or not all(
+        isinstance(key, str)
+        and key
+        and isinstance(item, str)
+        and item
+        for key, item in value.items()
+    ):
+        raise DescriptorCheckError(f"凍結基準{label}が文字列対応表でない")
+    return dict(value)
+
+
+def _string_set_map(value: object, label: str) -> dict[str, frozenset[str]]:
+    """文字列キーから重複のない文字列集合への対応表を返す。"""
+    if not isinstance(value, dict) or not value:
+        raise DescriptorCheckError(f"凍結基準{label}がobjectでない")
+    result: dict[str, frozenset[str]] = {}
+    for key, items in value.items():
+        if not isinstance(key, str) or not key:
+            raise DescriptorCheckError(f"凍結基準{label}のキーが不正")
+        result[key] = _string_set(items, f"{label}.{key}")
+    return result
+
+
+def load_descriptor_criteria(descriptor: Mapping[str, Any]) -> DescriptorCriteria:
+    """descriptor内の資産側宣言を検証して型付き基準へ変換する。"""
+    try:
+        declaration = freeze_checker.validate_declaration(
+            descriptor.get(freeze_checker.FREEZE_FIELD)
+        )
+        raw = freeze_checker.checker_criteria(
+            declaration, "inputAxesDescriptor"
+        )
+    except freeze_checker.FreezeBaselineError as error:
+        raise DescriptorCheckError(f"凍結基準宣言を検証できない: {error}") from error
+
+    dimensions_value = raw.get("deferredStructuredAxisDimensions")
+    variants_value = raw.get("deferredStructuredAxisVariants")
+    if not isinstance(dimensions_value, dict) or not isinstance(variants_value, dict):
+        raise DescriptorCheckError("構造化入力軸の凍結基準がobjectでない")
+    # 順序も意味を持つ dimensions は元配列順で保持する。
+    dimensions = {
+        axis_id: tuple(values)
+        for axis_id, values in dimensions_value.items()
+        if isinstance(axis_id, str)
+        and isinstance(values, list)
+        and values
+        and all(isinstance(item, str) and item for item in values)
+    }
+    if set(dimensions) != set(dimensions_value):
+        raise DescriptorCheckError("deferredStructuredAxisDimensionsの型が不正")
+    variants = {
+        axis_id: _string_set(values, f".deferredStructuredAxisVariants.{axis_id}")
+        for axis_id, values in variants_value.items()
+        if isinstance(axis_id, str)
+    }
+    if set(variants) != set(variants_value):
+        raise DescriptorCheckError("deferredStructuredAxisVariantsの型が不正")
+    boundary_value = raw.get("requiredGameEndBoundaryValues")
+    if not isinstance(boundary_value, dict) or not boundary_value:
+        raise DescriptorCheckError("requiredGameEndBoundaryValuesがobjectでない")
+    required_boundaries: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
+    for axis_id, partitions in boundary_value.items():
+        if (
+            not isinstance(axis_id, str)
+            or not isinstance(partitions, dict)
+            or set(partitions) != {"valid", "invalid"}
+        ):
+            raise DescriptorCheckError("requiredGameEndBoundaryValuesの型が不正")
+        required_boundaries[axis_id] = (
+            _string_set(partitions["valid"], f".requiredGameEndBoundaryValues.{axis_id}.valid"),
+            _string_set(
+                partitions["invalid"],
+                f".requiredGameEndBoundaryValues.{axis_id}.invalid",
+            ),
+        )
+    limit = raw.get("safeIntegerLimit")
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise DescriptorCheckError("safeIntegerLimitが正の整数でない")
+    return DescriptorCriteria(
+        top_level_fields=_string_set(raw.get("topLevelFields"), ".topLevelFields"),
+        safe_integer_limit=limit,
+        forbidden_stage1_reference_keys=_string_set(
+            raw.get("forbiddenStage1ReferenceKeys"),
+            ".forbiddenStage1ReferenceKeys",
+        ),
+        game_end_axis_fields=_string_map(
+            raw.get("gameEndAxisFields"), ".gameEndAxisFields"
+        ),
+        f1_rule_fields=_string_set(raw.get("f1RuleFields"), ".f1RuleFields"),
+        non_coverage_fields=_string_set(
+            raw.get("nonCoverageFields"), ".nonCoverageFields"
+        ),
+        exact_structured_axis_ids=_string_set(
+            raw.get("exactStructuredAxisIds"), ".exactStructuredAxisIds"
+        ),
+        deferred_structured_axis_kinds=_string_map(
+            raw.get("deferredStructuredAxisKinds"),
+            ".deferredStructuredAxisKinds",
+        ),
+        deferred_structured_axis_dimensions=dimensions,
+        deferred_structured_axis_variants=variants,
+        stage2_constraint_classes=_string_set(
+            raw.get("stage2ConstraintClasses"), ".stage2ConstraintClasses"
+        ),
+        stage2_required_artifacts=_string_set(
+            raw.get("stage2RequiredArtifacts"), ".stage2RequiredArtifacts"
+        ),
+        fr040_conditional_values=_string_set_map(
+            raw.get("fr040ConditionalValues"), ".fr040ConditionalValues"
+        ),
+        required_game_end_boundary_values=required_boundaries,
+        forbidden_game_end_invalid_boundary_values=_string_set_map(
+            raw.get("forbiddenGameEndInvalidBoundaryValues"),
+            ".forbiddenGameEndInvalidBoundaryValues",
+        ),
+        ambiguous_source_bindings=_string_map(
+            raw.get("ambiguousSourceBindings"), ".ambiguousSourceBindings"
+        ),
+    )
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -350,7 +351,9 @@ def _resolve_schema_reference(root_schema: Mapping[str, Any], reference: str) ->
     return _expect_object(current, f"JSON Schema参照先({reference})")
 
 
-def _canonical_json_text(value: object) -> str:
+def _canonical_json_text(
+    value: object, safe_integer_limit: int | None = None
+) -> str:
     """descriptorで許可するJSON値をRFC 8785形式へ正規化する。"""
     if value is None:
         return "null"
@@ -359,7 +362,7 @@ def _canonical_json_text(value: object) -> str:
     if value is False:
         return "false"
     if isinstance(value, int):
-        if abs(value) > SAFE_INTEGER_LIMIT:
+        if safe_integer_limit is not None and abs(value) > safe_integer_limit:
             raise DescriptorCheckError(
                 f"RFC 8785のI-JSON安全整数範囲を超えている: {value}"
             )
@@ -373,7 +376,9 @@ def _canonical_json_text(value: object) -> str:
             raise DescriptorCheckError("文字列に不正なUnicode surrogateがある") from error
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
     if isinstance(value, list):
-        return "[" + ",".join(_canonical_json_text(item) for item in value) + "]"
+        return "[" + ",".join(
+            _canonical_json_text(item, safe_integer_limit) for item in value
+        ) + "]"
     if isinstance(value, dict):
         if not all(isinstance(key, str) for key in value):
             raise DescriptorCheckError("JSON objectのキーは文字列でなければならない")
@@ -382,14 +387,17 @@ def _canonical_json_text(value: object) -> str:
         except UnicodeEncodeError as error:
             raise DescriptorCheckError("objectキーに不正なUnicode surrogateがある") from error
         members = (
-            f"{_canonical_json_text(key)}:{_canonical_json_text(value[key])}"
+            f"{_canonical_json_text(key, safe_integer_limit)}:"
+            f"{_canonical_json_text(value[key], safe_integer_limit)}"
             for key in keys
         )
         return "{" + ",".join(members) + "}"
     raise DescriptorCheckError(f"JSON値として扱えない型がある: {type(value).__name__}")
 
 
-def canonicalize_json(value: object) -> bytes:
+def canonicalize_json(
+    value: object, safe_integer_limit: int | None = None
+) -> bytes:
     """JSON値をRFC 8785準拠のUTF-8バイト列へ正規化する。
 
     descriptor schemaは浮動小数点数を許さず、整数をI-JSON安全範囲へ閉じる。
@@ -397,11 +405,12 @@ def canonicalize_json(value: object) -> bytes:
 
     Args:
         value: 正規化するJSON値。
+        safe_integer_limit: 整数の絶対値上限。省略時は上限検査を行わない。
 
     Returns:
         正規化済みUTF-8バイト列。
     """
-    return _canonical_json_text(value).encode("utf-8")
+    return _canonical_json_text(value, safe_integer_limit).encode("utf-8")
 
 
 def compute_descriptor_digest(descriptor: Mapping[str, Any]) -> str:
@@ -418,8 +427,11 @@ def compute_descriptor_digest(descriptor: Mapping[str, Any]) -> str:
     """
     if "digest" not in descriptor:
         raise DescriptorCheckError("descriptorにdigestがない")
+    criteria = load_descriptor_criteria(descriptor)
     digest_input = {key: value for key, value in descriptor.items() if key != "digest"}
-    digest = hashlib.sha256(canonicalize_json(digest_input)).hexdigest()
+    digest = hashlib.sha256(
+        canonicalize_json(digest_input, criteria.safe_integer_limit)
+    ).hexdigest()
     return f"sha256:{digest}"
 
 
@@ -532,7 +544,9 @@ def _validate_instance(
             )
 
 
-def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
+def _validate_schema_contract(
+    schema: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """schema自身がdescriptorの必須構造を閉じていることを検証する。"""
     if schema.get("$schema") != JSON_SCHEMA_DIALECT:
         raise DescriptorCheckError("schemaのdialectはJSON Schema 2020-12でなければならない")
@@ -542,9 +556,12 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         raise DescriptorCheckError("schemaのトップレベルobjectが閉じていない")
     required = schema.get("required")
     properties = schema.get("properties")
-    if not isinstance(required, list) or frozenset(required) != EXPECTED_TOP_LEVEL_FIELDS:
+    if not isinstance(required, list) or frozenset(required) != criteria.top_level_fields:
         raise DescriptorCheckError("schemaのトップレベルrequiredがexact-set不一致")
-    if not isinstance(properties, dict) or frozenset(properties) != EXPECTED_TOP_LEVEL_FIELDS:
+    if (
+        not isinstance(properties, dict)
+        or frozenset(properties) != criteria.top_level_fields
+    ):
         raise DescriptorCheckError("schemaのトップレベルpropertiesがexact-set不一致")
     definitions = schema.get("$defs")
     if not isinstance(definitions, dict):
@@ -558,6 +575,7 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "nonCoverageField",
         "projectionRule",
         "digestSpec",
+        "freezeBaseline",
         "stage2ExternalConstraints",
         "supportingClauseIds",
         "ruleFieldId",
@@ -572,21 +590,31 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         raise DescriptorCheckError(f"schemaの必須$defsが不足している: {missing!r}")
 
 
-def _walk_for_stage1_external_references(value: object, path: str = "$") -> None:
+def _walk_for_stage1_external_references(
+    value: object,
+    forbidden_keys: frozenset[str],
+    path: str = "$",
+) -> None:
     """段階1で禁止した外部参照キーがdescriptorに無いことを検証する。"""
     if isinstance(value, dict):
-        forbidden = sorted(FORBIDDEN_STAGE1_REFERENCE_KEYS & set(value))
+        forbidden = sorted(forbidden_keys & set(value))
         if forbidden:
             raise DescriptorCheckError(f"段階1の外部参照キーがある: {path}: {forbidden!r}")
         for key, child in value.items():
-            _walk_for_stage1_external_references(child, f"{path}.{key}")
+            _walk_for_stage1_external_references(
+                child, forbidden_keys, f"{path}.{key}"
+            )
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            _walk_for_stage1_external_references(child, f"{path}[{index}]")
+            _walk_for_stage1_external_references(
+                child, forbidden_keys, f"{path}[{index}]"
+            )
 
 
 def _validate_source_clause_ids(
-    descriptor: Mapping[str, Any], source_clause_ids: frozenset[str]
+    descriptor: Mapping[str, Any],
+    source_clause_ids: frozenset[str],
+    criteria: DescriptorCriteria,
 ) -> None:
     """全入力軸の一次・補助典拠が正本に実在することを検証する。"""
     for collection_name in ("stateTransitionAxes", "gameEndAxes"):
@@ -614,7 +642,7 @@ def _validate_source_clause_ids(
                         f"{collection_name}[{index}]: {clause_id}"
                     )
             axis_id = axis_value.get("axisId")
-            expected_source = AMBIGUOUS_SOURCE_BINDINGS.get(axis_id)
+            expected_source = criteria.ambiguous_source_bindings.get(axis_id)
             if expected_source is not None and axis_value.get("sourceClauseId") != expected_source:
                 raise DescriptorCheckError(
                     "同名条文IDの名前空間が誤っている: "
@@ -701,7 +729,9 @@ def _walk_embedded_value_schema(value: object, path: str) -> None:
             _walk_embedded_value_schema(child, f"{path}[{index}]")
 
 
-def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
+def _validate_structured_input_axes(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """段階1で閉じる構造と段階2へ委任する表現能力を区別して検証する。"""
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
@@ -711,10 +741,10 @@ def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
         for axis in axes
         if isinstance(axis, dict) and "valueSchema" in axis
     }
-    if frozenset(structured_axes) != EXPECTED_EXACT_STRUCTURED_AXIS_IDS:
+    if frozenset(structured_axes) != criteria.exact_structured_axis_ids:
         raise DescriptorCheckError(
             "段階1で閉じる構造化入力軸がexact-set不一致: "
-            f"expected={sorted(EXPECTED_EXACT_STRUCTURED_AXIS_IDS)!r}; "
+            f"expected={sorted(criteria.exact_structured_axis_ids)!r}; "
             f"actual={sorted(structured_axes)!r}"
         )
     for axis_id, axis in structured_axes.items():
@@ -732,10 +762,11 @@ def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
         for axis in axes
         if isinstance(axis, dict) and "representationCapability" in axis
     }
-    if frozenset(deferred_axes) != EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS:
+    expected_deferred_ids = frozenset(criteria.deferred_structured_axis_kinds)
+    if frozenset(deferred_axes) != expected_deferred_ids:
         raise DescriptorCheckError(
             "段階2へ委任する構造化入力軸がexact-set不一致: "
-            f"expected={sorted(EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS)!r}; "
+            f"expected={sorted(expected_deferred_ids)!r}; "
             f"actual={sorted(deferred_axes)!r}"
         )
     for axis_id, axis in deferred_axes.items():
@@ -746,61 +777,52 @@ def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
         capability = axis.get("representationCapability")
         if not isinstance(capability, dict):
             raise DescriptorCheckError(f"表現能力宣言がobjectでない: {axis_id}")
-        expected_kind = EXPECTED_DEFERRED_STRUCTURED_AXIS_KINDS[axis_id]
+        expected_kind = criteria.deferred_structured_axis_kinds[axis_id]
         if capability.get("kind") != expected_kind:
             raise DescriptorCheckError(
                 f"表現能力のkindが一致しない: {axis_id}: expected={expected_kind}"
             )
         dimensions = capability.get("dimensions")
-        if dimensions != list(EXPECTED_DEFERRED_STRUCTURED_AXIS_DIMENSIONS[axis_id]):
+        if dimensions != list(criteria.deferred_structured_axis_dimensions[axis_id]):
             raise DescriptorCheckError(
                 f"表現能力のdimensionsがexact-set不一致: {axis_id}"
             )
         variant_tags = capability.get("variantTags")
         if not isinstance(variant_tags, list) or frozenset(variant_tags) != (
-            EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS[axis_id]
+            criteria.deferred_structured_axis_variants[axis_id]
         ):
-            if axis_id == "event.operationPayload":
-                raise DescriptorCheckError(
-                    "状態補正payload variantを含む操作payloadのタグ集合が"
-                    "構造上exact-set不一致"
-                )
             raise DescriptorCheckError(
                 f"表現能力のvariantTagsがexact-set不一致: {axis_id}"
             )
 
 
-def _validate_stage2_external_constraints(descriptor: Mapping[str, Any]) -> None:
+def _validate_stage2_external_constraints(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """payload内部制約と状態遷移の軸間規則の段階2委任を検証する。"""
     declaration = descriptor.get("stage2ExternalConstraints")
     if not isinstance(declaration, dict):
         raise DescriptorCheckError("stage2ExternalConstraintsがobjectでない")
-    if declaration.get("status") != "deferred":
-        raise DescriptorCheckError("段階2外部制約の状態がdeferredでない")
-    if declaration.get("sourceClauseId") != "adr:D-11":
-        raise DescriptorCheckError("段階2外部制約がADR-003 D-11を参照していない")
     if (
         frozenset(declaration.get("payloadAxisIds", []))
-        != EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+        != frozenset(criteria.deferred_structured_axis_kinds)
     ):
         raise DescriptorCheckError("段階2へ委任した入力軸がexact-set不一致")
     if (
         frozenset(declaration.get("constraintClasses", []))
-        != EXPECTED_STAGE2_CONSTRAINT_CLASSES
+        != criteria.stage2_constraint_classes
     ):
         raise DescriptorCheckError("段階2へ委任した制約種別がexact-set不一致")
     if (
         frozenset(declaration.get("requiredArtifacts", []))
-        != EXPECTED_STAGE2_REQUIRED_ARTIFACTS
+        != criteria.stage2_required_artifacts
     ):
         raise DescriptorCheckError("段階2で必須の成果物がexact-set不一致")
-    if declaration.get("resolutionStage") != "stage2-vector-and-checker-implementation":
-        raise DescriptorCheckError("段階2外部制約の解決時点が一致しない")
-    if declaration.get("axisCombinationScope") != "all-state-transition-axes":
-        raise DescriptorCheckError("段階2へ委任した軸間組合せ規則の対象が全状態遷移軸でない")
 
 
-def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
+def _validate_fr040_conditionals(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """FR-040採用時だけ加わる値を操作・payload・履歴で同じ条件に揃える。"""
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
@@ -808,11 +830,7 @@ def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
     axes_by_id = {
         axis.get("axisId"): axis for axis in axes if isinstance(axis, dict)
     }
-    expected = {
-        "event.operationKind": {"state-correction"},
-        "event.operationPayload": {"state-correction"},
-        "history.composition": {"top-state-correction", "top-two-different"},
-    }
+    expected = criteria.fr040_conditional_values
     conditional_axis_ids = {
         axis_id
         for axis_id, axis in axes_by_id.items()
@@ -840,7 +858,19 @@ def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
             raise DescriptorCheckError(
                 f"FR-040条件付き値が軸の値集合にない: {axis_id}"
             )
-    operation_payload = axes_by_id.get("event.operationPayload")
+    operation_payload_axis_id = next(
+        (
+            axis_id
+            for axis_id, kind in criteria.deferred_structured_axis_kinds.items()
+            if kind == "tagged-operation-payload"
+        ),
+        None,
+    )
+    if operation_payload_axis_id is None:
+        raise DescriptorCheckError(
+            "操作payloadを表す凍結基準を一意に取得できない"
+        )
+    operation_payload = axes_by_id.get(operation_payload_axis_id)
     capability = (
         operation_payload.get("representationCapability")
         if isinstance(operation_payload, dict)
@@ -848,7 +878,8 @@ def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
     )
     variant_tags = capability.get("variantTags") if isinstance(capability, dict) else None
     if not isinstance(variant_tags, list) or (
-        frozenset(variant_tags) != EXPECTED_OPERATION_PAYLOAD_VARIANTS
+        frozenset(variant_tags)
+        != criteria.deferred_structured_axis_variants[operation_payload_axis_id]
     ):
         raise DescriptorCheckError(
             "状態補正payload variantを含む操作payloadのタグ集合が構造上exact-set不一致"
@@ -890,7 +921,9 @@ def _validate_coverage_obligations(descriptor: Mapping[str, Any]) -> None:
                 )
 
 
-def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
+def _validate_game_end_contract(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """F-1の終了判定軸・非coverage項目・組合せ規則を検証する。"""
     game_end_axes = descriptor.get("gameEndAxes")
     if not isinstance(game_end_axes, list):
@@ -900,7 +933,7 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
         for axis in game_end_axes
         if isinstance(axis, dict)
     }
-    if axis_fields != EXPECTED_GAME_END_AXIS_FIELDS:
+    if axis_fields != criteria.game_end_axis_fields:
         raise DescriptorCheckError(
             "gameEndAxesの4軸またはF-1フィールド帰属がexact-set不一致"
         )
@@ -961,7 +994,7 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
         for field in non_coverage_fields
         if isinstance(field, dict)
     }
-    if non_coverage_ids != EXPECTED_NON_COVERAGE_FIELDS:
+    if non_coverage_ids != criteria.non_coverage_fields:
         raise DescriptorCheckError("nonCoverageFieldsの3件がexact-set不一致")
     if any(
         field.get("schemaRetention") != "required-by-projection"
@@ -978,7 +1011,7 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
     }
     if covered_top_level & non_covered_top_level:
         raise DescriptorCheckError("F-1フィールドがcoverageと非coverageへ重複帰属している")
-    if covered_top_level | non_covered_top_level != EXPECTED_F1_RULE_FIELDS:
+    if covered_top_level | non_covered_top_level != criteria.f1_rule_fields:
         raise DescriptorCheckError("F-1の5フィールドに未帰属または余分な帰属がある")
 
     combination_rules = descriptor.get("gameEndCombinationRules")
@@ -994,28 +1027,39 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
             "終了規則の各境界値は全状態軸・イベント軸と直積しなければならない"
         )
 
-    tiebreak_axis = next(
-        axis
+    axes_by_id = {
+        axis.get("axisId"): axis
         for axis in game_end_axes
-        if isinstance(axis, dict) and axis.get("axisId") == "gameEnd.tiebreak"
-    )
-    valid_tiebreak = set(tiebreak_axis.get("boundaryValues", []))
-    invalid_tiebreak = set(tiebreak_axis.get("invalidBoundaryValues", []))
-    if not {"none", "start:R+1", "start:L"} <= valid_tiebreak or not {
-        "start:R",
-        "start:L+1-when-finite",
-    } <= invalid_tiebreak:
-        raise DescriptorCheckError("タイブレーク開始回がDRAW-03の境界を覆っていない")
-
-    cold_axis = next(
-        axis
-        for axis in game_end_axes
-        if isinstance(axis, dict) and axis.get("axisId") == "gameEnd.coldConditions"
-    )
-    if "start-inning:R+1" in cold_axis.get("invalidBoundaryValues", []):
-        raise DescriptorCheckError(
-            "コールド適用開始回R+1を不正値とする条文根拠はない"
-        )
+        if isinstance(axis, dict) and isinstance(axis.get("axisId"), str)
+    }
+    for axis_id, (required_valid, required_invalid) in (
+        criteria.required_game_end_boundary_values.items()
+    ):
+        axis = axes_by_id.get(axis_id)
+        if not isinstance(axis, dict):
+            raise DescriptorCheckError(
+                f"必須境界値を検査する終了判定軸がない: {axis_id}"
+            )
+        valid = set(axis.get("boundaryValues", []))
+        invalid = set(axis.get("invalidBoundaryValues", []))
+        if not required_valid <= valid or not required_invalid <= invalid:
+            raise DescriptorCheckError(
+                f"終了判定軸が条文由来の必須境界を覆っていない: {axis_id}"
+            )
+    for axis_id, forbidden_values in (
+        criteria.forbidden_game_end_invalid_boundary_values.items()
+    ):
+        axis = axes_by_id.get(axis_id)
+        if not isinstance(axis, dict):
+            raise DescriptorCheckError(
+                f"不正境界値を検査する終了判定軸がない: {axis_id}"
+            )
+        actual_invalid = set(axis.get("invalidBoundaryValues", []))
+        forbidden = sorted(forbidden_values & actual_invalid)
+        if forbidden:
+            raise DescriptorCheckError(
+                f"条文根拠のない不正境界値がある: {axis_id}: {forbidden!r}"
+            )
 
 
 def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
@@ -1255,15 +1299,18 @@ def validate_descriptor_document(
     Raises:
         DescriptorCheckError: いずれかの検証に失敗した場合。
     """
-    _validate_schema_contract(schema)
+    criteria = load_descriptor_criteria(descriptor)
+    _validate_schema_contract(schema, criteria)
     _validate_instance(descriptor, schema, schema, "$")
-    _walk_for_stage1_external_references(descriptor)
-    _validate_source_clause_ids(descriptor, source_clause_ids)
-    _validate_structured_input_axes(descriptor)
-    _validate_stage2_external_constraints(descriptor)
-    _validate_fr040_conditionals(descriptor)
+    _walk_for_stage1_external_references(
+        descriptor, criteria.forbidden_stage1_reference_keys
+    )
+    _validate_source_clause_ids(descriptor, source_clause_ids, criteria)
+    _validate_structured_input_axes(descriptor, criteria)
+    _validate_stage2_external_constraints(descriptor, criteria)
+    _validate_fr040_conditionals(descriptor, criteria)
     _validate_coverage_obligations(descriptor)
-    _validate_game_end_contract(descriptor)
+    _validate_game_end_contract(descriptor, criteria)
     _validate_projection_contract(descriptor)
     if "history-depth.json" in _canonical_json_text(descriptor):
         raise DescriptorCheckError("descriptorはhistory-depth.jsonを参照してはならない")

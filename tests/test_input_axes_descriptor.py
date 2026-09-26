@@ -15,6 +15,7 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_input_axes_descriptor.py"
+FREEZE_SCRIPT = REPOSITORY_ROOT / "scripts" / "state_transition_freeze.py"
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -27,6 +28,7 @@ def _load_module(name: str, path: Path) -> Any:
     return module
 
 
+_load_module("state_transition_freeze", FREEZE_SCRIPT)
 checker = _load_module("check_input_axes_descriptor_under_test", SCRIPT)
 DESCRIPTOR_PATH = REPOSITORY_ROOT / checker.DESCRIPTOR_PATH
 SCHEMA_PATH = REPOSITORY_ROOT / checker.SCHEMA_PATH
@@ -49,6 +51,11 @@ def _descriptor() -> dict[str, Any]:
 def _schema() -> dict[str, Any]:
     """リポジトリのdescriptor schemaを読む。"""
     return _load_object(SCHEMA_PATH)
+
+
+def _criteria() -> Any:
+    """資産側宣言からdescriptor検査基準を読む。"""
+    return checker.load_descriptor_criteria(_descriptor())
 
 
 def _with_digest(descriptor: dict[str, Any]) -> dict[str, Any]:
@@ -84,8 +91,8 @@ def test_schema_defines_the_complete_top_level_and_closed_axis_enum() -> None:
 
     assert schema["version"] == checker.SCHEMA_PATH.stem
     assert descriptor["version"] == checker.DESCRIPTOR_PATH.stem
-    assert set(schema["required"]) == checker.EXPECTED_TOP_LEVEL_FIELDS
-    assert set(schema["properties"]) == checker.EXPECTED_TOP_LEVEL_FIELDS
+    assert set(schema["required"]) == _criteria().top_level_fields
+    assert set(schema["properties"]) == _criteria().top_level_fields
     assert schema["additionalProperties"] is False
     assert schema["$defs"]["axisClassification"]["enum"] == [
         "finite-enumerable",
@@ -394,7 +401,7 @@ def test_structured_inputs_separate_stage1_schema_from_stage2_capability() -> No
     structured_axes = {
         axis_id for axis_id, axis in axes.items() if "valueSchema" in axis
     }
-    assert structured_axes == checker.EXPECTED_EXACT_STRUCTURED_AXIS_IDS
+    assert structured_axes == _criteria().exact_structured_axis_ids
     assert (
         axes["event.perPitch.thirdOutTimingByRunner"]["valueSchema"][
             "additionalProperties"
@@ -409,7 +416,7 @@ def test_structured_inputs_separate_stage1_schema_from_stage2_capability() -> No
         for axis_id, axis in axes.items()
         if "representationCapability" in axis
     }
-    assert deferred_axes == checker.EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+    assert deferred_axes == frozenset(_criteria().deferred_structured_axis_kinds)
     assert all("valueSchema" not in axes[axis_id] for axis_id in deferred_axes)
     assert axes["event.perPitch.runnerEventPayload"]["representationCapability"][
         "dimensions"
@@ -431,15 +438,15 @@ def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> Non
 
     assert (
         set(declaration["payloadAxisIds"])
-        == checker.EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS
+        == frozenset(_criteria().deferred_structured_axis_kinds)
     )
     assert (
         set(declaration["constraintClasses"])
-        == checker.EXPECTED_STAGE2_CONSTRAINT_CLASSES
+        == _criteria().stage2_constraint_classes
     )
     assert (
         set(declaration["requiredArtifacts"])
-        == checker.EXPECTED_STAGE2_REQUIRED_ARTIFACTS
+        == _criteria().stage2_required_artifacts
     )
     assert declaration["sourceClauseId"] == "adr:D-11"
     assert declaration["axisCombinationScope"] == "all-state-transition-axes"
@@ -501,7 +508,7 @@ def test_fr040_payload_variant_is_checked_structurally_not_by_text_search() -> N
 
     with pytest.raises(
         checker.DescriptorCheckError,
-        match="状態補正payload variantを含む操作payloadのタグ集合が構造上exact-set不一致",
+        match="表現能力のvariantTagsがexact-set不一致: event.operationPayload",
     ):
         _validate(descriptor)
 
@@ -692,7 +699,7 @@ def test_cold_start_inning_r_plus_one_is_not_an_invalid_boundary() -> None:
 
     with pytest.raises(
         checker.DescriptorCheckError,
-        match=r"コールド適用開始回R\+1を不正値とする条文根拠はない",
+        match=r"条文根拠のない不正境界値.*start-inning:R\+1",
     ):
         _validate(descriptor)
 
@@ -716,9 +723,9 @@ def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
         "extensionLimit",
         "tiebreak",
     }
-    assert non_coverage_fields == checker.EXPECTED_NON_COVERAGE_FIELDS
+    assert non_coverage_fields == _criteria().non_coverage_fields
     assert coverage_fields.isdisjoint(top_level_non_coverage)
-    assert coverage_fields | top_level_non_coverage == checker.EXPECTED_F1_RULE_FIELDS
+    assert coverage_fields | top_level_non_coverage == _criteria().f1_rule_fields
     assert all(
         field["sourceClauseId"] == "req:F-1"
         and field["supportingClauseIds"] == ["adr:D-11"]

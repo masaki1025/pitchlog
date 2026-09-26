@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:f162dfd061a8eb4df2ca1293c969125398ecc98c1156fded2e134bb7caf6e59a",
+  "digest": "sha256:c9d971e40084618b4de0d6585c6973919f53867bb17fb31156098b1239158ecf",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -47,6 +47,821 @@
     ],
     "reason": "ADR-003 D-11の既存委任条項と2026-09-26の2回目のPO射程縮小を適用し、payload内部制約・状態遷移軸の組合せ規則・文字列規定の整合に加え、XC-13の23フラグ導出表、第3アウト種別の観測入力、および記録員判断の入力契約は、ベクタと検査基盤を実機で整備する段階2で確定する"
   },
+  "freezeBaseline": {
+    "schemaVersion": 1,
+    "series": "state-transition-contract-checks",
+    "acceptance": {
+      "unit": "pull_request",
+      "acceptanceIdSource": "repository_and_pr_number",
+      "baseRef": "origin/develop",
+      "baseCommit": "1a4041018c0b00fc0a86c11bec5ba0a38c3f2070",
+      "posteriorState": "pull-request-head"
+    },
+    "identitySpec": {
+      "granularity": "checker-criteria-object",
+      "algorithm": "SHA-256",
+      "canonicalization": "json-sort-keys-no-whitespace-v1",
+      "encoding": "UTF-8"
+    },
+    "criteria": {
+      "threeWayParity": {
+        "requirementBranchIds": [
+          "ADV-01",
+          "ADV-02",
+          "ADV-03",
+          "ADV-04",
+          "COLD-01",
+          "COLD-02",
+          "COLD-03",
+          "COLD-04",
+          "COLD-05",
+          "COLD-06",
+          "COLD-07",
+          "COLD-08",
+          "COLD-09",
+          "DRAW-01",
+          "DRAW-02",
+          "DRAW-03",
+          "DRAW-04",
+          "DRAW-05",
+          "DRAW-06",
+          "DRAW-07",
+          "DRAW-08",
+          "DRAW-09",
+          "DRAW-10",
+          "INT-01",
+          "INT-02",
+          "INT-03",
+          "INT-04",
+          "INT-05",
+          "INT-06",
+          "INT-07",
+          "OUT3-01",
+          "OUT3-02",
+          "OUT3-03",
+          "OUT3-04",
+          "OUT3-05",
+          "RBI-01",
+          "RBI-02",
+          "RBI-03",
+          "RBI-04",
+          "RBI-05",
+          "RBI-06",
+          "RBI-07",
+          "RBI-08",
+          "RBI-09",
+          "SO-01",
+          "SO-02",
+          "SO-03",
+          "SO-04",
+          "SO-05",
+          "XC-01",
+          "XC-02",
+          "XC-03",
+          "XC-04",
+          "XC-05",
+          "XC-06",
+          "XC-07",
+          "XC-08",
+          "XC-10",
+          "XC-11",
+          "XC-12",
+          "XC-13",
+          "XMARK-01",
+          "XMARK-02",
+          "XMARK-03"
+        ],
+        "nonDefinitionBranchMentions": [
+          "XC-09"
+        ],
+        "principleMarkers": {
+          "XC-13": "principle:stat-flags-derived-not-arbitrary"
+        },
+        "adrD8ConstraintIds": [
+          "XC-09"
+        ],
+        "requirementConstraintOwners": {
+          "XC-09": {
+            "decisionId": "D-8",
+            "layer": "undoRows[]"
+          }
+        },
+        "requirementConstraintExclusions": {
+          "XC-09": "E-1"
+        },
+        "branchCoverageExclusions": {
+          "ADV-01": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-02": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-03": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-04": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "DRAW-04": "DRAW-01〜03を通過した有効設定の残余分岐であり、判定入力は既存のgameEnd軸が持つ",
+          "RBI-01": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-06": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-07": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-08": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-09": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "SO-01": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-02": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-03": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-04": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-05": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "XC-01": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-02": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-03": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-04": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-05": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-06": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-07": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-08": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-10": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-11": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-12": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-13": "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は2026-09-26の2回目のPO射程縮小により段階2で確定する"
+        },
+        "d11CollectionBindings": {
+          "gameEndAxes[]": "gameEndAxes",
+          "nonCoverageFields[]": "nonCoverageFields",
+          "projectionRules[]": "projectionRules",
+          "stateTransitionAxes[]": "stateTransitionAxes"
+        },
+        "d11RequiredCollections": [
+          "gameEndAxes[]",
+          "nonCoverageFields[]",
+          "projectionRules[]"
+        ],
+        "d12RequiredCodeLiterals": [
+          "<対象>_v<N>.json",
+          "contracts/<領域>/",
+          "freeze-baseline-field:freezeBaseline",
+          "freeze-baseline-series:state-transition-contract-checks",
+          "gap_register_v<N>.json",
+          "input_axes_descriptor_v<N>.json",
+          "state-transition/"
+        ]
+      },
+      "inputAxesDescriptor": {
+        "topLevelFields": [
+          "descriptorId",
+          "digest",
+          "digestSpec",
+          "freezeBaseline",
+          "gameEndAxes",
+          "gameEndCombinationRules",
+          "nonCoverageFields",
+          "projectionRules",
+          "stage2ExternalConstraints",
+          "stateTransitionAxes",
+          "version"
+        ],
+        "safeIntegerLimit": 9007199254740991,
+        "forbiddenStage1ReferenceKeys": [
+          "$ref",
+          "externalRef",
+          "externalReference",
+          "externalReferences"
+        ],
+        "gameEndAxisFields": {
+          "gameEnd.coldConditions": "coldConditions",
+          "gameEnd.extensionLimit": "extensionLimit",
+          "gameEnd.regulationInnings": "regulationInnings",
+          "gameEnd.tiebreak": "tiebreak"
+        },
+        "f1RuleFields": [
+          "coldConditions",
+          "dh",
+          "extensionLimit",
+          "regulationInnings",
+          "tiebreak"
+        ],
+        "nonCoverageFields": [
+          "dh",
+          "tiebreak.leadoffRule",
+          "tiebreak.runnerPlacement"
+        ],
+        "exactStructuredAxisIds": [
+          "event.perPitch.thirdOutTimingByRunner"
+        ],
+        "deferredStructuredAxisKinds": {
+          "event.operationPayload": "tagged-operation-payload",
+          "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+          "event.perPitch.officialScoringPayload": "official-scoring-payload",
+          "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
+          "event.perPitch.runnerAdvanceOverridesByRunner": "runner-keyed-advance-override",
+          "event.perPitch.runnerEventPayload": "runner-keyed-event-payload"
+        },
+        "deferredStructuredAxisDimensions": {
+          "event.operationPayload": [
+            "operation-kind",
+            "operation-payload"
+          ],
+          "event.perPitch.interferenceRuling": [
+            "interference-kind",
+            "adopted-result",
+            "target-identity",
+            "awarded-or-return-destination"
+          ],
+          "event.perPitch.officialScoringPayload": [
+            "error-count",
+            "fielder-reference"
+          ],
+          "event.perPitch.rbi.runnerContinuityByRunner": [
+            "runner-identity",
+            "continuity-observation"
+          ],
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+            "runner-identity",
+            "would-score-without-error"
+          ],
+          "event.perPitch.runnerAdvanceOverridesByRunner": [
+            "runner-identity",
+            "outcome",
+            "destination"
+          ],
+          "event.perPitch.runnerEventPayload": [
+            "event-kind",
+            "runner-identity",
+            "outcome",
+            "destination",
+            "out-kind"
+          ]
+        },
+        "deferredStructuredAxisVariants": {
+          "event.operationPayload": [
+            "adhoc-registration",
+            "game-end-declaration",
+            "not-applicable",
+            "state-correction",
+            "substitution",
+            "tiebreak-start"
+          ],
+          "event.perPitch.interferenceRuling": [
+            "batting-interference",
+            "not-required",
+            "obstruction",
+            "offensive-interference"
+          ],
+          "event.perPitch.officialScoringPayload": [
+            "error-recorded",
+            "no-error"
+          ],
+          "event.perPitch.rbi.runnerContinuityByRunner": [
+            "not-required",
+            "observed"
+          ],
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+            "not-required",
+            "observed"
+          ],
+          "event.perPitch.runnerAdvanceOverridesByRunner": [
+            "not-applied",
+            "overridden"
+          ],
+          "event.perPitch.runnerEventPayload": [
+            "not-applicable",
+            "runner-event"
+          ]
+        },
+        "stage2ConstraintClasses": [
+          "field-uniqueness",
+          "mutual-exclusion",
+          "official-scorer-judgment-inputs",
+          "payload-string-policy-reconciliation",
+          "reference-integrity",
+          "stat-flag-derivation-rules",
+          "state-transition-axis-combinations",
+          "third-out-type-observation-input"
+        ],
+        "stage2RequiredArtifacts": [
+          "closed-payload-schemas",
+          "negative-fixtures",
+          "official-scorer-judgment-input-contract",
+          "payload-string-policy-reconciliation-rule",
+          "stat-flag-derivation-table",
+          "state-transition-axis-combination-rules",
+          "third-out-type-input-contract"
+        ],
+        "fr040ConditionalValues": {
+          "event.operationKind": [
+            "state-correction"
+          ],
+          "event.operationPayload": [
+            "state-correction"
+          ],
+          "history.composition": [
+            "top-state-correction",
+            "top-two-different"
+          ]
+        },
+        "requiredGameEndBoundaryValues": {
+          "gameEnd.tiebreak": {
+            "valid": [
+              "none",
+              "start:R+1",
+              "start:L"
+            ],
+            "invalid": [
+              "start:R",
+              "start:L+1-when-finite"
+            ]
+          }
+        },
+        "forbiddenGameEndInvalidBoundaryValues": {
+          "gameEnd.coldConditions": [
+            "start-inning:R+1"
+          ]
+        },
+        "ambiguousSourceBindings": {
+          "event.perPitch.resultId": "req:D-4"
+        }
+      },
+      "gapRegister": {
+        "topLevelFields": [
+          "gaps",
+          "schemaVersion",
+          "version"
+        ],
+        "gapFields": [
+          "branchIds",
+          "clauseIds",
+          "fixtureCaseIds",
+          "gapId",
+          "generatedCaseSelector",
+          "rowIds",
+          "state"
+        ],
+        "gapIds": [
+          "GAP-01",
+          "GAP-02",
+          "GAP-03",
+          "GAP-04",
+          "GAP-05",
+          "GAP-06",
+          "GAP-07",
+          "GAP-08",
+          "GAP-09"
+        ],
+        "listStageFields": [
+          "clauseIds",
+          "branchIds",
+          "rowIds",
+          "fixtureCaseIds"
+        ],
+        "stageFields": [
+          "clauseIds",
+          "branchIds",
+          "rowIds",
+          "fixtureCaseIds",
+          "generatedCaseSelector"
+        ],
+        "states": [
+          "open",
+          "resolved"
+        ],
+        "initialState": "open",
+        "terminalState": "resolved"
+      }
+    },
+    "history": [
+      {
+        "acceptanceId": "masaki1025/pitchlog#81",
+        "series": "state-transition-contract-checks",
+        "priorIdentity": {
+          "present": false,
+          "values": []
+        },
+        "newIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:03c38fa733cb476ef23b12aa65cc8f88a072edd4462b7e0722f080803dbfb508"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:a6ad2d6a7e9d190e65d0e27012fb8d61b0523aedc867becc84c0ac6f53af2f4e"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:dae372d594fc3fe144efc60bd7b7f9fd5e1b67234d3c92eb03d2d7e46f931868"
+            }
+          ]
+        },
+        "changes": [
+          {
+            "criterionId": "threeWayParity",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "requirementBranchIds": [
+                  "ADV-01",
+                  "ADV-02",
+                  "ADV-03",
+                  "ADV-04",
+                  "COLD-01",
+                  "COLD-02",
+                  "COLD-03",
+                  "COLD-04",
+                  "COLD-05",
+                  "COLD-06",
+                  "COLD-07",
+                  "COLD-08",
+                  "COLD-09",
+                  "DRAW-01",
+                  "DRAW-02",
+                  "DRAW-03",
+                  "DRAW-04",
+                  "DRAW-05",
+                  "DRAW-06",
+                  "DRAW-07",
+                  "DRAW-08",
+                  "DRAW-09",
+                  "DRAW-10",
+                  "INT-01",
+                  "INT-02",
+                  "INT-03",
+                  "INT-04",
+                  "INT-05",
+                  "INT-06",
+                  "INT-07",
+                  "OUT3-01",
+                  "OUT3-02",
+                  "OUT3-03",
+                  "OUT3-04",
+                  "OUT3-05",
+                  "RBI-01",
+                  "RBI-02",
+                  "RBI-03",
+                  "RBI-04",
+                  "RBI-05",
+                  "RBI-06",
+                  "RBI-07",
+                  "RBI-08",
+                  "RBI-09",
+                  "SO-01",
+                  "SO-02",
+                  "SO-03",
+                  "SO-04",
+                  "SO-05",
+                  "XC-01",
+                  "XC-02",
+                  "XC-03",
+                  "XC-04",
+                  "XC-05",
+                  "XC-06",
+                  "XC-07",
+                  "XC-08",
+                  "XC-10",
+                  "XC-11",
+                  "XC-12",
+                  "XC-13",
+                  "XMARK-01",
+                  "XMARK-02",
+                  "XMARK-03"
+                ],
+                "nonDefinitionBranchMentions": [
+                  "XC-09"
+                ],
+                "principleMarkers": {
+                  "XC-13": "principle:stat-flags-derived-not-arbitrary"
+                },
+                "adrD8ConstraintIds": [
+                  "XC-09"
+                ],
+                "requirementConstraintOwners": {
+                  "XC-09": {
+                    "decisionId": "D-8",
+                    "layer": "undoRows[]"
+                  }
+                },
+                "requirementConstraintExclusions": {
+                  "XC-09": "E-1"
+                },
+                "branchCoverageExclusions": {
+                  "ADV-01": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-02": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-03": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-04": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "DRAW-04": "DRAW-01〜03を通過した有効設定の残余分岐であり、判定入力は既存のgameEnd軸が持つ",
+                  "RBI-01": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-06": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-07": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-08": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-09": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "SO-01": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-02": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-03": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-04": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-05": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "XC-01": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-02": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-03": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-04": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-05": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-06": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-07": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-08": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-10": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-11": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-12": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-13": "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は2026-09-26の2回目のPO射程縮小により段階2で確定する"
+                },
+                "d11CollectionBindings": {
+                  "gameEndAxes[]": "gameEndAxes",
+                  "nonCoverageFields[]": "nonCoverageFields",
+                  "projectionRules[]": "projectionRules",
+                  "stateTransitionAxes[]": "stateTransitionAxes"
+                },
+                "d11RequiredCollections": [
+                  "gameEndAxes[]",
+                  "nonCoverageFields[]",
+                  "projectionRules[]"
+                ],
+                "d12RequiredCodeLiterals": [
+                  "<対象>_v<N>.json",
+                  "contracts/<領域>/",
+                  "freeze-baseline-field:freezeBaseline",
+                  "freeze-baseline-series:state-transition-contract-checks",
+                  "gap_register_v<N>.json",
+                  "input_axes_descriptor_v<N>.json",
+                  "state-transition/"
+                ]
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          },
+          {
+            "criterionId": "inputAxesDescriptor",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "descriptorId",
+                  "digest",
+                  "digestSpec",
+                  "freezeBaseline",
+                  "gameEndAxes",
+                  "gameEndCombinationRules",
+                  "nonCoverageFields",
+                  "projectionRules",
+                  "stage2ExternalConstraints",
+                  "stateTransitionAxes",
+                  "version"
+                ],
+                "safeIntegerLimit": 9007199254740991,
+                "forbiddenStage1ReferenceKeys": [
+                  "$ref",
+                  "externalRef",
+                  "externalReference",
+                  "externalReferences"
+                ],
+                "gameEndAxisFields": {
+                  "gameEnd.coldConditions": "coldConditions",
+                  "gameEnd.extensionLimit": "extensionLimit",
+                  "gameEnd.regulationInnings": "regulationInnings",
+                  "gameEnd.tiebreak": "tiebreak"
+                },
+                "f1RuleFields": [
+                  "coldConditions",
+                  "dh",
+                  "extensionLimit",
+                  "regulationInnings",
+                  "tiebreak"
+                ],
+                "nonCoverageFields": [
+                  "dh",
+                  "tiebreak.leadoffRule",
+                  "tiebreak.runnerPlacement"
+                ],
+                "exactStructuredAxisIds": [
+                  "event.perPitch.thirdOutTimingByRunner"
+                ],
+                "deferredStructuredAxisKinds": {
+                  "event.operationPayload": "tagged-operation-payload",
+                  "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+                  "event.perPitch.officialScoringPayload": "official-scoring-payload",
+                  "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
+                  "event.perPitch.runnerAdvanceOverridesByRunner": "runner-keyed-advance-override",
+                  "event.perPitch.runnerEventPayload": "runner-keyed-event-payload"
+                },
+                "deferredStructuredAxisDimensions": {
+                  "event.operationPayload": [
+                    "operation-kind",
+                    "operation-payload"
+                  ],
+                  "event.perPitch.interferenceRuling": [
+                    "interference-kind",
+                    "adopted-result",
+                    "target-identity",
+                    "awarded-or-return-destination"
+                  ],
+                  "event.perPitch.officialScoringPayload": [
+                    "error-count",
+                    "fielder-reference"
+                  ],
+                  "event.perPitch.rbi.runnerContinuityByRunner": [
+                    "runner-identity",
+                    "continuity-observation"
+                  ],
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+                    "runner-identity",
+                    "would-score-without-error"
+                  ],
+                  "event.perPitch.runnerAdvanceOverridesByRunner": [
+                    "runner-identity",
+                    "outcome",
+                    "destination"
+                  ],
+                  "event.perPitch.runnerEventPayload": [
+                    "event-kind",
+                    "runner-identity",
+                    "outcome",
+                    "destination",
+                    "out-kind"
+                  ]
+                },
+                "deferredStructuredAxisVariants": {
+                  "event.operationPayload": [
+                    "adhoc-registration",
+                    "game-end-declaration",
+                    "not-applicable",
+                    "state-correction",
+                    "substitution",
+                    "tiebreak-start"
+                  ],
+                  "event.perPitch.interferenceRuling": [
+                    "batting-interference",
+                    "not-required",
+                    "obstruction",
+                    "offensive-interference"
+                  ],
+                  "event.perPitch.officialScoringPayload": [
+                    "error-recorded",
+                    "no-error"
+                  ],
+                  "event.perPitch.rbi.runnerContinuityByRunner": [
+                    "not-required",
+                    "observed"
+                  ],
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+                    "not-required",
+                    "observed"
+                  ],
+                  "event.perPitch.runnerAdvanceOverridesByRunner": [
+                    "not-applied",
+                    "overridden"
+                  ],
+                  "event.perPitch.runnerEventPayload": [
+                    "not-applicable",
+                    "runner-event"
+                  ]
+                },
+                "stage2ConstraintClasses": [
+                  "field-uniqueness",
+                  "mutual-exclusion",
+                  "official-scorer-judgment-inputs",
+                  "payload-string-policy-reconciliation",
+                  "reference-integrity",
+                  "stat-flag-derivation-rules",
+                  "state-transition-axis-combinations",
+                  "third-out-type-observation-input"
+                ],
+              "stage2RequiredArtifacts": [
+                  "closed-payload-schemas",
+                  "negative-fixtures",
+                  "official-scorer-judgment-input-contract",
+                  "payload-string-policy-reconciliation-rule",
+                  "stat-flag-derivation-table",
+                  "state-transition-axis-combination-rules",
+                "third-out-type-input-contract"
+              ],
+              "fr040ConditionalValues": {
+                "event.operationKind": [
+                  "state-correction"
+                ],
+                "event.operationPayload": [
+                  "state-correction"
+                ],
+                "history.composition": [
+                  "top-state-correction",
+                  "top-two-different"
+                ]
+              },
+              "requiredGameEndBoundaryValues": {
+                "gameEnd.tiebreak": {
+                  "valid": [
+                    "none",
+                    "start:R+1",
+                    "start:L"
+                  ],
+                  "invalid": [
+                    "start:R",
+                    "start:L+1-when-finite"
+                  ]
+                }
+              },
+              "forbiddenGameEndInvalidBoundaryValues": {
+                "gameEnd.coldConditions": [
+                  "start-inning:R+1"
+                ]
+              },
+              "ambiguousSourceBindings": {
+                  "event.perPitch.resultId": "req:D-4"
+                }
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          },
+          {
+            "criterionId": "gapRegister",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "gaps",
+                  "schemaVersion",
+                  "version"
+                ],
+                "gapFields": [
+                  "branchIds",
+                  "clauseIds",
+                  "fixtureCaseIds",
+                  "gapId",
+                  "generatedCaseSelector",
+                  "rowIds",
+                  "state"
+                ],
+                "gapIds": [
+                  "GAP-01",
+                  "GAP-02",
+                  "GAP-03",
+                  "GAP-04",
+                  "GAP-05",
+                  "GAP-06",
+                  "GAP-07",
+                  "GAP-08",
+                  "GAP-09"
+                ],
+                "listStageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds"
+                ],
+              "stageFields": [
+                "clauseIds",
+                "branchIds",
+                "rowIds",
+                "fixtureCaseIds",
+                "generatedCaseSelector"
+              ],
+              "states": [
+                "open",
+                "resolved"
+              ],
+              "initialState": "open",
+              "terminalState": "resolved"
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          }
+        ],
+        "fact": "敵対レビュー最終全文確認周で、凍結基準が検査器の定数として二重定義されている事実を確認し、同一PR内で資産側へ移設した",
+        "reason": "開発ハーネス設計書7.7-1に従い、正本・契約資産を唯一の判断元として凍結し、検査器と同時変更しても基準を追随できないようにするため",
+        "approvedBy": "山田正輝",
+        "approvedDate": "2026-09-26"
+      }
+    ]
+  }
+,
   "stateTransitionAxes": [
     {
       "axisId": "state.half",
