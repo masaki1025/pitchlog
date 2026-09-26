@@ -22,12 +22,16 @@ from pitchlog.authz.runtime_contract_generator import (
 from pitchlog.authz.runtime_contract_state import (
     GENERATED_MODULE,
     RUNTIME_CONTRACT_ASSET,
+    RuntimeContractError,
     asset_digest,
+    compare_staged_protected_objects,
+    derive_runtime_contract_fields,
     render_runtime_contract,
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ENGINE_MODULE = Path("backend/src/pitchlog/db/engine.py")
+_STAGED_PRODUCT_ASSET = Path("contracts/authz/product/ddl-elements.staged.json")
 
 
 def _read_asset(repository_root: Path) -> dict[str, Any]:
@@ -37,6 +41,21 @@ def _read_asset(repository_root: Path) -> dict[str, Any]:
     )
     assert isinstance(value, dict)
     return cast(dict[str, Any], value)
+
+
+def _read_repository_json(relative_path: Path) -> dict[str, Any]:
+    """実リポジトリの JSON object を読む。"""
+    value = json.loads((_REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return cast(dict[str, Any], value)
+
+
+def _application_role_row(product_asset: dict[str, Any]) -> dict[str, Any]:
+    """製品資産のアプリ用ロール行を返す。"""
+    roles = cast(list[dict[str, Any]], product_asset["roles"])
+    matches = [row for row in roles if row.get("role_id") == "pitchlog_app"]
+    assert len(matches) == 1
+    return matches[0]
 
 
 def _write_asset(repository_root: Path, asset: dict[str, Any]) -> None:
@@ -101,6 +120,154 @@ def _imported_modules(path: Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module is not None:
             modules.add(node.module)
     return modules
+
+
+def test_staged_derivation_matches_provisional_union_exactly() -> None:
+    """製品の保護対象が暫定集合と追加分6件の和集合に一致することを確認する。"""
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    derived = derive_runtime_contract_fields(
+        _REPOSITORY_ROOT / _STAGED_PRODUCT_ASSET,
+        _REPOSITORY_ROOT / RUNTIME_CONTRACT_ASSET,
+    )
+    protected = derived["protected_objects"]
+    comparison = compare_staged_protected_objects(
+        _REPOSITORY_ROOT / _STAGED_PRODUCT_ASSET,
+        runtime_asset,
+    )
+
+    assert comparison.matches is True
+    assert comparison.missing.is_empty
+    assert comparison.extra.is_empty
+    assert len(protected["schemas"]) == 2
+    assert len(protected["tables"]) == 45
+    assert len(protected["functions"]) == 38
+
+    provisional = cast(dict[str, list[Any]], runtime_asset["protected_objects"])
+    added_schemas = set(protected["schemas"]) - set(provisional["schemas"])
+    added_tables = {tuple(row) for row in protected["tables"]} - {
+        tuple(row) for row in provisional["tables"]
+    }
+    added_functions = {tuple(row) for row in protected["functions"]} - {
+        tuple(row) for row in provisional["functions"]
+    }
+    assert added_schemas == {"authz_private"}
+    assert added_tables == set()
+    assert added_functions == {
+        ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
+        ("public", "prevent_invalidation_intents_target_update", ""),
+        ("public", "prevent_migrated_final_lineups_source_update", ""),
+        ("public", "prevent_migration_quarantine_mutation", ""),
+        ("public", "prevent_players_identity_update", ""),
+    }
+
+
+def test_derived_role_attributes_match_provisional_contract() -> None:
+    """製品ロールから導いた7属性が暫定契約と一致することを確認する。"""
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    derived = derive_runtime_contract_fields(
+        _read_repository_json(_STAGED_PRODUCT_ASSET),
+        runtime_asset,
+    )
+    application_role = cast(dict[str, Any], runtime_asset["application_role"])
+
+    assert derived["application_role"]["attributes"] == application_role["attributes"]
+    assert len(derived["application_role"]["attributes"]) == 7
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("unknown-key", "missing-role", "duplicate-role", "missing-attribute", "non-bool"),
+)
+def test_role_derivation_fails_closed_for_invalid_rows(mutation: str) -> None:
+    """ロールの未知キー・一意性・7属性の形を fail-closed にする。"""
+    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    role = _application_role_row(product_asset)
+    roles = cast(list[dict[str, Any]], product_asset["roles"])
+    if mutation == "unknown-key":
+        role["unexpected_attribute"] = False
+    elif mutation == "missing-role":
+        roles.remove(role)
+    elif mutation == "duplicate-role":
+        roles.append(copy.deepcopy(role))
+    elif mutation == "missing-attribute":
+        role.pop("superuser")
+    elif mutation == "non-bool":
+        role["superuser"] = "false"
+    else:
+        raise AssertionError(f"未知の変異: {mutation}")
+
+    with pytest.raises(RuntimeContractError):
+        derive_runtime_contract_fields(product_asset, runtime_asset)
+
+
+@pytest.mark.parametrize("collection", ("schemas", "tables", "functions"))
+@pytest.mark.parametrize("mutation", ("malformed", "duplicate"))
+def test_protected_object_derivation_fails_closed_for_invalid_rows(
+    collection: str, mutation: str
+) -> None:
+    """保護対象3種の不正な形と重複を fail-closed にする。"""
+    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    rows = cast(list[dict[str, Any]], product_asset[collection])
+    if mutation == "duplicate":
+        rows.append(copy.deepcopy(rows[0]))
+    elif collection == "schemas":
+        rows[0]["schema_name"] = 1
+    elif collection == "tables":
+        rows[0]["table_id"] = 1
+    elif collection == "functions":
+        rows[0]["identity_args"] = 1
+    else:
+        raise AssertionError(f"未知の保護対象: {collection}")
+
+    with pytest.raises(RuntimeContractError):
+        derive_runtime_contract_fields(product_asset, runtime_asset)
+
+
+def test_derivation_is_deterministic_and_sorted() -> None:
+    """同じ入力の導出結果が決定的で保護対象が辞書順になることを確認する。"""
+    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    for key in ("schemas", "tables", "functions"):
+        cast(list[object], product_asset[key]).reverse()
+
+    first = derive_runtime_contract_fields(product_asset, runtime_asset)
+    second = derive_runtime_contract_fields(product_asset, runtime_asset)
+    protected = first["protected_objects"]
+
+    assert first == second
+    assert protected["schemas"] == sorted(protected["schemas"])
+    assert protected["tables"] == [
+        list(identifier) for identifier in sorted(map(tuple, protected["tables"]))
+    ]
+    assert protected["functions"] == [
+        list(identifier) for identifier in sorted(map(tuple, protected["functions"]))
+    ]
+
+
+def test_staged_comparison_reports_one_removed_addition() -> None:
+    """追加宣言を1件落とすと対応する余分1件だけを差分として返す。"""
+    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    additions = cast(
+        list[dict[str, Any]],
+        product_asset["provisional_contract_additions"],
+    )
+    removed = additions.pop(0)
+
+    comparison = compare_staged_protected_objects(product_asset, runtime_asset)
+    removed_identifier = (
+        removed["schema_name"],
+        removed["object_name"],
+        removed["identity_args"],
+    )
+
+    assert comparison.matches is False
+    assert comparison.missing.is_empty
+    assert comparison.extra.schemas == frozenset()
+    assert comparison.extra.tables == frozenset()
+    assert comparison.extra.functions == frozenset({removed_identifier})
 
 
 def test_rendered_source_matches_generated_module_byte_for_byte() -> None:

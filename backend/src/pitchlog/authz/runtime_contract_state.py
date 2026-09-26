@@ -1,12 +1,13 @@
-"""ランタイム認可契約の宣言検査と生成モジュールの描画を提供する。"""
+"""ランタイム認可契約の宣言検査・導出・生成モジュール描画を提供する。"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 RUNTIME_CONTRACT_ASSET = Path("contracts/tenant_boundary/runtime-authz-contract.json")
 GENERATED_MODULE = Path("backend/src/pitchlog/authz/runtime_contract.py")
@@ -21,21 +22,76 @@ _EXPECTED_DANGEROUS_FIXTURES = {
     ("table_owner", "DANGER_TABLE_OWNER"),
     ("function_owner", "DANGER_FUNCTION_OWNER"),
 }
-_ROLE_ATTRIBUTE_NAMES = (
-    "rolsuper",
-    "rolbypassrls",
-    "rolcanlogin",
-    "rolcreaterole",
-    "rolcreatedb",
-    "rolreplication",
-    "rolinherit",
+_ROLE_ATTRIBUTE_MAPPING = (
+    ("superuser", "rolsuper"),
+    ("bypass_rls", "rolbypassrls"),
+    ("login", "rolcanlogin"),
+    ("create_role", "rolcreaterole"),
+    ("create_db", "rolcreatedb"),
+    ("replication", "rolreplication"),
+    ("inherit", "rolinherit"),
 )
+_ROLE_ATTRIBUTE_NAMES = tuple(
+    runtime_name for _, runtime_name in _ROLE_ATTRIBUTE_MAPPING
+)
+_PRODUCT_ROLE_KEYS = {
+    "role_id",
+    "creation",
+    *(product_name for product_name, _ in _ROLE_ATTRIBUTE_MAPPING),
+}
 
 JsonObject = dict[str, object]
+type AssetSource = Path | Mapping[str, object]
+type TableIdentifier = tuple[str, str]
+type FunctionIdentifier = tuple[str, str, str]
+
+
+class DerivedApplicationRole(TypedDict):
+    """製品資産から導いたアプリ用ロールの欄。"""
+
+    attributes: dict[str, bool]
+
+
+class DerivedProtectedObjects(TypedDict):
+    """製品資産から導いた保護対象。"""
+
+    schemas: list[str]
+    tables: list[list[str]]
+    functions: list[list[str]]
+
+
+class DerivedRuntimeContractFields(TypedDict):
+    """製品資産から導いたランタイム契約の欄。"""
+
+    application_role: DerivedApplicationRole
+    protected_objects: DerivedProtectedObjects
+
+
+@dataclass(frozen=True, slots=True)
+class ProtectedObjectDifference:
+    """保護対象の種別ごとの差分を保持する。"""
+
+    schemas: frozenset[str]
+    tables: frozenset[TableIdentifier]
+    functions: frozenset[FunctionIdentifier]
+
+    @property
+    def is_empty(self) -> bool:
+        """すべての種別に差分が無ければ ``True`` を返す。"""
+        return not (self.schemas or self.tables or self.functions)
+
+
+@dataclass(frozen=True, slots=True)
+class ProtectedObjectsComparison:
+    """未発効状態の保護対象照合結果を保持する。"""
+
+    matches: bool
+    missing: ProtectedObjectDifference
+    extra: ProtectedObjectDifference
 
 
 class RuntimeContractError(ValueError):
-    """ランタイム契約の資産を描画できない場合の例外。"""
+    """ランタイム契約の資産を安全に処理できない場合の例外。"""
 
 
 def read_json_object(path: Path) -> JsonObject:
@@ -74,6 +130,94 @@ def asset_digest(asset: Mapping[str, object]) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(serialized).hexdigest()
+
+
+def derive_runtime_contract_fields(
+    product_asset: AssetSource,
+    runtime_contract_asset: AssetSource,
+) -> DerivedRuntimeContractFields:
+    """製品資産からランタイム契約の導出欄を作る。
+
+    Args:
+        product_asset: 製品 DDL 資産のパスまたは読み込み済み object。
+        runtime_contract_asset: ランタイム契約資産のパスまたは読み込み済み
+            object。
+
+    Returns:
+        ``application_role.attributes`` と ``protected_objects`` の導出値。
+
+    Raises:
+        RuntimeContractError: 入力の形が不正、識別子が重複、またはアプリ用
+            ロールを一意に選べない場合。
+    """
+    product = _asset_mapping(product_asset, "製品 DDL 資産")
+    runtime_contract = _asset_mapping(
+        runtime_contract_asset,
+        "ランタイム契約資産",
+    )
+    application_role = _required_mapping(runtime_contract, "application_role")
+    role_name = _non_empty_string(application_role, "rolname", "application_role")
+    role = _select_product_role(product, role_name)
+
+    attributes = {
+        runtime_name: _boolean(role, product_name)
+        for product_name, runtime_name in _ROLE_ATTRIBUTE_MAPPING
+    }
+    schemas = _derive_product_schemas(product)
+    tables = _derive_product_tables(product)
+    functions = _derive_product_functions(product)
+    return {
+        "application_role": {"attributes": attributes},
+        "protected_objects": {
+            "schemas": list(schemas),
+            "tables": [list(identifier) for identifier in tables],
+            "functions": [list(identifier) for identifier in functions],
+        },
+    }
+
+
+def compare_staged_protected_objects(
+    staged_product_asset: AssetSource,
+    runtime_contract_asset: AssetSource,
+) -> ProtectedObjectsComparison:
+    """未発効状態で staged の保護対象と宣言済み集合を照合する。
+
+    ``missing`` は暫定資産と追加宣言にはあるが製品資産から導けない対象、
+    ``extra`` は製品資産から導けるが暫定資産と追加宣言には無い対象を表す。
+
+    Args:
+        staged_product_asset: staged 製品 DDL 資産のパスまたは object。
+        runtime_contract_asset: 暫定ランタイム契約資産のパスまたは object。
+
+    Returns:
+        一致結果と、保護対象の不足・余分の exact-set。
+
+    Raises:
+        RuntimeContractError: 入力の形が不正または識別子が重複する場合。
+    """
+    staged = _asset_mapping(staged_product_asset, "staged 製品 DDL 資産")
+    runtime_contract = _asset_mapping(
+        runtime_contract_asset,
+        "ランタイム契約資産",
+    )
+    derived = derive_runtime_contract_fields(staged, runtime_contract)
+    actual = _protected_object_sets(
+        derived["protected_objects"],
+        "製品資産から導いた protected_objects",
+    )
+    provisional = _protected_object_sets(
+        _required_mapping(runtime_contract, "protected_objects"),
+        "暫定資産の protected_objects",
+    )
+    additions = _provisional_addition_sets(staged)
+    expected = _union_protected_objects(provisional, additions)
+    missing = _subtract_protected_objects(expected, actual)
+    extra = _subtract_protected_objects(actual, expected)
+    return ProtectedObjectsComparison(
+        matches=missing.is_empty and extra.is_empty,
+        missing=missing,
+        extra=extra,
+    )
 
 
 def declaration_violations(asset: Mapping[str, object] | None) -> set[str]:
@@ -238,6 +382,192 @@ def render_runtime_contract(asset: Mapping[str, object]) -> str:
     lines.extend(f"    {_render_row(row)}," for row in fixtures)
     lines.extend([")", ""])
     return "\n".join(lines)
+
+
+def _asset_mapping(source: AssetSource, label: str) -> Mapping[str, object]:
+    """パスまたは読み込み済み object を資産として返す。"""
+    if isinstance(source, Path):
+        return read_json_object(source)
+    result = _mapping(source)
+    if result is None:
+        raise RuntimeContractError(f"{label}は JSON object でなければなりません")
+    return result
+
+
+def _object_rows(asset: Mapping[str, object], key: str) -> list[Mapping[str, object]]:
+    """資産の object 配列を返す。"""
+    values = _sequence(asset.get(key))
+    if values is None:
+        raise RuntimeContractError(f"{key} は object の配列でなければなりません")
+    rows: list[Mapping[str, object]] = []
+    for index, value in enumerate(values):
+        row = _mapping(value)
+        if row is None:
+            raise RuntimeContractError(
+                f"{key}[{index}] は JSON object でなければなりません"
+            )
+        rows.append(row)
+    return rows
+
+
+def _select_product_role(
+    product_asset: Mapping[str, object], role_name: str
+) -> Mapping[str, object]:
+    """製品資産から宣言名と一致するロールを一意に選ぶ。"""
+    matching: list[Mapping[str, object]] = []
+    for index, role in enumerate(_object_rows(product_asset, "roles")):
+        unknown_keys = set(role) - _PRODUCT_ROLE_KEYS
+        if unknown_keys:
+            unknown = ", ".join(sorted(unknown_keys))
+            raise RuntimeContractError(
+                f"roles[{index}] に未知のキーがあります: {unknown}"
+            )
+        role_id = _non_empty_string(role, "role_id", f"roles[{index}]")
+        _non_empty_string(role, "creation", f"roles[{index}]")
+        for product_name, _ in _ROLE_ATTRIBUTE_MAPPING:
+            _boolean(role, product_name)
+        if role_id == role_name:
+            matching.append(role)
+    if len(matching) != 1:
+        raise RuntimeContractError(
+            f"role_id == {role_name!r} の行は 1 件でなければなりません: "
+            f"{len(matching)} 件"
+        )
+    return matching[0]
+
+
+def _derive_product_schemas(product_asset: Mapping[str, object]) -> tuple[str, ...]:
+    """製品資産のスキーマ識別子を辞書順で返す。"""
+    values = [
+        _non_empty_string(row, "schema_name", f"schemas[{index}]")
+        for index, row in enumerate(_object_rows(product_asset, "schemas"))
+    ]
+    _reject_duplicates(values, "schemas")
+    return tuple(sorted(values))
+
+
+def _derive_product_tables(
+    product_asset: Mapping[str, object],
+) -> tuple[TableIdentifier, ...]:
+    """製品資産の表識別子を辞書順で返す。"""
+    values = [
+        (
+            _non_empty_string(row, "schema_name", f"tables[{index}]"),
+            _non_empty_string(row, "table_id", f"tables[{index}]"),
+        )
+        for index, row in enumerate(_object_rows(product_asset, "tables"))
+    ]
+    _reject_duplicates(values, "tables")
+    return tuple(sorted(values))
+
+
+def _derive_product_functions(
+    product_asset: Mapping[str, object],
+) -> tuple[FunctionIdentifier, ...]:
+    """製品資産の関数識別子を辞書順で返す。"""
+    values = [
+        (
+            _non_empty_string(row, "schema_name", f"functions[{index}]"),
+            _non_empty_string(row, "function_name", f"functions[{index}]"),
+            _string(row, "identity_args"),
+        )
+        for index, row in enumerate(_object_rows(product_asset, "functions"))
+    ]
+    _reject_duplicates(values, "functions")
+    return tuple(sorted(values))
+
+
+def _protected_object_sets(
+    protected_objects: Mapping[str, object], label: str
+) -> ProtectedObjectDifference:
+    """保護対象 object を重複の無い集合へ変換する。"""
+    schemas = _string_rows(protected_objects, "schemas")
+    table_rows = _identifier_rows(protected_objects, "tables", width=2)
+    function_rows = _identifier_rows(protected_objects, "functions", width=3)
+    tables: list[TableIdentifier] = [(row[0], row[1]) for row in table_rows]
+    functions: list[FunctionIdentifier] = [
+        (row[0], row[1], row[2]) for row in function_rows
+    ]
+    _reject_duplicates(schemas, f"{label}.schemas")
+    _reject_duplicates(tables, f"{label}.tables")
+    _reject_duplicates(functions, f"{label}.functions")
+    return ProtectedObjectDifference(
+        schemas=frozenset(schemas),
+        tables=frozenset(tables),
+        functions=frozenset(functions),
+    )
+
+
+def _provisional_addition_sets(
+    staged_asset: Mapping[str, object],
+) -> ProtectedObjectDifference:
+    """未発効資産の追加宣言を保護対象集合へ変換する。"""
+    schemas: list[str] = []
+    functions: list[FunctionIdentifier] = []
+    for index, addition in enumerate(
+        _object_rows(staged_asset, "provisional_contract_additions")
+    ):
+        label = f"provisional_contract_additions[{index}]"
+        object_kind = _non_empty_string(addition, "object_kind", label)
+        schema_name = _non_empty_string(addition, "schema_name", label)
+        if object_kind == "schema":
+            schemas.append(schema_name)
+            continue
+        if object_kind == "function":
+            functions.append(
+                (
+                    schema_name,
+                    _non_empty_string(addition, "object_name", label),
+                    _string(addition, "identity_args"),
+                )
+            )
+            continue
+        raise RuntimeContractError(f"{label}.object_kind が未対応です: {object_kind}")
+    _reject_duplicates(schemas, "provisional_contract_additions の schemas")
+    _reject_duplicates(functions, "provisional_contract_additions の functions")
+    return ProtectedObjectDifference(
+        schemas=frozenset(schemas),
+        tables=frozenset(),
+        functions=frozenset(functions),
+    )
+
+
+def _union_protected_objects(
+    left: ProtectedObjectDifference,
+    right: ProtectedObjectDifference,
+) -> ProtectedObjectDifference:
+    """保護対象集合の和集合を返す。"""
+    return ProtectedObjectDifference(
+        schemas=left.schemas | right.schemas,
+        tables=left.tables | right.tables,
+        functions=left.functions | right.functions,
+    )
+
+
+def _subtract_protected_objects(
+    left: ProtectedObjectDifference,
+    right: ProtectedObjectDifference,
+) -> ProtectedObjectDifference:
+    """保護対象集合の差集合を返す。"""
+    return ProtectedObjectDifference(
+        schemas=left.schemas - right.schemas,
+        tables=left.tables - right.tables,
+        functions=left.functions - right.functions,
+    )
+
+
+def _reject_duplicates(values: Sequence[object], label: str) -> None:
+    """配列に重複があれば fail-closed で止める。"""
+    if len(values) != len(set(values)):
+        raise RuntimeContractError(f"{label} に重複があります")
+
+
+def _non_empty_string(value: Mapping[str, object], key: str, label: str) -> str:
+    """必須の空でない文字列を返す。"""
+    result = _string(value, key)
+    if not result:
+        raise RuntimeContractError(f"{label}.{key} は空にできません")
+    return result
 
 
 def _mapping(value: object) -> Mapping[str, object] | None:
