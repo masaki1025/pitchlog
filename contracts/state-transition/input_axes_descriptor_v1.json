@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:1d2db878dedb97010c9e480bfd805a4b9da40d0d45189bf601d805e85e6cd96f",
+  "digest": "sha256:f162dfd061a8eb4df2ca1293c969125398ecc98c1156fded2e134bb7caf6e59a",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -29,7 +29,10 @@
       "reference-integrity",
       "mutual-exclusion",
       "state-transition-axis-combinations",
-      "payload-string-policy-reconciliation"
+      "payload-string-policy-reconciliation",
+      "stat-flag-derivation-rules",
+      "third-out-type-observation-input",
+      "official-scorer-judgment-inputs"
     ],
     "axisCombinationScope": "all-state-transition-axes",
     "resolutionStage": "stage2-vector-and-checker-implementation",
@@ -37,37 +40,12 @@
       "closed-payload-schemas",
       "state-transition-axis-combination-rules",
       "payload-string-policy-reconciliation-rule",
+      "stat-flag-derivation-table",
+      "third-out-type-input-contract",
+      "official-scorer-judgment-input-contract",
       "negative-fixtures"
     ],
-    "reason": "ADR-003 D-11の既存委任条項を適用し、payload内部の一意性・参照整合・相反排除、状態遷移軸の軸間組合せ規則、およびD-8の文字列規定とFR-015の任意選手名との整合は、ベクタと検査基盤を実機で整備する段階2で確定する"
-  },
-  "statFlagDerivationDependencies": {
-    "sourceClauseId": "req:XC-13",
-    "axisIds": [
-      "state.half",
-      "state.outs",
-      "state.runners",
-      "state.score",
-      "event.perPitch.kind",
-      "event.perPitch.pitchEventKind",
-      "event.perPitch.resultId",
-      "event.perPitch.runnerEventPayload",
-      "event.perPitch.runnerAdvanceOverridesByRunner",
-      "event.perPitch.thirdOutTimingByRunner",
-      "event.perPitch.interferenceRuling",
-      "event.perPitch.officialScoringPayload",
-      "event.perPitch.rbi.doublePlayRelayError",
-      "event.perPitch.rbi.runnerContinuityByRunner",
-      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
-    ],
-    "matrixRowFieldIds": [
-      "precondition",
-      "plateAppearanceEnded",
-      "batterDestination",
-      "runnerDefaultAdvance",
-      "outEffect"
-    ],
-    "missingOrAmbiguousAction": "fail"
+    "reason": "ADR-003 D-11の既存委任条項と2026-09-26の2回目のPO射程縮小を適用し、payload内部制約・状態遷移軸の組合せ規則・文字列規定の整合に加え、XC-13の23フラグ導出表、第3アウト種別の観測入力、および記録員判断の入力契約は、ベクタと検査基盤を実機で整備する段階2で確定する"
   },
   "stateTransitionAxes": [
     {
@@ -302,9 +280,6 @@
     {
       "axisId": "event.perPitch.pitchEventKind",
       "sourceClauseId": "req:4.0-2",
-      "supportingClauseIds": [
-        "req:XC-13"
-      ],
       "classification": "finite-enumerable",
       "values": [
         "pitch-event",
@@ -385,9 +360,6 @@
     {
       "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
       "sourceClauseId": "req:FR-003",
-      "supportingClauseIds": [
-        "req:XC-13"
-      ],
       "classification": "boundary-partition",
       "boundaryValues": [
         "not-applied",
@@ -483,9 +455,6 @@
     {
       "axisId": "event.perPitch.officialScoringPayload",
       "sourceClauseId": "req:FR-004",
-      "supportingClauseIds": [
-        "req:XC-13"
-      ],
       "classification": "boundary-partition",
       "boundaryValues": [
         "no-error",

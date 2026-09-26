@@ -265,15 +265,14 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "pitch-event",
         "non-pitch-event",
     ]
-    assert axes["event.perPitch.pitchEventKind"]["supportingClauseIds"] == [
-        "req:XC-13"
+    assert "supportingClauseIds" not in axes["event.perPitch.pitchEventKind"]
+    assert (
+        "supportingClauseIds"
+        not in axes["event.perPitch.runnerAdvanceOverridesByRunner"]
+    )
+    assert "supportingClauseIds" not in axes[
+        "event.perPitch.officialScoringPayload"
     ]
-    assert axes["event.perPitch.runnerAdvanceOverridesByRunner"][
-        "supportingClauseIds"
-    ] == ["req:XC-13"]
-    assert axes["event.perPitch.officialScoringPayload"][
-        "supportingClauseIds"
-    ] == ["req:XC-13"]
     assert axes["event.perPitch.thirdOutTimingByRunner"]["supportingClauseIds"] == [
         "req:OUT3-01",
         "req:OUT3-02",
@@ -446,65 +445,22 @@ def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> Non
     assert declaration["axisCombinationScope"] == "all-state-transition-axes"
 
 
-def test_xc13_derivation_dependencies_are_declared_as_an_exact_set() -> None:
-    """XC-13の観測入力と規範行列を明示し、未宣言依存を残さない。"""
-    declaration = _descriptor()["statFlagDerivationDependencies"]
-
-    assert declaration["sourceClauseId"] == "req:XC-13"
-    assert set(declaration["axisIds"]) == (
-        checker.EXPECTED_STAT_FLAG_DERIVATION_AXIS_IDS
-    )
-    assert set(declaration["matrixRowFieldIds"]) == (
-        checker.EXPECTED_STAT_FLAG_DERIVATION_ROW_FIELDS
-    )
-    assert declaration["missingOrAmbiguousAction"] == "fail"
-
-
 @pytest.mark.parametrize(
-    "axis_id",
+    "constraint_class",
     [
-        "event.perPitch.pitchEventKind",
-        "event.perPitch.runnerAdvanceOverridesByRunner",
-        "event.perPitch.officialScoringPayload",
+        "payload-string-policy-reconciliation",
+        "stat-flag-derivation-rules",
+        "third-out-type-observation-input",
+        "official-scorer-judgment-inputs",
     ],
 )
-def test_xc13_required_input_axis_removal_is_red(axis_id: str) -> None:
-    """XC-13の必須入力軸を実体から落としてdigestを合わせてもfailする。"""
-    descriptor = _descriptor()
-    descriptor["stateTransitionAxes"] = [
-        axis
-        for axis in descriptor["stateTransitionAxes"]
-        if axis["axisId"] != axis_id
-    ]
-    _with_digest(descriptor)
-
-    with pytest.raises(
-        checker.DescriptorCheckError,
-        match="XC-13が参照する入力軸がdescriptorにない",
-    ):
-        _validate(descriptor)
-
-
-def test_xc13_dependency_declaration_cannot_omit_pitch_event_kind() -> None:
-    """投球有無の軸をXC-13の依存宣言だけから外す迂回を拒否する。"""
-    descriptor = _descriptor()
-    descriptor["statFlagDerivationDependencies"]["axisIds"].remove(
-        "event.perPitch.pitchEventKind"
-    )
-    _with_digest(descriptor)
-
-    with pytest.raises(
-        checker.DescriptorCheckError,
-        match="XC-13の導出入力軸がexact-set不一致",
-    ):
-        _validate(descriptor)
-
-
-def test_stage2_string_policy_reconciliation_cannot_be_omitted() -> None:
-    """D-8とFR-015の文字列規定の整合宣言を落とすとfailする。"""
+def test_stage2_constraint_class_cannot_be_omitted(
+    constraint_class: str,
+) -> None:
+    """段階2へ送った制約クラスを1件でも落とすとfailする。"""
     descriptor = _descriptor()
     descriptor["stage2ExternalConstraints"]["constraintClasses"].remove(
-        "payload-string-policy-reconciliation"
+        constraint_class
     )
     _with_digest(descriptor)
 

@@ -94,6 +94,10 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
         )
         for number in range(1, 13)
     },
+    "XC-13": (
+        "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は"
+        "2026-09-26の2回目のPO射程縮小により段階2で確定する"
+    ),
 }
 
 
@@ -352,15 +356,9 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     except descriptor_checker.DescriptorCheckError as error:
         raise ThreeWayParityError(f"descriptorの自己検査に失敗した: {error}") from error
 
-    descriptor_supporting_clause_ids = set(
-        collect_descriptor_supporting_clause_ids(descriptor)
+    descriptor_supporting_clause_ids = collect_descriptor_supporting_clause_ids(
+        descriptor
     )
-    stat_dependencies = descriptor.get("statFlagDerivationDependencies")
-    if isinstance(stat_dependencies, dict):
-        source_clause_id = stat_dependencies.get("sourceClauseId")
-        if isinstance(source_clause_id, str):
-            descriptor_supporting_clause_ids.add(source_clause_id)
-    descriptor_supporting_clause_ids = frozenset(descriptor_supporting_clause_ids)
     covered_ids, excluded_ids = _validate_branch_coverage(
         branch_ids, descriptor_supporting_clause_ids
     )

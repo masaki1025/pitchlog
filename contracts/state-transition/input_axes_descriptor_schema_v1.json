@@ -10,7 +10,6 @@
     "digest",
     "digestSpec",
     "stage2ExternalConstraints",
-    "statFlagDerivationDependencies",
     "stateTransitionAxes",
     "gameEndAxes",
     "gameEndCombinationRules",
@@ -36,9 +35,6 @@
     },
     "stage2ExternalConstraints": {
       "$ref": "#/$defs/stage2ExternalConstraints"
-    },
-    "statFlagDerivationDependencies": {
-      "$ref": "#/$defs/statFlagDerivationDependencies"
     },
     "stateTransitionAxes": {
       "type": "array",
@@ -157,7 +153,10 @@
               "reference-integrity",
               "mutual-exclusion",
               "state-transition-axis-combinations",
-              "payload-string-policy-reconciliation"
+              "payload-string-policy-reconciliation",
+              "stat-flag-derivation-rules",
+              "third-out-type-observation-input",
+              "official-scorer-judgment-inputs"
             ]
           }
         },
@@ -169,14 +168,17 @@
         },
         "requiredArtifacts": {
           "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
+          "minItems": 7,
+          "maxItems": 7,
           "uniqueItems": true,
           "items": {
             "enum": [
               "closed-payload-schemas",
               "state-transition-axis-combination-rules",
               "payload-string-policy-reconciliation-rule",
+              "stat-flag-derivation-table",
+              "third-out-type-input-contract",
+              "official-scorer-judgment-input-contract",
               "negative-fixtures"
             ]
           }
@@ -184,40 +186,6 @@
         "reason": {
           "type": "string",
           "minLength": 1
-        }
-      }
-    },
-    "statFlagDerivationDependencies": {
-      "type": "object",
-      "required": [
-        "sourceClauseId",
-        "axisIds",
-        "matrixRowFieldIds",
-        "missingOrAmbiguousAction"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "sourceClauseId": {
-          "$ref": "#/$defs/sourceClauseId"
-        },
-        "axisIds": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/axisId"
-          }
-        },
-        "matrixRowFieldIds": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/axisId"
-          }
-        },
-        "missingOrAmbiguousAction": {
-          "const": "fail"
         }
       }
     },
