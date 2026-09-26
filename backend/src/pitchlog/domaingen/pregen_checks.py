@@ -579,7 +579,8 @@ def run_pregen_checks(
     attempted = frozenset(_CHECKS)
     violations: list[CheckViolation] = []
     for check_id in sorted(attempted, key=lambda item: item.value):
-        violations.extend(_CHECKS[check_id](model, schemas))
+        check: CheckFunction = _CHECKS[check_id]
+        violations.extend(check(model, schemas))
     return PregenReport(attempted, tuple(violations))
 
 
