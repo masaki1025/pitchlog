@@ -1,6 +1,6 @@
 ---
 feature: tenant-session-supply
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-26・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -78,8 +78,8 @@ created: 2026-09-26
 | `docs/design/data-model.md` | **反映なし**。3-3 節の規律(`:318-327`)を**守る側**であり変えない | — |
 | `docs/design/sync-protocol.md` | **反映なし** | — |
 | `docs/adr/` | **新設なし**。既決の制約の実装であり新しい決定を持たない | — |
-| **`contracts/tenant_boundary/repository-contract.json`** | `public_surface` へ **`transaction_scope_entry`(`pitchlog.repositories.transaction.tenant_transaction_scope`)と `transaction_handle_type`(`...TenantTransaction`)** を追加。`contract_revision` **`5` → `6`**・`source_digest` 更新 | **コア領域**(`tenant-isolation`)→ 敵対レビュー + 人間の逐行確認 |
-| **`contracts/tenant_boundary/base-allowlist.json`** | `allowed_symbols` へ **`pitchlog.repositories.transaction.TenantTransaction.run`** を追加。`contract_revision` **`16` → `17`**。**v2 履歴を 1 件追記**(**4 件目** — 7 資産の単一検査の authority) | **凍結基準**(7.7)+ 同上 |
+| **`contracts/tenant_boundary/repository-contract.json`** | `public_surface` へ **`transaction_scope_entry`(`pitchlog.repositories.transaction.tenant_transaction_scope`)のみ**を追加。`contract_revision` **`5` → `6`**・`source_digest` 更新 | **コア領域**(`tenant-isolation`)→ 敵対レビュー + 人間の逐行確認 |
+| **`contracts/tenant_boundary/base-allowlist.json`** | `allowed_symbols` へ **`pitchlog.repositories.transaction._TenantTransaction.run`** を追加。`contract_revision` **`16` → `17`**。**v2 履歴を 1 件追記**(**4 件目** — 7 資産の単一検査の authority) | **凍結基準**(7.7)+ 同上 |
 | **`contracts/tenant_boundary/history-snapshots/`** | v2 記録の content-addressed snapshot を追加(追記専用) | 同上 |
 | `contracts/tenant_boundary/db-api-inventory.json` | **反映なし**(4-1 の裁定 7 — 触らない) | — |
 | **`docs/development/harness-evaluation.md`** | **`## 候補` へ追記**: 既存候補「並行ブランチが CI 契約に規則を足すと、先行して設計済みのブランチが後から抵触する」へ **2 例目**(append-only 台帳の prefix が動く型)+ **新設 1 件**(マージ後に必ず赤になるテストの是正タスクは、同型のうち「新シンボルを足すブランチだけで出る」ものを自分の CI で踏めない)。**変更履歴表に 1 行追記**。**`H-*` の採番なし・版は上げない**(7.6-3 前段) | PR レビュー(7.6-3 前段) |
@@ -92,6 +92,17 @@ created: 2026-09-26
 - **版数**: 着手時は `repository-contract` `4` → `5`・`base-allowlist` `15` → `16` と書いていた。**作業中に TSK-440(PR #80)が develop へ入り両方を 1 つずつ上げた**ため、実際は **`5` → `6`・`16` → `17`** になった。履歴も **3 件目まで進んでいた**ので、本 PR の受理記録は **4 件目**である
 - **許可シンボル**: 着手時は `tenant_transaction_scope` と書いていた。**誤り**。迂回検査は **DB 呼び出しを囲む関数**と突き合わせ、`Session.execute` は `TenantTransaction.run`(`transaction.py:52`)の中にある。`tenant_transaction_scope` は DB API を直接呼ばないので登録不要。**承認も訂正コメント(`5844686316`)で取り直している**
 - **`tests/test_check_tenant_boundary_bypass.py`**: 着手時は更新対象に挙げていたが、**1 バイトも変えていない**(`public_methods` は `TenantRepositoryBase` しか見ないため、新モジュールを足しても検査器側の変更が要らなかった)
+
+**実装後の敵対レビューで動いた 2 点(2026-09-26 の追随)**:
+
+- **許可シンボルが `_TenantTransaction.run` へ** — 敵対レビュー **P0-1**(公開コンストラクタから
+  束縛を迂回できる)を受けて**ハンドルを非公開化**したため。**署名と `allowed_api_ids` は不変**。
+  **承認を 3 通目(`5846446071`・`2026-09-26T12:56:08Z`)で取り直している**
+- **`public_surface` から `transaction_handle_type` を落とした** — **非公開型を「公開面」に
+  宣言するのは意味の取り違え**になるため。ハンドル型は `allowed_symbols` 側が固定する
+
+**版数は据え置き**(`17` / `6`)。**develop 側は `16` / `5`** で、本 PR 内で内容を書き直しただけ
+なので**正味の移動は変わらない**。**履歴は 4 件目を書き直した**(5 件目を足していない)。
 
 ## 4. 実装方針
 
