@@ -305,6 +305,15 @@ branch: feature/harness-model-refresh
 - Claude 一次レビュー(反対側): 差分は計画のステップ 3 の範囲内。fast の一意性検査は「別位置の計画書が読めない・frontmatter 不正」でも停止する(計画の負例より厳しい fail-closed — 全計画書は CI の `check_docs_status` を通っているため実害なし)。probe は `security_overrides(may_allow_net=False)` を含み、`workspace-write`・`live` を含まない
 - 受入: `pytest tests/test_codex_run.py tests/test_agents_frontmatter.py` 70 passed / `ruff check` / `ty check` 緑 / 全体回帰(Codex 実行)1971 passed・1 failed(`test_propagation_checker_and_claude_files_are_unchanged` — 未コミット差分の検知で、コミット後に緑)・TSK-460 の既知赤は除外
 
+### ステップ 4(2026-09-27)— 実機検証(codex-cli 0.157.1・worktree の新ラッパー `python .claude/scripts/codex_run.py`)
+
+- **注意(自分の取り違え)**: 最初のスモークはメインツリー側の旧ラッパー(`/home/walter/projects/pitchlog/.claude/scripts/codex_run.py` — develop の gpt-5.6 表)を叩いていた(`probe` が「不明なモード」)。**worktree の作業では worktree 側のラッパーを相対パスで呼ぶ**。やり直した結果が以下
+- `probe`(引数なし・stdin 未読・read-only・cached): 決定表の全 5 組 — `gpt-6-sol` medium / max / xhigh / high・`gpt-6-luna` xhigh — **すべて終了コード 0**(各組の応答「OK」)。全体 exit 0
+- `review normal`(→ `gpt-6-sol` max): 本番様式の短い依頼文で exit 0・判定行 `判定: 可決(P0=0 / P1=0 / P2=0)` を返却(3,975 tok 相当)
+- `review adversarial`(→ `gpt-6-sol` xhigh): 冒頭命令文 + 3 点様式の依頼で exit 0・判定行を返却(3,644 tok)
+- 安全分類器の遮断(flagged / safeguard / blocked): **0 件**。再実行なし。版検査は 0.157.1 で通過(3 経路とも起動)
+- 成立 → ADR-001 の変更履歴へ**版を上げない追随行**(7.6-3 前段)を追加・`docs/README.md` の ADR-001 行に追随の注記。frontmatter は approved のまま
+
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
 
