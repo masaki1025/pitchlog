@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 5
+CONTRACT_REVISION = 6
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "be64e3add7352154527665f705f29d3994a87a63c14f2f452bb47f186bdc5a0c"
+SOURCE_DIGEST = "dce7ae1d6149f8615745ca292c9cb8c63e619e7f3c82394c7b955b16980d8ad0"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -15,6 +15,8 @@ OPERATION_RESULT_TYPE = "pitchlog.repositories.tokens.TenantOperationResult"
 CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
     "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
 )
+TRANSACTION_SCOPE_ENTRY = "pitchlog.repositories.transaction.tenant_transaction_scope"
+TRANSACTION_HANDLE_TYPE = "pitchlog.repositories.transaction.TenantTransaction"
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "

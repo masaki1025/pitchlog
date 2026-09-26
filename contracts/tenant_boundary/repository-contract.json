@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 5,
+  "contract_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:5"
+        "contract_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -70,14 +70,16 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "be64e3add7352154527665f705f29d3994a87a63c14f2f452bb47f186bdc5a0c",
+  "source_digest": "dce7ae1d6149f8615745ca292c9cb8c63e619e7f3c82394c7b955b16980d8ad0",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
     "cross_tenant_function_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
     "operation_token_type": "pitchlog.repositories.tokens.TenantOperationToken",
     "operation_result_type": "pitchlog.repositories.tokens.TenantOperationResult",
-    "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
+    "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY",
+    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope",
+    "transaction_handle_type": "pitchlog.repositories.transaction.TenantTransaction"
   },
   "executor": {
     "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",

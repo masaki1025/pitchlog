@@ -174,6 +174,8 @@ def _generated_snapshot() -> dict[str, object]:
             "cross_tenant_function_registry": (
                 repository_contract.CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL
             ),
+            "transaction_scope_entry": repository_contract.TRANSACTION_SCOPE_ENTRY,
+            "transaction_handle_type": repository_contract.TRANSACTION_HANDLE_TYPE,
         },
         "executor": {
             "symbol": repository_contract.EXECUTOR_SYMBOL,
