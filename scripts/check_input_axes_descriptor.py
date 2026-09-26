@@ -33,6 +33,7 @@ EXPECTED_TOP_LEVEL_FIELDS = frozenset(
         "digest",
         "digestSpec",
         "stage2ExternalConstraints",
+        "statFlagDerivationDependencies",
         "stateTransitionAxes",
         "gameEndAxes",
         "gameEndCombinationRules",
@@ -73,7 +74,11 @@ EXPECTED_EXACT_STRUCTURED_AXIS_IDS = frozenset(
 EXPECTED_DEFERRED_STRUCTURED_AXIS_KINDS = {
     "event.operationPayload": "tagged-operation-payload",
     "event.perPitch.runnerEventPayload": "runner-keyed-event-payload",
+    "event.perPitch.runnerAdvanceOverridesByRunner": (
+        "runner-keyed-advance-override"
+    ),
     "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+    "event.perPitch.officialScoringPayload": "official-scoring-payload",
     "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
     "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
 }
@@ -89,11 +94,20 @@ EXPECTED_DEFERRED_STRUCTURED_AXIS_DIMENSIONS = {
         "destination",
         "out-kind",
     ),
+    "event.perPitch.runnerAdvanceOverridesByRunner": (
+        "runner-identity",
+        "outcome",
+        "destination",
+    ),
     "event.perPitch.interferenceRuling": (
         "interference-kind",
         "adopted-result",
         "target-identity",
         "awarded-or-return-destination",
+    ),
+    "event.perPitch.officialScoringPayload": (
+        "error-count",
+        "fielder-reference",
     ),
     "event.perPitch.rbi.runnerContinuityByRunner": (
         "runner-identity",
@@ -118,6 +132,9 @@ EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS = {
     "event.perPitch.runnerEventPayload": frozenset(
         {"not-applicable", "runner-event"}
     ),
+    "event.perPitch.runnerAdvanceOverridesByRunner": frozenset(
+        {"not-applied", "overridden"}
+    ),
     "event.perPitch.interferenceRuling": frozenset(
         {
             "not-required",
@@ -125,6 +142,9 @@ EXPECTED_DEFERRED_STRUCTURED_AXIS_VARIANTS = {
             "obstruction",
             "offensive-interference",
         }
+    ),
+    "event.perPitch.officialScoringPayload": frozenset(
+        {"no-error", "error-recorded"}
     ),
     "event.perPitch.rbi.runnerContinuityByRunner": frozenset(
         {"not-required", "observed"}
@@ -164,9 +184,39 @@ EXPECTED_DEFERRED_STRUCTURED_AXIS_IDS = frozenset(
     {
         "event.operationPayload",
         "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
         "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
         "event.perPitch.rbi.runnerContinuityByRunner",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+    }
+)
+EXPECTED_STAT_FLAG_DERIVATION_AXIS_IDS = frozenset(
+    {
+        "state.half",
+        "state.outs",
+        "state.runners",
+        "state.score",
+        "event.perPitch.kind",
+        "event.perPitch.pitchEventKind",
+        "event.perPitch.resultId",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
+        "event.perPitch.rbi.doublePlayRelayError",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+    }
+)
+EXPECTED_STAT_FLAG_DERIVATION_ROW_FIELDS = frozenset(
+    {
+        "precondition",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
     }
 )
 AMBIGUOUS_SOURCE_BINDINGS = {
@@ -532,6 +582,7 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "projectionRule",
         "digestSpec",
         "stage2ExternalConstraints",
+        "statFlagDerivationDependencies",
         "supportingClauseIds",
         "ruleFieldId",
         "coverageBound",
@@ -627,6 +678,15 @@ def _validate_source_clause_ids(
             raise DescriptorCheckError(
                 "由来条文IDが正本に実在しない: "
                 f"stage2ExternalConstraints: {clause_id}"
+            )
+
+    stat_dependencies = descriptor.get("statFlagDerivationDependencies")
+    if isinstance(stat_dependencies, dict):
+        clause_id = stat_dependencies.get("sourceClauseId")
+        if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+            raise DescriptorCheckError(
+                "由来条文IDが正本に実在しない: "
+                f"statFlagDerivationDependencies: {clause_id}"
             )
 
     projection_rules = descriptor.get("projectionRules")
@@ -771,6 +831,52 @@ def _validate_stage2_external_constraints(descriptor: Mapping[str, Any]) -> None
         raise DescriptorCheckError("段階2外部制約の解決時点が一致しない")
     if declaration.get("axisCombinationScope") != "all-state-transition-axes":
         raise DescriptorCheckError("段階2へ委任した軸間組合せ規則の対象が全状態遷移軸でない")
+
+
+def _validate_stat_flag_derivation_dependencies(
+    descriptor: Mapping[str, Any],
+) -> None:
+    """XC-13が参照する入力軸と規範行列をexact-setで検証する。"""
+    declaration = descriptor.get("statFlagDerivationDependencies")
+    if not isinstance(declaration, dict):
+        raise DescriptorCheckError("statFlagDerivationDependenciesがobjectでない")
+    if declaration.get("sourceClauseId") != "req:XC-13":
+        raise DescriptorCheckError("成績フラグ導出依存がXC-13を参照していない")
+
+    axis_ids_value = declaration.get("axisIds")
+    if not isinstance(axis_ids_value, list) or not all(
+        isinstance(axis_id, str) for axis_id in axis_ids_value
+    ):
+        raise DescriptorCheckError("成績フラグ導出のaxisIdsが文字列配列でない")
+    axis_ids = frozenset(axis_ids_value)
+    if axis_ids != EXPECTED_STAT_FLAG_DERIVATION_AXIS_IDS:
+        raise DescriptorCheckError(
+            "XC-13の導出入力軸がexact-set不一致: "
+            f"expected={sorted(EXPECTED_STAT_FLAG_DERIVATION_AXIS_IDS)!r}; "
+            f"actual={sorted(axis_ids)!r}"
+        )
+
+    axes_value = descriptor.get("stateTransitionAxes")
+    if not isinstance(axes_value, list):
+        raise DescriptorCheckError("stateTransitionAxesが配列でない")
+    existing_axis_ids = {
+        axis.get("axisId")
+        for axis in axes_value
+        if isinstance(axis, dict)
+    }
+    missing_axis_ids = sorted(axis_ids - existing_axis_ids)
+    if missing_axis_ids:
+        raise DescriptorCheckError(
+            f"XC-13が参照する入力軸がdescriptorにない: {missing_axis_ids!r}"
+        )
+
+    row_fields_value = declaration.get("matrixRowFieldIds")
+    if not isinstance(row_fields_value, list) or frozenset(row_fields_value) != (
+        EXPECTED_STAT_FLAG_DERIVATION_ROW_FIELDS
+    ):
+        raise DescriptorCheckError("XC-13の導出元規範行列がexact-set不一致")
+    if declaration.get("missingOrAmbiguousAction") != "fail":
+        raise DescriptorCheckError("XC-13の導出入力欠落・曖昧時の動作がfailでない")
 
 
 def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
@@ -1232,6 +1338,7 @@ def validate_descriptor_document(
     _validate_instance(descriptor, schema, schema, "$")
     _walk_for_stage1_external_references(descriptor)
     _validate_source_clause_ids(descriptor, source_clause_ids)
+    _validate_stat_flag_derivation_dependencies(descriptor)
     _validate_structured_input_axes(descriptor)
     _validate_stage2_external_constraints(descriptor)
     _validate_fr040_conditionals(descriptor)

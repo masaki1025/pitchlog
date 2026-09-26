@@ -208,9 +208,17 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "event.operationKind": ("req:4.0-4", "finite-enumerable"),
         "event.operationPayload": ("adr:D-8", "boundary-partition"),
         "event.perPitch.kind": ("req:E-1", "finite-enumerable"),
+        "event.perPitch.pitchEventKind": (
+            "req:4.0-2",
+            "finite-enumerable",
+        ),
         "event.perPitch.resultId": ("req:D-4", "finite-enumerable"),
         "event.perPitch.runnerEventPayload": (
             "req:FR-004",
+            "boundary-partition",
+        ),
+        "event.perPitch.runnerAdvanceOverridesByRunner": (
+            "req:FR-003",
             "boundary-partition",
         ),
         "event.perPitch.thirdOutTimingByRunner": (
@@ -218,6 +226,10 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
             "boundary-partition",
         ),
         "event.perPitch.interferenceRuling": (
+            "req:FR-004",
+            "boundary-partition",
+        ),
+        "event.perPitch.officialScoringPayload": (
             "req:FR-004",
             "boundary-partition",
         ),
@@ -249,6 +261,19 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         for source_id in axis.get("supportingClauseIds", [])
     )
     assert axes["event.perPitch.resultId"]["supportingClauseIds"] == ["req:4.0-3"]
+    assert axes["event.perPitch.pitchEventKind"]["values"] == [
+        "pitch-event",
+        "non-pitch-event",
+    ]
+    assert axes["event.perPitch.pitchEventKind"]["supportingClauseIds"] == [
+        "req:XC-13"
+    ]
+    assert axes["event.perPitch.runnerAdvanceOverridesByRunner"][
+        "supportingClauseIds"
+    ] == ["req:XC-13"]
+    assert axes["event.perPitch.officialScoringPayload"][
+        "supportingClauseIds"
+    ] == ["req:XC-13"]
     assert axes["event.perPitch.thirdOutTimingByRunner"]["supportingClauseIds"] == [
         "req:OUT3-01",
         "req:OUT3-02",
@@ -316,8 +341,10 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         not in {
             "event.operationPayload",
             "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
             "event.perPitch.thirdOutTimingByRunner",
             "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
             "event.perPitch.rbi.runnerContinuityByRunner",
             "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
         }
@@ -351,6 +378,12 @@ def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
     assert checker.coverage_obligation_count(
         axes["event.perPitch.rbi.wouldScoreWithoutErrorByRunner"]
     ) == 4
+    assert checker.coverage_obligation_count(
+        axes["event.perPitch.runnerAdvanceOverridesByRunner"]
+    ) == 6
+    assert checker.coverage_obligation_count(
+        axes["event.perPitch.officialScoringPayload"]
+    ) == 3
 
 
 def test_structured_inputs_separate_stage1_schema_from_stage2_capability() -> None:
@@ -385,6 +418,12 @@ def test_structured_inputs_separate_stage1_schema_from_stage2_capability() -> No
     assert "target-identity" in axes["event.perPitch.interferenceRuling"][
         "representationCapability"
     ]["dimensions"]
+    assert axes["event.perPitch.runnerAdvanceOverridesByRunner"][
+        "representationCapability"
+    ]["dimensions"] == ["runner-identity", "outcome", "destination"]
+    assert axes["event.perPitch.officialScoringPayload"][
+        "representationCapability"
+    ]["dimensions"] == ["error-count", "fielder-reference"]
 
 
 def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> None:
@@ -405,6 +444,60 @@ def test_payload_internal_constraints_are_explicitly_deferred_to_stage2() -> Non
     )
     assert declaration["sourceClauseId"] == "adr:D-11"
     assert declaration["axisCombinationScope"] == "all-state-transition-axes"
+
+
+def test_xc13_derivation_dependencies_are_declared_as_an_exact_set() -> None:
+    """XC-13の観測入力と規範行列を明示し、未宣言依存を残さない。"""
+    declaration = _descriptor()["statFlagDerivationDependencies"]
+
+    assert declaration["sourceClauseId"] == "req:XC-13"
+    assert set(declaration["axisIds"]) == (
+        checker.EXPECTED_STAT_FLAG_DERIVATION_AXIS_IDS
+    )
+    assert set(declaration["matrixRowFieldIds"]) == (
+        checker.EXPECTED_STAT_FLAG_DERIVATION_ROW_FIELDS
+    )
+    assert declaration["missingOrAmbiguousAction"] == "fail"
+
+
+@pytest.mark.parametrize(
+    "axis_id",
+    [
+        "event.perPitch.pitchEventKind",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
+        "event.perPitch.officialScoringPayload",
+    ],
+)
+def test_xc13_required_input_axis_removal_is_red(axis_id: str) -> None:
+    """XC-13の必須入力軸を実体から落としてdigestを合わせてもfailする。"""
+    descriptor = _descriptor()
+    descriptor["stateTransitionAxes"] = [
+        axis
+        for axis in descriptor["stateTransitionAxes"]
+        if axis["axisId"] != axis_id
+    ]
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="XC-13が参照する入力軸がdescriptorにない",
+    ):
+        _validate(descriptor)
+
+
+def test_xc13_dependency_declaration_cannot_omit_pitch_event_kind() -> None:
+    """投球有無の軸をXC-13の依存宣言だけから外す迂回を拒否する。"""
+    descriptor = _descriptor()
+    descriptor["statFlagDerivationDependencies"]["axisIds"].remove(
+        "event.perPitch.pitchEventKind"
+    )
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="XC-13の導出入力軸がexact-set不一致",
+    ):
+        _validate(descriptor)
 
 
 def test_stage2_string_policy_reconciliation_cannot_be_omitted() -> None:

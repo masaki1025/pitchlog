@@ -10,6 +10,7 @@
     "digest",
     "digestSpec",
     "stage2ExternalConstraints",
+    "statFlagDerivationDependencies",
     "stateTransitionAxes",
     "gameEndAxes",
     "gameEndCombinationRules",
@@ -35,6 +36,9 @@
     },
     "stage2ExternalConstraints": {
       "$ref": "#/$defs/stage2ExternalConstraints"
+    },
+    "statFlagDerivationDependencies": {
+      "$ref": "#/$defs/statFlagDerivationDependencies"
     },
     "stateTransitionAxes": {
       "type": "array",
@@ -180,6 +184,40 @@
         "reason": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "statFlagDerivationDependencies": {
+      "type": "object",
+      "required": [
+        "sourceClauseId",
+        "axisIds",
+        "matrixRowFieldIds",
+        "missingOrAmbiguousAction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "axisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "matrixRowFieldIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "missingOrAmbiguousAction": {
+          "const": "fail"
         }
       }
     },
@@ -411,8 +449,10 @@
           "enum": [
             "tagged-operation-payload",
             "runner-keyed-event-payload",
+            "runner-keyed-advance-override",
             "tagged-targeted-ruling",
-            "runner-keyed-observation"
+            "runner-keyed-observation",
+            "official-scoring-payload"
           ]
         },
         "dimensions": {

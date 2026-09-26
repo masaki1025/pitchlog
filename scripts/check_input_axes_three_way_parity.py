@@ -92,7 +92,7 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
         f"XC-{number:02d}": (
             "規範行の列間交差制約であり、単独の入力軸ではない"
         )
-        for number in range(1, 14)
+        for number in range(1, 13)
     },
 }
 
@@ -352,9 +352,15 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     except descriptor_checker.DescriptorCheckError as error:
         raise ThreeWayParityError(f"descriptorの自己検査に失敗した: {error}") from error
 
-    descriptor_supporting_clause_ids = collect_descriptor_supporting_clause_ids(
-        descriptor
+    descriptor_supporting_clause_ids = set(
+        collect_descriptor_supporting_clause_ids(descriptor)
     )
+    stat_dependencies = descriptor.get("statFlagDerivationDependencies")
+    if isinstance(stat_dependencies, dict):
+        source_clause_id = stat_dependencies.get("sourceClauseId")
+        if isinstance(source_clause_id, str):
+            descriptor_supporting_clause_ids.add(source_clause_id)
+    descriptor_supporting_clause_ids = frozenset(descriptor_supporting_clause_ids)
     covered_ids, excluded_ids = _validate_branch_coverage(
         branch_ids, descriptor_supporting_clause_ids
     )

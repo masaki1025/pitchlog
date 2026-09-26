@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:61b7b1fbf90a022cd417e711b75e6fd46bb642f75e771e13b317b95b7697a3fb",
+  "digest": "sha256:1d2db878dedb97010c9e480bfd805a4b9da40d0d45189bf601d805e85e6cd96f",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -18,7 +18,9 @@
     "payloadAxisIds": [
       "event.operationPayload",
       "event.perPitch.runnerEventPayload",
+      "event.perPitch.runnerAdvanceOverridesByRunner",
       "event.perPitch.interferenceRuling",
+      "event.perPitch.officialScoringPayload",
       "event.perPitch.rbi.runnerContinuityByRunner",
       "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
     ],
@@ -38,6 +40,34 @@
       "negative-fixtures"
     ],
     "reason": "ADR-003 D-11の既存委任条項を適用し、payload内部の一意性・参照整合・相反排除、状態遷移軸の軸間組合せ規則、およびD-8の文字列規定とFR-015の任意選手名との整合は、ベクタと検査基盤を実機で整備する段階2で確定する"
+  },
+  "statFlagDerivationDependencies": {
+    "sourceClauseId": "req:XC-13",
+    "axisIds": [
+      "state.half",
+      "state.outs",
+      "state.runners",
+      "state.score",
+      "event.perPitch.kind",
+      "event.perPitch.pitchEventKind",
+      "event.perPitch.resultId",
+      "event.perPitch.runnerEventPayload",
+      "event.perPitch.runnerAdvanceOverridesByRunner",
+      "event.perPitch.thirdOutTimingByRunner",
+      "event.perPitch.interferenceRuling",
+      "event.perPitch.officialScoringPayload",
+      "event.perPitch.rbi.doublePlayRelayError",
+      "event.perPitch.rbi.runnerContinuityByRunner",
+      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+    ],
+    "matrixRowFieldIds": [
+      "precondition",
+      "plateAppearanceEnded",
+      "batterDestination",
+      "runnerDefaultAdvance",
+      "outEffect"
+    ],
+    "missingOrAmbiguousAction": "fail"
   },
   "stateTransitionAxes": [
     {
@@ -270,6 +300,18 @@
       ]
     },
     {
+      "axisId": "event.perPitch.pitchEventKind",
+      "sourceClauseId": "req:4.0-2",
+      "supportingClauseIds": [
+        "req:XC-13"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "pitch-event",
+        "non-pitch-event"
+      ]
+    },
+    {
       "axisId": "event.perPitch.resultId",
       "sourceClauseId": "req:D-4",
       "supportingClauseIds": [
@@ -341,6 +383,35 @@
       }
     },
     {
+      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:XC-13"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-applied",
+        "single-runner-stop",
+        "single-runner-out",
+        "single-runner-destination-base",
+        "single-runner-destination-home",
+        "multiple-runners-mixed"
+      ],
+      "representationCapability": {
+        "kind": "runner-keyed-advance-override",
+        "dimensions": [
+          "runner-identity",
+          "outcome",
+          "destination"
+        ],
+        "variantTags": [
+          "not-applied",
+          "overridden"
+        ],
+        "description": "打撃結果または特殊プレイの既定進塁を、変更した走者ごとの停止・アウト・実到達塁で上書きできる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
       "axisId": "event.perPitch.thirdOutTimingByRunner",
       "sourceClauseId": "req:FR-003",
       "supportingClauseIds": [
@@ -407,6 +478,31 @@
           "offensive-interference"
         ],
         "description": "妨害種別ごとに採用結果と対象別の授与塁・アウト対象・帰塁先を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.officialScoringPayload",
+      "sourceClauseId": "req:FR-004",
+      "supportingClauseIds": [
+        "req:XC-13"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "no-error",
+        "single-error",
+        "multiple-errors"
+      ],
+      "representationCapability": {
+        "kind": "official-scoring-payload",
+        "dimensions": [
+          "error-count",
+          "fielder-reference"
+        ],
+        "variantTags": [
+          "no-error",
+          "error-recorded"
+        ],
+        "description": "結果IDとは独立に、公式記録として採用した失策の件数と帰属野手を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
       }
     },
     {
@@ -733,6 +829,7 @@
         "state.gameEnded",
         "event.operationKind",
         "event.perPitch.kind",
+        "event.perPitch.pitchEventKind",
         "event.perPitch.resultId",
         "event.perPitch.rbi.doublePlayRelayError"
       ],
@@ -820,7 +917,9 @@
       "targetIds": [
         "event.operationPayload",
         "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
         "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
         "event.perPitch.rbi.runnerContinuityByRunner",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
       ],

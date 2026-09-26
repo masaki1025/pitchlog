@@ -87,7 +87,7 @@ def test_repository_three_way_parity_is_green() -> None:
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
-    """65分岐を軸の支援対象37件と理由付き対象外28件へ漏れなく分ける。"""
+    """65分岐を軸の支援対象38件と理由付き対象外27件へ漏れなく分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
     expected_covered = {
         *(f"COLD-{number:02d}" for number in range(1, 10)),
@@ -96,12 +96,13 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         *(f"OUT3-{number:02d}" for number in range(1, 6)),
         *(f"INT-{number:02d}" for number in range(1, 8)),
         *(f"RBI-{number:02d}" for number in range(2, 6)),
+        "XC-13",
     }
 
     assert len(report.requirement_branch_ids) == 65
     assert report.covered_branch_ids == expected_covered
-    assert len(report.covered_branch_ids) == 37
-    assert len(report.excluded_branch_ids) == 28
+    assert len(report.covered_branch_ids) == 38
+    assert len(report.excluded_branch_ids) == 27
     assert {f"req:{item}" for item in report.covered_branch_ids} <= (
         report.descriptor_supporting_clause_ids
     )
@@ -284,5 +285,25 @@ def test_observation_branch_reference_removal_is_red_after_digest_recalculation(
     with pytest.raises(
         checker.ThreeWayParityError,
         match=rf"descriptorの軸から参照されない必須分岐ID.*{branch_id}",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_xc13_input_dependency_omission_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """XC-13の投球有無入力だけを宣言から落としてdigestを合わせても拒否する。"""
+    root = _copy_fixture_root(tmp_path)
+
+    def mutate(descriptor: dict[str, Any]) -> None:
+        descriptor["statFlagDerivationDependencies"]["axisIds"].remove(
+            "event.perPitch.pitchEventKind"
+        )
+
+    _rewrite_descriptor(root, mutate)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match=r"XC-13の導出入力軸がexact-set不一致",
     ):
         checker.validate_three_way_parity(root)
