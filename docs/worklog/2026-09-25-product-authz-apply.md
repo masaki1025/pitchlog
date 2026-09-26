@@ -57,3 +57,10 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 - #80 は 7C を取り込み v2 へ適合済み・7 周目の敵対レビュー中。マージできたら 424 へ一報の予定。**識別値は develop 15 → #80 が 16 → A2 が 17** で先方と一致
 - **検査器を単独ファイルとして読むと `ModuleNotFoundError`**(7C で `frozen_history.py` を import するため)。A2 は検査器に触れず前版比較もしないので直接は当たらない。A1 の `test_authz_product_staging.py` は `scripts/` を丸ごと写す形へ直してある
 - **孤児 snapshot に注意**: 記録を作り直すと、前の試行の snapshot が参照を失い、追記のみの検査(`_validate_snapshot_append_only`)のせいで回収できない(431 で 29 件・約 1MB)。→ **ステップ 2 の snapshot と記録は、承認が取れて内容が固まってから 1 回だけ書く**。`change.before` と `change.after` の snapshot はどちらも HEAD 側で解決されるので、**記録と同じコミットで両方追記する**。**ステップ 2 の後に `base-allowlist.json` を動かす他の PR が develop に入ると、rebase で記録を作り直すことになる** — その時点でマージ順を人間に確認する
+
+## 440 の申し送り(2026-09-26・448master 経由)— ステップ 2 に効く
+
+- 440 受理後の識別値: base-allowlist 16(authority)/ cache-invalidation 4 / db-api-inventory 6 / negative-fixtures 8 / repository-contract 5 / runtime-authz-contract 4 / tenant-context-allowlist 7。**440 は 7 資産すべてを上げた**(射影が動いた資産は識別値の更新が要る — 検査器の実測)。マージ順の想定は **440 → 442 → 448**
+- **未確定(ステップ 2 の着手時に実測で決める)**: 440 で 7 資産が動いたのは、7 資産が共有する `external_files`(検査器)を 440 が変えたためと読める。**A2 が変えるのは `base-allowlist.json` の `allowed_symbols` だけで外部ファイルに触れない**ので、射影が動くのは `base-allowlist.json` だけの可能性がある。**検査器を走らせて、識別値の更新が要る資産の集合を実測で確定する**
+- **7 資産すべてが要る場合は計画の改訂が要る**: 識別値を写した配布モジュール 3 つ(`backend/src/pitchlog/repositories/tenant_context_contract.py`・`repositories/repository_contract.py`・`authz/runtime_contract.py` — revision と source_digest の完全一致が必要)も更新が要り、計画 4 節の不変条件「`runtime_contract.py` の差分 0 行」とステップ 2 の「変える既存ファイル」に反する → **改訂して承認を取り直してから**進める
+- **CI でだけ落ちる型 2 つ**: ① 配布モジュールとの不同期は、リポジトリルートの pytest では collect されず(`No module named 'pitchlog'`)、**`backend/` で回さないと見えない** ② 合成リポジトリへ `check_repository` を呼ぶ試験が `GITHUB_EVENT_PATH` などを消していないと、**CI では PR 受理モードに入って落ちる**(再現: `GITHUB_EVENT_PATH=<合成 event> GITHUB_WORKSPACE=<repo> GITHUB_REPOSITORY=masaki1025/pitchlog GITHUB_BASE_REF=develop GITHUB_EVENT_NAME=pull_request uv run pytest …`)。440 はどちらも検査器と契約資産に触れず、試験の側だけで解いた(触ると受理記録の `after` がずれて書き直し → 孤児 snapshot)
