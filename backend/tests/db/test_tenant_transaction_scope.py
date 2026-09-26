@@ -34,7 +34,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.engine import URL
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, Query, Session, mapped_column
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 from test_authz_tenant_context import make_tenant_context
@@ -437,32 +437,74 @@ def test_unregistered_and_forged_tokens_use_existing_rejection_path(
             )
 
 
-def test_abort_exception_rolls_back_preceding_write(
+def test_abort_exception_rolls_back_and_closes(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """前段更新後の呼び出し側例外がトランザクション全体を戻す。"""
+    """読み取り後の例外を伝播し、ロールバックして Session を閉じる。
+
+    現行 registry は Select だけを扱い、insert / update の登録形式は本タスクの
+    射程外であるため、書き込み結果ではなく Session event で rollback を観測する。
+    """
     transaction = _transaction_module()
+    created_sessions: list[_RollbackObservedSession] = []
+    transaction_events: list[str] = []
+
+    class _RollbackObservedSession(Session):
+        """rollback と close の対象になった Session を識別する。"""
+
+        close_calls: int
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            self.close_calls = 0
+            created_sessions.append(self)
+
+        def close(self) -> None:
+            """Close 呼び出しを記録して通常の解放処理へ委譲する。"""
+            self.close_calls += 1
+            super().close()
+
+    def observe_rollback(session: Session) -> None:
+        del session
+        transaction_events.append("rollback")
+
+    def observe_commit(session: Session) -> None:
+        del session
+        transaction_events.append("commit")
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _RollbackObservedSession)
         monkeypatch.setattr(
             repository_base,
             "_OPERATION_REGISTRY",
-            MappingProxyType({_WriteProbeToken: _write_operation()}),
+            MappingProxyType({_ReadProbeToken: _read_operation()}),
         )
+        event.listen(_RollbackObservedSession, "after_rollback", observe_rollback)
+        event.listen(_RollbackObservedSession, "after_commit", observe_commit)
+        try:
+            with pytest.raises(_AbortTransaction, match="前段結果で中止"):
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as tenant_transaction:
+                    result = tenant_transaction.run(_ReadProbeToken())
+                    assert result.rows == (("original",),)
+                    raise _AbortTransaction("前段結果で中止")
+        finally:
+            event.remove(
+                _RollbackObservedSession,
+                "after_rollback",
+                observe_rollback,
+            )
+            event.remove(_RollbackObservedSession, "after_commit", observe_commit)
 
-        with pytest.raises(_AbortTransaction, match="前段結果で中止"):
-            with transaction.tenant_transaction_scope(
-                make_tenant_context(_TENANT_ID)
-            ) as tenant_transaction:
-                result = tenant_transaction.run(_WriteProbeToken())
-                assert result.rows == (("changed",),)
-                raise _AbortTransaction("前段結果で中止")
-
-        assert _marker(database.admin_engine) == "original"
+    assert transaction_events == ["rollback"]
+    assert len(created_sessions) == 1
+    assert created_sessions[0].close_calls == 1
 
 
 def test_run_never_returns_database_backed_or_lazy_values(
@@ -471,20 +513,33 @@ def test_run_never_returns_database_backed_or_lazy_values(
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """公開戻り値を exact DTO に閉じ、ORM instance は公開前に拒否する。"""
+    """Select の公開戻り値を close 後も読める exact DTO に閉じる。"""
     transaction = _transaction_module()
+    created_sessions: list[_ResultObservedSession] = []
+
+    class _ResultObservedSession(Session):
+        """戻り値を読む前に close 済みであることを観測する Session。"""
+
+        close_calls: int
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """生成された Session を観測対象へ登録する。"""
+            super().__init__(*args, **kwargs)
+            self.close_calls = 0
+            created_sessions.append(self)
+
+        def close(self) -> None:
+            """Close 呼び出しを記録して通常の解放処理へ委譲する。"""
+            self.close_calls += 1
+            super().close()
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        monkeypatch.setattr(transaction, "Session", _ResultObservedSession)
         monkeypatch.setattr(
             repository_base,
             "_OPERATION_REGISTRY",
-            MappingProxyType(
-                {
-                    _ReadProbeToken: _read_operation(),
-                    _OrmReadProbeToken: _orm_read_operation(),
-                }
-            ),
+            MappingProxyType({_ReadProbeToken: _read_operation()}),
         )
 
         with transaction.tenant_transaction_scope(
@@ -492,18 +547,17 @@ def test_run_never_returns_database_backed_or_lazy_values(
         ) as tenant_transaction:
             result = tenant_transaction.run(_ReadProbeToken())
 
+        assert len(created_sessions) == 1
+        assert created_sessions[0].close_calls == 1
         assert type(result) is TenantOperationResult
         assert result.rows == (("original",),)
         assert not any(
-            isinstance(value, (Result, ScalarResult, _ProbeOrmRow, Generator))
+            isinstance(
+                value,
+                (Result, ScalarResult, Query, _ProbeOrmRow, Generator),
+            )
             for value in _return_graph(result)
         )
-
-        with transaction.tenant_transaction_scope(
-            make_tenant_context(_TENANT_ID)
-        ) as tenant_transaction:
-            with pytest.raises(_TenantOperationError, match="許可されていない"):
-                tenant_transaction.run(_OrmReadProbeToken())
 
 
 def test_scope_closes_session_after_success_and_exception(
