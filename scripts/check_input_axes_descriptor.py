@@ -45,7 +45,8 @@ CLAUSE_HEADING_PATTERN = re.compile(
 APPENDIX_HEADING_PATTERN = re.compile(r"^##\s+付録(?P<letter>[A-Z]):")
 APPENDIX_ITEM_PATTERN = re.compile(r"^(?P<number>\d+)\.\s+")
 STABLE_TABLE_CLAUSE_PATTERN = re.compile(
-    r"^\s*\|\s*`(?P<clause_id>(?:COLD|DRAW|XMARK)-\d+)`\s*\|"
+    r"^\s*\|\s*`(?P<clause_id>"
+    r"(?:COLD|DRAW|XMARK|OUT3|ADV|INT|SO|RBI|XC)-\d+)`\s*\|"
 )
 EXPECTED_GAME_END_AXIS_FIELDS = {
     "gameEnd.regulationInnings": "regulationInnings",

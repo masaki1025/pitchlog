@@ -191,6 +191,14 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "event.perPitch.kind": ("E-1", "finite-enumerable"),
         "event.perPitch.resultId": ("D-4", "finite-enumerable"),
         "event.perPitch.runnerEventPayload": ("FR-004", "finite-enumerable"),
+        "event.perPitch.thirdOutTimingByRunner": (
+            "FR-003",
+            "boundary-partition",
+        ),
+        "event.perPitch.interferenceRuling": (
+            "FR-004",
+            "boundary-partition",
+        ),
         "history.depth": ("D-11", "boundary-partition"),
         "history.composition": ("D-11", "boundary-partition"),
         "history.scenarioLength": ("D-11", "boundary-partition"),
@@ -207,6 +215,36 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         for source_id in axis.get("supportingClauseIds", [])
     )
     assert axes["event.perPitch.resultId"]["supportingClauseIds"] == ["4.0-3"]
+    assert axes["event.perPitch.thirdOutTimingByRunner"]["supportingClauseIds"] == [
+        "OUT3-01",
+        "OUT3-02",
+        "OUT3-03",
+        "OUT3-04",
+        "OUT3-05",
+    ]
+    assert axes["event.perPitch.thirdOutTimingByRunner"]["boundaryValues"] == [
+        "not-required",
+        "home-before-third-out",
+        "not-before-third-out",
+    ]
+    assert axes["event.perPitch.interferenceRuling"]["supportingClauseIds"] == [
+        "INT-01",
+        "INT-02",
+        "INT-03",
+        "INT-04",
+        "INT-05",
+        "INT-06",
+        "INT-07",
+    ]
+    assert axes["event.perPitch.interferenceRuling"]["boundaryValues"] == [
+        "not-required",
+        "batting:penalty-award",
+        "batting:play-result-with-resultId",
+        "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "offensive-interference:runner-only-with-out-targets-and-return-bases",
+    ]
     assert axes["state.inning"]["boundaryValues"] == [
         1,
         "N-1",
@@ -239,6 +277,31 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         axis["classification"] == "finite-enumerable"
         for axis_id, axis in axes.items()
         if axis_id.startswith("event.")
+        and axis_id
+        not in {
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+        }
+    )
+
+
+def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
+    """条件付き観測入力も不在分岐を含めてcoverage座標を生成する。"""
+    axes = {
+        axis["axisId"]: axis for axis in _descriptor()["stateTransitionAxes"]
+    }
+
+    assert (
+        checker.coverage_obligation_count(
+            axes["event.perPitch.thirdOutTimingByRunner"]
+        )
+        == 3
+    )
+    assert (
+        checker.coverage_obligation_count(
+            axes["event.perPitch.interferenceRuling"]
+        )
+        == 7
     )
 
 

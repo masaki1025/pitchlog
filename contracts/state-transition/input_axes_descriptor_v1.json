@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:4449e150e4834f97548d4d3af393b3632851c9daa44fd3099572a4ad734a2e02",
+  "digest": "sha256:bb2b2953b3e520afbb9334b0da703540a1ed506865a497581679dcccc6910bb8",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -243,6 +243,46 @@
         "ボーク",
         "エラー",
         "複数走者の同時進塁"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.thirdOutTimingByRunner",
+      "sourceClauseId": "FR-003",
+      "supportingClauseIds": [
+        "OUT3-01",
+        "OUT3-02",
+        "OUT3-03",
+        "OUT3-04",
+        "OUT3-05"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "home-before-third-out",
+        "not-before-third-out"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.interferenceRuling",
+      "sourceClauseId": "FR-004",
+      "supportingClauseIds": [
+        "INT-01",
+        "INT-02",
+        "INT-03",
+        "INT-04",
+        "INT-05",
+        "INT-06",
+        "INT-07"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "batting:penalty-award",
+        "batting:play-result-with-resultId",
+        "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "offensive-interference:runner-only-with-out-targets-and-return-bases"
       ]
     },
     {
@@ -515,6 +555,8 @@
       "targetIds": [
         "state.inning",
         "state.score",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
         "history.depth",
         "history.composition",
         "history.scenarioLength"
