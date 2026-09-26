@@ -87,10 +87,10 @@ A1 design 6 節・7 節・8 節どおり。A2 で決めるのは次だけ:
 
 - `data-model.md` 12-8: TSK-424 系の行に、**A2 の範囲(適用器・カタログ検査・実 DB 試験・移行バッチ用ロールの資産・写像)を「使い捨てクラスタで確認済み・未発効」**として追記する。**「解消済み」にはしない**(実スキーマへの適用は TSK-344、ランタイム契約の切り替えは TSK-443)
 - 変更履歴に 1 行(版は上げない)・`docs/README.md` の索引の行
-- **data-model.md を変えると派生資産 2 か所の取り直しが機械的に要る**(A1 で確認・人間が承認した例外 — A1 plan.md 4 節): `contracts/authz/shared-preconditions.json` の `mapping_target.git_blob_digest`(`scripts/check_shared_preconditions.py:359-368`)と `contracts/db/schema-manifest.json` の `canonical_source.sha256`。**許す差分は両ファイルのこのフィールド各 1 行だけ**で、両 digest が更新後の `data-model.md` と一致すること。封印(`oracle-seal.lock.json`)と probe の意味内容は変えない
+- **data-model.md を変えると派生資産 2 か所の取り直しが機械的に要る**(A1 で確認・人間が承認した例外 — A1 plan.md 4 節): `contracts/authz/shared-preconditions.json` の `mapping_target.git_blob_digest`(`scripts/check_shared_preconditions.py` の digest 照合(`:365-369` — 2026-09-26 実測))と `contracts/db/schema-manifest.json` の `canonical_source.sha256`。**許す差分は両ファイルのこのフィールド各 1 行だけ**で、両 digest が更新後の `data-model.md` と一致すること。封印(`oracle-seal.lock.json`)と probe の意味内容は変えない
 - **3-2・12-4・12-6 は変えない**(A1 と同じ — TSK-382・TSK-445 の射程)
 
 ## 未解決・検討メモ
 
-- 7C の記録形式(5 節)— PR #78 のマージで確定する
+- ~~7C の記録形式(5 節)— PR #78 のマージで確定する~~ → **確定済み(2026-09-26)。[research.md](research.md) の追補が正。**
 - (解消)末端関数の転用 — 1 節で、受け取るものを閉じた指示だけにし、文の生成を末端の中に閉じ、参照を exact-set で固定した(計画レビュー 1 周目・2 周目 P0)
