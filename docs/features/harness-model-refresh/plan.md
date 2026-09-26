@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e793b75e68781a681aef2672934a736
 branch: feature/harness-model-refresh
 created: 2026-09-26
-計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -36,7 +36,7 @@ created: 2026-09-26
 - 既定 3 並列の変更(H-35 で維持が対応済み — research.md C-7 #10)/ effort 値の引き下げ(PO 指示事項 v0.8。モデル切替と別変数として移行後の計測で再判定 — 4 節の実測期間)/ Fast・Ultra の利用(利用枠を増やす・`exec` で指定不可)
 - `gpt-6-luna` の新規用途追加(機械的軽作業は 5.6-luna → 6-luna の ID 置換のみ)
 - 要件書・`requirements-draft-pitchlog.md` の編集(C-5)
-- **guard_paths に該当するスキルの編集**: `.claude/skills/pr/SKILL.md`・`plan/SKILL.md`(モデル名を含まないため変更不要)。`.claude/skills/finalize-doc/SKILL.md:15` の「ADR-001 どおり sol xhigh」は、**案 A では `gpt-6-sol` xhigh となり字義どおり整合するため触らない**(古い括弧書きの精密化は次に guard_paths を触る PR へ送る)。**案 B を採る場合のみ対象に戻し**、guard_paths として人間の逐行確認・PR の実施記録行を付ける(4 節の導出表)
+- **guard_paths に該当するスキルの編集**: `.claude/skills/pr/SKILL.md`(guard_paths — モデル名を含まないため変更不要。`plan/SKILL.md` は guard_paths ではないが、同じくモデル名を含まないため変更不要)。`.claude/skills/finalize-doc/SKILL.md:15` の「ADR-001 どおり sol xhigh」は、**案 A では `gpt-6-sol` xhigh となり字義どおり整合するため触らない**(古い括弧書きの精密化は次に guard_paths を触る PR へ送る)。**案 B を採る場合のみ対象に戻し**、guard_paths として人間の逐行確認・PR の実施記録行を付ける(4 節の導出表)
 - 使用量プロファイル集計の `scripts/` 化・`autoCompactWindow` の実測比較・調査前 `git fetch` の導線明文化(後続タスク候補 — research.md 末尾)
 - Codex CLI の更新そのもの(開発者の環境作業。**阻止条件 0** として人間が実施する — onboarding 1-6 のインストーラを再実行)
 
@@ -55,7 +55,7 @@ created: 2026-09-26
 
 ## 4. 実装方針
 
-- **重さ分類 = 通常** の根拠: 変更対象はハーネスのラッパー定数・設定・文書であり、コア領域 5 領域(設計書 6.3)の paths にも `guard_paths` にも該当しない(research.md A-4・C-7 #8。guard_paths に該当する `pr`・`plan` の SKILL.md は触らず、`finalize-doc` は案 B のときだけ逐行確認付きで触る — 2 節)。ただし typo 級の軽微でもない(ラッパーの機械適用値と正本 2 本の版繰り上げを伴う)
+- **重さ分類 = 通常** の根拠: 変更対象はハーネスのラッパー定数・設定・文書であり、コア領域 5 領域(設計書 6.3)の paths にも `guard_paths` にも該当しない(research.md A-4・C-7 #8。guard_paths に該当する `pr` の SKILL.md は触らず、`finalize-doc` は案 B のときだけ逐行確認付きで触る — 2 節)。ただし typo 級の軽微でもない(ラッパーの機械適用値と正本 2 本の版繰り上げを伴う)
 
 ### 阻止条件 0(コミットなし — ステップ 1 の前に人間 + Claude で確認)
 

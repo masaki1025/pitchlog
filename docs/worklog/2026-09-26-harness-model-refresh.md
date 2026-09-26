@@ -72,9 +72,16 @@ branch: feature/harness-model-refresh
 
 - frontmatter `計画レビュー周回` を 3 へ。レビュアの所見: 導出表・固定構文・案 B の伝播・ステップ 1 の単一コミット化・`—` 行の扱いは規範と実装に整合
 
+### 計画レビュー 4 周目(`review normal`・terra max・258K tok・判定 = **可決** P0×0 / P1×0 / P2×1)
+
+- P2 1 件を採用: 2 節・4 節で `plan/SKILL.md` を guard_paths 該当と書いていた誤りを訂正(該当は `pr`・`finalize-doc` のみ — `.claude/core-areas.json`)。反映を伴うため `計画レビュー周回` を 4 へ
+- 計画レビューの合計: 4 周・指摘 19 件(P0 5 / P1 12 / P2 2)・全件採用・不採用 0 件。Codex 消費(terra max)= 340K + 268K + 280K + 258K ≈ 1.15M トークン
+
 ## 決定
 
 ## 未決・次の一歩
 
-- 計画レビュー(`review normal`)→ 指摘反映 → PO 承認(判断事項 3 点の確定)→ /implement
+- **PO 承認待ち**: 計画書 4 節の判断事項 3 点(① 案 A / 案 B ② effort 据え置き ③ 主セッションの機構化)を確定し `承認: 済(日付・承認者)` へ
+- 承認後の前提作業(人間): Codex CLI を 0.157.x へ更新(阻止条件 0)
+- 承認後の順序: 阻止条件 0 の確認 → ステップ 1(2 正本の起案・単一コミット)→ /finalize-doc(現行ラッパー 5.6-sol xhigh)→ ステップ 2〜4 → /sync-docs → /pr
 - 未照合の典拠(openai.com・help.openai.com の 4 ページ)は CLI 更新後のカタログ実機確認で ID・effort を裏付ける
