@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
@@ -312,6 +313,94 @@ def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
         "DROP ROLE IF EXISTS pitchlog_owner" not in row.sql
         for row in unapply_statements
     )
+
+
+def test_generated_unapply_statements_use_structured_quoted_identifiers() -> None:
+    """取り外し全文は要素 ID を SQL に流さず全識別子を正しく引用する。"""
+    _, statements = product_provisioning._build_operation_statements(
+        ProductOperation.UNAPPLY
+    )
+    sql_texts = tuple(statement.sql for statement in statements)
+    assert sql_texts
+    assert all(
+        "FUNCTION:" not in sql_text and ":" not in sql_text for sql_text in sql_texts
+    )
+
+    trigger_function_grants = tuple(
+        sql_text
+        for sql_text in sql_texts
+        if sql_text.startswith("GRANT EXECUTE ON FUNCTION")
+    )
+    assert len(trigger_function_grants) == 37
+    trigger_function_pattern = re.compile(
+        r'^GRANT EXECUTE ON FUNCTION "public"\."[a-z0-9_]+"\(\) TO PUBLIC;$'
+    )
+    assert all(
+        trigger_function_pattern.fullmatch(sql_text) is not None
+        for sql_text in trigger_function_grants
+    )
+
+    assert (
+        'DROP FUNCTION IF EXISTS "authz_private".'
+        '"tenant_has_effective_membership"(uuid, boolean);' in sql_texts
+    )
+    assert 'DROP ROLE IF EXISTS "pitchlog_app";' in sql_texts
+    assert 'DROP SCHEMA IF EXISTS "authz_private";' in sql_texts
+    assert any(
+        'ALTER TABLE "public"."tenants" NO FORCE ROW LEVEL SECURITY;' in sql_text
+        for sql_text in sql_texts
+    )
+    assert (
+        'DROP POLICY IF EXISTS "pitchlog_app_self_tenant_row" '
+        'ON "public"."tenants";' in sql_texts
+    )
+    assert (
+        'REVOKE ALL PRIVILEGES ON TABLE "public"."team_records" '
+        'FROM "pitchlog_app";' in sql_texts
+    )
+    assert (
+        'REVOKE SELECT ("id") ON TABLE "public"."tenants" '
+        'FROM "pitchlog_shared_fn_owner";' in sql_texts
+    )
+    database_statements = tuple(
+        sql_text for sql_text in sql_texts if "ON DATABASE %I" in sql_text
+    )
+    assert len(database_statements) == 1
+    for role_id in (
+        "pitchlog_app",
+        "pitchlog_shared_fn_owner",
+        "pitchlog_management_fn_owner",
+    ):
+        assert f'"{role_id}"' in database_statements[0]
+
+
+def test_product_identifier_quoting_escapes_embedded_double_quotes() -> None:
+    """識別子引用は PostgreSQL の二重引用符規則に従う。"""
+    assert product_provisioning._quote_identifier('schema"name') == ('"schema""name"')
+
+
+def test_apply_and_unapply_sql_assembly_never_reads_element_id() -> None:
+    """適用・取り外しの SQL 組み立ては要素 ID の分解へ依存しない。"""
+    tree = _parse_source(_SOURCE_PATH.read_text(encoding="utf-8"))
+    assembly_functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name in {"_application_statements", "_unapplication_sql"}
+    }
+    assert set(assembly_functions) == {
+        "_application_statements",
+        "_unapplication_sql",
+    }
+    for function in assembly_functions.values():
+        element_id_reads = tuple(
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Attribute)
+            and isinstance(node.ctx, ast.Load)
+            and node.attr == "element_id"
+        )
+        assert element_id_reads == ()
 
 
 def test_public_apply_executes_the_canonical_generated_plan() -> None:

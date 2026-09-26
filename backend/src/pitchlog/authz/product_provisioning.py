@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -19,9 +20,6 @@ from pitchlog.authz.asset_spec import (
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
-_HELPER_FUNCTION_ID = (
-    "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
-)
 _IDENTITY_QUERY = """
 SELECT current_user::text, session_user::text, role.rolsuper
 FROM pg_catalog.pg_roles AS role
@@ -53,6 +51,15 @@ class _ProductStatement:
     sql: str
 
 
+@dataclass(frozen=True, slots=True)
+class _ProductElement:
+    """製品資産の構造化された 1 要素を保持する。"""
+
+    element_type: str
+    element_id: str
+    fields: dict[str, object]
+
+
 def apply_product_authz_ddl(connection: psycopg.Connection[Any]) -> None:
     """製品認可 DDL を正規資産の固定順序で適用する。"""
     _run_product_operation(connection, ProductOperation.APPLY)
@@ -63,7 +70,151 @@ def unapply_product_authz_ddl(connection: psycopg.Connection[Any]) -> None:
     _run_product_operation(connection, ProductOperation.UNAPPLY)
 
 
-def _element_group(statement: DDLStatement) -> str:
+def _load_product_elements() -> tuple[_ProductElement, ...]:
+    """正規の staged 資産から構造化された全要素を読む。"""
+    asset_path = _REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path
+    try:
+        with open(asset_path, encoding="utf-8") as asset_file:
+            asset = json.load(asset_file)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ProductProvisioningError(f"製品認可資産を読めない: {error}") from error
+    if not isinstance(asset, dict):
+        raise ProductProvisioningError("製品認可資産は JSON object が必要")
+
+    elements: list[_ProductElement] = []
+    for section in PRODUCT_SPEC.element_sections:
+        rows = asset[section.section_name] if section.section_name in asset else None
+        if not isinstance(rows, list) or not rows:
+            raise ProductProvisioningError(
+                f"製品認可資産の {section.section_name} は空でない配列が必要"
+            )
+        for index in range(len(rows)):
+            row = rows[index]
+            if not isinstance(row, dict):
+                raise ProductProvisioningError(
+                    f"製品認可資産の {section.section_name}[{index}] は object が必要"
+                )
+            element_id = row[section.id_field] if section.id_field in row else None
+            if not isinstance(element_id, str) or not element_id:
+                raise ProductProvisioningError(
+                    f"製品認可資産の {section.section_name}[{index}]."
+                    f"{section.id_field} は空でない文字列が必要"
+                )
+            if any(
+                element.element_type == section.element_type
+                and element.element_id == element_id
+                for element in elements
+            ):
+                raise ProductProvisioningError(
+                    f"製品認可資産の要素が重複している: "
+                    f"{section.element_type}:{element_id}"
+                )
+            elements.append(
+                _ProductElement(
+                    element_type=section.element_type,
+                    element_id=element_id,
+                    fields=row,
+                )
+            )
+    return tuple(elements)
+
+
+def _element_for_statement(
+    statement: DDLStatement,
+    elements: tuple[_ProductElement, ...],
+) -> _ProductElement:
+    """生成文に対応する構造化資産要素を一意に返す。"""
+    matches = tuple(
+        element
+        for element in elements
+        if element.element_type == statement.element_type
+        and element.element_id == statement.element_id
+    )
+    if len(matches) != 1:
+        raise ProductProvisioningError(
+            f"生成文の構造化資産要素を一意に取得できない: "
+            f"{statement.element_type}:{statement.element_id}"
+        )
+    return matches[0]
+
+
+def _element_text(element: _ProductElement, field_name: str) -> str:
+    """構造化資産要素から空でない文字列を返す。"""
+    value = element.fields[field_name] if field_name in element.fields else None
+    if not isinstance(value, str) or not value:
+        raise ProductProvisioningError(
+            f"製品認可資産の {element.element_type}:{element.element_id}."
+            f"{field_name} は空でない文字列が必要"
+        )
+    return value
+
+
+def _element_string(element: _ProductElement, field_name: str) -> str:
+    """構造化資産要素から空文字も許す文字列を返す。"""
+    value = element.fields[field_name] if field_name in element.fields else None
+    if not isinstance(value, str):
+        raise ProductProvisioningError(
+            f"製品認可資産の {element.element_type}:{element.element_id}."
+            f"{field_name} は文字列が必要"
+        )
+    return value
+
+
+def _quote_identifier(identifier: str) -> str:
+    """PostgreSQL の識別子を常に二重引用符で安全に引用する。"""
+    if not identifier or "\x00" in identifier:
+        raise ProductProvisioningError("SQL 識別子は空または NUL を含められない")
+    quoted = '"'
+    for character in identifier:
+        quoted += '""' if character == '"' else character
+    return f'{quoted}"'
+
+
+def _qualified_identifier(schema_name: str, object_name: str) -> str:
+    """Schema と object の識別子を完全修飾して引用する。"""
+    return f"{_quote_identifier(schema_name)}.{_quote_identifier(object_name)}"
+
+
+def _identifier_list(identifiers: tuple[str, ...]) -> str:
+    """空でない識別子列を引用済みのカンマ区切りへ変換する。"""
+    if not identifiers:
+        raise ProductProvisioningError("SQL 識別子列は空にできない")
+    rendered = ""
+    for identifier in identifiers:
+        separator = ", " if rendered else ""
+        rendered = f"{rendered}{separator}{_quote_identifier(identifier)}"
+    return rendered
+
+
+def _created_role_ids(elements: tuple[_ProductElement, ...]) -> tuple[str, ...]:
+    """製品 DDL が作成して取り外すロール ID を資産順に返す。"""
+    return tuple(
+        _element_text(element, "role_id")
+        for element in elements
+        if element.element_type == "role"
+        and _element_text(element, "creation") == "product_ddl"
+    )
+
+
+def _table_element(
+    elements: tuple[_ProductElement, ...],
+    table_id: str,
+) -> _ProductElement:
+    """表 ID に対応する構造化資産要素を一意に返す。"""
+    matches = tuple(
+        element
+        for element in elements
+        if element.element_type == "table"
+        and _element_text(element, "table_id") == table_id
+    )
+    if len(matches) != 1:
+        raise ProductProvisioningError(
+            f"製品認可資産の表を一意に取得できない: {table_id}"
+        )
+    return matches[0]
+
+
+def _element_group(statement: DDLStatement, element: _ProductElement) -> str:
     """生成文を適用手順資産の要素グループ名へ対応付ける。"""
     if statement.element_type == "role":
         return "roles"
@@ -72,11 +223,7 @@ def _element_group(statement: DDLStatement) -> str:
     if statement.element_type == "schema":
         return "schemas"
     if statement.element_type == "function":
-        return (
-            "functions:rls_helper"
-            if statement.element_id == _HELPER_FUNCTION_ID
-            else "functions:migration_trigger"
-        )
+        return f"functions:{_element_text(element, 'function_kind')}"
     if statement.element_type == "table":
         return "tables"
     if statement.element_type == "predicate":
@@ -95,9 +242,10 @@ def _element_group(statement: DDLStatement) -> str:
 def _application_sequence(
     statement: DDLStatement,
     steps: ProductApplicationSteps,
+    element: _ProductElement,
 ) -> int:
     """検証済みの適用手順資産から生成文の手順番号を得る。"""
-    element_group = _element_group(statement)
+    element_group = _element_group(statement, element)
     matches = tuple(
         step.sequence
         for step in steps.application_steps
@@ -113,38 +261,47 @@ def _application_sequence(
 def _application_statements(
     generated: tuple[DDLStatement, ...],
     steps: ProductApplicationSteps,
+    elements: tuple[_ProductElement, ...],
 ) -> tuple[_ProductStatement, ...]:
     """生成文を補助関数がポリシーより先になる順序へ並べる。"""
     statements: list[_ProductStatement] = []
     for statement in generated:
+        element = _element_for_statement(statement, elements)
         if statement.element_type == "predicate":
             continue
-        sequence = _application_sequence(statement, steps)
+        sequence = _application_sequence(statement, steps, element)
         sql_text = statement.sql
         if statement.element_type == "policy":
-            parts = statement.element_id.split(":", maxsplit=2)
-            if len(parts) != 3:
-                raise ProductProvisioningError(
-                    f"製品認可ポリシーの要素 ID が不正: {statement.element_id}"
-                )
+            table = _table_element(
+                elements,
+                _element_text(element, "table_id"),
+            )
+            qualified_table = _qualified_identifier(
+                _element_text(table, "schema_name"),
+                _element_text(table, "table_id"),
+            )
+            policy_name = _quote_identifier(
+                f"pitchlog_app_{_element_text(element, 'profile')}"
+            )
             sql_text = (
-                f"DROP POLICY IF EXISTS pitchlog_app_{parts[2]} "
-                f"ON public.{parts[1]};\n{sql_text}"
+                f"DROP POLICY IF EXISTS {policy_name} ON {qualified_table};\n{sql_text}"
             )
         statements.append(_ProductStatement(sequence=sequence, sql=sql_text))
     return tuple(sorted(statements, key=lambda statement: statement.sequence))
 
 
-def _database_unapplication_sql() -> str:
+def _database_unapplication_sql(product_role_ids: tuple[str, ...]) -> str:
     """現在の DB の ACL を migration 直後の形へ戻す文を返す。"""
-    return """
+    grantees = _identifier_list(product_role_ids)
+    revoke_statement = f"REVOKE ALL PRIVILEGES ON DATABASE %I FROM {grantees}"
+    return f"""
 DO $authz$
 DECLARE
-    database_name TEXT := pg_catalog.current_database();
+    database_name TEXT;
 BEGIN
+    SELECT pg_catalog.current_database() INTO database_name;
     EXECUTE pg_catalog.format(
-        'REVOKE ALL PRIVILEGES ON DATABASE %I FROM pitchlog_app, '
-        'pitchlog_shared_fn_owner, pitchlog_management_fn_owner',
+        $authz_statement${revoke_statement}$authz_statement$,
         database_name
     );
     EXECUTE pg_catalog.format(
@@ -158,60 +315,76 @@ $authz$;
 
 def _unapplication_sql(
     statement: DDLStatement,
+    element: _ProductElement,
+    elements: tuple[_ProductElement, ...],
     preserved_role_ids: tuple[str, ...],
 ) -> str | None:
     """正規の適用要素から対応する取り外し文を導く。"""
     if statement.element_type == "role":
-        if statement.element_id in preserved_role_ids:
+        role_id = _element_text(element, "role_id")
+        if role_id in preserved_role_ids:
             return None
-        return f"DROP ROLE IF EXISTS {statement.element_id};"
+        return f"DROP ROLE IF EXISTS {_quote_identifier(role_id)};"
     if statement.element_type == "database":
-        return _database_unapplication_sql()
+        return _database_unapplication_sql(_created_role_ids(elements))
     if statement.element_type == "schema":
-        if statement.element_id == "authz_private":
-            return "DROP SCHEMA IF EXISTS authz_private;"
-        if statement.element_id == "public":
-            return """
-REVOKE ALL PRIVILEGES ON SCHEMA public
-    FROM pitchlog_app, pitchlog_shared_fn_owner, pitchlog_management_fn_owner;
-GRANT USAGE ON SCHEMA public TO PUBLIC;
+        schema_name = _element_text(element, "schema_name")
+        quoted_schema = _quote_identifier(schema_name)
+        creation = _element_text(element, "creation")
+        if creation == "product_ddl":
+            return f"DROP SCHEMA IF EXISTS {quoted_schema};"
+        if creation == "existing":
+            grantees = _identifier_list(_created_role_ids(elements))
+            return f"""
+REVOKE ALL PRIVILEGES ON SCHEMA {quoted_schema}
+    FROM {grantees};
+GRANT USAGE ON SCHEMA {quoted_schema} TO PUBLIC;
 """
     if statement.element_type == "function":
-        identity = statement.element_id[len("FUNCTION:") :]
-        if statement.element_id == _HELPER_FUNCTION_ID:
+        qualified_function = _qualified_identifier(
+            _element_text(element, "schema_name"),
+            _element_text(element, "function_name"),
+        )
+        identity = f"{qualified_function}({_element_string(element, 'identity_args')})"
+        if _element_text(element, "function_kind") == "rls_helper":
             return f"DROP FUNCTION IF EXISTS {identity};"
         return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
     if statement.element_type == "table":
+        table = _qualified_identifier(
+            _element_text(element, "schema_name"),
+            _element_text(element, "table_id"),
+        )
         return f"""
-ALTER TABLE public.{statement.element_id} NO FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.{statement.element_id} DISABLE ROW LEVEL SECURITY;
+ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
 """
     if statement.element_type == "predicate":
         return None
     if statement.element_type == "policy":
-        parts = statement.element_id.split(":", maxsplit=2)
-        if len(parts) != 3:
-            raise ProductProvisioningError(
-                f"製品認可ポリシーの要素 ID が不正: {statement.element_id}"
-            )
-        return f"DROP POLICY IF EXISTS pitchlog_app_{parts[2]} ON public.{parts[1]};"
-    if statement.element_type == "acl_expectation":
-        parts = statement.element_id.split(":", maxsplit=2)
-        if len(parts) != 3:
-            raise ProductProvisioningError(
-                f"製品認可 ACL の要素 ID が不正: {statement.element_id}"
-            )
-        return f"REVOKE ALL PRIVILEGES ON TABLE public.{parts[1]} FROM {parts[2]};"
-    if statement.element_type == "column_acl_expectation":
-        parts = statement.element_id.split(":", maxsplit=4)
-        if len(parts) != 5:
-            raise ProductProvisioningError(
-                f"製品認可列 ACL の要素 ID が不正: {statement.element_id}"
-            )
-        return (
-            f"REVOKE SELECT ({parts[3]}) ON TABLE {parts[1]}.{parts[2]} "
-            f"FROM {parts[4]};"
+        table = _table_element(elements, _element_text(element, "table_id"))
+        policy_name = _quote_identifier(
+            f"pitchlog_app_{_element_text(element, 'profile')}"
         )
+        qualified_table = _qualified_identifier(
+            _element_text(table, "schema_name"),
+            _element_text(table, "table_id"),
+        )
+        return f"DROP POLICY IF EXISTS {policy_name} ON {qualified_table};"
+    if statement.element_type == "acl_expectation":
+        table = _qualified_identifier(
+            _element_text(element, "object_schema"),
+            _element_text(element, "object_id"),
+        )
+        grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
+        return f"REVOKE ALL PRIVILEGES ON TABLE {table} FROM {grantee};"
+    if statement.element_type == "column_acl_expectation":
+        table = _qualified_identifier(
+            _element_text(element, "object_schema"),
+            _element_text(element, "object_id"),
+        )
+        column = _quote_identifier(_element_text(element, "column_id"))
+        grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
+        return f"REVOKE SELECT ({column}) ON TABLE {table} FROM {grantee};"
     raise ProductProvisioningError(
         f"製品認可の取り外し手順へ対応しない要素種別: {statement.element_type}"
     )
@@ -220,12 +393,19 @@ ALTER TABLE public.{statement.element_id} DISABLE ROW LEVEL SECURITY;
 def _unapplication_statements(
     generated: tuple[DDLStatement, ...],
     steps: ProductApplicationSteps,
+    elements: tuple[_ProductElement, ...],
 ) -> tuple[_ProductStatement, ...]:
     """生成文からポリシーを補助関数より先に落とす逆順を作る。"""
     statements: list[_ProductStatement] = []
     for statement in reversed(generated):
-        application_sequence = _application_sequence(statement, steps)
-        sql_text = _unapplication_sql(statement, steps.preserved_role_ids)
+        element = _element_for_statement(statement, elements)
+        application_sequence = _application_sequence(statement, steps, element)
+        sql_text = _unapplication_sql(
+            statement,
+            element,
+            elements,
+            steps.preserved_role_ids,
+        )
         if sql_text is not None:
             statements.append(
                 _ProductStatement(sequence=8 - application_sequence, sql=sql_text)
@@ -239,10 +419,11 @@ def _build_operation_statements(
     """正規の置き場だけから手順と実行文を生成する。"""
     steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
     generated = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
+    elements = _load_product_elements()
     if operation is ProductOperation.APPLY:
-        statements = _application_statements(generated, steps)
+        statements = _application_statements(generated, steps, elements)
     elif operation is ProductOperation.UNAPPLY:
-        statements = _unapplication_statements(generated, steps)
+        statements = _unapplication_statements(generated, steps, elements)
     else:  # pragma: no cover - Enum の閉包を型検査にも明示する。
         raise ProductProvisioningError(f"未定義の製品認可操作: {operation!r}")
     if {statement.sequence for statement in statements} != set(range(1, 8)):
