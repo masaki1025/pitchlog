@@ -19,6 +19,13 @@ SCRIPT = REPOSITORY_ROOT / "scripts/frozen_archive.py"
 FROZEN_HISTORY_SCRIPT = REPOSITORY_ROOT / "scripts/frozen_history.py"
 AUTHORITY = REPOSITORY_ROOT / "contracts/tenant_boundary/base-allowlist.json"
 SNAPSHOT_ROOT = REPOSITORY_ROOT / "contracts/tenant_boundary/history-snapshots"
+CASE_RUNNER_SCRIPT = (
+    REPOSITORY_ROOT
+    / "tests"
+    / "fixtures"
+    / "frozen-archive-cases"
+    / "runner.py"
+)
 
 
 def _load_archive() -> ModuleType:
@@ -35,6 +42,23 @@ def _load_archive() -> ModuleType:
 
 
 archive = _load_archive()
+
+
+def _load_case_runner() -> ModuleType:
+    """ステップ6の合成 PR リポジトリ runner をロードする。"""
+    spec = importlib.util.spec_from_file_location(
+        "frozen_archive_fail_closed_case_runner",
+        CASE_RUNNER_SCRIPT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+case_runner = _load_case_runner()
+CASE_MANIFEST = case_runner.load_manifest()
 
 
 def _current_history() -> list[dict[str, Any]]:
@@ -555,3 +579,295 @@ def test_orphan_already_in_base_is_grandfathered_by_new_snapshot_invariant(
 
     assert comparison.base.orphan_count == 1
     assert comparison.head.orphan_count == 1
+
+
+PRODUCTION_FAIL_CLOSED_CASES = (
+    ("F1", "HEAD history-snapshots の件数が予算を超過"),
+    ("F2", "HEAD history-snapshots の総バイト数が予算を超過"),
+    ("F3", "HEAD の孤児 snapshot 件数が比較元から増加"),
+    ("F4", "HEAD の孤児 snapshot 総バイト数が比較元から増加"),
+    ("F5", "HEAD の新規 snapshot が履歴から参照されていない"),
+    ("F6", "snapshot_ref: sha256 と末尾セグメントが不一致"),
+    ("F7", ".sha256: SHA-256 が不正"),
+    ("F8", "snapshot_ref: snapshot を解決できない"),
+    ("F9", "missing=['snapshot_ref']"),
+    ("F10", "snapshot 参照抽出表と ASPECT_NAMES のキー集合が不一致"),
+    ("F11", "history-snapshots: 既存 snapshot を削除できない"),
+)
+
+
+def _prepare_green_production_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Any, ModuleType]:
+    """runner を流用して変更なしの二親 merge と PR event を作る。"""
+    prepared = case_runner.prepare_case(
+        CASE_MANIFEST.cases[0],
+        tmp_path,
+        REPOSITORY_ROOT,
+        CASE_MANIFEST,
+        monkeypatch,
+    )
+    helpers = case_runner._load_repository_helpers(REPOSITORY_ROOT)
+    return prepared, helpers
+
+
+def _run_production_checker(
+    checker: ModuleType,
+    repository: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[int, str, str]:
+    """本番 CLI から check_repository を実行して終了コードと出力を返す。"""
+    exit_code = checker.main(["--root", str(repository)])
+    captured = capsys.readouterr()
+    return exit_code, captured.out.strip(), captured.err.strip()
+
+
+def _promote_worktree_to_comparison_base(
+    prepared: Any,
+    helpers: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_id: str,
+) -> None:
+    """現在の変異を比較元にも含め、同じ内容の二親 merge を作り直す。"""
+    base_sha = helpers._commit_test_repository(
+        prepared.repository,
+        f"{failure_id} comparison base",
+    )
+    helpers._seal_pull_request_worktree(
+        prepared.repository,
+        base_sha,
+        monkeypatch,
+        prepared.event_path,
+        number=CASE_MANIFEST.pull_request_number,
+    )
+
+
+def _reseal_head_mutation(
+    prepared: Any,
+    helpers: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元を保ったまま現在の変異を PR head と二親 merge に封入する。"""
+    helpers._seal_pull_request_worktree(
+        prepared.repository,
+        prepared.base_sha,
+        monkeypatch,
+        prepared.event_path,
+        number=CASE_MANIFEST.pull_request_number,
+    )
+
+
+def _mutate_existing_v2_reference(
+    prepared: Any,
+    helpers: ModuleType,
+    failure_id: str,
+) -> None:
+    """既存 v2 記録の参照を F6〜F9 の指定形へ変異させる。"""
+    authority_path = prepared.repository / helpers.checker.DEFAULT_ALLOWLIST
+    authority = case_runner._read_json_object(authority_path)
+    record = case_runner._first_v2_record(authority)
+    snapshot = case_runner._external_snapshot_entry(record)
+    digest = case_runner._string(snapshot["sha256"], "snapshot.sha256")
+    prefix = helpers.checker.frozen_history.SNAPSHOT_REF_PREFIX
+    if failure_id == "F6":
+        snapshot["snapshot_ref"] = f"invalid-history-snapshots/{digest}"
+    elif failure_id == "F7":
+        invalid_digest = digest[:-1]
+        snapshot["sha256"] = invalid_digest
+        snapshot["snapshot_ref"] = f"{prefix}{invalid_digest}"
+    elif failure_id == "F8":
+        missing_digest = "0" * 64
+        assert not (
+            prepared.repository
+            / case_runner.HISTORY_SNAPSHOT_DIRECTORY
+            / missing_digest
+        ).exists()
+        snapshot["sha256"] = missing_digest
+        snapshot["snapshot_ref"] = f"{prefix}{missing_digest}"
+    else:
+        assert failure_id == "F9"
+        snapshot.pop("snapshot_ref")
+    helpers._write_contract_asset(authority_path, authority)
+
+
+def _install_metric_mutation(
+    checker: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_id: str,
+) -> None:
+    """F5 より後段の孤児量分岐へ比較元・HEAD の異なる測定値を渡す。"""
+    metrics_type = checker.frozen_archive.SnapshotArchiveMetrics
+    base = metrics_type(
+        snapshot_count=64,
+        snapshot_bytes=2_181_430,
+        orphan_count=29,
+        orphan_bytes=1_021_201,
+    )
+    head = metrics_type(
+        snapshot_count=64,
+        snapshot_bytes=2_181_430,
+        orphan_count=30 if failure_id == "F3" else 29,
+        orphan_bytes=1_021_201 if failure_id == "F3" else 1_021_202,
+    )
+    measured = iter((base, head))
+
+    def mutated_measure(
+        history: object,
+        snapshot_root: Path,
+        *,
+        location: str,
+    ) -> object:
+        """比較元と HEAD に独立した変異測定値を順番に返す。"""
+        del history, snapshot_root, location
+        return next(measured)
+
+    monkeypatch.setattr(
+        checker.frozen_archive,
+        "_measure_snapshot_archive",
+        mutated_measure,
+    )
+
+
+def _apply_production_failure_mutation(
+    failure_id: str,
+    prepared: Any,
+    helpers: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F1〜F11 の変異を合成リポジトリまたは本番検査部品へ適用する。"""
+    checker = helpers.checker
+    repository = prepared.repository
+    if failure_id == "F1":
+        case_runner._add_snapshot_count_case(
+            repository,
+            helpers,
+            checker.frozen_archive.SNAPSHOT_COUNT_LIMIT + 1,
+        )
+        _promote_worktree_to_comparison_base(
+            prepared,
+            helpers,
+            monkeypatch,
+            failure_id,
+        )
+    elif failure_id == "F2":
+        case_runner._add_snapshot_bytes_case(
+            repository,
+            helpers,
+            checker.frozen_archive.SNAPSHOT_BYTES_LIMIT + 1,
+        )
+        _promote_worktree_to_comparison_base(
+            prepared,
+            helpers,
+            monkeypatch,
+            failure_id,
+        )
+    elif failure_id in {"F3", "F4"}:
+        _install_metric_mutation(checker, monkeypatch, failure_id)
+    elif failure_id == "F5":
+        helpers._write_content_snapshot(repository, b"step 7 new orphan snapshot\n")
+        _reseal_head_mutation(prepared, helpers, monkeypatch)
+    elif failure_id in {"F6", "F7", "F8", "F9"}:
+        _mutate_existing_v2_reference(prepared, helpers, failure_id)
+        _promote_worktree_to_comparison_base(
+            prepared,
+            helpers,
+            monkeypatch,
+            failure_id,
+        )
+    elif failure_id == "F10":
+        mutated = dict(checker.frozen_archive.ASPECT_REFERENCE_KINDS)
+        mutated.pop("declaration")
+        monkeypatch.setattr(
+            checker.frozen_archive,
+            "ASPECT_REFERENCE_KINDS",
+            mutated,
+        )
+    else:
+        assert failure_id == "F11"
+        authority = case_runner._read_json_object(
+            repository / checker.DEFAULT_ALLOWLIST
+        )
+        history = authority["baseline_control"]["history"]
+        references = checker.frozen_archive.extract_referenced_snapshot_names(
+            history,
+            repository / case_runner.HISTORY_SNAPSHOT_DIRECTORY,
+        )
+        orphan = next(
+            path
+            for path in sorted(
+                (repository / case_runner.HISTORY_SNAPSHOT_DIRECTORY).iterdir()
+            )
+            if path.name not in references
+        )
+        orphan.unlink()
+        _reseal_head_mutation(prepared, helpers, monkeypatch)
+
+
+@pytest.mark.parametrize(
+    ("failure_id", "expected_error"),
+    PRODUCTION_FAIL_CLOSED_CASES,
+    ids=[failure_id.lower() for failure_id, _ in PRODUCTION_FAIL_CLOSED_CASES],
+)
+def test_production_check_repository_fails_closed_for_each_design_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    failure_id: str,
+    expected_error: str,
+) -> None:
+    """F1〜F11 を改変前 green から本番 PR 受理 CLI の識別可能な red にする。"""
+    assert {case_id for case_id, _ in PRODUCTION_FAIL_CLOSED_CASES} == {
+        f"F{index}" for index in range(1, 12)
+    }
+    prepared, helpers = _prepare_green_production_case(tmp_path, monkeypatch)
+
+    green_exit, green_stdout, green_stderr = _run_production_checker(
+        helpers.checker,
+        prepared.repository,
+        capsys,
+    )
+    assert green_exit == 0
+    assert green_stdout == "tenant-boundary bypass check: ok"
+    assert green_stderr == ""
+
+    _apply_production_failure_mutation(
+        failure_id,
+        prepared,
+        helpers,
+        monkeypatch,
+    )
+    red_exit, red_stdout, red_stderr = _run_production_checker(
+        helpers.checker,
+        prepared.repository,
+        capsys,
+    )
+
+    assert red_exit == 2
+    assert red_stdout == ""
+    assert expected_error in red_stderr
+
+    if failure_id == "F10":
+        classification_mutation = dict(
+            helpers.checker.frozen_archive.EXPECTED_ASPECT_REFERENCE_KINDS
+        )
+        classification_mutation["declaration"] = (
+            helpers.checker.frozen_archive.AspectReferenceKind.SNAPSHOT_ARRAY
+        )
+        monkeypatch.setattr(
+            helpers.checker.frozen_archive,
+            "ASPECT_REFERENCE_KINDS",
+            classification_mutation,
+        )
+        classification_exit, classification_stdout, classification_stderr = (
+            _run_production_checker(
+                helpers.checker,
+                prepared.repository,
+                capsys,
+            )
+        )
+        assert classification_exit == 2
+        assert classification_stdout == ""
+        assert "snapshot 参照抽出表の分類値が期待表と不一致" in (
+            classification_stderr
+        )
