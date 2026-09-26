@@ -78,6 +78,18 @@ AUTHZ_GUARD_PATH_ADDITIONS = (
     "tests/test_check_failure_injection_points.py",
     "tests/test_check_shared_preconditions.py",
     "tests/test_check_docs_status.py",
+    "scripts/check_frozen_baselines.py",
+    "scripts/frozen-baseline-scan-allowlist.json",
+    "scripts/frozen_baselines.py",
+    "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+    "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+    "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+    "tests/frozen_negatives/test_frozen_baseline_scan.py",
+    "tests/frozen_scan_fixtures.py",
+    "tests/test_frozen_baseline_acceptance_rules.py",
+    "tests/test_frozen_baseline_declarations.py",
+    "tests/test_frozen_negative_inventory.py",
+    "tests/test_frozen_scan_rules.py",
 )
 AUTHZ_BACKEND_TEST_PATTERN = "backend/tests/test_authz*.py"
 AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS = (
@@ -115,6 +127,7 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/check_tenant_boundary_bypass.py",
     ),
+    ("scripts/frozen_history.py", "scripts/frozen_history.py"),
     (
         "contracts/tenant_boundary/*",
         "contracts/tenant_boundary/nested/future.json",
@@ -127,6 +140,7 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "tests/test_check_tenant_boundary_bypass.py",
         "tests/test_check_tenant_boundary_bypass.py",
     ),
+    ("tests/test_frozen_history.py", "tests/test_frozen_history.py"),
 )
 TENANT_BOUNDARY_AREA_PATH_ADDITIONS = tuple(
     pattern for pattern, _ in TENANT_BOUNDARY_AREA_PATH_CASES

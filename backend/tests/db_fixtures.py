@@ -19,7 +19,8 @@ from db.environment_contract import load_expectations
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-from pitchlog.authz.ddl import DDL_ELEMENTS_PATH, DDLStatement, generate_authz_ddl
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
+from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -101,13 +102,18 @@ def _session_resource_registry(
         return registry
 
 
-def _load_ddl_asset() -> dict[str, object]:
+def _load_ddl_asset(
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> dict[str, object]:
     """DDL 要素資産を JSON object として読む。
+
+    Args:
+        spec: 読み取る認可資産の指定。
 
     Returns:
         認可 DDL 要素資産。
     """
-    asset_path = _REPOSITORY_ROOT / DDL_ELEMENTS_PATH
+    asset_path = _REPOSITORY_ROOT / spec.ddl_elements_path
     try:
         asset = json.loads(asset_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -202,13 +208,18 @@ def _dsn_identity(dsn: str) -> tuple[str, str]:
     return str(username), str(password)
 
 
-def _authz_login_role_ids() -> tuple[str, ...]:
+def _authz_login_role_ids(
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[str, ...]:
     """実接続行列へ入れる LOGIN ロール ID を資産から導出する。
+
+    Args:
+        spec: 読み取る認可資産の指定。
 
     Returns:
         資産順の実接続対象ロール ID。
     """
-    roles = _asset_rows(_load_ddl_asset(), "roles")
+    roles = _asset_rows(_load_ddl_asset(spec), "roles")
 
     role_ids: list[str] = []
     for role in roles:
@@ -227,17 +238,22 @@ def _authz_login_role_ids() -> tuple[str, ...]:
     return tuple(role_ids)
 
 
-def _authz_login_role_statements() -> tuple[DDLStatement, ...]:
+def _authz_login_role_statements(
+    spec: AuthzAssetSpec = PROBE_SPEC,
+) -> tuple[DDLStatement, ...]:
     """実接続対象とexact-set一致するrole SQLを生成器から得る。
+
+    Args:
+        spec: 読み取る認可資産の指定。
 
     Returns:
         資産順の実接続対象 role SQL。
     """
-    role_ids = _authz_login_role_ids()
+    role_ids = _authz_login_role_ids(spec)
     role_id_set = set(role_ids)
     statements = tuple(
         statement
-        for statement in generate_authz_ddl(_REPOSITORY_ROOT)
+        for statement in generate_authz_ddl(_REPOSITORY_ROOT, spec)
         if statement.element_type == "role" and statement.element_id in role_id_set
     )
     if tuple(statement.element_id for statement in statements) != role_ids:
@@ -629,8 +645,9 @@ def provisioned_catalog(
     Yields:
         本体 DB と定義 oracle 用参照 DB を適用済みにした構成。
     """
-    asset = _load_ddl_asset()
-    statements = generate_authz_ddl(_REPOSITORY_ROOT)
+    spec = PROBE_SPEC
+    asset = _load_ddl_asset(spec)
+    statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
     with disposable_postgres_cluster() as cluster:
         with psycopg.connect(cluster.admin_dsn) as admin:
             reference_database = f"{admin.info.dbname}_catalog_reference"
@@ -662,9 +679,13 @@ def provisioned_catalog(
                 psycopg.connect(reference_provisioner_dsn) as reference_provisioner,
             ):
                 # 参照 DB も ordered steps を完走し、一時 membership を閉じる。
-                apply_authz_ddl(reference_provisioner, _REPOSITORY_ROOT)
+                apply_authz_ddl(reference_provisioner, _REPOSITORY_ROOT, spec)
                 with psycopg.connect(provisioner_dsn) as provisioner:
-                    provisioning_result = apply_authz_ddl(provisioner, _REPOSITORY_ROOT)
+                    provisioning_result = apply_authz_ddl(
+                        provisioner,
+                        _REPOSITORY_ROOT,
+                        spec,
+                    )
                 yield ProvisionedCatalog(
                     cluster=cluster,
                     admin=admin,

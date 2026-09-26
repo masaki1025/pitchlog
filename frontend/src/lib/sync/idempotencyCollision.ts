@@ -1,6 +1,6 @@
 // この判定は docs/design/sync-protocol.md 4-5 の D5 再利用禁止範囲と衝突規則の写しである。
 // 射程は DI2・DI3・I2・I3、内容同一性の fail-closed 分類、B3b の分岐に限る。
-// DI5 は U-14 が未解決で、B3a は T9 の永続化を伴うため TSK-330 の射程とする。
+// DI5 は混在バッチの A5 を扱い、B3a が T9 の永続化を伴うため TSK-330 の射程とする。
 
 import { SYNC_EVENT_PATH, type SyncEventPath } from './eventFieldRules'
 import type { SyncEvent } from './syncEvent'

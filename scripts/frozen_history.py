@@ -1,0 +1,1993 @@
+"""凍結基準の版付き履歴を判別する。"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import json
+import os
+import re
+import stat
+import sys
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import date
+from enum import StrEnum
+from pathlib import Path
+from typing import Any
+
+ASPECT_NAMES = frozenset(
+    {
+        "declaration",
+        "movement_policy",
+        "external_snapshots",
+        "asset_snapshots",
+    }
+)
+REQUIRED_MOVEMENT_TRIGGERS = frozenset(
+    {
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+    }
+)
+SNAPSHOT_REF_PREFIX = "contracts/tenant_boundary/history-snapshots/"
+RESERVED_MARKER_TOKENS = frozenset(
+    {"PENDING", "TODO", "TBD", "未承認", "未定", "レビュー待ち"}
+)
+_RESERVED_MARKER_WITH_BOUNDARY_RE = re.compile(
+    rf"(?<![^\W_])(?:{('|'.join(re.escape(token) for token in sorted(RESERVED_MARKER_TOKENS)))})"
+    r"(?![^\W_])",
+    re.IGNORECASE,
+)
+_KNOWN_PROVISIONAL_VALUE_RE = re.compile(
+    r"未承認\(PR #[0-9]+ のレビュー待ち\)",
+)
+_V2_RESERVED_MARKER_EXCLUDED_FIELDS = {
+    # 専用形式と event 由来値との一致を別検査する機械 ID。
+    "acceptance_id": "owner/repository#number 形式の機械 ID",
+    # 資産パスと識別値の map であり、自然言語の記録欄ではない。
+    "new_baseline_identifiers": "資産別の機械識別値",
+    "previous_baseline_identifiers": "資産別の機械識別値",
+    # aspect は既知 enum、before/after は実内容と digest の保存領域。
+    "change.aspect": "既知 aspect enum",
+    "change.before": "比較元の実内容と content-addressed 参照",
+    "change.after": "HEAD の実内容と content-addressed 参照",
+}
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_ACCEPTANCE_ID_RE = re.compile(r"[^/#\s]+/[^/#\s]+#[1-9][0-9]*")
+_REPOSITORY_FULL_NAME_RE = re.compile(r"[^/#\s]+/[^/#\s]+")
+
+
+class ContractError(ValueError):
+    """凍結履歴契約の不整合を表す。"""
+
+
+@dataclass(frozen=True)
+class HistoryRecord:
+    """schema 版を確定した履歴 record を表す。
+
+    Attributes:
+        schema_version: record の schema 版。
+        value: JSON から読んだ record の生の値。
+    """
+
+    schema_version: int
+    value: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class V2Transition:
+    """v2 record と照合する受理前後の実内容を表す。
+
+    Attributes:
+        before: 比較元から得た受理前の実内容。
+        after: HEAD から得た受理後の実内容。
+        base_snapshot_root: 比較元の snapshot ディレクトリ。
+        head_snapshot_root: HEAD の snapshot ディレクトリ。
+    """
+
+    before: Mapping[str, Any]
+    after: Mapping[str, Any]
+    base_snapshot_root: Path
+    head_snapshot_root: Path
+
+
+@dataclass(frozen=True)
+class RoleSeparatedEvaluation:
+    """比較元の宣言を決定元として導出した遷移を表す。
+
+    Attributes:
+        targets: 比較元の宣言から得た検査対象。
+        transition: 比較元から before、HEAD から after を作った実遷移。
+        moved: 実遷移が基準移動を含むか。
+    """
+
+    targets: tuple[str, ...]
+    transition: V2Transition
+    moved: bool
+
+
+@dataclass(frozen=True)
+class FrozenAssetState:
+    """movement 判定に使う 1 資産の実状態を表す。
+
+    Attributes:
+        declaration_location: 基準宣言が置かれている安定した位置。
+        declaration: 当該位置にある基準宣言の実内容。
+        movement_policy: 当該資産が宣言する movement policy。
+        baseline_value: 識別宣言と分離した資産本文の基準値。
+        additional_trigger_observation: 下限外 trigger が観測する外部実体。
+    """
+
+    declaration_location: str
+    declaration: Mapping[str, Any]
+    movement_policy: Mapping[str, Any] | None = None
+    baseline_value: object = None
+    additional_trigger_observation: object = None
+
+
+@dataclass(frozen=True)
+class RepositoryMovementEvaluation:
+    """比較元と HEAD の資産集合から導出した movement を表す。
+
+    Attributes:
+        scanned_assets: 比較元側と HEAD 側の和集合として走査した資産名。
+        declared_triggers: 比較元が宣言した trigger。下限外の値も保持する。
+        triggered_tokens: 実状態の差分から発火した token。
+        affected_assets: 比較元が宣言した trigger により動いた資産。
+    """
+
+    scanned_assets: tuple[str, ...]
+    declared_triggers: frozenset[str]
+    triggered_tokens: frozenset[str]
+    affected_assets: tuple[str, ...]
+
+    @property
+    def moved(self) -> bool:
+        """実状態に movement があるかを返す。"""
+        return bool(self.triggered_tokens)
+
+
+@dataclass(frozen=True)
+class _RepositoryComponent:
+    """単一資産から抽出した repository 履歴評価用の宣言を表す。"""
+
+    declaration: Mapping[str, Any]
+    movement_policy: Mapping[str, Any]
+    external_files: tuple[str, ...]
+    history: list[object]
+    current_identifiers: tuple[str, ...]
+    identity_scheme: str
+
+
+class EvaluationMode(StrEnum):
+    """凍結履歴の評価モードを表す。"""
+
+    INVARIANT = "invariant"
+    PR_ACCEPTANCE = "pr_acceptance"
+
+
+@dataclass(frozen=True)
+class PullRequestEvent:
+    """PR 受理モードに必要な GitHub event 情報を表す。"""
+
+    repository_full_name: str
+    number: int
+    base_ref: str
+    base_sha: str
+    head_sha: str
+
+    @property
+    def acceptance_id(self) -> str:
+        """event から安定した受理 ID を導出する。"""
+        return derive_acceptance_id(self.repository_full_name, self.number)
+
+
+@dataclass(frozen=True)
+class EvaluationContext:
+    """環境から強制した評価モードと PR event を表す。"""
+
+    mode: EvaluationMode
+    pull_request: PullRequestEvent | None
+
+
+def parse_history(
+    base_history: object,
+    head_history: object,
+    *,
+    v2_transitions: Sequence[V2Transition] = (),
+    location: str = "baseline_control.history",
+) -> tuple[HistoryRecord, ...]:
+    """比較元 prefix を保護し、HEAD の履歴 record の版を確定する。
+
+    比較元の履歴はその時点の信頼根として扱い、HEAD の同じ位置にある生 JSON
+    値との同一性だけを検査する。比較元 prefix より後ろでは、明示的な v2
+    record だけを受理し、対応する実内容と snapshot に照らして内容を検査する。
+
+    Args:
+        base_history: 比較元資産の history。
+        head_history: HEAD 資産の history。
+        v2_transitions: 追記された v2 record と同じ順序の実遷移。
+        location: エラー表示用の位置。
+
+    Returns:
+        schema 版を確定した HEAD の履歴 record。
+
+    Raises:
+        ContractError: 履歴、prefix、v2 の版または内容が不正な場合。
+    """
+    base_records = _history_array(base_history, f"比較元.{location}")
+    head_records = _history_array(head_history, f"HEAD.{location}")
+    prefix_length = len(base_records)
+
+    if len(head_records) < prefix_length or not _json_deep_equal(
+        head_records[:prefix_length], base_records
+    ):
+        raise ContractError(f"{location}: 比較元の履歴 prefix は変更・削除できない")
+
+    parsed: list[HistoryRecord] = []
+    for index, raw_record in enumerate(head_records[:prefix_length]):
+        record = _record_object(raw_record, f"{location}[{index}]")
+        parsed.append(HistoryRecord(schema_version=1, value=record))
+
+    appended_records: list[tuple[int, Mapping[str, Any]]] = []
+    for index, raw_record in enumerate(head_records[prefix_length:], start=prefix_length):
+        record_location = f"{location}[{index}]"
+        record = _record_object(raw_record, record_location)
+        if "record_schema_version" not in record:
+            raise ContractError(f"{record_location}: record_schema_version が必要")
+        version = record["record_schema_version"]
+        if type(version) is not int or version != 2:
+            raise ContractError(
+                f"{record_location}: prefix 以後は record_schema_version 2 が必要"
+            )
+        appended_records.append((index, record))
+
+    if len(v2_transitions) != len(appended_records):
+        raise ContractError(
+            f"{location}: v2 record と実遷移の件数が不一致: "
+            f"records={len(appended_records)}, transitions={len(v2_transitions)}"
+        )
+    for (index, record), transition in zip(
+        appended_records,
+        v2_transitions,
+        strict=True,
+    ):
+        _validate_v2_record(record, transition, f"{location}[{index}]")
+        parsed.append(HistoryRecord(schema_version=2, value=record))
+
+    return tuple(parsed)
+
+
+def evaluate_repository_movement(
+    base_assets: Mapping[str, FrozenAssetState],
+    head_assets: Mapping[str, FrozenAssetState],
+    base_movement_policy: Mapping[str, Any] | None = None,
+) -> RepositoryMovementEvaluation:
+    """比較元の trigger 宣言を決定元として資産の実状態を比較する。
+
+    走査対象は比較元側と HEAD 側の資産集合の和集合とする。比較元にあった
+    資産の削除は、その記録形式を決めずに不合格とする。HEAD に追加された
+    資産も構造を検査し、資産集合の movement として扱う。
+
+    Args:
+        base_assets: 比較元の資産名から実状態へのマップ。
+        head_assets: HEAD の資産名から実状態へのマップ。
+        base_movement_policy: 合成 fixture が資産状態に policy を持たない
+            場合だけ使う共通 movement policy。本番は資産ごとの
+            ``FrozenAssetState.movement_policy`` を使う。
+
+    Returns:
+        和集合の走査結果と実差分から導出した movement。
+
+    Raises:
+        ContractError: 比較元の trigger 宣言または資産の実状態が不正か、
+            比較元にあった資産が HEAD から削除された場合。
+    """
+    base_names = set(base_assets)
+    head_names = set(head_assets)
+    scanned_assets = tuple(sorted(base_names | head_names))
+    deleted_assets = sorted(base_names - head_names)
+    if deleted_assets:
+        raise ContractError(f"比較元に存在した資産を削除できない: {deleted_assets}")
+
+    declared_triggers: set[str] = set()
+    triggered_tokens: set[str] = set()
+    affected_assets: set[str] = set()
+    if base_names != head_names:
+        triggered_tokens.add("baseline_set")
+        affected_assets.update(head_names - base_names)
+
+    for asset_name in scanned_assets:
+        head_state = head_assets[asset_name]
+        head_policy = head_state.movement_policy or base_movement_policy
+        if head_policy is None:
+            raise ContractError(f"HEAD.{asset_name}.movement_policy: 宣言が必要")
+        _declared_movement_triggers(
+            head_policy,
+            f"HEAD.{asset_name}.movement_policy",
+        )
+        head_axes = _movement_axis_values(
+            head_state,
+            f"HEAD.{asset_name}",
+        )
+        if asset_name not in base_assets:
+            continue
+        base_state = base_assets[asset_name]
+        policy = base_state.movement_policy or base_movement_policy
+        if policy is None:
+            raise ContractError(f"比較元.{asset_name}.movement_policy: 宣言が必要")
+        asset_declared_triggers = _declared_movement_triggers(
+            policy,
+            f"比較元.{asset_name}.movement_policy",
+        )
+        declared_triggers.update(asset_declared_triggers)
+        base_axes = _movement_axis_values(
+            base_state,
+            f"比較元.{asset_name}",
+        )
+        asset_triggered_tokens = {
+            token
+            for token in REQUIRED_MOVEMENT_TRIGGERS - {"baseline_set"}
+            if not _json_deep_equal(base_axes[token], head_axes[token])
+        }
+        additional_triggers = asset_declared_triggers - REQUIRED_MOVEMENT_TRIGGERS
+        if additional_triggers and not _json_deep_equal(
+            base_state.additional_trigger_observation,
+            head_state.additional_trigger_observation,
+        ):
+            asset_triggered_tokens.update(additional_triggers)
+        if asset_triggered_tokens:
+            affected_assets.add(asset_name)
+            triggered_tokens.update(asset_triggered_tokens)
+
+    return RepositoryMovementEvaluation(
+        scanned_assets=scanned_assets,
+        declared_triggers=frozenset(declared_triggers),
+        triggered_tokens=frozenset(triggered_tokens),
+        affected_assets=tuple(sorted(affected_assets)),
+    )
+
+
+def validate_repository_histories(
+    base_assets: Mapping[str, object],
+    head_assets: Mapping[str, object],
+    *,
+    base_implementations: Mapping[str, bytes],
+    head_implementations: Mapping[str, bytes],
+    base_snapshot_root: Path,
+    head_snapshot_root: Path,
+    head_parents: Sequence[str] = (),
+    evaluation_context: EvaluationContext | None = None,
+) -> None:
+    """7 資産を単一検査として履歴・実遷移・authority と照合する。
+
+    Args:
+        base_assets: 比較元の資産名から JSON object へのマップ。
+        head_assets: HEAD の資産名から JSON object へのマップ。
+        base_implementations: 比較元の外部凍結対象の実内容。
+        head_implementations: HEAD の外部凍結対象の実内容。
+        base_snapshot_root: 比較元の snapshot ディレクトリ。
+        head_snapshot_root: HEAD の snapshot ディレクトリ。
+        head_parents: PR 受理対象 HEAD の親 SHA。
+        evaluation_context: 検査対象リポジトリに適用する評価コンテキスト。
+            ``None`` は環境変数から解決する。
+
+    Raises:
+        ContractError: 資産集合、authority、履歴、snapshot、実遷移、識別値、
+            PR 受理条件のいずれかが不正な場合。
+    """
+    base_names = set(base_assets)
+    head_names = set(head_assets)
+    authority = validate_history_authority(head_assets)
+    _validate_base_authority_migration(base_assets, authority)
+    base_components = _repository_components(
+        base_assets,
+        "比較元",
+        allow_undeclared_authority=True,
+    )
+    head_components = _repository_components(head_assets, "HEAD")
+    if not base_components:
+        raise ContractError("比較元の資産集合は空にできない")
+    movement_evaluation = evaluate_repository_movement(
+        _repository_movement_states(
+            base_assets,
+            base_components,
+            base_implementations,
+            "比較元",
+        ),
+        _repository_movement_states(
+            head_assets,
+            head_components,
+            head_implementations,
+            "HEAD",
+        ),
+    )
+    for asset_name in sorted(base_names):
+        base_targets = set(base_components[asset_name].external_files)
+        head_targets = set(head_components[asset_name].external_files)
+        removed_targets = sorted(base_targets - head_targets)
+        if removed_targets:
+            raise ContractError(
+                f"HEAD.{asset_name}: 比較元の外部凍結対象を縮小できない: "
+                f"{removed_targets}"
+            )
+    base_targets = tuple(
+        sorted(
+            {
+                target
+                for component in base_components.values()
+                for target in component.external_files
+            }
+        )
+    )
+    head_targets = tuple(
+        sorted(
+            {
+                target
+                for component in head_components.values()
+                for target in component.external_files
+            }
+        )
+    )
+    base_asset_snapshots, _ = _asset_projection_snapshots(
+        base_assets,
+        base_implementations,
+        "比較元",
+    )
+    head_asset_snapshots, _ = _asset_projection_snapshots(
+        head_assets,
+        head_implementations,
+        "HEAD",
+    )
+    before = {
+        "declaration": {
+            name: base_components[name].declaration for name in sorted(base_names)
+        },
+        "movement_policy": {
+            name: base_components[name].movement_policy
+            for name in sorted(base_names)
+        },
+        "external_snapshots": _implementation_snapshots(
+            base_targets,
+            base_implementations,
+            "比較元.implementations",
+        ),
+        "asset_snapshots": base_asset_snapshots,
+    }
+    after = {
+        "declaration": {
+            name: head_components[name].declaration for name in sorted(head_names)
+        },
+        "movement_policy": {
+            name: head_components[name].movement_policy
+            for name in sorted(head_names)
+        },
+        "external_snapshots": _implementation_snapshots(
+            head_targets,
+            head_implementations,
+            "HEAD.implementations",
+        ),
+        "asset_snapshots": head_asset_snapshots,
+    }
+    transition = V2Transition(
+        before=before,
+        after=after,
+        base_snapshot_root=base_snapshot_root,
+        head_snapshot_root=head_snapshot_root,
+    )
+    moved = movement_evaluation.moved
+    evaluation = RoleSeparatedEvaluation(
+        targets=base_targets,
+        transition=transition,
+        moved=moved,
+    )
+    affected_assets = movement_evaluation.affected_assets
+
+    context = evaluation_context or resolve_evaluation_context()
+    for asset_name in sorted(head_names):
+        base_history = (
+            base_components[asset_name].history
+            if asset_name in base_components
+            else []
+        )
+        head_history = head_components[asset_name].history
+        if asset_name == authority:
+            if context.mode is EvaluationMode.PR_ACCEPTANCE:
+                validate_current_history(
+                    base_history,
+                    head_history,
+                    evaluation=evaluation,
+                    head_parents=head_parents,
+                    location=f"{asset_name}.baseline_control.history",
+                    evaluation_context=context,
+                )
+            else:
+                _validate_invariant_history(
+                    base_history,
+                    head_history,
+                    base_snapshot_root,
+                    head_snapshot_root,
+                    f"{asset_name}.baseline_control.history",
+                )
+        else:
+            parsed = parse_history(
+                base_history,
+                head_history,
+                location=f"{asset_name}.baseline_control.history",
+            )
+            if any(record.schema_version == 2 for record in parsed):
+                raise ContractError(f"{asset_name}: v2 履歴は authority にだけ置ける")
+            if len(parsed) != len(_history_array(base_history, asset_name)):
+                raise ContractError(f"{asset_name}: authority 以外へ履歴を追記できない")
+
+    _validate_snapshot_append_only(
+        _read_snapshot_directory(base_snapshot_root, "比較元.snapshots"),
+        _read_snapshot_directory(head_snapshot_root, "HEAD.snapshots"),
+        "history-snapshots",
+    )
+    previous_identifiers = {
+        name: (
+            base_components[name].current_identifiers
+            if name in base_components
+            else ("NO_BASELINE",)
+        )
+        for name in sorted(head_components)
+    }
+    current_identifiers = _repository_identifiers(head_components)
+    _validate_repository_identifier_record(
+        base_components[authority].history,
+        head_components[authority].history,
+        previous_identifiers,
+        current_identifiers,
+        affected_assets=affected_assets,
+        head_components=head_components,
+        moved=moved,
+        require_transition=context.mode is EvaluationMode.PR_ACCEPTANCE,
+        location=f"{authority}.baseline_control.history",
+    )
+
+
+def validate_movement_record_requirement(
+    evaluation: RepositoryMovementEvaluation | RoleSeparatedEvaluation,
+    appended_record_count: int,
+    *,
+    location: str = "repository.history",
+) -> None:
+    """movement の有無と追記 record 件数が一致することを検査する。
+
+    Args:
+        evaluation: 資産の実状態から導出した movement。
+        appended_record_count: 比較元 prefix より後ろの record 件数。
+        location: エラー表示用の履歴位置。
+
+    Raises:
+        ContractError: movement に対して record が不足または過剰な場合。
+    """
+    _validate_movement_record_count(
+        evaluation.moved,
+        appended_record_count,
+        location,
+    )
+
+
+def _validate_movement_record_count(
+    moved: bool,
+    appended_record_count: int,
+    location: str,
+) -> None:
+    """movement と追記 record 件数の対応を一箇所で検査する。"""
+    if type(appended_record_count) is not int or appended_record_count < 0:
+        raise ContractError("追記 record 件数は 0 以上の整数が必要")
+    expected_count = 1 if moved else 0
+    if appended_record_count != expected_count:
+        raise ContractError(
+            f"{location}: movement と追記 record 件数が不一致: "
+            f"moved={moved}, records={appended_record_count}"
+        )
+
+
+def resolve_evaluation_context() -> EvaluationContext:
+    """環境変数から評価モードを強制し、必要なら PR event を読む。
+
+    `GITHUB_EVENT_NAME` が `pull_request` の場合は、event 情報の不足を理由に
+    不変量モードへ落とさず必ず例外にする。それ以外は不変量モードとする。
+
+    Returns:
+        強制された評価コンテキスト。
+
+    Raises:
+        ContractError: PR コンテキストで event 情報を完全に読めない場合。
+    """
+    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+        return EvaluationContext(EvaluationMode.INVARIANT, None)
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path is None or not event_path.strip():
+        raise ContractError("PR コンテキストでは GITHUB_EVENT_PATH が必要")
+    return EvaluationContext(
+        EvaluationMode.PR_ACCEPTANCE,
+        _read_pull_request_event(Path(event_path)),
+    )
+
+
+def validate_current_history(
+    base_history: object,
+    head_history: object,
+    *,
+    evaluation: RoleSeparatedEvaluation | None = None,
+    head_parents: Sequence[str] = (),
+    location: str = "baseline_control.history",
+    evaluation_context: EvaluationContext | None = None,
+) -> tuple[HistoryRecord, ...]:
+    """強制されたモードで履歴の不変量または PR 受理を検査する。
+
+    Args:
+        base_history: 比較元資産の history。
+        head_history: HEAD 資産の history。
+        evaluation: 役割分担に従って導出した実遷移。
+        head_parents: PR 受理対象 HEAD の親 SHA。第一親、第二親の順。
+        location: エラー表示用の位置。
+        evaluation_context: 検査対象リポジトリに適用する評価コンテキスト。
+            ``None`` は環境変数から解決する。
+
+    Returns:
+        検証済みの履歴 record。
+
+    Raises:
+        ContractError: PR event、merge 親、遷移、記録、または acceptance ID が
+            不正な場合。
+    """
+    context = evaluation_context or resolve_evaluation_context()
+    if context.mode is EvaluationMode.INVARIANT:
+        return parse_history(base_history, head_history, location=location)
+
+    event = context.pull_request
+    if event is None:
+        raise ContractError("PR 受理モードの event 情報が無い")
+    _validate_pull_request_merge(event, head_parents)
+    if evaluation is None:
+        raise ContractError("PR 受理モードでは実遷移の評価結果が必要")
+
+    base_records = _history_array(base_history, f"比較元.{location}")
+    head_records = _history_array(head_history, f"HEAD.{location}")
+    appended_count = len(head_records) - len(base_records)
+    validate_movement_record_requirement(
+        evaluation,
+        appended_count,
+        location=location,
+    )
+
+    transitions = (evaluation.transition,) if evaluation.moved else ()
+    records = parse_history(
+        base_history,
+        head_history,
+        v2_transitions=transitions,
+        location=location,
+    )
+    if evaluation.moved:
+        record = records[-1].value
+        actual_acceptance_id = _validate_acceptance_id(
+            record.get("acceptance_id"),
+            f"{location}[-1].acceptance_id",
+        )
+        if actual_acceptance_id != event.acceptance_id:
+            raise ContractError(
+                f"{location}[-1].acceptance_id: GitHub event からの導出値と不一致"
+            )
+    return records
+
+
+def derive_acceptance_id(repository_full_name: str, pull_request_number: int) -> str:
+    """リポジトリ名と PR 番号から受理 ID を導出する。
+
+    Args:
+        repository_full_name: `owner/repository` 形式のリポジトリ完全名。
+        pull_request_number: 正の PR 番号。
+
+    Returns:
+        `{repository.full_name}#{pull_request.number}` 形式の受理 ID。
+
+    Raises:
+        ContractError: リポジトリ名または PR 番号が不正な場合。
+    """
+    if _REPOSITORY_FULL_NAME_RE.fullmatch(repository_full_name) is None:
+        raise ContractError("repository.full_name は owner/repository 形式が必要")
+    if type(pull_request_number) is not int or pull_request_number <= 0:
+        raise ContractError("pull_request.number は正の整数が必要")
+    return f"{repository_full_name}#{pull_request_number}"
+
+
+def derive_aspects(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+) -> frozenset[str]:
+    """受理前後の実内容から変更された aspect を導出する。
+
+    Args:
+        before: 比較元から得た受理前の実内容。
+        after: HEAD から得た受理後の実内容。
+
+    Returns:
+        実際に変更された aspect の集合。
+
+    Raises:
+        ContractError: 実内容のキー集合が不正な場合。
+    """
+    _strict_keys(before, ASPECT_NAMES, "before")
+    _strict_keys(after, ASPECT_NAMES, "after")
+    return frozenset(
+        aspect
+        for aspect in ASPECT_NAMES
+        if not _json_deep_equal(before[aspect], after[aspect])
+    )
+
+
+def _declared_movement_triggers(
+    movement_policy: Mapping[str, Any],
+    location: str,
+) -> frozenset[str]:
+    """比較元宣言から trigger を取得し、普遍下限を検査する。"""
+    raw_triggers = _array(
+        movement_policy.get("movement_triggers"),
+        f"{location}.movement_triggers",
+    )
+    triggers = frozenset(
+        _nonempty_string(trigger, f"{location}.movement_triggers[]")
+        for trigger in raw_triggers
+    )
+    if len(triggers) != len(raw_triggers):
+        raise ContractError(f"{location}.movement_triggers: 値を重複できない")
+    missing = REQUIRED_MOVEMENT_TRIGGERS - triggers
+    if missing:
+        raise ContractError(
+            f"{location}.movement_triggers: 普遍下限が不足: {sorted(missing)}"
+        )
+    return triggers
+
+
+def validate_movement_triggers(
+    movement_policy: Mapping[str, Any],
+    location: str,
+) -> None:
+    """宣言されたtriggerが普遍下限だけを満たすことを検査する。
+
+    下限外のtokenは比較元宣言だけを決定元とし、この関数では列挙しない。
+
+    Args:
+        movement_policy: 資産が宣言したmovement policy。
+        location: エラー表示用の位置。
+
+    Raises:
+        ContractError: 重複、空値、または普遍下限の不足がある場合。
+    """
+    _declared_movement_triggers(movement_policy, location)
+
+
+def _movement_axis_values(
+    asset: FrozenAssetState,
+    location: str,
+) -> dict[str, object]:
+    """資産の実内容から普遍下限 5 軸の比較値を取り出す。"""
+    if not isinstance(asset, FrozenAssetState):
+        raise ContractError(f"{location}: FrozenAssetState が必要")
+    declaration_location = _nonempty_string(
+        asset.declaration_location,
+        f"{location}.declaration_location",
+    )
+    declaration = _mapping(asset.declaration, f"{location}.declaration")
+    identity = _mapping(
+        declaration.get("identity"),
+        f"{location}.declaration.identity",
+    )
+    current_identifiers = _nonempty_string_array(
+        identity.get("current_identifiers"),
+        f"{location}.declaration.identity.current_identifiers",
+    )
+    scheme = _nonempty_string(
+        identity.get("scheme"),
+        f"{location}.declaration.identity.scheme",
+    )
+    field = _nonempty_string(
+        identity.get("field"),
+        f"{location}.declaration.identity.field",
+    )
+    no_baseline_marker = _nonempty_string(
+        identity.get("no_baseline_marker"),
+        f"{location}.declaration.identity.no_baseline_marker",
+    )
+    projection = _mapping(
+        identity.get("frozen_projection"),
+        f"{location}.declaration.identity.frozen_projection",
+    )
+    external_files = tuple(
+        _nonempty_string(
+            path,
+            f"{location}.declaration.identity.frozen_projection.external_files[]",
+        )
+        for path in _array(
+            projection.get("external_files"),
+            f"{location}.declaration.identity.frozen_projection.external_files",
+        )
+    )
+    if len(external_files) != len(set(external_files)):
+        raise ContractError(
+            f"{location}.declaration.identity.frozen_projection.external_files: "
+            "値を重複できない"
+        )
+    return {
+        "baseline_value": (
+            current_identifiers,
+            asset.baseline_value,
+            declaration.get("history_authority"),
+            asset.movement_policy,
+        ),
+        "declaration_location": declaration_location,
+        "frozen_target_mapping": external_files,
+        "identity_granularity": (scheme, field),
+        "identifier_interpretation": no_baseline_marker,
+    }
+
+
+def _read_external_implementations(
+    repository_root: Path,
+    targets: Sequence[str],
+    location: str,
+) -> dict[str, bytes]:
+    """宣言された外部凍結対象をrepository root配下から解決する。"""
+    return {
+        target: read_repository_file(
+            repository_root,
+            target,
+            f"{location}.{target}",
+        )
+        for target in targets
+    }
+
+
+def _repository_relative_path(value: str, location: str) -> Path:
+    """正規化済みのrepository相対パスを取得する。"""
+    path = Path(value)
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.as_posix() != value
+        or "\\" in value
+        or any(ord(character) < 32 for character in value)
+    ):
+        raise ContractError(f"{location}: 正規化済みのrepository相対パスが必要")
+    return path
+
+
+def validate_repository_relative_path(value: str, location: str) -> Path:
+    """宣言値が正規化済みのrepository相対パスかを検査する。
+
+    Args:
+        value: 検査するパス宣言。
+        location: エラー表示用の位置。
+
+    Returns:
+        検証済みの相対パス。
+
+    Raises:
+        ContractError: 絶対パス、親参照、または非正規表現の場合。
+    """
+    return _repository_relative_path(value, location)
+
+
+def _repository_path_without_symlinks(
+    repository_root: Path,
+    relative_path: Path,
+    location: str,
+) -> Path:
+    """repository内の親要素と対象自身にsymlinkがないことを検査する。"""
+    if repository_root.is_symlink():
+        raise ContractError(f"{location}: repository rootをsymlinkにできない")
+    candidate = repository_root
+    for part in relative_path.parts:
+        candidate /= part
+        if candidate.is_symlink():
+            raise ContractError(f"{location}: symlinkを経由できない: {relative_path}")
+    return candidate
+
+
+def read_repository_file(
+    repository_root: Path,
+    relative_path: str,
+    location: str,
+) -> bytes:
+    """repository内の通常ファイルをsymlinkなしで読む。
+
+    Args:
+        repository_root: 解決の基準となるrepository root。
+        relative_path: 正規化済みrepository相対パス。
+        location: エラー表示用の位置。
+
+    Returns:
+        通常ファイルの生バイト列。
+
+    Raises:
+        ContractError: パスがroot外を指す、symlinkを経由する、または通常
+            ファイルとして読めない場合。
+    """
+    normalized = _repository_relative_path(relative_path, location)
+    candidate = _repository_path_without_symlinks(
+        repository_root,
+        normalized,
+        location,
+    )
+    try:
+        mode = candidate.stat().st_mode
+        if not stat.S_ISREG(mode):
+            raise ContractError(f"{location}: 通常ファイルが必要: {relative_path}")
+        return candidate.read_bytes()
+    except OSError as error:
+        raise ContractError(
+            f"{location}: ファイルを解決できない: {relative_path}: {error}"
+        ) from error
+
+
+def validate_repository_directory(
+    repository_root: Path,
+    relative_path: str,
+    location: str,
+) -> Path:
+    """repository内のsymlinkを含まないディレクトリを検査する。
+
+    Args:
+        repository_root: 解決の基準となるrepository root。
+        relative_path: 正規化済みrepository相対パス。
+        location: エラー表示用の位置。
+
+    Returns:
+        検証済みディレクトリのパス。
+
+    Raises:
+        ContractError: パス、symlink、またはファイル種別が不正な場合。
+    """
+    normalized = _repository_relative_path(relative_path, location)
+    candidate = _repository_path_without_symlinks(
+        repository_root,
+        normalized,
+        location,
+    )
+    try:
+        if not stat.S_ISDIR(candidate.stat().st_mode):
+            raise ContractError(f"{location}: ディレクトリが必要: {relative_path}")
+    except OSError as error:
+        raise ContractError(
+            f"{location}: ディレクトリを解決できない: {relative_path}: {error}"
+        ) from error
+    return candidate
+
+
+def _declared_target_paths(
+    declaration: Mapping[str, Any],
+    location: str,
+    *,
+    allow_empty: bool = False,
+) -> tuple[str, ...]:
+    """基準宣言から順序付き外部実装対象を取得する。"""
+    identity = _mapping(declaration.get("identity"), f"{location}.identity")
+    projection = _mapping(
+        identity.get("frozen_projection"),
+        f"{location}.identity.frozen_projection",
+    )
+    raw_targets = _array(
+        projection.get("external_files"),
+        f"{location}.identity.frozen_projection.external_files",
+    )
+    targets = tuple(
+        _nonempty_string(
+            item,
+            f"{location}.identity.frozen_projection.external_files[]",
+        )
+        for item in raw_targets
+    )
+    if not targets and not allow_empty:
+        raise ContractError(f"{location}: external_files は空にできない")
+    if len(targets) != len(set(targets)):
+        raise ContractError(f"{location}: external_files を重複できない")
+    return targets
+
+
+def _asset_baseline_value_content(
+    asset: Mapping[str, Any],
+    projection: Mapping[str, Any],
+    location: str,
+) -> bytes:
+    """資産本文の基準値を外部実体と分離して正規化する。"""
+    if projection.get("algorithm") != "sha256-canonical-json-and-external-files-v1":
+        raise ContractError(f"{location}: 未対応の凍結射影 algorithm")
+    if projection.get("included") != "all_top_level_fields":
+        raise ContractError(f"{location}: 未対応の凍結射影 included")
+    excluded_items = tuple(
+        _nonempty_string(item, f"{location}.frozen_projection.excluded[]")
+        for item in _array(
+            projection.get("excluded"),
+            f"{location}.frozen_projection.excluded",
+        )
+    )
+    if len(excluded_items) != len(set(excluded_items)):
+        raise ContractError(f"{location}: frozen_projection.excluded を重複できない")
+    excluded = set(excluded_items)
+    asset_projection = {
+        key: copy.deepcopy(value)
+        for key, value in asset.items()
+        if key not in excluded
+    }
+    return json.dumps(
+        asset_projection,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def frozen_projection_content(
+    asset: Mapping[str, Any],
+    implementations: Mapping[str, bytes],
+    *,
+    location: str = "asset",
+) -> bytes:
+    """資産宣言どおりの完全な凍結射影を正規化 JSON にする。
+
+    Args:
+        asset: ``baseline_control`` を持つ資産本体。
+        implementations: 外部凍結対象のパスから実内容へのマップ。
+        location: エラー表示用の位置。
+
+    Returns:
+        資産本体・基準宣言・外部実装digestを含む正規化JSONバイト列。
+
+    Raises:
+        ContractError: 射影宣言または外部実装が不正な場合。
+    """
+    control = _mapping(asset.get("baseline_control"), f"{location}.baseline_control")
+    identity = _mapping(
+        control.get("identity"),
+        f"{location}.baseline_control.identity",
+    )
+    movement_policy = _mapping(
+        control.get("movement_policy"),
+        f"{location}.baseline_control.movement_policy",
+    )
+    projection = _mapping(
+        identity.get("frozen_projection"),
+        f"{location}.baseline_control.identity.frozen_projection",
+    )
+    asset_projection = json.loads(
+        _asset_baseline_value_content(asset, projection, location)
+    )
+    identity_declaration = {
+        key: copy.deepcopy(value)
+        for key, value in identity.items()
+        if key != "current_identifiers"
+    }
+    external_files: list[dict[str, str]] = []
+    for path in sorted(
+        _declared_target_paths(
+            {"identity": identity},
+            f"{location}.declaration",
+            allow_empty=True,
+        )
+    ):
+        try:
+            source = implementations[path]
+        except KeyError as error:
+            raise ContractError(
+                f"{location}: 外部凍結対象を解決できない: {path}"
+            ) from error
+        if not isinstance(source, bytes):
+            raise ContractError(f"{location}: 外部凍結対象は bytes が必要: {path}")
+        external_files.append(
+            {"path": path, "sha256": hashlib.sha256(source).hexdigest()}
+        )
+    payload = {
+        "asset": asset_projection,
+        "baseline_declaration": {
+            "identity": identity_declaration,
+            "movement_policy": copy.deepcopy(dict(movement_policy)),
+        },
+        "external_files": external_files,
+    }
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _implementation_snapshots(
+    targets: Sequence[str],
+    implementations: Mapping[str, bytes],
+    location: str,
+) -> list[dict[str, str]]:
+    """決定済み対象集合について実装内容から snapshot 参照を導出する。"""
+    snapshots: list[dict[str, str]] = []
+    for path in targets:
+        try:
+            content = implementations[path]
+        except KeyError as error:
+            raise ContractError(f"{location}: 対象実装を解決できない: {path}") from error
+        if not isinstance(content, bytes):
+            raise ContractError(f"{location}: 実装内容は bytes が必要: {path}")
+        digest = hashlib.sha256(content).hexdigest()
+        snapshots.append(
+            {
+                "path": path,
+                "sha256": digest,
+                "snapshot_ref": f"{SNAPSHOT_REF_PREFIX}{digest}",
+            }
+        )
+    return snapshots
+
+
+def _asset_projection_snapshots(
+    assets: Mapping[str, object],
+    implementations: Mapping[str, bytes],
+    location: str,
+) -> tuple[list[dict[str, str]], dict[str, bytes]]:
+    """資産ごとの完全な凍結射影とsnapshot参照を導出する。"""
+    contents = {
+        asset_name: frozen_projection_content(
+            _mapping(raw_asset, f"{location}.{asset_name}"),
+            implementations,
+            location=f"{location}.{asset_name}",
+        )
+        for asset_name, raw_asset in sorted(assets.items())
+    }
+    return (
+        _implementation_snapshots(
+            tuple(sorted(contents)),
+            contents,
+            f"{location}.asset_snapshots",
+        ),
+        contents,
+    )
+
+
+def _read_pull_request_event(path: Path) -> PullRequestEvent:
+    """GitHub の pull_request event を fail-closed で読む。"""
+    try:
+        raw_event = json.loads(path.read_bytes())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ContractError(f"PR event を読めない: {path}: {error}") from error
+    event = _mapping(raw_event, "github_event")
+    repository = _mapping(event.get("repository"), "github_event.repository")
+    pull_request = _mapping(event.get("pull_request"), "github_event.pull_request")
+    base = _mapping(pull_request.get("base"), "github_event.pull_request.base")
+    head = _mapping(pull_request.get("head"), "github_event.pull_request.head")
+    repository_full_name = _nonempty_string(
+        repository.get("full_name"),
+        "github_event.repository.full_name",
+    )
+    number = pull_request.get("number")
+    # 導出関数へ渡す前にも bool を整数として受けない。
+    if type(number) is not int or number <= 0:
+        raise ContractError("github_event.pull_request.number: 正の整数が必要")
+    derive_acceptance_id(repository_full_name, number)
+    return PullRequestEvent(
+        repository_full_name=repository_full_name,
+        number=number,
+        base_ref=_nonempty_string(base.get("ref"), "github_event.pull_request.base.ref"),
+        base_sha=_nonempty_string(base.get("sha"), "github_event.pull_request.base.sha"),
+        head_sha=_nonempty_string(head.get("sha"), "github_event.pull_request.head.sha"),
+    )
+
+
+def _validate_pull_request_merge(
+    event: PullRequestEvent,
+    head_parents: Sequence[str],
+) -> None:
+    """PR 受理対象の base と二親 merge の形を検査する。"""
+    if event.base_ref != "develop":
+        raise ContractError("PR 受理モードでは base.ref == develop が必要")
+    if len(head_parents) != 2:
+        raise ContractError("PR 受理モードの HEAD は 2 親が必要")
+    if head_parents[0] != event.base_sha:
+        raise ContractError("PR 受理モードの第一親は base.sha と一致する必要がある")
+    if head_parents[1] != event.head_sha:
+        raise ContractError("PR 受理モードの第二親は head.sha と一致する必要がある")
+
+
+def validate_history_authority(assets: Mapping[str, object]) -> str:
+    """履歴 authority を宣言した資産がちょうど 1 件であることを検査する。
+
+    Args:
+        assets: 資産名から JSON object へのマップ。
+
+    Returns:
+        唯一の履歴 authority である資産名。
+
+    Raises:
+        ContractError: 資産構造または宣言が不正か、authority がちょうど 1 件で
+            ない場合。
+    """
+    authorities: list[str] = []
+    for asset_name, raw_asset in assets.items():
+        asset = _mapping(raw_asset, asset_name)
+        control = _mapping(asset.get("baseline_control"), f"{asset_name}.baseline_control")
+        authority = control.get("history_authority")
+        if type(authority) is not bool:
+            raise ContractError(
+                f"{asset_name}.baseline_control.history_authority: bool が必要"
+            )
+        if authority:
+            authorities.append(asset_name)
+
+    if len(authorities) != 1:
+        raise ContractError(
+            "history_authority: true の資産はちょうど 1 件必要: "
+            f"actual={len(authorities)}"
+        )
+    return authorities[0]
+
+
+def _validate_base_authority_migration(
+    base_assets: Mapping[str, object],
+    head_authority: str,
+) -> None:
+    """比較元の authority 宣言を検査し、初回導入だけ未宣言を許す。"""
+    declared = 0
+    for asset_name, raw_asset in base_assets.items():
+        asset = _mapping(raw_asset, f"比較元.{asset_name}")
+        control = _mapping(
+            asset.get("baseline_control"),
+            f"比較元.{asset_name}.baseline_control",
+        )
+        if "history_authority" in control:
+            declared += 1
+    if declared == 0:
+        return
+    if declared != len(base_assets):
+        raise ContractError("比較元の history_authority は全資産で宣言する必要がある")
+    base_authority = validate_history_authority(base_assets)
+    if base_authority != head_authority:
+        raise ContractError("history authority を別資産へ移動できない")
+
+
+def _repository_components(
+    assets: Mapping[str, object],
+    location: str,
+    *,
+    allow_undeclared_authority: bool = False,
+) -> dict[str, _RepositoryComponent]:
+    """資産 JSON から単一検査の宣言・履歴・識別値を抽出する。"""
+    components: dict[str, _RepositoryComponent] = {}
+    for asset_name, raw_asset in assets.items():
+        asset_location = f"{location}.{asset_name}"
+        asset = _mapping(raw_asset, asset_location)
+        control = _mapping(
+            asset.get("baseline_control"),
+            f"{asset_location}.baseline_control",
+        )
+        identity = _mapping(
+            control.get("identity"),
+            f"{asset_location}.baseline_control.identity",
+        )
+        movement_policy = _mapping(
+            control.get("movement_policy"),
+            f"{asset_location}.baseline_control.movement_policy",
+        )
+        history = _history_array(
+            control.get("history"),
+            f"{asset_location}.baseline_control.history",
+        )
+        authority = control.get("history_authority")
+        if authority is None and allow_undeclared_authority:
+            pass
+        elif type(authority) is not bool:
+            raise ContractError(
+                f"{asset_location}.baseline_control.history_authority: bool が必要"
+            )
+        declaration = {"identity": copy.deepcopy(dict(identity))}
+        if authority is not None:
+            declaration["history_authority"] = authority
+        components[asset_name] = _RepositoryComponent(
+            declaration=declaration,
+            movement_policy=copy.deepcopy(dict(movement_policy)),
+            external_files=_declared_target_paths(
+                {"identity": identity},
+                f"{asset_location}.declaration",
+                allow_empty=True,
+            ),
+            history=history,
+            current_identifiers=_nonempty_string_array(
+                identity.get("current_identifiers"),
+                f"{asset_location}.baseline_control.identity.current_identifiers",
+            ),
+            identity_scheme=_nonempty_string(
+                identity.get("scheme"),
+                f"{asset_location}.baseline_control.identity.scheme",
+            ),
+        )
+    return components
+
+
+def _repository_movement_states(
+    assets: Mapping[str, object],
+    components: Mapping[str, _RepositoryComponent],
+    implementations: Mapping[str, bytes],
+    location: str,
+) -> dict[str, FrozenAssetState]:
+    """宣言 trigger が観測する資産ごとの実状態を導出する。"""
+    states: dict[str, FrozenAssetState] = {}
+    for asset_name, raw_asset in assets.items():
+        asset_location = f"{location}.{asset_name}"
+        asset = _mapping(raw_asset, asset_location)
+        control = _mapping(
+            asset.get("baseline_control"),
+            f"{asset_location}.baseline_control",
+        )
+        identity = _mapping(
+            control.get("identity"),
+            f"{asset_location}.baseline_control.identity",
+        )
+        projection = _mapping(
+            identity.get("frozen_projection"),
+            f"{asset_location}.baseline_control.identity.frozen_projection",
+        )
+        component = components[asset_name]
+        states[asset_name] = FrozenAssetState(
+            declaration_location=f"{asset_name}.baseline_control",
+            declaration=component.declaration,
+            movement_policy=component.movement_policy,
+            baseline_value=_asset_baseline_value_content(
+                asset,
+                projection,
+                asset_location,
+            ),
+            additional_trigger_observation=_implementation_snapshots(
+                component.external_files,
+                implementations,
+                f"{asset_location}.additional_trigger_observation",
+            ),
+        )
+    return states
+
+
+def _validate_invariant_history(
+    base_history: object,
+    head_history: object,
+    base_snapshot_root: Path,
+    head_snapshot_root: Path,
+    location: str,
+) -> tuple[HistoryRecord, ...]:
+    """不変量モードで v2 record 自身の内部整合だけを検査する。"""
+    base_records = _history_array(base_history, f"比較元.{location}")
+    head_records = _history_array(head_history, f"HEAD.{location}")
+    appended = head_records[len(base_records) :]
+    if len(appended) > 1:
+        raise ContractError(f"{location}: 1 受理につき追記 record は 1 件まで")
+    transitions: list[V2Transition] = []
+    for index, raw_record in enumerate(appended, start=len(base_records)):
+        record = _record_object(raw_record, f"{location}[{index}]")
+        change = _mapping(record.get("change"), f"{location}[{index}].change")
+        transitions.append(
+            V2Transition(
+                before=_mapping(
+                    change.get("before"),
+                    f"{location}[{index}].change.before",
+                ),
+                after=_mapping(
+                    change.get("after"),
+                    f"{location}[{index}].change.after",
+                ),
+                base_snapshot_root=base_snapshot_root,
+                head_snapshot_root=head_snapshot_root,
+            )
+        )
+    return parse_history(
+        base_history,
+        head_history,
+        v2_transitions=transitions,
+        location=location,
+    )
+
+
+def _repository_identifiers(
+    components: Mapping[str, _RepositoryComponent],
+) -> dict[str, tuple[str, ...]]:
+    """資産パス別に単一検査の識別値列を作る。"""
+    return {
+        asset_name: components[asset_name].current_identifiers
+        for asset_name in sorted(components)
+    }
+
+
+def _identifier_map(value: object, location: str) -> dict[str, tuple[str, ...]]:
+    """資産パスから資産内で一意な識別値列へのmapを取得する。"""
+    raw_map = _mapping(value, location)
+    if not raw_map:
+        raise ContractError(f"{location}: 空にできない")
+    return {
+        _nonempty_string(asset_name, f"{location}.asset_path"): (
+            _nonempty_string_array(identifiers, f"{location}.{asset_name}")
+        )
+        for asset_name, identifiers in raw_map.items()
+    }
+
+
+def _validate_repository_identifier_record(
+    base_history: object,
+    head_history: object,
+    previous_identifiers: Mapping[str, tuple[str, ...]],
+    current_identifiers: Mapping[str, tuple[str, ...]],
+    *,
+    affected_assets: Sequence[str],
+    head_components: Mapping[str, _RepositoryComponent],
+    moved: bool,
+    require_transition: bool,
+    location: str,
+) -> None:
+    """authority record と 7 資産すべての新旧識別値を照合する。"""
+    base_records = _history_array(base_history, f"比較元.{location}")
+    head_records = _history_array(head_history, f"HEAD.{location}")
+    appended = head_records[len(base_records) :]
+    if len(appended) > 1:
+        raise ContractError(f"{location}: 1 受理につき記録は 1 件が必要")
+    v2_records = [
+        _record_object(record, f"{location}[]")
+        for record in head_records
+        if isinstance(record, dict) and record.get("record_schema_version") == 2
+    ]
+    acceptance_ids = tuple(
+        _validate_acceptance_id(record.get("acceptance_id"), f"{location}.acceptance_id")
+        for record in v2_records
+    )
+    if len(acceptance_ids) != len(set(acceptance_ids)):
+        raise ContractError(f"{location}: 同一 acceptance_id の記録を重複できない")
+
+    if appended:
+        record = _record_object(appended[0], f"{location}[-1]")
+        if record.get("record_schema_version") != 2:
+            raise ContractError(f"{location}: 追記 record は v2 が必要")
+        recorded_previous = _identifier_map(
+            record.get("previous_baseline_identifiers"),
+            f"{location}[-1].previous_baseline_identifiers",
+        )
+        recorded_current = _identifier_map(
+            record.get("new_baseline_identifiers"),
+            f"{location}[-1].new_baseline_identifiers",
+        )
+        if recorded_previous != previous_identifiers:
+            raise ContractError(f"{location}: 7 資産の直前識別値が不一致")
+        if recorded_current != current_identifiers:
+            raise ContractError(f"{location}: 7 資産の新識別値が不一致")
+    elif v2_records:
+        latest_identifiers = _identifier_map(
+            v2_records[-1].get("new_baseline_identifiers"),
+            f"{location}[-1].new_baseline_identifiers",
+        )
+        if latest_identifiers != current_identifiers:
+            raise ContractError(f"{location}: 履歴末尾と 7 資産の識別値が不一致")
+    elif previous_identifiers != current_identifiers:
+        raise ContractError(f"{location}: 識別値の移動に authority の v2 記録が無い")
+
+    for asset_name in affected_assets:
+        component = head_components[asset_name]
+        if (
+            component.identity_scheme == "integer_revision_field"
+            and previous_identifiers[asset_name] == current_identifiers[asset_name]
+        ):
+            raise ContractError(
+                f"{location}: 射影が動いた資産は識別値の更新が必要: {asset_name}"
+            )
+
+    if require_transition and moved != bool(appended):
+        raise ContractError(f"{location}: movement と単一 record の有無が不一致")
+
+
+def _validate_v2_record(
+    record: Mapping[str, Any],
+    transition: V2Transition,
+    location: str,
+) -> None:
+    """v2 record を実遷移と content-addressed snapshot に照らして検査する。"""
+    _strict_keys(
+        record,
+        {
+            "record_schema_version",
+            "acceptance_id",
+            "new_baseline_identifiers",
+            "previous_baseline_identifiers",
+            "change",
+            "movement_fact",
+            "reason",
+            "approved_by",
+            "approved_on",
+        },
+        location,
+    )
+    _reject_v2_reserved_markers(record, location)
+    _validate_acceptance_id(record["acceptance_id"], f"{location}.acceptance_id")
+    _identifier_map(
+        record["new_baseline_identifiers"],
+        f"{location}.new_baseline_identifiers",
+    )
+    _identifier_map(
+        record["previous_baseline_identifiers"],
+        f"{location}.previous_baseline_identifiers",
+    )
+    _nonempty_string(record["movement_fact"], f"{location}.movement_fact")
+    _nonempty_string(record["reason"], f"{location}.reason")
+    _nonempty_string(record["approved_by"], f"{location}.approved_by")
+    approved_on = _nonempty_string(record["approved_on"], f"{location}.approved_on")
+    _validate_iso_date(approved_on, f"{location}.approved_on")
+
+    base_snapshots = _read_snapshot_directory(
+        transition.base_snapshot_root,
+        f"{location}.base_snapshots",
+    )
+    head_snapshots = _read_snapshot_directory(
+        transition.head_snapshot_root,
+        f"{location}.head_snapshots",
+    )
+    _validate_snapshot_append_only(base_snapshots, head_snapshots, location)
+
+    change = _mapping(record["change"], f"{location}.change")
+    _strict_keys(change, {"subject", "aspect", "before", "after"}, f"{location}.change")
+    _nonempty_string(change["subject"], f"{location}.change.subject")
+    # 新しい record が追加する比較元内容の snapshot も HEAD の参照先で解決する。
+    # 比較元ディレクトリは既存 snapshot の削除・変更検出だけに使用する。
+    recorded_before = _snapshot_state(
+        change["before"],
+        head_snapshots,
+        f"{location}.change.before",
+    )
+    recorded_after = _snapshot_state(
+        change["after"],
+        head_snapshots,
+        f"{location}.change.after",
+    )
+    actual_before = _snapshot_state(
+        transition.before,
+        head_snapshots,
+        f"{location}.actual.before",
+    )
+    actual_after = _snapshot_state(
+        transition.after,
+        head_snapshots,
+        f"{location}.actual.after",
+    )
+    if not _json_deep_equal(recorded_before, actual_before):
+        raise ContractError(f"{location}.change.before: 比較元の実内容と不一致")
+    if not _json_deep_equal(recorded_after, actual_after):
+        raise ContractError(f"{location}.change.after: HEAD の実内容と不一致")
+
+    declared_aspects = _aspect_set(change["aspect"], f"{location}.change.aspect")
+    actual_aspects = derive_aspects(actual_before, actual_after)
+    if declared_aspects != actual_aspects:
+        raise ContractError(
+            f"{location}.change.aspect: 実差分と不一致: "
+            f"declared={sorted(declared_aspects)}, actual={sorted(actual_aspects)}"
+        )
+
+
+def _snapshot_state(
+    value: object,
+    snapshots: Mapping[str, bytes],
+    location: str,
+) -> Mapping[str, Any]:
+    """変更前後の実内容と snapshot 参照を検査する。"""
+    state = _mapping(value, location)
+    _strict_keys(state, ASPECT_NAMES, location)
+    _mapping(state["declaration"], f"{location}.declaration")
+    _mapping(state["movement_policy"], f"{location}.movement_policy")
+    _external_snapshots(
+        state["external_snapshots"],
+        snapshots,
+        f"{location}.external_snapshots",
+    )
+    _external_snapshots(
+        state["asset_snapshots"],
+        snapshots,
+        f"{location}.asset_snapshots",
+    )
+    return state
+
+
+def _external_snapshots(
+    value: object,
+    snapshots: Mapping[str, bytes],
+    location: str,
+) -> tuple[Mapping[str, Any], ...]:
+    """順序付き外部 snapshot 列の形式と参照先を検査する。"""
+    items = _array(value, location)
+    parsed: list[Mapping[str, Any]] = []
+    paths: set[str] = set()
+    for index, raw_item in enumerate(items):
+        item_location = f"{location}[{index}]"
+        item = _mapping(raw_item, item_location)
+        _strict_keys(item, {"path", "sha256", "snapshot_ref"}, item_location)
+        path = _nonempty_string(item["path"], f"{item_location}.path")
+        digest = _nonempty_string(item["sha256"], f"{item_location}.sha256")
+        snapshot_ref = _nonempty_string(
+            item["snapshot_ref"],
+            f"{item_location}.snapshot_ref",
+        )
+        if _SHA256_RE.fullmatch(digest) is None:
+            raise ContractError(f"{item_location}.sha256: SHA-256 が不正")
+        expected_ref = f"{SNAPSHOT_REF_PREFIX}{digest}"
+        if snapshot_ref != expected_ref:
+            raise ContractError(
+                f"{item_location}.snapshot_ref: sha256 と末尾セグメントが不一致"
+            )
+        if digest not in snapshots:
+            raise ContractError(f"{item_location}.snapshot_ref: snapshot を解決できない")
+        if path in paths:
+            raise ContractError(f"{location}: path を重複できない: {path}")
+        paths.add(path)
+        parsed.append(item)
+    return tuple(parsed)
+
+
+def _read_snapshot_directory(root: Path, location: str) -> dict[str, bytes]:
+    """snapshot ディレクトリを読み、各ファイル名と内容ハッシュを照合する。"""
+    if root.is_symlink():
+        raise ContractError(f"{location}: snapshotの置き場をsymlinkにできない")
+    if not root.exists():
+        return {}
+    if not root.is_dir():
+        raise ContractError(f"{location}: snapshot の置き場はディレクトリが必要")
+    snapshots: dict[str, bytes] = {}
+    try:
+        entries = sorted(root.iterdir(), key=lambda path: path.name)
+    except OSError as error:
+        raise ContractError(f"{location}: snapshot ディレクトリを読めない: {error}") from error
+    for path in entries:
+        if path.is_symlink() or not path.is_file():
+            raise ContractError(f"{location}: snapshot には通常ファイルだけを置ける: {path.name}")
+        if _SHA256_RE.fullmatch(path.name) is None:
+            raise ContractError(f"{location}: snapshot ファイル名が SHA-256 でない: {path.name}")
+        try:
+            content = path.read_bytes()
+        except OSError as error:
+            raise ContractError(f"{location}: snapshot を読めない: {path.name}: {error}") from error
+        actual_digest = hashlib.sha256(content).hexdigest()
+        if actual_digest != path.name:
+            raise ContractError(f"{location}: snapshot の内容とファイル名が不一致: {path.name}")
+        snapshots[path.name] = content
+    return snapshots
+
+
+def _validate_snapshot_append_only(
+    base_snapshots: Mapping[str, bytes],
+    head_snapshots: Mapping[str, bytes],
+    location: str,
+) -> None:
+    """比較元の snapshot が HEAD で変更・削除されていないことを検査する。"""
+    deleted = sorted(set(base_snapshots) - set(head_snapshots))
+    if deleted:
+        raise ContractError(f"{location}: 既存 snapshot を削除できない: {deleted}")
+    changed = sorted(
+        digest
+        for digest, content in base_snapshots.items()
+        if head_snapshots[digest] != content
+    )
+    if changed:
+        raise ContractError(f"{location}: 既存 snapshot を変更できない: {changed}")
+
+
+def _validate_acceptance_id(value: object, location: str) -> str:
+    """受理 ID が owner/repository#正の整数形式であることを検査する。"""
+    acceptance_id = _nonempty_string(value, location)
+    if _ACCEPTANCE_ID_RE.fullmatch(acceptance_id) is None:
+        raise ContractError(f"{location}: owner/repository#正の整数 形式が必要")
+    return acceptance_id
+
+
+def _validate_iso_date(value: str, location: str) -> None:
+    """値が実在する拡張 ISO 8601 日付であることを検査する。"""
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        raise ContractError(f"{location}: YYYY-MM-DD 形式が必要")
+    try:
+        date.fromisoformat(value)
+    except ValueError as error:
+        raise ContractError(f"{location}: 実在する ISO 8601 日付が必要") from error
+
+
+def _reject_reserved_marker(value: str, location: str) -> None:
+    """受理前の予約 marker を拒否する。"""
+    stripped = value.strip()
+    comparable = stripped.upper()
+    is_standalone = comparable in RESERVED_MARKER_TOKENS
+    is_known_provisional = (
+        _KNOWN_PROVISIONAL_VALUE_RE.fullmatch(stripped) is not None
+    )
+    # ``_`` は PENDING_ACCEPTANCE の区切りとして扱う。一方、Unicode の
+    # 英数字は語の一部なので、未定義や suspending の内部では一致させない。
+    has_bounded_marker = (
+        _RESERVED_MARKER_WITH_BOUNDARY_RE.search(stripped) is not None
+    )
+    if is_standalone or has_bounded_marker or is_known_provisional:
+        raise ContractError(f"{location}: 予約 marker を使用できない")
+
+
+def _reject_v2_reserved_markers(
+    record: Mapping[str, Any],
+    location: str,
+) -> None:
+    """v2の文字列を原則検査し、明示した機械値だけ除外する。"""
+
+    def visit(value: object, field_path: tuple[str, ...], value_location: str) -> None:
+        dotted_path = ".".join(field_path)
+        if dotted_path in _V2_RESERVED_MARKER_EXCLUDED_FIELDS:
+            return
+        if isinstance(value, str):
+            _reject_reserved_marker(value, value_location)
+            return
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                visit(item, (*field_path, key), f"{value_location}.{key}")
+            return
+        if isinstance(value, list):
+            for index, item in enumerate(value):
+                visit(item, field_path, f"{value_location}[{index}]")
+
+    visit(record, (), location)
+
+
+def _aspect_set(value: object, location: str) -> frozenset[str]:
+    """重複のない既知 aspect の集合を取得する。"""
+    items = _array(value, location)
+    aspects = frozenset(
+        _nonempty_string(item, f"{location}[]") for item in items
+    )
+    if len(aspects) != len(items):
+        raise ContractError(f"{location}: aspect を重複できない")
+    if not aspects <= ASPECT_NAMES:
+        raise ContractError(f"{location}: 未知の aspect がある: {sorted(aspects - ASPECT_NAMES)}")
+    return aspects
+
+
+def _strict_keys(
+    value: Mapping[str, Any],
+    expected: set[str] | frozenset[str],
+    location: str,
+) -> None:
+    """object のキー集合を exact-set で検査する。"""
+    actual = set(value)
+    if actual != set(expected):
+        raise ContractError(
+            f"{location}: キー集合が不一致: "
+            f"missing={sorted(set(expected) - actual)}, "
+            f"extra={sorted(actual - set(expected))}"
+        )
+
+
+def _nonempty_string(value: object, location: str) -> str:
+    """空白だけでない文字列を取得する。"""
+    if not isinstance(value, str) or not value.strip():
+        raise ContractError(f"{location}: 空白だけでない文字列が必要")
+    return value
+
+
+def _nonempty_string_array(value: object, location: str) -> tuple[str, ...]:
+    """空でなく重複のない文字列配列を取得する。"""
+    items = tuple(
+        _nonempty_string(item, f"{location}[]") for item in _array(value, location)
+    )
+    if not items:
+        raise ContractError(f"{location}: 空にできない")
+    if len(items) != len(set(items)):
+        raise ContractError(f"{location}: 値を重複できない")
+    return items
+
+
+def _array(value: object, location: str) -> list[object]:
+    """配列を取得する。"""
+    if not isinstance(value, list):
+        raise ContractError(f"{location}: 配列が必要")
+    return value
+
+
+def _history_array(value: object, location: str) -> list[object]:
+    """履歴配列を取得する。"""
+    if not isinstance(value, list):
+        raise ContractError(f"{location}: 配列が必要")
+    return value
+
+
+def _record_object(value: object, location: str) -> Mapping[str, Any]:
+    """履歴 record の JSON object を取得する。"""
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        raise ContractError(f"{location}: 文字列キーの object が必要")
+    return value
+
+
+def _mapping(value: object, location: str) -> Mapping[str, Any]:
+    """文字列キーのマップを取得する。"""
+    if not isinstance(value, Mapping) or not all(isinstance(key, str) for key in value):
+        raise ContractError(f"{location}: 文字列キーの object が必要")
+    return value
+
+
+def _json_deep_equal(left: object, right: object) -> bool:
+    """object のキー順を無視し、配列の順序を保って JSON 値を比較する。"""
+    if isinstance(left, dict) and isinstance(right, dict):
+        if set(left) != set(right):
+            return False
+        return all(_json_deep_equal(left[key], right[key]) for key in left)
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(
+            _json_deep_equal(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return type(left) is type(right) and left == right
+    return type(left) is type(right) and left == right
+
+
+def _read_json_mapping(path: Path, location: str) -> Mapping[str, Any]:
+    """JSON ファイルを読み、object として取得する。"""
+    try:
+        value = json.loads(path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ContractError(f"{location}: JSON を読めない: {path}: {error}") from error
+    return _mapping(value, location)
+
+
+def _request_path(value: object, location: str) -> Path:
+    """CLI request から空でないファイルパスを取得する。"""
+    return Path(_nonempty_string(value, location))
+
+
+def _transition_from_request(value: object, location: str) -> V2Transition:
+    """CLI request から v2 の実遷移を復元する。"""
+    transition = _mapping(value, location)
+    return V2Transition(
+        before=_mapping(transition.get("before"), f"{location}.before"),
+        after=_mapping(transition.get("after"), f"{location}.after"),
+        base_snapshot_root=_request_path(
+            transition.get("base_snapshot_root"),
+            f"{location}.base_snapshot_root",
+        ),
+        head_snapshot_root=_request_path(
+            transition.get("head_snapshot_root"),
+            f"{location}.head_snapshot_root",
+        ),
+    )
+
+
+def _evaluation_from_request(value: object, location: str) -> RoleSeparatedEvaluation:
+    """CLI request から役割分担済みの評価結果を復元する。"""
+    evaluation = _mapping(value, location)
+    targets = tuple(
+        _nonempty_string(target, f"{location}.targets[]")
+        for target in _array(evaluation.get("targets"), f"{location}.targets")
+    )
+    moved = evaluation.get("moved")
+    if type(moved) is not bool:
+        raise ContractError(f"{location}.moved: bool が必要")
+    return RoleSeparatedEvaluation(
+        targets=targets,
+        transition=_transition_from_request(
+            evaluation.get("transition"),
+            f"{location}.transition",
+        ),
+        moved=moved,
+    )
+
+
+def _asset_states_from_request(
+    value: object,
+    location: str,
+) -> dict[str, FrozenAssetState]:
+    """CLI request から資産集合の実状態を復元する。"""
+    raw_assets = _mapping(value, location)
+    assets: dict[str, FrozenAssetState] = {}
+    for asset_name, raw_asset in raw_assets.items():
+        asset = _mapping(raw_asset, f"{location}.{asset_name}")
+        assets[asset_name] = FrozenAssetState(
+            declaration_location=_nonempty_string(
+                asset.get("declaration_location"),
+                f"{location}.{asset_name}.declaration_location",
+            ),
+            declaration=_mapping(
+                asset.get("declaration"),
+                f"{location}.{asset_name}.declaration",
+            ),
+        )
+    return assets
+
+
+def _execute_cli_request(request: Mapping[str, Any]) -> None:
+    """CLI request で指定された凍結履歴検査を実行する。"""
+    check = _nonempty_string(request.get("check"), "request.check")
+    if check == "history":
+        raw_transitions = _array(
+            request.get("v2_transitions", []),
+            "request.v2_transitions",
+        )
+        transitions = tuple(
+            _transition_from_request(value, f"request.v2_transitions[{index}]")
+            for index, value in enumerate(raw_transitions)
+        )
+        parse_history(
+            request.get("base_history"),
+            request.get("head_history"),
+            v2_transitions=transitions,
+        )
+        return
+    if check == "history_authority":
+        validate_history_authority(
+            _mapping(request.get("assets"), "request.assets")
+        )
+        return
+    if check == "current_history":
+        raw_parents = _array(request.get("head_parents"), "request.head_parents")
+        parents = tuple(
+            _nonempty_string(parent, "request.head_parents[]")
+            for parent in raw_parents
+        )
+        validate_current_history(
+            request.get("base_history"),
+            request.get("head_history"),
+            evaluation=_evaluation_from_request(
+                request.get("evaluation"),
+                "request.evaluation",
+            ),
+            head_parents=parents,
+        )
+        return
+    if check == "repository_movement":
+        evaluation = evaluate_repository_movement(
+            _asset_states_from_request(
+                request.get("base_assets"),
+                "request.base_assets",
+            ),
+            _asset_states_from_request(
+                request.get("head_assets"),
+                "request.head_assets",
+            ),
+            _mapping(
+                request.get("base_movement_policy"),
+                "request.base_movement_policy",
+            ),
+        )
+        record_count = request.get("appended_record_count", 0)
+        if type(record_count) is not int:
+            raise ContractError("request.appended_record_count: 整数が必要")
+        validate_movement_record_requirement(evaluation, record_count)
+        return
+    raise ContractError(f"request.check: 未知の検査: {check}")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """JSON request の検査結果をプロセス終了コードへ写す。
+
+    Args:
+        argv: コマンドライン引数。``None`` は ``sys.argv`` を使う。
+
+    Returns:
+        合格は 0、契約不整合は 1、想定外の失敗は 2。
+    """
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument("request", type=Path, help="合成検査 request の JSON ファイル")
+    args = cli.parse_args(argv)
+    try:
+        request = _read_json_mapping(args.request, "request")
+        _execute_cli_request(request)
+    except ContractError as error:
+        print(f"frozen-history: contract error: {error}", file=sys.stderr)
+        return 1
+    except Exception as error:  # noqa: BLE001
+        # 想定外の失敗も合格へ倒さず、ContractError と区別できる非 zero にする。
+        print(f"frozen-history: unexpected error: {error}", file=sys.stderr)
+        return 2
+    print("frozen-history: ok")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
