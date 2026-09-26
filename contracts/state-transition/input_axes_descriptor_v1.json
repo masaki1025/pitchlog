@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:bb2b2953b3e520afbb9334b0da703540a1ed506865a497581679dcccc6910bb8",
+  "digest": "sha256:72a48d8fc7185be7eb1c0586da6d3cdb65a9684b15f2ea8d1da2e58f16a17023",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -15,7 +15,7 @@
   "stateTransitionAxes": [
     {
       "axisId": "state.half",
-      "sourceClauseId": "FR-005",
+      "sourceClauseId": "req:FR-005",
       "classification": "finite-enumerable",
       "values": [
         "top",
@@ -24,7 +24,7 @@
     },
     {
       "axisId": "state.count.strikes",
-      "sourceClauseId": "E-1",
+      "sourceClauseId": "req:E-1",
       "classification": "finite-enumerable",
       "values": [
         0,
@@ -34,7 +34,7 @@
     },
     {
       "axisId": "state.count.balls",
-      "sourceClauseId": "E-1",
+      "sourceClauseId": "req:E-1",
       "classification": "finite-enumerable",
       "values": [
         0,
@@ -45,7 +45,7 @@
     },
     {
       "axisId": "state.outs",
-      "sourceClauseId": "FR-005",
+      "sourceClauseId": "req:FR-005",
       "classification": "finite-enumerable",
       "values": [
         0,
@@ -55,7 +55,7 @@
     },
     {
       "axisId": "state.runners",
-      "sourceClauseId": "E-1",
+      "sourceClauseId": "req:E-1",
       "classification": "finite-enumerable",
       "values": [
         "empty",
@@ -70,9 +70,9 @@
     },
     {
       "axisId": "state.battingOrder",
-      "sourceClauseId": "FR-005",
+      "sourceClauseId": "req:FR-005",
       "supportingClauseIds": [
-        "FR-001"
+        "req:FR-001"
       ],
       "classification": "finite-enumerable",
       "values": [
@@ -89,7 +89,7 @@
     },
     {
       "axisId": "state.tiebreakActive",
-      "sourceClauseId": "FR-009",
+      "sourceClauseId": "req:FR-009",
       "classification": "finite-enumerable",
       "values": [
         false,
@@ -98,7 +98,7 @@
     },
     {
       "axisId": "state.gameEnded",
-      "sourceClauseId": "FR-010",
+      "sourceClauseId": "req:FR-010",
       "classification": "finite-enumerable",
       "values": [
         false,
@@ -107,21 +107,21 @@
     },
     {
       "axisId": "state.inning",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "COLD-01",
-        "COLD-02",
-        "COLD-03",
-        "COLD-04",
-        "COLD-05",
-        "COLD-06",
-        "DRAW-07",
-        "DRAW-08",
-        "DRAW-09",
-        "DRAW-10",
-        "XMARK-01",
-        "XMARK-02",
-        "XMARK-03"
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "req:XMARK-01",
+        "req:XMARK-02",
+        "req:XMARK-03"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -139,20 +139,20 @@
     },
     {
       "axisId": "state.score",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "FR-020",
-        "COLD-02",
-        "COLD-03",
-        "COLD-04",
-        "COLD-05",
-        "COLD-06",
-        "DRAW-05",
-        "DRAW-06",
-        "DRAW-09",
-        "DRAW-10",
-        "XMARK-01",
-        "XMARK-02"
+        "req:FR-020",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:DRAW-05",
+        "req:DRAW-06",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "req:XMARK-01",
+        "req:XMARK-02"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -167,7 +167,10 @@
     },
     {
       "axisId": "event.operationKind",
-      "sourceClauseId": "4.0-4",
+      "sourceClauseId": "req:4.0-4",
+      "supportingClauseIds": [
+        "req:FR-040"
+      ],
       "classification": "finite-enumerable",
       "values": [
         "per-pitch",
@@ -175,12 +178,166 @@
         "tiebreak-start",
         "game-end-declaration",
         "adhoc-registration",
+        "state-correction",
         "undo"
+      ],
+      "conditionalValues": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
       ]
     },
     {
+      "axisId": "event.operationPayload",
+      "sourceClauseId": "adr:D-8",
+      "supportingClauseIds": [
+        "req:FR-009",
+        "req:FR-010",
+        "req:FR-011",
+        "req:FR-015",
+        "req:FR-040"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-applicable",
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction"
+      ],
+      "conditionalValues": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "not-applicable"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "changes"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "substitution"},
+              "changes": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "uniqueItems": true,
+                "x-pitchlog-uniqueBy": "lineupSlot",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": ["lineupSlot", "outgoingPlayerId", "incomingPlayerId", "defensivePosition"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "lineupSlot": {"type": "integer", "minimum": 1, "maximum": 10},
+                        "outgoingPlayerId": {"type": ["string", "null"]},
+                        "incomingPlayerId": {"type": "string", "minLength": 1},
+                        "defensivePosition": {"type": "string", "minLength": 1}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "inning", "runnerPlacement", "leadoffBatterId"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "tiebreak-start"},
+              "inning": {"type": "integer", "minimum": 1},
+              "runnerPlacement": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": false,
+                "properties": {
+                  "first": {"type": "string", "minLength": 1},
+                  "second": {"type": "string", "minLength": 1},
+                  "third": {"type": "string", "minLength": 1}
+                }
+              },
+              "leadoffBatterId": {"type": "string", "minLength": 1}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "game-end-declaration"},
+              "reason": {"type": "string", "minLength": 1}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "playerId", "teamId", "displayName", "throws", "bats", "uniformNumber"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "adhoc-registration"},
+              "playerId": {"type": "string", "minLength": 1},
+              "teamId": {"type": "string", "minLength": 1},
+              "displayName": {"type": "string", "minLength": 1},
+              "throws": {"enum": ["right", "left"]},
+              "bats": {"enum": ["right", "left", "switch"]},
+              "uniformNumber": {"type": ["string", "null"]}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "state"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "state-correction"},
+              "state": {
+                "type": "object",
+                "required": ["inning", "half", "awayScore", "homeScore", "strikes", "balls", "outs", "battingOrder", "runners"],
+                "additionalProperties": false,
+                "properties": {
+                  "inning": {"type": "integer", "minimum": 1},
+                  "half": {"enum": ["top", "bottom"]},
+                  "awayScore": {"type": "integer", "minimum": 0},
+                  "homeScore": {"type": "integer", "minimum": 0},
+                  "strikes": {"type": "integer", "minimum": 0, "maximum": 2},
+                  "balls": {"type": "integer", "minimum": 0, "maximum": 3},
+                  "outs": {"type": "integer", "minimum": 0, "maximum": 2},
+                  "battingOrder": {"type": "integer", "minimum": 1, "maximum": 9},
+                  "runners": {
+                    "type": "object",
+                    "required": ["first", "second", "third"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "first": {"type": ["string", "null"]},
+                      "second": {"type": ["string", "null"]},
+                      "third": {"type": ["string", "null"]}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "axisId": "event.perPitch.kind",
-      "sourceClauseId": "E-1",
+      "sourceClauseId": "req:E-1",
       "classification": "finite-enumerable",
       "values": [
         "batting-result",
@@ -190,9 +347,9 @@
     },
     {
       "axisId": "event.perPitch.resultId",
-      "sourceClauseId": "D-4",
+      "sourceClauseId": "req:D-4",
       "supportingClauseIds": [
-        "4.0-3"
+        "req:4.0-3"
       ],
       "classification": "finite-enumerable",
       "values": [
@@ -233,46 +390,124 @@
     },
     {
       "axisId": "event.perPitch.runnerEventPayload",
-      "sourceClauseId": "FR-004",
-      "classification": "finite-enumerable",
-      "values": [
-        "盗塁",
-        "牽制",
-        "暴投",
-        "捕逸",
-        "ボーク",
-        "エラー",
-        "複数走者の同時進塁"
-      ]
+      "sourceClauseId": "req:FR-004",
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-safe-advance",
+        "single-runner-caught-stealing",
+        "single-runner-pickoff-out",
+        "single-runner-hold",
+        "multiple-runner-mixed-outcomes"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "not-applicable"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "eventType", "runners"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "runner-event"},
+              "eventType": {"enum": ["steal", "pickoff", "wild-pitch", "passed-ball", "balk", "error", "simultaneous-advance"]},
+              "runners": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "uniqueItems": true,
+                "x-pitchlog-uniqueBy": "runner",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": ["runner", "outcome", "destination", "outKind"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "runner": {"enum": ["first", "second", "third"]},
+                        "outcome": {"const": "safe-advance"},
+                        "destination": {"type": "integer", "minimum": 2, "maximum": 4},
+                        "outKind": {"type": "null"}
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["runner", "outcome", "destination", "outKind"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "runner": {"enum": ["first", "second", "third"]},
+                        "outcome": {"const": "out"},
+                        "destination": {"type": "integer", "minimum": 1, "maximum": 4},
+                        "outKind": {"enum": ["caught-stealing", "picked-off", "other"]}
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["runner", "outcome", "destination", "outKind"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "runner": {"enum": ["first", "second", "third"]},
+                        "outcome": {"const": "hold"},
+                        "destination": {"type": "null"},
+                        "outKind": {"type": "null"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
     },
     {
       "axisId": "event.perPitch.thirdOutTimingByRunner",
-      "sourceClauseId": "FR-003",
+      "sourceClauseId": "req:FR-003",
       "supportingClauseIds": [
-        "OUT3-01",
-        "OUT3-02",
-        "OUT3-03",
-        "OUT3-04",
-        "OUT3-05"
+        "req:OUT3-01",
+        "req:OUT3-02",
+        "req:OUT3-03",
+        "req:OUT3-04",
+        "req:OUT3-05"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
         "not-required",
-        "home-before-third-out",
-        "not-before-third-out"
-      ]
+        "single-runner-home-before-third-out",
+        "single-runner-not-before-third-out",
+        "multiple-runners-mixed-timing"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "batter": {"enum": ["home-before-third-out", "not-before-third-out"]},
+          "first": {"enum": ["home-before-third-out", "not-before-third-out"]},
+          "second": {"enum": ["home-before-third-out", "not-before-third-out"]},
+          "third": {"enum": ["home-before-third-out", "not-before-third-out"]}
+        },
+        "description": "空objectはOUT3-01〜OUT3-03により入力を要求しないことを表す"
+      }
     },
     {
       "axisId": "event.perPitch.interferenceRuling",
-      "sourceClauseId": "FR-004",
+      "sourceClauseId": "req:FR-004",
       "supportingClauseIds": [
-        "INT-01",
-        "INT-02",
-        "INT-03",
-        "INT-04",
-        "INT-05",
-        "INT-06",
-        "INT-07"
+        "req:INT-01",
+        "req:INT-02",
+        "req:INT-03",
+        "req:INT-04",
+        "req:INT-05",
+        "req:INT-06",
+        "req:INT-07"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -283,13 +518,159 @@
         "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
         "offensive-interference:batter-included-with-out-targets-and-return-bases",
         "offensive-interference:runner-only-with-out-targets-and-return-bases"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "not-required"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "adoptedResult"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "batting-interference"},
+              "adoptedResult": {"const": "penalty-award"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "adoptedResult", "resultId"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "batting-interference"},
+              "adoptedResult": {"const": "play-result"},
+              "resultId": {"type": "string", "minLength": 1}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "playType", "awardedDestinations", "outTargets"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "obstruction"},
+              "playType": {"enum": ["play-on-obstructed-runner", "no-play-on-obstructed-runner"]},
+              "awardedDestinations": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": false,
+                "properties": {
+                  "batter": {"type": "integer", "minimum": 1, "maximum": 4},
+                  "first": {"type": "integer", "minimum": 2, "maximum": 4},
+                  "second": {"type": "integer", "minimum": 3, "maximum": 4},
+                  "third": {"const": 4}
+                }
+              },
+              "outTargets": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {"enum": ["batter", "first", "second", "third"]}
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "outTargets", "returnBases"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"const": "offensive-interference"},
+              "outTargets": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {"enum": ["batter", "first", "second", "third"]}
+              },
+              "returnBases": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "first": {"const": 1},
+                  "second": {"type": "integer", "minimum": 1, "maximum": 2},
+                  "third": {"type": "integer", "minimum": 1, "maximum": 3}
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "axisId": "event.perPitch.rbi.doublePlayRelayError",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:RBI-02"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "not-required",
+        false,
+        true
       ]
     },
     {
-      "axisId": "history.depth",
-      "sourceClauseId": "D-11",
+      "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+      "sourceClauseId": "req:FR-003",
       "supportingClauseIds": [
-        "FR-006"
+        "req:RBI-03",
+        "req:RBI-04"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-kept-running",
+        "single-runner-stopped-and-restarted",
+        "multiple-runners-mixed-continuity"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "batter": {"enum": ["kept-running", "stopped-and-restarted"]},
+          "first": {"enum": ["kept-running", "stopped-and-restarted"]},
+          "second": {"enum": ["kept-running", "stopped-and-restarted"]},
+          "third": {"enum": ["kept-running", "stopped-and-restarted"]}
+        },
+        "description": "空objectはRBI-03・RBI-04の判定入力を要求しないことを表す"
+      }
+    },
+    {
+      "axisId": "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:RBI-05"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-would-score",
+        "single-runner-would-not-score",
+        "multiple-runners-mixed-ruling"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "batter": {"type": "boolean"},
+          "first": {"type": "boolean"},
+          "second": {"type": "boolean"},
+          "third": {"type": "boolean"}
+        },
+        "description": "空objectはRBI-05の判定入力を要求しないことを表す"
+      }
+    },
+    {
+      "axisId": "history.depth",
+      "sourceClauseId": "adr:D-11",
+      "supportingClauseIds": [
+        "req:FR-006"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -301,10 +682,10 @@
     },
     {
       "axisId": "history.composition",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "supportingClauseIds": [
-        "FR-006",
-        "FR-040"
+        "req:FR-006",
+        "req:FR-040"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -312,13 +693,25 @@
         "top-state-correction",
         "top-two-different",
         "all-same"
+      ],
+      "conditionalValues": [
+        {
+          "value": "top-state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        },
+        {
+          "value": "top-two-different",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
       ]
     },
     {
       "axisId": "history.scenarioLength",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "supportingClauseIds": [
-        "FR-006"
+        "req:FR-006"
       ],
       "classification": "boundary-partition",
       "boundaryValues": [
@@ -332,11 +725,12 @@
   "gameEndAxes": [
     {
       "axisId": "gameEnd.regulationInnings",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "FR-014",
-        "DRAW-01",
-        "DRAW-03"
+        "req:FR-014",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "adr:D-11"
       ],
       "ruleFieldId": "regulationInnings",
       "classification": "boundary-partition",
@@ -361,19 +755,20 @@
     },
     {
       "axisId": "gameEnd.coldConditions",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "FR-014",
-        "COLD-01",
-        "COLD-02",
-        "COLD-03",
-        "COLD-04",
-        "COLD-05",
-        "COLD-06",
-        "COLD-07",
-        "COLD-08",
-        "COLD-09",
-        "DRAW-02"
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
       ],
       "ruleFieldId": "coldConditions",
       "classification": "boundary-partition",
@@ -414,20 +809,20 @@
         "point-difference:0",
         "point-difference:100",
         "start-inning:0",
-        "start-inning:R+1",
         "start-inning:100"
       ]
     },
     {
       "axisId": "gameEnd.extensionLimit",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "DRAW-01",
-        "DRAW-03",
-        "DRAW-07",
-        "DRAW-08",
-        "DRAW-09",
-        "DRAW-10"
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "adr:D-11"
       ],
       "ruleFieldId": "extensionLimit",
       "classification": "boundary-partition",
@@ -451,10 +846,11 @@
     },
     {
       "axisId": "gameEnd.tiebreak",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "FR-009",
-        "DRAW-03"
+        "req:FR-009",
+        "req:DRAW-03",
+        "adr:D-11"
       ],
       "ruleFieldId": "tiebreak",
       "classification": "boundary-partition",
@@ -479,34 +875,34 @@
     }
   ],
   "gameEndCombinationRules": {
-    "sourceClauseId": "D-11",
+    "sourceClauseId": "adr:D-11",
     "ruleFieldCombination": "pairwise-all-game-end-axes",
     "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
   },
   "nonCoverageFields": [
     {
       "fieldId": "dh",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "D-11"
+        "adr:D-11"
       ],
       "reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
       "schemaRetention": "required-by-projection"
     },
     {
       "fieldId": "tiebreak.runnerPlacement",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "D-11"
+        "adr:D-11"
       ],
       "reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
       "schemaRetention": "required-by-projection"
     },
     {
       "fieldId": "tiebreak.leadoffRule",
-      "sourceClauseId": "F-1",
+      "sourceClauseId": "req:F-1",
       "supportingClauseIds": [
-        "D-11"
+        "adr:D-11"
       ],
       "reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
       "schemaRetention": "required-by-projection"
@@ -515,7 +911,7 @@
   "projectionRules": [
     {
       "ruleId": "projection.finiteEnumerable",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "finite-enumerable",
       "targetIds": [
         "state.half",
@@ -529,18 +925,20 @@
         "event.operationKind",
         "event.perPitch.kind",
         "event.perPitch.resultId",
-        "event.perPitch.runnerEventPayload"
+        "event.perPitch.rbi.doublePlayRelayError"
       ],
       "projectionMode": "exact-enum",
       "jsonSchemaKeywords": [
         "enum",
         "x-pitchlog-axis-id",
-        "x-pitchlog-axis-classification"
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-conditional-values"
       ],
       "parityChecks": [
         "axis-id-exact",
         "classification-exact",
         "values-exact-set",
+        "conditional-values-exact",
         "no-extra-or-missing-targets"
       ],
       "verificationStage": "stage2-descriptorParity",
@@ -550,13 +948,11 @@
     },
     {
       "ruleId": "projection.boundaryPartition",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "boundary-partition",
       "targetIds": [
         "state.inning",
         "state.score",
-        "event.perPitch.thirdOutTimingByRunner",
-        "event.perPitch.interferenceRuling",
         "history.depth",
         "history.composition",
         "history.scenarioLength"
@@ -565,12 +961,14 @@
       "jsonSchemaKeywords": [
         "x-pitchlog-axis-id",
         "x-pitchlog-axis-classification",
-        "x-pitchlog-boundary-values"
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-conditional-values"
       ],
       "parityChecks": [
         "axis-id-exact",
         "classification-exact",
         "boundaries-exact-set",
+        "conditional-values-exact",
         "no-extra-or-missing-targets"
       ],
       "verificationStage": "stage2-descriptorParity",
@@ -579,8 +977,41 @@
       "description": "境界値は代表coverage座標であり受理値のenumではないため必須注釈へ射影し、境界集合をexact-set比較する"
     },
     {
+      "ruleId": "projection.structuredBoundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "event.operationPayload",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+      ],
+      "projectionMode": "structured-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-value-schema",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "value-schema-exact",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "構造化入力は境界集合に加えて閉じたvalueSchemaと条件付きメンバーを射影し、走者別写像・タグ付きpayload・FR-040条件をexact比較する"
+    },
+    {
       "ruleId": "projection.boundedBoundaryPartition",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "boundary-partition",
       "targetIds": [
         "gameEnd.regulationInnings",
@@ -612,7 +1043,7 @@
     },
     {
       "ruleId": "projection.nonFinite",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "non-finite",
       "targetIds": [],
       "projectionMode": "open-domain-with-reason",
@@ -635,7 +1066,7 @@
     },
     {
       "ruleId": "projection.nonCoverageField",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "non-coverage-field",
       "targetIds": [
         "dh",
@@ -662,7 +1093,7 @@
     },
     {
       "ruleId": "projection.descriptorIdentity",
-      "sourceClauseId": "D-11",
+      "sourceClauseId": "adr:D-11",
       "sourceKind": "descriptor-identity",
       "targetIds": [
         "descriptorId",

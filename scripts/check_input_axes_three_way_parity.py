@@ -59,6 +59,7 @@ D12_REQUIRED_CODE_LITERALS = frozenset(
         "state-transition/",
         "<対象>_v<N>.json",
         "input_axes_descriptor_v<N>.json",
+        "gap_register_v<N>.json",
     }
 )
 
@@ -80,9 +81,9 @@ BRANCH_COVERAGE_EXCLUSIONS: dict[str, str] = {
     },
     **{
         f"RBI-{number:02d}": (
-            "打点という期待出力の算出分岐であり、本除外は判定入力のcoverageを保証しない"
+            "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない"
         )
-        for number in range(1, 10)
+        for number in (1, 6, 7, 8, 9)
     },
     **{
         f"XC-{number:02d}": (
@@ -229,7 +230,11 @@ def _validate_branch_coverage(
         )
 
     required_ids = branch_ids - excluded_ids
-    missing = sorted(required_ids - descriptor_clause_ids)
+    missing = sorted(
+        branch_id
+        for branch_id in required_ids
+        if f"req:{branch_id}" not in descriptor_clause_ids
+    )
     if missing:
         raise ThreeWayParityError(
             f"descriptorの軸から参照されない必須分岐IDがある: {missing!r}"
@@ -293,7 +298,8 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     if not branch_ids:
         raise ThreeWayParityError("要件書から分岐IDを抽出できない")
     source_clause_ids = frozenset(
-        set(descriptor_checker.load_source_clause_ids(root)) | set(branch_ids)
+        set(descriptor_checker.load_source_clause_ids(root))
+        | {f"req:{branch_id}" for branch_id in branch_ids}
     )
     descriptor_clause_ids = _validate_source_clause_parity(
         descriptor, source_clause_ids

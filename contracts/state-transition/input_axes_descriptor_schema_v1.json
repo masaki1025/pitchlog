@@ -159,6 +159,9 @@
           "items": {
             "$ref": "#/$defs/descriptorValue"
           }
+        },
+        "conditionalValues": {
+          "$ref": "#/$defs/conditionalValues"
         }
       }
     },
@@ -211,6 +214,12 @@
           "items": {
             "$ref": "#/$defs/coverageBound"
           }
+        },
+        "conditionalValues": {
+          "$ref": "#/$defs/conditionalValues"
+        },
+        "valueSchema": {
+          "$ref": "#/$defs/valueSchema"
         }
       }
     },
@@ -270,7 +279,7 @@
     },
     "sourceClauseId": {
       "type": "string",
-      "minLength": 1
+      "pattern": "^(?:req:(?:(?:FR|NFR)-[0-9]+|[0-9]+\\.[0-9]+-[0-9]+|[A-Z]-[0-9]+[a-z]?|(?:COLD|DRAW|XMARK|OUT3|ADV|INT|SO|RBI|XC)-[0-9]+)|adr:D-[0-9]+)$"
     },
     "supportingClauseIds": {
       "type": "array",
@@ -283,6 +292,36 @@
     "ruleFieldId": {
       "type": "string",
       "pattern": "^[a-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*$"
+    },
+    "conditionalValues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": [
+          "value",
+          "whenClauseId",
+          "whenState"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "$ref": "#/$defs/descriptorValue"
+          },
+          "whenClauseId": {
+            "$ref": "#/$defs/sourceClauseId"
+          },
+          "whenState": {
+            "type": "string",
+            "const": "adopted"
+          }
+        }
+      }
+    },
+    "valueSchema": {
+      "type": "object",
+      "minProperties": 1
     },
     "coverageBound": {
       "type": "object",
@@ -409,6 +448,7 @@
             "exact-enum",
             "boundary-annotations",
             "bounded-boundary-annotations",
+            "structured-boundary-annotations",
             "open-domain-with-reason",
             "required-schema-property",
             "descriptor-identity-binding"
@@ -440,6 +480,8 @@
               "reason-exact",
               "schema-retention-exact",
               "descriptor-identity-exact",
+              "value-schema-exact",
+              "conditional-values-exact",
               "no-extra-or-missing-targets"
             ]
           }

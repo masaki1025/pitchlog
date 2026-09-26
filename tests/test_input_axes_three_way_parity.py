@@ -87,7 +87,7 @@ def test_repository_three_way_parity_is_green() -> None:
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
-    """61分岐を軸の支援対象33件と理由付き対象外28件へ漏れなく分ける。"""
+    """61分岐を軸の支援対象37件と理由付き対象外24件へ漏れなく分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)
     expected_covered = {
         *(f"COLD-{number:02d}" for number in range(1, 10)),
@@ -95,13 +95,16 @@ def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> No
         *(f"XMARK-{number:02d}" for number in range(1, 4)),
         *(f"OUT3-{number:02d}" for number in range(1, 6)),
         *(f"INT-{number:02d}" for number in range(1, 8)),
+        *(f"RBI-{number:02d}" for number in range(2, 6)),
     }
 
     assert len(report.requirement_branch_ids) == 61
     assert report.covered_branch_ids == expected_covered
-    assert len(report.covered_branch_ids) == 33
-    assert len(report.excluded_branch_ids) == 28
-    assert report.covered_branch_ids <= report.descriptor_supporting_clause_ids
+    assert len(report.covered_branch_ids) == 37
+    assert len(report.excluded_branch_ids) == 24
+    assert {f"req:{item}" for item in report.covered_branch_ids} <= (
+        report.descriptor_supporting_clause_ids
+    )
     assert (
         report.covered_branch_ids | report.excluded_branch_ids
         == report.requirement_branch_ids
@@ -188,13 +191,36 @@ def test_descriptor_only_drift_is_red_after_digest_recalculation(
             for item in descriptor["stateTransitionAxes"]
             if item["axisId"] == "state.half"
         )
-        axis["sourceClauseId"] = "FR-999"
+        axis["sourceClauseId"] = "req:FR-999"
 
     _rewrite_descriptor(root, mutate)
 
     with pytest.raises(
         checker.ThreeWayParityError,
         match=r"由来条文IDが正本に実在しない.*FR-999",
+    ):
+        checker.validate_three_way_parity(root)
+
+
+def test_same_named_clause_in_wrong_namespace_is_red_after_digest_recalculation(
+    tmp_path: Path,
+) -> None:
+    """要件書D-4をADR側の同名IDへ誤接続しても実在扱いで通さない。"""
+    root = _copy_fixture_root(tmp_path)
+
+    def mutate(descriptor: dict[str, Any]) -> None:
+        axis = next(
+            item
+            for item in descriptor["stateTransitionAxes"]
+            if item["axisId"] == "event.perPitch.resultId"
+        )
+        axis["sourceClauseId"] = "adr:D-4"
+
+    _rewrite_descriptor(root, mutate)
+
+    with pytest.raises(
+        checker.ThreeWayParityError,
+        match="同名条文IDの名前空間が誤っている",
     ):
         checker.validate_three_way_parity(root)
 
@@ -220,7 +246,7 @@ def test_observation_branch_reference_removal_is_red_after_digest_recalculation(
             for item in descriptor["stateTransitionAxes"]
             if item["axisId"] == axis_id
         )
-        axis["supportingClauseIds"].remove(branch_id)
+        axis["supportingClauseIds"].remove(f"req:{branch_id}")
 
     _rewrite_descriptor(root, mutate)
 

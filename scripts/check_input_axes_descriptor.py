@@ -21,6 +21,10 @@ SOURCE_CLAUSE_PATHS = (
     PurePosixPath("docs/requirements/requirements-pitchlog-2026-07-22.md"),
     PurePosixPath("docs/adr/ADR-003-domain-calc-method.md"),
 )
+SOURCE_CLAUSE_NAMESPACES = {
+    SOURCE_CLAUSE_PATHS[0]: "req",
+    SOURCE_CLAUSE_PATHS[1]: "adr",
+}
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 EXPECTED_TOP_LEVEL_FIELDS = frozenset(
     {
@@ -60,6 +64,19 @@ EXPECTED_F1_RULE_FIELDS = frozenset(
 EXPECTED_NON_COVERAGE_FIELDS = frozenset(
     {"dh", "tiebreak.runnerPlacement", "tiebreak.leadoffRule"}
 )
+EXPECTED_STRUCTURED_AXIS_IDS = frozenset(
+    {
+        "event.operationPayload",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+    }
+)
+AMBIGUOUS_SOURCE_BINDINGS = {
+    "event.perPitch.resultId": "req:D-4",
+}
 
 
 class DescriptorCheckError(Exception):
@@ -154,8 +171,15 @@ def load_clause_ids_from_paths(
 
 
 def load_source_clause_ids(root: Path) -> frozenset[str]:
-    """要件書とADRの構造から実在する由来条文IDを抽出する。"""
-    return load_clause_ids_from_paths(root, SOURCE_CLAUSE_PATHS)
+    """要件書とADRから名前空間付きの実在条文IDを抽出する。"""
+    namespaced: set[str] = set()
+    for path in SOURCE_CLAUSE_PATHS:
+        namespace = SOURCE_CLAUSE_NAMESPACES[path]
+        namespaced.update(
+            f"{namespace}:{clause_id}"
+            for clause_id in load_clause_ids_from_paths(root, (path,))
+        )
+    return frozenset(namespaced)
 
 
 def _expect_object(value: object, label: str) -> dict[str, Any]:
@@ -415,6 +439,8 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "supportingClauseIds",
         "ruleFieldId",
         "coverageBound",
+        "conditionalValues",
+        "valueSchema",
         "gameEndCombinationRules",
     }
     if not required_definitions <= set(definitions):
@@ -450,12 +476,27 @@ def _validate_source_clause_ids(
             supporting = axis_value.get("supportingClauseIds", [])
             if isinstance(supporting, list):
                 cited_ids.extend(supporting)
+            conditional_values = axis_value.get("conditionalValues", [])
+            if isinstance(conditional_values, list):
+                cited_ids.extend(
+                    item.get("whenClauseId")
+                    for item in conditional_values
+                    if isinstance(item, dict)
+                )
             for clause_id in cited_ids:
                 if isinstance(clause_id, str) and clause_id not in source_clause_ids:
                     raise DescriptorCheckError(
                         "由来条文IDが正本に実在しない: "
                         f"{collection_name}[{index}]: {clause_id}"
                     )
+            axis_id = axis_value.get("axisId")
+            expected_source = AMBIGUOUS_SOURCE_BINDINGS.get(axis_id)
+            if expected_source is not None and axis_value.get("sourceClauseId") != expected_source:
+                raise DescriptorCheckError(
+                    "同名条文IDの名前空間が誤っている: "
+                    f"{axis_id}: expected={expected_source}; "
+                    f"actual={axis_value.get('sourceClauseId')}"
+                )
 
     non_coverage_fields = descriptor.get("nonCoverageFields")
     if isinstance(non_coverage_fields, list):
@@ -493,6 +534,112 @@ def _validate_source_clause_ids(
                     "由来条文IDが正本に実在しない: "
                     f"projectionRules[{index}]: {clause_id}"
                 )
+
+
+def _walk_embedded_value_schema(value: object, path: str) -> None:
+    """構造化入力の内包JSON Schemaが閉じていることを再帰検証する。"""
+    if isinstance(value, dict):
+        if "$ref" in value:
+            raise DescriptorCheckError(f"valueSchemaは参照を持てない: {path}")
+        if value.get("type") == "object" and value.get("additionalProperties") is not False:
+            raise DescriptorCheckError(
+                f"valueSchemaのobjectはadditionalProperties:falseが必須: {path}"
+            )
+        unique_by = value.get("x-pitchlog-uniqueBy")
+        if unique_by is not None:
+            items = value.get("items")
+            variants = items.get("oneOf") if isinstance(items, dict) else None
+            if not isinstance(unique_by, str) or not isinstance(variants, list):
+                raise DescriptorCheckError(
+                    f"valueSchemaのuniqueByを検証できない: {path}"
+                )
+            if any(
+                not isinstance(variant, dict)
+                or unique_by not in variant.get("required", [])
+                for variant in variants
+            ):
+                raise DescriptorCheckError(
+                    f"valueSchemaのuniqueByが全variantの必須キーでない: {path}"
+                )
+        for key, child in value.items():
+            _walk_embedded_value_schema(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _walk_embedded_value_schema(child, f"{path}[{index}]")
+
+
+def _validate_structured_input_axes(descriptor: Mapping[str, Any]) -> None:
+    """走者別写像・裁定・payloadの全構造化入力軸を検証する。"""
+    axes = descriptor.get("stateTransitionAxes")
+    if not isinstance(axes, list):
+        return
+    structured_axes = {
+        axis.get("axisId"): axis
+        for axis in axes
+        if isinstance(axis, dict) and "valueSchema" in axis
+    }
+    if frozenset(structured_axes) != EXPECTED_STRUCTURED_AXIS_IDS:
+        raise DescriptorCheckError(
+            "構造化入力軸がexact-set不一致: "
+            f"expected={sorted(EXPECTED_STRUCTURED_AXIS_IDS)!r}; "
+            f"actual={sorted(structured_axes)!r}"
+        )
+    for axis_id, axis in structured_axes.items():
+        value_schema = axis.get("valueSchema")
+        if not isinstance(value_schema, dict):
+            raise DescriptorCheckError(f"valueSchemaがobjectでない: {axis_id}")
+        if value_schema.get("$schema") != JSON_SCHEMA_DIALECT:
+            raise DescriptorCheckError(
+                f"valueSchemaのdialectがDraft 2020-12でない: {axis_id}"
+            )
+        _walk_embedded_value_schema(value_schema, f"{axis_id}.valueSchema")
+
+
+def _validate_fr040_conditionals(descriptor: Mapping[str, Any]) -> None:
+    """FR-040採用時だけ加わる値を操作・payload・履歴で同じ条件に揃える。"""
+    axes = descriptor.get("stateTransitionAxes")
+    if not isinstance(axes, list):
+        return
+    axes_by_id = {
+        axis.get("axisId"): axis for axis in axes if isinstance(axis, dict)
+    }
+    expected = {
+        "event.operationKind": {"state-correction"},
+        "event.operationPayload": {"state-correction"},
+        "history.composition": {"top-state-correction", "top-two-different"},
+    }
+    conditional_axis_ids = {
+        axis_id
+        for axis_id, axis in axes_by_id.items()
+        if isinstance(axis_id, str) and axis.get("conditionalValues")
+    }
+    if conditional_axis_ids != set(expected):
+        raise DescriptorCheckError("FR-040条件付き軸がexact-set不一致")
+    for axis_id, expected_values in expected.items():
+        axis = axes_by_id.get(axis_id)
+        if not isinstance(axis, dict):
+            raise DescriptorCheckError(f"FR-040条件付き軸がない: {axis_id}")
+        entries = axis.get("conditionalValues")
+        if not isinstance(entries, list):
+            raise DescriptorCheckError(f"conditionalValuesが配列でない: {axis_id}")
+        actual_values = {entry.get("value") for entry in entries if isinstance(entry, dict)}
+        if actual_values != expected_values or any(
+            not isinstance(entry, dict)
+            or entry.get("whenClauseId") != "req:FR-040"
+            or entry.get("whenState") != "adopted"
+            for entry in entries
+        ):
+            raise DescriptorCheckError(f"FR-040採用条件が一致しない: {axis_id}")
+        declared_values = axis.get("values", axis.get("boundaryValues", []))
+        if not isinstance(declared_values, list) or not actual_values <= set(declared_values):
+            raise DescriptorCheckError(
+                f"FR-040条件付き値が軸の値集合にない: {axis_id}"
+            )
+    operation_payload = axes_by_id.get("event.operationPayload")
+    if not isinstance(operation_payload, dict) or '"state-correction"' not in _canonical_json_text(
+        operation_payload.get("valueSchema")
+    ):
+        raise DescriptorCheckError("状態補正payload variantがvalueSchemaにない")
 
 
 def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
@@ -547,6 +694,11 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
     for axis in game_end_axes:
         if not isinstance(axis, dict):
             continue
+        supporting_clause_ids = axis.get("supportingClauseIds", [])
+        if not isinstance(supporting_clause_ids, list) or "adr:D-11" not in supporting_clause_ids:
+            raise DescriptorCheckError(
+                f"gameEndAxesの安全範囲にadr:D-11の典拠がない: {axis.get('axisId')}"
+            )
         if axis.get("classification") != "boundary-partition":
             raise DescriptorCheckError("gameEndAxesは境界値・等価分割で閉じなければならない")
         bounds = axis.get("coverageBounds")
@@ -641,6 +793,16 @@ def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
         "start:L+1-when-finite",
     } <= invalid_tiebreak:
         raise DescriptorCheckError("タイブレーク開始回がDRAW-03の境界を覆っていない")
+
+    cold_axis = next(
+        axis
+        for axis in game_end_axes
+        if isinstance(axis, dict) and axis.get("axisId") == "gameEnd.coldConditions"
+    )
+    if "start-inning:R+1" in cold_axis.get("invalidBoundaryValues", []):
+        raise DescriptorCheckError(
+            "コールド適用開始回R+1を不正値とする条文根拠はない"
+        )
 
 
 def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
@@ -755,7 +917,11 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
                 expected_mode = (
                     "bounded-boundary-annotations"
                     if "coverageBounds" in axis
-                    else "boundary-annotations"
+                    else (
+                        "structured-boundary-annotations"
+                        if "valueSchema" in axis
+                        else "boundary-annotations"
+                    )
                 )
                 if projection_mode != expected_mode:
                     raise DescriptorCheckError(
@@ -781,6 +947,21 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
         parity_checks = rule.get("parityChecks")
         keyword_set = set(keywords) if isinstance(keywords, list) else set()
         parity_set = set(parity_checks) if isinstance(parity_checks, list) else set()
+        conditional_targets = [
+            target_id
+            for target_id in target_ids
+            if isinstance(target_id, str)
+            and target_id in axes_by_id
+            and axes_by_id[target_id].get("conditionalValues")
+        ]
+        if conditional_targets and (
+            "x-pitchlog-conditional-values" not in keyword_set
+            or "conditional-values-exact" not in parity_set
+        ):
+            raise DescriptorCheckError(
+                "射影判定不能: 条件付き値のschema拘束が不足している: "
+                f"{rule_id}: {conditional_targets!r}"
+            )
         required_keywords: dict[str, set[str]] = {
             "finite-enumerable": {"enum"},
             "boundary-partition": {"x-pitchlog-boundary-values"},
@@ -805,6 +986,14 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
             if not {"minimum", "maximum"} <= keyword_set or "range-exact" not in parity_set:
                 raise DescriptorCheckError(
                     f"射影判定不能: 整数値域のminimum・maximum拘束が不足している: {rule_id}"
+                )
+        if rule.get("projectionMode") == "structured-boundary-annotations":
+            if (
+                "x-pitchlog-value-schema" not in keyword_set
+                or "value-schema-exact" not in parity_set
+            ):
+                raise DescriptorCheckError(
+                    f"射影判定不能: 構造化入力のvalueSchema拘束が不足している: {rule_id}"
                 )
         if rule.get("undecidableAction") != "fail":
             raise DescriptorCheckError(
@@ -841,6 +1030,8 @@ def validate_descriptor_document(
     _validate_instance(descriptor, schema, schema, "$")
     _walk_for_stage1_external_references(descriptor)
     _validate_source_clause_ids(descriptor, source_clause_ids)
+    _validate_structured_input_axes(descriptor)
+    _validate_fr040_conditionals(descriptor)
     _validate_coverage_obligations(descriptor)
     _validate_game_end_contract(descriptor)
     _validate_projection_contract(descriptor)

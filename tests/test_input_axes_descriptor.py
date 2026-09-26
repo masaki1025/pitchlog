@@ -114,7 +114,7 @@ def test_digest_is_reproducible_and_independent_of_object_key_order() -> None:
         (
             {
                 "axisId": "schema.finiteProbe",
-                "sourceClauseId": "D-11",
+                "sourceClauseId": "adr:D-11",
                 "classification": "finite-enumerable",
                 "values": [False, True],
             },
@@ -123,7 +123,7 @@ def test_digest_is_reproducible_and_independent_of_object_key_order() -> None:
         (
             {
                 "axisId": "schema.boundaryProbe",
-                "sourceClauseId": "D-11",
+                "sourceClauseId": "adr:D-11",
                 "classification": "boundary-partition",
                 "boundaryValues": [0, 1, "D"],
             },
@@ -132,7 +132,7 @@ def test_digest_is_reproducible_and_independent_of_object_key_order() -> None:
         (
             {
                 "axisId": "schema.nonFiniteProbe",
-                "sourceClauseId": "FR-006",
+                "sourceClauseId": "req:FR-006",
                 "classification": "non-finite",
                 "nonFiniteReason": "実行時の履歴深さに上限を置かないため",
             },
@@ -164,7 +164,7 @@ def test_changing_only_source_clause_id_changes_digest_and_is_red() -> None:
         for axis in changed["stateTransitionAxes"]
         if axis["axisId"] == "state.tiebreakActive"
     )
-    axis["sourceClauseId"] = "FR-010"
+    axis["sourceClauseId"] = "req:FR-010"
     changed_digest = checker.compute_descriptor_digest(changed)
 
     assert changed_digest != baseline_digest
@@ -172,36 +172,70 @@ def test_changing_only_source_clause_id_changes_digest_and_is_red() -> None:
         _validate(changed)
 
 
+def test_requirement_clause_cannot_be_rebound_to_same_named_adr_clause() -> None:
+    """同名D-4を誤った正本名前空間へ差し替えても実在だけでは通さない。"""
+    descriptor = _descriptor()
+    axis = next(
+        item
+        for item in descriptor["stateTransitionAxes"]
+        if item["axisId"] == "event.perPitch.resultId"
+    )
+    axis["sourceClauseId"] = "adr:D-4"
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="同名条文IDの名前空間が誤っている",
+    ):
+        _validate(descriptor)
+
+
 def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
     """D-11の状態・イベント・履歴文脈軸を逐条対応で全て収容する。"""
     descriptor = _descriptor()
     axes = {axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]}
     expected = {
-        "state.half": ("FR-005", "finite-enumerable"),
-        "state.count.strikes": ("E-1", "finite-enumerable"),
-        "state.count.balls": ("E-1", "finite-enumerable"),
-        "state.outs": ("FR-005", "finite-enumerable"),
-        "state.runners": ("E-1", "finite-enumerable"),
-        "state.battingOrder": ("FR-005", "finite-enumerable"),
-        "state.tiebreakActive": ("FR-009", "finite-enumerable"),
-        "state.gameEnded": ("FR-010", "finite-enumerable"),
-        "state.inning": ("F-1", "boundary-partition"),
-        "state.score": ("F-1", "boundary-partition"),
-        "event.operationKind": ("4.0-4", "finite-enumerable"),
-        "event.perPitch.kind": ("E-1", "finite-enumerable"),
-        "event.perPitch.resultId": ("D-4", "finite-enumerable"),
-        "event.perPitch.runnerEventPayload": ("FR-004", "finite-enumerable"),
+        "state.half": ("req:FR-005", "finite-enumerable"),
+        "state.count.strikes": ("req:E-1", "finite-enumerable"),
+        "state.count.balls": ("req:E-1", "finite-enumerable"),
+        "state.outs": ("req:FR-005", "finite-enumerable"),
+        "state.runners": ("req:E-1", "finite-enumerable"),
+        "state.battingOrder": ("req:FR-005", "finite-enumerable"),
+        "state.tiebreakActive": ("req:FR-009", "finite-enumerable"),
+        "state.gameEnded": ("req:FR-010", "finite-enumerable"),
+        "state.inning": ("req:F-1", "boundary-partition"),
+        "state.score": ("req:F-1", "boundary-partition"),
+        "event.operationKind": ("req:4.0-4", "finite-enumerable"),
+        "event.operationPayload": ("adr:D-8", "boundary-partition"),
+        "event.perPitch.kind": ("req:E-1", "finite-enumerable"),
+        "event.perPitch.resultId": ("req:D-4", "finite-enumerable"),
+        "event.perPitch.runnerEventPayload": (
+            "req:FR-004",
+            "boundary-partition",
+        ),
         "event.perPitch.thirdOutTimingByRunner": (
-            "FR-003",
+            "req:FR-003",
             "boundary-partition",
         ),
         "event.perPitch.interferenceRuling": (
-            "FR-004",
+            "req:FR-004",
             "boundary-partition",
         ),
-        "history.depth": ("D-11", "boundary-partition"),
-        "history.composition": ("D-11", "boundary-partition"),
-        "history.scenarioLength": ("D-11", "boundary-partition"),
+        "event.perPitch.rbi.doublePlayRelayError": (
+            "req:FR-003",
+            "finite-enumerable",
+        ),
+        "event.perPitch.rbi.runnerContinuityByRunner": (
+            "req:FR-003",
+            "boundary-partition",
+        ),
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": (
+            "req:FR-003",
+            "boundary-partition",
+        ),
+        "history.depth": ("adr:D-11", "boundary-partition"),
+        "history.composition": ("adr:D-11", "boundary-partition"),
+        "history.scenarioLength": ("adr:D-11", "boundary-partition"),
     }
 
     assert {
@@ -214,27 +248,28 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         for axis in axes.values()
         for source_id in axis.get("supportingClauseIds", [])
     )
-    assert axes["event.perPitch.resultId"]["supportingClauseIds"] == ["4.0-3"]
+    assert axes["event.perPitch.resultId"]["supportingClauseIds"] == ["req:4.0-3"]
     assert axes["event.perPitch.thirdOutTimingByRunner"]["supportingClauseIds"] == [
-        "OUT3-01",
-        "OUT3-02",
-        "OUT3-03",
-        "OUT3-04",
-        "OUT3-05",
+        "req:OUT3-01",
+        "req:OUT3-02",
+        "req:OUT3-03",
+        "req:OUT3-04",
+        "req:OUT3-05",
     ]
     assert axes["event.perPitch.thirdOutTimingByRunner"]["boundaryValues"] == [
         "not-required",
-        "home-before-third-out",
-        "not-before-third-out",
+        "single-runner-home-before-third-out",
+        "single-runner-not-before-third-out",
+        "multiple-runners-mixed-timing",
     ]
     assert axes["event.perPitch.interferenceRuling"]["supportingClauseIds"] == [
-        "INT-01",
-        "INT-02",
-        "INT-03",
-        "INT-04",
-        "INT-05",
-        "INT-06",
-        "INT-07",
+        "req:INT-01",
+        "req:INT-02",
+        "req:INT-03",
+        "req:INT-04",
+        "req:INT-05",
+        "req:INT-06",
+        "req:INT-07",
     ]
     assert axes["event.perPitch.interferenceRuling"]["boundaryValues"] == [
         "not-required",
@@ -279,8 +314,12 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         if axis_id.startswith("event.")
         and axis_id
         not in {
+            "event.operationPayload",
+            "event.perPitch.runnerEventPayload",
             "event.perPitch.thirdOutTimingByRunner",
             "event.perPitch.interferenceRuling",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
         }
     )
 
@@ -295,7 +334,7 @@ def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
         checker.coverage_obligation_count(
             axes["event.perPitch.thirdOutTimingByRunner"]
         )
-        == 3
+        == 4
     )
     assert (
         checker.coverage_obligation_count(
@@ -303,6 +342,56 @@ def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
         )
         == 7
     )
+    assert checker.coverage_obligation_count(
+        axes["event.perPitch.rbi.doublePlayRelayError"]
+    ) == 3
+    assert checker.coverage_obligation_count(
+        axes["event.perPitch.rbi.runnerContinuityByRunner"]
+    ) == 4
+    assert checker.coverage_obligation_count(
+        axes["event.perPitch.rbi.wouldScoreWithoutErrorByRunner"]
+    ) == 4
+
+
+def test_structured_inputs_are_closed_and_keep_runner_or_target_identity() -> None:
+    """構造化入力が走者別写像・対象payloadを閉じたschemaで保持する。"""
+    axes = {
+        axis["axisId"]: axis for axis in _descriptor()["stateTransitionAxes"]
+    }
+
+    structured_axes = {
+        axis_id for axis_id, axis in axes.items() if "valueSchema" in axis
+    }
+    assert structured_axes == checker.EXPECTED_STRUCTURED_AXIS_IDS
+    assert (
+        axes["event.perPitch.thirdOutTimingByRunner"]["valueSchema"][
+            "additionalProperties"
+        ]
+        is False
+    )
+    assert set(
+        axes["event.perPitch.thirdOutTimingByRunner"]["valueSchema"]["properties"]
+    ) == {"batter", "first", "second", "third"}
+    runner_items = axes["event.perPitch.runnerEventPayload"]["valueSchema"][
+        "oneOf"
+    ][1]["properties"]["runners"]
+    assert runner_items["x-pitchlog-uniqueBy"] == "runner"
+    assert axes["event.operationPayload"]["valueSchema"]["oneOf"]
+
+
+def test_fr040_conditional_members_cannot_drift_independently() -> None:
+    """状態補正の操作種別・payload・履歴構成を同じ採用条件へ拘束する。"""
+    descriptor = _descriptor()
+    history_axis = next(
+        axis
+        for axis in descriptor["stateTransitionAxes"]
+        if axis["axisId"] == "history.composition"
+    )
+    history_axis["conditionalValues"].pop()
+    _with_digest(descriptor)
+
+    with pytest.raises(checker.DescriptorCheckError, match="FR-040採用条件が一致しない"):
+        _validate(descriptor)
 
 
 def test_every_input_axis_generates_coverage_obligations() -> None:
@@ -358,7 +447,7 @@ def test_unknown_source_clause_id_is_red() -> None:
     descriptor["stateTransitionAxes"].append(
         {
             "axisId": "negative.unknownSource",
-            "sourceClauseId": "FR-999",
+            "sourceClauseId": "req:FR-999",
             "classification": "finite-enumerable",
             "values": [False, True],
         }
@@ -399,26 +488,29 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
         for axis_id, axis in axes.items()
     } == {
         "gameEnd.regulationInnings": (
-            "F-1",
+            "req:F-1",
             "regulationInnings",
             "boundary-partition",
         ),
         "gameEnd.coldConditions": (
-            "F-1",
+            "req:F-1",
             "coldConditions",
             "boundary-partition",
         ),
         "gameEnd.extensionLimit": (
-            "F-1",
+            "req:F-1",
             "extensionLimit",
             "boundary-partition",
         ),
-        "gameEnd.tiebreak": ("F-1", "tiebreak", "boundary-partition"),
+        "gameEnd.tiebreak": ("req:F-1", "tiebreak", "boundary-partition"),
     }
     assert all(
         source_id in SOURCE_CLAUSE_IDS
         for axis in axes.values()
         for source_id in [axis["sourceClauseId"], *axis["supportingClauseIds"]]
+    )
+    assert all(
+        "adr:D-11" in axis["supportingClauseIds"] for axis in axes.values()
     )
     assert axes["gameEnd.regulationInnings"]["coverageBounds"] == [
         {"dimension": "innings", "minimum": 1, "maximum": 99}
@@ -450,7 +542,6 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
         "point-difference:0",
         "point-difference:100",
         "start-inning:0",
-        "start-inning:R+1",
         "start-inning:100",
     ]
     assert axes["gameEnd.extensionLimit"]["boundaryValues"] == [
@@ -476,6 +567,24 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
     ]
 
 
+def test_cold_start_inning_r_plus_one_is_not_an_invalid_boundary() -> None:
+    """条文根拠のないNとRの比較をコールド条件へ持ち込ませない。"""
+    descriptor = _descriptor()
+    axis = next(
+        item
+        for item in descriptor["gameEndAxes"]
+        if item["axisId"] == "gameEnd.coldConditions"
+    )
+    axis["invalidBoundaryValues"].append("start-inning:R+1")
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match=r"コールド適用開始回R\+1を不正値とする条文根拠はない",
+    ):
+        _validate(descriptor)
+
+
 def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
     """F-1の5フィールドをcoverage4軸または非coverage1件へ一意に帰属させる。"""
     descriptor = _descriptor()
@@ -499,8 +608,8 @@ def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
     assert coverage_fields.isdisjoint(top_level_non_coverage)
     assert coverage_fields | top_level_non_coverage == checker.EXPECTED_F1_RULE_FIELDS
     assert all(
-        field["sourceClauseId"] == "F-1"
-        and field["supportingClauseIds"] == ["D-11"]
+        field["sourceClauseId"] == "req:F-1"
+        and field["supportingClauseIds"] == ["adr:D-11"]
         and field["reason"]
         and field["schemaRetention"] == "required-by-projection"
         for field in descriptor["nonCoverageFields"]
@@ -521,13 +630,13 @@ def test_game_end_combination_rules_are_pairwise_and_full_cross_product() -> Non
     descriptor = _descriptor()
 
     assert descriptor["gameEndCombinationRules"] == {
-        "sourceClauseId": "D-11",
+        "sourceClauseId": "adr:D-11",
         "ruleFieldCombination": "pairwise-all-game-end-axes",
         "boundaryValueCombination": (
             "full-cross-product-with-all-state-and-event-axes"
         ),
     }
-    assert "D-11" in SOURCE_CLAUSE_IDS
+    assert "adr:D-11" in SOURCE_CLAUSE_IDS
 
 
 def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:
@@ -543,7 +652,7 @@ def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:
     assert {"start:R", "start:L+1-when-finite"} <= set(
         axis["invalidBoundaryValues"]
     )
-    assert "DRAW-03" in axis["supportingClauseIds"]
+    assert "req:DRAW-03" in axis["supportingClauseIds"]
 
 
 def test_projection_rules_cover_every_axis_and_non_coverage_field_exactly_once() -> None:
@@ -651,7 +760,7 @@ def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() 
     assert len(descriptor["gameEndAxes"]) == 4
     assert len(descriptor["nonCoverageFields"]) == 3
     assert descriptor["gameEndCombinationRules"]
-    assert len(descriptor["projectionRules"]) == 6
+    assert len(descriptor["projectionRules"]) == 7
     assert descriptor["digestSpec"]["stage1ExternalReferences"] == "forbidden"
     assert set(checker.SOURCE_CLAUSE_PATHS) == {
         Path("docs/requirements/requirements-pitchlog-2026-07-22.md"),
